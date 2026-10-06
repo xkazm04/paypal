@@ -8,6 +8,7 @@ pub mod ids;
 pub mod mandate;
 pub mod market;
 pub mod money;
+pub mod negotiation;
 pub mod rescue;
 
 pub use canonical::{H256, canonical_bytes, commitment};
