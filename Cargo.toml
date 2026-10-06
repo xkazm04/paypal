@@ -1,0 +1,47 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "services/*", "apps/desktop/src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+serde_jcs = "0.2"
+thiserror = "2"
+sha2 = "0.10"
+ulid = { version = "1", features = ["serde"] }
+base64 = "0.22"
+ed25519-dalek = "2"
+url = "2"
+getrandom = "0.3"
+rusqlite = { version = "0.38", features = ["bundled", "backup"] }
+table-core = { path = "crates/table-core" }
+table-attention = { path = "crates/table-attention" }
+table-proto = { path = "crates/table-proto" }
+table-ledger = { path = "crates/table-ledger" }
+async-trait = "0.1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "process", "io-util", "net"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+table-paypal = { path = "crates/table-paypal" }
+table-market = { path = "crates/table-market" }
+table-engine = { path = "crates/table-engine" }
+table-shield = { path = "crates/table-shield" }
+table-app = { path = "crates/table-app" }
+axum = "0.8"
+ts-rs = { version = "12", features = ["no-serde-warnings", "serde-json-impl"] }
+table-client = {path="crates/table-client"}
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+float_arithmetic = "warn"

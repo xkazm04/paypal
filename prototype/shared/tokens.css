@@ -1,0 +1,132 @@
+/* The Table design tokens, v2 (2026-10-06): the Dial's colour language with a macOS-like
+   density and type scale, in two themes.
+     dark  (default)  - the decided Dial palette.
+     light            - PayPal's palette; opt-in with <html data-theme="light">. Only the landing
+                        prototype (prototype/main) shows the switch for now.
+   Colour meaning is fixed in both themes:
+     teal  = your side / moving        coral = counterparty / alerts / holds
+     gold  = PayPal settlement / needs you        ok (green) = settled / receipt     refuse (red) = refused
+   Each hue has a fill (--teal) and an ink for text on panels (--teal-l). In light mode the ink is
+   darker than the fill; never use a fill colour for small text.
+   Type: 13px body like macOS, 12px is the floor for anything a person must read (acceptance U4). */
+
+:root {
+  /* --- colour: dark (the Dial) ----------------------------------------------------------- */
+  --bg: #101317; --bg2: #151a20; --panel: #1a1f26; --panel2: #212731; --panel3: #283040;
+  --line: #2a313b; --line2: #3a4350; --text: #e7eaee; --muted: #b6bec8; --dim: #8e98a4;
+  --steel: #c9ced4;
+  --teal: #3fb8af; --teal-l: #7fd6cf; --coral: #ff8a65; --coral-l: #ffb49c;
+  --gold: #e0b65a; --gold-l: #f0d18e; --refuse: #f06464; --red-l: #ff8f8f; --ok: #7bd88f; --market: #d6dde3;
+  --on-gold: #241a05; --on-teal: #0b1d1b; --on-refuse: #2a0b0b;
+  --replay: #8a4fd0; --on-replay: #ffffff;
+  --accent: var(--teal); --on-accent: var(--on-teal);
+  /* surfaces and states */
+  --hover: color-mix(in srgb, var(--text) 6%, transparent);
+  --press: color-mix(in srgb, var(--text) 10%, transparent);
+  --sel: color-mix(in srgb, var(--teal) 18%, transparent);
+  --sel-line: color-mix(in srgb, var(--teal) 55%, transparent);
+  --material: color-mix(in srgb, var(--bg2) 82%, transparent);   /* vibrancy: bars, sidebars */
+  --scrim: rgba(5, 8, 12, .58);
+  --shadow-1: 0 1px 2px rgba(0,0,0,.35);
+  --shadow-2: 0 10px 30px rgba(0,0,0,.45), 0 0 0 1px var(--line2);
+  --shadow-3: 0 24px 64px rgba(0,0,0,.55), 0 0 0 1px var(--line2);
+  --focus: var(--gold-l);
+  /* module colours (shared/modules.tsx) */
+  --m-tables: #ef86a6; --m-spend: #5cb8f0; --m-counter: #b7d36a;
+  --m-book: #e7dcc4; --m-shield: #a58cf5; --m-rescue: #f5a25d;
+
+  /* --- type ------------------------------------------------------------------------------- */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+  --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Cascadia Code", Consolas, Menlo, monospace;
+  --fs-display: 26px;  /* the one key figure on a screen */
+  --fs-title1: 20px;   /* page title (use sparingly) */
+  --fs-title2: 17px;   /* window / sheet title */
+  --fs-title3: 15px;   /* section title */
+  --fs-body: 13px;     /* body, rows, controls */
+  --fs-small: 12px;    /* secondary, captions, chips: the floor */
+  --fs-mono: 12.5px;   /* ids and money in rows */
+  --lh: 1.4; --lh-tight: 1.2;
+  --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700;
+
+  /* --- space (4 pt grid) -------------------------------------------------------------------- */
+  --sp-0: 2px; --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-8: 32px;
+  --row: 28px;        /* single-line list row */
+  --row-2: 44px;      /* two-line list row */
+  --ctl: 26px;        /* button / field / segmented */
+  --ctl-sm: 22px;     /* inline, toolbar-dense */
+  --bar: 38px;        /* title bar, toolbar */
+  --sidebar: 208px; --inspector: 340px;
+  --r-sm: 5px; --r: 8px; --r-lg: 11px;   /* control · panel · window/sheet */
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --t-fast: .12s; --t-med: .2s;
+  --shell-h: 40px;    /* the prototype bar (not product) */
+  color-scheme: dark;
+}
+
+/* --- colour: light (PayPal palette) -------------------------------------------------------
+   UNVERIFIED: hues follow PayPal's public brand palette as recalled (navy #003087 / #001c64,
+   blue #0070e0, sky #009cde, checkout gold #ffc439); check against the brand guide before a
+   release. Semantics are unchanged: "your side" becomes PayPal blue, gold stays settlement. */
+:root[data-theme="light"], [data-theme="light"] {
+  --pp-navy: #001c64; --pp-blue: #0070e0; --pp-sky: #009cde; --pp-gold: #ffc439;
+  --bg: #f4f6f9; --bg2: #eceff4; --panel: #ffffff; --panel2: #f4f6f9; --panel3: #e7ebf1;
+  --line: #e0e5ec; --line2: #c9d1dc; --text: #0e1b36; --muted: #3f4d66; --dim: #5f6d84;
+  --steel: #4f5b70;
+  --teal: #0070e0; --teal-l: #0057b8; --coral: #e5603a; --coral-l: #b0401c;
+  --gold: #ffc439; --gold-l: #865800; --refuse: #d1242f; --red-l: #b0141e; --ok: #12805c; --market: #3d4b63;
+  --on-gold: #2a1c00; --on-teal: #ffffff; --on-refuse: #ffffff;
+  --replay: #7038c0; --on-replay: #ffffff;
+  --hover: color-mix(in srgb, var(--pp-navy) 5%, transparent);
+  --press: color-mix(in srgb, var(--pp-navy) 9%, transparent);
+  --sel: color-mix(in srgb, var(--pp-blue) 12%, transparent);
+  --sel-line: color-mix(in srgb, var(--pp-blue) 50%, transparent);
+  --material: color-mix(in srgb, var(--bg2) 86%, transparent);
+  --scrim: rgba(14, 27, 54, .28);
+  --shadow-1: 0 1px 2px rgba(14,27,54,.10);
+  --shadow-2: 0 10px 30px rgba(14,27,54,.14), 0 0 0 1px var(--line);
+  --shadow-3: 0 24px 64px rgba(14,27,54,.22), 0 0 0 1px var(--line2);
+  --focus: var(--pp-blue);
+  --m-tables: #c2416b; --m-spend: #1f7fc0; --m-counter: #5f7d12;
+  --m-book: #7a6a45; --m-shield: #6b4fd1; --m-rescue: #c0631a;
+  color-scheme: light;
+}
+
+/* --- base ----------------------------------------------------------------------------------- */
+html { font-size: var(--fs-body); -webkit-text-size-adjust: 100%; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: var(--fw-regular) var(--fs-body)/var(--lh) var(--font);
+  -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-radius: var(--r-sm); }
+[hidden] { display: none !important; }
+::selection { background: var(--sel); }
+
+.mono { font-family: var(--mono); font-size: var(--fs-mono); font-variant-numeric: tabular-nums; }
+.money { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.dim { color: var(--dim); } .muted { color: var(--muted); }
+.teal { color: var(--teal-l); } .coral { color: var(--coral-l); } .gold { color: var(--gold-l); }
+.okc { color: var(--ok); } .red { color: var(--red-l); }
+.kbd { font: var(--fs-small) var(--mono); padding: 0 .35em; border: 1px solid var(--line2); border-bottom-width: 2px; border-radius: 4px; color: var(--dim); }
+
+/* --- shared honesty components (compact) ------------------------------------------------------ */
+.badge { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 4px;
+  font: var(--fw-bold) var(--fs-small)/1 var(--mono); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+.badge.sandbox { color: var(--on-gold); background: var(--gold); }
+.badge.replay { color: var(--on-replay); background: var(--replay); }
+.badge.scripted_engine { color: var(--on-teal); background: var(--teal-l); }
+.badge.mock { color: var(--muted); background: transparent; border: 1px dashed var(--line2); text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+.quarantine { border: 1px dashed var(--coral); border-radius: var(--r-sm); padding: 6px 8px; background: color-mix(in srgb, var(--coral) 6%, transparent); }
+.quarantine .q-label { font: var(--fw-bold) var(--fs-small) var(--mono); letter-spacing: .06em; color: var(--coral-l); text-transform: uppercase; }
+.quarantine .q-text { white-space: pre-wrap; word-break: break-word; color: var(--muted); font-family: var(--mono); font-size: var(--fs-small); }
+
+.notice { display: flex; gap: 8px; align-items: flex-start; padding: 6px 10px; border-radius: var(--r); border: 1px solid var(--line2); background: var(--panel); }
+.notice .n-code { font: var(--fw-bold) var(--fs-small) var(--mono); letter-spacing: .04em; padding: 0 6px; border-radius: 4px; }
+.notice.unavailable .n-code, .notice.unsupported .n-code { background: var(--panel3); color: var(--muted); }
+.notice.locked .n-code { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold-l); }
+.notice.error .n-code { background: color-mix(in srgb, var(--refuse) 18%, transparent); color: var(--red-l); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}

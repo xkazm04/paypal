@@ -1,0 +1,3 @@
+[env]
+# Money is restricted to exact JSON integers; IPC time and counters are JSON numbers.
+TS_RS_LARGE_INT = "number"

@@ -1,0 +1,329 @@
+/* The Tumbler on the v2 baseline (spec: prototype/tumbler, the reworked puck).
+   Colours are tokens only (src/design/tokens.css). The Tumbler never sets data-theme, so they
+   resolve to the dark set: the puck stays a fixed physical object.
+   All sizes are logical pixels because Rust sizes the window to the drawing (the form table in
+   crates/table-attention); the layout fills Rust's current rectangles, the puck keeps one
+   88 x 88 corner and every form leaves that corner free (.px-* / .py-* from tumbler:orient).
+   Colour meaning: gold = needs you · coral = hold/alert · green = receipt · teal = moving. */
+
+/* ---------------------------------------------------------------- the window is transparent */
+html:has(body.w-tumbler), body.w-tumbler { background: transparent; }
+body.w-tumbler { margin: 0; overflow: hidden; height: 100vh; }
+body.w-tumbler #root { position: fixed; inset: 0; }
+
+.tum { position: absolute; inset: 0; color: var(--text); font: var(--fw-regular) var(--fs-body)/var(--lh) var(--font);
+  user-select: none; -webkit-user-select: none; transition: opacity 1.2s ease; }
+.tum:hover, .tum:focus-within { opacity: 1 !important; }
+.tum .money, .tum .amt { font-family: var(--num); font-variant-numeric: tabular-nums; }
+
+/* the panel behind every open form; its edge carries the kind (gold decision, coral hold) */
+.plate { position: absolute; inset: 0; border-radius: var(--r-lg); overflow: hidden; background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--line2); }
+.form-ticker .plate { border-radius: 44px; }
+.k-gate .plate { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 45%, transparent); }
+.k-hold .plate { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--coral) 50%, transparent); }
+.k-receipt .plate { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ok) 40%, transparent); }
+
+/* ---------------------------------------------------------------- the puck (engraved dial) */
+.puck { position: absolute; width: 88px; height: 88px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; z-index: 2;
+  transition: transform .2s var(--ease); touch-action: none; }
+.px-r .puck { right: 0; } .px-l .puck { left: 0; }
+.py-b .puck { bottom: 0; } .py-t .puck { top: 0; }
+.puck:hover { transform: scale(1.03); }
+.puck:active { transform: scale(.98); }
+.puck:focus-visible { outline-offset: -2px; border-radius: 50%; }
+.puck-art { display: block; width: 88px; height: 88px; overflow: visible; }
+.puck-art .p-base { fill: var(--bg); }
+.puck-art .pm0 { stop-color: color-mix(in srgb, var(--steel) 80%, var(--bg)); }
+.puck-art .pm1 { stop-color: color-mix(in srgb, var(--steel) 22%, var(--bg)); }
+.puck-art .pm2 { stop-color: color-mix(in srgb, var(--steel) 85%, var(--bg)); }
+.puck-art .pm3 { stop-color: color-mix(in srgb, var(--steel) 15%, var(--bg)); }
+.puck-art .pm4 { stop-color: color-mix(in srgb, var(--steel) 50%, var(--bg)); }
+.puck-art .prl0 { stop-color: var(--steel); stop-opacity: .5; }
+.puck-art .prl1 { stop-color: var(--steel); stop-opacity: .05; }
+.puck-art .prl2 { stop-color: var(--bg); stop-opacity: .6; }
+.puck-art .ph0 { stop-color: var(--panel3); }
+.puck-art .ph1 { stop-color: var(--panel); }
+.puck-art .ph2 { stop-color: var(--bg); }
+.puck-art .p-knurl, .puck-art .p-well { stroke: var(--bg); }
+.puck-art .p-track { stroke: var(--bg2); }
+.puck-art .p-groove { stroke: var(--text); }
+.puck-art .ring { stroke: var(--gold); opacity: 0; transition: opacity .5s; }
+.puck-art .glow { stroke: var(--gold); opacity: 0; }
+.ring-coral .puck-art .ring, .ring-coral .puck-art .glow { stroke: var(--coral); }
+.ring-gold .puck-art .ring, .ring-coral .puck-art .ring { opacity: 1; }
+.ring-gold .puck-art .glow, .ring-coral .puck-art .glow { opacity: .18; }
+.u-now .puck-art .ring { stroke-width: 2.6; }
+.u-now .puck-art .glow { opacity: .32; }
+.breathe .puck-art .glow { animation: tb-breathe 10s ease-in-out infinite; }
+@keyframes tb-breathe { 0% { opacity: .18; } 7% { opacity: .95; } 15% { opacity: .18; } 100% { opacity: .18; } }
+.k-stop .puck-art .glow { animation: none !important; } /* a STOP never pulses */
+.puck-art .bead { stroke: var(--bg); }
+.puck-art .bead.gate { fill: var(--gold); }
+.puck-art .bead.hold { fill: var(--coral); }
+.puck-art .bead.new { transform-box: fill-box; transform-origin: center; animation: tb-bead .55s var(--ease) both; }
+@keyframes tb-bead { 0% { transform: scale(0); } 60% { transform: scale(1.5); } 100% { transform: scale(1); } }
+.puck-art .sweep { transform-origin: 44px 44px; animation: tb-sweep 10s linear infinite; }
+.puck-art .sweep path { stroke: var(--teal-l); }
+.puck-art .sweep circle { fill: var(--teal-l); }
+@keyframes tb-sweep { to { transform: rotate(360deg); } }
+.puck-art .p-lock rect { fill: var(--gold-l); }
+.puck-art .p-lock path { stroke: var(--gold-l); }
+.puck-art .cnt { font: var(--fw-semibold) 23px var(--display); letter-spacing: -.03em; fill: var(--gold-l); }
+.ring-coral .puck-art .cnt { fill: var(--coral-l); }
+.puck-art .cnt.calm { fill: var(--teal-l); font-size: 19px; }
+.puck-art .mode { font: var(--fw-semibold) var(--fs-small) var(--mono); fill: var(--gold-l); }
+
+/* ---------------------------------------------------------------- form layer */
+.tbody { position: absolute; inset: 0; z-index: 1; overflow: hidden; border-radius: var(--r-lg); }
+.form-ticker .tbody { border-radius: 44px; }
+.form-rest .tbody { pointer-events: none; }
+.f { position: absolute; inset: 0; animation: tb-in .2s ease .06s both; }
+.f.still { animation: none; }
+.f:focus { outline: none; }
+.f:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); border-radius: var(--r-lg); }
+@keyframes tb-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* The card, hand-off and welcome forms are fixed grids: every row has a known height, so it is
+   known which rows fall beside the puck's 88 x 88 corner. A row beside the puck carries .nt (the
+   puck is at the top) and/or .nb (the puck is at the bottom) and steps 80 px away from the puck's
+   side: 16 px form padding + 80 = 96 px from the window edge, 8 px clear of the puck's square.
+   Rows that sit wholly above or below the puck keep the full width. */
+.tum { --notch: 80px; }
+.py-t.px-r .f .nt, .py-b.px-r .f .nb { margin-right: var(--notch); }
+.py-t.px-l .f .nt, .py-b.px-l .f .nb { margin-left: var(--notch); }
+.f.card, .f.handoff, .f.welcome { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; padding: 10px var(--sp-4) 0; }
+.f.card > *, .f.handoff > *, .f.welcome > * { min-width: 0; }
+.f.stack { display: flex; flex-direction: column; }
+
+/* ---------------------------------------------------------------- shared bits */
+.f-head { display: flex; align-items: center; gap: var(--sp-2); height: 22px; font-size: var(--fs-small); color: var(--dim); white-space: nowrap; min-width: 0; }
+.f-head .mdot { color: var(--mc, var(--teal)); }
+.kick { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-weight: var(--fw-semibold); }
+.kick b { color: var(--mc, var(--text)); font-weight: var(--fw-semibold); }
+.kick b.teal { color: var(--teal-l); }
+.kick .h-title { font-weight: var(--fw-regular); color: var(--dim); }
+.flags { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; flex: none; }
+.lockind { display: inline-flex; align-items: center; gap: 4px; color: var(--dim); }
+.lockind svg { width: 12px; height: 12px; }
+.lockind.on { color: var(--gold-l); }
+.nav { display: inline-flex; align-items: center; flex: none; }
+.nav .ui-btn { font-family: var(--mono); padding: 0 4px; }
+.nav .ui-btn.arr { width: 22px; padding: 0; font: 16px/1 var(--font); color: var(--muted); }
+.ui-btn.t-info { width: var(--ctl-sm); padding: 0; flex: none; }
+
+.t-fail { display: flex; align-items: flex-start; gap: var(--sp-2); font-size: var(--fs-small); line-height: 1.35; color: var(--red-l); min-width: 0; }
+.t-fail .code { flex: none; font: var(--fw-semibold) var(--fs-small)/1.5 var(--font); padding: 0 7px; border-radius: 9px;
+  background: color-mix(in srgb, var(--refuse) 18%, transparent); color: var(--red-l); }
+.t-fail .msg { min-width: 0; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.t-fail .msg b { font-weight: var(--fw-semibold); }
+.t-fail.avail { color: var(--muted); }
+.t-fail.avail .code { background: var(--panel3); color: var(--muted); }
+
+/* Layer 2: the small popovers (portaled to body, so scoped by their own class) */
+.t-pop { width: 300px; max-height: calc(100vh - 16px); } /* a native Tumbler window is only 152-336 px tall */
+.t-pop .ui-kv dd { color: var(--text); }
+.t-pop-p { margin: 0; color: var(--muted); }
+.t-pop-hint { margin: var(--sp-2) 0 0; }
+.t-pop-acts { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
+
+/* ---------------------------------------------------------------- ticker */
+.f.ticker { display: flex; align-items: center; gap: var(--sp-3); cursor: pointer; }
+.px-r .f.ticker { right: 88px; padding: 0 var(--sp-2) 0 24px; }
+.px-l .f.ticker { left: 88px; padding: 0 24px 0 var(--sp-2); }
+.f.ticker .stripe { position: absolute; top: 26px; bottom: 26px; width: 3px; border-radius: 2px; background: var(--tk, var(--gold)); }
+.px-r .f.ticker .stripe { left: 13px; } .px-l .f.ticker .stripe { right: 13px; }
+.f.ticker .tx { min-width: 0; flex: 1; }
+.f.ticker .l1 { font: var(--fw-semibold) var(--fs-title3)/1.3 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f.ticker .l1 b { font-family: var(--num); font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); color: var(--tk-l, var(--gold-l)); }
+.f.ticker .l2 { display: flex; align-items: center; gap: var(--sp-2); margin-top: 2px; font-size: var(--fs-small); color: var(--dim); white-space: nowrap; }
+.f.ticker .l2 > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.f.ticker .l2 .badge { flex: none; }
+.f.ticker.gate { --tk: var(--gold); --tk-l: var(--gold-l); }
+.f.ticker.receipt { --tk: var(--ok); --tk-l: var(--ok); }
+.f.ticker.stop { --tk: color-mix(in srgb, var(--coral) 55%, var(--dim)); --tk-l: var(--coral-l); }
+.f.ticker.hold { --tk: var(--coral); --tk-l: var(--coral-l); }
+.f.ticker.info { --tk: var(--teal); --tk-l: var(--teal-l); }
+
+/* ---------------------------------------------------------------- card: 440 x 152, four lines and a rule
+   y: 10 head 32 · 34 headline 58 · 64 who/default 98 · 104 actions 126 · 135 rule 137 (bottom 15).
+   Puck at the bottom (y 64-152): lines 3, 4 and the rule step aside (.nb); line 2 ends 6 px above it.
+   Puck at the top (y 0-88): lines 1-3 step aside (.nt); line 4 starts 16 px below it. */
+.f.card { grid-template-rows: 22px 26px 40px 28px 11px; } /* each track holds its row's margin-top + height */
+.c-id { flex: none; font: var(--fw-semibold) var(--fs-small) var(--mono); color: var(--muted); }
+.ui-btn.c-id { padding: 0 4px; color: var(--teal-l); }
+.f-head .kick + .c-id { margin-left: -4px; }
+.f-head .kick + .ui-btn.c-id { margin-left: -8px; }
+.c-line { display: flex; align-items: center; gap: var(--sp-2); margin-top: 2px; }
+.c-h { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: .3em; margin: 0; font: var(--fw-semibold) var(--fs-title2)/24px var(--display); white-space: nowrap; }
+.c-h .tl { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-weight: var(--fw-medium); }
+.c-h .tl.q { margin-left: -.3em; }
+.c-h .hl { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.c-h .amt { flex: none; font-weight: var(--fw-semibold); color: var(--gold-l); }
+.k-hold .c-h .amt { color: var(--coral-l); }
+.c-line .ui-chip { flex: none; }
+.c-cd { flex: none; font: var(--fw-semibold) var(--fs-body) var(--num); font-variant-numeric: tabular-nums; color: var(--gold-l); white-space: nowrap; }
+.c-cd.r-now, .c-cd.r-past, .c-cd.hold { color: var(--coral-l); }
+.f-head .c-cd { font: var(--fw-semibold) var(--fs-small) var(--font); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.f-head .kick + .c-cd::before { content: "·"; margin-right: 6px; color: var(--dim); font-weight: var(--fw-regular); }
+/* line 3: two lines at most; the full text is on the title and in the details popover */
+.c-r3 { display: flex; align-items: flex-start; gap: var(--sp-1); margin-top: 6px; }
+.c-r3 > :first-child { flex: 1 1 auto; min-width: 0; margin: 0; }
+.c-r3 .ui-btn.t-info { margin-top: -2px; }
+.c-who, .c-ask { font-size: var(--fs-body); line-height: 17px; color: var(--muted); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.c-who .w { color: var(--text); }
+.c-who .c-sil { color: var(--muted); }
+.c-who .c-sil .hg, .h-sil .hg { display: inline-block; width: 10px; height: 12px; margin-right: 5px; vertical-align: -1px; }
+.c-who .c-sil b { color: var(--text); font-weight: var(--fw-semibold); }
+.c-ask { color: var(--red-l); }
+.c-r3 .t-fail { line-height: 17px; }
+.c-r4 { margin-top: 6px; min-width: 0; }
+.c-acts { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; height: 22px; flex-wrap: nowrap; }
+.c-acts .ui-btn { flex: none; }
+.c-acts .nav { margin-left: auto; }
+.c-nopay { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-small); color: var(--dim); }
+.inappr { color: var(--gold-l); }
+.inappr .ui-dot { color: var(--gold); }
+/* the deadline as a 2 px rule: gold fill, coral at the last rung or on a hold, dashed when no clock */
+.c-rule { position: relative; height: 2px; margin-top: 9px; border-radius: 1px; background: var(--line2); }
+.c-rule > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 1px; background: var(--gold); transition: width .4s; }
+.c-rule.r-now > i, .c-rule.r-past > i, .k-hold .c-rule > i { background: var(--coral); }
+.c-rule.none { background: repeating-linear-gradient(90deg, var(--line2) 0 6px, transparent 6px 10px); }
+.c-rule em { position: absolute; top: -2px; height: 6px; width: 1px; background: var(--dim); }
+.c-rule .m15 { left: 20%; } .c-rule .m2h { left: 50%; }
+.c-rule.none em { display: none; }
+
+/* ---------------------------------------------------------------- stack: one row per item, then the two meters */
+.f.stack { padding: var(--sp-3) 0 0; }
+.f.stack .s-head { flex: none; }
+.s-head { display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-4) var(--sp-2); min-width: 0; }
+.py-t.px-r .s-head { padding-right: calc(var(--sp-4) + var(--notch)); } .py-t.px-l .s-head { padding-left: calc(var(--sp-4) + var(--notch)); }
+.py-t .s-head { flex-wrap: wrap; align-content: flex-start; min-height: 76px; } /* the list starts below the puck (12 + 76 = 88) */
+.s-head h2 { margin: 0; font: var(--fw-semibold) var(--fs-title3)/1.2 var(--display); white-space: nowrap; }
+.s-head h2 .n { font-family: var(--num); font-variant-numeric: tabular-nums; color: var(--gold-l); margin-left: 6px; }
+.s-tools { display: inline-flex; gap: 2px; }
+.ui-btn.t-ico { width: var(--ctl-sm); padding: 0; color: var(--dim); }
+.t-ico svg { width: 14px; height: 14px; flex: none; }
+.ui-btn.t-ico.on { color: var(--gold-l); background: color-mix(in srgb, var(--gold) 15%, transparent); }
+.s-list { flex: 1; min-height: 0; overflow-y: auto; border-top: 1px solid var(--line); scrollbar-width: thin; }
+.s-row { padding-left: var(--sp-4); padding-right: var(--sp-4); }
+.s-row + .s-row { border-top: 1px solid var(--line); }
+.s-row .t1 .amt { font-weight: var(--fw-semibold); color: var(--gold-l); }
+.s-row .t1 .who { color: var(--muted); font-weight: var(--fw-regular); }
+.s-row .t2 .hg { display: inline-block; width: 10px; height: 12px; margin-right: 5px; vertical-align: -1px; }
+.s-row.hold .t1 .amt { color: var(--coral-l); }
+.s-row .bd { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); flex: none; }
+.s-row.hold .bd { background: var(--coral); }
+.s-row .ui-chip { flex: none; }
+.s-row .cd { flex: none; min-width: 72px; text-align: right; font: var(--fw-semibold) var(--fs-body) var(--num); font-variant-numeric: tabular-nums; color: var(--gold-l); white-space: nowrap; }
+.s-row.r-soon .cd { color: var(--gold-l); }
+.s-row.r-now .cd, .s-row.r-past .cd, .s-row.hold .cd { color: var(--coral-l); }
+.s-empty { padding: var(--sp-6) var(--sp-4); }
+.s-fail { padding: var(--sp-1) var(--sp-4); border-top: 1px solid var(--line); }
+.s-sum { flex: none; display: flex; align-items: center; gap: var(--sp-1); height: var(--row); padding: 0 var(--sp-4); border-top: 1px solid var(--line);
+  font-size: var(--fs-small); color: var(--dim); white-space: nowrap; }
+.s-sum b { font: var(--fw-semibold) var(--fs-body) var(--num); font-variant-numeric: tabular-nums; color: var(--text); }
+.s-sum b.stop { color: var(--coral-l); }
+.s-sum b.mot { color: var(--teal-l); }
+.s-sum .ui-chip { margin-left: var(--sp-1); }
+.s-meters { flex: none; min-height: 88px; padding: var(--sp-2) var(--sp-4); border-top: 1px solid var(--line);
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); align-content: center; }
+.py-b.px-r .s-meters { padding-right: calc(var(--sp-4) + var(--notch)); } .py-b.px-l .s-meters { padding-left: calc(var(--sp-4) + var(--notch)); }
+.py-t .s-meters { min-height: 64px; } /* beside the puck only when it sits at the bottom (88 px band) */
+.s-meters .ui-stat .v.none { color: var(--dim); }
+.s-meters .ui-meter { margin: 2px 0; }
+.s-meters .eng { padding-left: var(--sp-3); border-left: 1px dashed var(--line2); }
+.s-meters .eng .v { color: var(--muted); }
+.m-off { grid-column: 1 / -1; margin: 0; font-size: var(--fs-small); color: var(--dim); line-height: 1.35; }
+
+/* ---------------------------------------------------------------- hand-off: 440 x 160, five rows
+   y: 10 head 32 · 34 approve 58 · 62 approve window 80 · 84 default 118 · 124 links 146 (bottom 14).
+   Puck at the bottom (y 72-160): rows 3-5 step aside; puck at the top (y 0-88): rows 1-4 do. */
+.f.handoff { grid-template-rows: 22px 26px 22px 38px 28px; } /* margin-top + height per row */
+.f.handoff .h1 { display: flex; align-items: center; gap: var(--sp-2); margin-top: 2px; font: var(--fw-semibold) var(--fs-title3)/24px var(--display); white-space: nowrap; }
+.f.handoff .h1 .hl { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.f.handoff .h1 .amt { color: var(--gold-l); }
+.f.handoff .br { width: 26px; height: 19px; flex: none; }
+.br .g-frame { fill: var(--bg); stroke: var(--line2); }
+.br .g-bar { fill: var(--panel2); }
+.br .g-btn { fill: var(--line2); }
+.br .g-url { fill: var(--panel3); }
+.br .g-arrow { stroke: var(--gold); }
+.f.handoff .h2 { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: var(--fs-small); line-height: 18px; color: var(--muted); white-space: nowrap; }
+.f.handoff .h2 .aw { flex: none; }
+.f.handoff .h2 b { color: var(--gold-l); font-weight: var(--fw-semibold); }
+.f.handoff .h2.aw-now b { color: var(--coral-l); }
+.f.handoff .h2.aw-closed .aw { color: var(--coral-l); }
+.f.handoff .h2 .poll { flex: none; width: 7px; height: 7px; margin: 0 2px 0 6px; border-radius: 50%; background: var(--teal); animation: tb-poll 10s ease-out infinite; }
+@keyframes tb-poll {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--teal) 55%, transparent); }
+  12% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--teal) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--teal) 0%, transparent); }
+}
+.h-poll { min-width: 0; font-size: var(--fs-small); color: var(--teal-l); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.h-sil { margin: 4px 0 0; font-size: var(--fs-small); line-height: 17px; color: var(--dim); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.h-sil b { color: var(--muted); font-weight: var(--fw-semibold); }
+.h-links { display: flex; gap: var(--sp-1); margin-top: 6px; }
+.h-links .ui-btn:first-child { margin-left: calc(-1 * var(--sp-2)); }
+
+/* ---------------------------------------------------------------- welcome: 440 x 228
+   y: 10 head 32 · 36 title 58 · 60 promise 78 · legend 86-138 (92-144 with the puck at the top) ·
+   foot at the bottom, beside the puck (y 140-228) when it sits there. */
+.f.welcome { grid-template-rows: 22px 26px 20px 60px 1fr; padding-bottom: var(--sp-3); } /* margin-top + height per row */
+.py-t .f.welcome { grid-template-rows: 22px 26px 20px 66px 1fr; }
+.w-h { margin: 4px 0 0; font: var(--fw-semibold) var(--fs-title2)/22px var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.w-p { margin: 2px 0 0; line-height: 18px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.w-legend { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 24px; gap: 4px var(--sp-3); }
+.py-t .w-legend { margin-top: 14px; }
+.w-legend li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 6px; align-items: center; font-size: var(--fs-small); color: var(--muted); }
+.w-legend li > span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.w-legend li b { color: var(--text); font-weight: var(--fw-semibold); }
+.mini { width: 22px; height: 22px; }
+.mini .mo { fill: var(--bg2); stroke: var(--line2); }
+.mini.ring-gold .mo { stroke: var(--gold); }
+.mini .mi { fill: var(--panel2); }
+.mini .m-n { font: var(--fw-bold) 9px var(--font); fill: var(--gold-l); }
+.mini .m-bead { fill: var(--gold); }
+.mini .m-dash { stroke: var(--dim); }
+.mini .m-lock { stroke: var(--gold-l); }
+.w-foot { align-self: end; display: grid; gap: 4px; }
+.w-kb { margin: 0; font-size: var(--fs-small); line-height: 18px; color: var(--muted); }
+.w-ok { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.w-ok .ui-hint { flex: 1; min-width: 0; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.w-ok .ui-btn { flex: none; }
+
+/* ---------------------------------------------------------------- tab (docked to a screen edge) */
+.tabbtn { position: absolute; inset: 0; padding: 0; border: 0; background: none; cursor: pointer; touch-action: none; }
+.f.tab { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0 6px; border-radius: var(--r) 0 0 var(--r);
+  background: var(--panel); box-shadow: inset 0 0 0 1px var(--line2); }
+.f.tab.flush-l { border-radius: 0 var(--r) var(--r) 0; }
+.f.tab .tg { width: 4px; height: 12px; border-radius: 2px; background: var(--line2); flex: none; }
+.f.tab.ring-gold .tg { background: var(--gold); }
+.f.tab.ring-coral .tg { background: var(--coral); }
+.f.tab .tc { font: var(--fw-semibold) var(--fs-title3)/1 var(--display); color: var(--gold-l); }
+.f.tab .tc.calm { color: var(--teal-l); }
+.f.tab .tm { writing-mode: vertical-rl; transform: rotate(180deg); font: var(--fw-semibold) var(--fs-small) var(--mono); color: var(--gold-l); }
+.breathe .f.tab .tg { animation: tb-tab 10s ease-in-out infinite; }
+@keyframes tb-tab { 0%, 15%, 100% { opacity: 1; } 7% { opacity: .35; } }
+
+/* ---------------------------------------------------------------- reduced motion: calm and still (W10) */
+.reduced .f, .reduced .puck-art .glow, .reduced .puck-art .sweep, .reduced .puck-art .bead.new, .reduced .f.handoff .h2 .poll, .reduced .f.tab .tg { animation: none !important; }
+.reduced .puck, .reduced .c-rule > i, .tum.reduced { transition: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .f, .puck-art .glow, .puck-art .sweep, .puck-art .bead.new, .f.handoff .h2 .poll, .f.tab .tg { animation: none !important; }
+  .puck, .c-rule > i, .tum { transition: none !important; }
+}
+
+/* ---------------------------------------------------------------- round 2: the countdown ring and Why (r2-tumbler)
+   The deadline as a thin ring around the amount instead of the 2 px rule (same ladder: it empties fastest in the
+   last two hours). It sits inside the 26 px headline row, so the card stays 440 x 152. */
+.c-h .amt-ring { position: relative; flex: none; display: inline-flex; align-items: center; height: 24px; padding: 0 9px; margin: 0 -1px 0 2px; --rc: var(--gold); }
+.k-hold .c-h .amt-ring, .c-h .amt-ring.r-now, .c-h .amt-ring.r-past { --rc: var(--coral); }
+.amt-ring .ring { position: absolute; inset: 0; border-radius: 999px; padding: 2px; pointer-events: none;
+  background: conic-gradient(from 0deg, var(--rc) calc(var(--p, 0) * 1%), color-mix(in srgb, var(--dim) 50%, transparent) 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.amt-ring.r-past .ring { background: color-mix(in srgb, var(--coral) 55%, var(--line2)); }
+.amt-ring.none .ring { padding: 0; background: none; -webkit-mask: none; mask: none; border: 1.5px dashed var(--line2); }
+.t-why { margin: 0 0 var(--sp-3); padding: var(--sp-1) 0 var(--sp-1) var(--sp-3); border-left: 2px solid var(--gold); display: flex; flex-direction: column; gap: 4px; }
+.t-why h4 { margin: 0; font: var(--fw-semibold) var(--fs-small)/1.2 var(--font); color: var(--gold-l); }
+.t-why p { margin: 0; color: var(--text); line-height: 1.4; }

@@ -1,0 +1,55 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  client:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/desktop/client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: apps/desktop/client/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+  deny:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Licences, bans, sources and RustSec advisories against deny.toml (AGENTS.md dependency gate).
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+  rust:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      # The Tauri shell embeds apps/desktop/client/dist at compile time, so build the client first.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: apps/desktop/client/pnpm-lock.yaml
+      - run: pnpm --dir apps/desktop/client install --frozen-lockfile
+      - run: pnpm --dir apps/desktop/client build
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: '1.97'
+          components: rustfmt, clippy
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace

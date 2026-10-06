@@ -1,0 +1,42 @@
+{
+  "identifier": "approval",
+  "windows": [
+    "approval"
+  ],
+  "permissions": [
+    "allow-market-refresh",
+    "core:window:allow-close",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "allow-get-settings",
+    "allow-approval-selection",
+    "allow-deal-display",
+    "allow-deal-transcript",
+    "allow-counterparty-list",
+    "allow-attention-list",
+    "allow-approval-summary",
+    "allow-approval-pairing",
+    "allow-approval-token",
+    "allow-unlock",
+    "allow-deal-countersign",
+    "allow-deal-owner-accept",
+    "allow-deal-capture",
+    "allow-deal-void",
+    "allow-shield-release",
+    "allow-rescue-approve",
+    "allow-open-paypal-in-browser",
+    "allow-deal-withdraw",
+    "allow-set-credentials",
+    "allow-mandate-sign",
+    "allow-mandate-revoke",
+    "allow-band-set",
+    "allow-pairing-confirm",
+    "allow-deal-create",
+    "allow-deal-join",
+    "allow-mandate-list",
+    "allow-pairing-abort",
+    "allow-approval-handoff",
+    "allow-owner-facts",
+    "allow-deal-export-proof"
+  ]
+}

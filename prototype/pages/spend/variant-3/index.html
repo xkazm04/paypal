@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spend · Honor Clock</title>
+<link rel="stylesheet" href="../../../shared/tokens.css">
+<link rel="stylesheet" href="../../../shared/ui.css">
+<script src="../../../main/fixtures.js"></script>
+<script src="../../../shared/ui.js"></script>
+<style>
+/* ---------- spend: shared page bits on top of the v2 baseline (same in all three variants) ---------- */
+.cd { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--gold-l); }
+.struck { color: var(--dim); text-decoration: line-through; }
+.amt.held, .num.held, .money.held { color: var(--gold-l); }
+.ui-stat .v.sm { font-size: var(--fs-body); }
+.ui-stat .v .dim { font-weight: var(--fw-regular); font-size: var(--fs-small); }
+.wstat { width: 176px; }
+.estat { padding-left: var(--sp-3); border-left: 1px dashed var(--line2); }
+.ui-meter.vel { display: flex; }
+.ui-meter.vel > i { border-radius: 0; flex: none; }
+.ui-meter.vel > i.h { background: repeating-linear-gradient(135deg, var(--gold) 0 3px, color-mix(in srgb, var(--gold) 45%, transparent) 3px 6px); }
+.ui-btn .kbd { padding: 0 3px; line-height: 1.2; }
+.ui-btn.gold .kbd { color: var(--on-gold); border-color: color-mix(in srgb, var(--on-gold) 35%, transparent); }
+.ui-chip.note { border: 0; cursor: pointer; }
+.ui-chip.note:hover { background: color-mix(in srgb, var(--coral) 26%, transparent); }
+/* clause trace (layer 2) */
+.trace { list-style: none; margin: 0; padding: 0; }
+.trace li { display: grid; grid-template-columns: 34px 14px minmax(0, 1fr); gap: var(--sp-2); align-items: baseline; padding: 4px var(--sp-3); }
+.trace li + li { border-top: 1px solid var(--line); }
+.trace .n { font: var(--fs-small) var(--mono); color: var(--dim); }
+.trace .g { text-align: center; font-weight: var(--fw-semibold); }
+.trace .pass .g, .trace .policy .g { color: var(--ok); }
+.trace .fail { background: color-mix(in srgb, var(--refuse) 10%, transparent); }
+.trace .fail .g { color: var(--red-l); }
+.trace .you { background: color-mix(in srgb, var(--gold) 10%, transparent); }
+.trace .you .g { color: var(--gold-l); }
+.trace .policy { background: color-mix(in srgb, var(--ok) 8%, transparent); }
+.trace .skip { color: var(--dim); }
+/* sheets */
+.sh-top { display: flex; align-items: baseline; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.sh-amt { font-size: var(--fs-title3); font-weight: var(--fw-semibold); }
+.sh-lede { margin: 0 0 var(--sp-3); }
+.sh-gap { margin: var(--sp-3) 0 0; }
+.clist .ui-row .t1 { white-space: normal; }
+.clist .hit-fail { background: color-mix(in srgb, var(--refuse) 8%, transparent); }
+.clist .hit-you { background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.clist .hit-policy { background: color-mix(in srgb, var(--ok) 7%, transparent); }
+.clist .t2.red { color: var(--red-l); } .clist .t2.gold { color: var(--gold-l); } .clist .t2.okc { color: var(--ok); }
+.ui-table tr.fresh td:first-child { box-shadow: inset 2px 0 0 var(--gold); }
+.ui-inspector .ui-kv dd { font-size: var(--fs-body); }
+.insp-h { display: flex; align-items: center; gap: var(--sp-2); }
+.insp-h .x { margin-left: auto; }
+.insp-acts { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+/* prototype controls */
+.proto { margin-top: var(--sp-4); flex: none; }
+.proto-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+/* the source list folds to icons: with the inspector open below 1440px, always below 1180px, so Layer 1 keeps its width */
+@media (max-width: 1440px) {
+  .ui-split.has-insp { grid-template-columns: 56px minmax(0, 1fr) var(--inspector); }
+  .ui-split.has-insp .ui-sidebar .lbl, .ui-split.has-insp .ui-sidebar .ui-sb-head, .ui-split.has-insp .ui-sb-item .cnt { display: none; }
+  .ui-split.has-insp .ui-sb-item { justify-content: center; }
+  .ui-split.has-insp .ui-sb-item.need .ui-dot { box-shadow: 0 0 0 2px var(--bg2), 0 0 0 3.5px var(--gold); }
+}
+@media (max-width: 1180px) {
+  .ui-split { grid-template-columns: 56px minmax(0, 1fr); }
+  .ui-split .ui-sidebar .lbl, .ui-split .ui-sidebar .ui-sb-head, .ui-split .ui-sb-item .cnt { display: none; }
+  .ui-split .ui-sb-item { justify-content: center; }
+  .ui-split .ui-sb-item.need .ui-dot { box-shadow: 0 0 0 2px var(--bg2), 0 0 0 3.5px var(--gold); }
+}
+
+/* ---------- variant 3: the honor clock (time-first) ---------- */
+.hold { padding: var(--sp-3) var(--sp-4); box-shadow: inset 0 2px 0 var(--gold); border-color: color-mix(in srgb, var(--gold) 45%, var(--line)); }
+.hold.quiet { box-shadow: none; border-color: var(--line); }
+.hold.err { box-shadow: inset 0 2px 0 var(--refuse); border-color: color-mix(in srgb, var(--refuse) 45%, var(--line)); }
+.hold:focus { outline: none; }
+.htop { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+.fig { font: var(--fw-semibold) var(--fs-display)/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--gold-l); flex: none; }
+.hold.quiet .fig { color: var(--dim); }
+.htop .main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.htop .t1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.htop .t1 .id { font: var(--fs-mono) var(--mono); color: var(--dim); margin-right: var(--sp-1); }
+.htop .acts { display: flex; align-items: center; gap: var(--sp-2); flex: none; }
+
+/* the honor-period track: authorized → auto-void, with a "what if I wait" handle */
+.track { position: relative; margin-top: var(--sp-3); padding: 18px 0 20px; user-select: none; }
+.tr-start, .tr-end { position: absolute; top: 0; font: var(--fs-small) var(--mono); white-space: nowrap; pointer-events: none; }
+.tr-start { left: 0; color: var(--dim); }
+.tr-end { right: 0; color: var(--gold-l); }
+.tr-bar { position: relative; height: 12px; border-radius: 6px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line2); cursor: pointer; touch-action: none; }
+.tr-past { position: absolute; inset: 0 auto 0 0; border-radius: 6px 0 0 6px; background: color-mix(in srgb, var(--teal) 30%, var(--bg)); }
+.tr-future { position: absolute; top: 0; bottom: 0; right: 0; border-radius: 0 6px 6px 0;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--gold) 18%, var(--bg)) 0 6px, color-mix(in srgb, var(--gold) 30%, var(--bg)) 6px 12px); }
+.tr-wait { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--gold) 30%, transparent); box-shadow: inset 0 0 0 1px var(--gold-l); pointer-events: none; }
+.tk, .tr-now { position: absolute; top: 34px; transform: translateX(-50%); font: var(--fs-small)/1 var(--mono); white-space: nowrap; pointer-events: none; }
+.tk { color: var(--dim); }
+.tk::before { content: ""; position: absolute; left: 50%; top: -18px; height: 12px; border-left: 1px solid var(--line2); }
+.tr-now { color: var(--teal-l); font-weight: var(--fw-semibold); }
+.tr-now::after { content: ""; position: absolute; left: 50%; top: -20px; height: 16px; border-left: 2px solid var(--teal-l); }
+.tr-handle { all: unset; box-sizing: border-box; position: absolute; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--gold-l); cursor: grab; z-index: 2; }
+.tr-handle:active { cursor: grabbing; }
+.tr-handle:focus-visible { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--focus); }
+.tr-mark { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 3px solid var(--ok); }
+.tr-mark.v { border-color: var(--dim); }
+.hfoot { display: flex; align-items: center; gap: var(--sp-3); margin-top: var(--sp-1); min-width: 0; }
+.readout { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.readout .at { font: var(--fw-semibold) var(--fs-mono) var(--mono); color: var(--gold-l); margin-right: var(--sp-2); }
+.readout.end .at { color: var(--muted); }
+
+/* the week: one column per day, wallet vs clause 5 in each header, the hold's band across Thu-Sun */
+.week { position: relative; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); overflow: hidden; }
+.days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.day { border-left: 1px solid var(--line); min-width: 0; display: flex; flex-direction: column; }
+.day:first-child { border-left: 0; }
+.day > header { padding: 6px var(--sp-2); border-bottom: 1px solid var(--line); background: var(--bg2); display: grid; grid-template-columns: auto 1fr; gap: 3px var(--sp-2); align-items: baseline; }
+.day > header b { font-weight: var(--fw-semibold); }
+.day > header .ui-hint { text-align: right; font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.day > header .ui-meter { grid-column: 1 / -1; }
+.day.today > header { background: color-mix(in srgb, var(--m-spend) 12%, var(--bg2)); box-shadow: inset 0 2px 0 var(--m-spend); }
+.day.future > header b { color: var(--dim); }
+.cards { padding: 6px; display: flex; flex-direction: column; gap: 6px; min-height: 64px; }
+.card { all: unset; box-sizing: border-box; position: relative; z-index: 2; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px var(--sp-1); padding: 5px 7px; border-radius: var(--r-sm); background: var(--bg2); box-shadow: inset 0 0 0 1px var(--line); min-width: 0; }
+.card:hover { background: var(--hover); box-shadow: inset 0 0 0 1px var(--line2); }
+.card:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.card .tm { font: var(--fs-small) var(--mono); color: var(--dim); overflow: hidden; white-space: nowrap; }
+@media (max-width: 1180px) { .card .cid { display: none; } }
+.card .money { font-size: var(--fs-mono); text-align: right; }
+.card .it { grid-column: 1 / -1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .cfoot { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-1); min-width: 0; }
+.card .cid { font: var(--fs-small) var(--mono); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.card.k-held { box-shadow: inset 0 0 0 1px var(--gold), inset 2px 0 0 var(--gold); background: color-mix(in srgb, var(--gold) 8%, var(--bg2)); }
+.card.k-refused { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--refuse) 45%, var(--line)); }
+.cards .why { align-self: flex-start; margin-top: -2px; }
+.bandrow { position: relative; height: var(--row); border-top: 1px solid var(--line); background: var(--bg2); }
+.band { position: absolute; top: 5px; bottom: 5px; border-radius: var(--r-sm); display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-2); overflow: hidden; white-space: nowrap;
+  box-shadow: inset 0 0 0 1px var(--gold); color: var(--gold-l); font: var(--fw-semibold) var(--fs-small) var(--mono);
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--gold) 12%, var(--bg2)) 0 6px, color-mix(in srgb, var(--gold) 20%, var(--bg2)) 6px 12px); }
+.band.done { box-shadow: inset 0 0 0 1px var(--line2); background: var(--panel3); color: var(--dim); }
+.band .end { margin-left: auto; }
+.band-l { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; font: var(--fs-small) var(--mono); color: var(--dim); white-space: nowrap; }
+.tr-end.dim { color: var(--dim); }
+.vline { position: absolute; top: 0; bottom: 0; width: 0; pointer-events: none; z-index: 1; }
+.vline.now { border-left: 2px solid var(--teal-l); }
+.vline.if { border-left: 2px dashed var(--gold-l); }
+.vline span { position: absolute; left: 4px; padding: 1px 4px; border-radius: 4px; font: var(--fw-semibold) var(--fs-small)/1.2 var(--mono); white-space: nowrap; }
+.vline span { bottom: calc(var(--row) + 3px); }
+.vline.now span { left: auto; right: 4px; color: var(--on-teal); background: var(--teal-l); }
+.vline.if span { color: var(--on-gold); background: var(--gold); }
+.vline.if.flip span { left: auto; right: 4px; }
+.ruler { height: 22px; border-top: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+(function () {
+  'use strict';
+  /* ================= core (same data model in all three spend variants) ================= */
+  const F = window.FIX;
+  const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
+  const parse = s => new Date(s + 'Z').getTime(); // wall-clock times, kept in UTC so no DST shifts
+  const NOW0 = parse(F.nowISO), T0 = Date.now();
+  let skew = 0;
+  const now = () => NOW0 + (Date.now() - T0) + skew;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const esc = UI.esc;
+  const money = n => n == null ? '—' : '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money0 = n => '$' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const p2 = n => String(n).padStart(2, '0');
+  const fmtT = ms => { const d = new Date(ms); return `${DAYS[d.getUTCDay()]} ${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}`; };
+  function dur(ms, long) {
+    if (ms <= 0) return '0 m';
+    const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60;
+    if (d > 0) return long ? `${d} d ${h} h ${p2(m)} m` : `${d} d ${h} h`;
+    if (h > 0) return `${h} h ${p2(m)} m`;
+    return `${m} m ${p2(ss)} s`;
+  }
+  const until = (t, long) => `<span class="cd" data-until="${t}"${long ? ' data-long' : ''}>${dur(t - now(), long)}</span>`;
+  const M12 = F.mandates.find(m => m.id === 'M-12');
+  const CL = n => M12.clauses.find(c => c.n === n);
+  const agentOf = id => F.agents.find(a => a.id === id) || { id, name: id, engine: F.owner.engine, does: '' };
+  const cpOf = id => F.counterparties[id] || { name: id, who: '' };
+  const dealHref = id => `../../deal/variant-1/index.html#${id}`;
+  const MANDATE_HREF = '../../mandate/variant-1/index.html#M-12';
+  const APPROVAL_HREF = '../../approval/variant-1/index.html#D-0190';
+  const HOME_HREF = '../../../index.html#home';
+
+  /* Data FIX lacks for this page: when each ask hit the gate, its clause trace, quoted text.
+     Same ids, amounts and times as FIX. Sample data, sandbox. */
+  const SPEND_EXTRA = {
+    'D-0192': { at: '2026-10-27T10:14:00', category: 'compute', asked: 11960, auditSeq: 4302,
+      refusal: 'clause 3: max_amount $200 per deal; category compute not allowed',
+      quote: { label: 'untrusted · the agent’s request, quoted as data', text: 'propose_purchase{ item: "GPU A100 80GB, 1 month", qty: 40, merchant: "gpu-cloud.example" }' },
+      trace: [[1, 'pass', 'Buy is allowed for the infra agent'], [3, 'fail', 'quoted $11,960.00 > max $200.00 per deal'], [3, 'fail', 'category “compute” is not in [office, parts, packing]'],
+        [5, 'skip', 'not reached'], [6, 'skip', 'not reached'], [7, 'skip', 'not reached · gpu-cloud.example is not allowlisted either']] },
+    'D-0190': { at: '2026-10-29T09:02:00', category: 'parts', auditSeq: 4402,
+      quote: { label: 'untrusted · merchant listing title, plain text', text: 'USB-C Dock 96W 2xDP 4K60 *** SHIPS TODAY *** see dockparts.example/promo for bulk deals' },
+      delivery: 'unknown · nothing received from dockparts.example yet',
+      trace: [[1, 'pass', 'Buy is allowed for the supplies agent'], [3, 'pass', '$64.00 ≤ $200.00 · category parts'], [5, 'pass', '$64 of $900 today · 1 of 12 deals'],
+        [6, 'pass', 'under $250 · the policy could countersign this amount'], [7, 'you', 'dockparts.example is not on the allowlist → the capture waits for you']] },
+    'D-0186': { at: '2026-10-28T15:31:00', category: 'packing',
+      trace: [[1, 'pass', 'Buy is allowed for the supplies agent'], [3, 'pass', '$45.00 ≤ $200.00 · category packing'], [5, 'pass', '$45 of $900 that day · 1 of 12 deals'],
+        [6, 'policy', 'under $250 and payee allowlisted → captured by policy'], [7, 'pass', 'packrite-supply is on the allowlist']] },
+    'D-0183': { at: '2026-10-27T12:02:00', category: 'parts',
+      trace: [[1, 'pass', 'Buy is allowed for the supplies agent'], [3, 'pass', '$38.00 ≤ $200.00 · category parts'], [5, 'pass', '$38 of $900 that day · 1 of 12 deals'],
+        [6, 'policy', 'under $250 and payee allowlisted → captured by policy'], [7, 'pass', 'cablehaus is on the allowlist']] },
+    'D-0181': { at: '2026-10-26T09:47:00', category: 'office',
+      trace: [[1, 'pass', 'Buy is allowed for the supplies agent'], [3, 'pass', '$52.00 ≤ $200.00 · category office'], [5, 'pass', '$52 of $900 that day · 1 of 12 deals'],
+        [6, 'policy', 'under $250 and payee allowlisted → captured by policy'], [7, 'pass', 'packrite-supply is on the allowlist']] },
+    'D-0180': { at: '2026-10-27T08:30:00', category: 'parts', voidedAt: 'Tue 08:41',
+      trace: [[1, 'pass', 'Buy is allowed for the supplies agent'], [3, 'pass', '$42.00 ≤ $200.00 · category parts'], [5, 'pass', '$42 of $900 that day · 1 of 12 deals'],
+        [6, 'pass', 'under $250 · the policy would capture once it shipped'], [7, 'pass', 'cablehaus is on the allowlist']] }
+  };
+  const deals = F.deals.filter(d => d.module === 'spend').map(d => {
+    const x = Object.assign({}, d, SPEND_EXTRA[d.id]);
+    x.pp = d.pp ? Object.assign({}, d.pp) : null;
+    x.atMs = parse(x.at);
+    return x;
+  }).sort((a, b) => b.atMs - a.atMs);
+  const byId = id => deals.find(d => d.id === id);
+  const HOLD = byId('D-0190');
+  const HOLD_START = HOLD.atMs;
+  const HOLD_END = NOW0 + F.deals.find(d => d.id === 'D-0190').holdUntilMin * MIN; // 72 h after authorize
+  const VEL = { usd: 900, n: 12 }; // clause 5
+  const COMMITTED = ['AUTHORIZED', 'CAPTURED', 'RECEIPTED', 'RECONCILED'];
+  const live = d => (d.module === 'spend' && byId(d.id)) || d;
+  /* Clause 5 counts what M-12 committed that day: holds + captures. Refused and voided count nothing. */
+  function dayCommit(day) {
+    const ds = F.deals.map(live).filter(d => d.side === 'buyer' && d.day === day && COMMITTED.includes(d.state) && d.amount != null);
+    return { usd: ds.reduce((a, d) => a + d.amount, 0), n: ds.length, held: ds.filter(d => d.state === 'AUTHORIZED').reduce((a, d) => a + d.amount, 0), ids: ds.map(d => d.id) };
+  }
+
+  const S = { locked: false, handoff: null, voidError: null, failNextVoid: false, empty: false,
+    seq: 4419, lastInput: Date.now(), log: [], reqId: '7d1c-4e0b-a9f2' };
+  function audit(actor, action, deal) { S.log.unshift({ seq: S.seq++, t: fmtT(now()), actor, action, deal, fresh: true }); }
+
+  /* Layer 1 vocabulary: a chip and a short clause tag. Everything longer lives in a sheet. */
+  function verdict(d) {
+    switch (d.state) {
+      case 'REFUSED': return { k: 'refused', chip: 'Refused', tone: 'red', tag: 'cl 3 ✗ · 0 PayPal calls' };
+      case 'AUTHORIZED': return S.handoff === d.id
+        ? { k: 'held', chip: 'In approval', tone: 'gold', tag: 'cl 7 → decide there' }
+        : { k: 'held', chip: 'Held', tone: 'gold', tag: 'cl 7 → needs you' };
+      case 'CAPTURED': return d.decided === 'policy:clause6'
+        ? { k: 'policy', chip: 'Captured', tone: 'ok', tag: 'cl 6 · by policy' }
+        : { k: 'you', chip: 'Captured', tone: 'ok', tag: 'by you · approval window' };
+      case 'VOIDED': return { k: 'voided', chip: 'Voided', tone: '', tag: d.decided === 'owner:void' ? 'by you · just now' : 'by you · duplicate' };
+      case 'AUTO-VOIDED': return { k: 'voided', chip: 'Auto-voided', tone: '', tag: 'policy default · 72 h' };
+      default: return { k: 'other', chip: d.state, tone: '', tag: '' };
+    }
+  }
+  function amountCell(d) {
+    if (d.state === 'REFUSED') return { cls: 'struck', v: money(d.asked), note: 'asked · never sent' };
+    if (d.state === 'AUTHORIZED') return { cls: 'held', v: money(d.amount), note: 'held at PayPal' };
+    if (d.state === 'CAPTURED') return { cls: '', v: money(d.amount), note: 'paid' };
+    return { cls: 'struck', v: money(d.amount), note: 'voided · nothing paid' };
+  }
+  const recChip = d => d.rec === 'matched' ? '<span class="ui-chip ok">matched in Transaction Search</span>'
+    : d.state === 'CAPTURED' ? '<span class="ui-chip gold">pending in PayPal reporting</span>' : '<span class="ui-chip line">no statement row</span>';
+  const SILENCE = 'silent → <b>auto-void</b> Sun 09:02 · nothing is paid';
+
+  /* ---------------- layer 2 building blocks ---------------- */
+  const GLYPH = { pass: '✓', fail: '✗', you: '◆', policy: '✓', skip: '–' };
+  const traceHtml = d => `<ol class="trace ui-group">${d.trace.map(([n, r, t]) => `<li class="${r}"><span class="n">cl ${n}</span><span class="g">${GLYPH[r]}</span><span>${esc(t)}</span></li>`).join('')}</ol>`;
+  const quarantineHtml = d => d.quote ? `<div class="quarantine"><div class="q-label">${esc(d.quote.label)}</div><div class="q-text">${esc(d.quote.text)}</div></div>` : '';
+  const noteChip = d => d.quote ? `<button class="ui-chip coral note" data-act="note" data-id="${d.id}" data-key="note-${d.id}" aria-label="Untrusted text, opens quarantined">note ›</button>` : '';
+  function dealBody(d) {
+    const v = verdict(d), a = amountCell(d), ag = agentOf(d.agent), cp = cpOf(d.cp), pp = d.pp || {};
+    return `<div class="sh-top"><span class="ui-chip ${v.tone}">${esc(v.chip)}</span><span class="money sh-amt ${a.cls}">${a.v}</span><span class="ui-hint">${esc(a.note)}</span></div>
+      <dl class="ui-kv"><dt>Asked</dt><dd>${esc(fmtT(d.atMs))} · ${esc(ag.name)} <span class="dim">${esc(ag.engine)}</span></dd>
+        <dt>Payee</dt><dd>${esc(cp.name)} <span class="dim">· ${esc(cp.who)}</span></dd>
+        <dt>Category</dt><dd>${esc(d.category || '—')}</dd>
+        <dt>Outcome</dt><dd>${d.state === 'REFUSED' ? `<b class="okc">0 PayPal calls</b> · no order, no hold, nothing to undo` : esc(d.sub) + (d.voidedAt ? ` · ${esc(d.voidedAt)}` : '')}</dd>
+        ${d.state === 'REFUSED' ? `<dt>Told the agent</dt><dd class="mono">${esc(d.refusal)}</dd>` : `<dt>PayPal</dt><dd class="mono">order ${esc(pp.order || '—')} · auth ${esc(pp.auth || '—')} · capture ${esc(pp.capture || '—')}</dd><dt>Statement</dt><dd>${recChip(d)}</dd>`}
+        ${d.delivery ? `<dt>Delivery</dt><dd>${esc(d.delivery)}</dd>` : ''}</dl>
+      <div class="ui-section"><div class="ui-section-h"><h3>Clause trace · M-12 v${M12.v}</h3><span class="end">all checked before any PayPal call</span></div>${traceHtml(d)}</div>
+      ${d.quote ? `<div class="ui-section">${quarantineHtml(d)}</div>` : ''}`;
+  }
+  function dealSheet(id, extra) {
+    const d = byId(id); if (!d) return;
+    const acts = [{ label: 'Open deal ↗', left: true, onClick: () => { location.href = dealHref(d.id); } }];
+    if (d.state === 'REFUSED') acts.push({ label: 'Why refused? → clause 3', onClick: () => { setTimeout(() => clauseSheet(d.id)); } });
+    (extra || []).forEach(x => acts.push(x));
+    acts.push({ label: 'Done', kind: 'primary' });
+    UI.sheet({ title: `${d.id} · ${d.item}`, size: 'wide', body: dealBody(d), actions: acts });
+  }
+  function clauseSheet(id) {
+    const d = byId(id) || deals[0];
+    const hits = {};
+    (d.trace || []).forEach(([n, r]) => { if (r !== 'pass' && r !== 'skip') hits[n] = r; });
+    const tone = { fail: 'red', you: 'gold', policy: 'okc' };
+    const refused = d.state === 'REFUSED';
+    const body = `<p class="ui-hint sh-lede">Signed ${esc(M12.signed)} · agent key <span class="mono">${esc(M12.agentKey)}</span> · checked in Rust before every create, authorize and capture.</p>
+      ${refused ? `<dl class="ui-kv sh-gap"><dt>Verbatim</dt><dd class="mono">${esc(d.refusal)}</dd><dt>PayPal</dt><dd><b class="okc">0 calls</b> · no rows in paypal_calls for ${esc(d.id)} · nothing to undo</dd></dl>` : ''}
+      <div class="ui-group clist">${M12.clauses.map(c => `<div class="ui-row two ${hits[c.n] ? 'hit-' + hits[c.n] : ''}"><span class="ui-chip ${hits[c.n] ? (hits[c.n] === 'fail' ? 'red' : hits[c.n] === 'you' ? 'gold' : 'ok') : 'teal'}">cl ${c.n}</span>
+        <span class="main"><span class="t1">${esc(c.name)} <span class="dim">· ${esc(c.text)}</span></span>${hits[c.n] ? `<span class="t2 ${tone[hits[c.n]]}">${esc(d.id)}: ${esc(d.trace.filter(t => t[0] === c.n && t[1] !== 'pass').map(t => t[2]).join(' · '))}</span>` : ''}</span></div>`).join('')}</div>
+      <p class="ui-hint sh-gap">Changing a clause means signing v${M12.v + 1} in the approval window. An agent cannot edit its own mandate.</p>`;
+    UI.sheet({ title: `${refused ? 'Why refused · ' : 'Clauses · '}${d.id} · M-12 v${M12.v}`, size: 'wide', body,
+      actions: [{ label: 'Open M-12 in Mandates ↗', left: true, onClick: () => { location.href = MANDATE_HREF; } }, { label: 'Done', kind: 'primary' }] });
+  }
+  function auditSheet() {
+    const base = F.audit.filter(a => deals.some(d => d.id === a.deal));
+    const rows = S.log.concat(base);
+    UI.sheet({ title: 'Audit log · spend rows', size: 'wide',
+      body: `<p class="ui-hint sh-lede">Hash-chained, append-only, newest first. Rows from this session are marked. There is no edit or delete.</p>
+        <div class="ui-group" style="padding:0"><table class="ui-table"><thead><tr><th>Seq</th><th>When</th><th>Actor</th><th>Action</th><th>Deal</th></tr></thead><tbody>
+        ${rows.map(a => `<tr class="${a.fresh ? 'fresh' : ''}"><td class="mono dim">#${a.seq}</td><td class="mono dim">${esc(a.t)}</td><td>${esc(a.actor)}</td><td class="clip" title="${esc(a.action)}">${esc(a.action)}</td><td class="mono dim">${esc(a.deal)}</td></tr>`).join('')}</tbody></table></div>`,
+      actions: [{ label: 'Done', kind: 'primary' }] });
+  }
+  function whyHoldPopover(anchor) {
+    UI.popover(anchor, `<dl class="ui-kv"><dt>cl 7</dt><dd>dockparts.example is not on the payee allowlist, so the policy may not capture</dd>
+      <dt>cl 6</dt><dd>under $250 · alone it would have let the policy countersign</dd><dt>Honor</dt><dd>authorized Thu 09:02 · PayPal honors the hold 72 h</dd><dt>Silence</dt><dd>auto-void Sun 09:02 · nothing is paid</dd></dl>`, { title: 'Why D-0190 waits for you' });
+  }
+
+  /* ---------------- actions shared by every variant ---------------- */
+  const toast = (msg, kind) => UI.toast(msg, kind);
+  function openApproval() {
+    if (S.locked) { toast('Locked. Privileged hand-offs need Windows Hello after 15 idle minutes.', 'gold'); return; }
+    if (HOLD.state !== 'AUTHORIZED') return;
+    S.handoff = 'D-0190';
+    audit('owner', 'approval.open · capture $64.00 requested from main window', 'D-0190');
+    toast('Approval window opened beside The Table. It re-checks the hold and asks you there. This window cannot capture.', 'gold');
+    render();
+  }
+  function simCaptured() {
+    if (HOLD.state !== 'AUTHORIZED') return;
+    Object.assign(HOLD, { state: 'CAPTURED', decided: 'owner:approval', pending: null, rec: 'pending',
+      sub: 'captured by you in the approval window · countersign row written', money: 'captured — paid to dockparts.example' });
+    HOLD.pp.capture = '3QF8…';
+    S.handoff = null;
+    audit('owner(approval)', 'capture 0RW7… $64.00 · countersigned', 'D-0190');
+    toast('Prototype · sandbox simulation: you captured $64.00 in the approval window. Statement: pending in PayPal reporting.', 'ok');
+    render();
+  }
+  function simClosed() { S.handoff = null; toast('The approval window closed without a decision. The hold stays; nothing moved.'); render(); }
+  function askVoid() {
+    if (HOLD.state !== 'AUTHORIZED') return;
+    UI.sheet({ title: 'Void the $64.00 hold?', size: 'narrow',
+      body: `<dl class="ui-kv"><dt>Does</dt><dd>voids authorization <span class="mono">0RW7…</span> at PayPal today instead of Sunday</dd><dt>Payee</dt><dd>dockparts.example is paid nothing</dd><dt>Agent</dt><dd>the supplies agent is told “voided by owner” and may ask again</dd><dt>Where</dt><dd>here: voiding restricts, so no approval window</dd></dl>`,
+      actions: [{ label: 'Keep the hold' }, { label: 'Void hold', kind: 'danger', onClick: () => doVoid(false) }] });
+  }
+  function doVoid(retry) {
+    if (HOLD.state !== 'AUTHORIZED') return;
+    if (S.failNextVoid) {
+      S.failNextVoid = false;
+      S.voidError = { code: 'HTTP 422', debug: '8c1f2a7e40b19' };
+      audit('paypal', `void 0RW7… failed · HTTP 422 · debug_id 8c1f2a7e40b19 · request ${S.reqId}`, 'D-0190');
+      toast('PayPal returned HTTP 422 on the void. The hold is unchanged.', 'bad');
+      render(); return;
+    }
+    const wasHandoff = !!S.handoff;
+    Object.assign(HOLD, { state: 'VOIDED', decided: 'owner:void', pending: null, sub: 'you voided the hold · released at PayPal · nothing paid', money: 'voided — nothing paid' });
+    S.voidError = null; S.handoff = null;
+    audit('owner', `void 0RW7… $64.00${retry ? ' · retry with the same PayPal-Request-Id ' + S.reqId : ''}`, 'D-0190');
+    toast(`Hold voided. PayPal released $64.00; dockparts.example is paid nothing.${wasHandoff ? ' The approval window closed: nothing left to decide.' : ''}`, 'ok');
+    render();
+  }
+  function voidErrorSheet() {
+    UI.sheet({ title: `Void failed · ${S.voidError.code}`, size: 'narrow',
+      body: `<dl class="ui-kv"><dt>PayPal</dt><dd>${esc(S.voidError.code)} on void <span class="mono">0RW7…</span></dd><dt>debug_id</dt><dd class="mono">${esc(S.voidError.debug)}</dd><dt>Hold</dt><dd>unchanged · $64.00 still authorized</dd><dt>Retry</dt><dd>reuses PayPal-Request-Id <span class="mono">${esc(S.reqId)}</span>, so it cannot void twice</dd><dt>Silence</dt><dd>auto-void Sun 09:02 · nothing is paid</dd></dl>`,
+      actions: [{ label: 'Keep the hold', onClick: () => { S.voidError = null; render(); } }, { label: 'Retry void', kind: 'danger', onClick: () => doVoid(true) }] });
+  }
+  function autoVoid() {
+    Object.assign(HOLD, { state: 'AUTO-VOIDED', decided: 'policy:72h', pending: null, sub: 'policy voided at 72 h · hold released · nothing paid', money: 'voided — nothing paid' });
+    S.handoff = null;
+    audit('policy', 'auto-void 0RW7… $64.00 at 72 h (safe default)', 'D-0190');
+    toast('72 h passed. The policy voided the $64.00 hold. Silence moved no money.', 'ok');
+    render();
+  }
+  function lockNow() { S.locked = true; S.handoff = null; toast('Idle 15 min (simulated). Privileged buttons now ask for Windows Hello. Void still works: restricting is free.', 'gold'); render(); }
+  function unlock() { S.locked = false; S.lastInput = Date.now(); toast('Windows Hello verified (prototype simulation).', 'ok'); render(); }
+  function jumpToDeadline() {
+    if (HOLD.state !== 'AUTHORIZED') { toast('No hold is open, so there is no deadline to jump to.'); return; }
+    skew += (HOLD_END - now()) - 4000;
+    toast('Prototype · clock moved to 4 s before the 72 h deadline. Watch the default.', 'gold');
+    tick();
+  }
+  const privBtn = (label, key) => S.locked
+    ? `<button class="ui-btn gold sm locked" data-act="unlock" data-key="${key}" data-tip="Privileged after 15 idle minutes">Unlock with Windows Hello</button>`
+    : `<button class="ui-btn gold sm" data-act="approval" data-key="${key}" data-tip="Opens the approval window, the only place money can be released">${label}</button>`;
+  /* The one decision as Layer-1 buttons, by state. */
+  function decisionBtns(opts) {
+    const o = opts || {};
+    if (S.voidError) return `<button class="ui-btn plain sm" data-act="void-detail" data-key="void-detail">Details</button><button class="ui-btn danger sm" data-act="void-retry" data-key="void-retry">Retry void</button>`;
+    if (S.handoff) return `<a class="ui-btn sm" href="${APPROVAL_HREF}" data-key="show-approval">Show approval window ↗</a><button class="ui-btn danger sm" data-act="void" data-key="void">Void instead</button>`;
+    return `<button class="ui-btn sm" data-act="void" data-key="void">Void${o.kbd ? ' <span class="kbd">v</span>' : ''}</button>${privBtn('Review &amp; capture ↗' + (o.kbd && !S.locked ? ' <span class="kbd on-gold">c</span>' : ''), 'approval')}`;
+  }
+
+  /* ---------------- chrome ---------------- */
+  const MODS = [['tables', 'Tables'], ['spend', 'Spend'], ['shield', 'Shield'], ['counter', 'Counter'], ['rescue', 'Rescue'], ['book', 'Book']];
+  const needsOf = k => k === 'spend' ? deals.filter(d => d.state === 'AUTHORIZED').length : F.deals.filter(d => d.module === k && d.pending).length;
+  function chrome(main, o) {
+    const opt = o || {};
+    return `<div class="ui-app">
+      <header class="ui-titlebar">
+        <nav class="ui-crumbs" aria-label="Breadcrumb"><a href="${HOME_HREF}" title="Back to The Table (Esc)">The Table</a><span class="sep">›</span><span>Spend</span></nav>
+        <span class="ui-spacer"></span>${opt.bar || ''}
+        <span class="badge sandbox" title="Every screen carries its mode">Sandbox</span>
+        <span class="mono dim" id="clock" title="Sample-week clock">${fmtT(now())}</span>
+        ${S.locked ? `<button class="ui-btn gold sm locked" data-act="unlock" data-key="lockpill">Locked · unlock</button>` : `<button class="ui-btn plain sm" data-act="lock" data-key="lockpill" data-tip="Locks by itself after 15 idle minutes">Lock</button>`}
+      </header>
+      <div class="ui-split ${opt.insp != null ? 'has-insp' : ''}" id="split">
+        <aside class="ui-sidebar" aria-label="Modules"><div class="ui-sb-head">Modules</div>
+          ${MODS.map(([k, n]) => `<a class="ui-sb-item ${k === 'spend' ? 'on' : ''} ${needsOf(k) ? 'need' : ''}" title="${n}" href="${k === 'spend' ? '#' : `../../${k}/variant-1/index.html`}" ${k === 'spend' ? 'aria-current="page"' : ''}><span class="ico"><span class="ui-dot" style="color:var(--m-${k})"></span></span><span class="lbl">${n}</span>${needsOf(k) ? `<span class="cnt need" title="needs you">${needsOf(k)}</span>` : ''}</a>`).join('')}
+          <div class="ui-sb-foot"><a class="ui-sb-item" href="${MANDATE_HREF}" title="Mandates"><span class="ico dim">§</span><span class="lbl">Mandates</span><span class="cnt">M-12 v3</span></a>
+            <button class="ui-sb-item" data-act="audit" data-key="audit" title="Audit log"><span class="ico dim">≡</span><span class="lbl">Audit log</span></button>
+            <a class="ui-sb-item" href="../../setup/variant-1/index.html" title="Settings"><span class="ico dim">⚙</span><span class="lbl">Settings</span><span class="cnt">${esc(F.owner.engine)}</span></a></div>
+        </aside>
+        <section class="ui-main ${opt.mainCls || ''}" id="main" tabindex="-1">${main}</section>
+        <aside class="ui-inspector" id="insp" ${opt.insp != null ? '' : 'hidden'} aria-label="Inspector">${opt.insp || ''}</aside>
+      </div></div>`;
+  }
+  const walletStat = (day) => {
+    const t = dayCommit(day || 'Thu'), pc = Math.min(100, (t.usd - t.held) / VEL.usd * 100), ph = Math.min(100, t.held / VEL.usd * 100);
+    return `<div class="ui-stat wstat" data-tip="Clause 5 velocity: what M-12 committed today, holds + captures. Refused and voided count nothing."><span class="k">Wallet today · cl 5</span>
+      <span class="v sm">${money0(t.usd)} <span class="dim">/ ${money0(VEL.usd)} · ${t.n}/${VEL.n}</span></span><div class="ui-meter vel"><i style="width:${pc}%"></i><i class="h" style="width:${ph}%"></i></div></div>`;
+  };
+  const engineStat = () => `<div class="ui-stat estat" data-tip="The engine CLI's own client-side estimate this week. Never used for money decisions."><span class="k">Engine · ${esc(F.owner.engine)}</span><span class="v sm">~$${F.engineWeekUSD.toFixed(2)} <span class="dim">not a bill</span></span></div>`;
+  const protoHtml = extra => `<div class="ui-proto proto"><div class="proto-row"><span class="ui-hint">Sandbox simulation:</span>${extra || ''}
+    <button class="ui-btn sm" data-act="sim-422" data-key="sim-422" aria-pressed="${S.failNextVoid}">${S.failNextVoid ? 'Next void fails ✓' : 'Next void → 422'}</button>
+    <button class="ui-btn sm" data-act="sim-jump" data-key="sim-jump">Jump to 72 h deadline</button>
+    ${S.handoff ? `<button class="ui-btn sm" data-act="sim-captured" data-key="sim-captured">You captured there</button><button class="ui-btn sm" data-act="sim-closed" data-key="sim-closed">You closed it</button>` : ''}
+    <button class="ui-btn sm" data-act="lock" data-key="sim-lock">Idle 15 min</button>
+    <button class="ui-btn sm" data-act="sim-empty" data-key="sim-empty">${S.empty ? 'Show the week' : 'Empty module'}</button></div></div>`;
+
+  const ACT = {
+    approval: () => openApproval(),
+    void: () => askVoid(), 'void-retry': () => doVoid(true), 'void-detail': () => voidErrorSheet(),
+    'sim-captured': () => simCaptured(), 'sim-closed': () => simClosed(),
+    'sim-422': () => { S.failNextVoid = !S.failNextVoid; render(); },
+    'sim-jump': () => jumpToDeadline(),
+    'sim-empty': () => { S.empty = !S.empty; render(); },
+    lock: () => lockNow(), unlock: () => unlock(),
+    audit: () => auditSheet(),
+    note: el => { const d = byId(el.dataset.id); if (d) UI.popover(el, quarantineHtml(d), { title: 'Quarantined · shown as plain text' }); },
+    'why-hold': el => whyHoldPopover(el),
+    deal: el => dealSheet(el.dataset.id),
+    why: el => clauseSheet(el.dataset.id)
+  };
+  document.addEventListener('click', e => {
+    const el = e.target.closest('[data-act]'); if (!el) return;
+    const fn = ACT[el.dataset.act]; if (!fn) return;
+    if (el.tagName === 'A') e.preventDefault();
+    e.stopPropagation();
+    fn(el, e);
+  });
+  ['pointerdown', 'pointermove', 'wheel', 'keydown'].forEach(t => document.addEventListener(t, () => { S.lastInput = Date.now(); }, { passive: true }));
+  function tickCore() {
+    $$('[data-until]').forEach(el => { el.textContent = dur(+el.dataset.until - now(), el.hasAttribute('data-long')); });
+    const c = $('#clock'); if (c) c.textContent = fmtT(now());
+    if (HOLD.state === 'AUTHORIZED' && now() >= HOLD_END) { autoVoid(); return false; }
+    if (!S.locked && Date.now() - S.lastInput > 15 * MIN) { S.locked = true; render(); }
+    return true;
+  }
+  /* Re-render keeps focus and scroll. */
+  function paintApp(main, o) {
+    const ae = document.activeElement, key = ae && ae.dataset ? ae.dataset.key : null;
+    const m = $('#main'), scroll = m ? m.scrollTop : 0;
+    $('#app').innerHTML = chrome(main, o);
+    $('#main').scrollTop = scroll;
+    if (key) { const el = $(`[data-key="${key}"]`); el && el.focus({ preventScroll: true }); }
+  }
+  /* ================= end core ================= */
+
+  /* ================= variant 3: the honor clock (time-first) ================= */
+  const WEEK0 = parse('2026-10-26T00:00:00'), WEEK1 = WEEK0 + 7 * DAY;
+  const wpos = ms => Math.max(0, Math.min(100, (ms - WEEK0) / (WEEK1 - WEEK0) * 100));
+  const tpos = ms => Math.max(0, Math.min(100, (ms - HOLD_START) / (HOLD_END - HOLD_START) * 100));
+  const WEEKDAYS = [['Mon', '26'], ['Tue', '27'], ['Wed', '28'], ['Thu', '29'], ['Fri', '30'], ['Sat', '31'], ['Sun', '1 Nov']];
+  const V = { scrub: null, decidedAt: null };
+  const scrubT = () => V.scrub == null ? now() : Math.max(now(), Math.min(HOLD_END, V.scrub));
+  const dayOf = ms => DAYS[new Date(ms).getUTCDay()];
+  const hhmm = ms => fmtT(ms).split(' ')[1];
+
+  function trackHtml() {
+    const held = HOLD.state === 'AUTHORIZED';
+    const end = held ? HOLD_END : (V.decidedAt || now());
+    const pNow = tpos(Math.min(now(), end)), pS = tpos(scrubT());
+    const ticks = [['2026-10-30T00:00:00', 'Fri'], ['2026-10-31T00:00:00', 'Sat'], ['2026-11-01T00:00:00', 'Sun']]
+      .map(([t, l]) => `<span class="tk" style="left:${tpos(parse(t))}%">${l}</span>`).join('');
+    const label = `Honor period of D-0190: authorized Thu 09:02, auto-void Sun 09:02. Now ${fmtT(now())}.`;
+    if (!held) {
+      const cap = HOLD.state === 'CAPTURED';
+      const tk = [['2026-10-30T00:00:00', 'Fri'], ['2026-10-31T00:00:00', 'Sat'], ['2026-11-01T00:00:00', 'Sun']].filter(([t]) => Math.abs(tpos(parse(t)) - pNow) > 14)
+        .map(([t, l]) => `<span class="tk" style="left:${tpos(parse(t))}%">${l}</span>`).join('');
+      return `<div class="track" aria-label="${esc(label)}"><span class="tr-start">authorized Thu 09:02</span><span class="tr-end dim">would have auto-voided Sun 09:02</span>
+        <div class="tr-bar" style="cursor:default"><div class="tr-past" style="width:${pNow}%"></div><span class="tr-mark ${cap ? '' : 'v'}" style="left:${pNow}%"></span></div>
+        <span class="tr-now" style="left:${pNow}%;${pNow > 85 ? 'transform:translateX(-100%);' : ''}color:${cap ? 'var(--ok)' : 'var(--muted)'}">${cap ? 'captured' : HOLD.state === 'AUTO-VOIDED' ? 'auto-voided' : 'voided'} ${hhmm(end)}</span>${tk}</div>`;
+    }
+    return `<div class="track"><span class="tr-start">authorized Thu 09:02</span><span class="tr-end">auto-void · Sun 09:02</span>
+      <div class="tr-bar" data-bar aria-label="${esc(label)}">
+        <div class="tr-past" data-past style="width:${pNow}%"></div>
+        <div class="tr-future" data-future style="left:${pNow}%"></div>
+        <div class="tr-wait" data-wait style="left:${pNow}%;width:${Math.max(0, pS - pNow)}%"></div>
+        <button class="tr-handle" data-handle data-key="scrub" role="slider" aria-label="If you wait until" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pS)}" aria-valuetext="${esc(fmtT(scrubT()))}" style="left:${pS}%"></button>
+      </div>
+      <span class="tr-now" data-nowlbl style="left:${pNow}%">now</span>${ticks}</div>`;
+  }
+  /* One line: what waiting until the handle's time does. */
+  function readoutHtml() {
+    if (HOLD.state !== 'AUTHORIZED') return '';
+    const T = scrubT();
+    if (T >= HOLD_END - 30000) return `<span class="at">Sun 09:02</span>the policy voids the hold · $64.00 released · nothing is paid`;
+    const isNow = T - now() < 60000;
+    return `<span class="at">${isNow ? 'now' : 'wait until ' + fmtT(T)}</span>still held · nothing moves · ${dur(HOLD_END - T)} left to capture or void`;
+  }
+  function scrubSeg() {
+    const T = scrubT(), at = V.scrub == null ? 'now' : T >= HOLD_END - 30000 ? 'end' : '';
+    return `<div class="ui-seg" role="group" aria-label="Move the handle">${[['now', 'Now'], ['24', '+24 h'], ['48', '+48 h'], ['end', 'Deadline']].map(([k, l]) =>
+      `<button data-act="scrub" data-to="${k}" data-key="s-${k}" aria-pressed="${at === k}">${l}</button>`).join('')}</div>`;
+  }
+
+  /* Layer 1: the hold as one line + its clock. Why, evidence and ids open on demand. */
+  function holdHtml() {
+    const d = HOLD;
+    if (S.empty) return `<section class="ui-card hold quiet" id="hold" tabindex="-1"><div class="htop"><span class="fig">—</span><span class="main"><span class="t1">Nothing held</span><span class="t2 dim">no agent has asked to spend</span></span></div></section>`;
+    if (S.voidError) return `<section class="ui-card hold err" id="hold" tabindex="-1" role="alert"><div class="htop"><span class="fig">${money(d.amount)}</span>
+      <span class="main"><span class="t1"><span class="id">D-0190</span>Void failed · PayPal ${esc(S.voidError.code)} · the hold is unchanged</span><span class="ui-silence">${SILENCE} · ${until(HOLD_END)} left</span></span>
+      <span class="ui-chip red">Void failed</span><span class="acts">${decisionBtns()}</span></div>${trackHtml()}</section>`;
+    if (d.state !== 'AUTHORIZED') {
+      const v = verdict(d);
+      return `<section class="ui-card hold quiet" id="hold" tabindex="-1"><div class="htop"><span class="fig" style="${v.k === 'you' ? 'color:var(--ok)' : ''}">${money(d.amount)}</span>
+        <span class="main"><span class="t1"><span class="id">D-0190</span>Nothing waits for you</span><span class="t2 ui-hint">${esc(d.sub)}</span></span>
+        <span class="ui-chip ${v.tone}">${esc(v.chip)}</span><span class="acts"><button class="ui-btn sm" data-act="deal" data-id="D-0190" data-key="hold-detail">Details</button><button class="ui-btn sm" data-act="audit" data-key="audit-h">Audit rows</button></span></div>${trackHtml()}</section>`;
+    }
+    const v = verdict(d), cp = cpOf(d.cp);
+    return `<section class="ui-card hold" id="hold" tabindex="-1" aria-label="Held authorization D-0190">
+      <div class="htop"><span class="fig" title="held at PayPal · not captured">${money(d.amount)}</span>
+        <span class="main"><span class="t1"><span class="id">D-0190</span>${esc(d.item)} <span class="dim">· ${esc(cp.name)}</span></span><span class="ui-silence">${SILENCE} · ${until(HOLD_END)} left</span></span>
+        <span class="ui-chip ${v.tone}">${esc(v.chip)}</span>${noteChip(d)}<button class="ui-btn plain sm" data-act="why-hold" data-key="why-hold" aria-label="Why it waits for you">ⓘ</button>
+        <span class="acts"><button class="ui-btn plain sm" data-act="deal" data-id="D-0190" data-key="hold-detail">Details</button>${decisionBtns()}</span></div>
+      ${trackHtml()}
+      <div class="hfoot"><span class="readout ${scrubT() >= HOLD_END - 30000 ? 'end' : ''}" id="readout" aria-live="polite">${readoutHtml()}</span>${scrubSeg()}</div>
+    </section>`;
+  }
+
+  function cardHtml(d) {
+    const v = verdict(d), a = amountCell(d);
+    return `<button class="card k-${v.k}" data-act="deal" data-id="${d.id}" data-key="row-${d.id}" aria-label="${esc(d.id + ', ' + d.item + ', ' + v.chip)}">
+        <span class="tm">${hhmm(d.atMs)}</span><span class="money ${a.cls}">${a.v}</span><span class="it">${esc(d.item)}</span><span class="cfoot"><span class="ui-chip ${v.tone}">${esc(v.k === 'policy' ? 'Policy' : v.chip)}</span><span class="cid">${d.id}</span></span></button>
+      ${d.state === 'REFUSED' ? `<button class="ui-btn plain sm why" data-act="why" data-id="${d.id}" data-key="why-${d.id}">Why refused? ›</button>` : ''}`;
+  }
+  function weekHtml() {
+    if (S.empty) return `<div class="ui-group"><div class="ui-empty">No agent has asked to spend. Its first ask lands on its day here, with the clause that decided it.</div></div>`;
+    const today = dayOf(now()), ti = WEEKDAYS.findIndex(w => w[0] === today);
+    const days = WEEKDAYS.map(([k, date], i) => {
+      const fut = i > ti, mine = deals.filter(d => dayOf(d.atMs) === k).sort((a, b) => a.atMs - b.atMs);
+      const t = dayCommit(k), other = t.ids.filter(id => !byId(id));
+      const pc = Math.min(100, (t.usd - t.held) / VEL.usd * 100), ph = Math.min(100, t.held / VEL.usd * 100);
+      return `<section class="day ${i === ti ? 'today' : ''} ${fut ? 'future' : ''}" aria-label="${k} ${date}">
+        <header><b>${k} <span class="dim">${date}</span></b>${fut ? '<span class="ui-hint">—</span>' : `<span class="ui-hint" title="Clause 5: ${money0(t.usd)} of $900 and ${t.n} of 12 deals committed that day${other.length ? ' · includes ' + other.join(', ') + ' from Tables' : ''}">${money0(t.usd)}${other.length ? '*' : ''}</span>`}
+          <div class="ui-meter vel">${fut ? '' : `<i style="width:${pc}%"></i><i class="h" style="width:${ph}%"></i>`}</div></header>
+        <div class="cards">${mine.map(cardHtml).join('')}</div></section>`;
+    }).join('');
+    const held = HOLD.state === 'AUTHORIZED', end = held ? HOLD_END : (V.decidedAt || now());
+    const bl = wpos(HOLD_START), bw = Math.max(1.5, wpos(end) - bl);
+    const band = `<div class="bandrow"><div class="band ${held ? '' : 'done'}" style="left:${bl}%;width:${bw}%" title="Honor period of the D-0190 hold">${held ? `◆ D-0190 · $64.00 hold <span class="end">auto-void Sun 09:02 ▸</span>` : ``}</div>${held ? '' : `<span class="band-l" style="${bl + bw > 70 ? `right:calc(${100 - bl - bw}% + 6px)` : `left:calc(${bl + bw}% + 6px)`}">D-0190 hold ended ${fmtT(end)}</span>`}</div>`;
+    const pn = wpos(now()), ps = wpos(scrubT()), showIf = held && scrubT() - now() > 30 * MIN;
+    return `<div class="week"><div class="days">${days}</div><div class="ruler" aria-hidden="true"></div>${band}
+      <div class="vline now ${pn > 85 ? 'flip' : ''}" data-wnow style="left:${pn}%"><span>now</span></div>
+      <div class="vline if ${ps > 85 ? 'flip' : ''}" data-wif style="left:${ps}%" ${showIf ? '' : 'hidden'}><span>if you wait</span></div></div>`;
+  }
+  function weekInfo(anchor) {
+    UI.popover(anchor, `<dl class="ui-kv"><dt>Header</dt><dd>wallet spend that day vs clause 5: $900 and 12 deals</dd><dt>Counts</dt><dd>captures and open holds (hatched gold); refused and voided count nothing</dd>
+      <dt>*</dt><dd>includes a Tables deal, not a Spend ask</dd><dt>Band</dt><dd>the D-0190 hold's honor period, Thu 09:02 → Sun 09:02</dd><dt>Engine</dt><dd>no per-day split is recorded, so it is not on the calendar</dd></dl>`, { title: 'Reading the week' });
+  }
+
+  function mainHtml() {
+    return `<div class="ui-pagehead"><h1>Spend · on the clock</h1><span class="sub">one hold is running out its 72-hour honor period</span>
+        <div class="actions">${engineStat()}</div></div>
+      <div class="ui-section"><div class="ui-section-h"><h2>Needs you</h2><span class="end">${HOLD.state === 'AUTHORIZED' && !S.empty ? 1 : 0}</span></div>${holdHtml()}</div>
+      <div class="ui-section"><div class="ui-section-h"><h2>The week at the gate</h2><span class="end">wallet per day vs cl 5 · ${S.empty ? 0 : deals.length} asks</span>
+        <button class="ui-btn plain sm" data-act="week-info" data-key="week-info" aria-label="Reading the week" style="height:16px">ⓘ</button></div>${weekHtml()}</div>
+      ${protoHtml()}`;
+  }
+
+  let lastState = HOLD.state;
+  function render() {
+    if (HOLD.state !== lastState) { if (HOLD.state !== 'AUTHORIZED' && !V.decidedAt) V.decidedAt = now(); lastState = HOLD.state; }
+    paintApp(mainHtml());
+    wireTrack();
+  }
+
+  /* live updates without a full render: the now line, the handle, the readout */
+  function paintTime() {
+    const pNow = tpos(now()), pS = tpos(scrubT());
+    const set = (sel, prop, v) => $$(sel).forEach(el => { el.style[prop] = v; });
+    set('[data-past]', 'width', pNow + '%'); set('[data-future]', 'left', pNow + '%'); set('[data-nowlbl]', 'left', pNow + '%');
+    set('[data-wait]', 'left', pNow + '%'); set('[data-wait]', 'width', Math.max(0, pS - pNow) + '%');
+    const hd = $('[data-handle]');
+    if (hd) { hd.style.left = pS + '%'; hd.setAttribute('aria-valuenow', Math.round(pS)); hd.setAttribute('aria-valuetext', fmtT(scrubT())); }
+    const ro = $('#readout');
+    if (ro) { ro.innerHTML = readoutHtml(); ro.classList.toggle('end', scrubT() >= HOLD_END - 30000); }
+    const at = V.scrub == null ? 'now' : scrubT() >= HOLD_END - 30000 ? 'end' : '';
+    $$('[data-act="scrub"]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.to === at)));
+    const wn = $('[data-wnow]'); if (wn) wn.style.left = wpos(now()) + '%';
+    const wi = $('[data-wif]');
+    if (wi) { const ps = wpos(scrubT()); wi.style.left = ps + '%'; wi.hidden = !(HOLD.state === 'AUTHORIZED' && scrubT() - now() > 30 * MIN); wi.classList.toggle('flip', ps > 85); }
+  }
+  function setScrub(t) { V.scrub = (t == null || t <= now() + 60000) ? null : Math.min(HOLD_END, Math.round(t / (15 * MIN)) * 15 * MIN); paintTime(); }
+  function wireTrack() {
+    const bar = $('[data-bar]'); if (!bar) return;
+    const fromX = x => { const r = bar.getBoundingClientRect(); const f = Math.max(0, Math.min(1, (x - r.left) / r.width)); return HOLD_START + f * (HOLD_END - HOLD_START); };
+    bar.addEventListener('pointerdown', e => {
+      e.preventDefault(); bar.setPointerCapture(e.pointerId); setScrub(fromX(e.clientX));
+      const hd = $('[data-handle]'); hd && hd.focus({ preventScroll: true });
+      const mv = ev => setScrub(fromX(ev.clientX));
+      const up = () => { bar.removeEventListener('pointermove', mv); bar.removeEventListener('pointerup', up); bar.removeEventListener('pointercancel', up); };
+      bar.addEventListener('pointermove', mv); bar.addEventListener('pointerup', up); bar.addEventListener('pointercancel', up);
+    });
+    const hd = $('[data-handle]');
+    if (hd) hd.addEventListener('keydown', e => {
+      const cur = scrubT(), step = (e.shiftKey ? 6 : 1) * HOUR;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { setScrub(cur + step); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { setScrub(cur - step); e.preventDefault(); }
+      else if (e.key === 'Home') { setScrub(null); e.preventDefault(); }
+      else if (e.key === 'End') { setScrub(HOLD_END); e.preventDefault(); }
+    });
+  }
+  const gotoHold = () => { const h = $('#hold'); if (h) { h.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' }); h.focus({ preventScroll: true }); } };
+
+  Object.assign(ACT, {
+    deal: el => dealSheet(el.dataset.id, el.dataset.id === 'D-0190' && HOLD.state === 'AUTHORIZED' ? [{ label: 'Decide on the clock ↑', onClick: () => { setTimeout(gotoHold); } }] : []),
+    scrub: el => { const to = el.dataset.to; setScrub(to === 'now' ? null : to === 'end' ? HOLD_END : now() + (+to) * HOUR); },
+    'week-info': el => weekInfo(el)
+  });
+  document.addEventListener('keydown', e => {
+    if (UI.open || e.key !== 'Escape') return; // ui.js owns Esc while a sheet or popover is open
+    if (V.scrub != null) { setScrub(null); return; }
+    location.href = HOME_HREF;
+  });
+
+  function tick() {
+    if (HOLD.state === 'AUTHORIZED' && now() >= HOLD_END) V.scrub = null;
+    if (!tickCore()) return;
+    paintTime();
+  }
+  setInterval(tick, 1000);
+  render();
+})();
+</script>
+<script src="../../../shared/shell.js" data-page="spend" data-variant="3"></script>
+</body>
+</html>

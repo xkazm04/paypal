@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Book · Sunday Notebook</title>
+<link rel="stylesheet" href="../../../shared/tokens.css">
+<link rel="stylesheet" href="../../../shared/ui.css">
+<script src="../../../main/fixtures.js"></script>
+<script src="../../../shared/ui.js"></script>
+<style>
+/* ---- Book pages on the v2 baseline: only what the baseline does not carry ---- */
+body { overflow: hidden; }
+button.ui-chip { border: 0; cursor: pointer; }
+button.ui-row { border: 0; background: none; color: inherit; font: inherit; text-align: left; width: 100%; }
+.ui-titlebar .ui-crumbs { flex: 0 1 auto; }
+.crumb-btn { background: none; border: 0; padding: 0 2px; color: var(--text); font-weight: var(--fw-semibold); cursor: pointer; border-radius: var(--r-sm); }
+.crumb-btn:hover { background: var(--hover); }
+.tb-meter { display: inline-flex; align-items: center; gap: 6px; height: var(--ctl); padding: 0 var(--sp-2); border: 0; border-left: 2px solid var(--teal); background: none;
+  color: var(--dim); font-size: var(--fs-small); white-space: nowrap; cursor: pointer; border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.tb-meter:hover { background: var(--hover); }
+.tb-meter b { color: var(--text); font: var(--fw-semibold) var(--fs-mono) var(--mono); font-variant-numeric: tabular-nums; }
+.tb-meter.eng { border-left-color: var(--line2); }
+@media (max-width: 1180px) { .tb-meter .lbl { display: none; } }
+.modlist { display: flex; flex-direction: column; gap: 1px; margin: 0 calc(-1 * var(--sp-2)); }
+.ui-btn.primary .kbd { color: inherit; border-color: color-mix(in srgb, var(--on-teal) 40%, transparent); }
+.ui-sidebar .ico.mono { font: var(--fw-semibold) var(--fs-small) var(--mono); }
+
+/* the verbatim query: one line on Layer 1, wrapped in full on Layer 2 */
+.json { margin: 0; padding: var(--sp-2) var(--sp-3); background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
+  font: var(--fs-small)/1.55 var(--mono); color: var(--teal-l); white-space: pre-wrap; word-break: break-word; }
+.json.bad { color: var(--coral-l); border-color: color-mix(in srgb, var(--refuse) 45%, var(--line)); }
+.ui-row .q1, .q1 { font: var(--fs-small) var(--mono); color: var(--teal-l); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ui-row .q1.bad, .q1.bad { color: var(--coral-l); }
+.errs { margin: 0; padding-left: 18px; font: var(--fs-small)/1.6 var(--mono); color: var(--red-l); }
+.sheet-note { margin: var(--sp-3) 0 0; }
+.chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-bottom: var(--sp-3); }
+.auditl { font: var(--fs-small)/1.6 var(--mono); color: var(--muted); }
+.ui-table tr.new td { color: var(--teal-l); }
+a.dl { color: var(--teal-l); text-decoration: none; }
+a.dl:hover { text-decoration: underline; }
+.ui-dot.pulse { animation: bk-pulse 1s ease-in-out infinite; }
+@keyframes bk-pulse { 50% { opacity: .25; } }
+
+/* money is kept apart by state: each state has its own ink */
+.bk-captured { color: var(--ok); } .bk-held { color: var(--coral-l); } .bk-motion { color: var(--teal-l); } .bk-stopped { color: var(--dim); }
+
+/* market band: the deal price against the band on file (Layer 2) */
+.mk { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: var(--fs-small); color: var(--muted); }
+.mk.none { color: var(--dim); font-style: italic; }
+.mk svg { display: block; flex: none; }
+.mk-axis { stroke: var(--line2); stroke-width: 1; }
+.mk-band { fill: color-mix(in srgb, var(--market) 22%, transparent); stroke: color-mix(in srgb, var(--market) 45%, transparent); }
+.mk-med { stroke: var(--market); stroke-width: 1.5; }
+.mk-dot { stroke: var(--bg); stroke-width: 1.5; fill: var(--teal-l); }
+.mk-dot.mk-held { fill: var(--coral-l); } .mk-dot.mk-motion { fill: var(--panel); stroke: var(--teal-l); } .mk-dot.mk-stopped { fill: var(--dim); }
+/* the collapsed source list (inspector open below 1180px) keeps icons only */
+@media (max-width: 1180px) { .ui-split.has-insp .ui-sidebar { overflow-x: hidden; } .ui-split.has-insp .ui-sidebar .cnt, .ui-split.has-insp .ui-sidebar .ui-proto { display: none; } }
+
+/* ---- Variant 2 · Sunday Notebook: a conversation with the ledger, one read-before-run step per question ---- */
+#h1:focus { outline: none; }
+.nb { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; min-width: 0; }
+.thread { scroll-behavior: smooth; }
+#suggest .ui-section:first-child { margin-top: 0; }
+.kn { width: 18px; flex: none; text-align: center; font: var(--fw-semibold) var(--fs-small) var(--mono); color: var(--dim); border: 1px solid var(--line2); border-radius: 4px; line-height: 16px; }
+.kn.bad { color: var(--red-l); border-style: dashed; }
+/* one entry: the question, the query, the answer - each one line */
+.entry { margin-top: var(--sp-3); }
+.entry .you .t1 { font-weight: var(--fw-medium); }
+.entry .qrow { background: color-mix(in srgb, var(--bg2) 60%, transparent); }
+.entry .ans .t1 { font-weight: var(--fw-medium); }
+.entry .ans .t1 small { font-weight: var(--fw-regular); color: var(--dim); font-size: var(--fs-small); margin-left: 6px; }
+.entry .foot { min-height: 34px; }
+.entry.folded { margin-top: var(--sp-1); }
+.composer { display: flex; align-items: center; gap: var(--sp-2); height: 48px; padding: 0 var(--sp-5); border-top: 1px solid var(--line); background: var(--material); }
+.composer .ui-field { flex: 1 1 auto; }
+.composer .ui-hint { flex: none; white-space: nowrap; }
+@media (max-width: 1280px) { .composer .ui-hint { display: none; } }
+/* standing answers (inspector) */
+.stand-h { display: flex; align-items: baseline; gap: var(--sp-2); }
+.mdot { width: 8px; height: 8px; border-radius: 2px; flex: none; background: var(--dim); }
+.mdot.captured { background: var(--ok); } .mdot.held { background: var(--coral); } .mdot.motion { background: var(--teal); border-radius: 50%; }
+#stand .ui-row .amt small { display: block; color: var(--dim); font-size: var(--fs-small); }
+#stand .rcrow { display: flex; flex-wrap: wrap; gap: var(--sp-1); padding: var(--sp-2) var(--sp-3); }
+#stand .ui-proto { margin-top: var(--sp-4); display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-1); }
+.mlist .mk svg { margin-left: auto; }
+</style>
+</head>
+<body>
+<div class="ui-app">
+  <header class="ui-titlebar" id="top"></header>
+  <div class="ui-split has-insp" id="split">
+    <aside class="ui-sidebar" id="side" aria-label="Modules"></aside>
+    <section class="nb" aria-label="Notebook">
+      <div class="ui-main thread" id="thread" tabindex="-1">
+        <div class="ui-pagehead">
+          <h1 tabindex="-1" id="h1">Book</h1>
+          <span class="sub">Sunday notebook · week Mon 26 Oct – Sun 1 Nov · ledger as of <span id="asof"></span> · sample snapshot</span>
+          <div class="actions"><button class="ui-btn sm" data-act="audit">Audit trail</button></div>
+        </div>
+        <div id="suggest"></div>
+        <div id="entries" aria-live="polite"></div>
+      </div>
+      <form class="composer" id="askform">
+        <input class="ui-field" id="ask" autocomplete="off" aria-label="Ask the book" placeholder="Ask the book in plain words…">
+        <button class="ui-btn primary" id="askbtn" type="submit">Ask</button>
+        <button class="ui-btn" id="presetbtn" type="button" aria-haspopup="dialog">Presets</button>
+        <span class="ui-hint" id="hint"></span>
+      </form>
+    </section>
+    <aside class="ui-inspector" id="stand" aria-label="Standing answers"></aside>
+  </div>
+</div>
+<script>
+/* ---- Book core (v2 baseline): ledger rows, BookQuery schema + validator, read-only executor,
+   outlook, CSV, and the Layer-2 detail (read sheet, rejection sheet, row detail, outlook popover).
+   Shared by the three Book variants (each page carries its own inline copy). Renders from FIX. */
+'use strict';
+const F = window.FIX;
+const NOW0 = new Date(F.nowISO).getTime();
+const T0 = Date.now();
+const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
+const simNow = () => NOW0 + (Date.now() - T0);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+/* Money is integer minor units (cents) + ISO currency; FIX holds USD dollars, converted once here. */
+const toMinor = (n) => (n == null ? null : Math.round(n * 100));
+const fmt = (minor) => (minor == null ? '—' : '$' + (minor / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const DEAL_HREF = (id) => `../../deal/variant-1/index.html#${encodeURIComponent(id)}`;
+const HOME_HREF = '../../../index.html#home';
+
+/* Week of Mon 26 Oct - Sun 1 Nov 2026. */
+const DAYDATE = { Mon: '2026-10-26', Tue: '2026-10-27', Wed: '2026-10-28', Thu: '2026-10-29', Fri: '2026-10-30', Sat: '2026-10-31', Sun: '2026-11-01' };
+const WEEK = { from: '2026-10-26', to: '2026-11-01' };
+
+/* Page-local constants consistent with FIX (same ids, times as prototype/main/modules.js). */
+const DEADLINE = {
+  'D-0190': NOW0 + F.deals.find((d) => d.id === 'D-0190').holdUntilMin * MIN, // auto-void at 72 h: Sun 1 Nov 09:02
+  'D-0189': NOW0 + 4 * HOUR + 31 * MIN, // buyer's approve link
+};
+/* decided_by per the AGENTS.md authorities: owner (approval window), a signed rule, or a safe default. */
+const DECIDED_BY = {
+  'D-0187': 'owner', 'D-0180': 'owner',
+  'D-0186': 'policy:clause6', 'D-0183': 'policy:clause6', 'D-0181': 'policy:clause6',
+  'D-0192': 'policy:clause3', 'D-0196': 'shield', 'D-0185': 'mandate:S-2', 'D-0176': 'auto:rounds',
+};
+const DECIDED_LABEL = {
+  owner: 'you · approval window', 'policy:clause6': 'policy · clause 6', 'policy:clause3': 'policy · clause 3 (refused)',
+  shield: 'shield · BLOCK', 'mandate:S-2': 'shop mandate S-2 · buyer approved', 'auto:rounds': 'auto-withdraw · rounds', open: 'still open',
+};
+/* Last Transaction Search poll in this sample (UNVERIFIED cadence; report §10.5: ≤ 3 h lag). */
+const LAST_POLL = '13:47';
+
+const STATE_TONE = (s) => ({
+  NEGOTIATING: 'live', PAIRING: 'live', QUOTED: 'live', 'AWAITING BUYER APPROVAL': 'wait', AUTHORIZED: 'held', HOLD: 'held',
+  CAPTURED: 'done', RECEIPTED: 'done', RECOVERED: 'done', REFUSED: 'bad', BLOCK: 'bad', VOIDED: 'off', WITHDRAWN: 'off', FAILED: 'wait',
+}[s] || 'off');
+const BUCKET = (s) => (['CAPTURED', 'RECEIPTED', 'RECONCILED', 'RECOVERED'].includes(s) ? 'captured'
+  : s === 'AUTHORIZED' ? 'held'
+  : ['REFUSED', 'BLOCK', 'VOIDED', 'WITHDRAWN', 'EXPIRED'].includes(s) ? 'stopped' : 'motion');
+const BUCKETS = ['captured', 'held', 'motion', 'stopped'];
+const BUCKET_LABEL = { captured: 'Captured', held: 'Held at PayPal', motion: 'In motion', stopped: 'Stopped' };
+const BUCKET_SUB = { captured: 'money moved', held: 'authorized, not captured', motion: 'nothing captured yet', stopped: 'never paid' };
+
+const cpName = (id) => (F.counterparties[id] ? F.counterparties[id].name : id);
+const ROWS = F.deals.map((d) => {
+  const kind = d.kind.split(' · ')[0].replace(' ', '_');
+  return {
+    id: d.id, kind, kindLabel: d.kind, side: d.side, dir: d.side === 'buyer' ? 'out' : 'in', cpId: d.cp, cp: cpName(d.cp), item: d.item,
+    minor: toMinor(d.amount), ask: d.ask || null, state: d.state, bucket: BUCKET(d.state), day: d.day, date: DAYDATE[d.day], when: d.when,
+    pct: d.pct == null ? null : d.pct, ref: d.ref, decided: DECIDED_BY[d.id] || 'open', mode: d.replay ? 'REPLAY' : F.mode, pp: d.pp || null,
+    recBase: d.rec, sub: d.sub, link: d.id, module: d.module,
+  };
+});
+const SUBROWS = F.subscribers.map((s) => ({
+  id: s.id, kind: 'subscription', kindLabel: 'subscription · ' + s.plan, side: 'seller', dir: 'in', cpId: s.id, cp: 'subscriber ' + s.id, item: s.plan,
+  minor: null, state: s.state, bucket: 'n/a', day: null, date: null, when: s.retry, pct: null, ref: 'care-plan', decided: 'open',
+  mode: s.replay ? 'REPLAY' : F.mode, pp: null, recBase: 'n/a', sub: s.retry, link: s.deal || null, module: 'rescue',
+}));
+
+/* Reconciliation: our ledger first, PayPal's Transaction Search second. */
+const REC = { overrides: {}, reporting: true };
+function recOf(r) {
+  const v = REC.overrides[r.id] || r.recBase || 'n/a';
+  if (!REC.reporting && v === 'pending') return 'off';
+  return v;
+}
+const REC_LABEL = { matched: 'matched', pending: 'pending in PayPal reporting', mismatch: 'mismatch', 'n/a': 'n/a', off: 'reporting not enabled' };
+const REC_TIP = {
+  matched: 'Transaction Search found this capture on your account',
+  pending: 'Captured in your ledger; Transaction Search lags up to 3 h before it lists the row',
+  mismatch: 'PayPal reports a different amount or id than the ledger',
+  'n/a': 'No money reached PayPal for this row, so there is nothing to reconcile',
+  off: 'The REST app lacks the Transaction Search permission; your own ledger still answers',
+};
+/* Layer 1 shows a short chip; the full label and its meaning live in the tooltip and the detail. */
+const REC_CHIP = { matched: ['ok', 'matched'], pending: ['gold dashed', 'pending'], mismatch: ['red', 'mismatch'], 'n/a': ['', 'n/a'], off: ['line', 'not enabled'] };
+function recChip(r) {
+  const v = recOf(r);
+  if (v === 'n/a') return `<span class="dim" title="${esc(REC_TIP[v])}">n/a</span>`;
+  return `<span class="ui-chip ${REC_CHIP[v][0]}" title="${esc(REC_LABEL[v] + ' · ' + REC_TIP[v])}">${REC_CHIP[v][1]}</span>`;
+}
+function recCounts(rows) {
+  const c = { matched: 0, pending: 0, mismatch: 0, off: 0, 'n/a': 0 };
+  rows.forEach((r) => { c[recOf(r)]++; });
+  return c;
+}
+/** Compact reconciliation summary for a set of rows (text + colour, never colour alone). */
+function recSummary(rc, all) {
+  const c = [];
+  if (rc.matched || all) c.push(`<span class="ui-chip ok" title="${esc(REC_TIP.matched)}">${rc.matched} matched</span>`);
+  if (REC.reporting && (rc.pending || all)) c.push(`<span class="ui-chip gold dashed" title="${esc(REC_TIP.pending)}">${rc.pending} pending</span>`);
+  if (rc.off) c.push(`<span class="ui-chip line" title="${esc(REC_TIP.off)}">${rc.off} not enabled</span>`);
+  if (rc.mismatch || all) c.push(`<span class="ui-chip red" title="${esc(REC_TIP.mismatch)}">${rc.mismatch} mismatch</span>`);
+  return c.join(' ');
+}
+const TONE_CHIP = { live: 'teal', wait: 'gold', held: 'coral', done: 'ok', bad: 'red', off: '' };
+const STATE_SHORT = { 'AWAITING BUYER APPROVAL': 'awaiting buyer' };
+const stChip = (s, full) => `<span class="ui-chip ${TONE_CHIP[STATE_TONE(s)]}" title="${esc(s)}">${esc(full ? s : (STATE_SHORT[s] || s))}</span>`;
+const modeChip = (m) => `<span class="badge ${m === 'REPLAY' ? 'replay' : 'sandbox'}">${esc(m)}</span>`;
+const QS_TONE = { DRAFTING: 'teal', DRAFTED: 'gold', INVALID: 'red', RUNNING: 'teal', RESULT: 'ok', EMPTY: '' };
+/** Phase of a query: drafting → drafted (read me) → running → result / empty, or invalid. */
+const qsChip = (p, label) => `<span class="ui-chip ${QS_TONE[p] || ''}">${p === 'DRAFTING' || p === 'RUNNING' ? '<span class="ui-dot pulse"></span>' : ''}${esc(label || p)}</span>`;
+const BUCKET_SHORT = { captured: 'captured', held: 'held', motion: 'in motion', stopped: 'stopped' };
+/** One line of money, kept apart by state and direction: never one total. */
+function moneyLine(sums) {
+  const p = [];
+  BUCKETS.forEach((b) => {
+    const s = sums[b];
+    if (s.out) p.push(`<span class="dim">${BUCKET_SHORT[b]}</span> <span class="money bk-${b}">${fmt(s.out)}</span>`);
+    if (s.in) p.push(`<span class="dim">${BUCKET_SHORT[b]} in</span> <span class="money bk-${b}">${fmt(s.in)}</span>`);
+  });
+  return p.join('<span class="dim"> · </span>') || '<span class="dim">no amounts</span>';
+}
+
+/* ---- BookQuery: the closed query language (report §7 cap 5), verbatim. ---- */
+const SCHEMA_TEXT = `{ "type":"object", "additionalProperties":false,
+  "required":["view","metrics"],
+  "properties":{
+    "view":{"enum":["deals","paypal_calls","receipts","subscriptions","reconciliation"]},
+    "filters":{"type":"array","maxItems":6,"items":{"type":"object","additionalProperties":false,
+      "properties":{"field":{"enum":["kind","state","counterparty","amount","created_at","vs_market_pct","decided_by"]},
+      "op":{"enum":["eq","ne","gt","lt","between","in"]},"value":{}}}},
+    "group_by":{"type":"array","items":{"enum":["kind","counterparty","state","day","decided_by"]},"maxItems":2},
+    "metrics":{"type":"array","items":{"enum":["count","sum_amount","avg_vs_market_pct","recovered_sum"]}},
+    "range":{"type":"object","properties":{"from":{"type":"string"},"to":{"type":"string"}}},
+    "limit":{"type":"integer","maximum":500} } }`;
+const SCHEMA = JSON.parse(SCHEMA_TEXT);
+const ENUMS = {
+  view: SCHEMA.properties.view.enum,
+  field: SCHEMA.properties.filters.items.properties.field.enum,
+  op: SCHEMA.properties.filters.items.properties.op.enum,
+  group_by: SCHEMA.properties.group_by.items.enum,
+  metrics: SCHEMA.properties.metrics.items.enum,
+};
+function checkNode(s, v, path, errs) {
+  const at = path || '/';
+  if (s.type) {
+    const ok = s.type === 'object' ? (v !== null && typeof v === 'object' && !Array.isArray(v))
+      : s.type === 'array' ? Array.isArray(v)
+      : s.type === 'integer' ? Number.isInteger(v)
+      : s.type === 'string' ? typeof v === 'string' : true;
+    if (!ok) { errs.push(`${at} must be ${s.type}`); return; }
+  }
+  if (s.enum && !s.enum.includes(v)) errs.push(`${at} must be equal to one of the allowed values: ${s.enum.join(', ')}`);
+  if (s.maximum != null && typeof v === 'number' && v > s.maximum) errs.push(`${at} must be <= ${s.maximum}`);
+  if (s.type === 'object') {
+    (s.required || []).forEach((k) => { if (!(k in v)) errs.push(`${at} must have required property '${k}'`); });
+    Object.keys(v).forEach((k) => {
+      if (s.properties && s.properties[k]) checkNode(s.properties[k], v[k], `${path}/${k}`, errs);
+      else if (s.additionalProperties === false) errs.push(`${at} must NOT have additional properties: '${k}'`);
+    });
+  }
+  if (s.type === 'array') {
+    if (s.maxItems != null && v.length > s.maxItems) errs.push(`${at} must NOT have more than ${s.maxItems} items`);
+    if (s.items) v.forEach((x, i) => checkNode(s.items, x, `${path}/${i}`, errs));
+  }
+}
+/** Parse + validate exactly the text the engine (or a preset, or Maya) produced. */
+function validateText(text) {
+  let obj;
+  try { obj = JSON.parse(text); } catch (e) { return { ok: false, obj: null, errors: [`not JSON · ${e.message}`] }; }
+  const errors = [];
+  checkNode(SCHEMA, obj, '', errors);
+  return { ok: errors.length === 0, obj, errors };
+}
+
+/* Presets: fixed queries that run without an engine (report §13 cut-line). */
+const R = `"range":{"from":"${WEEK.from}","to":"${WEEK.to}"}`;
+const PRESETS = [
+  { id: 'week', short: 'This week vs market', q: 'What did my agents commit this week, and how did it compare with the market?',
+    json: `{"view":"deals","group_by":["kind"],"metrics":["count","sum_amount","avg_vs_market_pct"],${R}}` },
+  { id: 'pending', short: 'Does PayPal agree yet?', q: 'Does PayPal agree yet? Which captures are still pending in PayPal reporting?',
+    json: `{"view":"reconciliation","metrics":["count","sum_amount"],${R}}` },
+  { id: 'decided', short: 'Policy vs me', q: 'What did the policy decide on its own, and what did I decide?',
+    json: `{"view":"deals","group_by":["decided_by"],"metrics":["count","sum_amount"],${R}}` },
+  { id: 'day', short: 'Day by day', q: 'Day by day: what was committed?',
+    json: `{"view":"deals","group_by":["day"],"metrics":["count","sum_amount"],${R}}` },
+  { id: 'stopped', short: 'What was stopped', q: 'What was stopped, and by what?',
+    json: `{"view":"deals","filters":[{"field":"state","op":"in","value":["REFUSED","BLOCK","VOIDED","WITHDRAWN"]}],"group_by":["decided_by"],"metrics":["count","sum_amount"],${R}}` },
+  { id: 'mismatch', short: 'Mismatches with PayPal', q: 'Any mismatches with PayPal?',
+    json: `{"view":"reconciliation","filters":[{"field":"state","op":"eq","value":"MISMATCH"}],"metrics":["count"],${R}}` },
+  { id: 'rescue', short: 'Rescue recovered', q: 'What did rescue recover?',
+    json: `{"view":"subscriptions","group_by":["state"],"metrics":["count","recovered_sum"]}` },
+];
+
+/* Prototype stand-in for the engine (claude-code, tool-less profile). It sees the question and the
+   schema only - never rows, never counterparty text. Deterministic so the demo repeats. */
+function engineDraft(question) {
+  const s = question.toLowerCase();
+  const has = (re) => re.test(s);
+  if (has(/\b(delete|drop|update|insert|refund|pay|send|capture|void|cancel)\b/)) {
+    const id = (question.match(/[DQ]-\d{4}/i) || ['D-0186'])[0].toUpperCase();
+    const act = (s.match(/\b(delete|drop|update|insert|refund|pay|send|capture|void|cancel)\b/) || ['refund'])[0];
+    return `{"view":"deals","action":"${act}","filters":[{"field":"id","op":"eq","value":"${id}"}],"metrics":["count"]}`;
+  }
+  if (has(/\b(sql|select)\b/)) return `SELECT * FROM deals WHERE state = 'CAPTURED'`;
+  if (has(/forecast|predict|next week|projection|expect/)) return `{"view":"deals","metrics":["forecast_sum"],${R}}`;
+  if (has(/all time|\bever\b|everything|since the start/)) return `{"view":"deals","metrics":["count","sum_amount"],"limit":5000}`;
+  if (has(/mismatch|disagree|wrong/)) return PRESETS[5].json;
+  if (has(/pending|reporting|reconcil|match|agree|statement/)) return PRESETS[1].json;
+  if (has(/recover|rescue|subscri|renewal/)) return PRESETS[6].json;
+  if (has(/refus|block|stopp|void|withdr/)) return PRESETS[4].json;
+  if (has(/polic|decid|on its own|automatic|who/)) return PRESETS[2].json;
+  if (has(/\bday\b|daily|each day|per day/)) return PRESETS[3].json;
+  const cp = Object.values(F.counterparties).find((c) => s.includes(c.id) || s.includes(c.name.toLowerCase().split(' ')[0]));
+  if (cp) {
+    const st = has(/captur|paid/) ? `,{"field":"state","op":"eq","value":"CAPTURED"}` : '';
+    return `{"view":"deals","filters":[{"field":"counterparty","op":"eq","value":"${cp.id}"}${st}],"metrics":["count","sum_amount","avg_vs_market_pct"],${R}}`;
+  }
+  const over = s.match(/(?:over|above|more than)\s*\$?(\d+)/);
+  if (over) return `{"view":"deals","filters":[{"field":"amount","op":"gt","value":${over[1]}}],"group_by":["state"],"metrics":["count","sum_amount"],${R}}`;
+  if (has(/supplier|counterpart|vendor|seller/)) return `{"view":"deals","group_by":["counterparty"],"metrics":["count","sum_amount"],${R}}`;
+  if (has(/paypal call|order id|capture id/)) return `{"view":"paypal_calls","metrics":["count","sum_amount"],${R}}`;
+  if (has(/receipt/)) return `{"view":"receipts","metrics":["count","sum_amount"],${R}}`;
+  return PRESETS[0].json;
+}
+/* Example questions that show the rejection path (engine output that fails the schema). */
+const TRY_INVALID = ['Refund D-0186', 'Forecast next week’s spend', 'Show everything since the start'];
+
+/* ---- Read-only executor: the prototype's stand-in for Rust on SQLITE_OPEN_READ_ONLY. ---- */
+const FIELD = {
+  kind: (r) => r.kind, state: (r) => r.state, counterparty: (r) => r.cpId, amount: (r) => (r.minor == null ? null : r.minor / 100),
+  created_at: (r) => r.date, vs_market_pct: (r) => r.pct, decided_by: (r) => r.decided,
+};
+const norm = (x) => (typeof x === 'string' ? x.toLowerCase() : x);
+function matchFilter(r, f) {
+  if (!f.field) return true;
+  const a = FIELD[f.field](r), v = f.value, op = f.op || 'eq';
+  if (op === 'eq') return norm(a) === norm(v);
+  if (op === 'ne') return norm(a) !== norm(v);
+  if (op === 'gt') return a != null && a > v;
+  if (op === 'lt') return a != null && a < v;
+  if (op === 'between') return Array.isArray(v) && a != null && a >= v[0] && a <= v[1];
+  if (op === 'in') return Array.isArray(v) && v.map(norm).includes(norm(a));
+  return false;
+}
+function viewRows(view) {
+  switch (view) {
+    case 'deals': return ROWS;
+    case 'paypal_calls': return ROWS.filter((r) => r.pp);
+    case 'receipts': return ROWS.filter((r) => r.state === 'RECEIPTED' || (r.side === 'seller' && r.bucket === 'captured'));
+    case 'reconciliation': return ROWS.filter((r) => r.pp && r.pp.capture);
+    case 'subscriptions': return SUBROWS;
+    default: return [];
+  }
+}
+const GROUP_LABEL = {
+  kind: (r) => r.kind.replace('_', ' '), counterparty: (r) => r.cp, state: (r) => r.state, day: (r) => r.day || '—',
+  decided_by: (r) => DECIDED_LABEL[r.decided] || r.decided,
+};
+const DAY_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+/** Aggregate without ever adding money in different states or directions together. */
+function aggregate(rows) {
+  const sums = {};
+  BUCKETS.forEach((b) => { sums[b] = { out: 0, in: 0, nOut: 0, nIn: 0 }; });
+  rows.forEach((r) => {
+    if (r.minor == null || !sums[r.bucket]) return;
+    sums[r.bucket][r.dir] += r.minor;
+    sums[r.bucket][r.dir === 'out' ? 'nOut' : 'nIn']++;
+  });
+  const pr = rows.filter((r) => r.pct != null);
+  const pct = pr.length ? { avg: Math.round(pr.reduce((a, r) => a + r.pct, 0) / pr.length), n: pr.length, ids: pr.map((r) => r.id) } : null;
+  const recovered = rows.filter((r) => r.state === 'RECOVERED' && r.mode !== 'REPLAY').reduce((a, r) => a + (r.minor || 0), 0);
+  return { count: rows.length, sums, pct, rec: recCounts(rows), recovered };
+}
+let QSEQ = 0;
+function runQuery(q) {
+  const t0 = performance.now();
+  let rows = viewRows(q.view);
+  const filters = q.filters || [];
+  if (q.range && q.view !== 'subscriptions') rows = rows.filter((r) => r.date && (!q.range.from || r.date >= q.range.from) && (!q.range.to || r.date <= q.range.to));
+  rows = rows.filter((r) => filters.every((f) => matchFilter(r, f)));
+  const total = rows.length;
+  rows = rows.slice(0, q.limit == null ? 500 : q.limit);
+  const gb = q.group_by || [];
+  let groups = [];
+  if (gb.length) {
+    const map = new Map();
+    rows.forEach((r) => {
+      const key = gb.map((g) => GROUP_LABEL[g](r)).join(' · ');
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(r);
+    });
+    groups = [...map.entries()].map(([key, rs]) => ({ key, rows: rs, ...aggregate(rs) }));
+    if (gb[0] === 'day') groups.sort((a, b) => DAY_ORDER.indexOf(a.key.split(' · ')[0]) - DAY_ORDER.indexOf(b.key.split(' · ')[0]));
+    else groups.sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+  }
+  const params = filters.length + (q.range ? 2 : 0) + 1;
+  return { q, rows, total, groups, all: aggregate(rows), empty: rows.length === 0, metrics: q.metrics || [], gb, seq: ++QSEQ,
+    ms: Math.max(1, Math.round(performance.now() - t0)), sqlView: 'v_book_' + q.view, params };
+}
+
+/* Plain-words reading of a valid query, generated by the wallet from the schema (not by the engine). */
+const VIEW_WORDS = {
+  deals: 'rows from your deal ledger', paypal_calls: 'the PayPal calls the pipeline made', receipts: 'signed receipts',
+  subscriptions: 'care-plan subscriptions', reconciliation: 'captures checked against PayPal Transaction Search',
+};
+const METRIC_WORDS = {
+  count: 'how many', sum_amount: 'amounts, kept apart by money state (captured · held · in motion · stopped)',
+  avg_vs_market_pct: 'average market percentile where a reference exists', recovered_sum: 'recovered money (paid invoices + captures, never REPLAY)',
+};
+const OP_WORDS = { eq: 'is', ne: 'is not', gt: 'over', lt: 'under', between: 'between', in: 'is one of' };
+function readQuery(q) {
+  const lines = [['view', VIEW_WORDS[q.view]]];
+  (q.filters || []).forEach((f) => lines.push(['filter', `only where ${String(f.field || '?').replace(/_/g, ' ')} ${OP_WORDS[f.op] || f.op} ${Array.isArray(f.value) ? f.value.join(', ') : f.value}`]));
+  if (q.group_by && q.group_by.length) lines.push(['group_by', 'one line per ' + q.group_by.map((g) => g.replace('_', ' ')).join(' then ')]);
+  lines.push(['metrics', (q.metrics || []).map((m) => METRIC_WORDS[m]).join('; ') || 'nothing (metrics is empty)']);
+  if (q.range) lines.push(['range', `from ${q.range.from || 'the start'} to ${q.range.to || 'now'}`]);
+  if (q.limit != null) lines.push(['limit', `at most ${q.limit} rows`]);
+  return lines;
+}
+
+/* ---- Fixed cash-flow outlook: a fixed query, never an LLM one. Counts from data, no forecasts. ---- */
+function outlook() {
+  const holds = ROWS.filter((r) => r.state === 'AUTHORIZED').map((r) => ({ r, until: DEADLINE[r.id], silence: F.deals.find((d) => d.id === r.id).silence }));
+  const links = ROWS.filter((r) => /AWAITING/.test(r.state)).map((r) => ({ r, until: DEADLINE[r.id], silence: F.deals.find((d) => d.id === r.id).silence }));
+  const failing = F.subscribers.filter((s) => s.state === 'FAILED');
+  return { holds, links, renewals: F.activeSubscribers, failing };
+}
+function countdown(until) {
+  const ms = Math.max(0, until - simNow());
+  if (ms >= DAY) { const hrs = Math.ceil(ms / HOUR); return `${Math.floor(hrs / 24)} d ${hrs % 24} h`; }
+  const h = Math.floor(ms / HOUR), m = Math.ceil((ms - h * HOUR) / MIN);
+  return h ? `${h} h ${String(m).padStart(2, '0')} m` : `${m} m`;
+}
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+function absTime(t) {
+  const d = new Date(t);
+  return `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+const nowClock = () => absTime(simNow()).split(' ')[1];
+
+/* ---- Market comparison: the deal price against the Channel3 band on file. ---- */
+function marketBand(r, w) {
+  w = w || 132;
+  const m = F.market[r.ref];
+  if (!m || r.minor == null) {
+    return r.pct != null ? `<span class="mk mono" title="percentile recorded at the deal; no band on file">p${r.pct}</span>` : `<span class="mk none">no market ref</span>`;
+  }
+  const a = r.minor / 100, lo = Math.min(m.p25, a) * 0.97, hi = Math.max(m.p75, a) * 1.03, h = 18;
+  const x = (v) => (4 + ((v - lo) / (hi - lo)) * (w - 8)).toFixed(1);
+  const tip = `${fmt(r.minor)} vs p25 $${m.p25} · median $${m.median} · p75 $${m.p75} · ${m.src} · retrieved ${m.retrieved}${r.pct != null ? ` · p${r.pct} at the deal` : ''}`;
+  return `<span class="mk" title="${esc(tip)}"><svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">
+    <line x1="2" x2="${w - 2}" y1="9" y2="9" class="mk-axis"/>
+    <rect x="${x(m.p25)}" y="4" width="${(x(m.p75) - x(m.p25)).toFixed(1)}" height="10" rx="2" class="mk-band"/>
+    <line x1="${x(m.median)}" x2="${x(m.median)}" y1="2" y2="16" class="mk-med"/>
+    <circle cx="${x(a)}" cy="9" r="4" class="mk-dot mk-${r.bucket}"/></svg><span class="mono">${r.pct != null ? 'p' + r.pct : (a > m.median ? '+' : '') + Math.round(((a - m.median) / m.median) * 100) + '%'}</span></span>`;
+}
+
+/* ---- CSV export: every record carries its mode badge; formula-safe cells. ---- */
+function csvCell(v) {
+  let s = v == null ? '' : String(v);
+  if (/^[=+\-@]/.test(s)) s = "'" + s;
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function toCSV(rows, queryText) {
+  const head = ['mode', 'deal', 'day', 'kind', 'side', 'counterparty', 'item', 'money_state', 'amount', 'currency', 'state', 'decided_by', 'vs_market_pct', 'paypal_statement', 'paypal_order', 'paypal_capture', 'query'];
+  const lines = [head.join(',')];
+  rows.forEach((r) => lines.push([r.mode, r.id, r.date || '', r.kind, r.side, r.cp, r.item, r.bucket, r.minor == null ? '' : (r.minor / 100).toFixed(2), 'USD', r.state,
+    r.decided, r.pct == null ? '' : r.pct, REC_LABEL[recOf(r)], r.pp ? r.pp.order : '', r.pp && r.pp.capture ? r.pp.capture : '', queryText || ''].map(csvCell).join(',')));
+  return lines.join('\r\n') + '\r\n';
+}
+function downloadCSV(rows, queryText, name) {
+  const modes = [...new Set(rows.map((r) => r.mode))].join('+');
+  const file = `${name || 'book'}-${modes || F.mode}-2026-10-29.csv`;
+  const blob = new Blob([toCSV(rows, queryText)], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = file; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  return { file, n: rows.length, modes };
+}
+
+/* ---- Audit: FIX.audit plus every query this page runs (append-only; book.query is read-only). ---- */
+const AUDIT = F.audit.slice();
+function audit(actor, action, deal) {
+  const seq = AUDIT[0].seq + 1;
+  AUDIT.unshift({ seq, t: absTime(simNow()).split(' ')[1] + ':' + String(new Date(simNow()).getSeconds()).padStart(2, '0'), actor, action, deal: deal || '' });
+  return seq;
+}
+
+/* ---- Toast: the baseline's, with our own (already escaped) markup. ---- */
+function toast(html, kind) {
+  const n = document.createElement('span'); n.innerHTML = html;
+  UI.toast(n, kind);
+}
+
+/** Layer 1 market cue: the percentile recorded at the deal, or distance from the band median. */
+function pctText(r) {
+  if (r.pct != null) return `p${r.pct}`;
+  const m = F.market[r.ref];
+  if (!m || r.minor == null) return '—';
+  const d = Math.round(((r.minor / 100 - m.median) / m.median) * 100);
+  return (d > 0 ? '+' : '') + d + '%';
+}
+
+/* ---- Layer 2: read-before-run sheet, rejection sheet, row detail, outlook, audit. ---- */
+const srcLabel = (source) => (source === 'preset' ? 'preset · a fixed query, no engine' : `drafted by ${APP.engine} · tool-less profile · it saw your words and the schema, never your rows`);
+/** The query verbatim plus the wallet's plain-words reading. `onRun` puts Run in the footer. */
+function readSheet({ text, val, source, onRun, title }) {
+  const body = `<div class="ui-section-h"><h3>Verbatim · exactly what runs</h3></div><pre class="json">${esc(text)}</pre>
+    <div class="ui-section"><div class="ui-section-h"><h3>In plain words · read back by the wallet from the schema, not by the engine</h3></div>
+    <dl class="ui-kv">${readQuery(val.obj).map(([k, v]) => `<dt class="mono">${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>
+    <p class="ui-hint sheet-note">${esc(srcLabel(source))}<br>SQLITE_OPEN_READ_ONLY · whitelisted view v_book_${esc(val.obj.view)} · values bound as parameters · the book has no write path</p>`;
+  const actions = onRun ? [{ label: 'Close' }, { label: 'Run read-only', kind: 'primary', onClick: () => onRun() }] : [{ label: 'Done', kind: 'primary' }];
+  return UI.sheet({ title: title || 'Read before you run', body, actions, size: 'wide' });
+}
+function rejectSheet({ text, val, source, auditSeq }) {
+  const body = `<div class="ui-section-h"><h3>What the engine produced · verbatim</h3></div><pre class="json bad">${esc(text)}</pre>
+    <div class="ui-section"><div class="ui-section-h"><h3>Schema errors · ${val.errors.length}</h3></div><ul class="errs">${val.errors.map((e) => `<li>${esc(e)}</li>`).join('')}</ul></div>
+    <p class="ui-hint sheet-note">${esc(srcLabel(source))}<br>0 rows read · no connection opened${auditSeq ? ` · logged as audit #${auditSeq}` : ''}. The book has no write path, so a write can only ever be rejected.</p>`;
+  return UI.sheet({ title: 'Rejected by the schema · nothing ran', body, actions: [{ label: 'Done', kind: 'primary' }], size: 'wide' });
+}
+/** Everything about one ledger row: the inspector (or a sheet) shows it, never the row itself. */
+function rowDetail(r) {
+  const d = F.deals.find((x) => x.id === r.id);
+  const v = recOf(r);
+  const trail = AUDIT.filter((a) => a.deal === r.id).slice(0, 4);
+  const amt = r.minor != null
+    ? `<span class="money bk-${r.bucket}">${fmt(r.minor)}</span> ${r.dir} · ${BUCKET_LABEL[r.bucket] ? BUCKET_LABEL[r.bucket].toLowerCase() + ' (' + BUCKET_SUB[r.bucket] + ')' : ''}`
+    : (r.ask ? `none · the ask (${esc(r.ask)}) was never sent` : 'no amount');
+  const pp = r.pp ? `order ${esc(r.pp.order)} · ${esc(r.pp.intent)} · auth ${esc(r.pp.auth || '—')} · capture ${esc(r.pp.capture || '—')}` : 'no PayPal call';
+  return `<div class="chips">${stChip(r.state, true)}${r.kind === 'subscription' ? '' : recChip(r)}${modeChip(r.mode)}${d && d.note ? `<button class="ui-chip coral dashed" data-note="${r.id}" title="Counterparty text, untrusted">note ›</button>` : ''}</div>
+    <dl class="ui-kv">
+      <dt>Counterparty</dt><dd>${esc(r.cp)}</dd>
+      <dt>Kind</dt><dd>${esc(r.kindLabel)} · ${r.side} side</dd>
+      <dt>Money</dt><dd>${amt}</dd>
+      <dt>When</dt><dd>${esc(r.when || '—')}</dd>
+      <dt>Decided by</dt><dd>${esc(DECIDED_LABEL[r.decided] || r.decided)}</dd>
+      <dt>PayPal</dt><dd class="mono">${pp}</dd>
+      ${r.kind === 'subscription' ? '' : `<dt>Statement</dt><dd>${esc(REC_LABEL[v])} <span class="dim">· ${esc(REC_TIP[v])}</span></dd>
+      <dt>Market</dt><dd>${marketBand(r, 150)}</dd>`}
+      <dt>Ledger</dt><dd>${esc(r.sub || '—')}</dd>
+    </dl>
+    <div class="ui-section"><div class="ui-section-h"><h3>Audit</h3><span class="end">append-only</span></div>
+      <div class="auditl">${trail.length ? trail.map((a) => `#${a.seq} ${esc(a.t)} ${esc(a.actor)} · ${esc(a.action)}`).join('<br>') : '<span class="dim">no audit lines for this row in the sample</span>'}</div></div>`;
+}
+/* The only place counterparty text appears: a quarantine box behind a "note ›" chip, as plain text. */
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-note]');
+  if (!b) return;
+  const d = F.deals.find((x) => x.id === b.dataset.note);
+  if (!d || !d.note) return;
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `<div class="quarantine"><div class="q-label">Untrusted · from ${esc(cpName(d.cp))}</div><div class="q-text"></div></div><p class="ui-hint sheet-note">Plain text · never sent to an agent · never a link</p>`;
+  wrap.querySelector('.q-text').textContent = d.note;
+  UI.popover(b, wrap, { title: `${d.id} · counterparty note` });
+});
+
+/** The fixed cash-flow outlook as three Layer-1 items, each with its default on silence. */
+function outlookItems() {
+  const o = outlook();
+  const h = o.holds[0], l = o.links[0];
+  return [
+    { k: 'holds', n: o.holds.length, label: o.holds.length === 1 ? 'hold expiring' : 'holds expiring', r: h && h.r, until: h && h.until, silence: h && h.silence,
+      short: 'released, nothing paid', what: h ? `auto-void ${absTime(h.until)}` : '' },
+    { k: 'links', n: o.links.length, label: o.links.length === 1 ? 'approve link' : 'approve links', r: l && l.r, until: l && l.until, silence: l && l.silence,
+      short: 'lapses, no money moves', what: l ? `${l.r.cp} approves on PayPal` : '' },
+    { k: 'renew', n: o.renewals, label: 'renewals due · 30 d', failing: o.failing,
+      short: 'PayPal’s schedule runs', silence: 'PayPal bills and retries on its own schedule; nothing here moves money' },
+  ];
+}
+function outlookPopover(anchor, k) {
+  const it = outlookItems().find((x) => x.k === k);
+  let kv = '';
+  if (it.r) {
+    kv = `<dt>Deal</dt><dd><a class="dl" href="${DEAL_HREF(it.r.id)}">${it.r.id}</a> · ${esc(it.r.item)}</dd>
+      <dt>Amount</dt><dd class="money">${fmt(it.r.minor)} ${it.r.dir}</dd>
+      <dt>Deadline</dt><dd>${esc(it.what)} · in ${countdown(it.until)}</dd>`;
+  } else if (it.failing) {
+    kv = `<dt>Active</dt><dd>${it.n} subscribers</dd>${it.failing.map((s) => `<dt>${s.id}</dt><dd>failing · ${esc(s.retry)}</dd>`).join('')}`;
+  } else kv = '<dt>Now</dt><dd>none</dd>';
+  UI.popover(anchor, `<dl class="ui-kv">${kv}<dt>If you do nothing</dt><dd>${esc(it.silence || it.short)}</dd></dl>
+    <p class="ui-hint sheet-note">Cash-flow outlook · a fixed query, never an engine · counts only, no forecast</p>`, { title: `${it.n} ${it.label}` });
+}
+function auditSheet() {
+  UI.sheet({ title: 'Audit trail · append-only', size: 'wide', actions: [{ label: 'Done', kind: 'primary' }],
+    body: `<table class="ui-table"><thead><tr><th>#</th><th>Time</th><th>Actor</th><th>Action</th><th>Deal</th></tr></thead><tbody>
+      ${AUDIT.slice(0, 20).map((a) => `<tr${a.seq > F.audit[0].seq ? ' class="new"' : ''}><td class="mono">${a.seq}</td><td class="mono">${esc(a.t)}</td><td>${esc(a.actor)}</td><td class="clip" title="${esc(a.action)}">${esc(a.action)}</td><td>${a.deal ? `<a class="dl mono" href="${DEAL_HREF(a.deal)}">${a.deal}</a>` : ''}</td></tr>`).join('')}</tbody></table>
+      <p class="ui-hint sheet-note">Hash-chained in the app. Book queries are logged as reads by the owner; rejected drafts are logged against the book agent.</p>` });
+}
+
+/* ---- Main-window chrome: title bar (breadcrumb, mode badge, two meters, idle lock) + module list. ---- */
+const APP = { locked: false, engine: F.owner.engine };
+const MODS = [
+  ['tables', 'Tables', 'Haggle'], ['spend', 'Spend', 'Spend firewall'], ['counter', 'Counter', 'Agent-ready shop'],
+  ['book', 'Book', 'Payments ops cockpit'], ['shield', 'Shield', 'Scam shield'], ['rescue', 'Rescue', 'Subscription rescue'],
+];
+function walletMeter() {
+  const cap = aggregate(ROWS).sums.captured;
+  return { out: cap.out, in: cap.in };
+}
+const modNeeds = (k) => F.deals.filter((d) => d.module === k && d.pending).length;
+const modCount = (k) => (k === 'book' ? ROWS.length : F.deals.filter((d) => d.module === k).length);
+function chromeTop(extra, opts) {
+  const w = walletMeter();
+  const book = opts && opts.modSwitch ? '<button class="crumb-btn" data-act="mods" aria-haspopup="dialog">Book ▾</button>' : '<span>Book</span>';
+  return `<a class="ui-btn plain icon" href="${HOME_HREF}" title="Back to The Table (Esc)" aria-label="Back to The Table">‹</a>
+    <nav class="ui-crumbs" aria-label="Breadcrumb"><a href="${HOME_HREF}">The Table</a><span class="sep">›</span>${book}${extra || ''}</nav>
+    <span class="ui-spacer"></span>
+    <span class="badge sandbox" title="Every screen and every exported record carries its mode">Sandbox</span>
+    <button class="tb-meter" data-meter="wallet" title="Wallet spend · captured this week"><span class="lbl">Wallet</span><b>${fmt(w.out)} out · ${fmt(w.in)} in</b></button>
+    <button class="tb-meter eng" data-meter="engine" title="Engine spend · the CLI's own estimate"><span class="lbl">Engine</span><b>~$${F.engineWeekUSD.toFixed(2)}</b><span class="lbl">not a bill</span></button>
+    <button class="ui-btn sm ${APP.locked ? 'gold locked' : 'plain'}" data-act="lock" title="Privileged actions lock after 15 idle minutes. Book only reads, so nothing here locks.">${APP.locked ? 'Unlock with Windows Hello' : 'Unlocked'}</button>`;
+}
+function wireChrome(root, rerender) {
+  $$('[data-act="lock"]', root).forEach((b) => b.addEventListener('click', () => {
+    APP.locked = !APP.locked;
+    toast(APP.locked ? '<b>Idle lock</b> · privileged buttons elsewhere ask for Windows Hello. The book stays open: it only reads.' : '<b>Unlocked</b> · prototype: Windows Hello simulated', APP.locked ? 'gold' : 'ok');
+    rerender();
+  }));
+  $$('[data-meter]', root).forEach((b) => b.addEventListener('click', () => {
+    const w = walletMeter();
+    if (b.dataset.meter === 'wallet') UI.popover(b, `<dl class="ui-kv"><dt>Out</dt><dd class="money">${fmt(w.out)}</dd><dt>In</dt><dd class="money">${fmt(w.in)}</dd></dl>
+      <p class="ui-hint sheet-note">USD your agents' deals captured this week. Holds, offers and stopped deals are not in it. A separate meter from engine spend.</p>`, { title: 'Wallet spend · captured this week' });
+    else UI.popover(b, `<dl class="ui-kv"><dt>This week</dt><dd class="money">~$${F.engineWeekUSD.toFixed(2)}</dd><dt>Engine</dt><dd>${esc(APP.engine)}</dd></dl>
+      <p class="ui-hint sheet-note">The CLI's own client-side estimate. Not a bill, and never used for a money decision.</p>`, { title: 'Engine spend · estimate' });
+  }));
+  $$('[data-act="mods"]', root).forEach((b) => b.addEventListener('click', () => UI.popover(b, `<div class="modlist">${MODS.map(([k, n, l]) => `<a class="ui-sb-item${k === 'book' ? ' on' : ''}" href="../../${k}/variant-1/index.html"><span class="ico"><span class="ui-dot" style="color:var(--m-${k})"></span></span><span class="lbl">${n} <span class="dim">· ${l}</span></span>${modNeeds(k) ? `<span class="cnt need">${modNeeds(k)}</span>` : ''}</a>`).join('')}</div>`, { title: 'Modules' })));
+}
+/** The module source list; `extra` adds page sections between the modules and the footer. */
+function chromeSide(extra) {
+  return `<div class="ui-sb-head">Modules</div>${MODS.map(([k, n, l]) => {
+    const nd = modNeeds(k);
+    return `<a class="ui-sb-item${k === 'book' ? ' on' : ''}"${k === 'book' ? ' aria-current="page"' : ''} href="../../${k}/variant-1/index.html" title="${n} · ${l}"><span class="ico"><span class="ui-dot" style="color:var(--m-${k})"></span></span><span class="lbl">${n}</span><span class="cnt${nd ? ' need' : ''}" title="${nd ? nd + ' needs you' : modCount(k) + ' rows'}">${nd || modCount(k)}</span></a>`;
+  }).join('')}${extra || ''}
+  <div class="ui-sb-foot"><a class="ui-sb-item" href="../../mandate/variant-1/index.html"><span class="ico dim">§</span><span class="lbl">Mandates · M-12 v3</span></a><a class="ui-sb-item" href="../../setup/variant-1/index.html"><span class="ico dim">⚙</span><span class="lbl">Settings · ${esc(APP.engine)}</span></a></div>`;
+}
+
+/* ================= Variant 2 · Sunday Notebook ================= */
+const S = { entries: [], engineOn: true };
+const E = (id) => S.entries.find((e) => e.id === id);
+let READ = null; // the open read-before-run sheet, if any
+
+function renderChrome() {
+  $('#top').innerHTML = chromeTop();
+  wireChrome($('#top'), renderChrome);
+  $('#side').innerHTML = chromeSide();
+  $('#asof').textContent = absTime(simNow());
+}
+
+/* first screen: the questions the book answers without an engine; later they live in "Presets" */
+function presetRows(cls) {
+  return `<div class="ui-section"><div class="ui-section-h"><h2>Ask without an engine</h2><span class="end">presets are fixed queries · keys 1–7</span></div>
+    <div class="ui-group">${PRESETS.map((p, i) => `<button class="ui-row act ${cls || ''}" data-preset="${i}"><span class="kn">${i + 1}</span><span class="main"><span class="t1">${esc(p.q)}</span></span><span class="ui-chip line">preset</span></button>`).join('')}</div></div>
+    <div class="ui-section"><div class="ui-section-h"><h2>See a rejection</h2><span class="end">engine drafts that fail the schema</span></div>
+    <div class="ui-group">${TRY_INVALID.map((q) => `<button class="ui-row act ${cls || ''}" data-try="${esc(q)}"><span class="kn bad">✕</span><span class="main"><span class="t1">${esc(q)}</span></span><span class="ui-chip red">rejected</span></button>`).join('')}</div></div>`;
+}
+function wirePresets(root, after) {
+  $$('[data-preset]', root).forEach((b) => b.addEventListener('click', () => { if (after) after(); const p = PRESETS[+b.dataset.preset]; ask(p.q, p.json); }));
+  $$('[data-try]', root).forEach((b) => b.addEventListener('click', () => { if (after) after(); ask(b.dataset.try); }));
+}
+function renderSuggest() {
+  const el = $('#suggest');
+  el.hidden = S.entries.length > 0;
+  if (el.hidden) return;
+  el.innerHTML = presetRows();
+  wirePresets(el);
+}
+
+let EID = 0;
+function ask(q, presetJson) {
+  q = (q || '').trim();
+  if (!q) return;
+  if (!presetJson && !S.engineOn) { toast('<b>No engine connected.</b> Presets are fixed queries and still run.', 'gold'); return; }
+  S.entries.forEach((e) => { if (!['DRAFTED', 'DRAFTING', 'RUNNING'].includes(e.phase)) e.folded = true; });
+  const e = { id: ++EID, q, t: nowClock(), phase: 'DRAFTING', source: presetJson ? 'preset' : 'engine', text: '', val: null, res: null, folded: false };
+  S.entries.push(e);
+  $('#ask').value = '';
+  renderSuggest(); renderEntries(e.id);
+  const done = () => {
+    e.text = presetJson || engineDraft(q);
+    e.val = validateText(e.text);
+    e.phase = e.val.ok ? 'DRAFTED' : 'INVALID';
+    if (!e.val.ok) e.audit = audit('agent:book', 'book.query REJECTED by schema · nothing ran');
+    renderEntries(e.id);
+    const b = $(`#run-${e.id}`) || $(`#why-${e.id}`);
+    if (b) b.focus({ preventScroll: true });
+  };
+  setTimeout(done, presetJson ? (reduceMotion ? 0 : 200) : (reduceMotion ? 150 : 1200));
+}
+function run(id) {
+  const e = E(id);
+  if (!e || e.phase !== 'DRAFTED') return;
+  if (READ) { READ.close(); READ = null; }
+  e.phase = 'RUNNING'; renderEntries(id);
+  setTimeout(() => {
+    e.res = runQuery(e.val.obj);
+    e.phase = e.res.empty ? 'EMPTY' : 'RESULT';
+    e.audit = audit('owner', `book.query #${e.res.seq} ran read-only · view ${e.val.obj.view} · ${e.res.total} rows`);
+    renderEntries(id); renderStand();
+  }, reduceMotion ? 120 : 700);
+}
+
+const btn = (attr, label, kind, id) => `<button class="ui-btn sm ${kind || ''}" ${attr}${id ? ` id="${id}"` : ''}>${label}</button>`;
+function answerRows(e) {
+  const r = e.res, m = r.metrics, subs = e.val.obj.view === 'subscriptions';
+  if (e.phase === 'EMPTY') {
+    return `<div class="ui-row">${qsChip('EMPTY', 'no rows')}<span class="main"><span class="t1">The query ran and nothing in the ledger matches it.${e.val.obj.view === 'reconciliation' ? ' No capture this week disagrees with PayPal.' : ''}</span></span><span class="ui-hint">an empty answer is an answer</span></div>`;
+  }
+  const groups = r.groups.length ? r.groups : [{ key: 'all rows', ...r.all }];
+  const noun = subs ? 'subscriber' : 'deal';
+  let h = groups.map((g) => {
+    const money = m.includes('sum_amount');
+    const right = [
+      m.includes('avg_vs_market_pct') ? (g.pct ? `<span class="mono" title="average market percentile · n=${g.pct.n}">p${g.pct.avg}</span>` : '<span class="dim">no market ref</span>') : '',
+      m.includes('recovered_sum') ? `<span class="money">${fmt(g.recovered)}</span> <span class="dim">recovered</span>` : '',
+      subs ? '' : recSummary(g.rec),
+    ].filter(Boolean).join(' ');
+    return `<div class="ui-row ${money ? 'two' : ''} ans"><span class="main"><span class="t1">${esc(g.key)}${m.includes('count') ? `<small>${plural(g.count, noun)}</small>` : ''}</span>${money ? `<span class="t2">${moneyLine(g.sums)}</span>` : ''}</span><span class="end">${right}</span></div>`;
+  }).join('');
+  h += `<div class="ui-row foot">${btn(`data-rows="${e.id}"`, `Rows · ${r.rows.length} ›`)}${m.includes('avg_vs_market_pct') ? btn(`data-mkt="${e.id}"`, 'Against the market ›') : ''}${btn(`data-csv="${e.id}"`, 'Export CSV')}
+    <span class="end ui-hint">${subs ? 'S-14 is a REPLAY row and never counts on its own' : 'sums kept per money state · never one total'}</span></div>`;
+  return h;
+}
+function entryHTML(e) {
+  if (e.folded) {
+    const tag = e.res ? `#${e.res.seq} · ${plural(e.res.total, 'row')}` : e.phase === 'INVALID' ? 'nothing ran' : '';
+    return `<div class="ui-group entry folded"><button class="ui-row act" data-unfold="${e.id}" title="Unfold">${qsChip(e.phase)}<span class="main"><span class="t1">${esc(e.q)}</span></span><span class="end"><span class="ui-hint">${tag}</span><span class="chev"></span></span></button></div>`;
+  }
+  const src = e.source === 'preset' ? '<span class="ui-chip line" title="A fixed query: no engine">preset</span>'
+    : `<span class="ui-chip line" title="${esc(APP.engine)} · tool-less profile · saw your words and the schema only">book agent</span>`;
+  let h = `<div class="ui-row you"><span class="ui-chip">you</span><span class="main"><span class="t1">${esc(e.q)}</span></span><span class="end"><span class="ui-hint">${e.t}</span>${qsChip(e.phase, e.phase === 'DRAFTED' ? 'read me' : e.phase)}${e.phase === 'DRAFTING' || e.phase === 'RUNNING' ? '' : btn(`data-fold="${e.id}" title="Fold (Esc)" aria-label="Fold"`, '–', 'plain icon')}</span></div>`;
+  if (e.phase === 'DRAFTING') {
+    h += `<div class="ui-row qrow">${src}<span class="main"><span class="t1 dim">writing a BookQuery · it sees your words and the schema, never rows</span></span></div>`;
+  } else if (e.phase === 'INVALID') {
+    h += `<div class="ui-row two qrow">${src}<span class="main"><span class="t1 q1 bad" title="What the engine produced, verbatim">${esc(e.text)}</span><span class="t2">${plural(e.val.errors.length, 'schema error')} · 0 rows read · audit #${e.audit}</span></span>
+      <span class="end"><span class="ui-silence"><b>nothing ran</b></span>${btn(`data-why="${e.id}"`, 'Why rejected ›', '', `why-${e.id}`)}${btn(`data-again="${e.id}"`, 'Ask differently', 'plain')}</span></div>`;
+  } else {
+    const t2 = e.phase === 'DRAFTED' ? 'read it, then run · until you do, nothing is read'
+      : e.phase === 'RUNNING' ? 'running on a read-only connection…'
+      : `ran read-only · #${e.res.seq} · ${e.res.ms} ms · audit #${e.audit}`;
+    const end = e.phase === 'DRAFTED'
+      ? `${btn(`data-read="${e.id}"`, 'Read ›')}${btn(`data-run="${e.id}"`, 'Run read-only', 'primary', `run-${e.id}`)}${btn(`data-again="${e.id}"`, 'Ask differently', 'plain')}`
+      : e.phase === 'RUNNING' ? '' : btn(`data-read="${e.id}"`, 'Query ›');
+    h += `<div class="ui-row two qrow">${src}<span class="main"><span class="t1 q1" title="The query, verbatim">${esc(e.text)}</span><span class="t2">${t2}</span></span><span class="end">${end}</span></div>`;
+    if (e.phase === 'RESULT' || e.phase === 'EMPTY') h += answerRows(e);
+  }
+  return `<article class="ui-group entry" id="e-${e.id}">${h}</article>`;
+}
+
+function renderEntries(focusId) {
+  const host = $('#entries');
+  host.innerHTML = S.entries.map(entryHTML).join('');
+  const on = (sel, fn) => $$(sel, host).forEach((b) => b.addEventListener('click', () => fn(E(+b.getAttribute(sel.slice(1, -1))), b)));
+  on('[data-run]', (e) => run(e.id));
+  on('[data-read]', (e) => { READ = readSheet({ text: e.text, val: e.val, source: e.source, onRun: e.phase === 'DRAFTED' ? () => run(e.id) : null, title: e.phase === 'DRAFTED' ? 'Read before you run' : `Query #${e.res.seq} · as it ran` }); });
+  on('[data-why]', (e) => rejectSheet({ text: e.text, val: e.val, source: e.source, auditSeq: e.audit }));
+  on('[data-again]', (e) => { $('#ask').value = e.q; $('#ask').focus(); $('#ask').select(); });
+  on('[data-unfold]', (e) => { e.folded = false; renderEntries(e.id); });
+  on('[data-fold]', (e) => { e.folded = true; renderEntries(); });
+  on('[data-rows]', (e) => rowsSheet(e));
+  on('[data-mkt]', (e) => marketSheet(e));
+  on('[data-csv]', (e) => {
+    const r = downloadCSV(e.res.rows, e.text, `book-query-${e.res.seq}`);
+    audit('owner', `book.export ${r.file} · ${r.n} rows`);
+    toast(`<b>${esc(r.file)}</b> written · ${r.n} rows · every row carries its mode (${esc(r.modes)})`, 'ok');
+  });
+  if (focusId) {
+    const el = $(`#e-${focusId}`);
+    if (el) el.scrollIntoView({ block: 'end', behavior: reduceMotion ? 'auto' : 'smooth' });
+  }
+}
+
+/* Layer 2 for an answer: its rows (each opens its detail), and the market strip */
+function rowsSheet(e) {
+  const subs = e.val.obj.view === 'subscriptions';
+  const sh = UI.sheet({ title: `Rows · query #${e.res.seq}`, size: 'wide', actions: [{ label: 'Done', kind: 'primary' }],
+    body: `<table class="ui-table"><thead><tr><th>${subs ? 'Subscriber' : 'Deal'}</th><th>Item</th><th class="num">Amount</th><th>State</th><th>${subs ? 'Mode' : 'PayPal'}</th></tr></thead><tbody>
+      ${e.res.rows.map((r, i) => `<tr class="pick" data-i="${i}" tabindex="0"><td class="mono">${r.id}</td><td class="clip">${esc(r.item)} <span class="dim">· ${esc(r.cp)}</span></td>
+        <td class="num">${r.minor != null ? `<span class="bk-${r.bucket}">${fmt(r.minor)}</span>${r.dir === 'in' ? ' <span class="dim">in</span>' : ''}` : '<span class="dim">—</span>'}</td><td>${stChip(r.state)}</td><td>${subs ? modeChip(r.mode) : recChip(r)}</td></tr>`).join('')}</tbody></table>
+      <p class="ui-hint sheet-note">Click a row for its evidence. Amounts keep their money state: green captured · coral held · teal in motion · grey stopped.</p>` });
+  $$('tr.pick', sh.el).forEach((tr) => {
+    const open = () => {
+      const r = e.res.rows[+tr.dataset.i];
+      UI.sheet({ title: `${r.id} · ${r.item}`, body: rowDetail(r), size: 'wide',
+        actions: r.link ? [{ label: 'Back' }, { label: 'Open deal ›', kind: 'primary', onClick: () => { location.href = DEAL_HREF(r.link); } }] : [{ label: 'Back', kind: 'primary' }] });
+    };
+    tr.style.cursor = 'pointer';
+    tr.addEventListener('click', open);
+    tr.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') open(); });
+  });
+}
+function marketSheet(e) {
+  const priced = e.res.rows.filter((x) => F.market[x.ref] && x.minor != null);
+  UI.sheet({ title: `Against the market · query #${e.res.seq}`, size: 'wide', actions: [{ label: 'Done', kind: 'primary' }],
+    body: priced.length ? `<div class="ui-group mlist">${priced.map((x) => `<div class="ui-row"><a class="dl mono" href="${DEAL_HREF(x.id)}">${x.id}</a><span class="main"><span class="t1">${esc(x.item)}</span></span>${stChip(x.state)}${marketBand(x, 170)}<span class="amt">${fmt(x.minor)}</span></div>`).join('')}</div>
+      <p class="ui-hint sheet-note">Band on file: p25–p75 with the median tick. Percentiles are recorded at the deal. Items with no market match show “no market ref” and are left out of the average, not counted as zero.</p>`
+      : '<div class="ui-empty">No row in this answer has a market band on file.</div>' });
+}
+
+/* the inspector: standing answers from fixed queries, never an engine */
+function renderStand() {
+  const a = aggregate(ROWS), rc = recCounts(ROWS);
+  const n = (b) => ROWS.filter((r) => r.bucket === b).length;
+  const info = (k) => `<span class="end"><button class="ui-btn plain sm icon" data-info="${k}" aria-label="What this means">ⓘ</button></span>`;
+  $('#stand').innerHTML = `<h2>Standing answers</h2><div class="ui-hint">fixed queries · never an engine · counts, no forecasts</div>
+    <div class="ui-section"><div class="ui-section-h"><h3>This week by money state</h3>${info('states')}</div>
+      <div class="ui-group">${BUCKETS.map((b) => { const s = a.sums[b]; return `<div class="ui-row${s.out && s.in ? ' two' : ''}"><span class="mdot ${b}"></span><span class="main"><span class="t1">${BUCKET_LABEL[b]}</span></span><span class="ui-hint">${plural(n(b), 'deal')}</span>
+        <span class="amt">${s.out ? fmt(s.out) : ''}${s.in ? `${s.out ? '<small>' : ''}${fmt(s.in)} in${s.out ? '</small>' : ''}` : ''}${!s.out && !s.in ? '<span class="dim">—</span>' : ''}</span></div>`; }).join('')}</div></div>
+    <div class="ui-section"><div class="ui-section-h"><h3>Does PayPal agree yet?</h3>${info('rec')}</div>
+      <div class="ui-group"><div class="rcrow">${recSummary(rc, true)}</div></div></div>
+    <div class="ui-section"><div class="ui-section-h"><h3>Cash-flow outlook</h3>${info('outlook')}</div>
+      <div class="ui-group">${outlookItems().map((it) => `<button class="ui-row two act" data-ol="${it.k}"><span class="main"><span class="t1"><b class="mono">${it.n}</b> ${esc(it.label)}${it.r ? ` · <span class="mono">${it.r.id}</span> ${fmt(it.r.minor)} · ${countdown(it.until)}` : it.failing ? ` · ${it.failing.length} failing` : ''}</span>
+        <span class="ui-silence">if you do nothing → <b>${esc(it.short)}</b></span></span><span class="chev"></span></button>`).join('')}</div></div>
+    <div class="ui-proto"><span class="dim">Sandbox simulation · nothing calls PayPal</span><button class="ui-btn sm" data-sim="match" ${REC.overrides['D-0186'] ? 'disabled' : ''}>Transaction Search lists D-0186</button>
+      <button class="ui-btn sm" data-sim="perm">${REC.reporting ? 'Remove the Transaction Search permission' : 'Restore the Transaction Search permission'}</button>
+      <button class="ui-btn sm" data-sim="engine">${S.engineOn ? 'Disconnect the engine' : 'Reconnect claude-code'}</button></div>`;
+  $$('#stand [data-ol]').forEach((b) => b.addEventListener('click', () => outlookPopover(b, b.dataset.ol)));
+  $$('#stand [data-sim]').forEach((b) => b.addEventListener('click', () => sim(b.dataset.sim)));
+  $$('#stand [data-info]').forEach((b) => b.addEventListener('click', () => {
+    const k = b.dataset.info;
+    if (k === 'states') UI.popover(b, `<dl class="ui-kv">${BUCKETS.map((x) => `<dt>${BUCKET_LABEL[x]}</dt><dd>${BUCKET_SUB[x]}</dd>`).join('')}</dl><p class="ui-hint sheet-note">Four states, never one total: a hold is not a payment.</p>`, { title: 'Money states' });
+    if (k === 'rec') UI.popover(b, `<p class="ui-hint" style="margin:0">${REC.reporting ? `Transaction Search · last poll ${LAST_POLL} · up to 3 h lag · 31-day window per call. A capture stays “pending in PayPal reporting” until PayPal lists it.` : 'The REST app lacks the Transaction Search permission. Your own ledger still answers every question.'}</p>`, { title: 'PayPal statement' });
+    if (k === 'outlook') UI.popover(b, '<p class="ui-hint" style="margin:0">A fixed query over holds, approve links and renewals. Each line says what happens if you do nothing; none of those defaults moves money.</p>', { title: 'Cash-flow outlook' });
+  }));
+}
+function sim(k) {
+  if (k === 'match') { REC.overrides['D-0186'] = 'matched'; audit('paypal', 'reporting.match capture 6CC1… $45.00', 'D-0186'); toast('<b>D-0186</b> found in Transaction Search · pending → matched', 'ok'); }
+  if (k === 'perm') { REC.reporting = !REC.reporting; toast(REC.reporting ? 'Transaction Search permission restored' : '<b>Reporting not enabled</b> · the ledger still answers', REC.reporting ? 'ok' : 'gold'); }
+  if (k === 'engine') { S.engineOn = !S.engineOn; renderHint(); }
+  renderStand(); renderEntries();
+}
+function renderHint() {
+  $('#ask').disabled = !S.engineOn; $('#askbtn').disabled = !S.engineOn;
+  $('#ask').placeholder = S.engineOn ? 'Ask the book in plain words…' : 'No engine connected · presets still run (1–7)';
+  $('#hint').textContent = S.engineOn ? 'Enter asks · 1–7 presets · Esc folds' : 'no engine · presets only';
+}
+
+$('#presetbtn').addEventListener('click', (ev) => {
+  const p = UI.popover(ev.currentTarget, `<div class="pp">${presetRows()}</div>`, { title: 'Presets · fixed queries' });
+  p.el.style.width = '440px';
+  wirePresets(p.el, () => p.close());
+});
+$('[data-act="audit"]').addEventListener('click', auditSheet);
+$('#askform').addEventListener('submit', (ev) => { ev.preventDefault(); ask($('#ask').value); });
+document.addEventListener('keydown', (ev) => {
+  if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') { const d = [...S.entries].reverse().find((e) => e.phase === 'DRAFTED'); if (d) { ev.preventDefault(); run(d.id); } return; }
+  if (UI.open) return; // a sheet or popover owns the keyboard
+  const typing = document.activeElement === $('#ask');
+  const inOther = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !typing;
+  if (/^[1-7]$/.test(ev.key) && !inOther && !(typing && $('#ask').value) && !ev.ctrlKey && !ev.altKey && !ev.metaKey) {
+    ev.preventDefault(); const p = PRESETS[+ev.key - 1]; ask(p.q, p.json); return;
+  }
+  if (ev.key === '/' && !typing) { ev.preventDefault(); $('#ask').focus(); return; }
+  if (ev.key === 'Escape') {
+    const open = [...S.entries].reverse().find((e) => !e.folded);
+    if (open) { open.folded = true; renderEntries(); return; }
+    if (typing) { $('#ask').blur(); return; }
+    location.href = HOME_HREF;
+  }
+});
+setInterval(() => { renderStand(); $('#asof').textContent = absTime(simNow()); }, 20000);
+renderChrome(); renderSuggest(); renderStand(); renderHint();
+$('#ask').focus({ preventScroll: true });
+</script>
+<script src="../../../shared/shell.js" data-page="book" data-variant="2"></script>
+</body>
+</html>

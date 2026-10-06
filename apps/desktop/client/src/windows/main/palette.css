@@ -1,0 +1,17 @@
+/* Main window · Ctrl K find palette (Palette.tsx), v2 look. Owner: the setup agent.
+   Sits on the shared scrim (z-scrim) at sheet height (z-sheet); popovers and toasts stay above. */
+.pal { position: fixed; z-index: var(--z-sheet); left: 50%; top: 12vh; transform: translateX(-50%);
+  width: min(600px, calc(100vw - 32px)); max-height: min(560px, 76vh); display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--panel); border-radius: var(--r-lg); box-shadow: var(--shadow-3); overflow: hidden; animation: pal-in var(--t-med) var(--ease); }
+@keyframes pal-in { from { opacity: 0; transform: translate(-50%, -8px); } }
+.pal-h { padding: var(--sp-3); border-bottom: 1px solid var(--line); }
+.pal-h .ui-searchbox { width: 100%; }
+.pal-h .ui-field { height: 32px; font-size: var(--fs-title3); }
+.pal-list { overflow: auto; padding: var(--sp-1) var(--sp-2) var(--sp-2); }
+.pal-g { font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); padding: var(--sp-2) var(--sp-2) 2px; }
+.pal .pal-row { border-radius: var(--r-sm); padding: 0 var(--sp-2); cursor: pointer; }
+.pal .pal-row.on { background: var(--sel); box-shadow: none; }
+.pal .pal-row .main { flex: 0 1 auto; max-width: 60%; }
+.pal-sub { flex: 1 1 auto; min-width: 0; color: var(--dim); font-size: var(--fs-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+.pal-ic { width: 8px; flex: none; text-align: center; color: var(--dim); font-size: var(--fs-small); }
+.pal-f { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--line); background: var(--bg2); }

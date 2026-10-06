@@ -1,0 +1,47 @@
+@import './tokens.css';
+
+/* Base for all three windows (v2). 1rem = 13px (--fs-body); 12px (--fs-small) is the floor for
+   anything a person must read. No viewport-scaled root size any more. */
+html { font-size: var(--fs-body); -webkit-text-size-adjust: 100%; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: var(--fw-regular) var(--fs-body)/var(--lh) var(--font);
+  -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-radius: var(--r-sm); }
+/* Headings take programmatic focus (screen readers land on them); that is not a keyboard target. */
+h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus, h3[tabindex="-1"]:focus, [tabindex="-1"]:focus:not(:focus-visible) { outline: none; }
+[hidden] { display: none !important; }
+::selection { background: var(--sel); }
+
+.mono { font-family: var(--mono); font-size: var(--fs-mono); font-variant-numeric: tabular-nums; }
+.money { font-family: var(--num); font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); letter-spacing: -.005em; }
+.num { font-family: var(--num); font-variant-numeric: tabular-nums; }
+.dim { color: var(--dim); } .muted { color: var(--muted); }
+.teal { color: var(--teal-l); } .coral { color: var(--coral-l); } .gold { color: var(--gold-l); }
+.okc { color: var(--ok); } .red { color: var(--red-l); }
+.kbd { font: var(--fs-small) var(--mono); padding: 0 .35em; border: 1px solid var(--line2); border-bottom-width: 2px; border-radius: 4px; color: var(--dim); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* --- shared honesty components (compact; src/shared/honesty.tsx) ----------------------------- */
+.badge { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-radius: 10px;
+  font: var(--fw-semibold) var(--fs-small)/1 var(--font); white-space: nowrap; }
+.badge.sandbox::before, .badge.replay::before, .badge.scripted_engine::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .7; }
+.badge.sandbox { color: var(--on-gold); background: var(--gold); }
+.badge.replay { color: var(--on-replay); background: var(--replay); }
+.badge.scripted_engine { color: var(--on-teal); background: var(--teal-l); }
+.badge.mock { color: var(--dim); background: transparent; border: 1px dashed var(--line2); font-weight: var(--fw-medium); }
+
+.quarantine { border: 1px dashed var(--coral); border-radius: var(--r-sm); padding: 6px 8px; background: color-mix(in srgb, var(--coral) 6%, transparent); }
+.quarantine .q-label { display: flex; align-items: center; gap: 6px; font: var(--fw-semibold) var(--fs-small) var(--font); color: var(--coral-l); margin-bottom: 2px; }
+.quarantine .q-label::before { content: "\201C"; font: var(--fw-bold) 16px/1 var(--display); }
+.quarantine .q-text { white-space: pre-wrap; word-break: break-word; color: var(--muted); font-family: var(--mono); font-size: var(--fs-small); }
+
+.notice { display: flex; gap: var(--sp-2); align-items: flex-start; padding: 6px 10px; border-radius: var(--r); border: 1px solid var(--line2); background: var(--panel); font-size: var(--fs-body); }
+.notice .n-code { font: var(--fw-semibold) var(--fs-small)/20px var(--font); padding: 0 8px; border-radius: 10px; flex: none; }
+.notice.unavailable .n-code, .notice.unsupported .n-code { background: var(--panel3); color: var(--muted); }
+.notice.locked .n-code { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold-l); }
+.notice.error .n-code { background: color-mix(in srgb, var(--refuse) 18%, transparent); color: var(--red-l); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}

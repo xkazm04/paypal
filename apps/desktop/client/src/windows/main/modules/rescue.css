@@ -1,0 +1,149 @@
+/* Main window · Rescue module (modules/rescue.tsx) - the "Lever Matrix" (prototype/pages/rescue/variant-3).
+   Owner: the rescue agent. Page rules are scoped under .mod-rescue; Layer-2 content that portals out of the
+   page (inspector column, popovers) is scoped under .rsc-l2 / .rsc-pop. Colours from tokens only. */
+
+/* ---- Simple: one decision card per failed renewal, its fixes as option cards ---- */
+.mod-rescue .rs-card .ctx .mono { font: var(--fs-mono) var(--mono); margin-left: var(--sp-1); }
+.mod-rescue .rs-card .dc-opts { grid-template-columns: minmax(200px, 320px); }
+.mod-rescue .rs-card .dc-opts:empty { display: none; }
+.mod-rescue .rs-picks { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); align-items: stretch; gap: var(--sp-2); }
+.mod-rescue .rs-pick { position: relative; display: grid; grid-template-columns: 26px minmax(0, 1fr); column-gap: var(--sp-2); row-gap: 1px; align-content: start; text-align: left;
+  padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-2); min-height: 62px; border: 1px solid var(--line2); border-radius: var(--r); background: var(--panel2); color: var(--text); font: inherit; cursor: pointer; }
+.mod-rescue .rs-pick:hover:not(:disabled) { background: var(--panel3); }
+.mod-rescue .rs-pick .mk { grid-row: span 2; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--panel3); color: var(--muted); font: var(--fw-bold) 12px/1 var(--font); }
+.mod-rescue .rs-pick .mk .hg { width: 11px; height: 13px; margin: 0; color: var(--steel); }
+.mod-rescue .rs-pick .l { font-weight: var(--fw-semibold); padding-right: 16px; }
+.mod-rescue .rs-pick .m { font-size: var(--fs-small); color: var(--dim); }
+.mod-rescue .rs-pick .tick { position: absolute; top: 7px; right: 8px; display: grid; place-items: center; color: var(--teal-l); }
+.mod-rescue .rs-pick.on { border-color: var(--sel-line); background: var(--sel); }
+.mod-rescue .rs-pick.on .mk { background: color-mix(in srgb, var(--teal) 22%, transparent); color: var(--teal-l); }
+.mod-rescue .rs-pick.on .mk .hg { color: var(--teal-l); }
+.mod-rescue .rs-pick.on .m { color: var(--muted); }
+.mod-rescue .rs-pick:not(.def):not(.off) { border-style: dashed; }
+.mod-rescue .rs-pick:not(.def):not(.off).on { border-style: solid; }
+.mod-rescue .rs-pick.off { cursor: not-allowed; background: none; border-style: dashed; border-color: var(--line); }
+.mod-rescue .rs-pick.off .l { color: var(--dim); font-weight: var(--fw-regular); }
+.mod-rescue .rs-pick.off .m { color: var(--muted); }
+.mod-rescue .rs-pick:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.mod-rescue .rs-row .nm { font-weight: var(--fw-semibold); }
+.mod-rescue .rs-row .amt.okc { color: var(--ok); }
+.mod-rescue .rs-row .ui-silence { white-space: normal; }
+
+.mod-rescue .pend { display: flex; align-items: center; gap: var(--sp-2); margin: 0 0 var(--sp-3); }
+.mod-rescue .recov { display: inline-flex; align-items: baseline; gap: var(--sp-2); height: var(--ctl); padding: 0 var(--sp-2); border: 1px solid var(--line);
+  border-radius: var(--r-sm); background: var(--panel); color: var(--text); cursor: pointer; white-space: nowrap; font: inherit; }
+.mod-rescue .recov:hover { background: var(--hover); }
+.mod-rescue .recov .k { font-size: var(--fs-small); color: var(--dim); }
+.mod-rescue .recov .money { font-weight: var(--fw-semibold); }
+.mod-rescue .recov .money.okc { color: var(--ok); }
+
+.mod-rescue .mwrap { overflow-x: auto; }
+.mod-rescue .mx { table-layout: fixed; min-width: 680px; }
+.mod-rescue .mx col.c-who { width: 172px; }
+.mod-rescue .mx col.c-never { width: 54px; }
+.mod-rescue .mx col.c-act { width: 74px; }
+.mod-rescue .mx th { padding: 0 var(--sp-1); overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+.mod-rescue .mx th.def { color: var(--steel); }
+.mod-rescue .mx th.never { color: var(--red-l); text-align: center; }
+.mod-rescue .mx th .th { display: inline-flex; align-items: center; gap: 5px; }
+.mod-rescue .mx th .mk, .mod-rescue .mx th .hg { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--panel3); color: var(--muted); font: var(--fw-bold) 10px/1 var(--font); flex: none; }
+.mod-rescue .mx th .hg { padding: 3px 4px; color: var(--steel); }
+.mod-rescue .mx td { height: auto; padding: 3px var(--sp-1); }
+.mod-rescue .mx td.who { padding: 2px var(--sp-3); overflow: hidden; }
+.mod-rescue .mx .who .l1 { display: flex; align-items: center; gap: 6px; white-space: nowrap; min-width: 0; }
+.mod-rescue .mx .who .nm { font-weight: var(--fw-semibold); overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mod-rescue .mx .who .l2 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; white-space: nowrap; min-width: 0; margin: 3px 0 0 14px; }
+.mod-rescue .mx .who .l2 .ui-silence { min-width: 0; white-space: normal; }
+.mod-rescue .mx td.who { padding-top: 6px; padding-bottom: 6px; }
+.mod-rescue .mx .who .needd { width: 8px; display: inline-flex; flex: none; color: var(--gold); }
+.mod-rescue .mx tr.on td.who { box-shadow: inset 2px 0 0 var(--teal); background: var(--sel); }
+
+/* a cell: one value and one short line; the full reason is in the inspector */
+.mod-rescue .cell { position: relative; display: grid; align-content: center; width: 100%; min-width: 0; height: 44px; padding: 0 4px 0 16px; text-align: left; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg2); color: var(--text); font: inherit; }
+.mod-rescue .cell::before { content: ""; position: absolute; left: 4px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--line2); }
+.mod-rescue .cell:hover { border-color: var(--line2); }
+.mod-rescue .cell[aria-checked="true"] { border-color: var(--steel); background: color-mix(in srgb, var(--steel) 9%, var(--bg2)); }
+.mod-rescue .cell[aria-checked="true"]::before { box-shadow: inset 0 0 0 3px var(--steel); }
+.mod-rescue .cell[aria-disabled="true"] { cursor: default; background: none; border-style: dashed; }
+.mod-rescue .cell[aria-disabled="true"]::before { box-shadow: none; outline: 1px dashed var(--line2); outline-offset: -1px; }
+.mod-rescue .cell .v { font-size: var(--fs-small); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mod-rescue .cell .s { font-size: var(--fs-small); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mod-rescue .cell .s.why { color: var(--red-l); }
+.mod-rescue .cell[aria-disabled="true"] .v { color: var(--dim); font-weight: var(--fw-regular); }
+.mod-rescue .cell.unknown .v { font-size: var(--fs-small); }
+.mod-rescue .cell.peek { box-shadow: 0 0 0 1px var(--focus); }
+.mod-rescue td.neverc { text-align: center; vertical-align: middle; padding: 0 var(--sp-1); color: var(--dim); font-size: var(--fs-small);
+  border-left: 1px dashed color-mix(in srgb, var(--refuse) 35%, var(--line));
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--refuse) 6%, transparent) 0 6px, transparent 6px 12px); }
+.mod-rescue td.neverc .x { color: var(--red-l); font: var(--fw-semibold) var(--fs-title3) var(--font); }
+.mod-rescue td.act { padding: 0 var(--sp-2); }
+.mod-rescue td.span { padding: 0 var(--sp-2); }
+.mod-rescue .spanline { display: flex; align-items: center; gap: var(--sp-2); width: 100%; min-width: 0; height: var(--row); padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.mod-rescue .spanline .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mod-rescue .spanline .chev { margin-left: auto; }
+.mod-rescue tr.sr { cursor: pointer; }
+.mod-rescue tr.gs td { height: 24px; padding: 0 var(--sp-3); font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); background: var(--bg2); }
+.mod-rescue .mx tbody tr:hover td.neverc, .mod-rescue .mx tbody tr.gs:hover td { background: var(--bg2); }
+
+/* ---- Layer 2 ---- */
+.rsc-l2 .chips { display: flex; gap: var(--sp-1); align-items: center; flex-wrap: wrap; margin: var(--sp-2) 0; }
+.rsc-l2 p { margin: 0 0 var(--sp-1); }
+.rsc-l2 .red { color: var(--red-l); }
+.rsc-l2 .decide { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.rsc-l2 .sil { margin-top: 6px; }
+.rsc-l2 .ui-silence { white-space: normal; }
+.rsc-l2 .calls, .rsc-l2 .rules, .rsc-pop .rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: var(--fs-small); color: var(--muted); }
+.rsc-l2 .calls { font-family: var(--mono); color: var(--dim); margin-top: 2px; }
+.rsc-l2 .calls-d { margin-top: var(--sp-2); }
+.rsc-l2 .calls-d > summary { height: auto; font-size: var(--fs-small); color: var(--dim); }
+.rsc-l2 .calls li::before { content: "→ "; color: var(--gold-l); }
+.rsc-l2 .rules li::before, .rsc-pop .rules li::before { content: "✓ "; color: var(--ok); }
+.rsc-l2 .rules li.x, .rsc-pop .rules li.x { color: var(--red-l); }
+.rsc-l2 .rules li.x::before, .rsc-pop .rules li.x::before { content: "✕ "; color: var(--red-l); }
+.rsc-l2 .rules li.unk::before, .rsc-pop .rules li.unk::before { content: "? "; color: var(--dim); }
+.rsc-l2 .rules li.unk, .rsc-pop .rules li.unk { color: var(--dim); }
+.rsc-pop { max-width: 340px; }
+.rsc-pop p { margin: var(--sp-2) 0 0; }
+.rsc-pop h4 { margin: var(--sp-2) 0 2px; font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); }
+.rsc-pop h4:first-child { margin-top: 0; }
+.rsc-pop .unk { color: var(--dim); border-bottom: 1px dashed var(--line2); }
+
+/* ---- round 2: money strip, what the subscriber would get, Why? on each fix ---- */
+.mod-rescue .rs-strip { list-style: none; margin: 0 0 var(--sp-4); padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.mod-rescue .rs-strip .seg { --t: var(--coral); --tl: var(--coral-l); display: flex; align-items: center; gap: var(--sp-3); padding: 8px var(--sp-4); min-width: 0; }
+.mod-rescue .rs-strip .seg + .seg { border-left: 1px solid var(--line); }
+.mod-rescue .rs-strip .seg.prog { --t: var(--gold); --tl: var(--gold-l); }
+.mod-rescue .rs-strip .seg.ok { --t: var(--ok); --tl: var(--ok); }
+.mod-rescue .rs-strip .ico { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; flex: none; color: var(--tl); background: color-mix(in srgb, var(--t) 16%, transparent); }
+.mod-rescue .rs-strip .seg.none .ico { color: var(--dim); background: color-mix(in srgb, var(--dim) 14%, transparent); }
+.mod-rescue .rs-strip .tx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.mod-rescue .rs-strip .k { font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--muted); }
+.mod-rescue .rs-strip .v { font: var(--fw-semibold) 20px/1.1 var(--num); font-variant-numeric: tabular-nums; letter-spacing: -.01em; color: var(--tl); white-space: nowrap; }
+.mod-rescue .rs-strip .seg.none .v { font-size: var(--fs-body); font-weight: var(--fw-regular); color: var(--dim); }
+.mod-rescue .rs-strip .s { font-size: var(--fs-small); color: var(--dim); min-width: 0; line-height: 1.3; }
+
+.mod-rescue .rs-fix { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--line2); border-radius: var(--r); background: var(--panel2); }
+.mod-rescue .rs-fix.on { border-color: var(--sel-line); background: var(--sel); }
+.mod-rescue .rs-fix:not(.def):not(.off) { border-style: dashed; }
+.mod-rescue .rs-fix:not(.def):not(.off).on { border-style: solid; }
+.mod-rescue .rs-fix.off { background: none; border-style: dashed; border-color: var(--line); }
+.mod-rescue .rs-picks .rs-pick, .mod-rescue .rs-picks .rs-pick.on, .mod-rescue .rs-picks .rs-pick.off, .mod-rescue .rs-picks .rs-pick:not(.def):not(.off) { border: 0; background: none; }
+.mod-rescue .rs-picks .rs-pick { flex: none; min-height: 58px; }
+.mod-rescue .rs-picks .rs-pick:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 5%, transparent); border-radius: var(--r) var(--r) 0 0; }
+.mod-rescue .rs-picks .rs-pick:focus-visible { outline-offset: -2px; border-radius: var(--r); }
+.mod-rescue .rs-get { display: flex; flex-direction: column; gap: 3px; padding: 0 var(--sp-3); flex: 1; }
+.mod-rescue .rs-get .amw { display: flex; flex-direction: column; gap: 1px; }
+.mod-rescue .rs-get .al { font-size: var(--fs-small); color: var(--dim); }
+.mod-rescue .rs-get .mock { display: flex; flex-direction: column; gap: 2px; flex: 1; padding: 6px 9px; background: var(--bg2); border: 1px solid var(--line); border-left: 3px solid var(--steel); border-radius: var(--r-sm); min-width: 0; }
+.mod-rescue .rs-get.invoice .mock { border-left-color: var(--gold); }
+.mod-rescue .rs-get.email .mock { border-left-color: var(--teal); }
+.mod-rescue .rs-get .ch { display: flex; align-items: center; gap: 4px; font-size: var(--fs-small); color: var(--dim); }
+.mod-rescue .rs-get .ln { font-weight: var(--fw-medium); line-height: 1.3; overflow-wrap: anywhere; }
+.mod-rescue .rs-get .am { font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+.mod-rescue .rs-get .am.unk { align-self: flex-start; padding: 0 6px; border: 1px dashed var(--gold); border-radius: var(--r-sm); color: var(--gold-l); font-size: var(--fs-small); font-weight: var(--fw-regular); line-height: 1.5; }
+.mod-rescue .rs-get .nt { font-size: var(--fs-small); color: var(--dim); line-height: 1.3; }
+.mod-rescue .rs-get.off .mock { background: none; border: 1px dashed var(--line2); }
+.mod-rescue .rs-get.off .ln { color: var(--dim); font-weight: var(--fw-regular); }
+.mod-rescue .rs-why { padding: 5px var(--sp-3) 8px; }
+.mod-rescue .rs-why .ui-why { margin-left: 0; padding: 0; }

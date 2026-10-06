@@ -1,0 +1,37 @@
+[package]
+name = "table-engine"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints.rust]
+unsafe_code = "deny"
+missing_debug_implementations = "warn"
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+float_arithmetic = "warn"
+
+[dependencies]
+table-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+url.workspace = true
+ts-rs.workspace = true
+getrandom.workspace = true
+zeroize = "1"
+ulid.workspace = true
+[target.'cfg(windows)'.dependencies]
+windows = {version="=0.62.2", features=["Win32_Foundation","Win32_System_JobObjects","Win32_System_Threading","Win32_System_Diagnostics_ToolHelp","Win32_Security"]}
+[dev-dependencies]
+table-app.workspace = true
+table-ledger.workspace = true
+table-proto.workspace = true
+table-mcp = {path="../table-mcp"}
+ed25519-dalek.workspace = true
+axum.workspace = true

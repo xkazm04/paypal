@@ -1,0 +1,3 @@
+{"type":"system","subtype":"init","tools":["mcp__wallet__send_offer"],"mcp_servers":[{"name":"wallet","status":"connected"}]}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"mcp__wallet__send_offer","input":{"price":"10.00"}}]}}
+{"type":"result","subtype":"success","is_error":false,"result":"done"}

@@ -1,0 +1,27 @@
+[package]
+name = "table-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+table-core.workspace = true
+table-proto.workspace = true
+table-ledger.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+ed25519-dalek.workspace = true
+getrandom.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+table-paypal.workspace = true
+table-shield.workspace = true
+table-attention.workspace = true
+table-engine.workspace = true
+url.workspace = true

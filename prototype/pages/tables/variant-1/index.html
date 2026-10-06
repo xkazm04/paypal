@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tables · Band Box</title>
+<link rel="stylesheet" href="../../../shared/tokens.css">
+<link rel="stylesheet" href="../../../shared/ui.css">
+<script src="../../../main/fixtures.js"></script>
+<script src="../../../shared/ui.js"></script>
+<style>
+/* ---- shared by the three Tables variants: what the v2 baseline lacks (titlebar meters, sheet forms, check rows) ---- */
+body { overflow: hidden; }
+body.dragging, body.dragging * { cursor: grabbing !important; user-select: none; }
+.tmeter { display: inline-flex; align-items: baseline; gap: 6px; padding-left: var(--sp-2); border-left: 2px solid var(--teal); font-size: var(--fs-small); color: var(--dim); white-space: nowrap; }
+.tmeter.eng { border-left-color: var(--line2); }
+.tmeter b { font: var(--fw-semibold) var(--fs-mono) var(--mono); font-variant-numeric: tabular-nums; color: var(--text); }
+.proto-btn { border-style: dashed; background: none; box-shadow: none; color: var(--dim); }
+.ui-proto.inline { display: flex; flex-wrap: nowrap; flex: none; align-items: center; gap: var(--sp-1) var(--sp-2); padding: var(--sp-1) var(--sp-2); }
+.ui-proto.inline::before { content: "Prototype"; margin: 0; }
+.ui-proto.stack { display: grid; gap: var(--sp-1); justify-items: start; }
+button.ui-chip { border: 0; cursor: pointer; }
+button.ui-chip:hover { box-shadow: inset 0 0 0 1px var(--line2); }
+.ico-i { font-size: 14px; line-height: 1; }
+.ckl .ui-row { align-items: baseline; padding-top: 5px; padding-bottom: 5px; }
+.ckl .mk { width: 12px; flex: none; font-weight: var(--fw-bold); color: var(--ok); }
+.ckl .x .mk { color: var(--red-l); }
+.ckl .i .mk { color: var(--dim); }
+.ckl .tx { white-space: normal; min-width: 0; }
+.sform { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2) var(--sp-3); margin: var(--sp-3) 0 var(--sp-2); }
+.sform .wide { grid-column: 1 / -1; }
+.fl { display: grid; gap: 4px; font-size: var(--fs-small); color: var(--dim); }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--sp-2); counter-reset: s; font-size: var(--fs-small); color: var(--dim); }
+.steps li { counter-increment: s; display: flex; gap: 6px; align-items: baseline; }
+.steps li::before { content: counter(s); font: var(--fw-semibold) var(--fs-small) var(--mono); color: var(--dim); }
+.steps li.now { color: var(--text); } .steps li.now::before { color: var(--gold-l); }
+.steps li + li::after { content: none; }
+.sheet-p { margin: 0 0 var(--sp-2); color: var(--muted); }
+@media (max-width: 1180px) { .tmeter .lb { display: none; } }
+.ui-btn .kbd { color: inherit; border-color: color-mix(in srgb, currentColor 35%, transparent); opacity: .85; }
+
+/* ---- V1 · Band Box: the convergence chart with the band as a draggable box ---- */
+.v1grid { display: grid; grid-template-columns: minmax(300px, 400px) minmax(0, 1fr); gap: var(--sp-4); align-items: start; }
+.v1grid > .col { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.spark { width: 64px; height: 22px; flex: none; }
+.spark .a { stroke: var(--coral); } .spark .b { stroke: var(--teal); } .spark .c { stroke: var(--teal-l); } .spark .cd { stroke: var(--gold-l); } .spark .nb { stroke: var(--dim); }
+.ui-row .amt small { font: var(--fs-small) var(--font); color: var(--dim); margin-right: 6px; }
+.need-row { box-shadow: inset 3px 0 0 var(--gold); margin-bottom: var(--sp-3); }
+.band { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) var(--sp-3) var(--sp-2); }
+.bhead { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.bhead h2 { margin: 0; font: var(--fw-semibold) var(--fs-title3)/1.2 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.bhead .ref { font: var(--fs-mono) var(--mono); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.bhead > * { flex: none; } .bhead > .ref { flex: 0 1 auto; }
+.chartwrap { position: relative; }
+.chart { width: 100%; height: auto; display: block; touch-action: none; }
+.chart .grid { stroke: var(--line); }
+.chart .ax { fill: var(--dim); font: 13px var(--font); }
+.chart .axm { fill: var(--muted); font: 13px var(--font); paint-order: stroke; stroke: var(--panel); stroke-width: 4px; }
+.chart .mk { fill: color-mix(in srgb, var(--market) 12%, transparent); }
+.chart .mkline { stroke: var(--market); stroke-opacity: .5; stroke-dasharray: 3 4; }
+.chart .boxf { fill: color-mix(in srgb, var(--teal) 16%, transparent); }
+.chart .boxf.draft { fill: color-mix(in srgb, var(--gold) 14%, transparent); }
+.chart .out { fill: color-mix(in srgb, var(--bg) 50%, transparent); }
+.chart .ceil { stroke: var(--teal-l); stroke-width: 2.5; }
+.chart .ceil.draft { stroke: var(--gold-l); stroke-dasharray: 7 5; }
+.chart .ghost { stroke: var(--teal); stroke-width: 1.5; stroke-dasharray: 3 4; opacity: .8; }
+.chart .redge { stroke: var(--teal-l); stroke-width: 2; }
+.chart .redge.draft { stroke: var(--gold-l); stroke-dasharray: 6 5; }
+.chart .la { stroke: var(--coral); stroke-width: 2; fill: none; opacity: .85; }
+.chart .lb { stroke: var(--teal); stroke-width: 2; fill: none; opacity: .85; }
+.chart .da { fill: var(--coral); } .chart .db { fill: var(--teal); }
+.chart .slot { fill: none; stroke: var(--line2); stroke-dasharray: 2 3; }
+.chart .meet { fill: none; stroke: var(--gold); stroke-width: 3; }
+.chart .meet.no { stroke: var(--dim); }
+.chart .meett { fill: var(--gold-l); font: 600 14px var(--font); paint-order: stroke; stroke: var(--panel); stroke-width: 4px; }
+.chart .meett.no { fill: var(--red-l); }
+.chart .pill { fill: color-mix(in srgb, var(--teal) 22%, var(--panel)); stroke: var(--teal); }
+.chart .pill.draft { fill: color-mix(in srgb, var(--gold) 22%, var(--panel)); stroke: var(--gold); }
+.chart .pillt { fill: var(--teal-l); font: 700 14px var(--mono); }
+.chart .pillt.draft { fill: var(--gold-l); }
+.chart .h { cursor: ns-resize; outline: none; }
+.chart .hr { cursor: ew-resize; outline: none; }
+.chart .h:focus-visible .pill, .chart .hr:focus-visible .pill { stroke: var(--focus); stroke-width: 3; }
+.chart .pulse { animation: pulse 1.8s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.nob { position: absolute; inset: 22% 18% 26% 12%; display: grid; place-content: center; justify-items: center; gap: var(--sp-2); padding: var(--sp-3); text-align: center;
+  background: color-mix(in srgb, var(--panel) 88%, transparent); border: 1px dashed var(--line2); border-radius: var(--r); }
+.nob b { font-weight: var(--fw-semibold); }
+.dlrow { display: flex; align-items: center; gap: var(--sp-3); }
+.dlrow > .k { font-size: var(--fs-small); color: var(--dim); width: 52px; flex: none; }
+.dtrack { position: relative; flex: 1; height: 34px; margin: 0 var(--sp-5) 0 var(--sp-2); touch-action: none; }
+.dtrack .rail2 { position: absolute; left: 0; right: 0; top: 9px; height: 4px; border-radius: 2px; background: var(--panel3); }
+.dtrack .fill { position: absolute; top: 9px; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--teal) 60%, var(--panel3)); }
+.dtrack .fill.draft { background: color-mix(in srgb, var(--gold) 60%, var(--panel3)); }
+.dtrack .tick { position: absolute; top: 18px; transform: translateX(-50%); font: var(--fs-small) var(--mono); color: var(--dim); }
+.dtrack .now { position: absolute; top: 2px; width: 2px; height: 18px; background: var(--muted); }
+.dtrack .ghost { position: absolute; top: 3px; width: 2px; height: 16px; background: var(--teal); opacity: .8; }
+.dtrack .dh { position: absolute; top: 0; transform: translateX(-50%); height: 22px; padding: 0 var(--sp-2); display: inline-flex; align-items: center; border-radius: 11px;
+  border: 1px solid var(--teal); background: color-mix(in srgb, var(--teal) 22%, var(--panel)); font: var(--fw-bold) var(--fs-small) var(--mono); color: var(--teal-l); cursor: ew-resize; }
+.dtrack .dh.draft { border-color: var(--gold); color: var(--gold-l); background: color-mix(in srgb, var(--gold) 22%, var(--panel)); }
+.bfoot { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; min-height: var(--ctl); }
+.bfoot .ui-hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.dbar { box-shadow: inset 3px 0 0 var(--gold); }
+.dbar .ui-row { gap: var(--sp-2); }
+@media (max-width: 1100px) { .v1grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="ui-app">
+  <header class="ui-titlebar" id="tbar"></header>
+  <div class="ui-split" id="split">
+    <nav class="ui-sidebar" id="rail" aria-label="Modules"></nav>
+    <section class="ui-main" id="view" tabindex="-1"></section>
+    
+  </div>
+</div>
+<script>
+'use strict';
+/* ---------------- shared: data, domain rules, chrome, layer-2 sheets and popovers (same in all three variants) ---------------- */
+const F = window.FIX;
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const esc = UI.esc;
+const money = (n) => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const usd = (n) => '$' + Math.round(n).toLocaleString('en-US');
+const REDUCE = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const SNAP = new Date(F.nowISO).getTime();
+const T0 = Date.now();
+const nowMin = () => { const d = new Date(SNAP + (Date.now() - T0)); return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60; };
+const toMin = (s) => { const p = String(s).split(':').map(Number); return p[0] * 60 + p[1]; };
+const hm = (m) => { m = Math.round(m); if (m >= 1440) return '24:00'; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+const leftTxt = (dl) => { const l = dl - nowMin(); if (l <= 0) return 'passed'; const h = Math.floor(l / 60), m = Math.floor(l % 60); return (h ? h + ' h ' : '') + m + ' m'; };
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const OUT = ' <span aria-hidden="true">↗</span>';
+const DEAL_HREF = (id) => '../../deal/variant-1/index.html#' + id;
+
+/* Page constants that FIX does not hold (consistent with it):
+   - M-12 clause 4 names a band for monitor-27-4k only, so D-0201 (HOUSE · monitor-24-ips) has no band yet:
+     the core refuses every OFFER on it until Maya signs one (report §6.4: m.band(item_ref)? fails).
+   - When the house wakes it posts a LISTING; its list price is a prototype constant below. */
+const HOUSE_LISTING = { ask: 236, t: '14:04', note: 'house catalog list price, cached at deploy · prototype constant' };
+const NEXT_COMMIT = 'a7f2…09';
+const M12 = F.mandates[0];
+const MK = F.market;
+const CP = F.counterparties;
+const TABLES = F.deals.filter((d) => d.module === 'tables').map((d) => Object.assign({}, d));
+const T = (id) => TABLES.find((d) => d.id === id);
+const LIVE_STATES = ['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING APPROVAL', 'APPROVED'];
+const isLive = (d) => LIVE_STATES.includes(d.state);
+const chipCls = (s) => (['RECEIPTED', 'RECONCILED', 'CAPTURED'].includes(s) ? 'ok' : ['WITHDRAWN', 'EXPIRED'].includes(s) ? '' : ['REFUSED', 'MISMATCH'].includes(s) ? 'red' : ['PAIRING', 'LISTED'].includes(s) ? 'line' : 'teal');
+const stChip = (d) => `<span class="ui-chip ${chipCls(d.state)}">${esc(d.state)}</span>`;
+const NEED_CHIP = '<span class="ui-chip gold">Needs you</span>';
+const cpName = (d) => (CP[d.cp] ? CP[d.cp].name : d.cp);
+const cpShort = (d) => (d.cp === 'house' ? 'HOUSE' : CP[d.cp] ? CP[d.cp].name.split(' · ')[0] : d.cp);
+/* "the offer lapses at 18:00 · no money moves" → one ui-silence line with the act in bold */
+const silence = (txt) => { const p = String(txt || '').replace(/^the /, '').split(' · '); return `<span class="ui-silence">silent → <b>${esc(p[0])}</b>${p.length > 1 ? ' · ' + esc(p.slice(1).join(' · ')) : ''}</span>`; };
+
+const S = {
+  v: M12.v, commit: M12.commitment, signedAt: M12.signed,
+  signed: { 'D-0193': { ceiling: F.haggle.ceiling, rounds: F.haggle.rounds, deadline: toMin(F.haggle.deadline) } },
+  draft: {}, handoff: null, locked: false, paused: false, empty: false, houseAwake: false, csHanded: false,
+};
+
+/* signed envelopes per table */
+function envs(id) {
+  if (id === 'D-0193') return F.haggle.envelopes;
+  if (id === 'D-0201' && S.houseAwake) return [{ seq: 1, by: 'them', typ: 'LISTING', price: HOUSE_LISTING.ask, t: HOUSE_LISTING.t }];
+  return [];
+}
+const lastBy = (id, by) => { const e = envs(id).filter((x) => x.by === by); return e.length ? e[e.length - 1] : null; };
+const roundsUsed = (id) => envs(id).filter((x) => x.by === 'you').length;
+const mkt = (id) => MK[T(id).ref] || null;
+const signedBand = (id) => S.signed[id] || null;
+const band = (id) => S.draft[id] || S.signed[id] || null;
+const sameBand = (a, b) => !!a && !!b && a.ceiling === b.ceiling && a.rounds === b.rounds && a.deadline === b.deadline;
+const isDraft = (id) => !!S.draft[id] && !sameBand(S.draft[id], S.signed[id]);
+const hasDraft = () => Object.keys(S.draft).some(isDraft);
+function domain(id) {
+  const m = mkt(id); const ps = envs(id).map((e) => e.price);
+  const b = band(id); if (b) ps.push(b.ceiling);
+  if (m) ps.push(m.p25, m.p75);
+  if (id === 'D-0193') return [280, 400];
+  if (id === 'D-0201') return [180, 250];
+  const lo = Math.floor(Math.min.apply(null, ps) * 0.9 / 10) * 10, hi = Math.ceil(Math.max.apply(null, ps) * 1.08 / 10) * 10;
+  return [lo, hi];
+}
+const ceilRange = (id) => { const d = domain(id); return [d[0] + 5, d[1] - 5]; };
+const roundsRange = (id) => [Math.max(1, roundsUsed(id)), 12];
+const deadlineRange = () => [Math.ceil((nowMin() + 15) / 15) * 15, 23 * 60 + 45];
+function defaultBand(id) {
+  const m = mkt(id);
+  return { ceiling: m ? m.median : ceilRange(id)[0], rounds: F.haggle.rounds, deadline: toMin(F.haggle.deadline), fresh: true };
+}
+function setDraft(id, patch) {
+  const base = Object.assign({}, S.draft[id] || S.signed[id] || defaultBand(id));
+  const nb = Object.assign(base, patch);
+  const cr = ceilRange(id), rr = roundsRange(id), dr = deadlineRange();
+  nb.ceiling = clamp(Math.round(nb.ceiling), cr[0], cr[1]);
+  nb.rounds = clamp(Math.round(nb.rounds), rr[0], rr[1]);
+  nb.deadline = clamp(Math.round(nb.deadline / 15) * 15, dr[0], dr[1]);
+  if (sameBand(nb, S.signed[id])) delete S.draft[id]; else S.draft[id] = nb;
+  if (S.handoff) { S.handoff = null; toast('Draft changed · the approval-window request was withdrawn. Hand off again when done.'); }
+  rerender();
+}
+function discard(id) { if (id) delete S.draft[id]; else S.draft = {}; S.handoff = null; rerender(); }
+
+/* clause 4 checks of the (draft or signed) band against the signed transcript */
+function checks(id, b) {
+  b = b || band(id); const out = []; if (!b) return out;
+  const ask = lastBy(id, 'them'), bid = lastBy(id, 'you'), d = T(id);
+  if (ask) {
+    const what = ask.typ === 'LISTING' ? 'listing' : 'last ask';
+    if (ask.price <= b.ceiling) out.push({ ok: true, text: `${cpShort(d)}'s ${what} ${usd(ask.price)} fits under ${usd(b.ceiling)} · ${usd(b.ceiling - ask.price)} of room` });
+    else out.push({ ok: false, text: `${cpShort(d)}'s ${what} ${usd(ask.price)} is above ${usd(b.ceiling)} · unsignable: the core will not sign an ACCEPT at that price` });
+  } else out.push({ ok: true, text: 'no ask yet · the first price arrives in a signed LISTING' });
+  if (bid && bid.price > b.ceiling) out.push({ ok: false, text: `your bid #${bid.seq} ${usd(bid.price)} stays in the transcript (signed history is never re-signed), but the next bid must be ≤ ${usd(b.ceiling)}` });
+  const left = b.rounds - roundsUsed(id);
+  out.push(left > 0 ? { ok: true, text: `${left} of ${b.rounds} round${b.rounds === 1 ? '' : 's'} left (${roundsUsed(id)} used)` }
+    : { ok: false, text: `no counters left at ${b.rounds} rounds · the agent may only accept a price inside the band, or withdraw` });
+  out.push({ ok: true, text: `until ${hm(b.deadline)} today · ${leftTxt(b.deadline)} · then auto-WITHDRAW{DEADLINE}, no money moves` });
+  return out;
+}
+const fitsAsk = (id, b) => { b = b || band(id); const a = lastBy(id, 'them'); return !b || !a || a.price <= b.ceiling; };
+const failing = (id) => checks(id).filter((c) => !c.ok).length;
+
+function diffLines(id) {
+  const a = S.signed[id], b = S.draft[id], ref = T(id).ref, L = [];
+  if (!b) return L;
+  if (!a) { L.push(`+ ${ref} · ceiling ${usd(b.ceiling)} · ${b.rounds} rounds · until ${hm(b.deadline)}`); return L; }
+  if (a.ceiling !== b.ceiling) L.push(`${ref} · ceiling ${usd(a.ceiling)} → ${usd(b.ceiling)}`);
+  if (a.rounds !== b.rounds) L.push(`${ref} · rounds ${a.rounds} → ${b.rounds}`);
+  if (a.deadline !== b.deadline) L.push(`${ref} · until ${hm(a.deadline)} → ${hm(b.deadline)}`);
+  return L;
+}
+const allDiff = () => Object.keys(S.draft).filter(isDraft).reduce((acc, id) => acc.concat(diffLines(id)), []);
+/* what the pending change does to each table (x = it breaks something signable) */
+function impact() {
+  const out = [];
+  Object.keys(S.draft).filter(isDraft).forEach((id) => {
+    const d = T(id), ask = lastBy(id, 'them'), b = S.draft[id];
+    if (ask && ask.price > b.ceiling) out.push({ x: true, t: `${id}: ${cpShort(d)}'s ${usd(ask.price)} becomes unsignable · clause 4${d.pending === 'countersign' ? ' · the countersign request lapses' : ''}` });
+    else if (ask) out.push({ x: false, t: `${id}: ${cpShort(d)}'s ${usd(ask.price)} still fits · ${usd(b.ceiling - ask.price)} of room` });
+    if (!S.signed[id]) out.push({ x: false, t: `${id}: your agent may start bidding ≤ ${usd(b.ceiling)}` });
+  });
+  return out;
+}
+
+/* ---- hand-offs: only the approval window signs or countersigns ---- */
+function handOff() {
+  if (!hasDraft()) return;
+  if (S.locked) { unlockPrompt(); return; }
+  S.handoff = { v: S.v + 1, lines: allDiff() };
+  toast(`Approval window opened beside Main · <b>sign M-12 v${S.v + 1}</b> there. Signing changes the band only; it never pays.`, 'gold');
+  rerender();
+}
+function simSigned() {
+  if (!S.handoff) return;
+  Object.keys(S.draft).forEach((id) => { if (isDraft(id)) { const b = Object.assign({}, S.draft[id]); delete b.fresh; S.signed[id] = b; } });
+  S.draft = {}; S.v = S.handoff.v; S.commit = NEXT_COMMIT; S.signedAt = 'Thu 29 Oct ' + hm(nowMin()); S.handoff = null;
+  const d = T('D-0193');
+  if (d.state === 'NEGOTIATING') {
+    const ok = fitsAsk('D-0193');
+    d.pending = ok ? 'countersign' : null;
+    d.sub = ok ? `round ${roundsUsed('D-0193')}/${S.signed['D-0193'].rounds} · agent wants to accept $329` : `clause 4 refuses $329 under v${S.v} · the agent must counter ≤ ${usd(S.signed['D-0193'].ceiling)} or withdraw`;
+    if (!ok) S.csHanded = false;
+  }
+  const h = T('D-0201'); if (S.signed['D-0201'] && h.state !== 'WITHDRAWN') h.sub = S.houseAwake ? 'listing in · your agent may now bid inside the band' : 'band signed · the house seller is waking up (≈ 1 min)';
+  toast(`<b>M-12 v${S.v}</b> signed in the approval window · commitment ${NEXT_COMMIT}. The counterparty sees the new hash, never your ceiling.`, 'ok');
+  rerender();
+}
+function simClosed() { S.handoff = null; toast(`Approval window closed without signing · M-12 v${S.v} still binds.`); rerender(); }
+function countersign() {
+  if (S.locked) { unlockPrompt(); return; }
+  S.csHanded = true;
+  toast('Approval window opened · <b>countersign $329.00</b> there. It re-checks clause 4, then the seller issues the order.', 'gold');
+  rerender();
+}
+function withdrawAsk(id) {
+  const d = T(id);
+  sheet({ title: `Withdraw from ${cpShort(d)}'s table?`, size: 'narrow',
+    body: `<p class="sheet-p">Your wallet signs one WITHDRAW envelope and ${esc(id)} closes.</p>
+      <dl class="ui-kv"><dt>PayPal</dt><dd>no call</dd><dt>Money</dt><dd>none moves</dd><dt>Approval</dt><dd>not needed · restricting is always free</dd></dl>`,
+    actions: [{ label: 'Keep the table' }, { label: 'Withdraw', kind: 'danger', onClick: () => withdraw(id) }] });
+}
+function withdraw(id) {
+  const d = T(id);
+  Object.assign(d, { state: 'WITHDRAWN', pending: null, amount: null, sub: 'you withdrew · signed WITHDRAW · no order was ever issued', money: 'none' });
+  delete S.draft[id]; S.handoff = hasDraft() ? S.handoff : null; if (id === 'D-0193') S.csHanded = false;
+  toast(`<b>${esc(id)}</b> withdrawn · one signed WITHDRAW envelope · 0 PayPal calls.`, 'ok');
+  rerender();
+}
+function houseWake() {
+  S.houseAwake = true; const d = T('D-0201');
+  if (d.state === 'PAIRING') Object.assign(d, { state: 'LISTED', sub: S.signed['D-0201'] ? 'listing in · your agent may now bid inside the band' : `listing in at ${usd(HOUSE_LISTING.ask)} · no band yet, so every OFFER is refused` });
+  toast('Prototype · the house seller woke up and posted a signed LISTING.');
+  rerender();
+}
+/* the one privileged hand-off button; idle-locked it asks for Windows Hello instead */
+function privBtn(label, act, arg, sm) {
+  const c = sm ? ' sm' : '';
+  if (S.locked) return `<button class="ui-btn gold locked${c}" data-act="unlock">Unlock with Windows Hello</button>`;
+  return `<button class="ui-btn gold${c}" data-act="${act}"${arg ? ` data-arg="${esc(arg)}"` : ''}>${label}${OUT}</button>`;
+}
+function unlockPrompt() { S.locked = false; resetIdle(); toast('Unlocked with Windows Hello · hand-offs are available again.', 'ok'); rerender(); }
+function lockNow() { S.locked = true; toast('Idle 15 min · privileged buttons are locked. Viewing and drafting still work.'); rerender(); }
+
+/* ---- layer 2: sheets and popovers ---- */
+let SHEET = null, POPV = null, POPKEY = '';
+function sheet(o) { SHEET = UI.sheet(o); return SHEET; }
+function closeSheet() { if (SHEET) { SHEET.close(); SHEET = null; } }
+function pop(anchor, body, title, key) {
+  if (POPV) { const open = POPV.el.isConnected, same = POPKEY === key; POPV.close(); POPV = null; POPKEY = ''; if (same && open) return null; }
+  POPV = UI.popover(anchor, body, { title }); POPKEY = key || '';
+  return POPV;
+}
+const ckRows = (list) => `<div class="ui-group ckl">${list.map((c) => `<div class="ui-row ${c.cls || (c.ok === false || c.x ? 'x' : '')}"><span class="mk">${c.mk || (c.ok === false || c.x ? '✗' : '✓')}</span><span class="tx">${esc(c.text || c.t)}</span></div>`).join('')}</div>`;
+const BUY_ITEMS = ['monitor-27-4k', 'monitor-24-ips', 'monitor-27-qhd', 'monitor-32-4k'];
+function openTableSheet() {
+  sheet({ title: 'Open a table',
+    body: `<ol class="steps"><li class="now">Item and band</li><li>Sign it in the approval window (M-12 v${S.v + 1})</li><li>Pair: a code, or HOUSE</li></ol>
+      <div class="sform"><label class="fl wide">Item you are buying<select class="ui-field" id="otItem">${BUY_ITEMS.map((r) => `<option value="${r}">${r}${MK[r] ? ` · market ${usd(MK[r].p25)}–${usd(MK[r].p75)}` : ' · no market reference'}</option>`).join('')}</select></label>
+        <label class="fl">Ceiling ($)<input class="ui-field mono" id="otCeil" inputmode="numeric" value="${MK['monitor-27-4k'].median}"></label>
+        <label class="fl">Max rounds<input class="ui-field mono" id="otRounds" type="number" min="1" max="12" value="6"></label>
+        <label class="fl">Deadline<input class="ui-field mono" id="otDl" type="time" value="18:00"></label></div>
+      <p class="ui-hint">The ceiling starts at the Channel3 median: a reference, not a recommendation. Your agent never sees it; the core refuses anything above it.</p>`,
+    actions: [{ label: 'Cancel' }, { label: 'Next: sign in the approval window ↗', kind: 'gold', onClick: otNext }] });
+  $('#otItem').onchange = (e) => { const m = MK[e.target.value]; $('#otCeil').value = m ? m.median : ''; };
+}
+function otNext() {
+  const item = $('#otItem').value, c = $('#otCeil').value.trim(), rn = $('#otRounds').value, dl = $('#otDl').value;
+  if (!/^\d{2,4}$/.test(c)) { toast('Ceiling must be whole dollars, e.g. 320.', 'bad'); return false; }
+  if (S.locked) unlockPrompt();
+  toast(`Approval window: <b>sign M-12 v${S.v + 1}</b> adding ${esc(item)} · ≤ $${esc(c)} · ${esc(rn)} rounds · until ${esc(dl)}. Then pairing asks for a code or HOUSE.`, 'gold');
+  return true;
+}
+function joinSheet() {
+  sheet({ title: 'Join with a code', size: 'narrow',
+    body: `<ol class="steps"><li class="now">Type the code</li><li>Compare four words</li><li>Set the band</li></ol>
+      <div class="sform"><label class="fl wide">Code from the other owner<input class="ui-field mono" id="jcCode" placeholder="TBL-7Q4M-K2" autocomplete="off" spellcheck="false"></label></div>
+      <p class="ui-hint">The rendezvous only forwards signed envelopes. The words check, in the approval window, stops a relay in the middle. <a class="teal" href="../../pairing/variant-1/index.html">Pairing page ›</a></p>`,
+    actions: [{ label: 'Cancel' }, { label: 'Continue: compare words ↗', kind: 'gold', onClick: jcNext }] });
+  $('#jcCode').focus();
+}
+function jcNext() {
+  const c = $('#jcCode').value.trim().toUpperCase();
+  if (c === 'HOUSE') { setTimeout(houseSheet); return true; }
+  if (!/^TBL-[A-Z0-9]{4}-[A-Z0-9]{2}$/.test(c)) { toast('A code looks like TBL-7Q4M-K2 (or type HOUSE).', 'bad'); return false; }
+  if (S.locked) unlockPrompt();
+  toast(`Code ${esc(c)} posted HELLO · <b>the approval window shows four words</b>. Read them to the other owner.`, 'gold');
+  return true;
+}
+function houseSheet() {
+  const d = T('D-0201');
+  sheet({ title: 'Play the house seller', size: 'narrow',
+    body: `<p class="sheet-p">A scripted sandbox seller with no model. Its key ships pinned in the release, so there is no words check.</p>
+      ${d && isLive(d) ? `<div class="ui-section-h"><h3>Already at the house</h3></div><div class="ui-group"><div class="ui-row two"><span class="id">${esc(d.id)}</span><span class="main"><span class="t1 mono">${esc(d.ref)}</span><span class="t2">${esc(d.sub)}</span></span>${stChip(d)}<button class="ui-btn sm" data-act="focus" data-arg="D-0201">Set its band</button></div></div>` : ''}
+      <div class="ui-section"><dl class="ui-kv"><dt>Pricing</dt><dd>lowers its ask 4.5% of list per round; splits gaps under $5</dd><dt>Next</dt><dd>pick an item, sign its band in the approval window; the house wakes in ≈ 1 min and lists</dd></dl></div>`,
+    actions: [{ label: 'Close' }, { label: 'Open another house table', kind: 'primary', onClick: () => toast('Next: <b>pick a house item and sign its band</b> in the approval window · the house wakes in ≈ 1 min.', 'gold') }] });
+}
+/* "What changes": the exact words of a band move, behind the layer-1 draft bar */
+function changeSheet() {
+  const lines = S.handoff ? S.handoff.lines : allDiff(), v = S.handoff ? S.handoff.v : S.v + 1;
+  if (!lines.length) return;
+  sheet({ title: `M-12 v${S.v} → v${v} · what changes`,
+    body: `<div class="ui-section-h"><h3>Clause 4 · band</h3><span class="end">${lines.length} edit${lines.length === 1 ? '' : 's'}</span></div>
+      <div class="ui-group">${lines.map((l) => `<div class="ui-row"><span class="mono gold">${esc(l)}</span></div>`).join('')}</div>
+      ${S.handoff ? '' : `<div class="ui-section"><div class="ui-section-h"><h3>Effect on the tables</h3></div>${ckRows(impact())}</div>`}
+      <div class="ui-section"><dl class="ui-kv"><dt>Who signs</dt><dd>you, with your owner key, in the approval window</dd><dt>Money</dt><dd>none · signing a mandate makes no PayPal call and never pays</dd>
+        <dt>Your agent</dt><dd>sees only the new band, at its next table_view</dd><dt>The other side</dt><dd>sees only a new commitment hash, never your ceiling</dd>
+        <dt>Until then</dt><dd>M-12 v${S.v} binds · closing the approval window changes nothing</dd></dl></div>`,
+    actions: S.handoff ? [{ label: 'Close', kind: 'primary' }]
+      : [{ label: 'Discard draft', kind: 'danger', left: true, onClick: () => discard(null) }, { label: 'Keep editing' }, { label: `Sign v${v} in the approval window ↗`, kind: 'gold', onClick: () => handOff() }] });
+}
+function checksPop(anchor, id) {
+  const d = T(id), b = band(id);
+  if (!b) return pop(anchor, `<p class="sheet-p">M-12 clause 4 names monitor-27-4k only. Your agent can sit at this table, but the core refuses every OFFER until you sign a band for ${esc(d.ref)}.</p><p class="ui-hint">The market median is a starting point from Channel3, not a recommendation.</p>`, `No band · ${d.ref}`, 'ck' + id);
+  return pop(anchor, ckRows(checks(id)) + `<p class="ui-hint" style="margin:var(--sp-2) 0 0">${isDraft(id) ? 'Checked against your draft · not signed yet.' : `As signed in M-12 v${S.v} · ${esc(S.commit)}.`}</p>`, `Clause 4 · ${d.ref}`, 'ck' + id);
+}
+function notePop(anchor, id) {
+  const d = T(id);
+  return pop(anchor, `<div class="quarantine"><div class="q-label">Untrusted · listing title from ${esc(cpShort(d))}</div><div class="q-text">${esc(d.item)}</div></div>
+    <p class="ui-hint" style="margin:var(--sp-2) 0 0">Plain text from the counterparty. Never sent to your agent as instructions.</p>`, 'Note', 'note' + id);
+}
+function csPop(anchor, id) {
+  const d = T(id);
+  return pop(anchor, `<dl class="ui-kv"><dt>Ask</dt><dd>${esc(cpShort(d))}'s <span class="money">$329.00</span> · #11 · 14:00</dd><dt>Clause 6</dt><dd>asks you above $250, so the countersign is yours</dd>
+    <dt>Where</dt><dd>the approval window · it re-checks clauses 4 and 6, then the seller issues the order</dd><dt>If silent</dt><dd>${esc(d.silence)}</dd></dl>`, 'Why this needs you', 'cs' + id);
+}
+function marketPop(anchor, id) {
+  const m = mkt(id);
+  return pop(anchor, m ? `<dl class="ui-kv"><dt>p25–p75</dt><dd class="money">${usd(m.p25)}–${usd(m.p75)}</dd><dt>Median</dt><dd class="money">${usd(m.median)}</dd><dt>Source</dt><dd>${esc(m.src)}</dd><dt>Retrieved</dt><dd>${esc(m.retrieved)}${m.tracking ? ' · ' + esc(m.tracking) : ''}</dd></dl><p class="ui-hint" style="margin:var(--sp-2) 0 0">Illustrative · a reference, never a recommendation.</p>`
+    : '<p class="sheet-p">No market reference for this item.</p>', `Market · ${T(id).ref}`, 'mk' + id);
+}
+function bandsPop(anchor) {
+  const rows = TABLES.filter((d) => isLive(d) || S.signed[d.id]).map((d) => {
+    const sb = signedBand(d.id), dr = isDraft(d.id) ? S.draft[d.id] : null;
+    return `<tr><td class="mono">${esc(d.ref)}</td><td class="num">${sb ? `≤ ${usd(sb.ceiling)} · ${sb.rounds} · ${hm(sb.deadline)}` : '<span class="dim">none</span>'}</td><td class="num gold">${dr ? `≤ ${usd(dr.ceiling)} · ${dr.rounds} · ${hm(dr.deadline)}` : ''}</td></tr>`;
+  }).join('');
+  return pop(anchor, `<table class="ui-table"><thead><tr><th>Item</th><th class="num">Signed</th><th class="num">Draft</th></tr></thead><tbody>${rows}</tbody></table>
+    <p class="ui-hint" style="margin:var(--sp-2) 0 0">commitment ${esc(S.commit)} · signed ${esc(S.signedAt)} · no band means every OFFER is refused</p>`, `Clause 4 · bands in M-12 v${S.v}`, 'bands');
+}
+function closedSheet(id) {
+  const d = T(id), m = mkt(id);
+  const ev = d.rec === 'matched' ? 'receipted · matched in Transaction Search' : d.state === 'RECEIPTED' ? 'pending in PayPal reporting' : 'none · no order was issued';
+  sheet({ title: `${id} · ${cpName(d)} · ${d.ref}`,
+    body: `<div style="display:flex;gap:var(--sp-2);align-items:center;margin-bottom:var(--sp-3)">${stChip(d)}<span class="ui-hint">${esc(d.when)}</span></div>
+      <dl class="ui-kv"><dt>Result</dt><dd>${esc(d.sub)}</dd><dt>Paid</dt><dd class="money">${d.amount != null ? money(d.amount) + (d.pct != null ? ` · p${d.pct} at close` : '') : '—'}</dd>
+        <dt>Market today</dt><dd>${m ? `median ${usd(m.median)} · ${esc(m.src)} ${esc(m.retrieved)} · illustrative` : 'no market reference'}</dd>
+        <dt>Money</dt><dd>${esc(d.money)}</dd><dt>Evidence</dt><dd>${ev}</dd>
+        ${d.pp ? `<dt>PayPal</dt><dd class="mono">${esc(Object.entries(d.pp).map(([k, v]) => k + ' ' + (v || '—')).join(' · '))}</dd>` : ''}</dl>
+      <div class="ui-section"><button class="ui-chip line" data-act="note" data-arg="${esc(id)}">note ›</button></div>`,
+    actions: [{ label: 'Close' }, { label: 'Open deal ›', kind: 'primary', onClick: () => { location.href = DEAL_HREF(id); } }] });
+}
+function simPop(anchor) {
+  const d = T('D-0201');
+  return pop(anchor, `<div class="ui-proto stack"><button class="ui-btn sm" data-act="paused">${S.paused ? 'Relay back up' : 'Relay goes down'}</button>
+    <button class="ui-btn sm" data-act="empty">${S.empty ? 'Show the week' : 'Show the empty state'}</button>
+    <button class="ui-btn sm" data-act="${S.locked ? 'unlock' : 'lock'}">${S.locked ? 'Unlock (Windows Hello)' : 'Idle 15 min · lock'}</button>
+    ${d && d.state === 'PAIRING' && !S.houseAwake ? '<button class="ui-btn sm" data-act="houseWake">House seller wakes</button>' : ''}</div>`, 'Sandbox simulation', 'sim');
+}
+
+/* ---- chrome: title bar (crumbs, two meters, mode badge) and module sidebar ---- */
+let CRUMB = '';
+const MODS = [['tables', 'Tables'], ['spend', 'Spend'], ['shield', 'Shield'], ['counter', 'Counter'], ['rescue', 'Rescue'], ['book', 'Book']];
+function chrome() {
+  const out = F.deals.filter((d) => d.side === 'buyer' && ['CAPTURED', 'RECEIPTED'].includes(d.state)).reduce((a, d) => a + d.amount, 0);
+  const inn = F.deals.filter((d) => d.side === 'seller' && d.state === 'CAPTURED').reduce((a, d) => a + d.amount, 0);
+  $('#tbar').innerHTML = `<nav class="ui-crumbs" aria-label="Breadcrumb"><a href="../../../index.html#home" title="Home · Esc">The Table</a><span class="sep">›</span>${CRUMB ? `<span>Tables</span><span class="sep">›</span><span>${esc(CRUMB)}</span>` : '<span>Tables</span>'}</nav>
+    <span class="ui-spacer"></span>
+    <span class="tmeter" title="Dollars your agents' deals captured this week"><span class="lb">wallet</span><b>${money(out)} out · ${money(inn)} in</b></span>
+    <span class="tmeter eng" title="The engine CLI's own estimate · never used for money decisions"><span class="lb">engine · ${esc(F.owner.engine)}</span><b>~$${F.engineWeekUSD.toFixed(2)}</b><span>not a bill</span></span>
+    <span class="badge sandbox" title="Every amount is PayPal sandbox">Sandbox</span>
+    ${S.locked ? '<button class="ui-btn sm gold locked" data-act="unlock">Locked · unlock</button>' : ''}
+    <button class="ui-btn sm proto-btn" data-act="simPop" aria-haspopup="dialog">Prototype ▾</button>`;
+  const need = (m) => (m === 'tables' ? TABLES : F.deals.filter((d) => d.module === m)).filter((d) => d.pending).length;
+  $('#rail').innerHTML = `<div class="ui-sb-head">Modules</div>${MODS.map(([k, n]) => {
+    const nd = need(k);
+    return `<a class="ui-sb-item${k === 'tables' ? ' on' : ''}" href="${k === 'tables' ? '#' : `../../${k}/variant-1/index.html`}"${k === 'tables' ? ' aria-current="page"' : ''} title="${n}">
+      <span class="ico"><span class="ui-dot" style="color:var(--m-${k})"></span></span><span class="lbl">${n}</span>${nd ? `<span class="cnt need">${nd}</span>` : ''}</a>`;
+  }).join('')}<div class="ui-sb-foot"><a class="ui-sb-item" href="../../mandate/variant-1/index.html" title="Mandates"><span class="ico dim">§</span><span class="lbl">Mandates · M-12 v${S.v}</span></a>
+    <a class="ui-sb-item" href="../../setup/variant-1/index.html" title="Settings"><span class="ico dim">⚙</span><span class="lbl">Settings</span></a></div>`;
+}
+
+/* ---- toasts, focus-keeping re-render, action dispatch, keys, idle ---- */
+function toast(html, kind) { const s = document.createElement('span'); s.innerHTML = html; UI.toast(s, kind); }
+function rerender() {
+  const a = document.activeElement; const fk = a && a.dataset ? a.dataset.fk : null;
+  if (typeof render === 'function') render();
+  chrome();
+  if (fk) { const n = document.querySelector(`[data-fk="${CSS.escape(fk)}"]`); if (n) n.focus({ preventScroll: true }); }
+}
+const ACTS = {
+  closeSheet, withdraw, houseWake, simSigned, simClosed, countersign, handOff,
+  lock: lockNow, unlock: unlockPrompt,
+  csClosed: () => { S.csHanded = false; toast('Approval window closed without countersigning · the offer still lapses at 18:00 · no money moves.'); rerender(); },
+  openTable: openTableSheet, join: joinSheet, house: houseSheet,
+  withdrawAsk: (id) => withdrawAsk(id),
+  discard: (id) => discard(id || null),
+  paused: () => { S.paused = !S.paused; toast(S.paused ? 'Prototype · relay down: tables paused, retrying with backoff.' : 'Prototype · relay back: envelopes resumed (idempotent by deal + seq).'); rerender(); },
+  empty: () => { S.empty = !S.empty; rerender(); },
+  focus: (id) => { closeSheet(); if (typeof focusTable === 'function') focusTable(id); },
+  changes: changeSheet, closed: (id) => closedSheet(id), bands: (a, el) => bandsPop(el),
+  checks: (id, el) => checksPop(el, id), note: (id, el) => notePop(el, id), csWhy: (id, el) => csPop(el, id),
+  market: (id, el) => marketPop(el, id), simPop: (a, el) => simPop(el),
+};
+const POP_ACTS = ['bands', 'checks', 'note', 'csWhy', 'market', 'simPop', 'keys', 'legend', 'closedPop'];
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const fn = ACTS[el.dataset.act]; if (!fn) return;
+  e.preventDefault();
+  if (POPV && !POP_ACTS.includes(el.dataset.act)) { if (POPV.el.isConnected) POPV.close(); POPV = null; POPKEY = ''; }
+  fn(el.dataset.arg, el);
+});
+document.addEventListener('keydown', (e) => {
+  const t = e.target;
+  if ((e.key === 'Enter' || e.key === ' ') && t.dataset && t.dataset.act && !/BUTTON|A|INPUT|SELECT/.test(t.tagName)) { e.preventDefault(); t.click(); return; }
+  if (e.key !== 'Escape') return;
+  if (UI.open) return; /* ui.js closes the top layer */
+  if (typeof onEsc === 'function' && onEsc()) { e.preventDefault(); return; }
+  location.href = '../../../index.html#home';
+});
+let idleT = 0;
+function resetIdle() { clearTimeout(idleT); idleT = setTimeout(() => { if (!S.locked) lockNow(); }, 15 * 60 * 1000); }
+['pointerdown', 'keydown'].forEach((ev) => document.addEventListener(ev, resetIdle, { passive: true }));
+resetIdle();
+/* window drag helper: re-queries the reference element on every move, so re-rendering mid-drag is safe */
+function startDrag(e, refSel, axis, cb) {
+  if (e.button !== undefined && e.button !== 0) return;
+  e.preventDefault(); document.body.classList.add('dragging');
+  const move = (ev) => {
+    const ref = document.querySelector(refSel); if (!ref) return;
+    const r = ref.getBoundingClientRect();
+    const f = axis === 'y' ? (ev.clientY - r.top) / r.height : (ev.clientX - r.left) / r.width;
+    cb(clamp(f, 0, 1));
+  };
+  const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); document.body.classList.remove('dragging'); };
+  window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+}
+setInterval(() => {
+  const a = document.activeElement;
+  if (document.body.classList.contains('dragging') || UI.open || (a && /INPUT|SELECT|TEXTAREA/.test(a.tagName))) return;
+  rerender();
+}, 30000);
+
+/* ---------------- V1 · Band Box: list on the left, the selected table's band as a draggable box on its convergence chart ---------------- */
+let SEL = 'D-0193';
+const RMAX = 10;
+const CW = 680, CH = 370, CL = 46, CR = 92, CT = 16, CB = 30;
+function focusTable(id) { SEL = id; rerender(); const r = document.querySelector(`[data-sel="${id}"]`); if (r) r.focus({ preventScroll: true }); }
+function onEsc() { if (hasDraft() && !S.handoff) { discard(null); toast('Draft discarded · M-12 v' + S.v + ' still binds.'); return true; } return false; }
+
+/* layer 1: one short closeness line per live table */
+function closeness(d) {
+  if (S.paused && d.id === 'D-0193' && isLive(d)) return 'paused · retrying';
+  const b = band(d.id), ask = lastBy(d.id, 'them'), bid = lastBy(d.id, 'you');
+  if (d.state === 'PAIRING' && !S.houseAwake) return `house waking ≈ 1 min · ${b ? '≤ ' + usd(b.ceiling) : 'no band'}`;
+  if (!b) return ask ? `ask ${usd(ask.price)} · no band · OFFERs refused` : 'no band';
+  if (!ask) return `≤ ${usd(b.ceiling)} · no ask yet`;
+  const room = b.ceiling - ask.price;
+  const r = room >= 0 ? `${usd(room)} under` : `${usd(-room)} over`;
+  return `ask ${usd(ask.price)} · ${r}${bid ? ` · gap ${usd(ask.price - bid.price)}` : ''}`;
+}
+function spark(d) {
+  const E = envs(d.id), b = band(d.id), w = 64, h = 22;
+  const dm = domain(d.id), y = (p) => 2 + (dm[1] - p) / (dm[1] - dm[0]) * (h - 4), x = (s) => 2 + (s - 1) / 12 * (w - 4);
+  const path = (by) => E.filter((e) => e.by === by).map((e, i) => `${i ? 'L' : 'M'}${x(e.seq).toFixed(1)} ${y(e.price).toFixed(1)}`).join(' ');
+  let s = `<svg class="spark" viewBox="0 0 ${w} ${h}" aria-hidden="true">`;
+  if (b) s += `<line class="${isDraft(d.id) ? 'cd' : 'c'}" x1="0" x2="${w}" y1="${y(b.ceiling)}" y2="${y(b.ceiling)}" stroke-width="1.5" ${isDraft(d.id) ? 'stroke-dasharray="4 3"' : ''}/>`;
+  else s += `<line class="nb" x1="0" x2="${w}" y1="${h / 2}" y2="${h / 2}" stroke-dasharray="2 4"/>`;
+  if (E.length) s += `<path class="a" d="${path('them')}" fill="none" stroke-width="1.6"/><path class="b" d="${path('you')}" fill="none" stroke-width="1.6"/>`;
+  return s + '</svg>';
+}
+function rowLive(d) {
+  const need = d.pending && isLive(d);
+  return `<div class="ui-row two act" role="option" tabindex="0" aria-selected="${d.id === SEL}" data-sel="${d.id}" data-fk="row-${d.id}" title="${esc(closeness(d))}">
+    <span class="id">${d.id}</span>
+    <span class="main"><span class="t1">${esc(cpShort(d))} · ${esc(d.ref)}</span><span class="t2">${esc(closeness(d))}</span></span>
+    ${spark(d)}${need ? NEED_CHIP : stChip(d)}</div>`;
+}
+function rowClosed(d) {
+  return `<div class="ui-row act" tabindex="0" data-act="closed" data-arg="${d.id}" title="Details · ${d.id}">
+    <span class="id">${d.id}</span><span class="main"><span class="t1">${esc(cpShort(d))} · ${esc(d.ref)}</span></span>
+    ${stChip(d)}<span class="amt">${d.pct != null ? `<small>p${d.pct}</small>` : ''}${d.amount != null ? money(d.amount) : '—'}</span><span class="chev"></span></div>`;
+}
+function chart(id) {
+  const d = T(id), b = band(id), sb = signedBand(id), dr = isDraft(id), E = envs(id);
+  const dm = domain(id), lo = dm[0], hi = dm[1];
+  const y = (p) => CT + (hi - p) / (hi - lo) * (CH - CT - CB);
+  const x = (s) => CL + (s - 1) / (2 * RMAX) * (CW - CL - CR);
+  const m = mkt(id), step = hi - lo > 80 ? 20 : 10;
+  let g = '';
+  for (let p = Math.ceil(lo / step) * step; p <= hi; p += step) g += `<line class="grid" x1="${CL}" x2="${CW - CR}" y1="${y(p)}" y2="${y(p)}"/><text class="ax" x="${CL - 8}" y="${y(p) + 4}" text-anchor="end">$${p}</text>`;
+  for (let r = 1; r <= RMAX; r++) g += `<text class="ax" x="${x(2 * r)}" y="${CH - CB + 18}" text-anchor="middle">${r}</text>`;
+  g += `<text class="ax" x="${CW - CR + 8}" y="${CH - CB + 18}">round</text>`;
+  if (m) g += `<rect class="mk" x="${CL}" y="${y(m.p75)}" width="${CW - CL - CR}" height="${y(m.p25) - y(m.p75)}"/><line class="mkline" x1="${CL}" x2="${CW - CR}" y1="${y(m.median)}" y2="${y(m.median)}"/>`;
+  const mlab = m ? `<text class="axm" x="${CW - CR - 6}" y="${y(m.p25) - 6}" text-anchor="end">market ${usd(m.p25)}–${usd(m.p75)}</text>` : '';
+  if (b) {
+    const xr = x(1 + 2 * b.rounds);
+    g += `<rect class="out" x="${xr}" y="${CT}" width="${Math.max(0, CW - CR - xr)}" height="${CH - CT - CB}"/>`;
+    g += `<rect class="boxf ${dr ? 'draft' : ''}" x="${CL}" y="${y(b.ceiling)}" width="${xr - CL}" height="${CH - CB - y(b.ceiling)}"/>`;
+    if (dr && sb) g += `<line class="ghost" x1="${CL}" x2="${CW - CR}" y1="${y(sb.ceiling)}" y2="${y(sb.ceiling)}"/><text class="ax" x="${CL + 6}" y="${y(sb.ceiling) - 6}">signed ${usd(sb.ceiling)} · v${S.v}</text>
+      <line class="ghost" x1="${x(1 + 2 * sb.rounds)}" x2="${x(1 + 2 * sb.rounds)}" y1="${CT}" y2="${CH - CB}"/>`;
+  }
+  const path = (by) => E.filter((e) => e.by === by).map((e, i) => `${i ? 'L' : 'M'}${x(e.seq).toFixed(1)} ${y(e.price).toFixed(1)}`).join(' ');
+  if (E.length) {
+    g += `<path class="la" d="${path('them')}"/><path class="lb" d="${path('you')}"/>`;
+    g += E.map((e) => `<circle class="${e.by === 'you' ? 'db' : 'da'}" cx="${x(e.seq)}" cy="${y(e.price)}" r="4.5"><title>#${e.seq} ${e.by === 'you' ? 'your' : cpShort(d) + '’s'} ${e.typ} $${e.price} · ${e.t} · signature verified</title></circle>`).join('');
+  }
+  if (b) for (let s = E.length + 1; s <= 1 + 2 * b.rounds && s <= 1 + 2 * RMAX; s++) g += `<circle class="slot" cx="${x(s)}" cy="${CH - CB - 6}" r="3"/>`;
+  const ask = lastBy(id, 'them');
+  if (ask && isLive(d)) {
+    const ok = !b || ask.price <= b.ceiling;
+    const lab = ask.typ === 'LISTING' ? `listing ${usd(ask.price)}` : d.pending === 'countersign' || !b ? `${usd(ask.price)} · agent wants to accept` : `${usd(ask.price)} · on the table`;
+    g += `<circle class="meet ${ok ? '' : 'no'} ${ok && !REDUCE ? 'pulse' : ''}" cx="${x(ask.seq)}" cy="${y(ask.price)}" r="10"/>
+      <text class="meett ${ok ? '' : 'no'}" x="${x(ask.seq) + 15}" y="${y(ask.price) - 9}">${ok ? lab : `${usd(ask.price)} · unsignable · clause 4`}</text>`;
+  }
+  g += mlab;
+  if (b) {
+    const yc = y(b.ceiling), xr = x(1 + 2 * b.rounds), cr = ceilRange(id), rr = roundsRange(id);
+    g += `<line class="ceil ${dr ? 'draft' : ''}" x1="${CL}" x2="${CW - CR + 4}" y1="${yc}" y2="${yc}"/>`;
+    g += `<line class="redge ${dr ? 'draft' : ''}" x1="${xr}" x2="${xr}" y1="${yc}" y2="${CH - CB}"/>`;
+    g += `<g class="h" tabindex="0" role="slider" aria-label="Ceiling for ${esc(d.ref)}" aria-valuemin="${cr[0]}" aria-valuemax="${cr[1]}" aria-valuenow="${b.ceiling}" aria-valuetext="ceiling ${usd(b.ceiling)}" data-drag="ceil" data-k="ceil" data-id="${id}" data-fk="ceil-${id}">
+      <rect class="pill ${dr ? 'draft' : ''}" x="${CW - CR + 6}" y="${yc - 13}" width="${CR - 10}" height="26" rx="13"/>
+      <text class="pillt ${dr ? 'draft' : ''}" x="${CW - CR / 2 + 1}" y="${yc + 5}" text-anchor="middle">≤ ${usd(b.ceiling)}</text></g>`;
+    g += `<g class="hr" tabindex="0" role="slider" aria-label="Max rounds" aria-valuemin="${rr[0]}" aria-valuemax="${RMAX}" aria-valuenow="${b.rounds}" data-drag="rounds" data-k="rounds" data-id="${id}" data-fk="rounds-${id}">
+      <rect class="pill ${dr ? 'draft' : ''}" x="${xr - 40}" y="${CT + 2}" width="80" height="24" rx="12"/>
+      <text class="pillt ${dr ? 'draft' : ''}" x="${xr}" y="${CT + 19}" text-anchor="middle">${b.rounds} rounds</text></g>`;
+  }
+  return `<svg class="chart" id="chart-${id}" viewBox="0 0 ${CW} ${CH}" role="group" aria-label="Signed offers for ${id} against your band">${g}</svg>`;
+}
+function dtrack(id) {
+  const b = band(id), sb = signedBand(id), dr = isDraft(id);
+  if (!b) return '';
+  const pos = (m) => ((m - 840) / 600 * 100).toFixed(2) + '%';
+  const nm = nowMin();
+  let t = '';
+  for (let h = 14; h <= 24; h += 2) t += `<span class="tick" style="left:${pos(h * 60)}">${h}:00</span>`;
+  return `<div class="dlrow"><span class="k">Deadline</span><div class="dtrack" id="dt-${id}"><div class="rail2"></div><div class="fill ${dr ? 'draft' : ''}" style="left:${pos(nm)};width:calc(${pos(b.deadline)} - ${pos(nm)})"></div>
+    ${t}<span class="now" style="left:${pos(nm)}" title="now ${hm(nm)}"></span>
+    ${dr && sb && sb.deadline !== b.deadline ? `<span class="ghost" style="left:${pos(sb.deadline)}" title="signed ${hm(sb.deadline)}"></span>` : ''}
+    <span class="dh ${dr ? 'draft' : ''}" style="left:${pos(b.deadline)}" tabindex="0" role="slider" aria-label="Deadline" aria-valuetext="${hm(b.deadline)}" data-drag="dl" data-k="dl" data-id="${id}" data-fk="dl-${id}">${hm(b.deadline)}</span></div></div>`;
+}
+/* layer 1 bar under the chart: idle hint, a draft, or the hand-off in flight */
+function draftBar(id) {
+  const b = band(id);
+  if (S.handoff) return `<div class="ui-group dbar"><div class="ui-row two"><span class="ui-chip gold">In approval window</span>
+      <span class="main"><span class="t1">M-12 v${S.handoff.v} · ${S.handoff.lines.length} edit${S.handoff.lines.length === 1 ? '' : 's'}</span><span class="ui-silence">silent → <b>v${S.v} keeps binding</b> · no PayPal call</span></span>
+      <button class="ui-btn plain sm" data-act="changes">What changes ›</button></div>
+      <div class="ui-row" style="justify-content:flex-end;min-height:36px"><span class="ui-proto inline"><button class="ui-btn sm" data-act="simSigned">signed in the approval window</button><button class="ui-btn sm" data-act="simClosed">closed without signing</button></span></div></div>`;
+  if (hasDraft()) {
+    const L = allDiff();
+    return `<div class="ui-group dbar"><div class="ui-row two"><span class="ui-chip gold">Draft</span>
+      <span class="main"><span class="t1 mono">${esc(L[0])}${L.length > 1 ? ` <span class="dim">+${L.length - 1}</span>` : ''}</span><span class="ui-silence">not signed · <b>v${S.v} binds</b> · Esc discards</span></span>
+      <button class="ui-btn plain sm" data-act="changes">What changes ›</button><button class="ui-btn sm" data-act="discard">Discard</button>${privBtn(`Sign v${S.v + 1}`, 'handOff', null, true)}</div></div>`;
+  }
+  return `<div class="bfoot">${b ? '<span class="ui-hint">drag or arrow keys · Shift = $5</span>' : ''}<button class="ui-btn plain sm" data-act="market" data-arg="${id}">Market ›</button><span class="ui-spacer"></span>${b ? silence(`auto-WITHDRAW at ${hm(b.deadline)} · no money moves`) : ''}</div>`;
+}
+function needRow() {
+  const d = TABLES.find((x) => x.pending === 'countersign' && isLive(x));
+  if (!d) return '';
+  if (S.csHanded) return `<div class="ui-group need-row"><div class="ui-row two"><span class="ui-chip gold">In approval window</span>
+    <span class="main"><span class="t1">Countersign <span class="money">$329.00</span> · ${esc(d.id)} · ${esc(cpShort(d))}</span>${silence(d.silence)}</span>
+    <span class="ui-proto inline"><button class="ui-btn sm" data-act="csClosed">window closed</button></span></div></div>`;
+  const kills = isDraft(d.id) && !fitsAsk(d.id);
+  return `<div class="ui-group need-row"><div class="ui-row two">${NEED_CHIP}
+    <span class="main"><span class="t1">Countersign <span class="money">$329.00</span> · ${esc(d.id)} · ${esc(cpShort(d))}</span>${silence(d.silence)}</span>
+    ${kills ? `<span class="ui-chip red" title="Until you sign it, v${S.v} still binds at ${usd(signedBand(d.id).ceiling)}">draft blocks it</span>` : ''}
+    <button class="ui-btn plain sm icon" data-act="csWhy" data-arg="${d.id}" aria-label="Why this needs you" title="Why this needs you"><span class="ico-i">ⓘ</span></button>
+    <button class="ui-btn sm danger" data-act="withdrawAsk" data-arg="${d.id}">Withdraw</button>${privBtn('Review &amp; countersign', 'countersign', null, true)}</div></div>`;
+}
+function bandCard() {
+  const live = TABLES.filter(isLive);
+  if (S.empty || !live.length) return `<section class="ui-card band" id="bandcard"><div class="bhead"><h2>The band</h2></div>
+    <div class="ui-empty">No live table, so there is no band to move.<div style="margin-top:var(--sp-3);display:flex;gap:var(--sp-2);justify-content:center"><button class="ui-btn primary" data-act="house">Play the house seller</button><button class="ui-btn" data-act="openTable">Open a table</button></div></div></section>`;
+  const d = T(SEL), b = band(SEL), m = mkt(SEL), nf = failing(SEL);
+  const ck = !b ? `<button class="ui-chip line" data-act="checks" data-arg="${SEL}">no band ›</button>`
+    : nf ? `<button class="ui-chip red" data-act="checks" data-arg="${SEL}">clause 4 ✗${nf} ›</button>` : `<button class="ui-chip ok" data-act="checks" data-arg="${SEL}">clause 4 ✓ ›</button>`;
+  return `<section class="ui-card band" id="bandcard" aria-label="The band">
+    <div class="bhead"><h2 title="${esc(cpName(d))} · ${esc(d.ref)}">${d.id} · ${esc(cpShort(d))}</h2><span class="ref">${esc(d.ref)}</span>${stChip(d)}<button class="ui-chip line" data-act="note" data-arg="${d.id}">note ›</button>
+      <span class="ui-spacer"></span>${S.paused && d.id === 'D-0193' ? '<span class="ui-chip coral" title="The relay is unreachable · retrying · signed envelopes make a retry safe · no money moves">paused</span>' : ''}${ck}
+      <a class="ui-btn plain sm" href="${DEAL_HREF(d.id)}">Open deal ›</a></div>
+    <div class="chartwrap">${chart(SEL)}${!b ? `<div class="nob"><b>No band for ${esc(d.ref)}</b><span class="ui-hint">every OFFER is refused until you sign one</span>
+      <button class="ui-btn primary" data-act="drawBand" data-arg="${d.id}">Draw a band at the median ${m ? usd(m.median) : ''}</button></div>` : ''}</div>
+    ${b ? dtrack(SEL) : ''}
+    ${draftBar(SEL)}
+  </section>`;
+}
+function render() {
+  const live = TABLES.filter(isLive), closed = TABLES.filter((d) => !isLive(d));
+  if (live.length && !live.some((d) => d.id === SEL)) SEL = live[0].id;
+  CRUMB = live.length && !S.empty ? SEL : '';
+  const nNeed = live.filter((d) => d.pending).length;
+  const left = S.empty ? '<div class="ui-group"><div class="ui-empty">No tables yet.<div style="margin-top:var(--sp-3)"><button class="ui-btn primary" data-act="house">Play the house seller</button></div></div></div>'
+    : `<div><div class="ui-section-h"><h2>Live</h2><span class="end">${live.length}</span></div>
+        <div class="ui-group" role="listbox" aria-label="Live tables">${live.map(rowLive).join('') || '<div class="ui-empty">No live tables.</div>'}</div></div>
+      <div><div class="ui-section-h"><h2>Closed</h2><span class="end">price vs market</span></div><div class="ui-group">${closed.map(rowClosed).join('')}</div></div>
+      <div class="ui-group"><div class="ui-row act" tabindex="0" data-act="bands"><span class="main"><span class="t1">Clause 4 · bands in M-12 v${S.v}</span></span><span class="id">${esc(S.commit)}</span><span class="chev"></span></div></div>`;
+  $('#view').innerHTML = `<div class="ui-pagehead"><h1>Tables</h1><span class="sub">${live.length} live${nNeed ? ` · ${nNeed} needs you` : ''} · the core signs only inside the band you signed</span>
+      <div class="actions"><button class="ui-btn primary" data-act="openTable">Open a table</button><button class="ui-btn" data-act="join">Join with code</button><button class="ui-btn" data-act="house">House seller</button></div></div>
+    ${S.empty ? '' : needRow()}<div class="v1grid"><div class="col">${left}</div><div class="col">${bandCard()}</div></div>`;
+}
+
+ACTS.drawBand = (id) => setDraft(id, {});
+document.addEventListener('click', (e) => { const t = e.target.closest('[data-sel]'); if (t && !e.target.closest('[data-act]')) { SEL = t.dataset.sel; rerender(); } });
+document.addEventListener('pointerdown', (e) => {
+  const h = e.target.closest('[data-drag]'); if (!h) return;
+  const id = h.dataset.id, kind = h.dataset.drag;
+  h.focus({ preventScroll: true });
+  if (kind === 'ceil') startDrag(e, '#chart-' + id, 'y', (f) => { const dm = domain(id); const py = f * CH; setDraft(id, { ceiling: dm[1] - (py - CT) / (CH - CT - CB) * (dm[1] - dm[0]) }); });
+  if (kind === 'rounds') startDrag(e, '#chart-' + id, 'x', (f) => { const s = (f * CW - CL) / (CW - CL - CR) * 2 * RMAX + 1; setDraft(id, { rounds: Math.min(RMAX, Math.round((s - 1) / 2)) }); });
+  if (kind === 'dl') startDrag(e, '#dt-' + id, 'x', (f) => setDraft(id, { deadline: 840 + f * 600 }));
+});
+document.addEventListener('keydown', (e) => {
+  const t = e.target;
+  if (UI.open) return;
+  if (t.matches && t.matches('[data-sel]')) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); SEL = t.dataset.sel; rerender(); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const rows = $$('[data-sel]'); const i = rows.indexOf(t); const n = rows[clamp(i + (e.key === 'ArrowDown' ? 1 : -1), 0, rows.length - 1)];
+      if (n) { e.preventDefault(); focusTable(n.dataset.sel); } return;
+    }
+  }
+  const k = t.dataset ? t.dataset.k : null; if (!k) return;
+  const id = t.dataset.id, b = band(id), st = e.shiftKey ? 5 : 1; if (!b) return;
+  const map = { ceil: { ArrowUp: ['ceiling', st], ArrowDown: ['ceiling', -st], PageUp: ['ceiling', 5], PageDown: ['ceiling', -5] },
+    rounds: { ArrowRight: ['rounds', 1], ArrowLeft: ['rounds', -1], ArrowUp: ['rounds', 1], ArrowDown: ['rounds', -1] },
+    dl: { ArrowRight: ['deadline', 15], ArrowLeft: ['deadline', -15], ArrowUp: ['deadline', 15], ArrowDown: ['deadline', -15] } }[k];
+  const a = map && map[e.key]; if (!a) return;
+  e.preventDefault();
+  const v = b[a[0]] + a[1];
+  if (k === 'rounds' && v > RMAX) return;
+  setDraft(id, { [a[0]]: v });
+});
+TABLES.sort((a, b) => (b.pending ? 1 : 0) - (a.pending ? 1 : 0));
+rerender();
+</script>
+<script src="../../../shared/shell.js" data-page="tables" data-variant="1"></script>
+</body>
+</html>

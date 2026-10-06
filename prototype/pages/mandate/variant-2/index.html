@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mandate · v2 The contract</title>
+<link rel="stylesheet" href="../../../shared/tokens.css">
+<link rel="stylesheet" href="../../../shared/ui.css">
+<script src="../../../main/fixtures.js"></script>
+<script src="../../../shared/ui.js"></script>
+<style>
+/* ---- approval-window frame on the v2 baseline (identical in variants 1-3) ---- */
+body { overflow: hidden; }
+.stage { position: relative; height: calc(100vh - var(--shell-h)); min-height: 480px; padding: var(--sp-3) var(--sp-3) var(--sp-2); overflow: hidden; }
+.behind { position: absolute; inset: 0; display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr); pointer-events: none; }
+.behind .r { background: var(--material); border-right: 1px solid var(--line); }
+.behind .m { padding: var(--sp-4) var(--sp-5); display: grid; grid-template-rows: var(--bar) 120px minmax(0, 1fr); gap: var(--sp-3); }
+.behind .m i { display: block; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); }
+.backdrop { position: absolute; inset: 0; background: var(--scrim); }
+#root { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2); }
+.win { position: relative; flex: 0 1 auto; min-height: 0; width: min(var(--win-w, 680px), 100%); display: flex; flex-direction: column;
+  background: var(--bg); border-radius: var(--r-lg); box-shadow: var(--shadow-3); overflow: hidden; animation: ui-fade var(--t-med) var(--ease); }
+.win > .ui-titlebar, .win > .ui-toolbar, .win > .wfoot { flex: none; }
+.win > .ui-titlebar { border-radius: var(--r-lg) var(--r-lg) 0 0; }
+.wbody { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: var(--sp-3) var(--sp-4) var(--sp-4); }
+.wfoot { display: flex; align-items: center; gap: var(--sp-2); min-height: 44px; padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--line); background: var(--material); }
+.wfoot .status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.ui-proto.dock { flex: none; display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-1) var(--sp-2); }
+.ui-proto.dock::before { margin: 0; }
+.ui-sheet .t2.wrap, .ui-popover .t2.wrap { white-space: normal; }
+button.btnchip { border: 0; cursor: pointer; font-family: var(--mono); }
+button.btnchip:hover { box-shadow: inset 0 0 0 1px var(--line2); }
+.ui-field.bad { border-color: var(--refuse); }
+.ui-field.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.closed { margin: auto 0; text-align: center; max-width: 420px; }
+.closed p { margin: var(--sp-1) 0 var(--sp-3); color: var(--muted); }
+pre.payload { margin: var(--sp-2) 0 0; font: var(--fs-small)/1.5 var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3); max-height: 240px; overflow: auto; white-space: pre; color: var(--muted); }
+ul.conseq { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-1); }
+ul.conseq li { padding: var(--sp-1) var(--sp-2); border-radius: var(--r-sm); background: var(--panel); box-shadow: inset 2px 0 0 var(--line2); }
+ul.conseq li.widens { box-shadow: inset 2px 0 0 var(--gold); } ul.conseq li.restricts { box-shadow: inset 2px 0 0 var(--teal); }
+ul.conseq li.live { box-shadow: inset 2px 0 0 var(--coral); } ul.conseq li.rev { box-shadow: inset 2px 0 0 var(--refuse); }
+ul.conseq b { font-family: var(--mono); font-size: var(--fs-mono); font-weight: var(--fw-semibold); }
+ul.warns { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: grid; gap: 2px; font-size: var(--fs-small); }
+ul.warns li { color: var(--gold-l); } ul.warns li.err { color: var(--red-l); }
+ul.warns li::before { content: "! "; font-weight: var(--fw-bold); }
+.ui-kv .new { color: var(--gold-l); font-family: var(--mono); font-weight: var(--fw-semibold); }
+/* simulated Windows Hello (an OS dialog, not a sheet) */
+.hello { position: fixed; inset: 0; z-index: 9200; display: grid; place-items: center; background: var(--scrim); animation: ui-fade var(--t-fast) var(--ease); }
+.hbox { width: min(340px, calc(100vw - 32px)); background: var(--panel); border-radius: var(--r-lg); box-shadow: var(--shadow-3); padding: var(--sp-3) var(--sp-4) var(--sp-4); text-align: center; }
+.hbox .hk { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2); font-size: var(--fs-small); color: var(--dim); text-align: left; }
+.hbox .hface { width: 40px; height: 40px; color: var(--teal-l); margin: var(--sp-4) auto var(--sp-2); display: block; }
+.hbox h3 { margin: 0 0 var(--sp-1); font: var(--fw-semibold) var(--fs-title3)/1.25 var(--display); }
+.hbox p { margin: 0 0 var(--sp-4); color: var(--muted); }
+.hbox .hb { display: flex; gap: var(--sp-2); justify-content: center; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- variant 2 · The contract: only what the bet adds to the baseline ---- */
+.win { --win-w: 700px; }
+.ui-toolbar .hist { display: flex; align-items: center; gap: 2px; min-width: 0; white-space: nowrap; color: var(--dim); font-size: var(--fs-small); }
+.ui-toolbar .hist .ui-btn { font-family: var(--mono); }
+.ui-toolbar .hist .ui-btn[aria-pressed="true"] { background: var(--sel); color: var(--text); }
+.paper { padding: 0; }
+.dhead { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4) var(--sp-1); min-width: 0; }
+.dhead h2 { margin: 0; font: var(--fw-semibold) var(--fs-title3)/var(--lh-tight) var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dsub { padding: 0 var(--sp-4) var(--sp-2); border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dsub .key { color: var(--gold-l); }
+/* the prose: § · sentence · margin note (a popover) */
+.doc { padding: var(--sp-1) var(--sp-4) var(--sp-2); line-height: 1.55; }
+.doc.revoked .cl > p, .doc.revoked .closing { opacity: .55; }
+.doc .intro { margin: var(--sp-2) 0 var(--sp-1); color: var(--muted); }
+.cl { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 0 var(--sp-2); align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--line); }
+.cl:last-of-type { border-bottom: 0; }
+.cl .no { font: var(--fw-semibold) var(--fs-small) var(--mono); color: var(--dim); }
+.cl p { margin: 0; min-width: 0; }
+.cl .mg { justify-self: end; }
+.cl .mg .ui-chip { min-width: 96px; justify-content: center; }
+.term { font: inherit; font-weight: var(--fw-semibold); color: var(--teal-l); background: none; border: 0; padding: 0 2px; margin: 0 -1px; cursor: pointer;
+  border-bottom: 1px dashed var(--teal); border-radius: 3px 3px 0 0; }
+.term:hover { background: var(--hover); }
+.term.chg { color: var(--gold-l); border-bottom: 1px solid var(--gold); background: color-mix(in srgb, var(--gold) 12%, transparent); }
+.term[aria-expanded="true"] { background: var(--sel); }
+.term.ro { cursor: default; color: var(--text); border-bottom: 1px solid var(--line2); }
+.term.ro:hover { background: none; }
+.term.off { color: var(--dim); }
+del { color: var(--dim); text-decoration-thickness: 1.5px; text-decoration-color: color-mix(in srgb, var(--refuse) 70%, transparent); margin-right: 3px; }
+ins { text-decoration: none; color: var(--gold-l); font-weight: var(--fw-semibold); border-bottom: 1px solid var(--gold); }
+.closing { margin: var(--sp-2) 0 0; padding-left: 34px; }
+.stamp { flex: none; transform: rotate(-4deg); border: 2px solid var(--refuse); border-radius: var(--r-sm); color: var(--red-l); padding: 1px var(--sp-2);
+  font: var(--fw-bold) var(--fs-small)/1.3 var(--mono); letter-spacing: .1em; animation: stampIn var(--t-med) var(--ease) both; }
+@keyframes stampIn { from { opacity: 0; transform: rotate(-4deg) scale(1.4); } }
+/* the signature line */
+.sigblock { border-top: 1px solid var(--line2); margin: 0 var(--sp-4); padding: var(--sp-3) 0 var(--sp-3) 34px; display: grid; gap: var(--sp-2); }
+.signed { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+.signed .scrawl { width: 96px; height: 28px; flex: none; color: var(--teal-l); border-bottom: 1px solid var(--line2); }
+.signed .scrawl path { stroke-dasharray: 260; stroke-dashoffset: 0; }
+.signed.fresh .scrawl path { animation: draw 1s var(--ease) both; }
+@keyframes draw { from { stroke-dashoffset: 260; } }
+.signed .who { min-width: 0; }
+.signed .who .ui-hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sigline { display: flex; align-items: flex-end; gap: var(--sp-2); }
+.sigline .x { font: var(--fw-semibold) var(--fs-title3) var(--mono); color: var(--gold-l); }
+.sigline .ln { flex: 1; min-width: 80px; border-bottom: 1px solid var(--gold); height: 22px; }
+.sigline .ui-hint { align-self: center; }
+/* layer 2: margin popover and term editor */
+.mrow { padding: var(--sp-1) 0; border-top: 1px solid var(--line); }
+.mrow:first-of-type { border-top: 0; }
+.mrow .l1 { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.mrow .l1 .id { font: var(--fw-semibold) var(--fs-mono) var(--mono); }
+.mrow .why { font-size: var(--fs-small); color: var(--dim); }
+.mrow.mv .why { color: var(--gold-l); }
+.aside { margin: 0 0 var(--sp-2); }
+.ted .trow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); }
+.ted .ui-field.num { width: 92px; }
+.ted .opts { display: grid; gap: 4px; }
+.ted .pick { display: inline-flex; align-items: center; gap: 6px; margin-right: var(--sp-2); white-space: nowrap; }
+.ted .eff { margin: var(--sp-2) 0 0; padding-top: var(--sp-2); border-top: 1px solid var(--line); font-size: var(--fs-small); color: var(--muted); }
+.ted .eff b { font-family: var(--mono); }
+.ted .tb { display: flex; align-items: center; gap: var(--sp-1); margin-top: var(--sp-2); }
+@media (prefers-reduced-motion: reduce) { .signed.fresh .scrawl path { animation: none; } }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="behind" aria-hidden="true"><div class="r"></div><div class="m"><i></i><i></i><i></i></div></div>
+  <div class="backdrop" aria-hidden="true"></div>
+  <div id="root"></div>
+</div>
+<script>
+/* ===================================================================================
+   Shared mandate engine (identical in variants 1-3). Pure functions over window.FIX:
+   the signed rows, the clause judge (a mirror of mandate::check, §8 step 2), the diff,
+   the "what would have happened this week" replay, and the bytes the owner key signs.
+   =================================================================================== */
+const F = window.FIX;
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const getp = (o, p) => p.split('.').reduce((x, k) => (x == null ? x : x[k]), o);
+const setp = (o, p, v) => { const ks = p.split('.'); const last = ks.pop(); ks.reduce((x, k) => x[k], o)[last] = v; };
+
+/* Money is integer cents + USD. Owner input is parsed from the string, never via a float. */
+const money = (c) => {
+  if (c == null) return '—';
+  const neg = c < 0; const a = Math.abs(c); const d = Math.floor(a / 100); const m = a % 100;
+  return (neg ? '−' : '') + '$' + d.toLocaleString('en-US') + (m ? '.' + String(m).padStart(2, '0') : '');
+};
+const parseMoney = (s) => {
+  const t = String(s).trim().replace(/^\$/, '').replace(/,/g, '');
+  if (!/^\d{1,7}(\.\d{1,2})?$/.test(t)) return null;
+  const [a, b = ''] = t.split('.');
+  return Number(a) * 100 + Number((b + '00').slice(0, 2));
+};
+const inputMoney = (c) => (c % 100 ? (c / 100).toFixed(2) : String(c / 100));
+const fixtureCents = (d) => Math.round(Number(d) * 100); // FIX carries display dollars; converted once here
+const parseIntStrict = (s, lo, hi) => (/^\d{1,3}$/.test(String(s).trim()) && +s >= lo && +s <= hi ? +s : null);
+
+/* Prototype stand-in for sha256 over the canonical body (the real commitment is sha256(JCS)). */
+function phash(str) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) { const ch = str.charCodeAt(i); h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
+}
+const shortHash = (h) => h.slice(0, 4) + '…' + h.slice(-2);
+const canon = (v) => (Array.isArray(v) ? '[' + v.map(canon).join(',') + ']'
+  : v && typeof v === 'object' ? '{' + Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + canon(v[k])).join(',') + '}'
+  : JSON.stringify(v));
+
+/* ---------- the signed rows (FIX.mandates as structured terms) ---------- */
+const AGENT_KEY = F.mandates[0].agentKey;                       // 9f3c…a1
+const agentName = (id) => (F.agents.find((a) => a.id === id) || { name: id }).name;
+const NOW = 'Thu 29 Oct 14:02';
+const NOW_ISO = '2026-10-29T14:02';
+const CATS = ['office', 'parts', 'packing', 'compute', 'service', 'other'];
+const ROLES = [['buy', 'Buy'], ['sell', 'Sell'], ['shop', 'Shop'], ['rescue', 'Rescue']];
+const PAYEES_SEEN = ['packrite-supply', 'cablehaus', 'north-desk', 'HOUSE', 'dockparts.example'];
+const CP_RULES = { house: 'HOUSE only', pinned: 'pinned keys only (Dan 47be…0d, HOUSE)', paired_or_house: 'paired (words confirmed) or HOUSE only' };
+const CP_PLAIN = { house: 'the HOUSE seller only', pinned: 'only the keys I pinned: Dan (47be…0d) and the HOUSE', paired_or_house: 'wallets I paired by confirming four words, or the HOUSE seller' };
+const CP_RANK = { house: 0, pinned: 1, paired_or_house: 2 };
+const PINNED = ['dan', 'house'];
+
+const M12_V3 = {
+  roles: ['buy', 'sell', 'shop', 'rescue'], cp: 'paired_or_house',
+  max: 20000, cats: ['office', 'parts', 'packing'],
+  band: { item: 'monitor-27-4k', ceiling: fixtureCents(F.haggle.ceiling), rounds: F.haggle.rounds, deadline: F.haggle.deadline },
+  velDeals: 12, velTotal: 90000, hpo: 25000,
+  payees: ['packrite-supply', 'cablehaus', 'north-desk', 'HOUSE'],
+};
+const M12_V2 = clone(M12_V3); M12_V2.band.ceiling = 32000;        // FIX: prev v2 diff "ceiling 320 → 340"
+const S2_V1 = { floors: Object.fromEntries(F.shop.filter((s) => s.floor != null).map((s) => [s.sku, fixtureCents(s.floor)])) };
+const R3_V1 = { discount: { on: true, max: 25 }, pause: { on: true, max: 1 }, retry: { on: true }, downgrade: { on: false } };
+
+/* Page constants FIX lacks (marked): S-2 / R-3 commitments and the expiry dates (30 days from signing). */
+const MANDATES = {
+  'M-12': { id: 'M-12', kind: 'open', label: 'Open mandate', what: 'buying, haggling and spending', agents: ['sourcing', 'supplies', 'infra'],
+    expires: 'Wed 25 Nov 08:40', expiresISO: '2026-11-25T08:40',
+    rows: [
+      { v: 1, status: 'superseded', signed: 'before Mon 26 Oct', commitment: null, body: null },
+      { v: 2, status: 'superseded', signed: 'before Mon 26 Oct', commitment: null, body: M12_V2 },
+      { v: 3, status: 'active', signed: F.mandates[0].signed, commitment: F.mandates[0].commitment, body: M12_V3 },
+    ] },
+  'S-2': { id: 'S-2', kind: 'shop', label: 'Shop mandate', what: 'quoting at your counter', agents: ['quoting'],
+    expires: 'Mon 16 Nov', expiresISO: '2026-11-16T09:00',
+    rows: [{ v: 1, status: 'active', signed: F.mandates[1].signed, commitment: 'c4e8…17', body: S2_V1 }] },
+  'R-3': { id: 'R-3', kind: 'rescue', label: 'Rescue mandate', what: 'rescuing failed renewals', agents: ['rescue'],
+    expires: 'Mon 16 Nov', expiresISO: '2026-11-16T09:00',
+    rows: [{ v: 1, status: 'active', signed: F.mandates[2].signed, commitment: 'b2a9…5f', body: R3_V1 }] },
+};
+const MIDS = ['M-12', 'S-2', 'R-3'];
+const headRow = (mid) => MANDATES[mid].rows[MANDATES[mid].rows.length - 1];
+const liveBody = (mid) => (headRow(mid).status === 'revoked' ? null : headRow(mid).body);
+let AUDIT_SEQ = F.audit[0].seq;                                  // 4418
+const nextAudit = () => ++AUDIT_SEQ;
+
+/* ---------- this week's intents, replayed through a body ---------- */
+const deal = (id) => F.deals.find((d) => d.id === id);
+const WEEK = [
+  { id: 'D-0181', at: 'Mon 09:47', kind: 'purchase', role: 'buy', cat: 'office', payee: 'packrite-supply' },
+  { id: 'D-0180', at: 'Tue 08:30', kind: 'purchase', role: 'buy', cat: 'parts', payee: 'cablehaus', aside: 'you voided it as a duplicate' },
+  { id: 'D-0192', at: 'Tue 10:14', kind: 'purchase', role: 'buy', cat: 'compute', payee: 'gpu-cloud.example', amt: 1196000, quoted: true },
+  { id: 'D-0183', at: 'Tue 12:02', kind: 'purchase', role: 'buy', cat: 'parts', payee: 'cablehaus' },
+  { id: 'D-0186', at: 'Wed 15:31', kind: 'purchase', role: 'buy', cat: 'packing', payee: 'packrite-supply' },
+  { id: 'D-0190', at: 'Thu 09:02', kind: 'purchase', role: 'buy', cat: 'parts', payee: 'dockparts.example', held: true },
+  { id: 'D-0201', at: 'Thu 13:58', kind: 'haggle', role: 'buy', cp: 'house', amt: null, live: true },
+  { id: 'D-0193', at: 'Thu 14:00', kind: 'haggle', role: 'buy', cp: 'dan', round: 5, live: true },
+  { id: 'Q-0207', at: 'Thu 14:02', kind: 'quote', role: 'shop', live: true },
+  { id: 'D-0188', at: 'Thu 06:00', kind: 'rescue', role: 'rescue' },
+].map((w) => { const d = deal(w.id); return Object.assign({ deal: d, item: d.item, agent: d.agent, day: w.at.slice(0, 3) }, w, { amt: w.amt !== undefined ? w.amt : fixtureCents(d.amount) }); });
+
+const QUOTES = [
+  { id: 'Q-0207', sku: 'monitor-arm', live: 'live quote · expires 14:12' },
+  { id: 'D-0189', sku: 'monitor-arm-dual', live: 'order at PayPal · waiting for the buyer' },
+  { id: 'D-0185', sku: 'wipe-kit' },
+].map((q) => { const d = deal(q.id); return Object.assign({ deal: d, item: d.item, amt: fixtureCents(d.amount), cp: F.counterparties[d.cp].name, at: d.when }, q); });
+
+const subscriber = (id) => F.subscribers.find((s) => s.id === id);
+const RESCUES = [
+  { id: 'D-0188', sub: 'S-14', lever: 'discount', pct: 20, what: '−20% this cycle → $9.60 invoice', replay: true, at: 'Thu 06:00' },
+  { id: 'S-22', sub: 'S-22', lever: 'pause', cycles: 1, what: 'PAUSE 1 cycle (suggested, nothing sent)', at: 'retry in 18 h' },
+].map((r) => Object.assign({ s: subscriber(r.sub), item: 'Care plan · ' + r.sub }, r));
+const LEVERS = [
+  { k: 'discount', code: 'DISCOUNT_THIS_CYCLE', plain: 'a discount on this cycle', unit: '%' },
+  { k: 'pause', code: 'PAUSE', plain: 'a pause', unit: 'cycle' },
+  { k: 'retry', code: 'RETRY_AFTER_FIX', plain: 'a retry after the subscriber fixes the payment method' },
+  { k: 'downgrade', code: 'DOWNGRADE', plain: 'a downgrade to a cheaper plan' },
+];
+
+/* verdict: { s: REFUSED | ASK | POLICY | OPEN, n: clause, why, short } */
+function judgeM12(b) {
+  const out = {}; const days = {};
+  for (const w of WEEK) out[w.id] = judgeOne(b, w, days);
+  return { v: out, days };
+}
+function judgeOne(b, w, days) {
+  const R = (n, why) => ({ s: 'REFUSED', n, why: `clause ${n}: ${why}`, short: 'refused' });
+  if (!b) return { s: 'REFUSED', n: 0, why: 'no active mandate (revoked) · 0 PayPal calls', short: 'refused' };
+  if (!b.roles.includes(w.role)) return R(1, `role ${w.role} is not in this mandate`);
+  if (w.role === 'shop') return { s: 'OPEN', n: 1, why: 'may quote at the counter · floors live in S-2', short: 'may quote' };
+  if (w.role === 'rescue') return { s: 'OPEN', n: 1, why: 'may suggest a lever · levers live in R-3', short: 'may suggest' };
+  if (w.kind === 'haggle') {
+    const cpn = F.counterparties[w.cp].name;
+    if (b.cp === 'house' && w.cp !== 'house') return R(2, `${cpn} is not the HOUSE`);
+    if (b.cp === 'pinned' && !PINNED.includes(w.cp)) return R(2, `${cpn} is not a pinned key`);
+    if (w.amt == null) return { s: 'OPEN', n: 2, why: 'the HOUSE table may open (no price yet)', short: 'may open' };
+    if (b.band.deadline < NOW.slice(-5)) return R(4, `deadline ${b.band.deadline} has passed`);
+    if (w.round > b.band.rounds) return R(4, `round ${w.round} is past max_rounds ${b.band.rounds} → auto-WITHDRAW`);
+    if (w.amt > b.band.ceiling) return R(4, `price ${money(w.amt)} above ceiling ${money(b.band.ceiling)}`);
+  }
+  if (w.kind === 'purchase') {
+    const why = [];
+    if (w.amt > b.max) why.push(`max_amount ${money(b.max)} per deal`);
+    if (!b.cats.includes(w.cat)) why.push(`category ${w.cat} not allowed`);
+    if (why.length) return R(3, why.join('; '));
+  }
+  const d = days[w.day] || (days[w.day] = { n: 0, total: 0, ids: [] });
+  if (d.n + 1 > b.velDeals) return R(5, `already ${d.n} deal${d.n === 1 ? '' : 's'} on ${w.day} (max ${b.velDeals}/day)`);
+  if (d.total + w.amt > b.velTotal) return R(5, `${money(d.total + w.amt)} on ${w.day} would pass max ${money(b.velTotal)}/day`);
+  d.n++; d.total += w.amt; d.ids.push(w.id);
+  if (w.kind === 'purchase') {
+    if (!b.payees.includes(w.payee)) return { s: 'ASK', n: 7, why: `clause 7: payee ${w.payee} not on allowlist → your capture`, short: 'asks you' };
+    if (w.amt > b.hpo) return { s: 'ASK', n: 6, why: `clause 6: over ${money(b.hpo)} → your capture`, short: 'asks you' };
+    return { s: 'POLICY', n: 6, why: `captured by policy · clause 6 (under ${money(b.hpo)}, allowlisted)`, short: 'by policy' };
+  }
+  if (w.amt > b.hpo) return { s: 'ASK', n: 6, why: `clause 6: ${money(w.amt)} is over ${money(b.hpo)} → your countersign`, short: 'asks you' };
+  return { s: 'POLICY', n: 6, why: 'clause 6: countersigned by policy · you still approve on PayPal', short: 'by policy' };
+}
+function judgeS2(b) {
+  const out = {};
+  for (const q of QUOTES) {
+    if (!b) { out[q.id] = { s: 'REFUSED', n: 0, why: 'no active shop mandate · the quoting agent cannot quote', short: 'refused' }; continue; }
+    const fl = b.floors[q.sku];
+    out[q.id] = q.amt < fl
+      ? { s: 'REFUSED', n: 1, why: `${money(q.amt)} is below the floor ${money(fl)} · the quote could not be made`, short: 'below floor' }
+      : { s: 'POLICY', n: 1, why: `${money(q.amt)} ≥ floor ${money(fl)} · no click from you; the buyer approves on PayPal`, short: 'allowed' };
+  }
+  return { v: out };
+}
+function judgeR3(b) {
+  const out = {};
+  for (const r of RESCUES) {
+    const L = LEVERS.find((l) => l.k === r.lever);
+    if (!b) { out[r.id] = { s: 'REFUSED', n: 0, why: 'no active rescue mandate · no lever may be suggested', short: 'refused' }; continue; }
+    const t = b[r.lever];
+    if (!t.on) out[r.id] = { s: 'REFUSED', n: 1, why: `${L.code} is off in R-3`, short: 'not allowed' };
+    else if (r.pct != null && r.pct > t.max) out[r.id] = { s: 'REFUSED', n: 1, why: `−${r.pct}% is over the −${t.max}% maximum`, short: 'not allowed' };
+    else if (r.cycles != null && r.cycles > t.max) out[r.id] = { s: 'REFUSED', n: 1, why: `${r.cycles} cycle over the ${t.max}-cycle maximum`, short: 'not allowed' };
+    else out[r.id] = { s: 'ASK', n: 1, why: `${L.code} is inside R-3 · you approve each lever`, short: 'you approve' };
+  }
+  return { v: out };
+}
+const judge = (mid, b) => (mid === 'M-12' ? judgeM12(b) : mid === 'S-2' ? judgeS2(b) : judgeR3(b));
+const items = (mid) => (mid === 'M-12' ? WEEK : mid === 'S-2' ? QUOTES : RESCUES);
+const itemAmt = (w) => (w.amt == null ? 'no price yet' : (w.quoted ? 'quoted ' : '') + money(w.amt));
+const itemTag = (w) => w.sub ? `${w.sub}’s ${w.lever === 'discount' ? '−' + w.pct + '% discount' : 'PAUSE (' + w.cycles + ' cycle)'}` : `${w.id} ${w.amt == null ? '' : (w.quoted ? '(quoted ' + money(w.amt) + ')' : money(w.amt))}`.trim();
+
+/* ---------- fields: one entry per editable term, used by the diff and the editors ---------- */
+const FIELDS = {
+  'M-12': [
+    { k: 'roles', n: 1, type: 'set', label: 'roles', all: ROLES.map((r) => r[0]) },
+    { k: 'cp', n: 2, type: 'choice', label: 'counterparties', opts: CP_RULES, rank: CP_RANK },
+    { k: 'max', n: 3, type: 'money', label: 'per-deal max', up: true },
+    { k: 'cats', n: 3, type: 'set', label: 'categories', all: CATS },
+    { k: 'band.ceiling', n: 4, type: 'money', label: 'band ceiling', up: true },
+    { k: 'band.rounds', n: 4, type: 'int', label: 'max rounds', up: true, lo: 1, hi: 20 },
+    { k: 'band.deadline', n: 4, type: 'time', label: 'band deadline', up: true },
+    { k: 'velDeals', n: 5, type: 'int', label: 'deals per day', up: true, lo: 1, hi: 99 },
+    { k: 'velTotal', n: 5, type: 'money', label: 'money per day', up: true },
+    { k: 'hpo', n: 6, type: 'money', label: '“ask me above”', up: true },
+    { k: 'payees', n: 7, type: 'set', label: 'payee allowlist', all: PAYEES_SEEN },
+  ],
+  'S-2': F.shop.filter((s) => s.floor != null).map((s, i) => ({ k: 'floors.' + s.sku, n: i + 1, type: 'money', label: `floor for ${s.sku}`, up: false, sku: s.sku })),
+  'R-3': [
+    { k: 'discount.on', n: 1, type: 'toggle', label: 'DISCOUNT_THIS_CYCLE' },
+    { k: 'discount.max', n: 1, type: 'pct', label: 'largest discount', up: true, lo: 5, hi: 50 },
+    { k: 'pause.on', n: 2, type: 'toggle', label: 'PAUSE' },
+    { k: 'pause.max', n: 2, type: 'int', label: 'longest pause (cycles)', up: true, lo: 1, hi: 3 },
+    { k: 'retry.on', n: 3, type: 'toggle', label: 'RETRY_AFTER_FIX' },
+    { k: 'downgrade.on', n: 4, type: 'toggle', label: 'DOWNGRADE' },
+  ],
+};
+const fmtVal = (f, v) => (f.type === 'money' ? money(v) : f.type === 'pct' ? `−${v}%` : f.type === 'toggle' ? (v ? 'on' : 'off')
+  : f.type === 'choice' ? f.opts[v] : f.type === 'set' ? (v.length ? v.join(', ') : 'none') : String(v));
+
+/** Single-term changes from body a to body b. Each knows whether it widens or restricts, and how
+ *  to apply itself alone to a, so a consequence can be pinned to the one change that caused it. */
+function diff(mid, a, b) {
+  const out = [];
+  for (const f of FIELDS[mid]) {
+    const x = getp(a, f.k), y = getp(b, f.k);
+    if (f.type === 'set') {
+      for (const v of f.all.concat(y.filter((p) => !f.all.includes(p)))) {
+        const had = x.includes(v), has = y.includes(v);
+        if (had === has) continue;
+        out.push({ f, n: f.n, k: f.k, from: had ? v : '—', to: has ? v : '—', dir: has ? 'widens' : 'restricts',
+          text: has ? `Adding ${v} to ${f.label}` : `Removing ${v} from ${f.label}`,
+          apply: (body) => { const arr = getp(body, f.k); setp(body, f.k, has ? arr.concat([v]) : arr.filter((q) => q !== v)); } });
+      }
+      continue;
+    }
+    if (x === y) continue;
+    let dir, text;
+    if (f.type === 'toggle') { dir = y ? 'widens' : 'restricts'; text = `Turning ${f.label} ${y ? 'on' : 'off'}`; }
+    else if (f.type === 'choice') { dir = f.rank[y] > f.rank[x] ? 'widens' : 'restricts'; text = `Changing ${f.label} to “${f.opts[y]}”`; }
+    else if (f.type === 'time') { dir = y > x ? 'widens' : 'restricts'; text = `Moving the ${f.label} ${x} → ${y}`; }
+    else { const upd = y > x; dir = upd === (f.up !== false) ? 'widens' : 'restricts'; text = `${upd ? 'Raising' : 'Lowering'} the ${f.label} ${fmtVal(f, x)} → ${fmtVal(f, y)}`; }
+    out.push({ f, n: f.n, k: f.k, from: fmtVal(f, x), to: fmtVal(f, y), dir, text, apply: (body) => setp(body, f.k, y) });
+  }
+  return out;
+}
+
+/** A verdict moved: a different outcome, or a different deciding clause (a revoke's "no mandate" on an already-refused item is not news). */
+const moved = (a, b) => a.s !== b.s || (a.n !== b.n && b.n !== 0 && a.n !== 0);
+/** Items whose verdict differs between two bodies. */
+function hits(mid, a, b) {
+  const va = judge(mid, a).v, vb = judge(mid, b).v;
+  return items(mid).filter((w) => moved(va[w.id], vb[w.id])).map((w) => ({ w, before: va[w.id], after: vb[w.id] }));
+}
+const list = (arr) => (arr.length < 2 ? arr.join('') : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1]);
+/** "would have refused D-0186 $45 and D-0181 $52" — the plain-words effect of a set of hits. */
+function hitPhrase(hs, mid) {
+  const g = { refused: [], asked: [], policy: [], passed: [], other: [] };
+  for (const h of hs) {
+    const t = `<b>${esc(itemTag(h.w))}</b>`;
+    if (h.after.s === 'REFUSED' && h.before.s !== 'REFUSED') g.refused.push(t);
+    else if (h.before.s === 'REFUSED' && h.after.s !== 'REFUSED') g.passed.push(t);
+    else if (h.after.s === 'ASK' && h.before.s === 'POLICY') g.asked.push(t);
+    else if (h.after.s === 'POLICY' && h.before.s === 'ASK') g.policy.push(t);
+    else g.other.push(t);
+  }
+  const p = [];
+  if (g.refused.length) p.push(mid === 'S-2' ? `made the quote ${list(g.refused)} impossible` : mid === 'R-3' ? `ruled out ${list(g.refused)}` : `refused ${list(g.refused)} before any PayPal call`);
+  if (g.asked.length) p.push(`sent ${list(g.asked)} to you instead of policy`);
+  if (g.policy.length) p.push(`let policy settle ${list(g.policy)} without asking you`);
+  if (g.passed.length) p.push(mid === 'M-12' ? `let ${list(g.passed)} through the gate` : `allowed ${list(g.passed)}`);
+  if (g.other.length) p.push(`changed the reason on ${list(g.other)}`);
+  return p.join('; ');
+}
+/** One sentence per change, each judged alone against the signed body. */
+function changeSentences(mid, base, draft) {
+  return diff(mid, base, draft).map((c) => {
+    const one = clone(base); c.apply(one);
+    const hs = hits(mid, base, one);
+    return { c, hs, html: `${esc(c.text)} ${hs.length ? 'would have ' + hitPhrase(hs, mid) + ' this week.' : '<span class="dim">changes nothing your agents did this week.</span>'}` };
+  });
+}
+/** What a change does to things that are open right now (never moves money). */
+function liveNotes(mid, base, draft) {
+  const out = [];
+  for (const h of hits(mid, base, draft)) {
+    const id = h.w.id;
+    if (id === 'D-0193' && h.after.s === 'REFUSED' && h.after.n === 4) out.push(`<b>Live · D-0193</b>: your agent could not accept Dan’s $329 (${esc(h.after.why)}). Unless a price inside the band is agreed, the offer lapses at 18:00 · no money moves.`);
+    else if (id === 'D-0193' && h.after.s === 'REFUSED') out.push(`<b>Live · D-0193</b>: your agent could not go on with Dan (${esc(h.after.why)}). The offer lapses at 18:00 · no money moves.`);
+    else if (id === 'D-0193' && h.after.s === 'POLICY') out.push('<b>Live · D-0193</b>: accepting $329 would be countersigned by policy instead of by you. You would still approve the payment on PayPal in your browser.');
+    else if (id === 'D-0193' && h.before.s === 'REFUSED') out.push('<b>Live · D-0193</b>: $329 becomes signable again; clause 6 still decides who countersigns.');
+    else if (id === 'D-0190') out.push('<b>Already held · D-0190 $64</b>: the authorization stays yours to capture or void in the approval window; it auto-voids at 72 h · nothing is paid. A new version governs new intents only.');
+    else if (id === 'D-0201' && h.after.s === 'REFUSED') out.push('<b>Live · D-0201</b>: the HOUSE table would close while pairing · no money moves.');
+    else if ((id === 'Q-0207' || id === 'D-0189') && mid === 'S-2') out.push(`<b>Already issued · ${id} ${money(h.w.amt)}</b>: stays as quoted (${esc(h.w.live)}); new quotes obey the new floor.`);
+    else if (id === 'Q-0207' && h.after.s === 'REFUSED') out.push('<b>Live · Q-0207</b>: the quoting agent stops answering at the counter; the $61 quote lapses at 14:12 · no money moves.');
+  }
+  return out;
+}
+function revokeNotes(mid) {
+  const h = headRow(mid); const next = `sign ${mid} v${h.v + 1}`;
+  if (mid === 'M-12') return ['Sourcing, Supplies and Infra are refused at the gate from the next intent: no offers, purchases or policy captures (0 PayPal calls).',
+    'D-0193 stops where it is; the offer lapses at 18:00 · no money moves.',
+    'D-0190’s hold stays yours to decide; it auto-voids at 72 h · nothing is paid.',
+    `v${h.v} stays in the ledger as revoked. To let agents work again you ${next}.`];
+  if (mid === 'S-2') return ['The quoting agent stops quoting at your counter.', 'D-0189 already sits with the buyer on PayPal; if they do nothing it expires · no money moves.', `To reopen the counter you ${next}.`];
+  return ['The rescue agent may not suggest any lever.', 'PayPal’s own retries keep running (S-14 in 4 d, S-22 in 18 h) · nothing is sent.', `To rescue again you ${next}.`];
+}
+
+/* ---------- the bytes the owner key signs ---------- */
+function payload(mid, v, b) {
+  const usd = (minor) => ({ minor, currency: 'USD' });
+  const p = { id: mid, version: v, kind: MANDATES[mid].kind, agent_key: AGENT_KEY, not_before: NOW_ISO, expires: MANDATES[mid].expiresISO };
+  if (mid === 'M-12') p.clauses = [
+    { type: 'roles', roles: b.roles },
+    { type: 'counterparties', rule: b.cp === 'pinned' ? { type: 'pinned', keys: ['47be…0d', 'house'] } : { type: b.cp === 'house' ? 'house' : 'paired' } },
+    { type: 'per_deal', kind: 'purchase', max_amount: usd(b.max), categories: b.cats },
+    { type: 'band', item_refs: [b.band.item], floor: null, ceiling: usd(b.band.ceiling), max_rounds: b.band.rounds, deadline: '2026-10-29T' + b.band.deadline },
+    { type: 'velocity', max_deals_day: b.velDeals, max_total_day: usd(b.velTotal) },
+    { type: 'human_present_over', amount: usd(b.hpo) },
+    { type: 'payees', payees: b.payees },
+  ];
+  else if (mid === 'S-2') p.floors = Object.keys(b.floors).map((sku) => ({ sku, floor: usd(b.floors[sku]) }));
+  else p.levers = LEVERS.map((l) => Object.assign({ lever: l.code, enabled: b[l.k].on }, b[l.k].max != null ? { max: b[l.k].max } : {}));
+  return p;
+}
+const commitmentOf = (mid, v, b) => shortHash(phash(canon(payload(mid, v, b))));
+const sigOf = (mid, v, b) => shortHash(phash('owner-sig:' + canon(payload(mid, v, b))));
+const prettyPayload = (mid, v, b) => JSON.stringify(payload(mid, v, b), null, 2);
+
+/** Sign: append a new row; the previous active row becomes superseded (a revoked one stays revoked). */
+function signRow(mid, b) {
+  const rows = MANDATES[mid].rows; const prev = rows[rows.length - 1];
+  const v = prev.v + 1;
+  if (prev.status === 'active') prev.status = 'superseded';
+  const row = { v, status: 'active', signed: NOW, commitment: commitmentOf(mid, v, b), sig: sigOf(mid, v, b), body: clone(b), audit: nextAudit() };
+  rows.push(row);
+  return row;
+}
+/** Revoke: restricting, so one click, effective now, works through the idle lock. */
+function revokeRow(mid) {
+  const r = headRow(mid); r.status = 'revoked'; r.revokedAt = NOW; r.revokeAudit = nextAudit();
+  return r;
+}
+
+/* ---------- validation (warnings never block; errors do) ---------- */
+function problems(mid, b) {
+  const e = [], w = [];
+  if (mid === 'M-12') {
+    if (!b.roles.length) e.push('Clause 1: choose at least one role (or revoke the mandate).');
+    if (!b.payees.length) w.push('Clause 7: an empty allowlist sends every purchase to you for capture.');
+    if (b.hpo > b.max) w.push(`Clause 6 (${money(b.hpo)}) is above clause 3’s max (${money(b.max)}): no purchase can reach it; only haggles do.`);
+    if (b.band.ceiling < 30100) w.push(`The ceiling ${money(b.band.ceiling)} is under the market p25 $301 (Channel3, 14:02): Dan’s asks may never enter the band.`);
+  }
+  if (mid === 'S-2') for (const s of F.shop) if (s.floor != null && b.floors[s.sku] > fixtureCents(s.price)) w.push(`${s.sku}: floor ${money(b.floors[s.sku])} is above the list price ${money(fixtureCents(s.price))}.`);
+  if (mid === 'R-3' && !LEVERS.some((l) => b[l.k].on)) w.push('Every lever is off: the rescue agent can only watch PayPal’s own retries.');
+  return { e, w };
+}
+
+/* ---------- window furniture on the v2 baseline (identical in variants 1-3) ----------
+   Toast via UI.toast, a simulated Windows Hello, a focus-safe re-render, chips from verdicts,
+   the approval window's title bar, and the sign gate every variant's sign sheet uses. Each
+   variant defines S (state), render() and signed(row). */
+const note = (msg, kind) => UI.toast(msg, kind);                 // kind: ok | bad | gold
+/** UI.sheet, dropped from this window's title bar (macOS) rather than from the top of the viewport. */
+function sheet(opts) {
+  const api = UI.sheet(opts); const tb = $('.win .ui-titlebar');
+  if (tb) { const y = Math.round(tb.getBoundingClientRect().bottom); api.el.style.top = y + 'px'; api.el.style.maxHeight = `calc(100vh - ${y + 16}px)`; }
+  return api;
+}
+/** Simulated Windows Hello. It listens on window (capture) so Esc closes it before UI's sheet stack. */
+function hello(reason, onOk) {
+  const prev = document.activeElement;
+  const o = document.createElement('div');
+  o.className = 'hello'; o.setAttribute('role', 'dialog'); o.setAttribute('aria-modal', 'true'); o.setAttribute('aria-labelledby', 'helloT');
+  o.innerHTML = `<div class="hbox"><div class="hk"><span>Windows Security</span><span class="badge mock">Prototype · simulated Windows Hello</span></div>
+    <svg class="hface" viewBox="0 0 34 34" aria-hidden="true"><path d="M4 11V6a2 2 0 0 1 2-2h5M23 4h5a2 2 0 0 1 2 2v5M30 23v5a2 2 0 0 1-2 2h-5M11 30H6a2 2 0 0 1-2-2v-5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="13" cy="14" r="1.6" fill="currentColor"/><circle cx="21" cy="14" r="1.6" fill="currentColor"/><path d="M12 21c3 2.6 7 2.6 10 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <h3 id="helloT">Making sure it’s you</h3><p>${esc(reason)}</p>
+    <div class="hb"><button type="button" class="ui-btn" data-h="no">Cancel</button><button type="button" class="ui-btn primary" data-h="ok">Verify · Maya</button></div></div>`;
+  document.body.appendChild(o);
+  const close = () => { o.remove(); window.removeEventListener('keydown', key, true); if (prev && prev.isConnected && prev.focus) prev.focus(); };
+  const key = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); close(); note('Still locked · nothing was signed.'); } };
+  window.addEventListener('keydown', key, true);
+  o.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-h]'); if (!b) return;
+    if (b.dataset.h === 'no') { close(); note('Still locked · nothing was signed.'); return; }
+    b.disabled = true; b.textContent = 'Verifying…';
+    setTimeout(() => { close(); onOk(); }, 650);
+  });
+  $('[data-h="ok"]', o).focus();
+}
+/** Re-render without losing the caret: elements carry data-f keys. */
+function keepFocus(fn) {
+  const a = document.activeElement;
+  const key = a && a.dataset ? a.dataset.f : null;
+  let sel = null; try { sel = a && a.selectionStart != null ? [a.selectionStart, a.selectionEnd] : null; } catch (err) { sel = null; }
+  fn();
+  if (!key) return;
+  const n = document.querySelector(`[data-f="${CSS.escape(key)}"]`);
+  if (!n || n === a) return;
+  n.focus({ preventScroll: true });
+  if (sel) { try { n.setSelectionRange(sel[0], sel[1]); } catch (err) { /* not a text field */ } }
+}
+/** Call fn once el leaves the DOM (a sheet or popover closed by Esc, scrim, ✕ or an outside click). */
+function onGone(el, fn) {
+  const mo = new MutationObserver(() => { if (!el.isConnected) { mo.disconnect(); fn(); } });
+  mo.observe(document.body, { childList: true });
+}
+const VCLS = { REFUSED: 'red', ASK: 'gold', POLICY: 'teal', OPEN: 'line' };
+const vchip = (v, label) => `<span class="ui-chip ${VCLS[v.s]}" title="${esc(v.why)}">${esc(label || v.short)}</span>`;
+const SCLS = { active: 'ok', superseded: '', revoked: 'red', draft: 'gold' };
+const statusChip = (r) => `<span class="ui-chip ${SCLS[r.status]}">${r.status}</span>`;
+const dirChip = (d) => `<span class="ui-chip ${d === 'widens' ? 'gold' : 'teal'}">${d}</span>`;
+const engineOf = (id) => (F.agents.find((a) => a.id === id) || {}).engine || 'claude-code';
+const lockCtl = () => (S.locked
+  ? `<button type="button" class="ui-btn sm locked" data-act="unlock" title="Privileged commands lock after 15 idle minutes">Locked · idle ${S.idle} min</button>`
+  : '<span class="ui-chip ok" title="Locks again after 15 idle minutes">Unlocked</span>');
+function titlebar(where) {
+  return `<header class="ui-titlebar"><nav class="ui-crumbs" id="wTitle"><span>Approval</span><span class="sep">›</span><span>Mandates</span><span class="sep">›</span><span>${where}</span></nav>
+    <span class="ui-spacer"></span><span class="badge sandbox">Sandbox</span>${lockCtl()}
+    <button type="button" class="ui-btn plain icon" data-act="close" aria-label="Close the approval window; nothing is signed">✕</button></header>`;
+}
+const protoDock = () => `<div class="ui-proto dock" data-prototype-chrome><button type="button" class="ui-btn sm" data-act="idle">Simulate 15 min idle (lock)</button><span class="ui-hint">${NOW} · signing and Windows Hello simulated</span></div>`;
+const closedHtml = () => `<div class="ui-card closed"><div class="ui-hint">Approval window closed</div><p>Nothing was signed. ${MIDS.map((id) => `${id} v${headRow(id).v} ${headRow(id).status}`).join(' · ')}.</p><button type="button" class="ui-btn" data-act="reopen" data-f="reopen">Reopen Mandates</button></div>`;
+const segTabs = () => `<div class="ui-seg" role="tablist" aria-label="Mandates">${MIDS.map((id) => { const r = headRow(id); const n = diff(id, r.body, S.drafts[id]).length;
+  return `<button type="button" role="tab" aria-selected="${id === S.mid}" aria-pressed="${id === S.mid}" tabindex="${id === S.mid ? 0 : -1}" data-act="mid" data-v="${id}" data-f="tab:${id}">${id} <span class="dim">v${r.v}</span>${r.status === 'revoked' ? ' <span class="red">✕</span>' : ''}${n ? ` <span class="gold">●${n}</span>` : ''}</button>`; }).join('')}</div>`;
+function tabKeys(e, setMid) {
+  const tab = e.target.closest && e.target.closest('[role="tab"]');
+  if (!tab || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return false;
+  e.preventDefault(); const i = MIDS.indexOf(S.mid); const n = MIDS[(i + (e.key === 'ArrowRight' ? 1 : MIDS.length - 1)) % MIDS.length];
+  setMid(n); render(); const t = $(`[data-f="tab:${n}"]`); if (t) t.focus();
+  return true;
+}
+/** The sign sheet's gold button: "Unlock with Windows Hello" while idle-locked, then "Sign vN with owner key". */
+function gateBtn(el) {
+  const b = el.querySelector('.ui-sheet-f .ui-btn.gold'); if (!b) return;
+  const errs = Object.values(S.raw[S.mid]).filter((r) => r.err).length + problems(S.mid, S.drafts[S.mid]).e.length;
+  b.classList.toggle('locked', S.locked);
+  b.disabled = S.signing || (!S.locked && errs > 0);
+  b.textContent = S.locked ? 'Unlock with Windows Hello' : S.signing ? 'Signing with your owner key…' : `Sign v${headRow(S.mid).v + 1} with owner key`;
+}
+function signClick(api) {
+  if (S.signing) return false;
+  if (S.locked) {
+    hello('The Table wants to unlock privileged commands (sign a mandate).', () => {
+      S.locked = false; S.idle = 0; gateBtn(api.el); render(); note('Unlocked · privileged commands available until 15 min idle.', 'ok');
+      const b = api.el.querySelector('.ui-sheet-f .ui-btn.gold'); if (b) b.focus();
+    });
+    return false;
+  }
+  S.signing = true; gateBtn(api.el);
+  setTimeout(() => { const row = signRow(S.mid, S.drafts[S.mid]); S.signing = false; api.close(); signed(row); }, 700);
+  return false;
+}
+const signedToast = (row) => note(`Signed ${S.mid} v${row.v} with your owner key · commitment ${row.commitment} · audit #${row.audit}. Agents obey v${row.v} from their next intent.`, 'ok');
+const revokedToast = (r) => note(`${S.mid} v${r.v} revoked at ${NOW.slice(-5)} · audit #${r.revokeAudit}. ${revokeNotes(S.mid)[0]}`, 'bad');
+/** The signature facts (Layer 2 of every sign sheet). */
+function sigFacts(v, b) {
+  const h = headRow(S.mid), m = MANDATES[S.mid];
+  return `<dl class="ui-kv"><dt>Mandate</dt><dd>${S.mid} · version ${v} · kind ${m.kind}</dd>
+    <dt>Agent key</dt><dd><span class="mono">${esc(AGENT_KEY)}</span> <span class="dim">· ${m.agents.map(agentName).join(', ')} · ${esc(engineOf(m.agents[0]))}</span></dd>
+    <dt>Commitment</dt><dd><span class="mono dim">${esc(h.commitment)}</span> → <span class="new">${commitmentOf(S.mid, v, b)}</span> <span class="dim">· sha256 of the canonical body (prototype hash)</span></dd>
+    <dt>Valid</dt><dd>from signing (${NOW}) to ${esc(m.expires)}</dd>
+    <dt>Applies</dt><dd>to every next intent; held, issued and countersigned items stay as they are</dd></dl>
+    <details class="ui-disclosure"><summary>Exactly what your key signs · ${canon(payload(S.mid, v, b)).length} bytes of canonical JSON</summary><pre class="payload" tabindex="0" aria-label="Canonical body">${esc(prettyPayload(S.mid, v, b))}</pre></details>`;
+}
+/** Plain-words consequences + live notes + warnings (Layer 2). */
+function conseqHtml(base, draft) {
+  const h = headRow(S.mid), sents = changeSentences(S.mid, base, draft), live = liveNotes(S.mid, base, draft), pr = problems(S.mid, draft);
+  return `<ul class="conseq">${sents.map((s) => `<li class="${s.c.dir}">${s.html}</li>`).join('') || `<li>Your agents get back exactly v${h.v}’s limits.</li>`}${live.map((l) => `<li class="live">${l}</li>`).join('')}</ul>
+    ${pr.w.length || pr.e.length ? `<ul class="warns">${pr.e.map((w) => `<li class="err">${esc(w)}</li>`).join('')}${pr.w.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}`;
+}
+const identKv = () => { const m = MANDATES[S.mid], h = headRow(S.mid);
+  return `<dl class="ui-kv"><dt>Mandate</dt><dd>${esc(m.label)} · ${esc(m.what)}</dd><dt>Agents</dt><dd>${m.agents.map(agentName).join(', ')} <span class="dim">· ${esc(engineOf(m.agents[0]))}</span></dd>
+    <dt>Agent key</dt><dd class="mono">${esc(AGENT_KEY)}</dd><dt>Commitment</dt><dd class="mono">${esc(h.commitment)}</dd><dt>Signed</dt><dd>${esc(h.signed)}</dd><dt>Expires</dt><dd>${esc(m.expires)} · then agents stop · no money moves</dd></dl>`; };
+const revokeKv = () => `<ul class="conseq">${revokeNotes(S.mid).map((t) => `<li class="rev">${esc(t)}</li>`).join('')}</ul>`;
+
+/* ===================== variant 2 · The contract =====================
+   The mandate reads as what it is: a short contract in Maya's own words. Layer 1 is the prose,
+   one sentence per clause, every term a button, an edit redlined in place (old struck, new in
+   gold), a "this week" chip in the margin, and the signature line at the foot. Layer 2: a term
+   opens a popover with its control and what this one change would have done; the margin chip
+   opens the clause's deals and reasons; the signature opens a sheet with the consequences and
+   the exact bytes. */
+const S = { mid: 'M-12', read: null, edit: null, pop: null, locked: true, idle: 17, closed: false, signing: false, fresh: false, drafts: {}, raw: {}, resetScroll: false };
+MIDS.forEach((m) => { S.drafts[m] = clone(headRow(m).body); S.raw[m] = {}; });
+const D = () => S.drafts[S.mid];
+const H = () => headRow(S.mid);
+const field = (k) => FIELDS[S.mid].find((f) => f.k === k);
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const ROLE_NOUN = { buy: 'buyer', sell: 'seller', shop: 'shopkeeper', rescue: 'rescuer' };
+const listOr = (a) => (a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' or ' + a[a.length - 1]);
+const MG = {};   // margin notes of the current render: id → { title, aside, ws, va, vb, lab }
+
+/** The body this view shows, and the body it is redlined against. */
+function shown() {
+  const rows = MANDATES[S.mid].rows;
+  if (S.read != null) { const r = rows.find((x) => x.v === S.read); const p = rows.find((x) => x.v === S.read - 1); return { body: r.body, against: p && p.body ? p.body : r.body, ro: true, row: r }; }
+  return { body: D(), against: H().body, ro: false, row: null };
+}
+function liveOrBody(sh) { return !sh.ro && H().status === 'revoked' && same(sh.body, sh.against) ? null : sh.body; }
+/* plain-language value of a term */
+function plain(k, b) {
+  const v = getp(b, k);
+  switch (k) {
+    case 'roles': return v.length ? list(v.map((r) => ROLE_NOUN[r])) : 'nothing at all';
+    case 'cp': return CP_PLAIN[v];
+    case 'cats': return v.length ? listOr(v) : 'no category';
+    case 'payees': return v.length ? list(v.map((p) => (p === 'HOUSE' ? 'the HOUSE' : p))) : 'nobody';
+    case 'band.rounds': return `${v} round${v === 1 ? '' : 's'}`;
+    case 'band.deadline': return `${v} today`;
+    case 'velDeals': return `${v} deal${v === 1 ? '' : 's'}`;
+    case 'pause.max': return `${v} cycle${v === 1 ? '' : 's'}`;
+    case 'discount.max': return `${v}%`;
+    default:
+      if (k.endsWith('.on')) return v ? 'may' : 'may not';
+      return money(v);
+  }
+}
+/** A term: struck old value (if edited) + the live value as a button that opens its editor. */
+function term(k) {
+  const sh = shown(); const now = plain(k, sh.body), was = plain(k, sh.against);
+  const chg = !same(getp(sh.body, k), getp(sh.against, k));
+  const f = field(k); const off = k.endsWith('.on') && !getp(sh.body, k);
+  if (sh.ro) return chg ? `<del>${esc(was)}</del><ins>${esc(now)}</ins>` : `<span class="term ro">${esc(now)}</span>`;
+  return `${chg ? `<del>${esc(was)}</del>` : ''}<button type="button" class="term ${chg ? 'chg' : ''} ${off ? 'off' : ''}" data-act="edit" data-k="${k}" data-f="term:${k}" aria-haspopup="dialog" aria-expanded="${S.edit === k}" aria-label="${esc(f.label)}: ${esc(now)}${chg ? ' (was ' + esc(was) + ')' : ''}. Press to edit.">${esc(now)}</button>`;
+}
+
+/* ---------- the margin: a chip on Layer 1, the deals in a popover ---------- */
+function margin(id, title, ws, va, vb, aside) {
+  const sh = shown(); const mv = ws.filter((w) => moved(va[w.id], vb[w.id])).length;
+  const rev = !sh.ro && liveOrBody(sh) === null;
+  MG[id] = { title, aside, ws, va, vb, lab: !mv ? 'this week' : sh.ro ? `changed by v${sh.row.v}` : rev ? 'since the revoke' : 'with your edit' };
+  const label = mv ? `${mv} ${sh.ro ? 'changed' : rev ? 'refused now' : 'would change'}` : ws.length ? `${ws.length} this week` : 'none this week';
+  return `<span class="mg"><button type="button" class="ui-chip btnchip ${mv ? 'gold' : ws.length ? 'line' : 'dashed'}" data-act="margin" data-v="${id}" data-f="mg:${id}" aria-haspopup="dialog">${label}</button></span>`;
+}
+function marginBody(id) {
+  const m = MG[id]; if (!m) return '';
+  return `${m.aside ? `<p class="ui-hint aside">${m.aside}</p>` : ''}${m.ws.length ? m.ws.map((w) => { const a = m.va[w.id], b = m.vb[w.id], c = moved(a, b);
+    return `<div class="mrow ${c ? 'mv' : ''}"><div class="l1"><span class="id">${esc(w.sub || w.id)}</span><span class="dim">${esc(w.amt != null ? itemAmt(w) : (w.what || ''))}</span>${w.replay ? '<span class="badge replay">Replay</span>' : ''}<span class="ui-spacer"></span>${vchip(a)}${c ? '<span class="dim">→</span>' + vchip(b) : ''}</div>
+      <div class="why">${esc(w.sub ? w.what : w.item)} · ${esc((c ? b : a).why)}</div></div>`; }).join('') : '<p class="ui-hint" style="margin:0">Nothing reached this clause this week.</p>'}`;
+}
+const M12_WS = (n, va, vb) => WEEK.filter((w) => va[w.id].n === n || vb[w.id].n === n || (n === 2 && w.kind === 'haggle') || (n === 4 && w.kind === 'haggle' && w.amt != null));
+
+/* ---------- the three documents ---------- */
+function docM12() {
+  const sh = shown(); const b = sh.body; const mk = F.market['monitor-27-4k'];
+  const va = judgeM12(sh.against).v, vb = judgeM12(liveOrBody(sh)).v;
+  const cl = (n, html, aside) => `<div class="cl"><span class="no">§${n}</span><p>${html}</p>${margin('m' + n, `§${n} · ${MG_T[n]}`, M12_WS(n, va, vb), va, vb, aside)}</div>`;
+  return cl(1, `I, Maya, let my agents act as ${term('roles')}.`)
+    + cl(2, `They may haggle only with ${term('cp')}.`)
+    + cl(3, `A single purchase may be at most ${term('max')}, and only for ${term('cats')}.`)
+    + cl(4, `At a table for <span class="mono">${esc(b.band.item)}</span> they may agree up to ${term('band.ceiling')}, over at most ${term('band.rounds')}, until ${term('band.deadline')}.`,
+      `Market for ${esc(b.band.item)}: p25 $${mk.p25} · median $${mk.median} · p75 $${mk.p75} · ${esc(mk.src)}, ${mk.retrieved}`)
+    + cl(5, `In one day they may close at most ${term('velDeals')}, worth at most ${term('velTotal')} together.`)
+    + cl(6, `Anything over ${term('hpo')} waits for me in this window; at or under it, the wallet countersigns by policy.`)
+    + cl(7, `Policy may pay only ${term('payees')}. Anyone else waits for my capture.`)
+    + `<p class="closing ui-hint">Runs until ${esc(MANDATES['M-12'].expires)}; if I do nothing then, my agents stop · no money moves. No agent can create, approve, capture or void a payment at PayPal: the wallet does, only on these rules or on my click.</p>`;
+}
+const MG_T = { 1: 'Roles', 2: 'Counterparties', 3: 'Per deal', 4: 'Band', 5: 'Velocity', 6: 'Ask me above', 7: 'Payees' };
+function docS2() {
+  const sh = shown(); const va = judgeS2(sh.against).v, vb = judgeS2(liveOrBody(sh)).v;
+  const lines = F.shop.filter((s) => s.floor != null).map((s, i) => {
+    const k = 'floors.' + s.sku;
+    return `<div class="cl"><span class="no">${i + 1}</span><p>a ${esc(s.title)} for no less than ${term(k)}</p>${margin('s' + i, `${i + 1} · ${s.title}`, QUOTES.filter((q) => q.sku === s.sku), va, vb,
+      `<span class="mono">${esc(s.sku)}</span> · list ${money(fixtureCents(s.price))} · market ${s.mkt != null ? '$' + s.mkt : 'no reference'}${s.avail === 'out_of_stock' ? ' · out of stock' : ''}`)}</div>`;
+  }).join('');
+  return `<p class="intro">My quoting agent may answer other agents at my counter, but never below these floors. Every buyer approves their own order on PayPal; I do not click per sale.</p>${lines}
+    <p class="closing ui-hint">The care plan ($12/mo) has no floor; it is rescued under R-3. Runs until ${esc(MANDATES['S-2'].expires)}; if I do nothing then, the counter stops quoting · no money moves.</p>`;
+}
+function docR3() {
+  const sh = shown(); const b = sh.body; const va = judgeR3(sh.against).v, vb = judgeR3(liveOrBody(sh)).v;
+  const L = (n, k, html, aside) => `<div class="cl"><span class="no">${n}</span><p>${html}</p>${margin('r' + n, `${n} · ${LEVERS[n - 1].code}`, RESCUES.filter((r) => r.lever === k), va, vb, aside)}</div>`;
+  return `<p class="intro">When a care-plan renewal fails, my rescue agent may suggest one of these, for one subscriber at a time, and nothing else:</p>`
+    + L(1, 'discount', `It ${term('discount.on')} offer <span class="mono">DISCOUNT_THIS_CYCLE</span>, up to ${b.discount.on ? term('discount.max') : '<span class="dim">' + b.discount.max + '%</span>'} off this cycle.`)
+    + L(2, 'pause', `It ${term('pause.on')} offer <span class="mono">PAUSE</span>, for up to ${b.pause.on ? term('pause.max') : '<span class="dim">' + b.pause.max + ' cycle</span>'}.`)
+    + L(3, 'retry', `It ${term('retry.on')} offer <span class="mono">RETRY_AFTER_FIX</span> once the subscriber fixes their payment method.`, 'Captures the outstanding balance. Nobody can use it this week: S-14 is a REPLAY row, S-22’s PayPal retry is under 24 h away.')
+    + L(4, 'downgrade', `It ${term('downgrade.on')} offer <span class="mono">DOWNGRADE</span> to a cheaper plan.`, 'Revises to a pre-created cheaper plan; the subscriber approves on PayPal. No cheaper plan exists in the catalog.')
+    + `<p class="closing ui-hint">It fills a fixed template and writes no free text; I approve each lever and press send myself. Runs until ${esc(MANDATES['R-3'].expires)}; if I do nothing then, only PayPal’s own retries run · no money moves.</p>`;
+}
+
+/* ---------- the signature line (Layer 1) ---------- */
+const SCRAWL = '<svg class="scrawl" viewBox="0 0 170 50" aria-hidden="true"><path d="M6 38c10-20 18-30 22-26s-8 26-4 26 14-28 20-26-4 22 2 22 10-16 16-16 2 14 8 14 12-20 20-20-6 22 4 20c8-2 14-14 22-14s4 10 12 10 14-8 28-10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function sigblock() {
+  const h = H(), sh = shown();
+  const r = sh.ro ? sh.row : h;
+  const signedLine = `<div class="signed ${S.fresh && !sh.ro ? 'fresh' : ''}">${SCRAWL}<div class="who"><div>Maya · owner key</div><div class="ui-hint">v${r.v} · signed ${esc(r.signed)}${r.commitment ? ' · commitment <span class="mono">' + esc(r.commitment) + '</span>' : ''}${r.revokedAt ? ' · revoked ' + esc(r.revokedAt) : ''}</div></div>${statusChip(r)}</div>`;
+  if (sh.ro) return `<div class="sigblock">${signedLine}<span class="ui-hint">A signed row never changes. <button type="button" class="ui-btn plain sm" data-act="draftfrom" data-v="${r.v}">Draft v${h.v + 1} from these words</button></span></div>`;
+  const n = diff(S.mid, h.body, D()).length;
+  if (!n && h.status !== 'revoked') return `<div class="sigblock" id="sig">${signedLine}<span class="ui-silence">This is what your agents obey now. Press an underlined term to draft v${h.v + 1}; v${h.v} stays in force until you sign.</span></div>`;
+  const errs = Object.values(S.raw[S.mid]).filter((x) => x.err).length + problems(S.mid, D()).e.length;
+  return `<div class="sigblock" id="sig">${signedLine}
+    <div class="sigline"><span class="x" aria-hidden="true">✕</span><span class="ln" aria-hidden="true"></span><span class="ui-hint">v${h.v + 1} · ${n ? n + ' edit' + (n > 1 ? 's' : '') + ' redlined above' : 'same words as v' + h.v} · not signed</span>
+      <button type="button" class="ui-btn gold" data-act="review" data-f="review" ${errs ? 'disabled' : ''}>Sign v${h.v + 1}…</button></div>
+    <span class="ui-silence">close → nothing is signed · v${h.v} stays <b>${h.status}</b> · no money moves</span></div>`;
+}
+
+/* ---------- frame ---------- */
+function render() {
+  const root = $('#root');
+  if (S.closed) { root.innerHTML = closedHtml(); return; }
+  const wb = $('#wbody'); const top = wb && !S.resetScroll ? wb.scrollTop : 0; S.resetScroll = false;
+  const h = H(), m = MANDATES[S.mid], sh = shown(); const n = diff(S.mid, h.body, D()).length;
+  const hist = m.rows.map((r) => `<button type="button" class="ui-btn plain sm" aria-pressed="${S.read === r.v}" data-act="read" data-v="${r.v}" data-f="h:${r.v}" ${r.body ? '' : 'disabled title="body not in the sample week"'}>v${r.v}${r.status !== 'superseded' ? ' ' + statusChip(r) : ''}</button>`).join('<span aria-hidden="true">›</span>')
+    + `<span aria-hidden="true">›</span><button type="button" class="ui-btn plain sm" aria-pressed="${S.read == null}" data-act="read" data-v="draft" data-f="h:draft">v${h.v + 1} ${n || h.status === 'revoked' ? '<span class="ui-chip gold">draft</span>' : '<span class="dim">blank</span>'}</button>`;
+  const title = sh.ro ? `${m.label} ${S.mid} · version ${sh.row.v}` : n ? `${m.label} ${S.mid} · version ${h.v + 1}` : `${m.label} ${S.mid} · version ${h.v}`;
+  const chip = sh.ro ? '<span class="ui-chip line">read-only</span>' : n ? '<span class="ui-chip gold">draft · redlined</span>' : '';
+  const key = sh.ro ? (sh.body !== sh.against ? `<del>struck</del> = v${sh.row.v - 1} · <ins>gold</ins> = what v${sh.row.v} changed` : 'no change against the previous row')
+    : n ? `<del>struck</del> = signed v${h.v} · <ins>gold</ins> = your edit · chips = this week’s deals` : `${m.agents.map(agentName).join(', ')} · ${esc(engineOf(m.agents[0]))} · key <span class="mono">${esc(AGENT_KEY)}</span> · press an underlined term to edit`;
+  root.innerHTML = `<section class="win" role="dialog" aria-modal="false" aria-labelledby="wTitle">
+    ${titlebar(`${S.mid} ${sh.ro ? 'v' + sh.row.v : n ? 'redline v' + (h.v + 1) : 'v' + h.v}`)}
+    <div class="ui-toolbar">${segTabs()}<span class="ui-spacer"></span><div class="hist" aria-label="Signed rows">${hist}</div></div>
+    <div class="wbody" id="wbody">
+      <article class="ui-card paper" aria-labelledby="docT">
+        <div class="dhead"><h2 id="docT">${title}</h2>${chip}<span class="ui-spacer"></span>${h.status === 'revoked' && !sh.ro ? `<span class="stamp" role="img" aria-label="Revoked ${esc(h.revokedAt)}">REVOKED ${esc(h.revokedAt.slice(-5))}</span><button type="button" class="ui-btn plain sm" data-act="revnotes" aria-haspopup="dialog">What this means ›</button>` : ''}</div>
+        <div class="dsub ui-hint">${key}</div>
+        <div class="doc ${h.status === 'revoked' && !sh.ro ? 'revoked' : ''}">${S.mid === 'M-12' ? docM12() : S.mid === 'S-2' ? docS2() : docR3()}</div>
+        ${sigblock()}
+      </article>
+    </div>
+    <footer class="wfoot"><span class="status" aria-live="polite">${h.status === 'revoked' ? `<span class="red">Revoked.</span> Agents are refused at the gate` : n ? `<b class="gold">${n} edit${n > 1 ? 's' : ''}</b> · not in force until you sign` : `No edits · agents obey ${S.mid} v${h.v}`}</span><span class="ui-spacer"></span>
+      ${n && !sh.ro ? '<button type="button" class="ui-btn" data-act="discard">Discard edits</button><button type="button" class="ui-btn" data-act="tosig">Signature ↓</button>' : ''}
+      ${h.status === 'active' ? `<button type="button" class="ui-btn danger" data-act="revoke" title="Restricting: one click, effective now, works while locked">Revoke v${h.v}</button>` : ''}</footer>
+  </section>${protoDock()}`;
+  $('#wbody').scrollTop = top;
+  S.fresh = false;
+}
+const rerender = () => keepFocus(() => { render(); paintTerm(); });
+
+/* ---------- Layer 2 · the term editor (a popover) ---------- */
+function termBody(k) {
+  const f = field(k); const b = D(); const v = getp(b, k), was = getp(H().body, k); const r = S.raw[S.mid][k];
+  let ctl = '';
+  if (f.type === 'money' || f.type === 'int' || f.type === 'pct') {
+    const txt = r ? r.text : f.type === 'money' ? inputMoney(v) : String(v);
+    const steps = f.type === 'money' ? [[-1000, '−10'], [-100, '−1'], [100, '+1'], [1000, '+10']] : [[-1, '−1'], [1, '+1']];
+    ctl = `<div class="trow">${f.type === 'money' ? '<span class="dim mono">$</span>' : ''}<input class="ui-field num ${r && r.err ? 'bad' : ''}" data-act="num" data-k="${k}" data-f="tin:${k}" inputmode="${f.type === 'money' ? 'decimal' : 'numeric'}" value="${esc(txt)}" aria-label="${esc(f.label)}">${f.type === 'pct' ? '<span class="dim mono">%</span>' : ''}
+      ${steps.map(([d, l]) => `<button type="button" class="ui-btn sm" data-act="step" data-k="${k}" data-v="${d}" data-f="st:${k}:${d}" aria-label="${l}">${l}</button>`).join('')}</div>${r && r.err ? `<div class="ui-hint red" role="alert">${esc(r.err)}</div>` : ''}`;
+  } else if (f.type === 'time') {
+    ctl = `<div class="trow"><input class="ui-field num" type="time" data-act="num" data-k="${k}" data-f="tin:${k}" value="${esc(v)}" aria-label="${esc(f.label)}"><span class="ui-hint">today, Thu 29 Oct</span></div>`;
+  } else if (f.type === 'choice') {
+    ctl = `<div class="opts" role="radiogroup" aria-label="${esc(f.label)}">${Object.keys(CP_PLAIN).map((o) => `<label class="pick"><input type="radio" class="ui-check" name="cp" data-act="choose" data-k="${k}" data-v="${o}" data-f="tin:${k}:${o}" ${v === o ? 'checked' : ''}><span style="white-space:normal">${esc(CP_PLAIN[o])}</span></label>`).join('')}</div>`;
+  } else if (f.type === 'set') {
+    const all = f.all.concat(v.filter((x) => !f.all.includes(x)));
+    ctl = `<div class="trow" role="group" aria-label="${esc(f.label)}">${all.map((x) => `<label class="pick"><input type="checkbox" class="ui-check" data-act="toggle" data-k="${k}" data-v="${esc(x)}" data-f="tin:${k}:${esc(x)}" ${v.includes(x) ? 'checked' : ''}>${esc(k === 'roles' ? ROLE_NOUN[x] : x)}</label>`).join('')}</div>`
+      + (k === 'payees' ? `<div class="trow" style="margin-top:6px"><input class="ui-field mono" id="newPayee" data-f="newPayee" placeholder="add a payee id" aria-label="Payee id to add" style="width:170px"><button type="button" class="ui-btn sm" data-act="addpayee">Add</button></div>` : '');
+  } else if (f.type === 'toggle') {
+    ctl = `<div class="ui-seg" role="radiogroup" aria-label="${esc(f.label)}">${[[true, 'may suggest it'], [false, 'may not']].map(([o, l]) => `<button type="button" role="radio" aria-checked="${v === o}" aria-pressed="${v === o}" data-act="settoggle" data-k="${k}" data-v="${o}" data-f="tin:${k}:${o}">${l}</button>`).join('')}</div>`;
+  }
+  const one = clone(H().body); setp(one, k, clone(v));
+  const eff = same(v, was) ? '<span class="dim">The signed value. Change it to see what it would have done this week.</span>' : changeSentences(S.mid, H().body, one).map((s) => s.html).join('<br>');
+  return `<div class="ted"><div class="ui-hint" style="margin-bottom:6px">signed v${H().v}: <span class="mono">${esc(fmtVal(f, was))}</span></div>${ctl}
+    <div class="eff" aria-live="polite">${eff}</div>
+    <div class="tb"><button type="button" class="ui-btn primary sm" data-act="done" data-f="done">Done</button>${!same(v, was) ? `<button type="button" class="ui-btn sm" data-act="restore" data-k="${k}">Restore v${H().v}</button>` : ''}<span class="ui-spacer"></span><span class="ui-hint"><span class="kbd">Enter</span> done · <span class="kbd">Esc</span> undo</span></div></div>`;
+}
+let editSnapshot = null; // the value a term had when its popover opened (Esc restores it)
+function paintTerm() { if (!S.edit || !S.pop) return; const host = S.pop.el.querySelector('#tpb'); if (host) host.innerHTML = termBody(S.edit); }
+function openTerm(k, anchor) {
+  if (S.pop) S.pop.close();
+  S.edit = k; editSnapshot = clone(getp(D(), k));
+  const api = UI.popover(anchor, '<div id="tpb"></div>', { title: field(k).label.replace(/^./, (c) => c.toUpperCase()) });
+  S.pop = api; paintTerm(); render();
+  onGone(api.el, () => { if (S.pop === api) finishTerm(false, true); });
+  const i = api.el.querySelector('[data-f^="tin:"]') || api.el.querySelector('[data-act="done"]'); if (i) i.focus();
+}
+/** Close the editor: keep the edit (an unparsed entry falls back to the snapshot), or undo it. */
+function finishTerm(undo, already) {
+  const k = S.edit; if (!k) return;
+  if (undo || (S.raw[S.mid][k] && S.raw[S.mid][k].err)) { setp(D(), k, clone(editSnapshot)); delete S.raw[S.mid][k]; }
+  const api = S.pop; S.edit = null; S.pop = null;
+  if (!already && api) api.close();
+  render(); const t = $(`[data-f="term:${CSS.escape(k)}"]`); if (t) t.focus();
+}
+window.addEventListener('keydown', (e) => {   // before UI's Esc: Esc in the term editor undoes the edit
+  if (!S.edit || $('.hello')) return;
+  if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); finishTerm(true); }
+  else if (e.key === 'Enter' && e.target.closest && e.target.closest('.ui-popover') && e.target.tagName === 'INPUT' && e.target.id !== 'newPayee') { e.preventDefault(); e.stopImmediatePropagation(); finishTerm(false); }
+}, true);
+
+/* ---------- Layer 2 · sign sheet ---------- */
+function openReview() {
+  const h = H(), v = h.v + 1, b = D(), ch = diff(S.mid, h.body, b);
+  const body = `<p class="ui-hint" style="margin:0 0 8px">Signing makes this text a new row. v${h.v} ${h.status === 'revoked' ? 'stays revoked' : 'becomes superseded'} and stays in the ledger; a signed version is never edited.</p>
+    <div class="ui-section"><div class="ui-section-h"><h3>${ch.length ? `${ch.length} edit${ch.length > 1 ? 's' : ''}, in plain words` : `Same words as v${h.v}`}</h3><span class="end">gold widens · teal restricts · coral is live now</span></div>${conseqHtml(h.body, b)}</div>
+    <div class="ui-section"><div class="ui-section-h"><h3>What your owner key signs</h3></div>${sigFacts(v, b)}</div>
+    <p class="ui-silence" style="margin-top:12px">close → nothing is signed · v${h.v} stays <b>${h.status}</b> · no money moves</p>`;
+  const api = sheet({ title: `Sign ${S.mid} v${v} on the line`, size: 'wide', body, actions: [
+    { label: 'Keep editing', left: true },
+    { label: 'Sign', kind: 'gold', keep: true, onClick: () => signClick(api) }] });
+  gateBtn(api.el);
+}
+function signed(row) {
+  S.drafts[S.mid] = clone(row.body); S.raw[S.mid] = {}; S.fresh = true;
+  render(); const sg = $('#sig'); if (sg) sg.scrollIntoView({ block: 'nearest' });
+  signedToast(row);
+}
+
+/* ---------- actions ---------- */
+function setMid(id) { if (S.pop) finishTerm(false); S.mid = id; S.read = null; S.resetScroll = true; }
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-act]'); if (!t || t.disabled) return;
+  const a = t.dataset.act, k = t.dataset.k, v = t.dataset.v;
+  switch (a) {
+    case 'mid': setMid(v); break;
+    case 'read': S.read = v === 'draft' ? null : +v; S.resetScroll = true; break;
+    case 'edit': if (S.edit === k) { finishTerm(false); return; } openTerm(k, t); return;
+    case 'done': finishTerm(false); return;
+    case 'margin': { const m = MG[v]; UI.popover(t, marginBody(v), { title: `${m.title} · ${m.lab}` }); return; }
+    case 'revnotes': UI.popover(t, revokeKv(), { title: `${S.mid} v${H().v} revoked` }); return;
+    case 'restore': setp(D(), k, clone(getp(H().body, k))); delete S.raw[S.mid][k]; break;
+    case 'step': { const f = field(k); let nv = getp(D(), k) + Number(v); if (f.type !== 'money') nv = Math.min(f.hi, Math.max(f.lo, nv)); if (nv < 0) nv = 0; setp(D(), k, nv); delete S.raw[S.mid][k]; break; }
+    case 'toggle': { const arr = getp(D(), k); setp(D(), k, arr.includes(v) ? arr.filter((x) => x !== v) : arr.concat([v])); break; }
+    case 'choose': setp(D(), k, v); break;
+    case 'settoggle': setp(D(), k, v === 'true'); break;
+    case 'addpayee': { const i = $('#newPayee'); const p = i.value.trim(); if (!/^[a-z0-9][a-z0-9.-]{1,40}$/i.test(p)) { note('A payee id is letters, digits, dots and dashes.', 'bad'); return; } if (!D().payees.includes(p)) D().payees.push(p); i.value = ''; break; }
+    case 'draftfrom': { const r = MANDATES[S.mid].rows.find((x) => x.v === +v); S.drafts[S.mid] = clone(r.body); S.raw[S.mid] = {}; S.read = null; S.resetScroll = true; note(`Draft v${H().v + 1} starts from v${v}’s words. Nothing is signed yet.`); break; }
+    case 'discard': S.drafts[S.mid] = clone(H().body); S.raw[S.mid] = {}; note(`Edits discarded · ${S.mid} v${H().v} unchanged.`); break;
+    case 'tosig': { const sg = $('#sig'); if (sg) sg.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'end' }); const b = $('[data-f="review"]'); if (b) b.focus({ preventScroll: true }); return; }
+    case 'review': openReview(); return;
+    case 'unlock': hello('The Table wants to unlock privileged commands (sign a mandate).', () => { S.locked = false; S.idle = 0; rerender(); note('Unlocked · privileged commands available until 15 min idle.', 'ok'); }); return;
+    case 'revoke': { const r = revokeRow(S.mid); S.read = null; render(); revokedToast(r); return; }
+    case 'close': if (S.pop) finishTerm(false); S.closed = true; render(); note('Approval window closed · nothing signed · no money moves.'); $('[data-act="reopen"]').focus(); return;
+    case 'reopen': S.closed = false; render(); return;
+    case 'idle': S.locked = true; S.idle = 15; S.signing = false; note('Idle 15 min: privileged commands locked. Reading and redlining still work.', 'gold'); break;
+    default: return;
+  }
+  rerender();
+});
+document.addEventListener('input', (e) => {
+  const t = e.target.closest('[data-act="num"]'); if (!t) return;
+  const k = t.dataset.k, f = field(k); let val = null, err = null;
+  if (f.type === 'money') { val = parseMoney(t.value); if (val == null) err = `“${t.value}” is not an amount in USD`; }
+  else if (f.type === 'time') { val = /^\d\d:\d\d$/.test(t.value) ? t.value : null; if (val == null) err = 'choose a time'; }
+  else { val = parseIntStrict(t.value, f.lo, f.hi); if (val == null) err = `a whole number ${f.lo}–${f.hi}`; }
+  S.raw[S.mid][k] = err ? { text: t.value, err } : { text: t.value };
+  if (!err) setp(D(), k, val);
+  rerender();
+});
+document.addEventListener('keydown', (e) => {
+  if (S.closed || $('.hello')) return;
+  if (e.key === 'Enter' && e.target.id === 'newPayee') { e.preventDefault(); $('[data-act="addpayee"]').click(); return; }
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && UI.open) { const g = $('.ui-sheet-f .ui-btn.gold'); if (g) { e.preventDefault(); if (!g.disabled) g.click(); } return; }
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); const b = $('[data-act="review"]'); if (b && !b.disabled) b.click(); return; }
+  tabKeys(e, setMid);
+});
+render();
+</script>
+<script src="../../../shared/shell.js" data-page="mandate" data-variant="2"></script>
+</body>
+</html>
