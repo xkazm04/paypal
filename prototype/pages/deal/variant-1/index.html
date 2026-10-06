@@ -1,0 +1,1181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deal detail · v1 Mirror · The Table</title>
+<link rel="stylesheet" href="../../../shared/tokens.css">
+<link rel="stylesheet" href="../../../shared/ui.css">
+<script src="../../../main/fixtures.js"></script>
+<script src="../../../shared/ui.js"></script>
+<style>
+/* ---- shared by the three deal variants: approval-window simulation, state strip, meters ---- */
+#dvApproval { position: fixed; right: var(--sp-4); bottom: var(--sp-4); z-index: 8200; }
+.apw { width: min(380px, calc(100vw - 32px)); background: var(--panel); border-radius: var(--r-lg); overflow: hidden;
+  box-shadow: var(--shadow-3), 0 0 0 1px color-mix(in srgb, var(--gold) 40%, transparent); animation: apwIn var(--t-med) var(--ease) both; }
+@keyframes apwIn { from { opacity: 0; transform: translateY(10px); } }
+.apw-bar { display: flex; align-items: center; gap: var(--sp-2); height: 30px; padding: 0 var(--sp-1) 0 var(--sp-3); background: var(--bg2); border-bottom: 1px solid var(--line); font-size: var(--fs-small); color: var(--dim); }
+.apw-t { flex: 1; }
+.apw-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); }
+.apw-body { display: grid; gap: var(--sp-1); padding: var(--sp-3); }
+.apw-k { font: var(--fw-semibold) var(--fs-small) var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--gold-l); }
+.apw-big { font: var(--fw-semibold) var(--fs-display)/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+.apw-ph { display: flex; align-items: center; gap: var(--sp-1); margin-top: var(--sp-1); }
+.apw-p { margin: 0; }
+.apw-sim, .sim { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); }
+.apw-sim::before, .sim::before { width: 100%; margin-bottom: 0; }
+.sim .none { color: var(--dim); }
+
+/* state strip: done ✓ · current filled · the rest dim; a kind's missing steps are hidden */
+.strip { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; font: var(--fw-medium) var(--fs-small)/1 var(--mono); color: var(--dim); min-width: 0; }
+.strip .s { display: inline-flex; align-items: center; height: 20px; padding: 0 5px; border-radius: 4px; white-space: nowrap; }
+.strip .s.done { color: var(--muted); }
+.strip .s.done::before { content: "✓"; color: var(--ok); margin-right: 3px; }
+.strip .s.cur { color: var(--on-teal); background: var(--teal); font-weight: var(--fw-semibold); }
+.strip .s.cur.need, .strip .s.cur.held { color: var(--on-gold); background: var(--gold); }
+.strip .s.cur.ok { color: var(--bg); background: var(--ok); }
+.strip .s.stop { color: var(--muted); box-shadow: inset 0 0 0 1px var(--line2); }
+.strip .s.term { color: var(--on-refuse); background: var(--refuse); font-weight: var(--fw-semibold); }
+.strip .s.term.off { color: var(--text); background: var(--panel3); }
+.strip .ar { color: var(--line2); padding: 0 1px; }
+
+/* two meters, never one axis */
+.meters { display: flex; gap: var(--sp-3); font-size: var(--fs-small); color: var(--dim); white-space: nowrap; min-width: 0; }
+.meters .m { padding-left: var(--sp-2); border-left: 2px solid var(--teal); }
+.meters .m.eng { border-color: var(--line2); }
+.meters b { font: var(--fw-semibold) var(--fs-mono) var(--mono); color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* decision row: the one act on layer 1 */
+.decide.need { border-color: color-mix(in srgb, var(--gold) 50%, var(--line)); box-shadow: inset 3px 0 0 var(--gold); }
+.decide.hand { border-color: color-mix(in srgb, var(--teal) 50%, var(--line)); box-shadow: inset 3px 0 0 var(--teal); }
+.decide .t1 b { font-weight: var(--fw-semibold); }
+.cd { font: var(--fw-semibold) var(--fs-title3) var(--mono); font-variant-numeric: tabular-nums; color: var(--gold-l); }
+
+/* lane marks: teal you · coral them · gold PayPal · line the gate */
+.lane-you { box-shadow: inset 2px 0 0 var(--teal); } .lane-them { box-shadow: inset 2px 0 0 var(--coral); }
+.lane-paypal { box-shadow: inset 2px 0 0 var(--gold); } .lane-gate { box-shadow: inset 2px 0 0 var(--line2); }
+.vg { width: 12px; flex: none; text-align: center; font-weight: var(--fw-bold); }
+.bandmini { display: block; flex: none; }
+.dvband { width: 100%; max-width: 520px; height: auto; display: block; }
+.xpre { max-height: 260px; overflow: auto; margin: var(--sp-2) 0 0; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); background: var(--bg); border: 1px solid var(--line);
+  font: var(--fs-small)/1.45 var(--mono); color: var(--teal-l); white-space: pre-wrap; }
+.sheet-p { margin: 0 0 var(--sp-2); }
+.ui-popover .ui-kv { font-size: var(--fs-small); }
+.chk { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: grid; gap: 2px; font-size: var(--fs-small); color: var(--muted); }
+.chk li::before { content: "✓ "; color: var(--ok); }
+.chk li.x::before { content: "✗ "; color: var(--red-l); }
+.ui-table tr.checking td { background: color-mix(in srgb, var(--gold) 12%, transparent); }
+.decide .ui-silence, .dock .ui-silence { white-space: normal; }
+
+/* ---- v1 Mirror: only what is unique to this variant ---- */
+body { overflow: hidden; }
+.esc { white-space: nowrap; }
+.idbtn { font-family: var(--mono); }
+.ui-sb-item .nd { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex: none; }
+.ui-sb-item.sub { height: 24px; padding-left: 30px; font-size: var(--fs-small); color: var(--muted); }
+.ui-sb-item.sub .mono { color: var(--text); }
+.ui-sb-item.sub .st { color: var(--dim); margin-left: 6px; }
+
+/* key figures: one line under the title */
+.figs { display: flex; align-items: center; gap: var(--sp-2) var(--sp-5); flex-wrap: wrap; margin-bottom: var(--sp-3); min-width: 0; }
+.figs .amt { font: var(--fw-semibold) var(--fs-display)/1 var(--mono); font-variant-numeric: tabular-nums; }
+.figs .f { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.figs .f .k { font-size: var(--fs-small); color: var(--dim); }
+.figs .f .v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.figs .push { margin-left: auto; text-align: right; }
+.stripline { margin-bottom: var(--sp-3); }
+
+/* the bet: three linked columns */
+.mirror { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1fr); gap: var(--sp-4); align-items: start; margin-top: var(--sp-4); }
+.mirror .ui-section { margin-top: 0; min-width: 0; }
+.tl { max-height: max(calc(var(--row) * 9 + 9px), calc(100vh - 560px)); overflow: auto; }
+.ui-row .sq { width: 26px; flex: none; font: var(--fs-mono) var(--mono); color: var(--dim); }
+.ui-row .tm { flex: none; font: var(--fs-small) var(--mono); color: var(--dim); }
+.ui-row .k { width: 78px; flex: none; color: var(--dim); font-size: var(--fs-small); }
+.ui-row .v { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+.ui-row.lit, .ui-group.lit, .ind.lit { background: color-mix(in srgb, var(--gold) 12%, transparent); box-shadow: inset 2px 0 0 var(--gold-l); }
+
+/* evidence indicators: one row, each opens its layer-2 sheet */
+.inds { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr)); margin-top: var(--sp-4); }
+.ind { display: flex; flex-direction: column; gap: 5px; align-items: stretch; min-width: 0; padding: var(--sp-2) var(--sp-3); border: 0; border-left: 1px solid var(--line);
+  background: none; color: var(--text); text-align: left; cursor: pointer; }
+.ind:first-child { border-left: 0; }
+.ind:hover { background: var(--hover); }
+.ind .k { display: flex; font-size: var(--fs-small); color: var(--dim); }
+.ind .k::after { content: "›"; margin-left: auto; }
+.ind .v { display: flex; gap: 6px; align-items: center; min-width: 0; height: 18px; white-space: nowrap; overflow: hidden; font-size: var(--fs-small); }
+.foot { display: flex; gap: var(--sp-3); align-items: flex-start; margin-top: var(--sp-4); }
+.foot .sim { flex: 1; }
+
+.menu { display: flex; flex-direction: column; }
+.menu .ui-section-h { margin: var(--sp-2) 0 2px; }
+.menu .ui-row { border: 0; background: none; color: var(--text); text-align: left; width: 100%; border-radius: var(--r-sm); font-size: var(--fs-small); }
+.menu .ui-row .t1 { flex: 1; min-width: 0; }
+
+@media (max-width: 1180px) {
+  .mirror { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .mirror .mid { grid-column: 1 / -1; grid-row: 1; }
+  .inds { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ind:nth-child(3) { border-left: 0; }
+  .ind:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .esc { display: none; }
+}
+.notebtn { border: 0; cursor: pointer; }
+.you .sq { width: auto; min-width: 14px; white-space: nowrap; }
+#view { max-width: 1360px; }
+</style>
+</head>
+<body>
+<div class="ui-app">
+  <header class="ui-titlebar">
+    <nav class="ui-crumbs" aria-label="Breadcrumb" id="crumbs"></nav>
+    <span class="ui-hint esc"><span class="kbd">Esc</span> back</span>
+    <span class="ui-spacer"></span>
+    <div class="meters" id="meters"></div>
+    <span id="mode"></span>
+    <button class="ui-btn sm" id="idle" data-tip="Prototype · simulate 15 minutes idle">Active</button>
+  </header>
+  <div class="ui-split">
+    <nav class="ui-sidebar" id="rail" aria-label="Modules and deals"></nav>
+    <main class="ui-main" id="main" tabindex="-1"><div id="view"></div></main>
+  </div>
+</div>
+
+<script>
+/* ===== Deal view core: the deal model, evidence rules and the simulated state machine.
+   The same block is inlined in all three variants so each page opens from disk on its own.
+   Nothing here moves money: decisions that release money only open the (simulated) approval
+   window; external PayPal / counterparty events are "Prototype · sandbox simulation" buttons. */
+window.DV = (function () {
+  'use strict';
+  const F = window.FIX;
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const cents = (v) => Math.round(Number(v) * 100);
+  const money = (v) => v == null ? '—' : '$' + (cents(v) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money0 = (v) => v == null ? '—' : '$' + Math.round(v).toLocaleString('en-US');
+  const pad = (n) => String(n).padStart(2, '0');
+
+  /* ---- clock: the snapshot is Thu 29 Oct 2026 14:02, then it ticks in real time ---- */
+  const T0 = new Date(2026, 9, 29, 14, 2, 0).getTime();
+  const started = Date.now();
+  let skew = 0;
+  const now = () => T0 + (Date.now() - started) + skew;
+  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const DAYOFF = { Mon: -3, Tue: -2, Wed: -1, Thu: 0, Fri: 1, Sat: 2, Sun: 3 };
+  function ts(s) {
+    const m = /^(?:(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+)?(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(String(s).trim());
+    if (!m) return null;
+    return new Date(2026, 9, 29 + (m[1] ? DAYOFF[m[1]] : 0), +m[2], +m[3], +(m[4] || 0)).getTime();
+  }
+  const hhmm = (t, secs) => { const d = new Date(t); return pad(d.getHours()) + ':' + pad(d.getMinutes()) + (secs ? ':' + pad(d.getSeconds()) : ''); };
+  const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
+  function clock(t, secs) { const d = new Date(t); return (sameDay(t, T0) ? '' : DOW[d.getDay()] + ' ') + hhmm(t, secs); }
+  function dur(ms, secs) {
+    if (ms <= 0) return secs === false ? '0 m' : '0:00:00';
+    const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+    if (d) return `${d} d ${h} h`;
+    return secs === false ? `${h} h ${pad(m)} m` : `${h}:${pad(m)}:${pad(s % 60)}`;
+  }
+
+  /* ---- tiny deterministic hash (prototype stand-in for the envelope hash chain) ---- */
+  function fnv(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); }
+  const hash64 = (s) => fnv(s) + fnv('~' + s);
+  const shortH = (h) => h.length > 8 ? h.slice(0, 4) + '…' + h.slice(-2) : h;
+
+  /* ---- modules ---- */
+  const MODS = {
+    tables: { name: 'Tables', long: 'Haggle', color: 'var(--m-tables)' },
+    spend: { name: 'Spend', long: 'Purchases', color: 'var(--m-spend)' },
+    counter: { name: 'Counter', long: 'Shop', color: 'var(--m-counter)' },
+    book: { name: 'Book', long: 'Deal book', color: 'var(--m-book)' },
+    shield: { name: 'Shield', long: 'Scam shield', color: 'var(--m-shield)' },
+    rescue: { name: 'Rescue', long: 'Renewals', color: 'var(--m-rescue)' }
+  };
+  const MOD_ORDER = ['tables', 'spend', 'counter', 'book', 'shield', 'rescue'];
+
+  /* ---- data the dataset lacks, consistent with FIX (same ids, names, amounts, times) ---- */
+  /* D-0187 closed on Monday: FIX keeps only its outcome, so its signed envelopes and the market
+     snapshot stored with its terms (p41, as FIX says) are spelled out here. Illustrative. */
+  const EXTRA_TRANSCRIPTS = {
+    'D-0187': {
+      head: '2b8e…41', terms: '8d2a…0f',
+      envelopes: [
+        { by: 'them', typ: 'LISTING', price: 249, t: 'Mon 10:31' }, { by: 'you', typ: 'OFFER', price: 185, t: 'Mon 10:33' },
+        { by: 'them', typ: 'COUNTER', price: 238, t: 'Mon 10:37' }, { by: 'you', typ: 'COUNTER', price: 196, t: 'Mon 10:41' },
+        { by: 'them', typ: 'COUNTER', price: 226, t: 'Mon 10:45' }, { by: 'you', typ: 'COUNTER', price: 205, t: 'Mon 10:49' },
+        { by: 'them', typ: 'COUNTER', price: 216, t: 'Mon 10:53' }, { by: 'you', typ: 'COUNTER', price: 212, t: 'Mon 10:57' },
+        { by: 'them', typ: 'ACCEPT', price: 212, t: 'Mon 11:00' }, { by: 'you', typ: 'ACCEPT', price: 212, t: 'Mon 11:00:30', note: 'policy · clause 6 (under $250)' }
+      ]
+    }
+  };
+  const CLOSE_SNAPSHOTS = { 'D-0187': { p25: 201, median: 218, p75: 232, src: 'Channel3 /similar-products', retrieved: 'Mon 11:18', atClose: true } };
+  const CATEGORY = { 'usb-c-dock': 'parts', packing: 'packing', gpu: 'compute' };
+  const SUBSCRIBER_CP = (sid) => {
+    const s = F.subscribers.find((x) => x.id === sid) || {};
+    return { id: sid, name: 'Subscriber ' + sid, who: `care plan subscriber since ${s.since || '—'} · a plain PayPal buyer, no wallet`, key: '—', paired: 'n/a · subscriber', firstSeen: s.since || '—', deals: 0 };
+  };
+
+  /* ---- live state ---- */
+  const deals = F.deals.map((d) => Object.assign({}, d, { pp: d.pp ? Object.assign({}, d.pp) : null }));
+  const byId = (id) => deals.find((d) => d.id === id);
+  let locked = false;
+  const listeners = [];
+  const on = (fn) => listeners.push(fn);
+  const emit = () => listeners.forEach((fn) => { try { fn(); } catch (e) { console.error(e); } });
+
+  const TERMINAL = ['WITHDRAWN', 'EXPIRED', 'REFUSED', 'MISMATCH', 'VOIDED', 'BLOCK', 'REFUNDED', 'DISPUTED', 'LOST'];
+  function kindOf(d) { return d.module === 'tables' ? 'haggle' : d.module === 'counter' ? 'shop' : d.module === 'rescue' ? 'rescue' : d.module === 'shield' ? 'shield' : 'purchase'; }
+  function cpOf(d) { return F.counterparties[d.cp] || SUBSCRIBER_CP(d.cp); }
+  const cpShort = (d) => d.cp === 'dan' ? 'Dan' : cpOf(d).name;
+  function modeOf(d) { return d.replay ? 'REPLAY' : F.mode; }
+
+  function mandateOf(d) {
+    if (d.module === 'counter') { const m = F.mandates.find((x) => x.id === 'S-2'); return { id: 'S-2', v: 1, label: 'S-2 v1 · shop floors', signed: m.signed, text: m.text }; }
+    if (d.module === 'rescue') { const m = F.mandates.find((x) => x.id === 'R-3'); return { id: 'R-3', v: 1, label: 'R-3 v1 · rescue levers', signed: m.signed, text: m.text }; }
+    const m = F.mandates[0];
+    return { id: m.id, v: m.v, label: `${m.id} v${m.v} · open mandate`, signed: m.signed, agentKey: m.agentKey, commitment: m.commitment, prev: m.prev, clauses: m.clauses };
+  }
+
+  /* clause trace: what the gate checked for this deal, in clause order.
+     verdict: pass | ask (needs Maya) | fail | na | unknown */
+  function traceOf(d) {
+    const md = mandateOf(d);
+    const amt = d.amount;
+    if (d.module === 'counter') {
+      const sku = F.shop.find((s) => s.sku === d.ref);
+      return [
+        { n: 'S-2', name: 'Floor', verdict: sku && amt != null ? (amt >= sku.floor ? 'pass' : 'fail') : 'unknown', why: sku && amt != null ? `${money(amt)} ≥ floor ${money(sku.floor)} (list ${money(sku.price)})` : 'no SKU floor in this sample' },
+        { n: 'S-2', name: 'Who may quote', verdict: 'pass', why: 'quoting agent, inside the per-SKU floors' },
+        { n: 'H5', name: 'Receiving money', verdict: 'pass', why: 'the buyer approves on PayPal; capturing incoming money needs no click from you' }
+      ];
+    }
+    if (d.module === 'rescue') {
+      return [
+        { n: 'R-3', name: 'Lever enabled', verdict: 'pass', why: 'DISCOUNT_THIS_CYCLE is enabled (max −25%)' },
+        { n: 'R-3', name: 'Size', verdict: 'pass', why: '−20% ≤ max −25% → a $9.60 invoice this cycle' },
+        { n: 'R-3', name: 'Who decides', verdict: d.state === 'FAILED' && d.pending ? 'ask' : 'pass', why: 'a lever is approved by you in the approval window' }
+      ];
+    }
+    const c = md.clauses;
+    const allow = ['packrite', 'cablehaus', 'dan', 'house'];
+    const cp = cpOf(d);
+    const hag = kindOf(d) === 'haggle';
+    const pairedOk = /words ✓|house key|wallet shop/.test(cp.paired || '');
+    const policyDone = d.decided === 'policy:clause6';
+    const out = [];
+    out.push({ n: 1, name: c[0].name, verdict: 'pass', why: hag ? 'Buy is allowed for the sourcing agent' : `Buy is allowed for the ${d.agent} agent` });
+    out.push({ n: 2, name: c[1].name, verdict: pairedOk ? 'pass' : d.cp === 'partsco' ? 'na' : 'fail',
+      why: pairedOk ? `${cp.name}: ${cp.paired}` : d.cp === 'partsco' ? 'payee route: a sandbox merchant, not a wallet peer' : `${cp.name} is ${cp.paired}` });
+    if (hag) out.push({ n: 3, name: c[2].name, verdict: 'na', why: 'a haggle is bound by the band (clause 4), not the per-deal purchase cap' });
+    else {
+      const cat = CATEGORY[d.ref];
+      const over = amt != null ? amt > 200 : (d.id === 'D-0192');
+      const badCat = cat && !['office', 'parts', 'packing'].includes(cat);
+      out.push({ n: 3, name: c[2].name, verdict: over || badCat ? 'fail' : 'pass',
+        why: d.id === 'D-0192' ? 'quoted $11,960.00 > max $200.00 · category “compute” is not allowed'
+          : `${amt != null ? money(amt) + (over ? ' > ' : ' ≤ ') + 'max $200.00' : 'no amount'}${cat ? ' · category ' + cat : policyDone ? ' · passed at capture' : ' · category not recorded in this sample'}` });
+    }
+    if (hag) {
+      if (d.ref === 'monitor-27-4k') {
+        const p = d.amount != null ? d.amount : null;
+        out.push({ n: 4, name: c[3].name, verdict: p != null && p <= F.haggle.ceiling ? 'pass' : 'unknown', why: p != null ? `${money(p)} ≤ ceiling ${money(F.haggle.ceiling)} · round 5/6 · until 18:00` : 'no price yet' });
+      } else out.push({ n: 4, name: c[3].name, verdict: d.state === 'WITHDRAWN' && /rounds/.test(d.sub) ? 'fail' : 'unknown', why: d.state === 'WITHDRAWN' && /rounds/.test(d.sub) ? 'max rounds reached → auto-WITHDRAW{ROUNDS}' : `the band for ${d.ref} is not in this sample` });
+    }
+    out.push({ n: 5, name: c[4].name, verdict: d.state === 'REFUSED' ? 'na' : 'pass', why: d.state === 'REFUSED' ? 'not reached' : 'checked before every call (max 12 deals · $900 a day)' });
+    const stopped = ['BLOCK', 'REFUSED', 'EXPIRED'].includes(d.state);
+    const countersigned = (d.events || []).some((e) => e.lane === 'you' && e.typ === 'ACCEPT' && /countersign/.test(e.signer || ''));
+    if (amt != null) out.push({ n: 6, name: c[5].name,
+      verdict: amt > 250 ? (d.pending === 'countersign' ? 'ask' : countersigned ? 'pass' : stopped ? 'na' : 'ask') : 'pass',
+      why: amt > 250 ? `${money(amt)} > $250 → ${d.pending === 'countersign' ? 'your countersign is needed' : countersigned ? 'you countersigned' : stopped ? 'not reached' : 'your countersign would be needed'}` : `${money(amt)} ≤ $250 → policy may sign${policyDone ? ' · it did' : ''}` });
+    const onList = allow.includes(d.cp);
+    out.push({ n: 7, name: c[6].name, verdict: onList ? 'pass' : d.state === 'REFUSED' ? 'na' : TERMINAL.includes(d.state) ? 'fail' : 'ask',
+      why: onList ? `${cp.payee || cp.name} is on the allowlist` : d.state === 'REFUSED' ? `not reached · ${cp.name} is not on the allowlist either` : TERMINAL.includes(d.state) ? `${cp.name} is not on the allowlist` : `${cp.name} is not on the allowlist → the money decision is yours` });
+    return out;
+  }
+
+  /* ---- events (the signed timeline + PayPal + gate rows) ---- */
+  /* lane: you | them | paypal | gate ; kind: env (signed envelope) | call | check | owner */
+  function buildEvents(d) {
+    const E = [];
+    const add = (o) => { E.push(Object.assign({ id: d.id + ':' + E.length }, o)); };
+    const cp = cpOf(d);
+    const agentName = (F.agents.find((a) => a.id === d.agent) || {}).name || 'agent';
+    if (d.id === 'D-0193') {
+      add({ t: new Date(2026, 9, 12, 12, 0).getTime(), label: 'Mon 12 Oct', lane: 'gate', kind: 'owner', typ: 'PAIRED', text: `you paired with Dan · four words confirmed · key ${cp.key}` });
+      let round = 0;
+      F.haggle.envelopes.forEach((e) => {
+        if (e.by === 'you') round++;
+        add({ t: ts('Thu ' + e.t), lane: e.by, kind: 'env', typ: e.typ, price: e.price, seq: e.seq, sig: true,
+          signer: e.by === 'you' ? 'your agent key 9f3c…a1' : 'Dan · 47be…0d', audit: e.seq === 10 ? 4416 : e.seq === 11 ? 4418 : null,
+          checks: e.by === 'you' ? [`clause 4 ✓ ${money(e.price)} ≤ ceiling $340.00`, `round ${round}/6 · before 18:00`] : ['signature ✓', 'aud = your wallet ✓', 'nonce new ✓', e.seq > 1 ? `seq ${e.seq} follows ${e.seq - 1} ✓` : 'seq 1 · table opened'] });
+      });
+      add({ t: ts('Thu 14:00') + 50000, label: 'Thu 14:00', lane: 'gate', kind: 'check', typ: 'ASK', text: 'your agent asks accept_offer $329.00 · clause 6: over $250 → your countersign is needed', clause: 6 });
+    } else if (EXTRA_TRANSCRIPTS[d.id]) {
+      const X = EXTRA_TRANSCRIPTS[d.id];
+      d.terms = X.terms;
+      X.envelopes.forEach((e, i) => add({ t: ts(e.t), lane: e.by, kind: 'env', typ: e.typ, price: e.price, seq: i + 1, sig: true,
+        signer: e.by === 'you' ? 'your agent key 9f3c…a1' : 'Dan · 47be…0d', checks: e.note ? [e.note] : e.by === 'you' ? ['clause 4 ✓'] : ['signature ✓', 'aud ✓', 'nonce new ✓'] }));
+      add({ t: ts('Mon 11:02'), lane: 'them', kind: 'env', typ: 'SETTLE', seq: 11, sig: true, signer: 'Dan · 47be…0d', price: 212, text: `order ${d.pp.order} · AUTHORIZE · $212.00 · attempt 1`, checks: ['amount = signed deal ✓', 'intent AUTHORIZE ✓', 'host www.sandbox.paypal.com ✓'] });
+      add({ t: ts('Mon 11:06'), lane: 'gate', kind: 'owner', typ: 'IN BROWSER', text: 'you opened PayPal in your browser from the approval window' });
+      add({ t: ts('Mon 11:08'), lane: 'paypal', kind: 'call', typ: 'APPROVED', text: `order ${d.pp.order} approved (polled)`, src: 'polled by your wallet' });
+      add({ t: ts('Mon 11:09'), lane: 'paypal', kind: 'call', typ: 'AUTHORIZE', text: `Dan authorized ${d.pp.auth}`, src: 'seller-attested at the time' });
+      add({ t: ts('Mon 11:18'), lane: 'paypal', kind: 'call', typ: 'CAPTURE', text: `Dan captured ${d.pp.capture} · $212.00`, src: 'seller-attested at the time' });
+      add({ t: ts('Mon 11:20'), lane: 'them', kind: 'env', typ: 'RECEIPT', seq: 12, sig: true, signer: 'Dan · 47be…0d', price: 212, head: X.head, text: `capture ${d.pp.capture} · transcript head ${X.head} = yours`, checks: ['signature ✓', 'transcript head equals yours ✓'] });
+      add({ t: ts('Mon 14:20'), lane: 'paypal', kind: 'call', typ: 'MATCHED', text: 'Transaction Search matched the capture on your account', src: 'PayPal reporting' });
+    } else if (d.id === 'D-0190') {
+      add({ t: ts('Thu 09:02'), lane: 'you', kind: 'call', typ: 'PROPOSE', price: 64, text: `${agentName} proposes ${d.item} · dockparts.example · payee route (sandbox)` });
+      add({ t: ts('Thu 09:02:04'), lane: 'gate', kind: 'check', typ: 'MANDATE', text: 'M-12 v3: clauses 1, 3, 5, 6 pass · clause 7: payee not on the allowlist → the capture waits for you', clause: 7 });
+      add({ t: ts('Thu 09:02:10'), lane: 'paypal', kind: 'call', typ: 'ORDER', text: `order ${d.pp.order} · intent AUTHORIZE · $64.00`, src: 'your wallet' });
+      add({ t: ts('Thu 09:02:18'), lane: 'paypal', kind: 'call', typ: 'AUTHORIZE', text: `authorization ${d.pp.auth} · $64.00 held, not captured`, src: 'your wallet', audit: 4402 });
+    } else if (d.id === 'D-0196') {
+      add({ t: ts('Wed 19:40'), lane: 'them', kind: 'env', typ: 'OFFER IN', price: 460, sig: false, signer: 'unpaired key', text: 'unsolicited offer from deal-hub-22 · not paired · a note is attached (untrusted)', note: true });
+      d.rules.forEach((r, i) => add({ t: ts('Wed 19:40') + 2000 + i * 1000, lane: 'gate', kind: 'check', typ: 'SHIELD', text: 'rule hit · ' + r }));
+      add({ t: ts('Wed 19:40') + 5000, lane: 'gate', kind: 'check', typ: 'BLOCK', text: `typology “${d.typology}” · a BLOCK has no release`, audit: 4371 });
+      add({ t: ts('Wed 19:40') + 6000, lane: 'paypal', kind: 'call', typ: '0 CALLS', text: 'no PayPal link was ever opened', src: 'your wallet' });
+    } else if (d.id === 'D-0189') {
+      add({ t: ts('Thu 13:29'), lane: 'them', kind: 'env', typ: 'ASK', sig: true, signer: 'fern-ops · e9a4…13', text: 'fern-ops’s agent asks the counter for a dual monitor arm' });
+      add({ t: ts('Thu 13:29:40'), lane: 'you', kind: 'env', typ: 'QUOTE', price: 90, sig: true, signer: 'your agent key 9f3c…a1', text: 'quoting agent quotes $90.00 (list $96 · floor $86)', checks: ['S-2 ✓ $90.00 ≥ floor $86.00'] });
+      add({ t: ts('Thu 13:31'), lane: 'them', kind: 'env', typ: 'CHECKOUT', price: 90, sig: true, signer: 'fern-ops · e9a4…13', text: 'fern-ops accepts the quote and checks out' });
+      add({ t: ts('Thu 13:31:05'), lane: 'paypal', kind: 'call', typ: 'ORDER', text: `order ${d.pp.order} · intent CAPTURE · $90.00 · buyer approve link sent`, src: 'your wallet', audit: 4411 });
+    } else if (d.id === 'D-0188') {
+      add({ t: ts('Thu 06:00'), lane: 'paypal', kind: 'call', typ: 'FAILED', text: 'renewal payment for S-14 failed (×1) · PayPal retries in 4 d', src: 'PayPal webhook (replayed)' });
+      add({ t: ts('Thu 06:00:20'), lane: 'you', kind: 'call', typ: 'SUGGEST', price: 9.6, text: 'rescue agent suggests DISCOUNT_THIS_CYCLE −20% → a $9.60 invoice' });
+      add({ t: ts('Thu 06:00:21'), lane: 'gate', kind: 'check', typ: 'R-3', text: 'R-3 ✓ lever enabled, −20% ≤ −25% · the lever waits for you in the approval window' });
+    } else {
+      /* generic deals: their audit rows plus what the dataset says happened */
+      const t0 = ts(d.when) || T0;
+      if (d.state === 'REFUSED') {
+        add({ t: t0, lane: 'you', kind: 'call', typ: 'PROPOSE', text: `${agentName} proposes ${d.item} · ${d.ask || ''}` });
+        add({ t: t0 + 1000, lane: 'gate', kind: 'check', typ: 'REFUSED', text: `REFUSED · ${d.sub}`, audit: 4302, clause: 3 });
+        add({ t: t0 + 2000, lane: 'paypal', kind: 'call', typ: '0 CALLS', text: 'no PayPal call was made · nothing to undo', src: 'your wallet' });
+      } else if (d.module === 'spend') {
+        add({ t: t0 - 60000, lane: 'you', kind: 'call', typ: 'PROPOSE', price: d.amount, text: `${agentName} proposes ${d.item}` });
+        if (d.pp) {
+          add({ t: t0 - 40000, lane: 'paypal', kind: 'call', typ: 'ORDER', text: `order ${d.pp.order} · AUTHORIZE · ${money(d.amount)}`, src: 'your wallet' });
+          if (d.pp.auth) add({ t: t0 - 30000, lane: 'paypal', kind: 'call', typ: 'AUTHORIZE', text: `authorization ${d.pp.auth} · held`, src: 'your wallet' });
+          if (d.pp.capture) add({ t: t0, lane: 'paypal', kind: 'call', typ: 'CAPTURE', text: `capture ${d.pp.capture} · ${d.decided ? 'by policy · clause 6' : 'by you'}`, src: 'your wallet' });
+          if (d.state === 'VOIDED') add({ t: t0, lane: 'gate', kind: 'owner', typ: 'VOID', text: 'you voided a duplicate · the hold was released' });
+          if (d.rec === 'matched') add({ t: t0 + 3 * 3600000 - 60000, lane: 'paypal', kind: 'call', typ: 'MATCHED', text: 'Transaction Search matched the capture', src: 'PayPal reporting' });
+        }
+      } else if (d.module === 'counter') {
+        if (d.state === 'QUOTED') {
+          add({ t: t0 - 30000, lane: 'them', kind: 'env', typ: 'ASK', sig: true, signer: `${cp.name} · ${cp.key}`, text: 'a buying agent asks the counter for a single monitor arm' });
+          add({ t: t0, lane: 'you', kind: 'env', typ: 'QUOTE', price: d.amount, sig: true, signer: 'your agent key 9f3c…a1', text: `quoting agent quotes ${money(d.amount)} · ${d.sub}`, checks: ['S-2 ✓ $61.00 ≥ floor $58.00'] });
+        } else {
+          add({ t: t0 - 120000, lane: 'them', kind: 'env', typ: 'CHECKOUT', price: d.amount, sig: true, signer: `${cp.name} · ${cp.key}`, text: 'the buying agent checks out' });
+          if (d.pp) add({ t: t0 - 100000, lane: 'paypal', kind: 'call', typ: 'ORDER', text: `order ${d.pp.order} · CAPTURE · ${money(d.amount)}`, src: 'your wallet' });
+          if (d.pp && d.pp.capture) add({ t: t0, lane: 'paypal', kind: 'call', typ: 'CAPTURE', text: `buyer approved · your wallet captured ${d.pp.capture}`, src: 'your wallet' });
+          if (d.rec === 'matched') add({ t: t0 + 3 * 3600000 - 60000, lane: 'paypal', kind: 'call', typ: 'MATCHED', text: 'Transaction Search matched the capture', src: 'PayPal reporting' });
+        }
+      } else if (d.module === 'tables') {
+        if (d.state === 'PAIRING') {
+          add({ t: ts('Thu 13:58:12'), lane: 'you', kind: 'call', typ: 'OPEN', text: 'sourcing agent opens a table with the HOUSE seller · monitor-24-ips', audit: 4417 });
+          add({ t: ts('Thu 13:58:20'), lane: 'them', kind: 'call', typ: 'WAKING', text: 'the house seller is waking up (≈ 1 min) · its key is pinned in the release' });
+        } else if (d.state === 'WITHDRAWN') {
+          add({ t: t0 - 3600000, lane: 'gate', kind: 'owner', typ: 'TABLE', text: `table opened with ${cp.name} · monitor-32-4k` });
+          add({ t: t0 - 600000, lane: 'them', kind: 'env', typ: 'COUNTER', price: 498, sig: true, signer: `${cp.name} · ${cp.key}`, text: 'last ask $498.00' });
+          add({ t: t0 - 300000, lane: 'you', kind: 'env', typ: 'COUNTER', price: 455, sig: true, signer: 'your agent key 9f3c…a1', text: 'last bid $455.00 · round 6/6' });
+          add({ t: t0, lane: 'gate', kind: 'check', typ: 'WITHDRAW', text: 'max rounds reached · auto-WITHDRAW{ROUNDS} signed · no order was ever issued' });
+        }
+      } else if (d.module === 'shield') {
+        add({ t: t0, lane: 'them', kind: 'env', typ: 'REQUEST', price: d.amount, sig: true, signer: `${cp.name} · ${cp.key}`, text: `${cp.name} requests ${money(d.amount)} for ${d.item} · note attached (untrusted)`, note: true });
+        (d.rules || []).forEach((r) => add({ t: t0 + 1000, lane: 'gate', kind: 'check', typ: 'SHIELD', text: 'rule hit · ' + r }));
+        add({ t: t0 + 2000, lane: 'gate', kind: 'check', typ: d.state, text: `${d.state} before any PayPal call · ${d.sub}`, audit: 4409 });
+      }
+    }
+    return E;
+  }
+  deals.forEach((d) => { d.events = buildEvents(d); });
+
+  function push(d, o) { d.events.push(Object.assign({ id: d.id + ':' + d.events.length, t: now() }, o)); }
+
+  /* hash chain over the signed envelopes (kind env) */
+  function chainOf(d) {
+    let prev = '0000000000000000';
+    return d.events.filter((e) => e.kind === 'env').sort((a, b) => a.t - b.t).map((e) => {
+      const h = hash64(prev + '|' + d.id + '|' + e.seq + '|' + e.lane + '|' + e.typ + '|' + (e.price == null ? '' : cents(e.price)));
+      const row = { ev: e, prev, hash: h, show: e.head || shortH(h) };
+      prev = h;
+      return row;
+    });
+  }
+  function headOf(d) { const c = chainOf(d); return c.length ? c[c.length - 1].show : null; }
+  function envCount(d) { return d.events.filter((e) => e.kind === 'env').length; }
+
+  /* ---- the state strip: hides the steps a kind does not have ---- */
+  const STEPS = {
+    haggle: ['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING APPROVAL', 'APPROVED', 'SELLER-ATTESTED', 'RECEIPTED', 'RECONCILED'],
+    purchase: ['PROPOSED', 'AUTHORIZED', 'CAPTURED', 'RECONCILED'],
+    shield: ['PROPOSED', 'SHIELD', 'AWAITING APPROVAL', 'AUTHORIZED', 'CAPTURED'],
+    shop: ['QUOTED', 'CHECKOUT', 'AWAITING BUYER APPROVAL', 'CAPTURED', 'RECONCILED'],
+    rescue: ['FAILED', 'OFFER SENT', 'RECOVERED']
+  };
+  const ENDED_AT = { 'D-0176': 2, 'D-0192': 0, 'D-0180': 1, 'D-0196': 1 };
+  const isTerminal = (d) => TERMINAL.includes(d.state);
+  const isDone = (d) => ['RECEIPTED', 'RECONCILED', 'CAPTURED', 'RECOVERED'].includes(d.state);
+  function curStep(d) {
+    const k = kindOf(d);
+    let s = d.state;
+    if (s === 'IN BROWSER') s = 'AWAITING APPROVAL';
+    if (s === 'HOLD') s = 'SHIELD';
+    if (k === 'haggle' && s === 'CAPTURED') s = 'SELLER-ATTESTED';
+    if (d.rec === 'matched' && STEPS[k].includes('RECONCILED') && (s === 'CAPTURED' || s === 'RECEIPTED')) s = 'RECONCILED';
+    return s;
+  }
+  function stepsOf(d) {
+    const k = kindOf(d);
+    const steps = STEPS[k];
+    const term = isTerminal(d) ? d.state : null;
+    let idx = term ? (d.endedAt != null ? d.endedAt : ENDED_AT[d.id] != null ? ENDED_AT[d.id] : 0) : steps.indexOf(curStep(d));
+    if (idx < 0) idx = 0;
+    const tone = term ? (['REFUSED', 'MISMATCH', 'BLOCK'].includes(term) ? 'bad' : 'off') : d.pending ? 'need' : isDone(d) ? 'ok' : d.state === 'HOLD' || d.state === 'AUTHORIZED' ? 'held' : 'live';
+    const out = steps.map((s, i) => {
+      let label = s;
+      if (s === 'SHIELD') label = d.state === 'HOLD' ? 'HOLD' : i < idx ? 'SHIELD ✓' : 'SHIELD';
+      if (s === 'AWAITING APPROVAL' && d.state === 'IN BROWSER' && i === idx) label = 'IN BROWSER';
+      const status = i < idx ? 'done' : i === idx ? (term ? 'stop' : 'cur') : 'todo';
+      return { key: s, label, status, tone: i === idx ? tone : '' };
+    });
+    return { kind: k, steps: out, term, tone };
+  }
+
+  /* ---- PayPal evidence ---- */
+  function approveWindow(d) {
+    if (d.approveUntil) return d.approveUntil;
+    if (d.id === 'D-0189') return ts('Thu 13:31:05') + 6 * 3600000;
+    return null;
+  }
+  function ppOf(d) {
+    const pp = d.pp || {};
+    const k = kindOf(d);
+    const buyerHaggle = k === 'haggle';
+    const attest = buyerHaggle ? (['RECEIPTED', 'RECONCILED'].includes(curStep(d)) ? 'receipted' : 'seller-attested') : 'your wallet’s own call';
+    const until = approveWindow(d);
+    let aw = { v: '—', src: '' };
+    if (['AWAITING APPROVAL', 'IN BROWSER', 'AWAITING BUYER APPROVAL'].includes(d.state) && until) aw = { v: null, until, src: d.state === 'AWAITING BUYER APPROVAL' ? 'the buyer’s window · 6 h default' : '6 h default' };
+    else if (pp.auth || pp.capture || ['APPROVED', 'SELLER-ATTESTED', 'RECEIPTED'].includes(d.state)) aw = { v: 'closed · approved', src: buyerHaggle ? 'polled by your wallet' : pp.intent === 'CAPTURE' ? 'buyer approved' : 'your wallet' };
+    else if (pp.order && d.state === 'EXPIRED') aw = { v: 'expired · no money moved', src: '' };
+    const why = !pp.order ? (d.state === 'REFUSED' || d.state === 'BLOCK' ? 'Refused before any network call: 0 PayPal calls.' : d.module === 'rescue' ? 'No invoice exists yet. PayPal’s own retry is the only thing scheduled.' : buyerHaggle ? (isTerminal(d) ? 'No order was ever issued.' : 'No order yet: Dan’s wallet issues it after both ACCEPTs, inside a signed SETTLE.') : 'Nothing has been sent to PayPal.') : '';
+    return {
+      cells: [
+        { k: 'order', v: pp.order || '—', src: pp.order ? (buyerHaggle ? 'from Dan’s signed SETTLE' : 'your wallet created it') : '' },
+        { k: 'intent', v: pp.intent || '—', src: pp.intent === 'AUTHORIZE' ? 'held, then captured' : pp.intent === 'CAPTURE' ? 'captured on approval' : '' },
+        { k: 'approve window', v: aw.v, until: aw.until, src: aw.src },
+        { k: 'authorization', v: pp.auth || '—', src: pp.auth ? attest : '' },
+        { k: 'capture', v: pp.capture || '—', src: pp.capture ? attest : '' }
+      ],
+      invoice: pp.invoice || null,
+      why
+    };
+  }
+  /* the honest label for "has money moved, and who says so" */
+  function evidenceOf(d) {
+    const k = kindOf(d), s = curStep(d);
+    const rec = d.rec === 'matched' ? 'matched' : (d.pp && d.pp.capture) || ['RECEIPTED', 'SELLER-ATTESTED', 'RECOVERED'].includes(d.state) ? 'pending' : 'n/a';
+    let label = 'none', text = 'No money has moved.';
+    if (k === 'haggle') {
+      if (s === 'SELLER-ATTESTED') { label = 'seller-attested'; text = 'Dan says he captured. Your wallet has not seen its own proof yet.'; }
+      else if (s === 'RECEIPTED' || s === 'RECONCILED') { label = 'receipted'; text = 'Dan’s signed RECEIPT carries the capture id and the same transcript head as yours.'; }
+      else if (s === 'APPROVED') { label = 'approved'; text = 'PayPal shows the order approved (polled). Nothing is captured yet.'; }
+    } else if (d.pp && d.pp.capture) { label = 'receipted'; text = 'Your wallet made the capture call itself, so the evidence is your own.'; }
+    else if (d.pp && d.pp.auth && d.state === 'AUTHORIZED') { label = 'held'; text = 'Authorized at PayPal by your wallet’s own call. Held, not captured.'; }
+    else if (d.state === 'VOIDED') { label = 'none'; text = 'The authorization was voided. The hold is released; nothing was paid.'; }
+    else if (d.state === 'RECOVERED') { label = 'receipted'; text = 'The invoice was paid on your own account.'; }
+    return { label, text, rec, recText: rec === 'matched' ? 'matched in Transaction Search' : rec === 'pending' ? 'pending in PayPal reporting' : 'n/a · nothing to reconcile', recWhy: rec === 'pending' ? 'Transaction Search lags up to 3 h behind a capture.' : '' };
+  }
+
+  /* ---- market ---- */
+  function marketOf(d) {
+    const mk = CLOSE_SNAPSHOTS[d.id] || F.market[d.ref];
+    if (!mk) return null;
+    const p = d.amount;
+    let where = null;
+    if (p != null) where = p < mk.p25 ? 'below p25' : p <= mk.median ? 'between p25 and the median' : p <= mk.p75 ? 'between the median and p75' : 'above p75';
+    const overMedian = p != null ? Math.round((p - mk.median) / mk.median * 100) : null;
+    return Object.assign({}, mk, { price: p, where, pct: d.pct != null ? d.pct : null, overMedian });
+  }
+
+  /* ---- money right now, defaults, deadlines ---- */
+  function moneyNow(d) { return d.money; }
+  function deadlineOf(d) {
+    if (d.id === 'D-0193' && ['NEGOTIATING', 'AGREED', 'LISTED'].includes(d.state)) return { t: ts('Thu 18:00'), what: 'band deadline 18:00' };
+    if (['AWAITING APPROVAL', 'IN BROWSER', 'AWAITING BUYER APPROVAL'].includes(d.state) && approveWindow(d)) return { t: approveWindow(d), what: 'approve window' };
+    if (d.id === 'D-0190' && d.state === 'AUTHORIZED') return { t: T0 + d.holdUntilMin * 60000, what: 'auto-void (72 h honor period)' };
+    if (d.id === 'Q-0207' && d.state === 'QUOTED') return { t: ts('Thu 14:12'), what: 'quote expires' };
+    if (d.id === 'D-0198' && d.state === 'HOLD') return { t: ts('Thu 20:00'), what: 'request lapses' };
+    return null;
+  }
+  function silenceOf(d) {
+    if (['AWAITING APPROVAL', 'IN BROWSER'].includes(d.state) && approveWindow(d)) return `the order expires at ${clock(approveWindow(d))} · no money moves`;
+    if (d.state === 'MISMATCH') return 'nothing is approved · the order expires · no money moves';
+    if (d.id === 'D-0193' && d.state === 'NEGOTIATING' && !d.pending) return 'Dan may accept; if not, the offer lapses at 18:00 · no money moves';
+    if (d.id === 'D-0193' && d.state === 'AGREED') return 'Dan’s wallet issues the order; you still approve it on PayPal · nothing moves until then';
+    if (isTerminal(d)) return null;
+    return d.silence || null;
+  }
+
+  /* ---- the only two decisions ---- */
+  const REVIEW = {
+    countersign: (d) => `Countersign ${cpShort(d)}’s ${money(d.amount)} (clause 6: over $250). Countersigning sends ACCEPT; it pays no one.`,
+    approve: (d) => `Check the order against the signed deal, then open PayPal in your browser for ${money(d.amount)}.`,
+    capture: (d) => `Capture or void the ${money(d.amount)} hold (clause 7: the payee is not on the allowlist).`,
+    release: (d) => `Release the shield hold on ${money(d.amount)} by typing the payee’s name, or leave it held.`,
+    lever: () => 'Approve the −20% lever: a $9.60 invoice for this cycle only.'
+  };
+  function decisionsOf(d) {
+    const review = !!(d.pending && REVIEW[d.pending]);
+    const wState = ['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING APPROVAL', 'MISMATCH', 'AUTHORIZED', 'HOLD', 'FAILED', 'QUOTED', 'AWAITING BUYER APPROVAL'];
+    const withdraw = wState.includes(d.state) && !(d.state === 'FAILED' && !d.pending);
+    let none = '';
+    if (!review && !withdraw) none = d.state === 'IN BROWSER' ? 'You are approving on PayPal in your browser. The wallet polls the order; it never trusts the redirect.'
+      : isTerminal(d) ? 'This deal is closed. Nothing here can move money; the transcript is the record.'
+      : ['APPROVED', 'SELLER-ATTESTED', 'SETTLING'].includes(d.state) ? 'Nothing for you to decide: the other side acts next.'
+      : 'Nothing for you to decide. Everything here is evidence.';
+    return { review, reviewWhat: review ? REVIEW[d.pending](d) : '', withdraw, withdrawWhat: withdraw ? withdrawWhat(d) : '', none, handoff: d.handoff || null };
+  }
+  function withdrawWhat(d) {
+    const cp = cpShort(d);
+    switch (d.state) {
+      case 'AUTHORIZED': return `Your wallet signs WITHDRAW and voids authorization ${d.pp.auth}: the ${money(d.amount)} hold is released. Nothing is paid.`;
+      case 'HOLD': return `Your wallet signs WITHDRAW: ${cp}’s request is declined. Nothing was ever sent to PayPal.`;
+      case 'FAILED': return 'Withdraws the −20% suggestion. No invoice is sent; PayPal’s own retry still runs in 4 d.';
+      case 'QUOTED': return `Withdraws the quote to ${cp}. A quote is not an order; no money moves.`;
+      case 'AWAITING BUYER APPROVAL': return `Your wallet signs WITHDRAW to ${cp}: it will not capture order ${d.pp.order} even if the buyer approves, and the order expires. No money moves.`;
+      case 'AWAITING APPROVAL': case 'MISMATCH': return `Your wallet signs WITHDRAW{OWNER} to ${cp}. Order ${d.pp ? d.pp.order : '—'} is never approved and expires. No money moves.`;
+      case 'PAIRING': return 'Closes the table before it opens. No money moves.';
+      default: return `Your wallet signs WITHDRAW{OWNER} and sends it to ${cp}. The table closes. No money moves; nothing was ever sent to PayPal.`;
+    }
+  }
+  function stepIndexNow(d) { const s = stepsOf(d); const i = s.steps.findIndex((x) => x.status === 'cur' || x.status === 'stop'); return i < 0 ? 0 : i; }
+  function withdraw(d) {
+    if (!decisionsOf(d).withdraw) return false;
+    const endedAt = stepIndexNow(d);
+    const was = d.state;
+    const voiding = was === 'AUTHORIZED';
+    push(d, { lane: 'you', kind: 'env', typ: 'WITHDRAW', seq: envCount(d) + 1, sig: true, signer: 'your wallet key', text: voiding ? 'WITHDRAW{OWNER} signed by you' : 'WITHDRAW{OWNER} signed by you · no money moves', checks: ['decided_by: owner · main window (restricting is free)'] });
+    if (voiding) {
+      push(d, { lane: 'paypal', kind: 'call', typ: 'VOID', text: `void ${d.pp.auth} · the ${money(d.amount)} hold is released`, src: 'your wallet' });
+      d.state = 'VOIDED'; d.money = 'voided — the hold is released, nothing paid';
+    } else { d.state = 'WITHDRAWN'; d.money = was === 'AWAITING BUYER APPROVAL' ? 'none — the order expires uncaptured' : 'none — no money moved'; }
+    d.endedAt = endedAt; d.pending = null; d.sub = 'withdrawn by you · no money moved';
+    if (apDeal === d.id) closeApproval(true);
+    d.handoff = null;
+    toast(`${esc(d.id)} ${voiding ? 'withdrawn and the hold voided' : 'withdrawn'}. <b>No money moved.</b>`);
+    emit();
+    return true;
+  }
+
+  /* ---- simulated approval window (a separate OS window in the real app) ---- */
+  let apDeal = null;
+  const reduced = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function ensureLayer() {
+    let el = document.getElementById('dvApproval');
+    if (!el) { el = document.createElement('div'); el.id = 'dvApproval'; el.hidden = true; document.body.appendChild(el); el.addEventListener('click', onApClick); }
+    return el;
+  }
+  function openApproval(d) {
+    if (!decisionsOf(d).review || d.handoff) return;
+    if (apDeal && apDeal !== d.id) closeApproval(true);
+    d.handoff = { phase: locked ? 'LOCKED' : 'CHECKING', at: now() };
+    apDeal = d.id;
+    push(d, { lane: 'gate', kind: 'owner', typ: 'REVIEW', text: 'you opened the approval window · the decision moves there' });
+    renderApproval(); emit();
+    if (!locked) setTimeout(() => { if (d.handoff && d.handoff.phase === 'CHECKING') { d.handoff.phase = 'READY'; renderApproval(); emit(); } }, reduced() ? 60 : 900);
+    const b = ensureLayer().querySelector('[data-ap]'); if (b) b.focus();
+  }
+  function closeApproval(silent) {
+    const el = document.getElementById('dvApproval'); if (el) el.hidden = true;
+    const d = apDeal && byId(apDeal); apDeal = null;
+    if (d && d.handoff) { d.handoff = null; if (!silent) { toast(`Approval window closed without a decision. ${esc(d.id)} stays as it was.`); emit(); } }
+  }
+  function apOutcomes(d) {
+    switch (d.pending) {
+      case 'countersign': return [['countersign', `Maya countersigns ${money(d.amount)} there`]];
+      case 'approve': return [['browser', 'Maya opens PayPal in her browser there']];
+      case 'capture': return [['capture', `Maya captures ${money(d.amount)} there`], ['void', 'Maya voids the hold there']];
+      case 'release': return [['release', 'Maya types “pixel-bay” and releases there']];
+      case 'lever': return [['lever', 'Maya approves the −20% lever there']];
+      default: return [];
+    }
+  }
+  function renderApproval() {
+    const el = ensureLayer();
+    const d = apDeal && byId(apDeal);
+    if (!d || !d.handoff) { el.hidden = true; return; }
+    el.hidden = false;
+    const ph = d.handoff.phase;
+    el.innerHTML = `<div class="apw" role="dialog" aria-label="Approval window (simulated separate window)">
+      <div class="apw-bar"><span class="apw-dot"></span><span class="apw-t">approval · a separate window</span><span class="badge ${modeOf(d) === 'REPLAY' ? 'replay' : 'sandbox'}">${modeOf(d)}</span><button class="ui-btn plain icon sm" data-ap="close" aria-label="Close the approval window">✕</button></div>
+      <div class="apw-body">
+        <div class="apw-k">${esc(d.id)} · ${esc(d.pending || '')}</div>
+        <div class="apw-big money">${money(d.amount)}</div>
+        <div class="ui-hint">${esc(d.item)} · <span class="coral">${esc(cpOf(d).name)}</span></div>
+        <div class="apw-ph">${(ph === 'LOCKED' ? ['CHECKING', 'LOCKED', 'READY'] : ['CHECKING', 'READY']).map((p) => `<span class="ui-chip ${p === ph ? 'gold' : 'line'}">${p}</span>`).join('<span class="dim">→</span>')}</div>
+        <p class="ui-hint apw-p">${ph === 'LOCKED' ? '<span class="gold">Idle over 15 min.</span> Windows Hello first, then the checks and the money button.' : ph === 'CHECKING' ? 'Checking the immutable summary from the wallet core…' : 'The checks and the money button live here. This prototype stops at the window’s edge.'}</p>
+        <div class="ui-proto apw-sim">
+          ${ph === 'LOCKED' ? '<button class="ui-btn sm gold locked" data-ap="unlock">Unlock with Windows Hello</button>' : ph === 'READY' ? apOutcomes(d).map(([k, l]) => `<button class="ui-btn sm" data-ap="${k}">${esc(l)}</button>`).join('') : ''}
+          <button class="ui-btn sm" data-ap="close">Close without deciding</button>
+          <a class="ui-btn plain sm" href="../../approval/variant-1/index.html#${esc(d.id)}">approval prototype ↗</a></div>
+      </div></div>`;
+  }
+  function onApClick(ev) {
+    const b = ev.target.closest('[data-ap]'); if (!b) return;
+    const d = apDeal && byId(apDeal); if (!d) return;
+    const k = b.dataset.ap;
+    if (k === 'close') return closeApproval();
+    if (k === 'unlock') { locked = false; d.handoff.phase = 'READY'; toast('Unlocked with Windows Hello (simulated).'); renderApproval(); emit(); return; }
+    approvalResult(d, k);
+  }
+  function approvalResult(d, k) {
+    const by = 'decided_by: owner · approval window';
+    if (k === 'countersign') {
+      push(d, { lane: 'you', kind: 'env', typ: 'ACCEPT', price: d.amount, seq: envCount(d) + 1, sig: true, signer: 'your agent key 9f3c…a1 + your countersign', text: `ACCEPT ${money(d.amount)} · countersigned by you (clause 6)`, checks: [by, 'clause 4 ✓ $329.00 ≤ $340.00', 'clause 6 ✓ owner present'] });
+      d.pending = null; d.sub = 'your ACCEPT is sent · waiting for Dan’s ACCEPT';
+      toast('Countersigned in the approval window. <b>Nothing is paid</b>: Dan’s wallet issues the order next.');
+    } else if (k === 'browser') {
+      push(d, { lane: 'gate', kind: 'owner', typ: 'IN BROWSER', text: 'you opened PayPal in your browser from the approval window · polling the order every 10 s' });
+      d.state = 'IN BROWSER'; d.pending = null; d.money = 'none yet — you are approving on PayPal’s own page';
+      toast('PayPal is open in your browser. The wallet polls the order; it never trusts the redirect.');
+    } else if (k === 'capture') {
+      d.pp.capture = '5KX9…'; d.state = 'CAPTURED'; d.pending = null; d.rec = 'pending'; d.money = 'captured — paid to dockparts.example'; d.sub = 'captured by you in the approval window';
+      push(d, { lane: 'paypal', kind: 'call', typ: 'CAPTURE', text: `capture ${d.pp.capture} · ${money(d.amount)} · ${by}`, src: 'your wallet' });
+      toast(`Captured ${money(d.amount)} in the approval window. Statement: pending in PayPal reporting.`);
+    } else if (k === 'void') {
+      const endedAt = stepIndexNow(d);
+      push(d, { lane: 'paypal', kind: 'call', typ: 'VOID', text: `void ${d.pp.auth} · hold released · ${by}`, src: 'your wallet' });
+      d.state = 'VOIDED'; d.pending = null; d.endedAt = endedAt; d.money = 'voided — the hold is released, nothing paid';
+      toast('Voided in the approval window. <b>No money moved.</b>');
+    } else if (k === 'release') {
+      push(d, { lane: 'gate', kind: 'owner', typ: 'RELEASE', text: `you typed “pixel-bay” and released the hold · ${by}` });
+      push(d, { lane: 'them', kind: 'env', typ: 'SETTLE', price: d.amount, seq: envCount(d) + 1, sig: true, signer: 'pixel-bay · aa31…f0', text: 'order 2PB… · AUTHORIZE · $140.00 · issued by pixel-bay’s own shop', checks: ['amount = request ✓', 'host www.sandbox.paypal.com ✓'] });
+      d.pp = { order: '2PB…', intent: 'AUTHORIZE', auth: null, capture: null };
+      d.state = 'AWAITING APPROVAL'; d.shield = 'released'; d.pending = 'approve'; d.approveUntil = now() + 6 * 3600000; d.money = 'none yet — the order waits for your approval on PayPal';
+      toast('Hold released. Releasing does not pay: the order now waits for your approval on PayPal.');
+    } else if (k === 'lever') {
+      push(d, { lane: 'you', kind: 'call', typ: 'INVOICE', price: 9.6, text: `invoice $9.60 (−20% this cycle) sent to S-14 · email sent ${clock(now())} · ${by}` });
+      d.state = 'OFFER SENT'; d.pending = null; d.money = 'none yet — an invoice for $9.60 is out'; d.silence = 'the invoice stays open · PayPal’s own retry still runs in 4 d';
+      toast('Lever approved in the approval window. The $9.60 invoice is out; nothing is charged until S-14 pays it.');
+    }
+    d.handoff = null; apDeal = null;
+    const el = document.getElementById('dvApproval'); if (el) el.hidden = true;
+    emit();
+  }
+
+  /* ---- external events: "Prototype · sandbox simulation" ---- */
+  function simActionsOf(d) {
+    const A = [];
+    const add = (label, fn) => A.push({ label, fn: () => { fn(); emit(); } });
+    const s = d.state;
+    if (d.id === 'D-0193') {
+      if (s === 'NEGOTIATING' && !d.pending && /waiting for Dan/.test(d.sub)) add('Dan’s wallet signs ACCEPT', () => {
+        push(d, { lane: 'them', kind: 'env', typ: 'ACCEPT', price: 329, seq: envCount(d) + 1, sig: true, signer: 'Dan · 47be…0d', text: 'ACCEPT $329.00 · terms 51d0…', checks: ['signature ✓', 'terms_hash equals yours ✓'] });
+        d.state = 'AGREED'; d.sub = 'ACCEPT ×2 · terms 51d0…'; d.terms = '51d0…'; d.money = 'none — Dan’s wallet issues the order next';
+      });
+      if (s === 'AGREED') add('Dan’s wallet creates the order', () => {
+        push(d, { lane: 'paypal', kind: 'call', typ: 'ORDER', text: 'Dan’s wallet creates order 7XK… · AUTHORIZE · $329.00 · invoice 01JD…7Q-1', src: 'seller-attested (Dan’s merchant account)' });
+        d.state = 'SETTLING'; d.sub = 'Dan’s wallet is creating the order';
+      });
+      if (s === 'SETTLING') {
+        add('Dan’s SETTLE arrives', () => {
+          push(d, { lane: 'them', kind: 'env', typ: 'SETTLE', price: 329, seq: envCount(d) + 1, sig: true, signer: 'Dan · 47be…0d', text: 'order 7XK… · AUTHORIZE · $329.00 · attempt 1', checks: ['amount = signed deal ✓', 'intent AUTHORIZE ✓', 'host www.sandbox.paypal.com ✓', 'invoice 01JD…7Q-1 ✓'] });
+          d.pp = { order: '7XK…', intent: 'AUTHORIZE', auth: null, capture: null, invoice: '01JD…7Q-1' };
+          d.state = 'AWAITING APPROVAL'; d.pending = 'approve'; d.approveUntil = now() + 6 * 3600000; d.sub = 'order 7XK… waits for your approval on PayPal'; d.money = 'none — the order waits for your approval';
+        });
+        add('Dan’s SETTLE says $339.00 (mismatch)', () => {
+          push(d, { lane: 'them', kind: 'env', typ: 'SETTLE', price: 339, seq: envCount(d) + 1, sig: true, signer: 'Dan · 47be…0d', text: 'SETTLE says $339.00 ≠ signed $329.00 · shield HOLD', checks: ['✗ amount ≠ signed deal', '✗ no “Open PayPal” button'] });
+          d.pp = { order: '7XK…', intent: 'AUTHORIZE', auth: null, capture: null, invoice: '01JD…7Q-1' };
+          d.state = 'MISMATCH'; d.endedAt = 4; d.shield = 'HOLD'; d.pending = null; d.sub = 'Dan’s SETTLE says $339.00, the signed deal says $329.00'; d.money = 'none — there is no PayPal button on a mismatch';
+        });
+      }
+      if (s === 'AWAITING APPROVAL') add('Approve window runs out → Dan re-issues (attempt 2/3)', () => {
+        push(d, { lane: 'paypal', kind: 'call', typ: 'EXPIRED', text: `order ${d.pp.order} expired unapproved · no money moved`, src: 'seller-attested' });
+        push(d, { lane: 'them', kind: 'env', typ: 'SETTLE', price: 329, seq: envCount(d) + 1, sig: true, signer: 'Dan · 47be…0d', text: 'order 7XL… · AUTHORIZE · $329.00 · attempt 2/3', checks: ['amount = signed deal ✓', 'invoice 01JD…7Q-2 ✓'] });
+        d.pp.order = '7XL…'; d.pp.invoice = '01JD…7Q-2'; d.approveUntil = now() + 6 * 3600000; d.sub = 'attempt 2/3 waits for your approval';
+      });
+      if (s === 'IN BROWSER') add('PayPal: order APPROVED (polled)', () => {
+        push(d, { lane: 'paypal', kind: 'call', typ: 'APPROVED', text: `order ${d.pp.order} approved (polled)`, src: 'polled by your wallet' });
+        d.state = 'APPROVED'; d.sub = 'approved on PayPal · Dan authorizes and captures next'; d.money = 'approved at PayPal · not captured yet';
+      });
+      if (s === 'APPROVED') add('Dan authorizes and captures', () => {
+        d.pp.auth = '4FQ2…'; d.pp.capture = '2JM8…';
+        push(d, { lane: 'paypal', kind: 'call', typ: 'CAPTURE', text: `Dan authorized ${d.pp.auth} and captured ${d.pp.capture} · $329.00`, src: 'seller-attested' });
+        d.state = 'SELLER-ATTESTED'; d.sub = 'Dan says he captured · waiting for his signed RECEIPT'; d.money = 'captured by Dan — seller-attested';
+      });
+      if (s === 'SELLER-ATTESTED') add('Dan’s signed RECEIPT arrives', () => {
+        push(d, { lane: 'them', kind: 'env', typ: 'RECEIPT', price: 329, seq: envCount(d) + 1, sig: true, signer: 'Dan · 47be…0d', head: F.transcriptHead, text: `capture ${d.pp.capture} · transcript head ${F.transcriptHead} = yours`, checks: ['signature ✓', 'amount = terms ✓', 'transcript head equals yours ✓'] });
+        d.state = 'RECEIPTED'; d.rec = 'pending'; d.sub = 'receipt verified · statement pending'; d.money = 'captured by Dan · receipt verified';
+      });
+      if (s === 'RECEIPTED' && d.rec !== 'matched') add('Transaction Search matches (≤ 3 h)', () => {
+        push(d, { lane: 'paypal', kind: 'call', typ: 'MATCHED', text: 'Transaction Search matched the payment on your account', src: 'PayPal reporting' });
+        d.rec = 'matched'; d.sub = 'reconciled with PayPal reporting';
+      });
+      if (s === 'NEGOTIATING') add('Clock: jump to 18:00 (band deadline)', () => {
+        skew += Math.max(0, ts('Thu 18:00') - now()) + 1000;
+        const endedAt = stepIndexNow(d);
+        push(d, { lane: 'gate', kind: 'check', typ: 'WITHDRAW', text: 'deadline reached · auto-WITHDRAW{DEADLINE} signed · no money moves' });
+        d.endedAt = endedAt; d.state = 'WITHDRAWN'; d.pending = null; d.money = 'none — no money moved'; d.sub = 'auto-WITHDRAW{DEADLINE} at 18:00';
+        if (apDeal === d.id) closeApproval(true);
+        d.handoff = null;
+      });
+    } else if (d.id === 'D-0190') {
+      if (s === 'AUTHORIZED') add('Clock: 72 h pass with no decision', () => {
+        skew += d.holdUntilMin * 60000 + 1000;
+        const endedAt = stepIndexNow(d);
+        push(d, { lane: 'paypal', kind: 'call', typ: 'VOID', text: `auto-void ${d.pp.auth} · the hold is released, nothing is paid`, src: 'your wallet (safe default)' });
+        d.endedAt = endedAt; d.state = 'VOIDED'; d.pending = null; d.money = 'voided — nothing paid';
+        if (apDeal === d.id) closeApproval(true);
+        d.handoff = null;
+      });
+    } else if (d.id === 'D-0189') {
+      if (s === 'AWAITING BUYER APPROVAL') {
+        add('Buyer approves on PayPal → your wallet captures', () => {
+          push(d, { lane: 'paypal', kind: 'call', typ: 'APPROVED', text: `buyer approved order ${d.pp.order} (polled)`, src: 'your wallet' });
+          d.pp.capture = '1VD6…';
+          push(d, { lane: 'paypal', kind: 'call', typ: 'CAPTURE', text: `capture ${d.pp.capture} · $90.00 · receiving money needs no click (S-2 · H5)`, src: 'your wallet' });
+          d.state = 'CAPTURED'; d.rec = 'pending'; d.money = 'captured — paid to you'; d.sub = 'captured by your wallet on the buyer’s approval';
+        });
+        add('Buyer’s approve window runs out', () => {
+          push(d, { lane: 'paypal', kind: 'call', typ: 'EXPIRED', text: `order ${d.pp.order} expired unapproved · no money moved`, src: 'your wallet' });
+          d.endedAt = 2; d.state = 'EXPIRED'; d.money = 'none — the order expired';
+        });
+      }
+    } else if (d.id === 'D-0188') {
+      if (s === 'OFFER SENT') add('S-14 pays the $9.60 invoice', () => {
+        push(d, { lane: 'paypal', kind: 'call', typ: 'PAID', text: 'invoice paid · $9.60 on your account', src: 'your wallet' });
+        d.state = 'RECOVERED'; d.rec = 'pending'; d.money = 'paid to you — $9.60'; d.sub = 'recovered this cycle';
+      });
+    } else if (d.id === 'D-0198') {
+      if (s === 'HOLD') add('Clock: 20:00 passes with no decision', () => {
+        skew += Math.max(0, ts('Thu 20:00') - now()) + 1000;
+        push(d, { lane: 'gate', kind: 'check', typ: 'LAPSED', text: 'the request lapsed at 20:00 · nothing is paid' });
+        d.endedAt = 1; d.state = 'EXPIRED'; d.pending = null; d.money = 'none — nothing paid';
+        if (apDeal === d.id) closeApproval(true);
+        d.handoff = null;
+      });
+      if (s === 'IN BROWSER') add('PayPal: order APPROVED (polled) → authorized', () => {
+        d.pp.auth = '6NB3…';
+        push(d, { lane: 'paypal', kind: 'call', typ: 'AUTHORIZE', text: `order approved (polled) · authorization ${d.pp.auth} · $140.00 held until delivery`, src: 'your wallet' });
+        d.state = 'AUTHORIZED'; d.money = 'held — authorized at PayPal, not captured';
+      });
+    } else if (d.id === 'Q-0207') {
+      if (s === 'QUOTED') add('Clock: 14:12 passes (quote expires)', () => {
+        skew += Math.max(0, ts('Thu 14:12') - now()) + 1000;
+        push(d, { lane: 'gate', kind: 'check', typ: 'EXPIRED', text: 'quote expired at 14:12 · a quote is not an order' });
+        d.endedAt = 0; d.state = 'EXPIRED'; d.money = 'none';
+      });
+    } else if (d.id === 'D-0201') {
+      if (s === 'PAIRING') add('House seller wakes up', () => {
+        push(d, { lane: 'them', kind: 'env', typ: 'LISTING', price: 229, seq: 1, sig: true, signer: 'HOUSE · pinned key', text: 'the house seller lists monitor-24-ips at $229.00' });
+        d.state = 'LISTED'; d.sub = 'listed · your agent may open'; d.money = 'none';
+      });
+    }
+    if (['CAPTURED', 'RECOVERED'].includes(s) && d.rec !== 'matched' && d.id !== 'D-0193') add('Transaction Search matches (≤ 3 h)', () => {
+      push(d, { lane: 'paypal', kind: 'call', typ: 'MATCHED', text: 'Transaction Search matched the capture on your account', src: 'PayPal reporting' });
+      d.rec = 'matched';
+    });
+    return A;
+  }
+
+  /* ---- transcript export: a signed file (signature simulated) ---- */
+  function exportTranscript(d) {
+    const chain = chainOf(d);
+    const ev = evidenceOf(d);
+    const body = {
+      format: 'the-table.transcript/1', mode: modeOf(d), exported_at: new Date(now()).toISOString(),
+      deal: { id: d.id, kind: d.kind, side: d.side, item: d.item, amount: d.amount == null ? null : (cents(d.amount) / 100).toFixed(2), currency: 'USD', state: d.state },
+      mandate: mandateOf(d).label,
+      counterparty: { name: cpOf(d).name, key: cpOf(d).key, pairing: cpOf(d).paired },
+      envelopes: chain.map((r) => ({ seq: r.ev.seq, by: r.ev.lane, typ: r.ev.typ, price: r.ev.price == null ? null : (cents(r.ev.price) / 100).toFixed(2), at: new Date(r.ev.t).toISOString(), signer: r.ev.signer || null, prev: shortH(r.prev), hash: r.show })),
+      paypal: d.pp ? { order: d.pp.order, intent: d.pp.intent, authorization: d.pp.auth, capture: d.pp.capture } : null,
+      evidence: ev.label, reconciliation: ev.recText,
+      untrusted_quoted: d.note ? [{ from: cpOf(d).name, text: d.note, note: 'counterparty free text, quoted as data, never instructions' }] : [],
+      transcript_head: headOf(d)
+    };
+    const text = JSON.stringify(body, null, 2);
+    const sig = hash64(text) + hash64(text + '#');
+    const file = text.replace(/\n}$/, `,\n  "signature": { "alg": "ed25519", "key": "wallet key (OS keychain)", "value": "${sig}", "note": "simulated in the prototype" }\n}`);
+    return { name: `${d.id}.transcript.${modeOf(d)}.json`, text: file, sig: shortH(sig), head: headOf(d), envelopes: chain.length };
+  }
+  function download(x) {
+    try {
+      const url = URL.createObjectURL(new Blob([x.text], { type: 'application/json' }));
+      const a = document.createElement('a'); a.href = url; a.download = x.name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e) { toast('The browser blocked the download; the file preview is the record.'); }
+  }
+
+  /* ---- shared bits ---- */
+  /* html is built by this file from escaped values; UI.toast takes it as a Node */
+  function toast(html, kind) {
+    const el = document.createElement('span'); el.innerHTML = html;
+    window.UI.toast(el, kind || (/No money moved|Nothing is paid|nothing is charged/i.test(html) ? 'ok' : /approval window/i.test(html) ? 'gold' : undefined));
+  }
+  function quarantine(text, from) {
+    return `<div class="quarantine"><div class="q-label">UNTRUSTED${from ? ' · from ' + esc(from) : ''} · plain text</div><div class="q-text">${esc(text)}</div></div>`;
+  }
+  function meters() {
+    const buy = deals.filter((d) => d.side === 'buyer');
+    const out = buy.filter((d) => ['CAPTURED', 'RECEIPTED', 'SELLER-ATTESTED'].includes(d.state)).reduce((a, d) => a + (d.amount || 0), 0);
+    const held = buy.filter((d) => d.state === 'AUTHORIZED').reduce((a, d) => a + (d.amount || 0), 0);
+    return { out, held, engine: F.engineWeekUSD, engineName: F.owner.engine };
+  }
+  function bandSVG(mk, opts) {
+    opts = opts || {};
+    const W = opts.w || 520, H = opts.h || 64;
+    const ceiling = opts.ceiling;
+    const vals = [mk.p25, mk.median, mk.p75, mk.price, ceiling].filter((v) => v != null);
+    let lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+    const padv = (hi - lo) * 0.3 || 10; lo -= padv; hi += padv;
+    const x = (v) => 12 + (v - lo) / (hi - lo) * (W - 24);
+    const y = H / 2;
+    let s = `<svg viewBox="0 0 ${W} ${H}" class="dvband" role="img" aria-label="Market band p25 ${money0(mk.p25)}, median ${money0(mk.median)}, p75 ${money0(mk.p75)}${mk.price != null ? ', this deal ' + money0(mk.price) : ''}">`;
+    s += `<line x1="12" x2="${W - 12}" y1="${y}" y2="${y}" stroke="var(--line2)" stroke-width="2"/>`;
+    s += `<rect x="${x(mk.p25)}" y="${y - 8}" width="${x(mk.p75) - x(mk.p25)}" height="16" rx="4" fill="color-mix(in srgb, var(--market) 16%, transparent)" stroke="color-mix(in srgb, var(--market) 45%, transparent)"/>`;
+    s += `<line x1="${x(mk.median)}" x2="${x(mk.median)}" y1="${y - 13}" y2="${y + 13}" stroke="var(--market)" stroke-width="2"/>`;
+    /* p25 hangs left of the band, p75 right of it, the median above: they never collide */
+    s += `<text x="${x(mk.p25) - 4}" y="${H - 2}" text-anchor="end" fill="var(--dim)" font-size="12" font-family="var(--mono)">p25 ${money0(mk.p25)}</text>`;
+    s += `<text x="${x(mk.p75) + 4}" y="${H - 2}" text-anchor="start" fill="var(--dim)" font-size="12" font-family="var(--mono)">p75 ${money0(mk.p75)}</text>`;
+    s += `<text x="${x(mk.median)}" y="12" text-anchor="middle" fill="var(--market)" font-size="12" font-family="var(--mono)">median ${money0(mk.median)}</text>`;
+    if (ceiling != null) s += `<line x1="${x(ceiling)}" x2="${x(ceiling)}" y1="${y - 16}" y2="${y + 10}" stroke="var(--teal)" stroke-dasharray="3 3" stroke-width="2"/><text x="${x(ceiling)}" y="12" text-anchor="middle" fill="var(--teal-l)" font-size="12" font-family="var(--mono)">ceiling ${money0(ceiling)}</text>`;
+    if (mk.price != null) s += `<circle cx="${x(mk.price)}" cy="${y}" r="7" fill="${opts.priceColor || 'var(--gold)'}" stroke="var(--bg)" stroke-width="2"/>`;
+    return s + '</svg>';
+  }
+
+  /* ---- layer-1 one-liners: the decision in a few words (its exact words live in layer 2) ---- */
+  const REVIEW_SHORT = {
+    countersign: (d) => [`Countersign ${cpShort(d)}’s ${money(d.amount)}`, 'over $250 (clause 6) · pays no one'],
+    approve: (d) => [`Approve ${money(d.amount)} on PayPal`, 'the order matches the signed deal · PayPal opens in your browser'],
+    capture: (d) => [`Capture or void the ${money(d.amount)} hold`, 'clause 7 · the payee is not on the allowlist'],
+    release: (d) => [`Release the shield hold on ${money(d.amount)}`, 'you type the payee’s name to release'],
+    lever: () => ['Approve the −20% lever', 'a $9.60 invoice for this cycle only']
+  };
+  /* tone: need | hand | may | calm */
+  function decisionLine(d) {
+    const dc = decisionsOf(d);
+    if (dc.handoff) return { tone: 'hand', chip: ['teal', 'In approval window'], t1: 'The decision is in the approval window', t2: `${dc.handoff.phase.toLowerCase()} · this window never pays` };
+    if (d.state === 'IN BROWSER') return { tone: 'hand', chip: ['teal', 'In your browser'], t1: 'Approve on PayPal’s own page', t2: 'the wallet polls the order every 10 s · never trusts the redirect' };
+    if (dc.review) { const [a, b] = REVIEW_SHORT[d.pending](d); return { tone: 'need', chip: ['gold', 'Needs you'], t1: a, t2: b }; }
+    if (dc.withdraw) return { tone: 'may', chip: ['', 'You may withdraw'], t1: 'Nothing waits for you', t2: 'withdrawing is free · it cannot move money' };
+    return { tone: 'calm', chip: [isTerminal(d) ? '' : 'line', isTerminal(d) ? 'Closed' : 'No decision'], t1: dc.none, t2: '' };
+  }
+  const STATE_CHIP = (d) => { const t = stepsOf(d).tone; return ({ live: 'teal', need: 'gold', held: 'gold', ok: 'ok', bad: 'red', off: '' })[t] || ''; };
+  const EV_CHIP = { receipted: 'ok', 'seller-attested': 'coral dashed', held: 'gold', approved: 'gold', none: '' };
+  const REC_CHIP = { matched: 'ok', pending: 'gold', 'n/a': 'line' };
+  const VERDICT = { pass: ['✓', 'okc'], ask: ['?', 'gold'], fail: ['✗', 'red'], na: ['–', 'dim'], unknown: ['?', 'dim'] };
+  /* a 120x18 band glyph for indicator rows: p25-p75 box, median tick, price dot */
+  function bandMini(mk, ceiling) {
+    if (!mk) return '';
+    const vals = [mk.p25, mk.p75, mk.price, ceiling].filter((v) => v != null);
+    let lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals); const p = (hi - lo) * 0.15 || 10; lo -= p; hi += p;
+    const x = (v) => 4 + (v - lo) / (hi - lo) * 112;
+    return `<svg class="bandmini" viewBox="0 0 120 18" width="120" height="18" aria-hidden="true"><line x1="2" x2="118" y1="9" y2="9" stroke="var(--line2)"/>`
+      + `<rect x="${x(mk.p25)}" y="4" width="${x(mk.p75) - x(mk.p25)}" height="10" rx="2" fill="color-mix(in srgb, var(--market) 22%, transparent)"/>`
+      + `<line x1="${x(mk.median)}" x2="${x(mk.median)}" y1="2" y2="16" stroke="var(--market)" stroke-width="1.5"/>`
+      + (ceiling != null ? `<line x1="${x(ceiling)}" x2="${x(ceiling)}" y1="1" y2="17" stroke="var(--teal)" stroke-dasharray="2 2"/>` : '')
+      + (mk.price != null ? `<circle cx="${x(mk.price)}" cy="9" r="4" fill="var(--gold)" stroke="var(--bg)"/>` : '') + '</svg>';
+  }
+
+  /* ---- view kit: layer-1 bits and layer-2 bodies (sheet / popover content) ---- */
+  const pairOk = (cp) => /words ✓|house key|wallet shop/.test(cp.paired || '');
+  function pairChip(cp) {
+    const l = String(cp.paired || '—').replace(/ (otter|today).*$/, '').replace(/^cooperating /, '').replace(/ pinned$/, '');
+    return `<span class="ui-chip ${pairOk(cp) ? 'ok' : /not paired/.test(cp.paired || '') ? 'red' : 'line'}">${esc(l)}</span>`;
+  }
+  function shieldChip(d) {
+    const s = d.shield || (d.module === 'shield' ? d.state : null);
+    return s ? `<span class="ui-chip ${s === 'CLEAR' || s === 'released' ? 'ok' : s === 'BLOCK' ? 'red' : 'gold'}">${esc(s)}</span>` : '<span class="dim">no verdict</span>';
+  }
+  function stripHTML(d) {
+    const s = stepsOf(d);
+    return `<div class="strip" aria-label="Deal states (steps this kind does not have are hidden)">${s.steps.map((x) => `<span class="s ${x.status} ${x.status === 'cur' ? x.tone : ''}" ${x.status === 'cur' ? 'aria-current="step"' : ''}>${esc(x.label)}</span>`).join('')}${s.term ? `<span class="s term ${s.tone}">${esc(s.term)}</span>` : ''}</div>`;
+  }
+  function metersHTML() {
+    const mt = meters();
+    return `<span class="m" data-tip="Wallet spend: dollars your agents committed this week">wallet <b>${money(mt.out)}</b> · ${money(mt.held)} held</span><span class="m eng" data-tip="Engine spend: the CLI’s own estimate, not a bill">${esc(mt.engineName)} <b>~$${mt.engine.toFixed(2)}</b> est.</span>`;
+  }
+  const whoOf = (d, e) => e.lane === 'you' ? 'you' : e.lane === 'them' ? cpShort(d) : e.lane === 'paypal' ? 'PayPal' : 'gate';
+  const clausesOfEvent = (e) => { const cl = []; (e.checks || []).forEach((c) => { const m = /clause (\d)/.exec(c); if (m) cl.push(m[1]); if (/^S-2/.test(c)) cl.push('S-2'); }); if (e.clause) cl.push(String(e.clause)); return cl; };
+  const vglyph = (v) => { const g = VERDICT[v] || VERDICT.unknown; return `<span class="vg ${g[1]}" aria-label="${esc(v)}">${g[0]}</span>`; };
+  const L2 = {
+    mandate(d) {
+      const md = mandateOf(d), agent = F.agents.find((a) => a.id === d.agent);
+      return `<dl class="ui-kv"><dt>mandate</dt><dd>${esc(md.label)}</dd><dt>signed</dt><dd>${esc(md.signed)}${md.commitment ? ` · commitment <span class="mono">${esc(md.commitment)}</span>` : ''}</dd>
+        <dt>agent</dt><dd>${esc(agent ? agent.name : '—')} · <span class="mono">${esc(agent ? agent.engine : '')}</span></dd>
+        ${md.agentKey ? `<dt>agent key</dt><dd><span class="mono">${esc(md.agentKey)}</span> <span class="dim">· never in the LLM</span></dd>` : ''}
+        ${md.prev ? `<dt>v${md.prev.v} → v${md.v}</dt><dd>${esc(md.prev.diff)}</dd>` : ''}${md.text ? `<dt>text</dt><dd>${esc(md.text)}</dd>` : ''}
+        ${d.delivery ? `<dt>delivery</dt><dd>${esc(d.delivery)}</dd>` : ''}</dl>
+        <div class="ui-section-h" style="margin-top:var(--sp-4)"><h3>Clause trace · checked in Rust before every network call</h3></div>
+        <div class="ui-group">${traceOf(d).map((c) => `<div class="ui-row two">${vglyph(c.verdict)}<span class="id">${esc(String(c.n))}</span><span class="main"><span class="t1">${esc(c.name)}</span><span class="t2" title="${esc(c.why)}">${esc(c.why)}</span></span></div>`).join('')}</div>`;
+    },
+    clause(d, c) {
+      const md = mandateOf(d);
+      return `<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">${vglyph(c.verdict)}<b>${esc(c.name)}</b><span class="dim mono">${esc(md.id)} · ${esc(String(c.n))}</span></div><p class="sheet-p">${esc(c.why)}</p>
+        ${md.clauses && typeof c.n === 'number' ? `<div class="ui-hint">rule: ${esc(md.clauses[c.n - 1].text)}</div>` : ''}`;
+    },
+    who(d) {
+      const cp = cpOf(d);
+      return `<dl class="ui-kv"><dt>who</dt><dd>${esc(cp.who)}</dd><dt>key</dt><dd class="mono">${esc(cp.key)}</dd><dt>pairing</dt><dd>${esc(cp.paired)}</dd>
+        <dt>first seen</dt><dd>${esc(cp.firstSeen)} · ${cp.deals != null ? cp.deals : '—'} deal${cp.deals === 1 ? '' : 's'} before</dd>
+        ${cp.payee ? `<dt>payee</dt><dd>${esc(cp.payee)}</dd>` : ''}${kindOf(d) === 'haggle' ? '<dt>their floor</dt><dd class="dim">hidden · only a commitment is shared</dd>' : ''}
+        <dt>shield</dt><dd>${shieldChip(d)}${d.typology ? ` · typology <b>${esc(d.typology)}</b> · a BLOCK has no release` : ''}</dd>
+        ${(d.rules || []).length ? `<dt>rules hit</dt><dd>${d.rules.map(esc).join('<br>')}</dd>` : ''}</dl>
+        ${d.note ? `<div style="margin-top:var(--sp-3)">${quarantine(d.note, cp.name)}</div>` : ''}`;
+    },
+    note(d) { return `${quarantine(d.note, cpOf(d).name)}<div class="ui-hint" style="margin-top:6px">Shown as plain text. Never fed to an agent, never a link.</div>`; },
+    paypal(d) {
+      const pp = ppOf(d), ev = evidenceOf(d);
+      return `<table class="ui-table"><thead><tr><th>PayPal</th><th>value</th><th>who attests it</th></tr></thead><tbody>${pp.cells.map((c) => `<tr><td class="dim">${esc(c.k)}</td><td class="mono">${c.until ? `<span class="gold" data-until="${c.until}">${dur(c.until - now())}</span>` : esc(c.v)}</td><td class="dim">${esc(c.src || '')}</td></tr>`).join('')}</tbody></table>
+        ${pp.invoice ? `<div class="ui-hint" style="margin-top:6px">invoice_id <span class="mono">${esc(pp.invoice)}</span> · a ULID, never the display label</div>` : ''}
+        ${pp.why ? `<p class="sheet-p" style="margin-top:var(--sp-2)">${esc(pp.why)}</p>` : ''}
+        <dl class="ui-kv" style="margin-top:var(--sp-3)"><dt>evidence</dt><dd><span class="ui-chip ${EV_CHIP[ev.label] || ''}">${esc(ev.label)}</span> ${esc(ev.text)}</dd>
+        <dt>statement</dt><dd><span class="ui-chip ${REC_CHIP[ev.rec]}">${esc(ev.recText)}</span> ${esc(ev.recWhy)}</dd></dl>
+        <div class="ui-hint" style="margin-top:6px">Seller-attested until your wallet holds its own evidence, then receipted. Ids are truncated.</div>`;
+    },
+    market(d) {
+      const mk = marketOf(d);
+      if (!mk) return '<p class="sheet-p">No market reference for this item. The price rules are skipped, not passed.</p>';
+      return bandSVG(mk, { ceiling: d.id === 'D-0193' ? F.haggle.ceiling : null }) + `<dl class="ui-kv" style="margin-top:var(--sp-3)"><dt>this deal</dt><dd>${mk.price != null ? `<b class="money">${money(mk.price)}</b> · ${esc(mk.where)}${mk.pct != null ? ` · stored as p${mk.pct}` : ''}${mk.overMedian != null && Math.abs(mk.overMedian) >= 10 ? ` · ${mk.overMedian > 0 ? '+' : ''}${mk.overMedian}% vs median` : ''}` : 'no price yet'}</dd>
+        <dt>band</dt><dd class="mono">p25 ${money0(mk.p25)} · median ${money0(mk.median)} · p75 ${money0(mk.p75)}</dd><dt>source</dt><dd>${esc(mk.src)} · retrieved ${esc(mk.retrieved)}${mk.atClose ? ' · stored with the terms at close' : ''}</dd></dl>
+        <div class="ui-hint" style="margin-top:6px">A reference, not a proof.</div>`;
+    },
+    books(d) {
+      const ev = evidenceOf(d), m = d.events.find((e) => e.typ === 'MATCHED');
+      return `<p class="sheet-p"><span class="ui-chip ${REC_CHIP[ev.rec]}">${esc(ev.recText)}</span>${m ? ` <span class="dim">${esc(clock(m.t))}</span>` : ''}</p><p class="sheet-p muted">${ev.rec === 'pending' ? 'The row says “pending in PayPal reporting” until Transaction Search matches it (up to 3 h). That is a lag, not a doubt.' : ev.rec === 'matched' ? 'Read-only: your own account’s reporting matched this capture.' : 'Nothing was captured, so nothing should appear on the statement.'}</p>`;
+    },
+    event(d, e) {
+      const link = chainOf(d).find((r) => r.ev.id === e.id);
+      return `<dl class="ui-kv"><dt>when</dt><dd class="mono">${esc(e.label || clock(e.t, true))}</dd><dt>who</dt><dd>${esc(whoOf(d, e))}${e.price != null ? ` · <b class="money">${money(e.price)}</b>` : ''}</dd>
+        ${e.kind === 'env' ? `<dt>signature</dt><dd>${e.sig === false ? '<span class="red">✗ unpaired key · nothing to verify against</span>' : `<span class="okc">✓ verified</span> · <span class="mono">${esc(e.signer || '')}</span>`}</dd>` : ''}
+        ${link ? `<dt>hash link</dt><dd class="mono">${esc(shortH(link.prev))} → ${esc(link.show)}</dd>` : ''}
+        ${e.src ? `<dt>attested by</dt><dd>${esc(e.src)}</dd>` : ''}${e.audit ? `<dt>audit row</dt><dd class="mono">#${e.audit} · append-only</dd>` : ''}
+        ${e.text ? `<dt>what</dt><dd>${esc(e.text)}</dd>` : ''}</dl>
+        ${(e.checks || []).length ? `<ul class="chk">${e.checks.map((c) => `<li class="${/✗/.test(c) ? 'x' : ''}">${esc(c.replace(/^✗ /, ''))}</li>`).join('')}</ul>` : ''}
+        ${e.note && d.note ? `<div style="margin-top:var(--sp-2)">${quarantine(d.note, cpOf(d).name)}</div>` : ''}`;
+    },
+    transcript(d, v) {
+      const chain = chainOf(d), link = new Map(chain.map((r, i) => [r.ev.id, { r, i }]));
+      return `<table class="ui-table"><thead><tr><th>#</th><th>who</th><th>what</th><th class="num">price</th><th>sig · link</th><th>when</th></tr></thead><tbody>
+        ${d.events.slice().sort((a, b) => a.t - b.t).map((e) => { const L = link.get(e.id); const checking = v && L && L.i === v.upto && !v.done; const checked = v && L && (L.i < v.upto || v.done);
+          return `<tr class="${checking ? 'checking' : ''}"><td class="mono lane-${e.lane}">${e.seq ? e.seq : '·'}</td><td>${esc(whoOf(d, e))}</td><td class="clip" title="${esc(e.text || '')}">${esc(e.typ)}${e.text ? ` <span class="dim">· ${esc(e.text)}</span>` : ''}</td>
+          <td class="num">${e.price != null ? money(e.price) : ''}</td><td>${L ? `${e.sig === false ? '<span class="red">✗</span>' : checked ? '<span class="okc">✓ re-verified</span>' : '<span class="okc">✓</span>'} <span class="mono dim">${esc(L.r.show)}</span>` : `<span class="dim">${esc(e.src || '')}</span>`}</td><td class="mono dim">${esc(e.label || clock(e.t))}</td></tr>`; }).join('')}</tbody></table>`;
+    }
+  };
+  function withdrawSheet(d) {
+    const dc = decisionsOf(d); if (!dc.withdraw) return null;
+    return window.UI.sheet({ title: `Withdraw ${d.id}?`, size: 'narrow', body: `<p class="sheet-p">${esc(dc.withdrawWhat)}</p><div class="ui-silence">the safe direction · it cannot move money</div>`,
+      actions: [{ label: 'Keep the deal' }, { label: 'Send signed WITHDRAW', kind: 'danger', onClick: () => { withdraw(d); } }] });
+  }
+  function exportSheet(d) {
+    const x = exportTranscript(d), lines = x.text.split('\n');
+    return window.UI.sheet({ title: `Transcript · ${d.id}`, size: 'wide',
+      body: `<dl class="ui-kv"><dt>file</dt><dd class="mono">${esc(x.name)}</dd><dt>contents</dt><dd>${x.envelopes} envelope${x.envelopes === 1 ? '' : 's'} · head <span class="mono">${esc(x.head || '—')}</span> · PayPal ids · the <b>${modeOf(d)}</b> badge</dd>
+        <dt>signature</dt><dd>ed25519 <span class="mono">${esc(x.sig)}</span> <span class="dim">· simulated</span></dd></dl><div class="ui-hint" style="margin-top:6px">Counterparty text is quoted as untrusted data.</div>
+        <pre class="xpre">${esc(lines.slice(0, 40).join('\n'))}${lines.length > 40 ? '\n…' : ''}</pre>`,
+      actions: [{ label: 'Close' }, { label: 'Save file', kind: 'primary', onClick: () => { download(x); toast(`Saved <b>${esc(x.name)}</b> (simulated signature).`, 'ok'); } }] });
+  }
+
+  /* ---- routing ---- */
+  const REQUIRED = ['D-0193', 'D-0190', 'D-0196', 'D-0189', 'D-0188', 'D-0187'];
+  function idFromHash() { const h = decodeURIComponent((location.hash || '').replace(/^#/, '')).toUpperCase(); return byId(h) ? h : 'D-0193'; }
+  function go(id) { if (byId(id)) location.hash = id; }
+  function backHref(d) { return `../../${d.module}/variant-1/index.html`; }
+
+  return {
+    F, esc, money, money0, now, ts, clock, dur, hhmm, shortH, MODS, MOD_ORDER, REQUIRED, deals, byId, kindOf, cpOf, cpShort, modeOf,
+    mandateOf, traceOf, chainOf, headOf, envCount, stepsOf, ppOf, evidenceOf, marketOf, moneyNow, deadlineOf, silenceOf,
+    decisionsOf, withdraw, openApproval, closeApproval, simActionsOf, exportTranscript, download, toast, quarantine,
+    meters, bandSVG, bandMini, decisionLine, STATE_CHIP, EV_CHIP, REC_CHIP, VERDICT, idFromHash, go, backHref, on, emit, isTerminal,
+    pairOk, pairChip, shieldChip, stripHTML, metersHTML, whoOf, clausesOfEvent, vglyph, L2, withdrawSheet, exportSheet,
+    get locked() { return locked; }, setLocked(v) { locked = !!v; emit(); }, get approvalOpen() { return apDeal; }
+  };
+})();
+
+</script>
+<script>
+/* v1 Mirror: three linked columns (Maya's mandate · the signed timeline · the counterparty).
+   Layer 1 is one line per clause, envelope and fact; every explanation opens in a popover or sheet. */
+(function () {
+  'use strict';
+  const D = window.DV, F = D.F, esc = D.esc, money = D.money;
+  const $ = (s) => document.querySelector(s);
+  let cur = D.idFromHash();
+  let selEv = null;
+  let pop = null;
+  const closePop = () => { if (pop) { pop.close(); pop = null; } };
+  const openPop = (anchor, body, title) => { closePop(); pop = UI.popover(anchor, body, { title }); return pop; };
+
+  function chrome(d) {
+    const m = D.MODS[d.module];
+    $('#crumbs').innerHTML = `<a href="../../../index.html#home">The Table</a><span class="sep">›</span><a href="${D.backHref(d)}">${m.name}</a><span class="sep">›</span>
+      <button class="ui-btn sm idbtn" id="idbtn" aria-haspopup="menu" aria-expanded="false">${esc(d.id)} ▾</button>`;
+    $('#meters').innerHTML = D.metersHTML();
+    $('#mode').innerHTML = `<span class="badge ${D.modeOf(d) === 'REPLAY' ? 'replay' : 'sandbox'}">${D.modeOf(d)}</span>`;
+    const idle = $('#idle'); idle.className = 'ui-btn sm' + (D.locked ? ' gold locked' : ''); idle.textContent = D.locked ? 'Idle 15 min' : 'Active';
+    $('#rail').innerHTML = '<div class="ui-sb-head">Modules</div>' + D.MOD_ORDER.map((k) => {
+      const list = D.deals.filter((x) => x.module === k), needs = list.filter((x) => x.pending).length, on = k === d.module;
+      return `<button class="ui-sb-item" data-mod="${k}"><span class="ico"><span class="ui-dot" style="color:${D.MODS[k].color}"></span></span><span class="lbl">${D.MODS[k].name}</span>${needs ? `<span class="cnt need" title="needs you">${needs}</span>` : `<span class="cnt">${list.length}</span>`}</button>`
+        + (on ? list.map((x) => `<button class="ui-sb-item sub" data-deal="${x.id}" ${x.id === d.id ? 'aria-current="page"' : ''}><span class="lbl"><span class="mono">${x.id}</span><span class="st">${esc(x.state.toLowerCase())}</span></span>${x.pending ? '<span class="nd" title="needs you"></span>' : ''}</button>`).join('') : '');
+    }).join('') + '<div class="ui-sb-foot"><div class="ui-sb-head">Jump · the six kinds</div>' + D.REQUIRED.map((id) => {
+      const x = D.byId(id);
+      return `<button class="ui-sb-item" data-deal="${id}"><span class="ico"><span class="ui-dot" style="color:${D.MODS[x.module].color}"></span></span><span class="lbl"><span class="mono">${id}</span> <span class="dim">${esc(x.kind.split(' · ')[0])}</span></span></button>`;
+    }).join('') + '</div>';
+  }
+
+  function decision(d) {
+    const L = D.decisionLine(d), dc = D.decisionsOf(d), sil = D.silenceOf(d);
+    const b = [];
+    if (dc.handoff) b.push('<button class="ui-btn" data-act="focusap">Show approval window</button>');
+    if (dc.withdraw) b.push('<button class="ui-btn danger" data-act="withdraw">Withdraw</button>');
+    if (dc.review && !dc.handoff) b.push(D.locked
+      ? '<button class="ui-btn gold locked" data-act="review" data-tip="Opens the approval window, which asks for Windows Hello">Review &amp; approve ↗</button>'
+      : '<button class="ui-btn gold" data-act="review" data-tip="Opens the approval window: the only place money can be released">Review &amp; approve ↗</button>');
+    const info = dc.review || dc.withdraw ? '<button class="ui-btn plain sm" data-act="why" aria-label="What each button does, in exact words">ⓘ</button>' : '';
+    return `<div class="ui-group decide ${L.tone}"><div class="ui-row ${sil ? 'two' : ''}"><span class="ui-chip ${L.chip[0]}">${esc(L.chip[1])}</span>
+      <span class="main"><span class="t1"><b>${esc(L.t1)}</b>${L.t2 ? ` <span class="dim">· ${esc(L.t2)}</span>` : ''}</span>
+      ${sil ? `<span class="ui-silence">if you do nothing → <b>${esc(sil)}</b></span>` : ''}</span>${info}<span class="end">${b.join('')}</span></div></div>`;
+  }
+
+  function you(d) {
+    const md = D.mandateOf(d);
+    const tag = { ask: '<span class="ui-chip gold">asks you</span>', fail: '<span class="ui-chip red">fails</span>', unknown: '<span class="ui-chip dashed">unknown</span>' };
+    return `<section class="ui-section you" aria-label="Maya’s side"><div class="ui-section-h"><h2><span class="teal">Maya</span> · ${esc(md.id)} v${md.v}</h2><span class="end"><button class="ui-btn plain sm" data-l2="mandate">Mandate ›</button></span></div>
+      <div class="ui-group">${D.traceOf(d).map((c, i) => `<div class="ui-row act" tabindex="0" data-clause="${esc(String(c.n))}" data-ci="${i}">${D.vglyph(c.verdict)}<span class="sq">${esc(String(c.n))}</span><span class="t1" style="flex:1">${esc(c.name)}</span>${tag[c.verdict] || ''}</div>`).join('')}</div></section>`;
+  }
+
+  function evRow(d, e) {
+    return `<div class="ui-row act lane-${e.lane} ${selEv === e.id ? 'on' : ''}" tabindex="0" data-ev="${esc(e.id)}" data-cl="${D.clausesOfEvent(e).join(',')}" data-lane="${e.lane}">
+      <span class="sq">${e.seq ? '#' + e.seq : e.lane === 'paypal' ? 'PP' : '·'}</span>
+      <span class="t1" style="flex:1"><span class="dim">${esc(D.whoOf(d, e))}</span> ${esc(e.typ)}${e.kind !== 'env' && e.text ? ` <span class="dim">· ${esc(e.text)}</span>` : ''}</span>
+      ${e.note ? '<span class="ui-chip coral dashed">note</span>' : ''}${e.price != null ? `<span class="amt">${money(e.price)}</span>` : ''}
+      ${e.kind === 'env' ? (e.sig === false ? '<span class="red" title="unpaired key">✗</span>' : '<span class="okc" title="signature verified">✓</span>') : ''}
+      <span class="tm">${esc(e.label || D.clock(e.t))}</span></div>`;
+  }
+  function mid(d) {
+    const nEnv = D.envCount(d), head = D.headOf(d);
+    return `<section class="ui-section mid" aria-label="Signed timeline"><div class="ui-section-h"><h2><span class="gold">Signed timeline</span> · newest first</h2><span class="end">${nEnv ? `${nEnv} signed · head <span class="mono">${esc(head)}</span>` : 'gate and PayPal rows only'}</span></div>
+      <div class="ui-group tl" id="tl">${d.events.slice().sort((a, b) => b.t - a.t).map((e) => evRow(d, e)).join('')}</div>
+      <div class="ui-hint" style="margin-top:4px">hover: lights its clause · click: signer, hash link, checks</div></section>`;
+  }
+
+  function them(d) {
+    const cp = D.cpOf(d);
+    const row = (k, v) => `<div class="ui-row"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+    return `<section class="ui-section them" aria-label="Counterparty"><div class="ui-section-h"><h2><span class="coral">${esc(cp.name)}</span></h2><span class="end"><button class="ui-btn plain sm" data-l2="who">Details ›</button></span></div>
+      <div class="ui-group" id="themg">${row('pairing', D.pairChip(cp))}${row('key', `<span class="mono">${esc(cp.key)}</span>`)}${row('first seen', `${esc(cp.firstSeen)} · ${cp.deals != null ? cp.deals : '—'} before`)}
+      ${cp.payee ? row('payee', esc(cp.payee)) : ''}${row('shield', D.shieldChip(d))}${D.kindOf(d) === 'haggle' ? row('their floor', '<span class="dim">hidden · a commitment</span>') : ''}
+      ${d.note ? row('note', '<button class="ui-chip coral dashed notebtn" data-l2="note">untrusted note ›</button>') : ''}</div></section>`;
+  }
+
+  function inds(d) {
+    const pp = D.ppOf(d), ev = D.evidenceOf(d), mk = D.marketOf(d);
+    const ids = pp.cells.filter((c) => ['order', 'authorization', 'capture'].includes(c.k))
+      .map((c) => `<span class="${c.v === '—' ? 'dim' : ''}">${c.k === 'authorization' ? 'auth' : c.k} <span class="mono">${esc(c.v)}</span></span>`).join('<span class="dim">·</span>');
+    return `<div class="ui-group inds">
+      <button class="ind" data-l2="paypal" id="ind-pp"><span class="k">PayPal ids</span><span class="v">${ids}</span></button>
+      <button class="ind" data-l2="paypal"><span class="k">Evidence</span><span class="v"><span class="ui-chip ${D.EV_CHIP[ev.label] || ''}">${esc(ev.label)}</span></span></button>
+      <button class="ind" data-l2="books"><span class="k">Statement</span><span class="v"><span class="ui-chip ${D.REC_CHIP[ev.rec]}">${esc(ev.rec === 'n/a' ? 'n/a' : ev.rec)}</span></span></button>
+      <button class="ind" data-l2="market"><span class="k">Market</span><span class="v">${mk ? D.bandMini(mk, d.id === 'D-0193' ? F.haggle.ceiling : null) + `<span class="dim">${mk.pct != null ? 'p' + mk.pct : 'med ' + D.money0(mk.median)}</span>` : '<span class="dim">no reference</span>'}</span></button></div>`;
+  }
+
+  function render() {
+    const d = D.byId(cur);
+    chrome(d);
+    const agent = F.agents.find((a) => a.id === d.agent), dl = D.deadlineOf(d), sims = D.simActionsOf(d);
+    $('#view').innerHTML = `
+      <div class="ui-pagehead"><h1 tabindex="-1" id="h1">${esc(d.item)}</h1><span class="sub">${esc(d.id)} · ${esc(d.kind)} · ${esc(agent ? agent.name : '')} · <span class="mono">${esc(agent ? agent.engine : '')}</span></span>
+        <div class="actions"><button class="ui-btn sm" data-act="export">Export transcript</button></div></div>
+      <div class="figs"><span class="amt">${d.amount != null ? money(d.amount) : esc(d.ask || '—')}</span><span class="ui-chip ${D.STATE_CHIP(d)}">${esc(d.state)}</span>
+        <div class="f" style="max-width:300px"><span class="k">Money right now</span><span class="v">${esc(D.moneyNow(d))}</span></div>
+        <div class="f" style="max-width:300px"><span class="k">Latest</span><span class="v">${esc(d.sub || '—')}</span></div>
+        ${dl ? `<div class="f push"><span class="k">${esc(dl.what)}</span><span class="cd" data-until="${dl.t}">${D.dur(dl.t - D.now())}</span></div>` : ''}</div>
+      <div class="stripline">${D.stripHTML(d)}</div>
+      ${decision(d)}
+      <div class="mirror">${you(d)}${mid(d)}${them(d)}</div>
+      ${inds(d)}
+      <div class="foot"><div class="ui-proto sim"><span class="dim">Sandbox simulation:</span>${sims.length ? sims.map((s, i) => `<button class="ui-btn sm" data-sim="${i}">${esc(s.label)}</button>`).join('') : '<span class="none">no external event is pending for this deal</span>'}</div></div>`;
+    bindLinks();
+  }
+
+  /* hover / focus an envelope: the clause that checked it, its sender, or PayPal light up */
+  function bindLinks() {
+    const tl = $('#tl'); if (!tl) return;
+    const light = (row) => {
+      document.querySelectorAll('.lit').forEach((x) => x.classList.remove('lit'));
+      if (!row) return;
+      row.dataset.cl.split(',').filter(Boolean).forEach((c) => document.querySelectorAll(`.you [data-clause="${c}"]`).forEach((x) => x.classList.add('lit')));
+      if (row.dataset.lane === 'them') { const t = $('#themg'); if (t) t.classList.add('lit'); }
+      if (row.dataset.lane === 'paypal') { const p = $('#ind-pp'); if (p) p.classList.add('lit'); }
+    };
+    tl.addEventListener('mouseover', (e) => light(e.target.closest('[data-ev]')));
+    tl.addEventListener('mouseleave', () => light(null));
+    tl.addEventListener('focusin', (e) => light(e.target.closest('[data-ev]')));
+    tl.addEventListener('focusout', () => light(null));
+  }
+
+  const L2_TITLE = { mandate: (d) => D.mandateOf(d).label, who: (d) => D.cpOf(d).name, paypal: () => 'PayPal evidence', books: () => 'Reconciliation', market: () => 'Market band' };
+  function openL2(kind, d, anchor) {
+    if (kind === 'note') return openPop(anchor, D.L2.note(d), `Note from ${D.cpOf(d).name}`);
+    closePop();
+    UI.sheet({ title: L2_TITLE[kind](d), body: D.L2[kind](d), size: kind === 'paypal' || kind === 'market' ? 'wide' : '', actions: [{ label: 'Done', kind: 'primary' }] });
+  }
+  function openEvent(row) {
+    const d = D.byId(cur), e = d.events.find((x) => x.id === row.dataset.ev); if (!e) return;
+    if (selEv === e.id && pop && pop.el.isConnected) { closePop(); selEv = null; row.classList.remove('on'); return; }
+    document.querySelectorAll('#tl .on').forEach((x) => x.classList.remove('on'));
+    selEv = e.id; row.classList.add('on');
+    openPop(row, D.L2.event(d, e), `${e.typ}${e.seq ? ' · envelope #' + e.seq : ''}`);
+  }
+  function openMenu(btn) {
+    const body = '<div class="menu" role="menu">' + D.MOD_ORDER.map((k) => {
+      const list = D.deals.filter((x) => x.module === k);
+      return list.length ? `<div class="ui-section-h"><h3>${D.MODS[k].name}</h3></div>` + list.map((x) => `<button class="ui-row act" role="menuitem" data-deal="${x.id}" ${x.id === cur ? 'aria-selected="true"' : ''}><span class="id">${x.id}</span><span class="t1">${esc(x.item)}</span><span class="dim">${esc(x.state.toLowerCase())}</span></button>`).join('') : '';
+    }).join('') + '</div>';
+    openPop(btn, body, 'Switch deal');
+    btn.setAttribute('aria-expanded', 'true');
+    const f = pop.el.querySelector('[aria-selected="true"]') || pop.el.querySelector('button'); if (f) f.focus();
+  }
+
+  document.addEventListener('click', (e) => {
+    const t = e.target, d = D.byId(cur);
+    const ib = t.closest('#idbtn'); if (ib) { if (pop && pop.el.isConnected && pop.el.querySelector('.menu')) closePop(); else openMenu(ib); return; }
+    const dl = t.closest('[data-deal]'); if (dl) { closePop(); D.go(dl.dataset.deal); return; }
+    const md = t.closest('[data-mod]'); if (md) { location.href = `../../${md.dataset.mod}/variant-1/index.html`; return; }
+    const ev = t.closest('#tl [data-ev]'); if (ev) { openEvent(ev); return; }
+    const cl = t.closest('.you [data-ci]'); if (cl) { const c = D.traceOf(d)[+cl.dataset.ci]; openPop(cl, D.L2.clause(d, c), `Clause ${c.n} · ${c.name}`); return; }
+    const l2 = t.closest('[data-l2]'); if (l2) { openL2(l2.dataset.l2, d, l2); return; }
+    const a = t.closest('[data-act]');
+    if (a) {
+      const k = a.dataset.act, dc = D.decisionsOf(d);
+      if (k === 'review') D.openApproval(d);
+      if (k === 'focusap') { const b = document.querySelector('#dvApproval button'); if (b) b.focus(); }
+      if (k === 'withdraw') D.withdrawSheet(d);
+      if (k === 'export') D.exportSheet(d);
+      if (k === 'why') openPop(a, `${dc.review ? `<p class="sheet-p"><b>Review &amp; approve ↗</b> · ${esc(dc.reviewWhat)}</p><div class="ui-hint" style="margin-bottom:8px">It opens the approval window, the only place money can be released.</div>` : ''}${dc.withdraw ? `<p class="sheet-p"><b>Withdraw</b> · ${esc(dc.withdrawWhat)}</p>` : ''}`, 'What each button does');
+      return;
+    }
+    const s = t.closest('[data-sim]'); if (s) { const x = D.simActionsOf(d)[+s.dataset.sim]; if (x) x.fn(); return; }
+    if (t.closest('#idle')) { D.setLocked(!D.locked); D.toast(D.locked ? 'Idle 15 min (simulated): privileged buttons now ask for Windows Hello.' : 'Active again.'); }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { /* ui.js closes the top layer first */
+      if (D.approvalOpen) { D.closeApproval(); return; }
+      location.href = D.backHref(D.byId(cur)); return;
+    }
+    const menuBtn = e.target.closest && e.target.closest('.menu [data-deal]');
+    if (menuBtn && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault(); const bs = [...document.querySelectorAll('.menu [data-deal]')]; const i = bs.indexOf(menuBtn);
+      bs[(i + (e.key === 'ArrowDown' ? 1 : -1) + bs.length) % bs.length].focus(); return;
+    }
+    const row = e.target.closest && e.target.closest('#tl [data-ev], .you [data-ci]');
+    if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); row.click(); }
+    if (row && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); const n = e.key === 'ArrowDown' ? row.nextElementSibling : row.previousElementSibling; if (n) n.focus(); }
+  });
+  window.addEventListener('hashchange', () => { cur = D.idFromHash(); selEv = null; closePop(); render(); $('#main').scrollTop = 0; const h = $('#h1'); if (h) h.focus({ preventScroll: true }); });
+  D.on(render);
+  setInterval(() => document.querySelectorAll('[data-until]').forEach((el) => { el.textContent = D.dur(+el.dataset.until - D.now()); }), 1000);
+  render();
+})();
+</script>
+<script src="../../../shared/shell.js" data-page="deal" data-variant="1"></script>
+</body>
+</html>

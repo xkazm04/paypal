@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setup · The Circuit · The Table</title>
+<link rel="stylesheet" href="../../../shared/tokens.css">
+<link rel="stylesheet" href="../../../shared/ui.css">
+<script src="../../../main/fixtures.js"></script>
+<script src="../../../shared/ui.js"></script>
+<style>
+/* ---- setup core (shared by the three setup variants): title-bar meters, rows as controls,
+   prototype dock, the simulated approval window and native OS dialogs ---- */
+body { overflow: hidden; }
+.tb-meter { display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; padding-left: var(--sp-3); border-left: 1px solid var(--line); }
+.tb-meter .money { font-weight: var(--fw-semibold); }
+@media (max-width: 1180px) { .tb-meter .long { display: none; } }
+.ui-inspector .ui-silence { white-space: normal; }
+.ui-chip svg, .ui-btn svg, .ic svg { width: 11px; height: 11px; flex: none; }
+.ui-toast code, .ui-hint code { font: var(--fs-small) var(--mono); color: var(--teal-l); }
+.ui-toast b { color: var(--gold-l); }
+.mk { width: 14px; flex: none; text-align: center; font: var(--fw-bold) var(--fs-body)/1 var(--mono); }
+.mk.y { color: var(--ok); } .mk.n { color: var(--red-l); } .mk.w { color: var(--gold-l); } .mk.o { color: var(--dim); }
+.banners { display: grid; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.banners:empty { display: none; }
+.banners .notice { align-items: center; min-height: var(--row); padding-block: 3px; }
+.banners .grow { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* rows that are themselves a control (radio rows) */
+label.ui-row { cursor: pointer; }
+label.ui-row:hover { background: var(--hover); }
+.ui-row input[type="radio"] { margin: 0; flex: none; }
+.ui-row .lbl { flex: none; width: 176px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ui-row .st { flex: 1 1 auto; min-width: 0; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ui-row .st .dim { color: var(--dim); }
+.ui-row.need { box-shadow: inset 2px 0 0 var(--refuse); }
+.ui-row.wait { box-shadow: inset 2px 0 0 var(--gold); }
+.ui-row.foot { background: var(--bg2); }
+.ui-sheet-b > .ui-group, .ui-sheet-b > .ui-hint, .ui-sheet-b > .ui-kv, .ui-sheet-b > p, .ui-sheet-b > .ui-section-h { margin: 0 0 var(--sp-3); }
+.ui-sheet-b p, .ui-popover p { margin: 0 0 var(--sp-2); }
+.ui-popover .ui-group { margin: var(--sp-2) 0; }
+.ui-popover .ui-row { padding: 0 var(--sp-2); }
+.pop-head { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-2); }
+.acts { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+
+/* prototype controls (not the product) */
+.proto-in { display: grid; gap: 6px; }
+.proto-in .ui-seg, .proto-in .ui-btn { justify-self: start; }
+.proto-in .ui-btn { white-space: normal; height: auto; min-height: var(--ctl-sm); padding-block: 3px; text-align: left; }
+.ui-proto { min-width: 0; }
+.proto-in label { display: grid; gap: 2px; color: var(--dim); }
+.proto-in .ui-field { height: var(--ctl-sm); font-size: var(--fs-small); width: 100%; }
+.ui-sb-foot .ui-proto { margin-top: var(--sp-2); }
+
+/* approval window: a separate OS window in the real app, the only privileged surface */
+.layer { position: fixed; inset: var(--shell-h) 0 0 0; display: grid; place-items: center; padding: var(--sp-4); }
+#awLayer { z-index: 8600; background: var(--scrim); animation: ui-fade var(--t-med) var(--ease); }
+#nativeLayer { z-index: 8700; }
+.aw { width: min(540px, 100%); max-height: 100%; display: grid; grid-template-rows: var(--bar) minmax(0, 1fr) auto; overflow: hidden;
+  background: var(--bg2); border-radius: var(--r-lg); box-shadow: var(--shadow-3), 0 0 0 1px color-mix(in srgb, var(--gold) 45%, transparent); animation: aw-in var(--t-med) var(--ease); }
+.aw-lamp { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); flex: none; }
+.aw-b { overflow: auto; padding: var(--sp-3) var(--sp-4) var(--sp-4); display: grid; gap: var(--sp-3); align-content: start; }
+.aw-b h2 { margin: 0; font: var(--fw-semibold) var(--fs-title2)/var(--lh-tight) var(--display); }
+.aw-b h2:focus { outline: none; }
+.aw-k { font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--gold-l); margin-bottom: calc(-1 * var(--sp-2)); }
+.aw-ok { color: var(--ok); }
+@keyframes aw-in { from { opacity: 0; transform: translateY(10px) scale(.985); } }
+
+/* native OS dialogs (simulated): drawn by Windows in the real app, outside the webview */
+.native { width: min(380px, 100%); background: var(--panel3); border-radius: var(--r); box-shadow: var(--shadow-3); overflow: hidden; animation: aw-in var(--t-fast) var(--ease); }
+.native .nbar { display: flex; align-items: center; gap: var(--sp-2); height: 30px; padding: 0 var(--sp-3); font-size: var(--fs-small); color: var(--muted); border-bottom: 1px solid var(--line2); }
+.native .nbar i { width: 12px; height: 12px; border-radius: 3px; background: linear-gradient(135deg, var(--teal), var(--gold)); }
+.native .nbody { padding: var(--sp-3) var(--sp-4); display: grid; gap: var(--sp-2); }
+.native h3 { margin: 0; font: var(--fw-semibold) var(--fs-title3) var(--display); }
+.native p { margin: 0; }
+.native .faux { display: grid; gap: 2px; font-size: var(--fs-small); color: var(--muted); }
+.native .faux div { height: var(--ctl); display: flex; align-items: center; padding: 0 var(--sp-2); border: 1px solid var(--line2); border-radius: 4px; background: var(--panel2); color: var(--dim); font-style: italic; }
+.native .hello { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--teal-l); display: grid; place-items: center; color: var(--teal-l); margin: 0 auto; }
+.native .hello svg { width: 20px; height: 20px; }
+.native .nfoot { display: flex; justify-content: flex-end; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4) var(--sp-3); background: var(--panel2); }
+.tb-meters, .tb-badges { display: flex; align-items: center; gap: var(--sp-3); }
+.tb-badges { gap: var(--sp-1); }
+
+/* ---- variant 2 · The Circuit: the money path drawn as a circuit; the inspector fills from the selected part ---- */
+#page { max-width: 1040px; }
+.ui-pagehead h1:focus { outline: none; }
+.ui-pagehead .sub { display: flex; align-items: center; gap: var(--sp-2); }
+.ui-main > .ui-proto { margin-top: var(--sp-5); max-width: 1040px; }
+.ui-main .proto-in { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+.ui-main .proto-in > *, .ui-main .proto-in .ui-btn { white-space: nowrap; }
+.ui-main .proto-in label { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.ui-main .proto-in label .ui-field { width: 160px; }
+
+/* the circuit */
+.cx { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr) 34px minmax(0, 1fr) 34px minmax(0, 1fr) 34px minmax(0, 1fr);
+  grid-template-rows: auto 14px auto; padding: 30px var(--sp-3) var(--sp-3); border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); }
+.bracket { grid-row: 1; grid-column: 5 / 8; margin: -22px -6px -6px; border: 1px dashed color-mix(in srgb, var(--gold) 70%, var(--line)); border-radius: var(--r);
+  background: color-mix(in srgb, var(--gold) 5%, transparent); pointer-events: none; }
+.bracket.locked { border-style: solid; border-color: var(--gold); background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--gold) 8%, transparent) 0 6px, transparent 6px 12px); }
+.bracket-tag { grid-row: 1; grid-column: 5 / 8; align-self: start; justify-self: center; margin-top: -31px; z-index: 2; display: inline-flex; align-items: center; gap: 5px;
+  height: 20px; padding: 0 var(--sp-2); border-radius: 10px; border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line)); background: var(--panel); color: var(--gold-l);
+  cursor: pointer; font-size: var(--fs-small); font-weight: var(--fw-semibold); white-space: nowrap; }
+.bracket-tag svg { width: 11px; height: 11px; }
+.bracket-tag[aria-pressed="true"] { background: color-mix(in srgb, var(--gold) 18%, var(--panel)); }
+.node { grid-row: 1; position: relative; z-index: 1; display: grid; align-content: start; justify-items: start; gap: 3px; min-width: 0; padding: 6px var(--sp-2) 7px;
+  text-align: left; border-radius: var(--r-sm); border: 1.5px solid var(--line2); background: var(--bg2); color: var(--text); cursor: pointer; transition: border-color var(--t-fast); }
+.node:hover { border-color: var(--dim); }
+.node .k { font-size: var(--fs-small); color: var(--dim); }
+.node .v { max-width: 100%; font-weight: var(--fw-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.node.ok { border-color: color-mix(in srgb, var(--teal) 70%, var(--line)); }
+.node.broken { border-style: dashed; border-color: var(--refuse); background: color-mix(in srgb, var(--refuse) 6%, var(--bg2)); }
+.node.wait { border-color: var(--gold); }
+.node.unpowered { opacity: .7; }
+.node.end { background: color-mix(in srgb, var(--gold) 7%, var(--bg2)); }
+.node[aria-pressed="true"] { outline: 2px solid var(--focus); outline-offset: 2px; }
+.node.n-agents { grid-column: 1; } .node.n-engine { grid-column: 3; } .node.n-mandate { grid-column: 5; } .node.n-keychain { grid-column: 7; } .node.n-paypal { grid-column: 9; }
+.node.n-house { grid-row: 3; grid-column: 9; }
+.wire { grid-row: 1; position: relative; align-self: center; height: 28px; display: grid; place-items: center; }
+.wire::before { content: ""; position: absolute; left: -2px; right: -2px; top: 50%; height: 2px; transform: translateY(-50%); background: var(--line2); }
+.wire.live::before { background: repeating-linear-gradient(90deg, var(--teal-l) 0 6px, color-mix(in srgb, var(--teal) 35%, transparent) 6px 10px); background-size: 10px 2px; animation: flow .8s linear infinite; }
+.wire.cut::before { background: repeating-linear-gradient(90deg, var(--refuse) 0 3px, transparent 3px 6px); }
+.wire.cut::after { content: "×"; position: relative; z-index: 1; font: var(--fw-bold) var(--fs-body)/1 var(--mono); color: var(--red-l); background: var(--panel); padding: 0 2px; }
+@keyframes flow { to { background-position: 10px 0; } }
+.w1 { grid-column: 2; } .w2 { grid-column: 4; } .w3 { grid-column: 6; } .w4 { grid-column: 8; }
+.vwire { grid-row: 2; grid-column: 9; justify-self: center; width: 2px; background: var(--line2); }
+.vwire.live { background: repeating-linear-gradient(180deg, var(--coral-l) 0 4px, transparent 4px 8px); }
+.breaker { position: relative; z-index: 1; width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--teal); background: var(--panel); cursor: pointer; display: grid; place-items: center; padding: 0; }
+.breaker svg { width: 18px; height: 18px; }
+.breaker[aria-pressed="true"] { border-color: var(--coral); background: color-mix(in srgb, var(--coral) 14%, var(--panel)); }
+.cx-foot { grid-row: 3; grid-column: 1 / 8; align-self: end; display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--sp-4); }
+.cx-foot i { display: inline-block; width: 18px; height: 2px; vertical-align: middle; margin-right: 4px; background: var(--teal-l); }
+.cx-foot i.cut { background: repeating-linear-gradient(90deg, var(--refuse) 0 3px, transparent 3px 6px); }
+.cx-foot i.own { height: 10px; background: none; border: 1px dashed var(--gold); border-radius: 2px; }
+.ui-inspector .ui-group { margin-top: var(--sp-2); }
+.ui-inspector .ui-group + .ui-silence { margin-top: var(--sp-2); }
+.ui-inspector .acts { margin-top: var(--sp-2); }
+.ui-inspector .ui-row .lbl { width: 116px; }
+@media (max-width: 1180px) { .node .k { display: none; } .cx-foot .lg { display: none; } }
+</style>
+</head>
+<body>
+<div class="ui-app">
+  <header class="ui-titlebar">
+    <nav class="ui-crumbs" id="crumbs" aria-label="Breadcrumb"></nav>
+    <span class="ui-spacer"></span>
+    <span class="tb-meters" id="meters"></span>
+    <span class="tb-badges" id="badges"></span>
+    <button class="ui-btn sm" data-act="inspT" aria-pressed="true" id="inspT">Inspector</button><span id="lockHost"></span>
+  </header>
+  <div class="ui-split has-insp" id="split">
+    <aside class="ui-sidebar" aria-label="Modules"><div id="sbList" style="display:contents"></div>
+      <div class="ui-sb-foot"><div id="sbFoot" style="display:contents"></div></div></aside>
+    <main class="ui-main" id="view"><div class="banners" id="banner"></div><div id="page"></div><div class="ui-proto" id="proto" aria-label="Prototype controls"></div></main>
+    <aside class="ui-inspector" id="insp" aria-label="Inspector" aria-live="polite"></aside>
+  </div>
+</div>
+<div id="awLayer" class="layer" hidden></div>
+<div id="nativeLayer" class="layer" hidden></div>
+
+<script>
+(function () {
+'use strict';
+/* ---------------- core: data, state, owner acts, layer 2, approval window, native dialogs ---------------- */
+const F = window.FIX;
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = UI.esc;
+const money = (n) => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ENGINES = ['claude-code', 'codex-cli'];
+const NOW_LABEL = 'Thu 29 Oct 14:02';
+
+/* Data the dataset lacks, consistent with FIX (snapshot Thu 29 Oct 14:02). The returning owner
+   set up the wallet on Sat 17 Oct (S-2 and R-3 were signed then); M-12 v3 was signed Mon 26 Oct;
+   the sourcing agent opened a HOUSE table at 13:58 (D-0201), so the house is waking now. */
+const SETUP_FIX = {
+  returning: {
+    machine: 'both', probe: { 'claude-code': 'found', 'codex-cli': 'found' }, probedAt: 'Thu 29 Oct 08:00 · at launch',
+    engine: F.owner.engine,
+    keychain: { paypal: 'Sat 17 Oct', channel3: 'Sat 17 Oct' },
+    mandates: F.mandates,
+    house: 'waking', housePinged: '13:58 · D-0201 opened a HOUSE table',
+    idleMin: 3, hello: true, autostart: false, paused: false
+  },
+  first: {
+    machine: 'both', probe: { 'claude-code': 'unprobed', 'codex-cli': 'unprobed' }, probedAt: null,
+    engine: null, keychain: { paypal: null, channel3: null }, mandates: [],
+    house: 'idle', housePinged: null, idleMin: 0, hello: true, autostart: false, paused: false
+  }
+};
+/* What probe() finds on this machine (prototype switch). */
+const MACHINES = {
+  both: { label: 'both CLIs installed', r: { 'claude-code': 'found', 'codex-cli': 'found' } },
+  cc: { label: 'claude-code only', r: { 'claude-code': 'found', 'codex-cli': 'missing' } },
+  cx: { label: 'codex-cli only', r: { 'claude-code': 'missing', 'codex-cli': 'found' } },
+  none: { label: 'no CLI installed', r: { 'claude-code': 'missing', 'codex-cli': 'missing' } }
+};
+const CRED = {
+  paypal: { name: 'PayPal sandbox', what: 'client id + secret of your own sandbox REST app', fields: ['Client ID', 'Secret'], kind: 'paypal_sandbox',
+    why: 'Every PayPal call is made by the wallet’s Rust core with these. Without them the wallet makes no PayPal call at all.' },
+  channel3: { name: 'Market data (Channel3)', what: 'API key for market reference prices', fields: ['API key'], kind: 'channel3',
+    why: 'Without it every item shows “no market reference” and nothing is marked as passing the market check.' }
+};
+const MODS = [['tables', 'Tables'], ['spend', 'Spend'], ['counter', 'Counter'], ['book', 'Book'], ['shield', 'Shield'], ['rescue', 'Rescue']];
+const WALLET_WEEK = F.deals.filter((d) => d.side === 'buyer' && (d.state === 'CAPTURED' || d.state === 'RECEIPTED')).reduce((a, d) => a + d.amount, 0);
+const LOCK_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
+const OPEN_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.8-1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>';
+const WIN_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2 6h12" stroke="currentColor" stroke-width="1.4"/></svg>';
+
+let S;
+let AW = null;      // { task, stored, signed, fresh, opener }
+let NATIVE = null;  // { kind: 'hello' | 'cred', cred }
+let SHEET = null;   // { name, api, def }
+let POP = null;     // { name, api, def, arg }
+function fresh(moment) {
+  const b = SETUP_FIX[moment];
+  S = {
+    moment, machine: b.machine, probe: Object.assign({}, b.probe), probedAt: b.probedAt, engine: b.engine,
+    keychain: Object.assign({}, b.keychain), mandates: b.mandates.slice(), house: b.house, housePinged: b.housePinged,
+    idleMin: b.idleMin, locked: false, hello: b.hello, autostart: b.autostart, paused: b.paused
+  };
+  AW = null; NATIVE = null; closeLayers();
+}
+
+/* ---- derived truths: what must be true before agents can touch money ---- */
+const engineOk = () => !!S.engine && (S.engine === 'scripted' || S.probe[S.engine] === 'found');
+const keyOk = () => !!S.keychain.paypal;
+const mandateOk = () => S.mandates.length > 0;
+const runOk = () => !S.paused;
+const anyProbed = () => ENGINES.some((e) => S.probe[e] === 'found' || S.probe[e] === 'missing');
+const probing = () => ENGINES.some((e) => S.probe[e] === 'probing');
+function engineValue() {
+  if (S.engine === 'scripted') return 'scripted engine · no model';
+  if (S.engine && S.probe[S.engine] === 'found') return S.engine;
+  if (probing()) return 'probing…';
+  if (!anyProbed()) return 'not probed yet';
+  if (ENGINES.every((e) => S.probe[e] === 'missing')) return 'no CLI found';
+  return 'none selected';
+}
+function musts() {
+  return [
+    { k: 'engine', ok: engineOk(), title: 'Engine', value: engineValue(), sil: ['agents cannot start', 'nothing moves'], who: 'owner' },
+    { k: 'paypal', ok: keyOk(), title: 'PayPal credentials', value: keyOk() ? 'in the keychain · ' + S.keychain.paypal : 'not stored', sil: ['nothing stored', 'no PayPal call'], who: 'priv' },
+    { k: 'mandate', ok: mandateOk(), title: 'Signed mandate', value: mandateOk() ? S.mandates.map((m) => m.id + ' v' + m.v).join(' · ') : 'none signed', sil: ['every intent refused', '0 PayPal calls'], who: 'priv' },
+    { k: 'agents', ok: runOk(), title: 'Agents not paused', value: S.paused ? 'all paused' : 'may run', sil: ['stay paused', 'voids and lapses still run'], who: 'owner' }
+  ];
+}
+const allOk = () => musts().every((m) => m.ok);
+
+/* ---- small renderers ---- */
+function whoChip(kind) {
+  if (kind === 'priv') return `<span class="ui-chip gold" title="Only you, in the approval window${S.locked ? ' · locked: Windows Hello first' : ''}">${S.locked ? LOCK_SVG : ''}only you</span>`;
+  if (kind === 'owner') return '<span class="ui-chip teal" title="You, here in The Table">you</span>';
+  return '<span class="ui-chip dashed" title="Fixed: nobody can change it">fixed</span>';
+}
+/* A privileged act hands off to the approval window, or shows the idle lock. */
+function privBtn(label, task, kind = 'gold') {
+  if (S.locked) return `<button class="ui-btn sm gold locked" data-act="aw" data-task="unlock" title="Idle ${S.idleMin} min: Windows Hello first">Unlock with Windows Hello</button>`;
+  return `<button class="ui-btn sm ${kind}" data-act="aw" data-task="${task}">${esc(label)} ↗</button>`;
+}
+const pauseBtn = (cls = 'sm') => S.paused
+  ? `<button class="ui-btn ${cls} primary" data-act="resume">Resume agents</button>`
+  : `<button class="ui-btn ${cls}" data-act="pause" title="One click, no confirmation: restricting is free"><span class="coral" aria-hidden="true">‖</span>Pause all agents</button>`;
+const silent = (b, rest) => `<div class="ui-silence">silent → <b>${b}</b>${rest ? ' · ' + rest : ''}</div>`;
+const info = (act, key, label, id) => `<button class="ui-btn plain sm" data-act="${act}" data-${act}="${key}"${id ? ` data-id="${id}"` : ''} aria-label="${esc(label)}" title="${esc(label)}">ⓘ</button>`;
+const probeChip = (s) => s === 'found' ? '<span class="ui-chip ok">found</span>' : s === 'missing' ? '<span class="ui-chip">not found</span>'
+  : s === 'probing' ? '<span class="ui-chip teal">probing…</span>' : '<span class="ui-chip dashed">unknown</span>';
+const houseChip = () => ({ idle: '<span class="ui-chip">idle</span>', waking: '<span class="ui-chip gold">waking</span>', ready: '<span class="ui-chip ok">ready</span>', unavailable: '<span class="ui-chip dashed">unavailable</span>' })[S.house];
+const houseLine = () => ({ idle: 'sleeps until someone sits down', waking: 'waking up · ≈ 1 min', ready: 'ready · answers at once', unavailable: 'unavailable in this build' })[S.house];
+const wakeBtn = (kind = 'primary') => S.house === 'ready'
+  ? '<a class="ui-btn sm" href="../../tables/variant-1/index.html">Sit down ↗</a>'
+  : `<button class="ui-btn sm ${S.house === 'idle' ? kind : ''}" data-act="wake" ${S.house === 'idle' ? '' : 'disabled'}>${S.house === 'waking' ? 'Waking…' : 'Wake it now'}</button>`;
+const probeBtn = () => `<button class="ui-btn sm ${anyProbed() ? '' : 'primary'}" data-act="probe" ${probing() ? 'disabled' : ''}>${probing() ? 'Probing…' : anyProbed() ? 'Probe again' : 'Probe for engines'}</button>`;
+
+/* engine options as radio rows (k keeps radio names apart when two lists are on screen) */
+function engRows(k, withInfo) {
+  const row = (id, name, chip, on, extra) => `<label class="ui-row"><input type="radio" class="ui-check" name="eng-${k}" data-act="engine" data-id="${id}" ${S.engine === id ? 'checked' : ''} ${on ? '' : 'disabled'}>
+    <span class="main"><span class="t1${on ? '' : ' dim'}">${name}</span></span><span class="end">${chip}${extra}</span></label>`;
+  return ENGINES.map((id) => row(id, `<span class="mono">${id}</span>`, probeChip(S.probe[id]), S.probe[id] === 'found', withInfo ? info('pop', 'probe', 'Probe detail · ' + id, id) : '')).join('')
+    + row('scripted', 'Scripted engine <span class="dim">· no model</span>', '<span class="badge scripted_engine">Scripted</span>', true, withInfo ? info('sheet', 'scripted', 'What the scripted engine is') : '');
+}
+const probeFoot = () => `<div class="ui-row foot"><span class="ui-hint">${S.probedAt ? 'last probe ' + esc(S.probedAt) : 'not probed yet'}</span><span class="end">${probeBtn()}</span></div>`;
+function credRow(c, compact) {
+  const v = S.keychain[c];
+  if (compact) return `<div class="ui-row two"><span class="main"><span class="t1">${esc(CRED[c].name)}</span><span class="t2">${v ? '<span class="okc">stored</span> · ' + esc(v) : c === 'paypal' ? '<span class="red">not stored</span>' : 'not stored · optional'}</span></span>
+    <span class="end">${privBtn(v ? 'Replace…' : 'Store…', c, v || c === 'channel3' ? '' : 'gold')}</span></div>`;
+  return `<div class="ui-row"><span class="main"><span class="t1">${esc(CRED[c].name)}${c === 'channel3' ? ' <span class="dim">· optional</span>' : ''}</span></span>
+    <span class="end">${v ? `<span class="ui-chip ok">stored</span><span class="ui-hint">${esc(v)}</span>` : c === 'paypal' ? '<span class="ui-chip red">not stored</span>' : '<span class="ui-chip">not stored</span>'}
+    ${privBtn(v ? 'Replace…' : 'Store…', c, v || c === 'channel3' ? '' : 'gold')}</span></div>`;
+}
+const clauseRows = (m) => m.clauses.map((c) => `<div class="ui-row"><span class="id">${c.n}</span><span class="lbl" style="width:120px">${esc(c.name)}</span><span class="st">${esc(c.text)}</span></div>`).join('');
+
+/* ---- toasts (where the real app calls Rust or PayPal) ---- */
+function toast(html, kind) { const n = document.createElement('span'); n.innerHTML = html; UI.toast(n, kind); }
+
+/* ---- layer 2: sheets and popovers, re-rendered from state while open ---- */
+const SHEETS = {
+  engine: { title: () => 'Engine', body: () => {
+    const none = anyProbed() && ENGINES.every((e) => S.probe[e] === 'missing');
+    return `<p class="muted">The wallet ships no model. Agents run headless on a CLI you already have; <code>probe()</code> checks its path, version and sign-in.</p>
+      <div class="ui-group" role="radiogroup" aria-label="Engine">${engRows('sheet', false)}${probeFoot()}</div>
+      <dl class="ui-kv">${ENGINES.map((e) => `<dt class="mono">${e}</dt><dd>${S.probe[e] === 'found' ? 'path ✓ · version ✓ · signed in ✓' : S.probe[e] === 'missing' ? 'not found on this machine' : S.probe[e] === 'probing' ? 'probing…' : 'not probed yet'}</dd>`).join('')}
+        <dt>Scripted</dt><dd>${none ? 'no CLI found: agents can replay recorded engine turns' : 'replays recorded engine turns · for machines without a CLI'}</dd>
+        <dt>Engine estimate</dt><dd>${S.engine === 'scripted' ? 'scripted · no model' : S.moment === 'first' ? '$0.00 · no runs yet' : money(F.engineWeekUSD) + ' this week'} <span class="dim">· the CLI’s own estimate, not a bill</span></dd>
+        <dt>Who</dt><dd>you, here · the choice changes which CLI runs, never what agents may do</dd></dl>
+      ${silent('no engine', 'agents cannot start · nothing moves')}`;
+  } },
+  keychain: { title: () => 'Credentials · OS keychain', body: () => `<p class="muted">${esc(CRED.paypal.why)}</p>
+      <div class="ui-group">${credRow('paypal')}${credRow('channel3')}</div>
+      <dl class="ui-kv"><dt>Typed into</dt><dd>a native Windows dialog owned by the wallet’s Rust process, never this window</dd>
+        <dt>Kept in</dt><dd>the OS keychain only · never a file, a log, the webview or an agent</dd>
+        <dt>This window learns</dt><dd>“stored” or “not stored”, nothing else</dd>
+        <dt>Who</dt><dd>only you, in the approval window · Windows Hello first after 15 idle min</dd>
+        <dt>Market key</dt><dd>${esc(CRED.channel3.why)}</dd>
+        <dt>No account?</dt><dd>Judges get test credentials through the submission form; they are never in the repository.</dd></dl>
+      ${silent(keyOk() ? 'the stored credentials stay as they are' : 'nothing is stored', keyOk() ? '' : 'the wallet makes no PayPal call')}` },
+  mandates: { title: () => mandateOk() ? `Mandates · ${S.mandates.length} active` : 'First mandate · starter', size: 'wide', body: () => {
+    if (mandateOk()) return `<div class="ui-group">${S.mandates.map((m) => `<div class="ui-row"><span class="id">${esc(m.id)}</span><span class="main"><span class="t1">v${m.v} · ${esc(m.kind)}</span></span><span class="end"><span class="ui-hint">signed ${esc(m.signed)}</span><span class="ui-chip ok">active</span></span></div>`).join('')}</div>
+      <p class="ui-hint">Agents can propose anything; the core signs only what fits. A new version is a new signed row; the old one stays in the audit chain.</p>
+      <div class="acts">${privBtn('New version…', 'mandate', '')}<a class="ui-btn sm plain" href="../../mandate/variant-1/index.html">Open the mandate editor ↗</a></div>`;
+    const m0 = F.mandates[0];
+    return `<p class="muted">Until one is signed, every agent intent is refused before any network call: zero rows in <code>paypal_calls</code>. Starter values come from ${esc(F.owner.name)}’s sample week.</p>
+      <div class="ui-group">${clauseRows(m0)}</div>
+      <div class="acts">${privBtn('Sign your first mandate…', 'mandate')}<a class="ui-btn sm plain" href="../../mandate/variant-1/index.html">Edit clauses ↗</a></div>
+      ${silent('nothing is signed', 'every agent intent stays refused')}`;
+  } },
+  agents: { title: () => 'Agents', body: () => `<p class="muted">Agents propose; the core checks every intent against your mandate before any network call. They never pay.</p>
+      ${S.moment === 'first' ? '<p class="ui-hint">No agent has run yet.</p>' : `<div class="ui-group">${F.agents.map((a) => `<div class="ui-row"><span class="ui-dot ${S.paused ? 'coral' : 'teal'}"></span><span class="lbl">${esc(a.name)}</span><span class="st">${esc(a.does)}</span><span class="ui-chip line">${esc(a.engine)}</span></div>`).join('')}</div>`}
+      <dl class="ui-kv"><dt>Pause</dt><dd>cancels running jobs and revokes grants · one click, no confirmation</dd><dt>Still runs</dt><dd>polls and safe defaults (voids, lapses)</dd><dt>Resume</dt><dd>each deal restarts explicitly</dd><dt>Also in</dt><dd>the tray menu and the Tumbler</dd></dl>
+      <div class="acts">${pauseBtn()}</div>${silent(S.paused ? 'they stay paused' : 'agents keep working inside the mandate', S.paused ? 'no money moves' : 'anything outside it is refused')}` },
+  house: { title: () => 'HOUSE seller', body: () => `<p class="muted">A scripted sandbox merchant with no model, so one install can still haggle. It only ever sells to you.</p>
+      <dl class="ui-kv"><dt>State</dt><dd>${houseChip()} ${esc(houseLine())}</dd>${S.housePinged ? `<dt>Pinged</dt><dd>${esc(S.housePinged)}</dd>` : ''}
+        <dt>Key</dt><dd>pinned in the release, so there is no words check</dd><dt>Sleeps</dt><dd>after 15 idle min · a cold start takes about a minute</dd>
+        <dt>Who wakes it</dt><dd>you, here · or an agent opening a HOUSE table under clause 2</dd></dl>
+      <div class="acts">${wakeBtn()}</div>${silent('the house keeps sleeping', 'nothing moves')}` },
+  lock: { title: () => 'Idle lock', body: () => `<dl class="ui-kv"><dt>Now</dt><dd>${S.locked ? `<span class="ui-chip gold">locked</span> idle ${S.idleMin} min` : `<span class="ui-chip ok">unlocked</span> idle ${S.idleMin} min`}</dd>
+        <dt>Locks</dt><dd>credentials · mandates · pairing words · countersign · release · open PayPal</dd>
+        <dt>Never locks</dt><dd>read-only views · pause · engine choice · waking the house</dd>
+        <dt>Length</dt><dd>15 min · PayPal’s own rule for idle sessions · nobody can lengthen it</dd>
+        <dt>Unlock</dt><dd>Windows Hello ${S.hello ? 'is available' : 'is not available'} on this system</dd></dl>
+      ${S.locked ? `<div class="acts" style="margin-top:12px"><button class="ui-btn sm gold locked" data-act="aw" data-task="unlock">Unlock with Windows Hello</button></div>${silent('it stays locked', 'no money moves')}` : ''}` },
+  scripted: { title: () => 'Scripted engine', body: () => `<p class="muted">Agents replay engine turns recorded during development against the real wallet. For machines without a CLI.</p>
+      <dl class="ui-kv"><dt>Real</dt><dd>mandate refusals · owner signatures · sandbox PayPal calls</dd><dt>Canned</dt><dd>only the choice of number</dd><dt>Shown as</dt><dd><span class="badge scripted_engine">Scripted engine</span> on every screen</dd></dl>
+      ${S.engine === 'scripted' ? '' : '<div class="acts" style="margin-top:12px"><button class="ui-btn sm" data-act="engine" data-id="scripted">Use the scripted engine</button></div>'}` },
+  who: { title: () => 'Who can set what', size: 'wide', body: () => {
+    const ra = (a, b) => `<div class="ui-row two"><span class="main"><span class="t1">${a}</span><span class="t2">${b}</span></span></div>`;
+    const r = (a, b, c) => `<div class="ui-row"><span class="lbl" style="width:220px">${a}</span><span class="st">${b}</span>${c || '<span class="ui-chip red">agents: never</span>'}</div>`;
+    return `<div class="ui-section-h"><h3>Only you · in the approval window${S.locked ? ' · locked' : ''}</h3></div>
+      <div class="ui-group">${r('PayPal sandbox credentials', 'native Windows dialog → OS keychain')}${r('Market data key', 'native Windows dialog → OS keychain')}
+        ${r('Mandates · sign, version, revoke', 'approval window', '<span class="ui-chip red">agents: propose only</span>')}${r('Pairing words', 'approval window · pins a counterparty')}${r('Unlock after 15 idle min', 'Windows Hello')}</div>
+      <div class="ui-section-h" style="margin-top:12px"><h3>You · here in The Table</h3></div>
+      <div class="ui-group">${r('Engine', 'Settings')}${r('Pause / resume all agents', 'here, the tray or the Tumbler · one click')}${r('Wake the HOUSE seller', 'here', '<span class="ui-chip line">agents: via a HOUSE table</span>')}${r('Start at log-in', 'Settings')}</div>
+      <div class="ui-section-h" style="margin-top:12px"><h3>Fixed · nobody can change it</h3></div>
+      <div class="ui-group">${r('Idle lock length', '15 min · PayPal’s rule')}${r('Mode', 'SANDBOX in this build')}${r('HOUSE seller key', 'pinned in the release')}</div>
+      <div class="ui-section-h" style="margin-top:12px"><h3>Money moves only on one of three authorities</h3></div>
+      <div class="ui-group">${ra('1 · Your decision', 'in the approval window: countersign, release a hold, approve a rescue lever, open PayPal')}
+        ${ra('2 · A rule you signed', 'e.g. clause 6 captures under $250 to an allowlisted payee; your shop captures what a buyer already approved')}
+        ${ra('3 · A safe default', 'void or let it lapse at the deadline · never a capture')}${r('✗ · An agent', 'never: it has no tool that moves money', '<span class="ui-chip red">never</span>')}</div>`;
+  } }
+};
+const POPS = {
+  probe: { title: (id) => 'probe() · ' + id, body: (id) => `<dl class="ui-kv"><dt>State</dt><dd>${probeChip(S.probe[id])}</dd>
+      ${S.probe[id] === 'found' ? '<dt>Path</dt><dd>found ✓</dd><dt>Version</dt><dd>supported ✓</dd><dt>Sign-in</dt><dd>signed in ✓</dd>' : S.probe[id] === 'missing' ? '<dt>Path</dt><dd>not found on this machine</dd>' : '<dt>Path</dt><dd>not probed yet</dd>'}
+      <dt>Probed</dt><dd>${esc(S.probedAt || '—')}</dd></dl>` },
+  clauses: { title: () => F.mandates[0].id + ' starter · ' + F.mandates[0].clauses.length + ' clauses', body: () => `<div class="ui-group">${F.mandates[0].clauses.map((c) => `<div class="ui-row" title="${esc(c.text)}"><span class="id">${c.n}</span><span class="st" style="color:var(--text)">${esc(c.name)}</span></div>`).join('')}</div><p class="ui-hint">Each clause is read in full, and signed, in the approval window.</p>` },
+  autostart: { title: () => 'Start at log-in', body: () => '<p class="muted">Off by default. When on, the Tumbler appears at sign-in. It never changes what agents may do.</p>' }
+};
+function layerDef(kind, name) { const own = VARIANT[kind] || {}; return own[name] || (kind === 'sheets' ? SHEETS : POPS)[name]; }
+function openSheet(name) {
+  closeLayers();
+  const def = layerDef('sheets', name);
+  if (!def) return;
+  const api = UI.sheet({ title: def.title(), body: def.body(), size: def.size || '', actions: def.actions ? def.actions() : [{ label: 'Done', kind: 'primary' }] });
+  SHEET = { name, api, def };
+}
+function openPop(anchor, name, arg) {
+  const same = POP && POP.name === name && POP.arg === arg && document.body.contains(POP.api.el);
+  closePop();
+  if (same) return;
+  const def = layerDef('pops', name);
+  if (!def) return;
+  POP = { name, arg, def, api: UI.popover(anchor, def.body(arg), { title: def.title ? def.title(arg) : '' }) };
+}
+function closePop() { if (POP) { POP.api.close(); POP = null; } }
+function closeLayers() { closePop(); if (SHEET) { SHEET.api.close(); SHEET = null; } }
+function refreshLayers() {
+  if (SHEET) {
+    if (!document.body.contains(SHEET.api.el)) SHEET = null;
+    else { SHEET.api.el.querySelector('.ui-sheet-b').innerHTML = SHEET.def.body(); SHEET.api.el.querySelector('.ui-sheet-h h2').textContent = SHEET.def.title(); }
+  }
+  if (POP) {
+    if (!document.body.contains(POP.api.el)) POP = null;
+    else POP.api.el.lastElementChild.innerHTML = POP.def.body(POP.arg);
+  }
+}
+
+/* ---- owner acts ---- */
+const A = {
+  probe() {
+    if (probing()) return;
+    ENGINES.forEach((e) => { S.probe[e] = 'probing'; });
+    render();
+    setTimeout(() => {
+      const r = MACHINES[S.machine].r;
+      ENGINES.forEach((e) => { S.probe[e] = r[e]; });
+      S.probedAt = NOW_LABEL;
+      if (S.engine && S.engine !== 'scripted' && r[S.engine] !== 'found') S.engine = null;
+      if (!S.engine) S.engine = ENGINES.find((e) => r[e] === 'found') || null;
+      const found = ENGINES.filter((e) => r[e] === 'found');
+      toast(`<code>engine_probe()</code> → ${found.length ? found.map(esc).join(' + ') + ' found' : 'no CLI found · the scripted engine is available'}`, found.length ? 'ok' : 'bad');
+      render();
+    }, RM ? 250 : 900);
+  },
+  engine(d) {
+    const id = d.id;
+    if (id !== 'scripted' && S.probe[id] !== 'found') return;
+    S.engine = id; render();
+    toast(`<code>engine_select(${esc(id)})</code> · ${id === 'scripted' ? 'scripted engine: recorded turns, real wallet' : 'agents run on ' + esc(id)}`);
+  },
+  pause() { S.paused = true; render(); toast('<b>All agents paused.</b> <code>pause_all_agents</code> · voids and lapses still run', 'gold'); },
+  resume() { S.paused = false; render(); toast('<code>resume_all_agents</code> · agents may run · each deal restarts explicitly', 'ok'); },
+  wake() {
+    if (S.house === 'waking' || S.house === 'ready') return;
+    S.house = 'waking'; S.housePinged = '14:02 · you pinged /healthz'; render();
+    toast('<code>house_wake()</code> · pinged the house seller · cold start ≈ 1 min');
+  },
+  houseSim() { S.house = 'ready'; render(); toast('Prototype · sandbox simulation: the house seller answered <code>/healthz</code>', 'ok'); },
+  houseSleep() { S.house = 'idle'; S.housePinged = null; render(); toast('Prototype · sandbox simulation: the house spun down after 15 idle min'); },
+  autostart(d) { S.autostart = d && d.on != null ? d.on === '1' : !S.autostart; render(); toast(`Start at log-in: <b>${S.autostart ? 'on' : 'off'}</b>`); },
+  idleSim() {
+    S.locked = !S.locked; S.idleMin = S.locked ? 17 : 0; render();
+    toast(S.locked ? 'Prototype · simulated 17 min idle: privileged acts now show the lock' : 'Prototype · idle timer reset', S.locked ? 'gold' : '');
+  },
+  moment(d) { fresh(d.m); if (VARIANT.reset) VARIANT.reset(); render(); toast(d.m === 'first' ? 'First run · nothing configured' : 'Returning · ' + esc(F.owner.name) + '’s wallet on ' + NOW_LABEL); },
+  aw(d) { openAW(d.task); },
+  sheet(d) { openSheet(d.sheet); },
+  pop(d, el) { openPop(el, d.pop, d.id); },
+  lockpill() { if (S.locked) openAW('unlock'); else openSheet('lock'); },
+  awClose() { closeAW(); },
+  unlock() { NATIVE = { kind: 'hello' }; renderNative(); },
+  credDialog(d) { NATIVE = { kind: 'cred', cred: d.cred }; renderNative(); },
+  nativeOk() {
+    if (!NATIVE) return;
+    if (NATIVE.kind === 'hello') {
+      S.locked = false; S.idleMin = 0;
+      toast('<code>reauth()</code> · Windows Hello ✓ · unlocked · re-locks after 15 idle min', 'ok');
+    } else {
+      const c = NATIVE.cred;
+      S.keychain[c] = NOW_LABEL;
+      if (AW) AW.stored = c;
+      toast(`<code>set_credentials(${CRED[c].kind})</code> → OS keychain · nothing crossed into the webview`, 'ok');
+    }
+    NATIVE = null; renderNative(); render();
+  },
+  nativeCancel() {
+    if (!NATIVE) return;
+    toast(NATIVE.kind === 'hello' ? 'Windows Hello cancelled · still locked · no money moves' : 'Dialog cancelled · nothing stored');
+    NATIVE = null; renderNative(); render();
+  },
+  signFirst() {
+    if (S.locked) return;
+    const m = F.mandates[0];
+    S.mandates = [{ id: m.id, v: 1, kind: m.kind, status: 'active', signed: NOW_LABEL, clauses: m.clauses, agentKey: m.agentKey }];
+    if (AW) AW.signed = true;
+    toast(`<code>mandate_sign(${m.id} v1)</code> · ${m.clauses.length} clauses · owner signature verified by Rust`, 'ok');
+    render();
+  }
+};
+
+/* ---- approval window (a separate, privileged OS window in the real app) ---- */
+function openAW(task) { closeLayers(); AW = { task, stored: null, signed: false, fresh: true, opener: sigOf(document.activeElement) }; render(); toast('<code>approval_open(deal_id = null)</code> · owner configuration', 'gold'); }
+function closeAW() {
+  const o = AW && AW.opener; AW = null; render();
+  const c = o ? $$('[data-act],[data-row],[data-tok]').find((e) => sigOf(e) === o) : null;
+  if (c) c.focus();
+}
+function awView() {
+  const t = AW.task, close = '<button class="ui-btn" data-act="awClose">Close</button>';
+  if (S.locked) {
+    return { k: `Locked · idle ${S.idleMin} min`, h: 'Unlock with Windows Hello',
+      b: `<div class="notice locked"><span class="n-code">Locked</span><span>Idle ${S.idleMin} min. PayPal asks for re-authentication after 15 idle minutes.</span></div>
+        <details class="ui-disclosure"><summary>What waits for you</summary><div class="ui-hint">Storing credentials, signing mandates, confirming pairings and releasing money. Read-only views stay open.</div></details>`,
+      s: silent('it stays locked', 'no money moves'), f: `${close}<button class="ui-btn gold locked" data-act="unlock">Unlock with Windows Hello</button>` };
+  }
+  if (t === 'unlock') return { k: 'Unlocked', h: 'The privileged tier is open', b: '<p class="ui-hint" style="margin:0">It locks again after 15 idle minutes.</p>', f: close };
+  if (t === 'paypal' || t === 'channel3') {
+    const c = CRED[t], stored = S.keychain[t];
+    return { k: 'Owner configuration · credentials', h: `${stored ? 'Replace' : 'Store'} ${esc(c.name)}`,
+      b: `<div class="ui-group"><div class="ui-row two"><span class="main"><span class="t1">${esc(c.name)}</span><span class="t2">${esc(c.what)}</span></span>
+          <span class="end">${stored ? `<span class="ui-chip ok">stored</span><span class="ui-hint">${esc(stored)}</span>` : '<span class="ui-chip gold">not stored</span>'}</span></div></div>
+        ${AW.stored === t ? '<div class="aw-ok">✓ Stored by the native dialog. Nothing was typed into this window.</div>' : ''}
+        <details class="ui-disclosure"><summary>Why a Windows dialog</summary><div class="ui-hint">You never type a secret into The Table. A native dialog owned by the wallet’s Rust process writes it to the OS keychain; the webview only learns “stored”.${t === 'paypal' ? ' Judges get test credentials through the submission form; they are never in the repository.' : ''}</div></details>`,
+      s: silent('nothing is stored', `the wallet makes no ${t === 'paypal' ? 'PayPal' : 'market'} call`),
+      f: `${close}<button class="ui-btn ${stored ? '' : 'primary'}" data-act="credDialog" data-cred="${t}">${stored ? 'Replace in the Windows dialog…' : 'Open the Windows dialog…'}</button>` };
+  }
+  const m0 = F.mandates[0];
+  if (S.moment === 'returning' && !AW.signed && S.mandates.length) {
+    return { k: 'Owner configuration · mandates', h: `${S.mandates.length} active mandates`,
+      b: `<div class="ui-group">${S.mandates.map((m) => `<div class="ui-row"><span class="id">${esc(m.id)}</span><span class="main"><span class="t1">v${m.v} · ${esc(m.kind)}</span></span><span class="ui-hint">signed ${esc(m.signed)}</span></div>`).join('')}</div>
+        <p class="ui-hint" style="margin:0">A new version is a new signed row; the old one stays in the audit chain.</p>`,
+      s: silent(`${esc(m0.id)} v${m0.v} stays in force as signed`),
+      f: `${close}<a class="ui-btn primary" href="../../mandate/variant-1/index.html">Open the mandate editor ↗</a>` };
+  }
+  if (AW.signed) {
+    return { k: 'Signed', h: `${esc(m0.id)} v1 is in force`,
+      b: `<div class="aw-ok">✓ Owner signature verified by Rust · ${m0.clauses.length} clauses · agent key <span class="mono">${esc(m0.agentKey)}</span></div>
+        <p class="ui-hint" style="margin:0">Agents may now act inside it. Anything outside it is refused before any network call.</p>`, f: close };
+  }
+  return { k: 'Owner configuration · first mandate', h: 'Sign your first mandate',
+    b: `<div class="ui-group">${clauseRows(m0)}</div>
+      <details class="ui-disclosure"><summary>What signing does</summary><div class="ui-hint">Until a mandate is signed, every agent intent is refused before any network call: zero rows in <code>paypal_calls</code>. Agents can propose anything; the core signs only what fits. Starter values come from ${esc(F.owner.name)}’s sample week; every clause is edited in the <a class="teal" href="../../mandate/variant-1/index.html">mandate editor</a>.</div></details>`,
+    s: silent('nothing is signed', 'every agent intent stays refused'),
+    f: `<button class="ui-btn" data-act="awClose">Not now</button><button class="ui-btn primary" data-act="signFirst">Sign with owner key</button>` };
+}
+function renderAW() {
+  const L = $('#awLayer');
+  if (!AW) { L.hidden = true; L.innerHTML = ''; return; }
+  L.hidden = false;
+  const first = AW.fresh; AW.fresh = false;
+  const v = awView();
+  L.innerHTML = `<section class="aw" role="dialog" aria-modal="true" aria-label="Approval window · owner configuration">
+    <header class="ui-titlebar"><span class="aw-lamp" aria-hidden="true"></span><span class="ui-title">Approval</span><span class="ui-hint">The Table › owner configuration</span><span class="ui-spacer"></span>${modeBadges()}<button class="ui-btn plain icon" data-act="awClose" aria-label="Close the approval window">✕</button></header>
+    <div class="aw-b"><div class="aw-k">${v.k}</div><h2 tabindex="-1">${v.h}</h2>${v.b}${v.s || ''}</div>
+    <footer class="ui-sheet-f">${v.f}</footer></section>`;
+  if (!NATIVE && first) L.querySelector('h2').focus();
+}
+function renderNative() {
+  const L = $('#nativeLayer');
+  if (!NATIVE) { L.hidden = true; L.innerHTML = ''; return; }
+  L.hidden = false;
+  let body;
+  if (NATIVE.kind === 'hello') {
+    body = `<div class="nbar"><i></i>Windows Security</div><div class="nbody">
+      <h3>Making sure it’s you</h3><div class="hello" aria-hidden="true">${LOCK_SVG}</div>
+      <p>The Table wants to unlock its privileged tier.</p>
+      <p class="ui-hint">Prototype: simulates the OS prompt. The webview only learns pass or fail.</p></div>
+      <div class="nfoot"><button class="ui-btn sm primary" data-act="nativeOk">Prototype · simulate: verified</button><button class="ui-btn sm" data-act="nativeCancel">Cancel</button></div>`;
+  } else {
+    const c = CRED[NATIVE.cred];
+    body = `<div class="nbar"><i></i>The Table · OS keychain</div><div class="nbody">
+      <h3>${esc(c.name)}</h3><p class="muted">Enter the ${esc(c.what)}. It is written to the OS keychain and never shown again.</p>
+      ${c.fields.map((f) => `<div class="faux"><span>${esc(f)}</span><div>typed here in the real OS dialog</div></div>`).join('')}
+      <p class="ui-hint">Prototype: simulates a dialog owned by the Rust process. This page has no secret field.</p></div>
+      <div class="nfoot"><button class="ui-btn sm primary" data-act="nativeOk">Prototype · simulate: OK</button><button class="ui-btn sm" data-act="nativeCancel">Cancel</button></div>`;
+  }
+  L.innerHTML = `<div class="native" role="dialog" aria-modal="true" aria-label="Native dialog (simulated)">${body}</div>`;
+  const f = L.querySelector('.ui-btn'); if (f) f.focus();
+}
+
+/* ---- chrome: title bar, sidebar, banners, prototype dock ---- */
+function modeBadges() {
+  return '<span class="badge sandbox">Sandbox</span>' + (S.engine === 'scripted' ? '<span class="badge scripted_engine">Scripted engine</span>' : '');
+}
+function renderChrome() {
+  $('#badges').innerHTML = modeBadges();
+  const first = S.moment === 'first';
+  const eng = S.engine === 'scripted' ? 'scripted' : first ? '$0.00' : '~' + money(F.engineWeekUSD);
+  $('#meters').innerHTML = `<span class="tb-meter" title="USD your agents committed (captured) this week"><span class="ui-hint">wallet<span class="long"> · week</span></span><span class="money">${money(first ? 0 : WALLET_WEEK)}</span></span>
+    <span class="tb-meter" title="The CLI’s own estimate of model use. Not a bill."><span class="ui-hint">engine est.<span class="long"> · not a bill</span></span><span class="money">${eng}</span></span>`;
+  $('#lockHost').innerHTML = S.locked
+    ? `<button class="ui-btn sm gold locked" data-act="lockpill" aria-label="Locked: unlock with Windows Hello in the approval window">Locked · ${S.idleMin} min</button>`
+    : `<button class="ui-btn sm plain" data-act="lockpill" aria-label="Unlocked; locks after 15 idle minutes" style="color:var(--muted)">${OPEN_SVG}Unlocked · ${S.idleMin} min</button>`;
+  const cnt = (k) => first ? 0 : F.deals.filter((d) => d.module === k).length;
+  const dot = (c) => `<span class="ico"><span class="ui-dot" style="color:var(${c})"></span></span>`;
+  $('#sbList').innerHTML = `<div class="ui-sb-head">Modules</div>${MODS.map(([k, n]) => `<a class="ui-sb-item" href="../../${k}/variant-1/index.html">${dot('--m-' + k)}<span class="lbl">${n}</span><span class="cnt">${cnt(k) || '–'}</span></a>`).join('')}`;
+  $('#sbFoot').innerHTML = `<a class="ui-sb-item" href="../../mandate/variant-1/index.html">${dot('--dim')}<span class="lbl">Mandates</span><span class="cnt">${S.mandates.length || '–'}</span></a>
+    <a class="ui-sb-item on" href="#" aria-current="page">${dot('--gold')}<span class="lbl">${first ? 'Setup' : 'Settings'}</span></a>`;
+  let h = '';
+  if (S.engine === 'scripted') h += `<div class="notice"><span class="badge scripted_engine">Scripted engine</span><span class="grow">recorded engine turns · real wallet · real sandbox calls</span><button class="ui-btn plain sm" data-act="sheet" data-sheet="scripted">What is real?</button></div>`;
+  if (S.paused) h += `<div class="notice"><span class="ui-chip coral">Paused</span><span class="grow">All agents paused <span class="dim">· nothing new starts · voids and lapses still run · no money moves</span></span>${pauseBtn()}</div>`;
+  $('#banner').innerHTML = h;
+}
+function renderProto() {
+  const p = $('#proto'); if (!p) return;
+  if (!p.firstChild) {
+    p.innerHTML = `<div class="proto-in"><div class="ui-seg" role="group" aria-label="Moment"><button data-act="moment" data-m="first">First run</button><button data-act="moment" data-m="returning">Returning</button></div>
+      <label>probe() finds<select class="ui-field" id="machineSel" aria-label="What probe finds on this machine">${Object.entries(MACHINES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}</select></label>
+      <button class="ui-btn sm" data-act="idleSim" id="idleBtn"></button><span id="houseSimHost"></span></div>`;
+  }
+  $$('[data-act="moment"]', p).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === S.moment)));
+  $('#machineSel').value = S.machine;
+  const ib = $('#idleBtn'); ib.textContent = S.locked ? 'Reset idle timer' : 'Simulate 17 min idle'; ib.setAttribute('aria-pressed', String(S.locked));
+  $('#houseSimHost').innerHTML = S.house === 'waking' ? '<button class="ui-btn sm" data-act="houseSim">Sandbox simulation: house answers</button>'
+    : S.house === 'ready' ? '<button class="ui-btn sm" data-act="houseSleep">Sandbox simulation: house sleeps</button>' : '';
+}
+
+function sigOf(el) {
+  if (!el || !el.dataset) return null;
+  const d = el.dataset;
+  return [d.act, d.task, d.id, d.cred, d.m, d.i, d.row, d.tok, d.sheet, d.pop, d.on].map((x) => x || '').join('|');
+}
+function render() {
+  const ae = document.activeElement;
+  const s1 = sigOf(ae);
+  const rowEl = ae && ae.closest ? ae.closest('[data-row]') : null;
+  const s2 = rowEl ? rowEl.dataset.row : null;
+  const host = ae && ae.closest ? ae.closest('.ui-sheet, .ui-popover') : null;
+  renderChrome(); renderProto();
+  VARIANT.render();
+  refreshLayers();
+  renderAW();
+  if (ae && ae !== document.body && !document.body.contains(ae) && !AW && !NATIVE) {
+    const scope = host && document.body.contains(host) ? host : document;
+    const c = $$('[data-act],[data-row],[data-tok]', scope).find((e) => sigOf(e) === s1) || (s2 != null ? $(`[data-row="${s2}"]`) : null);
+    if (c) c.focus();
+  }
+}
+
+/* ---- events ---- */
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-act]');
+  if (!el || el.disabled) return;
+  const act = el.dataset.act;
+  const fn = A[act] || (VARIANT.acts && VARIANT.acts[act]);
+  if (!fn) return;
+  if (el.tagName !== 'INPUT') e.preventDefault();
+  fn.call(VARIANT.acts && VARIANT.acts[act] ? VARIANT.acts : A, el.dataset, el, e);
+});
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'machineSel') {
+    S.machine = e.target.value;
+    toast(`Prototype: <code>probe()</code> will now find <b>${esc(MACHINES[S.machine].label)}</b>. Probe again to see it.`);
+    render();
+  } else if (VARIANT.onChange) VARIANT.onChange(e);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (NATIVE) { A.nativeCancel(); return; }
+    if (AW) { closeAW(); return; }
+    if (VARIANT.onEsc && VARIANT.onEsc()) return;
+    toast('Esc · back to The Table (Home). In this prototype you stay on Setup.');
+    return;
+  }
+  if (NATIVE || AW || UI.open) return;
+  if (VARIANT.onKey) VARIANT.onKey(e);
+});
+
+/* ---------------- variant 2 · The Circuit ---------------- */
+const ORDER = ['agents', 'engine', 'lock', 'mandate', 'keychain', 'paypal', 'house'];
+const NAMES = { agents: 'Agents', engine: 'Engine', lock: 'Idle lock', mandate: 'Mandate check', keychain: 'OS keychain', paypal: 'PayPal · sandbox', house: 'HOUSE seller' };
+const V = { sel: 'engine', focusSel: false };
+const BREAKER_SVG = (open) => open
+  ? '<svg viewBox="0 0 24 24" aria-hidden="true" class="coral"><circle cx="5" cy="15" r="2" fill="currentColor"/><circle cx="19" cy="15" r="2" fill="currentColor"/><path d="M6.5 14 L17 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>'
+  : '<svg viewBox="0 0 24 24" aria-hidden="true" class="teal"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/><path d="M6.5 12 H17.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+
+function power() {
+  const p1 = !S.paused, p2 = p1 && engineOk(), p3 = p2 && mandateOk(), p4 = p3 && keyOk();
+  const w = (ok, p) => !ok ? 'cut' : p ? 'live' : '';
+  return { p1, p2, p3, p4, w1: S.paused ? '' : 'live', w2: w(engineOk(), p2), w3: w(mandateOk(), p3), w4: w(keyOk(), p4) };
+}
+function breaks() { return musts().filter((m) => !m.ok && m.k !== 'agents'); }
+const nodeOf = (k) => k === 'paypal' ? 'keychain' : k;
+
+function node(id, cls, v, chip) {
+  return `<button class="node n-${id} ${cls}" data-act="sel" data-id="${id}" aria-pressed="${V.sel === id}" tabindex="${V.sel === id ? 0 : -1}">
+    <span class="k">${NAMES[id]}</span><span class="v">${v}</span>${chip}</button>`;
+}
+function circuit() {
+  const P = power(), m = S.mandates;
+  const bad = '<span class="ui-chip red">break</span>';
+  return `<div class="cx" role="group" aria-label="The money path, left to right">
+    <div class="bracket ${S.locked ? 'locked' : ''}" aria-hidden="true"></div>
+    <button class="bracket-tag" data-act="sel" data-id="lock" aria-pressed="${V.sel === 'lock'}" tabindex="${V.sel === 'lock' ? 0 : -1}">${S.locked ? LOCK_SVG : WIN_SVG}only you · ${S.locked ? 'locked ' + S.idleMin + ' min' : 'approval window'}</button>
+    ${node('agents', S.paused ? 'wait' : 'ok', S.moment === 'first' ? 'none run yet' : F.agents.length + ' agents', S.paused ? '<span class="ui-chip coral">paused</span>' : '<span class="ui-chip teal">may run</span>')}
+    <div class="wire w1 ${P.w1}"><button class="breaker" data-act="breaker" aria-pressed="${S.paused}" aria-label="${S.paused ? 'Breaker open: resume agents' : 'Pause all agents'}" title="${S.paused ? 'Resume agents' : 'Pause all agents · P'}">${BREAKER_SVG(S.paused)}</button></div>
+    ${node('engine', (engineOk() ? 'ok' : 'broken') + (P.p1 ? '' : ' unpowered'), esc(engineValue()), engineOk() ? `<span class="ui-chip ok">${S.engine === 'scripted' ? 'scripted' : 'found'}</span>` : bad)}
+    <div class="wire w2 ${P.w2}"></div>
+    ${node('mandate', (mandateOk() ? 'ok' : 'broken') + (P.p2 ? '' : ' unpowered'), mandateOk() ? `${esc(m[0].id)} v${m[0].v}${m.length > 1 ? ' + ' + (m.length - 1) : ''}` : 'none signed', mandateOk() ? '<span class="ui-chip ok">signed</span>' : bad)}
+    <div class="wire w3 ${P.w3}"></div>
+    ${node('keychain', (keyOk() ? 'ok' : 'broken') + (P.p3 ? '' : ' unpowered'), keyOk() ? 'PayPal stored' : 'no credentials', keyOk() ? '<span class="ui-chip ok">stored</span>' : bad)}
+    <div class="wire w4 ${P.w4}"></div>
+    ${node('paypal', 'end' + (P.p4 ? ' ok' : ' unpowered'), P.p4 ? 'reachable' : '0 calls', P.p4 ? '<span class="ui-chip ok">reachable</span>' : '<span class="ui-chip">unreachable</span>')}
+    <div class="vwire ${S.house === 'ready' ? 'live' : ''}" aria-hidden="true"></div>
+    ${node('house', S.house === 'ready' ? 'ok' : S.house === 'waking' ? 'wait' : '', S.house === 'waking' ? 'waking · ≈ 1 min' : S.house === 'ready' ? 'ready' : 'asleep', houseChip())}
+    <div class="cx-foot ui-hint"><span class="lg"><i></i>closed</span><span class="lg"><i class="cut"></i>break</span><span class="lg"><i class="own"></i>only you</span>
+      <span><span class="kbd">←</span> <span class="kbd">→</span> select · <span class="kbd">P</span> breaker</span></div>
+  </div>`;
+}
+
+/* Layer 1 under the picture: every break, its default on silence, and the one act that closes it */
+function breakRows() {
+  const fix = { engine: probeBtn(), paypal: privBtn('Store…', 'paypal'), mandate: privBtn('Sign…', 'mandate') };
+  const rows = breaks().map((b) => `<div class="ui-row need"><span class="mk n" aria-hidden="true">✗</span><span class="lbl">${esc(b.title)}</span>
+    <span class="st">${silent(b.sil[0], b.sil[1])}</span><span class="end">${whoChip(b.who)}${fix[b.k] || ''}<button class="ui-btn plain sm" data-act="sel" data-id="${nodeOf(b.k)}" aria-label="Inspect ${esc(b.title)}">Inspect ›</button></span></div>`);
+  if (S.paused) rows.push(`<div class="ui-row wait"><span class="mk w" aria-hidden="true">‖</span><span class="lbl">Breaker open</span><span class="st">${silent('agents stay paused', 'voids and lapses still run')}</span><span class="end">${pauseBtn()}</span></div>`);
+  if (S.house === 'waking') rows.push(`<div class="ui-row wait"><span class="mk w" aria-hidden="true">…</span><span class="lbl">HOUSE seller</span><span class="st">waking up · ≈ 1 min <span class="dim">· ${esc(S.housePinged || '')}</span></span><span class="end"><button class="ui-btn plain sm" data-act="sel" data-id="house">Inspect ›</button></span></div>`);
+  if (S.locked) rows.push(`<div class="ui-row wait"><span class="mk w" aria-hidden="true">◆</span><span class="lbl">Idle lock</span><span class="st">${silent('it stays locked', 'no money moves')}</span><span class="end"><button class="ui-btn sm gold locked" data-act="aw" data-task="unlock">Unlock with Windows Hello</button></span></div>`);
+  if (!rows.length) rows.push('<div class="ui-row"><span class="mk y" aria-hidden="true">✓</span><span class="st">No breaks · every wire is closed · money still moves only on your decision, a rule you signed, or a safe default</span></div>');
+  return rows.join('');
+}
+
+/* the inspector: state, one act, the default on silence; the long story is one "Details" away */
+function inspHead(chip, sub, sheet) {
+  return `<div class="pop-head">${chip}<span class="ui-spacer"></span><button class="ui-btn sm" data-act="sheet" data-sheet="${sheet}">Details…</button></div>
+    <h2>${NAMES[V.sel]}</h2><div class="ui-hint">${sub}</div>`;
+}
+function inspector() {
+  const id = V.sel;
+  if (id === 'agents') {
+    return `${inspHead(S.paused ? '<span class="ui-chip coral">paused</span>' : '<span class="ui-chip teal">may run</span>', 'propose · never pay · checked against the mandate first', 'agents')}
+      ${S.moment === 'first' ? '<div class="ui-group"><div class="ui-row"><span class="st">No agent has run yet.</span></div></div>' : `<div class="ui-group">${F.agents.map((a) => `<div class="ui-row"><span class="ui-dot ${S.paused ? 'coral' : 'teal'}"></span><span class="lbl">${esc(a.name)}</span><span class="st">${esc(a.does)}</span></div>`).join('')}</div>`}
+      <div class="acts">${pauseBtn()}${whoChip('owner')}</div>
+      <div class="ui-section">${silent(S.paused ? 'they stay paused' : 'they keep working inside the mandate', S.paused ? 'no money moves' : 'outside it: refused')}</div>`;
+  }
+  if (id === 'engine') {
+    return `${inspHead(engineOk() ? '<span class="ui-chip ok">closed</span>' : '<span class="ui-chip red">break</span>', 'the CLI agents run on · the wallet ships no model', 'engine')}
+      <div class="ui-group" role="radiogroup" aria-label="Engine">${engRows('insp', true)}${probeFoot()}</div>
+      <div class="ui-section"><dl class="ui-kv"><dt>Who</dt><dd>${whoChip('owner')}</dd><dt>Engine est.</dt><dd>${S.engine === 'scripted' ? 'scripted · no model' : S.moment === 'first' ? '$0.00' : '~' + money(F.engineWeekUSD) + ' this week'} <span class="dim">· not a bill</span></dd></dl></div>
+      ${engineOk() ? '' : `<div class="ui-section">${silent('no engine', 'agents cannot start')}</div>`}`;
+  }
+  if (id === 'mandate') {
+    const m0 = F.mandates[0];
+    return `${inspHead(mandateOk() ? '<span class="ui-chip ok">closed</span>' : '<span class="ui-chip red">break</span>', 'your signed limits · outside them: refused, 0 calls', 'mandates')}
+      <div class="ui-group">${mandateOk() ? S.mandates.map((x) => `<div class="ui-row"><span class="id">${esc(x.id)}</span><span class="main"><span class="t1">v${x.v} · ${esc(x.kind)}</span></span><span class="ui-hint">${esc(String(x.signed).split(' ').slice(0, 3).join(' '))}</span></div>`).join('')
+        : `<div class="ui-row"><span class="id">${esc(m0.id)}</span><span class="main"><span class="t1">Starter · ${m0.clauses.length} clauses</span></span><button class="ui-btn plain sm" data-act="pop" data-pop="clauses">Clauses ›</button></div>`}</div>
+      <div class="acts">${privBtn(mandateOk() ? 'New version…' : 'Sign your first mandate…', 'mandate', mandateOk() ? '' : 'gold')}${whoChip('priv')}</div>
+      <div class="ui-section">${silent(mandateOk() ? 'the signed mandate stays in force' : 'nothing is signed', mandateOk() ? '' : 'every intent refused · 0 PayPal calls')}</div>`;
+  }
+  if (id === 'keychain') {
+    return `${inspHead(keyOk() ? '<span class="ui-chip ok">closed</span>' : '<span class="ui-chip red">break</span>', 'secrets live only here · never in this window', 'keychain')}
+      <div class="ui-group">${credRow('paypal', true)}${credRow('channel3', true)}</div>
+      <div class="acts">${whoChip('priv')}<span class="ui-hint">through a native Windows dialog</span></div>
+      <div class="ui-section">${silent(keyOk() ? 'the stored credentials stay' : 'nothing is stored', keyOk() ? '' : 'the wallet makes no PayPal call')}</div>`;
+  }
+  if (id === 'paypal') {
+    const P = power(), br = breaks();
+    const r = (n, a, b) => `<div class="ui-row"><span class="id">${n}</span><span class="lbl">${a}</span><span class="st">${b}</span></div>`;
+    return `${inspHead(P.p4 ? '<span class="ui-chip ok">reachable</span>' : '<span class="ui-chip">unreachable</span>', 'the only place money moves · Rust makes every call', 'who')}
+      <div class="ui-section-h" style="margin-top:12px"><h3>Moves money only on</h3></div>
+      <div class="ui-group" style="margin-top:0">${r('1', 'Your decision', 'approval window')}${r('2', 'A rule you signed', 'clause 6 · under $250')}${r('3', 'A safe default', 'void or lapse')}
+        <div class="ui-row"><span class="id red">✗</span><span class="lbl">An agent</span><span class="st red">never</span></div></div>
+      ${br.length ? `<div class="ui-section-h" style="margin-top:12px"><h3>Unreachable because</h3></div><div class="ui-group" style="margin-top:0">${br.map((b) => `<div class="ui-row act" data-act="sel" data-id="${nodeOf(b.k)}" role="button" tabindex="0"><span class="mk n">✗</span><span class="main"><span class="t1">${esc(b.title)}</span></span><span class="chev"></span></div>`).join('')}</div>` : ''}
+      <div class="ui-section">${silent(P.p4 ? 'nothing captures on its own' : 'no PayPal call is made')}</div>`;
+  }
+  if (id === 'house') {
+    return `${inspHead(houseChip(), 'scripted sandbox merchant · no model · sells only to you', 'house')}
+      <div class="ui-section"><dl class="ui-kv"><dt>State</dt><dd>${esc(houseLine())}</dd>${S.housePinged ? `<dt>Pinged</dt><dd>${esc(S.housePinged)}</dd>` : ''}<dt>Who</dt><dd>${whoChip('owner')}</dd></dl></div>
+      <div class="acts">${wakeBtn()}</div>
+      ${S.house === 'ready' ? '' : `<div class="ui-section">${silent('the house keeps sleeping', 'nothing moves')}</div>`}`;
+  }
+  return `${inspHead(S.locked ? `<span class="ui-chip gold">locked · ${S.idleMin} min</span>` : '<span class="ui-chip ok">unlocked</span>', 'everything inside the gold bracket', 'lock')}
+    <div class="ui-section"><dl class="ui-kv"><dt>Idle</dt><dd>${S.idleMin} of 15 min</dd><dt>Who</dt><dd>${whoChip('fixed')} <span class="dim">PayPal’s rule</span></dd><dt>Hello</dt><dd>${S.hello ? 'available' : 'not available'}</dd></dl></div>
+    ${S.locked ? `<div class="acts"><button class="ui-btn sm gold locked" data-act="aw" data-task="unlock">Unlock with Windows Hello</button></div><div class="ui-section">${silent('it stays locked', 'no money moves')}</div>` : ''}`;
+}
+
+function headline() {
+  const br = breaks();
+  if (br.length) return [`Open at ${br.length} point${br.length > 1 ? 's' : ''}`, '<span class="ui-chip red">open</span><span>agents can’t touch money</span>'];
+  if (S.paused) return ['Breaker open', '<span class="ui-chip coral">paused</span><span>nothing new starts · voids and lapses still run</span>'];
+  return ['Closed end to end', '<span class="ui-chip ok">closed</span><span>agents may act inside your mandates</span>'];
+}
+
+const VARIANT = {
+  reset() { const br = breaks(); V.sel = S.moment === 'first' ? (br.length ? nodeOf(br[0].k) : 'agents') : 'paypal'; },
+  render() {
+    $('#crumbs').innerHTML = `<a href="../../../index.html#home">The Table</a><span class="sep">›</span><span>${S.moment === 'first' ? 'First run' : 'Settings'}</span><span class="sep">›</span><span>${esc(NAMES[V.sel])}</span>`;
+    const [h, l] = headline(), nb = breaks().length;
+    $('#page').innerHTML = `<div class="ui-pagehead"><h1 tabindex="-1">${h}</h1><span class="sub">${l}</span><div class="actions"><button class="ui-btn plain sm" data-act="sheet" data-sheet="who">Who can set what</button></div></div>
+      ${circuit()}
+      <section class="ui-section"><div class="ui-section-h"><h2>${nb ? 'Breaks' : 'Path'}</h2><span class="end">${nb ? nb + ' to close · ' : ''}if you do nothing, no money moves</span></div><div class="ui-group">${breakRows()}</div></section>`;
+    $('#insp').innerHTML = inspector();
+    $('#inspT').setAttribute('aria-pressed', String($('#split').classList.contains('has-insp')));
+    if (V.focusSel) { V.focusSel = false; const n = $(`.cx [data-act="sel"][data-id="${V.sel}"]`); if (n) n.focus(); }
+  },
+  acts: {
+    sel(d, el) { V.sel = d.id; V.focusSel = !!(el && el.closest('.cx')); UI.inspector($('#split'), true); render(); },
+    breaker() { S.paused ? A.resume() : A.pause(); },
+    inspT() { UI.inspector($('#split')); render(); }
+  },
+  onKey(e) {
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'select' || tag === 'input' || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'p' || e.key === 'P') { e.preventDefault(); VARIANT.acts.breaker(); return; }
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[role="button"][data-act]')) { e.preventDefault(); e.target.click(); return; }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      if (!(e.target.closest && e.target.closest('.cx'))) return;
+      e.preventDefault();
+      const i = ORDER.indexOf(V.sel);
+      V.sel = ORDER[(i + (e.key === 'ArrowRight' ? 1 : ORDER.length - 1)) % ORDER.length];
+      V.focusSel = true; UI.inspector($('#split'), true); render();
+    }
+  }
+};
+
+fresh('first');
+VARIANT.reset();
+render();
+})();
+</script>
+<script src="../../../shared/shell.js" data-page="setup" data-variant="2"></script>
+</body>
+</html>

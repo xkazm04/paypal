@@ -1,0 +1,36 @@
+/* Main window · convergence chart, market band and mini band (charts.tsx; also used by the shared
+   BandCard). Owner: the deal agent. Colours only from tokens (SVG paint through classes). */
+.chartbox { width: 100%; min-width: 0; }
+.chartbox svg { display: block; }
+.chartbox .ax { font: var(--fs-body) var(--font); fill: var(--dim); }
+.chartbox .ax.mk { fill: var(--market); }
+.chartbox .ax.strong { font-weight: var(--fw-bold); }
+.chartbox .ax.gold { fill: var(--gold-l); }
+.chartbox .ax.teal { fill: var(--teal-l); }
+.chartbox .ax.tag { fill: var(--teal-l); font: var(--fw-bold) var(--fs-body) var(--num); }
+.chartbox.market { flex-basis: 100%; }
+.bandcard .chartbox { margin: .2rem 0 .4rem; }
+
+/* convergence chart */
+.cv-hatch { stroke: var(--market); stroke-opacity: .24; }
+.cv-stop { stop-color: var(--teal); }
+.cv-grid { stroke: var(--line); }
+.cv-them { stroke: var(--coral); }
+.cv-you { stroke: var(--teal); }
+.cv-dot-them { fill: var(--coral); }
+.cv-dot-you { fill: var(--teal); }
+.cv-last { stroke: var(--dim); }
+.cv-last.fits { stroke: var(--gold); }
+.cv-limit { stroke: var(--teal-l); }
+.cv-tag { fill: color-mix(in srgb, var(--teal) 22%, var(--panel)); stroke: var(--teal); }
+.pulse-ring { animation: pr 1.8s ease-in-out infinite; }
+@keyframes pr { 0%,100% { stroke-opacity: 1; } 50% { stroke-opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .pulse-ring { animation: none; } }
+
+/* market band + mini band */
+.mb-axis { stroke: var(--line2); }
+.mb-box { fill: color-mix(in srgb, var(--market) 18%, transparent); stroke: color-mix(in srgb, var(--market) 45%, transparent); }
+.mb-median { stroke: var(--market); }
+.mb-limit { stroke: var(--teal); }
+.mb-price { fill: var(--gold); stroke: var(--bg); }
+.miniband { display: block; flex: none; }

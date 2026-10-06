@@ -1,0 +1,180 @@
+/* Main window · Spend module (modules/spend.tsx), v2 "The Gate" (prototype/pages/spend/variant-2).
+   Owner: the spend agent. Every rule is scoped under .mod-spend: the page root (from ModuleView) and
+   the portalled Layer-2 surfaces (Inspector body, Sheet, Popover), which carry the class themselves. */
+
+.mod-spend .sp-page { display: flex; flex-direction: column; min-height: 100%; }
+.mod-spend .ui-pagehead .ico svg { width: 22px; height: 22px; }
+.mod-spend .sp-page > .ui-section { margin-top: var(--sp-4); }
+.mod-spend .sp-gap { margin: var(--sp-2) 0 0; }
+.mod-spend .sp-lede { margin: 0 0 var(--sp-3); }
+.mod-spend .tx-dim { color: var(--dim); }
+.mod-spend .tx-gold { color: var(--gold-l); }
+.mod-spend .tx-red { color: var(--red-l); }
+.mod-spend .tx-ok { color: var(--ok); }
+.mod-spend .money.held { color: var(--gold-l); }
+.mod-spend .money.struck { color: var(--dim); text-decoration: line-through; }
+.mod-spend .money.proposed { color: var(--muted); }
+
+/* needs-you strip: one row per decision */
+.mod-spend .sp-need { cursor: pointer; }
+.mod-spend .sp-need .t1 b { font-weight: var(--fw-semibold); }
+.mod-spend .sp-need .t1 .tx-dim { font-weight: var(--fw-regular); }
+.mod-spend .sp-need .ui-silence { white-space: nowrap; }
+.mod-spend .sp-need .amt { font-size: var(--fs-title3); }
+.mod-spend .sp-acts { display: flex; gap: var(--sp-2); flex: none; align-items: center; }
+.mod-spend .sp-left { display: flex; flex-direction: column; align-items: flex-end; flex: none; line-height: 1.15; color: var(--gold-l); }
+.mod-spend .sp-left .money { font-weight: var(--fw-semibold); }
+.mod-spend .sp-left small { font-size: var(--fs-small); color: var(--dim); }
+.mod-spend .sp-need .notice { flex-basis: 100%; }
+
+/* the matrix: one lane per ask, one column per clause, PayPal on the right */
+.mod-spend .sp-matrix { --sp-cols: minmax(176px, 1.7fr) repeat(5, minmax(60px, .5fr)) minmax(132px, 1fr);
+  border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); overflow: hidden; }
+.mod-spend .sp-mh, .mod-spend .sp-lane { display: grid; grid-template-columns: var(--sp-cols); }
+.mod-spend .sp-mh { background: var(--bg2); border-bottom: 1px solid var(--line2); }
+.mod-spend .sp-mh > * { min-width: 0; padding: var(--sp-2); }
+.mod-spend .sp-mh .lbl { font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); }
+.mod-spend .sp-mh .asked { display: flex; flex-direction: column; gap: 2px; justify-content: center; }
+.mod-spend .sp-ch { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  padding: var(--sp-2) var(--sp-1); border-left: 1px solid var(--line); text-align: center; min-width: 0; }
+.mod-spend .sp-ch:hover { background: var(--hover); }
+.mod-spend .sp-ch:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.mod-spend .sp-ch.on { background: var(--sel); box-shadow: inset 0 -2px 0 var(--teal); }
+.mod-spend .sp-ch b { font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.mod-spend .sp-ch .ui-meter { width: 100%; max-width: 64px; }
+.mod-spend .sp-ch small { font: var(--fs-small)/1.2 var(--num); font-variant-numeric: tabular-nums; color: var(--dim); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mod-spend .sp-mh .pp { border-left: 1px solid var(--line2); display: flex; align-items: center; }
+
+.mod-spend .sp-agrow { display: flex; gap: var(--sp-2); align-items: center; height: var(--row); padding: 0 var(--sp-3); background: color-mix(in srgb, var(--bg2) 60%, transparent);
+  border-top: 1px solid var(--line); font-size: var(--fs-small); color: var(--dim); }
+.mod-spend .sp-agrow b { color: var(--text); font-weight: var(--fw-semibold); }
+.mod-spend .sp-lane { border-top: 1px solid var(--line); min-height: var(--row-2); }
+.mod-spend .sp-lane.sel { background: var(--sel); box-shadow: inset 2px 0 0 var(--teal); }
+.mod-spend .sp-lh { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; align-content: center; padding: 0 var(--sp-2) 0 var(--sp-3); min-width: 0; }
+.mod-spend .sp-lh:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: var(--r-sm); }
+.mod-spend .sp-lh .t1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mod-spend .sp-lh .t2 { font-size: var(--fs-small); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.mod-spend .sp-c { position: relative; display: grid; place-items: center; min-width: 0; border-left: 1px solid color-mix(in srgb, var(--line) 50%, transparent); }
+.mod-spend .sp-c::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; }
+.mod-spend .sp-c.t-teal::before { background: var(--teal); }
+.mod-spend .sp-c.t-gold::before { background: var(--gold); }
+.mod-spend .sp-c.t-dead::before { background: none; border-top: 2px dashed color-mix(in srgb, var(--line2) 70%, transparent); height: 0; }
+.mod-spend .sp-c.t-unk::before { background: none; border-top: 1px dashed var(--line2); height: 0; }
+.mod-spend .sp-c.t-na::before { background: none; }
+.mod-spend .sp-c.stop::before { right: 50%; }
+.mod-spend .sp-c.csel { background: color-mix(in srgb, var(--teal) 7%, transparent); }
+.mod-spend .sp-c.cur { box-shadow: inset 0 0 0 2px var(--sel-line); }
+.mod-spend .sp-mk { all: unset; box-sizing: border-box; position: relative; z-index: 1; height: 20px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border-radius: 10px; white-space: nowrap; cursor: pointer;
+  font: var(--fw-semibold) var(--fs-small)/1 var(--font); box-shadow: inset 0 0 0 1px currentColor; background: var(--panel); }
+.mod-spend .sp-mk:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mod-spend .sp-mk.fail { color: var(--red-l); background: color-mix(in srgb, var(--refuse) 16%, var(--panel)); }
+.mod-spend .sp-mk.you { color: var(--gold-l); background: color-mix(in srgb, var(--gold) 16%, var(--panel)); }
+.mod-spend .sp-unk { all: unset; box-sizing: border-box; position: relative; z-index: 1; width: 10px; height: 10px; border-radius: 50%; outline: 1px dashed var(--dim); outline-offset: -1px; background: var(--panel); cursor: pointer; }
+.mod-spend .sp-unk:focus-visible { outline: 2px solid var(--focus); }
+.mod-spend .sp-legend .sp-unk { cursor: default; }
+.mod-spend .sp-dot { position: relative; z-index: 1; width: 14px; height: 14px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 2px var(--panel); display: grid; place-items: center; }
+.mod-spend .sp-dot::after { content: ""; width: 5px; height: 3px; margin-top: -2px; border: solid var(--on-teal); border-width: 0 0 1.6px 1.6px; transform: rotate(-45deg); }
+.mod-spend .t-gold .sp-dot { background: var(--gold); }
+.mod-spend .sp-na { font-size: var(--fs-small); color: var(--dim); }
+
+.mod-spend .sp-out { position: relative; display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-2) 0 0; border-left: 1px solid var(--line2); min-width: 0; }
+.mod-spend .sp-out::before { content: ""; width: 10px; height: 2px; flex: none; }
+.mod-spend .sp-out.t-gold::before { background: var(--gold); }
+.mod-spend .sp-out.t-green::before { background: var(--ok); }
+.mod-spend .sp-out.t-dim::before { background: var(--line2); }
+.mod-spend .sp-out.t-dead::before { border-top: 2px dashed var(--line2); height: 0; }
+.mod-spend .sp-out .stk { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; padding: 4px 0; }
+.mod-spend .sp-out .ui-hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 100%; padding-left: 2px; }
+.mod-spend .sp-capsule { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; justify-content: center; gap: 1px; height: 36px; padding: 0 var(--sp-2); border-radius: var(--r-sm); min-width: 0;
+  box-shadow: inset 0 0 0 1px var(--gold); color: var(--gold-l); font: var(--fw-semibold) var(--fs-small)/1.25 var(--font);
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--gold) 12%, var(--panel)) 0 6px, color-mix(in srgb, var(--gold) 22%, var(--panel)) 6px 12px); }
+.mod-spend .sp-capsule:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mod-spend .sp-capsule .cap-1 { display: flex; align-items: center; gap: 5px; }
+.mod-spend .sp-capsule .cap-1 .money { margin-left: auto; padding-left: 6px; }
+.mod-spend .sp-capsule .cap-2 { font-weight: var(--fw-regular); color: var(--muted); }
+.mod-spend .sp-capsule .lk { width: 9px; height: 11px; flex: none; }
+.mod-spend .sp-capsule, .mod-spend .sp-capsule span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mod-spend .sp-capsule .money { color: inherit; }
+
+@media (max-width: 1180px) {
+  .mod-spend .sp-matrix { --sp-cols: minmax(150px, 1.5fr) repeat(5, minmax(60px, .5fr)) minmax(132px, 1fr); }
+  .mod-spend .sp-out .ui-hint, .mod-spend .sp-out .pp-w { display: none; }
+}
+
+/* legend popover */
+.mod-spend .sp-pop-lede { margin: 0 0 var(--sp-3); color: var(--muted); }
+.mod-spend .sp-legend { display: grid; grid-template-columns: 84px 1fr; gap: 8px var(--sp-3); align-items: center; }
+.mod-spend .sp-legend .sw { position: relative; display: flex; align-items: center; justify-content: center; height: 22px; }
+.mod-spend .sp-legend .sw .sp-mk { cursor: default; }
+.mod-spend .sp-legend i.ln { position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; background: var(--teal); }
+.mod-spend .sp-legend i.ln.d { background: none; border-top: 2px dashed var(--line2); height: 0; }
+
+/* inspector */
+.mod-spend.sp-insp h2 { margin-top: 6px; }
+.mod-spend .sp-ih { display: flex; align-items: center; gap: var(--sp-2); }
+.mod-spend .sp-iacts { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-4); }
+.mod-spend .sp-kvgap { margin-top: 4px; }
+.mod-spend .sp-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.mod-spend .sp-hits .ui-row b { font-weight: var(--fw-semibold); min-width: 92px; flex: none; }
+.mod-spend .sp-hits .ui-row .tx-dim { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mod-spend .sp-bigamt { display: flex; align-items: baseline; gap: var(--sp-2); margin: var(--sp-3) 0 0; }
+.mod-spend .sp-bigamt .money { font-size: var(--fs-display); line-height: 1.1; }
+.mod-spend .sp-rule { margin: 2px 0 0; color: var(--muted); }
+.mod-spend .sp-cellsay { margin: 0 0 4px; font-weight: var(--fw-medium); }
+
+/* clause trace (inspector and sheets) */
+.mod-spend .sp-trace { list-style: none; margin: 0; padding: 0; }
+.mod-spend .sp-trace li { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: var(--sp-2); align-items: baseline; padding: 5px var(--sp-3); }
+.mod-spend .sp-trace .nm { color: var(--text); }
+.mod-spend .sp-trace .v { font-size: var(--fs-small); color: var(--dim); text-align: right; font-variant-numeric: tabular-nums; }
+.mod-spend .sp-trace .fail .v { color: var(--red-l); }
+.mod-spend .sp-trace .why { grid-column: 2 / -1; font-size: var(--fs-small); color: var(--red-l); }
+.mod-spend .sp-trace .nm { min-width: 0; }
+.mod-spend .sp-trace .v { white-space: nowrap; }
+.mod-spend .sp-trace .you .v { color: var(--gold-l); }
+.mod-spend .sp-trace li + li { border-top: 1px solid var(--line); }
+.mod-spend .sp-trace .g { text-align: center; font-weight: var(--fw-semibold); }
+.mod-spend .sp-trace .pass .g { color: var(--ok); }
+.mod-spend .sp-trace .fail { background: color-mix(in srgb, var(--refuse) 10%, transparent); }
+.mod-spend .sp-trace .fail .g { color: var(--red-l); }
+.mod-spend .sp-trace .you { background: color-mix(in srgb, var(--gold) 10%, transparent); }
+.mod-spend .sp-trace .you .g { color: var(--gold-l); }
+.mod-spend .sp-trace .skip, .mod-spend .sp-trace .na, .mod-spend .sp-trace .unknown { color: var(--dim); }
+.mod-spend .sp-trace .skip .nm, .mod-spend .sp-trace .na .nm, .mod-spend .sp-trace .unknown .nm { color: var(--dim); }
+
+/* sheets */
+.mod-spend .sp-shtop { display: flex; align-items: baseline; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.mod-spend .sp-shamt { font-size: var(--fs-title3); font-weight: var(--fw-semibold); }
+.mod-spend .sp-clist .ui-row .t1, .mod-spend .sp-clist .ui-row .t2 { white-space: normal; }
+.mod-spend .sp-clist .hit-fail { background: color-mix(in srgb, var(--refuse) 8%, transparent); }
+.mod-spend .sp-clist .hit-you { background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.mod-spend .sp-cg { width: 14px; text-align: center; color: var(--dim); font-weight: var(--fw-bold); }
+.mod-spend .sp-cg.fail { color: var(--red-l); }
+.mod-spend .sp-cg.you { color: var(--gold-l); }
+
+/* story layout: answer, explainer, decision cards, then the week's purchases */
+.mod-spend .sp-explain > .ui-explainer-link { margin: calc(var(--sp-1) * -1) 0 var(--sp-3); }
+.mod-spend .sp-explain > .ui-explainer { margin-bottom: var(--sp-4); }
+.mod-spend .sp-decisions { display: flex; flex-direction: column; gap: var(--sp-3); margin-bottom: var(--sp-2); }
+.mod-spend .sp-decisions .ui-decision { margin-top: 0; }
+.mod-spend .sp-decisions .ui-decision .amt .money { color: var(--text); }
+.mod-spend .sp-decisions .ui-decision .amt .money.held { color: var(--gold-l); }
+.mod-spend .sp-decisions .notice { margin: 0; }
+.mod-spend .ui-decision .dc-h .notechip { margin-left: var(--sp-2); }
+
+/* the week's purchases, one plain line each */
+.mod-spend .sp-row .t1 b { font-weight: var(--fw-semibold); }
+.mod-spend .sp-row .t1 .tx-dim { font-weight: var(--fw-regular); }
+.mod-spend .sp-lead { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex: none; color: var(--dim); background: color-mix(in srgb, var(--dim) 14%, transparent); }
+.mod-spend .sp-lead.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 15%, transparent); }
+.mod-spend .sp-lead.red { color: var(--red-l); background: color-mix(in srgb, var(--refuse) 16%, transparent); }
+.mod-spend .sp-lead.gold { color: var(--gold-l); background: color-mix(in srgb, var(--gold) 18%, transparent); }
+.mod-spend .sp-lead.teal { color: var(--teal-l); background: color-mix(in srgb, var(--teal) 16%, transparent); }
+.mod-spend .sp-rl { display: inline-flex; align-items: center; gap: 5px; }
+.mod-spend .sp-rl .ui-icon { vertical-align: 0; }
+.mod-spend .sp-rl.pass { color: var(--ok); }
+.mod-spend .sp-rl.fail { color: var(--red-l); }
+.mod-spend .sp-rl.ask { color: var(--gold-l); }
+.mod-spend .sp-rl.unknown { color: var(--dim); }
+.mod-spend .sp-row .amt { min-width: 76px; }

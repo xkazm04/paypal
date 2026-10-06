@@ -1,0 +1,275 @@
+/* Approval window · DEAL REVIEW as The Diff (DealReview.tsx, BandAdjust.tsx, review/*).
+   Spec: prototype/pages/approval/variant-3. Window 744 px wide (620 + 20%, owner 2026-10-06).
+   Everything is scoped under .dr (the review root) or the Details sheet (.dr-sheet); the frame and
+   the owner screens keep frame.css / owner.css. Tokens only: no hex, sizes from the scale. */
+
+/* ---- frame ---------------------------------------------------------------------------------- */
+.aw.dr { background: var(--panel); grid-template-rows: auto minmax(0, 1fr) auto; }
+.dr > .ui-titlebar { gap: var(--sp-2); padding-right: var(--sp-2); }
+.dr .ui-crumbs { font-size: var(--fs-small); min-width: 0; overflow: hidden; white-space: nowrap; }
+.dr .aw-emblem { width: 16px; height: 16px; }
+.dr-body { min-height: 0; min-width: 0; overflow: auto; padding: var(--sp-3) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); outline: none;
+  scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
+.dr-body > * { flex-shrink: 0; }
+.dr-foot { padding: var(--sp-2) var(--sp-4) var(--sp-3); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.dr-foot .notice { margin: 0; }
+.dr-line { margin: 0; font-size: var(--fs-small); }
+
+/* ---- heading -------------------------------------------------------------------------------- */
+.dr-head { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.dr-h { flex: 1 1 auto; min-width: 0; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; outline: none;
+  font: var(--fw-semibold) var(--fs-title3)/1.3 var(--display); color: var(--text); }
+.dr-h .q { color: var(--muted); font-weight: var(--fw-regular); }
+/* The heading takes programmatic focus (Enter must never land on a money button); it is not a
+   keyboard target, so it never draws a ring. */
+.dr-h:focus, .dr-h:focus-visible { outline: none; box-shadow: none; }
+
+/* ---- where the deal is: a status pill + one dot per step -------------------------------------- */
+.dr-state { display: inline-flex; align-items: center; gap: var(--sp-2); flex: none; border: 0; background: none; padding: 2px; border-radius: var(--r); cursor: pointer; color: inherit; }
+.dr-state:hover { background: var(--hover); }
+.dr-state .dots { display: inline-flex; gap: 3px; }
+.dr-state .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line2); }
+.dr-state .dots i.done, .dr-state .dots i.ok { background: var(--ok); }
+.dr-state .dots i.cur { background: var(--gold); box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 30%, transparent); }
+.dr-state .dots i.bad { background: var(--refuse); }
+
+/* ---- marks: ✓ passes · ✕ fails · ! paused · ? not checked here · … waiting · i information --- */
+.dr-mark { display: inline-grid; place-items: center; width: 16px; height: 16px; flex: none; border-radius: 50%;
+  font: var(--fw-bold) 10px/1 var(--font); color: var(--on-ok); background: var(--ok); }
+.dr-mark.m-bad { color: var(--on-refuse); background: var(--refuse); }
+.dr-mark.m-hold { color: var(--on-gold); background: var(--coral); }
+.dr-mark.m-info { color: var(--muted); background: var(--panel3); font-style: italic; font-family: Georgia, serif; }
+.dr-mark.m-wait { color: var(--dim); background: var(--panel3); }
+.dr-mark.m-unk { color: var(--dim); background: none; outline: 1px dashed var(--line2); outline-offset: -1px; }
+.dr-mark.big { width: 26px; height: 26px; font-size: 14px; }
+
+/* ---- twin header: your side · relation · the asked side --------------------------------------- */
+.dr-twin { display: grid; grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr); border-radius: var(--r); overflow: hidden; box-shadow: inset 0 0 0 1px var(--line); }
+.dr-twin .tw { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-2) var(--sp-3); min-width: 0; }
+.dr-twin .tw.l { background: color-mix(in srgb, var(--teal) 9%, var(--panel)); }
+.dr-twin .tw.r { background: color-mix(in srgb, var(--gold) 8%, var(--panel)); text-align: right; align-items: flex-end; }
+.dr-twin.t-bad .tw.r { background: color-mix(in srgb, var(--refuse) 12%, var(--panel)); }
+.dr-twin .twk { font-size: var(--fs-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.dr-twin .tw.l .twk { color: var(--teal-l); }
+.dr-twin .tw.r .twk { color: var(--gold-l); }
+.dr-twin .tw-amt { font: var(--fw-semibold) var(--fs-display)/1.1 var(--num); font-variant-numeric: tabular-nums; letter-spacing: -.015em; color: var(--text); }
+.dr-twin .tw-amt.unk { font: var(--fw-medium) var(--fs-body)/var(--fs-display) var(--font); color: var(--dim); }
+.dr-twin .tw-amt.unk::before { content: ""; display: inline-block; width: 72px; height: 14px; margin-right: var(--sp-2); vertical-align: middle;
+  border: 1px dashed var(--line2); border-radius: var(--r-sm); }
+.dr-twin .tw-amt.skeleton { color: var(--line2); }
+.dr-twin.t-bad .tw.r .tw-amt.unk, .dr-twin.t-bad .tw.r .tw-amt { color: var(--red-l); }
+.dr-twin .tw-op { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--ok); background: var(--panel2);
+  border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+.dr-twin .tw-op .w { font-size: var(--fs-small); font-weight: var(--fw-semibold); white-space: nowrap; }
+.dr-twin .tw-op.bad { color: var(--red-l); background: color-mix(in srgb, var(--refuse) 16%, var(--panel)); }
+.dr-twin .tw-op.hold { color: var(--coral-l); }
+.dr-twin.t-hold .tw.r { background: color-mix(in srgb, var(--coral) 9%, var(--panel)); }
+.dr-twin .tw-op.wait, .dr-twin .tw-op.info { color: var(--dim); }
+
+/* ---- the answer: one plain sentence under the title (story kit AnswerBar, tuned for 744 px) -- */
+.dr-says .ui-answer { margin: 0; padding: var(--sp-3) var(--sp-4); gap: var(--sp-3); align-items: flex-start; }
+.dr-says .ui-answer .ico { width: 30px; height: 30px; margin-top: 1px; }
+.dr-says .ui-answer .t { font: var(--fw-semibold) var(--fs-title3)/1.4 var(--display); text-wrap: pretty; }
+.dr-says .ui-answer .s { font-size: var(--fs-small); color: var(--muted); }
+.dr-says .ui-answer .act { align-self: center; }
+.dr-says .ui-answer.tone-alert .ico { color: var(--red-l); }
+
+/* ---- the checks: exceptions open, passes folded ----------------------------------------------- */
+.dr-checks { display: flex; flex-direction: column; gap: var(--sp-1); }
+.dr-sec { margin: 0; font: var(--fw-semibold) var(--fs-small)/1.4 var(--font); color: var(--dim); }
+.dr-checks .ui-checks { gap: var(--sp-1); }
+.dr-checks .ui-checks .cs-sum { gap: var(--sp-3); }
+.dr-checks .ui-checks .cs-list li { min-height: 34px; padding: 0 var(--sp-3); }
+.dr-checks .ui-checks .cs-list li:hover { background: var(--hover); }
+.dr-checks .ui-checks .cs-list li.fail { background: color-mix(in srgb, var(--refuse) 10%, transparent); }
+.dr-checks .ui-checks .cs-list li.ask { background: color-mix(in srgb, var(--gold) 7%, transparent); }
+.dr-checks .ui-checks .cs-name { overflow: hidden; }
+.dr-checks .ui-checks .cs-v { flex: none; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-size: var(--fs-body); }
+.dr-checks .ui-checks .cs-v .rv.bad { color: var(--red-l); font-weight: var(--fw-semibold); }
+.dr-checks .ui-checks .cs-v .rv.hold { color: var(--coral-l); }
+.dr-checks .ui-checks li.pass .cs-v { color: var(--muted); }
+.dr-src { display: flex; align-items: baseline; gap: var(--sp-2); width: 100%; min-width: 0; padding: 0; border: 0; border-radius: var(--r-sm); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.dr-src b { flex: none; font-weight: var(--fw-medium); color: var(--text); white-space: nowrap; }
+.dr-src .l { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: var(--fs-small); }
+.dr-src:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.dr-src.on b { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---- status lines ---------------------------------------------------------------------------- */
+.dr-status { display: flex; align-items: center; gap: var(--sp-2); min-height: var(--row); min-width: 0; }
+.dr-status .t { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--fw-medium); }
+.dr-poll { margin: 0; display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--fs-small); color: var(--teal-l); }
+.dr-poll::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--teal); animation: drPulse 1.4s ease-in-out infinite; flex: none; }
+@keyframes drPulse { 50% { opacity: .25; } }
+
+/* ---- the diff table: name · your side · relation · the asked side ------------------------------ */
+.dr .dt { display: flex; flex-direction: column; }
+.dr .dt-h, .dr-row { display: grid; grid-template-columns: 112px minmax(0, 1fr) 118px minmax(0, 1fr); align-items: center; gap: 0 var(--sp-2); padding: 0 var(--sp-3); }
+.dr .dt-h { height: 26px; font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); border-bottom: 1px solid var(--line2); }
+.dr .dt-h .l { color: var(--teal-l); }
+.dr .dt-h .r { color: var(--gold-l); text-align: right; }
+.dr-row { width: 100%; height: var(--row); border: 0; border-top: 1px solid var(--line); background: none; color: var(--text); font: var(--fs-body) var(--font); text-align: left; cursor: pointer; }
+.dr .dt-h + .dr-row { border-top: 0; }
+.dr-row:hover, .dr-row.on { background: var(--hover); }
+.dr-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.dr-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dr-row .dn { font-size: var(--fs-small); color: var(--dim); }
+.dr-row .dl { color: var(--muted); }
+.dr-row .dv { text-align: right; }
+.dr-row .dg { font: var(--fw-semibold) var(--fs-small) var(--font); color: var(--ok); align-self: stretch; display: flex; align-items: center; gap: 6px; padding-left: 4px; }
+.dr-row .dg .w { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dr-row.bad { background: color-mix(in srgb, var(--refuse) 10%, transparent); }
+.dr-row.bad .dg { color: var(--red-l); }
+.dr-row.bad .dv { color: var(--red-l); font-weight: var(--fw-semibold); }
+.dr-row.hold { background: color-mix(in srgb, var(--coral) 9%, transparent); }
+.dr-row.hold .dg { color: var(--coral-l); }
+.dr-row.hold .dv { color: var(--coral-l); }
+.dr-row.info .dg, .dr-row.wait .dg { color: var(--muted); font-weight: var(--fw-medium); }
+.dr-row.wait .dl, .dr-row.wait .dv { color: var(--dim); }
+.dr-row.unk .dg { color: var(--dim); }
+.dr-unk { display: inline-block; max-width: 100%; padding: 0 6px; line-height: 16px; border: 1px dashed var(--line2); border-radius: 4px; color: var(--dim); font-size: var(--fs-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+.dr-fold { align-self: flex-start; }
+
+/* ---- market and the wallet line -------------------------------------------------------------- */
+.dr-mkt { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; font-size: var(--fs-small); color: var(--muted); min-height: var(--ctl-sm); }
+.dr-mkt .k { color: var(--dim); white-space: nowrap; }
+.dr-mkt .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dr-mkt .mw { font-weight: var(--fw-semibold); color: var(--text); }
+.dr-mkt .mw.ok { color: var(--ok); } .dr-mkt .mw.gold { color: var(--gold-l); } .dr-mkt .mw.red { color: var(--red-l); }
+.dr-mkt .ui-btn { flex: none; }
+.dr .mini { position: relative; flex: 0 0 88px; height: 10px; }
+.dr .mini::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 2px; background: var(--line2); border-radius: 1px; }
+.dr .mini .b { position: absolute; top: 2px; height: 6px; border-radius: 2px; background: color-mix(in srgb, var(--market) 30%, transparent); }
+.dr .mini .m { position: absolute; top: 0; width: 2px; height: 10px; background: var(--market); transform: translateX(-1px); }
+.dr .mini .d { position: absolute; top: 1px; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); transform: translateX(-4px); box-shadow: 0 0 0 2px var(--panel); }
+
+/* ---- band (haggle, before settlement) --------------------------------------------------------- */
+.dr-band { display: flex; flex-direction: column; gap: var(--sp-2); }
+.dr-band .band-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--sp-2); align-items: end; }
+.dr-band .band-form label span { display: block; font-size: var(--fs-small); color: var(--dim); margin-bottom: 2px; }
+.dr-band .band-form .ui-field { width: 100%; }
+.dr-band .band-form .ui-hint { grid-column: 1 / -1; margin: 0; }
+
+/* ---- footer ---------------------------------------------------------------------------------- */
+.dr-due { display: flex; align-items: baseline; gap: var(--sp-1) var(--sp-3); flex-wrap: wrap; }
+.dr-clock { font-size: var(--fs-small); color: var(--dim); white-space: nowrap; }
+.dr-clock b { color: var(--gold-l); font: var(--fw-semibold) var(--fs-body) var(--num); font-variant-numeric: tabular-nums; }
+.dr .ui-silence.wrap { white-space: normal; flex: 1 1 260px; }
+.dr-typer { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; font-size: var(--fs-small); color: var(--muted); }
+.dr-typer .ui-field { width: 150px; font-family: var(--mono); }
+.dr-typer .ui-field.ok { border-color: var(--ok); }
+.dr-typer .st { color: var(--dim); white-space: nowrap; }
+.dr-typer .st { display: inline-flex; align-items: center; gap: 4px; }
+.dr-typer .st.ok { color: var(--ok); font-weight: var(--fw-semibold); }
+.dr-typer .ui-field.ok { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
+.dr-btns { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; flex-wrap: wrap; }
+.dr-btns .sp { flex: 1 1 auto; }
+.dr-hint { margin: 0; display: flex; align-items: center; gap: var(--sp-1); font-size: var(--fs-small); color: var(--dim); min-height: var(--ctl-sm); min-width: 0; }
+.dr-hint .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dr-hint .ui-btn { flex: none; }
+.dr-hint > .dr-mark { width: 14px; height: 14px; font-size: 9px; }
+.dr-hint .ui-chip .lock-glyph { width: 11px; height: 11px; }
+.dr-hint .hello-glyph { width: 18px; height: 18px; flex: none; animation: drHello 1.1s var(--ease) infinite alternate; }
+@keyframes drHello { from { opacity: .5; } to { opacity: 1; } }
+
+/* ---- layer 2: popovers and the Details sheet (portalled to body, so not under .dr) ------------ */
+:is(.dr-pop, .dr-sheet) .pop-p { margin: 0; color: var(--muted); line-height: var(--lh); }
+:is(.dr-pop, .dr-sheet) .pop-p + .pop-p { margin-top: var(--sp-2); }
+.dr-pop .ui-kv { font-size: var(--fs-small); }
+:is(.dr-pop, .dr-sheet) ol { margin: var(--sp-2) 0 0; padding-left: var(--sp-5); color: var(--muted); }
+.dr-pop li { margin: 2px 0; }
+.dr-pop .pop-p b { color: var(--text); }
+.dr-sheet .dsec + .dsec { margin-top: var(--sp-4); }
+.dr-sheet .dsec h3 { margin: 0 0 var(--sp-2); font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); }
+.dr-sheet .ui-hint { margin: var(--sp-1) 0 0; }
+:is(.dr-pop, .dr-sheet) .srcs { display: flex; flex-direction: column; }
+:is(.dr-pop, .dr-sheet) .srcs .src { display: grid; grid-template-columns: 16px 112px minmax(0, 1fr); gap: 2px var(--sp-2); padding: 6px var(--sp-3); align-items: baseline; }
+:is(.dr-pop, .dr-sheet) .srcs .src + .src { border-top: 1px solid var(--line); }
+:is(.dr-pop, .dr-sheet) .srcs .g { display: grid; place-items: center; }
+:is(.dr-pop, .dr-sheet) .srcs .rw { color: var(--text); font-weight: var(--fw-semibold); }
+:is(.dr-pop, .dr-sheet) .rd { display: inline-flex; align-items: center; gap: 6px; }
+:is(.dr-pop, .dr-sheet) .srcs .n { color: var(--dim); font-size: var(--fs-small); }
+:is(.dr-pop, .dr-sheet) .srcs .v { min-width: 0; overflow-wrap: anywhere; }
+:is(.dr-pop, .dr-sheet) .srcs .v .op { color: var(--dim); padding: 0 4px; }
+:is(.dr-pop, .dr-sheet) .srcs .s { grid-column: 3; font-size: var(--fs-small); color: var(--dim); overflow-wrap: anywhere; }
+:is(.dr-pop, .dr-sheet) .srcs .nt { grid-column: 3; font-size: var(--fs-small); color: var(--coral-l); }
+:is(.dr-pop, .dr-sheet) .g-ok { color: var(--ok); }
+:is(.dr-pop, .dr-sheet) .g-bad { color: var(--red-l); }
+:is(.dr-pop, .dr-sheet) :is(.g-info, .g-wait) { color: var(--dim); }
+:is(.dr-pop, .dr-sheet) .g-hold { color: var(--coral-l); }
+:is(.dr-pop, .dr-sheet) .states { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+:is(.dr-pop, .dr-sheet) .states li { display: flex; align-items: center; gap: var(--sp-2); height: 24px; font-size: var(--fs-small); color: var(--dim); }
+:is(.dr-pop, .dr-sheet) .states li .g { width: 14px; text-align: center; flex: none; }
+:is(.dr-pop, .dr-sheet) .states li.done { color: var(--muted); }
+:is(.dr-pop, .dr-sheet) .states li.done .g, :is(.dr-pop, .dr-sheet) .states li.ok .g { color: var(--ok); }
+:is(.dr-pop, .dr-sheet) .states li.cur, :is(.dr-pop, .dr-sheet) .states li.ok, :is(.dr-pop, .dr-sheet) .states li.bad { color: var(--text); font-weight: var(--fw-semibold); }
+:is(.dr-pop, .dr-sheet) .states li.cur .g { color: var(--gold-l); }
+:is(.dr-pop, .dr-sheet) .states li.bad .g { color: var(--red-l); }
+:is(.dr-pop, .dr-sheet) .tlog { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-small); line-height: 1.4; color: var(--muted); }
+:is(.dr-pop, .dr-sheet) .tlog .lt { color: var(--dim); }
+:is(.dr-pop, .dr-sheet) .tlog .lw { font-weight: var(--fw-bold); }
+:is(.dr-pop, .dr-sheet) .tlog .w-you { color: var(--teal-l); }
+:is(.dr-pop, .dr-sheet) .tlog .w-them { color: var(--coral-l); }
+:is(.dr-pop, .dr-sheet) .dr-track { position: relative; height: 34px; margin: var(--sp-2) 0 0; }
+:is(.dr-pop, .dr-sheet) .dr-track::before { content: ""; position: absolute; left: 0; right: 0; top: 9px; height: 2px; background: var(--line); }
+:is(.dr-pop, .dr-sheet) .dr-track .tr-band { position: absolute; top: 5px; height: 10px; border-radius: 3px; background: color-mix(in srgb, var(--market) 22%, transparent); border: 1px solid color-mix(in srgb, var(--market) 40%, transparent); }
+:is(.dr-pop, .dr-sheet) .dr-track .tr-med { position: absolute; top: 2px; width: 2px; height: 16px; background: var(--market); transform: translateX(-1px); }
+:is(.dr-pop, .dr-sheet) .dr-track .tr-dot { position: absolute; top: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--teal); border: 2px solid var(--panel); transform: translateX(-7px); box-shadow: 0 0 0 1px var(--teal-l); }
+:is(.dr-pop, .dr-sheet) .dr-track .tr-t { position: absolute; top: 20px; transform: translateX(-50%); font-size: var(--fs-small); font-variant-numeric: tabular-nums; color: var(--dim); }
+
+@media (max-width: 680px) {
+  .dr .dt-h, .dr-row { grid-template-columns: 0 minmax(0, 1fr) 96px minmax(0, 1fr); }
+  .dr-row .dn, .dr .dt-h .n { visibility: hidden; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dr-poll::before, .dr-hint .hello-glyph { animation: none; }
+}
+
+/* ---- owner screens: the answer on top (OwnerConfig, PairingConfirm, MandateEditor) ----------- */
+.ow-answer .ui-answer, .ow-ans .ui-answer { margin: 0; padding: var(--sp-3) var(--sp-4); align-items: flex-start; }
+.ow-answer .ui-answer .ico, .ow-ans .ui-answer .ico { width: 30px; height: 30px; margin-top: 1px; }
+.ow-answer .ui-answer .t, .ow-ans .ui-answer .t { font: var(--fw-semibold) var(--fs-title3)/1.4 var(--display); text-wrap: pretty; }
+.ow-answer .ui-answer .s, .ow-ans .ui-answer .s { font-size: var(--fs-small); color: var(--muted); }
+.ow-answer { margin: var(--sp-1) 0 0; }
+.ow-ans { margin: 0 0 var(--sp-1); }
+
+/* ---- round 2 (docs/ux/ROUND-2.md) ---------------------------------------------------------------
+   Hold: money actions are hold-to-confirm buttons (shared HoldButton, tuned here for the window).
+   Next: "What happens next", a three-step path under the answer.
+   Why?: on the answer and on each exception row. */
+.dr-hold { display: contents; }
+.dr .ui-hold { min-width: 244px; height: 34px; justify-content: flex-start; gap: var(--sp-2); padding: 0 var(--sp-4) 0 var(--sp-2);
+  font-weight: var(--fw-semibold); border-radius: var(--r); transition: box-shadow var(--t-fast), background var(--t-fast); }
+.dr .ui-hold .lbl { position: relative; z-index: 1; }
+.dr .ui-hold .ring { position: relative; z-index: 1; }
+.dr .ui-hold.gold::after { background: color-mix(in srgb, var(--on-gold) 24%, transparent); }
+.dr .ui-hold.holding { box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 34%, transparent), var(--shadow-1); }
+.dr .ui-hold.done { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 40%, transparent); }
+.dr .ui-hold:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.dr-next { display: flex; flex-direction: column; gap: var(--sp-1); }
+.dr-next .nx { list-style: none; margin: 0; padding: 0; display: grid; gap: 22px; }
+.nx-s { position: relative; display: flex; align-items: flex-start; gap: var(--sp-2); min-width: 0; padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r); background: var(--panel2); box-shadow: inset 0 0 0 1px var(--line); }
+.nx-n { flex: none; display: grid; place-items: center; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%;
+  font: var(--fw-bold) 11px/1 var(--num); color: var(--muted); background: var(--panel3); }
+.nx-t { min-width: 0; font-size: var(--fs-body); line-height: 1.35; color: var(--muted); text-wrap: pretty; }
+.nx-s.you .nx-n { color: var(--teal-l); background: color-mix(in srgb, var(--teal) 24%, transparent); }
+.nx-s.them .nx-n { color: var(--coral-l); background: color-mix(in srgb, var(--coral) 22%, transparent); }
+.nx-s.stop { background: color-mix(in srgb, var(--refuse) 6%, var(--panel2)); }
+.nx-s.stop .nx-n { color: var(--red-l); background: color-mix(in srgb, var(--refuse) 24%, transparent); }
+/* Gold means "needs you": only your own current step is gold. Someone else's current step is just brighter. */
+.nx-s.now .nx-t { color: var(--text); font-weight: var(--fw-medium); }
+.nx-s.now:not(.you) { box-shadow: inset 0 0 0 1px var(--line2); }
+.nx-s.now.you { background: color-mix(in srgb, var(--gold) 9%, var(--panel2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 50%, var(--line)); }
+.nx-s.now.you .nx-n { color: var(--on-gold); background: var(--gold); }
+.nx-a { position: absolute; right: -18px; top: 50%; transform: translateY(-50%); color: var(--dim); }
+
+.dr-says .ui-why { margin-left: var(--sp-2); white-space: nowrap; font-size: var(--fs-small); font-weight: var(--fw-medium); vertical-align: baseline; }
+.dr-vw { display: inline-flex; align-items: baseline; justify-content: flex-end; gap: var(--sp-2); max-width: 100%; min-width: 0; }
+.dr-vw > :first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.dr-vw .ui-why { flex: none; margin-left: 0; }
+/* The folded "not checked here" line lists names only (each name still opens its source). */
+.dr .cs-list li.fold .cs-name { overflow: visible; }
+.dr .cs-list li.fold .dr-src { display: inline; width: auto; }
+.dr .cs-list li.fold .dr-src .l { display: none; }
+.dr .cs-list li.fold .dr-src b { display: inline; color: var(--muted); text-decoration: underline dotted; text-underline-offset: 3px; }

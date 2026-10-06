@@ -1,0 +1,767 @@
+//! Versioned IPC contract shared with the desktop shell and generated TypeScript.
+use serde::{Deserialize, Serialize};
+use table_attention::{AttentionSnapshot, Form, Placement};
+pub use table_core::{CounterpartyDisplay, CounterpartyNote, DealDisplay, TranscriptStep};
+use table_core::{Deal, DealId, H256, Mode};
+pub use table_proto::{PairingIdentity, SignedPairingIdentity};
+use ts_rs::TS;
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ErrorCode {
+    Locked,
+    Permission,
+    /// A signed mandate clause refused the intent: a policy answer, not malformed input.
+    Refused,
+    Invalid,
+    NotFound,
+    Unavailable,
+    LedgerTrust,
+    Unsupported,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct CommandError {
+    pub code: ErrorCode,
+    pub message: String,
+}
+impl From<table_app::Error> for CommandError {
+    fn from(error: table_app::Error) -> Self {
+        let code = match &error {
+            table_app::Error::Locked => ErrorCode::Locked,
+            table_app::Error::Permission => ErrorCode::Permission,
+            table_app::Error::Refused(_) => ErrorCode::Refused,
+            table_app::Error::Invalid
+            | table_app::Error::Domain(_)
+            | table_app::Error::Protocol(_) => ErrorCode::Invalid,
+            table_app::Error::Unavailable => ErrorCode::Unavailable,
+            table_app::Error::Ledger(table_ledger::LedgerError::NotFound) => ErrorCode::NotFound,
+            table_app::Error::Ledger(_) => ErrorCode::LedgerTrust,
+        };
+        Self {
+            code,
+            message: error.to_string(),
+        }
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct DealArgs {
+    pub deal_id: DealId,
+}
+#[derive(Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct DecisionArgs {
+    pub deal_id: DealId,
+    pub attempt: u8,
+    pub terms_hash: H256,
+    // Required for owner ACCEPT. Digest of the exact latest signed counter.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub counter_hash: Option<H256>,
+}
+impl std::fmt::Debug for DecisionArgs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DecisionArgs")
+            .field("deal_id", &self.deal_id)
+            .finish_non_exhaustive()
+    }
+}
+#[derive(Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct UnlockArgs {}
+impl std::fmt::Debug for UnlockArgs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("UnlockArgs { [REDACTED] }")
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct FormArgs {
+    pub form: Form,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PinArgs {
+    pub pinned: bool,
+}
+#[derive(Clone, Serialize, Deserialize, TS)]
+pub struct IpcHeaders {
+    #[serde(rename = "X-Wallet-Ipc")]
+    pub ipc_token: String,
+}
+impl std::fmt::Debug for IpcHeaders {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("IpcHeaders { [REDACTED] }")
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct SettingsSnapshot {
+    pub house: HouseState,
+    pub mode: Mode,
+    pub locked: bool,
+    pub native_reauth_available: bool,
+    pub payment_executor_configured: bool,
+    /// Suppress spend/cost/stopped meters until their accounting sources are attached.
+    pub meters_available: bool,
+    pub client_pending: bool,
+    pub first_run: bool,
+    pub channel3_configured: bool,
+    pub agents_paused: bool,
+    pub selected_engine: table_engine::EngineId,
+    pub preferences: TumblerPreferences,
+    pub relay_available: bool,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum HouseState {
+    Unavailable,
+    Idle,
+    Waking,
+    Ready,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct ApprovalOpenArgs {
+    pub deal_id: Option<DealId>,
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub pairing: Option<H256>,
+    /// What the window opens on. Absent: a deal, a pairing, or owner configuration, as before.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub target: Option<ApprovalTarget>,
+    /// Main's pre-fill. A suggestion only: the approval window shows it, the owner may change it,
+    /// and Rust re-checks and signs it there. Main never signs.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub draft: Option<ApprovalDraft>,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ApprovalTarget {
+    Deal,
+    Pairing,
+    Credentials,
+    Mandate,
+    Unlock,
+}
+/// A draft carried from Main to the approval window. Closed shapes and typed values only.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ApprovalDraft {
+    /// A new band for the selected deal (band_set): target deal.
+    Band {
+        floor: Option<table_core::Money>,
+        ceiling: Option<table_core::Money>,
+    },
+    /// A new floor for one seller mandate's band, named by an item it covers: target mandate.
+    Floor {
+        mandate_id: table_core::MandateId,
+        item_ref: table_core::ItemRef,
+        floor: table_core::Money,
+    },
+    /// The rescue lever the owner picked in Main: target deal (a rescue).
+    Lever { lever: table_core::RescueLever },
+}
+/// What the approval window was opened for, read by that window only. `target` null means owner
+/// configuration (the legacy `deal_id: null` open).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct ApprovalHandoff {
+    pub target: Option<ApprovalTarget>,
+    pub deal_id: Option<DealId>,
+    pub draft: Option<ApprovalDraft>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PendingPairing {
+    pub pairing_id: H256,
+    pub words: [String; 4],
+    pub house: bool,
+    // Fixed Rust-composed context; no peer-supplied name, payee, key or URL.
+    pub display_context: String,
+    /// When the signed pairing identities lapse; after it the words can no longer be confirmed.
+    pub expires: i64,
+}
+/// Ends a pending pairing: by its id (words already on screen) or by the creator's own code
+/// (waiting for a joiner). Exactly one. Aborting only restricts, so it needs no privilege.
+#[derive(Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PairingAbortArgs {
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub pairing_id: Option<H256>,
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub code: Option<String>,
+}
+impl std::fmt::Debug for PairingAbortArgs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PairingAbortArgs")
+            .field("pairing_id", &self.pairing_id)
+            .finish_non_exhaustive()
+    }
+}
+/// Sent to Main after the owner confirmed the words in the approval window and Rust pinned the
+/// peer. Identifiers only; the owner's local label is read from counterparty_list.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PairingPinned {
+    pub pairing_id: H256,
+    pub key_id: table_core::KeyId,
+    pub house: bool,
+}
+
+/// Selects native credential UI. No IPC argument or result can contain a secret.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum CredentialArgs {
+    PaypalSandbox,
+    Channel3,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentSlot {
+    Negotiator,
+    Shopper,
+    Assistant,
+}
+impl AgentSlot {
+    pub const fn key_name(self) -> &'static str {
+        match self {
+            Self::Negotiator => "agent.negotiator",
+            Self::Shopper => "agent.shopper",
+            Self::Assistant => "agent.assistant",
+        }
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct MandateSignArgs {
+    pub id: Option<table_core::MandateId>,
+    pub agent: AgentSlot,
+    pub clauses: Vec<table_core::Clause>,
+    pub not_before: i64,
+    pub expires: i64,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct MandateRevokeArgs {
+    pub id: table_core::MandateId,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct BandArgs {
+    pub deal_id: DealId,
+    pub floor: Option<table_core::Money>,
+    pub ceiling: Option<table_core::Money>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct TumblerPreferences {
+    pub pinned: bool,
+    pub position: Option<PuckPosition>,
+    pub form: Form,
+    pub quiet: bool,
+    pub dnd: bool,
+    pub notifications: bool,
+    pub snap: table_attention::Snap,
+}
+impl Default for TumblerPreferences {
+    fn default() -> Self {
+        Self {
+            pinned: true,
+            position: None,
+            form: Form::Rest,
+            quiet: true,
+            dnd: false,
+            notifications: true,
+            snap: table_attention::Snap::Free,
+        }
+    }
+}
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PuckPosition {
+    pub x: i32,
+    pub y: i32,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct EngineSelectArgs {
+    pub engine: table_engine::EngineId,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct AgentStartArgs {
+    pub deal_id: DealId,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct MarketRefreshArgs {
+    pub deal_id: DealId,
+    pub product_id: String,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum RunState {
+    Starting,
+    Running,
+    Clean,
+    Failed,
+    Cancelled,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct RunSnapshot {
+    pub run: table_core::RunId,
+    pub deal_id: DealId,
+    pub engine: table_engine::EngineId,
+    pub mode: Mode,
+    pub state: RunState,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PairingCreateArgs {
+    pub side: table_core::Side,
+    pub payee: table_core::PayeeRef,
+}
+#[derive(Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PairingOffer {
+    pub code: String,
+    pub bundle: SignedPairingIdentity,
+}
+impl std::fmt::Debug for PairingOffer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("PairingOffer { [REDACTED] }")
+    }
+}
+#[derive(Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PairingJoinArgs {
+    pub code: String,
+    /// Omit for relay discovery; retained for explicitly offline bundle exchange.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub peer: Option<SignedPairingIdentity>,
+    pub side: table_core::Side,
+    pub payee: table_core::PayeeRef,
+}
+#[derive(Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PairingPollArgs {
+    pub code: String,
+}
+impl std::fmt::Debug for PairingPollArgs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("PairingPollArgs { [REDACTED] }")
+    }
+}
+impl std::fmt::Debug for PairingJoinArgs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("PairingJoinArgs { [REDACTED] }")
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PairingWords {
+    pub house_table: Option<table_proto::HouseTable>,
+    pub pairing_id: H256,
+    pub words: [String; 4],
+    pub reply: SignedPairingIdentity,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PairingConfirmArgs {
+    pub pairing_id: H256,
+    pub words: [String; 4],
+    pub display_name: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct DealCreateArgs {
+    pub kind: table_core::DealKind,
+    pub side: table_core::Side,
+    pub counterparty: table_core::KeyId,
+    pub mandate_id: table_core::MandateId,
+    pub mandate_version: u32,
+    pub terms: table_core::Terms,
+    pub category: table_core::Category,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct DealJoinArgs {
+    pub deal_id: DealId,
+    pub create: DealCreateArgs,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct ReconcileArgs {
+    pub deal_id: DealId,
+    pub start: i64,
+    pub end: i64,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct QuitSummary {
+    pub confirmation_id: H256,
+    pub pending: Vec<DealId>,
+    pub on_quit: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct QuitArgs {
+    pub confirmation_id: H256,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct ApprovalSummary {
+    pub deal: Deal,
+    pub evidence: table_core::DealEvidence,
+    pub attempt: u8,
+    pub terms_hash: H256,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional = nullable)]
+    pub counter_hash: Option<H256>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub can_owner_accept: bool,
+    pub locked: bool,
+    pub can_release: bool,
+    pub can_open_paypal: bool,
+    pub unavailable_reason: Option<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct DealChanged {
+    pub deal: Deal,
+    pub mode: Mode,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct ReceiptEvent {
+    pub deal_id: DealId,
+    pub evidence: table_core::DealEvidence,
+    pub mode: Mode,
+    pub state: table_core::DealState,
+    pub on_silence: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct TumblerHandoff {
+    pub deal_id: DealId,
+    pub approve_until: i64,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct MandateListEntry {
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub mandate: table_core::OpenMandate,
+    pub agent: AgentSlot,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct MainRoute {
+    pub deal_id: Option<DealId>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct OrientationEvent {
+    pub form: Form,
+    pub placement: Placement,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct TumblerStatus {
+    pub visible: bool,
+    pub form: Form,
+    pub count: u32,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct VisualState {
+    pub opacity_percent: u8,
+    pub breathe: bool,
+}
+/// A page of the audit chain for Book, newest first. `before` is an exclusive sequence number
+/// (absent = from the newest); `limit` is 1 to 200.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct AuditPageArgs {
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub before: Option<u64>,
+    pub limit: u16,
+}
+/// One verified audit row, projected to closed facts: who, what, when, which deal, and the typed
+/// decision and transition the row records. The row's free detail never crosses IPC.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct AuditRow {
+    pub seq: u64,
+    pub at: i64,
+    pub actor: String,
+    pub action: String,
+    pub deal_id: Option<DealId>,
+    pub decided_by: Option<table_core::DecidedBy>,
+    pub from: Option<table_core::DealState>,
+    pub to: Option<table_core::DealState>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct AuditPage {
+    pub rows: Vec<AuditRow>,
+    /// Pass as `before` for the next (older) page; null when this page reached the first row.
+    pub next_before: Option<u64>,
+}
+/// Read-only owner facts for Settings and Book: nothing here is a secret or a permission.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct OwnerFacts {
+    pub locked: bool,
+    /// Seconds until the approval window idle-locks; null while it is locked.
+    pub lock_in: Option<i64>,
+    pub last_reporting_poll: Option<ReportingPoll>,
+    pub engines: Vec<EngineProbe>,
+    pub credentials: Vec<CredentialFact>,
+    pub agents: Vec<AgentRosterEntry>,
+}
+/// The latest own-account Transaction Search call: when, and the HTTP status PayPal answered
+/// (0 = no response).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct ReportingPoll {
+    pub at: i64,
+    pub status: u16,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct EngineProbe {
+    pub id: table_engine::EngineId,
+    /// When this session probed the executable (null: never resolved).
+    pub probed_at: Option<i64>,
+    pub available: bool,
+    pub version: Option<String>,
+    pub detail: Option<String>,
+}
+/// Whether a credential is in the OS keyring and when it was stored. Never the secret.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct CredentialFact {
+    pub kind: CredentialArgs,
+    pub stored: bool,
+    /// Null when stored before this was recorded, or not stored.
+    pub stored_at: Option<i64>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct AgentRosterEntry {
+    pub slot: AgentSlot,
+    pub engine: table_engine::EngineId,
+    /// Fixed Rust text: what this slot is for.
+    pub does: String,
+    /// Active mandates whose signed agent key is this slot's.
+    pub mandates: Vec<table_core::MandateId>,
+    pub running: u32,
+}
+/// The owner's read-only Book query. `query` is a closed BookQuery, taken raw so that a rejection
+/// (schema or rule) comes back as INVALID with the reason verbatim; it is never SQL.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct BookQueryArgs {
+    pub query: serde_json::Value,
+}
+/// Aggregate rows, grouped by currency and mode first: amounts in minor units, market distance in
+/// basis points. Read on a read-only connection; nothing is written.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct BookAnswer {
+    pub query: table_core::BookQuery,
+    pub rows: Vec<serde_json::Value>,
+}
+/// Type-level command signature. The shell receives non-null arguments under `args`.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct Command<A, R> {
+    pub args: A,
+    pub result: R,
+}
+#[derive(Debug, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct CommandContract {
+    pub approval_selection: Command<(), Option<DealId>>,
+    pub deal_display: Command<DealArgs, DealDisplay>,
+    pub deal_transcript: Command<DealArgs, Vec<TranscriptStep>>,
+    pub counterparty_list: Command<(), Vec<CounterpartyDisplay>>,
+    pub get_settings: Command<(), SettingsSnapshot>,
+    pub list_deals: Command<(), Vec<Deal>>,
+    pub get_deal: Command<DealArgs, Deal>,
+    pub deal_evidence: Command<DealArgs, table_core::DealEvidence>,
+    pub deal_reconcile: Command<ReconcileArgs, table_core::DealEvidence>,
+    pub engine_status: Command<(), Vec<table_engine::EngineInfo>>,
+    pub attention_list: Command<(), AttentionSnapshot>,
+    pub main_open: Command<MainRoute, ()>,
+    pub approval_open: Command<ApprovalOpenArgs, ()>,
+    pub approval_summary: Command<DealArgs, ApprovalSummary>,
+    pub approval_pairing: Command<(), Option<PendingPairing>>,
+    pub approval_token: Command<(), String>,
+    pub tumbler_set_form: Command<FormArgs, ()>,
+    pub tumbler_pin: Command<PinArgs, ()>,
+    pub deal_withdraw: Command<DealArgs, ()>,
+    pub deal_let_lapse: Command<DealArgs, ()>,
+    pub deal_snooze: Command<DealArgs, ()>,
+    pub unlock: Command<UnlockArgs, ()>,
+    pub deal_countersign: Command<DecisionArgs, Deal>,
+    pub deal_owner_accept: Command<DecisionArgs, Deal>,
+    pub deal_capture: Command<DecisionArgs, Deal>,
+    pub deal_void: Command<DecisionArgs, Deal>,
+    pub shield_release: Command<DecisionArgs, Deal>,
+    pub rescue_approve: Command<DecisionArgs, Deal>,
+    pub open_paypal_in_browser: Command<DecisionArgs, ()>,
+    pub set_credentials: Command<CredentialArgs, ()>,
+    pub engine_select: Command<EngineSelectArgs, ()>,
+    pub mandate_list: Command<(), Vec<MandateListEntry>>,
+    pub mandate_sign: Command<MandateSignArgs, table_core::OpenMandate>,
+    pub mandate_revoke: Command<MandateRevokeArgs, ()>,
+    pub band_set: Command<BandArgs, table_core::OpenMandate>,
+    pub pairing_create: Command<PairingCreateArgs, PairingOffer>,
+    pub pairing_join: Command<PairingJoinArgs, PairingWords>,
+    pub pairing_poll: Command<PairingPollArgs, Option<PairingWords>>,
+    pub pairing_confirm: Command<PairingConfirmArgs, table_core::KeyId>,
+    pub settings_write: Command<TumblerPreferences, ()>,
+    pub deal_create: Command<DealCreateArgs, Deal>,
+    pub deal_join: Command<DealJoinArgs, Deal>,
+    pub pause_all_agents: Command<(), ()>,
+    pub resume_all_agents: Command<(), ()>,
+    pub agent_start: Command<AgentStartArgs, RunSnapshot>,
+    pub agent_runs: Command<(), Vec<RunSnapshot>>,
+    pub market_refresh: Command<MarketRefreshArgs, table_core::MarketRef>,
+    pub quit_summary: Command<(), QuitSummary>,
+    pub quit_confirm: Command<QuitArgs, ()>,
+    pub tumbler_drag: Command<(), ()>,
+    pub tumbler_snap: Command<(), table_attention::Snap>,
+    pub counterparty_note: Command<DealArgs, Option<CounterpartyNote>>,
+    pub pairing_abort: Command<PairingAbortArgs, ()>,
+    pub house_wake: Command<(), HouseState>,
+    pub approval_handoff: Command<(), ApprovalHandoff>,
+    pub audit_page: Command<AuditPageArgs, AuditPage>,
+    pub owner_facts: Command<(), OwnerFacts>,
+    pub book_query: Command<BookQueryArgs, BookAnswer>,
+    /// Saves the deal's signed proof bundle through a native save dialog; false if cancelled.
+    pub deal_export_proof: Command<DealArgs, bool>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct EventContract {
+    #[serde(rename = "tumbler:handoff")]
+    pub tumbler_handoff: TumblerHandoff,
+    #[serde(rename = "agent:changed")]
+    pub agent_changed: RunSnapshot,
+    #[serde(rename = "settings:changed")]
+    pub settings_changed: SettingsSnapshot,
+    #[serde(rename = "wallet:error")]
+    pub wallet_error: CommandError,
+    #[serde(rename = "tumbler:visual")]
+    pub tumbler_visual: VisualState,
+    #[serde(rename = "tumbler:selected")]
+    pub tumbler_selected: DealArgs,
+    #[serde(rename = "attention:changed")]
+    pub attention_snapshot: AttentionSnapshot,
+    #[serde(rename = "deal:changed")]
+    pub deal_changed: DealChanged,
+    #[serde(rename = "receipt:created")]
+    pub receipt: ReceiptEvent,
+    #[serde(rename = "tumbler:orient")]
+    pub orientation: OrientationEvent,
+    #[serde(rename = "tumbler:form")]
+    pub form: Form,
+    #[serde(rename = "tumbler:status")]
+    pub tumbler_status: TumblerStatus,
+    #[serde(rename = "approval:summary")]
+    pub approval_summary: ApprovalSummary,
+    #[serde(rename = "main:route")]
+    pub main_route: MainRoute,
+    #[serde(rename = "pairing:pinned")]
+    pub pairing_pinned: PairingPinned,
+}
+pub const COMMANDS: &[&str] = &[
+    "deal_snooze",
+    "approval_selection",
+    "deal_display",
+    "deal_transcript",
+    "counterparty_list",
+    "approval_pairing",
+    "deal_owner_accept",
+    "get_settings",
+    "list_deals",
+    "get_deal",
+    "deal_evidence",
+    "deal_reconcile",
+    "engine_status",
+    "attention_list",
+    "main_open",
+    "approval_open",
+    "approval_summary",
+    "approval_token",
+    "tumbler_set_form",
+    "tumbler_pin",
+    "deal_withdraw",
+    "deal_let_lapse",
+    "unlock",
+    "deal_countersign",
+    "deal_capture",
+    "deal_void",
+    "shield_release",
+    "rescue_approve",
+    "open_paypal_in_browser",
+    "set_credentials",
+    "engine_select",
+    "mandate_list",
+    "mandate_sign",
+    "mandate_revoke",
+    "band_set",
+    "pairing_create",
+    "pairing_join",
+    "pairing_poll",
+    "pairing_confirm",
+    "settings_write",
+    "deal_create",
+    "deal_join",
+    "pause_all_agents",
+    "resume_all_agents",
+    "agent_start",
+    "agent_runs",
+    "market_refresh",
+    "quit_summary",
+    "quit_confirm",
+    "tumbler_drag",
+    "tumbler_snap",
+    "counterparty_note",
+    "pairing_abort",
+    "house_wake",
+    "approval_handoff",
+    "audit_page",
+    "owner_facts",
+    "book_query",
+    "deal_export_proof",
+];
+pub const RELEASE_COMMANDS: &[&str] = &[
+    "deal_owner_accept",
+    "market_refresh",
+    "unlock",
+    "deal_countersign",
+    "deal_capture",
+    "deal_void",
+    "shield_release",
+    "rescue_approve",
+    "open_paypal_in_browser",
+    "approval_token",
+    "set_credentials",
+    "mandate_sign",
+    "mandate_revoke",
+    "band_set",
+    "pairing_confirm",
+    "deal_create",
+    "deal_join",
+];

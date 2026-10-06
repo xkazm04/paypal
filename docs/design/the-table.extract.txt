@@ -1,0 +1,1045 @@
+ 
+ THE TABLE — PayPal Agentic Wallet: every payment is a deal with a counterparty 
+ THE · TABLE 
+PayPal Agentic Wallet — every payment is a deal with a counterparty 
+Position what & why 
+ 01 The claim and the user 
+ 02 A week at Maya's table 
+ 03 The spine: Deal + Mandate 
+ 04 Home screen: The Table 
+ 05 Collisions with the facts 
+Machine how 
+ 06 Haggle protocol ★ 
+ 07 Money mechanics ×6 
+ 1 · Spend firewall 
+ 3 · Agent-ready merchant 
+ 5 · Ops cockpit (book) 
+ 7 · Scam shield 
+ 8 · Subscription rescue 
+ 9 · Haggle settlement 
+ 08 Architecture 
+ 09 Trust model 
+ 10 Product surfaces 
+ Levels & rules 
+ Approval moment 
+ Six modules 
+Argument why it wins 
+ 11 Judges & the video 
+ 12 Prize strategy 
+ 13 Build plan 
+ 14 Risks 
+ 15 Why this design 
+ 16 Marks & audit closure 
+Claims filter 
+ All 
+ S 
+ R 
+ A 
+ Position › The claim your side PayPal settlement counterparty 
+Design report · round 2 · PayPal Agentic Wallet · Tauri 2 desktop · build 2026-10-02 → 2026-11-12 14:00 PT 
+ THE TABLE . 
+Every payment your agents make is a deal with a counterparty : bounded by a mandate you signed, countersigned by the wallet only if it fits, settled by PayPal with one human approval, and provable by both sides . 
+$5,000 + $1,500 
+ Targeted: Honorable Mention "Best Use of Agentic Commerce" plus the Channel3 sponsor prize. The stacking rule allows one HM or one Grand prize, plus one sponsor prize S·hackathon . Ceiling: Grand 1st + Channel3 = $13,500 ( §12 ). 
+The video moment: two desktops. Maya's agent and Dan's agent haggle inside their owners' bands. One PayPal approval. Both wallets show the same receipt hash. 
+0:35–1:50 of the script ( §11 ). A judge with one install repeats it against the house seller . 
+One user, one sentence A: illustrative persona 
+ Maya runs Second Screen, a two-person shop selling refurbished monitors and a $12/month care plan. Maya's agents buy stock, answer other people's agents and chase failed renewals. The Table lets those agents haggle and pay without ever signing above Maya's number, paying a stranger who fails the shield, or moving a dollar Maya can't prove afterwards. 
+ Who A small online seller with a PayPal business account, running claude-code on the shop laptop. Not a developer, not a finance team. 
+ Maya's agents buy stock from other resellers ( haggle ) · buy parts and supplies ( spend ) · quote the catalog to other people's agents ( counter ) · chase failed care-plan renewals ( rescue ) · answer "how did this week go?" ( book ) · and everything is vetted by the shield 
+ Without it In a published agent-to-agent haggling trial, owners whose agents lost "didn't notice" S·landscape §1.8 . A shop agent told customers to pay a hallucinated account S·landscape §1.8 . And there's the owner's own nightmare: an agent ordering 40 GPUs S·scope §3 . 
+ With it Every agent deal sits inside a signed band, is priced against the market, needs one approval on PayPal's own page, and ends with a receipt hash that Maya and the other side both hold. 
+ Your side · Maya's wallet 
+Maya's sourcing agent ( claude-code or codex-cli ) bargains for a refurbished 27-inch 4K monitor. 
+Maya's open mandate limits it: ceiling $340 , 6 rounds, monitors only, deadline 18:00. 
+Market band from Channel3: $301–$336 A illustrative 
+ PayPal settles 
+$329.00 
+Orders v2 AUTHORIZE, issued by the seller, approved by Maya in the system browser S·paypal-platform §2 
+ Counterparty · Dan's wallet 
+Dan resells surplus office monitors. Dan's agent bargains under Dan's mandate; the floor stays hidden from Maya. 
+Identity: a paired key, four words checked on both screens. 
+Dan's wallet issues the order, captures it and sends Maya a signed receipt. 
+Agents can negotiate on their own. Money moves only when a deal fits a signed mandate, and only through a flow PayPal's sandbox actually supports. The bet, one sentence 
+The owners whose agents lost didn't notice. So every deal card here shows how its price compares with the market, and the owner's number is enforced in code, not in a prompt. Why a judge should care 
+How to read this report: S·note § is sourced from a staged research note; R is recalled or unverified (every [R] in the notes stays R); A is an assumption or design choice of this report. Use the claims filter at the bottom left to highlight one kind. "landscape" means landscape-and-stack.md . Numbers in figures are illustrative unless marked S. Maya, Dan and Second Screen are invented for illustration. Three levels: the Position chapters say what and why; Machine says how; each mechanism has a collapsed detail level for the build. 
+ 02 · Position 
+A week at Maya's table: one user through all six capabilities 
+The same person, the same shop and the same week carry through every capability, every surface and the video. Each card shows what an agent tried, what The Table did, and the one thing Maya decided. Teal cards are deals where Maya pays or checks; coral cards are deals where someone else's agent or a subscriber sits across the table. 
+ Mon · Tables (haggle) cap 9 
+ Agent Maya's sourcing agent bargains with Dan's agent for a refurbished 27-inch 4K monitor listed at $389. 
+ Table Signs only bids inside Maya's band (ceiling $340), shows the Channel3 market band, and closes at $329. 
+ Maya Countersigns (over $250), then approves once on PayPal's page. 
+ surface → 
+ Tue · Spend (firewall) cap 1 
+ Agent A confused agent asks for 40 GPUs. Later the supplies agent asks for a $64 USB-C dock. 
+ Table Refuses the GPUs before any PayPal call, citing clause 3. Holds the dock as an authorization. 
+ Maya Captures the dock inside the 3-day honor period. 
+ surface → 
+ Wed · Shield cap 7 
+ Agent A stranger offers a monitor 45% over market and asks to be paid "as friends and family". 
+ Table BLOCK, quoting the note and the market evidence. No PayPal link ever opens. 
+ Maya Nothing to decide: a BLOCK can't be released. A HOLD could be, by typing the payee's name. 
+ surface → 
+ Thu · Counter (shop) cap 3 
+ Agent Another wallet's agent asks Maya's counter for a monitor arm. Maya's quoting agent offers $61. 
+ Table Never quotes below the SKU floor ($58). Issues a PayPal order; the buyer approves; the shop captures. 
+ Maya Sets the floors once. Nothing per sale. 
+ surface → 
+ Fri · Rescue cap 8 
+ Agent A care-plan renewal for subscriber S-14 failed. The rescue agent proposes 20% off this cycle. 
+ Table Creates one $9.60 PayPal invoice for that subscriber only, and drafts Maya's email. 
+ Maya Presses send. The subscriber pays on PayPal; the deal book counts $9.60 recovered. 
+ surface → 
+ Sun · Book cap 5 
+ Agent Maya asks: "what did my agents commit this week, and how did it compare with the market?" 
+ Table The engine turns the question into a closed query; Rust runs it read-only; the grid shows reconciliation chips. 
+ Maya Reads the query before trusting the answer. 
+ surface → 
+The business case in one line: Maya delegates the boring money work to agents, and never has to trust an agent's word about money. The mandate, PayPal's page and the shared receipt are the three things Maya trusts instead. What Maya gains 
+ 03 · Position 
+The spine: one Deal primitive, signed under one Mandate 
+All six capabilities are the same object at different tables. A Deal always has two sides and a closed set of terms. An Open Mandate is the owner's signed limit on what their agent may agree to. A Closed Mandate is the wallet's countersignature on one deal, and the wallet only issues it if that deal fits. PayPal is the settlement rail, not the policy engine: PayPal has no per-agent budgets S·paypal-platform §6.3 . 
+ Six capabilities, one table who sits across from Maya in each, and the moment from Maya's week 
+ 1 · Spend (firewall) Across: a parts supplier. The limits Maya's agent may sign up to.
+Tue: 40 GPUs refused, $64 dock held then captured 
+ 5 · Book (ops cockpit) Every deal, its PayPal references and whether PayPal's statement agrees yet.
+Sun: "how did my agents do vs market?" 
+ 7 · Shield Vetting who sits down before the wallet countersigns. Can refuse, never grant.
+Wed: friends-and-family request blocked 
+DEAL 
+closed terms · two signatures · market snapshot · PayPal references · transcript head 
+ PayPal sandbox Orders v2 · Payments v2 · Invoicing v2 · Subscriptions v1 
+your side: open mandate + agent key 
+their side: identity + their offer 
+ 9 · Tables (haggle) Two wallets at the table. Both agents bound by their owners' bands.
+Mon: Maya buys from Dan at $329 
+ 3 · Counter (agent-ready shop) Maya's shop sits at the table for other people's agents.
+Thu: a monitor arm quoted at $61, floor $58 
+ 8 · Rescue Renegotiating one recurring deal with one of Maya's own subscribers.
+Fri: $9.60 discounted invoice, paid 
+Left: deals where Maya pays or checks. Right: deals where someone else's agent or a subscriber is the counterparty. Every deal settles through four PayPal API families S·paypal-platform §1.1, §1.2, §1.4, §1.5 . The module names (Tables, Spend, Counter, Book, Shield, Rescue) are the labels in the app's left rail ( §10 ). 
+The primitives as code 
+ // crates/table-core/src/mandate.rs — AP2-inspired, implemented locally.
+// PayPal documents no public AP2 API (paypal-platform §3.3, S). 
+ pub struct OpenMandate { // signed by the OWNER key 
+ id: MandateId, version: u32,
+ agent_key: Ed25519Pub, // private half never leaves Rust 
+ clauses: Vec<Clause>, // numbered; refusals cite them 
+ not_before: Ts, expires: Ts,
+ owner_sig: Sig, // over canonical JSON (JCS) 
+}
+ pub enum Clause {
+ /*1*/ Roles(Vec<Role>), // Buy | Sell | Shop | Rescue 
+ /*2*/ Counterparties(CpRule), // Pinned(keys) | Paired | House 
+ /*3*/ PerDeal{ kind: DealKind, max_amount: Money,
+ categories: Vec<Category> },
+ /*4*/ Band{ item_refs: Vec<ItemRef>, floor: Option<Money>,
+ ceiling: Option<Money>, max_rounds: u8, deadline: Ts },
+ /*5*/ Velocity{ max_deals_day: u16, max_total_day: Money },
+ /*6*/ HumanPresentOver(Money), // above: owner clicks 
+ /*7*/ Payees(Vec<PayeeRef>), // firewall allowlist 
+}
+ pub struct ClosedMandate { // the wallet's countersignature 
+ deal_id: DealId, open_mandate_hash: H256,
+ terms_hash: H256, amount: Money, payee: PayeeRef,
+ invoice_id: String, // = "{deal ULID}-{attempt}" 
+ decided_by: DecidedBy, // Policy(clause) | Human(at) 
+ agent_sig: Sig,
+} 
+ // crates/table-core/src/deal.rs — the one primitive 
+ pub struct Deal {
+ id: DealId, // ULID; label "D-0193" is display-only 
+ kind: DealKind, // Purchase|Haggle|ShopOrder|Rescue|Invoice 
+ side: Side, // Buyer | Seller 
+ counterparty: CounterpartyRef, // key id, display name, first_seen 
+ terms: Terms,
+ state: DealState, // see haggle state machine 
+ mandate_id: MandateId,
+ market: Option<MarketRef>, // Channel3 band snapshot 
+ paypal: PaypalRefs, // order/auth/capture/subscription 
+ transcript_head: H256, // last envelope hash, both sides 
+ shield: Option<Verdict>,
+}
+ // A CLOSED set of fields. Nothing free-form reaches money. 
+ pub struct Terms {
+ item_ref: ItemRef, // own SKU | Channel3 product id 
+ qty: u32, unit_price: Money, currency: Currency,
+ delivery: Delivery,
+}
+ pub enum Delivery { // decides WHEN the seller captures; 
+ DigitalNow, // haggles are always intent AUTHORIZE 
+ ShipThenCapture{ days: u8 }, // capture inside the 3-day honor period 
+ PickupLocal, ServiceOnDate(Date),
+}
+ // Deal ids: a ULID is the identity and goes to PayPal.
+// "D-0193" is a per-install display label only, never sent. 
+Why the deal's terms are a closed list: one published shop-keeping agent experiment ended up with its agent telling customers to pay a hallucinated account. Its second run approved a contract nobody had meant to offer, and the fixes reported were a hard margin rule, procedures and role separation S·landscape §1.8 . A closed list of deal types is the research note's own inference from those lessons (landscape §1.9 is marked [inference]), adopted here as a design choice A . Here, an offer is (item_ref, price, currency, delivery) and nothing else. The open/closed mandate split mirrors AP2 v0.2's open stage (constraints + agent public key, user-signed) and closed stage (bound to one transaction) S·landscape §1.3 . The mandate is committed to the counterparty as a hash, so your ceiling stays private but can be proven later, in the spirit of AP2's selective disclosure (SD-JWT) S·landscape §1.3 A: commitment scheme . 
+ 04 · Position 
+Home screen: The Table 
+What Maya sees when the app opens. A Needs you strip runs across the top. Below it, the deal in focus: Maya's side on the left, the counterparty on the right, and the live offers converging in the middle against Maya's band and the market band. The deal book sits underneath. The one interaction: move the mandate's ceiling. Offers outside the band turn grey and can't be signed, because the Rust core refuses them rather than because the agent is asked nicely. Drag the slider or the teal handle. 
+ The Table · deal D-0193 · "Refurbished 27-inch 4K monitor" interactive · illustrative data A 
+ Needs you · 2 
+ D-0193 · countersign $329 · if you do nothing: the offer lapses at 18:00, no money moves 
+ Dock hold $64 · if you do nothing: auto-void in 2 d 19 h 
+ SANDBOX 
+ Your side · Maya's wallet 
+Sourcing agent claude-code 
+ mandate M-12 v3 ✓ 
+ agent key 9f3c…a1 
+ rounds used 5 / 6 
+ deadline 18:00 today 
+ Clause 4 · Band : item_refs [monitor-27-4k] · ceiling $340 · max_rounds 6 
+ Clause 6 : deals over $250 need your click to countersign 
+ Clause 2 : counterparty must be paired (SAS confirmed) 
+ market band (Channel3) 
+ Mandate ceiling $340 
+ Counterparty · Dan's wallet 
+Dan · "north-desk" paired 
+ owner key 47be…0d 
+ words ✓ matched 
+ first seen today (new) 
+ past deals 0 
+ their floor hidden 
+ Market reference Channel3 /lookup-product + /similar-products : p25 $301 · median $318 · p75 $336 · history: tracking since Oct 14 A illustrative 
+ Shield : list price $389 is 22% over the median, under the 40% flag. Payee matches the signed key. Verdict: CLEAR 
+Deal book (latest) 
+ Deal Kind Counterparty Amount State PayPal evidence vs market 
+ D-0193 haggle · buy Dan · north-desk $329.00 RECEIPTED Dan's signed receipt · seller-attested pending in PayPal reporting p78 of band 
+ D-0192 purchase gpu-cloud.example — (40 × GPU) REFUSED · clause 3 no PayPal call made — 
+ D-0190 purchase parts supplier payee route · sandbox $64.00 CAPTURED auth → capture after countersign p40 
+ D-0188 rescue subscriber S-14 $9.60 RECOVERED rescue invoice PAID — 
+ D-0185 shop order · sell agent of wallet "lark" $18.50 CAPTURED matched in Transaction Search p55 
+Teal band = what your agent is allowed to sign. Hatched band = market reference from Channel3. Coral dots = their asks, teal dots = your bids, gold = the agreed deal. Lower the ceiling below $329 and the gold deal goes grey: with that mandate, the deal could not have closed, and the verdict line says which clause would have stopped it. 
+ 05 · Position 
+Where the owner's decisions collide with the facts 
+Each collision below is stated as a fact, followed by the smallest change that keeps the owner's intent. None of them is quietly designed around. 
+ Owner decision The fact it hits Smallest change (this design) Cost 
+ Haggle "closes with a PayPal payment" No developer API lets one consumer send money to another. P2P exists only in the consumer UIs S·paypal-platform §0.1, §2 . The seller's wallet is a merchant : B's own REST app issues an Orders v2 order and A approves it as the buyer. Settlement is always Goods & Services, never Friends & Family S·paypal-platform §5 . One human approval per deal (the PayPal page). 
+ "Each user is a merchant" Each user having a business account and REST app is a sandbox convenience. In live use, "You may not establish a PayPal business account primarily for personal… purposes" S·paypal-platform §5 . Two-user trading is a marketplace (AUP #18) or money-service (AUP #4) pattern that needs pre-approval S·paypal-platform §5 . The sandbox build is said to be a sandbox build. The pitch says "live use requires PayPal marketplace onboarding / MSB pre-approval" S·paypal-platform §6.12 . The wallet never holds funds in an app-owned balance S·paypal-platform §5 . A sentence in the video and README. 
+ Subscription rescue No API lets a consumer list or cancel their automatic payments to other merchants S·paypal-platform §1.5 . Merchant-side : Maya rescues the shop's own subscribers. Every lever acts on one subscription (capture, suspend, revise) or sends one invoice; the plan-wide update-pricing-schemes is never used. The subscriber has no wallet, so the channel is PayPal's invoice email plus Maya's own email S·paypal-platform §1.4, §1.5, §7 . A consumer "rescue my subscriptions" story is out of scope. 
+ Agent-ready merchant Agent Ready (Braintree-only ACP path), Store Sync (physical/US/USD) and WebMCP checkout are gated by a request form S·paypal-platform §3.3 . The Catalog API has no price S·paypal-platform §1.8 . Self-built shop: a local catalog with prices, a feed modelled on Store Sync / ACP feed fields, shop.* tools, and Orders v2 behind it S·paypal-platform §6.7 . No listing in third-party AI surfaces. 
+ Spend firewall "budgets, allowlists, velocity" PayPal exposes no per-agent budgets, allowlists or velocity limits S·paypal-platform §6.3 . A vaulted wallet pays only the merchant that vaulted it S·paypal-platform §1.9 . Policy is the open mandate, checked in Rust before every create/authorize/capture. Vault is not used as an "agent card". Every purchase is AUTHORIZE → human approval → countersigned capture. No unattended spending; that is the point. 
+ Spend firewall pays "a merchant" An order created by the wallet's own REST app with another account as payee works in sandbox S·paypal-platform §1.1 , but that merchant never sees an order in its own system, and live use is the "platform app pays another account" pattern that needs onboarding R·paypal-platform §2 . Prefer route ①: the merchant is a wallet shop and issues its own order. Route ② (payee) only with a cooperating sandbox merchant, labelled "payee route · sandbox" ( cap 1 ). The firewall's demo merchant is a cooperating account. 
+ Webhooks into a desktop app The listener must be public HTTPS on 443 S·paypal-platform §1.10 . Simulator events can't be postback-verified S·paypal-platform §1.10 . Poll resource GETs plus GET /v1/notifications/webhooks-events S·paypal-platform §4 . A Render relay is optional and never the source of truth. Seconds of latency. 
+ PayPal approval inside the app "Your application must not use a WebView… to display PayPal web pages" S·landscape §3.5 . Every approval opens in the system browser . The app learns the outcome by polling the order. Deep links only bring the window forward. One window switch in the video. 
+ Name "PayPal Agentic Wallet" in the video Video "may not include third-party trademarks… without permission" S·hackathon . Engine vendors' names may not appear in product or feature names S·landscape §2.1 . The on-screen title is "The Table: an agentic wallet built on PayPal". No engine logos or terminal branding appear. PayPal sandbox pages are shown only where approval happens A . Ask in the PayPal Discord A . 
+ 06 · Machine · centerpiece 
+The haggle protocol: two wallets at one table 
+Two installs, two sandbox accounts, one agent each S·scope §3 . The agents exchange signed envelopes through a store-and-forward rendezvous that can't read keys, change terms or touch PayPal. Each agent can only name a number, and the Rust core signs it only if it falls inside that owner's band. Settlement is one order that B issues and A approves. 
+The model may pick any number it likes. The wallet will only sign numbers inside the owner's band, and an unsigned offer doesn't exist. How limits bind each agent 
+6.1 Discovery and pairing 
+ Wallet A · Maya (buyer) 
+Owner types B's pairing code TBL-7Q4M-K2 (or HOUSE ). 
+A posts HELLO{owner_key, agent_key, mandate_commitment} to the mailbox H(code) . 
+A computes 4 words = H(keyA‖keyB‖code) and shows them. 
+Owner checks they match B's screen (over voice or chat) and clicks Words match . The key is now pinned. 
+ Rendezvous (Render) 
+Mailbox keyed by SHA-256(code) . Stores and forwards only. No accounts, no database, TTL 24 h, 16 KB/envelope. A A malicious relay can drop or delay envelopes, but it can't forge them (signatures) or sit in the middle of pairing (the words check). 
+ otter basil quartz meadow 
+ Wallet B · Dan (seller) 
+Owner clicks Open a table for listing monitor-27-4k ; the wallet mints a one-time code. 
+B posts its own HELLO and a LISTING{item_ref, ask, delivery} . 
+B shows the same 4 words. 
+Owner confirms. B's agent sees the table only after both sides confirm. 
+Pairing words, a mailbox keyed by a code hash and pinned keys are all A design choices. The idea of per-agent Ed25519 identity comes from the signed-agent schemes the field converged on (landscape §1.4 S ). House seller: the house counterparty's public key ships pinned in the release, so HOUSE needs no words check A . 
+6.2 The envelope 
+ // crates/table-proto/src/envelope.rs
+// Compact JWS, alg EdDSA (Ed25519). Modelled on signed-offer
+// JWTs with an `aud` anti-replay claim (landscape §1.6, S). 
+ pub struct Envelope {
+ v: u8, // protocol version = 1 
+ typ: MsgType,
+ deal_id: DealId,
+ seq: u32, // strictly +1 per sender 
+ prev: H256, // hash of previous envelope (either side) 
+ iss: KeyId, // sender agent key id 
+ aud: KeyId, // receiver key id — anti-replay 
+ iat: Ts, exp: Ts, // offers live ≤ 10 min 
+ nonce: [u8; 16],
+ body: Body, // closed enum below 
+} // sig = Ed25519(agent_key, JCS(envelope)) 
+ pub enum Body {
+ Hello{ owner_key, agent_key, mandate_commitment: H256,
+ owner_sig_over_commitment: Sig, display_name: Short32 },
+ Listing{ item_ref, ask: Money, delivery: Delivery },
+ Offer{ price: Money, delivery: Delivery },
+ Counter{ price: Money, delivery: Delivery },
+ Accept{ offer_seq: u32, terms_hash: H256 },
+ Settle{ order_id, approve_url, amount: Money,
+ invoice_id, intent: Intent, attempt: u8 },
+ Approved{ order_id }, // A: "I clicked approve" 
+ Receipt{ capture_id, amount: Money, status,
+ transcript_head: H256 },
+ Withdraw{ reason: ReasonCode }, // enum, not text 
+ Note{ text: Short280 }, // HUMAN-ONLY; never shown to agents 
+} 
+ Type Sent by Rust check before sign / after receive 
+ HELLO both key format; commitment signed by owner key 
+ LISTING seller item_ref ∈ seller clause 4; ask ≥ floor 
+ OFFER / COUNTER both price in band; round ≤ max_rounds; now < deadline; delivery ∈ allowed enum 
+ ACCEPT both (2 sigs) accepted price is the counterparty's last signed price; terms_hash recomputed 
+ SETTLE seller amount = terms; intent = AUTHORIZE; invoice_id = deal ULID + attempt; URL host allowlisted; attempt ≤ 3 
+ APPROVED buyer only after the owner clicked "Open PayPal" for this deal 
+ RECEIPT seller amount = terms; transcript_head equals ours 
+ WITHDRAW both reason ∈ enum; legal in any pre-capture state 
+ NOTE owners ≤ 280 chars; shown in a quarantine box to the human only 
+On receipt, the core rejects any envelope with a bad signature, wrong aud , expired exp , a nonce already seen ( nonces_seen table), a seq gap or a prev mismatch. The rejection is audit-logged and the deal state doesn't change A . Both sides keep the same hash-linked envelope chain, so the transcript head is one hash either party can recompute and verify. 
+6.3 State machine 
+ Deal state machine (both wallets run it; transitions only on verified envelopes or PayPal responses) hover or focus a state 
+Hover a state to see who moves the deal into it, its timeout, and what happens on failure. 
+6.4 How each owner's limits bind their agent 
+ What the agent sees (MCP table_view ) 
+ { "deal_id":"D-0193", "role":"buyer",
+ "item":{"ref":"monitor-27-4k","title":"[untrusted] Refurb 27in 4K…"},
+ "band":{"ceiling":"340.00","rounds_left":1,"deadline":"18:00Z"},
+ "market":{"p25":"301","median":"318","p75":"336","src":"channel3"},
+ "history":[{"seq":9,"by":"them","price":"333.00"},
+ {"seq":10,"by":"you","price":"327.00"},
+ {"seq":11,"by":"them","price":"329.00"}],
+ "allowed_actions":["send_offer","accept_offer","withdraw_offer"] } 
+The agent sees structured numbers and enums only. The counterparty's Note text never reaches it. Product titles from Channel3 are length-capped and tagged [untrusted] as data A . 
+ What Rust enforces on every call 
+ fn send_offer(&self, d: &Deal, price: Money) -> Result<Envelope, Refusal> {
+ let m = self.mandates.active_for(d)?; // clause 1, 2 
+ m.band(d.item_ref())?.contains(price, d.side)?; // clause 4 
+ m.rounds_left(d)?.at_least(1)?; // clause 4 
+ m.before_deadline(now())?; // clause 4 
+ self.velocity.check(&m, price)?; // clause 5 
+ let env = Envelope::offer(d, price, self.next_seq(d));
+ self.ledger.append_out(&env)?; // hash chain first 
+ Ok(self.signer.sign_agent(&m.agent_key, env)) // key never in JS/LLM 
+}
+ // accept_offer: same checks against THEIR last signed price,
+// plus clause 6 (HumanPresentOver) → queue a countersign card. 
+A refusal comes back to the agent as an MCP isError naming the clause, for example "clause 4: price 352.00 above ceiling 340.00". The agent can try again, but only with a number inside the band. 
+6.5 Settlement: a seller-issued order 
+ 1 · Both sign ACCEPT The deal is closed with two signatures. Clause 6 may require A's owner to click countersign. 
+ 2 · B creates the order POST /v2/checkout/orders with intent: AUTHORIZE from B's own REST app (B is the merchant). The amount is exactly the deal amount S·paypal-platform §1.1, §2 
+ 3 · Link in a signed SETTLE The approve link ( rel: payer-action S·landscape §3.5 ) travels to A inside B's signed envelope. 
+ 4 · A approves A's wallet checks the link against the signed deal, then opens it in the system browser S·landscape §3.5 . The owner approves as buyer. 
+ 5 · B authorizes, captures, signs B polls GET /v2/checkout/orders/{id} until APPROVED, calls …/{id}/authorize , then /v2/payments/authorizations/{id}/capture on delivery, and sends a RECEIPT with the capture id S·paypal-platform §1.1, §1.2, §4 
+ Always AUTHORIZE , as the research recommends. The note's framing for haggling is "an AUTHORIZE order or invoice that B issues and A's human approves" S·paypal-platform §2 . Round 1 used CAPTURE for digital goods; that is withdrawn. The Delivery enum now decides only when B captures: DigitalNow straight after authorize, ShipThenCapture inside the 3-day honor period S·paypal-platform §1.2 . Until capture, a hold exists and B can void it if the deal falls through. Calling /orders/{id}/capture on an AUTHORIZE order returns 422 ACTION_DOES_NOT_MATCH_INTENT S·paypal-platform §1.1 . 
+ invoice_id = {deal ULID}-{attempt} , never the display label. PayPal treats invoice_id as unique per merchant and rejects duplicates with DUPLICATE_INVOICE_ID S·paypal-platform §1.1 , so B can't settle the same deal twice. The house seller is one merchant shared by every judge, so a per-install label like "D-0193" would collide across installs; a ULID can't A . The attempt suffix exists because an expired order may still hold its invoice_id A: unverified, spike . 
+ The deal hash travels with the order. custom_id = first 32 hex characters of terms_hash and description = "Deal 01JD…7Q · monitor-27-4k". The field semantics and length limits are R and must be checked against the spec on day 1. 
+ The approval window is shown as a countdown. The link has 6 hours by default S·paypal-platform §1.1 . If it expires, B re-issues the order with attempt+1 (at most 3). 
+ Never Friends & Family. Goods and services must be paid as a commercial transaction S·paypal-platform §5 . The scam shield flags any NOTE asking for "personal" payment as the User Agreement's "Buyer Scam" typology S·paypal-platform §5 . 
+6.6 Mutual verification, including the asymmetry 
+ What A (buyer) can prove 
+Its own signed OFFER/ACCEPT chain and B's signatures on every COUNTER, ACCEPT, SETTLE and RECEIPT. 
+The PayPal-hosted page the owner saw: amount and merchant, with a screenshot prompt A . 
+B's signed RECEIPT with the capture id and the same transcript_head . 
+ Cannot read B's order through the API, because A's credentials aren't B's merchant credentials A: assumption, spike . 
+Later reconciliation via Transaction Search (≤ 3 h lag S·paypal-platform §1.7 ) works only if A paid from the account bound to A's REST app. Business accounts paying as buyers is R . Until then the row shows pending in PayPal reporting . 
+ Shared 
+transcript_head 7c1e…94 
+Same hash on both screens. Either side can re-verify every signature offline. 
+ What B (seller) can prove 
+ GET /v2/checkout/orders/{id} on its own order: status APPROVED, then COMPLETED S·paypal-platform §1.1 . 
+The capture id from its own capture call, and Transaction Search on its own account after ≤ 3 h S·paypal-platform §1.7 . 
+A's signed ACCEPT, which binds A to the price. 
+If A never approves, the order expires and the deal goes to EXPIRED. No money moved. 
+A disputed deal (for example, item not received) goes through PayPal's normal process. In sandbox the buyer opens the case in the Resolution Center S·paypal-platform §1.6 , and either side exports the signed transcript as evidence A . 
+6.7 Timeouts and failures 
+ Event Detected by What happens Money state 
+ Offer not answered in 10 min both cores (offer exp ) Offer lapses. The agent may re-offer while rounds and deadline allow A none 
+ Deadline or max_rounds reached each core, independently Auto-WITHDRAW{DEADLINE | ROUNDS}. Owner is notified (tray badge) none 
+ Agent proposes out of band own core MCP isError naming the clause. No envelope leaves the machine none 
+ Forged, replayed or out-of-order envelope receiving core Rejected and audit-logged. Repeated → table closed with WITHDRAW{PROTOCOL} none 
+ SETTLE amount ≠ signed deal, or link host not allowlisted A's core No "Open PayPal" button. State MISMATCH. Shield verdict HOLD none 
+ Order not approved in 6 h A's countdown; B's poll B re-issues with attempt+1 (≤ 3), then EXPIRED S·paypal-platform §1.1 none 
+ B doesn't capture after APPROVED A waits 30 min A A shows "seller hasn't captured". The approved order is left uncaptured, so no funds move none R 
+ Capture fails or is declined B's core RECEIPT{status: FAILED}. Deal → SETTLING retry once, then FAILED none 
+ Rendezvous down or cold both clients Exponential backoff. "Table paused" banner. Envelopes are idempotent by (deal, seq) unchanged 
+ Paid, item not delivered owner Refund by B ( /v2/payments/captures/{id}/refund ) or a sandbox dispute S·paypal-platform §1.2, §1.6 refund path 
+6.8 The house seller (so one install can haggle) 
+ // bin/house.rs — runs headless on Render; links the SAME
+// table-core + table-proto crates as the desktop (pattern: a second
+// [[bin]] running the app's router headless, owner-assets §7).
+// NO LLM. Deterministic. Its sandbox business credentials live in
+// Render env vars, never in the repo or the desktop binary. 
+ fn house_ask(list: Money, floor: Money, round: u8) -> Money {
+ let step = list * dec!(0.045) * round; // 4.5% per round 
+ max(floor, (list - step).round_to(1))
+}
+ fn house_accepts(bid: Money, ask: Money, floor: Money) -> bool {
+ bid >= floor && (ask - bid) <= dec!(5.00) // split small gaps 
+}
+ // catalog: 3 items, each with a list price and floor, seeded from a
+// Channel3 lookup cached at deploy time (labelled "cached"). 
+ Why scripted: the wallet ships no model and no model keys S·scope §2 . A scripted counterparty keeps that true on the hosted side too, and makes the demo repeatable . The judge's own agent is the only LLM at the table. 
+ Settlement is real. The house is a sandbox merchant. It creates the Orders v2 order, the judge approves with the sandbox buyer login provided in the Devpost form, and the house captures and signs the receipt S·paypal-platform §3.4 . 
+ Cold start: Render's free web services spin down after 15 min idle S·landscape §4.9 . The app pings /healthz on launch and shows "the house is waking up (≈1 min)" A: wake time . 
+ 07 · Machine 
+Money mechanics: six deals, six sequences 
+For each capability: who pays whom, through which endpoint, where a human must approve and how that happens on a desktop, what the agent may do alone, and whether the sandbox supports it. Each sequence is annotated. Hover a step to light up its note, or hover a note to light up its step. 
+The money directions PayPal allows, and which ones this wallet uses 
+ # Mechanism S·paypal-platform §2 Human in loop Who receives Sandbox Used here 
+ A Orders v2 + approve link (CAPTURE or AUTHORIZE) Yes, per payment App owner, or any account via payee Yes SPINE firewall (1), shop (3), haggle (9) 
+ B Vault v3 wallet → orders with vault_id Once, at vaulting Only the merchant that vaulted Yes NOT USED it isn't an agent card. It would let the wallet's own app pull money from the user, which is the wrong shape for a firewall. 
+ C Subscriptions Once per subscription The plan's merchant Yes USED rescue (8): your own plans, your own subscribers 
+ D Payouts from a business balance No Any email or PayPal ID Yes, funded business NOT IN DEMO autonomous push is an MSB-style pattern and is gated in live S·paypal-platform §2, §5 
+ E Invoicing (B invoices A) Yes, A pays on a PayPal page The invoicing merchant Yes FALLBACK rescue balance collection, and haggle settlement if the seller-order spike fails 
+ F Consumer "Send Money" (F&F / G&S) Yes, manual UI only Any account Manual only NEVER no API, and F&F for goods breaks the User Agreement S·paypal-platform §5 
+1 
+Spend firewall 
+Deal framing: the limits your agent may sign up to. A purchase is a deal proposal checked against the open mandate. Maya, Tue: 40 GPUs refused; a $64 dock held, then captured ( Spend ). 
+ Who pays whom Route ① a wallet shop (cap 3) issues its own order: the merchant knows. Route ② the owner's own REST app creates the order with the merchant as payee S·paypal-platform §1.1 ; that merchant gets funds but no order in its own system 
+ API + endpoint POST /v2/checkout/orders (AUTHORIZE) → …/{id}/authorize → POST /v2/payments/authorizations/{id}/capture or /void S·paypal-platform §1.2 
+ Human approval ① PayPal page in the system browser. ② The local countersign card for amounts above clause 6, inside the 3-day honor period S·paypal-platform §1.2 
+ Agent alone may Propose. It can't create, approve, capture or void. Within clause 6 the policy countersigns ( decided_by: Policy ) 
+ Sandbox Works . Capturing on behalf of a payee needs a day-1 test, since where refunds and disputes land is R 
+Rogue request: "buy 40 GPUs". No mandate covers it, so it's refused before any PayPal call . The owner sees: mandate clause 3: max_amount $200 per deal; category compute not allowed . 
+ Sequence · spend firewall 14 steps · hover to annotate 
+ Route ② is flagged, not hidden. A merchant paid through a payee order on someone else's REST app never sees an order, cart or fulfilment trigger in its own integration A: inference from §2 option 2 ; it only receives funds. That is the note's "platform app pays another account" option, and live use needs platform or marketplace onboarding R·paypal-platform §2 . So the wallet prefers route ① whenever the merchant is itself a wallet shop, uses route ② in the sandbox only with a cooperating sandbox merchant, and labels it "payee route · sandbox" on the card A . 
+Vault isn't a general agent card because a vaulted token pays only the merchant that created it ( usage_type: MERCHANT ) S·paypal-platform §1.9 . Using PLATFORM to pay other payees needs partner onboarding R . PayPal has no per-agent budgets, so the policy is local code, re-checked at capture S·paypal-platform §6.3 . Retries reuse the same PayPal-Request-Id , which PayPal keeps for 6 hours, so a timeout plus retry doesn't create two orders S·paypal-platform §1.1, §6.18 . 
+3 
+Agent-ready merchant 
+Deal framing: your shop sits at the table for other people's agents. Its prices are your seller mandate. Maya, Thu: another wallet's agent buys a monitor arm at $61, floor $58 ( Counter ). 
+ Who pays whom The buyer (another wallet's owner, or you testing) → your business account as merchant 
+ API + endpoint POST /v2/checkout/orders CAPTURE with items[] + amount.breakdown → …/{id}/capture . Optional …/{id}/track S·paypal-platform §1.1, §6.6 
+ Human approval The buyer approves on PayPal in their system browser. Your side: none per sale. The shop mandate's floor prices bind your quoting agent 
+ Agent alone may Answer shop.search / shop.quote and discount down to the per-SKU floor. Checkout is wallet code, not agent code 
+ Sandbox Works (Orders v2). Agent Ready / Store Sync / WebMCP are gated , so nothing depends on them S·paypal-platform §3.3 
+ Sequence · agent-ready merchant 13 steps 
+ Catalog and feed model — prices live locally; the feed follows Store Sync / ACP field names 
+ -- the Catalog Products API has no price/stock (paypal-platform §1.8, S) → local table 
+ CREATE TABLE shop_items (
+ sku TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT NOT NULL -- ≥ 25 chars (feed rule, S) 
+ , link TEXT, image TEXT, price_minor INTEGER NOT NULL, currency TEXT NOT NULL DEFAULT 'USD'
+ , floor_minor INTEGER NOT NULL -- seller mandate: agent may not quote below 
+ , availability TEXT CHECK (availability IN ('in_stock','out_of_stock','preorder'))
+ , kind TEXT CHECK (kind IN ('PHYSICAL','DIGITAL','SERVICE'))
+ , channel3_product_id TEXT -- optional market reference 
+);
+ -- export: CSV with header row, UTF-8; id,title,link,image,description,price("19.99 USD"),availability
+-- (Store Sync feed required fields, paypal-platform §3.3, S). Exported for portability, not uploaded. 
+5 
+Payments ops cockpit = the deal book 
+Deal framing: every deal you were part of, its PayPal evidence, and whether PayPal's own statement agrees yet. Maya, Sun: "how did my agents do against the market?" ( Book ). 
+ Who pays whom No money moves. Read-only 
+ API + endpoint Own ledger first. GET /v1/reporting/transactions (≤ 31 days per call, page_size ≤ 500, ≤ 3 h lag), GET /v1/reporting/balances S·paypal-platform §1.7 
+ Human approval None. The owner asks; the engine translates; Rust executes read-only 
+ Agent alone may Produce a BookQuery JSON object. It never writes SQL and never sees credentials 
+ Sandbox Works , but reporting is laggy and possibly less complete R . Needs the "Transaction Search" app permission R 
+ Sequence · natural-language question → grid 10 steps 
+ BookQuery — the closed query language the engine must emit — run in the tool-less profile (cap 7); Rust validates it; codex-cli also gets it as --output-schema 
+ { "type":"object", "additionalProperties":false,
+ "required":["view","metrics"],
+ "properties":{
+ "view":{"enum":["deals","paypal_calls","receipts","subscriptions","reconciliation"]},
+ "filters":{"type":"array","maxItems":6,"items":{"type":"object","additionalProperties":false,
+ "properties":{"field":{"enum":["kind","state","counterparty","amount","created_at","vs_market_pct","decided_by"]},
+ "op":{"enum":["eq","ne","gt","lt","between","in"]},"value":{}}}},
+ "group_by":{"type":"array","items":{"enum":["kind","counterparty","state","day","decided_by"]},"maxItems":2},
+ "metrics":{"type":"array","items":{"enum":["count","sum_amount","avg_vs_market_pct","recovered_sum"]}},
+ "range":{"type":"object","properties":{"from":{"type":"string"},"to":{"type":"string"}}},
+ "limit":{"type":"integer","maximum":500} } } 
+Rust maps each enum to a column of a whitelisted SQL view and binds values as parameters, on a connection opened with SQLITE_OPEN_READ_ONLY A . The cash-flow outlook is a fixed query, not an LLM one: open authorizations inside their honor period, approve links still open, and subscription billing due in the next 30 days A . 
+7 
+Scam shield 
+Deal framing: vetting who sits down. The shield can refuse the countersignature; it can never grant one. Maya, Wed: a friends-and-family request is blocked ( Shield ). 
+ Who pays whom Nobody, until the shield clears. If a hold lands after authorize, the authorization is voided 
+ API + endpoint POST /v2/payments/authorizations/{id}/void S·paypal-platform §1.2 . Channel3 on demand: /lookup-product , /similar-products , /image-search . History only after /start-tracking S·landscape §4.3 
+ Human approval Only the owner can release a HOLD (privileged IPC). A deterministic block can't be released by the engine at all 
+ Agent alone may Nothing. The shield runs a separate engine process with no built-in tools and no MCP servers , and its output is validated against a schema in Rust 
+ Sandbox Works (void). There's no PayPal risk-score API for third parties R 
+ Sequence · vet the counterparty before countersigning 12 steps 
+ Check Kind Trigger Effect 
+ Payee ≠ signed deal payee deterministic SETTLE or purchase payee differs from the pinned key's declared payee BLOCK (can't be released by the agent) 
+ New counterparty deterministic first_seen = today and amount > $100 A ASK countersign 
+ 40% over market Channel3 price > 1.4 × the median of /similar-products comparables. Items with no Channel3 match skip this rule and show "no market reference" HOLD with evidence 
+ Scam typology quarantined engine Text matches the User Agreement list: Buyer Scam, Accidental Payment, Phishing, Relative in Need, Lottery or Prize, Debt Collection, Employment Related S·paypal-platform §5 HOLD + quoted evidence 
+ "Pay as friends & family" deterministic regex on NOTE / invoice text BLOCK S·paypal-platform §5 
+The shield exists because of documented failures. A published agentic-browser test bought from a fake store with no confirmation, and a 2026 study found hidden CSS/JSON-LD injections got 4 of 26 models to pay a scam wallet (landscape §1.8 S ). The quarantined engine reads untrusted text as data and must return a verdict object. 
+Round 1 fenced the shield with --tools "" alone. That flag "does NOT affect MCP tools" S·landscape §2.1 , so the user's own MCP servers would have loaded into the run that reads scam text. The shield now runs the tool-less profile below, and aborts unless system/init reports zero tools and zero MCP servers. 
+ # claude-code · tool-less profile (shield, deal-book queries) — flags per landscape §2.1 (S) 
+$CLAUDE_CODE_BIN -p --output-format stream-json --verbose \
+ --tools "" \
+ --strict-mcp-config --mcp-config '{"mcpServers":{}}' \
+ --disallowedTools "mcp__*" \
+ --permission-mode dontAsk --permission-prompts none \
+ --setting-sources project --system-prompt-file <tmp>/shield.md --max-turns 1
+ # --strict-mcp-config: ignore user/project .mcp.json (S). Empty inline config accepted? [A: spike 2]
+# "mcp__*" as a deny rule removes every MCP tool from context (S) — belt and braces
+# abort unless system/init: tools == [] AND mcp_servers == [] (S: init lists both)
+# NO --json-schema here: it needs --output-format json (S), which hides system/init.
+# The verdict is the final result text, parsed and schema-validated in Rust. 
+ # codex-cli · tool-less profile — flags per landscape §2.2 (S) 
+$CODEX_CLI_BIN exec --json --ephemeral --skip-git-repo-check --sandbox read-only \
+ --ignore-user-config --ignore-rules \
+ -c features.shell_tool=false -c web_search="disabled" \
+ --output-schema <tmp>/verdict.schema.json
+ # --ignore-user-config: the user's [mcp_servers] in config.toml are not loaded [A: spike 1]
+# no -c mcp_servers.* is passed; any MCP-call or command item in the JSONL → verdict discarded [A] 
+8 
+Subscription rescue (merchant-side) 
+Deal framing: renegotiating one recurring deal with one of your own subscribers, who is a plain PayPal buyer with no wallet. Every lever acts on that one subscription , never on the plan. Maya, Fri: subscriber S-14 pays a $9.60 invoice ( Rescue ). 
+ Who pays whom Your subscriber → you (the plan's merchant). Consumer-side rescue is impossible on PayPal APIs S·paypal-platform §1.5 
+ API + endpoint Per subscription only: GET /v1/billing/subscriptions/{id} , …/{id}/capture ( OUTSTANDING_BALANCE ), …/{id}/suspend / …/activate , …/{id}/revise . Invoicing v2 POST /v2/invoicing/invoices + …/{id}/send S·paypal-platform §1.4, §1.5 
+ Human approval You sign a rescue mandate once and press send on each message. The subscriber pays a PayPal-hosted invoice or approves a revise on PayPal. This matches the note's approval point: "The subscriber re-approves or pays the invoice" S·paypal-platform §7 
+ Agent alone may Pick one lever from a closed list for one subscriber, inside the rescue mandate, and fill the named slots of a fixed message template. It writes no free text to customers 
+ Sandbox Subscriptions and Invoicing work . Failure simulation is undocumented R , so detection may be a labelled REPLAY. The money path after detection (the invoice) is always real 
+Round 1 discounted through POST /v1/billing/plans/{id}/update-pricing-schemes . That endpoint sits under Plans S·paypal-platform §1.5 : it reprices every subscriber on the plan, not the one who is struggling. It is now banned from the rescue tool surface, and a test asserts the wallet never calls it. 
+The four levers (a closed list: the rescue mandate enables a subset) 
+ Lever PayPal call (that subscription only) How the subscriber hears and answers Notes 
+ DISCOUNT_THIS_CYCLE demo lever A one-off invoice for the missed cycle at the discounted amount: POST /v2/invoicing/invoices , then …/{id}/send S·paypal-platform §1.4 . Poll GET …/invoices/{id} until PAID, then …/subscriptions/{id}/activate if it was suspended S·paypal-platform §1.5 PayPal emails the invoice and the subscriber pays on a PayPal-hosted page S·paypal-platform §1.4 . Whether sandbox delivers that email is R ; the sandbox buyer can also open the invoice by logging in R Your plans are created with auto_bill_outstanding: false (field S·paypal-platform §1.5 , choice A ), so a cycle settled by invoice is never billed a second time 
+ PAUSE …/{id}/suspend now and …/{id}/activate on the agreed date S·paypal-platform §1.5 Your own email: a template draft opened in your mail client ( mailto: ); you press send A Merchant-side calls; no subscriber approval needed A: spike 
+ RETRY_AFTER_FIX …/{id}/capture with capture_type: OUTSTANDING_BALANCE , which can't exceed the balance S·paypal-platform §1.5 Your email asks them to fix their funding source in PayPal; you collect once they reply Disabled while PayPal's own retry is due within 24 h ( next_payment_retry_time S·paypal-platform §1.5 ). Rule borrowed from B-1/B-2. Disabled on REPLAY rows, which have no real balance 
+ DOWNGRADE …/{id}/revise to a pre-created cheaper plan (revise = "plan or quantity" S·paypal-platform §1.5 ) If revise returns a payer approval link R , it goes in your email; the subscriber approves on PayPal Plan prices are set when you create the plans, never edited for one subscriber 
+ Sequence · failed renewal → one discounted invoice → recovered revenue 12 steps · the subscriber has no wallet 
+ The channel to the subscriber is PayPal plus your own outbox. The wallet sends no email itself and holds no mail credentials A . Replies are never read by an agent. The wallet learns the answer from PayPal state (invoice PAID, subscription ACTIVE or revised), which it polls. That closes the round-1 gap where "the subscriber accepts the offer" had no channel. 
+PayPal retries failed payments "every 5 days", "up to twice per billing cycle". After payment_failure_threshold consecutive failures the subscription moves to SUSPEND S·paypal-platform §1.5 . The rescue deal's deadline is failed_payment_details.next_payment_retry_time S·paypal-platform §1.5 . 
+ Demo fallback: try a sandbox buyer funded by a CCREJECT-* card S·paypal-platform §4 ; whether that fails a renewal is R . If it doesn't, replay a recorded BILLING.SUBSCRIPTION.PAYMENT.FAILED payload with a visible REPLAY chip. simulate-event mocks can't be postback-verified S·paypal-platform §1.10 . The discounted invoice that follows is real, so recovered revenue is real money in the sandbox. 
+Recurring charges show up as v1 PAYMENT.SALE.* events R ; the event list itself is S·paypal-platform §1.5 . 
+9 
+Haggle settlement 
+Deal framing: two wallets at the table. The full protocol is in §6 ; this is the money path. Maya, Mon: buys a monitor from Dan at $329 ( Tables ). 
+ Who pays whom Owner A (buyer) → Owner B's business account. B's REST app is the merchant S·paypal-platform §2 option 1 
+ API + endpoint B: POST /v2/checkout/orders ( intent: AUTHORIZE ), GET …/{id} , POST …/{id}/authorize , then POST /v2/payments/authorizations/{id}/capture or /void S·paypal-platform §1.1, §1.2 
+ Human approval Owner A on the PayPal page, in the system browser. Optional clause-6 countersign on both sides before ACCEPT 
+ Agent alone may Offer, counter, accept and withdraw inside its band. It can never touch the order, the link or the capture 
+ Sandbox Matches the note's recommended framing: an AUTHORIZE order that B issues and A's human approves S·paypal-platform §2 . That a second sandbox account can approve B's order end to end is a day-1 spike A . Invoice fallback S·paypal-platform §2 E 
+ Sequence · two agents, one approval, two receipts 16 steps · 7 lanes 
+ 08 · Machine 
+Architecture 
+Your desktop holds everything that can sign or spend. Render holds two small things: a mailbox that only forwards signed envelopes, and a scripted house seller. PayPal is reached only from Rust, and Channel3 only from Rust. The engine CLI is a fenced child process whose sole tool surface is the wallet's local MCP server. 
+ Components and where they run top: your desktop · bottom: the peer, hosted pieces, PayPal, Channel3 
+The stack follows the owner's existing app: Tauri 2 + React + Rust, axum for the local server, rusqlite, the keyring crate, AES-GCM S·owner-assets §5, §4 . Pin Tauri v2.12.x and plugins 2.x , because v3 alphas are already published S·landscape §3.0 . The Stronghold plugin is deprecated and will not exist in v3, so secrets go in the OS keychain via keyring S·landscape §3.4 . 
+The pipeline: intent → mandate → PayPal → signed evidence 
+ ① Intent The engine calls an MCP tool ( send_offer , propose_purchase ). It is only a request.
+unknown tool / bad schema → isError 
+ ② Mandate check Rust evaluates the numbered clauses of the active open mandate.
+out of band → REFUSED "clause n"; no network call 
+ ③ Shield Deterministic rules, then the Channel3 band, then the quarantined engine (only for text).
+HOLD → owner; BLOCK → final 
+ ④ Countersign Closed mandate signed by policy (≤ clause 6) or after the owner's click (privileged IPC).
+owner declines → WITHDRAW / void 
+ ⑤ PayPal call Rust only. PayPal-Request-Id and invoice_id = deal ULID + attempt S·paypal-platform §1.1 
+4xx/5xx → retry same id, then FAILED 
+ ⑥ Signed evidence The PayPal response is redacted and stored. Audit row hash-chained. Receipt envelope signed. Transcript head updated.
+audit write fail → visible "ledger trust" badge 
+Data models (SQLite, Rust-side only) 
+The ledger lives in Rust. The SQL plugin would hand arbitrary SQL to the webview ( sql:allow-execute ) and has no documented encryption S·landscape §3.4 . The audit log adds the hash chain and append-only triggers that the owner's app lacks S·owner-assets §4 . 
+ DDL: mandates, counterparties, deals, envelopes, receipts, paypal_calls, audit_log — migrations/0001_table.sql 
+ CREATE TABLE mandates (
+ id TEXT NOT NULL, version INTEGER NOT NULL, kind TEXT CHECK (kind IN ('open','rescue','shop')),
+ body_json TEXT NOT NULL, -- canonical JSON (JCS) of clauses 
+ body_hash BLOB NOT NULL, -- sha256(body_json) = the public commitment 
+ owner_sig BLOB NOT NULL, agent_pubkey BLOB NOT NULL,
+ status TEXT NOT NULL CHECK (status IN ('active','superseded','revoked','expired')),
+ created_at TEXT NOT NULL, PRIMARY KEY (id, version));
+ CREATE TABLE counterparties (
+ key_id TEXT PRIMARY KEY, owner_pubkey BLOB NOT NULL, agent_pubkey BLOB NOT NULL,
+ display_name TEXT, paired_via TEXT CHECK (paired_via IN ('code','house','local')),
+ words_confirmed_at TEXT, declared_payee TEXT, -- PayPal email/merchant id they settle from 
+ first_seen TEXT NOT NULL, deals_closed INTEGER NOT NULL DEFAULT 0);
+ CREATE TABLE deals (
+ id TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK (kind IN ('purchase','haggle','shop_order','rescue','invoice')),
+ side TEXT NOT NULL CHECK (side IN ('buyer','seller')), counterparty TEXT REFERENCES counterparties(key_id),
+ mandate_id TEXT NOT NULL, mandate_version INTEGER NOT NULL,
+ item_ref TEXT, qty INTEGER, unit_price_minor INTEGER, currency TEXT, delivery TEXT,
+ state TEXT NOT NULL, -- see §6.3 
+ terms_hash BLOB, transcript_head BLOB, attempt INTEGER NOT NULL DEFAULT 0,
+ market_json TEXT, -- Channel3 snapshot: retrieved_at, response sha256, match 
+ shield_verdict TEXT, decided_by TEXT, -- 'policy:clause6' | 'human:2026-..' 
+ pp_order_id TEXT, pp_authorization_id TEXT, pp_capture_id TEXT, pp_subscription_id TEXT,
+ reconciliation TEXT CHECK (reconciliation IN ('n/a','pending_reporting','matched','mismatch')),
+ created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+ CREATE TABLE envelopes (
+ deal_id TEXT NOT NULL REFERENCES deals(id), seq INTEGER NOT NULL, dir TEXT CHECK (dir IN ('in','out')),
+ typ TEXT NOT NULL, raw_jws TEXT NOT NULL, hash BLOB NOT NULL, prev BLOB NOT NULL,
+ verified INTEGER NOT NULL, received_at TEXT NOT NULL, PRIMARY KEY (deal_id, dir, seq));
+ CREATE TABLE nonces_seen (key_id TEXT, nonce BLOB, exp TEXT, PRIMARY KEY (key_id, nonce));
+ CREATE TABLE receipts (
+ deal_id TEXT PRIMARY KEY REFERENCES deals(id), capture_id TEXT, amount_minor INTEGER,
+ issuer_key TEXT, raw_jws TEXT NOT NULL, transcript_head BLOB NOT NULL, verified_at TEXT);
+ CREATE TABLE paypal_calls (
+ id INTEGER PRIMARY KEY, deal_id TEXT, method TEXT, path TEXT, request_id TEXT,
+ status INTEGER, debug_id TEXT, body_redacted TEXT, at TEXT NOT NULL); -- test: 0 rows for refused deals 
+ CREATE TABLE audit_log (
+ seq INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL,
+ actor TEXT NOT NULL, -- 'agent:buyer-1' | 'owner' | 'policy:clause6' | 'peer:47be..' 
+ action TEXT NOT NULL, deal_id TEXT, detail_json TEXT NOT NULL,
+ prev_hash BLOB NOT NULL, hash BLOB NOT NULL); -- hash = sha256(prev_hash ‖ JCS(row)) 
+ CREATE TRIGGER audit_no_update BEFORE UPDATE ON audit_log BEGIN SELECT RAISE(ABORT,'audit_log is append-only'); END;
+ CREATE TRIGGER audit_no_delete BEFORE DELETE ON audit_log BEGIN SELECT RAISE(ABORT,'audit_log is append-only'); END; 
+Interfaces 
+ // crates/table-engine/src/lib.rs — one trait, three adapters 
+ #[async_trait] 
+ pub trait EngineAdapter: Send + Sync {
+ fn id(&self) -> EngineId; // "claude-code" | "codex-cli" | "scripted" 
+ async fn probe(&self) -> Result<EngineInfo>; // path, version, auth 
+ /// agent turn with ONLY the wallet MCP server 
+ async fn run(&self, job: AgentJob, mcp: McpGrant,
+ tx: Sender<EngineEvent>) -> Result<TerminalVerdict>;
+ /// tool-less profile (shield, deal-book queries); Rust validates the schema 
+ async fn structured(&self, input: &str, schema: &Schema)
+ -> Result<serde_json::Value>;
+ fn cancel(&self, run: RunId); // tree-kill, kill_on_drop 
+}
+ // TerminalVerdict { Clean, ErrorReported{subtype,text}, MissingTerminalFact }
+// (owner-assets §1.5, S). The codex-cli JSONL is normalized onto one
+// event shape (thread.started→init, turn.completed→result; §1.4, S).
+// Every spawn: resolved .exe (not .cmd), CREATE_NO_WINDOW, stderr
+// drained, prompt via stdin, cwd = app-owned empty dir, the vendor
+// API-key env vars stripped so the user's own login is used (§1.2-1.6, S). 
+ // Rendezvous HTTP API (Render) — store-and-forward only [A] 
+PUT /v1/mailbox/{h} h = hex(sha256(pairing code)); TTL 24 h 
+POST /v1/mailbox/{h}/envelopes body: compact JWS ≤ 16 KB → 202 {idx} 
+GET /v1/mailbox/{h}/envelopes?after={idx}&wait=25 long-poll → [jws] 
+DELETE /v1/mailbox/{h} either party closes the table 
+POST /v1/house/tables → {code}; the house joins as seller 
+GET /healthz wake ping on app start 
+ // The relay never parses bodies beyond size/JSON shape; it holds no keys and
+// no PayPal credentials. The house process is a separate service with its own env. 
+ // Tauri commands — two tiers (pattern: owner-assets §4, S) 
+ public get_table · list_deals · get_deal · engine_status · market_band
+ privileged sign_mandate · revoke_mandate · set_band
+ countersign(deal_id, yes|no) · open_paypal_approval(deal_id)
+ void_authorization(deal_id) · confirm_pairing(deal_id, match)
+ release_shield_hold(deal_id) · set_credentials(kind)
+ // privileged = IPC token header AND only the "approval" window label
+// (capabilities are per window label, landscape §3.2, S). open_paypal_approval
+// takes a deal id, never a URL: the core picks the link it already verified.
+// Idle lock: privileged calls fail with LOCKED if the owner has been idle
+// > 15 min, until an OS re-auth (PayPal's 15-minute idle rule, landscape §3.5, S;
+// applied to the wallet's own session as a design choice, A). 
+Engine argv, agent profile (fenced to the wallet MCP; the prompt always goes in on stdin). The tool-less profile is in cap 7 . 
+ # claude-code — flags per landscape §2.1/§2.3 (S) 
+$CLAUDE_CODE_BIN -p --output-format stream-json --verbose \
+ --tools "" --strict-mcp-config \
+ --mcp-config <tmp>/wallet-mcp.json \
+ --allowedTools "mcp__wallet__*" \
+ --disallowedTools "WebFetch" "WebSearch" "Bash" \
+ --permission-mode dontAsk --permission-prompts none \
+ --setting-sources project \
+ --system-prompt-file <tmp>/negotiator.md \
+ --max-turns 12 --max-budget-usd 0.50 \
+ --session-id <uuid>
+ # stream-json and --json-schema are never combined: --json-schema needs
+# --output-format json (S). Agent runs need the stream; they emit no schema object.
+# always pass --permission-mode: a -p run's default "can be auto" (S)
+# check system/init: tools ⊆ mcp__wallet__* or abort (S)
+# --max-budget-usd caps LLM spend, NOT wallet spend: keep meters apart (S)
+# wallet-mcp.json: {"mcpServers":{"wallet":{"type":"http",
+# "url":"http://127.0.0.1:PORT/mcp","headers":{"X-Wallet-Session":"<token>"}}}}
+# "type":"http" is what the CLI accepts (owner-assets §2.1, S) 
+ # codex-cli — flags per landscape §2.2/§2.3 (S) 
+$CODEX_CLI_BIN exec --json --ephemeral --skip-git-repo-check \
+ --sandbox read-only --ignore-user-config --ignore-rules \
+ -c features.shell_tool=false -c web_search="disabled" \
+ -c 'mcp_servers.wallet.url="http://127.0.0.1:PORT/mcp"' \
+ -c 'mcp_servers.wallet.bearer_token_env_var="WALLET_MCP_TOKEN"' \
+ -c 'mcp_servers.wallet.required=true' \
+ -c 'mcp_servers.wallet.default_tools_approval_mode="approve"'
+ # GOTCHA: in exec mode MCP calls are auto-REJECTED unless the server is set
+# default_tools_approval_mode="approve" (third-party confirmed on 0.153.4;
+# upstream issue open — landscape §2.3, S). "approve" is safe ONLY because
+# the wallet's MCP server is the gate. Spike on day 1.
+# --ignore-user-config / --ignore-rules: verify spelling with --help (S, summarizer)
+# Windows -c quoting must be tested (S) 
+MCP tools the agent gets (the whole surface) 
+ Tool ( mcp__wallet__… ) Input (abbreviated JSON schema) Effect Who may call 
+ table_view {deal_id?: string} read the projection in §6.4 negotiator 
+ market_reference {item_ref: string} read the cached Channel3 band (Rust fetches it) negotiator, shopper 
+ send_offer {deal_id, price: "^\\d+\\.\\d{2}$", delivery: enum} signed OFFER/COUNTER if inside the band, else isError with the clause negotiator 
+ accept_offer {deal_id, offer_seq: int} signed ACCEPT; may queue a clause-6 countersign card negotiator 
+ withdraw_offer {deal_id, reason: enum[PRICE,TIMING,OTHER]} signed WITHDRAW negotiator 
+ propose_purchase {payee_ref, items:[{ref,qty}], amount, category: enum} creates a pending purchase deal (firewall). Never calls PayPal directly shopper 
+ shop_search / shop_quote / shop_checkout {q, max_price?} · {lines:[{sku,qty}]} · {quote_id} the shop's table, served locally and to paired wallets any paired agent 
+ book_query BookQuery (see cap 5) read-only grid rows owner's assistant 
+The server is axum in-process on 127.0.0.1 , speaking plain JSON-RPC ( initialize , tools/list , tools/call ). It has a per-session token that is revoked when the run exits, a Host-header allowlist and a local shared secret S·owner-assets §2.1, §4 . Each run gets only the tools its role needs ( tools/list is filtered by the token's role) A . There is no tool for capture, approve, void, browser or mandate. 
+ 09 · Machine 
+Trust model 
+Here the threat model is an LLM with a path to money. Every control below is enforced in code, in the process that holds the keys. None of them depends on a prompt. The rule the trust model follows 
+ Threat Control Enforced where 
+ Injection from the counterparty (haggle) Envelope bodies are a closed enum. Note text is human-only and never reaches an agent. Prices are parsed as decimals. Unknown fields are a protocol error table-proto::verify + the table_view projection 
+ Injection from a merchant page or listing (hidden CSS, JSON-LD) S·landscape §1.8, §5.22 Channel3 and catalog text is length-capped, tagged [untrusted] , and delivered as data. The agent's only effect is send_offer , which is bounded MCP server + mandate engine 
+ Injection in an invoice or "pay me" message The quarantined engine has no tools and schema-only output. Its verdict can only add caution shield (separate process) + verdict combiner 
+ Confused or compromised agent ("40 GPUs") Clause check before any network call. Velocity limits. Countersign above clause 6 mandate::check (test: 0 rows in paypal_calls ) 
+ Engine plugins or mods overriding deny rules S·landscape §2.1 CLI flags are advisory. The MCP server re-enforces everything, system/init tools are checked, cwd is an app-owned empty dir, and the server has no dangerous tools to begin with engine adapter + MCP server 
+ Another local process calling the MCP server 127.0.0.1 only, Host allowlist, per-session token plus local secret, mutating routes force a JSON preflight S·owner-assets §4 axum tower layer 
+ Stolen PayPal / Channel3 credentials OS keychain via keyring . Never sent to the webview. Redacted in stored output. PayPal says secrets must not be embedded in client apps S·paypal-platform §1.12 , so each user brings their own sandbox app Rust vault + redaction on store 
+ Replay of offers or envelopes aud + nonce table + exp + seq + prev . On the PayPal side, PayPal-Request-Id and a unique invoice_id S·paypal-platform §1.1 table-proto + PayPal client 
+ Deep-link hijack (any per-user app can claim a scheme on Windows) S·landscape §3.3 A deep link only focuses the window. Truth is GET /v2/checkout/orders/{id} , plus state binding S·landscape §3.5 poller 
+ Malicious or compromised rendezvous End-to-end signatures, pinned keys, the pairing-words check. It can only drop or delay, which the timeouts handle A both wallets 
+ Seller sends a doctored approve link Link host allowlist, amount and invoice_id from the signed SETTLE, the owner sees the amount on the PayPal page, the signed RECEIPT is compared, and the shield blocks on mismatch A's core + human 
+ XSS in the webview calling privileged commands Strict CSP, IPC token tier, privileged commands only from the approval window label, no URL arguments Tauri ACL + ipc_auth 
+ Unattended desktop: someone else at the keyboard PayPal's rule: "Session tokens that have at any time been idle for more than 15 minutes must be re-authenticated" S·landscape §3.5 . The wallet applies the same 15 minutes to its own privileged tier: countersign, open PayPal approval, sign mandate and release hold all show LOCKED until an OS re-auth A . Idea credited to A-2 ipc_auth idle timer 
+ The user's own MCP servers loading into a tool-less run --tools "" does not affect MCP tools S·landscape §2.1 , so tool-less runs add --strict-mcp-config , an empty server list and a mcp__* deny rule, then check system/init (cap 7) engine adapter 
+ The LLM can never… 
+see a PayPal token, client secret, Channel3 key or signing key 
+create, approve, authorize, capture, void or refund anything at PayPal 
+sign a number outside its owner's band, after the deadline, or past max_rounds 
+change, widen or re-sign a mandate 
+open a URL or the browser, or address an unpaired counterparty 
+read the counterparty's free text, or turn it into instructions 
+write to the ledger except through typed tools; it can never edit audit rows 
+ Only the human can… 
+sign, version or revoke the open mandate (privileged IPC) 
+approve a payment on the PayPal page in the system browser 
+countersign a deal above clause 6 and release a shield HOLD 
+confirm the pairing words (pin a counterparty) 
+enter credentials (stored to the keychain, never shown again) 
+export the signed transcript for a dispute 
+unlock the privileged tier after 15 minutes idle 
+ 10 · Machine · for the UI designer 
+Product surfaces: home, six modules, one deal view, one approval moment 
+The app has three levels and one separate window. Home is The Table. Modules are six lists, one per capability, in a left rail. Deal detail is one shared view for every kind of deal. The approval window is the only place money can be released. Each module below gives what Maya sees first, the one decision Maya makes there, the states it can be in, and where Maya goes next. Wireframe level only; the visual design is the next round's job. 
+10.1 How Maya moves between levels 
+ Navigation map every arrow is one click; Esc always goes back one level 
+ Level 0 · home 
+The Table Needs-you strip · deal in focus (mirrored) · deal book feed 
+click a Needs-you item → its deal 
+click a rail item → module 
+→ 
+ Level 1 · module (left rail) 
+Tables · Spend · Counter · Book · Shield · Rescue Each is a list of deals of one kind, sorted by deadline, plus one module-level control (band, floors, levers, query) 
+click a row → deal detail 
+rail footer: Mandates · Settings 
+→ 
+ Level 2 · deal detail 
+One view for every deal Maya's side · signed timeline · their side · PayPal evidence 
+"Review & approve" → approval window 
+"Export transcript" 
+⇢ 
+ Separate window 
+Approval window The only window label allowed to call privileged commands S·landscape §3.2 . Opened from deal detail, a Needs-you item or the tray badge. 
+Breadcrumb in the title bar: The Table › Tables › D-0193 . The tray badge counts Needs-you items; clicking it focuses the approval window, because desktop notifications can't carry Approve buttons S·landscape §3.6 . Module labels are short so they never truncate in a 200 px rail. 
+Rules every surface follows 
+ Rule What the designer must show Why 
+ Mode badge Every screen and every exported record carries SANDBOX , REPLAY or SCRIPTED ENGINE . The badge follows a record into the deal book and transcript exports Borrowed from B-1 and B-3 (#surfaces) A 
+ Default on silence Every Needs-you item states what happens if Maya does nothing ("offer lapses at 18:00, no money moves"; "auto-void in 2 d 19 h"). The default never moves money Borrowed from A-2 (#spine) A 
+ Two meters, never one axis Wallet spend (dollars Maya's agents committed) and engine spend (the CLI's own estimate) are separate widgets with separate labels total_cost_usd is a client-side estimate; "Do not … trigger financial decisions" from it S·landscape §2.1 
+ Untrusted text Counterparty notes, invoice memos and product titles render as plain text in a quarantine box with an "untrusted" label: never markdown, never links Injection via listings and messages S·landscape §5.22 
+ Idle lock After 15 minutes idle, privileged buttons show a lock and "Unlock with Windows Hello / Touch ID"; read-only views stay open PayPal's 15-minute idle rule S·landscape §3.5 , applied to the wallet A 
+ PayPal only in the browser No PayPal page inside the app. The button says "Open PayPal in your browser", and the card then shows a waiting state with a countdown "must not use a WebView" S·landscape §3.5 
+10.2 Deal detail (level 2): one view for every deal kind 
+ The Table › Tables › D-0193 
+ LISTED → NEGOTIATING → AGREED → AWAITING APPROVAL → RECEIPTED 
+ MAYA mandate M-12 v3 ceiling $340 clause 6: ask over $250 
+#11 them $329 ✓sig #10 you $327 ✓sig #9 them $333 ✓sig … 12 envelopes ACCEPT ×2 · terms 51d0… 
+ DAN north-desk · words ✓ first seen today shield CLEAR 
+PayPal: order 7XK… · AUTHORIZE · approve window 5:41:12 · auth — · capture — 
+market: p25 $301 · median $318 · p75 $336 · retrieved 14:02 · Channel3 
+ Review & approve Withdraw Export transcript 
+ One decision: go to the approval window, or withdraw. Everything else here is evidence. 
+ Sees first The state strip, then the mirrored three columns: Maya's mandate, the signed timeline, the counterparty. Under them, PayPal evidence and the market snapshot. 
+ One decision "Review & approve" (opens the approval window) or "Withdraw" (signed WITHDRAW, no money moves). 
+ States The 10 deal states of §6.3 , plus terminal WITHDRAWN · EXPIRED · REFUSED · MISMATCH · REFUNDED/DISPUTED. Purchases, shop orders and rescues use a subset; the view hides steps a kind doesn't have. 
+ Moves to Back to the module list (Esc) · approval window · transcript export (a signed file for a dispute). 
+ Evidence labels seller-attested until Maya's own evidence exists, then receipted ; pending in PayPal reporting until Transaction Search matches (≤ 3 h lag S·paypal-platform §1.7 ). "Seller-attested" is borrowed from B-1/B-2. 
+10.3 The approval moment (separate window) 
+This is the one moment money can be released, so it gets its own window, its own states and no other content. The window receives an immutable summary from Rust; it shows no agent text except quoted, untrusted evidence A . 
+ Approval card states left to right is the happy path; red states end the card 
+ CHECKING → READY (all ✓) → LOCKED (idle > 15 min) → READY → IN BROWSER · 5:41:12 → APPROVED (polled) → SELLER-ATTESTED → RECEIPTED 
+ MISMATCH (no button) EXPIRED → seller re-issues (attempt 2/3) WITHDRAWN SHIELD HOLD → Shield module 
+ Approval window · READY 
+ Pay Dan (north-desk) $329.00 for "Refurbished 27-inch 4K monitor" 
+ ✓ amount = signed deal   ✓ invoice id 01JD…7Q-1   ✓ host www.sandbox.paypal.com 
+ ✓ payee = paired key's declared payee   ✓ shield CLEAR   ✓ inside mandate M-12 clause 4 
+vs market: $329 is the 78th percentile of $301–$336 · median $318 
+approve window 5:41:12 · if you do nothing: the order expires, no money moves 
+ Open PayPal in your browser Withdraw 
+ One decision: open PayPal, enabled only when every check is ✓. The app then polls the order; it never trusts the redirect. 
+ Approval window · LOCKED / MISMATCH 
+🔒 Idle 17 min. Unlock with Windows Hello PayPal requires re-authentication after 15 idle minutes S·landscape §3.5 
+ MISMATCH · Dan's SETTLE says $339.00, the signed deal says $329.00 No PayPal button. Shield verdict HOLD. Transcript export ready. 
+ Export transcript Withdraw 
+ One decision: unlock, or (on mismatch) withdraw. There is deliberately no "pay anyway" on a mismatch. 
+10.4 Home: The Table (level 0) 
+ Sees first The Needs-you strip (count + each item's default on silence), then the deal in focus: the most urgent live deal, or the most recent one if nothing is live. Live interactive version in §4 . 
+ One decision Move the band for the deal in focus (drag the ceiling or floor). Everything else on home is a link down a level. 
+ States First run : no mandate, so the centre shows "Sign your first mandate" and nothing else. No engine : a SCRIPTED ENGINE banner and a link to Settings. Quiet : no live deal, so the centre shows last week's deals against the market and an "Open a table" button. Live : the convergence chart animates as signed envelopes arrive. Needs you : the strip turns gold. Locked : the strip shows the unlock button. House waking : "the house seller is waking up (≈ 1 min)" A . 
+ Moves to Needs-you item → its deal detail · rail → module · deal book row → deal detail · tray → approval window. 
+10.5 The six modules (level 1), in the order of Maya's week 
+9 
+Tables (haggle) 
+Mon: Maya's agent buys a monitor from Dan's agent. Mechanics: §6 , cap 9 . 
+ Tables 
+D-0193 · Dan · monitor-27-4k · NEGOTIATING round 5/6 · ask $333 · your bid $327 · band ≤ $340 
+D-0201 · HOUSE · usb-c-dock · PAIRING · words not yet confirmed 
+D-0187 · Dan · monitor-24 · RECEIPTED · $212 · p41 vs market 
+ Open a table Join with code Play the house seller 
+ One decision: the band. Ceiling (buying) or floor (selling), max rounds and deadline, set when the table opens and draggable while it runs. 
+ Sees first Live tables first (with mini convergence lines), then closed ones with their market percentile. 
+ One decision Set the band. Opening a table also asks for the item and pairing; the agent does the rest. 
+ States PAIRING (words) → LISTED → NEGOTIATING → AGREED → SETTLING → AWAITING APPROVAL → APPROVED → CAPTURED → RECEIPTED → RECONCILED; or WITHDRAWN · EXPIRED · REFUSED · MISMATCH. 
+ Moves to Row → deal detail · "Open a table" → mandate sheet then pairing sheet (below). 
+ Empty · error Empty: "No tables yet. Play the house seller to try one." Relay down: "Table paused, retrying"; signed envelopes make a retry safe. 
+1 
+Spend (firewall) 
+Tue: 40 GPUs refused; a $64 dock held, then captured. Mechanics: cap 1 . 
+ Spend 
+D-0192 · infra agent · 40 × GPU · REFUSED · "clause 3: max_amount $200 per deal; category compute not allowed" · 0 PayPal calls 
+D-0190 · supplies agent · USB-C dock $64 · AUTHORIZED · honor period 2 d 19 h · if you do nothing: auto-void 
+ Capture $64 Void 
+ One decision: capture or void a held authorization, inside the 3-day honor period. 
+ Sees first Requests by agent, newest first, each with a verdict chip and the clause it hit. 
+ One decision Capture or void. Below clause 6 the policy countersigns and the row just shows "captured by policy". 
+ States PROPOSED → REFUSED (final) · or → AWAITING PAYPAL APPROVAL → AUTHORIZED (hold, countdown) → CAPTURED · VOIDED · AUTO-VOIDED at 72 h A . 
+ Moves to Row → deal detail with the clause trace · "Why refused?" → the mandate clause in Mandates. 
+ Empty · error Empty: "No agent has asked to spend." PayPal 4xx: the row shows the error and the debug_id ; the retry reuses the same PayPal-Request-Id . 
+7 
+Shield 
+Wed: a friends-and-family request blocked. Mechanics: cap 7 . 
+ Shield 
+ BLOCK · stranger "deal-hub-22" · $460 · 45% over median untrusted: "please send as friends & family to save fees" typology: Buyer Scam · rule: F&F request 
+ HOLD · new counterparty · $140 · first seen today Type the payee's name to release 
+ One decision: release a HOLD by typing the payee's name, or leave it. A BLOCK has no release button. 
+ Sees first Holds and blocks, newest first. Each shows the rule or typology, the quoted evidence, and the market comparison. 
+ One decision Release a HOLD (typed confirmation, borrowed from A-1/A-2) or keep it. 
+ States CLEAR · ASK (countersign) · HOLD (releasable by Maya) · BLOCK (final). "Model check skipped" if no engine; rules still run. 
+ Moves to Row → deal detail · released hold → back to the approval window it came from. 
+ Empty · error Empty: "Nothing held." No Channel3 match: "no market reference", and the price rule is skipped, not passed. 
+3 
+Counter (agent-ready shop) 
+Thu: another wallet's agent buys a monitor arm. Mechanics: cap 3 . 
+ Counter 
+At your counter now: agent of wallet "lark" · monitor arm · quote $61 · floor $58 · quote expires 14:12 
+Catalog · 12 items · arm $64 / floor $58 · dock $64 / floor $60 · care plan $12/mo · feed export ✓ 
+ Edit floors Export feed 
+ One decision: the floor price per item. The quoting agent can never go below it. 
+ Sees first Who is at the counter now (live quotes), then the catalog with price, floor and market reference. 
+ One decision Set floors (the seller mandate). No per-sale approval on Maya's side; the buyer approves on PayPal. 
+ States Quote: QUOTED (15 min) → CHECKOUT → AWAITING BUYER APPROVAL → CAPTURED → TRACKED (physical only). Catalog row: in stock · out of stock · missing feed field. 
+ Moves to Quote row → deal detail · item → catalog editor sheet. 
+ Empty · error Empty catalog: "Import a CSV" with the feed columns. A quote below floor can't be produced, so there's no error state for it. 
+8 
+Rescue 
+Fri: one subscriber's renewal rescued with a $9.60 invoice. Mechanics: cap 8 . 
+ Rescue 
+S-14 · care plan $12 · renewal failed ×1 · PayPal retries in 4 d · suggested: DISCOUNT_THIS_CYCLE −20% → $9.60 invoice REPLAY 
+Email draft (template): "Hi {first_name}, your care-plan payment didn't go through. Here is this month at $9.60…" · slots only 
+Recovered this month $9.60 · counted from paid invoices and captures only 
+ Create invoice & open email Choose another lever 
+ One decision: approve the suggested lever for this subscriber, which creates the PayPal invoice and opens Maya's email draft. 
+ Sees first Failing subscribers sorted by PayPal's next retry time, each with one suggested lever inside the rescue mandate. 
+ One decision Approve the lever (or pick another enabled one). Maya presses send in the shop's own mail client. 
+ States FAILED → OFFER SENT → RECOVERED (invoice PAID or capture done) · RETRY SUCCEEDED (PayPal's own retry) · PAUSED · DOWNGRADE PENDING (approval link) · LOST (cancelled or no answer by the deadline). 
+ Moves to Row → deal detail (subscription, invoice, email sent at) · "Rescue mandate" → Mandates. 
+ Empty · error Empty: "No failed renewals." REPLAY rows can't use RETRY_AFTER_FIX (no real balance) and never count as recovered. 
+5 
+Book (ops cockpit) 
+Sun: "how did my agents do vs the market?" Mechanics: cap 5 . 
+ Book 
+Ask: "what did my agents commit this week, and how did it compare with the market?" 
+{"view":"deals","group_by":["kind"],"metrics":["count","sum_amount","avg_vs_market_pct"]} 
+haggle 3 · $812 · +4% vs median | purchase 5 · $241 | rescue $9.60 2 pending in PayPal reporting 9 matched 
+Outlook: 1 hold expires in 2 d · 1 approve link open · 6 renewals due in 30 d 
+ One decision: read the structured query, then run it. Maya sees exactly what was asked of the ledger. 
+ Sees first This week's deals by kind with reconciliation chips, and a fixed cash-flow outlook (holds, open approve links, renewals due). 
+ One decision Ask, check the query, run. Preset questions cover the cut-line case where natural language is dropped. 
+ States Query: DRAFTING → INVALID (schema rejected, shown verbatim) · RUNNING → RESULT · EMPTY. Row: matched · pending in PayPal reporting · mismatch. 
+ Moves to Grid row → deal detail · "Export CSV" (with mode badges). 
+ Empty · error No Transaction Search permission: "reporting not enabled", and the ledger still answers R·paypal-platform §1.7 . 
+10.6 Sheets: sign a mandate, pair a table 
+ Mandates › M-12 › sign v3 
+Clause 3 · purchase: max $200 /deal · categories [office, parts] 
+Clause 4 · haggle band: monitor-27-4k · ceiling $340 · 6 rounds · until 18:00 
+Clause 6 · ask me above $250 
+diff vs v2: ceiling 320 → 340 · agent key 9f3c…a1 · commitment 51d0… 
+ Sign v3 with owner key Revoke all 
+ One decision: read the diff, sign. Privileged and idle-locked; each version is a new row. 
+ Tables › pair 
+Code from the other owner: TBL-7Q4M-K2  or  Play the house seller 
+Read these words to Dan. Dan's screen must show the same four: 
+ otter basil quartz meadow 
+ Words match: pin key They differ: abort 
+ One decision: compare four words across two screens. This one click defeats a rendezvous sitting in the middle. 
+ 11 · Argument 
+Judge-runnability and the video 
+Judges must be able to "actually run or interact with a working build" S·hackathon , "free of charge and without any restriction" until the judging period ends on 2026-12-15 S·hackathon . There are four paths, and each one degrades a single dependency while keeping the rest real. 
+Path 1 · Full Release binaries (Windows NSIS, macOS dmg) built by GitHub Actions A . The judge's own claude-code or codex-cli is detected via probe() , and sandbox credentials are pasted in. Expect OS warnings for unsigned binaries; the README shows the clicks A . WebView2 install modes are downloadBootstrapper (default), embedBootstrapper , offlineInstaller and fixedVersion S·landscape §3.6 ; this design picks embedBootstrapper so judges without WebView2 aren't stuck A: choice . 
+Path 2 · No CLI installed Settings → engine → Scripted . Every agent card carries a SCRIPTED ENGINE · no model banner. It replays real engine turns recorded during development as MCP tool calls against the real wallet, so mandate refusals, signatures and PayPal calls are all real. Only the choice of number is canned A . 
+Path 3 · No sandbox account Test credentials (a sandbox business REST app plus a personal buyer login) go in the Devpost submission form , which asks for "credentials needed for evaluation" S·paypal-platform §3.4 . They are never in the public repo S·paypal-platform §6.11 . Keys are rotated after judging A . 
+Path 4 · One install, still a haggle Pair with code HOUSE . The scripted house seller on Render negotiates, issues a real sandbox order, captures it and signs the receipt. Render's spin-down after 15 min idle S·landscape §4.9 is shown as a "house waking" state. During judging the service runs on the $50 credits S·landscape §4.9 , which is enough for one small instance A . 
+Video script: 2:50, two desktops, split screen 
+Time 
+Left: Wallet A (buyer) 
+Right: Wallet B (seller) 
+Judging criteria 
+0:00–0:12 
+Title card: "Every payment is a deal." Then Maya in one line: a two-person monitor shop whose agents haggle, buy and sell, and an owner who can't watch every deal. 
+Dan, the reseller across the table, in one line. Mirrored in coral. 
+ Impact Presentation 
+0:12–0:35 
+Maya signs the mandate: monitors only, ceiling $340, 6 rounds. The Channel3 market band ($301–$336) appears. 
+Dan opens a table: list $389, floor hidden. The pairing code is read aloud. 
+ Tech Design 
+0:35–1:05 
+The pairing words match. The agent starts. Bids rise 290 → 327 inside the teal band. 
+The words match. Asks fall 389 → 329. 
+ Innovation Design 
+1:05–1:20 
+ The beat: the owner drags the ceiling to $320. The 329 ask greys out ("unsignable"). They drag it back. The agent accepts 329. 
+B's agent tries 318, which is below B's floor. The core refuses: "clause 4". It stays at 329. 
+ Innovation Tech 
+1:20–1:50 
+Settlement card, all ✓ → system browser → PayPal sandbox approve → back. Receipt verified. Transcript head 7c1e…94 . 
+Order created (AUTHORIZE) → polled APPROVED → authorized → captured → receipt signed. Same head 7c1e…94 . 
+ Tech Presentation 
+1:50–2:10 
+Rogue agent: "buy 40 GPUs". It's refused with the clause 3 text, and the call log shows 0 PayPal calls. A $64 dock is then authorized → countersigned → captured. 
+(dimmed) 
+ Impact Tech 
+2:10–2:25 
+Scam shield: a stranger's offer is 45% over the market median, and its NOTE asks for "friends & family". Result: BLOCK, with both reasons quoted. 
+(dimmed) 
+ Impact 
+2:25–2:40 
+Deal book: ask in words → the structured query → a grid with "pending in PayPal reporting" chips. 
+Rescue: a failed renewal (REPLAY chip if a fixture was needed) → Maya approves a $9.60 invoice for that one subscriber → the sandbox subscriber pays on PayPal → recovered $9.60, real. 
+ Design Impact 
+2:40–2:50 
+"One install? Pair with HOUSE." Open source, sandbox only, and live use requires PayPal marketplace onboarding. 
+ Presentation 
+ Trademark caution: the video may not include third-party trademarks without permission S·hackathon . The title card uses "The Table", no engine logos or terminal branding appear, and PayPal sandbox pages are shown only at the approval moment A . "Under 3 minutes", public on YouTube, on the device it was built for S·hackathon : both desktops are real machines, recorded with a capture tool per machine and composited side by side A . 
+ 12 · Argument 
+Prize strategy 
+Shape the entry for "Best Use of Agentic Commerce", stack Channel3 on top, and let the two-desktop haggle compete for a Grand prize on its own merits. The choice 
+ Stacking rule: "A project can only win up to one (1) Grand Prize and one (1) Sponsor Prize OR one (1) Honorable Mention Prize and one (1) Sponsor Prize" S·hackathon . Target: $5,000 + $1,500 = $6,500 . Ceiling for this shape: $12,000 + $1,500 = $13,500 . The rule's absolute ceiling of $17,000 requires AG Grid 1st S·hackathon . 
+ Prize Amount S·hackathon Fit with "every payment is a deal" Decision 
+ HM · Best Use of Agentic Commerce $5,000 Agent-to-agent commerce with signed mandates, closed deals and verifiable receipts, built on real Orders v2 settlement. This is the category's literal subject PRIMARY 
+ Grand 1st / 2nd / 3rd $12k / $8k / $5k It contends because the demo is end-to-end on two machines (Presentation), novel (Innovation: the research found no local-first, cross-agent, PayPal-based agent wallet, but marks that as an inference from search, not proof A·landscape §1.6 [inference] ), and non-trivial PayPal use (Orders + Payments + Invoicing + Subscriptions + Reporting) CONTENDER 
+ HM · Best Use of PayPal + AI $5,000 Plausible, but every serious entry aims here. Only one HM can be won anyway INCIDENTAL 
+ Channel3 1 × $1,500 Must call the API "as a meaningful part of the product experience" S·landscape §4.3 . Here it grounds the buyer's ceiling, the fair-price evidence on every deal card, and the shield's "40% over market" rule. 20,000 free credits S·landscape §4.3 . SDK method names are R , so call the HTTP API from Rust SPONSOR TARGET 
+ AG Grid / AG Studio $5k / $2k / 3 × $1k The prize asks to "demonstrate the Studio Agent Framework capability" S·hackathon . The deal book is a grid, but bolting on AG Studio would make the dashboard the spine. That is a different bet, and probably the most contested pot NO 
+ Bryntum 3 × $1,000 Gantt/Scheduler/Calendar S·landscape §4.2 . The table has no time axis worth a scheduler NO 
+ Render credits $1k/$750/$500 Used for real (rendezvous plus house seller), but the prize is credits, not cash, and only one sponsor prize can count USED, NOT TARGETED 
+ APIMatic 3 × ($1k + 6 mo) The prize centers on the Context Plugin S·landscape §4.7 , which helps a coding agent. That it conflicts with fencing the wallet's runtime agents away from code is the note's inference, adopted here A·landscape §4.7 [inference] NO 
+Honest odds: one Channel3 winner among ~668 registrants S·landscape §0 , but few entries will call it meaningfully A . The HM bet rests on the claim that PayPal's agentic stack is merchant-side and the consumer consent-and-evidence gap is open (landscape §1.9, an inference in the note) A . 
+ 13 · Argument 
+Build plan: protocol first 
+The haggle is the riskiest and most valuable piece, so it lands in week 2, with two local profiles on one machine settling through the real sandbox. Every other capability is a different kind of Deal on machinery that already works by then. 
+ Oct 2–4 Day-1 spikes 1 codex-cli exec + HTTP MCP in approve mode; --ignore-user-config drops the user's MCP servers · 2 claude-code agent profile and tool-less profile (empty --mcp-config ; init shows 0 tools, 0 servers) · 3 seller-issued AUTHORIZE order approved by a second sandbox account · 4 owner-app AUTHORIZE with payee , capture/void · 5 return_url loopback vs scheme (R) · 6 Windows binary resolution · 7 Channel3 resolves the demo monitor; /start-tracking on demo items today , so history exists by video day · 8 Invoicing create + send to a sandbox personal account, paid 
+ Oct 5–11 Primitives table-core : Mandate, Deal, Terms, clause checks · table-proto : envelope, JWS, nonces · ledger + hash chain + triggers · keychain · engine adapter, both profiles (claude-code first) · webinar Oct 6: ask about judge access and the product name 
+ Oct 12–18 HAGGLE on one machine Two profiles ( --profile a|b ), loopback mailbox, both engines bargaining, B issues the AUTHORIZE order, A approves in the browser, B authorizes and captures, both RECEIPTED. Tables module, deal detail, approval window states. Risk retired. 
+ Oct 19–25 Hosted + Spend Render rendezvous + house seller (ULID invoice ids) · pairing words · Channel3 band · Spend: AUTHORIZE → countersign → capture/void · "40 GPUs" refusal · idle lock · codex-cli parity 
+ Oct 26–Nov 1 Counter + Shield shop_* tools local and via rendezvous · catalog/feed · shield rules + tool-less run + void path · settlement-card checks · home first-run/quiet states 
+ Nov 2–9 Book + Rescue + video BookQuery + grid + reconciliation chips · rescue: invoice lever first, then suspend/activate, revise, OUTSTANDING_BALANCE; REPLAY detection · polish · record video Nov 6–9 
+ Nov 10–12 Freeze & ship Code freeze Nov 10 · release binaries · README + Devpost text + credentials in the form · submit Nov 11 · buffer until Nov 12 14:00 PT 
+Cut line: drop from the left when time runs out 
+ drop 1st NL book → preset queries 
+ drop 2nd PAUSE and DOWNGRADE levers → invoice-only rescue 
+ drop 3rd Counter over rendezvous → local-only shop 
+ drop 4th Channel3 image search and price history → comparables only 
+ never cut mandate + signer · haggle + house seller · firewall refusal + auth/capture · approval window + idle lock · both engines + scripted · Channel3 band 
+Shared machinery, built once: the engine adapter (two profiles, spawn, parse, verdict), the MCP server, the mandate engine, the signer, the deal state machine, the deal detail view and approval window (every module reuses them), the PayPal client (OAuth cache ~8.8 h S·paypal-platform §1.12 , Request-Id, poller), the ledger and the tray. Borrow order follows the owner's app: spawner and parser, then MCP, then approvals, then secrets and audit S·owner-assets §9 . 
+Acceptance criteria (a coding agent can test these) 
+ Capability Testable statements 
+ 9 · Haggle H1 send_offer above the ceiling returns isError naming clause 4, and no envelope row with dir='out' is written. H2 An inbound envelope with a reused nonce, wrong aud , past exp , seq gap or bad signature is rejected, audit-logged, and leaves the deal state unchanged. H3 After two ACCEPTs, both ledgers hold the same terms_hash , and B creates exactly one order with intent: AUTHORIZE , amount equal to the deal and invoice_id = {deal ULID}-{attempt} . Two installs whose local labels are both "D-0001" produce different invoice ids at the house seller. H4 A shows no "Open PayPal" button if the SETTLE amount ≠ the deal, the intent isn't AUTHORIZE, or the URL host isn't allowlisted. H5 Within 60 s of APPROVED, B authorizes and captures ( DigitalNow ), and both wallets show RECEIPTED with the same transcript_head . H6 A fresh install closes a deal with HOUSE in under 5 min, including cold start. 
+ 1 · Spend F1 "40 × GPU" → REFUSED, with the message exactly matching the clause 3 text and 0 rows in paypal_calls for that deal. F2 An in-band purchase goes AUTHORIZE → APPROVED → authorize, and capture is sent only after a countersign row exists. The void path is tested. A retried create with the same PayPal-Request-Id produces one order. F3 An authorization undecided for 72 h is voided by policy and audit-logged. F4 After 15 min of no input, every privileged command returns LOCKED until re-auth; read-only commands still work. F5 A payee-route deal carries the "payee route · sandbox" label in the UI and in exports. 
+ 3 · Counter M1 shop_search/quote/checkout work from a local engine and from a paired wallet. The checkout order's items[] sum equals amount.breakdown and the total. Capture happens only after APPROVED. M2 The feed export has every required Store Sync field, with a description of at least 25 chars and price formatted "19.99 USD". M3 A quote below an item's floor can't be produced by any tool call. 
+ 5 · Book C1 Engine output that fails the BookQuery schema is rejected and shown verbatim as INVALID. A valid query runs on a read-only connection, and any attempted write raises. C2 A ledger row absent from Transaction Search shows "pending in PayPal reporting" and turns "matched" once found. Calls respect the 31-day window and page_size ≤ 500. 
+ 7 · Shield S1 A payee mismatch blocks without any engine call. Price > 1.4 × the Channel3 comparables median → HOLD; an item with no Channel3 match shows "no market reference" and is not marked passed. S2 HOLD on an authorized purchase → a void call is made. No engine output can turn a BLOCK into CLEAR. S3 With a decoy MCP server in the user's ~/.claude.json / .mcp.json and in ~/.codex/config.toml , the tool-less run reports zero tools and zero MCP servers, or is aborted before reading the case. 
+ 8 · Rescue R1 Given a BILLING.SUBSCRIPTION.PAYMENT.FAILED event (polled, or a fixture marked REPLAY), a rescue deal is created with one lever inside the rescue mandate. DISCOUNT_THIS_CYCLE creates and sends exactly one invoice for that subscriber at the discounted amount. PAUSE calls suspend on that subscription only. RETRY_AFTER_FIX captures OUTSTANDING_BALANCE ≤ outstanding and is disabled on REPLAY rows and when PayPal's retry is under 24 h away. R2 Recovered revenue in the deal book equals paid rescue invoices plus successful outstanding-balance captures, and never includes REPLAY-only rows. R3 Across the whole test suite, paypal_calls contains no update-pricing-schemes path. 
+ Engine E1 Both adapters pass the same conformance suite for both profiles: tool set ⊆ wallet tools (agent) or empty (tool-less), prompt via stdin, a TerminalVerdict for every run, and cancel kills the process tree. E2 The scripted engine is visibly labelled on every agent card. E3 No argv ever combines --output-format stream-json with --json-schema . 
+ Surfaces U1 Every Needs-you item renders its default-on-silence text. U2 Every screen and export carries a mode badge. U3 Counterparty text never renders as markdown or links. U4 At 1280 × 800, no UI text is under 12 px. 
+ 14 · Argument 
+Risks and mitigations 
+ Risk Likely Impact Mitigation 
+ The seller-issued order flow behaves unexpectedly with two sandbox accounts med high Day-1 spike 3. The fallback is an Invoicing v2 settlement: B invoices A, and A pays on a PayPal page S·paypal-platform §2 E 
+ Loopback or custom-scheme return_url not accepted med low Polling the order is the source of truth anyway S·landscape §3.5 . Optional https bounce page on Render R 
+ PayPal login inside a webview none high Never done. System browser only S·landscape §3.5 
+ Webhooks can't reach the desktop certain low Resource GETs + webhooks-events polling S·paypal-platform §4 . Whether events are listed with no listener is R , so resource GETs come first 
+ Transaction Search lag or permission certain low Own ledger first. "Pending in PayPal reporting" chips S·paypal-platform §6.9 . Permission toggle and token refresh R 
+ No subscription failure simulation likely med Try CCREJECT -funded buyer R , otherwise recorded payload replay with a visible REPLAY chip 
+ CLI version drift (flags, init shape, MCP approval) med high probe() at start, check the init tool list, a known-good versions table in the README, a conformance test in CI, and the scripted engine as fallback. Pin --model from the user's settings, never hard-coded S·landscape §5.21 
+ codex-cli silently rejects MCP calls med high default_tools_approval_mode="approve" + spike 1 S·landscape §2.3 
+ Judge setup friction likely high Four paths (§11). House seller. Credentials in the form. A 90-second "first deal" checklist in the README 
+ Render spin-down / trial expiry during judging med med 15-min idle spin-down S·landscape §4.9 → wake ping and a visible state. No Render Postgres (free tier expires after 30 days S·landscape §4.9 ): mailboxes are in-memory, and signed envelopes make loss a retry. Keep the house warm on credits until Dec 15 A 
+ Trademark in the video med med Neutral title, no engine branding, ask in the PayPal Discord A 
+ Live demo fragility (two machines, timing) med high Deterministic house strategy for rehearsal, seeded prompts, three recorded takes, and the video cut from real runs. The approval window is 6 h S·paypal-platform §1.1 , so there's no rush at the approval step 
+ Rate limiting from polling low med Backoff (2 s → 30 s). 429 RATE_LIMIT_REACHED handled S·paypal-platform §1.12 
+ Channel3 coverage gaps for the demo item med med Spike 7 picks the demo item. The band snapshot is cached and labelled "cached" when offline 
+ Windows keychain blob size low low Store a data key in the keychain and ciphertext on disk (blob max ~2.5 KB R ) 
+ Empty inline --mcp-config rejected by claude-code med med Spike 2. Fallback: a temp file containing {"mcpServers":{}} . The mcp__* deny rule and the system/init check stay either way S·landscape §2.1 
+ Channel3 has no history for a fresh item likely low History needs /start-tracking first S·landscape §4.3 . Start tracking demo items on Oct 4; the band and the 40% rule use comparables, never history 
+ Sandbox doesn't email the rescue invoice med low The sandbox buyer logs in to pay it R ; spike 8 decides which the video shows 
+ Revise needs a subscriber approval the demo can't show med low The demo lever is the invoice. DOWNGRADE is second on the cut line R·paypal-platform §1.5 
+ Collisions at the shared house seller med high invoice_id is unique per merchant S·paypal-platform §1.1 and every judge shares one house merchant, so ids are deal ULIDs, never per-install labels (test H3) 
+ 15 · Argument · the reveal 
+Why this design 
+The whole first-round field, read against this report and against data/ . Labels are the field's anonymised ones: A-1 Checkpoint (the other shortlisted variant), A-2 Clockwork, B-1 Control Room, B-2 Common Ground, B-3 Proof Desk. Every claim about another variant cites the section of its report where it can be read ( #id is that report's own anchor). 
+1 · Six bets side by side 
+ THE TABLE (this report) Every payment is a two-sided Deal , signed under an owner's open mandate and countersigned by the wallet only if it fits. Unit that can be wrong a deal's terms against a mandate, on either side of the table Refuses vault as an agent card, Payouts, F&F, plan-wide repricing, any counterparty text reaching an agent 
+ A-1 Checkpoint One deterministic Gate : a typed Intent becomes a Verdict (Allow / Hold / Deny); only the executor holds the token #spine, #ifaces Unit that can be wrong the agent's proposed Intent #spine Refuses vault, F&F, letting the model loosen a verdict #money, #trust 
+ A-2 Clockwork Time is the spine: every commitment is a Window with PayPal's own deadline and a safe default on silence #spine Unit that can be wrong a decision made late, stale or by the agent #spine Refuses any default that pays; agent-chosen expiry actions #claim, #trust 
+ B-1 Control Room A versioned Execution Permit binds one intent, merchant, amount and policy revision: "No permit, no side effect" #authority Unit that can be wrong the intent and its permit, re-checked even after buyer approval #architecture Refuses claiming a consumer-account lock; raw PayPal tools for the LLM #cap-1, #authority 
+ B-2 Common Ground A Deal Envelope : both owners countersign the same immutable cart hash before the seller creates an order #authority, #haggle Unit that can be wrong the agreement; any changed field clears both consents #architecture Refuses hands-off settlement, escrow, fee skim #architecture, #haggle 
+ B-3 Proof Desk A Money Case joins intent, decision, provider observation and reconciliation; "Observations cannot authorize themselves" #authority, #architecture Unit that can be wrong an observation (model answer, peer receipt, webhook) #architecture Refuses fake recovered revenue; control of arbitrary consumer spending #cap-8, #authority 
+2 · Comparison matrix 
+Criteria are chosen because each one is either a judging criterion the owner named (Design, Impact) or an item in the round-1 grounding audit that any of us could have got wrong. A-2 is the third A-seat variant; B-1, B-2 and B-3 are the other seat. 
+ Criterion · why THE TABLE r2 A-1 Checkpoint A-2 Clockwork B-1 Control Room B-2 Common Ground B-3 Proof Desk 
+ Home screen · Design The Table: one deal in focus, mirrored, with a draggable band #table Gate lane: one queue of verdicts #spine The Dial: a time axis, one lane per capability #dialsec Attention queue #authority Deal room #authority Exceptions desk #authority 
+ Named user · Impact, round-2 bar Maya, a two-person monitor shop, through all six #claim, #user No persona; users of the two CLIs #why No persona; "people who already run agents" #prize "small independent operators…" #authority "two independent wallet users…" #authority "a small subscription merchant…" #authority 
+ Haggle settlement · audit (§2 recommends AUTHORIZE or invoice) AUTHORIZE, seller-issued (was CAPTURE in r1) #h-settle Seller-issued CAPTURE order #c9 Invoicing v2: B invoices A #haggle Seller-issued AUTHORIZE #haggle Seller-issued AUTHORIZE #cap-9 Seller-issued AUTHORIZE #cap-9 
+ Rescue reaches the subscriber · audit PayPal invoice email + owner's own email; per-subscription only #cap-8 Per-subscription revise or invoice; link delivery unspecified #c8 Per-subscription; the offer is a "human-visible message draft" with no stated delivery channel #c8 Existing subscription consent plus revise's payer action #cap-8 Revise payer action; no delivery channel specified #cap-8 Revise payer action; no delivery channel specified #cap-8 
+ Tool-less run fenced from MCP · audit Separate profile + mcp__* deny + init check #cap-7 Shield: --tools "" + --strict-mcp-config , no MCP file #c7 One agent argv; structured runs use --json-schema beside stream-json #ifaces, #c5 One profile for all runs, fenced to the wallet MCP #architecture One profile for all runs, fenced to the wallet MCP #architecture One profile for all runs, fenced to the wallet MCP #architecture 
+ PayPal 15-min idle rule · audit Privileged tier locks #trust, #s-approve Not found "A card locks after 15 min idle" #trust Not found Not found Not found 
+ One judge, one install, a counterparty · Presentation Scripted house seller on Render #h-house Second local profile; no hosted seller #judges Deterministic house counterparty on the relay #arch, #judges Hosted merchant broker + buyer login #delivery Hosted merchant session/broker #delivery Hosted merchant session/broker #delivery 
+ Prize shape · stacking rule HM Agentic Commerce + Channel3 #prizes Grand + AG Grid ($17,000 ceiling) #prize Grand + Bryntum #prize Grand 1st + Render credits #thesis, #delivery HM Agentic Commerce + Channel3 #thesis, #delivery HM PayPal + AI + AG Grid/Studio #delivery 
+ Smallest text in CSS · reading bar ≥ 12 px 12 px 10 px 10 px 8 px 8 px 8 px 
+3 · Where another variant is better, plainly 
+ Variant What it does better What that costs this design 
+ A-1 Checkpoint A simpler home: one Gate lane where every capability's verdict lands, with one button per row #spine . A higher ceiling: Grand + AG Grid = $17,000 #prize . On a day with no live haggle, The Table's centre is less useful than a queue. Answered with the Needs-you strip and a "quiet" home state ( §10.4 ). The prize ceiling here stays $13,500. 
+ A-2 Clockwork Time made first-class: every commitment says what happens on silence, and silence never pays #spine, #claim . It also found PayPal's 15-minute idle rule, which every other variant, including this one in round 1, missed #trust . This report had countdowns but no uniform default. Both ideas are now adopted, credited. 
+ B-2 Common Ground The closest bet to this one, with stricter consent: both owners countersign the cart hash every time #haggle . More careful market evidence: its Channel3 card keeps retrieval time, variant match and a raw-response hash #surfaces, #haggle . A direct rival for the same HM and the same sponsor prize. This report differs in the draggable band, the house seller, policy countersign below clause 6, and a named user. The market snapshot now stores retrieved_at and a response hash too. 
+ B-1 Control Room · B-3 Proof Desk Surface specs with an empty, error and unavailable state for every surface, and a mode badge that "follows the record into exports" #surfaces . An honest buyer-side state, SELLER_ATTESTED, until A sees its own PayPal evidence (B-1 and B-2 #haggle ). Round 1 here had one interaction per screen but no states. Now every module has states, and both the mode badge and the seller-attested label are adopted. 
+4 · What this report took from the field 
+ Idle lock after 15 minutes on the privileged tier, from A-2 (#trust). PayPal's rule: S·landscape §3.5 . 
+ Default on silence printed on every Needs-you item, from A-2 (#spine). 
+ Mode badge that follows the record into exports , from B-1 and B-3 (#surfaces). 
+ "Seller-attested" before "receipted" on the buyer side, from B-1 and B-2 (#haggle). 
+ No manual outstanding-balance capture while PayPal's own retry is due , from B-1, B-2 and B-3 (#cap-8). 
+ Typed confirmation to release a shield hold , from A-1 ("Pay anyway", #c7) and A-2 ("typed confirmation for overrides", #trust). 
+ AUTHORIZE for haggle settlement , as B-1, B-2 and B-3 already did (#haggle / #cap-9), and as the research recommends. 
+ Market snapshot with retrieval time and response hash , from B-2 (#haggle). 
+Not taken, on purpose: A-1's single queue as home (it would trade the counterparty view for a list); A-2's invoice settlement for haggles (an order keeps the authorize-then-capture hold the firewall also uses); B-2's mandatory owner signature on every deal (clause 6 lets Maya choose a threshold instead). 
+5 · Against the other shortlisted variant (A-1 Checkpoint): why build The Table 
+The Table keeps A-1's guarantee A mandate clause is a gate rule. A request outside the mandate is refused before any PayPal call, with the clause named and zero rows in paypal_calls (test F1), which is exactly A-1's Deny path. The approval lives in a separate window label, as in A-1 (#c1). Choosing The Table loses none of A-1's safety. 
+…and adds the counterparty Three of the six capabilities have someone on the other side (haggle, shop, rescue). In A-1 they are sources of intents feeding one lane (#spine). Here the other side is on screen: who they are, whether they're paired, what the market says, and what they signed. That is the "practical business situation anyone can understand" the owner asked for: Maya buys a monitor from Dan for less than the market median, and both hold the proof. 
+The prize bet is less contested "Best Use of Agentic Commerce" is agent-to-agent commerce, which is this report's literal subject. Channel3 is one $1,500 prize that few entries will call meaningfully A , and here it is load-bearing (the band). A-1 aims at AG Grid, the largest sponsor pot. Its own prize section flags a floor case of an HM plus an AG Grid runner-up (#prize). 
+Where A-1 still has defects Its haggle settles on CAPTURE, where the research recommends AUTHORIZE or an invoice (#c9). Its GPU denial cites a "per-tx cap $25" (#top), yet a $38 purchase is described as within budget and held, not denied (#c1, #surfaces). Its video recovers revenue with an outstanding-balance capture after a replayed failure, which leaves no real balance to capture (#judges). None of these is fatal, and this report had two of the same kind in round 1. The difference is that they are fixed here. 
+Build The Table if the entry should show who is across the table as well as what was blocked. Build A-1 if a single queue and the AG Grid pot matter more than the counterparty. The trust core is the same either way. The recommendation, one sentence 
+ 16 · Argument 
+Marks legend, claims filter and audit closure 
+ S·note § 
+Sourced from a staged research note: paypal-platform , landscape (= landscape-and-stack), hackathon , owner-assets , scope , with the section. The notes' own [S]/[S-spec] marks, and their source URLs, stand behind these. 
+ R 
+Recalled or unverified. Every [R] in the notes stays R here and is never upgraded. Each R that a demo beat depends on has a spike or a fallback in §13/§14. 
+ A 
+An assumption or design decision of this report: protocol details, thresholds, UI copy, illustrative numbers. These are the things to change freely. 
+ Live counts on this page: Use the buttons at the bottom left (All / S / R / A) to highlight one kind across the whole report. Paragraphs, list items and cells that carry the selected mark get a tint. 
+R claims this design leans on (each with its guard) 
+ R claim (from the notes) Where used Guard 
+ Business accounts can act as buyers R·paypal-platform §2 A-side reconciliation via Transaction Search Spike. Otherwise A's evidence is the receipt plus the PayPal page 
+ Refunds and disputes sit with the payee R·paypal-platform §1.1 Firewall purchase Spike 4. Document the result 
+ Loopback or custom-scheme return_url accepted R·paypal-platform §6.17 Approval UX Polling is the truth 
+ Subscription failure simulation R·paypal-platform §0.10 Rescue demo REPLAY fixture, labelled 
+ Plan revise may need subscriber approval R Rescue "downgrade" Prefer suspend or pricing in the demo 
+ Transaction Search permission and scope R·paypal-platform §1.7 Deal book Day-1 check in the dashboard 
+ custom_id / description semantics and length R Deal hash on the order Read the spec on day 1 
+ Channel3 SDK method names R·landscape §4.3 Market band Call the HTTP endpoints from Rust 
+ webhooks-events lists events with no reachable listener R·paypal-platform §4 Rescue detection Resource GETs first 
+ A payee route needs platform onboarding for live use R·paypal-platform §2 Spend route ② Labelled "sandbox"; route ① preferred 
+ revise returns a payer approval link R·paypal-platform §1.5 Rescue DOWNGRADE Invoice lever is the demo lever 
+ Sandbox delivers invoice emails R Rescue demo Spike 8; buyer logs in 
+Round-1 grounding audit: every item closed 
+ Audit finding What changed Where 
+ Rescue discount used update-pricing-schemes , which reprices the whole plan Fixed. Every lever acts on one subscription or one invoice; the endpoint is banned and tested for (R3) cap 8 
+ No channel reaches the subscriber Fixed. PayPal's invoice email plus the owner's own mailto: draft; answers are read from PayPal state, not from replies cap 8 , Rescue 
+ Channel3 price history isn't on demand; sandbox items may not be indexed Fixed. The band uses on-demand comparables; history only after /start-tracking ; unindexed items show "no market reference" cap 7 , spike 7 
+ Shield engine run not fenced from MCP Fixed. Tool-less profile: --strict-mcp-config , empty server list, mcp__* deny, init check; codex-cli --ignore-user-config (S3) cap 7 
+ --json-schema needs --output-format json , conflicting with stream-json Fixed. --json-schema is no longer used; tool-less runs are validated in Rust (E3) §8 
+ invoice_id "D-0193" collides across judges at the house seller Fixed. {deal ULID}-{attempt} ; the label is display-only (H3) §6.5 
+ payee merchant never learns of the order; live needs onboarding Flagged. Route ① vs route ②, labelled in UI and exports (F5) cap 1 , §5 
+ "Closed list of deal types" shown as the reported fix Re-marked. Reported fixes quoted (S); the closed list is the note's inference, adopted (A) §3 
+ "No local cross-agent PayPal wallet found" marked S Re-marked A, as the note's own [inference] §12 
+ WebView2 embedBootstrapper choice and APIMatic caveat marked S Re-marked. The modes and the prize are S; the choice and the conflict are A §11 , §12 
+ "Works per the recommended framing" while using CAPTURE Fixed. Haggle settlement is always AUTHORIZE, as the note recommends §6.5 
+ Missed: PayPal's 15-minute idle-session rule Added. Privileged tier locks after 15 idle minutes (F4); credited to A-2 §9 , §10.3 
+ ↑ Top 
+

@@ -1,0 +1,163 @@
+/* Approval window · OWNER SURFACES (OwnerConfig.tsx, MandateEditor.tsx, PairingConfirm.tsx,
+   owner/*). Everything is scoped under .ow (the page root) or an .ow-* class that only these
+   files render (popovers and sheets portal to <body>, so their classes are ow-prefixed).
+   The frame (.aw, header) lives in frame.css. Colours from tokens only; type and spacing from
+   the scale. The window is 744 px wide. */
+
+/* ---- page roots ------------------------------------------------------------------------- */
+.ow.ow-ed { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.ow .ow-body { padding: var(--sp-3) var(--sp-4) var(--sp-4); }
+.ow-p { margin: 0 0 var(--sp-2); color: var(--muted); line-height: var(--lh); }
+.ow-p:last-child { margin-bottom: 0; }
+.ow-kick { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); font: var(--fw-semibold) var(--fs-small)/1.3 var(--font); color: var(--gold-l); }
+.ow-kick .ui-btn { text-transform: none; letter-spacing: 0; }
+.ow-h { margin: var(--sp-1) 0 var(--sp-1); font: var(--fw-semibold) var(--fs-title1)/var(--lh-tight) var(--display); letter-spacing: -.01em; color: var(--text); }
+.ow .ui-section { margin-top: var(--sp-4); }
+.ow .ui-section-h .end { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.ow .ui-group + .notice, .ow .notice + .ui-group, .ow .ui-group + .lockcard { margin-top: var(--sp-2); }
+.ow .ui-row .ui-chip + .ui-btn, .ow .ui-row .ui-btn + .ui-btn { margin-left: var(--sp-1); }
+
+/* setup progress */
+.ow-progress { display: flex; align-items: center; gap: var(--sp-1); margin: var(--sp-2) 0 var(--sp-1); }
+.ow-progress i { width: 28px; height: 4px; border-radius: 2px; background: var(--line2); }
+.ow-progress i.on { background: var(--teal); }
+.ow-progress span { margin-left: var(--sp-2); font: var(--fw-semibold) var(--fs-small) var(--font); color: var(--dim); }
+
+/* ---- what-if editor: toolbar ------------------------------------------------------------- */
+.ow-tabs { gap: var(--sp-2); background: var(--material); }
+.ow-tabs .ui-seg { min-width: 0; overflow-x: auto; scrollbar-width: none; flex: 0 1 auto; }
+.ow-tabs .ui-seg button { white-space: nowrap; text-transform: capitalize; }
+.ow-q { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--sp-2); padding: 0 0 var(--sp-2); }
+.ow-q h1 { margin: 0; font: var(--fw-semibold) var(--fs-title3)/var(--lh-tight) var(--display); outline: none; }
+.ow-q .ui-hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ow-done { margin: 0 0 var(--sp-2); padding: var(--sp-1) var(--sp-2); border-radius: var(--r-sm); background: var(--panel2); box-shadow: inset 2px 0 0 var(--ok); font-size: var(--fs-small); color: var(--muted); }
+.ow-done.bad { box-shadow: inset 2px 0 0 var(--refuse); }
+.ow-body > .notice { margin: 0 0 var(--sp-2); }
+
+/* the scoreboard stays pinned while the levers or the replay scroll under it */
+.ow-scorebar { position: sticky; top: calc(-1 * var(--sp-3)); z-index: 3; margin: 0 calc(-1 * var(--sp-4)); padding: var(--sp-2) var(--sp-4) var(--sp-2); background: var(--panel); border-bottom: 1px solid var(--line); }
+.ow-score { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.ow-score .sc { display: flex; flex-direction: column; padding: var(--sp-1) var(--sp-3); background: var(--panel2); transition: background var(--t-fast); }
+.ow-score .k { font-size: var(--fs-small); color: var(--dim); }
+.ow-score .v { display: flex; align-items: baseline; gap: var(--sp-1); font: var(--fw-semibold) var(--fs-title3)/1.3 var(--num); font-variant-numeric: tabular-nums; }
+.ow-score .v .to { font-size: var(--fs-body); color: var(--gold-l); }
+.ow-score .refused .v { color: var(--red-l); } .ow-score .asks .v { color: var(--gold-l); } .ow-score .policy .v { color: var(--teal-l); } .ow-score .unknown .v { color: var(--muted); }
+.ow-score .sc.unknown, .ow-score .sc.na { background: var(--panel); outline: 1px dashed var(--line2); outline-offset: -3px; }
+.ow-score .sc.moved { background: color-mix(in srgb, var(--gold) 10%, var(--panel2)); }
+.ow-talk { display: flex; align-items: center; gap: var(--sp-2); min-height: var(--row); margin-top: var(--sp-1); min-width: 0; }
+.ow-talk .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.ow-talk .ui-btn { margin-left: auto; }
+.ow-talk.rev .t { color: var(--red-l); }
+.ow-switch { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-top: var(--sp-1); }
+.ow-switch .ui-chip { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* the replay */
+.ow-rp { table-layout: fixed; margin-top: var(--sp-2); }
+.ow-rp col.c-t { width: 84px; } .ow-rp col.c-a { width: 92px; } .ow-rp col.c-v { width: 120px; }
+.ow-rp tbody tr { cursor: pointer; }
+.ow-rp tbody tr:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.ow-rp tr.chg td { background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.ow-rp tr.chg td:first-child { box-shadow: inset 2px 0 0 var(--gold); }
+.ow-rp td.t { font: var(--fs-small) var(--mono); color: var(--dim); }
+.ow-rp .id { margin-right: var(--sp-1); font: var(--fw-semibold) var(--fs-mono) var(--mono); }
+.ow-rp .it { color: var(--muted); }
+.ow-na { display: grid; gap: var(--sp-2); margin-top: var(--sp-3); }
+.ow-na .ui-hint { margin: 0; line-height: var(--lh); }
+.ow-why { max-width: 480px; }
+.ow-reasons ul { list-style: none; margin: var(--sp-1) 0 0; padding: 0; display: grid; gap: 2px; }
+.ow-reasons li { display: flex; align-items: baseline; gap: var(--sp-1); font-size: var(--fs-small); }
+.ow-reasons li .ui-chip { flex: none; }
+
+/* the levers: a track with this week's deals as ticks */
+.ow-levers { padding-top: var(--sp-2); }
+.ow-lgd { display: flex; flex-wrap: wrap; gap: 2px var(--sp-3); margin: 0 0 var(--sp-2); }
+.ow-lgd i { display: inline-block; position: static; transform: none; width: 3px; height: 10px; margin: 0 4px 0 0; vertical-align: -1px; }
+.ow-lever { padding: var(--sp-2) 0 var(--sp-1); border-top: 1px solid var(--line); }
+.ow-lever.chg { box-shadow: inset 2px 0 0 var(--gold); padding-left: var(--sp-2); margin-left: calc(-1 * var(--sp-2)); }
+.ow-lever .lh { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; height: var(--ctl); }
+.ow-lever .cn, .ow-ww .cn { width: 12px; flex: none; font: var(--fw-semibold) var(--fs-small) var(--mono); color: var(--dim); }
+.ow-lever .lt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ow-lever .ro { margin-left: auto; display: inline-flex; align-items: center; gap: var(--sp-1); flex: none; }
+.ow-lever .ro .ui-field { width: 96px; text-align: right; font-family: var(--num); font-variant-numeric: tabular-nums; }
+.ow-lever .ro .cur { font-size: var(--fs-small); color: var(--dim); }
+.ow-lever .ui-field.bad { border-color: var(--refuse); }
+.ow-lever .x { color: var(--dim); }
+.ow-lever .track { position: relative; height: 24px; }
+.ow-lever .track input[type="range"] { position: absolute; inset: 0; z-index: 2; width: 100%; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; }
+.ow-lever .track input[type="range"]::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: var(--line2); }
+.ow-lever .track input[type="range"]::-moz-range-track { height: 3px; border-radius: 2px; background: var(--line2); }
+.ow-lever .track input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5.5px; border-radius: 50%; background: var(--panel); border: 1px solid var(--line2); box-shadow: var(--shadow-1), 0 0 0 2px var(--gold); }
+.ow-lever .track input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--panel); border: 1px solid var(--line2); box-shadow: 0 0 0 2px var(--gold); }
+.ow-lever .track input[type="range"]:focus-visible { outline: none; }
+.ow-lever .track input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--focus); }
+.ow-lever .ticks { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.tk { position: absolute; top: 50%; width: 3px; height: 14px; margin-left: -1.5px; transform: translateY(-50%); border-radius: 1px; background: var(--muted); }
+.tk.refused { background: var(--refuse); } .tk.asks { background: var(--gold); } .tk.policy { background: var(--teal-l); }
+.tk.unknown { background: none; outline: 1px dashed var(--dim); outline-offset: -1px; }
+.ow-lever .notch { position: absolute; top: 0; width: 0; height: 0; margin-left: -4px; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid var(--dim); }
+.ow-lever .scale { display: flex; justify-content: space-between; gap: var(--sp-2); font-size: var(--fs-small); font-variant-numeric: tabular-nums; color: var(--dim); }
+.ow-lever .scale .off { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--red-l); }
+.ow-lever .ui-hint { margin: var(--sp-1) 0 0; }
+.ow-lever .sub { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); min-height: var(--ctl); margin-top: var(--sp-1); }
+.ow-stepper { display: inline-flex; align-items: center; gap: 2px; }
+.ow-stepper output { min-width: 24px; text-align: center; font-variant-numeric: tabular-nums; }
+.ow-inline { display: inline-flex; align-items: center; gap: var(--sp-1); margin: 0; }
+.ow-inline .ui-field { width: 190px; }
+.ow-pair + .ow-lever { border-top: 0; }
+
+/* who and what */
+.ow-ww .ui-row .lbl { width: 150px; flex: none; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ow-ww .ui-row .val { flex: 1; min-width: 0; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ow-ww .ui-row.chg { box-shadow: inset 2px 0 0 var(--gold); }
+.ow-ww .ui-row.chg .val { color: var(--gold-l); }
+.ow-endline { display: block; margin-top: var(--sp-3); }
+
+/* footer */
+.ow-foot { display: flex; align-items: center; gap: var(--sp-2); min-height: 44px; padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--line); background: var(--material); }
+.ow-foot .status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: var(--fs-small); }
+
+/* ---- popovers and sheets (portalled to body) ---------------------------------------------- */
+.ow-pop { max-width: 360px; }
+.ow-pop.wide { max-width: 520px; }
+.ow-pop .ui-hint { margin: var(--sp-2) 0 0; }
+.ow-picks { display: grid; gap: 4px; }
+.ow-picks .pick { display: flex; align-items: center; gap: 6px; }
+.ow-form { display: grid; gap: var(--sp-2); margin-top: var(--sp-2); }
+.ow-form label, label.ow-form { display: grid; gap: 2px; }
+.ow-form span { font-size: var(--fs-small); color: var(--dim); }
+.ow-adds { display: grid; gap: var(--sp-1); justify-items: start; }
+.ow-popfoot { display: flex; justify-content: flex-end; margin-top: var(--sp-2); padding-top: var(--sp-2); border-top: 1px solid var(--line); }
+.ow-conseq { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-1); }
+.ow-conseq li { padding: var(--sp-1) var(--sp-2); border-radius: var(--r-sm); background: var(--panel2); box-shadow: inset 2px 0 0 var(--line2); line-height: var(--lh); }
+.ow-conseq li.widens { box-shadow: inset 2px 0 0 var(--gold); }
+.ow-conseq li.restricts { box-shadow: inset 2px 0 0 var(--teal); }
+.ow-conseq li.live { box-shadow: inset 2px 0 0 var(--coral); }
+.ow-warns { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: grid; gap: 2px; font-size: var(--fs-small); color: var(--gold-l); }
+.ow-warns li::before { content: "! "; font-weight: var(--fw-bold); }
+.ow-sign .ui-section { margin-top: var(--sp-4); }
+.ow-sign .ui-hint { margin: var(--sp-2) 0 0; }
+.ow-bytes { margin-top: var(--sp-2); }
+.ow-bytes summary { cursor: pointer; color: var(--muted); }
+.ow-bytes pre { margin: var(--sp-2) 0 0; max-height: 220px; overflow: auto; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg); font: var(--fs-small)/1.5 var(--mono); color: var(--muted); white-space: pre; }
+
+/* ---- pairing confirm ("Two desks", the approval side) -------------------------------------- */
+.ow-pair { display: grid; gap: var(--sp-3); margin-top: var(--sp-3); }
+.ow-pair h2 { display: flex; align-items: center; gap: var(--sp-1); margin: 0; font: var(--fw-semibold) var(--fs-title3)/1.25 var(--display); }
+.ow-ctx { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: var(--fs-small); color: var(--dim); }
+.ow-ctx b { color: var(--text); font-weight: var(--fw-medium); }
+.ow-words { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); }
+.ow-words li { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; padding: var(--sp-2) var(--sp-1); border-radius: var(--r-sm); background: var(--bg2); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--coral) 45%, var(--line2)); font: var(--fw-semibold) var(--fs-display)/1.2 var(--display); letter-spacing: -.01em; }
+.ow-words small { font: var(--fw-medium) var(--fs-small) var(--font); color: var(--dim); }
+.ow-words span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.ow-name { display: flex; align-items: center; gap: var(--sp-2); }
+.ow-name label { flex: none; color: var(--muted); }
+.ow-name .ui-field { flex: 1 1 auto; }
+.ow-pair > .ui-hint { margin: calc(-1 * var(--sp-2)) 0 0; }
+.ow-decide { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+.ow-decide .ui-btn { height: 32px; }
+.ow-acts { display: flex; gap: var(--sp-2); }
+.ow-fpr { color: var(--coral-l); word-break: break-all; }
+.ow-means { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); margin-top: var(--sp-3); }
+.ow-means h3 { margin: 0 0 var(--sp-1); font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); }
+.ow-means ul { margin: 0; padding-left: 16px; }
+.ow-means li { margin: 2px 0; }

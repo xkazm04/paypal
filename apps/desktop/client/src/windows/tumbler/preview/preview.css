@@ -1,0 +1,69 @@
+/* Browser preview stage only - never loaded in the desktop window. Tokens only (dark set). */
+body.w-tumbler:has(.pv) { background: var(--bg); }
+.pv { position: fixed; inset: 0; overflow: hidden; font: var(--fw-regular) var(--fs-body)/var(--lh) var(--font); color: var(--text); }
+
+.pv-desk { position: absolute; inset: 0 0 48px 0; overflow: hidden;
+  background:
+    radial-gradient(ellipse 55% 65% at 78% 22%, color-mix(in srgb, var(--teal) 12%, transparent), transparent 70%),
+    radial-gradient(ellipse 50% 60% at 12% 88%, color-mix(in srgb, var(--ok) 8%, transparent), transparent 70%),
+    linear-gradient(160deg, var(--bg2), var(--bg)); }
+.pv-label { position: absolute; top: var(--sp-3); right: var(--sp-3); display: flex; gap: var(--sp-2); align-items: center; z-index: 3;
+  font: var(--fs-small) var(--mono); color: var(--dim); padding: 4px 4px 4px 10px; border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--bg) 70%, transparent); box-shadow: inset 0 0 0 1px var(--line); }
+
+/* a stylised app Maya is working in */
+.pv-app { position: absolute; left: 57%; top: 44%; transform: translate(-50%, -50%); width: min(820px, 60vw); border-radius: var(--r); overflow: hidden;
+  background: var(--panel); color: var(--text); box-shadow: var(--shadow-3); font-size: var(--fs-small); }
+.pv-app .bar { display: flex; align-items: center; gap: var(--sp-2); height: 32px; padding: 0 var(--sp-3); background: var(--bg2); color: var(--muted);
+  border-bottom: 1px solid var(--line); }
+.pv-app .bar .ic { width: 14px; height: 14px; border-radius: 3px; background: var(--ok); }
+.pv-app .bar .wc { margin-left: auto; letter-spacing: 14px; color: var(--dim); }
+.pv-app .ribbon { display: flex; gap: 22px; padding: 6px var(--sp-3); border-bottom: 1px solid var(--line); color: var(--dim); }
+.pv-app .ribbon b { color: var(--ok); font-weight: var(--fw-semibold); border-bottom: 2px solid var(--ok); }
+.pv-app .grid { display: grid; grid-template-columns: 1.3fr 2.4fr .7fr .8fr .7fr .7fr; }
+.pv-app .grid span { padding: 4px 8px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pv-app .grid .hd { background: var(--panel2); font-weight: var(--fw-semibold); color: var(--dim); }
+.pv-app .grid .n { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* the native window's rectangle: hugs the drawing */
+.pv-frame { position: absolute; z-index: 2; }
+.pv-frame::after { content: ""; position: absolute; inset: -1px; border: 1px dashed color-mix(in srgb, var(--dim) 35%, transparent); border-radius: 4px; pointer-events: none; }
+.pv-frame .tum { filter: drop-shadow(0 18px 30px color-mix(in srgb, var(--bg) 80%, transparent)) drop-shadow(0 2px 5px color-mix(in srgb, var(--bg) 60%, transparent)); }
+.pv-size { position: absolute; font: var(--fs-small) var(--mono); color: var(--dim); white-space: nowrap; pointer-events: none; }
+.pv-frame.br .pv-size { right: 0; bottom: 100%; margin-bottom: 6px; }
+.pv-frame.tl .pv-size { left: 0; top: 100%; margin-top: 6px; }
+.pv-frame.flush .pv-size { right: 34px; bottom: auto; top: 50%; transform: translateY(-50%); }
+.pv-frame.tl.flush .pv-size { left: 34px; right: auto; }
+
+/* taskbar */
+.pv-taskbar { position: absolute; left: 0; right: 0; bottom: 0; height: 48px; display: flex; align-items: center; justify-content: center;
+  background: var(--material); border-top: 1px solid var(--line); }
+.pv-taskbar .apps { display: flex; gap: 10px; }
+.pv-taskbar .apps i { width: 26px; height: 26px; border-radius: var(--r-sm); background: var(--panel3); }
+.pv-taskbar .apps .a1 { background: var(--teal); }
+.pv-taskbar .apps .a3 { background: var(--gold); }
+.pv-taskbar .apps .a4 { background: var(--ok); box-shadow: 0 6px 0 -4px var(--teal-l); }
+.pv-taskbar .tray { position: absolute; right: var(--sp-3); display: flex; gap: var(--sp-3); align-items: center; font-size: var(--fs-small); color: var(--text); }
+.pv-taskbar .wal { position: relative; font-size: 17px; color: var(--steel); }
+.pv-taskbar .wal .dot { position: absolute; top: 2px; right: -3px; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 2px var(--bg2); }
+
+/* controls (dashed: not the product) */
+.pv-ctl { position: absolute; top: var(--sp-3); left: var(--sp-3); z-index: 4; width: 280px; max-height: calc(100vh - 80px); overflow: auto; border-radius: var(--r);
+  background: color-mix(in srgb, var(--bg2) 94%, transparent); box-shadow: var(--shadow-2); outline: 1px dashed var(--line2); outline-offset: -1px; scrollbar-width: thin; }
+.pv-ctl.right { left: auto; right: var(--sp-3); top: 52px; }
+.pv-ctl .ph { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border: 0; background: none; cursor: pointer; text-align: left; color: inherit; font: inherit; }
+.pv-ctl .ph b { display: block; font: var(--fw-bold) var(--fs-small) var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.pv-ctl .ph em { display: block; font-style: normal; font-size: var(--fs-small); color: var(--gold-l); }
+.pv-ctl .ph .tog { font-size: var(--fs-small); color: var(--dim); text-decoration: underline; }
+.pv-ctl .body { padding: 0 var(--sp-2) var(--sp-2); }
+.pv-ctl .grp { border-top: 1px dashed var(--line2); padding: var(--sp-2) 0; display: grid; gap: 3px; }
+.pv-ctl h4 { margin: 0 2px 2px; font: var(--fw-semibold) var(--fs-small) var(--font); color: var(--dim); }
+.pv-ctl .grp > button { text-align: left; padding: 5px 8px; border-radius: var(--r-sm); border: 1px solid var(--line2); background: var(--panel2); color: var(--text); cursor: pointer; font: var(--fs-body) var(--font); }
+.pv-ctl .grp > button:hover { background: var(--panel3); }
+.pv-ctl .grp > button[aria-pressed="true"] { background: var(--sel); border-color: var(--sel-line); }
+.pv-ctl .grp > button small { display: block; font-size: var(--fs-small); color: var(--dim); }
+.pv-ctl .seg { display: flex; align-items: center; gap: 6px; font-size: var(--fs-small); color: var(--dim); margin-top: 2px; }
+.pv-ctl .seg button { padding: 3px 8px; border-radius: var(--r-sm); border: 1px solid var(--line2); background: var(--panel2); color: var(--muted); cursor: pointer; font: var(--fs-small) var(--font); }
+.pv-ctl .seg button[aria-pressed="true"] { border-color: var(--sel-line); color: var(--teal-l); }
+.pv-ctl .readout { font: var(--fs-small)/1.5 var(--mono); color: var(--dim); padding-top: var(--sp-2); border-top: 1px dashed var(--line2); }
+.pv-ctl .readout b { color: var(--gold-l); font-weight: var(--fw-semibold); }

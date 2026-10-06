@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Approval · v1 The Card · The Table</title>
+<link rel="stylesheet" href="../../../shared/tokens.css">
+<link rel="stylesheet" href="../../../shared/ui.css">
+<script src="../../../main/fixtures.js"></script>
+<script src="../../../shared/ui.js"></script>
+<style>
+/* ---- shared by the three approval variants: the dimmed desktop, the prototype panel, the window
+   frame and the small layer-1 / layer-2 pieces the baseline does not carry. Tokens only. ---- */
+:root { --tb-h: 36px; --pp-w: 248px; }
+body { overflow-x: hidden; }
+.desk { position: relative; height: calc(100vh - var(--shell-h)); min-height: 560px; overflow: hidden; background: var(--bg); }
+.wall { position: absolute; inset: 0 0 var(--tb-h) 0; background: radial-gradient(120% 90% at 70% 10%, var(--bg2), var(--bg)); }
+.ghost { position: absolute; inset: 4% 4% 5% 4%; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg2); overflow: hidden; }
+.ghost-bar { height: 28px; display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-3); background: var(--panel); border-bottom: 1px solid var(--line); font-size: var(--fs-small); color: var(--dim); }
+.ghost-bar i { width: 10px; height: 10px; border-radius: 2px; background: var(--ok); opacity: .55; }
+.ghost-grid { position: absolute; inset: 28px 0 0 0; opacity: .45;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 104px 24px; }
+.dimmer { position: absolute; inset: 0 0 var(--tb-h) 0; background: var(--scrim); backdrop-filter: blur(1.5px); }
+.taskbar { position: absolute; left: 0; right: 0; bottom: 0; height: var(--tb-h); z-index: 3; display: flex; align-items: center; gap: var(--sp-1); padding: 0 var(--sp-3);
+  background: var(--material); backdrop-filter: blur(16px); border-top: 1px solid var(--line); font-size: var(--fs-small); color: var(--dim); }
+.tb-i { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 var(--sp-2); border-radius: var(--r-sm); }
+.tb-i svg { width: 14px; height: 14px; }
+.tb-i.live { background: color-mix(in srgb, var(--gold) 16%, transparent); color: var(--gold-l); box-shadow: inset 0 -2px 0 var(--gold); }
+.tb-tray { margin-left: auto; }
+.tb-tray .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
+
+/* prototype controls (ui-proto): scenario switcher, simulated events, clock, wallet log */
+.proto { position: absolute; z-index: 4; left: var(--sp-3); top: var(--sp-3); width: var(--pp-w); max-height: calc(100% - var(--tb-h) - 2 * var(--sp-3)); overflow: auto; }
+.pp-h { font-weight: var(--fw-semibold); color: var(--dim); margin: var(--sp-2) 0 2px; }
+.pp-h:first-of-type { margin-top: var(--sp-1); }
+.pp-sc { display: block; width: 100%; height: var(--ctl-sm); padding: 0 var(--sp-2); border: 0; border-radius: var(--r-sm); background: none; color: var(--muted);
+  font-size: var(--fs-small); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.pp-sc:hover { background: var(--hover); color: var(--text); }
+.pp-sc[aria-pressed="true"] { background: var(--sel); color: var(--text); box-shadow: inset 2px 0 0 var(--teal); }
+.pp-sim { display: block; width: 100%; min-height: var(--ctl-sm); padding: 2px var(--sp-2); margin-top: 2px; border: 1px dashed var(--gold); border-radius: var(--r-sm); background: none;
+  color: var(--gold-l); font-size: var(--fs-small); text-align: left; cursor: pointer; }
+.pp-sim:hover { background: color-mix(in srgb, var(--gold) 10%, transparent); }
+.pp-row { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-1); }
+.pp-row .ui-btn { flex: none; }
+.pp-clock { font: var(--fs-small) var(--mono); color: var(--dim); }
+.pp-keys { margin: var(--sp-2) 0 0; color: var(--dim); line-height: 1.7; }
+
+/* the approval window */
+.stage { position: absolute; inset: 0 0 var(--tb-h) 0; z-index: 2; display: flex; align-items: center; justify-content: center;
+  padding: var(--sp-4) var(--sp-4) var(--sp-4) calc(var(--pp-w) + 2 * var(--sp-3) + var(--sp-2)); }
+.aw { position: relative; display: flex; flex-direction: column; max-height: 100%; background: var(--panel); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-3); outline: none; overflow: hidden; }
+.aw:focus-visible { box-shadow: var(--shadow-3), 0 0 0 2px var(--focus); }
+.aw > .ui-titlebar { flex: none; gap: var(--sp-2); padding-right: var(--sp-1); }
+.aw-emb { width: 16px; height: 16px; flex: none; } .aw-emb .e1 { fill: none; stroke: var(--steel); stroke-width: 2; } .aw-emb .e2 { fill: none; stroke: var(--gold); stroke-width: 2; }
+.aw .ui-crumbs { font-size: var(--fs-small); }
+.aw-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--sp-3) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2); }
+.aw-body > * { flex-shrink: 0; }
+.aw-foot { flex: none; padding: var(--sp-2) var(--sp-4) var(--sp-3); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: var(--sp-2); }
+.aw-h { margin: 0; font: var(--fw-semibold) var(--fs-title3)/1.3 var(--display); outline: none; }
+.aw-h b { font-weight: var(--fw-semibold); color: var(--text); }
+.aw-h .q { color: var(--muted); font-weight: var(--fw-regular); }
+.aw-amt { font: var(--fw-semibold) var(--fs-display)/1.1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.aw-unit { font: var(--fs-small) var(--mono); color: var(--dim); }
+.k { font-size: var(--fs-small); color: var(--dim); }
+.chipbtn { border: 0; cursor: pointer; }
+.chipbtn:hover { filter: brightness(1.12); }
+.aw-btns { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.aw-btns .sp { flex: 1 1 auto; }
+.aw-due { display: flex; align-items: baseline; gap: var(--sp-1) var(--sp-3); flex-wrap: wrap; }
+.aw-clock { font-size: var(--fs-small); color: var(--dim); white-space: nowrap; }
+.aw-clock b { color: var(--gold-l); font: var(--fw-semibold) var(--fs-mono) var(--mono); }
+.ui-silence.wrap { white-space: normal; flex: 1 1 260px; }
+.aw-hint { margin: 0; display: flex; align-items: center; gap: var(--sp-1); font-size: var(--fs-small); color: var(--dim); min-height: var(--ctl-sm); }
+.aw-hint .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aw-hint .ui-btn { flex: none; }
+.aw-status { display: flex; align-items: center; gap: var(--sp-2); min-height: var(--row); min-width: 0; }
+.aw-status .t { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--fw-medium); }
+.poll { display: flex; align-items: center; gap: 6px; font: var(--fs-small) var(--mono); color: var(--teal-l); }
+.poll::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--teal); animation: pulse 1.4s ease-in-out infinite; flex: none; }
+@keyframes pulse { 50% { opacity: .25; } }
+.typer { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; font-size: var(--fs-small); color: var(--muted); }
+.typer .ui-field { width: 132px; font-family: var(--mono); }
+.typer .ui-field.ok { border-color: var(--ok); }
+.typer .st { color: var(--dim); white-space: nowrap; } .typer .st.ok { color: var(--ok); }
+.hello-ico { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--teal-l); stroke-width: 1.8; stroke-linecap: round; animation: hello 1.1s var(--ease) infinite alternate; }
+.hello-ico circle { fill: var(--teal-l); stroke: none; }
+@keyframes hello { from { opacity: .5; } to { opacity: 1; } }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.closed { position: relative; z-index: 2; max-width: 30rem; display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; color: var(--muted); }
+.closed b { color: var(--text); }
+
+/* market: a one-line mini track on layer 1, the labelled track in layer 2 */
+.aw-mkt { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; font-size: var(--fs-small); color: var(--muted); min-height: var(--ctl-sm); }
+.aw-mkt .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini { position: relative; flex: 0 0 88px; height: 10px; }
+.mini::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 2px; background: var(--line2); border-radius: 1px; }
+.mini .b { position: absolute; top: 2px; height: 6px; border-radius: 2px; background: color-mix(in srgb, var(--market) 30%, transparent); }
+.mini .m { position: absolute; top: 0; width: 2px; height: 10px; background: var(--market); transform: translateX(-1px); }
+.mini .d { position: absolute; top: 1px; width: 8px; height: 8px; border-radius: 50%; background: var(--teal); transform: translateX(-4px); box-shadow: 0 0 0 2px var(--panel); }
+.track { position: relative; height: 34px; margin: var(--sp-2) 0 0; }
+.track::before { content: ""; position: absolute; left: 0; right: 0; top: 9px; height: 2px; background: var(--line); }
+.tr-band { position: absolute; top: 5px; height: 10px; border-radius: 3px; background: color-mix(in srgb, var(--market) 22%, transparent); border: 1px solid color-mix(in srgb, var(--market) 40%, transparent); }
+.tr-med { position: absolute; top: 2px; width: 2px; height: 16px; background: var(--market); transform: translateX(-1px); }
+.tr-dot { position: absolute; top: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--teal); border: 2px solid var(--panel); transform: translateX(-7px); box-shadow: 0 0 0 1px var(--teal-l); }
+.tr-t { position: absolute; top: 20px; transform: translateX(-50%); font: var(--fs-small) var(--mono); color: var(--dim); }
+
+/* layer 2 content: popovers and the details sheet */
+.pop-p { margin: 0; color: var(--muted); }
+.pop-p + .pop-p { margin-top: var(--sp-2); }
+.ui-popover .ui-kv { font-size: var(--fs-small); }
+.ui-popover .quarantine { margin-top: 0; }
+.states { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.states li { display: flex; align-items: center; gap: var(--sp-2); height: 24px; font: var(--fs-small) var(--mono); color: var(--dim); }
+.states li .g { width: 14px; text-align: center; flex: none; }
+.states li.done { color: var(--muted); } .states li.done .g { color: var(--ok); }
+.states li.cur, .states li.ok, .states li.bad, .states li.hold, .states li.end { color: var(--text); font-weight: var(--fw-semibold); }
+.states li.cur .g { color: var(--gold-l); } .states li.ok .g { color: var(--ok); } .states li.bad .g { color: var(--red-l); } .states li.hold .g { color: var(--coral-l); }
+.plog { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font: var(--fs-small)/1.4 var(--mono); color: var(--muted); }
+.plog .lt { color: var(--dim); } .plog .lw { font-weight: var(--fw-bold); }
+.w-owner { color: var(--gold-l); } .w-rust { color: var(--teal-l); } .w-paypal { color: var(--gold-l); } .w-peer { color: var(--coral-l); }
+.dsec + .dsec { margin-top: var(--sp-4); }
+.dsec h3 { margin: 0 0 var(--sp-2); font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); }
+.srcs { display: flex; flex-direction: column; }
+.src { display: grid; grid-template-columns: 16px 104px minmax(0, 1fr); gap: 2px var(--sp-2); padding: 6px var(--sp-3); align-items: baseline; }
+.src + .src { border-top: 1px solid var(--line); }
+.src .g { font-weight: var(--fw-bold); text-align: center; }
+.src .n { color: var(--dim); font-size: var(--fs-small); }
+.src .v { min-width: 0; overflow-wrap: anywhere; }
+.src .v .op { font-family: var(--mono); color: var(--dim); padding: 0 4px; }
+.src .s { grid-column: 3; font: var(--fs-small) var(--mono); color: var(--dim); overflow-wrap: anywhere; }
+.src .nt { grid-column: 3; font-size: var(--fs-small); color: var(--coral-l); }
+.g-ok { color: var(--ok); } .g-bad { color: var(--red-l); } .g-info { color: var(--dim); } .g-wait { color: var(--dim); }
+
+@media (max-width: 900px) {
+  .desk { height: auto; min-height: calc(100vh - var(--shell-h)); overflow: visible; }
+  .proto { position: relative; left: auto; top: auto; width: auto; max-height: none; margin: var(--sp-3); }
+  .stage { position: relative; inset: auto; padding: var(--sp-3) var(--sp-3) calc(var(--tb-h) + var(--sp-3)); }
+}
+@media (prefers-reduced-motion: reduce) { .poll::before, .hello-ico { animation: none; } }
+
+/* ===== variant 1 ===== */
+/* The Card: one face. Only the check rows, the fold line and the mismatch verdict are page-specific. */
+.aw.v1 { width: min(560px, 100%); }
+.v1-top { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.v1-top .aw-unit { margin-right: auto; }
+.v1-top .sp { flex: 1 1 auto; }
+.v1-box { padding: var(--sp-1); }
+.v1-box .ui-section-h { margin: 2px 0 2px; padding: 0 var(--sp-2); }
+.v1-checks { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--sp-1); }
+.ck { display: flex; align-items: center; gap: 6px; height: 26px; min-width: 0; padding: 0 var(--sp-2); border: 0; border-radius: var(--r-sm); background: none;
+  color: var(--text); font-size: var(--fs-body); text-align: left; cursor: pointer; }
+.ck:hover { background: var(--hover); }
+.ck .g { width: 12px; flex: none; text-align: center; font-weight: var(--fw-bold); }
+.ck .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ck.bad { color: var(--red-l); background: color-mix(in srgb, var(--refuse) 10%, transparent); }
+.ck.info { color: var(--muted); }
+.ck.wait { color: var(--dim); cursor: progress; }
+.v1-verdict { display: flex; align-items: center; gap: var(--sp-2); min-height: var(--row); padding: 0 var(--sp-1) 0 var(--sp-2); border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--refuse) 12%, transparent); box-shadow: inset 2px 0 0 var(--refuse); }
+.v1-verdict .t { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.v1-fold { display: flex; align-items: center; gap: var(--sp-2); height: var(--row); padding: 0 var(--sp-2); border: 0; border-radius: var(--r-sm); background: none;
+  color: var(--muted); font-size: var(--fs-small); text-align: left; cursor: pointer; }
+.v1-fold:hover { background: var(--hover); color: var(--text); }
+.v1-fold .g-ok { font-family: var(--mono); font-weight: var(--fw-semibold); }
+@media (max-width: 640px) { .v1-checks { grid-template-columns: 1fr; } }
+
+</style>
+</head>
+<body>
+<div class="desk" id="desk">
+  <div class="wall" aria-hidden="true">
+    <div class="ghost"><div class="ghost-bar"><i></i>Q4 stock and margins.xlsx · Maya is working here</div><div class="ghost-grid"></div></div>
+  </div>
+  <div class="dimmer" aria-hidden="true"></div>
+  <aside class="proto ui-proto" id="proto" aria-label="Prototype controls, not part of the product"></aside>
+  <main class="stage" id="stage">
+    <section class="aw" id="aw" role="dialog" aria-labelledby="awTitle" tabindex="-1"></section>
+    <div class="closed ui-card" id="closedNote" role="status" hidden></div>
+  </main>
+  <div class="taskbar" aria-label="Simulated taskbar">
+    <span class="tb-i"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="6" height="6" fill="currentColor"/><rect x="9" y="1" width="6" height="6" fill="currentColor"/><rect x="1" y="9" width="6" height="6" fill="currentColor"/><rect x="9" y="9" width="6" height="6" fill="currentColor"/></svg></span>
+    <span class="tb-i"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor"/><path d="M1.5 6h13M6 6v7.5" stroke="currentColor"/></svg>Spreadsheet</span>
+    <span class="tb-i" id="tbBrowser"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor"/><path d="M1.5 8h13M8 1.5c2.2 2 2.2 11 0 13M8 1.5c-2.2 2-2.2 11 0 13" fill="none" stroke="currentColor"/></svg><span id="tbLabel">Browser</span></span>
+    <span class="tb-i tb-tray" title="The Table in the tray"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="var(--gold)" stroke-width="2"/></svg><span class="dot"></span>Thu 29 Oct</span>
+  </div>
+</div>
+
+<script>
+(function () {
+'use strict';
+/* ======================================================================================
+   Core: the approval window's simulated Rust summary and state machine. The three variants
+   share these facts and rules; they differ only in how the window presents them (VIEW).
+   Nothing here talks to a network. Every "Rust" or "PayPal" step is a log line.
+   ====================================================================================== */
+const F = window.FIX;
+const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
+const BASE = new Date(F.nowISO).getTime(); // Thu 29 Oct 2026 14:02 local
+function atT(h, m, s, dd) { const d = new Date(BASE); d.setHours(h, m, s || 0, 0); return d.getTime() + (dd || 0) * DAY; }
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+/* money is integer cents in this page; formatting never goes through a float */
+const usd = (c) => '$' + Math.floor(c / 100).toLocaleString('en-US') + '.' + String(c % 100).padStart(2, '0');
+const cents = (n) => Math.round(n * 100); // FIX stores dollars; converted once at the edge
+const pad = (n) => String(n).padStart(2, '0');
+const hhmm = (ms) => { const d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+const hhmmss = (ms) => hhmm(ms) + ':' + pad(new Date(ms).getSeconds());
+const dayHHMM = (ms) => new Date(ms).toLocaleDateString('en-GB', { weekday: 'short' }) + ' ' + hhmm(ms);
+function fmtLeft(ms) {
+  if (ms <= 0) return '0:00:00';
+  const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+  return d ? d + ' d ' + h + ' h ' + pad(m) + ' min' : h + ':' + pad(m) + ':' + pad(x);
+}
+const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const dealOf = (id) => F.deals.find((d) => d.id === id);
+const DAN = F.counterparties.dan, PIX = F.counterparties.pixel, PARTS = F.counterparties.partsco;
+const M12 = F.mandates.find((m) => m.id === 'M-12');
+const R3 = F.mandates.find((m) => m.id === 'R-3');
+const clauseText = (n) => (M12.clauses.find((c) => c.n === n) || {}).text || '';
+const ALLOW = clauseText(7).replace(/^allowlist:\s*/, '');
+const HOST = 'www.sandbox.paypal.com';
+const CEIL = cents(F.haggle.ceiling); // clause 4 ceiling $340
+const PRESENT = 25000; // clause 6 "ask me above $250"
+const D193 = cents(dealOf('D-0193').amount), D198 = cents(dealOf('D-0198').amount), D190 = cents(dealOf('D-0190').amount), D188 = cents(dealOf('D-0188').amount);
+
+/* Page data the dataset lacks, consistent with FIX (same ids, names, amounts, times). */
+const APPROVAL_FIX = {
+  approveWindowMs: 6 * HOUR, // PayPal approve link: 6 h from order creation by default (.research/paypal-platform.md §approval window)
+  maxAttempts: 3,
+  'D-0193': { order: '7XK2…9F', invoice: (n) => '01JD…7Q-' + n, terms: 'b3f2…6d', settleBad: 33900, capture: '4NC7…2E', issuedAt: atT(14, 2), who: 'Dan', whoLong: DAN.name },
+  'D-0198': { order: '2PB4…7H', invoice: (n) => '01JD…9H-' + n, payee: 'pixel-bay-shop (sandbox)', unit: 7000, qty: 2, lapse: atT(20, 0), auth: '6TQ3…', who: 'pixel-bay', whoLong: 'pixel-bay' },
+  'D-0190': { shield: 'CLEAR', auth: '0RW7…', capture: '5QA1…', authorizedAt: atT(9, 2), autoVoid: atT(9, 2, 0, 3), who: 'dockparts.example', whoLong: PARTS.name },
+  'D-0188': { sub: F.subscribers.find((s) => s.id === 'S-14'), list: 1200, retry: BASE + 4 * DAY, who: 'S-14', whoLong: 'subscriber S-14' }
+};
+
+const SCEN = [
+  { key: 'accept', group: 'D-0193 · Dan · monitor', label: 'Owner accept · $329 is over clause 6 ($250)', deal: 'D-0193', step: 'accept', clock: BASE },
+  { key: 'approve', label: 'Approve on PayPal · READY', deal: 'D-0193', step: 'approve', clock: atT(14, 20, 48) },
+  { key: 'locked', label: 'LOCKED · idle 17 min', deal: 'D-0193', step: 'approve', clock: atT(14, 20, 48), locked: true },
+  { key: 'mismatch', label: 'MISMATCH · SETTLE $339 ≠ signed $329', deal: 'D-0193', step: 'mismatch', clock: atT(14, 20, 48) },
+  { key: 'capture', group: 'Other decisions', label: 'D-0190 · capture or void the $64 hold', deal: 'D-0190', step: 'capture', clock: BASE },
+  { key: 'hold', label: 'D-0198 · shield HOLD · type pixel-bay', deal: 'D-0198', step: 'hold', clock: BASE },
+  { key: 'lever', label: 'D-0188 · rescue lever · REPLAY', deal: 'D-0188', step: 'lever', clock: BASE }
+];
+
+const S = { sc: null, deal: null, step: null, phase: null, locked: false, hello: false, checked: 0, attempt: 1, issued: 0, typed: '',
+  end: null, confirmWd: false, closed: false, clock0: BASE, real0: Date.now(), browserAt: 0, log: [] };
+const T = { check: 0, hello: 0, toast: 0 };
+const now = () => S.clock0 + (Date.now() - S.real0);
+const AX = () => APPROVAL_FIX[S.deal];
+const typedOk = () => S.typed.trim().replace(/\s+/g, ' ') === 'pixel-bay';
+
+function log(who, text) { S.log.unshift({ t: hhmmss(now()), who, text }); if (S.log.length > 40) S.log.pop(); }
+
+/* ---------------- the facts Rust checked (one row = one checklist line) ----------------
+   left = your side (what you signed / what your mandate says); right = what is being asked;
+   op = how they relate; ok: true ✓ · false ✗ · null = a note, not a pass; src = provenance. */
+function rows() {
+  const A = AX();
+  if (S.step === 'accept' || S.step === 'settling') return [
+    { id: 'offer', name: 'their offer', left: 'you are asked to accept', right: 'counter #11 · ' + usd(D193), op: '✓', ok: true, line: 'offer #11 ' + usd(D193) + ' carries Dan’s valid signature', src: 'envelope #11 COUNTER signed by key ' + DAN.key + ' at 14:00:41 · audit #4418' },
+    { id: 'band', name: 'band', left: 'M-12 v3 clause 4 · ceiling ' + usd(CEIL), right: usd(D193) + ' ≤ ' + usd(CEIL), op: '≤', ok: true, line: 'inside mandate M-12 clause 4 · ceiling $340', src: 'mandate M-12 v3 · ' + clauseText(4) },
+    { id: 'rounds', name: 'rounds and time', left: F.haggle.rounds + ' rounds · until ' + F.haggle.deadline, right: 'round 5 of 6 · at 14:00', op: '≤', ok: true, line: 'round 5 of 6 · before 18:00', src: '11 signed envelopes since 13:21' },
+    { id: 'present', name: 'who decides', left: 'clause 6 · ask me above ' + usd(PRESENT), right: usd(D193) + ' > ' + usd(PRESENT), op: '>', ok: null, line: 'clause 6 · over $250, so the agent may not accept', src: 'this is why the agent stopped and asked you' },
+    { id: 'paired', name: 'counterparty', left: 'paired wallets only (clause 2)', right: DAN.paired, op: '=', ok: true, line: 'Dan paired · words ✓', src: 'pinned key ' + DAN.key + ' · first seen ' + DAN.firstSeen },
+    { id: 'shield', name: 'shield', left: 'CLEAR required', right: 'CLEAR', op: '=', ok: true, line: 'shield CLEAR', src: 'second opinion ran on offer #11 · no rule tripped' }
+  ];
+  if (S.deal === 'D-0193') {
+    const bad = S.step === 'mismatch', amt = bad ? A.settleBad : D193, inv = A.invoice(S.attempt);
+    return [
+      { id: 'amount', name: 'amount', left: 'signed deal · ' + usd(D193), right: (bad ? 'Dan’s SETTLE · ' : 'SETTLE and order · ') + usd(amt), op: bad ? '≠' : '=', ok: !bad, line: bad ? 'amount ≠ signed deal · SETTLE says ' + usd(amt) : 'amount = signed deal · ' + usd(D193), src: 'your ACCEPT #12 of counter #11 · terms ' + A.terms + ' vs SETTLE #13' + (bad ? '' : ' and GET order ' + A.order) },
+      { id: 'invoice', name: 'invoice id', left: 'SETTLE · ' + inv, right: 'order · ' + inv, op: '=', ok: true, line: 'invoice id ' + inv, src: 'unique per attempt (' + S.attempt + '/' + APPROVAL_FIX.maxAttempts + ') · blocks a replayed order' },
+      { id: 'host', name: 'approve link host', left: 'allowlist · ' + HOST, right: HOST, op: '=', ok: true, line: 'host ' + HOST, src: 'the approve link from the order, parsed by the wallet, never by an agent' },
+      { id: 'payee', name: 'payee', left: 'key ' + DAN.key + ' declared · ' + DAN.payee, right: 'order payee · ' + DAN.payee, op: '=', ok: true, line: 'payee = paired key’s declared payee', src: 'declared at pairing on ' + DAN.firstSeen + ' · words ' + DAN.paired.replace('words ✓ ', '') },
+      { id: 'shield', name: 'shield', left: 'CLEAR required', right: bad ? 'HOLD · amount differs from the signed deal' : 'CLEAR', op: bad ? '≠' : '=', ok: !bad, line: bad ? 'shield HOLD · the SETTLE disagrees' : 'shield CLEAR', src: bad ? 'deterministic rule: SETTLE amount ≠ signed terms' : 'second opinion ran on the SETTLE · no rule tripped' },
+      { id: 'mandate', name: 'mandate', left: 'M-12 v3 clause 4 · ceiling ' + usd(CEIL), right: usd(amt) + ' ≤ ' + usd(CEIL), op: '≤', ok: true, line: 'inside mandate M-12 clause 4', note: bad ? 'inside the ceiling, and still not what you signed' : '', src: 'mandate M-12 v3 · signed ' + M12.signed }
+    ];
+  }
+  if (S.step === 'hold') return [
+    { id: 'rule', name: 'shield rule', left: 'new counterparty and over $100 → HOLD', right: 'first seen today · ' + usd(D198), op: '!', ok: false, line: 'rule tripped · new counterparty, first seen today, over $100', src: 'audit #4409 · shield HOLD at 13:12:44 · before any PayPal call' },
+    { id: 'paired', name: 'counterparty', left: 'paired wallets only (clause 2)', right: PIX.paired + ' · key ' + PIX.key, op: '=', ok: true, line: 'paired · words ✓ today', src: 'pairing words confirmed by you today' },
+    { id: 'ff', name: 'payment type', left: 'goods and services', right: 'no “friends & family” request', op: '=', ok: true, line: 'no friends & family request', src: 'deterministic rule' },
+    { id: 'perdeal', name: 'per deal', left: 'clause 3 · purchase max ' + usd(20000), right: usd(D198) + ' ≤ ' + usd(20000), op: '≤', ok: true, line: 'inside M-12 clause 3 · under $200', src: clauseText(3) },
+    { id: 'payees', name: 'payee allowlist', left: 'clause 7 · ' + ALLOW, right: 'pixel-bay is not listed', op: '∉', ok: null, line: 'clause 7 · not on the allowlist (why this is yours)', src: 'off-allowlist payees always come to you' },
+    { id: 'market', name: 'market', left: 'a reference price', right: 'none for this item', op: '·', ok: null, line: 'no market reference · the price rule was skipped, not passed', src: 'Channel3 returned no comparable listing' }
+  ];
+  if (S.deal === 'D-0198') {
+    const inv = A.invoice(S.attempt);
+    return [
+      { id: 'amount', name: 'amount', left: 'request · ' + A.qty + ' × ' + usd(A.unit) + ' = ' + usd(D198), right: 'order · ' + usd(D198), op: '=', ok: true, line: 'amount = request · ' + usd(D198), src: 'the request you released vs GET order ' + A.order },
+      { id: 'invoice', name: 'invoice id', left: 'request · ' + inv, right: 'order · ' + inv, op: '=', ok: true, line: 'invoice id ' + inv, src: 'unique per attempt (' + S.attempt + '/' + APPROVAL_FIX.maxAttempts + ')' },
+      { id: 'host', name: 'approve link host', left: 'allowlist · ' + HOST, right: HOST, op: '=', ok: true, line: 'host ' + HOST, src: 'parsed by the wallet' },
+      { id: 'payee', name: 'payee', left: 'key ' + PIX.key + ' declared · ' + A.payee, right: 'order payee · ' + A.payee, op: '=', ok: true, line: 'payee = paired key’s declared payee', src: 'declared at pairing today' },
+      { id: 'shield', name: 'shield', left: 'HOLD released by you', right: 'ASK · your review is the check', op: '=', ok: true, line: 'shield ASK · hold released by you', src: 'shield_release · decided_by owner' },
+      { id: 'mandate', name: 'mandate', left: 'M-12 clause 3 · max ' + usd(20000), right: usd(D198) + ' ≤ ' + usd(20000), op: '≤', ok: true, line: 'inside mandate M-12 clause 3', src: clauseText(3) }
+    ];
+  }
+  if (S.deal === 'D-0190') return [
+    { id: 'amount', name: 'amount', left: 'authorized (held) · ' + usd(D190), right: 'capture · ' + usd(D190), op: '=', ok: true, line: 'amount = held authorization · ' + usd(D190), src: 'audit #4402 · authorize ' + A.auth + ' at 09:02:18' },
+    { id: 'auth', name: 'authorization', left: A.auth + ' · Thu 09:02', right: 'valid · honor period to ' + dayHHMM(A.autoVoid), op: '=', ok: true, line: 'authorization ' + A.auth + ' is valid', src: '3-day honor period from authorization' },
+    { id: 'payee', name: 'payee', left: 'payee route · ' + PARTS.name, right: 'order payee · ' + PARTS.name, op: '=', ok: true, line: 'payee = order payee · ' + PARTS.name, src: 'order ' + dealOf('D-0190').pp.order },
+    { id: 'shield', name: 'shield', left: 'CLEAR required', right: A.shield, op: '=', ok: true, line: 'shield CLEAR', src: 'ran before the authorization' },
+    { id: 'perdeal', name: 'per deal', left: 'clause 3 · max ' + usd(20000) + ' · parts', right: usd(D190) + ' · parts', op: '≤', ok: true, line: 'inside M-12 clause 3 · parts, under $200', src: clauseText(3) },
+    { id: 'payees', name: 'payee allowlist', left: 'clause 7 · ' + ALLOW, right: PARTS.name + ' is not listed', op: '∉', ok: null, line: 'clause 7 · payee not on the allowlist (why this is yours)', src: 'policy could not capture it, so it waits for you' }
+  ];
+  /* D-0188 rescue lever (REPLAY) */
+  return [
+    { id: 'lever', name: 'lever', left: 'R-3 enables DISCOUNT_THIS_CYCLE', right: 'DISCOUNT_THIS_CYCLE', op: '=', ok: true, line: 'lever DISCOUNT_THIS_CYCLE enabled in R-3', src: R3.text },
+    { id: 'size', name: 'size', left: 'max −25%', right: '−20% this cycle', op: '≤', ok: true, line: '−20% is inside the −25% limit', src: 'mandate R-3 v1 · signed ' + R3.signed },
+    { id: 'scope', name: 'scope', left: 'one subscriber', right: 'S-14 only', op: '=', ok: true, line: 'one subscriber, never a plan-wide price', src: 'subscriber since ' + AX().sub.since },
+    { id: 'invoice', name: 'invoice', left: 'plan ' + usd(AX().list), right: 'one PayPal invoice · ' + usd(D188), op: '=', ok: true, line: 'PayPal sends one invoice · ' + usd(D188), src: AX().sub.leverText },
+    { id: 'email', name: 'message', left: 'fixed template', right: 'named slots only · no agent text', op: '=', ok: true, line: 'email: fixed template, named slots only', src: 'the agent fills slots, never prose' },
+    { id: 'replay', name: 'source', left: 'a live renewal webhook', right: 'REPLAY of a recorded failure', op: '·', ok: null, line: 'REPLAY · not a live sandbox payment', src: 'renewal failed ×1 · recorded webhook' }
+  ];
+}
+
+/* Column heads for a side-by-side reading of rows(). */
+function heads() {
+  switch (S.step) {
+    case 'accept': case 'settling': return ['Your mandate says', 'Dan’s offer says'];
+    case 'hold': return ['Your rules say', 'This request is'];
+    case 'capture': return ['Held at PayPal', 'Capture would take'];
+    case 'lever': return ['Mandate R-3 allows', 'The lever proposes'];
+    default: return ['You signed', S.step === 'mismatch' ? 'Dan’s SETTLE says' : 'PayPal will be asked'];
+  }
+}
+
+function headline() {
+  const d = dealOf(S.deal);
+  switch (S.deal) {
+    case 'D-0193': return { amount: D193, verb: S.step === 'accept' || S.step === 'settling' ? 'Accept' : 'Pay', who: DAN.name, item: d.item, sentence: (S.step === 'accept' ? 'Accept Dan’s counter for ' : 'Pay Dan (north-desk) for ') };
+    case 'D-0198': return { amount: D198, unit: AX().qty + ' × ' + usd(AX().unit), verb: S.step === 'hold' ? 'Release the hold for' : 'Pay', who: 'pixel-bay', item: d.item };
+    case 'D-0190': return { amount: D190, verb: 'Capture to', who: PARTS.name, item: d.item };
+    default: return { amount: D188, verb: 'Invoice', who: 'subscriber S-14', item: 'Care plan · −20% this cycle', unit: 'was ' + usd(AX().list) };
+  }
+}
+
+function kick() {
+  if (S.end) return S.end.title;
+  if (S.hello) return 'Windows Hello · making sure it’s you';
+  if (S.phase === 'CHECKING') return 'Checking · the wallet re-reads the signed record';
+  const lk = S.locked ? 'Locked · idle 17 min · read-only' : null;
+  switch (S.step) {
+    case 'accept': return lk || 'Owner accept · clause 6 · over $250, so it is yours';
+    case 'settling': return 'Accepted · waiting for Dan’s SETTLE';
+    case 'approve': return ({ READY: lk || 'Approval window · READY', IN_BROWSER: 'In your browser · waiting for PayPal', APPROVED: 'APPROVED (polled)', ATTESTED: 'SELLER-ATTESTED', RECEIPTED: 'RECEIPTED', EXPIRED: 'EXPIRED · approve window ran out' })[S.phase] || S.phase;
+    case 'mismatch': return 'MISMATCH · no PayPal button';
+    case 'hold': return lk || 'Shield HOLD · release it or keep it';
+    case 'capture': return lk || 'Capture or void a held authorization';
+    case 'lever': return lk || 'Approve a rescue lever · REPLAY';
+  }
+  return '';
+}
+function tone() {
+  if (S.end) return S.end.tone;
+  if (S.step === 'mismatch' || S.phase === 'EXPIRED') return 'bad';
+  if (S.step === 'hold') return 'hold';
+  if (S.phase === 'RECEIPTED') return 'ok';
+  if (S.locked && S.phase === 'READY') return 'lock';
+  return 'gold';
+}
+
+function clockInfo() {
+  switch (S.step) {
+    case 'accept': case 'settling': return { label: 'offer lapses in', at: atT(18, 0) };
+    case 'approve': return ['CHECKING', 'READY', 'IN_BROWSER'].includes(S.phase) && !S.end ? { label: 'PayPal approve window', at: S.issued + APPROVAL_FIX.approveWindowMs } : null;
+    case 'hold': return { label: 'request lapses in', at: AX().lapse };
+    case 'capture': return { label: 'auto-void in', at: AX().autoVoid };
+    case 'lever': return { label: 'PayPal’s own retry in', at: AX().retry };
+  }
+  return null;
+}
+
+function silence() {
+  if (S.end) return null;
+  const c = clockInfo(), who = AX().who;
+  switch (S.step) {
+    case 'accept': return dealOf('D-0193').silence;
+    case 'settling': return 'if Dan’s wallet never sends its SETTLE, the offer lapses at 18:00 · no money moves';
+    case 'approve':
+      if (S.phase === 'APPROVED') return S.deal === 'D-0193' ? 'Dan’s wallet captures what you approved, under its own mandate · you can still withdraw until it does' : 'your wallet authorizes what you approved · held, not captured';
+      if (S.phase === 'ATTESTED' || S.phase === 'RECEIPTED') return null;
+      if (S.phase === 'EXPIRED') return 'if ' + who + '’s wallet does not re-issue, the deal ends EXPIRED · no money moves';
+      return 'the order expires at ' + hhmm(c.at) + ' · no money moves';
+    case 'mismatch': return 'the order is never approved · no money moves';
+    case 'hold': return dealOf('D-0198').silence;
+    case 'capture': return dealOf('D-0190').silence;
+    case 'lever': return dealOf('D-0188').silence;
+  }
+  return null;
+}
+
+function pctOf(v, mk) {
+  const p = v <= mk.median ? 25 + ((v - mk.p25) / (mk.median - mk.p25)) * 25 : 50 + ((v - mk.median) / (mk.p75 - mk.median)) * 25;
+  return Math.max(1, Math.min(99, Math.round(p)));
+}
+function market() {
+  const d = dealOf(S.deal), mk = F.market[d.ref];
+  if (!mk) return { none: true, text: S.deal === 'D-0188' ? 'no market reference · a discount on your own plan' : 'no market reference for this item · the price rule was skipped, not passed' };
+  const v = headline().amount / 100;
+  const pct = d.pct != null ? d.pct : pctOf(v, mk);
+  return { lo: mk.p25, med: mk.median, hi: mk.p75, v, pct, src: mk.src, at: mk.retrieved,
+    text: usd(headline().amount) + ' is p' + pct + ' of $' + mk.p25 + '–$' + mk.p75 + ' · median $' + mk.median };
+}
+function trackHTML(mk) {
+  if (!mk || mk.none) return '';
+  const span = mk.hi - mk.lo, min = mk.lo - span * 0.3, max = mk.hi + span * 0.3;
+  const pos = (x) => Math.max(0, Math.min(100, ((x - min) / (max - min)) * 100)).toFixed(1);
+  return `<div class="track" role="img" aria-label="${esc(mk.text)}"><span class="tr-band" style="left:${pos(mk.lo)}%;right:${(100 - pos(mk.hi)).toFixed(1)}%"></span>
+    <span class="tr-med" style="left:${pos(mk.med)}%"></span><span class="tr-dot" style="left:${pos(mk.v)}%"></span>
+    <span class="tr-t" style="left:${pos(mk.lo)}%">$${mk.lo}</span><span class="tr-t" style="left:${pos(mk.med)}%">$${mk.med}</span><span class="tr-t" style="left:${pos(mk.hi)}%">$${mk.hi}</span></div>`;
+}
+
+/* The state strip (§10.3): CHECKING → READY → (LOCKED) → IN BROWSER → APPROVED (polled) → SELLER-ATTESTED → RECEIPTED */
+function strip() {
+  const P = S.phase === 'CHECKING' ? 'CHECKING' : S.phase === 'EXPIRED' ? 'EXPIRED · ' + S.attempt + '/' + APPROVAL_FIX.maxAttempts : S.locked ? 'LOCKED' : 'READY';
+  let L, cur, mark = 'cur';
+  if (S.deal === 'D-0193') {
+    if (S.step === 'mismatch') { L = ['OWNER ACCEPT', 'SETTLE', S.phase === 'CHECKING' ? 'CHECKING' : 'MISMATCH']; cur = 2; mark = S.phase === 'CHECKING' ? 'cur' : 'bad'; }
+    else {
+      L = ['OWNER ACCEPT', 'SETTLE', S.step === 'approve' ? P : 'READY', 'IN BROWSER', 'APPROVED (polled)', 'SELLER-ATTESTED', 'RECEIPTED'];
+      if (S.step === 'accept') { L[0] = S.phase === 'CHECKING' ? 'CHECKING' : S.locked ? 'LOCKED' : 'OWNER ACCEPT'; cur = 0; }
+      else if (S.step === 'settling') cur = 1;
+      else cur = ({ CHECKING: 2, READY: 2, EXPIRED: 2, IN_BROWSER: 3, APPROVED: 4, ATTESTED: 5, RECEIPTED: 6 })[S.phase];
+      if (S.phase === 'EXPIRED') mark = 'bad';
+      if (S.phase === 'RECEIPTED') mark = 'ok';
+    }
+  } else if (S.deal === 'D-0198') {
+    L = ['SHIELD HOLD', S.step === 'approve' ? P : 'READY', 'IN BROWSER', 'APPROVED (polled)', 'AUTHORIZED (held)'];
+    if (S.step === 'hold') { cur = 0; mark = 'hold'; if (S.phase === 'CHECKING') L[0] = 'CHECKING'; }
+    else cur = ({ CHECKING: 1, READY: 1, EXPIRED: 1, IN_BROWSER: 2, APPROVED: 3 })[S.phase];
+    if (S.phase === 'EXPIRED') mark = 'bad';
+    if (S.end && S.end.kind === 'AUTHORIZED') { cur = 4; mark = 'ok'; }
+  } else if (S.deal === 'D-0190') {
+    L = ['AUTHORIZED (held)', P, 'CAPTURED']; cur = 1;
+    if (S.end && S.end.kind === 'CAPTURED') { cur = 2; mark = 'ok'; }
+    if (S.end && S.end.kind === 'VOIDED') { L[2] = 'VOIDED'; cur = 2; mark = 'end'; }
+  } else {
+    L = ['RENEWAL FAILED ×1', P, 'LEVER APPROVED']; cur = 1;
+    if (S.end && S.end.kind === 'LEVER') { cur = 2; mark = 'ok'; }
+  }
+  if (S.end && ['WITHDRAWN', 'KEPT', 'DECLINED', 'EXPIRED'].includes(S.end.kind)) { L = L.slice(0, cur); L.push(S.end.kind === 'KEPT' ? 'KEPT ON HOLD' : S.end.kind); cur = L.length - 1; mark = 'end'; }
+  return L.map((label, i) => ({ label, st: i < cur ? 'done' : i === cur ? mark : 'todo' }));
+}
+function stripHTML(cls) {
+  return `<ol class="strip ${cls || ''}" aria-label="Approval progress">${strip().map((s) => `<li class="${s.st}"${s.st !== 'done' && s.st !== 'todo' ? ' aria-current="step"' : ''}>${esc(s.label)}${s.st === 'cur' && s.label === 'IN BROWSER' ? ` · <span data-cd="${S.issued + APPROVAL_FIX.approveWindowMs}"></span>` : ''}</li>`).join('')}</ol>`;
+}
+
+/* ---------------- what can be done now ----------------
+   kind money = privileged (IPC token + approval label + not idle-locked); safe = moves toward the
+   default and needs no unlock; quiet = no decision. Rust re-checks all of it; this only narrows. */
+function actions() {
+  const out = [];
+  const close = { id: 'close', label: 'Close this window', kind: 'quiet', enabled: true };
+  if (S.end) return S.deal === 'D-0193' && (S.step === 'mismatch' || S.end.kind === 'WITHDRAWN') ? [close, { id: 'export', label: 'Export transcript', kind: 'quiet', enabled: true }] : [close];
+  const failed = rows().some((x) => x.ok === false), checking = S.phase === 'CHECKING';
+  const priv = (id, label, extra, quiet) => {
+    const why = checking ? 'the wallet is still checking' : S.locked ? 'locked · unlock with Windows Hello first' : extra || null;
+    out.push({ id, label, kind: 'money', quiet: !!quiet, enabled: !why, why });
+  };
+  const safe = (id, label) => out.push({ id, label, kind: 'safe', enabled: true });
+  switch (S.step) {
+    case 'accept': priv('accept', 'Accept ' + usd(D193) + ' as the owner'); safe('withdraw', 'Withdraw'); break;
+    case 'settling': safe('withdraw', 'Withdraw'); break;
+    case 'approve':
+      if (S.phase === 'CHECKING' || S.phase === 'READY') { priv('open', 'Open PayPal in your browser ↗', failed ? 'a check failed · the wallet will not open PayPal' : null); safe('withdraw', 'Withdraw'); }
+      else if (S.phase === 'IN_BROWSER') { priv('reopen', 'Open PayPal again ↗', null, true); out.push(close); safe('withdraw', 'Withdraw'); }
+      else if (S.phase === 'APPROVED' || S.phase === 'EXPIRED') safe('withdraw', 'Withdraw');
+      else out.push(close);
+      break;
+    case 'mismatch': out.push({ id: 'export', label: 'Export transcript', kind: 'quiet', enabled: true }); safe('withdraw', 'Withdraw'); break;
+    case 'hold': priv('release', 'Release the hold', typedOk() ? null : 'type pixel-bay exactly to release'); out.push({ id: 'keep', label: 'Keep it held', kind: 'quiet', enabled: true }); safe('withdraw', 'Withdraw'); break;
+    case 'capture': priv('capture', 'Capture ' + usd(D190)); safe('void', 'Void the hold'); break;
+    case 'lever': priv('lever', 'Approve lever · invoice ' + usd(D188)); safe('decline', 'Decline'); break;
+  }
+  return out;
+}
+function noteFor() {
+  if (S.step === 'mismatch') return 'There is deliberately no “pay anyway” on a mismatch.';
+  if (S.step === 'accept') return 'Signs Dan’s counter #11 under your owner key. It pays no one: nothing is charged, held or sent to PayPal.';
+  if (S.step === 'approve' && (S.phase === 'READY' || S.phase === 'CHECKING')) return 'Enabled only when every check is ✓. PayPal’s page opens in your own browser, never inside this app; the wallet then polls the order and never trusts the redirect.';
+  if (S.step === 'hold') return 'Releasing moves the shield from HOLD to ASK. It does not pay; approval on PayPal’s page still follows.';
+  if (S.step === 'capture') return 'Capturing moves the money to ' + PARTS.name + '. Voiding releases the hold; it needs no unlock.';
+  if (S.step === 'lever') return 'This record is a REPLAY: approving runs the recorded path, nothing live is invoiced.';
+  return '';
+}
+
+/* status prose for the states after the decision (shared words; each VIEW lays them out) */
+function statusText() {
+  const A = AX(), h = headline();
+  if (S.end) return { tone: S.end.tone, title: S.end.title, body: S.end.text };
+  if (S.step === 'settling') return { tone: 'calm', title: 'Accepted under your owner key · AGREED at ' + usd(D193), body: 'No money moved. Dan’s wallet now sends its SETTLE with the PayPal order; this window re-checks both before anything can open.' };
+  if (S.step !== 'approve') return null;
+  switch (S.phase) {
+    case 'IN_BROWSER': return { tone: 'gold', title: 'Opened in your system browser', body: 'Approve ' + usd(h.amount) + ' on PayPal’s own sandbox page there. PayPal is never drawn inside this app. The wallet polls order ' + A.order + ' and never trusts the redirect. You can close this window; the Tumbler keeps the hand-off.', poll: true };
+    case 'APPROVED': return { tone: 'gold', title: 'PayPal reports APPROVED · polled', body: S.deal === 'D-0193' ? 'GET order ' + A.order + ' says APPROVED; the redirect was not used. Dan’s wallet now authorizes and captures; nothing is final until his signed RECEIPT arrives.' : 'GET order ' + A.order + ' says APPROVED; the redirect was not used. Your wallet authorizes next: held, not captured.' };
+    case 'ATTESTED': return { tone: 'gold', title: 'Seller-attested · Dan’s signed RECEIPT', body: 'RECEIPT #14 says capture ' + A.capture + ' · ' + usd(D193) + '. That is Dan’s word, signed. Your own evidence comes from the wallet’s next poll of the order.' };
+    case 'RECEIPTED': return { tone: 'ok', title: 'RECEIPTED · ' + usd(D193), body: 'Your poll shows the order COMPLETED with capture ' + A.capture + ', matching Dan’s RECEIPT. Pending in PayPal reporting (Transaction Search lags up to 3 h). Transcript head ' + F.transcriptHead + '.' };
+    case 'EXPIRED': return { tone: 'bad', title: 'Approve window ran out · attempt ' + S.attempt + '/' + APPROVAL_FIX.maxAttempts, body: 'Order ' + A.order + ' was never approved · no money moved. ' + A.who + '’s wallet may re-issue a fresh order (attempt ' + (S.attempt + 1) + '/' + APPROVAL_FIX.maxAttempts + '), which this window checks again from the start.' };
+  }
+  return null;
+}
+function pollHTML() { return `<span class="poll" data-poll></span>`; }
+
+/* Prototype · sandbox simulation: the external events Rust would observe. */
+function sims() {
+  const A = AX(), out = [];
+  if (S.end) return out;
+  if (S.step === 'settling') { out.push(['sim-settle-ok', 'Dan’s wallet sends SETTLE + order (' + usd(D193) + ')'], ['sim-settle-bad', 'Dan’s SETTLE says ' + usd(A.settleBad)]); }
+  if (S.step === 'approve') {
+    if (S.phase === 'IN_BROWSER') out.push(['sim-approved', 'PayPal APPROVED (polled)']);
+    if (['READY', 'IN_BROWSER'].includes(S.phase)) out.push(['sim-expire', 'approve window runs out']);
+    if (S.phase === 'APPROVED') out.push(S.deal === 'D-0193' ? ['sim-receipt', 'Dan captures · signed RECEIPT arrives'] : ['sim-auth', 'your wallet authorizes (held)']);
+    if (S.phase === 'ATTESTED') out.push(['sim-own', 'your poll sees COMPLETED']);
+    if (S.phase === 'EXPIRED') out.push(['sim-reissue', A.who + '’s wallet re-issues · attempt ' + (S.attempt + 1) + '/' + APPROVAL_FIX.maxAttempts]);
+  }
+  return out;
+}
+
+/* ---------------- state machine ---------------- */
+function startScenario(key) {
+  const sc = SCEN.find((s) => s.key === key) || SCEN[0];
+  clearTimeout(T.check); clearTimeout(T.hello);
+  Object.assign(S, { sc: sc.key, deal: sc.deal, step: sc.step, phase: 'CHECKING', locked: !!sc.locked, hello: false, checked: 0, attempt: 1,
+    issued: (APPROVAL_FIX[sc.deal] && APPROVAL_FIX[sc.deal].issuedAt) || 0, typed: '', end: null, confirmWd: false, closed: false,
+    clock0: sc.clock, real0: Date.now(), browserAt: 0, log: [] });
+  log('rust', 'approval_summary ' + sc.deal + ' · immutable summary handed to the approval window');
+  if (sc.locked) log('rust', 'idle 17 min · privileged tier LOCKED · reading stays open');
+  if (sc.step === 'mismatch') log('peer', 'SETTLE #13 · ' + usd(APPROVAL_FIX['D-0193'].settleBad) + ' ≠ signed ' + usd(D193) + ' · shield HOLD');
+  const tt = $('#toast'); if (tt) tt.classList.remove('on');
+  if (VIEW.onScenario) VIEW.onScenario();
+  runChecks();
+  focusWindow();
+}
+function runChecks() {
+  clearTimeout(T.check);
+  S.phase = 'CHECKING'; S.checked = 0;
+  const n = rows().length;
+  if (reduced()) { S.checked = n; S.phase = 'READY'; render(); return; }
+  render();
+  const step = () => {
+    S.checked++;
+    if (S.checked >= n) { S.phase = 'READY'; render(); return; }
+    render(); T.check = setTimeout(step, 130);
+  };
+  T.check = setTimeout(step, 180);
+}
+function expire() {
+  const A = AX();
+  log('paypal', 'order ' + A.order + ' · approve window ended unapproved · no money moved');
+  S.phase = 'EXPIRED';
+  if (S.attempt >= APPROVAL_FIX.maxAttempts) S.end = { kind: 'EXPIRED', tone: 'calm', title: 'EXPIRED · attempt ' + S.attempt + '/' + APPROVAL_FIX.maxAttempts, text: 'The last approve window ran out. The deal is EXPIRED and no money moved.' };
+  render();
+}
+
+/* ======================================================================================
+   v2 presentation core (shared by the three variants). Layer 1 is built from the small
+   helpers below: one-line clock, default on silence, state chip, button row, hint. Layer 2
+   (sources, market, state history, wallet log, status detail, untrusted note, withdraw
+   confirmation) opens in popovers and sheets through ui.js. Rules are unchanged: money
+   buttons carry data-money, Enter never releases money, sheets focus their heading.
+   ====================================================================================== */
+const SHORT = { accept: 'D-0193 · owner accept · > $250', approve: 'D-0193 · approve · READY', locked: 'D-0193 · LOCKED · idle 17 min',
+  mismatch: 'D-0193 · MISMATCH $339 ≠ $329', capture: 'D-0190 · capture or void $64', hold: 'D-0198 · shield HOLD · typed', lever: 'D-0188 · rescue lever · REPLAY' };
+const NOTE_SHORT = { mismatch: 'no “pay anyway” on a mismatch, by design', accept: 'signs Dan’s counter · pays no one, nothing goes to PayPal',
+  approve: 'opens PayPal in your own browser · the wallet polls the order', hold: 'releasing moves HOLD → ASK · it does not pay',
+  capture: 'capture pays ' + PARTS.name + ' · void needs no unlock', lever: 'REPLAY · nothing live is invoiced' };
+const LOCK_TEXT = 'PayPal re-asks after 15 idle minutes; the wallet applies the same rule before it countersigns, opens PayPal, captures, releases or signs. Reading stays open, and money stays where it is until you unlock.';
+let POP = null, WD = null;
+
+function toast(msg, kind) { UI.toast(msg, kind); }
+function pop(anchor, key, title, html) {
+  if (POP && POP.el.isConnected) { const same = POP.key === key; POP.close(); POP = null; if (same) return; }
+  POP = UI.popover(anchor, html, { title }); POP.key = key;
+}
+/* a sheet drops from the approval window's title bar, not from the top of the screen */
+function sheet(o) {
+  const s = UI.sheet(o), aw = $('#aw');
+  if (aw && !aw.hidden) {
+    const r = aw.getBoundingClientRect(), w = Math.min(r.width - 24, o.w || 9999);
+    Object.assign(s.el.style, { width: w + 'px', left: r.left + r.width / 2 + 'px', top: r.top + 38 + 'px', maxHeight: Math.max(240, innerHeight - r.top - 50) + 'px' });
+  }
+  return s;
+}
+
+const TONE_CHIP = { gold: 'gold', ok: 'ok', bad: 'red', hold: 'coral', calm: '', lock: 'gold', cur: 'gold', end: '' };
+const lockSvg = '<svg class="aw-emb" viewBox="0 0 24 24" aria-hidden="true" style="stroke:currentColor;fill:none;stroke-width:2"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg>';
+const helloSvg = '<svg class="hello-ico" viewBox="0 0 34 34" aria-hidden="true"><path d="M4 11V6a2 2 0 0 1 2-2h5M23 4h5a2 2 0 0 1 2 2v5M30 23v5a2 2 0 0 1-2 2h-5M11 30H6a2 2 0 0 1-2-2v-5"/><circle cx="13" cy="14" r="1.6"/><circle cx="21" cy="14" r="1.6"/><path d="M12 21c3 2.6 7 2.6 10 0"/></svg>';
+
+function chromeHTML() {
+  const d = dealOf(S.deal), mod = d.module.charAt(0).toUpperCase() + d.module.slice(1);
+  const mode = d.replay ? '<span class="badge replay">REPLAY</span>' : '<span class="badge sandbox">SANDBOX</span>';
+  return `<header class="ui-titlebar"><svg class="aw-emb" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" class="e1"/><circle cx="12" cy="12" r="4.5" class="e2"/></svg>
+    <span class="ui-title" id="awTitle">Approval</span><nav class="ui-crumbs" aria-label="Where this comes from"><span>The Table</span><span class="sep">›</span><span>${esc(mod)}</span><span class="sep">›</span><span>${esc(d.id)}</span></nav>
+    <span class="ui-spacer"></span>${mode}<button type="button" class="ui-btn plain sm" data-a="details" title="Sources, market, state history and the wallet log">Details</button>
+    <button type="button" class="ui-btn plain icon" data-a="close" aria-label="Close the approval window (withdraws nothing)" title="Close · withdraws nothing, the deal stays open">✕</button></header>`;
+}
+
+/* ---- layer 1 pieces ---- */
+function btnHTML(a, cls) {
+  const style = a.kind === 'money' ? (a.quiet ? '' : 'gold') : a.kind === 'safe' ? 'danger' : 'plain';
+  return `<button type="button" class="ui-btn ${style}${a.kind === 'money' && S.locked ? ' locked' : ''} ${cls || ''}" data-a="${a.id}"${a.kind === 'money' ? ' data-money' : ''}${a.enabled ? '' : ' disabled'}${a.why ? ` title="${esc(a.why)}"` : ''}>${esc(a.label)}</button>`;
+}
+const lockedNow = () => S.locked && actions().some((a) => a.kind === 'money');
+/* Withdraw left; quiet acts, then the one money act (or Unlock) right, macOS order. */
+function buttonsHTML(opt) {
+  const o = opt || {}, acts = actions();
+  const safe = o.noSafe ? [] : acts.filter((a) => a.kind === 'safe'), quiet = acts.filter((a) => a.kind === 'quiet'), money = acts.filter((a) => a.kind === 'money');
+  let right = money.map((a) => btnHTML(a, o.moneyCls)).join('');
+  if (S.hello) right = `<button type="button" class="ui-btn gold locked ${o.moneyCls || ''}" disabled>Windows Hello…</button>`;
+  else if (lockedNow()) right = `<button type="button" class="ui-btn gold locked ${o.moneyCls || ''}" data-a="unlock">Unlock with Windows Hello</button>`;
+  return `<div class="aw-btns">${safe.map((a) => btnHTML(a)).join('')}<span class="sp"></span>${quiet.map((a) => btnHTML(a)).join('')}${right}</div>`;
+}
+function hintHTML(words) {
+  if (S.hello) return `<p class="aw-hint">${helloSvg}<span class="t"><b>Windows Hello</b> · making sure it’s you · simulated native prompt</span></p>`;
+  if (lockedNow()) return `<p class="aw-hint"><span class="ui-chip gold">Locked</span><span class="t">idle 17 min · money stays where it is · reading stays open</span><button type="button" class="ui-btn plain sm" data-a="pop-lock" aria-label="Why it is locked">ⓘ</button></p>`;
+  const blocked = actions().find((a) => a.kind === 'money' && !a.enabled && a.why);
+  if (blocked && S.phase !== 'CHECKING') return `<p class="aw-hint"><span class="red">why</span><span class="t">${esc(blocked.why)}</span></p>`;
+  const n = words || NOTE_SHORT[S.step === 'settling' ? '' : S.step];
+  if (!n || !noteFor() || (S.step === 'approve' && !['READY', 'CHECKING'].includes(S.phase))) return '';
+  return `<p class="aw-hint"><span class="t">${esc(n)}</span><button type="button" class="ui-btn plain sm" data-a="pop-what" aria-label="What this does, in full">ⓘ</button></p>`;
+}
+function clockHTML() {
+  const c = clockInfo();
+  return c ? `<span class="aw-clock">${esc(c.label)} <b data-cd="${c.at}"></b> · until ${esc(dayHHMM(c.at))}</span>` : '';
+}
+function silenceHTML() { const s = silence(); return s ? `<span class="ui-silence wrap">If you do nothing → <b>${esc(s)}</b></span>` : ''; }
+function dueHTML() { const c = clockHTML(), s = silenceHTML(); return c || s ? `<div class="aw-due">${c}${s}</div>` : ''; }
+function curStep() {
+  const s = strip(); let i = s.findIndex((x) => x.st !== 'done' && x.st !== 'todo'); if (i < 0) i = s.length - 1;
+  return { s, i, cur: s[i] };
+}
+function stateChipHTML() {
+  const { s, i, cur } = curStep();
+  return `<button type="button" class="ui-chip ${TONE_CHIP[cur.st] || ''} chipbtn" data-a="pop-states" title="State history" aria-label="State ${esc(cur.label)}, step ${i + 1} of ${s.length}. Show the state history">${esc(cur.label)} · ${i + 1}/${s.length}</button>`;
+}
+function statusLineHTML() {
+  const st = statusText(); if (!st) return '';
+  return `<div class="aw-status" role="status"><span class="ui-chip ${TONE_CHIP[st.tone] || ''}">${esc(curStep().cur.label)}</span><span class="t">${esc(st.title)}</span>
+    <button type="button" class="ui-btn plain sm" data-a="pop-status">What happened ›</button></div>${st.poll ? pollHTML() : ''}`;
+}
+function noteChipHTML() {
+  return S.deal === 'D-0198' && !S.end ? `<button type="button" class="ui-chip coral chipbtn" data-a="pop-note" title="pixel-bay’s note · untrusted text">note ›</button>` : '';
+}
+function typeHTML() {
+  return `<label class="typer" for="typeName"><span>Type <b class="mono">pixel-bay</b> to release</span>
+    <input id="typeName" class="ui-field${typedOk() ? ' ok' : ''}" value="${esc(S.typed)}" autocomplete="off" spellcheck="false" aria-describedby="typeNote" placeholder="pixel-bay">
+    <span id="typeNote" class="st${typedOk() ? ' ok' : ''}">${typedOk() ? '✓ matches' : 'exact, case-sensitive'}</span></label>`;
+}
+function miniTrack(mk) {
+  const span = mk.hi - mk.lo, min = mk.lo - span * 0.3, max = mk.hi + span * 0.3;
+  const pos = (x) => Math.max(0, Math.min(100, ((x - min) / (max - min)) * 100)).toFixed(1);
+  return `<span class="mini" aria-hidden="true"><span class="b" style="left:${pos(mk.lo)}%;right:${(100 - pos(mk.hi)).toFixed(1)}%"></span><span class="m" style="left:${pos(mk.med)}%"></span><span class="d" style="left:${pos(mk.v)}%"></span></span>`;
+}
+function mktLineHTML() {
+  const mk = market();
+  if (mk.none) return `<div class="aw-mkt"><span class="k">vs market</span><span class="t">${esc(mk.text)}</span></div>`;
+  return `<div class="aw-mkt"><span class="k">vs market</span><span class="t"><b class="money">p${mk.pct}</b> of $${mk.lo}–$${mk.hi} · median $${mk.med}</span>${miniTrack(mk)}
+    <button type="button" class="ui-btn plain sm" data-a="pop-mkt" aria-label="Market detail">ⓘ</button></div>`;
+}
+const glyphOf = (c, wait) => wait ? ['·', 'wait', ' (checking)'] : c.ok === true ? ['✓', 'ok', ' (passed)'] : c.ok === false ? ['✗', 'bad', ' (failed)'] : ['i', 'info', ' (note, not a pass)'];
+
+/* ---- layer 2 content ---- */
+function checkDetail(c, hl, hr) {
+  const h = heads();
+  return `<dl class="ui-kv"><dt>${esc(hl || h[0])}</dt><dd>${esc(c.left)}</dd><dt>${esc(hr || h[1])}</dt><dd>${esc(c.right)}</dd>
+    <dt>Relation</dt><dd class="mono">${esc(c.op)} · ${c.ok === true ? 'passes' : c.ok === false ? 'fails' : 'a note, not a pass'}</dd>
+    <dt>Source</dt><dd class="mono">${esc(c.src)}</dd>${c.note ? `<dt>Note</dt><dd class="coral">${esc(c.note)}</dd>` : ''}</dl>`;
+}
+function srcsHTML(r, cap) {
+  return `<div class="ui-group srcs">${r.map((c) => { const [g, k] = glyphOf(c, false);
+    return `<div class="src"><span class="g g-${k}">${g}</span><span class="n">${esc(c.name)}</span><span class="v">${esc(c.left)}<span class="op">${esc(c.op)}</span>${esc(c.right)}</span>
+      <span class="s">from ${esc(c.src)}</span>${c.note ? `<span class="nt">${esc(c.note)}</span>` : ''}</div>`; }).join('')}</div>${cap ? `<p class="ui-hint" style="margin:6px 0 0">${esc(cap)}</p>` : ''}`;
+}
+function mktDetail() {
+  const mk = market();
+  if (mk.none) return `<p class="pop-p">${esc(mk.text)}</p>`;
+  return `<p class="pop-p">${esc(mk.text)}</p>${trackHTML(mk)}<p class="ui-hint" style="margin:4px 0 0">${esc(mk.src)} · retrieved ${esc(mk.at)} · p25–p75 band, median tick, this price as the dot. A reference, not a verdict.</p>`;
+}
+function statesHTML() {
+  const G = { done: '✓', cur: '●', ok: '✓', bad: '✗', hold: '●', end: '■', todo: '○' };
+  return `<ol class="states">${strip().map((s) => `<li class="${s.st}"${s.st !== 'done' && s.st !== 'todo' ? ' aria-current="step"' : ''}><span class="g" aria-hidden="true">${G[s.st]}</span>${esc(s.label)}${s.st === 'cur' && s.label === 'IN BROWSER' ? ` · <span data-cd="${S.issued + APPROVAL_FIX.approveWindowMs}"></span>` : ''}</li>`).join('')}</ol>`;
+}
+function logHTML() {
+  return S.log.length ? `<ol class="plog">${S.log.map((l) => `<li><span class="lt">${esc(l.t)}</span> <span class="lw w-${l.who}">${esc(l.who)}</span> ${esc(l.text)}</li>`).join('')}</ol>` : '<p class="pop-p">Nothing yet.</p>';
+}
+function quarantineHTML() {
+  const d = dealOf('D-0198');
+  return `<div class="quarantine"><div class="q-label">untrusted · pixel-bay’s note · plain text</div><div class="q-text">${esc(d.note)}</div></div>
+    <p class="ui-hint" style="margin:6px 0 0">Shown only here, never to an agent as instructions, never in the Tumbler.</p>`;
+}
+function mismatchDetail() {
+  return `<p class="pop-p">Dan’s SETTLE asks for <b class="money">${usd(AX().settleBad)}</b>; the deal you signed says <b class="money">${usd(D193)}</b>. Shield verdict HOLD.</p>
+    <p class="pop-p">There is no PayPal button, and deliberately no “pay anyway”. If the price should change, it changes by a new signed deal, not here. The signed transcript is ready to export.</p>`;
+}
+function openDetails() {
+  const r = rows(), st = statusText(), n = VIEW.noteWords ? VIEW.noteWords(noteFor()) : noteFor(), mk = market();
+  const body = `<section class="dsec"><h3>Checks · ${esc(heads().join(' vs '))} · where each came from</h3>${srcsHTML(r)}</section>
+    ${S.step === 'mismatch' ? `<section class="dsec"><h3>Mismatch</h3>${mismatchDetail()}</section>` : ''}
+    ${st ? `<section class="dsec"><h3>${esc(st.title)}</h3><p class="pop-p">${esc(st.body)}</p></section>` : ''}
+    ${VIEW.detailsExtra ? VIEW.detailsExtra() : ''}
+    <section class="dsec"><h3>Market</h3>${mk.none ? `<p class="pop-p">${esc(mk.text)}</p>` : mktDetail()}</section>
+    ${n ? `<section class="dsec"><h3>What the button does</h3><p class="pop-p">${esc(n)}</p></section>` : ''}
+    <section class="dsec"><h3>State history</h3>${statesHTML()}</section>
+    <section class="dsec"><h3>Wallet log · what Rust and PayPal did</h3>${logHTML()}</section>`;
+  sheet({ title: S.deal + ' · ' + headline().item, body, actions: [{ label: 'Done', kind: 'primary' }] });
+  tick();
+}
+function openWithdraw() {
+  if (WD && WD.el.isConnected) return;
+  const what = S.step === 'approve' && S.phase === 'APPROVED' ? 'Signs WITHDRAW. The approved order is never captured, and no money moves.' : 'Signs WITHDRAW toward the default. No money moves.';
+  WD = sheet({ title: 'Withdraw ' + S.deal + '?', w: 420, body: `<p class="pop-p">${esc(what)}</p><p class="ui-hint" style="margin:6px 0 0">Withdrawing restricts, so it needs no unlock. ${esc(AX().whoLong)} gets your signed WITHDRAW.</p>`,
+    actions: [{ label: 'Keep the deal' }, { label: 'Withdraw now', kind: 'danger', onClick: () => { WD = null; setTimeout(() => act('withdraw-yes')); } }] });
+}
+
+/* ---------------- state machine: acts ---------------- */
+function act(a, el) {
+  if (VIEW.onAct && VIEW.onAct(a, el)) return;
+  const A = AX();
+  if (['accept', 'open', 'reopen', 'release', 'capture', 'lever'].includes(a)) {
+    const ac = actions().find((x) => x.id === a);
+    if (!ac || !ac.enabled) { toast(ac && ac.why ? 'Not available · ' + ac.why : 'Not available now', 'bad'); return; }
+  }
+  switch (a) {
+    case 'scenario': startScenario(el.dataset.k); return;
+    case 'details': openDetails(); return;
+    case 'pop-check': { const c = rows().find((x) => x.id === el.dataset.k); if (c) pop(el, 'c-' + c.id, c.name, checkDetail(c)); return; }
+    case 'pop-mkt': pop(el, 'mkt', 'Market reference', mktDetail()); return;
+    case 'pop-states': pop(el, 'st', 'State history · ' + S.deal, statesHTML()); tick(); return;
+    case 'pop-status': { const st = statusText(); if (st) pop(el, 'status', st.title, `<p class="pop-p">${esc(st.body)}</p>`); return; }
+    case 'pop-note': pop(el, 'note', 'Note from pixel-bay', quarantineHTML()); return;
+    case 'pop-what': pop(el, 'what', 'What this does', `<p class="pop-p">${esc(VIEW.noteWords ? VIEW.noteWords(noteFor()) : noteFor())}</p>`); return;
+    case 'pop-lock': pop(el, 'lock', 'Locked · idle 17 min', `<p class="pop-p">${esc(LOCK_TEXT)}</p>`); return;
+    case 'pop-mismatch': pop(el, 'mm', 'MISMATCH · no PayPal button', mismatchDetail()); return;
+    case 'log': pop(el, 'log', 'Wallet log · what Rust and PayPal did', logHTML()); return;
+    case 'accept':
+      log('owner', 'deal_owner_accept D-0193 · ACCEPT #12 of counter #11 · decided_by owner (approval window) · 0 PayPal calls');
+      S.step = 'settling'; S.phase = 'WAIT'; render(); toast('Accepted under your owner key · no money moved', 'ok'); return;
+    case 'sim-settle-ok':
+      log('peer', 'SETTLE #13 · ' + usd(D193) + ' · invoice ' + A.invoice(1) + ' · order ' + A.order + ' · signature verified');
+      S.issued = now(); S.attempt = 1; S.step = 'approve'; runChecks(); return;
+    case 'sim-settle-bad':
+      log('peer', 'SETTLE #13 · ' + usd(A.settleBad) + ' ≠ signed ' + usd(D193) + ' · shield HOLD · MISMATCH');
+      S.step = 'mismatch'; runChecks(); return;
+    case 'open':
+      S.phase = 'IN_BROWSER'; S.browserAt = now();
+      log('owner', 'open_paypal_in_browser ' + S.deal + ' · system browser · host ' + HOST + ' · decided_by owner');
+      log('rust', 'poller: GET /v2/checkout/orders/' + A.order + ' every 10 s · the redirect is never trusted');
+      render(); toast('Opened in your system browser · PayPal is never drawn here', 'gold'); return;
+    case 'reopen': log('owner', 'open_paypal_in_browser again · same order ' + A.order); toast('Opened again in your system browser', 'gold'); return;
+    case 'sim-approved': S.phase = 'APPROVED'; log('paypal', 'poll → order ' + A.order + ' APPROVED · redirect not used'); render(); return;
+    case 'sim-receipt': S.phase = 'ATTESTED'; log('peer', 'RECEIPT #14 · capture ' + A.capture + ' · ' + usd(D193) + ' · signed by ' + DAN.key + ' · seller-attested'); render(); return;
+    case 'sim-own': S.phase = 'RECEIPTED'; log('paypal', 'poll → order ' + A.order + ' COMPLETED · capture ' + A.capture + ' matches RECEIPT · pending in PayPal reporting'); render(); return;
+    case 'sim-auth':
+      log('rust', 'authorize ' + A.order + ' → ' + A.auth + ' · ' + usd(D198) + ' held · on your PayPal approval');
+      S.end = { kind: 'AUTHORIZED', tone: 'ok', title: 'AUTHORIZED · ' + usd(D198) + ' held, not captured', text: 'Authorization ' + A.auth + ' holds the money. Capture comes back to this window as its own decision; if nobody captures, it auto-voids after the 3-day honor period and nothing is paid.' };
+      render(); return;
+    case 'sim-expire': if (S.step === 'approve') { S.clock0 += Math.max(0, S.issued + APPROVAL_FIX.approveWindowMs - now()) + 1000; expire(); } return;
+    case 'sim-reissue': S.attempt++; S.issued = now(); log('peer', A.who + '’s wallet re-issues · attempt ' + S.attempt + '/' + APPROVAL_FIX.maxAttempts + ' · invoice ' + A.invoice(S.attempt)); runChecks(); return;
+    case 'withdraw': openWithdraw(); return;
+    case 'withdraw-yes':
+      if (WD && WD.el.isConnected) WD.close(); WD = null;
+      if (S.end || !actions().some((x) => x.id === 'withdraw')) return;
+      log('owner', 'deal_withdraw ' + S.deal + ' · signed WITHDRAW · no unlock needed · 0 money moved');
+      S.end = { kind: 'WITHDRAWN', tone: 'calm', title: 'WITHDRAWN', text: 'Signed WITHDRAW sent to ' + A.whoLong + '. No money moved' + (S.phase === 'APPROVED' ? '; the approved order is never captured.' : '.') };
+      render(); focusWindow(); toast('Withdrawn · no money moved', 'ok'); return;
+    case 'release':
+      log('owner', 'shield_release D-0198 · HOLD → ASK · typed “pixel-bay” · decided_by owner · 0 PayPal calls');
+      log('rust', 'order ' + A.order + ' created · intent AUTHORIZE · ' + usd(D198));
+      S.step = 'approve'; S.issued = now(); S.attempt = 1; S.typed = ''; runChecks(); focusWindow(); return;
+    case 'keep':
+      log('owner', 'kept on hold · D-0198'); S.end = { kind: 'KEPT', tone: 'calm', title: 'Kept on hold', text: 'The request lapses at 20:00 · nothing is paid.' }; render(); return;
+    case 'capture':
+      log('owner', 'deal_capture D-0190 · authorization ' + A.auth + ' · decided_by owner (approval window)');
+      log('paypal', 'capture ' + A.capture + ' COMPLETED · ' + usd(D190));
+      S.end = { kind: 'CAPTURED', tone: 'ok', title: 'CAPTURED · ' + usd(D190), text: 'Capture ' + A.capture + ' to ' + PARTS.name + '. Your own PayPal evidence; pending in PayPal reporting (Transaction Search lags up to 3 h).' };
+      render(); return;
+    case 'void':
+      log('owner', 'deal_void D-0190 · authorization ' + A.auth + ' voided · safe default, no unlock needed');
+      S.end = { kind: 'VOIDED', tone: 'calm', title: 'VOIDED', text: 'The hold on ' + usd(D190) + ' is released. Nothing was paid.' }; render(); return;
+    case 'lever':
+      log('owner', 'rescue_approve D-0188 · DISCOUNT_THIS_CYCLE −20% · REPLAY · decided_by owner');
+      S.end = { kind: 'LEVER', tone: 'ok', title: 'LEVER APPROVED · REPLAY', text: 'The recorded run sends one ' + usd(D188) + ' invoice to S-14 from the fixed template. Nothing live moved: this record is a replay.' }; render(); return;
+    case 'decline':
+      log('owner', 'lever declined · D-0188'); S.end = { kind: 'DECLINED', tone: 'calm', title: 'DECLINED', text: 'Nothing is sent · PayPal’s own retry runs in 4 d.' }; render(); return;
+    case 'export': log('owner', 'transcript export D-0193 · signed envelopes · head ' + F.transcriptHead); toast('Transcript exported · D-0193.transcript.signed.json (simulated)', 'ok'); renderPanel(); return;
+    case 'unlock':
+      if (S.hello) return;
+      S.hello = true; render();
+      T.hello = setTimeout(() => {
+        S.hello = false; S.locked = false; log('owner', 'Windows Hello ✓ · privileged tier unlocked');
+        if (S.phase === 'READY' && !S.end) runChecks(); else render();
+        focusWindow();
+      }, reduced() ? 250 : 1100);
+      return;
+    case 'idle':
+      S.locked = !S.locked; S.hello = false; clearTimeout(T.hello);
+      log('rust', S.locked ? 'idle 17 min · privileged tier LOCKED' : 'prototype: lock lifted without Windows Hello');
+      render(); return;
+    case 'close': S.closed = true; if (POP && POP.el.isConnected) POP.close(); log('rust', 'approval window closed · withdraws nothing'); render(); return;
+    case 'reopen-window': S.closed = false; render(); focusWindow(); return;
+  }
+}
+
+/* ---------------- render plumbing ---------------- */
+function focusWindow() { const aw = $('#aw'); if (aw && !S.closed) setTimeout(() => aw.focus({ preventScroll: true }), 0); }
+function render() {
+  const aw = $('#aw');
+  const fa = document.activeElement;
+  const inAw = !!fa && (fa === aw || aw.contains(fa));
+  const fid = inAw && fa !== aw ? (fa.id ? '#' + fa.id : fa.dataset && fa.dataset.a ? '[data-a="' + fa.dataset.a + '"]' + (fa.dataset.k ? '[data-k="' + fa.dataset.k + '"]' : '') : null) : null;
+  const sel = inAw && fa.tagName === 'INPUT' ? [fa.selectionStart, fa.selectionEnd] : null;
+  const scroller = aw.querySelector('[data-scroll]'), top = scroller ? scroller.scrollTop : 0;
+  aw.hidden = S.closed;
+  aw.className = 'aw ' + VIEW.cls() + ' t-' + tone();
+  aw.innerHTML = chromeHTML() + VIEW.body();
+  const sc2 = aw.querySelector('[data-scroll]'); if (sc2) sc2.scrollTop = top;
+  const tn = $('#typeName', aw);
+  if (tn) tn.addEventListener('input', (e) => { S.typed = e.target.value; render(); });
+  if (fid) {
+    const el = aw.querySelector(fid);
+    if (el && !el.hasAttribute('data-money') && !el.disabled) { el.focus({ preventScroll: true }); if (sel && el.setSelectionRange) el.setSelectionRange(sel[0], sel[1]); }
+    else if (!S.closed) aw.focus({ preventScroll: true });
+  } else if (inAw && !S.closed) aw.focus({ preventScroll: true });
+  const cn = $('#closedNote');
+  cn.hidden = !S.closed;
+  if (S.closed) {
+    const hand = S.step === 'approve' && S.phase === 'IN_BROWSER';
+    cn.innerHTML = `<span><b>Approval window closed.</b> Nothing changed for ${esc(S.deal)}${hand ? `: the Tumbler keeps the hand-off · “In your browser · <span class="mono" data-cd="${S.issued + APPROVAL_FIX.approveWindowMs}"></span> · checking every 10 s”` : '; the deal stays open'}.</span><button type="button" class="ui-btn sm" data-a="reopen-window">Reopen the approval window</button>`;
+  }
+  const tb = $('#tbBrowser');
+  if (tb) { const live = S.step === 'approve' && S.phase === 'IN_BROWSER'; tb.classList.toggle('live', live); $('#tbLabel').textContent = live ? 'Browser · PayPal sandbox · your login' : 'Browser'; }
+  renderPanel();
+  tick();
+}
+function simHTML() {
+  const s = sims();
+  return s.length ? s.map(([a, l]) => `<button type="button" class="pp-sim" data-a="${a}">${esc(l)}</button>`).join('') : '<span class="dim">nothing external pending</span>';
+}
+function renderPanel() {
+  const p = $('#proto'); if (!p) return;
+  const fa = document.activeElement, inP = fa && p.contains(fa);
+  const key = inP ? (fa.dataset.k ? '[data-k="' + fa.dataset.k + '"]' : fa.dataset.a ? '[data-a="' + fa.dataset.a + '"]' : null) : null;
+  p.innerHTML = `<div class="pp-h">Scenario</div><div role="group" aria-label="Scenario">${SCEN.map((s) => `<button type="button" class="pp-sc" data-a="scenario" data-k="${s.key}" aria-pressed="${S.sc === s.key}" title="${esc(s.label)}">${esc(SHORT[s.key] || s.label)}</button>`).join('')}</div>
+    <div class="pp-h">Sandbox simulation</div>${simHTML()}
+    <div class="pp-row"><button type="button" class="ui-btn sm" data-a="idle" aria-pressed="${S.locked}">${S.locked ? 'Lift lock' : 'Idle 17 min'}</button><span class="pp-clock" data-clock></span></div>
+    <div class="pp-row"><button type="button" class="ui-btn sm" data-a="log">Wallet log · ${S.log.length}</button></div>
+    <p class="pp-keys">${VIEW.keys || ''}<span class="kbd">Esc</span> closes · <span class="kbd">W</span> withdraw · <span class="kbd">Enter</span> never releases money</p>`;
+  if (key) { const el = p.querySelector(key); if (el) el.focus({ preventScroll: true }); }
+}
+function tick() {
+  const t = now();
+  $$('[data-cd]').forEach((el) => { el.textContent = fmtLeft(+el.dataset.cd - t); });
+  $$('[data-poll]').forEach((el) => { const s = Math.max(0, Math.floor((t - S.browserAt) / 1000)); el.textContent = 'checking every 10 s · check #' + (Math.floor(s / 10) + 1) + ' · last ' + (s % 10) + ' s ago · order CREATED'; });
+  $$('[data-clock]').forEach((el) => { el.textContent = hhmmss(t); });
+  if (S.step === 'approve' && !S.end && ['READY', 'IN_BROWSER'].includes(S.phase) && t >= S.issued + APPROVAL_FIX.approveWindowMs) expire();
+}
+
+function boot() {
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-a]');
+    if (!b || b.disabled) return;
+    act(b.dataset.a, b);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (VIEW.onKey && VIEW.onKey(e)) return;
+    const tgt = e.target, typing = tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA');
+    if (e.key === 'Enter') {
+      if (tgt && tgt.hasAttribute && tgt.hasAttribute('data-money')) { e.preventDefault(); toast('Enter never releases money · click the button, or press Space on it'); return; }
+      const aw = $('#aw');
+      if (tgt === aw || (aw.contains(tgt) && !tgt.closest('button, a, input'))) { e.preventDefault(); toast('Enter does nothing here · money needs a deliberate click'); return; }
+      if (typing && tgt.id === 'typeName') { e.preventDefault(); toast('Typing the name does not release · press Release the hold'); return; }
+    }
+    if (e.key === 'Escape') {
+      if (UI.open) return;
+      if (!S.closed) { act('close'); e.preventDefault(); }
+      return;
+    }
+    if (!typing && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'w' || e.key === 'W') && !S.closed) {
+      const can = actions().find((x) => x.id === 'withdraw' || x.id === 'void' || x.id === 'decline');
+      if (!can) return;
+      e.preventDefault();
+      if (can.id !== 'withdraw') { toast('W asks for ' + can.label + ' · use its button'); return; }
+      act(WD && WD.el.isConnected ? 'withdraw-yes' : 'withdraw');
+    }
+  });
+  setInterval(tick, 1000);
+  startScenario((location.hash.match(/s=([a-z]+)/) || [])[1] || 'approve');
+}
+
+/* ===== variant 1: the view ===== */
+/* The Card: one face. Layer 1 = the amount, the read-back sentence, six checks as one-line rows,
+   a market line, then the foot: clock, default on silence, the decision. Each check opens its
+   source in a popover; Details (title bar) opens everything else in a sheet. After the decision
+   the checks fold to one line and a one-line status takes their place. */
+const VIEW = {
+  keys: '',
+  cls: () => 'v1',
+  body() {
+    const h = headline(), r = rows(), checking = S.phase === 'CHECKING';
+    const after = !!S.end || (S.step === 'approve' && !['CHECKING', 'READY'].includes(S.phase)) || S.step === 'settling';
+    const okN = r.filter((x) => x.ok === true).length, badN = r.filter((x) => x.ok === false).length;
+    const item = `<span class="q">“${esc(h.item)}”</span>`;
+    const sentence = S.step === 'hold' ? `Release the hold on <b>pixel-bay</b> for ${item}`
+      : S.deal === 'D-0190' ? `Capture to <b>${esc(PARTS.name)}</b> for ${item}`
+      : S.deal === 'D-0188' ? `Invoice <b>subscriber S-14</b> once <span class="q">· −20% this cycle</span>`
+      : S.step === 'accept' || S.step === 'settling' ? `Accept <b>Dan’s</b> counter for ${item}`
+      : `Pay <b>${esc(S.deal === 'D-0193' ? 'Dan (north-desk)' : 'pixel-bay')}</b> for ${item}`;
+
+    const top = `<div class="v1-top"><span class="aw-amt">${usd(h.amount)}</span><span class="aw-unit">${esc(h.unit || '')}</span>${noteChipHTML()}${stateChipHTML()}</div>
+      <h1 class="aw-h">${sentence}</h1>`;
+
+    let mid = '';
+    if (S.step === 'mismatch' && !checking) mid = `<div class="v1-verdict" role="alert"><span class="ui-chip red">Mismatch</span><span class="t">Dan’s SETTLE says <b class="money">${usd(AX().settleBad)}</b> ≠ <b class="money">${usd(D193)}</b> signed</span>
+      <button type="button" class="ui-btn plain sm" data-a="pop-mismatch">No button ›</button></div>`;
+    mid += statusLineHTML();
+
+    const checks = after && !checking
+      ? `<button type="button" class="v1-fold" data-a="details"><span class="g-ok">${okN}/${r.length} ✓</span>${badN ? `<span class="red">${badN} ✗</span>` : ''}<span>checks at the moment you decided · sources ›</span></button>`
+      : `<div class="ui-group v1-box"><div class="ui-section-h"><h2>Checked by the wallet</h2><span class="end">${checking ? 'reading…' : okN + '/' + r.length + ' ✓ · click one for its source'}</span></div>
+        <div class="v1-checks" aria-label="Checks from the wallet">${r.map((c, i) => {
+          const [g, k, sr] = glyphOf(c, checking && i >= S.checked);
+          return `<button type="button" class="ck ${k}" data-a="pop-check" data-k="${c.id}" title="from ${esc(c.src)}"><span class="g g-${k}" aria-hidden="true">${g}</span><span class="t">${esc(c.line)}</span><span class="sr">${sr}</span></button>`;
+        }).join('')}</div></div>`;
+
+    const foot = `${dueHTML()}${S.step === 'hold' && !S.end ? typeHTML() : ''}${buttonsHTML()}${hintHTML()}`;
+    return `<div class="aw-body" data-scroll>${top}${mid}${checks}${after ? '' : mktLineHTML()}</div><footer class="aw-foot">${foot}</footer>`;
+  }
+};
+
+boot();
+})();
+</script>
+<script src="../../../shared/shell.js" data-page="approval" data-variant="1"></script>
+</body>
+</html>

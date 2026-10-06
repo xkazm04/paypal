@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pairing · Keyring</title>
+<link rel="stylesheet" href="../../../shared/tokens.css">
+<link rel="stylesheet" href="../../../shared/ui.css">
+<script src="../../../main/fixtures.js"></script>
+<script src="../../../shared/ui.js"></script>
+<style>
+  /* Only what is unique to this variant: the identity card's fact rows (mark · fact · value),
+     the pick grid in the approval window, and Dan's floating laptop. */
+  body { overflow: hidden; }
+  .app { position: relative; }
+  .clock { font: var(--fs-small) var(--mono); color: var(--dim); white-space: nowrap; }
+  .glyph { width: 16px; height: 16px; border-radius: 4px; display: grid; place-items: center; font: var(--fw-bold) 9px/1 var(--mono); color: var(--coral-l); background: color-mix(in srgb, var(--coral) 16%, transparent); }
+  .glyph.un { color: var(--dim); background: none; outline: 1px dashed var(--line2); outline-offset: -1px; }
+  .glyph.pend { color: var(--gold-l); background: color-mix(in srgb, var(--gold) 20%, transparent); }
+  .ui-main .inner { max-width: 760px; }
+
+  /* identity card: one fact per row */
+  .card-h { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--coral) 5%, var(--panel)); }
+  .card-h h2 { margin: 0; font: var(--fw-semibold) var(--fs-title3)/1.25 var(--display); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-h .ui-btn:first-of-type { margin-left: auto; }
+  .fact .mk { width: 16px; height: 16px; flex: none; border-radius: 50%; display: grid; place-items: center; font: var(--fw-bold) 10px/1 var(--mono); color: var(--dim); box-shadow: inset 0 0 0 1px var(--line2); }
+  .fact.ok .mk { color: var(--ok); box-shadow: inset 0 0 0 1px var(--ok); }
+  .fact.wait .mk { color: var(--gold-l); box-shadow: inset 0 0 0 1px var(--gold); }
+  .fact.bad .mk { color: var(--red-l); box-shadow: inset 0 0 0 1px var(--refuse); }
+  .fact .k { width: 108px; flex: none; color: var(--dim); font-size: var(--fs-small); }
+  .fact .v { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .step { padding-top: var(--sp-3); padding-bottom: var(--sp-3); }
+  .code { font: var(--fw-semibold) var(--fs-display)/1.1 var(--mono); letter-spacing: .1em; color: var(--teal-l); }
+  .acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--line); }
+  .acts .ui-silence { margin-left: auto; }
+  .tlrow { display: flex; align-items: center; gap: var(--sp-3); padding: 6px var(--sp-3); border-top: 1px solid var(--line); }
+  .tlrow .ui-meter { flex: 1 1 auto; max-width: 220px; }
+  .tlrow .ui-meter.pinned > i { background: var(--ok); }
+  .door .lbl { width: 128px; flex: none; }
+  .door .ui-field { width: 180px; }
+  .err { color: var(--red-l); font-size: var(--fs-small); }
+  .spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line2); border-top-color: var(--teal); animation: sp 1s linear infinite; flex: none; display: inline-block; vertical-align: -2px; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .fpr { font: var(--fw-medium) var(--fs-mono) var(--mono); color: var(--coral-l); word-spacing: .2em; }
+  .ui-inspector ul { margin: 0; padding-left: 16px; } .ui-inspector li { margin: 2px 0; }
+  .ui-inspector .ui-section-h { padding: 0; }
+  .pop p { margin: 0 0 var(--sp-2); } .pop p:last-child { margin: 0; }
+
+  /* approval window */
+  .aw-back { position: absolute; inset: 0; z-index: 50; display: grid; place-items: start center; padding: calc(var(--bar) + var(--sp-5)) var(--sp-4) var(--sp-4); background: var(--scrim); animation: ui-fade var(--t-med) var(--ease); }
+  .aw { width: min(560px, 100%); max-height: 100%; overflow: auto; display: grid; grid-template-rows: var(--bar) auto; background: var(--panel); border-radius: var(--r-lg); box-shadow: var(--shadow-3), 0 0 0 1px var(--gold); }
+  .aw .ui-titlebar { border-radius: var(--r-lg) var(--r-lg) 0 0; }
+  .aw-b { display: grid; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4) var(--sp-4); }
+  .aw-b h2 { margin: 0; font: var(--fw-semibold) var(--fs-title3)/1.25 var(--display); display: flex; align-items: center; gap: var(--sp-1); }
+  .ctx { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: var(--fs-small); color: var(--dim); }
+  .picks { display: grid; gap: var(--sp-1); }
+  .prow { display: grid; grid-template-columns: 20px repeat(3, minmax(0, 1fr)) auto; gap: var(--sp-1); align-items: center; padding: var(--sp-1); border-radius: var(--r-sm); background: var(--bg2); }
+  .prow.cur { box-shadow: inset 0 0 0 1px var(--gold); }
+  .prow .n { font: var(--fs-small) var(--mono); color: var(--dim); text-align: center; }
+  .opt { height: 30px; border-radius: var(--r-sm); border: 1px solid var(--line2); background: var(--panel); color: var(--text); cursor: pointer; font: var(--fw-semibold) var(--fs-title3) var(--mono); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .opt:hover:not([disabled]) { border-color: var(--teal); }
+  .opt[disabled] { cursor: default; color: var(--dim); }
+  .opt.chosen { border-color: var(--ok); color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--panel)); }
+  .opt.wrong { border-color: var(--refuse); color: var(--red-l); }
+  .prow:not(.cur) .opt { height: 24px; font-size: var(--fs-body); }
+  .decide { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+  .namerow { display: flex; align-items: center; gap: var(--sp-2); }
+  .namerow .ui-field { flex: 1 1 auto; }
+  .namerow .lbl { color: var(--dim); font-size: var(--fs-small); white-space: nowrap; }
+  .warn { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-small); color: var(--coral-l); }
+  .aw .kbd { margin: 0 1px; }
+
+  /* Dan's laptop, floating (simulated) */
+  .laptop { position: absolute; right: var(--sp-4); bottom: var(--sp-4); z-index: 60; width: 300px; border-radius: var(--r-lg); background: var(--bg2); box-shadow: var(--shadow-3), 0 0 0 1px color-mix(in srgb, var(--coral) 45%, transparent); overflow: hidden; }
+  .app.insp .laptop:not(.moved) { right: calc(var(--inspector) + var(--sp-4)); }
+  .laptop .ui-titlebar { cursor: grab; user-select: none; touch-action: none; height: 32px; }
+  .laptop.min .lb, .laptop.min .ui-proto { display: none; }
+  .laptop .lb { padding: var(--sp-2) var(--sp-3); display: grid; gap: var(--sp-2); max-height: 40vh; overflow: auto; }
+  .laptop .dw .cur { box-shadow: inset 2px 0 0 var(--coral); background: color-mix(in srgb, var(--coral) 8%, transparent); }
+  .laptop .w { font: var(--fw-semibold) var(--fs-body) var(--mono); }
+  .laptop .say { font-size: var(--fs-body); } .laptop .say b { font-family: var(--mono); color: var(--coral-l); }
+  .laptop .ui-proto { margin: 0 var(--sp-2) var(--sp-2); display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+  .laptop .ui-proto::before { width: 100%; margin-bottom: 0; }
+  .ui-proto .ui-btn[aria-pressed="true"] { color: var(--coral-l); box-shadow: inset 0 0 0 1px var(--coral); }
+  @media (max-width: 1180px) { .door .ui-field { width: 140px; } .door .lbl { width: 104px; } }
+</style>
+</head>
+<body>
+<div class="ui-app app" id="app">
+  <header class="ui-titlebar">
+    <nav class="ui-crumbs"><button data-act="esc">The Table</button><span class="sep">›</span><button data-act="esc">Tables</button><span class="sep">›</span><span>Keyring</span></nav>
+    <span class="ui-spacer"></span>
+    <span class="clock" id="clock"></span>
+    <span class="badge sandbox">Sandbox</span>
+    <span id="lockind"></span>
+    <button class="ui-btn sm" data-act="insp" id="inspBtn">Inspector</button>
+  </header>
+  <div class="ui-split" id="split">
+    <aside class="ui-sidebar" id="ring" aria-label="Keyring"></aside>
+    <main class="ui-main" id="dossier" tabindex="-1"></main>
+    <aside class="ui-inspector" id="insp" hidden aria-label="Detail"></aside>
+  </div>
+  <div id="approvalLayer" hidden></div>
+  <section class="laptop" id="laptop" aria-label="Dan's laptop (simulated)">
+    <header class="ui-titlebar" id="lh"><span class="ui-chip coral" id="lapChip">Dan</span><span class="ui-hint" id="lapTitle">laptop · simulated</span><span class="ui-spacer"></span><button class="ui-btn plain sm" data-act="lapMin" id="lapMin" aria-expanded="true">hide</button></header>
+    <div class="lb" id="lb" aria-live="polite"></div>
+    <div class="ui-proto" id="proto" aria-label="Prototype controls"></div>
+  </section>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const F = window.FIX;
+  const CP = F.counterparties;
+  const D0201 = F.deals.find(d => d.id === 'D-0201');
+  const M12 = F.mandates.find(m => m.id === 'M-12');
+  const esc = UI.esc, $ = s => document.querySelector(s);
+
+  // ---- page constants consistent with FIX ----
+  const PAIR = { code: 'TBL-7Q4M-K2', words: CP.dan.paired.replace('words ✓ ', '').split(' '),
+    danFpr: '47be 3a91 d20c 7f55 e81b 0c4a 96d2 110d', mayaPayee: 'second-screen-biz (sandbox)', ttl: 24 * 3600000 };
+  const MITM = { mayaWords: ['otter', 'fennel', 'cobalt', 'meadow'], danWords: ['otter', 'harbor', 'willow', 'tundra'], key: '5e02…9b', fpr: '5e02 c7a4 19fe 0b38 6d71 a2c0 4e85 d39b' };
+  const HOUSEP = { words: ['lantern', 'cedar', 'orbit', 'pebble'], fpr: 'c4d1 07e9 5b2a 88f3 1d60 ae47 39c2 7b15' };
+  // Decoys are drawn locally, never from the peer, and sound unlike the real word.
+  const DECOYS = { otter: ['violin', 'granite'], basil: ['comet', 'thimble'], quartz: ['ladder', 'pepper'], meadow: ['rocket', 'tulip'],
+    fennel: ['marble', 'orchid'], cobalt: ['sparrow', 'island'] };
+  const ORDER = [[1, 0, 2], [0, 2, 1], [2, 1, 0], [1, 2, 0]]; // where the real word sits per row
+  const PINNED = [ // the keyring as FIX holds it
+    { id: 'dan', name: CP.dan.name, key: CP.dan.key, via: 'code', words: CP.dan.paired, first: CP.dan.firstSeen, payee: CP.dan.payee, deals: CP.dan.deals, who: CP.dan.who, fpr: PAIR.danFpr },
+    { id: 'house', name: CP.house.name, key: 'release pin', via: 'house', words: CP.house.paired, first: CP.house.firstSeen, payee: CP.house.payee, deals: CP.house.deals, who: CP.house.who, fpr: HOUSEP.fpr },
+    { id: 'pixel', name: CP.pixel.name, key: CP.pixel.key, via: 'code', words: CP.pixel.paired, first: CP.pixel.firstSeen, payee: 'unknown · not in the sample data', deals: CP.pixel.deals, who: CP.pixel.who },
+    { id: 'ridge', name: CP.ridge.name, key: CP.ridge.key, via: 'code', words: CP.ridge.paired, first: CP.ridge.firstSeen, payee: 'unknown · not in the sample data', deals: CP.ridge.deals, who: CP.ridge.who },
+  ];
+  const UNPAIRED = [CP.hub, CP.gpu];
+
+  const BASE = new Date(F.nowISO).getTime(), T0 = Date.now();
+  let skew = 0;
+  const now = () => BASE + (Date.now() - T0) + skew;
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const p2 = n => String(n).padStart(2, '0');
+  const hm = t => { const d = new Date(t); return `${p2(d.getHours())}:${p2(d.getMinutes())}`; };
+  const day = t => { const d = new Date(t); return `${DAYS[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]} ${hm(t)}`; };
+  const left = t => { const m = Math.max(0, Math.floor((t - now()) / 60000)); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min left` : `${m} min left`; };
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+  const S = {
+    sel: 'new', mode: null, phase: 'idle', // idle | code | danCode | waking | words | pinned | aborted | expired
+    mitm: false, locked: false, unlocking: false,
+    side: 'buyer', payee: PAIR.mayaPayee, joinCode: '', joinErr: '',
+    codeAt: 0, codeExp: 0, house: 'asleep', polls: 0,
+    aw: null, pinned: null, dan: 'idle', lapMin: false, speak: -1, insp: false,
+  };
+  let pollT = null, houseT = null, speakT = null;
+  const house = () => S.mode === 'house';
+  const myW = () => house() ? HOUSEP.words : S.mitm ? MITM.mayaWords : PAIR.words;
+  const danW = () => house() ? HOUSEP.words : S.mitm ? MITM.danWords : PAIR.words;
+  const peerKey = () => house() ? 'house key' : S.mitm ? MITM.key : CP.dan.key;
+  const peerFpr = () => house() ? HOUSEP.fpr : S.mitm ? MITM.fpr : PAIR.danFpr;
+  const known = () => PINNED.find(p => !p.fresh && p.key === peerKey());
+  const toast = (m, k) => UI.toast(m, k);
+
+  function options(i) {
+    const real = myW()[i];
+    const dec = DECOYS[real] || ['violin', 'granite'];
+    const pool = [dec[0], dec[1]]; const out = []; let di = 0;
+    for (const slot of [0, 1, 2]) out.push(slot === ORDER[i][0] ? real : pool[di++]);
+    return out;
+  }
+
+  // ---- layer 2: popovers ----
+  const POP = {
+    doors: ['Three ways in', () => `<div class="pop"><p><b>Create</b>: the wallet mints a one-time code and leaves your signed identity in a relay mailbox keyed by its hash. Share only the code.</p><p><b>Join</b>: type the code the other owner read to you.</p><p><b>House</b>: ${esc(CP.house.who)}. Its key ships pinned in this release.</p></div>`],
+    picks: ['How the pick works', () => `<div class="pop"><p>Dan reads his word aloud. Your screen offers its own word and two decoys that sound nothing like it, drawn on your side, never from the peer.</p><p>If Dan's word is not there, someone is between you: pick "none". A random guess passes all four 1 time in 81.</p><p class="ui-hint">Keys 1 · 2 · 3, and 0 for none.</p></div>`],
+    history: ['Key history', () => `<div class="pop"><p>Whether the key that arrived is one you already pinned. A new counterparty is expected to be new. If you think this is Dan and the key is new, the words decide.</p></div>`],
+    clash: ['Name clash', () => { const c = clashWith(); return c ? `<div class="pop"><p>You already have a different key named “${esc(c.name)}” (<span class="mono">${esc(c.key)}</span>, since ${esc(c.first)}). This key is <span class="mono">${esc(peerKey())}</span>.</p><p>If this should be Dan, abort and ask him which key his wallet shows.</p></div>` : ''; }],
+    expiry: ['When it lapses', () => `<dl class="ui-kv"><dt>Code</dt><dd>single use · 24 h</dd><dt>Bundles</dt><dd>signed identities live 24 h; then the relay forgets the mailbox</dd><dt>Restart</dt><dd>a wallet restart before you confirm needs a fresh code</dd><dt>Silence</dt><dd>nothing is pinned · no money moves</dd></dl>`],
+    lock: ['Idle lock', () => `<div class="pop"><p>After 15 idle minutes privileged buttons lock. Pinning a key is privileged: unlock with Windows Hello. Aborting never needs an unlock.</p></div>`],
+  };
+  const info = (k, label = 'ⓘ') => `<button class="ui-btn plain sm" data-pop="${k}" aria-label="${esc(POP[k][0])}">${label}</button>`;
+
+  // ---- flows ----
+  function reset() {
+    clearInterval(pollT); clearTimeout(houseT); clearTimeout(speakT);
+    Object.assign(S, { sel: 'new', mode: null, phase: 'idle', joinCode: '', joinErr: '', codeAt: 0, codeExp: 0, house: 'asleep', polls: 0, aw: null, pinned: null, dan: 'idle', speak: -1 });
+    for (let i = PINNED.length - 1; i >= 0; i--) if (PINNED[i].fresh) PINNED.splice(i, 1);
+    const d = PINNED.find(p => p.id === 'dan'); d.words = CP.dan.paired; d.renewed = null; d.name = CP.dan.name;
+    render();
+  }
+  function create() {
+    if (!S.payee.trim()) return;
+    S.mode = 'create'; S.phase = 'code'; S.codeAt = now(); S.codeExp = S.codeAt + PAIR.ttl; S.dan = 'join';
+    pollT = setInterval(() => { S.polls++; const e = document.getElementById('polls'); if (e) e.textContent = S.polls; }, 3000);
+    toast(`pairing_create · ${PAIR.code} published to the relay mailbox · 0 PayPal calls`); render();
+  }
+  function join() {
+    const c = S.joinCode.trim().toUpperCase(); S.joinErr = '';
+    if (c === 'HOUSE') return houseGo();
+    if (!/^TBL-[0-9A-Z]{4}-[0-9A-Z]{2}$/.test(c)) { S.joinErr = 'Codes look like TBL-7Q4M-K2, or type HOUSE.'; return render(); }
+    if (c !== PAIR.code || S.dan !== 'code') { S.joinErr = `Unavailable · nothing waits at ${c}: expired, used, or misheard.`; return render(); }
+    S.mode = 'join'; arrived();
+  }
+  function houseGo() {
+    S.mode = 'house'; S.phase = 'waking'; S.house = 'waking'; S.dan = 'idle';
+    houseT = setTimeout(houseAwake, 6000); render();
+  }
+  function houseAwake() {
+    if (S.phase !== 'waking') return; clearTimeout(houseT);
+    S.house = 'awake'; S.codeAt = now(); S.codeExp = now() + PAIR.ttl; S.phase = 'words';
+    S.aw = { open: true, stage: 'house', i: 0, picks: [null, null, null, null], name: '' };
+    toast('HOUSE answered · signed table D-0201 matches the release pin'); render(); focusAw();
+  }
+  function houseTimeout() { if (S.phase !== 'waking') return; clearTimeout(houseT); S.house = 'timeout'; S.phase = 'idle'; render(); }
+  function arrived() {
+    clearInterval(pollT);
+    S.phase = 'words'; S.dan = 'words'; if (!S.codeExp) { S.codeAt = now(); S.codeExp = now() + PAIR.ttl; }
+    S.aw = { open: true, stage: 'pick', i: 0, picks: [null, null, null, null], name: '' };
+    toast(S.mode === 'create' ? "Dan's signed reply arrived · signatures ✓" : "Found Dan's signed identity at H(code) · signatures ✓");
+    render(); focusAw(); speak(0);
+  }
+  function speak(i) {
+    clearTimeout(speakT); S.speak = -1; renderLaptop();
+    speakT = setTimeout(() => { if (S.aw && S.aw.stage === 'pick' && S.aw.i === i) { S.speak = i; renderLaptop(); } }, 900);
+  }
+  function pick(i, choice) {
+    const a = S.aw; if (!a || a.stage !== 'pick' || a.i !== i) return;
+    a.picks[i] = choice;
+    if (choice === 'none' || choice !== myW()[i]) { a.stage = 'mismatch'; clearTimeout(speakT); renderAw(); renderDossier(); setTimeout(() => { const b = $('#abortBtn'); if (b) b.focus(); }, 20); return; }
+    if (i < 3) { a.i++; renderAw(); renderDossier(); speak(a.i); focusAw(); return; }
+    a.stage = 'confirm'; S.speak = -1; renderAw(); renderLaptop(); renderDossier(); setTimeout(() => { const n = $('#pname'); if (n) n.focus(); }, 20);
+  }
+  function nameProblem(t) {
+    if (!t) return 'Name this counterparty (only you see it).';
+    if (new TextEncoder().encode(t).length > 32) return 'At most 32 bytes: shorten the name.';
+    if (/[\x00-\x1f\x7f]/.test(t)) return 'The name contains a control character.';
+    return null;
+  }
+  function clashWith() { const n = S.aw ? S.aw.name.trim() : ''; return !house() && n ? PINNED.find(p => p.name.toLowerCase() === n.toLowerCase() && p.key !== peerKey()) : null; }
+  function pin() {
+    const a = S.aw; if (!a || S.locked || !(a.stage === 'confirm' || a.stage === 'house')) return;
+    const n = a.name.trim(); if (nameProblem(n)) return;
+    a.stage = 'done'; S.phase = 'pinned';
+    const k = known();
+    if (k) { k.words = `words ✓ ${myW().join(' ')}`; k.renewed = now(); S.pinned = k; k.name = n; }
+    else { const e = { id: 'new-' + Date.now(), fresh: true, name: n, key: peerKey(), via: house() ? 'house' : 'code', words: `words ✓ ${myW().join(' ')}`, first: `${day(now())} (today)`, payee: house() ? CP.house.payee : CP.dan.payee, deals: 0, who: house() ? CP.house.who : 'joined code ' + PAIR.code, fpr: peerFpr(), renewed: now() }; PINNED.unshift(e); S.pinned = e; }
+    S.sel = S.pinned.id;
+    S.dan = house() ? 'idle' : S.mitm ? 'mitm' : 'confirm';
+    toast(`pairing_confirm · ${peerKey()} pinned as “${n}” · audit 4419 · 0 PayPal calls`, 'ok'); render();
+  }
+  function abort() {
+    if (S.phase !== 'words') return;
+    clearTimeout(speakT); S.speak = -1;
+    S.phase = 'aborted'; if (S.aw) S.aw.stage = 'aborted'; S.dan = house() ? 'idle' : 'aborted';
+    toast('They differ · aborted · nothing pinned', 'bad'); render();
+  }
+
+  // ---- render: keyring (sidebar) ----
+  function renderRing() {
+    const pend = S.phase !== 'idle' && S.phase !== 'pinned';
+    let h = `<button class="ui-sb-item${S.sel === 'new' ? ' on' : ''}" data-sel="new"><span class="ico">${pend ? '<span class="spin" aria-hidden="true"></span>' : '<span class="glyph pend">+</span>'}</span><span class="lbl">${pend ? 'Pairing in progress' : 'New pairing'}</span></button>`;
+    h += `<div class="ui-sb-head">Pinned · ${PINNED.length}</div>`;
+    h += PINNED.map(p => `<button class="ui-sb-item${S.sel === p.id ? ' on' : ''}" data-sel="${p.id}" title="${esc(p.name)} · ${esc(p.key)}"><span class="ico"><span class="glyph">${p.via === 'house' ? 'H' : esc(p.key.slice(0, 2))}</span></span><span class="lbl">${esc(p.name)}</span><span class="cnt">${p.renewed ? '✓ ' + hm(p.renewed) : p.via === 'house' ? 'pin' : esc(p.key.slice(0, 4))}</span></button>`).join('');
+    h += `<div class="ui-sb-head">Seen, not paired</div>`;
+    h += UNPAIRED.map(u => `<button class="ui-sb-item${S.sel === u.id ? ' on' : ''}" data-sel="${u.id}"><span class="ico"><span class="glyph un">?</span></span><span class="lbl">${esc(u.name)}</span></button>`).join('');
+    h += `<div class="ui-sb-foot"><a class="ui-sb-item" href="../../tables/variant-3/index.html"><span class="ico"><span class="ui-dot" style="color:var(--m-tables)"></span></span><span class="lbl">Tables</span></a><a class="ui-sb-item" href="../../mandate/variant-3/index.html"><span class="lbl">Mandates</span></a></div>`;
+    $('#ring').innerHTML = h;
+  }
+
+  // ---- render: the card (Layer 1) ----
+  const fact = (state, k, v, extra = '') => { const m = { ok: '✓', wait: '…', bad: '✕', off: '·' }[state]; return `<div class="ui-row fact ${state}"><span class="mk" aria-hidden="true">${m}</span><span class="k">${k}</span><span class="v">${v}</span>${extra}</div>`; };
+  function tlRow(p) {
+    if (!S.codeExp) return '';
+    const pinned = S.phase === 'pinned';
+    const pct = pinned ? 100 : Math.max(0, Math.min(100, ((now() - S.codeAt) / PAIR.ttl) * 100));
+    return `<div class="tlrow"><span class="ui-hint">${house() ? 'answered' : 'minted'} ${hm(S.codeAt)}</span><div class="ui-meter${pinned ? ' pinned' : ''}" aria-hidden="true"><i id="tlfill" style="width:${pct.toFixed(2)}%"></i></div>
+      <span class="ui-hint">${pinned ? '<span class="okc">pinned · no expiry</span>' : `<span id="tlleft">${left(S.codeExp)}</span> · lapses ${day(S.codeExp)}`}</span>${p ? '' : info('expiry')}</div>`;
+  }
+  function doors() {
+    const waking = S.phase === 'waking';
+    return `<div class="ui-group">
+      <div class="card-h"><h2>New pairing</h2><span class="ui-hint">pick a door</span>${info('doors')}</div>
+      <div class="ui-row two door"><span class="lbl"><span class="main"><span class="t1">Create a code</span><span class="t2">you make it</span></span></span>
+        <div class="ui-seg" role="group" aria-label="Your side">${['buyer', 'seller'].map(s => `<button data-side="${s}" aria-pressed="${S.side === s}">${s}</button>`).join('')}</div>
+        <input id="payee" class="ui-field mono" data-bind="payee" value="${esc(S.payee)}" aria-label="Your payee" autocomplete="off" spellcheck="false">
+        <span class="ui-spacer"></span><button class="ui-btn primary sm" data-act="create"${S.payee.trim() ? '' : ' disabled'}>Create code</button></div>
+      <div class="ui-row two door"><span class="lbl"><span class="main"><span class="t1">Join with a code</span><span class="t2">${S.dan === 'code' ? '<span class="coral">Dan has one ready</span>' : 'they made it'}</span></span></span>
+        <input id="jcode" class="ui-field mono" data-bind="joinCode" value="${esc(S.joinCode)}" placeholder="TBL-XXXX-XX" autocomplete="off" spellcheck="false" aria-invalid="${!!S.joinErr}" aria-describedby="jerr" aria-label="Code from Dan">
+        <span class="main"><span id="jerr" class="${S.joinErr ? 'err' : 't2'}">${esc(S.joinErr)}</span></span><button class="ui-btn primary sm" data-act="join">Join</button></div>
+      <div class="ui-row two door"><span class="lbl"><span class="main"><span class="t1">House seller</span><span class="t2">one install</span></span></span>
+        <span class="id">${D0201.id}</span><span class="main"><span class="t1">${esc(D0201.item)}</span><span class="t2">${S.house === 'timeout' ? '<span class="red">no answer to the wake ping · retryable</span>' : 'scripted, no LLM · key pinned in the release'}</span></span>
+        <button class="ui-btn primary sm" data-act="house"${waking ? ' disabled' : ''}>${waking ? 'Waking…' : S.house === 'timeout' ? 'Ping again' : 'Sit down'}</button></div>
+    </div>`;
+  }
+  function pendingCard() {
+    const ph = S.phase, a = S.aw, h = house();
+    const st = ph === 'words' ? '<span class="ui-chip gold">Words</span>' : ph === 'aborted' ? '<span class="ui-chip red">Aborted</span>' : ph === 'expired' ? '<span class="ui-chip red">Expired</span>' : ph === 'waking' ? '<span class="ui-chip gold">Waking</span>' : '<span class="ui-chip teal">Waiting for Dan</span>';
+    const arrivedNow = ph === 'words' || ph === 'aborted' || (ph === 'expired' && S.aw);
+    const k = arrivedNow && !h ? known() : null;
+    const picksDone = a ? a.picks.filter((p, i) => p === myW()[i]).length : 0;
+    let rows = '';
+    if (ph === 'code') rows += `<div class="ui-row step"><span class="code">${PAIR.code}</span><span class="ui-chip teal">Single use</span><span class="ui-spacer"></span><button class="ui-btn sm" data-act="copy">Copy</button><button class="ui-btn sm danger" data-act="cancel">Cancel code</button></div>`;
+    if (h) {
+      rows += fact(ph === 'waking' ? 'wait' : 'ok', 'house', ph === 'waking' ? '<span class="spin" aria-hidden="true"></span> waking on its free host · about a minute' : `answered · <span class="mono">${D0201.id}</span> · ${esc(D0201.item)}`);
+      rows += fact(ph === 'waking' ? 'off' : 'ok', 'release pin', ph === 'waking' ? 'checked when it answers' : 'signed with the key built into this release');
+      rows += fact(ph === 'waking' ? 'off' : 'ok', 'payee', `<span class="mono">${esc(CP.house.payee)}</span>`);
+    } else {
+      if (ph !== 'code') rows += fact(S.codeExp ? 'ok' : 'off', 'code', `<span class="mono">${PAIR.code}</span> · ${S.mode === 'create' ? 'you made it' : 'Dan made it'} · single use`);
+      rows += fact(arrivedNow ? 'ok' : ph === 'expired' ? 'off' : 'wait', 'their identity', arrivedNow ? `signatures ✓ · opposite side ✓ · key <span class="mono">${esc(peerKey())}</span>` : ph === 'expired' ? 'nobody joined before it lapsed' : `<span class="spin" aria-hidden="true"></span> waiting for Dan · mailbox checked <span id="polls">${S.polls}</span>×`);
+      rows += fact(arrivedNow ? (k ? 'ok' : 'wait') : 'off', 'key history', !arrivedNow ? 'known once their key arrives' : k ? `same key you pinned as <b>${esc(k.name)}</b> · ${esc(k.first)}` : '<span class="coral">a key you have never pinned</span>', arrivedNow ? info('history') : '');
+      rows += fact(arrivedNow ? 'ok' : 'off', 'payee', arrivedNow ? `<span class="mono">${esc(CP.dan.payee)}</span> · signed in their bundle` : '—');
+      rows += fact(ph === 'aborted' ? 'bad' : picksDone === 4 ? 'ok' : arrivedNow ? 'wait' : 'off', 'words', ph === 'aborted' ? 'a word differed' : arrivedNow ? `${picksDone} of 4 picked · in the approval window` : 'computed from both keys and the code');
+    }
+    rows += fact(ph === 'aborted' || ph === 'expired' ? 'bad' : 'off', 'pin', ph === 'aborted' ? 'nothing pinned · code spent' : ph === 'expired' ? 'nothing pinned · lapsed' : 'not pinned · only the approval window can pin');
+    let foot = '';
+    const sil = `<span class="ui-silence">silent → <b>lapses</b> · nothing pinned · no money moves</span>`;
+    if (ph === 'words') foot = `<div class="acts"><button class="ui-btn gold" data-act="openAw">${h ? 'Name and pin it in the approval window ↗' : 'Pick the words in the approval window ↗'}</button><button class="ui-btn danger" data-act="abort">They differ: abort</button>${sil}</div>`;
+    else if (ph === 'code') foot = `<div class="acts"><span class="ui-hint">Give Dan only the code.</span>${sil}</div>`;
+    else if (ph === 'waking') foot = `<div class="acts"><span class="ui-silence">silent → <b>nothing pinned</b> · no money moves · a timeout is retryable</span></div>`;
+    else if (ph === 'aborted' || ph === 'expired') foot = `<div class="acts"><button class="ui-btn primary" data-act="reset">Start a new pairing</button><span class="ui-hint">${ph === 'aborted' ? 'words that differ can mean a relay in the middle' : 'the relay forgot the mailbox after 24 h'} · no money moved</span></div>`;
+    return `<div class="ui-group"><div class="card-h"><h2>${h ? 'HOUSE seller' : 'Who joined ' + PAIR.code + '?'}</h2>${st}<button class="ui-btn sm" data-act="insp">Details…</button></div>
+      ${rows}${ph === 'aborted' || ph === 'expired' ? '' : tlRow()}${foot}</div>`;
+  }
+  function keyCard(p) {
+    const fresh = S.pinned && S.pinned.id === p.id;
+    const mitmPin = fresh && S.mitm && p.via !== 'house';
+    const onList = /north-desk/.test(p.payee) ? 'north-desk' : p.via === 'house' ? 'HOUSE' : null;
+    const words = p.words.replace('words ✓', '').trim();
+    let foot = '';
+    if (fresh) foot = p.via === 'house' ? `<div class="acts"><button class="ui-btn primary" data-act="next">Set the band for ${D0201.id}</button><a class="ui-btn plain" href="../../tables/variant-3/index.html">Tables</a></div>`
+      : `<div class="acts"><span class="ui-chip ${S.dan === 'both' ? 'ok' : 'gold'}">${S.dan === 'both' ? 'Dan confirmed' : 'Waiting for Dan'}</span><button class="ui-btn primary" data-act="next"${S.dan === 'both' ? '' : ' disabled'}>Open a table with ${esc(p.name)}</button><a class="ui-btn plain" href="../../tables/variant-3/index.html">Tables</a></div>`;
+    return `<div class="ui-group"><div class="card-h"><h2>${esc(p.name)}</h2><span class="ui-chip ok">${p.via === 'house' ? 'House · release pin' : 'Paired'}</span>${fresh ? `<span class="ui-chip teal">Pinned ${hm(p.renewed)}</span>` : ''}<button class="ui-btn sm" data-act="insp">Details…</button></div>
+      ${mitmPin ? fact('bad', 'relay key', '<span class="red">prototype run: this key is the relay\'s, not Dan\'s · flagged as never pinned</span>') : ''}
+      ${fact('ok', 'key', `<span class="mono">${esc(p.key)}</span>${p.fpr ? '' : ' <span class="dim">· full fingerprint not in the sample data</span>'}`)}
+      ${fact('ok', 'first seen', esc(p.first))}
+      ${fact('ok', 'words', `<span class="mono">${esc(words || '—')}</span>${p.renewed ? ' · ' + day(p.renewed) : ''}`)}
+      ${fact(onList ? 'ok' : 'off', 'payee', `<span class="mono">${esc(p.payee)}</span>${onList ? '' : ' · <span class="dim">payments to it wait for you</span>'}`, onList ? `<span class="ui-chip line">clause 7 · ${onList}</span>` : '')}
+      ${fact('off', 'deals closed', String(p.deals))}
+      ${fresh ? tlRow(p) : ''}${foot}</div>`;
+  }
+  function renderDossier() {
+    const el = $('#dossier');
+    const keep = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.bind;
+    const caret = keep && document.activeElement.selectionStart;
+    let h = `<div class="inner"><div class="ui-pagehead"><h1>Keyring</h1><span class="sub">keys your agents may deal with · clause 2: paired or HOUSE only</span></div>`;
+    if (S.sel === 'new') h += (S.phase === 'idle' || S.phase === 'danCode') ? doors() : pendingCard();
+    else {
+      const p = PINNED.find(x => x.id === S.sel), u = UNPAIRED.find(x => x.id === S.sel);
+      if (p) h += keyCard(p);
+      else if (u) h += `<div class="ui-group"><div class="card-h"><h2>${esc(u.name)}</h2><span class="ui-chip dashed">Not paired</span></div>
+        ${fact('off', 'who', esc(u.who))}${fact('off', 'key', 'none pinned')}${fact('off', 'first seen', esc(u.firstSeen))}
+        <div class="acts"><button class="ui-btn" data-sel="new">New pairing</button><span class="ui-silence">your agents cannot deal with it (clause 2)</span></div></div>`;
+    }
+    el.innerHTML = h + '</div>';
+    if (keep) { const i = el.querySelector(`[data-bind="${keep}"]`); if (i) { i.focus(); try { i.setSelectionRange(caret, caret); } catch (e) { /* select */ } } }
+    renderInsp();
+  }
+
+  // ---- render: inspector (Layer 2 for the selected card) ----
+  function renderInsp() {
+    const el = $('#insp');
+    $('#app').classList.toggle('insp', S.insp);
+    UI.inspector($('#split'), S.insp);
+    $('#inspBtn').setAttribute('aria-pressed', String(S.insp));
+    if (!S.insp) return;
+    const p = PINNED.find(x => x.id === S.sel), u = UNPAIRED.find(x => x.id === S.sel);
+    const means = `<div class="ui-section"><div class="ui-section-h"><h3>The pin means</h3></div><ul><li>Signed offers from this key may reach your agents.</li><li>A SETTLE must name this payee, or no "Open PayPal" button appears.</li></ul></div>
+      <div class="ui-section"><div class="ui-section-h"><h3>It does not</h3></div><ul><li>Pay anyone or open PayPal. Pairing made 0 PayPal calls.</li><li>Raise a limit: ${M12.id} v${M12.v} still binds every number.</li></ul></div>`;
+    let h = '';
+    if (p) {
+      h = `<span class="ui-chip ok">${p.via === 'house' ? 'House' : 'Paired'}</span><h2 style="margin-top:6px">${esc(p.name)}</h2><div class="ui-hint">${esc(cap(p.who))}</div>
+        <div class="ui-section"><dl class="ui-kv"><dt>Fingerprint</dt><dd class="fpr">${esc(p.fpr || p.key + ' (short form only)')}</dd><dt>Paired via</dt><dd>${p.via === 'house' ? 'house · key pinned in the release' : 'code' + (S.pinned && S.pinned.id === p.id && !house() ? ` <span class="mono">${PAIR.code}</span> · now spent` : '')}</dd>
+          <dt>Words</dt><dd class="mono">${esc(p.words.replace('words ✓', '').trim() || '—')}</dd><dt>Pin expiry</dt><dd>none · stays pinned to this name</dd>${p.renewed ? `<dt>Audit</dt><dd class="mono">4419 · pairing.confirm</dd>` : ''}</dl></div>${means}`;
+    } else if (u) {
+      h = `<span class="ui-chip dashed">Not paired</span><h2 style="margin-top:6px">${esc(u.name)}</h2><div class="ui-section"><p style="margin:0">Your agents cannot deal with an unpaired counterparty (clause 2). To pair, both owners need a code and the four-word check.</p></div>`;
+    } else {
+      const h0 = house();
+      h = `<span class="ui-chip gold">Pairing</span><h2 style="margin-top:6px">${h0 ? 'HOUSE seller' : S.phase === 'idle' || S.phase === 'danCode' ? 'New pairing' : 'Who joined ' + PAIR.code + '?'}</h2>
+        <div class="ui-section"><p style="margin:0">The card fills in one fact at a time. The last fact is yours: Dan reads four words and you pick each one from what your own screen offers. Only then can the key be pinned.</p></div>
+        <div class="ui-section"><dl class="ui-kv">${S.aw || h0 ? `<dt>Fingerprint</dt><dd class="fpr">${esc(peerFpr())}</dd>` : ''}<dt>Code</dt><dd>single use · 24 h</dd><dt>Bundles</dt><dd>live 24 h, then the relay forgets the mailbox</dd><dt>Restart</dt><dd>before you confirm → needs a fresh code</dd><dt>Silence</dt><dd>nothing pinned · no money moves</dd></dl></div>${means}`;
+    }
+    el.innerHTML = h;
+  }
+
+  // ---- render: approval window ----
+  function renderAw() {
+    const layer = $('#approvalLayer'), a = S.aw;
+    if (!a || !a.open) { layer.hidden = true; layer.innerHTML = ''; return; }
+    layer.hidden = false;
+    const h = house();
+    const ctx = `<div class="ctx"><span class="ui-chip ${h ? 'gold' : 'coral'}">${h ? 'HOUSE' : 'Other owner'}</span>${h ? `${D0201.id} · seller` : `joined ${PAIR.code}`} · key <span class="mono">${esc(peerKey())}</span> · payee <span class="mono">${esc(h ? CP.house.payee : CP.dan.payee)}</span></div>`;
+    const abortBtn = `<button class="ui-btn danger" id="abortBtn" data-act="abort">They differ: abort</button>`;
+    const sil = `<span class="ui-silence">close → it waits until <b>${day(S.codeExp)}</b>, then lapses · never pins by itself</span>`;
+    let body = '';
+    const picks = () => `<div class="picks" role="group" aria-label="Pick the word Dan reads">${[0, 1, 2, 3].map(i => {
+      const opts = options(i), cur = a.stage === 'pick' && a.i === i, done = a.picks[i] !== null;
+      return `<div class="prow${cur ? ' cur' : ''}"><span class="n">${i + 1}</span>${opts.map((o, j) => {
+        const chosen = a.picks[i] === o, wrong = chosen && o !== myW()[i];
+        return `<button class="opt${chosen && !wrong ? ' chosen' : ''}${wrong ? ' wrong' : ''}" data-pick="${i}" data-w="${esc(o)}"${cur ? '' : ' disabled'} title="${cur ? 'key ' + (j + 1) : ''}">${(done || cur) ? esc(o) : '·····'}</button>`;
+      }).join('')}<button class="ui-btn sm${a.picks[i] === 'none' ? ' danger' : ''}" data-pick="${i}" data-w="none"${cur ? '' : ' disabled'}>none <span class="kbd">0</span></button></div>`;
+    }).join('')}</div>`;
+    if (a.stage === 'pick') {
+      body = `${ctx}<h2>Dan reads word ${a.i + 1}. Pick what you hear. ${info('picks')}</h2>${picks()}<div class="decide">${abortBtn}<span></span></div>${sil}`;
+    } else if (a.stage === 'mismatch') {
+      const i = a.i, got = a.picks[i];
+      body = `${ctx}<h2><span class="red">✕</span> Word ${i + 1} does not match ${info('picks')}</h2>${picks()}
+        <div class="warn"><span>${got === 'none' ? "None of your screen's words is what Dan read." : `“${esc(got)}” is not word ${i + 1} here.`} Yours is <b class="mono">${esc(myW()[i])}</b>. No second try.</span></div>
+        <div class="decide">${abortBtn}<button class="ui-btn" data-act="closeAw">Close, decide later</button></div>${sil}`;
+    } else if (a.stage === 'confirm' || a.stage === 'house') {
+      const n = a.name.trim(), prob = nameProblem(n), clash = clashWith();
+      body = `${ctx}${a.stage === 'confirm' ? `<h2><span class="okc">✓</span> All four picked, in order ${info('picks')}</h2>${picks()}`
+        : `<h2>HOUSE · release pin ✓</h2><div class="ctx">Nobody to read words to. Its page and yours both show <span class="mono">${HOUSEP.words.join(' ')}</span>.</div>`}
+        <div class="namerow"><label class="lbl" for="pname">Name this key (only you)</label><input id="pname" class="ui-field" data-bind="awname" maxlength="32" value="${esc(a.name)}" placeholder="${h ? 'HOUSE seller' : 'e.g. ' + esc(CP.dan.name)}" autocomplete="off" spellcheck="false"></div>
+        ${n && prob ? `<div class="err">${esc(prob)}</div>` : ''}
+        ${clash ? `<div class="warn"><span class="ui-chip coral">Name clash</span><span>“${esc(clash.name)}” is a different key (<span class="mono">${esc(clash.key)}</span>)</span>${info('clash')}</div>` : ''}
+        <div class="decide">${S.locked ? `<button class="ui-btn gold locked" data-act="unlock" id="pinBtn">${S.unlocking ? 'Waiting for Windows Hello…' : 'Unlock with Windows Hello'}</button>` : `<button class="ui-btn gold" data-act="pin" id="pinBtn"${prob ? ' disabled' : ''}>Words match: pin key</button>`}${abortBtn}</div>
+        ${S.locked ? '<span class="ui-hint gold">Idle 17 min · pinning needs Windows Hello; abort does not</span>' : ''}
+        <span class="ui-silence">pins nothing, pays nobody until you press it · close → lapses <b>${day(S.codeExp)}</b></span>`;
+    } else if (a.stage === 'done') {
+      body = `<h2><span class="okc">✓</span> Paired · ${esc(S.pinned ? S.pinned.name : '')}</h2><div class="ctx"><span class="mono">${esc(peerKey())}</span> · payee and mailbox bound to this pairing</div><div class="ui-hint">audit 4419 · actor owner · pairing.confirm · 0 PayPal calls</div><div><button class="ui-btn" data-act="closeAw">Close</button></div>`;
+    } else if (a.stage === 'aborted') {
+      body = `<h2><span class="red">✕</span> Not confirmed</h2><div class="ctx">Nothing was pinned. Start again with a new code, read over a different channel.</div><div><button class="ui-btn" data-act="closeAw">Close</button></div>`;
+    } else if (a.stage === 'expired') {
+      body = `<h2>This pairing expired</h2><div class="ctx">It does not come back. Nothing was pinned.</div><div><button class="ui-btn" data-act="closeAw">Close</button></div>`;
+    }
+    const caret = document.activeElement && document.activeElement.id === 'pname' ? document.activeElement.selectionStart : null;
+    layer.innerHTML = `<div class="aw-back"><section class="aw" role="dialog" aria-modal="true" aria-labelledby="awT">
+      <header class="ui-titlebar"><span class="badge sandbox">Sandbox</span><span class="ui-title" id="awT">Owner review · pin a key</span><span class="ui-spacer"></span><span class="ui-hint">approval</span><button class="ui-btn plain icon" data-act="closeAw" aria-label="Close the approval window">✕</button></header>
+      <div class="aw-b">${body}</div></section></div>`;
+    if (caret !== null) { const i = $('#pname'); if (i) { i.focus(); try { i.setSelectionRange(caret, caret); } catch (e) { /* noop */ } } }
+  }
+  function focusAw() { setTimeout(() => { const b = document.querySelector('.prow.cur .opt') || $('#pname') || document.querySelector('.aw .ui-btn'); if (b) b.focus(); }, 30); }
+
+  // ---- render: Dan's laptop ----
+  function renderLaptop() {
+    $('#laptop').classList.toggle('min', S.lapMin);
+    $('#lapMin').textContent = S.lapMin ? 'show' : 'hide'; $('#lapMin').setAttribute('aria-expanded', String(!S.lapMin));
+    $('#lapChip').textContent = house() ? 'House' : 'Dan';
+    $('#lapTitle').textContent = house() ? 'page · simulated' : 'laptop · simulated';
+    const a = S.aw;
+    const head = (t1, t2) => `<div class="ui-group"><div class="ui-row two"><span class="main"><span class="t1">${t1}</span><span class="t2">${t2}</span></span></div></div>`;
+    const list = (ws, cur) => `<div class="ui-group dw">${ws.map((w, i) => `<div class="ui-row${i === cur ? ' cur' : ''}"><span class="id">${i + 1}</span><span class="w">${esc(w)}</span></div>`).join('')}</div>`;
+    let h = '';
+    if (house()) h = head(S.house === 'waking' ? 'Waking up…' : S.house === 'awake' ? 'Selling ' + esc(D0201.item) : S.house === 'timeout' ? 'Not answering' : 'Asleep', 'scripted seller, no LLM') + (S.house === 'awake' ? list(HOUSEP.words, -1) : '');
+    else if (S.dan === 'idle') h = head("Dan · north-desk", "on a call with Maya");
+    else if (S.dan === 'code') h = head('Share only this code', 'he reads it; Maya types it into Join') + `<span class="code" style="font-size:var(--fs-title2);color:var(--coral-l)">${PAIR.code}</span>`;
+    else if (S.dan === 'join') h = head('Maya read a code', `he joins ${PAIR.code} as the seller`);
+    else if (S.dan === 'words') {
+      const cur = a && a.stage === 'pick' ? a.i : -1;
+      h = head('Dan reads his words', S.mitm ? '<span class="coral">computed with the relay\'s key</span>' : 'one at a time, to Maya') + list(danW(), cur)
+        + (S.speak >= 0 && cur === S.speak ? `<div class="say">Dan: “<b>${esc(danW()[S.speak])}</b>”</div>` : cur >= 0 ? '<div class="ui-hint">…</div>' : '');
+    } else if (S.dan === 'confirm') h = head("Maya pinned · Dan's turn", 'Maya reads, he picks, in his own window');
+    else if (S.dan === 'mitm') h = head('Dan aborts', 'his words differ · he pins nothing');
+    else if (S.dan === 'both') h = head('Paired with Maya', '<span class="okc">both confirmed</span>');
+    else if (S.dan === 'aborted') h = head('Pairing cancelled', 'nothing pinned on either side');
+    else if (S.dan === 'expired') h = head('Code expired', 'nothing pinned on either side');
+    $('#lb').innerHTML = h;
+    const c = (act, label, o = {}) => `<button class="ui-btn sm" data-act="${act}"${o.p !== undefined ? ` aria-pressed="${o.p}"` : ''}${o.d ? ' disabled' : ''}>${label}</button>`;
+    $('#proto').innerHTML = [
+      c('mitm', 'Relay in the middle', { p: S.mitm, d: S.phase === 'words' || S.phase === 'pinned' }),
+      c('danCode', 'Dan makes a code', { d: !(S.phase === 'idle' && S.dan === 'idle') }),
+      c('danJoin', 'Dan joins', { d: S.phase !== 'code' }),
+      c('again', 'Say it again', { d: !(a && a.stage === 'pick') }),
+      c('danConfirm', 'Dan confirms', { d: S.dan !== 'confirm' }),
+      c('wake', 'House answers', { d: S.phase !== 'waking' }),
+      c('houseTimeout', 'House times out', { d: S.phase !== 'waking' }),
+      c('lock', `Idle lock ${S.locked ? 'on' : 'off'}`, { p: S.locked }),
+      c('skip', '+24 h', { d: !(S.phase === 'code' || S.phase === 'words' || S.dan === 'code') || S.phase === 'pinned' }),
+      c('reset', 'Reset'),
+    ].join('');
+  }
+  function renderTop() {
+    $('#lockind').innerHTML = S.locked ? '<button class="ui-btn sm gold locked" data-pop="lock">Locked · idle 17 min</button>' : '<span class="ui-chip line" data-tip="Privileged buttons lock after 15 idle minutes">Unlocked</span>';
+  }
+  function render() { renderTop(); renderRing(); renderDossier(); renderAw(); renderLaptop(); }
+
+  // ---- events ----
+  document.addEventListener('click', (e) => {
+    const pop = e.target.closest('[data-pop]');
+    if (pop) { const [title, body] = POP[pop.dataset.pop]; UI.popover(pop, body(), { title }); return; }
+    const sel = e.target.closest('[data-sel]');
+    if (sel) { S.sel = sel.dataset.sel; renderRing(); renderDossier(); $('#dossier').focus({ preventScroll: true }); return; }
+    const sd = e.target.closest('[data-side]');
+    if (sd) { S.side = sd.dataset.side; renderDossier(); return; }
+    const pk = e.target.closest('[data-pick]');
+    if (pk && !pk.disabled) { pick(Number(pk.dataset.pick), pk.dataset.w); return; }
+    const t = e.target.closest('[data-act]'); if (!t || t.disabled) return;
+    switch (t.dataset.act) {
+      case 'esc': if (S.aw && S.aw.open) { S.aw.open = false; render(); } else toast('Esc → back to Tables.'); break;
+      case 'insp': S.insp = !S.insp; renderInsp(); break;
+      case 'create': create(); break;
+      case 'join': join(); break;
+      case 'house': houseGo(); break;
+      case 'copy': toast(`Copied ${PAIR.code}. Share only the code.`); break;
+      case 'cancel': clearInterval(pollT); S.phase = 'idle'; S.mode = null; S.codeExp = 0; S.dan = 'idle'; toast('Code cancelled · mailbox closed · nothing pinned'); render(); break;
+      case 'openAw': if (S.aw) { S.aw.open = true; render(); focusAw(); if (S.aw.stage === 'pick') speak(S.aw.i); } break;
+      case 'closeAw': if (S.aw) { S.aw.open = false; render(); } break;
+      case 'abort': abort(); break;
+      case 'pin': pin(); break;
+      case 'unlock': if (S.unlocking) break; S.unlocking = true; renderAw(); setTimeout(() => { S.locked = false; S.unlocking = false; toast('Windows Hello: unlocked (simulated).', 'ok'); render(); const b = $('#pinBtn'); if (b) b.focus(); }, 900); break;
+      case 'next': toast(house() ? 'Opens the band sheet for D-0201 (approval window: ceiling, rounds, deadline).' : 'Opens "Open a table" with Dan: the item, then the band (M-12 clause 4).'); break;
+      case 'reset': skew = 0; S.mitm = false; S.locked = false; reset(); break;
+      case 'lock': S.locked = !S.locked; S.unlocking = false; render(); break;
+      case 'lapMin': S.lapMin = !S.lapMin; renderLaptop(); break;
+      case 'mitm': S.mitm = !S.mitm; toast(S.mitm ? 'Prototype: a malicious relay will swap both keys for its own.' : 'Prototype: honest relay.'); render(); break;
+      case 'danCode': S.dan = 'code'; S.phase = 'danCode'; S.codeAt = now() - 60000; S.codeExp = S.codeAt + PAIR.ttl; S.sel = 'new'; render(); { const j = $('#jcode'); if (j) j.focus(); } break;
+      case 'danJoin': if (S.phase === 'code') arrived(); break;
+      case 'again': if (S.aw) speak(S.aw.i); break;
+      case 'danConfirm': S.dan = 'both'; toast('Dan confirmed · both keys pinned · the table can open.', 'ok'); render(); break;
+      case 'wake': houseAwake(); break;
+      case 'houseTimeout': houseTimeout(); break;
+      case 'skip': skew += PAIR.ttl + 60000; tick(); toast('Prototype: jumped 24 h ahead.'); break;
+      default: break;
+    }
+  });
+  document.addEventListener('input', (e) => {
+    const b = e.target.dataset && e.target.dataset.bind; if (!b) return;
+    if (b === 'awname') { S.aw.name = e.target.value; renderAw(); return; }
+    S[b] = e.target.value; if (b === 'joinCode') S.joinErr = '';
+    renderDossier();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (UI.open) return; // a sheet or popover owns the keyboard (ui.js closes it on Esc)
+    const typing = e.target.matches && e.target.matches('input, select, textarea');
+    const awOpen = S.aw && S.aw.open;
+    if (e.key === 'Escape') { if (awOpen) { S.aw.open = false; render(); } else toast('Esc → back to Tables.'); return; }
+    if (e.key === 'Enter' && e.target.id === 'jcode') { e.preventDefault(); join(); return; }
+    if (e.key === 'Enter' && e.target.id === 'pname') { e.preventDefault(); if (!S.locked) pin(); return; }
+    if (!awOpen) return;
+    if (e.key === 'Tab') { const f = [...document.querySelectorAll('.aw button:not([disabled]), .aw input')]; if (!f.length) return; const fi = f[0], la = f[f.length - 1]; if (e.shiftKey && document.activeElement === fi) { e.preventDefault(); la.focus(); } else if (!e.shiftKey && document.activeElement === la) { e.preventDefault(); fi.focus(); } return; }
+    if (typing || S.aw.stage !== 'pick') return;
+    const i = S.aw.i;
+    if (['1', '2', '3'].includes(e.key)) { e.preventDefault(); pick(i, options(i)[Number(e.key) - 1]); }
+    else if (e.key === '0') { e.preventDefault(); pick(i, 'none'); }
+  });
+  // drag Dan's laptop by its title bar
+  (() => {
+    const lap = $('#laptop'), hd = $('#lh'); let sx = 0, sy = 0, ox = 0, oy = 0, drag = false;
+    hd.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; drag = true; hd.setPointerCapture(e.pointerId); const r = lap.getBoundingClientRect(), pr = $('#app').getBoundingClientRect(); ox = r.left - pr.left; oy = r.top - pr.top; sx = e.clientX; sy = e.clientY; hd.style.cursor = 'grabbing'; });
+    hd.addEventListener('pointermove', (e) => { if (!drag) return; const pr = $('#app').getBoundingClientRect(); const x = Math.max(0, Math.min(pr.width - lap.offsetWidth, ox + e.clientX - sx)); const y = Math.max(0, Math.min(pr.height - 40, oy + e.clientY - sy)); lap.classList.add('moved'); Object.assign(lap.style, { left: x + 'px', top: y + 'px', right: 'auto', bottom: 'auto' }); });
+    hd.addEventListener('pointerup', () => { drag = false; hd.style.cursor = ''; });
+  })();
+
+  function tick() {
+    $('#clock').textContent = day(now());
+    const live = S.phase === 'code' || S.phase === 'words' || S.phase === 'danCode';
+    if (live && S.codeExp && now() >= S.codeExp) {
+      clearInterval(pollT); clearTimeout(speakT); S.speak = -1;
+      S.phase = 'expired'; if (S.aw) S.aw.stage = 'expired'; S.dan = house() ? S.dan : 'expired';
+      if (S.mode === null) { S.mode = 'join'; }
+      S.sel = 'new'; render(); return;
+    }
+    const tl = document.getElementById('tlleft'); if (tl && S.codeExp) tl.textContent = left(S.codeExp);
+    const f = document.getElementById('tlfill'); if (f && S.codeExp && S.phase !== 'pinned') f.style.width = Math.max(0, Math.min(100, ((now() - S.codeAt) / PAIR.ttl) * 100)).toFixed(2) + '%';
+  }
+  setInterval(tick, 1000);
+  reset(); tick();
+})();
+</script>
+<script src="../../../shared/shell.js" data-page="pairing" data-variant="3"></script>
+</body>
+</html>

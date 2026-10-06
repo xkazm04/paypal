@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rescue · Lever Matrix</title>
+<link rel="stylesheet" href="../../../shared/tokens.css">
+<link rel="stylesheet" href="../../../shared/ui.css">
+<script src="../../../main/fixtures.js"></script>
+<script src="../../../shared/ui.js"></script>
+<style>
+/* ---- core (shared by the three Rescue variants): titlebar meters, layer-2 content, simulated approval window ---- */
+.tmeter { display: inline-flex; align-items: baseline; gap: 6px; height: var(--ctl-sm); padding: 0 var(--sp-2); border: 0; border-left: 2px solid var(--teal); border-radius: 0;
+  background: none; color: var(--text); font-size: var(--fs-small); white-space: nowrap; cursor: pointer; }
+.tmeter:hover { background: var(--hover); }
+.tmeter.eng { border-left-color: var(--line2); }
+.tmeter .k { color: var(--dim); }
+.tmeter .money { font-size: var(--fs-mono); }
+@media (max-width: 1240px) { .tmeter .k { display: none; } }
+button.badge { border: 0; cursor: pointer; }
+.recov { display: inline-flex; align-items: baseline; gap: var(--sp-2); height: var(--ctl); padding: 0 var(--sp-2); border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--panel); color: var(--text); cursor: pointer; white-space: nowrap; }
+.recov:hover { background: var(--hover); }
+.recov .k { font-size: var(--fs-small); color: var(--dim); }
+.recov .money { font-weight: var(--fw-semibold); }
+.l2 { display: grid; gap: var(--sp-3); }
+.l2 h3 { font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); margin: 0 0 var(--sp-1); }
+.l2 p { margin: 0; }
+.mail { border: 1px solid var(--line2); border-radius: var(--r-sm); background: var(--bg2); padding: var(--sp-2) var(--sp-3); }
+.mail .mh { display: flex; justify-content: space-between; gap: var(--sp-2); font-size: var(--fs-small); color: var(--dim); margin-bottom: var(--sp-1); }
+.mail p { margin: 0; line-height: 1.55; }
+.slot { font-family: var(--mono); font-size: var(--fs-small); color: var(--gold-l); background: color-mix(in srgb, var(--gold) 14%, transparent); border-radius: 3px; padding: 0 3px; white-space: nowrap; }
+.slot.open { color: var(--muted); background: none; outline: 1px dashed var(--line2); outline-offset: -1px; }
+.calls, .rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: var(--fs-small); color: var(--muted); }
+.calls { font-family: var(--mono); }
+.calls li::before { content: "→ "; color: var(--gold-l); }
+.rules li::before { content: "✓ "; color: var(--ok); font-family: var(--mono); }
+.rules li.x::before { content: "✕ "; color: var(--red-l); }
+.rules li.x { color: var(--red-l); }
+.rules li.wait::before { content: "… "; color: var(--dim); }
+.sims { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); }
+.lever .kbd { flex: none; }
+.lever[aria-disabled="true"] { cursor: not-allowed; }
+.lever[aria-disabled="true"] .t1 { color: var(--dim); }
+.lever .val { font: var(--fs-mono) var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.decide { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.logrow .id { width: 72px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.logrow .who { flex: none; font: var(--fs-small) var(--mono); color: var(--teal-l); }
+.logrow.pp .who { color: var(--gold-l); }
+.logrow .t1 { font: var(--fs-small) var(--mono); color: var(--muted); }
+
+/* simulated approval window (its own OS window labelled `approval` in the app) */
+.aback { position: fixed; inset: var(--shell-h) 0 0 0; z-index: 9200; display: grid; place-items: center; padding: var(--sp-4); background: var(--scrim); }
+.aback.fresh { animation: ui-fade var(--t-med) var(--ease); }
+.awin { width: min(560px, 100%); max-height: calc(100vh - var(--shell-h) - 32px); display: grid; grid-template-rows: var(--bar) minmax(0, 1fr) auto; overflow: hidden;
+  background: var(--panel); border-radius: var(--r-lg); box-shadow: var(--shadow-3), 0 0 0 1px color-mix(in srgb, var(--gold) 35%, transparent); }
+.awin-bar { display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-1) 0 var(--sp-3); background: var(--material); border-bottom: 1px solid var(--line); font-size: var(--fs-small); color: var(--dim); min-width: 0; }
+.awin-bar .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.awin-b { overflow: auto; padding: var(--sp-3) var(--sp-4) var(--sp-4); display: grid; gap: var(--sp-3); align-content: start; }
+.awin-f { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--line); }
+.awin-f .left { margin-right: auto; }
+.awin .phases { display: flex; gap: var(--sp-1); }
+.awin .akick { font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--gold-l); }
+.awin h2 { font: var(--fw-semibold) var(--fs-title2)/1.25 var(--display); margin: 2px 0 0; outline: none; }
+.awin h2 .money { font-size: var(--fs-display); color: var(--gold-l); }
+.awin .steps { margin: 0; padding-left: 18px; color: var(--muted); display: grid; gap: 2px; }
+.awin details.ui-disclosure > :not(summary) { margin: 0 0 var(--sp-2) 16px; }
+/* the baseline folds the module list to icons under 1180 px; keep that rail from scrolling sideways */
+@media (max-width: 1180px) { .ui-split.has-insp .ui-sidebar .cnt:not(.need) { display: none; } .ui-split.has-insp .ui-sb-item { gap: var(--sp-1); padding: 0 var(--sp-1); } }
+/* ---- variant 3 · Lever Matrix: subscribers × the closed lever list; one cell per row, "do nothing" is a real column ---- */
+/* the matrix needs the width: the module list folds to its icons, as the baseline does under 1180 px */
+.ui-split.has-insp { --inspector: 304px; grid-template-columns: 56px minmax(0, 1fr) var(--inspector); }
+.ui-split.has-insp .ui-sidebar .lbl, .ui-split.has-insp .ui-sidebar .ui-sb-head, .ui-split.has-insp .ui-sidebar .cnt:not(.need) { display: none; }
+.ui-split.has-insp .ui-sb-item { gap: var(--sp-1); padding: 0 var(--sp-1); }
+.ui-inspector h2 { margin-top: var(--sp-2); }
+.desk-chips { display: flex; gap: var(--sp-1); align-items: center; flex-wrap: wrap; }
+.desk-links { display: flex; gap: var(--sp-1); margin-left: calc(-1 * var(--sp-2)); }
+.mwrap { overflow-x: auto; }
+.mx { table-layout: fixed; min-width: 640px; }
+.mx th { padding: 0 var(--sp-2); overflow: hidden; text-overflow: ellipsis; }
+.mx th { vertical-align: middle; }
+.mx th.def { color: var(--steel); }
+.mx th.off { opacity: .7; }
+.mx td { height: auto; padding: 3px var(--sp-1); }
+.mx td.who { padding: 0 var(--sp-3); overflow: hidden; }
+.mx .who .l1 { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.mx .who .ui-silence { display: block; }
+.mx .who .id { font: var(--fw-semibold) var(--fs-mono) var(--mono); }
+.mx .who .need { width: 8px; display: inline-flex; flex: none; }
+.mx tr.on td.who { box-shadow: inset 2px 0 0 var(--teal); background: var(--sel); }
+.cell { position: relative; display: grid; align-content: center; width: 100%; min-width: 0; height: 40px; padding: 0 4px 0 18px; text-align: left; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg2); color: var(--text); }
+.cell::before { content: ""; position: absolute; left: 5px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--line2); }
+.cell:hover { border-color: var(--line2); }
+.cell[aria-checked="true"] { border-color: var(--m-rescue); background: color-mix(in srgb, var(--m-rescue) 12%, var(--bg2)); }
+.cell[aria-checked="true"]::before { box-shadow: inset 0 0 0 3px var(--m-rescue); }
+.cell.def[aria-checked="true"] { border-color: var(--steel); background: color-mix(in srgb, var(--steel) 9%, var(--bg2)); }
+.cell.def[aria-checked="true"]::before { box-shadow: inset 0 0 0 3px var(--steel); }
+.cell[aria-disabled="true"] { cursor: not-allowed; background: none; border-style: dashed; }
+.cell[aria-disabled="true"]::before { box-shadow: none; outline: 1px dashed var(--line2); outline-offset: -1px; }
+.cell .v { font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cell .s { font-size: var(--fs-small); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cell .s.why { color: var(--red-l); font-family: var(--mono); }
+.cell[aria-disabled="true"] .v { color: var(--dim); font-weight: var(--fw-regular); }
+.cell .sug { position: absolute; top: -8px; right: 4px; font: var(--fw-bold) var(--fs-small)/15px var(--mono); padding: 0 4px; border-radius: 3px; color: var(--on-gold); background: var(--gold); }
+.cell.peek { box-shadow: 0 0 0 1px var(--focus); }
+td.neverc { text-align: center; vertical-align: middle; padding: 0 var(--sp-2); color: var(--dim); font-size: var(--fs-small); border-left: 1px dashed color-mix(in srgb, var(--refuse) 35%, var(--line));
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--refuse) 6%, transparent) 0 6px, transparent 6px 12px); }
+td.neverc .x { color: var(--red-l); font: var(--fw-semibold) var(--fs-title3) var(--mono); }
+th.never { text-decoration: line-through; }
+td.act { padding: 0 var(--sp-2); }
+td.span { padding: 0 var(--sp-2); }
+.spanline { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.spanline .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+tr.gs td { height: 24px; padding: 0 var(--sp-3); font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); background: var(--bg2); }
+.mx tbody tr:hover td.neverc, .mx tbody tr.gs:hover td { background: var(--bg2); }
+.keys { margin-top: var(--sp-3); display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); }
+</style>
+</head>
+<body>
+<div class="ui-app">
+  <header class="ui-titlebar" id="titlebar"></header>
+  <div class="ui-split has-insp" id="split">
+    <aside class="ui-sidebar" id="sidebar" aria-label="Modules"></aside>
+    <main class="ui-main" id="main"></main>
+    <aside class="ui-inspector" id="insp" aria-label="Cell detail" aria-live="polite"></aside>
+  </div>
+</div>
+<div id="approvalLayer" hidden></div>
+<script>
+/* ---- core: rescue data model, lever rules, main-window chrome, layer-2 content, simulated approval window ----
+   Shared by the three Rescue variants (inlined into each page). Money is integer cents. Built on shared/ui.js. */
+window.Core = (function () {
+  'use strict';
+  const F = window.FIX;
+  const T0 = Date.now(), NOW0 = new Date(F.nowISO).getTime();
+  const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
+  const now = () => NOW0 + (Date.now() - T0);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const esc = UI.esc;
+  const usd = (c) => '$' + (c / 100).toFixed(2);
+  const pad = (n) => String(n).padStart(2, '0');
+  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const hhmm = (t) => { const d = new Date(t); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+  const dayLabel = (t) => { const d = new Date(t); return DOW[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()]; };
+  /* "in 4 d" stays as coarse as the data ("PayPal retries in 4 d"); under a day it counts down. */
+  const left = (ms) => ms <= 0 ? 'now' : ms >= DAY ? Math.round(ms / DAY) + ' d' : Math.floor(ms / HOUR) + ' h ' + pad(Math.floor((ms % HOUR) / MIN)) + ' m';
+
+  /* ---------------- data ---------------- */
+  const R3 = F.mandates.find((m) => m.id === 'R-3');
+  const plan = F.shop.find((x) => x.sku === 'care-plan');
+  const PRICE = Math.round(plan.price * 100);            // $12.00 care plan
+  const DISCOUNT_PCT = 20;                               // the rescue agent's slot value (FIX: −20% → $9.60)
+  const RESUME = 'Sun 29 Nov';                           // PAUSE · max 1 cycle (R-3)
+  const LEVERS = [
+    { key: 'DISCOUNT_THIS_CYCLE', name: 'Discount this cycle', short: 'Discount', limit: 'max −25%', on: /DISCOUNT_THIS_CYCLE/.test(R3.text) },
+    { key: 'PAUSE', name: 'Pause', short: 'Pause', limit: 'max 1 cycle', on: /PAUSE/.test(R3.text) },
+    { key: 'RETRY_AFTER_FIX', name: 'Retry after fix', short: 'Retry after fix', limit: 'enabled', on: /RETRY_AFTER_FIX/.test(R3.text) },
+    { key: 'DOWNGRADE', name: 'Downgrade', short: 'Downgrade', limit: 'off in R-3', on: !/DOWNGRADE off/.test(R3.text) }
+  ];
+  const LEVER = Object.fromEntries(LEVERS.map((l) => [l.key, l]));
+
+  /* Page-local sample data the dataset lacks; ids, amounts and times follow FIX. */
+  const RESCUE_SAMPLE = {
+    'S-14': { subRef: 'I-4KD7…R2', failedAt: new Date('2026-10-29T06:00:00').getTime(), retryAt: NOW0 + 4 * DAY, invoice: 'INV2-8K4R-…' },
+    'S-22': { subRef: 'I-9WQ2…H5', failedAt: null, retryAt: NOW0 + 18 * HOUR, invoice: 'INV2-3PX9-…', dealIfLever: 'D-0202' },
+    'S-09': { subRef: 'I-2MZ8…C3', eventAt: new Date('2026-10-27T12:00:00').getTime(), eventDay: 'Tue' },
+    'S-05': { subRef: 'I-6TB1…P9', eventAt: new Date('2026-10-26T12:00:00').getTime(), eventDay: 'Mon' }
+  };
+  const subs = F.subscribers.map((s) => Object.assign({}, s, RESCUE_SAMPLE[s.id], {
+    suggested: s.state === 'FAILED' && !s.retryBlocked ? s.lever : null,
+    afterRetry: s.retryBlocked ? s.lever : null,
+    choice: s.state === 'FAILED' && !s.retryBlocked ? s.lever : null,
+    left: false, offer: null, at: null
+  }));
+  const sub = (id) => subs.find((s) => s.id === id);
+  const OPEN = ['FAILED', 'OFFER SENT', 'PAUSED', 'DOWNGRADE PENDING'];
+  const isOpen = (s) => OPEN.includes(s.state);
+  function ordered() {
+    const o = subs.filter(isOpen).sort((a, b) => (a.retryAt || Infinity) - (b.retryAt || Infinity));
+    return o.concat(subs.filter((s) => !isOpen(s)));
+  }
+  const retryLeft = (s) => s.retryAt ? left(s.retryAt - now()) : '—';
+  const isWaiting = (s) => s.state === 'FAILED' && !!s.retryAt && s.retryAt - now() < DAY;
+  const needsYou = (s) => (s.state === 'FAILED' && !!s.suggested && !s.left && !isWaiting(s)) || (s.state === 'OFFER SENT' && s.offer && s.offer.replied && !s.offer.captured);
+  const dealHref = (id) => '../../deal/variant-1/index.html#' + id;
+  const MANDATE_HREF = '../../mandate/variant-1/index.html#R-3';
+
+  /* The money ledger for "recovered": rescue invoices and outstanding-balance captures only. */
+  const ledger = [];
+  const ownRetries = [{ sub: 'S-09', cents: PRICE, day: 'Tue' }];
+  const recoveredCents = () => ledger.filter((x) => (x.kind === 'invoice' && x.status === 'PAID') || (x.kind === 'capture' && x.status === 'COMPLETED')).reduce((a, x) => a + x.cents, 0);
+  function recoveredBreakdown() {
+    const counted = ledger.filter((x) => (x.kind === 'invoice' && x.status === 'PAID') || (x.kind === 'capture' && x.status === 'COMPLETED'));
+    const open = ledger.filter((x) => x.status === 'SENT');
+    return { counted, open, own: ownRetries, replay: subs.filter((s) => s.replay) };
+  }
+
+  const log = [
+    { t: 'Mon', who: 'paypal', what: 'S-05 · subscription cancelled by the subscriber' },
+    { t: 'Tue', who: 'paypal', what: 'S-09 · PayPal’s own retry paid $12.00 · no lever used' },
+    { t: '—', who: 'paypal', what: 'S-22 · PAYMENT.FAILED ×2 · next retry in 18 h · rescue agent waits' },
+    { t: 'Thu 06:00', who: 'paypal', what: 'S-14 · BILLING.SUBSCRIPTION.PAYMENT.FAILED · REPLAY (recorded payload)' },
+    { t: 'Thu 06:01', who: 'agent:rescue', what: 'D-0188 · suggests DISCOUNT_THIS_CYCLE −20% → $9.60 · inside R-3' }
+  ];
+  function addLog(who, what) { log.push({ t: hhmm(now()), who, what }); }
+
+  /* ---------------- lever rules (closed list, one subscription) ---------------- */
+  function leverInfo(s, key) {
+    const L = LEVER[key];
+    const r = { key, name: L.name, limit: L.limit, ok: false, why: '', code: '', effect: '', short: '', val: '', cents: 0, calls: [], approveLabel: '', headline: '', suggested: s.suggested === key };
+    if (!L.on) { r.why = 'off in rescue mandate R-3'; r.code = 'off · R-3'; r.short = 'off in R-3'; r.val = 'revise plan'; r.calls = ['POST /v1/billing/subscriptions/{id}/revise (not enabled)']; return r; }
+    if (key === 'DISCOUNT_THIS_CYCLE') {
+      r.cents = PRICE * (100 - DISCOUNT_PCT) / 100;
+      r.short = '−' + DISCOUNT_PCT + '% → ' + usd(r.cents) + ' invoice';
+      r.val = '−' + DISCOUNT_PCT + '% → ' + usd(r.cents);
+      r.effect = 'one PayPal invoice for ' + usd(r.cents) + ' (−' + DISCOUNT_PCT + '% of ' + usd(PRICE) + '), this cycle only';
+      r.calls = ['POST /v2/invoicing/invoices · ' + usd(r.cents), 'POST /v2/invoicing/invoices/{id}/send', 'GET /v2/invoicing/invoices/{id} until PAID'];
+      r.approveLabel = 'Create ' + usd(r.cents) + ' invoice & open email';
+      r.headline = usd(r.cents) + ' invoice to ' + s.id;
+    } else if (key === 'PAUSE') {
+      r.short = 'suspend 1 cycle · back ' + RESUME;
+      r.val = '1 cycle · back ' + RESUME.slice(4);
+      r.effect = 'suspend this subscription now, activate it on ' + RESUME + ' (1 cycle)';
+      r.calls = ['POST /v1/billing/subscriptions/{id}/suspend', 'POST /v1/billing/subscriptions/{id}/activate on ' + RESUME];
+      r.approveLabel = 'Suspend 1 cycle & open email';
+      r.headline = 'Pause ' + s.id + ' for one cycle';
+    } else if (key === 'RETRY_AFTER_FIX') {
+      r.cents = PRICE;
+      r.short = 'email, then capture ≤ ' + usd(PRICE);
+      r.val = 'email · capture ≤ ' + usd(PRICE);
+      r.effect = 'your email asks them to fix their funding source; after they reply, a second approval captures the outstanding balance (≤ ' + usd(PRICE) + ')';
+      r.calls = ['no PayPal call now', 'later: POST /v1/billing/subscriptions/{id}/capture · OUTSTANDING_BALANCE ≤ ' + usd(PRICE)];
+      r.approveLabel = 'Open email · capture later';
+      r.headline = 'Ask ' + s.id + ' to fix their funding';
+    }
+    if (s.state !== 'FAILED') { r.why = 'only a failed renewal takes a lever'; r.code = 'closed'; }
+    else if (key === 'RETRY_AFTER_FIX' && s.replay) { r.why = 'REPLAY row · no real balance to capture'; r.code = 'REPLAY'; }
+    else if (isWaiting(s)) { r.why = key === 'RETRY_AFTER_FIX' ? 'PayPal’s own retry is due within 24 h' : 'no offer before PayPal’s retry result (in ' + retryLeft(s) + ')'; r.code = key === 'RETRY_AFTER_FIX' ? 'retry <24h' : 'waits retry'; }
+    r.ok = !r.why;
+    return r;
+  }
+  function captureInfo(s) {
+    return { key: 'CAPTURE', name: 'Capture outstanding balance', limit: '≤ outstanding', ok: !s.replay, cents: PRICE, headline: 'Capture ' + usd(PRICE) + ' from ' + s.id,
+      calls: ['POST /v1/billing/subscriptions/{id}/capture · capture_type OUTSTANDING_BALANCE · ' + usd(PRICE)], approveLabel: 'Capture ' + usd(PRICE) + ' outstanding', effect: 'collect the missed cycle once their funding source is fixed' };
+  }
+  function rulesFor(s, key) {
+    const r = [['', 'one subscription only · ' + s.id + ' (' + s.subRef + ')']];
+    r.push([LEVER[key].on ? '' : 'x', 'rescue mandate R-3 · ' + key + ' ' + LEVER[key].limit]);
+    if (key === 'RETRY_AFTER_FIX') { r.push([s.replay ? 'x' : '', s.replay ? 'REPLAY row: no real balance to capture' : 'a real balance exists at PayPal']); r.push([isWaiting(s) ? 'x' : '', 'PayPal’s own retry more than 24 h away (now ' + (s.retryAt ? 'in ' + retryLeft(s) : 'none') + ')']); }
+    else if (isWaiting(s)) r.push(['x', 'no offer before PayPal’s retry result (in ' + retryLeft(s) + ')']);
+    if (key === 'DISCOUNT_THIS_CYCLE') r.push(['', '−' + DISCOUNT_PCT + '% ≤ R-3 max −25% · auto_bill_outstanding false, never billed twice']);
+    r.push(['', 'plan price untouched · update-pricing-schemes is never called']);
+    r.push(['', 'email = fixed template · named slots only, no agent prose']);
+    return r;
+  }
+  /* the default on silence: long form for layer 2, one line for layer 1 */
+  function silence(s) {
+    if (s.state === 'FAILED') return s.retryAt ? 'nothing is sent · PayPal’s own retry runs in ' + retryLeft(s) : 'nothing is sent · PayPal has no retry left this cycle · the cycle stays unpaid';
+    if (s.state === 'OFFER SENT') {
+      if (s.offer.lever === 'DISCOUNT_THIS_CYCLE') return 'the invoice stays open · no money moves until ' + s.id + ' pays it on PayPal';
+      return s.offer.replied ? 'nothing is captured · the capture waits for your approval' : 'nothing is captured · you wait for their reply in your own inbox';
+    }
+    if (s.state === 'PAUSED') return 'on ' + RESUME + ' the wallet calls activate, as you approved · billing resumes at ' + usd(PRICE);
+    return '';
+  }
+  function silenceLine(s) {
+    let h = '';
+    if (s.state === 'FAILED') h = s.left ? 'left to PayPal → <b>nothing sent</b> · retry in ' + esc(retryLeft(s)) : s.retryAt ? 'silent → <b>nothing sent</b> · PayPal retries in ' + esc(retryLeft(s)) : 'silent → <b>nothing sent</b> · cycle stays unpaid';
+    else if (s.state === 'OFFER SENT') h = s.offer.lever === 'DISCOUNT_THIS_CYCLE' ? 'silent → <b>no money moves</b> · invoice stays open' : s.offer.replied ? 'silent → <b>nothing captured</b> · waits for you' : 'silent → <b>nothing captured</b> · wait for their reply';
+    else if (s.state === 'PAUSED') h = 'silent → <b>activate ' + esc(RESUME) + '</b> · as you approved';
+    return h ? '<span class="ui-silence">' + h + '</span>' : '';
+  }
+  const STCLASS = { 'FAILED': 'coral', 'OFFER SENT': 'gold', 'RECOVERED': 'ok', 'RETRY SUCCEEDED': 'line', 'PAUSED': '', 'DOWNGRADE PENDING': 'gold', 'LOST': '' };
+  const stChip = (state) => '<span class="ui-chip ' + (STCLASS[state] || '') + '">' + esc(state) + '</span>';
+  const replayChip = (s) => s.replay ? '<button class="badge replay" data-cpop="replay" title="Detected from a recorded payload · click for what that means">REPLAY</button>' : '';
+
+  /* ---------------- the email: a fixed template with named slots ---------------- */
+  const TEMPLATES = {
+    DISCOUNT_THIS_CYCLE: ['Hi ', { slot: 'first_name' }, ', your care-plan payment didn’t go through. Here is this month at ', { slot: 'amount' }, ': PayPal will email you the invoice ', { slot: 'invoice_number' }, '. Your plan carries on as before. Thanks, Maya · Second Screen'],
+    PAUSE: ['Hi ', { slot: 'first_name' }, ', your care-plan payment didn’t go through, so we have paused your plan for one month. There is nothing to do: it restarts on ', { slot: 'resume_date' }, '. Thanks, Maya · Second Screen'],
+    RETRY_AFTER_FIX: ['Hi ', { slot: 'first_name' }, ', your care-plan payment didn’t go through. Could you check the card or bank on your PayPal account? Reply once it is fixed and we will collect ', { slot: 'amount' }, '. Thanks, Maya · Second Screen']
+  };
+  const SLOT_SRC = { first_name: 'PayPal subscriber record · filled by the wallet when the draft opens', amount: 'lever arithmetic inside R-3', invoice_number: 'assigned by PayPal when the invoice is created', resume_date: 'PAUSE · 1 cycle (R-3)' };
+  function mailHtml(s, key) {
+    const T = TEMPLATES[key]; if (!T) return '';
+    const info = leverInfo(s, key);
+    const vals = { first_name: null, amount: usd(info.cents || PRICE), invoice_number: s.offer && s.offer.invoice ? s.offer.invoice : null, resume_date: RESUME };
+    return T.map((p) => typeof p === 'string' ? esc(p) : '<span class="slot' + (vals[p.slot] ? '' : ' open') + '" title="slot {' + p.slot + '} · ' + esc(SLOT_SRC[p.slot]) + '">' + esc(vals[p.slot] || '{' + p.slot + '}') + '</span>').join('');
+  }
+  function mailBox(s, key, head) {
+    if (!TEMPLATES[key]) return '<div class="mail"><div class="mh"><span>No email</span></div><p class="dim">This lever has no template: it is off in R-3.</p></div>';
+    return '<div class="mail"><div class="mh"><span>' + esc(head || 'Fixed template') + '</span><span>named slots only</span></div><p>' + mailHtml(s, key) + '</p></div>';
+  }
+
+  /* ---------------- state + events ---------------- */
+  const S = { locked: false, lastInput: Date.now(), listeners: [] };
+  const onChange = (fn) => S.listeners.push(fn);
+  function emit() { renderChrome(); S.listeners.forEach((f) => f()); }
+  const toast = (msg, kind) => UI.toast(msg, kind);
+  function setChoice(id, key) {
+    const s = sub(id); if (!s) return false;
+    const info = leverInfo(s, key);
+    if (!info.ok) { toast('Not this lever · ' + s.id + ' · ' + key + ': ' + info.why + '. Nothing was sent.', 'bad'); return false; }
+    s.choice = key; s.left = false; emit(); return true;
+  }
+  function leave(id) {
+    const s = sub(id); s.left = !s.left;
+    addLog('owner', s.left ? s.id + ' · left to PayPal’s retry · nothing sent' : s.id + ' · back on the rescue list');
+    toast(s.left ? s.id + ' left to PayPal. Nothing is sent; PayPal’s own retry runs in ' + retryLeft(s) + '.' : s.id + ' is back on the rescue list.');
+    emit();
+  }
+
+  /* simulated PayPal / mailbox events (labelled in the UI as "Prototype · sandbox simulation") */
+  function sim(kind, id) {
+    const s = sub(id); const t = hhmm(now());
+    if (kind === 'pay') {
+      const inv = ledger.find((x) => x.sub === id && x.kind === 'invoice' && x.status === 'SENT'); if (!inv) return;
+      inv.status = 'PAID'; inv.rec = 'pending'; inv.paidAt = now();
+      s.state = 'RECOVERED'; s.at = now(); s.retry = 'invoice ' + inv.ref + ' PAID at ' + t; s.retryAt = null;
+      addLog('paypal', 'GET /v2/invoicing/invoices/' + inv.ref + ' → PAID (polled) · ' + usd(inv.cents));
+      toast(usd(inv.cents) + ' recovered · invoice ' + inv.ref + ' PAID · pending in PayPal reporting', 'ok');
+    } else if (kind === 'cancel') {
+      const inv = ledger.find((x) => x.sub === id && x.kind === 'invoice' && x.status === 'SENT'); if (inv) inv.status = 'UNPAID';
+      s.state = 'LOST'; s.at = now(); s.retry = 'cancelled by the subscriber on PayPal at ' + t; s.retryAt = null;
+      addLog('paypal', s.id + ' · BILLING.SUBSCRIPTION.CANCELLED (polled) · nothing recovered');
+      toast(s.id + ' cancelled on PayPal · LOST · nothing recovered, nothing charged');
+    } else if (kind === 'retryok') {
+      s.state = 'RETRY SUCCEEDED'; s.at = now(); s.retry = 'PayPal’s own retry paid ' + usd(PRICE) + ' at ' + t; s.retryAt = null; s.choice = null;
+      ownRetries.push({ sub: s.id, cents: PRICE, day: t });
+      addLog('paypal', s.id + ' · PayPal’s own retry paid ' + usd(PRICE) + ' · no lever used · not counted as recovered');
+      toast(s.id + ': PayPal’s own retry paid · no lever used, so not counted as recovered');
+    } else if (kind === 'retryfail') {
+      s.fails = 3; s.retryAt = null; s.retry = 'PayPal’s retry failed at ' + t + ' · no retry left this cycle';
+      s.suggested = s.afterRetry; s.choice = s.afterRetry; s.deal = s.dealIfLever; s.retryBlocked = false;
+      addLog('paypal', s.id + ' · PAYMENT.FAILED ×3 · no retry left this cycle');
+      addLog('agent:rescue', s.deal + ' · suggests ' + s.afterRetry + ' · inside R-3');
+      toast(s.id + ' needs you · PayPal’s retry failed; the rescue agent suggests ' + s.afterRetry, 'gold');
+    } else if (kind === 'reply') {
+      s.offer.replied = true;
+      addLog('owner', s.id + ' · you read their reply in your own inbox: funding fixed (no agent reads replies)');
+      toast('Noted · the capture of ' + usd(PRICE) + ' now needs your approval', 'gold');
+    } else if (kind === 'match') {
+      ledger.filter((x) => x.sub === id && x.rec === 'pending').forEach((x) => { x.rec = 'matched'; });
+      addLog('paypal', s.id + ' · Transaction Search matched · reconciled');
+      toast(s.id + ': matched in PayPal Transaction Search', 'ok');
+    } else if (kind === 'sent') {
+      s.offer.emailSentAt = now(); addLog('owner', s.id + ' · you marked the email as sent from your mail client');
+    }
+    emit();
+  }
+
+  /* ---------------- layer 2: sheets and popovers opened by the core ---------------- */
+  const L2 = [];
+  function sheet(o) { const a = UI.sheet(o); L2.push(a); return a; }
+  function closeLayers() { while (L2.length) L2.pop().close(); }
+  const kv = (rows) => '<dl class="ui-kv">' + rows.map(([k, v]) => '<dt>' + esc(k) + '</dt><dd>' + v + '</dd>').join('') + '</dl>';
+  function popContent(key) {
+    const [k, id, lv] = key.split('|');
+    if (k === 'wallet') { const m = meters(); return ['Wallet spend · captured this week', kv([['Out', '<span class="money">' + usd(m.out) + '</span> · your agents bought'], ['In', '<span class="money">' + usd(m.inn) + '</span> · sales + recovered']]) + '<p class="ui-hint" style="margin:6px 0 0">USD that actually moved at PayPal. Separate from the engine estimate.</p>']; }
+    if (k === 'engine') return ['Engine estimate · not a bill', '<p style="margin:0"><span class="money">~$' + F.engineWeekUSD.toFixed(2) + '</span> this week · ' + esc(F.owner.engine) + '’s own client-side estimate.</p><p class="ui-hint" style="margin:6px 0 0">Never used for money decisions, never added to wallet spend.</p>'];
+    if (k === 'recovered') {
+      const b = recoveredBreakdown(), r = recoveredCents();
+      const li = (cls, a, m) => '<li class="' + cls + '">' + esc(a) + ' · <span class="money">' + m + '</span></li>';
+      const yes = b.counted.map((x) => li('', x.sub + (x.kind === 'invoice' ? ' · invoice ' + x.ref + ' PAID' : ' · capture COMPLETED'), usd(x.cents))).join('');
+      const no = b.open.map((x) => li('wait', x.sub + ' · invoice sent, unpaid', usd(x.cents))).join('') + b.own.map((x) => li('x', x.sub + ' · PayPal’s own retry (' + x.day + ')', usd(x.cents))).join('') + b.replay.map((s) => li('x', s.id + ' · REPLAY failure', '$0.00')).join('');
+      return ['Recovered this month · ' + usd(r), '<h3 class="ui-section-h" style="padding:0">Counted</h3><ul class="rules">' + (yes || '<li class="wait">no paid rescue invoice or capture yet</li>') + '</ul><h3 class="ui-section-h" style="padding:0;margin-top:8px">Not counted</h3><ul class="rules">' + (no || '<li class="wait">nothing</li>') + '</ul><p class="ui-hint" style="margin:6px 0 0">Only a paid rescue invoice or a completed outstanding-balance capture counts.</p>'];
+    }
+    if (k === 'replay') return ['REPLAY · recorded event', '<p style="margin:0">This failure was detected from a recorded PAYMENT.FAILED payload. It carries no money: it never counts as recovered and cannot use RETRY_AFTER_FIX (no real balance).</p><p class="ui-hint" style="margin:6px 0 0">A discount invoice that follows it is real sandbox money.</p>'];
+    if (k === 'r3') return ['Rescue mandate R-3 v1', kv([['Levers', esc(R3.text)], ['Scope', 'one lever acts on one subscription or one invoice'], ['Never', 'the plan price: update-pricing-schemes would reprice all ' + F.activeSubscribers + ' subscribers'], ['Email', 'fixed template · named slots · no agent prose'], ['Signed', esc(R3.signed)]]) + '<p style="margin:8px 0 0"><a class="ui-btn plain sm" style="padding:0" href="' + MANDATE_HREF + '">Open R-3 in Mandates →</a></p>'];
+    if (k === 'never') return ['Plan price · never a lever', '<p style="margin:0">update-pricing-schemes is not on the rescue tool surface. It would reprice all ' + F.activeSubscribers + ' active subscribers, so no lever, agent or approval can call it from here.</p>'];
+    if (k === 'why') { const s = sub(id), i = leverInfo(s, lv); return [lv + ' · not for ' + id, '<p style="margin:0" class="red">' + esc(i.why) + '.</p><p class="ui-hint" style="margin:6px 0 0">Nothing can be sent with this lever. R-3 · ' + esc(LEVER[lv].limit) + '.</p>']; }
+    if (k === 'wait') { const s = sub(id); return [id + ' waits for PayPal’s retry', '<p style="margin:0">PayPal retries in <b class="gold">' + esc(retryLeft(s)) + '</b>. The rescue agent makes no offer before that result, and RETRY_AFTER_FIX stays off while a retry is under 24 h away.</p><p class="ui-hint" style="margin:6px 0 0">If the retry pays, the row becomes RETRY SUCCEEDED, which is not counted as recovered.</p>']; }
+    if (k === 'lock') return ['Idle lock', '<p style="margin:0">Privileged buttons lock after 15 idle minutes and ask for Windows Hello. Everything stays readable.</p>'];
+    return ['', ''];
+  }
+  function pop(anchor, key) { const [t, b] = popContent(key); return popHtml(anchor, t, b); }
+  function popHtml(anchor, title, html) { const a = UI.popover(anchor, html, { title }); L2.push(a); return a; }
+
+  /* lever detail: what it does, the calls, the rules and the email, plus the hand-off */
+  function leverSheet(id, key) {
+    const s = sub(id); const info = leverInfo(s, key);
+    const after = s.state !== 'FAILED' && s.offer && s.offer.lever === key;
+    const body = '<div class="l2"><div class="ui-hint">' + esc(s.id + ' · ' + s.plan + ' · ' + s.subRef) + '</div>' +
+      '<div><h3>What it does</h3><p>' + (info.ok || after ? esc(info.effect) : '<span class="red">' + esc(info.why) + '.</span> Nothing can be sent with this lever.') + '</p></div>' +
+      '<div><h3>PayPal calls · this subscription only</h3><ul class="calls">' + info.calls.map((c) => '<li>' + esc(c) + '</li>').join('') + '</ul></div>' +
+      '<div><h3>Rules checked</h3><ul class="rules">' + rulesFor(s, key).map((r) => '<li class="' + r[0] + '">' + esc(r[1]) + '</li>').join('') + '</ul></div>' +
+      '<div><h3>' + (after ? 'The draft that opened in your mail client' : 'The email the subscriber reads') + '</h3>' + mailBox(s, key) + '</div>' +
+      (silence(s) ? '<p class="ui-silence" style="white-space:normal">If you do nothing: <b>' + esc(silence(s)) + '</b></p>' : '') + '</div>';
+    const can = info.ok && s.state === 'FAILED' && !s.left;
+    const actions = [{ label: 'Close' }];
+    if (can) actions.push({ label: (S.locked ? 'Unlock & review' : 'Review & approve') + ' ↗', kind: 'gold', onClick: () => { setTimeout(() => openApproval(s.id, key, 'lever'), 0); } });
+    sheet({ title: s.id + ' · ' + key, body, actions, size: 'wide' });
+  }
+  function auditSheet() {
+    const rows = log.slice().reverse().map((l) => '<div class="ui-row logrow' + (l.who === 'paypal' ? ' pp' : '') + '"><span class="id">' + esc(l.t) + '</span><span class="who">' + esc(l.who) + '</span><span class="main"><span class="t1" title="' + esc(l.what) + '">' + esc(l.what) + '</span></span></div>').join('');
+    sheet({ title: 'Rescue · audit lines (' + log.length + ')', size: 'wide', body: '<div class="ui-group">' + rows + '</div><p class="ui-hint" style="margin:8px 0 0">The audit log is append-only and hash-chained; these are its rescue lines.</p>' });
+  }
+
+  /* ---------------- the simulated approval window ---------------- */
+  let A = null;
+  function openApproval(id, key, purpose, opener) {
+    const s = sub(id); if (!s) return;
+    if (purpose !== 'capture') {
+      const info = leverInfo(s, key);
+      if (!info.ok) { toast('Nothing to approve · ' + info.why + '.', 'bad'); return; }
+    }
+    closeLayers();
+    A = { id, key, purpose: purpose || 'lever', phase: 'CHECKING', opener: opener || document.activeElement };
+    addLog('main', 'approval window opened · ' + id + ' · ' + (purpose === 'capture' ? 'CAPTURE' : key));
+    renderApproval(true);
+    setTimeout(() => { if (A && A.phase === 'CHECKING') { A.phase = S.locked ? 'LOCKED' : 'READY'; renderApproval(); } }, reduce ? 10 : 500);
+  }
+  function closeApproval(msg) {
+    if (!A) return; const op = A.opener; const was = A.phase;
+    A = null; renderApproval();
+    if (msg !== false && was !== 'DONE') toast('Approval window closed · ' + (msg || 'nothing was sent'));
+    if (op && document.contains(op)) op.focus();
+    emit();
+  }
+  function approve() {
+    if (!A || A.phase !== 'READY') return;
+    if (S.locked) { A.phase = 'LOCKED'; renderApproval(); return; }
+    A.phase = 'WORKING'; renderApproval();
+    setTimeout(() => {
+      if (!A) return;
+      const s = sub(A.id); const t = hhmm(now());
+      if (A.purpose === 'capture') {
+        s.offer.captured = true;
+        ledger.push({ sub: s.id, kind: 'capture', ref: 'CAP-' + s.id, cents: PRICE, status: 'COMPLETED', rec: 'pending', at: now() });
+        s.state = 'RECOVERED'; s.at = now(); s.retry = 'outstanding balance captured at ' + t;
+        addLog('paypal', 'POST /v1/billing/subscriptions/' + s.subRef + '/capture · OUTSTANDING_BALANCE ' + usd(PRICE) + ' · COMPLETED');
+        addLog('owner', s.id + ' · capture approved · decided_by owner (approval window)');
+        A.done = usd(PRICE) + ' captured · Recovered counts it now';
+      } else {
+        const info = leverInfo(s, A.key);
+        if (!s.deal) s.deal = s.dealIfLever;
+        addLog('owner', s.id + ' · ' + A.key + ' approved · decided_by owner (approval window)');
+        if (A.key === 'DISCOUNT_THIS_CYCLE') {
+          s.offer = { lever: A.key, invoice: s.invoice, cents: info.cents, at: now(), emailOpenedAt: now() };
+          ledger.push({ sub: s.id, kind: 'invoice', ref: s.invoice, cents: info.cents, status: 'SENT', rec: '—', at: now() });
+          s.state = 'OFFER SENT'; s.retry = 'invoice ' + s.invoice + ' sent at ' + t + ' · unpaid';
+          addLog('paypal', 'POST /v2/invoicing/invoices · ' + usd(info.cents) + ' · ' + s.invoice + ' · then …/send');
+          A.done = 'Invoice ' + s.invoice + ' for ' + usd(info.cents) + ' sent by PayPal · draft opened';
+        } else if (A.key === 'PAUSE') {
+          s.offer = { lever: A.key, at: now(), emailOpenedAt: now() };
+          s.state = 'PAUSED'; s.retryAt = null; s.retry = 'suspended at ' + t + ' · activate on ' + RESUME;
+          addLog('paypal', 'POST /v1/billing/subscriptions/' + s.subRef + '/suspend · ok');
+          A.done = s.id + ' suspended until ' + RESUME + ' · draft opened';
+        } else {
+          s.offer = { lever: A.key, at: now(), emailOpenedAt: now(), replied: false };
+          s.state = 'OFFER SENT'; s.retry = 'asked to fix funding at ' + t + ' · no PayPal call yet';
+          A.done = 'No PayPal call yet · draft opened · capture needs a second approval';
+        }
+        addLog('owner', s.id + ' · email draft opened in your mail client (mailto:) · you press send');
+      }
+      A.phase = 'DONE'; renderApproval();
+      toast('Approved in the approval window · ' + A.done, 'ok');
+      emit();
+      setTimeout(() => { if (A && A.phase === 'DONE') closeApproval(false); }, reduce ? 2600 : 2200);
+    }, reduce ? 10 : 800);
+  }
+  function renderApproval(fresh) {
+    const L = $('#approvalLayer'); if (!L) return;
+    if (!A) { L.hidden = true; L.innerHTML = ''; return; }
+    const s = sub(A.id);
+    const cap = A.purpose === 'capture';
+    const info = cap ? captureInfo(s) : leverInfo(s, A.key);
+    const checks = [
+      ['one subscription only · ' + s.id + ' (' + s.subRef + ')', 'every lever acts on this subscription or one invoice'],
+      ['inside rescue mandate R-3 v1 · ' + (cap ? 'RETRY_AFTER_FIX enabled' : info.key + ' ' + info.limit), R3.text],
+      ['plan price untouched', 'update-pricing-schemes is never called · it would reprice all ' + F.activeSubscribers + ' subscribers']
+    ];
+    if (!cap) checks.push(['email = fixed template', 'named slots only · the agent writes no prose to customers']);
+    if (A.key === 'DISCOUNT_THIS_CYCLE' && !cap) checks.push(['−' + DISCOUNT_PCT + '% ≤ R-3 max −25%', 'auto_bill_outstanding: false · a cycle settled by invoice is never billed twice']);
+    if (cap) { checks.push(['amount ≤ outstanding balance ' + usd(PRICE), 'capture_type OUTSTANDING_BALANCE cannot exceed the balance']); checks.push(['not a REPLAY row', 'a real balance exists at PayPal']); checks.push(['you read their reply yourself', 'replies are never read by an agent']); }
+    if (s.replay && !cap) checks.push(['detection is a REPLAY', 'recorded PAYMENT.FAILED payload · the invoice itself is real sandbox money']);
+    const steps = cap ? ['PayPal captures the outstanding balance on this subscription, never more.', 'Recovered counts it once PayPal reports the capture COMPLETED.']
+      : A.key === 'DISCOUNT_THIS_CYCLE' ? ['PayPal creates the invoice and emails it to the subscriber.', 'Your mail client opens the draft. You press send.', 'Recovered counts it only when PayPal says PAID.']
+      : A.key === 'PAUSE' ? ['PayPal suspends this one subscription now.', 'Your mail client opens the draft. You press send.', 'On ' + RESUME + ' the wallet calls activate.']
+      : ['No PayPal call now.', 'Your mail client opens the draft. You press send.', 'When they reply it is fixed, you approve the capture here, in a second approval.'];
+    const phases = ['CHECKING', 'READY', 'DONE'];
+    const ph = A.phase === 'LOCKED' ? 'READY' : A.phase === 'WORKING' ? 'DONE' : A.phase;
+    const strip = phases.map((p, i) => {
+      const lab = p === 'READY' && A.phase === 'LOCKED' ? 'LOCKED' : p === 'DONE' && A.phase === 'WORKING' ? 'WORKING…' : p;
+      const cls = p === ph ? 'gold' : phases.indexOf(ph) > i ? 'ok' : 'line';
+      return '<span class="ui-chip ' + cls + '">' + lab + '</span>';
+    }).join('');
+    let act = '';
+    if (A.phase === 'CHECKING') act = '<span class="ui-hint">Rust checks the immutable summary against R-3…</span>';
+    else if (A.phase === 'LOCKED') act = '<span class="ui-hint">Idle 15 min · the summary stays readable</span><button class="ui-btn" data-a="close">Close · nothing sent</button><button class="ui-btn gold locked" data-a="unlock">Unlock with Windows Hello</button>';
+    else if (A.phase === 'READY') act = '<button class="ui-btn" data-a="close">Close · nothing sent</button><button class="ui-btn primary" data-a="approve">' + esc(info.approveLabel) + '</button>';
+    else if (A.phase === 'WORKING') act = '<span class="ui-hint gold">Calling PayPal from the Rust pipeline…</span>';
+    else act = '<span class="okc" style="min-width:0">✓ ' + esc(A.done) + '</span><button class="ui-btn" data-a="close">Close window</button>';
+    L.hidden = false;
+    const head = cap ? 'Capture <span class="money">' + usd(info.cents) + '</span> from ' + esc(s.id) : A.key === 'DISCOUNT_THIS_CYCLE' ? '<span class="money">' + usd(info.cents) + '</span> invoice to ' + esc(s.id) : esc(info.headline);
+    L.innerHTML = '<div class="aback' + (fresh ? ' fresh' : '') + '"><div class="awin" role="dialog" aria-modal="true" aria-labelledby="aTitle">' +
+      '<div class="awin-bar"><span class="badge sandbox">Sandbox</span>' + (s.replay ? '<span class="badge replay">Replay</span>' : '') + '<span class="t" title="Prototype: in the app this is its own OS window labelled approval, the only window that can approve a rescue lever">approval window · The Table › Rescue › ' + esc(s.deal || s.dealIfLever || s.id) + '</span><button class="ui-btn plain icon" data-a="close" aria-label="Close the approval window">✕</button></div>' +
+      '<div class="awin-b"><div class="phases">' + strip + '</div>' +
+      '<div><div class="akick">' + (cap ? 'Approve a capture · one subscription' : 'Approve one rescue lever · one subscriber') + '</div>' +
+      '<h2 id="aTitle" tabindex="-1">' + head + '</h2>' +
+      '<div class="ui-hint">' + esc(cap ? 'RETRY_AFTER_FIX · second step' : A.key) + ' · ' + esc(s.plan) + ' · since ' + esc(s.since) + '</div></div>' +
+      '<ul class="rules">' + checks.map((c) => '<li' + (A.phase === 'CHECKING' ? ' class="wait"' : '') + ' title="' + esc(c[1]) + '">' + esc(c[0]) + '</li>').join('') + '</ul>' +
+      '<div><div class="ui-section-h" style="padding:0">What happens</div><ol class="steps">' + steps.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ol></div>' +
+      '<div><details class="ui-disclosure"><summary>PayPal calls · this subscription only (' + info.calls.length + ')</summary><ul class="calls">' + info.calls.map((c) => '<li>' + esc(c) + '</li>').join('') + '</ul></details>' +
+      (cap ? '' : '<details class="ui-disclosure"><summary>The draft that opens in your mail client</summary>' + mailBox(s, A.key) + '</details>') + '</div>' +
+      '<p class="ui-silence" style="margin:0">If you close it: <b>' + esc(cap ? 'nothing is captured · the balance stays outstanding' : silence(s)) + '</b></p></div>' +
+      '<div class="awin-f"><span class="left"></span>' + act + '</div>' +
+      '</div></div>';
+    if (fresh || A.phase === 'DONE' || A.phase === 'LOCKED') { const f = A.phase === 'LOCKED' ? $('[data-a="unlock"]', L) : $('#aTitle', L); if (f) f.focus({ preventScroll: true }); }
+    else if (!L.contains(document.activeElement)) { const f = $('#aTitle', L); if (f) f.focus({ preventScroll: true }); }
+  }
+
+  /* ---------------- main-window chrome ---------------- */
+  const MODS = [['tables', 'Tables'], ['spend', 'Spend'], ['shield', 'Shield'], ['counter', 'Counter'], ['rescue', 'Rescue'], ['book', 'Book']];
+  let crumbTail = '';
+  function setCrumbTail(t) { if (t !== crumbTail) { crumbTail = t || ''; renderChrome(); } }
+  function meters() {
+    const moved = (d) => ['CAPTURED', 'RECEIPTED', 'RECONCILED'].includes(d.state);
+    const out = F.deals.filter((d) => d.side === 'buyer' && moved(d)).reduce((a, d) => a + Math.round(d.amount * 100), 0);
+    const inn = F.deals.filter((d) => d.side === 'seller' && moved(d)).reduce((a, d) => a + Math.round(d.amount * 100), 0) + recoveredCents();
+    return { out, inn };
+  }
+  function renderChrome() {
+    const top = $('#titlebar'), side = $('#sidebar'); if (!top || !side) return;
+    const m = meters();
+    top.innerHTML = '<nav class="ui-crumbs" aria-label="Breadcrumb"><a href="../../../index.html#home" title="Back to The Table (Esc)">The Table</a><span class="sep">›</span>' +
+      (crumbTail ? '<button data-crumb-root>Rescue</button><span class="sep">›</span><span>' + esc(crumbTail) + '</span>' : '<span>Rescue</span>') + '</nav><span class="ui-spacer"></span>' +
+      '<button class="tmeter" data-cpop="wallet"><span class="k">wallet</span><span class="money">' + usd(m.out) + ' out · ' + usd(m.inn) + ' in</span></button>' +
+      '<button class="tmeter eng" data-cpop="engine"><span class="k">engine</span><span class="money">~$' + F.engineWeekUSD.toFixed(2) + '</span><span class="k">not a bill</span></button>' +
+      '<span class="badge sandbox" title="Every screen carries its mode">Sandbox</span>' +
+      '<button class="ui-btn sm' + (S.locked ? ' gold locked' : '') + '" data-core="lock" title="Privileged actions lock after 15 idle minutes. Click to simulate.">' + (S.locked ? 'Idle-locked' : 'Simulate idle') + '</button>';
+    const needs = (k) => k === 'rescue' ? subs.filter(needsYou).length : F.deals.filter((d) => d.module === k && d.pending).length;
+    const count = (k) => k === 'rescue' ? subs.filter(isOpen).length : F.deals.filter((d) => d.module === k).length;
+    side.innerHTML = '<div class="ui-sb-head">Modules</div>' + MODS.map(([k, n]) => {
+      const nd = needs(k);
+      return '<a class="ui-sb-item' + (k === 'rescue' ? ' on' : '') + '" href="' + (k === 'rescue' ? '#' : '../../' + k + '/variant-1/index.html') + '"' + (k === 'rescue' ? ' aria-current="page"' : '') + ' title="' + n + '"><span class="ico"><span class="ui-dot" style="color:var(--m-' + k + ')"></span></span><span class="lbl">' + n + '</span><span class="cnt' + (nd ? ' need' : '') + '">' + (nd || count(k)) + '</span></a>';
+    }).join('') + '<div class="ui-sb-foot"><a class="ui-sb-item" href="' + MANDATE_HREF + '" title="Mandates"><span class="ico">§</span><span class="lbl">Mandates · R-3</span></a><button class="ui-sb-item" data-core="audit" title="Audit log"><span class="ico">≡</span><span class="lbl">Audit log</span></button><a class="ui-sb-item" href="../../setup/variant-1/index.html" title="Settings"><span class="ico">⚙</span><span class="lbl">Settings</span></a></div>';
+  }
+
+  /* ---------------- shared layer-1 / inspector pieces ---------------- */
+  function reviewBtn(id, label, opts) {
+    const o = opts || {};
+    return '<button class="ui-btn gold' + (o.sm ? ' sm' : '') + (S.locked ? ' locked' : '') + '" data-review="' + id + '"' + (o.lever ? ' data-lever="' + o.lever + '"' : '') + (o.purpose ? ' data-purpose="' + o.purpose + '"' : '') + (o.disabled ? ' disabled' : '') + ' title="Opens the approval window. Only that window can approve a rescue lever.">' + esc(label || 'Review & approve') + ' ↗</button>';
+  }
+  function simBox(s) {
+    const b = [];
+    if (s.state === 'OFFER SENT' && s.offer.lever === 'DISCOUNT_THIS_CYCLE') b.push(['pay', 'Subscriber pays the invoice'], ['cancel', 'Subscriber cancels']);
+    if (s.state === 'OFFER SENT' && s.offer.lever === 'RETRY_AFTER_FIX' && !s.offer.replied) b.push(['reply', 'They reply: funding fixed'], ['cancel', 'Subscriber cancels']);
+    if (s.state === 'FAILED' && isWaiting(s)) b.push(['retryok', 'PayPal’s retry succeeds'], ['retryfail', 'PayPal’s retry fails']);
+    if (s.state === 'RECOVERED' && ledger.some((x) => x.sub === s.id && x.rec === 'pending')) b.push(['match', 'Transaction Search matches']);
+    if (s.state === 'PAUSED') b.push(['cancel', 'Subscriber cancels']);
+    if (!b.length) return '';
+    return '<div class="ui-proto"><div class="sims"><span>Sandbox simulation · ' + esc(s.id) + ':</span>' + b.map(([k, l]) => '<button class="ui-btn sm" data-sim="' + k + '" data-id="' + s.id + '">' + esc(l) + '</button>').join('') + '</div></div>';
+  }
+  function evidence(s) {
+    const rows = ledger.filter((x) => x.sub === s.id).map((x) => {
+      const lab = x.kind === 'invoice' ? 'Invoice ' + x.ref : 'Capture · OUTSTANDING_BALANCE';
+      const paid = x.status === 'PAID' || x.status === 'COMPLETED';
+      const st = paid ? '<span class="ui-chip ok">' + x.status + '</span>' + (x.rec === 'matched' ? '<span class="ui-chip ok">matched</span>' : '<span class="ui-chip dashed" title="pending in PayPal reporting until Transaction Search matches">pending</span>') : x.status === 'SENT' ? '<span class="ui-chip gold" title="the wallet polls the invoice">sent · unpaid</span>' : '<span class="ui-chip">' + esc(x.status) + '</span>';
+      return '<div class="ui-row"><span class="main"><span class="t1 mono">' + esc(lab) + '</span></span><span class="end"><span class="amt">' + usd(x.cents) + '</span>' + st + '</span></div>';
+    });
+    if (s.offer && s.offer.emailOpenedAt) rows.push('<div class="ui-row"><span class="main"><span class="t1">Email draft opened ' + hhmm(s.offer.emailOpenedAt) + '</span></span><span class="end">' + (s.offer.emailSentAt ? '<span class="ui-chip ok">you sent it ' + hhmm(s.offer.emailSentAt) + '</span>' : '<button class="ui-btn plain sm" data-sim="sent" data-id="' + s.id + '" title="The wallet sends no email, holds no mail credentials and never reads replies.">Mark as sent</button>') + '</span></div>');
+    return rows.length ? '<div class="ui-group">' + rows.join('') + '</div>' : '';
+  }
+  /* the closed lever list for one subscriber, one line per lever; reasons live in a popover */
+  function leverRows(s) {
+    return '<div class="ui-group" role="radiogroup" aria-label="One lever for ' + s.id + '">' + LEVERS.map((L, i) => {
+      const info = leverInfo(s, L.key); const on = s.choice === L.key && !s.left;
+      return '<div class="ui-row act lever' + (on ? ' on' : '') + '" role="radio" aria-checked="' + on + '" aria-disabled="' + !info.ok + '" data-lever-pick="' + L.key + '" tabindex="' + (on || (!s.choice && i === 0) ? 0 : -1) + '">' +
+        '<span class="kbd">' + (i + 1) + '</span><span class="main"><span class="t1" title="' + esc(L.name + ' · ' + L.key) + '">' + esc(L.short) + '</span></span><span class="end">' +
+        (info.ok ? (info.suggested ? '<span class="ui-chip gold">suggested</span>' : '') + '<span class="val">' + esc(info.val) + '</span>'
+          : '<span class="ui-chip line">' + esc(info.code) + '</span><button class="ui-btn plain sm" data-cpop="why|' + s.id + '|' + L.key + '" aria-label="Why ' + L.key + ' is off">ⓘ</button>') +
+        '</span></div>';
+    }).join('') + '</div>';
+  }
+
+  /* the desk: everything about one subscriber, still indicative; the long form opens in a sheet */
+  function deskHtml(s) {
+    const head = '<div class="desk-chips">' + stChip(s.state) + replayChip(s) + (needsYou(s) ? '<span class="ui-chip gold">needs you</span>' : '') + '</div>' +
+      '<h2>' + s.id + ' · ' + esc(s.plan) + '</h2><div class="ui-hint">since ' + esc(s.since) + ' · <span class="mono">' + esc(s.subRef) + '</span>' + (s.deal ? ' · <a class="teal" href="' + dealHref(s.deal) + '">' + s.deal + ' →</a>' : '') + '</div>';
+    const facts = '<div class="ui-section"><dl class="ui-kv"><dt>Renewal</dt><dd>failed ×' + s.fails + (s.failedAt ? ' · ' + dayLabel(s.failedAt).split(' ')[0] + ' ' + hhmm(s.failedAt) : '') + '</dd>' +
+      '<dt>PayPal retry</dt><dd class="' + (s.retryAt ? 'gold' : 'dim') + '">' + (s.retryAt ? 'in ' + esc(retryLeft(s)) : 'none left this cycle') + '</dd></dl></div>';
+    let body = '';
+    if (s.state === 'FAILED') {
+      const info = s.choice ? leverInfo(s, s.choice) : null;
+      const waiting = isWaiting(s), can = info && info.ok && !s.left;
+      body = '<section class="ui-section"><div class="ui-section-h"><h3>One lever · closed list</h3><span class="end"><button class="ui-btn plain sm" data-cpop="r3">R-3 ⓘ</button></span></div>' +
+        (waiting ? '<div class="ui-hint" style="margin:0 0 6px">Waits for PayPal’s retry · no offer before the result <button class="ui-btn plain sm" data-cpop="wait|' + s.id + '" aria-label="Why it waits">ⓘ</button></div>' : '') +
+        leverRows(s) + '</section>' +
+        '<section class="ui-section"><div class="decide">' + reviewBtn(s.id, can ? 'Review & approve · ' + info.short : 'Review & approve', { disabled: !can }) + '</div>' +
+        '<div style="margin-top:6px">' + silenceLine(s) + '</div>' +
+        '<div class="desk-links">' + (info && info.ok ? '<button class="ui-btn plain sm" data-lsheet="' + s.id + '|' + s.choice + '">What it sends ›</button>' : '') +
+        (waiting ? '' : '<button class="ui-btn plain sm" data-leave="' + s.id + '">' + (s.left ? 'Put back on the list' : 'Leave it to PayPal’s retry') + '</button>') + '</div></section>';
+    } else if (s.state === 'OFFER SENT') {
+      const capNeeded = s.offer.lever === 'RETRY_AFTER_FIX' && s.offer.replied && !s.offer.captured;
+      body = '<section class="ui-section"><div class="ui-section-h"><h3>' + esc(s.offer.lever) + ' approved · ' + hhmm(s.offer.at) + '</h3></div>' + evidence(s) + '</section>' +
+        '<section class="ui-section">' + (capNeeded ? '<div class="decide">' + reviewBtn(s.id, 'Review & approve capture ≤ ' + usd(PRICE), { purpose: 'capture' }) + '</div>' : '') +
+        '<div style="margin-top:6px">' + silenceLine(s) + '</div><div class="desk-links"><button class="ui-btn plain sm" data-lsheet="' + s.id + '|' + s.offer.lever + '">Email draft ›</button></div></section>';
+    } else if (s.state === 'PAUSED') {
+      body = '<section class="ui-section"><div class="ui-group"><div class="ui-row"><span class="main"><span class="t1">Suspended · back ' + esc(RESUME) + '</span></span><span class="end"><span class="ui-chip">nothing charged</span></span></div></div>' + evidence(s) +
+        '<div style="margin-top:6px">' + silenceLine(s) + '</div><div class="desk-links"><button class="ui-btn plain sm" data-lsheet="' + s.id + '|' + s.offer.lever + '">Email draft ›</button></div></section>';
+    } else {
+      const chip = s.state === 'RECOVERED' ? '<span class="ui-chip ok">counted</span>' : s.state === 'RETRY SUCCEEDED' ? '<span class="ui-chip line" title="PayPal’s own retry collected it; no lever was used">not counted</span>' : '<span class="ui-chip">nothing charged</span>';
+      body = '<section class="ui-section"><div class="ui-section-h"><h3>Outcome</h3></div><div class="ui-group"><div class="ui-row"><span class="main"><span class="t1" title="' + esc(s.retry) + '">' + esc(s.retry) + '</span></span><span class="end">' + chip + '</span></div></div>' + evidence(s) +
+        (s.offer ? '<div class="desk-links"><button class="ui-btn plain sm" data-lsheet="' + s.id + '|' + s.offer.lever + '">Email draft ›</button></div>' : '') + '</section>';
+    }
+    const sim = simBox(s);
+    return head + facts + body + (sim ? '<section class="ui-section">' + sim + '</section>' : '');
+  }
+
+  /* ---------------- wiring ---------------- */
+  let escHook = null;
+  function onEsc(fn) { escHook = fn; }
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('[data-a]');
+    if (a && A) { const k = a.dataset.a; if (k === 'close') closeApproval(); else if (k === 'approve') approve(); else if (k === 'unlock') { S.locked = false; A.phase = 'READY'; addLog('owner', 'unlocked with Windows Hello'); renderApproval(); renderChrome(); } return; }
+    const p = e.target.closest('[data-cpop]');
+    if (p) { e.preventDefault(); e.stopPropagation(); pop(p, p.dataset.cpop); return; }
+    const c = e.target.closest('[data-core]');
+    if (c) {
+      e.preventDefault(); e.stopPropagation();
+      if (c.dataset.core === 'lock') { S.locked = !S.locked; toast(S.locked ? 'Idle lock on · privileged buttons now ask for Windows Hello' : 'Unlocked', S.locked ? 'gold' : undefined); emit(); }
+      if (c.dataset.core === 'audit') auditSheet();
+      return;
+    }
+    const ls = e.target.closest('[data-lsheet]');
+    if (ls) { e.preventDefault(); e.stopPropagation(); const [id, key] = ls.dataset.lsheet.split('|'); leverSheet(id, key); return; }
+    const r = e.target.closest('[data-review]');
+    if (r) { e.preventDefault(); e.stopPropagation(); if (r.disabled) return; openApproval(r.dataset.review, r.dataset.lever || sub(r.dataset.review).choice, r.dataset.purpose, r); return; }
+    const sm = e.target.closest('[data-sim]');
+    if (sm) { e.preventDefault(); e.stopPropagation(); sim(sm.dataset.sim, sm.dataset.id); return; }
+    const lv = e.target.closest('[data-leave]');
+    if (lv) { e.preventDefault(); e.stopPropagation(); leave(lv.dataset.leave); }
+  }, true);
+  document.addEventListener('keydown', (e) => {
+    S.lastInput = Date.now();
+    if (A) {
+      if (e.key === 'Escape') { e.preventDefault(); closeApproval(); }
+      else if (e.key === 'Tab') { const f = $$('button, summary', $('#approvalLayer')); if (f.length) { const i = f.indexOf(document.activeElement); if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); } else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); } } }
+      return;
+    }
+    if (e.key === 'Escape' && !e.defaultPrevented && !UI.open) {
+      if (escHook && escHook()) return;
+      toast('Esc · back to The Table'); setTimeout(() => { location.href = '../../../index.html#home'; }, 450);
+    }
+  });
+  ['pointerdown', 'pointermove', 'wheel'].forEach((ev) => document.addEventListener(ev, () => { S.lastInput = Date.now(); }, { passive: true }));
+  setInterval(() => { if (!S.locked && Date.now() - S.lastInput > 15 * MIN) { S.locked = true; emit(); } }, 30000);
+  setInterval(() => { if (!A) emit(); }, 30000); // countdowns
+
+  renderChrome();
+  return { F, S, R3, PRICE, RESUME, DISCOUNT_PCT, LEVERS, LEVER, subs, sub, ordered, isOpen, isWaiting, needsYou, retryLeft, leverInfo, captureInfo, rulesFor, silence, silenceLine,
+    stChip, replayChip, mailBox, mailHtml, TEMPLATES, ledger, recoveredCents, recoveredBreakdown, ownRetries, log, addLog, toast, setChoice, leave, sim,
+    openApproval, onChange, emit, reviewBtn, simBox, evidence, leverRows, deskHtml, leverSheet, auditSheet, sheet, pop, popHtml, closeLayers, dealHref, MANDATE_HREF, setCrumbTail, onEsc,
+    esc, usd, hhmm, dayLabel, now, NOW0, DAY, HOUR, MIN, reduce, $, $$, isApprovalOpen: () => !!A, isBusy: () => !!A || UI.open > 0 };
+})();
+</script>
+<script>
+(function () {
+  'use strict';
+  const C = window.Core, esc = C.esc, usd = C.usd;
+  const COLS = ['NONE'].concat(C.LEVERS.map((L) => L.key));
+  let peek = { id: 'S-14', col: null };
+  let focusKey = null;
+
+  const selected = (s) => s.left || !s.choice ? 'NONE' : s.choice;
+
+  /* layer 1: each cell says its outcome in one value and one short line; the full reason is in the inspector */
+  function cellHtml(s, col, ci) {
+    const isSel = selected(s) === col;
+    const key = s.id + '|' + col;
+    const peekCls = peek.id === s.id && peek.col === col ? ' peek' : '';
+    const base = 'role="radio" aria-checked="' + isSel + '" tabindex="' + (isSel ? 0 : -1) + '" data-cell="' + key + '" data-ci="' + ci + '"';
+    if (col === 'NONE') {
+      return '<td><button class="cell def' + peekCls + '" ' + base + ' aria-label="' + s.id + ' do nothing: nothing is sent"><span class="v">nothing sent</span><span class="s">' + (s.retryAt ? 'retry ' + esc(C.retryLeft(s)) : 'cycle unpaid') + '</span></button></td>';
+    }
+    const info = C.leverInfo(s, col);
+    let v = '', sub = '';
+    if (col === 'DISCOUNT_THIS_CYCLE') { v = '<span class="money">' + usd(info.cents) + '</span>'; sub = 'invoice · −' + C.DISCOUNT_PCT + '%'; }
+    else if (col === 'PAUSE') { v = 'suspend'; sub = 'back ' + C.RESUME.slice(4); }
+    else if (col === 'RETRY_AFTER_FIX') { v = 'email first'; sub = 'capture ≤ ' + usd(C.PRICE); }
+    else { v = 'revise plan'; }
+    return '<td><button class="cell' + peekCls + '" ' + base + ' aria-disabled="' + !info.ok + '" aria-label="' + s.id + ' ' + col + (info.ok ? ': ' + esc(info.effect) : ': not available, ' + esc(info.why)) + '">' +
+      (info.suggested && info.ok ? '<span class="sug">SUGGESTED</span>' : '') + '<span class="v">' + (info.ok ? v : 'off') + '</span>' + (info.ok ? '<span class="s">' + esc(sub) + '</span>' : '<span class="s why">' + esc(info.code.replace('off · ', '')) + '</span>') + '</button></td>';
+  }
+
+  function whoHtml(s) {
+    return '<td class="who"><div class="l1"><span class="need">' + (C.needsYou(s) ? '<span class="ui-dot gold" title="needs you"></span>' : '') + '</span><span class="id">' + s.id + '</span>' + C.stChip(s.state) + C.replayChip(s) + '</div>' +
+      (s.state === 'FAILED' ? '<span class="ui-silence">' + (s.left ? 'left to PayPal' : 'silent') + ' → <b>nothing sent</b></span>' : C.isOpen(s) ? C.silenceLine(s) : '<span class="ui-silence">' + esc(s.plan) + '</span>') + '</td>';
+  }
+
+  function actHtml(s) {
+    const sel = selected(s);
+    if (C.isWaiting(s)) return '<td class="act"><button class="ui-btn plain sm" data-cpop="wait|' + s.id + '" title="waits for PayPal’s retry">waits ⓘ</button></td>';
+    if (sel === 'NONE') return '<td class="act"><span class="ui-hint">' + (s.left ? 'left to PayPal' : 'no lever') + '</span></td>';
+    const info = C.leverInfo(s, sel);
+    return '<td class="act">' + C.reviewBtn(s.id, 'Review', { lever: sel, disabled: !info.ok, sm: true }) + '</td>';
+  }
+
+  function spanRow(s, nc) {
+    const capNeeded = s.state === 'OFFER SENT' && s.offer && s.offer.lever === 'RETRY_AFTER_FIX' && s.offer.replied && !s.offer.captured;
+    const what = s.offer && C.isOpen(s) ? '<span class="ui-chip line">' + esc(s.offer.lever) + '</span>' : '';
+    return '<tr data-row="' + s.id + '"' + (peek.id === s.id ? ' class="on"' : '') + '>' + whoHtml(s) + '<td class="span" colspan="' + nc + '"><div class="spanline">' + what + '<span class="t" title="' + esc(s.retry) + '">' + esc(s.retry) + '</span>' +
+      (s.state === 'RETRY SUCCEEDED' ? '<span class="ui-chip line" title="PayPal’s own retry · no lever used">not counted</span>' : s.state === 'RECOVERED' ? '<span class="ui-chip ok">counted</span>' : '') + '<span class="chev" style="margin-left:auto"></span></div></td>' +
+      '<td class="act">' + (capNeeded ? C.reviewBtn(s.id, 'Capture', { purpose: 'capture', sm: true }) : '<span class="ui-hint">' + (C.isOpen(s) ? 'nothing to approve' : 'closed') + '</span>') + '</td></tr>';
+  }
+
+  /* layer 2: the inspector explains the focused cell */
+  function inspectorHtml() {
+    const s = C.sub(peek.id); if (!s) return '';
+    const col = peek.col || (s.state === 'FAILED' ? selected(s) : null);
+    if (!col || s.state !== 'FAILED') return C.deskHtml(s);
+    const head = (lab, chips) => '<div class="desk-chips">' + chips + '</div><h2>' + s.id + ' × ' + esc(lab) + '</h2><div class="ui-hint">' + esc(s.plan) + ' · <span class="mono">' + esc(s.subRef) + '</span>' + (s.deal ? ' · <a class="teal" href="' + C.dealHref(s.deal) + '">' + s.deal + ' →</a>' : '') + '</div>';
+    if (col === 'NONE') {
+      return head('do nothing', '<span class="ui-chip">the default</span>' + (selected(s) === 'NONE' ? '<span class="ui-chip teal">chosen</span>' : '')) +
+        '<section class="ui-section"><div class="ui-section-h"><h3>What happens</h3></div><ul class="rules"><li>No PayPal call from the wallet. No email.</li><li>' + esc(s.retryAt ? 'PayPal’s own retry runs in ' + C.retryLeft(s) + '. If it pays, the row becomes RETRY SUCCEEDED, not counted as recovered.' : 'PayPal has no retry left this cycle. The cycle stays unpaid.') + '</li><li>Silence never moves money: every rescue deadline defaults to “nothing is sent”.</li></ul></section>' +
+        (C.isWaiting(s) || selected(s) === 'NONE' ? '' : '<section class="ui-section"><button class="ui-btn" data-choose="' + s.id + '|NONE">Choose do nothing</button></section>') + simSection(s);
+    }
+    const info = C.leverInfo(s, col), chosen = selected(s) === col;
+    const chips = (info.suggested ? '<span class="ui-chip gold">agent suggests</span>' : '') + (info.ok ? '<span class="ui-chip ok">allowed</span>' : '<span class="ui-chip red">not available</span>') + (chosen ? '<span class="ui-chip teal">chosen</span>' : '');
+    return head(col, chips) +
+      '<section class="ui-section">' + (info.ok ? '<div class="decide">' + (chosen ? C.reviewBtn(s.id, 'Review & approve', { lever: col, disabled: s.left }) : '<button class="ui-btn" data-choose="' + s.id + '|' + col + '">Choose ' + esc(C.LEVER[col].short) + '</button>') + '</div>' : '') +
+      '<div style="margin-top:6px">' + C.silenceLine(s) + '</div></section>' +
+      '<section class="ui-section"><div class="ui-section-h"><h3>What PayPal does · this subscription only</h3></div>' + (info.ok ? '<p style="margin:0 0 6px">' + esc(info.effect) + '</p>' : '<p class="red" style="margin:0 0 6px">' + esc(info.why) + '. Nothing can be sent with this lever.</p>') + '<ul class="calls">' + info.calls.map((c) => '<li>' + esc(c) + '</li>').join('') + '</ul></section>' +
+      '<section class="ui-section"><div class="ui-section-h"><h3>Rules checked</h3><span class="end"><button class="ui-btn plain sm" data-cpop="r3">R-3 ⓘ</button></span></div><ul class="rules">' + C.rulesFor(s, col).map((r) => '<li class="' + r[0] + '">' + esc(r[1]) + '</li>').join('') + '</ul></section>' +
+      '<section class="ui-section"><div class="ui-section-h"><h3>What the subscriber reads</h3></div>' + C.mailBox(s, col) + '</section>' +
+      simSection(s);
+  }
+  const simSection = (s) => { const x = C.simBox(s); return x ? '<section class="ui-section">' + x + '</section>' : ''; };
+
+  function render() {
+    const list = C.ordered();
+    const failing = list.filter((s) => s.state === 'FAILED');
+    const inflight = list.filter((s) => C.isOpen(s) && s.state !== 'FAILED');
+    const closed = list.filter((s) => !C.isOpen(s));
+    if (!C.sub(peek.id)) peek = { id: list[0].id, col: null };
+    C.setCrumbTail(peek.id + (C.sub(peek.id).deal ? ' · ' + C.sub(peek.id).deal : ''));
+    const ae = document.activeElement; const keep = focusKey || (ae && ae.dataset && ae.dataset.cell);
+    const r = C.recoveredCents();
+    const cols = '<colgroup><col style="width:192px"><col><col><col><col><col style="width:84px"><col style="width:52px"><col style="width:84px"></colgroup>';
+    const head = '<tr><th>Subscriber</th><th class="def" title="the default · nothing is sent · PayPal’s own retry runs">Do nothing</th>' +
+      C.LEVERS.map((L) => '<th class="' + (L.on ? '' : 'off') + '" title="' + L.key + ' · R-3 ' + esc(L.limit) + '">' + esc(L.short) + '</th>').join('') +
+      '<th class="never" title="Plan price · never a lever">Price</th><th>Approve</th></tr>';
+    const NC = COLS.length + 3;
+    const rows = failing.map((s, ri) => '<tr data-row="' + s.id + '" role="radiogroup" aria-label="Lever for ' + s.id + '"' + (peek.id === s.id ? ' class="on"' : '') + '>' + whoHtml(s) + COLS.map((c, ci) => cellHtml(s, c, ci)).join('') +
+      (ri === 0 ? '<td class="neverc" rowspan="' + failing.length + '"><button class="ui-btn plain sm x" data-cpop="never" aria-label="Why the plan price is never a lever">✕</button><div>never</div></td>' : '') + actHtml(s) + '</tr>').join('');
+    C.$('#main').innerHTML =
+      '<div class="ui-pagehead"><h1 id="h1" tabindex="-1">One lever per subscriber</h1><span class="sub">one cell per row · do nothing is the default</span>' +
+      '<div class="actions"><button class="ui-btn plain sm" data-cpop="r3">Mandate R-3 ⓘ</button><button class="recov" data-cpop="recovered"><span class="k">Recovered this month</span><span class="money' + (r ? ' okc' : '') + '">' + usd(r) + '</span></button></div></div>' +
+      '<div class="ui-group mwrap"><table class="ui-table mx">' + cols + '<thead>' + head + '</thead><tbody>' +
+      (failing.length ? rows : '<tr><td colspan="' + NC + '"><div class="ui-empty">No failed renewals.</div></td></tr>') +
+      (inflight.length ? '<tr class="gs"><td colspan="' + NC + '">In flight · lever approved</td></tr>' + inflight.map((s) => spanRow(s, COLS.length + 1)).join('') : '') +
+      (closed.length ? '<tr class="gs"><td colspan="' + NC + '">Settled this month</td></tr>' + closed.map((s) => spanRow(s, COLS.length + 1)).join('') : '') +
+      '</tbody></table></div>' +
+      '<div class="keys ui-hint"><span><span class="kbd">←</span> <span class="kbd">→</span> lever</span><span><span class="kbd">↑</span> <span class="kbd">↓</span> subscriber</span><span><span class="kbd">Space</span> choose</span><span><span class="kbd">Enter</span> choose · again to review</span><span><span class="kbd">0</span> do nothing · <span class="kbd">1</span>–<span class="kbd">4</span> lever</span></div>';
+    C.$('#insp').innerHTML = inspectorHtml();
+    if (keep) { const f = C.$('[data-cell="' + keep + '"]'); if (f) f.focus({ preventScroll: true }); }
+    focusKey = null;
+  }
+
+  function choose(id, col) {
+    const s = C.sub(id); if (!s || s.state !== 'FAILED') return false;
+    if (col === 'NONE') {
+      if (C.isWaiting(s)) { C.toast('Already the case: nothing is sent while ' + id + ' waits for PayPal’s retry.'); return true; }
+      if (!s.left) C.leave(id); return true;
+    }
+    const info = C.leverInfo(s, col);
+    if (!info.ok) { C.toast('Not this lever · ' + id + ' · ' + col + ': ' + info.why + '. Nothing was sent.', 'bad'); return false; }
+    C.setChoice(id, col); return true;
+  }
+
+  /* focus only moves the inspector; it never rebuilds the matrix under the pointer */
+  function renderPeek() {
+    C.$$('.cell.peek').forEach((x) => x.classList.remove('peek'));
+    C.$$('tr[data-row]').forEach((x) => x.classList.toggle('on', x.dataset.row === peek.id));
+    const f = C.$('[data-cell="' + peek.id + '|' + peek.col + '"]'); if (f) f.classList.add('peek');
+    C.$('#insp').innerHTML = inspectorHtml();
+    C.setCrumbTail(peek.id + (C.sub(peek.id).deal ? ' · ' + C.sub(peek.id).deal : ''));
+  }
+
+  document.addEventListener('click', (e) => {
+    const c = e.target.closest('[data-cell]');
+    if (c) { const [id, col] = c.dataset.cell.split('|'); peek = { id, col }; focusKey = c.dataset.cell; if (!choose(id, col)) render(); return; }
+    const ch = e.target.closest('[data-choose]');
+    if (ch) { const [id, col] = ch.dataset.choose.split('|'); peek = { id, col }; focusKey = ch.dataset.choose; if (!choose(id, col)) render(); return; }
+    const row = e.target.closest('tr[data-row]');
+    if (row && !e.target.closest('a,button')) { peek = { id: row.dataset.row, col: null }; renderPeek(); }
+    const cr = e.target.closest('[data-crumb-root]'); if (cr) { e.preventDefault(); C.$('#h1').focus(); }
+  });
+  document.addEventListener('focusin', (e) => {
+    const c = e.target.closest && e.target.closest('[data-cell]'); if (!c) return;
+    const [id, col] = c.dataset.cell.split('|');
+    if (peek.id !== id || peek.col !== col) { peek = { id, col }; renderPeek(); }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (C.isBusy() || e.ctrlKey || e.metaKey || e.altKey) return;
+    const c = e.target.closest && e.target.closest('[data-cell]'); if (!c) return;
+    const [id, col] = c.dataset.cell.split('|'); const ci = COLS.indexOf(col);
+    const rows = C.ordered().filter((s) => s.state === 'FAILED').map((s) => s.id); const ri = rows.indexOf(id);
+    const go = (rid, cidx) => { const f = C.$('[data-cell="' + rid + '|' + COLS[cidx] + '"]'); if (f) { e.preventDefault(); f.focus(); } };
+    if (e.key === 'ArrowRight') go(id, Math.min(COLS.length - 1, ci + 1));
+    else if (e.key === 'ArrowLeft') go(id, Math.max(0, ci - 1));
+    else if (e.key === 'ArrowDown' && ri < rows.length - 1) go(rows[ri + 1], ci);
+    else if (e.key === 'ArrowUp' && ri > 0) go(rows[ri - 1], ci);
+    else if (e.key === ' ') { e.preventDefault(); focusKey = c.dataset.cell; choose(id, col); }
+    else if (e.key === 'Enter') {
+      e.preventDefault(); const s = C.sub(id);
+      if (selected(s) === col && col !== 'NONE' && C.leverInfo(s, col).ok) C.openApproval(id, col, 'lever', c);
+      else { focusKey = c.dataset.cell; choose(id, col); }
+    }
+    else if (/^[0-4]$/.test(e.key)) { e.preventDefault(); const k = id + '|' + COLS[+e.key]; focusKey = k; peek = { id, col: COLS[+e.key] }; if (!choose(id, COLS[+e.key])) render(); }
+  });
+  C.onEsc(() => { if (peek.col) { const k = peek.id + '|' + peek.col; peek = { id: peek.id, col: null }; render(); const f = C.$('[data-cell="' + k + '"]'); if (f) f.blur(); return true; } return false; });
+  C.onChange(render);
+  render();
+})();
+</script>
+<script src="../../../shared/shell.js" data-page="rescue" data-variant="3"></script>
+</body>
+</html>

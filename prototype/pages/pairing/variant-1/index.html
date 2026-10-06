@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pairing · Two desks</title>
+<link rel="stylesheet" href="../../../shared/tokens.css">
+<link rel="stylesheet" href="../../../shared/ui.css">
+<script src="../../../main/fixtures.js"></script>
+<script src="../../../shared/ui.js"></script>
+<style>
+  /* Only what is unique to this variant: two desks side by side, the word tiles, the code,
+     and the approval window overlay that opens over Maya's desk (Dan's stays visible). */
+  body { overflow: hidden; }
+  .stage { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); gap: var(--sp-2); padding: var(--sp-2);
+    height: calc(100vh - var(--shell-h)); min-height: 560px; }
+  .desk { position: relative; display: grid; grid-template-rows: var(--bar) minmax(0, 1fr); min-height: 0; border-radius: var(--r-lg);
+    background: var(--bg); box-shadow: var(--shadow-2); overflow: hidden; }
+  .desk .ui-split { --sidebar: 148px; min-height: 0; }
+  .desk .ui-main { padding: var(--sp-3) var(--sp-4) var(--sp-6); }
+  .clock { font: var(--fs-small) var(--mono); color: var(--dim); white-space: nowrap; }
+
+  .lbl { width: 104px; flex: none; color: var(--dim); font-size: var(--fs-small); }
+  .ui-row .grow { flex: 1 1 auto; min-width: 0; }
+  .acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--line); }
+  .acts .ui-silence { margin-left: auto; }
+  .step { padding-top: var(--sp-3); padding-bottom: var(--sp-3); }
+  .code { font: var(--fw-semibold) var(--fs-display)/1.1 var(--mono); letter-spacing: .1em; color: var(--teal-l); }
+  .code.coral { color: var(--coral-l); }
+  .err { color: var(--red-l); font-size: var(--fs-small); }
+  .spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line2); border-top-color: var(--teal); animation: sp 1s linear infinite; flex: none; display: inline-block; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+
+  /* the four words: the one thing both desks must show alike */
+  .words { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); }
+  .words li { display: flex; align-items: baseline; gap: var(--sp-2); min-width: 0; padding: 6px var(--sp-3); border-radius: var(--r-sm);
+    background: var(--bg2); box-shadow: inset 0 0 0 1px var(--line2); font: var(--fw-semibold) var(--fs-title2)/1.2 var(--mono); }
+  .words li small { font: var(--fw-medium) var(--fs-small) var(--mono); color: var(--dim); }
+  .words li span { overflow: hidden; text-overflow: ellipsis; }
+  .words.big li { flex-direction: column; align-items: center; gap: 2px; padding: var(--sp-2) var(--sp-1); font-size: var(--fs-display); }
+  .words.coral li { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--coral) 45%, var(--line2)); }
+  .tabsrow { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+  .steps { display: flex; align-items: center; gap: 6px; list-style: none; margin: 0 0 0 auto; padding: 0; font-size: var(--fs-small); color: var(--dim); }
+  .steps li + li::before { content: "›"; margin-right: 6px; opacity: .6; }
+  .steps .on { color: var(--teal-l); font-weight: var(--fw-semibold); } .steps .done { color: var(--ok); }
+
+  /* approval window: a separate privileged window, opened beside the window that asked */
+  .aw-back { position: absolute; inset: 0; z-index: 50; display: grid; place-items: start center; padding: calc(var(--bar) + var(--sp-6)) var(--sp-4) var(--sp-4);
+    background: var(--scrim); animation: ui-fade var(--t-med) var(--ease); }
+  .aw { width: min(540px, 100%); max-height: 100%; overflow: auto; display: grid; grid-template-rows: var(--bar) auto; background: var(--panel);
+    border-radius: var(--r-lg); box-shadow: var(--shadow-3), 0 0 0 1px var(--gold); }
+  .aw .ui-titlebar { border-radius: var(--r-lg) var(--r-lg) 0 0; }
+  .aw-b { display: grid; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4) var(--sp-4); }
+  .aw-b h2 { margin: 0; font: var(--fw-semibold) var(--fs-title3)/1.25 var(--display); }
+  .ctx { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: var(--fs-small); color: var(--dim); }
+  .ctx b { color: var(--text); font-weight: var(--fw-medium); }
+  .namerow { display: flex; align-items: center; gap: var(--sp-2); }
+  .namerow .ui-field { flex: 1 1 auto; }
+  .decide { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+
+  /* Dan's desk */
+  .dan-b { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; }
+  .dscreen { overflow: auto; padding: var(--sp-3) var(--sp-4); display: grid; gap: var(--sp-3); align-content: start; }
+  .dan-b .ui-proto { margin: var(--sp-2); }
+  .ui-proto .row { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+  .ui-proto .ui-btn[aria-pressed="true"] { color: var(--coral-l); box-shadow: inset 0 0 0 1px var(--coral); }
+
+  .pinmeans { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); margin-top: var(--sp-3); }
+  .pinmeans h3 { margin: 0 0 var(--sp-1); font-size: var(--fs-small); color: var(--dim); font-weight: var(--fw-semibold); }
+  .pinmeans ul { margin: 0; padding-left: 16px; } .pinmeans li { margin: 2px 0; }
+  .fpr { font: var(--fw-medium) var(--fs-mono) var(--mono); color: var(--coral-l); word-spacing: .2em; }
+  .pop p { margin: 0 0 var(--sp-2); } .pop p:last-child { margin: 0; }
+
+  @media (max-width: 1180px) {
+    .desk .ui-split { grid-template-columns: minmax(0, 1fr); }
+    .desk .ui-sidebar { display: none; }
+    .stage { grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <!-- Maya's desk: the main window; the approval window opens over it -->
+  <section class="desk maya" aria-label="Maya's screen">
+    <header class="ui-titlebar">
+      <span class="ui-chip teal">Maya</span>
+      <nav class="ui-crumbs"><button data-act="esc">The Table</button><span class="sep">›</span><button data-act="esc">Tables</button><span class="sep">›</span><span>Pair a table</span></nav>
+      <span class="ui-spacer"></span>
+      <span class="clock" id="clockMaya"></span>
+      <span class="badge sandbox">Sandbox</span>
+      <span id="lockind"></span>
+    </header>
+    <div class="ui-split">
+      <aside class="ui-sidebar" id="rail" aria-label="Modules"></aside>
+      <main class="ui-main" id="sheet" tabindex="-1"></main>
+    </div>
+    <div id="approvalLayer" hidden></div>
+  </section>
+
+  <!-- Dan's desk: the other wallet (simulated) + prototype controls -->
+  <section class="desk dan" aria-label="Dan's screen (simulated)">
+    <header class="ui-titlebar">
+      <span class="ui-chip coral" id="danChip">Dan</span>
+      <span class="ui-title" id="danCap">Dan's screen</span>
+      <span class="ui-spacer"></span>
+      <span class="ui-hint">simulated · another laptop</span>
+    </header>
+    <div class="dan-b">
+      <div class="dscreen" id="dscreen" aria-live="polite"></div>
+      <div class="ui-proto" aria-label="Prototype controls"><div class="row" id="protoRow"></div></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const F = window.FIX;
+  const DAN = F.counterparties.dan, HOUSE = F.counterparties.house;
+  const D0201 = F.deals.find(d => d.id === 'D-0201');
+  const M12 = F.mandates.find(m => m.id === 'M-12');
+  const esc = UI.esc, $ = s => document.querySelector(s);
+
+  // ---- page constants consistent with FIX (pairing data the dataset does not carry) ----
+  const PAIR = {
+    code: 'TBL-7Q4M-K2',                               // design report §6.1 / §10.6
+    words: DAN.paired.replace('words ✓ ', '').split(' '), // otter basil quartz meadow
+    danFpr: '47be 3a91 d20c 7f55 e81b 0c4a 96d2 110d', // full fingerprint behind FIX key 47be…0d
+    mayaPayee: 'second-screen-biz (sandbox)',
+    ttlMin: 24 * 60,                                    // identity bundles / mailbox expire in 24 h
+  };
+  // Relay in the middle: it swaps both HELLOs for its own key, so each side computes different words.
+  const MITM = { mayaWords: ['otter', 'fennel', 'cobalt', 'meadow'], danWords: ['otter', 'harbor', 'willow', 'tundra'],
+    key: '5e02…9b', fpr: '5e02 c7a4 19fe 0b38 6d71 a2c0 4e85 d39b' };
+  const HOUSEP = { words: ['lantern', 'cedar', 'orbit', 'pebble'], fpr: 'c4d1 07e9 5b2a 88f3 1d60 ae47 39c2 7b15' };
+
+  // ---- simulated clock: snapshot Thu 29 Oct 2026 14:02, ticking in real time ----
+  const BASE = new Date(F.nowISO).getTime(), T0 = Date.now();
+  let skew = 0;
+  const now = () => BASE + (Date.now() - T0) + skew;
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const p2 = n => String(n).padStart(2, '0');
+  const hm = t => { const d = new Date(t); return `${p2(d.getHours())}:${p2(d.getMinutes())}`; };
+  const day = t => { const d = new Date(t); return `${DAYS[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]} ${hm(t)}`; };
+  const left = t => { const m = Math.max(0, Math.floor((t - now()) / 60000)); return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
+
+  // ---- state ----
+  const S = {
+    tab: 'create', mitm: false, locked: false,
+    side: 'buyer', payee: PAIR.mayaPayee, joinCode: '', joinErr: '',
+    // phase: idle | code (waiting for the other owner) | words | pinned | aborted | expired
+    phase: 'idle', polls: 0, codeAt: 0, codeExp: 0, pendExp: 0,
+    house: 'waking', approval: false, name: '', danState: 'idle', pinnedAt: 0, unlocking: false,
+  };
+  let pollTimer = null, houseTimer = null;
+
+  const isHouse = () => S.tab === 'house';
+  const mayaWords = () => isHouse() ? HOUSEP.words : (S.mitm ? MITM.mayaWords : PAIR.words);
+  const danWords = () => isHouse() ? HOUSEP.words : (S.mitm ? MITM.danWords : PAIR.words);
+  const peerKey = () => isHouse() ? 'house key (release pin)' : (S.mitm ? MITM.key : DAN.key);
+  const peerFpr = () => isHouse() ? HOUSEP.fpr : (S.mitm ? MITM.fpr : PAIR.danFpr);
+  const toast = (m, k) => UI.toast(m, k);
+
+  // ---- layer 2: popovers and sheets (all explanation lives here) ----
+  const POP = {
+    how: ['How pairing works', () => `<div class="pop"><p>One owner creates a code, the other joins it. Each wallet publishes a signed identity to a relay mailbox keyed by the code's hash.</p>
+      <p>Both wallets compute four words from the two keys and the code. You read them aloud and each confirms in their own approval window.</p><p class="ui-hint">Pairing makes 0 PayPal calls and pays nobody.</p></div>`],
+    why: ['Why the words matter', () => `<div class="pop"><p>Same code + same two keys = the same four words on both screens. A relay that swapped the keys for its own would change them.</p>
+      <p>The compare is the only place that is caught. If one word differs, abort: nothing is pinned.</p></div>`],
+    expiry: ['When it lapses', () => `<dl class="ui-kv"><dt>Code</dt><dd>single use · 24 h</dd><dt>Bundles</dt><dd>signed identities live 24 h; then the relay forgets the mailbox</dd><dt>Restart</dt><dd>a wallet restart before you confirm needs a fresh code</dd><dt>Silence</dt><dd>nothing is pinned · no money moves</dd></dl>`],
+    house: ['The house seller', () => `<div class="pop"><p>${esc(HOUSE.who.charAt(0).toUpperCase() + HOUSE.who.slice(1))}. Its key ships pinned in this release, and it only ever sells to you.</p>
+      <p>It sleeps after 15 idle minutes on its free host; waking takes about a minute. A timeout is retryable, not a pairing.</p></div>`],
+    fpr: ['Their key', () => `<dl class="ui-kv"><dt>Fingerprint</dt><dd class="fpr">${esc(peerFpr())}</dd><dt>Payee</dt><dd class="mono">${esc(isHouse() ? HOUSE.payee : DAN.payee)}</dd><dt>Seen</dt><dd>${isHouse() ? 'matches the release pin' : S.mitm ? 'never pinned before' : 'first seen ' + esc(DAN.firstSeen)}</dd></dl>`],
+    lock: ['Idle lock', () => `<div class="pop"><p>After 15 idle minutes privileged buttons lock. Pinning a key is privileged: unlock with Windows Hello. Aborting never needs an unlock.</p></div>`],
+    aborted: ['Why start again', () => `<div class="pop"><p>Words that differ can mean someone is in the middle. The code <span class="mono">${PAIR.code}</span> is spent and the mailbox closed; no key, payee or mailbox was stored.</p><p>Read the new code over a different channel (call instead of chat).</p></div>`],
+  };
+  function pinSheet() {
+    const house = isHouse(), name = S.name.trim();
+    const firstSeen = house ? HOUSE.firstSeen : (S.mitm ? `${day(S.pinnedAt)} (today)` : DAN.firstSeen);
+    const onList = house ? 'HOUSE' : 'north-desk';
+    UI.sheet({ title: `Pinned · ${name}`, size: 'wide', body: `<dl class="ui-kv">
+        <dt>Key fingerprint</dt><dd class="fpr">${esc(peerFpr())}</dd>
+        <dt>Paired via</dt><dd>${house ? 'house · release pin + words' : `code <span class="mono">${PAIR.code}</span> · now spent`}</dd>
+        <dt>Words confirmed</dt><dd><span class="mono">${mayaWords().join(' ')}</span> · ${day(S.pinnedAt)}</dd>
+        <dt>First seen</dt><dd>${esc(firstSeen)}</dd>
+        <dt>Declared payee</dt><dd><span class="mono">${esc(house ? HOUSE.payee : DAN.payee)}</span> · on your clause-7 allowlist (${onList})</dd>
+        <dt>Pin expiry</dt><dd>none · the key stays pinned to this name</dd>
+        <dt>Audit</dt><dd class="mono">4419 · actor owner · pairing.confirm · 0 PayPal calls</dd></dl>
+      <div class="pinmeans"><div><h3>The pin means</h3><ul><li>Signed offers from this key reach your agent (clause 2: paired only).</li><li>A SETTLE must name this payee, or there is no "Open PayPal" button.</li></ul></div>
+        <div><h3>It does not</h3><ul><li>Pay anyone, start a deal or open PayPal.</li><li>Raise any limit: ${M12.id} v${M12.v} still binds every number.</li></ul></div></div>`,
+      actions: [{ label: 'Done', kind: 'primary' }] });
+  }
+  function mitmSheet() {
+    UI.sheet({ title: 'The relay was in the middle', body: `<p style="margin:0 0 8px">In this run you pinned <b>the relay's</b> key (<span class="mono">${MITM.key}</span>), not Dan's. Dan's words differed, so his wallet will not confirm and his agent never sees this table.</p>
+      <dl class="ui-kv"><dt>Your words</dt><dd class="mono">${MITM.mayaWords.join(' ')}</dd><dt>Dan's words</dt><dd class="mono coral">${MITM.danWords.join(' ')}</dd></dl>
+      <p class="ui-hint" style="margin:8px 0 0">Prototype scenario. The compare step is the only place this is caught.</p>`,
+      actions: [{ label: 'Close' }, { label: 'Start over', kind: 'primary', onClick: () => { S.mitm = false; resetFlow(true); } }] });
+  }
+
+  function resetFlow(keepTab) {
+    clearInterval(pollTimer); pollTimer = null; clearTimeout(houseTimer); houseTimer = null;
+    Object.assign(S, { phase: 'idle', polls: 0, codeAt: 0, codeExp: 0, pendExp: 0, approval: false, name: '', danState: 'idle', pinnedAt: 0, joinErr: '' });
+    if (!keepTab) { S.tab = 'create'; S.joinCode = ''; }
+    if (S.tab === 'join') { S.codeAt = BASE - 60000; S.codeExp = S.codeAt + PAIR.ttlMin * 60000; S.danState = 'code'; }
+    if (S.tab === 'house') { S.side = 'buyer'; S.house = 'waking'; startHouseWake(); }
+    render();
+  }
+  function startHouseWake() {
+    clearTimeout(houseTimer);
+    houseTimer = setTimeout(() => { if (S.tab === 'house' && S.house === 'waking') { S.house = 'awake'; toast('The house seller answered /healthz (simulated cold start).'); render(); } }, 6000);
+  }
+
+  // ---- Maya actions ----
+  function createCode() {
+    if (!S.payee.trim()) return;
+    S.phase = 'code'; S.codeAt = now(); S.codeExp = S.codeAt + PAIR.ttlMin * 60000; S.polls = 0; S.danState = 'join';
+    clearInterval(pollTimer);
+    pollTimer = setInterval(() => { if (S.phase === 'code') { S.polls++; renderWaitLine(); } }, 3000);
+    toast(`pairing_create · ${PAIR.code} published to the relay mailbox · 0 PayPal calls`);
+    render();
+  }
+  function wordsArrived() {
+    clearInterval(pollTimer); pollTimer = null;
+    S.phase = 'words'; S.pendExp = S.codeExp || (now() + PAIR.ttlMin * 60000);
+    S.danState = 'words'; S.approval = true; S.name = '';
+    render(); focusApproval();
+  }
+  function joinCode() {
+    const c = S.joinCode.trim().toUpperCase();
+    S.joinErr = '';
+    if (c === 'HOUSE') { S.tab = 'house'; resetFlow(true); toast('HOUSE is the house seller: switched to that tab.'); return; }
+    if (!/^TBL-[0-9A-Z]{4}-[0-9A-Z]{2}$/.test(c)) { S.joinErr = 'A code looks like TBL-7Q4M-K2 (or type HOUSE).'; render(); return; }
+    if (c !== PAIR.code) { S.joinErr = `Unavailable · no table at ${c}: expired, used or misheard.`; render(); return; }
+    if (!S.payee.trim()) { S.joinErr = 'Enter the payee Dan will pin for you.'; render(); return; }
+    toast(`pairing_join · found Dan's signed bundle at H(${PAIR.code}) · 0 PayPal calls`);
+    wordsArrived();
+  }
+  function houseSit() {
+    if (S.house !== 'awake' || !S.payee.trim()) return;
+    S.codeAt = now(); S.codeExp = now() + PAIR.ttlMin * 60000;
+    toast('pairing_join HOUSE · signed table D-0201 verified against the release pin');
+    wordsArrived();
+  }
+  function pin() {
+    if (S.locked || S.phase !== 'words') return;
+    if (nameProblem(S.name.trim())) return;
+    S.phase = 'pinned'; S.pinnedAt = now(); S.approval = true;
+    S.danState = isHouse() ? 'house-done' : (S.mitm ? 'mitm-differ' : 'confirm');
+    toast(`pairing_confirm · key ${peerKey()} pinned as “${S.name.trim()}” · audit 4419 · 0 PayPal calls`, 'ok');
+    render();
+  }
+  function abort() {
+    if (S.phase !== 'words') return;
+    S.phase = 'aborted'; S.approval = true; S.danState = isHouse() ? 'idle' : 'aborted';
+    toast('Not confirmed · nothing pinned · the code is spent', 'bad');
+    render();
+  }
+  function nameProblem(t) {
+    if (!t) return 'Name this counterparty (only you see it).';
+    if (new TextEncoder().encode(t).length > 32) return 'At most 32 bytes: shorten the name.';
+    if (/[\x00-\x1f\x7f]/.test(t)) return 'The name contains a control character.';
+    return null;
+  }
+
+  // ---- rendering: chrome ----
+  function renderRail() {
+    const mods = [['tables', 'Tables'], ['spend', 'Spend'], ['shield', 'Shield'], ['counter', 'Counter'], ['rescue', 'Rescue'], ['book', 'Book']];
+    $('#rail').innerHTML = '<div class="ui-sb-head">Modules</div>' + mods.map(([k, n]) => `<a class="ui-sb-item${k === 'tables' ? ' on' : ''}" href="../../${k}/variant-1/index.html"${k === 'tables' ? ' aria-current="page"' : ''}><span class="ico"><span class="ui-dot" style="color:var(--m-${k})"></span></span><span class="lbl">${n}</span></a>`).join('')
+      + '<div class="ui-sb-foot"><a class="ui-sb-item" href="../../mandate/variant-1/index.html"><span class="lbl">Mandates</span></a><a class="ui-sb-item" href="../../setup/variant-1/index.html"><span class="lbl">Settings</span></a></div>';
+  }
+  function renderLock() {
+    $('#lockind').innerHTML = S.locked ? '<button class="ui-btn sm gold locked" data-pop="lock">Locked · idle 17 min</button>' : '<span class="ui-chip line" data-tip="Privileged buttons lock after 15 idle minutes">Unlocked</span>';
+  }
+  const words = (w, cls = '') => `<ol class="words ${cls}" aria-label="Pairing words">${w.map((x, i) => `<li><small>${i + 1}</small><span>${esc(x)}</span></li>`).join('')}</ol>`;
+  const info = (k, label = 'ⓘ') => `<button class="ui-btn plain sm" data-pop="${k}" aria-label="${esc(POP[k][0])}">${label}</button>`;
+
+  // ---- rendering: Layer 1 on Maya's main window ----
+  function tabsHtml() {
+    const t = [['create', 'Create a code'], ['join', 'Join with a code'], ['house', 'House seller']];
+    const busy = S.phase === 'words';
+    return `<div class="ui-seg" role="tablist" aria-label="Pairing mode">${t.map(([k, l]) => `<button role="tab" id="tab-${k}" aria-selected="${S.tab === k}" aria-pressed="${S.tab === k}" tabindex="${S.tab === k ? 0 : -1}" data-tab="${k}"${busy && S.tab !== k ? ' disabled title="Finish or abort in the approval window first"' : ''}>${l}</button>`).join('')}</div>`;
+  }
+  function stepsHtml() {
+    const ph = S.phase, at = ph === 'pinned' ? 3 : ph === 'words' ? 2 : ph === 'code' || (S.tab === 'house' && S.house === 'awake') ? 1 : 0;
+    const bad = ph === 'aborted' || ph === 'expired';
+    return `<ol class="steps" aria-label="Progress">${['Code', 'Words', 'Pin'].map((l, i) => `<li class="${bad ? '' : i < at - 1 || at === 3 ? 'done' : i === at - 1 || (at === 0 && i === 0) ? 'on' : ''}">${i < at - 1 || at === 3 ? '✓ ' : ''}${l}</li>`).join('')}${bad ? '<li class="red">nothing pinned</li>' : ''}</ol>`;
+  }
+  function sideRows(fixed) {
+    return `<div class="ui-row"><span class="lbl">You are the</span><div class="ui-seg" role="group" aria-label="Your side">${['buyer', 'seller'].map(s => `<button data-side="${s}" aria-pressed="${S.side === s}"${fixed ? ' disabled' : ''}>${s}</button>`).join('')}</div></div>
+      <div class="ui-row"><label class="lbl" for="payee">Your payee</label><input id="payee" class="ui-field mono grow" data-bind="payee" value="${esc(S.payee)}" autocomplete="off" spellcheck="false" placeholder="the payee the other side will pin"></div>`;
+  }
+  const silence = (txt, exp) => `<span class="ui-silence">silent → <b>${txt}</b>${exp ? ' ' + day(exp) : ''} · nothing pinned · no money moves</span>`;
+
+  function panelHtml() {
+    const ph = S.phase, house = isHouse();
+    if (ph === 'pinned') {
+      const both = S.danState === 'both';
+      return `<div class="ui-group">
+        <div class="ui-row two"><span class="ui-chip ok">Pinned</span><span class="main"><span class="t1">${esc(S.name.trim())}</span><span class="t2"><span class="mono">${esc(peerKey())}</span> · payee ${esc(house ? HOUSE.payee : DAN.payee)} · words ✓ ${hm(S.pinnedAt)}</span></span><button class="ui-btn sm" data-act="pinDetail">Details…</button></div>
+        ${S.mitm && !house ? `<div class="ui-row"><span class="ui-chip red">Relay key</span><span class="main"><span class="t1">Prototype run: this is the relay's key, not Dan's</span></span><button class="ui-btn sm" data-act="mitmDetail">What happened…</button></div>` : ''}
+        ${house ? `<div class="acts"><button class="ui-btn primary" data-act="next" data-next="band">Set the band for ${D0201.id}</button><a class="ui-btn plain" href="../../tables/variant-1/index.html">Open Tables</a></div>`
+          : `<div class="acts"><span class="ui-chip ${both ? 'ok' : 'gold'}">${both ? 'Both confirmed' : 'Waiting for Dan'}</span><button class="ui-btn primary" data-act="next" data-next="table"${both ? '' : ' disabled title="Dan has not confirmed yet"'}>Open a table with ${esc(S.name.trim())}</button><a class="ui-btn plain" href="../../tables/variant-1/index.html">Open Tables</a></div>`}
+      </div>`;
+    }
+    if (ph === 'aborted' || ph === 'expired') {
+      const ab = ph === 'aborted';
+      return `<div class="ui-group"><div class="ui-row two"><span class="ui-chip red">${ab ? 'Not confirmed' : 'Expired'}</span><span class="main"><span class="t1">Nothing pinned · no money moved</span><span class="t2">${ab ? `code ${PAIR.code} spent · next time, another channel` : `lapsed ${day(S.pendExp || S.codeExp)}`}</span></span>
+        ${info(ab ? 'aborted' : 'expiry')}<button class="ui-btn primary sm" data-act="reset">${ab ? 'Start a new pairing' : 'Create a fresh code'}</button></div></div>`;
+    }
+    if (ph === 'words') {
+      return `<div class="ui-group">
+        <div class="ui-row step">${words(mayaWords())}</div>
+        <div class="ui-row"><span class="main"><span class="t1">${house ? 'The house answered. Its page shows the same four.' : 'Read these to Dan. His screen must show the same four, in order.'}</span></span>${info('why', 'Why the words?')}</div>
+        <div class="acts"><button class="ui-btn gold" data-act="openApproval">Confirm in the approval window ↗</button><button class="ui-btn danger" data-act="abort">They differ: abort</button>${silence('lapses', S.pendExp)}</div>
+      </div>`;
+    }
+    if (S.tab === 'create') {
+      if (ph === 'code') return `<div class="ui-group">
+          <div class="ui-row step"><span class="code">${PAIR.code}</span><span class="ui-chip teal">Single use</span><span class="ui-spacer"></span><button class="ui-btn sm" data-act="copy">Copy</button><button class="ui-btn sm danger" data-act="cancelCode">Cancel code</button></div>
+          <div class="ui-row"><span class="spin" aria-hidden="true"></span><span class="main"><span class="t1" id="waitLine"></span></span><span class="ui-hint" id="codeLeft">${left(S.codeExp)} left</span>${info('expiry')}</div>
+          <div class="acts"><span class="ui-hint">Give Dan only the code. The words come later.</span>${silence('code lapses', S.codeExp)}</div>
+        </div>`;
+      return `<div class="ui-group">${sideRows(false)}
+        <div class="acts"><button class="ui-btn primary" data-act="create"${S.payee.trim() ? '' : ' disabled'}>Create a pairing code</button><span class="ui-hint">0 PayPal calls · share only the code</span></div></div>`;
+    }
+    if (S.tab === 'join') {
+      return `<div class="ui-group">
+        <div class="ui-row"><label class="lbl" for="jcode">Code from Dan</label><input id="jcode" class="ui-field mono grow" data-bind="joinCode" value="${esc(S.joinCode)}" placeholder="TBL-XXXX-XX or HOUSE" autocomplete="off" spellcheck="false" aria-invalid="${!!S.joinErr}" aria-describedby="jerr"><button class="ui-btn primary" data-act="join">Join</button></div>
+        <div class="ui-row"><span class="lbl"></span><span class="main"><span id="jerr" class="${S.joinErr ? 'err' : 't2'}">${S.joinErr ? esc(S.joinErr) : `Dan's code lapses ${day(S.codeExp)} · ${left(S.codeExp)} left`}</span></span></div>
+        ${sideRows(false)}</div>`;
+    }
+    const waking = S.house === 'waking', down = S.house === 'timeout';
+    return `<div class="ui-group">
+      <div class="ui-row two"><span class="ui-chip ${waking ? 'gold' : down ? 'red' : 'teal'}">${waking ? 'Waking' : down ? 'Timed out' : 'Awake'}</span><span class="main"><span class="t1">HOUSE seller · scripted, no LLM</span><span class="t2">${waking ? '<span class="spin" aria-hidden="true"></span> waking on its free host · about a minute' : down ? 'no answer to the wake ping · retryable' : 'key matches the release pin'}</span></span>${info('house')}${down ? '<button class="ui-btn sm" data-act="houseRetry">Ping again</button>' : ''}</div>
+      <div class="ui-row"><span class="id">${D0201.id}</span><span class="main"><span class="t1">${esc(D0201.item)}</span></span><span class="ui-chip">Pairing</span></div>
+      ${sideRows(true)}
+      <div class="acts"><button class="ui-btn primary" data-act="house"${S.house !== 'awake' || !S.payee.trim() ? ' disabled' : ''}>${waking ? 'House waking…' : 'Sit down with the house'}</button><span class="ui-silence">silent → <b>nothing happens</b> · no money moves</span></div></div>`;
+  }
+
+  function renderSheet() {
+    const el = $('#sheet');
+    const keep = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.bind;
+    const caret = keep ? document.activeElement.selectionStart : null;
+    el.innerHTML = `<div class="ui-pagehead"><h1>Pair a table</h1><span class="sub">one code · four words · your click</span><div class="actions">${info('how', 'How it works')}</div></div>
+      <div class="tabsrow">${tabsHtml()}${stepsHtml()}</div>
+      <div class="ui-section" style="margin-top:var(--sp-3)" role="tabpanel" aria-labelledby="tab-${S.tab}">${panelHtml()}</div>`;
+    if (keep) { const i = el.querySelector(`[data-bind="${keep}"]`); if (i) { i.focus(); try { i.setSelectionRange(caret, caret); } catch (e) { /* select */ } } }
+    renderWaitLine();
+  }
+  function renderWaitLine() {
+    const w = document.getElementById('waitLine');
+    if (w) w.textContent = `Waiting for Dan to join · mailbox checked ${S.polls}×`;
+  }
+
+  // ---- rendering: the approval window ----
+  function renderApproval() {
+    const layer = $('#approvalLayer');
+    if (!S.approval) { layer.hidden = true; layer.innerHTML = ''; return; }
+    layer.hidden = false;
+    const house = isHouse(), n = S.name, prob = nameProblem(n.trim());
+    let inner;
+    if (S.phase === 'pinned') {
+      inner = `<h2><span class="okc">✓</span> Paired · ${esc(n.trim())}</h2>
+        <div class="ctx"><span class="mono">${esc(peerKey())}</span> · payee and mailbox now bound to this pairing${house ? ' · marked HOUSE' : ''}</div>
+        <div class="ui-hint">audit 4419 · actor owner · pairing.confirm · 0 PayPal calls</div>
+        <div><button class="ui-btn" data-act="closeApproval">Close</button></div>`;
+    } else if (S.phase === 'aborted') {
+      inner = `<h2><span class="red">✕</span> Not confirmed</h2><div class="ctx">Nothing was pinned. Start again with a new code.</div><div><button class="ui-btn" data-act="closeApproval">Close</button></div>`;
+    } else if (S.phase === 'expired') {
+      inner = `<h2>This pairing expired</h2><div class="ctx">It does not come back. Nothing was pinned.</div><div><button class="ui-btn" data-act="closeApproval">Close</button></div>`;
+    } else {
+      const they = house ? 'seller' : (S.tab === 'join' ? 'seller' : (S.side === 'buyer' ? 'seller' : 'buyer'));
+      inner = `<div class="ctx"><span class="ui-chip ${house ? 'gold' : 'coral'}">${house ? 'HOUSE' : 'Other owner'}</span><b>${house ? 'House seller' : `Joined ${PAIR.code}`}</b> · ${they} · key <span class="mono">${esc(peerKey())}</span>${info('fpr')}</div>
+        <h2>Do all four words match the other screen, in order?</h2>
+        ${words(mayaWords(), 'big')}
+        <div class="namerow"><label class="lbl" for="pname">Name (only you)</label><input id="pname" class="ui-field" data-bind="name" value="${esc(n)}" maxlength="32" placeholder="${house ? 'HOUSE seller' : 'e.g. Dan · north-desk'}" autocomplete="off" spellcheck="false" aria-invalid="${!!(n.trim() && prob)}">
+          ${n.trim() ? '' : `<button class="ui-btn plain sm" data-act="suggest">Use “${house ? 'HOUSE seller' : esc(DAN.name)}”</button>`}</div>
+        ${n.trim() && prob ? `<div class="err">${esc(prob)}</div>` : ''}
+        <div class="decide">
+          ${S.locked ? `<button class="ui-btn gold locked" data-act="unlock" id="pinBtn">${S.unlocking ? 'Waiting for Windows Hello…' : 'Unlock with Windows Hello'}</button>`
+            : `<button class="ui-btn gold" data-act="pin" id="pinBtn"${prob ? ' disabled title="Name the counterparty first"' : ''}>Words match: pin key</button>`}
+          <button class="ui-btn danger" data-act="abort">They differ: abort</button>
+        </div>
+        ${S.locked ? '<span class="ui-hint gold">Idle 17 min · pinning needs Windows Hello; abort does not</span>' : ''}
+        <span class="ui-silence">close → waits until <b>${day(S.pendExp)}</b>, then lapses · pins nothing, pays nobody</span>`;
+    }
+    const caretField = document.activeElement && document.activeElement.id === 'pname' ? document.activeElement.selectionStart : null;
+    layer.innerHTML = `<div class="aw-back" data-act="backdrop"><section class="aw" role="dialog" aria-modal="true" aria-labelledby="awTitle">
+      <header class="ui-titlebar"><span class="badge sandbox">Sandbox</span><span class="ui-title" id="awTitle">Owner review · pair a table</span><span class="ui-spacer"></span><span class="ui-hint">approval window</span><button class="ui-btn plain icon" data-act="closeApproval" aria-label="Close the approval window">✕</button></header>
+      <div class="aw-b">${inner}</div></section></div>`;
+    if (caretField !== null) { const i = $('#pname'); if (i) { i.focus(); try { i.setSelectionRange(caretField, caretField); } catch (e) { /* noop */ } } }
+  }
+  function focusApproval() { setTimeout(() => { const b = $('#pname') || document.querySelector('.aw .ui-btn'); if (b) b.focus(); }, 30); }
+
+  // ---- rendering: Dan's desk ----
+  function renderDan() {
+    const house = isHouse();
+    $('#danCap').textContent = house ? 'House seller page' : "Dan's screen";
+    $('#danChip').textContent = house ? 'House' : 'Dan';
+    const head = (chip, cls, t1, t2) => `<div class="ui-group"><div class="ui-row two"><span class="ui-chip ${cls}">${chip}</span><span class="main"><span class="t1">${t1}</span><span class="t2">${t2}</span></span></div></div>`;
+    let h = '';
+    if (house) {
+      h = head(S.house === 'waking' ? 'Waking' : S.house === 'timeout' ? 'Down' : 'Ready', S.house === 'awake' ? 'teal' : S.house === 'timeout' ? 'red' : 'gold',
+        S.house === 'waking' ? 'Waking up…' : S.house === 'timeout' ? 'Not answering' : 'Ready to sell', `${D0201.id} · ${esc(D0201.item)} · scripted, no LLM`);
+      if (S.phase === 'words' || S.phase === 'pinned') h += words(HOUSEP.words, 'coral');
+      if (S.phase === 'pinned') h += `<div class="ui-hint okc">Paired with you. The house asks first once you set your band.</div>`;
+    } else if (S.danState === 'idle') {
+      h = head('Idle', '', 'Waiting for a code', `${esc(DAN.name)} · ${esc(DAN.who)}`);
+    } else if (S.danState === 'join') {
+      h = head('Join', 'coral', 'Maya read him a code', `Tables › pair › join · seller · payee ${esc(DAN.payee)}`) + `<input class="ui-field mono" value="${PAIR.code}" readonly aria-label="Code Dan typed">`;
+    } else if (S.danState === 'code') {
+      h = head('Create', 'coral', 'Share only this code', `lapses ${day(S.codeExp)} · single use`) + `<span class="code coral">${PAIR.code}</span><div class="ui-hint">Dan reads it aloud. Type it into "Code from Dan".</div>`;
+    } else if (S.danState === 'words' || S.danState === 'mitm-differ' || S.danState === 'confirm') {
+      const confirm = S.danState === 'confirm';
+      h = head(confirm ? 'Dan\'s turn' : 'Approval', confirm ? 'gold' : 'coral', confirm ? 'Maya confirmed. Dan confirms in his own window.' : 'Read these words to Maya', 'his approval window') + words(danWords(), 'coral');
+      if (S.mitm) h += `<div class="ui-hint coral">Computed with the relay's key, so they differ from Maya's.</div>`;
+    } else if (S.danState === 'both') {
+      h = head('Paired', 'ok', 'Paired with Maya', "both confirmed · Dan's agent can see the table");
+    } else if (S.danState === 'aborted') {
+      h = head('Cancelled', 'red', 'Pairing cancelled', "Maya aborted · nothing pinned on either side");
+    } else if (S.danState === 'expired') {
+      h = head('Expired', 'red', 'Code expired', '24 h passed · nothing pinned on either side');
+    } else if (S.danState === 'dan-aborted') {
+      h = head('Aborted', 'red', 'Dan said the words differ', 'his wallet pinned nothing · his agent never sees this table');
+    }
+    $('#dscreen').innerHTML = h;
+
+    const pr = [];
+    const c = (act, label, o = {}) => `<button class="ui-btn sm" data-act="${act}"${o.pressed !== undefined ? ` aria-pressed="${o.pressed}"` : ''}${o.disabled ? ' disabled' : ''}>${label}</button>`;
+    if (!house) {
+      pr.push(c('mitm', 'Relay in the middle', { pressed: S.mitm }));
+      if (S.tab === 'create') pr.push(c('danJoin', 'Dan joins', { disabled: S.phase !== 'code' }));
+      if (S.tab === 'join') pr.push(c('fillCode', 'Dan reads the code', { disabled: S.phase !== 'idle' }));
+      pr.push(c('danConfirm', 'Dan: match', { disabled: !(S.phase === 'pinned' && S.danState === 'confirm') }));
+      pr.push(c('danAbort', 'Dan: differ', { disabled: !(S.danState === 'words' || S.danState === 'confirm' || S.danState === 'mitm-differ') }));
+    } else {
+      pr.push(c('houseWake', 'House answers', { disabled: S.house === 'awake' }));
+      pr.push(c('houseTimeout', 'House times out', { disabled: S.house !== 'waking' }));
+    }
+    pr.push(c('lock', S.locked ? 'Idle lock: on' : 'Idle lock: off', { pressed: S.locked }));
+    pr.push(c('skip', '+24 h', { disabled: !(S.phase === 'code' || S.phase === 'words' || (S.tab === 'join' && S.phase === 'idle')) }));
+    pr.push(c('reset', 'Reset'));
+    $('#protoRow').innerHTML = pr.join('');
+  }
+
+  function render() { renderLock(); renderSheet(); renderApproval(); renderDan(); }
+
+  // ---- events ----
+  document.addEventListener('click', (e) => {
+    const pop = e.target.closest('[data-pop]');
+    if (pop) { const [title, body] = POP[pop.dataset.pop]; UI.popover(pop, body(), { title }); return; }
+    const tab = e.target.closest('[data-tab]');
+    if (tab && !tab.disabled) { if (S.tab !== tab.dataset.tab) { S.tab = tab.dataset.tab; resetFlow(true); } return; }
+    const sd = e.target.closest('[data-side]');
+    if (sd && !sd.disabled) { S.side = sd.dataset.side; renderSheet(); return; }
+    const t = e.target.closest('[data-act]');
+    if (!t || t.disabled) return;
+    const a = t.dataset.act;
+    if (a === 'backdrop' && e.target !== t) return;
+    switch (a) {
+      case 'esc': if (S.approval) { S.approval = false; render(); } else toast('Esc → back to Tables (the module list).'); break;
+      case 'create': createCode(); break;
+      case 'copy': toast(`Copied ${PAIR.code}. Share only the code; the words come later.`); break;
+      case 'cancelCode': resetFlow(true); toast('Code cancelled · the relay mailbox is closed · nothing pinned.'); break;
+      case 'join': joinCode(); break;
+      case 'house': houseSit(); break;
+      case 'houseRetry': S.house = 'waking'; startHouseWake(); render(); break;
+      case 'openApproval': S.approval = true; render(); focusApproval(); break;
+      case 'closeApproval': case 'backdrop': S.approval = false; render(); break;
+      case 'suggest': S.name = isHouse() ? 'HOUSE seller' : DAN.name; render(); { const b = $('#pinBtn'); if (b) b.focus(); } break;
+      case 'pin': pin(); break;
+      case 'abort': abort(); break;
+      case 'pinDetail': pinSheet(); break;
+      case 'mitmDetail': mitmSheet(); break;
+      case 'unlock':
+        if (S.unlocking) break;
+        S.unlocking = true; render();
+        setTimeout(() => { S.locked = false; S.unlocking = false; toast('Windows Hello: unlocked (simulated) for 15 idle minutes.', 'ok'); render(); const b = $('#pinBtn'); if (b) b.focus(); }, 900);
+        break;
+      case 'next': toast(t.dataset.next === 'band' ? 'Opens the band sheet for D-0201 in the approval window (ceiling, rounds, deadline).' : 'Opens "Open a table": pick the item, then set the band (M-12 clause 4).'); break;
+      // prototype controls
+      case 'lock': S.locked = !S.locked; S.unlocking = false; render(); break;
+      case 'mitm': S.mitm = !S.mitm; if (S.phase !== 'idle' && S.phase !== 'code') resetFlow(true); else render(); toast(S.mitm ? 'Prototype: a malicious relay will swap both keys for its own.' : 'Prototype: honest relay.'); break;
+      case 'danJoin': toast(`Dan joined ${PAIR.code} · his signed reply arrived · words computed on both ends`); wordsArrived(); break;
+      case 'fillCode': S.joinCode = PAIR.code; S.joinErr = ''; render(); { const i = $('#jcode'); if (i) i.focus(); } break;
+      case 'danConfirm': S.danState = 'both'; toast('Dan confirmed in his approval window · both keys pinned · the table can open.', 'ok'); render(); break;
+      case 'danAbort': S.danState = 'dan-aborted'; toast('Dan: "they differ" · nothing pinned on his side.', 'bad'); render(); break;
+      case 'houseWake': S.house = 'awake'; clearTimeout(houseTimer); render(); break;
+      case 'houseTimeout': S.house = 'timeout'; clearTimeout(houseTimer); render(); break;
+      case 'skip': skew += 24 * 3600000 + 60000; tick(); toast('Prototype: jumped 24 h ahead.'); break;
+      case 'reset': skew = 0; S.mitm = false; S.locked = false; resetFlow(false); break;
+      default: break;
+    }
+  });
+  document.addEventListener('input', (e) => {
+    const b = e.target.dataset && e.target.dataset.bind;
+    if (!b) return;
+    S[b] = e.target.value;
+    if (b === 'joinCode') S.joinErr = '';
+    if (b === 'name') renderApproval(); else renderSheet();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (UI.open) return; // a sheet or popover owns the keyboard (ui.js closes it on Esc)
+    if (e.key === 'Escape') { if (S.approval) { S.approval = false; render(); } else toast('Esc → back to Tables.'); return; }
+    if (e.key === 'Enter' && e.target.id === 'jcode') { e.preventDefault(); joinCode(); return; }
+    if (e.key === 'Enter' && e.target.id === 'pname' && !S.locked) { e.preventDefault(); pin(); return; }
+    const tab = e.target.closest && e.target.closest('[role="tab"]');
+    if (tab && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+      const tabs = [...document.querySelectorAll('[role="tab"]:not([disabled])')];
+      const i = tabs.indexOf(tab); const nx = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+      if (nx) { nx.click(); setTimeout(() => { const f = document.getElementById(nx.id); if (f) f.focus(); }, 0); }
+    }
+    if (S.approval && e.key === 'Tab') { // keep focus inside the approval window
+      const f = [...document.querySelectorAll('.aw button:not([disabled]), .aw input')];
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+
+  function tick() {
+    $('#clockMaya').textContent = day(now());
+    const exp = S.phase === 'words' ? S.pendExp : S.codeExp;
+    if ((S.phase === 'code' || S.phase === 'words' || (S.tab === 'join' && S.phase === 'idle')) && exp && now() >= exp) {
+      clearInterval(pollTimer); S.phase = 'expired'; if (!S.pendExp) S.pendExp = exp; S.danState = isHouse() ? S.danState : 'expired'; render(); return;
+    }
+    const cl = document.getElementById('codeLeft'); if (cl && S.codeExp) cl.textContent = left(S.codeExp) + ' left';
+  }
+  setInterval(tick, 1000);
+
+  renderRail();
+  resetFlow(false);
+  tick();
+})();
+</script>
+<script src="../../../shared/shell.js" data-page="pairing" data-variant="1"></script>
+</body>
+</html>

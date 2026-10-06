@@ -1,0 +1,22 @@
+[package]
+name = "table-os"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+[dependencies]
+table-runtime = {path="../table-runtime"}
+table-client.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+zeroize = "1"
+[target.'cfg(windows)'.dependencies]
+windows-future = "=0.3.2"
+windows = {version="=0.62.2", features=["Foundation","Security_Credentials_UI","Win32_Foundation","Win32_System_WinRT","Win32_UI_WindowsAndMessaging","Win32_UI_Shell","Win32_Security_Credentials","Win32_Graphics_Gdi","Win32_UI_Input_KeyboardAndMouse"]}
+[lints.rust]
+unsafe_code = "deny"
+missing_debug_implementations = "warn"
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"

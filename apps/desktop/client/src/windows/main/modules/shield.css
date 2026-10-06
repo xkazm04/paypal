@@ -1,0 +1,195 @@
+/* Main window · Shield module (modules/shield.tsx), v2 "Evidence matrix" (prototype/pages/shield/variant-2).
+   Owner: the shield agent. Every rule is scoped under .mod-shield: the page root (from ModuleView) and
+   the portalled Layer-2 surfaces (Inspector body, Sheet, Popover), which carry the class themselves. */
+
+.mod-shield .sh-page { display: flex; flex-direction: column; min-height: 100%; }
+.mod-shield .ui-pagehead .ico svg { width: 22px; height: 22px; }
+.mod-shield .sh-gap { margin-top: var(--sp-2); }
+.mod-shield .tx-gold { color: var(--gold-l); }
+.mod-shield .tx-red { color: var(--red-l); }
+.mod-shield .tx-ok { color: var(--ok); }
+.mod-shield .tx-muted { color: var(--muted); }
+.mod-shield .tx-coral { color: var(--coral-l); }
+.mod-shield .tx-dim { color: var(--dim); }
+.mod-shield .ui-btn.plain.tx-red { color: var(--red-l); }
+.mod-shield .notechip { flex: none; }
+
+/* check marks: shape + ink + a word, never colour alone */
+.mod-shield .r-fact { color: var(--text); }
+.mod-shield .r-skip { color: var(--gold-l); }
+.mod-shield .r-na { color: var(--dim); }
+.mod-shield .sh-mark { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.mod-shield .sh-mark.r-fact { background: var(--teal); }
+.mod-shield .sh-mark.r-skip { background: repeating-linear-gradient(135deg, var(--gold) 0 2px, transparent 2px 4px); box-shadow: inset 0 0 0 1px var(--gold); }
+.mod-shield .sh-mark.r-na, .mod-shield .sh-unk { outline: 1px dashed var(--dim); outline-offset: -1px; }
+.mod-shield .sh-unk { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.mod-shield .sh-hatch { display: inline-block; width: 22px; height: 14px; border-radius: 3px; flex: none;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--gold) 30%, transparent) 0 3px, transparent 3px 6px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 50%, transparent); }
+/* mini price bar in the grid: typical tick, the pause line, the price dot */
+.mod-shield .sh-pmini { position: relative; width: 46px; height: 10px; flex: none; }
+.mod-shield .sh-pmini::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 2px; border-radius: 1px; background: var(--line2); }
+.mod-shield .sh-pmini i { position: absolute; top: 0; }
+.mod-shield .sh-pmini .typ { width: 2px; height: 10px; margin-left: -1px; background: var(--market); opacity: .8; }
+.mod-shield .sh-pmini .flag { height: 10px; border-left: 2px dotted var(--refuse); margin-left: -1px; }
+.mod-shield .sh-pmini .px { top: 1px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 2px var(--panel); }
+.mod-shield .sh-pmini.over .px { background: var(--coral); }
+
+/* the grid */
+.mod-shield .sh-mxwrap { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.mod-shield .sh-mx { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+.mod-shield .sh-mx col.lab { width: 148px; }
+.mod-shield .sh-mx th, .mod-shield .sh-mx td { height: var(--row); padding: 0 var(--sp-3); border-bottom: 1px solid var(--line); text-align: left; font-weight: var(--fw-regular);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mod-shield .sh-mx tbody th[scope="row"] { color: var(--muted); background: var(--bg2); border-right: 1px solid var(--line); }
+.mod-shield .sh-mx tr.grp th { height: 22px; font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); background: var(--bg2); }
+.mod-shield .sh-mx tr:last-child > * { border-bottom: 0; }
+.mod-shield .sh-mx thead th { height: var(--row-2); background: var(--panel); border-bottom: 1px solid var(--line2); }
+.mod-shield .sh-mx thead .corner { background: var(--bg2); border-right: 1px solid var(--line); color: var(--dim); font-size: var(--fs-small); }
+.mod-shield .sh-mx .cell { cursor: pointer; outline: none; }
+.mod-shield .sh-mx .cell + .cell { border-left: 1px solid var(--line); }
+.mod-shield .sh-mx .cell:hover { background: var(--hover); }
+.mod-shield .sh-mx .cell.colcur { background: color-mix(in srgb, var(--panel2) 70%, var(--panel)); }
+.mod-shield .sh-mx .cell.skipcell { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--gold) 9%, transparent) 0 6px, transparent 6px 12px); }
+.mod-shield .sh-mx .cell.cur, .mod-shield .sh-mx .cell.cur.skipcell { background: var(--sel); box-shadow: inset 0 0 0 2px var(--sel-line); }
+.mod-shield .sh-mx .cell.cur:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
+.mod-shield .sh-mx thead .cell.need { box-shadow: inset 0 3px 0 var(--gold); }
+.mod-shield .sh-mx thead .cell.need.cur { box-shadow: inset 0 3px 0 var(--gold), inset 0 0 0 2px var(--sel-line); }
+.mod-shield .hc { display: grid; gap: 2px; min-width: 0; }
+.mod-shield .hc .l1 { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.mod-shield .hc b { font-weight: var(--fw-semibold); overflow: hidden; text-overflow: ellipsis; }
+.mod-shield .hc .money { margin-left: auto; font-weight: var(--fw-semibold); }
+.mod-shield .hc small { font-size: var(--fs-small); color: var(--dim); overflow: hidden; text-overflow: ellipsis; }
+.mod-shield .rc { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.mod-shield .rc .t { overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.mod-shield .rc .t.fix { flex: none; font-weight: var(--fw-semibold); }
+.mod-shield .rc .d { font-size: var(--fs-small); color: var(--dim); overflow: hidden; text-overflow: ellipsis; }
+.mod-shield .sh-mx .cell.faint .rc, .mod-shield .sh-mx td.faint .rc { opacity: .35; }
+.mod-shield .sh-mx tr.unshown td { height: 30px; background: color-mix(in srgb, var(--bg2) 45%, transparent); }
+.mod-shield .sh-mx tr.unshown .t { color: var(--muted); }
+.mod-shield .sh-mx tr.unshown .d { flex: 1; min-width: 0; }
+.mod-shield .sh-mx tr.unshown .sh-more { flex: none; }
+.mod-shield .sh-mx tr.move td { height: auto; padding-top: 6px; padding-bottom: 6px; white-space: normal; vertical-align: top; }
+.mod-shield .sh-mx tr.move .ui-silence { display: block; white-space: normal; margin-top: 4px; }
+.mod-shield .sh-mvb { display: flex; flex-wrap: wrap; gap: 2px 4px; align-items: center; }
+.mod-shield .sh-mvb + .sh-mvb { margin-top: 2px; }
+.mod-shield .sh-page > .notice { margin-top: var(--sp-2); }
+
+/* legend */
+.mod-shield .sh-pop-lede { margin: 0 0 var(--sp-3); color: var(--muted); }
+.mod-shield .sh-legend { display: grid; gap: 6px; }
+.mod-shield .sh-legend > span { display: flex; align-items: center; gap: var(--sp-2); }
+
+/* inspector */
+.mod-shield .sh-ik { font-size: var(--fs-small); color: var(--dim); margin-bottom: 2px; }
+.mod-shield .sh-ibig { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-2) 0; }
+.mod-shield .sh-say { margin: var(--sp-2) 0 0; font: var(--fw-semibold) var(--fs-title3)/1.3 var(--font); }
+.mod-shield .sh-det { margin: var(--sp-2) 0; color: var(--muted); }
+.mod-shield .sh-move { margin-top: var(--sp-3); }
+.mod-shield .sh-move .sh-mvb { margin-top: var(--sp-2); }
+.mod-shield .sh-move .ui-silence { display: block; white-space: normal; margin-top: var(--sp-2); }
+.mod-shield .sh-cklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.mod-shield .sh-cklist li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 2px var(--sp-2); align-items: center; }
+.mod-shield .sh-cklist li .res { font-size: var(--fs-small); white-space: nowrap; }
+.mod-shield .sh-cklist .stg { display: block; margin-top: var(--sp-2); font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); }
+
+/* market band (inspector) */
+.mod-shield .sh-mband { position: relative; height: 46px; margin: 22px 6px 4px; }
+.mod-shield .sh-mband .axis { position: absolute; left: 0; right: 0; top: 14px; height: 2px; background: var(--line2); }
+.mod-shield .sh-mband .iqr { position: absolute; top: 9px; height: 12px; border-radius: 3px; background: color-mix(in srgb, var(--market) 20%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--market) 40%, transparent); }
+.mod-shield .sh-mband .med { position: absolute; top: 5px; width: 2px; height: 20px; background: var(--market); }
+.mod-shield .sh-mband .flag { position: absolute; top: 0; height: 30px; border-left: 2px dashed var(--refuse); }
+.mod-shield .sh-mband .px { position: absolute; top: 9px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 0 2px var(--bg2); }
+.mod-shield .sh-mband .lab { position: absolute; top: 30px; font-size: var(--fs-small); font-variant-numeric: tabular-nums; color: var(--dim); white-space: nowrap; }
+.mod-shield .sh-mband .lab.top { top: -20px; color: var(--coral-l); }
+.mod-shield .sh-nomarket { border: 1px dashed var(--gold); border-radius: var(--r-sm); padding: 4px 8px; color: var(--gold-l); font-size: var(--fs-small); }
+
+/* "how a verdict forms" sheet */
+.mod-shield .sh-l2 { display: grid; gap: var(--sp-3); }
+.mod-shield .sh-l2 h3 { margin: 0 0 var(--sp-1); font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); }
+.mod-shield .sh-steps { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--muted); }
+.mod-shield .sh-steps .ui-chip { vertical-align: 1px; }
+.mod-shield .sh-steps b { color: var(--text); font-weight: var(--fw-semibold); }
+
+@media (max-width: 1180px) { .mod-shield .sh-mx col.lab { width: 116px; } }
+
+/* story layout: answer, explainer, decision cards, then stopped and cleared payments */
+.mod-shield .sh-explain > .ui-explainer-link { margin: calc(var(--sp-1) * -1) 0 var(--sp-3); }
+.mod-shield .sh-explain > .ui-explainer { margin-bottom: var(--sp-4); }
+.mod-shield .sh-page > .ui-section { margin-top: var(--sp-4); }
+.mod-shield .sh-decisions { display: flex; flex-direction: column; gap: var(--sp-3); margin-bottom: var(--sp-2); }
+.mod-shield .sh-decisions .ui-decision { margin-top: 0; }
+.mod-shield .ui-decision .dc-h .notechip { margin-left: var(--sp-2); }
+.mod-shield .sh-reasons { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px var(--sp-5); }
+.mod-shield .sh-reasons li { display: flex; align-items: center; gap: var(--sp-2); }
+.mod-shield .sh-reasons .ico { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex: none; color: var(--gold-l); background: color-mix(in srgb, var(--gold) 16%, transparent); }
+
+.mod-shield .sh-row .t1 b { font-weight: var(--fw-semibold); }
+.mod-shield .sh-row .t1 .tx-dim { font-weight: var(--fw-regular); }
+.mod-shield .sh-lead { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex: none; color: var(--dim); background: color-mix(in srgb, var(--dim) 14%, transparent); }
+.mod-shield .sh-lead.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 15%, transparent); }
+.mod-shield .sh-lead.red { color: var(--red-l); background: color-mix(in srgb, var(--refuse) 16%, transparent); }
+.mod-shield .sh-lead.gold { color: var(--gold-l); background: color-mix(in srgb, var(--gold) 18%, transparent); }
+.mod-shield .sh-row .amt { min-width: 76px; }
+.mod-shield .ui-row .amt.struck { color: var(--dim); text-decoration: line-through; }
+.mod-shield .sh-cleared { margin-top: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2); }
+.mod-shield .sh-cleared-b { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border: 1px dashed var(--line2); border-radius: var(--r); color: var(--ok); font-weight: var(--fw-medium); }
+.mod-shield .sh-cleared-b:hover { background: var(--hover); }
+.mod-shield .sh-cleared-b:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mod-shield .sh-cleared-b .more { margin-left: auto; color: var(--teal-l); font-weight: var(--fw-semibold); font-size: var(--fs-small); }
+
+/* ---- round 2: week strip, what's normal vs this payment, check lights ---- */
+.mod-shield .sh-wk { list-style: none; margin: 0 0 var(--sp-4); padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3); }
+.mod-shield .sh-tile { --t: var(--teal); --tl: var(--teal-l); display: grid; grid-template-columns: 34px auto minmax(0, 1fr); align-items: center; gap: var(--sp-3); padding: 10px var(--sp-4);
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); }
+.mod-shield .sh-tile.gold { --t: var(--gold); --tl: var(--gold-l); }
+.mod-shield .sh-tile.red { --t: var(--refuse); --tl: var(--red-l); }
+.mod-shield .sh-tile .ico { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: var(--tl); background: color-mix(in srgb, var(--t) 16%, transparent); }
+.mod-shield .sh-tile .n { font: var(--fw-semibold) 34px/1 var(--num); font-variant-numeric: tabular-nums; letter-spacing: -.02em; color: var(--tl); min-width: 22px; }
+.mod-shield .sh-tile.zero .n { color: var(--dim); }
+.mod-shield .sh-tile.zero .ico { color: var(--dim); background: color-mix(in srgb, var(--dim) 14%, transparent); }
+.mod-shield .sh-tile.has.gold, .mod-shield .sh-tile.has.red { border-color: color-mix(in srgb, var(--t) 38%, var(--line)); background: color-mix(in srgb, var(--t) 6%, var(--panel)); }
+.mod-shield .sh-tile .tx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.mod-shield .sh-tile .tx b { font-weight: var(--fw-semibold); }
+.mod-shield .sh-tile .tx small { color: var(--dim); font-size: var(--fs-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.mod-shield .sh-evid { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: stretch; margin-top: var(--sp-1); }
+.mod-shield .sh-cmp, .mod-shield .sh-lights { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; min-width: 0; }
+.mod-shield .sh-cmp { flex: 1 1 540px; }
+.mod-shield .sh-lights { flex: 1 1 250px; display: flex; flex-direction: column; }
+.mod-shield .sh-cmp table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.mod-shield .sh-cmp col.lab { width: 104px; }
+.mod-shield .sh-cmp th, .mod-shield .sh-cmp td { padding: 6px var(--sp-3); text-align: left; vertical-align: top; font-weight: var(--fw-regular); }
+.mod-shield .sh-cmp thead th, .mod-shield .sh-lights .hd { height: 32px; padding-top: 0; padding-bottom: 0; vertical-align: middle; font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); background: var(--panel2); }
+.mod-shield .sh-cmp thead th.here { color: var(--gold-l); background: color-mix(in srgb, var(--gold) 12%, var(--panel2)); }
+.mod-shield .sh-cmp thead .cnt { margin-left: var(--sp-2); padding: 1px 7px; border-radius: 999px; font-weight: var(--fw-medium); color: var(--gold-l); background: color-mix(in srgb, var(--gold) 18%, transparent); }
+.mod-shield .sh-cmp tbody tr + tr > * { border-top: 1px solid var(--line); }
+.mod-shield .sh-cmp tbody th.lab { color: var(--muted); }
+.mod-shield .sh-cmp td .v { display: block; font-variant-numeric: tabular-nums; }
+.mod-shield .sh-cmp td .s { display: block; font-size: var(--fs-small); color: var(--dim); font-variant-numeric: tabular-nums; }
+.mod-shield .sh-cmp td.norm .v { color: var(--muted); }
+.mod-shield .sh-cmp td.here .v { color: var(--text); font-weight: var(--fw-semibold); }
+.mod-shield .sh-cmp td.here.diff { background: color-mix(in srgb, var(--coral) 11%, transparent); box-shadow: inset 3px 0 0 var(--coral); }
+.mod-shield .sh-cmp td.here.diff .v { color: var(--coral-l); }
+.mod-shield .sh-cmp td.here.diff .s { color: var(--coral-l); opacity: .85; }
+.mod-shield .sh-cmp td.unk .v { font-weight: var(--fw-regular); color: var(--dim); font-style: italic; }
+.mod-shield .sh-cmp td.unk { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--dim) 7%, transparent) 0 6px, transparent 6px 12px); }
+.mod-shield .sh-cmp .sr, .mod-shield .sh-lights .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.mod-shield .sh-lights .hd { display: flex; align-items: center; padding: 0 var(--sp-3); }
+.mod-shield .sh-lights ul { list-style: none; margin: 0; padding: var(--sp-2) var(--sp-3); display: flex; flex-direction: column; justify-content: space-around; gap: var(--sp-2); flex: 1; }
+.mod-shield .sh-lamp { display: flex; align-items: center; gap: var(--sp-3); }
+.mod-shield .sh-lamp .bulb { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; flex: none; color: var(--dim); box-sizing: border-box; }
+.mod-shield .sh-lamp .tx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.mod-shield .sh-lamp .tx b { font-weight: var(--fw-semibold); }
+.mod-shield .sh-lamp .tx small { font-size: var(--fs-small); color: var(--dim); }
+.mod-shield .sh-lamp.tripped .bulb { color: var(--coral-l); background: color-mix(in srgb, var(--coral) 20%, transparent); box-shadow: 0 0 0 1.5px var(--coral), 0 0 10px color-mix(in srgb, var(--coral) 40%, transparent); }
+.mod-shield .sh-lamp.tripped .tx small { color: var(--coral-l); font-weight: var(--fw-medium); }
+.mod-shield .sh-lamp.passed .bulb { color: var(--ok); background: color-mix(in srgb, var(--ok) 16%, transparent); box-shadow: 0 0 0 1.5px var(--ok); }
+.mod-shield .sh-lamp.passed .tx small { color: var(--ok); }
+.mod-shield .sh-lamp.skipped .bulb { color: var(--gold-l); background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--gold) 32%, transparent) 0 3px, transparent 3px 6px); box-shadow: inset 0 0 0 1.5px var(--gold); }
+.mod-shield .sh-lamp.skipped .tx small { color: var(--gold-l); }
+.mod-shield .sh-lamp.unknown .bulb { outline: 1.5px dashed var(--dim); outline-offset: -1.5px; }
+.mod-shield .sh-lamp.unknown .tx b { color: var(--muted); font-weight: var(--fw-medium); }
+
+.mod-shield .sh-reasons .ui-why { margin-left: var(--sp-1); }
+@media (max-width: 1180px) { .mod-shield .sh-wk { gap: var(--sp-2); } .mod-shield .sh-tile { padding: var(--sp-2) var(--sp-3); gap: var(--sp-2); } }

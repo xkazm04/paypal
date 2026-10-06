@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Table · sandbox prototype</title>
+<script>try { if (localStorage.getItem('table-theme') === 'light') document.documentElement.dataset.theme = 'light'; } catch (e) { /* no storage: dark */ }</script>
+<link rel="stylesheet" href="../shared/tokens.css">
+<link rel="stylesheet" href="../shared/ui.css">
+<link rel="stylesheet" href="modules.css">
+<style>
+/* The Dial (home). Colours only from tokens: the dial's machined materials below are
+   color-mix()es of tokens, redefined for the light (PayPal) theme. */
+:root {
+  --colL: 236px; --colR: 300px;
+  --d-deep: var(--bg);                 /* deepest solid ink of the scene */
+  --d-ink: var(--scrim);               /* shadows and engraved strokes */
+  --d-hi: var(--text);                 /* specular light */
+  --d-shadow-a: .6;
+  --d-engrave: color-mix(in srgb, var(--bg) 72%, transparent);
+  --d-m1: var(--dim); --d-m2: var(--line2); --d-m3: color-mix(in srgb, var(--dim) 75%, var(--muted)); --d-m4: var(--line); --d-m5: color-mix(in srgb, var(--dim) 50%, var(--line2));
+  --d-ring1: var(--panel); --d-ring2: var(--panel2); --d-ring3: var(--bg2);
+  --d-rim: var(--bg2); --d-groove: var(--bg2); --d-groove-edge: var(--bg);
+  --d-hub1: var(--panel3); --d-hub2: var(--panel); --d-hub3: var(--bg);
+  --d-medal1: var(--panel2); --d-medal2: var(--bg);
+  --d-gold: var(--gold); --d-gold-deep: color-mix(in srgb, var(--gold) 55%, var(--bg));
+  --d-on-mc: var(--bg);
+  --d-scene-c: color-mix(in srgb, var(--panel2) 75%, var(--bg)); --d-scene-e: var(--bg);
+}
+:root[data-theme="light"] {
+  --d-deep: var(--text);
+  --d-hi: var(--panel);
+  --d-shadow-a: .16;
+  --d-engrave: color-mix(in srgb, var(--text) 12%, transparent);
+  --d-m1: color-mix(in srgb, var(--line2) 70%, var(--dim)); --d-m2: var(--panel); --d-m3: var(--line2); --d-m4: var(--panel2); --d-m5: color-mix(in srgb, var(--line2) 55%, var(--dim));
+  --d-ring1: var(--panel); --d-ring2: var(--panel2); --d-ring3: var(--panel3);
+  --d-rim: var(--panel3); --d-groove: var(--panel2); --d-groove-edge: var(--line2);
+  --d-hub1: var(--panel); --d-hub2: var(--panel); --d-hub3: var(--panel2);
+  --d-medal1: var(--panel); --d-medal2: var(--panel3);
+  --d-gold: color-mix(in srgb, var(--gold) 72%, var(--gold-l)); --d-gold-deep: color-mix(in srgb, var(--gold) 40%, var(--gold-l));
+  --d-on-mc: var(--panel);
+  --d-scene-c: var(--panel); --d-scene-e: var(--bg2);
+}
+@media (max-width: 1180px) { :root { --colL: 196px; --colR: 276px; } }
+@media (min-width: 1600px) { :root { --colL: 264px; --colR: 344px; } }
+
+#home { position: fixed; inset: 0; display: grid; grid-template-rows: var(--bar) minmax(0, 1fr) 28px; overflow: hidden;
+  background: radial-gradient(ellipse 62% 72% at 50% 52%, var(--d-scene-c) 0%, var(--d-scene-e) 100%); }
+#home.away { visibility: hidden; }
+
+/* ---------- title bar & footer ---------- */
+.top { position: relative; z-index: 3; display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-4); min-width: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); background: color-mix(in srgb, var(--material) 55%, transparent); }
+.brand { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; white-space: nowrap; }
+.brand svg { width: 18px; height: 18px; flex: none; }
+.brand b { font: var(--fw-semibold) var(--fs-title3)/1 var(--display); }
+.brand span { font-size: var(--fs-small); color: var(--dim); overflow: hidden; text-overflow: ellipsis; }
+.top .badge.mock { height: 18px; }
+.foot { position: relative; z-index: 3; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: var(--sp-4); padding: 0 var(--sp-4); font-size: var(--fs-small); color: var(--dim); white-space: nowrap; }
+.foot .kbd { margin: 0 1px; }
+.foot .r { text-align: right; }
+@media (max-width: 1100px) { .foot .r, .foot .l2 { display: none; } .top .badge.mock { display: none; } }
+
+/* ---------- stage ---------- */
+.stage { position: relative; z-index: 2; display: grid; grid-template-columns: var(--colL) minmax(0, 1fr) var(--colR); gap: var(--sp-5); padding: 0 var(--sp-4); min-height: 0; align-items: center; }
+.col { max-height: 100%; overflow-y: auto; scrollbar-width: none; padding: var(--sp-2) 2px; min-width: 0; transition: opacity .6s ease, transform .6s var(--ease); }
+.col::-webkit-scrollbar { display: none; }
+.col .ui-section-h { margin-top: var(--sp-4); }
+.col .ui-section-h:first-child { margin-top: 0; }
+.col .ui-group { background: color-mix(in srgb, var(--panel) 88%, transparent); }
+.col .lbl { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col .amt.gold { color: var(--gold-l); } .col .amt.teal { color: var(--teal-l); }
+.col .rt { display: flex; flex-direction: column; align-items: flex-end; flex: none; }
+.col .ui-hint.lh { padding: var(--sp-1) var(--sp-1) 0; }
+#needs .ui-row .t1 b { font-weight: var(--fw-semibold); }
+#needs .ui-row[aria-selected="true"] { background: color-mix(in srgb, var(--gold) 13%, transparent); box-shadow: inset 3px 0 0 var(--gold); }
+.legend { display: grid; grid-template-columns: 1fr 1fr; gap: 2px var(--sp-3); padding: 0 var(--sp-1); font-size: var(--fs-small); color: var(--dim); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.legend svg { width: 14px; height: 14px; flex: none; }
+
+/* ---------- the dial ---------- */
+.dialwrap { --d: min(calc(100vh - var(--bar) - 28px - 20px), calc(100vw - var(--colL) - var(--colR) - 72px)); --k: .65;
+  width: var(--d); height: var(--d); justify-self: center; position: relative; container-type: size;
+  transform-origin: 50% 10.5%; transition: transform .58s cubic-bezier(.65,0,.35,1), opacity .5s ease, filter .5s ease; }
+#dial { width: 100%; height: 100%; display: block; overflow: visible; touch-action: none; }
+#dial .ring-hit { cursor: pointer; }
+.wedge .tint { opacity: .5; transition: opacity .35s; }
+.wedge .edge { stroke-opacity: 0; transition: stroke-opacity .35s; }
+.wedge.on .tint { opacity: 1; }
+.wedge.on .edge { stroke-opacity: .9; }
+.up { transition: opacity .35s; }
+.up.dim { opacity: .55; }
+/* SVG text is in viewBox units; --k is the dial's px-per-unit, so these floors stay >= 12px */
+.up .nm { font: var(--fw-semibold) max(22px, calc(12.5px / var(--k))) var(--display); fill: var(--text); }
+.up .nm tspan { font: var(--fw-medium) max(18px, calc(12px / var(--k))) var(--mono); fill: var(--dim); }
+.up .nb text { font: var(--fw-bold) max(19px, calc(12px / var(--k))) var(--mono); fill: var(--on-gold); }
+.eg-sh * { stroke: var(--d-engrave) !important; }
+.eg-sh *:not([fill="none"]) { fill: var(--d-engrave) !important; }
+.bead { cursor: pointer; }
+.bead .pulse { transform-box: fill-box; transform-origin: center; animation: bp 2.6s ease-in-out infinite; }
+@keyframes bp { 0%,100% { opacity: .3; transform: scale(.82); } 50% { opacity: 1; transform: scale(1.12); } }
+.hubglow { animation: hg 4s ease-in-out infinite; }
+@keyframes hg { 0%,100% { opacity: .25; } 50% { opacity: .7; } }
+.window { transition: stroke .4s; }
+.idx.flash { animation: idxf .7s ease-out; }
+@keyframes idxf { 0% { filter: brightness(1.6) drop-shadow(0 0 10px var(--gold)); } 100% { filter: none; } }
+
+/* hub (HTML over the machined plate); it scales with the dial, floors at 12px */
+#hub { position: absolute; left: 50%; top: 50%; width: 58%; height: 58%; transform: translate(-50%, -50%); border-radius: 50%; display: grid; place-items: center; text-align: center; transition: opacity .6s ease; }
+.hc { width: 82%; display: flex; flex-direction: column; align-items: center; gap: 1.2cqmin; animation: hubIn .32s var(--ease) both; }
+@keyframes hubIn { from { opacity: 0; transform: translateY(1.2cqmin) scale(.985); } to { opacity: 1; transform: none; } }
+.h-eyebrow { font: var(--fw-semibold) max(12px, 1.7cqmin)/1.2 var(--font); letter-spacing: .06em; text-transform: uppercase; color: var(--gold-l); }
+.h-row { display: flex; align-items: center; gap: 1.4cqmin; }
+.h-count { font: var(--fw-semibold) 9cqmin/.86 var(--display); letter-spacing: -.04em; color: var(--gold-l);
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--d-hi) 14%, transparent), 0 -1px 0 color-mix(in srgb, var(--d-deep) 55%, transparent); }
+.h-lbl { text-align: left; }
+.h-lbl b { display: block; font: var(--fw-semibold) max(15px, 2.8cqmin)/1.1 var(--display); color: var(--text); }
+.h-lbl span { display: block; font-size: max(12px, 1.6cqmin); color: var(--dim); }
+.plate { width: 100%; display: grid; justify-items: center; gap: .5cqmin; padding: 1.3cqmin 1.8cqmin 1.5cqmin; border-radius: 1.4cqmin;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--panel3) 70%, transparent), color-mix(in srgb, var(--panel) 88%, transparent));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--d-hi) 9%, transparent), var(--shadow-2); }
+.p-tag { font-size: max(12px, 1.6cqmin); color: var(--dim); display: flex; gap: .5em; align-items: center; }
+.p-tag i { width: .6em; height: .6em; border-radius: 50%; background: var(--mc); }
+.p-verb { font: var(--fw-semibold) max(16px, 2.9cqmin)/1.15 var(--display); color: var(--text); }
+.p-verb b { font-family: var(--mono); color: var(--gold-l); font-weight: var(--fw-semibold); letter-spacing: -.02em; }
+.p-who, .plate .ui-silence { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-who { font-size: max(12.5px, 1.8cqmin); color: var(--muted); }
+.plate .ui-silence { font-size: max(12px, 1.7cqmin); }
+.p-acts { display: flex; gap: 1cqmin; align-items: center; margin-top: .6cqmin; }
+.gbtn { white-space: nowrap; display: inline-flex; align-items: center; gap: .5em; padding: 0 2cqmin; height: max(26px, 4.4cqmin); border-radius: var(--r); cursor: pointer; border: 0;
+  font: var(--fw-semibold) max(13px, 1.9cqmin) var(--font); color: var(--on-gold); background: var(--gold);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--d-hi) 35%, transparent), var(--shadow-1), 0 .4cqmin 1.6cqmin color-mix(in srgb, var(--gold) 30%, transparent); }
+.gbtn:hover { background: color-mix(in srgb, var(--gold) 88%, var(--text)); }
+.gbtn svg { width: 1em; height: 1em; }
+.p-acts .ui-btn.plain { height: max(26px, 4.4cqmin); font-size: max(12px, 1.7cqmin); }
+.pager { display: flex; align-items: center; gap: 1.2cqmin; font: var(--fw-medium) max(12px, 1.7cqmin) var(--mono); color: var(--muted); }
+.pager button { width: max(24px, 3.8cqmin); height: max(24px, 3.8cqmin); border-radius: 50%; border: 1px solid var(--line2); background: color-mix(in srgb, var(--panel) 85%, transparent); cursor: pointer; color: var(--muted); font-size: max(13px, 1.9cqmin); line-height: 1; }
+.pager button:hover { border-color: var(--gold); color: var(--gold-l); }
+.hm-name { font: var(--fw-bold) 9.5cqmin/.92 var(--display); letter-spacing: -.04em; color: var(--mc);
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--d-hi) 14%, transparent), 0 -1px 0 color-mix(in srgb, var(--d-deep) 55%, transparent); }
+.hm-long { font: var(--fw-semibold) max(12px, 1.8cqmin) var(--font); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.hm-head { font: var(--fw-semibold) max(14px, 2.3cqmin)/1.25 var(--display); color: var(--text); }
+.hm-counts { font: var(--fw-medium) max(12px, 1.7cqmin) var(--mono); color: var(--muted); }
+.hm-counts b { color: var(--gold-l); font-weight: var(--fw-semibold); }
+.hm-open { white-space: nowrap; margin-top: .6cqmin; display: inline-flex; align-items: center; gap: .6em; padding: 0 2cqmin; height: max(26px, 4.4cqmin); border-radius: var(--r); cursor: pointer; border: 0;
+  font: var(--fw-semibold) max(13px, 1.9cqmin) var(--font); color: var(--d-on-mc); background: var(--mc); box-shadow: var(--shadow-1), 0 .5cqmin 2cqmin color-mix(in srgb, var(--mc) 30%, transparent); }
+.hm-open .kbd { color: inherit; border-color: color-mix(in srgb, var(--d-on-mc) 40%, transparent); }
+.hm-back { background: none; border: 0; color: var(--dim); font-size: max(12px, 1.6cqmin); cursor: pointer; }
+.hm-back:hover { color: var(--gold-l); }
+.h-calm { font: var(--fw-semibold) max(20px, 4.2cqmin)/1.05 var(--display); letter-spacing: -.03em; color: var(--text); }
+.h-week { font: var(--fw-medium) max(12.5px, 1.9cqmin)/1.5 var(--mono); color: var(--muted); }
+.h-hint { font-size: max(12px, 1.7cqmin); color: var(--dim); }
+
+/* bead tooltip (hover = a light Layer 2) */
+#tip { position: fixed; z-index: 15; pointer-events: none; width: 280px; padding: var(--sp-2) var(--sp-3); border-radius: var(--r); background: var(--panel); box-shadow: var(--shadow-2), inset 0 2px 0 var(--mc); display: grid; gap: 2px; }
+#tip .t1 { display: flex; justify-content: space-between; gap: var(--sp-2); color: var(--dim); font-size: var(--fs-small); }
+#tip b { font-weight: var(--fw-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#tip .t2 { display: flex; align-items: center; gap: var(--sp-2); }
+#tip .t3 { font-size: var(--fs-small); color: var(--dim); }
+#tip .t4 { font-size: var(--fs-small); color: var(--gold-l); }
+
+/* ---------- choreography ---------- */
+#home.intro .col, #home.intro .top, #home.intro .foot { opacity: 0; }
+#home.intro .col.l { transform: translateX(-14px); } #home.intro .col.r { transform: translateX(14px); }
+#home.intro #hub { opacity: 0; }
+#home.intro .dialwrap { transform: scale(.955); transition: transform 2.3s var(--ease); }
+.top, .foot { transition: opacity .7s ease .1s; }
+#home.zoom .dialwrap { transform: scale(2.5); opacity: 0; filter: blur(3px); transition: transform .58s cubic-bezier(.65,0,.35,1), opacity .38s ease .2s, filter .4s ease .15s; }
+#home.zoom .col.l { opacity: 0; transform: translateX(-30px); } #home.zoom .col.r { opacity: 0; transform: translateX(30px); }
+#home.zoom .top, #home.zoom .foot { opacity: 0; transition-delay: 0s; }
+#home.notrans .dialwrap, #home.notrans .col, #home.notrans .top, #home.notrans .foot { transition: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .bead .pulse, .hubglow { animation: none; }
+  .bead .pulse { opacity: .9; }
+  .hc { animation: hubFade .3s ease both; }
+  @keyframes hubFade { from { opacity: 0; } to { opacity: 1; } }
+  #home.intro .dialwrap { transform: none; }
+  #home.intro .col.l, #home.intro .col.r { transform: none; }
+  #home.zoom .dialwrap { transform: none; filter: none; transition: opacity .25s; }
+  #home.zoom .col.l, #home.zoom .col.r { transform: none; }
+}
+</style>
+</head>
+<body>
+<div id="home" class="intro">
+  <header class="top">
+    <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="13" rx="10" ry="6" fill="none" style="stroke:var(--gold)" stroke-width="2"/><circle cx="12" cy="13" r="2" style="fill:var(--gold)"/></svg><b>The Table</b><span>Maya · Second Screen</span></div>
+    <span class="ui-spacer"></span>
+    <span class="badge sandbox" title="Every screen carries its mode">Sandbox</span>
+    <span class="badge mock">sample data</span>
+    <button class="ui-btn sm" data-find title="Find a deal, counterparty, subscriber or module">Find <span class="kbd">Ctrl K</span></button>
+    <button class="ui-btn sm lockbtn" id="lockind" data-lock></button>
+    <button class="ui-btn sm" data-settings title="Engine, PayPal account, appearance">Settings</button>
+    <span id="themeSeg"></span>
+  </header>
+  <main class="stage">
+    <section class="col l" id="ledger" aria-label="This week's money"></section>
+    <div class="dialwrap" id="dialwrap">
+      <svg id="dial" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet" role="group" aria-label="The dial: six modules on the outer ring, every deal as a bead on the middle ring, what needs you in the centre. Turn with the left and right arrow keys or the mouse wheel, Enter opens."></svg>
+      <div id="hub" aria-live="polite"></div>
+    </div>
+    <section class="col r" id="needs" aria-label="Needs you"></section>
+  </main>
+  <footer class="foot">
+    <span>snapshot <span class="mono" id="clk">Thu 29 Oct · 14:02</span><span class="l2"> · sample week</span></span>
+    <span>turn <span class="kbd">←</span><span class="kbd">→</span> or wheel · <span class="kbd">Enter</span> open · <span class="kbd">1</span>–<span class="kbd">6</span> jump · <span class="kbd">Esc</span> back</span>
+    <span class="r">stylised scene · sandbox sample data</span>
+  </footer>
+  <div id="tip" hidden role="tooltip"></div>
+</div>
+
+<script src="fixtures.js"></script>
+<script src="../shared/ui.js"></script>
+<script src="modules.js"></script>
+<script>
+(function () {
+  'use strict';
+  const A = window.App;
+  const MODS = A.MODULES, N = MODS.length, STEP = 360 / N, C = 500;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const esc = A.esc, money = A.money;
+  const $ = (s, r) => (r || document).querySelector(s);
+  const home = $('#home'), svg = $('#dial'), hub = $('#hub'), wrap = $('#dialwrap'), tip = $('#tip');
+  const R = { hub: 300, track: 326, trackW: 34, secI: 348, secO: 458, rimI: 460, rimO: 476, bez: 487, bezW: 18, up: 404 };
+  const modIdx = k => MODS.findIndex(m => m.key === k);
+  const sf = (fill) => `style="fill:${fill}"`, ss = (stroke) => `style="stroke:${stroke}"`, sfs = (fill, stroke) => `style="fill:${fill};stroke:${stroke}"`;
+  const stop = (o, c, a) => `<stop offset="${o}" style="stop-color:${c}${a != null ? ';stop-opacity:' + a : ''}"/>`;
+
+  /* state vocabulary → bead kind (mirrors the shared state classes) */
+  const beadKind = d => ({ live: 'moving', wait: 'moving', held: 'held', done: 'settled', bad: 'stopped', off: 'off' })[A.STATE_CLASS[d.state] || 'off'];
+
+  /* ---------------- geometry ---------------- */
+  const pol = (r, deg) => { const a = deg * Math.PI / 180; return [C + r * Math.sin(a), C - r * Math.cos(a)]; };
+  const f1 = n => n.toFixed(1);
+  function wedge(a0, a1, r0, r1) {
+    const [x0, y0] = pol(r1, a0), [x1, y1] = pol(r1, a1), [x2, y2] = pol(r0, a1), [x3, y3] = pol(r0, a0);
+    return `M${f1(x0)} ${f1(y0)}A${r1} ${r1} 0 0 1 ${f1(x1)} ${f1(y1)}L${f1(x2)} ${f1(y2)}A${r0} ${r0} 0 0 0 ${f1(x3)} ${f1(y3)}Z`;
+  }
+
+  /* ---------------- engraved illustrations (100×100 box) ---------------- */
+  const G = 'var(--d-gold)';
+  function art(key, c) {
+    const s = (d, w, col, extra) => `<path d="${d}" fill="none" ${ss(col || c)} stroke-width="${w || 3}" stroke-linecap="round" stroke-linejoin="round" ${extra || ''}/>`;
+    const p = {
+      tables:
+        s('M8 88H92', 3) +
+        s('M15 26Q12 46 18 62H38M18 62V86M38 62V86M11 26H21', 3.6, 'var(--teal)') + s('M17 40l9 0M17 50h10', 2, 'var(--teal)', 'opacity=".55"') +
+        s('M85 26Q88 46 82 62H62M82 62V86M62 62V86M79 26H89', 3.6, 'var(--coral)') + s('M83 40l-9 0M83 50h-10', 2, 'var(--coral)', 'opacity=".55"') +
+        s('M41 58H59M50 58V86M44 86H56', 3) +
+        `<circle cx="50" cy="40" r="11" ${sfs(G, 'color-mix(in srgb, var(--gold) 50%, var(--d-hi))')} stroke-width="1.6"/><circle cx="50" cy="40" r="6.8" fill="none" ${ss('var(--d-gold-deep)')} stroke-width="1.6"/>` +
+        s('M50 35.5v9', 1.8, 'var(--d-gold-deep)'),
+      spend:
+        s('M16 88V42A34 30 0 0 1 84 42V88', 3.8) + s('M10 88H90', 3) +
+        s('M28 19V80M39 13.6V80M50 12V80M61 13.6V80M72 19V80', 2.6, c, 'opacity=".85"') +
+        s('M26 80l2 6 2-6M37 80l2 6 2-6M48 80l2 6 2-6M59 80l2 6 2-6M70 80l2 6 2-6', 2, c) +
+        s('M16 46H84M16 64H84', 2.6, c, 'opacity=".75"') +
+        `<rect x="43" y="56" width="14" height="11" rx="2.2" ${sf(G)}/>` + s('M46 56v-3.5a4 4 0 0 1 8 0V56', 2.2, G) + `<circle cx="50" cy="61.5" r="1.6" ${sf('var(--on-gold)')}/>`,
+      counter:
+        s('M14 12H86L80 26H20Z', 2.6) + s('M20 26q4 5 8 0q4 5 8 0q4 5 8 0q4 5 8 0q4 5 8 0q4 5 8 0q4 5 8 0q4 5 8 0', 2, c, 'opacity=".8"') +
+        s('M6 66H94', 4.4) + s('M12 66V91H88V66', 3) + s('M31 71v15M50 71v15M69 71v15', 2.2, c, 'opacity=".55"') +
+        s('M35 62A15 15 0 0 1 65 62Z', 3) + s('M31 62.5H69', 3) + `<circle cx="50" cy="44.5" r="3.4" ${sf(c)}/>` +
+        s('M27 48l-6-3.5M73 48l6-3.5M50 36v-5', 2.2, G),
+      book:
+        s('M50 28C38 21 25 20 11 21V77C25 76 38 77 50 84 62 77 75 76 89 77V21C75 20 62 21 50 28Z', 3.2) + s('M50 28V84', 2.4) +
+        s('M19 34H41M19 42H41M19 50H36M19 58H41M19 66H33', 2, c, 'opacity=".7"') +
+        s('M58 34H71M77 34H82M58 42H71M77 42H82M58 50H68M77 50H82M58 58H71M77 58H82', 2, c, 'opacity=".7"') +
+        s('M57 66H82', 2.4, G) +
+        `<path d="M64 80h8v13l-4-3.5-4 3.5z" ${sf(G)}/>`,
+      shield:
+        s('M38 20A12 10 0 0 1 62 20', 2.8) + `<circle cx="50" cy="10" r="3" fill="none" ${ss(c)} stroke-width="2.4"/>` +
+        s('M33 28H67L62 20H38Z', 3) +
+        `<rect x="37" y="28" width="26" height="46" rx="2" ${sf(c)} fill-opacity=".12"/>` +
+        s('M36 28V74M64 28V74', 3.4) + s('M50 29V73', 1.6, c, 'opacity=".4"') +
+        `<path d="M50 38c8 9 9 16 0 27-9-11-8-18 0-27z" ${sf(c)} fill-opacity=".92"/><path d="M50 51c3.4 4 3.6 7.6 0 12-3.6-4.4-3.4-8 0-12z" ${sf(G)}/>` +
+        s('M31 74H69L65 82H35Z', 3) + s('M27 88H73', 3.4),
+      rescue:
+        `<circle cx="50" cy="48" r="28" fill="none" ${ss(c)} stroke-width="14"/>` +
+        `<circle cx="50" cy="48" r="28" fill="none" ${ss('var(--d-hi)')} stroke-width="14" stroke-dasharray="22 22" stroke-dashoffset="11"/>` +
+        `<circle cx="50" cy="48" r="35.5" fill="none" ${ss(c)} stroke-width="1.4" opacity=".6"/><circle cx="50" cy="48" r="20.5" fill="none" ${ss(c)} stroke-width="1.4" opacity=".6"/>` +
+        s('M73 70C79 77 86 82 94 84', 2.6, G) + s('M24 28c-3-3-3-6-1-9M76 28c3-3 3-6 1-9', 2, G, 'opacity=".8"')
+    }[key];
+    return `<g class="eg-sh" transform="translate(0 2.4)">${p}</g><g>${p}</g>`;
+  }
+
+  /* ---------------- build the static dial ---------------- */
+  function buildDial() {
+    let defs = `<defs>
+      <filter id="dshadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="24" stdDeviation="24" style="flood-color:var(--d-deep);flood-opacity:var(--d-shadow-a)"/></filter>
+      <filter id="soft" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="6" stdDeviation="7" style="flood-color:var(--d-deep);flood-opacity:var(--d-shadow-a)"/></filter>
+      <filter id="noise" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="2.2 .02" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 .6  0 0 0 0 .62  0 0 0 0 .66  0 0 0 .22 0"/><feComposite in2="SourceGraphic" operator="in"/></filter>
+      <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">${stop(0, 'var(--d-m1)')}${stop(.22, 'var(--d-m2)')}${stop(.48, 'var(--d-m3)')}${stop(.74, 'var(--d-m4)')}${stop(1, 'var(--d-m5)')}</linearGradient>
+      <linearGradient id="rimlight" x1="0" y1="0" x2="0" y2="1">${stop(0, 'var(--d-hi)', .38)}${stop(.5, 'var(--d-hi)', .02)}${stop(1, 'var(--d-deep)', .5)}</linearGradient>
+      <linearGradient id="rimdark" x1="0" y1="0" x2="0" y2="1">${stop(0, 'var(--d-deep)', .5)}${stop(1, 'var(--d-hi)', .16)}</linearGradient>
+      <radialGradient id="ringbase" cx="500" cy="500" r="460" gradientUnits="userSpaceOnUse">${stop(.74, 'var(--d-ring1)')}${stop(.88, 'var(--d-ring2)')}${stop(1, 'var(--d-ring3)')}</radialGradient>
+      <radialGradient id="hubg" cx="44%" cy="36%" r="70%">${stop(0, 'var(--d-hub1)')}${stop(.6, 'var(--d-hub2)')}${stop(1, 'var(--d-hub3)')}</radialGradient>
+      <radialGradient id="medal" cx="45%" cy="38%" r="65%">${stop(0, 'var(--d-medal1)')}${stop(1, 'var(--d-medal2)')}</radialGradient>
+      <radialGradient id="tealg" cx="38%" cy="32%" r="70%">${stop(0, 'color-mix(in srgb, var(--teal) 40%, var(--d-hi))')}${stop(.45, 'var(--teal)')}${stop(1, 'color-mix(in srgb, var(--teal) 55%, var(--d-deep))')}</radialGradient>
+      <radialGradient id="okg" cx="38%" cy="32%" r="70%">${stop(0, 'color-mix(in srgb, var(--ok) 40%, var(--d-hi))')}${stop(.5, 'var(--ok)')}${stop(1, 'color-mix(in srgb, var(--ok) 55%, var(--d-deep))')}</radialGradient>
+      <radialGradient id="spec" cx="30%" cy="18%" r="80%">${stop(0, 'var(--d-hi)', .1)}${stop(.45, 'var(--d-hi)', .02)}${stop(1, 'var(--d-deep)', .18)}</radialGradient>
+      <linearGradient id="goldg" x1="0" y1="0" x2="0" y2="1">${stop(0, 'color-mix(in srgb, var(--gold) 45%, var(--d-hi))')}${stop(.6, 'var(--d-gold)')}${stop(1, 'var(--d-gold-deep)')}</linearGradient>
+      <pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" ${sf('color-mix(in srgb, var(--gold) 22%, var(--d-ring1))')}/><line x1="0" y1="0" x2="0" y2="5" ${ss('var(--d-gold)')} stroke-width="2.4"/></pattern>`;
+    MODS.forEach(m => {
+      defs += `<radialGradient id="wg-${m.key}" cx="500" cy="500" r="${R.secO}" gradientUnits="userSpaceOnUse">${stop(.75, m.color, .05)}${stop(.9, m.color, .16)}${stop(1, m.color, .34)}</radialGradient>`;
+    });
+    defs += `</defs>`;
+
+    // static bezel with knurling
+    let knurl = '';
+    for (let k = 0; k < 180; k++) { const a = k * 2; const [x0, y0] = pol(R.bez + 5, a), [x1, y1] = pol(R.bez + 9, a); knurl += `M${f1(x0)} ${f1(y0)}L${f1(x1)} ${f1(y1)}`; }
+    const bezel = `<circle cx="500" cy="500" r="496" ${sf('var(--d-groove-edge)')} filter="url(#dshadow)"/>
+      <circle cx="500" cy="500" r="${R.bez}" fill="none" stroke="url(#metal)" stroke-width="${R.bezW}"/>
+      <circle cx="500" cy="500" r="${R.bez}" fill="none" ${ss('var(--d-deep)')} stroke-width="${R.bezW}" filter="url(#noise)" opacity=".9"/>
+      <path d="${knurl}" ${ss('var(--d-ink)')} stroke-width="1.6"/>
+      <circle cx="500" cy="500" r="${R.bez + R.bezW / 2}" fill="none" stroke="url(#rimlight)" stroke-width="1.6"/>
+      <circle cx="500" cy="500" r="${R.bez - R.bezW / 2}" fill="none" stroke="url(#rimdark)" stroke-width="1.6"/>`;
+
+    // rotor: rim band + ticks + wedges
+    let ticks = '';
+    for (let k = 0; k < 120; k++) {
+      const a = k * 3, major = k % 20 === 0, mid = k % 5 === 0;
+      const [x0, y0] = pol(R.rimO - 2, a), [x1, y1] = pol(major ? R.rimI - 2 : mid ? R.rimI + 3 : R.rimI + 7, a);
+      ticks += `<line x1="${f1(x0)}" y1="${f1(y0)}" x2="${f1(x1)}" y2="${f1(y1)}" ${ss(major ? 'var(--text)' : 'var(--muted)')} stroke-opacity="${major ? .85 : mid ? .55 : .3}" stroke-width="${major ? 2.4 : 1.4}"/>`;
+    }
+    let wedges = '';
+    MODS.forEach((m, i) => {
+      const a = i * STEP;
+      wedges += `<g class="wedge" data-i="${i}">
+        <path d="${wedge(a - STEP / 2 + .6, a + STEP / 2 - .6, R.secI, R.secO)}" fill="url(#ringbase)"/>
+        <path class="tint" d="${wedge(a - STEP / 2 + .6, a + STEP / 2 - .6, R.secI, R.secO)}" fill="url(#wg-${m.key})"/>
+        <path class="edge" d="${wedge(a - STEP / 2 + 1.2, a + STEP / 2 - 1.2, R.secI + 3, R.secO - 3)}" fill="none" ${ss(m.color)} stroke-width="2"/>
+      </g>`;
+    });
+    let dividers = '';
+    for (let i = 0; i < N; i++) { const a = i * STEP + STEP / 2; const [x0, y0] = pol(R.secI, a), [x1, y1] = pol(R.secO, a); dividers += `<line x1="${f1(x0)}" y1="${f1(y0)}" x2="${f1(x1)}" y2="${f1(y1)}" ${ss('var(--d-groove-edge)')} stroke-width="3.5"/><line x1="${f1(x0 + .9)}" y1="${f1(y0 + .9)}" x2="${f1(x1 + .9)}" y2="${f1(y1 + .9)}" ${ss('var(--d-hi)')} stroke-opacity=".08" stroke-width="1"/>`; }
+    const rotor = `<g id="rotor">
+      <circle cx="500" cy="500" r="${(R.rimI + R.rimO) / 2}" fill="none" ${ss('var(--d-rim)')} stroke-width="${R.rimO - R.rimI}"/>
+      ${ticks}
+      <circle cx="500" cy="500" r="${(R.secI + R.secO) / 2}" fill="none" ${ss('var(--d-groove-edge)')} stroke-width="${R.secO - R.secI + 4}"/>
+      ${wedges}${dividers}
+      <circle cx="500" cy="500" r="${R.secO + 1}" fill="none" ${ss('var(--d-ink)')} stroke-width="2"/>
+    </g>`;
+
+    // top window under the index mark (static)
+    const win = `<path class="window" id="window" d="${wedge(-STEP / 2 + 1.5, STEP / 2 - 1.5, R.secI - 2, R.secO + 2)}" fill="none" ${ss('var(--d-gold)')} stroke-opacity=".6" stroke-width="1.4" stroke-dasharray="2 5"/>`;
+
+    // bead groove (static: a circle is rotation-invariant)
+    const groove = `<circle cx="500" cy="500" r="${R.track}" fill="none" ${ss('var(--d-groove-edge)')} stroke-width="${R.trackW + 6}"/>
+      <circle cx="500" cy="500" r="${R.track}" fill="none" ${ss('var(--d-groove)')} stroke-width="${R.trackW}"/>
+      <circle cx="500" cy="500" r="${R.track + R.trackW / 2}" fill="none" stroke="url(#rimlight)" stroke-width="1.2" transform="rotate(180 500 500)"/>
+      <circle cx="500" cy="500" r="${R.track - R.trackW / 2}" fill="none" stroke="url(#rimlight)" stroke-width="1.2"/>`;
+
+    // machined hub plate
+    let grooves = '';
+    for (let r = 22; r < R.hub - 4; r += 7) grooves += `<circle cx="500" cy="500" r="${r}" fill="none" ${ss('var(--text)')} stroke-opacity="${r % 14 ? .02 : .035}" stroke-width="1"/>`;
+    const hubPlate = `<circle class="hubglow" id="hubglow" cx="500" cy="500" r="${R.hub + 5}" fill="none" ${ss('var(--d-gold)')} stroke-width="2" stroke-opacity=".7"/>
+      <circle cx="500" cy="500" r="${R.hub}" fill="url(#hubg)" filter="url(#soft)"/>
+      ${grooves}
+      <circle cx="500" cy="500" r="${R.hub}" fill="none" stroke="url(#rimlight)" stroke-width="2.2"/>
+      <circle cx="500" cy="500" r="${R.hub - 9}" fill="none" stroke="url(#rimdark)" stroke-width="1.2"/>`;
+
+    const index = `<g class="idx" id="idx"><path d="M500 32L484 4H516Z" fill="url(#goldg)" ${ss('color-mix(in srgb, var(--gold) 45%, var(--d-hi))')} stroke-width="1"/><path d="M500 32V${500 - R.secO - 4}" ${ss('var(--d-gold)')} stroke-width="2.4"/></g>`;
+    const spec = `<circle cx="500" cy="500" r="496" fill="url(#spec)" pointer-events="none"/>`;
+    const hit = `<path class="ring-hit" d="M500 4a496 496 0 1 0 .01 0ZM500 ${500 - R.hub - 4}a${R.hub + 4} ${R.hub + 4} 0 1 1 -.01 0Z" fill="transparent" fill-rule="evenodd"/>`;
+
+    svg.innerHTML = defs + bezel + rotor + groove + hit + win + `<g id="ups"></g><g id="beads"></g>` + `<g pointer-events="none">${hubPlate}</g>` + spec + index;
+
+    // upright module medallions
+    let ups = '';
+    MODS.forEach((m, i) => {
+      ups += `<g class="up" data-i="${i}" pointer-events="none">
+        <circle cx="0" cy="-8" r="43" fill="url(#medal)" ${ss('var(--d-ink)')} stroke-width="2"/>
+        <circle cx="0" cy="-8" r="43" fill="none" stroke="url(#rimdark)" stroke-width="1.4"/>
+        <circle cx="0" cy="-8" r="45.5" fill="none" ${ss(m.color)} stroke-opacity=".4" stroke-width="1.2"/>
+        <g transform="translate(-36 -44) scale(.72)">${art(m.key, m.color)}</g>
+        <text class="nm" x="0" y="58" text-anchor="middle">${m.name} <tspan dx="4">${i + 1}</tspan></text>
+        <g class="nb" data-nb="${m.key}" transform="translate(37 -42)"></g>
+      </g>`;
+    });
+    $('#ups').innerHTML = ups;
+    upEls = Array.from(svg.querySelectorAll('.up')).map(el => ({ el, i: +el.dataset.i, nb: el.querySelector('.nb') }));
+    wedgeEls = Array.from(svg.querySelectorAll('.wedge'));
+  }
+  // px per viewBox unit, so SVG labels can floor at 12px
+  new ResizeObserver(() => { wrap.style.setProperty('--k', (wrap.clientWidth / 1000).toFixed(3)); }).observe(wrap);
+
+  /* ---------------- rotation engine ---------------- */
+  let rot = 0, target = 0, vel = 0, rafOn = false, upEls = [], wedgeEls = [], beadEls = [];
+  let mode = 'needs', sel = 0, needIdx = 0, introOn = false, zooming = false, lastNeeds = [];
+  function setTarget(t) { // shortest equivalent rotation
+    const d = ((t - target) % 360 + 540) % 360 - 180;
+    target = target + d;
+    if (reduce || introOn) { if (!introOn) { rot = target; vel = 0; applyRot(); } return; }
+    if (!rafOn) { rafOn = true; last = performance.now(); requestAnimationFrame(loop); }
+  }
+  let last = 0;
+  function loop(t) {
+    if (introOn) { rafOn = false; return; }
+    const dt = Math.min(.033, (t - last) / 1000); last = t;
+    const k = 95, damp = 15.5;
+    vel += ((target - rot) * k - vel * damp) * dt;
+    rot += vel * dt;
+    if (Math.abs(target - rot) < .02 && Math.abs(vel) < .05) { rot = target; vel = 0; rafOn = false; applyRot(); return; }
+    applyRot();
+    requestAnimationFrame(loop);
+  }
+  function applyRot() {
+    $('#rotor').setAttribute('transform', `rotate(${rot.toFixed(2)} 500 500)`);
+    const hi = mode === 'module' ? sel : -1;
+    upEls.forEach(u => {
+      const a = u.i * STEP + rot, low = Math.max(0, -Math.cos(a * Math.PI / 180));
+      const [x, y] = pol(R.up - 12 * low, a); // lower half: tuck in so the label clears the rim
+      u.el.setAttribute('transform', `translate(${f1(x)} ${f1(y)})${u.i === hi ? ' scale(1.08)' : ''}`);
+      if (u.nb) u.nb.setAttribute('transform', `translate(${Math.sin(a * Math.PI / 180) < -0.2 ? -37 : 37} -42)`); // badge on the outer side, clear of the beads
+    });
+    beadEls.forEach(b => { const [x, y] = pol(R.track, b.a + rot); b.el.setAttribute('transform', `translate(${f1(x)} ${f1(y)})`); });
+  }
+  function paintSelection() {
+    const hi = mode === 'module' ? sel : pointedIdx();
+    wedgeEls.forEach((w, i) => w.classList.toggle('on', i === hi));
+    upEls.forEach(u => u.el.classList.toggle('dim', mode === 'module' && u.i !== sel));
+    const win = $('#window');
+    if (win) win.style.stroke = mode === 'module' ? MODS[sel].color : 'var(--d-gold)';
+    applyRot();
+  }
+  function pointedIdx() { const n = lastNeeds[needIdx]; return n ? modIdx(n.module) : 0; }
+
+  /* ---------------- modes ---------------- */
+  function selectModule(i) {
+    const changed = mode !== 'module' || sel !== i;
+    mode = 'module'; sel = i;
+    setTarget(-i * STEP);
+    paintSelection();
+    if (changed) { renderHub(); markNeed(); }
+  }
+  function pointNeeds() {
+    const changed = mode !== 'needs';
+    mode = 'needs'; anchor = null;
+    setTarget(-pointedIdx() * STEP);
+    paintSelection();
+    renderHub(); if (changed) renderNeeds(A.summary()); else markNeed();
+  }
+  function turn(d) { const base = mode === 'module' ? sel : pointedIdx(); selectModule((base + d + N) % N); }
+  function cycleNeed(d) {
+    if (!lastNeeds.length) return;
+    needIdx = (needIdx + d + lastNeeds.length) % lastNeeds.length;
+    mode = 'needs'; pointNeeds(); markNeed();
+  }
+  function markNeed() { $('#needs').querySelectorAll('[data-need]').forEach((el, k) => el.setAttribute('aria-selected', String(mode === 'needs' && k === needIdx))); }
+
+  /* ---------------- render ---------------- */
+  function renderHome() {
+    const s = A.summary();
+    lastNeeds = s.needs;
+    if (needIdx >= lastNeeds.length) needIdx = 0;
+    renderLedger(s); renderNeeds(s); renderBeads(); renderBadges(s); renderLock();
+    $('#hubglow').style.display = lastNeeds.length ? '' : 'none';
+    if (mode === 'needs') { setTarget(-pointedIdx() * STEP); }
+    paintSelection();
+    renderHub();
+  }
+  function renderLock() {
+    const L = A.state.locked, b = $('#lockind');
+    b.classList.toggle('is-locked', L);
+    b.title = L ? 'Locked after 15 idle minutes (simulated). Read-only views stay open; privileged actions ask for Windows Hello. Click to unlock.' : 'Privileged actions lock after 15 idle minutes. Click to simulate the idle lock.';
+    b.innerHTML = A.lockSvg(L) + (L ? 'Locked' : 'Unlocked');
+  }
+  function renderBadges(s) {
+    MODS.forEach(m => {
+      const g = svg.querySelector(`[data-nb="${m.key}"]`), n = s.perModule[m.key].needs;
+      g.innerHTML = n ? `<circle r="14" fill="url(#goldg)" ${ss('color-mix(in srgb, var(--gold) 45%, var(--d-hi))')} stroke-width="1.2"/><text y="6.2" text-anchor="middle">${n}</text>` : '';
+    });
+  }
+  function beadSvg(d) {
+    const k = beadKind(d);
+    let g = '';
+    if (d.pending) g += `<circle class="pulse" r="19" fill="none" ${ss('var(--d-gold)')} stroke-width="2.6"/>`;
+    if (k === 'moving') g += `<circle r="10.5" fill="url(#tealg)" ${ss('color-mix(in srgb, var(--teal) 50%, var(--d-hi))')} stroke-width="1.4"/>`;
+    else if (k === 'held') g += `<circle r="12.5" fill="url(#hatch)" ${ss('var(--d-gold)')} stroke-width="2.4"/><circle r="6.6" ${sf('var(--panel)')}/><rect x="-3.6" y="-1" width="7.2" height="5.4" rx="1" ${sf('var(--gold-l)')}/><path d="M-2.2 -1v-1.8a2.2 2.2 0 0 1 4.4 0V-1" fill="none" ${ss('var(--gold-l)')} stroke-width="1.3"/>`;
+    else if (k === 'settled') g += `<circle r="6.5" fill="url(#okg)"/>`;
+    else if (k === 'stopped') g += `<path d="M-6.5 -6.5L6.5 6.5M6.5 -6.5L-6.5 6.5" ${ss('var(--dim)')} stroke-width="3.2" stroke-linecap="round"/>`;
+    else g += `<circle r="7" fill="none" ${ss('var(--dim)')} stroke-width="2.2"/>`;
+    return g + `<circle r="19" fill="transparent"/>`;
+  }
+  function renderBeads() {
+    const all = A.deals();
+    let h = '';
+    const pos = [];
+    MODS.forEach((m, i) => {
+      const ds = all.filter(d => d.module === m.key), n = ds.length;
+      const sp = n > 1 ? Math.min(8.5, 46 / (n - 1)) : 0;
+      ds.forEach((d, j) => {
+        const a = i * STEP + (j - (n - 1) / 2) * sp;
+        pos.push(a);
+        h += `<g class="bead" data-id="${d.id}">${beadSvg(d)}</g>`;
+      });
+    });
+    const B = $('#beads'); B.innerHTML = h;
+    beadEls = Array.from(B.querySelectorAll('.bead')).map((el, k) => ({ el, a: pos[k] }));
+    applyRot();
+  }
+  // Left column, Layer 1: the week as five indicative rows; their deals open in a popover.
+  function renderLedger(s) {
+    const heldSum = s.held.reduce((a, h) => a + (h.amount || 0), 0);
+    $('#ledger').innerHTML = `<div class="ui-section-h"><h2>This week</h2><span class="end">26 Oct – 1 Nov</span></div>
+      <div class="ui-group">
+        <button class="ui-row act" data-open="book" title="Captured · paid by your agents. Opens Book."><span class="lbl">Moved out</span><span class="amt">${money(s.out)}</span></button>
+        <button class="ui-row act" data-open="book" title="Captured · paid to you${s.recovered ? ', incl. ' + money(s.recovered) + ' recovered' : ''}. Opens Book."><span class="lbl">Moved in</span><span class="amt">${money(s.inn)}</span></button>
+        <button class="ui-row act" data-led="held" title="Waiting, not moved"><span class="lbl">Held <span class="dim">· ${s.held.length}</span></span><span class="amt gold">${money(heldSum)}</span><span class="chev"></span></button>
+        <button class="ui-row act" data-led="moving" title="Running on their own, no decision due"><span class="lbl">In motion</span><span class="amt teal">${s.moving.length}</span><span class="chev"></span></button>
+        <button class="ui-row act" data-led="stopped" title="Refused or blocked before any money moved"><span class="lbl">Stopped</span><span class="amt">${s.stopped.length}</span><span class="chev"></span></button>
+      </div>
+      <div class="ui-hint lh">captured only · held and proposed never count as moved</div>
+      <div class="ui-section-h"><h2>Engine</h2><span class="end">estimate · not a bill</span></div>
+      <div class="ui-group"><div class="ui-row"><span class="lbl mono">${esc(A.state.engine)}</span><span class="amt">~$${window.FIX.engineWeekUSD.toFixed(2)}</span></div></div>
+      <div class="ui-section-h"><h2>Beads</h2></div>
+      <div class="legend" aria-label="Bead legend">
+        <span><svg viewBox="-14 -14 28 28"><circle r="9" ${sf('var(--teal)')}/></svg>moving</span>
+        <span><svg viewBox="-14 -14 28 28"><circle r="10" fill="url(#hatch)" ${ss('var(--d-gold)')} stroke-width="2.4"/></svg>held</span>
+        <span><svg viewBox="-14 -14 28 28"><circle r="6" ${sf('var(--ok)')}/></svg>settled</span>
+        <span><svg viewBox="-14 -14 28 28"><path d="M-6 -6L6 6M6 -6L-6 6" ${ss('var(--dim)')} stroke-width="3" stroke-linecap="round"/></svg>stopped</span>
+        <span><svg viewBox="-14 -14 28 28"><circle r="7" fill="none" ${ss('var(--dim)')} stroke-width="2.2"/></svg>withdrawn</span>
+        <span><svg viewBox="-14 -14 28 28"><circle r="11" fill="none" ${ss('var(--d-gold)')} stroke-width="2.4"/><circle r="5" ${sf('var(--teal)')}/></svg>needs you</span>
+      </div>`;
+  }
+  function ledgerPop(kind, anchorEl) {
+    const s = A.summary();
+    const list = kind === 'held' ? s.held.map(h => [h.id, h.module, `${money(h.amount)} · ${h.kind}`, h.state])
+      : kind === 'moving' ? s.moving.map(m => [m.id, m.module, m.item.replace(/^Refurbished /, ''), m.state])
+      : s.stopped.map(d => [d.id, d.module, d.item.replace(/^Refurbished /, ''), d.state]);
+    const title = { held: 'Held · waiting, not moved', moving: 'In motion · no decision due', stopped: 'Stopped before any money moved' }[kind];
+    const body = document.createElement('div');
+    body.innerHTML = list.length ? `<div class="ui-group">${list.map(([id, mod, t, state]) => `<button class="ui-row act" data-pd="${id}" style="--mc:${A.MOD[mod].color}"><span class="dotm"></span><span class="id">${id}</span><span class="clip" style="flex:1">${esc(t)}</span>${A.chip(state)}</button>`).join('')}</div>`
+      : '<div class="ui-empty">Nothing here.</div>';
+    const p = UI.popover(anchorEl, body, { title });
+    body.querySelectorAll('[data-pd]').forEach(b => b.addEventListener('click', () => { p.close(); A.openDeal(b.dataset.pd); }));
+  }
+  // Right column, Layer 1: every open decision as one two-line row with its default on silence.
+  function renderNeeds(s) {
+    const n = s.needs;
+    $('#needs').innerHTML = `<div class="ui-section-h"><h2>Needs you</h2><span class="end">${n.length} · silence never moves money</span></div>
+      ${n.length ? `<div class="ui-group">${n.map((x, i) => `<button class="ui-row two act" data-need="${i}" aria-selected="${mode === 'needs' && i === needIdx}" style="--mc:${A.MOD[x.module].color}" title="${esc(x.id + ' · ' + x.item)}">
+        <span class="dotm"></span><span class="main"><span class="t1"><b>${esc(x.verb)}</b> · ${esc(x.who)}</span>${A.silence(x.silence)}</span>
+        <span class="rt"><span class="amt">${money(x.amount)}</span><span class="id">${x.id}</span></span></button>`).join('')}</div>`
+      : '<div class="ui-group"><div class="ui-empty">Nothing needs you. Your agents work inside the mandates you signed.</div></div>'}`;
+  }
+  const BTN = { countersign: 'Review & countersign', capture: 'Review: capture or void', release: 'Review the hold', approve: 'Review & approve', lever: 'Open the rescue lever' };
+  function renderHub() {
+    const s = A.summary();
+    let h;
+    if (mode === 'module') {
+      const m = MODS[sel], pm = s.perModule[m.key];
+      const counts = m.key === 'book' ? `reads all <b>${A.deals().length}</b> deals · read-only`
+        : `${pm.count} deal${pm.count === 1 ? '' : 's'} · <b>${pm.needs}</b> need${pm.needs === 1 ? 's' : ''} you · ${pm.live} in play`;
+      h = `<div class="hc" style="--mc:${m.color}">
+        <div class="h-eyebrow" style="color:${m.color}">${sel + 1} / 6</div>
+        <div class="hm-name">${m.name}</div>
+        <div class="hm-long">${esc(m.long)}</div>
+        <div class="hm-head">${esc(pm.headline)}</div>
+        <div class="hm-counts">${counts}</div>
+        <button class="hm-open" data-openi="${sel}">Open ${m.name} <span class="kbd">Enter</span></button>
+        <button class="hm-back" data-back>Esc · back to Needs you (${s.needs.length})</button></div>`;
+    } else if (s.needs.length) {
+      const x = s.needs[needIdx], d = A.deal(x.id), m = A.MOD[x.module];
+      h = `<div class="hc">
+        <div class="h-row"><div class="h-count">${s.needs.length}</div><div class="h-lbl"><b>Needs you</b><span>nothing turns without you</span></div></div>
+        <div class="plate" style="--mc:${m.color}">
+          <div class="p-tag"><i></i>${m.name} · <span class="mono">${x.id}</span></div>
+          <div class="p-verb">${esc(x.verb)} <b>${money(x.amount)}</b></div>
+          <div class="p-who">${esc(x.who)} · ${esc(x.item)}</div>
+          ${A.silence(x.silence)}
+          <div class="p-acts"><button class="ui-btn plain sm" data-hubinfo="${x.id}">Details</button><button class="gbtn" data-do="${x.id}">${A.state.locked ? A.lockSvg(true) : ''}${BTN[d.pending] || 'Review'}${d.pending === 'lever' ? '' : ' ↗'}</button></div>
+        </div>
+        ${s.needs.length > 1 ? `<div class="pager"><button data-pg="-1" aria-label="Previous decision">‹</button><span>${needIdx + 1} / ${s.needs.length}</span><button data-pg="1" aria-label="Next decision">›</button></div>` : ''}
+      </div>`;
+    } else {
+      const heldSum = s.held.reduce((a, b) => a + (b.amount || 0), 0);
+      h = `<div class="hc"><div class="h-eyebrow">All quiet</div><div class="h-calm">Nothing needs you</div>
+        <div class="h-week">${money(s.out)} out · ${money(s.inn)} in<br>${money(heldSum)} held · ${s.moving.length} in motion</div>
+        <div class="h-hint">Turn the dial to visit a module.</div></div>`;
+    }
+    hub.innerHTML = h;
+  }
+  // The hub's "Details": the decision's evidence in a popover (Layer 2).
+  function hubInfo(id, anchorEl) {
+    const d = A.deal(id); if (!d) return;
+    const m = A.MOD[d.module], until = A.at[id];
+    const body = document.createElement('div');
+    body.innerHTML = `<dl class="ui-kv"><dt>Item</dt><dd>${esc(d.item)}</dd><dt>With</dt><dd>${esc((window.FIX.counterparties[d.cp] || {}).name || d.cp)}</dd>
+      <dt>State</dt><dd>${A.chip(d.state)}</dd><dt>Why you</dt><dd>${esc(d.sub)}</dd><dt>Money now</dt><dd>${esc(d.money)}</dd>
+      ${until ? `<dt>Deadline</dt><dd>${A.cd(until)}</dd>` : ''}<dt>If you do nothing</dt><dd>${esc(d.silence || 'no money moves')}</dd></dl>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="ui-btn sm" data-x>Open ${esc(d.id)} ›</button></div>`;
+    const p = UI.popover(anchorEl, body, { title: `${m.name} · ${d.id}` });
+    body.querySelector('[data-x]').addEventListener('click', () => { p.close(); A.openDeal(id); });
+  }
+
+  /* ---------------- tooltip ---------------- */
+  function showTip(id, ev) {
+    const d = A.deal(id); if (!d) return;
+    const m = A.MOD[d.module];
+    const amt = d.amount != null ? money(d.amount) : (d.ask ? esc(d.ask) : 'no amount yet');
+    tip.style.setProperty('--mc', m.color);
+    tip.innerHTML = `<div class="t1"><span class="mono">${d.id}</span><span>${m.name} · ${esc(d.kind)}</span></div>
+      <b>${esc(d.item)}</b>
+      <div class="t2"><span class="money">${amt}</span>${A.chip(d.state)}</div>
+      <div class="t3">PayPal holds: ${esc(d.money)}</div>
+      ${d.pending ? `<div class="t4">Needs you · ${esc(BTN[d.pending] || d.pending)}</div>` : ''}`;
+    tip.hidden = false; moveTip(ev);
+  }
+  function moveTip(ev) {
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = ev.clientX + 18, y = ev.clientY + 16;
+    if (x + w > innerWidth - 8) x = ev.clientX - w - 18;
+    if (y + h > innerHeight - 8) y = ev.clientY - h - 16;
+    tip.style.left = Math.max(8, x) + 'px'; tip.style.top = Math.max(8, y) + 'px';
+  }
+  const hideTip = () => { tip.hidden = true; };
+
+  /* ---------------- pointer: hover turns, wheel turns, click opens ---------------- */
+  let anchor = null, dwellT = 0, dwellI = -1, idleT = 0, returnT = 0, onDial = false;
+  function local(ev) {
+    const r = svg.getBoundingClientRect();
+    const x = (ev.clientX - r.left) / r.width * 1000 - C, y = (ev.clientY - r.top) / r.height * 1000 - C;
+    return { rad: Math.hypot(x, y), th: (Math.atan2(x, -y) * 180 / Math.PI + 360) % 360 };
+  }
+  const angDist = (a, b) => Math.abs(((a - b) % 360 + 540) % 360 - 180);
+  const sectorAt = (th, r0) => ((Math.round((th - r0) / STEP) % N) + N) % N;
+  svg.addEventListener('pointermove', ev => {
+    if (introOn || zooming) return;
+    const p = local(ev);
+    if (p.rad < R.hub + 4 || p.rad > 497) { clearTimeout(dwellT); dwellI = -1; return; }
+    if (anchor != null && angDist(p.th, anchor) < 30 && mode === 'module') return;
+    const i = sectorAt(p.th, target);
+    if (i === dwellI) return;
+    dwellI = i; clearTimeout(dwellT);
+    dwellT = setTimeout(() => { anchor = p.th; dwellI = -1; selectModule(i); }, mode === 'module' ? 120 : 240);
+  });
+  svg.addEventListener('click', ev => {
+    if (introOn || zooming) return;
+    const b = ev.target.closest('.bead');
+    if (b) { hideTip(); A.openDeal(b.dataset.id); return; }
+    const p = local(ev);
+    if (p.rad >= R.hub + 4 && p.rad <= 497) zoomInto(sectorAt(p.th, rot));
+  });
+  svg.addEventListener('pointerover', ev => { const b = ev.target.closest('.bead'); if (b) showTip(b.dataset.id, ev); });
+  svg.addEventListener('pointerout', ev => { const b = ev.target.closest('.bead'); if (b && !b.contains(ev.relatedTarget)) hideTip(); });
+  svg.addEventListener('pointermove', ev => { if (!tip.hidden) moveTip(ev); });
+  wrap.addEventListener('pointerenter', () => { onDial = true; clearTimeout(idleT); });
+  wrap.addEventListener('pointerleave', () => {
+    onDial = false; clearTimeout(dwellT); dwellI = -1; hideTip();
+    clearTimeout(idleT);
+    idleT = setTimeout(() => { if (mode === 'module' && !zooming && A.state.level === 0 && !UI.open) pointNeeds(); }, 1500);
+  });
+  let wheelAcc = 0, wheelAt = 0;
+  wrap.addEventListener('wheel', ev => {
+    ev.preventDefault();
+    if (introOn) { finishIntro(); return; }
+    if (zooming) return;
+    wheelAcc += ev.deltaY || ev.deltaX;
+    const now = performance.now();
+    if (Math.abs(wheelAcc) >= 40 && now - wheelAt > 150) { turn(wheelAcc > 0 ? 1 : -1); wheelAcc = 0; wheelAt = now; anchor = null; }
+  }, { passive: false });
+
+  /* ---------------- clicks in the scene ---------------- */
+  home.addEventListener('click', ev => {
+    if (introOn) { finishIntro(); ev.stopPropagation(); return; }
+    const t = ev.target.closest('[data-open],[data-openi],[data-need],[data-do],[data-pg],[data-back],[data-find],[data-lock],[data-led],[data-hubinfo],[data-settings]');
+    if (!t || zooming) return;
+    if (t.dataset.open) return zoomInto(modIdx(t.dataset.open));
+    if (t.dataset.openi != null) return zoomInto(+t.dataset.openi);
+    if (t.dataset.need != null) { const x = lastNeeds[+t.dataset.need]; if (x) A.openDeal(x.id); return; }
+    if (t.dataset.do) { const d = A.deal(t.dataset.do); if (!d) return; if (d.pending === 'lever') A.openDeal(d.id); else A.decide(d.id); return; }
+    if (t.dataset.pg) return cycleNeed(+t.dataset.pg);
+    if (t.dataset.led) return ledgerPop(t.dataset.led, t);
+    if (t.dataset.hubinfo) return hubInfo(t.dataset.hubinfo, t);
+    if (t.hasAttribute('data-back')) return pointNeeds();
+    if (t.hasAttribute('data-find')) return A.openPalette();
+    if (t.hasAttribute('data-settings')) return A.act('settings');
+    if (t.hasAttribute('data-lock')) return A.act('lock');
+  }, true);
+  $('#needs').addEventListener('pointerover', ev => {
+    const t = ev.target.closest('[data-need]'); if (!t || introOn || zooming) return;
+    const i = +t.dataset.need; if (mode === 'needs' && i === needIdx) return;
+    needIdx = i; mode = 'needs'; pointNeeds(); markNeed();
+  });
+
+  /* ---------------- keys ---------------- */
+  document.addEventListener('keydown', e => {
+    if (A.state.level !== 0) return;
+    if (introOn) { if (!e.ctrlKey && !e.metaKey && e.key !== 'Escape') e.preventDefault(); finishIntro(); return; }
+    if (A.overlay || zooming || e.ctrlKey || e.metaKey || e.altKey) return;
+    const tag = (e.target.tagName || '').toLowerCase(); if (tag === 'input' || tag === 'textarea') return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); anchor = null; turn(1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); anchor = null; turn(-1); }
+    else if (e.key === 'ArrowDown' && mode === 'needs') { e.preventDefault(); cycleNeed(1); }
+    else if (e.key === 'ArrowUp' && mode === 'needs') { e.preventDefault(); cycleNeed(-1); }
+    else if (e.key === 'Enter') {
+      const ae = document.activeElement;
+      if (ae && ae !== document.body && home.contains(ae) && ae.tagName === 'BUTTON') return; // let the focused button act
+      e.preventDefault(); zoomInto(mode === 'module' ? sel : pointedIdx());
+    } else if (/^[1-6]$/.test(e.key)) { e.preventDefault(); zoomInto(+e.key - 1); }
+  });
+
+  /* ---------------- zoom into a sector ---------------- */
+  function zoomInto(i) {
+    if (zooming || i < 0) return;
+    zooming = true; hideTip(); clearTimeout(idleT); clearTimeout(returnT); clearTimeout(dwellT);
+    selectModule(i);
+    const go = () => {
+      home.classList.add('zoom');
+      setTimeout(() => { A.open(MODS[i].key); zooming = false; }, reduce ? 200 : 540);
+    };
+    const wait = reduce ? 0 : Math.min(460, Math.abs(target - rot) * 4.5);
+    setTimeout(go, wait);
+  }
+
+  /* ---------------- arrival ---------------- */
+  let introRaf = 0;
+  function intro() {
+    lastNeeds = A.summary().needs;
+    target = -pointedIdx() * STEP;
+    if (reduce) { rot = target; applyRot(); introOn = true; setTimeout(finishIntro, 60); return; }
+    introOn = true;
+    const from = target - 400, t0 = performance.now(), D = 2400, s = 0.55;
+    const ease = p => 1 + (s + 1) * Math.pow(p - 1, 3) + s * Math.pow(p - 1, 2);
+    const step = t => {
+      if (!introOn) return;
+      const p = Math.min(1, (t - t0) / D);
+      rot = from + (target - from) * ease(p); applyRot();
+      if (p < 1) introRaf = requestAnimationFrame(step); else finishIntro();
+    };
+    introRaf = requestAnimationFrame(step);
+    setTimeout(finishIntro, D + 400); // never strand the scene if frames are throttled
+    setTimeout(() => { if (introOn) { home.classList.remove('intro'); } }, 1500); // UI fades in while the dial settles
+  }
+  function finishIntro() {
+    if (!introOn) return;
+    introOn = false; cancelAnimationFrame(introRaf);
+    rot = target; vel = 0; applyRot();
+    home.classList.remove('intro');
+    const idx = $('#idx'); if (idx && !reduce) { idx.classList.remove('flash'); void idx.getBoundingClientRect(); idx.classList.add('flash'); }
+  }
+
+  /* ---------------- wiring with the shared surfaces ---------------- */
+  $('#themeSeg').outerHTML = A.theme.seg();
+  let awayT = 0;
+  A.init({
+    onLeave() { zooming = false; hideTip(); clearTimeout(awayT); awayT = setTimeout(() => { if (A.state.level > 0) home.classList.add('away'); }, 650); },
+    onReturn(key) {
+      clearTimeout(awayT);
+      const i = Math.max(0, modIdx(key));
+      home.classList.remove('away');
+      if (!home.classList.contains('zoom')) { home.classList.add('notrans', 'zoom'); void home.offsetWidth; }
+      home.classList.remove('notrans');
+      mode = 'module'; sel = i; anchor = null;
+      target = -i * STEP; rot = target; vel = 0;
+      renderHome();
+      void home.offsetWidth; setTimeout(() => home.classList.remove('zoom'), 30);
+      clearTimeout(returnT);
+      returnT = setTimeout(() => { if (mode === 'module' && sel === i && !onDial && A.state.level === 0) pointNeeds(); }, reduce ? 900 : 1500);
+    },
+    onEscHome() { if (introOn) return finishIntro(); if (mode === 'module') pointNeeds(); }
+  });
+  A.on(() => { if (A.state.level === 0) renderHome(); });
+
+  buildDial();
+  renderHome();
+  intro();
+
+  // live snapshot clock (simulated from the sample moment)
+  const clk = $('#clk');
+  setInterval(() => { clk.textContent = 'Thu 29 Oct · ' + A.clock(); }, 1000);
+})();
+</script>
+</body>
+</html>

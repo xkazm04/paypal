@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spend · Gate Log</title>
+<link rel="stylesheet" href="../../../shared/tokens.css">
+<link rel="stylesheet" href="../../../shared/ui.css">
+<script src="../../../main/fixtures.js"></script>
+<script src="../../../shared/ui.js"></script>
+<style>
+/* ---------- spend: shared page bits on top of the v2 baseline (same in all three variants) ---------- */
+.cd { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--gold-l); }
+.struck { color: var(--dim); text-decoration: line-through; }
+.amt.held, .num.held, .money.held { color: var(--gold-l); }
+.ui-stat .v.sm { font-size: var(--fs-body); }
+.ui-stat .v .dim { font-weight: var(--fw-regular); font-size: var(--fs-small); }
+.wstat { width: 176px; }
+.estat { padding-left: var(--sp-3); border-left: 1px dashed var(--line2); }
+.ui-meter.vel { display: flex; }
+.ui-meter.vel > i { border-radius: 0; flex: none; }
+.ui-meter.vel > i.h { background: repeating-linear-gradient(135deg, var(--gold) 0 3px, color-mix(in srgb, var(--gold) 45%, transparent) 3px 6px); }
+.ui-btn .kbd { padding: 0 3px; line-height: 1.2; }
+.ui-btn.gold .kbd { color: var(--on-gold); border-color: color-mix(in srgb, var(--on-gold) 35%, transparent); }
+.ui-chip.note { border: 0; cursor: pointer; }
+.ui-chip.note:hover { background: color-mix(in srgb, var(--coral) 26%, transparent); }
+/* clause trace (layer 2) */
+.trace { list-style: none; margin: 0; padding: 0; }
+.trace li { display: grid; grid-template-columns: 34px 14px minmax(0, 1fr); gap: var(--sp-2); align-items: baseline; padding: 4px var(--sp-3); }
+.trace li + li { border-top: 1px solid var(--line); }
+.trace .n { font: var(--fs-small) var(--mono); color: var(--dim); }
+.trace .g { text-align: center; font-weight: var(--fw-semibold); }
+.trace .pass .g, .trace .policy .g { color: var(--ok); }
+.trace .fail { background: color-mix(in srgb, var(--refuse) 10%, transparent); }
+.trace .fail .g { color: var(--red-l); }
+.trace .you { background: color-mix(in srgb, var(--gold) 10%, transparent); }
+.trace .you .g { color: var(--gold-l); }
+.trace .policy { background: color-mix(in srgb, var(--ok) 8%, transparent); }
+.trace .skip { color: var(--dim); }
+/* sheets */
+.sh-top { display: flex; align-items: baseline; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.sh-amt { font-size: var(--fs-title3); font-weight: var(--fw-semibold); }
+.sh-lede { margin: 0 0 var(--sp-3); }
+.sh-gap { margin: var(--sp-3) 0 0; }
+.clist .ui-row .t1 { white-space: normal; }
+.clist .hit-fail { background: color-mix(in srgb, var(--refuse) 8%, transparent); }
+.clist .hit-you { background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.clist .hit-policy { background: color-mix(in srgb, var(--ok) 7%, transparent); }
+.clist .t2.red { color: var(--red-l); } .clist .t2.gold { color: var(--gold-l); } .clist .t2.okc { color: var(--ok); }
+.ui-table tr.fresh td:first-child { box-shadow: inset 2px 0 0 var(--gold); }
+.ui-inspector .ui-kv dd { font-size: var(--fs-body); }
+.insp-h { display: flex; align-items: center; gap: var(--sp-2); }
+.insp-h .x { margin-left: auto; }
+.insp-acts { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+/* prototype controls */
+.proto { margin-top: var(--sp-4); flex: none; }
+.proto-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+/* the source list folds to icons: with the inspector open below 1440px, always below 1180px, so Layer 1 keeps its width */
+@media (max-width: 1440px) {
+  .ui-split.has-insp { grid-template-columns: 56px minmax(0, 1fr) var(--inspector); }
+  .ui-split.has-insp .ui-sidebar .lbl, .ui-split.has-insp .ui-sidebar .ui-sb-head, .ui-split.has-insp .ui-sb-item .cnt { display: none; }
+  .ui-split.has-insp .ui-sb-item { justify-content: center; }
+  .ui-split.has-insp .ui-sb-item.need .ui-dot { box-shadow: 0 0 0 2px var(--bg2), 0 0 0 3.5px var(--gold); }
+}
+@media (max-width: 1180px) {
+  .ui-split { grid-template-columns: 56px minmax(0, 1fr); }
+  .ui-split .ui-sidebar .lbl, .ui-split .ui-sidebar .ui-sb-head, .ui-split .ui-sb-item .cnt { display: none; }
+  .ui-split .ui-sb-item { justify-content: center; }
+  .ui-split .ui-sb-item.need .ui-dot { box-shadow: 0 0 0 2px var(--bg2), 0 0 0 3.5px var(--gold); }
+}
+
+/* ---------- variant 1: the gate log (keyboard-first ledger, decision pinned above it) ---------- */
+#main.col { display: flex; flex-direction: column; padding-bottom: var(--sp-4); }
+.ui-pagehead { flex: none; }
+.ui-pagehead .actions { align-items: center; gap: var(--sp-4); }
+.pin { flex: none; }
+.toolbar { flex: none; display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-4) 0 var(--sp-2); }
+.toolbar .ui-hint { margin-left: auto; white-space: nowrap; }
+@media (max-width: 1180px) { .toolbar .ui-hint, .need .ui-btn .kbd { display: none; } .toolbar [data-act=help] { margin-left: auto; } }
+.toolbar .ui-seg button { white-space: nowrap; }
+.ui-seg .n { font-family: var(--mono); color: var(--dim); margin-left: 4px; }
+.logwrap { flex: 0 1 auto; min-height: 140px; overflow: auto; }
+.log { table-layout: auto; }
+.log td.w { width: 1%; }
+.log tr.grp td { height: 26px; background: var(--bg2); font-size: var(--fs-small); color: var(--muted); }
+.log tr.grp b { color: var(--text); font-weight: var(--fw-semibold); }
+.log tr.r { cursor: pointer; }
+.log tr.r:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.log tr.r.k-held td:first-child { box-shadow: inset 2px 0 0 var(--gold); }
+.log .cp { color: var(--dim); }
+.tag { font: var(--fs-small) var(--mono); }
+.tag.refused { color: var(--red-l); } .tag.held { color: var(--gold-l); } .tag.policy, .tag.you { color: var(--ok); } .tag.voided { color: var(--dim); }
+.ui-split.has-insp .col-tag { display: none; }
+.need .amt { font-size: var(--fs-title3); }
+.need .acts { display: flex; gap: var(--sp-2); flex: none; align-items: center; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+(function () {
+  'use strict';
+  /* ================= core (same data model in all three spend variants) ================= */
+  const F = window.FIX;
+  const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
+  const parse = s => new Date(s + 'Z').getTime(); // wall-clock times, kept in UTC so no DST shifts
+  const NOW0 = parse(F.nowISO), T0 = Date.now();
+  let skew = 0;
+  const now = () => NOW0 + (Date.now() - T0) + skew;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const esc = UI.esc;
+  const money = n => n == null ? '—' : '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money0 = n => '$' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const p2 = n => String(n).padStart(2, '0');
+  const fmtT = ms => { const d = new Date(ms); return `${DAYS[d.getUTCDay()]} ${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}`; };
+  function dur(ms, long) {
+    if (ms <= 0) return '0 m';
+    const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60;
+    if (d > 0) return long ? `${d} d ${h} h ${p2(m)} m` : `${d} d ${h} h`;
+    if (h > 0) return `${h} h ${p2(m)} m`;
+    return `${m} m ${p2(ss)} s`;
+  }
+  const until = (t, long) => `<span class="cd" data-until="${t}"${long ? ' data-long' : ''}>${dur(t - now(), long)}</span>`;
+  const M12 = F.mandates.find(m => m.id === 'M-12');
+  const CL = n => M12.clauses.find(c => c.n === n);
+  const agentOf = id => F.agents.find(a => a.id === id) || { id, name: id, engine: F.owner.engine, does: '' };
+  const cpOf = id => F.counterparties[id] || { name: id, who: '' };
+  const dealHref = id => `../../deal/variant-1/index.html#${id}`;
+  const MANDATE_HREF = '../../mandate/variant-1/index.html#M-12';
+  const APPROVAL_HREF = '../../approval/variant-1/index.html#D-0190';
+  const HOME_HREF = '../../../index.html#home';
+
+  /* Data FIX lacks for this page: when each ask hit the gate, its clause trace, quoted text.
+     Same ids, amounts and times as FIX. Sample data, sandbox. */
+  const SPEND_EXTRA = {
+    'D-0192': { at: '2026-10-27T10:14:00', category: 'compute', asked: 11960, auditSeq: 4302,
+      refusal: 'clause 3: max_amount $200 per deal; category compute not allowed',
+      quote: { label: 'untrusted · the agent’s request, quoted as data', text: 'propose_purchase{ item: "GPU A100 80GB, 1 month", qty: 40, merchant: "gpu-cloud.example" }' },
+      trace: [[1, 'pass', 'Buy is allowed for the infra agent'], [3, 'fail', 'quoted $11,960.00 > max $200.00 per deal'], [3, 'fail', 'category “compute” is not in [office, parts, packing]'],
+        [5, 'skip', 'not reached'], [6, 'skip', 'not reached'], [7, 'skip', 'not reached · gpu-cloud.example is not allowlisted either']] },
+    'D-0190': { at: '2026-10-29T09:02:00', category: 'parts', auditSeq: 4402,
+      quote: { label: 'untrusted · merchant listing title, plain text', text: 'USB-C Dock 96W 2xDP 4K60 *** SHIPS TODAY *** see dockparts.example/promo for bulk deals' },
+      delivery: 'unknown · nothing received from dockparts.example yet',
+      trace: [[1, 'pass', 'Buy is allowed for the supplies agent'], [3, 'pass', '$64.00 ≤ $200.00 · category parts'], [5, 'pass', '$64 of $900 today · 1 of 12 deals'],
+        [6, 'pass', 'under $250 · the policy could countersign this amount'], [7, 'you', 'dockparts.example is not on the allowlist → the capture waits for you']] },
+    'D-0186': { at: '2026-10-28T15:31:00', category: 'packing',
+      trace: [[1, 'pass', 'Buy is allowed for the supplies agent'], [3, 'pass', '$45.00 ≤ $200.00 · category packing'], [5, 'pass', '$45 of $900 that day · 1 of 12 deals'],
+        [6, 'policy', 'under $250 and payee allowlisted → captured by policy'], [7, 'pass', 'packrite-supply is on the allowlist']] },
+    'D-0183': { at: '2026-10-27T12:02:00', category: 'parts',
+      trace: [[1, 'pass', 'Buy is allowed for the supplies agent'], [3, 'pass', '$38.00 ≤ $200.00 · category parts'], [5, 'pass', '$38 of $900 that day · 1 of 12 deals'],
+        [6, 'policy', 'under $250 and payee allowlisted → captured by policy'], [7, 'pass', 'cablehaus is on the allowlist']] },
+    'D-0181': { at: '2026-10-26T09:47:00', category: 'office',
+      trace: [[1, 'pass', 'Buy is allowed for the supplies agent'], [3, 'pass', '$52.00 ≤ $200.00 · category office'], [5, 'pass', '$52 of $900 that day · 1 of 12 deals'],
+        [6, 'policy', 'under $250 and payee allowlisted → captured by policy'], [7, 'pass', 'packrite-supply is on the allowlist']] },
+    'D-0180': { at: '2026-10-27T08:30:00', category: 'parts', voidedAt: 'Tue 08:41',
+      trace: [[1, 'pass', 'Buy is allowed for the supplies agent'], [3, 'pass', '$42.00 ≤ $200.00 · category parts'], [5, 'pass', '$42 of $900 that day · 1 of 12 deals'],
+        [6, 'pass', 'under $250 · the policy would capture once it shipped'], [7, 'pass', 'cablehaus is on the allowlist']] }
+  };
+  const deals = F.deals.filter(d => d.module === 'spend').map(d => {
+    const x = Object.assign({}, d, SPEND_EXTRA[d.id]);
+    x.pp = d.pp ? Object.assign({}, d.pp) : null;
+    x.atMs = parse(x.at);
+    return x;
+  }).sort((a, b) => b.atMs - a.atMs);
+  const byId = id => deals.find(d => d.id === id);
+  const HOLD = byId('D-0190');
+  const HOLD_START = HOLD.atMs;
+  const HOLD_END = NOW0 + F.deals.find(d => d.id === 'D-0190').holdUntilMin * MIN; // 72 h after authorize
+  const VEL = { usd: 900, n: 12 }; // clause 5
+  const COMMITTED = ['AUTHORIZED', 'CAPTURED', 'RECEIPTED', 'RECONCILED'];
+  const live = d => (d.module === 'spend' && byId(d.id)) || d;
+  /* Clause 5 counts what M-12 committed that day: holds + captures. Refused and voided count nothing. */
+  function dayCommit(day) {
+    const ds = F.deals.map(live).filter(d => d.side === 'buyer' && d.day === day && COMMITTED.includes(d.state) && d.amount != null);
+    return { usd: ds.reduce((a, d) => a + d.amount, 0), n: ds.length, held: ds.filter(d => d.state === 'AUTHORIZED').reduce((a, d) => a + d.amount, 0), ids: ds.map(d => d.id) };
+  }
+
+  const S = { locked: false, handoff: null, voidError: null, failNextVoid: false, empty: false,
+    seq: 4419, lastInput: Date.now(), log: [], reqId: '7d1c-4e0b-a9f2' };
+  function audit(actor, action, deal) { S.log.unshift({ seq: S.seq++, t: fmtT(now()), actor, action, deal, fresh: true }); }
+
+  /* Layer 1 vocabulary: a chip and a short clause tag. Everything longer lives in a sheet. */
+  function verdict(d) {
+    switch (d.state) {
+      case 'REFUSED': return { k: 'refused', chip: 'Refused', tone: 'red', tag: 'cl 3 ✗ · 0 PayPal calls' };
+      case 'AUTHORIZED': return S.handoff === d.id
+        ? { k: 'held', chip: 'In approval', tone: 'gold', tag: 'cl 7 → decide there' }
+        : { k: 'held', chip: 'Held', tone: 'gold', tag: 'cl 7 → needs you' };
+      case 'CAPTURED': return d.decided === 'policy:clause6'
+        ? { k: 'policy', chip: 'Captured', tone: 'ok', tag: 'cl 6 · by policy' }
+        : { k: 'you', chip: 'Captured', tone: 'ok', tag: 'by you · approval window' };
+      case 'VOIDED': return { k: 'voided', chip: 'Voided', tone: '', tag: d.decided === 'owner:void' ? 'by you · just now' : 'by you · duplicate' };
+      case 'AUTO-VOIDED': return { k: 'voided', chip: 'Auto-voided', tone: '', tag: 'policy default · 72 h' };
+      default: return { k: 'other', chip: d.state, tone: '', tag: '' };
+    }
+  }
+  function amountCell(d) {
+    if (d.state === 'REFUSED') return { cls: 'struck', v: money(d.asked), note: 'asked · never sent' };
+    if (d.state === 'AUTHORIZED') return { cls: 'held', v: money(d.amount), note: 'held at PayPal' };
+    if (d.state === 'CAPTURED') return { cls: '', v: money(d.amount), note: 'paid' };
+    return { cls: 'struck', v: money(d.amount), note: 'voided · nothing paid' };
+  }
+  const recChip = d => d.rec === 'matched' ? '<span class="ui-chip ok">matched in Transaction Search</span>'
+    : d.state === 'CAPTURED' ? '<span class="ui-chip gold">pending in PayPal reporting</span>' : '<span class="ui-chip line">no statement row</span>';
+  const SILENCE = 'silent → <b>auto-void</b> Sun 09:02 · nothing is paid';
+
+  /* ---------------- layer 2 building blocks ---------------- */
+  const GLYPH = { pass: '✓', fail: '✗', you: '◆', policy: '✓', skip: '–' };
+  const traceHtml = d => `<ol class="trace ui-group">${d.trace.map(([n, r, t]) => `<li class="${r}"><span class="n">cl ${n}</span><span class="g">${GLYPH[r]}</span><span>${esc(t)}</span></li>`).join('')}</ol>`;
+  const quarantineHtml = d => d.quote ? `<div class="quarantine"><div class="q-label">${esc(d.quote.label)}</div><div class="q-text">${esc(d.quote.text)}</div></div>` : '';
+  const noteChip = d => d.quote ? `<button class="ui-chip coral note" data-act="note" data-id="${d.id}" data-key="note-${d.id}" aria-label="Untrusted text, opens quarantined">note ›</button>` : '';
+  function dealBody(d) {
+    const v = verdict(d), a = amountCell(d), ag = agentOf(d.agent), cp = cpOf(d.cp), pp = d.pp || {};
+    return `<div class="sh-top"><span class="ui-chip ${v.tone}">${esc(v.chip)}</span><span class="money sh-amt ${a.cls}">${a.v}</span><span class="ui-hint">${esc(a.note)}</span></div>
+      <dl class="ui-kv"><dt>Asked</dt><dd>${esc(fmtT(d.atMs))} · ${esc(ag.name)} <span class="dim">${esc(ag.engine)}</span></dd>
+        <dt>Payee</dt><dd>${esc(cp.name)} <span class="dim">· ${esc(cp.who)}</span></dd>
+        <dt>Category</dt><dd>${esc(d.category || '—')}</dd>
+        <dt>Outcome</dt><dd>${d.state === 'REFUSED' ? `<b class="okc">0 PayPal calls</b> · no order, no hold, nothing to undo` : esc(d.sub) + (d.voidedAt ? ` · ${esc(d.voidedAt)}` : '')}</dd>
+        ${d.state === 'REFUSED' ? `<dt>Told the agent</dt><dd class="mono">${esc(d.refusal)}</dd>` : `<dt>PayPal</dt><dd class="mono">order ${esc(pp.order || '—')} · auth ${esc(pp.auth || '—')} · capture ${esc(pp.capture || '—')}</dd><dt>Statement</dt><dd>${recChip(d)}</dd>`}
+        ${d.delivery ? `<dt>Delivery</dt><dd>${esc(d.delivery)}</dd>` : ''}</dl>
+      <div class="ui-section"><div class="ui-section-h"><h3>Clause trace · M-12 v${M12.v}</h3><span class="end">all checked before any PayPal call</span></div>${traceHtml(d)}</div>
+      ${d.quote ? `<div class="ui-section">${quarantineHtml(d)}</div>` : ''}`;
+  }
+  function dealSheet(id, extra) {
+    const d = byId(id); if (!d) return;
+    const acts = [{ label: 'Open deal ↗', left: true, onClick: () => { location.href = dealHref(d.id); } }];
+    if (d.state === 'REFUSED') acts.push({ label: 'Why refused? → clause 3', onClick: () => { setTimeout(() => clauseSheet(d.id)); } });
+    (extra || []).forEach(x => acts.push(x));
+    acts.push({ label: 'Done', kind: 'primary' });
+    UI.sheet({ title: `${d.id} · ${d.item}`, size: 'wide', body: dealBody(d), actions: acts });
+  }
+  function clauseSheet(id) {
+    const d = byId(id) || deals[0];
+    const hits = {};
+    (d.trace || []).forEach(([n, r]) => { if (r !== 'pass' && r !== 'skip') hits[n] = r; });
+    const tone = { fail: 'red', you: 'gold', policy: 'okc' };
+    const refused = d.state === 'REFUSED';
+    const body = `<p class="ui-hint sh-lede">Signed ${esc(M12.signed)} · agent key <span class="mono">${esc(M12.agentKey)}</span> · checked in Rust before every create, authorize and capture.</p>
+      ${refused ? `<dl class="ui-kv sh-gap"><dt>Verbatim</dt><dd class="mono">${esc(d.refusal)}</dd><dt>PayPal</dt><dd><b class="okc">0 calls</b> · no rows in paypal_calls for ${esc(d.id)} · nothing to undo</dd></dl>` : ''}
+      <div class="ui-group clist">${M12.clauses.map(c => `<div class="ui-row two ${hits[c.n] ? 'hit-' + hits[c.n] : ''}"><span class="ui-chip ${hits[c.n] ? (hits[c.n] === 'fail' ? 'red' : hits[c.n] === 'you' ? 'gold' : 'ok') : 'teal'}">cl ${c.n}</span>
+        <span class="main"><span class="t1">${esc(c.name)} <span class="dim">· ${esc(c.text)}</span></span>${hits[c.n] ? `<span class="t2 ${tone[hits[c.n]]}">${esc(d.id)}: ${esc(d.trace.filter(t => t[0] === c.n && t[1] !== 'pass').map(t => t[2]).join(' · '))}</span>` : ''}</span></div>`).join('')}</div>
+      <p class="ui-hint sh-gap">Changing a clause means signing v${M12.v + 1} in the approval window. An agent cannot edit its own mandate.</p>`;
+    UI.sheet({ title: `${refused ? 'Why refused · ' : 'Clauses · '}${d.id} · M-12 v${M12.v}`, size: 'wide', body,
+      actions: [{ label: 'Open M-12 in Mandates ↗', left: true, onClick: () => { location.href = MANDATE_HREF; } }, { label: 'Done', kind: 'primary' }] });
+  }
+  function auditSheet() {
+    const base = F.audit.filter(a => deals.some(d => d.id === a.deal));
+    const rows = S.log.concat(base);
+    UI.sheet({ title: 'Audit log · spend rows', size: 'wide',
+      body: `<p class="ui-hint sh-lede">Hash-chained, append-only, newest first. Rows from this session are marked. There is no edit or delete.</p>
+        <div class="ui-group" style="padding:0"><table class="ui-table"><thead><tr><th>Seq</th><th>When</th><th>Actor</th><th>Action</th><th>Deal</th></tr></thead><tbody>
+        ${rows.map(a => `<tr class="${a.fresh ? 'fresh' : ''}"><td class="mono dim">#${a.seq}</td><td class="mono dim">${esc(a.t)}</td><td>${esc(a.actor)}</td><td class="clip" title="${esc(a.action)}">${esc(a.action)}</td><td class="mono dim">${esc(a.deal)}</td></tr>`).join('')}</tbody></table></div>`,
+      actions: [{ label: 'Done', kind: 'primary' }] });
+  }
+  function whyHoldPopover(anchor) {
+    UI.popover(anchor, `<dl class="ui-kv"><dt>cl 7</dt><dd>dockparts.example is not on the payee allowlist, so the policy may not capture</dd>
+      <dt>cl 6</dt><dd>under $250 · alone it would have let the policy countersign</dd><dt>Honor</dt><dd>authorized Thu 09:02 · PayPal honors the hold 72 h</dd><dt>Silence</dt><dd>auto-void Sun 09:02 · nothing is paid</dd></dl>`, { title: 'Why D-0190 waits for you' });
+  }
+
+  /* ---------------- actions shared by every variant ---------------- */
+  const toast = (msg, kind) => UI.toast(msg, kind);
+  function openApproval() {
+    if (S.locked) { toast('Locked. Privileged hand-offs need Windows Hello after 15 idle minutes.', 'gold'); return; }
+    if (HOLD.state !== 'AUTHORIZED') return;
+    S.handoff = 'D-0190';
+    audit('owner', 'approval.open · capture $64.00 requested from main window', 'D-0190');
+    toast('Approval window opened beside The Table. It re-checks the hold and asks you there. This window cannot capture.', 'gold');
+    render();
+  }
+  function simCaptured() {
+    if (HOLD.state !== 'AUTHORIZED') return;
+    Object.assign(HOLD, { state: 'CAPTURED', decided: 'owner:approval', pending: null, rec: 'pending',
+      sub: 'captured by you in the approval window · countersign row written', money: 'captured — paid to dockparts.example' });
+    HOLD.pp.capture = '3QF8…';
+    S.handoff = null;
+    audit('owner(approval)', 'capture 0RW7… $64.00 · countersigned', 'D-0190');
+    toast('Prototype · sandbox simulation: you captured $64.00 in the approval window. Statement: pending in PayPal reporting.', 'ok');
+    render();
+  }
+  function simClosed() { S.handoff = null; toast('The approval window closed without a decision. The hold stays; nothing moved.'); render(); }
+  function askVoid() {
+    if (HOLD.state !== 'AUTHORIZED') return;
+    UI.sheet({ title: 'Void the $64.00 hold?', size: 'narrow',
+      body: `<dl class="ui-kv"><dt>Does</dt><dd>voids authorization <span class="mono">0RW7…</span> at PayPal today instead of Sunday</dd><dt>Payee</dt><dd>dockparts.example is paid nothing</dd><dt>Agent</dt><dd>the supplies agent is told “voided by owner” and may ask again</dd><dt>Where</dt><dd>here: voiding restricts, so no approval window</dd></dl>`,
+      actions: [{ label: 'Keep the hold' }, { label: 'Void hold', kind: 'danger', onClick: () => doVoid(false) }] });
+  }
+  function doVoid(retry) {
+    if (HOLD.state !== 'AUTHORIZED') return;
+    if (S.failNextVoid) {
+      S.failNextVoid = false;
+      S.voidError = { code: 'HTTP 422', debug: '8c1f2a7e40b19' };
+      audit('paypal', `void 0RW7… failed · HTTP 422 · debug_id 8c1f2a7e40b19 · request ${S.reqId}`, 'D-0190');
+      toast('PayPal returned HTTP 422 on the void. The hold is unchanged.', 'bad');
+      render(); return;
+    }
+    const wasHandoff = !!S.handoff;
+    Object.assign(HOLD, { state: 'VOIDED', decided: 'owner:void', pending: null, sub: 'you voided the hold · released at PayPal · nothing paid', money: 'voided — nothing paid' });
+    S.voidError = null; S.handoff = null;
+    audit('owner', `void 0RW7… $64.00${retry ? ' · retry with the same PayPal-Request-Id ' + S.reqId : ''}`, 'D-0190');
+    toast(`Hold voided. PayPal released $64.00; dockparts.example is paid nothing.${wasHandoff ? ' The approval window closed: nothing left to decide.' : ''}`, 'ok');
+    render();
+  }
+  function voidErrorSheet() {
+    UI.sheet({ title: `Void failed · ${S.voidError.code}`, size: 'narrow',
+      body: `<dl class="ui-kv"><dt>PayPal</dt><dd>${esc(S.voidError.code)} on void <span class="mono">0RW7…</span></dd><dt>debug_id</dt><dd class="mono">${esc(S.voidError.debug)}</dd><dt>Hold</dt><dd>unchanged · $64.00 still authorized</dd><dt>Retry</dt><dd>reuses PayPal-Request-Id <span class="mono">${esc(S.reqId)}</span>, so it cannot void twice</dd><dt>Silence</dt><dd>auto-void Sun 09:02 · nothing is paid</dd></dl>`,
+      actions: [{ label: 'Keep the hold', onClick: () => { S.voidError = null; render(); } }, { label: 'Retry void', kind: 'danger', onClick: () => doVoid(true) }] });
+  }
+  function autoVoid() {
+    Object.assign(HOLD, { state: 'AUTO-VOIDED', decided: 'policy:72h', pending: null, sub: 'policy voided at 72 h · hold released · nothing paid', money: 'voided — nothing paid' });
+    S.handoff = null;
+    audit('policy', 'auto-void 0RW7… $64.00 at 72 h (safe default)', 'D-0190');
+    toast('72 h passed. The policy voided the $64.00 hold. Silence moved no money.', 'ok');
+    render();
+  }
+  function lockNow() { S.locked = true; S.handoff = null; toast('Idle 15 min (simulated). Privileged buttons now ask for Windows Hello. Void still works: restricting is free.', 'gold'); render(); }
+  function unlock() { S.locked = false; S.lastInput = Date.now(); toast('Windows Hello verified (prototype simulation).', 'ok'); render(); }
+  function jumpToDeadline() {
+    if (HOLD.state !== 'AUTHORIZED') { toast('No hold is open, so there is no deadline to jump to.'); return; }
+    skew += (HOLD_END - now()) - 4000;
+    toast('Prototype · clock moved to 4 s before the 72 h deadline. Watch the default.', 'gold');
+    tick();
+  }
+  const privBtn = (label, key) => S.locked
+    ? `<button class="ui-btn gold sm locked" data-act="unlock" data-key="${key}" data-tip="Privileged after 15 idle minutes">Unlock with Windows Hello</button>`
+    : `<button class="ui-btn gold sm" data-act="approval" data-key="${key}" data-tip="Opens the approval window, the only place money can be released">${label}</button>`;
+  /* The one decision as Layer-1 buttons, by state. */
+  function decisionBtns(opts) {
+    const o = opts || {};
+    if (S.voidError) return `<button class="ui-btn plain sm" data-act="void-detail" data-key="void-detail">Details</button><button class="ui-btn danger sm" data-act="void-retry" data-key="void-retry">Retry void</button>`;
+    if (S.handoff) return `<a class="ui-btn sm" href="${APPROVAL_HREF}" data-key="show-approval">Show approval window ↗</a><button class="ui-btn danger sm" data-act="void" data-key="void">Void instead</button>`;
+    return `<button class="ui-btn sm" data-act="void" data-key="void">Void${o.kbd ? ' <span class="kbd">v</span>' : ''}</button>${privBtn('Review &amp; capture ↗' + (o.kbd && !S.locked ? ' <span class="kbd on-gold">c</span>' : ''), 'approval')}`;
+  }
+
+  /* ---------------- chrome ---------------- */
+  const MODS = [['tables', 'Tables'], ['spend', 'Spend'], ['shield', 'Shield'], ['counter', 'Counter'], ['rescue', 'Rescue'], ['book', 'Book']];
+  const needsOf = k => k === 'spend' ? deals.filter(d => d.state === 'AUTHORIZED').length : F.deals.filter(d => d.module === k && d.pending).length;
+  function chrome(main, o) {
+    const opt = o || {};
+    return `<div class="ui-app">
+      <header class="ui-titlebar">
+        <nav class="ui-crumbs" aria-label="Breadcrumb"><a href="${HOME_HREF}" title="Back to The Table (Esc)">The Table</a><span class="sep">›</span><span>Spend</span></nav>
+        <span class="ui-spacer"></span>${opt.bar || ''}
+        <span class="badge sandbox" title="Every screen carries its mode">Sandbox</span>
+        <span class="mono dim" id="clock" title="Sample-week clock">${fmtT(now())}</span>
+        ${S.locked ? `<button class="ui-btn gold sm locked" data-act="unlock" data-key="lockpill">Locked · unlock</button>` : `<button class="ui-btn plain sm" data-act="lock" data-key="lockpill" data-tip="Locks by itself after 15 idle minutes">Lock</button>`}
+      </header>
+      <div class="ui-split ${opt.insp != null ? 'has-insp' : ''}" id="split">
+        <aside class="ui-sidebar" aria-label="Modules"><div class="ui-sb-head">Modules</div>
+          ${MODS.map(([k, n]) => `<a class="ui-sb-item ${k === 'spend' ? 'on' : ''} ${needsOf(k) ? 'need' : ''}" title="${n}" href="${k === 'spend' ? '#' : `../../${k}/variant-1/index.html`}" ${k === 'spend' ? 'aria-current="page"' : ''}><span class="ico"><span class="ui-dot" style="color:var(--m-${k})"></span></span><span class="lbl">${n}</span>${needsOf(k) ? `<span class="cnt need" title="needs you">${needsOf(k)}</span>` : ''}</a>`).join('')}
+          <div class="ui-sb-foot"><a class="ui-sb-item" href="${MANDATE_HREF}" title="Mandates"><span class="ico dim">§</span><span class="lbl">Mandates</span><span class="cnt">M-12 v3</span></a>
+            <button class="ui-sb-item" data-act="audit" data-key="audit" title="Audit log"><span class="ico dim">≡</span><span class="lbl">Audit log</span></button>
+            <a class="ui-sb-item" href="../../setup/variant-1/index.html" title="Settings"><span class="ico dim">⚙</span><span class="lbl">Settings</span><span class="cnt">${esc(F.owner.engine)}</span></a></div>
+        </aside>
+        <section class="ui-main ${opt.mainCls || ''}" id="main" tabindex="-1">${main}</section>
+        <aside class="ui-inspector" id="insp" ${opt.insp != null ? '' : 'hidden'} aria-label="Inspector">${opt.insp || ''}</aside>
+      </div></div>`;
+  }
+  const walletStat = (day) => {
+    const t = dayCommit(day || 'Thu'), pc = Math.min(100, (t.usd - t.held) / VEL.usd * 100), ph = Math.min(100, t.held / VEL.usd * 100);
+    return `<div class="ui-stat wstat" data-tip="Clause 5 velocity: what M-12 committed today, holds + captures. Refused and voided count nothing."><span class="k">Wallet today · cl 5</span>
+      <span class="v sm">${money0(t.usd)} <span class="dim">/ ${money0(VEL.usd)} · ${t.n}/${VEL.n}</span></span><div class="ui-meter vel"><i style="width:${pc}%"></i><i class="h" style="width:${ph}%"></i></div></div>`;
+  };
+  const engineStat = () => `<div class="ui-stat estat" data-tip="The engine CLI's own client-side estimate this week. Never used for money decisions."><span class="k">Engine · ${esc(F.owner.engine)}</span><span class="v sm">~$${F.engineWeekUSD.toFixed(2)} <span class="dim">not a bill</span></span></div>`;
+  const protoHtml = extra => `<div class="ui-proto proto"><div class="proto-row"><span class="ui-hint">Sandbox simulation:</span>${extra || ''}
+    <button class="ui-btn sm" data-act="sim-422" data-key="sim-422" aria-pressed="${S.failNextVoid}">${S.failNextVoid ? 'Next void fails ✓' : 'Next void → 422'}</button>
+    <button class="ui-btn sm" data-act="sim-jump" data-key="sim-jump">Jump to 72 h deadline</button>
+    ${S.handoff ? `<button class="ui-btn sm" data-act="sim-captured" data-key="sim-captured">You captured there</button><button class="ui-btn sm" data-act="sim-closed" data-key="sim-closed">You closed it</button>` : ''}
+    <button class="ui-btn sm" data-act="lock" data-key="sim-lock">Idle 15 min</button>
+    <button class="ui-btn sm" data-act="sim-empty" data-key="sim-empty">${S.empty ? 'Show the week' : 'Empty module'}</button></div></div>`;
+
+  const ACT = {
+    approval: () => openApproval(),
+    void: () => askVoid(), 'void-retry': () => doVoid(true), 'void-detail': () => voidErrorSheet(),
+    'sim-captured': () => simCaptured(), 'sim-closed': () => simClosed(),
+    'sim-422': () => { S.failNextVoid = !S.failNextVoid; render(); },
+    'sim-jump': () => jumpToDeadline(),
+    'sim-empty': () => { S.empty = !S.empty; render(); },
+    lock: () => lockNow(), unlock: () => unlock(),
+    audit: () => auditSheet(),
+    note: el => { const d = byId(el.dataset.id); if (d) UI.popover(el, quarantineHtml(d), { title: 'Quarantined · shown as plain text' }); },
+    'why-hold': el => whyHoldPopover(el),
+    deal: el => dealSheet(el.dataset.id),
+    why: el => clauseSheet(el.dataset.id)
+  };
+  document.addEventListener('click', e => {
+    const el = e.target.closest('[data-act]'); if (!el) return;
+    const fn = ACT[el.dataset.act]; if (!fn) return;
+    if (el.tagName === 'A') e.preventDefault();
+    e.stopPropagation();
+    fn(el, e);
+  });
+  ['pointerdown', 'pointermove', 'wheel', 'keydown'].forEach(t => document.addEventListener(t, () => { S.lastInput = Date.now(); }, { passive: true }));
+  function tickCore() {
+    $$('[data-until]').forEach(el => { el.textContent = dur(+el.dataset.until - now(), el.hasAttribute('data-long')); });
+    const c = $('#clock'); if (c) c.textContent = fmtT(now());
+    if (HOLD.state === 'AUTHORIZED' && now() >= HOLD_END) { autoVoid(); return false; }
+    if (!S.locked && Date.now() - S.lastInput > 15 * MIN) { S.locked = true; render(); }
+    return true;
+  }
+  /* Re-render keeps focus and scroll. */
+  function paintApp(main, o) {
+    const ae = document.activeElement, key = ae && ae.dataset ? ae.dataset.key : null;
+    const m = $('#main'), scroll = m ? m.scrollTop : 0;
+    $('#app').innerHTML = chrome(main, o);
+    $('#main').scrollTop = scroll;
+    if (key) { const el = $(`[data-key="${key}"]`); el && el.focus({ preventScroll: true }); }
+  }
+  /* ================= end core ================= */
+
+  /* ================= variant 1: the gate log ================= */
+  const V = { filter: 'all', group: 'agent', sel: 'D-0190', insp: false };
+  const FILTERS = [['all', 'All'], ['held', 'Needs you'], ['refused', 'Refused'], ['captured', 'Captured'], ['voided', 'Voided']];
+  const inFilter = d => { const k = verdict(d).k; return V.filter === 'all' || (V.filter === 'captured' ? (k === 'policy' || k === 'you') : k === V.filter); };
+  function visible() {
+    if (S.empty) return [];
+    const list = deals.filter(inFilter);
+    if (V.group !== 'agent') return list;
+    const order = [];
+    list.forEach(d => { if (!order.includes(d.agent)) order.push(d.agent); });
+    return order.flatMap(a => list.filter(d => d.agent === a));
+  }
+  function counts() {
+    const c = { all: deals.length, held: 0, refused: 0, captured: 0, voided: 0 };
+    deals.forEach(d => { const k = verdict(d).k; if (k === 'held') c.held++; else if (k === 'refused') c.refused++; else if (k === 'policy' || k === 'you') c.captured++; else if (k === 'voided') c.voided++; });
+    return c;
+  }
+
+  /* Layer 1: the one decision, one row. Its why sits behind ⓘ, its consequences in the void sheet. */
+  function needRow() {
+    if (S.empty) return `<div class="ui-row"><span class="dim">Nothing held · no agent has asked to spend</span></div>`;
+    const d = HOLD, v = verdict(d);
+    if (S.voidError) return `<div class="ui-row two need" role="alert"><span class="id">D-0190</span><span class="main"><span class="t1">Void failed · PayPal ${esc(S.voidError.code)} · the hold is unchanged</span>
+      <span class="ui-silence">${SILENCE}</span></span><span class="ui-chip red">Void failed</span><span class="amt held">${money(d.amount)}</span><span class="acts">${decisionBtns()}</span></div>`;
+    if (d.state !== 'AUTHORIZED') return `<div class="ui-row two need"><span class="id">D-0190</span><span class="main"><span class="t1">Nothing waits for you</span><span class="t2">${esc(d.sub)}</span></span>
+      <span class="ui-chip ${v.tone}">${esc(v.chip)}</span><span class="amt ${amountCell(d).cls}">${money(d.amount)}</span><span class="acts"><button class="ui-btn sm" data-act="deal" data-id="D-0190" data-key="need-detail">Details</button></span></div>`;
+    return `<div class="ui-row two need"><span class="id">D-0190</span>
+      <span class="main"><span class="t1">Capture or void · ${esc(d.item)} <span class="dim">· ${esc(cpOf(d.cp).name)}</span></span>
+        <span class="ui-silence">${SILENCE} · ${until(HOLD_END)} left</span></span>
+      <button class="ui-btn plain sm" data-act="why-hold" data-key="why-hold" aria-label="Why it waits for you">ⓘ</button>
+      <span class="ui-chip ${v.tone}">${esc(v.chip)}</span><span class="amt held">${money(d.amount)}</span>
+      <span class="acts">${decisionBtns({ kbd: true })}</span></div>`;
+  }
+
+  function rowHtml(d) {
+    const v = verdict(d), a = amountCell(d), cp = cpOf(d.cp);
+    return `<tr class="r k-${v.k}" data-id="${d.id}" data-key="row-${d.id}" tabindex="0" aria-selected="${V.sel === d.id}" aria-label="${esc(d.id + ' ' + d.item + ', ' + v.chip)}">
+      <td class="w mono dim">${fmtT(d.atMs)}</td><td class="w mono">${d.id}</td>
+      <td class="clip">${esc(d.item)} <span class="cp">· ${esc(cp.name)}</span></td>
+      <td class="w num ${a.cls}">${a.v}</td><td class="w"><span class="ui-chip ${v.tone}">${esc(v.chip)}</span></td>
+      <td class="w col-tag tag ${v.k}">${esc(v.tag)}</td></tr>`;
+  }
+  function logHtml() {
+    if (S.empty) return `<div class="ui-group"><div class="ui-empty">No agent has asked to spend. Its first ask meets mandate M-12 here, before any PayPal call.</div></div>`;
+    const list = visible();
+    if (!list.length) return `<div class="ui-group"><div class="ui-empty">Nothing in “${esc(FILTERS.find(f => f[0] === V.filter)[1])}” · <button class="ui-btn plain sm" data-act="filter" data-f="all" data-key="f-empty">Show all</button></div></div>`;
+    let body = '', last = null;
+    list.forEach(d => {
+      if (V.group === 'agent' && d.agent !== last) {
+        last = d.agent;
+        const ag = agentOf(d.agent), mine = deals.filter(x => x.agent === d.agent), ref = mine.filter(x => x.state === 'REFUSED').length;
+        body += `<tr class="grp"><td colspan="6"><b>${esc(ag.name)}</b> <span class="mono teal">${esc(ag.engine)}</span> · ${mine.length} ask${mine.length > 1 ? 's' : ''}${ref ? ` · <span class="red">${ref} refused</span>` : ''}</td></tr>`;
+      }
+      body += rowHtml(d);
+    });
+    return `<div class="ui-group logwrap"><table class="ui-table log" aria-label="Every ask this week, with the gate's verdict">
+      <thead><tr><th>When</th><th>Deal</th><th>Asked to buy</th><th class="num">Amount</th><th>Verdict</th><th class="col-tag">Clause</th></tr></thead><tbody>${body}</tbody></table></div>`;
+  }
+
+  /* Layer 2: the selected ask, in the inspector. */
+  function inspHtml() {
+    const d = byId(V.sel); if (!d || S.empty) return '<div class="ui-empty">Select an ask</div>';
+    const v = verdict(d), a = amountCell(d), ag = agentOf(d.agent), cp = cpOf(d.cp), pp = d.pp || {};
+    return `<div class="insp-h"><span class="ui-chip ${v.tone}">${esc(v.chip)}</span>${noteChip(d)}<button class="ui-btn plain sm icon x" data-act="insp-close" data-key="insp-x" aria-label="Close inspector">✕</button></div>
+      <h2 style="margin-top:6px">${esc(d.item)}</h2><div class="ui-hint">${d.id} · ${esc(fmtT(d.atMs))} · ${esc(ag.name)}</div>
+      <div class="ui-section"><dl class="ui-kv"><dt>Amount</dt><dd><span class="money ${a.cls}">${a.v}</span> <span class="dim">${esc(a.note)}</span></dd>
+        <dt>Payee</dt><dd>${esc(cp.name)}</dd><dt>Category</dt><dd>${esc(d.category || '—')}</dd>
+        ${d.state === 'REFUSED' ? `<dt>PayPal</dt><dd><b class="okc">0 calls</b> · nothing to undo</dd>` : `<dt>PayPal</dt><dd class="mono">${esc(pp.order || '—')} · ${esc(pp.auth || '—')}${pp.capture ? ' · ' + esc(pp.capture) : ''}</dd><dt>Statement</dt><dd>${recChip(d)}</dd>`}</dl></div>
+      <div class="ui-section"><div class="ui-section-h"><h3>Clause trace</h3><span class="end">M-12 v${M12.v}</span></div>${traceHtml(d)}</div>
+      <div class="ui-section insp-acts"><button class="ui-btn sm" data-act="why" data-id="${d.id}" data-key="why-${d.id}">${d.state === 'REFUSED' ? 'Why refused?' : 'Mandate clauses'} <span class="kbd">w</span></button>
+        <button class="ui-btn sm" data-act="deal" data-id="${d.id}" data-key="detail-${d.id}">Details</button>
+        <a class="ui-btn plain sm" href="${dealHref(d.id)}">Open deal ↗ <span class="kbd">o</span></a></div>`;
+  }
+
+  function mainHtml() {
+    const c = counts();
+    return `<div class="ui-pagehead"><h1>Spend</h1><span class="sub">${S.empty ? 'no asks yet' : `${deals.length} asks this week · gate = mandate M-12 v${M12.v}`}</span>
+        <div class="actions">${walletStat()}${engineStat()}</div></div>
+      <div class="ui-section pin"><div class="ui-section-h"><h2>Needs you</h2><span class="end">${HOLD.state === 'AUTHORIZED' && !S.empty ? 1 : 0}</span></div>
+        <div class="ui-group">${needRow()}</div></div>
+      <div class="toolbar">
+        <div class="ui-seg" role="group" aria-label="Filter by verdict">${FILTERS.map(([k, l], i) => `<button data-act="filter" data-f="${k}" data-key="f-${k}" aria-pressed="${V.filter === k}" title="${i + 1}">${l}<span class="n">${S.empty ? 0 : c[k]}</span></button>`).join('')}</div>
+        <div class="ui-seg" role="group" aria-label="Group">${[['agent', 'By agent'], ['flat', 'Newest first']].map(([k, l]) => `<button data-act="group" data-g="${k}" data-key="g-${k}" aria-pressed="${V.group === k}" title="g">${l}</button>`).join('')}</div>
+        <span class="ui-hint"><span class="kbd">j</span> <span class="kbd">k</span> move · <span class="kbd">↵</span> inspect</span>
+        <button class="ui-btn plain sm" data-act="help" data-key="help">Keys <span class="kbd">?</span></button>
+      </div>
+      ${logHtml()}
+      ${protoHtml()}`;
+  }
+
+  function render() {
+    paintApp(mainHtml(), { insp: V.insp ? inspHtml() : null, mainCls: 'col' });
+  }
+
+  function keysSheet() {
+    const k = (a, b) => `<dt>${a}</dt><dd>${b}</dd>`;
+    UI.sheet({ title: 'Gate log keys', size: 'narrow', body: `<dl class="ui-kv">${[
+      k('<span class="kbd">j</span> <span class="kbd">k</span> <span class="kbd">↑</span> <span class="kbd">↓</span>', 'move between asks'),
+      k('<span class="kbd">Enter</span>', 'show / hide the inspector'), k('<span class="kbd">o</span>', 'open the deal'),
+      k('<span class="kbd">w</span>', 'why: the mandate clause that decided it'), k('<span class="kbd">c</span>', 'review &amp; capture (opens the approval window)'),
+      k('<span class="kbd">v</span>', 'void the hold (asks once)'), k('<span class="kbd">1</span>–<span class="kbd">5</span>', 'filter by verdict'),
+      k('<span class="kbd">g</span>', 'group by agent / newest first'), k('<span class="kbd">a</span>', 'audit log'), k('<span class="kbd">Esc</span>', 'close the top layer, then back to The Table')].join('')}</dl>` });
+  }
+  function select(id, opts) {
+    const o = opts || {};
+    V.sel = id; if (o.open != null) V.insp = o.open;
+    render();
+    if (o.focus) { const el = $(`[data-key="row-${id}"]`); if (el) { el.focus({ preventScroll: true }); el.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' }); } }
+  }
+  function move(dir) {
+    const list = visible(); if (!list.length) return;
+    let i = list.findIndex(d => d.id === V.sel);
+    i = i < 0 ? 0 : Math.max(0, Math.min(list.length - 1, i + dir));
+    select(list[i].id, { focus: true });
+  }
+
+  Object.assign(ACT, {
+    filter: el => { V.filter = el.dataset.f; render(); },
+    group: el => { V.group = el.dataset.g; render(); },
+    help: () => keysSheet(),
+    'insp-close': () => { V.insp = false; render(); const r = $(`[data-key="row-${V.sel}"]`); r && r.focus({ preventScroll: true }); }
+  });
+  document.addEventListener('click', e => {
+    if (e.target.closest('[data-act], a, button')) return;
+    const r = e.target.closest('tr.r'); if (r) select(r.dataset.id, { open: true, focus: true });
+  });
+  document.addEventListener('keydown', e => {
+    if (UI.open) return; // a sheet or popover owns the keys (ui.js closes it on Esc)
+    if (e.key === 'Escape') {
+      if (V.insp) { V.insp = false; render(); return; }
+      location.href = HOME_HREF; return;
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea') return;
+    const k = e.key;
+    if (k === 'Enter' && e.target.matches && e.target.matches('tr.r')) { e.preventDefault(); select(e.target.dataset.id, { open: !(V.insp && V.sel === e.target.dataset.id), focus: true }); }
+    else if (k === 'j' || k === 'ArrowDown') { e.preventDefault(); move(1); }
+    else if (k === 'k' || k === 'ArrowUp') { e.preventDefault(); move(-1); }
+    else if (k === 'o') { if (V.sel) location.href = dealHref(V.sel); }
+    else if (k === 'w') { if (V.sel) clauseSheet(V.sel); }
+    else if (k === 'c') { if (HOLD.state === 'AUTHORIZED') S.locked ? toast('Locked. Unlock with Windows Hello first.', 'gold') : openApproval(); }
+    else if (k === 'v') { askVoid(); }
+    else if (k === 'g') { V.group = V.group === 'agent' ? 'flat' : 'agent'; render(); }
+    else if (k === 'a') { auditSheet(); }
+    else if (k === '?') { keysSheet(); }
+    else if (/^[1-5]$/.test(k)) { V.filter = FILTERS[+k - 1][0]; render(); }
+  });
+
+  function tick() { tickCore(); }
+  setInterval(tick, 1000);
+  render();
+  setTimeout(() => { const el = $('[data-key="row-D-0190"]'); el && el.focus({ preventScroll: true }); }, 60);
+})();
+</script>
+<script src="../../../shared/shell.js" data-page="spend" data-variant="1"></script>
+</body>
+</html>

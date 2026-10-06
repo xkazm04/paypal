@@ -1,0 +1,19 @@
+/* Main window · owner configuration sheet frame (Sheet.tsx on the shared ui-sheet). Owner: the
+   setup agent. Everything is scoped under .setup-sheet; the tab bodies live in setup/setup.css. */
+
+/* One width for the three tabs; only Settings > Detailed (the circuit and its inspector column) is wider
+   and full height. Everything else sizes to its content. */
+.ui-sheet.setup-sheet { width: min(980px, calc(100vw - 32px)); min-height: min(420px, calc(100vh - var(--sheet-top) - 24px)); }
+.ui-sheet.setup-sheet.tab-settings.det-detailed { width: min(1100px, calc(100vw - 32px)); height: calc(100vh - var(--sheet-top) - 24px); }
+.setup-sheet .ui-sheet-h { border-bottom: 1px solid var(--line); padding-bottom: var(--sp-3); }
+.setup-sheet .ui-sheet-h h2 { flex: none; }
+.setup-head { display: flex; align-items: center; gap: var(--sp-2); margin-left: var(--sp-3); min-width: 0; }
+.setup-head .ui-seg button:disabled { opacity: .45; cursor: not-allowed; }
+.setup-sheet .ui-sheet-b { padding: var(--sp-4) var(--sp-5) var(--sp-5); }
+
+/* Settings: the body is the Circuit's two columns, each scrolling on its own. */
+.setup-sheet.tab-settings .ui-sheet-b { padding: 0; overflow: hidden; display: grid; min-height: 0; }
+
+@media (max-width: 900px) {
+  .setup-head .badge { display: none; }
+}

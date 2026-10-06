@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Book · Ledger Lens</title>
+<link rel="stylesheet" href="../../../shared/tokens.css">
+<link rel="stylesheet" href="../../../shared/ui.css">
+<script src="../../../main/fixtures.js"></script>
+<script src="../../../shared/ui.js"></script>
+<style>
+/* ---- Book pages on the v2 baseline: only what the baseline does not carry ---- */
+body { overflow: hidden; }
+button.ui-chip { border: 0; cursor: pointer; }
+button.ui-row { border: 0; background: none; color: inherit; font: inherit; text-align: left; width: 100%; }
+.ui-titlebar .ui-crumbs { flex: 0 1 auto; }
+.crumb-btn { background: none; border: 0; padding: 0 2px; color: var(--text); font-weight: var(--fw-semibold); cursor: pointer; border-radius: var(--r-sm); }
+.crumb-btn:hover { background: var(--hover); }
+.tb-meter { display: inline-flex; align-items: center; gap: 6px; height: var(--ctl); padding: 0 var(--sp-2); border: 0; border-left: 2px solid var(--teal); background: none;
+  color: var(--dim); font-size: var(--fs-small); white-space: nowrap; cursor: pointer; border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.tb-meter:hover { background: var(--hover); }
+.tb-meter b { color: var(--text); font: var(--fw-semibold) var(--fs-mono) var(--mono); font-variant-numeric: tabular-nums; }
+.tb-meter.eng { border-left-color: var(--line2); }
+@media (max-width: 1180px) { .tb-meter .lbl { display: none; } }
+.modlist { display: flex; flex-direction: column; gap: 1px; margin: 0 calc(-1 * var(--sp-2)); }
+.ui-btn.primary .kbd { color: inherit; border-color: color-mix(in srgb, var(--on-teal) 40%, transparent); }
+.ui-sidebar .ico.mono { font: var(--fw-semibold) var(--fs-small) var(--mono); }
+
+/* the verbatim query: one line on Layer 1, wrapped in full on Layer 2 */
+.json { margin: 0; padding: var(--sp-2) var(--sp-3); background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
+  font: var(--fs-small)/1.55 var(--mono); color: var(--teal-l); white-space: pre-wrap; word-break: break-word; }
+.json.bad { color: var(--coral-l); border-color: color-mix(in srgb, var(--refuse) 45%, var(--line)); }
+.ui-row .q1, .q1 { font: var(--fs-small) var(--mono); color: var(--teal-l); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ui-row .q1.bad, .q1.bad { color: var(--coral-l); }
+.errs { margin: 0; padding-left: 18px; font: var(--fs-small)/1.6 var(--mono); color: var(--red-l); }
+.sheet-note { margin: var(--sp-3) 0 0; }
+.chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-bottom: var(--sp-3); }
+.auditl { font: var(--fs-small)/1.6 var(--mono); color: var(--muted); }
+.ui-table tr.new td { color: var(--teal-l); }
+a.dl { color: var(--teal-l); text-decoration: none; }
+a.dl:hover { text-decoration: underline; }
+.ui-dot.pulse { animation: bk-pulse 1s ease-in-out infinite; }
+@keyframes bk-pulse { 50% { opacity: .25; } }
+
+/* money is kept apart by state: each state has its own ink */
+.bk-captured { color: var(--ok); } .bk-held { color: var(--coral-l); } .bk-motion { color: var(--teal-l); } .bk-stopped { color: var(--dim); }
+
+/* market band: the deal price against the band on file (Layer 2) */
+.mk { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: var(--fs-small); color: var(--muted); }
+.mk.none { color: var(--dim); font-style: italic; }
+.mk svg { display: block; flex: none; }
+.mk-axis { stroke: var(--line2); stroke-width: 1; }
+.mk-band { fill: color-mix(in srgb, var(--market) 22%, transparent); stroke: color-mix(in srgb, var(--market) 45%, transparent); }
+.mk-med { stroke: var(--market); stroke-width: 1.5; }
+.mk-dot { stroke: var(--bg); stroke-width: 1.5; fill: var(--teal-l); }
+.mk-dot.mk-held { fill: var(--coral-l); } .mk-dot.mk-motion { fill: var(--panel); stroke: var(--teal-l); } .mk-dot.mk-stopped { fill: var(--dim); }
+/* the collapsed source list (inspector open below 1180px) keeps icons only */
+@media (max-width: 1180px) { .ui-split.has-insp .ui-sidebar { overflow-x: hidden; } .ui-split.has-insp .ui-sidebar .cnt, .ui-split.has-insp .ui-sidebar .ui-proto { display: none; } }
+
+/* ---- Variant 1 · Ledger Lens: the week's grid is the page; a query is a lens laid over it ---- */
+#h1:focus { outline: none; }
+/* outlook: three one-line items in one grouped box, each with its default on silence */
+.outlook { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.outlook > .ui-row + .ui-row { border-top: 0; border-left: 1px solid var(--line); }
+.outlook .t1 b { font-family: var(--mono); }
+.ask { margin-top: var(--sp-3); }
+.askrow { display: flex; gap: var(--sp-2); }
+.askrow .ui-field { flex: 1 1 auto; }
+#slip { margin-top: var(--sp-2); }
+#slip .ui-row .main { min-width: 120px; }
+#slip .ui-table td { height: 26px; }
+#slip .ui-table th { position: static; }
+
+/* the grid: four money columns with their own totals, never added together */
+.gridbox { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); overflow: clip; }
+.gridbox .ui-toolbar { gap: var(--sp-2); flex-wrap: wrap; }
+.gt-title { font-weight: var(--fw-semibold); }
+#grid { table-layout: auto; }
+#grid th.num { text-align: right; }
+#grid thead tr.tots th { top: 26px; height: auto; padding-top: var(--sp-1); padding-bottom: var(--sp-1); background: var(--bg2); vertical-align: top; font-weight: var(--fw-regular); }
+.tot { display: inline-flex; flex-direction: column; align-items: flex-end; min-width: 72px; padding: 2px 6px; border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--panel); color: var(--text); cursor: pointer; font: var(--fw-semibold) var(--fs-mono)/1.35 var(--mono); font-variant-numeric: tabular-nums; }
+.tot:hover { background: var(--hover); }
+.tot[aria-pressed="true"] { border-color: var(--gold); box-shadow: inset 0 -2px 0 var(--gold); }
+.tot small { font: var(--fw-regular) var(--fs-small)/1.35 var(--mono); color: var(--dim); }
+#grid tr.grp td { height: 22px; background: var(--bg2); color: var(--dim); font-size: var(--fs-small); font-weight: var(--fw-semibold); }
+#grid tbody tr.r { cursor: pointer; }
+#grid tbody tr.r:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+#grid tr.off td { opacity: .3; }
+#grid td.c-held { color: var(--coral-l); }
+#grid td.c-motion { color: var(--muted); }
+#grid td.c-stopped { color: var(--dim); text-decoration: line-through; }
+#grid .in { color: var(--dim); font-size: var(--fs-small); margin-left: 3px; text-decoration: none; display: inline-block; }
+#grid .day { color: var(--dim); font: var(--fs-small) var(--mono); margin: 0 4px; }
+#grid .cp { color: var(--dim); }
+.proto { margin-top: var(--sp-4); display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.proto::before { width: 100%; margin-bottom: 0; }
+@media (max-width: 1180px) {
+  .outlook { grid-template-columns: minmax(0, 1fr); }
+  .outlook > .ui-row + .ui-row { border-left: 0; border-top: 1px solid var(--line); }
+  #grid .cp, #grid .c-mkt { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="ui-app">
+  <header class="ui-titlebar" id="top"></header>
+  <div class="ui-split" id="split">
+    <aside class="ui-sidebar" id="side" aria-label="Modules and lenses"></aside>
+    <main class="ui-main" id="view" tabindex="-1">
+      <div class="ui-pagehead">
+        <h1 tabindex="-1" id="h1">Book</h1>
+        <span class="sub">Payments ops · week Mon 26 Oct – Sun 1 Nov · ledger as of <span id="asof"></span> · sample snapshot</span>
+        <div class="actions"><button class="ui-btn sm" data-act="audit">Audit trail</button></div>
+      </div>
+
+      <div class="ui-group outlook" id="outlook" aria-label="Cash-flow outlook"></div>
+
+      <section class="ui-section ask" aria-label="Ask the book">
+        <form class="askrow" id="askform">
+          <input class="ui-field ui-search" id="ask" autocomplete="off" aria-label="Ask the book" placeholder="Ask about your agents’ money in plain words   ( / )">
+          <button class="ui-btn" type="submit" id="draftbtn">Draft query</button>
+        </form>
+        <div id="slip" hidden></div>
+      </section>
+
+      <section class="ui-section" aria-label="The week's ledger">
+        <div class="gridbox">
+          <div class="ui-toolbar" id="gtools"></div>
+          <table class="ui-table" id="grid"></table>
+        </div>
+      </section>
+
+      <div class="ui-proto proto" id="proto"></div>
+    </main>
+  </div>
+</div>
+<script>
+/* ---- Book core (v2 baseline): ledger rows, BookQuery schema + validator, read-only executor,
+   outlook, CSV, and the Layer-2 detail (read sheet, rejection sheet, row detail, outlook popover).
+   Shared by the three Book variants (each page carries its own inline copy). Renders from FIX. */
+'use strict';
+const F = window.FIX;
+const NOW0 = new Date(F.nowISO).getTime();
+const T0 = Date.now();
+const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
+const simNow = () => NOW0 + (Date.now() - T0);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+/* Money is integer minor units (cents) + ISO currency; FIX holds USD dollars, converted once here. */
+const toMinor = (n) => (n == null ? null : Math.round(n * 100));
+const fmt = (minor) => (minor == null ? '—' : '$' + (minor / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const DEAL_HREF = (id) => `../../deal/variant-1/index.html#${encodeURIComponent(id)}`;
+const HOME_HREF = '../../../index.html#home';
+
+/* Week of Mon 26 Oct - Sun 1 Nov 2026. */
+const DAYDATE = { Mon: '2026-10-26', Tue: '2026-10-27', Wed: '2026-10-28', Thu: '2026-10-29', Fri: '2026-10-30', Sat: '2026-10-31', Sun: '2026-11-01' };
+const WEEK = { from: '2026-10-26', to: '2026-11-01' };
+
+/* Page-local constants consistent with FIX (same ids, times as prototype/main/modules.js). */
+const DEADLINE = {
+  'D-0190': NOW0 + F.deals.find((d) => d.id === 'D-0190').holdUntilMin * MIN, // auto-void at 72 h: Sun 1 Nov 09:02
+  'D-0189': NOW0 + 4 * HOUR + 31 * MIN, // buyer's approve link
+};
+/* decided_by per the AGENTS.md authorities: owner (approval window), a signed rule, or a safe default. */
+const DECIDED_BY = {
+  'D-0187': 'owner', 'D-0180': 'owner',
+  'D-0186': 'policy:clause6', 'D-0183': 'policy:clause6', 'D-0181': 'policy:clause6',
+  'D-0192': 'policy:clause3', 'D-0196': 'shield', 'D-0185': 'mandate:S-2', 'D-0176': 'auto:rounds',
+};
+const DECIDED_LABEL = {
+  owner: 'you · approval window', 'policy:clause6': 'policy · clause 6', 'policy:clause3': 'policy · clause 3 (refused)',
+  shield: 'shield · BLOCK', 'mandate:S-2': 'shop mandate S-2 · buyer approved', 'auto:rounds': 'auto-withdraw · rounds', open: 'still open',
+};
+/* Last Transaction Search poll in this sample (UNVERIFIED cadence; report §10.5: ≤ 3 h lag). */
+const LAST_POLL = '13:47';
+
+const STATE_TONE = (s) => ({
+  NEGOTIATING: 'live', PAIRING: 'live', QUOTED: 'live', 'AWAITING BUYER APPROVAL': 'wait', AUTHORIZED: 'held', HOLD: 'held',
+  CAPTURED: 'done', RECEIPTED: 'done', RECOVERED: 'done', REFUSED: 'bad', BLOCK: 'bad', VOIDED: 'off', WITHDRAWN: 'off', FAILED: 'wait',
+}[s] || 'off');
+const BUCKET = (s) => (['CAPTURED', 'RECEIPTED', 'RECONCILED', 'RECOVERED'].includes(s) ? 'captured'
+  : s === 'AUTHORIZED' ? 'held'
+  : ['REFUSED', 'BLOCK', 'VOIDED', 'WITHDRAWN', 'EXPIRED'].includes(s) ? 'stopped' : 'motion');
+const BUCKETS = ['captured', 'held', 'motion', 'stopped'];
+const BUCKET_LABEL = { captured: 'Captured', held: 'Held at PayPal', motion: 'In motion', stopped: 'Stopped' };
+const BUCKET_SUB = { captured: 'money moved', held: 'authorized, not captured', motion: 'nothing captured yet', stopped: 'never paid' };
+
+const cpName = (id) => (F.counterparties[id] ? F.counterparties[id].name : id);
+const ROWS = F.deals.map((d) => {
+  const kind = d.kind.split(' · ')[0].replace(' ', '_');
+  return {
+    id: d.id, kind, kindLabel: d.kind, side: d.side, dir: d.side === 'buyer' ? 'out' : 'in', cpId: d.cp, cp: cpName(d.cp), item: d.item,
+    minor: toMinor(d.amount), ask: d.ask || null, state: d.state, bucket: BUCKET(d.state), day: d.day, date: DAYDATE[d.day], when: d.when,
+    pct: d.pct == null ? null : d.pct, ref: d.ref, decided: DECIDED_BY[d.id] || 'open', mode: d.replay ? 'REPLAY' : F.mode, pp: d.pp || null,
+    recBase: d.rec, sub: d.sub, link: d.id, module: d.module,
+  };
+});
+const SUBROWS = F.subscribers.map((s) => ({
+  id: s.id, kind: 'subscription', kindLabel: 'subscription · ' + s.plan, side: 'seller', dir: 'in', cpId: s.id, cp: 'subscriber ' + s.id, item: s.plan,
+  minor: null, state: s.state, bucket: 'n/a', day: null, date: null, when: s.retry, pct: null, ref: 'care-plan', decided: 'open',
+  mode: s.replay ? 'REPLAY' : F.mode, pp: null, recBase: 'n/a', sub: s.retry, link: s.deal || null, module: 'rescue',
+}));
+
+/* Reconciliation: our ledger first, PayPal's Transaction Search second. */
+const REC = { overrides: {}, reporting: true };
+function recOf(r) {
+  const v = REC.overrides[r.id] || r.recBase || 'n/a';
+  if (!REC.reporting && v === 'pending') return 'off';
+  return v;
+}
+const REC_LABEL = { matched: 'matched', pending: 'pending in PayPal reporting', mismatch: 'mismatch', 'n/a': 'n/a', off: 'reporting not enabled' };
+const REC_TIP = {
+  matched: 'Transaction Search found this capture on your account',
+  pending: 'Captured in your ledger; Transaction Search lags up to 3 h before it lists the row',
+  mismatch: 'PayPal reports a different amount or id than the ledger',
+  'n/a': 'No money reached PayPal for this row, so there is nothing to reconcile',
+  off: 'The REST app lacks the Transaction Search permission; your own ledger still answers',
+};
+/* Layer 1 shows a short chip; the full label and its meaning live in the tooltip and the detail. */
+const REC_CHIP = { matched: ['ok', 'matched'], pending: ['gold dashed', 'pending'], mismatch: ['red', 'mismatch'], 'n/a': ['', 'n/a'], off: ['line', 'not enabled'] };
+function recChip(r) {
+  const v = recOf(r);
+  if (v === 'n/a') return `<span class="dim" title="${esc(REC_TIP[v])}">n/a</span>`;
+  return `<span class="ui-chip ${REC_CHIP[v][0]}" title="${esc(REC_LABEL[v] + ' · ' + REC_TIP[v])}">${REC_CHIP[v][1]}</span>`;
+}
+function recCounts(rows) {
+  const c = { matched: 0, pending: 0, mismatch: 0, off: 0, 'n/a': 0 };
+  rows.forEach((r) => { c[recOf(r)]++; });
+  return c;
+}
+/** Compact reconciliation summary for a set of rows (text + colour, never colour alone). */
+function recSummary(rc, all) {
+  const c = [];
+  if (rc.matched || all) c.push(`<span class="ui-chip ok" title="${esc(REC_TIP.matched)}">${rc.matched} matched</span>`);
+  if (REC.reporting && (rc.pending || all)) c.push(`<span class="ui-chip gold dashed" title="${esc(REC_TIP.pending)}">${rc.pending} pending</span>`);
+  if (rc.off) c.push(`<span class="ui-chip line" title="${esc(REC_TIP.off)}">${rc.off} not enabled</span>`);
+  if (rc.mismatch || all) c.push(`<span class="ui-chip red" title="${esc(REC_TIP.mismatch)}">${rc.mismatch} mismatch</span>`);
+  return c.join(' ');
+}
+const TONE_CHIP = { live: 'teal', wait: 'gold', held: 'coral', done: 'ok', bad: 'red', off: '' };
+const STATE_SHORT = { 'AWAITING BUYER APPROVAL': 'awaiting buyer' };
+const stChip = (s, full) => `<span class="ui-chip ${TONE_CHIP[STATE_TONE(s)]}" title="${esc(s)}">${esc(full ? s : (STATE_SHORT[s] || s))}</span>`;
+const modeChip = (m) => `<span class="badge ${m === 'REPLAY' ? 'replay' : 'sandbox'}">${esc(m)}</span>`;
+const QS_TONE = { DRAFTING: 'teal', DRAFTED: 'gold', INVALID: 'red', RUNNING: 'teal', RESULT: 'ok', EMPTY: '' };
+/** Phase of a query: drafting → drafted (read me) → running → result / empty, or invalid. */
+const qsChip = (p, label) => `<span class="ui-chip ${QS_TONE[p] || ''}">${p === 'DRAFTING' || p === 'RUNNING' ? '<span class="ui-dot pulse"></span>' : ''}${esc(label || p)}</span>`;
+const BUCKET_SHORT = { captured: 'captured', held: 'held', motion: 'in motion', stopped: 'stopped' };
+/** One line of money, kept apart by state and direction: never one total. */
+function moneyLine(sums) {
+  const p = [];
+  BUCKETS.forEach((b) => {
+    const s = sums[b];
+    if (s.out) p.push(`<span class="dim">${BUCKET_SHORT[b]}</span> <span class="money bk-${b}">${fmt(s.out)}</span>`);
+    if (s.in) p.push(`<span class="dim">${BUCKET_SHORT[b]} in</span> <span class="money bk-${b}">${fmt(s.in)}</span>`);
+  });
+  return p.join('<span class="dim"> · </span>') || '<span class="dim">no amounts</span>';
+}
+
+/* ---- BookQuery: the closed query language (report §7 cap 5), verbatim. ---- */
+const SCHEMA_TEXT = `{ "type":"object", "additionalProperties":false,
+  "required":["view","metrics"],
+  "properties":{
+    "view":{"enum":["deals","paypal_calls","receipts","subscriptions","reconciliation"]},
+    "filters":{"type":"array","maxItems":6,"items":{"type":"object","additionalProperties":false,
+      "properties":{"field":{"enum":["kind","state","counterparty","amount","created_at","vs_market_pct","decided_by"]},
+      "op":{"enum":["eq","ne","gt","lt","between","in"]},"value":{}}}},
+    "group_by":{"type":"array","items":{"enum":["kind","counterparty","state","day","decided_by"]},"maxItems":2},
+    "metrics":{"type":"array","items":{"enum":["count","sum_amount","avg_vs_market_pct","recovered_sum"]}},
+    "range":{"type":"object","properties":{"from":{"type":"string"},"to":{"type":"string"}}},
+    "limit":{"type":"integer","maximum":500} } }`;
+const SCHEMA = JSON.parse(SCHEMA_TEXT);
+const ENUMS = {
+  view: SCHEMA.properties.view.enum,
+  field: SCHEMA.properties.filters.items.properties.field.enum,
+  op: SCHEMA.properties.filters.items.properties.op.enum,
+  group_by: SCHEMA.properties.group_by.items.enum,
+  metrics: SCHEMA.properties.metrics.items.enum,
+};
+function checkNode(s, v, path, errs) {
+  const at = path || '/';
+  if (s.type) {
+    const ok = s.type === 'object' ? (v !== null && typeof v === 'object' && !Array.isArray(v))
+      : s.type === 'array' ? Array.isArray(v)
+      : s.type === 'integer' ? Number.isInteger(v)
+      : s.type === 'string' ? typeof v === 'string' : true;
+    if (!ok) { errs.push(`${at} must be ${s.type}`); return; }
+  }
+  if (s.enum && !s.enum.includes(v)) errs.push(`${at} must be equal to one of the allowed values: ${s.enum.join(', ')}`);
+  if (s.maximum != null && typeof v === 'number' && v > s.maximum) errs.push(`${at} must be <= ${s.maximum}`);
+  if (s.type === 'object') {
+    (s.required || []).forEach((k) => { if (!(k in v)) errs.push(`${at} must have required property '${k}'`); });
+    Object.keys(v).forEach((k) => {
+      if (s.properties && s.properties[k]) checkNode(s.properties[k], v[k], `${path}/${k}`, errs);
+      else if (s.additionalProperties === false) errs.push(`${at} must NOT have additional properties: '${k}'`);
+    });
+  }
+  if (s.type === 'array') {
+    if (s.maxItems != null && v.length > s.maxItems) errs.push(`${at} must NOT have more than ${s.maxItems} items`);
+    if (s.items) v.forEach((x, i) => checkNode(s.items, x, `${path}/${i}`, errs));
+  }
+}
+/** Parse + validate exactly the text the engine (or a preset, or Maya) produced. */
+function validateText(text) {
+  let obj;
+  try { obj = JSON.parse(text); } catch (e) { return { ok: false, obj: null, errors: [`not JSON · ${e.message}`] }; }
+  const errors = [];
+  checkNode(SCHEMA, obj, '', errors);
+  return { ok: errors.length === 0, obj, errors };
+}
+
+/* Presets: fixed queries that run without an engine (report §13 cut-line). */
+const R = `"range":{"from":"${WEEK.from}","to":"${WEEK.to}"}`;
+const PRESETS = [
+  { id: 'week', short: 'This week vs market', q: 'What did my agents commit this week, and how did it compare with the market?',
+    json: `{"view":"deals","group_by":["kind"],"metrics":["count","sum_amount","avg_vs_market_pct"],${R}}` },
+  { id: 'pending', short: 'Does PayPal agree yet?', q: 'Does PayPal agree yet? Which captures are still pending in PayPal reporting?',
+    json: `{"view":"reconciliation","metrics":["count","sum_amount"],${R}}` },
+  { id: 'decided', short: 'Policy vs me', q: 'What did the policy decide on its own, and what did I decide?',
+    json: `{"view":"deals","group_by":["decided_by"],"metrics":["count","sum_amount"],${R}}` },
+  { id: 'day', short: 'Day by day', q: 'Day by day: what was committed?',
+    json: `{"view":"deals","group_by":["day"],"metrics":["count","sum_amount"],${R}}` },
+  { id: 'stopped', short: 'What was stopped', q: 'What was stopped, and by what?',
+    json: `{"view":"deals","filters":[{"field":"state","op":"in","value":["REFUSED","BLOCK","VOIDED","WITHDRAWN"]}],"group_by":["decided_by"],"metrics":["count","sum_amount"],${R}}` },
+  { id: 'mismatch', short: 'Mismatches with PayPal', q: 'Any mismatches with PayPal?',
+    json: `{"view":"reconciliation","filters":[{"field":"state","op":"eq","value":"MISMATCH"}],"metrics":["count"],${R}}` },
+  { id: 'rescue', short: 'Rescue recovered', q: 'What did rescue recover?',
+    json: `{"view":"subscriptions","group_by":["state"],"metrics":["count","recovered_sum"]}` },
+];
+
+/* Prototype stand-in for the engine (claude-code, tool-less profile). It sees the question and the
+   schema only - never rows, never counterparty text. Deterministic so the demo repeats. */
+function engineDraft(question) {
+  const s = question.toLowerCase();
+  const has = (re) => re.test(s);
+  if (has(/\b(delete|drop|update|insert|refund|pay|send|capture|void|cancel)\b/)) {
+    const id = (question.match(/[DQ]-\d{4}/i) || ['D-0186'])[0].toUpperCase();
+    const act = (s.match(/\b(delete|drop|update|insert|refund|pay|send|capture|void|cancel)\b/) || ['refund'])[0];
+    return `{"view":"deals","action":"${act}","filters":[{"field":"id","op":"eq","value":"${id}"}],"metrics":["count"]}`;
+  }
+  if (has(/\b(sql|select)\b/)) return `SELECT * FROM deals WHERE state = 'CAPTURED'`;
+  if (has(/forecast|predict|next week|projection|expect/)) return `{"view":"deals","metrics":["forecast_sum"],${R}}`;
+  if (has(/all time|\bever\b|everything|since the start/)) return `{"view":"deals","metrics":["count","sum_amount"],"limit":5000}`;
+  if (has(/mismatch|disagree|wrong/)) return PRESETS[5].json;
+  if (has(/pending|reporting|reconcil|match|agree|statement/)) return PRESETS[1].json;
+  if (has(/recover|rescue|subscri|renewal/)) return PRESETS[6].json;
+  if (has(/refus|block|stopp|void|withdr/)) return PRESETS[4].json;
+  if (has(/polic|decid|on its own|automatic|who/)) return PRESETS[2].json;
+  if (has(/\bday\b|daily|each day|per day/)) return PRESETS[3].json;
+  const cp = Object.values(F.counterparties).find((c) => s.includes(c.id) || s.includes(c.name.toLowerCase().split(' ')[0]));
+  if (cp) {
+    const st = has(/captur|paid/) ? `,{"field":"state","op":"eq","value":"CAPTURED"}` : '';
+    return `{"view":"deals","filters":[{"field":"counterparty","op":"eq","value":"${cp.id}"}${st}],"metrics":["count","sum_amount","avg_vs_market_pct"],${R}}`;
+  }
+  const over = s.match(/(?:over|above|more than)\s*\$?(\d+)/);
+  if (over) return `{"view":"deals","filters":[{"field":"amount","op":"gt","value":${over[1]}}],"group_by":["state"],"metrics":["count","sum_amount"],${R}}`;
+  if (has(/supplier|counterpart|vendor|seller/)) return `{"view":"deals","group_by":["counterparty"],"metrics":["count","sum_amount"],${R}}`;
+  if (has(/paypal call|order id|capture id/)) return `{"view":"paypal_calls","metrics":["count","sum_amount"],${R}}`;
+  if (has(/receipt/)) return `{"view":"receipts","metrics":["count","sum_amount"],${R}}`;
+  return PRESETS[0].json;
+}
+/* Example questions that show the rejection path (engine output that fails the schema). */
+const TRY_INVALID = ['Refund D-0186', 'Forecast next week’s spend', 'Show everything since the start'];
+
+/* ---- Read-only executor: the prototype's stand-in for Rust on SQLITE_OPEN_READ_ONLY. ---- */
+const FIELD = {
+  kind: (r) => r.kind, state: (r) => r.state, counterparty: (r) => r.cpId, amount: (r) => (r.minor == null ? null : r.minor / 100),
+  created_at: (r) => r.date, vs_market_pct: (r) => r.pct, decided_by: (r) => r.decided,
+};
+const norm = (x) => (typeof x === 'string' ? x.toLowerCase() : x);
+function matchFilter(r, f) {
+  if (!f.field) return true;
+  const a = FIELD[f.field](r), v = f.value, op = f.op || 'eq';
+  if (op === 'eq') return norm(a) === norm(v);
+  if (op === 'ne') return norm(a) !== norm(v);
+  if (op === 'gt') return a != null && a > v;
+  if (op === 'lt') return a != null && a < v;
+  if (op === 'between') return Array.isArray(v) && a != null && a >= v[0] && a <= v[1];
+  if (op === 'in') return Array.isArray(v) && v.map(norm).includes(norm(a));
+  return false;
+}
+function viewRows(view) {
+  switch (view) {
+    case 'deals': return ROWS;
+    case 'paypal_calls': return ROWS.filter((r) => r.pp);
+    case 'receipts': return ROWS.filter((r) => r.state === 'RECEIPTED' || (r.side === 'seller' && r.bucket === 'captured'));
+    case 'reconciliation': return ROWS.filter((r) => r.pp && r.pp.capture);
+    case 'subscriptions': return SUBROWS;
+    default: return [];
+  }
+}
+const GROUP_LABEL = {
+  kind: (r) => r.kind.replace('_', ' '), counterparty: (r) => r.cp, state: (r) => r.state, day: (r) => r.day || '—',
+  decided_by: (r) => DECIDED_LABEL[r.decided] || r.decided,
+};
+const DAY_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+/** Aggregate without ever adding money in different states or directions together. */
+function aggregate(rows) {
+  const sums = {};
+  BUCKETS.forEach((b) => { sums[b] = { out: 0, in: 0, nOut: 0, nIn: 0 }; });
+  rows.forEach((r) => {
+    if (r.minor == null || !sums[r.bucket]) return;
+    sums[r.bucket][r.dir] += r.minor;
+    sums[r.bucket][r.dir === 'out' ? 'nOut' : 'nIn']++;
+  });
+  const pr = rows.filter((r) => r.pct != null);
+  const pct = pr.length ? { avg: Math.round(pr.reduce((a, r) => a + r.pct, 0) / pr.length), n: pr.length, ids: pr.map((r) => r.id) } : null;
+  const recovered = rows.filter((r) => r.state === 'RECOVERED' && r.mode !== 'REPLAY').reduce((a, r) => a + (r.minor || 0), 0);
+  return { count: rows.length, sums, pct, rec: recCounts(rows), recovered };
+}
+let QSEQ = 0;
+function runQuery(q) {
+  const t0 = performance.now();
+  let rows = viewRows(q.view);
+  const filters = q.filters || [];
+  if (q.range && q.view !== 'subscriptions') rows = rows.filter((r) => r.date && (!q.range.from || r.date >= q.range.from) && (!q.range.to || r.date <= q.range.to));
+  rows = rows.filter((r) => filters.every((f) => matchFilter(r, f)));
+  const total = rows.length;
+  rows = rows.slice(0, q.limit == null ? 500 : q.limit);
+  const gb = q.group_by || [];
+  let groups = [];
+  if (gb.length) {
+    const map = new Map();
+    rows.forEach((r) => {
+      const key = gb.map((g) => GROUP_LABEL[g](r)).join(' · ');
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(r);
+    });
+    groups = [...map.entries()].map(([key, rs]) => ({ key, rows: rs, ...aggregate(rs) }));
+    if (gb[0] === 'day') groups.sort((a, b) => DAY_ORDER.indexOf(a.key.split(' · ')[0]) - DAY_ORDER.indexOf(b.key.split(' · ')[0]));
+    else groups.sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+  }
+  const params = filters.length + (q.range ? 2 : 0) + 1;
+  return { q, rows, total, groups, all: aggregate(rows), empty: rows.length === 0, metrics: q.metrics || [], gb, seq: ++QSEQ,
+    ms: Math.max(1, Math.round(performance.now() - t0)), sqlView: 'v_book_' + q.view, params };
+}
+
+/* Plain-words reading of a valid query, generated by the wallet from the schema (not by the engine). */
+const VIEW_WORDS = {
+  deals: 'rows from your deal ledger', paypal_calls: 'the PayPal calls the pipeline made', receipts: 'signed receipts',
+  subscriptions: 'care-plan subscriptions', reconciliation: 'captures checked against PayPal Transaction Search',
+};
+const METRIC_WORDS = {
+  count: 'how many', sum_amount: 'amounts, kept apart by money state (captured · held · in motion · stopped)',
+  avg_vs_market_pct: 'average market percentile where a reference exists', recovered_sum: 'recovered money (paid invoices + captures, never REPLAY)',
+};
+const OP_WORDS = { eq: 'is', ne: 'is not', gt: 'over', lt: 'under', between: 'between', in: 'is one of' };
+function readQuery(q) {
+  const lines = [['view', VIEW_WORDS[q.view]]];
+  (q.filters || []).forEach((f) => lines.push(['filter', `only where ${String(f.field || '?').replace(/_/g, ' ')} ${OP_WORDS[f.op] || f.op} ${Array.isArray(f.value) ? f.value.join(', ') : f.value}`]));
+  if (q.group_by && q.group_by.length) lines.push(['group_by', 'one line per ' + q.group_by.map((g) => g.replace('_', ' ')).join(' then ')]);
+  lines.push(['metrics', (q.metrics || []).map((m) => METRIC_WORDS[m]).join('; ') || 'nothing (metrics is empty)']);
+  if (q.range) lines.push(['range', `from ${q.range.from || 'the start'} to ${q.range.to || 'now'}`]);
+  if (q.limit != null) lines.push(['limit', `at most ${q.limit} rows`]);
+  return lines;
+}
+
+/* ---- Fixed cash-flow outlook: a fixed query, never an LLM one. Counts from data, no forecasts. ---- */
+function outlook() {
+  const holds = ROWS.filter((r) => r.state === 'AUTHORIZED').map((r) => ({ r, until: DEADLINE[r.id], silence: F.deals.find((d) => d.id === r.id).silence }));
+  const links = ROWS.filter((r) => /AWAITING/.test(r.state)).map((r) => ({ r, until: DEADLINE[r.id], silence: F.deals.find((d) => d.id === r.id).silence }));
+  const failing = F.subscribers.filter((s) => s.state === 'FAILED');
+  return { holds, links, renewals: F.activeSubscribers, failing };
+}
+function countdown(until) {
+  const ms = Math.max(0, until - simNow());
+  if (ms >= DAY) { const hrs = Math.ceil(ms / HOUR); return `${Math.floor(hrs / 24)} d ${hrs % 24} h`; }
+  const h = Math.floor(ms / HOUR), m = Math.ceil((ms - h * HOUR) / MIN);
+  return h ? `${h} h ${String(m).padStart(2, '0')} m` : `${m} m`;
+}
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+function absTime(t) {
+  const d = new Date(t);
+  return `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+const nowClock = () => absTime(simNow()).split(' ')[1];
+
+/* ---- Market comparison: the deal price against the Channel3 band on file. ---- */
+function marketBand(r, w) {
+  w = w || 132;
+  const m = F.market[r.ref];
+  if (!m || r.minor == null) {
+    return r.pct != null ? `<span class="mk mono" title="percentile recorded at the deal; no band on file">p${r.pct}</span>` : `<span class="mk none">no market ref</span>`;
+  }
+  const a = r.minor / 100, lo = Math.min(m.p25, a) * 0.97, hi = Math.max(m.p75, a) * 1.03, h = 18;
+  const x = (v) => (4 + ((v - lo) / (hi - lo)) * (w - 8)).toFixed(1);
+  const tip = `${fmt(r.minor)} vs p25 $${m.p25} · median $${m.median} · p75 $${m.p75} · ${m.src} · retrieved ${m.retrieved}${r.pct != null ? ` · p${r.pct} at the deal` : ''}`;
+  return `<span class="mk" title="${esc(tip)}"><svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">
+    <line x1="2" x2="${w - 2}" y1="9" y2="9" class="mk-axis"/>
+    <rect x="${x(m.p25)}" y="4" width="${(x(m.p75) - x(m.p25)).toFixed(1)}" height="10" rx="2" class="mk-band"/>
+    <line x1="${x(m.median)}" x2="${x(m.median)}" y1="2" y2="16" class="mk-med"/>
+    <circle cx="${x(a)}" cy="9" r="4" class="mk-dot mk-${r.bucket}"/></svg><span class="mono">${r.pct != null ? 'p' + r.pct : (a > m.median ? '+' : '') + Math.round(((a - m.median) / m.median) * 100) + '%'}</span></span>`;
+}
+
+/* ---- CSV export: every record carries its mode badge; formula-safe cells. ---- */
+function csvCell(v) {
+  let s = v == null ? '' : String(v);
+  if (/^[=+\-@]/.test(s)) s = "'" + s;
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function toCSV(rows, queryText) {
+  const head = ['mode', 'deal', 'day', 'kind', 'side', 'counterparty', 'item', 'money_state', 'amount', 'currency', 'state', 'decided_by', 'vs_market_pct', 'paypal_statement', 'paypal_order', 'paypal_capture', 'query'];
+  const lines = [head.join(',')];
+  rows.forEach((r) => lines.push([r.mode, r.id, r.date || '', r.kind, r.side, r.cp, r.item, r.bucket, r.minor == null ? '' : (r.minor / 100).toFixed(2), 'USD', r.state,
+    r.decided, r.pct == null ? '' : r.pct, REC_LABEL[recOf(r)], r.pp ? r.pp.order : '', r.pp && r.pp.capture ? r.pp.capture : '', queryText || ''].map(csvCell).join(',')));
+  return lines.join('\r\n') + '\r\n';
+}
+function downloadCSV(rows, queryText, name) {
+  const modes = [...new Set(rows.map((r) => r.mode))].join('+');
+  const file = `${name || 'book'}-${modes || F.mode}-2026-10-29.csv`;
+  const blob = new Blob([toCSV(rows, queryText)], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = file; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  return { file, n: rows.length, modes };
+}
+
+/* ---- Audit: FIX.audit plus every query this page runs (append-only; book.query is read-only). ---- */
+const AUDIT = F.audit.slice();
+function audit(actor, action, deal) {
+  const seq = AUDIT[0].seq + 1;
+  AUDIT.unshift({ seq, t: absTime(simNow()).split(' ')[1] + ':' + String(new Date(simNow()).getSeconds()).padStart(2, '0'), actor, action, deal: deal || '' });
+  return seq;
+}
+
+/* ---- Toast: the baseline's, with our own (already escaped) markup. ---- */
+function toast(html, kind) {
+  const n = document.createElement('span'); n.innerHTML = html;
+  UI.toast(n, kind);
+}
+
+/** Layer 1 market cue: the percentile recorded at the deal, or distance from the band median. */
+function pctText(r) {
+  if (r.pct != null) return `p${r.pct}`;
+  const m = F.market[r.ref];
+  if (!m || r.minor == null) return '—';
+  const d = Math.round(((r.minor / 100 - m.median) / m.median) * 100);
+  return (d > 0 ? '+' : '') + d + '%';
+}
+
+/* ---- Layer 2: read-before-run sheet, rejection sheet, row detail, outlook, audit. ---- */
+const srcLabel = (source) => (source === 'preset' ? 'preset · a fixed query, no engine' : `drafted by ${APP.engine} · tool-less profile · it saw your words and the schema, never your rows`);
+/** The query verbatim plus the wallet's plain-words reading. `onRun` puts Run in the footer. */
+function readSheet({ text, val, source, onRun, title }) {
+  const body = `<div class="ui-section-h"><h3>Verbatim · exactly what runs</h3></div><pre class="json">${esc(text)}</pre>
+    <div class="ui-section"><div class="ui-section-h"><h3>In plain words · read back by the wallet from the schema, not by the engine</h3></div>
+    <dl class="ui-kv">${readQuery(val.obj).map(([k, v]) => `<dt class="mono">${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>
+    <p class="ui-hint sheet-note">${esc(srcLabel(source))}<br>SQLITE_OPEN_READ_ONLY · whitelisted view v_book_${esc(val.obj.view)} · values bound as parameters · the book has no write path</p>`;
+  const actions = onRun ? [{ label: 'Close' }, { label: 'Run read-only', kind: 'primary', onClick: () => onRun() }] : [{ label: 'Done', kind: 'primary' }];
+  return UI.sheet({ title: title || 'Read before you run', body, actions, size: 'wide' });
+}
+function rejectSheet({ text, val, source, auditSeq }) {
+  const body = `<div class="ui-section-h"><h3>What the engine produced · verbatim</h3></div><pre class="json bad">${esc(text)}</pre>
+    <div class="ui-section"><div class="ui-section-h"><h3>Schema errors · ${val.errors.length}</h3></div><ul class="errs">${val.errors.map((e) => `<li>${esc(e)}</li>`).join('')}</ul></div>
+    <p class="ui-hint sheet-note">${esc(srcLabel(source))}<br>0 rows read · no connection opened${auditSeq ? ` · logged as audit #${auditSeq}` : ''}. The book has no write path, so a write can only ever be rejected.</p>`;
+  return UI.sheet({ title: 'Rejected by the schema · nothing ran', body, actions: [{ label: 'Done', kind: 'primary' }], size: 'wide' });
+}
+/** Everything about one ledger row: the inspector (or a sheet) shows it, never the row itself. */
+function rowDetail(r) {
+  const d = F.deals.find((x) => x.id === r.id);
+  const v = recOf(r);
+  const trail = AUDIT.filter((a) => a.deal === r.id).slice(0, 4);
+  const amt = r.minor != null
+    ? `<span class="money bk-${r.bucket}">${fmt(r.minor)}</span> ${r.dir} · ${BUCKET_LABEL[r.bucket] ? BUCKET_LABEL[r.bucket].toLowerCase() + ' (' + BUCKET_SUB[r.bucket] + ')' : ''}`
+    : (r.ask ? `none · the ask (${esc(r.ask)}) was never sent` : 'no amount');
+  const pp = r.pp ? `order ${esc(r.pp.order)} · ${esc(r.pp.intent)} · auth ${esc(r.pp.auth || '—')} · capture ${esc(r.pp.capture || '—')}` : 'no PayPal call';
+  return `<div class="chips">${stChip(r.state, true)}${r.kind === 'subscription' ? '' : recChip(r)}${modeChip(r.mode)}${d && d.note ? `<button class="ui-chip coral dashed" data-note="${r.id}" title="Counterparty text, untrusted">note ›</button>` : ''}</div>
+    <dl class="ui-kv">
+      <dt>Counterparty</dt><dd>${esc(r.cp)}</dd>
+      <dt>Kind</dt><dd>${esc(r.kindLabel)} · ${r.side} side</dd>
+      <dt>Money</dt><dd>${amt}</dd>
+      <dt>When</dt><dd>${esc(r.when || '—')}</dd>
+      <dt>Decided by</dt><dd>${esc(DECIDED_LABEL[r.decided] || r.decided)}</dd>
+      <dt>PayPal</dt><dd class="mono">${pp}</dd>
+      ${r.kind === 'subscription' ? '' : `<dt>Statement</dt><dd>${esc(REC_LABEL[v])} <span class="dim">· ${esc(REC_TIP[v])}</span></dd>
+      <dt>Market</dt><dd>${marketBand(r, 150)}</dd>`}
+      <dt>Ledger</dt><dd>${esc(r.sub || '—')}</dd>
+    </dl>
+    <div class="ui-section"><div class="ui-section-h"><h3>Audit</h3><span class="end">append-only</span></div>
+      <div class="auditl">${trail.length ? trail.map((a) => `#${a.seq} ${esc(a.t)} ${esc(a.actor)} · ${esc(a.action)}`).join('<br>') : '<span class="dim">no audit lines for this row in the sample</span>'}</div></div>`;
+}
+/* The only place counterparty text appears: a quarantine box behind a "note ›" chip, as plain text. */
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-note]');
+  if (!b) return;
+  const d = F.deals.find((x) => x.id === b.dataset.note);
+  if (!d || !d.note) return;
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `<div class="quarantine"><div class="q-label">Untrusted · from ${esc(cpName(d.cp))}</div><div class="q-text"></div></div><p class="ui-hint sheet-note">Plain text · never sent to an agent · never a link</p>`;
+  wrap.querySelector('.q-text').textContent = d.note;
+  UI.popover(b, wrap, { title: `${d.id} · counterparty note` });
+});
+
+/** The fixed cash-flow outlook as three Layer-1 items, each with its default on silence. */
+function outlookItems() {
+  const o = outlook();
+  const h = o.holds[0], l = o.links[0];
+  return [
+    { k: 'holds', n: o.holds.length, label: o.holds.length === 1 ? 'hold expiring' : 'holds expiring', r: h && h.r, until: h && h.until, silence: h && h.silence,
+      short: 'released, nothing paid', what: h ? `auto-void ${absTime(h.until)}` : '' },
+    { k: 'links', n: o.links.length, label: o.links.length === 1 ? 'approve link' : 'approve links', r: l && l.r, until: l && l.until, silence: l && l.silence,
+      short: 'lapses, no money moves', what: l ? `${l.r.cp} approves on PayPal` : '' },
+    { k: 'renew', n: o.renewals, label: 'renewals due · 30 d', failing: o.failing,
+      short: 'PayPal’s schedule runs', silence: 'PayPal bills and retries on its own schedule; nothing here moves money' },
+  ];
+}
+function outlookPopover(anchor, k) {
+  const it = outlookItems().find((x) => x.k === k);
+  let kv = '';
+  if (it.r) {
+    kv = `<dt>Deal</dt><dd><a class="dl" href="${DEAL_HREF(it.r.id)}">${it.r.id}</a> · ${esc(it.r.item)}</dd>
+      <dt>Amount</dt><dd class="money">${fmt(it.r.minor)} ${it.r.dir}</dd>
+      <dt>Deadline</dt><dd>${esc(it.what)} · in ${countdown(it.until)}</dd>`;
+  } else if (it.failing) {
+    kv = `<dt>Active</dt><dd>${it.n} subscribers</dd>${it.failing.map((s) => `<dt>${s.id}</dt><dd>failing · ${esc(s.retry)}</dd>`).join('')}`;
+  } else kv = '<dt>Now</dt><dd>none</dd>';
+  UI.popover(anchor, `<dl class="ui-kv">${kv}<dt>If you do nothing</dt><dd>${esc(it.silence || it.short)}</dd></dl>
+    <p class="ui-hint sheet-note">Cash-flow outlook · a fixed query, never an engine · counts only, no forecast</p>`, { title: `${it.n} ${it.label}` });
+}
+function auditSheet() {
+  UI.sheet({ title: 'Audit trail · append-only', size: 'wide', actions: [{ label: 'Done', kind: 'primary' }],
+    body: `<table class="ui-table"><thead><tr><th>#</th><th>Time</th><th>Actor</th><th>Action</th><th>Deal</th></tr></thead><tbody>
+      ${AUDIT.slice(0, 20).map((a) => `<tr${a.seq > F.audit[0].seq ? ' class="new"' : ''}><td class="mono">${a.seq}</td><td class="mono">${esc(a.t)}</td><td>${esc(a.actor)}</td><td class="clip" title="${esc(a.action)}">${esc(a.action)}</td><td>${a.deal ? `<a class="dl mono" href="${DEAL_HREF(a.deal)}">${a.deal}</a>` : ''}</td></tr>`).join('')}</tbody></table>
+      <p class="ui-hint sheet-note">Hash-chained in the app. Book queries are logged as reads by the owner; rejected drafts are logged against the book agent.</p>` });
+}
+
+/* ---- Main-window chrome: title bar (breadcrumb, mode badge, two meters, idle lock) + module list. ---- */
+const APP = { locked: false, engine: F.owner.engine };
+const MODS = [
+  ['tables', 'Tables', 'Haggle'], ['spend', 'Spend', 'Spend firewall'], ['counter', 'Counter', 'Agent-ready shop'],
+  ['book', 'Book', 'Payments ops cockpit'], ['shield', 'Shield', 'Scam shield'], ['rescue', 'Rescue', 'Subscription rescue'],
+];
+function walletMeter() {
+  const cap = aggregate(ROWS).sums.captured;
+  return { out: cap.out, in: cap.in };
+}
+const modNeeds = (k) => F.deals.filter((d) => d.module === k && d.pending).length;
+const modCount = (k) => (k === 'book' ? ROWS.length : F.deals.filter((d) => d.module === k).length);
+function chromeTop(extra, opts) {
+  const w = walletMeter();
+  const book = opts && opts.modSwitch ? '<button class="crumb-btn" data-act="mods" aria-haspopup="dialog">Book ▾</button>' : '<span>Book</span>';
+  return `<a class="ui-btn plain icon" href="${HOME_HREF}" title="Back to The Table (Esc)" aria-label="Back to The Table">‹</a>
+    <nav class="ui-crumbs" aria-label="Breadcrumb"><a href="${HOME_HREF}">The Table</a><span class="sep">›</span>${book}${extra || ''}</nav>
+    <span class="ui-spacer"></span>
+    <span class="badge sandbox" title="Every screen and every exported record carries its mode">Sandbox</span>
+    <button class="tb-meter" data-meter="wallet" title="Wallet spend · captured this week"><span class="lbl">Wallet</span><b>${fmt(w.out)} out · ${fmt(w.in)} in</b></button>
+    <button class="tb-meter eng" data-meter="engine" title="Engine spend · the CLI's own estimate"><span class="lbl">Engine</span><b>~$${F.engineWeekUSD.toFixed(2)}</b><span class="lbl">not a bill</span></button>
+    <button class="ui-btn sm ${APP.locked ? 'gold locked' : 'plain'}" data-act="lock" title="Privileged actions lock after 15 idle minutes. Book only reads, so nothing here locks.">${APP.locked ? 'Unlock with Windows Hello' : 'Unlocked'}</button>`;
+}
+function wireChrome(root, rerender) {
+  $$('[data-act="lock"]', root).forEach((b) => b.addEventListener('click', () => {
+    APP.locked = !APP.locked;
+    toast(APP.locked ? '<b>Idle lock</b> · privileged buttons elsewhere ask for Windows Hello. The book stays open: it only reads.' : '<b>Unlocked</b> · prototype: Windows Hello simulated', APP.locked ? 'gold' : 'ok');
+    rerender();
+  }));
+  $$('[data-meter]', root).forEach((b) => b.addEventListener('click', () => {
+    const w = walletMeter();
+    if (b.dataset.meter === 'wallet') UI.popover(b, `<dl class="ui-kv"><dt>Out</dt><dd class="money">${fmt(w.out)}</dd><dt>In</dt><dd class="money">${fmt(w.in)}</dd></dl>
+      <p class="ui-hint sheet-note">USD your agents' deals captured this week. Holds, offers and stopped deals are not in it. A separate meter from engine spend.</p>`, { title: 'Wallet spend · captured this week' });
+    else UI.popover(b, `<dl class="ui-kv"><dt>This week</dt><dd class="money">~$${F.engineWeekUSD.toFixed(2)}</dd><dt>Engine</dt><dd>${esc(APP.engine)}</dd></dl>
+      <p class="ui-hint sheet-note">The CLI's own client-side estimate. Not a bill, and never used for a money decision.</p>`, { title: 'Engine spend · estimate' });
+  }));
+  $$('[data-act="mods"]', root).forEach((b) => b.addEventListener('click', () => UI.popover(b, `<div class="modlist">${MODS.map(([k, n, l]) => `<a class="ui-sb-item${k === 'book' ? ' on' : ''}" href="../../${k}/variant-1/index.html"><span class="ico"><span class="ui-dot" style="color:var(--m-${k})"></span></span><span class="lbl">${n} <span class="dim">· ${l}</span></span>${modNeeds(k) ? `<span class="cnt need">${modNeeds(k)}</span>` : ''}</a>`).join('')}</div>`, { title: 'Modules' })));
+}
+/** The module source list; `extra` adds page sections between the modules and the footer. */
+function chromeSide(extra) {
+  return `<div class="ui-sb-head">Modules</div>${MODS.map(([k, n, l]) => {
+    const nd = modNeeds(k);
+    return `<a class="ui-sb-item${k === 'book' ? ' on' : ''}"${k === 'book' ? ' aria-current="page"' : ''} href="../../${k}/variant-1/index.html" title="${n} · ${l}"><span class="ico"><span class="ui-dot" style="color:var(--m-${k})"></span></span><span class="lbl">${n}</span><span class="cnt${nd ? ' need' : ''}" title="${nd ? nd + ' needs you' : modCount(k) + ' rows'}">${nd || modCount(k)}</span></a>`;
+  }).join('')}${extra || ''}
+  <div class="ui-sb-foot"><a class="ui-sb-item" href="../../mandate/variant-1/index.html"><span class="ico dim">§</span><span class="lbl">Mandates · M-12 v3</span></a><a class="ui-sb-item" href="../../setup/variant-1/index.html"><span class="ico dim">⚙</span><span class="lbl">Settings · ${esc(APP.engine)}</span></a></div>`;
+}
+
+/* ================= Variant 1 · Ledger Lens ================= */
+const S = { phase: 'IDLE', asked: '', text: '', source: '', val: null, res: null, lens: null, recF: 'all', bucketF: null, token: 0, engineOn: true, preset: null, auditSeq: 0, sel: null };
+let READ = null; // the open read-before-run sheet, if any
+
+function renderChrome() {
+  $('#top').innerHTML = chromeTop(S.lens ? `<span class="sep">›</span><span>query #${S.res.seq}</span>` : '');
+  wireChrome($('#top'), renderChrome);
+  $('#asof').textContent = absTime(simNow());
+}
+
+/* sidebar: modules, then the fixed lenses (presets) and the drafts that show a rejection */
+function renderSide() {
+  const lenses = `<div class="ui-sb-head">Lenses · no engine</div>${PRESETS.map((p, i) => `<button class="ui-sb-item${S.preset === i ? ' on' : ''}" data-preset="${i}" title="${esc(p.q)}"><span class="ico mono dim">${i + 1}</span><span class="lbl">${esc(p.short)}</span></button>`).join('')}
+    <div class="ui-sb-head">Rejected by the schema</div>${TRY_INVALID.map((q) => `<button class="ui-sb-item" data-try="${esc(q)}" title="An engine draft that fails the schema"><span class="ico red">✕</span><span class="lbl">${esc(q)}</span></button>`).join('')}`;
+  $('#side').innerHTML = chromeSide(lenses);
+  $$('#side [data-preset]').forEach((b) => b.addEventListener('click', () => { const i = +b.dataset.preset, p = PRESETS[i]; $('#ask').value = p.q; ask(p.q, p.json, i); }));
+  $$('#side [data-try]').forEach((b) => b.addEventListener('click', () => { $('#ask').value = b.dataset.try; ask(b.dataset.try); }));
+}
+
+function renderOutlook() {
+  $('#outlook').innerHTML = outlookItems().map((it) => `<button class="ui-row two act" data-ol="${it.k}" title="Details">
+    <span class="main"><span class="t1"><b>${it.n}</b> ${esc(it.label)}${it.r ? ` · <span class="mono">${it.r.id}</span> ${fmt(it.r.minor)} · ${countdown(it.until)}` : it.failing ? ` · ${it.failing.length} failing` : ''}</span>
+    <span class="ui-silence">if you do nothing → <b>${esc(it.short)}</b></span></span><span class="chev"></span></button>`).join('');
+  $$('#outlook [data-ol]').forEach((b) => b.addEventListener('click', () => outlookPopover(b, b.dataset.ol)));
+}
+
+function ask(q, presetJson, presetIdx) {
+  q = (q || '').trim();
+  if (!q) { $('#ask').focus(); return; }
+  if (!presetJson && !S.engineOn) { toast('<b>No engine connected.</b> Typed questions need claude-code or codex-cli. The lenses are fixed queries and still run.', 'gold'); return; }
+  const tok = ++S.token;
+  Object.assign(S, { phase: 'DRAFTING', asked: q, text: '', source: presetJson ? 'preset' : 'engine', val: null, res: null, lens: null, preset: presetIdx == null ? null : presetIdx, auditSeq: 0 });
+  renderSlip(); renderGrid(); renderChrome(); renderSide();
+  const done = () => {
+    if (tok !== S.token) return;
+    S.text = presetJson || engineDraft(q);
+    S.val = validateText(S.text);
+    S.phase = S.val.ok ? 'DRAFTED' : 'INVALID';
+    if (!S.val.ok) S.auditSeq = audit('agent:book', 'book.query REJECTED by schema · nothing ran');
+    renderSlip();
+    const b = S.val.ok ? $('#runbtn') : $('#whybtn');
+    if (b) b.focus();
+  };
+  if (presetJson) done(); else setTimeout(done, reduceMotion ? 150 : 1100);
+}
+
+function run() {
+  if (S.phase !== 'DRAFTED') return;
+  if (READ) { READ.close(); READ = null; }
+  const tok = S.token;
+  S.phase = 'RUNNING'; renderSlip();
+  setTimeout(() => {
+    if (tok !== S.token) return;
+    S.res = runQuery(S.val.obj);
+    S.phase = S.res.empty ? 'EMPTY' : 'RESULT';
+    audit('owner', `book.query #${S.res.seq} ran read-only · view ${S.val.obj.view} · ${S.res.total} rows`);
+    S.lens = S.val.obj.view === 'subscriptions' ? null : new Set(S.res.rows.map((r) => r.id));
+    renderSlip(); renderGrid(); renderChrome();
+  }, reduceMotion ? 120 : 650);
+}
+
+function discard() {
+  S.token++;
+  Object.assign(S, { phase: 'IDLE', asked: '', text: '', source: '', val: null, res: null, lens: null, preset: null });
+  renderSlip(); renderGrid(); renderChrome(); renderSide();
+  $('#ask').focus();
+}
+
+/* the answer, as numbers only: one line per group; explanations stay on Layer 2 */
+function pivot(res) {
+  const m = res.metrics;
+  const groups = res.groups.length ? res.groups : [{ key: res.gb.length ? '—' : 'all rows', ...res.all }];
+  const cols = [];
+  if (m.includes('count')) cols.push(['Rows', (g) => g.count, 'num']);
+  if (m.includes('sum_amount')) BUCKETS.forEach((b) => cols.push([BUCKET_LABEL[b].replace(' at PayPal', ''), (g) => cellSum(g.sums[b], b), 'num']));
+  if (m.includes('avg_vs_market_pct')) cols.push(['vs market', (g) => (g.pct ? `p${g.pct.avg} <span class="dim">n=${g.pct.n}</span>` : '<span class="dim">no ref</span>'), 'num']);
+  if (m.includes('recovered_sum')) cols.push(['Recovered', (g) => `<span class="money">${fmt(g.recovered)}</span>`, 'num']);
+  if (res.q.view === 'reconciliation' || res.q.view === 'deals') cols.push(['PayPal statement', (g) => recSummary(g.rec) || '<span class="dim">n/a</span>', '']);
+  return `<table class="ui-table"><thead><tr><th>${res.gb.length ? esc(res.gb.join(' · ').replace(/_/g, ' ')) : 'Result'}</th>${cols.map((c) => `<th class="${c[2]}">${c[0]}</th>`).join('')}</tr></thead>
+    <tbody>${groups.map((g) => `<tr><td>${esc(g.key)}</td>${cols.map((c) => `<td class="${c[2]}">${c[1](g)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+}
+function cellSum(s, b) {
+  const p = [];
+  if (s.out) p.push(`<span class="bk-${b}">${fmt(s.out)}</span>`);
+  if (s.in) p.push(`<span class="bk-${b}">${fmt(s.in)}</span><span class="dim"> in</span>`);
+  return p.join(' · ') || '<span class="dim">—</span>';
+}
+
+const btn = (act, label, kind, id) => `<button class="ui-btn sm ${kind || ''}" data-act="${act}"${id ? ` id="${id}"` : ''}>${label}</button>`;
+function renderSlip() {
+  const el = $('#slip');
+  if (S.phase === 'IDLE') { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  const src = S.source === 'preset' ? '<span class="ui-chip line" title="A fixed query: no engine needed">preset</span>'
+    : `<span class="ui-chip line" title="Drafted by ${esc(APP.engine)} on a tool-less profile: it saw your words and the schema, never your rows">${esc(APP.engine)}</span>`;
+  const q1 = S.text ? `<span class="t2 q1${S.phase === 'INVALID' ? ' bad' : ''}" title="The query, verbatim">${esc(S.text)}</span>` : '';
+  let t2 = q1, end = '', more = '';
+  if (S.phase === 'DRAFTING') {
+    t2 = `<span class="t2">${esc(APP.engine)} is writing a BookQuery · it sees your words and the schema, never rows</span>`;
+    end = btn('discard', 'Cancel', 'plain');
+  } else if (S.phase === 'INVALID') {
+    end = `<span class="ui-silence">${plural(S.val.errors.length, 'schema error')} · <b>nothing ran</b></span>${btn('why', 'Why rejected ›', '', 'whybtn')}${btn('discard', 'Discard', 'plain')}`;
+  } else if (S.phase === 'DRAFTED') {
+    end = `<span class="ui-silence">until you run · <b>nothing is read</b></span>${btn('read', 'Read ›')}${btn('run', 'Run read-only', 'primary', 'runbtn')}${btn('discard', 'Discard', 'plain')}`;
+  } else if (S.phase === 'RUNNING') {
+    end = '<span class="ui-silence">read-only connection</span>';
+  } else if (S.phase === 'EMPTY') {
+    end = `<span class="ui-silence">#${S.res.seq} · <b>no rows</b>${S.val.obj.view === 'reconciliation' ? ' · nothing disagrees with PayPal' : ''}</span>${btn('read', 'Query ›')}${btn('discard', 'Clear', 'plain')}`;
+  } else if (S.phase === 'RESULT') {
+    const subs = S.val.obj.view === 'subscriptions';
+    end = `<span class="ui-silence" title="${S.res.ms} ms · ${S.res.params} bound params · audit logged">#${S.res.seq} · ${plural(S.res.total, 'row')}</span>${btn('read', 'Query ›')}${subs ? btn('subs', 'Subscribers ›') : ''}${btn('csv', 'Export CSV')}${btn('discard', 'Clear', 'plain')}`;
+    more = pivot(S.res);
+  }
+  el.innerHTML = `<div class="ui-group"><div class="ui-row two">${qsChip(S.phase, S.phase === 'DRAFTED' ? 'read me' : S.phase)}
+    <span class="main"><span class="t1">“${esc(S.asked)}”</span>${t2}</span><span class="end">${src}${end}</span></div>${more}</div>`;
+  $$('[data-act]', el).forEach((b) => b.addEventListener('click', () => act(b.dataset.act)));
+}
+
+function act(a) {
+  if (a === 'run') run();
+  else if (a === 'discard') discard();
+  else if (a === 'read') READ = readSheet({ text: S.text, val: S.val, source: S.source, onRun: S.phase === 'DRAFTED' ? run : null, title: S.phase === 'DRAFTED' ? 'Read before you run' : `Query #${S.res.seq} · as it ran` });
+  else if (a === 'why') rejectSheet({ text: S.text, val: S.val, source: S.source, auditSeq: S.auditSeq });
+  else if (a === 'csv') exportRows(S.res ? S.res.rows : visibleRows(), S.res ? S.text : '');
+  else if (a === 'subs') subsSheet();
+  else if (a === 'clearlens') { S.lens = null; renderGrid(); renderChrome(); }
+  else if (a === 'audit') auditSheet();
+}
+
+function subsSheet() {
+  UI.sheet({ title: `Subscribers · query #${S.res.seq}`, size: 'wide', actions: [{ label: 'Done', kind: 'primary' }],
+    body: `<table class="ui-table"><thead><tr><th>Subscriber</th><th>Plan</th><th>State</th><th>PayPal</th><th>Mode</th></tr></thead><tbody>${S.res.rows.map((r) => `<tr><td class="mono">${r.link ? `<a class="dl" href="${DEAL_HREF(r.link)}">${r.id}</a>` : r.id}</td><td>${esc(r.item)}</td><td>${stChip(r.state)}</td><td class="clip">${esc(r.sub)}</td><td>${modeChip(r.mode)}</td></tr>`).join('')}</tbody></table>
+      <p class="ui-hint sheet-note">Recovered counts paid rescue invoices and captures only. S-14 is a REPLAY row and never counts on its own.</p>` });
+}
+
+function exportRows(rows, q) {
+  const r = downloadCSV(rows, q, S.res ? `book-query-${S.res.seq}` : 'book-week');
+  audit('owner', `book.export ${r.file} · ${r.n} rows`);
+  toast(`<b>${esc(r.file)}</b> written · ${r.n} rows · every row carries its mode (${esc(r.modes)})`, 'ok');
+}
+
+const KIND_ORDER = ['haggle', 'purchase', 'shop_order', 'shop_quote', 'rescue'];
+function visibleRows() {
+  return ROWS.filter((r) => (S.recF === 'all' || recOf(r) === S.recF || (S.recF === 'pending' && recOf(r) === 'off')) && (!S.bucketF || r.bucket === S.bucketF));
+}
+function totalsRow() {
+  const a = aggregate(ROWS);
+  const cell = (b) => {
+    const sm = a.sums[b], n = ROWS.filter((r) => r.bucket === b).length;
+    const asked = ROWS.filter((r) => r.bucket === b && r.ask);
+    const lines = [sm.out ? `<span class="bk-${b}">${fmt(sm.out)}</span>` : '', sm.in ? `<small>${fmt(sm.in)} in</small>` : ''].join('') || '<span class="dim">—</span>';
+    return `<th class="num"><button class="tot" data-bucket="${b}" aria-pressed="${S.bucketF === b}" title="${BUCKET_LABEL[b]}: ${BUCKET_SUB[b]} · ${plural(n, 'deal')}. Click to filter.${asked.length ? ' Not in the sum: ' + esc(asked.map((r) => r.id + ' ' + r.ask).join(', ')) : ''}">${lines}</button></th>`;
+  };
+  return `<tr class="tots"><th colspan="2"><span class="ui-hint">Week totals · four states, never added</span></th>${BUCKETS.map(cell).join('')}<th class="c-mkt"></th>
+    <th><span class="ui-hint">${REC.reporting ? `poll ${LAST_POLL} · ≤ 3 h lag` : 'reporting not enabled'}</span></th></tr>`;
+}
+function renderGrid() {
+  const rows = visibleRows();
+  const lensN = S.lens ? rows.filter((r) => S.lens.has(r.id)).length : null;
+  const rc = recCounts(ROWS);
+  const recs = [['all', 'All', ROWS.length], ['matched', 'Matched', rc.matched], ['pending', REC.reporting ? 'Pending' : 'Not enabled', rc.pending + rc.off], ['mismatch', 'Mismatch', rc.mismatch], ['n/a', 'n/a', rc['n/a']]];
+  $('#gtools').innerHTML = `<span class="gt-title">The week’s ledger</span>
+    <span class="ui-hint">${rows.length} of ${ROWS.length} deals${S.bucketF ? ' · ' + BUCKET_LABEL[S.bucketF].toLowerCase() : ''}</span>
+    ${S.lens ? `<span class="ui-chip gold" title="Rows the query did not return are dimmed">Lens · #${S.res.seq} · ${lensN} lit</span><button class="ui-btn plain sm" data-act="clearlens" title="Show the whole week (Esc)">Clear lens</button>` : ''}
+    <span class="ui-spacer"></span>
+    <span class="ui-hint">PayPal statement</span>
+    <div class="ui-seg" role="group" aria-label="Filter by PayPal statement">${recs.map(([k, l, n]) => `<button data-rec="${k}" aria-pressed="${S.recF === k}">${l} <span class="mono">${n}</span></button>`).join('')}</div>
+    <button class="ui-btn plain sm" data-help aria-label="How to read the grid">ⓘ</button>
+    <button class="ui-btn sm" data-csvall title="Exports the rows you see · every row carries its mode">Export CSV</button>`;
+  $$('#gtools [data-rec]').forEach((b) => b.addEventListener('click', () => { S.recF = b.dataset.rec; renderGrid(); }));
+  $$('#gtools [data-act]').forEach((b) => b.addEventListener('click', () => act(b.dataset.act)));
+  $('#gtools [data-csvall]').addEventListener('click', () => exportRows(visibleRows(), ''));
+  $('#gtools [data-help]').addEventListener('click', (e) => UI.popover(e.currentTarget, `<dl class="ui-kv">
+      <dt>Columns</dt><dd>four money states, each with its own week total; a hold is not a payment</dd>
+      <dt>Held</dt><dd>authorized at PayPal, not captured</dd>
+      <dt>Statement</dt><dd>whether PayPal Transaction Search lists the capture yet (31-day window per call · page_size ≤ 500 · ≤ 3 h lag)</dd>
+      <dt>Rows</dt><dd>SANDBOX unless tagged REPLAY · click or Enter for the detail</dd>
+      <dt>Notes</dt><dd>counterparty text never shows in the grid; the detail keeps it behind “note ›”</dd></dl>`, { title: 'Reading the ledger' }));
+
+  const head = `<thead><tr><th>Deal</th><th>State</th><th class="num">Captured</th><th class="num" title="Authorized at PayPal, not captured">Held</th><th class="num">In motion</th><th class="num">Stopped</th><th class="num c-mkt" title="Market percentile at the deal, or distance from the band median">Mkt</th><th>PayPal</th></tr>${totalsRow()}</thead>`;
+  let body = '';
+  KIND_ORDER.forEach((k) => {
+    const rs = rows.filter((r) => r.kind === k).sort((a, b) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day) || a.id.localeCompare(b.id));
+    if (!rs.length) return;
+    body += `<tr class="grp"><td colspan="8">${k.replace('_', ' ')} · ${rs.length}</td></tr>`;
+    rs.forEach((r) => {
+      const cell = (b) => (r.bucket === b ? (r.minor != null ? `${fmt(r.minor)}${r.dir === 'in' ? '<span class="in">in</span>' : ''}` : `<span class="dim" title="${r.ask ? esc(r.ask) + ' · never sent' : 'no amount'}">—</span>`) : '');
+      const off = S.lens && !S.lens.has(r.id);
+      body += `<tr class="r${off ? ' off' : ''}" tabindex="0" data-deal="${r.id}" aria-selected="${S.sel === r.id}">
+        <td class="clip"><span class="mono">${r.id}</span><span class="day">${r.day}</span>${esc(r.item)} <span class="cp">· ${esc(r.cp)}</span>${r.mode !== F.mode ? ' ' + modeChip(r.mode) : ''}</td>
+        <td>${stChip(r.state)}</td>${BUCKETS.map((b) => `<td class="num c-${b}">${cell(b)}</td>`).join('')}
+        <td class="num dim c-mkt">${pctText(r)}</td><td>${recChip(r)}</td></tr>`;
+    });
+  });
+  if (!body) body = `<tr><td colspan="8"><div class="ui-empty">No deals match this filter. The ledger still holds all ${ROWS.length}.</div></td></tr>`;
+  $('#grid').innerHTML = head + `<tbody>${body}</tbody>`;
+  $$('#grid [data-bucket]').forEach((b) => b.addEventListener('click', () => { S.bucketF = S.bucketF === b.dataset.bucket ? null : b.dataset.bucket; renderGrid(); }));
+  $$('#grid tr.r').forEach((tr) => {
+    tr.addEventListener('click', () => openRow(tr.dataset.deal));
+    tr.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); openRow(tr.dataset.deal); }
+      const dir = (e.key === 'ArrowDown' || e.key === 'j') ? 1 : (e.key === 'ArrowUp' || e.key === 'k') ? -1 : 0;
+      if (dir) { e.preventDefault(); const all = $$('#grid tr.r'); const i = all.indexOf(tr) + dir; if (all[i]) all[i].focus(); }
+    });
+  });
+}
+/* Layer 2 for a row: a sheet with the evidence; the deal itself is one more step */
+function openRow(id) {
+  const r = ROWS.find((x) => x.id === id);
+  if (!r) return;
+  S.sel = id;
+  $$('#grid tr.r').forEach((tr) => tr.setAttribute('aria-selected', String(tr.dataset.deal === id)));
+  UI.sheet({ title: `${r.id} · ${r.item}`, body: rowDetail(r), size: 'wide',
+    actions: [{ label: 'Close' }, { label: 'Open deal ›', kind: 'primary', onClick: () => { location.href = DEAL_HREF(r.id); } }] });
+}
+
+function renderProto() {
+  $('#proto').innerHTML = `<button class="ui-btn sm" data-sim="match" ${REC.overrides['D-0186'] ? 'disabled' : ''}>Sandbox simulation · Transaction Search lists D-0186</button>
+    <button class="ui-btn sm" data-sim="perm" aria-pressed="${!REC.reporting}">${REC.reporting ? 'Remove the Transaction Search permission' : 'Restore the Transaction Search permission'}</button>
+    <button class="ui-btn sm" data-sim="engine" aria-pressed="${!S.engineOn}">${S.engineOn ? 'Disconnect the engine' : 'Reconnect claude-code'}</button>
+    <span class="dim">Snapshot Thu 29 Oct 14:02 · nothing here calls PayPal</span>`;
+  $$('#proto [data-sim]').forEach((b) => b.addEventListener('click', () => sim(b.dataset.sim)));
+}
+function sim(k) {
+  if (k === 'match') { REC.overrides['D-0186'] = 'matched'; audit('paypal', 'reporting.match capture 6CC1… $45.00 · Transaction Search', 'D-0186'); toast('<b>D-0186</b> found in Transaction Search · pending → matched', 'ok'); }
+  if (k === 'perm') { REC.reporting = !REC.reporting; toast(REC.reporting ? 'Transaction Search permission restored' : '<b>Reporting not enabled</b> · the REST app lacks Transaction Search. Your own ledger still answers.', REC.reporting ? 'ok' : 'gold'); }
+  if (k === 'engine') {
+    S.engineOn = !S.engineOn;
+    $('#ask').disabled = !S.engineOn; $('#draftbtn').disabled = !S.engineOn;
+    $('#ask').placeholder = S.engineOn ? 'Ask about your agents’ money in plain words   ( / )' : 'No engine connected · pick a lens on the left (fixed queries still run)';
+  }
+  renderAll();
+}
+
+function renderAll() { renderChrome(); renderSide(); renderOutlook(); renderSlip(); renderGrid(); renderProto(); }
+
+$('#askform').addEventListener('submit', (e) => { e.preventDefault(); ask($('#ask').value); });
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && S.phase === 'DRAFTED') { e.preventDefault(); run(); return; }
+  if (UI.open) return; // a sheet or popover is open: Esc belongs to it
+  const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+  if (e.key === '/' && !typing) { e.preventDefault(); $('#ask').focus(); return; }
+  if (e.key === 'Escape') {
+    if (S.lens) { S.lens = null; renderGrid(); renderChrome(); return; }
+    if (S.phase !== 'IDLE') { discard(); return; }
+    if (typing) { document.activeElement.blur(); return; }
+    location.href = HOME_HREF;
+  }
+});
+setInterval(() => { renderOutlook(); $('#asof').textContent = absTime(simNow()); }, 20000);
+renderAll();
+$('#h1').focus({ preventScroll: true });
+</script>
+<script src="../../../shared/shell.js" data-page="book" data-variant="1"></script>
+</body>
+</html>

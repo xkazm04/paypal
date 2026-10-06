@@ -1,0 +1,44 @@
+{
+  "identifier": "main",
+  "webviews": [
+    "main"
+  ],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "allow-get-settings",
+    "allow-deal-display",
+    "allow-deal-transcript",
+    "allow-counterparty-list",
+
+    "allow-list-deals",
+    "allow-get-deal",
+    "allow-deal-evidence",
+    "allow-deal-reconcile",
+    "allow-engine-status",
+    "allow-attention-list",
+    "allow-main-open",
+    "allow-approval-open",
+    "allow-deal-withdraw",
+    "allow-deal-let-lapse",
+    "allow-engine-select",
+    "allow-mandate-list",
+    "allow-pairing-create",
+    "allow-pairing-join",
+    "allow-pairing-poll",
+    "allow-settings-write",
+    "allow-pause-all-agents",
+    "allow-resume-all-agents",
+    "allow-agent-start",
+    "allow-agent-runs",
+    "allow-quit-summary",
+    "allow-quit-confirm",
+    "allow-counterparty-note",
+    "allow-pairing-abort",
+    "allow-house-wake",
+    "allow-audit-page",
+    "allow-owner-facts",
+    "allow-book-query",
+    "allow-deal-export-proof"
+  ]
+}

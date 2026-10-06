@@ -1,0 +1,7 @@
+/* Main window · window-level rules only (imported by entry.tsx). Foundation-owned.
+   Area styles live next to their components: shell.css (Shell.tsx), home.css (Home/Dial/Status),
+   deal.css (DealView), charts.css (charts.tsx), sheet.css (Sheet.tsx), palette.css (Palette.tsx),
+   modules/<name>.css (one per module), legacy.css (frozen pre-v2 shared classes, via ui.tsx).
+   Tokens, base and the ui-* baseline come from src/design (imported once in lib/mount.tsx). */
+html, body { height: 100%; }
+body.w-main { overflow: hidden; background: var(--bg); }

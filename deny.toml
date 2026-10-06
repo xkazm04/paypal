@@ -1,0 +1,19 @@
+[advisories]
+version = 2
+ignore = [
+  { id = "RUSTSEC-2024-0370", reason = "proc-macro-error: compile-time only, via Tauri's Linux GTK3 stack; no upgrade upstream" },
+]
+[licenses]
+allow = ["MIT", "Apache-2.0", "BSD-3-Clause", "ISC", "Unicode-3.0", "CC0-1.0", "MPL-2.0", "Zlib", "CDLA-Permissive-2.0"]
+# Scoped, not global: target-lexicon reaches the tree only through Tauri's Linux tray stack.
+[[licenses.exceptions]]
+crate = "target-lexicon"
+allow = ["Apache-2.0 WITH LLVM-exception"]
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# Workspace members are path dependencies and never published (publish = false).
+allow-wildcard-paths = true
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

@@ -1,0 +1,772 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+mod support;
+use async_trait::async_trait;
+use serde_json::json;
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicBool, Ordering},
+};
+use table_app::*;
+use table_core::*;
+use table_ledger::*;
+use table_paypal::*;
+use table_proto::*;
+#[derive(Debug, Default)]
+struct MockApi {
+    expected: Mutex<Option<CreateOrder>>,
+    calls: Mutex<Vec<String>>,
+    approved: AtomicBool,
+    mismatch: AtomicBool,
+    unknown: AtomicBool,
+    bad_link: AtomicBool,
+    void_unknown: AtomicBool,
+}
+impl MockApi {
+    fn order(&self, status: OrderStatus) -> Order {
+        let o = self.expected.lock().unwrap();
+        let mut body = o.as_ref().unwrap().body().unwrap();
+        body["id"] = json!("ORDER1");
+        body["status"] = serde_json::to_value(status).unwrap();
+        body["links"] = json!([{"rel":"approve","href":"https://www.sandbox.paypal.com/checkoutnow?token=ORDER1"}]);
+        if self.bad_link.load(Ordering::SeqCst) {
+            body["links"][0]["href"] = json!("https://paypal.com.attacker.invalid/checkoutnow");
+        }
+        if self.mismatch.load(Ordering::SeqCst) {
+            body["purchase_units"][0]["amount"]["value"] = json!("13.00");
+        }
+        serde_json::from_value(body).unwrap()
+    }
+    fn response<T: serde::Serialize>(
+        &self,
+        value: T,
+        method: &'static str,
+        path: &str,
+        id: Option<&RequestId>,
+    ) -> ApiResponse<T> {
+        self.calls.lock().unwrap().push(path.into());
+        let body = serde_json::to_value(&value).unwrap();
+        ApiResponse {
+            value,
+            observations: vec![Observation {
+                method,
+                path: path.into(),
+                request_id: id.map_or_else(String::new, |i| i.as_str().into()),
+                status: 200,
+                body,
+            }],
+        }
+    }
+}
+#[async_trait]
+impl PayPalApi for MockApi {
+    async fn create_order(
+        &self,
+        o: &CreateOrder,
+        id: &RequestId,
+    ) -> Result<ApiResponse<Order>, table_paypal::Error> {
+        self.expected.lock().unwrap().replace(o.clone());
+        if self.unknown.load(Ordering::SeqCst) {
+            self.calls
+                .lock()
+                .unwrap()
+                .push("/v2/checkout/orders".into());
+            return Err(table_paypal::Error::Unknown {
+                observations: vec![],
+            });
+        }
+        Ok(self.response(
+            self.order(OrderStatus::Created),
+            "POST",
+            "/v2/checkout/orders",
+            Some(id),
+        ))
+    }
+    async fn get_order(&self, _: &ResourceId) -> Result<ApiResponse<Order>, table_paypal::Error> {
+        Ok(self.response(
+            self.order(if self.approved.load(Ordering::SeqCst) {
+                OrderStatus::Approved
+            } else {
+                OrderStatus::Created
+            }),
+            "GET",
+            "/v2/checkout/orders/ORDER1",
+            None,
+        ))
+    }
+    async fn authorize(
+        &self,
+        _: &ResourceId,
+        id: &RequestId,
+    ) -> Result<ApiResponse<Order>, table_paypal::Error> {
+        let mut o = self.order(OrderStatus::Completed);
+        let amount = o.purchase_units[0].amount.clone();
+        o.purchase_units[0].payments.authorizations.push(Payment {
+            id: "AUTH1".into(),
+            status: "CREATED".into(),
+            amount,
+        });
+        Ok(self.response(o, "POST", "/v2/checkout/orders/ORDER1/authorize", Some(id)))
+    }
+    async fn capture(
+        &self,
+        _: &ResourceId,
+        amount: Money,
+        id: &RequestId,
+    ) -> Result<ApiResponse<Payment>, table_paypal::Error> {
+        Ok(self.response(
+            Payment {
+                id: "CAPTURE1".into(),
+                status: "COMPLETED".into(),
+                amount: WireAmount {
+                    currency_code: amount.currency(),
+                    value: amount.decimal(),
+                },
+            },
+            "POST",
+            "/v2/payments/authorizations/AUTH1/capture",
+            Some(id),
+        ))
+    }
+    async fn void(
+        &self,
+        _: &ResourceId,
+        id: &RequestId,
+    ) -> Result<ApiResponse<()>, table_paypal::Error> {
+        if self.void_unknown.load(Ordering::SeqCst) {
+            return Err(table_paypal::Error::Unknown {
+                observations: vec![],
+            });
+        }
+        Ok(self.response(
+            (),
+            "POST",
+            "/v2/payments/authorizations/AUTH1/void",
+            Some(id),
+        ))
+    }
+    async fn get_authorization(
+        &self,
+        _: &ResourceId,
+    ) -> Result<ApiResponse<Payment>, table_paypal::Error> {
+        panic!("unexpected call")
+    }
+}
+fn two_wallets() -> (Wallet, Wallet, Deal) {
+    let (buyer, deal, buyer_owner, seller_key) = support::setup(Side::Buyer, DealKind::Haggle);
+    let owner = support::signer();
+    let mut payload = buyer
+        .ledger
+        .active_mandate(deal.mandate_id, 1, &buyer_owner.public_key())
+        .unwrap()
+        .payload;
+    payload.agent_key = seller_key.public_key().to_bytes();
+    payload.clauses[0] = Clause::Roles {
+        roles: vec![Role::Sell],
+    };
+    let m = OpenMandate {
+        owner_sig: owner.sign_payload(&payload).unwrap(),
+        payload,
+    };
+    let mut ledger = Ledger::in_memory().unwrap();
+    ledger.insert_mandate(&m, &owner.public_key(), 100).unwrap();
+    let cp = Counterparty {
+        key_id: table_proto::key_id(&buyer.agent_public_key()).unwrap(),
+        owner_key: buyer_owner.public_key().to_bytes(),
+        agent_key: buyer.agent_public_key().to_bytes(),
+        display_name: ShortText::new("Buyer".into()).unwrap(),
+        paired_via: PairedVia::Code,
+        words_confirmed_at: Some(100),
+        declared_payee: PayeeRef::new("buyer_merchant").unwrap(),
+        first_seen: 100,
+    };
+    ledger.insert_counterparty(&cp).unwrap();
+    let mut seller_deal = deal.clone();
+    seller_deal.side = Side::Seller;
+    seller_deal.counterparty = cp.key_id;
+    ledger.create_deal(&seller_deal, 100).unwrap();
+    (
+        buyer,
+        Wallet::new(ledger, seller_key, owner.public_key()),
+        deal,
+    )
+}
+
+#[derive(Debug)]
+struct ReportingFixture {
+    rows: serde_json::Value,
+    total: u32,
+}
+#[async_trait]
+impl table_paypal::http::Transport for ReportingFixture {
+    async fn send(
+        &self,
+        request: table_paypal::http::Request,
+    ) -> Result<table_paypal::http::Response, table_paypal::http::TransportError> {
+        if request.url.ends_with("/oauth2/token") {
+            let mut random = [0; 32];
+            getrandom::fill(&mut random).unwrap();
+            return Ok(table_paypal::http::Response {
+                status: 200,
+                body: json!({"access_token":H256(random).hex(),"expires_in":300}),
+            });
+        }
+        assert_eq!(request.method, "GET");
+        assert!(request.url.contains("/v1/reporting/transactions?"));
+        Ok(table_paypal::http::Response {
+            status: 200,
+            body: json!({"transaction_details":self.rows,"page":1,"total_pages":self.total}),
+        })
+    }
+}
+#[derive(Debug)]
+struct ReportingCredentials;
+#[async_trait]
+impl table_paypal::Credentials for ReportingCredentials {
+    async fn load(
+        &self,
+    ) -> Result<(table_paypal::http::Secret, table_paypal::http::Secret), table_paypal::Error> {
+        let mut random = [0; 32];
+        getrandom::fill(&mut random).unwrap();
+        Ok((
+            table_paypal::http::Secret::new(H256(random).hex()),
+            table_paypal::http::Secret::new(H256::digest(&random).hex()),
+        ))
+    }
+}
+#[derive(Debug)]
+struct ImmediateBackoff;
+#[async_trait]
+impl table_paypal::http::Backoff for ImmediateBackoff {
+    async fn wait(&self, _: u8) {}
+}
+#[tokio::test]
+async fn own_account_reporting_requires_success_exact_capture_amount_currency_direction_and_complete_pages()
+ {
+    for case in 0..9 {
+        let (mut buyer, seller, deal) = agreed();
+        let mock = Arc::new(MockApi::default());
+        let mut seller = Pipeline::new(seller, mock.clone(), 100).unwrap();
+        let settle = seller
+            .create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+            .await
+            .unwrap();
+        buyer
+            .receive_relay(deal.id, &settle, Category::Parts, 100)
+            .unwrap();
+        mock.approved.store(true, Ordering::SeqCst);
+        seller.poll_approval(deal.id, 1, 100).await.unwrap();
+        seller
+            .authorize(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+            .await
+            .unwrap();
+        let receipt = seller
+            .capture(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+            .await
+            .unwrap();
+        buyer
+            .receive_relay(deal.id, &receipt, Category::Parts, 100)
+            .unwrap();
+        let row = json!({"transaction_info":{"transaction_id":if case==4 {"OTHER"}else{"CAPTURE1"},"transaction_status":if case==5 {"V"}else{"S"},"transaction_amount":{"currency_code":if case==7 {"EUR"}else{"USD"},"value":match case {2=>"12.00",3=>"-1.00",_=>"-12.00"}},"transaction_note":"merchant instructions must be discarded"}});
+        let rows = match case {
+            0 => json!([]),
+            6 => json!([row.clone(), row]),
+            _ => json!([row]),
+        };
+        let api = table_paypal::Client::sandbox(
+            Arc::new(ReportingFixture {
+                rows,
+                total: if case == 8 { 21 } else { 1 },
+            }),
+            Arc::new(ReportingCredentials),
+            Arc::new(FixedClock(100)),
+            Arc::new(ImmediateBackoff),
+        );
+        let mut buyer = Pipeline::new(buyer, Arc::new(MockApi::default()), 100).unwrap();
+        let result = buyer
+            .reconcile(
+                deal.id,
+                &api,
+                ReportingWindow {
+                    from: 0,
+                    to: 100,
+                    page: 1,
+                    page_size: 500,
+                },
+                100,
+            )
+            .await;
+        if matches!(case, 2 | 5 | 6 | 8) {
+            assert!(result.is_err(), "case {case}");
+        } else {
+            result.unwrap();
+        }
+        let evidence = buyer.wallet.ledger.deal_evidence(deal.id).unwrap();
+        assert_eq!(
+            evidence.receipt,
+            if case == 1 {
+                ReceiptEvidence::PaypalVerified
+            } else {
+                ReceiptEvidence::SellerAttested
+            },
+            "case {case}"
+        );
+        assert_eq!(
+            evidence.reconciliation,
+            match case {
+                1 => Reconciliation::Matched,
+                3 | 7 => Reconciliation::Mismatch,
+                _ => Reconciliation::PendingReporting,
+            },
+            "case {case}"
+        );
+        assert_eq!(buyer.wallet.ledger.paypal_call_count(deal.id).unwrap(), 1);
+        // The owner's "last Transaction Search poll" fact reads the recorded call back.
+        assert_eq!(
+            buyer.wallet.ledger.last_reporting_poll().unwrap(),
+            Some((100, 200)),
+            "case {case}"
+        );
+        buyer.wallet.ledger.verify_audit().unwrap();
+    }
+}
+fn agreed() -> (Wallet, Wallet, Deal) {
+    let (mut buyer, mut seller, deal) = two_wallets();
+    let listing = seller.list(deal.id, 100).unwrap();
+    buyer
+        .receive_haggle(deal.id, &listing, Category::Parts, 100)
+        .unwrap();
+    let result = buyer
+        .invoke(
+            &AgentScope {
+                deal_id: deal.id,
+                role: AgentRole::Negotiator,
+                category: Category::Parts,
+            },
+            AgentRequest::Offer(OfferInput {
+                deal_id: deal.id,
+                price: "12.00".into(),
+                delivery: Delivery::DigitalNow,
+            }),
+            100,
+        )
+        .unwrap();
+    seller
+        .receive_haggle(
+            deal.id,
+            result["jws"].as_str().unwrap(),
+            Category::Parts,
+            100,
+        )
+        .unwrap();
+    let a = buyer.accept(deal.id, 1, Category::Parts, 100).unwrap();
+    seller
+        .receive_haggle(deal.id, &a, Category::Parts, 100)
+        .unwrap();
+    assert_eq!(
+        seller.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Negotiating
+    );
+    let b = seller.accept(deal.id, 1, Category::Parts, 100).unwrap();
+    buyer
+        .receive_haggle(deal.id, &b, Category::Parts, 100)
+        .unwrap();
+    for w in [&buyer, &seller] {
+        assert_eq!(w.ledger.get_deal(deal.id).unwrap().state, DealState::Agreed);
+        // Each wallet's own agent ACCEPT was allowed under the clause-6 policy.
+        assert_eq!(
+            w.ledger.get_deal(deal.id).unwrap().decided_by,
+            Some(DecidedBy::Policy { clause: 6 })
+        );
+        w.ledger.verify_transcript(deal.id).unwrap();
+    }
+    (buyer, seller, deal)
+}
+#[tokio::test]
+async fn h3_two_accepts_one_order_and_h5_seller_receives_without_owner_click() {
+    let (_buyer, seller, deal) = agreed();
+    let mock = Arc::new(MockApi::default());
+    let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
+    p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+        .await
+        .unwrap();
+    assert!(
+        p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+            .await
+            .is_err()
+    );
+    assert!(!p.poll_approval(deal.id, 1, 100).await.unwrap());
+    assert!(
+        p.authorize(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+            .await
+            .is_err()
+    );
+    mock.approved.store(true, Ordering::SeqCst);
+    assert!(p.poll_approval(deal.id, 1, 100).await.unwrap());
+    p.authorize(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+        .await
+        .unwrap();
+    let receipt = p
+        .capture(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+        .await
+        .unwrap();
+    assert!(!receipt.is_empty());
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Receipted
+    );
+    // The latest money decision's authority is what the Deal projects.
+    assert!(matches!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().decided_by,
+        Some(DecidedBy::SellerMandate { .. })
+    ));
+    p.wallet.ledger.verify_transcript(deal.id).unwrap();
+    p.wallet.ledger.verify_audit().unwrap();
+    let calls = mock.calls.lock().unwrap();
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|p| p.as_str() == "/v2/checkout/orders")
+            .count(),
+        1
+    );
+    assert_eq!(calls.iter().filter(|p| p.ends_with("/capture")).count(), 1);
+    assert!(!calls.iter().any(|p| p.contains("update-pricing-schemes")));
+}
+#[tokio::test]
+async fn h4_changed_paypal_truth_enters_mismatch_and_cannot_capture() {
+    let (_, seller, deal) = agreed();
+    let mock = Arc::new(MockApi::default());
+    let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
+    p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+        .await
+        .unwrap();
+    mock.approved.store(true, Ordering::SeqCst);
+    mock.mismatch.store(true, Ordering::SeqCst);
+    assert!(p.poll_approval(deal.id, 1, 100).await.is_err());
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Mismatch
+    );
+    assert!(
+        p.capture(deal.id, 1, Category::Parts, Authority::Policy, 100)
+            .await
+            .is_err()
+    );
+}
+#[tokio::test]
+async fn f3_w6_deadline_voids_once_and_lapse_never_calls_paypal() {
+    let (_, seller, deal) = agreed();
+    let mock = Arc::new(MockApi::default());
+    let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
+    p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+        .await
+        .unwrap();
+    mock.approved.store(true, Ordering::SeqCst);
+    p.poll_approval(deal.id, 1, 100).await.unwrap();
+    p.authorize(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+        .await
+        .unwrap();
+    assert!(p.auto_void(deal.id, 1, 100 + 72 * 3600 - 1).await.is_err());
+    let before = p.wallet.ledger.paypal_call_count(deal.id).unwrap();
+    assert_eq!(p.tick(100 + 72 * 3600).await.unwrap(), vec![deal.id]);
+    assert!(p.tick(100 + 72 * 3600).await.unwrap().is_empty());
+    assert_eq!(
+        p.wallet.ledger.paypal_call_count(deal.id).unwrap(),
+        before + 1
+    );
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::AutoVoided
+    );
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().decided_by,
+        Some(DecidedBy::SafeDefault {
+            deadline: 100 + 72 * 3600
+        })
+    );
+    let (wallet, deal, _, _) = support::setup(Side::Buyer, DealKind::Purchase);
+    let mut p = Pipeline::new(wallet, mock, 100).unwrap();
+    p.wallet
+        .ledger
+        .set_deadline(deal.id, 101, None, 100)
+        .unwrap();
+    let before = p.wallet.ledger.audit_count().unwrap();
+    p.tick(101).await.unwrap();
+    p.tick(101).await.unwrap();
+    assert_eq!(p.wallet.ledger.audit_count().unwrap(), before + 1);
+    assert_eq!(p.wallet.ledger.paypal_call_count(deal.id).unwrap(), 0);
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().decided_by,
+        Some(DecidedBy::SafeDefault { deadline: 101 })
+    );
+}
+#[tokio::test]
+async fn one_failing_void_does_not_starve_later_deadlines_in_pipeline_tick() {
+    let (_, seller, deal) = agreed();
+    let mock = Arc::new(MockApi::default());
+    let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
+    p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+        .await
+        .unwrap();
+    mock.approved.store(true, Ordering::SeqCst);
+    p.poll_approval(deal.id, 1, 100).await.unwrap();
+    p.authorize(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+        .await
+        .unwrap();
+    let mut later = p.wallet.ledger.get_deal(deal.id).unwrap();
+    later.id = "7ZZZZZZZZZZZZZZZZZZZZZZZZZ".parse().unwrap();
+    later.state = DealState::Pairing;
+    later.paypal = PaypalRefs::default();
+    later.transcript_head = H256::ZERO;
+    p.wallet.ledger.create_deal(&later, 100).unwrap();
+    p.wallet
+        .ledger
+        .set_deadline(later.id, 101, None, 100)
+        .unwrap();
+    mock.void_unknown.store(true, Ordering::SeqCst);
+    assert!(p.tick(100 + 72 * 3600).await.is_err());
+    assert_eq!(
+        p.wallet.ledger.get_deal(later.id).unwrap().state,
+        DealState::Withdrawn
+    );
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Authorized
+    );
+}
+#[tokio::test]
+async fn unknown_money_outcome_is_reserved_and_never_recreated() {
+    let (_, seller, deal) = agreed();
+    let mock = Arc::new(MockApi::default());
+    mock.unknown.store(true, Ordering::SeqCst);
+    let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
+    assert!(
+        p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+            .await
+            .is_err()
+    );
+    assert!(
+        p.create(deal.id, 2, Category::Parts, Authority::Policy, 100)
+            .await
+            .is_err()
+    );
+    assert_eq!(mock.calls.lock().unwrap().len(), 1);
+}
+#[derive(Debug)]
+struct FakeReauth;
+impl NativeReauth for FakeReauth {
+    fn authenticate(&self) -> Result<(), table_app::Error> {
+        Ok(())
+    }
+}
+#[tokio::test]
+async fn s2_held_authorization_voids_immediately_and_never_captures() {
+    let (_, seller, deal) = agreed();
+    let mock = Arc::new(MockApi::default());
+    let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
+    p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+        .await
+        .unwrap();
+    mock.approved.store(true, Ordering::SeqCst);
+    p.poll_approval(deal.id, 1, 100).await.unwrap();
+    p.authorize(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+        .await
+        .unwrap();
+    p.apply_shield(deal.id, ShieldVerdict::Hold, 101)
+        .await
+        .unwrap();
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Voided
+    );
+    assert!(
+        p.capture(deal.id, 1, Category::Parts, Authority::Policy, 101)
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        mock.calls
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|p| p.ends_with("/void"))
+            .count(),
+        1
+    );
+}
+#[test]
+fn purchase_proposal_persists_terms_and_has_zero_payment_calls() {
+    let (mut wallet, deal, _, _) = support::setup(Side::Buyer, DealKind::Purchase);
+    wallet
+        .invoke(
+            &AgentScope {
+                deal_id: deal.id,
+                role: AgentRole::Shopper,
+                category: Category::Parts,
+            },
+            AgentRequest::Purchase(PurchaseInput {
+                payee_ref: PayeeRef::new("merchant").unwrap(),
+                items: vec![PurchaseLine {
+                    item_ref: deal.terms.item_ref.clone(),
+                    qty: 2,
+                }],
+                amount: "24.00".into(),
+                category: Category::Parts,
+            }),
+            100,
+        )
+        .unwrap();
+    assert_eq!(wallet.ledger.get_deal(deal.id).unwrap().terms.qty, 2);
+    assert_eq!(wallet.ledger.paypal_call_count(deal.id).unwrap(), 0);
+}
+#[test]
+fn f4_w3_w11_approval_label_token_idle_lock_and_os_reauth() {
+    let mut auth = ApprovalSession::new(100).unwrap();
+    let token = auth.token("approval").unwrap().to_owned();
+    assert!(auth.token("main").is_err());
+    assert!(auth.check("approval", &token, 100).is_err());
+    assert!(
+        auth.unlock("approval", &token, &ReauthUnavailable, 100)
+            .is_err()
+    );
+    auth.unlock("approval", &token, &FakeReauth, 100).unwrap();
+    assert!(auth.check("main", &token, 100).is_err());
+    assert!(auth.check("tumbler", &token, 100).is_err());
+    assert!(auth.check("approval", "bad", 100).is_err());
+    auth.check("approval", &token, 999).unwrap();
+    assert!(matches!(
+        auth.check("approval", &token, 1899),
+        Err(table_app::Error::Locked)
+    ));
+    auth.unlock("approval", &token, &FakeReauth, 1900).unwrap();
+    auth.check("approval", &token, 1900).unwrap();
+}
+#[tokio::test]
+async fn invalid_approval_link_records_evidence_and_cannot_be_opened_or_recreated() {
+    let (_, seller, deal) = agreed();
+    let mock = Arc::new(MockApi::default());
+    mock.bad_link.store(true, Ordering::SeqCst);
+    let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
+    assert!(
+        p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Mismatch
+    );
+    assert_eq!(p.wallet.ledger.paypal_call_count(deal.id).unwrap(), 1);
+    assert!(
+        p.create(deal.id, 2, Category::Parts, Authority::Policy, 100)
+            .await
+            .is_err()
+    );
+    assert_eq!(mock.calls.lock().unwrap().len(), 1);
+    p.wallet.ledger.verify_audit().unwrap();
+}
+#[tokio::test]
+async fn shield_ask_and_revoked_mandates_stop_each_money_grant_before_network() {
+    let (_, seller, deal) = agreed();
+    let mock = Arc::new(MockApi::default());
+    let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
+    p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+        .await
+        .unwrap();
+    mock.approved.store(true, Ordering::SeqCst);
+    p.poll_approval(deal.id, 1, 100).await.unwrap();
+    p.authorize(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+        .await
+        .unwrap();
+    p.wallet
+        .ledger
+        .raise_shield(deal.id, ShieldVerdict::Ask, 101)
+        .unwrap();
+    let before = mock.calls.lock().unwrap().len();
+    assert!(
+        p.capture(deal.id, 1, Category::Parts, Authority::Policy, 101)
+            .await
+            .is_err()
+    );
+    assert!(
+        p.capture(deal.id, 1, Category::Parts, Authority::SellerMandate, 101)
+            .await
+            .is_err()
+    );
+    assert_eq!(mock.calls.lock().unwrap().len(), before);
+    p.wallet
+        .ledger
+        .revoke_mandate(deal.mandate_id, 101)
+        .unwrap();
+    assert!(
+        p.capture(deal.id, 1, Category::Parts, Authority::SellerMandate, 101)
+            .await
+            .is_err()
+    );
+    assert_eq!(mock.calls.lock().unwrap().len(), before);
+}
+#[tokio::test]
+async fn wrong_attempt_cannot_poll_authorize_capture_or_void_an_existing_order() {
+    let (_, seller, deal) = agreed();
+    let mock = Arc::new(MockApi::default());
+    let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
+    p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+        .await
+        .unwrap();
+    assert!(p.poll_approval(deal.id, 2, 100).await.is_err());
+    assert_eq!(mock.calls.lock().unwrap().len(), 1);
+    mock.approved.store(true, Ordering::SeqCst);
+    p.poll_approval(deal.id, 1, 100).await.unwrap();
+    assert!(
+        p.authorize(deal.id, 2, Category::Parts, Authority::SellerMandate, 100)
+            .await
+            .is_err()
+    );
+    assert_eq!(mock.calls.lock().unwrap().len(), 2);
+    p.authorize(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+        .await
+        .unwrap();
+    assert!(
+        p.capture(deal.id, 2, Category::Parts, Authority::SellerMandate, 100)
+            .await
+            .is_err()
+    );
+    assert!(p.auto_void(deal.id, 2, 100 + 72 * 3600).await.is_err());
+    assert_eq!(mock.calls.lock().unwrap().len(), 3);
+}
+#[tokio::test]
+async fn replay_mode_never_grants_payment_authority_or_runs_deadlines() {
+    let (_, mut seller, original) = agreed();
+    let mut deal = seller.ledger.get_deal(original.id).unwrap();
+    deal.id = DealId("01ARZ3NDEKTSV4RRFFQ69G5FAV".parse().unwrap());
+    deal.mode = Mode::Replay;
+    deal.state = DealState::Pairing;
+    deal.transcript_head = H256::ZERO;
+    seller.ledger.create_deal(&deal, 100).unwrap();
+    for event in [
+        DealEvent::ListingVerified,
+        DealEvent::OfferVerified,
+        DealEvent::TwoAcceptsVerified,
+        DealEvent::BeginSettlement,
+        DealEvent::SettleVerified,
+        DealEvent::OrderApproved,
+    ] {
+        seller.ledger.apply_event(deal.id, event, 100).unwrap();
+    }
+    seller.ledger.set_deadline(deal.id, 101, None, 100).unwrap();
+    let mock = Arc::new(MockApi::default());
+    let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
+    let before = p.wallet.ledger.audit_count().unwrap();
+    assert!(
+        p.authorize(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+            .await
+            .is_err()
+    );
+    assert!(p.tick(101).await.unwrap().is_empty());
+    assert_eq!(p.wallet.ledger.audit_count().unwrap(), before);
+    assert!(mock.calls.lock().unwrap().is_empty());
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Approved
+    );
+}

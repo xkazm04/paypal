@@ -1,0 +1,47 @@
+/* Main window · the v2 module frame (Shell.tsx): title bar, sidebar, content, inspector column.
+   Built from ui.css (.ui-app .ui-titlebar .ui-split .ui-sidebar .ui-main .ui-inspector); only what
+   is unique to the frame lives here (prototype/main/modules.css "app window"). Foundation-owned. */
+.shell-app { position: fixed; inset: 0; z-index: var(--z-app); animation: shellIn .45s var(--ease) both; }
+@keyframes shellIn { from { opacity: 0; transform: scale(1.03); filter: blur(5px); } to { opacity: 1; transform: none; filter: none; } }
+.shell-app > .ui-split { min-height: 0; }
+.shell-app .ui-main { padding: var(--sp-3) var(--sp-5) var(--sp-8); outline: none; }
+.shell-app .view-inner { max-width: 1440px; margin: 0 auto; }
+
+/* the two meters stay separate: wallet money and the engine's own estimate are never summed */
+.tb-meter { display: grid; line-height: 1.2; padding-left: var(--sp-2); border-left: 2px solid var(--teal); white-space: nowrap; }
+.tb-meter b { font: var(--fw-semibold) var(--fs-small)/1.2 var(--num); font-variant-numeric: tabular-nums; }
+.tb-meter span { font-size: var(--fs-small); color: var(--dim); }
+.tb-meter.eng { border-left-color: var(--line2); }
+.tb-meter.unknown { border-left-style: dashed; border-left-color: var(--line2); }
+.tb-meter.unknown b { font-family: var(--font); color: var(--muted); }
+.lockbtn .lockg { width: 12px; height: 12px; flex: none; }
+.lockbtn[aria-disabled="true"] { cursor: default; }
+.lockbtn.is-locked { color: var(--gold-l); border-color: color-mix(in srgb, var(--gold) 55%, var(--line2)); background: color-mix(in srgb, var(--gold) 12%, var(--panel2)); }
+@media (max-width: 1180px) { .tb-meter.eng, .tb-hide { display: none; } }
+
+/* sidebar: module colour marks the current module */
+.shell-app .ui-sb-item.on { box-shadow: inset 2px 0 0 var(--mc); }
+.shell-status { display: grid; gap: 2px; padding: var(--sp-2) var(--sp-2) 0; margin: 0; }
+.shell-status b { color: var(--gold-l); }
+
+/* Keyboard shortcuts sheet (Shortcuts.tsx). Portalled, so scoped by the sheet class. */
+.ui-sheet.shortcuts .sc-group + .sc-group { margin-top: var(--sp-4); }
+.ui-sheet.shortcuts h3 { font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); margin: 0 0 var(--sp-2); }
+.ui-sheet.shortcuts dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px var(--sp-4); margin: 0; align-items: center; }
+.ui-sheet.shortcuts dt { display: flex; gap: 4px; align-items: center; }
+.ui-sheet.shortcuts dd { margin: 0; color: var(--muted); }
+
+/* Module items carry a plain second line ("Tables / Haggling") so the names are never bare metaphors. */
+.shell-app .ui-sb-item.two { height: 40px; }
+.shell-app .ui-sb-item.two .ico { width: 20px; height: 20px; }
+.shell-app .ui-sb-item.two .ico svg { width: 20px; height: 20px; }
+.shell-app .sb2 { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.shell-app .sb2 b { font-weight: var(--fw-medium); overflow: hidden; text-overflow: ellipsis; }
+.shell-app .sb2 small { font-size: var(--fs-small); color: var(--dim); overflow: hidden; text-overflow: ellipsis; }
+.shell-app .ui-sb-item.on .sb2 b { font-weight: var(--fw-semibold); }
+.ui-sheet.shortcuts .sc-note { margin: 0 0 var(--sp-2); color: var(--dim); font-size: var(--fs-small); }
+.ui-sheet.shortcuts .sc-exp ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ui-sheet.shortcuts .sc-exp label { display: flex; gap: var(--sp-2); align-items: flex-start; cursor: pointer; }
+.ui-sheet.shortcuts .sc-exp label > span { display: flex; flex-direction: column; }
+.ui-sheet.shortcuts .sc-exp small { color: var(--dim); font-size: var(--fs-small); }
+.ui-sheet.shortcuts .sc-exp input { margin-top: 3px; }

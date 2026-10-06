@@ -1,0 +1,263 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Table · page prototypes</title><link rel="stylesheet" href="shared/tokens.css"><link rel="stylesheet" href="shared/ui.css">
+<style>
+main{max-width:1440px;margin:0 auto;padding:var(--sp-6) var(--sp-5) 96px}
+h1{font:var(--fw-bold) var(--fs-title1)/1.2 var(--display);margin:0}
+.lede{color:var(--muted);max-width:880px;margin:var(--sp-1) 0 var(--sp-3)}
+.toc{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:2px;padding:6px 0;background:var(--material);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.toc a{color:var(--dim);text-decoration:none;padding:3px 8px;border-radius:var(--r-sm)}.toc a:hover{color:var(--text);background:var(--hover)}
+.toc .act{margin-left:auto;display:flex;gap:var(--sp-2);align-items:center}
+.count{font:var(--fw-semibold) var(--fs-small) var(--mono);color:var(--dim);display:flex;align-items:center;gap:4px}
+h2.win{font:var(--fw-bold) var(--fs-small)/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--gold-l);margin:var(--sp-6) 0 0;padding-top:var(--sp-3);border-top:1px solid var(--line)}
+section{margin-top:var(--sp-4);scroll-margin-top:48px}
+.sh{display:flex;align-items:baseline;gap:var(--sp-3);flex-wrap:wrap;margin-bottom:var(--sp-2)}
+h3{font:var(--fw-semibold) var(--fs-title3)/1.2 var(--display);margin:0;display:flex;gap:var(--sp-2);align-items:baseline}
+.num{font:var(--fs-small) var(--mono);color:var(--dim)}
+.q{color:var(--dim);margin:0;font-size:var(--fs-small)}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--sp-3)}
+@media (max-width:1100px){.cards{grid-template-columns:1fr}}
+.card{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);overflow:hidden}
+.card:hover{border-color:var(--line2)}
+.card.picked{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}
+.card.decided{border-color:color-mix(in srgb,var(--ok) 55%,transparent)}
+.ph{display:block;position:relative;aspect-ratio:16/10;overflow:hidden;background:var(--bg2);border-bottom:1px solid var(--line)}
+.ph iframe{position:absolute;left:0;top:0;width:1440px;height:900px;border:0;transform-origin:0 0;pointer-events:none;background:var(--bg)}
+.missing .ph{display:grid;place-items:center;color:var(--dim);font:var(--fs-small) var(--mono)}.missing{opacity:.55}
+.body{padding:var(--sp-2) var(--sp-3);display:flex;flex-direction:column;gap:4px;flex:1}
+.title{color:var(--text);font-weight:var(--fw-semibold);text-decoration:none}.title:hover{color:var(--gold-l)}
+.body p{margin:0;color:var(--muted);font-size:var(--fs-small);flex:1;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.body p:hover{-webkit-line-clamp:unset}
+.tag{align-self:flex-start}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:var(--sp-2)}
+.origin{font:var(--fs-small) var(--mono);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pick{display:flex;gap:6px;align-items:center;cursor:pointer;font-weight:var(--fw-semibold);font-size:var(--fs-small);color:var(--gold-l);height:var(--ctl-sm);padding:0 8px;border:1px solid var(--line2);border-radius:var(--r-sm);flex:none}
+.pick:has(input:checked){background:var(--gold);color:var(--on-gold);border-color:var(--gold)}
+.pick input{accent-color:var(--gold);margin:0}
+.note{display:block;width:100%;margin-top:var(--sp-2);resize:vertical;min-height:var(--ctl);padding:4px 8px}
+#out{position:fixed;inset:auto 24px 24px auto;max-width:560px;width:calc(100% - 48px);max-height:60vh;display:none;flex-direction:column;gap:8px;background:var(--panel);border-radius:var(--r-lg);padding:var(--sp-3);box-shadow:var(--shadow-3);z-index:20}
+#out.on{display:flex}#out textarea{flex:1;min-height:220px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:var(--r-sm);font:var(--fs-small)/1.45 var(--mono);padding:8px}
+#out .row{display:flex;gap:8px;justify-content:flex-end}
+</style></head><body><main>
+<h1>The Table · page prototypes</h1>
+<p class="lede">Three UX variants per page of the three windows, on Maya's sandbox week (<code class="mono">main/fixtures.js</code>, Thu 29 Oct 14:02) and the <b>v2 baseline</b>: the Dial's colours, macOS density, and two layers (indicative rows first, detail in sheets, popovers and an inspector). See <a class="ui-btn plain sm" href="shared/baseline.html">baseline v2 ↗</a>. The landing page (The Dial) carries the only Dark / Light · PayPal switch. <b>Verdict 6 Oct:</b> the starred variant on each page is chosen. The others stay for reference.</p>
+<nav class="toc" aria-label="Pages"><a href="#home">Home</a><a href="#tables">Tables</a><a href="#spend">Spend</a><a href="#shield">Shield</a><a href="#counter">Counter</a><a href="#rescue">Rescue</a><a href="#book">Book</a><a href="#deal">Deal detail</a><a href="#setup">Setup</a><a href="#tumbler">The Tumbler</a><a href="#approval">Approval</a><a href="#mandate">Mandate</a><a href="#pairing">Pairing</a><span class="act"><span class="count" id="cnt"></span><label class="count"><input type="checkbox" class="ui-check" id="pv" checked> previews</label><button class="ui-btn gold sm" id="copy">Copy verdict</button></span></nav>
+<h2 class="win" id="w-main">Main window</h2><section id="home"><div class="sh"><h3><span class="num">01</span>Home · The Table (level 0)</h3>
+    <p class="q">What needs me, what is moving, and where do I go next?</p></div><div class="cards"><article class="card" data-page="home" data-v="1" data-name="The Table">
+      <a class="ph" href="../.contest/arena/agentic-wallet-ui/entries/claude-claude-opus-5-5_high-table/variant-1/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="../.contest/arena/agentic-wallet-ui/entries/claude-claude-opus-5-5_high-table/variant-1/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="../.contest/arena/agentic-wallet-ui/entries/claude-claude-opus-5-5_high-table/variant-1/index.html">v1 · The Table</a>
+      <p>Every payment is a deal across a table, so home is that table, seen from above under one lamp. The near half is Maya's side (teal); the far half is the counterparty's (coral). Six seats follow the report's spine figure. Across the table sit Dan (Tables), other wallets' agents (Counter) and subscr…</p><div class="foot"><span class="origin">UI contest A/1 · local only (.contest is git-ignored)</span>
+      <label class="pick"><input type="radio" name="pick-home" value="1"> pick</label></div></div></article><article class="card" data-page="home" data-v="2" data-name="The Seam">
+      <a class="ph" href="../.contest/arena/agentic-wallet-ui/entries/claude-claude-opus-5-5_high-table/variant-2/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="../.contest/arena/agentic-wallet-ui/entries/claude-claude-opus-5-5_high-table/variant-2/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="../.contest/arena/agentic-wallet-ui/entries/claude-claude-opus-5-5_high-table/variant-2/index.html">v2 · The Seam</a>
+      <p>Home is a horizon, not a dashboard. One gold line is PayPal settlement. The counterparties' dusk sits above it, with far silhouettes of Dan's desk, the house seller and a stranger. Maya's teal side sits below. Six module gates stand across the line in the order of her week, Mon Tables to Sun Book…</p><div class="foot"><span class="origin">UI contest A/2 · local only (.contest is git-ignored)</span>
+      <label class="pick"><input type="radio" name="pick-home" value="2"> pick</label></div></div></article><article class="card decided" data-page="home" data-v="3" data-name="The Dial">
+      <a class="ph" href="main/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="main/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="main/index.html">v3 · The Dial</a><span class="ui-chip ok tag">★ chosen 2 Oct</span>
+      <p>Security is the product, so the home is a machined vault dial and nothing turns without Maya. The outer ring holds six module medallions; every deal is a bead on the middle ring (teal moving, gold-locked held, green settled, × stopped, hollow withdrawn; gold pulse = needs you). The hub opens on &quot;…</p><div class="foot"><span class="origin">UI contest A/3 · carried into prototype/main</span>
+      <label class="pick"><input type="radio" name="pick-home" value="3"> pick</label></div></div></article></div>
+    <textarea data-page="home" rows="1" class="ui-field note" placeholder="Note for Home: fuse parts, fix, reject…"></textarea></section>
+<section id="tables"><div class="sh"><h3><span class="num">02</span>Tables · haggle (Mon)</h3>
+    <p class="q">Which tables are live, how close is each to my band, and where do I set the band?</p></div><div class="cards"><article class="card" data-page="tables" data-v="1" data-name="Band Box">
+      <a class="ph" href="pages/tables/variant-1/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/tables/variant-1/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/tables/variant-1/index.html">v1 · Band Box</a>
+      <p>The sharpened baseline: tables on the left; on the right the selected table's convergence chart, with the band as a box you drag (ceiling × rounds) and a deadline track. It bets that seeing every signed bid and ask inside the box is the quickest way to judge how close a table is, so the band belo…</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-tables" value="1"> pick</label></div></div></article><article class="card" data-page="tables" data-v="2" data-name="Gauge Board">
+      <a class="ph" href="pages/tables/variant-2/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/tables/variant-2/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/tables/variant-2/index.html">v2 · Gauge Board</a>
+      <p>Everything visible, keyboard first. Every table is one row whose gauge puts the latest ask, your bid, the market band and your ceiling on one price line, so &quot;how close&quot; reads down a column. You edit rows in place; every edit collects in one mandate change you sign once.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-tables" value="2"> pick</label></div></div></article><article class="card decided" data-page="tables" data-v="3" data-name="Price Ladder">
+      <a class="ph" href="pages/tables/variant-3/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/tables/variant-3/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/tables/variant-3/index.html">v3 · Price Ladder</a><span class="ui-chip ok tag">★ chosen 6 Oct</span>
+      <p>One table at a time on a vertical price ladder: your bids climb the left, their asks come down the right, the price on the table sits in the middle, and the band is a fence across it. Moving the band re-signs the mandate, so it goes through three steps in the inspector: draft, what changes, sign.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-tables" value="3"> pick</label></div></div></article></div>
+    <textarea data-page="tables" rows="1" class="ui-field note" placeholder="Note for Tables: fuse parts, fix, reject…"></textarea></section>
+<section id="spend"><div class="sh"><h3><span class="num">03</span>Spend · firewall (Tue)</h3>
+    <p class="q">What did my agents ask to buy, what was stopped and why, and which hold is waiting on me?</p></div><div class="cards"><article class="card" data-page="spend" data-v="1" data-name="Gate Log">
+      <a class="ph" href="pages/spend/variant-1/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/spend/variant-1/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/spend/variant-1/index.html">v1 · Gate Log</a>
+      <p>A dense, keyboard-first ledger is the fastest answer: every ask, grouped by agent, one 28px row each with a verdict chip and the clause it hit. The one hold that needs Maya sits in a &quot;Needs you&quot; row above the log, which scrolls on its own, so the decision never leaves view.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-spend" value="1"> pick</label></div></div></article><article class="card decided" data-page="spend" data-v="2" data-name="The Gate">
+      <a class="ph" href="pages/spend/variant-2/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/spend/variant-2/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/spend/variant-2/index.html">v2 · The Gate</a><span class="ui-chip ok tag">★ chosen 6 Oct</span>
+      <p>A firewall is a place, so draw it. Each ask is a lane running left to right through the M-12 clauses toward PayPal, and where its line stops is why. The GPUs stop at clause 3 and never reach PayPal. Policy captures turn green at clause 6. The dock turns gold at clause 7 and ends in a HELD capsule.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-spend" value="2"> pick</label></div></div></article><article class="card" data-page="spend" data-v="3" data-name="Honor Clock">
+      <a class="ph" href="pages/spend/variant-3/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/spend/variant-3/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/spend/variant-3/index.html">v3 · Honor Clock</a>
+      <p>This page's decision is about time: a hold running out its 72-hour honor period. The hold is drawn as a clock from authorized Thu 09:02 to auto-void Sun 09:02. A handle answers &quot;what if I wait until…?&quot;; waiting never moves money. Below it, the week is a calendar: each ask on its day, each day aga…</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-spend" value="3"> pick</label></div></div></article></div>
+    <textarea data-page="spend" rows="1" class="ui-field note" placeholder="Note for Spend: fuse parts, fix, reject…"></textarea></section>
+<section id="shield"><div class="sh"><h3><span class="num">04</span>Shield · scam shield (Wed)</h3>
+    <p class="q">Who was stopped before any money moved, on what evidence, and which hold may I release?</p></div><div class="cards"><article class="card" data-page="shield" data-v="1" data-name="Case cards">
+      <a class="ph" href="pages/shield/variant-1/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/shield/variant-1/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/shield/variant-1/index.html">v1 · Case cards</a>
+      <p>Every stop is a compact card: who sat down and for how much, the verdict, the five checks as chips (skipped shown as skipped, unknown as unknown), the default on silence, and the act on the card itself. It sharpens the built baseline instead of replacing it: pointer-first, nothing to learn, every…</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-shield" value="1"> pick</label></div></div></article><article class="card decided" data-page="shield" data-v="2" data-name="Evidence matrix">
+      <a class="ph" href="pages/shield/variant-2/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/shield/variant-2/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/shield/variant-2/index.html">v2 · Evidence matrix</a><span class="ui-chip ok tag">★ chosen 6 Oct</span>
+      <p>The evidence grid comes first: each check is a row, each person who sat down is a column, and the conclusion rows (verdict, PayPal, your move) sit on top. Across a row you see why deal-hub-22 is final and pixel-bay releasable; a hatched &quot;skipped, not passed&quot; cell is hard to miss. Keyboard-first, …</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-shield" value="2"> pick</label></div></div></article><article class="card" data-page="shield" data-v="3" data-name="Gate replay">
+      <a class="ph" href="pages/shield/variant-3/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/shield/variant-3/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/shield/variant-3/index.html">v3 · Gate replay</a>
+      <p>Each intent walks through the shield's gate, one at a time: they asked → rules → market → text check → verdict → money. The token stops at the gate, and the last station carries the hand-off path from here to the approval window to the browser. It explains why, in order, instead of listing evidence.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-shield" value="3"> pick</label></div></div></article></div>
+    <textarea data-page="shield" rows="1" class="ui-field note" placeholder="Note for Shield: fuse parts, fix, reject…"></textarea></section>
+<section id="counter"><div class="sh"><h3><span class="num">05</span>Counter · agent-ready shop (Thu)</h3>
+    <p class="q">Who is at my counter right now, and are my floors right?</p></div><div class="cards"><article class="card decided" data-page="counter" data-v="1" data-name="Counter board">
+      <a class="ph" href="pages/counter/variant-1/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/counter/variant-1/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/counter/variant-1/index.html">v1 · Counter board</a><span class="ui-chip ok tag">★ chosen 6 Oct</span>
+      <p>Everything on one sheet, in the order the question asks it. Live quotes come first, one line each. Below them the catalog is a dense ledger with a floor stepper on every row. A bottom bar gathers floor edits into one S-2 draft that only the approval window can sign. It is the built baseline, shar…</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-counter" value="1"> pick</label></div></div></article><article class="card" data-page="counter" data-v="2" data-name="Price rail">
+      <a class="ph" href="pages/counter/variant-2/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/counter/variant-2/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/counter/variant-2/index.html">v2 · Price rail</a>
+      <p>&quot;Are my floors right?&quot; is a spatial question, so the page is one shared axis. Each item's lane is drawn as a share of its list price. The floor is a handle you drag, the market is a band with a ◆ median, and quotes are pins. The people at the counter sit in the right column.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-counter" value="2"> pick</label></div></div></article><article class="card" data-page="counter" data-v="3" data-name="Journal and floor walk">
+      <a class="ph" href="pages/counter/variant-3/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/counter/variant-3/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/counter/variant-3/index.html">v3 · Journal and floor walk</a>
+      <p>Two stories side by side. On the left, the counter reads as a transcript, one line per step, tagged by who acted, so Maya sees why no sale needs her. On the right, the floors are a keyboard-first walk, one item per card, the most urgent first. A review hands off to the approval window.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-counter" value="3"> pick</label></div></div></article></div>
+    <textarea data-page="counter" rows="1" class="ui-field note" placeholder="Note for Counter: fuse parts, fix, reject…"></textarea></section>
+<section id="rescue"><div class="sh"><h3><span class="num">06</span>Rescue · subscription rescue (Fri)</h3>
+    <p class="q">Which subscribers’ renewals are failing, and which one lever do I approve for each?</p></div><div class="cards"><article class="card" data-page="rescue" data-v="1" data-name="Lever Desk">
+      <a class="ph" href="pages/rescue/variant-1/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/rescue/variant-1/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/rescue/variant-1/index.html">v1 · Lever Desk</a>
+      <p>The sharpened baseline: renewals by PayPal's next retry, and beside them a desk for one subscriber. The bet is that Rescue is a short, calm list that goes fastest from the keyboard, with one subscriber's whole story one keypress away.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-rescue" value="1"> pick</label></div></div></article><article class="card" data-page="rescue" data-v="2" data-name="Retry Runway">
+      <a class="ph" href="pages/rescue/variant-2/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/rescue/variant-2/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/rescue/variant-2/index.html">v2 · Retry Runway</a>
+      <p>Rescue is a race against PayPal's own retry, so time comes first. Each subscriber is a lane on a Mon–Mon runway: the failure, now, the gold ◆ where PayPal retries and its hatched last 24 h. Maya drags one lever onto one lane; it turns teal if allowed, red if not.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-rescue" value="2"> pick</label></div></div></article><article class="card decided" data-page="rescue" data-v="3" data-name="Lever Matrix">
+      <a class="ph" href="pages/rescue/variant-3/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/rescue/variant-3/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/rescue/variant-3/index.html">v3 · Lever Matrix</a><span class="ui-chip ok tag">★ chosen 6 Oct</span>
+      <p>&quot;One lever per subscriber&quot; as a matrix: subscribers as rows, the closed lever list as columns, one cell per row. &quot;Do nothing&quot; is a real column and the default; the plan price change is a struck column. The bet is that Maya trusts the rule more when every combination shows its outcome at once.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-rescue" value="3"> pick</label></div></div></article></div>
+    <textarea data-page="rescue" rows="1" class="ui-field note" placeholder="Note for Rescue: fuse parts, fix, reject…"></textarea></section>
+<section id="book"><div class="sh"><h3><span class="num">07</span>Book · ops cockpit (Sun)</h3>
+    <p class="q">What did my agents commit this week, how did it compare with the market, and does PayPal agree yet?</p></div><div class="cards"><article class="card decided" data-page="book" data-v="1" data-name="Ledger Lens">
+      <a class="ph" href="pages/book/variant-1/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/book/variant-1/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/book/variant-1/index.html">v1 · Ledger Lens</a><span class="ui-chip ok tag">★ chosen 6 Oct</span>
+      <p>The week's ledger is the page. Every deal sits in one grid whose four money columns (captured, held at PayPal, in motion, stopped) carry their own totals and are never added together. Every row has a PayPal-statement chip. A question doesn't replace the grid: running it lays a lens over the same …</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-book" value="1"> pick</label></div></div></article><article class="card" data-page="book" data-v="2" data-name="Sunday Notebook">
+      <a class="ph" href="pages/book/variant-2/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/book/variant-2/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/book/variant-2/index.html">v2 · Sunday Notebook</a>
+      <p>Book is a conversation with the ledger. Each question becomes a notebook entry: Maya's words, then the book agent's query, then the answer, which appears only after she presses Run. The inspector keeps the standing answers: money by state, whether PayPal agrees, and the cash-flow outlook.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-book" value="2"> pick</label></div></div></article><article class="card" data-page="book" data-v="3" data-name="Query Desk">
+      <a class="ph" href="pages/book/variant-3/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/book/variant-3/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/book/variant-3/index.html">v3 · Query Desk</a>
+      <p>The query itself is the instrument. The verbatim JSON sits in an editable field beside a clause board that lights every position the closed BookQuery language allows, so nothing can hide in a query. Keyboard-first, with the outlook in a status bar.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-book" value="3"> pick</label></div></div></article></div>
+    <textarea data-page="book" rows="1" class="ui-field note" placeholder="Note for Book: fuse parts, fix, reject…"></textarea></section>
+<section id="deal"><div class="sh"><h3><span class="num">08</span>Deal detail (level 2)</h3>
+    <p class="q">What exactly happened in this deal, and why may I believe it?</p></div><div class="cards"><article class="card decided" data-page="deal" data-v="1" data-name="Mirror">
+      <a class="ph" href="pages/deal/variant-1/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/deal/variant-1/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/deal/variant-1/index.html">v1 · Mirror</a><span class="ui-chip ok tag">★ chosen 6 Oct</span>
+      <p>The whole deal sits on one screen in the report's order, with the three sides side by side: Maya's mandate, the signed timeline and the counterparty. The columns are linked. Hovering an envelope lights the clause that checked it and the side that sent it.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-deal" value="1"> pick</label></div></div></article><article class="card" data-page="deal" data-v="2" data-name="Proof sheet">
+      <a class="ph" href="pages/deal/variant-2/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/deal/variant-2/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/deal/variant-2/index.html">v2 · Proof sheet</a>
+      <p>The page answers with six claims, each graded by who stands behind it, such as &quot;Every price here is signed&quot; or &quot;Dan says $329.00 was captured&quot; (seller-attested). The claim that matters most is selected on arrival, its proof open in the inspector.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-deal" value="2"> pick</label></div></div></article><article class="card" data-page="deal" data-v="3" data-name="Replay">
+      <a class="ph" href="pages/deal/variant-3/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/deal/variant-3/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/deal/variant-3/index.html">v3 · Replay</a>
+      <p>A deal is a sequence of signed moments, so time leads the page. For a haggle, a chart shows bids and asks converging against the market band and the clause-4 ceiling. Other kinds get swim-lanes. A playhead rebuilds the deal as of any step, and the past can be inspected but never acted on.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-deal" value="3"> pick</label></div></div></article></div>
+    <textarea data-page="deal" rows="1" class="ui-field note" placeholder="Note for Deal detail (level 2): fuse parts, fix, reject…"></textarea></section>
+<section id="setup"><div class="sh"><h3><span class="num">09</span>Setup · first run and settings</h3>
+    <p class="q">What must be true before my agents can touch money, and what can only I set?</p></div><div class="cards"><article class="card" data-page="setup" data-v="1" data-name="Preflight">
+      <a class="ph" href="pages/setup/variant-1/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/setup/variant-1/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/setup/variant-1/index.html">v1 · Preflight</a>
+      <p>Setup is a short, ordered set of gates, so first run walks them one at a time: engine, PayPal credentials, first mandate, optional HOUSE, with a live &quot;What is true now&quot; column beside each step. On return the same gates become a macOS-style settings list, one line per setting.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-setup" value="1"> pick</label></div></div></article><article class="card decided" data-page="setup" data-v="2" data-name="The Circuit">
+      <a class="ph" href="pages/setup/variant-2/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/setup/variant-2/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/setup/variant-2/index.html">v2 · The Circuit</a><span class="ui-chip ok tag">★ chosen 6 Oct</span>
+      <p>What must be true is a path, so draw it: agents, breaker, engine, mandate check, keychain, PayPal sandbox, with HOUSE as counterparty. A missing piece is a red break in the wire, counted in the headline. A gold bracket marks what only Maya can set, in the approval window, and locks visibly after …</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-setup" value="2"> pick</label></div></div></article><article class="card" data-page="setup" data-v="3" data-name="The Sentence">
+      <a class="ph" href="pages/setup/variant-3/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/setup/variant-3/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/setup/variant-3/index.html">v3 · The Sentence</a>
+      <p>An owner reads a sentence faster than a form: &quot;Your 6 agents may act inside your mandates. They run on claude-code, bound by M-12 v3 and 2 more…&quot;. Each fact is an underlined phrase: wavy red when it blocks money, a gold mark when only Maya can set it. Below: a command line and a &quot;Who can set what…</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-setup" value="3"> pick</label></div></div></article></div>
+    <textarea data-page="setup" rows="1" class="ui-field note" placeholder="Note for Setup: fuse parts, fix, reject…"></textarea></section>
+<h2 class="win" id="w-tumbler">Tumbler window</h2><section id="tumbler"><div class="sh"><h3><span class="num">10</span>The Tumbler</h3>
+    <p class="q">Does anything need me right now, how loudly, and what can I do without opening The Table?</p></div><div class="cards"><article class="card decided" data-page="tumbler" data-v="1" data-name="The Tumbler">
+      <a class="ph" href="tumbler/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="tumbler/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="tumbler/index.html">v1 · The Tumbler</a><span class="ui-chip ok tag">★ chosen 6 Oct</span>
+      <p>An 88 px engraved puck in the corner: module ticks on the rim, one bead per open decision, and a gold ring when something needs Maya. It never takes her keyboard. Every other form grows out of the puck.</p><div class="foot"><span class="origin">existing prototype/tumbler</span>
+      <label class="pick"><input type="radio" name="pick-tumbler" value="1"> pick</label></div></div></article><article class="card" data-page="tumbler" data-v="2" data-name="The Ribbon">
+      <a class="ph" href="pages/tumbler/variant-2/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/tumbler/variant-2/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/tumbler/variant-2/index.html">v2 · The Ribbon</a>
+      <p>Time comes first. Each open decision is a gold mark at its deadline on one shared log-scale clock, from now to 3 days. &quot;How loudly&quot; means &quot;how close to the left edge&quot;. Maya sees the shape of her afternoon, not a count. It sits above the taskbar and flips in place to one sentence when something ar…</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-tumbler" value="2"> pick</label></div></div></article><article class="card" data-page="tumbler" data-v="3" data-name="The Line">
+      <a class="ph" href="pages/tumbler/variant-3/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/tumbler/variant-3/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/tumbler/variant-3/index.html">v3 · The Line</a>
+      <p>Words, not objects. At rest the Tumbler is one sentence holding the decision and its default (&quot;If you do nothing: the offer lapses at 18:00 · no money moves&quot;), so Maya never decodes a ring. Ctrl+Shift+Space summons a keyboard-first command card; Esc hands the keyboard back.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-tumbler" value="3"> pick</label></div></div></article></div>
+    <textarea data-page="tumbler" rows="1" class="ui-field note" placeholder="Note for The Tumbler: fuse parts, fix, reject…"></textarea></section>
+<h2 class="win" id="w-approval">Approval window</h2><section id="approval"><div class="sh"><h3><span class="num">11</span>Approval · the money moment</h3>
+    <p class="q">Is this exactly what I signed, and do I let it go out?</p><span class="ui-chip line">window and its sheets 20% wider (620 → 744 px)</span></div><div class="cards"><article class="card" data-page="approval" data-v="1" data-name="The Card">
+      <a class="ph" href="pages/approval/variant-1/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/approval/variant-1/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/approval/variant-1/index.html">v1 · The Card</a>
+      <p>Everything Rust checked fits on one small face, so Maya answers &quot;is this what I signed?&quot; in one glance and acts at the foot. It's the built DealReview, sharpened, with the clock, the default and the buttons always in the footer.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-approval" value="1"> pick</label></div></div></article><article class="card" data-page="approval" data-v="2" data-name="Read-back">
+      <a class="ph" href="pages/approval/variant-2/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/approval/variant-2/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/approval/variant-2/index.html">v2 · Read-back</a>
+      <p>Releasing money is rare, so it should be read, not glanced at. Like a pilot's read-back, it shows two facts per page. The money button exists only on page 4, which opens after pages 1–3 have each been shown once.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-approval" value="2"> pick</label></div></div></article><article class="card decided" data-page="approval" data-v="3" data-name="The Diff">
+      <a class="ph" href="pages/approval/variant-3/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/approval/variant-3/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/approval/variant-3/index.html">v3 · The Diff</a><span class="ui-chip ok tag">★ chosen 6 Oct</span>
+      <p>&quot;Is this exactly what I signed?&quot; is a comparison, so the window shows the comparison, not a ✓. Your side (teal) and the asked side (gold) sit in two columns, and a gutter names the relation (= same, ≤ within, ≠ differs). After the hand-off, the same table compares what you approved with what PayP…</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-approval" value="3"> pick</label></div></div></article></div>
+    <textarea data-page="approval" rows="1" class="ui-field note" placeholder="Note for Approval: fuse parts, fix, reject…"></textarea></section>
+<section id="mandate"><div class="sh"><h3><span class="num">12</span>Mandate · sign and revoke</h3>
+    <p class="q">What am I allowing my agents to do, and what changes if I sign this version?</p></div><div class="cards"><article class="card" data-page="mandate" data-v="1" data-name="Clause sheet">
+      <a class="ph" href="pages/mandate/variant-1/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/mandate/variant-1/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/mandate/variant-1/index.html">v1 · Clause sheet</a>
+      <p>The built editor, sharpened and layered. Layer 1 is the clause list: number, name, value, and how many of this week's intents it decided, under a version strip and above the sign / revoke bar. Editing never touches v3: it drafts v4, and a changed row turns gold with the new value and the old one …</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-mandate" value="1"> pick</label></div></div></article><article class="card" data-page="mandate" data-v="2" data-name="The contract">
+      <a class="ph" href="pages/mandate/variant-2/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/mandate/variant-2/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/mandate/variant-2/index.html">v2 · The contract</a>
+      <p>A mandate is a promise Maya makes about her agents, so it reads as one: a short contract in her words (&quot;A single purchase may be at most $200, only for office, parts or packing&quot;). Every bold term is a button. An edit redlines the sentence: old value struck, new in gold. She signs on the line at t…</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-mandate" value="2"> pick</label></div></div></article><article class="card decided" data-page="mandate" data-v="3" data-name="What-if replay">
+      <a class="ph" href="pages/mandate/variant-3/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/mandate/variant-3/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/mandate/variant-3/index.html">v3 · What-if replay</a><span class="ui-chip ok tag">★ chosen 6 Oct</span>
+      <p>Consequences first, terms second. The window opens on &quot;What would my agents have done this week?&quot;: a scoreboard and every intent replayed under v3 and under the draft. The levers sit beside it in the inspector, each carrying the week's deals as ticks. Dragging the per-deal max past $45 turns D-01…</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-mandate" value="3"> pick</label></div></div></article></div>
+    <textarea data-page="mandate" rows="1" class="ui-field note" placeholder="Note for Mandate: fuse parts, fix, reject…"></textarea></section>
+<section id="pairing"><div class="sh"><h3><span class="num">13</span>Pairing · pair a table</h3>
+    <p class="q">Is the wallet across the table really who I think it is?</p></div><div class="cards"><article class="card decided" data-page="pairing" data-v="1" data-name="Two desks">
+      <a class="ph" href="pages/pairing/variant-1/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/pairing/variant-1/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/pairing/variant-1/index.html">v1 · Two desks</a><span class="ui-chip ok tag">★ chosen 6 Oct</span>
+      <p>Put both ends on screen. Maya's main window and Dan's simulated screen sit side by side, so the compare reads like a call: four words here, the same four in the same row there. This is the built flow, sharpened: three tabs in, the approval window decides with &quot;Words match: pin key&quot; or &quot;They diffe…</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-pairing" value="1"> pick</label></div></div></article><article class="card" data-page="pairing" data-v="2" data-name="Call script">
+      <a class="ph" href="pages/pairing/variant-2/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/pairing/variant-2/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/pairing/variant-2/index.html">v2 · Call script</a>
+      <p>Make the compare a spoken ritual. Maya reads words 1 and 3; Dan reads 2 and 4 while her word stays hidden until she has heard his. Each word gets its own yes or no; the first &quot;no&quot; ends the pairing. Around it: one command field and a call log, keyboard-first.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-pairing" value="2"> pick</label></div></div></article><article class="card" data-page="pairing" data-v="3" data-name="Keyring">
+      <a class="ph" href="pages/pairing/variant-3/index.html" tabindex="-1" aria-hidden="true"><iframe data-src="pages/pairing/variant-3/index.html" title="" loading="lazy" tabindex="-1"></iframe></a>
+      <div class="body"><a class="title" href="pages/pairing/variant-3/index.html">v3 · Keyring</a>
+      <p>Make the identity dominant and turn the compare into active recall. The sidebar is Maya's keyring. A new pairing is a card filling in one fact per row. In the approval window Maya picks each word Dan reads from three options her wallet offers, or &quot;none&quot;.</p><div class="foot"><span class="origin">new · 2026-10-06</span>
+      <label class="pick"><input type="radio" name="pick-pairing" value="3"> pick</label></div></div></article></div>
+    <textarea data-page="pairing" rows="1" class="ui-field note" placeholder="Note for Pairing: fuse parts, fix, reject…"></textarea></section>
+<div id="out" role="dialog" aria-label="Verdict"><b>Verdict</b><textarea id="vt" readonly></textarea><div class="row"><button class="ui-btn sm" id="close">Close</button><button class="ui-btn gold sm" id="cp2">Copy to clipboard</button></div></div>
+</main>
+<script>
+const KEY='table-proto-verdict-v1';
+let st={};try{st=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}};
+const pages=[...document.querySelectorAll('section[id]')].map(s=>s.id);
+function paint(){let n=0;pages.forEach(p=>{const pick=st[p]&&st[p].pick;document.querySelectorAll('.card[data-page="'+p+'"]').forEach(c=>c.classList.toggle('picked',String(pick)===c.dataset.v));if(pick)n++;});document.getElementById('cnt').textContent=n+'/'+pages.length+' picked';}
+document.querySelectorAll('input[type=radio]').forEach(r=>{const p=r.name.slice(5);if(st[p]&&String(st[p].pick)===r.value)r.checked=true;r.addEventListener('change',()=>{st[p]=Object.assign(st[p]||{},{pick:Number(r.value)});save();paint();});});
+document.querySelectorAll('textarea.note').forEach(t=>{const p=t.dataset.page;t.value=(st[p]&&st[p].note)||'';t.addEventListener('input',()=>{st[p]=Object.assign(st[p]||{},{note:t.value});save();});});
+paint();
+function verdict(){const L=['# Page prototype verdict ('+new Date().toISOString().slice(0,10)+')',''];pages.forEach(p=>{const s=st[p]||{};const h=document.querySelector('#'+p+' h3').textContent.replace(/^\d+/,'');const c=s.pick&&document.querySelector('.card[data-page="'+p+'"][data-v="'+s.pick+'"]');L.push('- **'+h+'**: '+(c?'v'+s.pick+' · '+c.dataset.name:'no pick')+(s.note?' — '+s.note.trim():''));});return L.join('\n');}
+const out=document.getElementById('out'),vt=document.getElementById('vt');
+document.getElementById('copy').onclick=()=>{vt.value=verdict();out.classList.add('on');vt.select();};
+document.getElementById('close').onclick=()=>out.classList.remove('on');
+document.getElementById('cp2').onclick=async()=>{try{await navigator.clipboard.writeText(vt.value);document.getElementById('cp2').textContent='Copied';}catch(e){vt.select();document.execCommand&&document.execCommand('copy');}};
+// Live previews: scale a 1440x900 iframe into each card, load only near the viewport.
+const fit=()=>document.querySelectorAll('.ph iframe').forEach(f=>{const w=f.parentElement.clientWidth;f.style.transform='scale('+(w/1440)+')';});
+addEventListener('resize',fit);fit();
+const pv=document.getElementById('pv');let io;
+function arm(){if(io)io.disconnect();if(!pv.checked){document.querySelectorAll('.ph iframe').forEach(f=>{f.removeAttribute('src');});return;}
+io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting&&!e.target.getAttribute('src')){e.target.src=e.target.dataset.src;}}),{rootMargin:'400px'});
+document.querySelectorAll('.ph iframe').forEach(f=>io.observe(f));}
+pv.onchange=arm;arm();
+</script></body></html>

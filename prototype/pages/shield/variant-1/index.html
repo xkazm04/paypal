@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shield · Case cards</title>
+<meta name="description" content="The Table · Shield module, variant 1 (Case cards): every stop is a compact card with its checks as chips and the act on the card; detail opens in popovers and a case-file sheet. Sandbox prototype.">
+<link rel="stylesheet" href="../../../shared/tokens.css">
+<link rel="stylesheet" href="../../../shared/ui.css">
+<script src="../../../main/fixtures.js"></script>
+<script src="../../../shared/ui.js"></script>
+<style>
+/* ---------- shared by the three Shield variants: titlebar meters, check inks, market band,
+   simulated approval window. Everything else is the v2 baseline (shared/ui.css). ---------- */
+html, body { height: 100%; }
+body { overflow: hidden; }
+.tmeter { display: flex; align-items: baseline; gap: 6px; padding-left: var(--sp-2); border-left: 2px solid var(--teal); white-space: nowrap; font-size: var(--fs-small); color: var(--dim); }
+.tmeter b { font: var(--fw-semibold) var(--fs-mono) var(--mono); font-variant-numeric: tabular-nums; color: var(--text); }
+.tmeter.eng { border-left-color: var(--line2); }
+.ui-proto { display: grid; gap: var(--sp-1); margin-top: var(--sp-2); }
+.ui-proto .ui-btn { justify-content: flex-start; }
+.ui-proto .ui-btn[aria-pressed="true"] { color: var(--gold-l); border-color: var(--gold); }
+.ui-sb-item .ui-dot { width: 9px; height: 9px; }
+
+/* check results: glyph + ink, never colour alone */
+.ck { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; flex: none; font: var(--fw-bold) var(--fs-small)/1 var(--mono); box-shadow: inset 0 0 0 1px currentColor; }
+.r-hit { color: var(--coral-l); } .r-block { color: var(--red-l); } .r-pass { color: var(--ok); } .r-skip { color: var(--gold-l); } .r-na { color: var(--dim); }
+button.ui-chip { border: 0; cursor: pointer; }
+.notechip { background: none; color: var(--coral-l); outline: 1px dashed var(--coral); outline-offset: -1px; }
+.notechip:hover { background: color-mix(in srgb, var(--coral) 12%, transparent); }
+
+/* layer-2 bodies: check detail, check lists, engine fence */
+.ckhead { display: flex; align-items: center; gap: var(--sp-2); }
+.det { margin: var(--sp-2) 0; color: var(--muted); }
+.l2 { display: grid; gap: var(--sp-3); }
+.l2 h3 { margin: 0 0 var(--sp-1); font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); }
+.cklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cklist li { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 2px var(--sp-2); align-items: center; }
+.cklist li .l { grid-column: 2 / -1; color: var(--dim); font-size: var(--fs-small); }
+.cklist li .res { font: var(--fs-small) var(--mono); white-space: nowrap; }
+.cklist .stg { display: block; grid-template-columns: none; margin-top: var(--sp-1); font: var(--fs-small) var(--mono); color: var(--dim); }
+.steps { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: var(--muted); }
+.steps b { color: var(--text); font-weight: var(--fw-semibold); }
+mark.hit { background: color-mix(in srgb, var(--refuse) 25%, transparent); color: var(--text); border-radius: 2px; }
+
+/* market band (Channel3 comparables) */
+.mband { position: relative; height: 46px; margin: 18px 6px 2px; }
+.mband .axis { position: absolute; left: 0; right: 0; top: 14px; height: 2px; background: var(--line2); }
+.mband .iqr { position: absolute; top: 9px; height: 12px; border-radius: 3px; background: color-mix(in srgb, var(--market) 20%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--market) 40%, transparent); }
+.mband .med { position: absolute; top: 5px; width: 2px; height: 20px; background: var(--market); }
+.mband .flag { position: absolute; top: 0; height: 30px; border-left: 2px dashed var(--refuse); }
+.mband .px { position: absolute; top: 9px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 0 2px var(--panel); }
+.mband .px.ours { background: var(--teal); }
+.mband .lab { position: absolute; top: 30px; font: var(--fs-small) var(--mono); color: var(--dim); white-space: nowrap; }
+.mband .lab.top { top: -18px; }
+.nomarket { border: 1px dashed var(--gold); border-radius: var(--r-sm); padding: 4px 8px; color: var(--gold-l); font-size: var(--fs-small); }
+
+/* simulated approval window: a separate OS window in the product */
+#apLayer { position: fixed; inset: var(--shell-h) 0 0 0; z-index: 7000; display: grid; place-items: center; background: var(--scrim); }
+.apwin { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - var(--shell-h) - 32px); overflow: auto; background: var(--bg2); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-3), 0 0 0 1px color-mix(in srgb, var(--gold) 40%, transparent); animation: ui-fade var(--t-med) var(--ease); }
+.apwin > .ui-titlebar { border-radius: var(--r-lg) var(--r-lg) 0 0; }
+.ap-tag { font: var(--fw-bold) var(--fs-small) var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--gold-l); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 50%, transparent); border-radius: 4px; padding: 1px 5px; }
+.apbody { padding: var(--sp-3) var(--sp-4); display: grid; gap: var(--sp-3); }
+.apbody h2 { margin: 0; font: var(--fw-semibold) var(--fs-title2)/1.2 var(--display); }
+.apsteps { display: flex; gap: 4px; flex-wrap: wrap; }
+.apchecks { display: flex; flex-wrap: wrap; gap: 4px var(--sp-3); align-items: center; font-size: var(--fs-small); color: var(--muted); }
+.apchecks span { display: inline-flex; align-items: center; gap: 4px; }
+.apfoot { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--line); }
+.typein { width: 100%; font-family: var(--mono); }
+.typein.ok { border-color: var(--ok); }
+.cd { font: var(--fw-semibold) var(--fs-mono) var(--mono); font-variant-numeric: tabular-nums; color: var(--gold-l); }
+.ui-proto .short { display: none; }
+@media (max-width: 1180px) {
+  .ui-split.has-insp .ui-proto { padding: var(--sp-1); }
+  .ui-split.has-insp .ui-proto::before { display: none; }
+  .ui-split.has-insp .ui-proto .short { display: inline; }
+  .ui-split.has-insp .ui-proto .ui-btn { justify-content: center; padding: 0; }
+}
+@media (max-width: 1100px) { .tmeter span { display: none; } }
+@media (max-width: 1180px) {
+  .ui-split.has-insp .ui-sidebar { overflow-x: hidden; }
+  .ui-split.has-insp .ui-sb-item { gap: 2px; padding: 0 2px; }
+  .ui-split.has-insp .ui-sb-item .cnt:not(.need) { display: none; }
+  .ui-split.has-insp .ui-sb-item .cnt.need { padding: 3px 5px; }
+}
+
+/* ---------- v1 · Case cards ---------- */
+.case { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.case + .case { margin-top: var(--sp-2); }
+.case.BLOCK { border-color: color-mix(in srgb, var(--refuse) 35%, var(--line)); }
+.case.need { border-color: color-mix(in srgb, var(--gold) 45%, var(--line)); box-shadow: inset 3px 0 0 var(--gold); }
+.case-h .t1 a { color: var(--text); font-weight: var(--fw-semibold); text-decoration: none; }
+.case-h .t1 a:hover { text-decoration: underline; }
+.case-h .amt { font-size: var(--fs-title3); }
+.case-ev { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); padding: 6px var(--sp-3); border-top: 1px solid var(--line); background: var(--bg2); }
+.case-ev .end { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.case-ev .gap { width: 1px; height: 14px; background: var(--line2); margin: 0 2px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; height: var(--ctl-sm); padding: 0 8px 0 3px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: var(--fs-small); cursor: pointer; white-space: nowrap; }
+.pill:hover { background: var(--panel2); border-color: var(--line2); }
+.pill .r { font-family: var(--mono); }
+.pill.hit { border-color: color-mix(in srgb, var(--coral) 50%, var(--line)); }
+.pill.block { border-color: color-mix(in srgb, var(--refuse) 50%, var(--line)); }
+.pill.skip, .pill.na { border-style: dashed; border-color: color-mix(in srgb, var(--gold) 55%, var(--line)); }
+.pill.na { border-color: var(--line2); }
+.case-f { display: flex; align-items: center; gap: var(--sp-2); min-height: var(--bar); padding: 0 var(--sp-3); border-top: 1px solid var(--line); }
+.case-f > :first-child { flex: 1 1 auto; min-width: 0; }
+.final { font-size: var(--fs-small); color: var(--red-l); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.l2.cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--sp-5); align-items: start; }
+.l2.cols .span { grid-column: 1 / -1; }
+.logrow .t1 { font-size: var(--fs-body); }
+@media (max-width: 1100px) { .case-ev .end .ui-chip.ok { display: none; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ===== v1 · Case cards: every stop is a card with its key evidence as chips and the act on the card.
+   Layer 1: one card per stop (who · amount · verdict · the five checks as chips · default on silence · act).
+   Layer 2: a check chip opens its popover; "note ›" opens the quarantined note; "Case file ›" opens the
+   whole case in a sheet; "How verdicts form" and "Full log" are sheets. ===== */
+(function () {
+  const L = { show: { CLEAR: true, ASK: true, HOLD: true, BLOCK: true } };
+
+  function pills(id) {
+    const H = window.SH; const vd = H.verdict(id); let stage = '';
+    return vd.cs.map((x) => {
+      const gap = stage && x.stage !== stage ? '<span class="gap" aria-hidden="true"></span>' : ''; stage = x.stage;
+      const cls = x.r === 'hit' ? (x.eff === 'BLOCK' ? 'block' : 'hit') : x.r;
+      const tail = x.r === 'hit' ? ` <span class="r ${H.resCls(x)}">→ ${x.eff}</span>` : x.r === 'skip' ? ' <span class="r r-skip">skipped</span>' : x.r === 'na' ? ' <span class="r r-na">unknown</span>' : '';
+      return `${gap}<button class="pill ${cls}" data-act="check" data-id="${id}" data-k="${x.k}" title="${H.esc(x.name)} · ${H.esc(x.s)}">${H.ico(x)}${H.esc(x.short)}${tail}</button>`;
+    }).join('');
+  }
+
+  function caseCard(id) {
+    const H = window.SH; const { esc, money, deal, cp, verdict, vchip, S } = H;
+    const d = deal(id), c = cp(d), vd = verdict(id);
+    const isHold = id === 'D-0198';
+    const hs = isHold ? H.holdStatus() : null;
+    const why = vd.v === 'BLOCK' ? `blocked by ${vd.by.name} · final` : isHold ? (H.waiting() ? `held by ${vd.by.name}` : hs.line) : 'nothing found';
+    const foot = isHold
+      ? `${H.silence() || `<span class="ui-hint">${esc(hs.line)}</span>`}<button class="ui-btn plain sm" data-act="case" data-id="${id}">Case file ›</button>${H.holdActions()}`
+      : `<span class="final">Final · no release, here or in the approval window</span><button class="ui-btn plain sm" data-act="case" data-id="${id}">Case file ›</button>${H.blockActions(id)}`;
+    return `<article class="case ${vd.v}${isHold && H.waiting() ? ' need' : ''}" aria-labelledby="h-${id}">
+      <div class="ui-row two case-h">${isHold ? hs.chip : vchip(vd.v)}
+        <span class="main"><span class="t1" id="h-${id}"><a href="${H.dealHref(id)}">${esc(c.name)}</a> <span class="dim">· ${esc(d.item)}</span></span>
+          <span class="t2">${esc(why)} · ${esc(c.who)} · ${esc(id)} · ${esc(d.when)}</span></span>
+        <span class="amt">${money(d.amount)}</span></div>
+      <div class="case-ev" aria-label="What the shield ran">${pills(id)}<span class="end">${H.noteChip(id)}<span class="ui-chip ok" title="No PayPal call was made while it was stopped">0 PayPal calls</span></span></div>
+      <div class="case-f">${foot}</div></article>`;
+  }
+
+  function openCase(id) {
+    const H = window.SH; const { esc, money, deal, cp, verdict, vchip } = H;
+    const d = deal(id), c = cp(d), vd = verdict(id);
+    const state = id === 'D-0198' ? H.holdStatus().line : vd.v === 'BLOCK' ? 'final · no release exists' : 'cleared · the mandate still decides (Tables)';
+    UI.sheet({
+      title: `${id} · ${c.name} · ${money(d.amount)}`, size: 'wide',
+      body: `<div class="l2 cols"><div class="l2">
+        <section><h3>Who and what</h3><dl class="ui-kv"><dt>Counterparty</dt><dd>${esc(c.name)} · ${esc(c.who)}</dd><dt>Key</dt><dd>${c.key === '—' ? 'none' : `<span class="mono">${esc(c.key)}</span>`} · ${esc(c.paired)}</dd>
+          <dt>First seen</dt><dd>${esc(c.firstSeen)} · ${esc(c.deals)} deals before</dd><dt>Wants</dt><dd>${esc(d.item)} · <span class="money">${money(d.amount)}</span></dd>
+          <dt>Agent</dt><dd>${esc(d.agent)}</dd><dt>Verdict</dt><dd>${vchip(vd.v)} ${vd.by ? 'by ' + esc(vd.by.name) : 'nothing found'}</dd><dt>Now</dt><dd>${esc(state)}</dd><dt>PayPal</dt><dd>${esc(d.money)}</dd></dl></section>
+        <section><h3>Market</h3>${H.marketBand(id)}</section>
+        <section><h3>Their words</h3>${d.note ? H.quarantine(d.note, c.name) : '<span class="ui-hint">No note · listing text only</span>'}</section></div>
+        <section><h3>What the shield ran</h3>${H.checkList(id, true)}</section>
+        <section class="span"><h3>Record</h3>${H.logTable(H.dealLog(id))}</section></div>`,
+      actions: [{ label: 'Open deal', left: true, onClick: () => { location.href = H.dealHref(id); } }, { label: 'Done', kind: 'primary' }]
+    });
+  }
+
+  function render(view) {
+    const H = window.SH; const { esc, money, deal, cp, verdict, vchip, S, SHIELD_DEALS, ELSEWHERE } = H;
+    const all = SHIELD_DEALS.concat(ELSEWHERE);
+    const count = { CLEAR: 0, ASK: 0, HOLD: 0, BLOCK: 0 }; all.forEach((id) => count[verdict(id).v]++);
+    const seg = ['BLOCK', 'HOLD', 'ASK', 'CLEAR'].map((v) => `<button data-act="v1-filter" data-id="${v}" aria-pressed="${count[v] ? L.show[v] : 'false'}" ${count[v] ? '' : 'disabled'} title="${count[v] ? 'Show or hide ' + v : 'none this week'}">${v[0] + v.slice(1).toLowerCase()} ${count[v]}</button>`).join('');
+    const stops = SHIELD_DEALS.filter((id) => L.show[verdict(id).v]);
+    const el = ELSEWHERE.map((id) => { const d = deal(id), c = cp(d);
+      return `<div class="ui-row two act" data-act="case" data-id="${id}" tabindex="0">${vchip('CLEAR')}<span class="main"><span class="t1">${esc(c.name)} <span class="dim">· ${esc(d.item)}</span></span>
+        <span class="t2">vetted in Tables · 5 of 5 checks passed · the mandate decides · ${esc(id)} · ${esc(d.when)}</span></span><span class="amt">${money(d.amount)}</span><span class="chev"></span></div>`; }).join('');
+    const log = S.log.filter((a) => a.actor === 'shield' || a.actor.startsWith('human')).slice(0, 5);
+    view.innerHTML = `
+      <div class="ui-pagehead"><h1 tabindex="-1">Shield</h1><span class="sub">${H.waiting() ? '1 hold waits for you' : 'nothing held'} · stopped before any money moved</span>
+        <div class="actions"><div class="ui-seg" role="group" aria-label="Filter by verdict">${seg}</div><button class="ui-btn sm" data-act="how">How verdicts form</button></div></div>
+      <div class="ui-section"><div class="ui-section-h"><h2>Holds and blocks · newest first</h2><span class="end">${stops.length} shown · 0 PayPal calls among them</span></div>
+        ${stops.length ? stops.map(caseCard).join('') : '<div class="ui-group ui-empty">Every stop is filtered out · use the verdict filter above</div>'}</div>
+      ${L.show.CLEAR ? `<div class="ui-section"><div class="ui-section-h"><h2>Vetted elsewhere · cleared</h2><span class="end">CLEAR grants nothing</span></div><div class="ui-group">${el}</div></div>` : ''}
+      <div class="ui-section"><div class="ui-section-h"><h2>Shield log</h2><span class="end"><button class="ui-btn plain sm" data-act="log">Full log ›</button></span></div>
+        <div class="ui-group">${log.map((a) => `<div class="ui-row logrow"><span class="id">#${a.seq}</span><span class="main"><span class="t1">${esc(a.action)}</span></span><span class="ui-hint mono">${esc(a.t)} · ${esc(a.actor)}</span><a class="mono teal" href="${H.dealHref(a.deal)}">${esc(a.deal)}</a></div>`).join('')}</div></div>`;
+  }
+
+  window.V = {
+    render,
+    act(name, el) {
+      if (name === 'v1-filter') { const v = el.dataset.id; L.show[v] = !L.show[v]; window.SH.rerender(); return true; }
+      if (name === 'case') { openCase(el.dataset.id); return true; }
+      return false;
+    },
+    onKey(e) {
+      const r = e.target.closest && e.target.closest('.ui-row.act');
+      if (r && e.key === 'Enter') { e.preventDefault(); openCase(r.dataset.id); return true; }
+      return false;
+    }
+  };
+})();
+
+/* ===== Shared by the three Shield variants: data, main-window chrome (v2 baseline), layer-2 bodies,
+   simulated approval window. Each variant sets window.V = { render(view, insp), inspector, onKey(e),
+   onEsc(), act(name, el) } before this runs. ===== */
+(function () {
+  const F = window.FIX;
+  const $ = (s, r) => (r || document).querySelector(s);
+  const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+  const esc = UI.esc;
+  const money = (n) => n == null ? '—' : '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const deal = (id) => F.deals.find((d) => d.id === id);
+  const cp = (d) => F.counterparties[d.cp] || { name: d.cp };
+  const dealHref = (id) => `../../deal/variant-1/index.html#${id}`;
+  const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---- simulated clock: the snapshot moment, ticking ---- */
+  const T0 = new Date(F.nowISO).getTime(); const started = Date.now();
+  const now = () => T0 + (Date.now() - started);
+  const LAPSE = new Date('2026-10-29T20:00:00').getTime(); // D-0198 silence: "the request lapses at 20:00"
+  const pad = (n) => String(n).padStart(2, '0');
+  const clock = (t) => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const dur = (ms) => { if (ms <= 0) return '0 m'; const m = Math.floor(ms / 60000), h = Math.floor(m / 60); return h ? `${h} h ${pad(m % 60)} m` : `${m} m`; };
+  const hms = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 3600)}:${pad(Math.floor(s % 3600 / 60))}:${pad(s % 60)}`; };
+
+  /* ---- what the shield ran, per vetted intent. Consistent with FIX.deals[].rules / note / typology / mkt
+     and FIX.market. Pipeline order is the report's: deterministic rules, then the Channel3 band, then the
+     quarantined engine (text only). ---- */
+  const CHECKS = [
+    { k: 'payee', name: 'Payee = signed deal payee', short: 'Payee', stage: 'rules', kind: 'deterministic', effect: 'BLOCK' },
+    { k: 'ff', name: '“Pay as friends & family”', short: 'F&F request', stage: 'rules', kind: 'deterministic · regex on NOTE / invoice text', effect: 'BLOCK' },
+    { k: 'newcp', name: 'New counterparty over $100', short: 'New counterparty', stage: 'rules', kind: 'deterministic · first_seen today and amount > $100', effect: 'HOLD' },
+    { k: 'market', name: 'Over 1.4 × market median', short: 'Market', stage: 'market', kind: 'Channel3 /similar-products', effect: 'HOLD' },
+    { k: 'typology', name: 'Scam typology in their text', short: 'Text check', stage: 'engine', kind: 'quarantined engine · tool-less run', effect: 'HOLD' }
+  ];
+  const STAGES = { rules: '1 · Deterministic rules', market: '2 · Market band', engine: '3 · Quarantined engine' };
+  const SHIELD_EVIDENCE = {
+    'D-0196': {
+      payee: { r: 'na', s: 'unknown · unpaired', l: 'deal-hub-22 is not paired and has no pinned key, so there is no declared payee to compare against. Shown as unknown, not as passed.' },
+      ff: { r: 'hit', s: 'hit → BLOCK', l: 'Their note asks to be paid as friends & family. Goods must be paid as a commercial transaction (PayPal User Agreement). This rule is deterministic and final.', quote: 'friends & family' },
+      newcp: { r: 'hit', s: 'hit → HOLD', l: 'First seen Wed 28 Oct, the day of the offer, and $460.00 is over $100.' },
+      market: { r: 'hit', s: '45% over → HOLD', l: '$460.00 against a Channel3 comparables median of $318 (p25 $301 · p75 $336). The flag line is 1.4 × $318 = $445.20.', price: 460 },
+      typology: { r: 'hit', s: 'Buyer Scam', l: 'The quarantined engine read their note as data and returned “Buyer Scam”, one of the User Agreement typologies. Its verdict can only add caution, never remove it.', typology: 'Buyer Scam' }
+    },
+    'D-0198': {
+      payee: { r: 'pass', s: 'pass', l: 'pixel-bay’s paired key aa31…f0 declares the payee the request names.' },
+      ff: { r: 'pass', s: 'pass', l: 'No friends & family wording in their note.' },
+      newcp: { r: 'hit', s: 'hit → HOLD', l: 'First seen Thu 29 Oct (today), paired today, 0 deals before, and $140.00 is over $100.' },
+      market: { r: 'skip', s: 'skipped · no reference', l: 'Channel3 has no match for “Monitor stand, walnut (2)”. The price rule was skipped, not passed: nobody has checked this price.' },
+      typology: { r: 'pass', s: 'none found', l: 'The quarantined engine read their note as data and found no typology.' }
+    },
+    'D-0193': {
+      payee: { r: 'pass', s: 'pass', l: 'Payee north-desk-biz (sandbox) = the declared payee of Dan’s paired key 47be…0d.' },
+      ff: { r: 'pass', s: 'pass', l: 'No friends & family wording in Dan’s envelopes.' },
+      newcp: { r: 'pass', s: 'pass · since 12 Oct', l: 'First seen Mon 12 Oct, one deal closed before (D-0187).' },
+      market: { r: 'pass', s: 'pass · list 22% over', l: 'List price $389 is 22% over the $318 median, under the 40% flag ($445.20). Dan’s current ask is $329.', price: 389, ours: 329 },
+      typology: { r: 'pass', s: 'none found', l: 'The quarantined engine read the listing text as data and found no typology.' }
+    }
+  };
+  const SHIELD_DEALS = ['D-0198', 'D-0196'];          // module list: holds and blocks, newest first
+  const ELSEWHERE = ['D-0193'];                        // vetted in another module (Tables), shield CLEAR
+  const RANK = { CLEAR: 0, ASK: 1, HOLD: 2, BLOCK: 3 };
+
+  const S = {
+    locked: false, engine: true, hold: 'HOLD', kept: false,
+    approval: null, releasedAt: null, orderUntil: null, seq: 4419,
+    log: F.audit.map((a) => Object.assign({}, a))
+  };
+  const waiting = () => S.hold === 'HOLD' || S.hold === 'APPROVAL';
+
+  function checks(id) {
+    const ev = SHIELD_EVIDENCE[id];
+    return CHECKS.map((c) => {
+      let res = ev[c.k];
+      if (c.k === 'typology' && !S.engine) res = { r: 'skip', s: 'skipped · no engine', l: 'No engine is set up, so the quarantined text check did not run. The deterministic rules and the market band still ran; the model check can only ever add caution.' };
+      return Object.assign({}, c, res, { eff: res.r === 'hit' ? c.effect : null });
+    });
+  }
+  function verdict(id) {
+    const cs = checks(id);
+    let v = 'CLEAR', by = null;
+    cs.forEach((c) => { if (c.eff && RANK[c.eff] > RANK[v]) { v = c.eff; by = c; } });
+    return { v, by, cs, hits: cs.filter((c) => c.r === 'hit'), skips: cs.filter((c) => c.r === 'skip') };
+  }
+
+  /* ---- HTML atoms ---- */
+  const VCH = { CLEAR: 'ok', ASK: 'gold', HOLD: 'coral', BLOCK: 'red', REL: 'teal', OFF: '' };
+  const vchip = (v, label) => `<span class="ui-chip ${VCH[v]}">${esc(label || v)}</span>`;
+  const RES = { hit: ['!', 'hit'], pass: ['✓', 'passed'], skip: ['–', 'skipped, not passed'], na: ['?', 'unknown'] };
+  const resCls = (c) => c.r === 'hit' && c.eff === 'BLOCK' ? 'r-block' : 'r-' + c.r;
+  const ico = (c) => `<span class="ck ${resCls(c)}" title="${RES[c.r][1]}" aria-label="${RES[c.r][1]}">${RES[c.r][0]}</span>`;
+  const quarantine = (text, who) => `<div class="quarantine"><div class="q-label">Untrusted · ${esc(who)} · plain text</div><div class="q-text">${esc(text)}</div></div>`;
+  const noteChip = (id) => deal(id).note ? `<button class="ui-chip notechip" data-act="note" data-id="${id}" title="Their note, quarantined: plain text, never instructions">note ›</button>` : '';
+
+  function marketBand(id) {
+    const d = deal(id); const ev = SHIELD_EVIDENCE[id].market; const m = F.market[d.ref];
+    if (!m || ev.r === 'skip') return `<div class="nomarket">No market reference · no Channel3 match for “${esc(d.item)}”. Skipped, not passed.</div>`;
+    const flag = +(1.4 * m.median).toFixed(2);
+    const pts = [m.p25, m.p75, flag, ev.price, ev.ours || ev.price];
+    const lo = Math.min.apply(null, pts) * 0.93, hi = Math.max.apply(null, pts) * 1.04;
+    const p = (v) => (v - lo) / (hi - lo) * 100;
+    const x = (v) => p(v).toFixed(2) + '%';
+    const lab = (v, cls, text) => `<span class="lab ${cls}" style="left:${x(v)};transform:translateX(${p(v) > 78 ? '-100%' : p(v) < 18 ? '0' : '-50%'})">${text}</span>`;
+    const pct = Math.round((ev.price / m.median - 1) * 100);
+    return `<div class="mband" role="img" aria-label="${esc(id)} price ${money(ev.price)} against Channel3 median ${money(m.median)}, interquartile $${m.p25} to $${m.p75}, flag at ${money(flag)}">
+        <div class="axis"></div><div class="iqr" style="left:${x(m.p25)};width:calc(${x(m.p75)} - ${x(m.p25)})"></div>
+        <div class="med" style="left:${x(m.median)}"></div>${lab(m.median, '', `median $${m.median}`)}
+        <div class="flag" style="left:${x(flag)}"></div>${lab(flag, '', `1.4× ${money(flag)}`)}
+        ${ev.ours ? `<div class="px ours" style="left:${x(ev.ours)}"></div>${lab(ev.ours, 'top teal', `ask $${ev.ours}`)}` : ''}
+        <div class="px" style="left:${x(ev.price)}"></div>${lab(ev.price, 'top coral', `${ev.ours ? 'list' : 'offer'} $${ev.price} · ${pct >= 0 ? '+' : ''}${pct}%`)}
+      </div><div class="ui-hint">IQR $${m.p25}–$${m.p75} · ${esc(m.src)} · retrieved ${esc(m.retrieved)}</div>`;
+  }
+  function engineFence() {
+    return S.engine
+      ? `<ul class="cklist"><li><span class="ck r-pass">✓</span><span>${esc(F.owner.engine)} · tool-less profile · one turn</span></li><li><span class="ck r-pass">✓</span><span>init check: 0 built-in tools · 0 MCP servers, or the run aborts</span></li><li><span class="ck r-pass">✓</span><span>output validated against a schema in Rust</span></li><li><span class="ck r-pass">✓</span><span>its verdict can only add caution</span></li></ul>`
+      : `<p class="det r-skip"><b>Model check skipped.</b> No engine is configured; the rules and the market band still ran. <a class="teal" href="../../setup/variant-1/index.html">Settings › engine</a></p>`;
+  }
+  /* one check, explained (popover / inspector / sheet body) */
+  function checkDetail(id, k) {
+    const d = deal(id), c = cp(d), x = verdict(id).cs.find((q) => q.k === k);
+    let extra = '';
+    if (k === 'market') extra = marketBand(id);
+    if (k === 'ff' && d.note && x.quote) {
+      const i = d.note.toLowerCase().indexOf(x.quote.toLowerCase());
+      const t = i < 0 ? esc(d.note) : esc(d.note.slice(0, i)) + '<mark class="hit">' + esc(d.note.slice(i, i + x.quote.length)) + '</mark>' + esc(d.note.slice(i + x.quote.length));
+      extra = `<div class="quarantine"><div class="q-label">Untrusted · ${esc(c.name)} · match marked by the rule</div><div class="q-text">${t}</div></div>`;
+    }
+    if (k === 'typology') extra = (d.note ? quarantine(d.note, c.name) : '') + `<div style="margin-top:8px">${engineFence()}</div>`;
+    return `<div class="ckhead">${ico(x)}<b class="${resCls(x)}">${esc(RES[x.r][1])}${x.eff ? ' → ' + x.eff : ''}</b><span class="ui-hint">${esc(STAGES[x.stage])}</span></div>
+      <p class="det">${esc(x.l)}</p>${extra}<div class="ui-hint" style="margin-top:6px">${esc(x.kind)} · on hit → ${x.effect}</div>`;
+  }
+  /* every check for one intent, grouped by stage */
+  function checkList(id, withText) {
+    let stage = '';
+    return `<ul class="cklist">${verdict(id).cs.map((x) => {
+      const h = x.stage !== stage ? `<li class="stg">${esc(STAGES[x.stage])}</li>` : ''; stage = x.stage;
+      return `${h}<li>${ico(x)}<span>${esc(x.name)}</span><span class="res ${resCls(x)}">${esc(x.s)}</span>${withText ? `<span class="l">${esc(x.l)}</span>` : ''}</li>`;
+    }).join('')}</ul>`;
+  }
+  const dealLog = (id) => S.log.filter((a) => a.deal === id);
+  const logRows = (rows) => rows.map((a) => `<tr><td class="mono">#${a.seq}</td><td class="mono">${esc(a.t)}</td><td>${esc(a.actor)}</td><td class="clip">${esc(a.action)}</td><td><a class="teal mono" href="${dealHref(a.deal)}">${esc(a.deal)}</a></td></tr>`).join('');
+  const logTable = (rows) => `<table class="ui-table"><thead><tr><th>Seq</th><th>Time</th><th>Actor</th><th>Action</th><th>Deal</th></tr></thead><tbody>${logRows(rows)}</tbody></table>`;
+
+  /* ---- shared layer-2 sheets ---- */
+  function howBody() {
+    return `<div class="l2"><section><h3>Order · strongest verdict wins</h3><ol class="steps">
+        <li><b>Deterministic rules</b>: payee, friends &amp; family, new counterparty.</li>
+        <li><b>Channel3 market band</b>: over 1.4 × median → HOLD. No match → <span class="r-skip">skipped</span>, not passed.</li>
+        <li><b>Quarantined engine</b> reads their text as data: a scam typology → HOLD.</li></ol>
+        <p class="det">Nothing can turn a BLOCK into CLEAR. The shield can refuse a countersignature; it can never grant one.</p></section>
+      <section><h3>Verdicts</h3><dl class="ui-kv"><dt>${vchip('CLEAR')}</dt><dd>Nothing found. The mandate still decides.</dd><dt>${vchip('ASK')}</dt><dd>Needs your countersign, even under the clause-6 threshold.</dd>
+        <dt>${vchip('HOLD')}</dt><dd>Stopped before any PayPal call. You may release it in the approval window.</dd><dt>${vchip('BLOCK')}</dt><dd>Final. No release, no PayPal link.</dd></dl></section>
+      <section><h3>The text check</h3>${engineFence()}</section></div>`;
+  }
+  // a popover (legend) may hold the link that opens a sheet: close it first, the way an outside click would
+  const closePopovers = () => document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+  const openHow = () => { closePopovers(); UI.sheet({ title: 'How a shield verdict forms', body: howBody() }); };
+  const openLog = () => UI.sheet({ title: 'Shield log · append-only, hash-chained', size: 'wide', body: logTable(S.log.filter((a) => a.actor === 'shield' || a.actor.startsWith('human'))) });
+  function openNote(el, id) {
+    const d = deal(id), c = cp(d);
+    UI.popover(el, `${quarantine(d.note, c.name)}<div class="ui-hint" style="margin-top:6px">Rendered as plain text: never markdown, never links, never passed to an agent as instructions. Only the tool-less engine reads it, as data.</div>`, { title: `Their note · ${id}` });
+  }
+  function openCheck(el, id, k) {
+    const x = CHECKS.find((q) => q.k === k);
+    UI.popover(el, checkDetail(id, k), { title: `${x.name} · ${id}` });
+  }
+
+  /* ---- the one hold: state words, default on silence, actions ---- */
+  function holdStatus() {
+    switch (S.hold) {
+      case 'APPROVAL': return { chip: vchip('HOLD'), line: 'open in the approval window' };
+      case 'RELEASED': return { chip: vchip('REL', 'Released'), line: `released by you ${clock(S.releasedAt)} · approve on PayPal next · nothing paid` };
+      case 'IN_BROWSER': return { chip: vchip('REL', 'In browser'), line: 'PayPal open in your browser · nothing paid yet' };
+      case 'REFUSED': return { chip: vchip('OFF', 'Refused'), line: 'refused by you · 0 PayPal calls' };
+      default: return { chip: vchip('HOLD'), line: S.kept ? 'kept held by you · before any PayPal call' : 'held before any PayPal call' };
+    }
+  }
+  const lapseLine = () => `<span data-cd="lapse">${dur(LAPSE - now())}</span>`;
+  function silence() {
+    if (waiting()) return `<span class="ui-silence">silent → <b>lapses 20:00</b> · nothing is paid · ${lapseLine()}</span>`;
+    if (S.hold === 'RELEASED' || S.hold === 'IN_BROWSER') return `<span class="ui-silence">silent → <b>order expires</b> · no money moves · <span data-cd="order">${hms(S.orderUntil - now())}</span></span>`;
+    return '';
+  }
+  function releaseBtn(short) {
+    if (S.locked) return `<button class="ui-btn gold sm locked" data-act="unlock" title="Idle 17 min · privileged actions are locked · unlock with Windows Hello">${short ? 'Unlock' : 'Unlock with Windows Hello'}</button>`;
+    return `<button class="ui-btn gold sm" data-act="release" title="Opens the approval window; the release happens there">Review &amp; release ↗</button>`;
+  }
+  function holdActions(o) {
+    o = o || {};
+    switch (S.hold) {
+      case 'HOLD': return `${o.noRefuse ? '' : '<button class="ui-btn sm danger" data-act="refuse">Refuse…</button>'}${S.kept || o.noKeep ? '' : '<button class="ui-btn sm" data-act="keep">Keep held</button>'}${releaseBtn()}`;
+      case 'APPROVAL': return '<button class="ui-btn gold sm" data-act="focus-approval">In the approval window ↗</button>';
+      case 'RELEASED': return '<button class="ui-btn gold sm" data-act="review-approve">Review &amp; approve ↗</button>';
+      case 'IN_BROWSER': return `<button class="ui-btn sm" data-act="focus-approval">In your browser · <span data-cd="order">${hms(S.orderUntil - now())}</span></button>`;
+      default: return '';
+    }
+  }
+  const blockActions = (id) => `<button class="ui-btn sm" data-act="export" data-id="${id}">Export transcript</button>`;
+
+  /* ---- chrome ---- */
+  const RAIL = [['tables', 'Tables'], ['spend', 'Spend'], ['shield', 'Shield'], ['counter', 'Counter'], ['rescue', 'Rescue'], ['book', 'Book']];
+  function railCount(key) {
+    if (key === 'shield') return waiting() ? '<span class="cnt need" title="needs you">1</span>' : '<span class="cnt">0</span>';
+    if (key === 'book') return '';
+    const need = F.deals.filter((d) => d.module === key && d.pending).length;
+    return need ? `<span class="cnt need" title="needs you">${need}</span>` : `<span class="cnt">${F.deals.filter((d) => d.module === key).length}</span>`;
+  }
+  function weekMeter() {
+    const moved = (s) => ['CAPTURED', 'RECEIPTED', 'RECONCILED'].includes(s);
+    const out = F.deals.filter((d) => d.side === 'buyer' && moved(d.state)).reduce((a, d) => a + d.amount, 0);
+    const inn = F.deals.filter((d) => d.side === 'seller' && moved(d.state)).reduce((a, d) => a + d.amount, 0);
+    return { out, inn };
+  }
+  function chrome() {
+    const w = weekMeter();
+    return `<div class="ui-app">
+      <header class="ui-titlebar">
+        <nav class="ui-crumbs" aria-label="Breadcrumb"><a href="../../../index.html#home" title="Back to The Table (Esc)">The Table</a><span class="sep">›</span><span>Shield</span></nav><span class="kbd" title="Esc goes back to The Table">Esc</span>
+        <span class="ui-spacer"></span>
+        <span class="tmeter" title="Dollars your agents moved this week (captured only)"><b>${money(w.out)} out · ${money(w.inn)} in</b><span>wallet · this week</span></span>
+        <span class="tmeter eng" id="engMeter"></span>
+        <span class="badge sandbox" title="Every screen carries its mode">Sandbox</span>
+        <span id="lockSlot"></span>
+      </header>
+      <div class="ui-split" id="split">
+        <aside class="ui-sidebar" aria-label="Modules"><div class="ui-sb-head">Modules</div>
+          ${RAIL.map(([k, n]) => `<a class="ui-sb-item${k === 'shield' ? ' on' : ''}" href="${k === 'shield' ? '#' : `../../${k}/variant-1/index.html`}"${k === 'shield' ? ' aria-current="page"' : ''}><span class="ico"><span class="ui-dot" style="color:var(--m-${k})"></span></span><span class="lbl">${n}</span><span data-rc="${k}">${railCount(k)}</span></a>`).join('')}
+          <div class="ui-sb-foot"><a class="ui-sb-item" href="../../mandate/variant-1/index.html"><span class="lbl">Mandates</span></a><a class="ui-sb-item" href="../../setup/variant-1/index.html"><span class="lbl">Settings</span></a>
+            <div class="ui-proto"><button class="ui-btn sm" data-act="toggle-lock" id="simLock" aria-pressed="false" title="Prototype: simulate 15 minutes idle"><span class="lbl">Idle 15 min · lock</span><span class="short">Idle</span></button><button class="ui-btn sm" data-act="toggle-engine" id="simEng" aria-pressed="false" title="Prototype: no engine configured"><span class="lbl">No engine configured</span><span class="short">Eng</span></button></div></div>
+        </aside>
+        <section class="ui-main" id="view" tabindex="-1"></section>
+        <aside class="ui-inspector" id="insp" aria-label="Inspector" aria-live="polite" hidden></aside>
+      </div></div>
+      <div id="apLayer" hidden></div>`;
+  }
+  function refreshChrome() {
+    $('#engMeter').innerHTML = S.engine
+      ? `<b>~$${F.engineWeekUSD.toFixed(2)}</b><span>engine · ${esc(F.owner.engine)} estimate · not a bill</span>`
+      : `<b>no engine</b><span>model checks skipped · rules still run</span>`;
+    $('#lockSlot').innerHTML = S.locked
+      ? `<button class="ui-btn sm gold locked" data-act="unlock" title="Privileged actions are locked. Click: unlock (Windows Hello, simulated)">Locked · idle 17 min</button>`
+      : `<button class="ui-btn sm" data-act="toggle-lock" title="Prototype: simulate 15 minutes idle">Unlocked</button>`;
+    $('#simLock').setAttribute('aria-pressed', String(S.locked));
+    $('#simEng').setAttribute('aria-pressed', String(!S.engine));
+    $$('[data-rc]').forEach((el) => { el.innerHTML = railCount(el.dataset.rc); });
+  }
+
+  function toast(text, kind, sub) {
+    const n = document.createElement('div'); n.textContent = text;
+    if (sub) { const s = document.createElement('div'); s.className = 'ui-hint mono'; s.textContent = sub; n.appendChild(s); }
+    UI.toast(n, kind);
+  }
+  function audit(action) {
+    const t = clock(now()) + ':' + pad(new Date(now()).getSeconds());
+    const row = { seq: S.seq++, t, actor: 'human:maya', action, deal: 'D-0198' };
+    S.log.unshift(row); return row;
+  }
+
+  /* ---- render loop ---- */
+  function rerender() {
+    const view = $('#view'); const insp = $('#insp'); const top = view.scrollTop;
+    const a = document.activeElement; const fk = a && (a.dataset.fk || (a.dataset.act ? 'act:' + a.dataset.act + ':' + (a.dataset.id || '') : null));
+    window.V.render(view, insp);
+    if (window.V.inspector) UI.inspector($('#split'), true);
+    refreshChrome(); renderApproval();
+    view.scrollTop = top;
+    if (fk && !$('#apLayer').contains(a) && !document.body.contains(a)) {
+      const sel = fk.startsWith('act:') ? `[data-act="${fk.split(':')[1]}"]${fk.split(':')[2] ? `[data-id="${fk.split(':')[2]}"]` : ''}` : `[data-fk="${fk}"]`;
+      const el = $(sel); if (el) el.focus({ preventScroll: true });
+    }
+  }
+
+  /* ---- simulated approval window (a separate privileged OS window in the product) ---- */
+  function openApproval(phase) {
+    S.approval = { phase: phase || (S.locked ? 'LOCKED' : 'CHECKING'), typed: '' };
+    if (S.hold === 'HOLD') S.hold = 'APPROVAL';
+    rerender();
+    if (S.approval.phase === 'CHECKING') setTimeout(() => { if (S.approval && S.approval.phase === 'CHECKING') { S.approval.phase = 'READY'; renderApproval(true); } }, reduced() ? 50 : 650);
+  }
+  function closeApproval() {
+    if (!S.approval) return;
+    if (S.hold === 'APPROVAL') S.hold = 'HOLD';
+    S.approval = null; rerender();
+    const r = $('[data-act="release"]') || $('[data-act="review-approve"]') || $('#view'); if (r) r.focus();
+  }
+  function renderApproval(focus) {
+    const Lr = $('#apLayer'); const A = S.approval;
+    if (!A) { Lr.hidden = true; Lr.innerHTML = ''; return; }
+    const d = deal('D-0198'); const vd = verdict('D-0198'); const c = F.counterparties.pixel;
+    const steps = ['Checking', 'Ready', 'Released', 'In browser'];
+    const ph = { CHECKING: 0, READY: 1, LOCKED: 1, RELEASED: 2, 'IN BROWSER': 3 }[A.phase];
+    const strip = `<div class="apsteps" aria-label="Approval states">${steps.map((s, i) => `<span class="ui-chip ${i < ph ? 'ok' : i === ph ? 'gold' : 'line'}">${i === 1 && A.phase === 'LOCKED' ? 'Locked' : s}</span>`).join('')}</div>`;
+    const ok = A.typed.trim().toLowerCase() === 'pixel-bay';
+    let title = 'Release a shield hold', body = '', foot = '';
+    if (ph <= 1) {
+      body = `<h2>Release the hold on ${money(d.amount)}</h2>
+        <div class="ui-hint">to <b class="muted">pixel-bay</b> · ${esc(c.who)} · first seen ${esc(c.firstSeen)} · D-0198</div>
+        <div class="apchecks" aria-label="Summary from the wallet core, read-only">${vd.cs.map((x) => `<span>${ico(x)}${esc(x.short)}</span>`).join('')}${noteChip('D-0198')}</div>
+        ${A.phase === 'LOCKED' ? `<div class="notice locked"><span class="n-code">Locked</span><span>Idle 17 min. The wallet re-authenticates its privileged tier after 15 idle minutes.</span></div>`
+        : A.phase === 'CHECKING' ? '<div class="ui-hint">Checking the summary against the ledger…</div>'
+        : `<label for="typeName">Type the payee’s name to release: <b class="mono">pixel-bay</b></label>
+          <input class="ui-field typein${ok ? ' ok' : ''}" id="typeName" value="${esc(A.typed)}" autocomplete="off" spellcheck="false" aria-describedby="relNote">
+          <div class="ui-hint" id="relNote">Releasing does not pay. It lets the purchase continue to PayPal, where you approve ${money(d.amount)} on PayPal’s own page.</div>`}`;
+      foot = `<button class="ui-btn" data-ap="close">Keep it held</button>${A.phase === 'LOCKED' ? '<button class="ui-btn gold locked" data-ap="unlock">Unlock with Windows Hello</button>' : `<button class="ui-btn gold" data-ap="release" ${ok && A.phase === 'READY' ? '' : 'disabled'}>Release hold</button>`}`;
+    } else if (ph === 2) {
+      title = 'Hold released · D-0198';
+      body = `<h2>Next: approve ${money(d.amount)} on PayPal</h2>
+        <dl class="ui-kv"><dt>Decided by</dt><dd class="mono">human:2026-10-29T${clock(S.releasedAt)}</dd><dt>Audit</dt><dd>#${dealLog('D-0198')[0].seq} · append-only, hash-chained</dd>
+          <dt>Order</dt><dd class="mono">2PB4…7H · AUTHORIZE · www.sandbox.paypal.com</dd><dt>Market</dt><dd class="r-skip">no reference · still unchecked</dd>
+          <dt>Approve window</dt><dd><span class="cd" data-cd="order">${hms(S.orderUntil - now())}</span></dd></dl>
+        ${S.locked ? '<div class="notice locked"><span class="n-code">Locked</span><span>Idle 17 min.</span></div>' : ''}`;
+      foot = `<button class="ui-btn" data-ap="close">Decide later</button>${S.locked ? '<button class="ui-btn gold locked" data-ap="unlock">Unlock with Windows Hello</button>' : '<button class="ui-btn gold" data-ap="browser">Open PayPal in your browser ↗</button>'}`;
+    } else {
+      title = 'In your browser · D-0198';
+      body = `<h2>Approve ${money(d.amount)} on PayPal’s page</h2>
+        <div class="notice"><span class="n-code">Browser</span><span>Opened in your system browser. PayPal pages are never drawn in this app; this window polls <span class="mono">GET /v2/checkout/orders/2PB4…7H</span> every 5 s.</span></div>
+        <div>Approve window <span class="cd" data-cd="order">${hms(S.orderUntil - now())}</span></div>`;
+      foot = '<button class="ui-btn" data-ap="close">Close · keeps waiting</button>';
+    }
+    Lr.innerHTML = `<div class="apwin" role="dialog" aria-modal="true" aria-label="Approval window">
+      <div class="ui-titlebar"><span class="ap-tag">approval</span><span class="ui-title">${esc(title)}</span><span class="ui-spacer"></span><span class="badge sandbox">Sandbox</span><button class="ui-btn plain icon" data-ap="close" aria-label="Close the approval window">✕</button></div>
+      <div class="apbody">${strip}${body}${silence()}</div><div class="apfoot">${foot}</div></div>`;
+    Lr.hidden = false;
+    if (focus || !Lr.contains(document.activeElement)) {
+      const f = $('#typeName', Lr) || $('[data-ap="unlock"]', Lr) || $('[data-ap="browser"]', Lr) || $('.apfoot .ui-btn', Lr);
+      if (f) { f.focus(); if (f.id === 'typeName') { const n = f.value.length; f.setSelectionRange(n, n); } }
+    }
+  }
+  function apAct(name) {
+    const A = S.approval; if (!A) return;
+    if (name === 'close') return closeApproval();
+    if (name === 'unlock') { S.locked = false; A.phase = A.phase === 'LOCKED' ? 'READY' : A.phase; toast('Windows Hello · unlocked', 'ok', 'prototype · sandbox simulation'); rerender(); renderApproval(true); return; }
+    if (name === 'release') {
+      if (A.typed.trim().toLowerCase() !== 'pixel-bay' || S.locked) return;
+      S.releasedAt = now(); S.orderUntil = now() + 6 * 3600e3; S.hold = 'RELEASED'; A.phase = 'RELEASED';
+      const row = audit('shield.release D-0198 pixel-bay $140.00 · typed payee name · decided_by human');
+      toast('Hold released in the approval window. Nothing paid yet: approval on PayPal is next.', 'gold', `audit #${row.seq} · decided_by human:2026-10-29T${clock(S.releasedAt)}`);
+      rerender(); renderApproval(true); return;
+    }
+    if (name === 'browser') { S.hold = 'IN_BROWSER'; A.phase = 'IN BROWSER'; toast('Opened PayPal in your system browser', 'gold', 'prototype · no PayPal page is drawn in the app'); rerender(); renderApproval(true); }
+  }
+
+  /* ---- events ---- */
+  function act(name, el) {
+    if (window.V.act && window.V.act(name, el)) return;
+    switch (name) {
+      case 'release': if (S.locked) return; return openApproval();
+      case 'review-approve': return openApproval(S.hold === 'IN_BROWSER' ? 'IN BROWSER' : 'RELEASED');
+      case 'focus-approval': if (!S.approval) openApproval(S.hold === 'IN_BROWSER' ? 'IN BROWSER' : undefined); else renderApproval(true); return;
+      case 'unlock': S.locked = false; toast('Windows Hello · unlocked', 'ok', 'prototype · sandbox simulation'); return rerender();
+      case 'toggle-lock': S.locked = !S.locked; if (S.approval && S.locked && S.approval.phase === 'READY') S.approval.phase = 'LOCKED'; toast(S.locked ? 'Idle 15 min: privileged buttons now show a lock' : 'Unlocked', S.locked ? 'gold' : 'ok', 'prototype · sandbox simulation'); return rerender();
+      case 'toggle-engine': S.engine = !S.engine; toast(S.engine ? `Engine back: ${F.owner.engine} (tool-less profile)` : 'No engine: model check skipped; the rules still run', '', 'prototype · sandbox simulation'); return rerender();
+      case 'keep': S.kept = true; toast('Left held. At 20:00 the request lapses · nothing is paid.'); return rerender();
+      case 'refuse':
+        return UI.sheet({ title: 'Refuse pixel-bay’s $140.00 request?', size: 'narrow',
+          body: `<p style="margin:0 0 8px">The hold becomes a refusal. No PayPal call was made and none will be; there is no release afterwards.</p><dl class="ui-kv"><dt>Deal</dt><dd>D-0198 · Monitor stand, walnut (2)</dd><dt>Recorded</dt><dd>audit log · decided_by human</dd></dl>`,
+          actions: [{ label: 'Cancel' }, { label: 'Refuse for good', kind: 'danger', onClick: () => act('refuse-confirm') }] });
+      case 'refuse-confirm': {
+        if (S.hold !== 'HOLD') return;
+        S.hold = 'REFUSED'; const row = audit('shield.refuse D-0198 pixel-bay $140.00 · decided_by human');
+        toast('Refused. No PayPal call was ever made.', 'ok', `audit #${row.seq}`); return rerender();
+      }
+      case 'export': toast(`Transcript export ready · ${el.dataset.id}`, 'ok', 'signed file for a dispute · prototype'); return;
+      case 'note': return openNote(el, el.dataset.id);
+      case 'check': return openCheck(el, el.dataset.id, el.dataset.k);
+      case 'how': return openHow();
+      case 'log': return openLog();
+    }
+  }
+  function boot() {
+    $('#app').innerHTML = chrome();
+    document.addEventListener('click', (e) => {
+      const ap = e.target.closest('[data-ap]'); if (ap) { e.preventDefault(); return apAct(ap.dataset.ap); }
+      if (e.target.id === 'apLayer') return closeApproval();
+      const a = e.target.closest('[data-act]'); const link = e.target.closest('a[href]');
+      if (a && !(link && a.contains(link))) { e.preventDefault(); act(a.dataset.act, a); }
+    });
+    document.addEventListener('input', (e) => {
+      if (e.target.id === 'typeName' && S.approval) {
+        S.approval.typed = e.target.value; const ok = S.approval.typed.trim().toLowerCase() === 'pixel-bay';
+        e.target.classList.toggle('ok', ok); const b = $('[data-ap="release"]'); if (b) b.disabled = !ok;
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (S.approval) {
+        if (e.key === 'Escape') { e.preventDefault(); return closeApproval(); }
+        if (e.key === 'Enter' && e.target.id === 'typeName') { e.preventDefault(); return apAct('release'); }
+        if (e.key === 'Tab') { const f = $$('button:not([disabled]), input', $('#apLayer')); if (!f.length) return; const i = f.indexOf(document.activeElement);
+          if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); } else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); } }
+        return;
+      }
+      if (UI.open) return; // a sheet or popover is on top; ui.js handles its Esc
+      const typing = /INPUT|TEXTAREA|SELECT/.test(e.target.tagName);
+      if (window.V.onKey && !typing && window.V.onKey(e)) return;
+      if (e.key === 'Escape' && !typing) {
+        if (window.V.onEsc && window.V.onEsc()) return;
+        location.href = '../../../index.html#home';
+      }
+    });
+    setInterval(() => {
+      $$('[data-cd="lapse"]').forEach((el) => { el.textContent = dur(LAPSE - now()); });
+      if (S.orderUntil) $$('[data-cd="order"]').forEach((el) => { el.textContent = hms(S.orderUntil - now()); });
+    }, 1000);
+    rerender();
+    const h1 = $('#view h1'); if (h1) h1.focus({ preventScroll: true });
+  }
+
+  window.SH = { F, S, $, $$, esc, money, deal, cp, dealHref, now, clock, dur, hms, reduced, CHECKS, STAGES, SHIELD_EVIDENCE, SHIELD_DEALS, ELSEWHERE, RES,
+    waiting, checks, verdict, vchip, ico, resCls, quarantine, noteChip, marketBand, engineFence, checkDetail, checkList, dealLog, logTable, logRows,
+    holdStatus, holdActions, blockActions, releaseBtn, silence, lapseLine, rerender, toast, act, openHow, openLog, openNote, openCheck };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+})();
+</script>
+<script src="../../../shared/shell.js" data-page="shield" data-variant="1"></script>
+</body>
+</html>

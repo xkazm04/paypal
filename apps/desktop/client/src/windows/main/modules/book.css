@@ -1,0 +1,226 @@
+/* Main window · Book module (modules/book.tsx) - the "Ledger Lens" (prototype/pages/book/variant-1).
+   Owner: the book agent. Page rules are scoped under .mod-book; Layer-2 content that portals out of the page
+   (sheets, popovers) is scoped under .bk-l2 / .bk-pop. Colours from tokens only. */
+
+.mod-book .dim { color: var(--dim); }
+/* money is kept apart by state: each state has its own ink */
+.mod-book .bk-captured, .bk-l2 .bk-captured { color: var(--ok); }
+.mod-book .bk-held, .bk-l2 .bk-held { color: var(--gold-l); }
+.mod-book .bk-motion, .bk-l2 .bk-motion { color: var(--teal-l); }
+.mod-book .bk-stopped, .bk-l2 .bk-stopped { color: var(--dim); }
+
+/* Simple: four plain totals, each currency on its own line, never added together */
+.mod-book .totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); }
+.mod-book .tile { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-1); }
+.mod-book .tile .tk { display: flex; align-items: center; gap: 6px; font-weight: var(--fw-semibold); color: var(--muted); }
+.mod-book .tile .tv { display: flex; flex-direction: column; gap: 2px; min-height: 34px; }
+.mod-book .tile .fig { font: var(--fw-semibold) var(--fs-display)/1.15 var(--num); font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; }
+.mod-book .tile .fig small { margin-left: var(--sp-2); font: var(--fw-regular) var(--fs-small) var(--font); letter-spacing: 0; color: var(--dim); }
+.mod-book .tile .fig.none { color: var(--dim); font-weight: var(--fw-regular); }
+.mod-book .tile .tn { font-size: var(--fs-small); color: var(--dim); }
+.mod-book .tl-captured .tk .ui-icon, .mod-book .tl-captured .fig:not(.none) { color: var(--ok); }
+.mod-book .tl-held .tk .ui-icon, .mod-book .tl-held .fig:not(.none) { color: var(--gold-l); }
+.mod-book .tl-held { border-color: color-mix(in srgb, var(--gold) 35%, var(--line)); }
+.mod-book .tl-stopped .tk .ui-icon { color: var(--dim); }
+.mod-book .tl-stopped .fig:not(.none) { color: var(--dim); text-decoration: line-through; text-decoration-thickness: 1px; }
+.mod-book .totals + .ui-section, .mod-book .totals + .attn { margin-top: var(--sp-5); }
+
+/* Simple: what needs attention, as cards */
+.mod-book .attn { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--sp-3); }
+.mod-book .at-card { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); text-align: left; color: inherit; font: inherit; cursor: pointer; min-width: 0;
+  background: var(--panel); border: 1px solid color-mix(in srgb, var(--gold) 38%, var(--line)); border-radius: var(--r-lg); box-shadow: var(--shadow-1), inset 3px 0 0 var(--gold); }
+.mod-book .at-card:hover { background: color-mix(in srgb, var(--text) 3%, var(--panel)); }
+.mod-book .at-card:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mod-book .at-ico { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; flex: none; color: var(--gold-l); background: color-mix(in srgb, var(--gold) 16%, transparent); }
+.mod-book .at-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.mod-book .at-t { font-weight: var(--fw-semibold); }
+.mod-book .at-t b { font-variant-numeric: tabular-nums; }
+.mod-book .at-s { color: var(--muted); }
+.mod-book .at-s .money { font-weight: var(--fw-semibold); }
+.mod-book .at-sil { white-space: normal; }
+.mod-book .at-card .chev { color: var(--dim); flex: none; }
+.mod-book .at-card .chev::before { content: "›"; font-size: 16px; line-height: 1; }
+
+/* Simple: recent payments */
+.mod-book .pay .when { width: 78px; flex: none; color: var(--dim); font-size: var(--fs-small); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mod-book .pay .cp { color: var(--coral-l); }
+.mod-book .pay .pst { width: 168px; flex: none; display: flex; }
+.mod-book .pay .pstm { width: 112px; flex: none; display: flex; }
+.mod-book .pay .amt { width: 100px; }
+.mod-book .pay .amt.moved { color: var(--ok); }
+.mod-book .pay .amt .in { color: var(--dim); font-size: var(--fs-small); font-weight: var(--fw-regular); margin-left: 3px; }
+.mod-book .more { margin-top: var(--sp-2); display: flex; justify-content: center; }
+
+/* outlook: three one-line items in one grouped box, each with its default on silence */
+.mod-book .outlook { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mod-book .outlook > .ui-row { border: 0; background: none; color: inherit; font: inherit; text-align: left; width: 100%; }
+.mod-book .outlook > .ui-row + .ui-row { border-left: 1px solid var(--line); }
+.mod-book .outlook .t1 b { font-variant-numeric: tabular-nums; }
+.mod-book .outlook .t2 .ui-silence { display: block; }
+
+/* ask + lenses + the slip */
+.mod-book .ask { margin-top: var(--sp-3); }
+.mod-book .askrow { display: flex; gap: var(--sp-2); }
+.mod-book .askrow .ui-searchbox { flex: 1 1 auto; }
+.mod-book .askrow .ui-searchbox .ui-field { width: 100%; }
+.mod-book .lenses { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); margin-top: var(--sp-2); }
+.mod-book .lenses .ui-hint { margin: 0 var(--sp-1) 0 0; }
+.mod-book .lens { display: inline-flex; align-items: center; gap: 6px; height: var(--ctl-sm); padding: 0 var(--sp-2); border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--panel); color: var(--text); font: inherit; font-size: var(--fs-small); cursor: pointer; white-space: nowrap; }
+.mod-book .lens:hover { background: var(--hover); }
+.mod-book .lens[aria-pressed="true"] { border-color: var(--m-book); background: color-mix(in srgb, var(--m-book) 12%, var(--panel)); }
+.mod-book .lens.unk { border-style: dashed; color: var(--muted); }
+.mod-book .slip { margin-top: var(--sp-2); }
+.mod-book .slip .ui-row .main { min-width: 120px; }
+.mod-book .slip .notice { margin: var(--sp-2) var(--sp-3); }
+.mod-book .q1 { font: var(--fs-small) var(--mono); color: var(--teal-l); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mod-book .pivot td { height: 26px; }
+.mod-book .pivot th { position: static; }
+.mod-book .pivot .ui-chip + .ui-chip { margin-left: var(--sp-1); }
+
+/* the grid: four money columns with their own totals, never added together */
+.mod-book .gridbox, .mod-book .ledgerbox { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); overflow: clip; }
+.mod-book .gridbox .ui-toolbar, .mod-book .ledgerbox .ui-toolbar { gap: var(--sp-2); flex-wrap: wrap; }
+.mod-book .gridbox .notice, .mod-book .ledgerbox .notice { margin: var(--sp-2) var(--sp-3); }
+.mod-book .ui-seg .cnt { color: var(--dim); margin-left: 3px; font-variant-numeric: tabular-nums; }
+.mod-book .gt-title { font-weight: var(--fw-semibold); }
+.mod-book .ledger { table-layout: auto; }
+.mod-book .ledger th.num { text-align: right; }
+.mod-book .ledger thead tr.tots th { top: 26px; height: auto; padding-top: var(--sp-1); padding-bottom: var(--sp-1); background: var(--bg2); vertical-align: top; font-weight: var(--fw-regular); }
+.mod-book .tot { display: inline-flex; flex-direction: column; align-items: flex-end; min-width: 72px; padding: 2px 6px; border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--panel); color: var(--text); cursor: pointer; font: var(--fw-semibold) var(--fs-body)/1.35 var(--num); font-variant-numeric: tabular-nums; }
+.mod-book .tot:hover { background: var(--hover); }
+.mod-book .tot[aria-pressed="true"] { border-color: var(--gold); box-shadow: inset 0 -2px 0 var(--gold); }
+.mod-book .tot small { font: var(--fw-regular) var(--fs-small)/1.35 var(--num); color: var(--dim); }
+.mod-book .ledger tr.grp td { height: 22px; background: var(--bg2); color: var(--dim); font-size: var(--fs-small); font-weight: var(--fw-semibold); }
+.mod-book .ledger tbody tr.r { cursor: pointer; }
+.mod-book .ledger tbody tr.r:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.mod-book .ledger tr.off td { opacity: .3; }
+.mod-book .ledger td.c-held { color: var(--gold-l); }
+.mod-book .ledger td.c-motion { color: var(--muted); }
+.mod-book .ledger td.c-stopped { color: var(--dim); text-decoration: line-through; }
+.mod-book .ledger .in { color: var(--dim); font-size: var(--fs-small); margin-left: 3px; display: inline-block; }
+.mod-book .ledger .day { color: var(--dim); font-size: var(--fs-small); margin: 0 6px; }
+.mod-book .ledger td.c-mkt { font-size: var(--fs-small); }
+.mod-book .ledger .cp { color: var(--dim); }
+.mod-book .ui-chip.dashed.gold { color: var(--gold-l); outline-color: color-mix(in srgb, var(--gold) 60%, transparent); }
+
+@media (max-width: 1180px) {
+  .mod-book .outlook { grid-template-columns: minmax(0, 1fr); }
+  .mod-book .outlook > .ui-row + .ui-row { border-left: 0; border-top: 1px solid var(--line); }
+  .mod-book .ledger .cp, .mod-book .ledger .c-mkt { display: none; }
+}
+
+/* ---- Layer 2: sheets and popovers ---- */
+.bk-l2 h3 { margin: var(--sp-3) 0 var(--sp-1); font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); }
+.bk-l2 h3:first-child { margin-top: 0; }
+.bk-l2 .json { margin: 0; padding: var(--sp-2) var(--sp-3); background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
+  font: var(--fs-small)/1.55 var(--mono); color: var(--teal-l); white-space: pre-wrap; word-break: break-word; }
+.bk-l2 .chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-bottom: var(--sp-3); }
+.bk-l2 .ui-chip.dashed.gold { color: var(--gold-l); }
+.bk-l2 .unk { color: var(--dim); border-bottom: 1px dashed var(--line2); cursor: help; }
+.bk-l2 .dim { color: var(--dim); }
+.bk-l2 > .ui-hint, .bk-pop > .ui-hint { margin-top: var(--sp-3); }
+.bk-l2 .notice { margin-top: var(--sp-2); }
+.bk-pop { max-width: 360px; }
+/* market band: the deal price against the band on file */
+.bk-l2 .mk { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: var(--fs-small); color: var(--muted); }
+.bk-l2 .mk svg { display: block; flex: none; }
+.bk-l2 .mk-axis { stroke: var(--line2); stroke-width: 1; }
+.bk-l2 .mk-band { fill: color-mix(in srgb, var(--market) 22%, transparent); stroke: color-mix(in srgb, var(--market) 45%, transparent); }
+.bk-l2 .mk-med { stroke: var(--market); stroke-width: 1.5; }
+.bk-l2 .mk-dot { stroke: var(--bg); stroke-width: 1.5; fill: var(--teal-l); }
+.bk-l2 .mk-dot.mk-captured { fill: var(--ok); }
+.bk-l2 .mk-dot.mk-held { fill: var(--gold-l); }
+.bk-l2 .mk-dot.mk-motion { fill: var(--panel); stroke: var(--teal-l); }
+.bk-l2 .mk-dot.mk-stopped { fill: var(--dim); }
+.mod-book .slip .ui-silence { flex: none; }
+
+/* ---- Round 2 (experiment r2-book): why on each total, where the money went, PayPal agrees, question chips ---- */
+.mod-book .tile .tk .ui-why { margin-left: auto; }
+.mod-book .wm-grid { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(290px, 1fr); gap: var(--sp-3); align-items: stretch; }
+.mod-book .wm-card { min-width: 0; padding: var(--sp-3) var(--sp-4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-1); }
+.mod-book .wm .ui-section-h .end { font-size: var(--fs-small); color: var(--muted); }
+.mod-book .wm-legend { display: inline-flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); align-items: center; }
+/* the marks: paid is solid green, on hold solid gold, stopped is hatched and dashed (never filled like money that moved) */
+.mod-book .wm-sw { display: inline-block; flex: none; width: 10px; height: 10px; margin-right: 6px; border-radius: 3px; vertical-align: -1px; }
+.mod-book .sw-paid, .mod-book .sw-ok { background: var(--ok); }
+.mod-book .sw-held { background: var(--gold); }
+.mod-book .sw-stopped { box-sizing: border-box; border: 1px dashed var(--dim);
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--dim) 70%, transparent) 0 1px, transparent 1px 3px); }
+.mod-book .sw-notyet { box-sizing: border-box; border: 1.5px dashed var(--gold-l); background: color-mix(in srgb, var(--gold) 18%, transparent); }
+.mod-book .sw-differs { background: var(--refuse); }
+.mod-book .sw-unknown { box-sizing: border-box; border: 1.5px dashed var(--dim); background: none; }
+
+.mod-book .wm-bars { padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
+.mod-book .wm-cur { padding: var(--sp-2) 0 var(--sp-1); font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); }
+.mod-book .wm-chart + .wm-chart { margin-top: var(--sp-2); border-top: 1px solid var(--line); }
+.mod-book .wm-row { display: grid; grid-template-columns: 122px minmax(0, 1fr); gap: var(--sp-4); align-items: start; padding: 9px 0; }
+.mod-book .wm-row + .wm-row { border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.mod-book .wm-name { display: flex; flex-direction: column; gap: 1px; padding-top: 1px; }
+.mod-book .wm-name b { font-weight: var(--fw-semibold); }
+.mod-book .wm-name span { font-size: var(--fs-small); color: var(--dim); }
+.mod-book .wm-body { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.mod-book .wm-track { display: flex; gap: 2px; height: 14px; border-radius: 4px; background: color-mix(in srgb, var(--text) 5%, transparent); }
+.mod-book .wm-seg { box-sizing: border-box; flex: 0 1 auto; min-width: 6px; height: 14px; border-radius: 2px; }
+.mod-book .wm-seg:first-child { border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+.mod-book .wm-seg:last-child { border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
+.mod-book .wm-seg.s-paid { background: var(--ok); }
+.mod-book .wm-seg.s-held { background: var(--gold); }
+.mod-book .wm-seg.s-stopped { border: 1px dashed var(--dim);
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--dim) 55%, transparent) 0 1px, transparent 1px 5px); }
+.mod-book .wm-vals { display: flex; flex-wrap: wrap; gap: 2px var(--sp-4); font-size: var(--fs-small); color: var(--muted); }
+.mod-book .wm-v { white-space: nowrap; }
+.mod-book .wm-v b { font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; color: var(--text); }
+.mod-book .wm-v.v-stopped { color: var(--dim); }
+.mod-book .wm-v.v-stopped b { color: var(--dim); text-decoration: line-through; text-decoration-thickness: 1px; }
+.mod-book .wm-v.v-none, .mod-book .wm-v.v-note { color: var(--dim); }
+.mod-book .wm-foot, .mod-book .wm-empty { margin: 0; padding: var(--sp-2) 0 var(--sp-1); font-size: var(--fs-small); color: var(--dim); }
+.mod-book .wm-foot { border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+
+.mod-book .wm-agree { display: flex; flex-direction: column; gap: var(--sp-2); }
+.mod-book .wm-h { display: flex; align-items: center; gap: 6px; font-weight: var(--fw-semibold); color: var(--muted); }
+.mod-book .wm-h .ui-icon { color: var(--ok); }
+.mod-book .wm-h .ui-why { margin-left: auto; }
+.mod-book .ag-fig { font: var(--fw-regular) var(--fs-title2)/1.15 var(--num); font-variant-numeric: tabular-nums; color: var(--muted); }
+.mod-book .ag-fig b { font: var(--fw-semibold) 32px/1.1 var(--num); letter-spacing: -.01em; color: var(--text); }
+.mod-book .ag-fig b.none { color: var(--dim); font-weight: var(--fw-regular); }
+.mod-book .ag-fig.dim { font-size: var(--fs-body); }
+.mod-book .ag-sub { margin-top: -4px; color: var(--muted); }
+.mod-book .ag-meter { display: flex; gap: 3px; margin-top: var(--sp-1); }
+.mod-book .ag-b { box-sizing: border-box; flex: 1 1 0; min-width: 6px; height: 14px; border-radius: 4px; }
+.mod-book .ag-b.b-ok { background: var(--ok); }
+.mod-book .ag-b.b-notyet { border: 1.5px dashed var(--gold-l); background: color-mix(in srgb, var(--gold) 18%, transparent); }
+.mod-book .ag-b.b-differs { background: var(--refuse); }
+.mod-book .ag-b.b-unknown { border: 1.5px dashed var(--dim); }
+.mod-book .ag-key { display: flex; flex-wrap: wrap; gap: 2px var(--sp-4); font-size: var(--fs-small); color: var(--muted); }
+.mod-book .ag-key b { margin-left: 2px; font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; color: var(--text); }
+.mod-book .ag-gaps { list-style: none; margin: var(--sp-1) 0 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.mod-book .ag-gaps li + li { border-top: 1px solid color-mix(in srgb, var(--line) 50%, transparent); }
+.mod-book .ag-gaps button { display: flex; align-items: center; gap: var(--sp-2); width: 100%; min-height: 34px; padding: 4px 2px; background: none; border: 0; border-radius: var(--r-sm); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.mod-book .ag-gaps button:hover { background: var(--hover); }
+.mod-book .ag-gaps button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.mod-book .g-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mod-book .g-s { flex: none; display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; font-size: var(--fs-small); color: var(--text); box-sizing: border-box; }
+.mod-book .g-s.st-pending_reporting { border: 1.5px dashed var(--gold-l); background: color-mix(in srgb, var(--gold) 14%, transparent); }
+.mod-book .g-s.st-mismatch { background: color-mix(in srgb, var(--refuse) 22%, transparent); border: 1px solid var(--refuse); }
+.mod-book .g-s.st-unknown { border: 1.5px dashed var(--dim); color: var(--muted); }
+.mod-book .ag-more, .mod-book .ag-chk { font-size: var(--fs-small); color: var(--dim); }
+.mod-book .ag-chk { margin-top: auto; padding-top: var(--sp-2); border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.mod-book .ag-line { margin-top: auto; padding-top: var(--sp-2); border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); font-size: var(--fs-small); color: var(--muted); }
+.mod-book .ag-line.bad { color: var(--text); font-weight: var(--fw-semibold); }
+
+/* question chips: the quick views as plain questions */
+.mod-book .qchips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-top: var(--sp-3); }
+.mod-book .qchips .qh { flex-basis: 100%; margin: 0 0 -2px 2px; }
+.mod-book .qchip { display: inline-flex; align-items: center; height: 30px; padding: 0 var(--sp-4); border: 1px solid var(--line2); border-radius: 999px;
+  background: var(--panel); color: var(--text); font: inherit; cursor: pointer; white-space: nowrap; }
+.mod-book .qchip:hover { background: var(--hover); border-color: var(--dim); }
+.mod-book .qchip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mod-book .qchip[aria-pressed="true"] { border-color: var(--m-book); background: color-mix(in srgb, var(--m-book) 14%, var(--panel)); font-weight: var(--fw-medium); }
+.mod-book .qchip.unk { border-style: dashed; color: var(--muted); }
+.mod-book .wm + .ask { margin-top: var(--sp-5); }
+
+@media (max-width: 1180px) {
+  .mod-book .wm-grid { grid-template-columns: minmax(0, 1fr); }
+}

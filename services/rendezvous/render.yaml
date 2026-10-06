@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: table-rendezvous
+    runtime: docker
+    dockerfilePath: Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    plan: 0.5c-512mb
+    numInstances: 1
+    autoDeployTrigger: off
+    disk:
+      name: house-ledger
+      mountPath: /var/lib/table
+      sizeGB: 1
+    envVars:
+      - key: TABLE_HOUSE_RELEASE_JSON
+        sync: false
+      - key: HOUSE_OWNER_KEY_BASE64
+        sync: false
+      - key: HOUSE_AGENT_KEY_BASE64
+        sync: false
+      - key: HOUSE_MANDATE_JSON
+        sync: false
+      - key: HOUSE_PAYPAL_CLIENT_ID
+        sync: false
+      - key: HOUSE_PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: HOUSE_LEDGER_PATH
+        value: /var/lib/table/house.sqlite3

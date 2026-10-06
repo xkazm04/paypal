@@ -1,0 +1,827 @@
+{
+  "generated_at": "2026-10-05T21:07:58.306Z",
+  "generator": "scan-sweep context map (hand-partitioned by coordinator, no Personas bridge)",
+  "groups": [
+    {
+      "name": "Money Domain",
+      "contexts": [
+        {
+          "name": "core-domain",
+          "description": "Pure domain crate: integer minor-unit Money + ISO currency, signed Mandate clauses (bands, velocity, rounds, deadlines, human-present threshold), the Deal state machine, Book, market refs, rescue guards, canonical bytes for signing, typed ids and safe display projections. No IO; carries the spine every other crate checks against.",
+          "keywords": [
+            "money",
+            "mandate",
+            "deal",
+            "state-machine",
+            "clause",
+            "rescue",
+            "canonical",
+            "signing"
+          ],
+          "tech_stack": [
+            "Rust 2024 (stable)"
+          ],
+          "cross_refs": [
+            "money-pipeline",
+            "protocol",
+            "ledger"
+          ],
+          "file_paths": [
+            "crates/table-core/Cargo.toml",
+            "crates/table-core/src/book.rs",
+            "crates/table-core/src/canonical.rs",
+            "crates/table-core/src/deal.rs",
+            "crates/table-core/src/display.rs",
+            "crates/table-core/src/ids.rs",
+            "crates/table-core/src/lib.rs",
+            "crates/table-core/src/mandate.rs",
+            "crates/table-core/src/market.rs",
+            "crates/table-core/src/money.rs",
+            "crates/table-core/src/rescue.rs"
+          ]
+        },
+        {
+          "name": "attention-ladder",
+          "description": "Pure attention model: urgency rungs, forms (puck/strip/card), snooze/pierce rules and window placement math that decide how the Tumbler escalates a deal toward the owner as its deadline nears.",
+          "keywords": [
+            "attention",
+            "urgency",
+            "placement",
+            "snooze",
+            "tumbler",
+            "forms"
+          ],
+          "tech_stack": [
+            "Rust 2024 (stable)"
+          ],
+          "cross_refs": [
+            "tumbler-window",
+            "native-shell"
+          ],
+          "file_paths": [
+            "crates/table-attention/Cargo.toml",
+            "crates/table-attention/src/lib.rs",
+            "crates/table-attention/src/placement.rs"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Money Pipeline & Persistence",
+      "contexts": [
+        {
+          "name": "money-pipeline",
+          "description": "The only code that moves money: intent -> mandate check -> countersign/owner decision -> PayPal call, with decided_by authority (owner in approval window, signed mandate rule, safe default void/expire). Also agent-intent intake, IPC auth, reconciliation and relay hookup. Refused intents must leave zero paypal_calls rows.",
+          "keywords": [
+            "pipeline",
+            "authorize",
+            "capture",
+            "void",
+            "decided_by",
+            "reconciliation",
+            "auth"
+          ],
+          "tech_stack": [
+            "Rust 2024 (stable)",
+            "tokio"
+          ],
+          "cross_refs": [
+            "core-domain",
+            "ledger",
+            "paypal-gateway",
+            "runtime-core"
+          ],
+          "file_paths": [
+            "crates/table-app/Cargo.toml",
+            "crates/table-app/src/agent.rs",
+            "crates/table-app/src/auth.rs",
+            "crates/table-app/src/lib.rs",
+            "crates/table-app/src/pipeline.rs",
+            "crates/table-app/src/reconciliation.rs",
+            "crates/table-app/src/relay.rs",
+            "crates/table-app/tests/pipeline.rs",
+            "crates/table-app/tests/support/mod.rs"
+          ]
+        },
+        {
+          "name": "ledger",
+          "description": "SQLite ledger: migrations 0001-0006, repositories for deals/mandates/paypal_calls/receipts/relay/house, append-only hash-chained audit_log, redacted evidence, receipts and offline chain verification.",
+          "keywords": [
+            "sqlite",
+            "migrations",
+            "audit-log",
+            "hash-chain",
+            "receipt",
+            "redaction",
+            "repositories"
+          ],
+          "tech_stack": [
+            "Rust 2024 (stable)",
+            "SQLite"
+          ],
+          "cross_refs": [
+            "money-pipeline",
+            "runtime-core"
+          ],
+          "file_paths": [
+            "crates/table-ledger/Cargo.toml",
+            "crates/table-ledger/migrations/0001_table.sql",
+            "crates/table-ledger/migrations/0002_integrity.sql",
+            "crates/table-ledger/migrations/0003_execution.sql",
+            "crates/table-ledger/migrations/0004_native.sql",
+            "crates/table-ledger/migrations/0005_relay.sql",
+            "crates/table-ledger/migrations/0006_client.sql",
+            "crates/table-ledger/src/audit.rs",
+            "crates/table-ledger/src/book.rs",
+            "crates/table-ledger/src/display.rs",
+            "crates/table-ledger/src/house.rs",
+            "crates/table-ledger/src/lib.rs",
+            "crates/table-ledger/src/receipt.rs",
+            "crates/table-ledger/src/redaction.rs",
+            "crates/table-ledger/src/relay.rs",
+            "crates/table-ledger/src/repositories.rs",
+            "crates/table-ledger/src/tests.rs"
+          ]
+        },
+        {
+          "name": "paypal-gateway",
+          "description": "Typed PayPal REST client behind a trait: OAuth, Orders v2 create/authorize/capture/void, secondary endpoints (invoicing, tracking, payouts-like clients), HTTP layer and env-gated live sandbox spikes. Unverified endpoint facts are marked UNVERIFIED.",
+          "keywords": [
+            "paypal",
+            "orders-v2",
+            "oauth",
+            "authorize",
+            "capture",
+            "invoicing",
+            "sandbox"
+          ],
+          "tech_stack": [
+            "Rust 2024 (stable)",
+            "reqwest"
+          ],
+          "cross_refs": [
+            "money-pipeline"
+          ],
+          "file_paths": [
+            "crates/table-paypal/Cargo.toml",
+            "crates/table-paypal/src/client.rs",
+            "crates/table-paypal/src/http.rs",
+            "crates/table-paypal/src/lib.rs",
+            "crates/table-paypal/src/secondary.rs",
+            "crates/table-paypal/src/types.rs",
+            "crates/table-paypal/tests/client.rs",
+            "crates/table-paypal/tests/spikes.rs"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Agent Runtime",
+      "contexts": [
+        {
+          "name": "runtime-core",
+          "description": "The wallet runtime: per-deal agent actors, command dispatcher behind the IPC contract, service wiring, deadline scheduler (silence never moves money), configuration, keychain credentials, vault unlock/idle-lock, re-auth and engine selection.",
+          "keywords": [
+            "actor",
+            "dispatcher",
+            "scheduler",
+            "deadline",
+            "vault",
+            "keyring",
+            "idle-lock",
+            "service"
+          ],
+          "tech_stack": [
+            "Rust 2024 (stable)",
+            "tokio",
+            "keyring"
+          ],
+          "cross_refs": [
+            "money-pipeline",
+            "ipc-contract",
+            "engine-adapters"
+          ],
+          "file_paths": [
+            "crates/table-runtime/Cargo.toml",
+            "crates/table-runtime/src/actor.rs",
+            "crates/table-runtime/src/client_tests.rs",
+            "crates/table-runtime/src/configuration.rs",
+            "crates/table-runtime/src/credentials.rs",
+            "crates/table-runtime/src/dispatcher.rs",
+            "crates/table-runtime/src/engines.rs",
+            "crates/table-runtime/src/lib.rs",
+            "crates/table-runtime/src/reauth.rs",
+            "crates/table-runtime/src/scheduler.rs",
+            "crates/table-runtime/src/service.rs",
+            "crates/table-runtime/src/tests.rs",
+            "crates/table-runtime/src/vault.rs"
+          ]
+        },
+        {
+          "name": "pairing-and-relay-runtime",
+          "description": "Runtime side of two-wallet deals: four-word pairing create/join/confirm, signed envelope delivery over the relay, HOUSE seller pairing, and the end-to-end two-wallet / house settlement tests.",
+          "keywords": [
+            "pairing",
+            "relay",
+            "two-wallet",
+            "house",
+            "settlement",
+            "delivery"
+          ],
+          "tech_stack": [
+            "Rust 2024 (stable)",
+            "tokio"
+          ],
+          "cross_refs": [
+            "protocol",
+            "relay-and-rendezvous",
+            "house-seller"
+          ],
+          "file_paths": [
+            "crates/table-runtime/src/house_tests.rs",
+            "crates/table-runtime/src/pairing.rs",
+            "crates/table-runtime/src/relay.rs",
+            "crates/table-runtime/src/relay_tests.rs"
+          ]
+        },
+        {
+          "name": "engine-adapters",
+          "description": "Adapters for the owner's own LLM engines (claude-code, codex-cli): argv construction, binary resolution, stream-json parsing, native process lifecycle, Windows job objects for isolation, a fixture engine and spikes. Native availability is gated on proven pre-input isolation.",
+          "keywords": [
+            "engine",
+            "claude-code",
+            "codex-cli",
+            "process",
+            "isolation",
+            "job-object",
+            "parser"
+          ],
+          "tech_stack": [
+            "Rust 2024 (stable)",
+            "tokio"
+          ],
+          "cross_refs": [
+            "agent-tool-surface",
+            "runtime-core"
+          ],
+          "file_paths": [
+            "crates/table-engine/Cargo.toml",
+            "crates/table-engine/src/argv.rs",
+            "crates/table-engine/src/bin/engine-fixture.rs",
+            "crates/table-engine/src/lib.rs",
+            "crates/table-engine/src/native.rs",
+            "crates/table-engine/src/parser.rs",
+            "crates/table-engine/src/resolve.rs",
+            "crates/table-engine/src/windows_job.rs",
+            "crates/table-engine/tests/engine.rs",
+            "crates/table-engine/tests/fixtures/README.md",
+            "crates/table-engine/tests/fixtures/claude-agent.jsonl",
+            "crates/table-engine/tests/fixtures/codex-agent.jsonl",
+            "crates/table-engine/tests/native.rs",
+            "crates/table-engine/tests/spikes.rs"
+          ]
+        },
+        {
+          "name": "agent-tool-surface",
+          "description": "Everything the LLM can touch: the MCP server with seven role/session/run/mandate-checked tools (no money-moving tool exists), the shield that screens untrusted counterparty/merchant text, and the shopper/negotiator/shield prompts.",
+          "keywords": [
+            "mcp",
+            "tools",
+            "shield",
+            "prompt-injection",
+            "untrusted-text",
+            "prompts",
+            "negotiator"
+          ],
+          "tech_stack": [
+            "Rust 2024 (stable)",
+            "MCP"
+          ],
+          "cross_refs": [
+            "engine-adapters",
+            "money-pipeline"
+          ],
+          "file_paths": [
+            "crates/table-mcp/Cargo.toml",
+            "crates/table-mcp/src/lib.rs",
+            "crates/table-mcp/tests/server.rs",
+            "crates/table-shield/Cargo.toml",
+            "crates/table-shield/src/lib.rs",
+            "prompts/negotiator.md",
+            "prompts/shield.md",
+            "prompts/shopper.md"
+          ]
+        },
+        {
+          "name": "market-data",
+          "description": "Market reference data for haggling: cached market/Book lookups the agent may read, privileged native refresh, and live spikes against the external price source.",
+          "keywords": [
+            "market",
+            "price",
+            "book",
+            "cache",
+            "refresh"
+          ],
+          "tech_stack": [
+            "Rust 2024 (stable)"
+          ],
+          "cross_refs": [
+            "agent-tool-surface",
+            "core-domain"
+          ],
+          "file_paths": [
+            "crates/table-market/Cargo.toml",
+            "crates/table-market/src/lib.rs",
+            "crates/table-market/tests/market.rs",
+            "crates/table-market/tests/spikes.rs",
+            "crates/table-runtime/src/market.rs"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Network & Counterparties",
+      "contexts": [
+        {
+          "name": "protocol",
+          "description": "The haggle wire protocol: closed signed JWS envelopes (HELLO/OFFER/COUNTER/ACCEPT/NOTE...), replay and binding checks, transcript commitments, pairing words/identity, house tables and settlement messages.",
+          "keywords": [
+            "envelope",
+            "jws",
+            "protocol",
+            "haggle",
+            "transcript",
+            "pairing",
+            "settlement"
+          ],
+          "tech_stack": [
+            "Rust 2024 (stable)"
+          ],
+          "cross_refs": [
+            "pairing-and-relay-runtime",
+            "core-domain"
+          ],
+          "file_paths": [
+            "crates/table-proto/Cargo.toml",
+            "crates/table-proto/src/envelope.rs",
+            "crates/table-proto/src/house.rs",
+            "crates/table-proto/src/lib.rs",
+            "crates/table-proto/src/pairing.rs",
+            "crates/table-proto/src/settlement.rs",
+            "crates/table-proto/tests/protocol.rs"
+          ]
+        },
+        {
+          "name": "relay-and-rendezvous",
+          "description": "Store-and-forward relay client and the hosted rendezvous service (axum-style HTTP) that lets two wallets on different machines exchange signed envelopes; Render deployment config.",
+          "keywords": [
+            "relay",
+            "rendezvous",
+            "http",
+            "render",
+            "mailbox"
+          ],
+          "tech_stack": [
+            "Rust 2024 (stable)",
+            "Docker",
+            "Render"
+          ],
+          "cross_refs": [
+            "protocol",
+            "pairing-and-relay-runtime"
+          ],
+          "file_paths": [
+            "crates/table-relay/Cargo.toml",
+            "crates/table-relay/src/lib.rs",
+            "services/rendezvous/Cargo.toml",
+            "services/rendezvous/Dockerfile",
+            "services/rendezvous/render.yaml",
+            "services/rendezvous/src/lib.rs",
+            "services/rendezvous/src/main.rs",
+            "services/rendezvous/tests/relay.rs"
+          ]
+        },
+        {
+          "name": "house-seller",
+          "description": "The hosted deterministic HOUSE seller: a release-pinned mandate as its owner's signature, one-install haggle path for judges, env-only configuration, signing/public-key/release bins and container entrypoint.",
+          "keywords": [
+            "house",
+            "seller",
+            "hosted",
+            "demo",
+            "release-pin",
+            "docker"
+          ],
+          "tech_stack": [
+            "Rust 2024 (stable)",
+            "Docker",
+            "Render"
+          ],
+          "cross_refs": [
+            "protocol",
+            "money-pipeline",
+            "relay-and-rendezvous"
+          ],
+          "file_paths": [
+            ".dockerignore",
+            "Dockerfile",
+            "render.yaml",
+            "services/house-seller/Cargo.toml",
+            "services/house-seller/entrypoint.sh",
+            "services/house-seller/src/bin/house-public-key.rs",
+            "services/house-seller/src/bin/house-release.rs",
+            "services/house-seller/src/bin/house-sign.rs",
+            "services/house-seller/src/environment.rs",
+            "services/house-seller/src/hosted.rs",
+            "services/house-seller/src/lib.rs",
+            "services/house-seller/src/main.rs"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Desktop Shell",
+      "contexts": [
+        {
+          "name": "ipc-contract",
+          "description": "The typed IPC contract between Rust and the webview: command/event contracts, errors, safe display types, ts-rs generated TypeScript bindings and the drift test that keeps them in sync.",
+          "keywords": [
+            "ipc",
+            "contract",
+            "bindings",
+            "ts-rs",
+            "commands",
+            "events"
+          ],
+          "tech_stack": [
+            "Rust 2024 (stable)",
+            "ts-rs",
+            "TypeScript"
+          ],
+          "cross_refs": [
+            "native-shell",
+            "client-foundation"
+          ],
+          "file_paths": [
+            "bindings/AgentSlot.ts",
+            "bindings/AgentStartArgs.ts",
+            "bindings/ApprovalOpenArgs.ts",
+            "bindings/ApprovalSummary.ts",
+            "bindings/AttentionItem.ts",
+            "bindings/AttentionSnapshot.ts",
+            "bindings/AttnKind.ts",
+            "bindings/BandArgs.ts",
+            "bindings/Category.ts",
+            "bindings/Clause.ts",
+            "bindings/ClauseRef.ts",
+            "bindings/Command.ts",
+            "bindings/CommandContract.ts",
+            "bindings/CommandError.ts",
+            "bindings/CounterpartyDisplay.ts",
+            "bindings/CpRule.ts",
+            "bindings/CredentialArgs.ts",
+            "bindings/Currency.ts",
+            "bindings/Deal.ts",
+            "bindings/DealArgs.ts",
+            "bindings/DealChanged.ts",
+            "bindings/DealCreateArgs.ts",
+            "bindings/DealDisplay.ts",
+            "bindings/DealEvidence.ts",
+            "bindings/DealId.ts",
+            "bindings/DealJoinArgs.ts",
+            "bindings/DealKind.ts",
+            "bindings/DealState.ts",
+            "bindings/DecisionArgs.ts",
+            "bindings/Delivery.ts",
+            "bindings/DisplayBand.ts",
+            "bindings/EngineId.ts",
+            "bindings/EngineInfo.ts",
+            "bindings/EngineSelectArgs.ts",
+            "bindings/ErrorCode.ts",
+            "bindings/EventContract.ts",
+            "bindings/Form.ts",
+            "bindings/FormArgs.ts",
+            "bindings/H256.ts",
+            "bindings/HouseState.ts",
+            "bindings/HouseTable.ts",
+            "bindings/IpcHeaders.ts",
+            "bindings/ItemRef.ts",
+            "bindings/KeyId.ts",
+            "bindings/MainRoute.ts",
+            "bindings/MandateId.ts",
+            "bindings/MandateListEntry.ts",
+            "bindings/MandatePayload.ts",
+            "bindings/MandateRevokeArgs.ts",
+            "bindings/MandateSignArgs.ts",
+            "bindings/MarketRef.ts",
+            "bindings/MarketRefreshArgs.ts",
+            "bindings/Mode.ts",
+            "bindings/Module.ts",
+            "bindings/Money.ts",
+            "bindings/OpenMandate.ts",
+            "bindings/OrientationEvent.ts",
+            "bindings/PairingConfirmArgs.ts",
+            "bindings/PairingCreateArgs.ts",
+            "bindings/PairingIdentity.ts",
+            "bindings/PairingJoinArgs.ts",
+            "bindings/PairingOffer.ts",
+            "bindings/PairingPollArgs.ts",
+            "bindings/PairingWords.ts",
+            "bindings/PayeeRef.ts",
+            "bindings/PaypalRefs.ts",
+            "bindings/PendingPairing.ts",
+            "bindings/PinArgs.ts",
+            "bindings/Placement.ts",
+            "bindings/PuckPosition.ts",
+            "bindings/QuitArgs.ts",
+            "bindings/QuitSummary.ts",
+            "bindings/ReceiptEvent.ts",
+            "bindings/ReceiptEvidence.ts",
+            "bindings/ReconcileArgs.ts",
+            "bindings/Reconciliation.ts",
+            "bindings/Rect.ts",
+            "bindings/Role.ts",
+            "bindings/RunId.ts",
+            "bindings/RunSnapshot.ts",
+            "bindings/RunState.ts",
+            "bindings/SettingsSnapshot.ts",
+            "bindings/ShieldVerdict.ts",
+            "bindings/Side.ts",
+            "bindings/SignedPairingIdentity.ts",
+            "bindings/Snap.ts",
+            "bindings/Terms.ts",
+            "bindings/TranscriptBy.ts",
+            "bindings/TranscriptStep.ts",
+            "bindings/TranscriptType.ts",
+            "bindings/TumblerAction.ts",
+            "bindings/TumblerHandoff.ts",
+            "bindings/TumblerPreferences.ts",
+            "bindings/TumblerStatus.ts",
+            "bindings/UnlockArgs.ts",
+            "bindings/Urgency.ts",
+            "bindings/VAlign.ts",
+            "bindings/VisualState.ts",
+            "bindings/WindowSide.ts",
+            "crates/table-client/Cargo.toml",
+            "crates/table-client/src/bin/generate-bindings.rs",
+            "crates/table-client/src/lib.rs",
+            "crates/table-client/tests/bindings.rs"
+          ]
+        },
+        {
+          "name": "native-shell",
+          "description": "Tauri 2 host: three windows (main, tumbler, approval) with per-label capabilities, privileged-command routing (IPC token + approval label + not idle-locked), targeted events, tray/hotkey/single-instance, surface placement, and OS credential prompt / Windows native helpers.",
+          "keywords": [
+            "tauri",
+            "capabilities",
+            "windows",
+            "tray",
+            "hotkey",
+            "routing",
+            "credential-prompt"
+          ],
+          "tech_stack": [
+            "Rust 2024 (stable)",
+            "Tauri 2"
+          ],
+          "cross_refs": [
+            "ipc-contract",
+            "runtime-core",
+            "attention-ladder"
+          ],
+          "file_paths": [
+            "apps/desktop/src-tauri/Cargo.toml",
+            "apps/desktop/src-tauri/build.rs",
+            "apps/desktop/src-tauri/capabilities/approval.json",
+            "apps/desktop/src-tauri/capabilities/main.json",
+            "apps/desktop/src-tauri/capabilities/tumbler.json",
+            "apps/desktop/src-tauri/icons/icon.ico",
+            "apps/desktop/src-tauri/src/lib.rs",
+            "apps/desktop/src-tauri/src/main.rs",
+            "apps/desktop/src-tauri/src/native.rs",
+            "apps/desktop/src-tauri/src/native/commands.rs",
+            "apps/desktop/src-tauri/src/native/events.rs",
+            "apps/desktop/src-tauri/src/native/routing.rs",
+            "apps/desktop/src-tauri/src/native/surface.rs",
+            "apps/desktop/src-tauri/tauri.conf.json",
+            "apps/desktop/src-tauri/tests/capabilities.rs",
+            "crates/table-os/Cargo.toml",
+            "crates/table-os/src/credential_prompt.rs",
+            "crates/table-os/src/lib.rs",
+            "crates/table-os/src/windows_native.rs"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Client UI",
+      "contexts": [
+        {
+          "name": "client-foundation",
+          "description": "Shared React client plumbing: Tauri invoke/listen wrappers, contract helpers, hooks, formatting, honesty/module shared components, design tokens, and the mock backend + fixtures that let every window run without the native host.",
+          "keywords": [
+            "react",
+            "vite",
+            "hooks",
+            "mock-backend",
+            "fixtures",
+            "tokens"
+          ],
+          "tech_stack": [
+            "React",
+            "TypeScript",
+            "Vite",
+            "Vitest"
+          ],
+          "cross_refs": [
+            "ipc-contract",
+            "main-window",
+            "tumbler-window",
+            "approval-window"
+          ],
+          "file_paths": [
+            "apps/desktop/client/approval.html",
+            "apps/desktop/client/index.html",
+            "apps/desktop/client/package.json",
+            "apps/desktop/client/src/design/base.css",
+            "apps/desktop/client/src/design/tokens.css",
+            "apps/desktop/client/src/lib/clientRequests.test.ts",
+            "apps/desktop/client/src/lib/contract.ts",
+            "apps/desktop/client/src/lib/display.ts",
+            "apps/desktop/client/src/lib/format.ts",
+            "apps/desktop/client/src/lib/foundation.test.ts",
+            "apps/desktop/client/src/lib/hooks.ts",
+            "apps/desktop/client/src/lib/mount.tsx",
+            "apps/desktop/client/src/lib/pending.ts",
+            "apps/desktop/client/src/lib/runtime.ts",
+            "apps/desktop/client/src/lib/tauri.ts",
+            "apps/desktop/client/src/mock/backend.ts",
+            "apps/desktop/client/src/mock/fixtures.ts",
+            "apps/desktop/client/src/shared/honesty.tsx",
+            "apps/desktop/client/src/shared/modules.tsx",
+            "apps/desktop/client/tsconfig.json",
+            "apps/desktop/client/tumbler.html",
+            "apps/desktop/client/vite.config.ts"
+          ]
+        },
+        {
+          "name": "main-window",
+          "description": "The Table main window: The Dial (Layer 0 vault dial) routing into six modules, Home, deal view with charts, command palette, sheets, status and world scene.",
+          "keywords": [
+            "dial",
+            "modules",
+            "deal-view",
+            "palette",
+            "home",
+            "charts"
+          ],
+          "tech_stack": [
+            "React",
+            "TypeScript"
+          ],
+          "cross_refs": [
+            "client-foundation",
+            "approval-window"
+          ],
+          "file_paths": [
+            "apps/desktop/client/src/windows/main/App.tsx",
+            "apps/desktop/client/src/windows/main/DealView.tsx",
+            "apps/desktop/client/src/windows/main/Dial.tsx",
+            "apps/desktop/client/src/windows/main/Home.tsx",
+            "apps/desktop/client/src/windows/main/Modules.tsx",
+            "apps/desktop/client/src/windows/main/Palette.tsx",
+            "apps/desktop/client/src/windows/main/Sheet.tsx",
+            "apps/desktop/client/src/windows/main/Shell.tsx",
+            "apps/desktop/client/src/windows/main/Status.tsx",
+            "apps/desktop/client/src/windows/main/art.ts",
+            "apps/desktop/client/src/windows/main/charts.tsx",
+            "apps/desktop/client/src/windows/main/entry.tsx",
+            "apps/desktop/client/src/windows/main/logic.test.ts",
+            "apps/desktop/client/src/windows/main/logic.ts",
+            "apps/desktop/client/src/windows/main/main.css",
+            "apps/desktop/client/src/windows/main/ui.tsx",
+            "apps/desktop/client/src/windows/main/world.tsx"
+          ]
+        },
+        {
+          "name": "tumbler-window",
+          "description": "The Tumbler: the small always-available operative window - puck, forms, attention ladder rendering, snooze, approval hand-off and a stylised desktop preview.",
+          "keywords": [
+            "tumbler",
+            "puck",
+            "forms",
+            "attention",
+            "handoff",
+            "snooze"
+          ],
+          "tech_stack": [
+            "React",
+            "TypeScript"
+          ],
+          "cross_refs": [
+            "attention-ladder",
+            "client-foundation"
+          ],
+          "file_paths": [
+            "apps/desktop/client/src/windows/tumbler/App.tsx",
+            "apps/desktop/client/src/windows/tumbler/Puck.tsx",
+            "apps/desktop/client/src/windows/tumbler/Tumbler.tsx",
+            "apps/desktop/client/src/windows/tumbler/entry.tsx",
+            "apps/desktop/client/src/windows/tumbler/forms.tsx",
+            "apps/desktop/client/src/windows/tumbler/logic.test.ts",
+            "apps/desktop/client/src/windows/tumbler/logic.ts",
+            "apps/desktop/client/src/windows/tumbler/preview/Preview.tsx",
+            "apps/desktop/client/src/windows/tumbler/preview/preview.css",
+            "apps/desktop/client/src/windows/tumbler/tumbler.css"
+          ]
+        },
+        {
+          "name": "approval-window",
+          "description": "The approval window - the only privileged UI: deal review and owner accept, band adjust, mandate editor/drafting, owner configuration, pairing confirmation, gating rules and unlock session.",
+          "keywords": [
+            "approval",
+            "owner-accept",
+            "mandate-editor",
+            "gating",
+            "pairing-confirm",
+            "unlock"
+          ],
+          "tech_stack": [
+            "React",
+            "TypeScript"
+          ],
+          "cross_refs": [
+            "native-shell",
+            "money-pipeline",
+            "client-foundation"
+          ],
+          "file_paths": [
+            "apps/desktop/client/src/windows/approval/App.tsx",
+            "apps/desktop/client/src/windows/approval/BandAdjust.tsx",
+            "apps/desktop/client/src/windows/approval/DealReview.tsx",
+            "apps/desktop/client/src/windows/approval/MandateEditor.tsx",
+            "apps/desktop/client/src/windows/approval/OwnerConfig.tsx",
+            "apps/desktop/client/src/windows/approval/PairingConfirm.tsx",
+            "apps/desktop/client/src/windows/approval/approval.css",
+            "apps/desktop/client/src/windows/approval/entry.tsx",
+            "apps/desktop/client/src/windows/approval/gating.test.ts",
+            "apps/desktop/client/src/windows/approval/gating.ts",
+            "apps/desktop/client/src/windows/approval/mandateDraft.ts",
+            "apps/desktop/client/src/windows/approval/model.ts",
+            "apps/desktop/client/src/windows/approval/selection.ts",
+            "apps/desktop/client/src/windows/approval/session.tsx",
+            "apps/desktop/client/src/windows/approval/ui.tsx"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Delivery",
+      "contexts": [
+        {
+          "name": "ops-and-delivery",
+          "description": "Build, CI and delivery for a hackathon entry: workspace manifest, lints, cargo-deny, CI workflow, Windows check/spike scripts, deploy runbook and build briefs/status, README and submission readiness.",
+          "keywords": [
+            "ci",
+            "cargo-deny",
+            "scripts",
+            "deploy",
+            "spikes",
+            "status",
+            "submission"
+          ],
+          "tech_stack": [
+            "Rust 2024 (stable)",
+            "GitHub Actions",
+            "PowerShell"
+          ],
+          "cross_refs": [
+            "house-seller",
+            "relay-and-rendezvous"
+          ],
+          "file_paths": [
+            ".cargo/config.toml",
+            ".github/workflows/ci.yml",
+            "Cargo.toml",
+            "README.md",
+            "clippy.toml",
+            "deny.toml",
+            "docs/build/BACKEND-BRIEF.md",
+            "docs/build/CLIENT-BRIEF.md",
+            "docs/build/CLIENT-STATUS.md",
+            "docs/build/DEPLOY.md",
+            "docs/build/PLUMBING-BRIEF.md",
+            "docs/build/SPIKE-RESULTS.md",
+            "docs/build/SPIKES.md",
+            "docs/build/STATUS.md",
+            "rust-toolchain.toml",
+            "rustfmt.toml",
+            "scripts/cargo.ps1",
+            "scripts/check.ps1",
+            "scripts/spike.ps1"
+          ]
+        }
+      ]
+    }
+  ]
+}

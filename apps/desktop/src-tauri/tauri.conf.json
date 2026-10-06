@@ -1,0 +1,9 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "The Table",
+  "version": "0.1.0",
+  "identifier": "dev.thetable.wallet",
+  "build": {"frontendDist": "../client/dist"},
+  "app": {"windows": [], "security": {"capabilities": ["main", "tumbler", "approval"], "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; style-src 'self'; script-src 'self'; object-src 'none'; frame-src 'none'"}},
+  "bundle": {"active": false}
+}

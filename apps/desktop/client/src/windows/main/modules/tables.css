@@ -1,0 +1,178 @@
+/* Main window · Tables module (modules/tables.tsx), v2 "Price Ladder" (prototype/pages/tables/variant-3).
+   Owner: the tables agent. Every rule is scoped under .mod-tables: the page root (from ModuleView) and
+   the portalled Layer-2 surfaces (Inspector body, Sheet, Popover), which carry the class themselves. */
+
+.mod-tables .tb-page { display: flex; flex-direction: column; gap: var(--sp-3); min-height: 100%; }
+.mod-tables .tb-page > .ui-pagehead { margin-bottom: 0; }
+.mod-tables .ui-pagehead .ico svg { width: 22px; height: 22px; }
+.mod-tables .tx-gold { color: var(--gold-l); }
+.mod-tables .tx-red { color: var(--red-l); }
+.mod-tables .tb-empty-act { margin-top: var(--sp-3); }
+.mod-tables .tb-gap { margin: var(--sp-2) 0 0; }
+.mod-tables .tb-sheet-p { margin: 0 0 var(--sp-2); color: var(--muted); }
+.mod-tables .notechip { flex: none; }
+
+/* story kit on this page: answer, how it works, decisions, one card per table */
+.mod-tables .tb-page > .ui-answer, .mod-tables .tb-page > .ui-explainer { margin-bottom: 0; }
+.mod-tables .tb-page > .ui-explainer-link { align-self: flex-start; }
+.mod-tables .tb-decisions, .mod-tables .tb-tables { display: flex; flex-direction: column; gap: var(--sp-3); }
+.mod-tables .tb-decisions .ui-decision + .ui-decision { margin-top: 0; }
+.mod-tables .tb-h2 { margin: var(--sp-2) 0 0; display: flex; align-items: baseline; gap: var(--sp-2); font: var(--fw-semibold) var(--fs-title3)/1.2 var(--display); }
+.mod-tables .tb-h2 span { font: var(--fw-regular) var(--fs-small) var(--font); color: var(--dim); }
+.mod-tables .tb-need .tb-stand { padding-top: var(--sp-3); border-top: 1px solid var(--line); }
+.mod-tables .tb-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--sp-3) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2); }
+.mod-tables .tb-card-h { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.mod-tables .tb-card-h h3 { margin: 0; font: var(--fw-semibold) var(--fs-title3)/1.25 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mod-tables .tb-card-h .with { color: var(--coral-l); white-space: nowrap; }
+.mod-tables .tb-left { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: var(--fs-small); white-space: nowrap; }
+
+/* where it stands: your offers, their offers, your limit on one line */
+.mod-tables .tb-stand { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.mod-tables .tb-sb-in { position: relative; height: 62px; margin: 0 10px; }
+.mod-tables .tb-sb-track { position: absolute; left: 0; right: 0; top: 24px; height: 12px; border-radius: 6px; background: var(--panel3); }
+.mod-tables .tb-sb-track .zones { position: absolute; inset: 0; border-radius: 6px; overflow: hidden; }
+.mod-tables .tb-sb-track .zone { position: absolute; top: 0; bottom: 0; }
+.mod-tables .tb-sb-track .zone.ok { background: color-mix(in srgb, var(--teal) 24%, transparent); }
+.mod-tables .tb-sb-track .zone.over { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--refuse) 26%, transparent) 0 3px, transparent 3px 7px); }
+.mod-tables .tb-sb-track .dot { position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; z-index: 2; }
+.mod-tables .tb-sb-track .dot.you { background: var(--teal-l); }
+.mod-tables .tb-sb-track .dot.them { background: var(--coral); }
+.mod-tables .tb-sb-track .dot.old { width: 8px; height: 8px; margin: -4px 0 0 -4px; opacity: .55; }
+.mod-tables .tb-sb-track .dot.now { width: 16px; height: 16px; margin: -8px 0 0 -8px; box-shadow: 0 0 0 3px var(--panel); z-index: 3; }
+.mod-tables .tb-sb-track .dot.over { box-shadow: 0 0 0 3px var(--panel), 0 0 0 5px var(--refuse); }
+.mod-tables .tb-sb-track .dot.unverified { background: var(--panel); outline: 1.5px dashed currentColor; outline-offset: -1.5px; }
+.mod-tables .tb-sb-track .dot.you.unverified { color: var(--teal-l); }
+.mod-tables .tb-sb-track .dot.them.unverified { color: var(--coral); }
+.mod-tables .tb-sb-track .mark { position: absolute; top: -6px; bottom: -6px; width: 3px; margin-left: -1.5px; border-radius: 2px; background: var(--teal-l); z-index: 4; }
+.mod-tables .tb-sb-track .mark.draft { background: var(--gold-l); }
+.mod-tables .tb-sb-lab { position: absolute; left: clamp(70px, var(--x, 50%), calc(100% - 70px)); transform: translateX(-50%); white-space: nowrap; font-size: var(--fs-small); color: var(--muted); }
+.mod-tables .tb-sb-lab b { font: var(--fw-bold) var(--fs-body) var(--num); font-variant-numeric: tabular-nums; }
+.mod-tables .tb-sb-lab.lim { top: 0; color: var(--teal-l); }
+.mod-tables .tb-sb-lab.lim.draft { color: var(--gold-l); }
+.mod-tables .tb-sb-lab.past { top: 2px; left: auto; transform: none; color: var(--red-l); opacity: .75; }
+.mod-tables .tb-sb-lab.past.r { right: 0; }
+.mod-tables .tb-sb-lab.past.l { left: 0; }
+.mod-tables .tb-sb-lab.none { top: 0; left: 50%; color: var(--dim); }
+.mod-tables .tb-sb-lab.them, .mod-tables .tb-sb-lab.you { top: 44px; }
+.mod-tables .tb-sb-lab.them { color: var(--coral-l); }
+.mod-tables .tb-sb-lab.you { color: var(--teal-l); }
+.mod-tables .tb-sb-lab.sl { left: var(--x); transform: translateX(calc(-100% - 6px)); }
+.mod-tables .tb-sb-lab.sr { left: var(--x); transform: translateX(6px); }
+.mod-tables .tb-sb-lab.them.over { color: var(--red-l); }
+.mod-tables .tb-sb-empty { padding: var(--sp-3); border: 1px dashed var(--line2); border-radius: var(--r); color: var(--dim); text-align: center; }
+.mod-tables .tb-sb-foot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--sp-1) var(--sp-4); }
+.mod-tables .tb-sb-foot .cap { color: var(--text); min-width: 0; }
+.mod-tables .tb-sb-foot .cap .left { color: var(--dim); }
+.mod-tables .tb-sb-acts { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin-left: auto; }
+
+/* table tabs (Layer 1, one line + one) */
+.mod-tables .tb-strip { display: flex; gap: var(--sp-2); min-width: 0; flex: none; }
+.mod-tables .tb-tab { flex: 1 1 0; max-width: 360px; min-width: 0; display: flex; flex-direction: column; gap: 3px; padding: 6px var(--sp-3) 7px; text-align: left; cursor: pointer;
+  border-radius: var(--r); border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; }
+.mod-tables .tb-tab:hover { background: var(--panel2); }
+.mod-tables .tb-tab[aria-selected="true"] { background: var(--sel); border-color: var(--sel-line); }
+.mod-tables .tb-tab .l1 { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.mod-tables .tb-tab .who { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: var(--fw-semibold); }
+.mod-tables .tb-tab .nm { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.mod-tables .tb-tab .l2 { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-small); color: var(--dim); min-width: 0; }
+.mod-tables .tb-tab .l2 > span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mod-tables .mm { position: relative; width: 56px; height: 6px; flex: none; border-radius: 3px; background: var(--panel3); overflow: hidden; }
+.mod-tables .mm i { position: absolute; top: 0; bottom: 0; left: 0; background: color-mix(in srgb, var(--teal) 55%, transparent); }
+.mod-tables .mm i.draft { background: color-mix(in srgb, var(--gold) 55%, transparent); }
+.mod-tables .mm b { position: absolute; top: 0; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: var(--coral); }
+.mod-tables .mm b.no { background: var(--refuse); }
+
+/* the ladder card */
+.mod-tables .tb-lcard { flex: 1 1 auto; min-height: 380px; display: flex; flex-direction: column; gap: var(--sp-2); }
+.mod-tables .tb-lhead { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.mod-tables .tb-lhead h2 { margin: 0; font: var(--fw-semibold) var(--fs-title3)/1.2 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mod-tables .tb-lhead .ref { color: var(--coral-l); white-space: nowrap; }
+.mod-tables .tb-ladder { position: relative; flex: 1 1 auto; min-height: 300px; margin: 22px var(--sp-2) 6px 58px; touch-action: none; }
+.mod-tables .tb-ladder-empty { display: grid; place-items: center; margin-left: var(--sp-2); }
+.mod-tables .tb-lcol { position: absolute; top: -20px; font-size: var(--fs-small); font-weight: var(--fw-semibold); }
+.mod-tables .tb-lcol.you { left: 0; color: var(--teal-l); }
+.mod-tables .tb-lcol.mid { left: 50%; transform: translateX(-50%); color: var(--dim); }
+.mod-tables .tb-lcol.them { right: 0; color: var(--coral-l); }
+.mod-tables .tb-gl { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid var(--line); }
+.mod-tables .tb-gl span { position: absolute; left: -54px; width: 46px; text-align: right; transform: translateY(-50%); font: var(--fs-small) var(--num); font-variant-numeric: tabular-nums; color: var(--dim); }
+.mod-tables .tb-band { position: absolute; left: 0; right: 0;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--teal) 7%, transparent), color-mix(in srgb, var(--teal) 18%, transparent) 50%, color-mix(in srgb, var(--teal) 7%, transparent)); }
+.mod-tables .tb-band.draft { background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 6%, transparent), color-mix(in srgb, var(--gold) 15%, transparent) 50%, color-mix(in srgb, var(--gold) 6%, transparent)); }
+.mod-tables .tb-mk { position: absolute; left: 32%; right: 32%; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--market) 16%, transparent) 0 3px, transparent 3px 8px);
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--market) 30%, transparent), inset -1px 0 0 color-mix(in srgb, var(--market) 30%, transparent); }
+.mod-tables .tb-mk span { position: absolute; bottom: 2px; left: 0; right: 0; text-align: center; font-size: var(--fs-small); color: var(--market); opacity: .85; }
+.mod-tables .tb-med { position: absolute; left: 32%; right: 32%; height: 0; border-top: 1px dashed color-mix(in srgb, var(--market) 60%, transparent); }
+.mod-tables .tb-chip { position: absolute; transform: translateY(-50%); display: inline-flex; gap: 5px; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px;
+  font: var(--fw-semibold) var(--fs-small)/1 var(--num); font-variant-numeric: tabular-nums; white-space: nowrap; z-index: 2; cursor: default; }
+.mod-tables .tb-chip.you { right: 72%; color: var(--teal-l); background: color-mix(in srgb, var(--teal) 14%, var(--panel)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teal) 40%, transparent); }
+.mod-tables .tb-chip.them { left: 72%; color: var(--coral-l); background: color-mix(in srgb, var(--coral) 12%, var(--panel)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--coral) 40%, transparent); }
+.mod-tables .tb-chip.old { opacity: .6; }
+.mod-tables .tb-chip.over { box-shadow: inset 0 0 0 1px var(--refuse); }
+.mod-tables .tb-chip.unverified { box-shadow: none; outline: 1px dashed currentColor; outline-offset: -1px; }
+.mod-tables .tb-chip .s { color: var(--dim); font-weight: var(--fw-regular); }
+.mod-tables .tb-meet { position: absolute; left: 50%; transform: translate(-50%, -50%); z-index: 4; display: flex; align-items: baseline; gap: var(--sp-2); height: 26px; padding: 0 var(--sp-2);
+  border-radius: var(--r-sm); border: 2px solid var(--gold); background: color-mix(in srgb, var(--gold) 14%, var(--panel)); font-size: var(--fs-small); line-height: 22px; white-space: nowrap; }
+.mod-tables .tb-meet b { font: var(--fw-bold) var(--fs-title3) var(--num); font-variant-numeric: tabular-nums; color: var(--gold-l); }
+.mod-tables .tb-meet.no { border-color: var(--dim); background: var(--panel2); }
+.mod-tables .tb-meet.no b { color: var(--dim); text-decoration: line-through; }
+.mod-tables .tb-meet .stamp { font-weight: var(--fw-semibold); color: var(--red-l); }
+.mod-tables .tb-fence { position: absolute; left: -58px; right: calc(-1 * var(--sp-2)); height: 0; border-top: 3px solid var(--teal-l); z-index: 5; }
+.mod-tables .tb-fence.draft { border-top: 3px dashed var(--gold-l); }
+.mod-tables .tb-fence.ghost { border-top: 2px dotted var(--teal); z-index: 3; opacity: .9; }
+.mod-tables .tb-fence.ghost span { position: absolute; left: 190px; top: -18px; padding: 0 4px; background: var(--panel); font: var(--fs-small) var(--num); color: var(--teal-l); }
+.mod-tables .tb-grip { position: absolute; left: 0; top: 0; transform: translateY(-50%); display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px 0 8px; border-radius: 14px;
+  border: 1px solid var(--teal); background: color-mix(in srgb, var(--teal) 24%, var(--panel)); color: var(--teal-l); font: var(--fw-bold) var(--fs-body) var(--num); font-variant-numeric: tabular-nums;
+  cursor: ns-resize; white-space: nowrap; touch-action: none; box-shadow: var(--shadow-1); transition: transform var(--t-fast); }
+.mod-tables .tb-grip:hover { background: color-mix(in srgb, var(--teal) 34%, var(--panel)); }
+.mod-tables .tb-grip .grip { width: 8px; height: 12px; flex: none; opacity: .8;
+  background: radial-gradient(circle, currentColor 1.1px, transparent 1.4px) 0 0 / 4px 4px; }
+.mod-tables .tb-grip .chg { padding: 1px 6px; border-radius: 8px; background: color-mix(in srgb, var(--gold) 22%, transparent); color: var(--gold-l); }
+.mod-tables .tb-grip.fixed { cursor: default; }
+.mod-tables .tb-grip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mod-tables .tb-fence.draft .tb-grip { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 24%, var(--panel)); color: var(--gold-l); }
+.mod-tables .tb-grip small { font: var(--fw-medium) var(--fs-small) var(--font); color: var(--muted); }
+.mod-tables .tb-grip.fixed { padding-left: 12px; }
+.mod-tables .tb-nofence { position: absolute; left: 20%; right: 20%; top: 30%; display: grid; gap: var(--sp-2); justify-items: center; text-align: center; padding: var(--sp-3); z-index: 6;
+  border-radius: var(--r); border: 1px dashed var(--line2); background: color-mix(in srgb, var(--panel) 90%, transparent); }
+.mod-tables .tb-ladder-empty .tb-nofence { position: static; }
+.mod-tables .tb-lfoot { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+.mod-tables .tb-lfoot .ui-hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; margin: 0; }
+
+/* inspector: needs you + the three steps */
+.mod-tables.tb-insp .ui-section:first-child { margin-top: var(--sp-3); }
+.mod-tables.tb-insp .ui-silence { white-space: normal; }
+.mod-tables .tb-fld { padding: 0 var(--sp-2); }
+.mod-tables .tb-needgrp { box-shadow: inset 3px 0 0 var(--gold); }
+.mod-tables .tb-needgrp .ui-silence { white-space: normal; }
+.mod-tables .tb-acts { gap: var(--sp-2); min-height: 38px; }
+.mod-tables .tb-stp { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-body); font-weight: var(--fw-semibold); color: var(--text); }
+.mod-tables .tb-stp .n { width: 18px; height: 18px; flex: none; display: grid; place-items: center; border-radius: 50%; font: var(--fw-bold) var(--fs-small)/1 var(--num);
+  box-shadow: inset 0 0 0 1px var(--line2); color: var(--dim); }
+.mod-tables .tb-stp.on .n { box-shadow: inset 0 0 0 1.5px var(--gold); color: var(--gold-l); }
+.mod-tables .tb-stp.done .n { background: var(--teal); box-shadow: none; color: var(--on-teal); }
+.mod-tables .tb-stp.off { color: var(--dim); }
+.mod-tables .tb-fld { gap: var(--sp-2); }
+.mod-tables .tb-fld > .k { width: 104px; flex: none; color: var(--muted); }
+.mod-tables .tb-fld > * { flex: none; }
+.mod-tables .tb-fld .ui-field { height: var(--ctl-sm); width: 64px; text-align: right; }
+.mod-tables .tb-fld .ui-field[aria-invalid="true"] { border-color: var(--refuse); }
+.mod-tables .tb-fld .was { flex: 0 1 auto; min-width: 0; margin-left: auto; font: var(--fs-small) var(--num); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mod-tables .tb-fld .was.fixed::before { content: ""; display: inline-block; width: 7px; height: 8px; margin-right: 5px; border: 1.3px solid currentColor; border-top-width: 3px; border-radius: 2px; vertical-align: -1px; opacity: .8; }
+.mod-tables .tb-edit { font-weight: var(--fw-semibold); }
+.mod-tables .tb-tokens { display: flex; gap: 3px; }
+.mod-tables .tb-tokens i { width: 9px; height: 9px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--teal); }
+.mod-tables .tb-tokens i.u { background: var(--teal); }
+.mod-tables .tb-signrow { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+.mod-tables .tb-signrow .ui-hint { margin: 0; }
+
+/* consequence list (sheet) */
+.mod-tables .tb-ckl .ui-row { align-items: baseline; padding-top: 5px; padding-bottom: 5px; }
+.mod-tables .tb-ckl .mk { width: 12px; flex: none; font-weight: var(--fw-bold); color: var(--ok); }
+.mod-tables .tb-ckl .x .mk { color: var(--red-l); }
+.mod-tables .tb-ckl .i .mk { color: var(--dim); }
+.mod-tables .tb-ckl .tx { white-space: normal; min-width: 0; }
+
+@media (max-width: 1180px) { .mod-tables .tb-tab .l2 .mm { display: none; } }
+
+/* while the fence is dragged */
+.mod-tables .tb-ladder.dragging, .mod-tables .tb-ladder.dragging * { cursor: grabbing; user-select: none; }

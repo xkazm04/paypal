@@ -1,0 +1,145 @@
+/* Approval window · FRAME: window, header, footer, and the pieces ui.tsx renders for both modes
+   (strip, checks, silence, verdict, lock card, Windows Hello, pill) plus shared atoms (.a-p .a-note
+   .a-k .tbtn .inp .confirm). Imported by entry.tsx. Foundation-owned: the DealReview agent styles
+   approval.css, the mandate/pairing agent styles owner.css; ask the lead before changing this file.
+   The approval window is always dark (it never applies a theme). Root font is 13px (1rem). */
+body.w-approval { background: var(--bg); overflow: hidden; }
+#root { height: 100vh; }
+
+.aw {
+  height: 100vh; width: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr);
+  background:
+    radial-gradient(120% 60% at 0% 0%, color-mix(in srgb, var(--gold) 7%, transparent), transparent 60%),
+    radial-gradient(90% 50% at 100% 100%, color-mix(in srgb, var(--teal) 5%, transparent), transparent 60%),
+    var(--panel);
+  animation: awIn .32s var(--ease) both;
+}
+@keyframes awIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ---- header ---------------------------------------------------------------------------- */
+.aw-head {
+  display: flex; align-items: center; gap: .55rem; height: 2.75rem; padding: 0 1rem 0 .95rem;
+  border-bottom: 1px solid var(--line); background: var(--material);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--gold) 10%, transparent);
+  font-size: .93rem; color: var(--muted);
+}
+.aw-emblem { width: 1.15rem; height: 1.15rem; flex: none; }
+.aw-title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); font-weight: 600; }
+.aw-title span { color: var(--dim); font-weight: 400; }
+.aw-head .badge { font-size: .86rem; }
+
+/* ---- body ------------------------------------------------------------------------------ */
+.aw-body { min-width: 0; overflow-x: hidden; overflow-y: auto; padding: 1rem 1.45rem 1rem; scrollbar-width: thin; scrollbar-color: var(--line2) transparent; outline: none; }
+.a-kick { font: 600 .86rem/1.3 var(--font); letter-spacing: .13em; text-transform: uppercase; color: var(--gold-l); }
+.a-kick.bad { color: var(--red-l); }
+.a-kick.ok { color: var(--ok); }
+.a-kick .a-label { letter-spacing: .06em; color: var(--dim); font-family: var(--mono); text-transform: none; }
+.a-big { font: 600 2.95rem/1.05 var(--display); letter-spacing: -.02em; margin: .3rem 0 .15rem; color: var(--text); font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: .7rem; }
+.a-big.money { font-family: var(--display); }
+.a-big .a-unit { font: 500 1rem var(--mono); color: var(--dim); letter-spacing: 0; }
+.a-big.skeleton { color: var(--line2); }
+.a-to { font-size: 1.07rem; color: var(--muted); line-height: 1.35; }
+.a-to b { color: var(--coral-l); font-weight: 600; }
+.a-to .a-item { color: var(--text); }
+
+/* state strip */
+.strip { list-style: none; display: flex; flex-wrap: wrap; gap: .3rem; margin: .85rem 0 .1rem; padding: 0; }
+.strip li { font: 600 .86rem/1 var(--mono); padding: .32rem .5rem; border-radius: 5px; border: 1px solid var(--line); color: var(--dim); white-space: nowrap; }
+.strip li.done { color: var(--muted); border-color: var(--line2); background: var(--panel2); }
+.strip li.done::before { content: "✓ "; color: var(--ok); }
+.strip li.cur { color: var(--on-gold); background: var(--gold); border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 12%, transparent); }
+.strip li.ok { color: var(--on-ok); background: var(--ok); border-color: var(--ok); }
+.strip li.bad { background: color-mix(in srgb, var(--refuse) 45%, var(--line)); border-color: var(--refuse); color: var(--red-l); }
+.phase-locked .strip li.cur { background: color-mix(in srgb, var(--gold) 14%, var(--panel)); color: var(--gold-l); border-color: color-mix(in srgb, var(--gold) 45%, var(--line)); box-shadow: none; }
+
+/* checklist - two columns, the READY rule is "every line ✓" */
+.checks { list-style: none; padding: 0; margin: .9rem 0 .35rem; display: grid; grid-template-columns: 1fr 1fr; gap: .4rem 1rem; }
+.checks li { display: flex; gap: .5rem; align-items: baseline; font-size: 1rem; line-height: 1.3; min-width: 0; transition: color .2s; }
+.checks li > span:nth-child(2) { min-width: 0; overflow-wrap: anywhere; }
+.checks .ck { width: .85rem; flex: none; font-weight: 700; text-align: center; }
+.checks li.ok .ck::before { content: "✓"; color: var(--ok); }
+.checks li.bad { color: var(--red-l); }
+.checks li.bad .ck::before { content: "✗"; color: var(--red-l); }
+.checks li.info { color: var(--muted); }
+.checks li.info .ck::before { content: "•"; color: var(--dim); }
+.checks li.wait { color: var(--dim); }
+.checks li.wait .ck::before { content: "·"; color: var(--dim); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.a-p { margin: .45rem 0; font-size: 1rem; color: var(--muted); line-height: 1.45; }
+.a-p b { color: var(--text); }
+.a-p .gold, .gold.money { color: var(--gold-l); font-weight: 600; }
+.a-k { display: inline-block; font: 600 .86rem var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--dim); margin-right: .25rem; }
+.a-sil { display: flex; gap: .55rem; align-items: baseline; font-size: 1rem; color: var(--muted); margin: .5rem 0 0; }
+.a-sil-k { font: 600 .86rem var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--dim); border: 1px solid var(--line2); padding: .1rem .4rem; border-radius: 4px; white-space: nowrap; }
+.a-sil.generic span:last-child { color: var(--dim); }
+.a-why { margin: .5rem 0 0; font-size: 1rem; color: var(--muted); padding: .45rem .65rem; border-left: 2px solid var(--line2); background: var(--hover); border-radius: 0 6px 6px 0; }
+.a-note { font-size: .93rem; color: var(--dim); margin: .55rem 0 0; line-height: 1.4; }
+.a-note.why { color: var(--muted); }
+.a-note.end { margin: 0; color: var(--muted); }
+
+.verdict { padding: .75rem .9rem; border-radius: 9px; font-size: 1rem; margin-top: .85rem; line-height: 1.45; }
+.verdict.no { background: color-mix(in srgb, var(--refuse) 14%, var(--panel)); border: 1px solid color-mix(in srgb, var(--refuse) 45%, var(--line)); color: var(--red-l); }
+.verdict.no b { color: var(--text); }
+.verdict.ok { background: color-mix(in srgb, var(--ok) 12%, var(--panel)); border: 1px solid color-mix(in srgb, var(--ok) 40%, var(--line)); color: var(--ok); }
+.verdict.draft { background: color-mix(in srgb, var(--gold) 14%, var(--panel)); border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--line)); color: var(--text); }
+.verdict.draft b { color: var(--gold-l); }
+.verdict.calm { background: var(--bg2); border: 1px solid var(--line2); color: var(--muted); }
+.notice { margin-top: .7rem; font-size: 1rem; }
+.notice .n-code { font-size: .86rem; }
+/* shield release */
+.inp { width: 100%; padding: .55rem .75rem; border-radius: 8px; border: 1px solid var(--line2); background: var(--bg); color: var(--text); font: 1rem var(--font); }
+.inp.mono, .release .inp { font-family: var(--mono); }
+.inp:focus { outline: 2px solid var(--gold-l); outline-offset: 1px; }
+.inp[aria-invalid="true"] { border-color: var(--refuse); }
+select.inp { padding: .45rem .6rem; }
+/* ---- footer: the one decision ------------------------------------------------------------ */
+.aw-foot { padding: .8rem 1.45rem .95rem; border-top: 1px solid var(--line); background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 60%, transparent), color-mix(in srgb, var(--bg) 95%, transparent)); }
+.a-btns { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+.tbtn { display: inline-flex; align-items: center; gap: .4rem; padding: .62rem 1.05rem; border-radius: 8px; border: 1px solid var(--line2); background: var(--panel2); cursor: pointer; font-size: 1.07rem; font-weight: 600; white-space: nowrap; color: var(--text); transition: filter .15s, border-color .15s; }
+.tbtn:hover:not([disabled]) { border-color: var(--muted); }
+.tbtn.gold { color: var(--on-gold); border-color: transparent; background: var(--gold); box-shadow: var(--shadow-1); }
+.tbtn.gold:hover:not([disabled]) { filter: brightness(1.07);  }
+.tbtn.danger { border-color: color-mix(in srgb, var(--refuse) 50%, var(--line)); color: var(--red-l); background: color-mix(in srgb, var(--refuse) 12%, var(--panel)); }
+.tbtn.danger:hover:not([disabled]) { border-color: var(--refuse); }
+.tbtn.quiet { background: transparent; }
+.tbtn[disabled] { opacity: .45; cursor: not-allowed; filter: grayscale(.45); box-shadow: none; }
+.aw-foot .a-note { margin-top: .5rem; }
+.confirm { display: flex; flex-wrap: wrap; gap: .55rem; align-items: center; padding: .6rem .75rem; border-radius: 9px; border: 1px solid color-mix(in srgb, var(--refuse) 45%, var(--line)); background: color-mix(in srgb, var(--refuse) 8%, var(--panel)); font-size: 1rem; color: var(--muted); }
+.confirm > span { flex: 1 1 100%; }
+.confirm b { color: var(--red-l); }
+.confirm .tbtn { padding: .45rem .85rem; font-size: 1rem; }
+
+/* lock */
+.lockcard { padding: .75rem .85rem; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--line)); background: color-mix(in srgb, var(--gold) 8%, var(--panel)); font-size: 1rem; margin-bottom: .65rem; color: var(--muted); }
+.lockcard b { color: var(--gold-l); }
+.lock-row { display: flex; gap: .65rem; align-items: flex-start; margin-bottom: .6rem; }
+.lockcard.compact .lock-row { margin-bottom: .5rem; align-items: center; }
+.lock-glyph { width: 1.6rem; height: 1.6rem; flex: none; }
+.lockcard p { margin: .25rem 0 0; color: var(--dim); font-size: .93rem; }
+.lockcard .tbtn { padding: .5rem .95rem; font-size: 1rem; }
+.hello { display: flex; align-items: center; gap: .8rem; padding: .7rem .9rem; margin-bottom: .65rem; border-radius: 10px; background: color-mix(in srgb, var(--teal) 8%, var(--panel)); border: 1px solid color-mix(in srgb, var(--teal) 35%, var(--line)); color: var(--teal-l); font-size: 1rem; }
+.hello svg { width: 2.2rem; height: 2.2rem; flex: none; animation: helloPulse 1.6s ease-in-out infinite; }
+@keyframes helloPulse { 50% { opacity: .55; } }
+.pill { font: 600 .86rem/1.3 var(--mono); letter-spacing: .03em; padding: .1rem .5rem; border-radius: 999px; white-space: nowrap; border: 1px solid var(--line2); color: var(--muted); }
+.pill.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); background: color-mix(in srgb, var(--ok) 12%, var(--panel)); }
+.pill.need { color: var(--gold-l); border-color: color-mix(in srgb, var(--gold) 45%, var(--line)); background: color-mix(in srgb, var(--gold) 14%, var(--panel)); }
+.pill.wait { color: var(--teal-l); border-color: color-mix(in srgb, var(--teal) 45%, var(--line)); background: color-mix(in srgb, var(--teal) 14%, var(--panel)); }
+.pill.off { color: var(--dim); }
+@media (prefers-reduced-motion: reduce) {
+  .aw, .hello svg { animation: none !important; }
+}
+
+/* glyphs drawn by ui.tsx: colours from tokens (no hex in TSX) */
+.aw-emblem .e1 { fill: var(--panel); stroke: var(--steel); }
+.aw-emblem .e2 { stroke: var(--gold); }
+.lock-glyph { stroke: var(--gold-l); }
+.lock-glyph circle { fill: var(--gold-l); stroke: none; }
+.hello-glyph { stroke: var(--teal-l); }
+.hello-glyph circle { fill: var(--teal-l); stroke: none; }
+.browser-art .ba-frame { fill: var(--bg); stroke: var(--line2); }
+.browser-art .ba-bar { fill: var(--panel); }
+.browser-art .ba-dot { fill: var(--line2); }
+.browser-art .ba-fill { fill: var(--panel3); }
+.browser-art .ba-btn { stroke: var(--gold); }
+.browser-art .ba-t { fill: var(--dim); }

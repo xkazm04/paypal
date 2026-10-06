@@ -1,0 +1,1 @@
+Synthetic contract streams; these are not recordings from live CLIs. The codex-cli fixture starts with an explicit inventory attestation that the normal thread.started event does not supply. Native execution remains disabled until a pinned CLI isolation spike supplies equivalent trustworthy evidence. Fixtures exercise normalization and rejection, not proof of real CLI behavior.
