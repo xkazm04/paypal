@@ -204,7 +204,9 @@ window 744 × 660 in Rust. The consolidated backend requests are in CLIENT-STATU
 
 Open design questions the builders raised (still unanswered):
 
-- Shield: fixtures/§10.5 make "new counterparty > $100" a HOLD; the §7 rule table says ASK.
+- Shield (settled 2026-10-07, H5 slice 1): a new counterparty over 100.00 is ASK. The code
+  (`table_shield::rules`) and the §7 rule table agree; the fixtures/§10.5 HOLD is drift that shield
+  slice 2 fixes. The 100.00 threshold holds in every currency for the submission.
 - Mandate: Revoke is let through the idle lock (restricting is free) although §9 lists it as privileged.
 - Mandate/Counter: a newly signed version governs only next actions; signing a higher floor withdraws
   live quotes below it (no money moves). Both are builder readings, not design text.
@@ -1273,3 +1275,51 @@ unchanged (no generated type changed; `TranscriptBy`/`TranscriptType` only gaine
 - An agent's purchase that passes the mandate check waits at Agreed. Creating the PayPal order, authorizing it and capturing it each need the owner's decision in the approval window; the clause-6 policy countersign does not apply to purchases (`Authority::Policy` is refused for every purchase deal, before any countersign row, reservation or network call). A cleared purchase counts in the daily budget from the moment it clears until it is withdrawn or expires. This closes agent-gated-spend MA-1.
 - Mechanism: `DealEvent::PurchaseCleared` (Pairing to Agreed), applied by `propose_purchase` (buyer purchases only) in its own transaction with the `deal.transition` audit row; the scheduler no longer creates orders for purchases. The text of the Shopper slot in `configuration.rs` now says money moves only when the owner decides.
 - A purchase under a mandate with no Band gets a 24 h decision window (`PURCHASE_DECISION_WINDOW_SECS`, DECISIONS section 8): at the deadline it lapses to WITHDRAWN with `SafeDefault` and no PayPal call (test `a_purchase_without_a_band_lapses_after_a_day_and_a_band_deadline_still_wins`). A proposal writes one `purchase.proposed` audit row (test `one_purchase_proposal_writes_exactly_one_audit_row_and_the_chain_verifies`). The mock Shopper copy in `backend.ts` now matches `configuration.rs`.
+
+## H5 seller money in (2026-10-07, shield-screening rework slice 1)
+
+Operator decision on H5 (ask c9f99185): money in needs no click. Council-lite run 3ff9d92d's
+value line ("the seller wallet's automatic steps cannot run in the native build") is closed; its
+craft-4 item and question 2 of run ed13e041 are taken in.
+- (1) One shield gate: `shield_allows(verdict, decided_by, step)` in `table-app` `pipeline.rs`
+  replaces the four copies in create, authorize, capture and `step_allowed`. HOLD and BLOCK stop
+  every step under every authority; ASK passes Human and HouseMandate as before, and
+  SellerMandate on authorize and capture only (`authority()` grants it only on a seller deal in
+  Approved or Authorized, an order the buyer already approved). Create, purchases and Policy keep
+  today's gate. Test: `the_shield_gate_matrix_pins_h5_and_step_allowed_agrees_with_every_real_step`
+  (4 verdicts x 4 authorities x 3 steps, real steps, `step_allowed` agrees wherever it can
+  judge, a refusal writes and calls nothing). The two tests that pinned "ASK stops the seller"
+  were rewritten to the rule (`shield_ask_stops_policy_and_a_revoked_mandate_stops_the_seller_before_network`,
+  `a_buyer_approval_counts_until_the_order_expires_though_the_market_went_stale`).
+- (2) A stale market price can hold a deal but never clear it: `table_shield::Case` gains
+  `market_fresh`; `shield()` passes the deal's reference whatever its age. The 40% rule runs on
+  any reference; a stale one that does not trigger it gives ASK, never CLEAR. BLOCK rules and
+  `combine()` unchanged. Test: table-shield `a_stale_market_can_hold_a_deal_but_never_clear_it`.
+- (3) Acceptance H5 in the runtime, `table-runtime/src/h5_tests.rs`:
+  `h5_the_seller_takes_money_in_on_the_buyers_approval_with_no_click` (no market reference; the
+  owner creates the order from the approval window because the create gate still asks; the
+  buyer's APPROVED is seen by the next tick after the approval window idle-locked; authorize and
+  capture run under SellerMandate, read from each operation's `money.authorized` audit row, the
+  value also stored in `operations.decided_by`; RECEIPTED). Negative cases:
+  `a_fresh_price_hold_stops_the_sellers_authorize_and_ageing_never_lifts_it`,
+  `a_payee_mismatch_blocks_and_nothing_moves`, `the_sellers_create_on_policy_still_asks`,
+  `a_purchase_step_on_policy_is_still_refused`. `Pipeline::shield_verdict(id, now)` is a new
+  read-only accessor (Rust only, not IPC).
+- (4) The forecast's seller window still holds: its gate only turns from pass to refusal (HOLD
+  and BLOCK no longer depend on the time; what ages moves only between ASK and CLEAR, both pass;
+  the mandate refuses from expiry and band deadline). No fail-closed change was needed; the doc
+  comment on `seller_mandate_window` says why. Differential tests:
+  `an_unpriced_seller_order_forecasts_money_in_and_a_real_tick_agrees`,
+  `a_price_held_seller_order_forecasts_no_money_in_after_its_market_ages`. The table-attention
+  property test `forecast_never_moves_money_out_over_every_input` passes unedited.
+- What a shield refusal of the seller's authorize or capture does to the tick today (unchanged,
+  `scheduler.rs`): `tick_deal` propagates the pipeline's `Permission` error, so `tick()` returns
+  it as its first failure after still processing the other deals. Nothing is recorded (no
+  operation, no `paypal_calls` row, no audit row), the deal stays Approved (or Authorized) and the
+  refusal repeats every tick until the deadline default applies (expiry, or auto-void 72 h after
+  authorize). Recording the refusal is shield slice 2.
+- Left for shield slice 2: `Deal.shield` has no production writer (BLOCK reaches the gate only
+  through it; the native `shield()` cannot see a payee mismatch, which the order check catches as
+  Mismatch); the model-caution path has no production caller; release vs recompute (a released
+  model HOLD becomes ASK, which now passes the seller's authorize and capture); the
+  new-counterparty fixtures.
