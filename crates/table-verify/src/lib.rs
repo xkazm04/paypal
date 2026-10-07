@@ -306,40 +306,49 @@ fn bindings(bundle: &ProofBundle) -> Outcome {
         };
         for unit in units {
             let field = |name: &str| unit.get(name).and_then(Value::as_str);
-            if let Some(custom) = field("custom_id")
-                && custom != terms
-            {
+            // Every order call PayPal answered with purchase units carries all four facts
+            // (Order::verify rejects a body without them); a missing one is not "unchecked".
+            let (Some(custom), Some(invoice), Some(payee)) = (
+                field("custom_id"),
+                field("invoice_id"),
+                field("payee_merchant_id"),
+            ) else {
+                return Err(format!(
+                    "{}: the order record lacks custom_id, invoice id or payee, so it proves nothing",
+                    call.path
+                ));
+            };
+            if custom != terms {
                 return Err(format!(
                     "{}: custom_id is not this deal's terms hash",
                     call.path
                 ));
             }
-            if let Some(invoice) = field("invoice_id")
-                && !bundle
-                    .closed_mandates
-                    .iter()
-                    .any(|c| c.mandate.invoice_id == invoice)
+            if !bundle
+                .closed_mandates
+                .iter()
+                .any(|c| c.mandate.invoice_id == invoice)
             {
                 return Err(format!("{}: invoice id matches no countersign", call.path));
             }
-            if let Some(payee) = field("payee_merchant_id")
-                && !bundle
-                    .closed_mandates
-                    .iter()
-                    .any(|c| c.mandate.payee.as_str() == payee)
+            if !bundle
+                .closed_mandates
+                .iter()
+                .any(|c| c.mandate.payee.as_str() == payee)
             {
                 return Err(format!(
                     "{}: PayPal payee is not the countersigned payee",
                     call.path
                 ));
             }
-            if let Some(value) = unit.pointer("/amount/value").and_then(Value::as_str)
-                && (value != amount.decimal()
-                    || unit
-                        .pointer("/amount/currency_code")
-                        .and_then(Value::as_str)
-                        != Some(&amount.currency().to_string()))
-            {
+            let (Some(value), Some(currency)) = (
+                unit.pointer("/amount/value").and_then(Value::as_str),
+                unit.pointer("/amount/currency_code")
+                    .and_then(Value::as_str),
+            ) else {
+                return Err(format!("{}: the order record lacks the amount", call.path));
+            };
+            if value != amount.decimal() || currency != amount.currency().to_string() {
                 return Err(format!(
                     "{}: PayPal amount is not the signed amount",
                     call.path
@@ -352,7 +361,7 @@ fn bindings(bundle: &ProofBundle) -> Outcome {
         Ok("no PayPal order binding recorded for this deal".into())
     } else {
         Ok(format!(
-            "{checked} PayPal order record(s): custom_id = terms hash, invoice, payee and amount match"
+            "{checked} PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching"
         ))
     }
 }
