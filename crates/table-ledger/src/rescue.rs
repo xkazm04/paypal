@@ -35,9 +35,9 @@ impl Recipient {
                     && !domain.starts_with('.')
                     && !domain.ends_with('.')
             })
-            && email.bytes().all(|b| {
-                b.is_ascii_alphanumeric() || b"@.-_+".contains(&b)
-            });
+            && email
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"@.-_+".contains(&b));
         if !ok {
             return Err(LedgerError::Conflict);
         }
@@ -337,7 +337,8 @@ impl Ledger {
             .collect::<Result<Vec<_>, _>>()?;
         rows.into_iter()
             .map(|(currency, minor)| {
-                let currency: Currency = serde_json::from_value(serde_json::Value::String(currency))?;
+                let currency: Currency =
+                    serde_json::from_value(serde_json::Value::String(currency))?;
                 Ok(Money::new(minor, currency).map_err(table_core::DomainError::from)?)
             })
             .collect()
@@ -357,4 +358,3 @@ impl Ledger {
             .transpose()
     }
 }
-

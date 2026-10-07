@@ -177,7 +177,10 @@ pub trait SecondaryApi: Send + Sync {
     async fn get_dispute(&self, id: &ResourceId) -> Result<ApiResponse<Dispute>, Error>;
     /// Find invoices by invoice number: the read-back for a rescue invoice whose create answer
     /// was lost. A read: it creates nothing. Implementations without it find nothing.
-    async fn search_invoices(&self, _invoice_number: &str) -> Result<ApiResponse<InvoiceList>, Error> {
+    async fn search_invoices(
+        &self,
+        _invoice_number: &str,
+    ) -> Result<ApiResponse<InvoiceList>, Error> {
         Err(Error::Invalid)
     }
 }
@@ -386,7 +389,10 @@ impl SecondaryApi for Client {
     // UNVERIFIED: the search body field `invoice_number`. The research lists
     // POST /v2/invoicing/search-invoices [S-spec] but not its filters; a filter PayPal ignores can
     // only return invoices the caller then fails to match, so the read-back stays parked.
-    async fn search_invoices(&self, invoice_number: &str) -> Result<ApiResponse<InvoiceList>, Error> {
+    async fn search_invoices(
+        &self,
+        invoice_number: &str,
+    ) -> Result<ApiResponse<InvoiceList>, Error> {
         if invoice_number.is_empty()
             || invoice_number.len() > 25
             || !invoice_number

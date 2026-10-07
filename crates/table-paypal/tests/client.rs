@@ -119,7 +119,12 @@ async fn invoice_numbers_are_short_deterministic_and_search_is_a_read() {
     let found = client.search_invoices(&number).await.unwrap().value;
     assert_eq!(found.items.len(), 1);
     assert_eq!(
-        found.items[0].detail.as_ref().unwrap().invoice_number.as_deref(),
+        found.items[0]
+            .detail
+            .as_ref()
+            .unwrap()
+            .invoice_number
+            .as_deref(),
         Some(number.as_str())
     );
     let requests = fake.requests.lock().unwrap();

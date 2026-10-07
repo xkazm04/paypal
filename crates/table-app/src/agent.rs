@@ -341,6 +341,12 @@ impl Wallet {
             usage,
             now,
         )?;
+        // A rescue's one fix is checked against the signed fixes clause on every check: an offer
+        // the clause no longer allows refuses as clause 8, before any write or PayPal call.
+        if deal.kind == DealKind::Rescue {
+            let case = self.ledger.rescue_case(deal.id)?.ok_or(Error::Permission)?;
+            table_core::check_offer(&m.payload, &case.offer, &deal.terms)?;
+        }
         // The wallet-wide limits sit above every mandate: they only ever refuse, after the
         // mandate allowed the intent and before any write, reservation or network call.
         self.envelope_check(deal, now)?;

@@ -110,6 +110,6 @@ mod resolver;
 pub use relay::*;
 pub use resolver::*;
 #[cfg(test)]
-mod tests;
-#[cfg(test)]
 mod rescue_tests;
+#[cfg(test)]
+mod tests;

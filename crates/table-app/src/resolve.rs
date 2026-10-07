@@ -125,7 +125,8 @@ impl Pipeline {
         now: Timestamp,
     ) -> Result<Option<Resolution>, Error> {
         let deal = self.wallet.ledger.get_deal(op.deal_id)?;
-        if deal.mode == Mode::Replay || deal.state.terminal() {
+        // A rescue's invoice is real even when its failure was replayed (rescue.rs).
+        if (deal.mode == Mode::Replay && deal.kind != DealKind::Rescue) || deal.state.terminal() {
             return Ok(None);
         }
         // The stored request id must be the one derived from the deal, attempt and operation:
@@ -148,11 +149,18 @@ impl Pipeline {
                     .await?
             }
             "void" => self.resolve_void(&deal, op, &request, ticket, now).await?,
+            "invoice-create" if deal.kind == DealKind::Rescue => {
+                self.resolve_invoice_create(&deal, op, now).await?
+            }
+            "invoice-send" if deal.kind == DealKind::Rescue => {
+                self.resolve_invoice_send(&deal, op, &request, ticket, now)
+                    .await?
+            }
             _ => self.park(op, CheckReason::Ambiguous, now)?,
         };
         Ok(Some(resolution))
     }
-    fn park(
+    pub(crate) fn park(
         &mut self,
         op: &OpenOperation,
         reason: CheckReason,
@@ -187,7 +195,11 @@ impl Pipeline {
     }
     /// After a re-send: settled when its answer finished the operation, else parked to be read
     /// again later.
-    fn after_resend(&mut self, op: &OpenOperation, now: Timestamp) -> Result<Resolution, Error> {
+    pub(crate) fn after_resend(
+        &mut self,
+        op: &OpenOperation,
+        now: Timestamp,
+    ) -> Result<Resolution, Error> {
         let still_open = self
             .wallet
             .ledger
@@ -205,7 +217,7 @@ impl Pipeline {
     /// re-send budget, a chosen lapse or a pause, the authority (mandate and, for an owner
     /// decision, a valid owner ticket), the same authority as recorded, and the shield. `None`
     /// means the step may be sent again; otherwise the reason to park.
-    fn resend_gate(
+    pub(crate) fn resend_gate(
         &mut self,
         deal: &Deal,
         op: &OpenOperation,
@@ -309,7 +321,7 @@ impl Pipeline {
         }
         Ok(Ok(order))
     }
-    fn confirm(
+    pub(crate) fn confirm(
         &mut self,
         deal: &Deal,
         op: &OpenOperation,

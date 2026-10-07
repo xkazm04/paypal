@@ -58,7 +58,9 @@ fn world() -> World {
         owner_sig: owner.sign_payload(&payload).unwrap(),
         payload,
     };
-    ledger.insert_mandate(&open, &owner.public_key(), 100).unwrap();
+    ledger
+        .insert_mandate(&open, &owner.public_key(), 100)
+        .unwrap();
     World {
         ledger,
         agent,
@@ -122,9 +124,18 @@ fn open(w: &mut World, id: u128, c: &RescueCase, at: Timestamp) -> Result<Deal, 
 fn sent(w: &mut World, deal: &Deal, invoice: &str, send: bool, at: Timestamp) {
     let human = DecidedBy::Human { at };
     w.ledger
-        .reserve_operation(deal.id, 1, "invoice-create", &format!("{}-1-invoice-create", deal.id), &human, at)
+        .reserve_operation(
+            deal.id,
+            1,
+            "invoice-create",
+            &format!("{}-1-invoice-create", deal.id),
+            &human,
+            at,
+        )
         .unwrap();
-    w.ledger.apply_event(deal.id, DealEvent::BeginSettlement, at).unwrap();
+    w.ledger
+        .apply_event(deal.id, DealEvent::BeginSettlement, at)
+        .unwrap();
     let mut refs = deal.paypal.clone();
     refs.order = Some(invoice.into());
     w.ledger
@@ -139,7 +150,14 @@ fn sent(w: &mut World, deal: &Deal, invoice: &str, send: bool, at: Timestamp) {
         })
         .unwrap();
     w.ledger
-        .reserve_operation(deal.id, 1, "invoice-send", &format!("{}-1-invoice-send", deal.id), &human, at)
+        .reserve_operation(
+            deal.id,
+            1,
+            "invoice-send",
+            &format!("{}-1-invoice-send", deal.id),
+            &human,
+            at,
+        )
         .unwrap();
     w.ledger
         .finish_operation(OperationOutcome {
@@ -208,28 +226,66 @@ fn a_failed_renewal_opens_one_agreed_rescue_per_subscriber_per_cycle() {
     assert_eq!(format!("{:?}", stored.recipient), "Recipient([REDACTED])");
     // The email never reaches the audit chain, and the subscriber is no paired wallet.
     let (rows, _) = w.ledger.audit_page(None, 500).unwrap();
-    assert!(rows.iter().all(|r| !r.detail.to_string().contains("subscriber@")));
+    assert!(
+        rows.iter()
+            .all(|r| !r.detail.to_string().contains("subscriber@"))
+    );
     assert!(rows.iter().any(|r| r.action == "rescue.opened"));
     assert!(w.ledger.counterparty_list().unwrap().is_empty());
     // A second fix for the same subscriber while one is live, or for the same cycle later on,
     // is refused; another subscriber is not.
     assert!(matches!(
-        open(&mut w, 2, &case(RescueSource::Paypal, "I-SUB14", 2 * 86400), 3 * 86400),
+        open(
+            &mut w,
+            2,
+            &case(RescueSource::Paypal, "I-SUB14", 2 * 86400),
+            3 * 86400
+        ),
         Err(LedgerError::Conflict)
     ));
-    w.ledger.apply_event(deal.id, DealEvent::Withdraw, 86400 + 70).unwrap();
+    w.ledger
+        .apply_event(deal.id, DealEvent::Withdraw, 86400 + 70)
+        .unwrap();
     assert!(matches!(
-        open(&mut w, 3, &case(RescueSource::Paypal, "I-SUB14", 86400 + 500), 86400 + 600),
+        open(
+            &mut w,
+            3,
+            &case(RescueSource::Paypal, "I-SUB14", 86400 + 500),
+            86400 + 600
+        ),
         Err(LedgerError::Conflict)
     ));
-    assert!(open(&mut w, 4, &case(RescueSource::Paypal, "I-SUB14", 40 * 86400), 40 * 86400).is_ok());
-    assert!(open(&mut w, 5, &case(RescueSource::Paypal, "I-SUB22", 86400), 86400 + 60).is_ok());
+    assert!(
+        open(
+            &mut w,
+            4,
+            &case(RescueSource::Paypal, "I-SUB14", 40 * 86400),
+            40 * 86400
+        )
+        .is_ok()
+    );
+    assert!(
+        open(
+            &mut w,
+            5,
+            &case(RescueSource::Paypal, "I-SUB22", 86400),
+            86400 + 60
+        )
+        .is_ok()
+    );
     // The mode follows the source; nothing else is accepted.
     let replay = case(RescueSource::Replay, "I-SUB30", 86400);
     let mut wrong = deal_for(&w, 6, &replay);
     wrong.mode = Mode::Sandbox;
     assert!(matches!(
-        w.ledger.open_rescue(&wrong, &replay, &PayeeRef::new("shop").unwrap(), Category::Service, 9 * 86400, 86400),
+        w.ledger.open_rescue(
+            &wrong,
+            &replay,
+            &PayeeRef::new("shop").unwrap(),
+            Category::Service,
+            9 * 86400,
+            86400
+        ),
         Err(LedgerError::Conflict)
     ));
     assert!(Recipient::new("not an email").is_err());
@@ -241,9 +297,27 @@ fn a_failed_renewal_opens_one_agreed_rescue_per_subscriber_per_cycle() {
 #[test]
 fn only_a_paid_receipted_invoice_on_a_paypal_reported_failure_counts_as_recovered() {
     let mut w = world();
-    let real = open(&mut w, 1, &case(RescueSource::Paypal, "I-REAL", 86400), 86400).unwrap();
-    let replay = open(&mut w, 2, &case(RescueSource::Replay, "I-REPLAY", 86400), 86400).unwrap();
-    let unsent = open(&mut w, 3, &case(RescueSource::Paypal, "I-UNSENT", 86400), 86400).unwrap();
+    let real = open(
+        &mut w,
+        1,
+        &case(RescueSource::Paypal, "I-REAL", 86400),
+        86400,
+    )
+    .unwrap();
+    let replay = open(
+        &mut w,
+        2,
+        &case(RescueSource::Replay, "I-REPLAY", 86400),
+        86400,
+    )
+    .unwrap();
+    let unsent = open(
+        &mut w,
+        3,
+        &case(RescueSource::Paypal, "I-UNSENT", 86400),
+        86400,
+    )
+    .unwrap();
     assert_eq!(replay.mode, Mode::Replay);
     sent(&mut w, &real, "INV-REAL", true, 86500);
     sent(&mut w, &replay, "INV-REPLAY", true, 86500);
@@ -279,10 +353,9 @@ fn only_a_paid_receipted_invoice_on_a_paypal_reported_failure_counts_as_recovere
     assert!(!w.ledger.rescue_counted(replay.id).unwrap());
     assert_eq!(w.ledger.rescue_recovered().unwrap(), vec![usd(960)]);
     // The book's metric is the same predicate.
-    let q: BookQuery = serde_json::from_value(
-        serde_json::json!({"view":"deals","metrics":["recovered_sum"]}),
-    )
-    .unwrap();
+    let q: BookQuery =
+        serde_json::from_value(serde_json::json!({"view":"deals","metrics":["recovered_sum"]}))
+            .unwrap();
     let rows = w.ledger.book_query(&q).unwrap()["rows"].clone();
     let total: i64 = rows
         .as_array()
@@ -297,7 +370,13 @@ fn only_a_paid_receipted_invoice_on_a_paypal_reported_failure_counts_as_recovere
 #[test]
 fn migration_0009_keeps_every_operation_and_its_check_and_admits_the_invoice_steps() {
     let mut w = world();
-    let deal = open(&mut w, 1, &case(RescueSource::Paypal, "I-MIG", 86400), 86400).unwrap();
+    let deal = open(
+        &mut w,
+        1,
+        &case(RescueSource::Paypal, "I-MIG", 86400),
+        86400,
+    )
+    .unwrap();
     let human = DecidedBy::Human { at: 86400 };
     let request = format!("{}-1-invoice-create", deal.id);
     w.ledger
@@ -315,7 +394,14 @@ fn migration_0009_keeps_every_operation_and_its_check_and_admits_the_invoice_ste
         })
         .unwrap();
     w.ledger
-        .park_operation(deal.id, 1, "invoice-create", CheckReason::Unreadable, 86500, 86400)
+        .park_operation(
+            deal.id,
+            1,
+            "invoice-create",
+            CheckReason::Unreadable,
+            86500,
+            86400,
+        )
         .unwrap();
     // An operation name outside the closed list is still refused.
     assert!(

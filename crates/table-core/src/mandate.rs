@@ -256,16 +256,10 @@ impl MandatePayload {
                     // Only the discount has an executor: a fix nothing can carry out is refused
                     // at signing, not discovered on a failed renewal.
                     if levers.iter().any(|l| *l != RescueLever::DiscountThisCycle) {
-                        return Err(Refusal::new(
-                            8,
-                            "only the discount this cycle is available",
-                        ));
+                        return Err(Refusal::new(8, "only the discount this cycle is available"));
                     }
                     if *max_discount_bp == 0 || *max_discount_bp >= 10000 {
-                        return Err(Refusal::new(
-                            8,
-                            "discount must be above 0% and below 100%",
-                        ));
+                        return Err(Refusal::new(8, "discount must be above 0% and below 100%"));
                     }
                     if max_discount.minor() == 0 {
                         return Err(Refusal::new(8, "empty discount allowance"));
