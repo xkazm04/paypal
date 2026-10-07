@@ -227,3 +227,22 @@ export function reasonWords(r: string): string {
   for (const [re, to] of REASON_EXACT) if (re.test(r)) return to;
   return r;
 }
+
+// ---- proof files --------------------------------------------------------------------------------
+
+/** What each check on a proof file means, keyed by the verifier's stable check id. */
+export const PROOF_CHECKS: Readonly<Record<string, string>> = {
+  format: 'The file is a proof file this wallet can read.',
+  mandate: 'The owner signed the rules this deal ran under.',
+  transcript: 'Both agents signed every message, in order, with nothing missing.',
+  countersign: 'Each approval names this deal’s price and an approved payee.',
+  authority: 'Every money step had the owner’s approval, a signed rule, or a safe default behind it.',
+  paypal_order: 'PayPal’s order shows the same price, payee and invoice the deal signed.',
+  audit: 'The deal’s records link up, so a change to an earlier one would show.',
+  receipt: 'Any receipt is one of the signed messages.',
+  evidence: 'The deal’s agent signed the whole file, so nothing in it was changed afterwards.',
+};
+/** The checks trust the keys inside the file, so the owner key is the anchor a person compares. */
+export const PROOF_KEY_ANCHOR = 'Compare this owner key with the key the owner shows you: the checks use the keys inside the file.';
+/** What a proof file cannot show (T9). */
+export const PROOF_LIMIT = 'The file cannot show whether newer records were removed from the end.';

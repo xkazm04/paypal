@@ -14,6 +14,7 @@ table-attention.workspace = true
 table-engine.workspace = true
 table-app.workspace = true
 table-ledger.workspace = true
+table-verify = {path="../table-verify"}
 serde.workspace = true
 serde_json.workspace = true
 ts-rs.workspace = true

@@ -142,6 +142,7 @@ pub fn run() -> Result<(), tauri::Error> {
             tumbler_drag,
             tumbler_snap,
             deal_export_proof,
+            proof_check,
             deal_withdraw,
             deal_let_lapse,
             deal_snooze,

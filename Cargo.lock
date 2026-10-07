@@ -4071,6 +4071,7 @@ dependencies = [
  "table-engine",
  "table-ledger",
  "table-proto",
+ "table-verify",
  "ts-rs",
 ]
 

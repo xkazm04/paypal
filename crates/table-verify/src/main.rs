@@ -29,6 +29,8 @@ fn main() -> ExitCode {
             check.detail
         );
     }
+    println!("{}", table_verify::KEY_ANCHOR);
+    println!("{}", table_verify::KNOWN_LIMIT);
     if report.verified() {
         println!("VERIFIED");
         ExitCode::SUCCESS

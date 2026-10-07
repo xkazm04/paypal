@@ -434,6 +434,13 @@ fn assert_proof_verifies(r: &Runtime, id: DealId) -> table_proto::ProofBundle {
     let bundle = r.export_proof(id).unwrap();
     let report = table_verify::verify_bundle(&bundle);
     assert!(report.verified(), "{:#?}", report.checks);
+    // The in-app "Check a proof file" reads the saved bytes with the same verifier.
+    let file =
+        table_client::check_proof_file(&serde_json::to_vec_pretty(&bundle).unwrap()).unwrap();
+    assert!(file.verified && file.deal_id == id, "{file:?}");
+    let ids: Vec<_> = report.checks.iter().map(|c| c.id).collect();
+    let file_ids: Vec<_> = file.checks.iter().map(|c| c.id.as_str()).collect();
+    assert_eq!(ids, file_ids);
     bundle
 }
 fn caller(label: &str, token: Option<&str>) -> Caller {
