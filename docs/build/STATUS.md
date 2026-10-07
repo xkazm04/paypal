@@ -245,6 +245,7 @@ Behaviour changes worth knowing:
   called it, and unauthenticated it let anyone who learned a mailbox hash force a generation reset.
   Long-polls now wake per mailbox.
 - Mandate signing rejects mixed clause currencies and haggle/shop-order mandates without a band.
+- Mandate signing also refuses roles that cannot act on the per-deal kind (clause 1) and a price range missing the side the allowed roles use (clause 4); the approval editor mirrors both.
 - The owner key is minted only for a fresh ledger (`Ledger::is_fresh`); every later read path
   uses `existing_signing_key` and fails closed when the entry is missing.
 - `set_deadline` takes the write time and appends a `deadline.set` audit row in the same transaction.

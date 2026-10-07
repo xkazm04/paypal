@@ -24,7 +24,7 @@ export const CLAUSE_KINDS: ReadonlyArray<{ type: ClauseType; name: string; hint:
   { type: 'roles', name: 'What agents may do', hint: 'buy, sell, run your shop, rescue renewals' },
   { type: 'counterparties', name: 'Who they deal with', hint: 'which wallets they may talk to' },
   { type: 'per_deal', name: 'Limit per deal', hint: 'the most for any single deal' },
-  { type: 'band', name: 'Price range', hint: 'most you’ll pay, least you’ll accept, and how many offers' },
+  { type: 'band', name: 'Price range', hint: 'most you’ll pay, least you’ll accept (buyers need the first, sellers the second), and how many offers' },
   { type: 'velocity', name: 'Daily limit', hint: 'deals and money per day' },
   { type: 'human_present_over', name: 'Ask me above', hint: 'above this amount, you decide' },
   { type: 'payees', name: 'Approved payees', hint: 'who agents may pay on their own' },
@@ -268,8 +268,29 @@ export function ruleProblems(clauses: readonly DraftClause[], notBefore: number 
   }
   const banded = clauses.some((c) => c.type === 'per_deal' && !isIncomplete(c) && (c.kind === 'haggle' || c.kind === 'shop_order'));
   if (banded && !seen.has(4)) out.push({ clause: 4, why: 'haggles and shop orders need a price range' });
+  const roles = clauses.find((c): c is Extract<Clause, { type: 'roles' }> => c.type === 'roles' && !isIncomplete(c));
+  const perDeal = clauses.find((c): c is Extract<Clause, { type: 'per_deal' }> => c.type === 'per_deal' && !isIncomplete(c));
+  const band = clauses.find((c): c is Extract<Clause, { type: 'band' }> => c.type === 'band' && !isIncomplete(c));
+  if (roles && roles.roles.length && perDeal) {
+    const acting = roles.roles.filter((r) => roleActs(r, perDeal.kind));
+    if (!acting.length) {
+      out.push({ clause: 1, why: 'none of what you allowed agents to do fits this kind of deal, so nothing would ever be allowed' });
+    } else if (band && (band.floor || band.ceiling) && !acting.some((r) => (r === 'buy' ? band.ceiling : band.floor))) {
+      out.push({ clause: 4, why: acting.includes('buy') ? 'agents that buy need a most-you’ll-pay' : 'agents that sell need a least-you’ll-accept' });
+    }
+  }
   return out;
 }
+
+/** Mirror of Rust's role/side/kind pairing table: whether a role can act on a deal kind. */
+const roleActs = (role: Role, kind: DealKind): boolean => {
+  switch (role) {
+    case 'buy': return kind === 'purchase' || kind === 'haggle' || kind === 'invoice';
+    case 'sell': return kind === 'haggle' || kind === 'invoice';
+    case 'shop': return kind === 'shop_order';
+    case 'rescue': return kind === 'rescue';
+  }
+};
 
 /** Clause kinds the draft does not have yet (Rust allows one of each). */
 export function missingKinds(d: MandateDraft): ClauseType[] {
