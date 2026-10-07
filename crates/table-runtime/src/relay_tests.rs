@@ -1211,11 +1211,22 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
     assert!(
         detail(&seller_proof, "PayPal order matches the signed terms")
             .detail
-            .contains("custom_id = terms hash")
+            .contains("custom_id = terms hash, invoice id, payee merchant id and amount compared")
     );
+    // The recorded order binding carries every field the verifier compares.
+    let unit = seller_proof
+        .paypal_calls
+        .iter()
+        .filter_map(|c| c.binding.as_ref())
+        .map(|b| &b["purchase_units"][0])
+        .next()
+        .unwrap();
+    for field in ["custom_id", "invoice_id", "payee_merchant_id"] {
+        assert!(unit[field].is_string(), "binding lacks {field}");
+    }
     // Each tamper fails its own check, and every one breaks the signed evidence head.
     type Tamper = fn(&mut table_proto::ProofBundle);
-    let tampers: [(&str, Tamper); 5] = [
+    let tampers: [(&str, Tamper); 9] = [
         ("PayPal order matches the signed terms", |p| {
             let call = p
                 .paypal_calls
@@ -1224,6 +1235,46 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
                 .unwrap();
             call.binding.as_mut().unwrap()["purchase_units"][0]["amount"]["value"] =
                 serde_json::json!("11.99");
+        }),
+        ("PayPal order matches the signed terms", |p| {
+            let call = p
+                .paypal_calls
+                .iter_mut()
+                .find(|c| c.binding.is_some())
+                .unwrap();
+            call.binding.as_mut().unwrap()["purchase_units"][0]["custom_id"] =
+                serde_json::json!("0000");
+        }),
+        ("PayPal order matches the signed terms", |p| {
+            let call = p
+                .paypal_calls
+                .iter_mut()
+                .find(|c| c.binding.is_some())
+                .unwrap();
+            call.binding.as_mut().unwrap()["purchase_units"][0]["payee_merchant_id"] =
+                serde_json::json!("OTHERPAYEE");
+        }),
+        ("PayPal order matches the signed terms", |p| {
+            let call = p
+                .paypal_calls
+                .iter_mut()
+                .find(|c| c.binding.is_some())
+                .unwrap();
+            call.binding.as_mut().unwrap()["purchase_units"][0]
+                .as_object_mut()
+                .unwrap()
+                .remove("payee_merchant_id");
+        }),
+        ("PayPal order matches the signed terms", |p| {
+            let call = p
+                .paypal_calls
+                .iter_mut()
+                .find(|c| c.binding.is_some())
+                .unwrap();
+            call.binding.as_mut().unwrap()["purchase_units"][0]
+                .as_object_mut()
+                .unwrap()
+                .remove("custom_id");
         }),
         ("every money call has a lawful authority", |p| {
             let capture = p
