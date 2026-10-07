@@ -2160,7 +2160,7 @@ async fn a_purchase_without_a_band_lapses_after_a_day_and_a_band_deadline_still_
             first_seen: 0,
         })
         .unwrap();
-    let mut make = |r: &mut Runtime, with_band: bool| {
+    let make = |r: &mut Runtime, with_band: bool| {
         let mut list = clauses(Side::Buyer, DealKind::Purchase);
         if !with_band {
             list.retain(|c| !matches!(c, Clause::Band { .. }));
@@ -2193,12 +2193,24 @@ async fn a_purchase_without_a_band_lapses_after_a_day_and_a_band_deadline_still_
     };
     let banded = make(&mut r, true);
     assert_eq!(
-        r.pipeline.wallet.ledger.deadline(banded.id).unwrap().unwrap().0,
+        r.pipeline
+            .wallet
+            .ledger
+            .deadline(banded.id)
+            .unwrap()
+            .unwrap()
+            .0,
         900_000
     );
     let deal = make(&mut r, false);
     assert_eq!(
-        r.pipeline.wallet.ledger.deadline(deal.id).unwrap().unwrap().0,
+        r.pipeline
+            .wallet
+            .ledger
+            .deadline(deal.id)
+            .unwrap()
+            .unwrap()
+            .0,
         100 + 24 * 3600
     );
     r.pipeline
@@ -2214,7 +2226,10 @@ async fn a_purchase_without_a_band_lapses_after_a_day_and_a_band_deadline_still_
     r.tick().await.unwrap();
     let after = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap();
     assert_eq!(after.state, DealState::Withdrawn);
-    assert!(matches!(after.decided_by, Some(DecidedBy::SafeDefault { .. })));
+    assert!(matches!(
+        after.decided_by,
+        Some(DecidedBy::SafeDefault { .. })
+    ));
     assert_eq!(
         r.pipeline.wallet.ledger.paypal_call_count(deal.id).unwrap(),
         0
