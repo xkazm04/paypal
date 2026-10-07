@@ -323,12 +323,17 @@ async fn a_purchase_without_a_band_lapses_after_its_day() {
 }
 
 /// The offline PayPal reports the order approved at every poll, so the buyer's approval lands
-/// at whatever tick the clock is set to: just inside the forecast's `before`, and at it.
+/// at whatever tick the clock is set to: just inside the forecast's `before`, and at it. The
+/// market reference goes stale at `MARKET_STALE_AT`, long before then: a stale reference that
+/// holds nothing only asks, and an ASK does not stop the seller receiving money (H5), so the
+/// window runs to the order's expiry.
 #[tokio::test]
-async fn a_buyer_approval_counts_only_before_the_forecast_says() {
+async fn a_buyer_approval_counts_until_the_order_expires_though_the_market_went_stale() {
+    let expires = 100 + 6 * 3600;
     for (approved_at, end) in [
-        (MARKET_STALE_AT - 1, DealState::Receipted),
-        (MARKET_STALE_AT, DealState::Approved),
+        (MARKET_STALE_AT, DealState::Receipted),
+        (expires - 1, DealState::Receipted),
+        (expires, DealState::Expired),
     ] {
         let (mut r, vault, http, clock, _) = runtime(true);
         let deal = ordered(&mut r, &vault, Delivery::DigitalNow).await;
@@ -344,30 +349,28 @@ async fn a_buyer_approval_counts_only_before_the_forecast_says() {
         );
         for line in &lines[..2] {
             assert_eq!(line.trigger, ForecastTrigger::BuyerApproves);
-            assert_eq!(line.before, Some(MARKET_STALE_AT));
+            assert_eq!(line.before, Some(expires));
         }
         set(&clock, approved_at);
-        let ticked = r.tick().await;
+        r.tick().await.unwrap();
         let after = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap();
-        assert_eq!(after.state, end);
+        assert_eq!(after.state, end, "approved at {approved_at}");
+        let authorized = http
+            .0
+            .lock()
+            .unwrap()
+            .paths
+            .iter()
+            .any(|p| p.ends_with("/authorize"));
         if end == DealState::Receipted {
-            ticked.unwrap();
+            assert!(authorized);
             assert!(matches!(
                 after.decided_by,
                 Some(DecidedBy::SellerMandate { .. })
             ));
         } else {
-            // The pipeline refuses the authorize on a stale market and the tick reports it.
-            assert!(ticked.is_err());
-            assert!(
-                !http
-                    .0
-                    .lock()
-                    .unwrap()
-                    .paths
-                    .iter()
-                    .any(|p| p.ends_with("/authorize"))
-            );
+            // The deadline wins: the order expires and silence moves no money.
+            assert!(!authorized);
         }
     }
 }

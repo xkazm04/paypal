@@ -673,7 +673,7 @@ async fn invalid_approval_link_records_evidence_and_cannot_be_opened_or_recreate
     p.wallet.ledger.verify_audit().unwrap();
 }
 #[tokio::test]
-async fn shield_ask_and_revoked_mandates_stop_each_money_grant_before_network() {
+async fn shield_ask_stops_policy_and_a_revoked_mandate_stops_the_seller_before_network() {
     let (_, seller, deal) = agreed();
     let mock = Arc::new(MockApi::default());
     let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
@@ -695,11 +695,7 @@ async fn shield_ask_and_revoked_mandates_stop_each_money_grant_before_network() 
             .await
             .is_err()
     );
-    assert!(
-        p.capture(deal.id, 1, Category::Parts, Authority::SellerMandate, 101)
-            .await
-            .is_err()
-    );
+    // ASK no longer stops the seller mandate's capture (H5); the matrix below pins that.
     assert_eq!(mock.calls.lock().unwrap().len(), before);
     p.wallet
         .ledger
@@ -1026,4 +1022,162 @@ async fn a_purchase_never_runs_on_policy_and_the_owner_path_captures_it() {
     ));
     assert!(matches!(d.decided_by, Some(DecidedBy::Human { .. })));
     p.wallet.ledger.verify_audit().unwrap();
+}
+
+/// The authority a shield-matrix cell names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Who {
+    Policy,
+    Human,
+    House,
+    Seller,
+}
+/// The shield gate the pipeline must apply, written out as the operator's H5 decision states it.
+fn gate_table(verdict: ShieldVerdict, who: Who, step: MoneyStep) -> bool {
+    // The seller mandate is granted only on an order the buyer approved: never at create.
+    if who == Who::Seller && step == MoneyStep::Create {
+        return false;
+    }
+    match verdict {
+        ShieldVerdict::Clear => true,
+        ShieldVerdict::Ask => match who {
+            Who::Human | Who::House => true,
+            Who::Seller => matches!(step, MoneyStep::Authorize | MoneyStep::Capture),
+            Who::Policy => false,
+        },
+        ShieldVerdict::Hold | ShieldVerdict::Block => false,
+    }
+}
+/// A seller deal at `step`'s entry state, reached at 100 on the owner's decisions with a clear
+/// shield and then raised to `verdict`; the house release is installed so all four authorities
+/// can be named.
+async fn at_step(
+    step: MoneyStep,
+    verdict: ShieldVerdict,
+) -> (Pipeline, Arc<MockApi>, DealId, String, H256) {
+    let (_, seller, deal, owner) = agreed_owned();
+    let mock = Arc::new(MockApi::default());
+    let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
+    let mandate = p
+        .wallet
+        .ledger
+        .active_mandate(deal.mandate_id, 1, &owner.public_key())
+        .unwrap();
+    let commitment = mandate.payload.hash().unwrap();
+    let release = HouseRelease {
+        owner_key: owner.public_key().to_bytes(),
+        agent_key: p.wallet.agent_public_key().to_bytes(),
+        payee: PayeeRef::new("merchant").unwrap(),
+        mandate_commitment: commitment,
+        owner_signature: owner.sign_commitment(commitment),
+    };
+    p.enable_house(release, &mandate).unwrap();
+    let token = p.approval.token("approval").unwrap().to_owned();
+    p.approval
+        .unlock("approval", &token, &TestReauth, 100)
+        .unwrap();
+    let hash = p
+        .wallet
+        .ledger
+        .get_deal(deal.id)
+        .unwrap()
+        .terms
+        .hash()
+        .unwrap();
+    if step != MoneyStep::Create {
+        let t = p
+            .approval
+            .ticket("approval", &token, deal.id, hash, 1, 100)
+            .unwrap();
+        p.create(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+            .await
+            .unwrap();
+        mock.approved.store(true, Ordering::SeqCst);
+        assert!(p.poll_approval(deal.id, 1, 100).await.unwrap());
+    }
+    if step == MoneyStep::Capture {
+        let t = p
+            .approval
+            .ticket("approval", &token, deal.id, hash, 1, 100)
+            .unwrap();
+        p.authorize(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+            .await
+            .unwrap();
+    }
+    if verdict != ShieldVerdict::Clear {
+        p.wallet.ledger.raise_shield(deal.id, verdict, 100).unwrap();
+    }
+    (p, mock, deal.id, token, hash)
+}
+#[tokio::test]
+async fn the_shield_gate_matrix_pins_h5_and_step_allowed_agrees_with_every_real_step() {
+    let verdicts = [
+        ShieldVerdict::Clear,
+        ShieldVerdict::Ask,
+        ShieldVerdict::Hold,
+        ShieldVerdict::Block,
+    ];
+    let steps = [MoneyStep::Create, MoneyStep::Authorize, MoneyStep::Capture];
+    for verdict in verdicts {
+        for who in [Who::Policy, Who::Human, Who::House, Who::Seller] {
+            for step in steps {
+                let cell = format!("{verdict:?} x {who:?} x {step:?}");
+                let (mut p, mock, id, token, hash) = at_step(step, verdict).await;
+                let authority = |p: &mut Pipeline| match who {
+                    Who::Policy => Authority::Policy,
+                    Who::House => Authority::HouseMandate,
+                    Who::Seller => Authority::SellerMandate,
+                    Who::Human => Authority::Owner(
+                        p.approval
+                            .ticket("approval", &token, id, hash, 1, 100)
+                            .unwrap(),
+                    ),
+                };
+                // step_allowed cannot judge an owner ticket; everywhere else it must agree.
+                let judged = (who != Who::Human).then(|| {
+                    let a = authority(&mut p);
+                    p.step_allowed(id, step, Category::Parts, a, 100, false)
+                        .unwrap()
+                });
+                let (calls, rows, signed) = (
+                    mock.calls.lock().unwrap().len(),
+                    p.wallet.ledger.paypal_call_count(id).unwrap(),
+                    p.wallet.ledger.has_countersign(id, 1).unwrap(),
+                );
+                let a = authority(&mut p);
+                let ran = match step {
+                    MoneyStep::Create => p.create(id, 1, Category::Parts, a, 100).await.map(|_| ()),
+                    MoneyStep::Authorize => p.authorize(id, 1, Category::Parts, a, 100).await,
+                    MoneyStep::Capture => {
+                        p.capture(id, 1, Category::Parts, a, 100).await.map(|_| ())
+                    }
+                };
+                assert_eq!(
+                    ran.is_ok(),
+                    gate_table(verdict, who, step),
+                    "{cell}: {ran:?}"
+                );
+                if let Some(judged) = judged {
+                    assert_eq!(judged, ran.is_ok(), "step_allowed disagrees at {cell}");
+                }
+                if ran.is_err() {
+                    // A refusal writes nothing and calls nothing.
+                    assert!(matches!(ran, Err(table_app::Error::Permission)), "{cell}");
+                    assert_eq!(mock.calls.lock().unwrap().len(), calls, "{cell}");
+                    assert_eq!(
+                        p.wallet.ledger.paypal_call_count(id).unwrap(),
+                        rows,
+                        "{cell}"
+                    );
+                    assert_eq!(p.wallet.ledger.has_countersign(id, 1).unwrap(), signed);
+                } else if who == Who::Seller {
+                    assert!(matches!(
+                        p.wallet.ledger.get_deal(id).unwrap().decided_by,
+                        Some(DecidedBy::SellerMandate { .. })
+                    ));
+                }
+                p.wallet.ledger.verify_audit().unwrap();
+            }
+        }
+    }
 }
