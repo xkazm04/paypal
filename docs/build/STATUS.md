@@ -247,6 +247,20 @@ one signed file (`table.proof.v1`, `table_proto::ProofBundle`) and `crates/table
   table_client::check_proof_file. The sheet and the table-verify CLI both state the owner-key anchor
   and the T9 limit (removed newer records cannot be seen). Not yet run: the native open dialog (no
   GUI harness); client tsc/vitest in a worktree.
+- Council-lite r2 (2026-10-07, council run 2026-10-07-audit-trail-export-lite-r2, at 3e9bcae): ready,
+  overall 0.63. Scores: value 0.56, craft 0.66, robustness 0.72; coverage 0.70. Rivalry and economics
+  were not judged. Uncalibrated; one session judged all rows. All six r1 lines are closed, each with
+  a test.
+  - Open must-address: the owner-key anchor cannot be acted on. No screen shows an owner their own
+    key, and the Check a proof file sheet shows only 40 of the key id's 64 hex characters.
+  - Open, not must-address:
+    - A reader without the desktop wallet cannot check a bundle. That includes an accountant and the
+      no-install judge path (T7, not built).
+    - On a pre-0007 bundle, the PayPal-order line reads as failed rather than not checked.
+    - The Audit sheet is a dead end when the chain fails.
+    - No test exports from a corrupt chain or with a missing key.
+    - The rework's client TypeScript has never been typechecked: a worktree has no node_modules.
+  - Gates were cited, not run: 39e07aad's merge gate at 3e9bcae passed `cargo test --workspace`.
 
 ## Incidental sweep (2026-10-06)
 
