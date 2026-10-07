@@ -1215,3 +1215,7 @@ unchanged (no generated type changed; `TranscriptBy`/`TranscriptType` only gaine
   still be acknowledged with its sequence number (otherwise a wallet whose send landed but whose reply was lost
   would see 429 forever), so the scan stays first; it is a length-prefixed compare over at most 256 messages.
 - Tests: `services/rendezvous/tests/relay.rs` (boundary, global, expiry release, paging, resend dedupe).
+
+## Policy authority above clause 6 (2026-10-07)
+
+- `crates/table-app/tests/pipeline.rs::policy_authority_is_refused_above_clause_6_before_any_paypal_call`: with a signed mandate whose clause 6 threshold (10.00) is below the deal (12.00), `Authority::Policy` is refused at create, authorize and capture with zero new mock PayPal calls and `paypal_calls` rows, and no countersign row at create; the same deal then reaches `Receipted` with `Authority::Owner(OwnerTicket)`, countersign present before capture. For authorize and capture the countersign row already exists from the owner's create, so those steps assert it is unchanged. No defect found; the gate held.
