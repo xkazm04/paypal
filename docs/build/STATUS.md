@@ -1401,3 +1401,24 @@ craft-4 item and question 2 of run ed13e041 are taken in.
   Mismatch); the model-caution path has no production caller; release vs recompute (a released
   model HOLD becomes ASK, which now passes the seller's authorize and capture); the
   new-counterparty fixtures.
+
+## Overnight waves (2026-10-07, coordinator session)
+
+One coordinator merged builder sessions wave by wave on `claude/confident-euler-99xqm9`, rerunning
+the full client and Rust gates after every merge. Wave 1: T4 slice 3 + T2 badge, T5, T7. Before
+it, the Linux legs of CI were made green: `table-engine/tests/native.rs` wrote `codex.exe` (only
+Windows resolves it) and left Windows-only helpers unused under clippy `-D warnings`.
+
+### T4 slice 3 walk-away + quit confirm, T2 practice-agent badge (83174f3, 93e93f3)
+
+- **Quit lines (pure, new):** `table_attention::quit` adds `quit_lines(&[QuitSource], &[ForecastLine]) -> QuitLines { while_off, at_paypal }`, `QuitLine { deal_id, label, effect, amount_minor, currency, text }`, `QuitEffect` (`request_not_sent | not_collected | not_collected_if_approved | waits | request_runs_out | hold_runs_out | seller_may_collect`), `ON_QUIT` and `quit_message` (native dialog text: deal numbers, never ids). Quitting stops the scheduler, so every create, authorize or capture in the forecast becomes a "won't happen while The Table is off" line; a buyer-approval step reads "If the buyer approves on PayPal, the payment is not collected until you open The Table again". An order awaiting approval or a hold also gets "still happens at PayPal by itself" (approve window; a hold released by PayPal after 29 days at most, paypal-platform.md:22/:114 [S]). A buyer deal already approved or on hold says the seller can still collect it (paypal-platform.md:361). Every pending deal gets at least one line; no line says money goes out.
+- **Contract:** `QuitSummary` gains optional `while_off` / `at_paypal` (`None` when the forecast read fails); bindings `QuitSummary.ts`, `QuitLine.ts`, `QuitEffect.ts`. `quit_confirm`'s `confirmation_id` now hashes `(pending deals, while_off, at_paypal, on_quit)`, so a change that alters only the lines is refused.
+- **Behaviour change:** a deal held only by its shield verdict counts as pending only while not terminal; MISMATCH stays listed.
+- **Native tray Quit** shows `quit_message` and asks again if the confirm is refused because what it showed changed. Windows-only: **not compiled on this Linux host**; compile and native check owed. It keeps the plugin's OK/Cancel labels.
+- **Tumbler stack:** one "If you walk away" row from `AttentionSnapshot.forecast`: `$0.00 out` per currency, `$X in` / `up to $X in` when a buyer approval is needed, `N holds released`; ⓘ opens up to three lines (when · what · "your rule" / "safe default" / "the buyer already approved"), conditional lines read "If the buyer approves". No forecast reads "Can't forecast right now". Aggregation in `tumbler/logic.ts` (`walkAway`), labels and amounts only (W4). The stack list shows one row fewer and scrolls.
+- **Quit sheet (main, new):** `QuitSheet` (Ctrl K → "Quit The Table"), `main/quit.ts` `quitView`; leads with Rust's `on_quit`, then "Won't happen while The Table is off" and "Still happens at PayPal, by itself"; a refused confirm reloads. Buttons "Keep it running" / "Quit The Table" (no gold). Nothing in the client rendered a quit confirm before.
+- **T2 badge:** `runBadge` (words.ts) and `RunBadge` (shared/honesty.tsx) show "Practice agent" next to runs whose `mode` is `scripted_engine` (deal page agent chip, Details "Agent app" row, Settings working-agent rows).
+- **Mock:** `mock/forecast.ts` mirrors `forecast()` and `quit_lines`; `attention_list` carries `forecast` (`?forecast=off` previews a failed read); `quit_confirm` refuses a changed confirmation; `agent_start` uses `scripted_engine` only for the scripted engine (as `engines.rs`).
+- **Tests:** `table_attention::quit::tests` (11: seller order awaiting buyer, physical seller order, approved seller order, agreed seller deal, authorized hold, seller hold, buyer offer waits, pending deal without forecast line, no open deals, no line says money goes out, dialog names deal numbers); `table-runtime` `quit_tests` (6, incl. `quit_confirm_refuses_when_the_shown_lines_changed_though_the_deals_did_not`, `quit_with_an_unreadable_forecast_promises_nothing_per_deal`); client `tumbler/walkaway.test.ts` (9), `main/quit.test.ts` (3), `lib/runWords.test.tsx` (3), `mock/forecast.test.ts` (3).
+- **UNVERIFIED:** how long PayPal keeps an approved-but-uncollected order is not in the research, so no line claims it.
+- **Left:** native Windows compile and check of the tray quit dialog; a Tumbler-menu quit entry if a menu is added.
