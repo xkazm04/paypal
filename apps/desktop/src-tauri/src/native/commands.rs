@@ -502,3 +502,11 @@ pub(super) async fn proof_check(
         })?;
     check_proof_file(&bytes).map(Some)
 }
+#[tauri::command]
+pub(super) async fn mandate_simulate(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    args: MandateSimulateArgs,
+) -> Result<MandateSimulation, CommandError> {
+    ask(&window, &state, None, Action::Simulate(args)).await
+}

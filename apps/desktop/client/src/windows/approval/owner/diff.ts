@@ -6,7 +6,6 @@ import type { Currency } from '@bindings/Currency';
 import type { Money } from '@bindings/Money';
 import { formatMinor, shortId } from '../../../lib/format';
 import { CLAUSE_KINDS, CLAUSE_NUMBER, isIncomplete, type ClauseType, type DraftClause } from '../mandateDraft';
-import type { ReplayRow } from './preview';
 
 export type Dir = 'widens' | 'restricts' | 'changes';
 export type Change = { clause: number; type: ClauseType | 'meta'; term: string; from: string; to: string; dir: Dir; text: string };
@@ -97,39 +96,4 @@ export function diffPolicy(base: DiffSide | null, draft: DiffSide): Change[] {
     else if (!x && y) out.push({ clause: n, type: k.type, term: name(k.type).toLowerCase(), from: base ? 'none' : '—', to: 'added', dir: base ? 'restricts' : 'changes', text: `Adding “${name(k.type)}”` });
   }
   return out;
-}
-
-/** The signed clauses with only one clause kind taken from the draft, so a consequence can be
- *  pinned to the change that caused it. */
-export function oneClauseFromDraft(base: readonly Clause[], draft: readonly DraftClause[], type: ClauseType): DraftClause[] {
-  const fromDraft = draft.find((c) => c.type === type);
-  const rest = base.filter((c) => c.type !== type);
-  return fromDraft ? [...rest, fromDraft] : rest;
-}
-
-const join = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
-
-/** "would have refused 01JD…7Q (cables) …" for the rows whose verdict moved. Empty when none moved. */
-export function hitPhrase(rows: readonly ReplayRow[], tag: (r: ReplayRow) => string): string {
-  const g = { refused: [] as string[], passed: [] as string[], asked: [] as string[], policy: [] as string[], unknown: [] as string[], other: [] as string[] };
-  for (const r of rows) {
-    if (!r.moved) continue;
-    const t = tag(r);
-    const a = r.signed.outcome;
-    const b = r.draft.outcome;
-    if (b === 'refused' && a !== 'refused') g.refused.push(t);
-    else if (a === 'refused' && b !== 'refused' && b !== 'unknown') g.passed.push(t);
-    else if (b === 'asks' && a === 'policy') g.asked.push(t);
-    else if (b === 'policy' && a === 'asks') g.policy.push(t);
-    else if (b === 'unknown' || a === 'unknown') g.unknown.push(t);
-    else g.other.push(t);
-  }
-  const p: string[] = [];
-  if (g.refused.length) p.push(`refused ${join(g.refused)} before PayPal was asked`);
-  if (g.passed.length) p.push(`let ${join(g.passed)} through`);
-  if (g.asked.length) p.push(`asked you about ${join(g.asked)} instead of letting the agent decide`);
-  if (g.policy.length) p.push(`let the agent settle ${join(g.policy)} without asking you`);
-  if (g.unknown.length) p.push(`changed ${join(g.unknown)} in a way this preview can’t finish (the wallet decides)`);
-  if (g.other.length) p.push(`changed the reason on ${join(g.other)}`);
-  return p.join('; ');
 }

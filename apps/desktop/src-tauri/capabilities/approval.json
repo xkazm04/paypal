@@ -37,6 +37,7 @@
     "allow-pairing-abort",
     "allow-approval-handoff",
     "allow-owner-facts",
-    "allow-deal-export-proof"
+    "allow-deal-export-proof",
+    "allow-mandate-simulate"
   ]
 }

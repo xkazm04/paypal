@@ -181,7 +181,8 @@ pub fn run() -> Result<(), tauri::Error> {
             audit_page,
             owner_facts,
             book_query,
-            deal_history
+            deal_history,
+            mandate_simulate
         ])
         .setup(|app| {
             let data = app.path().app_data_dir()?;
