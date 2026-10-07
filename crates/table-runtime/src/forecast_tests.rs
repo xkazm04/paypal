@@ -154,6 +154,9 @@ async fn a_buyer_haggle_negotiating_lapses_at_its_deadline() {
     let lines = walk(&mut r, &clock, deal.id, T0).await;
     assert_eq!(actions(&lines), [ForecastAction::Lapse]);
     assert!(http.0.lock().unwrap().paths.is_empty());
+    // A deal with no money operation still proves its mandate, messages and audit rows.
+    let proof = assert_proof_verifies(&r, deal.id);
+    assert!(proof.operations.is_empty() && proof.paypal_calls.is_empty());
 }
 
 #[tokio::test]
@@ -197,6 +200,18 @@ async fn a_seller_agreed_deal_with_a_fresh_market_creates_its_order_then_expires
     );
     assert_eq!(lines[1].at, Some(T0 + 6 * 3600));
     assert_eq!(state(&r, deal.id), DealState::Expired);
+    // The order was countersigned on the owner's clause 6 rule; the bundle proves it.
+    let proof = assert_proof_verifies(&r, deal.id);
+    assert!(matches!(
+        proof.closed_mandates[..],
+        [table_proto::ProofClosed {
+            mandate: ClosedMandate {
+                decided_by: DecidedBy::Policy { clause: 6 },
+                ..
+            },
+            ..
+        }]
+    ));
 }
 
 #[tokio::test]
@@ -260,6 +275,13 @@ async fn a_seller_approved_digital_deal_authorizes_and_captures_on_the_seller_ma
         [ForecastAction::Authorize, ForecastAction::Capture]
     );
     assert_eq!(state(&r, deal.id), DealState::Receipted);
+    // Revoking the mandate after the deal closed leaves its proof checkable.
+    r.pipeline
+        .wallet
+        .ledger
+        .revoke_mandate(deal.mandate_id, T0 + 7 * 3600)
+        .unwrap();
+    assert_proof_verifies(&r, deal.id);
 }
 
 #[tokio::test]
@@ -276,6 +298,9 @@ async fn a_seller_authorized_shipped_deal_auto_voids_at_its_72_hour_deadline() {
     let paths = &http.0.lock().unwrap().paths;
     assert!(!paths.iter().any(|p| p.ends_with("/capture")));
     assert_eq!(paths.iter().filter(|p| p.ends_with("/void")).count(), 1);
+    let proof = assert_proof_verifies(&r, deal.id);
+    assert!(proof.operations.iter().any(|o| o.operation == "void"
+        && matches!(o.decided_by, DecidedBy::SafeDefault { .. })));
 }
 
 #[tokio::test]
