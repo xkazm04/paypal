@@ -999,15 +999,22 @@ fn signing_refuses_a_mandate_no_role_can_act_under() {
     let mut mismatched = clauses(Side::Seller, DealKind::Purchase);
     mismatched.retain(|c| c.number() != 4);
     let id = MandateId(ulid::Ulid::new());
-    assert!(
-        r.sign_mandate(MandateSignArgs {
+    // A rule's answer, readable as REFUSED with its reason; never a ledger-trust fault.
+    let error = r
+        .sign_mandate(MandateSignArgs {
             id: Some(id),
             agent: AgentSlot::Negotiator,
             clauses: mismatched,
             not_before: 0,
             expires: 1_000_000,
         })
-        .is_err()
+        .unwrap_err();
+    assert!(matches!(error.code, ErrorCode::Refused), "{error:?}");
+    assert!(
+        error
+            .message
+            .contains("no role in the roles clause can act on the per-deal kind"),
+        "{error:?}"
     );
     assert!(
         r.pipeline
@@ -1021,6 +1028,78 @@ fn signing_refuses_a_mandate_no_role_can_act_under() {
         r.pipeline.wallet.ledger.next_mandate_version(id).unwrap(),
         1
     );
+}
+#[tokio::test]
+async fn a_band_change_that_clears_the_only_bound_is_refused_and_nothing_moves() {
+    let (mut r, _, http, _, _) = runtime(true);
+    // A sell-only mandate: its agents need a least-you'll-take.
+    let (deal, _) = setup(&mut r, Side::Seller);
+    let token = unlock_runtime(&mut r);
+    r.execute(caller("main", None), Action::Select(Some(deal.id)))
+        .await
+        .unwrap();
+    let error = r
+        .execute(
+            caller("approval", Some(&token)),
+            Action::Band(BandArgs {
+                deal_id: deal.id,
+                floor: None,
+                ceiling: Some(Money::new(2000, Currency::USD).unwrap()),
+            }),
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(error.code, ErrorCode::Refused), "{error:?}");
+    assert!(
+        error
+            .message
+            .contains("band lacks the side the allowed roles use"),
+        "{error:?}"
+    );
+    let ledger = &r.pipeline.wallet.ledger;
+    assert_eq!(ledger.next_mandate_version(deal.mandate_id).unwrap(), 2);
+    assert_eq!(ledger.get_deal(deal.id).unwrap().mandate_version, 1);
+    ledger
+        .active_mandate(deal.mandate_id, 1, &r.owner().unwrap().verifying_key())
+        .unwrap();
+    assert!(http.0.lock().unwrap().paths.is_empty());
+    ledger.verify_audit().unwrap();
+}
+#[tokio::test]
+async fn signing_a_mandate_needs_the_approval_label_and_its_token() {
+    let (mut r, ..) = runtime(false);
+    let token = unlock_runtime(&mut r);
+    let args = || MandateSignArgs {
+        id: None,
+        agent: AgentSlot::Negotiator,
+        clauses: clauses(Side::Buyer, DealKind::Haggle),
+        not_before: 0,
+        expires: 1_000_000,
+    };
+    for who in [
+        caller("main", Some(&token)),
+        caller("tumbler", Some(&token)),
+        caller("approval", None),
+    ] {
+        let error = r.execute(who, Action::Sign(args())).await.unwrap_err();
+        assert!(matches!(error.code, ErrorCode::Permission), "{error:?}");
+    }
+    let owner = r.owner().unwrap().verifying_key();
+    assert!(
+        r.pipeline
+            .wallet
+            .ledger
+            .list_mandates(&owner)
+            .unwrap()
+            .is_empty()
+    );
+    let m: OpenMandate = serde_json::from_value(
+        r.execute(caller("approval", Some(&token)), Action::Sign(args()))
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(m.payload.version, 1);
 }
 #[tokio::test]
 async fn unlock_checks_origin_before_os_and_failure_keeps_lock() {
