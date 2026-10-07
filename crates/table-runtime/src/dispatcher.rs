@@ -166,6 +166,8 @@ impl Runtime {
             .filter(|currency| deals.iter().all(|d| d.terms.currency == *currency));
         // A failed read hides the forecast; it never fails the attention snapshot.
         snapshot.forecast = self.forecast(now).ok();
+        // Each card's silence line follows the forecast beside it (DECISIONS 15).
+        table_attention::word_silence(&mut snapshot, &sources);
         Ok(snapshot)
     }
     pub(crate) async fn execute(

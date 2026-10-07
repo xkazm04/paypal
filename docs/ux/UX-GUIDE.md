@@ -16,7 +16,7 @@ paragraph**:
 
 1. **Is my money safe right now?** (moving / held / paid / stopped)
 2. **Does anything need me?** (gold, with a time left)
-3. **What happens if I do nothing?** (always: no money moves, or a hold is released)
+3. **What happens if I do nothing?** (silence never sends money out, and the card says which it is: nothing moves, a hold is released, or a payment the buyer already approved comes in)
 
 ## Principles
 
