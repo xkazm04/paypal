@@ -2,9 +2,11 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 pub mod forecast;
 pub mod placement;
+pub mod quit;
 pub mod silence;
 pub use forecast::*;
 pub use placement::*;
+pub use quit::{QuitEffect, QuitLine, QuitLines, QuitSource, quit_lines, quit_message};
 pub use silence::word_silence;
 
 use serde::{Deserialize, Serialize};
