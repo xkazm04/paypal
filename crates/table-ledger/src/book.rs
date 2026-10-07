@@ -78,13 +78,18 @@ fn compile(query: &BookQuery) -> Result<(String, Vec<Value>), LedgerError> {
         groups.push(column.into());
     }
     for metric in &query.metrics {
-        columns.push(match metric{
-        BookMetric::Count=>"COUNT(*) AS count".into(),
-        BookMetric::SumAmount=>format!("SUM({AMOUNT}) AS sum_amount"),
-        BookMetric::AvgVsMarketPct=>format!("SUM({MARKET})/NULLIF(COUNT({MARKET}),0) AS avg_vs_market_bp"),
-        // The rescue module's one predicate (rescue.rs `COUNTED`): never REPLAY, never "sent".
-        BookMetric::RecoveredSum=>format!("SUM(CASE WHEN {} THEN d.qty*d.unit_price_minor ELSE 0 END) AS recovered_sum", crate::rescue::COUNTED),
-    });
+        columns.push(match metric {
+            BookMetric::Count => "COUNT(*) AS count".into(),
+            BookMetric::SumAmount => format!("SUM({AMOUNT}) AS sum_amount"),
+            BookMetric::AvgVsMarketPct => {
+                format!("SUM({MARKET})/NULLIF(COUNT({MARKET}),0) AS avg_vs_market_bp")
+            }
+            // The rescue module's one predicate (rescue.rs `COUNTED`): never REPLAY, never "sent".
+            BookMetric::RecoveredSum => format!(
+                "SUM(CASE WHEN {} THEN d.qty*d.unit_price_minor ELSE 0 END) AS recovered_sum",
+                crate::rescue::COUNTED
+            ),
+        });
     }
     if query.view == BookView::PaypalCalls && query.metrics.contains(&BookMetric::RecoveredSum) {
         return Err(invalid(
@@ -333,8 +338,22 @@ mod tests {
         for (id, mode, source, state, send, amount) in [
             ("S", "sandbox", "paypal", "RECEIPTED", "confirmed", 960),
             ("R", "replay", "replay", "RECEIPTED", "confirmed", 1200),
-            ("E", "scripted_engine", "paypal", "RECEIPTED", "confirmed", 1500),
-            ("P", "sandbox", "paypal", "AWAITING_APPROVAL", "confirmed", 700),
+            (
+                "E",
+                "scripted_engine",
+                "paypal",
+                "RECEIPTED",
+                "confirmed",
+                1500,
+            ),
+            (
+                "P",
+                "sandbox",
+                "paypal",
+                "AWAITING_APPROVAL",
+                "confirmed",
+                700,
+            ),
             ("U", "sandbox", "paypal", "RECEIPTED", "unknown", 800),
         ] {
             ledger.conn.execute("INSERT INTO deals(id,kind,side,mandate_id,mandate_version,qty,unit_price_minor,currency,state,created_at,updated_at,mode,pp_order_id,receipt_evidence) VALUES (?1,'rescue','seller','fixture',1,1,?2,'USD',?4,'100','100',?3,'INV-'||?1,'paypal_verified')",rusqlite::params![id,amount,mode,state]).unwrap();

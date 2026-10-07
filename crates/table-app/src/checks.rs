@@ -130,6 +130,7 @@ fn rule_name(clause: u8) -> &'static str {
         0 => "your wallet limits",
         6 => "ask me above",
         7 => "approved payees",
+        8 => "fixes for failed renewals",
         _ => "a rule",
     }
 }
@@ -636,7 +637,7 @@ impl Pipeline {
                 }
             }
         };
-        Ok(compose(&CheckFacts {
+        let facts = CheckFacts {
             deal: &deal,
             attempt,
             settle,
@@ -644,6 +645,107 @@ impl Pipeline {
             payee,
             shield: self.shield_verdict(id, now).ok(),
             mandate,
-        }))
+        };
+        if deal.kind == DealKind::Rescue {
+            let lever = active
+                .as_ref()
+                .ok()
+                .and_then(|m| table_core::lever_clause(&m.payload))
+                .map(|(_, bp, max)| (bp, max));
+            let case = ledger.rescue_case(id).ok().flatten();
+            return Ok(compose_rescue(&facts, case.as_ref(), lever));
+        }
+        Ok(compose(&facts))
     }
+}
+
+use table_core::percent;
+
+/// The six lines for a rescue fix: what the invoice asks against the signed fixes clause, who is
+/// paid (the owner), that no PayPal link is opened, that the subscriber gets one invoice this
+/// cycle, the scam check, and the rescue rules.
+pub fn compose_rescue(
+    f: &CheckFacts<'_>,
+    case: Option<&table_ledger::RescueCase>,
+    lever: Option<(u16, Money)>,
+) -> Vec<ApprovalCheck> {
+    use ApprovalCheckStatus::*;
+    let mut lines = compose(f);
+    let terms = f.deal.terms.amount().ok();
+    let amount = match case {
+        Some(c) if Some(c.offer.invoice) == terms && f.deal.terms.qty == 1 => line(
+            ApprovalCheckId::Amount,
+            Pass,
+            format!(
+                "The invoice asks {}: {} off this cycle’s {}.",
+                plain_money(c.offer.invoice),
+                percent(c.offer.discount_bp),
+                plain_money(c.offer.cycle)
+            ),
+            format!(
+                "rescue offer {:?}: cycle {} − discount {} = invoice {} = signed terms (qty 1)",
+                c.offer.lever, c.offer.cycle, c.offer.discount, c.offer.invoice
+            ),
+        ),
+        _ => line(
+            ApprovalCheckId::Amount,
+            Fail,
+            "The fix’s amount can’t be confirmed.".into(),
+            "no rescue row, or its offer is not what the deal's terms invoice".into(),
+        ),
+    };
+    let host = line(
+        ApprovalCheckId::Host,
+        NotApplicable,
+        "No PayPal link is opened: PayPal emails the invoice to your subscriber.".into(),
+        "Invoicing v2: POST /v2/invoicing/invoices then …/{id}/send; no approve link".into(),
+    );
+    let replay = f.deal.mode == Mode::Replay;
+    let invoice = match (case, &f.deal.paypal.order) {
+        (None, _) => line(
+            ApprovalCheckId::Invoice,
+            Fail,
+            "The failed renewal behind this fix can’t be read.".into(),
+            "no rescue row for this deal".into(),
+        ),
+        (Some(_), order) => line(
+            ApprovalCheckId::Invoice,
+            Pass,
+            if replay {
+                "A replayed failure: the invoice is real, but what it brings in is not counted as recovered.".into()
+            } else {
+                "This subscriber gets one invoice for this cycle.".into()
+            },
+            format!(
+                "one rescue per subscription per failed cycle; invoice number {} (attempt 1){}",
+                table_paypal::rescue_invoice_number(f.deal.id, 1)
+                    .unwrap_or_else(|_| "(invalid)".into()),
+                order
+                    .as_ref()
+                    .map(|o| format!("; PayPal invoice {o}"))
+                    .unwrap_or_default()
+            ),
+        ),
+    };
+    let mandate = match (&f.mandate, lever) {
+        (MandateFact::Allow { .. } | MandateFact::Ask { .. }, Some((bp, max))) => line(
+            ApprovalCheckId::Mandate,
+            Pass,
+            format!(
+                "Inside your rescue rules: at most {} or {} off a cycle.",
+                percent(bp),
+                plain_money(max)
+            ),
+            format!(
+                "mandate {} v{}: clauses 1-7 allow; clause 8 allows DISCOUNT_THIS_CYCLE up to {bp} bp and {max}",
+                f.deal.mandate_id, f.deal.mandate_version
+            ),
+        ),
+        _ => lines[5].clone(),
+    };
+    lines[0] = amount;
+    lines[2] = host;
+    lines[3] = invoice;
+    lines[5] = mandate;
+    lines
 }

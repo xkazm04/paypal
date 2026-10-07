@@ -167,7 +167,9 @@ pub fn check_offer(
         || offer.invoice.minor() == 0
         || offer.cycle.minor().checked_sub(offer.discount.minor()) != Some(offer.invoice.minor())
     {
-        return Err(lever_refusal("the invoice is not the cycle less the discount"));
+        return Err(lever_refusal(
+            "the invoice is not the cycle less the discount",
+        ));
     }
     if offer.discount.minor() > max_discount.minor() {
         return Err(lever_refusal("discount above the most allowed per cycle"));
@@ -197,13 +199,13 @@ pub struct InvoiceText {
     pub note: String,
 }
 
-/// "20%", "12.5%", "33.33%".
-fn percent(bp: u16) -> String {
+/// A basis-point share in words: "20%", "12.5%", "33.33%".
+pub fn percent(bp: u16) -> String {
     let whole = bp / 100;
     let frac = bp % 100;
     if frac == 0 {
         format!("{whole}%")
-    } else if frac % 10 == 0 {
+    } else if frac.is_multiple_of(10) {
         format!("{whole}.{}%", frac / 10)
     } else {
         format!("{whole}.{frac:02}%")
@@ -399,7 +401,10 @@ mod tests {
             (vec![], 2000, 500),
             (vec![RescueLever::Pause], 2000, 500),
             (
-                vec![RescueLever::DiscountThisCycle, RescueLever::DiscountThisCycle],
+                vec![
+                    RescueLever::DiscountThisCycle,
+                    RescueLever::DiscountThisCycle,
+                ],
                 2000,
                 500,
             ),

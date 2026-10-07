@@ -229,7 +229,11 @@ fn apply_decided(
 }
 /// A new deal row (PAIRING, empty transcript, no PayPal refs) under an active mandate, with its
 /// `deal.created` audit row and display label, inside the caller's transaction.
-pub(crate) fn insert_deal(conn: &Connection, deal: &Deal, at: Timestamp) -> Result<(), LedgerError> {
+pub(crate) fn insert_deal(
+    conn: &Connection,
+    deal: &Deal,
+    at: Timestamp,
+) -> Result<(), LedgerError> {
     if deal.state != DealState::Pairing
         || deal.transcript_head != H256::ZERO
         || deal.paypal != PaypalRefs::default()
