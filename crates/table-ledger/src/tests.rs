@@ -1883,3 +1883,31 @@ fn a_cleared_purchase_counts_in_the_budget_of_a_later_deal() {
     assert_eq!(usage.deals_today, 1);
     assert_eq!(usage.total_today.minor(), 32900);
 }
+#[test]
+fn the_ledger_stores_the_carried_binding_and_never_re_projects_the_redacted_response() {
+    let (mut ledger, deal, _, _, _) = setup();
+    let call = |request_id: &str, binding| PaypalCall {
+        deal_id: deal.id,
+        method: HttpMethod::Get,
+        path: PaypalPath::new("/v2/checkout/orders/ORDER1".into()).unwrap(),
+        request_id: request_id.into(),
+        status: 200,
+        debug_id: None,
+        response: json!({"id":"ORDER1","purchase_units":[{"invoice_id":"TBL-INV-1",
+            "amount":{"currency_code":"USD","value":"329.00"}}]}),
+        binding,
+        at: 102,
+    };
+    ledger
+        .record_paypal_call(&call("read1", None), &[])
+        .unwrap();
+    assert!(ledger.paypal_bindings(deal.id).unwrap().is_empty());
+    let carried = json!({"purchase_units":[{"custom_id":"TERMS1","invoice_id":"TBL-INV-1",
+        "payee_merchant_id":"MERCHANT9","amount":{"currency_code":"USD","value":"329.00"}}]});
+    ledger
+        .record_paypal_call(&call("read2", Some(carried.clone())), &[])
+        .unwrap();
+    let stored = ledger.paypal_bindings(deal.id).unwrap();
+    assert_eq!(stored, vec![carried]);
+    assert!(stored[0].to_string().contains("payee_merchant_id"));
+}
