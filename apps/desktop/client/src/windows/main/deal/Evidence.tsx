@@ -1,6 +1,7 @@
 // Proof from PayPal: four cards (what PayPal has · receipt · statement · typical price), each
 // opening its Sheet, plus the record Sheet behind "Export record". "The seller says paid" is never
 // shown as a PayPal receipt; "not on statement yet" is a delay, not a doubt.
+import { useState } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { DealEvidence } from '@bindings/DealEvidence';
 import type { DisplayBand } from '@bindings/DisplayBand';
@@ -8,7 +9,7 @@ import type { TranscriptStep } from '@bindings/TranscriptStep';
 import type { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMoney, nowUnix, shortHash, shortId } from '../../../lib/format';
 import { useMutation } from '../../../lib/hooks';
-import { marketWords } from '../../../lib/words';
+import { marketWords, PROOF_SAVE_WARNING } from '../../../lib/words';
 import { ModeBadge, WalletNotice } from '../../../shared/honesty';
 import { Btn, Chip, Empty, Kv, Loading, Sheet } from '../../../shared/ui';
 import { ConvergenceChart, MarketBand, MiniBand } from '../charts';
@@ -155,16 +156,27 @@ export function TranscriptSheet({ deal, label, steps, error, band, theirName, on
   const priced = sorted.some((s) => s.price);
   const them = theirName.split(' · ')[0] ?? theirName;
   const proof = useMutation('deal_export_proof');
+  const [confirming, setConfirming] = useState(false);
   const toast = useToast();
+  const save = async () => {
+    setConfirming(false);
+    if (await proof.run({ deal_id: deal.id })) toast('Signed proof saved · check it with “Check a proof file” in the Book', 'ok');
+  };
   return (
     <Sheet title={`Record of ${label}`} size="wide" onClose={onClose}
       footer={<>
         <Btn className="left" disabled={proof.pending} title="Saves one signed file with this deal's rules, messages, PayPal records and audit trail. Check it with “Check a proof file” in the Book."
-          onClick={async () => { if (await proof.run({ deal_id: deal.id })) toast('Signed proof saved · check it with “Check a proof file” in the Book', 'ok'); }}>
+          onClick={() => setConfirming(true)}>
           {proof.pending ? 'Saving signed proof…' : 'Save signed proof'}
         </Btn>
         <Btn kind="primary" onClick={onClose}>Done</Btn>
       </>}>
+      {confirming ? (
+        <Sheet title="Save signed proof" onClose={() => setConfirming(false)}
+          footer={<><Btn onClick={() => setConfirming(false)}>Cancel</Btn><Btn kind="primary" onClick={() => void save()}>Save</Btn></>}>
+          <p className="dv-p">{PROOF_SAVE_WARNING}</p>
+        </Sheet>
+      ) : null}
       {proof.error ? <WalletNotice error={proof.error} what="Signed proof" /> : null}
       <Kv items={[
         ['Messages', steps ? `${steps.length} · ${steps.every((s) => s.verified) ? 'every signature checked' : 'some signatures could not be checked'}` : '—'],
