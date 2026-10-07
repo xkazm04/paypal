@@ -1,4 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+// The process tests are Windows-only; on other hosts their helpers are unused.
+#![cfg_attr(not(windows), allow(dead_code, unused_imports))]
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use table_core::RunId;
 use table_engine::*;
@@ -40,6 +42,8 @@ fn job() -> AgentJob {
         prompt: "TRUSTED input $(evil) `literal` \" ; &".into(),
     }
 }
+// Windows file names (`codex.exe`, `node.exe`, `.cmd` shims): resolution looks for them only there.
+#[cfg(windows)]
 #[test]
 fn direct_and_npm_resolution_never_executes_shim_text() {
     let root = root();
