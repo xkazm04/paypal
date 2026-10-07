@@ -11,6 +11,13 @@ pub enum Authority {
     HouseMandate,
     Owner(OwnerTicket),
 }
+/// The money step a [`Pipeline::step_allowed`] check stands for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MoneyStep {
+    Create,
+    Authorize,
+    Capture,
+}
 pub struct Pipeline {
     pub wallet: Wallet,
     pub approval: ApprovalSession,
@@ -371,6 +378,84 @@ impl Pipeline {
             now,
         )?;
         Ok(table_shield::combine(rules, deal.shield))
+    }
+    /// Read-only: whether `create`, `authorize` or `capture` under `authority` would pass the
+    /// checks it runs before its first write and its PayPal call, at `now`. It calls no PayPal,
+    /// writes nothing, and runs the same `authority()` and `shield()` the step runs, so the
+    /// walk-away forecast never copies their rules. The attempt is the one the scheduler passes.
+    ///
+    /// With `reached`, the deal is judged as if it already stood in the step's entry state, and
+    /// the ledger checks the earlier steps satisfy on the way (attempt, countersign, capture
+    /// deadline) are skipped: the forecast asks whether authorize would still pass if the buyer
+    /// approved at a later `now`.
+    ///
+    /// A refusal is `Ok(false)`; a failed ledger read is an error. Owner tickets are checked
+    /// only where they are spent, so `Authority::Owner` is refused here.
+    pub fn step_allowed(
+        &mut self,
+        id: DealId,
+        step: MoneyStep,
+        category: Category,
+        authority: Authority,
+        now: Timestamp,
+        reached: bool,
+    ) -> Result<bool, Error> {
+        if matches!(authority, Authority::Owner(_)) {
+            return Err(Error::Permission);
+        }
+        let mut deal = self.wallet.ledger.get_deal(id)?;
+        let entry = match step {
+            MoneyStep::Create => DealState::Agreed,
+            MoneyStep::Authorize => DealState::Approved,
+            MoneyStep::Capture => DealState::Authorized,
+        };
+        if reached {
+            deal.state = entry;
+        }
+        if deal.state != entry || deal.mode == Mode::Replay {
+            return Ok(false);
+        }
+        let attempt = match step {
+            MoneyStep::Create => 1,
+            MoneyStep::Authorize | MoneyStep::Capture => self.wallet.ledger.settled_attempt(id)?,
+        };
+        let gate = (|| -> Result<bool, Error> {
+            let decision = self.authority(&deal, category, authority, attempt, now)?;
+            let shield = self.shield(&deal, now)?;
+            if shield >= ShieldVerdict::Hold
+                || (shield == ShieldVerdict::Ask
+                    && !matches!(
+                        decision,
+                        DecidedBy::Human { .. } | DecidedBy::HouseMandate { .. }
+                    ))
+            {
+                return Ok(false);
+            }
+            match step {
+                MoneyStep::Create => {
+                    self.expected(&deal, attempt)?
+                        .body()
+                        .map_err(|_| Error::Invalid)?;
+                }
+                MoneyStep::Capture if !reached => {
+                    let deadline = self.wallet.ledger.deadline(id)?.ok_or(Error::Invalid)?;
+                    if now >= deadline.0 || !self.wallet.ledger.has_countersign(id, attempt)? {
+                        return Ok(false);
+                    }
+                }
+                MoneyStep::Authorize | MoneyStep::Capture => {}
+            }
+            Ok(true)
+        })();
+        match gate {
+            Err(Error::Ledger(
+                table_ledger::LedgerError::Sql(_)
+                | table_ledger::LedgerError::Json(_)
+                | table_ledger::LedgerError::Integrity(_),
+            )) => gate,
+            Err(_) => Ok(false),
+            ok => ok,
+        }
     }
     pub(crate) fn calls(
         &self,
