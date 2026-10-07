@@ -76,6 +76,8 @@ export type MockState = {
   lastReportingPoll?: { at: number; status: number } | null;
   enginesProbedAt?: number;
   engines: EngineInfo[];
+  /** Preview director only: a deal's full record, kept aside while it is shown part-way (MockWorld.rewind). */
+  stash?: Record<string, MockDeal>;
   runs: RunSnapshot[];
   stoppedToday: number;
   inMotion: number;
