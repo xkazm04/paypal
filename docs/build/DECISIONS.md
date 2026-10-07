@@ -260,8 +260,12 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Lost:** loosening the threshold alone.
 - **Consequences:** a slow PayPal call no longer reads as a dead actor. Until it is built, the
   window above stays open.
-- **Evidence:** decided, not built yet. Commits 2ab2b4d (C-8) and 5f1e5e0 (C-5); the STATUS
-  "Security fixes" section.
+- **Evidence:** built in 5915462, with the tests `house_health_stays_up_through_a_slow_tick_of_several_deals`
+  and `healthz_follows_the_heartbeat`. Commits 2ab2b4d (C-8) and 5f1e5e0 (C-5); the STATUS
+  "Security fixes" section. The full council found two things: the const assert at
+  `services/house-seller/src/hosted.rs:110` compares the constant with itself, so it cannot catch a
+  change in table-paypal; and Render's health-check interval, failure threshold and restart rule are
+  UNVERIFIED.
 
 ## 13. Subscription rescue: one lever, built end to end
 
@@ -314,4 +318,11 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Lost:** one fixed, reworded line for every seller card. It would be wrong for seller deals whose
   forecast shows no money step, and it would be a second source that drifts from the forecast.
 - **Consequences:** the forecast is the one source for what silence does.
-- **Evidence:** decided, not built yet; the attention-escalation rework carries it.
+- **Evidence:** commits d7d74cf, a3d4908 and 83f70dc. Tests:
+  - table-attention `silence::tests`, a card per forecast ending;
+  - `card_and_forecast_agree_over_every_input`: no 'no money moves' where the forecast has a money-in
+    step, no money-in claim without one, executor on and off;
+  - `forecast::tests::without_a_payment_executor_no_authorize_or_capture_is_forecast`;
+  - desktop `native::events::fault_tests::each_failure_streak_is_shown_once`.
+
+  The client was not typechecked.
