@@ -1,6 +1,8 @@
 //! Pure attention projections, deadline ladder and logical-pixel window arithmetic.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
+pub mod forecast;
 pub mod placement;
+pub use forecast::*;
 pub use placement::*;
 
 use serde::{Deserialize, Serialize};
