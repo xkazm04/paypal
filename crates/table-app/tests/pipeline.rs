@@ -151,7 +151,8 @@ impl PayPalApi for MockApi {
         panic!("unexpected call")
     }
 }
-fn two_wallets() -> (Wallet, Wallet, Deal) {
+/// Also returns the seller owner's signer, for tests that re-sign the seller's mandate.
+fn two_wallets_owned() -> (Wallet, Wallet, Deal, AgentSigner) {
     let (buyer, deal, buyer_owner, seller_key) = support::setup(Side::Buyer, DealKind::Haggle);
     let owner = support::signer();
     let mut payload = buyer
@@ -188,6 +189,7 @@ fn two_wallets() -> (Wallet, Wallet, Deal) {
         buyer,
         Wallet::new(ledger, seller_key, owner.public_key()),
         deal,
+        owner,
     )
 }
 
@@ -330,7 +332,11 @@ async fn own_account_reporting_requires_success_exact_capture_amount_currency_di
     }
 }
 fn agreed() -> (Wallet, Wallet, Deal) {
-    let (mut buyer, mut seller, deal) = two_wallets();
+    let (buyer, seller, deal, _) = agreed_owned();
+    (buyer, seller, deal)
+}
+fn agreed_owned() -> (Wallet, Wallet, Deal, AgentSigner) {
+    let (mut buyer, mut seller, deal, owner) = two_wallets_owned();
     let listing = seller.list(deal.id, 100).unwrap();
     buyer
         .receive_haggle(deal.id, &listing, Category::Parts, 100)
@@ -379,7 +385,7 @@ fn agreed() -> (Wallet, Wallet, Deal) {
         );
         w.ledger.verify_transcript(deal.id).unwrap();
     }
-    (buyer, seller, deal)
+    (buyer, seller, deal, owner)
 }
 #[tokio::test]
 async fn h3_two_accepts_one_order_and_h5_seller_receives_without_owner_click() {
@@ -769,4 +775,130 @@ async fn replay_mode_never_grants_payment_authority_or_runs_deadlines() {
         p.wallet.ledger.get_deal(deal.id).unwrap().state,
         DealState::Approved
     );
+}
+
+struct TestReauth;
+impl NativeReauth for TestReauth {
+    fn authenticate(&self) -> Result<(), table_app::Error> {
+        Ok(())
+    }
+}
+#[tokio::test]
+async fn policy_authority_is_refused_above_clause_6_before_any_paypal_call() {
+    let (_, mut seller, deal, owner) = agreed_owned();
+    // The owner re-signs the seller's mandate with a human-present threshold below the amount.
+    let mut payload = seller
+        .ledger
+        .active_mandate(deal.mandate_id, 1, &owner.public_key())
+        .unwrap()
+        .payload;
+    payload.version = 2;
+    for c in &mut payload.clauses {
+        if let Clause::HumanPresentOver { amount } = c {
+            *amount = Money::new(1000, Currency::USD).unwrap();
+        }
+    }
+    let m = OpenMandate {
+        owner_sig: owner.sign_payload(&payload).unwrap(),
+        payload,
+    };
+    seller
+        .ledger
+        .insert_mandate(&m, &owner.public_key(), 100)
+        .unwrap();
+    seller.ledger.rebind_mandate(deal.id, 2, 100).unwrap();
+    let mock = Arc::new(MockApi::default());
+    let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
+    let token = p.approval.token("approval").unwrap().to_owned();
+    p.approval
+        .unlock("approval", &token, &TestReauth, 100)
+        .unwrap();
+    let hash = p
+        .wallet
+        .ledger
+        .get_deal(deal.id)
+        .unwrap()
+        .terms
+        .hash()
+        .unwrap();
+    let calls = |mock: &MockApi| mock.calls.lock().unwrap().len();
+    let ticket = |p: &mut Pipeline| {
+        p.approval
+            .ticket("approval", &token, deal.id, hash, 1, 100)
+            .unwrap()
+    };
+    assert!(matches!(
+        p.wallet
+            .check_mandate(deal.id, Category::Parts, 100)
+            .unwrap(),
+        MandateDecision::Ask { clause: 6 }
+    ));
+
+    // create: Policy refused, nothing sent, nothing countersigned.
+    assert!(
+        p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+            .await
+            .is_err()
+    );
+    assert_eq!(calls(&mock), 0);
+    assert!(!p.wallet.ledger.has_countersign(deal.id, 1).unwrap());
+    assert_eq!(p.wallet.ledger.paypal_call_count(deal.id).unwrap(), 0);
+    let t = ticket(&mut p);
+    p.create(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+        .await
+        .unwrap();
+    assert_eq!(calls(&mock), 1);
+    assert!(p.wallet.ledger.has_countersign(deal.id, 1).unwrap());
+    mock.approved.store(true, Ordering::SeqCst);
+    assert!(p.poll_approval(deal.id, 1, 100).await.unwrap());
+
+    // authorize: Policy refused; the call count and countersign state do not move.
+    let (before, signed) = (
+        calls(&mock),
+        p.wallet.ledger.has_countersign(deal.id, 1).unwrap(),
+    );
+    let paypal_before = p.wallet.ledger.paypal_call_count(deal.id).unwrap();
+    assert!(
+        p.authorize(deal.id, 1, Category::Parts, Authority::Policy, 100)
+            .await
+            .is_err()
+    );
+    assert_eq!(calls(&mock), before);
+    assert_eq!(
+        p.wallet.ledger.paypal_call_count(deal.id).unwrap(),
+        paypal_before
+    );
+    assert_eq!(p.wallet.ledger.has_countersign(deal.id, 1).unwrap(), signed);
+    let t = ticket(&mut p);
+    p.authorize(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+        .await
+        .unwrap();
+    assert_eq!(calls(&mock), before + 1);
+
+    // capture: Policy refused although the countersign row from the owner's create exists.
+    let before = calls(&mock);
+    let paypal_before = p.wallet.ledger.paypal_call_count(deal.id).unwrap();
+    assert!(
+        p.capture(deal.id, 1, Category::Parts, Authority::Policy, 100)
+            .await
+            .is_err()
+    );
+    assert_eq!(calls(&mock), before);
+    assert_eq!(
+        p.wallet.ledger.paypal_call_count(deal.id).unwrap(),
+        paypal_before
+    );
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Authorized
+    );
+    let t = ticket(&mut p);
+    p.capture(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+        .await
+        .unwrap();
+    assert_eq!(calls(&mock), before + 1);
+    let d = p.wallet.ledger.get_deal(deal.id).unwrap();
+    assert_eq!(d.state, DealState::Receipted);
+    assert!(matches!(d.decided_by, Some(DecidedBy::Human { .. })));
+    p.wallet.ledger.verify_audit().unwrap();
 }
