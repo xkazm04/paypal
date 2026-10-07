@@ -20,6 +20,10 @@ pub const PENDING_STALE_SECS: i64 = 190;
 /// PayPal keeps a PayPal-Request-Id for 6 hours (.research/paypal-platform.md, Orders v2
 /// idempotency [S-spec]); a create re-sent inside it returns the first order, not a second.
 const REQUEST_ID_KEPT_SECS: i64 = 6 * 3600;
+/// A call whose answer was lost in this process is read back no sooner than this after it
+/// started: PayPal may still be committing it, and a read that races the commit sees the old
+/// state. A reservation left `pending` by a stopped call has no such wait.
+pub const SETTLE_SECS: i64 = 5;
 
 /// Why the resolver runs, which decides what it may send again.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,8 +70,9 @@ impl Pipeline {
             .open_operations(id, self.stale_before(now))?)
     }
     /// Resolves every open operation of a deal, oldest first, and stops at the first that
-    /// cannot be read back this time (`Unavailable`; the next tick tries again). Parked ones
-    /// are skipped. `Ok(true)` when nothing is left open, so the deal's next step may run.
+    /// cannot be read back this time (`Unavailable`; the next tick tries again) or is still
+    /// within [`SETTLE_SECS`]. Parked ones are skipped. `Ok(true)` when nothing is left open,
+    /// so the deal's next step may run.
     pub async fn resolve_deal(
         &mut self,
         id: DealId,
@@ -75,9 +80,13 @@ impl Pipeline {
         now: Timestamp,
     ) -> Result<bool, Error> {
         for op in self.open_operations(Some(id), now)? {
-            if !op.needs_owner {
-                self.resolve_one(&op, mode, now).await?;
+            if op.needs_owner {
+                continue;
             }
+            if !op.pending && now < op.started_at.saturating_add(SETTLE_SECS) {
+                break;
+            }
+            self.resolve_one(&op, mode, now).await?;
         }
         Ok(self.open_operations(Some(id), now)?.is_empty())
     }
