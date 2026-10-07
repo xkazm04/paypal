@@ -352,6 +352,12 @@ Behaviour changes worth knowing:
 - Attention fixes (council attention-escalation): a failed attention read is one visible Fault per
   streak and clears the cache (a83458f); a notification claim is released when no toast was shown
   (3ac0b38); Let it lapse needs a Gate whose card offers it (c734558).
+- **attention-escalation council-lite r2 rework (2026-10-07; d7d74cf, a3d4908, 83f70dc).**
+  - Each Tumbler card's silence line is now worded from the same snapshot's forecast, by `table_attention::word_silence`. A seller card says the payment the buyer approved is collected, or put on hold, instead of 'no money moves'. With no forecast, it promises nothing.
+  - The forecast shows authorize and capture only when the payment executor is configured; without it, they fail the tick.
+  - The shell shows each failure streak once, to main and the tumbler (`fault_previous` is cleared on a good attention read). The tumbler shows a notice that the cards may be out of date.
+  - UX-GUIDE question 3 is updated.
+  Tests: `silence::tests` (a card per forecast ending, `card_and_forecast_agree_over_every_input`, `unreadable_forecast_promises_nothing_for_a_seller_that_may_move` and `without_a_payment_executor_the_card_does_not_claim_money_in`), `forecast::tests::without_a_payment_executor_no_authorize_or_capture_is_forecast` and `native::events::fault_tests::each_failure_streak_is_shown_once`. Client tsc and vitest were not run in the worktree.
 - Client: honest checklist lines (amount/evidence are notes, not passes), Spend card shows the
   purchase mandate, DND toggle keeps live form/position, mock revoke/band_set mirror Rust.
 
