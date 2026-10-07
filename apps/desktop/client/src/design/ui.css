@@ -227,6 +227,8 @@ details.ui-disclosure[open] > summary::before { transform: rotate(90deg); }
 @keyframes ui-spin { to { transform: rotate(360deg); } }
 .ui-crumbs .ui-crumb-wrap { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .ui-crumbs .ui-crumb-wrap:last-child { color: var(--text); font-weight: var(--fw-semibold); overflow: hidden; text-overflow: ellipsis; }
+/* a long last crumb (a deal title) ellipsizes instead of pushing the title bar's controls away */
+.ui-crumbs .ui-crumb-wrap:last-child > :last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 36ch; }
 button.ui-chip { border: 0; cursor: pointer; }
 button.ui-chip:hover { filter: brightness(1.12); }
 .ui-row.need { box-shadow: inset 2px 0 0 var(--gold); }

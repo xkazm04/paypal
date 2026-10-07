@@ -290,7 +290,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   if (!summary || !diff || !gates) {
     return (
       <div className="aw dr phase-checking">
-        <ReviewBar module={null} label={shortId(dealId)} mode={undefined} />
+        <ReviewBar module={null} label={null} mode={undefined} />
         <main className="dr-body" ref={bodyRef} tabIndex={-1} aria-label="Checking the signed deal">
           <div className="dr-head">
             <h1 className="dr-h">Checking <span className="q">· reading the agreed deal</span></h1>
@@ -379,7 +379,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
 
   return (
     <div className={`aw dr phase-${phase} t-${tone}`}>
-      <ReviewBar module={moduleName} label={label} mode={d.mode} onDetails={() => { setPop(null); setDetails(true); }} />
+      <ReviewBar module={moduleName} label={null} mode={d.mode} onDetails={() => { setPop(null); setDetails(true); }} />
 
       <main className="dr-body" ref={bodyRef} aria-labelledby="dr-h">
         <div className="dr-head">

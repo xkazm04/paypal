@@ -56,13 +56,15 @@ export function shortHash(h: H256 | null | undefined): string {
   return `${hex.slice(0, 4)}…${hex.slice(-2)}`;
 }
 
-/** Remaining time as "3:57:56" (or "2 d 19 h" when over a day). Negative → "0:00:00". */
+/** Remaining time as a ticking clock "3:57:56" under a day; over a day it reads as words, the
+ *  way UX-GUIDE spells time in sentences: "2 days 19 h", "1 day 3 h", "3 days" (no "0 h").
+ *  Negative → "0:00:00". */
 export function countdown(deadline: number, now: number): string {
   let s = Math.max(0, Math.floor(deadline - now));
   if (s >= 86400) {
     const d = Math.floor(s / 86400);
     const h = Math.floor((s % 86400) / 3600);
-    return `${d} d ${h} h`;
+    return `${d} ${d === 1 ? 'day' : 'days'}${h ? ` ${h} h` : ''}`;
   }
   const h = Math.floor(s / 3600);
   s -= h * 3600;
