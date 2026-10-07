@@ -250,6 +250,31 @@ mod tests {
         );
         assert_eq!(card(&held, &ctx(true)).0, COLLECT_NOW);
     }
+    /// Differential: the same Approved seller deal, executor configured and not.
+    #[test]
+    fn without_a_payment_executor_the_card_does_not_claim_money_in() {
+        let src = pair(
+            DealState::Approved,
+            Side::Seller,
+            Delivery::DigitalNow,
+            Some(NOW + 600),
+        );
+        let (on_text, on_lines) = card(&src, &ctx(true));
+        assert!(
+            on_lines
+                .iter()
+                .any(|l| l.direction == ForecastDirection::In)
+        );
+        assert_eq!(on_text, COLLECT_NOW);
+        let (off_text, off_lines) = card(&src, &ctx(false));
+        assert!(
+            off_lines
+                .iter()
+                .all(|l| l.direction != ForecastDirection::In)
+        );
+        assert!(!off_text.contains("collected"), "{off_text}");
+        assert_eq!(off_text, EXPIRE);
+    }
     #[test]
     fn unreadable_forecast_promises_nothing_for_a_seller_that_may_move() {
         for state in [
