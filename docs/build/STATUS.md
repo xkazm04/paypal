@@ -302,6 +302,7 @@ unmounted (no window receives counterparty free text).
   purchase unit `custom_id`, `invoice_id`, `payee_merchant_id` and amount, identifier shapes only;
   `body_redacted` is unchanged and payer text, names, addresses and links never reach either.
   **Deviation from design §8 DDL:** one added column. Rows written before 0007 have NULL bindings.
+  Note (2026-10-07): the live path filled this column from the already-redacted body until scan C-2 was fixed (see Security fixes); it now projects from the raw body.
 
 Folded into backlog cards (`docs/concepts/moonshot-backlog.md`): unauthenticated mailbox creation
 (relay-and-rendezvous-1), production use of `get_authorization` (money-pipeline-1), product id on
@@ -1231,6 +1232,7 @@ unchanged (no generated type changed; `TranscriptBy`/`TranscriptType` only gaine
   still be acknowledged with its sequence number (otherwise a wallet whose send landed but whose reply was lost
   would see 429 forever), so the scan stays first; it is a length-prefixed compare over at most 256 messages.
 - Tests: `services/rendezvous/tests/relay.rs` (boundary, global, expiry release, paging, resend dedupe).
+- **C-2 (Medium) fixed.** `Client::execute` projects the binding from the raw body before redaction (`Observation.binding` -> `PaypalCall.binding`); `record_paypal_call` and `finish_operation` store it instead of re-projecting the redacted body, so `paypal_calls.binding_json` now holds `custom_id`, `invoice_id`, `payee_merchant_id` and amount on the live path. `table-verify` requires all four on every order record with purchase units and its result text names what it compared. Tests: `create_observation_binds_custom_id_invoice_payee_and_amount_without_the_email` (`table-paypal/tests/client.rs`), `the_ledger_stores_the_carried_binding_and_never_re_projects_the_redacted_response` and `paypal_bindings_keep_identifiers_and_amount_but_never_payer_text_or_links` (`table-ledger`), and the custom_id, payee and missing-field tamper cases in `two_wallet_actors_negotiate_and_settle_through_in_process_relay_without_buyer_api_access` (`table-runtime/src/relay_tests.rs`). Bindings recorded before this fix lack custom_id and payee and now fail verification.
 
 ## Policy authority above clause 6 (2026-10-07)
 
