@@ -65,7 +65,7 @@ const GATES: Record<CommandName, WindowLabel[]> = {
   pairing_create: ['main'], pairing_join: ['main'], pairing_poll: ['main'],
   main_open: ROUTE, approval_open: ROUTE, settings_write: ROUTE, pause_all_agents: ROUTE,
   deal_let_lapse: ROUTE, quit_summary: ROUTE, quit_confirm: ROUTE,
-  mandate_list: REVIEW, counterparty_list: REVIEW, deal_transcript: REVIEW, counterparty_note: ['main'], house_wake: ['main'], pairing_abort: ['main', 'approval'], approval_handoff: ['approval'], audit_page: ['main'], owner_facts: REVIEW, book_query: ['main'], deal_export_proof: REVIEW, proof_check: ['main'],
+  mandate_list: REVIEW, counterparty_list: REVIEW, deal_transcript: REVIEW, counterparty_note: ['main'], house_wake: ['main'], pairing_abort: ['main', 'approval'], approval_handoff: ['approval'], audit_page: ['main'], owner_facts: REVIEW, book_query: ['main'], deal_export_proof: REVIEW, proof_check: ['main'], deal_history: ['main'],
   tumbler_set_form: ['tumbler'], tumbler_pin: ['tumbler'], tumbler_drag: ['tumbler'], tumbler_snap: ['tumbler'], deal_snooze: ['tumbler'],
   market_refresh: ['approval'], approval_selection: ['approval'], approval_pairing: ['approval'], approval_summary: ['approval'],
   approval_token: ['approval'], unlock: ['approval'], deal_owner_accept: ['approval'], deal_countersign: ['approval'],
@@ -399,6 +399,16 @@ export function mockBackend(label: WindowLabel): Backend {
       const older = (state.audit ?? []).filter((r) => before == null || r.seq < before).sort((a, b) => b.seq - a.seq);
       const rows = older.slice(0, limit);
       return { rows, next_before: older.length > limit ? rows[rows.length - 1]?.seq ?? null : null };
+    },
+    // As Runtime::deal_history: one deal or all, [from, to) in Unix seconds, oldest first, the
+    // newest 500 steps (truncated says older ones were left out). Closed facts only, main only.
+    deal_history: ({ deal_id, from, to }) => {
+      if (from != null && to != null && from >= to) fail('INVALID', 'from must be before to');
+      if (deal_id) find(deal_id);
+      const all = (state.history ?? buildMockState(nowUnix()).history ?? [])
+        .filter((s) => (!deal_id || s.deal_id === deal_id) && (from == null || s.at >= from) && (to == null || s.at < to))
+        .sort((a, b) => a.seq - b.seq);
+      return { steps: all.slice(-500), truncated: all.length > 500 };
     },
     // As Runtime::owner_facts: dates and states only, never a secret.
     owner_facts: () => {

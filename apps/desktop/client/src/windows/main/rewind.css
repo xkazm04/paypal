@@ -1,0 +1,99 @@
+/* The Dial's Rewind (Rewind.tsx): a Mon-Sun scrubber engraved under the dial, a lane of PayPal
+   ticks coloured by who decided each call, and the hub's narration. Tokens only; the dial's
+   page-local --d-* materials come from home.css, so light and dark both follow the theme. */
+.home { --rw-h: 112px; }
+
+/* the scrubber shares the dial's grid cell, so every column is placed explicitly */
+.home.rewind .stage > .col.l { grid-column: 1; grid-row: 1; }
+.home.rewind .stage > .dialwrap { grid-column: 2; grid-row: 1; }
+.home.rewind .stage > .col.r { grid-column: 3; grid-row: 1; }
+/* the dial gives up the room the scrubber needs, and sits at the top of its column */
+.home.rewind .dialwrap {
+  --d: min(calc(100vh - var(--bar) - var(--foot) - 20px - var(--rw-h)), calc(100vw - var(--colL) - var(--colR) - 72px));
+  align-self: start; margin-top: 6px;
+}
+.home .dialwrap { transition: transform .58s cubic-bezier(.65,0,.35,1), opacity .5s ease, filter .5s ease, width .45s var(--ease), height .45s var(--ease), margin .45s var(--ease); }
+.home.rewind .col { opacity: .62; }
+.home.rewind .col:hover, .home.rewind .col:focus-within { opacity: 1; }
+
+/* ---------- the bar ---------- */
+.home .rw-bar { grid-column: 2; grid-row: 1; align-self: end; justify-self: center; width: min(100%, 820px); margin-bottom: 8px;
+  display: grid; gap: 6px; animation: rw-in .4s var(--ease) both; }
+@keyframes rw-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.home .rw-row { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; font-size: var(--fs-small); color: var(--dim); }
+.home .rw-play { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line2)); color: var(--gold-l);
+  background: radial-gradient(circle at 50% 30%, var(--d-hub1), var(--d-hub3));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--d-hi) 12%, transparent), var(--shadow-1); }
+.home .rw-play:hover { border-color: var(--gold); }
+.home .rw-play svg { width: 13px; height: 13px; fill: currentColor; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.home .rw-week { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
+.home .rw-week b { font: var(--fw-semibold) var(--fs-body)/1 var(--display); color: var(--text); padding: 0 4px; }
+.home .rw-nav { width: 22px; height: 22px; border-radius: 50%; border: 1px solid transparent; background: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; }
+.home .rw-nav:hover:not(:disabled) { border-color: var(--line2); color: var(--text); }
+.home .rw-nav:disabled { opacity: .35; cursor: default; }
+.home .rw-legend { flex: 1; min-width: 0; display: flex; justify-content: center; gap: var(--sp-3); overflow: hidden; white-space: nowrap; }
+.home .rw-legend > span { display: inline-flex; align-items: center; gap: 5px; }
+.home .rw-live { flex: none; height: 24px; padding: 0 var(--sp-2); border-radius: 12px; cursor: pointer; white-space: nowrap;
+  border: 1px solid var(--line2); background: color-mix(in srgb, var(--panel) 80%, transparent); color: var(--teal-l); font: var(--fw-medium) var(--fs-small)/1 var(--font); }
+.home .rw-live:hover { border-color: var(--teal); }
+
+/* a tick's mark (legend, lane, hub, the deal's "Who decided"): a bar in the colour of who decided */
+.rw-mark { display: inline-grid; place-items: center; flex: none; width: 4px; height: 12px; border-radius: 2px; background: var(--rw-c, var(--dim));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg) 35%, transparent); font-style: normal; }
+.t-owner { --rw-c: var(--gold); } .t-rule { --rw-c: var(--teal); } .t-buyer { --rw-c: var(--ok); }
+.t-default { --rw-c: var(--dim); } .t-refused { --rw-c: var(--red-l); } .t-unknown { --rw-c: transparent; }
+.rw-mark.t-unknown { outline: 1px dashed var(--dim); }
+.rw-mark.t-refused { width: 12px; height: 12px; background: none; box-shadow: none; color: var(--red-l); font: var(--fw-bold) 15px/1 var(--font); }
+
+/* ---------- the track: an engraved groove with day marks ---------- */
+.home .rw-track { position: relative; height: 62px; padding: 0 2px; cursor: ew-resize; touch-action: none; outline: none; border-radius: var(--r); }
+.home .rw-track:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 55%, transparent); }
+.home .rw-groove { position: absolute; left: 0; right: 0; top: 30px; height: 10px; border-radius: 5px; overflow: hidden;
+  background: linear-gradient(180deg, var(--d-groove-edge), var(--d-groove));
+  box-shadow: inset 0 2px 3px var(--d-shadow), 0 1px 0 color-mix(in srgb, var(--d-hi) 10%, transparent); }
+.home .rw-day { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--d-engrave); }
+.home .rw-day:first-child { display: none; }
+.home .rw-past { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 10%, transparent), color-mix(in srgb, var(--gold) 26%, transparent)); }
+/* later than now: not yet written */
+.home .rw-later { position: absolute; top: 0; bottom: 0; right: 0;
+  background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in srgb, var(--dim) 18%, transparent) 4px 5px); }
+.home .rw-lane { position: absolute; left: 0; right: 0; top: 0; height: 30px; }
+.home .rw-tick { position: absolute; bottom: 3px; transform: translateX(-50%); width: 7px; height: 22px; padding: 0; border: 0; background: none;
+  display: grid; place-items: end center; cursor: pointer; opacity: .45; transition: opacity .25s ease, transform .2s var(--ease); }
+.home .rw-tick.on { opacity: 1; }
+.home .rw-tick:hover, .home .rw-tick:focus-visible { opacity: 1; transform: translateX(-50%) scale(1.25); outline: none; }
+.home .rw-tick .rw-mark { width: 4px; height: 16px; }
+.home .rw-tick .rw-mark.t-refused { width: 14px; height: 14px; font-size: 16px; }
+.home .rw-head { position: absolute; top: 2px; bottom: 16px; width: 0; pointer-events: none; }
+.home .rw-head::before { content: ''; position: absolute; left: -1px; top: 0; bottom: 0; width: 2px; border-radius: 1px; background: var(--gold); box-shadow: 0 0 6px color-mix(in srgb, var(--gold) 55%, transparent); }
+.home .rw-head i { position: absolute; left: -7px; top: 28px; width: 14px; height: 14px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, var(--gold-l), var(--d-gold-deep)); border: 1px solid var(--gold); box-shadow: var(--shadow-1); }
+.home .rw-days { position: absolute; left: 0; right: 0; bottom: 0; height: 14px; }
+.home .rw-days span { position: absolute; transform: translateX(-50%); font: var(--fw-medium) var(--fs-small)/1 var(--font); color: var(--dim); letter-spacing: .02em; }
+
+/* ---------- the hub while rewinding ---------- */
+.home .rw-hub { gap: 1.4cqmin; }
+.home .rw-say { display: flex; align-items: flex-start; justify-content: center; gap: .7em; max-width: 100%;
+  font: var(--fw-semibold) max(15px, 2.6cqmin)/1.3 var(--display); color: var(--text); text-wrap: balance; }
+.home .rw-say .rw-mark { margin-top: .25em; height: 1em; width: 5px; }
+.home .rw-say .rw-mark.t-refused { width: 1em; height: 1em; font-size: 1.1em; margin-top: .1em; }
+.home .rw-meta { font: var(--fw-medium) max(12px, 1.7cqmin)/1.2 var(--font); color: var(--dim); }
+.home .rw-say.t-owner + .rw-meta { color: var(--gold-l); }
+.home .rw-say.t-rule + .rw-meta { color: var(--teal-l); }
+.home .rw-say.t-buyer + .rw-meta { color: var(--ok); }
+.home .rw-say.t-refused + .rw-meta { color: var(--red-l); }
+.home .rw-calm { font-size: max(18px, 3.4cqmin); }
+.home .rw-count { color: var(--dim); }
+.home .rw-open { font-weight: var(--fw-semibold); color: var(--teal-l); }
+
+/* footer toggle */
+.home .rw-toggle svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.home .rw-toggle.on { color: var(--gold-l); border-color: color-mix(in srgb, var(--gold) 55%, var(--line2)); background: color-mix(in srgb, var(--gold) 12%, var(--panel2)); }
+
+@media (max-width: 1240px) { .home .rw-legend > span:nth-child(n+4) { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .home .dialwrap { transition: opacity .25s; }
+  .home .rw-bar { animation: none; }
+  .home .rw-tick { transition: none; }
+}
