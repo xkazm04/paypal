@@ -7,7 +7,7 @@ use table_paypal::{
 };
 use table_proto::{Body, ShortText};
 mod resolve;
-pub use resolve::{PENDING_STALE_SECS, Resolve};
+pub use resolve::{PENDING_STALE_SECS, Resolve, SETTLE_SECS};
 #[derive(Debug)]
 pub enum Authority {
     Policy,

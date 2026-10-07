@@ -1429,7 +1429,8 @@ async fn authorized_on(api: &Arc<LossyApi>) -> (Pipeline, Deal) {
 /// PayPal-Request-Id is committed twice, and no second request id is ever reserved.
 #[tokio::test]
 async fn lost_answers_resolve_to_paypal_truth_with_one_commit_per_request_id() {
-    let after = 102 + 72 * 3600 + 2;
+    // Each lost answer is read back after SETTLE_SECS (10 s on).
+    let after = 140 + 72 * 3600 + 20;
     let mut report = Vec::new();
     for operation in ["create", "authorize", "capture", "void"] {
         for loss in [Loss::Before, Loss::After] {
@@ -1447,21 +1448,21 @@ async fn lost_answers_resolve_to_paypal_truth_with_one_commit_per_request_id() {
                 assert!(created.is_err(), "{case}");
                 assert_eq!(state(&p), DealState::Settling, "{case}");
                 assert!(
-                    p.resolve_deal(deal.id, advance, 101).await.unwrap(),
+                    p.resolve_deal(deal.id, advance, 110).await.unwrap(),
                     "{case}"
                 );
             }
             assert_eq!(state(&p), DealState::AwaitingApproval, "{case}");
             api.approve();
-            assert!(p.poll_approval(deal.id, 1, 101).await.unwrap(), "{case}");
+            assert!(p.poll_approval(deal.id, 1, 110).await.unwrap(), "{case}");
             let authorized = p
-                .authorize(deal.id, 1, Category::Parts, Authority::SellerMandate, 101)
+                .authorize(deal.id, 1, Category::Parts, Authority::SellerMandate, 110)
                 .await;
             if operation == "authorize" {
                 assert!(authorized.is_err(), "{case}");
                 assert_eq!(state(&p), DealState::Approved, "{case}");
                 assert!(
-                    p.resolve_deal(deal.id, advance, 102).await.unwrap(),
+                    p.resolve_deal(deal.id, advance, 120).await.unwrap(),
                     "{case}"
                 );
             }
@@ -1471,19 +1472,19 @@ async fn lost_answers_resolve_to_paypal_truth_with_one_commit_per_request_id() {
                 let due = p.wallet.ledger.deadline(deal.id).unwrap().unwrap().0;
                 assert!(p.tick(due).await.is_err(), "{case}");
                 assert_eq!(state(&p), DealState::Authorized, "{case}");
-                assert_eq!(p.tick(due + 1).await.unwrap(), vec![deal.id], "{case}");
+                assert_eq!(p.tick(due + 10).await.unwrap(), vec![deal.id], "{case}");
                 assert_eq!(state(&p), DealState::AutoVoided, "{case}");
                 assert_eq!(api.calls("/capture"), 0, "{case}");
                 ["create", "authorize", "void"]
             } else {
                 let captured = p
-                    .capture(deal.id, 1, Category::Parts, Authority::SellerMandate, 102)
+                    .capture(deal.id, 1, Category::Parts, Authority::SellerMandate, 120)
                     .await;
                 if operation == "capture" {
                     assert!(captured.is_err(), "{case}");
                     assert_eq!(state(&p), DealState::Authorized, "{case}");
                     assert!(
-                        p.resolve_deal(deal.id, advance, 103).await.unwrap(),
+                        p.resolve_deal(deal.id, advance, 130).await.unwrap(),
                         "{case}"
                     );
                 }
@@ -1738,7 +1739,17 @@ async fn unknown_money_outcome_is_reserved_and_never_recreated() {
     );
     // The resolver re-sends the original request id; PayPal answers with the first order.
     assert!(
-        p.resolve_deal(deal.id, Resolve::Advance(Category::Parts), 101)
+        !p.resolve_deal(deal.id, Resolve::Advance(Category::Parts), 101)
+            .await
+            .unwrap()
+    );
+    assert_eq!(
+        api.calls("POST /v2/checkout/orders"),
+        1,
+        "read back only once settled"
+    );
+    assert!(
+        p.resolve_deal(deal.id, Resolve::Advance(Category::Parts), 110)
             .await
             .unwrap()
     );
