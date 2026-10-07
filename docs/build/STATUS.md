@@ -1109,3 +1109,73 @@ checks, foreground preservation on arrival, mixed-DPI drag/snap/restart, notific
 identity/delivery/click/DND, confirmed Quit and single-instance behavior. No native
 app-data or OS keyring writes were made by this session: the application was not
 launched and tests injected memory vaults/OS/HTTP boundaries.
+
+## T2 deterministic negotiator (2026-10-07)
+
+First slice of moonshot theme T2 (card runtime-core-1): a policy negotiator that bargains
+through the wallet's own loopback MCP, so the haggle needs no native engine. Reconcile found
+no existing policy negotiator on `main`. Rust only; `bindings/` and `apps/desktop/client` are
+unchanged (no generated type changed; `TranscriptBy`/`TranscriptType` only gained
+`PartialEq, Eq`).
+
+**Built**
+- `table_core::negotiation` (pure): the house `Policy`/`Decision` moved here unchanged
+  (`house-seller` re-exports them) plus `BuyerPolicy`. The buyer opens at the bottom of its
+  signed band (floor, else fresh market p25, else 60% of the ceiling), concedes linearly over
+  `max_rounds` toward the lower of the signed ceiling and a fresh market median, and never
+  offers or accepts above the ceiling. Integer minor units only.
+- `table_engine::PolicyEngine` (`EngineAdapter`, `EngineId::Scripted`, `Mode::ScriptedEngine`):
+  `tools/list`, then `table_view`, then one of `send_offer` / `accept_offer` /
+  `withdraw_offer` through the run's MCP grant URL and token. It decides from the typed
+  `PolicyBrief` the runtime builds from the signed band and transcript shape, and from the
+  `table_view` deal projection; it never reads counterparty text. Its transport is a trait:
+  the desktop uses `reqwest` (already a workspace dependency) against the loopback listener,
+  tests drive the real MCP router in process.
+- `start_agent` gives the scripted slot a real MCP grant (the empty-grant branch is gone) and
+  keeps the 120 s expiry, the four-run cap and one run per deal. The variant follows the side
+  the deal's mandate pins (seller deal -> seller policy, buyer deal -> buyer mirror).
+- `Runtime::tick` re-arms: a negotiating deal whose latest message is the peer's OFFER,
+  COUNTER or ACCEPT, with no active run, agents not paused and the scripted engine selected,
+  gets one policy run per peer message (keyed on the transcript head, so a refused answer is
+  not retried in a loop). An agent ACCEPT on a clause-6 ASK is still refused and the owner's
+  accept is unchanged.
+
+**Tests added**
+- `table-core`: seller concession path, buyer open/concede/ceiling, fresh-median target, anchors.
+- `table-engine`: decisions per side and stance stay in the band; stale median ignored.
+- `table-runtime::policy_tests`: re-arming never exceeds four runs and one run per deal;
+  nothing starts while paused or under another engine; one run per peer message; falsifier -
+  a buyer policy configured above the signed ceiling is refused by the mandate check, the run
+  still ends clean, `intent.refused` is audited and `paypal_calls` stays empty.
+- `relay_tests`: `two_wallet_actors_negotiate_and_settle_...` and `h6_fresh_wallet_pairs_house_...`
+  now run from policy runs with 0 hand-injected `send_offer`/`accept_offer`; assertions kept
+  (one capture, zero buyer API calls, equal heads). No hand-injected variant was kept: nothing
+  else it covered is uncovered.
+
+**Deviations / notes**
+- Arming covers the peer's OFFER and ACCEPT as well as COUNTER: a seller's first trigger is the
+  buyer's OFFER and a deal only agrees once the ACCEPT is answered. The buyer's opening is
+  still the owner's `Start`, never automatic.
+- A wallet seller refuses inbound offers below its own floor, so only HOUSE (which declines
+  them as evidence and counters) shows a real counter. The two-wallet test therefore closes in
+  one round: the buyer opens at its band floor (the listing price), the seller accepts, the
+  buyer's agent countersigns under clause 6. The owner-accept-above-threshold path is
+  exercised by the H6 test (HOUSE counters 22.50, the buyer's agent is refused, the owner
+  accepts) instead of the two-wallet test; relay replay count there is 6 not 7 (no injected
+  counter).
+- The buyer's policy `max_rounds` is the band's minus one, leaving a round for the reply its
+  own offer invites. `Action::Start` on a deal with nothing waiting runs `table_view` only.
+- Engine label still reads "scripted" in `EngineInfo.reason` text only as the policy
+  negotiator; `EngineId`/`Mode` unchanged so the IPC contract is unchanged.
+- `reqwest` is now a direct dependency of `table-runtime` (already in `Cargo.lock`).
+- `cargo clippy/test --workspace` was run with `--exclude table-desktop`: that crate cannot
+  build in a worktree without `apps/desktop/client/dist` (tauri `generate_context!`), unrelated
+  to this change. A shared `CARGO_TARGET_DIR` with another checkout produced stale-artifact
+  errors; a private target dir was used for the final run.
+
+**Left**
+- Client: the POLICY ENGINE badge (render `mode: scripted_engine` runs as the policy
+  negotiator on run cards) is a separate client slice; no client file was touched.
+- Real counters from a wallet seller (needs a below-floor "declined as evidence" path like
+  HOUSE's), `withdraw` on exhausted rounds is untested end to end, and the HOUSE video
+  rehearsal.

@@ -1,7 +1,8 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 #[path = "house_tests.rs"]
 mod house_tests;
-use crate::tests::{WaitingEngine, caller, clauses, credentials, runtime};
+use crate::tests::policy_tests::{attach, install, runs, settled};
+use crate::tests::{caller, clauses, credentials, runtime};
 use crate::*;
 use async_trait::async_trait;
 use axum::{
@@ -10,7 +11,7 @@ use axum::{
     http::Request,
 };
 use rendezvous::Mailbox;
-use std::sync::{Arc, atomic::AtomicUsize};
+use std::sync::Arc;
 use table_client::*;
 use table_core::*;
 use tower::ServiceExt;
@@ -299,62 +300,6 @@ async fn state(actor: &ActorHandle, id: DealId, expected: DealState) -> Deal {
     })
     .await
     .unwrap()
-}
-async fn intent(actor: &ActorHandle, run: &RunSnapshot, name: &str, args: serde_json::Value) {
-    let (tx, rx) = tokio::sync::oneshot::channel();
-    actor
-        .sender
-        .send(crate::actor::Message::Agent(
-            run.run,
-            table_app::AgentScope {
-                deal_id: run.deal_id,
-                role: table_app::AgentRole::Negotiator,
-                category: Category::Parts,
-            },
-            table_app::AgentRequest::decode(name, args).unwrap(),
-            tx,
-        ))
-        .await
-        .unwrap();
-    rx.await.unwrap().unwrap();
-}
-async fn running(actor: &ActorHandle, id: DealId) -> RunSnapshot {
-    let server = table_mcp::Server::with_async(
-        Arc::new(crate::engines::ActorBridge(actor.sender.downgrade())),
-        8765,
-        Arc::new(FixedClock(100)),
-    )
-    .unwrap();
-    actor
-        .sender
-        .send(crate::actor::Message::AttachMcp(
-            server,
-            "http://127.0.0.1:8765/mcp".into(),
-        ))
-        .await
-        .unwrap();
-    let run: RunSnapshot = actor
-        .execute(caller("main", None), Action::Start(id))
-        .await
-        .unwrap();
-    tokio::time::timeout(std::time::Duration::from_secs(2), async {
-        loop {
-            let runs: Vec<RunSnapshot> = actor
-                .execute(caller("main", None), Action::Runs)
-                .await
-                .unwrap();
-            if runs
-                .iter()
-                .any(|r| r.run == run.run && r.state == RunState::Running)
-            {
-                break;
-            }
-            tokio::task::yield_now().await;
-        }
-    })
-    .await
-    .unwrap();
-    run
 }
 
 type HostedFixture = (
@@ -798,6 +743,10 @@ async fn h6_fresh_wallet_pairs_house_and_closes_through_in_process_relay_with_mo
     buyer_clauses[1] = Clause::Counterparties {
         rule: CpRule::House,
     };
+    // The policy opens at the bottom of the buyer's band: 5.00, under the house floor.
+    if let Clause::Band { floor, .. } = &mut buyer_clauses[3] {
+        *floor = Some(Money::new(500, Currency::USD).unwrap());
+    }
     let mandate = buyer
         .sign_mandate(MandateSignArgs {
             id: None,
@@ -807,19 +756,9 @@ async fn h6_fresh_wallet_pairs_house_and_closes_through_in_process_relay_with_mo
             expires: 1000000,
         })
         .unwrap();
-    buyer.engines.push((
-        Arc::new(WaitingEngine {
-            cancellations: AtomicUsize::new(0),
-        }),
-        table_engine::EngineInfo {
-            id: table_engine::EngineId::ClaudeCode,
-            available: true,
-            version: Some("offline-fixture".into()),
-            reason: None,
-        },
-    ));
-    buyer.engine = table_engine::EngineId::ClaudeCode;
+    let loopback = install(&mut buyer);
     let (actor, _) = spawn(buyer.with_relay(Arc::new(InProcessRelay(router))));
+    attach(&actor, &loopback, 8765).await;
     let join = || PairingJoinArgs {
         code: "HOUSE".into(),
         peer: None,
@@ -895,15 +834,14 @@ async fn h6_fresh_wallet_pairs_house_and_closes_through_in_process_relay_with_mo
         .await
         .unwrap();
     state(&actor, id, DealState::Listed).await;
-    let run = running(&actor, id).await;
-    // Below-floor proposal is declined as evidence; only the Policy's lawful counter is accepted.
-    intent(
-        &actor,
-        &run,
-        "send_offer",
-        serde_json::json!({"deal_id":id,"price":"5.00","delivery":{"type":"digital_now"}}),
-    )
-    .await;
+    // The owner starts the policy negotiator; every offer after that is the scheduler's re-arming.
+    // Its opening (the bottom of the buyer's band) is below the house floor, which the house
+    // declines as evidence and answers with its own lawful counter.
+    let run: RunSnapshot = actor
+        .execute(caller("main", None), Action::Start(id))
+        .await
+        .unwrap();
+    assert_eq!(run.mode, Mode::ScriptedEngine);
     tokio::time::timeout(std::time::Duration::from_secs(30), async {
         loop {
             let d: Deal = actor
@@ -991,6 +929,7 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
     let (mut seller, seller_vault, seller_http, clock, _) = runtime(true);
     credentials(seller_vault.as_ref());
     let mut mandates = Vec::new();
+    let mut loopbacks = Vec::new();
     for (r, side) in [(&mut buyer, Side::Buyer), (&mut seller, Side::Seller)] {
         mandates.push(
             r.sign_mandate(MandateSignArgs {
@@ -999,9 +938,10 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
                 clauses: {
                     let mut c = clauses(side, DealKind::Haggle);
                     if side == Side::Buyer {
-                        c[5] = Clause::HumanPresentOver {
-                            amount: Money::new(1000, Currency::USD).unwrap(),
-                        };
+                        // The buyer's policy opens at the bottom of its band: the listing price.
+                        if let Clause::Band { floor, .. } = &mut c[3] {
+                            *floor = Some(Money::new(1200, Currency::USD).unwrap());
+                        }
                     }
                     c
                 },
@@ -1010,18 +950,7 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
             })
             .unwrap(),
         );
-        r.engines.push((
-            Arc::new(WaitingEngine {
-                cancellations: AtomicUsize::new(0),
-            }),
-            table_engine::EngineInfo {
-                id: table_engine::EngineId::ClaudeCode,
-                available: true,
-                version: Some("offline-fixture".into()),
-                reason: None,
-            },
-        ));
-        r.engine = table_engine::EngineId::ClaudeCode;
+        loopbacks.push(install(r));
     }
     let terms = Terms {
         item_ref: ItemRef::new("monitor").unwrap(),
@@ -1164,91 +1093,29 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
     seed.extend_from_slice(id.to_string().as_bytes());
     let mailbox = H256::digest(&seed);
     state(&a, id, DealState::Listed).await;
-    let a_run = running(&a, id).await;
-    let b_run = running(&b, id).await;
-    intent(
-        &a,
-        &a_run,
-        "send_offer",
-        serde_json::json!({"deal_id":id,"price":"12.00","delivery":{"type":"digital_now"}}),
-    )
-    .await;
-    state(&b, id, DealState::Negotiating).await;
-    // A second offer exercises the seller's signed counter through the same transport.
-    intent(
-        &b,
-        &b_run,
-        "send_offer",
-        serde_json::json!({"deal_id":id,"price":"12.00","delivery":{"type":"digital_now"}}),
-    )
-    .await;
-    tokio::time::timeout(std::time::Duration::from_secs(30), async {
-        loop {
-            let d: Deal = a
-                .execute(caller("main", None), Action::Deal(id))
-                .await
-                .unwrap();
-            let peer: Deal = b
-                .execute(caller("main", None), Action::Deal(id))
-                .await
-                .unwrap();
-            if d.transcript_head == peer.transcript_head {
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-        }
-    })
-    .await
-    .unwrap();
-    a.execute::<()>(caller("main", None), Action::Select(Some(id)))
+    attach(&a, &loopbacks[0], 8765).await;
+    attach(&b, &loopbacks[1], 8766).await;
+    // The owner starts the buyer's policy negotiator. Nothing else is injected: the seller's
+    // answer and its confirmation are policy runs the scheduler arms on each inbound message.
+    let opening: RunSnapshot = a
+        .execute(caller("main", None), Action::Start(id))
         .await
         .unwrap();
-    let summary: ApprovalSummary = a
-        .execute(caller("approval", None), Action::Summary(id))
-        .await
-        .unwrap();
-    assert!(summary.can_owner_accept);
-    a.execute::<Deal>(
-        caller("approval", Some(&a_token)),
-        Action::Decision(
-            DecisionArgs {
-                deal_id: id,
-                attempt: summary.attempt,
-                terms_hash: summary.terms_hash,
-                counter_hash: summary.counter_hash,
-            },
-            Decision::OwnerAccept,
-        ),
-    )
-    .await
-    .unwrap();
-    tokio::time::timeout(std::time::Duration::from_secs(30), async {
-        loop {
-            let left: Deal = a
-                .execute(caller("main", None), Action::Deal(id))
-                .await
-                .unwrap();
-            let right: Deal = b
-                .execute(caller("main", None), Action::Deal(id))
-                .await
-                .unwrap();
-            if left.transcript_head == right.transcript_head {
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-        }
-    })
-    .await
-    .unwrap();
-    intent(
-        &b,
-        &b_run,
-        "accept_offer",
-        serde_json::json!({"deal_id":id,"offer_seq":2}),
-    )
-    .await;
+    assert_eq!(opening.mode, Mode::ScriptedEngine);
     let seller_final = state(&b, id, DealState::Receipted).await;
     let buyer_final = state(&a, id, DealState::Receipted).await;
+    // Both sides' negotiation came from policy runs, all clean. The price is under the buyer's
+    // clause 6 threshold, so its agent countersigns under that policy.
+    for actor in [&a, &b] {
+        let all = settled(actor).await;
+        assert!(all.iter().all(|r| r.mode == Mode::ScriptedEngine));
+        assert!(all.iter().all(|r| r.state == RunState::Clean));
+    }
+    assert!(runs(&a).await.len() >= 2, "open and confirm runs");
+    assert!(
+        !runs(&b).await.is_empty(),
+        "the seller's answer is a policy run"
+    );
     assert_eq!(buyer_final.transcript_head, seller_final.transcript_head);
     assert_eq!(buyer_final.paypal.capture, seller_final.paypal.capture);
     let evidence: DealEvidence = a
@@ -1269,7 +1136,8 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
     assert_eq!(receipt.evidence.receipt, ReceiptEvidence::SellerAttested);
     assert!(!receipt.on_silence.contains("receipt verified"));
     assert!(buyer_http.0.lock().unwrap().paths.is_empty());
-    // A relay restart resets its volatile mailbox, while both wallets retain signed history.
+    // A relay restart resets its volatile mailbox, while both wallets retain signed history: the
+    // six signed messages are listing, offer, two accepts, settle and receipt.
     store.remove(&mailbox.hex()).await.unwrap();
     store.create(&mailbox.hex()).await.unwrap();
     tokio::time::timeout(std::time::Duration::from_secs(30), async {
@@ -1280,7 +1148,7 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
                 .unwrap()
                 .messages
                 .len()
-                == 7
+                == 6
             {
                 break;
             }
