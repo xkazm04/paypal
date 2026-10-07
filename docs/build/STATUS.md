@@ -219,9 +219,10 @@ one signed file (`table.proof.v1`, `table_proto::ProofBundle`) and `crates/table
 - Export: `Ledger::export_proof` re-verifies the transcript and audit chain before copying anything;
   `Action::ExportProof` signs the evidence head with the agent key the deal's mandate names;
   `deal_export_proof` (main + approval, not Tumbler) saves through a native save dialog. The mock
-  answers UNAVAILABLE; the deal view has an Export proof button.
-- Proof: the two-wallet settlement test exports both sides, requires all nine checks, and forges five
-  bundles (PayPal amount, capture authority, transcript byte, audit row, payee) that each fail.
+  answers UNAVAILABLE; the deal record has a 'Save signed proof' button.
+- Proof: the two-wallet settlement test exports both sides, requires all nine checks, and forged five
+  bundles at first (PayPal amount, capture authority, transcript byte, audit row, payee) that each
+  failed; it forges fifteen since the council-lite r1 rework in the bullet below.
 - What the verifier cannot prove from the file: an owner decision (`DecidedBy::Human`) is the wallet's
   record, not an owner signature (owner ACCEPT proofs are signatures and are checked); the HOUSE release
   pin is not in the bundle; truncation of the wallet's own audit tail needs an external head (T9).
@@ -230,6 +231,22 @@ one signed file (`table.proof.v1`, `table_proto::ProofBundle`) and `crates/table
 - Not yet run: the native save dialog (compile/clippy only, no GUI harness). The verifier logic mirrors
   the ledger's transcript/audit checks rather than sharing code; the export-then-verify test guards
   that parity.
+- Council-lite r1 rework (536d1a41, 2026-10-07): the PayPal-order check fails any 2xx order create,
+  authorize or order read with no stored binding, and names the call. Bundles from before bindings
+  were stored (pre-0007) now fail by design; a deal with no order call passes. Check 4 ('closed
+  mandate binds terms and amount') compares each countersigned payee with the owner-signed
+  approved-payees clause and claims only what it compared. Every check has a stable id. The
+  two-wallet settlement test forges fifteen bundles, at least one for each of the nine checks,
+  including a payee outside the list re-signed with the seller's own agent key; each asserts its
+  own named check fails. assert_proof_verifies exports and verifies four more shapes in
+  forecast_tests.rs: no money operation, a clause 6 countersign, a safe-default void, and a mandate
+  revoked after close. The deal record's 'Save signed proof' button warns once before saving: the
+  file carries the deal's rules, including price limits, payees and caps, and the other side's
+  notes. The Book has 'Check a proof file': a main-only proof_check command that reads the file in
+  Rust through a native open dialog, caps it at 8 MiB, and runs the same verifier through
+  table_client::check_proof_file. The sheet and the table-verify CLI both state the owner-key anchor
+  and the T9 limit (removed newer records cannot be seen). Not yet run: the native open dialog (no
+  GUI harness); client tsc/vitest in a worktree.
 
 ## Incidental sweep (2026-10-06)
 
