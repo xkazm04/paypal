@@ -630,6 +630,12 @@ impl Runtime {
                     approve_until,
                 })
             }
+            Action::Simulate(args) => {
+                // The mandate editor lives in the approval window. Read-only and moves nothing,
+                // so no token or unlock is asked for.
+                allowed(label, &["approval"])?;
+                json(self.mandate_simulate(args)?)
+            }
         }
     }
     fn quit_summary(&mut self) -> Result<QuitSummary, CommandError> {

@@ -14,6 +14,7 @@ pub mod reauth;
 mod relay;
 mod scheduler;
 mod service;
+mod simulate;
 #[cfg(test)]
 mod tests;
 pub mod vault;
