@@ -82,6 +82,14 @@ pub(super) async fn audit_page(
     ask(&window, &state, None, Action::AuditPage(args)).await
 }
 #[tauri::command]
+pub(super) async fn deal_history(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    args: DealHistoryArgs,
+) -> Result<DealHistory, CommandError> {
+    ask(&window, &state, None, Action::DealHistory(args)).await
+}
+#[tauri::command]
 pub(super) async fn owner_facts(
     window: WebviewWindow,
     state: State<'_, DesktopState>,

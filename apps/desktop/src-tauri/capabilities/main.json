@@ -40,6 +40,7 @@
     "allow-owner-facts",
     "allow-book-query",
     "allow-deal-export-proof",
-    "allow-proof-check"
+    "allow-proof-check",
+    "allow-deal-history"
   ]
 }

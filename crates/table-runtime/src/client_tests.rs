@@ -331,7 +331,7 @@ fn counter(r: &mut Runtime, deal: &Deal, peer: &AgentSigner, price: i64) {
         )
         .unwrap();
 }
-fn note(r: &mut Runtime, deal: &Deal, peer: &AgentSigner, text: &str) {
+pub(super) fn note(r: &mut Runtime, deal: &Deal, peer: &AgentSigner, text: &str) {
     let current = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap();
     let mut nonce = [0; 16];
     getrandom::fill(&mut nonce).unwrap();
@@ -366,7 +366,7 @@ fn note(r: &mut Runtime, deal: &Deal, peer: &AgentSigner, text: &str) {
         )
         .unwrap();
 }
-fn negotiating() -> (Runtime, Deal, AgentSigner, Arc<OfflineHttp>, Arc<TestClock>) {
+pub(super) fn negotiating() -> (Runtime, Deal, AgentSigner, Arc<OfflineHttp>, Arc<TestClock>) {
     let (mut r, _, http, clock, _) = runtime(true);
     let (deal, peer) = setup(&mut r, Side::Buyer);
     counter(&mut r, &deal, &peer, 1200);

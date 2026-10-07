@@ -18,6 +18,8 @@ import type { DealArgs } from "./DealArgs";
 import type { DealCreateArgs } from "./DealCreateArgs";
 import type { DealDisplay } from "./DealDisplay";
 import type { DealEvidence } from "./DealEvidence";
+import type { DealHistory } from "./DealHistory";
+import type { DealHistoryArgs } from "./DealHistoryArgs";
 import type { DealId } from "./DealId";
 import type { DealJoinArgs } from "./DealJoinArgs";
 import type { DecisionArgs } from "./DecisionArgs";
@@ -62,4 +64,8 @@ deal_export_proof: Command<DealArgs, boolean>,
 /**
  * Checks a proof file the owner picks in a native open dialog; null if cancelled.
  */
-proof_check: Command<null, ProofReport | null>, };
+proof_check: Command<null, ProofReport | null>, 
+/**
+ * Who decided each money step: the verified audit chain as closed steps (main only).
+ */
+deal_history: Command<DealHistoryArgs, DealHistory>, };

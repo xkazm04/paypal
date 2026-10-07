@@ -709,6 +709,8 @@ pub struct CommandContract {
     pub deal_export_proof: Command<DealArgs, bool>,
     /// Checks a proof file the owner picks in a native open dialog; null if cancelled.
     pub proof_check: Command<(), Option<ProofReport>>,
+    /// Who decided each money step: the verified audit chain as closed steps (main only).
+    pub deal_history: Command<DealHistoryArgs, DealHistory>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -805,6 +807,7 @@ pub const COMMANDS: &[&str] = &[
     "book_query",
     "deal_export_proof",
     "proof_check",
+    "deal_history",
 ];
 pub const RELEASE_COMMANDS: &[&str] = &[
     "deal_owner_accept",
@@ -825,6 +828,130 @@ pub const RELEASE_COMMANDS: &[&str] = &[
     "deal_create",
     "deal_join",
 ];
+/// The Rewind read: one deal or every deal, optionally within `[from, to)` (Unix seconds, as every
+/// other timestamp in the contract).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct DealHistoryArgs {
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub deal_id: Option<DealId>,
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub from: Option<i64>,
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub to: Option<i64>,
+}
+/// The newest steps, oldest first. `truncated` is set when older steps in the window were left out.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct DealHistory {
+    pub steps: Vec<HistoryStep>,
+    pub truncated: bool,
+}
+/// One step of a deal, projected from a verified audit row (and the PayPal calls it recorded).
+/// Closed facts only: no detail text, payload, request id or counterparty words ever cross.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct HistoryStep {
+    pub at: i64,
+    pub deal_id: DealId,
+    /// The audit row this step stands for (the money step's own row when rows were folded).
+    pub seq: u64,
+    pub kind: HistoryKind,
+    pub state_after: Option<table_core::DealState>,
+    pub authority: HistoryAuthority,
+    pub paypal: HistoryPaypal,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum HistoryKind {
+    Created,
+    OfferSent,
+    OfferReceived,
+    AcceptSent,
+    AcceptReceived,
+    OwnerAccepted,
+    Agreed,
+    Proposed,
+    Countersigned,
+    PayLinkSent,
+    PayLinkReceived,
+    ApprovalNotice,
+    OrderCreated,
+    ApprovedByBuyer,
+    Authorized,
+    Captured,
+    Voided,
+    AutoVoided,
+    ReceiptSent,
+    ReceiptReceived,
+    Receipted,
+    ReportingChecked,
+    Reconciled,
+    WithdrawSent,
+    WithdrawReceived,
+    Withdrawn,
+    Expired,
+    Lapsed,
+    Refused,
+    IntentRefused,
+    ShieldHeld,
+    HoldReleased,
+    Mismatch,
+    Failed,
+    Refunded,
+    Disputed,
+    Other,
+}
+/// Who decided a step, from the typed `decided_by` the chain recorded (never inferred from text).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum HistoryAuthority {
+    /// The owner, in the approval window.
+    Owner,
+    /// A rule the owner signed; `clause` when the row names it.
+    SignedRule {
+        clause: Option<u8>,
+    },
+    /// The seller mandate on an order the buyer approved at PayPal.
+    SellerMandate,
+    HouseMandate,
+    /// A deadline passed: no money moves, or a hold is voided.
+    SafeDefault,
+    /// The owner's agent proposed or signed it; never the authority on a money call.
+    AgentIntent,
+    None,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum HistoryPaypal {
+    /// PayPal was not asked at this step.
+    None,
+    Call {
+        method: PaypalMethod,
+        outcome: PaypalOutcome,
+    },
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum PaypalMethod {
+    CreateOrder,
+    Authorize,
+    Capture,
+    Void,
+    ReadOrder,
+    Reporting,
+    Other,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum PaypalOutcome {
+    Ok,
+    Failed,
+    Unknown,
+}
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod proof_file_tests {

@@ -80,6 +80,7 @@ fn client_reads_and_snooze_have_their_precise_label_grants() {
         ("owner-facts", vec!["main", "approval"]),
         ("book-query", vec!["main"]),
         ("proof-check", vec!["main"]),
+        ("deal-history", vec!["main"]),
     ] {
         for raw in capabilities {
             let v: Value = serde_json::from_str(raw).unwrap();

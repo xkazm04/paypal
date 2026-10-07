@@ -367,6 +367,11 @@ impl Runtime {
                 allowed(label, &["main"])?;
                 json(self.audit_page(args)?)
             }
+            Action::DealHistory(args) => {
+                // Main's Rewind and deal page only: a read of the verified chain, no unlock.
+                allowed(label, &["main"])?;
+                json(self.deal_history(args)?)
+            }
             Action::ApprovalHandoff => {
                 allowed(label, &["approval"])?;
                 json(ApprovalHandoff {
