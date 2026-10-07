@@ -378,6 +378,9 @@ impl Runtime {
             not_before: args.not_before,
             expires: args.expires,
         };
+        // A policy rule's refusal is an answer for the owner, not a ledger fault: it travels as
+        // REFUSED with its reason. verify_mandate_signature stays the fail-closed backstop.
+        payload.validate().map_err(table_app::Error::from)?;
         let signer = AgentSigner::from_key(self.owner()?);
         let mandate = OpenMandate {
             owner_sig: signer
@@ -433,6 +436,9 @@ impl Runtime {
             .wallet
             .ledger
             .next_mandate_version(deal.mandate_id))?;
+        // Clearing the only bound the roles use is refused here, as REFUSED, before anything
+        // is signed, inserted or rebound.
+        mandate.payload.validate().map_err(table_app::Error::from)?;
         let signer = AgentSigner::from_key(self.owner()?);
         mandate.owner_sig = signer
             .sign_payload(&mandate.payload)
