@@ -123,6 +123,14 @@ Videos (Nov 6-9) are recorded from whatever has merged by then. Waves 1-3 merge 
 - Verification is compressed into Nov 4-6.
 - Wave 4 (T13, T16, T17, T18, T19) is post-submission.
 - T3 is not scheduled by the cut; it stays gated as its `any` row says.
+- Wave 3 also builds subscription rescue's one lever, DISCOUNT_THIS_CYCLE, end to end (owner, 2026-10-07). Its seven pieces:
+  - a detection, or a labelled replay, that creates a rescue deal;
+  - a lever clause in the mandate;
+  - a durable approve step under a recorded authority that creates and sends the invoice and polls it to PAID;
+  - money counted as recovered only from a verified, receipted capture;
+  - the fixed invoice text;
+  - one live sandbox invoice check (spike 8), asked of the owner first;
+  - native tests.
 
 ## 2. A suggested path for the remaining 5.5 weeks
 
