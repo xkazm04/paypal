@@ -7,12 +7,17 @@ import { useState } from 'react';
 import { useMutation, useQuery } from '../../lib/hooks';
 import { WalletNotice } from '../../shared/honesty';
 import { Btn, Sheet } from '../../shared/ui';
+import { shortTitle } from './home/model';
 import { quitView } from './quit';
+import { useWorld } from './world';
 import './quit.css';
 
 export function QuitSheet({ onClose }: { onClose: () => void }) {
   const summary = useQuery('quit_summary', null, { refreshOn: ['attention:changed', 'deal:changed'] });
   const confirm = useMutation('quit_confirm');
+  const w = useWorld();
+  // each line names its deal by title (UX-GUIDE: ids live in Details); the label only when no title is known
+  const nameOf = (id: string, label: string) => { const d = w.deals.data?.find((x) => x.id === id); return d ? shortTitle(w.display(d).title) : label; };
   const [state, setState] = useState<'ask' | 'changed' | 'quitting'>('ask');
   const s = summary.data;
   const view = s ? quitView(s) : null;
@@ -52,7 +57,7 @@ export function QuitSheet({ onClose }: { onClose: () => void }) {
               <ul className="q-rows">
                 {sec.rows.map((r) => (
                   <li key={r.key}>
-                    <span className="q-id">{r.label}<b className="q-amt">{r.amount}</b></span>
+                    <span className="q-id"><span className="q-name">{nameOf(r.dealId, r.label)}</span><b className="q-amt">{r.amount}</b></span>
                     <span className="q-text">{r.text}</span>
                   </li>
                 ))}

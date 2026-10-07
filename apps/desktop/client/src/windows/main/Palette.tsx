@@ -13,7 +13,8 @@ import './palette.css';
 
 type Group = 'Modules' | 'Deals' | 'Owner';
 const GROUP_TEXT: Record<Group, string> = { Modules: 'Go to', Deals: 'Deals', Owner: 'Settings' };
-type Item = { key: string; group: Group; title: string; sub: string; hint?: string; color?: string; go: () => void };
+/** `also` is searched but not shown (a deal's label: typing "D-0193" still finds it; ids stay off Layer 1). */
+type Item = { key: string; group: Group; title: string; sub: string; also?: string; hint?: string; color?: string; go: () => void };
 
 export function Palette({ onClose, onModule, onDeal, onSheet, onQuit }: { onClose: () => void; onModule: (m: Module) => void; onDeal: (id: string) => void; onSheet: (t: SheetTab) => void; onQuit?: () => void }) {
   const w = useWorld();
@@ -31,7 +32,7 @@ export function Palette({ onClose, onModule, onDeal, onSheet, onQuit }: { onClos
     ...MODULES.map((m, i) => ({ key: `m-${m.key}`, group: 'Modules' as const, title: m.name, sub: m.long, hint: String(i + 1), color: m.cssVar, go: () => onModule(m.key) })),
     ...(w.deals.data ?? []).map((d) => {
       const disp = w.display(d);
-      return { key: `d-${d.id}`, group: 'Deals' as const, title: `${disp.label} · ${disp.title}`, sub: `${cp(d.counterparty).name} · ${stateLabel(d.state, d)}`, go: () => onDeal(d.id) };
+      return { key: `d-${d.id}`, group: 'Deals' as const, title: disp.title, also: disp.label, sub: `${cp(d.counterparty).name} · ${stateLabel(d.state, d)}`, go: () => onDeal(d.id) };
     }),
     { key: 's-settings', group: 'Owner', title: 'Settings', sub: 'agent app, pause agents, PayPal key, lock', go: () => onSheet('settings') },
     { key: 's-pairing', group: 'Owner', title: 'Connections', sub: 'connect with another wallet or the house seller', go: () => onSheet('pairing') },
@@ -39,7 +40,7 @@ export function Palette({ onClose, onModule, onDeal, onSheet, onQuit }: { onClos
     ...(onQuit ? [{ key: 's-quit', group: 'Owner' as const, title: 'Quit The Table', sub: 'stops the wallet · see what waits first', go: onQuit }] : []),
   ], [w, cp, onModule, onDeal, onSheet, onQuit]);
   const needle = q.trim().toLowerCase();
-  const items = (needle ? all.filter((i) => `${i.title} ${i.sub}`.toLowerCase().includes(needle)) : all).slice(0, 40);
+  const items = (needle ? all.filter((i) => `${i.title} ${i.sub} ${i.also ?? ''}`.toLowerCase().includes(needle)) : all).slice(0, 40);
   const pick = (i: Item | undefined) => { if (!i) return; onClose(); i.go(); };
   const cur = Math.min(sel, Math.max(0, items.length - 1));
 

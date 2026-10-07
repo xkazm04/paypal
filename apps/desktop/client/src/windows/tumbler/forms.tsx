@@ -367,11 +367,11 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
             const hold = it.kind === 'hold';
             return (
               <button key={it.deal_id} type="button" className={`ui-row two act s-row ${hold ? 'hold' : 'gate'} r-${r}`} onClick={() => p.onOpen(it.deal_id)}
-                title={`${it.label} · ${MODULE[it.module].name}`}>
+                title={`${MODULE[it.module].name} · ${it.headline} · If you do nothing: ${it.on_silence}`}>
                 <span className="bd" aria-hidden="true" />
                 <span className="main">
                   <span className="t1"><Headline text={it.headline} minor={it.amount_minor} currency={it.currency} />{it.counterparty ? <span className="who"> · {it.counterparty}</span> : null}</span>
-                  <span className="t2"><Hourglass />If you do nothing: {it.on_silence}</span>
+                  <span className="t2"><Hourglass />If you do nothing: <b>{it.on_silence}</b></span>
                 </span>
                 {hold ? <Chip tone="coral">Paused</Chip> : null}
                 <span className="cd">{it.deadline !== null ? timeLeftWords(it.deadline - p.now) : 'no clock'}</span>
@@ -581,7 +581,7 @@ export const WelcomeForm = forwardRef(function WelcomeForm(p: { mode: Mode | nul
         <li title="A gold ring on the puck: something needs you"><Mini ring="gold"><text className="m-n" x="13" y="16.5" textAnchor="middle">4</text></Mini><span><b>Gold ring</b> · needs you</span></li>
         <li title="A dot on the rim: one open decision"><Mini ring="line"><circle className="m-bead" cx="13" cy="3.2" r="2.4" /></Mini><span><b>A dot</b> · one open decision</span></li>
         <li title="If you do nothing, the safe default runs: waiting never pays anyone"><Mini ring="line"><path className="m-dash" d="M9 13h8" strokeWidth="1.6" /></Mini><span><b>Waiting</b> · never pays anyone</span></li>
-        <li title="Review ↗ opens the approval window: only that window can pay"><Mini ring="line"><path className="m-lock" d="M10 14.5v-2.5a3 3 0 0 1 6 0v2.5M9 14.5h8v4H9z" fill="none" strokeWidth="1.3" /></Mini><span><b>Review ↗</b> · only approval pays</span></li>
+        <li title="Review ↗ opens the approval window: only that window can pay"><Mini ring="line"><path className="m-lock" d="M10 14.5v-2.5a3 3 0 0 1 6 0v2.5M9 14.5h8v4H9z" fill="none" strokeWidth="1.3" /></Mini><span><b>Review ↗</b> · you decide there</span></li>
       </ul>
       <div className="w-foot nb">
         <p className="w-kb">I never take your keyboard.</p>

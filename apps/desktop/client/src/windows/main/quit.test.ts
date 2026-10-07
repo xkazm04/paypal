@@ -22,6 +22,8 @@ describe('quit sheet', () => {
       ['at_paypal', 'Still happens at PayPal, by itself', ['D-0189 · $90.00']],
     ]);
     expect(v.sections[0]?.rows[0]?.text).toMatch(/^If the buyer approves/);
+    // the sheet names the deal by its title from the ledger, so each row keeps the deal id
+    expect(v.sections.flatMap((s) => s.rows.map((r) => r.dealId))).toEqual([ID, ID]);
     expect(v.note).toBe('Quitting stops the wallet.');
   });
 

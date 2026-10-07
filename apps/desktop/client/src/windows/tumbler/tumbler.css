@@ -211,6 +211,7 @@ body.w-tumbler #root { position: fixed; inset: 0; }
 .s-row .t1 .amt { font-weight: var(--fw-semibold); color: var(--gold-l); }
 .s-row .t1 .who { color: var(--muted); font-weight: var(--fw-regular); }
 .s-row .t2 .hg { display: inline-block; width: 10px; height: 12px; margin-right: 5px; vertical-align: -1px; }
+.s-row .t2 b { color: var(--muted); font-weight: var(--fw-semibold); }
 .s-row.hold .t1 .amt { color: var(--coral-l); }
 .s-row .bd { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); flex: none; }
 .s-row.hold .bd { background: var(--coral); }
