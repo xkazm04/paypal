@@ -211,7 +211,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
               ...(counts.unknown && !evLoading ? [{ value: 'unknown' as const, label: <>Unknown <span className="cnt">{counts.unknown}</span></>, title: STATEMENT_TIP.unknown }] : []),
             ]} />
             <GridHelp />
-            <Btn sm onClick={() => setAuditOpen(true)} title="Everything that happened, newest first. Nothing in it can be changed.">Audit trail</Btn>
+            <Btn sm onClick={() => setAuditOpen(true)} title="Everything that happened, newest first. Each entry is linked to the one before it, so a change to an earlier one shows.">Audit trail</Btn>
             <Btn sm onClick={() => setProofOpen(true)} title="Check a signed proof file someone sent you, or one you saved">Check a proof file</Btn>
             <Btn sm onClick={() => exportRows(visible, '', 'book-ledger')} title="Save the deals you see as a spreadsheet file">Export CSV</Btn>
           </div>
@@ -783,7 +783,7 @@ function AuditSheet({ label, onClose }: { label: (id: string) => string; onClose
           </tbody>
         </table>
       )}
-      <p className="ui-hint">Read-only. Each entry is chained to the one before it, so nothing can be changed or removed without it showing.</p>
+      <p className="ui-hint">Read-only. Each entry is linked to the one before it, so a change to an earlier entry shows.</p>
     </Sheet>
   );
 }
