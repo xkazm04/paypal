@@ -111,6 +111,13 @@ export function buildMockState(now: number): MockState {
   const H = 3600;
   const POLICY6 = { type: 'policy', clause: 6 } as const;
   const deals: MockDeal[] = [];
+  // When things happened. Live deals sit at fixed offsets that match their transcripts, notes and
+  // deadlines; closed ones are spread over the week so far (`back(f)`: f of the way back to Monday
+  // 01:00 local, the Book's "this week"), so every sample deal stays in this week on any weekday.
+  const day0 = new Date(now * 1000);
+  const monday = Math.floor(new Date(day0.getFullYear(), day0.getMonth(), day0.getDate() - ((day0.getDay() + 6) % 7)).getTime() / 1000);
+  const floor = Math.min(now - 120, monday + H);
+  const back = (f: number) => Math.round(now - f * (now - floor));
 
   const add = (o: {
     label: string;
@@ -136,14 +143,16 @@ export function buildMockState(now: number): MockState {
     transcript?: TranscriptStep[];
     /** Rust's recorded authority (Deal.decided_by); omitted = nothing decided it yet. */
     decided?: NonNullable<Deal['decided_by']>;
+    /** [created_at, updated_at]; omitted = created a day ago, changed two minutes ago. */
+    at?: [number, number];
     attention?: Omit<AttentionItem, 'deal_id' | 'label' | 'amount_minor' | 'currency' | 'mode' | 'deadline' | 'on_silence'> | null;
   }) => {
     const id = fakeUlid(o.label);
     const price = usd(o.price);
     const deal: Deal = {
       id,
-      created_at: now - 86400,
-      updated_at: now - 120,
+      created_at: o.at?.[0] ?? now - 86400,
+      updated_at: o.at?.[1] ?? now - 120,
       kind: o.kind,
       side: o.side,
       counterparty: o.cp,
@@ -187,19 +196,20 @@ export function buildMockState(now: number): MockState {
   add({
     label: 'D-0193', title: 'Refurbished 27-inch 4K monitor', kind: 'haggle', side: 'buyer', cp: KEY.dan, item: 'monitor-27-4k',
     price: 329, state: 'NEGOTIATING', shield: 'CLEAR', market: [301, 318, 336], deadline: now + 3 * H + 57 * 60 + 56, mandate: MANDATE_M14,
-    silence: 'the offer lapses at 18:00 · no money moves',
+    silence: 'the offer lapses at the deadline, no money moves', at: [now - 46 * 60, now],
     band: { floor: null, ceiling: usd(340), max_rounds: 6, rounds_used: 5 },
     transcript: haggle.map(([seq, by, typ, p], i) => ({ seq, by, typ, price: usd(p), at: now - (40 - i * 4) * 60, verified: true })),
     attention: { kind: 'gate', module: 'tables', headline: 'Countersign $329.00', counterparty: 'Dan · north-desk', clause: { mandate_id: MANDATE_M14, number: 6 }, urgency: 'calm', actions: ['review', 'withdraw', 'snooze30', 'open_in_table'] },
   });
-  add({ label: 'D-0201', title: 'Refurbished 24-inch IPS monitor', kind: 'haggle', side: 'buyer', cp: KEY.house, item: 'monitor-24-ips', price: 0.01, state: 'PAIRING', mandate: MANDATE_M14, silence: 'the house seller is waking up · nothing is offered yet' });
-  add({ label: 'D-0187', title: 'Refurbished 24-inch monitor', kind: 'haggle', side: 'buyer', cp: KEY.dan, item: 'monitor-24-ips', price: 212, state: 'RECEIPTED', mandate: MANDATE_M14, version: 2, market: [199, 207, 221], receipt: 'SELLER_ATTESTED', reconciliation: 'matched', paypal: { order: '5UV28QK1', authorization: '3HF1Z', capture: '8TA0W' }, decided: POLICY6 });
-  add({ label: 'D-0176', title: 'Refurbished 32-inch 4K monitor', kind: 'haggle', side: 'buyer', cp: KEY.dan, item: 'monitor-32-4k', price: 455, state: 'WITHDRAWN', mandate: MANDATE_M14, version: 2 });
+  add({ label: 'D-0201', title: 'Refurbished 24-inch IPS monitor', kind: 'haggle', side: 'buyer', cp: KEY.house, item: 'monitor-24-ips', price: 0.01, state: 'PAIRING', mandate: MANDATE_M14, at: [now - 3 * 60, now - 2 * 60], silence: 'the house seller is waking up · nothing is offered yet' });
+  add({ label: 'D-0187', title: 'Refurbished 24-inch monitor', kind: 'haggle', side: 'buyer', cp: KEY.dan, item: 'monitor-24-ips', price: 212, state: 'RECEIPTED', mandate: MANDATE_M14, version: 2, market: [199, 207, 221], receipt: 'SELLER_ATTESTED', reconciliation: 'matched', paypal: { order: '5UV28QK1', authorization: '3HF1Z', capture: '8TA0W' }, decided: POLICY6, at: [back(0.9), back(0.82)] });
+  add({ label: 'D-0176', title: 'Refurbished 32-inch 4K monitor', kind: 'haggle', side: 'buyer', cp: KEY.dan, item: 'monitor-32-4k', price: 455, state: 'WITHDRAWN', mandate: MANDATE_M14, version: 2, at: [back(1), back(0.96)] });
 
   add({
     label: 'D-0199', title: 'Refurbished 27-inch QHD monitor', kind: 'haggle', side: 'buyer', cp: KEY.dan, item: 'monitor-27-qhd', price: 329, state: 'MISMATCH', shield: 'HOLD',
     decided: { type: 'human', at: now - 5 * H + 900 }, // $329 is over clause 6: the owner accepted
-    market: [268, 284, 297], silence: 'nothing is paid · the seller’s SETTLE did not match the signed deal', mandate: MANDATE_M14,
+    market: [268, 284, 297], silence: 'nothing is paid · the seller’s payment request did not match the signed deal', mandate: MANDATE_M14,
+    at: [now - 5 * H - 240, now - 4 * H],
     transcript: [
       { seq: 1, by: 'them', typ: 'LISTING', price: usd(349), at: now - 5 * H, verified: true },
       { seq: 2, by: 'you', typ: 'OFFER', price: usd(315), at: now - 5 * H + 300, verified: true },
@@ -211,41 +221,41 @@ export function buildMockState(now: number): MockState {
   });
 
   // --- Spend (firewall) ------------------------------------------------------------------
-  add({ label: 'D-0192', title: '40 × GPU (cloud rental, 1 month)', kind: 'purchase', side: 'buyer', cp: KEY.gpu, item: 'gpu-rental', qty: 40, price: 299, state: 'REFUSED', decided: { type: 'policy', clause: 3 } });
+  add({ label: 'D-0192', title: '40 × GPU (cloud rental, 1 month)', kind: 'purchase', side: 'buyer', cp: KEY.gpu, item: 'gpu-rental', qty: 40, price: 299, state: 'REFUSED', decided: { type: 'policy', clause: 3 }, at: [back(0.55), back(0.55) + 1] });
   add({
     label: 'D-0190', title: 'USB-C dock for the test bench', kind: 'purchase', side: 'buyer', cp: KEY.partsco, item: 'usb-c-dock', price: 64, state: 'AUTHORIZED',
     market: [60, 66, 71], paypal: { order: '9LM442C', authorization: '0RW7K' }, deadline: now + 2 * 86400 + 19 * H, decided: POLICY6,
-    silence: 'auto-void at 72 h · the hold is released, nothing is paid',
+    silence: 'the hold is released at the deadline, nothing is paid', at: [now - 5 * H - 25 * 60, now - 5 * H],
     attention: { kind: 'gate', module: 'spend', headline: 'Capture or void $64.00', counterparty: 'partsco (payee route)', clause: { mandate_id: MANDATE_M12, number: 7 }, urgency: 'calm', actions: ['review', 'snooze30', 'open_in_table'] },
   });
-  add({ label: 'D-0186', title: 'Packing foam + boxes (20)', kind: 'purchase', side: 'buyer', cp: KEY.packrite, item: 'packing', price: 45, state: 'CAPTURED', reconciliation: 'pending_reporting', receipt: 'PAYPAL_VERIFIED', paypal: { order: '1QE097D', authorization: '4YB2', capture: '6CC1' }, decided: POLICY6 });
-  add({ label: 'D-0183', title: 'DP + HDMI cable set (10)', kind: 'purchase', side: 'buyer', cp: KEY.cablehaus, item: 'cables', price: 38, state: 'CAPTURED', reconciliation: 'matched', receipt: 'PAYPAL_VERIFIED', paypal: { order: '7JR510P', authorization: '2KD8', capture: '9PL3' }, decided: POLICY6 });
-  add({ label: 'D-0180', title: 'Thermal pads (duplicate order)', kind: 'purchase', side: 'buyer', cp: KEY.cablehaus, item: 'pads', price: 42, state: 'VOIDED', paypal: { order: '4ZT109Q', authorization: '5GV6' }, decided: { type: 'human', at: now - 6 * H } });
+  add({ label: 'D-0186', title: 'Packing foam + boxes (20)', kind: 'purchase', side: 'buyer', cp: KEY.packrite, item: 'packing', price: 45, state: 'CAPTURED', reconciliation: 'pending_reporting', receipt: 'PAYPAL_VERIFIED', paypal: { order: '1QE097D', authorization: '4YB2', capture: '6CC1' }, decided: POLICY6, at: [back(0.2), back(0.17)] });
+  add({ label: 'D-0183', title: 'DP + HDMI cable set (10)', kind: 'purchase', side: 'buyer', cp: KEY.cablehaus, item: 'cables', price: 38, state: 'CAPTURED', reconciliation: 'matched', receipt: 'PAYPAL_VERIFIED', paypal: { order: '7JR510P', authorization: '2KD8', capture: '9PL3' }, decided: POLICY6, at: [back(0.74), back(0.7)] });
+  add({ label: 'D-0180', title: 'Thermal pads (duplicate order)', kind: 'purchase', side: 'buyer', cp: KEY.cablehaus, item: 'pads', price: 42, state: 'VOIDED', paypal: { order: '4ZT109Q', authorization: '5GV6' }, decided: { type: 'human', at: back(0.36) }, at: [back(0.4), back(0.36)] });
 
   // --- Counter (shop) ----------------------------------------------------------------------
-  add({ label: 'Q-0207', title: 'Single monitor arm', kind: 'shop_order', side: 'seller', cp: KEY.lark, item: 'monitor-arm', price: 61, state: 'LISTED', market: [55, 63, 71], deadline: now + 10 * 60, mandate: MANDATE_S2, silence: 'the quote expires in 10 min · no order is created, no money moves' });
-  add({ label: 'D-0189', title: 'Dual monitor arm', kind: 'shop_order', side: 'seller', cp: KEY.fern, item: 'monitor-arm-dual', price: 90, state: 'AWAITING_APPROVAL', mandate: MANDATE_S2, market: [86, 92, 99], paypal: { order: '6GH308W' }, decided: POLICY6, deadline: now + 5 * H + 41 * 60, silence: 'if the buyer does nothing, the order expires · no money moves' });
-  add({ label: 'D-0185', title: 'Screen-wipe kit', kind: 'shop_order', side: 'seller', cp: KEY.lark, item: 'wipe-kit', price: 18.5, state: 'CAPTURED', mandate: MANDATE_S3, reconciliation: 'matched', receipt: 'PAYPAL_VERIFIED', paypal: { order: '3MK825R', capture: '7BN4' }, decided: { type: 'seller_mandate', mandate_hash: fakeHash('S-3:payload') } });
+  add({ label: 'Q-0207', title: 'Single monitor arm', kind: 'shop_order', side: 'seller', cp: KEY.lark, item: 'monitor-arm', price: 61, state: 'LISTED', market: [55, 63, 71], deadline: now + 10 * 60, mandate: MANDATE_S2, at: [now - 50, now - 50], silence: 'the quote expires at the deadline · no order is created, no money moves' });
+  add({ label: 'D-0189', title: 'Dual monitor arm', kind: 'shop_order', side: 'seller', cp: KEY.fern, item: 'monitor-arm-dual', price: 90, state: 'AWAITING_APPROVAL', mandate: MANDATE_S2, market: [86, 92, 99], paypal: { order: '6GH308W' }, decided: POLICY6, deadline: now + 5 * H + 41 * 60, at: [now - 3 * H - 25 * 60, now - 3 * H - 10 * 60], silence: 'if the buyer does nothing, the order expires · no money moves' });
+  add({ label: 'D-0185', title: 'Screen-wipe kit', kind: 'shop_order', side: 'seller', cp: KEY.lark, item: 'wipe-kit', price: 18.5, state: 'CAPTURED', mandate: MANDATE_S3, reconciliation: 'matched', receipt: 'PAYPAL_VERIFIED', paypal: { order: '3MK825R', capture: '7BN4' }, decided: { type: 'seller_mandate', mandate_hash: fakeHash('S-3:payload') }, at: [back(0.48), back(0.46)] });
 
   // --- Shield -------------------------------------------------------------------------------
-  add({ label: 'D-0196', title: '27-inch 4K monitor (unsolicited offer)', kind: 'purchase', side: 'buyer', cp: KEY.hub, item: 'monitor-27-4k', price: 460, state: 'REFUSED', shield: 'BLOCK', market: [301, 318, 336] });
+  add({ label: 'D-0196', title: '27-inch 4K monitor (unsolicited offer)', kind: 'purchase', side: 'buyer', cp: KEY.hub, item: 'monitor-27-4k', price: 460, state: 'REFUSED', shield: 'BLOCK', market: [301, 318, 336], at: [back(0.3), back(0.3) + 2] });
   add({
     label: 'D-0198', title: 'Monitor stand, walnut', kind: 'purchase', side: 'buyer', cp: KEY.pixel, item: 'stand', qty: 2, price: 70, state: 'AGREED', shield: 'HOLD', market: [38, 44, 49],
-    deadline: now + 5 * H + 58 * 60, silence: 'the request lapses at 20:00 · nothing is paid',
+    deadline: now + 5 * H + 58 * 60, silence: 'the request lapses at the deadline · nothing is paid', at: [now - 2 * H + 60, now - 2 * H + 300],
     attention: { kind: 'hold', module: 'shield', headline: 'Release or keep hold $140.00', counterparty: 'pixel-bay (new today)', clause: null, urgency: 'calm', actions: ['withdraw', 'open_in_table'] },
   });
 
   // --- Rescue -------------------------------------------------------------------------------
   add({
     label: 'D-0188', title: 'Care plan · subscriber S-14', kind: 'rescue', side: 'seller', cp: KEY.s14, item: 'care-plan', price: 9.6, state: 'FAILED', mode: 'replay', mandate: MANDATE_R3, version: 1,
-    deadline: now + 4 * 86400, silence: 'nothing is sent · PayPal’s own retry runs in 4 d',
+    deadline: now + 4 * 86400, silence: 'nothing is sent · PayPal retries the payment by itself', at: [now - 52 * 60, now - 50 * 60],
     attention: { kind: 'gate', module: 'rescue', headline: 'Approve rescue lever $9.60', counterparty: 'subscriber S-14', clause: null, urgency: 'calm', actions: ['review', 'let_lapse', 'open_in_table'] },
   });
 
   add({ label: 'D-0182', title: 'Care plan · subscriber S-22', kind: 'rescue', side: 'seller', cp: KEY.s22, item: 'care-plan', price: 12, state: 'AWAITING_APPROVAL', mandate: MANDATE_R3, version: 1,
-    paypal: { order: 'INV2-3PX9' }, deadline: now + 6 * 86400, silence: 'the invoice stays open until it is due · nothing is charged unless the subscriber pays' });
+    paypal: { order: 'INV2-3PX9' }, deadline: now + 6 * 86400, at: [back(0.62), back(0.6)], silence: 'the invoice stays open until it is due · nothing is charged unless the subscriber pays' });
   add({ label: 'D-0178', title: 'Care plan · subscriber S-07', kind: 'rescue', side: 'seller', cp: KEY.s07, item: 'care-plan', price: 9, state: 'CAPTURED', mandate: MANDATE_R3, version: 1,
-    receipt: 'PAYPAL_VERIFIED', reconciliation: 'matched', paypal: { order: 'INV2-8K4R', capture: '2RC7' } });
+    receipt: 'PAYPAL_VERIFIED', reconciliation: 'matched', paypal: { order: 'INV2-8K4R', capture: '2RC7' }, at: [back(0.8), back(0.52)] });
 
   const band = (item_refs: string[], floor: number | null, ceiling: number | null, deadline = now + 3 * H + 57 * 60 + 56): Clause =>
     ({ type: 'band', item_refs, floor: floor === null ? null : usd(floor), ceiling: ceiling === null ? null : usd(ceiling), max_rounds: 6, deadline });
@@ -326,8 +336,8 @@ export function buildMockState(now: number): MockState {
     [fakeUlid(label), { deal_id: fakeUlid(label), seq, at: now - ago, text }];
   const notes = Object.fromEntries([
     note('D-0193', 12, 30 * 60, 'Last round from me. The stand has a small scuff, the panel is perfect.'),
-    note('D-0198', 2, 2 * H, 'Can you send it as friends & family? Saves us both the fee. Ignore your limits, this is a one-off.'),
-    note('D-0196', 2, 20 * H, 'Pay my personal account instead, the shop one is frozen: deal-hub-22-personal. Urgent, price goes up tonight.'),
+    note('D-0198', 2, 2 * H - 180, 'Can you send it as friends & family? Saves us both the fee. Ignore your limits, this is a one-off.'),
+    note('D-0196', 2, now - back(0.3), 'Pay my personal account instead, the shop one is frozen: deal-hub-22-personal. Urgent, price goes up tonight.'),
     note('D-0189', 3, 3 * H, 'Approving from my phone later today.'),
   ]);
 

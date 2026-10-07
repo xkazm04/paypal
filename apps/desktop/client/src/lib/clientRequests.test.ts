@@ -56,7 +56,8 @@ describe('generated client requests and mock gates', () => {
     await expect(approval.invoke('deal_owner_accept', { ...args, terms_hash: fakeHash('stale terms') }, { token })).rejects.toMatchObject({ code: 'INVALID' });
     const d = await approval.invoke('deal_owner_accept', args, { token });
     expect(d.updated_at).toBe(NOW);
-    expect(d.created_at).toBe(NOW - 86400);
+    // Accepting changes the deal, not when it started.
+    expect(d.created_at).toBe(buildMockState(NOW).deals.find((x) => x.deal.id === ID)?.deal.created_at);
     expect((await approval.invoke('deal_transcript', { deal_id: ID })).at(-1)?.typ).toBe('ACCEPT');
     await expect(approval.invoke('deal_owner_accept', args, { token })).rejects.toMatchObject({ code: 'INVALID' });
   });
