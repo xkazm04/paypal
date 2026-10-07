@@ -3,6 +3,7 @@ use axum::{
     Json, Router,
     extract::{DefaultBodyLimit, State},
     http::StatusCode,
+    response::{IntoResponse, Response},
     routing::{get, post},
 };
 use ed25519_dalek::{Signer, SigningKey};
@@ -707,17 +708,32 @@ async fn healthz(State(house): State<HouseHandle>) -> StatusCode {
         StatusCode::SERVICE_UNAVAILABLE
     }
 }
+/// Mandate clause 5 (velocity): the signed per-day deal count and total.
+const DAILY_LIMIT_CLAUSE: u8 = 5;
 async fn table(
     State(house): State<HouseHandle>,
     Json(request): Json<HouseRequest>,
-) -> Result<Json<HouseResponse>, StatusCode> {
-    house.table(request).await.map(Json).map_err(|e| match e {
-        Error::Invalid
-        | Error::App(table_app::Error::Refused(_) | table_app::Error::Permission) => {
-            StatusCode::BAD_REQUEST
+) -> Result<Json<HouseResponse>, Response> {
+    house.table(request).await.map(Json).map_err(|e| {
+        // A refusal carries one fixed code and no free text: never the mandate's reason.
+        let refused = |refusal| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(table_relay::RefusalBody { refusal }),
+            )
+                .into_response()
+        };
+        match e {
+            Error::App(table_app::Error::Refused(r)) if r.clause == DAILY_LIMIT_CLAUSE => {
+                refused(table_relay::Refusal::DailyLimit)
+            }
+            Error::Invalid
+            | Error::App(table_app::Error::Refused(_) | table_app::Error::Permission) => {
+                refused(table_relay::Refusal::Other)
+            }
+            Error::Full => StatusCode::TOO_MANY_REQUESTS.into_response(),
+            _ => StatusCode::SERVICE_UNAVAILABLE.into_response(),
         }
-        Error::Full => StatusCode::TOO_MANY_REQUESTS,
-        _ => StatusCode::SERVICE_UNAVAILABLE,
     })
 }
 

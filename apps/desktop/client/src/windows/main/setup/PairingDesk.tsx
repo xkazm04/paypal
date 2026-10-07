@@ -177,9 +177,9 @@ export function PairingDesk({ mode, setMode }: { mode: PairMode; setMode: (m: Pa
           <HouseChip state={house} />
           <div className="wz-house-t">
             <b>House seller · a practice shop, always there</b>
-            <span>{houseWaking ? <><span className="ui-spin" aria-hidden="true" /> waking up · this can take about a minute</> : house === 'unavailable' ? 'not part of this version' : house === 'ready' ? 'awake · answers at once' : 'asleep · wakes when you start'}</span>
+            <span>{houseWaking ? <><span className="ui-spin" aria-hidden="true" /> waking up</> : house === 'unavailable' ? 'not part of this version' : house === 'ready' ? 'awake · answers at once' : 'asleep · wakes when you start'}</span>
           </div>
-          <Info label="The house seller" title="The house seller"><p>A practice shop built into the app, so you can try a haggle on your own. It uses sandbox money and only ever sells to you.</p><p className="ui-hint">It sleeps when nobody uses it; waking takes about a minute. If it is slow, just try again.</p></Info>
+          <Info label="The house seller" title="The house seller"><p>A practice shop built into the app, so you can try a haggle on your own. It uses sandbox money and only ever sells to you.</p><p className="ui-hint">It sleeps when nobody uses it and wakes when you start. If it is slow, just try again.</p></Info>
         </div>
         {house === 'unavailable' ? null : <Fields side="buyer" setSide={() => {}} fixed payee={payee} setPayee={setPayee} />}
         <div className="wz-acts">
@@ -327,7 +327,7 @@ export function PairingDesk({ mode, setMode }: { mode: PairMode; setMode: (m: Pa
       {join.error ? (
         <>
           <WalletNotice error={join.error} what={mode === 'house' ? 'House seller' : 'Join'} />
-          {mode === 'house' ? <p className="ui-hint">It may still be waking up. Try again; nothing is lost.</p> : null}
+          {mode === 'house' && join.error.code === 'UNAVAILABLE' ? <p className="ui-hint">It may still be waking up. Try again; nothing is lost.</p> : null}
         </>
       ) : null}
     </form>
