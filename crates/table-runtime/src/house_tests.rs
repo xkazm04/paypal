@@ -806,8 +806,10 @@ struct ScriptedPayPal {
     takes: i64,
     /// Each call waits for one permit when set.
     gated: bool,
-    /// The operation that never answers, and the one that fails.
+    /// The operation that never answers, the one whose call PayPal completes before the
+    /// process stops waiting for it, and the one that fails.
     hangs: &'static str,
+    hangs_after: &'static str,
     fails: &'static str,
     entered: tokio::sync::Notify,
     hung: tokio::sync::Notify,
@@ -821,6 +823,7 @@ impl ScriptedPayPal {
             takes: 0,
             gated: false,
             hangs: "",
+            hangs_after: "",
             fails: "",
             entered: tokio::sync::Notify::new(),
             hung: tokio::sync::Notify::new(),
@@ -888,7 +891,13 @@ impl table_paypal::PayPalApi for ScriptedPayPal {
         request_id: &table_paypal::RequestId,
     ) -> Result<table_paypal::ApiResponse<table_paypal::Payment>, table_paypal::Error> {
         self.call("capture").await?;
-        self.inner.capture(id, amount, request_id).await
+        let answer = self.inner.capture(id, amount, request_id).await;
+        if self.hangs_after == "capture" {
+            // PayPal did it; the answer never comes back.
+            self.hung.notify_one();
+            std::future::pending::<()>().await;
+        }
+        answer
     }
     async fn void(
         &self,
@@ -1014,70 +1023,102 @@ async fn house_health_stays_up_through_a_slow_tick_of_several_deals() {
 }
 
 #[tokio::test]
-async fn house_restart_mid_capture_reserves_no_second_request_id_and_reports_it() {
-    let house = FileHouse::new(1);
-    let id = house.deals[0];
-    let mut api = house.api();
-    api.hangs = "capture";
-    let api = Arc::new(api);
-    let mut seller = house.open(api.clone());
-    // create, approval poll, authorize, then capture reserves its request id and never returns.
-    let ticking = async {
-        for _ in 0..10 {
+async fn house_restart_mid_capture_resolves_on_startup_under_the_same_request_id() {
+    // Two crashes inside the capture call: before PayPal saw it, and after PayPal did it.
+    for paypal_did_it in [false, true] {
+        let house = FileHouse::new(1);
+        let id = house.deals[0];
+        let mut api = house.api();
+        if paypal_did_it {
+            api.hangs_after = "capture";
+        } else {
+            api.hangs = "capture";
+        }
+        let api = Arc::new(api);
+        let mut seller = house.open(api.clone());
+        // create, approval poll, authorize, then capture reserves its request id and never returns.
+        let ticking = async {
+            for _ in 0..10 {
+                let _ = seller.tick().await;
+            }
+        };
+        tokio::select! {
+            () = ticking => panic!("capture never started"),
+            () = api.hung.notified() => {}
+        }
+        // The process dies in the middle of the capture call.
+        drop(seller);
+        let captures = |house: &FileHouse| {
+            house
+                .http
+                .0
+                .lock()
+                .unwrap()
+                .paths
+                .iter()
+                .filter(|p| p.ends_with("/capture"))
+                .count()
+        };
+        assert_eq!(captures(&house), usize::from(paypal_did_it));
+
+        let lines = Arc::new(Lines::default());
+        let mut seller = house.open(Arc::new(house.api())).with_log(lines.clone());
+        assert_eq!(
+            seller.pending_operations().unwrap(),
+            vec![house_seller::PendingOperation {
+                deal: id,
+                operation: "capture",
+                attempt: 1
+            }]
+        );
+        // Startup reads PayPal's order: it was collected (confirm), or not (the same request
+        // goes again under the house's release-pinned mandate, re-checked).
+        assert_eq!(seller.resolve_pending().await.unwrap(), 1);
+        let outcome = if paypal_did_it { "confirmed" } else { "resent" };
+        assert_eq!(
+            lines.all(),
+            vec![format!(
+                "house pending deal={id} operation=capture attempt=1 outcome={outcome}"
+            )]
+        );
+        assert_eq!(captures(&house), 1, "one capture reached PayPal in all");
+        assert_eq!(
+            seller.pipeline.wallet.ledger.get_deal(id).unwrap().state,
+            DealState::Receipted
+        );
+        assert!(seller.pending_operations().unwrap().is_empty());
+        // One reservation, one request id, whatever was sent.
+        let reserved = audit_rows(&seller, id, "money.authorized");
+        let capture: Vec<_> = reserved
+            .iter()
+            .filter(|d| d["operation"] == "capture")
+            .collect();
+        assert_eq!(capture.len(), 1);
+        let request = table_paypal::RequestId::for_operation(id, 1, "capture").unwrap();
+        assert_eq!(capture[0]["request_id"], request.as_str());
+        for (method, path, rid) in seller
+            .pipeline
+            .wallet
+            .ledger
+            .paypal_call_requests(id)
+            .unwrap()
+        {
+            if method == "POST" && path.ends_with("/capture") {
+                assert_eq!(rid, request.as_str());
+            }
+        }
+        assert_eq!(
+            audit_rows(&seller, id, "money.resent").len(),
+            usize::from(!paypal_did_it)
+        );
+        assert_eq!(audit_rows(&seller, id, "money.resolved").len(), 1);
+        // Later ticks send nothing more.
+        for _ in 0..3 {
             let _ = seller.tick().await;
         }
-    };
-    tokio::select! {
-        () = ticking => panic!("capture never started"),
-        () = api.hung.notified() => {}
+        assert_eq!(captures(&house), 1);
+        seller.pipeline.wallet.ledger.verify_audit().unwrap();
     }
-    // The process dies in the middle of the capture call.
-    drop(seller);
-    let captures = |paths: &[String]| paths.iter().filter(|p| p.ends_with("/capture")).count();
-    let before = captures(&house.http.0.lock().unwrap().paths);
-    assert_eq!(before, 0, "the hung capture never reached the mock");
-
-    let lines = Arc::new(Lines::default());
-    let mut seller = house.open(Arc::new(house.api())).with_log(lines.clone());
-    assert_eq!(
-        seller.pending_operations().unwrap(),
-        vec![house_seller::PendingOperation {
-            deal: id,
-            operation: "capture",
-            attempt: 1
-        }]
-    );
-    assert_eq!(seller.report_pending().unwrap(), 1);
-    for _ in 0..3 {
-        assert!(seller.tick().await.is_err());
-    }
-    // One line for the pending capture, and one (not three) for the step that keeps refusing.
-    assert_eq!(
-        lines.all(),
-        vec![
-            format!("house pending deal={id} operation=capture attempt=1 outcome=unknown"),
-            format!("house step=advance deal={id} error=ledger.sql"),
-        ]
-    );
-    // No second request id: one reservation, nothing sent again, the deal still on hold.
-    let reserved = audit_rows(&seller, id, "money.authorized");
-    let capture: Vec<_> = reserved
-        .iter()
-        .filter(|d| d["operation"] == "capture")
-        .collect();
-    assert_eq!(capture.len(), 1);
-    assert_eq!(
-        capture[0]["request_id"],
-        table_paypal::RequestId::for_operation(id, 1, "capture")
-            .unwrap()
-            .as_str()
-    );
-    assert_eq!(captures(&house.http.0.lock().unwrap().paths), 0);
-    assert_eq!(
-        seller.pipeline.wallet.ledger.get_deal(id).unwrap().state,
-        DealState::Authorized
-    );
-    seller.pipeline.wallet.ledger.verify_audit().unwrap();
 }
 
 #[tokio::test]

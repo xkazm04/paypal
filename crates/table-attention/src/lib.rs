@@ -10,8 +10,12 @@ pub use silence::word_silence;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use table_core::{
-    Currency, DealEvent, DealId, DealState, MandateId, Mode, Module, Money, Timestamp,
+    Currency, DealEvent, DealId, DealState, MandateId, Mode, Module, Money, MoneyCheck, Timestamp,
 };
+
+/// The card's line while a money step's PayPal outcome is being checked (T10). Nothing is sent,
+/// and nothing is collected, until PayPal's own record settles it.
+pub const MONEY_CHECK_SILENCE: &str = "nothing more is sent until PayPal confirms";
 
 #[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -61,6 +65,11 @@ pub struct AttentionItem {
     pub urgency: Urgency,
     pub mode: Mode,
     pub actions: Vec<TumblerAction>,
+    /// Set while a money step's PayPal outcome is unknown: the card is a HOLD that only opens
+    /// the deal. Older shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub money_check: Option<MoneyCheck>,
 }
 #[derive(ts_rs::TS, Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -98,6 +107,8 @@ pub struct AttentionSource {
     pub mode: Mode,
     pub shield_hold: bool,
     pub needs_owner_accept: bool,
+    /// A money step whose PayPal outcome is not confirmed (T10).
+    pub money_check: Option<MoneyCheck>,
 }
 impl AttentionSource {
     pub fn from_deal(
@@ -129,9 +140,13 @@ impl AttentionSource {
                 .shield
                 .is_some_and(|v| v >= table_core::ShieldVerdict::Hold),
             needs_owner_accept: false,
+            money_check: None,
         })
     }
     pub fn item(&self, now: Timestamp) -> AttentionItem {
+        if let Some(check) = self.money_check {
+            return self.checking_item(check, now);
+        }
         let kind = if self.shield_hold || self.state == DealState::Mismatch {
             AttnKind::Hold
         } else if self.needs_owner_accept && self.state == DealState::Negotiating {
@@ -206,6 +221,28 @@ impl AttentionSource {
             urgency: urgency(self.deadline, now),
             mode: self.mode,
             actions,
+            money_check: None,
+        }
+    }
+    /// A deal whose money step is being checked with PayPal: a HOLD with no decision on it and
+    /// no way to walk away, because the deal stays reserved until PayPal's record settles it.
+    fn checking_item(&self, check: MoneyCheck, now: Timestamp) -> AttentionItem {
+        AttentionItem {
+            deal_id: self.deal_id,
+            label: format!("D-{:04}", self.display_number),
+            kind: AttnKind::Hold,
+            module: self.module,
+            headline: format!("Checking with PayPal {}", self.amount),
+            amount_minor: self.amount.minor(),
+            currency: self.amount.currency(),
+            counterparty: self.pairing_display_name.clone(),
+            clause: None,
+            deadline: self.deadline,
+            on_silence: MONEY_CHECK_SILENCE.to_owned(),
+            urgency: urgency(self.deadline, now),
+            mode: self.mode,
+            actions: vec![TumblerAction::OpenInTable],
+            money_check: Some(check),
         }
     }
 }
@@ -328,6 +365,7 @@ mod tests {
             deadline: Some(deadline),
             mode: Mode::Sandbox,
             shield_hold: false,
+            money_check: None,
         }
     }
     #[test]
@@ -361,6 +399,37 @@ mod tests {
         assert!(view.locked);
         assert_eq!(view.items.len(), 1);
         assert!(!view.items[0].on_silence.is_empty());
+    }
+    #[test]
+    fn a_money_check_is_a_hold_that_only_opens_the_deal_and_never_promises_money() {
+        for state in [
+            DealState::Settling,
+            DealState::Approved,
+            DealState::Authorized,
+        ] {
+            for parked in [
+                table_core::MoneyCheckState::Checking,
+                table_core::MoneyCheckState::Parked,
+            ] {
+                let mut s = source(1, 8000);
+                s.state = state;
+                s.money_check = Some(MoneyCheck {
+                    step: table_core::MoneyCheckStep::Capture,
+                    state: parked,
+                    since: 0,
+                    next_check: None,
+                });
+                let item = s.item(0);
+                assert_eq!(item.kind, AttnKind::Hold);
+                assert_eq!(item.actions, vec![TumblerAction::OpenInTable]);
+                assert!(item.headline.starts_with("Checking with PayPal"));
+                assert_eq!(item.on_silence, MONEY_CHECK_SILENCE);
+                assert_eq!(item.money_check, s.money_check);
+                let mut ladder = AttentionLadder::default();
+                let fx = ladder.evaluate(&item, 0, false, false);
+                assert!(fx.show_without_activation && fx.tray_dot && !fx.notify);
+            }
+        }
     }
     #[test]
     fn hold_has_no_review_and_authorized_has_no_withdraw() {
