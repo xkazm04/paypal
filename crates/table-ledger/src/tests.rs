@@ -1660,3 +1660,147 @@ fn counterparty_projection_names_pairing_status_and_declared_payee_only() {
     assert_eq!(named.display_name, "Dan");
     assert_eq!(named.declared_payee.as_ref().unwrap().as_str(), "merchant");
 }
+
+// Scan C-4: a deal's place in the daily budget is fixed when it agrees.
+fn budget_deal(ledger: &mut Ledger, base: &Deal, n: u32) -> Deal {
+    let mut deal = base.clone();
+    deal.id = format!("{:026}", 10 + n).parse().unwrap();
+    ledger.create_deal(&deal, 100).unwrap();
+    for event in [DealEvent::ListingVerified, DealEvent::OfferVerified] {
+        ledger.apply_event(deal.id, event, 100).unwrap();
+    }
+    deal
+}
+fn agree(ledger: &mut Ledger, deal: &Deal, at: Timestamp) {
+    ledger
+        .apply_event(deal.id, DealEvent::TwoAcceptsVerified, at)
+        .unwrap();
+}
+/// The authorize-time check: `usage_for` fed to the signed mandate's `check`, with the daily
+/// limits replaced by the given ones.
+fn budget_passes(
+    ledger: &Ledger,
+    owner: &AgentSigner,
+    deal: &Deal,
+    limits: (u16, i64),
+    now: Timestamp,
+) -> bool {
+    let mut payload = ledger
+        .active_mandate(deal.mandate_id, 1, &owner.public_key())
+        .unwrap()
+        .payload;
+    for clause in &mut payload.clauses {
+        if let Clause::Velocity {
+            max_deals_day,
+            max_total_day,
+        } = clause
+        {
+            *max_deals_day = limits.0;
+            *max_total_day = Money::new(limits.1, Currency::USD).unwrap();
+        }
+    }
+    let payee = PayeeRef::new("merchant").unwrap();
+    let usage = ledger.usage_for(deal, now).unwrap();
+    payload
+        .check(
+            &table_core::Intent {
+                kind: deal.kind,
+                side: deal.side,
+                role: Role::Buy,
+                category: Category::Parts,
+                terms: &deal.terms,
+                counterparty: &deal.counterparty,
+                paired: true,
+                house: false,
+                payee: &payee,
+                rounds_used: 0,
+            },
+            usage,
+            now,
+        )
+        .is_ok()
+}
+#[test]
+fn c4_deals_that_agree_out_of_creation_order_do_not_both_pass() {
+    let (mut ledger, base, owner, ..) = setup();
+    let a = budget_deal(&mut ledger, &base, 1);
+    let b = budget_deal(&mut ledger, &base, 2);
+    agree(&mut ledger, &b, 150);
+    assert!(
+        budget_passes(&ledger, &owner, &b, (1, 100000), 200),
+        "B agreed first and must pass"
+    );
+    agree(&mut ledger, &a, 150); // same second: the audit sequence orders it
+    assert!(
+        !budget_passes(&ledger, &owner, &a, (1, 100000), 200),
+        "A agreed second and must be refused"
+    );
+    assert!(budget_passes(&ledger, &owner, &b, (1, 100000), 200));
+}
+#[test]
+fn c4_open_tables_never_block_an_agreed_deal() {
+    let (mut ledger, base, owner, ..) = setup();
+    let early = budget_deal(&mut ledger, &base, 1);
+    agree(&mut ledger, &early, 150);
+    for n in 2..8 {
+        budget_deal(&mut ledger, &base, n);
+        budget_deal(&mut ledger, &base, 20 + n);
+        assert!(budget_passes(&ledger, &owner, &early, (2, 100000), 200));
+    }
+    assert!(budget_passes(&ledger, &owner, &early, (1, 100000), 200));
+}
+#[test]
+fn c4_next_deal_to_agree_is_refused_at_the_count_and_total_limits() {
+    let (mut ledger, base, owner, ..) = setup();
+    let first = budget_deal(&mut ledger, &base, 1);
+    let second = budget_deal(&mut ledger, &base, 2);
+    let third = budget_deal(&mut ledger, &base, 3);
+    agree(&mut ledger, &first, 150);
+    agree(&mut ledger, &second, 160);
+    // Not agreed yet: counts everyone agreed so far.
+    assert!(!budget_passes(&ledger, &owner, &third, (2, 100000), 200));
+    assert!(budget_passes(&ledger, &owner, &third, (3, 100000), 200));
+    // Two deals of 32900 are used; a third would pass 100000 but not 90000.
+    assert!(budget_passes(&ledger, &owner, &third, (10, 100000), 200));
+    assert!(!budget_passes(&ledger, &owner, &third, (10, 90000), 200));
+    agree(&mut ledger, &third, 170);
+    assert!(!budget_passes(&ledger, &owner, &third, (2, 100000), 200));
+    assert!(budget_passes(&ledger, &owner, &second, (2, 100000), 200));
+}
+#[test]
+fn c4_agreed_without_a_transition_row_fails_closed() {
+    let (mut ledger, base, owner, ..) = setup();
+    let ghost = budget_deal(&mut ledger, &base, 1);
+    ledger
+        .conn
+        .execute(
+            "UPDATE deals SET state='AGREED' WHERE id=?1",
+            [ghost.id.to_string()],
+        )
+        .unwrap();
+    let other = budget_deal(&mut ledger, &base, 2);
+    assert_eq!(ledger.usage_for(&other, 200).unwrap().deals_today, 1);
+    assert!(!budget_passes(&ledger, &owner, &other, (1, 100000), 200));
+    agree(&mut ledger, &other, 150);
+    assert_eq!(ledger.usage_for(&other, 200).unwrap().deals_today, 1);
+    // The deal with the unreadable moment counts every other agreed deal.
+    assert_eq!(ledger.usage_for(&ghost, 200).unwrap().deals_today, 1);
+}
+#[test]
+fn c4_a_deal_agreed_on_the_previous_utc_day_does_not_count_today() {
+    let (mut ledger, base, _owner, ..) = setup();
+    let old = budget_deal(&mut ledger, &base, 1);
+    let today = budget_deal(&mut ledger, &base, 2);
+    agree(&mut ledger, &old, 86400 - 10);
+    agree(&mut ledger, &today, 86400 + 10);
+    assert_eq!(ledger.usage_for(&today, 86400 + 20).unwrap().deals_today, 0);
+    let pending = budget_deal(&mut ledger, &base, 3);
+    assert_eq!(
+        ledger.usage_for(&pending, 86400 + 20).unwrap().deals_today,
+        1
+    );
+    assert_eq!(
+        ledger.usage_for(&pending, 86400 - 5).unwrap().deals_today,
+        1
+    );
+}
