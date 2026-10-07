@@ -13,3 +13,4 @@ dist/
 # registry skills are links, never copies
 .claude/skills/
 *.stackdump
+.personas/council/
