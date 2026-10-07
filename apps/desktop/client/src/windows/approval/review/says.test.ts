@@ -18,7 +18,7 @@ function deal(p: Partial<Deal> = {}): Deal {
 }
 const summary = (d: Partial<Deal> = {}, s: Partial<ApprovalSummary> = {}): ApprovalSummary => ({
   deal: deal(d), evidence: { deal_id: 'x', receipt: 'NONE', reconciliation: 'not_applicable' }, attempt: 1, terms_hash: HASH,
-  locked: false, can_release: true, can_open_paypal: true, unavailable_reason: null, ...s,
+  locked: false, can_release: true, can_open_paypal: true, unavailable_reason: null, checks: [], checks_hash: HASH, ...s,
 });
 const twin = (op: Twin['op'], left = '$340.00'): Twin => ({ left: { k: 'Most you’ll pay', v: left }, op, right: { k: 'Dan asks', v: '$329.00' }, tone: 'ok' });
 

@@ -5,7 +5,8 @@
 // both sides (or Rust itself verified the equality, e.g. can_open_paypal ⇒ the SETTLE matched the
 // signed amount, invoice id and approve-link host). Anything the window cannot see is '?'
 // (unknown, drawn dashed), never a pass. This module decides what to SAY; gating.ts decides what
-// is allowed, and a red row here can only narrow it further (anyCheckFailed).
+// is allowed from Rust's flags and the wallet's own checklist (ApprovalSummary.checks), never
+// from these rows.
 import type { ApprovalSummary } from '@bindings/ApprovalSummary';
 import type { Clause } from '@bindings/Clause';
 import type { Deal } from '@bindings/Deal';

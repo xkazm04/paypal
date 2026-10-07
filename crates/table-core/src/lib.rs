@@ -1,6 +1,8 @@
 //! Pure wallet domain. Time, identity generation and all IO are supplied by callers.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 pub mod canonical;
+mod checks;
+pub use checks::*;
 pub mod deal;
 mod display;
 pub use display::*;

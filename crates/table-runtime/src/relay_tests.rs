@@ -889,6 +889,7 @@ async fn h6_fresh_wallet_pairs_house_and_closes_through_in_process_relay_with_mo
                     attempt: summary.attempt,
                     terms_hash: summary.terms_hash,
                     counter_hash: summary.counter_hash,
+                    checks_hash: Some(summary.checks_hash),
                 },
                 Decision::OwnerAccept,
             ),

@@ -45,7 +45,7 @@ describe('wave 0 port gaps', () => {
     const approval = approvalFor(`?deal=${id}`);
     const token = await approval.invoke('approval_token', null);
     const s = await approval.invoke('approval_summary', { deal_id: id });
-    const d = await approval.invoke('deal_owner_accept', { deal_id: id, attempt: s.attempt, terms_hash: s.terms_hash, counter_hash: s.counter_hash }, { token });
+    const d = await approval.invoke('deal_owner_accept', { deal_id: id, attempt: s.attempt, terms_hash: s.terms_hash, counter_hash: s.counter_hash, checks_hash: s.checks_hash }, { token });
     expect(d.decided_by).toEqual({ type: 'human', at: NOW });
   });
 

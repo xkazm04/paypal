@@ -411,6 +411,7 @@ fn owner_args(r: &mut Runtime, id: DealId) -> DecisionArgs {
         attempt: s.attempt,
         terms_hash: s.terms_hash,
         counter_hash: s.counter_hash,
+        checks_hash: Some(s.checks_hash),
     }
 }
 

@@ -6,7 +6,7 @@
 import type { ReactNode } from 'react';
 import type { Mode } from '@bindings/Mode';
 import { MockBadge, ModeBadge, WalletNotice } from '../../shared/honesty';
-import { STEP, type Check, type Step } from './model';
+import { STEP, type Step } from './model';
 import { useSession } from './session';
 
 /** The Dial's emblem: a steel dial with the gold settlement ring. Static, trusted SVG. */
@@ -42,20 +42,6 @@ export function Strip({ steps, countdown }: { steps: Step[]; countdown?: ReactNo
         </li>
       ))}
     </ol>
-  );
-}
-
-export function Checks({ checks, revealed }: { checks: Check[]; revealed: number }) {
-  return (
-    <ul className="checks" aria-label="Checks from the wallet">
-      {checks.map((c, i) => (
-        <li key={c.id} className={i >= revealed ? 'wait' : c.status}>
-          <span className="ck" aria-hidden="true" />
-          <span>{c.text}</span>
-          <span className="sr">{i >= revealed ? ' (checking)' : c.status === 'bad' ? ' (failed)' : c.status === 'info' ? ' (note)' : ' (passed)'}</span>
-        </li>
-      ))}
-    </ul>
   );
 }
 
