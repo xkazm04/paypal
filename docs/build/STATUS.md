@@ -940,6 +940,13 @@ invoice_id reuse after expiry and live ownership/fee/refund/dispute behavior are
 not verified. Secondary clients match primary specs and recording-transport tests;
 their live conformance and durable rescue authority integration remain unverified.
 
+Hosted HOUSE: these are UNVERIFIED and not in .research: Render's rate for one paid instance plus
+a 1 GB disk, from the Nov 6-9 video through judging; its health-check interval and failure
+threshold against the 190 s window; its restart rule; and its SIGTERM grace period. The 'about a
+minute' wake time at `apps/desktop/client/src/windows/approval/OwnerConfig.tsx:27` and
+`windows/main/setup/CircuitView.tsx:400-402` is unmeasured. Copy that says the HOUSE sleeps when
+nobody uses it does not match render.yaml's fixed paid instance.
+
 Exactly deferred by phase:
 
 - **B4/P3 remaining:** live secondary conformance, reporting reconciliation/lag,
@@ -1319,19 +1326,6 @@ unchanged (no generated type changed; `TranscriptBy`/`TranscriptType` only gaine
   (2) DECISIONS 12 is built: the tick writes the heartbeat before and after every awaited deal step. `HEARTBEAT_STALE` is 190 s: 3 attempts x (OAuth 30 s + call 30 s) + backoff 3 s = 183 s, plus 7 s. A stalled actor still reads 503. At startup the HOUSE logs each money operation that a previous run left pending (deal, operation, attempt, outcome unknown). The pipeline's primary key prevents a second request id. Resolving the operation is T10. SIGTERM or ctrl-c stops serving gracefully, then the actor finishes the tick in flight and exits.
   (3) Every failed tick step logs `house step=<step> deal=<id> error=<code>` to stderr. A failure that repeats is folded into one line until it changes. tokio's `signal` feature is enabled for house-seller (no new crate).
   Tests: `answers_split_into_full_refused_and_unavailable`, `house_full_daily_limit_refusal_and_silence_reach_the_wallet_in_plain_words`, `house_health_stays_up_through_a_slow_tick_of_several_deals`, `house_restart_mid_capture_reserves_no_second_request_id_and_reports_it`, `house_drain_finishes_the_tick_in_flight_then_stops`, `house_failed_step_writes_one_redacted_log_line` and `healthz_follows_the_heartbeat`. PairingDesk.tsx was not typechecked (a worktree has no client node_modules).
-
-## Policy authority above clause 6 (2026-10-07)
-
-- `crates/table-app/tests/pipeline.rs::policy_authority_is_refused_above_clause_6_before_any_paypal_call`: with a signed mandate whose clause 6 threshold (10.00) is below the deal (12.00), `Authority::Policy` is refused at create, authorize and capture with zero new mock PayPal calls and `paypal_calls` rows, and no countersign row at create; the same deal then reaches `Receipted` with `Authority::Owner(OwnerTicket)`, countersign present before capture. For authorize and capture the countersign row already exists from the owner's create, so those steps assert it is unchanged. No defect found; the gate held.
-
-## Spend firewall / agent-gated-spend: a cleared purchase waits for the owner (2026-10-07)
-
-- An agent's purchase that passes the mandate check waits at Agreed. Creating the PayPal order, authorizing it and capturing it each need the owner's decision in the approval window; the clause-6 policy countersign does not apply to purchases (`Authority::Policy` is refused for every purchase deal, before any countersign row, reservation or network call). A cleared purchase counts in the daily budget from the moment it clears until it is withdrawn or expires. This closes agent-gated-spend MA-1.
-- Mechanism: `DealEvent::PurchaseCleared` (Pairing to Agreed), applied by `propose_purchase` (buyer purchases only) in its own transaction with the `deal.transition` audit row; the scheduler no longer creates orders for purchases. The text of the Shopper slot in `configuration.rs` now says money moves only when the owner decides.
-- A purchase under a mandate with no Band gets a 24 h decision window (`PURCHASE_DECISION_WINDOW_SECS`, DECISIONS section 8): at the deadline it lapses to WITHDRAWN with `SafeDefault` and no PayPal call (test `a_purchase_without_a_band_lapses_after_a_day_and_a_band_deadline_still_wins`). A proposal writes one `purchase.proposed` audit row (test `one_purchase_proposal_writes_exactly_one_audit_row_and_the_chain_verifies`). The mock Shopper copy in `backend.ts` now matches `configuration.rs`.
-
-## H5 seller money in (2026-10-07, shield-screening rework slice 1)
-
 - **house-seller-demo full council r1 (2026-10-07, at 4b55400).** Outcome ready: overall 0.547 on coverage 0.70. The judges are uncalibrated, so the floors are advisory. Ready is not an approval: the operator decides.
   Scores: value 0.50, craft 0.56, robustness 0.62. Rivalry and economics were not measured: no lookups, no price book, no telemetry, and the HOUSE is not deployed.
   The lite lines:
@@ -1349,6 +1343,19 @@ unchanged (no generated type changed; `TranscriptBy`/`TranscriptType` only gaine
   - One tick has no overall bound, so a drain can outlast the host's grace period.
   - A step that keeps failing logs once and then goes quiet while /healthz stays 200.
   - The slow-PayPal test proves the heartbeat is written between steps, not that real calls finish within 190 s.
+
+## Policy authority above clause 6 (2026-10-07)
+
+- `crates/table-app/tests/pipeline.rs::policy_authority_is_refused_above_clause_6_before_any_paypal_call`: with a signed mandate whose clause 6 threshold (10.00) is below the deal (12.00), `Authority::Policy` is refused at create, authorize and capture with zero new mock PayPal calls and `paypal_calls` rows, and no countersign row at create; the same deal then reaches `Receipted` with `Authority::Owner(OwnerTicket)`, countersign present before capture. For authorize and capture the countersign row already exists from the owner's create, so those steps assert it is unchanged. No defect found; the gate held.
+
+## Spend firewall / agent-gated-spend: a cleared purchase waits for the owner (2026-10-07)
+
+- An agent's purchase that passes the mandate check waits at Agreed. Creating the PayPal order, authorizing it and capturing it each need the owner's decision in the approval window; the clause-6 policy countersign does not apply to purchases (`Authority::Policy` is refused for every purchase deal, before any countersign row, reservation or network call). A cleared purchase counts in the daily budget from the moment it clears until it is withdrawn or expires. This closes agent-gated-spend MA-1.
+- Mechanism: `DealEvent::PurchaseCleared` (Pairing to Agreed), applied by `propose_purchase` (buyer purchases only) in its own transaction with the `deal.transition` audit row; the scheduler no longer creates orders for purchases. The text of the Shopper slot in `configuration.rs` now says money moves only when the owner decides.
+- A purchase under a mandate with no Band gets a 24 h decision window (`PURCHASE_DECISION_WINDOW_SECS`, DECISIONS section 8): at the deadline it lapses to WITHDRAWN with `SafeDefault` and no PayPal call (test `a_purchase_without_a_band_lapses_after_a_day_and_a_band_deadline_still_wins`). A proposal writes one `purchase.proposed` audit row (test `one_purchase_proposal_writes_exactly_one_audit_row_and_the_chain_verifies`). The mock Shopper copy in `backend.ts` now matches `configuration.rs`.
+
+## H5 seller money in (2026-10-07, shield-screening rework slice 1)
+
 Operator decision on H5 (ask c9f99185): money in needs no click. Council-lite run 3ff9d92d's
 value line ("the seller wallet's automatic steps cannot run in the native build") is closed; its
 craft-4 item and question 2 of run ed13e041 are taken in.
