@@ -26,16 +26,42 @@ pub trait Mailbox: Send + Sync {
     async fn read(&self, hash: &str, after: u64) -> Result<Vec<String>, Error>;
     async fn remove(&self, hash: &str) -> Result<(), Error>;
 }
+/// Per-mailbox and whole-store caps on stored message bytes. The count caps alone allow about
+/// 1 GiB of strings, which would kill a 512 MB instance (and the co-hosted HOUSE with it).
+const MAX_MAILBOX_BYTES: usize = 256 * 1024;
+const MAX_TOTAL_BYTES: usize = 64 * 1024 * 1024;
+/// A read returns at most this many messages; the caller advances its cursor by what it got.
+const READ_PAGE: usize = 256;
 #[derive(Debug)]
 struct BoxState {
     generation: String,
     expires: i64,
-    messages: Vec<String>,
+    messages: Vec<Arc<str>>,
+    bytes: usize,
     /// Long-polls wait on their own mailbox only; a send elsewhere never wakes them.
     changed: Arc<Notify>,
 }
+#[derive(Debug, Default)]
+struct Inner {
+    boxes: BTreeMap<String, BoxState>,
+    total_bytes: usize,
+}
+impl Inner {
+    /// Drops expired mailboxes and releases their bytes.
+    fn sweep(&mut self, now: i64) {
+        let mut released = 0;
+        self.boxes.retain(|_, b| {
+            let live = b.expires > now;
+            if !live {
+                released += b.bytes;
+            }
+            live
+        });
+        self.total_bytes = self.total_bytes.saturating_sub(released);
+    }
+}
 pub struct MemoryStore {
-    boxes: Mutex<BTreeMap<String, BoxState>>,
+    inner: Mutex<Inner>,
     clock: Arc<dyn Clock>,
 }
 impl std::fmt::Debug for MemoryStore {
@@ -46,14 +72,15 @@ impl std::fmt::Debug for MemoryStore {
 impl MemoryStore {
     pub fn new(clock: Arc<dyn Clock>) -> Self {
         Self {
-            boxes: Mutex::new(BTreeMap::new()),
+            inner: Mutex::new(Inner::default()),
             clock,
         }
     }
     async fn waiter(&self, h: &str) -> Arc<Notify> {
-        self.boxes
+        self.inner
             .lock()
             .await
+            .boxes
             .get(h)
             .map_or_else(|| Arc::new(Notify::new()), |b| b.changed.clone())
     }
@@ -62,6 +89,15 @@ fn valid_hash(h: &str) -> bool {
     h.len() == 64
         && h.bytes()
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+/// One page of a mailbox from `after`: pointer clones only, so the lock is held briefly.
+fn page(messages: &[Arc<str>], after: usize) -> Vec<Arc<str>> {
+    messages
+        .iter()
+        .skip(after)
+        .take(READ_PAGE)
+        .cloned()
+        .collect()
 }
 fn valid_jws(jws: &str) -> bool {
     jws.len() <= 16384
@@ -78,15 +114,15 @@ impl Mailbox for MemoryStore {
         if !valid_hash(h) {
             return Err(Error::Invalid);
         }
-        let mut boxes = self.boxes.lock().await;
-        boxes.retain(|_, b| b.expires > self.clock.now());
-        if boxes.contains_key(h) {
+        let mut inner = self.inner.lock().await;
+        inner.sweep(self.clock.now());
+        if inner.boxes.contains_key(h) {
             return Ok(());
         }
-        if boxes.len() >= 256 {
+        if inner.boxes.len() >= 256 {
             return Err(Error::Full);
         }
-        boxes.insert(
+        inner.boxes.insert(
             h.into(),
             BoxState {
                 generation: {
@@ -96,6 +132,7 @@ impl Mailbox for MemoryStore {
                 },
                 expires: self.clock.now().saturating_add(86400),
                 messages: Vec::new(),
+                bytes: 0,
                 changed: Arc::new(Notify::new()),
             },
         );
@@ -105,22 +142,28 @@ impl Mailbox for MemoryStore {
         if !valid_hash(h) || !valid_jws(&jws) {
             return Err(Error::Invalid);
         }
-        let mut boxes = self.boxes.lock().await;
-        let b = boxes
-            .get_mut(h)
-            .filter(|b| b.expires > self.clock.now())
-            .ok_or(Error::Missing)?;
-        // An unknown send is retried byte-for-byte. It must not consume another slot.
-        if let Some(position) = b.messages.iter().position(|s| s == &jws) {
+        let mut inner = self.inner.lock().await;
+        inner.sweep(self.clock.now());
+        let total = inner.total_bytes;
+        let b = inner.boxes.get_mut(h).ok_or(Error::Missing)?;
+        // A send is retried byte-for-byte. It must not consume another slot or any budget, so
+        // it is answered before the capacity checks (a full mailbox still acknowledges it).
+        if let Some(position) = b.messages.iter().position(|s| **s == *jws) {
             return Ok(position as u64 + 1);
         }
-        if b.messages.len() >= 256 {
+        let len = jws.len();
+        if b.messages.len() >= 256
+            || b.bytes.saturating_add(len) > MAX_MAILBOX_BYTES
+            || total.saturating_add(len) > MAX_TOTAL_BYTES
+        {
             return Err(Error::Full);
         }
-        b.messages.push(jws);
+        b.messages.push(jws.into());
+        b.bytes += len;
         let index = b.messages.len() as u64;
         let changed = b.changed.clone();
-        drop(boxes);
+        inner.total_bytes += len;
+        drop(inner);
         changed.notify_waiters();
         Ok(index)
     }
@@ -128,8 +171,9 @@ impl Mailbox for MemoryStore {
         if !valid_hash(h) {
             return Err(Error::Invalid);
         }
-        let boxes = self.boxes.lock().await;
-        let b = boxes
+        let inner = self.inner.lock().await;
+        let b = inner
+            .boxes
             .get(h)
             .filter(|b| b.expires > self.clock.now())
             .ok_or(Error::Missing)?;
@@ -137,13 +181,20 @@ impl Mailbox for MemoryStore {
         if after > b.messages.len() {
             return Err(Error::Invalid);
         }
-        Ok(b.messages[after..].to_vec())
+        let page = page(&b.messages, after);
+        drop(inner);
+        Ok(page.iter().map(|m| m.to_string()).collect())
     }
     async fn remove(&self, h: &str) -> Result<(), Error> {
         if !valid_hash(h) {
             return Err(Error::Invalid);
         }
-        let removed = self.boxes.lock().await.remove(h);
+        let mut inner = self.inner.lock().await;
+        let removed = inner.boxes.remove(h);
+        if let Some(b) = &removed {
+            inner.total_bytes = inner.total_bytes.saturating_sub(b.bytes);
+        }
+        drop(inner);
         if let Some(b) = removed {
             b.changed.notify_waiters();
         }
@@ -266,8 +317,9 @@ impl MemoryStore {
         if !valid_hash(h) {
             return Err(Error::Invalid);
         }
-        let boxes = self.boxes.lock().await;
-        let b = boxes
+        let inner = self.inner.lock().await;
+        let b = inner
+            .boxes
             .get(h)
             .filter(|b| b.expires > self.clock.now())
             .ok_or(Error::Missing)?;
@@ -276,10 +328,13 @@ impl MemoryStore {
         if offset > b.messages.len() {
             return Err(Error::Invalid);
         }
+        let generation = b.generation.clone();
+        let page = page(&b.messages, offset);
+        drop(inner);
         Ok(table_relay::Batch {
-            generation: b.generation.clone(),
+            generation,
             after,
-            messages: b.messages[offset..].to_vec(),
+            messages: page.iter().map(|m| m.to_string()).collect(),
         })
     }
 }

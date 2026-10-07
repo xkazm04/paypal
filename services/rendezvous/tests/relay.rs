@@ -106,3 +106,82 @@ async fn sync_generation_reset_and_send_retry_do_not_lose_or_duplicate_messages(
     assert_ne!(reset.generation, original.generation);
     assert_eq!(reset.after, 0);
 }
+/// A valid 3-part JWS of exactly `len` (>= 9) bytes, distinct per `n`.
+fn jws(n: usize, len: usize) -> String {
+    let head = format!("a.b.{n:04x}");
+    format!("{head}{}", "c".repeat(len - head.len()))
+}
+fn hash(n: usize) -> String {
+    format!("{n:064x}")
+}
+const FULL: usize = 16384;
+#[tokio::test]
+async fn per_mailbox_byte_budget_accepts_the_boundary_and_refuses_past_it() {
+    let s = MemoryStore::new(Arc::new(table_core::FixedClock(0)));
+    let (a, b) = (hash(1), hash(2));
+    s.create(&a).await.unwrap();
+    s.create(&b).await.unwrap();
+    // Exactly 256 KiB is accepted; the next message is refused.
+    for n in 0..16 {
+        s.send(&a, jws(n, FULL)).await.unwrap();
+    }
+    assert!(matches!(s.send(&a, jws(16, 9)).await, Err(Error::Full)));
+    // Just under: 256 KiB - 1 accepted, one more minimal message hits the boundary, then refused.
+    for n in 0..15 {
+        s.send(&b, jws(n, FULL)).await.unwrap();
+    }
+    s.send(&b, jws(15, FULL - 9)).await.unwrap();
+    s.send(&b, jws(16, 9)).await.unwrap();
+    assert!(matches!(s.send(&b, jws(17, 9)).await, Err(Error::Full)));
+}
+/// 256 boxes x 256 KiB is exactly the 64 MiB total, so the global budget is the last line
+/// behind the box-count and per-box caps: once the store is full every mailbox refuses.
+async fn fill(s: &MemoryStore) {
+    for b in 0..256 {
+        let h = hash(b);
+        s.create(&h).await.unwrap();
+        for n in 0..16 {
+            s.send(&h, jws(n, FULL)).await.unwrap();
+        }
+    }
+}
+#[tokio::test]
+async fn global_byte_budget_refuses_across_many_mailboxes() {
+    let s = MemoryStore::new(Arc::new(table_core::FixedClock(0)));
+    fill(&s).await;
+    for b in [0, 100, 255] {
+        assert!(matches!(
+            s.send(&hash(b), jws(1000, 9)).await,
+            Err(Error::Full)
+        ));
+    }
+}
+#[tokio::test]
+async fn expired_mailbox_releases_its_bytes() {
+    let clock = Arc::new(Time(AtomicI64::new(0)));
+    let s = MemoryStore::new(clock.clone());
+    fill(&s).await;
+    clock.0.store(86400, Ordering::SeqCst);
+    // The sweep inside send drops every expired box (the old one is gone, not Full).
+    assert!(matches!(
+        s.send(&hash(0), jws(1, FULL)).await,
+        Err(Error::Missing)
+    ));
+    // Its bytes were released: a fresh mailbox takes a full 256 KiB again.
+    let fresh = hash(999);
+    s.create(&fresh).await.unwrap();
+    for n in 0..16 {
+        s.send(&fresh, jws(n, FULL)).await.unwrap();
+    }
+}
+#[tokio::test]
+async fn identical_resend_keeps_its_sequence_number_even_when_full() {
+    let s = MemoryStore::new(Arc::new(table_core::FixedClock(0)));
+    let h = hash(7);
+    s.create(&h).await.unwrap();
+    for n in 0..16 {
+        assert_eq!(s.send(&h, jws(n, FULL)).await.unwrap(), n as u64 + 1);
+    }
+    assert_eq!(s.send(&h, jws(3, FULL)).await.unwrap(), 4);
+    assert!(matches!(s.send(&h, jws(50, 9)).await, Err(Error::Full)));
+}
