@@ -407,9 +407,20 @@ pub struct ReconcileArgs {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct QuitSummary {
+    /// Binds the pending deals and every line below; quit_confirm refuses if any changed.
     pub confirmation_id: H256,
     pub pending: Vec<DealId>,
     pub on_quit: String,
+    /// What will not happen while the wallet is off, one line per pending deal the forecast moves
+    /// money for (or that waits). None when the forecast could not be read; older shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub while_off: Option<Vec<table_attention::QuitLine>>,
+    /// What PayPal still does by itself (a payment request or a hold running out). None when the
+    /// forecast could not be read; older shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub at_paypal: Option<Vec<table_attention::QuitLine>>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
