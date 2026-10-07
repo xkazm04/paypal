@@ -1198,3 +1198,20 @@ unchanged (no generated type changed; `TranscriptBy`/`TranscriptType` only gaine
 - **Result.** `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` and
   `cargo test --workspace` pass with no `--exclude` and no `--skip`; `cargo test -p table-engine --test native` passed
   6 runs in a row. The merge gate can drop `--exclude table-desktop` and `--skip native_stdin_stderr_terminal_and_temp_cleanup`.
+
+## Security fixes
+
+- **C-1 (High, scan 2026-10-07) fixed** in `services/rendezvous/src/lib.rs`. The store holds `Inner { boxes,
+  total_bytes }`; `send` returns `Error::Full` (429) past `MAX_MAILBOX_BYTES` (256 KiB) or `MAX_TOTAL_BYTES`
+  (64 MiB); expired or removed boxes release their bytes; the expiry sweep runs in `send` as well as `create`.
+  `MemoryStore::new(clock)` and `router` are unchanged. Note: 256 boxes x 256 KiB equals the 64 MiB total, so the
+  global cap is a backstop that cannot bind before the per-box and box-count caps today; it guards future changes
+  to either.
+- **C-7 (Medium) fixed, with one part left out.** Messages are stored as `Arc<str>` and a read clones pointers
+  under the lock, copying to `String` after it is released; `read` and `sync` return at most 32 messages. A capped
+  read cannot lose or duplicate a message: the wallet stages `after + messages.len()` and the ledger rejects a batch
+  unless its `after` equals the stored cursor (`table-ledger/src/relay.rs:180`), so the remainder arrives on the next
+  poll. Left out: moving the dedupe scan after the capacity checks. A byte-identical retry to a full mailbox must
+  still be acknowledged with its sequence number (otherwise a wallet whose send landed but whose reply was lost
+  would see 429 forever), so the scan stays first; it is a length-prefixed compare over at most 256 messages.
+- Tests: `services/rendezvous/tests/relay.rs` (boundary, global, expiry release, paging, resend dedupe).

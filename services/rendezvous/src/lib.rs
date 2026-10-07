@@ -31,7 +31,7 @@ pub trait Mailbox: Send + Sync {
 const MAX_MAILBOX_BYTES: usize = 256 * 1024;
 const MAX_TOTAL_BYTES: usize = 64 * 1024 * 1024;
 /// A read returns at most this many messages; the caller advances its cursor by what it got.
-const READ_PAGE: usize = 256;
+const READ_PAGE: usize = 32;
 #[derive(Debug)]
 struct BoxState {
     generation: String,
