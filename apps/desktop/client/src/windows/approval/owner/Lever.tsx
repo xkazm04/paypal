@@ -1,5 +1,5 @@
 // One amount lever: clause number, title, what the change does, the typed value, and a track
-// with this week's deals as ticks (coloured by the draft's verdict) and a notch at the signed
+// with this week’s deals as ticks (coloured by the wallet’s answer for the draft) and a notch at the signed
 // value. Drag, use the arrow keys or type; the typed string stays the source of truth.
 import { useId, type ReactNode } from 'react';
 import type { Currency } from '@bindings/Currency';
@@ -94,7 +94,7 @@ export function Lever({ n, title, value, currency, signed, ticks, tickNote, dir,
         )}
         <span>{formatMinor(range.max, currency)}</span>
       </div>
-      {ticks === null ? <p className="ui-hint ow-noticks">{tickNote ?? 'This week’s deals can only be read in The Table, so no deals are marked on this line.'}</p> : null}
+      {ticks === null ? <p className="ui-hint ow-noticks">{tickNote ?? 'This week’s deals are marked here once your wallet has tried these rules.'}</p> : null}
       {bad ? <p id={`${id}-e`} className="ui-hint red" role="alert">“{value}” is not an amount in {currency}</p> : null}
       {children ? <div className="sub">{children}</div> : null}
     </div>

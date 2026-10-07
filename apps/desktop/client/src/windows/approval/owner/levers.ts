@@ -1,8 +1,9 @@
 // Lever tracks: a slider in whole major units over minor-unit money, carrying this week's deals as
-// ticks coloured by their draft verdict. Pure; the component only draws it.
+// ticks coloured by the draft's answer from the wallet. Pure; the component only draws it.
 import type { Currency } from '@bindings/Currency';
-import { exponent, formatMinor, shortId } from '../../../lib/format';
-import type { Outcome, ReplayRow } from './preview';
+import type { SimulatedLine } from '@bindings/SimulatedLine';
+import { exponent, formatMinor } from '../../../lib/format';
+import { outcomeOf, type Outcome } from './simulation';
 
 export type Tick = { id: string; x: number; outcome: Outcome; tip: string };
 export type LeverRange = { min: number; max: number; unit: number };
@@ -41,16 +42,16 @@ export function frac(r: LeverRange, x: number): number {
 export const toMinor = (r: LeverRange, slider: number) => slider * r.unit;
 export const toSlider = (r: LeverRange, minor: number) => Math.floor(minor / r.unit);
 
-/** Ticks for an amount lever (deal totals), optionally only one deal kind. */
-export function amountTicks(rows: readonly ReplayRow[], filter: (r: ReplayRow) => boolean): Tick[] {
-  return rows
-    .filter((r) => r.amount !== null && filter(r))
-    .map((r) => ({ id: r.deal.id, x: r.amount!, outcome: r.draft.outcome, tip: `${shortId(r.deal.id)} · ${r.deal.terms.item_ref} · ${formatMinor(r.amount!, r.deal.terms.currency)}` }));
+/** Ticks for an amount lever (deal totals), optionally only one deal kind, coloured by the draft's answer. */
+export function amountTicks(lines: readonly SimulatedLine[], filter: (l: SimulatedLine) => boolean): Tick[] {
+  return lines
+    .filter((l) => l.amount && filter(l))
+    .map((l) => ({ id: l.deal_id, x: l.amount!.minor, outcome: outcomeOf(l.after), tip: `${l.label} · ${l.title} · ${formatMinor(l.amount!.minor, l.amount!.currency)}` }));
 }
 
 /** Ticks for a band lever (unit prices of the band's items). */
-export function priceTicks(rows: readonly ReplayRow[], items: readonly string[]): Tick[] {
-  return rows
-    .filter((r) => items.includes(r.deal.terms.item_ref))
-    .map((r) => ({ id: r.deal.id, x: r.deal.terms.unit_price.minor, outcome: r.draft.outcome, tip: `${shortId(r.deal.id)} · ${r.deal.terms.item_ref} · unit ${formatMinor(r.deal.terms.unit_price.minor, r.deal.terms.unit_price.currency)}` }));
+export function priceTicks(lines: readonly SimulatedLine[], items: readonly string[]): Tick[] {
+  return lines
+    .filter((l) => items.includes(l.item_ref))
+    .map((l) => ({ id: l.deal_id, x: l.unit_price.minor, outcome: outcomeOf(l.after), tip: `${l.label} · ${l.title} · unit ${formatMinor(l.unit_price.minor, l.unit_price.currency)}` }));
 }
