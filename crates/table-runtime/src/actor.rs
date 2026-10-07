@@ -31,6 +31,7 @@ pub enum Action {
     Credentials(crate::vault::CredentialEntry),
     CheckPrivilege,
     ClaimNotification { deal_id: DealId, deadline: i64 },
+    ReleaseNotification { deal_id: DealId, deadline: i64 },
     Engine(table_engine::EngineId),
     Engines,
     Start(DealId),

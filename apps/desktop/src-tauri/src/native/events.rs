@@ -229,48 +229,160 @@ async fn notify_due(
         );
         if effects.notify
             && let Some(deadline) = item.deadline
-            && app
-                .state::<DesktopState>()
-                .actor
-                .execute::<bool>(
-                    Caller {
-                        label: "tumbler".into(),
-                        token: None,
-                    },
-                    Action::ClaimNotification {
-                        deal_id: item.deal_id,
-                        deadline,
-                    },
-                )
-                .await
-                .unwrap_or(false)
         {
-            // The plugin's desktop builder discards action callbacks. Use its
-            // underlying WinRT wrapper so clicks only route to the matching card.
-            let click_app = app.clone();
             let id = item.deal_id;
-            let _ = tauri_winrt_notification::Toast::new(&app.config().identifier)
-                .title("The Table · decision due")
-                .text1(&format!(
-                    "{}. If ignored: {}",
-                    item.headline, item.on_silence
-                ))
-                .sound(None)
-                .on_activated(move |_| {
-                    let app = click_app.clone();
-                    let main_app = app.clone();
-                    let _ = app.run_on_main_thread(move || {
-                        let _ = set_form(&main_app, Form::Card);
-                        let _ = summon(&main_app, false);
-                        let _ = main_app.emit_to(
-                            "tumbler",
-                            "tumbler:selected",
-                            DealArgs { deal_id: id },
-                        );
-                    });
-                    Ok(())
-                })
-                .show();
+            let state = app.state::<DesktopState>();
+            let actor = &state.actor;
+            let call = |action| async move {
+                actor
+                    .execute::<serde_json::Value>(
+                        Caller {
+                            label: "tumbler".into(),
+                            token: None,
+                        },
+                        action,
+                    )
+                    .await
+                    .map_err(|_| ())
+            };
+            let shown = notify_once(
+                async || {
+                    call(Action::ClaimNotification {
+                        deal_id: id,
+                        deadline,
+                    })
+                    .await
+                    .is_ok_and(|v| v == serde_json::Value::Bool(true))
+                },
+                || show_toast(app, item),
+                async || {
+                    call(Action::ReleaseNotification {
+                        deal_id: id,
+                        deadline,
+                    })
+                    .await
+                    .is_ok()
+                },
+            )
+            .await;
+            if shown == Some(false) {
+                ladder.release(id, deadline);
+            }
         }
+    }
+}
+
+/// Claim the rung, show the toast, and give the rung back if nothing was shown. Returns `None`
+/// when the claim was refused, otherwise whether the toast showed. The log line carries only
+/// the failure kind: no deal text, no counterparty words.
+async fn notify_once(
+    claim: impl AsyncFnOnce() -> bool,
+    show: impl FnOnce() -> Result<(), String>,
+    release: impl AsyncFnOnce() -> bool,
+) -> Option<bool> {
+    if !claim().await {
+        return None;
+    }
+    match show() {
+        Ok(()) => Some(true),
+        Err(reason) => {
+            eprintln!("The Table: decision notification not shown: {reason}");
+            if !release().await {
+                eprintln!("The Table: decision notification claim could not be released");
+            }
+            Some(false)
+        }
+    }
+}
+
+fn show_toast(app: &AppHandle, item: &table_attention::AttentionItem) -> Result<(), String> {
+    // The plugin's desktop builder discards action callbacks. Use its
+    // underlying WinRT wrapper so clicks only route to the matching card.
+    let click_app = app.clone();
+    let id = item.deal_id;
+    tauri_winrt_notification::Toast::new(&app.config().identifier)
+        .title("The Table · decision due")
+        .text1(&format!(
+            "{}. If ignored: {}",
+            item.headline, item.on_silence
+        ))
+        .sound(None)
+        .on_activated(move |_| {
+            let app = click_app.clone();
+            let main_app = app.clone();
+            let _ = app.run_on_main_thread(move || {
+                let _ = set_form(&main_app, Form::Card);
+                let _ = summon(&main_app, false);
+                let _ = main_app.emit_to("tumbler", "tumbler:selected", DealArgs { deal_id: id });
+            });
+            Ok(())
+        })
+        .show()
+        .map_err(|error| error.to_string())
+}
+
+#[cfg(test)]
+mod notify_tests {
+    use super::notify_once;
+    use std::cell::Cell;
+
+    /// A claim backed by one flag, like the durable preference: true once, false until released.
+    struct Claim(Cell<bool>);
+    impl Claim {
+        async fn take(&self) -> bool {
+            !self.0.replace(true)
+        }
+        async fn give_back(&self) -> bool {
+            self.0.set(false);
+            true
+        }
+    }
+
+    #[tokio::test]
+    async fn shown_toast_keeps_the_claim() {
+        let claim = Claim(Cell::new(false));
+        let shown = notify_once(|| claim.take(), || Ok(()), || claim.give_back()).await;
+        assert_eq!(shown, Some(true));
+        assert!(claim.0.get());
+        // At most one notification: the second attempt is refused and never shows.
+        let again = notify_once(
+            || claim.take(),
+            || panic!("shown twice"),
+            || claim.give_back(),
+        )
+        .await;
+        assert_eq!(again, None);
+    }
+
+    #[tokio::test]
+    async fn failed_toast_releases_the_claim_so_a_later_attempt_can_claim() {
+        let claim = Claim(Cell::new(false));
+        let failed = notify_once(
+            || claim.take(),
+            || Err("no toast".to_owned()),
+            || claim.give_back(),
+        )
+        .await;
+        assert_eq!(failed, Some(false));
+        assert!(!claim.0.get());
+        let retry = notify_once(|| claim.take(), || Ok(()), || claim.give_back()).await;
+        assert_eq!(retry, Some(true));
+        assert!(claim.0.get());
+    }
+
+    #[tokio::test]
+    async fn refused_claim_neither_shows_nor_releases() {
+        let released = Cell::new(false);
+        let shown = notify_once(
+            || async { false },
+            || panic!("shown without a claim"),
+            || async {
+                released.set(true);
+                true
+            },
+        )
+        .await;
+        assert_eq!(shown, None);
+        assert!(!released.get());
     }
 }

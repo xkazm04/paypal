@@ -1986,3 +1986,88 @@ fn attention_event_faults_once_and_clears_cache_on_error() {
         Some(WalletEvent::Attention(_))
     ));
 }
+
+#[tokio::test]
+async fn notification_claim_refusals_and_release() {
+    let (mut r, _, http, clock, _) = runtime(true);
+    let (deal, peer) = setup(&mut r, Side::Seller);
+    agree(&mut r, &deal, &peer);
+    r.pipeline
+        .wallet
+        .ledger
+        .set_deadline(deal.id, 800, None, 100)
+        .unwrap();
+    let claim = |deal_id, deadline| Action::ClaimNotification { deal_id, deadline };
+    let key = format!("notification.{}.800", deal.id);
+    // Wrong label, wrong deadline, and a deadline more than 900 s away are all refused.
+    assert!(
+        r.execute(caller("main", None), claim(deal.id, 800))
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        r.execute(caller("tumbler", None), claim(deal.id, 799))
+            .await
+            .unwrap(),
+        json!(false)
+    );
+    clock.0.store(-200, Ordering::SeqCst);
+    assert_eq!(
+        r.execute(caller("tumbler", None), claim(deal.id, 800))
+            .await
+            .unwrap(),
+        json!(false)
+    );
+    // An unknown deal is not a Gate.
+    clock.0.store(100, Ordering::SeqCst);
+    assert_eq!(
+        r.execute(
+            caller("tumbler", None),
+            claim(DealId(ulid::Ulid::new()), 800)
+        )
+        .await
+        .unwrap(),
+        json!(false)
+    );
+    assert!(
+        r.pipeline
+            .wallet
+            .ledger
+            .preference::<bool>(&key)
+            .unwrap()
+            .is_none()
+    );
+    // Claim, release, claim again; release is for the tumbler only.
+    assert_eq!(
+        r.execute(caller("tumbler", None), claim(deal.id, 800))
+            .await
+            .unwrap(),
+        json!(true)
+    );
+    let release = || Action::ReleaseNotification {
+        deal_id: deal.id,
+        deadline: 800,
+    };
+    assert!(r.execute(caller("main", None), release()).await.is_err());
+    assert_eq!(
+        r.pipeline.wallet.ledger.preference::<bool>(&key).unwrap(),
+        Some(true)
+    );
+    r.execute(caller("tumbler", None), release()).await.unwrap();
+    assert_eq!(
+        r.execute(caller("tumbler", None), claim(deal.id, 800))
+            .await
+            .unwrap(),
+        json!(true)
+    );
+    // Deadline already past: refused.
+    clock.0.store(801, Ordering::SeqCst);
+    r.execute(caller("tumbler", None), release()).await.unwrap();
+    assert_eq!(
+        r.execute(caller("tumbler", None), claim(deal.id, 800))
+            .await
+            .unwrap(),
+        json!(false)
+    );
+    assert!(http.0.lock().unwrap().paths.is_empty());
+}
