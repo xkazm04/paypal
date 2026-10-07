@@ -57,7 +57,8 @@ describe('mock backend mirrors the shell gates', () => {
     const held = fakeUlid('D-0190');
     history.replaceState(null, '', `/approval.html?deal=${held}`);
     const approval = mockBackend('approval');
-    const args = { deal_id: held, attempt: 1, terms_hash: fakeHash('t') };
+    const { checks_hash } = await approval.invoke('approval_summary', { deal_id: held });
+    const args = { deal_id: held, attempt: 1, terms_hash: fakeHash('t'), checks_hash };
     await expect(approval.invoke('deal_capture', args)).rejects.toMatchObject({ code: 'PERMISSION' });
     const token = await approval.invoke('approval_token', null);
     const deal = await approval.invoke('deal_capture', args, { token });
@@ -80,7 +81,10 @@ describe('mock backend mirrors the shell gates', () => {
     history.replaceState(null, '', `/approval.html?deal=${rescue}`);
     const approval = mockBackend('approval');
     const token = await approval.invoke('approval_token', null);
-    await expect(approval.invoke('rescue_approve', { deal_id: rescue, attempt: 1, terms_hash: fakeHash('t') }, { token })).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+    // Like Rust: the decision is bound to the checklist first, then the executor answers.
+    await expect(approval.invoke('rescue_approve', { deal_id: rescue, attempt: 1, terms_hash: fakeHash('t') }, { token })).rejects.toMatchObject({ code: 'INVALID', message: 'The summary changed. Review it again.' });
+    const { checks_hash } = await approval.invoke('approval_summary', { deal_id: rescue });
+    await expect(approval.invoke('rescue_approve', { deal_id: rescue, attempt: 1, terms_hash: fakeHash('t'), checks_hash }, { token })).rejects.toMatchObject({ code: 'UNAVAILABLE' });
   });
   it('sorts attention by deadline and keeps the default-on-silence line', async () => {
     const tumbler = mockBackend('tumbler');

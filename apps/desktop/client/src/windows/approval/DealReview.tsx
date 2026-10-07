@@ -6,7 +6,8 @@
 // CHECKING → READY → (LOCKED) → IN BROWSER → APPROVED (polled) → SELLER-ATTESTED → RECEIPTED,
 // or MISMATCH / EXPIRED / WITHDRAWN / SHIELD HOLD. Rust's immutable summary is the only input;
 // every success line reads the Deal Rust returned, never an optimistic money state. gating.ts only
-// narrows Rust's flags; a red row here narrows it further. Enter never releases money: the window
+// narrows Rust's flags. The checklist is Rust's (ApprovalSummary.checks), rendered verbatim; a
+// failed line disables the money buttons and every decision carries its checks_hash. Enter never releases money: the window
 // focuses its heading and money buttons ignore Enter.
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -17,23 +18,24 @@ import type { RescueLever } from '@bindings/RescueLever';
 import { WalletError, toWalletError } from '../../lib/contract';
 import { useCounterparties, useDealDisplay } from '../../lib/display';
 import { formatMoney, nowUnix, shortId } from '../../lib/format';
-import { reasonWords, reconWord, receiptWord, silenceWords } from '../../lib/words';
+import { SUMMARY_CHANGED, reasonWords, reconWord, receiptWord, silenceWords } from '../../lib/words';
 import { useEvent, useNow, usePrefersReducedMotion, useQuery } from '../../lib/hooks';
 import { backend } from '../../lib/runtime';
 import { MODULES } from '../../shared/modules';
 import { Countdown, WalletNotice } from '../../shared/honesty';
-import { AnswerBar, Btn, ChecksSummary, Field, HoldButton, Popover, Sheet, layerCount, useToast } from '../../shared/ui';
+import { AnswerBar, Btn, Field, HoldButton, Popover, Sheet, layerCount, useToast } from '../../shared/ui';
 import { MarkIcon } from './review/Parts';
 import { BandAdjust } from './BandAdjust';
 import { decisionArgs, deriveGates, isLocked, isTerminal, namesMatch, ownerAcceptArgs, type Gate, type Gates } from './gating';
-import { buildChecks, buildStrip, dealTotal, derivePhase, stateWord, type Phase } from './model';
-import { anyRowFailed, buildDiff, buildEvidence, lastAmount, tally, type DiffRow } from './review/diff';
+import { buildStrip, dealTotal, derivePhase, stateWord, type Phase } from './model';
+import { buildDiff, buildEvidence, lastAmount, type DiffRow } from './review/diff';
+import { WalletChecks, checksLine } from './review/Checks';
 import { DetailsSheet, RowDetail } from './review/Details';
-import { DiffTable, Due, MarketLine, MarketTrack, ReviewBar, ROW_SELECTOR, StateChip, StateList, TwinHeader, rowChecks, type RowSet } from './review/Parts';
+import { DiffTable, Due, MarketLine, MarketTrack, ReviewBar, ROW_SELECTOR, StateChip, StateList, TwinHeader, type RowSet } from './review/Parts';
 import { nextSteps } from './review/next';
 import { NextPath, WhyNote } from './review/Round2';
 import { stoppedText, summarySentence, waitingText, type Intent } from './review/says';
-import { answerWhy, askAboveOf, highPriceWord, rowWhy, type WhyFacts } from './review/why';
+import { answerWhy, askAboveOf, highPriceWord, type WhyFacts } from './review/why';
 import { useHandoff } from './selection';
 import { useSession } from './session';
 import { HelloGlyph, LockGlyph } from './ui';
@@ -70,6 +72,8 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const [pop, setPop] = useState<Pop | null>(null);
   const [revealed, setRevealed] = useState(0);
   const [closeNote, setCloseNote] = useState<string | null>(null);
+  // Bumped when the wallet answers that the summary changed: the CHECKING reveal runs again.
+  const [revealRun, setRevealRun] = useState(0);
   const headRef = useRef<HTMLHeadingElement>(null);
   const bodyRef = useRef<HTMLElement>(null);
 
@@ -128,11 +132,9 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const minute = Math.floor(now / 60);
   const clauseNumber = attn?.clause?.number ?? null;
 
-  // The legacy checklist still narrows gating (a ✗ there disables Open PayPal), as before.
-  const checks = useMemo(
-    () => (summary ? buildChecks({ summary, mandate, clauseNumber, counterparty: { name: cpName, known: !!cp?.known }, now: minute * 60 }) : []),
-    [summary, mandate, clauseNumber, cpName, cp?.known, minute],
-  );
+  // The checklist is the wallet's, verbatim: it gates the money buttons and its hash goes back
+  // with every decision. The window composes no check line of its own.
+  const checks = summary?.checks ?? [];
 
   // ---- gates (first pass: which controls exist; visibility never depends on a check) ----
   const locked = summary ? isLocked({ summary, settingsLocked: s.settingsLocked, lockedByError: s.lockedByError }) : s.settingsLocked || s.lockedByError;
@@ -140,7 +142,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const gateCtx = summary
     ? { summary, settingsLocked: s.settingsLocked, lockedByError: s.lockedByError, tokenReady: s.tokenReady, typedName: typed, expectedName }
     : null;
-  const ownerAcceptVisible = gateCtx ? deriveGates({ ...gateCtx, anyCheckFailed: false }).ownerAccept.visible : false;
+  const ownerAcceptVisible = gateCtx ? deriveGates(gateCtx).ownerAccept.visible : false;
 
   // ---- the diff ----
   const transcript = transcriptQ.data;
@@ -179,12 +181,10 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
       if (i > 7) clearInterval(t);
     }, 120);
     return () => clearInterval(t);
-  }, [hasSummary, reduced]);
+  }, [hasSummary, reduced, revealRun]);
   const allRevealed = revealed >= Math.max(rowCount, checks.length);
 
-  const gates: Gates | null = gateCtx
-    ? deriveGates({ ...gateCtx, anyCheckFailed: checks.some((c) => c.status === 'bad') || (diff ? anyRowFailed(diff.rows) : false) })
-    : null;
+  const gates: Gates | null = gateCtx ? deriveGates(gateCtx) : null;
   const phase: Phase = derivePhase(summary, { locked, inBrowser, revealed: allRevealed });
   const busy = s.pending !== null;
 
@@ -228,7 +228,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
     }
     const r = await s.call<DecisionCmd>(cmd, args, true);
     if (r.ok) setOutcome(outcomeText(cmd, r.value, cpName));
-    else setFailure({ what, error: r.error });
+    else setFailure({ what: stale(r.error) ? 'Nothing was done' : what, error: r.error });
     if (cmd === 'shield_release' && r.ok) setTyped('');
     await refetch();
   };
@@ -240,8 +240,15 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
     if (r.ok) {
       setInBrowser(true);
       toast('PayPal opened in your browser', 'gold');
-    } else setFailure({ what: 'PayPal was not opened', error: r.error });
+    } else setFailure({ what: stale(r.error) ? 'Nothing was done' : 'PayPal was not opened', error: r.error });
     await refetch();
+  };
+  // The wallet refused because the checklist changed since it was shown: show the new one (the
+  // refetch after every call reads it) and run the reveal again so the change is seen.
+  const stale = (e: WalletError): boolean => {
+    if (e.message !== SUMMARY_CHANGED) return false;
+    setRevealRun((n) => n + 1);
+    return true;
   };
   // After the hand-off the owner may close this window; the Tumbler keeps the hand-off. Only the
   // real shell has a window to close (the browser preview just keeps showing IN BROWSER).
@@ -318,7 +325,6 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const status = statusOf(phase, d, summary, total, cpName);
   const settle = lastAmount(transcript, 'SETTLE');
   const note = noteFor(phase, g, d, total, cpName);
-  const t = tally(diff.rows);
   const approveCountdown = deadline ? <Countdown deadline={deadline} /> : null;
   const who = cpName.split(' · ')[0] || cpName;
   const heading = phase === 'mismatch' ? `Payment to ${who} stopped` : d.shield === 'HOLD' && !terminal ? `Unpause a payment to ${who}` : `${verb(d, diff.kind === 'accept')} ${who}`;
@@ -364,10 +370,6 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const popped = pop ? popContent(pop.key) : null;
   const openRow = (row: DiffRow, set: RowSet, el: HTMLElement) => openPop(`row:${set}:${row.id}`, el);
   const openKey = pop?.key.startsWith('row:') ? pop.key.slice(4) : null;
-  const checkItems = rowChecks(diff.rows, 'pre', openRow, openKey, (x, st) => {
-    const w = rowWhy(x, st, facts);
-    return w ? <WhyNote why={w} /> : null;
-  });
   // The answer's own Why? replaces a separate "Why ›" on a mismatch (kept only when there is no Why? text).
   const answerAction = phase === 'mismatch'
     ? answerWhyText ? null : <Btn kind="plain" sm onClick={(e) => openPop('mismatch', e.currentTarget)}>Why ›</Btn>
@@ -428,14 +430,12 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
 
         {decided ? (
           <Btn kind="plain" sm className="dr-fold" onClick={() => { setPop(null); setDetails(true); }}>
-            Your checks before you decided · {t.ok} of {t.total} passed{t.bad ? ` · ${t.bad} failed` : ''}{t.unknown ? ` · ${t.unknown} not checked here` : ''} ›
+            Your checks before you decided · {checksLine(checks)} ›
           </Btn>
-        ) : checking ? (
-          <p className="dr-line dim" role="status">Checking this against your rules…</p>
         ) : (
           <section className="dr-checks" aria-label="Safety checks">
-            <h2 className="dr-sec">Checked against your rules</h2>
-            <ChecksSummary checks={checkItems} label="Checks on this deal" />
+            <h2 className="dr-sec">{checking ? 'Checking this against your rules…' : 'Checked by your wallet'}</h2>
+            <WalletChecks checks={checks} revealed={checking ? revealed : undefined} />
           </section>
         )}
 

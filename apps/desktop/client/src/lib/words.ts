@@ -248,3 +248,12 @@ export const PROOF_KEY_ANCHOR = 'Compare this owner key with the key the owner s
 export const PROOF_LIMIT = 'The file cannot show whether newer records were removed from the end.';
 /** Said once before a proof file is saved: the file is readable by anyone it is sent to. */
 export const PROOF_SAVE_WARNING = 'This file carries this deal’s rules, including your price limits (the most you’ll pay or the least you’ll take), the payees and caps, and the other side’s notes. Anyone you send it to can read them.';
+
+// ---- the approval checklist (composed by the wallet, shown verbatim) ----------------------------
+
+/** The wallet's exact refusal when the checklist changed between reading it and deciding. */
+export const SUMMARY_CHANGED = 'The summary changed. Review it again.';
+/** The wallet's exact refusal of a money decision while one of its checks fails. */
+export const CHECK_FAILED = 'A check on this deal failed, so nothing was done.';
+/** A check's reading in a word or two, for its mark. */
+export const CHECK_STATUS_WORD = { pass: 'passed', fail: 'failed', wait: 'checked later', not_applicable: 'not needed' } as const;

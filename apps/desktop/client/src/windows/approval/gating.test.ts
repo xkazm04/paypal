@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import type { ApprovalCheck } from '@bindings/ApprovalCheck';
+import type { ApprovalCheckId } from '@bindings/ApprovalCheckId';
 import type { ApprovalSummary } from '@bindings/ApprovalSummary';
 import type { Deal } from '@bindings/Deal';
 import type { DealKind } from '@bindings/DealKind';
@@ -8,13 +10,19 @@ import type { H256 } from '@bindings/H256';
 import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import type { Side } from '@bindings/Side';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
-import { anyMoneyEnabled, decisionArgs, deriveGates, namesMatch, offersOwnerAccept, ownerAcceptArgs, ownsPaypalResource, type GateContext } from './gating';
-import { buildChecks, buildStrip, derivePhase, marketPercentile, parseMoneyInput } from './model';
+import { anyMoneyEnabled, checksAllow, decisionArgs, deriveGates, namesMatch, offersOwnerAccept, ownerAcceptArgs, ownsPaypalResource, type GateContext } from './gating';
+import { buildStrip, checksTally, derivePhase, marketPercentile, parseMoneyInput } from './model';
 import { buildMandate, draftFrom, newDraft } from './mandateDraft';
 import { nameProblem } from './PairingConfirm';
 import { anyRowFailed, buildDiff, buildEvidence, diffKind, evidenceVisible, relSame, relWithin, tally, toneOf, type DiffInput, type DiffRow } from './review/diff';
 
 const HASH = Array.from({ length: 32 }, (_, i) => i) as H256;
+const CHECKS_HASH = Array.from({ length: 32 }, (_, i) => 100 + i) as H256;
+const IDS: ApprovalCheckId[] = ['amount', 'payee', 'host', 'invoice', 'shield', 'mandate'];
+/** The wallet's six lines, all passing; `fail` / `wait` turn the named lines. */
+function checks(o: { fail?: ApprovalCheckId[]; wait?: ApprovalCheckId[] } = {}): ApprovalCheck[] {
+  return IDS.map((id) => ({ id, status: o.fail?.includes(id) ? 'fail' : o.wait?.includes(id) ? 'wait' : 'pass', text: `${id} line`, detail: `${id} detail` }));
+}
 const ALL_STATES: DealState[] = [
   'PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECEIPTED',
   'RECONCILED', 'WITHDRAWN', 'EXPIRED', 'REFUSED', 'MISMATCH', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED',
@@ -52,12 +60,14 @@ function summary(d: Partial<Deal> = {}, s: Partial<ApprovalSummary> = {}): Appro
     can_release: true,
     can_open_paypal: true,
     unavailable_reason: null,
+    checks: checks(),
+    checks_hash: CHECKS_HASH,
     ...s,
   };
 }
 
 function ctx(s: ApprovalSummary, p: Partial<GateContext> = {}): GateContext {
-  return { summary: s, settingsLocked: false, lockedByError: false, tokenReady: true, anyCheckFailed: false, typedName: '', expectedName: 'pixel-bay', ...p };
+  return { summary: s, settingsLocked: false, lockedByError: false, tokenReady: true, typedName: '', expectedName: 'pixel-bay', ...p };
 }
 
 /** Every combination of state × kind × side × shield × flags. */
@@ -199,9 +209,11 @@ describe('open PayPal is gated separately on can_open_paypal', () => {
     const g = deriveGates(ctx(summary({ kind: 'haggle', state: 'AWAITING_APPROVAL' }, { can_release: false, can_open_paypal: true })));
     expect(g.openPaypal.enabled).toBe(true);
   });
-  it('is disabled when can_open_paypal=false or a check failed', () => {
+  it('is disabled when can_open_paypal=false or a line of the wallet’s checklist failed', () => {
     expect(deriveGates(ctx(summary({}, { can_open_paypal: false }))).openPaypal).toMatchObject({ visible: true, enabled: false });
-    expect(deriveGates(ctx(summary(), { anyCheckFailed: true })).openPaypal.enabled).toBe(false);
+    for (const id of IDS) {
+      expect(deriveGates(ctx(summary({}, { checks: checks({ fail: [id] }) }))).openPaypal).toMatchObject({ visible: true, enabled: false, reason: 'A check above failed, so PayPal won’t open.' });
+    }
   });
 });
 
@@ -226,7 +238,7 @@ describe('countersign / capture follow the Rust decision table', () => {
   });
   it('DecisionArgs come straight from the summary', () => {
     const s = summary({}, { attempt: 2 });
-    expect(decisionArgs(s)).toEqual({ deal_id: s.deal.id, attempt: 2, terms_hash: HASH });
+    expect(decisionArgs(s)).toEqual({ deal_id: s.deal.id, attempt: 2, terms_hash: HASH, checks_hash: CHECKS_HASH });
   });
 });
 
@@ -287,7 +299,7 @@ describe('owner ACCEPT (deal_owner_accept)', () => {
   });
   it('DecisionArgs carry the exact counter_hash from the summary, or nothing is sent', () => {
     const s = haggle({ attempt: 3 });
-    expect(ownerAcceptArgs(s)).toEqual({ deal_id: s.deal.id, attempt: 3, terms_hash: HASH, counter_hash: COUNTER });
+    expect(ownerAcceptArgs(s)).toEqual({ deal_id: s.deal.id, attempt: 3, terms_hash: HASH, counter_hash: COUNTER, checks_hash: CHECKS_HASH });
     expect(ownerAcceptArgs(haggle({ counter_hash: null }))).toBeNull();
     expect(ownerAcceptArgs(haggle({ counter_hash: undefined }))).toBeNull();
   });
@@ -320,25 +332,9 @@ describe('display model', () => {
     expect(marketPercentile({ minor: 32900, currency: 'USD' }, m)).toBe(65);
     expect(marketPercentile({ minor: 32900, currency: 'EUR' }, m)).toBeNull();
   });
-  it('marks a MISMATCH amount and a HOLD/BLOCK shield as failed checks', () => {
-    const base = { mandate: undefined, clauseNumber: null, counterparty: { name: 'x', known: true }, now: 0 };
-    expect(buildChecks({ ...base, summary: summary({ state: 'MISMATCH' }) }).some((c) => c.id === 'amount' && c.status === 'bad')).toBe(true);
-    expect(buildChecks({ ...base, summary: summary({ shield: 'HOLD' }) }).find((c) => c.id === 'shield')?.status).toBe('bad');
-    expect(buildChecks({ ...base, summary: summary({ shield: 'CLEAR' }) }).every((c) => c.status !== 'bad')).toBe(true);
-  });
-  it('never shows the amount as a passed check: the page has no settled amount to compare', () => {
-    const base = { mandate: undefined, clauseNumber: null, counterparty: { name: 'x', known: true }, now: 0 };
-    for (const state of ['AGREED', 'AWAITING_APPROVAL', 'AUTHORIZED', 'CAPTURED'] as const) {
-      expect(buildChecks({ ...base, summary: summary({ state }) }).find((c) => c.id === 'amount')?.status).toBe('info');
-    }
-  });
-  it('states delivery as a note, not a passed check, while there is no receipt evidence', () => {
-    const base = { mandate: undefined, clauseNumber: null, counterparty: { name: 'x', known: true }, now: 0 };
-    const s = summary();
-    const none = { ...s, evidence: { ...s.evidence, receipt: 'NONE' as const, reconciliation: 'not_applicable' as const } };
-    expect(buildChecks({ ...base, summary: none }).find((c) => c.id === 'evidence')?.status).toBe('info');
-    const verified = { ...s, evidence: { ...s.evidence, receipt: 'PAYPAL_VERIFIED' as const } };
-    expect(buildChecks({ ...base, summary: verified }).find((c) => c.id === 'evidence')?.status).toBe('ok');
+  it('tallies the wallet’s lines: passes over the lines that apply, fails and waits apart', () => {
+    const list = [...checks({ fail: ['amount'], wait: ['host'] }), { id: 'invoice' as const, status: 'not_applicable' as const, text: 'n/a', detail: 'n/a' }];
+    expect(checksTally(list)).toEqual({ pass: 4, fail: 1, wait: 1, total: 6 });
   });
   it('strip ends red on terminal failures and shows LOCKED in place of READY', () => {
     const s = summary({ state: 'WITHDRAWN' });
@@ -467,13 +463,16 @@ describe('The Diff · before the decision', () => {
     expect(row(buildDiff(dinput(summary(), { mandate: null })).rows, 'mandate').rel).toBe('≠');
     expect(row(buildDiff(dinput(summary(), { mandate: undefined })).rows, 'mandate').rel).toBe('?');
   });
-  it('a red row narrows gating (Open PayPal disabled); an unknown row never enables anything', () => {
+  it('gating reads the wallet’s checklist, not the window’s own comparison rows', () => {
     const s = summary({}, { can_open_paypal: true });
     const d = buildDiff(dinput(s, { mandate: mandateOf(CLAUSES, NOW - 1) }));
     expect(anyRowFailed(d.rows)).toBe(true);
-    expect(deriveGates(ctx(s, { anyCheckFailed: anyRowFailed(d.rows) })).openPaypal).toMatchObject({ visible: true, enabled: false });
+    // The wallet's lines all pass, so the window adds no veto of its own…
+    expect(deriveGates(ctx(s)).openPaypal).toMatchObject({ visible: true, enabled: true });
+    // …and a failed wallet line disables it whatever the comparison shows.
+    expect(deriveGates(ctx(summary({}, { checks: checks({ fail: ['mandate'] }) }))).openPaypal.enabled).toBe(false);
     const locked = summary({}, { can_open_paypal: false });
-    expect(deriveGates(ctx(locked, { anyCheckFailed: anyRowFailed(buildDiff(dinput(locked)).rows) })).openPaypal.enabled).toBe(false);
+    expect(deriveGates(ctx(locked)).openPaypal.enabled).toBe(false);
   });
   it('owner accept: band within the ceiling, who-decides “over” is a fact, not a failure', () => {
     const s = summary(
@@ -531,5 +530,43 @@ describe('The Diff · after the hand-off (approved vs what PayPal and the seller
       transcript: [step('RECEIPT', 6500)],
     });
     expect(verified?.rows.map((r) => r.rel)).toEqual(['=', '≠', '=', '≠']);
+  });
+});
+
+describe('the wallet’s checklist gates every money decision (T5)', () => {
+  const haggle = (s: Partial<ApprovalSummary> = {}) =>
+    summary({ kind: 'haggle', side: 'buyer', state: 'NEGOTIATING' }, { can_owner_accept: true, counter_hash: HASH, ...s });
+  const cases: Array<[string, ApprovalSummary, (g: ReturnType<typeof deriveGates>) => { visible: boolean; enabled: boolean }]> = [
+    ['owner accept', haggle(), (g) => g.ownerAccept],
+    ['countersign', summary({ state: 'AGREED' }), (g) => g.countersign],
+    ['open PayPal', summary({ state: 'AWAITING_APPROVAL' }), (g) => g.openPaypal],
+    ['capture', summary({ state: 'AUTHORIZED' }), (g) => g.capture],
+    ['rescue', summary({ kind: 'rescue', side: 'seller', state: 'FAILED' }), (g) => g.rescue],
+  ];
+  it('a failed line disables each money decision; a line that waits for the step does not', () => {
+    for (const [name, s, pick] of cases) {
+      expect(pick(deriveGates(ctx(s))), name).toMatchObject({ visible: true, enabled: true });
+      for (const id of IDS) expect(pick(deriveGates(ctx({ ...s, checks: checks({ fail: [id] }) }))).enabled, `${name} ${id}`).toBe(false);
+      expect(pick(deriveGates(ctx({ ...s, checks: checks({ wait: ['amount', 'host', 'invoice'] }) }))).enabled, name).toBe(true);
+      // An older shell with no checklist allows nothing.
+      expect(pick(deriveGates(ctx({ ...s, checks: [] }))).enabled, name).toBe(false);
+    }
+  });
+  it('void and withdraw are the safe direction: the checklist never blocks them', () => {
+    const s = summary({ state: 'AUTHORIZED' }, { checks: checks({ fail: IDS }) });
+    expect(deriveGates(ctx(s)).void).toMatchObject({ visible: true, enabled: true });
+    expect(deriveGates(ctx(summary({ state: 'AGREED' }, { checks: checks({ fail: IDS }) }))).withdraw.enabled).toBe(true);
+  });
+  it('unpausing a hold may fail only the shield line, as Rust allows', () => {
+    const held = (fail: ApprovalCheckId[]) => deriveGates(ctx(summary({ state: 'AGREED', shield: 'HOLD' }, { checks: checks({ fail }) }), { typedName: 'pixel-bay' })).releaseHold;
+    expect(held(['shield'])).toMatchObject({ visible: true, enabled: true });
+    expect(held(['shield', 'payee'])).toMatchObject({ visible: true, enabled: false, reason: 'A check above failed, so this can’t go ahead.' });
+    expect(checksAllow({ checks: checks({ fail: ['shield'] }) }, 'shield')).toBe(true);
+    expect(checksAllow({ checks: checks({ fail: ['shield'] }) })).toBe(false);
+  });
+  it('every decision sends back the hash of the checklist it was shown', () => {
+    const s = summary({ state: 'AGREED' });
+    expect(decisionArgs(s).checks_hash).toEqual(CHECKS_HASH);
+    expect(ownerAcceptArgs(haggle())?.checks_hash).toEqual(CHECKS_HASH);
   });
 });

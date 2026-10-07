@@ -2,4 +2,10 @@
 import type { DealId } from "./DealId";
 import type { H256 } from "./H256";
 
-export type DecisionArgs = { deal_id: DealId, attempt: number, terms_hash: H256, counter_hash?: H256 | null, };
+export type DecisionArgs = { deal_id: DealId, attempt: number, terms_hash: H256, counter_hash?: H256 | null, 
+/**
+ * The `ApprovalSummary.checks_hash` the owner decided on. Required for every money
+ * decision except the safe direction (void); Rust recomputes the checklist at decision time
+ * and refuses an absent or different hash before any PayPal call or write.
+ */
+checks_hash?: H256 | null, };

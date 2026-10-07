@@ -2,6 +2,10 @@
 mod agent;
 pub use agent::*;
 mod auth;
+mod checks;
+pub use checks::*;
+#[cfg(test)]
+mod checks_tests;
 mod pipeline;
 mod reconciliation;
 mod relay;
