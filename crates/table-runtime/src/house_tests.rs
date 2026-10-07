@@ -710,3 +710,231 @@ async fn house_full_daily_limit_refusal_and_silence_reach_the_wallet_in_plain_wo
     );
     assert_eq!(house, HouseState::Idle);
 }
+
+/// Captures HOUSE log lines in a test.
+#[derive(Default)]
+struct Lines(std::sync::Mutex<Vec<String>>);
+impl house_seller::Log for Lines {
+    fn line(&self, line: &str) {
+        self.0.lock().unwrap().push(line.into());
+    }
+}
+impl Lines {
+    fn all(&self) -> Vec<String> {
+        self.0.lock().unwrap().clone()
+    }
+}
+
+/// A HOUSE on a file ledger holding `n` deals agreed and waiting to settle. `open` starts a
+/// seller over that ledger with any PayPal, as a restarted process would.
+struct FileHouse {
+    path: std::path::PathBuf,
+    boot: HouseBoot,
+    release: table_proto::HouseRelease,
+    http: Arc<crate::tests::OfflineHttp>,
+    clock: Arc<crate::tests::TestClock>,
+    store: Arc<rendezvous::MemoryStore>,
+    deals: Vec<DealId>,
+}
+impl FileHouse {
+    fn new(n: usize) -> Self {
+        let mut entropy = [0; 16];
+        getrandom::fill(&mut entropy).unwrap();
+        let name = H256::digest(&entropy).hex();
+        let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.build/tmp");
+        std::fs::create_dir_all(&directory).unwrap();
+        let path = directory.join(format!("house-{}.sqlite3", &name[..32]));
+        let ((mut seller, release, http, clock, store), boot) =
+            hosted_fixture_ledger(table_ledger::Ledger::open(&path).unwrap());
+        let mut deals = Vec::new();
+        for _ in 0..n {
+            let (_, _, response) = house_buyer(&mut seller, release.clone());
+            let id = response.table.deal_id;
+            for event in [DealEvent::OfferVerified, DealEvent::TwoAcceptsVerified] {
+                seller
+                    .pipeline
+                    .wallet
+                    .ledger
+                    .apply_event(id, event, 100)
+                    .unwrap();
+            }
+            deals.push(id);
+        }
+        drop(seller);
+        Self {
+            path,
+            boot,
+            release,
+            http,
+            clock,
+            store,
+            deals,
+        }
+    }
+    fn open(&self, api: Arc<dyn table_paypal::PayPalApi>) -> house_seller::Seller {
+        house_seller::Seller::new(
+            table_ledger::Ledger::open(&self.path).unwrap(),
+            self.boot.config.owner.clone(),
+            self.boot.config.agent.clone(),
+            self.release.clone(),
+            self.boot.config.mandate.clone(),
+            api,
+            self.clock.clone(),
+            self.store.clone(),
+        )
+        .unwrap()
+    }
+    fn api(&self) -> ScriptedPayPal {
+        ScriptedPayPal::new(self.boot.api.clone(), self.clock.clone())
+    }
+}
+impl Drop for FileHouse {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
+/// Text shaped like a PayPal access token, planted in a failing PayPal answer.
+const SECRET_SHAPED: &str = "A21AAFsecretShapedAccessToken0123456789";
+
+/// The offline PayPal mock behind a script: each call can take time on the HOUSE clock, wait
+/// for the test, never answer, or fail with an answer full of secret-shaped text.
+struct ScriptedPayPal {
+    inner: Arc<dyn table_paypal::PayPalApi>,
+    clock: Arc<crate::tests::TestClock>,
+    /// Seconds each call takes on the HOUSE clock.
+    takes: i64,
+    /// Each call waits for one permit when set.
+    gated: bool,
+    /// The operation that never answers, and the one that fails.
+    hangs: &'static str,
+    fails: &'static str,
+    entered: tokio::sync::Notify,
+    hung: tokio::sync::Notify,
+    resume: tokio::sync::Semaphore,
+}
+impl ScriptedPayPal {
+    fn new(inner: Arc<dyn table_paypal::PayPalApi>, clock: Arc<crate::tests::TestClock>) -> Self {
+        Self {
+            inner,
+            clock,
+            takes: 0,
+            gated: false,
+            hangs: "",
+            fails: "",
+            entered: tokio::sync::Notify::new(),
+            hung: tokio::sync::Notify::new(),
+            resume: tokio::sync::Semaphore::new(0),
+        }
+    }
+    async fn call(&self, operation: &'static str) -> Result<(), table_paypal::Error> {
+        self.clock
+            .0
+            .fetch_add(self.takes, std::sync::atomic::Ordering::SeqCst);
+        self.entered.notify_one();
+        if operation == self.hangs {
+            self.hung.notify_one();
+            std::future::pending::<()>().await;
+        }
+        if self.gated {
+            self.resume.acquire().await.unwrap().forget();
+        }
+        if operation == self.fails {
+            return Err(table_paypal::Error::Api {
+                status: 500,
+                debug_id: Some(SECRET_SHAPED.into()),
+                observations: vec![table_paypal::Observation {
+                    method: "POST",
+                    path: "/v2/checkout/orders".into(),
+                    request_id: String::new(),
+                    status: 500,
+                    body: serde_json::json!({"access_token": SECRET_SHAPED, "name": "INTERNAL_SERVER_ERROR"}),
+                    binding: None,
+                }],
+            });
+        }
+        Ok(())
+    }
+}
+#[async_trait]
+impl table_paypal::PayPalApi for ScriptedPayPal {
+    async fn create_order(
+        &self,
+        order: &table_paypal::CreateOrder,
+        request_id: &table_paypal::RequestId,
+    ) -> Result<table_paypal::ApiResponse<table_paypal::Order>, table_paypal::Error> {
+        self.call("create").await?;
+        self.inner.create_order(order, request_id).await
+    }
+    async fn get_order(
+        &self,
+        id: &table_paypal::ResourceId,
+    ) -> Result<table_paypal::ApiResponse<table_paypal::Order>, table_paypal::Error> {
+        self.call("poll").await?;
+        self.inner.get_order(id).await
+    }
+    async fn authorize(
+        &self,
+        id: &table_paypal::ResourceId,
+        request_id: &table_paypal::RequestId,
+    ) -> Result<table_paypal::ApiResponse<table_paypal::Order>, table_paypal::Error> {
+        self.call("authorize").await?;
+        self.inner.authorize(id, request_id).await
+    }
+    async fn capture(
+        &self,
+        id: &table_paypal::ResourceId,
+        amount: Money,
+        request_id: &table_paypal::RequestId,
+    ) -> Result<table_paypal::ApiResponse<table_paypal::Payment>, table_paypal::Error> {
+        self.call("capture").await?;
+        self.inner.capture(id, amount, request_id).await
+    }
+    async fn void(
+        &self,
+        id: &table_paypal::ResourceId,
+        request_id: &table_paypal::RequestId,
+    ) -> Result<table_paypal::ApiResponse<()>, table_paypal::Error> {
+        self.call("void").await?;
+        self.inner.void(id, request_id).await
+    }
+    async fn get_authorization(
+        &self,
+        id: &table_paypal::ResourceId,
+    ) -> Result<table_paypal::ApiResponse<table_paypal::Payment>, table_paypal::Error> {
+        self.call("get_authorization").await?;
+        self.inner.get_authorization(id).await
+    }
+}
+
+#[tokio::test]
+async fn house_failed_step_writes_one_redacted_log_line() {
+    let house = FileHouse::new(1);
+    let id = house.deals[0];
+    let mut api = house.api();
+    api.fails = "create";
+    let lines = Arc::new(Lines::default());
+    let mut seller = house.open(Arc::new(api)).with_log(lines.clone());
+    assert!(seller.tick().await.is_err());
+    seller.tick().await.unwrap();
+    assert_eq!(
+        lines.all(),
+        vec![format!(
+            "house step=advance deal={id} error=app.unavailable"
+        )]
+    );
+    // The PayPal answer and every HOUSE secret stay out of the log.
+    let text = lines.all().join("\n");
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    for secret in [
+        SECRET_SHAPED.to_owned(),
+        "Bearer".to_owned(),
+        STANDARD.encode(house.boot.config.owner.to_bytes()),
+        STANDARD.encode(house.boot.config.agent.to_bytes()),
+        serde_json::to_string(&house.boot.config.mandate).unwrap(),
+    ] {
+        assert!(!text.contains(&secret));
+    }
+    // The failing call reached PayPal through the script only; the offline mock saw none.
+    assert!(house.http.0.lock().unwrap().paths.is_empty());
+}
