@@ -25,7 +25,7 @@ pub enum MoneyStep {
 /// seller deal whose order the buyer already approved at PayPal, and receiving money on it
 /// needs no click (acceptance H5). Every other ASK, including the seller's create on policy,
 /// still waits for the owner.
-fn shield_allows(shield: ShieldVerdict, decision: &DecidedBy, step: MoneyStep) -> bool {
+pub(crate) fn shield_allows(shield: ShieldVerdict, decision: &DecidedBy, step: MoneyStep) -> bool {
     match shield {
         ShieldVerdict::Clear => true,
         ShieldVerdict::Ask => match decision {
@@ -41,8 +41,11 @@ fn shield_allows(shield: ShieldVerdict, decision: &DecidedBy, step: MoneyStep) -
 pub struct Pipeline {
     pub wallet: Wallet,
     pub approval: ApprovalSession,
-    api: Arc<dyn PayPalApi>,
+    pub(crate) api: Arc<dyn PayPalApi>,
     house: Option<table_proto::HouseRelease>,
+    /// The owner paused all agents: the read-back resolver sends nothing again under the
+    /// clause-6 policy, exactly as the scheduler starts no create under it (T10).
+    pub policy_paused: bool,
 }
 impl std::fmt::Debug for Pipeline {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -145,10 +148,13 @@ impl Pipeline {
         if deal.state != DealState::Authorized
             || deal.mode == Mode::Replay
             || attempt != self.wallet.ledger.settled_attempt(id)?
+            || self.has_open_operation(id)?
         {
             return Err(Error::Permission);
         }
         let request = RequestId::for_operation(id, attempt, "void").map_err(|_| Error::Invalid)?;
+        let resource = ResourceId::new(deal.paypal.authorization.clone().ok_or(Error::Invalid)?)
+            .map_err(|_| Error::Invalid)?;
         self.wallet.ledger.reserve_operation(
             id,
             attempt,
@@ -157,21 +163,32 @@ impl Pipeline {
             &DecidedBy::Human { at: ticket.at },
             now,
         )?;
-        let resource = ResourceId::new(deal.paypal.authorization.clone().ok_or(Error::Invalid)?)
-            .map_err(|_| Error::Invalid)?;
-        match self.api.void(&resource, &request).await {
+        self.send_void(&deal, attempt, &resource, &request, DealEvent::Void, now)
+            .await
+    }
+    /// Send the void reserved under `request` and finish its operation with PayPal's answer.
+    pub(crate) async fn send_void(
+        &mut self,
+        deal: &Deal,
+        attempt: u8,
+        resource: &ResourceId,
+        request: &RequestId,
+        event: DealEvent,
+        now: Timestamp,
+    ) -> Result<(), Error> {
+        match self.api.void(resource, request).await {
             Ok(r) => self.complete(
-                &deal,
+                deal,
                 attempt,
                 "void",
                 &r.observations,
                 &deal.paypal,
-                Some(DealEvent::Void),
+                Some(event),
                 now,
             ),
             Err(e) => {
                 self.complete(
-                    &deal,
+                    deal,
                     attempt,
                     "void",
                     e.observations(),
@@ -235,6 +252,7 @@ impl Pipeline {
             api,
             house: None,
             approval: ApprovalSession::new(now)?,
+            policy_paused: false,
         })
     }
     /// Trusted hosted setup only. No IPC or agent request can install this authority.
@@ -269,7 +287,7 @@ impl Pipeline {
         self.house = Some(release);
         Ok(())
     }
-    fn expected(&self, deal: &Deal, attempt: u8) -> Result<CreateOrder, Error> {
+    pub(crate) fn expected(&self, deal: &Deal, attempt: u8) -> Result<CreateOrder, Error> {
         let payee = self.wallet.settlement_payee(deal)?;
         Ok(CreateOrder {
             deal: deal.id,
@@ -279,7 +297,7 @@ impl Pipeline {
             merchant_id: ResourceId::new(payee.as_str()).map_err(|_| Error::Invalid)?,
         })
     }
-    fn authority(
+    pub(crate) fn authority(
         &mut self,
         deal: &Deal,
         category: Category,
@@ -372,7 +390,7 @@ impl Pipeline {
         self.wallet.ledger.countersign(&c, attempt, now)?;
         Ok(())
     }
-    fn shield(&self, deal: &Deal, now: Timestamp) -> Result<ShieldVerdict, Error> {
+    pub(crate) fn shield(&self, deal: &Deal, now: Timestamp) -> Result<ShieldVerdict, Error> {
         let payee = self.wallet.settlement_payee(deal)?;
         if deal.shield.is_some_and(|v| v >= ShieldVerdict::Hold) {
             return Ok(deal.shield.unwrap_or(ShieldVerdict::Hold));
@@ -437,7 +455,7 @@ impl Pipeline {
         if reached {
             deal.state = entry;
         }
-        if deal.state != entry || deal.mode == Mode::Replay {
+        if deal.state != entry || deal.mode == Mode::Replay || self.has_open_operation(id)? {
             return Ok(false);
         }
         let attempt = match step {
@@ -543,7 +561,10 @@ impl Pipeline {
         now: Timestamp,
     ) -> Result<String, Error> {
         let deal = self.wallet.ledger.get_deal(id)?;
-        if deal.state != DealState::Agreed || deal.mode == Mode::Replay {
+        if deal.state != DealState::Agreed
+            || deal.mode == Mode::Replay
+            || self.has_open_operation(id)?
+        {
             return Err(Error::Permission);
         }
         let decision = self.authority(&deal, category, authority, attempt, now)?;
@@ -566,7 +587,24 @@ impl Pipeline {
         self.wallet
             .ledger
             .apply_event(id, DealEvent::BeginSettlement, now)?;
-        let response = match self.api.create_order(&expected, &request).await {
+        self.send_create(&deal, attempt, &expected, &request, now, now)
+            .await
+    }
+    /// Send the create reserved under `request` and finish its operation with PayPal's answer.
+    /// The approval deadline runs from `created_from`: the reservation time on a re-send, so it
+    /// never outlasts PayPal's own window for an order that may be older than this answer.
+    pub(crate) async fn send_create(
+        &mut self,
+        deal: &Deal,
+        attempt: u8,
+        expected: &CreateOrder,
+        request: &RequestId,
+        created_from: Timestamp,
+        now: Timestamp,
+    ) -> Result<String, Error> {
+        let id = deal.id;
+        let deal = deal.clone();
+        let response = match self.api.create_order(expected, request).await {
             Ok(r) => r,
             Err(e) => {
                 self.complete(
@@ -583,8 +621,7 @@ impl Pipeline {
         };
         let mut refs = deal.paypal.clone();
         refs.order = Some(response.value.id.clone());
-        if response.value.verify(&expected).is_err()
-            || response.value.status != OrderStatus::Created
+        if response.value.verify(expected).is_err() || response.value.status != OrderStatus::Created
         {
             self.complete(
                 &deal,
@@ -628,7 +665,7 @@ impl Pipeline {
         )?;
         self.wallet
             .ledger
-            .set_deadline(id, now.saturating_add(6 * 3600), None, now)?;
+            .set_deadline(id, created_from.saturating_add(6 * 3600), None, now)?;
         let updated = self.wallet.ledger.get_deal(id)?;
         let envelope = self.wallet.signed(
             &updated,
@@ -699,6 +736,7 @@ impl Pipeline {
         if deal.state != DealState::Approved
             || deal.mode == Mode::Replay
             || attempt != self.wallet.ledger.settled_attempt(id)?
+            || self.has_open_operation(id)?
         {
             return Err(Error::Permission);
         }
@@ -709,6 +747,8 @@ impl Pipeline {
         self.countersign(&deal, attempt, &decision, now)?;
         let request =
             RequestId::for_operation(id, attempt, "authorize").map_err(|_| Error::Invalid)?;
+        let resource = ResourceId::new(deal.paypal.order.clone().ok_or(Error::Invalid)?)
+            .map_err(|_| Error::Invalid)?;
         self.wallet.ledger.reserve_operation(
             id,
             attempt,
@@ -717,9 +757,21 @@ impl Pipeline {
             &decision,
             now,
         )?;
-        let resource = ResourceId::new(deal.paypal.order.clone().ok_or(Error::Invalid)?)
-            .map_err(|_| Error::Invalid)?;
-        let r = match self.api.authorize(&resource, &request).await {
+        self.send_authorize(&deal, attempt, &resource, &request, now)
+            .await
+    }
+    /// Send the authorize reserved under `request` and finish its operation with PayPal's answer.
+    pub(crate) async fn send_authorize(
+        &mut self,
+        deal: &Deal,
+        attempt: u8,
+        resource: &ResourceId,
+        request: &RequestId,
+        now: Timestamp,
+    ) -> Result<(), Error> {
+        let id = deal.id;
+        let deal = deal.clone();
+        let r = match self.api.authorize(resource, request).await {
             Ok(r) => r,
             Err(e) => {
                 self.complete(
@@ -785,6 +837,7 @@ impl Pipeline {
         if deal.state != DealState::Authorized
             || deal.mode == Mode::Replay
             || attempt != self.wallet.ledger.settled_attempt(id)?
+            || self.has_open_operation(id)?
         {
             return Err(Error::Permission);
         }
@@ -801,6 +854,8 @@ impl Pipeline {
         }
         let request =
             RequestId::for_operation(id, attempt, "capture").map_err(|_| Error::Invalid)?;
+        let resource = ResourceId::new(deal.paypal.authorization.clone().ok_or(Error::Invalid)?)
+            .map_err(|_| Error::Invalid)?;
         self.wallet.ledger.reserve_operation(
             id,
             attempt,
@@ -809,11 +864,24 @@ impl Pipeline {
             &decision,
             now,
         )?;
-        let resource = ResourceId::new(deal.paypal.authorization.clone().ok_or(Error::Invalid)?)
-            .map_err(|_| Error::Invalid)?;
+        self.send_capture(&deal, attempt, &resource, &request, now)
+            .await
+    }
+    /// Send the capture reserved under `request` and finish its operation with PayPal's answer;
+    /// a confirmed capture signs and records the receipt.
+    pub(crate) async fn send_capture(
+        &mut self,
+        deal: &Deal,
+        attempt: u8,
+        resource: &ResourceId,
+        request: &RequestId,
+        now: Timestamp,
+    ) -> Result<String, Error> {
+        let id = deal.id;
+        let deal = deal.clone();
         let r = match self
             .api
-            .capture(&resource, deal.terms.amount()?, &request)
+            .capture(resource, deal.terms.amount()?, request)
             .await
         {
             Ok(r) => r,
@@ -853,12 +921,21 @@ impl Pipeline {
         if !valid {
             return Err(Error::Invalid);
         }
+        self.issue_receipt(id, r.value.id, now)
+    }
+    /// Sign and record the receipt for a capture PayPal confirmed, and move the deal to RECEIPTED.
+    pub(crate) fn issue_receipt(
+        &mut self,
+        id: DealId,
+        capture_id: String,
+        now: Timestamp,
+    ) -> Result<String, Error> {
         let updated = self.wallet.ledger.get_deal(id)?;
         let receipt = self.wallet.signed(
             &updated,
             Body::Receipt {
-                capture_id: ShortText::new(r.value.id)?,
-                amount: deal.terms.amount()?,
+                capture_id: ShortText::new(capture_id)?,
+                amount: updated.terms.amount()?,
                 status: table_proto::ReceiptStatus::Completed,
                 transcript_head: updated.transcript_head,
             },
@@ -877,6 +954,17 @@ impl Pipeline {
         attempt: u8,
         now: Timestamp,
     ) -> Result<(), Error> {
+        // A void is never sent while an earlier money step's outcome is unknown: a capture that
+        // went through cannot be voided, and the books would say held while PayPal says paid.
+        // The open step is read back first; while it stays open, nothing more is sent.
+        if self.has_open_operation(id)? {
+            self.resolve(id, None, now).await?;
+            if self.has_open_operation(id)?
+                || self.wallet.ledger.get_deal(id)?.state != DealState::Authorized
+            {
+                return Ok(());
+            }
+        }
         let deal = self.wallet.ledger.get_deal(id)?;
         if deal.state != DealState::Authorized
             || deal.mode == Mode::Replay
@@ -893,6 +981,8 @@ impl Pipeline {
             deadline: if held { now } else { due },
         };
         let request = RequestId::for_operation(id, attempt, "void").map_err(|_| Error::Invalid)?;
+        let resource = ResourceId::new(deal.paypal.authorization.clone().ok_or(Error::Invalid)?)
+            .map_err(|_| Error::Invalid)?;
         self.wallet.ledger.reserve_operation(
             id,
             attempt,
@@ -901,46 +991,29 @@ impl Pipeline {
             &authority,
             now,
         )?;
-        let resource = ResourceId::new(deal.paypal.authorization.clone().ok_or(Error::Invalid)?)
-            .map_err(|_| Error::Invalid)?;
-        match self.api.void(&resource, &request).await {
-            Ok(r) => self.complete(
-                &deal,
-                attempt,
-                "void",
-                &r.observations,
-                &deal.paypal,
-                Some(if held {
-                    DealEvent::Void
-                } else {
-                    DealEvent::AutoVoid
-                }),
-                now,
-            ),
-            Err(e) => {
-                self.complete(
-                    &deal,
-                    attempt,
-                    "void",
-                    e.observations(),
-                    &deal.paypal,
-                    None,
-                    now,
-                )?;
-                Err(Error::Unavailable)
-            }
-        }
+        let event = if held {
+            DealEvent::Void
+        } else {
+            DealEvent::AutoVoid
+        };
+        self.send_void(&deal, attempt, &resource, &request, event, now)
+            .await
     }
     /// Applies every due deadline default. One deal's failure (an unknown void) never starves
     /// the deals after it; the first error is returned once all of them were attempted.
     pub async fn tick(&mut self, now: Timestamp) -> Result<Vec<DealId>, Error> {
         let mut changed = Vec::new();
         let mut failure = None;
+        // Unknown money outcomes are read back first (T10), each on its own backoff.
+        match self.resolve_due(now).await {
+            Ok(done) => changed.extend(done.into_iter().map(|(id, _)| id)),
+            Err(error) => failure = Some(error),
+        }
         for deal in self.wallet.ledger.list_deals()? {
             if deal.mode == Mode::Replay {
                 continue;
             }
-            match self.default_on_deadline(&deal, now).await {
+            match self.deadline_default(deal.id, now).await {
                 Ok(true) => changed.push(deal.id),
                 Ok(false) => {}
                 Err(error) => {
@@ -950,18 +1023,47 @@ impl Pipeline {
         }
         failure.map_or(Ok(changed), Err)
     }
-    async fn default_on_deadline(&mut self, deal: &Deal, now: Timestamp) -> Result<bool, Error> {
-        let Some((due, _)) = self.wallet.ledger.deadline(deal.id)? else {
+    /// The deadline default for one deal, if its deadline is due: auto-void an authorization,
+    /// let any earlier state lapse. A money step whose outcome is unknown is read back first; while
+    /// it stays unknown nothing is sent (no void after a capture that may have gone through), and
+    /// only an order creation whose payment link never left the wallet lapses with its deal.
+    pub async fn deadline_default(&mut self, id: DealId, now: Timestamp) -> Result<bool, Error> {
+        let deal = self.wallet.ledger.get_deal(id)?;
+        let Some((due, _)) = self.wallet.ledger.deadline(id)? else {
             return Ok(false);
         };
-        if due > now || deal.state.terminal() {
+        if due > now || deal.state.terminal() || deal.mode == Mode::Replay {
             return Ok(false);
         }
+        if self.has_open_operation(id)? {
+            self.resolve(id, None, now).await?;
+            let deal = self.wallet.ledger.get_deal(id)?;
+            if let Some(open) = self.wallet.ledger.open_operations(Some(id))?.first() {
+                if open.operation == "create" && deal.state == DealState::Settling {
+                    // The answer carrying the order and its approval link never arrived, so no
+                    // one was ever sent a link to approve: the deal lapses and no money moves.
+                    self.wallet.ledger.close_operation(
+                        id,
+                        open.attempt,
+                        "create",
+                        table_ledger::CheckReason::Lapsed,
+                        now,
+                    )?;
+                    self.wallet.ledger.apply_deadline_default(id, now)?;
+                    return Ok(true);
+                }
+                return Ok(false);
+            }
+            if deal.state.terminal() {
+                return Ok(true);
+            }
+        }
+        let deal = self.wallet.ledger.get_deal(id)?;
         if deal.state == DealState::Authorized {
-            self.auto_void(deal.id, self.wallet.ledger.settled_attempt(deal.id)?, now)
+            self.auto_void(id, self.wallet.ledger.settled_attempt(id)?, now)
                 .await?;
         } else if deal.state.pre_capture() {
-            self.wallet.ledger.apply_deadline_default(deal.id, now)?;
+            self.wallet.ledger.apply_deadline_default(id, now)?;
         } else {
             return Ok(false);
         }

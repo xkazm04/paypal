@@ -21,23 +21,31 @@ impl Runtime {
         failure.map_or(Ok(()), Err)
     }
     async fn tick_deal(&mut self, deal: &Deal, now: i64) -> Result<(), CommandError> {
+        // A money step whose PayPal outcome is unknown is read back from PayPal first (T10),
+        // on its own backoff. A confirmed step signs with the deal's own agent key.
+        self.pipeline.policy_paused = self.paused;
+        if self.pipeline.has_open_operation(deal.id)? {
+            // Without the deal's own agent key nothing PayPal confirms could be signed: the deal
+            // stays as it is, and nothing is sent, until the key is available again.
+            if self.select_signer(deal.id).is_err() {
+                return Ok(());
+            }
+            self.pipeline.resolve(deal.id, None, now).await?;
+            let current = app(self.pipeline.wallet.ledger.get_deal(deal.id))?;
+            if current.state.terminal() {
+                return Ok(());
+            }
+        }
+        let deal = &app(self.pipeline.wallet.ledger.get_deal(deal.id))?;
         let due = app(self.pipeline.wallet.ledger.deadline(deal.id))?;
         if due.is_some_and(|d| d.0 <= now) {
-            if deal.state == DealState::Authorized {
-                self.pipeline
-                    .auto_void(
-                        deal.id,
-                        app(self.pipeline.wallet.ledger.settled_attempt(deal.id))?,
-                        now,
-                    )
-                    .await?;
-            } else if deal.state.pre_capture() {
-                app(self
-                    .pipeline
-                    .wallet
-                    .ledger
-                    .apply_deadline_default(deal.id, now))?;
-            }
+            // Auto-void an authorization, let anything earlier lapse; a step still unknown
+            // blocks every send (pipeline `deadline_default`).
+            self.pipeline.deadline_default(deal.id, now).await?;
+            return Ok(());
+        }
+        // Nothing more is sent for a deal while one of its money steps is unknown.
+        if self.pipeline.has_open_operation(deal.id)? {
             return Ok(());
         }
         // Dismissal chooses the deadline default and cannot be interpreted as assent.

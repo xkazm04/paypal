@@ -70,7 +70,7 @@ fn enum_text<T: Serialize>(value: &T) -> Result<String, LedgerError> {
 fn parse_enum<T: for<'de> Deserialize<'de>>(value: String) -> Result<T, LedgerError> {
     Ok(serde_json::from_value(Value::String(value))?)
 }
-fn json_text<T: Serialize>(value: &T) -> Result<String, LedgerError> {
+pub(crate) fn json_text<T: Serialize>(value: &T) -> Result<String, LedgerError> {
     String::from_utf8(canonical_bytes(value)?).map_err(|_| LedgerError::Integrity("UTF-8"))
 }
 
@@ -920,54 +920,10 @@ impl Ledger {
         Ok(())
     }
     pub fn finish_operation(&mut self, outcome: OperationOutcome<'_>) -> Result<(), LedgerError> {
-        let OperationOutcome {
-            id,
-            attempt,
-            operation,
-            calls,
-            refs,
-            event,
-            at,
-        } = outcome;
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let authority:String=tx.query_row("SELECT decided_by FROM operations WHERE deal_id=?1 AND attempt=?2 AND operation=?3 AND status='pending'",params![id.to_string(),attempt,operation],|r|r.get(0))?;
-        for call in calls {
-            if call.deal_id != id {
-                return Err(LedgerError::Conflict);
-            }
-            let body = redact_paypal(&call.response, &[]);
-            let binding = call.binding.as_ref().map(json_text).transpose()?;
-            tx.execute("INSERT INTO paypal_calls(deal_id,method,path,request_id,status,debug_id,body_redacted,at,binding_json) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",params![id.to_string(),call.method.as_str(),call.path.as_str(),call.request_id,call.status,body.get("debug_id").and_then(Value::as_str),json_text(&body)?,at.to_string(),binding])?;
-        }
-        tx.execute(
-            "UPDATE operations SET status=?1 WHERE deal_id=?2 AND attempt=?3 AND operation=?4",
-            params![
-                if event.is_some() {
-                    "confirmed"
-                } else {
-                    "unknown"
-                },
-                id.to_string(),
-                attempt,
-                operation
-            ],
-        )?;
-        tx.execute("UPDATE deals SET pp_order_id=?1,pp_authorization_id=?2,pp_capture_id=?3,pp_subscription_id=?4,decided_by=?5,attempt=?6,updated_at=?8 WHERE id=?7",params![refs.order,refs.authorization,refs.capture,refs.subscription,authority,attempt,id.to_string(),at.to_string()])?;
-        if let Some(event) = event {
-            apply(&tx, id, event, at)?;
-        }
-        audit::append(
-            &tx,
-            &AuditEntry {
-                at,
-                actor: "pipeline".into(),
-                action: "money.observed".into(),
-                deal_id: Some(id),
-                detail: json!({"operation":operation,"confirmed":event.is_some(),"decided_by":serde_json::from_str::<Value>(&authority)?}),
-            },
-        )?;
+        crate::resolver::finish(&tx, &outcome, &["pending"], false)?;
         tx.commit()?;
         Ok(())
     }

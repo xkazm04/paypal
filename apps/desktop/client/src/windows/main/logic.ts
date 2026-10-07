@@ -585,6 +585,7 @@ export function stepSentence(s: HistoryStep, ctx: { title: string; side?: Side }
     case 'failed': return `${x} failed at PayPal.`;
     case 'refunded': return `${x} was refunded.`;
     case 'disputed': return `${x} is disputed at PayPal.`;
+    case 'checking_with_paypal': return `PayPal’s answer about ${x} didn’t arrive, so the wallet is asking PayPal what happened. Nothing more is sent until it knows.`;
     case 'other': return `Something was recorded on ${x}.`;
   }
 }

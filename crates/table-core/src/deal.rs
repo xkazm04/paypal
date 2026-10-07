@@ -218,6 +218,52 @@ pub struct DealEvidence {
     pub deal_id: DealId,
     pub receipt: ReceiptEvidence,
     pub reconciliation: Reconciliation,
+    /// A money step whose PayPal outcome is not confirmed yet; null when there is none. Older
+    /// shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub money_check: Option<MoneyCheck>,
+}
+/// The PayPal step a [`MoneyCheck`] is about.
+#[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MoneyCheckStep {
+    Create,
+    Authorize,
+    Capture,
+    Void,
+}
+/// `Checking`: the wallet has not asked PayPal yet, or is about to ask again. `Parked`: PayPal's
+/// answer could not be read or did not settle the question, so nothing more is sent for this
+/// deal until it does; the deadline can only let the deal lapse or release a hold.
+#[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MoneyCheckState {
+    Checking,
+    Parked,
+}
+/// A money step sent to PayPal whose answer never arrived or could not be read (T10). The
+/// wallet reads PayPal's own record before anything else happens to the deal.
+#[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MoneyCheck {
+    pub step: MoneyCheckStep,
+    pub state: MoneyCheckState,
+    /// When the step was sent.
+    pub since: Timestamp,
+    /// When the wallet asks PayPal next; null when it is not scheduled.
+    pub next_check: Option<Timestamp>,
+}
+impl MoneyCheckStep {
+    pub fn parse(operation: &str) -> Option<Self> {
+        match operation {
+            "create" => Some(Self::Create),
+            "authorize" => Some(Self::Authorize),
+            "capture" => Some(Self::Capture),
+            "void" => Some(Self::Void),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Error)]

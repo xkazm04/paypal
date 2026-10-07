@@ -68,6 +68,9 @@ struct ApiState {
     paths: Vec<String>,
     units: Option<Value>,
     fail_void: bool,
+    /// What PayPal holds after each money step, so an order read reflects it (T10 read-back).
+    authorization: Option<&'static str>,
+    captured: bool,
 }
 #[derive(Debug, Default)]
 struct OfflineHttp(Mutex<ApiState>);
@@ -406,12 +409,27 @@ impl Transport for OfflineHttp {
             });
         }
         if url.ends_with("/orders/ORDER1") {
+            if let Some(status) = s.authorization {
+                let mut units = s.units.clone().unwrap();
+                let amount = units[0]["amount"].clone();
+                let captures = if s.captured {
+                    json!([{"id":"CAPTURE1","status":"COMPLETED","amount":amount}])
+                } else {
+                    json!([])
+                };
+                units[0]["payments"] = json!({"authorizations":[{"id":"AUTH1","status":status,"amount":amount}],"captures":captures});
+                return Ok(Response {
+                    status: 200,
+                    body: json!({"id":"ORDER1","status":"COMPLETED","intent":"AUTHORIZE","purchase_units":units}),
+                });
+            }
             return Ok(Response {
                 status: 200,
                 body: json!({"id":"ORDER1","status":"APPROVED","intent":"AUTHORIZE","purchase_units":s.units}),
             });
         }
         if url.ends_with("/orders/ORDER1/authorize") {
+            s.authorization = Some("CREATED");
             let mut units = s.units.clone().unwrap();
             units[0]["payments"] = json!({"authorizations":[{"id":"AUTH1","status":"CREATED","amount":units[0]["amount"]}]});
             return Ok(Response {
@@ -420,6 +438,8 @@ impl Transport for OfflineHttp {
             });
         }
         if url.ends_with("/authorizations/AUTH1/capture") {
+            s.authorization = Some("CAPTURED");
+            s.captured = true;
             return Ok(Response {
                 status: 201,
                 body: json!({"id":"CAPTURE1","status":"COMPLETED","amount":s.units.as_ref().unwrap()[0]["amount"]}),
@@ -429,6 +449,7 @@ impl Transport for OfflineHttp {
             if s.fail_void {
                 return Err(TransportError);
             }
+            s.authorization = Some("VOIDED");
             return Ok(Response {
                 status: 204,
                 body: Value::Null,
@@ -1648,24 +1669,97 @@ async fn failed_void_does_not_starve_another_deadline_or_retry_unknown_money() {
         r.pipeline.wallet.ledger.get_deal(other.id).unwrap().state,
         DealState::Withdrawn
     );
-    let attempts = http
-        .0
-        .lock()
+    // The owner sees the open question honestly: a HOLD card that only opens the deal, worded
+    // as checking with PayPal, and the deal's evidence says the same.
+    let card = r
+        .attention()
         .unwrap()
-        .paths
-        .iter()
-        .filter(|p| p.ends_with("/void"))
-        .count();
-    assert!(r.tick().await.is_err());
+        .items
+        .into_iter()
+        .find(|i| i.deal_id == held.id)
+        .unwrap();
+    assert_eq!(card.kind, table_attention::AttnKind::Hold);
     assert_eq!(
-        http.0
-            .lock()
+        card.actions,
+        vec![table_attention::TumblerAction::OpenInTable]
+    );
+    assert!(
+        card.headline.starts_with("Checking with PayPal"),
+        "{}",
+        card.headline
+    );
+    assert_eq!(card.on_silence, table_attention::MONEY_CHECK_SILENCE);
+    assert_eq!(card.money_check.map(|c| c.step), Some(MoneyCheckStep::Void));
+    let evidence = r.pipeline.wallet.ledger.deal_evidence(held.id).unwrap();
+    assert_eq!(
+        evidence.money_check.map(|c| c.step),
+        Some(MoneyCheckStep::Void)
+    );
+    assert!(
+        r.forecast(clock.now())
             .unwrap()
-            .paths
             .iter()
-            .filter(|p| p.ends_with("/void"))
-            .count(),
-        attempts
+            .all(|l| l.deal_id != held.id),
+        "no step or default is promised while PayPal is being asked"
+    );
+    // The unknown void is read back (T10): PayPal still holds the money, so the same void is
+    // sent again under its one request id, never a second operation, and the deal stays held.
+    for _ in 0..6 {
+        clock.0.fetch_add(1000, Ordering::SeqCst);
+        r.tick().await.unwrap();
+    }
+    let ledger = &r.pipeline.wallet.ledger;
+    let void_requests: std::collections::BTreeSet<_> = ledger
+        .paypal_call_requests(held.id)
+        .unwrap()
+        .into_iter()
+        .filter(|(_, path, _)| path.ends_with("/void"))
+        .map(|(_, _, request)| request)
+        .collect();
+    assert_eq!(
+        void_requests.into_iter().collect::<Vec<_>>(),
+        vec![
+            table_paypal::RequestId::for_operation(held.id, 1, "void")
+                .unwrap()
+                .as_str()
+                .to_owned()
+        ]
+    );
+    let (rows, _) = ledger.audit_page(None, u16::MAX).unwrap();
+    let count = |action: &str| {
+        rows.iter()
+            .filter(|row| {
+                row.deal_id == Some(held.id)
+                    && row.action == action
+                    && row.detail["operation"] == "void"
+            })
+            .count()
+    };
+    assert_eq!(count("money.authorized"), 1);
+    assert_eq!(count("money.resent"), 6);
+    assert_eq!(
+        ledger.get_deal(held.id).unwrap().state,
+        DealState::Authorized
+    );
+    assert_eq!(
+        ledger.money_check(held.id).unwrap().unwrap().state,
+        MoneyCheckState::Parked
+    );
+    // Once PayPal answers, the same void settles it.
+    http.0.lock().unwrap().fail_void = false;
+    clock.0.fetch_add(1000, Ordering::SeqCst);
+    r.tick().await.unwrap();
+    assert_eq!(
+        r.pipeline.wallet.ledger.get_deal(held.id).unwrap().state,
+        DealState::AutoVoided
+    );
+    assert!(
+        r.pipeline
+            .wallet
+            .ledger
+            .money_check(held.id)
+            .unwrap()
+            .is_none()
     );
 }
 #[tokio::test]
