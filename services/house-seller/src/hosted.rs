@@ -3,12 +3,14 @@ use axum::{
     Json, Router,
     extract::{DefaultBodyLimit, State},
     http::StatusCode,
-    routing::post,
+    routing::{get, post},
 };
 use ed25519_dalek::{Signer, SigningKey};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicI64, Ordering};
+use std::time::Duration;
 use table_app::{
     AgentRequest, AgentRole, AgentScope, AgentService, Authority, OfferInput, Pipeline, Wallet,
 };
@@ -44,6 +46,10 @@ impl From<table_proto::ProtocolError> for Error {
     }
 }
 
+/// How long a table request waits for the actor before the caller sees 503.
+const REPLY_TIMEOUT: Duration = Duration::from_secs(20);
+/// A heartbeat older than this (seconds) makes `/healthz` answer 503.
+const HEARTBEAT_STALE: i64 = 30;
 /// First wait between approval polls of one deal; doubles up to [`POLL_MAX`].
 const POLL_FIRST: i64 = 5;
 const POLL_MAX: i64 = 60;
@@ -612,29 +618,61 @@ enum Message {
     Table(HouseRequest, Reply),
     Snapshot(DealId, oneshot::Sender<Result<Deal, Error>>),
 }
-#[derive(Debug, Clone)]
-pub struct HouseHandle(mpsc::Sender<Message>);
+#[derive(Clone)]
+pub struct HouseHandle {
+    tx: mpsc::Sender<Message>,
+    heartbeat: Arc<AtomicI64>,
+    clock: Arc<dyn Clock>,
+    timeout: Duration,
+}
+impl std::fmt::Debug for HouseHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("HouseHandle")
+    }
+}
 impl HouseHandle {
+    async fn ask<T>(
+        &self,
+        message: Message,
+        rx: oneshot::Receiver<Result<T, Error>>,
+    ) -> Result<T, Error> {
+        self.tx.try_send(message).map_err(|e| match e {
+            mpsc::error::TrySendError::Full(_) => Error::Full,
+            mpsc::error::TrySendError::Closed(_) => Error::Unavailable,
+        })?;
+        tokio::time::timeout(self.timeout, rx)
+            .await
+            .map_err(|_| Error::Unavailable)?
+            .map_err(|_| Error::Unavailable)?
+    }
     pub async fn table(&self, request: HouseRequest) -> Result<HouseResponse, Error> {
         let (tx, rx) = oneshot::channel();
-        self.0
-            .try_send(Message::Table(request, tx))
-            .map_err(|_| Error::Full)?;
-        rx.await.map_err(|_| Error::Unavailable)?
+        self.ask(Message::Table(request, tx), rx).await
     }
     /// Trusted Rust inspection; no public HTTP route exposes financial state.
     pub async fn snapshot(&self, id: DealId) -> Result<Deal, Error> {
         let (tx, rx) = oneshot::channel();
-        self.0
-            .try_send(Message::Snapshot(id, tx))
-            .map_err(|_| Error::Full)?;
-        rx.await.map_err(|_| Error::Unavailable)?
+        self.ask(Message::Snapshot(id, tx), rx).await
+    }
+    /// False when the actor has not ticked for more than 30 s (stalled or dead).
+    pub fn healthy(&self) -> bool {
+        self.clock
+            .now()
+            .saturating_sub(self.heartbeat.load(Ordering::Relaxed))
+            <= HEARTBEAT_STALE
     }
 }
 pub fn spawn(mut seller: Seller) -> HouseHandle {
     let (tx, mut rx) = mpsc::channel::<Message>(4);
+    let heartbeat = Arc::new(AtomicI64::new(seller.clock.now()));
+    let handle = HouseHandle {
+        tx,
+        heartbeat: heartbeat.clone(),
+        clock: seller.clock.clone(),
+        timeout: REPLY_TIMEOUT,
+    };
     tokio::spawn(async move {
-        let mut timer = tokio::time::interval(std::time::Duration::from_secs(1));
+        let mut timer = tokio::time::interval(Duration::from_secs(1));
         timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             tokio::select! {
@@ -643,19 +681,31 @@ pub fn spawn(mut seller: Seller) -> HouseHandle {
                     Some(Message::Snapshot(id,reply))=>{let _=reply.send(seller.pipeline.wallet.ledger.get_deal(id).map_err(Error::from));},
                     None=>break,
                 },
-                _=timer.tick()=>{let _=seller.tick().await;},
+                _=timer.tick()=>{
+                    heartbeat.store(seller.clock.now(), Ordering::Relaxed);
+                    let _=seller.tick().await;
+                },
             }
         }
     });
-    HouseHandle(tx)
+    handle
 }
+/// The relay routes without `/healthz`; HOUSE serves its own, tied to the actor heartbeat.
 pub fn router(relay: Arc<rendezvous::MemoryStore>, house: HouseHandle) -> Router {
-    rendezvous::router(relay).merge(
+    rendezvous::relay_router(relay).merge(
         Router::new()
+            .route("/healthz", get(healthz))
             .route("/v1/house/tables", post(table))
             .layer(DefaultBodyLimit::max(16384))
             .with_state(house),
     )
+}
+async fn healthz(State(house): State<HouseHandle>) -> StatusCode {
+    if house.healthy() {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    }
 }
 async fn table(
     State(house): State<HouseHandle>,
@@ -673,6 +723,7 @@ async fn table(
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use super::*;
 
     #[test]
@@ -707,5 +758,71 @@ mod tests {
         s.forget(&2);
         assert_eq!(s.len(), 0);
         assert!(s.due(1u8, 1u8, 4));
+    }
+
+    use axum::{body::Body as HttpBody, http::Request};
+    use tower::ServiceExt;
+
+    #[derive(Debug)]
+    struct Fixed(i64);
+    impl Clock for Fixed {
+        fn now(&self) -> i64 {
+            self.0
+        }
+    }
+    fn handle(timeout: Duration, beat: i64) -> (HouseHandle, mpsc::Receiver<Message>) {
+        let (tx, rx) = mpsc::channel(1);
+        (
+            HouseHandle {
+                tx,
+                heartbeat: Arc::new(AtomicI64::new(beat)),
+                clock: Arc::new(Fixed(100)),
+                timeout,
+            },
+            rx,
+        )
+    }
+    fn deal() -> DealId {
+        "01ARZ3NDEKTSV4RRFFQ69G5FAV".parse().unwrap()
+    }
+
+    #[tokio::test]
+    async fn closed_channel_is_unavailable() {
+        let (h, rx) = handle(Duration::from_secs(20), 100);
+        drop(rx);
+        assert!(matches!(h.snapshot(deal()).await, Err(Error::Unavailable)));
+    }
+    #[tokio::test]
+    async fn full_channel_is_full() {
+        let (h, _rx) = handle(Duration::from_millis(200), 100);
+        let h2 = h.clone();
+        let first = tokio::spawn(async move { h2.snapshot(deal()).await });
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert!(matches!(h.snapshot(deal()).await, Err(Error::Full)));
+        let _ = first.await;
+    }
+    #[tokio::test]
+    async fn reply_that_never_comes_is_unavailable_after_the_timeout() {
+        // The receiver stays open and never answers: a stalled actor.
+        let (h, _rx) = handle(Duration::from_millis(50), 100);
+        let started = std::time::Instant::now();
+        assert!(matches!(h.snapshot(deal()).await, Err(Error::Unavailable)));
+        assert!(started.elapsed() >= Duration::from_millis(50));
+    }
+    #[tokio::test]
+    async fn healthz_follows_the_heartbeat() {
+        let store = Arc::new(rendezvous::MemoryStore::new(Arc::new(Fixed(100))));
+        for (beat, want) in [
+            (100, StatusCode::OK),
+            (70, StatusCode::OK),
+            (69, StatusCode::SERVICE_UNAVAILABLE),
+        ] {
+            let (h, _rx) = handle(Duration::from_secs(1), beat);
+            let response = router(store.clone(), h)
+                .oneshot(Request::get("/healthz").body(HttpBody::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), want, "heartbeat {beat}");
+        }
     }
 }

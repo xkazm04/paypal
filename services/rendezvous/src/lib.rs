@@ -211,8 +211,11 @@ impl From<Error> for StatusCode {
     }
 }
 pub fn router(store: Arc<MemoryStore>) -> Router {
+    relay_router(store).route("/healthz", get(|| async { StatusCode::OK }))
+}
+/// The mailbox routes alone, for a host that serves its own `/healthz` (HOUSE ties it to its actor).
+pub fn relay_router(store: Arc<MemoryStore>) -> Router {
     Router::new()
-        .route("/healthz", get(|| async { StatusCode::OK }))
         // No DELETE: wallets never remove a mailbox, and an unauthenticated delete would let
         // anyone who learns a mailbox hash force a generation reset on both parties.
         .route("/v1/mailbox/{hash}", put(create))
