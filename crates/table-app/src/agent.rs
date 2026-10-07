@@ -325,7 +325,7 @@ impl Wallet {
             count.saturating_sub(1)
         }
         .min(255) as u8;
-        Ok(m.payload.check(
+        let decision = m.payload.check(
             &table_core::Intent {
                 kind: deal.kind,
                 side: deal.side,
@@ -340,7 +340,68 @@ impl Wallet {
             },
             usage,
             now,
-        )?)
+        )?;
+        // The wallet-wide limits sit above every mandate: they only ever refuse, after the
+        // mandate allowed the intent and before any write, reservation or network call.
+        self.envelope_check(deal, now)?;
+        Ok(decision)
+    }
+    /// The owner's signed wallet limits (T14) for `deal` at `now`. No limits signed: no extra
+    /// limit. Limits that fail to verify, or ran out, refuse money out (fail closed). Money in
+    /// is never limited. Refusals carry [`ENVELOPE_CLAUSE`] and name the limit.
+    pub fn envelope_check(&self, deal: &Deal, now: Timestamp) -> Result<(), Error> {
+        if deal.side != Side::Buyer {
+            return Ok(());
+        }
+        let envelope = match self.ledger.active_wallet_envelope(&self.owner) {
+            Ok(None) => return Ok(()),
+            Ok(Some((envelope, _))) => envelope.payload,
+            Err(LedgerError::Sql(error)) => return Err(LedgerError::Sql(error).into()),
+            Err(_) => {
+                return Ok(EnvelopeDecision::refuse(
+                    EnvelopeLimit::Unverified,
+                    "the wallet limits could not be verified; sign them again",
+                )
+                .into_result()?);
+            }
+        };
+        let amount = deal.terms.amount()?;
+        let exposure = exposure_for_deal(
+            &self.ledger.exposure_deals()?,
+            deal.id,
+            amount.currency(),
+            now,
+        )?;
+        Ok(envelope
+            .check(
+                &exposure,
+                EnvelopeIntent {
+                    side: deal.side,
+                    amount,
+                },
+                now,
+            )
+            .into_result()?)
+    }
+    /// An envelope refusal of an agent's intent leaves an `intent.refused` row naming the limit.
+    fn record_limit_refusal(
+        &mut self,
+        deal: DealId,
+        error: &Error,
+        now: Timestamp,
+    ) -> Result<(), Error> {
+        if let Error::Refused(refusal) = error
+            && refusal.clause == ENVELOPE_CLAUSE
+        {
+            self.ledger.append_audit(&AuditEntry {
+                at: now,
+                actor: "agent".into(),
+                action: "intent.refused".into(),
+                deal_id: Some(deal),
+                detail: serde_json::json!({"layer":"wallet_limit","reason":refusal.to_string()}),
+            })?;
+        }
+        Ok(())
     }
     pub(crate) fn signed(
         &self,
@@ -458,7 +519,13 @@ impl AgentService for Wallet {
                 if scope.role != AgentRole::Negotiator || input.deal_id != scope.deal_id {
                     return Err(Error::Permission);
                 }
-                let raw = self.accept(input.deal_id, input.offer_seq, scope.category, now)?;
+                let raw = match self.accept(input.deal_id, input.offer_seq, scope.category, now) {
+                    Ok(raw) => raw,
+                    Err(error) => {
+                        self.record_limit_refusal(input.deal_id, &error, now)?;
+                        return Err(error);
+                    }
+                };
                 Ok(serde_json::json!({"jws":raw}))
             }
             AgentRequest::View(input) => {
@@ -543,6 +610,7 @@ impl AgentService for Wallet {
                         Ok(serde_json::json!({"deal_id":deal.id,"status":"pending"}))
                     }
                     Err(error) => {
+                        self.record_limit_refusal(deal.id, &error, now)?;
                         if let Error::Refused(refusal) = &error {
                             self.ledger.refuse(deal.id, refusal.clause, now)?;
                         }

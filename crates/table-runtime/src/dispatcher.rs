@@ -164,6 +164,19 @@ impl Runtime {
             .first()
             .map(|d| d.terms.currency)
             .filter(|currency| deals.iter().all(|d| d.terms.currency == *currency));
+        // Real meters (T14): the day's money out from the exposure fold. A failed read leaves
+        // the meters off; it never fails the attention snapshot.
+        snapshot.exposure = self.envelope_view().ok();
+        if let Some(view) = &snapshot.exposure {
+            match view.currencies.as_slice() {
+                [one] => {
+                    snapshot.wallet_spend_today_minor = one.out_today.minor();
+                    snapshot.wallet_spend_today_currency = Some(one.currency);
+                }
+                [] => {}
+                _ => snapshot.wallet_spend_today_currency = None,
+            }
+        }
         // A failed read hides the forecast; it never fails the attention snapshot.
         snapshot.forecast = self.forecast(now).ok();
         // Each card's silence line follows the forecast beside it (DECISIONS 15).
@@ -640,6 +653,16 @@ impl Runtime {
                 // so no token or unlock is asked for.
                 allowed(label, &["approval"])?;
                 json(self.mandate_simulate(args)?)
+            }
+            Action::EnvelopeSign(args) => {
+                // Privileged like mandate_sign: the approval label, its token, and unlocked.
+                self.guard(label, token)?;
+                json(self.sign_envelope(args)?)
+            }
+            Action::EnvelopeGet => {
+                // Limits and numbers only; every window shows the meters.
+                allowed(label, &["main", "tumbler", "approval"])?;
+                json(self.envelope_view()?)
             }
         }
     }

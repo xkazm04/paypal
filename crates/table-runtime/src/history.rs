@@ -129,6 +129,7 @@ const BOOKKEEPING: &[&str] = &[
     "mandate.signed",
     "mandate.revoked",
     "deal.mandate_rebound",
+    "wallet_limit.signed",
 ];
 /// What one row says, before folding.
 enum Row {
@@ -473,6 +474,7 @@ mod tests {
             include_str!("configuration.rs"),
             include_str!("relay.rs"),
             include_str!("pairing.rs"),
+            include_str!("../../table-ledger/src/limits.rs"),
         ];
         let mut found = std::collections::BTreeSet::new();
         for source in sources {
@@ -707,6 +709,14 @@ mod tests {
                 step(K::Other, A::None),
             ),
             ("edited.offline", json!({}), step(K::Other, A::None)),
+            // The owner signed new wallet limits: bookkeeping, not a step of any deal.
+            ("wallet_limit.signed", json!({"version":1}), None),
+            // An agent intent the wallet limits refused is a signed rule's refusal like any other.
+            (
+                "intent.refused",
+                json!({"layer":"wallet_limit","reason":"wallet limit max_held"}),
+                step(K::IntentRefused, A::SignedRule { clause: None }),
+            ),
         ];
         for (action, detail, expected) in &table {
             assert_eq!(one(action, detail.clone()), *expected, "{action} {detail}");
