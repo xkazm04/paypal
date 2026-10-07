@@ -985,6 +985,36 @@ fn a_lost_owner_key_fails_closed_once_the_wallet_has_history() {
     assert!(build(Ledger::open(&path).unwrap(), original).is_ok());
     std::fs::remove_file(path).unwrap();
 }
+#[test]
+fn signing_refuses_a_mandate_no_role_can_act_under() {
+    let (mut r, ..) = runtime(false);
+    // A sell-only mandate over a purchase kind could never allow an intent.
+    let mut mismatched = clauses(Side::Seller, DealKind::Purchase);
+    mismatched.retain(|c| c.number() != 4);
+    let id = MandateId(ulid::Ulid::new());
+    assert!(
+        r.sign_mandate(MandateSignArgs {
+            id: Some(id),
+            agent: AgentSlot::Negotiator,
+            clauses: mismatched,
+            not_before: 0,
+            expires: 1_000_000,
+        })
+        .is_err()
+    );
+    assert!(
+        r.pipeline
+            .wallet
+            .ledger
+            .list_mandates(&r.owner().unwrap().verifying_key())
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        r.pipeline.wallet.ledger.next_mandate_version(id).unwrap(),
+        1
+    );
+}
 #[tokio::test]
 async fn unlock_checks_origin_before_os_and_failure_keeps_lock() {
     let (r, _, http, _, hello) = runtime(false);

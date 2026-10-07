@@ -134,6 +134,30 @@ pub enum MandateDecision {
     Ask { clause: u8 },
 }
 
+/// The one table of which (role, side, kind) may act; check() and validate() both read it.
+fn role_acts(role: Role, side: Side, kind: DealKind) -> bool {
+    matches!(
+        (role, side, kind),
+        (
+            Role::Buy,
+            Side::Buyer,
+            DealKind::Purchase | DealKind::Haggle | DealKind::Invoice
+        ) | (
+            Role::Sell,
+            Side::Seller,
+            DealKind::Haggle | DealKind::Invoice
+        ) | (Role::Shop, Side::Seller, DealKind::ShopOrder)
+            | (Role::Rescue, Side::Seller, DealKind::Rescue)
+    )
+}
+/// The side a role always plays.
+const fn role_side(role: Role) -> Side {
+    match role {
+        Role::Buy => Side::Buyer,
+        Role::Sell | Role::Shop | Role::Rescue => Side::Seller,
+    }
+}
+
 impl MandatePayload {
     pub fn hash(&self) -> Result<H256, DomainError> {
         self.validate().map_err(|_| DomainError::InvalidTerms)?;
@@ -235,6 +259,41 @@ impl MandatePayload {
         if banded && !seen[4] {
             return Err(Refusal::new(4, "band required for haggle and shop orders"));
         }
+        // Roles and the per-deal kind must let at least one role act, and a band must bound the
+        // side that role uses; otherwise check() refuses every intent.
+        let kind = self.clauses.iter().find_map(|c| match c {
+            Clause::PerDeal { kind, .. } => Some(*kind),
+            _ => None,
+        });
+        let roles = self.clauses.iter().find_map(|c| match c {
+            Clause::Roles { roles } => Some(roles),
+            _ => None,
+        });
+        if let (Some(kind), Some(roles)) = (kind, roles) {
+            let acting: Vec<Role> = roles
+                .iter()
+                .copied()
+                .filter(|role| role_acts(*role, role_side(*role), kind))
+                .collect();
+            if acting.is_empty() {
+                return Err(Refusal::new(
+                    1,
+                    "no role in the roles clause can act on the per-deal kind",
+                ));
+            }
+            let band = self.clauses.iter().find_map(|c| match c {
+                Clause::Band { floor, ceiling, .. } => Some((floor, ceiling)),
+                _ => None,
+            });
+            if let Some((floor, ceiling)) = band
+                && !acting.iter().any(|role| match role_side(*role) {
+                    Side::Buyer => ceiling.is_some(),
+                    Side::Seller => floor.is_some(),
+                })
+            {
+                return Err(Refusal::new(4, "band lacks the side the allowed roles use"));
+            }
+        }
         Ok(())
     }
 
@@ -253,19 +312,7 @@ impl MandatePayload {
             .amount()
             .map_err(|_| Refusal::new(3, "invalid terms or amount"))?;
         // A caller cannot claim a different role to sidestep the owner's roles clause.
-        let role_ok = matches!(
-            (intent.role, intent.side, intent.kind),
-            (
-                Role::Buy,
-                Side::Buyer,
-                DealKind::Purchase | DealKind::Haggle | DealKind::Invoice
-            ) | (
-                Role::Sell,
-                Side::Seller,
-                DealKind::Haggle | DealKind::Invoice
-            ) | (Role::Shop, Side::Seller, DealKind::ShopOrder)
-                | (Role::Rescue, Side::Seller, DealKind::Rescue)
-        );
+        let role_ok = role_acts(intent.role, intent.side, intent.kind);
         if !role_ok {
             return Err(Refusal::new(1, "role does not match the deal side/kind"));
         }
@@ -662,6 +709,71 @@ mod tests {
         foreign.unit_price = Money::new(6400, Currency::EUR).unwrap();
         i.terms = &foreign;
         assert_eq!(p.check(&i, u, 100).unwrap_err().clause, 3);
+    }
+    fn with_roles_kind(roles: Vec<Role>, kind: DealKind) -> MandatePayload {
+        let mut p = policy(kind, Side::Buyer);
+        for clause in &mut p.clauses {
+            if let Clause::Roles { roles: r } = clause {
+                *r = roles.clone();
+            }
+        }
+        p
+    }
+    fn with_band(mut p: MandatePayload, lo: Option<i64>, hi: Option<i64>) -> MandatePayload {
+        for clause in &mut p.clauses {
+            if let Clause::Band { floor, ceiling, .. } = clause {
+                *floor = lo.map(money);
+                *ceiling = hi.map(money);
+            }
+        }
+        p
+    }
+    #[test]
+    fn roles_that_cannot_act_on_the_kind_are_refused_at_signing() {
+        for (roles, kind) in [
+            (vec![Role::Sell], DealKind::Purchase),
+            (vec![Role::Buy], DealKind::ShopOrder),
+            (vec![Role::Buy], DealKind::Rescue),
+            (vec![Role::Sell, Role::Shop], DealKind::Purchase),
+        ] {
+            let p = with_roles_kind(roles, kind);
+            assert_eq!(p.validate().unwrap_err().clause, 1);
+        }
+        let mut ok = with_roles_kind(vec![Role::Buy], DealKind::Purchase);
+        ok.clauses.retain(|c| c.number() != 4);
+        assert!(ok.validate().is_ok());
+    }
+    #[test]
+    fn a_band_lacking_the_side_the_roles_use_is_refused_at_signing() {
+        let buy_only = with_roles_kind(vec![Role::Buy], DealKind::Haggle);
+        assert_eq!(
+            with_band(buy_only.clone(), Some(5800), None)
+                .validate()
+                .unwrap_err()
+                .clause,
+            4
+        );
+        assert!(with_band(buy_only, None, Some(10000)).validate().is_ok());
+        let sell_only = with_roles_kind(vec![Role::Sell], DealKind::Haggle);
+        assert_eq!(
+            with_band(sell_only.clone(), None, Some(10000))
+                .validate()
+                .unwrap_err()
+                .clause,
+            4
+        );
+        assert!(with_band(sell_only, Some(5800), None).validate().is_ok());
+        let both = with_roles_kind(vec![Role::Buy, Role::Sell], DealKind::Haggle);
+        assert!(with_band(both, Some(5800), None).validate().is_ok());
+        let shop = with_roles_kind(vec![Role::Shop], DealKind::ShopOrder);
+        assert!(with_band(shop.clone(), Some(5800), None).validate().is_ok());
+        assert_eq!(
+            with_band(shop, None, Some(10000))
+                .validate()
+                .unwrap_err()
+                .clause,
+            4
+        );
     }
     #[test]
     fn mandate_commitment_covers_version_and_band_but_not_signature() {
