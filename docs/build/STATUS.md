@@ -261,6 +261,16 @@ one signed file (`table.proof.v1`, `table_proto::ProofBundle`) and `crates/table
     - No test exports from a corrupt chain or with a missing key.
     - The rework's client TypeScript has never been typechecked: a worktree has no node_modules.
   - Gates were cited, not run: 39e07aad's merge gate at 3e9bcae passed `cargo test --workspace`.
+- UNVERIFIED: the PayPal-order check (feb5cc6) needs, from each 2xx order create, authorize and order
+  read, the stored binding of every purchase unit: custom_id, invoice_id, payee.merchant_id and
+  amount (kept by `binding_projection`, crates/table-ledger/src/redaction.rs:94; compared in
+  `bindings`, crates/table-verify/src/lib.rs:323). The client asks for the full body with
+  `Prefer: return=representation` (crates/table-paypal/src/client.rs:161), but no live authorize
+  body has been observed, so that the authorize answer carries all four is assumed. If it lacks
+  them, the wallet's own Order::verify (crates/table-paypal/src/types.rs:168) refuses the order,
+  and in any bundle that does record the call the person checking sees the PayPal-order line fail
+  ("no order binding was recorded", or "the order record lacks custom_id, invoice id or payee"), not
+  "not checked". Sandbox spike 3 collects the evidence (docs/build/SPIKES.md section 3).
 
 ## Incidental sweep (2026-10-06)
 
