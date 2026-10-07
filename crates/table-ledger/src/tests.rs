@@ -661,6 +661,7 @@ fn f1_refused_deal_has_zero_paypal_rows_and_insert_trigger_enforces_it() {
         status: 201,
         debug_id: None,
         response: json!({"id":"ORDER1"}),
+        binding: None,
         at: 102,
     };
     assert!(ledger.record_paypal_call(&call, &[]).is_err());
@@ -695,6 +696,7 @@ fn paypal_bindings_keep_identifiers_and_amount_but_never_payer_text_or_links() {
         request_id: "read1".into(),
         status: 200,
         debug_id: None,
+        binding: crate::binding_projection(&response, &[]),
         response,
         at: 102,
     };
@@ -741,6 +743,7 @@ fn paypal_redaction_discards_unknown_nested_text_and_known_sensitive_values() {
         request_id: "read1".into(),
         status: 200,
         debug_id: Some(sensitive.clone()),
+        binding: crate::binding_projection(&response, &[sensitive.as_str()]),
         response,
         at: 102,
     };
@@ -1459,6 +1462,7 @@ fn buyer_settle_validation_and_commit_are_atomic_and_reporting_mismatch_does_not
         status: 200,
         debug_id: None,
         response: json!({"transaction_details":[{"transaction_info":{"transaction_id":"CAPTURE1","transaction_status":"S","transaction_amount":{"currency_code":"USD","value":"-0.01"}}}]}),
+        binding: None,
         at: 101,
     };
     ledger.record_paypal_call(&report, &[]).unwrap();

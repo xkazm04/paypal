@@ -150,6 +150,8 @@ pub struct PaypalCall {
     pub status: u16,
     pub debug_id: Option<String>,
     pub response: Value,
+    /// Binding facts projected from the raw body before redaction (None when there were none).
+    pub binding: Option<Value>,
     pub at: table_core::Timestamp,
 }
 impl std::fmt::Debug for PaypalCall {

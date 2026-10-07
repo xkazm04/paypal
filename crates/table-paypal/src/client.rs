@@ -182,6 +182,7 @@ impl Client {
                         request_id: id.map_or_else(String::new, |i| i.as_str().into()),
                         status: 0,
                         body: Value::Null,
+                        binding: None,
                     });
                     self.backoff.wait(attempt).await;
                     continue;
@@ -193,15 +194,15 @@ impl Client {
                         request_id: id.map_or_else(String::new, |i| i.as_str().into()),
                         status: 0,
                         body: Value::Null,
+                        binding: None,
                     });
                     return Err(Error::Unknown { observations });
                 }
             };
             let secrets = self.redactions.lock().await;
-            let sanitized = table_ledger::redact_paypal(
-                &response.body,
-                &secrets.iter().map(Secret::expose).collect::<Vec<_>>(),
-            );
+            let exposed = secrets.iter().map(Secret::expose).collect::<Vec<_>>();
+            let binding = table_ledger::binding_projection(&response.body, &exposed);
+            let sanitized = table_ledger::redact_paypal(&response.body, &exposed);
             drop(secrets);
             observations.push(Observation {
                 method,
@@ -209,6 +210,7 @@ impl Client {
                 request_id: id.map_or_else(String::new, |id| id.as_str().into()),
                 status: response.status,
                 body: sanitized.clone(),
+                binding,
             });
             if (200..300).contains(&response.status) {
                 return Ok(ApiResponse {

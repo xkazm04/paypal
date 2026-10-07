@@ -403,6 +403,7 @@ impl Pipeline {
                         .and_then(serde_json::Value::as_str)
                         .map(str::to_owned),
                     response: o.body.clone(),
+                    binding: o.binding.clone(),
                     at: now,
                 })
             })
