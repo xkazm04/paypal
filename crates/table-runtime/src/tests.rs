@@ -1325,7 +1325,8 @@ async fn actor_payments_require_label_token_unlock_selected_hash_and_attempt() {
 #[tokio::test]
 async fn dismissal_never_assents_and_deadline_runs_while_locked_or_paused() {
     let (mut r, _, http, clock, _) = runtime(true);
-    let (deal, _) = setup(&mut r, Side::Seller);
+    let (deal, peer) = setup(&mut r, Side::Seller);
+    agree(&mut r, &deal, &peer);
     r.execute(caller("main", None), Action::Pause)
         .await
         .unwrap();
@@ -2070,4 +2071,74 @@ async fn notification_claim_refusals_and_release() {
         json!(false)
     );
     assert!(http.0.lock().unwrap().paths.is_empty());
+}
+
+#[tokio::test]
+async fn let_lapse_is_refused_on_a_hold_and_on_an_authorized_deal() {
+    let (mut r, vault, http, _, _) = runtime(true);
+    credentials(vault.as_ref());
+    // A shield Hold with a deadline.
+    let (held, _) = setup(&mut r, Side::Seller);
+    r.pipeline
+        .wallet
+        .ledger
+        .set_deadline(held.id, 800, None, 100)
+        .unwrap();
+    r.pipeline
+        .wallet
+        .ledger
+        .raise_shield(held.id, ShieldVerdict::Hold, 100)
+        .unwrap();
+    assert!(
+        r.execute(caller("tumbler", None), Action::LetLapse(held.id))
+            .await
+            .is_err()
+    );
+    assert!(
+        r.pipeline
+            .wallet
+            .ledger
+            .preference::<bool>(&format!("lapse.{}", held.id))
+            .unwrap()
+            .is_none()
+    );
+    // An Authorized deal.
+    let (deal, peer) = setup_delivery(&mut r, Side::Seller, Delivery::ShipThenCapture { days: 1 });
+    agree(&mut r, &deal, &peer);
+    let token = unlock_runtime(&mut r);
+    r.selected = Some(deal.id);
+    let args = decision(&r, deal.id);
+    r.execute(
+        caller("approval", Some(&token)),
+        Action::Decision(args, Decision::Countersign),
+    )
+    .await
+    .unwrap();
+    r.tick().await.unwrap();
+    assert_eq!(
+        r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Authorized
+    );
+    assert!(
+        r.pipeline
+            .wallet
+            .ledger
+            .deadline(deal.id)
+            .unwrap()
+            .is_some()
+    );
+    assert!(
+        r.execute(caller("tumbler", None), Action::LetLapse(deal.id))
+            .await
+            .is_err()
+    );
+    assert!(
+        r.pipeline
+            .wallet
+            .ledger
+            .preference::<bool>(&format!("lapse.{}", deal.id))
+            .unwrap()
+            .is_none()
+    );
+    let _ = http;
 }
