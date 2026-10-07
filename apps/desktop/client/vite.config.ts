@@ -27,6 +27,8 @@ export default defineConfig({
         main: here('./index.html'),
         tumbler: here('./tumbler.html'),
         approval: here('./approval.html'),
+        // Browser preview only: the scenario director (src/director). The shell never opens it.
+        director: here('./director.html'),
       },
     },
   },
