@@ -284,7 +284,7 @@ impl Runtime {
             ),
             (
                 AgentSlot::Shopper,
-                "Proposes purchases inside your spend mandate. Rust checks them; money moves only when you decide.",
+                "Proposes purchases inside your spend mandate. Money moves only when you decide.",
             ),
             (
                 AgentSlot::Assistant,
