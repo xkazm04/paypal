@@ -37,6 +37,10 @@
 .mod-counter .cat .ref { font-size: var(--fs-small); }
 .mod-counter .ititle { background: none; border: 0; padding: 0; color: var(--text); cursor: pointer; font: inherit; text-align: left; }
 .mod-counter .ititle:hover { color: var(--teal-l); }
+/* an item known only by its code: a quiet tag, never a made-up title */
+.mod-counter .ititle .sku { display: inline-block; padding: 1px 7px; border-radius: var(--r-sm); font: var(--fs-mono)/1.4 var(--mono); color: var(--muted);
+  background: var(--panel2); box-shadow: inset 0 0 0 1px var(--line); }
+.mod-counter .ititle:hover .sku { color: var(--teal-l); }
 .mod-counter .cat tr.item { cursor: pointer; }
 .mod-counter .cat tr.draft td:first-child { box-shadow: inset 2px 0 0 var(--gold); }
 .mod-counter .cat tr.bad td:first-child { box-shadow: inset 2px 0 0 var(--refuse); }
@@ -44,9 +48,11 @@
 .mod-counter .cat td.ctr .ui-chip + .ui-chip { margin-left: var(--sp-1); }
 .mod-counter .unk { color: var(--dim); font-size: var(--fs-small); border-bottom: 1px dashed var(--line2); cursor: help; }
 .mod-counter .fl { display: inline-flex; align-items: center; gap: 2px; vertical-align: middle; }
-.mod-counter .fl .cur { position: relative; width: 0; left: 8px; z-index: 1; color: var(--dim); font: var(--fw-semibold) var(--fs-body) var(--num); pointer-events: none; }
 .mod-counter .fl .ui-btn { width: 22px; padding: 0; justify-content: center; }
 .mod-counter .fl .ui-field { width: 66px; height: 22px; text-align: right; font: var(--fw-semibold) var(--fs-body) var(--num); font-variant-numeric: tabular-nums; }
+.mod-counter .fl .cur-in { position: relative; display: inline-flex; }
+.mod-counter .fl .cur { position: absolute; left: 7px; top: 50%; transform: translateY(-50%); color: var(--dim); font: var(--fs-small) var(--num); pointer-events: none; }
+.mod-counter .fl .cur-in .ui-field { padding-left: 18px; }
 .mod-counter .cat tr.draft .fl .ui-field { border-color: var(--gold); color: var(--gold-l); }
 .mod-counter .cat tr.bad .fl .ui-field { border-color: var(--refuse); }
 .mod-counter .fnote { display: inline-flex; min-width: 62px; margin-left: 2px; vertical-align: middle; }
@@ -86,7 +92,8 @@
 /* the draft bar: sticks to the bottom of the scrolling page, the only exit is the approval window */
 .mod-counter .tray { position: sticky; bottom: calc(-1 * var(--sp-8)); z-index: 2; display: flex; align-items: center; gap: var(--sp-2);
   min-height: var(--bar); margin: auto calc(-1 * var(--sp-5)) 0; padding: 0 var(--sp-5);
-  border-top: 1px solid var(--line); background: var(--bg2); min-width: 0; overflow: hidden; }
+  border-top: 1px solid var(--line); background: color-mix(in srgb, var(--bg2) 94%, transparent); backdrop-filter: blur(16px) saturate(1.4);
+  min-width: 0; overflow: hidden; }
 .mod-counter .tray > * { flex-shrink: 0; }
 .mod-counter .tray.on { box-shadow: inset 0 2px 0 var(--gold); }
 .mod-counter .tray > .grow { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

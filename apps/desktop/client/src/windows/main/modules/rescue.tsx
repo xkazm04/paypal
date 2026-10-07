@@ -302,7 +302,7 @@ function FailedCard({ deal, name, deadline, now, col, onPick, onOpen }: {
   }] : [];
   return (
     <DecisionCard className="rs-card"
-      context={<>{disp.title}<span className="mono">{disp.label}</span>{deal.mode !== 'sandbox' ? <ModeBadge mode={deal.mode} /> : null}
+      context={<>{disp.title}{deal.mode !== 'sandbox' ? <ModeBadge mode={deal.mode} /> : null}
         {PENDING_BACKEND.rescue ? <Chip tone="dashed" title={PENDING_BACKEND.rescue}>fixes can’t be sent yet</Chip> : null}</>}
       question={<>{cap(name)}’s renewal failed. What should happen?</>}
       why={<>PayPal couldn’t take the payment, so nothing was recovered yet.</>}

@@ -80,6 +80,7 @@ function EndMark({ end, first }: { end: NonNullable<ReturnType<typeof milestones
         <span className="stop" aria-hidden="true">{end.tone === 'bad' ? '×' : '–'}</span>
         <span>Ended · <b>{end.label}</b></span>
       </li>
+      {first ? <li className="bar cut" aria-hidden="true" /> : null}
     </>
   );
 }

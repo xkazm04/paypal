@@ -321,7 +321,7 @@ function PausedDecision({ deal, need, now, known, onRelease, onRefuse, onDeal }:
   const reasons = reasonsFor(deal, cp.entry, now);
   return (
     <DecisionCard
-      context={<><Icon name="pause" size={13} />Paused before PayPal · {disp.label}<NoteChip dealId={deal.id} who={cp.name} /></>}
+      context={<><Icon name="pause" size={13} />Paused before PayPal · {disp.title}<NoteChip dealId={deal.id} who={cp.name} /></>}
       onDetails={onDeal} detailsLabel="Open deal"
       question={live ? <>Let this payment to {cp.name} go ahead?</> : <>What should happen with the payment to {cp.name}?</>}
       amount={<MinorMoney minor={t.minor} currency={t.currency} />}
@@ -359,7 +359,7 @@ function ShieldRow({ deal, onOpen }: { deal: Deal; onOpen: () => void }) {
   return (
     <Row className="sh-row" onOpen={onOpen} label={`${cp.name}, ${deal.shield ? shieldWord(deal.shield).text : 'no verdict'}. Open the deal`}
       lead={<span className={`sh-lead ${tone}`} aria-hidden="true"><Icon name={icon} size={13} /></span>}
-      title={<><b>{cp.name}</b> <span className="tx-dim">· {kind === 'block' || kind === 'closed' ? disp.title : disp.label}</span></>}
+      title={kind === 'block' || kind === 'closed' ? <><b>{cp.name}</b> <span className="tx-dim">· {disp.title}</span></> : <b>{cp.name}</b>}
       sub={sub}>
       {kind === 'block' ? <NoteChip dealId={deal.id} who={cp.name} /> : null}
       {pill}

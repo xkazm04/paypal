@@ -54,3 +54,11 @@ export function rulesAnswer(list: readonly MandateListEntry[], now: number): Rul
   const agents = new Set(inForce.map((m) => m.agent)).size;
   return { tone: 'done', title: `${agents} ${agents === 1 ? 'agent works' : 'agents work'} inside limits you signed`, sub: 'They can never pass these limits. Only you can change them.' };
 }
+
+/** "3 agents · 5 rule sets" beside "Your agents" when an agent holds several sets, so the answer's
+ *  agent count and the number of cards below agree; null when it is one set per agent. */
+export function setsLine(list: readonly Pick<MandateListEntry, 'agent'>[]): string | null {
+  const agents = new Set(list.map((m) => m.agent)).size;
+  if (!list.length || agents === list.length) return null;
+  return `${agents} ${agents === 1 ? 'agent' : 'agents'} · ${list.length} rule sets`;
+}

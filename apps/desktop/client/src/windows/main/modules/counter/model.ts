@@ -19,6 +19,11 @@ import { dealTotal, isLive, mandatesGoverning } from '../../logic';
 
 // ---- money input ------------------------------------------------------------------------------
 
+/** "$" for USD, the code otherwise ("JPY"): the mark in front of a typed price, so it never reads as a bare number. */
+export function currencyMark(c: Currency): string {
+  return formatMinor(0, c).replace(/[\d.,\s\u00a0\u2212-]/g, '') || c;
+}
+
 /** "58", "58.5", "$1,058.50" → integer minor units in `currency`; null when it is not an amount.
  *  String arithmetic only: no float ever touches the amount. */
 export function parseMoneyText(text: string, currency: Currency): number | null {

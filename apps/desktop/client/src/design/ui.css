@@ -286,7 +286,8 @@ button.ui-chip:hover { filter: brightness(1.12); }
 .ui-explainer .ex-h { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-3); }
 .ui-explainer .ex-h b { flex: 1; font: var(--fw-semibold) var(--fs-title3)/1.2 var(--display); }
 .ui-explainer .ex-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--sp-3); counter-reset: ex; }
-.ui-explainer .ex-steps li { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; column-gap: var(--sp-2); align-items: start; }
+/* align-content: a step beside a taller sibling keeps its words together under the title */
+.ui-explainer .ex-steps li { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; column-gap: var(--sp-2); align-items: start; align-content: start; }
 .ui-explainer .ex-ico { grid-row: span 2; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
   color: var(--mc, var(--teal-l)); background: color-mix(in srgb, var(--mc, var(--teal)) 15%, transparent); }
 .ui-explainer .ex-t { font-weight: var(--fw-semibold); }
