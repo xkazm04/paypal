@@ -1245,7 +1245,31 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
     );
     // Each tamper fails its own check, and every one breaks the signed evidence head.
     type Tamper = fn(&mut table_proto::ProofBundle);
-    let tampers: [(&str, Tamper); 9] = [
+    let tampers: [(&str, Tamper); 15] = [
+        ("format", |p| p.format = "table.proof.v0".into()),
+        ("owner signed the mandate", |p| p.mandate.owner_sig[0] ^= 1),
+        ("receipt inside the transcript", |p| {
+            p.receipts.push(table_proto::ProofReceipt {
+                raw: "not.a.message".into(),
+                capture_id: None,
+                amount_minor: None,
+                transcript_head: p.deal.transcript_head,
+            });
+        }),
+        // The signature alone: every other field, and so the commitment, is untouched.
+        ("evidence head signed", |p| p.evidence_sig[0] ^= 1),
+        ("PayPal order matches the signed terms", |p| {
+            let call = p
+                .paypal_calls
+                .iter_mut()
+                .find(|c| c.binding.is_some())
+                .unwrap();
+            call.binding.as_mut().unwrap()["purchase_units"][0]["invoice_id"] =
+                serde_json::json!("OTHER-INVOICE");
+        }),
+        ("audit rows hash-consistent", |p| {
+            p.audit_head.seq = p.audit.last().unwrap().seq - 1;
+        }),
         ("PayPal order matches the signed terms", |p| {
             let call = p
                 .paypal_calls
