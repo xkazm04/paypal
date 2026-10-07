@@ -161,6 +161,11 @@ fn closed(bundle: &ProofBundle) -> Outcome {
         .map_err(|_| "mandate payload does not validate".to_owned())?;
     let terms = deal.terms.hash().map_err(|e| e.to_string())?;
     let amount = deal.terms.amount().map_err(|e| e.to_string())?;
+    // Clause 7 governs every countersign on either side: the wallet refuses a payee outside it.
+    let payees = bundle.mandate.payload.clauses.iter().find_map(|c| match c {
+        Clause::Payees { payees } => Some(payees),
+        _ => None,
+    });
     for record in &bundle.closed_mandates {
         let c = &record.mandate;
         let bytes = c.signing_bytes().map_err(|e| e.to_string())?;
@@ -182,11 +187,22 @@ fn closed(bundle: &ProofBundle) -> Outcome {
                 record.attempt
             ));
         }
+        if payees.is_some_and(|list| !list.contains(&c.payee)) {
+            return Err(format!(
+                "attempt {}: countersigned payee is not in the owner-signed payee list",
+                record.attempt
+            ));
+        }
         lawful(bundle, "create", &c.decided_by)
             .map_err(|e| format!("attempt {}: {e}", record.attempt))?;
     }
+    let payee = if payees.is_some() {
+        "payee is in the owner-signed payee list"
+    } else {
+        "payee signed by the agent; the mandate names no payee list"
+    };
     Ok(format!(
-        "{} countersign(s) bind terms {}, {} and payee",
+        "{} countersign(s) bind terms {} and {}; {payee}",
         bundle.closed_mandates.len(),
         short(terms),
         amount
@@ -466,7 +482,7 @@ pub fn verify_bundle(bundle: &ProofBundle) -> Report {
         ("format", format),
         ("owner signed the mandate", mandate),
         ("transcript signatures and chain", transcript),
-        ("closed mandate binds terms, amount, payee", closed),
+        ("closed mandate binds terms and amount", closed),
         ("every money call has a lawful authority", authority),
         ("PayPal order matches the signed terms", bindings),
         ("audit rows hash-consistent", audit),

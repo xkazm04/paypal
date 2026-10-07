@@ -1312,7 +1312,7 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
         ("audit rows hash-consistent", |p| {
             p.audit[0].action = "edited.offline".into();
         }),
-        ("closed mandate binds terms, amount, payee", |p| {
+        ("closed mandate binds terms and amount", |p| {
             p.closed_mandates[0].mandate.payee = PayeeRef::new("someone_else").unwrap();
         }),
     ];
@@ -1323,6 +1323,34 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
         assert!(!detail(&forged, "evidence head signed").ok);
         assert!(!table_verify::verify_bundle(&forged).verified());
     }
+    // A payee outside the owner's clause 7, re-signed with the deal's own agent key so every
+    // signature still holds: only the comparison with the signed payee list can catch it.
+    let agent = table_proto::AgentSigner::from_key(
+        vault::existing_signing_key(seller_vault.as_ref(), AgentSlot::Negotiator.key_name())
+            .unwrap(),
+    );
+    assert_eq!(
+        agent.public_key().to_bytes(),
+        seller_proof.mandate.payload.agent_key
+    );
+    let mut forged = seller_proof.clone();
+    let closed = &mut forged.closed_mandates[0].mandate;
+    closed.payee = PayeeRef::new("someone_else").unwrap();
+    closed.agent_sig = agent.sign_closed(closed).unwrap();
+    forged.evidence_head = forged.evidence_commitment().unwrap();
+    forged.evidence_sig = agent.sign_commitment(forged.evidence_head);
+    assert!(detail(&forged, "evidence head signed").ok);
+    let check = detail(&forged, "closed mandate binds terms and amount");
+    assert!(
+        !check.ok && check.detail.contains("payee list"),
+        "{check:?}"
+    );
+    let honest = detail(&seller_proof, "closed mandate binds terms and amount");
+    assert!(
+        honest
+            .detail
+            .contains("payee is in the owner-signed payee list")
+    );
     drop(store);
     drop(a);
     drop(b);
