@@ -3,6 +3,8 @@
 mod client_tests;
 #[path = "forecast_tests.rs"]
 mod forecast_tests;
+#[path = "h5_tests.rs"]
+mod h5_tests;
 #[path = "policy_tests.rs"]
 pub(crate) mod policy_tests;
 #[path = "relay_tests.rs"]
