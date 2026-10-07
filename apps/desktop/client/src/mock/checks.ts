@@ -22,10 +22,12 @@ export type MockCheckInput = {
   /** Amount already committed today under the mandate (minor units), for the daily limit. */
   spentTodayMinor: number;
   now: number;
+  /** The wallet limits' refusal of this deal (src/mock/exposure.ts), checked after the mandate. */
+  limitRefusal?: string | null;
 };
 
 const line = (id: ApprovalCheckId, status: ApprovalCheckStatus, text: string, detail: string): ApprovalCheck => ({ id, status, text, detail });
-const RULE: Record<number, string> = { 1: 'what agents may do', 2: 'who they deal with', 3: 'the limit per deal', 4: 'the price range', 5: 'the daily limit', 6: 'ask me above', 7: 'approved payees' };
+const RULE: Record<number, string> = { 1: 'what agents may do', 2: 'who they deal with', 3: 'the limit per deal', 4: 'the price range', 5: 'the daily limit', 6: 'ask me above', 7: 'approved payees', 0: 'your wallet limits' };
 const code = (m: Money) => formatMoney(m, { code: true });
 const ORDER_EXPECTED = new Set<Deal['state']>(['AGREED', 'SETTLING']);
 
@@ -81,6 +83,8 @@ function mandateFact(i: MockCheckInput, payee: string | null): MandateFact {
         break;
     }
   }
+  // The wallet limits sit above every mandate and only ever refuse (Rust: clause 0).
+  if (i.limitRefusal) return { k: 'refused', clause: 0, reason: i.limitRefusal };
   return ask ? { k: 'ask', threshold: ask } : { k: 'allow', perDeal };
 }
 

@@ -9,11 +9,12 @@ import type { Deal } from '@bindings/Deal';
 import type { Module } from '@bindings/Module';
 import type { TumblerStatus } from '@bindings/TumblerStatus';
 import { formatMinor } from '../../lib/format';
+import { readLimits, type LimitMeter } from '../../lib/limits';
 import { kindWord, ruleNameOf } from '../../lib/words';
 import { useMutation, useNow, usePrefersReducedMotion } from '../../lib/hooks';
 import { Countdown, MockBadge, ModeBadge, WalletNotice } from '../../shared/honesty';
 import { MODULE, MODULES } from '../../shared/modules';
-import { Btn, Chip, Explainer, Group, Hint, Kv, Popover, Section, Silence, Spacer, ThemeSwitch, TitleBar, type ExplainerStep } from '../../shared/ui';
+import { Btn, Chip, Explainer, Group, Hint, Kv, Meter, Popover, Section, Silence, Spacer, ThemeSwitch, TitleBar, type ExplainerStep } from '../../shared/ui';
 import { Dial, LegendBead, type Bead } from './Dial';
 import { chipTone, dealCount, LEDGER_TITLE, ledgerDeals, ledgerLine, moneyList, shortTitle, silenceParts, timeLeft, weekLabel, type LedgerKind } from './home/model';
 import {
@@ -478,9 +479,12 @@ function LedgerDealRow({ d, kind, onOpen }: { d: Deal; kind: LedgerKind; onOpen:
   );
 }
 
-/** Two meters, never one axis: wallet spend is money committed; the AI usage figure is the agent app's own estimate. */
+/** Two meters, never one axis: wallet spend is money committed; the AI usage figure is the agent app’s own estimate.
+ *  With the wallet's exposure (T14) the spend rows are real: paid out today, on hold now and deals today, each
+ *  against the owner's signed wallet limit, a bar that turns gold near it. */
 function TodayMeters({ meters, att, engine }: { meters: boolean; att: ReturnType<typeof useWorld>['attention']['data']; engine: string | null }) {
-  if (!meters) {
+  const lim = readLimits(att?.exposure);
+  if (!meters && !lim) {
     return (
       <Section title="Today">
         <div className="ui-group"><div className="ui-row" title="Today’s agent spending and AI usage appear here once the wallet can count them">
@@ -491,17 +495,41 @@ function TodayMeters({ meters, att, engine }: { meters: boolean; att: ReturnType
   }
   if (!att) return null;
   const sp = spendToday(att.wallet_spend_today_minor, att.wallet_spend_today_currency);
+  const end = !lim ? undefined : lim.status === 'active' ? <span title={lim.line}>against your wallet limits</span>
+    : lim.status === 'none' ? <span title={lim.line}>no wallet limit</span> : <span className="gold" title={lim.line}>limits need you</span>;
   return (
-    <Section title="Today">
+    <Section title="Today" end={end}>
       <div className="ui-group">
-        <div className="ui-row" title={sp.why ?? 'What your agents committed today'}>
-          <span className="lbl">Spent by agents</span><span className={`amt ${sp.exact ? '' : 'dim'}`}>{sp.text}</span>
-        </div>
-        <div className="ui-row" title={`${engine ? `${engine}: ` : ''}the agent app’s own estimate of its AI cost. Not a bill, never added to spending, never used for money decisions.`}>
-          <span className="lbl">AI usage <span className="dim">· estimate</span></span><span className="amt">~${att.engine_estimate_today_usd.toFixed(2)}</span>
-        </div>
+        {lim ? (
+          lim.meters.length ? lim.meters.map((m) => <LimitRow key={m.key} m={m} />) : (
+            <div className="ui-row" title={lim.mixed ? 'Money went out in more than one currency, so it is not added up.' : 'Your agents have not agreed to pay anything today.'}>
+              <span className="lbl">Paid out today</span><span className="amt dim">{lim.mixed ? 'mixed' : 'nothing'}</span>
+            </div>
+          )
+        ) : (
+          <div className="ui-row" title={sp.why ?? 'What your agents committed today'}>
+            <span className="lbl">Spent by agents</span><span className={`amt ${sp.exact ? '' : 'dim'}`}>{sp.text}</span>
+          </div>
+        )}
+        {meters ? (
+          <div className="ui-row" title={`${engine ? `${engine}: ` : ''}the agent app’s own estimate of its AI cost. Not a bill, never added to spending, never used for money decisions.`}>
+            <span className="lbl">AI usage <span className="dim">· estimate</span></span><span className="amt">~${att.engine_estimate_today_usd.toFixed(2)}</span>
+          </div>
+        ) : null}
       </div>
+      {lim && lim.status !== 'active' && lim.status !== 'none' ? <Hint className="lh">{lim.line}</Hint> : null}
     </Section>
+  );
+}
+
+/** One wallet-limit meter: the figure, the limit beside it, and a bar under them. */
+function LimitRow({ m }: { m: LimitMeter }) {
+  return (
+    <div className="ui-row lim-row" title={m.why}>
+      <span className="lbl">{m.label}</span>
+      <span className="amt">{m.value}{m.of ? <small className="dim"> {m.of}</small> : null}</span>
+      {m.fill !== null ? <Meter value={m.fill} tone={m.near ? 'gold' : undefined} label={`${m.label}: ${m.value} ${m.of ?? ''}`.trim()} /> : null}
+    </div>
   );
 }
 

@@ -12,6 +12,7 @@ import type { Mode } from '@bindings/Mode';
 import type { DealDisplay } from '../../lib/pending';
 import type { WalletError } from '../../lib/contract';
 import { clockLabel, formatMinor, shortId } from '../../lib/format';
+import { readLimits } from '../../lib/limits';
 import { timeLeftWords } from '../../lib/words';
 import { useQuery } from '../../lib/hooks';
 import { ModeBadge } from '../../shared/honesty';
@@ -337,6 +338,10 @@ export type StackProps = {
 export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<HTMLDivElement>) {
   const s = p.snapshot;
   const spend = s ? spendMeter(s) : null;
+  // Real meters from the wallet's exposure (T14), against the signed wallet limits.
+  const lim = s ? readLimits(s.exposure) : null;
+  const limHint = (of: string | null) => of ?? (lim?.status === 'expired' ? 'limits ran out' : lim?.status === 'unverified' ? 'limits not checked' : 'no wallet limit');
+  const deals = lim?.meters.find((m) => m.key === 'deals');
   const walk = s ? walkAway(s) : null;
   const [pop, setPop] = useState<{ el: HTMLElement; which: 'stopped' | 'motion' | 'walk' } | null>(null);
   const toggle = (which: 'stopped' | 'motion' | 'walk') => (el: HTMLElement) => setPop((x) => (x && x.which === which ? null : { el, which }));
@@ -397,8 +402,33 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
         <InfoBtn label="What is in motion" open={pop?.which === 'motion'} onToggle={toggle('motion')} />
         {p.paused ? <Chip tone="line">Paused</Chip> : null}
       </div>
-      <div className="s-meters">
-        {p.metersAvailable && s && spend ? (
+      <div className={`s-meters${lim ? ' lim' : ''}`}>
+        {lim && s ? (
+          <>
+            {lim.meters.length ? lim.meters.filter((m) => m.key !== 'deals').map((m) => (
+              <div key={m.key} className={`ui-stat${m.near ? ' near' : ''}`}
+                title={`${m.why}${m.key === 'out' && deals ? ` ${deals.label}: ${deals.value}${deals.of ? ` ${deals.of}` : ''}.` : ''} ${lim.line}`}>
+                <span className="k">{m.label}</span>
+                <span className="v">{m.value}</span>
+                {m.fill !== null ? <Meter value={m.fill} tone={m.near ? 'gold' : undefined} label={`${m.label} against ${m.of}`} /> : null}
+                <span className={`ui-hint${lim.status === 'expired' || lim.status === 'unverified' ? ' gold' : ''}`}>{limHint(m.of)}</span>
+              </div>
+            )) : (
+              <div className="ui-stat" title={lim.line}>
+                <span className="k">Paid out today</span>
+                <span className="v none">{lim.mixed ? 'mixed' : 'nothing'}</span>
+                <span className={`ui-hint${lim.status === 'expired' || lim.status === 'unverified' ? ' gold' : ''}`}>{lim.mixed ? 'more than one currency' : limHint(null)}</span>
+              </div>
+            )}
+            {p.metersAvailable ? (
+              <div className="ui-stat eng" title="What the AI likely cost. An estimate, never a bill, never PayPal money.">
+                <span className="k">AI usage</span>
+                <span className="v">≈ ${s.engine_estimate_today_usd.toFixed(2)}</span>
+                <span className="ui-hint">estimate</span>
+              </div>
+            ) : null}
+          </>
+        ) : p.metersAvailable && s && spend ? (
           <>
             <div className="ui-stat" title="Money your agents paid today. Shown only when every deal uses one currency; otherwise nothing is added up.">
               <span className="k">Spent today</span>
