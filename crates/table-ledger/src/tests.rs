@@ -1804,3 +1804,78 @@ fn c4_a_deal_agreed_on_the_previous_utc_day_does_not_count_today() {
         1
     );
 }
+
+// Council agent-gated-spend MA-1: a cleared purchase waits at AGREED for the owner.
+fn purchase_deal(ledger: &mut Ledger, base: &Deal, n: u32, kind: DealKind, side: Side) -> Deal {
+    let mut deal = base.clone();
+    deal.id = format!("{:026}", 40 + n).parse().unwrap();
+    deal.kind = kind;
+    deal.side = side;
+    ledger.create_deal(&deal, 100).unwrap();
+    deal
+}
+fn audit_rows(ledger: &Ledger, deal: &Deal) -> (i64, i64) {
+    let total = ledger
+        .conn
+        .query_row("SELECT COUNT(*) FROM audit_log", [], |r| r.get(0))
+        .unwrap();
+    let transitions = ledger
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM audit_log WHERE deal_id=?1 AND action='deal.transition'",
+            [deal.id.to_string()],
+            |r| r.get(0),
+        )
+        .unwrap();
+    (total, transitions)
+}
+#[test]
+fn purchase_proposal_clears_to_agreed_with_one_transition_row() {
+    let (mut ledger, base, ..) = setup();
+    let deal = purchase_deal(&mut ledger, &base, 1, DealKind::Purchase, Side::Buyer);
+    let before = audit_rows(&ledger, &deal);
+    ledger.propose_purchase(&deal, 150).unwrap();
+    assert_eq!(ledger.get_deal(deal.id).unwrap().state, DealState::Agreed);
+    let after = audit_rows(&ledger, &deal);
+    assert_eq!(after.1, before.1 + 1);
+    let detail: String = ledger
+        .conn
+        .query_row(
+            "SELECT detail_json FROM audit_log WHERE deal_id=?1 AND action='deal.transition'",
+            [deal.id.to_string()],
+            |r| r.get(0),
+        )
+        .unwrap();
+    let detail: serde_json::Value = serde_json::from_str(&detail).unwrap();
+    assert_eq!(detail["from"], "PAIRING");
+    assert_eq!(detail["to"], "AGREED");
+    ledger.verify_audit().unwrap();
+}
+#[test]
+fn purchase_proposal_conflicts_off_the_buyer_purchase_in_pairing() {
+    let (mut ledger, base, ..) = setup();
+    let haggle = purchase_deal(&mut ledger, &base, 1, DealKind::Haggle, Side::Buyer);
+    let seller = purchase_deal(&mut ledger, &base, 2, DealKind::Purchase, Side::Seller);
+    let cleared = purchase_deal(&mut ledger, &base, 3, DealKind::Purchase, Side::Buyer);
+    ledger.propose_purchase(&cleared, 150).unwrap();
+    for deal in [&haggle, &seller, &cleared] {
+        let state = ledger.get_deal(deal.id).unwrap().state;
+        let before = audit_rows(&ledger, deal);
+        assert!(matches!(
+            ledger.propose_purchase(deal, 160),
+            Err(LedgerError::Conflict)
+        ));
+        assert_eq!(ledger.get_deal(deal.id).unwrap().state, state);
+        assert_eq!(audit_rows(&ledger, deal), before);
+    }
+}
+#[test]
+fn a_cleared_purchase_counts_in_the_budget_of_a_later_deal() {
+    let (mut ledger, base, ..) = setup();
+    let purchase = purchase_deal(&mut ledger, &base, 1, DealKind::Purchase, Side::Buyer);
+    ledger.propose_purchase(&purchase, 150).unwrap();
+    let later = budget_deal(&mut ledger, &base, 2);
+    let usage = ledger.usage_for(&later, 200).unwrap();
+    assert_eq!(usage.deals_today, 1);
+    assert_eq!(usage.total_today.minor(), 32900);
+}

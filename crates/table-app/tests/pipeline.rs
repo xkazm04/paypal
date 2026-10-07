@@ -902,3 +902,115 @@ async fn policy_authority_is_refused_above_clause_6_before_any_paypal_call() {
     assert!(matches!(d.decided_by, Some(DecidedBy::Human { .. })));
     p.wallet.ledger.verify_audit().unwrap();
 }
+fn propose_one(wallet: &mut Wallet, deal: &Deal) -> Result<serde_json::Value, table_app::Error> {
+    wallet.invoke(
+        &AgentScope {
+            deal_id: deal.id,
+            role: AgentRole::Shopper,
+            category: Category::Parts,
+        },
+        AgentRequest::Purchase(PurchaseInput {
+            payee_ref: PayeeRef::new("merchant").unwrap(),
+            items: vec![PurchaseLine {
+                item_ref: deal.terms.item_ref.clone(),
+                qty: 1,
+            }],
+            amount: "12.00".into(),
+            category: Category::Parts,
+        }),
+        100,
+    )
+}
+#[test]
+fn a_cleared_purchase_waits_at_agreed_with_zero_paypal_rows() {
+    let (mut wallet, deal, _, _) = support::setup(Side::Buyer, DealKind::Purchase);
+    let result = propose_one(&mut wallet, &deal).unwrap();
+    assert_eq!(result["status"], "pending");
+    assert_eq!(
+        wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Agreed
+    );
+    assert_eq!(wallet.ledger.paypal_call_count(deal.id).unwrap(), 0);
+}
+#[tokio::test]
+async fn a_purchase_never_runs_on_policy_and_the_owner_path_captures_it() {
+    let (mut wallet, deal, _, _) = support::setup(Side::Buyer, DealKind::Purchase);
+    propose_one(&mut wallet, &deal).unwrap();
+    assert!(matches!(
+        wallet.check_mandate(deal.id, Category::Parts, 100).unwrap(),
+        MandateDecision::Allow
+    ));
+    let mock = Arc::new(MockApi::default());
+    let mut p = Pipeline::new(wallet, mock.clone(), 100).unwrap();
+    let token = p.approval.token("approval").unwrap().to_owned();
+    p.approval
+        .unlock("approval", &token, &TestReauth, 100)
+        .unwrap();
+    let hash = p
+        .wallet
+        .ledger
+        .get_deal(deal.id)
+        .unwrap()
+        .terms
+        .hash()
+        .unwrap();
+    let calls = |mock: &MockApi| mock.calls.lock().unwrap().len();
+    let ticket = |p: &mut Pipeline| {
+        p.approval
+            .ticket("approval", &token, deal.id, hash, 1, 100)
+            .unwrap()
+    };
+    // Policy is refused for create, authorize and capture alike, before anything is recorded.
+    for step in 0..3 {
+        let result = match step {
+            0 => p
+                .create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+                .await
+                .map(|_| ()),
+            1 => p
+                .authorize(deal.id, 1, Category::Parts, Authority::Policy, 100)
+                .await
+                .map(|_| ()),
+            _ => p
+                .capture(deal.id, 1, Category::Parts, Authority::Policy, 100)
+                .await
+                .map(|_| ()),
+        };
+        assert!(
+            matches!(result, Err(table_app::Error::Permission)),
+            "step {step}"
+        );
+    }
+    assert_eq!(calls(&mock), 0);
+    assert_eq!(p.wallet.ledger.paypal_call_count(deal.id).unwrap(), 0);
+    assert!(!p.wallet.ledger.has_countersign(deal.id, 1).unwrap());
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Agreed
+    );
+
+    let t = ticket(&mut p);
+    p.create(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+        .await
+        .unwrap();
+    mock.approved.store(true, Ordering::SeqCst);
+    assert!(p.poll_approval(deal.id, 1, 100).await.unwrap());
+    let t = ticket(&mut p);
+    p.authorize(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+        .await
+        .unwrap();
+    assert!(p.wallet.ledger.has_countersign(deal.id, 1).unwrap());
+    let before = calls(&mock);
+    let t = ticket(&mut p);
+    p.capture(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+        .await
+        .unwrap();
+    assert_eq!(calls(&mock), before + 1);
+    let d = p.wallet.ledger.get_deal(deal.id).unwrap();
+    assert!(matches!(
+        d.state,
+        DealState::Captured | DealState::Receipted
+    ));
+    assert!(matches!(d.decided_by, Some(DecidedBy::Human { .. })));
+    p.wallet.ledger.verify_audit().unwrap();
+}

@@ -260,6 +260,11 @@ impl Pipeline {
         attempt: u8,
         now: Timestamp,
     ) -> Result<DecidedBy, Error> {
+        // No PayPal step of a purchase runs on policy: only the owner's decision starts,
+        // authorizes or captures it, whatever the amount and whatever clause 6 allows.
+        if matches!(authority, Authority::Policy) && deal.kind == DealKind::Purchase {
+            return Err(Error::Permission);
+        }
         let decision = self.wallet.mandate_check(deal, category, now)?;
         match authority {
             Authority::HouseMandate

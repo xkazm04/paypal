@@ -745,6 +745,7 @@ impl Ledger {
         let original = read_deal(&tx, deal.id)?;
         if original.state != DealState::Pairing
             || original.kind != table_core::DealKind::Purchase
+            || original.side != table_core::Side::Buyer
             || original.terms.item_ref != deal.terms.item_ref
             || original.terms.unit_price != deal.terms.unit_price
         {
@@ -769,6 +770,8 @@ impl Ledger {
                 detail: json!({"amount":deal.terms.amount()?}),
             },
         )?;
+        // The mandate check already passed (agent.rs); a purchase has no counterparty to sign.
+        apply(&tx, deal.id, DealEvent::PurchaseCleared, at)?;
         tx.commit()?;
         Ok(())
     }

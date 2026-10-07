@@ -142,6 +142,10 @@ pub enum DealEvent {
     ListingVerified,
     OfferVerified,
     TwoAcceptsVerified,
+    /// A purchase has no counterparty wallet to sign two ACCEPTs, so it clears straight from
+    /// PAIRING to AGREED. Supplied only after the mandate check passed on the closed terms; the
+    /// ledger accepts it only for kind Purchase, side Buyer.
+    PurchaseCleared,
     BeginSettlement,
     SettleVerified,
     OrderApproved,
@@ -168,6 +172,7 @@ pub fn transition(state: DealState, event: DealEvent) -> Result<DealState, Domai
         (S::Pairing, E::ListingVerified) => S::Listed,
         (S::Listed | S::Negotiating, E::OfferVerified) => S::Negotiating,
         (S::Negotiating, E::TwoAcceptsVerified) => S::Agreed,
+        (S::Pairing, E::PurchaseCleared) => S::Agreed,
         (S::Agreed, E::BeginSettlement) => S::Settling,
         (S::Settling, E::SettleVerified) => S::AwaitingApproval,
         (S::AwaitingApproval, E::OrderApproved) => S::Approved,
@@ -408,6 +413,39 @@ mod tests {
             DealState::AutoVoided
         );
         assert!(transition(DealState::Authorized, DealEvent::Deadline).is_err());
+    }
+    #[test]
+    fn purchase_cleared_moves_only_pairing_to_agreed() {
+        assert_eq!(
+            transition(DealState::Pairing, DealEvent::PurchaseCleared).unwrap(),
+            DealState::Agreed
+        );
+        for state in [
+            DealState::Listed,
+            DealState::Negotiating,
+            DealState::Agreed,
+            DealState::Settling,
+            DealState::AwaitingApproval,
+            DealState::Approved,
+            DealState::Authorized,
+            DealState::Captured,
+            DealState::Receipted,
+            DealState::Reconciled,
+            DealState::Withdrawn,
+            DealState::Expired,
+            DealState::Refused,
+            DealState::Mismatch,
+            DealState::Failed,
+            DealState::Voided,
+            DealState::AutoVoided,
+            DealState::Refunded,
+            DealState::Disputed,
+        ] {
+            assert!(matches!(
+                transition(state, DealEvent::PurchaseCleared),
+                Err(DomainError::InvalidTransition { .. })
+            ));
+        }
     }
     #[test]
     fn terms_amount_hash_and_delivery_are_checked() {
