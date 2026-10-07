@@ -1,5 +1,7 @@
 use super::*;
 use table_relay::RelayApi;
+#[path = "resolve_tests.rs"]
+mod resolve_tests;
 
 #[test]
 fn house_repeat_confirmation_reuses_only_an_identical_release_pinned_peer() {
@@ -809,6 +811,9 @@ struct ScriptedPayPal {
     /// The operation that never answers, and the one that fails.
     hangs: &'static str,
     fails: &'static str,
+    /// The status a read-back of the authorization answers, when set (the offline HTTP mock
+    /// has no such route): CREATED is a hold no capture reached.
+    authorization: &'static str,
     entered: tokio::sync::Notify,
     hung: tokio::sync::Notify,
     resume: tokio::sync::Semaphore,
@@ -822,6 +827,7 @@ impl ScriptedPayPal {
             gated: false,
             hangs: "",
             fails: "",
+            authorization: "",
             entered: tokio::sync::Notify::new(),
             hung: tokio::sync::Notify::new(),
             resume: tokio::sync::Semaphore::new(0),
@@ -903,7 +909,29 @@ impl table_paypal::PayPalApi for ScriptedPayPal {
         id: &table_paypal::ResourceId,
     ) -> Result<table_paypal::ApiResponse<table_paypal::Payment>, table_paypal::Error> {
         self.call("get_authorization").await?;
-        self.inner.get_authorization(id).await
+        if self.authorization.is_empty() {
+            return self.inner.get_authorization(id).await;
+        }
+        let order = table_paypal::ResourceId::new("ORDER1")?;
+        let amount = self.inner.get_order(&order).await?.value.purchase_units[0]
+            .amount
+            .clone();
+        let value = table_paypal::Payment {
+            id: id.as_str().into(),
+            status: self.authorization.into(),
+            amount,
+        };
+        Ok(table_paypal::ApiResponse {
+            observations: vec![table_paypal::Observation {
+                method: "GET",
+                path: format!("/v2/payments/authorizations/{}", id.as_str()),
+                request_id: String::new(),
+                status: 200,
+                body: serde_json::to_value(&value).unwrap(),
+                binding: None,
+            }],
+            value,
+        })
     }
 }
 
@@ -915,13 +943,27 @@ async fn house_failed_step_writes_one_redacted_log_line() {
     api.fails = "create";
     let lines = Arc::new(Lines::default());
     let mut seller = house.open(Arc::new(api)).with_log(lines.clone());
+    // The create fails; its one re-send with the same request id fails too; then it is parked
+    // for the owner and the step stops failing.
+    let settle = || {
+        house
+            .clock
+            .0
+            .fetch_add(table_app::SETTLE_SECS, std::sync::atomic::Ordering::SeqCst)
+    };
     assert!(seller.tick().await.is_err());
+    settle();
+    assert!(seller.tick().await.is_err());
+    settle();
+    seller.tick().await.unwrap();
     seller.tick().await.unwrap();
     assert_eq!(
         lines.all(),
-        vec![format!(
-            "house step=advance deal={id} error=app.unavailable"
-        )]
+        vec![
+            format!("house step=advance deal={id} error=app.unavailable"),
+            format!("house pending deal={id} operation=create attempt=1 outcome=unknown"),
+            format!("house pending deal={id} operation=create attempt=1 outcome=needs_owner"),
+        ]
     );
     // The PayPal answer and every HOUSE secret stay out of the log.
     let text = lines.all().join("\n");
@@ -1037,47 +1079,127 @@ async fn house_restart_mid_capture_reserves_no_second_request_id_and_reports_it(
     let before = captures(&house.http.0.lock().unwrap().paths);
     assert_eq!(before, 0, "the hung capture never reached the mock");
 
+    // The restarted HOUSE reads the hold back: CREATED, so the capture never reached PayPal.
     let lines = Arc::new(Lines::default());
-    let mut seller = house.open(Arc::new(house.api())).with_log(lines.clone());
+    let mut api = house.api();
+    api.authorization = "CREATED";
+    let mut seller = house.open(Arc::new(api)).with_log(lines.clone());
     assert_eq!(
         seller.pending_operations().unwrap(),
         vec![house_seller::PendingOperation {
             deal: id,
             operation: "capture",
-            attempt: 1
+            attempt: 1,
+            needs_owner: false,
         }]
     );
     assert_eq!(seller.report_pending().unwrap(), 1);
     for _ in 0..3 {
-        assert!(seller.tick().await.is_err());
+        seller.tick().await.unwrap();
     }
-    // One line for the pending capture, and one (not three) for the step that keeps refusing.
+    // One line for the pending capture; it resolved on the first tick and is not logged again.
     assert_eq!(
         lines.all(),
-        vec![
-            format!("house pending deal={id} operation=capture attempt=1 outcome=unknown"),
-            format!("house step=advance deal={id} error=ledger.sql"),
-        ]
+        vec![format!(
+            "house pending deal={id} operation=capture attempt=1 outcome=unknown"
+        )]
     );
-    // No second request id: one reservation, nothing sent again, the deal still on hold.
+    assert!(seller.pending_operations().unwrap().is_empty());
+    // No second request id: one reservation, re-sent once under that same id, one capture.
     let reserved = audit_rows(&seller, id, "money.authorized");
     let capture: Vec<_> = reserved
         .iter()
         .filter(|d| d["operation"] == "capture")
         .collect();
+    let request = table_paypal::RequestId::for_operation(id, 1, "capture").unwrap();
     assert_eq!(capture.len(), 1);
+    assert_eq!(capture[0]["request_id"], request.as_str());
+    assert_eq!(captures(&house.http.0.lock().unwrap().paths), 1);
+    let resolved: Vec<_> = audit_rows(&seller, id, "money.resolved")
+        .into_iter()
+        .map(|d| (d["request_id"].clone(), d["outcome"].clone()))
+        .collect();
+    // Newest first: re-sent once, then confirmed.
     assert_eq!(
-        capture[0]["request_id"],
-        table_paypal::RequestId::for_operation(id, 1, "capture")
-            .unwrap()
-            .as_str()
+        resolved,
+        vec![
+            (request.as_str().into(), "confirmed".into()),
+            (request.as_str().into(), "resent".into()),
+        ]
     );
-    assert_eq!(captures(&house.http.0.lock().unwrap().paths), 0);
+    let deal = seller.pipeline.wallet.ledger.get_deal(id).unwrap();
+    assert_eq!(deal.state, DealState::Receipted);
+    assert!(matches!(
+        deal.decided_by,
+        Some(DecidedBy::HouseMandate { .. })
+    ));
+    seller.pipeline.wallet.ledger.verify_audit().unwrap();
+}
+
+/// A HOUSE that cannot reach PayPal's truth keeps saying so: the unresolved operation is logged
+/// again every ten minutes, never more often, and nothing is sent meanwhile.
+#[tokio::test]
+async fn house_keeps_reporting_an_unresolved_operation_every_ten_minutes() {
+    let house = FileHouse::new(1);
+    let id = house.deals[0];
+    let mut api = house.api();
+    api.hangs = "capture";
+    let api = Arc::new(api);
+    let mut seller = house.open(api.clone());
+    let ticking = async {
+        for _ in 0..10 {
+            let _ = seller.tick().await;
+        }
+    };
+    tokio::select! {
+        () = ticking => panic!("capture never started"),
+        () = api.hung.notified() => {}
+    }
+    drop(seller);
+
+    let lines = Arc::new(Lines::default());
+    let mut api = house.api();
+    api.fails = "get_authorization";
+    let mut seller = house.open(Arc::new(api)).with_log(lines.clone());
+    let pending = format!("house pending deal={id} operation=capture attempt=1 outcome=unknown");
+    let tick = std::sync::atomic::Ordering::SeqCst;
+    for _ in 0..5 {
+        assert!(seller.tick().await.is_err());
+        house.clock.0.fetch_add(60, tick);
+    }
+    assert_eq!(
+        lines.all(),
+        vec![
+            format!("house step=advance deal={id} error=app.unavailable"),
+            pending.clone(),
+        ]
+    );
+    house
+        .clock
+        .0
+        .fetch_add(house_seller::PENDING_REPORT_SECS, tick);
+    assert!(seller.tick().await.is_err());
+    assert_eq!(lines.all().iter().filter(|l| **l == pending).count(), 2);
+    // Only read-backs were tried: no capture was sent again and nothing was given up.
+    assert_eq!(
+        house
+            .http
+            .0
+            .lock()
+            .unwrap()
+            .paths
+            .iter()
+            .filter(|p| p.ends_with("/capture"))
+            .count(),
+        0
+    );
     assert_eq!(
         seller.pipeline.wallet.ledger.get_deal(id).unwrap().state,
         DealState::Authorized
     );
-    seller.pipeline.wallet.ledger.verify_audit().unwrap();
+    let resolved = audit_rows(&seller, id, "money.resolved");
+    assert_eq!(resolved.len(), 1);
+    assert_eq!(resolved[0]["outcome"], "deferred");
 }
 
 #[tokio::test]
