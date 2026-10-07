@@ -15,11 +15,12 @@ import { Countdown, MockBadge, ModeBadge, WalletNotice } from '../../shared/hone
 import { MODULE, MODULES } from '../../shared/modules';
 import { Btn, Chip, Explainer, Group, Hint, Kv, Popover, Section, Silence, Spacer, ThemeSwitch, TitleBar, type ExplainerStep } from '../../shared/ui';
 import { Dial, LegendBead, type Bead } from './Dial';
-import { chipTone, dealCount, LEDGER_TITLE, ledgerDeals, ledgerLine, moneyList, silenceParts, timeLeft, weekLabel, type LedgerKind } from './home/model';
+import { chipTone, dealCount, LEDGER_TITLE, ledgerDeals, ledgerLine, moneyList, shortTitle, silenceParts, timeLeft, weekLabel, type LedgerKind } from './home/model';
 import {
-  beadKind, beadSummary, chipClass, dealTotal, isLive, ledgerScope, moduleIndex, moneyNow, reviewVerb, spendToday, splitHeadline, stateLabel, summarize, sumByCurrency,
+  beadKind, beadSummary, chipClass, dealTotal, historyAt, isLive, ledgerScope, moduleIndex, moneyNow, reviewVerb, spendToday, splitHeadline, stateLabel, summarize, sumByCurrency,
   weekBounds, type LedgerScope, type LedgerSummary,
 } from './logic';
+import { RewindBar, RewindHub, useRewind } from './Rewind';
 import { StatusChips } from './Status';
 import { LockGlyph, mc } from './ui';
 import { useWorld } from './world';
@@ -51,6 +52,8 @@ export function Home(p: Props) {
   const [intro, setIntro] = useState<'wait' | 'run' | 'done'>(p.skipIntro ? 'done' : 'wait');
   const [zoom, setZoom] = useState(false);
   const [flash, setFlash] = useState(0);
+  // Rewind: the week replayed under the dial (R toggles, Esc or "Back to now" returns to live).
+  const [rewind, setRewind] = useState(false);
   const onDial = useRef(false);
   const timers = useRef<{ idle?: ReturnType<typeof setTimeout>; ret?: ReturnType<typeof setTimeout> }>({});
   const zooming = useRef(false);
@@ -78,6 +81,7 @@ export function Home(p: Props) {
   const zoomInto = useCallback((i: number) => {
     if (zooming.current || i < 0) return;
     zooming.current = true;
+    setRewind(false);
     clearTimeout(timers.current.idle); clearTimeout(timers.current.ret);
     selectModule(i);
     const key = MODULES[i]?.key;
@@ -111,7 +115,7 @@ export function Home(p: Props) {
         if (!e.ctrlKey && !e.metaKey && e.key !== 'Tab') { e.preventDefault(); finishIntro(); }
         return;
       }
-      if (e.ctrlKey || e.metaKey || e.altKey || zooming.current) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || zooming.current || e.defaultPrevented) return;
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
       if (settings?.first_run) return;
@@ -119,7 +123,8 @@ export function Home(p: Props) {
       else if (e.key === 'ArrowLeft') { e.preventDefault(); turn(-1); }
       else if (e.key === 'ArrowDown') { e.preventDefault(); cycleNeed(1); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); cycleNeed(-1); }
-      else if (e.key === 'Escape') { if (mode === 'module') { e.preventDefault(); pointNeeds(); } }
+      else if (e.key === 'Escape') { if (rewind) { e.preventDefault(); setRewind(false); } else if (mode === 'module') { e.preventDefault(); pointNeeds(); } }
+      else if (e.key === 'r' || e.key === 'R') { e.preventDefault(); setRewind((x) => !x); }
       else if (e.key === 'Enter') {
         if (t && t !== document.body && (t.tagName === 'BUTTON' || t.getAttribute('role') === 'button')) return; // the focused control acts
         e.preventDefault(); zoomInto(focus);
@@ -158,8 +163,31 @@ export function Home(p: Props) {
   const scope = useMemo(() => ledgerScope(deals, weekStart), [deals, weekStart]);
   const summary = useMemo(() => summarize(scope.deals, new Set(needs.map((n) => n.deal_id))), [scope, needs]);
 
+  // Rewind: beads stand where their deals stood at the playhead; deals not begun yet are absent.
+  const rw = useRewind(rewind, now, reduced);
+  const labelOf = useMemo(() => {
+    const by = new Map(deals.map((d) => [d.id, d]));
+    return (id: string) => {
+      const d = by.get(id);
+      if (!d) return null;
+      const disp = w.display(d);
+      return { deal: d, label: disp.label, title: shortTitle(disp.title) };
+    };
+  }, [deals, w]);
+  const pastBeads = useMemo<Bead[]>(() => {
+    if (!rewind) return [];
+    const at = historyAt(rw.steps, rw.t);
+    return beads.flatMap((b) => {
+      const p = at.get(b.id);
+      const d = deals.find((x) => x.id === b.id);
+      if (!p || !d) return [];
+      const then = { ...d, state: p.state, shield: p.paused ? 'HOLD' as const : null };
+      return [{ ...b, kind: beadKind(then), needs: false, tip: { ...b.tip, state: stateLabel(p.state, d), tone: chipTone(chipClass(then)), money: moneyNow(then), need: null } }];
+    });
+  }, [rewind, rw.steps, rw.t, beads, deals]);
+
   const firstRun = !!settings?.first_run;
-  const cls = ['home', intro !== 'done' ? 'intro' : '', zoom ? 'zoom' : '', p.active ? '' : 'away', firstRun ? 'first-run' : ''].join(' ');
+  const cls = ['home', intro !== 'done' ? 'intro' : '', zoom ? 'zoom' : '', p.active ? '' : 'away', firstRun ? 'first-run' : '', rewind && !firstRun ? 'rewind' : ''].join(' ');
 
   return (
     <div className={cls} onClick={() => { if (intro === 'run') finishIntro(); }} aria-hidden={!p.active}>
@@ -182,8 +210,8 @@ export function Home(p: Props) {
           <Explainer id="home" title="How The Table works" steps={HOME_STEPS} className="home-ex" />
           {firstRun ? <FirstRunSide /> : <Ledger s={summary} scope={scope} onDeal={p.onOpenDeal} onBook={() => zoomInto(moduleIndex('book'))} />}
         </section>
-        <Dial beads={firstRun ? [] : beads} badges={firstRun ? [0, 0, 0, 0, 0, 0] : badges} focus={focus} mode={mode} intro={intro} reduced={reduced}
-          glow={!firstRun && needs.length > 0} flash={flash}
+        <Dial beads={firstRun ? [] : rewind ? pastBeads : beads} badges={firstRun || rewind ? [0, 0, 0, 0, 0, 0] : badges} focus={focus} mode={mode} intro={intro} reduced={reduced}
+          glow={!firstRun && !rewind && needs.length > 0} flash={flash}
           onIntroDone={finishIntro} onSkipIntro={finishIntro}
           onHover={(i) => { if (!firstRun) selectModule(i); }}
           onOpen={(i) => { if (!firstRun) zoomInto(i); }}
@@ -194,9 +222,12 @@ export function Home(p: Props) {
             clearTimeout(timers.current.idle);
             if (!inside) timers.current.idle = setTimeout(() => { if (p.active && !zooming.current) pointNeeds(); }, 1500);
           }}>
-          <Hub mode={mode} sel={sel} item={top} index={safeNeedIdx} count={needs.length} summary={summary} week={scope.scope === 'week'}
-            onOpen={zoomInto} onBack={pointNeeds} onPage={cycleNeed} onDeal={p.onOpenDeal} />
+          {rewind && !firstRun ? <RewindHub r={rw} labelOf={labelOf} onOpenDeal={p.onOpenDeal} /> : (
+            <Hub mode={mode} sel={sel} item={top} index={safeNeedIdx} count={needs.length} summary={summary} week={scope.scope === 'week'}
+              onOpen={zoomInto} onBack={pointNeeds} onPage={cycleNeed} onDeal={p.onOpenDeal} />
+          )}
         </Dial>
+        {rewind && !firstRun ? <RewindBar r={rw} labelOf={labelOf} onOpenDeal={p.onOpenDeal} onExit={() => setRewind(false)} /> : null}
         <section className="col r needs" aria-label="Needs you">
           {firstRun ? null : <NeedsList needs={needs} on={mode === 'needs' ? safeNeedIdx : -1}
             onPoint={(i) => { if (intro === 'done') { setNeedIdx(i); setMode('needs'); } }} onOpen={p.onOpenDeal} />}
@@ -205,7 +236,16 @@ export function Home(p: Props) {
       <footer className="foot">
         <StatusChips onSettings={() => p.onOpenSheet('settings')} />
         <span className="hint" title="Turn the dial with ← → or the mouse wheel · Enter opens · 1–6 jump · Ctrl K finds">Press <span className="kbd">?</span> for shortcuts</span>
-        <span className="r"><TumblerPill status={p.tumbler} /><Clock /></span>
+        <span className="r">
+          {firstRun ? null : (
+            <button type="button" className={`hs-chip rw-toggle ${rewind ? 'on' : ''}`} aria-pressed={rewind} onClick={() => setRewind((x) => !x)}
+              title={rewind ? 'Back to the dial as it is now (R or Esc)' : 'Replay the week: who decided each payment (R)'}>
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 8a4.8 4.8 0 1 0 1.5-3.5M3 2.5v2.6h2.6M8 5.2V8l2 1.3" /></svg>
+              {rewind ? 'Back to now' : 'Rewind'}
+            </button>
+          )}
+          <TumblerPill status={p.tumbler} /><Clock />
+        </span>
       </footer>
     </div>
   );

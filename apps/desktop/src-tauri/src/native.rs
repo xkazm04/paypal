@@ -180,7 +180,8 @@ pub fn run() -> Result<(), tauri::Error> {
             approval_handoff,
             audit_page,
             owner_facts,
-            book_query
+            book_query,
+            deal_history
         ])
         .setup(|app| {
             let data = app.path().app_data_dir()?;

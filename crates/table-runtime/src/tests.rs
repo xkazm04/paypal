@@ -7,6 +7,8 @@ mod client_tests;
 mod forecast_tests;
 #[path = "h5_tests.rs"]
 mod h5_tests;
+#[path = "history_tests.rs"]
+mod history_tests;
 #[path = "policy_tests.rs"]
 pub(crate) mod policy_tests;
 #[path = "quit_tests.rs"]

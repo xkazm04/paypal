@@ -240,6 +240,76 @@ impl Ledger {
         })
         .transpose()
     }
+    /// Deal-scoped rows for the history projection, oldest first: one deal or every deal, within
+    /// `[from, to)` when given, at most the newest `limit` of them. The whole chain is verified
+    /// before any row is returned; a broken chain is an error, never a partial list. Returns the
+    /// rows and whether older matching rows were left out.
+    pub fn history_rows(
+        &self,
+        deal: Option<DealId>,
+        from: Option<Timestamp>,
+        to: Option<Timestamp>,
+        limit: u32,
+    ) -> Result<(Vec<AuditRecord>, bool), LedgerError> {
+        verify(&self.conn)?;
+        let mut statement = self.conn.prepare(
+            "SELECT seq,at,actor,action,deal_id,detail_json FROM audit_log WHERE deal_id IS NOT NULL AND (?1 IS NULL OR deal_id=?1) AND CAST(at AS INTEGER)>=?2 AND CAST(at AS INTEGER)<?3 ORDER BY seq DESC LIMIT ?4",
+        )?;
+        let mut rows = statement
+            .query_map(
+                params![
+                    deal.map(|d| d.to_string()),
+                    from.unwrap_or(i64::MIN),
+                    to.unwrap_or(i64::MAX),
+                    i64::from(limit) + 1
+                ],
+                |r| {
+                    Ok((
+                        r.get::<_, i64>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, String>(2)?,
+                        r.get::<_, String>(3)?,
+                        r.get::<_, Option<String>>(4)?,
+                        r.get::<_, String>(5)?,
+                    ))
+                },
+            )?
+            .map(|row| {
+                let (seq, at, actor, action, deal_id, detail) = row?;
+                Ok(AuditRecord {
+                    seq: u64::try_from(seq)
+                        .map_err(|_| LedgerError::Integrity("audit sequence"))?,
+                    at: at
+                        .parse()
+                        .map_err(|_| LedgerError::Integrity("audit timestamp"))?,
+                    actor,
+                    action,
+                    deal_id: deal_id
+                        .map(|s| s.parse())
+                        .transpose()
+                        .map_err(|_| LedgerError::Integrity("audit deal ID"))?,
+                    detail: serde_json::from_str(&detail)?,
+                })
+            })
+            .collect::<Result<Vec<_>, LedgerError>>()?;
+        let more = rows.len() > usize::try_from(limit).unwrap_or(usize::MAX);
+        rows.truncate(usize::try_from(limit).unwrap_or(usize::MAX));
+        rows.reverse();
+        Ok((rows, more))
+    }
+    /// The HTTP statuses of the PayPal calls a deal recorded at `at` (0 = no response).
+    pub fn paypal_statuses_at(&self, id: DealId, at: Timestamp) -> Result<Vec<u16>, LedgerError> {
+        let mut statement = self
+            .conn
+            .prepare("SELECT status FROM paypal_calls WHERE deal_id=?1 AND at=?2 ORDER BY id")?;
+        let statuses = statement
+            .query_map(params![id.to_string(), at.to_string()], |r| {
+                r.get::<_, Option<i64>>(0)
+            })?
+            .map(|s| Ok(s?.and_then(|s| u16::try_from(s).ok()).unwrap_or(0)))
+            .collect::<Result<Vec<_>, LedgerError>>()?;
+        Ok(statuses)
+    }
     pub fn append_audit(&mut self, entry: &AuditEntry) -> Result<H256, LedgerError> {
         let tx = self
             .conn

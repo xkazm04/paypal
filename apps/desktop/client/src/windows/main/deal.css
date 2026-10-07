@@ -162,3 +162,22 @@
   .dv-proof { grid-template-columns: minmax(0, 1fr); }
   .dv-tab { padding: 8px 10px; }
 }
+
+/* who decided: the deal's decisions from the record, one line each (deal/WhoDecided.tsx) */
+.dv-who-decided { max-width: 780px; margin-top: var(--sp-5); }
+.dv-who-decided header { display: flex; align-items: baseline; gap: var(--sp-3); padding: 0 var(--sp-2) var(--sp-2); }
+.dv-who-decided h3 { margin: 0; font: var(--fw-semibold) var(--fs-body) var(--font); color: var(--muted); }
+.dv-who-decided header .dim { font-size: var(--fs-small); }
+.dv-who-decided ol { list-style: none; margin: 0; padding: var(--sp-1) 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); }
+.dv-who-decided li { display: grid; grid-template-columns: 14px 78px minmax(0, 1fr) auto; align-items: center; gap: var(--sp-3); padding: 6px var(--sp-3); }
+.dv-who-decided li + li { border-top: 1px solid var(--line); }
+.dv-who-decided li > .rw-mark { justify-self: center; }
+.dv-who-decided .dv-wd-dot { justify-self: center; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--dim); }
+.dv-who-decided time { font: var(--fs-small) var(--num); font-variant-numeric: tabular-nums; color: var(--dim); white-space: nowrap; }
+.dv-who-decided .say { min-width: 0; }
+.dv-who-decided .by { font-size: var(--fs-small); color: var(--dim); white-space: nowrap; }
+.dv-who-decided li.t-owner .by { color: var(--gold-l); }
+.dv-who-decided li.t-rule .by { color: var(--teal-l); }
+.dv-who-decided li.t-buyer .by { color: var(--ok); }
+.dv-who-decided li.t-refused .by { color: var(--red-l); }
+.dv-who-decided .dv-wd-none { margin: 0; padding: var(--sp-3); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); color: var(--dim); }

@@ -19,6 +19,7 @@ import type { SettingsSnapshot } from '@bindings/SettingsSnapshot';
 import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import type { AuditRow } from '@bindings/AuditRow';
 import type { CounterpartyNote } from '@bindings/CounterpartyNote';
+import type { HistoryStep } from '@bindings/HistoryStep';
 import type { CounterpartyDisplay, DealDisplay, TranscriptStep } from '../lib/pending';
 
 export const USD: Currency = 'USD';
@@ -71,6 +72,8 @@ export type MockState = {
   notes?: Record<string, CounterpartyNote>;
   /** The audit chain as audit_page projects it (oldest first here; the read pages newest first). */
   audit?: AuditRow[];
+  /** Maya's week as deal_history projects it (oldest first): who decided each step. */
+  history?: HistoryStep[];
   /** owner_facts inputs that settings do not carry. */
   credentialsStoredAt?: { paypal_sandbox: number | null; channel3: number | null };
   lastReportingPoll?: { at: number; status: number } | null;
@@ -223,6 +226,8 @@ export function buildMockState(now: number): MockState {
   add({ label: 'D-0186', title: 'Packing foam + boxes (20)', kind: 'purchase', side: 'buyer', cp: KEY.packrite, item: 'packing', price: 45, state: 'CAPTURED', reconciliation: 'pending_reporting', receipt: 'PAYPAL_VERIFIED', paypal: { order: '1QE097D', authorization: '4YB2', capture: '6CC1' }, decided: POLICY6 });
   add({ label: 'D-0183', title: 'DP + HDMI cable set (10)', kind: 'purchase', side: 'buyer', cp: KEY.cablehaus, item: 'cables', price: 38, state: 'CAPTURED', reconciliation: 'matched', receipt: 'PAYPAL_VERIFIED', paypal: { order: '7JR510P', authorization: '2KD8', capture: '9PL3' }, decided: POLICY6 });
   add({ label: 'D-0180', title: 'Thermal pads (duplicate order)', kind: 'purchase', side: 'buyer', cp: KEY.cablehaus, item: 'pads', price: 42, state: 'VOIDED', paypal: { order: '4ZT109Q', authorization: '5GV6' }, decided: { type: 'human', at: now - 6 * H } });
+  // Left on hold past its 72 h: the safe default released it (the Rewind's grey tick).
+  add({ label: 'D-0181', title: 'Spare 65 W power supply', kind: 'purchase', side: 'buyer', cp: KEY.partsco, item: 'psu-65w', price: 29, state: 'AUTO_VOIDED', paypal: { order: '2HV751M', authorization: '8QX3' }, decided: { type: 'safe_default', deadline: now - 2 * 86400 } });
 
   // --- Counter (shop) ----------------------------------------------------------------------
   add({ label: 'Q-0207', title: 'Single monitor arm', kind: 'shop_order', side: 'seller', cp: KEY.lark, item: 'monitor-arm', price: 61, state: 'LISTED', market: [55, 63, 71], deadline: now + 10 * 60, mandate: MANDATE_S2, silence: 'the quote expires in 10 min · no order is created, no money moves' });
@@ -350,6 +355,7 @@ export function buildMockState(now: number): MockState {
   return {
     notes,
     audit,
+    history: buildHistory(now),
     credentialsStoredAt: { paypal_sandbox: now - 12 * 86400, channel3: null },
     lastReportingPoll: { at: now - 40 * 60, status: 200 },
     enginesProbedAt: now - 300,
@@ -383,4 +389,134 @@ export function buildMockState(now: number): MockState {
     walletSpendTodayMinor: 34700,
     engineEstimateTodayUsd: 0.42,
   };
+}
+
+// ---- Maya's week as deal_history projects it ----------------------------------------------------
+// Closed steps only, as Rust returns them: what happened, the state after it, who decided it and
+// whether PayPal was asked. The money steps follow the fixtures above: the 40 × GPU request refused
+// by the per-deal limit with no PayPal call (D-0192), the dock order created and put on hold under
+// the "ask me above" rule (D-0190), a shop sale collected under the shop rules after the buyer
+// approved (D-0185), the owner releasing a duplicate hold (D-0180) and a hold the safe default
+// released after 72 h (D-0181).
+
+type Auth = HistoryStep['authority'];
+const RULE6: Auth = { type: 'signed_rule', clause: 6 };
+const OWNER: Auth = { type: 'owner' };
+const SHOP: Auth = { type: 'seller_mandate' };
+const DEFAULT: Auth = { type: 'safe_default' };
+const AGENT: Auth = { type: 'agent_intent' };
+const NOBODY: Auth = { type: 'none' };
+const call = (method: Extract<HistoryStep['paypal'], { type: 'call' }>['method']): HistoryStep['paypal'] => ({ type: 'call', method, outcome: 'ok' });
+const NO_CALL: HistoryStep['paypal'] = { type: 'none' };
+
+/** Local Monday 00:00 of the week around `now` (Unix seconds). */
+function mondayOf(now: number): number {
+  const d = new Date(now * 1000);
+  return Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7)).getTime() / 1000);
+}
+
+export function buildHistory(now: number): HistoryStep[] {
+  // Day-of-week steps (Mon = 0) are laid on this week up to six hours ago; early in a week they
+  // would crowd into a few hours, so they go on last week instead. "Ago" steps stay near now.
+  const DAY = 86400;
+  const monday = mondayOf(now);
+  type Raw = { deal: string; at: { day: number; hm: string } | { ago: number }; kind: HistoryStep['kind']; to?: HistoryStep['state_after']; by?: Auth; pp?: HistoryStep['paypal'] };
+  const raw: Raw[] = [];
+  const on = (deal: string, day: number, hm: string, kind: HistoryStep['kind'], to: HistoryStep['state_after'] = null, by: Auth = NOBODY, pp: HistoryStep['paypal'] = NO_CALL) =>
+    raw.push({ deal, at: { day, hm }, kind, to, by, pp });
+  const ago = (deal: string, secs: number, kind: HistoryStep['kind'], to: HistoryStep['state_after'] = null, by: Auth = NOBODY, pp: HistoryStep['paypal'] = NO_CALL) =>
+    raw.push({ deal, at: { ago: secs }, kind, to, by, pp });
+  /** A purchase the agent proposed and your rule approved: order, buyer approval, hold. */
+  const purchase = (deal: string, day: number, h: number, m: number) => {
+    const t = (dm: number) => `${String(h + Math.floor((m + dm) / 60)).padStart(2, '0')}:${String((m + dm) % 60).padStart(2, '0')}`;
+    on(deal, day, t(0), 'created');
+    on(deal, day, t(1), 'proposed', 'AGREED', AGENT);
+    on(deal, day, t(1), 'countersigned', null, RULE6);
+    on(deal, day, t(1), 'order_created', 'AWAITING_APPROVAL', RULE6, call('create_order'));
+    on(deal, day, t(7), 'approved_by_buyer', 'APPROVED', NOBODY, call('read_order'));
+    on(deal, day, t(8), 'authorized', 'AUTHORIZED', RULE6, call('authorize'));
+  };
+
+  const D = (label: string) => fakeUlid(label);
+  // Monday: cables paid on your rule; the dock order put on hold; a spare power supply held.
+  purchase(D('D-0183'), 0, 9, 5);
+  on(D('D-0183'), 0, '09:14', 'captured', 'CAPTURED', RULE6, call('capture'));
+  purchase(D('D-0190'), 0, 10, 12);
+  purchase(D('D-0181'), 0, 11, 40);
+  on(D('D-0187'), 0, '15:00', 'created');
+  on(D('D-0187'), 0, '15:02', 'offer_sent', 'NEGOTIATING', AGENT);
+  on(D('D-0187'), 0, '15:20', 'offer_received');
+  on(D('D-0176'), 0, '16:00', 'created');
+  on(D('D-0176'), 0, '16:04', 'offer_sent', 'NEGOTIATING', AGENT);
+  // Tuesday: the 40 × GPU request is refused by the per-deal limit; PayPal is never asked.
+  on(D('D-0187'), 1, '09:40', 'agreed', 'AGREED', RULE6);
+  on(D('D-0187'), 1, '09:52', 'pay_link_received', 'AWAITING_APPROVAL');
+  on(D('D-0192'), 1, '13:58', 'created');
+  on(D('D-0192'), 1, '14:02', 'refused', 'REFUSED', { type: 'signed_rule', clause: 3 });
+  on(D('D-0187'), 1, '15:30', 'receipted', 'RECEIPTED');
+  on(D('D-0176'), 1, '16:10', 'withdraw_sent', 'WITHDRAWN', AGENT);
+  // Wednesday: a shop sale the buyer approved is collected under your shop rules, no click.
+  on(D('D-0185'), 2, '09:30', 'created');
+  on(D('D-0185'), 2, '09:34', 'offer_received', 'NEGOTIATING');
+  on(D('D-0185'), 2, '09:35', 'agreed', 'AGREED');
+  on(D('D-0185'), 2, '09:35', 'countersigned', null, RULE6);
+  on(D('D-0185'), 2, '09:35', 'order_created', 'AWAITING_APPROVAL', RULE6, call('create_order'));
+  on(D('D-0185'), 2, '09:36', 'pay_link_sent', null, AGENT);
+  on(D('D-0185'), 2, '11:05', 'approved_by_buyer', 'APPROVED', NOBODY, call('read_order'));
+  on(D('D-0185'), 2, '11:05', 'authorized', 'AUTHORIZED', SHOP, call('authorize'));
+  on(D('D-0185'), 2, '11:06', 'captured', 'CAPTURED', SHOP, call('capture'));
+  purchase(D('D-0180'), 2, 15, 10);
+  // Thursday: the power supply's hold runs out at 72 h and releases itself; you release the
+  // duplicate thermal-pads hold yourself; packing supplies are paid on your rule.
+  on(D('D-0181'), 3, '11:53', 'auto_voided', 'AUTO_VOIDED', DEFAULT, call('void'));
+  on(D('D-0180'), 3, '16:40', 'voided', 'VOIDED', OWNER, call('void'));
+  purchase(D('D-0186'), 3, 10, 2);
+  on(D('D-0186'), 3, '10:11', 'captured', 'CAPTURED', RULE6, call('capture'));
+  // Renewals: a failed one waiting for a fix, an invoice sent, and one the subscriber paid.
+  on(D('D-0178'), 0, '13:00', 'failed', 'FAILED');
+  on(D('D-0178'), 0, '13:20', 'countersigned', null, OWNER);
+  on(D('D-0178'), 0, '13:21', 'pay_link_sent', 'AWAITING_APPROVAL');
+  on(D('D-0178'), 1, '10:02', 'captured', 'CAPTURED');
+  on(D('D-0188'), 1, '08:00', 'failed', 'FAILED');
+  on(D('D-0182'), 2, '08:30', 'failed', 'FAILED');
+  on(D('D-0182'), 2, '08:45', 'countersigned', null, OWNER);
+  on(D('D-0182'), 2, '08:46', 'pay_link_sent', 'AWAITING_APPROVAL');
+  // Recent: what is still in play.
+  ago(D('Q-0207'), 50 * 60, 'created');
+  ago(D('Q-0207'), 50 * 60 - 30, 'offer_sent', 'LISTED', AGENT);
+  ago(D('D-0201'), 30 * 60, 'created');
+  ago(D('D-0196'), 20 * 3600, 'created');
+  ago(D('D-0196'), 20 * 3600 - 60, 'shield_held');
+  ago(D('D-0196'), 20 * 3600 - 70, 'refused', 'REFUSED');
+  ago(D('D-0199'), 5 * 3600, 'created');
+  ago(D('D-0199'), 5 * 3600 - 300, 'offer_sent', 'NEGOTIATING', AGENT);
+  ago(D('D-0199'), 5 * 3600 - 600, 'offer_received');
+  ago(D('D-0199'), 5 * 3600 - 900, 'owner_accepted', 'AGREED', OWNER);
+  ago(D('D-0199'), 4 * 3600, 'mismatch', 'MISMATCH');
+  ago(D('D-0189'), 3 * 3600 + 900, 'created');
+  ago(D('D-0189'), 3 * 3600 + 600, 'offer_received', 'NEGOTIATING');
+  ago(D('D-0189'), 3 * 3600 + 300, 'agreed', 'AGREED');
+  ago(D('D-0189'), 3 * 3600 + 300, 'countersigned', null, RULE6);
+  ago(D('D-0189'), 3 * 3600 + 300, 'order_created', 'AWAITING_APPROVAL', RULE6, call('create_order'));
+  ago(D('D-0189'), 3 * 3600 + 240, 'pay_link_sent', null, AGENT);
+  ago(D('D-0198'), 2 * 3600, 'created');
+  ago(D('D-0198'), 2 * 3600 - 60, 'proposed', 'AGREED', AGENT);
+  ago(D('D-0198'), 2 * 3600 - 70, 'shield_held');
+  ago(D('D-0193'), 41 * 60, 'created');
+  ago(D('D-0193'), 40 * 60, 'offer_received', 'LISTED');
+  ago(D('D-0193'), 36 * 60, 'offer_sent', 'NEGOTIATING', AGENT);
+  ago(D('D-0193'), 4 * 60, 'offer_received');
+
+  const offset = (a: { day: number; hm: string }) => {
+    const [h, m] = a.hm.split(':').map(Number);
+    return a.day * DAY + (h ?? 0) * 3600 + (m ?? 0) * 60;
+  };
+  const last = Math.max(...raw.map((r) => ('day' in r.at ? offset(r.at) : 0)));
+  const room = now - 6 * 3600 - monday;
+  const [base, scale] = room >= last ? [monday, 1] : room >= last / 4 ? [monday, room / last] : [monday - 7 * DAY, 1];
+  const timed = raw.map((r, i) => ({ r, i, at: 'day' in r.at ? Math.round(base + offset(r.at) * scale) : now - r.at.ago }));
+  timed.sort((a, b) => a.at - b.at || a.i - b.i);
+  return timed.map(({ r, at }, k) => ({
+    at, deal_id: r.deal, seq: k + 1, kind: r.kind, state_after: r.to ?? null, authority: r.by ?? NOBODY, paypal: r.pp ?? NO_CALL,
+  }));
 }
