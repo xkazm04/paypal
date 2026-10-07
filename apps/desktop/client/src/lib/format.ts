@@ -65,10 +65,12 @@ export function countdown(deadline: number, now: number): string {
   return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
-/** "Thu 18:00" in local time from Unix seconds. */
-export function clockLabel(unix: number): string {
+/** "Thu 18:00" in local time from Unix seconds, within six days of `now`; further away a weekday
+ *  would read as this week, so it says the date: "3 Nov 18:00". */
+export function clockLabel(unix: number, now: number = nowUnix()): string {
   const d = new Date(unix * 1000);
-  const day = d.toLocaleDateString('en-US', { weekday: 'short' });
+  const near = Math.abs(unix - now) < 6 * 86400;
+  const day = near ? d.toLocaleDateString('en-US', { weekday: 'short' }) : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   const t = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   return `${day} ${t}`;
 }
