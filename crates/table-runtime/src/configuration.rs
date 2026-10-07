@@ -126,7 +126,8 @@ impl Runtime {
                     .ledger
                     .list_mandates(&self.owner()?.verifying_key()))?
                 .into_iter()
-                .find(|m| m.payload.id == *mandate_id)
+                .find(|m| m.mandate.payload.id == *mandate_id && m.refusal.is_none())
+                .map(|m| m.mandate)
                 .ok_or_else(invalid)?;
                 let (_, ceiling) = band_covering(&m, item_ref).ok_or_else(invalid)?;
                 let currency = m
@@ -174,13 +175,17 @@ impl Runtime {
             .ledger
             .list_mandates(&self.owner()?.verifying_key()))?
         .into_iter()
-        .map(|mandate| {
+        .map(|listed| {
             let agent = keys
                 .iter()
-                .find(|(_, key)| *key == mandate.payload.agent_key)
+                .find(|(_, key)| *key == listed.mandate.payload.agent_key)
                 .map(|(slot, _)| *slot)
                 .ok_or_else(permission)?;
-            Ok(MandateListEntry { mandate, agent })
+            Ok(MandateListEntry {
+                mandate: listed.mandate,
+                agent,
+                refusal: listed.refusal,
+            })
         })
         .collect()
     }

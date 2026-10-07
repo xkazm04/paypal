@@ -10,7 +10,7 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { WalletError } from '../../lib/contract';
 import { useNow, useQuery } from '../../lib/hooks';
 import { rulesName, timeLeftWords } from '../../lib/words';
-import { WalletNotice } from '../../shared/honesty';
+import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Chip, Group, Hint, Popover, Row, Section, type ChipTone } from '../../shared/ui';
 import { MandateEditor } from './MandateEditor';
 import { clauseText, isMandateActive } from './model';
@@ -131,7 +131,7 @@ export function OwnerConfig({ hint }: { hint: string | null }) {
     );
   }
 
-  const active = list.filter((m) => isMandateActive(m, now));
+  const active = list.filter((m) => isMandateActive(m, now) && !m.refusal);
   const steps = [!locked, !!st?.payment_executor_configured, !!st?.channel3_configured, active.length > 0];
   const readyCount = steps.filter(Boolean).length;
   // What is still missing, in the order the checklist below shows it.
@@ -215,7 +215,7 @@ export function OwnerConfig({ hint }: { hint: string | null }) {
 
 function MandateRow({ m, now, onOpen }: { m: MandateListEntry; now: number; onOpen: () => void }) {
   const p = m.payload;
-  const live = isMandateActive(m, now);
+  const live = isMandateActive(m, now) && !m.refusal;
   // The two or three limits that say the most, in plain words; ids and keys live in the editor.
   const KEY: Clause['type'][] = ['per_deal', 'band', 'human_present_over', 'velocity', 'payees'];
   const key = KEY.map((t) => p.clauses.find((c) => c.type === t)).filter((c): c is Clause => !!c).slice(0, 3);
@@ -223,11 +223,11 @@ function MandateRow({ m, now, onOpen }: { m: MandateListEntry; now: number; onOp
   return (
     <Row
       title={<>{name} <span className="dim">· updated {new Date(p.not_before * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span></>}
-      sub={key.map(clauseText).join(' · ')}
+      sub={m.refusal ? NO_LONGER_FITS : key.map(clauseText).join(' · ')}
       onOpen={onOpen}
       label={`Open ${name} to see or change them`}
     >
-      <Chip tone={live ? 'ok' : 'line'}>{live ? `in force · ${timeLeftWords(p.expires - now)} left` : p.not_before > now ? 'not started yet' : 'expired'}</Chip>
+      <Chip tone={live ? 'ok' : m.refusal ? 'gold' : 'line'}>{live ? `in force · ${timeLeftWords(p.expires - now)} left` : m.refusal ? 'needs signing again' : p.not_before > now ? 'not started yet' : 'expired'}</Chip>
     </Row>
   );
 }

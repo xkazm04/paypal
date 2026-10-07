@@ -8,7 +8,7 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import { shortHash, shortId } from '../../../lib/format';
 import { useNow, useQuery } from '../../../lib/hooks';
 import { kindWord, RULE_NAME, RULE_NUMBER, rulesName, ruleSentence } from '../../../lib/words';
-import { WalletNotice } from '../../../shared/honesty';
+import { NO_LONGER_FITS, WalletNotice } from '../../../shared/honesty';
 import { AnswerBar, Chip, DetailToggle, Group, Icon, Kv, Loading, Silence, useDetail, type IconName } from '../../../shared/ui';
 import { useWorld } from '../world';
 import { Handoff, Info } from './common';
@@ -36,7 +36,7 @@ export function MandatesList() {
   const list = q.data ?? [];
   const first = !!w.settings.data?.first_run || !list.length;
   const answer = rulesAnswer(list, now);
-  const inForce = list.filter((m) => ruleState(m.payload, now) === 'active').length;
+  const inForce = list.filter((m) => ruleState(m.payload, now) === 'active' && !m.refusal).length;
   const shared = (m: MandateListEntry) => list.filter((x) => x.agent === m.agent).length > 1;
   // Cards read by agent: Shopper, Negotiator, Assistant (an agent's several sets stay side by side).
   const rank = (a: string) => { const i = AGENT_ORDER.indexOf(a); return i < 0 ? AGENT_ORDER.length : i; };
@@ -111,6 +111,7 @@ function StateChip({ m, now }: { m: MandateListEntry; now: number }) {
   return (
     <>
       {m.owner_sig.length ? null : <Chip tone="red" title="This rule set has no owner signature, so it allows nothing">not signed</Chip>}
+      {m.refusal ? <Chip tone="gold" title={NO_LONGER_FITS}>needs signing again</Chip> : null}
       <Chip tone={state === 'active' ? 'ok' : state === 'ended' ? 'red' : 'gold'} title={`Valid ${dateLabel(p.not_before)} to ${dateLabel(p.expires)}`}>
         {state === 'active' ? `active until ${shortDate(p.expires)}` : state === 'ended' ? `ended ${shortDate(p.expires)}` : `starts ${shortDate(p.not_before)}`}
       </Chip>
@@ -131,6 +132,7 @@ function AgentCard({ m, now, shared, locked }: { m: MandateListEntry; now: numbe
         <div className="ag-t"><h3>{agentTitle(m.agent)}</h3>{shared && kind ? <span>{cap(kind)} deals</span> : roles ? <span>{cap(ruleSentence(roles))}</span> : null}</div>
         <span className="ag-all"><AllRules m={m} name={name} /></span>
       </header>
+      {m.refusal ? <p className="ag-none" role="note">{NO_LONGER_FITS}</p> : null}
       {limits.length ? (
         <ul className="ag-lim">
           {limits.map((l) => <li key={l.key}><b>{l.value}</b><span>{l.label}</span></li>)}
@@ -158,7 +160,7 @@ function MandateRow({ m, now, shared }: { m: MandateListEntry; now: number; shar
       </span>
       <span className="main">
         <span className="t1"><b>{name}</b></span>
-        <span className="t2">{hi.length ? hi.join(' · ') : `${p.clauses.length} rules`}</span>
+        <span className="t2">{m.refusal ? NO_LONGER_FITS : hi.length ? hi.join(' · ') : `${p.clauses.length} rules`}</span>
       </span>
       <span className="end">
         <StateChip m={m} now={now} />

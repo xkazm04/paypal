@@ -120,7 +120,8 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const cpName = cp?.known ? cp.name : attn?.counterparty ?? (deal ? `key ${shortId(deal.counterparty)}` : '');
   const mandate = useMemo(() => {
     if (!deal || !mandates.data) return undefined;
-    const same = mandates.data.filter((m) => m.payload.id === deal.mandate_id);
+    // A set the wallet now refuses (refusal) is listed but not in force for this deal.
+    const same = mandates.data.filter((m) => m.payload.id === deal.mandate_id && !m.refusal);
     if (!same.length) return null;
     return same.find((m) => m.payload.version === deal.mandate_version) ?? undefined;
   }, [deal, mandates.data]);

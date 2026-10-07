@@ -55,5 +55,6 @@ describe('agent rule cards', () => {
     if (!first) throw new Error('fixture has mandates');
     expect(rulesAnswer([{ ...first, owner_sig: [] }, ...rest], NOW)).toMatchObject({ tone: 'need', title: '1 rule set is not in force' });
     expect(rulesAnswer([{ ...first, payload: { ...first.payload, expires: NOW - 1 } }, ...rest], NOW).tone).toBe('need');
+    expect(rulesAnswer([{ ...first, refusal: { clause: 4, reason: 'band lacks the side the allowed roles use' } }, ...rest], NOW)).toMatchObject({ tone: 'need', title: '1 rule set is not in force' });
   });
 });
