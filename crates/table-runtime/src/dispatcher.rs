@@ -541,9 +541,13 @@ impl Runtime {
             }
             Action::LetLapse(id) => {
                 allowed(label, &["main", "tumbler"])?;
-                let deal = app(self.pipeline.wallet.ledger.get_deal(id))?;
-                if deal.state.terminal() || app(self.pipeline.wallet.ledger.deadline(id))?.is_none()
-                {
+                // The same gate the card offered: a Hold or an Authorized deal has no Let lapse.
+                if !self.attention()?.items.iter().any(|i| {
+                    i.deal_id == id
+                        && i.kind == table_attention::AttnKind::Gate
+                        && i.actions
+                            .contains(&table_attention::TumblerAction::LetLapse)
+                }) {
                     return Err(invalid());
                 }
                 app(self
