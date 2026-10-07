@@ -560,3 +560,153 @@ async fn house_wake_is_main_only_moves_no_money_and_a_failed_wake_returns_to_idl
         assert!(http.0.lock().unwrap().paths.is_empty());
     }
 }
+
+/// The HOUSE router behind the same status mapping `table_relay::Client` applies to an answer.
+struct RouterRelay(Router);
+#[async_trait]
+impl table_relay::RelayApi for RouterRelay {
+    async fn house_table(
+        &self,
+        request: &table_proto::HouseRequest,
+    ) -> Result<table_proto::HouseResponse, table_relay::Error> {
+        let response = self
+            .0
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/house/tables")
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_string(request).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let status = response.status();
+        let bytes = to_bytes(response.into_body(), 16384).await.unwrap();
+        if !status.is_success() {
+            return Err(table_relay::answer_error(status.as_u16(), &bytes));
+        }
+        serde_json::from_slice(&bytes).map_err(|_| table_relay::Error::Invalid)
+    }
+    async fn create(&self, _: H256) -> Result<(), table_relay::Error> {
+        Err(table_relay::Error::Unavailable)
+    }
+    async fn send(&self, _: H256, _: &str) -> Result<(), table_relay::Error> {
+        Err(table_relay::Error::Unavailable)
+    }
+    async fn poll(
+        &self,
+        _: H256,
+        _: &str,
+        _: u64,
+        _: u8,
+    ) -> Result<table_relay::Batch, table_relay::Error> {
+        Err(table_relay::Error::Unavailable)
+    }
+}
+/// One HOUSE join from a fresh buyer wallet that must fail: its error and the house state after.
+async fn failed_house_join(
+    release: &table_proto::HouseRelease,
+    relay: Arc<dyn table_relay::RelayApi>,
+    buyer_now: Option<i64>,
+) -> (CommandError, HouseState) {
+    let (mut buyer, _, http, clock, _) = runtime(true);
+    buyer.house_release = Some(release.clone());
+    buyer.house_state = HouseState::Idle;
+    if let Some(now) = buyer_now {
+        clock.0.store(now, std::sync::atomic::Ordering::SeqCst);
+    }
+    let (actor, _) = spawn(buyer.with_relay(relay));
+    let error = actor
+        .execute::<PairingWords>(
+            caller("main", None),
+            Action::PairJoin(PairingJoinArgs {
+                code: "HOUSE".into(),
+                peer: None,
+                side: Side::Buyer,
+                payee: PayeeRef::new("buyer").unwrap(),
+            }),
+        )
+        .await
+        .unwrap_err();
+    let settings: SettingsSnapshot = actor
+        .execute(caller("main", None), Action::Settings)
+        .await
+        .unwrap();
+    assert!(http.0.lock().unwrap().paths.is_empty());
+    (error, settings.house)
+}
+#[tokio::test]
+async fn house_full_daily_limit_refusal_and_silence_reach_the_wallet_in_plain_words() {
+    // 429: 64 live negotiations hold every HOUSE slot.
+    let (mut seller, release, http, _, store) = hosted_fixture();
+    let (_, _, response) = house_buyer(&mut seller, release.clone());
+    for _ in 0..63 {
+        seller
+            .pipeline
+            .wallet
+            .ledger
+            .reserve_house_request(
+                H256::digest(DealId(ulid::Ulid::new()).to_string().as_bytes()),
+                response.table.deal_id,
+            )
+            .unwrap();
+    }
+    let router = house_seller::router(store, house_seller::spawn(seller));
+    let (error, house) = failed_house_join(&release, Arc::new(RouterRelay(router)), None).await;
+    assert!(matches!(error.code, ErrorCode::Refused), "{error:?}");
+    assert_eq!(
+        error.message,
+        "The house is full right now. No money moved."
+    );
+    assert_eq!(house, HouseState::Ready);
+    assert!(http.0.lock().unwrap().paths.is_empty());
+
+    // 400 with the daily-limit code: the signed rules allow 10 agreed deals a day.
+    // (The HOUSE's own timer settles those ten deals, so its PayPal mock is not checked here.)
+    let (mut seller, release, _, _, store) = hosted_fixture();
+    for _ in 0..10 {
+        let (_, _, response) = house_buyer(&mut seller, release.clone());
+        let ledger = &mut seller.pipeline.wallet.ledger;
+        for event in [DealEvent::OfferVerified, DealEvent::TwoAcceptsVerified] {
+            ledger
+                .apply_event(response.table.deal_id, event, 100)
+                .unwrap();
+        }
+    }
+    let router = house_seller::router(store, house_seller::spawn(seller));
+    let (error, house) = failed_house_join(&release, Arc::new(RouterRelay(router)), None).await;
+    assert!(matches!(error.code, ErrorCode::Refused), "{error:?}");
+    assert_eq!(
+        error.message,
+        "The house has hit its limit for today. No money moved."
+    );
+    assert_eq!(house, HouseState::Ready);
+
+    // Another 400: the buyer's request runs out more than a day after the house's now.
+    let (seller, release, http, _, store) = hosted_fixture();
+    let router = house_seller::router(store, house_seller::spawn(seller));
+    let (error, house) =
+        failed_house_join(&release, Arc::new(RouterRelay(router)), Some(200_000)).await;
+    assert!(matches!(error.code, ErrorCode::Refused), "{error:?}");
+    assert_eq!(
+        error.message,
+        "The house turned this table down. No money moved."
+    );
+    assert_eq!(house, HouseState::Ready);
+    assert!(http.0.lock().unwrap().paths.is_empty());
+
+    // No answer at all: only this case is the waking house, and it goes back to idle.
+    let down = Arc::new(WakeRelay {
+        wakes: std::sync::atomic::AtomicUsize::new(0),
+        up: false,
+    });
+    let (error, house) = failed_house_join(&release, down, None).await;
+    assert!(matches!(error.code, ErrorCode::Unavailable), "{error:?}");
+    assert_eq!(
+        error.message,
+        "The house is waking or could not be reached. No money moved."
+    );
+    assert_eq!(house, HouseState::Idle);
+}

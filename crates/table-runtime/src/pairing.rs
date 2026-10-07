@@ -22,6 +22,38 @@ fn check_pairing_caller(caller: &Caller) -> Result<(), CommandError> {
     }
     Ok(())
 }
+fn refused(message: &str) -> CommandError {
+    CommandError {
+        code: ErrorCode::Refused,
+        message: message.into(),
+    }
+}
+/// The wallet's words for a HOUSE that did not seat us. Pairing moves no money, so each says so.
+fn house_error(error: table_relay::Error) -> (Result<PairingWords, CommandError>, HouseState) {
+    use table_relay::{Error, Refusal};
+    match error {
+        Error::Full => (
+            Err(refused("The house is full right now. No money moved.")),
+            HouseState::Ready,
+        ),
+        Error::Refused(Refusal::DailyLimit) => (
+            Err(refused(
+                "The house has hit its limit for today. No money moved.",
+            )),
+            HouseState::Ready,
+        ),
+        Error::Refused(Refusal::Other) => (
+            Err(refused("The house turned this table down. No money moved.")),
+            HouseState::Ready,
+        ),
+        Error::Unavailable | Error::Invalid => (
+            Err(unavailable(
+                "The house is waking or could not be reached. No money moved.",
+            )),
+            HouseState::Idle,
+        ),
+    }
+}
 struct HouseWake<'a> {
     actor: &'a ActorHandle,
     active: bool,
@@ -98,24 +130,18 @@ impl ActorHandle {
                     buyer: offer.bundle,
                 })
                 .await;
-            let result = match response {
-                Ok(response) => {
+            // A house that answered, even with a no, is awake; one that did not is back to idle.
+            // `Unavailable` stays reserved for a build with no house pinned.
+            let (result, house) = match response {
+                Ok(response) => (
                     self.execute_local(main_caller(), Action::HousePair(response))
-                        .await
-                }
-                Err(_) => Err(unavailable(
-                    "House is waking or temporarily unavailable; retry pairing",
-                )),
+                        .await,
+                    HouseState::Ready,
+                ),
+                Err(e) => house_error(e),
             };
-            self.execute_local::<()>(
-                main_caller(),
-                Action::HouseStatus(if result.is_ok() {
-                    HouseState::Ready
-                } else {
-                    HouseState::Unavailable
-                }),
-            )
-            .await?;
+            self.execute_local::<()>(main_caller(), Action::HouseStatus(house))
+                .await?;
             wake.active = false;
             return result;
         }
