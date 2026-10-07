@@ -25,6 +25,10 @@ import type { ApprovalCheckId } from '@bindings/ApprovalCheckId';
 import type { DecisionArgs } from '@bindings/DecisionArgs';
 import { CHECK_FAILED, SUMMARY_CHANGED } from '../lib/words';
 import { mockChecks, mockChecksHash } from './checks';
+import type { MandatePayload } from '@bindings/MandatePayload';
+import type { SimulatedLine } from '@bindings/SimulatedLine';
+import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
+import { mockCheck, mockValidate, type MockIntent } from './simulate';
 
 type Envelope =
   | { kind: 'event'; event: EventName; targets: WindowLabel[]; payload: unknown }
@@ -137,6 +141,7 @@ const GATES: Record<CommandName, WindowLabel[]> = {
   deal_capture: ['approval'], deal_void: ['approval'], shield_release: ['approval'], rescue_approve: ['approval'],
   open_paypal_in_browser: ['approval'], set_credentials: ['approval'], mandate_sign: ['approval'], mandate_revoke: ['approval'],
   band_set: ['approval'], pairing_confirm: ['approval'], deal_create: ['approval'], deal_join: ['approval'],
+  mandate_simulate: ['approval'],
 };
 
 function fail(code: WalletError['code'], message: string): never {
@@ -827,6 +832,47 @@ export function mockBackend(label: WindowLabel): MockBackend {
       find(deal_id);
       const n = state.notes?.[deal_id];
       return n ? { ...n, text: [...n.text].slice(0, 280).join('') } : null;
+    },
+    // As Runtime::mandate_simulate: read-only, approval only, no token or unlock (it moves nothing).
+    mandate_simulate: ({ draft, from, to }) => {
+      const now = nowUnix();
+      const end = to ?? now;
+      const start = from ?? end - 7 * 86400;
+      if (start > end || end - start > 31 * 86400) fail('INVALID', 'Invalid or stale wallet command');
+      const prev = draft.id ? state.mandates.filter((m) => m.payload.id === draft.id).reduce((v, m) => Math.max(v, m.payload.version), 0) : 0;
+      const payload: MandatePayload = { id: draft.id ?? fakeUlid('draft'), version: prev + 1, agent_key: fakeHash(`agent:${draft.agent}`) as unknown as MandatePayload['agent_key'], clauses: draft.clauses, not_before: draft.not_before, expires: draft.expires };
+      const bad = mockValidate(payload);
+      if (bad) fail('REFUSED', `mandate clause ${bad.clause}: ${bad.reason}`);
+      const lines: SimulatedLine[] = [];
+      let notSimulated = 0;
+      for (const d of state.deals) {
+        const deal = d.deal;
+        const at = deal.created_at ?? 0;
+        const inScope = draft.id ? deal.mandate_id === draft.id : (state.mandateSlots?.[deal.mandate_id] ?? null) === draft.agent;
+        if (!inScope || (at !== 0 && (at < start || at > end))) continue;
+        const category = state.categories?.[deal.id];
+        const cp = state.counterparties.find((c) => c.key_id === deal.counterparty);
+        let before: SimulatedVerdict = { type: 'not_simulated' };
+        let after: SimulatedVerdict = { type: 'not_simulated' };
+        if (category && cp && at !== 0) {
+          const youRounds = d.transcript.filter((t) => t.by === 'you' && (t.typ === 'OFFER' || t.typ === 'COUNTER')).length;
+          const intent: MockIntent = { deal, category, paired: cp.pairing !== 'unpaired', house: cp.house, declaredPayee: cp.declared_payee ?? null, roundsUsed: Math.max(0, youRounds - 1) };
+          // Daily budget: deals of the same mandate that agreed earlier that UTC day (the mock keeps
+          // no agreement order, so earlier-created deals past agreement stand in for it).
+          const day = Math.floor(at / 86400);
+          const earlier = state.deals.filter((o) => o.deal.id !== deal.id && o.deal.mandate_id === deal.mandate_id && (o.deal.created_at ?? 0) < at
+            && Math.floor((o.deal.created_at ?? 0) / 86400) === day && !['PAIRING', 'LISTED', 'NEGOTIATING', 'REFUSED', 'WITHDRAWN', 'EXPIRED', 'VOIDED', 'AUTO_VOIDED'].includes(o.deal.state));
+          const usage = { dealsToday: earlier.length, totalToday: earlier.reduce((t, o) => t + o.deal.terms.unit_price.minor * o.deal.terms.qty, 0) };
+          const inForce = activeMandate(deal.mandate_id);
+          before = inForce ? mockCheck(inForce.payload, intent, usage, now) : { type: 'refuse', clause: 1, reason: 'mandate is not active' };
+          after = mockCheck(payload, intent, usage, now);
+        } else notSimulated += 1;
+        const t = deal.terms;
+        const valid = t.qty > 0 && t.unit_price.minor > 0 && t.currency === t.unit_price.currency;
+        lines.push({ deal_id: deal.id, label: d.display.label, title: d.display.title, item_ref: deal.terms.item_ref, kind: deal.kind, side: deal.side, at, amount: valid ? { minor: t.unit_price.minor * t.qty, currency: t.currency } : null, unit_price: t.unit_price, before, after });
+      }
+      lines.sort((a, b) => a.at - b.at || a.label.localeCompare(b.label));
+      return { from: start, to: end, lines, not_simulated: notSimulated };
     },
   };
 

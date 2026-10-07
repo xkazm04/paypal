@@ -2,6 +2,7 @@
 // (docs/design/the-table.html §2) in the exact Rust binding shapes. Maya, Dan and every
 // counterparty are fictional. Deadlines are relative to page load so countdowns stay live.
 import type { AttentionItem } from '@bindings/AttentionItem';
+import type { Category } from '@bindings/Category';
 import type { Clause } from '@bindings/Clause';
 import type { Currency } from '@bindings/Currency';
 import type { Deal } from '@bindings/Deal';
@@ -83,6 +84,9 @@ export type MockState = {
   inMotion: number;
   walletSpendTodayMinor: number;
   engineEstimateTodayUsd: number;
+  /** The category each deal was created with (the ledger's deal_context), by deal id. A deal
+   *  without one cannot be replayed by mandate_simulate and shows as not checked. */
+  categories?: Record<string, Category>;
 };
 
 // One mandate per role, as Rust requires: a band clause refuses every item outside it, a mandate
@@ -347,7 +351,18 @@ export function buildMockState(now: number): MockState {
   }
   audit.sort((a, b) => a.at - b.at).forEach((r, i) => { r.seq = i + 1; });
 
+  // The category each deal was created with. D-0180 predates categories on record, so the
+  // what-if shows it as not checked instead of guessing.
+  const CATEGORY: Record<string, Category> = {
+    'D-0193': 'office', 'D-0201': 'office', 'D-0187': 'office', 'D-0176': 'office', 'D-0199': 'office',
+    'D-0192': 'compute', 'D-0190': 'parts', 'D-0186': 'office', 'D-0183': 'parts',
+    'Q-0207': 'office', 'D-0189': 'office', 'D-0185': 'office', 'D-0196': 'office', 'D-0198': 'office',
+    'D-0188': 'service', 'D-0182': 'service', 'D-0178': 'service',
+  };
+  const categories = Object.fromEntries(deals.flatMap((d) => (CATEGORY[d.display.label] ? [[d.deal.id, CATEGORY[d.display.label]!]] : [])));
+
   return {
+    categories,
     notes,
     audit,
     credentialsStoredAt: { paypal_sandbox: now - 12 * 86400, channel3: null },

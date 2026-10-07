@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Clause } from '@bindings/Clause';
 import { buildClause, CLAUSE_NUMBER, isIncomplete, missingKinds, newDraft, previewClauses, ruleProblems, withClause, type DraftClause } from '../mandateDraft';
-import { diffPolicy, oneClauseFromDraft, type DiffSide } from './diff';
+import { diffPolicy, type DiffSide } from './diff';
 import { frac, leverRange, niceCeil, toMinor, toSlider } from './levers';
 
 const usd = (major: number) => ({ minor: Math.round(major * 100), currency: 'USD' as const });
@@ -43,12 +43,6 @@ describe('mandate diff', () => {
   it('lists removed clauses, skips incomplete ones, and notes slot changes', () => {
     const d = diffPolicy(side(signed), side([...signed.filter((c) => c.type !== 'velocity' && c.type !== 'payees'), { type: 'payees', incomplete: true }], { agent: 'shopper' }));
     expect(d.map((c) => c.term)).toEqual(['agent slot', 'daily limit']);
-  });
-  it('isolates one clause kind for a consequence', () => {
-    const draft = swap('per_deal', { type: 'per_deal', kind: 'purchase', max_amount: usd(1), categories: ['office'] });
-    const one = oneClauseFromDraft(signed, draft, 'per_deal');
-    expect(one.find((c) => c.type === 'per_deal')).toEqual(draft.find((c) => c.type === 'per_deal'));
-    expect(one).toHaveLength(signed.length);
   });
 });
 

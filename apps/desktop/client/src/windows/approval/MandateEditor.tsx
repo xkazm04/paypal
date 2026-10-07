@@ -1,11 +1,12 @@
 // Mandates · What-if replay (prototype/pages/mandate/variant-3), in the 744 px approval window.
 //
-// Consequences first: this week's deals replayed under the signed version and under the draft,
-// a scoreboard of outcomes, and levers that carry the week's deals as ticks. At 744 px the
+// Consequences first: this week's deals tried under the rules in force and under the draft, a
+// scoreboard of outcomes, and levers that carry the week's deals as ticks. At 744 px the
 // prototype's two panes (replay + 372 px inspector) become one column: the scoreboard stays
-// pinned at the top of the scroll while a segmented switch shows Levers or Replay below it, so
-// the counts move while you drag. The replay is a LOCAL PREVIEW (owner/preview.ts): exact checks
-// only, unknown drawn dashed, and Rust re-checks everything on sign.
+// pinned at the top of the scroll while a segmented switch shows Levers or the week below it, so
+// the counts move while you drag. The answers come from the wallet's own check (mandate_simulate,
+// read-only, debounced while you edit); a deal it can't rebuild shows as not checked. A one-line
+// summary sits above Sign, and Sign stays the only way to sign.
 //
 // Commands kept as built: mandate_list (via OwnerConfig), mandate_sign (privileged, idle-locked,
 // Windows Hello through session.unlock), mandate_revoke (privileged, one click).
@@ -22,15 +23,15 @@ import { useNow } from '../../lib/hooks';
 import { ruleNameOf, rulesName, timeLeftWords } from '../../lib/words';
 import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Chip, Hourglass, Kv, Popover, Seg, Spacer, type IconName } from '../../shared/ui';
-import { buildMandate, CLAUSE_NUMBER, draftFrom, fromLocalInput, newDraft, previewClauses, ruleProblems, withClause, type ClauseDraft, type ClauseType, type MandateDraft } from './mandateDraft';
+import { buildMandate, CLAUSE_NUMBER, draftFrom, fromLocalInput, newDraft, previewClauses, refusalWords, ruleProblems, withClause, type ClauseDraft, type ClauseType, type MandateDraft } from './mandateDraft';
 import { minorToInput } from './model';
-import { useReplayData } from './owner/data';
-import { diffPolicy, hitPhrase, oneClauseFromDraft, type Change, type DiffSide } from './owner/diff';
+import { useSimulation } from './owner/data';
+import { diffPolicy, type Change, type DiffSide } from './owner/diff';
 import { Lever } from './owner/Lever';
 import { amountTicks, priceTicks } from './owner/levers';
-import { replay, weekDeals, type Policy, type PreviewContext } from './owner/preview';
-import { ReplayTable, rowTag, Scoreboard } from './owner/Replay';
-import { SignSheet, type Consequence } from './owner/SignSheet';
+import { Scoreboard, WhatIfTable } from './owner/Replay';
+import { SignSheet } from './owner/SignSheet';
+import { changed, hitPhrase, ifWithdrawn, summaryWords } from './owner/simulation';
 import { WhoWhat } from './owner/WhoWhat';
 import { useSession } from './session';
 import { Header } from './ui';
@@ -55,7 +56,6 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
   const s = useSession();
   const now = useNow();
   const [t0] = useState(now);
-  const data = useReplayData();
   const base = entries.find((e) => e.payload.id === selected) ?? null;
   const key = base ? `${base.payload.id}:${base.payload.version}` : NEW;
   const [drafts, setDrafts] = useState<Record<string, MandateDraft>>({});
@@ -82,28 +82,22 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
   const changedTerm = (t: ClauseType | 'slot' | 'valid') =>
     t === 'slot' ? changes.some((c) => c.term === 'agent slot') : t === 'valid' ? changes.some((c) => c.term === 'expiry' || c.term === 'currency') : changedTypes.has(t);
 
-  // ---- the replay (local preview) ---------------------------------------------------------
-  const ctx: PreviewContext = { now, counterparties: data.counterparties };
-  const signedPolicy: Policy = base ? { clauses: base.payload.clauses, invalid: null } : null;
-  const draftPolicy: Policy = preview ? null : { clauses: pclauses, invalid: problems[0] ?? null };
-  const week = data.deals ? weekDeals(data.deals, base?.payload.id ?? null, now) : data.deals;
-  const rows = week ? replay(week, signedPolicy, draftPolicy, ctx) : week;
-  const movedCount = rows ? rows.filter((r) => r.moved).length : 0;
-  const shownPane: Pane = pane ?? (rows ? 'replay' : 'levers');
-  const signedName = base ? 'Now' : 'No rules';
-  const draftName = preview ? 'If withdrawn' : changes.length || !base ? 'Your change' : 'Unchanged';
-
-  const consequences: Consequence[] | null = (() => {
-    if (!rows || !week) return null;
-    const baseClauses: readonly Clause[] = base?.payload.clauses ?? [];
-    return changes.map((change) => {
-      if (change.type === 'meta') return { change, text: 'Doesn’t change any outcome in this preview.', moved: 0 };
-      const one = oneClauseFromDraft(baseClauses, pclauses, change.type);
-      const r = replay(week, signedPolicy, { clauses: one, invalid: ruleProblems(one, fromLocalInput(d.notBefore), fromLocalInput(d.expires))[0] ?? null }, ctx);
-      const phrase = hitPhrase(r, rowTag);
-      return { change, text: phrase ? `With the rest of that rule, it would have ${phrase} this week.` : 'Changes nothing your agents did this week.', moved: r.filter((x) => x.moved).length };
-    });
-  })();
+  // ---- the week, tried by the wallet's own check (mandate_simulate, debounced) ---------------
+  const args: MandateSignArgs | null = built.ok ? { id: d.id, agent: d.agent, clauses: built.clauses, not_before: built.notBefore, expires: built.expires } : null;
+  const what = useSimulation(args ? { draft: args } : null);
+  // A REFUSED (the draft can't be signed) or a failed read shows instead of a stale answer.
+  const answered = args && !what.error ? what.sim : null;
+  const lines = answered ? (preview && base ? ifWithdrawn(answered.lines) : answered.lines) : null;
+  const movedCount = lines ? lines.filter(changed).length : 0;
+  const shownPane: Pane = pane ?? (base ? 'replay' : 'levers');
+  const signedName = 'Now';
+  const draftName = preview ? 'If withdrawn' : !base ? 'These rules' : changes.length ? 'Your change' : 'Unchanged';
+  const subject = preview ? 'Withdrawing' : base && changes.length ? 'This version' : 'These rules';
+  const summary = !args ? 'Fill in the limits to see what these rules would have done this week.'
+    : what.error ? (what.error.code === 'REFUSED' ? refusalWords(what.error.message) : 'This week’s deals couldn’t be tried just now. Signing still checks everything.')
+      : lines ? summaryWords(lines, subject)
+        : 'Trying this week’s deals…';
+  const hits = lines ? hitPhrase(lines) : '';
 
   // ---- levers (amounts) ---------------------------------------------------------------------
   const signedOf = <T extends Clause['type']>(t: T) => base?.payload.clauses.find((c): c is Extract<Clause, { type: T }> => c.type === t);
@@ -112,7 +106,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
   const dirOf = (t: ClauseType, term: string) => changes.find((c) => c.type === t && c.term === term)?.dir;
   const set = (i: number, c: ClauseDraft) => setD(withClause(d, i, c));
   const remove = (i: number) => setD({ ...d, clauses: d.clauses.filter((_, j) => j !== i) });
-  const ticksOr = <T,>(f: () => T): T | null => (rows ? f() : null);
+  const ticksOr = <T,>(f: () => T): T | null => (lines ? f() : null);
   const levers = d.clauses
     .map((c, i) => ({ c, i }))
     .sort((a, b) => CLAUSE_NUMBER[a.c.type] - CLAUSE_NUMBER[b.c.type])
@@ -122,7 +116,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
           const sp = signedOf('per_deal');
           return (
             <Lever key={i} n={3} title={`Most per ${c.kind === 'haggle' ? 'deal' : c.kind.replace('_', ' ')}`} value={c.max} currency={cur} signed={sameCur && sp ? sp.max_amount.minor : null}
-              ticks={ticksOr(() => amountTicks(rows!, (r) => r.deal.kind === c.kind))} dir={dirOf('per_deal', 'per-deal max')}
+              ticks={ticksOr(() => amountTicks(lines!, (l) => l.kind === c.kind))} dir={dirOf('per_deal', 'per-deal max')}
               onChange={(max) => set(i, { ...c, max })} onRemove={() => remove(i)} />
           );
         }
@@ -133,10 +127,10 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
           return (
             <div key={i} className="ow-pair">
               <Lever n={4} title="Most you’ll pay · when your agents buy" value={c.ceiling} currency={cur} optional signed={sameCur && sb?.ceiling ? sb.ceiling.minor : null}
-                ticks={ticksOr(() => priceTicks(rows!.filter((r) => r.deal.side === 'buyer'), items))} dir={dirOf('band', 'band ceiling')}
+                ticks={ticksOr(() => priceTicks(lines!.filter((l) => l.side === 'buyer'), items))} dir={dirOf('band', 'band ceiling')}
                 onChange={(ceiling) => set(i, { ...c, ceiling })} onRemove={() => remove(i)} />
               <Lever n={4} title="Least you’ll accept · when your agents sell" value={c.floor} currency={cur} optional signed={sameCur && sb?.floor ? sb.floor.minor : null}
-                ticks={ticksOr(() => priceTicks(rows!.filter((r) => r.deal.side === 'seller'), items))} dir={dirOf('band', 'band floor')}
+                ticks={ticksOr(() => priceTicks(lines!.filter((l) => l.side === 'seller'), items))} dir={dirOf('band', 'band floor')}
                 onChange={(floor) => set(i, { ...c, floor })}>
                 <span className="ui-hint">offers</span>
                 <span className="ow-stepper">
@@ -157,7 +151,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
           const deals = Number(c.deals) || 0;
           return (
             <Lever key={i} n={5} title="Most per day, all deals together" value={c.total} currency={cur} signed={sameCur && sv ? sv.max_total_day.minor : null}
-              ticks={null} tickNote="Today’s spending isn’t shown in this window, so the preview can’t tell what this limit would change." dir={dirOf('velocity', 'money per day')}
+              ticks={null} tickNote="Each deal is tried against this limit with what was already spent that day; the week shows any it would change." dir={dirOf('velocity', 'money per day')}
               onChange={(total) => set(i, { ...c, total })} onRemove={() => remove(i)}>
               <span className="ui-hint">deals per day</span>
               <span className="ow-stepper">
@@ -173,7 +167,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
           const sh = signedOf('human_present_over');
           return (
             <Lever key={i} n={6} title="Ask me above" value={c.amount} currency={cur} signed={sameCur && sh ? sh.amount.minor : null}
-              ticks={ticksOr(() => amountTicks(rows!, () => true))} dir={dirOf('human_present_over', '“you decide over” threshold')}
+              ticks={ticksOr(() => amountTicks(lines!, () => true))} dir={dirOf('human_present_over', '“you decide over” threshold')}
               onChange={(amount) => set(i, { ...c, amount })} onRemove={() => remove(i)} />
           );
         }
@@ -198,7 +192,6 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
     } else setRevokeError(r.error);
   };
 
-  const args: MandateSignArgs | null = built.ok ? { id: d.id, agent: d.agent, clauses: built.clauses, not_before: built.notBefore, expires: built.expires } : null;
   const errs = built.ok ? [] : built.errors;
   // Rules that could never allow anything are not offered for signing; the footer says why.
   const canReview = !!args && problems.length === 0 && (changes.length > 0 || !base);
@@ -213,7 +206,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
         ? {
             tone: 'need', icon: 'rules', plain: true,
             title: `You changed ${changes.length} ${changes.length === 1 ? 'thing' : 'things'}${tighter || looser ? ` (${[tighter ? `${tighter} tighter` : '', looser ? `${looser} looser` : ''].filter(Boolean).join(', ')})` : ''}. Nothing is signed yet.`,
-            sub: rows ? `${movedCount} ${movedCount === 1 ? 'deal would' : 'deals would'} have gone differently this week.` : undefined,
+            sub: lines ? `${movedCount} ${movedCount === 1 ? 'deal would' : 'deals would'} have gone differently this week.` : undefined,
           }
         : base.refusal
           ? { tone: 'alert', icon: 'block', title: NO_LONGER_FITS, sub: 'Fix what the line at the bottom says, then sign again, or withdraw them.' }
@@ -264,7 +257,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
         </div>
 
         <div className="ow-scorebar">
-          <Scoreboard rows={rows ?? null} signedName={signedName} draftName={draftName} />
+          <Scoreboard lines={lines} signedName={signedName} draftName={draftName} />
           <div className="ow-switch">
             <Seg<Pane>
               label="Show"
@@ -272,26 +265,26 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
               onChange={setPane}
               options={[
                 { value: 'levers', label: `Limits${changes.length ? ` · ${changes.length}` : ''}` },
-                { value: 'replay', label: rows ? `This week · ${rows.length} deals${movedCount ? ` · ${movedCount} change` : ''}` : 'This week · not available' },
+                { value: 'replay', label: lines ? `This week · ${lines.length} deals${movedCount ? ` · ${movedCount} changed` : ''}` : 'This week' },
               ]}
             />
-            <Chip tone="dashed" title="A preview of the checks that can be worked out here. Anything it can’t work out shows as unknown, never as passed.">preview · checked again when you sign</Chip>
+            <Chip tone="line" title="Your wallet tried this week’s deals with the same check every agent request goes through. Nothing is signed or sent.">your wallet’s own check · nothing signed</Chip>
           </div>
         </div>
 
         {shownPane === 'replay' ? (
-          <ReplayTable rows={rows} error={data.dealsError} signedName={signedName} draftName={draftName} />
+          <WhatIfTable lines={lines} error={args ? what.error : null} updating={what.updating} signedName={signedName} draftName={draftName} />
         ) : (
           <div className="ow-levers">
             <div className="ui-section-h">
               <h2>Limits</h2>
               <span className="end">drag, or type an amount</span>
             </div>
-            <div className="ow-lgd ui-hint" aria-hidden={!rows}>
+            <div className="ow-lgd ui-hint" aria-hidden={!lines}>
               <span><i className="tk policy" />agent may</span>
               <span><i className="tk asks" />asks you</span>
               <span><i className="tk refused" />refused</span>
-              <span><i className="tk unknown" />unknown</span>
+              <span><i className="tk unknown" />not checked</span>
               <span>▾ now</span>
             </div>
             {levers.some(Boolean) ? levers : <p className="ui-hint">No money limits yet. Add a limit per deal, a daily limit or an ask-me limit below.</p>}
@@ -303,6 +296,10 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
         </p>
       </main>
 
+      <p className={`ow-sum ${what.updating ? 'updating' : ''}`} role="status" aria-live="polite">
+        <span className="k">This week</span>
+        <span className="v">{summary}</span>
+      </p>
       <footer className="ow-foot">
         {base ? (
           <Btn kind="danger" locked={locked} disabled={!s.tokenReady || s.pending !== null}
@@ -345,7 +342,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
       ) : null}
       {why && !preview ? (
         <Popover anchor={why} onClose={() => setWhy(null)} title="What the changes did this week" className="ow-pop wide">
-          <Conseq changes={changes} consequences={consequences} />
+          <Conseq changes={changes} summary={lines ? summary : null} hits={hits} />
         </Popover>
       ) : null}
       {sheet && args ? (
@@ -353,7 +350,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
           base={base}
           args={args}
           changes={changes}
-          consequences={consequences}
+          whatIf={lines ? { summary, hits } : null}
           problems={problems}
           onClose={() => setSheet(false)}
           onSigned={(m) => {
@@ -383,12 +380,11 @@ function withFloorSeed(d: MandateDraft, seed: { item_ref: string; floor: Money }
   return { ...d, clauses: d.clauses.map((c) => (c.type === 'band' && c.items.split(/[\s,]+/).includes(seed.item_ref) ? { ...c, floor: minorToInput(seed.floor.minor, d.currency) } : c)) };
 }
 
-function Conseq({ changes, consequences }: { changes: Change[]; consequences: Consequence[] | null }) {
+function Conseq({ changes, summary, hits }: { changes: Change[]; summary: string | null; hits: string }) {
   return (
     <ul className="ow-conseq">
-      {consequences
-        ? consequences.map((c, i) => <li key={i} className={c.change.dir}>{c.change.text}. {c.text}</li>)
-        : changes.map((c, i) => <li key={i} className={c.dir}>{c.text} <span className="dim">· this week’s effect is not computable here</span></li>)}
+      {changes.map((c, i) => <li key={i} className={c.dir}>{c.text}.</li>)}
+      <li className="live">{summary ? `${summary}${hits ? ` Against the rules now, it would have ${hits}.` : ' No deal this week would have gone differently.'}` : 'This week’s effect shows once the wallet has tried these rules.'}</li>
     </ul>
   );
 }
