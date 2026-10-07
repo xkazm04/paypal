@@ -1,6 +1,8 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 #[path = "client_tests.rs"]
 mod client_tests;
+#[path = "forecast_tests.rs"]
+mod forecast_tests;
 #[path = "policy_tests.rs"]
 pub(crate) mod policy_tests;
 #[path = "relay_tests.rs"]
@@ -509,6 +511,20 @@ fn setup(r: &mut Runtime, side: Side) -> (Deal, AgentSigner) {
     setup_delivery(r, side, Delivery::DigitalNow)
 }
 fn setup_delivery(r: &mut Runtime, side: Side, delivery: Delivery) -> (Deal, AgentSigner) {
+    let (deal, peer) = setup_unpriced(r, side, delivery);
+    r.pipeline
+        .wallet
+        .ledger
+        .store_market_reference(
+            deal.id,
+            &MarketRef::from_comparables(vec![deal.terms.unit_price], 100, H256::ZERO).unwrap(),
+            100,
+        )
+        .unwrap();
+    (deal, peer)
+}
+/// A deal with no market reference: the shield asks for every agent authority.
+fn setup_unpriced(r: &mut Runtime, side: Side, delivery: Delivery) -> (Deal, AgentSigner) {
     let mandate = r
         .sign_mandate(MandateSignArgs {
             id: None,
@@ -549,15 +565,6 @@ fn setup_delivery(r: &mut Runtime, side: Side, delivery: Delivery) -> (Deal, Age
                 delivery,
             },
         })
-        .unwrap();
-    r.pipeline
-        .wallet
-        .ledger
-        .store_market_reference(
-            deal.id,
-            &MarketRef::from_comparables(vec![deal.terms.unit_price], 100, H256::ZERO).unwrap(),
-            100,
-        )
         .unwrap();
     (deal, peer)
 }

@@ -82,6 +82,9 @@ pub struct Runtime {
     /// Test-only: makes `attention()` fail, to prove the actor surfaces the fault.
     #[cfg(test)]
     pub(crate) fail_attention: Arc<std::sync::atomic::AtomicBool>,
+    /// Test-only: makes the walk-away forecast read fail, to prove attention still answers.
+    #[cfg(test)]
+    pub(crate) fail_forecast: bool,
 }
 impl std::fmt::Debug for Runtime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -166,6 +169,8 @@ impl Runtime {
             brief_tamper: None,
             #[cfg(test)]
             fail_attention: Arc::default(),
+            #[cfg(test)]
+            fail_forecast: false,
         })
     }
     pub(crate) fn owner(&self) -> Result<ed25519_dalek::SigningKey, CommandError> {

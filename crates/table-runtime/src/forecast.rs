@@ -13,6 +13,10 @@ impl Runtime {
     /// Built from every deal, not from the attention sources: those skip lapse-chosen and
     /// snoozed deals, which still meet their deadline.
     pub(crate) fn forecast(&mut self, now: Timestamp) -> Result<Vec<ForecastLine>, CommandError> {
+        #[cfg(test)]
+        if self.fail_forecast {
+            return Err(crate::unavailable("Forecast unavailable"));
+        }
         let ctx = ForecastContext {
             now,
             horizon_secs: FORECAST_HORIZON_SECS,
