@@ -496,9 +496,22 @@ mod tests {
     }
 
     #[test]
-    fn buyer_purchase_agreed_with_no_deadline_waits_for_the_owner_indefinitely() {
+    fn buyer_purchase_agreed_without_a_deadline_has_no_lines() {
+        // A new purchase always has a deadline; only rows created before that change can lack one.
         let s = source(Side::Buyer, DealKind::Purchase, DealState::Agreed);
         assert!(forecast(&[s], &ctx()).is_empty());
+    }
+
+    #[test]
+    fn buyer_purchase_agreed_with_a_deadline_lapses_there_and_moves_no_money() {
+        let mut s = source(Side::Buyer, DealKind::Purchase, DealState::Agreed);
+        s.deadline = Some(NOW + 3600);
+        let lines = forecast(&[s], &ctx());
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].action, ForecastAction::Lapse);
+        assert_eq!(lines[0].at, Some(NOW + 3600));
+        assert_eq!(lines[0].end_state, DealState::Withdrawn);
+        assert_eq!(lines[0].direction, ForecastDirection::None);
     }
 
     #[test]
