@@ -66,6 +66,7 @@ pub enum Action {
     QuitConfirm(QuitArgs),
     Handoff(DealId),
     ExportProof(DealId),
+    DealHistory(DealHistoryArgs),
 }
 pub struct Caller {
     pub label: String,

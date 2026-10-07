@@ -36,7 +36,7 @@ describe('module mapping', () => {
   });
   it('places the sample week as the design report does', () => {
     const count = (m: string) => deals.filter((d) => moduleOf(d) === m).length;
-    expect([count('tables'), count('spend'), count('counter'), count('book'), count('shield'), count('rescue')]).toEqual([4, 5, 3, 0, 3, 3]); // D-0199 MISMATCH carries a shield HOLD; Q-0207 quote; D-0182/D-0178 rescues
+    expect([count('tables'), count('spend'), count('counter'), count('book'), count('shield'), count('rescue')]).toEqual([4, 6, 3, 0, 3, 3]); // D-0199 MISMATCH carries a shield HOLD; Q-0207 quote; D-0182/D-0178 rescues; D-0181 the safe-default release
   });
 });
 

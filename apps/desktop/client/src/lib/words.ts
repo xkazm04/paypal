@@ -264,3 +264,17 @@ export const SUMMARY_CHANGED = 'The summary changed. Review it again.';
 export const CHECK_FAILED = 'A check on this deal failed, so nothing was done.';
 /** A check's reading in a word or two, for its mark. */
 export const CHECK_STATUS_WORD = { pass: 'passed', fail: 'failed', wait: 'checked later', not_applicable: 'not needed' } as const;
+
+// ---- who decided (the Rewind and the deal's "Who decided") ------------------------------------------
+
+const REFUSED_BECAUSE: Readonly<Record<number, string>> = {
+  1: 'not something your agents may do',
+  2: 'not a shop you connected',
+  3: 'over the per-deal limit',
+  4: 'outside your price range',
+  5: 'over the daily limit',
+  6: 'above the amount you approve yourself',
+  7: 'not an approved payee',
+};
+/** Why a rule refused, in words, for "Your rules refused 40 × GPU: over the per-deal limit". */
+export const refusedBecause = (clause: number): string => REFUSED_BECAUSE[clause] ?? `against “${ruleNameOf(clause)}”`;
