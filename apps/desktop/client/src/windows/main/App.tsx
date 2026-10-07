@@ -129,7 +129,9 @@ function Main() {
     );
   } else if (route.level === 'deal') {
     const m = currentModule ?? 'book';
-    const crumbs: Crumb[] = [{ label: MODULE[m].name, onClick: () => goModule(m) }, { label: deal ? w.display(deal).label : route.deal }];
+    // the deal by its title (UX-GUIDE: ids live in Details)
+    const disp = deal ? w.display(deal) : null;
+    const crumbs: Crumb[] = [{ label: MODULE[m].name, onClick: () => goModule(m) }, { label: disp ? disp.title : 'Deal' }];
     layer = (
       <Shell module={m} crumbs={crumbs} onHome={goHome} onModule={goModule} onSheet={openSheet} onFind={() => setPalette(true)} tumbler={tumbler}>
         {deal ? <DealView deal={deal} onModule={() => goModule(m)} />

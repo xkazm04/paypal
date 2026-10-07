@@ -19,7 +19,8 @@ const cx = (...c: Array<string | false | null | undefined>) => c.filter(Boolean)
 
 // ---- chrome ---------------------------------------------------------------------------------
 
-/** The approval window's own title bar. Sheets drop from its bottom edge (--sheet-top). */
+/** The approval window's own title bar. Sheets drop from its bottom edge (--sheet-top). The deal
+ *  review passes no `label`: its heading names the deal and its id lives in Details (UX-GUIDE). */
 export function ReviewBar({ module, label, mode, onDetails }: { module: string | null; label: string | null; mode: Mode | undefined; onDetails?: (e: MouseEvent<HTMLButtonElement>) => void }) {
   return (
     <TitleBar className="dr-bar">

@@ -9,11 +9,12 @@ import type { Deal } from '@bindings/Deal';
 import type { Module } from '@bindings/Module';
 import type { TumblerStatus } from '@bindings/TumblerStatus';
 import { formatMinor } from '../../lib/format';
+import { readLimits, type LimitMeter } from '../../lib/limits';
 import { kindWord, ruleNameOf } from '../../lib/words';
 import { useMutation, useNow, usePrefersReducedMotion } from '../../lib/hooks';
 import { Countdown, MockBadge, ModeBadge, WalletNotice } from '../../shared/honesty';
 import { MODULE, MODULES } from '../../shared/modules';
-import { Btn, Chip, Explainer, Group, Hint, Kv, Popover, Section, Silence, Spacer, ThemeSwitch, TitleBar, type ExplainerStep } from '../../shared/ui';
+import { Btn, Chip, Explainer, Group, Hint, Kv, Meter, Popover, Section, Silence, Spacer, ThemeSwitch, TitleBar, type ExplainerStep } from '../../shared/ui';
 import { Dial, LegendBead, type Bead } from './Dial';
 import { chipTone, dealCount, LEDGER_TITLE, ledgerDeals, ledgerLine, moneyList, shortTitle, silenceParts, timeLeft, weekLabel, type LedgerKind } from './home/model';
 import {
@@ -21,6 +22,7 @@ import {
   weekBounds, type LedgerScope, type LedgerSummary,
 } from './logic';
 import { RewindBar, RewindHub, useRewind } from './Rewind';
+import { Shortcuts } from './Shortcuts';
 import { StatusChips } from './Status';
 import { LockGlyph, mc } from './ui';
 import { useWorld } from './world';
@@ -54,6 +56,8 @@ export function Home(p: Props) {
   const [flash, setFlash] = useState(0);
   // Rewind: the week replayed under the dial (R toggles, Esc or "Back to now" returns to live).
   const [rewind, setRewind] = useState(false);
+  // the footer's ? opens the shortcuts sheet (the ? key opens the same sheet from App)
+  const [help, setHelp] = useState(false);
   const onDial = useRef(false);
   const timers = useRef<{ idle?: ReturnType<typeof setTimeout>; ret?: ReturnType<typeof setTimeout> }>({});
   const zooming = useRef(false);
@@ -235,18 +239,22 @@ export function Home(p: Props) {
       </main>
       <footer className="foot">
         <StatusChips onSettings={() => p.onOpenSheet('settings')} />
-        <span className="hint" title="Turn the dial with ← → or the mouse wheel · Enter opens · 1–6 jump · Ctrl K finds">Press <span className="kbd">?</span> for shortcuts</span>
+        {/* keyboard hints live in tooltips and the ? sheet (UX-GUIDE principle 7), so the centre stays empty */}
+        <span className="mid" aria-hidden="true" />
         <span className="r">
-          {firstRun ? null : (
-            <button type="button" className={`hs-chip rw-toggle ${rewind ? 'on' : ''}`} aria-pressed={rewind} onClick={() => setRewind((x) => !x)}
-              title={rewind ? 'Back to the dial as it is now (R or Esc)' : 'Replay the week: who decided each payment (R)'}>
+          {/* one way back: while rewinding, "Back to now" sits on the scrubber, so the footer entry steps aside */}
+          {firstRun || rewind ? null : (
+            <button type="button" className="hs-chip rw-toggle" onClick={() => setRewind(true)} title="Replay the week: who decided each payment (R)">
               <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 8a4.8 4.8 0 1 0 1.5-3.5M3 2.5v2.6h2.6M8 5.2V8l2 1.3" /></svg>
-              {rewind ? 'Back to now' : 'Rewind'}
+              Rewind
             </button>
           )}
+          <button type="button" className="hs-chip help-chip" onClick={() => setHelp(true)} aria-label="Keyboard shortcuts"
+            title="Keyboard shortcuts (?) · turn the dial with ← → or the mouse wheel · Enter opens · 1–6 jump · Ctrl K finds">?</button>
           <TumblerPill status={p.tumbler} /><Clock />
         </span>
       </footer>
+      {help ? <Shortcuts onClose={() => setHelp(false)} /> : null}
     </div>
   );
 }
@@ -359,12 +367,15 @@ function NeedPlate({ item, onDeal }: { item: AttentionItem; onDeal: (id: string)
   const deal = (w.deals.data ?? []).find((d) => d.id === item.deal_id);
   const title = deal ? w.display(deal).title : null;
   const canReview = item.actions.includes('review');
+  const now = useNow();
+  const left = timeLeft(item.deadline, now);
   return (
     <div className="plate" style={mc(item.module)}>
-      <div className="p-tag"><i />{MODULE[item.module].name} · <span className="mono">{item.label}</span>
-        {item.deadline ? <> · <Countdown deadline={item.deadline} className={item.urgency === 'now' ? 'red' : 'gold'} /></> : null}</div>
+      {/* the module and how long it can wait, in the Needs-you list's own words; the id lives in Details */}
+      <div className="p-tag"><i />{MODULE[item.module].name}
+        {left ? <> · <span className={`p-left ${left.urgent || item.urgency === 'now' ? 'red' : 'gold'}`}>{left.text}</span></> : null}</div>
       <div className="p-verb">{verb} {gold ? <b>{gold}</b> : null}</div>
-      <div className="p-who">{[item.counterparty, title].filter(Boolean).join(' · ') || <span className="dim">no counterparty name yet</span>}</div>
+      <div className="p-who">{[item.counterparty, title ? shortTitle(title) : null].filter(Boolean).join(' · ') || <span className="dim">no counterparty name yet</span>}</div>
       <SilenceLine text={item.on_silence} />
       <div className="p-acts">
         <Btn kind="plain" sm onClick={(e) => { stop(e); const a = e.currentTarget; setDetails((x) => (x ? null : a)); }} aria-expanded={!!details}>Details</Btn>
@@ -374,7 +385,7 @@ function NeedPlate({ item, onDeal }: { item: AttentionItem; onDeal: (id: string)
             {w.locked ? <LockGlyph locked /> : null}{reviewVerb(item, deal)} ↗
           </button>
         ) : (
-          <button type="button" className="gbtn" onClick={(e) => { stop(e); onDeal(item.deal_id); }}>Open {item.label}</button>
+          <button type="button" className="gbtn" onClick={(e) => { stop(e); onDeal(item.deal_id); }}>Open deal</button>
         )}
       </div>
       {open.error ? <WalletNotice error={open.error} what="Approval window" /> : null}
@@ -390,7 +401,7 @@ function NeedPlate({ item, onDeal }: { item: AttentionItem; onDeal: (id: string)
             item.deadline ? ['Time left', <Countdown deadline={item.deadline} />] : null,
             ['If you do nothing', item.on_silence],
           ]} />
-          <div className="pop-acts"><Btn sm onClick={() => { setDetails(null); onDeal(item.deal_id); }}>Open {item.label} ›</Btn></div>
+          <div className="pop-acts"><Btn sm onClick={() => { setDetails(null); onDeal(item.deal_id); }}>Open deal ›</Btn></div>
         </Popover>
       ) : null}
     </div>
@@ -478,9 +489,12 @@ function LedgerDealRow({ d, kind, onOpen }: { d: Deal; kind: LedgerKind; onOpen:
   );
 }
 
-/** Two meters, never one axis: wallet spend is money committed; the AI usage figure is the agent app's own estimate. */
+/** Two meters, never one axis: wallet spend is money committed; the AI usage figure is the agent app’s own estimate.
+ *  With the wallet's exposure (T14) the spend rows are real: paid out today, on hold now and deals today, each
+ *  against the owner's signed wallet limit, a bar that turns gold near it. */
 function TodayMeters({ meters, att, engine }: { meters: boolean; att: ReturnType<typeof useWorld>['attention']['data']; engine: string | null }) {
-  if (!meters) {
+  const lim = readLimits(att?.exposure);
+  if (!meters && !lim) {
     return (
       <Section title="Today">
         <div className="ui-group"><div className="ui-row" title="Today’s agent spending and AI usage appear here once the wallet can count them">
@@ -491,17 +505,41 @@ function TodayMeters({ meters, att, engine }: { meters: boolean; att: ReturnType
   }
   if (!att) return null;
   const sp = spendToday(att.wallet_spend_today_minor, att.wallet_spend_today_currency);
+  const end = !lim ? undefined : lim.status === 'active' ? <span title={lim.line}>against your wallet limits</span>
+    : lim.status === 'none' ? <span title={lim.line}>no wallet limit</span> : <span className="gold" title={lim.line}>limits need you</span>;
   return (
-    <Section title="Today">
+    <Section title="Today" end={end}>
       <div className="ui-group">
-        <div className="ui-row" title={sp.why ?? 'What your agents committed today'}>
-          <span className="lbl">Spent by agents</span><span className={`amt ${sp.exact ? '' : 'dim'}`}>{sp.text}</span>
-        </div>
-        <div className="ui-row" title={`${engine ? `${engine}: ` : ''}the agent app’s own estimate of its AI cost. Not a bill, never added to spending, never used for money decisions.`}>
-          <span className="lbl">AI usage <span className="dim">· estimate</span></span><span className="amt">~${att.engine_estimate_today_usd.toFixed(2)}</span>
-        </div>
+        {lim ? (
+          lim.meters.length ? lim.meters.map((m) => <LimitRow key={m.key} m={m} />) : (
+            <div className="ui-row" title={lim.mixed ? 'Money went out in more than one currency, so it is not added up.' : 'Your agents have not agreed to pay anything today.'}>
+              <span className="lbl">Paid out today</span><span className="amt dim">{lim.mixed ? 'mixed' : 'nothing'}</span>
+            </div>
+          )
+        ) : (
+          <div className="ui-row" title={sp.why ?? 'What your agents committed today'}>
+            <span className="lbl">Spent by agents</span><span className={`amt ${sp.exact ? '' : 'dim'}`}>{sp.text}</span>
+          </div>
+        )}
+        {meters ? (
+          <div className="ui-row" title={`${engine ? `${engine}: ` : ''}the agent app’s own estimate of its AI cost. Not a bill, never added to spending, never used for money decisions.`}>
+            <span className="lbl">AI usage <span className="dim">· estimate</span></span><span className="amt">~${att.engine_estimate_today_usd.toFixed(2)}</span>
+          </div>
+        ) : null}
       </div>
+      {lim && lim.status !== 'active' && lim.status !== 'none' ? <Hint className="lh">{lim.line}</Hint> : null}
     </Section>
+  );
+}
+
+/** One wallet-limit meter: the figure, the limit beside it, and a bar under them. */
+function LimitRow({ m }: { m: LimitMeter }) {
+  return (
+    <div className="ui-row lim-row" title={m.why}>
+      <span className="lbl">{m.label}</span>
+      <span className="amt">{m.value}{m.of ? <small className="dim"> {m.of}</small> : null}</span>
+      {m.fill !== null ? <Meter value={m.fill} tone={m.near ? 'gold' : undefined} label={`${m.label}: ${m.value} ${m.of ?? ''}`.trim()} /> : null}
+    </div>
   );
 }
 
@@ -528,16 +566,19 @@ function NeedsList({ needs, on, onPoint, onOpen }: { needs: AttentionItem[]; on:
           const deal = (w.deals.data ?? []).find((d) => d.id === x.deal_id);
           const who = x.counterparty ?? (deal ? w.display(deal).title : null);
           const left = timeLeft(x.deadline, now);
+          // Three lines, so the default on silence gets the row's full width: what and how much,
+          // with whom and how long it can wait, then what happens if Maya does nothing.
           return (
-            <button type="button" key={x.deal_id} className={`ui-row two act need-row u-${x.urgency} ${i === on ? 'on' : ''}`} style={mc(x.module)}
-              aria-current={i === on ? 'true' : undefined} title={`${MODULE[x.module].name} · ${x.label} · ${x.headline}`}
+            <button type="button" key={x.deal_id} className={`ui-row act need-row u-${x.urgency} ${i === on ? 'on' : ''}`} style={mc(x.module)}
+              aria-current={i === on ? 'true' : undefined} title={`${MODULE[x.module].name} · ${x.headline}${who ? ` · ${who}` : ''}`}
               onPointerEnter={() => onPoint(i)} onFocus={() => onPoint(i)} onClick={() => onOpen(x.deal_id)}>
               <span className="dotm" aria-hidden="true" />
-              <span className="main">
-                <span className="t1"><b>{verb}</b>{who ? <> · {who}</> : null}</span>
-                <SilenceLine text={x.on_silence} />
+              <span className="nr-a"><b>{verb}</b><span className="amt">{amount}</span></span>
+              <span className="nr-b">
+                <span className="who">{who ?? ''}</span>
+                {left ? <span className={`tl ${left.urgent ? 'now' : ''}`}>{left.text}</span> : null}
               </span>
-              <span className="rt"><span className="amt">{amount}</span>{left ? <span className={`tl ${left.urgent ? 'now' : ''}`}>{left.text}</span> : <span className="id">{x.label}</span>}</span>
+              <SilenceLine text={x.on_silence} />
             </button>
           );
         })}

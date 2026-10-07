@@ -4,6 +4,8 @@ pub mod canonical;
 mod checks;
 pub use checks::*;
 pub mod deal;
+mod exposure;
+pub use exposure::*;
 mod display;
 pub use display::*;
 pub mod ids;
