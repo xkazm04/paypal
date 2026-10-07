@@ -27,7 +27,7 @@ const TARGETS: Record<EventName, WindowLabel[]> = {
   'deal:changed': ['main'],
   'receipt:created': ['main', 'tumbler'],
   'settings:changed': ['main', 'tumbler', 'approval'],
-  'wallet:error': ['main'],
+  'wallet:error': ['main', 'tumbler'],
   'approval:summary': ['approval'],
   'main:route': ['main'],
   'tumbler:form': ['tumbler'],

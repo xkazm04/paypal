@@ -58,6 +58,8 @@ export function Tumbler() {
   const [newIds, setNewIds] = useState<ReadonlySet<string>>(new Set());
   const [docked, setDocked] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
+  // the wallet could not read the cards: what is shown may be old until the next good read
+  const [stale, setStale] = useState(false);
   const [busy, setBusy] = useState(false);
   const [snoozing, setSnoozing] = useState<string | null>(null);
   const [pinned, setPinned] = useState<boolean | null>(null);
@@ -148,6 +150,7 @@ export function Tumbler() {
     for (const i of next.items) known.current.set(i.deal_id, i);
     prevItems.current = next.items;
     setSnapshot(next);
+    setStale(false);
 
     if (arrived.length) {
       setNewIds(new Set(arrived.map((i) => i.deal_id)));
@@ -230,6 +233,7 @@ export function Tumbler() {
   useEvent('tumbler:orient', (o) => setOrient({ side: o.placement.side, valign: o.placement.valign }));
   useEvent('tumbler:visual', setVisual);
   useEvent('attention:changed', applySnapshot);
+  useEvent('wallet:error', () => setStale(true));
   useEvent('receipt:created', onReceipt);
   useEvent('settings:changed', (s) => {
     setSettings(s);
@@ -536,7 +540,12 @@ export function Tumbler() {
       ) : (
         <>
           {form !== 'rest' ? <div className="plate" aria-hidden="true" /> : null}
-          <div className="tbody">{body}</div>
+          <div className="tbody">
+            {body}
+            {stale && (form === 'card' || form === 'stack') ? (
+              <div className="t-fail avail" role="status"><span className="msg">These cards may be out of date until the wallet reads them again.</span></div>
+            ) : null}
+          </div>
           <button className="puck" onClick={onPuckClick} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
             aria-label={puckLabel} title={`${puckLabel}${form === 'rest' ? ' · click to open, drag to move' : ' · click for rest'}`}>
             <PuckArt look={look} items={items} newIds={newIds} inMotion={snapshot?.in_motion ?? 0} mode={mode} locked={locked} handoff={handoff.active} />
