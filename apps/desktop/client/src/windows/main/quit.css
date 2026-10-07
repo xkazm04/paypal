@@ -11,5 +11,6 @@
 .quit-sheet .q-rows li + li { border-top: 1px solid var(--line); }
 .quit-sheet .q-id { display: flex; align-items: baseline; gap: var(--sp-2); font-size: var(--fs-small); color: var(--dim); }
 .quit-sheet .q-amt { font: var(--fw-semibold) var(--fs-body) var(--num); font-variant-numeric: tabular-nums; color: var(--text); }
+.quit-sheet .q-name { flex: 1; min-width: 0; font-size: var(--fs-body); font-weight: var(--fw-medium); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .quit-sheet .q-text { color: var(--muted); line-height: 1.4; }
 .quit-sheet .q-at_paypal .q-amt { color: var(--muted); }

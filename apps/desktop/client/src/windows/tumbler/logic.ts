@@ -11,7 +11,7 @@ import type { Mode } from '@bindings/Mode';
 import type { ReceiptEvent } from '@bindings/ReceiptEvent';
 import type { TumblerPreferences } from '@bindings/TumblerPreferences';
 import type { VisualState } from '@bindings/VisualState';
-import { clockLabel, countdown, formatMinor, shortId } from '../../lib/format';
+import { clockLabel, countdown, formatMinor } from '../../lib/format';
 import { headlineWords, moneyCheckWord, ruleNameOf, silenceWords, timeLeftWords } from '../../lib/words';
 
 /** Rust's size table (crates/table-attention placement.rs). The page never sends pixels;
@@ -307,6 +307,10 @@ export function clauseText(c: ClauseRef | null): string | null {
 let seq = 0;
 const key = (p: string) => `${p}:${++seq}`;
 
+// Tickers name a deal by who it is with (Rust's composed display name), never by its id:
+// UX-GUIDE keeps ids in Details, and a raw id ("01JD…7Q") would mean nothing to the owner.
+const withWho = (i: AttentionItem | undefined): string => (i?.counterparty ? ` · ${i.counterparty}` : '');
+
 export function arrivalTicker(item: AttentionItem): Ticker {
   const hold = item.kind === 'hold';
   const when = item.deadline !== null ? `until ${hhmm(item.deadline)}` : 'no clock';
@@ -314,7 +318,8 @@ export function arrivalTicker(item: AttentionItem): Ticker {
   return {
     key: key('arrive'),
     kind: hold ? 'hold' : 'gate',
-    l1: split ? [`${split.lead} `, split.amount, ` · ${item.label}`] : [`${item.headline} · `, item.label, ''],
+    // who it is with is on line two ("Dan · until 18:00"), so line one is only what and how much
+    l1: split ? [`${split.lead} `, split.amount, ''] : [item.headline, '', ''],
     l2: item.money_check ? `checking with PayPal · ${silenceWords(item.on_silence)}` : hold ? `paused · can’t be paid · ${item.on_silence}` : `${item.counterparty ?? 'a connected wallet'} · ${when}`,
     mode: item.mode,
     dealId: item.deal_id,
@@ -330,7 +335,7 @@ export function arrivalsTicker(items: readonly AttentionItem[]): Ticker | null {
     key: key('arrive'),
     kind: items.some((i) => i.kind === 'gate') ? 'gate' : 'hold',
     l1: ['', String(items.length), ' new items need you'],
-    l2: `first: ${first.headline} · ${first.label}`,
+    l2: `first: ${first.headline}${withWho(first)}`,
     mode: first.mode,
     dealId: first.deal_id,
     ms: TICKER_MS.default,
@@ -355,15 +360,15 @@ const RECEIPT_VERB: Partial<Record<DealState, string>> = {
 };
 
 /** A receipt from Rust. REFUSED reads as a STOP, MISMATCH as a HOLD, everything else is green.
- *  `known` is the last attention item for the deal, used only for its label and amount. */
+ *  `known` is the last attention item for the deal, used only for its amount and who it is with;
+ *  a deal the Tumbler never saw says only what happened. */
 export function receiptTicker(ev: ReceiptEvent, known?: AttentionItem): Ticker {
   const kind: TickerKind = ev.state === 'REFUSED' ? 'stop' : ev.state === 'MISMATCH' ? 'hold' : 'receipt';
   const verb = RECEIPT_VERB[ev.state] ?? 'Updated';
-  const amount = known ? ` ${formatMinor(known.amount_minor, known.currency)}` : '';
   return {
     key: key('receipt'),
     kind,
-    l1: [`${verb}${kind === 'hold' ? '' : amount} · `, known?.label ?? shortId(ev.deal_id), ''],
+    l1: known && kind !== 'hold' ? [`${verb} `, formatMinor(known.amount_minor, known.currency), withWho(known)] : [verb, '', withWho(known)],
     l2: silenceWords(ev.on_silence),
     mode: ev.mode,
     dealId: ev.deal_id,
@@ -387,7 +392,7 @@ export function snoozeTicker(item: AttentionItem, until: number): Ticker {
   return {
     key: key('snooze'),
     kind: 'info',
-    l1: ['Reminder set · ', item.label, ` · back at ${hhmm(until)}`],
+    l1: ['Reminder set · back at ', hhmm(until), withWho(item)],
     l2: 'the deadline still runs · you still get the 15-minute reminder',
     mode: item.mode,
     dealId: item.deal_id,
@@ -400,7 +405,7 @@ export function ackTicker(item: AttentionItem, action: 'withdraw' | 'let_lapse')
   return {
     key: key('ack'),
     kind: 'info',
-    l1: action === 'withdraw' ? ['Withdrawn · ', item.label, ''] : ['Left to lapse · ', item.label, ''],
+    l1: [action === 'withdraw' ? 'Withdrawn' : 'Left to lapse', '', withWho(item)],
     l2: action === 'withdraw' ? 'nothing was sent to PayPal' : item.on_silence,
     mode: item.mode,
     dealId: null,

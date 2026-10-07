@@ -127,6 +127,7 @@ fn rule_name(clause: u8) -> &'static str {
         3 => "the limit per deal",
         4 => "the price range",
         5 => "the daily limit",
+        0 => "your wallet limits",
         6 => "ask me above",
         7 => "approved payees",
         _ => "a rule",

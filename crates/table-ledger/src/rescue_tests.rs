@@ -323,9 +323,9 @@ fn migration_0009_keeps_every_operation_and_its_check_and_admits_the_invoice_ste
             .reserve_operation(deal.id, 1, "refund", "x-refund", &human, 86400)
             .is_err()
     );
-    // Run 0009 again over the rows, as an upgrade from version 8 does.
+    // Run 0010 again over the rows, as an upgrade from version 9 does.
     let conn = w.ledger.conn;
-    conn.execute_batch("DROP TABLE rescue_cases; PRAGMA user_version=8;")
+    conn.execute_batch("DROP TABLE rescue_cases; PRAGMA user_version=9;")
         .unwrap();
     let ledger = Ledger::from_connection(conn).unwrap();
     let open_ops = ledger.open_operations(Some(deal.id)).unwrap();

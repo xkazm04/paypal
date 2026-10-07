@@ -9,6 +9,8 @@ mod forecast_tests;
 mod h5_tests;
 #[path = "history_tests.rs"]
 mod history_tests;
+#[path = "limits_tests.rs"]
+mod limits_tests;
 #[path = "policy_tests.rs"]
 pub(crate) mod policy_tests;
 #[path = "quit_tests.rs"]

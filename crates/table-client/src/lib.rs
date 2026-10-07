@@ -257,6 +257,17 @@ pub struct MandateSignArgs {
 pub struct MandateRevokeArgs {
     pub id: table_core::MandateId,
 }
+/// The owner's wallet-wide limits to sign (T14): one currency, three numbers and an expiry. The
+/// wallet picks the next version and signs with the owner key; nothing here loosens a mandate.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct EnvelopeSignArgs {
+    pub currency: table_core::Currency,
+    pub max_out_day: table_core::Money,
+    pub max_held: table_core::Money,
+    pub max_deals_day: u16,
+    pub expires: i64,
+}
 /// What-if before signing: the draft exactly as `mandate_sign` takes it, replayed over the deals
 /// recorded in a window. Read-only: nothing is signed, written or sent to PayPal.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -800,6 +811,10 @@ pub struct CommandContract {
     pub deal_history: Command<DealHistoryArgs, DealHistory>,
     /// What-if before signing: a draft replayed over recorded deals. Read-only, approval only.
     pub mandate_simulate: Command<MandateSimulateArgs, MandateSimulation>,
+    /// Signs the wallet-wide limits with the owner key (approval window, privileged).
+    pub envelope_sign: Command<EnvelopeSignArgs, table_core::SignedEnvelope>,
+    /// The wallet-wide limits and live exposure numbers only (main, tumbler, approval).
+    pub envelope_get: Command<(), table_core::ExposureView>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -898,6 +913,8 @@ pub const COMMANDS: &[&str] = &[
     "proof_check",
     "deal_history",
     "mandate_simulate",
+    "envelope_sign",
+    "envelope_get",
 ];
 pub const RELEASE_COMMANDS: &[&str] = &[
     "deal_owner_accept",
@@ -917,6 +934,7 @@ pub const RELEASE_COMMANDS: &[&str] = &[
     "pairing_confirm",
     "deal_create",
     "deal_join",
+    "envelope_sign",
 ];
 /// The Rewind read: one deal or every deal, optionally within `[from, to)` (Unix seconds, as every
 /// other timestamp in the contract).

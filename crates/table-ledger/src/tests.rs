@@ -148,7 +148,7 @@ fn migrations_are_transactional_idempotent_and_foreign_keys_enabled() {
         .conn
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 9);
+    assert_eq!(version, 10);
     let connection = ledger.conn;
     let ledger = Ledger::from_connection(connection).unwrap();
     assert_eq!(ledger.audit_count().unwrap(), 0);
@@ -163,7 +163,7 @@ fn client_migration_preserves_timestamps_and_labels_survive_older_imports() {
     let (ledger, deal, _, _, _) = setup();
     let conn = ledger.conn;
     conn.execute_batch(
-        "DROP TABLE rescue_cases; DROP TABLE operation_checks; DROP TABLE deal_labels; DROP INDEX deals_created_at; ALTER TABLE paypal_calls DROP COLUMN binding_json; PRAGMA user_version=5;",
+        "DROP TABLE rescue_cases; DROP TABLE wallet_envelopes; DROP TABLE operation_checks; DROP TABLE deal_labels; DROP INDEX deals_created_at; ALTER TABLE paypal_calls DROP COLUMN binding_json; PRAGMA user_version=5;",
     )
     .unwrap();
     let mut ledger = Ledger::from_connection(conn).unwrap();
@@ -2020,3 +2020,5 @@ fn history_rows_are_deal_scoped_windowed_capped_and_refused_whole_on_a_broken_ch
         Err(LedgerError::Integrity(_))
     ));
 }
+#[path = "limits_tests.rs"]
+mod limits_tests;
