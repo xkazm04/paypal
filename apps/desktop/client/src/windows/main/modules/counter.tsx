@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEve
 import type { Deal } from '@bindings/Deal';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { Money } from '@bindings/Money';
-import { clockLabel, exponent, formatMinor, formatMoney, shortId } from '../../../lib/format';
+import { clockLabel, currencyMark, exponent, formatMinor, formatMoney, shortId } from '../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import { Countdown, ModeBadge, WalletNotice } from '../../../shared/honesty';
 import {
@@ -341,6 +341,7 @@ function CatalogLine({ row, draft, selected, detailed, onSelect, onDeal, onText,
       <td>
         <span className="fl">
           <Btn sm tabIndex={-1} aria-label="Lower the lowest price by 1" onClick={() => step(-1, false)}>−</Btn>
+          <span className="cur" aria-hidden="true">{currencyMark(row.currency)}</span>
           <Field id={`fl-${row.itemRef}`} inputMode="decimal" autoComplete="off" value={text} placeholder="none"
             aria-label={`Lowest price for ${title}${row.signed ? `, signed ${formatMoney(row.signed)}` : ', none signed'}`} aria-invalid={!!bad}
             onChange={(e) => onText(e.target.value === signedText && row.signed ? undefined : e.target.value)} onKeyDown={onKey} onBlur={onBlur} />
