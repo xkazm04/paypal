@@ -189,3 +189,90 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   (forecast test); tests
   `table-runtime::tests::a_purchase_without_a_band_lapses_after_a_day_and_a_band_deadline_still_wins`
   and `table-attention::forecast::tests::buyer_purchase_agreed_with_a_deadline_lapses_there_and_moves_no_money`.
+
+## 9. The shield after H5: money in needs no click
+
+- **Date:** 2026-10-07
+- **Decided by:** the operator (ask c9f99185); the new-counterparty threshold by the App Master.
+- **Constraint:** acceptance H5: the seller wallet takes money in with no click. The shield gate
+  stopped ASK for every authority except a human, so a buyer-approved order waited for the owner.
+- **Decision:** one shield gate, `shield_allows` in `crates/table-app/src/pipeline.rs`.
+  - HOLD and BLOCK stop every step under every authority.
+  - ASK passes Human and HouseMandate. It passes SellerMandate on authorize and capture only, on an
+    order the buyer already approved on PayPal.
+  - Create, purchases and Policy keep the old gate, so the seller's create keeps asking (the
+    operator, 2026-10-07).
+  - A released HOLD lifts only the hold it released; BLOCK is never lifted.
+  - A stale market price can hold a deal but never clear it.
+  - A new counterparty stays ASK above 100.00 in any currency for the submission; per-currency
+    thresholds come after it. The council fixtures that showed HOLD were drift.
+  - A capture ends in Receipted, because capture records the receipt in the same call.
+- **Lost:** keeping ASK blocking for the seller wallet (money in would need a click); letting a
+  fresh market price clear a hold (not confirmed beyond the commit messages).
+- **Consequences:** receiving money needs no click, and no new path lets an agent send money
+  without the owner or a signed rule.
+- **Evidence:** commits 92988cd, 495eac2, 4a95c05, 238d1ef, 675da5a, eaaeca1; test
+  `a_stale_market_can_hold_a_deal_but_never_clear_it`; the H5 section of `docs/build/STATUS.md`.
+
+## 10. BandAdjust warns but does not disable Sign
+
+- **Date:** 2026-10-07
+- **Decided by:** the App Master.
+- **Constraint:** the mandate-authoring rework (c664f70) needed a rule for the BandAdjust warning.
+  Section 5 already makes a bad band fail closed at signing.
+- **Decision:** BandAdjust shows a warning and leaves Sign enabled.
+- **Lost:** disabling Sign on the warning (not confirmed; the reasons are not written down beyond
+  the choice).
+- **Consequences:** the owner can sign past the warning; the signing check in section 5 still
+  refuses a band that is invalid.
+- **Evidence:** commit c664f70 (STATUS entry for the rework). Not confirmed beyond that commit.
+
+## 11. Proof files are checked in the app and saved with a warning
+
+- **Date:** 2026-10-07
+- **Decided by:** the operator (ask c866d3ed) for in-app checking; the App Master for the warning.
+- **Constraint:** the proof file carries the deal's rules (price limits, payees, caps and the other
+  side's notes), and a non-technical merchant should not need a command-line tool to check one
+  (`docs/ux/UX-GUIDE.md`).
+- **Decision:**
+  - A proof file is checked inside the desktop app with the same verifier code, and the screen
+    stops naming the command-line tool.
+  - Saving a proof first warns that the file carries those rules; nothing is withheld.
+  - Withholding parts of a mandate is T13, which is post-submission.
+- **Lost:** withholding parts of the mandate now (T13, post-submission); keeping the command-line
+  tool as the only check (not confirmed).
+- **Consequences:** the owner is told what a shared file reveals; the file itself is unchanged.
+- **Evidence:** decided, implementation in flight (run 87d1d32c).
+
+## 12. The HOUSE health check follows each deal step
+
+- **Date:** 2026-10-07
+- **Decided by:** the App Master.
+- **Constraint:** scan C-8 (2ab2b4d) writes the heartbeat only at the start of a timer tick, so a
+  tick that awaits PayPal can hold `/healthz` at 503 for more than 30 s. `render.yaml`'s health
+  check could then restart the HOUSE in the middle of a money step. Found in the house-seller-demo
+  council-lite r1 review.
+- **Decision:** write the heartbeat around each awaited deal step, and raise the threshold above
+  the longest single PayPal await. Also decided: the scan's optional skip of identical polls in
+  `record_paypal_call` is not done; after C-5's backoff it would save about 1.7% of poll rows and
+  it would touch the audit path.
+- **Lost:** loosening the threshold alone.
+- **Consequences:** a slow PayPal call no longer reads as a dead actor. Until it is built, the
+  window above stays open.
+- **Evidence:** decided, not built yet. Commits 2ab2b4d (C-8) and 5f1e5e0 (C-5); the STATUS
+  "Security fixes" section.
+
+## 13. Subscription rescue: one lever, built end to end
+
+- **Date:** 2026-10-07
+- **Decided by:** the operator (ask a3706d60)
+- **Constraint:** the submission cut (section 1) leaves limited time, and the live sandbox invoice
+  check (spike 8) is an external PayPal call.
+- **Decision:** build one lever, DISCOUNT_THIS_CYCLE, end to end in wave 3 for the submission, and
+  ask the operator before spike 8. Its first slice counts only receipted, verified captures as
+  recovered money.
+- **Lost:** a preview label now with the build after the submission; hiding rescue; nice to have.
+- **Consequences:** one lever is real and the rest are out of scope; no live call happens without
+  the operator's ask.
+- **Evidence:** decided, implementation in flight. Recorded in `docs/concepts/moonshot-backlog.md`
+  §1a ("Submission cut").
