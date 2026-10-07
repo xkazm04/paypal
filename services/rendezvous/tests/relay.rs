@@ -185,3 +185,37 @@ async fn identical_resend_keeps_its_sequence_number_even_when_full() {
     assert_eq!(s.send(&h, jws(3, FULL)).await.unwrap(), 4);
     assert!(matches!(s.send(&h, jws(50, 9)).await, Err(Error::Full)));
 }
+#[tokio::test]
+async fn reads_are_paged_and_the_cursor_recovers_every_message_in_order() {
+    let s = MemoryStore::new(Arc::new(table_core::FixedClock(0)));
+    let h = hash(9);
+    s.create(&h).await.unwrap();
+    let sent: Vec<String> = (0..100).map(|n| jws(n, 100)).collect();
+    for m in &sent {
+        s.send(&h, m.clone()).await.unwrap();
+    }
+    let generation = s.batch(&h, "", 0).await.unwrap().generation;
+    let (mut got, mut via_batch) = (vec![], vec![]);
+    loop {
+        let page = s.read(&h, got.len() as u64).await.unwrap();
+        assert!(page.len() <= 32);
+        if page.is_empty() {
+            break;
+        }
+        got.extend(page);
+    }
+    loop {
+        let batch = s
+            .batch(&h, &generation, via_batch.len() as u64)
+            .await
+            .unwrap();
+        assert!(batch.messages.len() <= 32);
+        assert_eq!(batch.after, via_batch.len() as u64);
+        if batch.messages.is_empty() {
+            break;
+        }
+        via_batch.extend(batch.messages);
+    }
+    assert_eq!(got, sent);
+    assert_eq!(via_batch, sent);
+}
