@@ -249,8 +249,13 @@ Behaviour changes worth knowing:
 - The owner key is minted only for a fresh ledger (`Ledger::is_fresh`); every later read path
   uses `existing_signing_key` and fails closed when the entry is missing.
 - `set_deadline` takes the write time and appends a `deadline.set` audit row in the same transaction.
-- Relay routes of terminal deals stop being polled once nothing is owed, and only live routes count
-  toward the 64-route cap. `create_deal` writes the silence deadline before relay binding.
+- Relay routes of terminal deals stop being polled once nothing is owed (a Receipted route stays
+  polled so a relay restart is noticed), and only pre-capture routes count toward the 64-route cap
+  (Captured and Receipted routes release theirs).
+  `create_deal` writes the silence deadline before relay binding. HOUSE `Seller::table` order:
+  create the deal, set the silence deadline, bind the relay, list, and reserve the request slot
+  last (scan C-3). A request that fails midway leaves a Pairing deal that lapses on its deadline and
+  holds no request slot; its retry makes a fresh deal.
 - Deals under a retired (revoked/superseded) mandate are left to their deadline default; the inbox
   rejects their messages once (`envelope.rejected`) instead of faulting every tick.
 - `Pipeline::tick` attempts every due deal and returns the first error afterwards.

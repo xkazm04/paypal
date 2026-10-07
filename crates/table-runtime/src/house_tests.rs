@@ -208,6 +208,50 @@ async fn house_closed_request_signature_side_expiry_and_capacity_reject_before_a
 }
 
 #[test]
+fn house_relay_refusal_leaves_a_deadline_and_no_request_slot() {
+    let (mut seller, release, _, clock, _) = hosted_fixture();
+    let (_, _, response) = house_buyer(&mut seller, release.clone());
+    let first = response.table.deal_id;
+    let ledger = &mut seller.pipeline.wallet.ledger;
+    // Fill the 64-route relay cap with live pre-capture routes (the first deal holds one).
+    for n in 1..64_u32 {
+        let mut deal = ledger.get_deal(first).unwrap();
+        deal.id = DealId(ulid::Ulid::new());
+        deal.state = DealState::Pairing;
+        deal.transcript_head = H256::ZERO;
+        deal.paypal = Default::default();
+        ledger.create_deal(&deal, 100).unwrap();
+        ledger
+            .bind_relay(deal.id, H256::digest(&n.to_le_bytes()), 100)
+            .unwrap();
+    }
+    // The next UTC day, so the fillers do not use up today's deal limit.
+    clock.0.store(86_450, std::sync::atomic::Ordering::SeqCst);
+    let slots = ledger.house_open_request_count().unwrap();
+    let known: Vec<DealId> = ledger.list_deals().unwrap().iter().map(|d| d.id).collect();
+    let refused = fresh_house_request(&release);
+    let digest = refused.identity_hash().unwrap();
+    assert!(
+        seller
+            .table(table_proto::HouseRequest { buyer: refused })
+            .is_err()
+    );
+    let ledger = &seller.pipeline.wallet.ledger;
+    // Old order reserved before binding, so the count rose by one here.
+    assert_eq!(ledger.house_open_request_count().unwrap(), slots);
+    assert_eq!(ledger.house_request(digest).unwrap(), None);
+    let orphans: Vec<_> = ledger
+        .list_deals()
+        .unwrap()
+        .into_iter()
+        .filter(|d| !known.contains(&d.id))
+        .collect();
+    assert_eq!(orphans.len(), 1);
+    // Old order set the deadline last, so the orphan had none.
+    assert!(ledger.deadline(orphans[0].id).unwrap().is_some());
+}
+
+#[test]
 fn house_capacity_is_released_when_negotiations_end_and_refusals_write_nothing() {
     let (mut seller, release, http, _, _) = hosted_fixture();
     let (_, _, response) = house_buyer(&mut seller, release.clone());

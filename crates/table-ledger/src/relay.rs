@@ -73,7 +73,7 @@ impl Ledger {
             }
             return Ok(());
         }
-        // Only routes of deals still in play hold capacity; finished deals release theirs.
+        // Only routes of pre-capture deals hold capacity; captured and finished deals release theirs.
         let routed = tx
             .prepare("SELECT deal_id FROM relay_routes")?
             .query_map([], |r| r.get::<_, String>(0))?
@@ -83,9 +83,9 @@ impl Ledger {
             let routed = routed
                 .parse()
                 .map_err(|_| LedgerError::Integrity("deal id"))?;
-            if !crate::repositories::read_deal(&tx, routed)?
+            if crate::repositories::read_deal(&tx, routed)?
                 .state
-                .terminal()
+                .pre_capture()
             {
                 live += 1;
             }
@@ -137,6 +137,8 @@ impl Ledger {
                 .collect::<Result<Vec<_>, LedgerError>>()?;
             let deal_id = id.parse().map_err(|_| LedgerError::Integrity("deal id"))?;
             // A finished deal still delivers what it owes (a WITHDRAW, a RECEIPT), then goes quiet.
+            // A Receipted deal stays polled: a relay restart is only noticed by polling, and both
+            // wallets must then resend the signed history.
             if outgoing.is_empty()
                 && crate::repositories::read_deal(&self.conn, deal_id)?
                     .state
