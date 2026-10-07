@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEve
 import type { Deal } from '@bindings/Deal';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { Money } from '@bindings/Money';
-import { clockLabel, currencyMark, exponent, formatMinor, formatMoney, shortId } from '../../../lib/format';
+import { clockLabel, exponent, formatMinor, formatMoney, shortId } from '../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import { Countdown, ModeBadge, WalletNotice } from '../../../shared/honesty';
 import {
@@ -19,14 +19,14 @@ import {
   type ChipTone, type ExplainerStep,
 } from '../../../shared/ui';
 import { chipClass, dealTotal, isLive, moneyNow, pairingFact, PENDING_BACKEND, stripFor, sumByCurrency, type ChipClass } from '../logic';
-import { moneyCheckWord, silenceWords, stateWord, timeLeftWords } from '../../../lib/words';
+import { silenceWords, stateWord, timeLeftWords } from '../../../lib/words';
 import { Glyph } from '../../../shared/modules';
 import { useCpLookup } from '../ui';
 import { useWorld } from '../world';
 import type { ModuleProps } from './common';
 import { NoteText } from './shield/NoteChip';
 import {
-  buildCatalog, draftFloor, draftImpact, draftState, floorText, fmtShort, matchesFilter, matchesQuery, minorToText, parseMoneyText, scaleOf,
+  buildCatalog, currencyMark, draftFloor, draftImpact, draftState, floorText, fmtShort, matchesFilter, matchesQuery, minorToText, parseMoneyText, scaleOf,
   sellerMandates, stepFloor, underDraft, vsMarket, type CatalogFilter, type CatalogRow, type FloorDraft, type Impact,
 } from './counter/model';
 import './counter.css';
@@ -38,6 +38,7 @@ const stateText = (d: Deal) => stateWord(d.state, { side: d.side, kind: d.kind }
 /** Shop rules are one signed seller mandate: Layer 1 names it, the id and version stay in tooltips. */
 const mandateTip = (m: MandateListEntry) => `Shop rules, version ${m.payload.version} · ${shortId(m.payload.id)}`;
 const UNK_CATALOG = 'Your shop’s catalog is not connected yet, so list price, stock and listing details are not known here. Nothing is guessed.';
+const CODE_ONLY = 'The item code from your shop rules. Its name shows once an order names it or your catalog is connected.';
 
 const HOW_COUNTER: readonly ExplainerStep[] = [
   { icon: 'store', title: 'Agents shop here', text: 'Other people’s agents place orders at your shop.' },
@@ -128,7 +129,7 @@ export function Counter({ deals, nav }: ModuleProps) {
     <>
       <PageHead title="Counter" icon={<Glyph module="counter" />} focusKey="counter" sub="Your shop · other people’s agents buy here, never below your lowest prices"
         actions={<><DetailToggle value={detail} onChange={setDetail} /><MandateButton mandate={mandate} count={seller.length} floors={rows.filter((r) => r.signed).length} nav={nav} /></>} />
-      <ShopAnswer live={live} past={past} nameOf={(d) => cp(d.counterparty).name} needs={(d) => { const n = w.needOf(d.id); return !!n && !n.money_check; }} now={now} deadlineOf={(d) => w.needOf(d.id)?.deadline ?? w.display(d).deadline} />
+      <ShopAnswer live={live} past={past} nameOf={(d) => cp(d.counterparty).name} needs={(d) => !!w.needOf(d.id)} now={now} deadlineOf={(d) => w.needOf(d.id)?.deadline ?? w.display(d).deadline} />
       <Explainer id="counter" title="How your shop works" steps={HOW_COUNTER} />
 
       <Section title={<>Orders at your counter <span className="n">{live.length} open</span></>} end={detailed ? 'buyers pay on PayPal · collected for you automatically' : undefined}>
@@ -187,7 +188,7 @@ export function Counter({ deals, nav }: ModuleProps) {
             const disp = w.display(d);
             const t = dealTotal(d);
             return (
-              <Row key={d.id} className="past" id={disp.label} selected={sel?.kind === 'deal' && sel.id === d.id} onOpen={() => select('deal', d.id)}
+              <Row key={d.id} className="past" id={detailed ? disp.label : undefined} selected={sel?.kind === 'deal' && sel.id === d.id} onOpen={() => select('deal', d.id)}
                 title={<>{disp.title} · <span className="cp">{cp(d.counterparty).name}</span>{d.updated_at ? <span className="dim"> · {clockLabel(d.updated_at)}</span> : null}</>}>
                 {d.mode !== 'sandbox' ? <ModeBadge mode={d.mode} /> : null}
                 <Chip tone={TONE[chipClass(d)]}>{stateText(d)}</Chip>
@@ -219,9 +220,6 @@ export function Counter({ deals, nav }: ModuleProps) {
 // ---- Layer 1 pieces ------------------------------------------------------------------------------
 
 function StateChip({ deal }: { deal: Deal }) {
-  // A collection whose PayPal answer was lost reads "Checking with PayPal", dashed, never "On hold".
-  const check = useWorld().needOf(deal.id)?.money_check;
-  if (check) return <Chip tone="dashed" title={moneyCheckWord(check).means}>{moneyCheckWord(check).text}</Chip>;
   return <Chip tone={TONE[chipClass(deal)]} title={stateWord(deal.state, { side: deal.side, kind: deal.kind }).means}>{stateText(deal)}</Chip>;
 }
 
@@ -290,13 +288,13 @@ function OrderCard({ deal, cpName, now, selected, withdraws, onOpen }: { deal: D
       <div className="o-top">
         <div className="o-what">
           <span className="o-title">{disp.title}</span>
-          <span className="o-who">from <span className="cp">{cpName}</span> · <span className="mono">{disp.label}</span></span>
+          <span className="o-who">from <span className="cp">{cpName}</span></span>
         </div>
         <span className="o-amt">{formatMinor(t.minor, t.currency)}</span>
       </div>
       <div className="o-mid">
         <StateChip deal={deal} />
-        {need && !need.money_check ? <Chip tone="gold">needs you</Chip> : null}
+        {need ? <Chip tone="gold">needs you</Chip> : null}
         {withdraws ? <Chip tone="coral" title="Your new lowest price is above this quote. Signing the change withdraws it; no money moves.">would be withdrawn</Chip> : null}
         {deal.mode !== 'sandbox' ? <ModeBadge mode={deal.mode} /> : null}
         {deadline ? <span className="o-left"><Icon name="clock" size={13} />{timeLeftWords(deadline - now)} left</span> : null}
@@ -335,19 +333,26 @@ function CatalogLine({ row, draft, selected, detailed, onSelect, onDeal, onText,
   };
   const onRowClick = (e: MouseEvent<HTMLTableRowElement>) => { if (!(e.target as HTMLElement).closest(INTERACTIVE)) onSelect(); };
   const title = row.title ?? row.itemRef;
+  // No order has named this item and the catalog is not connected, so its only name is the code in
+  // your shop rules: shown as that code (a quiet tag), never dressed up as a catalog title.
+  const coded = row.title === null;
   return (
     <tr className={`item ${bad ? 'bad' : inDraft ? 'draft' : ''}`} aria-selected={selected} onClick={onRowClick}>
       <td className="it">
-        <button type="button" className="ititle" onClick={onSelect} title={row.itemRef}>{title}</button>
+        <button type="button" className="ititle" onClick={onSelect} title={coded ? CODE_ONLY : row.itemRef}>
+          {coded ? <span className="sku" aria-label={`Item code ${row.itemRef}`}>{row.itemRef}</span> : title}
+        </button>
       </td>
       {catPending ? null : <td className="num"><span className="unk" title={UNK_CATALOG}>unknown</span></td>}
       <td>
         <span className="fl">
           <Btn sm tabIndex={-1} aria-label="Lower the lowest price by 1" onClick={() => step(-1, false)}>−</Btn>
-          <span className="cur" aria-hidden="true">{currencyMark(row.currency)}</span>
-          <Field id={`fl-${row.itemRef}`} inputMode="decimal" autoComplete="off" value={text} placeholder="none"
-            aria-label={`Lowest price for ${title}${row.signed ? `, signed ${formatMoney(row.signed)}` : ', none signed'}`} aria-invalid={!!bad}
-            onChange={(e) => onText(e.target.value === signedText && row.signed ? undefined : e.target.value)} onKeyDown={onKey} onBlur={onBlur} />
+          <span className="cur-in">
+            <span className="cur" aria-hidden="true">{currencyMark(row.currency)}</span>
+            <Field id={`fl-${row.itemRef}`} inputMode="decimal" autoComplete="off" value={text} placeholder="none"
+              aria-label={`Lowest price for ${title}${row.signed ? `, signed ${formatMoney(row.signed)}` : ', none signed'}`} aria-invalid={!!bad}
+              onChange={(e) => onText(e.target.value === signedText && row.signed ? undefined : e.target.value)} onKeyDown={onKey} onBlur={onBlur} />
+          </span>
           <Btn sm tabIndex={-1} aria-label="Raise the lowest price by 1" onClick={() => step(1, false)}>+</Btn>
         </span>
         <span className="fnote">

@@ -19,7 +19,7 @@ export function decidedLine(s: HistoryStep): string {
 
 /** The steps worth a line here: every decision, every money call and every refusal. */
 export function decisionSteps(steps: readonly HistoryStep[]): HistoryStep[] {
-  return steps.filter((s) => isMoneyCall(s) || isRefusal(s) || s.kind === 'approved_by_buyer'
+  return steps.filter((s) => isMoneyCall(s) || isRefusal(s) || s.kind === 'approved_by_buyer' || s.kind === 'checking_with_paypal'
     || (s.authority.type !== 'none' && s.authority.type !== 'agent_intent'));
 }
 

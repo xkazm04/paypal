@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import { countdown, formatMinor, shortHash, shortId } from './format';
+import { clockLabel, countdown, formatMinor, shortHash, shortId } from './format';
 import { WalletError, toWalletError } from './contract';
 import { mockBackend, resetMockState } from '../mock/backend';
 import { fakeHash, fakeUlid } from '../mock/fixtures';
@@ -17,6 +17,13 @@ describe('money formatting (display only - Rust owns the arithmetic)', () => {
     expect(countdown(1000 + 3 * 3600 + 57 * 60 + 56, 1000)).toBe('3:57:56');
     expect(countdown(1000 + 2 * 86400 + 19 * 3600, 1000)).toBe('2 d 19 h');
     expect(countdown(500, 1000)).toBe('0:00:00');
+  });
+  it('says a weekday for times this week and the date for times further away', () => {
+    const now = Math.floor(new Date(2026, 9, 7, 23, 9).getTime() / 1000); // Wed 7 Oct 2026, local
+    expect(clockLabel(now - 3600, now)).toBe('Wed 22:09');
+    expect(clockLabel(now + 4 * 86400, now)).toBe('Sun 23:09');
+    expect(clockLabel(now + 27 * 86400, now)).toMatch(/^3 Nov \d\d:\d\d$/); // a daylight-saving change may move the hour
+    expect(clockLabel(now - 9 * 86400, now)).toMatch(/^28 Sep\w* \d\d:\d\d$/);
   });
   it('shortens ids and hashes', () => {
     expect(shortId('01JDABCDEFGHJKMNPQRSTVWX7Q')).toBe('01JD…7Q');
