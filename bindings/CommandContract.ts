@@ -30,6 +30,8 @@ import type { MainRoute } from "./MainRoute";
 import type { MandateListEntry } from "./MandateListEntry";
 import type { MandateRevokeArgs } from "./MandateRevokeArgs";
 import type { MandateSignArgs } from "./MandateSignArgs";
+import type { MandateSimulateArgs } from "./MandateSimulateArgs";
+import type { MandateSimulation } from "./MandateSimulation";
 import type { MarketRef } from "./MarketRef";
 import type { MarketRefreshArgs } from "./MarketRefreshArgs";
 import type { OpenMandate } from "./OpenMandate";
@@ -62,4 +64,8 @@ deal_export_proof: Command<DealArgs, boolean>,
 /**
  * Checks a proof file the owner picks in a native open dialog; null if cancelled.
  */
-proof_check: Command<null, ProofReport | null>, };
+proof_check: Command<null, ProofReport | null>, 
+/**
+ * What-if before signing: a draft replayed over recorded deals. Read-only, approval only.
+ */
+mandate_simulate: Command<MandateSimulateArgs, MandateSimulation>, };
