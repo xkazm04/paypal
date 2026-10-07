@@ -4,6 +4,7 @@ mod configuration;
 pub mod credentials;
 mod dispatcher;
 mod engines;
+mod forecast;
 mod market;
 pub use market::VaultMarketKey;
 mod pairing;

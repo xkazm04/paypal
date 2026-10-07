@@ -164,6 +164,8 @@ impl Runtime {
             .first()
             .map(|d| d.terms.currency)
             .filter(|currency| deals.iter().all(|d| d.terms.currency == *currency));
+        // A failed read hides the forecast; it never fails the attention snapshot.
+        snapshot.forecast = self.forecast(now).ok();
         Ok(snapshot)
     }
     pub(crate) async fn execute(
