@@ -231,7 +231,7 @@ one signed file (`table.proof.v1`, `table_proto::ProofBundle`) and `crates/table
 - Not yet run: the native save dialog (compile/clippy only, no GUI harness). The verifier logic mirrors
   the ledger's transcript/audit checks rather than sharing code; the export-then-verify test guards
   that parity.
-- Council-lite r1 rework (536d1a41, 2026-10-07): the PayPal-order check fails any 2xx order create,
+- Council-lite r1 rework (council run 536d1a41; rework merged as a95b80a, 2026-10-07): the PayPal-order check fails any 2xx order create,
   authorize or order read with no stored binding, and names the call. Bundles from before bindings
   were stored (pre-0007) now fail by design; a deal with no order call passes. Check 4 ('closed
   mandate binds terms and amount') compares each countersigned payee with the owner-signed
