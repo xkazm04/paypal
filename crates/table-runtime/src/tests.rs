@@ -1,6 +1,8 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 #[path = "client_tests.rs"]
 mod client_tests;
+#[path = "policy_tests.rs"]
+pub(crate) mod policy_tests;
 #[path = "relay_tests.rs"]
 mod relay_tests;
 use super::*;
@@ -344,7 +346,9 @@ async fn actor_runs_recheck_scope_pause_cancels_revoke_stops_old_intents_and_res
 async fn scripted_run_is_labelled_and_invokes_checked_wallet_reads() {
     let (mut r, _, http, _, _) = runtime(true);
     let (deal, _) = setup(&mut r, Side::Seller);
+    let loopback = policy_tests::install(&mut r);
     let (actor, mut events) = spawn(r);
+    policy_tests::attach(&actor, &loopback, 8765).await;
     let run: RunSnapshot = actor
         .execute(caller("main", None), Action::Start(deal.id))
         .await

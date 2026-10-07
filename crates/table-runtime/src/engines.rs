@@ -103,19 +103,10 @@ impl Runtime {
         if self.engines.iter().any(|(_, i)| i.id == EngineId::Scripted) {
             return Ok(());
         }
-        let engine = Scripted::new(
-            vec![
-                EngineEvent::ToolCall {
-                    name: "mcp__wallet__table_view".into(),
-                    arguments: serde_json::json!({}),
-                },
-                EngineEvent::Result {
-                    verdict: TerminalVerdict::Clean,
-                },
-            ],
-            serde_json::json!({"verdict":"ASK"}),
-        )
-        .map_err(|_| invalid())?;
+        let engine = PolicyEngine::new(Arc::new(
+            crate::policy::HttpMcp::new()
+                .map_err(|_| unavailable("Local MCP client unavailable"))?,
+        ));
         self.engine_probed_at
             .push((EngineId::Scripted, self.clock.now()));
         self.engines.push((
@@ -125,7 +116,7 @@ impl Runtime {
                 available: true,
                 version: Some("1".into()),
                 reason: Some(
-                    "Offline scripted table-view fixture; no autonomous bargaining".into(),
+                    "Policy negotiator: fixed concession rules inside the signed limits".into(),
                 ),
             },
         ));
@@ -200,8 +191,13 @@ impl Runtime {
         if self.engine == EngineId::Scripted && scope.role != AgentRole::Negotiator {
             return Err(unavailable("Scripted fixture supports table-view only"));
         }
-        // This is a typed Rust projection: no NOTES, invoice memo or remote prose.
-        let prompt = serde_json::to_string(&deal).map_err(|_| invalid())?;
+        // This is a typed Rust projection: no NOTES, invoice memo or remote prose. The policy
+        // negotiator gets its typed brief instead of the deal snapshot.
+        let prompt = if self.engine == EngineId::Scripted {
+            serde_json::to_string(&self.policy_brief(&deal)?).map_err(|_| invalid())?
+        } else {
+            serde_json::to_string(&deal).map_err(|_| invalid())?
+        };
         let run = RunId(ulid::Ulid::new());
         let expires = self.clock.now().checked_add(120).ok_or_else(invalid)?;
         let snapshot = RunSnapshot {
@@ -215,29 +211,17 @@ impl Runtime {
             },
             state: RunState::Starting,
         };
-        let (server, grant, mcp) = if self.engine == EngineId::Scripted {
-            (
-                None,
-                None,
-                McpGrant {
-                    url: String::new(),
-                    token: String::new(),
-                    secret: String::new(),
-                },
-            )
-        } else {
-            let (server, url) = self
-                .mcp
-                .as_ref()
-                .ok_or_else(|| unavailable("Local MCP not attached"))?;
-            let grant = server.grant_for_run(scope.clone(), run)?;
-            let mcp = McpGrant {
-                url: url.clone(),
-                token: grant.token.clone(),
-                secret: grant.secret.clone(),
-            };
-            (Some(server.clone()), Some(grant), mcp)
+        let (server, url) = self
+            .mcp
+            .as_ref()
+            .ok_or_else(|| unavailable("Local MCP not attached"))?;
+        let grant = server.grant_for_run(scope.clone(), run)?;
+        let mcp = McpGrant {
+            url: url.clone(),
+            token: grant.token.clone(),
+            secret: grant.secret.clone(),
         };
+        let (server, grant) = (Some(server.clone()), Some(grant));
         let sender = self
             .actor_sender
             .clone()
@@ -308,8 +292,10 @@ impl Runtime {
                 active.snapshot.state = RunState::Running;
                 Ok(Some(active.snapshot.clone()))
             }
+            // Only a grant-less scripted fixture streams calls for the host to run; the policy
+            // negotiator and native engines already pass through MCP.
             EngineEvent::ToolCall { name, arguments }
-                if active.snapshot.engine == EngineId::Scripted =>
+                if active.snapshot.engine == EngineId::Scripted && active.server.is_none() =>
             {
                 let scope = active.scope.clone();
                 let request = AgentRequest::decode(

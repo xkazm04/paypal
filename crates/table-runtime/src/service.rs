@@ -70,6 +70,11 @@ pub struct Runtime {
     pub(crate) emitted: Vec<crate::WalletEvent>,
     /// When each engine executable was probed this session.
     pub(crate) engine_probed_at: Vec<(table_engine::EngineId, i64)>,
+    /// The transcript head each deal's last policy run was armed for: one run per peer message.
+    pub(crate) armed: BTreeMap<DealId, H256>,
+    /// Test-only: overrides the signed band in the brief, to prove the mandate still refuses.
+    #[cfg(test)]
+    pub(crate) brief_tamper: Option<(Option<Money>, Option<Money>)>,
 }
 impl std::fmt::Debug for Runtime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -149,6 +154,9 @@ impl Runtime {
             secondary: None,
             emitted: Vec::new(),
             engine_probed_at: Vec::new(),
+            armed: BTreeMap::new(),
+            #[cfg(test)]
+            brief_tamper: None,
         })
     }
     pub(crate) fn owner(&self) -> Result<ed25519_dalek::SigningKey, CommandError> {

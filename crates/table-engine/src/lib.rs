@@ -2,6 +2,7 @@
 mod argv;
 mod native;
 mod parser;
+mod policy;
 mod resolve;
 #[cfg(windows)]
 mod windows_job;
@@ -9,6 +10,7 @@ pub use argv::*;
 use async_trait::async_trait;
 pub use native::*;
 pub use parser::*;
+pub use policy::*;
 pub use resolve::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

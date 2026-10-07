@@ -7,6 +7,7 @@ mod engines;
 mod market;
 pub use market::VaultMarketKey;
 mod pairing;
+mod policy;
 mod proof;
 pub mod reauth;
 mod relay;

@@ -54,6 +54,7 @@ impl Runtime {
         if self.mandate_retired(deal)? {
             return Ok(());
         }
+        self.arm_policy_run(deal);
         if !self.paused
             && deal.state == DealState::Agreed
             && (deal.side == Side::Seller || deal.kind == DealKind::Purchase)

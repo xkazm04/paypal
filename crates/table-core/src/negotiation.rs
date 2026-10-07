@@ -45,8 +45,9 @@ pub struct BuyerPolicy {
     pub max_rounds: u8,
 }
 impl BuyerPolicy {
-    /// Opening anchor: the lowest of the band floor and the market p25 that exist, otherwise 60%
-    /// of the ceiling.
+    /// Opening anchor: the bottom of the signed band (its floor) or, without one, the market p25;
+    /// with neither, 60% of the ceiling. A seller wallet refuses offers below its own floor
+    /// outright, so the buyer opens at the bottom of its own band rather than under it.
     pub fn anchored(
         ceiling: Money,
         floor: Option<Money>,
@@ -54,16 +55,11 @@ impl BuyerPolicy {
         market_median: Option<Money>,
         max_rounds: u8,
     ) -> Result<Self, MoneyError> {
-        let mut open = None::<Money>;
-        for anchor in [floor, market_p25].into_iter().flatten() {
-            anchor.same_currency(ceiling)?;
-            open = Some(match open {
-                Some(o) if o.minor() <= anchor.minor() => o,
-                _ => anchor,
-            });
-        }
-        let open = match open {
-            Some(open) => open,
+        let open = match floor.or(market_p25) {
+            Some(anchor) => {
+                anchor.same_currency(ceiling)?;
+                anchor
+            }
             None => Money::new(
                 i64::try_from(i128::from(ceiling.minor()) * 6 / 10)
                     .map_err(|_| MoneyError::Overflow)?
@@ -212,10 +208,12 @@ mod tests {
         assert!(p.decide(Money::new(1, Currency::EUR).unwrap(), 1).is_err());
     }
     #[test]
-    fn buyer_anchor_prefers_lowest_signed_floor_or_market_p25_else_sixty_percent() {
+    fn buyer_anchor_is_the_band_floor_then_market_p25_then_sixty_percent_of_ceiling() {
         let a = BuyerPolicy::anchored(money(2500), Some(money(1100)), Some(money(900)), None, 3)
             .unwrap();
-        assert_eq!(a.open, money(900));
+        assert_eq!(a.open, money(1100));
+        let p25 = BuyerPolicy::anchored(money(2500), None, Some(money(900)), None, 3).unwrap();
+        assert_eq!(p25.open, money(900));
         let b = BuyerPolicy::anchored(money(2500), None, None, None, 3).unwrap();
         assert_eq!(b.open, money(1500));
         let eur = Money::new(1, Currency::EUR).unwrap();
