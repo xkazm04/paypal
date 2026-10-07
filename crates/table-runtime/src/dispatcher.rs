@@ -215,6 +215,17 @@ impl Runtime {
                 app(self.pipeline.wallet.ledger.set_preference(&key, &true))?;
                 json(true)
             }
+            Action::ReleaseNotification { deal_id, deadline } => {
+                // Only after a toast failed to show: the rung was not used, so a later tick may
+                // claim it again. Releasing can never make money move.
+                allowed(label, &["tumbler"])?;
+                app(self
+                    .pipeline
+                    .wallet
+                    .ledger
+                    .set_preference(&format!("notification.{deal_id}.{deadline}"), &false))?;
+                json(())
+            }
             Action::CheckPrivilege => {
                 self.guard(label, token)?;
                 json(())

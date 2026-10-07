@@ -273,6 +273,11 @@ impl AttentionLadder {
         let live: HashSet<_> = items.iter().map(|i| (i.deal_id, i.deadline)).collect();
         self.notified.retain(|key| live.contains(key));
     }
+    /// Take back a rung whose toast could not be shown, so a later tick inside the same rung
+    /// can try again.
+    pub fn release(&mut self, deal_id: DealId, deadline: Timestamp) {
+        self.notified.remove(&(deal_id, Some(deadline)));
+    }
     pub fn evaluate(
         &mut self,
         item: &AttentionItem,
