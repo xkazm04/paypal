@@ -55,10 +55,7 @@ impl Runtime {
             return Ok(());
         }
         self.arm_policy_run(deal);
-        if !self.paused
-            && deal.state == DealState::Agreed
-            && (deal.side == Side::Seller || deal.kind == DealKind::Purchase)
-        {
+        if !self.paused && deal.state == DealState::Agreed && deal.side == Side::Seller {
             self.select_signer(deal.id)?;
             let category = app(self.pipeline.wallet.ledger.deal_category(deal.id))?;
             if self.settings()?.payment_executor_configured {
