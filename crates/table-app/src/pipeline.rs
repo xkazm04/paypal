@@ -384,10 +384,11 @@ impl Pipeline {
                 friends_and_family: false,
                 amount: deal.terms.amount()?,
                 unit_price: deal.terms.unit_price,
-                market: deal
-                    .market
-                    .as_ref()
-                    .filter(|m| now >= m.retrieved_at && now.saturating_sub(m.retrieved_at) < 900),
+                // The 40% rule runs on any reference; only a fresh one can clear the deal.
+                market: deal.market.as_ref(),
+                market_fresh: deal.market.as_ref().is_some_and(|m| {
+                    now >= m.retrieved_at && now.saturating_sub(m.retrieved_at) < 900
+                }),
                 first_seen: self
                     .wallet
                     .ledger
