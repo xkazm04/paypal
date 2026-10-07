@@ -11,7 +11,7 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import { clockLabel } from '../../../lib/format';
 import { rulesName } from '../../../lib/words';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
-import { ModeBadge, WalletNotice } from '../../../shared/honesty';
+import { ModeBadge, RunBadge, WalletNotice } from '../../../shared/honesty';
 import { AnswerBar, Btn, Chip, DetailToggle, Group, Icon, Kv, Popover, Row, Section, Silence, layerCount, topLayerKind, useToast, type DetailMode, type IconName } from '../../../shared/ui';
 import { useWorld } from '../world';
 import { deriveCircuit, initialPart, PART_NAME, setupProgress, settingsAnswer, stepPart, type Break, type Circuit, type PartId } from './circuit';
@@ -309,7 +309,7 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
           <Group empty={running === null ? 'Agent activity can’t be read.' : 'No agent is working right now.'}>
             {(running ?? []).slice(0, 6).map((r) => (
               <Row key={r.run} id={w.labels.get(r.deal_id) ?? 'deal'} title={r.engine === 'scripted' ? 'practice agent' : r.engine}>
-                <span className="end"><Chip tone={paused ? 'coral' : 'teal'}>{r.state === 'starting' ? 'starting' : 'working'}</Chip></span>
+                <span className="end"><RunBadge run={r} /><Chip tone={paused ? 'coral' : 'teal'}>{r.state === 'starting' ? 'starting' : 'working'}</Chip></span>
               </Row>
             ))}
           </Group>

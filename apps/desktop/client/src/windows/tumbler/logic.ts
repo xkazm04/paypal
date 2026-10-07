@@ -447,3 +447,121 @@ export const MODE_SHORT: Record<Mode, string> = { sandbox: 'SANDBOX', replay: 'R
 export function plainItems(items: readonly AttentionItem[]): AttentionItem[] {
   return items.map((i) => ({ ...i, headline: headlineWords(i.headline), on_silence: silenceWords(i.on_silence) }));
 }
+
+// ---------------------------------------------------------------------------------------
+// if you walk away (the walk-away forecast, T4)
+//
+// Every number and line comes from `AttentionSnapshot.forecast`, which Rust computes from the
+// scheduler's own rules. Labels are deal numbers; no counterparty text is read here (W4).
+
+/** The forecast's horizon (crates/table-runtime/src/forecast.rs FORECAST_HORIZON_SECS). */
+export const WALK_AWAY_HOURS = 72;
+
+export type WalkLine = {
+  key: string;
+  /** "Now", "If the buyer approves" or "Thu 18:00". */
+  when: string;
+  /** "D-0189 $90.00 collected" */
+  what: string;
+  /** On whose authority, in plain words. */
+  who: 'your rule' | 'safe default' | 'the buyer already approved';
+  /** Depends on an outside event (the buyer approving on PayPal). */
+  conditional: boolean;
+};
+export type WalkAway =
+  | { known: false; summary: string }
+  | {
+      known: true;
+      /** "$0.00" per currency (" + " between currencies); null when no currency is known. */
+      out: string | null;
+      /** Money that comes in without anyone deciding anything more; null when none. */
+      inSure: string | null;
+      /** Sure money plus money that comes in only if a buyer approves; null without the latter. */
+      inUpTo: string | null;
+      /** Holds released by the safe default (not counting ones that start only on approval). */
+      releases: number;
+      /** At most three lines, the ones that act first. */
+      lines: WalkLine[];
+      more: number;
+      /** One line for the stack: "$0.00 out · up to $90.00 in · 1 hold released". */
+      summary: string;
+    };
+
+type ForecastRow = NonNullable<AttentionSnapshot['forecast']>[number];
+const WALK_LINES = 3;
+
+function perCurrency(sums: Map<Currency, number>): string | null {
+  const parts = [...sums].filter(([, v]) => v !== 0).map(([c, v]) => formatMinor(v, c));
+  return parts.length ? parts.join(' + ') : null;
+}
+function walkWhat(l: ForecastRow): string {
+  const amt = formatMinor(l.amount_minor, l.currency);
+  switch (l.action) {
+    case 'lapse': return `${l.label} lapses, nothing is paid`;
+    case 'expire': return `${l.label} payment request expires, nothing is paid`;
+    case 'auto_void': return `${l.label} hold of ${amt} released`;
+    case 'create_order': return `${l.label} payment request sent to the buyer`;
+    case 'authorize': return `${l.label} ${amt} put on hold for you`;
+    case 'capture': return `${l.label} ${amt} collected`;
+  }
+}
+function walkWho(l: ForecastRow): WalkLine['who'] {
+  if (l.authority === 'safe_default') return 'safe default';
+  if (l.authority === 'seller_mandate' && l.trigger !== 'buyer_approves') return 'the buyer already approved';
+  return 'your rule';
+}
+function walkWhen(l: ForecastRow): string {
+  if (l.trigger === 'buyer_approves') return 'If the buyer approves';
+  if (l.trigger === 'next_tick' || l.at === null) return 'Now';
+  return clockLabel(l.at);
+}
+const TRIGGER_ORDER: Record<ForecastRow['trigger'], number> = { next_tick: 0, buyer_approves: 1, deadline: 2 };
+
+/** The "If you walk away" block: totals per currency and the first few lines, or an honest
+ *  "can't forecast" when the snapshot carries no forecast (an older shell, or a failed read). */
+export function walkAway(s: Pick<AttentionSnapshot, 'forecast' | 'wallet_spend_today_currency'> | undefined): WalkAway {
+  const forecast = s?.forecast;
+  if (!s || !forecast) return { known: false, summary: 'Can’t forecast right now' };
+  const out = new Map<Currency, number>();
+  const sure = new Map<Currency, number>();
+  const upTo = new Map<Currency, number>();
+  let conditionalIn = false;
+  let releases = 0;
+  const add = (m: Map<Currency, number>, c: Currency, v: number) => m.set(c, (m.get(c) ?? 0) + v);
+  for (const l of forecast) {
+    add(out, l.currency, l.direction === 'out' ? l.amount_minor : 0);
+    if (l.direction === 'in') {
+      add(upTo, l.currency, l.amount_minor);
+      if (l.trigger === 'buyer_approves') conditionalIn = true;
+      else add(sure, l.currency, l.amount_minor);
+    }
+    if (l.action === 'auto_void' && l.trigger !== 'buyer_approves') releases += 1;
+  }
+  if (!out.size && s.wallet_spend_today_currency) out.set(s.wallet_spend_today_currency, 0);
+  const outText = out.size ? [...out].map(([c, v]) => formatMinor(v, c)).join(' + ') : null;
+  const inSure = perCurrency(sure);
+  const inUpTo = conditionalIn ? perCurrency(upTo) : null;
+
+  // One line per step that matters: a capture stands for the authorize before it, and a hold
+  // that would start only on approval is not a line of its own.
+  const shown = forecast.filter((l) => {
+    if (l.action === 'auto_void' && l.trigger === 'buyer_approves') return false;
+    if (l.action === 'authorize') return !forecast.some((c) => c.deal_id === l.deal_id && c.action === 'capture' && c.trigger === l.trigger);
+    return true;
+  });
+  const ordered = [...shown].sort((a, b) => TRIGGER_ORDER[a.trigger] - TRIGGER_ORDER[b.trigger] || (a.at ?? 0) - (b.at ?? 0));
+  const lines = ordered.slice(0, WALK_LINES).map((l, i): WalkLine => ({
+    key: `${l.deal_id}:${l.action}:${i}`,
+    when: walkWhen(l),
+    what: walkWhat(l),
+    who: walkWho(l),
+    conditional: l.trigger === 'buyer_approves',
+  }));
+
+  const parts = [outText ? `${outText} out` : 'nothing goes out'];
+  if (inUpTo) parts.push(`up to ${inUpTo} in`);
+  else if (inSure) parts.push(`${inSure} in`);
+  if (releases) parts.push(`${releases} hold${releases === 1 ? '' : 's'} released`);
+  if (!forecast.length) parts.push('nothing scheduled');
+  return { known: true, out: outText, inSure, inUpTo, releases, lines, more: Math.max(0, ordered.length - WALK_LINES), summary: parts.join(' · ') };
+}
