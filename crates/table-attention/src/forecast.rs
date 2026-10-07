@@ -30,8 +30,15 @@ pub struct ForecastSource {
     /// The owner chose "let it lapse" (the scheduler reads `lapse.<deal id>`).
     pub lapse_chosen: bool,
     pub mandate_retired: bool,
-    /// Whether clause 6 lets `Authority::Policy` create this seller order.
+    /// Whether the pipeline's own create gate (clause 6 and the shield) lets
+    /// `Authority::Policy` create this seller order at `now`.
     pub policy_create_allowed: bool,
+    /// The pipeline's own authorize and capture gate under `Authority::SellerMandate` (mandate
+    /// and shield) passes at every time in `[now, until)`; `None` when it refuses at `now`.
+    /// The shield asks once the market reference is older than its freshness window, and
+    /// nothing refreshes it while the owner is away, so the window only shrinks. The caller may
+    /// cap `until` at the deal's deadline or the horizon end, past which nothing is forecast.
+    pub seller_mandate_until: Option<Timestamp>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -88,6 +95,10 @@ pub struct ForecastLine {
     pub amount_minor: i64,
     pub currency: Currency,
     pub end_state: DealState,
+    /// For a `BuyerApproves` step: the buyer's approval must reach the scheduler before this
+    /// time (the deal's deadline, or the end of the seller-mandate window), or the step does not
+    /// happen. `None` on every other line.
+    pub before: Option<Timestamp>,
 }
 
 /// What the scheduler does to every open deal if nobody decides anything.
@@ -95,7 +106,10 @@ pub struct ForecastLine {
 /// Mirrors `crates/table-runtime/src/scheduler.rs` `tick_deal` as it stands at b260727: a due
 /// deadline wins and ends the deal's tick; otherwise "let it lapse" or a retired mandate stops
 /// every step; otherwise only seller deals advance (create, authorize, capture). Buyer deals,
-/// purchases included, wait for the owner. Lines are sorted by `(at, deal_id)`; lines whose time
+/// purchases included, wait for the owner. A create, authorize or capture line appears only
+/// when the pipeline's gate for it (`policy_create_allowed`, `seller_mandate_until`) passes at
+/// the step's time: next tick is `now`, a buyer approval is any time before the line's
+/// `before`. A deal with no step left falls to its deadline line. Lines are sorted by `(at, deal_id)`; lines whose time
 /// is unknown (`at: None`) sort first. Deadline lines beyond `now + horizon_secs` are dropped.
 pub fn forecast(sources: &[ForecastSource], ctx: &ForecastContext) -> Vec<ForecastLine> {
     let mut lines = Vec::new();
@@ -116,6 +130,10 @@ fn deal_lines(s: &ForecastSource, ctx: &ForecastContext, out: &mut Vec<ForecastL
     use ForecastTrigger as T;
 
     let horizon_end = ctx.now.saturating_add(ctx.horizon_secs);
+    let seller_until = s.seller_mandate_until.filter(|until| *until > ctx.now);
+    // A buyer approval counts only before the deal's deadline and inside the seller-mandate
+    // window, because the authorize it triggers runs the gate at the time it lands.
+    let buyer_before = seller_until.map(|until| s.deadline.map_or(until, |d| d.min(until)));
     let line = |trigger, at, action, authority, direction, end_state| ForecastLine {
         deal_id: s.deal_id,
         label: format!("D-{:04}", s.display_number),
@@ -127,6 +145,11 @@ fn deal_lines(s: &ForecastSource, ctx: &ForecastContext, out: &mut Vec<ForecastL
         amount_minor: s.amount.minor(),
         currency: s.amount.currency(),
         end_state,
+        before: if trigger == T::BuyerApproves {
+            buyer_before
+        } else {
+            None
+        },
     };
     let capture = |trigger| {
         line(
@@ -135,7 +158,8 @@ fn deal_lines(s: &ForecastSource, ctx: &ForecastContext, out: &mut Vec<ForecastL
             A::Capture,
             Auth::SellerMandate,
             D::In,
-            DealState::Captured,
+            // `capture` records the receipt in the same call.
+            DealState::Receipted,
         )
     };
     let authorize = |trigger| {
@@ -169,7 +193,7 @@ fn deal_lines(s: &ForecastSource, ctx: &ForecastContext, out: &mut Vec<ForecastL
                     deadline = Some(ctx.now.saturating_add(ORDER_CREATED_DEADLINE_SECS));
                 }
             }
-            DealState::Approved => {
+            DealState::Approved if seller_until.is_some() => {
                 out.push(authorize(T::NextTick));
                 state = DealState::Authorized;
                 deadline = Some(ctx.now.saturating_add(AUTHORIZED_DEADLINE_SECS));
@@ -178,11 +202,11 @@ fn deal_lines(s: &ForecastSource, ctx: &ForecastContext, out: &mut Vec<ForecastL
                     state = DealState::Captured;
                 }
             }
-            DealState::Authorized if digital => {
+            DealState::Authorized if digital && seller_until.is_some() => {
                 out.push(capture(T::NextTick));
                 state = DealState::Captured;
             }
-            DealState::AwaitingApproval => {
+            DealState::AwaitingApproval if seller_until.is_some() => {
                 out.push(authorize(T::BuyerApproves));
                 if digital {
                     out.push(capture(T::BuyerApproves));
@@ -267,6 +291,7 @@ mod tests {
             lapse_chosen: false,
             mandate_retired: false,
             policy_create_allowed: true,
+            seller_mandate_until: Some(NOW + 3600),
         }
     }
 
@@ -343,6 +368,8 @@ mod tests {
             Some(NOW + 100 * 3600),
         ];
         let modes = [Mode::Sandbox, Mode::Replay, Mode::ScriptedEngine];
+        // Refused now, stale exactly at now, fresh for ten minutes, fresh past the horizon.
+        let windows = [None, Some(NOW), Some(NOW + 600), Some(NOW + 100 * 3600)];
         let mut checked = 0_u32;
         for state in ALL_STATES {
             for side in [Side::Buyer, Side::Seller] {
@@ -350,22 +377,25 @@ mod tests {
                     for delivery in &deliveries {
                         for deadline in deadlines {
                             for mode in modes {
-                                for bits in 0_u8..32 {
-                                    let on = |n: u8| (bits >> n) & 1 == 1;
-                                    let c = ForecastContext {
-                                        paused: on(0),
-                                        executor_configured: on(1),
-                                        ..ctx()
-                                    };
-                                    let mut s = source(side, kind, state);
-                                    s.delivery = delivery.clone();
-                                    s.deadline = deadline;
-                                    s.mode = mode;
-                                    s.lapse_chosen = on(2);
-                                    s.mandate_retired = on(3);
-                                    s.policy_create_allowed = on(4);
-                                    check(&s, &c);
-                                    checked += 1;
+                                for window in windows {
+                                    for bits in 0_u8..32 {
+                                        let on = |n: u8| (bits >> n) & 1 == 1;
+                                        let c = ForecastContext {
+                                            paused: on(0),
+                                            executor_configured: on(1),
+                                            ..ctx()
+                                        };
+                                        let mut s = source(side, kind, state);
+                                        s.delivery = delivery.clone();
+                                        s.deadline = deadline;
+                                        s.mode = mode;
+                                        s.lapse_chosen = on(2);
+                                        s.mandate_retired = on(3);
+                                        s.policy_create_allowed = on(4);
+                                        s.seller_mandate_until = window;
+                                        check(&s, &c);
+                                        checked += 1;
+                                    }
                                 }
                             }
                         }
@@ -373,7 +403,7 @@ mod tests {
                 }
             }
         }
-        assert_eq!(checked, 20 * 2 * 5 * 2 * 4 * 3 * 32);
+        assert_eq!(checked, 20 * 2 * 5 * 2 * 4 * 3 * 4 * 32);
     }
 
     fn check(s: &ForecastSource, c: &ForecastContext) {
@@ -434,6 +464,28 @@ mod tests {
                 assert_eq!(transition(from, event).unwrap(), l.end_state, "{s:?}");
             }
         }
+        // (7) No step the pipeline's gate would refuse at the step's time.
+        let seller_open = s.seller_mandate_until.is_some_and(|until| until > c.now);
+        if !s.policy_create_allowed {
+            assert!(!has(ForecastAction::CreateOrder), "{s:?}");
+        }
+        if !seller_open {
+            assert!(
+                !has(ForecastAction::Authorize) && !has(ForecastAction::Capture),
+                "{s:?}"
+            );
+        }
+        // (8) A buyer-approval line says by when the approval must land; no other line does.
+        for l in &lines {
+            if l.trigger == ForecastTrigger::BuyerApproves {
+                let before = l.before.unwrap();
+                assert!(before > c.now, "{s:?}");
+                assert!(before <= s.seller_mandate_until.unwrap(), "{s:?}");
+                assert!(s.deadline.is_none_or(|d| before <= d), "{s:?}");
+            } else {
+                assert_eq!(l.before, None, "{s:?}");
+            }
+        }
         // (4)
         if s.side == Side::Buyer {
             assert!(
@@ -482,6 +534,9 @@ mod tests {
             .find(|l| l.action == ForecastAction::Capture)
             .unwrap();
         assert_eq!(capture.trigger, ForecastTrigger::BuyerApproves);
+        assert_eq!(capture.end_state, DealState::Receipted);
+        // The deadline comes before the end of the seller-mandate window.
+        assert_eq!(capture.before, Some(NOW + 3600));
         assert_eq!(capture.direction, ForecastDirection::In);
         assert_eq!(capture.authority, ForecastAuthority::SellerMandate);
         assert!(
@@ -533,6 +588,66 @@ mod tests {
         assert_eq!(lines[0].action, ForecastAction::CreateOrder);
         assert_eq!(lines[1].action, ForecastAction::Expire);
         assert_eq!(lines[1].at, Some(NOW + ORDER_CREATED_DEADLINE_SECS));
+    }
+
+    #[test]
+    fn seller_agreed_without_a_market_reference_forecasts_only_its_lapse() {
+        // With no market reference the shield asks, so the runtime's gates refuse both
+        // `Authority::Policy` and `Authority::SellerMandate` at now.
+        let mut s = source(Side::Seller, DealKind::ShopOrder, DealState::Agreed);
+        s.deadline = Some(NOW + 3600);
+        s.policy_create_allowed = false;
+        s.seller_mandate_until = None;
+        let lines = forecast(&[s], &ctx());
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].action, ForecastAction::Lapse);
+        assert_eq!(lines[0].at, Some(NOW + 3600));
+        assert_eq!(lines[0].end_state, DealState::Withdrawn);
+    }
+
+    #[test]
+    fn seller_agreed_with_a_fresh_market_forecasts_the_create() {
+        let mut s = source(Side::Seller, DealKind::ShopOrder, DealState::Agreed);
+        s.deadline = Some(NOW + 3600);
+        s.seller_mandate_until = Some(NOW + 600);
+        let lines = forecast(&[s], &ctx());
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0].action, ForecastAction::CreateOrder);
+        assert_eq!(lines[0].authority, ForecastAuthority::MandateRule);
+        assert_eq!(lines[0].end_state, DealState::AwaitingApproval);
+        assert_eq!(lines[0].before, None);
+        assert_eq!(lines[1].action, ForecastAction::Expire);
+    }
+
+    #[test]
+    fn a_market_stale_by_the_steps_time_forecasts_no_money_step() {
+        // The window ends exactly now: a step at the next tick would meet a stale market.
+        for state in [
+            DealState::Approved,
+            DealState::Authorized,
+            DealState::AwaitingApproval,
+        ] {
+            let mut s = source(Side::Seller, DealKind::ShopOrder, state);
+            s.deadline = Some(NOW + 3600);
+            s.seller_mandate_until = Some(NOW);
+            let lines = forecast(&[s], &ctx());
+            assert_eq!(lines.len(), 1, "{state:?}");
+            assert_eq!(lines[0].trigger, ForecastTrigger::Deadline, "{state:?}");
+        }
+        // A buyer approval must land before the window closes, here ten minutes from now.
+        let mut s = source(
+            Side::Seller,
+            DealKind::ShopOrder,
+            DealState::AwaitingApproval,
+        );
+        s.deadline = Some(NOW + 3600);
+        s.seller_mandate_until = Some(NOW + 600);
+        let lines = forecast(&[s], &ctx());
+        let authorize = lines
+            .iter()
+            .find(|l| l.action == ForecastAction::Authorize)
+            .unwrap();
+        assert_eq!(authorize.before, Some(NOW + 600));
     }
 
     #[test]
