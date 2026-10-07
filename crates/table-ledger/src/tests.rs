@@ -148,7 +148,7 @@ fn migrations_are_transactional_idempotent_and_foreign_keys_enabled() {
         .conn
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 7);
+    assert_eq!(version, 8);
     let connection = ledger.conn;
     let ledger = Ledger::from_connection(connection).unwrap();
     assert_eq!(ledger.audit_count().unwrap(), 0);
@@ -1973,4 +1973,97 @@ fn the_ledger_stores_the_carried_binding_and_never_re_projects_the_redacted_resp
     let stored = ledger.paypal_bindings(deal.id).unwrap();
     assert_eq!(stored, vec![carried]);
     assert!(stored[0].to_string().contains("payee_merchant_id"));
+}
+#[test]
+fn open_operations_list_unknown_and_stale_pending_rows_and_resolution_only_appends() {
+    let (mut ledger, deal, _, _, _) = setup();
+    let authority = DecidedBy::Policy { clause: 6 };
+    ledger
+        .reserve_operation(deal.id, 1, "create", "req-create", &authority, 100)
+        .unwrap();
+    // A pending row reserved at or after the bound may belong to a live call: not listed.
+    assert!(ledger.open_operations(None, 100).unwrap().is_empty());
+    let open = ledger.open_operations(Some(deal.id), 101).unwrap();
+    assert_eq!(open.len(), 1);
+    assert!(open[0].pending && !open[0].resent && !open[0].needs_owner);
+    assert_eq!(
+        (open[0].operation, open[0].attempt, open[0].started_at),
+        ("create", 1, 100)
+    );
+    assert_eq!(open[0].decided_by, authority);
+    let step = |outcome| Resolution {
+        id: deal.id,
+        request_id: "req-create",
+        observed: "none",
+        outcome,
+        calls: &[],
+        refs: None,
+        event: None,
+        at: 120,
+    };
+    // A read-back outage is one row, however many ticks it lasts.
+    for _ in 0..3 {
+        ledger
+            .record_resolution(step(ResolutionOutcome::Deferred))
+            .unwrap();
+    }
+    ledger
+        .record_resolution(step(ResolutionOutcome::Resent))
+        .unwrap();
+    // The original request is sent once more at most.
+    assert!(matches!(
+        ledger.record_resolution(step(ResolutionOutcome::Resent)),
+        Err(LedgerError::Conflict)
+    ));
+    assert!(ledger.open_operations(None, 101).unwrap()[0].resent);
+    ledger
+        .record_resolution(step(ResolutionOutcome::NeedsOwner))
+        .unwrap();
+    assert!(matches!(
+        ledger.record_resolution(step(ResolutionOutcome::NeedsOwner)),
+        Err(LedgerError::Conflict)
+    ));
+    assert!(ledger.open_operations(None, 101).unwrap()[0].needs_owner);
+    ledger
+        .record_resolution(step(ResolutionOutcome::Absent))
+        .unwrap();
+    assert!(ledger.open_operations(None, i64::MAX).unwrap().is_empty());
+    // Closed: nothing more is appended for it.
+    assert!(matches!(
+        ledger.record_resolution(step(ResolutionOutcome::Confirmed)),
+        Err(LedgerError::Conflict)
+    ));
+    assert_eq!(
+        ledger
+            .resolutions("req-create")
+            .unwrap()
+            .into_iter()
+            .map(|(_, o)| o)
+            .collect::<Vec<_>>(),
+        vec!["deferred", "resent", "needs_owner", "absent"]
+    );
+    // The reservation itself is never rewritten, and the evidence cannot be.
+    let status: String = ledger
+        .conn
+        .query_row(
+            "SELECT status FROM operations WHERE request_id='req-create'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(status, "pending");
+    assert!(
+        ledger
+            .conn
+            .execute("DELETE FROM operation_resolutions", [])
+            .is_err()
+    );
+    assert!(
+        ledger
+            .conn
+            .execute("UPDATE operation_resolutions SET outcome='confirmed'", [])
+            .is_err()
+    );
+    assert_eq!(ledger.operation_count(deal.id).unwrap(), 1);
+    ledger.verify_audit().unwrap();
 }
