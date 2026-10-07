@@ -184,6 +184,23 @@ fn read_mandate_row(
     }
     Ok(mandate)
 }
+/// The redacted rows of one money step's PayPal calls, each bound to the step's deal.
+pub(crate) fn insert_calls(
+    conn: &Connection,
+    id: DealId,
+    calls: &[PaypalCall],
+    at: Timestamp,
+) -> Result<(), LedgerError> {
+    for call in calls {
+        if call.deal_id != id {
+            return Err(LedgerError::Conflict);
+        }
+        let body = redact_paypal(&call.response, &[]);
+        let binding = call.binding.as_ref().map(json_text).transpose()?;
+        conn.execute("INSERT INTO paypal_calls(deal_id,method,path,request_id,status,debug_id,body_redacted,at,binding_json) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",params![id.to_string(),call.method.as_str(),call.path.as_str(),call.request_id,call.status,body.get("debug_id").and_then(Value::as_str),json_text(&body)?,at.to_string(),binding])?;
+    }
+    Ok(())
+}
 pub(crate) fn apply(
     conn: &Connection,
     id: DealId,
@@ -906,14 +923,7 @@ impl Ledger {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let authority:String=tx.query_row("SELECT decided_by FROM operations WHERE deal_id=?1 AND attempt=?2 AND operation=?3 AND status='pending'",params![id.to_string(),attempt,operation],|r|r.get(0))?;
-        for call in calls {
-            if call.deal_id != id {
-                return Err(LedgerError::Conflict);
-            }
-            let body = redact_paypal(&call.response, &[]);
-            let binding = call.binding.as_ref().map(json_text).transpose()?;
-            tx.execute("INSERT INTO paypal_calls(deal_id,method,path,request_id,status,debug_id,body_redacted,at,binding_json) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",params![id.to_string(),call.method.as_str(),call.path.as_str(),call.request_id,call.status,body.get("debug_id").and_then(Value::as_str),json_text(&body)?,at.to_string(),binding])?;
-        }
+        insert_calls(&tx, id, calls, at)?;
         tx.execute(
             "UPDATE operations SET status=?1 WHERE deal_id=?2 AND attempt=?3 AND operation=?4",
             params![
