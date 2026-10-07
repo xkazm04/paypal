@@ -252,6 +252,11 @@ export function mockBackend(label: WindowLabel): Backend {
     emit('attention:changed', attention());
     return d.deal;
   }
+  /** Rust keeps a deal reserved while a money step's PayPal answer is being checked (T10): no
+   *  new money step and no walking away until PayPal's record settles it. */
+  function notWhileChecking(id: string): void {
+    if (find(id).evidence.money_check) fail('PERMISSION', 'a payment step is being checked with PayPal');
+  }
   function openWindow(page: string, name: string, features?: string): void {
     window.open(page, name, features);
   }
@@ -490,6 +495,7 @@ export function mockBackend(label: WindowLabel): Backend {
     tumbler_snap: () => state.settings.preferences.snap,
     deal_withdraw: ({ deal_id }) => {
       if (label === 'approval' && deal_id !== selected) fail('PERMISSION', 'not the selected deal');
+      notWhileChecking(deal_id);
       transition(deal_id, 'WITHDRAWN');
       emit('receipt:created', { deal_id, evidence: find(deal_id).evidence, mode: find(deal_id).deal.mode, state: 'WITHDRAWN', on_silence: 'withdrawn · no money moved' });
       return null;
@@ -531,12 +537,14 @@ export function mockBackend(label: WindowLabel): Backend {
     },
     deal_countersign: ({ deal_id }, opts) => {
       privileged(opts, deal_id);
+      notWhileChecking(deal_id);
       const d = find(deal_id);
       if (!['AGREED', 'APPROVED'].includes(d.deal.state)) fail('INVALID', `cannot countersign in ${d.deal.state}`);
       return transition(deal_id, 'AWAITING_APPROVAL', { paypal: { ...d.deal.paypal, order: '7XK' + deal_id.slice(-5) }, decided_by: { type: 'human', at: nowUnix() } }, true);
     },
     deal_capture: ({ deal_id }, opts) => {
       privileged(opts, deal_id);
+      notWhileChecking(deal_id);
       const d = find(deal_id);
       if (d.deal.state !== 'AUTHORIZED') fail('INVALID', `cannot capture in ${d.deal.state}`);
       const deal = transition(deal_id, 'CAPTURED', { paypal: { ...d.deal.paypal, capture: 'CAP' + deal_id.slice(-5) }, decided_by: { type: 'human', at: nowUnix() } });
@@ -547,6 +555,7 @@ export function mockBackend(label: WindowLabel): Backend {
     },
     deal_void: ({ deal_id }, opts) => {
       privileged(opts, deal_id);
+      notWhileChecking(deal_id);
       if (find(deal_id).deal.state !== 'AUTHORIZED') fail('INVALID', 'only an authorization can be voided');
       return transition(deal_id, 'VOIDED', { decided_by: { type: 'human', at: nowUnix() } });
     },

@@ -86,8 +86,8 @@ export function Notice({ failure }: { failure: { what: string; error: WalletErro
 
 /** Which rung a deadline is on, in words, with its wall-clock end: the card's ladder caption,
  *  which lives on the rule's tooltip and in the details popover (the card has no room for it). */
-function ladderLine(deadline: number | null, now: number, hold: boolean): string {
-  const cap = ladderCaption(rung(deadline, now), hold);
+function ladderLine(deadline: number | null, now: number, hold: boolean, checking = false): string {
+  const cap = ladderCaption(rung(deadline, now), hold, checking);
   if (deadline === null) return cap;
   return `${cap} · until ${deadline - now > 20 * 3600 ? clockLabel(deadline) : hhmm(deadline)}`;
 }
@@ -196,7 +196,7 @@ function CardDetails({ item, now, anchor, actions, pending, onAction, onClose }:
         ['With', item.counterparty ?? 'a connected wallet'],
         title ? ['Item', title] : null,
         ['Deadline', item.deadline !== null ? clockLabel(item.deadline) : 'none · paused until you act'],
-        ['Time', ladderLine(item.deadline, now, hold)],
+        ['Time', ladderLine(item.deadline, now, hold, !!item.money_check)],
         ['Mode', MODE_TEXT[item.mode]],
       ]} />
       {table || lapse || snooze ? (
@@ -297,7 +297,7 @@ export const CardForm = forwardRef(function CardForm(p: CardProps, ref: Ref<HTML
       <div className="f-head nt">
         <span className="ui-dot mdot" aria-hidden="true" />
         <span className="kick" title={`${MODULE[item.module].name} · ${item.label}`}><b>{MODULE[item.module].name}</b></span>
-        <span className={`c-cd ${hold ? 'hold' : ''}${clock.urgent ? ' r-now' : ''}`} title={ladderLine(item.deadline, now, hold)}>{hold && item.deadline !== null ? `Paused · ${clock.text}` : `${clock.text.charAt(0).toUpperCase()}${clock.text.slice(1)}`}</span>
+        <span className={`c-cd ${hold ? 'hold' : ''}${clock.urgent ? ' r-now' : ''}`} title={ladderLine(item.deadline, now, hold, !!item.money_check)}>{item.money_check ? (item.deadline !== null ? `Checking · ${clock.text}` : 'Checking') : hold && item.deadline !== null ? `Paused · ${clock.text}` : `${clock.text.charAt(0).toUpperCase()}${clock.text.slice(1)}`}</span>
         <Flags mode={item.mode} locked={p.locked} compact />
       </div>
       <div className="c-line nt">

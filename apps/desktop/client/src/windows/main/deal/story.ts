@@ -5,9 +5,10 @@
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import type { DisplayBand } from '@bindings/DisplayBand';
+import type { MoneyCheck } from '@bindings/MoneyCheck';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { formatMoney } from '../../../lib/format';
-import { headlineWords, marketWords, ruleNameOf, stateWord } from '../../../lib/words';
+import { headlineWords, MONEY_CHECK_PARKED, marketWords, moneyCheckStep, ruleNameOf, stateWord } from '../../../lib/words';
 import { dealTotal, decidedBy, isTerminal } from '../logic';
 import { latestText, timelineRows, type ClauseReading, type Reading, type TimelineRow } from './model';
 
@@ -27,6 +28,8 @@ export type AnswerCtx = {
   /** How the price-range rule reads against the latest price (null when the deal has none). */
   band: Reading | null;
   mayWithdraw: boolean;
+  /** A money step whose PayPal answer was lost and is being checked with PayPal. */
+  check?: MoneyCheck | null;
 };
 
 /** What the price range says about the offer, as the second half of the answer. */
@@ -59,6 +62,14 @@ export function dealAnswer(d: AnswerDeal, c: AnswerCtx): DealAnswer {
   if (isTerminal(d)) {
     const settled = d.state === 'CAPTURED' || d.state === 'RECEIPTED' || d.state === 'RECONCILED';
     return { tone: settled ? 'done' : 'calm', title: CLOSED, sub: `${settled ? `${w.text} · ${amt}` : w.means}${decided}` };
+  }
+
+  // Not paid and not failed: PayPal's own record decides which, and nothing moves until then.
+  if (c.check) {
+    const step = moneyCheckStep(c.check.step);
+    return c.check.state === 'parked'
+      ? { tone: 'need', title: MONEY_CHECK_PARKED, sub: `PayPal’s answer about ${step} for ${amt} didn’t arrive. The wallet keeps asking PayPal; it is not paid and not failed until PayPal says which.` }
+      : { tone: 'need', title: `Checking ${step} for ${amt} with PayPal.`, sub: 'PayPal’s answer didn’t arrive. Nothing more is sent until PayPal confirms what happened.' };
   }
 
   if (c.need) {

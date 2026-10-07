@@ -5,6 +5,8 @@ import type { Clause } from '@bindings/Clause';
 import type { DealKind } from '@bindings/DealKind';
 import type { DealState } from '@bindings/DealState';
 import type { Mode } from '@bindings/Mode';
+import type { MoneyCheck } from '@bindings/MoneyCheck';
+import type { MoneyCheckStep } from '@bindings/MoneyCheckStep';
 import type { ReceiptEvidence } from '@bindings/ReceiptEvidence';
 import type { Reconciliation } from '@bindings/Reconciliation';
 import type { Role } from '@bindings/Role';
@@ -248,3 +250,27 @@ export const PROOF_KEY_ANCHOR = 'Compare this owner key with the key the owner s
 export const PROOF_LIMIT = 'The file cannot show whether newer records were removed from the end.';
 /** Said once before a proof file is saved: the file is readable by anyone it is sent to. */
 export const PROOF_SAVE_WARNING = 'This file carries this deal’s rules, including your price limits (the most you’ll pay or the least you’ll take), the payees and caps, and the other side’s notes. Anyone you send it to can read them.';
+
+// ---- a payment step being checked with PayPal ---------------------------------------------------
+// A money step whose PayPal answer never arrived (the connection dropped, or the answer could not be
+// read). The wallet asks PayPal what happened before anything else moves: it is never "failed" and
+// never "paid" until PayPal's own record says which.
+
+/** What the step was, in Maya's words (the PayPal verb stays in Details). */
+const CHECK_STEP: Record<MoneyCheckStep, string> = {
+  create: 'the payment request',
+  authorize: 'the hold',
+  capture: 'the payment',
+  void: 'releasing the hold',
+};
+export const moneyCheckStep = (s: MoneyCheckStep): string => CHECK_STEP[s];
+/** The one sentence for a parked check (the owner sees it on the card and the deal). */
+export const MONEY_CHECK_PARKED = 'We couldn’t confirm a payment with PayPal. Nothing more will be sent until we can.';
+/** The pill and its meaning. Dashed, like every unknown: never green, never red. */
+export function moneyCheckWord(c: MoneyCheck): { text: string; means: string } {
+  return c.state === 'parked'
+    ? { text: 'Checking with PayPal', means: MONEY_CHECK_PARKED }
+    : { text: 'Checking with PayPal', means: `PayPal’s answer about ${CHECK_STEP[c.step]} didn’t arrive. The wallet is asking PayPal what happened. Nothing more is sent until it knows.` };
+}
+/** The card's "if you do nothing" line while PayPal is being asked (the same words Rust sends). */
+export const MONEY_CHECK_SILENCE = 'nothing more is sent until PayPal confirms';

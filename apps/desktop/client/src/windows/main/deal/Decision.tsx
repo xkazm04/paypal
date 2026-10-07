@@ -5,10 +5,11 @@
 import { Fragment, useState } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
+import type { MoneyCheck } from '@bindings/MoneyCheck';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { clockLabel } from '../../../lib/format';
 import { useMutation } from '../../../lib/hooks';
-import { silenceWords } from '../../../lib/words';
+import { moneyCheckWord, silenceWords } from '../../../lib/words';
 import { Countdown, MinorMoney, ModeBadge, WalletNotice } from '../../../shared/honesty';
 import { AnswerBar, Btn, Chip, DecisionCard, Icon, Sheet, Silence, type DecisionOption } from '../../../shared/ui';
 import { amountNote, amountTone, dealTotal, moneyNow } from '../logic';
@@ -17,7 +18,7 @@ import { useWorld } from '../world';
 import { milestones, stateTone, withdrawWhat, type ClauseReading, type MirrorStrip, type Reading } from './model';
 import { dealAnswer, decisionQuestion, decisionWhy, reviewMeans } from './story';
 
-export function Summary({ deal, strip, deadline }: { deal: Deal; strip: MirrorStrip; deadline: number | null }) {
+export function Summary({ deal, strip, deadline, check }: { deal: Deal; strip: MirrorStrip; deadline: number | null; check?: MoneyCheck | null }) {
   const w = useWorld();
   const t = dealTotal(deal);
   // The title bar already carries the window's mode badge; repeat it only when this deal differs.
@@ -27,11 +28,14 @@ export function Summary({ deal, strip, deadline }: { deal: Deal; strip: MirrorSt
     <div className="dv-figs">
       <div className="dv-hero">
         <span className={`dv-amt ${amountTone(deal)}`} title={amountNote(deal)}><MinorMoney minor={t.minor} currency={t.currency} /></span>
-        <span className="dv-pills"><Chip tone={stateTone(strip)}>{state}</Chip>{ownMode ? <ModeBadge mode={deal.mode} /> : null}</span>
+        <span className="dv-pills">
+          {check ? <Chip tone="dashed" title={moneyCheckWord(check).means}>{moneyCheckWord(check).text}</Chip> : <Chip tone={stateTone(strip)}>{state}</Chip>}
+          {ownMode ? <ModeBadge mode={deal.mode} /> : null}
+        </span>
       </div>
       <div className="dv-f">
         <span className="k">Money right now</span>
-        <span className="v">{moneyNow(deal)}</span>
+        <span className="v">{check ? 'Not confirmed yet, PayPal is being asked' : moneyNow(deal)}</span>
       </div>
       {deadline ? (
         <div className="dv-f push">
@@ -80,9 +84,10 @@ function EndMark({ end, first }: { end: NonNullable<ReturnType<typeof milestones
 }
 
 /** The answer (one sentence) and, if the deal needs the owner, the one decision with what each option does. */
-export function DealStory({ deal, need, canWithdraw, theirName, them, latest, band, readings, deadline }: {
+export function DealStory({ deal, need, canWithdraw, theirName, them, latest, band, readings, deadline, check }: {
   deal: Deal; need: AttentionItem | undefined; canWithdraw: boolean; theirName: string; them: string;
   latest: TranscriptStep | null; band: Reading | null; readings: readonly ClauseReading[]; deadline: number | null;
+  check?: MoneyCheck | null;
 }) {
   const w = useWorld();
   const toast = useToast();
@@ -97,7 +102,7 @@ export function DealStory({ deal, need, canWithdraw, theirName, them, latest, ba
   const mayLapse = !!need?.actions.includes('let_lapse') && deal.state !== 'MISMATCH';
   const silence = need?.on_silence ?? disp.on_silence;
   const wText = withdrawWhat(deal, theirName);
-  const answer = dealAnswer(deal, { need, them, latest, band, mayWithdraw: canWithdraw });
+  const answer = dealAnswer(deal, { need, them, latest, band, mayWithdraw: canWithdraw, check });
 
   const options: DecisionOption[] = [];
   if (need && review) {
