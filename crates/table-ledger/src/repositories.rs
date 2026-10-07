@@ -211,6 +211,23 @@ fn apply_decided(
     )?;
     Ok(())
 }
+/// States in the forward chain from AGREED on, every one reached through AGREED.
+fn agreed_or_later(state: DealState) -> bool {
+    use DealState as S;
+    matches!(
+        state,
+        S::Agreed
+            | S::Settling
+            | S::AwaitingApproval
+            | S::Approved
+            | S::Authorized
+            | S::Captured
+            | S::Receipted
+            | S::Reconciled
+            | S::Refunded
+            | S::Disputed
+    )
+}
 struct DbNonces<'a>(&'a Connection);
 impl NonceLookup for DbNonces<'_> {
     fn contains(&self, key: &KeyId, nonce: &[u8; 16]) -> Result<bool, ProtocolError> {
@@ -641,21 +658,43 @@ impl Ledger {
         tx.commit()?;
         Ok(())
     }
+    /// The daily budget a deal is checked against. A deal's place in the budget is fixed when it
+    /// first reaches AGREED (the first `deal.transition` audit row whose `to` is AGREED; the audit
+    /// `seq` orders two agreements in the same second). A deal counts against this one when it
+    /// agreed earlier on the same UTC day as this deal's own agreement; deals that agree later,
+    /// and tables that never agreed, never do. A deal that has not agreed yet is counted as if it
+    /// agreed now, after everyone agreed so far. Fail closed: a deal past agreement whose
+    /// agreement row cannot be read counts against every other deal.
     pub fn usage_for(&self, deal: &Deal, now: Timestamp) -> Result<table_core::Usage, LedgerError> {
-        let start = now.div_euclid(86400) * 86400;
-        let mut q=self.conn.prepare("SELECT qty,unit_price_minor,currency FROM deals WHERE mandate_id=?1 AND id!=?2 AND CAST(created_at AS INTEGER)>=?3 AND CAST(created_at AS INTEGER)<?4 AND state NOT IN ('REFUSED','WITHDRAWN','EXPIRED','VOIDED','AUTO_VOIDED')")?;
+        const AGREED_ROW: &str = "SELECT {c} FROM audit_log WHERE deal_id={id} AND action='deal.transition' AND json_extract(detail_json,'$.to')='AGREED' ORDER BY seq LIMIT 1";
+        let agreed = |c: &str, id: &str| AGREED_ROW.replace("{c}", c).replace("{id}", id);
+        let own: Option<(i64, i64)> = self
+            .conn
+            .query_row(
+                &agreed("seq,CAST(at AS INTEGER)", "?1"),
+                [deal.id.to_string()],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        // The day of the window: this deal's agreement day, else today.
+        let day = own.map_or(now, |(_, at)| at).div_euclid(86400);
+        let sql = format!(
+            "SELECT qty,unit_price_minor,currency,state,CAST(created_at AS INTEGER),({}),({}) FROM deals d WHERE mandate_id=?1 AND id!=?2 AND state NOT IN ('REFUSED','WITHDRAWN','EXPIRED','VOIDED','AUTO_VOIDED')",
+            agreed("seq", "d.id"),
+            agreed("CAST(at AS INTEGER)", "d.id"),
+        );
+        let mut q = self.conn.prepare(&sql)?;
         let rows = q.query_map(
-            params![
-                deal.mandate_id.to_string(),
-                deal.id.to_string(),
-                start,
-                start.saturating_add(86400)
-            ],
+            params![deal.mandate_id.to_string(), deal.id.to_string()],
             |r| {
                 Ok((
                     r.get::<_, u32>(0)?,
                     r.get::<_, i64>(1)?,
                     r.get::<_, String>(2)?,
+                    r.get::<_, String>(3)?,
+                    r.get::<_, i64>(4)?,
+                    r.get::<_, Option<i64>>(5)?,
+                    r.get::<_, Option<i64>>(6)?,
                 ))
             },
         )?;
@@ -665,7 +704,25 @@ impl Ledger {
                 .map_err(table_core::DomainError::from)?,
         };
         for row in rows {
-            let (qty, minor, currency) = row?;
+            let (qty, minor, currency, state, created, seq, at) = row?;
+            let counts = match (seq, at) {
+                (Some(seq), Some(at)) => {
+                    at.div_euclid(86400) == day
+                        && match own {
+                            Some((own_seq, _)) => seq < own_seq,
+                            // Unreadable own moment or not agreed yet: everyone agreed so far.
+                            None => true,
+                        }
+                }
+                // Agreed, but the moment is unreadable: counts against every other deal.
+                _ => {
+                    let state: DealState = parse_enum(state)?;
+                    agreed_or_later(state) && created.div_euclid(86400) == day
+                }
+            };
+            if !counts {
+                continue;
+            }
             usage.deals_today = usage
                 .deals_today
                 .checked_add(1)

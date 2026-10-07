@@ -256,6 +256,7 @@ Behaviour changes worth knowing:
   create the deal, set the silence deadline, bind the relay, list, and reserve the request slot
   last (scan C-3). A request that fails midway leaves a Pairing deal that lapses on its deadline and
   holds no request slot; its retry makes a fresh deal.
+- Daily budget (scan C-4): a deal's place in the day's `max_deals_day`/`max_total_day` is fixed when it first agrees (audit order); only deals that agreed earlier that UTC day count against it, open tables never do, and a deal past agreement with no readable agreement row counts against all others.
 - Deals under a retired (revoked/superseded) mandate are left to their deadline default; the inbox
   rejects their messages once (`envelope.rejected`) instead of faulting every tick.
 - `Pipeline::tick` attempts every due deal and returns the first error afterwards.
