@@ -405,7 +405,7 @@ export function mockBackend(label: WindowLabel): Backend {
       const mandates = handlers.mandate_list(null);
       const slots: Array<[AgentSlot, string]> = [
         ['negotiator', 'Haggles at your tables inside a signed band. Signs offers; never pays.'],
-        ['shopper', 'Proposes purchases inside your spend mandate. Rust checks them; money moves only by policy or by you.'],
+        ['shopper', 'Proposes purchases inside your spend mandate. Money moves only when you decide.'],
         ['assistant', 'Reads the book and drafts shop and rescue work. No money tool.'],
       ];
       return {
