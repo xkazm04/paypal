@@ -74,6 +74,11 @@ pub struct AttentionSnapshot {
     // Estimate only. No policy code may consume this field.
     pub engine_estimate_today_usd: f64,
     pub locked: bool,
+    // What the scheduler does to every open deal if the owner does nothing. None while it could
+    // not be read; older shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub forecast: Option<Vec<ForecastLine>>,
 }
 
 /// Origin: pairing record confirmed by the owner. No merchant title, memo or NOTE field.
@@ -253,6 +258,7 @@ pub fn snapshot(
         wallet_spend_today_currency: None,
         engine_estimate_today_usd,
         locked,
+        forecast: None,
     }
 }
 
