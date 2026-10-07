@@ -15,7 +15,10 @@ describe('money formatting (display only - Rust owns the arithmetic)', () => {
   });
   it('counts down from absolute deadlines', () => {
     expect(countdown(1000 + 3 * 3600 + 57 * 60 + 56, 1000)).toBe('3:57:56');
-    expect(countdown(1000 + 2 * 86400 + 19 * 3600, 1000)).toBe('2 d 19 h');
+    expect(countdown(1000 + 2 * 86400 + 19 * 3600, 1000)).toBe('2 days 19 h');
+    expect(countdown(1000 + 86400 + 3 * 3600 + 59 * 60, 1000)).toBe('1 day 3 h');
+    expect(countdown(1000 + 3 * 86400 + 30 * 60, 1000)).toBe('3 days');
+    expect(countdown(1000 + 86400 - 1, 1000)).toBe('23:59:59');
     expect(countdown(500, 1000)).toBe('0:00:00');
   });
   it('says a weekday for times this week and the date for times further away', () => {
