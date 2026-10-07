@@ -5,7 +5,7 @@
    the scale. The window is 744 px wide. */
 
 /* ---- page roots ------------------------------------------------------------------------- */
-.ow.ow-ed { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.ow.ow-ed { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
 .ow .ow-body { padding: var(--sp-3) var(--sp-4) var(--sp-4); }
 .ow-p { margin: 0 0 var(--sp-2); color: var(--muted); line-height: var(--lh); }
 .ow-p:last-child { margin-bottom: 0; }
@@ -51,11 +51,15 @@
 .ow-switch { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-top: var(--sp-1); }
 .ow-switch .ui-chip { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
-/* the replay */
+/* the week, tried by the wallet: only the deals whose answer changes, the rest folded */
 .ow-rp { table-layout: fixed; margin-top: var(--sp-2); }
-.ow-rp col.c-t { width: 84px; } .ow-rp col.c-a { width: 92px; } .ow-rp col.c-v { width: 120px; }
-.ow-rp tbody tr { cursor: pointer; }
-.ow-rp tbody tr:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.ow-rp col.c-t { width: 76px; } .ow-rp col.c-a { width: 84px; } .ow-rp col.c-v { width: 176px; }
+.ow-rp td { vertical-align: top; }
+.ow-rp tr.fold td, .ow-rp tr.none td { padding-top: var(--sp-1); padding-bottom: var(--sp-1); }
+.ow-vd { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; max-width: 100%; }
+.ow-vd .why { font-size: var(--fs-small); line-height: var(--lh-tight); color: var(--muted); white-space: normal; overflow-wrap: anywhere; }
+.ow-wi { transition: opacity var(--t-fast); }
+.ow-wi.updating { opacity: 0.6; }
 .ow-rp tr.chg td { background: color-mix(in srgb, var(--gold) 8%, transparent); }
 .ow-rp tr.chg td:first-child { box-shadow: inset 2px 0 0 var(--gold); }
 .ow-rp td.t { font: var(--fs-small) var(--mono); color: var(--dim); }
@@ -63,10 +67,6 @@
 .ow-rp .it { color: var(--muted); }
 .ow-na { display: grid; gap: var(--sp-2); margin-top: var(--sp-3); }
 .ow-na .ui-hint { margin: 0; line-height: var(--lh); }
-.ow-why { max-width: 480px; }
-.ow-reasons ul { list-style: none; margin: var(--sp-1) 0 0; padding: 0; display: grid; gap: 2px; }
-.ow-reasons li { display: flex; align-items: baseline; gap: var(--sp-1); font-size: var(--fs-small); }
-.ow-reasons li .ui-chip { flex: none; }
 
 /* the levers: a track with this week's deals as ticks */
 .ow-levers { padding-top: var(--sp-2); }
@@ -111,6 +111,12 @@
 .ow-ww .ui-row.chg { box-shadow: inset 2px 0 0 var(--gold); }
 .ow-ww .ui-row.chg .val { color: var(--gold-l); }
 .ow-endline { display: block; margin-top: var(--sp-3); }
+
+/* the one-line what-if summary, directly above Sign */
+.ow-sum { display: flex; align-items: baseline; gap: var(--sp-2); min-width: 0; margin: 0; padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--line); background: var(--panel); font-size: var(--fs-small); }
+.ow-sum .k { flex: none; color: var(--dim); }
+.ow-sum .v { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); transition: opacity var(--t-fast); }
+.ow-sum.updating .v { opacity: 0.6; }
 
 /* footer */
 .ow-foot { display: flex; align-items: center; gap: var(--sp-2); min-height: 44px; padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--line); background: var(--material); }

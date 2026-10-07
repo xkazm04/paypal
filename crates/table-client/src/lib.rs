@@ -257,6 +257,71 @@ pub struct MandateSignArgs {
 pub struct MandateRevokeArgs {
     pub id: table_core::MandateId,
 }
+/// What-if before signing: the draft exactly as `mandate_sign` takes it, replayed over the deals
+/// recorded in a window. Read-only: nothing is signed, written or sent to PayPal.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct MandateSimulateArgs {
+    pub draft: MandateSignArgs,
+    /// Window start, Unix seconds. Default: seven days before `to`.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub from: Option<i64>,
+    /// Window end, Unix seconds. Default: now.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub to: Option<i64>,
+}
+/// One mandate's answer to one recorded intent, from `MandatePayload::check` itself.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum SimulatedVerdict {
+    Allow,
+    /// The owner would be asked (clause 6 above its threshold).
+    Ask {
+        clause: u8,
+    },
+    /// The clause that refuses first, with the check's own reason.
+    Refuse {
+        clause: u8,
+        reason: String,
+    },
+    /// A fact the intent needs is not on record, so nothing is guessed.
+    NotSimulated,
+}
+/// A recorded deal under the rules in force (`before`) and under the draft (`after`). Only
+/// owner-bound facts: no counterparty words.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct SimulatedLine {
+    pub deal_id: DealId,
+    /// The deal's display label ("D-0193").
+    pub label: String,
+    /// The deal's title as Main shows it (owner-bound, never counterparty words).
+    pub title: String,
+    /// The item the deal is bound to, as the band clause names items.
+    pub item_ref: table_core::ItemRef,
+    pub kind: table_core::DealKind,
+    pub side: table_core::Side,
+    /// When the deal was recorded (Unix seconds); 0 = not on record.
+    pub at: i64,
+    /// The deal total; null when the recorded terms have no valid total.
+    #[ts(optional = nullable)]
+    pub amount: Option<table_core::Money>,
+    pub unit_price: table_core::Money,
+    pub before: SimulatedVerdict,
+    pub after: SimulatedVerdict,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct MandateSimulation {
+    /// The window actually replayed, Unix seconds.
+    pub from: i64,
+    pub to: i64,
+    pub lines: Vec<SimulatedLine>,
+    /// Lines whose intent could not be rebuilt from the record (both verdicts not simulated).
+    pub not_simulated: u32,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct BandArgs {
@@ -733,6 +798,8 @@ pub struct CommandContract {
     pub proof_check: Command<(), Option<ProofReport>>,
     /// Who decided each money step: the verified audit chain as closed steps (main only).
     pub deal_history: Command<DealHistoryArgs, DealHistory>,
+    /// What-if before signing: a draft replayed over recorded deals. Read-only, approval only.
+    pub mandate_simulate: Command<MandateSimulateArgs, MandateSimulation>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -830,6 +897,7 @@ pub const COMMANDS: &[&str] = &[
     "deal_export_proof",
     "proof_check",
     "deal_history",
+    "mandate_simulate",
 ];
 pub const RELEASE_COMMANDS: &[&str] = &[
     "deal_owner_accept",

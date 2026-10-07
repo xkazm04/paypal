@@ -95,6 +95,7 @@ fn table_commands() -> &'static [&'static str] {
         "deal_export_proof",
         "proof_check",
         "deal_history",
+        "mandate_simulate",
     ]
 }
 #[cfg(not(windows))]

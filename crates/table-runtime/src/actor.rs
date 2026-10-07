@@ -67,6 +67,7 @@ pub enum Action {
     Handoff(DealId),
     ExportProof(DealId),
     DealHistory(DealHistoryArgs),
+    Simulate(MandateSimulateArgs),
 }
 pub struct Caller {
     pub label: String,

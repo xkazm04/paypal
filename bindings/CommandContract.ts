@@ -32,6 +32,8 @@ import type { MainRoute } from "./MainRoute";
 import type { MandateListEntry } from "./MandateListEntry";
 import type { MandateRevokeArgs } from "./MandateRevokeArgs";
 import type { MandateSignArgs } from "./MandateSignArgs";
+import type { MandateSimulateArgs } from "./MandateSimulateArgs";
+import type { MandateSimulation } from "./MandateSimulation";
 import type { MarketRef } from "./MarketRef";
 import type { MarketRefreshArgs } from "./MarketRefreshArgs";
 import type { OpenMandate } from "./OpenMandate";
@@ -68,4 +70,8 @@ proof_check: Command<null, ProofReport | null>,
 /**
  * Who decided each money step: the verified audit chain as closed steps (main only).
  */
-deal_history: Command<DealHistoryArgs, DealHistory>, };
+deal_history: Command<DealHistoryArgs, DealHistory>, 
+/**
+ * What-if before signing: a draft replayed over recorded deals. Read-only, approval only.
+ */
+mandate_simulate: Command<MandateSimulateArgs, MandateSimulation>, };
