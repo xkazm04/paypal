@@ -21,7 +21,7 @@ use table_proto::{
     AgentSigner, Body, HouseRelease, HouseRequest, HouseResponse, HouseTable, PairingIdentity,
     ReasonCode, ShortText, SignedPairingIdentity,
 };
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{Notify, mpsc, oneshot};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -92,8 +92,22 @@ impl Log for Stderr {
 
 /// How long a table request waits for the actor before the caller sees 503.
 const REPLY_TIMEOUT: Duration = Duration::from_secs(20);
-/// A heartbeat older than this (seconds) makes `/healthz` answer 503.
-const HEARTBEAT_STALE: i64 = 30;
+/// table-paypal's bound on one HTTP request: `ReqwestTransport`'s timeout
+/// (crates/table-paypal/src/http.rs).
+const PAYPAL_REQUEST_SECS: i64 = 30;
+/// One PayPal call makes at most 3 attempts (`execute_policy` in crates/table-paypal/src/client.rs),
+/// each at most an OAuth token request plus the call itself, with `ExponentialBackoff` waits of
+/// 1 s and 2 s between attempts.
+const PAYPAL_ATTEMPTS: i64 = 3;
+const PAYPAL_BACKOFF_SECS: i64 = 1 + 2;
+/// The longest single awaited deal step (one PayPal call): 3 x (30 + 30) + 3 = 183 s.
+const LONGEST_STEP_SECS: i64 = PAYPAL_ATTEMPTS * 2 * PAYPAL_REQUEST_SECS + PAYPAL_BACKOFF_SECS;
+/// A heartbeat older than this (seconds) makes `/healthz` answer 503: 183 s plus 7 s for the
+/// ledger writes around a step and the 1 s timer, so 190 s. The heartbeat is written around
+/// each awaited step, so only an await longer than any PayPal call can take reads as stalled.
+pub const HEARTBEAT_STALE: i64 = LONGEST_STEP_SECS + 7;
+// A slow PayPal call is never read as a stall.
+const _: () = assert!(HEARTBEAT_STALE > LONGEST_STEP_SECS);
 /// First wait between approval polls of one deal; doubles up to [`POLL_MAX`].
 const POLL_FIRST: i64 = 5;
 const POLL_MAX: i64 = 60;
@@ -150,6 +164,17 @@ pub struct Seller {
     /// The last failure logged per (deal, step), so a step failing the same way every second
     /// writes one line, not one per tick. Cleared when the step next succeeds.
     failing: HashMap<(Option<DealId>, &'static str), &'static str>,
+    /// Clock seconds of the actor's last sign of life, read by `/healthz`.
+    heartbeat: Arc<AtomicI64>,
+}
+
+/// A money operation reserved (its request id written) but never finished: the process stopped
+/// in the middle of the PayPal call, so its outcome is unknown.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PendingOperation {
+    pub deal: DealId,
+    pub operation: &'static str,
+    pub attempt: u8,
 }
 impl std::fmt::Debug for Seller {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -261,12 +286,91 @@ impl Seller {
             },
             terms,
             category,
+            heartbeat: Arc::new(AtomicI64::new(clock.now())),
             clock,
             relay,
             polls: PollSchedule::new(),
             log: Arc::new(Stderr),
             failing: HashMap::new(),
         })
+    }
+    fn beat(&self) {
+        self.heartbeat.store(self.clock.now(), Ordering::Relaxed);
+    }
+    /// Money operations whose outcome is unknown after a restart, oldest first. Read from the
+    /// audit chain: a reservation writes `money.authorized` and its finish `money.observed`, each in
+    /// the same transaction as the `operations` row. The pipeline never reserves the same deal,
+    /// attempt and operation twice (its primary key), so a pending one is not sent again.
+    pub fn pending_operations(&self) -> Result<Vec<PendingOperation>, Error> {
+        let ledger = &self.pipeline.wallet.ledger;
+        let mut authorized = Vec::new();
+        let mut observed: HashMap<(DealId, &'static str), usize> = HashMap::new();
+        let mut before = None;
+        loop {
+            let (rows, more) = ledger.audit_page(before, u16::MAX)?;
+            for row in &rows {
+                let (Some(deal), "pipeline") = (row.deal_id, row.actor.as_str()) else {
+                    continue;
+                };
+                let operation = match row.detail.get("operation").and_then(|o| o.as_str()) {
+                    Some("create") => "create",
+                    Some("authorize") => "authorize",
+                    Some("capture") => "capture",
+                    Some("void") => "void",
+                    _ => continue,
+                };
+                match row.action.as_str() {
+                    "money.authorized" => {
+                        let request = row
+                            .detail
+                            .get("request_id")
+                            .and_then(|r| r.as_str())
+                            .unwrap_or_default();
+                        let attempt = (1..=3)
+                            .find(|a| {
+                                table_paypal::RequestId::for_operation(deal, *a, operation)
+                                    .is_ok_and(|r| r.as_str() == request)
+                            })
+                            .unwrap_or(0);
+                        authorized.push(PendingOperation {
+                            deal,
+                            operation,
+                            attempt,
+                        });
+                    }
+                    "money.observed" => *observed.entry((deal, operation)).or_default() += 1,
+                    _ => {}
+                }
+            }
+            before = rows.last().map(|r| r.seq);
+            if !more || before.is_none() {
+                break;
+            }
+        }
+        // Pages are newest first; each finish closes the oldest open reservation of its kind.
+        authorized.reverse();
+        Ok(authorized
+            .into_iter()
+            .filter(|p| match observed.get_mut(&(p.deal, p.operation)) {
+                Some(n) if *n > 0 => {
+                    *n -= 1;
+                    false
+                }
+                _ => true,
+            })
+            .collect())
+    }
+    /// Writes one line per pending operation: deal, operation and attempt, outcome unknown.
+    /// Resolving them with PayPal is T10; until then the deal stays where the restart left it.
+    pub fn report_pending(&self) -> Result<usize, Error> {
+        let pending = self.pending_operations()?;
+        for p in &pending {
+            self.log.line(&format!(
+                "house pending deal={} operation={} attempt={} outcome=unknown",
+                p.deal, p.operation, p.attempt
+            ));
+        }
+        Ok(pending.len())
     }
     /// Replaces the stderr sink (tests capture the lines).
     #[must_use]
@@ -469,9 +573,13 @@ impl Seller {
         let now = self.clock.now();
         let mut failure = None;
         // Defaults run first and independently of transport failures.
+        // The heartbeat is written around every awaited step, so a busy actor stays healthy and
+        // only one await longer than any PayPal call can take reads as stalled.
+        self.beat();
         let deals = self.listed("advance")?;
         for deal in deals {
             let result = self.advance(&deal, now).await;
+            self.beat();
             if let Err(e) = self.noted("advance", Some(deal.id), result) {
                 failure.get_or_insert(e);
             }
@@ -485,6 +593,7 @@ impl Seller {
         for work in self.noted("deliver", None, work)? {
             let id = work.deal_id;
             let result = self.deliver(work).await;
+            self.beat();
             if let Err(e) = self.noted("deliver", Some(id), result) {
                 failure.get_or_insert(e);
             }
@@ -766,7 +875,8 @@ impl HouseHandle {
         let (tx, rx) = oneshot::channel();
         self.ask(Message::Snapshot(id, tx), rx).await
     }
-    /// False when the actor has not ticked for more than 30 s (stalled or dead).
+    /// False when the actor has shown no sign of life for more than [`HEARTBEAT_STALE`] seconds
+    /// (stalled or dead).
     pub fn healthy(&self) -> bool {
         self.clock
             .now()
@@ -774,34 +884,62 @@ impl HouseHandle {
             <= HEARTBEAT_STALE
     }
 }
-pub fn spawn(mut seller: Seller) -> HouseHandle {
+/// A running HOUSE actor and the means to stop it cleanly.
+#[derive(Debug)]
+pub struct House {
+    pub handle: HouseHandle,
+    stop: Arc<Notify>,
+    task: tokio::task::JoinHandle<()>,
+}
+impl House {
+    /// Stops taking requests, lets the tick in flight finish, and waits for the actor to exit.
+    /// Requests still queued are dropped unanswered, so their callers see 503.
+    pub async fn drain(self) {
+        self.stop.notify_one();
+        let _ = self.task.await;
+    }
+}
+/// Starts the actor with no way to stop it (tests and tools).
+pub fn spawn(seller: Seller) -> HouseHandle {
+    start(seller).handle
+}
+/// Reports any operation a previous run left pending, then starts the actor.
+pub fn start(mut seller: Seller) -> House {
+    if let Err(e) = seller.report_pending() {
+        seller
+            .log
+            .line(&format!("house step=startup deal=- error={}", e.code()));
+    }
     let (tx, mut rx) = mpsc::channel::<Message>(4);
-    let heartbeat = Arc::new(AtomicI64::new(seller.clock.now()));
     let handle = HouseHandle {
         tx,
-        heartbeat: heartbeat.clone(),
+        heartbeat: seller.heartbeat.clone(),
         clock: seller.clock.clone(),
         timeout: REPLY_TIMEOUT,
     };
-    tokio::spawn(async move {
+    let stop = Arc::new(Notify::new());
+    let stopped = stop.clone();
+    let task = tokio::spawn(async move {
         let mut timer = tokio::time::interval(Duration::from_secs(1));
         timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
+            // A stop is seen between ticks, never inside one: a money step is never cut off.
             tokio::select! {
+                biased;
+                _=stopped.notified()=>break,
                 request=rx.recv()=>match request {
                     Some(Message::Table(request,reply))=>{if !reply.is_closed(){let _=reply.send(seller.table(request));}},
                     Some(Message::Snapshot(id,reply))=>{let _=reply.send(seller.pipeline.wallet.ledger.get_deal(id).map_err(Error::from));},
                     None=>break,
                 },
                 _=timer.tick()=>{
-                    heartbeat.store(seller.clock.now(), Ordering::Relaxed);
-                    // The tick logs each failed step itself.
+                    // The tick beats the heartbeat and logs each failed step itself.
                     let _=seller.tick().await;
                 },
             }
         }
     });
-    handle
+    House { handle, stop, task }
 }
 /// The relay routes without `/healthz`; HOUSE serves its own, tied to the actor heartbeat.
 pub fn router(relay: Arc<rendezvous::MemoryStore>, house: HouseHandle) -> Router {
@@ -942,8 +1080,8 @@ mod tests {
         let store = Arc::new(rendezvous::MemoryStore::new(Arc::new(Fixed(100))));
         for (beat, want) in [
             (100, StatusCode::OK),
-            (70, StatusCode::OK),
-            (69, StatusCode::SERVICE_UNAVAILABLE),
+            (100 - HEARTBEAT_STALE, StatusCode::OK),
+            (99 - HEARTBEAT_STALE, StatusCode::SERVICE_UNAVAILABLE),
         ] {
             let (h, _rx) = handle(Duration::from_secs(1), beat);
             let response = router(store.clone(), h)

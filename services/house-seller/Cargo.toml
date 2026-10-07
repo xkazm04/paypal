@@ -19,7 +19,7 @@ table-relay = { path = "../../crates/table-relay" }
 rendezvous = { path = "../rendezvous" }
 serde.workspace = true
 serde_json.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["signal"] }
 axum.workspace = true
 async-trait.workspace = true
 ed25519-dalek.workspace = true
