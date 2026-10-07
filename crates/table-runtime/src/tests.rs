@@ -7,6 +7,8 @@ mod forecast_tests;
 mod h5_tests;
 #[path = "policy_tests.rs"]
 pub(crate) mod policy_tests;
+#[path = "quit_tests.rs"]
+mod quit_tests;
 #[path = "relay_tests.rs"]
 mod relay_tests;
 use super::*;

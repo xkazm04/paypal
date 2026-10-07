@@ -248,3 +248,9 @@ export const PROOF_KEY_ANCHOR = 'Compare this owner key with the key the owner s
 export const PROOF_LIMIT = 'The file cannot show whether newer records were removed from the end.';
 /** Said once before a proof file is saved: the file is readable by anyone it is sent to. */
 export const PROOF_SAVE_WARNING = 'This file carries this deal’s rules, including your price limits (the most you’ll pay or the least you’ll take), the payees and caps, and the other side’s notes. Anyone you send it to can read them.';
+
+// ---- agent runs (T2) ----------------------------------------------------------------------------
+
+/** A run's badge: "Practice agent" when it runs on the scripted engine (mode `scripted_engine`),
+ *  null otherwise. Shown beside the run, in addition to the deal's own mode badge. */
+export const runBadge = (run: { mode: Mode }): string | null => (run.mode === 'scripted_engine' ? MODE.scripted_engine : null);

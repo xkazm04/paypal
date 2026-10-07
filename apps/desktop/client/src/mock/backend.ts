@@ -17,6 +17,7 @@ import type { ArgsOf, Backend, CommandName, EventName, InvokeOptions, PayloadOf,
 import { WalletError } from '../lib/contract';
 import { nowUnix } from '../lib/format';
 import { buildMockState, fakeHash, fakeUlid, type MockState } from './fixtures';
+import { ON_QUIT, mockForecast, mockQuitLines, quitPending, type ForecastDeal } from './forecast';
 
 type Envelope = { kind: 'event'; event: EventName; targets: WindowLabel[]; payload: unknown } | { kind: 'state'; state: MockState };
 
@@ -229,8 +230,15 @@ export function mockBackend(label: WindowLabel): Backend {
       wallet_spend_today_currency: 'USD',
       engine_estimate_today_usd: state.engineEstimateTodayUsd,
       locked: isLocked(),
+      forecast: forecast(),
     };
   };
+  // ?forecast=off previews a shell whose forecast read failed (the snapshot then carries none).
+  const forecastOff = params.get('forecast') === 'off';
+  const forecastDeals = (): ForecastDeal[] => state.deals.map((d) => ({ deal: d.deal, label: d.display.label, deadline: d.display.deadline }));
+  const forecast = () => (forecastOff ? null : mockForecast(forecastDeals(), {
+    now: nowUnix(), paused: state.settings.agents_paused, executorConfigured: state.settings.payment_executor_configured,
+  }));
   // ?locked=1 starts the window idle-locked, for screenshots of the LOCKED states.
   const forceLocked = params.get('locked') === '1';
   const isLocked = () => forceLocked || state.settings.locked || nowUnix() - lastPrivileged > IDLE_LOCK_SECONDS;
@@ -281,7 +289,9 @@ export function mockBackend(label: WindowLabel): Backend {
       return null;
     },
     agent_start: ({ deal_id }) => {
-      const run = { run: fakeUlid(`run:${deal_id}:${Date.now()}`), deal_id, engine: state.settings.selected_engine, mode: 'scripted_engine' as const, state: 'running' as const };
+      // engines.rs: a scripted-engine run is a practice run; any other keeps the deal's mode.
+      const engine = state.settings.selected_engine;
+      const run = { run: fakeUlid(`run:${deal_id}:${Date.now()}`), deal_id, engine, mode: engine === 'scripted' ? 'scripted_engine' as const : find(deal_id).deal.mode, state: 'running' as const };
       state.runs = [run, ...state.runs].slice(0, 64);
       save();
       emit('agent:changed', run);
@@ -696,8 +706,18 @@ export function mockBackend(label: WindowLabel): Backend {
       privileged(opts);
       return fail('UNAVAILABLE', 'deal_join is not simulated in the browser mock');
     },
-    quit_summary: () => ({ confirmation_id: fakeHash('quit'), pending: attention().items.map((i) => i.deal_id), on_quit: 'While the wallet is closed: agents stop, nothing is polled, nothing is paid. PayPal-side windows still run out on their own - an unapproved order expires, an authorization lapses - and none of that moves money.' }),
-    quit_confirm: () => null,
+    quit_summary: () => {
+      const pending = forecastDeals().filter((d) => quitPending(d.deal));
+      const f = forecast();
+      const lines = f ? mockQuitLines(pending, f) : { while_off: null, at_paypal: null };
+      const shown = JSON.stringify([pending.map((d) => [d.deal.id, d.deal.state]), lines]);
+      return { confirmation_id: fakeHash(`quit:${shown}`), pending: pending.map((d) => d.deal.id), on_quit: ON_QUIT, ...lines };
+    },
+    quit_confirm: ({ confirmation_id }) => {
+      // Rust refuses a confirmation over deals or lines that changed since they were shown.
+      if (JSON.stringify(handlers.quit_summary(null).confirmation_id) !== JSON.stringify(confirmation_id)) fail('INVALID', 'what the quit confirm showed has changed');
+      return null;
+    },
     // Safe projections generated from Rust (see lib/pending.ts).
     approval_selection: () => (degraded() ? pendingFail('approval_selection') : label === 'approval' ? selected : fail('PERMISSION', 'approval-only')),
     deal_display: ({ deal_id }) => (degraded() ? pendingFail('deal_display') : find(deal_id).display),

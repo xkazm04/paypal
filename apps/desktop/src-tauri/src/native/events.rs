@@ -27,16 +27,12 @@ pub(super) fn request_quit(app: &AppHandle) {
                 hide_and_exit(&handle);
                 return;
             }
-            let message = format!(
-                "{} pending decisions: {}. {}",
+            // Deal numbers and Rust-composed lines from the walk-away forecast; never ids.
+            let message = table_attention::quit_message(
                 summary.pending.len(),
-                summary
-                    .pending
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                summary.on_quit
+                summary.while_off.as_deref(),
+                summary.at_paypal.as_deref(),
+                &summary.on_quit,
             );
             let app = handle.clone();
             handle
@@ -61,6 +57,10 @@ pub(super) fn request_quit(app: &AppHandle) {
                                 .is_ok()
                             {
                                 hide_and_exit(&app);
+                            } else {
+                                // What was shown changed (a deal, or what it does while off):
+                                // ask again with the current lines instead of quitting silently.
+                                request_quit(&app);
                             }
                         });
                     }

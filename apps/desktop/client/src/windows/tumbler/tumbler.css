@@ -226,6 +226,23 @@ body.w-tumbler #root { position: fixed; inset: 0; }
 .s-sum b.stop { color: var(--coral-l); }
 .s-sum b.mot { color: var(--teal-l); }
 .s-sum .ui-chip { margin-left: var(--sp-1); }
+/* If you walk away: one line from the forecast; the lines sit behind ⓘ (t-walk). */
+.s-walk { flex: none; display: flex; align-items: center; gap: var(--sp-1); height: var(--row); padding: 0 var(--sp-4); border-top: 1px solid var(--line);
+  font-size: var(--fs-small); color: var(--dim); white-space: nowrap; min-width: 0; }
+.s-walk .hg { width: 10px; height: 12px; flex: none; color: var(--muted); }
+.s-walk .k { flex: none; color: var(--muted); }
+.s-walk .v { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.s-walk .v b { font: var(--fw-semibold) var(--fs-body) var(--num); font-variant-numeric: tabular-nums; color: var(--text); }
+.s-walk .v b.w-in { color: var(--teal-l); }
+.s-walk.unknown .v { color: var(--dim); font-style: italic; }
+.t-walk { width: 320px; }
+.w-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.w-lines li { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--sp-2); font-size: var(--fs-small); line-height: 1.35; }
+.w-lines .w-when { grid-column: 1 / -1; color: var(--dim); font-variant-numeric: tabular-nums; }
+.w-lines li.if .w-when { color: var(--gold-l); }
+.w-lines .w-what { min-width: 0; color: var(--text); }
+.w-lines .w-who { color: var(--muted); white-space: nowrap; }
+.w-more { margin-top: 6px; font-size: var(--fs-small); }
 .s-meters { flex: none; min-height: 88px; padding: var(--sp-2) var(--sp-4); border-top: 1px solid var(--line);
   display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); align-content: center; }
 .py-b.px-r .s-meters { padding-right: calc(var(--sp-4) + var(--notch)); } .py-b.px-l .s-meters { padding-left: calc(var(--sp-4) + var(--notch)); }
