@@ -39,7 +39,7 @@ public repository; treat `paypal/` as the repository root.
 - Every agent intent passes the mandate check before any network call; refused intents leave
   zero rows in `paypal_calls`.
 - `audit_log` is append-only and hash-chained; never add an UPDATE/DELETE path.
-- Secrets live in the OS keychain (`keyring`); never in files, logs, the webview, or test fixtures.
+- Secrets live in the OS keychain (`keyring`); never in files, logs, the webview, or test fixtures. The one exception is the hosted HOUSE (`services/house-seller`), which runs where there is no keychain: it reads its signing seeds, its signed mandate and its PayPal sandbox credentials only from named host environment variables, never from files, and they never appear in logs, responses or fixtures (the operator, 2026-10-07; docs/build/DECISIONS.md section 14).
 - Counterparty / merchant free text is untrusted: never fed to an agent as instructions, never
   rendered in the Tumbler.
 - Silence never moves money: every deadline's default is "no money moves" (or a void).
