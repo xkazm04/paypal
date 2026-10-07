@@ -293,6 +293,7 @@ async fn run(
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
     let mut previous = Vec::<Deal>::new();
     let mut attention = None;
+    let mut attention_faulted = false;
     let mut settings_previous = None;
     let mut runs_previous = Vec::<RunSnapshot>::new();
     loop {
@@ -358,12 +359,10 @@ async fn run(
             }
             previous = deals;
         }
-        if let Ok(snapshot) = runtime.attention()
-            && let Ok(encoded) = serde_json::to_string(&snapshot)
-            && attention.as_ref() != Some(&encoded)
+        if let Some(event) =
+            attention_event(runtime.attention(), &mut attention, &mut attention_faulted)
         {
-            attention = Some(encoded);
-            let _ = events.send(WalletEvent::Attention(snapshot));
+            let _ = events.send(event);
         }
         if let Ok(settings) = runtime.settings()
             && let Ok(encoded) = serde_json::to_string(&settings)
@@ -384,4 +383,33 @@ async fn run(
         runs_previous = snapshots;
     }
     let _ = runtime.cancel_runs();
+}
+
+/// What the 1 s tick publishes for one `attention()` read. A failed read is a visible `Fault`
+/// once per failure streak, and drops the cached snapshot so the first good read after it is
+/// published even if it equals the stack the Tumbler held before the failure.
+pub(crate) fn attention_event(
+    read: Result<table_attention::AttentionSnapshot, CommandError>,
+    cache: &mut Option<String>,
+    faulted: &mut bool,
+) -> Option<WalletEvent> {
+    match read {
+        Err(error) => {
+            *cache = None;
+            if std::mem::replace(faulted, true) {
+                None
+            } else {
+                Some(WalletEvent::Fault(error))
+            }
+        }
+        Ok(snapshot) => {
+            *faulted = false;
+            let encoded = serde_json::to_string(&snapshot).ok()?;
+            if cache.as_ref() == Some(&encoded) {
+                return None;
+            }
+            *cache = Some(encoded);
+            Some(WalletEvent::Attention(snapshot))
+        }
+    }
 }

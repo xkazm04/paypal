@@ -1937,3 +1937,52 @@ async fn notification_rung_is_claimed_once_and_remains_recorded() {
     );
     assert!(http.0.lock().unwrap().paths.is_empty());
 }
+
+#[tokio::test]
+async fn failing_attention_read_is_one_fault_per_streak_and_recovery_republishes() {
+    let (r, _, _, _, _) = runtime(true);
+    let fail = r.fail_attention.clone();
+    fail.store(true, Ordering::SeqCst);
+    let (_actor, mut events) = spawn(r);
+    let mut faults = 0;
+    let _ = tokio::time::timeout(std::time::Duration::from_millis(3500), async {
+        loop {
+            match events.recv().await {
+                Ok(WalletEvent::Fault(_)) => faults += 1,
+                Ok(WalletEvent::Attention(_)) => panic!("attention published while failing"),
+                _ => {}
+            }
+        }
+    })
+    .await;
+    assert_eq!(faults, 1, "a streak of failing ticks is one Fault");
+    fail.store(false, Ordering::SeqCst);
+    tokio::time::timeout(std::time::Duration::from_secs(3), async {
+        while !matches!(events.recv().await, Ok(WalletEvent::Attention(_))) {}
+    })
+    .await
+    .expect("first good read after the streak is published");
+}
+
+#[test]
+fn attention_event_faults_once_and_clears_cache_on_error() {
+    let snapshot = || table_attention::snapshot(&[], 100, 0, 0.0, false);
+    let (mut cache, mut faulted) = (None, false);
+    assert!(matches!(
+        attention_event(Ok(snapshot()), &mut cache, &mut faulted),
+        Some(WalletEvent::Attention(_))
+    ));
+    assert!(attention_event(Ok(snapshot()), &mut cache, &mut faulted).is_none());
+    let error = || unavailable("down");
+    assert!(matches!(
+        attention_event(Err(error()), &mut cache, &mut faulted),
+        Some(WalletEvent::Fault(_))
+    ));
+    assert!(cache.is_none());
+    assert!(attention_event(Err(error()), &mut cache, &mut faulted).is_none());
+    // The same stack as before the failure is published again.
+    assert!(matches!(
+        attention_event(Ok(snapshot()), &mut cache, &mut faulted),
+        Some(WalletEvent::Attention(_))
+    ));
+}
