@@ -270,6 +270,15 @@ Behaviour changes worth knowing:
 - Attention: actions offered only when the state machine accepts them; gates name the counterparty
   label and clause 6; the in-memory notification set is pruned. Tumbler surface writes are debounced
   (400 ms) - **compile/clippy-verified only, needs the native check**.
+- Attention, walk-away forecast (T4 slice 1): `table_attention::forecast` exists and mirrors
+  `scheduler.rs` `tick_deal` at b260727. Its property test is
+  `forecast::tests::forecast_never_moves_money_out_over_every_input` (exhaustive over every state,
+  side, kind, delivery, deadline, flag and mode; no line moves money out). Not yet wired: slice 2
+  puts it on `AttentionSnapshot` with bindings and a differential test against `Runtime::tick`
+  under `FixedClock`; slice 3 adds the Tumbler "If you walk away" block and the quit confirm.
+- Attention fixes (council attention-escalation): a failed attention read is one visible Fault per
+  streak and clears the cache (a83458f); a notification claim is released when no toast was shown
+  (3ac0b38); Let it lapse needs a Gate whose card offers it (c734558).
 - Client: honest checklist lines (amount/evidence are notes, not passes), Spend card shows the
   purchase mandate, DND toggle keeps live form/position, mock revoke/band_set mirror Rust.
 
