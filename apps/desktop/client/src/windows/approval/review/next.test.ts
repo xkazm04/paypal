@@ -17,7 +17,7 @@ function deal(p: Partial<Deal> = {}): Deal {
 }
 const summary = (d: Partial<Deal> = {}, s: Partial<ApprovalSummary> = {}): ApprovalSummary => ({
   deal: deal(d), evidence: { deal_id: 'x', receipt: 'NONE', reconciliation: 'not_applicable' }, attempt: 1, terms_hash: HASH,
-  locked: false, can_release: true, can_open_paypal: true, unavailable_reason: null, ...s,
+  locked: false, can_release: true, can_open_paypal: true, unavailable_reason: null, checks: [], checks_hash: HASH, ...s,
 });
 
 type Case = Partial<Omit<NextInput, 'deal' | 'summary'>> & { d?: Partial<Deal>; s?: Partial<ApprovalSummary> };

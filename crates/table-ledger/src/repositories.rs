@@ -648,6 +648,33 @@ impl Ledger {
         tx.commit()?;
         Ok(())
     }
+    /// Read-only: the body of the deal's latest stored SETTLE (the seller's own outbound one, or a
+    /// buyer's inbound one that passed `accept_buyer_settle`), after the whole signed transcript
+    /// verifies. `None` when no SETTLE is stored yet. A SETTLE refused as a mismatch is never
+    /// stored, so its amount is not readable here (the deal's MISMATCH state says it).
+    pub fn latest_settle(&self, id: DealId) -> Result<Option<Body>, LedgerError> {
+        use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+        self.verify_transcript(id)?;
+        let raw: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT raw_jws FROM envelopes WHERE deal_id=?1 AND typ='SETTLE' ORDER BY rowid DESC LIMIT 1",
+                [id.to_string()],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let Some(raw) = raw else {
+            return Ok(None);
+        };
+        let payload = URL_SAFE_NO_PAD
+            .decode(raw.split('.').nth(1).ok_or(ProtocolError::Shape)?)
+            .map_err(|_| ProtocolError::Shape)?;
+        let envelope: table_proto::Envelope = serde_json::from_slice(&payload)?;
+        if !matches!(envelope.body, Body::Settle { .. }) {
+            return Err(LedgerError::Integrity("SETTLE row holds another message"));
+        }
+        Ok(Some(envelope.body))
+    }
     pub fn verified_approval_link(&self, id: DealId, attempt: u8) -> Result<String, LedgerError> {
         use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
         self.verify_transcript(id)?;

@@ -1,4 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+#[path = "checks_tests.rs"]
+mod checks_tests;
 #[path = "client_tests.rs"]
 mod client_tests;
 #[path = "forecast_tests.rs"]
@@ -792,6 +794,7 @@ async fn buyer_browser_availability_needs_unlock_but_no_local_paypal_credentials
                 deal_id: deal.id,
                 attempt: 1,
                 terms_hash: summary.terms_hash,
+                checks_hash: Some(summary.checks_hash),
             },
             Decision::OpenBrowser,
         )
@@ -934,13 +937,15 @@ fn unlock_runtime(r: &mut Runtime) -> String {
         .unwrap();
     token
 }
-fn decision(r: &Runtime, id: DealId) -> DecisionArgs {
+/// The owner's decision on what the summary shows now, bound to its checklist hash.
+fn decision(r: &mut Runtime, id: DealId) -> DecisionArgs {
     let deal = r.pipeline.wallet.ledger.get_deal(id).unwrap();
     DecisionArgs {
         counter_hash: None,
         deal_id: id,
         attempt: r.pipeline.wallet.ledger.settled_attempt(id).unwrap().max(1),
         terms_hash: deal.terms.hash().unwrap(),
+        checks_hash: Some(r.approval_checks(id).unwrap().1),
     }
 }
 
@@ -1372,7 +1377,7 @@ async fn actor_payments_require_label_token_unlock_selected_hash_and_attempt() {
     let (deal, peer) = setup(&mut r, Side::Seller);
     agree(&mut r, &deal, &peer);
     let token = r.pipeline.approval.token("approval").unwrap().to_owned();
-    let args = decision(&r, deal.id);
+    let args = decision(&mut r, deal.id);
     for caller in [
         caller("main", Some(&token)),
         caller("tumbler", Some(&token)),
@@ -1496,7 +1501,7 @@ async fn real_actor_countersign_verified_browser_link_poll_and_seller_capture() 
     agree(&mut r, &deal, &peer);
     let token = unlock_runtime(&mut r);
     r.selected = Some(deal.id);
-    let args = decision(&r, deal.id);
+    let args = decision(&mut r, deal.id);
     let created: Deal = serde_json::from_value(
         r.execute(
             caller("approval", Some(&token)),
@@ -1507,6 +1512,16 @@ async fn real_actor_countersign_verified_browser_link_poll_and_seller_capture() 
     )
     .unwrap();
     assert_eq!(created.state, DealState::AwaitingApproval);
+    // The order now exists, so the checklist the countersign was taken on is stale.
+    let stale = r
+        .execute(
+            caller("approval", Some(&token)),
+            Action::Decision(args, Decision::OpenBrowser),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(stale.message, crate::SUMMARY_CHANGED);
+    let args = decision(&mut r, deal.id);
     let url: String = serde_json::from_value(
         r.execute(
             caller("approval", Some(&token)),
@@ -1543,7 +1558,7 @@ async fn owner_void_requires_ticket_and_is_durable_once() {
     agree(&mut r, &deal, &peer);
     let token = unlock_runtime(&mut r);
     r.selected = Some(deal.id);
-    let args = decision(&r, deal.id);
+    let args = decision(&mut r, deal.id);
     r.execute(
         caller("approval", Some(&token)),
         Action::Decision(args, Decision::Countersign),
@@ -1551,7 +1566,7 @@ async fn owner_void_requires_ticket_and_is_durable_once() {
     .await
     .unwrap();
     r.tick().await.unwrap();
-    let args = decision(&r, deal.id);
+    let args = decision(&mut r, deal.id);
     assert_eq!(
         r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
         DealState::Authorized
@@ -1601,7 +1616,7 @@ async fn failed_void_does_not_starve_another_deadline_or_retry_unknown_money() {
     agree(&mut r, &held, &peer);
     let token = unlock_runtime(&mut r);
     r.selected = Some(held.id);
-    let args = decision(&r, held.id);
+    let args = decision(&mut r, held.id);
     r.execute(
         caller("approval", Some(&token)),
         Action::Decision(args, Decision::Countersign),
@@ -1703,7 +1718,7 @@ async fn shield_hold_release_is_owner_bound_and_block_can_never_be_released() {
         .unwrap();
     let token = unlock_runtime(&mut r);
     r.selected = Some(deal.id);
-    let args = decision(&r, deal.id);
+    let args = decision(&mut r, deal.id);
     assert!(
         r.execute(
             caller("tumbler", Some(&token)),
@@ -2209,7 +2224,7 @@ async fn let_lapse_is_refused_on_a_hold_and_on_an_authorized_deal() {
     agree(&mut r, &deal, &peer);
     let token = unlock_runtime(&mut r);
     r.selected = Some(deal.id);
-    let args = decision(&r, deal.id);
+    let args = decision(&mut r, deal.id);
     r.execute(
         caller("approval", Some(&token)),
         Action::Decision(args, Decision::Countersign),

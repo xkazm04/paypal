@@ -58,6 +58,12 @@ pub struct DecisionArgs {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub counter_hash: Option<H256>,
+    /// The `ApprovalSummary.checks_hash` the owner decided on. Required for every money
+    /// decision except the safe direction (void); Rust recomputes the checklist at decision time
+    /// and refuses an absent or different hash before any PayPal call or write.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub checks_hash: Option<H256>,
 }
 impl std::fmt::Debug for DecisionArgs {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -432,6 +438,11 @@ pub struct ApprovalSummary {
     pub can_release: bool,
     pub can_open_paypal: bool,
     pub unavailable_reason: Option<String>,
+    /// The checklist the pipeline composed from the predicates that gate the decision; the
+    /// window renders it verbatim and never adds a line of its own.
+    pub checks: Vec<table_core::ApprovalCheck>,
+    /// Domain-separated digest of `checks` (`table_core::checks_hash`); a decision sends it back.
+    pub checks_hash: H256,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
