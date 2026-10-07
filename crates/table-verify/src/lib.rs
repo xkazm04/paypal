@@ -16,6 +16,8 @@ use table_proto::{
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Check {
+    /// Stable identifier a client maps to its own words; never shown or reworded.
+    pub id: &'static str,
     pub name: &'static str,
     pub ok: bool,
     pub detail: String,
@@ -477,17 +479,36 @@ fn short(hash: H256) -> String {
     hash.hex().chars().take(12).collect()
 }
 
+/// The key anchor: the checks use the keys inside the file, so the owner key id must be compared
+/// with the one the owner shows.
+pub const KEY_ANCHOR: &str = "Compare the owner key above with the key the owner shows you: these checks use the keys inside the file.";
+/// The known limit (T9).
+pub const KNOWN_LIMIT: &str =
+    "This file cannot show whether newer records were removed from the end of the wallet's record.";
+
 pub fn verify_bundle(bundle: &ProofBundle) -> Report {
-    let checks: [(&'static str, CheckFn); 9] = [
-        ("format", format),
-        ("owner signed the mandate", mandate),
-        ("transcript signatures and chain", transcript),
-        ("closed mandate binds terms and amount", closed),
-        ("every money call has a lawful authority", authority),
-        ("PayPal order matches the signed terms", bindings),
-        ("audit rows hash-consistent", audit),
-        ("receipt inside the transcript", receipts),
-        ("evidence head signed", evidence),
+    let checks: [(&'static str, &'static str, CheckFn); 9] = [
+        ("format", "format", format),
+        ("mandate", "owner signed the mandate", mandate),
+        ("transcript", "transcript signatures and chain", transcript),
+        (
+            "countersign",
+            "closed mandate binds terms and amount",
+            closed,
+        ),
+        (
+            "authority",
+            "every money call has a lawful authority",
+            authority,
+        ),
+        (
+            "paypal_order",
+            "PayPal order matches the signed terms",
+            bindings,
+        ),
+        ("audit", "audit rows hash-consistent", audit),
+        ("receipt", "receipt inside the transcript", receipts),
+        ("evidence", "evidence head signed", evidence),
     ];
     Report {
         deal: bundle.deal.id,
@@ -501,12 +522,17 @@ pub fn verify_bundle(bundle: &ProofBundle) -> Report {
             ),
         checks: checks
             .into_iter()
-            .map(|(name, check)| {
+            .map(|(id, name, check)| {
                 let (ok, detail) = match check(bundle) {
                     Ok(detail) => (true, detail),
                     Err(detail) => (false, detail),
                 };
-                Check { name, ok, detail }
+                Check {
+                    id,
+                    name,
+                    ok,
+                    detail,
+                }
             })
             .collect(),
     }

@@ -72,6 +72,8 @@ describe('mock backend mirrors the shell gates', () => {
   it('never fakes a proof export and keeps it out of the Tumbler', async () => {
     await expect(mockBackend('main').invoke('deal_export_proof', { deal_id: dealId })).rejects.toMatchObject({ code: 'UNAVAILABLE' });
     await expect(mockBackend('tumbler').invoke('deal_export_proof', { deal_id: dealId })).rejects.toMatchObject({ code: 'PERMISSION' });
+    await expect(mockBackend('main').invoke('proof_check', null)).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+    await expect(mockBackend('approval').invoke('proof_check', null)).rejects.toMatchObject({ code: 'PERMISSION' });
   });
   it('never fakes the rescue executor', async () => {
     const rescue = fakeUlid('D-0188');

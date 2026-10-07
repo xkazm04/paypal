@@ -43,6 +43,7 @@ import type { PairingPollArgs } from "./PairingPollArgs";
 import type { PairingWords } from "./PairingWords";
 import type { PendingPairing } from "./PendingPairing";
 import type { PinArgs } from "./PinArgs";
+import type { ProofReport } from "./ProofReport";
 import type { QuitArgs } from "./QuitArgs";
 import type { QuitSummary } from "./QuitSummary";
 import type { ReconcileArgs } from "./ReconcileArgs";
@@ -57,4 +58,8 @@ export type CommandContract = { approval_selection: Command<null, DealId | null>
 /**
  * Saves the deal's signed proof bundle through a native save dialog; false if cancelled.
  */
-deal_export_proof: Command<DealArgs, boolean>, };
+deal_export_proof: Command<DealArgs, boolean>, 
+/**
+ * Checks a proof file the owner picks in a native open dialog; null if cancelled.
+ */
+proof_check: Command<null, ProofReport | null>, };

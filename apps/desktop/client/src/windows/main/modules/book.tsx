@@ -37,6 +37,7 @@ import {
 } from './book/model';
 import { AskChips } from './book/AskChips';
 import { MoneyWent } from './book/MoneyWent';
+import { ProofCheckSheet } from './book/ProofCheck';
 import { totalWhy, type TotalKey } from './book/where';
 import './book.css';
 
@@ -82,6 +83,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
   const [sel, setSel] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
+  const [proofOpen, setProofOpen] = useState(false);
   // The lens's query, checked and answered by Rust (book_query, read-only). The window still
   // runs the same lens over its own rows to light them in the grid.
   const bq = useMutation('book_query');
@@ -210,6 +212,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
             ]} />
             <GridHelp />
             <Btn sm onClick={() => setAuditOpen(true)} title="Everything that happened, newest first. Nothing in it can be changed.">Audit trail</Btn>
+            <Btn sm onClick={() => setProofOpen(true)} title="Check a signed proof file someone sent you, or one you saved">Check a proof file</Btn>
             <Btn sm onClick={() => exportRows(visible, '', 'book-ledger')} title="Save the deals you see as a spreadsheet file">Export CSV</Btn>
           </div>
           {ev.error && !ev.map.size ? <WalletNotice error={ev.error} what="PayPal statement" /> : null}
@@ -265,6 +268,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
         </Sheet>
       ) : null}
 
+      {proofOpen ? <ProofCheckSheet onClose={() => setProofOpen(false)} /> : null}
       {auditOpen ? <AuditSheet label={(id) => { const d = all.find((x) => x.id === id); return d ? label(d) : shortId(id); }} onClose={() => setAuditOpen(false)} /> : null}
 
       {selDeal ? (

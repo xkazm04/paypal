@@ -463,3 +463,34 @@ pub(super) async fn deal_export_proof(
     std::fs::write(path, bytes).map_err(|_| invalid())?;
     Ok(true)
 }
+#[tauri::command]
+pub(super) async fn proof_check(
+    window: WebviewWindow,
+) -> Result<Option<ProofReport>, CommandError> {
+    use std::io::Read;
+    use tauri_plugin_dialog::DialogExt;
+    label(&window, &["main"])?;
+    // The owner picks the file; the webview never sees a path or the bytes, only the report.
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    window
+        .dialog()
+        .file()
+        .add_filter("Table proof", &["tableproof"])
+        .pick_file(move |path| {
+            let _ = sender.send(path);
+        });
+    let Some(path) = receiver.await.map_err(|_| invalid())? else {
+        return Ok(None);
+    };
+    let path = path.into_path().map_err(|_| invalid())?;
+    // One byte past the cap is enough for check_proof_file to refuse an oversized file.
+    let limit = u64::try_from(PROOF_FILE_LIMIT).map_err(|_| invalid())?;
+    let mut bytes = Vec::new();
+    std::fs::File::open(path)
+        .and_then(|file| file.take(limit + 1).read_to_end(&mut bytes))
+        .map_err(|_| CommandError {
+            code: ErrorCode::Unavailable,
+            message: "That file could not be opened, so it was not checked.".into(),
+        })?;
+    check_proof_file(&bytes).map(Some)
+}

@@ -65,7 +65,7 @@ const GATES: Record<CommandName, WindowLabel[]> = {
   pairing_create: ['main'], pairing_join: ['main'], pairing_poll: ['main'],
   main_open: ROUTE, approval_open: ROUTE, settings_write: ROUTE, pause_all_agents: ROUTE,
   deal_let_lapse: ROUTE, quit_summary: ROUTE, quit_confirm: ROUTE,
-  mandate_list: REVIEW, counterparty_list: REVIEW, deal_transcript: REVIEW, counterparty_note: ['main'], house_wake: ['main'], pairing_abort: ['main', 'approval'], approval_handoff: ['approval'], audit_page: ['main'], owner_facts: REVIEW, book_query: ['main'], deal_export_proof: REVIEW,
+  mandate_list: REVIEW, counterparty_list: REVIEW, deal_transcript: REVIEW, counterparty_note: ['main'], house_wake: ['main'], pairing_abort: ['main', 'approval'], approval_handoff: ['approval'], audit_page: ['main'], owner_facts: REVIEW, book_query: ['main'], deal_export_proof: REVIEW, proof_check: ['main'],
   tumbler_set_form: ['tumbler'], tumbler_pin: ['tumbler'], tumbler_drag: ['tumbler'], tumbler_snap: ['tumbler'], deal_snooze: ['tumbler'],
   market_refresh: ['approval'], approval_selection: ['approval'], approval_pairing: ['approval'], approval_summary: ['approval'],
   approval_token: ['approval'], unlock: ['approval'], deal_owner_accept: ['approval'], deal_countersign: ['approval'],
@@ -263,6 +263,8 @@ export function mockBackend(label: WindowLabel): Backend {
     deal_evidence: ({ deal_id }) => find(deal_id).evidence,
     // A browser preview has no ledger or agent key to sign with: say so instead of faking a file.
     deal_export_proof: ({ deal_id }) => { find(deal_id); return fail('UNAVAILABLE', `Proof export needs the native wallet: the bundle is signed by the deal's agent key`); },
+    // Checking a file needs the wallet's own file dialog and checker; the preview has neither.
+    proof_check: () => fail('UNAVAILABLE', 'Checking a proof file needs the desktop app.'),
     deal_reconcile: ({ deal_id }) => {
       const d = find(deal_id);
       if (d.evidence.reconciliation === 'pending_reporting') d.evidence = { ...d.evidence, reconciliation: 'matched' };

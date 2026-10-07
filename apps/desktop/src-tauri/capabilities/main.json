@@ -39,6 +39,7 @@
     "allow-audit-page",
     "allow-owner-facts",
     "allow-book-query",
-    "allow-deal-export-proof"
+    "allow-deal-export-proof",
+    "allow-proof-check"
   ]
 }

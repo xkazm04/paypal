@@ -147,7 +147,7 @@ export function EvidenceSheet({ kind, deal, ev, band, onFresh, onClose }: {
   );
 }
 
-/** The full record (layer 2), with "Save signed proof": a file anyone can check offline with table-verify. */
+/** The full record (layer 2), with "Save signed proof": a file anyone can check with "Check a proof file" in the Book. */
 export function TranscriptSheet({ deal, label, steps, error, band, theirName, onClose }: {
   deal: Deal; label: string; steps: TranscriptStep[] | undefined; error: WalletError | null; band: DisplayBand | null; theirName: string; onClose: () => void;
 }) {
@@ -159,8 +159,8 @@ export function TranscriptSheet({ deal, label, steps, error, band, theirName, on
   return (
     <Sheet title={`Record of ${label}`} size="wide" onClose={onClose}
       footer={<>
-        <Btn className="left" disabled={proof.pending} title="Saves one signed file with this deal's mandate, messages, PayPal records and audit trail. Anyone can check it offline with table-verify."
-          onClick={async () => { if (await proof.run({ deal_id: deal.id })) toast(<>Signed proof saved · anyone can check it with <span className="mono">table-verify</span></>, 'ok'); }}>
+        <Btn className="left" disabled={proof.pending} title="Saves one signed file with this deal's rules, messages, PayPal records and audit trail. Check it with “Check a proof file” in the Book."
+          onClick={async () => { if (await proof.run({ deal_id: deal.id })) toast('Signed proof saved · check it with “Check a proof file” in the Book', 'ok'); }}>
           {proof.pending ? 'Saving signed proof…' : 'Save signed proof'}
         </Btn>
         <Btn kind="primary" onClick={onClose}>Done</Btn>

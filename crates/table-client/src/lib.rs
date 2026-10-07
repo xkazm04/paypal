@@ -586,6 +586,58 @@ pub struct BookAnswer {
     pub query: table_core::BookQuery,
     pub rows: Vec<serde_json::Value>,
 }
+/// One verifier check, keyed by its stable id; the client words it, `detail` is the verifier's own
+/// line and comes from the file, so it is shown only as text.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct ProofCheckLine {
+    pub id: String,
+    pub ok: bool,
+    pub detail: String,
+}
+/// The offline verifier's report on a proof file the owner picked. Values come from the file.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct ProofReport {
+    pub deal_id: DealId,
+    pub mode: Mode,
+    pub owner_key_id: String,
+    pub verified: bool,
+    pub checks: Vec<ProofCheckLine>,
+}
+/// No real proof file comes near this; a larger one is refused before it is parsed.
+pub const PROOF_FILE_LIMIT: usize = 8 * 1024 * 1024;
+/// Check a proof file's bytes with the same verifier as the command-line tool. Pure: no IO.
+pub fn check_proof_file(bytes: &[u8]) -> Result<ProofReport, CommandError> {
+    let refuse = |message: &str| CommandError {
+        code: ErrorCode::Unsupported,
+        message: message.into(),
+    };
+    if bytes.len() > PROOF_FILE_LIMIT {
+        return Err(refuse(
+            "This file is far larger than any proof file, so it was not checked.",
+        ));
+    }
+    let bundle: table_proto::ProofBundle = serde_json::from_slice(bytes).map_err(|_| {
+        refuse("This file is not a proof file saved by this wallet, so there is nothing to check.")
+    })?;
+    let report = table_verify::verify_bundle(&bundle);
+    Ok(ProofReport {
+        deal_id: report.deal,
+        mode: report.mode,
+        owner_key_id: report.owner_key_id.clone(),
+        verified: report.verified(),
+        checks: report
+            .checks
+            .into_iter()
+            .map(|c| ProofCheckLine {
+                id: c.id.into(),
+                ok: c.ok,
+                detail: c.detail,
+            })
+            .collect(),
+    })
+}
 /// Type-level command signature. The shell receives non-null arguments under `args`.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct Command<A, R> {
@@ -655,6 +707,8 @@ pub struct CommandContract {
     pub book_query: Command<BookQueryArgs, BookAnswer>,
     /// Saves the deal's signed proof bundle through a native save dialog; false if cancelled.
     pub deal_export_proof: Command<DealArgs, bool>,
+    /// Checks a proof file the owner picks in a native open dialog; null if cancelled.
+    pub proof_check: Command<(), Option<ProofReport>>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -750,6 +804,7 @@ pub const COMMANDS: &[&str] = &[
     "owner_facts",
     "book_query",
     "deal_export_proof",
+    "proof_check",
 ];
 pub const RELEASE_COMMANDS: &[&str] = &[
     "deal_owner_accept",
@@ -770,3 +825,23 @@ pub const RELEASE_COMMANDS: &[&str] = &[
     "deal_create",
     "deal_join",
 ];
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod proof_file_tests {
+    use super::*;
+    #[test]
+    fn a_file_that_is_not_a_bundle_or_too_large_is_refused_in_plain_words() {
+        for bytes in [&b"hello"[..], b"{}", b"{\"format\":\"table.proof.v1\"}"] {
+            let error = check_proof_file(bytes).unwrap_err();
+            assert!(matches!(error.code, ErrorCode::Unsupported));
+            assert!(
+                error.message.contains("not a proof file"),
+                "{}",
+                error.message
+            );
+        }
+        let error = check_proof_file(&vec![b' '; PROOF_FILE_LIMIT + 1]).unwrap_err();
+        assert!(matches!(error.code, ErrorCode::Unsupported));
+        assert!(error.message.contains("larger"), "{}", error.message);
+    }
+}

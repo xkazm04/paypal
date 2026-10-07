@@ -1206,11 +1206,11 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
         table_verify::verify_bundle(bundle)
             .checks
             .into_iter()
-            .find(|c| c.name == name)
+            .find(|c| c.id == name)
             .unwrap()
     };
     assert!(
-        detail(&seller_proof, "PayPal order matches the signed terms")
+        detail(&seller_proof, "paypal_order")
             .detail
             .contains("custom_id = terms hash, invoice id, payee merchant id and amount compared")
     );
@@ -1228,7 +1228,7 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
     // The buyer made no PayPal call, so it has no order binding to show and passes; the seller's
     // orders with every binding stripped (a bundle from before bindings were stored) fail.
     assert!(buyer_proof.paypal_calls.is_empty());
-    let none = detail(&buyer_proof, "PayPal order matches the signed terms");
+    let none = detail(&buyer_proof, "paypal_order");
     assert!(
         none.ok && none.detail.contains("no PayPal order"),
         "{none:?}"
@@ -1237,7 +1237,7 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
     for call in &mut stripped.paypal_calls {
         call.binding = None;
     }
-    let unbound = detail(&stripped, "PayPal order matches the signed terms");
+    let unbound = detail(&stripped, "paypal_order");
     assert!(!unbound.ok, "{unbound:?}");
     assert!(
         unbound.detail.contains("/v2/checkout/orders"),
@@ -1247,8 +1247,8 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
     type Tamper = fn(&mut table_proto::ProofBundle);
     let tampers: [(&str, Tamper); 15] = [
         ("format", |p| p.format = "table.proof.v0".into()),
-        ("owner signed the mandate", |p| p.mandate.owner_sig[0] ^= 1),
-        ("receipt inside the transcript", |p| {
+        ("mandate", |p| p.mandate.owner_sig[0] ^= 1),
+        ("receipt", |p| {
             p.receipts.push(table_proto::ProofReceipt {
                 raw: "not.a.message".into(),
                 capture_id: None,
@@ -1257,8 +1257,8 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
             });
         }),
         // The signature alone: every other field, and so the commitment, is untouched.
-        ("evidence head signed", |p| p.evidence_sig[0] ^= 1),
-        ("PayPal order matches the signed terms", |p| {
+        ("evidence", |p| p.evidence_sig[0] ^= 1),
+        ("paypal_order", |p| {
             let call = p
                 .paypal_calls
                 .iter_mut()
@@ -1267,10 +1267,10 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
             call.binding.as_mut().unwrap()["purchase_units"][0]["invoice_id"] =
                 serde_json::json!("OTHER-INVOICE");
         }),
-        ("audit rows hash-consistent", |p| {
+        ("audit", |p| {
             p.audit_head.seq = p.audit.last().unwrap().seq - 1;
         }),
-        ("PayPal order matches the signed terms", |p| {
+        ("paypal_order", |p| {
             let call = p
                 .paypal_calls
                 .iter_mut()
@@ -1279,7 +1279,7 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
             call.binding.as_mut().unwrap()["purchase_units"][0]["amount"]["value"] =
                 serde_json::json!("11.99");
         }),
-        ("PayPal order matches the signed terms", |p| {
+        ("paypal_order", |p| {
             let call = p
                 .paypal_calls
                 .iter_mut()
@@ -1288,7 +1288,7 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
             call.binding.as_mut().unwrap()["purchase_units"][0]["custom_id"] =
                 serde_json::json!("0000");
         }),
-        ("PayPal order matches the signed terms", |p| {
+        ("paypal_order", |p| {
             let call = p
                 .paypal_calls
                 .iter_mut()
@@ -1297,7 +1297,7 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
             call.binding.as_mut().unwrap()["purchase_units"][0]["payee_merchant_id"] =
                 serde_json::json!("OTHERPAYEE");
         }),
-        ("PayPal order matches the signed terms", |p| {
+        ("paypal_order", |p| {
             let call = p
                 .paypal_calls
                 .iter_mut()
@@ -1308,7 +1308,7 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
                 .unwrap()
                 .remove("payee_merchant_id");
         }),
-        ("PayPal order matches the signed terms", |p| {
+        ("paypal_order", |p| {
             let call = p
                 .paypal_calls
                 .iter_mut()
@@ -1319,7 +1319,7 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
                 .unwrap()
                 .remove("custom_id");
         }),
-        ("every money call has a lawful authority", |p| {
+        ("authority", |p| {
             let capture = p
                 .operations
                 .iter_mut()
@@ -1327,16 +1327,16 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
                 .unwrap();
             capture.decided_by = DecidedBy::SafeDefault { deadline: 0 };
         }),
-        ("transcript signatures and chain", |p| {
+        ("transcript", |p| {
             let raw = &mut p.transcript[0].raw;
             let flipped = if raw.ends_with('A') { 'B' } else { 'A' };
             raw.pop();
             raw.push(flipped);
         }),
-        ("audit rows hash-consistent", |p| {
+        ("audit", |p| {
             p.audit[0].action = "edited.offline".into();
         }),
-        ("closed mandate binds terms and amount", |p| {
+        ("countersign", |p| {
             p.closed_mandates[0].mandate.payee = PayeeRef::new("someone_else").unwrap();
         }),
     ];
@@ -1344,8 +1344,12 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
         let mut forged = seller_proof.clone();
         tamper(&mut forged);
         assert!(!detail(&forged, check).ok, "{check} accepted a forgery");
-        assert!(!detail(&forged, "evidence head signed").ok);
+        assert!(!detail(&forged, "evidence").ok);
         assert!(!table_verify::verify_bundle(&forged).verified());
+        // The in-app check reads the same file the same way.
+        let file = table_client::check_proof_file(&serde_json::to_vec(&forged).unwrap()).unwrap();
+        assert!(!file.verified);
+        assert!(file.checks.iter().any(|c| c.id == check && !c.ok));
     }
     // A payee outside the owner's clause 7, re-signed with the deal's own agent key so every
     // signature still holds: only the comparison with the signed payee list can catch it.
@@ -1363,13 +1367,13 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
     closed.agent_sig = agent.sign_closed(closed).unwrap();
     forged.evidence_head = forged.evidence_commitment().unwrap();
     forged.evidence_sig = agent.sign_commitment(forged.evidence_head);
-    assert!(detail(&forged, "evidence head signed").ok);
-    let check = detail(&forged, "closed mandate binds terms and amount");
+    assert!(detail(&forged, "evidence").ok);
+    let check = detail(&forged, "countersign");
     assert!(
         !check.ok && check.detail.contains("payee list"),
         "{check:?}"
     );
-    let honest = detail(&seller_proof, "closed mandate binds terms and amount");
+    let honest = detail(&seller_proof, "countersign");
     assert!(
         honest
             .detail
