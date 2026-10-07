@@ -246,6 +246,21 @@ Behaviour changes worth knowing:
   Long-polls now wake per mailbox.
 - Mandate signing rejects mixed clause currencies and haggle/shop-order mandates without a band.
 - Mandate signing also refuses roles that cannot act on the per-deal kind (clause 1) and a price range missing the side the allowed roles use (clause 4); the approval editor mirrors both.
+- Mandate authoring rework (council run 0a0c3888): (1) `list_mandates` returns
+  `ListedMandate { mandate, refusal }`; a signed set today's `validate()` refuses is listed with
+  that refusal (after its commitment and owner signature are checked) instead of failing the
+  whole list, `active_mandate` still refuses it, and Withdraw works on it. IPC: one optional
+  field `MandateListEntry.refusal` (new binding `Refusal`); Mandates page and approval list and
+  editor show it with one plain sentence and keep Withdraw. Test: table-ledger
+  `a_signed_mandate_todays_rules_refuse_is_listed_flagged_never_active_and_revocable`.
+  (2) `sign_mandate` and `band()` run `validate()` first and return `REFUSED` with the reason,
+  not a ledger-trust fault. Tests: table-runtime `signing_refuses_a_mandate_no_role_can_act_under`
+  (now asserts REFUSED), `a_band_change_that_clears_the_only_bound_is_refused_and_nothing_moves`,
+  `signing_a_mandate_needs_the_approval_label_and_its_token`. (3) Client: Review & sign and the
+  sign sheet are disabled while the draft has problems; a REFUSED shows in the editor's words
+  (`refusalWords`); BandAdjust warns when a change clears the deal side's bound; the sign sheet
+  says open haggles need starting again. Tests: `mandateDraft.test.ts`, `limits.test.ts` (pure
+  TS; tsc/vitest not run in the builder's worktree).
 - The owner key is minted only for a fresh ledger (`Ledger::is_fresh`); every later read path
   uses `existing_signing_key` and fails closed when the entry is missing.
 - `set_deadline` takes the write time and appends a `deadline.set` audit row in the same transaction.
