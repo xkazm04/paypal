@@ -239,11 +239,8 @@ impl Seller {
             .map_err(table_app::Error::from)?;
         // Nothing is written for a request until it has passed every check above.
         let ledger = &mut self.pipeline.wallet.ledger;
-        if reserved.is_none() {
-            if ledger.house_open_request_count()? >= 64 {
-                return Err(Error::Full);
-            }
-            ledger.reserve_house_request(digest, id)?;
+        if reserved.is_none() && ledger.house_open_request_count()? >= 64 {
+            return Err(Error::Full);
         }
         if bound.is_none() {
             ledger.insert_paired_counterparty(
@@ -265,16 +262,7 @@ impl Seller {
             Ok(existing) if existing.counterparty == deal.counterparty => {}
             _ => return Err(Error::Invalid),
         }
-        let ledger = &mut self.pipeline.wallet.ledger;
-        match ledger.deal_category(id) {
-            Err(LedgerError::NotFound) => ledger.set_deal_category(id, self.category)?,
-            Ok(category) if category == self.category => {}
-            _ => return Err(Error::Invalid),
-        }
-        ledger.bind_paired_relay(id, now)?;
-        if ledger.get_deal(id)?.state == DealState::Pairing {
-            self.pipeline.wallet.list(id, now)?;
-        }
+        // The silence deadline comes first: a deal left behind by a later failure still lapses.
         if self.pipeline.wallet.ledger.deadline(id)?.is_none() {
             let due = self
                 .mandate
@@ -291,6 +279,23 @@ impl Seller {
                 .wallet
                 .ledger
                 .set_deadline(id, due, None, now)?;
+        }
+        let ledger = &mut self.pipeline.wallet.ledger;
+        match ledger.deal_category(id) {
+            Err(LedgerError::NotFound) => ledger.set_deal_category(id, self.category)?,
+            Ok(category) if category == self.category => {}
+            _ => return Err(Error::Invalid),
+        }
+        ledger.bind_paired_relay(id, now)?;
+        if ledger.get_deal(id)?.state == DealState::Pairing {
+            self.pipeline.wallet.list(id, now)?;
+        }
+        // Reserved last, so a request that fails above holds no HOUSE request slot.
+        if reserved.is_none() {
+            self.pipeline
+                .wallet
+                .ledger
+                .reserve_house_request(digest, id)?;
         }
         let identity = PairingIdentity {
             code_hash: buyer.code_hash,

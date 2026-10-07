@@ -1140,6 +1140,97 @@ fn relay_routes_of_finished_deals_go_quiet_and_release_capacity() {
     ledger.verify_audit().unwrap();
 }
 
+fn routed_clone(
+    ledger: &mut Ledger,
+    deal: &Deal,
+    n: u32,
+    state: &str,
+) -> Result<DealId, LedgerError> {
+    let mut d = deal.clone();
+    d.id = format!("{:026}", 3000 + n).parse().unwrap();
+    d.state = DealState::Pairing;
+    ledger.create_deal(&d, 100).unwrap();
+    ledger
+        .conn
+        .execute(
+            "UPDATE deals SET state=?1 WHERE id=?2",
+            params![state, d.id.to_string()],
+        )
+        .unwrap();
+    ledger
+        .bind_relay(d.id, H256::digest(&n.to_le_bytes()), 100)
+        .map(|()| d.id)
+}
+
+#[test]
+fn routes_of_captured_and_receipted_deals_do_not_hold_relay_capacity() {
+    let (mut ledger, deal, _, _, _) = setup();
+    for n in 0..64 {
+        let state = if n % 2 == 0 { "CAPTURED" } else { "RECEIPTED" };
+        routed_clone(&mut ledger, &deal, n, state).unwrap();
+    }
+    // Old count (everything not terminal) would refuse this 65th bind.
+    routed_clone(&mut ledger, &deal, 64, "PAIRING").unwrap();
+    ledger.verify_audit().unwrap();
+}
+
+#[test]
+fn sixty_four_live_pre_capture_routes_still_fill_the_relay() {
+    let (mut ledger, deal, _, _, _) = setup();
+    for n in 0..64 {
+        routed_clone(&mut ledger, &deal, n, "AUTHORIZED").unwrap();
+    }
+    assert!(matches!(
+        routed_clone(&mut ledger, &deal, 64, "PAIRING"),
+        Err(LedgerError::Conflict)
+    ));
+}
+
+#[test]
+fn receipted_route_stays_polled_and_delivers_what_it_owes() {
+    let (mut ledger, deal, _, own, peer) = setup();
+    ledger
+        .bind_relay(deal.id, H256::digest(b"mailbox"), 100)
+        .unwrap();
+    ledger
+        .conn
+        .execute(
+            "UPDATE deals SET state='RECEIPTED' WHERE id=?1",
+            [deal.id.to_string()],
+        )
+        .unwrap();
+    // Nothing owed: still polled, so a relay restart is noticed and history can be resent.
+    assert!(ledger.relay_work().unwrap()[0].outgoing.is_empty());
+    let mut e = inbound(&deal, &peer, &own);
+    e.body = Body::Note {
+        text: ShortText::new("Owed".into()).unwrap(),
+    };
+    e.typ = MsgType::Note;
+    let raw = own.sign(&e).unwrap();
+    let verified = verify(
+        &raw,
+        &own.public_key(),
+        &VerifyContext {
+            deal_id: deal.id,
+            audience: &deal.counterparty,
+            next_sender_seq: 1,
+            previous: H256::ZERO,
+            now: 100,
+            nonces: &ledger,
+        },
+    )
+    .unwrap();
+    ledger.record_outbound(&verified, 100).unwrap();
+    let work = ledger.relay_work().unwrap();
+    assert_eq!(work.len(), 1);
+    assert_eq!(work[0].outgoing.len(), 1);
+    let generation = work[0].generation.clone();
+    ledger
+        .acknowledge_relay(deal.id, &generation, verified.hash())
+        .unwrap();
+    assert!(ledger.relay_work().unwrap()[0].outgoing.is_empty());
+}
+
 #[test]
 fn seller_receipt_is_atomic_bound_attestation_and_never_a_paypal_call() {
     let (mut ledger, deal, _, own, peer) = setup();
