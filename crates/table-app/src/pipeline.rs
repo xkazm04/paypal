@@ -2,8 +2,12 @@ use crate::{ApprovalSession, Error, OwnerTicket, Wallet};
 use std::sync::Arc;
 use table_core::*;
 use table_ledger::{HttpMethod, OperationOutcome, PaypalCall, PaypalPath};
-use table_paypal::{CreateOrder, Observation, OrderStatus, PayPalApi, RequestId, ResourceId};
+use table_paypal::{
+    CreateOrder, Observation, Order, OrderStatus, PayPalApi, Payment, RequestId, ResourceId,
+};
 use table_proto::{Body, ShortText};
+mod resolve;
+pub use resolve::{PENDING_STALE_SECS, Resolve};
 #[derive(Debug)]
 pub enum Authority {
     Policy,
@@ -43,6 +47,9 @@ pub struct Pipeline {
     pub approval: ApprovalSession,
     api: Arc<dyn PayPalApi>,
     house: Option<table_proto::HouseRelease>,
+    /// When this process opened the pipeline: a reservation still `pending` from before it has
+    /// no live call (see [`Pipeline::stale_before`]).
+    started: Timestamp,
 }
 impl std::fmt::Debug for Pipeline {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -234,6 +241,7 @@ impl Pipeline {
             wallet,
             api,
             house: None,
+            started: now,
             approval: ApprovalSession::new(now)?,
         })
     }
@@ -583,9 +591,7 @@ impl Pipeline {
         };
         let mut refs = deal.paypal.clone();
         refs.order = Some(response.value.id.clone());
-        if response.value.verify(&expected).is_err()
-            || response.value.status != OrderStatus::Created
-        {
+        let Some(url) = self.created_link(&deal, &expected, &response.value) else {
             self.complete(
                 &deal,
                 attempt,
@@ -596,26 +602,6 @@ impl Pipeline {
                 now,
             )?;
             return Err(Error::Invalid);
-        }
-        let url = match response
-            .value
-            .approval_url()
-            .ok()
-            .and_then(|url| table_proto::approval_url(url.as_str(), deal.mode).ok())
-        {
-            Some(url) => url,
-            None => {
-                self.complete(
-                    &deal,
-                    attempt,
-                    "create",
-                    &response.observations,
-                    &refs,
-                    Some(DealEvent::Mismatch),
-                    now,
-                )?;
-                return Err(Error::Invalid);
-            }
         };
         self.complete(
             &deal,
@@ -626,15 +612,41 @@ impl Pipeline {
             Some(DealEvent::SettleVerified),
             now,
         )?;
+        self.send_settle(id, attempt, response.value.id, &url, &expected, now, now)
+    }
+    /// The verified approval link of a freshly created order, or `None` when it fails the
+    /// truth checks `create` runs: the order binding, status CREATED and one PayPal-host link.
+    fn created_link(&self, deal: &Deal, expected: &CreateOrder, order: &Order) -> Option<String> {
+        if order.verify(expected).is_err() || order.status != OrderStatus::Created {
+            return None;
+        }
+        order
+            .approval_url()
+            .ok()
+            .and_then(|url| table_proto::approval_url(url.as_str(), deal.mode).ok())
+            .map(|url| url.as_str().to_owned())
+    }
+    /// Starts the approval window at `created` and signs and records the SETTLE to the buyer.
+    #[allow(clippy::too_many_arguments)] // Private helper shared by create and its resolver.
+    fn send_settle(
+        &mut self,
+        id: DealId,
+        attempt: u8,
+        order_id: String,
+        url: &str,
+        expected: &CreateOrder,
+        created: Timestamp,
+        now: Timestamp,
+    ) -> Result<String, Error> {
         self.wallet
             .ledger
-            .set_deadline(id, now.saturating_add(6 * 3600), None, now)?;
+            .set_deadline(id, created.saturating_add(6 * 3600), None, now)?;
         let updated = self.wallet.ledger.get_deal(id)?;
         let envelope = self.wallet.signed(
             &updated,
             Body::Settle {
-                order_id: ShortText::new(response.value.id)?,
-                approve_url: ShortText::new(url.as_str().into())?,
+                order_id: ShortText::new(order_id)?,
+                approve_url: ShortText::new(url.into())?,
                 amount: expected.amount,
                 invoice_id: ShortText::new(invoice_id(id, attempt)?)?,
                 intent: table_proto::Intent::Authorize,
@@ -644,6 +656,62 @@ impl Pipeline {
         )?;
         self.wallet.ledger.record_outbound(&envelope, now)?;
         Ok(envelope.raw().into())
+    }
+    /// The authorization id an authorize answer proves, or `None`: the order is the one
+    /// authorized, COMPLETED, bound to the deal, and holds exactly one CREATED authorization
+    /// of the deal's amount.
+    fn verified_authorization(
+        &self,
+        deal: &Deal,
+        attempt: u8,
+        order_id: &str,
+        order: &Order,
+    ) -> Result<Option<String>, Error> {
+        let authorization = order
+            .purchase_units
+            .first()
+            .and_then(|u| u.payments.authorizations.first());
+        let valid = order.id == order_id
+            && order.status == OrderStatus::Completed
+            && order.verify(&self.expected(deal, attempt)?).is_ok()
+            && order.purchase_units[0].payments.authorizations.len() == 1
+            && authorization.is_some_and(|a| {
+                a.status == "CREATED"
+                    && a.amount.money().ok() == deal.terms.amount().ok()
+                    && ResourceId::new(&a.id).is_ok()
+            });
+        Ok(authorization.filter(|_| valid).map(|a| a.id.clone()))
+    }
+    /// A capture answer proves the capture: COMPLETED, the deal's amount, a well-formed id.
+    fn verified_capture(deal: &Deal, payment: &Payment) -> Result<bool, Error> {
+        Ok(payment.status == "COMPLETED"
+            && payment.amount.money().ok() == Some(deal.terms.amount()?)
+            && ResourceId::new(&payment.id).is_ok())
+    }
+    /// Signs and records the receipt of a confirmed capture and moves the deal to RECEIPTED.
+    fn send_receipt(
+        &mut self,
+        id: DealId,
+        capture_id: String,
+        now: Timestamp,
+    ) -> Result<String, Error> {
+        let updated = self.wallet.ledger.get_deal(id)?;
+        let receipt = self.wallet.signed(
+            &updated,
+            Body::Receipt {
+                capture_id: ShortText::new(capture_id)?,
+                amount: updated.terms.amount()?,
+                status: table_proto::ReceiptStatus::Completed,
+                transcript_head: updated.transcript_head,
+            },
+            now,
+        )?;
+        self.wallet.ledger.record_outbound(&receipt, now)?;
+        self.wallet.ledger.record_receipt(&receipt, now)?;
+        self.wallet
+            .ledger
+            .apply_event(id, DealEvent::ReceiptVerified, now)?;
+        Ok(receipt.raw().into())
     }
     pub async fn poll_approval(
         &mut self,
@@ -734,23 +802,12 @@ impl Pipeline {
                 return Err(Error::Unavailable);
             }
         };
-        let authorization = r
-            .value
-            .purchase_units
-            .first()
-            .and_then(|u| u.payments.authorizations.first());
-        let valid = r.value.id == resource.as_str()
-            && r.value.status == OrderStatus::Completed
-            && r.value.verify(&self.expected(&deal, attempt)?).is_ok()
-            && r.value.purchase_units[0].payments.authorizations.len() == 1
-            && authorization.is_some_and(|a| {
-                a.status == "CREATED"
-                    && a.amount.money().ok() == deal.terms.amount().ok()
-                    && ResourceId::new(&a.id).is_ok()
-            });
+        let authorization =
+            self.verified_authorization(&deal, attempt, resource.as_str(), &r.value)?;
+        let valid = authorization.is_some();
         let mut refs = deal.paypal.clone();
         if valid {
-            refs.authorization = authorization.map(|a| a.id.clone());
+            refs.authorization = authorization;
         }
         self.complete(
             &deal,
@@ -830,9 +887,7 @@ impl Pipeline {
                 return Err(Error::Unavailable);
             }
         };
-        let valid = r.value.status == "COMPLETED"
-            && r.value.amount.money().ok() == Some(deal.terms.amount()?)
-            && ResourceId::new(&r.value.id).is_ok();
+        let valid = Self::verified_capture(&deal, &r.value)?;
         let mut refs = deal.paypal.clone();
         if valid {
             refs.capture = Some(r.value.id.clone());
@@ -853,23 +908,7 @@ impl Pipeline {
         if !valid {
             return Err(Error::Invalid);
         }
-        let updated = self.wallet.ledger.get_deal(id)?;
-        let receipt = self.wallet.signed(
-            &updated,
-            Body::Receipt {
-                capture_id: ShortText::new(r.value.id)?,
-                amount: deal.terms.amount()?,
-                status: table_proto::ReceiptStatus::Completed,
-                transcript_head: updated.transcript_head,
-            },
-            now,
-        )?;
-        self.wallet.ledger.record_outbound(&receipt, now)?;
-        self.wallet.ledger.record_receipt(&receipt, now)?;
-        self.wallet
-            .ledger
-            .apply_event(id, DealEvent::ReceiptVerified, now)?;
-        Ok(receipt.raw().into())
+        self.send_receipt(id, r.value.id, now)
     }
     pub async fn auto_void(
         &mut self,
