@@ -1,7 +1,4 @@
-use crate::{
-    AuditEntry, Ledger, LedgerError, PaypalCall, audit, binding_projection, hash_blob,
-    redact_paypal,
-};
+use crate::{AuditEntry, Ledger, LedgerError, PaypalCall, audit, hash_blob, redact_paypal};
 use ed25519_dalek::{Signature, VerifyingKey};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
@@ -876,10 +873,7 @@ impl Ledger {
                 return Err(LedgerError::Conflict);
             }
             let body = redact_paypal(&call.response, &[]);
-            let binding = binding_projection(&call.response, &[])
-                .as_ref()
-                .map(json_text)
-                .transpose()?;
+            let binding = call.binding.as_ref().map(json_text).transpose()?;
             tx.execute("INSERT INTO paypal_calls(deal_id,method,path,request_id,status,debug_id,body_redacted,at,binding_json) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",params![id.to_string(),call.method.as_str(),call.path.as_str(),call.request_id,call.status,body.get("debug_id").and_then(Value::as_str),json_text(&body)?,at.to_string(),binding])?;
         }
         tx.execute(
@@ -1519,10 +1513,7 @@ impl Ledger {
         {
             return Err(LedgerError::Integrity("invalid call metadata"));
         }
-        let binding = binding_projection(&call.response, sensitive_values)
-            .as_ref()
-            .map(json_text)
-            .transpose()?;
+        let binding = call.binding.as_ref().map(json_text).transpose()?;
         tx.execute("INSERT INTO paypal_calls(deal_id,method,path,request_id,status,debug_id,body_redacted,at,binding_json) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",params![call.deal_id.to_string(),call.method.as_str(),call.path.as_str(),call.request_id,call.status,debug,json_text(&response)?,call.at.to_string(),binding])?;
         audit::append(
             &tx,

@@ -219,6 +219,8 @@ pub struct Observation {
     pub request_id: String,
     pub status: u16,
     pub body: Value,
+    /// Binding facts projected from the raw body before redaction.
+    pub binding: Option<Value>,
 }
 impl std::fmt::Debug for Observation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

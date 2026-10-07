@@ -53,6 +53,7 @@ impl MockApi {
                 request_id: id.map_or_else(String::new, |i| i.as_str().into()),
                 status: 200,
                 body,
+                binding: None,
             }],
         }
     }
