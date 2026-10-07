@@ -92,15 +92,15 @@ The scope chosen per theme:
 | 10 | PayPal ground truth | read-back resolver for `unknown` operations (confirm / same-Request-Id re-send / park), "cut the wire" chaos toggle | hostile-PayPal matrix; events feed | 5 | - |
 | 11 | Authority manifest | one declarative table generating COMMANDS, capabilities, build.rs list, dispatcher and mock gates; label x lock x token test; hash in settings/receipts | conformance tests only; client harness | 6 | - |
 | 12 | Mandate what-if | `mandate_simulate(draft)` over last week's recorded intents, before/after verdicts above Sign | clause diff; synthetic probes | 3 | - |
-| 13 | Selective disclosure | salted per-clause Merkle commitment in HELLO, "Prove my band" export, offline verify | whole-mandate commitment; fold into T1 | 8 | (shares clause tree with T1) |
+| 13 | Selective disclosure (post-submission) | salted per-clause Merkle commitment in HELLO, "Prove my band" export, offline verify | whole-mandate commitment; fold into T1 | 8 | (shares clause tree with T1) |
 | 14 | Exposure envelope | Exposure fold + owner-signed `WalletEnvelope` checked after the mandate, before any network call; real meters | meters only; wallet-scoped velocity | 5 | - |
 | 15 | Market evidence | signed MarketWatch clause (item -> product id, refresh budget) + scheduler refresh outside the actor | fair-price certificate | 4.5 | - |
-| 16 | Verified projection | full audit deltas for remaining `deals` mutations, `Ledger::replay`, fail-closed drift check on open and before money ops | time-scrubber; park | 4.5 | - |
-| 17 | Open protocol | v1 spec, ~30 golden vectors, Rust runner, TypeScript verifier agreeing in CI | spec only; park | 6 | - |
-| 18 | Beyond the desktop | native-shell-2 first slice only: `table-connect` stdio MCP bridge, named pipe, owner binds to an agent slot's mandate, "connected agent" chip | merchant House kit; phone companion | 8.5 | T11 |
-| 19 | Encrypted relay | sealed envelopes (key from the pairing code), mailbox id = H(capability), create/send/delete need it; closes the relay flood | capabilities only; rate-limit | 7 | - |
+| 16 | Verified projection (post-submission) | full audit deltas for remaining `deals` mutations, `Ledger::replay`, fail-closed drift check on open and before money ops | time-scrubber; park | 4.5 | - |
+| 17 | Open protocol (post-submission) | v1 spec, ~30 golden vectors, Rust runner, TypeScript verifier agreeing in CI | spec only; park | 6 | - |
+| 18 | Beyond the desktop (post-submission) | native-shell-2 first slice only: `table-connect` stdio MCP bridge, named pipe, owner binds to an agent slot's mandate, "connected agent" chip | merchant House kit; phone companion | 8.5 | T11 |
+| 19 | Encrypted relay (post-submission) | sealed envelopes (key from the pairing code), mailbox id = H(capability), create/send/delete need it; closes the relay flood | capabilities only; rate-limit | 7 | - |
 
-**Total: ~102.5 focused days** against ~37 working days to 2026-11-12. Everything chosen cannot fit before submission; sequencing is the next decision (§2 gives the coordinator's suggested cut).
+**Total: ~102.5 focused days** against ~37 working days to 2026-11-12. Everything chosen cannot fit before submission; the operator's submission cut (below) fixes what lands before the video.
 
 ### Sequencing (owner, 2026-10-06): parallel builder sessions in waves
 
@@ -114,7 +114,15 @@ Three to five builder sessions run in parallel on disjoint write sets, merged wa
 | 4 | T13 selective disclosure (proto + core) · T16 verified projection (ledger) · T17 protocol spec + TS verifier · T19 sealed relay (proto, rendezvous, relay, HOUSE) · T18 OS payment sheet (shell + new bridge) | protocol changes (T13, T19) go last and alone in their area; T18 needs T11 |
 | any | T3 attested engine session (engine + runtime) | starts in whichever wave follows a passing spike 2 and the owner's confirmation of the "no deal data before the inventory" rule |
 
-Videos (Nov 6-9) are recorded from whatever has merged by then; waves 3-4 may land after submission.
+Videos (Nov 6-9) are recorded from whatever has merged by then. Waves 1-3 merge before the videos; wave 4 is post-submission (see the submission cut below).
+
+**Submission cut (owner, 2026-10-07)**
+
+- Waves 1-3 merge before the Nov 6-9 video. Two builders run continuously.
+- Wave 2 (T6, T7, T11, T12) merges by Oct 28; wave 3 (T8, T9, T14, T15) by Nov 4.
+- Verification is compressed into Nov 4-6.
+- Wave 4 (T13, T16, T17, T18, T19) is post-submission.
+- T3 is not scheduled by the cut; it stays gated as its `any` row says.
 
 ## 2. A suggested path for the remaining 5.5 weeks
 
