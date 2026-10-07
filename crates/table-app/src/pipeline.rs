@@ -928,6 +928,16 @@ impl Pipeline {
         if now < due && !held {
             return Err(Error::Permission);
         }
+        // An authorize or capture whose outcome is unknown is read back first, and a void left
+        // unknown is settled (or sent once more) instead of reserved again. A capture PayPal
+        // shows committed is confirmed and no void is sent; one still unknown, or a read-back
+        // that failed, leaves the hold in place this tick, which moves no money.
+        if !self.resolve_deal(id, Resolve::Deadline, now).await? {
+            return Err(Error::Unavailable);
+        }
+        if self.wallet.ledger.get_deal(id)?.state != DealState::Authorized {
+            return Ok(());
+        }
         let authority = DecidedBy::SafeDefault {
             deadline: if held { now } else { due },
         };
@@ -995,6 +1005,25 @@ impl Pipeline {
         };
         if due > now || deal.state.terminal() {
             return Ok(false);
+        }
+        self.deadline_default(deal, now).await
+    }
+    /// The deadline default of one due deal, shared by both schedulers. An authorize whose
+    /// outcome is unknown is read back first: a hold PayPal placed is voided, not forgotten
+    /// behind an EXPIRED deal.
+    pub async fn deadline_default(&mut self, deal: &Deal, now: Timestamp) -> Result<bool, Error> {
+        let mut deal = deal.clone();
+        if deal.state.pre_capture() && deal.state != DealState::Authorized {
+            self.resolve_deal(deal.id, Resolve::Deadline, now).await?;
+            deal = self.wallet.ledger.get_deal(deal.id)?;
+            if self
+                .wallet
+                .ledger
+                .deadline(deal.id)?
+                .is_none_or(|(due, _)| due > now)
+            {
+                return Ok(true);
+            }
         }
         if deal.state == DealState::Authorized {
             self.auto_void(deal.id, self.wallet.ledger.settled_attempt(deal.id)?, now)
