@@ -400,6 +400,10 @@ impl Pipeline {
         )?;
         Ok(table_shield::combine(rules, deal.shield))
     }
+    /// Read-only: the scam shield verdict the money steps would judge this deal by at `now`.
+    pub fn shield_verdict(&self, id: DealId, now: Timestamp) -> Result<ShieldVerdict, Error> {
+        self.shield(&self.wallet.ledger.get_deal(id)?, now)
+    }
     /// Read-only: whether `create`, `authorize` or `capture` under `authority` would pass the
     /// checks it runs before its first write and its PayPal call, at `now`. It calls no PayPal,
     /// writes nothing, and runs the same `authority()` and `shield()` the step runs, so the
