@@ -196,7 +196,14 @@ impl Ledger {
         }
         insert_calls(&tx, id, calls, at)?;
         if let Some(refs) = refs {
-            tx.execute("UPDATE deals SET pp_order_id=?1,pp_authorization_id=?2,pp_capture_id=?3,pp_subscription_id=?4,decided_by=?5,attempt=?6,updated_at=?8 WHERE id=?7",params![refs.order,refs.authorization,refs.capture,refs.subscription,authority,attempt,id.to_string(),at.to_string()])?;
+            tx.execute("UPDATE deals SET pp_order_id=?1,pp_authorization_id=?2,pp_capture_id=?3,pp_subscription_id=?4,updated_at=?6 WHERE id=?5",params![refs.order,refs.authorization,refs.capture,refs.subscription,id.to_string(),at.to_string()])?;
+        }
+        // As finish_operation does: the deal projects the authority of its latest money step.
+        if event.is_some() {
+            tx.execute(
+                "UPDATE deals SET decided_by=?1,attempt=?2,updated_at=?4 WHERE id=?3",
+                params![authority, attempt, id.to_string(), at.to_string()],
+            )?;
         }
         if let Some(event) = event {
             apply(&tx, id, event, at)?;

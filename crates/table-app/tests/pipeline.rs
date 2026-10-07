@@ -1474,6 +1474,11 @@ async fn lost_answers_resolve_to_paypal_truth_with_one_commit_per_request_id() {
                 assert_eq!(state(&p), DealState::Authorized, "{case}");
                 assert_eq!(p.tick(due + 10).await.unwrap(), vec![deal.id], "{case}");
                 assert_eq!(state(&p), DealState::AutoVoided, "{case}");
+                assert_eq!(
+                    p.wallet.ledger.get_deal(deal.id).unwrap().decided_by,
+                    Some(DecidedBy::SafeDefault { deadline: due }),
+                    "{case}"
+                );
                 assert_eq!(api.calls("/capture"), 0, "{case}");
                 ["create", "authorize", "void"]
             } else {
@@ -1492,6 +1497,15 @@ async fn lost_answers_resolve_to_paypal_truth_with_one_commit_per_request_id() {
                 assert_eq!(api.calls("/void"), 0, "{case}");
                 let d = p.wallet.ledger.get_deal(deal.id).unwrap();
                 assert_eq!(d.paypal.capture.as_deref(), Some("CAPTURE1"), "{case}");
+                assert!(
+                    matches!(d.decided_by, Some(DecidedBy::SellerMandate { .. })),
+                    "{case}"
+                );
+                assert_eq!(
+                    p.wallet.ledger.deal_evidence(deal.id).unwrap().receipt,
+                    ReceiptEvidence::PaypalVerified,
+                    "{case}"
+                );
                 ["create", "authorize", "capture"]
             };
             // Exactly one committed mutating call per request id, and only the canonical ids.
