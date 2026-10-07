@@ -12,6 +12,7 @@ import { Home } from './Home';
 import { formatHash, parseHash, resolveDealRef, stateLabel, type Route, type SheetTab } from './logic';
 import { ModuleView } from './Modules';
 import { Palette } from './Palette';
+import { QuitSheet } from './QuitSheet';
 import { Shell, type Crumb } from './Shell';
 import { Sheet } from './Sheet';
 import { Shortcuts } from './Shortcuts';
@@ -39,6 +40,7 @@ function Main() {
   const [sheet, setSheet] = useState<SheetTab | null>(initial.sheet);
   const [palette, setPalette] = useState(false);
   const [help, setHelp] = useState(false);
+  const [quit, setQuit] = useState(false);
   const [returned, setReturned] = useState<{ module: Module; n: number } | null>(null);
   const [tumbler, setTumbler] = useState<TumblerStatus | null>(null);
   const routeRef = useRef(route);
@@ -145,8 +147,9 @@ function Main() {
         skipIntro={initial.route.level !== 'home' || initial.sheet !== null} />
       {layer}
       {sheet ? <Sheet tab={sheet} onTab={setSheet} onClose={() => setSheet(null)} /> : null}
-      {palette ? <Palette onClose={() => setPalette(false)} onModule={goModule} onDeal={goDeal} onSheet={openSheet} /> : null}
+      {palette ? <Palette onClose={() => setPalette(false)} onModule={goModule} onDeal={goDeal} onSheet={openSheet} onQuit={() => setQuit(true)} /> : null}
       {help ? <Shortcuts onClose={() => setHelp(false)} /> : null}
+      {quit ? <QuitSheet onClose={() => setQuit(false)} /> : null}
     </>
   );
 }

@@ -9,7 +9,7 @@ import type { DealEvidence } from '@bindings/DealEvidence';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { shortHash, shortId } from '../../lib/format';
 import { useMutation, useQuery } from '../../lib/hooks';
-import { WalletNotice } from '../../shared/honesty';
+import { RunBadge, WalletNotice } from '../../shared/honesty';
 import { kindWord, rulesName } from '../../lib/words';
 import { Btn, Chip, Hint, Kv, PageHead, Popover } from '../../shared/ui';
 import { canStartAgent } from './logic';
@@ -94,7 +94,7 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
             ['Deal', <span className="mono">{disp.label} · {shortId(deal.id, 6, 4)}</span>],
             ['Exact state', <span className="mono">{deal.state.replace(/_/g, ' ').toLowerCase()}</span>],
             ['Rules', <>{entry ? rulesName(entry.agent) : 'Rules'} · version {deal.mandate_version} <span className="mono dim">{shortId(deal.mandate_id)}</span></>],
-            run ? ['Agent app', <span className="mono">{run.engine}</span>] : null,
+            run ? ['Agent app', <><span className="mono">{run.engine}</span> <RunBadge run={run} /></>] : null,
             ['Record', <span className="mono">{shortHash(deal.transcript_head)}</span>],
           ]} />
         </Popover>
@@ -145,7 +145,7 @@ function AgentAction({ deal, label }: { deal: Deal; label: string }) {
   if (!canStartAgent(deal)) return null;
   const paused = !!w.settings.data?.agents_paused;
   const run = (w.runs.data ?? []).find((r) => r.deal_id === deal.id && (r.state === 'running' || r.state === 'starting'));
-  if (run) return <Chip tone="ok" title={`Run ${shortId(run.run)} on ${run.engine}`}>Agent {run.state}</Chip>;
+  if (run) return <><Chip tone="ok" title={`Run ${shortId(run.run)} on ${run.engine}`}>Agent {run.state}</Chip><RunBadge run={run} /></>;
   return (
     <>
       <Btn sm kind="primary" disabled={paused || start.pending} title={paused ? 'All agents are paused; resume them in Settings' : 'Let your agent bargain for this deal, inside your rules'}

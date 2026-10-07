@@ -643,11 +643,44 @@ impl Runtime {
                         | DealState::Approved
                         | DealState::Authorized
                         | DealState::Mismatch
-                ) || d.shield.is_some_and(|v| v >= ShieldVerdict::Hold)
+                ) || (d.shield.is_some_and(|v| v >= ShieldVerdict::Hold)
+                    // A refused or withdrawn deal is no pending decision, whatever its verdict.
+                    && !d.state.terminal())
             })
             .collect::<Vec<_>>();
         let pending = pending_deals.iter().map(|d| d.id).collect::<Vec<_>>();
-        let bytes = canonical_bytes(&pending_deals).map_err(|_| invalid())?;
-        Ok(QuitSummary{confirmation_id:H256::digest(&bytes),pending,on_quit:"Agents stop. Polling and wallet deadline processing stop. Nothing is paid. PayPal-side windows expire on their own without capture.".into()})
+        // Quitting stops the scheduler, so every money step the forecast holds will not happen
+        // while the wallet is off. An unreadable forecast leaves only the general sentence.
+        let lines = match self.forecast(self.clock.now()) {
+            Ok(forecast) => {
+                let mut sources = Vec::with_capacity(pending_deals.len());
+                for deal in &pending_deals {
+                    sources.push(table_attention::QuitSource {
+                        deal_id: deal.id,
+                        display_number: app(self.pipeline.wallet.ledger.display_number(deal.id))?,
+                        state: deal.state,
+                        side: deal.side,
+                        amount: deal.terms.amount().map_err(table_app::Error::from)?,
+                    });
+                }
+                Some(table_attention::quit_lines(&sources, &forecast))
+            }
+            Err(_) => None,
+        };
+        let on_quit = table_attention::quit::ON_QUIT.to_owned();
+        let (while_off, at_paypal) = match lines {
+            Some(l) => (Some(l.while_off), Some(l.at_paypal)),
+            None => (None, None),
+        };
+        // The confirmation binds everything the confirm shows, not only the deals.
+        let bytes = canonical_bytes(&(&pending_deals, &while_off, &at_paypal, &on_quit))
+            .map_err(|_| invalid())?;
+        Ok(QuitSummary {
+            confirmation_id: H256::digest(&bytes),
+            pending,
+            on_quit,
+            while_off,
+            at_paypal,
+        })
     }
 }

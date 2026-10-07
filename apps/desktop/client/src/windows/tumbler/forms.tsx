@@ -21,6 +21,7 @@ import {
   MODE_SHORT, approveWindow, cardActions, cardClock, cardQuestion, cardWhy, hhmm, ladderCaption, ladderFill, ringFill, rung, spendMeter, splitHeadline,
   type CardAction, type Handoff, type Ticker,
 } from './logic';
+import { WALK_AWAY_HOURS, walkAway, type WalkAway } from './logic';
 
 const MODE_TEXT: Record<Mode, string> = { sandbox: 'Sandbox', replay: 'Replay', scripted_engine: 'Practice agent' };
 
@@ -336,8 +337,9 @@ export type StackProps = {
 export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<HTMLDivElement>) {
   const s = p.snapshot;
   const spend = s ? spendMeter(s) : null;
-  const [pop, setPop] = useState<{ el: HTMLElement; which: 'stopped' | 'motion' } | null>(null);
-  const toggle = (which: 'stopped' | 'motion') => (el: HTMLElement) => setPop((x) => (x && x.which === which ? null : { el, which }));
+  const walk = s ? walkAway(s) : null;
+  const [pop, setPop] = useState<{ el: HTMLElement; which: 'stopped' | 'motion' | 'walk' } | null>(null);
+  const toggle = (which: 'stopped' | 'motion' | 'walk') => (el: HTMLElement) => setPop((x) => (x && x.which === which ? null : { el, which }));
   return (
     <div ref={ref} className="f stack" tabIndex={-1} aria-label="Everything open">
       <div className="s-head">
@@ -381,6 +383,12 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
         )}
       </div>
       {p.failure ? <div className="s-fail"><Notice failure={p.failure} /></div> : null}
+      <div className={`s-walk${walk && !walk.known ? ' unknown' : ''}`}>
+        <Hourglass />
+        <span className="k">If you walk away</span>
+        <span className="v">{walk ? <WalkSummary walk={walk} /> : '—'}</span>
+        <InfoBtn label="What happens if you walk away" open={pop?.which === 'walk'} onToggle={toggle('walk')} />
+      </div>
       <div className="s-sum">
         <span>Stopped today</span><b className={s && s.stopped_today > 0 ? 'stop' : ''}>{s?.stopped_today ?? '—'}</b>
         <InfoBtn label="What was stopped today" open={pop?.which === 'stopped'} onToggle={toggle('stopped')} />
@@ -408,7 +416,11 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
           <p className="m-off">Today’s spending appears here once the wallet can count it. Nothing is guessed until then.</p>
         )}
       </div>
-      {pop ? (
+      {pop?.which === 'walk' ? (
+        <Popover anchor={pop.el} onClose={() => setPop(null)} className="t-pop t-walk" title={`If you walk away · next ${WALK_AWAY_HOURS} h`}>
+          <WalkDetails walk={walk} />
+        </Popover>
+      ) : pop ? (
         <Popover anchor={pop.el} onClose={() => setPop(null)} className="t-pop" title={pop.which === 'stopped' ? 'Stopped today · 0 PayPal calls' : 'In motion · no decision needed'}>
           {pop.which === 'stopped' ? (
             <p className="t-pop-p">
@@ -428,6 +440,44 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
     </div>
   );
 });
+
+/** The stack's one-line walk-away summary: money out (always zero), money in, holds released. */
+function WalkSummary({ walk }: { walk: WalkAway }) {
+  if (!walk.known) return <>{walk.summary}</>;
+  return (
+    <>
+      <b className="w-out" title="Your wallet sends no money while you are away">{walk.out ?? 'nothing'}</b> out
+      {walk.inUpTo ? <> · up to <b className="w-in" title="Only if a buyer approves on PayPal in time">{walk.inUpTo}</b> in</>
+        : walk.inSure ? <> · <b className="w-in" title="Payments buyers already approved">{walk.inSure}</b> in</> : null}
+      {walk.releases ? <> · {walk.releases} hold{walk.releases === 1 ? '' : 's'} released</> : null}
+      {!walk.lines.length && !walk.inUpTo && !walk.inSure && !walk.releases ? <> · nothing scheduled</> : null}
+    </>
+  );
+}
+
+/** Layer 2: the first few lines (time · what happens · on whose authority). */
+function WalkDetails({ walk }: { walk: WalkAway | null }) {
+  if (!walk || !walk.known) {
+    return <p className="t-pop-p">The wallet couldn’t work out what happens next just now, so nothing here is a promise. Open The Table to see each deal.</p>;
+  }
+  return (
+    <>
+      {walk.lines.length ? (
+        <ul className="w-lines">
+          {walk.lines.map((l) => (
+            <li key={l.key} className={l.conditional ? 'if' : ''}>
+              <span className="w-when">{l.when}</span>
+              <span className="w-what">{l.what}</span>
+              <span className="w-who">{l.who}</span>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="t-pop-p">Nothing is scheduled. Every open deal waits for you.</p>}
+      {walk.more ? <p className="t-pop-p w-more">and {walk.more} more</p> : null}
+      <Hint className="t-pop-hint">Your wallet never sends money on its own. Closing the window keeps this running; quitting The Table stops it.</Hint>
+    </>
+  );
+}
 
 // ------------------------------------------------------------------------------- hand-off
 
