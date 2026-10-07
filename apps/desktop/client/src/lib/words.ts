@@ -246,3 +246,5 @@ export const PROOF_CHECKS: Readonly<Record<string, string>> = {
 export const PROOF_KEY_ANCHOR = 'Compare this owner key with the key the owner shows you: the checks use the keys inside the file.';
 /** What a proof file cannot show (T9). */
 export const PROOF_LIMIT = 'The file cannot show whether newer records were removed from the end.';
+/** Said once before a proof file is saved: the file is readable by anyone it is sent to. */
+export const PROOF_SAVE_WARNING = 'This file carries this deal’s rules, including your price limits (the most you’ll pay or the least you’ll take), the payees and caps, and the other side’s notes. Anyone you send it to can read them.';
