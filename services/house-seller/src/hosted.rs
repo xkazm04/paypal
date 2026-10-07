@@ -6,6 +6,8 @@ use axum::{
     routing::post,
 };
 use ed25519_dalek::{Signer, SigningKey};
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::sync::Arc;
 use table_app::{
     AgentRequest, AgentRole, AgentScope, AgentService, Authority, OfferInput, Pipeline, Wallet,
@@ -42,6 +44,46 @@ impl From<table_proto::ProtocolError> for Error {
     }
 }
 
+/// First wait between approval polls of one deal; doubles up to [`POLL_MAX`].
+const POLL_FIRST: i64 = 5;
+const POLL_MAX: i64 = 60;
+
+/// Per-key poll backoff, memory only. The first poll is due at once, then 5 s, doubling to 60 s.
+/// A change of the key's state restarts the sequence.
+#[derive(Debug)]
+pub(crate) struct PollSchedule<K, S> {
+    entries: HashMap<K, (S, i64, i64)>,
+}
+impl<K: Hash + Eq + Copy, S: PartialEq + Copy> PollSchedule<K, S> {
+    pub(crate) fn new() -> Self {
+        Self {
+            entries: HashMap::new(),
+        }
+    }
+    /// True when `key` should be polled now; if so, the next poll time is already booked.
+    pub(crate) fn due(&mut self, key: K, state: S, now: i64) -> bool {
+        let wait = match self.entries.get(&key) {
+            Some((seen, next, wait)) if *seen == state => {
+                if now < *next {
+                    return false;
+                }
+                (*wait * 2).min(POLL_MAX)
+            }
+            _ => POLL_FIRST,
+        };
+        self.entries
+            .insert(key, (state, now.saturating_add(wait), wait));
+        true
+    }
+    pub(crate) fn forget(&mut self, key: &K) {
+        self.entries.remove(key);
+    }
+    #[cfg(test)]
+    fn len(&self) -> usize {
+        self.entries.len()
+    }
+}
+
 pub struct Seller {
     pub pipeline: Pipeline,
     owner: SigningKey,
@@ -53,6 +95,7 @@ pub struct Seller {
     category: Category,
     clock: Arc<dyn Clock>,
     relay: Arc<dyn table_relay::RelayApi>,
+    polls: PollSchedule<DealId, DealState>,
 }
 impl std::fmt::Debug for Seller {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -166,6 +209,7 @@ impl Seller {
             category,
             clock,
             relay,
+            polls: PollSchedule::new(),
         })
     }
     pub fn table(&mut self, request: HouseRequest) -> Result<HouseResponse, Error> {
@@ -503,6 +547,9 @@ impl Seller {
         Ok(())
     }
     async fn advance(&mut self, deal: &Deal, now: i64) -> Result<(), Error> {
+        if deal.state != DealState::AwaitingApproval {
+            self.polls.forget(&deal.id);
+        }
         if deal.state.terminal() {
             return Ok(());
         }
@@ -513,6 +560,7 @@ impl Seller {
             .deadline(deal.id)?
             .is_some_and(|d| d.0 <= now)
         {
+            self.polls.forget(&deal.id);
             if deal.state == DealState::Authorized {
                 self.pipeline.auto_void(deal.id, 1, now).await?;
             } else if deal.state.pre_capture() {
@@ -530,10 +578,13 @@ impl Seller {
                     .await?;
             }
             DealState::AwaitingApproval => {
-                self.pipeline
-                    .wallet
-                    .check_mandate(deal.id, self.category, now)?;
-                self.pipeline.poll_approval(deal.id, 1, now).await?;
+                // Each poll is a permanent ledger row pair, so an unapproved order backs off.
+                if self.polls.due(deal.id, deal.state, now) {
+                    self.pipeline
+                        .wallet
+                        .check_mandate(deal.id, self.category, now)?;
+                    self.pipeline.poll_approval(deal.id, 1, now).await?;
+                }
             }
             DealState::Approved => {
                 self.pipeline
@@ -618,4 +669,43 @@ async fn table(
         Error::Full => StatusCode::TOO_MANY_REQUESTS,
         _ => StatusCode::SERVICE_UNAVAILABLE,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn six_hour_window_polls_a_few_hundred_times_not_21600() {
+        let mut s = PollSchedule::new();
+        let polls = (0..6 * 3600).filter(|t| s.due(1u8, 7u8, *t)).count();
+        assert_eq!(polls, 363, "was 21600 before the backoff");
+    }
+    #[test]
+    fn backoff_doubles_to_the_cap() {
+        let mut s = PollSchedule::new();
+        let times: Vec<i64> = (0..400).filter(|t| s.due(1u8, 7u8, *t)).collect();
+        assert_eq!(&times[..7], &[0, 5, 15, 35, 75, 135, 195]);
+    }
+    #[test]
+    fn state_change_resets_the_interval() {
+        let mut s = PollSchedule::new();
+        assert!(s.due(1u8, 1u8, 0));
+        assert!(s.due(1u8, 1u8, 5));
+        assert!(!s.due(1u8, 1u8, 10));
+        assert!(s.due(1u8, 2u8, 10), "new state polls at once");
+        assert!(!s.due(1u8, 2u8, 14));
+        assert!(s.due(1u8, 2u8, 15), "and starts again at 5 s");
+    }
+    #[test]
+    fn deals_are_scheduled_independently_and_forgotten() {
+        let mut s = PollSchedule::new();
+        assert!(s.due(1u8, 1u8, 0));
+        assert!(s.due(2u8, 1u8, 1));
+        assert!(!s.due(1u8, 1u8, 4));
+        s.forget(&1);
+        s.forget(&2);
+        assert_eq!(s.len(), 0);
+        assert!(s.due(1u8, 1u8, 4));
+    }
 }
