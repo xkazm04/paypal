@@ -429,6 +429,13 @@ impl Transport for OfflineHttp {
         panic!("Unexpected offline HTTP operation");
     }
 }
+/// T1 parity: the wallet's own export of this deal verifies in full with the offline verifier.
+fn assert_proof_verifies(r: &Runtime, id: DealId) -> table_proto::ProofBundle {
+    let bundle = r.export_proof(id).unwrap();
+    let report = table_verify::verify_bundle(&bundle);
+    assert!(report.verified(), "{:#?}", report.checks);
+    bundle
+}
 fn caller(label: &str, token: Option<&str>) -> Caller {
     Caller {
         label: label.into(),
