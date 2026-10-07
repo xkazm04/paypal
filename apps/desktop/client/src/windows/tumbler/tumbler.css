@@ -252,6 +252,12 @@ body.w-tumbler #root { position: fixed; inset: 0; }
 .s-meters .eng { padding-left: var(--sp-3); border-left: 1px dashed var(--line2); }
 .s-meters .eng .v { color: var(--muted); }
 .m-off { grid-column: 1 / -1; margin: 0; font-size: var(--fs-small); color: var(--dim); line-height: 1.35; }
+/* Wallet limits (T14): paid out today and on hold now against the signed limits, then the AI estimate. */
+.s-meters.lim { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--sp-3); }
+.s-meters.lim .ui-stat .v { font-size: var(--fs-body); }
+.s-meters .ui-stat.near .v { color: var(--gold-l); }
+.s-meters .ui-hint.gold { color: var(--gold-l); }
+.s-meters .ui-stat .ui-hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------------------------------------------------------------- hand-off: 440 x 160, five rows
    y: 10 head 32 · 34 approve 58 · 62 approve window 80 · 84 default 118 · 124 links 146 (bottom 14).

@@ -275,6 +275,23 @@ const REFUSED_BECAUSE: Readonly<Record<number, string>> = {
   5: 'over the daily limit',
   6: 'above the amount you approve yourself',
   7: 'not an approved payee',
+  0: 'over your wallet limits',
 };
 /** Why a rule refused, in words, for "Your rules refused 40 × GPU: over the per-deal limit". */
 export const refusedBecause = (clause: number): string => REFUSED_BECAUSE[clause] ?? `against “${ruleNameOf(clause)}”`;
+
+// ---- wallet limits (T14): one cap above every set of rules ------------------------------------------
+
+/** The three wallet limits, as the owner signs them and the meters read them. */
+export const LIMIT_WORDS = {
+  out: { name: 'Most your agents can pay out in a day', short: 'Paid out today', per: 'a day' },
+  held: { name: 'Most on hold at once', short: 'On hold now', per: 'at once' },
+  deals: { name: 'Most deals a day', short: 'Deals today', per: 'a day' },
+} as const;
+/** No limits signed: only each set of rules limits the agents. */
+export const NO_WALLET_LIMIT = 'No wallet limit';
+/** What the wallet limits are, in one sentence (approval window, owner configuration). */
+export const WALLET_LIMITS_ABOUT = 'One cap above all your agents’ rules. It covers money your agents pay out, across every set of rules, and can only make your rules stricter, never looser. Money coming in is never limited.';
+/** Signed limits ran out, or could not be checked: money out stops until they are signed again. */
+export const LIMITS_EXPIRED = 'Your wallet limits ran out, so your agents can’t pay anyone until you set them again.';
+export const LIMITS_UNVERIFIED = 'Your wallet limits couldn’t be checked, so your agents can’t pay anyone until you set them again.';

@@ -15,6 +15,7 @@ import { AnswerBar, Btn, Chip, Group, Hint, Popover, Row, Section, type ChipTone
 import { MandateEditor } from './MandateEditor';
 import { clauseText, isMandateActive } from './model';
 import { PairingConfirm } from './PairingConfirm';
+import { WalletLimits } from './owner/WalletLimits';
 import { useHandoff } from './selection';
 import { useSession } from './session';
 import { Header, LockCard } from './ui';
@@ -52,6 +53,8 @@ export function OwnerConfig({ hint }: { hint: string | null }) {
   const handoff = useHandoff();
   const floorSeed = handoff?.draft?.type === 'floor' ? handoff.draft : null;
   const mandates = useQuery('mandate_list', null, { refreshOn: ['settings:changed'] });
+  // The wallet limits and today's meters (envelope_get): limits and numbers only.
+  const limits = useQuery('envelope_get', null, { refreshOn: ['settings:changed'] });
   // Subscribe, then fetch: the pending pairing Rust selected for this window (null = none).
   const pairing = useQuery('approval_pairing', null, { refreshOn: ['settings:changed'] });
   const pendingPairing = pairing.data;
@@ -187,6 +190,10 @@ export function OwnerConfig({ hint }: { hint: string | null }) {
             {list.map((m) => <MandateRow key={`${m.payload.id}:${m.payload.version}`} m={m} now={now} onOpen={() => setEditing({ sel: m.payload.id })} />)}
           </Group>
         </Section>
+
+        <WalletLimits view={limits.data} error={limits.error} loading={limits.loading} locked={locked}
+          currency={active.flatMap((m) => m.payload.clauses).find((c) => c.type === 'per_deal')?.max_amount.currency ?? 'USD'}
+          onSigned={() => void limits.refetch()} />
 
         <Section title="Connections" end={i('pairing')}>
           <Group>
