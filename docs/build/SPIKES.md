@@ -90,6 +90,11 @@ SPIKE-RESULTS.md; it is an operator observation, not inferred from success. Buye
 API access to the seller's resource is **not tested** by this command and remains a
 separate asymmetry/reconciliation question. No wallet-side buyer receipt is fabricated.
 
+Also record whether the authorize response's purchase unit carries `custom_id`,
+`invoice_id`, `payee.merchant_id` and `amount`. The proof checker's PayPal-order check
+(STATUS.md, T1 proof bundle, UNVERIFIED line) relies on all four, and no live authorize
+body has been observed yet.
+
 The P4 backend now accepts seller-signed receipts atomically as SELLER_ATTESTED,
 and tests both actors through the relay HTTP router in process, starting from
 code-only pairing, signed identity/reply exchange and both owners' privileged word
