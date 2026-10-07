@@ -200,7 +200,8 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
 
   const args: MandateSignArgs | null = built.ok ? { id: d.id, agent: d.agent, clauses: built.clauses, not_before: built.notBefore, expires: built.expires } : null;
   const errs = built.ok ? [] : built.errors;
-  const canReview = !!args && (changes.length > 0 || !base);
+  // Rules that could never allow anything are not offered for signing; the footer says why.
+  const canReview = !!args && problems.length === 0 && (changes.length > 0 || !base);
   // The answer on top: where these rules stand, in one sentence (display only; signing is unchanged).
   const tighter = changes.filter((c) => c.dir === 'restricts').length;
   const looser = changes.filter((c) => c.dir === 'widens').length;

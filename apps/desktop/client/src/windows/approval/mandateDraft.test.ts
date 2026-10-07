@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Clause } from '@bindings/Clause';
-import { ruleProblems } from './mandateDraft';
+import { bandMissingSide, refusalWords, ruleProblems } from './mandateDraft';
 
 const T = 1_800_000_000;
 const usd = (major: number) => ({ minor: Math.round(major * 100), currency: 'USD' as const });
@@ -28,5 +28,27 @@ describe('rules that could never allow anything', () => {
     expect(problems(draft(['buy'], 'purchase', null, 340))).toEqual([]);
     expect(problems(draft(['buy', 'sell'], 'haggle', 58, null))).toEqual([]);
     expect(problems(draft(['shop'], 'shop_order', 58, null))).toEqual([]);
+  });
+});
+
+describe('a refusal from signing, in plain words', () => {
+  it('drops the rule number and uses the editor’s words', () => {
+    const t = refusalWords('mandate clause 4: band lacks the side the allowed roles use');
+    expect(t).toContain('agents that buy need a most-you’ll-pay');
+    expect(t).not.toMatch(/clause|\d/);
+  });
+  it('never shows an unknown reason as it came', () => {
+    expect(refusalWords('mandate clause 9: something new')).not.toContain('something new');
+  });
+});
+
+describe('a band change that clears the side the deal uses', () => {
+  it('names the missing bound', () => {
+    expect(bandMissingSide('buyer', usd(58), null)).toContain('most-you’ll-pay');
+    expect(bandMissingSide('seller', null, usd(340))).toContain('least-you’ll-accept');
+  });
+  it('is quiet when the side has its bound', () => {
+    expect(bandMissingSide('buyer', null, usd(340))).toBeNull();
+    expect(bandMissingSide('seller', usd(58), null)).toBeNull();
   });
 });

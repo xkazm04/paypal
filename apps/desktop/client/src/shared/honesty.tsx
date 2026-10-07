@@ -63,14 +63,18 @@ const CODE_WORD: Record<WalletError['code'], string> = {
   PERMISSION: 'Not allowed here', REFUSED: 'Refused', INVALID: 'Not valid', NOT_FOUND: 'Not found', LEDGER_TRUST: 'Records failed a check',
 };
 
-/** A typed failure. UNAVAILABLE / UNSUPPORTED read as availability states, never as success. */
-export function WalletNotice({ error, what }: { error: WalletError; what?: string }) {
+/**
+ * A typed failure. UNAVAILABLE / UNSUPPORTED read as availability states, never as success.
+ * `message` replaces the wallet's own text when the caller has plain words for it (a REFUSED
+ * from signing rules); the chip still says what kind of failure it is.
+ */
+export function WalletNotice({ error, what, message }: { error: WalletError; what?: string; message?: string }) {
   return (
     <div className={`notice ${CODE_CLASS[error.code]}`} role={error.isAvailabilityState ? 'status' : 'alert'}>
       <span className="n-code" title={error.code}>{CODE_WORD[error.code]}</span>
       <span>
         {what ? <b>{what}: </b> : null}
-        {error.message}
+        {message ?? error.message}
       </span>
     </div>
   );
