@@ -82,7 +82,11 @@ pub struct AttentionSnapshot {
     // not be read; older shells omit it.
     #[serde(default)]
     #[ts(optional = nullable)]
-    pub forecast: Option<Vec<ForecastLine>>,
+    pub forecast: Option<Vec<ForecastLine>>, // The wallet-wide limits and money out right now (T14): limits and numbers only. None while
+    // they could not be read; older shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub exposure: Option<table_core::ExposureView>,
 }
 
 /// Origin: pairing record confirmed by the owner. No merchant title, memo or NOTE field.
@@ -265,6 +269,7 @@ pub fn snapshot(
         engine_estimate_today_usd,
         locked,
         forecast: None,
+        exposure: None,
     }
 }
 

@@ -38,6 +38,8 @@
     "allow-approval-handoff",
     "allow-owner-facts",
     "allow-deal-export-proof",
-    "allow-mandate-simulate"
+    "allow-mandate-simulate",
+    "allow-envelope-sign",
+    "allow-envelope-get"
   ]
 }

@@ -323,6 +323,14 @@ impl AgentSigner {
     pub fn sign_payload(&self, payload: &MandatePayload) -> Result<Vec<u8>, ProtocolError> {
         Ok(self.0.sign(&canonical_bytes(payload)?).to_bytes().to_vec())
     }
+    /// The owner's signature over the wallet-wide limits, under their own domain tag.
+    pub fn sign_wallet_envelope(
+        &self,
+        payload: &table_core::WalletEnvelope,
+    ) -> Result<Vec<u8>, ProtocolError> {
+        payload.validate().map_err(|_| ProtocolError::Body)?;
+        Ok(self.0.sign(&payload.signing_bytes()?).to_bytes().to_vec())
+    }
     pub fn sign(&self, envelope: &Envelope) -> Result<String, ProtocolError> {
         if envelope.iss != self.key_id()? || envelope.v != 1 || envelope.typ != envelope.body.typ()
         {
@@ -356,6 +364,19 @@ pub fn verify_mandate_signature(
     let sig = Signature::from_slice(signature).map_err(|_| ProtocolError::Signature)?;
     owner
         .verify_strict(&canonical_bytes(payload)?, &sig)
+        .map_err(|_| ProtocolError::Signature)
+}
+
+/// Verifies the owner's signature over wallet-wide limits (domain-separated from mandates).
+pub fn verify_wallet_envelope_signature(
+    payload: &table_core::WalletEnvelope,
+    signature: &[u8],
+    owner: &VerifyingKey,
+) -> Result<(), ProtocolError> {
+    payload.validate().map_err(|_| ProtocolError::Body)?;
+    let sig = Signature::from_slice(signature).map_err(|_| ProtocolError::Signature)?;
+    owner
+        .verify_strict(&payload.signing_bytes()?, &sig)
         .map_err(|_| ProtocolError::Signature)
 }
 
