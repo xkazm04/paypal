@@ -75,6 +75,9 @@ pub struct Runtime {
     /// Test-only: overrides the signed band in the brief, to prove the mandate still refuses.
     #[cfg(test)]
     pub(crate) brief_tamper: Option<(Option<Money>, Option<Money>)>,
+    /// Test-only: makes `attention()` fail, to prove the actor surfaces the fault.
+    #[cfg(test)]
+    pub(crate) fail_attention: Arc<std::sync::atomic::AtomicBool>,
 }
 impl std::fmt::Debug for Runtime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -157,6 +160,8 @@ impl Runtime {
             armed: BTreeMap::new(),
             #[cfg(test)]
             brief_tamper: None,
+            #[cfg(test)]
+            fail_attention: Arc::default(),
         })
     }
     pub(crate) fn owner(&self) -> Result<ed25519_dalek::SigningKey, CommandError> {

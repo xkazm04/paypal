@@ -103,6 +103,13 @@ impl Runtime {
         })
     }
     pub fn attention(&mut self) -> Result<table_attention::AttentionSnapshot, CommandError> {
+        #[cfg(test)]
+        if self
+            .fail_attention
+            .load(std::sync::atomic::Ordering::SeqCst)
+        {
+            return Err(unavailable("Attention unavailable"));
+        }
         let now = self.clock.now();
         let mut sources = Vec::new();
         let deals = app(self.pipeline.wallet.ledger.list_deals())?;
