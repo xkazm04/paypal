@@ -270,12 +270,27 @@ Behaviour changes worth knowing:
 - Attention: actions offered only when the state machine accepts them; gates name the counterparty
   label and clause 6; the in-memory notification set is pruned. Tumbler surface writes are debounced
   (400 ms) - **compile/clippy-verified only, needs the native check**.
-- Attention, walk-away forecast (T4 slice 1): `table_attention::forecast` exists and mirrors
-  `scheduler.rs` `tick_deal` at b260727. Its property test is
-  `forecast::tests::forecast_never_moves_money_out_over_every_input` (exhaustive over every state,
-  side, kind, delivery, deadline, flag and mode; no line moves money out). Not yet wired: slice 2
-  puts it on `AttentionSnapshot` with bindings and a differential test against `Runtime::tick`
-  under `FixedClock`; slice 3 adds the Tumbler "If you walk away" block and the quit confirm.
+- Attention, walk-away forecast (T4 slices 1-2): `table_attention::forecast` mirrors
+  `scheduler.rs` `tick_deal` at b260727 and, since slice 2, the gates inside the pipeline calls it
+  makes. Shield rule: a create (`Authority::Policy`) or an authorize/capture
+  (`Authority::SellerMandate`) line appears only if the pipeline's own gate passes at the step's
+  time; the shield refuses both on ASK (market reference absent or older than 900 s, new
+  counterparty above 100.00) and on HOLD, and nothing refreshes the market while the owner is away.
+  `Pipeline::step_allowed` is a read-only twin of the checks create/authorize/capture run before any
+  write or PayPal call (same `authority()` and `shield()`); the runtime finds the seller-mandate
+  window by binary search over it. A buyer-approval line carries `before`, the latest time the
+  approval still counts. A capture line ends in `Receipted` (capture records the receipt in the
+  same call). `AttentionSnapshot.forecast` (optional; 72 h horizon over every open deal, lapse-chosen
+  and snoozed included; `None` on a read error) is filled by `Runtime::attention()`; bindings
+  regenerated. Tests: the property test
+  `forecast::tests::forecast_never_moves_money_out_over_every_input` (now also over the
+  seller-mandate window, and checks no refused step is forecast), the unit tests
+  `seller_agreed_without_a_market_reference_forecasts_only_its_lapse`,
+  `seller_agreed_with_a_fresh_market_forecasts_the_create` and
+  `a_market_stale_by_the_steps_time_forecasts_no_money_step`, and the differential test
+  `crates/table-runtime/src/forecast_tests.rs` (TestClock + OfflineHttp, ticks at every line's time
+  and checks state, `decided_by` and audit; buyer approval is simulated by the offline poll). Slice 3
+  remains: the Tumbler "If you walk away" block and the quit confirm.
 - Attention fixes (council attention-escalation): a failed attention read is one visible Fault per
   streak and clears the cache (a83458f); a notification claim is released when no toast was shown
   (3ac0b38); Let it lapse needs a Gate whose card offers it (c734558).
@@ -1241,5 +1256,5 @@ unchanged (no generated type changed; `TranscriptBy`/`TranscriptType` only gaine
 ## Spend firewall / agent-gated-spend: a cleared purchase waits for the owner (2026-10-07)
 
 - An agent's purchase that passes the mandate check waits at Agreed. Creating the PayPal order, authorizing it and capturing it each need the owner's decision in the approval window; the clause-6 policy countersign does not apply to purchases (`Authority::Policy` is refused for every purchase deal, before any countersign row, reservation or network call). A cleared purchase counts in the daily budget from the moment it clears until it is withdrawn or expires. This closes agent-gated-spend MA-1.
-- Mechanism: `DealEvent::PurchaseCleared` (Pairing to Agreed), applied by `propose_purchase` (buyer purchases only) in its own transaction with the `deal.transition` audit row; the scheduler no longer creates orders for purchases. The text of the Shopper slot in `configuration.rs` now says money moves only when the owner decides; the mock copy in `apps/desktop/client/src/mock/backend.ts` still has the old wording (outside this change's paths).
+- Mechanism: `DealEvent::PurchaseCleared` (Pairing to Agreed), applied by `propose_purchase` (buyer purchases only) in its own transaction with the `deal.transition` audit row; the scheduler no longer creates orders for purchases. The text of the Shopper slot in `configuration.rs` now says money moves only when the owner decides.
 - A purchase under a mandate with no Band gets a 24 h decision window (`PURCHASE_DECISION_WINDOW_SECS`, DECISIONS section 8): at the deadline it lapses to WITHDRAWN with `SafeDefault` and no PayPal call (test `a_purchase_without_a_band_lapses_after_a_day_and_a_band_deadline_still_wins`). A proposal writes one `purchase.proposed` audit row (test `one_purchase_proposal_writes_exactly_one_audit_row_and_the_chain_verifies`). The mock Shopper copy in `backend.ts` now matches `configuration.rs`.
