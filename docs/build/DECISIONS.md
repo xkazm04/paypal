@@ -163,3 +163,29 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   toast that fails can be retried inside the same rung; a lapse can only be chosen where the owner
   was shown it.
 - **Evidence:** commits a83458f (MA-1), 3ac0b38 (MA-2), c734558 (MA-3).
+
+## 8. A purchase without a band gets a 24-hour decision window
+
+- **Date:** 2026-10-07
+- **Decided by:** the App Master under the operator's delegation.
+- **Constraint:** open point 1 (med) of the agent-gated-spend full council, round 1. `service.rs`
+  set a purchase's deadline only from a Band clause, and `mandate.rs` requires a Band only for
+  Haggle and ShopOrder. So an AGREED purchase under a mandate without a Band waited for the owner
+  indefinitely and kept its place in the daily budget (section 4). AGENTS.md requires that every
+  deadline has a default.
+- **Decision:** a purchase created under a mandate with no Band gets a 24-hour window from
+  creation. At the deadline the default applies: it lapses to WITHDRAWN and no money moves. A Band
+  deadline still wins.
+- **Lost:**
+  - Leaving it to wait: it breaks the invariant.
+  - Setting the deadline at PurchaseCleared inside `propose_purchase`: a PAIRING purchase would
+    still have none, and the ledger would own a timing policy.
+  - 72 h like the authorization hold, or 6 h like order creation: 72 h is too long for a proposal
+    whose price can move, and 6 h is too short for an owner who checks once a day.
+- **Consequences:** an unattended proposal lapses within a day, and the agent must propose again.
+  Deals created before this commit keep no deadline; there is no backfill, because this is
+  prototype data.
+- **Evidence:** commits 4810a30 (deadline), cf3f14c (one audit row), f3b86b6 (copy), faf57e9
+  (forecast test); tests
+  `table-runtime::tests::a_purchase_without_a_band_lapses_after_a_day_and_a_band_deadline_still_wins`
+  and `table-attention::forecast::tests::buyer_purchase_agreed_with_a_deadline_lapses_there_and_moves_no_money`.
