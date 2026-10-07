@@ -36,7 +36,7 @@ describe('module mapping', () => {
   });
   it('places the sample week as the design report does', () => {
     const count = (m: string) => deals.filter((d) => moduleOf(d) === m).length;
-    expect([count('tables'), count('spend'), count('counter'), count('book'), count('shield'), count('rescue')]).toEqual([4, 5, 3, 0, 3, 3]); // D-0199 MISMATCH carries a shield HOLD; Q-0207 quote; D-0182/D-0178 rescues
+    expect([count('tables'), count('spend'), count('counter'), count('book'), count('shield'), count('rescue')]).toEqual([4, 5, 4, 0, 3, 3]); // D-0199 MISMATCH carries a shield HOLD; Q-0207 quote; D-0194 checking with PayPal; D-0182/D-0178 rescues
   });
 });
 
@@ -125,7 +125,9 @@ describe('ledger summary', () => {
     // buyer captured/receipted: 212 + 45 + 38 ; seller captured: 18.50 shop + 9.00 recovered rescue
     expect(s.out).toEqual([usd(295)]);
     expect(s.inn).toEqual([usd(27.5)]);
-    expect(s.held.map((d) => d.id).sort()).toEqual([byLabel('D-0190').id, byLabel('D-0198').id].sort());
+    // D-0194's collection is being checked with PayPal: its money is still counted where Rust last
+    // saw it (held), never as paid.
+    expect(s.held.map((d) => d.id).sort()).toEqual([byLabel('D-0190').id, byLabel('D-0198').id, byLabel('D-0194').id].sort());
     expect(s.stopped).toHaveLength(3); // D-0192 refused, D-0196 BLOCK, D-0199 MISMATCH
     expect(s.moving.some((d) => needs.has(d.id))).toBe(false);
   });

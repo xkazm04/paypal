@@ -9,6 +9,7 @@ import type { DealEvidence } from '@bindings/DealEvidence';
 import type { DealState } from '@bindings/DealState';
 import type { EngineInfo } from '@bindings/EngineInfo';
 import type { H256 } from '@bindings/H256';
+import type { MoneyCheck } from '@bindings/MoneyCheck';
 import type { Money } from '@bindings/Money';
 import type { OpenMandate } from '@bindings/OpenMandate';
 import type { AgentSlot } from '@bindings/AgentSlot';
@@ -20,6 +21,7 @@ import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import type { AuditRow } from '@bindings/AuditRow';
 import type { CounterpartyNote } from '@bindings/CounterpartyNote';
 import type { CounterpartyDisplay, DealDisplay, TranscriptStep } from '../lib/pending';
+import { MONEY_CHECK_SILENCE } from '../lib/words';
 
 export const USD: Currency = 'USD';
 export const usd = (dollars: number): Money => ({ minor: Math.round(dollars * 100), currency: USD });
@@ -136,6 +138,8 @@ export function buildMockState(now: number): MockState {
     transcript?: TranscriptStep[];
     /** Rust's recorded authority (Deal.decided_by); omitted = nothing decided it yet. */
     decided?: NonNullable<Deal['decided_by']>;
+    /** A money step whose PayPal answer was lost, being checked with PayPal (T10). */
+    check?: MoneyCheck;
     attention?: Omit<AttentionItem, 'deal_id' | 'label' | 'amount_minor' | 'currency' | 'mode' | 'deadline' | 'on_silence'> | null;
   }) => {
     const id = fakeUlid(o.label);
@@ -162,7 +166,7 @@ export function buildMockState(now: number): MockState {
     };
     const deadline = o.deadline ?? null;
     const display: DealDisplay = { deal_id: id, label: o.label, title: o.title, deadline, on_silence: o.silence ?? null, band: o.band ?? null };
-    const evidence: DealEvidence = { deal_id: id, receipt: o.receipt ?? 'NONE', reconciliation: o.reconciliation ?? 'not_applicable' };
+    const evidence: DealEvidence = { deal_id: id, receipt: o.receipt ?? 'NONE', reconciliation: o.reconciliation ?? 'not_applicable', money_check: o.check ?? null };
     const attention: AttentionItem | null = o.attention
       ? {
           ...o.attention,
@@ -173,6 +177,7 @@ export function buildMockState(now: number): MockState {
           mode: deal.mode,
           deadline,
           on_silence: o.silence ?? 'no money moves',
+          money_check: o.check ?? null,
         }
       : null;
     deals.push({ deal, display, evidence, transcript: o.transcript ?? [], attention });
@@ -246,6 +251,18 @@ export function buildMockState(now: number): MockState {
     paypal: { order: 'INV2-3PX9' }, deadline: now + 6 * 86400, silence: 'the invoice stays open until it is due · nothing is charged unless the subscriber pays' });
   add({ label: 'D-0178', title: 'Care plan · subscriber S-07', kind: 'rescue', side: 'seller', cp: KEY.s07, item: 'care-plan', price: 9, state: 'CAPTURED', mandate: MANDATE_R3, version: 1,
     receipt: 'PAYPAL_VERIFIED', reconciliation: 'matched', paypal: { order: 'INV2-8K4R', capture: '2RC7' } });
+
+  // --- A payment being checked with PayPal (T10) --------------------------------------------
+  // The seller's collection went out on its signed rule; PayPal's answer was lost and PayPal could
+  // not be read since. Rust's card is a HOLD that only opens the deal: nothing more is sent.
+  add({
+    label: 'D-0194', title: 'Monitor arm, 2-pack', kind: 'shop_order', side: 'seller', cp: KEY.lark, item: 'monitor-arm', qty: 2, price: 59, state: 'AUTHORIZED',
+    mandate: MANDATE_S2, market: [55, 63, 71], paypal: { order: '2WQ771N', authorization: '6TS0D' }, deadline: now + 2 * 86400 + 7 * H,
+    decided: { type: 'seller_mandate', mandate_hash: fakeHash('S-2:payload') },
+    check: { step: 'capture', state: 'parked', since: now - 25 * 60, next_check: now + 12 * 60 },
+    silence: MONEY_CHECK_SILENCE,
+    attention: { kind: 'hold', module: 'counter', headline: 'Checking with PayPal $118.00', counterparty: 'lark’s agent', clause: null, urgency: 'calm', actions: ['open_in_table'] },
+  });
 
   const band = (item_refs: string[], floor: number | null, ceiling: number | null, deadline = now + 3 * H + 57 * 60 + 56): Clause =>
     ({ type: 'band', item_refs, floor: floor === null ? null : usd(floor), ceiling: ceiling === null ? null : usd(ceiling), max_rounds: 6, deadline });
