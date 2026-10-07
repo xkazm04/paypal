@@ -110,6 +110,13 @@ type Labeller = (dealId: string) => { deal: Deal; label: string; title: string }
 export function RewindBar({ r, labelOf, onOpenDeal, onExit }: { r: RewindState; labelOf: Labeller; onOpenDeal: (id: string) => void; onExit: () => void }) {
   const track = useRef<HTMLDivElement>(null);
   const drag = useRef(false);
+  // The footer's Rewind entry leaves while rewinding, so keyboard focus lands on Play instead of
+  // falling back to the page (Space then plays, as the ? sheet says).
+  const playBtn = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const a = document.activeElement;
+    if (!a || a === document.body) playBtn.current?.focus({ preventScroll: true });
+  }, []);
   const ticks = useMemo(() => {
     const lane = laneSteps(r.steps).filter((s) => labelOf(s.deal_id));
     // Ticks within ~1% of the week (a couple of hours) sit side by side, centred on the first.
@@ -161,7 +168,7 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit }: { r: RewindState; 
   return (
     <div className="rw-bar" role="group" aria-label="Rewind the week">
       <div className="rw-row">
-        <button type="button" className="rw-play" onClick={r.playing ? r.pause : r.play} aria-label={r.playing ? 'Pause' : 'Play the week'} title={r.playing ? 'Pause (Space)' : 'Play the week (Space)'}>
+        <button type="button" className="rw-play" ref={playBtn} onClick={r.playing ? r.pause : r.play} aria-label={r.playing ? 'Pause' : 'Play the week'} title={r.playing ? 'Pause (Space)' : 'Play the week (Space)'}>
           {r.playing ? <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.5v9M11 3.5v9" /></svg> : <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3l8 5-8 5z" /></svg>}
         </button>
         <span className="rw-week">
@@ -190,7 +197,7 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit }: { r: RewindState; 
             return (
               <button key={`${s.deal_id}-${s.seq}`} type="button" className={`rw-tick t-${tone} ${s.at <= r.t ? 'on' : ''}`}
                 style={{ left: `calc(${f * 100}% + ${dx}px)` } as CSSProperties}
-                aria-label={`${who.label}: ${said}`} title={`${said}\n${TICK_WORD[tone]} · opens ${who.label}`}
+                aria-label={said} title={`${said}\n${TICK_WORD[tone]} · opens the deal`}
                 onClick={(e) => { e.stopPropagation(); onOpenDeal(s.deal_id); }}>
                 <TickMark tone={tone} />
               </button>
@@ -230,7 +237,7 @@ export function RewindHub({ r, labelOf, onOpenDeal }: { r: RewindState; labelOf:
             <div className="rw-meta">
               {!money || !tone ? 'no PayPal call' : tone === 'refused' ? (step.authority.type === 'signed_rule' ? 'Stopped by your rules' : 'Stopped by a safety check') : TICK_WORD[tone]}
             </div>
-            <button type="button" className="hm-back rw-open" onClick={(e) => { e.stopPropagation(); onOpenDeal(step.deal_id); }}>Open {who.label} ›</button>
+            <button type="button" className="hm-back rw-open" onClick={(e) => { e.stopPropagation(); onOpenDeal(step.deal_id); }}>Open deal ›</button>
           </>
         ) : <div className="h-calm rw-calm">Nothing yet this week</div>}
       <div className="h-week rw-count">
