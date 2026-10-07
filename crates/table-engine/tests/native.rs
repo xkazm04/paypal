@@ -1,4 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+// The fixture helpers serve the Windows-only tests below; elsewhere they are unused.
+#![cfg_attr(not(windows), allow(dead_code, unused_imports))]
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use table_core::RunId;
 use table_engine::*;
@@ -41,6 +43,10 @@ fn job() -> AgentJob {
     }
 }
 #[test]
+#[cfg_attr(
+    not(windows),
+    ignore = "resolves Windows executables (.exe, .cmd); meaningful on Windows only"
+)]
 fn direct_and_npm_resolution_never_executes_shim_text() {
     let root = root();
     std::fs::write(root.join("codex.cmd"), "erase C:\\ ; evil %*").unwrap();
