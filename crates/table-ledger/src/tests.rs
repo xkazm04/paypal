@@ -1974,3 +1974,49 @@ fn the_ledger_stores_the_carried_binding_and_never_re_projects_the_redacted_resp
     assert_eq!(stored, vec![carried]);
     assert!(stored[0].to_string().contains("payee_merchant_id"));
 }
+#[test]
+fn history_rows_are_deal_scoped_windowed_capped_and_refused_whole_on_a_broken_chain() {
+    let (mut ledger, deal, _, _, _) = setup();
+    ledger.refuse(deal.id, 3, 150).unwrap();
+    let (rows, more) = ledger.history_rows(None, None, None, 100).unwrap();
+    assert!(!more && !rows.is_empty());
+    assert!(rows.iter().all(|r| r.deal_id.is_some()));
+    assert!(rows.windows(2).all(|w| w[0].seq < w[1].seq));
+    assert_eq!(rows.last().unwrap().action, "deal.transition");
+    // [from, to) and one deal only.
+    let (late, _) = ledger
+        .history_rows(Some(deal.id), Some(150), Some(151), 100)
+        .unwrap();
+    assert_eq!(late.len(), 1);
+    let (other, _) = ledger
+        .history_rows(
+            Some("00000000000000000000000009".parse().unwrap()),
+            None,
+            None,
+            100,
+        )
+        .unwrap();
+    assert!(other.is_empty());
+    // The cap keeps the newest rows and says that older ones were left out.
+    let (newest, more) = ledger.history_rows(None, None, None, 1).unwrap();
+    assert!(more);
+    assert_eq!(newest[0].seq, rows.last().unwrap().seq);
+    assert!(ledger.paypal_statuses_at(deal.id, 150).unwrap().is_empty());
+    // A row altered offline: an error, never a partial list.
+    ledger
+        .conn
+        .execute_batch("DROP TRIGGER audit_no_update;")
+        .unwrap();
+    ledger
+        .conn
+        .execute("UPDATE audit_log SET action='deal.created' WHERE seq=2", [])
+        .unwrap();
+    assert!(matches!(
+        ledger.history_rows(None, None, None, 100),
+        Err(LedgerError::Integrity(_))
+    ));
+    assert!(matches!(
+        ledger.history_rows(Some(deal.id), Some(150), None, 100),
+        Err(LedgerError::Integrity(_))
+    ));
+}
