@@ -25,7 +25,12 @@ impl Runtime {
         };
         let mut sources = Vec::new();
         for deal in app(self.pipeline.wallet.ledger.list_deals())? {
-            if deal.mode == Mode::Replay || deal.state.terminal() {
+            // A deal whose money step is being checked with PayPal is forecast nothing: no step
+            // runs and no default is promised until PayPal's record settles it (T10).
+            if deal.mode == Mode::Replay
+                || deal.state.terminal()
+                || self.pipeline.has_open_operation(deal.id)?
+            {
                 continue;
             }
             sources.push(self.forecast_source(&deal, now, ctx.horizon_secs)?);

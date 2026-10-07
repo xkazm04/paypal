@@ -46,7 +46,7 @@ impl Ledger {
         conn.execute_batch("PRAGMA foreign_keys=ON; PRAGMA recursive_triggers=ON;")?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version > 7 {
+        if version > 8 {
             return Err(LedgerError::Integrity("newer schema"));
         }
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -71,7 +71,10 @@ impl Ledger {
         if version < 7 {
             tx.execute_batch(include_str!("../migrations/0007_binding.sql"))?;
         }
-        tx.execute_batch("PRAGMA user_version=7;")?;
+        if version < 8 {
+            tx.execute_batch(include_str!("../migrations/0008_resolver.sql"))?;
+        }
+        tx.execute_batch("PRAGMA user_version=8;")?;
         tx.commit()?;
         let ledger = Self { conn };
         ledger.verify_audit()?;
@@ -94,6 +97,8 @@ mod house;
 pub use house::*;
 mod receipt;
 mod relay;
+mod resolver;
 pub use relay::*;
+pub use resolver::*;
 #[cfg(test)]
 mod tests;

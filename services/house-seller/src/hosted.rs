@@ -297,76 +297,51 @@ impl Seller {
     fn beat(&self) {
         self.heartbeat.store(self.clock.now(), Ordering::Relaxed);
     }
-    /// Money operations whose outcome is unknown after a restart, oldest first. Read from the
-    /// audit chain: a reservation writes `money.authorized` and its finish `money.observed`, each in
-    /// the same transaction as the `operations` row. The pipeline never reserves the same deal,
-    /// attempt and operation twice (its primary key), so a pending one is not sent again.
+    /// Money operations whose PayPal outcome is not settled, oldest first: reserved under their
+    /// request id and never finished (the process stopped inside the call), or finished with no
+    /// answer. Read from the ledger's operations and their read-back checks. The pipeline never
+    /// reserves the same deal, attempt and operation twice (its primary key), and the resolver
+    /// only ever re-sends the one request id, so none of these can go out under a new one.
     pub fn pending_operations(&self) -> Result<Vec<PendingOperation>, Error> {
-        let ledger = &self.pipeline.wallet.ledger;
-        let mut authorized = Vec::new();
-        let mut observed: HashMap<(DealId, &'static str), usize> = HashMap::new();
-        let mut before = None;
-        loop {
-            let (rows, more) = ledger.audit_page(before, u16::MAX)?;
-            for row in &rows {
-                let (Some(deal), "pipeline") = (row.deal_id, row.actor.as_str()) else {
-                    continue;
-                };
-                let operation = match row.detail.get("operation").and_then(|o| o.as_str()) {
-                    Some("create") => "create",
-                    Some("authorize") => "authorize",
-                    Some("capture") => "capture",
-                    Some("void") => "void",
-                    _ => continue,
-                };
-                match row.action.as_str() {
-                    "money.authorized" => {
-                        let request = row
-                            .detail
-                            .get("request_id")
-                            .and_then(|r| r.as_str())
-                            .unwrap_or_default();
-                        let attempt = (1..=3)
-                            .find(|a| {
-                                table_paypal::RequestId::for_operation(deal, *a, operation)
-                                    .is_ok_and(|r| r.as_str() == request)
-                            })
-                            .unwrap_or(0);
-                        authorized.push(PendingOperation {
-                            deal,
-                            operation,
-                            attempt,
-                        });
-                    }
-                    "money.observed" => *observed.entry((deal, operation)).or_default() += 1,
-                    _ => {}
-                }
-            }
-            before = rows.last().map(|r| r.seq);
-            if !more || before.is_none() {
-                break;
-            }
-        }
-        // Pages are newest first; each finish closes the oldest open reservation of its kind.
-        authorized.reverse();
-        Ok(authorized
+        Ok(self
+            .pipeline
+            .wallet
+            .ledger
+            .open_operations(None)?
             .into_iter()
-            .filter(|p| match observed.get_mut(&(p.deal, p.operation)) {
-                Some(n) if *n > 0 => {
-                    *n -= 1;
-                    false
-                }
-                _ => true,
+            .filter_map(|op| {
+                let operation = match op.operation.as_str() {
+                    "create" => "create",
+                    "authorize" => "authorize",
+                    "capture" => "capture",
+                    "void" => "void",
+                    _ => return None,
+                };
+                Some(PendingOperation {
+                    deal: op.deal_id,
+                    operation,
+                    attempt: op.attempt,
+                })
             })
             .collect())
     }
-    /// Writes one line per pending operation: deal, operation and attempt, outcome unknown.
-    /// Resolving them with PayPal is T10; until then the deal stays where the restart left it.
-    pub fn report_pending(&self) -> Result<usize, Error> {
+    /// At startup, settles every operation a previous run left unknown by reading PayPal (T10):
+    /// confirm, re-send under the same request id, or park. Writes one line per operation:
+    /// `house pending deal=<id> operation=<op> attempt=<n> outcome=<what happened>`.
+    pub async fn resolve_pending(&mut self) -> Result<usize, Error> {
         let pending = self.pending_operations()?;
+        let now = self.clock.now();
         for p in &pending {
+            self.beat();
+            let result = self.pipeline.resolve(p.deal, None, now).await;
+            self.beat();
+            let outcome = match result {
+                Ok(Some(r)) => resolution_code(r),
+                Ok(None) => "unknown",
+                Err(e) => Error::from(e).code(),
+            };
             self.log.line(&format!(
-                "house pending deal={} operation={} attempt={} outcome=unknown",
+                "house pending deal={} operation={} attempt={} outcome={outcome}",
                 p.deal, p.operation, p.attempt
             ));
         }
@@ -780,6 +755,22 @@ impl Seller {
         if deal.state.terminal() {
             return Ok(());
         }
+        // A money step whose PayPal outcome is unknown is read back first, on its own backoff,
+        // and nothing more is sent for the deal until it is settled (T10).
+        let open = self.pipeline.has_open_operation(deal.id)?;
+        if open {
+            self.pipeline.resolve(deal.id, None, now).await?;
+        }
+        let current;
+        let deal = if open {
+            current = self.pipeline.wallet.ledger.get_deal(deal.id)?;
+            &current
+        } else {
+            deal
+        };
+        if deal.state.terminal() {
+            return Ok(());
+        }
         if self
             .pipeline
             .wallet
@@ -788,14 +779,10 @@ impl Seller {
             .is_some_and(|d| d.0 <= now)
         {
             self.polls.forget(&deal.id);
-            if deal.state == DealState::Authorized {
-                self.pipeline.auto_void(deal.id, 1, now).await?;
-            } else if deal.state.pre_capture() {
-                self.pipeline
-                    .wallet
-                    .ledger
-                    .apply_deadline_default(deal.id, now)?;
-            }
+            self.pipeline.deadline_default(deal.id, now).await?;
+            return Ok(());
+        }
+        if self.pipeline.has_open_operation(deal.id)? {
             return Ok(());
         }
         match deal.state {
@@ -833,6 +820,24 @@ impl Seller {
     }
 }
 
+/// A fixed word for a resolver outcome, safe for the operator log.
+fn resolution_code(r: table_app::Resolution) -> &'static str {
+    use table_app::Resolution as R;
+    match r {
+        R::Confirmed => "confirmed",
+        R::Resent { confirmed: true } => "resent",
+        R::Resent { confirmed: false } => "resent_unanswered",
+        R::NotDone => "not_done",
+        R::Parked(reason) => match reason {
+            table_ledger::CheckReason::Unreadable => "parked_unreadable",
+            table_ledger::CheckReason::Ambiguous => "parked_ambiguous",
+            table_ledger::CheckReason::NeedsOwner => "parked_needs_owner",
+            table_ledger::CheckReason::Refused => "parked_refused",
+            table_ledger::CheckReason::Window => "parked_window",
+            _ => "parked",
+        },
+    }
+}
 type Reply = oneshot::Sender<Result<HouseResponse, Error>>;
 #[derive(Debug)]
 enum Message {
@@ -903,13 +908,9 @@ impl House {
 pub fn spawn(seller: Seller) -> HouseHandle {
     start(seller).handle
 }
-/// Reports any operation a previous run left pending, then starts the actor.
+/// Starts the actor; before it serves anything, it settles every money operation a previous run
+/// left unknown (`Seller::resolve_pending`).
 pub fn start(mut seller: Seller) -> House {
-    if let Err(e) = seller.report_pending() {
-        seller
-            .log
-            .line(&format!("house step=startup deal=- error={}", e.code()));
-    }
     let (tx, mut rx) = mpsc::channel::<Message>(4);
     let handle = HouseHandle {
         tx,
@@ -920,6 +921,11 @@ pub fn start(mut seller: Seller) -> House {
     let stop = Arc::new(Notify::new());
     let stopped = stop.clone();
     let task = tokio::spawn(async move {
+        if let Err(e) = seller.resolve_pending().await {
+            seller
+                .log
+                .line(&format!("house step=startup deal=- error={}", e.code()));
+        }
         let mut timer = tokio::time::interval(Duration::from_secs(1));
         timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {

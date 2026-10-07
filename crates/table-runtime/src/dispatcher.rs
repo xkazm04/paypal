@@ -90,9 +90,11 @@ impl Runtime {
             })
             .transpose()
             .map_err(table_app::Error::from)?;
-        let item = table_attention::AttentionSource::from_deal(&deal, number, None, None, deadline)
-            .map_err(table_app::Error::from)?
-            .item(self.clock.now());
+        let mut source =
+            table_attention::AttentionSource::from_deal(&deal, number, None, None, deadline)
+                .map_err(table_app::Error::from)?;
+        source.money_check = app(self.pipeline.wallet.ledger.money_check(id))?;
+        let item = source.item(self.clock.now());
         Ok(DealDisplay {
             deal_id: id,
             label: item.label,
@@ -120,12 +122,15 @@ impl Runtime {
                 .map(|c| (c.key_id, c.display_name))
                 .collect();
         for deal in &deals {
-            if app(self
-                .pipeline
-                .wallet
-                .ledger
-                .preference::<bool>(&format!("lapse.{}", deal.id)))?
-            .unwrap_or(false)
+            // A money step being checked with PayPal is shown even on a deal left to lapse.
+            let money_check = app(self.pipeline.wallet.ledger.money_check(deal.id))?;
+            if money_check.is_none()
+                && app(self
+                    .pipeline
+                    .wallet
+                    .ledger
+                    .preference::<bool>(&format!("lapse.{}", deal.id)))?
+                .unwrap_or(false)
             {
                 continue;
             }
@@ -138,6 +143,7 @@ impl Runtime {
             )
             .map_err(table_app::Error::from)?;
             source.needs_owner_accept = self.needs_owner_accept(deal)?;
+            source.money_check = money_check;
             // A gate names the clause that sent it to the owner; holds come from the shield.
             if source.item(now).kind == table_attention::AttnKind::Gate {
                 source.clause = self.human_present_clause(deal)?;

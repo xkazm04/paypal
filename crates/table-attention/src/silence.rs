@@ -60,6 +60,10 @@ fn may_move(source: &AttentionSource) -> bool {
 }
 
 fn reword(item: &mut AttentionItem, source: &AttentionSource, forecast: Option<&[ForecastLine]>) {
+    // A money step being checked with PayPal keeps its own line: nothing is sent until then.
+    if source.money_check.is_some() {
+        return;
+    }
     match forecast {
         Some(all) => {
             let mine: Vec<&ForecastLine> =
@@ -112,6 +116,7 @@ mod tests {
                 mode: Mode::Sandbox,
                 shield_hold: false,
                 needs_owner_accept: false,
+                money_check: None,
             },
             ForecastSource {
                 deal_id,
@@ -152,6 +157,26 @@ mod tests {
         lines.iter().map(|l| l.action).collect()
     }
 
+    #[test]
+    fn a_money_check_keeps_its_own_line_whatever_the_forecast_says() {
+        // Even a forecast that would collect (were it built for this deal) cannot reword the card
+        // of a payment step being checked with PayPal: nothing is sent until PayPal confirms.
+        let mut src = pair(
+            DealState::Authorized,
+            Side::Seller,
+            Delivery::DigitalNow,
+            Some(NOW + 600),
+        );
+        src.0.money_check = Some(table_core::MoneyCheck {
+            step: table_core::MoneyCheckStep::Capture,
+            state: table_core::MoneyCheckState::Parked,
+            since: NOW - 60,
+            next_check: Some(NOW + 60),
+        });
+        let (text, lines) = card(&src, &ctx(true));
+        assert!(actions(&lines).contains(&ForecastAction::Capture));
+        assert_eq!(text, crate::MONEY_CHECK_SILENCE);
+    }
     #[test]
     fn card_matches_a_lapse_ending() {
         let src = pair(
