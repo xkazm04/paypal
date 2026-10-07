@@ -72,7 +72,7 @@ function offsetWords(seconds: number): string | null {
   const d = Math.floor(seconds / 86400);
   const h = Math.floor((seconds % 86400) / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  const parts = [d ? `${d} d` : '', h ? `${h} h` : '', !d && m ? `${m} min` : ''].filter(Boolean);
+  const parts = [d ? `${d} ${d === 1 ? 'day' : 'days'}` : '', h ? `${h} h` : '', !d && m ? `${m} min` : ''].filter(Boolean);
   return `${parts.join(' ')} later`;
 }
 
