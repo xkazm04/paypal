@@ -130,7 +130,12 @@ fn deal_lines(s: &ForecastSource, ctx: &ForecastContext, out: &mut Vec<ForecastL
     use ForecastTrigger as T;
 
     let horizon_end = ctx.now.saturating_add(ctx.horizon_secs);
-    let seller_until = s.seller_mandate_until.filter(|until| *until > ctx.now);
+    // Authorize and capture call PayPal with the stored sandbox credentials, so without a
+    // payment executor the tick fails on them (scheduler.rs `tick_deal`, pipeline `authorize`),
+    // exactly as the create does. No such step is forecast then.
+    let seller_until = s
+        .seller_mandate_until
+        .filter(|until| *until > ctx.now && ctx.executor_configured);
     // A buyer approval counts only before the deal's deadline and inside the seller-mandate
     // window, because the authorize it triggers runs the gate at the time it lands.
     let buyer_before = seller_until.map(|until| s.deadline.map_or(until, |d| d.min(until)));
@@ -465,7 +470,8 @@ mod tests {
             }
         }
         // (7) No step the pipeline's gate would refuse at the step's time.
-        let seller_open = s.seller_mandate_until.is_some_and(|until| until > c.now);
+        let seller_open =
+            c.executor_configured && s.seller_mandate_until.is_some_and(|until| until > c.now);
         if !s.policy_create_allowed {
             assert!(!has(ForecastAction::CreateOrder), "{s:?}");
         }
@@ -493,6 +499,37 @@ mod tests {
                     && !has(ForecastAction::Capture)
                     && !has(ForecastAction::CreateOrder),
                 "{s:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn without_a_payment_executor_no_authorize_or_capture_is_forecast() {
+        for state in [
+            DealState::AwaitingApproval,
+            DealState::Approved,
+            DealState::Authorized,
+        ] {
+            let mut s = source(Side::Seller, DealKind::ShopOrder, state);
+            s.deadline = Some(NOW + 3600);
+            let on = forecast(std::slice::from_ref(&s), &ctx());
+            assert!(
+                on.iter().any(|l| l.direction == ForecastDirection::In
+                    || l.action == ForecastAction::Authorize),
+                "{state:?}"
+            );
+            let off = ForecastContext {
+                executor_configured: false,
+                ..ctx()
+            };
+            let lines = forecast(&[s], &off);
+            assert!(
+                lines.iter().all(|l| l.direction != ForecastDirection::In
+                    && !matches!(
+                        l.action,
+                        ForecastAction::Authorize | ForecastAction::Capture
+                    )),
+                "{state:?}: {lines:?}"
             );
         }
     }
