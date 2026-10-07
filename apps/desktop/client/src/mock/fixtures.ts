@@ -338,6 +338,14 @@ export function buildMockState(now: number): MockState {
     note('D-0189', 3, 3 * H, 'Approving from my phone later today.'),
   ]);
 
+  // A deal cannot start after its first recorded step: pull created_at back to the history's start
+  // so the deal page's "Deal created" agrees with the Rewind.
+  const history = buildHistory(now);
+  for (const d of deals) {
+    const first = history.find((h) => h.deal_id === d.deal.id);
+    if (first && first.at < (d.deal.created_at ?? now)) d.deal.created_at = first.at;
+  }
+
   // A plausible audit chain for Book: one decision row per decided deal, oldest first. The real
   // chain is longer (every envelope, deadline and preference); the projection is the same.
   const audit: AuditRow[] = [];
@@ -355,7 +363,7 @@ export function buildMockState(now: number): MockState {
   return {
     notes,
     audit,
-    history: buildHistory(now),
+    history,
     credentialsStoredAt: { paypal_sandbox: now - 12 * 86400, channel3: null },
     lastReportingPoll: { at: now - 40 * 60, status: 200 },
     enginesProbedAt: now - 300,
