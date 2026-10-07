@@ -1,6 +1,7 @@
 import type { Currency } from '@bindings/Currency';
 import type { Money } from '@bindings/Money';
 import type { H256 } from '@bindings/H256';
+import { clockNow } from './clock';
 
 /** Minor-unit exponents, matching the Rust Currency table. Money never touches floats in Rust;
  *  the client only formats it for display. */
@@ -78,6 +79,7 @@ export function clockLabel(unix: number): string {
   return `${day} ${t}`;
 }
 
+/** Unix seconds from the one client clock (wall time in the shell; see lib/clock.ts). */
 export function nowUnix(): number {
-  return Math.floor(Date.now() / 1000);
+  return clockNow();
 }

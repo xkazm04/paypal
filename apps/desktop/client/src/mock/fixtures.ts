@@ -76,6 +76,8 @@ export type MockState = {
   lastReportingPoll?: { at: number; status: number } | null;
   enginesProbedAt?: number;
   engines: EngineInfo[];
+  /** Preview director only: a deal's full record, kept aside while it is shown part-way (MockWorld.rewind). */
+  stash?: Record<string, MockDeal>;
   runs: RunSnapshot[];
   stoppedToday: number;
   inMotion: number;
@@ -199,7 +201,7 @@ export function buildMockState(now: number): MockState {
   add({
     label: 'D-0199', title: 'Refurbished 27-inch QHD monitor', kind: 'haggle', side: 'buyer', cp: KEY.dan, item: 'monitor-27-qhd', price: 329, state: 'MISMATCH', shield: 'HOLD',
     decided: { type: 'human', at: now - 5 * H + 900 }, // $329 is over clause 6: the owner accepted
-    market: [268, 284, 297], silence: 'nothing is paid · the seller’s SETTLE did not match the signed deal', mandate: MANDATE_M14,
+    market: [268, 284, 297], silence: 'nothing is paid · the payment request did not match the agreed deal', mandate: MANDATE_M14,
     transcript: [
       { seq: 1, by: 'them', typ: 'LISTING', price: usd(349), at: now - 5 * H, verified: true },
       { seq: 2, by: 'you', typ: 'OFFER', price: usd(315), at: now - 5 * H + 300, verified: true },

@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import type { EngineId } from '@bindings/EngineId';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
-import { clockLabel } from '../../../lib/format';
+import { clockLabel, nowUnix } from '../../../lib/format';
 import { rulesName } from '../../../lib/words';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import { ModeBadge, RunBadge, WalletNotice } from '../../../shared/honesty';
@@ -46,7 +46,7 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
   const facts = useQuery('owner_facts', null, { refreshOn: ['settings:changed', 'agent:changed'] });
   const f = facts.data;
   const factsAt = useRef<number>(0);
-  useEffect(() => { if (f) factsAt.current = Math.floor(Date.now() / 1000); }, [f]);
+  useEffect(() => { if (f) factsAt.current = nowUnix(); }, [f]);
   const mandates = useQuery('mandate_list', null, { refreshOn: ['settings:changed'] });
   const select = useMutation('engine_select');
   const pause = useMutation('pause_all_agents');

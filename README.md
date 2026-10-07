@@ -19,6 +19,16 @@ warnings denied, and the complete offline test suite, keeping caches and tempora
 repository. On Linux the equivalent checks are `cargo fmt --all --check`,
 `cargo clippy --workspace --all-targets -- -D warnings`, and `cargo test --workspace`.
 
+### Watch it work without installing anything
+
+`pnpm --dir apps/desktop/client install && pnpm --dir apps/desktop/client dev`, then open
+`http://localhost:1430/director.html`. "Maya's week" plays all three windows (The Table, the
+Tumbler and the approval window) side by side on sample data with a simulated clock: a haggle that
+needs her, a deadline that passes with no money moved, a payment request that does not match, and
+a hold that releases itself while The Table is closed. It is a browser preview, never the wallet:
+no PayPal page is shown and nothing it does can approve or move money. A static build
+(`pnpm --dir apps/desktop/client build`, then serve `apps/desktop/client/dist`) works the same.
+
 ## Implementation documentation
 
 | Document | What it is |

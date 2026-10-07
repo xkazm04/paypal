@@ -6,12 +6,15 @@ import { Tumbler } from './Tumbler';
 // preview stage. The stage is a separate, lazily loaded module: the shell renders only the
 // Tumbler and never loads the preview code.
 const Preview = lazy(() => import('./preview/Preview'));
+// The scenario director (director.html) frames the bare Tumbler in a corner of its desktop.
+const Framed = lazy(() => import('./preview/Framed'));
 
 export function App() {
   if (backend().kind === 'mock') {
+    const framed = new URLSearchParams(location.search).get('frame') === 'director';
     return (
       <Suspense fallback={null}>
-        <Preview />
+        {framed ? <Framed /> : <Preview />}
       </Suspense>
     );
   }
