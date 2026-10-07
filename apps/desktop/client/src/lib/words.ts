@@ -211,6 +211,7 @@ export function headlineWords(h: string): string {
 const SILENCE_EXACT: Readonly<Record<string, string>> = {
   'authorization auto-voids at the deadline; no capture': 'the hold releases itself at the deadline, nothing is paid',
   'the offer or order lapses at the deadline; no money moves': 'the offer lapses at the deadline, no money moves',
+  'Deadline or safe decision completed; no capture was made': 'the deadline passed, nothing was paid',
 };
 /** The core's default-on-silence sentence, in plain words where it is a known phrase. */
 export const silenceWords = (s: string): string => SILENCE_EXACT[s] ?? s.replace(/\bauto-void\b/g, 'auto-release');

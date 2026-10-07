@@ -17,6 +17,7 @@ import type { WindowSide } from '@bindings/WindowSide';
 import { toWalletError, type WalletError } from '../../lib/contract';
 import { useEvent, useNow, usePrefersReducedMotion, useQuery } from '../../lib/hooks';
 import { backend } from '../../lib/runtime';
+import { nowUnix } from '../../lib/format';
 import { PuckArt } from './Puck';
 import { CardForm, HandoffForm, StackForm, TabForm, TickerForm, WelcomeForm } from './forms';
 import {
@@ -360,14 +361,14 @@ export function Tumbler() {
   // Rust owns the snooze (deal_snooze: GATE, deadline > 45 min, 30 min, persisted); the page
   // pre-filters with the same rule and then only reflects the next snapshot, where the item is gone.
   const snooze = useCallback(async (it: AttentionItem) => {
-    if (!snoozeEligible(it, Math.floor(Date.now() / 1000))) return;
+    if (!snoozeEligible(it, nowUnix())) return;
     setSnoozing(it.deal_id);
     // hold the card on this item while Rust's next snapshot drops it, until the ticker takes over
     if (ack.current) clearTimeout(ack.current.timer);
     ack.current = { dealId: it.deal_id, timer: setTimeout(() => (ack.current = null), ACK_MS) };
     try {
       await backend().invoke('deal_snooze', { deal_id: it.deal_id });
-      pushTicker(snoozeTicker(it, Math.floor(Date.now() / 1000) + SECONDS.snooze), true);
+      pushTicker(snoozeTicker(it, nowUnix() + SECONDS.snooze), true);
       void refetchAttention();
     } catch (e) {
       if (ack.current?.dealId === it.deal_id) {

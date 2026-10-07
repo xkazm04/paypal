@@ -13,12 +13,18 @@ import type { Deal } from '@bindings/Deal';
 import type { DealState } from '@bindings/DealState';
 import type { EventContract } from '@bindings/EventContract';
 import type { Form } from '@bindings/Form';
+import type { SettingsSnapshot } from '@bindings/SettingsSnapshot';
+import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import type { ArgsOf, Backend, CommandName, EventName, InvokeOptions, PayloadOf, ResultOf, WindowLabel } from '../lib/contract';
 import { WalletError } from '../lib/contract';
+import { clockOffset, setClockOffset, simulateClock } from '../lib/clock';
 import { nowUnix } from '../lib/format';
-import { buildMockState, fakeHash, fakeUlid, type MockState } from './fixtures';
+import { buildMockState, fakeHash, fakeUlid, type MockDeal, type MockState } from './fixtures';
 
-type Envelope = { kind: 'event'; event: EventName; targets: WindowLabel[]; payload: unknown } | { kind: 'state'; state: MockState };
+type Envelope =
+  | { kind: 'event'; event: EventName; targets: WindowLabel[]; payload: unknown }
+  | { kind: 'state'; state: MockState }
+  | { kind: 'clock'; offset: number };
 
 const TARGETS: Record<EventName, WindowLabel[]> = {
   'tumbler:handoff': ['tumbler'],
@@ -40,6 +46,60 @@ const TARGETS: Record<EventName, WindowLabel[]> = {
 
 export const STORE_KEY = 'the-table-mock-state-v5'; // v5: wave-0 port-gap facts (decided_by, …)
 const DEGRADE_KEY = 'the-table-mock-degrade';
+/** The preview clock's offset from wall time, shared by every mock window of this origin. */
+export const CLOCK_KEY = 'the-table-mock-clock';
+const CHANNEL = 'the-table-mock';
+
+function storedOffset(): number {
+  try {
+    const v = Number(localStorage.getItem(CLOCK_KEY) ?? 0);
+    return Number.isFinite(v) ? Math.trunc(v) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** Rust's deadline default per state (table-core `transition` with Deadline / AutoVoid): an
+ *  authorization auto-voids, anything not yet at PayPal is withdrawn, an unapproved order expires.
+ *  Never a capture. */
+const ON_DEADLINE: Partial<Record<DealState, DealState>> = {
+  PAIRING: 'WITHDRAWN', LISTED: 'WITHDRAWN', NEGOTIATING: 'WITHDRAWN', AGREED: 'WITHDRAWN',
+  SETTLING: 'EXPIRED', AWAITING_APPROVAL: 'EXPIRED', APPROVED: 'EXPIRED',
+  AUTHORIZED: 'AUTO_VOIDED',
+};
+/** The sentence the shell's event loop sends with a deadline's terminal state. */
+const DEADLINE_SILENCE = 'Deadline or safe decision completed; no capture was made';
+
+/**
+ * Browser preview only: the scenario director's (and the Tumbler preview stage's) handle on the
+ * mock world. It moves the shared clock and replays a deal's signed steps the way the core would
+ * record them. It has no money operation: nothing here approves, captures or pays, and the only
+ * transitions it makes on its own are the deadline defaults above.
+ */
+export interface MockWorld {
+  /** A deal by its display label ("D-0193"). */
+  deal(label: string): MockDeal | undefined;
+  attention(): AttentionSnapshot;
+  settings(): SettingsSnapshot;
+  /** Set the shared preview clock (seconds ahead of wall time) in every mock window. */
+  setOffset(seconds: number): void;
+  /** Move the shared clock forward, then let every deadline that passed take its safe default. */
+  advance(seconds: number): string[];
+  /** Apply the safe default to every deadline that has passed; returns the labels that lapsed. */
+  sweep(): string[];
+  /**
+   * Show a deal as it stood after its first `upTo` signed steps (the full record is kept aside and
+   * comes back once `upTo` reaches its end). `interim` is the state and check verdict before then.
+   */
+  rewind(label: string, upTo: number, interim?: { state: DealState; shield: ShieldVerdict | null }): void;
+  /** Fresh sample data, sent to every mock window: on the wall clock, or with the shared clock set
+   *  so the week starts at `at` (Unix seconds; the director starts Maya's afternoon at 14:02). */
+  reset(at?: number): void;
+  /** Send a Rust-shaped event from this world to its target windows. */
+  emit<E extends EventName>(event: E, payload: EventContract[E]): void;
+}
+
+export type MockBackend = Backend & { readonly world: MockWorld };
 const FORM_SIZE: Record<Form, [number, number]> = { rest: [88, 88], tab: [28, 96], ticker: [420, 88], card: [460, 320], stack: [460, 560], handoff: [460, 200], welcome: [460, 380] };
 
 /** Optional compatibility preview for an older shell without the safe projections. */
@@ -78,9 +138,12 @@ function fail(code: WalletError['code'], message: string): never {
   throw new WalletError({ code, message });
 }
 
-export function mockBackend(label: WindowLabel): Backend {
-  const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('the-table-mock') : null;
+export function mockBackend(label: WindowLabel): MockBackend {
+  const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(CHANNEL) : null;
   const listeners = new Map<EventName, Set<(p: unknown) => void>>();
+  // The preview clock: every mock window reads the same offset (storage on load, the channel after).
+  simulateClock();
+  setClockOffset(storedOffset());
   let state: MockState = load() ?? buildMockState(nowUnix());
   let lastPrivileged = nowUnix();
   let form: Form = state.settings.preferences.form;
@@ -115,6 +178,7 @@ export function mockBackend(label: WindowLabel): Backend {
   channel?.addEventListener('message', (m: MessageEvent<Envelope>) => {
     const env = m.data;
     if (env.kind === 'state') state = env.state;
+    else if (env.kind === 'clock') setClockOffset(env.offset);
     else if (env.targets.includes(label)) deliver(env.event, env.payload);
   });
 
@@ -711,6 +775,81 @@ export function mockBackend(label: WindowLabel): Backend {
     },
   };
 
+  // ---- the preview world (director and preview stage only; no money operation) ----------------
+  const byLabel = (l: string) => state.deals.find((d) => d.display.label === l);
+  function setOffset(seconds: number): void {
+    setClockOffset(seconds);
+    try {
+      localStorage.setItem(CLOCK_KEY, String(clockOffset()));
+    } catch {
+      /* storage blocked: the channel still carries it to open windows */
+    }
+    channel?.postMessage({ kind: 'clock', offset: clockOffset() } satisfies Envelope);
+  }
+  function sweep(): string[] {
+    const now = nowUnix();
+    const lapsed: MockDeal[] = [];
+    for (const d of state.deals) {
+      const due = d.display.deadline;
+      const to = ON_DEADLINE[d.deal.state];
+      if (due === null || due > now || !to) continue;
+      const from = d.deal.state;
+      d.deal = { ...d.deal, state: to, updated_at: now, decided_by: { type: 'safe_default', deadline: due } };
+      d.attention = null;
+      const audit = state.audit ?? [];
+      state.audit = [...audit, { seq: audit.length + 1, at: now, actor: 'policy', action: 'deal.transition', deal_id: d.deal.id, decided_by: d.deal.decided_by ?? null, from, to }];
+      lapsed.push(d);
+    }
+    if (lapsed.length) save();
+    for (const d of lapsed) {
+      emit('deal:changed', { deal: d.deal, mode: d.deal.mode });
+      emit('receipt:created', { deal_id: d.deal.id, evidence: d.evidence, mode: d.deal.mode, state: d.deal.state, on_silence: DEADLINE_SILENCE });
+    }
+    emit('attention:changed', attention());
+    return lapsed.map((d) => d.display.label);
+  }
+  const world: MockWorld = {
+    deal: byLabel,
+    attention,
+    settings: () => ({ ...state.settings, locked: isLocked() }),
+    setOffset,
+    advance(seconds) {
+      if (seconds > 0) setOffset(clockOffset() + Math.trunc(seconds));
+      return sweep();
+    },
+    sweep,
+    rewind(l, upTo, interim) {
+      const d = byLabel(l) ?? fail('NOT_FOUND', `no deal ${l}`);
+      const stash = (state.stash ??= {});
+      const orig = (stash[l] ??= JSON.parse(JSON.stringify(d)) as MockDeal);
+      const steps = orig.transcript.filter((t) => t.seq <= upTo);
+      const full = steps.length >= orig.transcript.length;
+      const priced = steps.filter((t) => t.price && t.typ !== 'SETTLE');
+      const price = full ? orig.deal.terms.unit_price : priced[priced.length - 1]?.price ?? orig.deal.terms.unit_price;
+      d.transcript = steps;
+      d.deal = {
+        ...d.deal,
+        state: full ? orig.deal.state : interim?.state ?? orig.deal.state,
+        shield: full ? orig.deal.shield : interim ? interim.shield : orig.deal.shield,
+        terms: { ...d.deal.terms, unit_price: price },
+        transcript_head: fakeHash(`${l}:head:${steps.length}`),
+        updated_at: nowUnix(),
+      };
+      if (d.display.band) d.display = { ...d.display, band: { ...d.display.band, rounds_used: steps.filter((t) => t.by === 'you' && (t.typ === 'OFFER' || t.typ === 'COUNTER')).length } };
+      d.attention = full ? orig.attention : null;
+      save();
+      emit('deal:changed', { deal: d.deal, mode: d.deal.mode });
+      emit('attention:changed', attention());
+    },
+    reset(at) {
+      setOffset(at === undefined ? 0 : at - (nowUnix() - clockOffset()));
+      state = buildMockState(nowUnix());
+      lastPrivileged = nowUnix();
+      save();
+    },
+    emit,
+  };
+
   // The approval window gets its summary pushed shortly after it opens, as the shell does.
   if (label === 'approval' && selected) {
     setTimeout(() => {
@@ -726,6 +865,7 @@ export function mockBackend(label: WindowLabel): Backend {
   return {
     kind: 'mock',
     label,
+    world,
     async invoke<K extends CommandName>(cmd: K, args: ArgsOf<K>, opts?: InvokeOptions): Promise<ResultOf<K>> {
       await new Promise((r) => setTimeout(r, 40)); // IPC is async; keep the UI honest about it
       if (!GATES[cmd].includes(label)) fail('PERMISSION', `${cmd} is not available to ${label}`);
@@ -747,10 +887,15 @@ export function mockBackend(label: WindowLabel): Backend {
 /** Inject a Rust-shaped event into every open mock window (preview controls only). */
 export function mockInject<E extends EventName>(event: E, payload: EventContract[E]): void {
   const env: Envelope = { kind: 'event', event, targets: TARGETS[event], payload };
-  new BroadcastChannel('the-table-mock').postMessage(env);
+  new BroadcastChannel(CHANNEL).postMessage(env);
 }
 
 /** Reset the shared mock world (used by the preview's "reset sample data" control). */
 export function resetMockState(): void {
-  localStorage.removeItem(STORE_KEY);
+  try {
+    localStorage.removeItem(STORE_KEY);
+    localStorage.removeItem(CLOCK_KEY);
+  } catch {
+    /* storage blocked: nothing was stored either */
+  }
 }
