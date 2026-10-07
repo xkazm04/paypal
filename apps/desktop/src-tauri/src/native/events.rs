@@ -68,6 +68,22 @@ pub(super) fn request_quit(app: &AppHandle) {
         }
     });
 }
+/// Shows each failure streak once: the same fault again is dropped until a good attention read
+/// ends the streak.
+#[derive(Default)]
+struct FaultDedupe(Option<String>);
+impl FaultDedupe {
+    fn is_new(&mut self, encoded: String) -> bool {
+        if self.0.as_ref() == Some(&encoded) {
+            return false;
+        }
+        self.0 = Some(encoded);
+        true
+    }
+    fn clear(&mut self) {
+        self.0 = None;
+    }
+}
 pub(super) async fn produce(
     app: AppHandle,
     mut events: tokio::sync::broadcast::Receiver<WalletEvent>,
@@ -77,7 +93,7 @@ pub(super) async fn produce(
     let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
     let mut visual_previous = None;
     let mut first_run_previous = None;
-    let mut fault_previous = None;
+    let mut fault_previous = FaultDedupe::default();
     loop {
         let event = tokio::select! {event=events.recv()=>match event{
             Ok(event)=>event,
@@ -122,10 +138,10 @@ pub(super) async fn produce(
             }
             WalletEvent::Fault(error) => {
                 if let Ok(encoded) = serde_json::to_string(&error)
-                    && fault_previous.as_ref() != Some(&encoded)
+                    && fault_previous.is_new(encoded)
                 {
-                    fault_previous = Some(encoded);
-                    let _ = app.emit_to("main", "wallet:error", error);
+                    let _ = app.emit_to("main", "wallet:error", &error);
+                    let _ = app.emit_to("tumbler", "wallet:error", error);
                 }
             }
             WalletEvent::Settings(settings) => {
@@ -156,6 +172,8 @@ pub(super) async fn produce(
                 let _ = app.emit_to("approval", "settings:changed", settings);
             }
             WalletEvent::Attention(data) => {
+                // A good read ends the failure streak: the next one is shown again.
+                fault_previous.clear();
                 let preferences = state
                     .surface
                     .lock()
@@ -384,5 +402,24 @@ mod notify_tests {
         .await;
         assert_eq!(shown, None);
         assert!(!released.get());
+    }
+}
+
+#[cfg(test)]
+mod fault_tests {
+    use super::FaultDedupe;
+
+    #[test]
+    fn each_failure_streak_is_shown_once() {
+        let mut fault = FaultDedupe::default();
+        assert!(fault.is_new("unavailable".into()));
+        assert!(!fault.is_new("unavailable".into()));
+        // A different fault is a new event.
+        assert!(fault.is_new("permission".into()));
+        assert!(fault.is_new("unavailable".into()));
+        // A good attention read ends the streak, so the same fault shows again.
+        fault.clear();
+        assert!(fault.is_new("unavailable".into()));
+        assert!(!fault.is_new("unavailable".into()));
     }
 }
