@@ -1745,7 +1745,7 @@ impl Ledger {
             return Err(LedgerError::Conflict);
         }
         tx.execute("INSERT INTO receipts(deal_id,capture_id,amount_minor,issuer_key,raw_jws,transcript_head,verified_at) VALUES (?1,?2,?3,?4,?5,?6,?7)",params![e.deal_id.to_string(),capture_id.as_str(),amount.minor(),e.iss.as_str(),verified.raw(),&transcript_head.0[..],at.to_string()])?;
-        tx.execute("UPDATE deals SET receipt_evidence='paypal_verified',reconciliation='pending_reporting' WHERE id=?1 AND side='seller' AND EXISTS(SELECT 1 FROM operations WHERE deal_id=?1 AND operation='capture' AND status='confirmed')",[e.deal_id.to_string()])?;
+        tx.execute("UPDATE deals SET receipt_evidence='paypal_verified',reconciliation='pending_reporting' WHERE id=?1 AND side='seller' AND EXISTS(SELECT 1 FROM operations o WHERE o.deal_id=?1 AND o.operation='capture' AND (o.status='confirmed' OR EXISTS(SELECT 1 FROM operation_resolutions r WHERE r.request_id=o.request_id AND r.outcome='confirmed')))",[e.deal_id.to_string()])?;
         audit::append(
             &tx,
             &AuditEntry {
