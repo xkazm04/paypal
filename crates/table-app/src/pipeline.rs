@@ -18,6 +18,26 @@ pub enum MoneyStep {
     Authorize,
     Capture,
 }
+/// The scam shield's gate on a money step, shared by `create`, `authorize`, `capture` and
+/// [`Pipeline::step_allowed`] so their copies cannot drift. HOLD and BLOCK stop every step under
+/// every authority. ASK passes the owner's decision and the house release everywhere, and the
+/// seller mandate only on authorize and capture: `authority()` grants that mandate only on a
+/// seller deal whose order the buyer already approved at PayPal, and receiving money on it
+/// needs no click (acceptance H5). Every other ASK, including the seller's create on policy,
+/// still waits for the owner.
+fn shield_allows(shield: ShieldVerdict, decision: &DecidedBy, step: MoneyStep) -> bool {
+    match shield {
+        ShieldVerdict::Clear => true,
+        ShieldVerdict::Ask => match decision {
+            DecidedBy::Human { .. } | DecidedBy::HouseMandate { .. } => true,
+            DecidedBy::SellerMandate { .. } => {
+                matches!(step, MoneyStep::Authorize | MoneyStep::Capture)
+            }
+            DecidedBy::Policy { .. } | DecidedBy::SafeDefault { .. } => false,
+        },
+        ShieldVerdict::Hold | ShieldVerdict::Block => false,
+    }
+}
 pub struct Pipeline {
     pub wallet: Wallet,
     pub approval: ApprovalSession,
@@ -421,14 +441,7 @@ impl Pipeline {
         };
         let gate = (|| -> Result<bool, Error> {
             let decision = self.authority(&deal, category, authority, attempt, now)?;
-            let shield = self.shield(&deal, now)?;
-            if shield >= ShieldVerdict::Hold
-                || (shield == ShieldVerdict::Ask
-                    && !matches!(
-                        decision,
-                        DecidedBy::Human { .. } | DecidedBy::HouseMandate { .. }
-                    ))
-            {
+            if !shield_allows(self.shield(&deal, now)?, &decision, step) {
                 return Ok(false);
             }
             match step {
@@ -529,14 +542,7 @@ impl Pipeline {
             return Err(Error::Permission);
         }
         let decision = self.authority(&deal, category, authority, attempt, now)?;
-        let shield = self.shield(&deal, now)?;
-        if shield >= ShieldVerdict::Hold
-            || (shield == ShieldVerdict::Ask
-                && !matches!(
-                    decision,
-                    DecidedBy::Human { .. } | DecidedBy::HouseMandate { .. }
-                ))
-        {
+        if !shield_allows(self.shield(&deal, now)?, &decision, MoneyStep::Create) {
             return Err(Error::Permission);
         }
         let expected = self.expected(&deal, attempt)?;
@@ -692,14 +698,7 @@ impl Pipeline {
             return Err(Error::Permission);
         }
         let decision = self.authority(&deal, category, authority, attempt, now)?;
-        let shield = self.shield(&deal, now)?;
-        if shield >= ShieldVerdict::Hold
-            || (shield == ShieldVerdict::Ask
-                && !matches!(
-                    decision,
-                    DecidedBy::Human { .. } | DecidedBy::HouseMandate { .. }
-                ))
-        {
+        if !shield_allows(self.shield(&deal, now)?, &decision, MoneyStep::Authorize) {
             return Err(Error::Permission);
         }
         self.countersign(&deal, attempt, &decision, now)?;
@@ -785,14 +784,7 @@ impl Pipeline {
             return Err(Error::Permission);
         }
         let decision = self.authority(&deal, category, authority, attempt, now)?;
-        let shield = self.shield(&deal, now)?;
-        if shield >= ShieldVerdict::Hold
-            || (shield == ShieldVerdict::Ask
-                && !matches!(
-                    decision,
-                    DecidedBy::Human { .. } | DecidedBy::HouseMandate { .. }
-                ))
-        {
+        if !shield_allows(self.shield(&deal, now)?, &decision, MoneyStep::Capture) {
             return Err(Error::Permission);
         }
         let deadline = self.wallet.ledger.deadline(id)?.ok_or(Error::Invalid)?;
