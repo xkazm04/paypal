@@ -10,6 +10,11 @@ const EXPONENT: Record<Currency, number> = {
 };
 const SYMBOL: Partial<Record<Currency, string>> = { USD: '$', EUR: '€', GBP: '£' };
 
+/** "$" for currencies with a familiar symbol, else the ISO code ("CHF"). */
+export function currencyMark(c: Currency): string {
+  return SYMBOL[c] ?? c;
+}
+
 export function exponent(c: Currency): number {
   return EXPONENT[c];
 }
