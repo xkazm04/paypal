@@ -29,6 +29,7 @@ import type { MandatePayload } from '@bindings/MandatePayload';
 import type { SimulatedLine } from '@bindings/SimulatedLine';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import { mockCheck, mockValidate, type MockIntent } from './simulate';
+import { mockEnvelopeRefusal, mockExposureView } from './exposure';
 
 type Envelope =
   | { kind: 'event'; event: EventName; targets: WindowLabel[]; payload: unknown }
@@ -53,7 +54,7 @@ const TARGETS: Record<EventName, WindowLabel[]> = {
   'pairing:pinned': ['main'],
 };
 
-export const STORE_KEY = 'the-table-mock-state-v8'; // v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
+export const STORE_KEY = 'the-table-mock-state-v9'; // v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
 const DEGRADE_KEY = 'the-table-mock-degrade';
 /** The preview clock's offset from wall time, shared by every mock window of this origin. */
 export const CLOCK_KEY = 'the-table-mock-clock';
@@ -142,6 +143,7 @@ const GATES: Record<CommandName, WindowLabel[]> = {
   open_paypal_in_browser: ['approval'], set_credentials: ['approval'], mandate_sign: ['approval'], mandate_revoke: ['approval'],
   band_set: ['approval'], pairing_confirm: ['approval'], deal_create: ['approval'], deal_join: ['approval'],
   mandate_simulate: ['approval'],
+  envelope_sign: ['approval'], envelope_get: ALL,
 };
 
 function fail(code: WalletError['code'], message: string): never {
@@ -284,6 +286,10 @@ export function mockBackend(label: WindowLabel): MockBackend {
         if (t !== 'deal' || !dealId || find(dealId).deal.kind !== 'rescue') fail('INVALID', 'a lever draft needs a rescue deal');
     }
   }
+  // ?limits=none previews a wallet with no limits signed (the fixtures sign Maya's).
+  const limitsNone = params.get('limits') === 'none';
+  const envelope = () => (limitsNone ? null : state.envelope ?? null);
+  const exposureView = () => mockExposureView(state.deals.map((d) => d.deal), envelope(), nowUnix());
   const attention = (): AttentionSnapshot => {
     const items = state.deals
       .map((d) => d.attention)
@@ -295,6 +301,8 @@ export function mockBackend(label: WindowLabel): MockBackend {
         return { ...a, urgency: left <= 15 * 60 ? ('now' as const) : left <= 2 * 3600 ? ('soon' as const) : ('calm' as const) };
       })
       .sort((x, y) => (x.deadline ?? Infinity) - (y.deadline ?? Infinity));
+    const exposure = exposureView();
+    const rows = exposure.currencies;
     return {
       items,
       stopped_today: state.stoppedToday,
@@ -304,6 +312,9 @@ export function mockBackend(label: WindowLabel): MockBackend {
       engine_estimate_today_usd: state.engineEstimateTodayUsd,
       locked: isLocked(),
       forecast: forecast(),
+      exposure,
+      // As Rust: the day's money out from the fold when it is in one currency; mixed is not summed.
+      ...(rows.length === 1 ? { wallet_spend_today_minor: rows[0]!.out_today.minor, wallet_spend_today_currency: rows[0]!.currency } : rows.length > 1 ? { wallet_spend_today_currency: null } : {}),
     };
   };
   // ?forecast=off previews a shell whose forecast read failed (the snapshot then carries none).
@@ -335,6 +346,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
     const checks = mockChecks({
       deal: d.deal, transcript: d.transcript, counterparty: state.counterparties.find((c) => c.key_id === d.deal.counterparty),
       mandate: activeMandate(d.deal.mandate_id), spentTodayMinor, now: nowUnix(),
+      limitRefusal: mockEnvelopeRefusal(state.deals.map((o) => o.deal), d.deal, envelope(), nowUnix()),
     });
     return { checks, checks_hash: mockChecksHash(checks) };
   }
@@ -893,6 +905,23 @@ export function mockBackend(label: WindowLabel): MockBackend {
       lines.sort((a, b) => a.at - b.at || a.label.localeCompare(b.label));
       return { from: start, to: end, lines, not_simulated: notSimulated };
     },
+    // As Runtime::sign_envelope: privileged like mandate_sign; an unusable limit set is REFUSED.
+    envelope_sign: (args, opts) => {
+      privileged(opts);
+      const now = nowUnix();
+      const bad = args.max_out_day.currency !== args.currency || args.max_held.currency !== args.currency ? 'currency differs across wallet limits'
+        : args.max_out_day.minor <= 0 || args.max_held.minor <= 0 || args.max_deals_day <= 0 ? 'a wallet limit of zero allows nothing'
+          : args.expires <= now ? 'expires: the wallet limits would already have run out' : null;
+      if (bad) fail('REFUSED', `wallet limit ${bad}`);
+      const version = (state.envelope?.payload.version ?? 0) + 1;
+      const payload = { version, currency: args.currency, max_out_day: args.max_out_day, max_held: args.max_held, max_deals_day: args.max_deals_day, expires: args.expires };
+      state.envelope = { payload, signedAt: now };
+      save();
+      emit('attention:changed', attention());
+      return { payload, owner_sig: Array.from(fakeHash(`limits:${version}`)) };
+    },
+    // As Runtime::envelope_view: limits and numbers only, every window.
+    envelope_get: () => exposureView(),
   };
 
   // ---- the preview world (director and preview stage only; no money operation) ----------------

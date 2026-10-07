@@ -95,11 +95,19 @@ pub struct OpenMandate {
 }
 
 #[derive(ts_rs::TS, Debug, Error, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[error("mandate clause {clause}: {reason}")]
+#[error("{}", refusal_text(*.clause, .reason))]
 #[serde(deny_unknown_fields)]
 pub struct Refusal {
     pub clause: u8,
     pub reason: String,
+}
+/// A mandate clause names itself; clause 0 is the wallet-wide limits (`ENVELOPE_CLAUSE`).
+fn refusal_text(clause: u8, reason: &str) -> String {
+    if clause == crate::ENVELOPE_CLAUSE {
+        format!("wallet limit {reason}")
+    } else {
+        format!("mandate clause {clause}: {reason}")
+    }
 }
 impl Refusal {
     fn new(clause: u8, reason: impl Into<String>) -> Self {

@@ -510,3 +510,19 @@ pub(super) async fn mandate_simulate(
 ) -> Result<MandateSimulation, CommandError> {
     ask(&window, &state, None, Action::Simulate(args)).await
 }
+#[tauri::command]
+pub(super) async fn envelope_sign(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    request: tauri::ipc::Request<'_>,
+    args: EnvelopeSignArgs,
+) -> Result<table_core::SignedEnvelope, CommandError> {
+    ask(&window, &state, Some(&request), Action::EnvelopeSign(args)).await
+}
+#[tauri::command]
+pub(super) async fn envelope_get(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+) -> Result<table_core::ExposureView, CommandError> {
+    ask(&window, &state, None, Action::EnvelopeGet).await
+}

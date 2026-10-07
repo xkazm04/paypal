@@ -41,6 +41,7 @@
     "allow-book-query",
     "allow-deal-export-proof",
     "allow-proof-check",
-    "allow-deal-history"
+    "allow-deal-history",
+    "allow-envelope-get"
   ]
 }

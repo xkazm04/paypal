@@ -68,6 +68,8 @@ pub enum Action {
     ExportProof(DealId),
     DealHistory(DealHistoryArgs),
     Simulate(MandateSimulateArgs),
+    EnvelopeSign(EnvelopeSignArgs),
+    EnvelopeGet,
 }
 pub struct Caller {
     pub label: String,

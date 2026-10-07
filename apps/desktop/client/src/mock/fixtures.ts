@@ -24,6 +24,7 @@ import type { CounterpartyNote } from '@bindings/CounterpartyNote';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import type { CounterpartyDisplay, DealDisplay, TranscriptStep } from '../lib/pending';
 import { MONEY_CHECK_SILENCE } from '../lib/words';
+import type { MockEnvelope } from './exposure';
 
 export const USD: Currency = 'USD';
 export const usd = (dollars: number): Money => ({ minor: Math.round(dollars * 100), currency: USD });
@@ -92,6 +93,8 @@ export type MockState = {
   /** The category each deal was created with (the ledger's deal_context), by deal id. A deal
    *  without one cannot be replayed by mandate_simulate and shows as not checked. */
   categories?: Record<string, Category>;
+  /** The newest signed wallet limits (T14); null = none signed. `forged` previews a row that fails verification. */
+  envelope?: MockEnvelope | null;
 };
 
 // One mandate per role, as Rust requires: a band clause refuses every item outside it, a mandate
@@ -443,6 +446,9 @@ export function buildMockState(now: number): MockState {
     inMotion: 3,
     walletSpendTodayMinor: 34700,
     engineEstimateTodayUsd: 0.42,
+    // Maya's wallet limits: $1,000 out a day, $600 on hold, 6 deals a day. Today's five deals sit near
+    // the deal cap; every decision the fixtures offer still fits (D-0193 at $329 makes $828 out).
+    envelope: { payload: { version: 1, currency: USD, max_out_day: { minor: 100000, currency: USD }, max_held: { minor: 60000, currency: USD }, max_deals_day: 6, expires: now + 30 * 86400 }, signedAt: now - 3 * 86400 },
   };
 }
 

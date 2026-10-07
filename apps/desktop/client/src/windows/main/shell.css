@@ -14,6 +14,7 @@
 .tb-meter.eng { border-left-color: var(--line2); }
 .tb-meter.unknown { border-left-style: dashed; border-left-color: var(--line2); }
 .tb-meter.unknown b { font-family: var(--font); color: var(--muted); }
+.tb-meter.near { border-left-color: var(--gold); } /* today's money out is near the signed wallet limit (T14) */
 .lockbtn .lockg { width: 12px; height: 12px; flex: none; }
 .lockbtn[aria-disabled="true"] { cursor: default; }
 .lockbtn.is-locked { color: var(--gold-l); border-color: color-mix(in srgb, var(--gold) 55%, var(--line2)); background: color-mix(in srgb, var(--gold) 12%, var(--panel2)); }

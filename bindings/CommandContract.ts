@@ -25,6 +25,8 @@ import type { DealJoinArgs } from "./DealJoinArgs";
 import type { DecisionArgs } from "./DecisionArgs";
 import type { EngineInfo } from "./EngineInfo";
 import type { EngineSelectArgs } from "./EngineSelectArgs";
+import type { EnvelopeSignArgs } from "./EnvelopeSignArgs";
+import type { ExposureView } from "./ExposureView";
 import type { FormArgs } from "./FormArgs";
 import type { HouseState } from "./HouseState";
 import type { KeyId } from "./KeyId";
@@ -53,6 +55,7 @@ import type { QuitSummary } from "./QuitSummary";
 import type { ReconcileArgs } from "./ReconcileArgs";
 import type { RunSnapshot } from "./RunSnapshot";
 import type { SettingsSnapshot } from "./SettingsSnapshot";
+import type { SignedEnvelope } from "./SignedEnvelope";
 import type { Snap } from "./Snap";
 import type { TranscriptStep } from "./TranscriptStep";
 import type { TumblerPreferences } from "./TumblerPreferences";
@@ -74,4 +77,12 @@ deal_history: Command<DealHistoryArgs, DealHistory>,
 /**
  * What-if before signing: a draft replayed over recorded deals. Read-only, approval only.
  */
-mandate_simulate: Command<MandateSimulateArgs, MandateSimulation>, };
+mandate_simulate: Command<MandateSimulateArgs, MandateSimulation>, 
+/**
+ * Signs the wallet-wide limits with the owner key (approval window, privileged).
+ */
+envelope_sign: Command<EnvelopeSignArgs, SignedEnvelope>, 
+/**
+ * The wallet-wide limits and live exposure numbers only (main, tumbler, approval).
+ */
+envelope_get: Command<null, ExposureView>, };
