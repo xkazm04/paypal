@@ -242,7 +242,8 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Lost:** withholding parts of the mandate now (T13, post-submission); keeping the command-line
   tool as the only check (not confirmed).
 - **Consequences:** the owner is told what a shared file reveals; the file itself is unchanged.
-- **Evidence:** decided, implementation in flight (run 87d1d32c).
+- **Evidence:** commits 22fdf4a (Check a proof file, in the Book) and 5608341 (the warning before
+  save), on main at a95b80a.
 
 ## 12. The HOUSE health check follows each deal step
 
@@ -276,3 +277,41 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   the operator's ask.
 - **Evidence:** decided, implementation in flight. Recorded in `docs/concepts/moonshot-backlog.md`
   §1a ("Submission cut").
+
+## 14. The hosted HOUSE reads its secrets from named host environment variables
+
+- **Date:** 2026-10-07
+- **Decided by:** the operator (ask 98427ca9, 'Allow it, write it into AGENTS.md')
+- **Constraint:** the HOUSE runs on Render, which has no OS keychain. AGENTS.md put every secret in
+  the keychain, and the council's credential_outside_vault counted any other place as a hard
+  failure. The house-seller-demo council-lite r1 (run 29854007) asked for the exception to be
+  confirmed before the feature's full council.
+- **Decision:** the sentence written into AGENTS.md in the secrets bullet: the hosted HOUSE
+  (`services/house-seller`) reads its signing seeds, its signed mandate and its PayPal sandbox
+  credentials only from named host environment variables, never from files, and they never appear
+  in logs, responses or fixtures.
+- **Lost:** allowing it in DECISIONS.md only, with AGENTS.md unchanged; holding the HOUSE's full
+  council until later.
+- **Consequences:** the full council does not score the named variables as credential_outside_vault.
+  A HOUSE secret in a file, a log, a response or a fixture still fails. The desktop wallet's rule is
+  unchanged.
+- **Evidence:** `services/house-seller/src/environment.rs`, the envVars in `render.yaml`, and this
+  run's AGENTS.md and council config commits (e340c78, 855e8c6).
+
+## 15. A card's 'if you do nothing' line comes from that deal's forecast
+
+- **Date:** 2026-10-07
+- **Decided by:** the App Master
+- **Constraint:** attention-escalation council-lite r2 (run 75df7849, ready 0.70) found that a seller
+  card, and its toast, still say 'no money moves' while the same attention snapshot forecasts a
+  capture. Since H5 (section 9), a seller wallet takes in a payment the buyer already approved,
+  under its signed mandate, with no click. `docs/ux/UX-GUIDE.md` question 3 still reads 'always: no
+  money moves, or a hold is released'.
+- **Decision:** the card's silence line and its toast are worded from that deal's walk-away
+  forecast. A deal whose forecast shows money coming in says so. Every other card keeps 'no money
+  moves' or 'a hold is released'. Money never leaves on silence. UX-GUIDE question 3 changes in the
+  same branch as the code.
+- **Lost:** one fixed, reworded line for every seller card. It would be wrong for seller deals whose
+  forecast shows no money step, and it would be a second source that drifts from the forecast.
+- **Consequences:** the forecast is the one source for what silence does.
+- **Evidence:** decided, not built yet; the attention-escalation rework carries it.
