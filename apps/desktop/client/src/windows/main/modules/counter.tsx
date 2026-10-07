@@ -26,7 +26,7 @@ import { useWorld } from '../world';
 import type { ModuleProps } from './common';
 import { NoteText } from './shield/NoteChip';
 import {
-  buildCatalog, draftFloor, draftImpact, draftState, floorText, fmtShort, matchesFilter, matchesQuery, minorToText, parseMoneyText, scaleOf,
+  buildCatalog, currencyMark, draftFloor, draftImpact, draftState, floorText, fmtShort, matchesFilter, matchesQuery, minorToText, parseMoneyText, scaleOf,
   sellerMandates, stepFloor, underDraft, vsMarket, type CatalogFilter, type CatalogRow, type FloorDraft, type Impact,
 } from './counter/model';
 import './counter.css';
@@ -38,6 +38,7 @@ const stateText = (d: Deal) => stateWord(d.state, { side: d.side, kind: d.kind }
 /** Shop rules are one signed seller mandate: Layer 1 names it, the id and version stay in tooltips. */
 const mandateTip = (m: MandateListEntry) => `Shop rules, version ${m.payload.version} · ${shortId(m.payload.id)}`;
 const UNK_CATALOG = 'Your shop’s catalog is not connected yet, so list price, stock and listing details are not known here. Nothing is guessed.';
+const CODE_ONLY = 'The item code from your shop rules. Its name shows once an order names it or your catalog is connected.';
 
 const HOW_COUNTER: readonly ExplainerStep[] = [
   { icon: 'store', title: 'Agents shop here', text: 'Other people’s agents place orders at your shop.' },
@@ -187,7 +188,7 @@ export function Counter({ deals, nav }: ModuleProps) {
             const disp = w.display(d);
             const t = dealTotal(d);
             return (
-              <Row key={d.id} className="past" id={disp.label} selected={sel?.kind === 'deal' && sel.id === d.id} onOpen={() => select('deal', d.id)}
+              <Row key={d.id} className="past" id={detailed ? disp.label : undefined} selected={sel?.kind === 'deal' && sel.id === d.id} onOpen={() => select('deal', d.id)}
                 title={<>{disp.title} · <span className="cp">{cp(d.counterparty).name}</span>{d.updated_at ? <span className="dim"> · {clockLabel(d.updated_at)}</span> : null}</>}>
                 {d.mode !== 'sandbox' ? <ModeBadge mode={d.mode} /> : null}
                 <Chip tone={TONE[chipClass(d)]}>{stateText(d)}</Chip>
@@ -287,7 +288,7 @@ function OrderCard({ deal, cpName, now, selected, withdraws, onOpen }: { deal: D
       <div className="o-top">
         <div className="o-what">
           <span className="o-title">{disp.title}</span>
-          <span className="o-who">from <span className="cp">{cpName}</span> · <span className="mono">{disp.label}</span></span>
+          <span className="o-who">from <span className="cp">{cpName}</span></span>
         </div>
         <span className="o-amt">{formatMinor(t.minor, t.currency)}</span>
       </div>
@@ -332,18 +333,26 @@ function CatalogLine({ row, draft, selected, detailed, onSelect, onDeal, onText,
   };
   const onRowClick = (e: MouseEvent<HTMLTableRowElement>) => { if (!(e.target as HTMLElement).closest(INTERACTIVE)) onSelect(); };
   const title = row.title ?? row.itemRef;
+  // No order has named this item and the catalog is not connected, so its only name is the code in
+  // your shop rules: shown as that code (a quiet tag), never dressed up as a catalog title.
+  const coded = row.title === null;
   return (
     <tr className={`item ${bad ? 'bad' : inDraft ? 'draft' : ''}`} aria-selected={selected} onClick={onRowClick}>
       <td className="it">
-        <button type="button" className="ititle" onClick={onSelect} title={row.itemRef}>{title}</button>
+        <button type="button" className="ititle" onClick={onSelect} title={coded ? CODE_ONLY : row.itemRef}>
+          {coded ? <span className="sku" aria-label={`Item code ${row.itemRef}`}>{row.itemRef}</span> : title}
+        </button>
       </td>
       {catPending ? null : <td className="num"><span className="unk" title={UNK_CATALOG}>unknown</span></td>}
       <td>
         <span className="fl">
           <Btn sm tabIndex={-1} aria-label="Lower the lowest price by 1" onClick={() => step(-1, false)}>−</Btn>
-          <Field id={`fl-${row.itemRef}`} inputMode="decimal" autoComplete="off" value={text} placeholder="none"
-            aria-label={`Lowest price for ${title}${row.signed ? `, signed ${formatMoney(row.signed)}` : ', none signed'}`} aria-invalid={!!bad}
-            onChange={(e) => onText(e.target.value === signedText && row.signed ? undefined : e.target.value)} onKeyDown={onKey} onBlur={onBlur} />
+          <span className="cur-in">
+            <span className="cur" aria-hidden="true">{currencyMark(row.currency)}</span>
+            <Field id={`fl-${row.itemRef}`} inputMode="decimal" autoComplete="off" value={text} placeholder="none"
+              aria-label={`Lowest price for ${title}${row.signed ? `, signed ${formatMoney(row.signed)}` : ', none signed'}`} aria-invalid={!!bad}
+              onChange={(e) => onText(e.target.value === signedText && row.signed ? undefined : e.target.value)} onKeyDown={onKey} onBlur={onBlur} />
+          </span>
           <Btn sm tabIndex={-1} aria-label="Raise the lowest price by 1" onClick={() => step(1, false)}>+</Btn>
         </span>
         <span className="fnote">

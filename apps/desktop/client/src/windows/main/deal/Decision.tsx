@@ -51,6 +51,8 @@ export function StateStrip({ strip }: { strip: MirrorStrip }) {
   const ended = !!m.end;
   return (
     <ol className={`dv-ms ${ended ? 'ended' : ''}`} aria-label="Where this deal is">
+      {/* Ended before the first milestone (refused at once): the marker leads, the rest is skipped. */}
+      {m.end && m.end.after === null ? <EndMark end={m.end} first /> : null}
       {m.items.map((it, i) => (
         <Fragment key={it.key}>
           <li className={`ms ${it.status} ${it.tone ?? ''} ${ended && it.status === 'todo' ? 'skipped' : ''}`} aria-current={it.status === 'cur' ? 'step' : undefined} title={it.detail}>
@@ -62,7 +64,6 @@ export function StateStrip({ strip }: { strip: MirrorStrip }) {
           {i < m.items.length - 1 && !(m.end && m.end.after === it.key) ? <li className={`bar ${it.status === 'done' ? 'done' : ''}`} aria-hidden="true" /> : null}
         </Fragment>
       ))}
-      {m.end && m.end.after === null ? <EndMark end={m.end} first /> : null}
     </ol>
   );
 }
@@ -75,6 +76,7 @@ function EndMark({ end, first }: { end: NonNullable<ReturnType<typeof milestones
         <span className="stop" aria-hidden="true">{end.tone === 'bad' ? '×' : '–'}</span>
         <span>Ended · <b>{end.label}</b></span>
       </li>
+      {first ? <li className="bar cut" aria-hidden="true" /> : null}
     </>
   );
 }

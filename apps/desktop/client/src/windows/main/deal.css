@@ -66,8 +66,9 @@
 .dv-tabpanel { margin-top: var(--sp-4); padding-bottom: var(--sp-6); }
 
 /* what happened: a chat, theirs on the left, yours on the right, newest at the bottom */
-.dv-happen { display: grid; grid-template-columns: minmax(0, 780px); gap: var(--sp-4); align-items: start; }
-.dv-happen.has-facts { grid-template-columns: minmax(0, 780px) minmax(240px, 320px); }
+/* the thread takes the width the header and tabs span, so both columns end on the page's right edge */
+.dv-happen { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); align-items: start; }
+.dv-happen.has-facts { grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); }
 .dv-thread { min-width: 0; }
 .dv-thead { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: var(--sp-3); padding: 0 var(--sp-2) var(--sp-2); font-size: var(--fs-small); }
 .dv-thead .okc { color: var(--ok); }
@@ -76,8 +77,8 @@
 .dv-thead .dv-who-r { justify-self: end; }
 .dv-thead i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .dv-chat { list-style: none; margin: 0; padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); background: var(--panel); border: 1px solid var(--line);
-  border-radius: var(--r-lg); max-height: max(300px, calc(100vh - 600px)); overflow: auto;
-  -webkit-mask-image: linear-gradient(to bottom, transparent, currentColor 56px); mask-image: linear-gradient(to bottom, transparent, currentColor 56px); }
+  border-radius: var(--r-lg); max-height: max(300px, calc(100vh - 600px)); overflow: auto; }
+.dv-chat.more-above { -webkit-mask-image: linear-gradient(to bottom, transparent, currentColor 56px); mask-image: linear-gradient(to bottom, transparent, currentColor 56px); }
 .dv-chat .msg { display: flex; }
 .dv-chat .msg.you { justify-content: flex-end; }
 .dv-chat .bub { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: var(--sp-4); text-align: left; min-width: 240px; max-width: 70%; padding: 7px 12px 6px; border: 1px solid var(--line2); border-radius: 12px; font: inherit; color: var(--text); cursor: pointer; }
