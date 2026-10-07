@@ -22,22 +22,17 @@ impl Runtime {
     }
     async fn tick_deal(&mut self, deal: &Deal, now: i64) -> Result<(), CommandError> {
         let due = app(self.pipeline.wallet.ledger.deadline(deal.id))?;
+        let unresolved = !self
+            .pipeline
+            .open_operations(Some(deal.id), now)?
+            .is_empty();
         if due.is_some_and(|d| d.0 <= now) {
-            if deal.state == DealState::Authorized {
-                self.pipeline
-                    .auto_void(
-                        deal.id,
-                        app(self.pipeline.wallet.ledger.settled_attempt(deal.id))?,
-                        now,
-                    )
-                    .await?;
-            } else if deal.state.pre_capture() {
-                app(self
-                    .pipeline
-                    .wallet
-                    .ledger
-                    .apply_deadline_default(deal.id, now))?;
+            // The default reads an unknown authorize or capture back before it voids or
+            // expires; a capture PayPal committed is receipted, which signs.
+            if unresolved {
+                self.select_signer(deal.id)?;
             }
+            self.pipeline.deadline_default(deal, now).await?;
             return Ok(());
         }
         // Dismissal chooses the deadline default and cannot be interpreted as assent.
@@ -54,6 +49,28 @@ impl Runtime {
         if self.mandate_retired(deal)? {
             return Ok(());
         }
+        // A money operation whose PayPal outcome is unknown reaches PayPal's truth before the
+        // deal's next step; while one stays unresolved (parked for the owner, or PayPal not
+        // answering) no step runs. A pause holds the re-send too; the deadline does not wait.
+        let current;
+        let deal = if unresolved {
+            if self.paused {
+                return Ok(());
+            }
+            self.select_signer(deal.id)?;
+            let category = app(self.pipeline.wallet.ledger.deal_category(deal.id))?;
+            if !self
+                .pipeline
+                .resolve_deal(deal.id, table_app::Resolve::Advance(category), now)
+                .await?
+            {
+                return Ok(());
+            }
+            current = app(self.pipeline.wallet.ledger.get_deal(deal.id))?;
+            &current
+        } else {
+            deal
+        };
         self.arm_policy_run(deal);
         if !self.paused && deal.state == DealState::Agreed && deal.side == Side::Seller {
             self.select_signer(deal.id)?;
