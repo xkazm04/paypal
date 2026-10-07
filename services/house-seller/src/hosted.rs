@@ -46,6 +46,49 @@ impl From<table_proto::ProtocolError> for Error {
         Self::App(e.into())
     }
 }
+impl Error {
+    /// A fixed name for the failure, safe for an operator log: never a message, a PayPal body,
+    /// a refusal reason or any other text that came from outside.
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::Invalid => "invalid",
+            Self::Full => "full",
+            Self::Unavailable => "unavailable",
+            Self::Ledger(e) | Self::App(table_app::Error::Ledger(e)) => match e {
+                LedgerError::Sql(_) => "ledger.sql",
+                LedgerError::Json(_) => "ledger.json",
+                LedgerError::Domain(_) => "ledger.domain",
+                LedgerError::Protocol(_) => "ledger.protocol",
+                LedgerError::Integrity(_) => "ledger.integrity",
+                LedgerError::NotFound => "ledger.not_found",
+                LedgerError::Conflict => "ledger.conflict",
+            },
+            Self::App(e) => match e {
+                table_app::Error::Refused(_) => "app.refused",
+                table_app::Error::Protocol(_) => "app.protocol",
+                table_app::Error::Domain(_) => "app.domain",
+                table_app::Error::Invalid => "app.invalid",
+                table_app::Error::Unavailable => "app.unavailable",
+                table_app::Error::Permission => "app.permission",
+                table_app::Error::Locked => "app.locked",
+                table_app::Error::Ledger(_) => "app.ledger",
+            },
+        }
+    }
+}
+
+/// Where the HOUSE writes operator lines. Callers build every line from fixed codes and ids.
+pub trait Log: Send + Sync {
+    fn line(&self, line: &str);
+}
+/// The deployed sink: one line per event on stderr, which the host collects.
+#[derive(Debug)]
+pub struct Stderr;
+impl Log for Stderr {
+    fn line(&self, line: &str) {
+        eprintln!("{line}");
+    }
+}
 
 /// How long a table request waits for the actor before the caller sees 503.
 const REPLY_TIMEOUT: Duration = Duration::from_secs(20);
@@ -103,6 +146,10 @@ pub struct Seller {
     clock: Arc<dyn Clock>,
     relay: Arc<dyn table_relay::RelayApi>,
     polls: PollSchedule<DealId, DealState>,
+    log: Arc<dyn Log>,
+    /// The last failure logged per (deal, step), so a step failing the same way every second
+    /// writes one line, not one per tick. Cleared when the step next succeeds.
+    failing: HashMap<(Option<DealId>, &'static str), &'static str>,
 }
 impl std::fmt::Debug for Seller {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -217,7 +264,37 @@ impl Seller {
             clock,
             relay,
             polls: PollSchedule::new(),
+            log: Arc::new(Stderr),
+            failing: HashMap::new(),
         })
+    }
+    /// Replaces the stderr sink (tests capture the lines).
+    #[must_use]
+    pub fn with_log(mut self, log: Arc<dyn Log>) -> Self {
+        self.log = log;
+        self
+    }
+    /// Logs a failed step as `house step=<step> deal=<id> error=<code>` and passes the result on.
+    fn noted<T>(
+        &mut self,
+        step: &'static str,
+        deal: Option<DealId>,
+        result: Result<T, Error>,
+    ) -> Result<T, Error> {
+        match &result {
+            Ok(_) => {
+                self.failing.remove(&(deal, step));
+            }
+            Err(e) => {
+                let code = e.code();
+                if self.failing.insert((deal, step), code) != Some(code) {
+                    let deal = deal.map_or_else(|| "-".to_owned(), |d| d.to_string());
+                    self.log
+                        .line(&format!("house step={step} deal={deal} error={code}"));
+                }
+            }
+        }
+        result
     }
     pub fn table(&mut self, request: HouseRequest) -> Result<HouseResponse, Error> {
         let now = self.clock.now();
@@ -386,32 +463,52 @@ impl Seller {
             .to_vec();
         Ok(response)
     }
+    /// One pass over every deal. Each failed step writes one log line (see `noted`); the first
+    /// failure is also returned.
     pub async fn tick(&mut self) -> Result<(), Error> {
         let now = self.clock.now();
         let mut failure = None;
         // Defaults run first and independently of transport failures.
-        for deal in self.pipeline.wallet.ledger.list_deals()? {
+        let deals = self.listed("advance")?;
+        for deal in deals {
             let result = self.advance(&deal, now).await;
-            if let Err(e) = result {
+            if let Err(e) = self.noted("advance", Some(deal.id), result) {
                 failure.get_or_insert(e);
             }
         }
-        for work in self.pipeline.wallet.ledger.relay_work()? {
+        let work = self
+            .pipeline
+            .wallet
+            .ledger
+            .relay_work()
+            .map_err(Error::from);
+        for work in self.noted("deliver", None, work)? {
+            let id = work.deal_id;
             let result = self.deliver(work).await;
-            if let Err(e) = result {
+            if let Err(e) = self.noted("deliver", Some(id), result) {
                 failure.get_or_insert(e);
             }
         }
-        for message in self.pipeline.wallet.ledger.pending_inbox()? {
+        let inbox = self
+            .pipeline
+            .wallet
+            .ledger
+            .pending_inbox()
+            .map_err(Error::from);
+        for message in self.noted("inbox", None, inbox)? {
+            let id = message.deal_id;
             let duplicate = self
                 .pipeline
                 .wallet
                 .ledger
-                .has_envelope_hash(message.deal_id, H256::digest(message.raw.as_bytes()))?;
-            let accepted = if duplicate {
+                .has_envelope_hash(id, H256::digest(message.raw.as_bytes()))
+                .map_err(Error::from);
+            let accepted = if self.noted("inbox", Some(id), duplicate)? {
                 true
             } else {
-                match self.receive(message.deal_id, &message.raw, now) {
+                let result = self.receive(id, &message.raw, now);
+                // A rejected message is logged and dropped; a broken ledger stops the tick.
+                match self.noted("inbox", Some(id), result) {
                     Ok(()) => true,
                     Err(Error::Ledger(LedgerError::Sql(_) | LedgerError::Integrity(_))) => {
                         return Err(Error::Unavailable);
@@ -419,17 +516,31 @@ impl Seller {
                     Err(_) => false,
                 }
             };
-            self.pipeline
+            let finished = self
+                .pipeline
                 .wallet
                 .ledger
-                .finish_inbox(&message, accepted, now)?;
+                .finish_inbox(&message, accepted, now)
+                .map_err(Error::from);
+            self.noted("inbox", Some(id), finished)?;
         }
-        for deal in self.pipeline.wallet.ledger.list_deals()? {
-            if let Err(e) = self.negotiate(&deal, now) {
+        let deals = self.listed("negotiate")?;
+        for deal in deals {
+            let result = self.negotiate(&deal, now);
+            if let Err(e) = self.noted("negotiate", Some(deal.id), result) {
                 failure.get_or_insert(e);
             }
         }
         failure.map_or(Ok(()), Err)
+    }
+    fn listed(&mut self, step: &'static str) -> Result<Vec<Deal>, Error> {
+        let deals = self
+            .pipeline
+            .wallet
+            .ledger
+            .list_deals()
+            .map_err(Error::from);
+        self.noted(step, None, deals)
     }
     async fn deliver(&mut self, work: table_ledger::RelayWork) -> Result<(), Error> {
         self.relay
@@ -684,6 +795,7 @@ pub fn spawn(mut seller: Seller) -> HouseHandle {
                 },
                 _=timer.tick()=>{
                     heartbeat.store(seller.clock.now(), Ordering::Relaxed);
+                    // The tick logs each failed step itself.
                     let _=seller.tick().await;
                 },
             }
