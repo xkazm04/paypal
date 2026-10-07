@@ -290,6 +290,18 @@ fn authority(bundle: &ProofBundle) -> Outcome {
     }
 }
 
+/// The calls PayPal answers with an order, so the wallet projects a binding from every 2xx answer:
+/// create, authorize and the order read.
+fn answers_with_order(method: &str, path: &str) -> bool {
+    let segments: Vec<&str> = path.trim_matches('/').split('/').collect();
+    matches!(
+        (method, segments.as_slice()),
+        ("POST", ["v2", "checkout", "orders"])
+            | ("POST", ["v2", "checkout", "orders", _, "authorize"])
+            | ("GET", ["v2", "checkout", "orders", _])
+    )
+}
+
 fn bindings(bundle: &ProofBundle) -> Outcome {
     let deal = &bundle.deal;
     let terms = deal.terms.hash().map_err(|e| e.to_string())?.hex();
@@ -301,8 +313,18 @@ fn bindings(bundle: &ProofBundle) -> Outcome {
             .as_ref()
             .and_then(|b| b.get("purchase_units"))
             .and_then(Value::as_array)
+            .filter(|units| !units.is_empty())
         else {
-            continue;
+            // An order PayPal answered with no stored binding proves nothing. Bundles recorded
+            // before the wallet stored bindings fail here too, by design.
+            let answered = call.status.is_some_and(|s| (200..300).contains(&s));
+            if !answered || !answers_with_order(&call.method, &call.path) {
+                continue;
+            }
+            return Err(format!(
+                "{} {}: PayPal answered with an order but no order binding was recorded (a wallet older than the binding record fails here)",
+                call.method, call.path
+            ));
         };
         for unit in units {
             let field = |name: &str| unit.get(name).and_then(Value::as_str);
@@ -358,7 +380,7 @@ fn bindings(bundle: &ProofBundle) -> Outcome {
         }
     }
     if checked == 0 {
-        Ok("no PayPal order binding recorded for this deal".into())
+        Ok("no PayPal order in this deal, so no order binding to compare".into())
     } else {
         Ok(format!(
             "{checked} PayPal order record(s): custom_id = terms hash, invoice id, payee merchant id and amount compared and matching"

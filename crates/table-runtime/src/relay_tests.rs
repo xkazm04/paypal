@@ -1189,6 +1189,7 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
         let report = table_verify::verify_bundle(&export(actor, "main").await.unwrap());
         assert!(report.verified(), "{:#?}", report.checks);
     }
+    let buyer_proof = export(a.clone(), "main").await.unwrap();
     assert!(export(a.clone(), "tumbler").await.is_err());
     let seller_proof = export(b.clone(), "approval").await.unwrap();
     let ops: Vec<_> = seller_proof
@@ -1224,6 +1225,24 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
     for field in ["custom_id", "invoice_id", "payee_merchant_id"] {
         assert!(unit[field].is_string(), "binding lacks {field}");
     }
+    // The buyer made no PayPal call, so it has no order binding to show and passes; the seller's
+    // orders with every binding stripped (a bundle from before bindings were stored) fail.
+    assert!(buyer_proof.paypal_calls.is_empty());
+    let none = detail(&buyer_proof, "PayPal order matches the signed terms");
+    assert!(
+        none.ok && none.detail.contains("no PayPal order"),
+        "{none:?}"
+    );
+    let mut stripped = seller_proof.clone();
+    for call in &mut stripped.paypal_calls {
+        call.binding = None;
+    }
+    let unbound = detail(&stripped, "PayPal order matches the signed terms");
+    assert!(!unbound.ok, "{unbound:?}");
+    assert!(
+        unbound.detail.contains("/v2/checkout/orders"),
+        "{unbound:?}"
+    );
     // Each tamper fails its own check, and every one breaks the signed evidence head.
     type Tamper = fn(&mut table_proto::ProofBundle);
     let tampers: [(&str, Tamper); 9] = [
