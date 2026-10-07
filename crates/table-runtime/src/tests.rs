@@ -2143,6 +2143,85 @@ async fn let_lapse_is_refused_on_a_hold_and_on_an_authorized_deal() {
     let _ = http;
 }
 #[tokio::test]
+async fn a_purchase_without_a_band_lapses_after_a_day_and_a_band_deadline_still_wins() {
+    let (mut r, _, http, clock, _) = runtime(true);
+    let peer = AgentSigner::from_key(signing_key(&MemoryVault::default(), "peer").unwrap());
+    r.pipeline
+        .wallet
+        .ledger
+        .insert_counterparty(&Counterparty {
+            key_id: peer.key_id().unwrap(),
+            owner_key: peer.public_key().to_bytes(),
+            agent_key: peer.public_key().to_bytes(),
+            display_name: ShortText::new("Peer".into()).unwrap(),
+            paired_via: PairedVia::Code,
+            words_confirmed_at: Some(100),
+            declared_payee: PayeeRef::new("merchant").unwrap(),
+            first_seen: 0,
+        })
+        .unwrap();
+    let mut make = |r: &mut Runtime, with_band: bool| {
+        let mut list = clauses(Side::Buyer, DealKind::Purchase);
+        if !with_band {
+            list.retain(|c| !matches!(c, Clause::Band { .. }));
+        }
+        let mandate = r
+            .sign_mandate(MandateSignArgs {
+                id: None,
+                agent: AgentSlot::Negotiator,
+                clauses: list,
+                not_before: 0,
+                expires: 1_000_000,
+            })
+            .unwrap();
+        r.create_deal(DealCreateArgs {
+            kind: DealKind::Purchase,
+            side: Side::Buyer,
+            counterparty: peer.key_id().unwrap(),
+            mandate_id: mandate.payload.id,
+            mandate_version: 1,
+            category: Category::Parts,
+            terms: Terms {
+                item_ref: ItemRef::new("monitor").unwrap(),
+                qty: 1,
+                unit_price: Money::new(1200, Currency::USD).unwrap(),
+                currency: Currency::USD,
+                delivery: Delivery::DigitalNow,
+            },
+        })
+        .unwrap()
+    };
+    let banded = make(&mut r, true);
+    assert_eq!(
+        r.pipeline.wallet.ledger.deadline(banded.id).unwrap().unwrap().0,
+        900_000
+    );
+    let deal = make(&mut r, false);
+    assert_eq!(
+        r.pipeline.wallet.ledger.deadline(deal.id).unwrap().unwrap().0,
+        100 + 24 * 3600
+    );
+    r.pipeline
+        .wallet
+        .ledger
+        .propose_purchase(&deal, 100)
+        .unwrap();
+    assert_eq!(
+        r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Agreed
+    );
+    clock.0.store(100 + 24 * 3600, Ordering::SeqCst);
+    r.tick().await.unwrap();
+    let after = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap();
+    assert_eq!(after.state, DealState::Withdrawn);
+    assert!(matches!(after.decided_by, Some(DecidedBy::SafeDefault { .. })));
+    assert_eq!(
+        r.pipeline.wallet.ledger.paypal_call_count(deal.id).unwrap(),
+        0
+    );
+    assert!(http.0.lock().unwrap().paths.is_empty());
+}
+#[tokio::test]
 async fn a_tick_never_starts_an_order_for_a_cleared_purchase() {
     let (mut r, vault, http, _, _) = runtime(true);
     credentials(vault.as_ref());
