@@ -44,7 +44,11 @@ fn money_authorities(r: &Runtime, id: DealId) -> Vec<(String, DecidedBy)> {
 /// configured. The create gate still asks, so the scheduler's create on policy is refused; the
 /// owner creates the order from the approval window (`Decision::Countersign`), as
 /// `real_actor_countersign_verified_browser_link_poll_and_seller_capture` does.
-async fn owner_ordered(r: &mut Runtime, vault: &MemoryVault, http: &OfflineHttp) -> Deal {
+pub(super) async fn owner_ordered(
+    r: &mut Runtime,
+    vault: &MemoryVault,
+    http: &OfflineHttp,
+) -> Deal {
     credentials(vault);
     let (deal, peer) = setup_unpriced(r, Side::Seller, Delivery::DigitalNow);
     agree(r, &deal, &peer);

@@ -95,10 +95,17 @@ impl Runtime {
     }
     /// The end of the window `[now, until)` in which authorize and capture under the seller
     /// mandate pass the pipeline's gate, judged as if the deal had reached them; capped at
-    /// `cap`. Every input of that gate only ages out while the owner is away (the market
-    /// reference goes stale, the mandate expires, nothing is refreshed), so a gate that passes
-    /// now passes until it first refuses, and a binary search over the real gate finds that
-    /// time without copying its rules.
+    /// `cap`. A binary search over the real gate finds that end without copying its rules; it
+    /// is valid because, with the ledger frozen while the owner is away, this gate can only turn
+    /// from pass to refusal:
+    /// - the shield stops the seller mandate only on HOLD or BLOCK, and neither depends on the
+    ///   time: the price rule runs on the market reference whatever its age, and a stored
+    ///   verdict or payee does not age. What does age (the reference going stale, the
+    ///   counterparty's first day ending) moves only between ASK and CLEAR, and both pass;
+    /// - the mandate refuses from its expiry and its band deadline on, and its start lies before
+    ///   the deal's agreement; the velocity window is the deal's own agreement day.
+    ///
+    /// A gate refusing now forecasts no money moving, so any case this misses fails closed.
     fn seller_mandate_window(
         &mut self,
         id: DealId,

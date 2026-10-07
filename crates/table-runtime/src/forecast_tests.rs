@@ -375,6 +375,79 @@ async fn a_buyer_approval_counts_until_the_order_expires_though_the_market_went_
     }
 }
 
+/// (a) No market reference: the shield asks, which no longer stops the seller receiving money
+/// on the buyer's approval (H5). The forecast says money comes in, and a real tick agrees.
+#[tokio::test]
+async fn an_unpriced_seller_order_forecasts_money_in_and_a_real_tick_agrees() {
+    let (mut r, vault, http, clock, _) = runtime(true);
+    let deal = super::h5_tests::owner_ordered(&mut r, &vault, &http).await;
+    let expires = 100 + 6 * 3600;
+    set(&clock, T0);
+    let lines = lines_for(&mut r, deal.id);
+    assert_eq!(
+        actions(&lines),
+        [
+            ForecastAction::Authorize,
+            ForecastAction::Capture,
+            ForecastAction::Expire
+        ]
+    );
+    for line in &lines[..2] {
+        assert_eq!(line.trigger, ForecastTrigger::BuyerApproves);
+        assert_eq!(line.authority, ForecastAuthority::SellerMandate);
+        assert_eq!(line.before, Some(expires));
+    }
+    // The buyer's approval reaches the scheduler just before the forecast's `before`.
+    set(&clock, expires - 1);
+    r.tick().await.unwrap();
+    let after = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap();
+    assert_eq!(after.state, lines[1].end_state);
+    assert_eq!(after.state, DealState::Receipted);
+    assert!(same_authority(
+        lines[1].authority,
+        after.decided_by.as_ref().unwrap()
+    ));
+}
+
+/// (b) A price HOLD whose reference ages past 900 s stays a HOLD: the forecast says no money
+/// comes in, read while the reference is fresh and after it went stale, and a real tick agrees.
+#[tokio::test]
+async fn a_price_held_seller_order_forecasts_no_money_in_after_its_market_ages() {
+    let (mut r, vault, http, clock, _) = runtime(true);
+    let deal = super::h5_tests::owner_ordered(&mut r, &vault, &http).await;
+    let market = MarketRef::from_comparables(
+        vec![Money::new(800, Currency::USD).unwrap()],
+        100,
+        H256::ZERO,
+    )
+    .unwrap();
+    r.pipeline
+        .wallet
+        .ledger
+        .store_market_reference(deal.id, &market, 100)
+        .unwrap();
+    let moves_money = |lines: &[ForecastLine]| {
+        lines.iter().any(|l| {
+            matches!(
+                l.action,
+                ForecastAction::Authorize | ForecastAction::Capture
+            )
+        })
+    };
+    for at in [T0, MARKET_STALE_AT, MARKET_STALE_AT + 3600] {
+        set(&clock, at);
+        let lines = lines_for(&mut r, deal.id);
+        assert!(!moves_money(&lines), "at {at}: {lines:?}");
+        assert_eq!(actions(&lines), [ForecastAction::Expire], "at {at}");
+    }
+    // The buyer approves after the reference went stale: the tick refuses the authorize.
+    assert!(r.tick().await.is_err());
+    assert_eq!(state(&r, deal.id), DealState::Approved);
+    let paths = http.0.lock().unwrap().paths.clone();
+    assert!(!paths.iter().any(|p| p.ends_with("/authorize")));
+    assert!(!paths.iter().any(|p| p.ends_with("/capture")));
+}
+
 #[tokio::test]
 async fn a_failed_forecast_read_hides_the_forecast_but_keeps_attention() {
     let (mut r, vault, _, _, _) = runtime(true);
