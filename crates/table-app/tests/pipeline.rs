@@ -932,6 +932,18 @@ fn a_cleared_purchase_waits_at_agreed_with_zero_paypal_rows() {
     );
     assert_eq!(wallet.ledger.paypal_call_count(deal.id).unwrap(), 0);
 }
+#[test]
+fn one_purchase_proposal_writes_exactly_one_audit_row_and_the_chain_verifies() {
+    let (mut wallet, deal, _, _) = support::setup(Side::Buyer, DealKind::Purchase);
+    propose_one(&mut wallet, &deal).unwrap();
+    let (rows, _) = wallet.ledger.audit_page(None, 500).unwrap();
+    let proposed = rows
+        .iter()
+        .filter(|r| r.action == "purchase.proposed" && r.deal_id == Some(deal.id))
+        .count();
+    assert_eq!(proposed, 1);
+    wallet.ledger.verify_audit().unwrap();
+}
 #[tokio::test]
 async fn a_purchase_never_runs_on_policy_and_the_owner_path_captures_it() {
     let (mut wallet, deal, _, _) = support::setup(Side::Buyer, DealKind::Purchase);

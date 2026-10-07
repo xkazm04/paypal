@@ -537,9 +537,9 @@ impl AgentService for Wallet {
                     return Err(Error::Invalid);
                 }
                 match self.mandate_check(&deal, scope.category, now) {
-                    Ok(decision) => {
+                    Ok(_) => {
+                        // propose_purchase writes the one purchase.proposed row in its transaction.
                         self.ledger.propose_purchase(&deal, now)?;
-                        self.ledger.append_audit(&AuditEntry{at:now,actor:"agent".into(),action:"purchase.proposed".into(),deal_id:Some(deal.id),detail:serde_json::json!({"amount":amount,"needs_human":matches!(decision,MandateDecision::Ask{..})})})?;
                         Ok(serde_json::json!({"deal_id":deal.id,"status":"pending"}))
                     }
                     Err(error) => {
