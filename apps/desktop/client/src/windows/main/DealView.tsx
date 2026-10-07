@@ -20,6 +20,8 @@ import { DealStory, StateStrip, Summary } from './deal/Decision';
 import { EvidenceSheet, ProofPanel, TranscriptSheet, type EvidenceKind } from './deal/Evidence';
 import { mayWithdraw, mirrorStrip, readClauses } from './deal/model';
 import { ruleChecks, rulesBadge, standingFacts } from './deal/story';
+import { WhoDecided } from './deal/WhoDecided';
+import { shortTitle } from './home/model';
 import './deal.css';
 
 type Tab = 'happened' | 'rules' | 'who' | 'proof';
@@ -116,8 +118,11 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
       </div>
       <div id="dv-panel" role="tabpanel" aria-labelledby={`dv-tab-${tab}`} className="dv-tabpanel">
         {tab === 'happened' ? (
+<>
           <WhatHappened deal={deal} steps={tr.data} error={tr.error} clauses={clauses} theirName={cp.name}
             facts={nFacts} factsTitle={deal.kind === 'haggle' ? 'Where it stands' : 'The numbers'} />
+          <WhoDecided deal={deal} title={shortTitle(disp.title)} />
+          </>
         ) : tab === 'rules' ? (
           <YourRules deal={deal} readings={readings} mandate={{ entry, newer, error: mandates.error, loading: !mandates.data && !mandates.error }} />
         ) : tab === 'who' ? (

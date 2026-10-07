@@ -248,3 +248,17 @@ export const PROOF_KEY_ANCHOR = 'Compare this owner key with the key the owner s
 export const PROOF_LIMIT = 'The file cannot show whether newer records were removed from the end.';
 /** Said once before a proof file is saved: the file is readable by anyone it is sent to. */
 export const PROOF_SAVE_WARNING = 'This file carries this deal’s rules, including your price limits (the most you’ll pay or the least you’ll take), the payees and caps, and the other side’s notes. Anyone you send it to can read them.';
+
+// ---- who decided (the Rewind and the deal's "Who decided") ------------------------------------------
+
+const REFUSED_BECAUSE: Readonly<Record<number, string>> = {
+  1: 'not something your agents may do',
+  2: 'not a shop you connected',
+  3: 'over the per-deal limit',
+  4: 'outside your price range',
+  5: 'over the daily limit',
+  6: 'above the amount you approve yourself',
+  7: 'not an approved payee',
+};
+/** Why a rule refused, in words, for "Your rules refused 40 × GPU: over the per-deal limit". */
+export const refusedBecause = (clause: number): string => REFUSED_BECAUSE[clause] ?? `against “${ruleNameOf(clause)}”`;
