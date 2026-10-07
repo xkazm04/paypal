@@ -8,6 +8,8 @@ pub use checks::*;
 mod checks_tests;
 mod pipeline;
 mod reconciliation;
+mod resolve;
+pub use resolve::*;
 mod relay;
 pub use auth::*;
 pub use pipeline::*;

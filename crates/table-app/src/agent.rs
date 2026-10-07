@@ -385,6 +385,11 @@ impl Wallet {
     ) -> Result<String, Error> {
         let deal = self.ledger.get_deal(id)?;
         transition(deal.state, DealEvent::Withdraw)?;
+        // A money step whose PayPal outcome is unknown keeps the deal reserved until it is read
+        // back (T10): walking away now could leave a hold or an order behind at PayPal.
+        if !self.ledger.open_operations(Some(id))?.is_empty() {
+            return Err(Error::Permission);
+        }
         let envelope = self.signed(&deal, Body::Withdraw { reason }, now)?;
         self.ledger.commit_negotiation(
             &envelope,

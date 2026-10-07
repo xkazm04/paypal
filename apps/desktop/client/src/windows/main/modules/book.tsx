@@ -17,10 +17,11 @@ import type { Currency } from '@bindings/Currency';
 import type { JsonValue } from '@bindings/serde_json/JsonValue';
 import type { DealEvidence } from '@bindings/DealEvidence';
 import type { Money } from '@bindings/Money';
+import type { MoneyCheck } from '@bindings/MoneyCheck';
 import { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMinor, shortId } from '../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
-import { marketWords, modeWord, receiptWord, stateWord, timeLeftWords } from '../../../lib/words';
+import { marketWords, modeWord, moneyCheckWord, receiptWord, stateWord, timeLeftWords } from '../../../lib/words';
 import { Glyph } from '../../../shared/modules';
 import { Countdown, ModeBadge, WalletNotice } from '../../../shared/honesty';
 import {
@@ -158,11 +159,11 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
         sub={<>All payments · {scope.scope === 'week' ? 'this week' : 'everything on record'} · as of {clockLabel(now)}</>}
         actions={<DetailToggle value={detail} onChange={setDetail} />} />
 
-      <WeekAnswer deals={ledger} week={scope.scope === 'week'} />
+      <WeekAnswer deals={ledger} week={scope.scope === 'week'} checking={ledger.filter((d) => ev.map.get(d.id)?.money_check ?? w.needOf(d.id)?.money_check).length} />
       <Explainer id="book" title="How your book works" steps={HOW_BOOK} />
       {!detailed ? <Totals deals={ledger} why={r2} /> : null}
 
-      <Outlook deals={ledger} label={label} onOpen={(id) => setSel(id)} simple={!detailed} />
+      <Outlook deals={ledger} label={label} onOpen={(id) => setSel(id)} simple={!detailed} checking={(d) => !!(ev.map.get(d.id)?.money_check ?? w.needOf(d.id)?.money_check)} />
 
       {r2 && !detailed ? <MoneyWent deals={ledger} stmt={evLoading ? () => null : stmt} checkedAt={poll && poll.status === 200 ? clockLabel(poll.at) : null}
         titleOf={(d) => w.display(d).title} onOpen={(id) => setSel(id)} /> : null}
@@ -191,7 +192,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
 
       {!detailed ? (
         <RecentPayments deals={ledger} all={showAll} onAll={setShowAll} stmt={evLoading ? () => null : stmt} onOpen={(id) => setSel(id)}
-          whoOf={(d) => cp(d.counterparty).name} titleOf={(d) => w.display(d).title} />
+          whoOf={(d) => cp(d.counterparty).name} titleOf={(d) => w.display(d).title} checkOf={(d) => ev.map.get(d.id)?.money_check ?? w.needOf(d.id)?.money_check ?? null} />
       ) : (
       <section className="ui-section" aria-label="The ledger">
         <div className="gridbox">
@@ -294,7 +295,7 @@ const moneyList = (ms: readonly Money[]) => ms.map((m) => formatMinor(m.minor, m
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** The answer at the top: where the money is. Every figure is summed per state, direction and currency. */
-function WeekAnswer({ deals, week }: { deals: Deal[]; week: boolean }) {
+function WeekAnswer({ deals, week, checking = 0 }: { deals: Deal[]; week: boolean; checking?: number }) {
   const when = week ? 'This week' : 'On record';
   if (!deals.length) return <AnswerBar tone="calm" icon="book" title="Nothing yet. No payments are on record." sub="They appear here as soon as an agent proposes a deal." />;
   const s = sums(deals);
@@ -304,7 +305,7 @@ function WeekAnswer({ deals, week }: { deals: Deal[]; week: boolean }) {
   const stopped = deals.filter((d) => bucketOf(d) === 'stopped').length;
   const holds = deals.filter((d) => d.state === 'AUTHORIZED').length;
   const title = out && inn ? `${when}: ${out} paid out, ${inn} paid in.` : out ? `${when}: ${out} paid out. Nothing paid in yet.` : inn ? `${when}: ${inn} paid in. Nothing paid out.` : `${when}: no money has moved yet.`;
-  const bits = [held ? `${held} is on hold at PayPal, not paid yet.` : '', stopped ? `${plural(stopped, 'payment was', 'payments were')} stopped or paid back.` : ''].filter(Boolean);
+  const bits = [held ? `${held} is on hold at PayPal, not paid yet.` : '', checking ? `${plural(checking, 'payment is', 'payments are')} being checked with PayPal.` : '', stopped ? `${plural(stopped, 'payment was', 'payments were')} stopped or paid back.` : ''].filter(Boolean);
   return <AnswerBar tone={holds ? 'need' : 'calm'} icon={holds ? undefined : 'book'} title={title} sub={bits.length ? bits.join(' ') : undefined} />;
 }
 
@@ -350,8 +351,9 @@ function TotalWhy({ k, label, deals }: { k: TotalKey; label: string; deals: Deal
 }
 
 /** The newest payments, one simple row each: when, who and what, status, amount and PayPal's own statement. */
-function RecentPayments({ deals, all, onAll, stmt, onOpen, whoOf, titleOf }: {
+function RecentPayments({ deals, all, onAll, stmt, onOpen, whoOf, titleOf, checkOf = () => null }: {
   deals: Deal[]; all: boolean; onAll: (v: boolean) => void; stmt: (d: Deal) => Statement | null; onOpen: (id: string) => void; whoOf: (d: Deal) => string; titleOf: (d: Deal) => string;
+  checkOf?: (d: Deal) => MoneyCheck | null;
 }) {
   const stamp = (d: Deal) => d.updated_at ?? d.created_at ?? 0;
   const sorted = [...deals].sort((a, b) => stamp(b) - stamp(a));
@@ -361,14 +363,13 @@ function RecentPayments({ deals, all, onAll, stmt, onOpen, whoOf, titleOf }: {
       <Group empty="No deals yet. They appear here as soon as an agent proposes one.">
         {shown.length ? shown.map((d) => {
           const t = dealTotal(d);
-          const wd = wordOf(d);
           const tone = amountTone(d);
           return (
             <Row key={d.id} className="pay" onOpen={() => onOpen(d.id)}
               lead={<span className="when">{stamp(d) ? clockLabel(stamp(d)) : '—'}</span>}
               title={titleOf(d)} sub={<span className="cp">{whoOf(d)}</span>}>
               {d.mode !== 'sandbox' ? <ModeBadge mode={d.mode} /> : null}
-              <span className="pst"><Chip tone={TONE[chipClass(d)]} title={wd.means}>{wd.text}</Chip></span>
+              <span className="pst"><StatusChip deal={d} check={checkOf(d)} /></span>
               <span className="pstm"><StmtChip s={stmt(d)} /></span>
               <span className={`amt ${tone}`}>{formatMinor(t.minor, t.currency)}{dirOf(d) === 'in' ? <span className="in">in</span> : null}</span>
             </Row>
@@ -388,6 +389,14 @@ function MoneyLines({ out, inn, bucket }: { out: Money[]; inn: Money[]; bucket: 
       {inn.map((m) => <small key={`i${m.currency}`}>{formatMinor(m.minor, m.currency)} in</small>)}
     </>
   );
+}
+
+/** The deal's status pill; a payment whose PayPal answer was lost reads "Checking with PayPal",
+ *  dashed like every unknown, never paid and never failed. */
+function StatusChip({ deal, check }: { deal: Deal; check: MoneyCheck | null | undefined }) {
+  if (check) return <Chip tone="dashed" title={moneyCheckWord(check).means}>{moneyCheckWord(check).text}</Chip>;
+  const wd = wordOf(deal);
+  return <Chip tone={TONE[chipClass(deal)]} title={wd.means}>{wd.text}</Chip>;
 }
 
 function StmtChip({ s }: { s: Statement | null }) {
@@ -430,22 +439,26 @@ function GridRow({ deal, label, title, cpName, statement, off, selected, onOpen 
 
 type OutItem = { k: string; n: number; label: string; first: Deal | undefined; deadline: number | null; short: string; silence: string | null };
 
-const OUT_ICON: Record<string, IconName> = { holds: 'hold', links: 'link', renew: 'renew' };
+const OUT_ICON: Record<string, IconName> = { holds: 'hold', links: 'link', renew: 'renew', checking: 'clock' };
 
-function Outlook({ deals, label, onOpen, simple }: { deals: Deal[]; label: (d: Deal) => string; onOpen: (id: string) => void; simple: boolean }) {
+function Outlook({ deals, label, onOpen, simple, checking = () => false }: { deals: Deal[]; label: (d: Deal) => string; onOpen: (id: string) => void; simple: boolean; checking?: (d: Deal) => boolean }) {
   const w = useWorld();
   const now = useNow();
   const [open, setOpen] = useState<{ k: string; a: HTMLElement } | null>(null);
   const dl = (d: Deal) => w.needOf(d.id)?.deadline ?? w.display(d).deadline;
   const sil = (d: Deal | undefined) => (d ? w.needOf(d.id)?.on_silence ?? w.display(d).on_silence : null);
   const first = (xs: Deal[]) => [...xs].sort((a, b) => (dl(a) ?? Infinity) - (dl(b) ?? Infinity))[0];
-  const holds = deals.filter((d) => d.state === 'AUTHORIZED');
+  // A payment whose PayPal answer was lost is counted as checking with PayPal: not a hold to
+  // decide, not paid, not failed.
+  const checks = deals.filter(checking);
+  const holds = deals.filter((d) => d.state === 'AUTHORIZED' && !checking(d));
   const links = deals.filter((d) => d.state === 'AWAITING_APPROVAL');
   const failing = deals.filter((d) => d.kind === 'rescue' && d.state === 'FAILED');
   const items: OutItem[] = [
     { k: 'holds', n: holds.length, label: holds.length === 1 ? 'hold to decide' : 'holds to decide', first: first(holds), deadline: null, short: 'the hold is released, nothing is paid', silence: null },
     { k: 'links', n: links.length, label: links.length === 1 ? 'payment link open' : 'payment links open', first: first(links), deadline: null, short: 'the link lapses, no money moves', silence: null },
     { k: 'renew', n: failing.length, label: failing.length === 1 ? 'renewal failing' : 'renewals failing', first: first(failing), deadline: null, short: 'PayPal retries on its own', silence: null },
+    { k: 'checking', n: checks.length, label: checks.length === 1 ? 'payment checking with PayPal' : 'payments checking with PayPal', first: first(checks), deadline: null, short: 'nothing more is sent until PayPal confirms', silence: null },
   ].map((it) => ({ ...it, deadline: it.first ? dl(it.first) : null, silence: sil(it.first) }));
   const cur = open ? items.find((x) => x.k === open.k) : undefined;
   const pop = open && cur ? (
@@ -724,7 +737,7 @@ function RowDetail({ deal, evidence, evError }: { deal: Deal; evidence: DealEvid
   return (
     <div className="bk-l2">
       <div className="chips">
-        <Chip tone={TONE[chipClass(deal)]} title={wordOf(deal).means}>{wordOf(deal).text}</Chip>
+        <StatusChip deal={deal} check={evidence?.money_check ?? need?.money_check} />
         <StmtChip s={s} />
         <ModeBadge mode={deal.mode} />
       </div>

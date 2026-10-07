@@ -59,8 +59,13 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
     rounds: disp.band ? { used: disp.band.rounds_used, max: disp.band.max_rounds } : null,
   }), [clauses, deal, need, cp.house, disp.band]);
 
-  const strip = mirrorStrip(deal, { needsYou: !!need, reconciliation: evidence?.reconciliation ?? null });
-  const withdrawable = mayWithdraw(deal, need);
+  const mirrored = mirrorStrip(deal, { needsYou: !!need, reconciliation: evidence?.reconciliation ?? null });
+  // While PayPal is being asked, the current step reads "Checking", not the state Rust last saw.
+  const pending = evidence?.money_check ?? need?.money_check ?? null;
+  const strip = pending ? { ...mirrored, steps: mirrored.steps.map((s) => (s.status === 'cur' ? { ...s, label: 'Checking' } : s)) } : mirrored;
+  // A payment step being checked with PayPal (from the deal's evidence, or its card).
+  const check = pending;
+  const withdrawable = mayWithdraw(deal, need) && !check;
   const deadline = need?.deadline ?? disp.deadline;
   const run = (w.runs.data ?? []).find((r) => r.deal_id === deal.id);
   const them = cp.name.split(' · ')[0] ?? cp.name;
@@ -102,10 +107,10 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
         </Popover>
       ) : null}
 
-      <Summary deal={deal} strip={strip} deadline={deadline} />
+      <Summary deal={deal} strip={strip} deadline={deadline} check={check} />
       <StateStrip strip={strip} />
       <DealStory deal={deal} need={need} canWithdraw={withdrawable} theirName={them} them={them} latest={latest} band={bandReading}
-        readings={readings} deadline={deadline} />
+        readings={readings} deadline={deadline} check={check} />
 
       <div className="dv-tabs" role="tablist" aria-label="About this deal" onKeyDown={onTabKey}>
         {TABS.map((t) => (

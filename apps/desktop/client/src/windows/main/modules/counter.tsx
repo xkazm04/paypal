@@ -19,7 +19,7 @@ import {
   type ChipTone, type ExplainerStep,
 } from '../../../shared/ui';
 import { chipClass, dealTotal, isLive, moneyNow, pairingFact, PENDING_BACKEND, stripFor, sumByCurrency, type ChipClass } from '../logic';
-import { silenceWords, stateWord, timeLeftWords } from '../../../lib/words';
+import { moneyCheckWord, silenceWords, stateWord, timeLeftWords } from '../../../lib/words';
 import { Glyph } from '../../../shared/modules';
 import { useCpLookup } from '../ui';
 import { useWorld } from '../world';
@@ -128,7 +128,7 @@ export function Counter({ deals, nav }: ModuleProps) {
     <>
       <PageHead title="Counter" icon={<Glyph module="counter" />} focusKey="counter" sub="Your shop · other people’s agents buy here, never below your lowest prices"
         actions={<><DetailToggle value={detail} onChange={setDetail} /><MandateButton mandate={mandate} count={seller.length} floors={rows.filter((r) => r.signed).length} nav={nav} /></>} />
-      <ShopAnswer live={live} past={past} nameOf={(d) => cp(d.counterparty).name} needs={(d) => !!w.needOf(d.id)} now={now} deadlineOf={(d) => w.needOf(d.id)?.deadline ?? w.display(d).deadline} />
+      <ShopAnswer live={live} past={past} nameOf={(d) => cp(d.counterparty).name} needs={(d) => { const n = w.needOf(d.id); return !!n && !n.money_check; }} now={now} deadlineOf={(d) => w.needOf(d.id)?.deadline ?? w.display(d).deadline} />
       <Explainer id="counter" title="How your shop works" steps={HOW_COUNTER} />
 
       <Section title={<>Orders at your counter <span className="n">{live.length} open</span></>} end={detailed ? 'buyers pay on PayPal · collected for you automatically' : undefined}>
@@ -219,6 +219,9 @@ export function Counter({ deals, nav }: ModuleProps) {
 // ---- Layer 1 pieces ------------------------------------------------------------------------------
 
 function StateChip({ deal }: { deal: Deal }) {
+  // A collection whose PayPal answer was lost reads "Checking with PayPal", dashed, never "On hold".
+  const check = useWorld().needOf(deal.id)?.money_check;
+  if (check) return <Chip tone="dashed" title={moneyCheckWord(check).means}>{moneyCheckWord(check).text}</Chip>;
   return <Chip tone={TONE[chipClass(deal)]} title={stateWord(deal.state, { side: deal.side, kind: deal.kind }).means}>{stateText(deal)}</Chip>;
 }
 
@@ -293,7 +296,7 @@ function OrderCard({ deal, cpName, now, selected, withdraws, onOpen }: { deal: D
       </div>
       <div className="o-mid">
         <StateChip deal={deal} />
-        {need ? <Chip tone="gold">needs you</Chip> : null}
+        {need && !need.money_check ? <Chip tone="gold">needs you</Chip> : null}
         {withdraws ? <Chip tone="coral" title="Your new lowest price is above this quote. Signing the change withdraws it; no money moves.">would be withdrawn</Chip> : null}
         {deal.mode !== 'sandbox' ? <ModeBadge mode={deal.mode} /> : null}
         {deadline ? <span className="o-left"><Icon name="clock" size={13} />{timeLeftWords(deadline - now)} left</span> : null}

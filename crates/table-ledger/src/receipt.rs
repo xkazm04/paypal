@@ -142,6 +142,7 @@ impl Ledger {
                 "mismatch" => Reconciliation::Mismatch,
                 _ => return Err(LedgerError::Integrity("reconciliation")),
             },
+            money_check: self.money_check(id)?,
         })
     }
     /// Only own-account reporting can promote seller attestation. This grants no payment authority.

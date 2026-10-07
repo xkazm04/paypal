@@ -311,7 +311,9 @@ export function decisionLine(d: Pick<Deal, 'state' | 'kind' | 'shield'> & Partia
 
 /** Withdraw is offered where Rust accepts it; with an open item only when the item offers it
  *  (a haggle may always be withdrawn while it is still a table). Rust re-checks. */
-export function mayWithdraw(d: Pick<Deal, 'state' | 'kind' | 'shield'>, need: Pick<AttentionItem, 'actions'> | undefined): boolean {
+export function mayWithdraw(d: Pick<Deal, 'state' | 'kind' | 'shield'>, need: (Pick<AttentionItem, 'actions'> & Partial<Pick<AttentionItem, 'money_check'>>) | undefined): boolean {
+  // A payment step being checked with PayPal keeps the deal reserved: Rust refuses a withdraw.
+  if (need?.money_check) return false;
   return canWithdraw(d) && (!need || need.actions.includes('withdraw') || d.kind === 'haggle');
 }
 

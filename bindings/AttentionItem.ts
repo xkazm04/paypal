@@ -5,7 +5,13 @@ import type { Currency } from "./Currency";
 import type { DealId } from "./DealId";
 import type { Mode } from "./Mode";
 import type { Module } from "./Module";
+import type { MoneyCheck } from "./MoneyCheck";
 import type { TumblerAction } from "./TumblerAction";
 import type { Urgency } from "./Urgency";
 
-export type AttentionItem = { deal_id: DealId, label: string, kind: AttnKind, module: Module, headline: string, amount_minor: number, currency: Currency, counterparty: string | null, clause: ClauseRef | null, deadline: number | null, on_silence: string, urgency: Urgency, mode: Mode, actions: Array<TumblerAction>, };
+export type AttentionItem = { deal_id: DealId, label: string, kind: AttnKind, module: Module, headline: string, amount_minor: number, currency: Currency, counterparty: string | null, clause: ClauseRef | null, deadline: number | null, on_silence: string, urgency: Urgency, mode: Mode, actions: Array<TumblerAction>, 
+/**
+ * Set while a money step's PayPal outcome is unknown: the card is a HOLD that only opens
+ * the deal. Older shells omit it.
+ */
+money_check?: MoneyCheck | null, };

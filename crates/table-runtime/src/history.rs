@@ -243,6 +243,11 @@ fn classify(record: &AuditRecord) -> Row {
             }
         }
         "settlement.rejected" => Row::Step(K::Mismatch, A::None),
+        // A money step whose answer was lost: the wallet parks it until PayPal's record is read.
+        "money.parked" => Row::Step(K::CheckingWithPaypal, A::None),
+        // Bookkeeping: a resolved operation shows as its `money.observed` step, a re-send reuses the
+        // same operation and request id, and an owner decision's authority is on its money rows.
+        "money.resent" | "money.resolved" | "owner.decision" => Row::Skip,
         _ => other,
     }
 }
@@ -465,11 +470,13 @@ mod tests {
             include_str!("../../table-ledger/src/relay.rs"),
             include_str!("../../table-ledger/src/house.rs"),
             include_str!("../../table-ledger/src/receipt.rs"),
+            include_str!("../../table-ledger/src/resolver.rs"),
             include_str!("../../table-app/src/agent.rs"),
             include_str!("../../table-app/src/pipeline.rs"),
             include_str!("../../table-app/src/reconciliation.rs"),
             include_str!("../../table-app/src/relay.rs"),
             include_str!("engines.rs"),
+            include_str!("service.rs"),
             include_str!("configuration.rs"),
             include_str!("relay.rs"),
             include_str!("pairing.rs"),
@@ -503,6 +510,18 @@ mod tests {
                 step(K::Created, A::None),
             ),
             ("deadline.set", json!({"due_at":200}), None),
+            ("owner.decision", json!({"decided_by":owner}), None),
+            ("money.resent", json!({"operation":"capture"}), None),
+            (
+                "money.resolved",
+                json!({"operation":"capture","outcome":"confirmed"}),
+                None,
+            ),
+            (
+                "money.parked",
+                json!({"operation":"capture","reason":"unreadable"}),
+                step(K::CheckingWithPaypal, A::None),
+            ),
             ("market.observed", json!({}), None),
             ("relay.bound", json!({}), None),
             ("run.start", json!({}), None),

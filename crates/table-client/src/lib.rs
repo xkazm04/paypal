@@ -993,6 +993,8 @@ pub enum HistoryKind {
     Failed,
     Refunded,
     Disputed,
+    /// PayPal's answer to a money step never arrived; the wallet is asking PayPal what happened.
+    CheckingWithPaypal,
     Other,
 }
 /// Who decided a step, from the typed `decided_by` the chain recorded (never inferred from text).

@@ -12,7 +12,7 @@ import type { ReceiptEvent } from '@bindings/ReceiptEvent';
 import type { TumblerPreferences } from '@bindings/TumblerPreferences';
 import type { VisualState } from '@bindings/VisualState';
 import { clockLabel, countdown, formatMinor, shortId } from '../../lib/format';
-import { headlineWords, ruleNameOf, silenceWords, timeLeftWords } from '../../lib/words';
+import { headlineWords, moneyCheckWord, ruleNameOf, silenceWords, timeLeftWords } from '../../lib/words';
 
 /** Rust's size table (crates/table-attention placement.rs). The page never sends pixels;
  *  this copy exists only so the browser preview can draw a frame of the same size. */
@@ -185,8 +185,10 @@ export function cardActions(item: AttentionItem, now: number): CardAction[] {
 
 /** The state chip on a card or stack row: text plus colour, never colour alone. A snoozed GATE
  *  never reaches the page (Rust drops it from the snapshot), so there is no "Snoozed" state. */
-export type StateChip = { tone: 'gold' | 'coral'; text: 'Paused' | 'In approval' | 'Needs you' };
+export type StateChip = { tone: 'gold' | 'coral'; text: 'Paused' | 'In approval' | 'Needs you' | 'Checking' };
 export function stateChip(item: AttentionItem, inApproval: boolean): StateChip {
+  // A payment step being checked with PayPal is not paused for a decision: nothing is asked of you.
+  if (item.money_check) return { tone: 'coral', text: 'Checking' };
   if (item.kind === 'hold') return { tone: 'coral', text: 'Paused' };
   return { tone: 'gold', text: inApproval ? 'In approval' : 'Needs you' };
 }
@@ -204,7 +206,8 @@ export function cardQuestion(item: Pick<AttentionItem, 'headline' | 'amount_mino
 
 /** The card's clock in words: "3 h 57 min left", "time is up", or, for a paused item with no
  *  deadline, that it waits for you. Never a ticking second counter: the rung carries urgency. */
-export function cardClock(item: Pick<AttentionItem, 'deadline' | 'kind'>, now: number): { text: string; urgent: boolean } {
+export function cardClock(item: Pick<AttentionItem, 'deadline' | 'kind' | 'money_check'>, now: number): { text: string; urgent: boolean } {
+  if (item.deadline === null && item.money_check) return { text: 'checking with PayPal', urgent: false };
   if (item.deadline === null) return { text: item.kind === 'hold' ? 'paused until you act' : 'no deadline', urgent: false };
   const left = item.deadline - now;
   if (left <= 0) return { text: 'time is up', urgent: true };
@@ -222,7 +225,8 @@ export function ladderFill(left: number): number {
 
 /** One plain line under the gauge: how much time is left, in words. The ladder (breathing, the
  *  15-minute notice) is for decisions only; a paused item just shows its clock. */
-export function ladderCaption(r: Rung, hold = false): string {
+export function ladderCaption(r: Rung, hold = false, checking = false): string {
+  if (checking) return 'checking with PayPal · nothing more is sent until it confirms';
   if (hold && r !== 'none' && r !== 'past') return 'paused · it can’t be paid · its safe default runs at the deadline';
   switch (r) {
     case 'none': return hold ? 'no deadline · paused until you act' : 'no deadline';
@@ -242,8 +246,12 @@ export function ringFill(deadline: number | null, now: number): number | null {
 /** r2-tumbler: the two sentences behind "Why?" in the details popover. Deterministic: only the item's
  *  kind, the rule Rust named, its deadline and its own safe default. Nothing the counterparty wrote
  *  (W4), no number that is not already on the card, no prediction. */
-export function cardWhy(item: Pick<AttentionItem, 'kind' | 'clause' | 'on_silence'>): [string, string] {
+export function cardWhy(item: Pick<AttentionItem, 'kind' | 'clause' | 'on_silence' | 'money_check'>): [string, string] {
   const rule = clauseText(item.clause);
+  if (item.money_check) {
+    const silence = silenceWords(item.on_silence).trim().replace(/[.,\s]+$/, '');
+    return [moneyCheckWord(item.money_check).means, `If you do nothing, ${silence}.`];
+  }
   const ask = item.kind === 'hold'
     ? (rule ? `It is paused because of ${rule}, so it can’t be paid until you decide.` : 'It is paused, so it can’t be paid until you decide.')
     : (rule ? `${rule.charAt(0).toUpperCase()}${rule.slice(1)} sends this one to you.` : 'It needs your decision before it can go ahead.');
@@ -307,7 +315,7 @@ export function arrivalTicker(item: AttentionItem): Ticker {
     key: key('arrive'),
     kind: hold ? 'hold' : 'gate',
     l1: split ? [`${split.lead} `, split.amount, ` · ${item.label}`] : [`${item.headline} · `, item.label, ''],
-    l2: hold ? `paused · can’t be paid · ${item.on_silence}` : `${item.counterparty ?? 'a connected wallet'} · ${when}`,
+    l2: item.money_check ? `checking with PayPal · ${silenceWords(item.on_silence)}` : hold ? `paused · can’t be paid · ${item.on_silence}` : `${item.counterparty ?? 'a connected wallet'} · ${when}`,
     mode: item.mode,
     dealId: item.deal_id,
     ms: TICKER_MS.default,
