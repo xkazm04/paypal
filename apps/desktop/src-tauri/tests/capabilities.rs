@@ -82,6 +82,8 @@ fn client_reads_and_snooze_have_their_precise_label_grants() {
         ("proof-check", vec!["main"]),
         ("deal-history", vec!["main"]),
         ("mandate-simulate", vec!["approval"]),
+        ("envelope-sign", vec!["approval"]),
+        ("envelope-get", vec!["main", "tumbler", "approval"]),
     ] {
         for raw in capabilities {
             let v: Value = serde_json::from_str(raw).unwrap();

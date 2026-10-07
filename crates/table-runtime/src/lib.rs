@@ -6,6 +6,7 @@ mod dispatcher;
 mod engines;
 mod forecast;
 mod history;
+mod limits;
 mod market;
 pub use market::VaultMarketKey;
 mod pairing;

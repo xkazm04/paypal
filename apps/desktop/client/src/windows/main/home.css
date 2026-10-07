@@ -227,3 +227,7 @@
   .home.zoom .dialwrap { transform: none; filter: none; transition: opacity .25s; }
   .home.zoom .col.l, .home.zoom .col.r { transform: none; }
 }
+/* Today against the wallet limits (T14): the figure and the limit on one line, the bar under them. */
+.home .col .lim-row { flex-wrap: wrap; row-gap: 3px; padding-top: 6px; padding-bottom: 7px; }
+.home .col .lim-row .amt small { font-size: var(--fs-small); font-weight: var(--fw-regular, 400); }
+.home .col .lim-row .ui-meter { flex: 1 0 100%; }
