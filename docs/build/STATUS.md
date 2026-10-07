@@ -1326,6 +1326,23 @@ unchanged (no generated type changed; `TranscriptBy`/`TranscriptType` only gaine
 
 ## H5 seller money in (2026-10-07, shield-screening rework slice 1)
 
+- **house-seller-demo full council r1 (2026-10-07, at 4b55400).** Outcome ready: overall 0.547 on coverage 0.70. The judges are uncalibrated, so the floors are advisory. Ready is not an approval: the operator decides.
+  Scores: value 0.50, craft 0.56, robustness 0.62. Rivalry and economics were not measured: no lookups, no price book, no telemetry, and the HOUSE is not deployed.
+  The lite lines:
+  - Line 3 (redacted log) is closed.
+  - Line 1 is mostly closed. Only the daily-limit refusal is driven through to the wallet. Full, limit and turned-down share the REFUSED chip, whose meaning in words.ts:35 is written for the owner's own rules.
+  - Line 2 is closed for liveness and SIGTERM, not for restart.
+
+  Open, high:
+  - A restart with a pending money step leaves the deal stuck (T10).
+  - The HOUSE returns its signed mandate with its floor (scan C-14), so a floor-bidding agent closes in one round.
+  - 64 deals that are agreed but not approved hold every HOUSE slot for 6 h (`house_open_request_count`). A short approval deadline for HOUSE deals is the cheapest fix.
+
+  Open, medium:
+  - The const assert on `HEARTBEAT_STALE` (hosted.rs:110) compares the constant with itself.
+  - One tick has no overall bound, so a drain can outlast the host's grace period.
+  - A step that keeps failing logs once and then goes quiet while /healthz stays 200.
+  - The slow-PayPal test proves the heartbeat is written between steps, not that real calls finish within 190 s.
 Operator decision on H5 (ask c9f99185): money in needs no click. Council-lite run 3ff9d92d's
 value line ("the seller wallet's automatic steps cannot run in the native build") is closed; its
 craft-4 item and question 2 of run ed13e041 are taken in.
