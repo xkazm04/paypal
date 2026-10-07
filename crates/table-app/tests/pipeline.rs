@@ -17,7 +17,6 @@ struct MockApi {
     calls: Mutex<Vec<String>>,
     approved: AtomicBool,
     mismatch: AtomicBool,
-    unknown: AtomicBool,
     bad_link: AtomicBool,
     void_unknown: AtomicBool,
 }
@@ -66,15 +65,6 @@ impl PayPalApi for MockApi {
         id: &RequestId,
     ) -> Result<ApiResponse<Order>, table_paypal::Error> {
         self.expected.lock().unwrap().replace(o.clone());
-        if self.unknown.load(Ordering::SeqCst) {
-            self.calls
-                .lock()
-                .unwrap()
-                .push("/v2/checkout/orders".into());
-            return Err(table_paypal::Error::Unknown {
-                observations: vec![],
-            });
-        }
         Ok(self.response(
             self.order(OrderStatus::Created),
             "POST",
@@ -540,24 +530,6 @@ async fn one_failing_void_does_not_starve_later_deadlines_in_pipeline_tick() {
         p.wallet.ledger.get_deal(deal.id).unwrap().state,
         DealState::Authorized
     );
-}
-#[tokio::test]
-async fn unknown_money_outcome_is_reserved_and_never_recreated() {
-    let (_, seller, deal) = agreed();
-    let mock = Arc::new(MockApi::default());
-    mock.unknown.store(true, Ordering::SeqCst);
-    let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
-    assert!(
-        p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
-            .await
-            .is_err()
-    );
-    assert!(
-        p.create(deal.id, 2, Category::Parts, Authority::Policy, 100)
-            .await
-            .is_err()
-    );
-    assert_eq!(mock.calls.lock().unwrap().len(), 1);
 }
 #[derive(Debug)]
 struct FakeReauth;
@@ -1180,4 +1152,612 @@ async fn the_shield_gate_matrix_pins_h5_and_step_allowed_agrees_with_every_real_
             }
         }
     }
+}
+
+/// Where the wire loses the one answer a [`LossyApi`] drops: before PayPal commits the call,
+/// or after it committed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Loss {
+    Before,
+    After,
+}
+/// PayPal's side of one deal: the order, the buyer's approval, the authorization, and every
+/// mutating answer by PayPal-Request-Id.
+#[derive(Debug, Default)]
+struct PaypalTruth {
+    expected: Option<CreateOrder>,
+    created: bool,
+    approved: bool,
+    /// CREATED, CAPTURED or VOIDED once authorized.
+    authorization: Option<&'static str>,
+    /// The first answer to each request id: a repeat returns it and commits nothing.
+    first: std::collections::HashMap<String, Result<serde_json::Value, u16>>,
+    /// Mutating calls PayPal committed, per request id.
+    commits: std::collections::BTreeMap<String, usize>,
+    /// Every call that reached PayPal: `POST <path>` or `GET <path>`.
+    calls: Vec<String>,
+}
+impl PaypalTruth {
+    fn amount(&self) -> serde_json::Value {
+        self.expected.as_ref().unwrap().body().unwrap()["purchase_units"][0]["amount"].clone()
+    }
+    fn order(&self) -> serde_json::Value {
+        let mut body = self.expected.as_ref().unwrap().body().unwrap();
+        body["id"] = json!("ORDER1");
+        body["status"] = json!(match (self.authorization, self.approved) {
+            (Some(_), _) => "COMPLETED",
+            (None, true) => "APPROVED",
+            (None, false) => "CREATED",
+        });
+        body["links"] = json!([{"rel":"approve","href":"https://www.sandbox.paypal.com/checkoutnow?token=ORDER1"}]);
+        if let Some(status) = self.authorization {
+            let amount = self.amount();
+            body["purchase_units"][0]["payments"] =
+                json!({"authorizations":[{"id":"AUTH1","status":status,"amount":amount}]});
+            if status == "CAPTURED" {
+                body["purchase_units"][0]["payments"]["captures"] =
+                    json!([{"id":"CAPTURE1","status":"COMPLETED","amount":amount}]);
+            }
+        }
+        body
+    }
+}
+/// The offline PayPal of the T10 chaos matrix. It models PayPal-Request-Id idempotency (a
+/// repeated request id returns the first result, .research/paypal-platform.md:77) and drops
+/// exactly one answer: the first call of the named operation, before or after PayPal commits.
+#[derive(Debug, Default)]
+struct LossyApi {
+    truth: Mutex<PaypalTruth>,
+    loss: Mutex<Option<(&'static str, Loss)>>,
+}
+impl LossyApi {
+    fn losing(operation: &'static str, loss: Loss) -> Arc<Self> {
+        let api = Arc::new(Self::default());
+        *api.loss.lock().unwrap() = Some((operation, loss));
+        api
+    }
+    fn lost() -> table_paypal::Error {
+        table_paypal::Error::Unknown {
+            observations: vec![],
+        }
+    }
+    fn refused(status: u16) -> table_paypal::Error {
+        table_paypal::Error::Api {
+            status,
+            debug_id: None,
+            observations: vec![],
+        }
+    }
+    fn observed<T: serde::de::DeserializeOwned>(
+        value: serde_json::Value,
+        method: &'static str,
+        path: &str,
+        request: Option<&RequestId>,
+    ) -> ApiResponse<T> {
+        ApiResponse {
+            value: serde_json::from_value(value.clone()).unwrap(),
+            observations: vec![Observation {
+                method,
+                path: path.into(),
+                request_id: request.map_or_else(String::new, |r| r.as_str().into()),
+                status: 200,
+                body: value,
+                binding: None,
+            }],
+        }
+    }
+    /// One mutating call: it reaches PayPal, commits once per request id, and its answer may
+    /// be lost on the way back.
+    fn mutate(
+        &self,
+        operation: &'static str,
+        path: &str,
+        request: &RequestId,
+        commit: impl FnOnce(&mut PaypalTruth) -> Result<serde_json::Value, u16>,
+    ) -> Result<serde_json::Value, table_paypal::Error> {
+        let loss = {
+            let mut loss = self.loss.lock().unwrap();
+            match *loss {
+                Some((o, l)) if o == operation => {
+                    *loss = None;
+                    Some(l)
+                }
+                _ => None,
+            }
+        };
+        if loss == Some(Loss::Before) {
+            return Err(Self::lost());
+        }
+        let mut truth = self.truth.lock().unwrap();
+        truth.calls.push(format!("POST {path}"));
+        let answer = match truth.first.get(request.as_str()) {
+            Some(first) => first.clone(),
+            None => {
+                let answer = commit(&mut truth);
+                if answer.is_ok() {
+                    *truth.commits.entry(request.as_str().into()).or_default() += 1;
+                }
+                truth.first.insert(request.as_str().into(), answer.clone());
+                answer
+            }
+        };
+        if loss == Some(Loss::After) {
+            return Err(Self::lost());
+        }
+        answer.map_err(Self::refused)
+    }
+    fn approve(&self) {
+        self.truth.lock().unwrap().approved = true;
+    }
+    fn calls(&self, suffix: &str) -> usize {
+        let truth = self.truth.lock().unwrap();
+        truth.calls.iter().filter(|c| c.ends_with(suffix)).count()
+    }
+    fn commits(&self) -> std::collections::BTreeMap<String, usize> {
+        self.truth.lock().unwrap().commits.clone()
+    }
+}
+#[async_trait]
+impl PayPalApi for LossyApi {
+    async fn create_order(
+        &self,
+        o: &CreateOrder,
+        id: &RequestId,
+    ) -> Result<ApiResponse<Order>, table_paypal::Error> {
+        let path = "/v2/checkout/orders";
+        let value = self.mutate("create", path, id, |t| {
+            t.expected = Some(o.clone());
+            t.created = true;
+            Ok(t.order())
+        })?;
+        Ok(Self::observed(value, "POST", path, Some(id)))
+    }
+    async fn get_order(&self, _: &ResourceId) -> Result<ApiResponse<Order>, table_paypal::Error> {
+        let path = "/v2/checkout/orders/ORDER1";
+        let mut truth = self.truth.lock().unwrap();
+        truth.calls.push(format!("GET {path}"));
+        if !truth.created {
+            return Err(Self::refused(404));
+        }
+        Ok(Self::observed(truth.order(), "GET", path, None))
+    }
+    async fn authorize(
+        &self,
+        _: &ResourceId,
+        id: &RequestId,
+    ) -> Result<ApiResponse<Order>, table_paypal::Error> {
+        let path = "/v2/checkout/orders/ORDER1/authorize";
+        let value = self.mutate("authorize", path, id, |t| {
+            if !t.approved || t.authorization.is_some() {
+                return Err(422);
+            }
+            t.authorization = Some("CREATED");
+            Ok(t.order())
+        })?;
+        Ok(Self::observed(value, "POST", path, Some(id)))
+    }
+    async fn capture(
+        &self,
+        _: &ResourceId,
+        _: Money,
+        id: &RequestId,
+    ) -> Result<ApiResponse<Payment>, table_paypal::Error> {
+        let path = "/v2/payments/authorizations/AUTH1/capture";
+        let value = self.mutate("capture", path, id, |t| {
+            if t.authorization != Some("CREATED") {
+                return Err(422);
+            }
+            t.authorization = Some("CAPTURED");
+            Ok(json!({"id":"CAPTURE1","status":"COMPLETED","amount":t.amount()}))
+        })?;
+        Ok(Self::observed(value, "POST", path, Some(id)))
+    }
+    async fn void(
+        &self,
+        _: &ResourceId,
+        id: &RequestId,
+    ) -> Result<ApiResponse<()>, table_paypal::Error> {
+        let path = "/v2/payments/authorizations/AUTH1/void";
+        // "You cannot void an authorized payment that has been fully captured."
+        self.mutate("void", path, id, |t| {
+            if t.authorization != Some("CREATED") {
+                return Err(422);
+            }
+            t.authorization = Some("VOIDED");
+            Ok(serde_json::Value::Null)
+        })?;
+        Ok(Self::observed(
+            serde_json::Value::Null,
+            "POST",
+            path,
+            Some(id),
+        ))
+    }
+    async fn get_authorization(
+        &self,
+        _: &ResourceId,
+    ) -> Result<ApiResponse<Payment>, table_paypal::Error> {
+        let path = "/v2/payments/authorizations/AUTH1";
+        let mut truth = self.truth.lock().unwrap();
+        truth.calls.push(format!("GET {path}"));
+        let Some(status) = truth.authorization else {
+            return Err(Self::refused(404));
+        };
+        let value = json!({"id":"AUTH1","status":status,"amount":truth.amount()});
+        Ok(Self::observed(value, "GET", path, None))
+    }
+}
+/// The deal's `money.resolved` audit details, oldest first.
+fn resolved_rows(p: &Pipeline, id: DealId) -> Vec<serde_json::Value> {
+    let (rows, _) = p.wallet.ledger.audit_page(None, u16::MAX).unwrap();
+    let mut rows: Vec<_> = rows
+        .into_iter()
+        .filter(|r| r.deal_id == Some(id) && r.action == "money.resolved")
+        .map(|r| r.detail)
+        .collect();
+    rows.reverse();
+    rows
+}
+/// The request ids a deal ever reserved, as its `money.authorized` audit rows name them.
+fn reserved_request_ids(p: &Pipeline, id: DealId) -> Vec<String> {
+    let (rows, _) = p.wallet.ledger.audit_page(None, u16::MAX).unwrap();
+    let mut ids: Vec<_> = rows
+        .into_iter()
+        .filter(|r| r.deal_id == Some(id) && r.action == "money.authorized")
+        .map(|r| r.detail["request_id"].as_str().unwrap().to_owned())
+        .collect();
+    ids.sort();
+    ids
+}
+/// A seller deal settled up to AUTHORIZED on the lossy PayPal.
+async fn authorized_on(api: &Arc<LossyApi>) -> (Pipeline, Deal) {
+    let (_, seller, deal) = agreed();
+    let mut p = Pipeline::new(seller, api.clone(), 100).unwrap();
+    p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+        .await
+        .unwrap();
+    api.approve();
+    p.poll_approval(deal.id, 1, 100).await.unwrap();
+    p.authorize(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+        .await
+        .unwrap();
+    (p, deal)
+}
+
+/// T10 chaos matrix: create, authorize, capture and void, each with its answer lost before or
+/// after PayPal commits. Every deal ends in the state PayPal's truth gives it, no
+/// PayPal-Request-Id is committed twice, and no second request id is ever reserved.
+#[tokio::test]
+async fn lost_answers_resolve_to_paypal_truth_with_one_commit_per_request_id() {
+    let after = 102 + 72 * 3600 + 2;
+    let mut report = Vec::new();
+    for operation in ["create", "authorize", "capture", "void"] {
+        for loss in [Loss::Before, Loss::After] {
+            let case = format!("{operation} lost {loss:?}");
+            let (_, seller, deal) = agreed();
+            let api = LossyApi::losing(operation, loss);
+            let mut p = Pipeline::new(seller, api.clone(), 100).unwrap();
+            let state = |p: &Pipeline| p.wallet.ledger.get_deal(deal.id).unwrap().state;
+            let advance = Resolve::Advance(Category::Parts);
+
+            let created = p
+                .create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+                .await;
+            if operation == "create" {
+                assert!(created.is_err(), "{case}");
+                assert_eq!(state(&p), DealState::Settling, "{case}");
+                assert!(
+                    p.resolve_deal(deal.id, advance, 101).await.unwrap(),
+                    "{case}"
+                );
+            }
+            assert_eq!(state(&p), DealState::AwaitingApproval, "{case}");
+            api.approve();
+            assert!(p.poll_approval(deal.id, 1, 101).await.unwrap(), "{case}");
+            let authorized = p
+                .authorize(deal.id, 1, Category::Parts, Authority::SellerMandate, 101)
+                .await;
+            if operation == "authorize" {
+                assert!(authorized.is_err(), "{case}");
+                assert_eq!(state(&p), DealState::Approved, "{case}");
+                assert!(
+                    p.resolve_deal(deal.id, advance, 102).await.unwrap(),
+                    "{case}"
+                );
+            }
+            assert_eq!(state(&p), DealState::Authorized, "{case}");
+            let steps = if operation == "void" {
+                // The deadline's safe default: its answer is lost, and the next tick settles it.
+                let due = p.wallet.ledger.deadline(deal.id).unwrap().unwrap().0;
+                assert!(p.tick(due).await.is_err(), "{case}");
+                assert_eq!(state(&p), DealState::Authorized, "{case}");
+                assert_eq!(p.tick(due + 1).await.unwrap(), vec![deal.id], "{case}");
+                assert_eq!(state(&p), DealState::AutoVoided, "{case}");
+                assert_eq!(api.calls("/capture"), 0, "{case}");
+                ["create", "authorize", "void"]
+            } else {
+                let captured = p
+                    .capture(deal.id, 1, Category::Parts, Authority::SellerMandate, 102)
+                    .await;
+                if operation == "capture" {
+                    assert!(captured.is_err(), "{case}");
+                    assert_eq!(state(&p), DealState::Authorized, "{case}");
+                    assert!(
+                        p.resolve_deal(deal.id, advance, 103).await.unwrap(),
+                        "{case}"
+                    );
+                }
+                assert_eq!(state(&p), DealState::Receipted, "{case}");
+                assert_eq!(api.calls("/void"), 0, "{case}");
+                let d = p.wallet.ledger.get_deal(deal.id).unwrap();
+                assert_eq!(d.paypal.capture.as_deref(), Some("CAPTURE1"), "{case}");
+                ["create", "authorize", "capture"]
+            };
+            // Exactly one committed mutating call per request id, and only the canonical ids.
+            let canonical: std::collections::BTreeMap<String, usize> = steps
+                .iter()
+                .map(|s| {
+                    let id = RequestId::for_operation(deal.id, 1, s).unwrap();
+                    (id.as_str().to_owned(), 1)
+                })
+                .collect();
+            assert_eq!(api.commits(), canonical, "{case}");
+            assert_eq!(
+                reserved_request_ids(&p, deal.id),
+                canonical.keys().cloned().collect::<Vec<_>>(),
+                "{case}: no second request id"
+            );
+            assert_eq!(
+                p.wallet.ledger.operation_count(deal.id).unwrap(),
+                3,
+                "{case}"
+            );
+            // The lost operation was settled by the resolver, and nothing is left open.
+            let resolved = resolved_rows(&p, deal.id);
+            let outcomes: Vec<_> = resolved
+                .iter()
+                .map(|r| r["outcome"].as_str().unwrap().to_owned())
+                .collect();
+            let expected: &[&str] = match loss {
+                Loss::After if operation != "create" => &["confirmed"],
+                _ => &["resent", "confirmed"],
+            };
+            assert_eq!(outcomes, expected, "{case}");
+            assert!(
+                resolved.iter().all(|r| r["operation"] == operation),
+                "{case}"
+            );
+            assert!(p.open_operations(None, after).unwrap().is_empty(), "{case}");
+            p.wallet.ledger.verify_audit().unwrap();
+            report.push(format!(
+                "{case}: end={:?} commits={:?}",
+                state(&p),
+                api.commits().values().collect::<Vec<_>>()
+            ));
+        }
+    }
+    println!("{}", report.join("\n"));
+}
+
+/// A capture whose answer was lost after PayPal captured, then its deadline: the deadline reads
+/// the authorization back, confirms the capture and sends no void.
+#[tokio::test]
+async fn lost_capture_then_deadline_confirms_the_capture_and_never_voids() {
+    let api = LossyApi::losing("capture", Loss::After);
+    let (mut p, deal) = authorized_on(&api).await;
+    assert!(
+        p.capture(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+            .await
+            .is_err()
+    );
+    let due = 100 + 72 * 3600;
+    assert_eq!(p.tick(due).await.unwrap(), vec![deal.id]);
+    let d = p.wallet.ledger.get_deal(deal.id).unwrap();
+    assert!(matches!(
+        d.state,
+        DealState::Captured | DealState::Receipted
+    ));
+    assert_eq!(api.calls("/void"), 0);
+    assert_eq!(api.calls("/capture"), 1);
+    // The capture is settled on the authority it was sent under, not on a safe default.
+    assert!(matches!(
+        d.decided_by,
+        Some(DecidedBy::SellerMandate { .. })
+    ));
+    assert!(p.tick(due + 1).await.unwrap().is_empty());
+    assert_eq!(api.calls("/void"), 0);
+    p.wallet.ledger.verify_audit().unwrap();
+}
+
+/// The same capture lost before PayPal saw it, then the deadline: the capture is given up (it
+/// is never sent after the deadline) and the safe default voids the hold.
+#[tokio::test]
+async fn uncommitted_capture_at_the_deadline_is_given_up_and_voided() {
+    let api = LossyApi::losing("capture", Loss::Before);
+    let (mut p, deal) = authorized_on(&api).await;
+    assert!(
+        p.capture(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+            .await
+            .is_err()
+    );
+    assert_eq!(p.tick(100 + 72 * 3600).await.unwrap(), vec![deal.id]);
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::AutoVoided
+    );
+    assert_eq!(api.calls("/capture"), 0);
+    assert_eq!(api.calls("/void"), 1);
+    let outcomes: Vec<_> = resolved_rows(&p, deal.id)
+        .into_iter()
+        .map(|r| (r["operation"].clone(), r["outcome"].clone()))
+        .collect();
+    assert_eq!(outcomes, vec![(json!("capture"), json!("absent"))]);
+    p.wallet.ledger.verify_audit().unwrap();
+}
+
+/// A deadline whose read-back fails sends no void: the hold stays, the failure is recorded once,
+/// and the next tick tries again.
+#[tokio::test]
+async fn failed_read_back_at_the_deadline_skips_the_void_and_retries_next_tick() {
+    let api = LossyApi::losing("capture", Loss::After);
+    let (mut p, deal) = authorized_on(&api).await;
+    assert!(
+        p.capture(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+            .await
+            .is_err()
+    );
+    // PayPal's reads fail: neither the order nor the authorization can be found.
+    let held = {
+        let mut truth = api.truth.lock().unwrap();
+        truth.created = false;
+        truth.authorization.take()
+    };
+    let due = 100 + 72 * 3600;
+    for at in [due, due + 1] {
+        assert!(matches!(
+            p.tick(at).await,
+            Err(table_app::Error::Unavailable)
+        ));
+        assert_eq!(
+            p.wallet.ledger.get_deal(deal.id).unwrap().state,
+            DealState::Authorized
+        );
+    }
+    assert_eq!(api.calls("/void"), 0);
+    let outcomes: Vec<_> = resolved_rows(&p, deal.id)
+        .into_iter()
+        .map(|r| r["outcome"].clone())
+        .collect();
+    assert_eq!(outcomes, vec![json!("deferred")]);
+    // PayPal answers again: the capture it committed is confirmed, still with no void.
+    {
+        let mut truth = api.truth.lock().unwrap();
+        truth.created = true;
+        truth.authorization = held;
+    }
+    p.tick(due + 2).await.unwrap();
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Receipted
+    );
+    assert_eq!(api.calls("/void"), 0);
+    p.wallet.ledger.verify_audit().unwrap();
+}
+
+/// An owner-decided capture whose answer was lost: an owner ticket authorizes one step for 60
+/// seconds, so nothing is sent again; one audit row asks the owner, and it is not retried.
+#[tokio::test]
+async fn human_authority_unknown_capture_is_parked_for_the_owner_and_never_resent() {
+    let (mut wallet, deal, _, _) = support::setup(Side::Buyer, DealKind::Purchase);
+    propose_one(&mut wallet, &deal).unwrap();
+    let api = LossyApi::losing("capture", Loss::Before);
+    let mut p = Pipeline::new(wallet, api.clone(), 100).unwrap();
+    let token = p.approval.token("approval").unwrap().to_owned();
+    p.approval
+        .unlock("approval", &token, &TestReauth, 100)
+        .unwrap();
+    let hash = p
+        .wallet
+        .ledger
+        .get_deal(deal.id)
+        .unwrap()
+        .terms
+        .hash()
+        .unwrap();
+    let ticket = |p: &mut Pipeline| {
+        p.approval
+            .ticket("approval", &token, deal.id, hash, 1, 100)
+            .unwrap()
+    };
+    let t = ticket(&mut p);
+    p.create(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+        .await
+        .unwrap();
+    api.approve();
+    assert!(p.poll_approval(deal.id, 1, 100).await.unwrap());
+    let t = ticket(&mut p);
+    p.authorize(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+        .await
+        .unwrap();
+    let t = ticket(&mut p);
+    assert!(
+        p.capture(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+            .await
+            .is_err()
+    );
+    for at in [101, 102, 200] {
+        assert!(
+            !p.resolve_deal(deal.id, Resolve::Advance(Category::Parts), at)
+                .await
+                .unwrap()
+        );
+    }
+    // Nothing re-sent: the lost capture never reached PayPal, and no second one did.
+    assert_eq!(api.calls("/capture"), 0);
+    assert_eq!(api.calls("GET /v2/payments/authorizations/AUTH1"), 1);
+    let resolved = resolved_rows(&p, deal.id);
+    assert_eq!(resolved.len(), 1);
+    assert_eq!(resolved[0]["outcome"], "needs_owner");
+    assert_eq!(resolved[0]["operation"], "capture");
+    assert_eq!(resolved[0]["observed"], "CREATED");
+    assert_eq!(resolved[0]["decided_by"]["type"], "human");
+    let open = p.open_operations(Some(deal.id), 200).unwrap();
+    assert_eq!(open.len(), 1);
+    assert!(open[0].needs_owner);
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Authorized
+    );
+    assert_eq!(reserved_request_ids(&p, deal.id).len(), 3);
+    p.wallet.ledger.verify_audit().unwrap();
+}
+
+/// T10 rule: an unknown create is never recreated under a new attempt or request id; it is
+/// resolved by re-sending the original request, which PayPal answers with the first order.
+#[tokio::test]
+async fn unknown_money_outcome_is_reserved_and_never_recreated() {
+    let (_, seller, deal) = agreed();
+    let api = LossyApi::losing("create", Loss::After);
+    let mut p = Pipeline::new(seller, api.clone(), 100).unwrap();
+    assert!(
+        p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+            .await
+            .is_err()
+    );
+    // Never recreated: a new attempt is refused before any network call or reservation.
+    assert!(
+        p.create(deal.id, 2, Category::Parts, Authority::Policy, 100)
+            .await
+            .is_err()
+    );
+    assert_eq!(api.calls("POST /v2/checkout/orders"), 1);
+    let create = RequestId::for_operation(deal.id, 1, "create").unwrap();
+    assert_eq!(
+        reserved_request_ids(&p, deal.id),
+        vec![create.as_str().to_owned()]
+    );
+    // The resolver re-sends the original request id; PayPal answers with the first order.
+    assert!(
+        p.resolve_deal(deal.id, Resolve::Advance(Category::Parts), 101)
+            .await
+            .unwrap()
+    );
+    assert_eq!(api.calls("POST /v2/checkout/orders"), 2);
+    assert_eq!(
+        api.commits(),
+        [(create.as_str().to_owned(), 1)].into_iter().collect()
+    );
+    assert_eq!(
+        reserved_request_ids(&p, deal.id),
+        vec![create.as_str().to_owned()]
+    );
+    let d = p.wallet.ledger.get_deal(deal.id).unwrap();
+    assert_eq!(d.state, DealState::AwaitingApproval);
+    assert_eq!(d.paypal.order.as_deref(), Some("ORDER1"));
+    // The approval window is counted from the first attempt.
+    assert_eq!(
+        p.wallet.ledger.deadline(deal.id).unwrap().unwrap().0,
+        100 + 6 * 3600
+    );
+    p.wallet.ledger.verify_audit().unwrap();
 }
