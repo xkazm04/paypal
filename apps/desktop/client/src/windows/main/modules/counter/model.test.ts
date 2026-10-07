@@ -5,7 +5,7 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { MarketRef } from '@bindings/MarketRef';
 import type { Money } from '@bindings/Money';
 import {
-  buildCatalog, draftImpact, draftState, floorText, fmtShort, matchesFilter, minorToText, parseMoneyText, scaleOf, sellerMandates,
+  buildCatalog, currencyMark, draftImpact, draftState, floorText, fmtShort, matchesFilter, minorToText, parseMoneyText, scaleOf, sellerMandates,
   stepFloor, underDraft, vsMarket, type CatalogRow,
 } from './model';
 
@@ -29,6 +29,14 @@ const shopClauses = (floor: number | null, items = ['arm']): Clause[] => [
   { type: 'per_deal', kind: 'shop_order', max_amount: usd(100000), categories: [] },
   { type: 'band', item_refs: items, floor: floor === null ? null : usd(floor), ceiling: usd(20000), max_rounds: 3, deadline: 9 },
 ];
+
+describe('price input mark', () => {
+  it('puts the currency in front of a typed price: a symbol when there is one, else the code', () => {
+    expect(currencyMark('USD')).toBe('$');
+    expect(currencyMark('JPY')).toBe('JPY');
+    expect(currencyMark('KWD')).toBe('KWD');
+  });
+});
 
 describe('money text', () => {
   it('parses decimal strings exactly, never through floats', () => {

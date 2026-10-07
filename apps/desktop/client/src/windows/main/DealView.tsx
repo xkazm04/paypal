@@ -81,7 +81,7 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
   return (
     <div style={mc(module)} className="dealview">
       <PageHead focusKey={deal.id} title={disp.title}
-        sub={<>{deal.side === 'buyer' ? 'You’re buying' : 'You’re selling'} · {kindWord(deal.kind)} · {disp.label}</>}
+        sub={<>{deal.side === 'buyer' ? 'You’re buying' : 'You’re selling'} · {kindWord(deal.kind)}</>}
         actions={<>
           <AgentAction deal={deal} label={disp.label} />
           <Btn sm kind="plain" onClick={(e) => { const t = e.currentTarget; setFacts((x) => (x ? null : t)); }}>Details</Btn>
@@ -148,7 +148,8 @@ function AgentAction({ deal, label }: { deal: Deal; label: string }) {
   if (run) return <Chip tone="ok" title={`Run ${shortId(run.run)} on ${run.engine}`}>Agent {run.state}</Chip>;
   return (
     <>
-      <Btn sm kind="primary" disabled={paused || start.pending} title={paused ? 'All agents are paused; resume them in Settings' : 'Let your agent bargain for this deal, inside your rules'}
+      {/* While the deal needs the owner, the gold Review is the one decision on the page: this stays quiet. */}
+      <Btn sm kind={w.needOf(deal.id) ? undefined : 'primary'} disabled={paused || start.pending} title={paused ? 'All agents are paused; resume them in Settings' : 'Let your agent bargain for this deal, inside your rules'}
         onClick={async () => { const r = await start.run({ deal_id: deal.id }); if (r) toast(<>Your agent is <b>{r.state}</b> on {label}</>, 'ok'); }}>
         {paused ? 'Agents paused' : 'Start agent'}
       </Btn>

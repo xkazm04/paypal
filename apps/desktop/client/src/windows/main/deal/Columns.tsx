@@ -56,8 +56,10 @@ export function WhatHappened({ deal, steps, error, clauses, theirName, facts, fa
   const allOk = !!steps && steps.every((s) => s.verified);
   const them = firstName(theirName);
   const newest = steps?.reduce<number>((m, s) => Math.max(m, s.seq), -1) ?? -1;
-  // Newest at the bottom: open the thread scrolled to it.
-  useEffect(() => { const el = box.current; if (el) el.scrollTop = el.scrollHeight; }, [rows.length]);
+  // Newest at the bottom: open the thread scrolled to it. The top edge fades only while something
+  // is hidden above it, so a short thread never looks cut off.
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => { const el = box.current; if (el) { el.scrollTop = el.scrollHeight; setHidden(el.scrollTop > 0); } }, [rows.length]);
   return (
     <div className={`dv-happen ${facts.length ? 'has-facts' : ''}`}>
       <section className="dv-thread" aria-label="What happened">
@@ -73,7 +75,7 @@ export function WhatHappened({ deal, steps, error, clauses, theirName, facts, fa
         {error ? (
           <Empty>The conversation couldn’t be loaded right now. It is still stored with the deal.</Empty>
         ) : !steps ? <Loading what="the conversation" /> : (
-          <ol className="dv-chat" ref={box} onKeyDown={arrows}>
+          <ol className={`dv-chat ${hidden ? 'more-above' : ''}`} ref={box} onKeyDown={arrows} onScroll={(e) => setHidden(e.currentTarget.scrollTop > 0)}>
             {!nEnv ? (
               <li className="sys wide"><span>{deal.kind !== 'haggle' ? 'Nothing was negotiated.' : isLive(deal) ? 'No offers yet.' : 'No offers are stored with this deal.'}</span></li>
             ) : null}
