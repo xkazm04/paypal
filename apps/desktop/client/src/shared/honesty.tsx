@@ -7,7 +7,7 @@ import type { WalletError } from '../lib/contract';
 import { countdown, formatMinor, formatMoney } from '../lib/format';
 import { useNow } from '../lib/hooks';
 import { backend } from '../lib/runtime';
-import { modeWord } from '../lib/words';
+import { modeWord, runBadge } from '../lib/words';
 
 
 const MODE_TIP: Record<Mode, string> = {
@@ -78,4 +78,9 @@ export function WalletNotice({ error, what, message }: { error: WalletError; wha
       </span>
     </div>
   );
+}
+
+/** "Practice agent" beside an agent run whose mode is the scripted engine; nothing otherwise. */
+export function RunBadge({ run }: { run: { mode: Mode } }) {
+  return runBadge(run) ? <ModeBadge mode="scripted_engine" /> : null;
 }
