@@ -282,6 +282,37 @@ export function ruleProblems(clauses: readonly DraftClause[], notBefore: number 
   return out;
 }
 
+/** Rust's validate() reasons in the editor's words, so no rule number or internal term shows. */
+const REFUSAL_WORDS: Record<string, string> = {
+  'invalid mandate version or validity': 'the end must be after the start',
+  'duplicate clause': 'a rule appears twice; there can be only one of each kind',
+  'empty roles': 'nothing is allowed',
+  'empty pinned keys': 'no wallets listed',
+  'empty categories': 'no categories',
+  'invalid band': 'the price range is incomplete or ends at the wrong time',
+  'invalid floor/ceiling': 'the least you’ll accept is above the most you’ll pay',
+  'empty velocity allowance': 'it allows 0 deals a day',
+  'empty payee allowance': 'no payees',
+  'required clause missing': 'a required rule is missing',
+  'currency differs across clauses': 'the amounts are in different currencies',
+  'band required for haggle and shop orders': 'haggles and shop orders need a price range',
+  'no role in the roles clause can act on the per-deal kind': 'none of what you allowed agents to do fits this kind of deal, so nothing would ever be allowed',
+  'band lacks the side the allowed roles use': 'agents that buy need a most-you’ll-pay, and agents that sell need a least-you’ll-accept',
+};
+
+/** A REFUSED from mandate_sign or band_set ("mandate clause 4: …"), as one plain sentence. */
+export function refusalWords(message: string): string {
+  const why = REFUSAL_WORDS[message.replace(/^mandate clause \d+: /, '')];
+  return why ? `These rules can’t be signed: ${why}.` : 'These rules can’t be signed: they don’t fit what the wallet accepts.';
+}
+
+/** Before band_set: the side this deal plays needs its bound, in the editor's words; null when it has it. */
+export function bandMissingSide(side: 'buyer' | 'seller', floor: unknown, ceiling: unknown): string | null {
+  if (side === 'buyer' && !ceiling) return 'Agents that buy need a most-you’ll-pay. Without one, the wallet refuses to sign rules that only buy.';
+  if (side === 'seller' && !floor) return 'Agents that sell need a least-you’ll-accept. Without one, the wallet refuses to sign rules that only sell.';
+  return null;
+}
+
 /** Mirror of Rust's role/side/kind pairing table: whether a role can act on a deal kind. */
 const roleActs = (role: Role, kind: DealKind): boolean => {
   switch (role) {

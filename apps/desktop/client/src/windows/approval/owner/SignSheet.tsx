@@ -11,7 +11,7 @@ import { shortHash } from '../../../lib/format';
 import { ruleNameOf, rulesName } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
 import { Btn, Hourglass, Kv, Section, Sheet } from '../../../shared/ui';
-import type { RuleProblem } from '../mandateDraft';
+import { refusalWords, type RuleProblem } from '../mandateDraft';
 import { useSession } from '../session';
 import { DirChip } from './Lever';
 import { termWord, type Change } from './diff';
@@ -63,7 +63,7 @@ export function SignSheet({ base, args, changes, consequences, problems, onClose
           {s.unlocking ? 'Waiting for Windows Hello…' : 'Unlock with Windows Hello'}
         </Btn>
       ) : (
-        <Btn kind="gold" disabled={!s.tokenReady || busy} onClick={() => void sign()}>
+        <Btn kind="gold" disabled={!s.tokenReady || busy || problems.length > 0} onClick={() => void sign()}>
           {s.pending === 'mandate_sign' ? 'Signing…' : 'Sign with your owner key'}
         </Btn>
       )}
@@ -113,6 +113,7 @@ export function SignSheet({ base, args, changes, consequences, problems, onClose
                 </li>
               ))}
           <li className="live">New rules apply to new requests only. Anything already on hold, invoiced or approved stays as it is.</li>
+          {base ? <li className="live">Haggles still open stay tied to the version they started under, so once you sign they need starting again.</li> : null}
         </ul>
         {problems.length ? (
           <ul className="ow-warns" aria-label="Why this can’t be signed yet">
@@ -138,7 +139,7 @@ export function SignSheet({ base, args, changes, consequences, problems, onClose
         </details>
       </Section>
 
-      {error ? <WalletNotice error={error} what="Not signed" /> : null}
+      {error ? <WalletNotice error={error} what="Not signed" message={error.code === 'REFUSED' ? refusalWords(error.message) : undefined} /> : null}
       <p className="ui-silence ow-endline">
         <Hourglass /><span className="if">If you close this: </span><b>nothing is signed</b> · {base ? 'your current rules stay in force' : 'no rules are created'} · no money moves
       </p>

@@ -10,6 +10,7 @@ import type { DealDisplay } from '../../lib/pending';
 import { WalletNotice } from '../../shared/honesty';
 import { Btn, Field } from '../../shared/ui';
 import type { Gate } from './gating';
+import { bandMissingSide, refusalWords } from './mandateDraft';
 import { minorToInput, parseMoneyInput } from './model';
 import { useSession } from './session';
 
@@ -36,6 +37,7 @@ export function BandAdjust({ deal, band, gate, onDone, draft }: {
   const f = parse(floor);
   const c = parse(ceiling);
   const invalid = f === undefined || c === undefined || (f === null && c === null) || (!!f && !!c && f.minor > c.minor);
+  const missing = invalid ? null : bandMissingSide(deal.side, f, c);
 
   const sign = async () => {
     if (invalid || f === undefined || c === undefined) return;
@@ -79,11 +81,12 @@ export function BandAdjust({ deal, band, gate, onDone, draft }: {
             onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}>
             {s.pending === 'band_set' ? 'Signing…' : 'Sign new range'}
           </Btn>
+          {missing ? <p className="ui-hint gold" role="note">{missing}</p> : null}
           <p className="ui-hint">{seed ? 'Filled in from your draft in The Table. Check both amounts: nothing is signed until you sign here. ' : ''}Updates your rules for this deal before it’s agreed. It doesn’t pay anything.</p>
         </div>
       ) : null}
       {done ? <p className="dr-hint" role="status"><span className="ui-chip ok">Signed</span><span className="t" title={done}>{done}</span></p> : null}
-      {error ? <WalletNotice error={error} what="Price range not changed" /> : null}
+      {error ? <WalletNotice error={error} what="Price range not changed" message={error.code === 'REFUSED' ? refusalWords(error.message) : undefined} /> : null}
     </div>
   );
 }
