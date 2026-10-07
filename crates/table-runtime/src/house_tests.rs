@@ -1017,28 +1017,33 @@ async fn house_health_stays_up_through_a_slow_tick_of_several_deals() {
     let running = house_seller::start(house.open(api.clone()));
     let handle = running.handle.clone();
     let router = house_seller::router(house.store.clone(), handle.clone());
-    for _ in &house.deals {
+    let mut snapshots = Vec::new();
+    for (n, _) in house.deals.iter().enumerate() {
         tokio::time::timeout(std::time::Duration::from_secs(10), api.entered.notified())
             .await
             .unwrap();
         // The actor is inside a PayPal call right now.
         assert_eq!(healthz(&router).await, StatusCode::OK);
+        if n + 1 == house.deals.len() {
+            // Ask for every deal while the last call is still held. The actor answers queued
+            // requests before its next tick, whose approval poll waits at the gate; asked after
+            // the release, a slow test task could lose that race to the 1 s timer.
+            for id in &house.deals {
+                let (handle, id) = (handle.clone(), *id);
+                snapshots.push(tokio::spawn(async move { handle.snapshot(id).await }));
+            }
+            tokio::task::yield_now().await;
+        }
         api.resume.add_permits(1);
     }
     let elapsed = house.clock.0.load(std::sync::atomic::Ordering::SeqCst) - started;
     assert!(elapsed > 2 * house_seller::HEARTBEAT_STALE, "{elapsed}");
-    for id in &house.deals {
-        let deal = tokio::time::timeout(std::time::Duration::from_secs(10), async {
-            loop {
-                let deal = handle.snapshot(*id).await.unwrap();
-                if deal.state == DealState::AwaitingApproval {
-                    break deal;
-                }
-                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-            }
-        })
-        .await
-        .unwrap();
+    for snapshot in snapshots {
+        let deal = tokio::time::timeout(std::time::Duration::from_secs(10), snapshot)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
         assert_eq!(deal.state, DealState::AwaitingApproval);
     }
     // A call that hangs past the threshold is still a stalled actor (C-8): /healthz reads 503.
