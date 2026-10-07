@@ -1179,3 +1179,22 @@ unchanged (no generated type changed; `TranscriptBy`/`TranscriptType` only gaine
 - Real counters from a wallet seller (needs a below-floor "declined as evidence" path like
   HOUSE's), `withdraw` on exhausted rounds is untested end to end, and the HOUSE video
   rehearsal.
+
+## Gate without exclusions (2026-10-07)
+
+- **What failed.** The merge gate could not compile `table-desktop` (`tauri::generate_context!` panics when the
+  gitignored `apps/desktop/client/dist` is absent) and skipped `native_stdin_stderr_terminal_and_temp_cleanup`, which
+  failed on `main` (`native.rs:134`, `engine.run(...)` returning `Timeout`).
+- **Cause.** (A) No placeholder bundle in a tree that never ran the client build. (B) A test-fixture budget, not a
+  defect in `crates/table-engine/src`: `fixture()` set `RunLimits.init` to 500 ms. With the seven native tests spawning
+  the fixture in parallel on Windows, first output sometimes took longer; measured before the fix: 2 or 3 of 7 tests
+  failed with `Timeout` in 3 of 4 runs (`stdin_stderr` and also `toolless` and `cancellation`). The 5 s total and the
+  2 s cleanup wait were not the limit. No stale-fixture-binary problem was involved.
+- **Fix.** `apps/desktop/src-tauri/build.rs` (Windows branch) creates `client/dist/index.html` as a placeholder and emits
+  one `cargo:warning` when it is missing and the profile is not `release`; a release build without the real bundle
+  fails with a message naming the client build. Nothing under `client/dist` is committed (it stays gitignored); CI,
+  which builds the client first, takes the early return. `tests/native.rs` `fixture()` now uses
+  `init = min(total, 4000 ms)` (`NativeEngine::new` requires `init <= total`); every assertion is unchanged.
+- **Result.** `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` and
+  `cargo test --workspace` pass with no `--exclude` and no `--skip`; `cargo test -p table-engine --test native` passed
+  6 runs in a row. The merge gate can drop `--exclude table-desktop` and `--skip native_stdin_stderr_terminal_and_temp_cleanup`.

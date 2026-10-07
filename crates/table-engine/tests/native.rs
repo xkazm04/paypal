@@ -18,7 +18,10 @@ fn fixture(mode: &str, root: &std::path::Path, total: u64) -> NativeEngine {
         },
         root.join("runs"),
         RunLimits {
-            init: Duration::from_millis(500),
+            // 500 ms was too tight: with the seven tests spawning the fixture in parallel
+            // on Windows, first output took longer (measured 2 to 3 of 7 tests failing with
+            // Timeout per run). Total budgets below still bound every run.
+            init: Duration::from_millis(total.min(4000)),
             total: Duration::from_millis(total),
         },
     )
