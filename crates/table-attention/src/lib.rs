@@ -2,8 +2,10 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 pub mod forecast;
 pub mod placement;
+pub mod silence;
 pub use forecast::*;
 pub use placement::*;
+pub use silence::word_silence;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -87,6 +89,7 @@ pub struct AttentionSource {
     pub deal_id: DealId,
     pub display_number: u32,
     pub state: DealState,
+    pub side: table_core::Side,
     pub module: Module,
     pub amount: Money,
     pub pairing_display_name: Option<String>,
@@ -115,6 +118,7 @@ impl AttentionSource {
             deal_id: deal.id,
             display_number,
             state: deal.state,
+            side: deal.side,
             module,
             amount: deal.terms.amount()?,
             pairing_display_name,
@@ -316,6 +320,7 @@ mod tests {
             deal_id: format!("{:026}", number).parse().unwrap(),
             display_number: number,
             state: DealState::Agreed,
+            side: table_core::Side::Buyer,
             module: Module::Tables,
             amount: Money::new(32900, Currency::USD).unwrap(),
             pairing_display_name: Some("Dan".into()),
