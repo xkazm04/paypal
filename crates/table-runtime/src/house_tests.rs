@@ -938,3 +938,179 @@ async fn house_failed_step_writes_one_redacted_log_line() {
     // The failing call reached PayPal through the script only; the offline mock saw none.
     assert!(house.http.0.lock().unwrap().paths.is_empty());
 }
+
+async fn healthz(router: &Router) -> axum::http::StatusCode {
+    router
+        .clone()
+        .oneshot(Request::get("/healthz").body(Body::empty()).unwrap())
+        .await
+        .unwrap()
+        .status()
+}
+fn audit_rows(seller: &house_seller::Seller, id: DealId, action: &str) -> Vec<serde_json::Value> {
+    let (rows, more) = seller
+        .pipeline
+        .wallet
+        .ledger
+        .audit_page(None, u16::MAX)
+        .unwrap();
+    assert!(!more);
+    rows.into_iter()
+        .filter(|r| r.deal_id == Some(id) && r.action == action)
+        .map(|r| r.detail)
+        .collect()
+}
+
+#[tokio::test]
+async fn house_health_stays_up_through_a_slow_tick_of_several_deals() {
+    use axum::http::StatusCode;
+    let house = FileHouse::new(3);
+    let mut api = house.api();
+    // Each PayPal call takes almost the whole threshold, so one tick of three deals takes far
+    // longer than it; a heartbeat written only when the tick starts would read 503 by the second.
+    api.takes = house_seller::HEARTBEAT_STALE - 1;
+    api.gated = true;
+    let api = Arc::new(api);
+    let started = house.clock.0.load(std::sync::atomic::Ordering::SeqCst);
+    let running = house_seller::start(house.open(api.clone()));
+    let handle = running.handle.clone();
+    let router = house_seller::router(house.store.clone(), handle.clone());
+    for _ in &house.deals {
+        tokio::time::timeout(std::time::Duration::from_secs(10), api.entered.notified())
+            .await
+            .unwrap();
+        // The actor is inside a PayPal call right now.
+        assert_eq!(healthz(&router).await, StatusCode::OK);
+        api.resume.add_permits(1);
+    }
+    let elapsed = house.clock.0.load(std::sync::atomic::Ordering::SeqCst) - started;
+    assert!(elapsed > 2 * house_seller::HEARTBEAT_STALE, "{elapsed}");
+    for id in &house.deals {
+        let deal = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+            loop {
+                let deal = handle.snapshot(*id).await.unwrap();
+                if deal.state == DealState::AwaitingApproval {
+                    break deal;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(deal.state, DealState::AwaitingApproval);
+    }
+    // A call that hangs past the threshold is still a stalled actor (C-8): /healthz reads 503.
+    tokio::time::timeout(std::time::Duration::from_secs(10), api.entered.notified())
+        .await
+        .unwrap();
+    assert_eq!(healthz(&router).await, StatusCode::OK);
+    house.clock.0.fetch_add(
+        house_seller::HEARTBEAT_STALE,
+        std::sync::atomic::Ordering::SeqCst,
+    );
+    assert_eq!(healthz(&router).await, StatusCode::SERVICE_UNAVAILABLE);
+    api.resume.add_permits(1000);
+    running.drain().await;
+}
+
+#[tokio::test]
+async fn house_restart_mid_capture_reserves_no_second_request_id_and_reports_it() {
+    let house = FileHouse::new(1);
+    let id = house.deals[0];
+    let mut api = house.api();
+    api.hangs = "capture";
+    let api = Arc::new(api);
+    let mut seller = house.open(api.clone());
+    // create, approval poll, authorize, then capture reserves its request id and never returns.
+    let ticking = async {
+        for _ in 0..10 {
+            let _ = seller.tick().await;
+        }
+    };
+    tokio::select! {
+        () = ticking => panic!("capture never started"),
+        () = api.hung.notified() => {}
+    }
+    // The process dies in the middle of the capture call.
+    drop(seller);
+    let captures = |paths: &[String]| paths.iter().filter(|p| p.ends_with("/capture")).count();
+    let before = captures(&house.http.0.lock().unwrap().paths);
+    assert_eq!(before, 0, "the hung capture never reached the mock");
+
+    let lines = Arc::new(Lines::default());
+    let mut seller = house.open(Arc::new(house.api())).with_log(lines.clone());
+    assert_eq!(
+        seller.pending_operations().unwrap(),
+        vec![house_seller::PendingOperation {
+            deal: id,
+            operation: "capture",
+            attempt: 1
+        }]
+    );
+    assert_eq!(seller.report_pending().unwrap(), 1);
+    for _ in 0..3 {
+        assert!(seller.tick().await.is_err());
+    }
+    // One line for the pending capture, and one (not three) for the step that keeps refusing.
+    assert_eq!(
+        lines.all(),
+        vec![
+            format!("house pending deal={id} operation=capture attempt=1 outcome=unknown"),
+            format!("house step=advance deal={id} error=ledger.sql"),
+        ]
+    );
+    // No second request id: one reservation, nothing sent again, the deal still on hold.
+    let reserved = audit_rows(&seller, id, "money.authorized");
+    let capture: Vec<_> = reserved
+        .iter()
+        .filter(|d| d["operation"] == "capture")
+        .collect();
+    assert_eq!(capture.len(), 1);
+    assert_eq!(
+        capture[0]["request_id"],
+        table_paypal::RequestId::for_operation(id, 1, "capture")
+            .unwrap()
+            .as_str()
+    );
+    assert_eq!(captures(&house.http.0.lock().unwrap().paths), 0);
+    assert_eq!(
+        seller.pipeline.wallet.ledger.get_deal(id).unwrap().state,
+        DealState::Authorized
+    );
+    seller.pipeline.wallet.ledger.verify_audit().unwrap();
+}
+
+#[tokio::test]
+async fn house_drain_finishes_the_tick_in_flight_then_stops() {
+    let house = FileHouse::new(1);
+    let id = house.deals[0];
+    let mut api = house.api();
+    api.gated = true;
+    let api = Arc::new(api);
+    let running = house_seller::start(house.open(api.clone()));
+    let handle = running.handle.clone();
+    tokio::time::timeout(std::time::Duration::from_secs(10), api.entered.notified())
+        .await
+        .unwrap();
+    // A stop arrives while the create call is in flight: the drain waits for it.
+    let drain = tokio::spawn(running.drain());
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    assert!(!drain.is_finished());
+    api.resume.add_permits(1);
+    tokio::time::timeout(std::time::Duration::from_secs(10), drain)
+        .await
+        .unwrap()
+        .unwrap();
+    // The actor is gone and takes no new request.
+    assert!(matches!(
+        handle.snapshot(id).await,
+        Err(house_seller::Error::Unavailable)
+    ));
+    // The step in flight finished: the order is created and nothing is left pending.
+    let seller = house.open(Arc::new(house.api()));
+    assert_eq!(
+        seller.pipeline.wallet.ledger.get_deal(id).unwrap().state,
+        DealState::AwaitingApproval
+    );
+    assert!(seller.pending_operations().unwrap().is_empty());
+}

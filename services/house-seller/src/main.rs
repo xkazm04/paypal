@@ -8,6 +8,30 @@ impl table_core::Clock for Time {
             .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
     }
 }
+/// Resolves on ctrl-c or SIGTERM (the host's stop signal). A signal that cannot be watched never
+/// resolves, so a failed registration cannot stop the HOUSE by itself.
+async fn shutdown() {
+    let interrupt = async {
+        if tokio::signal::ctrl_c().await.is_err() {
+            std::future::pending::<()>().await;
+        }
+    };
+    #[cfg(unix)]
+    let terminate = async {
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(mut signal) => {
+                signal.recv().await;
+            }
+            Err(_) => std::future::pending::<()>().await,
+        }
+    };
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+    tokio::select! {
+        () = interrupt => {}
+        () = terminate => {}
+    }
+}
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = house_seller::Configuration::from_environment()?;
@@ -40,10 +64,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or_else(|_| "8080".into())
         .parse::<u16>()?;
     let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::UNSPECIFIED, port)).await?;
-    axum::serve(
-        listener,
-        house_seller::router(relay, house_seller::spawn(seller)),
-    )
-    .await?;
+    // Logs any money operation a previous run left pending, then starts the actor.
+    let house = house_seller::start(seller);
+    // On a stop signal: no new connections, requests in flight finish, then the actor drains
+    // (the tick in flight finishes) before the process exits.
+    axum::serve(listener, house_seller::router(relay, house.handle.clone()))
+        .with_graceful_shutdown(shutdown())
+        .await?;
+    house.drain().await;
     Ok(())
 }
