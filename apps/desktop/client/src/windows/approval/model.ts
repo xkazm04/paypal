@@ -1,5 +1,6 @@
 // Display derivations for the approval card. Pure functions over Rust-owned data: they decide
 // what to SAY, never what is allowed (that is gating.ts, which only narrows Rust's flags).
+import type { ApprovalCheck } from '@bindings/ApprovalCheck';
 import type { ApprovalSummary } from '@bindings/ApprovalSummary';
 import type { Clause } from '@bindings/Clause';
 import type { Currency } from '@bindings/Currency';
@@ -9,8 +10,7 @@ import type { Delivery } from '@bindings/Delivery';
 import type { MarketRef } from '@bindings/MarketRef';
 import type { Money } from '@bindings/Money';
 import type { OpenMandate } from '@bindings/OpenMandate';
-import { exponent, formatMinor, formatMoney, lineTotal, shortHash } from '../../lib/format';
-import { ruleNameOf } from '../../lib/words';
+import { exponent, formatMinor, formatMoney, lineTotal } from '../../lib/format';
 import { ruleSentence, stateWord as plainState } from '../../lib/words';
 import { isTerminal } from './gating';
 
@@ -74,67 +74,17 @@ export function deliveryText(d: Delivery): string {
 export const stateWord = (s: DealState): string => plainState(s).text;
 
 // ---------------------------------------------------------------------------------------------
-// the checklist (READY = every line ✓)
+// the checklist: composed by the wallet from the predicates that gate the decision. The window
+// renders each line verbatim and never adds, drops or re-words one (READY = no line fails).
 
-export type CheckStatus = 'ok' | 'bad' | 'info' | 'wait';
-export type Check = { id: string; status: CheckStatus; text: string };
-
-export type CheckInput = {
-  summary: ApprovalSummary;
-  /** undefined = mandate_list not loaded / unavailable; null = loaded, this version not active. */
-  mandate: OpenMandate | null | undefined;
-  clauseNumber: number | null;
-  counterparty: { name: string; known: boolean };
-  now: number;
-};
-
-export function buildChecks({ summary, mandate, clauseNumber, counterparty, now }: CheckInput): Check[] {
-  const deal = summary.deal;
-  const total = formatMoney(dealTotal(deal));
-  const out: Check[] = [];
-
-  // The page holds only the signed terms, not the settled amount, so it has nothing to compare:
-  // only Rust's MISMATCH is a result. Otherwise the line states the amount as a note, never a ✓.
-  out.push(
-    deal.state === 'MISMATCH'
-      ? { id: 'amount', status: 'bad', text: 'the payment request doesn’t match what you agreed' }
-      : { id: 'amount', status: 'info', text: `signed amount ${total} · not compared in this window` },
-  );
-
-  const mlabel = `your rules${clauseNumber ? ` · ${ruleNameOf(clauseNumber).toLowerCase()}` : ''}`;
-  if (mandate === undefined) out.push({ id: 'mandate', status: 'info', text: `${mlabel} · the wallet checks it again` });
-  else if (mandate === null) out.push({ id: 'mandate', status: 'bad', text: `${mlabel} is not active` });
-  else if (mandate.payload.expires <= now) out.push({ id: 'mandate', status: 'bad', text: `${mlabel} has expired` });
-  else out.push({ id: 'mandate', status: 'ok', text: mlabel });
-
-  out.push(
-    counterparty.known
-      ? { id: 'cp', status: 'ok', text: `paired · ${counterparty.name}` }
-      : { id: 'cp', status: 'info', text: `counterparty ${counterparty.name}` },
-  );
-
-  switch (deal.shield) {
-    case 'CLEAR': out.push({ id: 'shield', status: 'ok', text: 'shield CLEAR' }); break;
-    case 'ASK': out.push({ id: 'shield', status: 'ok', text: 'shield ASK · your review is the check' }); break;
-    case 'HOLD': out.push({ id: 'shield', status: 'bad', text: 'shield HOLD · release it first' }); break;
-    case 'BLOCK': out.push({ id: 'shield', status: 'bad', text: 'shield BLOCK · no release exists' }); break;
-    default: out.push({ id: 'shield', status: 'info', text: 'shield not run yet' });
-  }
-
-  const ev = summary.evidence;
-  const recon = ev.reconciliation === 'matched' ? ' · matched' : ev.reconciliation === 'pending_reporting' ? ' · pending in reporting' : '';
-  if (ev.reconciliation === 'mismatch') out.push({ id: 'evidence', status: 'bad', text: 'reconciliation · mismatch with PayPal' });
-  else if (ev.receipt === 'PAYPAL_VERIFIED') out.push({ id: 'evidence', status: 'ok', text: `evidence PayPal-verified${recon}` });
-  else if (ev.receipt === 'SELLER_ATTESTED') out.push({ id: 'evidence', status: 'info', text: `evidence seller-attested${recon}` });
-  // No receipt yet: the delivery term is a fact about the deal, not a passed check.
-  else out.push({ id: 'evidence', status: 'info', text: `no receipt yet · delivery ${deliveryText(deal.terms.delivery)}` });
-
-  out.push(
-    deal.mode === 'sandbox'
-      ? { id: 'mode', status: 'ok', text: `terms ${shortHash(summary.terms_hash)} · attempt ${summary.attempt}` }
-      : { id: 'mode', status: 'info', text: `${deal.mode === 'replay' ? 'REPLAY' : 'scripted engine'} · not a live sandbox payment` },
-  );
-  return out;
+/** How many lines read each way, for the folded "N of M passed" line. */
+export function checksTally(checks: readonly ApprovalCheck[]): { pass: number; fail: number; wait: number; total: number } {
+  return {
+    pass: checks.filter((c) => c.status === 'pass').length,
+    fail: checks.filter((c) => c.status === 'fail').length,
+    wait: checks.filter((c) => c.status === 'wait').length,
+    total: checks.filter((c) => c.status !== 'not_applicable').length,
+  };
 }
 
 // ---------------------------------------------------------------------------------------------

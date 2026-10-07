@@ -9,12 +9,11 @@ import type { Mode } from '@bindings/Mode';
 import { clockLabel, formatMoney } from '../../../lib/format';
 import { marketWords } from '../../../lib/words';
 import { Countdown, MockBadge, ModeBadge } from '../../../shared/honesty';
-import { Btn, Crumbs, Hourglass, Spacer, TitleBar, type CheckItem, type ChipTone } from '../../../shared/ui';
+import { Btn, Crumbs, Hourglass, Spacer, TitleBar, type ChipTone } from '../../../shared/ui';
 import { marketPercentile, STEP } from '../model';
 import type { Step } from '../model';
 import { Emblem } from '../ui';
 import { relMark, rowWord, type DiffRow, type Mark, type RowTone, type Twin } from './diff';
-import { checkStateOf } from './says';
 
 const cx = (...c: Array<string | false | null | undefined>) => c.filter(Boolean).join(' ');
 
@@ -141,40 +140,6 @@ export function DiffTable({ heads, rows, set, revealed, onOpen, open }: {
       })}
     </div>
   );
-}
-
-/** The Diff's rows as checks for the checks summary: exceptions open, passes folded. Each row keeps
- *  its source popover: the name is a button, so "Show all" still reaches where every check came from. */
-export function rowChecks(rows: readonly DiffRow[], set: RowSet, onOpen: (row: DiffRow, set: RowSet, el: HTMLElement) => void, open: string | null, whyOf: (row: DiffRow, state: CheckItem['state']) => ReactNode): CheckItem[] {
-  // What stopped it first, then what asks you, then what could not be checked; passes last (folded anyway).
-  const rank: Record<CheckItem['state'], number> = { fail: 0, ask: 1, unknown: 2, pass: 3 };
-  return [...rows].sort((a, b) => rank[checkStateOf(a)] - rank[checkStateOf(b)]).map((x) => {
-    const word = rowWord(x);
-    const right = x.right ?? 'not shown here';
-    const on = open === `${set}:${x.id}`;
-    const state = checkStateOf(x);
-    const why = whyOf(x, state);
-    const value = x.right ? <span className={cx('rv', x.tone)}>{x.right}</span> : <span className="dr-unk">not shown here</span>;
-    return {
-      state,
-      title: x.src,
-      name: (
-        <button
-          type="button"
-          className={cx('dr-src', on && 'on')}
-          onClick={(e) => onOpen(x, set, e.currentTarget)}
-          onKeyDown={onRowKey}
-          aria-expanded={on}
-          aria-label={`${x.name}: ${x.left}; ${right}; ${word}. Show where this comes from`}
-        >
-          <b>{x.name}</b>
-          <span className="l">{x.left}</span>
-        </button>
-      ),
-      // An exception carries its "Why?" beside the value.
-      value: why ? <span className="dr-vw">{value}{why}</span> : value,
-    };
-  });
 }
 
 // ---- market ---------------------------------------------------------------------------------

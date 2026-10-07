@@ -255,3 +255,12 @@ export const PROOF_SAVE_WARNING = 'This file carries this deal’s rules, includ
 /** A run's badge: "Practice agent" when it runs on the scripted engine (mode `scripted_engine`),
  *  null otherwise. Shown beside the run, in addition to the deal's own mode badge. */
 export const runBadge = (run: { mode: Mode }): string | null => (run.mode === 'scripted_engine' ? MODE.scripted_engine : null);
+
+// ---- the approval checklist (composed by the wallet, shown verbatim) ----------------------------
+
+/** The wallet's exact refusal when the checklist changed between reading it and deciding. */
+export const SUMMARY_CHANGED = 'The summary changed. Review it again.';
+/** The wallet's exact refusal of a money decision while one of its checks fails. */
+export const CHECK_FAILED = 'A check on this deal failed, so nothing was done.';
+/** A check's reading in a word or two, for its mark. */
+export const CHECK_STATUS_WORD = { pass: 'passed', fail: 'failed', wait: 'checked later', not_applicable: 'not needed' } as const;

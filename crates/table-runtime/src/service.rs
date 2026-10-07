@@ -27,6 +27,36 @@ pub enum Decision {
     Rescue,
     OpenBrowser,
 }
+impl Decision {
+    /// The decision's name in its audit row (the command that carried it).
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::OwnerAccept => "deal_owner_accept",
+            Self::Countersign => "deal_countersign",
+            Self::Capture => "deal_capture",
+            Self::Void => "deal_void",
+            Self::ReleaseHold => "shield_release",
+            Self::Rescue => "rescue_approve",
+            Self::OpenBrowser => "open_paypal_in_browser",
+        }
+    }
+}
+/// The plain-words refusal when the checklist changed between the owner's read and the click.
+pub const SUMMARY_CHANGED: &str = "The summary changed. Review it again.";
+/// The plain-words refusal of a money decision while a check on the deal fails.
+pub const CHECK_FAILED: &str = "A check on this deal failed, so nothing was done.";
+fn summary_changed() -> CommandError {
+    CommandError {
+        code: ErrorCode::Invalid,
+        message: SUMMARY_CHANGED.into(),
+    }
+}
+fn check_failed() -> CommandError {
+    CommandError {
+        code: ErrorCode::Invalid,
+        message: CHECK_FAILED.into(),
+    }
+}
 pub(crate) struct PendingPair {
     pub(crate) house: bool,
     pub(crate) peer: SignedPairingIdentity,
@@ -278,7 +308,10 @@ impl Runtime {
                                 .is_ok()
                         })
             });
+        let (checks, checks_hash) = self.approval_checks(id)?;
         Ok(ApprovalSummary {
+            checks,
+            checks_hash,
             evidence: app(self.pipeline.wallet.ledger.deal_evidence(id))?,
             attempt: app(self.pipeline.wallet.ledger.settled_attempt(id))?.max(1),
             terms_hash: deal.terms.hash().map_err(table_app::Error::from)?,
@@ -329,6 +362,62 @@ impl Runtime {
         })
     }
 
+    /// The approval checklist for `id` now, and its hash. The deal's agent signer is selected
+    /// first, as every money step does; a retired mandate fails that and reads as a failed line.
+    pub(crate) fn approval_checks(
+        &mut self,
+        id: DealId,
+    ) -> Result<(Vec<ApprovalCheck>, H256), CommandError> {
+        // Ignored on purpose: without the right signer the mandate line fails closed.
+        let _ = self.select_signer(id);
+        let checks = self.pipeline.approval_checks(id, self.clock.now())?;
+        let hash = checks_hash(&checks).map_err(|_| invalid())?;
+        Ok((checks, hash))
+    }
+
+    fn record(
+        &mut self,
+        id: DealId,
+        decision: Decision,
+        args: &DecisionArgs,
+        checks: Option<H256>,
+        now: Timestamp,
+    ) -> Result<(), CommandError> {
+        checks.map_or(Ok(()), |hash| {
+            self.record_decision(id, decision, args, hash, now)
+        })
+    }
+    /// Appends the owner's decision row: what was decided, `decided_by` and the hash of the
+    /// checklist the owner saw. Written just before the step it starts; the money rows that
+    /// follow carry the same `decided_by` (human at the same second).
+    fn record_decision(
+        &mut self,
+        id: DealId,
+        decision: Decision,
+        args: &DecisionArgs,
+        checks: H256,
+        now: Timestamp,
+    ) -> Result<(), CommandError> {
+        app(self
+            .pipeline
+            .wallet
+            .ledger
+            .append_audit(&table_ledger::AuditEntry {
+                at: now,
+                actor: "owner".into(),
+                action: "owner.decision".into(),
+                deal_id: Some(id),
+                detail: serde_json::json!({
+                    "decision": decision.name(),
+                    "decided_by": DecidedBy::Human { at: now },
+                    "checks_hash": checks,
+                    "terms_hash": args.terms_hash,
+                    "attempt": args.attempt,
+                }),
+            }))?;
+        Ok(())
+    }
+
     pub(crate) async fn decide(
         &mut self,
         label: &str,
@@ -348,6 +437,26 @@ impl Runtime {
         {
             return Err(invalid());
         }
+        // Every money decision is bound to the checklist the owner saw: recomputed now, before
+        // the ticket, any PayPal call or any write. Void is the safe direction and needs none.
+        let checks = if matches!(decision, Decision::Void) {
+            None
+        } else {
+            let (checks, hash) = self.approval_checks(deal.id)?;
+            if args.checks_hash != Some(hash) {
+                return Err(summary_changed());
+            }
+            // Releasing a hold is the decision about the shield line, so only that line may fail.
+            let exempt =
+                matches!(decision, Decision::ReleaseHold).then_some(ApprovalCheckId::Shield);
+            if checks
+                .iter()
+                .any(|c| c.status == ApprovalCheckStatus::Fail && Some(c.id) != exempt)
+            {
+                return Err(check_failed());
+            }
+            Some(hash)
+        };
         let now = self.clock.now();
         let ticket = self.pipeline.approval.ticket(
             label,
@@ -361,6 +470,7 @@ impl Runtime {
             Decision::OwnerAccept => {
                 self.select_signer(deal.id)?;
                 let category = app(self.pipeline.wallet.ledger.deal_category(deal.id))?;
+                self.record(deal.id, decision, &args, checks, now)?;
                 self.pipeline.owner_accept(
                     deal.id,
                     args.counter_hash.ok_or_else(invalid)?,
@@ -376,6 +486,7 @@ impl Runtime {
                     .await?
             }
             Decision::ReleaseHold => {
+                self.record(deal.id, decision, &args, checks, now)?;
                 self.pipeline
                     .owner_release_hold(deal.id, args.attempt, ticket, now)?
             }
@@ -389,6 +500,7 @@ impl Runtime {
                 let category = app(self.pipeline.wallet.ledger.deal_category(deal.id))?;
                 self.pipeline.wallet.check_mandate(deal.id, category, now)?;
                 let url = self.pipeline.approval_link(deal.id, args.attempt)?;
+                self.record(deal.id, decision, &args, checks, now)?;
                 return serde_json::to_value(url).map_err(|_| invalid());
             }
             Decision::Countersign | Decision::Capture => {
@@ -402,6 +514,7 @@ impl Runtime {
                 }
                 match (decision, deal.state) {
                     (Decision::Countersign, DealState::Agreed) => {
+                        self.record(deal.id, decision, &args, checks, now)?;
                         self.pipeline
                             .create(
                                 deal.id,
@@ -413,6 +526,7 @@ impl Runtime {
                             .await?;
                     }
                     (Decision::Countersign, DealState::Approved) => {
+                        self.record(deal.id, decision, &args, checks, now)?;
                         self.pipeline
                             .authorize(
                                 deal.id,
@@ -424,6 +538,7 @@ impl Runtime {
                             .await?
                     }
                     (Decision::Capture, DealState::Authorized) => {
+                        self.record(deal.id, decision, &args, checks, now)?;
                         self.pipeline
                             .capture(
                                 deal.id,

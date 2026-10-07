@@ -21,6 +21,10 @@ import { clockOffset, setClockOffset, simulateClock } from '../lib/clock';
 import { nowUnix } from '../lib/format';
 import { buildMockState, fakeHash, fakeUlid, type MockDeal, type MockState } from './fixtures';
 import { ON_QUIT, mockForecast, mockQuitLines, quitPending, type ForecastDeal } from './forecast';
+import type { ApprovalCheckId } from '@bindings/ApprovalCheckId';
+import type { DecisionArgs } from '@bindings/DecisionArgs';
+import { CHECK_FAILED, SUMMARY_CHANGED } from '../lib/words';
+import { mockChecks, mockChecksHash } from './checks';
 
 type Envelope =
   | { kind: 'event'; event: EventName; targets: WindowLabel[]; payload: unknown }
@@ -45,7 +49,7 @@ const TARGETS: Record<EventName, WindowLabel[]> = {
   'pairing:pinned': ['main'],
 };
 
-export const STORE_KEY = 'the-table-mock-state-v5'; // v5: wave-0 port-gap facts (decided_by, …)
+export const STORE_KEY = 'the-table-mock-state-v6'; // v6: purchase payees match the Rust payees rule (T5 checks)
 const DEGRADE_KEY = 'the-table-mock-degrade';
 /** The preview clock's offset from wall time, shared by every mock window of this origin. */
 export const CLOCK_KEY = 'the-table-mock-clock';
@@ -315,6 +319,27 @@ export function mockBackend(label: WindowLabel): MockBackend {
     if (dealId !== undefined && dealId !== selected) fail('PERMISSION', 'this approval window is bound to another deal');
     lastPrivileged = nowUnix();
   }
+  /** The wallet's checklist for a deal now, as Rust composes it (src/mock/checks.ts). */
+  function checksFor(d: ReturnType<typeof find>) {
+    // Like the ledger's usage_for: the other deals under the same mandate that reached agreement
+    // and were not withdrawn, refused, expired or released (the mock keeps no agreement day).
+    const OUT = ['PAIRING', 'LISTED', 'NEGOTIATING', 'REFUSED', 'WITHDRAWN', 'EXPIRED', 'VOIDED', 'AUTO_VOIDED'];
+    const spentTodayMinor = state.deals
+      .filter((o) => o.deal.id !== d.deal.id && o.deal.mandate_id === d.deal.mandate_id && !OUT.includes(o.deal.state))
+      .reduce((sum, o) => sum + o.deal.terms.unit_price.minor * o.deal.terms.qty, 0);
+    const checks = mockChecks({
+      deal: d.deal, transcript: d.transcript, counterparty: state.counterparties.find((c) => c.key_id === d.deal.counterparty),
+      mandate: activeMandate(d.deal.mandate_id), spentTodayMinor, now: nowUnix(),
+    });
+    return { checks, checks_hash: mockChecksHash(checks) };
+  }
+  /** Rust's decide(): a money decision must carry the hash of the checklist as it reads now, and
+   *  no line may fail (a release may fail only the shield line). Void never comes here. */
+  function boundToChecks(args: DecisionArgs, exempt?: ApprovalCheckId): void {
+    const now = checksFor(find(args.deal_id));
+    if (!args.checks_hash || JSON.stringify(args.checks_hash) !== JSON.stringify(now.checks_hash)) fail('INVALID', SUMMARY_CHANGED);
+    if (now.checks.some((c) => c.status === 'fail' && c.id !== exempt)) fail('INVALID', CHECK_FAILED);
+  }
   function transition(id: string, to: DealState, patch: Partial<Deal> = {}, keepAttention = false): Deal {
     const d = find(id);
     d.deal = { ...d.deal, ...patch, state: to, updated_at: nowUnix() };
@@ -523,6 +548,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
       const shieldStops = d.deal.shield === 'HOLD' || d.deal.shield === 'BLOCK';
       const buyerHaggle = d.deal.side === 'buyer' && (d.deal.kind === 'haggle' || d.deal.kind === 'shop_order');
       return {
+        ...checksFor(d),
         deal: d.deal,
         evidence: d.evidence,
         attempt: 1,
@@ -585,6 +611,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
     },
     deal_owner_accept: (args, opts) => {
       privileged(opts, args.deal_id);
+      boundToChecks(args);
       const d = find(args.deal_id);
       const s = handlers.approval_summary({ deal_id: args.deal_id });
       if (args.attempt !== s.attempt || JSON.stringify(args.terms_hash) !== JSON.stringify(s.terms_hash)
@@ -603,14 +630,18 @@ export function mockBackend(label: WindowLabel): MockBackend {
       emit('settings:changed', state.settings);
       return null;
     },
-    deal_countersign: ({ deal_id }, opts) => {
+    deal_countersign: (args, opts) => {
+      const { deal_id } = args;
       privileged(opts, deal_id);
+      boundToChecks(args);
       const d = find(deal_id);
       if (!['AGREED', 'APPROVED'].includes(d.deal.state)) fail('INVALID', `cannot countersign in ${d.deal.state}`);
       return transition(deal_id, 'AWAITING_APPROVAL', { paypal: { ...d.deal.paypal, order: '7XK' + deal_id.slice(-5) }, decided_by: { type: 'human', at: nowUnix() } }, true);
     },
-    deal_capture: ({ deal_id }, opts) => {
+    deal_capture: (args, opts) => {
+      const { deal_id } = args;
       privileged(opts, deal_id);
+      boundToChecks(args);
       const d = find(deal_id);
       if (d.deal.state !== 'AUTHORIZED') fail('INVALID', `cannot capture in ${d.deal.state}`);
       const deal = transition(deal_id, 'CAPTURED', { paypal: { ...d.deal.paypal, capture: 'CAP' + deal_id.slice(-5) }, decided_by: { type: 'human', at: nowUnix() } });
@@ -624,19 +655,23 @@ export function mockBackend(label: WindowLabel): MockBackend {
       if (find(deal_id).deal.state !== 'AUTHORIZED') fail('INVALID', 'only an authorization can be voided');
       return transition(deal_id, 'VOIDED', { decided_by: { type: 'human', at: nowUnix() } });
     },
-    shield_release: ({ deal_id }, opts) => {
+    shield_release: (args, opts) => {
+      const { deal_id } = args;
       privileged(opts, deal_id);
+      boundToChecks(args, 'shield');
       const d = find(deal_id);
       if (d.deal.shield === 'BLOCK') fail('PERMISSION', 'a BLOCK cannot be released');
       return transition(deal_id, d.deal.state, { shield: 'ASK' });
     },
     rescue_approve: (args, opts) => {
       privileged(opts, args.deal_id);
+      boundToChecks(args);
       return fail('UNAVAILABLE', 'rescue executor not attached yet (P3) · no fake mutation');
     },
     open_paypal_in_browser: (args, opts) => {
       const { deal_id } = args;
       privileged(opts, deal_id);
+      boundToChecks(args);
       const s = handlers.approval_summary({ deal_id });
       if (args.attempt !== s.attempt || JSON.stringify(args.terms_hash) !== JSON.stringify(s.terms_hash)) fail('INVALID', 'stale browser decision');
       const d = find(deal_id);

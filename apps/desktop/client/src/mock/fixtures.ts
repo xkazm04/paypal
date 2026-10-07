@@ -266,7 +266,7 @@ export function buildMockState(now: number): MockState {
       { type: 'roles', roles: ['buy'] },
       { type: 'counterparties', rule: { type: 'paired' } },
       { type: 'per_deal', kind: 'purchase', max_amount: usd(200), categories: ['office', 'parts'] },
-      ...common(['packrite-supply', 'cablehaus', 'north-desk', 'HOUSE']),
+      ...common(['packrite-supply', 'cablehaus', 'north-desk', 'HOUSE', 'partsco', 'pixel-bay']),
     ], 3),
     mandate(MANDATE_M14, 2, 'sourcing', [
       { type: 'roles', roles: ['buy'] },
