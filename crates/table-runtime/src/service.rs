@@ -13,6 +13,10 @@ use table_client::*;
 use table_core::*;
 use table_proto::AgentSigner;
 
+/// How long a purchase with no Band clause waits for the owner before it lapses with no money
+/// moved (DECISIONS section 8).
+const PURCHASE_DECISION_WINDOW_SECS: i64 = 24 * 3600;
+
 #[derive(Debug, Clone, Copy)]
 pub enum Decision {
     OwnerAccept,
@@ -547,16 +551,26 @@ impl Runtime {
             .set_deal_category(deal.id, args.category))?;
         // The deadline lands before anything that can still fail, so a deal whose relay binding
         // or listing errors below still lapses on silence instead of lingering with no default.
-        if let Some(due) = mandate.payload.clauses.iter().find_map(|c| {
+        let band_due = mandate.payload.clauses.iter().find_map(|c| {
             if let Clause::Band { deadline, .. } = c {
                 Some(*deadline)
             } else {
                 None
             }
-        }) {
-            let due = house_table
-                .as_ref()
-                .map_or(due, |table| due.min(table.negotiation_deadline));
+        });
+        // A purchase under a mandate with no Band still gets a default (DECISIONS section 8).
+        let due = match band_due {
+            Some(due) => Some(
+                house_table
+                    .as_ref()
+                    .map_or(due, |table| due.min(table.negotiation_deadline)),
+            ),
+            None if deal.kind == DealKind::Purchase => {
+                Some(self.clock.now() + PURCHASE_DECISION_WINDOW_SECS)
+            }
+            None => None,
+        };
+        if let Some(due) = due {
             app(self
                 .pipeline
                 .wallet
