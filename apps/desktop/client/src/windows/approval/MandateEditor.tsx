@@ -20,7 +20,7 @@ import type { WalletError } from '../../lib/contract';
 import { shortHash, shortId } from '../../lib/format';
 import { useNow } from '../../lib/hooks';
 import { ruleNameOf, rulesName, timeLeftWords } from '../../lib/words';
-import { WalletNotice } from '../../shared/honesty';
+import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Chip, Hourglass, Kv, Popover, Seg, Spacer, type IconName } from '../../shared/ui';
 import { buildMandate, CLAUSE_NUMBER, draftFrom, fromLocalInput, newDraft, previewClauses, ruleProblems, withClause, type ClauseDraft, type ClauseType, type MandateDraft } from './mandateDraft';
 import { minorToInput } from './model';
@@ -214,7 +214,9 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
             title: `You changed ${changes.length} ${changes.length === 1 ? 'thing' : 'things'}${tighter || looser ? ` (${[tighter ? `${tighter} tighter` : '', looser ? `${looser} looser` : ''].filter(Boolean).join(', ')})` : ''}. Nothing is signed yet.`,
             sub: rows ? `${movedCount} ${movedCount === 1 ? 'deal would' : 'deals would'} have gone differently this week.` : undefined,
           }
-        : { tone: 'calm', icon: 'shield', title: 'No changes yet. Your agents follow these rules.', sub: 'Drag a limit and this week’s deals replay as you go.' };
+        : base.refusal
+          ? { tone: 'alert', icon: 'block', title: NO_LONGER_FITS, sub: 'Fix what the line at the bottom says, then sign again, or withdraw them.' }
+          : { tone: 'calm', icon: 'shield', title: 'No changes yet. Your agents follow these rules.', sub: 'Drag a limit and this week’s deals replay as you go.' };
 
   return (
     <div className="aw ow ow-ed">
@@ -227,9 +229,10 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
             const dk = drafts[k];
             const n = dk && k !== key ? '●' : null;
             return (
-              <button key={k} type="button" role="tab" aria-selected={e.payload.id === selected} aria-pressed={e.payload.id === selected} onClick={() => { setPreview(false); setPane(null); onSelect(e.payload.id); }} title={`${rulesName(e.agent)} · ${shortId(e.payload.id)}`}>
+              <button key={k} type="button" role="tab" aria-selected={e.payload.id === selected} aria-pressed={e.payload.id === selected} onClick={() => { setPreview(false); setPane(null); onSelect(e.payload.id); }} title={`${rulesName(e.agent)} · ${shortId(e.payload.id)}${e.refusal ? ' · needs signing again' : ''}`}>
                 {rulesName(e.agent).replace(/ rules$/, '')}{sameAgent(entries, e.agent) ? <span className="dim"> {agentIndex(entries, e)}</span> : null}
                 {n ? <span className="gold"> {n}</span> : null}
+                {e.refusal ? <span className="gold" aria-label="needs signing again"> !</span> : null}
               </button>
             );
           })}
@@ -243,7 +246,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
         <div className="ow-q">
           <h1 tabIndex={-1}>What would my agents have done this week?</h1>
           <span className="ui-hint">
-            {base ? `${rulesName(base.agent)} · in force for ${timeLeftWords(base.payload.expires - now)}` : `New ${rulesName(d.agent).toLowerCase()}`}
+            {base ? `${rulesName(base.agent)} · ${base.refusal ? 'not in force: needs signing again' : `in force for ${timeLeftWords(base.payload.expires - now)}`}` : `New ${rulesName(d.agent).toLowerCase()}`}
           </span>
         </div>
         {done ? <div className={`ow-done ${done.tone}`} role="status">{done.text}</div> : null}

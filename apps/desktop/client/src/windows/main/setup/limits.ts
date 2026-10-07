@@ -47,7 +47,8 @@ export type RulesAnswer = { tone: 'calm' | 'need' | 'done'; title: string; sub: 
 /** "What may my agents do?" in one sentence. Gold when there is nothing signed or a set is not in force. */
 export function rulesAnswer(list: readonly MandateListEntry[], now: number): RulesAnswer {
   if (!list.length) return { tone: 'need', title: 'No rules are signed yet', sub: 'Until you sign some, every agent request is refused before PayPal is asked.' };
-  const inForce = list.filter((m) => ruleState(m.payload, now) === 'active' && m.owner_sig.length > 0);
+  // A set the wallet now refuses (refusal) is listed but not in force.
+  const inForce = list.filter((m) => ruleState(m.payload, now) === 'active' && m.owner_sig.length > 0 && !m.refusal);
   const off = list.length - inForce.length;
   if (off) return { tone: 'need', title: `${off} rule ${off === 1 ? 'set is' : 'sets are'} not in force`, sub: 'An agent without active rules can’t do anything. Change rules to sign them again.' };
   const agents = new Set(inForce.map((m) => m.agent)).size;

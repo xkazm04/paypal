@@ -5,14 +5,21 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use table_core::{
     ClosedMandate, Currency, Deal, DealEvent, DealId, DealState, DecidedBy, Delivery, H256, KeyId,
-    MandateId, Money, OpenMandate, PayeeRef, PaypalRefs, Terms, Timestamp, canonical_bytes,
-    invoice_id, transition,
+    MandateId, Money, OpenMandate, PayeeRef, PaypalRefs, Refusal, Terms, Timestamp,
+    canonical_bytes, commitment, invoice_id, transition,
 };
 use table_proto::{
     Body, NonceLookup, ProtocolError, VerifiedEnvelope, VerifyContext, key_id, verify,
     verify_mandate_signature,
 };
 
+/// An active mandate as the owner's list shows it. `refusal` is set when the signed policy no
+/// longer passes `validate()`: it needs signing again or withdrawing, and nothing acts under it.
+#[derive(Debug, Clone)]
+pub struct ListedMandate {
+    pub mandate: OpenMandate,
+    pub refusal: Option<Refusal>,
+}
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PairedVia {
@@ -144,6 +151,18 @@ fn read_mandate_evidence(
     id: MandateId,
     version: u32,
 ) -> Result<OpenMandate, LedgerError> {
+    let mandate = read_mandate_row(conn, id, version)?;
+    mandate.payload.hash()?;
+    Ok(mandate)
+}
+/// The stored row checked for integrity (commitment, canonical body, id and version) but not
+/// against today's `validate()` rules. Callers decide what a policy refusal means; nothing may
+/// act on a mandate read only through this.
+fn read_mandate_row(
+    conn: &Connection,
+    id: MandateId,
+    version: u32,
+) -> Result<OpenMandate, LedgerError> {
     let (body, hash, sig): (String, Vec<u8>, Vec<u8>) = conn
         .query_row(
             "SELECT body_json,body_hash,owner_sig FROM mandates WHERE id=?1 AND version=?2",
@@ -156,7 +175,7 @@ fn read_mandate_evidence(
         payload: serde_json::from_str(&body)?,
         owner_sig: sig,
     };
-    if mandate.payload.hash()? != hash_blob(hash)?
+    if commitment(&mandate.payload)? != hash_blob(hash)?
         || json_text(&mandate.payload)? != body
         || mandate.payload.id != id
         || mandate.payload.version != version
@@ -559,7 +578,11 @@ impl Ledger {
             .map(|raw| serde_json::from_str(raw).map_err(Into::into))
             .collect()
     }
-    pub fn list_mandates(&self, owner: &VerifyingKey) -> Result<Vec<OpenMandate>, LedgerError> {
+    /// Every active mandate for the owner's list. One the owner signed that today's
+    /// `validate()` refuses (an older wallet's policy) is listed with that refusal so it can be
+    /// signed again or withdrawn; `active_mandate` still refuses it, so nothing acts under it.
+    /// Any other integrity failure, a bad signature above all, still fails the whole list.
+    pub fn list_mandates(&self, owner: &VerifyingKey) -> Result<Vec<ListedMandate>, LedgerError> {
         let mut statement = self
             .conn
             .prepare("SELECT id,version FROM mandates WHERE status='active' ORDER BY id")?;
@@ -568,12 +591,27 @@ impl Ledger {
             .collect::<Result<Vec<_>, _>>()?;
         ids.into_iter()
             .map(|(id, version)| {
-                self.active_mandate(
-                    id.parse()
-                        .map_err(|_| LedgerError::Integrity("mandate ID"))?,
-                    version,
-                    owner,
-                )
+                let id = id
+                    .parse()
+                    .map_err(|_| LedgerError::Integrity("mandate ID"))?;
+                let mandate = read_mandate_row(&self.conn, id, version)?;
+                let Err(refusal) = mandate.payload.validate() else {
+                    return Ok(ListedMandate {
+                        mandate: self.active_mandate(id, version, owner)?,
+                        refusal: None,
+                    });
+                };
+                // verify_mandate_signature refuses before it checks the signature; check the
+                // owner's signature here so a forged row is still tampering, not a stale policy.
+                let sig = Signature::from_slice(&mandate.owner_sig)
+                    .map_err(|_| ProtocolError::Signature)?;
+                owner
+                    .verify_strict(&canonical_bytes(&mandate.payload)?, &sig)
+                    .map_err(|_| ProtocolError::Signature)?;
+                Ok(ListedMandate {
+                    mandate,
+                    refusal: Some(refusal),
+                })
             })
             .collect()
     }

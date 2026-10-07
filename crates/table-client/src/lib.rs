@@ -461,6 +461,11 @@ pub struct MandateListEntry {
     #[ts(flatten)]
     pub mandate: table_core::OpenMandate,
     pub agent: AgentSlot,
+    /// Set when the signed policy no longer fits the wallet's rules: nothing acts under it
+    /// until it is signed again, and it can still be withdrawn.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub refusal: Option<table_core::Refusal>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]

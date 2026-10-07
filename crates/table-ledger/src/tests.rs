@@ -514,6 +514,69 @@ fn mandate_versions_are_signed_immutable_monotonic_and_revocable() {
     ledger.verify_audit().unwrap();
 }
 #[test]
+fn a_signed_mandate_todays_rules_refuse_is_listed_flagged_never_active_and_revocable() {
+    let (mut ledger, deal, owner, own, _) = setup();
+    // The way an older wallet holds it: signed by the owner, but its band now lacks the side
+    // the only role uses (a buyer needs a ceiling), so validate() refuses it.
+    let mut stale = ledger
+        .active_mandate(deal.mandate_id, 1, &owner.public_key())
+        .unwrap()
+        .payload;
+    stale.id = "00000000000000000000000009".parse().unwrap();
+    for clause in &mut stale.clauses {
+        if let Clause::Band { floor, ceiling, .. } = clause {
+            *floor = Some(Money::new(100, Currency::USD).unwrap());
+            *ceiling = None;
+        }
+    }
+    let refusal = stale.validate().unwrap_err();
+    let body = String::from_utf8(canonical_bytes(&stale).unwrap()).unwrap();
+    ledger
+        .conn
+        .execute(
+            "INSERT INTO mandates(id,version,kind,body_json,body_hash,owner_sig,agent_pubkey,status,created_at) VALUES (?1,1,'open',?2,?3,?4,?5,'active',100)",
+            params![
+                stale.id.to_string(),
+                body,
+                &commitment(&stale).unwrap().0[..],
+                owner.sign_payload(&stale).unwrap(),
+                &own.public_key().to_bytes()[..],
+            ],
+        )
+        .unwrap();
+    let listed = ledger.list_mandates(&owner.public_key()).unwrap();
+    assert_eq!(listed.len(), 2);
+    let good = listed
+        .iter()
+        .find(|m| m.mandate.payload.id == deal.mandate_id)
+        .unwrap();
+    assert!(good.refusal.is_none());
+    let flagged = listed
+        .iter()
+        .find(|m| m.mandate.payload.id == stale.id)
+        .unwrap();
+    assert_eq!(flagged.refusal.as_ref(), Some(&refusal));
+    // Nothing acts under it.
+    assert!(
+        ledger
+            .active_mandate(stale.id, 1, &owner.public_key())
+            .is_err()
+    );
+    // A signature that is not the owner's is tampering, not a stale policy: the list fails.
+    ledger.revoke_mandate(deal.mandate_id, 101).unwrap();
+    assert!(ledger.list_mandates(&signer().public_key()).is_err());
+    assert_eq!(ledger.list_mandates(&owner.public_key()).unwrap().len(), 1);
+    // Restricting is free: it can be withdrawn.
+    ledger.revoke_mandate(stale.id, 102).unwrap();
+    assert!(
+        ledger
+            .list_mandates(&owner.public_key())
+            .unwrap()
+            .is_empty()
+    );
+    ledger.verify_audit().unwrap();
+}
+#[test]
 fn deal_roundtrip_checks_terms_hash_and_invalid_transition_is_atomic() {
     let (mut ledger, deal, _, _, _) = setup();
     let loaded = ledger.get_deal(deal.id).unwrap();

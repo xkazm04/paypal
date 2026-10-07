@@ -50,6 +50,9 @@ export function Quarantine({ text, label = 'Their words, unchecked' }: { text: s
   );
 }
 
+/** A signed rule set the wallet now refuses (mandate_list `refusal`): one plain sentence, no rule numbers. */
+export const NO_LONGER_FITS = 'This rule set no longer fits what the wallet accepts, so its agent can’t act under it. Sign it again or withdraw it.';
+
 const CODE_CLASS: Record<WalletError['code'], string> = {
   UNAVAILABLE: 'unavailable', UNSUPPORTED: 'unsupported', LOCKED: 'locked',
   PERMISSION: 'error', REFUSED: 'error', INVALID: 'error', NOT_FOUND: 'error', LEDGER_TRUST: 'error',
