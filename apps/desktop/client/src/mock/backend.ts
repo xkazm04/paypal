@@ -61,7 +61,7 @@ const TARGETS: Record<EventName, WindowLabel[]> = {
   'pairing:pinned': ['main'],
 };
 
-export const STORE_KEY = 'the-table-mock-state-v12'; // v12: shop-around groups and the house seller's D-0204 (T8); v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
+export const STORE_KEY = 'the-table-mock-state-v13'; // v13: the shield's rule on each deal and a release bound to its terms (shield slice 2); v12: shop-around groups and the house seller's D-0204 (T8); v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
 const DEGRADE_KEY = 'the-table-mock-degrade';
 /** The preview clock's offset from wall time, shared by every mock window of this origin. */
 export const CLOCK_KEY = 'the-table-mock-clock';
@@ -811,7 +811,17 @@ export function mockBackend(label: WindowLabel): MockBackend {
       boundToChecks(args, 'shield');
       const d = find(deal_id);
       if (d.deal.shield === 'BLOCK') fail('PERMISSION', 'a BLOCK cannot be released');
-      return transition(deal_id, d.deal.state, { shield: 'ASK' });
+      // As Pipeline::owner_release_hold: only a HOLD with a named rule, released for these terms
+      // and that rule, recorded as the owner's decision. The HOLD reads ASK while it applies.
+      const terms = handlers.approval_summary({ deal_id }).terms_hash;
+      if (JSON.stringify(args.terms_hash) !== JSON.stringify(terms)) fail('INVALID', 'stale decision');
+      if (d.deal.shield !== 'HOLD' || !d.deal.shield_rule) fail('PERMISSION', 'only a pause can be released');
+      const at = nowUnix();
+      return transition(deal_id, d.deal.state, {
+        shield: 'ASK',
+        shield_release: { terms_hash: terms, rules: [d.deal.shield_rule], at },
+        decided_by: { type: 'human', at },
+      });
     },
     // As table-app rescue_approve under the owner's ticket: one invoice for this cycle's
     // discounted amount is made and sent (SETTLING → AWAITING_APPROVAL). Nothing is paid here; only

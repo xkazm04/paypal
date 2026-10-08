@@ -12,6 +12,15 @@ fn count(http: &OfflineHttp, suffix: &str) -> usize {
         .filter(|p| p.ends_with(suffix))
         .count()
 }
+/// The `shield.refused` audit rows of a deal's `step`: one per verdict, however many ticks.
+pub(super) fn shield_refusals(r: &Runtime, id: DealId, step: &str) -> usize {
+    let (rows, _) = r.pipeline.wallet.ledger.audit_page(None, 1000).unwrap();
+    rows.iter()
+        .filter(|row| {
+            row.deal_id == Some(id) && row.action == "shield.refused" && row.detail["step"] == step
+        })
+        .count()
+}
 fn state(r: &Runtime, id: DealId) -> DealState {
     r.pipeline.wallet.ledger.get_deal(id).unwrap().state
 }
@@ -134,9 +143,14 @@ async fn a_fresh_price_hold_stops_the_sellers_authorize_and_ageing_never_lifts_i
             "at {at}"
         );
         // The first tick sees the buyer's approval; the pipeline refuses the seller mandate's
-        // authorize and the tick reports the refusal.
-        assert!(r.tick().await.is_err(), "at {at}");
+        // authorize and records it once: no fault on this or any later tick (shield slice 2).
+        r.tick().await.unwrap();
         assert_eq!(state(&r, deal.id), DealState::Approved);
+        assert_eq!(shield_refusals(&r, deal.id, "authorize"), 1, "at {at}");
+        let held = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap();
+        assert_eq!(held.shield, Some(ShieldVerdict::Hold));
+        assert_eq!(held.shield_rule, Some(ShieldRule::PriceOverMarket));
+        assert!(held.shield_held());
         assert_eq!(count(&http, "/authorize"), 0);
         let now_rows = r.pipeline.wallet.ledger.paypal_call_count(deal.id).unwrap();
         assert_eq!(*rows.get_or_insert(now_rows), now_rows, "at {at}");
@@ -146,6 +160,16 @@ async fn a_fresh_price_hold_stops_the_sellers_authorize_and_ageing_never_lifts_i
                 .all(|(op, _)| op == "create")
         );
     }
+    // The attention ladder shows it to the owner as a HOLD with the rule that holds it.
+    let item = r
+        .attention()
+        .unwrap()
+        .items
+        .into_iter()
+        .find(|i| i.deal_id == deal.id)
+        .unwrap();
+    assert_eq!(item.kind, table_attention::AttnKind::Hold);
+    assert_eq!(item.shield_rule, Some(ShieldRule::PriceOverMarket));
 }
 
 #[tokio::test]
@@ -160,6 +184,19 @@ async fn a_payee_mismatch_blocks_and_nothing_moves() {
     assert!(r.tick().await.is_err());
     assert_eq!(state(&r, deal.id), DealState::Mismatch);
     assert_eq!(count(&http, "/authorize"), 0);
+    // The order check's payee half writes the shield's BLOCK (shield slice 2): from PayPal's
+    // typed payee field, recorded before the mismatch, and never released.
+    let blocked = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap();
+    assert_eq!(blocked.shield, Some(ShieldVerdict::Block));
+    assert_eq!(blocked.shield_rule, Some(ShieldRule::PayeeMismatch));
+    assert!(blocked.shield_held());
+    let calls = http.0.lock().unwrap().paths.len();
+    r.tick().await.unwrap();
+    assert_eq!(
+        http.0.lock().unwrap().paths.len(),
+        calls,
+        "a mismatch asks PayPal nothing more"
+    );
 
     // On the deal: a BLOCK verdict (the payee rule's) stops the seller mandate after the
     // buyer's approval, and stays a BLOCK.
@@ -176,8 +213,10 @@ async fn a_payee_mismatch_blocks_and_nothing_moves() {
             r.pipeline.shield_verdict(deal.id, at).unwrap(),
             ShieldVerdict::Block
         );
-        assert!(r.tick().await.is_err());
+        // Refused and recorded once; the tick reports no fault (shield slice 2).
+        r.tick().await.unwrap();
         assert_eq!(state(&r, deal.id), DealState::Approved);
+        assert_eq!(shield_refusals(&r, deal.id, "authorize"), 1);
     }
     assert_eq!(count(&http, "/authorize"), 0);
     assert_eq!(count(&http, "/capture"), 0);
@@ -294,4 +333,68 @@ async fn a_purchase_step_on_policy_is_still_refused() {
         0
     );
     assert!(http.0.lock().unwrap().paths.is_empty());
+}
+
+#[tokio::test]
+async fn a_released_price_hold_lets_the_approved_order_in_as_the_owners_decision() {
+    let (mut r, vault, http, clock, _) = runtime(true);
+    let deal = owner_ordered(&mut r, &vault, &http).await;
+    // 12.00 against a fresh median of 8.00: the shield holds the seller's authorize.
+    let market = MarketRef::from_comparables(
+        vec![Money::new(800, Currency::USD).unwrap()],
+        100,
+        H256::ZERO,
+    )
+    .unwrap();
+    r.pipeline
+        .wallet
+        .ledger
+        .store_market_reference(deal.id, &market, 100)
+        .unwrap();
+    clock.0.store(130, Ordering::SeqCst);
+    r.tick().await.unwrap();
+    assert_eq!(state(&r, deal.id), DealState::Approved);
+    assert_eq!(shield_refusals(&r, deal.id, "authorize"), 1);
+    assert!(
+        r.pipeline
+            .wallet
+            .ledger
+            .get_deal(deal.id)
+            .unwrap()
+            .shield_held()
+    );
+    // The owner unpauses it in the approval window: an explicit owner authority, recorded.
+    let token = unlock_runtime(&mut r);
+    r.selected = Some(deal.id);
+    let args = decision(&mut r, deal.id);
+    r.execute(
+        caller("approval", Some(&token)),
+        Action::Decision(args, Decision::ReleaseHold),
+    )
+    .await
+    .unwrap();
+    let (rows, _) = r.pipeline.wallet.ledger.audit_page(None, 1000).unwrap();
+    let released = rows
+        .iter()
+        .find(|row| row.deal_id == Some(deal.id) && row.action == "shield.released")
+        .unwrap();
+    assert_eq!(released.actor, "owner");
+    assert_eq!(released.detail["rules"], json!(["price_over_market"]));
+    assert!(matches!(
+        serde_json::from_value::<DecidedBy>(released.detail["decided_by"].clone()).unwrap(),
+        DecidedBy::Human { .. }
+    ));
+    assert_eq!(
+        count(&http, "/authorize"),
+        0,
+        "a release moves no money by itself"
+    );
+    // The next tick takes the buyer's approved order in: the release covers these terms.
+    r.tick().await.unwrap();
+    assert_eq!(state(&r, deal.id), DealState::Receipted);
+    assert_eq!(count(&http, "/authorize"), 1);
+    assert_eq!(count(&http, "/capture"), 1);
+    // Recorded once, never again: the refusal row did not repeat.
+    assert_eq!(shield_refusals(&r, deal.id, "authorize"), 1);
+    r.pipeline.wallet.ledger.verify_audit().unwrap();
 }

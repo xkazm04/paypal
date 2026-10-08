@@ -43,7 +43,7 @@ describe('mock approval checklist (parity with the wallet)', () => {
     const mismatch = await approvalFor('D-0199').invoke('approval_summary', { deal_id: fakeUlid('D-0199') });
     expect(line(mismatch, 'amount')).toMatchObject({ status: 'fail', text: 'The payment request didn’t match the $329.00 you agreed.' });
     const held = await approvalFor('D-0198').invoke('approval_summary', { deal_id: fakeUlid('D-0198') });
-    expect(line(held, 'shield')).toMatchObject({ status: 'fail', text: 'Scam check: paused for you. Unpause it first.' });
+    expect(line(held, 'shield')).toMatchObject({ status: 'fail', text: 'Scam check: paused for you. The price is far above the usual price. Unpause it first.' });
     expect(line(held, 'amount').status).toBe('wait');
     expect(held.checks.filter((c) => c.status === 'fail').map((c) => c.id)).toEqual(['shield']);
   });
@@ -69,9 +69,15 @@ describe('mock approval checklist (parity with the wallet)', () => {
     const s = await a.invoke('approval_summary', { deal_id: id });
     await expect(a.invoke('deal_countersign', args(s), { token })).rejects.toMatchObject({ code: 'INVALID', message: CHECK_FAILED });
     const released = await a.invoke('shield_release', args(s), { token });
+    // As Rust: the release covers these terms and the rule that paused it, as the owner's decision.
     expect(released.shield).toBe('ASK');
+    expect(released.shield_rule).toBe('price_over_market');
+    expect(released.shield_release).toEqual({ terms_hash: s.terms_hash, rules: ['price_over_market'], at: NOW });
+    expect(released.decided_by).toEqual({ type: 'human', at: NOW });
     const after = await a.invoke('approval_summary', { deal_id: id });
-    expect(line(after, 'shield').status).toBe('pass');
+    expect(line(after, 'shield')).toMatchObject({ status: 'pass', text: 'Scam check: you let this go on after a pause. The price is far above the usual price. Your decision is the check.' });
+    // Released once; nothing is left to release.
+    await expect(a.invoke('shield_release', args(after), { token })).rejects.toMatchObject({ code: 'PERMISSION' });
     expect(after.checks_hash).not.toEqual(s.checks_hash);
     // The old hash is now stale: the owner has to read the new checklist first.
     await expect(a.invoke('deal_countersign', args(s), { token })).rejects.toMatchObject({ message: SUMMARY_CHANGED });

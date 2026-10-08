@@ -630,7 +630,7 @@ impl Runtime {
                         | DealState::Approved
                         | DealState::Authorized
                         | DealState::Mismatch
-                ) || (d.shield.is_some_and(|v| v >= ShieldVerdict::Hold)
+                ) || (d.shield_held()
                     // A refused or withdrawn deal is no pending decision, whatever its verdict.
                     && !d.state.terminal())
             })

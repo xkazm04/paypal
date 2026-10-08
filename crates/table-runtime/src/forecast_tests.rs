@@ -465,9 +465,14 @@ async fn a_price_held_seller_order_forecasts_no_money_in_after_its_market_ages()
         assert!(!moves_money(&lines), "at {at}: {lines:?}");
         assert_eq!(actions(&lines), [ForecastAction::Expire], "at {at}");
     }
-    // The buyer approves after the reference went stale: the tick refuses the authorize.
-    assert!(r.tick().await.is_err());
+    // The buyer approves after the reference went stale: the tick refuses the authorize, records
+    // the refusal once and reports no fault (shield slice 2).
+    r.tick().await.unwrap();
     assert_eq!(state(&r, deal.id), DealState::Approved);
+    assert_eq!(
+        super::h5_tests::shield_refusals(&r, deal.id, "authorize"),
+        1
+    );
     let paths = http.0.lock().unwrap().paths.clone();
     assert!(!paths.iter().any(|p| p.ends_with("/authorize")));
     assert!(!paths.iter().any(|p| p.ends_with("/capture")));

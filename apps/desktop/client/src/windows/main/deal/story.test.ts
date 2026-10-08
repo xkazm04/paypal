@@ -42,6 +42,8 @@ describe('dealAnswer: one sentence a first-time reader understands', () => {
   it('refusals and blocks are alerts that say nothing moved', () => {
     expect(answer('D-0196').tone).toBe('alert');
     expect(answer('D-0196').title).toContain('stopped this for good');
+    // The check that stopped it is the wallet core's recorded rule, in plain words.
+    expect(answer('D-0196').sub).toBe('The money would go to someone other than the payee you agreed with. ' + CLOSED);
     expect(answer('D-0192').title).toContain('refused this before PayPal was asked');
     expect(answer('D-0192').sub).toContain(CLOSED);
   });
@@ -56,6 +58,7 @@ describe('dealAnswer: one sentence a first-time reader understands', () => {
   it('a paused request and a failed renewal name what the owner is asked', () => {
     expect(answer('D-0198').title).toContain('paused for your check');
     expect(answer('D-0198').title).toContain('Nothing was sent to PayPal');
+    expect(answer('D-0198').sub).toBe('The price is more than 1.4 × the usual price.');
     expect(dealAnswer(deal('D-0188'), { need: entry('D-0188').attention ?? undefined, them: 'S-14', latest: null, band: null, mayWithdraw: false }).title).toBe('S-14’s renewal didn’t go through. You choose the fix: a $9.60 invoice for this cycle.');
   });
   it('a live deal with nothing for the owner is calm and may mention withdrawing', () => {
