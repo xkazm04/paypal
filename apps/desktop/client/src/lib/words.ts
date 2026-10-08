@@ -291,8 +291,42 @@ export const PROOF_CHECKS: Readonly<Record<string, string>> = {
   paypal_order: 'PayPal’s order shows the same price, payee and invoice the deal signed.',
   audit: 'The deal’s records link up, so a change to an earlier one would show.',
   receipt: 'Any receipt is one of the signed messages.',
+  owner_saw: 'Before each payment you approved, the wallet recorded the checklist you saw.',
+  one_request: 'A payment the wallet checked again with PayPal was never sent a second time.',
+  group: 'When you shopped around, only one seller’s deal was agreed; the others were called off.',
+  shield: 'Nothing was paid while a safety check paused or blocked the deal, unless you released the pause.',
+  house_record: 'The house seller’s signed record, kept with your receipt, checks out and never got shorter.',
+  permissions: 'The file names the permissions of the app version that saved it.',
   evidence: 'The deal’s agent signed the whole file, so nothing in it was changed afterwards.',
 };
+/** Why a check reads "not checked": the deal had nothing of its kind, so it makes no claim either way. */
+export const PROOF_NOT_APPLICABLE: Readonly<Record<string, string>> = {
+  owner_saw: 'Not checked: you made no payment decision on this deal.',
+  one_request: 'Not checked: no payment on this deal needed a second look at PayPal.',
+  group: 'Not checked: this deal wasn’t part of shopping around.',
+  shield: 'Not checked: no safety check paused or blocked this deal.',
+  house_record: 'Not checked: no house seller’s record was kept with this deal.',
+  permissions: 'Not checked: files saved by older versions of the wallet don’t name their permissions.',
+};
+/** Said for any check when the file is an older kind that carries none of the newer records. */
+export const PROOF_OLDER_FILE = 'Not checked: files saved by older versions of the wallet don’t carry this record.';
+/** The file's permissions fingerprint against this wallet's own. */
+export const PROOF_VERSION_MATCH = {
+  same: 'Made by the same version: the same permissions as your wallet.',
+  other: 'A different version: its permissions differ from your wallet’s. That alone is no problem.',
+} as const;
+/** The answer when every check that applies passed and some had nothing to check. */
+export const PROOF_ALL_THAT_APPLY = 'Every check that applies passed';
+/** What a saved proof file lets anyone check, listed before saving (plain words, in order). */
+export const PROOF_FILE_SHOWS = [
+  'Your signed rules, both agents’ signed messages and PayPal’s records for this deal.',
+  'The checklist you saw before each payment you approved.',
+  'That a payment checked again with PayPal was never sent twice.',
+  'If you shopped around, that only one seller’s deal was agreed.',
+  'If a safety check paused the deal, that nothing was paid unless you released it.',
+  'If you bought from the house seller, its signed record kept with your receipt.',
+  'The permissions of this version of the app.',
+] as const;
 /** The checks trust the keys inside the file, so the owner key is the anchor a person compares. */
 export const PROOF_KEY_ANCHOR = 'Compare this owner key with the key the owner shows you: the checks use the keys inside the file.';
 /** The file's owner key against this wallet's own (shown under the key, in full). */

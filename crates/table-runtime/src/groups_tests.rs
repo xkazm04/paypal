@@ -367,6 +367,35 @@ async fn the_group_agrees_once_and_the_group_rule_withdraws_the_rest_signed_and_
     );
     s.r.pipeline.wallet.ledger.verify_audit().unwrap();
     s.no_paypal();
+    // Proof v2: the winner's and a loser's files both carry the group and show one agreed table.
+    let winner = crate::tests::assert_proof_verifies(&s.r, s.id(0));
+    let line = crate::tests::proof_line(&winner, "group");
+    assert!(
+        line.ok && line.detail.contains("this one agreed"),
+        "{line:?}"
+    );
+    assert!(line.detail.contains("2 withdrawn"), "{line:?}");
+    let loser = crate::tests::assert_proof_verifies(&s.r, s.id(1));
+    let line = crate::tests::proof_line(&loser, "group");
+    assert!(
+        line.ok && line.detail.contains("another table agreed"),
+        "{line:?}"
+    );
+    let group = winner.group.as_ref().unwrap();
+    assert_eq!(group.tables.len(), 3);
+    assert_eq!(group.winner, Some(s.id(0)));
+    // A withdrawn table shown as agreed: two agreed tables.
+    crate::tests::assert_forgery_fails(&s.r, &winner, "group", |p| {
+        p.group.as_mut().unwrap().tables[2].state = DealState::Agreed;
+    });
+    // The winning row left out of the file: the group names a winner nobody won.
+    crate::tests::assert_forgery_fails(&s.r, &loser, "group", |p| {
+        for table in &mut p.group.as_mut().unwrap().tables {
+            table.rows.retain(|row| row.action != "group.won");
+        }
+    });
+    // The group section dropped while the deal's rows still name it.
+    crate::tests::assert_forgery_fails(&s.r, &loser, "group", |p| p.group = None);
 }
 
 #[tokio::test]

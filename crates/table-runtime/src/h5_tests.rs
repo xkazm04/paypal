@@ -397,4 +397,22 @@ async fn a_released_price_hold_lets_the_approved_order_in_as_the_owners_decision
     // Recorded once, never again: the refusal row did not repeat.
     assert_eq!(shield_refusals(&r, deal.id, "authorize"), 1);
     r.pipeline.wallet.ledger.verify_audit().unwrap();
+    // Proof v2: the money steps after the hold each went ahead under the owner's release for
+    // these terms; with the release left out of the file, the shield line fails by name.
+    let proof = crate::tests::assert_proof_verifies(&r, deal.id);
+    let shield = crate::tests::proof_line(&proof, "shield");
+    assert!(shield.ok && shield.applies, "{shield:?}");
+    assert!(
+        shield.detail.contains("2 money step(s) after a hold"),
+        "{shield:?}"
+    );
+    let released = proof
+        .audit
+        .iter()
+        .find(|row| row.action == "shield.released")
+        .unwrap()
+        .seq;
+    crate::tests::assert_forgery_fails(&r, &proof, "shield", |p| {
+        p.audit.retain(|row| row.seq != released);
+    });
 }

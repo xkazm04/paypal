@@ -209,6 +209,21 @@ impl Ledger {
             .map(kept)
             .transpose()
     }
+    /// The newest `limit` heads kept after row `after`, oldest first (for a proof file).
+    pub fn house_heads_after(
+        &self,
+        after: i64,
+        limit: usize,
+    ) -> Result<Vec<KeptHead>, LedgerError> {
+        let mut statement = self.conn.prepare(&format!(
+            "SELECT {COLUMNS} FROM (SELECT {COLUMNS} FROM house_heads WHERE id>?1 ORDER BY id DESC LIMIT ?2) ORDER BY id"
+        ))?;
+        let limit = i64::try_from(limit).unwrap_or(i64::MAX);
+        statement
+            .query_map(params![after, limit], row)?
+            .map(|r| kept(r?))
+            .collect()
+    }
     /// How the house's later record compares with the head kept beside `deal`'s receipt; `None`
     /// when no head was kept for it.
     pub fn house_record(&self, deal: DealId) -> Result<Option<HouseRecord>, LedgerError> {

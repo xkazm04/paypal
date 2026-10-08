@@ -19,6 +19,8 @@ mod limits_tests;
 mod market_watch_tests;
 #[path = "policy_tests.rs"]
 pub(crate) mod policy_tests;
+#[path = "proof_tests.rs"]
+mod proof_tests;
 #[path = "quit_tests.rs"]
 mod quit_tests;
 #[path = "relay_tests.rs"]
@@ -482,7 +484,32 @@ fn assert_proof_verifies(r: &Runtime, id: DealId) -> table_proto::ProofBundle {
     let file =
         table_client::check_proof_file(&serde_json::to_vec_pretty(&bundle).unwrap()).unwrap();
     assert!(file.verified && file.deal_id == id, "{file:?}");
-    assert!(file.checks.iter().all(|c| c.ok && c.checked));
+    // Every line passed, or reads "not checked" because the deal has nothing of its kind.
+    assert!(
+        file.checks
+            .iter()
+            .all(|c| (c.ok && c.checked && c.applies) || (!c.ok && !c.checked && !c.applies)),
+        "{file:?}"
+    );
+    // v2: the file names this build's permissions, and the in-app check says so.
+    assert_eq!(bundle.format, table_proto::PROOF_FORMAT);
+    assert_eq!(
+        file.authority_manifest.as_deref(),
+        table_client::authority::manifest_hex()
+    );
+    assert_eq!(file.same_version, Some(true));
+    assert!(proof_line(&bundle, "permissions").ok);
+    // The same evidence in the first format still verifies under the first format's rules, and
+    // every second-format line reads "not checked" there.
+    let v1 = as_v1(r, &bundle);
+    let old = table_verify::verify_bundle(&v1);
+    assert!(old.verified(), "{:#?}", old.checks);
+    for id in V2_CHECKS {
+        let line = old.checks.iter().find(|c| c.id == id).unwrap();
+        assert!(!line.ok && !line.checked && !line.applies, "{line:?}");
+    }
+    let old_file = table_client::check_proof_file(&serde_json::to_vec(&v1).unwrap()).unwrap();
+    assert!(old_file.verified && old_file.same_version.is_none());
     // The owner-key anchor is the whole key id, the one owner_facts shows the owner.
     let owner = table_proto::key_id(&r.pipeline.wallet.owner_public_key()).unwrap();
     assert_eq!(file.owner_key_id, owner.as_str());
@@ -492,6 +519,62 @@ fn assert_proof_verifies(r: &Runtime, id: DealId) -> table_proto::ProofBundle {
     let file_ids: Vec<_> = file.checks.iter().map(|c| c.id.as_str()).collect();
     assert_eq!(ids, file_ids);
     bundle
+}
+/// The checks the second proof format adds.
+pub(crate) const V2_CHECKS: [&str; 6] = [
+    "owner_saw",
+    "one_request",
+    "group",
+    "shield",
+    "house_record",
+    "permissions",
+];
+/// One line of the offline verifier's report on `bundle`.
+pub(crate) fn proof_line(bundle: &table_proto::ProofBundle, id: &str) -> table_verify::Check {
+    table_verify::verify_bundle(bundle)
+        .checks
+        .into_iter()
+        .find(|c| c.id == id)
+        .unwrap()
+}
+/// `bundle` as a first-format file: no second-format field, re-signed by the deal's agent.
+pub(crate) fn as_v1(r: &Runtime, bundle: &table_proto::ProofBundle) -> table_proto::ProofBundle {
+    let mut v1 = bundle.clone();
+    v1.format = table_proto::PROOF_FORMAT_V1.into();
+    v1.authority_manifest = None;
+    v1.group = None;
+    v1.house = None;
+    for op in &mut v1.operations {
+        op.request_id = None;
+    }
+    for call in &mut v1.paypal_calls {
+        call.request_id = None;
+    }
+    r.sign_proof(&mut v1).unwrap();
+    v1
+}
+/// A forged copy of `bundle`, re-signed by the deal's own agent key so the signature holds:
+/// only the check `id` can catch it, and it fails (never "not checked").
+pub(crate) fn assert_forgery_fails(
+    r: &Runtime,
+    bundle: &table_proto::ProofBundle,
+    id: &str,
+    forge: impl FnOnce(&mut table_proto::ProofBundle),
+) {
+    let mut forged = bundle.clone();
+    forge(&mut forged);
+    r.sign_proof(&mut forged).unwrap();
+    let report = table_verify::verify_bundle(&forged);
+    let line = report.checks.iter().find(|c| c.id == id).unwrap();
+    assert!(
+        !line.ok && line.checked && line.applies,
+        "{id} accepted a forgery: {line:?}"
+    );
+    assert!(proof_line(&forged, "evidence").ok, "re-signed");
+    assert!(!report.verified());
+    let file = table_client::check_proof_file(&serde_json::to_vec(&forged).unwrap()).unwrap();
+    assert!(!file.verified);
+    assert!(file.checks.iter().any(|c| c.id == id && !c.ok && c.checked));
 }
 fn caller(label: &str, token: Option<&str>) -> Caller {
     Caller {

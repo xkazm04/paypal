@@ -807,6 +807,10 @@ pub struct ProofCheckLine {
     /// False when the file lacks the record this check compares, so it could not be made (`ok`
     /// is false too; the file is not verified).
     pub checked: bool,
+    /// False when the deal has nothing of the kind this check is about (or the file is in the
+    /// first proof format): the line reads "not checked" and neither passes nor holds the file
+    /// back.
+    pub applies: bool,
     pub detail: String,
 }
 /// The offline verifier's report on a proof file the owner picked. Values come from the file.
@@ -819,6 +823,11 @@ pub struct ProofReport {
     pub owner_key_id: String,
     pub verified: bool,
     pub checks: Vec<ProofCheckLine>,
+    /// The permissions fingerprint the file names (hex; null in a first-format file).
+    pub authority_manifest: Option<String>,
+    /// Whether that fingerprint is this wallet's own: the file was saved by a build with the same
+    /// permissions. Null when the file names none.
+    pub same_version: Option<bool>,
 }
 /// No real proof file comes near this; a larger one is refused before it is parsed.
 pub const PROOF_FILE_LIMIT: usize = 8 * 1024 * 1024;
@@ -837,11 +846,17 @@ pub fn check_proof_file(bytes: &[u8]) -> Result<ProofReport, CommandError> {
         refuse("This file is not a proof file saved by this wallet, so there is nothing to check.")
     })?;
     let report = table_verify::verify_bundle(&bundle);
+    let own = authority::manifest_hex();
     Ok(ProofReport {
         deal_id: report.deal,
         mode: report.mode,
         owner_key_id: report.owner_key_id.clone(),
         verified: report.verified(),
+        same_version: report
+            .authority_manifest
+            .as_deref()
+            .map(|theirs| own == Some(theirs)),
+        authority_manifest: report.authority_manifest,
         checks: report
             .checks
             .into_iter()
@@ -849,6 +864,7 @@ pub fn check_proof_file(bytes: &[u8]) -> Result<ProofReport, CommandError> {
                 id: c.id.into(),
                 ok: c.ok,
                 checked: c.checked,
+                applies: c.applies,
                 detail: c.detail,
             })
             .collect(),

@@ -9,4 +9,10 @@ export type ProofCheckLine = { id: string, ok: boolean,
  * False when the file lacks the record this check compares, so it could not be made (`ok`
  * is false too; the file is not verified).
  */
-checked: boolean, detail: string, };
+checked: boolean, 
+/**
+ * False when the deal has nothing of the kind this check is about (or the file is in the
+ * first proof format): the line reads "not checked" and neither passes nor holds the file
+ * back.
+ */
+applies: boolean, detail: string, };
