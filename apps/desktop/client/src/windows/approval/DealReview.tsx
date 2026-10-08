@@ -18,7 +18,7 @@ import type { RescueLever } from '@bindings/RescueLever';
 import { WalletError, toWalletError } from '../../lib/contract';
 import { useCounterparties, useDealDisplay } from '../../lib/display';
 import { formatMoney, nowUnix, shortId } from '../../lib/format';
-import { RESCUE_APPROVE_DOES, RESCUE_REPLAY_NOT_COUNTED, SUMMARY_CHANGED, reasonWords, subscriberName, reconWord, receiptWord, shieldRuleWord, silenceWords } from '../../lib/words';
+import { houseWords, RESCUE_APPROVE_DOES, RESCUE_REPLAY_NOT_COUNTED, SUMMARY_CHANGED, reasonWords, subscriberName, reconWord, receiptWord, shieldRuleWord, silenceWords } from '../../lib/words';
 import { useEvent, useNow, usePrefersReducedMotion, useQuery } from '../../lib/hooks';
 import { backend } from '../../lib/runtime';
 import { MODULES } from '../../shared/modules';
@@ -124,7 +124,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const attn = attention.data?.items.find((i) => i.deal_id === dealId);
   const cp = deal ? lookup(deal.counterparty) : undefined;
   // A subscriber has no wallet: a rescue names them by their subscription.
-  const cpName = cp?.known ? cp.name : attn?.counterparty ?? (deal ? subscriberName(deal.counterparty) ?? `key ${shortId(deal.counterparty)}` : '');
+  const cpName = cp?.known ? cp.name : attn?.counterparty ? houseWords(attn.counterparty) : (deal ? subscriberName(deal.counterparty) ?? `key ${shortId(deal.counterparty)}` : '');
   const mandate = useMemo(() => {
     if (!deal || !mandates.data) return undefined;
     // A set the wallet now refuses (refusal) is listed but not in force for this deal.

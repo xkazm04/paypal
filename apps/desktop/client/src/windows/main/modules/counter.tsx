@@ -19,14 +19,14 @@ import {
   type ChipTone, type ExplainerStep,
 } from '../../../shared/ui';
 import { chipClass, dealTotal, isLive, moneyNow, pairingFact, PENDING_BACKEND, stripFor, sumByCurrency, type ChipClass } from '../logic';
-import { silenceWords, stateWord, timeLeftWords } from '../../../lib/words';
+import { houseWords, silenceWords, stateWord, timeLeftWords } from '../../../lib/words';
 import { Glyph } from '../../../shared/modules';
 import { useCpLookup } from '../ui';
 import { useWorld } from '../world';
 import type { ModuleProps } from './common';
 import { NoteText } from './shield/NoteChip';
 import {
-  buildCatalog, currencyMark, draftFloor, draftImpact, draftState, floorText, fmtShort, matchesFilter, matchesQuery, minorToText, parseMoneyText, scaleOf,
+  buildCatalog, currencyMark, draftFloor, itemName, draftImpact, draftState, floorText, fmtShort, matchesFilter, matchesQuery, minorToText, parseMoneyText, scaleOf,
   sellerMandates, stepFloor, underDraft, vsMarket, type CatalogFilter, type CatalogRow, type FloorDraft, type Impact,
 } from './counter/model';
 import './counter.css';
@@ -38,7 +38,7 @@ const stateText = (d: Deal) => stateWord(d.state, { side: d.side, kind: d.kind }
 /** Shop rules are one signed seller mandate: Layer 1 names it, the id and version stay in tooltips. */
 const mandateTip = (m: MandateListEntry) => `Shop rules, version ${m.payload.version} · ${shortId(m.payload.id)}`;
 const UNK_CATALOG = 'Your shop’s catalog is not connected yet, so list price, stock and listing details are not known here. Nothing is guessed.';
-const CODE_ONLY = 'The item code from your shop rules. Its name shows once an order names it or your catalog is connected.';
+const CODE_ONLY = 'Named from the item code in your shop rules. Its own name shows once an order names it or your catalog is connected.';
 
 const HOW_COUNTER: readonly ExplainerStep[] = [
   { icon: 'store', title: 'Agents shop here', text: 'Other people’s agents place orders at your shop.' },
@@ -87,7 +87,7 @@ export function Counter({ deals, nav }: ModuleProps) {
   const open = useMutation('approval_open');
   const review = async () => {
     const e = errors[0];
-    if (e) { toast(<>Fix {errors.length === 1 ? 'one price' : `${errors.length} prices`} first: {e.row.title ?? e.row.itemRef} · {e.error}.</>, 'bad'); return; }
+    if (e) { toast(<>Fix {errors.length === 1 ? 'one price' : `${errors.length} prices`} first: {itemName(e.row)} · {e.error}.</>, 'bad'); return; }
     if (!diff.length) { toast(<>No price differs from your shop rules. Nothing to sign.</>); return; }
     // One seller mandate holds one band, so one floor goes over per hand-off (the first change).
     const first = diff[0];
@@ -209,7 +209,7 @@ export function Counter({ deals, nav }: ModuleProps) {
           <div className="ctr-l2"><DealDetail deal={selDeal} row={rowOf.get(selDeal.terms.item_ref)} draft={draft} mandate={mandate} onOpenDeal={() => nav.onDeal(selDeal.id)} /></div>
         </Inspector>
       ) : selRow ? (
-        <Inspector title={selRow.title ?? selRow.itemRef} sub="Item" onClose={() => setSel(null)}>
+        <Inspector title={itemName(selRow)} sub="Item" onClose={() => setSel(null)}>
           <div className="ctr-l2"><ItemDetail row={selRow} draft={draft} mandate={mandate} onDeal={(id) => select('deal', id)} labelOf={(d) => w.display(d).label} /></div>
         </Inspector>
       ) : null}
@@ -332,15 +332,16 @@ function CatalogLine({ row, draft, selected, detailed, onSelect, onDeal, onText,
     onText(norm === signedText ? undefined : norm);
   };
   const onRowClick = (e: MouseEvent<HTMLTableRowElement>) => { if (!(e.target as HTMLElement).closest(INTERACTIVE)) onSelect(); };
-  const title = row.title ?? row.itemRef;
+  const title = itemName(row);
   // No order has named this item and the catalog is not connected, so its only name is the code in
-  // your shop rules: shown as that code (a quiet tag), never dressed up as a catalog title.
+  // your shop rules: Simple shows a plain name made from that code; the code itself is shown only in
+  // Detailed (and the item's details), as a quiet tag.
   const coded = row.title === null;
   return (
     <tr className={`item ${bad ? 'bad' : inDraft ? 'draft' : ''}`} aria-selected={selected} onClick={onRowClick}>
       <td className="it">
-        <button type="button" className="ititle" onClick={onSelect} title={coded ? CODE_ONLY : row.itemRef}>
-          {coded ? <span className="sku" aria-label={`Item code ${row.itemRef}`}>{row.itemRef}</span> : title}
+        <button type="button" className="ititle" onClick={onSelect} title={coded ? `${CODE_ONLY} Code: ${row.itemRef}` : row.itemRef}>
+          {title}{coded && detailed ? <> <span className="sku" aria-label={`Item code ${row.itemRef}`}>{row.itemRef}</span></> : null}
         </button>
       </td>
       {catPending ? null : <td className="num"><span className="unk" title={UNK_CATALOG}>unknown</span></td>}
@@ -392,10 +393,10 @@ function DraftBar({ mandate, diff, errors, impact, locked, pending, onDiscard, o
       <Chip tone="gold" title={mandate ? `Becomes version ${mandate.payload.version + 1} of your shop rules` : 'Becomes your first shop rules'}>Unsigned change</Chip>
       <span className="diffs">
         {diff.map((d) => (
-          <span key={d.row.itemRef}>{d.row.title ?? d.row.itemRef} <span className="money gold">{d.from ? fmtShort(d.from.minor, d.from.currency) : 'none'}→{fmtShort(d.to.minor, d.to.currency)}</span></span>
+          <span key={d.row.itemRef}>{itemName(d.row)} <span className="money gold">{d.from ? fmtShort(d.from.minor, d.from.currency) : 'none'}→{fmtShort(d.to.minor, d.to.currency)}</span></span>
         ))}
       </span>
-      {errors.length ? <Chip tone="red" title={errors.map((x) => `${x.row.title ?? x.row.itemRef}: ${x.error}`).join(' · ')}>{errors.length} to fix</Chip> : null}
+      {errors.length ? <Chip tone="red" title={errors.map((x) => `${itemName(x.row)}: ${x.error}`).join(' · ')}>{errors.length} to fix</Chip> : null}
       {impact.length ? <Chip tone={withdrawn ? 'coral' : 'line'} onClick={(e) => { const t = e.currentTarget; setA((x) => (x ? null : t)); }}>
         {withdrawn ? `${withdrawn} quote${withdrawn === 1 ? '' : 's'} withdrawn` : `${impact.length} open · unaffected`} ›
       </Chip> : null}
@@ -492,7 +493,7 @@ function DealDetail({ deal, row, draft, mandate, onOpenDeal }: { deal: Deal; row
         ['Money', moneyNow(deal)],
         [live ? 'If you do nothing' : 'Outcome', silence ?? (live ? 'no money moves' : moneyNow(deal))],
         !!ids && ['PayPal ids', <span className="mono dim">{ids}</span>],
-        ['Buyer key', <span className="mono dim" title={mandate ? mandateTip(mandate) : undefined}>{shortId(deal.counterparty)}{c.entry?.declared_payee ? ` · pays from ${c.entry.declared_payee}` : ''}</span>],
+        ['Buyer key', <span className="mono dim" title={mandate ? mandateTip(mandate) : undefined}>{shortId(deal.counterparty)}{c.entry?.declared_payee ? ` · pays from ${houseWords(c.entry.declared_payee)}` : ''}</span>],
       ]} />
       {underDraft(deal, row, draft) ? <p className="l2-warn">Your new lowest price is above this quote: signing the change withdraws it. No money moves.</p> : null}
       {need ? (

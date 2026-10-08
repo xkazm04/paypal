@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
-import { cellState, COLS, moveCell, NOT_BUILT, pickable, recovered, retryLeft, rulesFor, splitRows } from './model';
+import { atRiskOf, cellState, COLS, moveCell, NOT_BUILT, pickable, recovered, retryLeft, rulesFor, splitFixes, splitRows } from './model';
 import { invoiceText, proposeDiscount } from '../../../../mock/rescue';
 import type { RescueView } from '@bindings/RescueView';
 
@@ -82,5 +82,32 @@ describe('matrix keys', () => {
     expect(moveCell(rows, { id: 'b', col: 'PAUSE' }, '0')).toEqual({ id: 'b', col: 'NONE' });
     expect(moveCell(rows, { id: 'b', col: 'NONE' }, '4')).toEqual({ id: 'b', col: 'DOWNGRADE' });
     expect(moveCell(rows, { id: 'b', col: 'NONE' }, 'x')).toBeNull();
+  });
+});
+
+describe('the card shows only the fixes open to this renewal (polish 3)', () => {
+  it('cards are doing nothing and the discount; the switched-off fixes fold into one line, each with its reason', () => {
+    const replay = splitFixes(deal('a', { mode: 'replay' }), NOW + 5 * 86400, NOW, view('a'));
+    expect(replay.open).toEqual(['NONE', 'DISCOUNT_THIS_CYCLE']);
+    expect(replay.off.map((o) => [o.col, o.code])).toEqual([['PAUSE', 'NOT_BUILT'], ['RETRY_AFTER_FIX', 'REPLAY'], ['DOWNGRADE', 'NOT_BUILT']]);
+    for (const o of replay.off) expect(o.why.length).toBeGreaterThan(0);
+    // Doing nothing is never folded away, and every column is either a card or in the line.
+    const soon = splitFixes(deal('a'), NOW + 3600, NOW, view('a'));
+    expect(soon.open[0]).toBe('NONE');
+    expect([...soon.open, ...soon.off.map((o) => o.col)].sort()).toEqual([...COLS].sort());
+    expect(soon.off.find((o) => o.col === 'RETRY_AFTER_FIX')?.code).toBe('retry <24h');
+  });
+  it('a discount the wallet has not shown yet stays a (dashed) card, never folded as unavailable', () => {
+    expect(splitFixes(deal('a'), NOW + 5 * 86400, NOW, null).open).toContain('DISCOUNT_THIS_CYCLE');
+  });
+});
+
+describe('what a failed renewal puts at risk (polish 3)', () => {
+  it('is the missed cycle at the plan price, never the discounted invoice, so Book and Rescue agree', () => {
+    const d = deal('a'); // the deal's terms carry the $9.60 invoice
+    expect(atRiskOf(d, { cases: [view('a')] })).toEqual({ minor: 1200, currency: 'USD' });
+    // Without the wallet's read it falls back to the deal's own terms.
+    expect(atRiskOf(d, null)).toEqual({ minor: 960, currency: 'USD' });
+    expect(atRiskOf(d, { cases: [view('other')] })).toEqual({ minor: 960, currency: 'USD' });
   });
 });

@@ -13,7 +13,7 @@ import type { DealDisplay } from '../../lib/pending';
 import type { WalletError } from '../../lib/contract';
 import { clockLabel, formatMinor, shortId } from '../../lib/format';
 import { readLimits } from '../../lib/limits';
-import { FIRST_RUN_TITLE, SAFETY_PROMISE, START_STEP, shieldRuleWord, timeLeftWords, type StartStepKey } from '../../lib/words';
+import { FIRST_RUN_TITLE, houseWords, SAFETY_PROMISE, START_STEP, shieldRuleWord, timeLeftWords, type StartStepKey } from '../../lib/words';
 import type { GettingStarted } from '../../lib/firstRun';
 import { useQuery } from '../../lib/hooks';
 import { ModeBadge } from '../../shared/honesty';
@@ -196,7 +196,7 @@ function CardDetails({ item, now, anchor, actions, pending, onAction, onClose }:
       </div>
       <Kv items={[
         ['Deal', <span className="mono">{item.label} · {MODULE[item.module].name}</span>],
-        ['With', item.counterparty ?? 'a connected wallet'],
+        ['With', item.counterparty ? houseWords(item.counterparty) : 'a connected wallet'],
         title ? ['Item', title] : null,
         hold && item.shield_rule ? ['Paused by', shieldRuleWord(item.shield_rule).text] : null,
         ['Deadline', item.deadline !== null ? clockLabel(item.deadline) : 'none · paused until you act'],
@@ -266,7 +266,7 @@ export const CardForm = forwardRef(function CardForm(p: CardProps, ref: Ref<HTML
     );
   } else {
     line3 = p.failure ? <Notice failure={p.failure} /> : (
-      <p className="c-who" title={`${item.counterparty ?? 'a connected wallet'} · If you do nothing: ${item.on_silence}`}>
+      <p className="c-who" title={`${item.counterparty ? houseWords(item.counterparty) : 'a connected wallet'} · If you do nothing: ${item.on_silence}`}>
         <span className="c-sil"><Hourglass />If you do nothing: <b>{item.on_silence}</b></span>
       </p>
     );
@@ -378,7 +378,7 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
                 title={`${MODULE[it.module].name} · ${it.headline} · If you do nothing: ${it.on_silence}`}>
                 <span className="bd" aria-hidden="true" />
                 <span className="main">
-                  <span className="t1"><Headline text={it.headline} minor={it.amount_minor} currency={it.currency} />{it.counterparty ? <span className="who"> · {it.counterparty}</span> : null}</span>
+                  <span className="t1"><Headline text={it.headline} minor={it.amount_minor} currency={it.currency} />{it.counterparty ? <span className="who"> · {houseWords(it.counterparty)}</span> : null}</span>
                   <span className="t2"><Hourglass />If you do nothing: <b>{it.on_silence}</b></span>
                 </span>
                 {it.money_check ? <Chip tone="dashed">Checking</Chip> : hold ? <Chip tone="coral">Paused</Chip> : null}

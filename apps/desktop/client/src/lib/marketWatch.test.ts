@@ -78,7 +78,7 @@ describe('keep prices fresh', () => {
     expect(back.clauses).toContainEqual({ type: 'market_watch', items: [{ item: 'monitor-27-4k', product: 'lg-27uk850-w' }], checks: '12' });
     const problems = ruleProblems([watch([['dock', 'p']], 0)], NOW - 10, NOW + 10);
     expect(problems.find((p) => p.clause === 9)?.why).toBe('checks a day must be 1–200');
-    expect(ruleSentence(watch([['monitor-arm', 'p']], 1))).toBe('keeps prices fresh for monitor-arm · up to 1 check a day');
+    expect(ruleSentence(watch([['monitor-arm', 'p']], 1))).toBe('keeps prices fresh for Monitor arm · up to 1 check a day');
   });
 
   it('the mock refuses what Rust refuses and the rule changes no answer', () => {
