@@ -7,15 +7,17 @@
 //   - "fact": what the check reads, from data the client does hold (counterparty_list first_seen /
 //     deals_closed, Deal.market) — shown as facts, never as the shield's own pass/hit;
 //   - "skip": the market rule had no reference to compare with (no Deal.market) — not passed;
-//   - "na":   not exposed to this window (drawn dashed, never as passed). The three checks that are
-//     always "na" here (UNSHOWN) are not grid rows: one quiet line says they ran and are not shown.
+//   - "na":   its own result is not reported to this window (drawn dashed, never as passed), said as
+//     what the deal does record: "no alert" (CLEAR), "didn't stop it" (another rule decided) or
+//     "not reported". The three checks without their own result (UNSHOWN) are not grid rows: one
+//     quiet line says they ran and count in the verdict. A check that decided the verdict is a fact.
 // No React, no IPC; unit-tested in matrix.test.ts.
 import type { CounterpartyDisplay } from '@bindings/CounterpartyDisplay';
 import type { Deal } from '@bindings/Deal';
 import type { ShieldRule } from '@bindings/ShieldRule';
 import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import { formatMinor } from '../../../../lib/format';
-import { shieldRuleWord } from '../../../../lib/words';
+import { CHECK_QUIET, shieldRuleWord } from '../../../../lib/words';
 import { isTerminal, moneyNow } from '../../logic';
 
 export type CheckKey = 'payee' | 'ff' | 'newcp' | 'market' | 'typology';
@@ -53,15 +55,35 @@ export function overMedian(d: Pick<Deal, 'terms' | 'market'>): number | null {
   return Math.round((d.terms.unit_price.minor / m.median.minor - 1) * 100);
 }
 
-const NOT_SHOWN = 'not shown here';
-export function checkCell(k: CheckKey, d: Pick<Deal, 'terms' | 'market'>, cp: CounterpartyDisplay | undefined, now: number): CheckCell {
+/** A check whose own result never reaches this window, by what the deal does record: the verdict
+ *  and the one rule that decided it (Deal.shield, Deal.shield_rule). The shield runs its rules in
+ *  order and the first that trips decides, so another recorded rule means this check did not stop
+ *  the payment; CLEAR means no check raised an alert. Never a pass: the cell stays dashed ("na"). */
+const OWN_RULE: Partial<Record<CheckKey, ShieldRule>> = { payee: 'payee_mismatch', ff: 'friends_and_family', typology: 'model_caution' };
+type ShieldFacts = Partial<Pick<Deal, 'shield' | 'shield_rule'>>;
+/** The short label and its explanation for a check this window has no result for. */
+export function quietCheck(d: ShieldFacts): { text: string; means: string } {
+  if (d.shield === 'CLEAR') return CHECK_QUIET.clear;
+  if (d.shield_rule) return CHECK_QUIET.notIt;
+  return CHECK_QUIET.unsaid;
+}
+function unshown(k: CheckKey, d: ShieldFacts, does: string): CheckCell {
+  const own = OWN_RULE[k];
+  if (own && d.shield_rule === own) {
+    const w = shieldRuleWord(own);
+    return { r: 'fact', s: w.text.toLowerCase(), l: `${does} ${w.means}` };
+  }
+  const q = quietCheck(d);
+  return { r: 'na', s: q.text.toLowerCase(), l: `${does} ${q.means}` };
+}
+export function checkCell(k: CheckKey, d: Pick<Deal, 'terms' | 'market'> & ShieldFacts, cp: CounterpartyDisplay | undefined, now: number): CheckCell {
   switch (k) {
     case 'payee':
-      return { r: 'na', s: NOT_SHOWN, l: 'The shield checks that the money goes to the payee you agreed with. It ran; only its verdict above is shown here.' };
+      return unshown(k, d, 'The shield checks that the money goes to the payee you agreed with.');
     case 'ff':
-      return { r: 'na', s: NOT_SHOWN, l: 'The shield looks for a request to be paid as “friends & family”, which removes buyer protection. It ran; only its verdict above is shown here.' };
+      return unshown(k, d, 'The shield looks for a request to be paid as “friends & family”, which removes buyer protection.');
     case 'typology':
-      return { r: 'na', s: NOT_SHOWN, l: 'An AI second opinion reads their message for known scam patterns. It can only make things safer. It ran; only its verdict above is shown here.' };
+      return unshown(k, d, 'An AI second opinion reads their message for known scam patterns. It can only make things safer.');
     case 'newcp': {
       if (!cp) return { r: 'na', s: 'unknown payee', l: 'The wallet has no record of this payee, so when you first met them is unknown.' };
       const fresh = now - cp.first_seen < DAY;

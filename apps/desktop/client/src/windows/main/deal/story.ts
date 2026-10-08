@@ -8,7 +8,7 @@ import type { DisplayBand } from '@bindings/DisplayBand';
 import type { MoneyCheck } from '@bindings/MoneyCheck';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { formatMoney } from '../../../lib/format';
-import { headlineWords, MONEY_CHECK_PARKED, marketWords, moneyCheckStep, ruleNameOf, shieldRuleWord, stateWord } from '../../../lib/words';
+import { headlineWords, houseWords, MONEY_CHECK_PARKED, marketWords, moneyCheckStep, ruleNameOf, shieldRuleWord, stateWord } from '../../../lib/words';
 import { dealTotal, decidedBy, isTerminal } from '../logic';
 import { latestText, timelineRows, type ClauseReading, type Reading, type TimelineRow } from './model';
 
@@ -110,7 +110,7 @@ export function decisionQuestion(d: QDeal, need: Pick<AttentionItem, 'headline'>
 export function decisionWhy(d: Pick<Deal, 'shield'>, need: Pick<AttentionItem, 'clause'>, readings: readonly ClauseReading[], mandateId: string): string | null {
   const n = need.clause && need.clause.mandate_id === mandateId ? need.clause.number : null;
   const r = n !== null ? readings.find((x) => x.n === n) : undefined;
-  if (r) return `Because of your rule “${r.title}” (${r.rule.replace(/\bHOUSE\b/g, 'the house seller')}).`;
+  if (r) return `Because of your rule “${r.title}” (${houseWords(r.rule)}).`;
   if (need.clause) return `Because of your rule “${ruleNameOf(need.clause.number)}”.`;
   if (d.shield === 'HOLD') return 'A scam check paused this before PayPal was asked.';
   return null;

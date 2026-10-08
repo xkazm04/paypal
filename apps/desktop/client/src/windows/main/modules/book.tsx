@@ -23,7 +23,7 @@ import { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMinor, shortId } from '../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../../lib/lazy';
-import { AUDIT_BROKEN, marketWords, modeWord, moneyCheckWord, receiptWord, stateWord, timeLeftWords } from '../../../lib/words';
+import { AUDIT_BROKEN, heldWords, marketWords, modeWord, moneyCheckWord, receiptWord, stateWord, timeLeftWords } from '../../../lib/words';
 import { Glyph } from '../../../shared/modules';
 import { Countdown, ModeBadge, WalletNotice } from '../../../shared/honesty';
 import {
@@ -33,6 +33,7 @@ import {
 import { amountTone, chipClass, dealTotal, decidedBy, ledgerScope, marketPosition, moneyNow, type ChipClass } from '../logic';
 import { useCpLookup } from '../ui';
 import { useAllEvidence, useWorld } from '../world';
+import { atRiskOf } from './rescue/model';
 import type { ModuleProps } from './common';
 import {
   BUCKET_LABEL, BUCKET_SUB, BUCKETS, bucketOf, dayKey, dayLabel, dirOf, KIND_ORDER, kindLabel, LENSES, queryText, readQuery, runQuery,
@@ -349,11 +350,11 @@ function WeekAnswer({ deals, week, checking = 0 }: { deals: Deal[]; week: boolea
   const s = sums(deals);
   const out = moneyList(s.captured.out);
   const inn = moneyList(s.captured.in);
-  const held = moneyList([...s.held.out, ...s.held.in]);
+  const held = heldWords(moneyList(s.held.out), moneyList(s.held.in));
   const stopped = deals.filter((d) => bucketOf(d) === 'stopped').length;
   const holds = deals.filter((d) => d.state === 'AUTHORIZED').length;
   const title = out && inn ? `${when}: ${out} paid out, ${inn} paid in.` : out ? `${when}: ${out} paid out. Nothing paid in yet.` : inn ? `${when}: ${inn} paid in. Nothing paid out.` : `${when}: no money has moved yet.`;
-  const bits = [held ? `${held} is on hold at PayPal, not paid yet.` : '', checking ? `${plural(checking, 'payment is', 'payments are')} being checked with PayPal.` : '', stopped ? `${plural(stopped, 'payment was', 'payments were')} stopped or paid back.` : ''].filter(Boolean);
+  const bits = [held ?? '', checking ? `${plural(checking, 'payment is', 'payments are')} being checked with PayPal.` : '', stopped ? `${plural(stopped, 'payment was', 'payments were')} stopped or paid back.` : ''].filter(Boolean);
   return <AnswerBar tone={holds ? 'need' : 'calm'} icon={holds ? undefined : 'book'} title={title} sub={bits.length ? bits.join(' ') : undefined} />;
 }
 
@@ -494,6 +495,9 @@ function Outlook({ deals, label, onOpen, simple, checking = () => false }: { dea
   const w = useWorld();
   const now = useNow();
   const [open, setOpen] = useState<{ k: string; a: HTMLElement } | null>(null);
+  // A failing renewal shows what is at risk (the missed cycle), as Rescue does, never the fix's discounted invoice.
+  const rescue = useQuery('rescue_book', null, { refreshOn: ['deal:changed', 'receipt:created', 'attention:changed'] });
+  const amountOf = (k: string, d: Deal): Money => (k === 'renew' ? atRiskOf(d, rescue.data) : dealTotal(d));
   const dl = (d: Deal) => w.needOf(d.id)?.deadline ?? w.display(d).deadline;
   const sil = (d: Deal | undefined) => (d ? w.needOf(d.id)?.on_silence ?? w.display(d).on_silence : null);
   const first = (xs: Deal[]) => [...xs].sort((a, b) => (dl(a) ?? Infinity) - (dl(b) ?? Infinity))[0];
@@ -516,7 +520,7 @@ function Outlook({ deals, label, onOpen, simple, checking = () => false }: { dea
         {cur.first ? (
           <Kv items={[
             ['Deal', <Btn sm kind="plain" onClick={() => { setOpen(null); if (cur.first) onOpen(cur.first.id); }}>{label(cur.first)} · {w.display(cur.first).title}</Btn>],
-            ['Amount', <span className="money">{formatMinor(dealTotal(cur.first).minor, dealTotal(cur.first).currency)}</span>],
+            [cur.k === 'renew' ? 'At risk' : 'Amount', <span className="money">{formatMinor(amountOf(cur.k, cur.first).minor, amountOf(cur.k, cur.first).currency)}</span>],
             cur.deadline ? ['Deadline', <>{clockLabel(cur.deadline)} · <Countdown deadline={cur.deadline} /> left</>] : null,
             ['If you do nothing', cur.silence ?? cur.short],
           ]} />
@@ -532,14 +536,14 @@ function Outlook({ deals, label, onOpen, simple, checking = () => false }: { dea
         {due.length ? (
           <div className="attn">
             {due.map((it) => {
-              const t = it.first ? dealTotal(it.first) : null;
+              const t = it.first ? amountOf(it.k, it.first) : null;
               return (
                 <button key={it.k} type="button" className="at-card" aria-haspopup="dialog"
                   onClick={(e) => { const a = e.currentTarget; setOpen((o) => (o?.k === it.k ? null : { k: it.k, a })); }}>
                   <span className="at-ico"><Icon name={OUT_ICON[it.k] ?? 'alert'} size={18} /></span>
                   <span className="at-main">
                     <span className="at-t"><b>{it.n}</b> {it.label}</span>
-                    <span className="at-s">{it.first && t ? <><span className="money">{formatMinor(t.minor, t.currency)}</span>{it.deadline ? ` · ${timeLeftWords(it.deadline - now)} left` : ''}</> : null}</span>
+                    <span className="at-s">{it.first && t ? <><span className="money">{formatMinor(t.minor, t.currency)}</span>{it.k === 'renew' ? ' at risk' : ''}{it.deadline ? ` · ${timeLeftWords(it.deadline - now)} left` : ''}</> : null}</span>
                     <Silence className="at-sil" text={it.short} />
                   </span>
                   <span className="chev" aria-hidden="true" />
@@ -555,7 +559,7 @@ function Outlook({ deals, label, onOpen, simple, checking = () => false }: { dea
   return (
     <Group className="outlook" label="Cash-flow outlook">
       {items.map((it) => {
-        const t = it.first ? dealTotal(it.first) : null;
+        const t = it.first ? amountOf(it.k, it.first) : null;
         return (
           <button key={it.k} type="button" className="ui-row two act" aria-haspopup="dialog"
             onClick={(e) => { const a = e.currentTarget; setOpen((o) => (o?.k === it.k ? null : { k: it.k, a })); }}>

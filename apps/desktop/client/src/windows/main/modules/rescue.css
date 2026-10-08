@@ -155,3 +155,8 @@
 .mod-rescue .rs-inv .nt { margin: 0 0 var(--sp-2); color: var(--muted); }
 /* Watched subscriptions: one quiet row above the failed renewals. */
 .mod-rescue .rsc-watch { margin: 0 0 var(--sp-4); }
+/* the fixes this renewal can't have: one quiet line under the cards, reasons behind Why? */
+.mod-rescue .rs-notoff { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--sp-2); margin: var(--sp-2) 0 0; font-size: var(--fs-small); color: var(--dim); }
+.mod-rescue .rs-notoff .ui-why { margin-left: 0; }
+.rs-notoff-list { margin: 0 0 var(--sp-2); padding-left: 18px; }
+.rs-notoff-list li + li { margin-top: 4px; }

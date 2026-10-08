@@ -179,9 +179,9 @@ export function ruleSentence(c: Clause): string {
     }
     case 'velocity': return `up to ${c.max_deals_day} deals and ${formatMoney(c.max_total_day)} a day`;
     case 'human_present_over': return `asks you above ${formatMoney(c.amount)}`;
-    case 'payees': return c.payees.length ? `only ${joinWords(c.payees)}` : 'no one yet';
+    case 'payees': return c.payees.length ? `only ${joinWords(c.payees.map(houseWords))}` : 'no one yet';
     case 'lever': return `a discount on one missed cycle: up to ${percentWords(c.max_discount_bp)} and ${formatMoney(c.max_discount)} per subscriber`;
-    case 'market_watch': return `keeps prices fresh for ${joinWords(c.items.map((i) => i.item_ref))} · ${checksADay(c.max_refreshes_day)}`;
+    case 'market_watch': return `keeps prices fresh for ${joinWords(c.items.map((i) => itemWords(i.item_ref)))} · ${checksADay(c.max_refreshes_day)}`;
   }
 }
 
@@ -226,6 +226,48 @@ export const PRICE_CHECKS_USED_UP = 'Today’s price checks are used up. Prices 
 export function joinWords(xs: readonly string[]): string {
   if (xs.length <= 1) return xs[0] ?? '';
   return `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`;
+}
+
+/** The house seller's payee name and display name read as a name, never a shout: the payee
+ *  "HOUSE" is "House seller", and "HOUSE seller" is "House seller". Every place a payee or
+ *  counterparty label can carry the house seller's name goes through this (UX guide vocabulary). */
+export function houseWords(s: string): string {
+  return s.replace(/\bHOUSE\b(?: seller\b)?/g, 'House seller');
+}
+
+/** What is on hold, by direction, as one sentence for an answer line:
+ *  "$64.00 going out and $118.00 coming in are on hold at PayPal, not paid yet." (one direction
+ *  keeps the singular "is"). Each list is already one figure per currency; null when nothing is held. */
+export function heldWords(out: string, inn: string): string | null {
+  if (out && inn) return `${out} going out and ${inn} coming in are on hold at PayPal, not paid yet.`;
+  const one = out || inn;
+  return one ? `${one} is on hold at PayPal, not paid yet.` : null;
+}
+
+/** A check whose own result never reaches this window, in a few words: never green, never a guess.
+ *  `clear`: the shield found nothing to stop; `notIt`: another check decided the pause, so this one
+ *  did not stop the payment; `unsaid`: the wallet did not record which check decided. */
+export const CHECK_QUIET = {
+  clear: { text: 'No alert', means: 'The shield let this payment through, so this check raised no alert. Its own result isn’t reported to this screen, so it isn’t marked as passed.' },
+  notIt: { text: 'Didn’t stop it', means: 'Another check paused this payment, not this one. Its own result isn’t reported to this screen, so it isn’t marked as passed.' },
+  unsaid: { text: 'Not reported', means: 'Its own result isn’t reported to this screen, so it isn’t marked as passed.' },
+} as const;
+
+/** A value the wallet did not give this window (a comparison's other side). */
+export const NOT_REPORTED = { text: 'not reported', means: 'Your wallet didn’t give this window this value, so the row is never counted as a pass.' } as const;
+
+const ITEM_ABBR = new Set(['hdmi', 'usb', 'ssd', 'hdd', 'ips', 'qhd', 'uhd', 'lcd', 'led', 'oled', 'gpu', 'cpu', 'psu', 'ram']);
+/** An item known only by the code in your shop rules, as a plain name: "dp-cable-2m" → "DP cable 2m",
+ *  "hdmi-21" → "HDMI 21", "monitor-27-4k" → "Monitor 27 4K". Display only; the code stays in Details. */
+export function itemWords(ref: string): string {
+  const parts = ref.split(/[-_\s]+/).filter(Boolean).map((p) => {
+    const l = p.toLowerCase();
+    if (ITEM_ABBR.has(l) || /^[b-df-hj-np-tv-xz]{2,4}$/.test(l)) return l.toUpperCase();
+    if (/^\d+k$/.test(l)) return l.toUpperCase();
+    return l;
+  });
+  const s = parts.join(' ');
+  return s ? `${s.charAt(0).toUpperCase()}${s.slice(1)}` : 'Item';
 }
 
 /** "2 days 18 h", "3 h 57 min", "9 min": a spoken remaining time (the ticking clock stays `countdown`). */
@@ -449,6 +491,11 @@ export const RESCUE_APPROVE_DOES = 'PayPal makes one invoice for this cycle at t
 /** The replay form, in the approval window. */
 export const RESCUE_REPLAY_ABOUT = 'PayPal can’t make a test renewal fail, so you can replay one: enter the subscription and its price, and your wallet suggests one fix inside your rules. The failure is marked as a replay. The invoice it leads to is real, and what it brings in is never counted.';
 export const RESCUE_NO_RULES = 'Sign rules for fixing failed renewals first.';
+/** The fixes a renewal can't have, as one quiet line under the ones it can: "Not offered for this
+ *  renewal: pause for a while, retry later and smaller plan." (names as the cards spell them). */
+export function notOfferedLine(names: readonly string[]): string {
+  return `Not offered for this renewal: ${joinWords(names.map((n) => n.charAt(0).toLowerCase() + n.slice(1)))}.`;
+}
 /** A source of a failed renewal, in words. */
 export const rescueSourceWord = (s: 'replay' | 'paypal'): string => (s === 'replay' ? 'Replayed failure' : 'Reported by PayPal');
 /** A subscriber without a wallet entry, by their subscription: "subscriber I-BW452GLL…". */

@@ -7,7 +7,7 @@ import type { Deal } from '@bindings/Deal';
 import type { MarketRef } from '@bindings/MarketRef';
 import type { Mode } from '@bindings/Mode';
 import { clockLabel, formatMoney } from '../../../lib/format';
-import { marketWords } from '../../../lib/words';
+import { marketWords, NOT_REPORTED } from '../../../lib/words';
 import { Countdown, MockBadge, ModeBadge } from '../../../shared/honesty';
 import { Btn, Crumbs, Hourglass, Spacer, TitleBar, type ChipTone } from '../../../shared/ui';
 import { marketPercentile, STEP } from '../model';
@@ -62,7 +62,7 @@ export function TwinHeader({ twin, checking }: { twin: Twin; checking: boolean }
     <div className={cx('dr-twin', tone === 'bad' && 't-bad', held && 't-hold')}>
       <div className="tw l">
         <span className="twk">{twin.left.k}</span>
-        {twin.left.v ? <span className="tw-amt money">{twin.left.v}</span> : <span className="tw-amt unk">not shown here</span>}
+        {twin.left.v ? <span className="tw-amt money">{twin.left.v}</span> : <span className="tw-amt unk" title={NOT_REPORTED.means}>{NOT_REPORTED.text}</span>}
       </div>
       <div className={`tw-op ${tone}`} role="img" aria-label={checking ? 'checking' : word}>
         <MarkIcon mark={mark} className="big" />
@@ -70,7 +70,7 @@ export function TwinHeader({ twin, checking }: { twin: Twin; checking: boolean }
       </div>
       <div className="tw r">
         <span className="twk">{twin.right.k}</span>
-        {twin.right.v ? <span className="tw-amt money">{twin.right.v}</span> : <span className="tw-amt unk">{twin.op === '≠' ? 'differs' : 'not shown here'}</span>}
+        {twin.right.v ? <span className="tw-amt money">{twin.right.v}</span> : <span className="tw-amt unk">{twin.op === '≠' ? 'differs' : NOT_REPORTED.text}</span>}
       </div>
     </div>
   );
@@ -117,7 +117,7 @@ export function DiffTable({ heads, rows, set, revealed, onOpen, open }: {
         const tone: RowTone = wait ? 'wait' : x.tone;
         const mark: Mark = wait ? '…' : relMark(x.rel, x.tone);
         const word = wait ? 'checking' : rowWord(x);
-        const right = x.right ?? 'not shown here';
+        const right = x.right ?? NOT_REPORTED.text;
         return (
           <button
             key={x.id}
@@ -135,7 +135,7 @@ export function DiffTable({ heads, rows, set, revealed, onOpen, open }: {
               <MarkIcon mark={mark} />
               <span className="w">{word}</span>
             </span>
-            <span className="dv">{wait ? <span className="dim">reading…</span> : x.right ?? <span className="dr-unk">not shown here</span>}</span>
+            <span className="dv">{wait ? <span className="dim">reading…</span> : x.right ?? <span className="dr-unk" title={NOT_REPORTED.means}>{NOT_REPORTED.text}</span>}</span>
           </button>
         );
       })}

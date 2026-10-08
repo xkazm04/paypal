@@ -10,7 +10,7 @@ import type { Module } from '@bindings/Module';
 import type { TumblerStatus } from '@bindings/TumblerStatus';
 import { formatMinor } from '../../lib/format';
 import { readLimits, type LimitMeter } from '../../lib/limits';
-import { kindWord, ruleNameOf } from '../../lib/words';
+import { houseWords, kindWord, ruleNameOf } from '../../lib/words';
 import { useMutation, useNow, usePrefersReducedMotion } from '../../lib/hooks';
 import { Countdown, MockBadge, ModeBadge, WalletNotice } from '../../shared/honesty';
 import { MODULE, MODULES } from '../../shared/modules';
@@ -413,7 +413,7 @@ function NeedPlate({ item, onDeal }: { item: AttentionItem; onDeal: (id: string)
       <div className="p-tag"><i />{MODULE[item.module].name}
         {left ? <> · <span className={`p-left ${left.urgent || item.urgency === 'now' ? 'red' : 'gold'}`}>{left.text}</span></> : null}</div>
       <div className="p-verb">{verb} {gold ? <b>{gold}</b> : null}</div>
-      <div className="p-who">{[item.counterparty, title ? shortTitle(title) : null].filter(Boolean).join(' · ') || <span className="dim">no counterparty name yet</span>}</div>
+      <div className="p-who">{[item.counterparty ? houseWords(item.counterparty) : null, title ? shortTitle(title) : null].filter(Boolean).join(' · ') || <span className="dim">no counterparty name yet</span>}</div>
       <SilenceLine text={item.on_silence} />
       <div className="p-acts">
         <Btn kind="plain" sm onClick={(e) => { stop(e); const a = e.currentTarget; setDetails((x) => (x ? null : a)); }} aria-expanded={!!details}>Details</Btn>
@@ -431,7 +431,7 @@ function NeedPlate({ item, onDeal }: { item: AttentionItem; onDeal: (id: string)
         <Popover anchor={details} onClose={() => setDetails(null)} title={`${MODULE[item.module].name} · ${item.label}`} className="home-pop">
           <Kv items={[
             ['Item', title ?? <span className="dim">no title yet</span>],
-            ['With', item.counterparty ?? <span className="dim">not named yet</span>],
+            ['With', item.counterparty ? houseWords(item.counterparty) : <span className="dim">not named yet</span>],
             deal ? ['Status', <Chip tone={chipTone(chipClass(deal))}>{stateLabel(deal.state, deal)}</Chip>] : null,
             ['Asks you', item.headline],
             item.clause ? ['Why you', <>your rule “{ruleNameOf(item.clause.number)}”</>] : null,
@@ -594,7 +594,7 @@ function NeedsList({ needs, on, onPoint, onOpen }: { needs: AttentionItem[]; on:
           const amount = formatMinor(x.amount_minor, x.currency);
           const [verb] = splitHeadline(x.headline, amount);
           const deal = (w.deals.data ?? []).find((d) => d.id === x.deal_id);
-          const who = x.counterparty ?? (deal ? w.display(deal).title : null);
+          const who = x.counterparty ? houseWords(x.counterparty) : deal ? w.display(deal).title : null;
           const left = timeLeft(x.deadline, now);
           // Three lines, so the default on silence gets the row's full width: what and how much,
           // with whom and how long it can wait, then what happens if Maya does nothing.

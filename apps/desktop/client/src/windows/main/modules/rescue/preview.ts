@@ -16,7 +16,7 @@ import type { RescueView } from '@bindings/RescueView';
 import { formatMinor } from '../../../../lib/format';
 import { percentWords } from '../../../../lib/words';
 import { dealTotal, sumByCurrency } from '../../logic';
-import { recovered, type Col, type Rows } from './model';
+import { atRiskOf, recovered, type Col, type Rows } from './model';
 
 /** The words for an amount the owner has not chosen yet. */
 export const YOU_CHOOSE = 'you choose it in the approval window';
@@ -123,9 +123,8 @@ export type RescueStrip = {
 export function rescueStrip(rows: Rows, deals: readonly Deal[], book: Pick<RescueBook, 'cases' | 'recovered'> | null | undefined): RescueStrip {
   const live = [...rows.failing, ...rows.inflight];
   // At risk is the renewal that failed (the cycle's price), not the discounted invoice.
-  const cycleOf = (d: Deal): Money => book?.cases.find((v) => v.deal_id === d.id)?.offer.cycle ?? dealTotal(d);
   return {
-    atRisk: sumByCurrency(rows.failing.map(cycleOf)),
+    atRisk: sumByCurrency(rows.failing.map((d) => atRiskOf(d, book))),
     inProgress: sumByCurrency(rows.inflight.map(dealTotal)),
     recovered: recovered(deals, book).totals,
     failing: rows.failing.length,

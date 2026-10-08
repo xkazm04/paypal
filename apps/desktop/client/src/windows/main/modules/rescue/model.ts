@@ -13,7 +13,7 @@ import type { Money } from '@bindings/Money';
 import type { RescueBook } from '@bindings/RescueBook';
 import type { RescueOffer } from '@bindings/RescueOffer';
 import type { RescueView } from '@bindings/RescueView';
-import { isLive } from '../../logic';
+import { dealTotal, isLive } from '../../logic';
 
 export type LeverKey = 'DISCOUNT_THIS_CYCLE' | 'PAUSE' | 'RETRY_AFTER_FIX' | 'DOWNGRADE';
 export type Col = 'NONE' | LeverKey;
@@ -83,6 +83,20 @@ export function cellState(d: Pick<Deal, 'mode'>, col: Col, deadline: number | nu
 /** A fix the owner can pick on the card: the computed discount, or doing nothing. */
 export const pickable = (st: CellState): boolean => st.kind === 'default' || st.kind === 'offer';
 
+/** The card's fixes, split: the ones shown as cards (doing nothing, the discount, and any the wallet
+ *  has not answered for yet, which stay dashed), and the ones switched off for this renewal, folded
+ *  into one quiet line with each one's reason code (cellState's), in the lever list's order. */
+export function splitFixes(d: Pick<Deal, 'mode'>, deadline: number | null, now: number, view?: Pick<RescueView, 'offer'> | null): { open: Col[]; off: Array<{ col: LeverKey; code: string; why: string }> } {
+  const open: Col[] = [];
+  const off: Array<{ col: LeverKey; code: string; why: string }> = [];
+  for (const col of COLS) {
+    const st = cellState(d, col, deadline, now, view);
+    if (st.kind === 'off' && col !== 'NONE') off.push({ col, code: st.code, why: st.why });
+    else open.push(col);
+  }
+  return { open, off };
+}
+
 /** Rules the inspector lists for a lever: ✓ holds, ✕ refuses, ? not in the contract. */
 export function rulesFor(d: Pick<Deal, 'mode'>, col: LeverKey, deadline: number | null, now: number, view?: Pick<RescueView, 'offer'> | null): Array<['ok' | 'x' | 'unk', string]> {
   const r: Array<['ok' | 'x' | 'unk', string]> = [['ok', 'acts on this one subscriber only']];
@@ -150,6 +164,12 @@ export function recovered(deals: readonly Deal[], book: Pick<RescueBook, 'cases'
 
 /** The wallet's rescue read for one deal, if it has one. */
 export const viewFor = (book: Pick<RescueBook, 'cases'> | null | undefined, id: string): RescueView | undefined => book?.cases.find((v) => v.deal_id === id);
+
+/** What a failed renewal puts at risk: the missed cycle at the plan's price (RescueOffer.cycle), never
+ *  the discounted invoice the fix would send. Every surface that shows a failing renewal's amount
+ *  (Rescue's strip, answer and card, Book's "Needs attention") uses this, so they agree. Without the
+ *  wallet's rescue read it falls back to the deal's own terms. */
+export const atRiskOf = (d: Deal, book: Pick<RescueBook, 'cases'> | null | undefined): Money => viewFor(book, d.id)?.offer.cycle ?? dealTotal(d);
 
 // ---- keyboard movement in the matrix --------------------------------------------------------------
 
