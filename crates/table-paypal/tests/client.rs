@@ -200,6 +200,7 @@ async fn secondary_endpoints_are_typed_exact_and_never_reprice_a_plan() {
             .billing_info
             .unwrap()
             .outstanding_balance
+            .unwrap()
             .money()
             .unwrap()
             .minor(),

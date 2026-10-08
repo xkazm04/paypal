@@ -190,7 +190,9 @@ pub fn run() -> Result<(), tauri::Error> {
             rescue_replay,
             rescue_book,
             deal_group_open,
-            deal_groups
+            deal_groups,
+            rescue_watch_add,
+            rescue_watch_stop
         ])
         .setup(|app| {
             let data = app.path().app_data_dir()?;

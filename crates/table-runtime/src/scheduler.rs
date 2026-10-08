@@ -35,6 +35,11 @@ impl Runtime {
         if let Err(error) = self.start_market_watch(now) {
             failure.get_or_insert(error);
         }
+        // The owner's watched subscriptions are read for a failed renewal (GET only); a fix it
+        // opens waits at AGREED for the owner and is ticked from the next tick on.
+        if let Err(error) = self.tick_rescue_watch(now).await {
+            failure.get_or_insert(error);
+        }
         failure.map_or(Ok(()), Err)
     }
     async fn tick_deal(&mut self, deal: &Deal, now: i64) -> Result<(), CommandError> {

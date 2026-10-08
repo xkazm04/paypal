@@ -162,6 +162,8 @@ pub enum ApprovalTarget {
     Unlock,
     /// Record a failed renewal as a labelled replay (rescue_replay).
     Rescue,
+    /// Watch the owner's subscriptions for a failed renewal (rescue_watch_add).
+    RescueWatch,
 }
 /// A draft carried from Main to the approval window. Closed shapes and typed values only.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -614,6 +616,61 @@ pub struct DealGroupView {
 pub struct RescueBook {
     pub cases: Vec<RescueView>,
     pub recovered: Vec<table_core::Money>,
+    /// The owner's own subscriptions the wallet reads for a failed renewal, oldest first.
+    pub watching: Vec<RescueWatchView>,
+    /// Subscription reads made today (UTC) and the most the wallet makes in a day.
+    pub watch_reads_today: u32,
+    pub watch_reads_max: u32,
+}
+/// Watch one of the owner's own subscriptions for a failed renewal (approval, privileged). The
+/// wallet reads it from PayPal every few hours, read only; a failure opens one fix that waits for
+/// the owner, PayPal-reported, so what it brings in can count.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct RescueWatchArgs {
+    /// The PayPal subscription id to watch.
+    pub subscription_id: String,
+    /// The subscriber's email address a fix's invoice goes to, as the owner enters it (the
+    /// subscription read does not supply it).
+    pub subscriber_email: String,
+    /// The plan, as your own item name.
+    pub plan: table_core::ItemRef,
+}
+/// Stop watching one subscription (approval, privileged). A fix it already opened is unchanged.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct RescueWatchStopArgs {
+    pub subscription_id: String,
+}
+/// What the wallet last learned about a watched subscription.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum RescueWatchState {
+    /// Not read yet.
+    Waiting,
+    /// The last read showed no failed payment.
+    Paid,
+    /// The current failure already has its one fix.
+    FixOpened,
+    /// A failure the wallet does not fix on its own (more than one cycle owed, or the rules do
+    /// not allow a fix): it is shown, nothing is sent.
+    FailedNoFix,
+    /// The last reads could not be used; the wallet tries again later.
+    CantRead,
+}
+/// One watched subscription, as the Rescue page and the approval window show it.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct RescueWatchView {
+    pub subscription_id: String,
+    /// The subscriber's address, masked ("s•••@example.com").
+    pub recipient: String,
+    pub plan: table_core::ItemRef,
+    pub state: RescueWatchState,
+    pub added_at: i64,
+    #[ts(optional = nullable)]
+    pub last_read_at: Option<i64>,
+    pub next_read_at: i64,
 }
 /// A failed renewal the owner records as a labelled replay: PayPal documents no way to fail a
 /// sandbox renewal. The deal carries the REPLAY mode; its invoice is real, never counted.
@@ -964,6 +1021,10 @@ pub struct CommandContract {
     pub deal_group_open: Command<DealGroupOpenArgs, DealGroupView>,
     /// Every shop-around group with each seller's latest signed price (main).
     pub deal_groups: Command<(), Vec<DealGroupView>>,
+    /// Watches one of the owner's subscriptions for a failed renewal (approval, privileged).
+    pub rescue_watch_add: Command<RescueWatchArgs, Vec<RescueWatchView>>,
+    /// Stops watching one subscription (approval, privileged).
+    pub rescue_watch_stop: Command<RescueWatchStopArgs, Vec<RescueWatchView>>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]

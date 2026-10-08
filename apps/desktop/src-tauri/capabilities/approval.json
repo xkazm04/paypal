@@ -43,6 +43,8 @@
     "allow-envelope-sign",
     "allow-envelope-get",
     "allow-rescue-replay",
-    "allow-rescue-book"
+    "allow-rescue-book",
+    "allow-rescue-watch-add",
+    "allow-rescue-watch-stop"
   ]
 }
