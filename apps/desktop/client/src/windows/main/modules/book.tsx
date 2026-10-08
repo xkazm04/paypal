@@ -7,8 +7,9 @@
 // amount, status, PayPal statement). Detailed: the week's ledger grid whose four money columns carry
 // their own totals, with the statement filter, audit trail and CSV export. A lens (a fixed BookQuery)
 // is drafted, read, then run read-only over the same rows and dims the rows it did not return in the
-// grid. Typed questions need the assistant's book_query tool, which this shell does not register:
-// they get an honest UNAVAILABLE. Book only reads.
+// grid. A typed question is read by the wallet itself (./book/understand.ts: a fixed word list, no
+// AI) into the same closed query, shown back as chips the owner can remove or change, and answered
+// the same way; a question it cannot read says which words it did not get. Book only reads.
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { AuditRow } from '@bindings/AuditRow';
@@ -28,26 +29,27 @@ import {
   AnswerBar, Btn, Chip, DetailToggle, Explainer, Field, Group, Icon, Kv, Loading, PageHead, Popover, Row, Section, Seg, Sheet, Silence, useDetail, useExperiment, useLayer, useLayerCount, useToast, Why,
   type ChipTone, type ExplainerStep, type IconName,
 } from '../../../shared/ui';
-import { amountTone, chipClass, dealTotal, decidedBy, ledgerScope, marketPosition, moneyNow, PENDING_BACKEND, type ChipClass } from '../logic';
+import { amountTone, chipClass, dealTotal, decidedBy, ledgerScope, marketPosition, moneyNow, type ChipClass } from '../logic';
 import { useCpLookup } from '../ui';
 import { useAllEvidence, useWorld } from '../world';
 import type { ModuleProps } from './common';
 import {
   BUCKET_LABEL, BUCKET_SUB, BUCKETS, bucketOf, dayKey, dayLabel, dirOf, KIND_ORDER, kindLabel, LENSES, queryText, readQuery, runQuery,
-  STATEMENT_TIP, STATEMENT_WORD, statementCounts, sums, toCSV, type Bucket, type Ctx, type Group as LensGroup, type Lens, type Result, type Statement,
+  stateGroupLabel, STATEMENT_TIP, STATEMENT_WORD, statementCounts, sums, toCSV, type Bucket, type Ctx, type Group as LensGroup, type Lens, type Result, type Statement,
 } from './book/model';
 import { AskChips } from './book/AskChips';
+import { ReadingChips, UnsureLine } from './book/AskReading';
+import { compose, isUnsure, knownParties, lensQuery, MAX_ASK, understand, type AskCtx, type ReadingChip, type Understood, type Unsure } from './book/understand';
 import { MoneyWent } from './book/MoneyWent';
 import { ProofCheckSheet } from './book/ProofCheck';
 import { totalWhy, type TotalKey } from './book/where';
 import './book.css';
 
-type Phase = 'IDLE' | 'UNAVAILABLE' | 'BLOCKED' | 'DRAFTED' | 'RESULT' | 'EMPTY';
+type Phase = 'IDLE' | 'UNSURE' | 'BLOCKED' | 'DRAFTED' | 'RESULT' | 'EMPTY';
 type StmtFilter = 'all' | Statement;
 
 const TONE: Record<ChipClass, ChipTone | undefined> = { live: 'teal', wait: 'gold', held: 'coral', done: 'ok', bad: 'red', off: undefined };
 const STMT_TONE: Record<Statement, ChipTone | undefined> = { matched: 'ok', pending_reporting: 'gold', mismatch: 'red', not_applicable: undefined, unknown: 'dashed' };
-const NO_ENGINE = new WalletError({ code: 'UNAVAILABLE', message: PENDING_BACKEND.book ?? 'Typed questions need your agent app, which is not connected. The quick views below work without it.' });
 const wordOf = (d: Deal) => stateWord(d.state, { side: d.side, kind: d.kind });
 /** Where the deal price sits against the market, in words; the percentile stays in the tooltip. */
 function marketText(d: Deal): { text: string; tip: string } | null {
@@ -56,8 +58,10 @@ function marketText(d: Deal): { text: string; tip: string } | null {
   if (!m || m.median.currency !== u.currency) return null;
   return { text: marketWords(u.minor, m.p25.minor, m.median.minor, m.p75.minor).text, tip: `${marketPosition(u.minor, m.p25.minor, m.median.minor, m.p75.minor)} of the market range` };
 }
-const QUERY_KEY: Record<string, string> = { view: 'Looks at', filter: 'Only', group_by: 'One line per', metrics: 'Shows' };
+const QUERY_KEY: Record<string, string> = { view: 'Looks at', filter: 'Only', range: 'When', group_by: 'One line per', metrics: 'Shows' };
 const GROUP_NAME: Partial<Record<Deal['kind'], string>> = { haggle: 'Haggles', purchase: 'Purchases', shop_order: 'Shop orders', rescue: 'Rescues', invoice: 'Invoices' };
+/** Column heads for a grouping, in plain words. */
+const GROUP_HEAD: Record<string, string> = { kind: 'Kind', counterparty: 'Who', state: 'Status', day: 'Day', decided_by: 'Decided by' };
 
 /** The Book page. The root (.module.mod-book, --mc) comes from ModuleView. */
 export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
@@ -90,6 +94,12 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
   const bq = useMutation('book_query');
   const [answer, setAnswer] = useState<BookAnswer | null>(null);
   const facts = useQuery('owner_facts', null, { refreshOn: ['deal:changed', 'receipt:created'] });
+  // Typed questions: the wallet's own reading (chips) or the words it did not get.
+  const cps = useQuery('counterparty_list', null, { refreshOn: ['deal:changed'] });
+  const askCtx: AskCtx = useMemo(() => ({ now, offsetMin: -new Date(now * 1000).getTimezoneOffset(), parties: knownParties(cps.data ?? []) }), [now, cps.data]);
+  const [chips, setChips] = useState<ReadingChip[] | null>(null);
+  const [unsure, setUnsure] = useState<Unsure | null>(null);
+  const latest = useRef(0);
   const poll = facts.data?.last_reporting_poll ?? null;
   const ask = useRef<HTMLInputElement>(null);
   const layers = useLayerCount();
@@ -99,24 +109,54 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
   // Round 2 (docs/ux/ROUND-2.md): bars, the PayPal-agrees meter, question chips and a Why? on each total. Off = round 1.
   const r2 = useExperiment('r2-book');
 
-  const discard = () => { setPhase('IDLE'); setAsked(''); setLens(null); setRes(null); setAnswer(null); bq.reset(); };
-  const pickLens = (l: Lens) => { setAsked(l.question); setLens(l); setRes(null); setPhase(l.unavailable ? 'BLOCKED' : 'DRAFTED'); if (ask.current) ask.current.value = l.question; };
-  const run = () => {
-    if (!lens || lens.unavailable) return;
+  const discard = () => {
+    setPhase('IDLE'); setAsked(''); setLens(null); setRes(null); setAnswer(null); setChips(null); setUnsure(null); bq.reset();
+    latest.current++;
+    if (ask.current) ask.current.value = '';
+  };
+  const pickLens = (l: Lens) => { setAsked(l.question); setLens(l); setRes(null); setChips(null); setUnsure(null); setPhase(l.unavailable ? 'BLOCKED' : 'DRAFTED'); if (ask.current) ask.current.value = l.question; };
+  /** Light the rows the query returns, and ask the wallet the same closed query (read-only). */
+  const execute = (l: Lens, rows: readonly Deal[], query: JsonValue) => {
     const n = seq + 1;
-    const r = runQuery(lens.query, ledger, ctx);
+    const r = runQuery(l.query, rows, ctx);
+    const mine = ++latest.current;
     setAnswer(null);
-    void bq.run({ query: lens.query as unknown as JsonValue }).then((a) => setAnswer(a ?? null));
+    void bq.run({ query }).then((a) => { if (latest.current === mine) setAnswer(a ?? null); });
     setSeq(n);
     setRes({ ...r, seq: n });
     setPhase(r.rows.length ? 'RESULT' : 'EMPTY');
     setReading(false);
   };
+  const run = () => {
+    if (!lens || lens.unavailable) return;
+    execute(lens, ledger, lens.query as unknown as JsonValue);
+  };
+  /** A question the wallet read: answered at once over every deal on record, its reading shown as chips. */
+  const answerAsked = (u: Understood, text: string) => {
+    const l: Lens = { id: 'asked', short: 'Your question', question: text, query: lensQuery(u.query) };
+    setAsked(text); setLens(l); setChips(u.reading); setUnsure(null);
+    execute(l, all, u.query as unknown as JsonValue);
+  };
+  const showUnsure = (u: Unsure, text: string) => {
+    latest.current++;
+    setAsked(text); setLens(null); setRes(null); setAnswer(null); setChips(null); setUnsure(u); setPhase('UNSURE'); bq.reset();
+  };
+  const askText = (text: string) => {
+    const u = understand(text, askCtx);
+    if (isUnsure(u)) showUnsure(u, text);
+    else answerAsked(u, text);
+  };
   const onAsk = (e: FormEvent) => {
     e.preventDefault();
     const q = ask.current?.value.trim() ?? '';
     if (!q) { ask.current?.focus(); return; }
-    setAsked(q); setLens(null); setRes(null); setPhase('UNAVAILABLE');
+    askText(q);
+  };
+  const onTry = (text: string) => { if (ask.current) ask.current.value = text; askText(text); };
+  const onChips = (next: ReadingChip[]) => {
+    const u = compose(next, askCtx);
+    if (isUnsure(u)) showUnsure(u, asked);
+    else answerAsked(u, asked);
   };
 
   // Esc clears the lens and the slip before it leaves the page (a layer, ahead of App's handler).
@@ -170,7 +210,9 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
 
       <section className="ui-section ask" aria-label="Ask the book">
         <form className="askrow" onSubmit={onAsk}>
-          <Field ref={ask} search className="askf" autoComplete="off" aria-label="Ask the book" placeholder="Ask about your agents’ money, in your own words" />
+          <Field ref={ask} search className="askf" autoComplete="off" aria-label="Ask the book" maxLength={MAX_ASK} placeholder="Ask about your agents’ money, in your own words"
+            title="For example: how much was paid this week, by shop? Enter asks, Esc clears."
+            onKeyDown={(e) => { if (e.key === 'Escape' && phase === 'IDLE' && e.currentTarget.value) { e.preventDefault(); e.stopPropagation(); e.currentTarget.value = ''; } }} />
           <Btn type="submit">Ask</Btn>
         </form>
         {r2 ? <AskChips activeId={lens?.id ?? null} onPick={(id) => { const l = LENSES.find((x) => x.id === id); if (l) pickLens(l); }} /> : (
@@ -186,7 +228,9 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
         )}
         {phase !== 'IDLE' ? (
           <Slip phase={phase} asked={asked} lens={lens} res={res} answer={answer} answerError={bq.error} answering={bq.pending} detailed={detailed} onRead={() => setReading(true)} onRun={run} onDiscard={discard}
-            onCsv={() => res && exportRows(res.rows, queryText(res.query), `book-lens-${res.seq}`)} />
+            onCsv={() => res && exportRows(res.rows, queryText(res.query), `book-lens-${res.seq}`)} cpName={(k) => cp(k).name}
+            reading={chips ? <ReadingChips reading={chips} ctx={askCtx} onChange={onChips} /> : null}
+            unsure={unsure ? <UnsureLine unsure={unsure} onTry={onTry} /> : null} />
         ) : null}
       </section>
 
@@ -523,19 +567,20 @@ function Outlook({ deals, label, onOpen, simple, checking = () => false }: { dea
   );
 }
 
-function Slip({ phase, asked, lens, res, answer, answerError, answering, detailed, onRead, onRun, onDiscard, onCsv }: {
+function Slip({ phase, asked, lens, res, answer, answerError, answering, detailed, onRead, onRun, onDiscard, onCsv, cpName, reading, unsure }: {
   phase: Phase; asked: string; lens: Lens | null; res: (Result & { seq: number }) | null;
   answer: BookAnswer | null; answerError: WalletError | null; answering: boolean; detailed: boolean;
   onRead: () => void; onRun: () => void; onDiscard: () => void; onCsv: () => void;
+  cpName: (key: string) => string; reading: ReactNode; unsure: ReactNode;
 }) {
   const q = lens ? queryText(lens.query) : '';
   let chip: ReactNode = null;
   let t2: ReactNode = null;
   let end: ReactNode = null;
-  if (phase === 'UNAVAILABLE') {
-    chip = <Chip tone="dashed">can’t answer yet</Chip>;
-    t2 = <span className="t2">typed questions need your agent app · try a quick view below</span>;
-    end = <Btn sm kind="plain" onClick={onDiscard}>Discard</Btn>;
+  if (phase === 'UNSURE') {
+    chip = <Chip tone="dashed">not sure</Chip>;
+    t2 = <span className="t2">nothing was looked up · try one of these</span>;
+    end = <Btn sm kind="plain" onClick={onDiscard} title="Esc">Clear</Btn>;
   } else if (phase === 'BLOCKED') {
     chip = <Chip tone="dashed">can’t run</Chip>;
     t2 = <span className="t2">{lens?.unavailable ?? 'this view can’t run yet'}</span>;
@@ -549,7 +594,7 @@ function Slip({ phase, asked, lens, res, answer, answerError, answering, detaile
     chip = <Chip tone={phase === 'RESULT' ? 'ok' : undefined}>{phase === 'RESULT' ? 'answer' : 'nothing found'}</Chip>;
     t2 = <span className="t2" title={q}>{res.rows.length} deal{res.rows.length === 1 ? '' : 's'} in the answer{detailed ? ' · highlighted below' : ''}</span>;
     end = <><Btn sm onClick={onRead}>Details ›</Btn>
-      {phase === 'RESULT' ? <Btn sm onClick={onCsv}>Export CSV</Btn> : null}<Btn sm kind="plain" onClick={onDiscard}>Clear</Btn></>;
+      {phase === 'RESULT' ? <Btn sm onClick={onCsv}>Export CSV</Btn> : null}<Btn sm kind="plain" onClick={onDiscard} title="Esc">Clear</Btn></>;
   }
   return (
     <div className="slip">
@@ -560,12 +605,13 @@ function Slip({ phase, asked, lens, res, answer, answerError, answering, detaile
           
           {end}
         </div>
-        {phase === 'UNAVAILABLE' ? <WalletNotice error={NO_ENGINE} what="Ask the book" /> : null}
+        {phase === 'UNSURE' ? unsure : null}
+        {phase === 'RESULT' || phase === 'EMPTY' ? reading : null}
         {phase === 'BLOCKED' && lens?.unavailable ? <WalletNotice error={new WalletError({ code: 'UNAVAILABLE', message: lens.unavailable })} what={lens.short} /> : null}
         {phase === 'RESULT' && res ? <Pivot res={res} /> : null}
         {(phase === 'RESULT' || phase === 'EMPTY') && answering ? <Loading what="the wallet’s answer" /> : null}
         {(phase === 'RESULT' || phase === 'EMPTY') && answerError ? <WalletNotice error={answerError} what="The wallet’s answer" /> : null}
-        {(phase === 'RESULT' || phase === 'EMPTY') && answer ? <WalletAnswer answer={answer} /> : null}
+        {(phase === 'RESULT' || phase === 'EMPTY') && answer ? <WalletAnswer answer={answer} cpName={cpName} /> : null}
       </Group>
     </div>
   );
@@ -586,7 +632,7 @@ function StmtSummary({ c }: { c: Record<Statement, number> }) {
 
 /** The wallet's own answer to the view (book_query): totals per currency and mode, exact minor
  *  units and basis points, read on a read-only connection. */
-function WalletAnswer({ answer }: { answer: BookAnswer }) {
+function WalletAnswer({ answer, cpName }: { answer: BookAnswer; cpName: (key: string) => string }) {
   const groups = answer.query.group_by;
   const m = answer.query.metrics;
   const cell = (row: Record<string, JsonValue>, k: string) => row[k] ?? null;
@@ -600,7 +646,7 @@ function WalletAnswer({ answer }: { answer: BookAnswer }) {
       {answer.rows.length ? (
         <table className="ui-table pivot">
           <thead><tr>
-            <th>Currency</th><th>Mode</th>{groups.map((g) => <th key={g}>{g === 'decided_by' ? 'decided by' : g.replace(/_/g, ' ')}</th>)}
+            <th>Currency</th><th>Mode</th>{groups.map((g) => <th key={g}>{GROUP_HEAD[g] ?? g}</th>)}
             {m.includes('count') ? <th className="num">Rows</th> : null}
             {m.includes('sum_amount') ? <th className="num">Amount</th> : null}
             {m.includes('avg_vs_market_pct') ? <th className="num">vs market</th> : null}
@@ -615,7 +661,12 @@ function WalletAnswer({ answer }: { answer: BookAnswer }) {
                   <td>{(() => { const v = cell(row, 'mode'); return v === 'sandbox' || v === 'replay' || v === 'scripted_engine' ? modeWord(v) : String(v); })()}</td>
                   {groups.map((g) => {
                     const v = cell(row, g);
-                    const text = g === 'decided_by' && typeof v === 'string' ? (() => { try { return decidedBy({ decided_by: JSON.parse(v) as Deal['decided_by'] }).text; } catch { return v; } })() : v === null ? '—' : String(v);
+                    const text = g === 'decided_by' && typeof v === 'string' ? (() => { try { return decidedBy({ decided_by: JSON.parse(v) as Deal['decided_by'] }).text; } catch { return v; } })()
+                      : v === null ? '—' : typeof v !== 'string' ? String(v)
+                      : g === 'counterparty' ? cpName(v)
+                      : g === 'state' ? stateGroupLabel(v as Deal['state'])
+                      : g === 'kind' ? GROUP_NAME[v as Deal['kind']] ?? v
+                      : g === 'day' ? dayLabel(v) : v;
                     return <td key={g}>{text}</td>;
                   })}
                   {m.includes('count') ? <td className="num">{String(cell(row, 'count'))}</td> : null}
@@ -640,7 +691,7 @@ function Pivot({ res }: { res: Result }) {
   return (
     <table className="ui-table pivot">
       <thead><tr>
-        <th>{gb.length ? gb.join(' · ').replace(/_/g, ' ') : 'In this view'}</th>
+        <th>{gb.length ? gb.map((g) => GROUP_HEAD[g] ?? g).join(' · ') : 'In this view'}</th>
         {m.includes('count') ? <th className="num">Deals</th> : null}
         {m.includes('sum_amount') ? BUCKETS.map((b) => <th key={b} className="num">{BUCKET_LABEL[b]}</th>) : null}
         {m.includes('avg_vs_market_pct') ? <th className="num">vs market</th> : null}

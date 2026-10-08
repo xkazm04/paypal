@@ -4,7 +4,7 @@
 // by state - captured, held at PayPal, in motion, stopped - and by direction and currency; the four
 // states are never added together. A lens is a fixed BookQuery (the closed query language of the
 // design, report §7 cap 5) applied here to those same rows: it reads nothing new and writes nothing.
-// Typed questions need the assistant's book_query tool, which this shell does not register.
+// A typed question is read into the same closed language by ./understand.ts (no engine involved).
 import type { Currency } from '@bindings/Currency';
 import type { Deal } from '@bindings/Deal';
 import type { DealKind } from '@bindings/DealKind';
@@ -12,6 +12,7 @@ import type { DealState } from '@bindings/DealState';
 import type { Money } from '@bindings/Money';
 import type { Reconciliation } from '@bindings/Reconciliation';
 import { exponent } from '../../../../lib/format';
+import { stateWord } from '../../../../lib/words';
 import { dealTotal, decidedBy, isSettled, isTerminal, sumByCurrency } from '../../logic';
 
 // ---- money states ------------------------------------------------------------------------------
@@ -96,7 +97,8 @@ export type Field = 'kind' | 'state' | 'counterparty';
 export type Filter = { field: Field; op: 'eq' | 'ne' | 'in'; value: string | string[] };
 export type GroupBy = 'kind' | 'state' | 'day' | 'counterparty' | 'decided_by';
 export type Metric = 'count' | 'sum_amount' | 'avg_vs_market_pct' | 'recovered_sum';
-export type BookQuery = { view: 'deals' | 'reconciliation'; filters?: Filter[]; group_by?: GroupBy[]; metrics: Metric[] };
+/** `range` is [from, to) in RFC 3339, as the closed BookQuery carries it (typed questions set it). */
+export type BookQuery = { view: 'deals' | 'reconciliation'; filters?: Filter[]; group_by?: GroupBy[]; metrics: Metric[]; range?: { from: string; to: string } | null };
 
 export type Lens = { id: string; short: string; question: string; query: BookQuery; unavailable?: string };
 
@@ -135,6 +137,7 @@ const OP_WORDS: Record<Filter['op'], string> = { eq: 'is', ne: 'is not', in: 'is
 export function readQuery(q: BookQuery): Array<[string, string]> {
   const lines: Array<[string, string]> = [['view', VIEW_WORDS[q.view]]];
   for (const f of q.filters ?? []) lines.push(['filter', `only where ${f.field} ${OP_WORDS[f.op]} ${Array.isArray(f.value) ? f.value.join(', ') : f.value}`]);
+  if (q.range) lines.push(['range', `started from ${q.range.from} up to ${q.range.to}`]);
   if (q.group_by?.length) lines.push(['group_by', `one line per ${q.group_by.map((g) => g.replace('_', ' ')).join(' then ')}`]);
   lines.push(['metrics', q.metrics.map((m) => METRIC_WORDS[m]).join('; ')]);
   return lines;
@@ -168,12 +171,15 @@ export function aggregate(rows: readonly Deal[], ctx: Ctx): Agg {
   };
 }
 
+/** A status as a line label: the plain word, with the self-releasing hold told apart from yours. */
+export const stateGroupLabel = (s: DealState): string => (s === 'AUTO_VOIDED' ? 'Hold released by itself' : stateWord(s).text);
+
 const DECIDED_GROUP: Record<ReturnType<typeof decidedBy>['who'], string> = { policy: 'policy (a rule you signed)', you: 'you', default: 'safe default', none: 'no decision recorded' };
 
 function groupKey(d: Deal, g: GroupBy, ctx: Ctx): [string, string] {
   switch (g) {
     case 'kind': return [String(KIND_ORDER.indexOf(d.kind)).padStart(2, '0'), kindLabel(d.kind)];
-    case 'state': return [d.state, d.state.replace(/_/g, ' ')];
+    case 'state': return [d.state, stateGroupLabel(d.state)];
     case 'day': { const k = dayKey(d); return [k ?? '9999', dayLabel(k)]; }
     case 'counterparty': return [ctx.cpName(d), ctx.cpName(d)];
     case 'decided_by': { const f = decidedBy(d); return [f.who, DECIDED_GROUP[f.who]]; }
@@ -184,6 +190,11 @@ function groupKey(d: Deal, g: GroupBy, ctx: Ctx): [string, string] {
 export function runQuery(q: BookQuery, deals: readonly Deal[], ctx: Ctx): Result {
   let rows = q.view === 'reconciliation' ? deals.filter((d) => !!d.paypal.capture) : [...deals];
   rows = rows.filter((d) => (q.filters ?? []).every((f) => matches(d, f)));
+  if (q.range) {
+    const from = Date.parse(q.range.from) / 1000;
+    const to = Date.parse(q.range.to) / 1000;
+    rows = rows.filter((d) => d.created_at !== undefined && d.created_at >= from && d.created_at < to);
+  }
   const gb = q.group_by ?? [];
   const groups: Group[] = [];
   if (gb.length) {
