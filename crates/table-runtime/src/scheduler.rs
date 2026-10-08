@@ -10,6 +10,13 @@ impl Runtime {
         let deals = app(self.pipeline.wallet.ledger.list_deals())?;
         let mut failure = None;
         for deal in deals {
+            if deal.kind == DealKind::Rescue && !deal.state.terminal() {
+                // A rescue invoice is real whatever the failure's mode (table-app rescue.rs).
+                if let Err(error) = self.tick_rescue(&deal, now).await {
+                    failure.get_or_insert(error);
+                }
+                continue;
+            }
             if deal.mode == Mode::Replay || deal.state.terminal() {
                 continue;
             }

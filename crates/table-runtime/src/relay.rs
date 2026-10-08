@@ -11,6 +11,7 @@ pub(crate) struct Delivery {
 }
 impl Runtime {
     pub fn with_secondary(mut self, api: Arc<dyn table_paypal::SecondaryApi>) -> Self {
+        self.pipeline.set_secondary(Some(api.clone()));
         self.secondary = Some(api);
         self
     }

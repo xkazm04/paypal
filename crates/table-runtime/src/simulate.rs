@@ -23,6 +23,8 @@ struct Facts {
     declared_payee: PayeeRef,
     rounds_used: u8,
     usage: Usage,
+    /// A rescue's one fix, which the draft's fixes clause must still allow.
+    offer: Option<RescueOffer>,
 }
 
 /// The role the wallet claims for a deal (as table-app `mandate_check_rounds`).
@@ -71,7 +73,20 @@ fn verdict(
         payee: &payee,
         rounds_used: facts.rounds_used,
     };
-    match payload.check(&intent, facts.usage, now.max(payload.not_before)) {
+    let checked = payload
+        .check(&intent, facts.usage, now.max(payload.not_before))
+        .and_then(|decision| {
+            // A rescue also runs its fix against the fixes clause, as the pipeline does.
+            if deal.kind == DealKind::Rescue {
+                let offer = facts.offer.as_ref().ok_or_else(|| Refusal {
+                    clause: 8,
+                    reason: "fix not on record".into(),
+                })?;
+                check_offer(payload, offer, &deal.terms)?;
+            }
+            Ok(decision)
+        });
+    match checked {
         Ok(MandateDecision::Allow) => SimulatedVerdict::Allow,
         Ok(MandateDecision::Ask { clause }) => SimulatedVerdict::Ask { clause },
         Err(refusal) => SimulatedVerdict::Refuse {
@@ -99,7 +114,13 @@ impl Runtime {
             .min(u32::from(u8::MAX)) as u8;
         // The deal's place in its day, as the pipeline counts it (STATUS "Daily budget").
         let usage = ledger.usage_for(deal, deal.created_at).ok()?;
+        let offer = if deal.kind == DealKind::Rescue {
+            Some(ledger.rescue_case(deal.id).ok()??.offer)
+        } else {
+            None
+        };
         Some(Facts {
+            offer,
             category,
             paired,
             house,

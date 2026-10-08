@@ -3,6 +3,7 @@ import type { ApprovalCheck } from "./ApprovalCheck";
 import type { Deal } from "./Deal";
 import type { DealEvidence } from "./DealEvidence";
 import type { H256 } from "./H256";
+import type { RescueView } from "./RescueView";
 
 export type ApprovalSummary = { deal: Deal, evidence: DealEvidence, attempt: number, terms_hash: H256, counter_hash?: H256 | null, can_owner_accept?: boolean, locked: boolean, can_release: boolean, can_open_paypal: boolean, unavailable_reason: string | null, 
 /**
@@ -13,4 +14,9 @@ checks: Array<ApprovalCheck>,
 /**
  * Domain-separated digest of `checks` (`table_core::checks_hash`); a decision sends it back.
  */
-checks_hash: H256, };
+checks_hash: H256, 
+/**
+ * On a rescue deal: the failed renewal, its one fix and the invoice's fixed wording. Older
+ * shells omit it.
+ */
+rescue?: RescueView | null, };

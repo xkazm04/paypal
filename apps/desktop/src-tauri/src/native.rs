@@ -184,7 +184,9 @@ pub fn run() -> Result<(), tauri::Error> {
             deal_history,
             mandate_simulate,
             envelope_sign,
-            envelope_get
+            envelope_get,
+            rescue_replay,
+            rescue_book
         ])
         .setup(|app| {
             let data = app.path().app_data_dir()?;
