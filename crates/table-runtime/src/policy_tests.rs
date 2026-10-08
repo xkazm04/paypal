@@ -357,3 +357,18 @@ async fn buyer_policy_above_the_signed_ceiling_is_refused_and_leaves_no_paypal_r
     );
     assert!(http.0.lock().unwrap().paths.is_empty());
 }
+
+/// E2, the wallet's half: every run the scripted engine starts reports the scripted-engine mode,
+/// the field the agent card's "Practice agent" badge reads (client `RunBadge`, tested in
+/// `runWords.test.tsx`). A run reported under any other mode would lose its label.
+#[tokio::test]
+async fn e2_every_scripted_engine_run_carries_the_mode_its_agent_card_labels() {
+    let (mut r, _, _tx) = parked_runtime(3).await;
+    r.tick().await.unwrap();
+    let snapshots = r.run_snapshots();
+    assert_eq!(snapshots.len(), 3);
+    for run in snapshots {
+        assert_eq!(run.engine, EngineId::Scripted);
+        assert_eq!(run.mode, Mode::ScriptedEngine);
+    }
+}
