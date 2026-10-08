@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use table_core::{
     ClosedMandate, Currency, Deal, DealEvent, DealId, DealState, DecidedBy, Delivery, H256, KeyId,
-    MandateId, Money, OpenMandate, PayeeRef, PaypalRefs, Refusal, Terms, Timestamp,
+    MandateId, Money, OpenMandate, PayeeRef, PaypalRefs, Refusal, ShieldVerdict, Terms, Timestamp,
     canonical_bytes, commitment, invoice_id, transition,
 };
 use table_proto::{
@@ -61,13 +61,13 @@ impl Direction {
         }
     }
 }
-fn enum_text<T: Serialize>(value: &T) -> Result<String, LedgerError> {
+pub(crate) fn enum_text<T: Serialize>(value: &T) -> Result<String, LedgerError> {
     serde_json::to_value(value)?
         .as_str()
         .map(str::to_owned)
         .ok_or(LedgerError::Integrity("enum representation"))
 }
-fn parse_enum<T: for<'de> Deserialize<'de>>(value: String) -> Result<T, LedgerError> {
+pub(crate) fn parse_enum<T: for<'de> Deserialize<'de>>(value: String) -> Result<T, LedgerError> {
     Ok(serde_json::from_value(Value::String(value))?)
 }
 pub(crate) fn json_text<T: Serialize>(value: &T) -> Result<String, LedgerError> {
@@ -75,8 +75,8 @@ pub(crate) fn json_text<T: Serialize>(value: &T) -> Result<String, LedgerError> 
 }
 
 pub(crate) fn read_deal(conn: &Connection, id: DealId) -> Result<Deal, LedgerError> {
-    let row=conn.query_row("SELECT kind,side,counterparty,mandate_id,mandate_version,item_ref,qty,unit_price_minor,currency,delivery,state,terms_hash,transcript_head,pp_order_id,pp_authorization_id,pp_capture_id,pp_subscription_id,mode,market_json,shield_verdict,created_at,updated_at,decided_by FROM deals WHERE id=?1",[id.to_string()],|r|{
-        Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,String>(3)?,r.get::<_,u32>(4)?,r.get::<_,String>(5)?,r.get::<_,u32>(6)?,r.get::<_,i64>(7)?,r.get::<_,String>(8)?,r.get::<_,String>(9)?,r.get::<_,String>(10)?,r.get::<_,Vec<u8>>(11)?,r.get::<_,Vec<u8>>(12)?,r.get::<_,Option<String>>(13)?,r.get::<_,Option<String>>(14)?,r.get::<_,Option<String>>(15)?,r.get::<_,Option<String>>(16)?,r.get::<_,String>(17)?,r.get::<_,Option<String>>(18)?,r.get::<_,Option<String>>(19)?,r.get::<_,String>(20)?,r.get::<_,String>(21)?,r.get::<_,Option<String>>(22)?))
+    let row=conn.query_row("SELECT kind,side,counterparty,mandate_id,mandate_version,item_ref,qty,unit_price_minor,currency,delivery,state,terms_hash,transcript_head,pp_order_id,pp_authorization_id,pp_capture_id,pp_subscription_id,mode,market_json,shield_verdict,created_at,updated_at,decided_by,shield_rule,shield_terms,shield_release_json FROM deals WHERE id=?1",[id.to_string()],|r|{
+        Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?,r.get::<_,String>(3)?,r.get::<_,u32>(4)?,r.get::<_,String>(5)?,r.get::<_,u32>(6)?,r.get::<_,i64>(7)?,r.get::<_,String>(8)?,r.get::<_,String>(9)?,r.get::<_,String>(10)?,r.get::<_,Vec<u8>>(11)?,r.get::<_,Vec<u8>>(12)?,r.get::<_,Option<String>>(13)?,r.get::<_,Option<String>>(14)?,r.get::<_,Option<String>>(15)?,r.get::<_,Option<String>>(16)?,r.get::<_,String>(17)?,r.get::<_,Option<String>>(18)?,r.get::<_,Option<String>>(19)?,r.get::<_,String>(20)?,r.get::<_,String>(21)?,r.get::<_,Option<String>>(22)?,r.get::<_,Option<String>>(23)?,r.get::<_,Option<Vec<u8>>>(24)?,r.get::<_,Option<String>>(25)?))
     }).optional()?.ok_or(LedgerError::NotFound)?;
     let currency: Currency = parse_enum(row.8)?;
     let terms = Terms {
@@ -86,8 +86,35 @@ pub(crate) fn read_deal(conn: &Connection, id: DealId) -> Result<Deal, LedgerErr
         currency,
         delivery: serde_json::from_str::<Delivery>(&row.9)?,
     };
-    if terms.hash()? != hash_blob(row.11)? {
+    let terms_hash = terms.hash()?;
+    if terms_hash != hash_blob(row.11)? {
         return Err(LedgerError::Integrity("stored terms hash"));
+    }
+    // The shield's record (0013). A verdict the rules computed for other terms is not projected,
+    // so a terms change makes the shield judge again; a raised verdict and a BLOCK always are.
+    let mut shield: Option<ShieldVerdict> = row.19.map(parse_enum).transpose()?;
+    let mut shield_rule: Option<table_core::ShieldRule> = row.23.map(parse_enum).transpose()?;
+    if shield != Some(ShieldVerdict::Block)
+        && row
+            .24
+            .is_some_and(|t| hash_blob(t).ok() != Some(terms_hash))
+    {
+        shield = None;
+        shield_rule = None;
+    }
+    // The owner's release counts for the terms it was given for. A HOLD it covers reads as ASK
+    // (the owner's decision is the check), with the release beside it saying so.
+    let shield_release = row
+        .25
+        .map(|text| serde_json::from_str::<table_core::ShieldRelease>(&text))
+        .transpose()?
+        .filter(|r| r.terms_hash == terms_hash);
+    if shield == Some(ShieldVerdict::Hold)
+        && shield_release
+            .as_ref()
+            .is_some_and(|r| r.covers(shield_rule))
+    {
+        shield = Some(ShieldVerdict::Ask);
     }
     let market: Option<table_core::MarketRef> =
         row.18.map(|text| serde_json::from_str(&text)).transpose()?;
@@ -123,7 +150,9 @@ pub(crate) fn read_deal(conn: &Connection, id: DealId) -> Result<Deal, LedgerErr
         },
         mode: parse_enum(row.17)?,
         market,
-        shield: row.19.map(parse_enum).transpose()?,
+        shield,
+        shield_rule,
+        shield_release,
         // Written only as canonical DecidedBy JSON. Text in the DDL comment's older shape never
         // was; anything unreadable projects as "not recorded", never as a guessed authority.
         decided_by: row
@@ -245,7 +274,7 @@ pub(crate) fn insert_deal(
         market.validate()?;
     }
     read_mandate(conn, deal.mandate_id, deal.mandate_version)?;
-    conn.execute("INSERT INTO deals(id,kind,side,counterparty,mandate_id,mandate_version,item_ref,qty,unit_price_minor,currency,delivery,state,terms_hash,transcript_head,reconciliation,created_at,updated_at,mode,market_json,shield_verdict) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,'n/a',?15,?15,?16,?17,?18)",params![deal.id.to_string(),enum_text(&deal.kind)?,enum_text(&deal.side)?,deal.counterparty.as_str(),deal.mandate_id.to_string(),deal.mandate_version,deal.terms.item_ref.as_str(),deal.terms.qty,deal.terms.unit_price.minor(),deal.terms.currency.to_string(),json_text(&deal.terms.delivery)?,enum_text(&deal.state)?,&hash.0[..],&H256::ZERO.0[..],at.to_string(),enum_text(&deal.mode)?,deal.market.as_ref().map(json_text).transpose()?,deal.shield.as_ref().map(enum_text).transpose()?])?;
+    conn.execute("INSERT INTO deals(id,kind,side,counterparty,mandate_id,mandate_version,item_ref,qty,unit_price_minor,currency,delivery,state,terms_hash,transcript_head,reconciliation,created_at,updated_at,mode,market_json,shield_verdict,shield_rule) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,'n/a',?15,?15,?16,?17,?18,?19)",params![deal.id.to_string(),enum_text(&deal.kind)?,enum_text(&deal.side)?,deal.counterparty.as_str(),deal.mandate_id.to_string(),deal.mandate_version,deal.terms.item_ref.as_str(),deal.terms.qty,deal.terms.unit_price.minor(),deal.terms.currency.to_string(),json_text(&deal.terms.delivery)?,enum_text(&deal.state)?,&hash.0[..],&H256::ZERO.0[..],at.to_string(),enum_text(&deal.mode)?,deal.market.as_ref().map(json_text).transpose()?,deal.shield.as_ref().map(enum_text).transpose()?,deal.shield_rule.as_ref().map(enum_text).transpose()?])?;
     audit::append(
         conn,
         &AuditEntry {
@@ -650,39 +679,6 @@ impl Ledger {
             })
             .collect()
     }
-    pub fn release_shield_hold(&mut self, id: DealId, at: Timestamp) -> Result<(), LedgerError> {
-        let tx = self
-            .conn
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let deal = read_deal(&tx, id)?;
-        if deal.shield != Some(table_core::ShieldVerdict::Hold)
-            || deal.state.terminal()
-            || deal.state == DealState::Mismatch
-        {
-            return Err(LedgerError::Conflict);
-        }
-        // Release to ASK: an owner must still countersign and all deterministic rules re-run.
-        tx.execute(
-            "UPDATE deals SET shield_verdict=?1,updated_at=?3 WHERE id=?2",
-            params![
-                enum_text(&table_core::ShieldVerdict::Ask)?,
-                id.to_string(),
-                at.to_string()
-            ],
-        )?;
-        audit::append(
-            &tx,
-            &AuditEntry {
-                at,
-                actor: "owner".into(),
-                action: "shield.released".into(),
-                deal_id: Some(id),
-                detail: json!({"from":"hold","to":"ask"}),
-            },
-        )?;
-        tx.commit()?;
-        Ok(())
-    }
     /// Read-only: the body of the deal's latest stored SETTLE (the seller's own outbound one, or a
     /// buyer's inbound one that passed `accept_buyer_settle`), after the whole signed transcript
     /// verifies. `None` when no SETTLE is stored yet. A SETTLE refused as a mismatch is never
@@ -726,34 +722,6 @@ impl Ledger {
         table_proto::validate_settle(&envelope.body, id, &deal.terms, deal.mode)
             .map(|url| url.as_str().to_owned())
             .map_err(|_| LedgerError::Conflict)
-    }
-    pub fn raise_shield(
-        &mut self,
-        id: DealId,
-        verdict: table_core::ShieldVerdict,
-        at: Timestamp,
-    ) -> Result<(), LedgerError> {
-        let tx = self
-            .conn
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let deal = read_deal(&tx, id)?;
-        let final_verdict = deal.shield.map_or(verdict, |old| old.max(verdict));
-        tx.execute(
-            "UPDATE deals SET shield_verdict=?1,updated_at=?3 WHERE id=?2",
-            params![enum_text(&final_verdict)?, id.to_string(), at.to_string()],
-        )?;
-        audit::append(
-            &tx,
-            &AuditEntry {
-                at,
-                actor: "shield".into(),
-                action: "shield.raised".into(),
-                deal_id: Some(id),
-                detail: json!({"verdict":final_verdict}),
-            },
-        )?;
-        tx.commit()?;
-        Ok(())
     }
     /// The daily budget a deal is checked against. A deal's place in the budget is fixed when it
     /// first reaches AGREED (the first `deal.transition` audit row whose `to` is AGREED; the audit

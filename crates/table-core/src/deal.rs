@@ -367,6 +367,40 @@ pub struct Deal {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional = nullable)]
     pub decided_by: Option<DecidedBy>,
+    /// Which rule decided `shield` (a closed name, never counterparty text). Absent while nothing
+    /// was recorded, for a CLEAR, and for a hold the wallet raised on a settlement mismatch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional = nullable)]
+    pub shield_rule: Option<ShieldRule>,
+    /// The owner's release of a HOLD in the approval window, while it still applies: only for
+    /// the terms it was given for (a terms change drops it and the shield judges again). The
+    /// HOLD it covers reads as ASK in `shield`: the owner's decision is the check.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional = nullable)]
+    pub shield_release: Option<ShieldRelease>,
+}
+impl Deal {
+    /// Whether the recorded verdict stops this deal for the owner: a BLOCK, or a HOLD the owner
+    /// has not released for these terms and this rule.
+    pub fn shield_held(&self) -> bool {
+        self.shield_recorded() >= Some(ShieldVerdict::Hold) && !self.shield_released()
+    }
+    /// Whether the recorded verdict is a HOLD the owner released for these terms and its rule.
+    pub fn shield_released(&self) -> bool {
+        matches!(self.shield, Some(ShieldVerdict::Ask | ShieldVerdict::Hold))
+            && self
+                .shield_release
+                .as_ref()
+                .is_some_and(|r| r.covers(self.shield_rule))
+    }
+    /// The verdict as recorded, before the owner's release: a released HOLD is a HOLD here.
+    pub fn shield_recorded(&self) -> Option<ShieldVerdict> {
+        if self.shield_released() {
+            Some(ShieldVerdict::Hold)
+        } else {
+            self.shield
+        }
+    }
 }
 fn timestamp_unavailable(value: &Timestamp) -> bool {
     *value == 0
@@ -379,6 +413,40 @@ pub enum ShieldVerdict {
     Ask,
     Hold,
     Block,
+}
+/// The scam shield rule that decided a verdict, in the shield's own order (report §7). Closed:
+/// the deterministic rules over typed facts, and the one quarantined second opinion that can only
+/// add caution. Never derived from counterparty free text.
+#[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ShieldRule {
+    /// BLOCK: the money would go to another payee than the agreed one.
+    PayeeMismatch,
+    /// BLOCK: a request to be paid as friends and family (no buyer protection).
+    FriendsAndFamily,
+    /// ASK: no market reference recent enough to clear the price.
+    NoMarketReference,
+    /// HOLD: the unit price is more than 1.4 x the market median.
+    PriceOverMarket,
+    /// ASK: a counterparty first seen in the last 24 hours, over the threshold.
+    NewCounterpartyOverThreshold,
+    /// A raised verdict from outside the rules; it can only add caution.
+    ModelCaution,
+}
+/// The owner's release of a shield HOLD, decided in the approval window (`decided_by` human at
+/// `at`). It covers the rules it names, for the terms hash it was given for, and nothing else.
+#[derive(ts_rs::TS, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ShieldRelease {
+    pub terms_hash: crate::H256,
+    pub rules: Vec<ShieldRule>,
+    pub at: Timestamp,
+}
+impl ShieldRelease {
+    /// A hold whose rule is unknown is never covered: only a named rule can be released.
+    pub fn covers(&self, rule: Option<ShieldRule>) -> bool {
+        rule.is_some_and(|r| self.rules.contains(&r))
+    }
 }
 impl Deal {
     pub fn apply(&mut self, event: DealEvent) -> Result<(), DomainError> {

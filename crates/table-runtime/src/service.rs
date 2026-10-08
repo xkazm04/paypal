@@ -628,6 +628,8 @@ impl Runtime {
             market: None,
             shield: None,
             decided_by: None,
+            shield_rule: None,
+            shield_release: None,
         };
         let (paired, house, mut payee) = app(self
             .pipeline

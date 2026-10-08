@@ -32,6 +32,8 @@ fn deal(side: Side, state: DealState) -> Deal {
         market: None,
         shield: None,
         decided_by: None,
+        shield_rule: None,
+        shield_release: None,
     }
 }
 fn settle(minor: i64) -> SettleFact {
@@ -60,6 +62,8 @@ fn ready(deal: &Deal) -> CheckFacts<'_> {
         offer_terms: None,
         payee: payee(true, None),
         shield: Some(ShieldVerdict::Clear),
+        shield_rule: None,
+        shield_released: false,
         mandate: MandateFact::Allow {
             per_deal: Some(Money::new(34_000, Currency::USD).unwrap()),
             ask_above: None,
@@ -272,6 +276,64 @@ fn shield_passes_clear_and_ask_and_fails_hold_block_and_an_unreadable_verdict() 
         let c = one(&f, ApprovalCheckId::Shield);
         assert_eq!(c.status, status, "{verdict:?}");
         plain(&c);
+    }
+}
+
+#[test]
+fn the_shield_line_names_the_rule_from_rust_and_says_when_the_owner_released_it() {
+    use table_core::ShieldRule;
+    let d = deal(Side::Seller, DealState::Approved);
+    let mut f = ready(&d);
+    f.shield = Some(ShieldVerdict::Hold);
+    f.shield_rule = Some(ShieldRule::PriceOverMarket);
+    let held = one(&f, ApprovalCheckId::Shield);
+    assert_eq!(held.status, S::Fail);
+    assert_eq!(
+        held.text,
+        "Scam check: paused for you. The price is far above the usual price. Unpause it first."
+    );
+    assert!(held.detail.contains("price_over_market"));
+    plain(&held);
+    // A new payee over the threshold only asks (the settled design), in plain words.
+    f.shield = Some(ShieldVerdict::Ask);
+    f.shield_rule = Some(ShieldRule::NewCounterpartyOverThreshold);
+    let ask = one(&f, ApprovalCheckId::Shield);
+    assert_eq!(ask.status, S::Pass);
+    assert!(
+        ask.text
+            .contains("A new payee is asking for a large amount.")
+    );
+    plain(&ask);
+    // Released by the owner for these terms: it passes as the owner's decision, said as such.
+    f.shield_rule = Some(ShieldRule::ModelCaution);
+    f.shield_released = true;
+    let released = one(&f, ApprovalCheckId::Shield);
+    assert_eq!(released.status, S::Pass);
+    assert!(
+        released
+            .text
+            .starts_with("Scam check: you let this go on after a pause.")
+    );
+    assert!(released.text.contains("A second look asked for caution."));
+    plain(&released);
+    // A CLEAR names no rule.
+    f.shield = Some(ShieldVerdict::Clear);
+    f.shield_rule = None;
+    f.shield_released = false;
+    assert_eq!(
+        one(&f, ApprovalCheckId::Shield).text,
+        "Scam check: looks safe."
+    );
+    for rule in [
+        ShieldRule::PayeeMismatch,
+        ShieldRule::FriendsAndFamily,
+        ShieldRule::NoMarketReference,
+        ShieldRule::PriceOverMarket,
+        ShieldRule::NewCounterpartyOverThreshold,
+        ShieldRule::ModelCaution,
+    ] {
+        let words = crate::checks::shield_rule_words(rule);
+        assert!(!words.contains('_') && !words.ends_with('.'), "{words}");
     }
 }
 

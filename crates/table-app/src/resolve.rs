@@ -556,11 +556,7 @@ impl Pipeline {
             return self.park(op, CheckReason::Ambiguous, now);
         }
         let event = match op.decided_by {
-            DecidedBy::SafeDefault { .. }
-                if !deal.shield.is_some_and(|v| v >= ShieldVerdict::Hold) =>
-            {
-                DealEvent::AutoVoid
-            }
+            DecidedBy::SafeDefault { .. } if !deal.shield_held() => DealEvent::AutoVoid,
             DecidedBy::SafeDefault { .. } | DecidedBy::Human { .. } => DealEvent::Void,
             _ => return self.park(op, CheckReason::Ambiguous, now),
         };

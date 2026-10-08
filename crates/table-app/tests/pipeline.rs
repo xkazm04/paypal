@@ -1161,7 +1161,8 @@ async fn the_shield_gate_matrix_pins_h5_and_step_allowed_agrees_with_every_real_
                     assert_eq!(judged, ran.is_ok(), "step_allowed disagrees at {cell}");
                 }
                 if ran.is_err() {
-                    // A refusal writes nothing and calls nothing.
+                    // A refusal moves nothing and calls nothing (its only writes are the
+                    // shield's own record of it, shield slice 2).
                     assert!(matches!(ran, Err(table_app::Error::Permission)), "{cell}");
                     assert_eq!(mock.calls.lock().unwrap().len(), calls, "{cell}");
                     assert_eq!(
@@ -1180,4 +1181,194 @@ async fn the_shield_gate_matrix_pins_h5_and_step_allowed_agrees_with_every_real_
             }
         }
     }
+}
+/// The `shield.refused` rows of a deal.
+fn shield_refusals(p: &Pipeline, id: DealId) -> Vec<AuditRecord> {
+    let (rows, _) = p.wallet.ledger.audit_page(None, 1000).unwrap();
+    rows.into_iter()
+        .filter(|r| r.deal_id == Some(id) && r.action == "shield.refused")
+        .collect()
+}
+#[tokio::test]
+async fn a_shield_refusal_is_recorded_once_per_step_and_verdict_and_moves_nothing() {
+    let (mut p, mock, id, _, _) = at_step(MoneyStep::Authorize, ShieldVerdict::Hold).await;
+    let calls = mock.calls.lock().unwrap().len();
+    let audit = p.wallet.ledger.audit_count().unwrap();
+    for at in [100, 101, 102] {
+        p.shield_refused = None;
+        let refused = p
+            .authorize(id, 1, Category::Parts, Authority::SellerMandate, at)
+            .await;
+        assert!(matches!(refused, Err(table_app::Error::Permission)));
+        assert_eq!(p.shield_refused, Some(id), "the refusal is the shield's");
+    }
+    // One row for the three refusals (the raised HOLD was already on the deal); no operation,
+    // no PayPal call and no `paypal_calls` row.
+    assert_eq!(p.wallet.ledger.audit_count().unwrap(), audit + 1);
+    let rows = shield_refusals(&p, id);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].detail["step"], "authorize");
+    assert_eq!(rows[0].detail["verdict"], "HOLD");
+    assert_eq!(rows[0].detail["rule"], "model_caution");
+    assert_eq!(mock.calls.lock().unwrap().len(), calls);
+    assert!(!p.has_open_operation(id).unwrap());
+    // A BLOCK is another verdict: one more row, and still nothing moves.
+    p.wallet
+        .ledger
+        .raise_shield(id, ShieldVerdict::Block, 103)
+        .unwrap();
+    for at in [103, 104] {
+        assert!(
+            p.authorize(id, 1, Category::Parts, Authority::SellerMandate, at)
+                .await
+                .is_err()
+        );
+    }
+    assert_eq!(shield_refusals(&p, id).len(), 2);
+    assert_eq!(mock.calls.lock().unwrap().len(), calls);
+    p.wallet.ledger.verify_audit().unwrap();
+}
+#[tokio::test]
+async fn a_step_refused_before_the_shield_is_not_recorded_as_the_shields() {
+    let (mut p, mock, id, _, _) = at_step(MoneyStep::Create, ShieldVerdict::Hold).await;
+    p.wallet
+        .ledger
+        .revoke_mandate(p.wallet.ledger.get_deal(id).unwrap().mandate_id, 100)
+        .unwrap();
+    p.shield_refused = None;
+    assert!(
+        p.create(id, 1, Category::Parts, Authority::Policy, 100)
+            .await
+            .is_err()
+    );
+    assert_eq!(p.shield_refused, None);
+    assert!(shield_refusals(&p, id).is_empty());
+    assert!(mock.calls.lock().unwrap().is_empty());
+}
+#[tokio::test]
+async fn a_price_hold_is_recorded_with_its_rule_and_the_release_is_the_owners_for_those_terms() {
+    let (mut p, mock, id, token, hash) = at_step(MoneyStep::Authorize, ShieldVerdict::Clear).await;
+    // A fresh market reference at half the price: over 1.4 x the median.
+    let price = p.wallet.ledger.get_deal(id).unwrap().terms.unit_price;
+    let market = MarketRef::from_comparables(
+        vec![Money::new(price.minor() / 2, price.currency()).unwrap()],
+        100,
+        H256::ZERO,
+    )
+    .unwrap();
+    p.wallet
+        .ledger
+        .store_market_reference(id, &market, 100)
+        .unwrap();
+    let calls = mock.calls.lock().unwrap().len();
+    assert!(
+        p.authorize(id, 1, Category::Parts, Authority::SellerMandate, 100)
+            .await
+            .is_err()
+    );
+    // The production writer: the verdict and its rule on the deal, the pause in the audit log.
+    let held = p.wallet.ledger.get_deal(id).unwrap();
+    assert_eq!(held.shield, Some(ShieldVerdict::Hold));
+    assert_eq!(held.shield_rule, Some(ShieldRule::PriceOverMarket));
+    assert!(held.shield_held());
+    assert_eq!(
+        shield_refusals(&p, id)[0].detail["rule"],
+        "price_over_market"
+    );
+    // The owner releases it in the approval window: recorded as the owner's decision.
+    let ticket = p
+        .approval
+        .ticket("approval", &token, id, hash, 1, 100)
+        .unwrap();
+    p.owner_release_hold(id, 1, ticket, 100).unwrap();
+    let released = p.wallet.ledger.get_deal(id).unwrap();
+    // The hold stays recorded; released for these terms it reads ASK, with the release beside it.
+    assert_eq!(released.shield, Some(ShieldVerdict::Ask));
+    assert_eq!(released.shield_recorded(), Some(ShieldVerdict::Hold));
+    assert!(released.shield_released() && !released.shield_held());
+    assert_eq!(released.decided_by, Some(DecidedBy::Human { at: 100 }));
+    let release = released.shield_release.clone().unwrap();
+    assert_eq!(release.terms_hash, hash);
+    assert_eq!(release.rules, [ShieldRule::PriceOverMarket]);
+    let gate = p.shield_gate(&released, 100).unwrap();
+    assert!(gate.released);
+    assert_eq!(gate.gating(), ShieldVerdict::Ask);
+    // Released, it reads as ASK: a clause-6 policy step still waits for the owner ...
+    p.shield_refused = None;
+    assert!(
+        p.authorize(id, 1, Category::Parts, Authority::Policy, 100)
+            .await
+            .is_err()
+    );
+    assert_eq!(p.shield_refused, Some(id));
+    assert_eq!(mock.calls.lock().unwrap().len(), calls);
+    // ... while the buyer's approved order comes in under the seller mandate.
+    p.authorize(id, 1, Category::Parts, Authority::SellerMandate, 101)
+        .await
+        .unwrap();
+    assert_eq!(
+        p.wallet.ledger.get_deal(id).unwrap().state,
+        DealState::Authorized
+    );
+    p.wallet.ledger.verify_audit().unwrap();
+}
+#[tokio::test]
+async fn a_released_second_opinion_hold_is_no_silent_ask_and_a_block_has_no_release() {
+    let (mut p, mock, id, token, hash) = at_step(MoneyStep::Authorize, ShieldVerdict::Hold).await;
+    let ticket = |p: &mut Pipeline| {
+        p.approval
+            .ticket("approval", &token, id, hash, 1, 100)
+            .unwrap()
+    };
+    let calls = mock.calls.lock().unwrap().len();
+    // Without the owner's release the seller mandate cannot take the money in.
+    assert!(
+        p.authorize(id, 1, Category::Parts, Authority::SellerMandate, 100)
+            .await
+            .is_err()
+    );
+    let t = ticket(&mut p);
+    p.owner_release_hold(id, 1, t, 100).unwrap();
+    // A new second opinion raising the hold again is new information: the release is dropped
+    // and the seller mandate is refused again, until the owner releases this one too.
+    p.wallet
+        .ledger
+        .raise_shield(id, ShieldVerdict::Hold, 100)
+        .unwrap();
+    assert!(p.wallet.ledger.get_deal(id).unwrap().shield_held());
+    assert!(
+        p.authorize(id, 1, Category::Parts, Authority::SellerMandate, 100)
+            .await
+            .is_err()
+    );
+    assert_eq!(mock.calls.lock().unwrap().len(), calls);
+    let t = ticket(&mut p);
+    p.owner_release_hold(id, 1, t, 100).unwrap();
+    p.authorize(id, 1, Category::Parts, Authority::SellerMandate, 100)
+        .await
+        .unwrap();
+
+    // A BLOCK has no release.
+    let (mut p, mock, id, token, hash) = at_step(MoneyStep::Authorize, ShieldVerdict::Block).await;
+    let t = p
+        .approval
+        .ticket("approval", &token, id, hash, 1, 100)
+        .unwrap();
+    assert!(matches!(
+        p.owner_release_hold(id, 1, t, 100),
+        Err(table_app::Error::Permission)
+    ));
+    assert_eq!(p.wallet.ledger.get_deal(id).unwrap().shield_release, None);
+    assert!(
+        p.authorize(id, 1, Category::Parts, Authority::SellerMandate, 100)
+            .await
+            .is_err()
+    );
+    assert!(
+        mock.calls
+            .lock()
+            .unwrap()
+            .iter()
+            .all(|c| !c.ends_with("/authorize"))
+    );
 }

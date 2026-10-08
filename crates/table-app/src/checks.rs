@@ -11,8 +11,8 @@
 use crate::{Error, Pipeline};
 use table_core::{
     ApprovalCheck, ApprovalCheckId, ApprovalCheckStatus, Clause, Currency, Deal, DealKind,
-    DealState, H256, MandateDecision, Mode, Money, PayeeRef, ShieldVerdict, Side, Timestamp,
-    invoice_id,
+    DealState, H256, MandateDecision, Mode, Money, PayeeRef, ShieldRule, ShieldVerdict, Side,
+    Timestamp, invoice_id,
 };
 use table_ledger::LedgerError;
 use table_proto::Body;
@@ -73,6 +73,10 @@ pub struct CheckFacts<'a> {
     pub offer_terms: Option<H256>,
     pub payee: PayeeFact,
     pub shield: Option<ShieldVerdict>,
+    /// The rule behind the shield's verdict (shield slice 2); `None` for a CLEAR or unknown.
+    pub shield_rule: Option<ShieldRule>,
+    /// The verdict is a HOLD the owner released for these terms (it reads as ASK in `shield`).
+    pub shield_released: bool,
     pub mandate: MandateFact,
 }
 
@@ -430,9 +434,45 @@ fn invoice(f: &CheckFacts<'_>) -> ApprovalCheck {
     }
 }
 
+/// The shield rule in the owner's words: what was found, never who said what.
+pub fn shield_rule_words(rule: ShieldRule) -> &'static str {
+    match rule {
+        ShieldRule::PayeeMismatch => "The money would go to another payee than the one you agreed",
+        ShieldRule::FriendsAndFamily => {
+            "It asks to be paid as friends and family, which has no buyer protection"
+        }
+        ShieldRule::NoMarketReference => "There is no recent usual price to compare it with",
+        ShieldRule::PriceOverMarket => "The price is far above the usual price",
+        ShieldRule::NewCounterpartyOverThreshold => "A new payee is asking for a large amount",
+        ShieldRule::ModelCaution => "A second look asked for caution",
+    }
+}
+/// The rule's own name for the technical detail line.
+fn shield_rule_name(rule: Option<ShieldRule>) -> String {
+    rule.and_then(|r| serde_json::to_value(r).ok())
+        .and_then(|v| v.as_str().map(str::to_owned))
+        .unwrap_or_else(|| "none".into())
+}
 fn shield(f: &CheckFacts<'_>) -> ApprovalCheck {
     use ApprovalCheckStatus::*;
     let id = ApprovalCheckId::Shield;
+    let why = f
+        .shield_rule
+        .map(|r| format!(" {}.", shield_rule_words(r)))
+        .unwrap_or_default();
+    let rule = shield_rule_name(f.shield_rule);
+    if f.shield_released && f.shield == Some(ShieldVerdict::Ask) {
+        return line(
+            id,
+            Pass,
+            format!(
+                "Scam check: you let this go on after a pause.{why} Your decision is the check."
+            ),
+            format!(
+                "shield verdict HOLD (rule {rule}) released by the owner for these terms: judged as ASK"
+            ),
+        );
+    }
     match f.shield {
         Some(ShieldVerdict::Clear) => line(
             id,
@@ -443,20 +483,24 @@ fn shield(f: &CheckFacts<'_>) -> ApprovalCheck {
         Some(ShieldVerdict::Ask) => line(
             id,
             Pass,
-            "Scam check: check with you. Your decision is the check.".into(),
-            "shield verdict ASK: only an owner decision (or the house release) passes it".into(),
+            format!("Scam check: check with you.{why} Your decision is the check."),
+            format!(
+                "shield verdict ASK (rule {rule}): only an owner decision (or the house release) passes it"
+            ),
         ),
         Some(ShieldVerdict::Hold) => line(
             id,
             Fail,
-            "Scam check: paused for you. Unpause it first.".into(),
-            "shield verdict HOLD stops every money step under every authority".into(),
+            format!("Scam check: paused for you.{why} Unpause it first."),
+            format!(
+                "shield verdict HOLD (rule {rule}) stops every money step under every authority"
+            ),
         ),
         Some(ShieldVerdict::Block) => line(
             id,
             Fail,
-            "Scam check: blocked. It can’t be released.".into(),
-            "shield verdict BLOCK stops every money step; no release exists".into(),
+            format!("Scam check: blocked.{why} It can’t be released."),
+            format!("shield verdict BLOCK (rule {rule}) stops every money step; no release exists"),
         ),
         None => line(
             id,
@@ -637,13 +681,16 @@ impl Pipeline {
                 }
             }
         };
+        let gate = self.shield_gate(&deal, now).ok();
         let facts = CheckFacts {
             deal: &deal,
             attempt,
             settle,
             offer_terms,
             payee,
-            shield: self.shield_verdict(id, now).ok(),
+            shield: gate.map(|g| g.gating()),
+            shield_rule: gate.and_then(|g| g.rule),
+            shield_released: gate.is_some_and(|g| g.released),
             mandate,
         };
         if deal.kind == DealKind::Rescue {
