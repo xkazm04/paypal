@@ -123,6 +123,8 @@ impl Pipeline {
             market: None,
             shield: None,
             decided_by: None,
+            shield_rule: None,
+            shield_release: None,
         };
         let usage = self.wallet.ledger.usage_for(&deal, now)?;
         m.payload.check(

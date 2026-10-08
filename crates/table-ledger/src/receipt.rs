@@ -43,7 +43,8 @@ impl Ledger {
             || table_proto::validate_settle(&e.body, deal.id, &deal.terms, deal.mode).is_err()
         {
             tx.execute(
-                "UPDATE deals SET shield_verdict='HOLD' WHERE id=?1",
+                // A raised HOLD with no rule (a mismatch is never released); a BLOCK stays.
+                "UPDATE deals SET shield_verdict=CASE WHEN shield_verdict='BLOCK' THEN 'BLOCK' ELSE 'HOLD' END,shield_rule=CASE WHEN shield_verdict='BLOCK' THEN shield_rule END,shield_terms=CASE WHEN shield_verdict='BLOCK' THEN shield_terms END,shield_release_json=NULL WHERE id=?1",
                 [deal.id.to_string()],
             )?;
             apply(&tx, deal.id, DealEvent::Mismatch, at)?;

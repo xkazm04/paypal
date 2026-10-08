@@ -9,6 +9,8 @@ import type { MandateId } from "./MandateId";
 import type { MarketRef } from "./MarketRef";
 import type { Mode } from "./Mode";
 import type { PaypalRefs } from "./PaypalRefs";
+import type { ShieldRelease } from "./ShieldRelease";
+import type { ShieldRule } from "./ShieldRule";
 import type { ShieldVerdict } from "./ShieldVerdict";
 import type { Side } from "./Side";
 import type { Terms } from "./Terms";
@@ -22,4 +24,14 @@ export type Deal = { id: DealId, created_at?: number, updated_at?: number, kind:
  * carries: the owner, a rule the owner signed (a clause, the seller or HOUSE mandate), or the
  * safe default on a deadline. Absent until something decided it (and in legacy snapshots).
  */
-decided_by?: DecidedBy | null, };
+decided_by?: DecidedBy | null, 
+/**
+ * Which rule decided `shield` (a closed name, never counterparty text). Absent while nothing
+ * was recorded, for a CLEAR, and for a hold the wallet raised on a settlement mismatch.
+ */
+shield_rule?: ShieldRule | null, 
+/**
+ * The owner's release of a HOLD in the approval window, while it still applies: only for
+ * the terms it was given for (a terms change drops it and the shield judges again).
+ */
+shield_release?: ShieldRelease | null, };

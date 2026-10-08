@@ -126,8 +126,13 @@ impl Runtime {
             self.select_signer(current.id)?;
             let category = app(self.pipeline.wallet.ledger.deal_category(current.id))?;
             let attempt = app(self.pipeline.wallet.ledger.settled_attempt(current.id))?;
+            // A step the scam shield refuses was recorded once by the pipeline (shield slice 2)
+            // and waits for the owner (the deal shows as held); it is no fault to report on
+            // every tick. The deadline's safe default still applies.
+            self.pipeline.shield_refused = None;
             if current.state == DealState::Approved {
-                self.pipeline
+                let result = self
+                    .pipeline
                     .authorize(
                         current.id,
                         attempt,
@@ -135,10 +140,15 @@ impl Runtime {
                         table_app::Authority::SellerMandate,
                         now,
                     )
-                    .await?;
+                    .await;
+                if self.shield_refused(current.id, &result) {
+                    return Ok(());
+                }
+                result?;
             }
             if current.terms.delivery == Delivery::DigitalNow {
-                self.pipeline
+                let result = self
+                    .pipeline
                     .capture(
                         current.id,
                         attempt,
@@ -146,10 +156,21 @@ impl Runtime {
                         table_app::Authority::SellerMandate,
                         self.clock.now(),
                     )
-                    .await?;
+                    .await;
+                if self.shield_refused(current.id, &result) {
+                    return Ok(());
+                }
+                result?;
             }
         }
         Ok(())
+    }
+    /// Whether `result` is the scam shield's recorded refusal of this deal's step.
+    fn shield_refused<T>(&mut self, id: DealId, result: &Result<T, table_app::Error>) -> bool {
+        let refused = matches!(result, Err(table_app::Error::Permission))
+            && self.pipeline.shield_refused == Some(id);
+        self.pipeline.shield_refused = None;
+        refused
     }
     /// A deal with an open money step and no agent key: read the step back and apply a due
     /// deadline, under `signer_missing` (table-app `Pipeline`), and start nothing.

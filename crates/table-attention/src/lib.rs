@@ -77,6 +77,11 @@ pub struct AttentionItem {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub money_check: Option<MoneyCheck>,
+    /// On a card the scam shield holds: the rule that holds it (a closed name the window words
+    /// plainly; never counterparty text). Older shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub shield_rule: Option<table_core::ShieldRule>,
 }
 #[derive(ts_rs::TS, Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -117,6 +122,8 @@ pub struct AttentionSource {
     pub deadline: Option<Timestamp>,
     pub mode: Mode,
     pub shield_hold: bool,
+    /// The rule that holds the deal, when the shield holds it (shield slice 2).
+    pub shield_rule: Option<table_core::ShieldRule>,
     pub needs_owner_accept: bool,
     /// A money step whose PayPal outcome is not confirmed (T10).
     pub money_check: Option<MoneyCheck>,
@@ -147,9 +154,8 @@ impl AttentionSource {
             clause,
             deadline,
             mode: deal.mode,
-            shield_hold: deal
-                .shield
-                .is_some_and(|v| v >= table_core::ShieldVerdict::Hold),
+            shield_hold: deal.shield_held(),
+            shield_rule: deal.shield_rule.filter(|_| deal.shield_held()),
             needs_owner_accept: false,
             money_check: None,
         })
@@ -254,6 +260,7 @@ impl AttentionSource {
             mode: self.mode,
             actions,
             money_check: None,
+            shield_rule: self.shield_rule.filter(|_| self.shield_hold),
         }
     }
     /// A deal whose money step is being checked with PayPal: a HOLD with no decision on it and
@@ -275,6 +282,7 @@ impl AttentionSource {
             mode: self.mode,
             actions: vec![TumblerAction::OpenInTable],
             money_check: Some(check),
+            shield_rule: None,
         }
     }
 }
@@ -398,6 +406,7 @@ mod tests {
             deadline: Some(deadline),
             mode: Mode::Sandbox,
             shield_hold: false,
+            shield_rule: None,
             money_check: None,
         }
     }
@@ -463,6 +472,54 @@ mod tests {
                 assert!(fx.show_without_activation && fx.tray_dot && !fx.notify);
             }
         }
+    }
+    #[test]
+    fn a_shield_hold_card_names_its_rule_and_a_released_hold_is_no_hold() {
+        use table_core::{ShieldRelease, ShieldRule, ShieldVerdict};
+        let mut s = source(1, 8000);
+        s.shield_hold = true;
+        s.shield_rule = Some(ShieldRule::PriceOverMarket);
+        let item = s.item(0);
+        assert_eq!(item.kind, AttnKind::Hold);
+        assert_eq!(item.shield_rule, Some(ShieldRule::PriceOverMarket));
+        // The rule is a closed name: the card carries no counterparty text.
+        let json = serde_json::to_string(&item).unwrap();
+        assert!(json.contains("\"shield_rule\":\"price_over_market\""));
+        // Not held: no rule on the card.
+        s.shield_hold = false;
+        let item = s.item(0);
+        assert_eq!(item.kind, AttnKind::Gate);
+        assert_eq!(item.shield_rule, None);
+        // From a deal: a HOLD the owner released for these terms is not a hold card.
+        let mut deal: table_core::Deal = serde_json::from_value(serde_json::json!({
+            "id": "00000000000000000000000001", "kind": "haggle", "side": "seller",
+            "counterparty": "peer",
+            "terms": {"item_ref": "monitor", "qty": 1,
+                "unit_price": {"minor": 32900, "currency": "USD"}, "currency": "USD",
+                "delivery": {"type": "digital_now"}},
+            "state": "APPROVED", "mandate_id": "00000000000000000000000002", "mandate_version": 1,
+            "transcript_head": vec![0; 32], "paypal": {}, "mode": "sandbox", "market": null,
+            "shield": "HOLD", "shield_rule": "model_caution"
+        }))
+        .unwrap();
+        let held = AttentionSource::from_deal(&deal, 1, None, None, Some(8000)).unwrap();
+        assert!(held.shield_hold);
+        assert_eq!(held.item(0).shield_rule, Some(ShieldRule::ModelCaution));
+        deal.shield_release = Some(ShieldRelease {
+            terms_hash: deal.terms.hash().unwrap(),
+            rules: vec![ShieldRule::ModelCaution],
+            at: 0,
+        });
+        let released = AttentionSource::from_deal(&deal, 1, None, None, Some(8000)).unwrap();
+        assert!(!released.shield_hold);
+        assert_eq!(released.item(0).kind, AttnKind::Gate);
+        assert_eq!(released.item(0).shield_rule, None);
+        deal.shield = Some(ShieldVerdict::Block);
+        assert!(
+            AttentionSource::from_deal(&deal, 1, None, None, Some(8000))
+                .unwrap()
+                .shield_hold
+        );
     }
     #[test]
     fn hold_has_no_review_and_authorized_has_no_withdraw() {

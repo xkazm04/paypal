@@ -137,6 +137,10 @@ const BOOKKEEPING: &[&str] = &[
     // agreement itself is the table's AGREED step and each withdrawal is its own step.
     "group.opened",
     "group.won",
+    // The shield (slice 2): a CLEAR or ASK it computed for a money step, and a step it refused,
+    // are bookkeeping. A pause is its `shield.raised` row; an ASK waits as the owner's gate.
+    "shield.checked",
+    "shield.refused",
 ];
 /// What one row says, before folding.
 enum Row {
@@ -521,6 +525,7 @@ mod tests {
             include_str!("../../table-ledger/src/market_watch.rs"),
             include_str!("../../table-ledger/src/groups.rs"),
             include_str!("groups.rs"),
+            include_str!("../../table-ledger/src/shield.rs"),
         ];
         let mut found = std::collections::BTreeSet::new();
         for source in sources {
@@ -697,6 +702,26 @@ mod tests {
                 "shield.released",
                 json!({"from":"hold","to":"ask"}),
                 step(K::HoldReleased, A::Owner),
+            ),
+            (
+                "shield.released",
+                json!({"from":"hold","to":"released","rules":["model_caution"],"decided_by":owner}),
+                step(K::HoldReleased, A::Owner),
+            ),
+            (
+                "shield.raised",
+                json!({"verdict":"BLOCK","rule":"payee_mismatch"}),
+                step(K::ShieldHeld, A::None),
+            ),
+            (
+                "shield.checked",
+                json!({"verdict":"ASK","rule":"no_market_reference"}),
+                None,
+            ),
+            (
+                "shield.refused",
+                json!({"step":"authorize","verdict":"HOLD","rule":"price_over_market","refused_authority":seller}),
+                None,
             ),
             // A reservation never observed: PayPal may have been asked; the outcome is unknown.
             (
