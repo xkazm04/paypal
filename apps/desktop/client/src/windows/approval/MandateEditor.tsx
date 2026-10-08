@@ -266,14 +266,14 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
             const dk = drafts[k];
             const n = dk && k !== key ? '●' : null;
             return (
-              <button key={k} type="button" role="tab" aria-selected={e.payload.id === selected} aria-pressed={e.payload.id === selected} onClick={() => { setPreview(false); setPane(null); onSelect(e.payload.id); }} title={`${rulesName(e.agent)} · ${shortId(e.payload.id)}${e.refusal ? ' · needs signing again' : ''}`}>
+              <button key={k} type="button" role="tab" aria-selected={e.payload.id === selected} onClick={() => { setPreview(false); setPane(null); onSelect(e.payload.id); }} title={`${rulesName(e.agent)} · ${shortId(e.payload.id)}${e.refusal ? ' · needs signing again' : ''}`}>
                 {rulesName(e.agent).replace(/ rules$/, '')}{sameAgent(entries, e.agent) ? <span className="dim"> {agentIndex(entries, e)}</span> : null}
                 {n ? <span className="gold"> {n}</span> : null}
                 {e.refusal ? <span className="gold" aria-label="needs signing again"> !</span> : null}
               </button>
             );
           })}
-          <button type="button" role="tab" aria-selected={selected === null} aria-pressed={selected === null} onClick={() => { setPreview(false); setPane(null); onSelect(null); }}>+ New</button>
+          <button type="button" role="tab" aria-selected={selected === null} onClick={() => { setPreview(false); setPane(null); onSelect(null); }}>+ New</button>
         </div>
         <Spacer />
         <Btn kind="plain" sm aria-label="About these rules" aria-haspopup="dialog" onClick={(e) => { const el = e.currentTarget; setInfo((x) => (x ? null : el)); }}>ⓘ</Btn>

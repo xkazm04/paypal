@@ -14,9 +14,9 @@ import { kindWord, ruleNameOf } from '../../lib/words';
 import { useMutation, useNow, usePrefersReducedMotion } from '../../lib/hooks';
 import { Countdown, MockBadge, ModeBadge, WalletNotice } from '../../shared/honesty';
 import { MODULE, MODULES } from '../../shared/modules';
-import { Btn, Chip, Explainer, Group, Hint, Kv, Meter, Popover, Section, Silence, Spacer, ThemeSwitch, TitleBar, type ExplainerStep } from '../../shared/ui';
+import { Btn, Chip, Explainer, focusLost, Group, Hint, Kv, Meter, Popover, Section, Silence, Spacer, ThemeSwitch, TitleBar, type ExplainerStep } from '../../shared/ui';
 import { Dial, LegendBead, type Bead } from './Dial';
-import { chipTone, dealCount, LEDGER_TITLE, ledgerDeals, ledgerLine, moneyList, shortTitle, silenceParts, timeLeft, weekLabel, type LedgerKind } from './home/model';
+import { chipTone, dealCount, dialValueText, LEDGER_TITLE, ledgerDeals, ledgerLine, moneyList, shortTitle, silenceParts, timeLeft, weekLabel, type LedgerKind } from './home/model';
 import {
   beadKind, beadSummary, chipClass, dealTotal, historyAt, isLive, ledgerScope, moduleIndex, moneyNow, reviewVerb, spendToday, splitHeadline, stateLabel, summarize, sumByCurrency,
   weekBounds, type LedgerScope, type LedgerSummary,
@@ -116,6 +116,14 @@ export function Home(p: Props) {
     return () => clearTimeout(t);
   }, [p.returnedFrom, p.active, selectModule, pointNeeds, reduced]);
   useEffect(() => { if (p.active && !p.returnedFrom) setZoom(false); }, [p.active, p.returnedFrom]);
+  // Back on the Table from a module or a deal: the page that had focus is gone, so keyboard and
+  // screen-reader users land on the dial (one stop, arrows turn it) instead of the page body.
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!p.active || !p.returnedFrom) return;
+    const t = setTimeout(() => { if (focusLost()) root.current?.querySelector<SVGSVGElement>('svg.dial')?.focus({ preventScroll: true }); }, 0);
+    return () => clearTimeout(t);
+  }, [p.active, p.returnedFrom]);
 
   // Keyboard: arrows turn, up/down cycle decisions, Enter opens, 1-6 jump, Esc back to Needs you.
   // The handler reads this render's values through a ref, so the window listener is attached
@@ -202,11 +210,11 @@ export function Home(p: Props) {
   const cls = ['home', intro !== 'done' ? 'intro' : '', zoom ? 'zoom' : '', p.active ? '' : 'away', firstRun ? 'first-run' : '', rewind && !firstRun ? 'rewind' : ''].join(' ');
 
   return (
-    <div className={cls} onClick={() => { if (intro === 'run') finishIntro(); }} aria-hidden={!p.active}>
+    <div className={cls} ref={root} onClick={() => { if (intro === 'run') finishIntro(); }} aria-hidden={!p.active}>
       <TitleBar className="top">
         <div className="brand">
           <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="13" rx="10" ry="6" fill="none" stroke="var(--gold)" strokeWidth="2" /><circle cx="12" cy="13" r="2" fill="var(--gold)" /></svg>
-          <b>The Table</b><span>an agentic wallet built on PayPal</span>
+          <h1>The Table</h1><span>an agentic wallet built on PayPal</span>
         </div>
         <Spacer />
         {settings ? <ModeBadge mode={settings.mode} />
@@ -229,6 +237,11 @@ export function Home(p: Props) {
           onOpen={(i) => { if (!firstRun) zoomInto(i); }}
           onBead={p.onOpenDeal}
           onTurn={(d) => { if (!firstRun) turn(d); }}
+          disabled={firstRun}
+          valueText={dialValueText({
+            firstRun, mode, module: MODULES[focus] ?? MODULE.tables, needsHere: badges[focus] ?? 0,
+            need: mode === 'needs' && top ? { headline: top.headline, index: safeNeedIdx, count: needs.length } : null,
+          })}
           onPointerInside={(inside) => {
             onDial.current = inside;
             clearTimeout(timers.current.idle);

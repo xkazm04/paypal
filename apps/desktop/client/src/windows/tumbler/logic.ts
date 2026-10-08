@@ -53,6 +53,24 @@ export function rung(deadline: number | null, now: number): Rung {
   return 'calm';
 }
 
+const RUNG_ORDER: Record<Rung, number> = { none: 0, calm: 1, soon: 2, now: 3, past: 4 };
+
+/**
+ * What a screen reader hears when the most urgent decision climbs a rung of the ladder - once per
+ * rung, never every second (the clocks themselves are not live regions). Null when nothing new:
+ * a first sighting on a calm rung, the same rung again, or a step down (a snooze, a new deadline).
+ * `what` is the plain headline ("Approve $329.00"); `silence` the default in plain words.
+ */
+export function rungNotice(prev: Rung | null, next: Rung, what: string, silence: string | null): string | null {
+  if (prev === next || RUNG_ORDER[next] <= RUNG_ORDER[prev ?? 'calm']) return null;
+  switch (next) {
+    case 'soon': return `${what}: under 2 hours left to decide.`;
+    case 'now': return `${what}: under 15 minutes left to decide.`;
+    case 'past': return `${what}: time is up${silence ? `, so ${silence}` : ''}.`;
+    default: return null;
+  }
+}
+
 /** GATE and HOLD items sorted by deadline (no clock last), then id - the same order Rust uses. */
 export function sortItems(items: readonly AttentionItem[]): AttentionItem[] {
   return [...items].sort((a, b) => (a.deadline ?? Infinity) - (b.deadline ?? Infinity) || (a.deal_id < b.deal_id ? -1 : a.deal_id > b.deal_id ? 1 : 0));

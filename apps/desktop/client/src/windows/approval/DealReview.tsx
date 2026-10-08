@@ -23,7 +23,7 @@ import { useEvent, useNow, usePrefersReducedMotion, useQuery } from '../../lib/h
 import { backend } from '../../lib/runtime';
 import { MODULES } from '../../shared/modules';
 import { Countdown, WalletNotice } from '../../shared/honesty';
-import { AnswerBar, Btn, Field, HoldButton, Popover, Sheet, layerCount, useToast } from '../../shared/ui';
+import { AnswerBar, Btn, Field, HoldButton, Popover, Sheet, layerCount, useFocusRescue, useToast } from '../../shared/ui';
 import { MarkIcon } from './review/Parts';
 import { BandAdjust } from './BandAdjust';
 import { decisionArgs, deriveGates, isLocked, isTerminal, namesMatch, ownerAcceptArgs, type Gate, type Gates } from './gating';
@@ -76,6 +76,9 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const [revealRun, setRevealRun] = useState(0);
   const headRef = useRef<HTMLHeadingElement>(null);
   const bodyRef = useRef<HTMLElement>(null);
+  // A decided money button unmounts while it has focus: keyboard and screen-reader users land on
+  // the heading (the outcome is announced by its status line), never on the page body.
+  useFocusRescue(headRef);
 
   // ---- data: subscribe, then fetch; events are projections, so refetch rather than patch ----
   const refetch = useCallback(async () => {
@@ -414,9 +417,10 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
         <TwinHeader twin={diff.twin} checking={checking} />
 
         {phase === 'in_browser' ? (
-          <p className="dr-poll" role="status">
-            Waiting for your approval on PayPal
-            {lastRead ? ` · checked ${Math.max(0, now - lastRead)} s ago` : ''}
+          <p className="dr-poll">
+            <span role="status">Waiting for your approval on PayPal</span>
+            {/* the seconds tick outside the live region, so they are not read out every second */}
+            {lastRead ? <span role="timer" aria-live="off">{` · checked ${Math.max(0, now - lastRead)} s ago`}</span> : ''}
           </p>
         ) : null}
         {outcome && phase !== 'done' && phase !== 'stopped' ? (

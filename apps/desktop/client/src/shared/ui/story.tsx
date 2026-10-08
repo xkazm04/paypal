@@ -95,7 +95,7 @@ export function DecisionCard({ context, question, why, amount, options, silence,
       ) : null}
       <div className="dc-q">
         <div className="q">
-          <h3>{question}</h3>
+          <h2>{question}</h2>
           {why ? <p className="why"><Icon name="rules" size={14} />{why}</p> : null}
         </div>
         {amount ? <div className="amt">{amount}</div> : null}

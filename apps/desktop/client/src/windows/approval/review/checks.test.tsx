@@ -41,9 +41,10 @@ describe('WalletChecks', () => {
   it('keeps the Layer-2 fact behind Why? / Proof', () => {
     render(<WalletChecks checks={CHECKS} />);
     expect(screen.queryByText(/SETTLE amount 339.00 USD/)).toBeNull();
-    fireEvent.click(screen.getAllByRole('button', { name: 'Why?' })[0]!);
+    // each link is named by its word plus the check it explains (unique for screen readers)
+    fireEvent.click(screen.getAllByRole('button', { name: /^Why\?, / })[0]!);
     expect(screen.getByText('SETTLE amount 339.00 USD (attempt 1) ≠ signed terms')).toBeTruthy();
-    expect(screen.getAllByRole('button', { name: 'Proof' })).toHaveLength(3);
+    expect(screen.getAllByRole('button', { name: /^Proof, / })).toHaveLength(3);
   });
 
   it('the CHECKING reveal only hides lines that are already there', () => {

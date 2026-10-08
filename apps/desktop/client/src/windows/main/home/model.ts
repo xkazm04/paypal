@@ -56,3 +56,20 @@ export function ledgerLine(kind: LedgerKind, d: Deal, title: string): string {
   if (kind === 'stopped') return `${(d.shield === 'BLOCK' ? 'blocked' : stateLabel(d.state, d)).toLowerCase()} · ${shortTitle(title)}`;
   return `${stateLabel(d.state, d).toLowerCase()} · ${shortTitle(title)}`;
 }
+
+/** The Dial's value for a screen reader: the part under the gold index and, when the dial points
+ *  at a decision, that decision ("Spend, agent purchases: Pay partsco $64.00 · 1 of 6 need you"). */
+export function dialValueText(o: {
+  firstRun: boolean;
+  mode: 'needs' | 'module';
+  module: { name: string; long: string };
+  /** decisions waiting in the part under the index */
+  needsHere: number;
+  /** the decision the dial points at in "needs" mode */
+  need: { headline: string; index: number; count: number } | null;
+}): string {
+  const part = `${o.module.name}, ${o.module.long.toLowerCase()}`;
+  if (o.firstRun) return `${part}. Opens once setup is done`;
+  if (o.mode === 'needs' && o.need) return `${part}: ${o.need.headline} · ${o.need.index + 1} of ${o.need.count} need you`;
+  return o.needsHere ? `${part}: ${o.needsHere} ${o.needsHere === 1 ? 'needs' : 'need'} you` : part;
+}

@@ -170,7 +170,7 @@
 .mod-shield .sh-cmp td.here .v { color: var(--text); font-weight: var(--fw-semibold); }
 .mod-shield .sh-cmp td.here.diff { background: color-mix(in srgb, var(--coral) 11%, transparent); box-shadow: inset 3px 0 0 var(--coral); }
 .mod-shield .sh-cmp td.here.diff .v { color: var(--coral-l); }
-.mod-shield .sh-cmp td.here.diff .s { color: var(--coral-l); opacity: .85; }
+.mod-shield .sh-cmp td.here.diff .s { color: var(--coral-l); }
 .mod-shield .sh-cmp td.unk .v { font-weight: var(--fw-regular); color: var(--dim); font-style: italic; }
 .mod-shield .sh-cmp td.unk { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--dim) 7%, transparent) 0 6px, transparent 6px 12px); }
 .mod-shield .sh-cmp .sr, .mod-shield .sh-lights .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

@@ -249,7 +249,8 @@ export const CardForm = forwardRef(function CardForm(p: CardProps, ref: Ref<HTML
   const table = acts.find((a) => a.action === 'open_in_table');
   const r = rung(item.deadline, now);
   const clock = cardClock(item, now);
-  const label = `${item.money_check ? 'Checking with PayPal' : hold ? 'Paused' : 'Decision'} ${item.label}. ${hold ? '' : 'Enter reviews, '}W withdraws, Escape returns to rest.`;
+  // Spoken names carry the plain headline, never the deal's id (UX-GUIDE: ids live in Details).
+  const label = `${item.money_check ? 'Checking with PayPal' : hold ? 'Paused' : 'Decision'}: ${item.headline}. ${hold ? '' : 'Enter reviews, '}W withdraws, Escape returns to rest.`;
   const askId = `c-ask-${item.deal_id}`;
 
   let line3: ReactNode;
@@ -308,7 +309,7 @@ export const CardForm = forwardRef(function CardForm(p: CardProps, ref: Ref<HTML
       </div>
       <div className="c-r3 nt nb">
         {line3}
-        <InfoBtn label={`Details for ${item.label}`} open={!!infoAt} onToggle={(el) => setInfoAt((x) => (x ? null : el))} />
+        <InfoBtn label={`Details: ${item.headline}`} open={!!infoAt} onToggle={(el) => setInfoAt((x) => (x ? null : el))} />
       </div>
       <div className="c-r4 nb">{line4}</div>
       {ringed ? null : <DeadlineRule deadline={item.deadline} now={now} hold={hold} className="nb" />}
@@ -552,7 +553,7 @@ export const HandoffForm = forwardRef(function HandoffForm(p: HandoffProps, ref:
   const win = approveWindow(p.handoff.approveUntil, p.now);
   const silence = it?.on_silence ?? p.display?.on_silence ?? 'the order expires · no money moves';
   return (
-    <div ref={ref} className="f handoff" tabIndex={-1} aria-label={`Approval in progress in your browser${label ? ` · ${label}` : ''}`}
+    <div ref={ref} className="f handoff" tabIndex={-1} aria-label={`Approval in progress in your browser${title ? ` · ${title}` : ''}`}
       style={it ? { ['--mc' as string]: MODULE[it.module].cssVar } : undefined}>
       <div className="f-head nt">
         <span className="ui-dot mdot" aria-hidden="true" />
