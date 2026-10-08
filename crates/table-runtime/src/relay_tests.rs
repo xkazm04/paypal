@@ -964,6 +964,24 @@ async fn h6_fresh_wallet_pairs_house_and_closes_through_in_process_relay_with_mo
         1
     );
     assert_eq!(paths.iter().filter(|p| p.ends_with("/capture")).count(), 1);
+    // The golden run's evidence (ops-and-delivery-1): the buyer's signed proof of this deal
+    // verifies offline, and with TABLE_EVIDENCE_DIR set it is written there for CI's safety
+    // dossier, where `table-verify` checks it again from the file alone.
+    let bundle: table_proto::ProofBundle = actor
+        .execute(caller("main", None), Action::ExportProof(id))
+        .await
+        .unwrap();
+    let report = table_verify::verify_bundle(&bundle);
+    assert!(report.verified(), "{:#?}", report.checks);
+    if let Some(dir) = std::env::var_os("TABLE_EVIDENCE_DIR") {
+        let dir = std::path::PathBuf::from(dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("h6-house-deal-buyer.tableproof"),
+            serde_json::to_vec_pretty(&bundle).unwrap(),
+        )
+        .unwrap();
+    }
 }
 #[tokio::test]
 async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without_buyer_api_access()
