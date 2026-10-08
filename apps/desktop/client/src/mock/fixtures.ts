@@ -1,6 +1,7 @@
 // SANDBOX SAMPLE DATA for the browser mock - Maya's week from the design report "The Table"
 // (docs/design/the-table.html §2) in the exact Rust binding shapes. Maya, Dan and every
 // counterparty are fictional. Deadlines are relative to page load so countdowns stay live.
+import { AUTHORITY_MANIFEST } from '@bindings/authority';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Category } from '@bindings/Category';
 import type { Clause } from '@bindings/Clause';
@@ -467,6 +468,7 @@ export function buildMockState(now: number): MockState {
       selected_engine: 'claude-code',
       preferences: { pinned: true, position: null, form: 'rest', quiet: false, dnd: false, notifications: true, snap: 'free' },
       relay_available: true,
+      authority_manifest: AUTHORITY_MANIFEST,
     },
     deals,
     mandates,

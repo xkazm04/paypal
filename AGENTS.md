@@ -61,5 +61,15 @@ public repository; treat `paypal/` as the repository root.
 - Licence: **Apache-2.0** (`LICENSE`; `license = "Apache-2.0"` in `[workspace.package]`, crates
   inherit it). Dependencies must stay compatible (see `deny.toml`).
 - Keep dependencies few and mainstream; justify any new one in STATUS.md.
+- Adding or changing an IPC command (theme T11): who may call it lives in ONE row of
+  `crates/table-client/src/authority_table.rs` (window labels, token, unlock, selected deal, tier,
+  runtime or shell enforcer); never hand-edit `COMMANDS`, `RELEASE_COMMANDS`, `build.rs`,
+  `capabilities/*.json` or the mock's gates. Add the `CommandContract` field and the row, then
+  `cargo run -p table-client --bin generate-bindings` (bindings, `bindings/authority.ts`, the
+  capability files). Wire the shell handler (`generate_handler!` stays hand-written and is
+  tested against the table); a runtime command maps its `Action` in `Action::command()`
+  (`table-runtime/src/actor.rs`) and gets a call in `authority_tests.rs`, a shell-only one calls
+  `label(&window, "<command>")`. The row changes the permissions fingerprint: update
+  `PINNED_MANIFEST` in `table-client/src/authority.rs` in the same change, deliberately.
 - Git: do not commit, push, stash, reset or switch branches unless the human asks; the kiro
   monorepo holds unrelated work.

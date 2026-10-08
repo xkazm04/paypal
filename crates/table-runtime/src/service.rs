@@ -293,6 +293,9 @@ impl Runtime {
             meters_available: false,
             client_pending: false,
             relay_available: self.relay.is_some(),
+            authority_manifest: table_client::authority::manifest_hex()
+                .ok_or_else(invalid)?
+                .to_owned(),
         })
     }
     pub fn summary(&mut self, id: DealId) -> Result<ApprovalSummary, CommandError> {

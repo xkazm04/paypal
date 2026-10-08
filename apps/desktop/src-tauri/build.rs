@@ -3,7 +3,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ensure_client_dist()?;
     tauri_build::try_build(
         tauri_build::Attributes::new()
-            .app_manifest(tauri_build::AppManifest::new().commands(table_commands())),
+            .app_manifest(tauri_build::AppManifest::new().commands(authority_table::COMMANDS)),
     )
     .map_err(|e| std::io::Error::other(e.to_string()))?;
     Ok(())
@@ -31,76 +31,11 @@ fn ensure_client_dist() -> Result<(), Box<dyn std::error::Error>> {
     );
     Ok(())
 }
+/// The authority table (T11), included by path so the build script needs no dependency: Tauri's
+/// command list is the table's command names, never a hand-kept copy.
 #[cfg(windows)]
-fn table_commands() -> &'static [&'static str] {
-    &[
-        "get_settings",
-        "approval_selection",
-        "deal_display",
-        "deal_transcript",
-        "counterparty_list",
-        "tumbler_snap",
-        "tumbler_drag",
-        "quit_confirm",
-        "settings_write",
-        "quit_summary",
-        "pause_all_agents",
-        "resume_all_agents",
-        "agent_start",
-        "agent_runs",
-        "market_refresh",
-        "deal_create",
-        "pairing_confirm",
-        "pairing_join",
-        "pairing_poll",
-        "pairing_create",
-        "band_set",
-        "mandate_revoke",
-        "mandate_sign",
-        "mandate_list",
-        "engine_select",
-        "set_credentials",
-        "list_deals",
-        "get_deal",
-        "deal_evidence",
-        "deal_reconcile",
-        "deal_join",
-        "engine_status",
-        "attention_list",
-        "main_open",
-        "approval_open",
-        "approval_summary",
-        "approval_pairing",
-        "approval_token",
-        "tumbler_set_form",
-        "tumbler_pin",
-        "deal_withdraw",
-        "deal_let_lapse",
-        "deal_snooze",
-        "unlock",
-        "deal_countersign",
-        "deal_owner_accept",
-        "deal_capture",
-        "deal_void",
-        "shield_release",
-        "rescue_approve",
-        "open_paypal_in_browser",
-        "counterparty_note",
-        "pairing_abort",
-        "house_wake",
-        "approval_handoff",
-        "audit_page",
-        "owner_facts",
-        "book_query",
-        "deal_export_proof",
-        "proof_check",
-        "deal_history",
-        "mandate_simulate",
-        "envelope_sign",
-        "envelope_get",
-        "rescue_replay",
-        "rescue_book",
-    ]
-}
+#[allow(dead_code)]
+#[path = "../../../crates/table-client/src/authority_table.rs"]
+mod authority_table;
 #[cfg(not(windows))]
 fn main() {}

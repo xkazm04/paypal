@@ -1,16 +1,16 @@
 {
   "identifier": "main",
+  "description": "Generated from crates/table-client/src/authority_table.rs by generate-bindings; do not edit.",
   "webviews": [
     "main"
   ],
   "permissions": [
     "core:event:allow-listen",
     "core:event:allow-unlisten",
-    "allow-get-settings",
     "allow-deal-display",
     "allow-deal-transcript",
     "allow-counterparty-list",
-
+    "allow-get-settings",
     "allow-list-deals",
     "allow-get-deal",
     "allow-deal-evidence",

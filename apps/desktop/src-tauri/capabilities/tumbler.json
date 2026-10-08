@@ -1,5 +1,6 @@
 {
   "identifier": "tumbler",
+  "description": "Generated from crates/table-client/src/authority_table.rs by generate-bindings; do not edit.",
   "windows": [
     "tumbler"
   ],
@@ -7,17 +8,16 @@
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "core:window:allow-start-dragging",
-    "allow-get-settings",
+    "allow-deal-snooze",
     "allow-deal-display",
-
+    "allow-get-settings",
     "allow-attention-list",
+    "allow-main-open",
+    "allow-approval-open",
     "allow-tumbler-set-form",
     "allow-tumbler-pin",
     "allow-deal-withdraw",
     "allow-deal-let-lapse",
-    "allow-deal-snooze",
-    "allow-approval-open",
-    "allow-main-open",
     "allow-settings-write",
     "allow-pause-all-agents",
     "allow-quit-summary",
