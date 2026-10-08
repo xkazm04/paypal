@@ -780,7 +780,8 @@ function BandInspector({ deal, st, need, who, theirs, yours, signed, scale, mova
             </Group>
           ) : (
             <div className="tb-signrow">
-              <Btn kind="gold" ref={signRef} locked={w.locked} disabled={!(st.read && drafting && valid) || open.pending}
+              {/* Gold only once there is something to sign: an idle sign button never competes with the card's one decision. */}
+              <Btn kind={st.read && drafting && valid ? 'gold' : undefined} ref={signRef} locked={w.locked} disabled={!(st.read && drafting && valid) || open.pending}
                 onClick={() => void handOff()} title={w.locked ? 'Locked after 15 quiet minutes: the approval window asks for Windows Hello' : 'Opens the approval window, the only place new limits are signed'}>
                 Review and sign ↗
               </Btn>
