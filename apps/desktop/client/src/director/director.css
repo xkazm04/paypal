@@ -128,3 +128,9 @@ body.w-director { margin: 0; overflow: hidden; background: var(--stage); }
   .dir-rail { padding: 10px 24px; row-gap: 8px; }
   .dir-text { font-size: clamp(16px, 1.35vw, 21px); }
 }
+
+/* a recorded take (?take=1, scripts/takes.mjs): no transport on screen, no pointer; the banner,
+   the caption and the chapter scrubber stay */
+.dir-ctl[hidden] { display: none; }
+.dir.take { cursor: none; }
+.dir.take .dir-tick { pointer-events: none; }
