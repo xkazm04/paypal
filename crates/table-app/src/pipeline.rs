@@ -703,9 +703,16 @@ impl Pipeline {
             Some(DealEvent::SettleVerified),
             now,
         )?;
+        // The HOUSE pipeline (its release-pinned authority is installed) lets an unapproved
+        // order lapse sooner, so an abandoned table frees its slot (HOUSE_APPROVAL_SECS).
+        let window = if self.house.is_some() {
+            HOUSE_APPROVAL_SECS
+        } else {
+            ORDER_APPROVAL_SECS
+        };
         self.wallet
             .ledger
-            .set_deadline(id, created_from.saturating_add(6 * 3600), None, now)?;
+            .set_deadline(id, created_from.saturating_add(window), None, now)?;
         let updated = self.wallet.ledger.get_deal(id)?;
         let envelope = self.wallet.signed(
             &updated,

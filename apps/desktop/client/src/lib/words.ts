@@ -276,6 +276,32 @@ export const PROOF_CHECKS: Readonly<Record<string, string>> = {
 };
 /** The checks trust the keys inside the file, so the owner key is the anchor a person compares. */
 export const PROOF_KEY_ANCHOR = 'Compare this owner key with the key the owner shows you: the checks use the keys inside the file.';
+/** The file's owner key against this wallet's own (shown under the key, in full). */
+export const PROOF_KEY_MATCH = {
+  mine: 'Matches your wallet: this file names your owner key.',
+  other: 'A different wallet: compare this key with the one its owner shows you.',
+} as const;
+/** A check the file could not support (it lacks the record compared), so it was not made. */
+export const PROOF_NOT_CHECKED = 'Not checked: the file has no PayPal order record to compare. Files saved by older versions of the wallet don’t carry one.';
+/** The answer when every check that could be made passed but one or more could not be made. */
+export const PROOF_SOME_UNCHECKED = 'Not every check could be made';
+/** Your owner key, in Details (Settings, the approval window): what it is and who compares it. */
+export const OWNER_KEY = {
+  label: 'Your owner key',
+  why: 'The public id of the key that signs your rules and approvals; the key itself never leaves this computer. Anyone checking a proof file you send compares its owner key with this, group by group.',
+  copied: 'Copied. Send it to whoever checks your proof files, through a channel you trust.',
+  noCopy: 'Copy isn’t available here. Read the groups out instead.',
+} as const;
+/** The audit trail could not be read because the records failed their link check (LEDGER_TRUST). */
+export const AUDIT_BROKEN = {
+  title: 'Your records failed their link check',
+  means: 'An entry was changed, removed or damaged after it was written, or the records could not be read. The wallet can’t vouch for its history, so it shows none of it rather than part of it.',
+  todo: [
+    'Don’t delete, move or edit the wallet’s files.',
+    'Check your PayPal account for what actually moved: PayPal’s own record is unaffected.',
+    'Keep the proof files you already saved: each one still checks on its own.',
+  ],
+} as const;
 /** What a proof file cannot show (T9). */
 export const PROOF_LIMIT = 'The file cannot show whether newer records were removed from the end.';
 /** Said once before a proof file is saved: the file is readable by anyone it is sent to. */

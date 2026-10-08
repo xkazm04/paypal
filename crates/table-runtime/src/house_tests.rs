@@ -1169,3 +1169,144 @@ async fn house_drain_finishes_the_tick_in_flight_then_stops() {
     );
     assert!(seller.pending_operations().unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn house_unapproved_deal_lapses_after_thirty_minutes_and_frees_its_slot() {
+    let (mut seller, mut buyer, id, http, clock, _) = agreed_house().await;
+    let release = seller
+        .pipeline
+        .wallet
+        .ledger
+        .preference::<table_proto::HouseRelease>("house.release")
+        .unwrap()
+        .unwrap();
+    let created = clock.now();
+    // The step the tick takes for an agreed deal, called directly so the order's settle message
+    // stays in the outbox for the buyer below.
+    seller
+        .pipeline
+        .create(
+            id,
+            1,
+            Category::Parts,
+            table_app::Authority::HouseMandate,
+            created,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        seller.pipeline.wallet.ledger.get_deal(id).unwrap().state,
+        DealState::AwaitingApproval
+    );
+    // The HOUSE lets an unapproved order lapse after 30 minutes, not PayPal's 6 hours.
+    assert_eq!(
+        seller
+            .pipeline
+            .wallet
+            .ledger
+            .deadline(id)
+            .unwrap()
+            .unwrap()
+            .0,
+        created + table_core::HOUSE_APPROVAL_SECS
+    );
+    const { assert!(table_core::HOUSE_APPROVAL_SECS < table_core::ORDER_APPROVAL_SECS) };
+    // The buyer wallet paired with the HOUSE through its release pin counts down the same window.
+    let settle = seller.pipeline.wallet.ledger.relay_work().unwrap()[0]
+        .outgoing
+        .iter()
+        .last()
+        .unwrap()
+        .1
+        .clone();
+    buyer
+        .pipeline
+        .wallet
+        .receive_relay(id, &settle, Category::Parts, created)
+        .unwrap();
+    assert_eq!(
+        buyer.pipeline.wallet.ledger.get_deal(id).unwrap().state,
+        DealState::AwaitingApproval
+    );
+    assert_eq!(
+        buyer
+            .pipeline
+            .wallet
+            .ledger
+            .deadline(id)
+            .unwrap()
+            .unwrap()
+            .0,
+        created + table_core::HOUSE_APPROVAL_SECS
+    );
+    // The agreed, unapproved deal and 63 more reservations on it fill every slot.
+    for _ in 0..63 {
+        seller
+            .pipeline
+            .wallet
+            .ledger
+            .reserve_house_request(
+                H256::digest(DealId(ulid::Ulid::new()).to_string().as_bytes()),
+                id,
+            )
+            .unwrap();
+    }
+    let count =
+        |s: &house_seller::Seller| s.pipeline.wallet.ledger.house_open_request_count().unwrap();
+    assert_eq!(count(&seller), 64);
+    clock.0.store(
+        created + table_core::HOUSE_APPROVAL_SECS - 1,
+        std::sync::atomic::Ordering::SeqCst,
+    );
+    assert!(matches!(
+        seller.table(table_proto::HouseRequest {
+            buyer: fresh_house_request(&release)
+        }),
+        Err(house_seller::Error::Full)
+    ));
+    // At the deadline the safe default lets the deal lapse: no money moves, the slots free up.
+    clock.0.store(
+        created + table_core::HOUSE_APPROVAL_SECS,
+        std::sync::atomic::Ordering::SeqCst,
+    );
+    seller.tick().await.unwrap();
+    let deal = seller.pipeline.wallet.ledger.get_deal(id).unwrap();
+    assert_eq!(deal.state, DealState::Expired);
+    assert_eq!(count(&seller), 0);
+    assert!(
+        seller
+            .table(table_proto::HouseRequest {
+                buyer: fresh_house_request(&release)
+            })
+            .is_ok()
+    );
+    let paths = http.0.lock().unwrap().paths.clone();
+    assert!(
+        !paths
+            .iter()
+            .any(|p| p.ends_with("/authorize") || p.ends_with("/capture")),
+        "{paths:?}"
+    );
+    seller.pipeline.wallet.ledger.verify_audit().unwrap();
+}
+
+#[tokio::test]
+async fn house_counters_a_floor_bid_and_its_record_still_shows_nothing_below_the_floor() {
+    // The guest's agent read the floor (10.00) from the signed mandate and bids it in round one.
+    let (mut seller, _, id, http, _, _) = house_offered("10.00").await;
+    let deal = seller.pipeline.wallet.ledger.get_deal(id).unwrap();
+    assert_eq!(
+        deal.state,
+        DealState::Negotiating,
+        "a floor bid closed in one round"
+    );
+    // The house answered with its round-one price, above the floor.
+    assert_eq!(deal.terms.unit_price.minor(), 2250);
+    // The glass-box record and its verifier agree: nothing below the floor, nothing agreed.
+    let published = seller.publish().unwrap();
+    let report = table_verify::verify_house(&published.view, &[], None);
+    assert!(report.verified(), "{:?}", report.checks);
+    assert!(report.checks.iter().any(|c| c.id == "house_floor" && c.ok));
+    assert!(published.view.deals[0].closed.is_empty());
+    assert!(http.0.lock().unwrap().paths.is_empty());
+}

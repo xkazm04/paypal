@@ -249,3 +249,15 @@
 @media (max-width: 1180px) {
   .mod-book .wm-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* "Check a proof file": the file's owner key whole, and whether it is this wallet's own. The sheet
+   renders in the layer root, outside .mod-book. */
+.pc-key { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pc-match { font-size: var(--fs-small); color: var(--dim); }
+.pc-match.mine { color: var(--ok); }
+.pc-match.other { color: var(--gold-l); }
+
+/* The audit trail when the records fail their link check: what it means, then what to do. */
+.au-broken { display: flex; flex-direction: column; gap: var(--sp-2); }
+.au-broken h3 { margin: var(--sp-2) 0 0; font-size: var(--fs-body); font-weight: var(--fw-semibold); }
+.au-broken ol { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 4px; }

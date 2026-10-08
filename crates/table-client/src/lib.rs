@@ -723,6 +723,10 @@ pub struct OwnerFacts {
     pub agents: Vec<AgentRosterEntry>,
     /// The rule sets in force that keep market prices fresh (T15), with today's price checks.
     pub market_watch: Vec<MarketWatchFact>,
+    /// The id of the owner's public key (SHA-256 of it, 64 hex characters): the key a proof file
+    /// of this wallet names, so a person checking one compares it with this. Public; the private
+    /// key never leaves the OS keychain.
+    pub owner_key_id: table_core::KeyId,
 }
 /// A rule set in force with a market-watch rule (T15): the items whose market price the wallet
 /// keeps fresh, and today's price checks against the rule's daily allowance. Reading market
@@ -800,6 +804,9 @@ pub struct BookAnswer {
 pub struct ProofCheckLine {
     pub id: String,
     pub ok: bool,
+    /// False when the file lacks the record this check compares, so it could not be made (`ok`
+    /// is false too; the file is not verified).
+    pub checked: bool,
     pub detail: String,
 }
 /// The offline verifier's report on a proof file the owner picked. Values come from the file.
@@ -808,6 +815,7 @@ pub struct ProofCheckLine {
 pub struct ProofReport {
     pub deal_id: DealId,
     pub mode: Mode,
+    /// The full id of the owner key the file names (64 hex characters), or "invalid".
     pub owner_key_id: String,
     pub verified: bool,
     pub checks: Vec<ProofCheckLine>,
@@ -840,6 +848,7 @@ pub fn check_proof_file(bytes: &[u8]) -> Result<ProofReport, CommandError> {
             .map(|c| ProofCheckLine {
                 id: c.id.into(),
                 ok: c.ok,
+                checked: c.checked,
                 detail: c.detail,
             })
             .collect(),

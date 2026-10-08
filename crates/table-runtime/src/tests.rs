@@ -482,6 +482,12 @@ fn assert_proof_verifies(r: &Runtime, id: DealId) -> table_proto::ProofBundle {
     let file =
         table_client::check_proof_file(&serde_json::to_vec_pretty(&bundle).unwrap()).unwrap();
     assert!(file.verified && file.deal_id == id, "{file:?}");
+    assert!(file.checks.iter().all(|c| c.ok && c.checked));
+    // The owner-key anchor is the whole key id, the one owner_facts shows the owner.
+    let owner = table_proto::key_id(&r.pipeline.wallet.owner_public_key()).unwrap();
+    assert_eq!(file.owner_key_id, owner.as_str());
+    assert_eq!(report.owner_key_id, owner.as_str());
+    assert_eq!(file.owner_key_id.len(), 64);
     let ids: Vec<_> = report.checks.iter().map(|c| c.id).collect();
     let file_ids: Vec<_> = file.checks.iter().map(|c| c.id.as_str()).collect();
     assert_eq!(ids, file_ids);

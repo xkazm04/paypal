@@ -99,22 +99,37 @@ const TABLE_QUEUE: usize = 4;
 /// Public prefix reads the actor queues on their own channel, so a flood of them is turned away
 /// on that channel and never takes a buyer's table slot; beyond it, 429.
 const PREFIX_QUEUE: usize = 4;
-/// table-paypal's bound on one HTTP request: `ReqwestTransport`'s timeout
-/// (crates/table-paypal/src/http.rs).
-const PAYPAL_REQUEST_SECS: i64 = 30;
-/// One PayPal call makes at most 3 attempts (`execute_policy` in crates/table-paypal/src/client.rs),
-/// each at most an OAuth token request plus the call itself, with `ExponentialBackoff` waits of
-/// 1 s and 2 s between attempts.
-const PAYPAL_ATTEMPTS: i64 = 3;
-const PAYPAL_BACKOFF_SECS: i64 = 1 + 2;
-/// The longest single awaited deal step (one PayPal call): 3 x (30 + 30) + 3 = 183 s.
+/// table-paypal's bound on one HTTP request (`ReqwestTransport`'s timeout).
+const PAYPAL_REQUEST_SECS: i64 = table_paypal::http::REQUEST_TIMEOUT_SECS as i64;
+/// One PayPal call makes at most `table_paypal::ATTEMPTS` attempts, each at most an OAuth token
+/// request plus the call itself.
+const PAYPAL_ATTEMPTS: i64 = table_paypal::ATTEMPTS as i64;
+/// The `ExponentialBackoff` waits between those attempts: 1 s and 2 s today.
+const PAYPAL_BACKOFF_SECS: i64 = {
+    let mut total = 0;
+    let mut attempt = 0;
+    while attempt + 1 < table_paypal::ATTEMPTS {
+        total += table_paypal::http::backoff_secs(attempt) as i64;
+        attempt += 1;
+    }
+    total
+};
+/// The longest single awaited deal step (one PayPal call), from table-paypal's own constants:
+/// 3 x (30 + 30) + 3 = 183 s today.
 const LONGEST_STEP_SECS: i64 = PAYPAL_ATTEMPTS * 2 * PAYPAL_REQUEST_SECS + PAYPAL_BACKOFF_SECS;
-/// A heartbeat older than this (seconds) makes `/healthz` answer 503: 183 s plus 7 s for the
-/// ledger writes around a step and the 1 s timer, so 190 s. The heartbeat is written around
-/// each awaited step, so only an await longer than any PayPal call can take reads as stalled.
-pub const HEARTBEAT_STALE: i64 = LONGEST_STEP_SECS + 7;
-// A slow PayPal call is never read as a stall.
-const _: () = assert!(HEARTBEAT_STALE > LONGEST_STEP_SECS);
+/// The actor's timer tick, and room for the ledger writes around one step.
+const TICK_SECS: i64 = 1;
+const LEDGER_SLACK_SECS: i64 = 6;
+/// A heartbeat older than this (seconds) makes `/healthz` answer 503: the 183 s step plus the
+/// 1 s tick and 6 s of ledger writes around it. The heartbeat is written around each awaited
+/// step, so only an await longer than any PayPal call can take reads as stalled. A fixed number,
+/// so the host's health-check settings can be set against it (DECISIONS 12).
+pub const HEARTBEAT_STALE: i64 = 190;
+// A slow PayPal call is never read as a stall: if table-paypal's timeout, attempt count or
+// backoff grows, this stops compiling until HEARTBEAT_STALE (and the host's settings) follow.
+const _: () = assert!(HEARTBEAT_STALE >= LONGEST_STEP_SECS + TICK_SECS + LEDGER_SLACK_SECS);
+// And a stalled actor is still noticed within a few minutes.
+const _: () = assert!(HEARTBEAT_STALE <= 2 * LONGEST_STEP_SECS);
 /// First wait between approval polls of one deal; doubles up to [`POLL_MAX`].
 const POLL_FIRST: i64 = 5;
 const POLL_MAX: i64 = 60;
@@ -698,7 +713,7 @@ impl Seller {
             if *delivery != self.terms.delivery
                 || matches!(
                     self.policy
-                        .decide(*price, u8::try_from(round).unwrap_or(u8::MAX))
+                        .decide_on_schedule(*price, u8::try_from(round).unwrap_or(u8::MAX))
                         .map_err(|_| Error::Invalid)?,
                     Decision::Counter(_) | Decision::Withdraw
                 )
@@ -734,7 +749,7 @@ impl Seller {
             let round = self.pipeline.wallet.ledger.peer_offer_count(deal.id)?;
             let decision = self
                 .policy
-                .decide(price, u8::try_from(round).unwrap_or(u8::MAX))
+                .decide_on_schedule(price, u8::try_from(round).unwrap_or(u8::MAX))
                 .map_err(|_| Error::Invalid)?;
             let decision = if delivery != self.terms.delivery && decision == Decision::Accept {
                 Decision::Counter(price)
@@ -976,7 +991,7 @@ pub fn start(mut seller: Seller) -> House {
         }
         let published = seller.publish().map(|_| ());
         let _ = seller.noted("publish", None, published);
-        let mut timer = tokio::time::interval(Duration::from_secs(1));
+        let mut timer = tokio::time::interval(Duration::from_secs(TICK_SECS.unsigned_abs()));
         timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             // A stop is seen between ticks, never inside one: a money step is never cut off.

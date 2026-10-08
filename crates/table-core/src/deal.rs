@@ -105,6 +105,16 @@ pub enum DealState {
     Refunded,
     Disputed,
 }
+/// How long the buyer has to approve an order the seller's wallet created: PayPal's default
+/// window for the payer's approval, 6 hours from creation (.research/paypal-platform.md,
+/// "Approval window" [S-spec]). Silence past it lets the deal lapse; no money moves.
+pub const ORDER_APPROVAL_SECS: i64 = 6 * 3600;
+/// The hosted HOUSE seller's approval window: 30 minutes, well inside PayPal's 6 hours. The HOUSE
+/// is a practice shop with 64 table slots, and an agreed deal holds its slot until it is paid or
+/// lapses; a person who just agreed at its table approves within minutes, so an abandoned deal
+/// now frees its slot after 30 minutes instead of 6 hours. Both the HOUSE and a buyer wallet
+/// that paired with the HOUSE through its release pin use it, so the buyer's countdown is true.
+pub const HOUSE_APPROVAL_SECS: i64 = 30 * 60;
 impl DealState {
     pub const fn pre_capture(self) -> bool {
         matches!(

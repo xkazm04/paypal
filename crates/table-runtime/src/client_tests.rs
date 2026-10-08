@@ -941,6 +941,20 @@ async fn owner_facts_and_audit_pages_are_read_only_closed_and_label_scoped() {
     .unwrap();
     let facts = r.owner_facts().unwrap();
     assert!(facts.locked && facts.lock_in.is_none());
+    // The owner's own key id, whole: the anchor a proof file's owner key is compared with.
+    let owner = crate::vault::existing_signing_key(r.vault.as_ref(), "owner").unwrap();
+    assert_eq!(
+        facts.owner_key_id,
+        table_proto::key_id(&owner.verifying_key()).unwrap()
+    );
+    assert_eq!(facts.owner_key_id.as_str().len(), 64);
+    assert!(
+        facts
+            .owner_key_id
+            .as_str()
+            .bytes()
+            .all(|b| b.is_ascii_hexdigit())
+    );
     assert!(facts.last_reporting_poll.is_none());
     let creds: Vec<_> = facts
         .credentials
