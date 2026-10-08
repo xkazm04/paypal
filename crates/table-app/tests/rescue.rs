@@ -741,6 +741,163 @@ async fn a_failure_paypal_reports_opens_a_counted_rescue_and_a_healthy_subscript
     assert!(r.p.wallet.ledger.rescue_counted(deal.id).unwrap());
 }
 
+/// The owner's watch list, read by the scheduler: one counted rescue per failure per run of
+/// failures, every read a GET under the day's budget, nothing written at PayPal by detection.
+#[tokio::test]
+async fn a_watched_subscription_opens_exactly_one_fix_per_failure_and_never_writes_at_paypal() {
+    let mut r = rig();
+    let mandate = (MANDATE.parse().unwrap(), 1);
+    let read = |failed: u32, owed: &str| json!({"id":"I-W1","status":"ACTIVE","plan_id":"P-1","billing_info":{"outstanding_balance":{"currency_code":"USD","value":owed},"failed_payments_count":failed}});
+    let email = Recipient::new("watched@example.com").unwrap();
+    r.p.wallet
+        .ledger
+        .watch_subscription("I-W1", &email, &ItemRef::new("care-plan").unwrap(), 20, T0)
+        .unwrap();
+    let watch = |r: &Rig| r.p.wallet.ledger.rescue_watches().unwrap().remove(0);
+    let reads = |r: &Rig| r.pp.get(|w| w.reads);
+    // Renewals paid: read, nothing opens.
+    r.pp.set(|w| w.subscription = Some(read(0, "0.00")));
+    let w0 = watch(&r);
+    assert!(matches!(
+        r.p.rescue_watch_read(&w0, did(1), mandate, 100, T0)
+            .await
+            .unwrap(),
+        WatchRead::Seen(WatchVerdict::Paid)
+    ));
+    // A read PayPal does not answer backs off and opens nothing.
+    r.pp.set(|w| w.subscription = None);
+    assert!(matches!(
+        r.p.rescue_watch_read(&watch(&r), did(1), mandate, 100, T0 + 10)
+            .await
+            .unwrap(),
+        WatchRead::Unreadable
+    ));
+    assert_eq!(watch(&r).tries, 1);
+    // One failed payment: the one fix opens, PayPal-reported, from a GET alone.
+    r.pp.set(|w| w.subscription = Some(read(1, "12.00")));
+    let day1 = T0 + 86400;
+    let WatchRead::Opened(deal) =
+        r.p.rescue_watch_read(&watch(&r), did(1), mandate, 100, day1)
+            .await
+            .unwrap()
+    else {
+        panic!("a failure opens its fix");
+    };
+    assert_eq!(
+        (deal.state, deal.mode, deal.terms.unit_price),
+        (DealState::Agreed, Mode::Sandbox, usd(960))
+    );
+    assert_eq!(
+        r.p.wallet
+            .ledger
+            .rescue_case(deal.id)
+            .unwrap()
+            .unwrap()
+            .source,
+        RescueSource::Paypal
+    );
+    assert_eq!(r.calls(deal.id), 1);
+    assert!(r.posts().is_empty() && r.writes().is_empty());
+    // Read again the next day, after the fix lapsed unanswered, and once two payments failed: the
+    // same run of failures never opens a second fix.
+    for (n, at, failed, owed) in [
+        (2, day1 + 86400, 1, "12.00"),
+        (3, day1 + 6 * 86400, 1, "12.00"),
+        (4, day1 + 7 * 86400, 2, "24.00"),
+    ] {
+        r.p.tick(at).await.unwrap();
+        r.pp.set(|w| w.subscription = Some(read(failed, owed)));
+        assert!(matches!(
+            r.p.rescue_watch_read(&watch(&r), did(n), mandate, 100, at)
+                .await
+                .unwrap(),
+            WatchRead::Seen(WatchVerdict::Handled)
+        ));
+    }
+    assert_eq!(r.state(deal.id), DealState::Withdrawn);
+    assert_eq!(r.p.wallet.ledger.list_deals().unwrap().len(), 1);
+    // A paid renewal ends the run; next cycle's failure is a new one and gets its own fix.
+    let paid = day1 + 30 * 86400;
+    r.pp.set(|w| w.subscription = Some(read(0, "0.00")));
+    r.p.rescue_watch_read(&watch(&r), did(5), mandate, 100, paid)
+        .await
+        .unwrap();
+    r.pp.set(|w| w.subscription = Some(read(1, "12.00")));
+    let next = paid + 30 * 86400;
+    let WatchRead::Opened(second) =
+        r.p.rescue_watch_read(&watch(&r), did(6), mandate, 100, next)
+            .await
+            .unwrap()
+    else {
+        panic!("a new failure opens its own fix");
+    };
+    assert_ne!(second.id, deal.id);
+    assert_eq!(r.p.wallet.ledger.list_deals().unwrap().len(), 2);
+    // The day's budget: past it, nothing is read and nothing is written.
+    let before = reads(&r);
+    let used = r.p.wallet.ledger.rescue_watch_reads_today(next).unwrap();
+    assert!(matches!(
+        r.p.rescue_watch_read(&watch(&r), did(7), mandate, used, next + 1)
+            .await
+            .unwrap(),
+        WatchRead::OverBudget
+    ));
+    assert_eq!(reads(&r), before);
+    // Detection never wrote at PayPal; the subscriber's email is in no call record or audit row.
+    assert!(r.posts().is_empty() && r.writes().is_empty());
+    let (rows, _) = r.p.wallet.ledger.audit_page(None, 500).unwrap();
+    assert!(
+        rows.iter()
+            .all(|row| !row.detail.to_string().contains("watched@"))
+    );
+    assert_eq!((r.calls(deal.id), r.calls(second.id)), (1, 1));
+    // Opening a fix moved no money: the second one waits for the owner, and only the owner's
+    // decision makes its invoice.
+    assert_eq!(r.state(second.id), DealState::Agreed);
+    r.p.wallet.ledger.verify_audit().unwrap();
+}
+
+/// Rules that do not allow rescue (or no longer do) stop detection before any read.
+#[tokio::test]
+async fn without_active_rescue_rules_a_watch_reads_nothing() {
+    let mut r = rig();
+    r.p.wallet
+        .ledger
+        .watch_subscription(
+            "I-W2",
+            &Recipient::new("w2@example.com").unwrap(),
+            &ItemRef::new("care-plan").unwrap(),
+            20,
+            T0,
+        )
+        .unwrap();
+    r.pp.set(|w| {
+        w.subscription = Some(json!({"id":"I-W2","status":"ACTIVE","plan_id":"P-1","billing_info":{"outstanding_balance":{"currency_code":"USD","value":"12.00"},"failed_payments_count":1}}))
+    });
+    let watch = r.p.wallet.ledger.rescue_watches().unwrap().remove(0);
+    // Past the rules' expiry.
+    assert!(
+        r.p.rescue_watch_read(
+            &watch,
+            did(1),
+            (MANDATE.parse().unwrap(), 1),
+            100,
+            100_000_000
+        )
+        .await
+        .is_err()
+    );
+    assert_eq!(r.pp.get(|w| w.reads), 0);
+    assert_eq!(
+        r.p.wallet
+            .ledger
+            .rescue_watch_reads_today(100_000_000)
+            .unwrap(),
+        0
+    );
+    assert!(r.p.wallet.ledger.list_deals().unwrap().is_empty());
+}
+
 impl Rig {
     /// A fix whose owner-approved send was lost before PayPal saw it: the invoice is a DRAFT at
     /// PayPal and the send step is open. The fix's deadline (PayPal's next retry) is `retry_in`.

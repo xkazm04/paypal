@@ -83,10 +83,20 @@ pub struct InvoiceList {
     #[serde(default)]
     pub items: Vec<Invoice>,
 }
+/// The subscription's billing facts. `failed_payments_count` ("consecutive payment failures.
+/// Resets to `0` after a successful payment") is sourced (.research/paypal-platform.md §1.5
+/// [S-spec]); the other two are not.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SubscriptionBilling {
-    pub outstanding_balance: WireAmount,
+    // UNVERIFIED: the field name `billing_info.outstanding_balance` (the research sources an
+    // outstanding balance only through `capture_type: "OUTSTANDING_BALANCE"`). Optional, so a read
+    // without it is still a read: detection then opens no fix (it has no amount).
+    #[serde(default)]
+    pub outstanding_balance: Option<WireAmount>,
     pub failed_payments_count: u32,
+    // UNVERIFIED: the path `billing_info.last_failed_payment` (the research names
+    // `failed_payment_details.next_payment_retry_time` [S-spec], not where it sits).
+    #[serde(default)]
     pub last_failed_payment: Option<FailedPaymentDetails>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -283,6 +293,8 @@ impl SecondaryApi for Client {
         .await
     }
     async fn get_subscription(&self, id: &ResourceId) -> Result<ApiResponse<Subscription>, Error> {
+        // `GET /v1/billing/subscriptions/{id}` is sourced (research §1.5 [S-spec]).
+        // UNVERIFIED: the `fields=last_failed_payment` query parameter.
         self.decoded(
             "GET",
             format!(

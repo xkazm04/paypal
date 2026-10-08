@@ -64,3 +64,8 @@ export function validEmail(email: string): boolean {
 
 /** valid_subscription_id: 1-64 letters, digits, `-` or `_`. */
 export const validSubscriptionId = (id: string): boolean => /^[A-Za-z0-9_-]{1,64}$/.test(id);
+
+/** table-core RESCUE_WATCH_MAX and RESCUE_WATCH_READS_DAY: the most subscriptions watched at once,
+ *  and the most checks with PayPal in one UTC day. */
+export const RESCUE_WATCH_MAX = 20;
+export const RESCUE_WATCH_READS_DAY = 100;

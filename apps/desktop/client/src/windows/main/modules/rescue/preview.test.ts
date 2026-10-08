@@ -95,6 +95,9 @@ describe('money at risk, in progress, recovered', () => {
       return { deal_id: id, source: 'paypal', offer, text: invoiceText(offer), failed_payments: 1, recipient: 's•••@example.com', counted: true };
     }),
     recovered,
+    watching: [],
+    watch_reads_today: 0,
+    watch_reads_max: 100,
   });
   it('sums at risk and in progress from the rows, and takes recovered from the wallet only', () => {
     const ds = [

@@ -413,7 +413,7 @@ fn migration_0011_keeps_every_operation_and_its_check_and_admits_the_invoice_ste
     );
     // Run 0011 again over the rows, as an upgrade from version 10 does.
     let conn = w.ledger.conn;
-    conn.execute_batch("DROP TRIGGER deals_block_stays; DROP TRIGGER deals_block_never_released; ALTER TABLE deals DROP COLUMN shield_rule; ALTER TABLE deals DROP COLUMN shield_terms; ALTER TABLE deals DROP COLUMN shield_release_json; DROP TRIGGER deals_group_agrees_once; DROP TRIGGER deals_group_once; DROP TABLE deal_groups; DROP INDEX deals_group; ALTER TABLE deals DROP COLUMN group_id; DROP TABLE rescue_cases; PRAGMA user_version=10;")
+    conn.execute_batch("DROP TABLE rescue_watches; DROP TRIGGER deals_block_stays; DROP TRIGGER deals_block_never_released; ALTER TABLE deals DROP COLUMN shield_rule; ALTER TABLE deals DROP COLUMN shield_terms; ALTER TABLE deals DROP COLUMN shield_release_json; DROP TRIGGER deals_group_agrees_once; DROP TRIGGER deals_group_once; DROP TABLE deal_groups; DROP INDEX deals_group; ALTER TABLE deals DROP COLUMN group_id; DROP TABLE rescue_cases; PRAGMA user_version=10;")
         .unwrap();
     let ledger = Ledger::from_connection(conn).unwrap();
     let open_ops = ledger.open_operations(Some(deal.id)).unwrap();
@@ -427,4 +427,193 @@ fn migration_0011_keeps_every_operation_and_its_check_and_admits_the_invoice_ste
         Some(MoneyCheckStep::InvoiceCreate)
     );
     ledger.verify_audit().unwrap();
+}
+
+fn email() -> Recipient {
+    Recipient::new("subscriber@example.com").unwrap()
+}
+fn plan() -> ItemRef {
+    ItemRef::new("care-plan").unwrap()
+}
+fn watch_actions(ledger: &Ledger, prefix: &str) -> Vec<AuditRecord> {
+    let (mut rows, _) = ledger.audit_page(None, 500).unwrap();
+    rows.reverse();
+    rows.into_iter()
+        .filter(|r| r.action.starts_with(prefix))
+        .collect()
+}
+
+#[test]
+fn the_owners_watch_list_is_bounded_audited_without_the_email_and_stopped_not_deleted() {
+    let mut w = world();
+    // A malformed id, or one more than the most watched at once, writes nothing.
+    assert!(matches!(
+        w.ledger
+            .watch_subscription("I BW", &email(), &plan(), 2, 100),
+        Err(LedgerError::Conflict)
+    ));
+    w.ledger
+        .watch_subscription("I-A", &email(), &plan(), 2, 100)
+        .unwrap();
+    w.ledger
+        .watch_subscription("I-B", &email(), &plan(), 2, 101)
+        .unwrap();
+    assert!(matches!(
+        w.ledger
+            .watch_subscription("I-C", &email(), &plan(), 2, 102),
+        Err(LedgerError::Conflict)
+    ));
+    // Changing a watched one is not one more.
+    w.ledger
+        .watch_subscription("I-A", &email(), &ItemRef::new("gold").unwrap(), 2, 103)
+        .unwrap();
+    let list = w.ledger.rescue_watches().unwrap();
+    assert_eq!(
+        list.iter()
+            .map(|x| (x.subscription_id.as_str(), x.plan.as_str()))
+            .collect::<Vec<_>>(),
+        [("I-A", "gold"), ("I-B", "care-plan")]
+    );
+    // Stopped, it is read no more, and a second stop finds nothing; the row is never deleted.
+    w.ledger.stop_watching("I-B", 104).unwrap();
+    assert!(matches!(
+        w.ledger.stop_watching("I-B", 105),
+        Err(LedgerError::NotFound)
+    ));
+    assert_eq!(w.ledger.rescue_watches().unwrap().len(), 1);
+    assert!(
+        w.ledger
+            .conn
+            .execute("DELETE FROM rescue_watches", [])
+            .is_err()
+    );
+    w.ledger
+        .watch_subscription("I-C", &email(), &plan(), 2, 106)
+        .unwrap();
+    let rows = watch_actions(&w.ledger, "rescue.watch_");
+    assert!(
+        rows.iter()
+            .all(|r| !r.detail.to_string().contains("subscriber@") && r.deal_id.is_none())
+    );
+    assert_eq!(
+        rows.iter().map(|r| r.action.as_str()).collect::<Vec<_>>(),
+        [
+            "rescue.watch_added",
+            "rescue.watch_added",
+            "rescue.watch_added",
+            "rescue.watch_stopped",
+            "rescue.watch_added"
+        ]
+    );
+    w.ledger.verify_audit().unwrap();
+}
+
+#[test]
+fn watch_reads_are_audited_before_they_are_made_and_never_exceed_the_days_budget() {
+    let mut w = world();
+    w.ledger
+        .watch_subscription("I-A", &email(), &plan(), 20, 100)
+        .unwrap();
+    let day = 86400 * 3;
+    for n in 1..=3 {
+        assert_eq!(
+            w.ledger
+                .reserve_rescue_watch_read("I-A", 3, day + n)
+                .unwrap(),
+            u32::try_from(n).unwrap()
+        );
+    }
+    assert!(matches!(
+        w.ledger.reserve_rescue_watch_read("I-A", 3, day + 10),
+        Err(LedgerError::Conflict)
+    ));
+    assert_eq!(w.ledger.rescue_watch_reads_today(day + 10).unwrap(), 3);
+    assert_eq!(watch_actions(&w.ledger, "rescue.watch_read").len(), 3);
+    // A new UTC day has its own budget; a stopped watch is never read.
+    assert_eq!(
+        w.ledger
+            .reserve_rescue_watch_read("I-A", 3, day + 86400)
+            .unwrap(),
+        1
+    );
+    w.ledger.stop_watching("I-A", day + 86401).unwrap();
+    assert!(matches!(
+        w.ledger.reserve_rescue_watch_read("I-A", 3, day + 86402),
+        Err(LedgerError::NotFound)
+    ));
+    assert!(w.ledger.due_rescue_watches(day * 10, 5).unwrap().is_empty());
+}
+
+#[test]
+fn a_run_of_failures_has_one_fix_and_a_paid_renewal_ends_it() {
+    let mut w = world();
+    let t0 = 86400 * 10;
+    w.ledger
+        .watch_subscription("I-S1", &email(), &plan(), 20, t0)
+        .unwrap();
+    assert_eq!(w.ledger.due_rescue_watches(t0, 5).unwrap().len(), 1);
+    // A read that could not be used backs off; the run is unchanged.
+    let x = w.ledger.record_rescue_watch_read("I-S1", None, t0).unwrap();
+    assert_eq!((x.tries, x.next_read_at), (1, t0 + RESCUE_WATCH_RETRY_SECS));
+    assert!(w.ledger.due_rescue_watches(t0 + 1, 5).unwrap().is_empty());
+    // Paid: no run of failures.
+    let x = w
+        .ledger
+        .record_rescue_watch_read("I-S1", Some(0), t0 + 400)
+        .unwrap();
+    assert_eq!((x.tries, x.failing_since), (0, None));
+    assert_eq!(x.next_read_at, t0 + 400 + RESCUE_WATCH_READ_SECS);
+    // A failure starts a run; it has no fix until a PayPal-reported rescue opens in it.
+    let fail = t0 + 86400;
+    let x = w
+        .ledger
+        .record_rescue_watch_read("I-S1", Some(1), fail)
+        .unwrap();
+    assert_eq!(x.failing_since, Some(fail));
+    assert!(!w.ledger.rescue_watch_handled("I-S1").unwrap());
+    // A replayed failure of the same subscription is not its fix.
+    let replay = open(&mut w, 1, &case(RescueSource::Replay, "I-S1", fail), fail).unwrap();
+    assert!(!w.ledger.rescue_watch_handled("I-S1").unwrap());
+    w.ledger
+        .apply_event(replay.id, DealEvent::Deadline, fail + 1)
+        .unwrap();
+    open(
+        &mut w,
+        2,
+        &case(RescueSource::Paypal, "I-S1", fail + 86400),
+        fail + 86400,
+    )
+    .unwrap();
+    assert!(w.ledger.rescue_watch_handled("I-S1").unwrap());
+    // Read again on later days of the same run (still one, then two failed): still handled.
+    for (n, failed) in [(2, 1), (6, 2)] {
+        w.ledger
+            .record_rescue_watch_read("I-S1", Some(failed), fail + n * 86400)
+            .unwrap();
+        assert!(w.ledger.rescue_watch_handled("I-S1").unwrap());
+    }
+    // Stopped and added again: the run is kept, so the same failure is not fixed twice.
+    w.ledger.stop_watching("I-S1", fail + 7 * 86400).unwrap();
+    w.ledger
+        .watch_subscription("I-S1", &email(), &plan(), 20, fail + 8 * 86400)
+        .unwrap();
+    assert!(w.ledger.rescue_watch_handled("I-S1").unwrap());
+    // A paid renewal ends the run; the next failure is a new one with no fix yet.
+    w.ledger
+        .record_rescue_watch_read("I-S1", Some(0), fail + 9 * 86400)
+        .unwrap();
+    assert!(!w.ledger.rescue_watch_handled("I-S1").unwrap());
+    let x = w
+        .ledger
+        .record_rescue_watch_read("I-S1", Some(1), fail + 40 * 86400)
+        .unwrap();
+    assert_eq!(x.failing_since, Some(fail + 40 * 86400));
+    assert!(!w.ledger.rescue_watch_handled("I-S1").unwrap());
+    // Only a changed count is a `rescue.watch_seen` row: 0, 1, 2, 0, 1.
+    let seen = watch_actions(&w.ledger, "rescue.watch_seen")
+        .into_iter()
+        .map(|r| r.detail["failed_payments"].as_u64().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(seen, [0, 1, 2, 0, 1]);
+    w.ledger.verify_audit().unwrap();
 }
