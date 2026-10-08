@@ -14,6 +14,7 @@ import { applyTheme, getTheme, setTheme, type Theme } from '../lib/theme';
 import { mockBackend } from '../mock/backend';
 import { applyWorld, foldScene, INITIAL_SCENE, runActions, WORLD_ACTIONS, type Scene, type Stage } from './actions';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, chapterOf, type Focus } from './beats';
+import { checkBeat, expectedDeals, selectChapter, storyStartOn, takePlan, wholeTake, type ChapterTake, type Seen, type TakePlan } from './takes';
 
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -27,16 +28,26 @@ const WIN = {
 } as const;
 const DESK = { w: 1800, h: 1010 };
 const around = (r: { x: number; y: number; w: number; h: number }, pad: number): Rect => ({ x: r.x - pad, y: r.y - BAR - pad, w: r.w + 2 * pad, h: r.h + BAR + 2 * pad });
+const union = (a: Rect, b: Rect): Rect => {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
+};
 const CAMERA: Record<Focus, Rect> = {
   desk: { x: 0, y: 0, w: DESK.w, h: DESK.h },
   main: around(WIN.main, 16),
-  approval: around(WIN.approval, 24),
+  // the Tumbler stays on top of the approval window's lower corner: frame both, so its card is
+  // never cut in half by the caption rail
+  approval: union(around(WIN.approval, 24), { x: WIN.tumbler.x, y: WIN.tumbler.y, w: WIN.tumbler.w, h: WIN.tumbler.h }),
   // the Tumbler grows up and left from its puck in the corner: frame the lower part of its patch
   tumbler: { x: WIN.tumbler.x - 230, y: WIN.tumbler.y + 30, w: WIN.tumbler.w + 230, h: WIN.tumbler.h - 10 },
 };
 const MAX_ZOOM = 1.15;
 /** Frames need a moment after load to subscribe and draw before the core speaks to them. */
 const SETTLE_MS = 900;
+/** A frame's load event comes before its app has drawn (and subscribed to the core's events): wait
+ *  for the drawing itself, so a slow machine does not miss the Tumbler's restored card. */
+const DRAWN_CAP_MS = 10_000;
 /** After the Tumbler is put back on a seek, let its own form requests land before the beat plays. */
 const REPLAY_MS = 600;
 
@@ -77,12 +88,49 @@ function offsetWords(seconds: number): string | null {
 }
 
 /** The fixtures' sentences name times of day ("lapses at 18:00", "at 20:00"): they assume the
- *  week is seen at 14:02:04, so the director starts its clock there (today, local time). */
+ *  week is seen at 14:02:04, so the director starts its clock there (local time), today or on the
+ *  day `?date=YYYY-MM-DD` names (a recorded take looks the same every time). */
 function storyStart(): number {
-  const d = new Date();
-  d.setHours(14, 2, 4, 0);
-  return Math.floor(d.getTime() / 1000);
+  return storyStartOn(param('date'));
 }
+
+/** Rendered text of a framed window ('' while it has no document). */
+function frameText(f: HTMLIFrameElement | null | undefined): string {
+  try {
+    return f?.contentDocument?.body?.innerText ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/** Labels of the enabled buttons and links a framed window draws. */
+function frameButtons(f: HTMLIFrameElement | null | undefined): string[] {
+  try {
+    const d = f?.contentDocument;
+    if (!d) return [];
+    return [...d.querySelectorAll<HTMLElement>('button, a[href], [role="button"]')]
+      .filter((b) => !(b as HTMLButtonElement).disabled && b.getAttribute('aria-disabled') !== 'true' && b.getClientRects().length > 0)
+      .map((b) => (b.innerText || b.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/** The read-only hook the rehearsal rig (scripts/takes.mjs) drives the director through. */
+export type TakesHook = {
+  plan: TakePlan;
+  /** The beats a single-chapter take covers (`--chapter`), and the whole story. */
+  chapter(sel: string | number): ChapterTake | null;
+  whole: { first: number; last: number; from: number; to: number };
+  /** Where the story is: `ready` once the frames have loaded and the current beat has played. */
+  now(): { ready: boolean; index: number; beat: string | null; t: number; playing: boolean };
+  /** What the stage shows, and what the current beat is missing (empty: all good). */
+  seen(): Seen;
+  verify(): string[];
+  play(): void;
+  pause(): void;
+};
 
 const approvalUrl = (id: string | null) => (id ? `approval.html?deal=${encodeURIComponent(id)}&target=deal` : 'about:blank');
 
@@ -105,6 +153,8 @@ export function Director() {
   approvalOpenRef.current = approvalOpen;
   const [frames, setFrames] = useState<Frames>({ epoch: 0, mainSrc: 'about:blank', approvalSrc: 'about:blank', approvalKey: 0 });
   const [follow, setFollow] = useState(param('camera') !== 'desk');
+  // a recorded take: no transport controls on screen (the banner and the captions stay)
+  const take = param('take') === '1';
   const [theme, setThemeState] = useState<Theme>(getTheme());
   const [box, setBox] = useState({ w: 0, h: 0 });
 
@@ -116,6 +166,7 @@ export function Director() {
   const epochRef = useRef(0);
   const mainRef = useRef<HTMLIFrameElement>(null);
   const tumblerRef = useRef<HTMLIFrameElement>(null);
+  const approvalRef = useRef<HTMLIFrameElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
 
   // ---- the stage the beats act on ------------------------------------------------------------
@@ -200,7 +251,20 @@ export function Director() {
     if (!p.loaded.has('main') || !p.loaded.has('tumbler')) return;
     pending.current = null;
     const current = () => p.epoch === epochRef.current; // a newer seek supersedes this one
-    setTimeout(() => {
+    const drawn = () => {
+      try {
+        return !!mainRef.current?.contentDocument?.querySelector('#root > *') && !!tumblerRef.current?.contentDocument?.querySelector('.pv-framed');
+      } catch {
+        return false;
+      }
+    };
+    const since = Date.now();
+    const whenDrawn = (then: () => void) => {
+      if (!current()) return;
+      if (drawn() || Date.now() - since > DRAWN_CAP_MS) then();
+      else setTimeout(() => whenDrawn(then), 100);
+    };
+    whenDrawn(() => setTimeout(() => {
       if (!current()) return;
       // Put the Tumbler back where the earlier beats left it, then play the beat itself.
       if (p.scene.selected && p.scene.form === 'card') runActions(stage, [{ do: 'select', deal: p.scene.selected }]);
@@ -212,7 +276,7 @@ export function Director() {
         play(p.n);
         setReady(true);
       }, restored ? REPLAY_MS : 0);
-    }, SETTLE_MS);
+    }, SETTLE_MS));
   }, [play, stage, world]);
 
   // boot once (StrictMode runs effects twice in development)
@@ -270,6 +334,37 @@ export function Director() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onPlay, onNext, onPrev, onRestart]);
+
+  // ---- the rehearsal rig's hook (read-only: it can watch, play and pause, never act in a window) -
+  const live = useRef({ ready, index, t, playing, mainOpen, approvalOpen });
+  live.current = { ready, index, t, playing, mainOpen, approvalOpen };
+  useEffect(() => {
+    const deals = expectedDeals();
+    const seen = (): Seen => ({
+      banner: document.querySelector<HTMLElement>('.dir-banner')?.innerText ?? '',
+      text: { main: frameText(mainRef.current), tumbler: frameText(tumblerRef.current), approval: frameText(approvalRef.current) },
+      buttons: { main: frameButtons(mainRef.current), tumbler: frameButtons(tumblerRef.current), approval: frameButtons(approvalRef.current) },
+      open: { main: live.current.mainOpen, approval: live.current.approvalOpen },
+      states: Object.fromEntries(deals.map((l) => [l, world.deal(l)?.deal.state])),
+    });
+    const hook: TakesHook = {
+      plan: takePlan(),
+      chapter: (sel) => selectChapter(sel),
+      whole: wholeTake(),
+      now: () => {
+        const c = live.current;
+        return { ready: c.ready, index: c.index, beat: BEATS[c.index]?.id ?? null, t: tRef.current, playing: c.playing };
+      },
+      seen,
+      verify: () => checkBeat(BEATS[live.current.index]?.id ?? '', seen()),
+      play: () => setPlaying(true),
+      pause: () => setPlaying(false),
+    };
+    (window as unknown as { __takes?: TakesHook }).__takes = hook;
+    return () => {
+      delete (window as unknown as { __takes?: TakesHook }).__takes;
+    };
+  }, [world]);
 
   // ---- layout ----------------------------------------------------------------------------------
   useEffect(() => {
@@ -333,7 +428,7 @@ export function Director() {
   const win = (r: Rect): CSSProperties => ({ left: r.x, top: r.y - BAR, width: r.w, height: r.h + BAR });
 
   return (
-    <div className={`dir${reduced ? ' reduced' : ''}`}>
+    <div className={`dir${reduced ? ' reduced' : ''}${take ? ' take' : ''}`} data-beat={beat?.id ?? ''} data-ready={ready ? 'true' : 'false'}>
       <header className="dir-banner" role="note">
         <span className="dir-dot" aria-hidden="true" />
         <span>Browser preview with sample data — not the wallet. No PayPal page is ever shown.</span>
@@ -352,7 +447,7 @@ export function Director() {
 
           <section className={`dir-win w-approval${approvalOpen ? '' : ' closed'}`} style={win(WIN.approval)} aria-label="The approval window" aria-hidden={!approvalOpen}>
             <WinBar title="Approval" note="only here can money be agreed" />
-            <iframe key={`a${frames.epoch}:${frames.approvalKey}`} name="the-table-approval" title="Approval" src={frames.approvalSrc}
+            <iframe key={`a${frames.epoch}:${frames.approvalKey}`} ref={approvalRef} name="the-table-approval" title="Approval" src={frames.approvalSrc}
               width={WIN.approval.w} height={WIN.approval.h} onLoad={(e) => { watchInput(e.currentTarget); onApprovalLoad(frames.epoch); }} />
           </section>
 
@@ -375,7 +470,7 @@ export function Director() {
           <p className="dir-text">{beat?.caption ?? 'Setting the table…'}</p>
         </div>
 
-        <div className="dir-ctl">
+        <div className="dir-ctl" hidden={take}>
           <div className="dir-transport" role="group" aria-label="Playback">
             <button className="dir-btn" onClick={onRestart} aria-label="Restart" title="Restart (Home)"><Glyph d="M4 4v5h5M4.6 9A7 7 0 1 1 5 15" /></button>
             <button className="dir-btn" onClick={onPrev} disabled={index <= 0} aria-label="Previous beat" title="Previous (←)"><Glyph d="M14 5l-6 7 6 7" /></button>
