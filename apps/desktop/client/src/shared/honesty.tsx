@@ -34,10 +34,14 @@ export function MinorMoney({ minor, currency, className }: { minor: number; curr
   return <span className={`money ${className ?? ''}`}>{formatMinor(minor, currency)}</span>;
 }
 
-/** Remaining time to an absolute Unix deadline; re-renders every second. */
+/**
+ * Remaining time to an absolute Unix deadline; re-renders every second. A ticking clock is never
+ * a live region (role timer is aria-live off): a screen reader reads it when it reaches it, not
+ * every second. Rung changes (2 h, 15 min) are announced once by the surface that owns the ladder.
+ */
 export function Countdown({ deadline, className }: { deadline: number; className?: string }) {
   const now = useNow();
-  return <span className={`money ${className ?? ''}`} aria-label="time left">{countdown(deadline, now)}</span>;
+  return <span className={`money ${className ?? ''}`} role="timer" aria-live="off">{countdown(deadline, now)}</span>;
 }
 
 /** Counterparty / merchant text: plain text only, never markdown, never links. */
