@@ -45,3 +45,14 @@ missing_debug_implementations = "warn"
 unwrap_used = "deny"
 expect_used = "deny"
 float_arithmetic = "warn"
+
+# Signing, hashing and SQLite dominate test time in debug builds (the hostile-agent gauntlet runs
+# ~5x faster with these optimised). Only these leaf crates; our own code stays debuggable.
+[profile.dev.package.curve25519-dalek]
+opt-level = 3
+[profile.dev.package.ed25519-dalek]
+opt-level = 3
+[profile.dev.package.sha2]
+opt-level = 3
+[profile.dev.package.libsqlite3-sys]
+opt-level = 3

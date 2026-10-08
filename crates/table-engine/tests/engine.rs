@@ -282,3 +282,62 @@ fn a_native_agent_run_is_told_its_role_playbook_and_a_toolless_one_never_is() {
     // Without a playbook an agent run still gets the fixed fence, never an empty prompt.
     assert!(system_prompt(Profile::Agent, None).contains("wallet enforces all authority"));
 }
+/// E1, the stream half: one conformance suite, run unchanged for both adapters and both profiles.
+/// An agent run's init must attest wallet tools only and a tool-less run's none (anything else
+/// fails closed); every stream ends in a terminal verdict, and only a terminal fact makes it
+/// clean; neither argv carries a schema flag beside the stream output or a secret. The process
+/// half (prompt on stdin, watchdog, cancel kills the tree) is the Windows-only suite in native.rs.
+#[test]
+fn e1_both_adapters_pass_one_conformance_suite_for_both_profiles() {
+    let init = |tools: &[&str]| {
+        let servers = if tools.is_empty() {
+            json!([])
+        } else {
+            json!([{"name":"wallet","status":"connected"}])
+        };
+        json!({"type":"system","subtype":"init","tools":tools,"mcp_servers":servers}).to_string()
+    };
+    for id in [EngineId::ClaudeCode, EngineId::CodexCli] {
+        let terminal = match id {
+            EngineId::ClaudeCode => {
+                r#"{"type":"result","subtype":"success","is_error":false,"result":"done"}"#
+            }
+            _ => r#"{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":1}}"#,
+        };
+        for profile in [Profile::Agent, Profile::Toolless] {
+            let attested: &[&str] = if matches!(profile, Profile::Agent) {
+                &["mcp__wallet__send_offer", "mcp__wallet__table_view"]
+            } else {
+                &[]
+            };
+            let a = argv(id, &options(profile)).unwrap();
+            assert!(!a.contains(&"--json-schema".into()), "{id:?} {profile:?}");
+            assert!(
+                !a.iter().any(|v| v.contains("TOKEN_VALUE")),
+                "{id:?} {profile:?}"
+            );
+            // The attested inventory and a terminal fact: a clean run.
+            let mut p = StreamParser::new(id, profile);
+            p.line(&init(attested)).unwrap();
+            if id == EngineId::CodexCli {
+                p.line(r#"{"type":"thread.started","thread_id":"conformance"}"#)
+                    .unwrap();
+            }
+            p.line(terminal).unwrap();
+            assert_eq!(p.finish(), TerminalVerdict::Clean, "{id:?} {profile:?}");
+            // No terminal fact: a verdict, never a clean one.
+            let mut p = StreamParser::new(id, profile);
+            p.line(&init(attested)).unwrap();
+            assert_ne!(p.finish(), TerminalVerdict::Clean, "{id:?} {profile:?}");
+            // A tool outside the profile's inventory fails closed.
+            for tools in [["Bash"], ["mcp__decoy__pay"]] {
+                let mut p = StreamParser::new(id, profile);
+                assert!(
+                    p.line(&init(&tools)).is_err(),
+                    "{id:?} {profile:?} {tools:?}"
+                );
+                assert_ne!(p.finish(), TerminalVerdict::Clean, "{id:?} {profile:?}");
+            }
+        }
+    }
+}
