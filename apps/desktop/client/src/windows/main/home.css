@@ -244,3 +244,23 @@
 .home .col .lim-row { flex-wrap: wrap; row-gap: 3px; padding-top: 6px; padding-bottom: 7px; }
 .home .col .lim-row .amt small { font-size: var(--fs-small); font-weight: var(--fw-regular, 400); }
 .home .col .lim-row .ui-meter { flex: 1 0 100%; }
+
+/* ---- first run (home/Start.tsx): the goal, progress, the promise once, the next step in gold ---- */
+/* nothing on the dial needs a look yet: no sector is singled out while the hub explains */
+.home.first-run .wedge.on .tint { opacity: .5; }
+.home.first-run .wedge.on .edge { stroke-opacity: 0; }
+.home.first-run .dialwrap .window { opacity: .35; }
+.home .hc.first { gap: 1.4cqmin; }
+.home .h-first { max-width: 15em; text-wrap: balance; }
+.home .h-prog { font-size: max(12px, 1.7cqmin); }
+.home .h-prog i { width: max(18px, 3cqmin); height: max(4px, .6cqmin); }
+.home .h-promise { display: flex; align-items: flex-start; gap: .5em; max-width: 30em; text-align: left; font-size: max(12.5px, 1.8cqmin); line-height: 1.4; color: var(--muted);
+  padding: 1cqmin 1.6cqmin; border-radius: var(--r); background: color-mix(in srgb, var(--panel) 70%, transparent); border: 1px solid var(--line); }
+.home .h-promise .ui-icon { flex: none; margin-top: .2em; color: var(--ok); }
+.home .hc.first .gbtn { margin-top: .4cqmin; }
+.home .col .start-steps { margin-top: 2px; }
+.home .start-about { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-3); }
+.home .start-about li { display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: var(--sp-2); align-items: start; }
+.home .start-about .sa-ico { grid-row: span 2; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--teal-l); background: color-mix(in srgb, var(--teal) 14%, transparent); }
+.home .start-about b { font-weight: var(--fw-semibold); line-height: 1.3; }
+.home .start-about span { font-size: var(--fs-small); color: var(--dim); line-height: 1.35; }

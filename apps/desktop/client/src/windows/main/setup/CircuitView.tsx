@@ -10,7 +10,8 @@ import type { EngineId } from '@bindings/EngineId';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import { clockLabel, nowUnix } from '../../../lib/format';
 import { watchLine } from '../../../lib/marketWatch';
-import { fingerprintGroups, PERMISSIONS_FINGERPRINT, PERMISSIONS_FINGERPRINT_MEANS, PRICE_CHECKS_USED_UP, rulesName } from '../../../lib/words';
+import { fingerprintGroups, PERMISSIONS_FINGERPRINT, PERMISSIONS_FINGERPRINT_MEANS, PRICE_CHECKS_USED_UP, rulesName, START_STEP } from '../../../lib/words';
+import { useStart } from '../home/Start';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import { ModeBadge, RunBadge, WalletNotice } from '../../../shared/honesty';
 import { AnswerBar, Btn, Chip, DetailToggle, Group, Icon, Kv, Popover, Row, Section, Silence, layerCount, topLayerKind, useToast, type DetailMode, type IconName } from '../../../shared/ui';
@@ -55,6 +56,8 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
   const toast = useToast();
   const now = useNow();
   const locked = w.locked;
+  // First run: the checklist is the same three steps as Home (PayPal, rules, the house seller).
+  const start = useStart();
 
   // When Rust probed the engine executables this session (owner_facts), not when this window read them.
   const probedAt = f?.engines.reduce<number | null>((a, e) => (e.probed_at && (!a || e.probed_at > a) ? e.probed_at : a), null) ?? null;
@@ -144,8 +147,11 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
   );
 
   // ---- the checklist (Simple) ----------------------------------------------------------------
-  const answer = settingsAnswer(c, { firstRun: !!s?.first_run, settingsKnown: !!s, locked });
-  const progress = setupProgress(c);
+  const firstSteps = start.show;
+  const answer = firstSteps
+    ? { tone: 'need' as const, title: 'Let’s get your wallet ready', sub: `${start.total - start.done} ${start.total - start.done === 1 ? 'step' : 'steps'} left. Nothing pays without you or a rule you signed.` }
+    : settingsAnswer(c, { firstRun: !!s?.first_run, settingsKnown: !!s, locked });
+  const progress = firstSteps ? { done: start.done, total: start.total } : setupProgress(c);
   const brk = (k: Break['key']) => c.breaks.find((b) => b.key === k);
   const silenceOf = (b: Break) => <Silence text={b.silence}>{` · ${b.then}`}</Silence>;
   // One gold button in the whole sheet: the first hand-off that is actually needed.
@@ -162,12 +168,13 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
   const nWorking = running ? running.length : null;
 
   const keyBreak = brk('credentials');
+  const keyTitle = firstSteps ? START_STEP.paypal.title : 'Connect PayPal';
   const stepKey: Step = keyBreak
-    ? { state: 'todo', icon: 'alert', title: 'Connect PayPal', status: silenceOf(keyBreak), action: <Handoff label="Add PayPal key" kind={goldKey === 'credentials' ? 'gold' : 'default'} locked={locked} target="credentials" /> }
+    ? { state: 'todo', icon: 'alert', title: keyTitle, status: silenceOf(keyBreak), action: <Handoff label={firstSteps ? START_STEP.paypal.act : 'Add PayPal key'} kind={goldKey === 'credentials' ? 'gold' : 'default'} locked={locked} target="credentials" /> }
     : c.parts.keychain.state === 'unknown'
-      ? { state: 'unknown', icon: 'eye', title: 'Connect PayPal', status: <Chip tone="dashed">not checked yet</Chip>, action: null }
+      ? { state: 'unknown', icon: 'eye', title: keyTitle, status: <Chip tone="dashed">not checked yet</Chip>, action: null }
       : {
-        state: 'done', icon: 'check', title: 'Connect PayPal',
+        state: 'done', icon: 'check', title: keyTitle,
         status: <>Key saved{keyAt ? ` ${shortDate(keyAt)}` : ''} <Chip tone="dashed" title="The wallet doesn’t test the PayPal connection live, so it can’t say it works">connection not tested</Chip></>,
         action: <Handoff label="Replace key" kind="default" locked={locked} target="credentials" />,
       };
@@ -218,6 +225,16 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
     ) : (f?.market_watch.length ? 'Add the key so your rules can keep prices fresh. Until then, items show no typical price.' : 'Optional. Without it, items show no typical price.'),
     action: s ? <Handoff label={s.channel3_configured ? 'Replace key' : 'Add key'} kind="default" locked={locked} target="credentials" /> : null,
   };
+  // First run's third step: a practice deal with the house seller, done once it is connected.
+  const practice = start.steps.find((x) => x.key === 'practice');
+  const stepPractice: Step = practice?.state === 'done'
+    ? { state: 'done', icon: 'check', title: START_STEP.practice.title, status: 'House seller connected · its practice table is ready', action: <Btn kind="default" sm onClick={() => onPair('house')}>Open a table with it ›</Btn> }
+    : house === 'unavailable'
+      ? { state: 'unknown', icon: 'store', title: START_STEP.practice.title, status: <Chip tone="dashed">not part of this version</Chip>, action: null }
+      : {
+        state: 'todo', icon: 'store', title: START_STEP.practice.title, status: START_STEP.practice.sub,
+        action: <Btn kind={!goldKey && practice?.state === 'next' ? 'gold' : 'default'} sm onClick={() => onPair('house')}>{START_STEP.practice.act} ›</Btn>,
+      };
   const stepAgents: Step = !s
     ? { state: 'unknown', icon: 'eye', title: 'Your agents', status: <Chip tone="dashed">not loaded yet</Chip>, action: null }
     : paused
@@ -238,7 +255,7 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
         {w.settings.error && !s ? <WalletNotice error={w.settings.error} what="Settings" /> : null}
         <AnswerBar tone={answer.tone} title={answer.title} sub={answer.sub} />
         <div className="su-bar">
-          <h3>{detailed ? 'How your money is protected' : `Setup · ${progress.done} of ${progress.total} done`}</h3>
+          <h3>{detailed ? 'How your money is protected' : `${firstSteps ? 'Getting started' : 'Setup'} · ${progress.done} of ${progress.total} done`}</h3>
           <span className="ui-spacer" />
           {detailed ? <Info label="Who can set what" text="Who can set what" className="wide"><WhoCanSetWhat locked={locked} /></Info> : null}
           <DetailToggle value={detail} onChange={setDetail} detailedLabel="Detailed" />
@@ -264,11 +281,11 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
         ) : (
           <>
             <div className="su-list" role="list" aria-label="Setup steps">
-              <StepRow {...stepKey} /><StepRow {...stepRules} /><StepRow {...stepEngine} />
+              <StepRow {...stepKey} /><StepRow {...stepRules} />{firstSteps ? <StepRow {...stepPractice} /> : <StepRow {...stepEngine} />}
             </div>
             <h3 className="su-h">Also here</h3>
             <div className="su-list" role="list" aria-label="Other settings">
-              <StepRow {...stepAgents} /><StepRow {...stepLock} /><StepRow {...stepHouse} /><StepRow {...stepMarket} />
+              {firstSteps ? <StepRow {...stepEngine} /> : null}<StepRow {...stepAgents} /><StepRow {...stepLock} />{firstSteps ? null : <StepRow {...stepHouse} />}<StepRow {...stepMarket} />
             </div>
             <h3 className="su-h">How your money is protected</h3>
             <ol className="su-chain" aria-label="How your money is protected">

@@ -19,7 +19,7 @@ import type { Money } from '@bindings/Money';
 import type { OpenMandate } from '@bindings/OpenMandate';
 import type { WalletError } from '../../lib/contract';
 import { shortHash, shortId } from '../../lib/format';
-import { useNow } from '../../lib/hooks';
+import { useNow, useQuery } from '../../lib/hooks';
 import { ruleNameOf, rulesName, timeLeftWords } from '../../lib/words';
 import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Chip, Hourglass, Kv, Popover, Seg, Spacer, type IconName } from '../../shared/ui';
@@ -33,6 +33,8 @@ import { Scoreboard, WhatIfTable } from './owner/Replay';
 import { SignSheet } from './owner/SignSheet';
 import { changed, hitPhrase, ifWithdrawn, summaryWords } from './owner/simulation';
 import { WhoWhat } from './owner/WhoWhat';
+import { TemplatePicker, type BlankField } from './owner/Templates';
+import { connectedPayees, templateBlanks, templateDraft, TEMPLATES, type TemplateBlank, type TemplateKey } from './templates';
 import { useSession } from './session';
 import { Header } from './ui';
 
@@ -70,6 +72,28 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
   const [done, setDone] = useState<{ tone: 'ok' | 'bad'; text: string } | null>(null);
   const [revokeError, setRevokeError] = useState<WalletError | null>(null);
   const locked = s.settingsLocked || s.lockedByError;
+  // First signature (no rules at all yet): start from a ready-made set (templates.ts). The payees
+  // of wallets already connected (the house seller too) fill "who they may pay".
+  const firstRules = !base && entries.length === 0;
+  const cps = useQuery('counterparty_list', null, { enabled: firstRules });
+  const [tpl, setTpl] = useState<TemplateKey | null>(null);
+  const [askFor, setAskFor] = useState<TemplateBlank[]>([]);
+  const pickTemplate = (k: TemplateKey) => {
+    const next = templateDraft(k, t0, { payees: connectedPayees(cps.data) });
+    setTpl(k);
+    setAskFor(templateBlanks(next));
+    setPane('levers');
+    setD(next);
+  };
+  // The blanks the picked template asked for, edited in place in the draft's own clauses.
+  const blankFields = askFor.flatMap((b): BlankField[] => {
+    const i = d.clauses.findIndex((c) => c.type === (b === 'payees' ? 'payees' : 'band'));
+    const c = d.clauses[i];
+    if (!c) return [];
+    if (b === 'payees' && c.type === 'payees') return [{ blank: b, value: c.payees, onChange: (v: string) => setD(withClause(d, i, { ...c, payees: v })) }];
+    if (b === 'item' && c.type === 'band') return [{ blank: b, value: c.items, onChange: (v: string) => setD(withClause(d, i, { ...c, items: v })) }];
+    return [];
+  });
 
   // ---- the draft, the signed version, and what changed ------------------------------------
   const built = buildMandate(d);
@@ -215,7 +239,12 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
   const answer: { tone: 'need' | 'calm' | 'alert'; icon: IconName; title: string; sub?: string; plain?: boolean } = preview
     ? { tone: 'alert', icon: 'block', title: 'Preview: if you withdraw these rules, every next request from their agents is refused.', sub: 'Nothing touches PayPal; anything on hold stays yours.' }
     : !base
-      ? { tone: 'need', icon: 'rules', title: 'New rules: nothing is signed yet, so your agents can’t do anything.', sub: seeded && !drafts[key] ? `The lowest price for ${seedFloor?.item_ref} is filled in from The Table; check it before you sign.` : 'Fill in the limits, then review and sign.' }
+      ? {
+          tone: 'need', icon: 'rules', title: 'New rules: nothing is signed yet, so your agents can’t do anything.',
+          sub: seeded && !drafts[key] ? `The lowest price for ${seedFloor?.item_ref} is filled in from The Table; check it before you sign.`
+            : firstRules && tpl ? `Starting from “${TEMPLATES.find((t) => t.key === tpl)?.name}”. Check each limit, then review and sign.`
+              : firstRules ? 'Start from ready-made rules below, or fill in the limits yourself. Then review and sign.' : 'Fill in the limits, then review and sign.',
+        }
       : changes.length
         ? {
             tone: 'need', icon: 'rules', plain: true,
@@ -270,6 +299,8 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
           />
         </div>
 
+        {firstRules ? <TemplatePicker picked={tpl} blanks={tpl ? templateBlanks(d) : []} fields={blankFields} onPick={pickTemplate} /> : null}
+
         <div className="ow-scorebar">
           <Scoreboard lines={lines} signedName={signedName} draftName={draftName} />
           <div className="ow-switch">
@@ -289,7 +320,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
         {shownPane === 'replay' ? (
           <WhatIfTable lines={lines} error={args ? what.error : null} updating={what.updating} signedName={signedName} draftName={draftName} />
         ) : (
-          <div className="ow-levers">
+          <div className="ow-levers" key={tpl ?? 'own'}>
             <div className="ui-section-h">
               <h2>Limits</h2>
               <span className="end">drag, or type an amount</span>

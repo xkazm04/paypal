@@ -22,6 +22,9 @@ import {
   weekBounds, type LedgerScope, type LedgerSummary,
 } from './logic';
 import { RewindBar, RewindHub, useRewind } from './Rewind';
+import { StartAbout, StartHub, StartSide, useStart, useStartActions, type StartActions } from './home/Start';
+import type { GettingStarted } from '../../lib/firstRun';
+import type { PairMode } from './setup/pairing';
 import { Shortcuts } from './Shortcuts';
 import { StatusChips } from './Status';
 import { LockGlyph, mc } from './ui';
@@ -36,7 +39,8 @@ type Props = {
   tumbler: TumblerStatus | null;
   onOpenModule: (m: Module) => void;
   onOpenDeal: (id: string) => void;
-  onOpenSheet: (tab: 'settings' | 'pairing' | 'mandates') => void;
+  /** `pair` opens Connections on that way of connecting (first run: the house seller). */
+  onOpenSheet: (tab: 'settings' | 'pairing' | 'mandates', pair?: PairMode) => void;
   onFind: () => void;
   skipIntro: boolean;
 };
@@ -47,6 +51,11 @@ export function Home(p: Props) {
   const deals = useMemo(() => w.deals.data ?? [], [w.deals.data]);
   const needs = w.needs;
   const settings = w.settings.data;
+  // First run: the three steps from install to a first safe deal (home/Start.tsx).
+  const start = useStart();
+  const firstRun = start.show;
+  const { onOpenSheet } = p;
+  const startAct = useStartActions(useCallback(() => onOpenSheet('pairing', 'house'), [onOpenSheet]));
 
   const [mode, setMode] = useState<'needs' | 'module'>('needs');
   const [sel, setSel] = useState(0);
@@ -122,7 +131,7 @@ export function Home(p: Props) {
       if (e.ctrlKey || e.metaKey || e.altKey || zooming.current || e.defaultPrevented) return;
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
-      if (settings?.first_run) return;
+      if (firstRun) return;
       if (e.key === 'ArrowRight') { e.preventDefault(); turn(1); }
       else if (e.key === 'ArrowLeft') { e.preventDefault(); turn(-1); }
       else if (e.key === 'ArrowDown') { e.preventDefault(); cycleNeed(1); }
@@ -190,7 +199,6 @@ export function Home(p: Props) {
     });
   }, [rewind, rw.steps, rw.t, beads, deals]);
 
-  const firstRun = !!settings?.first_run;
   const cls = ['home', intro !== 'done' ? 'intro' : '', zoom ? 'zoom' : '', p.active ? '' : 'away', firstRun ? 'first-run' : '', rewind && !firstRun ? 'rewind' : ''].join(' ');
 
   return (
@@ -211,8 +219,8 @@ export function Home(p: Props) {
       </TitleBar>
       <main className="stage">
         <section className="col l" aria-label={scope.scope === 'week' ? 'This week' : 'The ledger'}>
-          <Explainer id="home" title="How The Table works" steps={HOME_STEPS} className="home-ex" />
-          {firstRun ? <FirstRunSide /> : <Ledger s={summary} scope={scope} onDeal={p.onOpenDeal} onBook={() => zoomInto(moduleIndex('book'))} />}
+          {firstRun ? null : <Explainer id="home" title="How The Table works" steps={HOME_STEPS} className="home-ex" />}
+          {firstRun ? <StartSide gs={start} act={startAct} /> : <Ledger s={summary} scope={scope} onDeal={p.onOpenDeal} onBook={() => zoomInto(moduleIndex('book'))} />}
         </section>
         <Dial beads={firstRun ? [] : rewind ? pastBeads : beads} badges={firstRun || rewind ? [0, 0, 0, 0, 0, 0] : badges} focus={focus} mode={mode} intro={intro} reduced={reduced}
           glow={!firstRun && !rewind && needs.length > 0} flash={flash}
@@ -227,13 +235,13 @@ export function Home(p: Props) {
             if (!inside) timers.current.idle = setTimeout(() => { if (p.active && !zooming.current) pointNeeds(); }, 1500);
           }}>
           {rewind && !firstRun ? <RewindHub r={rw} labelOf={labelOf} onOpenDeal={p.onOpenDeal} /> : (
-            <Hub mode={mode} sel={sel} item={top} index={safeNeedIdx} count={needs.length} summary={summary} week={scope.scope === 'week'}
+            <Hub start={firstRun ? { gs: start, act: startAct } : null} mode={mode} sel={sel} item={top} index={safeNeedIdx} count={needs.length} summary={summary} week={scope.scope === 'week'}
               onOpen={zoomInto} onBack={pointNeeds} onPage={cycleNeed} onDeal={p.onOpenDeal} />
           )}
         </Dial>
         {rewind && !firstRun ? <RewindBar r={rw} labelOf={labelOf} onOpenDeal={p.onOpenDeal} onExit={() => setRewind(false)} /> : null}
         <section className="col r needs" aria-label="Needs you">
-          {firstRun ? null : <NeedsList needs={needs} on={mode === 'needs' ? safeNeedIdx : -1}
+          {firstRun ? <StartAbout /> : <NeedsList needs={needs} on={mode === 'needs' ? safeNeedIdx : -1}
             onPoint={(i) => { if (intro === 'done') { setNeedIdx(i); setMode('needs'); } }} onOpen={p.onOpenDeal} />}
         </section>
       </main>
@@ -270,12 +278,13 @@ const HOME_STEPS: readonly ExplainerStep[] = [
 
 const stop = (e: MouseEvent) => e.stopPropagation();
 
-function Hub({ mode, sel, item, index, count, summary, week, onOpen, onBack, onPage, onDeal }: {
+function Hub({ start, mode, sel, item, index, count, summary, week, onOpen, onBack, onPage, onDeal }: {
+  /** First run: the getting-started hub instead of the decisions. */
+  start: { gs: GettingStarted; act: StartActions } | null;
   mode: 'needs' | 'module'; sel: number; item: AttentionItem | undefined; index: number; count: number; summary: LedgerSummary; week: boolean;
   onOpen: (i: number) => void; onBack: () => void; onPage: (d: 1 | -1) => void; onDeal: (id: string) => void;
 }) {
   const w = useWorld();
-  const open = useMutation('approval_open');
   const settings = w.settings.data;
 
   if (w.settings.error && !settings) return <div className="hc"><WalletNotice error={w.settings.error} what="Settings" /></div>;
@@ -284,18 +293,7 @@ function Hub({ mode, sel, item, index, count, summary, week, onOpen, onBack, onP
     return <div className="hc"><div className="h-eyebrow">The Table</div>{err ? <WalletNotice error={err} what={w.deals.error ? 'Ledger' : 'Needs you'} /> : <div className="h-week">reading the ledger…</div>}</div>;
   }
 
-  if (settings?.first_run) {
-    return (
-      <div className="hc first">
-        <div className="h-eyebrow">Welcome</div>
-        <div className="h-calm">Set your agents’ rules</div>
-        <div className="h-hint">Until you sign them, no agent can agree to anything.</div>
-        <button type="button" className="gbtn" onClick={(e) => { stop(e); void open.run({ deal_id: null }); }} disabled={open.pending}
-          title="Opens the approval window, where you sign your rules">Set rules ↗</button>
-        {open.error ? <WalletNotice error={open.error} what="Approval window" /> : null}
-      </div>
-    );
-  }
+  if (start) return <StartHub gs={start.gs} act={start.act} />;
 
   if (mode === 'module') {
     const m = MODULES[sel];
@@ -540,14 +538,6 @@ function LimitRow({ m }: { m: LimitMeter }) {
       <span className="amt">{m.value}{m.of ? <small className="dim"> {m.of}</small> : null}</span>
       {m.fill !== null ? <Meter value={m.fill} tone={m.near ? 'gold' : undefined} label={`${m.label}: ${m.value} ${m.of ?? ''}`.trim()} /> : null}
     </div>
-  );
-}
-
-function FirstRunSide() {
-  return (
-    <Section title="Getting started">
-      <Hint>Sign your agents’ rules first. The dial fills as deals arrive.</Hint>
-    </Section>
   );
 }
 

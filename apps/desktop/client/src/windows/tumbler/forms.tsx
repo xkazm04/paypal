@@ -13,7 +13,8 @@ import type { DealDisplay } from '../../lib/pending';
 import type { WalletError } from '../../lib/contract';
 import { clockLabel, formatMinor, shortId } from '../../lib/format';
 import { readLimits } from '../../lib/limits';
-import { timeLeftWords } from '../../lib/words';
+import { FIRST_RUN_TITLE, SAFETY_PROMISE, START_STEP, timeLeftWords, type StartStepKey } from '../../lib/words';
+import type { GettingStarted } from '../../lib/firstRun';
 import { useQuery } from '../../lib/hooks';
 import { ModeBadge } from '../../shared/honesty';
 import { MODULE } from '../../shared/modules';
@@ -601,7 +602,14 @@ const Mini = ({ ring, children }: { ring: 'gold' | 'line'; children?: ReactNode 
  * clears the puck in either corner, and the foot (keyboard promise, summon chord, Got it) beside
  * the puck when it sits at the bottom.
  */
-export const WelcomeForm = forwardRef(function WelcomeForm(p: { mode: Mode | null; locked: boolean; onOk: () => void }, ref: Ref<HTMLDivElement>) {
+export const WelcomeForm = forwardRef(function WelcomeForm(p: {
+  mode: Mode | null; locked: boolean; onOk: () => void;
+  /** First run: the three steps instead of the legend (lib/firstRun.ts); null = the everyday welcome. */
+  start?: GettingStarted | null;
+  onStep?: (k: StartStepKey) => void;
+  failure?: { what: string; error: WalletError } | null;
+}, ref: Ref<HTMLDivElement>) {
+  if (p.start) return <FirstRunWelcome ref={ref} {...p} start={p.start} />;
   return (
     <div ref={ref} className="f welcome" tabIndex={-1} aria-label="The Table is closed">
       <div className="f-head nt"><span className="kick">Your mini window</span><Flags mode={p.mode} locked={p.locked} /></div>
@@ -618,6 +626,47 @@ export const WelcomeForm = forwardRef(function WelcomeForm(p: { mode: Mode | nul
         <div className="w-ok">
           <span className="ui-hint"><span className="kbd">Ctrl</span> <span className="kbd">Shift</span> <span className="kbd">Space</span> summons or hides me</span>
           <Btn kind="gold" sm onClick={p.onOk}>Got it</Btn>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+/*
+ * First run at the same 440 x 228: the same three steps and words as The Table and the approval
+ * window. Title, the safety promise (two lines), the steps as three one-line links, then the next
+ * step in gold beside "Later". The Tumbler reads settings only, so a step it can't tell stays
+ * numbered, never ticked.
+ */
+const FirstRunWelcome = forwardRef(function FirstRunWelcome(p: {
+  mode: Mode | null; locked: boolean; onOk: () => void; start: GettingStarted; onStep?: (k: StartStepKey) => void; failure?: { what: string; error: WalletError } | null;
+}, ref: Ref<HTMLDivElement>) {
+  const next = p.start.next;
+  return (
+    <div ref={ref} className="f welcome fr" tabIndex={-1} aria-label="Getting started">
+      <div className="f-head nt"><span className="kick">Welcome · {p.start.done} of {p.start.total} done</span><Flags mode={p.mode} locked={p.locked} /></div>
+      <h2 className="w-h nt">{FIRST_RUN_TITLE}</h2>
+      <p className="w-p fr-promise nt">{SAFETY_PROMISE}</p>
+      <ol className="fr-steps" aria-label={`Getting started: ${p.start.done} of ${p.start.total} done`}>
+        {p.start.steps.map((s) => {
+          const done = s.state === 'done';
+          return (
+            <li key={s.key} className={`s-${s.state}`}>
+              <button type="button" className="fr-step" disabled={done} onClick={() => p.onStep?.(s.key)}
+                title={done ? START_STEP[s.key].done : START_STEP[s.key].where}>
+                <span className="fr-n" aria-hidden="true">{done ? '✓' : s.n}</span>
+                <span className="fr-t">{done ? START_STEP[s.key].done : START_STEP[s.key].title}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      <div className="w-foot nb">
+        {p.failure ? <Notice failure={p.failure} /> : null}
+        <div className="w-ok">
+          <span className="ui-hint" aria-hidden="true" />
+          <Btn kind="plain" sm onClick={p.onOk} title="Ctrl Shift Space summons or hides me. I never take your keyboard.">Later</Btn>
+          {next ? <Btn kind="gold" sm onClick={() => p.onStep?.(next)} title={START_STEP[next].where}>{START_STEP[next].act}{next === 'practice' ? '' : ' ↗'}</Btn> : null}
         </div>
       </div>
     </div>

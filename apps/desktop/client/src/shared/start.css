@@ -1,0 +1,33 @@
+/* The three first-run steps (src/shared/start.tsx): Home's left column, the approval window's
+   owner configuration. Steps wrap (a narrow column never cuts a step's name); done steps are green
+   with a check, the next one carries a gold marker (the gold button itself lives outside the list). */
+.start-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.start-steps .ss { min-width: 0; }
+.start-steps .ss-go { width: 100%; display: grid; grid-template-columns: 24px minmax(0, 1fr); column-gap: var(--sp-2); row-gap: 4px; align-items: start;
+  text-align: left; padding: 9px var(--sp-3); border: 1px solid var(--line); border-radius: var(--r); background: color-mix(in srgb, var(--panel) 88%, transparent);
+  color: var(--text); font: inherit; }
+.start-steps button.ss-go { cursor: pointer; }
+.start-steps button.ss-go:hover { background: var(--hover); }
+.start-steps button.ss-go:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.start-steps button.ss-go[disabled] { cursor: progress; opacity: .75; }
+.start-steps .ss-mark { grid-row: span 2; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; margin-top: 1px;
+  font: var(--fw-semibold) var(--fs-small)/1 var(--num); font-variant-numeric: tabular-nums; color: var(--muted); border: 1.5px solid var(--line2); }
+.start-steps .ss-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.start-steps .ss-text b { font-weight: var(--fw-semibold); line-height: 1.3; }
+.start-steps .ss-text span { font-size: var(--fs-small); color: var(--dim); line-height: 1.35; }
+.start-steps .ss-act { grid-column: 2; justify-self: start; font-size: var(--fs-small); font-weight: var(--fw-medium); color: var(--teal-l); }
+.start-steps .ss-act.dim { color: var(--dim); font-weight: var(--fw-regular); }
+/* the next step: gold marker and edge, so the eye lands on it; still a quiet button */
+.start-steps .s-next .ss-go { border-color: color-mix(in srgb, var(--gold) 55%, var(--line)); box-shadow: inset 2px 0 0 var(--gold); }
+.start-steps .s-next .ss-mark { color: var(--on-gold); background: var(--gold); border-color: var(--gold); }
+.start-steps .s-done .ss-go { background: transparent; }
+.start-steps .s-done .ss-mark { color: var(--on-ok); background: var(--ok); border-color: var(--ok); }
+.start-steps .s-done .ss-text b { color: var(--muted); }
+.start-steps .s-unknown .ss-mark { border-style: dashed; }
+
+/* progress: three dots and "1 of 3 done" */
+.start-progress { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-small); color: var(--dim); }
+.start-progress i { width: 18px; height: 4px; border-radius: 2px; background: var(--line2); }
+.start-progress i.on { background: var(--ok); }
+.start-progress i.next { background: var(--gold); }
+.start-progress span { margin-left: 4px; font-variant-numeric: tabular-nums; }

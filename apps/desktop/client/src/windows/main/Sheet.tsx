@@ -20,10 +20,10 @@ const TABS: ReadonlyArray<{ value: SheetTab; label: string }> = [
   { value: 'mandates', label: 'Agent rules' },
 ];
 
-export function Sheet({ tab, onTab, onClose }: { tab: SheetTab; onTab: (t: SheetTab) => void; onClose: () => void }) {
+export function Sheet({ tab, pair, onTab, onClose }: { tab: SheetTab; /** Connections opens on this way of connecting. */ pair?: PairMode; onTab: (t: SheetTab) => void; onClose: () => void }) {
   const w = useWorld();
   const s = w.settings.data;
-  const [pairMode, setPairMode] = useState<PairMode>('create');
+  const [pairMode, setPairMode] = useState<PairMode>(pair ?? 'create');
   // Settings opens on the checklist; the circuit diagram is behind Detailed (the sheet is wider then).
   const [detail, setDetail] = useDetail('settings');
   const title = tab === 'settings' ? (s?.first_run ? 'Getting started' : 'Settings') : tab === 'pairing' ? 'Connect a wallet' : 'Agent rules';

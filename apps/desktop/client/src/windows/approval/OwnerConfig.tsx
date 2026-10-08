@@ -10,7 +10,9 @@ import type { HouseState } from '@bindings/HouseState';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { WalletError } from '../../lib/contract';
 import { useNow, useQuery } from '../../lib/hooks';
-import { rulesName, timeLeftWords } from '../../lib/words';
+import { FIRST_RUN_TITLE, rulesName, SAFETY_PROMISE, START_STEP, timeLeftWords, type StartStepKey } from '../../lib/words';
+import { connectionFacts, gettingStarted, rulesInForce } from '../../lib/firstRun';
+import { StartProgress, StartSteps, type StepAction } from '../../shared/start';
 import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Chip, Group, Hint, Popover, Row, Section, type ChipTone } from '../../shared/ui';
 import { MandateEditor } from './MandateEditor';
@@ -60,6 +62,8 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
   const limits = useQuery('envelope_get', null, { refreshOn: ['settings:changed'] });
   // Subscribe, then fetch: the pending pairing Rust selected for this window (null = none).
   const pairing = useQuery('approval_pairing', null, { refreshOn: ['settings:changed'] });
+  // Who is connected (first run: has the house seller been connected yet?).
+  const connections = useQuery('counterparty_list', null, { refreshOn: ['settings:changed'] });
   const pendingPairing = pairing.data;
   const refetchPairing = pairing.refetch;
   useEffect(() => {
@@ -86,6 +90,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
     if (handoff.target === 'rescue') setReplaying(true);
   }, [handoff, routed, floorSeed]);
   const [info, setInfo] = useState<{ k: InfoKey; el: HTMLElement } | null>(null);
+  const [startError, setStartError] = useState<WalletError | null>(null);
   const st = s.settings;
   const locked = s.settingsLocked || s.lockedByError;
   const list = mandates.data ?? [];
@@ -141,6 +146,29 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
   }
 
   const active = list.filter((m) => isMandateActive(m, now) && !m.refusal);
+  // First run: the same three steps as The Table (lib/firstRun.ts), with the next one in gold.
+  const gs = gettingStarted({
+    firstRun: st ? st.first_run : null, paypal: st ? st.payment_executor_configured : null,
+    rulesInForce: rulesInForce(mandates.data, now), ...connectionFacts(connections.data),
+  });
+  const first = gs.show;
+  const saveKeys = async () => {
+    setStartError(null);
+    const r = await s.call('set_credentials', 'paypal_sandbox', true);
+    if (!r.ok) setStartError(r.error);
+    await s.refreshSettings();
+  };
+  const runStep = (k: StartStepKey) => {
+    if (locked) { void s.unlock(); return; }
+    if (k === 'paypal') void saveKeys();
+    else if (k === 'rules') setEditing({ sel: null });
+  };
+  const stepAction = (k: StartStepKey): StepAction => (k === 'practice' ? null : {
+    label: locked ? 'Unlock first' : k === 'paypal' ? 'Add keys…' : 'Choose rules…',
+    title: locked ? 'Unlock with Windows Hello first' : k === 'paypal' ? 'A secure dialog asks for your sandbox keys and saves them on this computer' : 'Start from a ready-made set of rules, check it, then sign',
+    run: () => runStep(k),
+  });
+  const nextStep = gs.next === 'paypal' || gs.next === 'rules' ? gs.next : null;
   const steps = [!locked, !!st?.payment_executor_configured, !!st?.channel3_configured, active.length > 0];
   const readyCount = steps.filter(Boolean).length;
   // What is still missing, in the order the checklist below shows it.
@@ -153,21 +181,42 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
     <div className="aw ow ow-cfg">
       <Header mode={st?.mode} />
       <main className="aw-body ow-body">
-        <h1 className="sr-only">{st?.first_run ? 'Welcome: set up your wallet' : 'Wallet setup'}</h1>
-        <div className="ow-answer">
+        <h1 className="sr-only">{first ? `Welcome: ${FIRST_RUN_TITLE.toLowerCase()}` : 'Wallet setup'}</h1>
+        {first ? (
+          <>
+            <div className="ow-answer">
+              <AnswerBar tone="need" icon="shield" title={FIRST_RUN_TITLE} sub={SAFETY_PROMISE}
+                // Locked: the lock card below holds the one gold button (Unlock with Windows Hello).
+                actions={nextStep && !locked ? (
+                  <Btn kind="gold" disabled={!s.tokenReady || s.pending !== null} onClick={() => runStep(nextStep)} title={stepAction(nextStep)?.title}>
+                    {s.pending === 'set_credentials' ? 'Dialog open…' : `${START_STEP[nextStep].act}…`}
+                  </Btn>
+                ) : null} />
+            </div>
+            <div className="ow-start">
+              <StartProgress gs={gs} /><span className="dim">· nothing on this page pays anyone</span>
+            </div>
+            <StartSteps gs={gs} action={stepAction} className="ow-steps" busy={s.pending === 'set_credentials' ? 'paypal' : null}
+              elsewhere={{ practice: 'Next, in The Table: Connections › House seller' }} />
+            {startError ? <WalletNotice error={startError} what={`${START_STEP.paypal.title}: not saved`} /> : null}
+          </>
+        ) : null}
+        {first ? null : <div className="ow-answer">
           <AnswerBar
             tone={left.length ? 'need' : 'done'}
             icon={left.length ? 'you' : 'shield'}
             title={left.length ? `${left.length} ${left.length === 1 ? 'thing' : 'things'} left to set up` : 'Your wallet is ready'}
             sub={left.length ? `Still to do: ${left.join(', ')}.${st?.first_run ? ' Agents can’t start until then.' : ''}` : 'Nothing to approve right now.'}
           />
-        </div>
-        <div className="ow-progress" role="img" aria-label={`${readyCount} of ${steps.length} set up`}>
-          {steps.map((ok, n) => <i key={n} className={ok ? 'on' : ''} />)}
-          <span>{readyCount} of {steps.length} set up · nothing on this page pays anyone</span>
-        </div>
+        </div>}
+        {first ? null : (
+          <div className="ow-progress" role="img" aria-label={`${readyCount} of ${steps.length} set up`}>
+            {steps.map((ok, n) => <i key={n} className={ok ? 'on' : ''} />)}
+            <span>{readyCount} of {steps.length} set up · nothing on this page pays anyone</span>
+          </div>
+        )}
         {hint ? <Hint>{hint}</Hint> : null}
-        {handoff?.target === 'credentials' || handoff?.target === 'unlock' ? <Hint>The Table opened this window to {TARGET_TEXT[handoff.target]}.</Hint> : null}
+        {(handoff?.target === 'credentials' && !first) || handoff?.target === 'unlock' ? <Hint>The Table opened this window to {TARGET_TEXT[handoff.target]}.</Hint> : null}
         {s.settingsError ? <WalletNotice error={s.settingsError} what="Settings can’t be read" /> : null}
         {!s.tokenReady && s.tokenError ? <WalletNotice error={s.tokenError} what="This window can’t approve right now" /> : null}
 
@@ -176,8 +225,9 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
             <Row title="Unlock" sub={locked ? 'Changes here ask for Windows Hello' : 'Locks again after 15 quiet minutes'} need={locked}>
               {locked ? <Chip tone="gold">locked</Chip> : <Chip tone="ok">unlocked</Chip>}
             </Row>
-            <Credential kind="paypal_sandbox" name="PayPal connection" what="your PayPal sandbox app keys" stored={!!st?.payment_executor_configured} locked={locked} />
-            <Credential kind="channel3" name="Market prices" what="the key for comparing prices" stored={!!st?.channel3_configured} locked={locked} />
+            {/* on first run the PayPal keys are step 1 above; the price key is optional, so never gold then */}
+            {first ? null : <Credential kind="paypal_sandbox" name="PayPal connection" what="your PayPal sandbox app keys" stored={!!st?.payment_executor_configured} locked={locked} />}
+            <Credential kind="channel3" name="Market prices" what={first ? 'optional · the key for comparing prices' : 'the key for comparing prices'} stored={!!st?.channel3_configured} locked={locked} gold={!first} />
             <Row title="Agent app" sub={st ? `${ENGINE_NAME[st.selected_engine]}${st.agents_paused ? ' · all agents paused' : ''} · change it in The Table` : 'Reading settings…'}>
               <Chip tone={st?.agents_paused ? 'gold' : 'line'}>{st?.agents_paused ? 'paused' : 'in use'}</Chip>
               {i('engine')}
@@ -190,7 +240,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
           {locked ? <LockCard compact /> : null}
         </Section>
 
-        <Section title="Agent rules" end={<>{i('mandates')}<Btn kind={active.length ? 'default' : 'gold'} sm onClick={() => setEditing({ sel: null })}>{active.length ? 'New rules…' : 'Sign your first rules…'}</Btn></>}>
+        <Section title="Agent rules" end={<>{i('mandates')}<Btn kind={active.length || first ? 'default' : 'gold'} sm onClick={() => setEditing({ sel: null })}>{active.length ? 'New rules…' : 'Sign your first rules…'}</Btn></>}>
           {mandates.error ? <WalletNotice error={mandates.error} what="Agent rules" /> : null}
           <Group empty={mandates.loading ? 'Reading your rules…' : 'No rules signed yet, so agents can’t do anything.'}>
             {list.map((m) => <MandateRow key={`${m.payload.id}:${m.payload.version}`} m={m} now={now} onOpen={() => setEditing({ sel: m.payload.id })} />)}
@@ -255,7 +305,7 @@ function MandateRow({ m, now, onOpen }: { m: MandateListEntry; now: number; onOp
   );
 }
 
-function Credential({ kind, name, what, stored, locked }: { kind: CredentialArgs; name: string; what: string; stored: boolean; locked: boolean }) {
+function Credential({ kind, name, what, stored, locked, gold = true }: { kind: CredentialArgs; name: string; what: string; stored: boolean; locked: boolean; /** Gold while missing (off when it is optional). */ gold?: boolean }) {
   const s = useSession();
   const [error, setError] = useState<WalletError | null>(null);
   const [done, setDone] = useState(false);
@@ -270,10 +320,10 @@ function Credential({ kind, name, what, stored, locked }: { kind: CredentialArgs
   };
   return (
     <>
-      <Row title={name} sub={done ? 'Saved securely on this computer' : stored ? `${what} · saved securely on this computer` : `${what} · not saved yet`} need={!stored}>
-        <Chip tone={stored ? 'ok' : 'gold'}>{stored ? 'connected' : 'needed'}</Chip>
+      <Row title={name} sub={done ? 'Saved securely on this computer' : stored ? `${what} · saved securely on this computer` : `${what} · not saved yet`} need={!stored && gold}>
+        <Chip tone={stored ? 'ok' : gold ? 'gold' : 'line'}>{stored ? 'connected' : gold ? 'needed' : 'not set'}</Chip>
         <Btn kind="plain" sm icon aria-label={`About ${name}`} aria-haspopup="dialog" onClick={(e) => { const el = e.currentTarget; setA((x) => (x ? null : el)); }}>ⓘ</Btn>
-        <Btn sm kind={stored ? 'default' : 'gold'} locked={locked} disabled={locked || !s.tokenReady || s.pending !== null} onClick={() => void run()}>
+        <Btn sm kind={stored || !gold ? 'default' : 'gold'} locked={locked} disabled={locked || !s.tokenReady || s.pending !== null} onClick={() => void run()}>
           {s.pending === 'set_credentials' ? 'Dialog open…' : stored ? 'Replace…' : 'Add…'}
         </Btn>
       </Row>
