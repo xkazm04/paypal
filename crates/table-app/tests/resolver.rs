@@ -772,8 +772,11 @@ async fn an_expired_owner_ticket_parks_and_never_resends() {
         Some(DecidedBy::Human { at: 100 })
     ));
     c.one_request_id_per_operation();
+}
 
-    // An owner's void that was lost waits for the owner too; the deadline sends no second void.
+/// Starts an owner void (a fresh decision in the approval window at t=100) whose request is lost
+/// `losses` times before PayPal sees it.
+async fn lost_owner_void(losses: usize) -> Case {
     let mut c = Case::new();
     c.before("void").await;
     let token = c.p.approval.token("approval").unwrap().to_owned();
@@ -785,13 +788,57 @@ async fn an_expired_owner_ticket_parks_and_never_resends() {
         c.p.approval
             .ticket("approval", &token, c.id, hash, 1, 100)
             .unwrap();
-    c.world.world().lose.push("void");
+    c.world.world().lose.extend(vec!["void"; losses]);
     assert!(c.p.owner_void(c.id, 1, ticket, 100).await.is_err());
-    c.p.tick(130).await.unwrap();
-    c.p.tick(VOID_AT).await.unwrap();
-    assert_eq!(c.world.world().posts("void"), 1);
     assert_eq!(c.state(), DealState::Authorized);
-    assert_eq!(c.check().unwrap().state, MoneyCheckState::Parked);
+    assert_eq!(c.world.world().authorization, Some("CREATED"));
+    c
+}
+
+/// A lost owner void: PayPal still shows the hold, so the resolver sends the same void again under
+/// its own request id with no ticket (a void is the safe direction), and it settles VOIDED under
+/// the owner's recorded decision. Before, it parked as needing the owner forever, money held.
+#[tokio::test]
+async fn a_lost_owner_void_is_resent_under_its_own_id_and_settles() {
+    let mut c = lost_owner_void(1).await;
+    // The scheduler holds no ticket and the owner's has expired.
+    assert_eq!(
+        c.p.resolve(c.id, None, 130).await.unwrap(),
+        Some(Resolution::Resent { confirmed: true })
+    );
+    assert_eq!(c.state(), DealState::Voided);
+    {
+        let w = c.world.world();
+        assert_eq!(w.authorization, Some("VOIDED"));
+        assert_eq!((w.posts("void"), w.writes("void")), (2, 1));
+        assert_eq!(w.posts("capture"), 0);
+    }
+    assert!(matches!(
+        c.deal().decided_by,
+        Some(DecidedBy::Human { at: 100 })
+    ));
+    assert!(!c.p.has_open_operation(c.id).unwrap());
+    c.one_request_id_per_operation();
+    c.p.tick(VOID_AT).await.unwrap();
+    assert_eq!(
+        c.world.world().posts("void"),
+        2,
+        "nothing left for the deadline"
+    );
+
+    // Lost twice: the first tick's re-send is lost too, and the deadline's check sends the same
+    // void once more. Never a capture, never a second id.
+    let mut c = lost_owner_void(2).await;
+    c.p.tick(130).await.unwrap();
+    assert_eq!(c.state(), DealState::Authorized);
+    c.p.tick(VOID_AT).await.unwrap();
+    assert_eq!(c.state(), DealState::Voided);
+    {
+        let w = c.world.world();
+        assert_eq!((w.posts("void"), w.writes("void")), (3, 1));
+        assert_eq!(w.posts("capture"), 0);
+    }
+    c.one_request_id_per_operation();
 }
 
 #[tokio::test]

@@ -154,22 +154,19 @@ impl Wallet {
         let m = self
             .ledger
             .active_mandate(deal.mandate_id, deal.mandate_version, &self.owner)?;
-        let payees = m
-            .payload
-            .clauses
-            .iter()
-            .find_map(|c| {
-                if let Clause::Payees { payees } = c {
-                    Some(payees)
-                } else {
-                    None
-                }
-            })
-            .ok_or(Error::Invalid)?;
-        let [payee] = payees.as_slice() else {
-            return Err(Error::Invalid);
-        };
-        Ok(payee.clone())
+        sole_payee(&m)
+    }
+    /// The payee the deal settles to, from its signed mandate as recorded, even when that mandate
+    /// was revoked since. Only to check that an order PayPal shows is the deal's own (a read-back
+    /// observation): it grants nothing, and every send takes `settlement_payee`.
+    pub(crate) fn recorded_payee(&self, deal: &Deal) -> Result<PayeeRef, Error> {
+        if deal.side == Side::Buyer {
+            return self.settlement_payee(deal);
+        }
+        let m = self
+            .ledger
+            .mandate_evidence(deal.mandate_id, deal.mandate_version, &self.owner)?;
+        sole_payee(&m)
     }
     pub fn accept(
         &mut self,
@@ -631,4 +628,24 @@ impl AgentService for Wallet {
             }
         }
     }
+}
+
+/// The one payee a seller mandate's Payees clause names.
+fn sole_payee(m: &OpenMandate) -> Result<PayeeRef, Error> {
+    let payees = m
+        .payload
+        .clauses
+        .iter()
+        .find_map(|c| {
+            if let Clause::Payees { payees } = c {
+                Some(payees)
+            } else {
+                None
+            }
+        })
+        .ok_or(Error::Invalid)?;
+    let [payee] = payees.as_slice() else {
+        return Err(Error::Invalid);
+    };
+    Ok(payee.clone())
 }
