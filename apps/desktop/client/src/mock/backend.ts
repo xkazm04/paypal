@@ -1055,6 +1055,11 @@ export function mockBackend(label: WindowLabel): MockBackend {
       d.attention = null;
       const audit = state.audit ?? [];
       state.audit = [...audit, { seq: audit.length + 1, at: now, actor: 'policy', action: 'deal.transition', deal_id: d.deal.id, decided_by: d.deal.decided_by ?? null, from, to }];
+      // The Rewind and "Who decided" read the same step Rust's deal_history would project.
+      const history = state.history ?? buildMockState(nowUnix()).history ?? [];
+      const kind = to === 'AUTO_VOIDED' ? 'auto_voided' : to === 'WITHDRAWN' ? 'lapsed' : 'expired';
+      const paypal = to === 'AUTO_VOIDED' ? { type: 'call' as const, method: 'void' as const, outcome: 'ok' as const } : { type: 'none' as const };
+      state.history = [...history, { at: now, deal_id: d.deal.id, seq: history.reduce((m, h) => Math.max(m, h.seq), 0) + 1, kind, state_after: to, authority: { type: 'safe_default' }, paypal }];
       lapsed.push(d);
     }
     if (lapsed.length) save();

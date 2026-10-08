@@ -213,7 +213,7 @@ export function decidedBy(d: Pick<Deal, 'decided_by'>): DecidedFact {
     case 'policy': return { who: 'policy', text: `your rule · ${ruleNameOf(v.clause).toLowerCase()}`, why: `A rule you signed decided it without asking you: “${ruleNameOf(v.clause)}” (rule ${v.clause}).` };
     case 'seller_mandate': return { who: 'policy', text: 'your shop rules', why: 'Your signed shop rules collected it after the buyer approved on PayPal.' };
     case 'house_mandate': return { who: 'policy', text: 'house seller rules', why: 'The house seller’s fixed rules decided it.' };
-    case 'safe_default': return { who: 'default', text: 'deadline passed', why: 'Nobody acted before the deadline, so the safe default applied. It never pays.' };
+    case 'safe_default': return { who: 'default', text: 'the deadline', why: 'Nobody acted before the deadline, so the safe default applied. It never pays.' };
   }
 }
 

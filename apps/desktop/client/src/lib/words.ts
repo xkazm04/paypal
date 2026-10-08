@@ -234,7 +234,7 @@ const HEADLINE_VERBS: readonly (readonly [RegExp, string])[] = [
 /** "Countersign $329.00" → "Approve $329.00"; "Mismatch · SETTLE $339 ≠ deal $329" → plain words. */
 export function headlineWords(h: string): string {
   const mm = /^Mismatch · SETTLE (\S+) ≠ deal (\S+)/.exec(h);
-  if (mm) return `Amount didn’t match: asked ${mm[1]}, agreed ${mm[2]}`;
+  if (mm) return `Asked ${mm[1]}, not the agreed ${mm[2]}`;
   for (const [re, to] of HEADLINE_VERBS) if (re.test(h)) return h.replace(re, to);
   return h;
 }
@@ -242,7 +242,7 @@ export function headlineWords(h: string): string {
 const SILENCE_EXACT: Readonly<Record<string, string>> = {
   'authorization auto-voids at the deadline; no capture': 'the hold releases itself at the deadline, nothing is paid',
   'the offer or order lapses at the deadline; no money moves': 'the offer lapses at the deadline, no money moves',
-  'Deadline or safe decision completed; no capture was made': 'the deadline passed, nothing was paid',
+  'Deadline or safe decision completed; no capture was made': 'deadline passed, nothing paid',
 };
 /** The core's default-on-silence sentence, in plain words where it is a known phrase. */
 export const silenceWords = (s: string): string => SILENCE_EXACT[s] ?? s.replace(/\bauto-void\b/g, 'auto-release');

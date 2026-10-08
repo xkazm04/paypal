@@ -9,6 +9,7 @@ import { MODULE, MODULES } from '../../shared/modules';
 import { layerCount, useLayerCount } from '../../shared/ui/layers';
 import { DealView } from './DealView';
 import { Home } from './Home';
+import { shortTitle } from './home/model';
 import { formatHash, parseHash, resolveDealRef, stateLabel, type Route, type SheetTab } from './logic';
 import { ModuleView } from './Modules';
 import { Palette } from './Palette';
@@ -115,7 +116,9 @@ function Main() {
   useEvent('tumbler:status', (s) => setTumbler(s));
   useEvent('wallet:error', (e) => toast(<>{e.message}</>, 'bad'));
   useEvent('receipt:created', (r) => {
-    const label = w.labels.get(r.deal_id) ?? r.deal_id.slice(0, 6);
+    // Name the deal by what it is (ids belong in Details, UX-GUIDE).
+    const deal = w.deals.data?.find((d) => d.id === r.deal_id);
+    const label = deal ? shortTitle(w.display(deal).title) : 'A deal';
     toast(<>{label} · <b>{stateLabel(r.state)}</b> · {silenceWords(r.on_silence)}</>, r.state === 'CAPTURED' || r.state === 'RECEIPTED' ? 'ok' : 'info');
   });
 
