@@ -3,10 +3,12 @@
 pub mod forecast;
 pub mod placement;
 pub mod quit;
+pub mod schedule;
 pub mod silence;
 pub use forecast::*;
 pub use placement::*;
 pub use quit::{QuitEffect, QuitLine, QuitLines, QuitSource, quit_lines, quit_message};
+pub use schedule::{LADDER, LadderSchedule};
 pub use silence::word_silence;
 
 use serde::{Deserialize, Serialize};
@@ -235,7 +237,7 @@ impl AttentionSource {
             if self.state != DealState::Authorized && allows(DealEvent::Deadline) {
                 actions.push(TumblerAction::LetLapse);
             }
-            if self.deadline.is_some_and(|d| d.saturating_sub(now) > 2700) {
+            if LADDER.snooze_allowed(self.deadline, now) {
                 actions.push(TumblerAction::Snooze30);
             }
         } else if kind == AttnKind::Hold
@@ -288,8 +290,8 @@ impl AttentionSource {
 }
 pub fn urgency(deadline: Option<Timestamp>, now: Timestamp) -> Urgency {
     match deadline.map(|d| d.saturating_sub(now)) {
-        Some(left) if left <= 900 => Urgency::Now,
-        Some(left) if left <= 7200 => Urgency::Soon,
+        Some(left) if left <= LADDER.notify_secs => Urgency::Now,
+        Some(left) if left <= LADDER.breathe_secs => Urgency::Soon,
         _ => Urgency::Calm,
     }
 }
@@ -299,14 +301,11 @@ pub fn quiet_opacity_percent(
     last_interaction: Timestamp,
     now: Timestamp,
 ) -> u8 {
-    let imminent = items.iter().any(|item| {
-        item.kind == AttnKind::Gate
-            && item
-                .deadline
-                .is_some_and(|deadline| deadline > now && deadline.saturating_sub(now) <= 7200)
-    });
-    if now.saturating_sub(last_interaction) >= 45 && !imminent {
-        55
+    let imminent = items
+        .iter()
+        .any(|item| item.kind == AttnKind::Gate && LADDER.breathes(item.deadline, now));
+    if now.saturating_sub(last_interaction) >= LADDER.quiet_after_secs && !imminent {
+        LADDER.quiet_opacity_percent
     } else {
         100
     }
@@ -347,12 +346,16 @@ pub fn snapshot(
 #[derive(Debug, Default)]
 pub struct AttentionLadder {
     notified: HashSet<(DealId, Option<Timestamp>)>,
+    suppressed: HashSet<(DealId, Option<Timestamp>)>,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LadderEffects {
     pub show_without_activation: bool,
     pub breathe: bool,
     pub notify: bool,
+    /// The notification was due but Do Not Disturb (or the system's quiet) held it back: once
+    /// per card and deadline, so the wallet can record that the owner was not told.
+    pub suppressed: bool,
     pub tray_dot: bool,
 }
 impl AttentionLadder {
@@ -362,6 +365,7 @@ impl AttentionLadder {
     pub fn forget_absent(&mut self, items: &[AttentionItem]) {
         let live: HashSet<_> = items.iter().map(|i| (i.deal_id, i.deadline)).collect();
         self.notified.retain(|key| live.contains(key));
+        self.suppressed.retain(|key| live.contains(key));
     }
     /// Take back a rung whose toast could not be shown, so a later tick inside the same rung
     /// can try again.
@@ -376,14 +380,15 @@ impl AttentionLadder {
         reduced_motion: bool,
     ) -> LadderEffects {
         let gate = item.kind == AttnKind::Gate;
-        let live = item.deadline.is_none_or(|at| at > now);
-        let urgency = urgency(item.deadline, now);
-        let urgent = gate && live && urgency == Urgency::Now;
-        let notify = urgent && !dnd && self.notified.insert((item.deal_id, item.deadline));
+        let urgent = gate && LADDER.notify_due(item.deadline, now);
+        let key = (item.deal_id, item.deadline);
+        let notify = urgent && !dnd && self.notified.insert(key);
+        let suppressed = urgent && dnd && self.suppressed.insert(key);
         LadderEffects {
             show_without_activation: gate || item.kind == AttnKind::Hold,
-            breathe: gate && live && urgency != Urgency::Calm && !dnd && !reduced_motion,
+            breathe: gate && LADDER.breathes(item.deadline, now) && !dnd && !reduced_motion,
             notify,
+            suppressed,
             tray_dot: matches!(item.kind, AttnKind::Gate | AttnKind::Hold),
         }
     }
@@ -577,6 +582,56 @@ mod tests {
         assert!(!ladder.evaluate(&item, 0, false, true).breathe);
         assert!(!ladder.evaluate(&item, 0, true, false).breathe);
         assert!(ladder.evaluate(&item, 0, false, false).breathe);
+    }
+    #[test]
+    fn dnd_records_one_suppression_per_card_and_deadline_and_never_notifies() {
+        let item = source(1, 840).item(0);
+        let mut ladder = AttentionLadder::default();
+        let fx = ladder.evaluate(&item, 0, true, false);
+        assert!(fx.suppressed && !fx.notify);
+        assert!(!ladder.evaluate(&item, 1, true, false).suppressed);
+        // Not yet due: nothing to suppress.
+        let calm = source(2, 2000).item(0);
+        assert!(!ladder.evaluate(&calm, 0, true, false).suppressed);
+        // Do Not Disturb turned off before the deadline: the notification is still shown once.
+        assert!(ladder.evaluate(&item, 2, false, false).notify);
+        ladder.forget_absent(&[]);
+        assert!(ladder.suppressed.is_empty() && ladder.notified.is_empty());
+    }
+    #[test]
+    fn urgency_ladder_and_quiet_rule_agree_with_the_one_schedule_at_every_boundary() {
+        let l = LADDER;
+        for left in [
+            l.breathe_secs + 1,
+            l.breathe_secs,
+            l.snooze_min_left_secs + 1,
+            l.snooze_min_left_secs,
+            l.notify_secs + 1,
+            l.notify_secs,
+            1,
+        ] {
+            let item = source(1, left).item(0);
+            let mut ladder = AttentionLadder::default();
+            let fx = ladder.evaluate(&item, 0, false, false);
+            assert_eq!(fx.breathe, l.breathes(Some(left), 0), "{left}");
+            assert_eq!(fx.notify, l.notify_due(Some(left), 0), "{left}");
+            assert_eq!(
+                urgency(Some(left), 0) != Urgency::Calm,
+                l.breathes(Some(left), 0)
+            );
+            assert_eq!(
+                item.actions.contains(&TumblerAction::Snooze30),
+                l.snooze_allowed(Some(left), 0)
+            );
+            assert_eq!(
+                quiet_opacity_percent(std::slice::from_ref(&item), 0, l.quiet_after_secs),
+                if l.breathes(Some(left), l.quiet_after_secs) {
+                    100
+                } else {
+                    l.quiet_opacity_percent
+                }
+            );
+        }
     }
     #[test]
     fn quiet_after_45_seconds_except_imminent_gates() {

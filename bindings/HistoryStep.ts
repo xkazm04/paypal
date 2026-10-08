@@ -4,6 +4,7 @@ import type { DealState } from "./DealState";
 import type { HistoryAuthority } from "./HistoryAuthority";
 import type { HistoryKind } from "./HistoryKind";
 import type { HistoryPaypal } from "./HistoryPaypal";
+import type { RungMark } from "./RungMark";
 
 /**
  * One step of a deal, projected from a verified audit row (and the PayPal calls it recorded).
@@ -13,4 +14,10 @@ export type HistoryStep = { at: number, deal_id: DealId,
 /**
  * The audit row this step stands for (the money step's own row when rows were folded).
  */
-seq: number, kind: HistoryKind, state_after: DealState | null, authority: HistoryAuthority, paypal: HistoryPaypal, };
+seq: number, kind: HistoryKind, state_after: DealState | null, authority: HistoryAuthority, paypal: HistoryPaypal, 
+/**
+ * On a safe default that cites them (attention-ladder-1): the rungs of the attention ladder
+ * the owner was offered for that deadline before it, oldest first; empty when the card was
+ * never shown. Absent on every other step, and on a default recorded before rungs were.
+ */
+rungs?: Array<RungMark> | null, };

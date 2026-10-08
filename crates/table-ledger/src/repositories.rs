@@ -243,6 +243,10 @@ fn apply_decided(
             params![json_text(decided)?, id.to_string()],
         )?;
         detail["decided_by"] = serde_json::to_value(decided)?;
+        // A safe default cites what the owner was shown before it (attention-ladder-1).
+        if matches!(decided, DecidedBy::SafeDefault { .. }) {
+            crate::attention::cite_rungs(conn, id, &mut detail);
+        }
     }
     audit::append(
         conn,
@@ -909,6 +913,12 @@ impl Ledger {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         tx.execute("INSERT INTO operations(deal_id,attempt,operation,request_id,decided_by,status,started_at) VALUES (?1,?2,?3,?4,?5,'pending',?6)",params![id.to_string(),attempt,operation,request_id,json_text(authority)?,at])?;
+        let mut detail =
+            json!({"operation":operation,"request_id":request_id,"decided_by":authority});
+        // An auto-void cites what the owner was shown before it (attention-ladder-1).
+        if matches!(authority, table_core::DecidedBy::SafeDefault { .. }) {
+            crate::attention::cite_rungs(&tx, id, &mut detail);
+        }
         audit::append(
             &tx,
             &AuditEntry {
@@ -916,7 +926,7 @@ impl Ledger {
                 actor: "pipeline".into(),
                 action: "money.authorized".into(),
                 deal_id: Some(id),
-                detail: json!({"operation":operation,"request_id":request_id,"decided_by":authority}),
+                detail,
             },
         )?;
         tx.commit()?;

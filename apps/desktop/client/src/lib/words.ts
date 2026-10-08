@@ -9,6 +9,7 @@ import type { Mode } from '@bindings/Mode';
 import type { Playbook } from '@bindings/Playbook';
 import type { MoneyCheck } from '@bindings/MoneyCheck';
 import type { MoneyCheckStep } from '@bindings/MoneyCheckStep';
+import type { NotifySuppression } from '@bindings/NotifySuppression';
 import type { ReceiptEvidence } from '@bindings/ReceiptEvidence';
 import type { Reconciliation } from '@bindings/Reconciliation';
 import type { Role } from '@bindings/Role';
@@ -556,3 +557,17 @@ export const INSTRUCTIONS_TITLE = 'What your agent app is told';
 export const INSTRUCTIONS_LEAD = 'Your agent app starts from these instructions, word for word. They cannot widen your rules: your wallet checks every step against what you signed, and nothing the other side writes ever reaches the agent.';
 /** A practice-agent run reads no written instructions: it follows fixed price rules. */
 export const INSTRUCTIONS_NONE = 'None: fixed price rules inside your range';
+
+// ---- what you were shown before a deadline (the attention ladder's record) ----------------------
+
+/** The strip's name on a deal that ended at its deadline. */
+export const SHOWN_TITLE = 'What you were shown';
+/** Why the one reminder before a deadline did not appear, after "not notified: ". */
+export const NOT_NOTIFIED_BECAUSE: Record<NotifySuppression, string> = {
+  do_not_disturb: 'Do Not Disturb was on',
+  notifications_off: 'notifications were off',
+  system_quiet: 'your computer was in a quiet mode',
+  not_shown: 'the notification couldn’t be shown',
+};
+/** A card left alone that never reached the screen before its deadline. */
+export const NEVER_SHOWN = 'not shown to you before the deadline';

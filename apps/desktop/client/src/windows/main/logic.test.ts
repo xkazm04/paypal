@@ -36,7 +36,7 @@ describe('module mapping', () => {
   });
   it('places the sample week as the design report does', () => {
     const count = (m: string) => deals.filter((d) => moduleOf(d) === m).length;
-    expect([count('tables'), count('spend'), count('counter'), count('book'), count('shield'), count('rescue')]).toEqual([5, 6, 4, 0, 3, 3]); // D-0204 the house seller's table in the shop-around group; D-0199 MISMATCH carries a shield HOLD; Q-0207 quote; D-0194 checking with PayPal; D-0182/D-0178 rescues; D-0181 the safe-default release
+    expect([count('tables'), count('spend'), count('counter'), count('book'), count('shield'), count('rescue')]).toEqual([6, 6, 4, 0, 3, 3]); // D-0184 lapsed at its approval (attention-ladder-1); D-0204 the house seller's table in the shop-around group; D-0199 MISMATCH carries a shield HOLD; Q-0207 quote; D-0194 checking with PayPal; D-0182/D-0178 rescues; D-0181 the safe-default release
   });
 });
 

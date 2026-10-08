@@ -997,6 +997,9 @@ async fn owner_facts_and_audit_pages_are_read_only_closed_and_label_scoped() {
     clock.0.fetch_add(840, Ordering::SeqCst);
     assert!(r.owner_facts().unwrap().locked);
 
+    // The actor's attention read records the rungs the owner is shown (attention-ladder-1); the
+    // clock stands still, so one read records them all before the count.
+    r.attention().unwrap();
     let total = r.pipeline.wallet.ledger.audit_count().unwrap();
     let (actor, _) = spawn(r);
     for label in ["tumbler", "approval"] {
@@ -1078,7 +1081,10 @@ async fn owner_facts_and_audit_pages_are_read_only_closed_and_label_scoped() {
 
 #[tokio::test]
 async fn owner_book_query_is_closed_main_only_and_rejections_are_verbatim_invalid() {
-    let (r, deal, _, http, _) = negotiating();
+    let (mut r, deal, _, http, _) = negotiating();
+    // The actor's attention read records the rungs the owner is shown (attention-ladder-1); the
+    // clock stands still, so one read records them all before the count.
+    r.attention().unwrap();
     let audit_before = r.pipeline.wallet.ledger.audit_count().unwrap();
     let amount = r
         .pipeline

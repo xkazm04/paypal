@@ -6,7 +6,7 @@
 use crate::{Runtime, app, invalid};
 use std::collections::BTreeMap;
 use table_client::*;
-use table_core::{DealId, DealState, DecidedBy, Timestamp};
+use table_core::{DealId, DealState, DecidedBy, RungMark, Timestamp};
 use table_ledger::AuditRecord;
 
 /// Steps returned at most; older steps in the window are left out and `truncated` is set.
@@ -160,6 +160,9 @@ enum Row {
         confirmed: bool,
     },
     PaypalRead(PaypalMethod, PaypalOutcome),
+    /// A rung of the attention ladder for one deadline (attention-ladder-1). Not a step: it rides
+    /// on the safe default that cites it, so the lapse can say what the owner was shown.
+    Rung(Timestamp, RungMark),
 }
 fn operation(record: &AuditRecord) -> Option<PaypalMethod> {
     match record.detail.get("operation")?.as_str()? {
@@ -286,6 +289,21 @@ fn classify(record: &AuditRecord) -> Row {
         "rescue.opened" => Row::Step(K::RenewalFailed, A::None),
         // PayPal shows the rescue invoice paid; the subscriber paid it on PayPal's page.
         "rescue.paid" => Row::Step(K::InvoicePaid, A::None),
+        table_ledger::RUNG_ACTION => match (
+            typed::<Timestamp>(record, "deadline"),
+            typed(record, "rung"),
+            typed(record, "reason"),
+        ) {
+            (Some(deadline), Some(rung), reason) => Row::Rung(
+                deadline,
+                RungMark {
+                    rung,
+                    at: record.at,
+                    reason,
+                },
+            ),
+            _ => Row::Skip,
+        },
         _ => other,
     }
 }
@@ -295,6 +313,21 @@ struct Open {
     method: PaypalMethod,
     authority: HistoryAuthority,
     state_after: Option<DealState>,
+    rungs: Option<Vec<RungMark>>,
+}
+/// The rungs a safe default's row cites by its `rung_deadline` (absent on every other row and on
+/// defaults recorded before rungs were). The rows before it carry the marks themselves.
+fn cited(
+    record: &AuditRecord,
+    authority: Option<HistoryAuthority>,
+    deal: DealId,
+    rungs: &BTreeMap<(DealId, Timestamp), Vec<RungMark>>,
+) -> Option<Vec<RungMark>> {
+    if authority != Some(HistoryAuthority::SafeDefault) {
+        return None;
+    }
+    let deadline = typed::<Timestamp>(record, "rung_deadline")?;
+    Some(rungs.get(&(deal, deadline)).cloned().unwrap_or_default())
 }
 fn money_kind(method: PaypalMethod, authority: HistoryAuthority) -> HistoryKind {
     match method {
@@ -324,6 +357,7 @@ pub(crate) fn project(
     let mut open: BTreeMap<DealId, Open> = BTreeMap::new();
     let mut read: BTreeMap<DealId, (Timestamp, PaypalMethod, PaypalOutcome)> = BTreeMap::new();
     let mut last: BTreeMap<DealId, usize> = BTreeMap::new();
+    let mut rungs: BTreeMap<(DealId, Timestamp), Vec<RungMark>> = BTreeMap::new();
     for record in rows {
         let Some(deal_id) = record.deal_id else {
             continue;
@@ -348,9 +382,11 @@ pub(crate) fn project(
             state_after,
             authority,
             paypal,
+            rungs: None,
         };
         match classify(record) {
             Row::Skip => {}
+            Row::Rung(deadline, mark) => rungs.entry((deal_id, deadline)).or_default().push(mark),
             Row::Step(kind, authority) => {
                 if let Some(p) = previous.and_then(|i| steps.get_mut(i)) {
                     // The owner's accept is sent as the agent's signed ACCEPT; the same fact
@@ -395,15 +431,14 @@ pub(crate) fn project(
                     Some((_, method, outcome)) => HistoryPaypal::Call { method, outcome },
                     None => HistoryPaypal::None,
                 };
-                push(
-                    &mut steps,
-                    step(
-                        state_kind(to, authority),
-                        authority.unwrap_or(HistoryAuthority::None),
-                        Some(to),
-                        paypal,
-                    ),
+                let mut made = step(
+                    state_kind(to, authority),
+                    authority.unwrap_or(HistoryAuthority::None),
+                    Some(to),
+                    paypal,
                 );
+                made.rungs = cited(record, authority, deal_id, &rungs);
+                push(&mut steps, made);
             }
             Row::MoneyOpen(method, authority) => {
                 open.insert(
@@ -414,6 +449,7 @@ pub(crate) fn project(
                         method,
                         authority,
                         state_after: None,
+                        rungs: cited(record, Some(authority), deal_id, &rungs),
                     },
                 );
             }
@@ -422,7 +458,9 @@ pub(crate) fn project(
                 authority,
                 confirmed,
             } => {
-                let state_after = open.remove(&deal_id).and_then(|o| o.state_after);
+                let opened = open.remove(&deal_id);
+                let cites = opened.as_ref().and_then(|o| o.rungs.clone());
+                let state_after = opened.and_then(|o| o.state_after);
                 let outcome = if confirmed {
                     PaypalOutcome::Ok
                 } else {
@@ -432,15 +470,14 @@ pub(crate) fn project(
                         .filter(|o| *o == PaypalOutcome::Failed)
                         .fold(PaypalOutcome::Unknown, worse)
                 };
-                push(
-                    &mut steps,
-                    step(
-                        money_kind(method, authority),
-                        authority,
-                        state_after,
-                        HistoryPaypal::Call { method, outcome },
-                    ),
+                let mut made = step(
+                    money_kind(method, authority),
+                    authority,
+                    state_after,
+                    HistoryPaypal::Call { method, outcome },
                 );
+                made.rungs = cites;
+                push(&mut steps, made);
             }
             Row::PaypalRead(method, result) => {
                 // A reporting check's own calls belong to it; an order read informs the
@@ -482,6 +519,7 @@ pub(crate) fn project(
                 method: op.method,
                 outcome: PaypalOutcome::Unknown,
             },
+            rungs: op.rungs,
         });
     }
     steps.sort_by_key(|s| s.seq);
@@ -540,6 +578,7 @@ mod tests {
             include_str!("groups.rs"),
             include_str!("../../table-ledger/src/shield.rs"),
             include_str!("../../table-ledger/src/rescue_watch.rs"),
+            include_str!("../../table-ledger/src/attention.rs"),
         ];
         let mut found = std::collections::BTreeSet::new();
         for source in sources {
@@ -906,6 +945,19 @@ mod tests {
                 json!({"layer":"wallet","tool":"propose_purchase","code":{"code":"wallet_limit","limit":"held"},"clause":0,"reason":"wallet limit max_held"}),
                 step(K::IntentRefused, A::SignedRule { clause: None }),
             ),
+            // A rung of the attention ladder (attention-ladder-1) is no step: it rides on the safe
+            // default that cites it, so the lapse can say what the owner was shown.
+            (
+                "attention.rung",
+                json!({"deadline":200,"rung":"shown"}),
+                None,
+            ),
+            (
+                "attention.rung",
+                json!({"deadline":200,"rung":"notify_suppressed","reason":"do_not_disturb"}),
+                None,
+            ),
+            ("attention.rung", json!({"rung":"not_a_rung"}), None),
         ];
         for (action, detail, expected) in &table {
             assert_eq!(one(action, detail.clone()), *expected, "{action} {detail}");
@@ -919,6 +971,102 @@ mod tests {
                 "audit action {action} has no classification row"
             );
         }
+    }
+
+    #[test]
+    fn a_safe_default_carries_the_rungs_it_cites_and_no_other_step_does() {
+        use table_core::{LadderRung as R, NotifySuppression};
+        let lapse = json!({"type":"safe_default","deadline":500});
+        let rung = |seq, at, deadline, name: &str| {
+            row(
+                seq,
+                at,
+                "attention.rung",
+                json!({"deadline":deadline,"rung":name}),
+            )
+        };
+        let rows = [
+            row(1, 100, "deal.created", json!({"kind":"haggle"})),
+            // A rung for an earlier deadline is not cited by this one's default.
+            rung(2, 110, 300, "shown"),
+            rung(3, 320, 500, "shown"),
+            rung(4, 400, 500, "breathing"),
+            row(
+                5,
+                420,
+                "attention.rung",
+                json!({"deadline":500,"rung":"notify_suppressed","reason":"do_not_disturb"}),
+            ),
+            rung(6, 430, 500, "card_opened"),
+            row(
+                7,
+                500,
+                "deal.transition",
+                json!({"from":"AGREED","to":"WITHDRAWN","decided_by":lapse,"rung_deadline":500,"rung_count":4,"last_rung":"card_opened","rung_chain_hash":H256::ZERO}),
+            ),
+        ];
+        let steps = project(&rows, |_, _| Vec::new());
+        assert_eq!(steps.len(), 2, "rungs are no steps: {steps:?}");
+        assert_eq!(steps[0].rungs, None);
+        let marks = steps[1].rungs.clone().unwrap();
+        assert_eq!(steps[1].kind, HistoryKind::Lapsed);
+        assert_eq!(
+            marks.iter().map(|m| (m.rung, m.at)).collect::<Vec<_>>(),
+            [
+                (R::Shown, 320),
+                (R::Breathing, 400),
+                (R::NotifySuppressed, 420),
+                (R::CardOpened, 430)
+            ]
+        );
+        assert_eq!(marks[2].reason, Some(NotifySuppression::DoNotDisturb));
+        // A default recorded before rungs were cites nothing; one whose card was never shown
+        // cites an empty chain.
+        let old = [row(
+            1,
+            500,
+            "deal.transition",
+            json!({"from":"AGREED","to":"WITHDRAWN","decided_by":lapse}),
+        )];
+        assert_eq!(project(&old, |_, _| Vec::new())[0].rungs, None);
+        let unseen = [row(
+            1,
+            500,
+            "deal.transition",
+            json!({"from":"AGREED","to":"WITHDRAWN","decided_by":lapse,"rung_deadline":500}),
+        )];
+        assert_eq!(
+            project(&unseen, |_, _| Vec::new())[0].rungs,
+            Some(Vec::new())
+        );
+        // An auto-void cites its rungs on the reservation; the void step carries them.
+        let void = [
+            rung(1, 100, 500, "shown"),
+            row(
+                2,
+                500,
+                "money.authorized",
+                json!({"operation":"void","decided_by":lapse,"rung_deadline":500}),
+            ),
+            row(
+                3,
+                500,
+                "money.observed",
+                json!({"operation":"void","confirmed":true,"decided_by":lapse}),
+            ),
+        ];
+        let steps = project(&void, |_, _| Vec::new());
+        assert_eq!(steps.len(), 1);
+        assert_eq!(steps[0].kind, HistoryKind::AutoVoided);
+        assert_eq!(steps[0].rungs.as_ref().map(Vec::len), Some(1));
+        // Only a safe default cites: an owner's step with the same fields carries nothing.
+        let owner = [row(
+            1,
+            500,
+            "deal.transition",
+            json!({"to":"WITHDRAWN","decided_by":{"type":"human","at":1},"rung_deadline":500}),
+        )];
+        assert_eq!(project(&owner, |_, _| Vec::new())[0].rungs, None);
     }
 
     #[test]

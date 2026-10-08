@@ -15,6 +15,8 @@ mod groups_tests;
 mod h5_tests;
 #[path = "history_tests.rs"]
 mod history_tests;
+#[path = "ladder_tests.rs"]
+mod ladder_tests;
 #[path = "limits_tests.rs"]
 mod limits_tests;
 #[path = "market_watch_tests.rs"]

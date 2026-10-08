@@ -37,6 +37,7 @@ fn checked_in_bindings_match_every_rust_command_event_and_dependency() {
     verify.visit::<table_client::EventContract>();
     verify.visit::<table_client::CommandError>();
     verify.visit::<table_client::IpcHeaders>();
+    verify.visit::<table_attention::LadderSchedule>();
     // Both directions: a contract field missing from COMMANDS would escape every grant test.
     let decl = table_client::CommandContract::decl(&verify.config);
     let contract: std::collections::BTreeSet<&str> = decl
@@ -73,6 +74,12 @@ fn checked_in_authority_files_match_the_authority_table() {
         read(manifest.join("../../bindings/playbooks.ts")),
         table_client::playbooks::typescript().unwrap(),
         "stale bindings/playbooks.ts; run generate-bindings"
+    );
+    // The attention ladder's one schedule, as the Tumbler reads it (attention-ladder-1).
+    assert_eq!(
+        read(manifest.join("../../bindings/ladder.ts")),
+        table_client::ladder::typescript().unwrap(),
+        "stale bindings/ladder.ts; run generate-bindings"
     );
     let capabilities = manifest.join("../../apps/desktop/src-tauri/capabilities");
     for (file, contents) in table_client::authority::capability_files().unwrap() {

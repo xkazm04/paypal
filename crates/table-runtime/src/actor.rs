@@ -30,8 +30,27 @@ pub enum Action {
     ApprovalPairing,
     Credentials(crate::vault::CredentialEntry),
     CheckPrivilege,
-    ClaimNotification { deal_id: DealId, deadline: i64 },
-    ReleaseNotification { deal_id: DealId, deadline: i64 },
+    ClaimNotification {
+        deal_id: DealId,
+        deadline: i64,
+    },
+    ReleaseNotification {
+        deal_id: DealId,
+        deadline: i64,
+    },
+    /// The shell showed the claimed notification (attention-ladder-1: the Notified rung).
+    NotificationShown {
+        deal_id: DealId,
+        deadline: i64,
+    },
+    /// The notification was due but the shell held it back (Do Not Disturb, the system's quiet).
+    NotificationSuppressed {
+        deal_id: DealId,
+        deadline: i64,
+        reason: NotifySuppression,
+    },
+    /// The owner opened this deal from its Tumbler card.
+    CardOpened(DealId),
     Engine(table_engine::EngineId),
     Engines,
     Start(DealId),
@@ -146,6 +165,9 @@ impl Action {
             | Action::SelectPairing(_)
             | Action::ClaimNotification { .. }
             | Action::ReleaseNotification { .. }
+            | Action::NotificationShown { .. }
+            | Action::NotificationSuppressed { .. }
+            | Action::CardOpened(_)
             | Action::HouseOffer(_)
             | Action::HousePair(_)
             | Action::HouseStatus(_)
