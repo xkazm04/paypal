@@ -269,6 +269,8 @@ pub const AUTHORITY: &[CommandAuthority] = &[
     // Rescue detection: the owner's watch list is owner configuration (reads only at PayPal).
     row("rescue_watch_add",       APPROVAL, Owner,    PRIVILEGED, ANY,         R),
     row("rescue_watch_stop",      APPROVAL, Owner,    PRIVILEGED, ANY,         R),
+    // "Your safety record": counts and findings from the verified ledger; reads only.
+    row("safety_record",          MAIN,     Read,     OPEN,       ANY,         R),
 ];
 
 const fn release_count() -> usize {

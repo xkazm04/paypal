@@ -29,6 +29,8 @@ mod quit_tests;
 mod relay_tests;
 #[path = "rescue_tests.rs"]
 mod rescue_tests;
+#[path = "safety_tests.rs"]
+mod safety_tests;
 #[path = "simulate_tests.rs"]
 mod simulate_tests;
 use super::*;

@@ -622,6 +622,8 @@ impl Runtime {
                 json(self.rescue_watch_add(args)?)
             }
             Action::RescueWatchStop(args) => json(self.rescue_watch_stop(&args)?),
+            // "Your safety record": the whole-ledger check, counts and findings only (main).
+            Action::SafetyRecord => json(self.safety_record()?),
         }
     }
     fn quit_summary(&mut self) -> Result<QuitSummary, CommandError> {

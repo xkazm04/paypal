@@ -463,6 +463,7 @@ impl Fixture {
                 .await
             }
             "deal_groups" => self.exec(&c, Action::Groups).await,
+            "safety_record" => self.exec(&c, Action::SafetyRecord).await,
             "rescue_watch_add" => {
                 self.exec(
                     &c,

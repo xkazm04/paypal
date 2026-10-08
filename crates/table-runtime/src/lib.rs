@@ -17,6 +17,7 @@ mod proof;
 pub mod reauth;
 mod relay;
 mod rescue;
+mod safety;
 mod scheduler;
 mod service;
 mod simulate;

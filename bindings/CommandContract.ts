@@ -61,6 +61,7 @@ import type { RescueWatchArgs } from "./RescueWatchArgs";
 import type { RescueWatchStopArgs } from "./RescueWatchStopArgs";
 import type { RescueWatchView } from "./RescueWatchView";
 import type { RunSnapshot } from "./RunSnapshot";
+import type { SafetyRecord } from "./SafetyRecord";
 import type { SettingsSnapshot } from "./SettingsSnapshot";
 import type { SignedEnvelope } from "./SignedEnvelope";
 import type { Snap } from "./Snap";
@@ -116,4 +117,8 @@ rescue_watch_add: Command<RescueWatchArgs, Array<RescueWatchView>>,
 /**
  * Stops watching one subscription (approval, privileged).
  */
-rescue_watch_stop: Command<RescueWatchStopArgs, Array<RescueWatchView>>, };
+rescue_watch_stop: Command<RescueWatchStopArgs, Array<RescueWatchView>>, 
+/**
+ * "Your safety record": the whole-ledger money-authority check on the owner's ledger (main).
+ */
+safety_record: Command<null, SafetyRecord>, };
