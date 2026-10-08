@@ -533,7 +533,10 @@ pub(super) async fn rescue_replay(
     request: tauri::ipc::Request<'_>,
     args: RescueReplayArgs,
 ) -> Result<Deal, CommandError> {
-    ask(&window, &state, Some(&request), Action::RescueReplay(args)).await
+    let deal: Deal = ask(&window, &state, Some(&request), Action::RescueReplay(args)).await?;
+    // Rust selected the new rescue deal for this window: the shell's summary pushes follow it.
+    *state.selected.lock().map_err(|_| invalid())? = Some(deal.id);
+    Ok(deal)
 }
 #[tauri::command]
 pub(super) async fn rescue_book(

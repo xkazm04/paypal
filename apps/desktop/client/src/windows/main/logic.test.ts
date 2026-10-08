@@ -59,7 +59,8 @@ describe('bead and chip state mapping', () => {
     for (const s of ['WITHDRAWN', 'EXPIRED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED'] as DealState[]) expect(k(s)).toBe('off');
   });
   it('a failed rescue renewal is still moving; any other failure is stopped', () => {
-    expect(k('FAILED', { kind: 'rescue' })).toBe('moving');
+    expect(k('FAILED', { kind: 'rescue' })).toBe('stopped');
+    expect(k('AGREED', { kind: 'rescue' })).toBe('moving');
     expect(k('FAILED', { kind: 'purchase' })).toBe('stopped');
   });
   it('chip classes keep the prototype vocabulary', () => {

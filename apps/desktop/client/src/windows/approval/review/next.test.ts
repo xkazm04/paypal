@@ -61,13 +61,14 @@ describe('what happens next is built from the deal and the decision, and says no
     const r = next({ kind: 'hold', phase: 'hold', act: 'release', d: { shield: 'HOLD' } });
     expect(texts(r)).toEqual(['You unpause it here', 'It becomes “Check with you”', 'You still approve the payment itself']);
   });
-  it('a rescue fix: a replay invoices nothing real, an unconnected sender says so', () => {
-    const replay = next({ kind: 'lever', act: 'rescue', total: '$9.60', d: { kind: 'rescue', side: 'seller', state: 'FAILED', mode: 'replay' } });
-    expect(texts(replay)[2]).toBe('Nothing real is invoiced');
-    const off = next({ kind: 'lever', act: 'rescue', d: { kind: 'rescue', side: 'seller', state: 'FAILED' }, s: { unavailable_reason: 'x' } });
-    expect(texts(off)).toContain('Sending fixes isn’t connected yet');
-    const live = next({ kind: 'lever', act: 'rescue', total: '$9.60', d: { kind: 'rescue', side: 'seller', state: 'FAILED' } });
-    expect(texts(live)[1]).toBe('One $9.60 invoice goes to the subscriber');
+  it('a rescue fix: one real invoice; a replay is never counted, an unavailable sender says so', () => {
+    const replay = next({ kind: 'lever', act: 'rescue', total: '$9.60', d: { kind: 'rescue', side: 'seller', state: 'AGREED', mode: 'replay' } });
+    expect(texts(replay)[1]).toBe('One $9.60 invoice goes to the subscriber');
+    expect(texts(replay)[2]).toBe('Never counted: a replayed failure');
+    const off = next({ kind: 'lever', act: 'rescue', d: { kind: 'rescue', side: 'seller', state: 'AGREED' }, s: { unavailable_reason: 'x' } });
+    expect(texts(off)).toContain('The invoice can’t be sent right now');
+    const live = next({ kind: 'lever', act: 'rescue', total: '$9.60', d: { kind: 'rescue', side: 'seller', state: 'AGREED' } });
+    expect(texts(live)).toEqual(['You approve the fix here', 'One $9.60 invoice goes to the subscriber', 'Counted once PayPal shows it paid']);
   });
   it('a mismatch never offers a pay step, and a block never offers a release step', () => {
     const m = next({ kind: 'mismatch', phase: 'mismatch', d: { state: 'MISMATCH' } });
