@@ -5,7 +5,7 @@ import type { Deal } from '@bindings/Deal';
 import type { CounterpartyDisplay, DealDisplay } from './pending';
 import { shortId } from './format';
 import { useQuery } from './hooks';
-import { subscriberName } from './words';
+import { houseWords, subscriberName } from './words';
 
 export function fallbackDisplay(deal: Deal): DealDisplay {
   return { deal_id: deal.id, label: shortId(deal.id), title: deal.terms.item_ref, deadline: null, on_silence: null, band: null };
@@ -29,5 +29,5 @@ export function useCounterparties(): (key: string) => { name: string; house: boo
   }, [q.data]);
 }
 
-/** The built-in house seller reads as a name, not a shout: "HOUSE seller" → "House seller". */
-export const houseName = (n: string): string => n.replace(/\bHOUSE\b/g, 'House');
+/** The built-in house seller reads as a name, not a shout: "HOUSE seller" → "House seller" (words.ts). */
+export const houseName = houseWords;

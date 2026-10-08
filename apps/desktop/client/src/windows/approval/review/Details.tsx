@@ -8,7 +8,7 @@ import type { TranscriptType } from '@bindings/TranscriptType';
 import type { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMoney, shortHash, shortId } from '../../../lib/format';
 import { WalletNotice } from '../../../shared/honesty';
-import { CHECK_STATUS_WORD, reasonWords, receiptWord, reconWord } from '../../../lib/words';
+import { CHECK_STATUS_WORD, NOT_REPORTED, reasonWords, receiptWord, reconWord } from '../../../lib/words';
 import type { ApprovalCheckStatus } from '@bindings/ApprovalCheckStatus';
 import { Btn, Kv, Sheet } from '../../../shared/ui';
 import type { Step } from '../model';
@@ -28,7 +28,7 @@ export function Sources({ rows }: { rows: DiffRow[] }) {
           <span className="v">
             {r.left}
             <span className="op">·</span>
-            {r.right ?? <span className="dr-unk">not shown here</span>}
+            {r.right ?? <span className="dr-unk" title={NOT_REPORTED.means}>{NOT_REPORTED.text}</span>}
             <span className="op">·</span>
             <span className="rw">{rowWord(r)}</span>
           </span>
@@ -46,7 +46,7 @@ export function RowDetail({ row, heads }: { row: DiffRow; heads: [string, string
     <Kv
       items={[
         [heads[0], row.left],
-        [heads[1], row.right ?? <span className="dr-unk">not shown here</span>],
+        [heads[1], row.right ?? <span className="dr-unk" title={NOT_REPORTED.means}>{NOT_REPORTED.text}</span>],
         ['Reading', <span className="rd"><MarkIcon mark={relMark(row.rel, row.tone)} /> {row.tone === 'ok' ? 'passes' : row.tone === 'bad' ? 'fails' : row.rel === '?' ? 'not checked here, so not a pass' : rowWord(row)}</span>],
         ['Where from', row.src],
         row.note ? ['Note', <span className="coral">{row.note}</span>] : null,

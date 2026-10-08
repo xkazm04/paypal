@@ -14,24 +14,26 @@
 // the inspector following the focused cell. A plan-wide price change is the one thing never offered.
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { Deal } from '@bindings/Deal';
+import type { Money } from '@bindings/Money';
 import type { RescueBook } from '@bindings/RescueBook';
+import type { RescueOffer } from '@bindings/RescueOffer';
 import type { RescueView } from '@bindings/RescueView';
 import { clockLabel, formatMinor, formatMoney, shortId } from '../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import {
-  percentWords, RESCUE_APPROVE_DOES, RESCUE_COUNTED, RESCUE_REPLAY_ABOUT as RESCUE_REPLAY_ABOUT_TEXT, RESCUE_REPLAY_NOT_COUNTED, RESCUE_SENT_NOT_COUNTED, RESCUE_WATCH_ABOUT, rescueSourceWord, ruleSentence, silenceWords, stateWord, subscriberName, timeLeftWords, watchingWords,
+  notOfferedLine, percentWords, RESCUE_APPROVE_DOES, RESCUE_COUNTED, RESCUE_REPLAY_ABOUT as RESCUE_REPLAY_ABOUT_TEXT, RESCUE_REPLAY_NOT_COUNTED, RESCUE_SENT_NOT_COUNTED, RESCUE_WATCH_ABOUT, rescueSourceWord, ruleSentence, silenceWords, stateWord, subscriberName, timeLeftWords, watchingWords,
 } from '../../../lib/words';
 import { ModeBadge, WalletNotice } from '../../../shared/honesty';
 import { Glyph } from '../../../shared/modules';
 import {
-  AnswerBar, Btn, Chip, DecisionCard, DetailToggle, Dot, Explainer, Group, Hourglass, Icon, Inspector, Kv, PageHead, Popover, Row, Section, Silence, useDetail,
+  AnswerBar, Btn, Chip, DecisionCard, DetailToggle, Dot, Explainer, Group, Hourglass, Icon, Inspector, Kv, PageHead, Popover, Row, Section, Silence, useDetail, Why,
   type ChipTone, type DecisionOption, type ExplainerStep,
 } from '../../../shared/ui';
 import { chipClass, dealTotal, moneyNow, sumByCurrency, type ChipClass } from '../logic';
 import { useCpLookup } from '../ui';
 import { useWorld } from '../world';
 import type { ModuleProps } from './common';
-import { cellState, COLS, LEVERS, leverOf, moveCell, pickable, recovered, rulesFor, splitRows, viewFor, type Col, type LeverKey, type NotCountedWhy } from './rescue/model';
+import { atRiskOf, cellState, COLS, LEVERS, leverOf, moveCell, pickable, recovered, rulesFor, splitFixes, splitRows, viewFor, type Col, type LeverKey, type NotCountedWhy } from './rescue/model';
 import { FixGet, FixGetOff, FixWhy, RescueMoney } from './rescue/Panels';
 import { fixQuestion, fixWhy, previewFor, rescueStrip } from './rescue/preview';
 import './rescue.css';
@@ -67,7 +69,7 @@ const GIST: Record<LeverKey, string> = {
   DOWNGRADE: 'cheaper plan',
 };
 /** Column names short enough for the matrix; the full name is in the tooltip and the inspector. */
-const HEAD: Record<LeverKey, string> = { DISCOUNT_THIS_CYCLE: 'Discount', PAUSE: 'Pause', RETRY_AFTER_FIX: 'Retry later', DOWNGRADE: 'Downgrade' };
+const HEAD: Record<LeverKey, string> = { DISCOUNT_THIS_CYCLE: 'Discount', PAUSE: 'Pause', RETRY_AFTER_FIX: 'Retry later', DOWNGRADE: 'Smaller plan' };
 const wordOf = (d: Deal) => stateWord(d.state, { side: d.side, kind: d.kind });
 const retryWords = (deadline: number | null, now: number) => (deadline ? `retry in ${timeLeftWords(deadline - now).replace(/ \d+ h$/, '')}` : 'no retry set');
 const coarse = (deadline: number, now: number) => timeLeftWords(deadline - now).replace(/ \d+ h$/, '');
@@ -226,9 +228,9 @@ function answerFor(rows: ReturnType<typeof splitRows>, deals: readonly Deal[], b
   if (n) {
     const first = rows.failing[0] as Deal;
     // What failed is the renewal at the plan's price; the fix's invoice is the discounted amount.
-    const t = viewFor(book, first.id)?.offer.cycle ?? dealTotal(first);
+    const t = atRiskOf(first, book);
     const asks = rows.failing.some(needs);
-    const sums = sumByCurrency(rows.failing.map((d) => viewFor(book, d.id)?.offer.cycle ?? dealTotal(d))).map((m) => formatMinor(m.minor, m.currency)).join(' · ');
+    const sums = sumByCurrency(rows.failing.map((d) => atRiskOf(d, book))).map((m) => formatMinor(m.minor, m.currency)).join(' · ');
     return {
       tone: asks ? 'need' : 'calm',
       title: n === 1 ? <>{cap(nameOf(first))}’s {formatMinor(t.minor, t.currency)} renewal failed.{asks ? ' Your call.' : ' PayPal retries on its own.'}</>
@@ -269,9 +271,13 @@ function Picks({ deal, view, deadline, now, col, onPick }: { deal: Deal; view: R
     if (to && !off(to)) go(to);
   };
   const amount = view?.offer.cycle ?? dealTotal(deal);
+  // Only the fixes open to this renewal are cards; the switched-off ones fold into one quiet line
+  // under them, each with its honest reason one click away (Why?), so the card isn't mostly dead.
+  const fixes = splitFixes(deal, deadline, now, view);
   return (
+    <>
     <div className="rs-picks" role="radiogroup" aria-label="What to do about this renewal" ref={box}>
-      {COLS.map((c) => {
+      {fixes.open.map((c) => {
         const st = cellState(deal, c, deadline, now, view);
         const isOff = !pickable(st);
         const on = c === col && !isOff;
@@ -298,6 +304,26 @@ function Picks({ deal, view, deadline, now, col, onPick }: { deal: Deal; view: R
           </div>
         );
       })}
+    </div>
+    {fixes.off.length ? <NotOffered off={fixes.off} amount={amount} deadline={deadline} offer={view?.offer} /> : null}
+    </>
+  );
+}
+
+/** The fixes this renewal can't have, as one quiet line; Why? lists each one with its reason. */
+function NotOffered({ off, amount, deadline, offer }: { off: ReturnType<typeof splitFixes>['off']; amount: Money; deadline: number | null; offer: RescueOffer | undefined }) {
+  return (
+    <div className="rs-notoff">
+      <span>{notOfferedLine(off.map((o) => PICK[o.col].name))}</span>
+      <Why question="Why aren’t these offered?" className="rs-notoff-why">
+        <ul className="rs-notoff-list">
+          {off.map((o) => {
+            const [one] = fixWhy(o.col, { amount, retryAt: deadline, offCode: o.code, offer });
+            return <li key={o.col}><b>{PICK[o.col].name}</b> · {one}</li>;
+          })}
+        </ul>
+        <p>Doing nothing is always safe: PayPal retries on its own.</p>
+      </Why>
     </div>
   );
 }

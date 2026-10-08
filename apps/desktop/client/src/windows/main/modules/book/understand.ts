@@ -17,6 +17,7 @@ import type { DealKind } from '@bindings/DealKind';
 import type { DealState } from '@bindings/DealState';
 import type { BookQuery as LensQuery, Filter } from './model';
 import { bookRejection, rfc3339Seconds } from './rules';
+import { houseWords } from '../../../../lib/words';
 
 /** The longest question the wallet reads. */
 export const MAX_ASK = 200;
@@ -265,7 +266,7 @@ const phrase = (toks: readonly Tok[]) => toks.map((t) => t.norm).join(' ');
  *  connected. Each alias is plain text to compare, nothing more. */
 export function knownParties(list: readonly CounterpartyDisplay[]): KnownParty[] {
   return list.filter((c) => c.pairing !== 'unpaired').map((c) => {
-    const name = c.house ? c.display_name.replace(/\bHOUSE\b/g, 'House') : c.display_name;
+    const name = c.house ? houseWords(c.display_name) : c.display_name;
     const parts = name.split(/\s+·\s+/);
     const aliases = new Set<string>([name, ...parts]);
     for (const p of parts) { const m = /^(.+?)['’]s\b/.exec(p); if (m?.[1]) aliases.add(m[1]); }

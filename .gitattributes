@@ -1,2 +1,5 @@
+# One line ending everywhere: prompts, fixtures and golden files are embedded or hashed byte for byte,
+# and a Windows checkout must produce the same bytes as Linux.
+* text=auto eol=lf
 *.sh text eol=lf
 Dockerfile text eol=lf

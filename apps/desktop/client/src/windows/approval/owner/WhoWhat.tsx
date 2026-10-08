@@ -5,7 +5,7 @@ import type { AgentSlot } from '@bindings/AgentSlot';
 import type { Currency } from '@bindings/Currency';
 import type { DealKind } from '@bindings/DealKind';
 import { MAX_MARKET_CHECKS_DAY, MAX_WATCHED_ITEMS } from '../../../lib/marketWatch';
-import { checksADay } from '../../../lib/words';
+import { checksADay, houseWords } from '../../../lib/words';
 import { Btn, Popover } from '../../../shared/ui';
 import { CATEGORIES, CLAUSE_KINDS, CLAUSE_NUMBER, emptyClause, KINDS, missingKinds, ROLES, withClause, type ClauseDraft, type ClauseType, type MandateDraft } from '../mandateDraft';
 
@@ -56,7 +56,7 @@ const summary = (c: ClauseDraft): string => {
     case 'counterparties': return c.rule === 'pinned' ? `listed wallets · ${c.keys || 'none yet'}` : RULES.find((r) => r[0] === c.rule)?.[1] ?? c.rule;
     case 'per_deal': return `${c.kind.replace('_', ' ')} · ${c.categories.join(', ') || 'any category'}`;
     case 'band': return c.items || 'no items yet';
-    case 'payees': return c.payees || 'none';
+    case 'payees': return c.payees ? houseWords(c.payees) : 'none';
     case 'market_watch': {
       const items = c.items.map((i) => i.item.trim()).filter(Boolean);
       const n = Number(c.checks);

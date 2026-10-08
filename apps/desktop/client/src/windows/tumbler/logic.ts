@@ -13,7 +13,7 @@ import type { TumblerPreferences } from '@bindings/TumblerPreferences';
 import type { VisualState } from '@bindings/VisualState';
 import { LADDER } from '@bindings/ladder';
 import { clockLabel, countdown, formatMinor } from '../../lib/format';
-import { headlineWords, moneyCheckWord, ruleNameOf, shieldRuleWord, silenceWords, timeLeftWords } from '../../lib/words';
+import { headlineWords, houseWords, moneyCheckWord, ruleNameOf, shieldRuleWord, silenceWords, timeLeftWords } from '../../lib/words';
 
 /** Rust's size table (crates/table-attention placement.rs). The page never sends pixels;
  *  this copy exists only so the browser preview can draw a frame of the same size. */
@@ -218,7 +218,7 @@ export function stateChip(item: AttentionItem, inApproval: boolean): StateChip {
  *  counterparty, never anything they wrote: free text has no path into the Tumbler. */
 export function cardQuestion(item: Pick<AttentionItem, 'headline' | 'amount_minor' | 'currency' | 'kind' | 'counterparty'>): { lead: string; amount: string | null; tail: string } {
   const end = item.kind === 'gate' ? '?' : '';
-  const who = item.counterparty ? ` with ${item.counterparty}` : '';
+  const who = item.counterparty ? ` with ${houseWords(item.counterparty)}` : '';
   const s = splitHeadline(item.headline, item.amount_minor, item.currency);
   if (s) return { lead: s.lead, amount: s.amount, tail: `${who}${end}` };
   return { lead: `${item.headline}${who}${end}`, amount: null, tail: '' };
@@ -344,7 +344,7 @@ export function arrivalTicker(item: AttentionItem): Ticker {
     kind: hold ? 'hold' : 'gate',
     // who it is with is on line two ("Dan · until 18:00"), so line one is only what and how much
     l1: split ? [`${split.lead} `, split.amount, ''] : [item.headline, '', ''],
-    l2: item.money_check ? `checking with PayPal · ${silenceWords(item.on_silence)}` : hold ? `paused · can’t be paid · ${item.on_silence}` : `${item.counterparty ?? 'a connected wallet'} · ${when}`,
+    l2: item.money_check ? `checking with PayPal · ${silenceWords(item.on_silence)}` : hold ? `paused · can’t be paid · ${item.on_silence}` : `${item.counterparty ? houseWords(item.counterparty) : 'a connected wallet'} · ${when}`,
     mode: item.mode,
     dealId: item.deal_id,
     ms: TICKER_MS.default,

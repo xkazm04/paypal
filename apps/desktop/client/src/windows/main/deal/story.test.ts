@@ -75,7 +75,8 @@ describe('the decision card words', () => {
     const n = (l: string) => entry(l).attention!;
     expect(decisionQuestion(deal('D-0193'), n('D-0193'), 'Dan')).toBe('Accept Dan’s $329.00?');
     expect(decisionQuestion(deal('D-0190'), n('D-0190'), 'partsco')).toBe('Pay partsco $64.00, or release the hold?');
-    expect(decisionQuestion(deal('D-0198'), n('D-0198'), 'pixel-bay')).toBe('Withdraw pixel-bay’s paused $140.00 request?');
+    expect(decisionQuestion(deal('D-0198'), n('D-0198'), 'pixel-bay')).toBe('Let this $140.00 payment to pixel-bay go ahead?');
+    expect(decisionQuestion({ ...deal('D-0198'), state: 'WITHDRAWN' }, n('D-0198'), 'pixel-bay')).toBe('Withdraw pixel-bay’s paused $140.00 request?');
     expect(decisionQuestion(deal('D-0188'), n('D-0188'), 'S-14')).toBe('Approve a $9.60 invoice to fix S-14’s failed renewal?');
   });
   it('names the rule that asks, in plain words', () => {
@@ -85,7 +86,10 @@ describe('the decision card words', () => {
     expect(decisionWhy(deal('D-0198'), { clause: null }, [], 'x')).toBe('A scam check paused this before PayPal was asked.');
     expect(decisionWhy(deal('D-0188'), { clause: null }, [], 'x')).toBeNull();
     const p = deal('D-0190');
-    expect(decisionWhy(p, entry('D-0190').attention!, readClauses(clausesOf(p), p, { asks: 7 }), p.mandate_id)).not.toMatch(/HOUSE/);
+    // The payees rule names the house seller as a name, never "HOUSE".
+    expect(decisionWhy(p, { clause: { mandate_id: p.mandate_id, number: 7 } }, readClauses(clausesOf(p), p, { asks: 7 }), p.mandate_id)).toMatch(/^Because of your rule “Approved payees” \(only .*House seller.*\)\.$/);
+    // D-0190's $64.00 hold is under the ask-me threshold: as in Rust, its attention item names no rule.
+    expect(decisionWhy(p, entry('D-0190').attention!, readClauses(clausesOf(p), p), p.mandate_id)).toBeNull();
   });
   it('the review option only hands off: it always says nothing moves until you confirm in the approval window', () => {
     for (const l of ['D-0193', 'D-0190', 'D-0188', 'D-0198']) {
@@ -151,5 +155,15 @@ describe('where it stands', () => {
     const f = standingFacts(e.deal, null, null, 'pixel-bay');
     expect(f.map((x) => x.k)).toContain('Quantity');
     expect(standingFacts(deal('D-0180'), null, null, 'x').find((x) => x.k === 'Typical price')).toBeUndefined();
+  });
+  it('a failed renewal shows what failed and what the fix invoices, as Rescue and the approval window do', () => {
+    const d = deal('D-0188');
+    const offer = world.rescue?.[d.id]?.offer ?? null;
+    expect(offer).not.toBeNull();
+    expect(standingFacts(d, null, null, 'S-14', offer).map((x) => [x.k, x.v])).toEqual([
+      ['Renewal that failed', '$12.00'], ['This fix invoices', '$9.60'], ['Discount', '20% off this cycle only'],
+    ]);
+    // Without the wallet's rescue read it says only the deal's own price.
+    expect(standingFacts(d, null, null, 'S-14', null).map((x) => x.k)).toEqual(['Price']);
   });
 });

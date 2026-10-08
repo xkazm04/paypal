@@ -179,9 +179,9 @@ function Answer({ deals, needs, hasRules }: { deals: Deal[]; needs: Array<{ d: D
 // ---- Layer 1: a decision card per purchase that needs you --------------------------------------------
 
 /** Why the owner is asked, in a sentence: the rule the attention item names, in plain words. */
-function whyAsked(need: AttentionItem, m: MandateListEntry | null, cp: { name: string; entry?: { declared_payee: string | null } }): string {
+function whyAsked(deal: Deal, need: AttentionItem, m: MandateListEntry | null, cp: { name: string; entry?: { declared_payee: string | null } }): string {
   const cl = need.clause ? m?.payload.clauses.find((c) => CLAUSE_NO[c.type] === need.clause?.number) : undefined;
-  if (!cl) return 'Your rules leave this decision to you.';
+  if (!cl) return deal.state === 'AUTHORIZED' ? 'The money is on hold at PayPal. Paying it out waits for you.' : 'Your rules leave this decision to you.';
   if (cl.type === 'payees' && cp.entry?.declared_payee && !cl.payees.includes(cp.entry.declared_payee)) return `${cp.name} isn’t on your approved payees.`;
   if (cl.type === 'human_present_over') return `It is above the ${formatMinor(cl.amount.minor, cl.amount.currency)} you asked to approve yourself.`;
   return `Your “${RULE_NAME[cl.type]}” rule asks you first: ${ruleSentence(cl)}.`;
@@ -231,7 +231,7 @@ function PurchaseDecision({ deal, need, m, slot, onDetails }: { deal: Deal; need
         context={<><Icon name={held ? 'hold' : 'clock'} size={13} />{held ? 'On hold at PayPal' : 'Waiting for you'}{slot ? ` · ${cap(slot)} agent` : ''}{deal.created_at ? ` · asked ${clockLabel(deal.created_at)}` : ''}<NoteChip dealId={deal.id} who={cp.name} /></>}
         onDetails={onDetails}
         question={held ? <>Pay {cp.name} for “{disp.title}”?</> : <>What should happen with “{disp.title}” from {cp.name}?</>}
-        why={whyAsked(need, m, cp)}
+        why={whyAsked(deal, need, m, cp)}
         amount={<span className={`money ${amountTone(deal)}`}><MinorMoney minor={t.minor} currency={t.currency} /></span>}
         options={options}
         silence={need.on_silence} deadline={need.deadline} />

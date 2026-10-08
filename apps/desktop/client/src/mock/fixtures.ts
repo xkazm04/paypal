@@ -288,7 +288,9 @@ export function buildMockState(now: number): MockState {
     label: 'D-0190', title: 'USB-C dock for the test bench', kind: 'purchase', side: 'buyer', cp: KEY.partsco, item: 'usb-c-dock', price: 64, state: 'AUTHORIZED',
     market: [60, 66, 71], paypal: { order: '9LM442C', authorization: '0RW7K' }, deadline: now + 2 * 86400 + 19 * H, decided: POLICY6,
     silence: 'the hold is released at the deadline, nothing is paid', at: [now - 5 * H - 25 * 60, now - 5 * H],
-    attention: { kind: 'gate', module: 'spend', headline: 'Capture or void $64.00', counterparty: 'partsco (payee route)', clause: { mandate_id: MANDATE_M12, number: 7 }, urgency: 'calm', actions: ['review', 'snooze30', 'open_in_table'] },
+    // As Rust (dispatcher human_present_clause): an attention item names clause 6 only when the amount is over
+    // the ask-me threshold; a $64.00 hold names none, and the counterparty is the pairing's display name.
+    attention: { kind: 'gate', module: 'spend', headline: 'Capture or void $64.00', counterparty: 'partsco', clause: null, urgency: 'calm', actions: ['review', 'snooze30', 'open_in_table'] },
   });
   add({ label: 'D-0186', title: 'Packing foam + boxes (20)', kind: 'purchase', side: 'buyer', cp: KEY.packrite, item: 'packing', price: 45, state: 'CAPTURED', reconciliation: 'pending_reporting', receipt: 'PAYPAL_VERIFIED', paypal: { order: '1QE097D', authorization: '4YB2', capture: '6CC1' }, decided: POLICY6, at: [back(0.2), back(0.17)] });
   add({ label: 'D-0183', title: 'DP + HDMI cable set (10)', kind: 'purchase', side: 'buyer', cp: KEY.cablehaus, item: 'cables', price: 38, state: 'CAPTURED', reconciliation: 'matched', receipt: 'PAYPAL_VERIFIED', paypal: { order: '7JR510P', authorization: '2KD8', capture: '9PL3' }, decided: POLICY6, at: [back(0.74), back(0.7)] });
