@@ -617,6 +617,11 @@ impl Runtime {
                 json(self.open_group(args)?)
             }
             Action::Groups => json(self.group_views()?),
+            Action::RescueWatchAdd(args) => {
+                // Owner configuration: which subscriptions the wallet reads for a failed renewal.
+                json(self.rescue_watch_add(args)?)
+            }
+            Action::RescueWatchStop(args) => json(self.rescue_watch_stop(&args)?),
         }
     }
     fn quit_summary(&mut self) -> Result<QuitSummary, CommandError> {

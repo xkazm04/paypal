@@ -266,6 +266,9 @@ pub const AUTHORITY: &[CommandAuthority] = &[
     // Shop around (T8): grouping only restricts (first to agree wins, the rest are withdrawn).
     row("deal_group_open",        MAIN,     Act,      OPEN,       ANY,         R),
     row("deal_groups",            MAIN,     Read,     OPEN,       ANY,         R),
+    // Rescue detection: the owner's watch list is owner configuration (reads only at PayPal).
+    row("rescue_watch_add",       APPROVAL, Owner,    PRIVILEGED, ANY,         R),
+    row("rescue_watch_stop",      APPROVAL, Owner,    PRIVILEGED, ANY,         R),
 ];
 
 const fn release_count() -> usize {

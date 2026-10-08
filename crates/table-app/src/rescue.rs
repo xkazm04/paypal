@@ -20,9 +20,12 @@ use crate::{
     Authority, Error, MoneyStep, OwnerTicket, Pipeline, REQUEST_ID_WINDOW_SECS, Resolution,
 };
 use table_core::*;
-use table_ledger::{CheckReason, OpenOperation, Recipient, RescueCase, subscriber_key};
+use table_ledger::{
+    CheckReason, OpenOperation, Recipient, RescueCase, RescueWatch, subscriber_key,
+};
 use table_paypal::{
-    Invoice, InvoiceRequest, RequestId, ResourceId, SecondaryApi, rescue_invoice_number,
+    Invoice, InvoiceRequest, Observation, RequestId, ResourceId, SecondaryApi,
+    rescue_invoice_number,
 };
 use table_proto::{Body, ShortText};
 
@@ -55,6 +58,19 @@ pub struct RenewalFailure {
     pub failed_payments: u32,
     pub failed_at: Timestamp,
     pub next_retry_at: Option<Timestamp>,
+}
+
+/// What one read of a watched subscription did.
+#[derive(Debug, Clone)]
+pub enum WatchRead {
+    /// The day's read budget is used up: nothing was read or written.
+    OverBudget,
+    /// PayPal's answer could not be used; the watch backs off and reads again later.
+    Unreadable,
+    /// Read; no fix opened (`Paid`, `Handled` or `NoFix`).
+    Seen(WatchVerdict),
+    /// Read, and the failure's one fix opened, PayPal-reported, waiting for the owner.
+    Opened(Box<Deal>),
 }
 
 fn refusal(reason: &str) -> Error {
@@ -167,6 +183,49 @@ impl Pipeline {
         Ok(self.wallet.ledger.get_deal(id)?)
     }
 
+    /// The rescue rules a detection reads under: active now, carrying the fixes clause and pinning
+    /// this wallet's selected agent key. Checked before any subscription read.
+    fn rescue_rules_ready(&self, mandate: (MandateId, u32), now: Timestamp) -> Result<(), Error> {
+        let m = self
+            .wallet
+            .ledger
+            .active_mandate(mandate.0, mandate.1, &self.wallet.owner)?;
+        if lever_clause(&m.payload).is_none()
+            || m.payload.agent_key != self.wallet.agent_public_key().to_bytes()
+            || now < m.payload.not_before
+            || now >= m.payload.expires
+        {
+            return Err(Error::Permission);
+        }
+        Ok(())
+    }
+
+    /// One subscription read (a GET, never a write) and what it says in the fields detection
+    /// uses; None when the read failed or is not this subscription.
+    async fn read_subscription(
+        &mut self,
+        subscription: &ResourceId,
+    ) -> Result<(Vec<Observation>, Option<SubscriptionFacts>), Error> {
+        let api = self.invoicing()?;
+        let (observations, value) = match api.get_subscription(subscription).await {
+            Ok(r) => (r.observations, Some(r.value)),
+            Err(e) => (e.observations().to_vec(), None),
+        };
+        let facts = value
+            .filter(|s| s.id == subscription.as_str())
+            .and_then(|s| {
+                let billing = s.billing_info?;
+                Some(SubscriptionFacts {
+                    live: matches!(s.status.as_str(), "ACTIVE" | "SUSPENDED"),
+                    failed_payments: billing.failed_payments_count,
+                    owed: billing
+                        .outstanding_balance
+                        .and_then(|owed| owed.money().ok()),
+                })
+            });
+        Ok((observations, facts))
+    }
+
     /// Detection from PayPal itself: read one of the owner's subscriptions and open a rescue only
     /// when PayPal shows exactly one failed payment and an outstanding balance (that cycle). The
     /// rescue mandate is checked before the read; the read is recorded under the new deal's id.
@@ -182,35 +241,103 @@ impl Pipeline {
         mandate: (MandateId, u32),
         now: Timestamp,
     ) -> Result<Option<Deal>, Error> {
-        let m = self
-            .wallet
-            .ledger
-            .active_mandate(mandate.0, mandate.1, &self.wallet.owner)?;
-        if lever_clause(&m.payload).is_none()
-            || m.payload.agent_key != self.wallet.agent_public_key().to_bytes()
-            || now < m.payload.not_before
-            || now >= m.payload.expires
-        {
-            return Err(Error::Permission);
-        }
-        let api = self.invoicing()?;
-        let read = api.get_subscription(subscription).await;
-        let (observations, value) = match read {
-            Ok(r) => (r.observations, Some(r.value)),
-            Err(e) => (e.observations().to_vec(), None),
-        };
-        let failed = value.and_then(|s| {
-            let billing = s.billing_info?;
-            let cycle = billing.outstanding_balance.money().ok()?;
-            (s.id == subscription.as_str()
-                && matches!(s.status.as_str(), "ACTIVE" | "SUSPENDED")
-                && billing.failed_payments_count == 1
-                && cycle.minor() > 0)
-                .then_some(cycle)
-        });
-        let Some(cycle) = failed else {
+        self.rescue_rules_ready(mandate, now)?;
+        let (observations, facts) = self.read_subscription(subscription).await?;
+        let Some(WatchVerdict::Open { cycle }) = facts.map(|f| watch_verdict(&f, false)) else {
             return Ok(None);
         };
+        self.rescue_detected(
+            id,
+            subscription,
+            recipient,
+            plan,
+            cycle,
+            &observations,
+            mandate,
+            now,
+        )
+        .map(Some)
+    }
+
+    /// One read of a watched subscription by the scheduler's watch pass (the owner's watch list,
+    /// read-only at PayPal). The rescue rules are checked first, then the read is reserved against
+    /// the day's budget (one audit row, before PayPal is asked), then made. A failure opens its one
+    /// fix only when this run of failures has none yet (`rescue_watch_handled`); the deal opens at
+    /// AGREED, PayPal-reported, and waits for the owner. Nothing here writes at PayPal.
+    pub async fn rescue_watch_read(
+        &mut self,
+        watch: &RescueWatch,
+        id: DealId,
+        mandate: (MandateId, u32),
+        max_reads_day: u32,
+        now: Timestamp,
+    ) -> Result<WatchRead, Error> {
+        self.rescue_rules_ready(mandate, now)?;
+        let subscription =
+            ResourceId::new(watch.subscription_id.clone()).map_err(|_| Error::Invalid)?;
+        match self.wallet.ledger.reserve_rescue_watch_read(
+            &watch.subscription_id,
+            max_reads_day,
+            now,
+        ) {
+            Ok(_) => {}
+            Err(table_ledger::LedgerError::Conflict) => return Ok(WatchRead::OverBudget),
+            Err(e) => return Err(e.into()),
+        }
+        let (observations, facts) = self.read_subscription(&subscription).await?;
+        let Some(facts) = facts else {
+            self.wallet
+                .ledger
+                .record_rescue_watch_read(&watch.subscription_id, None, now)?;
+            return Ok(WatchRead::Unreadable);
+        };
+        self.wallet.ledger.record_rescue_watch_read(
+            &watch.subscription_id,
+            Some(facts.failed_payments),
+            now,
+        )?;
+        let handled = self
+            .wallet
+            .ledger
+            .rescue_watch_handled(&watch.subscription_id)?;
+        let verdict = watch_verdict(&facts, handled);
+        let WatchVerdict::Open { cycle } = verdict else {
+            return Ok(WatchRead::Seen(verdict));
+        };
+        match self.rescue_detected(
+            id,
+            &subscription,
+            watch.recipient.clone(),
+            watch.plan.clone(),
+            cycle,
+            &observations,
+            mandate,
+            now,
+        ) {
+            Ok(deal) => Ok(WatchRead::Opened(Box::new(deal))),
+            // The rules refuse this fix (over a limit, no discount fits), or a rescue of this
+            // subscription is still live: nothing was written, and the next read asks again.
+            Err(Error::Refused(_) | Error::Ledger(table_ledger::LedgerError::Conflict)) => {
+                Ok(WatchRead::Seen(WatchVerdict::NoFix))
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Open the PayPal-reported rescue a read found, and record that read under the new deal.
+    #[allow(clippy::too_many_arguments)] // The read's facts plus the deal and mandate ids.
+    fn rescue_detected(
+        &mut self,
+        id: DealId,
+        subscription: &ResourceId,
+        recipient: Recipient,
+        plan: ItemRef,
+        cycle: Money,
+        observations: &[Observation],
+        mandate: (MandateId, u32),
+        now: Timestamp,
+    ) -> Result<Deal, Error> {
+        let secret = recipient.expose().to_owned();
         let deal = self.rescue_open(
             id,
             &RenewalFailure {
@@ -226,10 +353,13 @@ impl Pipeline {
             mandate,
             now,
         )?;
-        for call in self.calls(id, &observations, now)? {
-            self.wallet.ledger.record_paypal_call(&call, &[])?;
+        // The read's body is reduced to an allowlist; the subscriber's email is removed besides.
+        for call in self.calls(id, observations, now)? {
+            self.wallet
+                .ledger
+                .record_paypal_call(&call, &[secret.as_str()])?;
         }
-        Ok(Some(deal))
+        Ok(deal)
     }
 
     /// Read-only: whether the fix's one invoice send ended without sending: it was reserved, is

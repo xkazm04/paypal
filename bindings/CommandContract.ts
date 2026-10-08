@@ -57,6 +57,9 @@ import type { QuitSummary } from "./QuitSummary";
 import type { ReconcileArgs } from "./ReconcileArgs";
 import type { RescueBook } from "./RescueBook";
 import type { RescueReplayArgs } from "./RescueReplayArgs";
+import type { RescueWatchArgs } from "./RescueWatchArgs";
+import type { RescueWatchStopArgs } from "./RescueWatchStopArgs";
+import type { RescueWatchView } from "./RescueWatchView";
 import type { RunSnapshot } from "./RunSnapshot";
 import type { SettingsSnapshot } from "./SettingsSnapshot";
 import type { SignedEnvelope } from "./SignedEnvelope";
@@ -105,4 +108,12 @@ deal_group_open: Command<DealGroupOpenArgs, DealGroupView>,
 /**
  * Every shop-around group with each seller's latest signed price (main).
  */
-deal_groups: Command<null, Array<DealGroupView>>, };
+deal_groups: Command<null, Array<DealGroupView>>, 
+/**
+ * Watches one of the owner's subscriptions for a failed renewal (approval, privileged).
+ */
+rescue_watch_add: Command<RescueWatchArgs, Array<RescueWatchView>>, 
+/**
+ * Stops watching one subscription (approval, privileged).
+ */
+rescue_watch_stop: Command<RescueWatchStopArgs, Array<RescueWatchView>>, };

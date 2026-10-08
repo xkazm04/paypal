@@ -150,7 +150,7 @@ fn migrations_are_transactional_idempotent_and_foreign_keys_enabled() {
         .conn
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 13);
+    assert_eq!(version, 14);
     let connection = ledger.conn;
     let ledger = Ledger::from_connection(connection).unwrap();
     assert_eq!(ledger.audit_count().unwrap(), 0);
@@ -165,7 +165,7 @@ fn client_migration_preserves_timestamps_and_labels_survive_older_imports() {
     let (ledger, deal, _, _, _) = setup();
     let conn = ledger.conn;
     conn.execute_batch(
-        "DROP TRIGGER deals_block_stays; DROP TRIGGER deals_block_never_released; ALTER TABLE deals DROP COLUMN shield_rule; ALTER TABLE deals DROP COLUMN shield_terms; ALTER TABLE deals DROP COLUMN shield_release_json; DROP TRIGGER deals_group_agrees_once; DROP TRIGGER deals_group_once; DROP TABLE deal_groups; DROP INDEX deals_group; ALTER TABLE deals DROP COLUMN group_id; DROP TABLE rescue_cases; DROP TABLE house_heads; DROP TABLE wallet_envelopes; DROP TABLE operation_checks; DROP TABLE deal_labels; DROP INDEX deals_created_at; ALTER TABLE paypal_calls DROP COLUMN binding_json; PRAGMA user_version=5;",
+        "DROP TABLE rescue_watches; DROP TRIGGER deals_block_stays; DROP TRIGGER deals_block_never_released; ALTER TABLE deals DROP COLUMN shield_rule; ALTER TABLE deals DROP COLUMN shield_terms; ALTER TABLE deals DROP COLUMN shield_release_json; DROP TRIGGER deals_group_agrees_once; DROP TRIGGER deals_group_once; DROP TABLE deal_groups; DROP INDEX deals_group; ALTER TABLE deals DROP COLUMN group_id; DROP TABLE rescue_cases; DROP TABLE house_heads; DROP TABLE wallet_envelopes; DROP TABLE operation_checks; DROP TABLE deal_labels; DROP INDEX deals_created_at; ALTER TABLE paypal_calls DROP COLUMN binding_json; PRAGMA user_version=5;",
     )
     .unwrap();
     let mut ledger = Ledger::from_connection(conn).unwrap();

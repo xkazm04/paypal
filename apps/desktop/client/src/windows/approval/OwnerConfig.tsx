@@ -11,7 +11,7 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { WalletError } from '../../lib/contract';
 import { useNow, useQuery } from '../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../lib/lazy';
-import { FIRST_RUN_TITLE, OWNER_KEY, rulesName, SAFETY_PROMISE, START_STEP, timeLeftWords, type StartStepKey } from '../../lib/words';
+import { FIRST_RUN_TITLE, OWNER_KEY, rulesName, SAFETY_PROMISE, START_STEP, timeLeftWords, watchingWords, type StartStepKey } from '../../lib/words';
 import { connectionFacts, gettingStarted, rulesInForce } from '../../lib/firstRun';
 import { StartProgress, StartSteps, type StepAction } from '../../shared/start';
 import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
@@ -30,6 +30,7 @@ import './owner.css';
 // this page is idle (lib/lazy.ts).
 const MandateEditor = lazyPart(() => import('./MandateEditor').then((m) => m.MandateEditor));
 const RescueReplay = lazyPart(() => import('./owner/RescueReplay').then((m) => m.RescueReplay));
+const RescueWatch = lazyPart(() => import('./owner/RescueWatch').then((m) => m.RescueWatch));
 
 const ENGINE_NAME = { 'claude-code': 'claude-code', 'codex-cli': 'codex-cli', scripted: 'practice agent' } as const;
 const HOUSE_TEXT: Record<HouseState, string> = {
@@ -94,11 +95,17 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
   /** The "Replay a failed renewal" sheet (The Table's Rescue page opens this window for it). */
   const [replaying, setReplaying] = useState(false);
   useEffect(() => preloadWhenIdle([MandateEditor, RescueReplay]), []);
+  /** The "Watch subscriptions" sheet (the Rescue page opens this window for it too). */
+  const [watchingOpen, setWatchingOpen] = useState(false);
+  // The owner's watch list (rescue_book), read here for its count and rows.
+  const rescueBook = useQuery('rescue_book', null, { refreshOn: ['deal:changed', 'settings:changed'] });
+  const watching = rescueBook.data?.watching ?? [];
   useEffect(() => {
     if (routed || !handoff) return;
     setRouted(true);
     if (handoff.target === 'mandate') setEditing({ sel: floorSeed?.mandate_id ?? null });
     if (handoff.target === 'rescue') setReplaying(true);
+    if (handoff.target === 'rescue_watch') setWatchingOpen(true);
   }, [handoff, routed, floorSeed]);
   const [info, setInfo] = useState<{ k: InfoKey; el: HTMLElement } | null>(null);
   const [startError, setStartError] = useState<WalletError | null>(null);
@@ -273,6 +280,11 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
               <Chip tone="line">replay</Chip>
               <Btn sm onClick={() => setReplaying(true)}>Replay one…</Btn>
             </Row>
+            <Row title={rescueBook.error ? 'Watched subscriptions' : watchingWords(watching.length)}
+              sub={rescueBook.error ? 'This window can’t read them right now' : rescueRules(list, now) ? 'Your wallet checks them with PayPal for a failed renewal; checking never moves money' : 'Sign rules for fixing failed renewals first'}>
+              <Chip tone={rescueBook.error ? 'dashed' : 'line'}>{rescueBook.error ? 'not available' : 'checks only'}</Chip>
+              <Btn sm onClick={() => setWatchingOpen(true)}>{watching.length ? 'Manage…' : 'Watch one…'}</Btn>
+            </Row>
           </Group>
         </Section>
 
@@ -305,6 +317,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
           </Group>
         </Section>
       </main>
+      {watchingOpen ? <Suspense fallback={null}><RescueWatch entries={list} watching={watching} locked={locked} onClose={() => setWatchingOpen(false)} onChanged={() => void rescueBook.refetch()} /></Suspense> : null}
       {replaying ? <Suspense fallback={null}><RescueReplay entries={list} locked={locked} onClose={() => setReplaying(false)} onReplayed={(deal) => { setReplaying(false); onReplayed?.(deal); }} /></Suspense> : null}
       {info ? (
         <Popover anchor={info.el} onClose={() => setInfo(null)} className="ow-pop">

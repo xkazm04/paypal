@@ -141,6 +141,12 @@ const BOOKKEEPING: &[&str] = &[
     // are bookkeeping. A pause is its `shield.raised` row; an ASK waits as the owner's gate.
     "shield.checked",
     "shield.refused",
+    // Rescue detection: the owner's watch list and the wallet's subscription reads (GET only).
+    // A failure a read finds is its rescue deal's own `rescue.opened` step.
+    "rescue.watch_added",
+    "rescue.watch_stopped",
+    "rescue.watch_read",
+    "rescue.watch_seen",
 ];
 /// What one row says, before folding.
 enum Row {
@@ -533,6 +539,7 @@ mod tests {
             include_str!("../../table-ledger/src/groups.rs"),
             include_str!("groups.rs"),
             include_str!("../../table-ledger/src/shield.rs"),
+            include_str!("../../table-ledger/src/rescue_watch.rs"),
         ];
         let mut found = std::collections::BTreeSet::new();
         for source in sources {
@@ -822,6 +829,28 @@ mod tests {
             ),
             // The owner signed new wallet limits: bookkeeping, not a step of any deal.
             ("wallet_limit.signed", json!({"version":1}), None),
+            // Rescue detection: the owner's watch list and the reads of it move no money; a
+            // failure a read finds is its deal's `rescue.opened` step.
+            (
+                "rescue.watch_added",
+                json!({"subscription_id":"I-1","plan":"care-plan"}),
+                None,
+            ),
+            (
+                "rescue.watch_stopped",
+                json!({"subscription_id":"I-1"}),
+                None,
+            ),
+            (
+                "rescue.watch_read",
+                json!({"subscription_id":"I-1","count":1,"max_per_day":100}),
+                None,
+            ),
+            (
+                "rescue.watch_seen",
+                json!({"subscription_id":"I-1","failed_payments":1}),
+                None,
+            ),
             // A price check under the owner's market-watch rule reads prices; no money step.
             (
                 "market.checked",

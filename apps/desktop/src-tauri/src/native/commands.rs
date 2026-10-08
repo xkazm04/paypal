@@ -560,3 +560,33 @@ pub(super) async fn deal_groups(
 ) -> Result<Vec<DealGroupView>, CommandError> {
     ask(&window, &state, None, Action::Groups).await
 }
+#[tauri::command]
+pub(super) async fn rescue_watch_add(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    request: tauri::ipc::Request<'_>,
+    args: RescueWatchArgs,
+) -> Result<Vec<RescueWatchView>, CommandError> {
+    ask(
+        &window,
+        &state,
+        Some(&request),
+        Action::RescueWatchAdd(args),
+    )
+    .await
+}
+#[tauri::command]
+pub(super) async fn rescue_watch_stop(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    request: tauri::ipc::Request<'_>,
+    args: RescueWatchStopArgs,
+) -> Result<Vec<RescueWatchView>, CommandError> {
+    ask(
+        &window,
+        &state,
+        Some(&request),
+        Action::RescueWatchStop(args),
+    )
+    .await
+}

@@ -127,6 +127,33 @@ describe('mock backend mirrors the shell gates', () => {
     const s = await approval.invoke('approval_summary', { deal_id: deal.id });
     expect(s.rescue).toMatchObject({ source: 'replay', recipient: 's•••@example.com', counted: false, offer: { discount: { minor: 300 } } });
   });
+  it('keeps the watch list as owner configuration: approval only, privileged, masked, at most 20, and it opens no deal', async () => {
+    history.replaceState(null, '', '/approval.html?target=rescue_watch');
+    const approval = mockBackend('approval');
+    const token = await approval.invoke('approval_token', null);
+    const args = { subscription_id: 'I-NEW9', subscriber_email: 'pat@example.com', plan: 'care-plan' };
+    const deals = (await mockBackend('main').invoke('list_deals', null)).length;
+    await expect(mockBackend('main').invoke('rescue_watch_add', args)).rejects.toMatchObject({ code: 'PERMISSION' });
+    await expect(mockBackend('tumbler').invoke('rescue_watch_add', args)).rejects.toMatchObject({ code: 'PERMISSION' });
+    await expect(approval.invoke('rescue_watch_add', args)).rejects.toMatchObject({ code: 'PERMISSION' });
+    await expect(approval.invoke('rescue_watch_add', { ...args, subscriber_email: 'pat' }, { token })).rejects.toMatchObject({ code: 'INVALID', message: 'That is not an email address.' });
+    await expect(approval.invoke('rescue_watch_add', { ...args, subscription_id: 'I NEW' }, { token })).rejects.toMatchObject({ code: 'INVALID', message: 'That is not a PayPal subscription id.' });
+    const list = await approval.invoke('rescue_watch_add', args, { token });
+    expect(list.at(-1)).toMatchObject({ subscription_id: 'I-NEW9', recipient: 'p•••@example.com', state: 'waiting' });
+    const book = await mockBackend('main').invoke('rescue_book', null);
+    expect(book.watching.map((w) => w.subscription_id)).toContain('I-NEW9');
+    expect(book.watch_reads_max).toBe(100);
+    expect(JSON.stringify(book)).not.toContain('pat@');
+    // Watching opens no deal by itself; stopping is privileged too.
+    expect((await mockBackend('main').invoke('list_deals', null)).length).toBe(deals);
+    await expect(mockBackend('main').invoke('rescue_watch_stop', { subscription_id: 'I-NEW9' })).rejects.toMatchObject({ code: 'PERMISSION' });
+    const after = await approval.invoke('rescue_watch_stop', { subscription_id: 'I-NEW9' }, { token });
+    expect(after.some((w) => w.subscription_id === 'I-NEW9')).toBe(false);
+    await expect(approval.invoke('rescue_watch_stop', { subscription_id: 'I-NEW9' }, { token })).rejects.toMatchObject({ code: 'INVALID' });
+    // At most 20 at once.
+    for (let i = after.length; i < 20; i++) await approval.invoke('rescue_watch_add', { ...args, subscription_id: `I-F${i}` }, { token });
+    await expect(approval.invoke('rescue_watch_add', { ...args, subscription_id: 'I-ONE-MORE' }, { token })).rejects.toMatchObject({ code: 'INVALID' });
+  });
   it('sorts attention by deadline and keeps the default-on-silence line', async () => {
     const tumbler = mockBackend('tumbler');
     const snap = await tumbler.invoke('attention_list', null);

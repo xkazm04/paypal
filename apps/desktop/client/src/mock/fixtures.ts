@@ -29,6 +29,7 @@ import type { CounterpartyDisplay, DealDisplay, TranscriptStep } from '../lib/pe
 import { MONEY_CHECK_SILENCE, RESCUE_SENT_SILENCE, RESCUE_SILENCE } from '../lib/words';
 import type { MockEnvelope } from './exposure';
 import type { RescueView } from '@bindings/RescueView';
+import type { RescueWatchView } from '@bindings/RescueWatchView';
 import { invoiceText, proposeDiscount } from './rescue';
 
 export const USD: Currency = 'USD';
@@ -106,6 +107,10 @@ export type MockState = {
   marketChecksToday?: Record<string, number>;
   /** Shop-around groups (T8): one buyer intent across several sellers' tables. */
   groups?: MockGroup[];
+  /** The owner's watched subscriptions (rescue detection). The mock never checks them with PayPal. */
+  rescueWatches?: RescueWatchView[];
+  /** Subscription checks made today (fixed in the mock). */
+  rescueWatchReadsToday?: number;
 };
 /** A shop-around group as the ledger keeps it (deal_groups + deals.group_id). `sample` marks the
  *  fixture's own group, which `?groups=none` hides to preview the "Shop around" action. */
@@ -473,8 +478,17 @@ export function buildMockState(now: number): MockState {
   const groupIds = ['D-0193', 'D-0204'].map((l) => deals.find((d) => d.display.label === l)?.deal.id).filter((x): x is string => !!x);
   const groups: MockGroup[] = [{ group_id: fakeUlid('G-0012'), item_ref: 'monitor-27-4k', opened_at: now - 40 * 60, winner: null, deal_ids: groupIds, sample: true }];
 
+  // Two of the owner's subscriptions the wallet checks with PayPal: one whose renewal failed and got
+  // its one fix, one paid. Sample rows: the mock never checks them.
+  const rescueWatches: RescueWatchView[] = [
+    { subscription_id: 'I-BW452GLLEP1G', recipient: 's•••@example.com', plan: 'care-plan', state: 'fix_opened', added_at: now - 20 * 86400, last_read_at: now - 2 * 3600, next_read_at: now + 4 * 3600 },
+    { subscription_id: 'I-7RX2M4KD90QZ', recipient: 'j•••@example.com', plan: 'care-plan', state: 'paid', added_at: now - 12 * 86400, last_read_at: now - 3600, next_read_at: now + 5 * 3600 },
+  ];
+
   return {
     rescue,
+    rescueWatches,
+    rescueWatchReadsToday: 9,
     groups,
     categories,
     notes,
