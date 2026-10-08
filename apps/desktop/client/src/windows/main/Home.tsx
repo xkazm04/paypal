@@ -23,6 +23,7 @@ import {
 } from './logic';
 import { RewindBar, RewindHub, useRewind } from './Rewind';
 import { StartAbout, StartHub, StartSide, useStart, useStartActions, type StartActions } from './home/Start';
+import { AwayCard, AwayHub, useAway, type Away } from './home/AwayCard';
 import type { GettingStarted } from '../../lib/firstRun';
 import type { PairMode } from './setup/pairing';
 import { Shortcuts } from './Shortcuts';
@@ -186,6 +187,19 @@ export function Home(p: Props) {
 
   // Rewind: beads stand where their deals stood at the playhead; deals not begun yet are absent.
   const rw = useRewind(rewind, now, reduced);
+  // "See it on the Rewind" opens the Rewind at a moment: step back to that week, then seek.
+  const [rewindAt, setRewindAt] = useState<number | null>(null);
+  const { seek: rwSeek, shiftWeek: rwShift, start: rwStart, end: rwEnd, weekBack: rwBack } = rw;
+  useEffect(() => {
+    if (!rewind || rewindAt === null) return;
+    if (rewindAt < rwStart && rwBack < 52) { rwShift(-1); return; }
+    if (rewindAt >= rwEnd && rwBack > 0) { rwShift(1); return; }
+    rwSeek(rewindAt);
+    setRewindAt(null);
+  }, [rewind, rewindAt, rwStart, rwEnd, rwBack, rwSeek, rwShift]);
+  const openRewindAt = useCallback((t: number) => { setRewindAt(t); setRewind(true); }, []);
+  // While you were away: what happened since this viewer last looked (home/AwayCard.tsx).
+  const away = useAway({ active: p.active, enabled: !firstRun && w.ready, needs: needs.length, deals });
   const labelOf = useMemo(() => {
     const by = new Map(deals.map((d) => [d.id, d]));
     return (id: string) => {
@@ -228,6 +242,7 @@ export function Home(p: Props) {
       <main className="stage">
         <section className="col l" aria-label={scope.scope === 'week' ? 'This week' : 'The ledger'}>
           {firstRun ? null : <Explainer id="home" title="How The Table works" steps={HOME_STEPS} className="home-ex" />}
+          {!firstRun && needs.length && away.summary ? <AwayCard s={away.summary} onDismiss={away.dismiss} onDeal={p.onOpenDeal} onRewind={openRewindAt} /> : null}
           {firstRun ? <StartSide gs={start} act={startAct} /> : <Ledger s={summary} scope={scope} onDeal={p.onOpenDeal} onBook={() => zoomInto(moduleIndex('book'))} />}
         </section>
         <Dial beads={firstRun ? [] : rewind ? pastBeads : beads} badges={firstRun || rewind ? [0, 0, 0, 0, 0, 0] : badges} focus={focus} mode={mode} intro={intro} reduced={reduced}
@@ -249,6 +264,7 @@ export function Home(p: Props) {
           }}>
           {rewind && !firstRun ? <RewindHub r={rw} labelOf={labelOf} onOpenDeal={p.onOpenDeal} /> : (
             <Hub start={firstRun ? { gs: start, act: startAct } : null} mode={mode} sel={sel} item={top} index={safeNeedIdx} count={needs.length} summary={summary} week={scope.scope === 'week'}
+              away={away} onRewindAt={openRewindAt}
               onOpen={zoomInto} onBack={pointNeeds} onPage={cycleNeed} onDeal={p.onOpenDeal} />
           )}
         </Dial>
@@ -291,10 +307,12 @@ const HOME_STEPS: readonly ExplainerStep[] = [
 
 const stop = (e: MouseEvent) => e.stopPropagation();
 
-function Hub({ start, mode, sel, item, index, count, summary, week, onOpen, onBack, onPage, onDeal }: {
+function Hub({ start, mode, sel, item, index, count, summary, week, away, onRewindAt, onOpen, onBack, onPage, onDeal }: {
   /** First run: the getting-started hub instead of the decisions. */
   start: { gs: GettingStarted; act: StartActions } | null;
   mode: 'needs' | 'module'; sel: number; item: AttentionItem | undefined; index: number; count: number; summary: LedgerSummary; week: boolean;
+  /** While you were away: the hub tells it when nothing needs Maya. */
+  away: Away; onRewindAt: (t: number) => void;
   onOpen: (i: number) => void; onBack: () => void; onPage: (d: 1 | -1) => void; onDeal: (id: string) => void;
 }) {
   const w = useWorld();
@@ -352,6 +370,8 @@ function Hub({ start, mode, sel, item, index, count, summary, week, onOpen, onBa
       </div>
     );
   }
+
+  if (away.summary) return <AwayHub s={away.summary} onDismiss={away.dismiss} onDeal={onDeal} onRewind={onRewindAt} />;
 
   const meters = !!settings?.meters_available;
   const held = sumByCurrency(summary.held.map(dealTotal));

@@ -266,3 +266,42 @@
 .home .start-about .sa-ico { grid-row: span 2; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--teal-l); background: color-mix(in srgb, var(--teal) 14%, transparent); }
 .home .start-about b { font-weight: var(--fw-semibold); line-height: 1.3; }
 .home .start-about span { font-size: var(--fs-small); color: var(--dim); line-height: 1.35; }
+
+/* ---- While you were away (home/AwayCard.tsx): calm, compact, never gold (Needs you keeps the gold) ---- */
+.home .away .ui-section-h { align-items: center; }
+.home .aw-x { width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--dim); font-size: 15px; line-height: 1; cursor: pointer; }
+.home .aw-x:hover { color: var(--text); background: var(--hover); }
+.home .aw-card { padding: var(--sp-2) 0 0; }
+.home .away .aw-since { margin: 0 var(--sp-3) var(--sp-1); font-size: var(--fs-small); color: var(--dim); }
+.home .aw-lead { margin: 0 var(--sp-3) var(--sp-1); font-weight: var(--fw-semibold); }
+.home .aw-lines { list-style: none; margin: 0; padding: 0; }
+.home .aw-line { display: grid; grid-template-columns: 10px minmax(0, 1fr); column-gap: var(--sp-2); align-items: baseline; width: 100%; padding: 5px var(--sp-3); border: 0; background: none;
+  color: var(--muted); font: inherit; font-size: var(--fs-small); line-height: 1.4; text-align: left; cursor: pointer; }
+.home .aw-line:hover { background: var(--hover); color: var(--text); }
+.home .aw-say b { font: var(--fw-semibold) 1em var(--num); font-variant-numeric: tabular-nums; color: var(--text); }
+/* the mark says what a line is (colour always with words): paid/collected green, stopped a red ×,
+   checking dashed, held and calm lines a quiet ring */
+.home .aw-mark { width: 8px; height: 8px; border-radius: 50%; align-self: center; justify-self: center; border: 1.5px solid var(--dim); font-style: normal; box-sizing: border-box; }
+.home .aw-line.t-out .aw-mark, .home .aw-line.t-in .aw-mark { border-color: var(--ok); background: var(--ok); }
+.home .aw-line.t-held .aw-mark { border-color: var(--muted); }
+.home .aw-line.t-check .aw-mark { border-style: dashed; border-color: var(--muted); }
+.home .aw-line.t-stopped .aw-mark { width: auto; height: auto; border: 0; border-radius: 0; color: var(--red-l); font-weight: var(--fw-bold); font-size: 13px; line-height: 1; }
+.home .aw-more { display: block; margin: 2px var(--sp-3) 0; padding: 0; border: 0; background: none; font: inherit; font-size: var(--fs-small); color: var(--dim); cursor: pointer; text-align: left; }
+.home .aw-more:hover { color: var(--text); text-decoration: underline; }
+.home .aw-foot { display: flex; flex-wrap: wrap; align-items: center; row-gap: 2px; column-gap: var(--sp-2); padding: var(--sp-1) var(--sp-3) var(--sp-2); margin-top: var(--sp-1); border-top: 1px solid var(--line); font-size: var(--fs-small); }
+.home .aw-needs { color: var(--muted); white-space: nowrap; }
+.home .aw-rw { margin-left: auto; padding: 2px 0; border: 0; background: none; color: var(--teal-l); font: inherit; cursor: pointer; white-space: nowrap; }
+.home .aw-rw:hover { text-decoration: underline; }
+.home .col .away + .ui-section { margin-top: var(--sp-4); }
+
+/* in the hub when nothing needs Maya: the promise first, then the lines left-aligned */
+.home .hc.aw-hub { gap: .9cqmin; }
+.home .aw-hub .aw-eyebrow { color: var(--dim); }
+.home .aw-hub .aw-h { font: var(--fw-semibold) max(17px, 3.2cqmin)/1.1 var(--display); letter-spacing: -.02em; color: var(--text); }
+.home .aw-hub .aw-since { font-size: max(12px, 1.7cqmin); color: var(--dim); }
+.home .aw-hub .aw-lead { margin: .4cqmin 0 0; font-size: max(13px, 1.9cqmin); color: var(--text); }
+.home .aw-hub .aw-lines { width: 100%; margin-top: .4cqmin; padding: .6cqmin 0; border-radius: 1.2cqmin; background: color-mix(in srgb, var(--panel) 70%, transparent); border: 1px solid var(--line); }
+.home .aw-hub .aw-line { font-size: max(12px, 1.75cqmin); padding: .5cqmin 1.6cqmin; }
+.home .aw-hub .aw-more { margin: 0 auto; text-align: center; font-size: max(12px, 1.6cqmin); }
+.home .aw-hub .aw-acts { display: flex; gap: 2cqmin; align-items: center; }
+.home .aw-hub .aw-acts .hm-back:hover { color: var(--text); }
