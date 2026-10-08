@@ -1050,8 +1050,24 @@ impl Ledger {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        commit_negotiation_in(&tx, verified, direction, terms, event, at)?;
+        tx.commit()?;
+        Ok(())
+    }
+}
+/// The body of [`Ledger::commit_negotiation`] inside the caller's transaction. A grouped deal's
+/// ACCEPT passes the shop-around guard here, in the same transaction that records it.
+pub(crate) fn commit_negotiation_in(
+    tx: &Connection,
+    verified: &VerifiedEnvelope,
+    direction: Direction,
+    terms: Option<&Terms>,
+    event: Option<DealEvent>,
+    at: Timestamp,
+) -> Result<(), LedgerError> {
+    {
         let id = verified.envelope().deal_id;
-        let deal = read_deal(&tx, id)?;
+        let deal = read_deal(tx, id)?;
         if let Some(terms) = terms {
             if !matches!(deal.state, DealState::Listed | DealState::Negotiating) {
                 return Err(LedgerError::Conflict);
@@ -1082,6 +1098,11 @@ impl Ledger {
                 {
                     return Err(LedgerError::Conflict);
                 }
+                // Shop around (T8): at most one table of a group holds our ACCEPT and at most one
+                // ever agrees. Checked and claimed here, before the ACCEPT is recorded.
+                let agrees = (direction == Direction::Outbound && peer)
+                    || (direction == Direction::Inbound && own);
+                crate::groups::accept_guard(tx, &deal, direction, agrees, at)?;
                 let column = if direction == Direction::Outbound {
                     "own_accept"
                 } else {
@@ -1113,18 +1134,19 @@ impl Ledger {
                 if (direction == Direction::Outbound && peer)
                     || (direction == Direction::Inbound && own)
                 {
-                    apply(&tx, id, DealEvent::TwoAcceptsVerified, at)?;
+                    apply(tx, id, DealEvent::TwoAcceptsVerified, at)?;
                 }
             }
             _ => {}
         }
-        append_verified(&tx, verified, direction, at)?;
+        append_verified(tx, verified, direction, at)?;
         if let Some(event) = event {
-            apply(&tx, id, event, at)?;
+            apply(tx, id, event, at)?;
         }
-        tx.commit()?;
         Ok(())
     }
+}
+impl Ledger {
     /// Offline evidence verification also works after a mandate is revoked/superseded.
     pub fn verify_transcript(&self, id: DealId) -> Result<H256, LedgerError> {
         let deal = read_deal(&self.conn, id)?;

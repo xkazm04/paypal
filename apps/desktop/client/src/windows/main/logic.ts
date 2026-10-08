@@ -508,6 +508,8 @@ export function tickTone(s: HistoryStep): TickTone {
     case 'seller_mandate': return 'buyer';
     case 'safe_default': return 'default';
     case 'agent_intent': case 'none': return 'unknown';
+    // The shop-around rule only ever says no to a seller; it never moves money.
+    case 'group_rule': return 'default';
   }
 }
 export const TICK_WORD: Record<TickTone, string> = {
@@ -529,6 +531,7 @@ export function whoDecided(a: HistoryAuthority): string {
     case 'safe_default': return 'The safe default';
     case 'agent_intent': return 'Your agent';
     case 'none': return '';
+    case 'group_rule': return 'Your shop-around choice';
   }
 }
 
@@ -597,6 +600,7 @@ export function stepSentence(s: HistoryStep, ctx: { title: string; side?: Side }
     case 'invoice_created': return `${by('The wallet')} had PayPal make the invoice for ${x}. Nobody is asked to pay yet.${tail}`;
     case 'invoice_sent': return `${by('The wallet')} had PayPal send the invoice for ${x} to the subscriber.${tail}`;
     case 'invoice_paid': return `The subscriber paid the invoice for ${x} on PayPal.`;
+    case 'group_withdrawn': return `Another seller agreed first, so your wallet told this seller no on ${x}. No money moved.`;
   }
 }
 

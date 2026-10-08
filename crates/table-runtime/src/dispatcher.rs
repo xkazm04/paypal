@@ -612,6 +612,11 @@ impl Runtime {
                 // Numbers and masked addresses only; never the Tumbler.
                 json(self.rescue_book()?)
             }
+            Action::GroupOpen(args) => {
+                // Shop around (T8): grouping only restricts, so main may do it without a token.
+                json(self.open_group(args)?)
+            }
+            Action::Groups => json(self.group_views()?),
         }
     }
     fn quit_summary(&mut self) -> Result<QuitSummary, CommandError> {

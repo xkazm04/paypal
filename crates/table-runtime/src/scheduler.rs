@@ -7,8 +7,13 @@ impl Runtime {
         let now = self.clock.now();
         // Deadlines are independent of pause, idle lock and the existence of any window.
         // A failed/unknown operation must never prevent processing unrelated deals.
-        let deals = app(self.pipeline.wallet.ledger.list_deals())?;
         let mut failure = None;
+        // Shop around (T8): a group another table won withdraws its other tables first, so no
+        // policy run is armed on a table the group rule is closing.
+        if let Err(error) = self.close_groups() {
+            failure.get_or_insert(error);
+        }
+        let deals = app(self.pipeline.wallet.ledger.list_deals())?;
         for deal in deals {
             if deal.kind == DealKind::Rescue && !deal.state.terminal() {
                 // A rescue invoice is real whatever the failure's mode (table-app rescue.rs).

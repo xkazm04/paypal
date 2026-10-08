@@ -263,6 +263,9 @@ pub const AUTHORITY: &[CommandAuthority] = &[
     row("envelope_get",           ALL,      Read,     OPEN,       ANY,         R),
     row("rescue_replay",          APPROVAL, Owner,    PRIVILEGED, ANY,         R),
     row("rescue_book",            REVIEW,   Read,     OPEN,       ANY,         R),
+    // Shop around (T8): grouping only restricts (first to agree wins, the rest are withdrawn).
+    row("deal_group_open",        MAIN,     Act,      OPEN,       ANY,         R),
+    row("deal_groups",            MAIN,     Read,     OPEN,       ANY,         R),
 ];
 
 const fn release_count() -> usize {
