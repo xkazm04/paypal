@@ -14,6 +14,8 @@ struct Book {
     reference: String,
     number: String,
     posts: Vec<String>,
+    /// The send request is lost before PayPal sees it.
+    lose_send: bool,
 }
 #[derive(Debug, Default)]
 struct Invoicing(Mutex<Book>);
@@ -62,6 +64,16 @@ impl SecondaryApi for Invoicing {
     ) -> Result<ApiResponse<()>, PaypalError> {
         let mut b = self.0.lock().unwrap();
         b.posts.push(id.as_str().into());
+        if b.lose_send {
+            return Err(PaypalError::Unknown {
+                observations: vec![seen(
+                    "POST",
+                    "/v2/invoicing/invoices/INV-1/send",
+                    id.as_str(),
+                    Value::Null,
+                )],
+            });
+        }
         b.status = "SENT";
         Ok(ApiResponse {
             value: (),
@@ -341,4 +353,100 @@ async fn a_replayed_renewal_is_fixed_only_on_the_owners_bound_decision_and_never
     assert!(book.recovered.is_empty());
     assert_eq!(paypal.0.lock().unwrap().posts.len(), 2);
     r.pipeline.wallet.ledger.verify_audit().unwrap();
+}
+
+/// A replayed renewal's fix, signed rules in place, ready for the owner's decision.
+async fn rescue_ready(r: &mut Runtime) -> (Deal, String) {
+    r.sign_mandate(MandateSignArgs {
+        id: None,
+        agent: AgentSlot::Assistant,
+        clauses: rescue_clauses(),
+        not_before: 0,
+        expires: 10_000_000,
+    })
+    .unwrap();
+    let token = unlock_runtime(r);
+    let deal: Deal = serde_json::from_value(
+        r.execute(
+            caller("approval", Some(&token)),
+            Action::RescueReplay(replay_args()),
+        )
+        .await
+        .unwrap(),
+    )
+    .unwrap();
+    (deal, token)
+}
+
+/// The rescue rules revoked while a fix's send is unknown: with no agent key the send is still
+/// read back, and at PayPal's retry the draft closes not done and the fix expires. Before, the
+/// tick returned at once, the rescue stayed open and refused every later one for the
+/// subscription. A sent invoice waits for the key instead: PAID needs the signed receipt.
+#[tokio::test]
+async fn a_revoked_rescue_mandate_still_lets_an_unsent_fix_expire_and_never_signs_paid() {
+    let (mut r, vault, _, clock, _) = runtime(true);
+    credentials(vault.as_ref());
+    let paypal = with_invoicing(&mut r);
+    let (deal, token) = rescue_ready(&mut r).await;
+    paypal.0.lock().unwrap().lose_send = true;
+    let args = decision(&mut r, deal.id);
+    assert!(
+        r.execute(
+            caller("approval", Some(&token)),
+            Action::Decision(args, Decision::Rescue),
+        )
+        .await
+        .is_err()
+    );
+    assert!(r.pipeline.has_open_operation(deal.id).unwrap());
+    r.pipeline
+        .wallet
+        .ledger
+        .revoke_mandate(deal.mandate_id, clock.now())
+        .unwrap();
+    assert!(r.select_signer(deal.id).is_err());
+    let (due, _) = r.pipeline.wallet.ledger.deadline(deal.id).unwrap().unwrap();
+    clock.0.store(due + 1, Ordering::SeqCst);
+    r.tick().await.unwrap();
+    assert_eq!(
+        r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Expired
+    );
+    assert!(!r.pipeline.has_open_operation(deal.id).unwrap());
+    assert!(!r.pipeline.signer_missing);
+    let sent = {
+        let b = paypal.0.lock().unwrap();
+        (b.status, b.posts.len())
+    };
+    assert_eq!(sent, ("DRAFT", 2));
+
+    // Sent, then the rules revoked and the invoice paid: nothing is signed without the key, and
+    // a paid invoice is never expired unread.
+    let (mut r, vault, _, clock, _) = runtime(true);
+    credentials(vault.as_ref());
+    let paypal = with_invoicing(&mut r);
+    let (deal, token) = rescue_ready(&mut r).await;
+    let args = decision(&mut r, deal.id);
+    r.execute(
+        caller("approval", Some(&token)),
+        Action::Decision(args, Decision::Rescue),
+    )
+    .await
+    .unwrap();
+    r.pipeline
+        .wallet
+        .ledger
+        .revoke_mandate(deal.mandate_id, clock.now())
+        .unwrap();
+    paypal.0.lock().unwrap().status = "PAID";
+    let (due, _) = r.pipeline.wallet.ledger.deadline(deal.id).unwrap().unwrap();
+    for at in [clock.now() + 120, due + 1] {
+        clock.0.store(at, Ordering::SeqCst);
+        r.tick().await.unwrap();
+        assert_eq!(
+            r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
+            DealState::AwaitingApproval
+        );
+    }
+    assert_eq!(paypal.0.lock().unwrap().posts.len(), 2);
 }

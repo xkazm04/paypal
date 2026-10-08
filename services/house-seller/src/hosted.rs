@@ -93,6 +93,11 @@ impl Log for Stderr {
 
 /// How long a table request waits for the actor before the caller sees 503.
 const REPLY_TIMEOUT: Duration = Duration::from_secs(20);
+/// Requests the actor queues for buyers' tables (and trusted snapshots); beyond it, 429.
+const TABLE_QUEUE: usize = 4;
+/// Public prefix reads the actor queues on their own channel, so a flood of them is turned away
+/// on that channel and never takes a buyer's table slot; beyond it, 429.
+const PREFIX_QUEUE: usize = 4;
 /// table-paypal's bound on one HTTP request: `ReqwestTransport`'s timeout
 /// (crates/table-paypal/src/http.rs).
 const PAYPAL_REQUEST_SECS: i64 = 30;
@@ -864,11 +869,14 @@ type Reply = oneshot::Sender<Result<HouseResponse, Error>>;
 enum Message {
     Table(HouseRequest, Reply),
     Snapshot(DealId, oneshot::Sender<Result<Deal, Error>>),
-    Prefix(u64, oneshot::Sender<Result<SignedHousePrefix, Error>>),
 }
+/// A public prefix read: rows, and where the signed answer goes.
+type PrefixAsk = (u64, oneshot::Sender<Result<SignedHousePrefix, Error>>);
 #[derive(Clone)]
 pub struct HouseHandle {
     tx: mpsc::Sender<Message>,
+    /// Prefix reads, on their own bounded queue (see [`PREFIX_QUEUE`]).
+    prefixes: mpsc::Sender<PrefixAsk>,
     heartbeat: Arc<AtomicI64>,
     clock: Arc<dyn Clock>,
     timeout: Duration,
@@ -881,12 +889,13 @@ impl std::fmt::Debug for HouseHandle {
     }
 }
 impl HouseHandle {
-    async fn ask<T>(
+    async fn ask<M, T>(
         &self,
-        message: Message,
+        queue: &mpsc::Sender<M>,
+        message: M,
         rx: oneshot::Receiver<Result<T, Error>>,
     ) -> Result<T, Error> {
-        self.tx.try_send(message).map_err(|e| match e {
+        queue.try_send(message).map_err(|e| match e {
             mpsc::error::TrySendError::Full(_) => Error::Full,
             mpsc::error::TrySendError::Closed(_) => Error::Unavailable,
         })?;
@@ -897,18 +906,19 @@ impl HouseHandle {
     }
     pub async fn table(&self, request: HouseRequest) -> Result<HouseResponse, Error> {
         let (tx, rx) = oneshot::channel();
-        self.ask(Message::Table(request, tx), rx).await
+        self.ask(&self.tx, Message::Table(request, tx), rx).await
     }
     /// Trusted Rust inspection of one full deal row (PayPal ids included); never served over
     /// HTTP. The public view is [`HouseHandle::published`].
     pub async fn snapshot(&self, id: DealId) -> Result<Deal, Error> {
         let (tx, rx) = oneshot::channel();
-        self.ask(Message::Snapshot(id, tx), rx).await
+        self.ask(&self.tx, Message::Snapshot(id, tx), rx).await
     }
-    /// The house's signed chain hash at `rows`, from the published chain (signed by the actor).
+    /// The house's signed chain hash at `rows`, from the published chain (signed by the actor,
+    /// which holds the key). Asked on the prefix queue, never the tables queue.
     pub async fn prefix(&self, rows: u64) -> Result<SignedHousePrefix, Error> {
         let (tx, rx) = oneshot::channel();
-        self.ask(Message::Prefix(rows, tx), rx).await
+        self.ask(&self.prefixes, (rows, tx), rx).await
     }
     /// The latest published projection and signed head (T9); `None` before the first refresh.
     pub fn published(&self) -> Option<Arc<Published>> {
@@ -945,9 +955,11 @@ pub fn spawn(seller: Seller) -> HouseHandle {
 /// Starts the actor; before it serves anything, it settles every money operation a previous run
 /// left unknown (`Seller::resolve_pending`).
 pub fn start(mut seller: Seller) -> House {
-    let (tx, mut rx) = mpsc::channel::<Message>(4);
+    let (tx, mut rx) = mpsc::channel::<Message>(TABLE_QUEUE);
+    let (prefixes, mut prefix_rx) = mpsc::channel::<PrefixAsk>(PREFIX_QUEUE);
     let handle = HouseHandle {
         tx,
+        prefixes,
         heartbeat: seller.heartbeat.clone(),
         clock: seller.clock.clone(),
         timeout: REPLY_TIMEOUT,
@@ -973,7 +985,11 @@ pub fn start(mut seller: Seller) -> House {
                 request=rx.recv()=>match request {
                     Some(Message::Table(request,reply))=>{if !reply.is_closed(){let _=reply.send(seller.table(request));}},
                     Some(Message::Snapshot(id,reply))=>{let _=reply.send(seller.pipeline.wallet.ledger.get_deal(id).map_err(Error::from));},
-                    Some(Message::Prefix(rows,reply))=>{let _=reply.send(seller.prefix(rows));},
+                    None=>break,
+                },
+                // After the tables queue: a buyer's table is never kept waiting by prefix reads.
+                ask=prefix_rx.recv()=>match ask {
+                    Some((rows,reply))=>{let _=reply.send(seller.prefix(rows));},
                     None=>break,
                 },
                 _=timer.tick()=>{
@@ -1090,16 +1106,30 @@ mod tests {
         }
     }
     fn handle(timeout: Duration, beat: i64) -> (HouseHandle, mpsc::Receiver<Message>) {
+        let (h, rx, _) = handle_with_prefixes(timeout, beat);
+        (h, rx)
+    }
+    fn handle_with_prefixes(
+        timeout: Duration,
+        beat: i64,
+    ) -> (
+        HouseHandle,
+        mpsc::Receiver<Message>,
+        mpsc::Receiver<PrefixAsk>,
+    ) {
         let (tx, rx) = mpsc::channel(1);
+        let (prefixes, prefix_rx) = mpsc::channel(PREFIX_QUEUE);
         (
             HouseHandle {
                 tx,
+                prefixes,
                 heartbeat: Arc::new(AtomicI64::new(beat)),
                 clock: Arc::new(Fixed(100)),
                 timeout,
                 published: Arc::new(RwLock::new(None)),
             },
             rx,
+            prefix_rx,
         )
     }
     fn deal() -> DealId {
@@ -1120,6 +1150,36 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(20)).await;
         assert!(matches!(h.snapshot(deal()).await, Err(Error::Full)));
         let _ = first.await;
+    }
+    /// A flood of public prefix reads fills only the prefix queue: the route answers 429 while the
+    /// tables queue stays empty, and a buyer's table request still finds its slot. Before, both
+    /// shared the actor's one 4-slot queue, so prefix GETs turned buyers away with 429.
+    #[tokio::test]
+    async fn prefix_reads_never_take_a_tables_slot() {
+        let (h, mut rx, _prefixes) = handle_with_prefixes(Duration::from_millis(20), 100);
+        for _ in 0..PREFIX_QUEUE {
+            // Queued, unanswered here: each caller gives up at its timeout.
+            assert!(matches!(h.prefix(1).await, Err(Error::Unavailable)));
+        }
+        assert!(matches!(h.prefix(1).await, Err(Error::Full)));
+        let store = Arc::new(rendezvous::MemoryStore::new(Arc::new(Fixed(100))));
+        let response = router(store, h.clone())
+            .oneshot(
+                Request::get("/v1/house/prefix?rows=1")
+                    .body(HttpBody::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+        assert!(
+            rx.try_recv().is_err(),
+            "no prefix read is on the tables queue"
+        );
+        let buyer = h.clone();
+        let ask = tokio::spawn(async move { buyer.snapshot(deal()).await });
+        assert!(matches!(rx.recv().await, Some(Message::Snapshot(..))));
+        let _ = ask.await;
     }
     #[tokio::test]
     async fn reply_that_never_comes_is_unavailable_after_the_timeout() {

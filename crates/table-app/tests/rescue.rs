@@ -740,3 +740,88 @@ async fn a_failure_paypal_reports_opens_a_counted_rescue_and_a_healthy_subscript
     r.p.tick(T0 + 60).await.unwrap();
     assert!(r.p.wallet.ledger.rescue_counted(deal.id).unwrap());
 }
+
+impl Rig {
+    /// A fix whose owner-approved send was lost before PayPal saw it: the invoice is a DRAFT at
+    /// PayPal and the send step is open. The fix's deadline (PayPal's next retry) is `retry_in`.
+    async fn lost_send(&mut self, n: u128, retry_in: Timestamp) -> DealId {
+        let mut f = failure(RescueSource::Paypal, &format!("I-SUB{n}"));
+        f.next_retry_at = Some(T0 + retry_in);
+        let id = self
+            .p
+            .rescue_open(did(n), &f, (MANDATE.parse().unwrap(), 1), T0)
+            .unwrap()
+            .id;
+        self.pp.set(|w| w.lose.push("send"));
+        assert!(self.approve(id, T0).await.is_err());
+        assert!(self.p.has_open_operation(id).unwrap());
+        assert_eq!(self.state(id), DealState::Settling);
+        id
+    }
+    fn sends(&self) -> usize {
+        self.posts().iter().filter(|(s, _)| *s == "send").count()
+    }
+}
+
+/// A lost send whose invoice PayPal still shows as a DRAFT used to stay open for ever, and the
+/// open rescue refused every later one for its subscription. At the fix's deadline it now closes
+/// not done and the fix expires: nothing was sent, nobody was asked to pay.
+#[tokio::test]
+async fn a_lost_send_still_draft_at_the_deadline_closes_and_frees_the_subscription() {
+    let mut r = rig();
+    let id = r.lost_send(1, 4 * 86400).await;
+    assert!(r.p.rescue_tick(id, T0 + 4 * 86400).await.unwrap());
+    assert_eq!(r.state(id), DealState::Expired);
+    assert!(!r.p.has_open_operation(id).unwrap());
+    assert_eq!(r.sends(), 1);
+    assert!(r.writes().iter().all(|(s, _)| *s != "send"));
+    // The subscription's next failure opens a new rescue.
+    let later = T0 + 5 * 86400;
+    let mut f = failure(RescueSource::Paypal, "I-SUB1");
+    (f.failed_at, f.next_retry_at) = (later, Some(later + 4 * 86400));
+    r.p.rescue_open(did(2), &f, (MANDATE.parse().unwrap(), 1), later)
+        .unwrap();
+
+    // Past the request id's window, before the deadline: closed not done, never sent again
+    // (not even on a fresh decision), and the fix expires at its deadline.
+    let mut r = rig();
+    let id = r.lost_send(1, 4 * 86400).await;
+    let past_window = T0 + REQUEST_ID_WINDOW_SECS + 60;
+    assert_eq!(
+        r.p.resolve(id, None, past_window).await.unwrap(),
+        Some(Resolution::NotDone)
+    );
+    assert!(!r.p.has_open_operation(id).unwrap());
+    assert_eq!(r.state(id), DealState::Settling);
+    r.p.approval
+        .unlock("approval", &r.token, &Reauth, past_window)
+        .unwrap();
+    assert!(r.approve(id, past_window).await.is_err());
+    assert_eq!(r.sends(), 1);
+    assert!(r.p.tick(T0 + 4 * 86400).await.unwrap().contains(&id));
+    assert_eq!(r.state(id), DealState::Expired);
+    assert_eq!(r.sends(), 1);
+    assert!(r.writes().iter().all(|(s, _)| *s != "send"));
+}
+
+/// The re-send of a lost invoice send checks the fix's deadline first, as every other re-send
+/// does: past the subscription's retry time an open send PayPal shows as a DRAFT is never sent,
+/// even on the owner's fresh decision inside the request id's window.
+#[tokio::test]
+async fn past_the_retry_time_an_open_draft_send_is_never_sent_again() {
+    let mut r = rig();
+    let id = r.lost_send(1, 3600).await;
+    let past_retry = T0 + 2 * 3600;
+    r.p.approval
+        .unlock("approval", &r.token, &Reauth, past_retry)
+        .unwrap();
+    r.approve(id, past_retry).await.unwrap();
+    assert_eq!(r.sends(), 1);
+    assert!(r.writes().iter().all(|(s, _)| *s != "send"));
+    assert!(!r.p.has_open_operation(id).unwrap());
+    assert_eq!(r.state(id), DealState::Expired);
+    assert_eq!(
+        r.pp.get(|w| w.invoices.values().map(|h| h.status).collect::<Vec<_>>()),
+        ["DRAFT"]
+    );
+}
