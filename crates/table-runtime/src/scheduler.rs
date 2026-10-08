@@ -42,10 +42,15 @@ impl Runtime {
         // on its own backoff. A confirmed step signs with the deal's own agent key.
         self.pipeline.policy_paused = self.paused;
         if self.pipeline.has_open_operation(deal.id)? {
-            // Without the deal's own agent key nothing PayPal confirms could be signed: the deal
-            // stays as it is, and nothing is sent, until the key is available again.
+            // Without the deal's own agent key (its mandate revoked, or the key gone) nothing
+            // PayPal confirms could be signed: the read-back still settles what needs no
+            // signature and the deadline still applies its safe default, but no capture is
+            // confirmed and nothing but a void is sent until the key is available again.
             if self.select_signer(deal.id).is_err() {
-                return Ok(());
+                self.pipeline.signer_missing = true;
+                let result = self.tick_unsigned(deal.id, now).await;
+                self.pipeline.signer_missing = false;
+                return result;
             }
             self.pipeline.resolve(deal.id, None, now).await?;
             let current = app(self.pipeline.wallet.ledger.get_deal(deal.id))?;
@@ -143,6 +148,17 @@ impl Runtime {
                     )
                     .await?;
             }
+        }
+        Ok(())
+    }
+    /// A deal with an open money step and no agent key: read the step back and apply a due
+    /// deadline, under `signer_missing` (table-app `Pipeline`), and start nothing.
+    async fn tick_unsigned(&mut self, id: DealId, now: i64) -> Result<(), CommandError> {
+        self.pipeline.resolve(id, None, now).await?;
+        let current = app(self.pipeline.wallet.ledger.get_deal(id))?;
+        let due = app(self.pipeline.wallet.ledger.deadline(id))?;
+        if !current.state.terminal() && due.is_some_and(|d| d.0 <= now) {
+            self.pipeline.deadline_default(id, now).await?;
         }
         Ok(())
     }

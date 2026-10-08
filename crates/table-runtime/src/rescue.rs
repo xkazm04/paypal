@@ -119,21 +119,13 @@ impl Runtime {
     /// The scheduler's pass over one rescue deal, any mode: read back a lost step, apply a due
     /// deadline, read a sent invoice. Never starts a create or a send.
     pub(crate) async fn tick_rescue(&mut self, deal: &Deal, now: i64) -> Result<(), CommandError> {
-        // A confirmed PAID is signed with the deal's own agent key; without it, nothing moves.
-        if self.select_signer(deal.id).is_err() {
-            if app(self.pipeline.wallet.ledger.deadline(deal.id))?
-                .is_some_and(|(due, _)| due <= now)
-                && deal.state == DealState::Agreed
-            {
-                app(self
-                    .pipeline
-                    .wallet
-                    .ledger
-                    .apply_deadline_default(deal.id, now))?;
-            }
-            return Ok(());
-        }
-        self.pipeline.rescue_tick(deal.id, now).await?;
+        // A confirmed PAID is signed with the deal's own agent key. Without it (its mandate
+        // revoked, or the key gone) a lost step is still read back and a due deadline still
+        // applies, but PAID waits for the key and nothing is sent (table-app `signer_missing`).
+        self.pipeline.signer_missing = self.select_signer(deal.id).is_err();
+        let result = self.pipeline.rescue_tick(deal.id, now).await;
+        self.pipeline.signer_missing = false;
+        result?;
         Ok(())
     }
 }

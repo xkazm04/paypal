@@ -78,6 +78,8 @@ struct ApiState {
     paths: Vec<String>,
     units: Option<Value>,
     fail_void: bool,
+    /// The capture request is lost before PayPal sees it.
+    fail_capture: bool,
     /// What PayPal holds after each money step, so an order read reflects it (T10 read-back).
     authorization: Option<&'static str>,
     captured: bool,
@@ -448,6 +450,9 @@ impl Transport for OfflineHttp {
             });
         }
         if url.ends_with("/authorizations/AUTH1/capture") {
+            if s.fail_capture {
+                return Err(TransportError);
+            }
             s.authorization = Some("CAPTURED");
             s.captured = true;
             return Ok(Response {
@@ -1652,6 +1657,95 @@ async fn owner_void_requires_ticket_and_is_durable_once() {
             .filter(|p| p.ends_with("/void"))
             .count(),
         1
+    );
+}
+/// An owner's capture whose answer was lost, then the deal's mandate revoked: with no agent key
+/// the read-back still runs and the deadline still releases the hold, and nothing captures.
+/// Before, the tick returned before both and the money stayed held at PayPal.
+#[tokio::test]
+async fn a_revoked_mandate_never_freezes_an_open_capture_past_its_deadline() {
+    let (mut r, vault, http, clock, _) = runtime(true);
+    credentials(vault.as_ref());
+    let (deal, peer) = setup_delivery(&mut r, Side::Seller, Delivery::ShipThenCapture { days: 1 });
+    agree(&mut r, &deal, &peer);
+    let token = unlock_runtime(&mut r);
+    r.selected = Some(deal.id);
+    let args = decision(&mut r, deal.id);
+    r.execute(
+        caller("approval", Some(&token)),
+        Action::Decision(args, Decision::Countersign),
+    )
+    .await
+    .unwrap();
+    r.tick().await.unwrap();
+    assert_eq!(
+        r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Authorized
+    );
+    http.0.lock().unwrap().fail_capture = true;
+    let args = decision(&mut r, deal.id);
+    assert!(
+        r.execute(
+            caller("approval", Some(&token)),
+            Action::Decision(args, Decision::Capture),
+        )
+        .await
+        .is_err()
+    );
+    assert!(r.pipeline.has_open_operation(deal.id).unwrap());
+    http.0.lock().unwrap().fail_capture = false;
+    r.pipeline
+        .wallet
+        .ledger
+        .revoke_mandate(deal.mandate_id, clock.now())
+        .unwrap();
+    assert!(r.select_signer(deal.id).is_err());
+    let count = |http: &OfflineHttp, end: &str| {
+        http.0
+            .lock()
+            .unwrap()
+            .paths
+            .iter()
+            .filter(|p| p.ends_with(end))
+            .count()
+    };
+    // The client's own retries of the one lost request, all under its one request id.
+    let (reads, captures) = (count(&http, "/orders/ORDER1"), count(&http, "/capture"));
+    assert!(captures >= 1);
+    // Inside the deadline: read back (the hold is there, nothing captured), and nothing is sent.
+    clock.0.fetch_add(60, Ordering::SeqCst);
+    r.tick().await.unwrap();
+    assert_eq!(count(&http, "/orders/ORDER1"), reads + 1);
+    assert_eq!(count(&http, "/capture"), captures);
+    assert_eq!(
+        r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Authorized
+    );
+    // At the deadline: the capture closes not done and the safe default voids the hold.
+    let (due, _) = r.pipeline.wallet.ledger.deadline(deal.id).unwrap().unwrap();
+    clock.0.store(due + 1, Ordering::SeqCst);
+    r.tick().await.unwrap();
+    let ledger = &r.pipeline.wallet.ledger;
+    assert_eq!(
+        ledger.get_deal(deal.id).unwrap().state,
+        DealState::AutoVoided
+    );
+    assert!(!r.pipeline.has_open_operation(deal.id).unwrap());
+    assert!(!r.pipeline.signer_missing);
+    assert_eq!(count(&http, "/capture"), captures);
+    assert_eq!(count(&http, "/void"), 1);
+    let ids: std::collections::BTreeSet<_> = ledger
+        .paypal_call_requests(deal.id)
+        .unwrap()
+        .into_iter()
+        .filter(|(_, path, _)| path.ends_with("/capture"))
+        .map(|(_, _, request)| request)
+        .collect();
+    assert_eq!(ids.len(), 1, "one capture request id");
+    let state = http.0.lock().unwrap();
+    assert_eq!(
+        (state.authorization, state.captured),
+        (Some("VOIDED"), false)
     );
 }
 #[tokio::test]

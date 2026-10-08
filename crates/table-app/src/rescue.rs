@@ -16,7 +16,9 @@
 //! a sandbox renewal) leads to a real sandbox invoice on the owner's decision, as the design says,
 //! but its deal keeps the REPLAY mode and never counts as recovered.
 use crate::pipeline::shield_allows;
-use crate::{Authority, Error, MoneyStep, OwnerTicket, Pipeline, Resolution};
+use crate::{
+    Authority, Error, MoneyStep, OwnerTicket, Pipeline, REQUEST_ID_WINDOW_SECS, Resolution,
+};
 use table_core::*;
 use table_ledger::{CheckReason, OpenOperation, Recipient, RescueCase, subscriber_key};
 use table_paypal::{
@@ -463,6 +465,8 @@ impl Pipeline {
             .as_ref()
             .is_none_or(|d| d.money().is_ok_and(|m| m.minor() == 0));
         match r.value.status.as_str() {
+            // The receipt is signed with the deal's agent key: without it, PAID waits for it.
+            PAID if nothing_due && self.signer_missing => Ok(false),
             PAID if nothing_due => {
                 let receipt = self.wallet.signed(
                     &deal,
@@ -539,6 +543,11 @@ impl Pipeline {
             return Ok(false);
         };
         if due > now || deal.state.terminal() || deal.state == DealState::Receipted {
+            return Ok(false);
+        }
+        // A sent invoice may have been paid; its receipt needs the deal's agent key, so without
+        // the key it is never expired unread.
+        if deal.state == DealState::AwaitingApproval && self.signer_missing {
             return Ok(false);
         }
         if let Some(open) = self.wallet.ledger.open_operations(Some(id))?.first() {
@@ -620,7 +629,8 @@ impl Pipeline {
     }
 
     /// A lost invoice send: the invoice is read. SENT (or already paid): it went out. DRAFT: it
-    /// did not, and only the owner's fresh decision sends it again, under the same request id.
+    /// did not, and only the owner's fresh decision sends it again, under the same request id,
+    /// inside the fix's deadline and the request id's window; outside them it closes not done.
     pub(crate) async fn resolve_invoice_send(
         &mut self,
         deal: &Deal,
@@ -668,6 +678,18 @@ impl Pipeline {
         }
         if read.status != DRAFT {
             return self.park(op, CheckReason::Ambiguous, now);
+        }
+        // A draft never sent asked nobody to pay. Past the fix's deadline (PayPal's next retry)
+        // or past the request id's window it is never sent again, not even on a fresh decision:
+        // the step closes not done, and at the deadline its default applies (the fix expires and
+        // PayPal retries by itself), so the subscription is free for a later rescue.
+        let deadline_passed = self.deadline_passed(deal.id, now)?;
+        if deadline_passed || now.saturating_sub(op.started_at) >= REQUEST_ID_WINDOW_SECS {
+            let resolution = self.not_done(op, now)?;
+            if deadline_passed {
+                self.wallet.ledger.apply_deadline_default(deal.id, now)?;
+            }
+            return Ok(resolution);
         }
         if let Some(reason) = self.resend_gate(deal, op, MoneyStep::Create, ticket, now)? {
             return self.park(op, reason, now);

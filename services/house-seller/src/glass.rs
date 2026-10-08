@@ -4,7 +4,10 @@
 //! The routes read only the published snapshot: they never touch the ledger, never write, and
 //! hold no key. The one signed answer computed per request (a prefix) is signed by the actor.
 //! The projection is composed here from typed ledger facts only: an envelope's free-text body, a
-//! pay link, a receipt's PayPal id, a payee and a refusal's reason never cross.
+//! pay link, a receipt's PayPal id and a refusal's reason never cross, and no deal row carries a
+//! payee. The house's own payee does cross, in two documents that are public anyway: the
+//! `release` (its payee; the trust anchor every wallet build carries) and the signed `mandate`
+//! (its Payees clause; in every table answer), so a reader can check where buyers' money goes.
 use crate::{Error, Seller};
 use ed25519_dalek::Signer;
 use std::sync::Arc;
