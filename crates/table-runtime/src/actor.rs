@@ -84,6 +84,7 @@ impl std::fmt::Debug for Caller {
 }
 pub(crate) enum Message {
     RelayFinished(Vec<crate::relay::Delivery>),
+    WitnessFinished(Box<crate::witness::WitnessFetch>),
     Agent(
         RunId,
         table_app::AgentScope,
@@ -309,6 +310,7 @@ async fn run(
                 Some(Message::FinishUnlock(caller,generation,proof,reply))=>{let _=reply.send(runtime.pipeline.approval.finish_unlock(&caller.label,caller.token.as_deref().unwrap_or(""),generation,&proof,runtime.clock.now()).map_err(Into::into));},
                 Some(Message::AttachMcp(server,url))=>{runtime.mcp=Some((server,url));},
                 Some(Message::RelayFinished(deliveries))=>{if let Err(error)=runtime.relay_finished(deliveries){let _=events.send(WalletEvent::Fault(error));}},
+                Some(Message::WitnessFinished(fetch))=>{if let Err(error)=runtime.witness_finished(*fetch){let _=events.send(WalletEvent::Fault(error));}},
                 Some(Message::Agent(run,scope,request,reply))=>{let _=reply.send(runtime.agent_intent(run,&scope,request));},
                 Some(Message::AgentRefused(scope,tool,reason,reply))=>{let now=runtime.clock.now(); let _=reply.send(table_app::AgentService::record_refusal(&mut runtime.pipeline.wallet,&scope,&tool,&reason,now));},
                 Some(Message::Engine(run,event))=>{match runtime.engine_event(run,event){Ok(Some(snapshot))=>{let _=events.send(WalletEvent::Agent(snapshot));},Ok(None)=>{},Err(error)=>{let _=runtime.finish_run(run,RunState::Failed); let _=events.send(WalletEvent::Fault(error));}}},
@@ -317,6 +319,7 @@ async fn run(
             },
             _=interval.tick()=>{
                 if let Err(error)=runtime.start_relay(){let _=events.send(WalletEvent::Fault(error));}
+                if let Err(error)=runtime.start_witness(){let _=events.send(WalletEvent::Fault(error));}
                 if let Err(error)=runtime.tick().await{let _=events.send(WalletEvent::Fault(error));}
             },
         }
