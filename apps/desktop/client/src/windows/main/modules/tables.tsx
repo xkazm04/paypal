@@ -26,7 +26,7 @@ import { useCpLookup, useToast } from '../ui';
 import { useWorld } from '../world';
 import type { ModuleProps } from './common';
 import { NoteChip } from './shield/NoteChip';
-import { ShopAroundButton, ShopAroundCards } from './tables/Groups';
+import { ShopAroundButton, ShopAroundCards } from './tables/ShopAround';
 import {
   bandOf, consequences, diffLines, draftValid, fenceKey, fits, ladderScale, lastPriced, moveFence, parseAmount, posPct, priceAt,
   LIMIT_WORD, sameBand, short, standLine, standing, stepStates, tabLine, toInput, topPct, unitOf, type BandDraft, type Consequence, type Priced, type Scale,

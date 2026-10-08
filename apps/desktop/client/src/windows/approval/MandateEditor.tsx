@@ -29,7 +29,7 @@ import { useSimulation } from './owner/data';
 import { diffPolicy, type Change, type DiffSide } from './owner/diff';
 import { Lever } from './owner/Lever';
 import { amountTicks, priceTicks } from './owner/levers';
-import { Scoreboard, WhatIfTable } from './owner/Replay';
+import { Scoreboard, WhatIfTable } from './owner/WhatIf';
 import { SignSheet } from './owner/SignSheet';
 import { changed, hitPhrase, ifWithdrawn, summaryWords } from './owner/simulation';
 import { WhoWhat } from './owner/WhoWhat';

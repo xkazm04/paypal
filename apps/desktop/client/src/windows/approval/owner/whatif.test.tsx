@@ -7,7 +7,7 @@ import type { MandateSimulation } from '@bindings/MandateSimulation';
 import type { SimulatedLine } from '@bindings/SimulatedLine';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import { SIMULATE_DEBOUNCE_MS, useSimulation } from './data';
-import { WhatIfTable } from './Replay';
+import { WhatIfTable } from './WhatIf';
 import { changed, hitPhrase, ifWithdrawn, sameVerdict, summaryWords, verdictWords } from './simulation';
 
 const ALLOW: SimulatedVerdict = { type: 'allow' };
