@@ -4,6 +4,7 @@
 //! and everything that does not. The bundle's own keys are the trust anchors; the report prints
 //! the owner key id so a checker can compare it with the one the owner shows them.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
+pub mod acceptance;
 mod house;
 mod v2;
 use ed25519_dalek::{Signature, VerifyingKey};
