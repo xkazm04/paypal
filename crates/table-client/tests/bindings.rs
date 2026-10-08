@@ -68,6 +68,12 @@ fn checked_in_authority_files_match_the_authority_table() {
         "stale bindings/authority.ts; run generate-bindings"
     );
     assert!(ts.contains(table_client::authority::manifest_hex().unwrap()));
+    // The role playbooks the owner reads verbatim are generated from prompts/*.md.
+    assert_eq!(
+        read(manifest.join("../../bindings/playbooks.ts")),
+        table_client::playbooks::typescript().unwrap(),
+        "stale bindings/playbooks.ts; run generate-bindings"
+    );
     let capabilities = manifest.join("../../apps/desktop/src-tauri/capabilities");
     for (file, contents) in table_client::authority::capability_files().unwrap() {
         assert_eq!(
