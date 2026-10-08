@@ -24,11 +24,12 @@ export function niceCeil(units: number): number {
  * 0 … twice the signed value, rounded up. A new mandate (no signed value) scales to the busier
  * ticks instead. Ticks past the end are reported as off scale, not squeezed in.
  */
-export function leverRange(signed: number | null, ticks: readonly number[], cur: Currency): LeverRange {
+export function leverRange(signed: number | null, ticks: readonly number[], cur: Currency, fallback: number | null = null): LeverRange {
   const unit = majorUnit(cur);
   const sorted = [...ticks].sort((a, b) => a - b);
   const p75 = sorted.length ? sorted[Math.floor(0.75 * (sorted.length - 1))]! : 0;
-  const base = signed ?? Math.max(p75, 0);
+  // `fallback` (the first amount typed or filled in) sets the scale only when nothing else can.
+  const base = signed ?? (sorted.length ? Math.max(p75, 0) : Math.max(fallback ?? 0, 0));
   const units = niceCeil(Math.max(10, Math.ceil((base * 2) / unit)));
   return { min: 0, max: units * unit, unit };
 }

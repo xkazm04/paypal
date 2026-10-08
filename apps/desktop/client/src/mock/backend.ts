@@ -35,6 +35,7 @@ import type { Money } from '@bindings/Money';
 import { RESCUE_NO_RULES, RESCUE_SENT_SILENCE, RESCUE_SILENCE } from '../lib/words';
 import { invoiceText, leverOf, maskEmail, proposeDiscount, validEmail, validSubscriptionId } from './rescue';
 import { AUTHORITY, AUTHORITY_MANIFEST, type CommandAuthority } from '@bindings/authority';
+import { buildFirstRunState, firstRunPreview, PRACTICE_TERMS, withFirstRun, worldKeys } from './firstRun';
 
 type Envelope =
   | { kind: 'event'; event: EventName; targets: WindowLabel[]; payload: unknown }
@@ -146,12 +147,16 @@ function fail(code: WalletError['code'], message: string): never {
 }
 
 export function mockBackend(label: WindowLabel): MockBackend {
-  const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(CHANNEL) : null;
+  // ?first_run=1: a brand-new wallet in a world of its own (src/mock/firstRun.ts).
+  const firstRun = firstRunPreview();
+  const keys = worldKeys(STORE_KEY, CHANNEL, firstRun);
+  const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(keys.channel) : null;
   const listeners = new Map<EventName, Set<(p: unknown) => void>>();
   // The preview clock: every mock window reads the same offset (storage on load, the channel after).
   simulateClock();
   setClockOffset(storedOffset());
-  let state: MockState = load() ?? buildMockState(nowUnix());
+  const fresh = () => (firstRun ? buildFirstRunState(nowUnix()) : buildMockState(nowUnix()));
+  let state: MockState = load() ?? fresh();
   let lastPrivileged = nowUnix();
   let form: Form = state.settings.preferences.form;
   const params = new URLSearchParams(location.search);
@@ -161,7 +166,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
 
   function load(): MockState | null {
     try {
-      const raw = sessionStorage.getItem(STORE_KEY) ?? localStorage.getItem(STORE_KEY);
+      const raw = sessionStorage.getItem(keys.store) ?? localStorage.getItem(keys.store);
       if (!raw) return null;
       const stored = JSON.parse(raw) as MockState;
       // The fingerprint is this build's authority table, never stored data.
@@ -173,7 +178,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
   }
   function save(): void {
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+      localStorage.setItem(keys.store, JSON.stringify(state));
     } catch {
       /* storage may be blocked in previews; the mock still works per tab */
     }
@@ -411,7 +416,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
     return [...by.entries()].map(([currency, minor]) => ({ minor, currency }));
   }
   function openWindow(page: string, name: string, features?: string): void {
-    window.open(page, name, features);
+    window.open(withFirstRun(page, firstRun), name, features);
   }
 
   const handlers: { [K in CommandName]: (args: ArgsOf<K>, opts?: InvokeOptions) => ResultOf<K> } = {
@@ -843,7 +848,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
     pairing_join: ({ code, side, payee }) => {
       if (code === 'HOUSE' && state.settings.house === 'unavailable') fail('UNAVAILABLE', 'this build has no HOUSE release pin');
       const result: ResultOf<'pairing_join'> = {
-        house_table: code === 'HOUSE' ? { negotiation_deadline: nowUnix() + 3600, deal_id: fakeUlid('house-table'), terms: find(fakeUlid('D-0201')).deal.terms, category: 'office' } : null,
+        house_table: code === 'HOUSE' ? { negotiation_deadline: nowUnix() + 3600, deal_id: fakeUlid('house-table'), terms: state.deals.find((d) => d.deal.id === fakeUlid('D-0201'))?.deal.terms ?? PRACTICE_TERMS, category: 'office' } : null,
         pairing_id: fakeHash(`pair:${code}`),
         words: ['otter', 'basil', 'quartz', 'meadow'],
         reply: { identity: { code_hash: fakeHash(code), owner_key: fakeHash('o2') as never, agent_key: fakeHash('a2') as never, side, payee, expires: nowUnix() + 3600, in_reply_to: fakeHash('code') }, owner_signature: [], agent_signature: [] },
@@ -1108,7 +1113,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
     },
     reset(at) {
       setOffset(at === undefined ? 0 : at - (nowUnix() - clockOffset()));
-      state = buildMockState(nowUnix());
+      state = fresh();
       lastPrivileged = nowUnix();
       save();
     },
@@ -1150,13 +1155,13 @@ export function mockBackend(label: WindowLabel): MockBackend {
 /** Inject a Rust-shaped event into every open mock window (preview controls only). */
 export function mockInject<E extends EventName>(event: E, payload: EventContract[E]): void {
   const env: Envelope = { kind: 'event', event, targets: TARGETS[event], payload };
-  new BroadcastChannel(CHANNEL).postMessage(env);
+  new BroadcastChannel(worldKeys(STORE_KEY, CHANNEL, firstRunPreview()).channel).postMessage(env);
 }
 
 /** Reset the shared mock world (used by the preview's "reset sample data" control). */
 export function resetMockState(): void {
   try {
-    localStorage.removeItem(STORE_KEY);
+    localStorage.removeItem(worldKeys(STORE_KEY, CHANNEL, firstRunPreview()).store);
     localStorage.removeItem(CLOCK_KEY);
   } catch {
     /* storage blocked: nothing was stored either */

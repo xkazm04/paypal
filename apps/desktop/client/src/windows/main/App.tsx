@@ -16,6 +16,7 @@ import { Palette } from './Palette';
 import { QuitSheet } from './QuitSheet';
 import { Shell, type Crumb } from './Shell';
 import { Sheet } from './Sheet';
+import type { PairMode } from './setup/pairing';
 import { Shortcuts } from './Shortcuts';
 import { CounterpartyProvider, Loading, ToastProvider, useToast } from './ui';
 import { useWorld, WorldProvider } from './world';
@@ -39,6 +40,8 @@ function Main() {
   const initial = useMemo(() => parseHash(location.hash), []);
   const [route, setRoute] = useState<Route>(initial.route);
   const [sheet, setSheet] = useState<SheetTab | null>(initial.sheet);
+  // Connections can open on a way of connecting (first run: the house seller's tab).
+  const [pairStart, setPairStart] = useState<PairMode | undefined>(undefined);
   const [palette, setPalette] = useState(false);
   const [help, setHelp] = useState(false);
   const [quit, setQuit] = useState(false);
@@ -76,7 +79,7 @@ function Main() {
   }, [currentModule]);
   const goModule = useCallback((m: Module) => { setRoute({ level: 'module', module: m }); }, []);
   const goDeal = useCallback((id: string) => { setRoute({ level: 'deal', deal: id }); }, []);
-  const openSheet = useCallback((t: SheetTab) => { setPalette(false); setSheet(t); }, []);
+  const openSheet = useCallback((t: SheetTab, pair?: PairMode) => { setPalette(false); setPairStart(pair); setSheet(t); }, []);
 
   const back = useCallback(() => {
     if (palette) { setPalette(false); return; }
@@ -151,7 +154,7 @@ function Main() {
         onOpenModule={goModule} onOpenDeal={goDeal} onOpenSheet={openSheet} onFind={() => setPalette(true)}
         skipIntro={initial.route.level !== 'home' || initial.sheet !== null} />
       {layer}
-      {sheet ? <Sheet tab={sheet} onTab={setSheet} onClose={() => setSheet(null)} /> : null}
+      {sheet ? <Sheet tab={sheet} pair={pairStart} onTab={setSheet} onClose={() => setSheet(null)} /> : null}
       {palette ? <Palette onClose={() => setPalette(false)} onModule={goModule} onDeal={goDeal} onSheet={openSheet} onQuit={() => setQuit(true)} /> : null}
       {help ? <Shortcuts onClose={() => setHelp(false)} /> : null}
       {quit ? <QuitSheet onClose={() => setQuit(false)} /> : null}

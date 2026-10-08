@@ -316,6 +316,27 @@ body.w-tumbler #root { position: fixed; inset: 0; }
 .w-ok .ui-hint { flex: 1; min-width: 0; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .w-ok .ui-btn { flex: none; }
 
+/* first run (FirstRunWelcome), same 440 x 228: head 10-32 · title 36-58 · promise 60-94 (two lines,
+   beside a top puck) · steps 100-166 (three 22 px links; the last falls beside a bottom puck, so the
+   list steps aside then) · foot at the bottom. */
+.f.welcome.fr { grid-template-rows: 22px 26px 36px auto 1fr; }
+.fr-promise { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: var(--fs-small); line-height: 17px; }
+.fr-steps { list-style: none; margin: 6px 0 0; padding: 0; display: grid; grid-auto-rows: 22px; }
+.py-b.px-r .fr-steps { margin-right: var(--notch); } .py-b.px-l .fr-steps { margin-left: var(--notch); }
+.fr-step { width: 100%; height: 22px; display: flex; align-items: center; gap: 8px; padding: 0 4px; margin-left: -4px; border: 0; border-radius: var(--r-sm); background: none;
+  color: var(--text); font: inherit; font-size: var(--fs-small); text-align: left; cursor: pointer; min-width: 0; }
+.fr-step:hover:not([disabled]) { background: var(--hover); }
+.fr-step:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.fr-step[disabled] { cursor: default; }
+.fr-n { flex: none; width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font: var(--fw-semibold) 10px/1 var(--num); color: var(--muted); border: 1.25px solid var(--line2); }
+.fr-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s-next .fr-n { color: var(--on-gold); background: var(--gold); border-color: var(--gold); }
+.s-next .fr-t { font-weight: var(--fw-semibold); }
+.s-done .fr-n { color: var(--on-ok); background: var(--ok); border-color: var(--ok); }
+.s-done .fr-t { color: var(--muted); }
+.s-unknown .fr-n { border-style: dashed; }
+.f.welcome.fr .w-foot .notice { font-size: var(--fs-small); }
+
 /* ---------------------------------------------------------------- tab (docked to a screen edge) */
 .tabbtn { position: absolute; inset: 0; padding: 0; border: 0; background: none; cursor: pointer; touch-action: none; }
 .f.tab { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0 6px; border-radius: var(--r) 0 0 var(--r);

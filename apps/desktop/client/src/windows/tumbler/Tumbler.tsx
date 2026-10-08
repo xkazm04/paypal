@@ -18,6 +18,8 @@ import { toWalletError, type WalletError } from '../../lib/contract';
 import { useEvent, useNow, usePrefersReducedMotion, useQuery } from '../../lib/hooks';
 import { backend } from '../../lib/runtime';
 import { nowUnix } from '../../lib/format';
+import { gettingStarted } from '../../lib/firstRun';
+import { START_STEP, type StartStepKey } from '../../lib/words';
 import { PuckArt } from './Puck';
 import { CardForm, HandoffForm, StackForm, TabForm, TickerForm, WelcomeForm } from './forms';
 import {
@@ -382,6 +384,19 @@ export function Tumbler() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pushTicker, refetchAttention]);
 
+  // First run: the welcome shows the three steps; each opens where it happens (the approval
+  // window for keys and rules, The Table for the house seller). Settings are all the Tumbler reads.
+  const start = settings?.first_run ? gettingStarted({ firstRun: true, paypal: settings.payment_executor_configured, rulesInForce: null, houseConnected: null, otherConnections: null }) : null;
+  const startStep = useCallback(async (k: StartStepKey) => {
+    try {
+      if (k === 'practice') await backend().invoke('main_open', { deal_id: null });
+      else await backend().invoke('approval_open', { deal_id: null, target: k === 'paypal' ? 'credentials' : 'mandate' });
+    } catch (e) {
+      fail(null, START_STEP[k].act, e);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const openInTable = useCallback(async (dealId: string | null) => {
     try {
       await backend().invoke('main_open', { deal_id: dealId });
@@ -522,7 +537,7 @@ export function Tumbler() {
     );
   else if (form === 'handoff')
     body = <HandoffForm ref={formEl} handoff={handoff} item={handoffItem} display={display} now={now} locked={locked} mode={mode} onTable={() => void openInTable(handoff.dealId)} onRest={rest} />;
-  else if (form === 'welcome') body = <WelcomeForm ref={formEl} mode={mode} locked={locked} onOk={rest} />;
+  else if (form === 'welcome') body = <WelcomeForm ref={formEl} mode={mode} locked={locked} onOk={rest} start={start} onStep={(k) => void startStep(k)} failure={failure && failure.dealId === null ? failure : null} />;
 
   const kindClass = form === 'card' && cardItem ? (cardItem.kind === 'hold' ? ' k-hold' : ' k-gate') : form === 'ticker' && ticker ? ` k-${ticker.kind}` : '';
   const classes = [

@@ -1,7 +1,7 @@
 // One amount lever: clause number, title, what the change does, the typed value, and a track
 // with this week’s deals as ticks (coloured by the wallet’s answer for the draft) and a notch at the signed
 // value. Drag, use the arrow keys or type; the typed string stays the source of truth.
-import { useId, type ReactNode } from 'react';
+import { useId, useRef, type ReactNode } from 'react';
 import type { Currency } from '@bindings/Currency';
 import { formatMinor } from '../../../lib/format';
 import { ruleNameOf } from '../../../lib/words';
@@ -41,7 +41,11 @@ export function Lever({ n, title, value, currency, signed, ticks, tickNote, dir,
   const id = useId();
   const typed = value.trim() ? parseMoneyInput(value, currency) : null;
   const bad = value.trim() !== '' && typed === null;
-  const range = leverRange(signed, (ticks ?? []).map((t) => t.x), currency);
+  // Nothing signed and no deals yet (a new wallet): the scale follows the first amount it was
+  // given (a starting set of rules), held still so dragging never stretches it.
+  const anchor = useRef<number | null>(null);
+  if (anchor.current === null && typed !== null && typed > 0) anchor.current = typed;
+  const range = leverRange(signed, (ticks ?? []).map((t) => t.x), currency, anchor.current);
   const off = (ticks ?? []).filter((t) => t.x > range.max);
   const sliderMax = Math.round(range.max / range.unit);
   const slider = typed === null ? 0 : Math.min(toSlider(range, typed), sliderMax);
