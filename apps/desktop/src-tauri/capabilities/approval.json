@@ -40,6 +40,8 @@
     "allow-deal-export-proof",
     "allow-mandate-simulate",
     "allow-envelope-sign",
-    "allow-envelope-get"
+    "allow-envelope-get",
+    "allow-rescue-replay",
+    "allow-rescue-book"
   ]
 }

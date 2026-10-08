@@ -56,7 +56,7 @@ describe('dealAnswer: one sentence a first-time reader understands', () => {
   it('a paused request and a failed renewal name what the owner is asked', () => {
     expect(answer('D-0198').title).toContain('paused for your check');
     expect(answer('D-0198').title).toContain('Nothing was sent to PayPal');
-    expect(dealAnswer(deal('D-0188'), { need: entry('D-0188').attention ?? undefined, them: 'S-14', latest: null, band: null, mayWithdraw: false }).title).toBe('S-14’s $9.60 renewal didn’t go through. You choose the fix.');
+    expect(dealAnswer(deal('D-0188'), { need: entry('D-0188').attention ?? undefined, them: 'S-14', latest: null, band: null, mayWithdraw: false }).title).toBe('S-14’s renewal didn’t go through. You choose the fix: a $9.60 invoice for this cycle.');
   });
   it('a live deal with nothing for the owner is calm and may mention withdrawing', () => {
     const a = dealAnswer({ ...deal('D-0193') }, { need: undefined, them: 'Dan', latest: last('D-0193'), band: null, mayWithdraw: true });
@@ -73,7 +73,7 @@ describe('the decision card words', () => {
     expect(decisionQuestion(deal('D-0193'), n('D-0193'), 'Dan')).toBe('Accept Dan’s $329.00?');
     expect(decisionQuestion(deal('D-0190'), n('D-0190'), 'partsco')).toBe('Pay partsco $64.00, or release the hold?');
     expect(decisionQuestion(deal('D-0198'), n('D-0198'), 'pixel-bay')).toBe('Withdraw pixel-bay’s paused $140.00 request?');
-    expect(decisionQuestion(deal('D-0188'), n('D-0188'), 'S-14')).toBe('Approve a fix for S-14’s failed $9.60 renewal?');
+    expect(decisionQuestion(deal('D-0188'), n('D-0188'), 'S-14')).toBe('Approve a $9.60 invoice to fix S-14’s failed renewal?');
   });
   it('names the rule that asks, in plain words', () => {
     const d = deal('D-0193');

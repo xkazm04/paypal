@@ -143,6 +143,7 @@ impl Ledger {
                 _ => return Err(LedgerError::Integrity("reconciliation")),
             },
             money_check: self.money_check(id)?,
+            house_record: self.house_record(id)?,
         })
     }
     /// Only own-account reporting can promote seller attestation. This grants no payment authority.

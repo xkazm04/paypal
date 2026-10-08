@@ -85,6 +85,12 @@
 .dr-checks .ui-checks .cs-list li.ask { background: color-mix(in srgb, var(--gold) 7%, transparent); }
 .dr-checks .ui-checks .cs-name { overflow: hidden; }
 .dr-checks .ui-checks .cs-v { flex: none; max-width: 46%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-size: var(--fs-body); }
+/* The rescue invoice's fixed wording (DealReview InvoiceCard). */
+.dr-inv { display: flex; flex-direction: column; gap: var(--sp-1); }
+.dr-inv .dim { font-weight: var(--fw-regular); }
+.dr-inv-b { padding: var(--sp-2) var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg2); }
+.dr-inv-b .ln { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); font-weight: var(--fw-semibold); }
+.dr-inv-b .nt { margin: var(--sp-1) 0 0; color: var(--muted); font-size: var(--fs-small); line-height: 1.45; }
 .dr-checks .ui-checks .cs-v .rv.bad { color: var(--red-l); font-weight: var(--fw-semibold); }
 .dr-checks .ui-checks .cs-v .rv.hold { color: var(--coral-l); }
 .dr-checks .ui-checks li.pass .cs-v { color: var(--muted); }

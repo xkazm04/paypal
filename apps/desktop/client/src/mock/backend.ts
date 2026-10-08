@@ -18,7 +18,7 @@ import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import type { ArgsOf, Backend, CommandName, EventName, InvokeOptions, PayloadOf, ResultOf, WindowLabel } from '../lib/contract';
 import { WalletError } from '../lib/contract';
 import { clockOffset, setClockOffset, simulateClock } from '../lib/clock';
-import { nowUnix } from '../lib/format';
+import { formatMoney, nowUnix } from '../lib/format';
 import { buildMockState, fakeHash, fakeUlid, type MockDeal, type MockState } from './fixtures';
 import { ON_QUIT, mockForecast, mockQuitLines, quitPending, type ForecastDeal } from './forecast';
 import type { ApprovalCheckId } from '@bindings/ApprovalCheckId';
@@ -30,6 +30,10 @@ import type { SimulatedLine } from '@bindings/SimulatedLine';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import { mockCheck, mockValidate, type MockIntent } from './simulate';
 import { mockEnvelopeRefusal, mockExposureView } from './exposure';
+import type { RescueView } from '@bindings/RescueView';
+import type { Money } from '@bindings/Money';
+import { RESCUE_NO_RULES, RESCUE_SENT_SILENCE, RESCUE_SILENCE } from '../lib/words';
+import { invoiceText, leverOf, maskEmail, proposeDiscount, validEmail, validSubscriptionId } from './rescue';
 
 type Envelope =
   | { kind: 'event'; event: EventName; targets: WindowLabel[]; payload: unknown }
@@ -54,7 +58,7 @@ const TARGETS: Record<EventName, WindowLabel[]> = {
   'pairing:pinned': ['main'],
 };
 
-export const STORE_KEY = 'the-table-mock-state-v10'; // v10: keep-prices-fresh rules and today's price checks (T15); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
+export const STORE_KEY = 'the-table-mock-state-v11'; // v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
 const DEGRADE_KEY = 'the-table-mock-degrade';
 /** The preview clock's offset from wall time, shared by every mock window of this origin. */
 export const CLOCK_KEY = 'the-table-mock-clock';
@@ -144,6 +148,7 @@ const GATES: Record<CommandName, WindowLabel[]> = {
   band_set: ['approval'], pairing_confirm: ['approval'], deal_create: ['approval'], deal_join: ['approval'],
   mandate_simulate: ['approval'],
   envelope_sign: ['approval'], envelope_get: ALL,
+  rescue_replay: ['approval'], rescue_book: REVIEW,
 };
 
 function fail(code: WalletError['code'], message: string): never {
@@ -160,7 +165,8 @@ export function mockBackend(label: WindowLabel): MockBackend {
   let lastPrivileged = nowUnix();
   let form: Form = state.settings.preferences.form;
   const params = new URLSearchParams(location.search);
-  const selected: string | null = label === 'approval' ? params.get('deal') : null;
+  // The deal this approval window is bound to; a replayed renewal rebinds it (Rust rescue_replay).
+  let selected: string | null = label === 'approval' ? params.get('deal') : null;
   const selectedPairing = label === 'approval' ? params.get('pairing') : null;
 
   function load(): MockState | null {
@@ -261,7 +267,18 @@ export function mockBackend(label: WindowLabel): MockBackend {
         if (!ints && (typeof v !== 'string' || !v.length || v.length > 256)) rejected('filters: text values are 1 to 256 characters');
       }
     }
-    return { view: o.view as BookView, metrics: metrics as BookQuery['metrics'], filters: filters as BookQuery['filters'], group_by: group_by as BookQuery['group_by'], range: (o.range ?? null) as BookQuery['range'], limit };
+    // compile(): a range is [from, to) of RFC 3339 times, from strictly before to.
+    const range = (o.range ?? null) as BookQuery['range'];
+    if (range !== null) {
+      if (typeof range !== 'object' || Array.isArray(range)) rejected('invalid type: expected struct BookRange');
+      for (const k of Object.keys(range)) if (k !== 'from' && k !== 'to') rejected(`unknown field \`${k}\`, expected \`from\` or \`to\``);
+      const t = (x: unknown) => (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$/.test(x) ? Date.parse(x) : NaN);
+      const from = t(range.from);
+      const to = t(range.to);
+      if (!Number.isFinite(from) || !Number.isFinite(to)) rejected('range: from and to must be RFC 3339 times');
+      if (from >= to) rejected('range: from must be before to');
+    }
+    return { view: o.view as BookView, metrics: metrics as BookQuery['metrics'], filters: filters as BookQuery['filters'], group_by: group_by as BookQuery['group_by'], range, limit };
   }
   /** Runtime::check_draft: a draft binds to its target (shape and currency only). */
   function checkDraft(t: ApprovalTarget | null, dealId: string | null, draft: ApprovalDraft): void {
@@ -349,6 +366,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
       deal: d.deal, transcript: d.transcript, counterparty: state.counterparties.find((c) => c.key_id === d.deal.counterparty),
       mandate: activeMandate(d.deal.mandate_id), spentTodayMinor, now: nowUnix(),
       limitRefusal: mockEnvelopeRefusal(state.deals.map((o) => o.deal), d.deal, envelope(), nowUnix()),
+      rescue: state.rescue?.[d.deal.id],
     });
     return { checks, checks_hash: mockChecksHash(checks) };
   }
@@ -372,6 +390,22 @@ export function mockBackend(label: WindowLabel): MockBackend {
    *  new money step and no walking away until PayPal's record settles it. */
   function notWhileChecking(id: string): void {
     if (find(id).evidence.money_check) fail('PERMISSION', 'a payment step is being checked with PayPal');
+  }
+  /** Runtime::rescue_mandate: the latest active rules that carry the fixes clause. */
+  function rescueMandate() {
+    const ids = [...new Set(state.mandates.map((m) => m.payload.id))];
+    return ids.map(activeMandate).filter((m): m is NonNullable<typeof m> => !!m && !!leverOf(m) && m.payload.not_before <= nowUnix() && m.payload.expires > nowUnix())
+      .sort((a, b) => a.payload.not_before - b.payload.not_before).at(-1);
+  }
+  /** Runtime::rescue_releasable: a fix waiting at AGREED, before its deadline, nothing being checked. */
+  function rescueReleasable(d: ReturnType<typeof find>): boolean {
+    return d.deal.kind === 'rescue' && d.deal.state === 'AGREED' && !d.evidence.money_check && (d.display.deadline ?? 0) > nowUnix() && !!state.rescue?.[d.deal.id];
+  }
+  /** The ledger's rescue_recovered: counted rescues only, one total per currency. */
+  function rescueRecovered(): Money[] {
+    const by = new Map<Money['currency'], number>();
+    for (const v of Object.values(state.rescue ?? {})) if (v.counted) by.set(v.offer.invoice.currency, (by.get(v.offer.invoice.currency) ?? 0) + v.offer.invoice.minor);
+    return [...by.entries()].map(([currency, minor]) => ({ minor, currency }));
   }
   function openWindow(page: string, name: string, features?: string): void {
     window.open(page, name, features);
@@ -482,7 +516,9 @@ export function mockBackend(label: WindowLabel): MockBackend {
           default: return null;
         }
       };
-      const keep = (d: Deal) => q.filters.every((f) => {
+      const span = q.range ? [Math.floor(Date.parse(q.range.from) / 1000), Math.floor(Date.parse(q.range.to) / 1000)] as const : null;
+      const inRange = (d: Deal) => !span || (d.created_at !== undefined && d.created_at >= span[0] && d.created_at < span[1]);
+      const keep = (d: Deal) => inRange(d) && q.filters.every((f) => {
         const v = col(d, f.field);
         const vals = Array.isArray(f.value) ? f.value : [f.value];
         switch (f.op) {
@@ -510,7 +546,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
           if (m === 'count') out.count = ds.length;
           if (m === 'sum_amount') out.sum_amount = ds.reduce((s, d) => s + d.terms.unit_price.minor * d.terms.qty, 0);
           if (m === 'avg_vs_market_pct') out.avg_vs_market_bp = bp.length ? Math.trunc(bp.reduce((a, b) => a + b, 0) / bp.length) : null;
-          if (m === 'recovered_sum') out.recovered_sum = ds.filter((d) => d.kind === 'rescue' && ['CAPTURED', 'RECEIPTED'].includes(d.state) && d.mode === 'sandbox').reduce((s, d) => s + d.terms.unit_price.minor * d.terms.qty, 0);
+          if (m === 'recovered_sum') out.recovered_sum = ds.filter((d) => d.kind === 'rescue' && !!state.rescue?.[d.id]?.counted).reduce((s, d) => s + d.terms.unit_price.minor * d.terms.qty, 0);
         }
         return out as JsonValue;
       });
@@ -588,6 +624,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
       const locked = isLocked();
       const shieldStops = d.deal.shield === 'HOLD' || d.deal.shield === 'BLOCK';
       const buyerHaggle = d.deal.side === 'buyer' && (d.deal.kind === 'haggle' || d.deal.kind === 'shop_order');
+      const rescue = d.deal.kind === 'rescue';
       return {
         ...checksFor(d),
         deal: d.deal,
@@ -600,13 +637,14 @@ export function mockBackend(label: WindowLabel): MockBackend {
           && d.transcript.some((s) => s.by === 'them' && s.typ === 'COUNTER')
           && !d.transcript.some((s) => s.by === 'you' && s.typ === 'ACCEPT') && ownerMandateAllows(d),
         locked,
-        can_release: !locked && state.settings.payment_executor_configured && !buyerHaggle && d.deal.shield !== 'BLOCK' && d.deal.state !== 'MISMATCH',
+        can_release: !locked && state.settings.payment_executor_configured && !buyerHaggle && d.deal.shield !== 'BLOCK' && d.deal.state !== 'MISMATCH' && (!rescue || rescueReleasable(d)),
         can_open_paypal: !locked && d.deal.state === 'AWAITING_APPROVAL' && !shieldStops,
-        unavailable_reason: d.deal.kind === 'rescue'
-          ? 'rescue executor not attached yet (P3)'
+        unavailable_reason: rescue
+          ? null
           : buyerHaggle
             ? 'buyer haggle resources belong to the seller · you approve on PayPal and accept the signed receipt'
             : null,
+        rescue: state.rescue?.[deal_id] ?? null,
       };
     },
     approval_token: () => {
@@ -708,10 +746,25 @@ export function mockBackend(label: WindowLabel): MockBackend {
       if (d.deal.shield === 'BLOCK') fail('PERMISSION', 'a BLOCK cannot be released');
       return transition(deal_id, d.deal.state, { shield: 'ASK' });
     },
+    // As table-app rescue_approve under the owner's ticket: one invoice for this cycle's
+    // discounted amount is made and sent (SETTLING → AWAITING_APPROVAL). Nothing is paid here; only
+    // PayPal's PAID, read back and receipted, would count, and never on a replayed failure.
     rescue_approve: (args, opts) => {
-      privileged(opts, args.deal_id);
+      const { deal_id } = args;
+      privileged(opts, deal_id);
+      notWhileChecking(deal_id);
       boundToChecks(args);
-      return fail('UNAVAILABLE', 'rescue executor not attached yet (P3) · no fake mutation');
+      const d = find(deal_id);
+      const s = handlers.approval_summary({ deal_id });
+      if (args.attempt !== s.attempt || JSON.stringify(args.terms_hash) !== JSON.stringify(s.terms_hash)) fail('INVALID', 'Invalid or stale wallet command');
+      if (d.deal.kind !== 'rescue') fail('INVALID', 'Invalid or stale wallet command');
+      if (!state.settings.payment_executor_configured) fail('UNAVAILABLE', 'Enter PayPal sandbox credentials');
+      if (!rescueReleasable(d)) fail('INVALID', 'Invalid or stale wallet command');
+      const invoice = `INV2-${deal_id.slice(-4)}-${deal_id.slice(-8, -4)}`;
+      const view = state.rescue?.[deal_id];
+      if (view) state.rescue = { ...state.rescue, [deal_id]: { ...view, invoice } };
+      d.display = { ...d.display, deadline: nowUnix() + 30 * 86400, on_silence: RESCUE_SENT_SILENCE };
+      return transition(deal_id, 'AWAITING_APPROVAL', { paypal: { ...d.deal.paypal, order: invoice }, decided_by: { type: 'human', at: nowUnix() } });
     },
     open_paypal_in_browser: (args, opts) => {
       const { deal_id } = args;
@@ -931,6 +984,52 @@ export function mockBackend(label: WindowLabel): MockBackend {
     },
     // As Runtime::envelope_view: limits and numbers only, every window.
     envelope_get: () => exposureView(),
+    // As Runtime::rescue_replay: approval only, privileged; a labelled REPLAY failure under the
+    // latest signed fixes rule. Its one fix is computed here, never typed; the window is rebound to it.
+    rescue_replay: (args, opts) => {
+      privileged(opts);
+      const m = rescueMandate();
+      if (!m) fail('INVALID', RESCUE_NO_RULES);
+      const email = args.subscriber_email.trim();
+      if (!validEmail(email)) fail('INVALID', 'That is not an email address.');
+      if (!validSubscriptionId(args.subscription_id)) fail('INVALID', 'That is not a PayPal subscription id.');
+      if (args.amount.minor <= 0 || !args.plan.trim()) fail('INVALID', 'Invalid or stale wallet command');
+      const lever = leverOf(m)!;
+      const offer = proposeDiscount(args.amount, lever);
+      if (!offer) fail('REFUSED', 'mandate clause 8: no discount your rules allow fits this renewal');
+      const now = nowUnix();
+      const label = `D-${String(300 + state.deals.length).padStart(4, '0')}`;
+      const id = fakeUlid(`${label}:${now}`);
+      const deal: Deal = {
+        id, created_at: now, updated_at: now, kind: 'rescue', side: 'seller', counterparty: `sub:${args.subscription_id}`,
+        terms: { item_ref: args.plan.trim(), qty: 1, unit_price: offer.invoice, currency: offer.invoice.currency, delivery: { type: 'digital_now' } },
+        state: 'AGREED', mandate_id: m.payload.id, mandate_version: m.payload.version, transcript_head: fakeHash(`${id}:head`),
+        paypal: { order: null, authorization: null, capture: null, subscription: args.subscription_id }, mode: 'replay', market: null, shield: null,
+      };
+      const deadline = now + 5 * 86400;
+      state.deals.push({
+        deal,
+        display: { deal_id: id, label, title: `${args.plan.trim()} · replayed renewal`, deadline, on_silence: RESCUE_SILENCE, band: null },
+        evidence: { deal_id: id, receipt: 'NONE', reconciliation: 'not_applicable', money_check: null },
+        transcript: [],
+        attention: { deal_id: id, label, kind: 'gate', module: 'rescue', headline: `Approve rescue lever ${formatMoney(offer.invoice)}`, counterparty: null, clause: null, urgency: 'calm',
+          amount_minor: offer.invoice.minor, currency: offer.invoice.currency, mode: 'replay', deadline, on_silence: RESCUE_SILENCE, actions: ['review', 'withdraw', 'let_lapse', 'snooze30', 'open_in_table'], money_check: null },
+      });
+      const view: RescueView = { deal_id: id, source: 'replay', offer, text: invoiceText(offer), failed_payments: 1, next_retry_at: null, recipient: maskEmail(email), invoice: null, counted: false };
+      state.rescue = { ...state.rescue, [id]: view };
+      state.categories = { ...state.categories, [id]: 'service' };
+      selected = id;
+      save();
+      emit('deal:changed', { deal, mode: deal.mode });
+      emit('attention:changed', attention());
+      setTimeout(() => deliver('approval:summary', handlers.approval_summary({ deal_id: id })), 0);
+      return deal;
+    },
+    // As Runtime::rescue_book: every rescue case and the counted money, per currency.
+    rescue_book: () => ({
+      cases: state.deals.filter((d) => d.deal.kind === 'rescue').flatMap((d) => (state.rescue?.[d.deal.id] ? [state.rescue[d.deal.id]!] : [])),
+      recovered: rescueRecovered(),
+    }),
   };
 
   // ---- the preview world (director and preview stage only; no money operation) ----------------
@@ -1009,10 +1108,11 @@ export function mockBackend(label: WindowLabel): MockBackend {
   };
 
   // The approval window gets its summary pushed shortly after it opens, as the shell does.
-  if (label === 'approval' && selected) {
+  const opened = selected;
+  if (label === 'approval' && opened) {
     setTimeout(() => {
       try {
-        deliver('approval:summary', handlers.approval_summary({ deal_id: selected }));
+        deliver('approval:summary', handlers.approval_summary({ deal_id: opened }));
       } catch {
         /* unknown deal in the URL: the page shows NOT_FOUND from its own fetch */
       }

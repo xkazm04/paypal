@@ -187,6 +187,7 @@ impl PaypalPath {
             "/v1/billing/subscriptions",
             "/v1/reporting/transactions",
             "/v1/customer/disputes",
+            "/v2/invoicing/search-invoices",
         ];
         if !families
             .iter()

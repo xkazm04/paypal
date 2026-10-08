@@ -106,6 +106,8 @@ pub struct Runtime {
     pub(crate) engine_probed_at: Vec<(table_engine::EngineId, i64)>,
     /// The transcript head each deal's last policy run was armed for: one run per peer message.
     pub(crate) armed: BTreeMap<DealId, H256>,
+    /// The house's signed record kept beside HOUSE receipts (T9).
+    pub(crate) witness: crate::witness::Witness,
     /// Deals whose market-watch price check is in flight (T15): never two at once for a deal.
     pub(crate) market_watch_busy: std::collections::BTreeSet<DealId>,
     /// When a deal whose price check failed may be checked again.
@@ -201,6 +203,7 @@ impl Runtime {
             emitted: Vec::new(),
             engine_probed_at: Vec::new(),
             armed: BTreeMap::new(),
+            witness: crate::witness::Witness::default(),
             market_watch_busy: std::collections::BTreeSet::new(),
             market_watch_retry: BTreeMap::new(),
             market_watch_used_up: BTreeMap::new(),
@@ -236,6 +239,10 @@ impl Runtime {
             deal.mandate_version,
             &self.owner()?.verifying_key(),
         ))?;
+        self.select_agent(m.payload.agent_key)
+    }
+    /// Select the agent signer whose public key a mandate pins; refused when no slot holds it.
+    pub(crate) fn select_agent(&mut self, agent_key: [u8; 32]) -> Result<(), CommandError> {
         for slot in [
             AgentSlot::Negotiator,
             AgentSlot::Shopper,
@@ -243,7 +250,7 @@ impl Runtime {
         ] {
             let key = existing_signing_key(self.vault.as_ref(), slot.key_name())
                 .map_err(|_| unavailable("Agent key unavailable"))?;
-            if key.verifying_key().to_bytes() == m.payload.agent_key {
+            if key.verifying_key().to_bytes() == agent_key {
                 self.pipeline
                     .wallet
                     .select_signer(AgentSigner::from_key(key));
@@ -292,9 +299,16 @@ impl Runtime {
         let deal = app(self.pipeline.wallet.ledger.get_deal(id))?;
         let configured = self.settings()?.payment_executor_configured;
         let locked = self.pipeline.approval.locked(self.clock.now());
-        let supported = (deal.side == Side::Seller || deal.kind == DealKind::Purchase)
-            && !matches!(deal.kind, DealKind::Rescue | DealKind::Invoice)
-            && deal.mode != Mode::Replay;
+        // A rescue fix is the owner's to approve whatever the failure's mode: its invoice is real
+        // and a replayed failure is never counted (table-app rescue.rs).
+        let rescue = deal.kind == DealKind::Rescue;
+        let supported = if rescue {
+            self.secondary.is_some() && self.rescue_releasable(&deal)?
+        } else {
+            (deal.side == Side::Seller || deal.kind == DealKind::Purchase)
+                && deal.kind != DealKind::Invoice
+                && deal.mode != Mode::Replay
+        };
         let counter_hash = self
             .pipeline
             .wallet
@@ -359,6 +373,10 @@ impl Runtime {
                     "Seller-owned order: approve on PayPal; the seller authorizes and captures"
                         .into(),
                 )
+            } else if rescue && self.secondary.is_none() {
+                Some("Invoicing executor is unavailable".into())
+            } else if rescue && !supported {
+                None
             } else if !supported {
                 Some("This executor is deferred or replay-only".into())
             } else if !configured {
@@ -366,6 +384,7 @@ impl Runtime {
             } else {
                 None
             },
+            rescue: self.rescue_view(id)?,
             deal,
             locked,
         })
@@ -500,9 +519,17 @@ impl Runtime {
                     .owner_release_hold(deal.id, args.attempt, ticket, now)?
             }
             Decision::Rescue => {
-                return Err(unavailable(
-                    "Rescue executor requires the P3 secondary endpoint phase",
-                ));
+                // The owner's decision on the one fix: the pipeline creates and sends the invoice
+                // under this ticket (table-app rescue.rs). Never an agent tool.
+                if deal.kind != DealKind::Rescue {
+                    return Err(invalid());
+                }
+                if !self.settings()?.payment_executor_configured || self.secondary.is_none() {
+                    return Err(unavailable("Enter PayPal sandbox credentials"));
+                }
+                self.select_signer(deal.id)?;
+                self.record(deal.id, decision, &args, checks, now)?;
+                self.pipeline.rescue_approve(deal.id, ticket, now).await?;
             }
             Decision::OpenBrowser => {
                 self.select_signer(deal.id)?;

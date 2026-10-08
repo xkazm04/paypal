@@ -103,6 +103,7 @@
 .ow-stepper output { min-width: 24px; text-align: center; font-variant-numeric: tabular-nums; }
 .ow-inline { display: inline-flex; align-items: center; gap: var(--sp-1); margin: 0; }
 .ow-inline .ui-field { width: 190px; }
+.ow-inline .ui-field.ow-pct { width: 64px; }
 .ow-pair + .ow-lever { border-top: 0; }
 
 /* who and what */
@@ -177,6 +178,11 @@
 .ow-lim-in { display: flex; align-items: center; gap: var(--sp-2); }
 .ow-lim-in .ui-field { width: 120px; }
 .ow-lim-in .dim { min-width: 72px; font-size: var(--fs-small); }
+/* The replay of a failed renewal (owner/RescueReplay.tsx): ids and addresses need room. */
+.ow-rr .ow-lim-f { grid-template-columns: 170px minmax(0, 1fr); }
+.ow-rr .ow-lim-in .ui-field { width: 100%; min-width: 0; flex: 1; }
+.ow-rr .ow-lim-in .ui-field.num { width: 120px; flex: none; }
+.ow-rr .ow-lim-in .dim { min-width: 0; }
 
 /* Keep prices fresh (T15): item and product rows, then the day's allowance. */
 .ow-watch-rows { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 4px var(--sp-2); align-items: center; }

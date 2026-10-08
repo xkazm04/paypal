@@ -1,0 +1,344 @@
+//! Subscription rescue through the shell: the privileged replay, the owner's decision bound to
+//! its checklist, the Rescue read, the attention card and the scheduler's PAID read.
+use super::*;
+use table_paypal::{
+    ApiResponse, Dispute, DisputeList, Error as PaypalError, Invoice, InvoiceList, InvoiceRequest,
+    Observation, ReportingWindow, RequestId, ResourceId, RevisedSubscription, SecondaryApi,
+    Subscription, TransactionPage,
+};
+
+#[derive(Debug, Default)]
+struct Book {
+    status: &'static str,
+    amount: Option<Value>,
+    reference: String,
+    number: String,
+    posts: Vec<String>,
+}
+#[derive(Debug, Default)]
+struct Invoicing(Mutex<Book>);
+fn seen(method: &'static str, path: &str, id: &str, body: Value) -> Observation {
+    Observation {
+        method,
+        path: path.into(),
+        request_id: id.into(),
+        status: 200,
+        body,
+        binding: None,
+    }
+}
+impl Invoicing {
+    fn wire(&self) -> Value {
+        let b = self.0.lock().unwrap();
+        json!({"id":"INV-1","status":b.status,"amount":b.amount,"detail":{"reference":b.reference,"invoice_number":b.number}})
+    }
+}
+#[async_trait]
+impl SecondaryApi for Invoicing {
+    async fn create_invoice(
+        &self,
+        r: &InvoiceRequest,
+        id: &RequestId,
+    ) -> Result<ApiResponse<Invoice>, PaypalError> {
+        let body = r.body()?;
+        {
+            let mut b = self.0.lock().unwrap();
+            b.posts.push(id.as_str().into());
+            b.status = "DRAFT";
+            b.amount = Some(body["items"][0]["unit_amount"].clone());
+            b.reference = body["detail"]["reference"].as_str().unwrap().into();
+            b.number = body["detail"]["invoice_number"].as_str().unwrap().into();
+        }
+        let wire = self.wire();
+        Ok(ApiResponse {
+            value: serde_json::from_value(wire.clone()).unwrap(),
+            observations: vec![seen("POST", "/v2/invoicing/invoices", id.as_str(), wire)],
+        })
+    }
+    async fn send_invoice(
+        &self,
+        _: &ResourceId,
+        id: &RequestId,
+    ) -> Result<ApiResponse<()>, PaypalError> {
+        let mut b = self.0.lock().unwrap();
+        b.posts.push(id.as_str().into());
+        b.status = "SENT";
+        Ok(ApiResponse {
+            value: (),
+            observations: vec![seen(
+                "POST",
+                "/v2/invoicing/invoices/INV-1/send",
+                id.as_str(),
+                Value::Null,
+            )],
+        })
+    }
+    async fn get_invoice(&self, _: &ResourceId) -> Result<ApiResponse<Invoice>, PaypalError> {
+        let wire = self.wire();
+        Ok(ApiResponse {
+            value: serde_json::from_value(wire.clone()).unwrap(),
+            observations: vec![seen("GET", "/v2/invoicing/invoices/INV-1", "", wire)],
+        })
+    }
+    async fn search_invoices(&self, _: &str) -> Result<ApiResponse<InvoiceList>, PaypalError> {
+        Err(PaypalError::Invalid)
+    }
+    async fn get_subscription(
+        &self,
+        _: &ResourceId,
+    ) -> Result<ApiResponse<Subscription>, PaypalError> {
+        Err(PaypalError::Invalid)
+    }
+    async fn suspend_subscription(
+        &self,
+        _: &ResourceId,
+        _: &RequestId,
+    ) -> Result<ApiResponse<()>, PaypalError> {
+        panic!("rescue never suspends")
+    }
+    async fn activate_subscription(
+        &self,
+        _: &ResourceId,
+        _: &RequestId,
+    ) -> Result<ApiResponse<()>, PaypalError> {
+        panic!("rescue never activates")
+    }
+    async fn revise_subscription(
+        &self,
+        _: &ResourceId,
+        _: &ResourceId,
+        _: &RequestId,
+    ) -> Result<ApiResponse<RevisedSubscription>, PaypalError> {
+        panic!("rescue never revises")
+    }
+    async fn capture_outstanding(
+        &self,
+        _: &ResourceId,
+        _: Money,
+        _: &RequestId,
+    ) -> Result<ApiResponse<()>, PaypalError> {
+        panic!("rescue never captures")
+    }
+    async fn transactions(
+        &self,
+        _: ReportingWindow,
+    ) -> Result<ApiResponse<TransactionPage>, PaypalError> {
+        Err(PaypalError::Invalid)
+    }
+    async fn list_disputes(&self) -> Result<ApiResponse<DisputeList>, PaypalError> {
+        Err(PaypalError::Invalid)
+    }
+    async fn get_dispute(&self, _: &ResourceId) -> Result<ApiResponse<Dispute>, PaypalError> {
+        Err(PaypalError::Invalid)
+    }
+}
+
+fn usd(minor: i64) -> Money {
+    Money::new(minor, Currency::USD).unwrap()
+}
+fn rescue_clauses() -> Vec<Clause> {
+    vec![
+        Clause::Roles {
+            roles: vec![Role::Rescue],
+        },
+        Clause::Counterparties {
+            rule: CpRule::Subscribers,
+        },
+        Clause::PerDeal {
+            kind: DealKind::Rescue,
+            max_amount: usd(5000),
+            categories: vec![Category::Service],
+        },
+        Clause::Velocity {
+            max_deals_day: 10,
+            max_total_day: usd(50_000),
+        },
+        Clause::HumanPresentOver { amount: usd(0) },
+        Clause::Payees {
+            payees: vec![PayeeRef::new("shop-merchant").unwrap()],
+        },
+        Clause::Lever {
+            levers: vec![RescueLever::DiscountThisCycle],
+            max_discount_bp: 2000,
+            max_discount: usd(500),
+        },
+    ]
+}
+fn replay_args() -> RescueReplayArgs {
+    RescueReplayArgs {
+        subscription_id: "I-S14".into(),
+        subscriber_email: "subscriber14@example.com".into(),
+        plan: ItemRef::new("care-plan").unwrap(),
+        amount: usd(1200),
+    }
+}
+fn with_invoicing(r: &mut Runtime) -> Arc<Invoicing> {
+    let api = Arc::new(Invoicing::default());
+    r.secondary = Some(api.clone());
+    r.pipeline.set_secondary(Some(api.clone()));
+    api
+}
+
+#[tokio::test]
+async fn no_rescue_rules_refuses_the_replay_in_plain_words_and_writes_nothing() {
+    let (mut r, ..) = runtime(true);
+    let token = unlock_runtime(&mut r);
+    let error = r
+        .execute(
+            caller("approval", Some(&token)),
+            Action::RescueReplay(replay_args()),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(error.message, crate::rescue::NO_RESCUE_RULES);
+    assert!(r.pipeline.wallet.ledger.list_deals().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_replayed_renewal_is_fixed_only_on_the_owners_bound_decision_and_never_counts() {
+    let (mut r, vault, ..) = runtime(true);
+    credentials(vault.as_ref());
+    let paypal = with_invoicing(&mut r);
+    r.sign_mandate(MandateSignArgs {
+        id: None,
+        agent: AgentSlot::Assistant,
+        clauses: rescue_clauses(),
+        not_before: 0,
+        expires: 10_000_000,
+    })
+    .unwrap();
+    let token = r.pipeline.approval.token("approval").unwrap().to_owned();
+    // Main, the Tumbler and an approval window without its token cannot record one; nor a locked
+    // approval window.
+    for who in [
+        caller("main", Some(&token)),
+        caller("tumbler", Some(&token)),
+        caller("approval", None),
+    ] {
+        let error = r
+            .execute(who, Action::RescueReplay(replay_args()))
+            .await
+            .unwrap_err();
+        assert!(matches!(error.code, ErrorCode::Permission), "{error:?}");
+    }
+    let error = r
+        .execute(
+            caller("approval", Some(&token)),
+            Action::RescueReplay(replay_args()),
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(error.code, ErrorCode::Locked), "{error:?}");
+    let token = unlock_runtime(&mut r);
+    let mut bad = replay_args();
+    bad.subscriber_email = "not an email".into();
+    assert!(
+        r.execute(caller("approval", Some(&token)), Action::RescueReplay(bad))
+            .await
+            .is_err()
+    );
+    let deal: Deal = serde_json::from_value(
+        r.execute(
+            caller("approval", Some(&token)),
+            Action::RescueReplay(replay_args()),
+        )
+        .await
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        (deal.state, deal.mode, deal.terms.unit_price),
+        (DealState::Agreed, Mode::Replay, usd(960))
+    );
+    assert_eq!(r.selected, Some(deal.id));
+    // The card asks for the owner and never carries the subscriber's address.
+    let snapshot = r.attention().unwrap();
+    let item = snapshot
+        .items
+        .iter()
+        .find(|i| i.deal_id == deal.id)
+        .unwrap();
+    assert_eq!(item.headline, "Approve rescue lever 9.60 USD");
+    assert_eq!(item.on_silence, table_attention::RESCUE_SILENCE);
+    assert!(
+        !serde_json::to_string(&snapshot)
+            .unwrap()
+            .contains("subscriber14")
+    );
+    // The Rescue read: main and approval, masked; never the Tumbler.
+    assert!(
+        r.execute(caller("tumbler", None), Action::RescueBook)
+            .await
+            .is_err()
+    );
+    let book: RescueBook = serde_json::from_value(
+        r.execute(caller("main", None), Action::RescueBook)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(book.cases.len(), 1);
+    assert_eq!(book.cases[0].recipient, "s•••@example.com");
+    assert!(
+        book.cases[0]
+            .text
+            .note
+            .contains("9.60 USD instead of 12.00 USD")
+    );
+    assert!(book.recovered.is_empty());
+    // The summary offers the decision, with the fixed wording, and nothing failing.
+    let summary = r.summary(deal.id).unwrap();
+    assert!(summary.can_release, "{:?}", summary.unavailable_reason);
+    assert_eq!(
+        summary.rescue.as_ref().unwrap().source,
+        RescueSource::Replay
+    );
+    assert!(
+        summary
+            .checks
+            .iter()
+            .all(|c| c.status != ApprovalCheckStatus::Fail)
+    );
+    // A decision on a checklist the owner did not see sends nothing.
+    let mut stale = decision(&mut r, deal.id);
+    stale.checks_hash = Some(H256::ZERO);
+    let error = r
+        .execute(
+            caller("approval", Some(&token)),
+            Action::Decision(stale, Decision::Rescue),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(error.message, SUMMARY_CHANGED);
+    assert!(paypal.0.lock().unwrap().posts.is_empty());
+    // The owner's decision creates and sends the one invoice.
+    let args = decision(&mut r, deal.id);
+    r.execute(
+        caller("approval", Some(&token)),
+        Action::Decision(args, Decision::Rescue),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        paypal.0.lock().unwrap().posts,
+        vec![
+            format!("{}-1-invoice-create", deal.id),
+            format!("{}-1-invoice-send", deal.id)
+        ]
+    );
+    let deal_now = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap();
+    assert_eq!(deal_now.state, DealState::AwaitingApproval);
+    assert!(!r.summary(deal.id).unwrap().can_release);
+    // The scheduler reads PAID back; the receipt is signed; a replay never counts.
+    paypal.0.lock().unwrap().status = "PAID";
+    r.tick().await.unwrap();
+    assert_eq!(
+        r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Receipted
+    );
+    let book = r.rescue_book().unwrap();
+    assert!(!book.cases[0].counted);
+    assert!(book.recovered.is_empty());
+    assert_eq!(paypal.0.lock().unwrap().posts.len(), 2);
+    r.pipeline.wallet.ledger.verify_audit().unwrap();
+}

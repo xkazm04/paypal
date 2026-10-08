@@ -98,7 +98,7 @@ export function derivePhase(summary: ApprovalSummary | undefined, o: { locked: b
   if (d.state === 'MISMATCH') return 'mismatch';
   if (d.shield === 'BLOCK') return 'block';
   if (d.state === 'RECEIPTED' || d.state === 'RECONCILED' || d.state === 'CAPTURED') return 'done';
-  if (isTerminal(d.state)) return d.kind === 'rescue' && d.state === 'FAILED' ? (o.locked ? 'locked' : 'ready') : 'stopped';
+  if (isTerminal(d.state)) return 'stopped';
   if (d.shield === 'HOLD') return 'hold';
   if (o.inBrowser && d.state === 'AWAITING_APPROVAL') return 'in_browser';
   if (o.locked) return 'locked';
@@ -114,7 +114,7 @@ export const STEP = {
   checking: 'Checking', ready: 'Ready for you', locked: 'Locked', yours: 'Your approval', youApproved: 'You approved',
   browser: 'On PayPal', approved: 'Approved on PayPal', held: 'On hold', paid: 'Paid', sellerPaid: 'Seller says paid',
   receipt: 'Receipt saved', buyer: 'Buyer approves', terms: 'Agreed terms', blocked: 'Blocked', paused: 'Paused for you',
-  fix: 'Fix approved', recovered: 'Recovered',
+  fix: 'Fix approved', recovered: 'Recovered', invoiceSent: 'Invoice sent', subscriberPaid: 'Subscriber paid',
 } as const;
 
 const PRE: ReadonlySet<DealState> = new Set<DealState>(['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING']);
@@ -128,7 +128,10 @@ export function buildStrip(summary: ApprovalSummary | undefined, phase: Phase, l
     return [{ label: STEP.checking, status: 'done' }, { label: STEP.terms, status: 'done' }, { label: end, status: 'bad' }];
   }
   if (d.kind === 'rescue') {
-    return [{ label: STEP.checking, status: 'done' }, { label: locked ? STEP.locked : STEP.ready, status: 'cur' }, { label: STEP.fix, status: 'todo' }, { label: STEP.recovered, status: 'todo' }];
+    // Checking · your approval · invoice with the subscriber · paid (counted only when PayPal shows it).
+    const labels = [STEP.checking, s === 'AGREED' ? (locked ? STEP.locked : STEP.ready) : STEP.fix, STEP.invoiceSent, STEP.subscriberPaid];
+    const at = s === 'AGREED' ? 1 : s === 'SETTLING' || s === 'AWAITING_APPROVAL' ? 2 : 3;
+    return labels.map((label, i) => ({ label, status: i < at ? 'done' : i === at ? (i === labels.length - 1 ? 'ok' : 'cur') : 'todo' }));
   }
   const ready = locked ? STEP.locked : STEP.ready;
   let labels: string[];

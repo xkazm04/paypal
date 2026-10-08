@@ -15,6 +15,7 @@ const RULES = [
   ['paired', 'any wallet you connected (four words checked)'],
   ['pinned', 'only wallets you list by key'],
   ['house', 'only the house seller'],
+  ['subscribers', 'only your own subscribers (fixing failed renewals)'],
 ] as const;
 
 type Key = 'slot' | 'valid' | 'add' | `c${number}`;

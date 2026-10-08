@@ -559,6 +559,12 @@ impl Runtime {
                 if label == "approval" && self.selected != Some(id) {
                     return Err(permission());
                 }
+                // A rescue can be dropped only before its invoice exists: once made, the deal
+                // follows PayPal's own record of it.
+                let deal = app(self.pipeline.wallet.ledger.get_deal(id))?;
+                if deal.kind == DealKind::Rescue && deal.state != DealState::Agreed {
+                    return Err(invalid());
+                }
                 self.select_signer(id)?;
                 self.pipeline.wallet.withdraw(
                     id,
@@ -669,6 +675,17 @@ impl Runtime {
                 // Limits and numbers only; every window shows the meters.
                 allowed(label, &["main", "tumbler", "approval"])?;
                 json(self.envelope_view()?)
+            }
+            Action::RescueReplay(args) => {
+                // Privileged like deal_create: it opens a deal that can lead to an invoice.
+                self.guard(label, token)?;
+                crate::rescue::check_replay_args(&args)?;
+                json(self.rescue_replay(args)?)
+            }
+            Action::RescueBook => {
+                // Numbers and masked addresses only; never the Tumbler.
+                allowed(label, &["main", "approval"])?;
+                json(self.rescue_book()?)
             }
         }
     }

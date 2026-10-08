@@ -4,6 +4,7 @@
 import type { Clause } from '@bindings/Clause';
 import type { DealKind } from '@bindings/DealKind';
 import type { DealState } from '@bindings/DealState';
+import type { HouseRecord } from '@bindings/HouseRecord';
 import type { Mode } from '@bindings/Mode';
 import type { MoneyCheck } from '@bindings/MoneyCheck';
 import type { MoneyCheckStep } from '@bindings/MoneyCheckStep';
@@ -51,8 +52,13 @@ export function stateWord(state: DealState, ctx: { side?: Side; kind?: DealKind 
   if (state === 'AWAITING_APPROVAL' && ctx.kind === 'rescue') {
     return { text: 'Waiting for subscriber', tone: 'gold', means: 'The subscriber has an invoice to pay. No money has moved yet.' };
   }
-  if (state === 'FAILED' && ctx.kind === 'rescue') {
-    return { text: 'Renewal failed', tone: 'coral', means: 'The subscription renewal did not go through. Nothing was recovered yet.' };
+  if ((state === 'AGREED' || state === 'FAILED') && ctx.kind === 'rescue') {
+    return state === 'AGREED'
+      ? { text: 'Renewal failed', tone: 'coral', means: 'The subscription renewal did not go through. A fix waits for you; nothing is sent until you approve it.' }
+      : { text: 'Fix failed', tone: 'red', means: 'The invoice was cancelled at PayPal. Nothing was recovered.' };
+  }
+  if (state === 'SETTLING' && ctx.kind === 'rescue') {
+    return { text: 'Sending invoice', tone: 'gold', means: 'PayPal is making or sending the invoice you approved. Nothing is paid until the subscriber pays it.' };
   }
   if ((state === 'CAPTURED' || state === 'RECEIPTED' || state === 'RECONCILED') && ctx.side === 'seller') {
     const base = STATE[state];
@@ -122,11 +128,12 @@ export const RULE_NAME: Record<Clause['type'], string> = {
   velocity: 'Daily limit',
   human_present_over: 'Ask me above',
   payees: 'Approved payees',
+  lever: 'Fixes for failed renewals',
   market_watch: 'Keep prices fresh',
 };
-/** Clause number (1-7) for a clause type: Details only. */
+/** Clause number (1-8) for a clause type: Details only. */
 export const RULE_NUMBER: Record<Clause['type'], number> = {
-  roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7,
+  roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7, lever: 8,
   market_watch: 9,
 };
 const RULE_BY_NUMBER = Object.fromEntries(Object.entries(RULE_NUMBER).map(([k, n]) => [n, k])) as Record<number, Clause['type']>;
@@ -144,7 +151,7 @@ export const kindWord = (k: DealKind): string => KIND[k];
 export function ruleSentence(c: Clause): string {
   switch (c.type) {
     case 'roles': return c.roles.length ? `may ${joinWords(c.roles.map((r) => ROLE[r]))}` : 'may do nothing';
-    case 'counterparties': return c.rule.type === 'paired' ? 'only wallets you connected' : c.rule.type === 'house' ? 'only the house seller' : `only ${c.rule.keys.length} verified ${c.rule.keys.length === 1 ? 'wallet' : 'wallets'}`;
+    case 'counterparties': return c.rule.type === 'paired' ? 'only wallets you connected' : c.rule.type === 'house' ? 'only the house seller' : c.rule.type === 'subscribers' ? 'only your own subscribers' : `only ${c.rule.keys.length} verified ${c.rule.keys.length === 1 ? 'wallet' : 'wallets'}`;
     case 'per_deal': return `up to ${formatMoney(c.max_amount)} per ${KIND[c.kind]}`;
     case 'band': {
       const parts = [c.ceiling ? `most you'll pay ${formatMoney(c.ceiling)}` : null, c.floor ? `least you'll accept ${formatMoney(c.floor)}` : null].filter(Boolean);
@@ -153,8 +160,18 @@ export function ruleSentence(c: Clause): string {
     case 'velocity': return `up to ${c.max_deals_day} deals and ${formatMoney(c.max_total_day)} a day`;
     case 'human_present_over': return `asks you above ${formatMoney(c.amount)}`;
     case 'payees': return c.payees.length ? `only ${joinWords(c.payees)}` : 'no one yet';
+    case 'lever': return `a discount on one missed cycle: up to ${percentWords(c.max_discount_bp)} and ${formatMoney(c.max_discount)} per subscriber`;
     case 'market_watch': return `keeps prices fresh for ${joinWords(c.items.map((i) => i.item_ref))} · ${checksADay(c.max_refreshes_day)}`;
   }
+}
+
+/** A basis-point share in words: "20%", "12.5%", "8.33%" (the wallet's own invoice wording). */
+export function percentWords(bp: number): string {
+  const whole = Math.floor(bp / 100);
+  const frac = bp % 100;
+  if (frac === 0) return `${whole}%`;
+  if (frac % 10 === 0) return `${whole}.${frac / 10}%`;
+  return `${whole}.${String(frac).padStart(2, '0')}%`;
 }
 
 /** A rule set's display name, from the agent it is signed for: "Shopper rules". */
@@ -305,6 +322,8 @@ const CHECK_STEP: Record<MoneyCheckStep, string> = {
   authorize: 'the hold',
   capture: 'the payment',
   void: 'releasing the hold',
+  invoice_create: 'making the invoice',
+  invoice_send: 'sending the invoice',
 };
 export const moneyCheckStep = (s: MoneyCheckStep): string => CHECK_STEP[s];
 /** The one sentence for a parked check (the owner sees it on the card and the deal). */
@@ -333,3 +352,48 @@ export const WALLET_LIMITS_ABOUT = 'One cap above all your agents’ rules. It c
 /** Signed limits ran out, or could not be checked: money out stops until they are signed again. */
 export const LIMITS_EXPIRED = 'Your wallet limits ran out, so your agents can’t pay anyone until you set them again.';
 export const LIMITS_UNVERIFIED = 'Your wallet limits couldn’t be checked, so your agents can’t pay anyone until you set them again.';
+
+// ---- rescue: one fix for a failed renewal -----------------------------------------------------
+// The fix is a one-time discount on the missed cycle, invoiced by PayPal. The invoice wording is
+// the wallet's own (RescueView.text); these are the page's words around it.
+
+/** The card's "if you do nothing" lines, the same words Rust sends (table-attention). */
+export const RESCUE_SILENCE = 'nothing is sent · PayPal retries the payment by itself';
+export const RESCUE_SENT_SILENCE = 'the invoice stays open until it expires · nothing is charged unless the subscriber pays';
+/** Why a paid invoice is or is not counted as money you got back. */
+export const RESCUE_COUNTED = 'PayPal shows this invoice paid and your wallet saved the receipt, so it counts as money you got back.';
+export const RESCUE_REPLAY_NOT_COUNTED = 'This renewal failure was replayed, not reported by PayPal, so what it brings in is never counted as money you got back.';
+export const RESCUE_SENT_NOT_COUNTED = 'Sent is not paid: it counts only once PayPal shows the invoice paid.';
+/** What approving a fix does, before the owner holds the button. */
+export const RESCUE_APPROVE_DOES = 'PayPal makes one invoice for this cycle at the discounted price and emails it to your subscriber. Nothing is charged: they pay it on PayPal’s page, or it expires.';
+/** The replay form, in the approval window. */
+export const RESCUE_REPLAY_ABOUT = 'PayPal can’t make a test renewal fail, so you can replay one: enter the subscription and its price, and your wallet suggests one fix inside your rules. The failure is marked as a replay. The invoice it leads to is real, and what it brings in is never counted.';
+export const RESCUE_NO_RULES = 'Sign rules for fixing failed renewals first.';
+/** A source of a failed renewal, in words. */
+export const rescueSourceWord = (s: 'replay' | 'paypal'): string => (s === 'replay' ? 'Replayed failure' : 'Reported by PayPal');
+/** A subscriber without a wallet entry, by their subscription: "subscriber I-BW452GLL…". */
+export function subscriberName(key: string): string | null {
+  if (!key.startsWith('sub:')) return null;
+  const id = key.slice(4);
+  return `subscriber ${id.length > 12 ? `${id.slice(0, 11)}…` : id}`;
+}
+
+// ---- the house seller's signed record (T9): kept with a receipt from the house seller ------------
+
+/** The card's name for the house seller's signed record. */
+export const HOUSE_RECORD_NAME = 'House seller’s record';
+/** The warning on a deal when the house's record shrank since the receipt (evidence only). */
+export const HOUSE_RECORD_SHORTER = 'The house’s record got shorter since your receipt';
+/** How the house seller's later record compares with the one kept with your receipt. Evidence only:
+ *  a warning changes nothing about the money; it tells you to keep your signed proof. */
+export function houseRecordWord(r: HouseRecord): Word & { warns: boolean } {
+  const kept = `${r.entries.toLocaleString('en-US')} entries, kept with your receipt`;
+  switch (r.state) {
+    case 'kept': return { text: 'Kept with your receipt', tone: 'line', warns: false, means: `The house seller signed its whole record when you were paid up: ${kept}. Your wallet compares it with the house’s later record.` };
+    case 'holds': return { text: 'Still matches', tone: 'ok', warns: false, means: `The house seller’s later record still contains the one kept with your receipt (${kept}).` };
+    case 'longer': return { text: 'Grown since', tone: 'line', warns: false, means: `The house seller’s record has grown since your receipt (${kept}). Your wallet checks that it still contains yours.` };
+    case 'restarted': return { text: 'House started a new record', tone: 'coral', warns: true, means: 'The house seller started a new record since your receipt, for example after its storage was replaced. Your receipt and PayPal’s own records are unchanged. Keep your signed proof.' };
+    case 'shorter': return { text: 'Record got shorter', tone: 'red', warns: true, means: `${HOUSE_RECORD_SHORTER}. No money moved. Keep your signed proof: it shows what the house agreed.` };
+    case 'rewritten': return { text: 'Record changed', tone: 'red', warns: true, means: 'The house’s record no longer contains the one it signed at your receipt. No money moved. Keep your signed proof: it shows what the house agreed.' };
+  }
+}

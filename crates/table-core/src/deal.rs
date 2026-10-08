@@ -163,6 +163,12 @@ pub enum DealEvent {
     AutoVoid,
     Refund,
     Dispute,
+    /// A failed renewal was recorded (read from PayPal, or replayed) and its one fix passed the
+    /// mandate check: the rescue deal waits at AGREED for the owner. Accepted only on a rescue.
+    RescueOpened,
+    /// PayPal confirmed the rescue invoice exists as a draft; the deal stays SETTLING until it is
+    /// sent. Nobody has been asked to pay yet.
+    InvoiceDrafted,
 }
 
 pub fn transition(state: DealState, event: DealEvent) -> Result<DealState, DomainError> {
@@ -173,6 +179,8 @@ pub fn transition(state: DealState, event: DealEvent) -> Result<DealState, Domai
         (S::Listed | S::Negotiating, E::OfferVerified) => S::Negotiating,
         (S::Negotiating, E::TwoAcceptsVerified) => S::Agreed,
         (S::Pairing, E::PurchaseCleared) => S::Agreed,
+        (S::Pairing, E::RescueOpened) => S::Agreed,
+        (S::Settling, E::InvoiceDrafted) => S::Settling,
         (S::Agreed, E::BeginSettlement) => S::Settling,
         (S::Settling, E::SettleVerified) => S::AwaitingApproval,
         (S::AwaitingApproval, E::OrderApproved) => S::Approved,
@@ -223,6 +231,41 @@ pub struct DealEvidence {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub money_check: Option<MoneyCheck>,
+    /// For a deal with the house: the house's signed record kept with the receipt and how the
+    /// house's later record compares with it; null otherwise. Older shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub house_record: Option<HouseRecord>,
+}
+/// How the house's record compares with the signed head the wallet kept with the receipt (T9).
+/// Evidence only: no state here moves or holds money.
+#[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HouseRecordState {
+    /// Kept with the receipt; not compared with a later record yet.
+    Kept,
+    /// A later signed record still contains the kept one.
+    Holds,
+    /// A later signed record is longer, but the house was not asked to prove it contains the kept
+    /// one yet.
+    Longer,
+    /// The house started a new record (for example after a disk loss).
+    Restarted,
+    /// The house's record got shorter since the receipt.
+    Shorter,
+    /// The house's record no longer contains the one it signed at the receipt.
+    Rewritten,
+}
+#[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HouseRecord {
+    pub state: HouseRecordState,
+    /// When the wallet kept the house's signed record.
+    pub kept_at: Timestamp,
+    /// Entries in the house's record at that moment.
+    pub entries: u64,
+    /// When the wallet last compared a later record; null when it has not.
+    pub checked_at: Option<Timestamp>,
 }
 /// The PayPal step a [`MoneyCheck`] is about.
 #[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -232,6 +275,10 @@ pub enum MoneyCheckStep {
     Authorize,
     Capture,
     Void,
+    /// A rescue invoice being made (a draft nobody is asked to pay yet).
+    InvoiceCreate,
+    /// A rescue invoice being sent to the subscriber.
+    InvoiceSend,
 }
 /// `Checking`: the wallet has not asked PayPal yet, or is about to ask again. `Parked`: PayPal's
 /// answer could not be read or did not settle the question, so nothing more is sent for this
@@ -261,6 +308,8 @@ impl MoneyCheckStep {
             "authorize" => Some(Self::Authorize),
             "capture" => Some(Self::Capture),
             "void" => Some(Self::Void),
+            "invoice-create" => Some(Self::InvoiceCreate),
+            "invoice-send" => Some(Self::InvoiceSend),
             _ => None,
         }
     }

@@ -19,6 +19,8 @@ pub(crate) mod policy_tests;
 mod quit_tests;
 #[path = "relay_tests.rs"]
 mod relay_tests;
+#[path = "rescue_tests.rs"]
+mod rescue_tests;
 #[path = "simulate_tests.rs"]
 mod simulate_tests;
 use super::*;

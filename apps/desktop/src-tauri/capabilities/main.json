@@ -42,6 +42,7 @@
     "allow-deal-export-proof",
     "allow-proof-check",
     "allow-deal-history",
-    "allow-envelope-get"
+    "allow-envelope-get",
+    "allow-rescue-book"
   ]
 }

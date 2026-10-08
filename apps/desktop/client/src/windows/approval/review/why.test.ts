@@ -46,8 +46,8 @@ describe('the answer’s Why: two sentences from facts on screen', () => {
     expect(answer({ kind: 'capture', act: 'capture', deal: deal({ side: 'seller', state: 'AUTHORIZED' }) })?.lines[1]).toMatch(/nothing is collected/);
   });
   it('a replay never claims anything real is invoiced', () => {
-    const w = answer({ kind: 'lever', act: 'rescue', deal: deal({ kind: 'rescue', side: 'seller', state: 'FAILED', mode: 'replay' }) });
-    expect(w?.lines[1]).toBe('This is a replay, so approving runs recorded steps and invoices nothing real.');
+    const w = answer({ kind: 'lever', act: 'rescue', deal: deal({ kind: 'rescue', side: 'seller', state: 'AGREED', mode: 'replay' }) });
+    expect(w?.lines[1]).toMatch(/one real .* PayPal invoice; the failure is a replay, so it is never counted\.$/);
   });
   it('has no answer where nothing is asked, and never a guess', () => {
     for (const phase of ['checking', 'done', 'stopped', 'in_browser', 'block'] as const) expect(answer({ phase })).toBeNull();
