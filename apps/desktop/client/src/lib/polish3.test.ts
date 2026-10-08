@@ -7,7 +7,9 @@ import { buildMockState } from '../mock/fixtures';
 import { cardQuestion } from '../windows/tumbler/logic';
 import { decisionLine } from '../windows/main/deal/model';
 import { atRiskOf, isFailing } from '../windows/main/modules/rescue/model';
-import { dealTotal } from '../windows/main/logic';
+import { dealTotal, summarize } from '../windows/main/logic';
+import { heldAtPayPal, heldLine } from '../windows/main/home/model';
+import { sums } from '../windows/main/modules/book/model';
 import { houseName } from './display';
 import { CHECK_QUIET, heldWords, houseWords, itemWords, notOfferedLine, NOT_REPORTED, ruleSentence } from './words';
 
@@ -60,6 +62,21 @@ describe('Book and Rescue agree on a failed renewal’s amount', () => {
       expect(risk).toEqual(view?.offer.cycle);
       expect(risk.minor).toBeGreaterThan(dealTotal(d).minor);
     }
+  });
+});
+
+describe('Home and Book agree on what is on hold', () => {
+  it('Home counts PayPal holds per direction, as Book’s tile does; a paused payment is not on hold at PayPal', () => {
+    const deals = buildMockState(NOW).deals.map((d) => d.deal);
+    const s = summarize(deals, new Set());
+    const home = heldAtPayPal(s.held);
+    const book = sums(deals).held;
+    expect(home.out).toEqual(book.out);
+    expect(home.inn).toEqual(book.in);
+    expect(home.deals.every((d) => d.state === 'AUTHORIZED')).toBe(true);
+    expect(s.held.some((d) => d.shield === 'HOLD' && d.state !== 'AUTHORIZED')).toBe(true); // D-0198 stays on the dial and under Needs you
+    expect(heldLine(home)).toBe('$64.00 out · $118.00 in');
+    expect(heldLine({ out: [], inn: [] })).toBe('nothing');
   });
 });
 

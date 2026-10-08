@@ -16,9 +16,9 @@ import { Countdown, MockBadge, ModeBadge, WalletNotice } from '../../shared/hone
 import { MODULE, MODULES } from '../../shared/modules';
 import { Btn, Chip, Explainer, focusLost, Group, Hint, Kv, Meter, Popover, Section, Silence, Spacer, ThemeSwitch, TitleBar, type ExplainerStep } from '../../shared/ui';
 import { Dial, LegendBead, type Bead } from './Dial';
-import { chipTone, dealCount, dialValueText, LEDGER_TITLE, ledgerDeals, ledgerLine, moneyList, shortTitle, silenceParts, timeLeft, weekLabel, type LedgerKind } from './home/model';
+import { chipTone, dealCount, dialValueText, heldAtPayPal, heldLine, LEDGER_TITLE, ledgerDeals, ledgerLine, moneyList, shortTitle, silenceParts, timeLeft, weekLabel, type LedgerKind } from './home/model';
 import {
-  beadKind, beadSummary, chipClass, dealTotal, historyAt, isLive, ledgerScope, moduleIndex, moneyNow, reviewVerb, spendToday, splitHeadline, stateLabel, summarize, sumByCurrency,
+  beadKind, beadSummary, chipClass, dealTotal, historyAt, isLive, ledgerScope, moduleIndex, moneyNow, reviewVerb, spendToday, splitHeadline, stateLabel, summarize,
   weekBounds, type LedgerScope, type LedgerSummary,
 } from './logic';
 import { lazyPart } from '../../lib/lazy';
@@ -381,14 +381,14 @@ function Hub({ start, mode, sel, item, index, count, summary, week, away, onRewi
   if (away.summary) return <AwayHub s={away.summary} onDismiss={away.dismiss} onDeal={onDeal} onRewind={onRewindAt} />;
 
   const meters = !!settings?.meters_available;
-  const held = sumByCurrency(summary.held.map(dealTotal));
+  const held = heldAtPayPal(summary.held);
   return (
     <div className="hc" key="quiet">
       <div className="h-eyebrow">All quiet</div>
       <div className="h-calm">Nothing needs you</div>
       <div className="h-week">
         {meters ? <>{moneyList(summary.out)} out · {moneyList(summary.inn)} in{week ? ' this week' : ''}<br /></> : null}
-        {held.length ? moneyList(held) : 'nothing'} on hold · {summary.moving.length} in progress
+        {heldLine(held)} on hold · {summary.moving.length} in progress
       </div>
       <div className="h-hint">Your agents work inside the rules you signed.</div>
     </div>
@@ -462,7 +462,9 @@ function Ledger({ s, scope, onDeal, onBook }: { s: LedgerSummary; scope: LedgerS
   const att = w.attention.data;
   const all = w.deals.data ?? [];
   if (w.deals.error && !w.deals.data) return <WalletNotice error={w.deals.error} what="Ledger" />;
-  const heldSum = sumByCurrency(s.held.map(dealTotal));
+  // The same figures as Book's "On hold": PayPal holds only, each direction on its own line.
+  const held = heldAtPayPal(s.held);
+  const shown: LedgerSummary = { ...s, held: held.deals };
   const toggle = (kind: LedgerKind) => (e: MouseEvent<HTMLButtonElement>) => {
     const anchor = e.currentTarget;
     setPop((x) => (x && x.kind === kind ? null : { kind, anchor }));
@@ -482,8 +484,12 @@ function Ledger({ s, scope, onDeal, onBook }: { s: LedgerSummary; scope: LedgerS
           <button type="button" className="ui-row act" onClick={onBook} title={meters ? `Paid to you${thisWeek}. Only completed payments count. Opens Book.` : `${hidden}. Opens Book.`}>
             <span className="lbl">You received</span><span className={`amt ${meters ? '' : 'dim'}`}>{meters ? moneyList(s.inn) : '—'}</span>
           </button>
-          <button type="button" className="ui-row act" onClick={toggle('held')} aria-expanded={pop?.kind === 'held'} title="Held at PayPal or paused by a check: not paid">
-            <span className="lbl">On hold <span className="dim">· {dealCount(s.held.length)}</span></span><span className="amt gold">{s.held.length ? moneyList(heldSum) : '—'}</span><span className="chev" aria-hidden="true" />
+          <button type="button" className="ui-row act" onClick={toggle('held')} aria-expanded={pop?.kind === 'held'} title="Held at PayPal: not paid until collected, released if not">
+            <span className="lbl">On hold <span className="dim">· {dealCount(held.deals.length)}</span></span>
+            <span className="amt gold held">{held.deals.length ? <>
+              {held.out.length ? <span>{moneyList(held.out)}{held.inn.length ? <small> out</small> : null}</span> : null}
+              {held.inn.length ? <span>{moneyList(held.inn)}<small> in</small></span> : null}
+            </> : '—'}</span><span className="chev" aria-hidden="true" />
           </button>
           <button type="button" className="ui-row act" onClick={toggle('moving')} aria-expanded={pop?.kind === 'moving'} title="Going on by themselves; nothing for you to decide">
             <span className="lbl">In progress</span><span className={`amt ${s.moving.length ? 'teal' : 'dim'}`}>{dealCount(s.moving.length)}</span><span className="chev" aria-hidden="true" />
@@ -507,7 +513,7 @@ function Ledger({ s, scope, onDeal, onBook }: { s: LedgerSummary; scope: LedgerS
       {pop ? (
         <Popover anchor={pop.anchor} onClose={() => setPop(null)} title={LEDGER_TITLE[pop.kind]} className="home-pop">
           <Group empty="Nothing here.">
-            {ledgerDeals(pop.kind, s).map((d) => <LedgerDealRow key={d.id} d={d} kind={pop.kind} onOpen={() => { setPop(null); onDeal(d.id); }} />)}
+            {ledgerDeals(pop.kind, shown).map((d) => <LedgerDealRow key={d.id} d={d} kind={pop.kind} onOpen={() => { setPop(null); onDeal(d.id); }} />)}
           </Group>
         </Popover>
       ) : null}

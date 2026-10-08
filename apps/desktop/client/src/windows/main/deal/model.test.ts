@@ -188,7 +188,7 @@ describe('timeline, evidence and decision', () => {
   });
   it('builds the decision line from the attention item, else from what may be done', () => {
     const need = world.deals.find((x) => x.display.label === 'D-0190')!.attention!;
-    expect(decisionLine(byLabel('D-0190'), need, false)).toMatchObject({ tone: 'need', t1: 'Capture or void $64.00', t2: 'Approved payees · partsco (payee route)' });
+    expect(decisionLine(byLabel('D-0190'), need, false)).toMatchObject({ tone: 'need', t1: 'Capture or void $64.00', t2: 'partsco' });
     expect(decisionLine(mk({ state: 'LISTED' }), undefined, true).tone).toBe('may');
     expect(decisionLine(byLabel('D-0196'), undefined, false).chip.text).toBe('Closed');
     expect(decisionLine(byLabel('D-0196'), undefined, false).t2).toBeNull(); // nothing recorded: nothing claimed
