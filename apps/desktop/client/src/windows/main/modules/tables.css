@@ -178,3 +178,8 @@
 
 /* while the fence is dragged */
 .mod-tables .tb-ladder.dragging, .mod-tables .tb-ladder.dragging * { cursor: grabbing; user-select: none; }
+
+/* shop around: one card per group of sellers for one item (modules/tables/Groups.tsx) */
+.mod-tables .tb-groups { display: flex; flex-direction: column; gap: var(--sp-3); }
+.mod-tables .tb-group .ui-group { margin: 0; }
+.mod-tables .tb-group-foot { margin: 0; color: var(--muted); font-size: var(--fs-small); }

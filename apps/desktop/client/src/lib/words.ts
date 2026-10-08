@@ -408,3 +408,18 @@ export const PERMISSIONS_FINGERPRINT_MEANS = 'A short code for which window may 
 export function fingerprintGroups(hex: string): string {
   return (hex.match(/.{1,8}/g) ?? []).join(' ');
 }
+
+// ---- shop around (several sellers, one buyer intent) -------------------------------------------
+
+export const SHOP_AROUND = 'Shop around';
+/** What grouping does, in one breath: one item, several sellers, one deal at most. */
+export const SHOP_AROUND_MEANS = 'Your agent bargains with each seller on its own table, inside the same price range. The first seller to agree wins, and your wallet tells the others no. Only one deal can be agreed, so you pay at most once.';
+/** What happens to the other tables once one seller agrees. */
+export const SHOP_AROUND_OTHERS = 'The other sellers get a signed “no thanks”. No money moves on their tables.';
+/** "Shopping around for the 27-inch 4K monitor" (item already in plain words, with its article). */
+export const shoppingFor = (item: string): string => `Shopping around for ${item}`;
+export const sellersWord = (n: number): string => `${n} ${n === 1 ? 'seller' : 'sellers'}`;
+/** A table the group rule closed because another seller agreed first. */
+export const GROUP_CLOSED: Word = { text: 'Another seller agreed', tone: 'line', means: 'Another seller agreed first, so your wallet told this seller no with a signed message. No money moved.' };
+/** The table that agreed first. */
+export const GROUP_WINNER: Word = { text: 'Agreed first', tone: 'ok', means: 'This seller agreed first. It goes on like any single deal: nothing is paid until it is approved on PayPal.' };
