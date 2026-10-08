@@ -47,6 +47,11 @@ happen only in the [money pipeline](./money-pipeline.md).
    - Shopper: `market_reference`, `propose_purchase`.
    - Assistant: `book_query`.
 
+   `market_reference` answers with the deal's fresh cached market band only (`p25`, `median`,
+   `p75`, `retrieved_at`, `response_hash`, `cached`). The fair-price certificate behind it (the
+   comparables and the market's product ids) is dropped before the answer (`crates/table-app/src/agent.rs`); it is evidence for the
+   owner, never agent input.
+
    Every tool has one fixed description (`description()`), and every description says it moves
    no money. A session can list tools before it is enabled but cannot invoke one until the host
    enables its grant (`grant_pending` / `enable`).
@@ -156,7 +161,8 @@ Event `agent:changed` (main) carries `RunSnapshot` with no model text.
   `buyer_policy_above_the_signed_ceiling_is_refused_and_leaves_no_paypal_rows`,
   `rearming_never_exceeds_four_runs_or_one_run_per_deal`,
   `e2_every_scripted_engine_run_carries_the_mode_its_agent_card_labels`.
-- `crates/table-runtime/src/agent_surface_tests.rs`: `a_native_run_starts_from_the_closed_table_and_its_role_playbook`.
+- `crates/table-runtime/src/agent_surface_tests.rs`: `a_native_run_starts_from_the_closed_table_and_its_role_playbook`,
+  `the_agent_market_tool_answers_with_the_band_and_never_the_comparables`.
 
 ## Known gaps and UNVERIFIED
 

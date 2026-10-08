@@ -4,13 +4,20 @@ The Book is the owner's ledger of every deal and payment the agents made or plan
 It answers "where is my money this week?" with totals kept apart by direction and currency, lists
 what needs attention, checks each paid deal against PayPal's own statement, answers questions
 typed in plain words (read by the wallet itself, with no AI), shows the hash-chained audit trail,
-and checks a signed proof file someone sent. The Book owns no deals and moves no money: every
+checks a signed proof file someone sent, and opens "Your safety record", the wallet's check of its
+whole record. The Book owns no deals and moves no money: every
 command it uses is a read.
 
 ## What the owner sees
 
 **Main window, Book page** (`apps/desktop/client/src/windows/main/modules/book.tsx`):
 
+- The page head carries **Your safety record** ("Check every entry on record: who decided each
+  money step, and what your agents were refused"); the same sheet opens from Ctrl K. It says how
+  many records there are and whether they are unbroken, "PayPal was asked to move money N times"
+  and who decided each time, and how often the agents were refused with PayPal never asked. Any
+  finding turns it red with "Open deal ›". See
+  [proof-and-verification.md](./proof-and-verification.md).
 - An answer bar, then a first-visit explainer: "Every payment, one list", "A hold isn't a
   payment", "Checked against PayPal".
 - **Totals, kept apart**: Paid out, Paid in, On hold, Stopped. Each currency is its own line and
@@ -31,9 +38,17 @@ command it uses is a read.
   "On statement", "Not on statement yet" ("PayPal's statement can lag up to 3 hours"), "Statement
   differs", or dashed "Unknown".
 - **Detailed** view: the week's ledger grid whose four money columns carry their own totals, a
-  statement filter, the answer's rows highlighted (others dimmed), "Export CSV" ("Save the deals
-  you see as a spreadsheet file"), the **Audit trail** ("Read-only. Each entry is linked to the one
-  before it, so a change to an earlier entry shows."), and **Check a proof file**.
+  "vs market" column, a statement filter, the answer's rows highlighted (others dimmed), "Export
+  CSV" ("Save the deals you see as a spreadsheet file"), the **Audit trail** ("Read-only. Each
+  entry is linked to the one before it, so a change to an earlier entry shows."), and **Check a
+  proof file**.
+- **vs market** and the row detail's **Price vs market** (`FAIR_PRICE_NAME`) read the deal's
+  fair-price certificate (`deal_evidence` `fair_price`) when it has one: "$212.00 is the 62nd
+  percentile of 13 market prices · re-checked" (cell: "62nd percentile of 13"), "Older market
+  record, not re-checkable", or in red "Market record doesn't add up" (`fairPriceWords()` in
+  `lib/words.ts`). A broken certificate's cell reads "doesn't add up"; an older record, or none,
+  falls back to the band words ("typical", "a bit above typical", …) with the certificate's state
+  in the tooltip. The row detail's "Market" line keeps the band drawing.
 - If the audit chain fails verification, a sheet explains it in plain words (keep the files,
   check PayPal, keep saved proof files) and offers "Check again" (`AUDIT_BROKEN`).
 
@@ -82,9 +97,16 @@ the deal page shows them in quarantine.
    `table-verify` checks: plain-words lines per check, "not checked" where a check has nothing to
    check ("Not every check could be made"), the owner key in full ("Matches your wallet" or "A
    different wallet") and the permissions fingerprint ("Made by the same version" or a different
-   one). See [proof-and-verification.md](./proof-and-verification.md).
+   one). The `market` line says the market prices kept with the deal still give the typical
+   price it was agreed on, or why it was not checked (no market price at agreement, not agreed
+   yet, or an older market record with no prices to work out again: `proofMarketNotChecked()`).
+   See [proof-and-verification.md](./proof-and-verification.md).
 7. **Agents may read, never write.** The shop-assistant role (`prompts/shop-assistant.md`) has one
    MCP tool, `book_query`, with the same closed query; counterparties appear only as identifiers.
+8. **Your safety record** (`safety_record`, main window, runtime). Rust verifies the audit chain,
+   exports the newest 1000 deals (`Ledger::export_proofs`) and runs the gauntlet's predicate
+   (`table_verify::safety`) over them; the client only words the counts
+   (`windows/main/safety/`). It writes nothing and makes no call.
 
 ## Safety properties
 
@@ -97,6 +119,10 @@ the deal page shows them in quarantine.
 - **Their words never appear** in the Book; counterparty text stays in the deal page's quarantine.
 - **The audit chain is verified on every read**; there is no UPDATE or DELETE path on `audit_log`.
 - **A proof file is read by Rust, not the webview**, and size-capped.
+- **The safety record is counted in Rust** from the verified chain and each deal's verified
+  export; a broken chain shows no counts, and findings never carry the other side's words.
+- **The fair price is worked out again**, not copied: the wallet recomputes the quartiles and
+  percentile from the comparables it kept (`table_core::fair_price`).
 
 ## Where it lives
 
@@ -107,10 +133,13 @@ the deal page shows them in quarantine.
 | Pipeline | `crates/table-app/src/reconciliation.rs` | `Pipeline::reconcile` |
 | PayPal | `crates/table-paypal/src/secondary.rs` | Transaction Search reads, `ReportingWindow` |
 | Proof | `crates/table-client/src/lib.rs`, `crates/table-verify/` | `check_proof_file`, `PROOF_FILE_LIMIT`, `verify_bundle` |
+| Safety record | `crates/table-runtime/src/safety.rs`, `crates/table-ledger/src/bundle.rs`, `crates/table-verify/src/safety.rs` | `safety_record`, `Ledger::export_proofs`, `ledger_violations`, `SafetyRecord` |
+| Fair price | `crates/table-core/src/market.rs`, `crates/table-ledger/src/receipt.rs` | `FairPrice`, `fair_price`, `Ledger::fair_price` |
 | Shell | `apps/desktop/src-tauri/src/native/commands.rs` | `proof_check` (file dialog) |
 | Agent tool | `crates/table-mcp/src/lib.rs`, `prompts/shop-assistant.md` | `book_query` |
 | Client | `apps/desktop/client/src/windows/main/modules/book.tsx`, `book/` | `understand.ts`, `rules.ts`, `AskReading.tsx`, `AskChips.tsx`, `model.ts` (`LENSES`), `where.ts`, `MoneyWent.tsx`, `ProofCheck.tsx` |
 | Client | `apps/desktop/client/src/windows/main/deal/Evidence.tsx` | "Check my PayPal statement", save proof |
+| Client | `apps/desktop/client/src/windows/main/safety/`, `lib/words.ts`, `lib/fairPrice.ts` | `SafetySheet`, `safetyWords`; `fairPriceWords`, `FAIR_PRICE_NAME`, `proofMarketNotChecked` |
 
 IPC commands (rows in `crates/table-client/src/authority_table.rs`; all tier `read`, no token or
 unlock):
@@ -120,6 +149,7 @@ unlock):
 | `list_deals`, `deal_evidence` | main | any | runtime |
 | `book_query` | main | any | runtime |
 | `audit_page` | main | any | runtime |
+| `safety_record` | main | any | runtime |
 | `deal_reconcile` | main | any | runtime |
 | `proof_check` | main | any | shell |
 | `deal_export_proof` | main, approval | any | runtime |
@@ -140,8 +170,12 @@ unlock):
 - `a_file_that_is_not_a_bundle_or_too_large_is_refused_in_plain_words` (`crates/table-client/src/lib.rs`)
 - `only_a_paid_receipted_invoice_on_a_paypal_reported_failure_counts_as_recovered`
   (`crates/table-ledger/src/rescue_tests.rs`)
+- `crates/table-runtime/src/safety_tests.rs` (counts by authority, refused deals with zero PayPal
+  calls, an authority-less capture named with its deal, main only, no counterparty words)
 - Client: `windows/main/modules/book/understand.test.ts` (47 phrasings to exact queries),
-  `book/AskReading.test.tsx`, `book/where.test.ts`, `book/model.test.ts`, `book/proofV2.test.tsx`
+  `book/AskReading.test.tsx`, `book/where.test.ts`, `book/model.test.ts`, `book/proofV2.test.tsx`,
+  `book/proofMarket.test.tsx`, `lib/fairPrice.test.ts`, `windows/main/safety/model.test.ts`,
+  `safety/view.test.tsx`
 
 ## Known gaps and UNVERIFIED
 
@@ -154,6 +188,10 @@ unlock):
   field; the answer keeps out and in on their own lines); grouped by day, the window uses local
   days while Rust answers in UTC days; amount, date and vs-market comparisons ("over $100") stay
   "unsure"; no suggestions while typing; the slip shows the original text after chip edits.
+- The Book query metric `avg_vs_market_pct` still reads the latest market record's median
+  (`market_json`), not the committed fair-price certificate, so a grouped "vs market" figure can
+  differ from the row's certificate.
+- The safety record checks the newest 1000 deals; the scope line says when there are more.
 - Proof files: a deal decided by the owner before the approval checklist existed has no
   `owner.decision` row, so its v2 file fails "owner saw"; no test exports from a corrupt chain or
   with a missing key.
@@ -169,4 +207,4 @@ unlock):
   [money-pipeline.md](./money-pipeline.md), [agents-and-engines.md](./agents-and-engines.md)
 - Design: [capability 5](../design/the-table.html#cap-5), [Book module](../design/the-table.html#m-5)
 - Build log: [STATUS.md](../build/STATUS.md) ("Book: Ask in your own words", "Proof bundle v2",
-  "Client handoff"), [DECISIONS.md](../build/DECISIONS.md) §2, §11
+  "Client handoff", "Your safety record", "Fair-price certificate on every receipt"), [DECISIONS.md](../build/DECISIONS.md) §2, §11
