@@ -1,5 +1,6 @@
 //! Public read routes of the glass-box HOUSE (T9). Each serves the actor's published snapshot (or,
-//! for a prefix, asks the actor to sign one); none reads the ledger, writes, or reaches PayPal.
+//! for a prefix, asks the actor to sign one, on a queue of its own that never takes a buyer's
+//! table slot); none reads the ledger, writes, or reaches PayPal.
 use crate::{Error, HouseHandle, PAGE_MAX};
 use axum::{
     Json,

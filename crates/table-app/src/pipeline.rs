@@ -46,6 +46,12 @@ pub struct Pipeline {
     /// The owner paused all agents: the read-back resolver sends nothing again under the
     /// clause-6 policy, exactly as the scheduler starts no create under it (T10).
     pub policy_paused: bool,
+    /// The deal being ticked has no agent key to sign with (its mandate was revoked, or the key is
+    /// gone). The read-back resolver then settles only what needs no signature (a void, a step
+    /// PayPal shows not done) and sends nothing again but a void; a capture or a paid invoice
+    /// PayPal confirms waits for the key, since its receipt is signed. The deadline's safe default
+    /// still applies. Set by the runtime around one deal's tick, and cleared after it.
+    pub signer_missing: bool,
     /// Invoicing, for the rescue invoice (set by the trusted shell; `None` sends no invoice).
     pub(crate) secondary: Option<Arc<dyn table_paypal::SecondaryApi>>,
     /// When each rescue invoice was last read, so PAID is polled on a cadence.
@@ -262,6 +268,7 @@ impl Pipeline {
             house: None,
             approval: ApprovalSession::new(now)?,
             policy_paused: false,
+            signer_missing: false,
             secondary: None,
             rescue_polled: std::collections::BTreeMap::new(),
         })
@@ -304,6 +311,16 @@ impl Pipeline {
     }
     pub(crate) fn expected(&self, deal: &Deal, attempt: u8) -> Result<CreateOrder, Error> {
         let payee = self.wallet.settlement_payee(deal)?;
+        Self::order_for(deal, attempt, payee)
+    }
+    /// The order a read-back must find: as `expected`, with the payee from the deal's mandate
+    /// as recorded, so a mandate revoked while a step is open still lets PayPal's record be
+    /// checked. A read-back grants nothing; every send takes `expected`.
+    pub(crate) fn recorded_order(&self, deal: &Deal, attempt: u8) -> Result<CreateOrder, Error> {
+        let payee = self.wallet.recorded_payee(deal)?;
+        Self::order_for(deal, attempt, payee)
+    }
+    fn order_for(deal: &Deal, attempt: u8, payee: PayeeRef) -> Result<CreateOrder, Error> {
         Ok(CreateOrder {
             deal: deal.id,
             attempt,

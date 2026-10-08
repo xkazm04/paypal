@@ -6,7 +6,8 @@
 //!   under its original `decided_by`, and the deal moves as if the answer had arrived.
 //! - **re-send**: PayPal shows the step did not happen, and the step's original authority still
 //!   holds now (the same gates: mandate, shield, deadline, an owner ticket that is still valid).
-//!   The same request is sent again with the same request id, never a new one.
+//!   The same request is sent again with the same request id, never a new one. A void is the
+//!   safe direction: it goes again whoever decided it, with no ticket and no budget.
 //! - **park**: PayPal could not be read, or its record does not settle the question, or the
 //!   authority no longer holds. Nothing more is sent for the deal until it is settled; its
 //!   deadline can only let it lapse or release a hold, never collect.
@@ -39,7 +40,8 @@ pub enum Resolution {
 // capture applies the same window is assumed (design report section 7 states it generally).
 pub const REQUEST_ID_WINDOW_SECS: i64 = 6 * 3600;
 /// Re-sends per operation before the resolver only reads (a re-send whose answer is lost too).
-/// A safe-default void has no budget: it is the safe direction and is re-sent on each due check.
+/// A void, the safe default's or the owner's, has no budget: it is the safe direction and is
+/// re-sent on each due check.
 pub const MAX_RESENDS: u32 = 3;
 /// Seconds before the next check after `tries` checks: 15 s doubling, capped at 15 min.
 pub const fn check_backoff(tries: u32) -> i64 {
@@ -148,7 +150,7 @@ impl Pipeline {
                 self.resolve_capture(&deal, op, &request, ticket, now)
                     .await?
             }
-            "void" => self.resolve_void(&deal, op, &request, ticket, now).await?,
+            "void" => self.resolve_void(&deal, op, &request, now).await?,
             "invoice-create" if deal.kind == DealKind::Rescue => {
                 self.resolve_invoice_create(&deal, op, now).await?
             }
@@ -176,7 +178,11 @@ impl Pipeline {
         )?;
         Ok(Resolution::Parked(reason))
     }
-    fn not_done(&mut self, op: &OpenOperation, now: Timestamp) -> Result<Resolution, Error> {
+    pub(crate) fn not_done(
+        &mut self,
+        op: &OpenOperation,
+        now: Timestamp,
+    ) -> Result<Resolution, Error> {
         self.wallet.ledger.close_operation(
             op.deal_id,
             op.attempt,
@@ -186,7 +192,7 @@ impl Pipeline {
         )?;
         Ok(Resolution::NotDone)
     }
-    fn deadline_passed(&self, id: DealId, now: Timestamp) -> Result<bool, Error> {
+    pub(crate) fn deadline_passed(&self, id: DealId, now: Timestamp) -> Result<bool, Error> {
         Ok(self
             .wallet
             .ledger
@@ -230,6 +236,10 @@ impl Pipeline {
         }
         if op.resends >= MAX_RESENDS {
             return Ok(Some(CheckReason::NeedsOwner));
+        }
+        // Without the deal's agent key no answer could be signed: only a void goes again.
+        if self.signer_missing {
+            return Ok(Some(CheckReason::Refused));
         }
         let lapse = self
             .wallet
@@ -316,7 +326,9 @@ impl Pipeline {
         let Some(order) = self.read_order(deal.id, &order_id, now).await? else {
             return Ok(Err(CheckReason::Unreadable));
         };
-        if order.id != order_id.as_str() || order.verify(&self.expected(deal, attempt)?).is_err() {
+        if order.id != order_id.as_str()
+            || order.verify(&self.recorded_order(deal, attempt)?).is_err()
+        {
             return Ok(Err(CheckReason::Ambiguous));
         }
         Ok(Ok(order))
@@ -481,6 +493,11 @@ impl Pipeline {
                 && c.amount.money().ok() == Some(amount)
                 && ResourceId::new(&c.id).is_ok() =>
             {
+                // The receipt is signed with the deal's agent key: without it, the confirmed
+                // capture waits for the key, and nothing is sent.
+                if self.signer_missing {
+                    return self.park(op, CheckReason::NeedsOwner, now);
+                }
                 let mut refs = deal.paypal.clone();
                 refs.capture = Some(c.id.clone());
                 self.confirm(deal, op, &refs, DealEvent::CaptureConfirmed, now)?;
@@ -513,14 +530,15 @@ impl Pipeline {
     }
 
     /// Void: the authorization shows VOIDED with nothing captured (it happened), or still held
-    /// (it did not). A void is the safe direction, so a safe-default void is sent again with its
-    /// own request id; an owner's void needs the owner's fresh decision.
+    /// (it did not). A void is the safe direction (the safe-default authority: it releases a hold
+    /// and can never collect), so a void PayPal shows not done is sent again with its own request
+    /// id on every due check, whoever decided it: a safe default, or the owner, whose decision to
+    /// void stands and needs no second click. Its record keeps the original `decided_by`.
     async fn resolve_void(
         &mut self,
         deal: &Deal,
         op: &OpenOperation,
         request: &RequestId,
-        ticket: Option<OwnerTicket>,
         now: Timestamp,
     ) -> Result<Resolution, Error> {
         if deal.state != DealState::Authorized {
@@ -553,24 +571,8 @@ impl Pipeline {
         if held.status != AUTHORIZATION_HELD {
             return self.park(op, CheckReason::Ambiguous, now);
         }
-        // A safe-default void is re-sent on every due check: it can never move money, and
-        // PayPal refuses a second void of the same authorization. An owner's void keeps the budget.
-        if op.resends >= MAX_RESENDS && !matches!(op.decided_by, DecidedBy::SafeDefault { .. }) {
-            return self.park(op, CheckReason::NeedsOwner, now);
-        }
-        if let DecidedBy::Human { .. } = op.decided_by {
-            let Some(ticket) = ticket else {
-                return self.park(op, CheckReason::NeedsOwner, now);
-            };
-            let hash = deal.terms.hash()?;
-            if self
-                .approval
-                .validate(&ticket, deal.id, hash, op.attempt, now)
-                .is_err()
-            {
-                return self.park(op, CheckReason::NeedsOwner, now);
-            }
-        }
+        // Re-sent on every due check, on the check backoff, with no budget: a void can never
+        // move money, and PayPal refuses a second void of the same authorization.
         let resource = ResourceId::new(held.id.clone()).map_err(|_| Error::Invalid)?;
         self.wallet
             .ledger
