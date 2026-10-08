@@ -116,9 +116,9 @@ mod glass;
 pub use glass::*;
 mod witness;
 pub use witness::*;
+mod market_watch;
 #[cfg(test)]
 mod rescue_tests;
-mod market_watch;
 #[cfg(test)]
 mod tests;
 pub use market_watch::*;
