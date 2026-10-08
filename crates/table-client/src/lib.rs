@@ -152,6 +152,8 @@ pub enum ApprovalTarget {
     Credentials,
     Mandate,
     Unlock,
+    /// Record a failed renewal as a labelled replay (rescue_replay).
+    Rescue,
 }
 /// A draft carried from Main to the approval window. Closed shapes and typed values only.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -530,6 +532,54 @@ pub struct ApprovalSummary {
     pub checks: Vec<table_core::ApprovalCheck>,
     /// Domain-separated digest of `checks` (`table_core::checks_hash`); a decision sends it back.
     pub checks_hash: H256,
+    /// On a rescue deal: the failed renewal, its one fix and the invoice's fixed wording. Older
+    /// shells omit it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional = nullable)]
+    pub rescue: Option<RescueView>,
+}
+/// A failed renewal and its one fix, as the wallet computed and stored it. No subscriber or
+/// agent text: the invoice wording is the wallet's fixed template filled with these numbers.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct RescueView {
+    pub deal_id: DealId,
+    pub source: table_core::RescueSource,
+    pub offer: table_core::RescueOffer,
+    pub text: table_core::InvoiceText,
+    pub failed_payments: u32,
+    /// PayPal's own next retry, when known.
+    #[ts(optional = nullable)]
+    pub next_retry_at: Option<i64>,
+    /// The subscriber's address, masked ("s•••@example.com").
+    pub recipient: String,
+    /// The PayPal invoice, once made.
+    #[ts(optional = nullable)]
+    pub invoice: Option<String>,
+    /// PayPal showed it paid and the wallet receipted it, on a failure PayPal reported: this is
+    /// the only money counted as recovered.
+    pub counted: bool,
+}
+/// Every rescue, and the recovered money (one total per currency, never summed across them).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct RescueBook {
+    pub cases: Vec<RescueView>,
+    pub recovered: Vec<table_core::Money>,
+}
+/// A failed renewal the owner records as a labelled replay: PayPal documents no way to fail a
+/// sandbox renewal. The deal carries the REPLAY mode; its invoice is real, never counted.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct RescueReplayArgs {
+    /// The PayPal subscription id the failure is about.
+    pub subscription_id: String,
+    /// The subscriber's email address the invoice goes to.
+    pub subscriber_email: String,
+    /// The plan, as your own item name.
+    pub plan: table_core::ItemRef,
+    /// The cycle's price at the plan.
+    pub amount: table_core::Money,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -815,6 +865,10 @@ pub struct CommandContract {
     pub envelope_sign: Command<EnvelopeSignArgs, table_core::SignedEnvelope>,
     /// The wallet-wide limits and live exposure numbers only (main, tumbler, approval).
     pub envelope_get: Command<(), table_core::ExposureView>,
+    /// Records a failed renewal as a labelled replay and opens its rescue (approval, privileged).
+    pub rescue_replay: Command<RescueReplayArgs, Deal>,
+    /// Every rescue and the recovered money, read from the wallet (main and approval).
+    pub rescue_book: Command<(), RescueBook>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -915,6 +969,8 @@ pub const COMMANDS: &[&str] = &[
     "mandate_simulate",
     "envelope_sign",
     "envelope_get",
+    "rescue_replay",
+    "rescue_book",
 ];
 pub const RELEASE_COMMANDS: &[&str] = &[
     "deal_owner_accept",
@@ -935,6 +991,7 @@ pub const RELEASE_COMMANDS: &[&str] = &[
     "deal_create",
     "deal_join",
     "envelope_sign",
+    "rescue_replay",
 ];
 /// The Rewind read: one deal or every deal, optionally within `[from, to)` (Unix seconds, as every
 /// other timestamp in the contract).
@@ -1014,6 +1071,14 @@ pub enum HistoryKind {
     /// PayPal's answer to a money step never arrived; the wallet is asking PayPal what happened.
     CheckingWithPaypal,
     Other,
+    /// A subscriber's renewal failed and a rescue fix waits for the owner.
+    RenewalFailed,
+    /// The rescue invoice was made at PayPal (a draft nobody is asked to pay yet).
+    InvoiceCreated,
+    /// The rescue invoice was sent to the subscriber by PayPal.
+    InvoiceSent,
+    /// PayPal shows the rescue invoice paid.
+    InvoicePaid,
 }
 /// Who decided a step, from the typed `decided_by` the chain recorded (never inferred from text).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -1054,6 +1119,9 @@ pub enum PaypalMethod {
     ReadOrder,
     Reporting,
     Other,
+    CreateInvoice,
+    SendInvoice,
+    ReadInvoice,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]

@@ -526,3 +526,19 @@ pub(super) async fn envelope_get(
 ) -> Result<table_core::ExposureView, CommandError> {
     ask(&window, &state, None, Action::EnvelopeGet).await
 }
+#[tauri::command]
+pub(super) async fn rescue_replay(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    request: tauri::ipc::Request<'_>,
+    args: RescueReplayArgs,
+) -> Result<Deal, CommandError> {
+    ask(&window, &state, Some(&request), Action::RescueReplay(args)).await
+}
+#[tauri::command]
+pub(super) async fn rescue_book(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+) -> Result<RescueBook, CommandError> {
+    ask(&window, &state, None, Action::RescueBook).await
+}

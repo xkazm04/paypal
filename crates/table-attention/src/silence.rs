@@ -61,7 +61,9 @@ fn may_move(source: &AttentionSource) -> bool {
 
 fn reword(item: &mut AttentionItem, source: &AttentionSource, forecast: Option<&[ForecastLine]>) {
     // A money step being checked with PayPal keeps its own line: nothing is sent until then.
-    if source.money_check.is_some() {
+    // A rescue keeps its own line too: no rule ever sends its invoice, and an open invoice is
+    // the subscriber's to pay, not the wallet's to collect.
+    if source.money_check.is_some() || source.module == table_core::Module::Rescue {
         return;
     }
     match forecast {
