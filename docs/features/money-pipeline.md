@@ -7,7 +7,7 @@ Every money step needs one of three authorities: the owner's decision in the app
 rule the owner signed, or a safe default that never collects. The step's authority is recorded in
 `decided_by` and in the hash-chained audit log before PayPal is asked. Maya, a PayPal merchant,
 sees its effects as plain states ("Preparing payment", "On hold", "Paid", "Hold released",
-"Checking with PayPal"). She never sees the machinery.
+"Checking with PayPal"). The owner never sees the machinery.
 
 ## What the owner sees
 
