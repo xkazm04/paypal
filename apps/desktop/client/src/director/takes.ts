@@ -122,7 +122,7 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
     { deal: MISMATCH, state: 'MISMATCH' },
   ],
   'mismatch-card': [
-    { in: 'tumbler', text: 'Asked $339.00, not the agreed $329.00' },
+    { in: 'tumbler', text: 'Asked $339.00, not $329.00' },
     // the caption says the card only offers to show why: no withdraw on a held request
     { in: 'tumbler', button: /See why/ },
     { in: 'tumbler', button: /^Withdraw\b/, absent: true },
