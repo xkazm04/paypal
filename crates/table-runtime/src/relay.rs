@@ -150,6 +150,9 @@ impl Runtime {
                 .ledger
                 .finish_inbox(&message, accepted, self.clock.now()))?;
         }
+        // An inbound ACCEPT may have agreed a grouped table: withdraw its siblings now. A failure
+        // here is retried and reported by the next tick.
+        let _ = self.close_groups();
         failure.map_or(Ok(()), Err)
     }
 }

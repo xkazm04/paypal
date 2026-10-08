@@ -123,6 +123,11 @@ impl Pipeline {
             return Err(Error::Permission);
         }
         self.wallet.check_mandate(id, category, now)?;
+        // Shop around (T8): never offered once another table of the group agreed or holds our
+        // one ACCEPT; the ledger refuses it again in the transaction that would record it.
+        if self.wallet.ledger.group_accept_blocked(id, true)? {
+            return Err(table_ledger::LedgerError::GroupClosed.into());
+        }
         let (seq, hash, direction, counter) = self.wallet.ledger.last_proposal(id)?;
         let (offer_seq, terms_hash) = self.wallet.ledger.pending_offer(id)?;
         if !counter

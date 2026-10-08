@@ -545,3 +545,18 @@ pub(super) async fn rescue_book(
 ) -> Result<RescueBook, CommandError> {
     ask(&window, &state, None, Action::RescueBook).await
 }
+#[tauri::command]
+pub(super) async fn deal_group_open(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    args: DealGroupOpenArgs,
+) -> Result<DealGroupView, CommandError> {
+    ask(&window, &state, None, Action::GroupOpen(args)).await
+}
+#[tauri::command]
+pub(super) async fn deal_groups(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+) -> Result<Vec<DealGroupView>, CommandError> {
+    ask(&window, &state, None, Action::Groups).await
+}

@@ -510,6 +510,9 @@ impl Runtime {
                     &self.owner()?,
                     now,
                 )?;
+                // Shop around: if this accept agreed a grouped table, its siblings are withdrawn
+                // now (the next tick retries and reports a failure).
+                let _ = self.close_groups();
             }
             Decision::Void => {
                 self.pipeline

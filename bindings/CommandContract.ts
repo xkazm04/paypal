@@ -18,6 +18,8 @@ import type { DealArgs } from "./DealArgs";
 import type { DealCreateArgs } from "./DealCreateArgs";
 import type { DealDisplay } from "./DealDisplay";
 import type { DealEvidence } from "./DealEvidence";
+import type { DealGroupOpenArgs } from "./DealGroupOpenArgs";
+import type { DealGroupView } from "./DealGroupView";
 import type { DealHistory } from "./DealHistory";
 import type { DealHistoryArgs } from "./DealHistoryArgs";
 import type { DealId } from "./DealId";
@@ -95,4 +97,12 @@ rescue_replay: Command<RescueReplayArgs, Deal>,
 /**
  * Every rescue and the recovered money, read from the wallet (main and approval).
  */
-rescue_book: Command<null, RescueBook>, };
+rescue_book: Command<null, RescueBook>, 
+/**
+ * Shop around (T8): groups open buyer tables for one item; first to agree wins (main).
+ */
+deal_group_open: Command<DealGroupOpenArgs, DealGroupView>, 
+/**
+ * Every shop-around group with each seller's latest signed price (main).
+ */
+deal_groups: Command<null, Array<DealGroupView>>, };

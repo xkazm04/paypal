@@ -453,6 +453,16 @@ impl Fixture {
                 .await
             }
             "rescue_book" => self.exec(&c, Action::RescueBook).await,
+            "deal_group_open" => {
+                self.exec(
+                    &c,
+                    Action::GroupOpen(DealGroupOpenArgs {
+                        deal_ids: vec![id, other_id],
+                    }),
+                )
+                .await
+            }
+            "deal_groups" => self.exec(&c, Action::Groups).await,
             other => panic!("no conformance call for {other}: add it here when adding the row"),
         };
         value.map(|_| ())
