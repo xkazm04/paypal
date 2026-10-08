@@ -284,7 +284,7 @@ pub(super) async fn set_credentials(
     request: tauri::ipc::Request<'_>,
     args: CredentialArgs,
 ) -> Result<(), CommandError> {
-    label(&window, &["approval"])?;
+    label(&window, "set_credentials")?;
     let hwnd = window.hwnd().map_err(|_| invalid())?.0 as isize;
     state
         .actor
@@ -477,7 +477,7 @@ pub(super) async fn proof_check(
 ) -> Result<Option<ProofReport>, CommandError> {
     use std::io::Read;
     use tauri_plugin_dialog::DialogExt;
-    label(&window, &["main"])?;
+    label(&window, "proof_check")?;
     // The owner picks the file; the webview never sees a path or the bytes, only the report.
     let (sender, receiver) = tokio::sync::oneshot::channel();
     window

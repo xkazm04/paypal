@@ -43,8 +43,10 @@ fn invalid() -> CommandError {
         message: "Invalid native window command".into(),
     }
 }
-fn label(window: &WebviewWindow, allowed: &[&str]) -> Result<(), CommandError> {
-    if allowed.contains(&window.label()) {
+/// The authority table's label gate for a command the shell answers itself (T11); the runtime
+/// checks every other command against the same table.
+fn label(window: &WebviewWindow, command: &str) -> Result<(), CommandError> {
+    if table_client::authority::admits(command, window.label()) {
         Ok(())
     } else {
         Err(table_app::Error::Permission.into())

@@ -5,6 +5,8 @@ pub use table_core::{CounterpartyDisplay, CounterpartyNote, DealDisplay, Transcr
 use table_core::{Deal, DealId, H256, Mode};
 pub use table_proto::{PairingIdentity, SignedPairingIdentity};
 use ts_rs::TS;
+pub mod authority;
+mod authority_table;
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
@@ -117,6 +119,9 @@ pub struct SettingsSnapshot {
     pub selected_engine: table_engine::EngineId,
     pub preferences: TumblerPreferences,
     pub relay_available: bool,
+    /// Lowercase hex fingerprint of the authority table this build enforces (who may call each
+    /// command); the same value as `AUTHORITY_MANIFEST` in `bindings/authority.ts`.
+    pub authority_manifest: String,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -922,95 +927,8 @@ pub struct EventContract {
     #[serde(rename = "pairing:pinned")]
     pub pairing_pinned: PairingPinned,
 }
-pub const COMMANDS: &[&str] = &[
-    "deal_snooze",
-    "approval_selection",
-    "deal_display",
-    "deal_transcript",
-    "counterparty_list",
-    "approval_pairing",
-    "deal_owner_accept",
-    "get_settings",
-    "list_deals",
-    "get_deal",
-    "deal_evidence",
-    "deal_reconcile",
-    "engine_status",
-    "attention_list",
-    "main_open",
-    "approval_open",
-    "approval_summary",
-    "approval_token",
-    "tumbler_set_form",
-    "tumbler_pin",
-    "deal_withdraw",
-    "deal_let_lapse",
-    "unlock",
-    "deal_countersign",
-    "deal_capture",
-    "deal_void",
-    "shield_release",
-    "rescue_approve",
-    "open_paypal_in_browser",
-    "set_credentials",
-    "engine_select",
-    "mandate_list",
-    "mandate_sign",
-    "mandate_revoke",
-    "band_set",
-    "pairing_create",
-    "pairing_join",
-    "pairing_poll",
-    "pairing_confirm",
-    "settings_write",
-    "deal_create",
-    "deal_join",
-    "pause_all_agents",
-    "resume_all_agents",
-    "agent_start",
-    "agent_runs",
-    "market_refresh",
-    "quit_summary",
-    "quit_confirm",
-    "tumbler_drag",
-    "tumbler_snap",
-    "counterparty_note",
-    "pairing_abort",
-    "house_wake",
-    "approval_handoff",
-    "audit_page",
-    "owner_facts",
-    "book_query",
-    "deal_export_proof",
-    "proof_check",
-    "deal_history",
-    "mandate_simulate",
-    "envelope_sign",
-    "envelope_get",
-    "rescue_replay",
-    "rescue_book",
-];
-pub const RELEASE_COMMANDS: &[&str] = &[
-    "deal_owner_accept",
-    "market_refresh",
-    "unlock",
-    "deal_countersign",
-    "deal_capture",
-    "deal_void",
-    "shield_release",
-    "rescue_approve",
-    "open_paypal_in_browser",
-    "approval_token",
-    "set_credentials",
-    "mandate_sign",
-    "mandate_revoke",
-    "band_set",
-    "pairing_confirm",
-    "deal_create",
-    "deal_join",
-    "envelope_sign",
-    "rescue_replay",
-];
+/// Every IPC command and the release set, derived from the authority table (`authority_table.rs`).
+pub use authority::{COMMANDS, RELEASE_COMMANDS};
 /// The Rewind read: one deal or every deal, optionally within `[from, to)` (Unix seconds, as every
 /// other timestamp in the contract).
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]

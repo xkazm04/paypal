@@ -10,7 +10,7 @@ import type { EngineId } from '@bindings/EngineId';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import { clockLabel, nowUnix } from '../../../lib/format';
 import { watchLine } from '../../../lib/marketWatch';
-import { PRICE_CHECKS_USED_UP, rulesName } from '../../../lib/words';
+import { fingerprintGroups, PERMISSIONS_FINGERPRINT, PERMISSIONS_FINGERPRINT_MEANS, PRICE_CHECKS_USED_UP, rulesName } from '../../../lib/words';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import { ModeBadge, RunBadge, WalletNotice } from '../../../shared/honesty';
 import { AnswerBar, Btn, Chip, DetailToggle, Group, Icon, Kv, Popover, Row, Section, Silence, layerCount, topLayerKind, useToast, type DetailMode, type IconName } from '../../../shared/ui';
@@ -417,7 +417,8 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
       case 'lock': return (
         <>
           {head('everything inside the gold frame needs you, unlocked', (
-            <Kv items={[['Locks', 'saved keys · rules · connections · approvals · releases · paying on PayPal'], ['Never locks', 'looking around · pausing agents · choosing the agent app · the house seller'], ['After', '15 quiet minutes · PayPal’s own rule · nobody can make it longer'], ['Unlock', 'Windows Hello, in the approval window']]} />
+            <Kv items={[['Locks', 'saved keys · rules · connections · approvals · releases · paying on PayPal'], ['Never locks', 'looking around · pausing agents · choosing the agent app · the house seller'], ['After', '15 quiet minutes · PayPal’s own rule · nobody can make it longer'], ['Unlock', 'Windows Hello, in the approval window'],
+              [PERMISSIONS_FINGERPRINT, s?.authority_manifest ? <span className="mono" title={PERMISSIONS_FINGERPRINT_MEANS}>{fingerprintGroups(s.authority_manifest)}</span> : <Chip tone="dashed">unknown</Chip>]]} />
           ))}
           <div className="ui-section"><Kv items={[
             ['Now', locked ? 'locked' : 'unlocked'],
