@@ -152,6 +152,8 @@ fn operation(record: &AuditRecord) -> Option<PaypalMethod> {
         "authorize" => Some(PaypalMethod::Authorize),
         "capture" => Some(PaypalMethod::Capture),
         "void" => Some(PaypalMethod::Void),
+        "invoice-create" => Some(PaypalMethod::CreateInvoice),
+        "invoice-send" => Some(PaypalMethod::SendInvoice),
         _ => None,
     }
 }
@@ -204,6 +206,8 @@ fn classify(record: &AuditRecord) -> Row {
                 PaypalMethod::ReadOrder
             } else if path.starts_with("/v1/reporting/transactions") {
                 PaypalMethod::Reporting
+            } else if path.starts_with("/v2/invoicing/") {
+                PaypalMethod::ReadInvoice
             } else {
                 PaypalMethod::Other
             };
@@ -251,6 +255,10 @@ fn classify(record: &AuditRecord) -> Row {
         // Bookkeeping: a resolved operation shows as its `money.observed` step, a re-send reuses the
         // same operation and request id, and an owner decision's authority is on its money rows.
         "money.resent" | "money.resolved" | "owner.decision" => Row::Skip,
+        // A failed renewal opened a rescue: the fix waits for the owner.
+        "rescue.opened" => Row::Step(K::RenewalFailed, A::None),
+        // PayPal shows the rescue invoice paid; the subscriber paid it on PayPal's page.
+        "rescue.paid" => Row::Step(K::InvoicePaid, A::None),
         _ => other,
     }
 }
@@ -268,9 +276,12 @@ fn money_kind(method: PaypalMethod, authority: HistoryAuthority) -> HistoryKind 
         PaypalMethod::Capture => HistoryKind::Captured,
         PaypalMethod::Void if authority == HistoryAuthority::SafeDefault => HistoryKind::AutoVoided,
         PaypalMethod::Void => HistoryKind::Voided,
-        PaypalMethod::ReadOrder | PaypalMethod::Reporting | PaypalMethod::Other => {
-            HistoryKind::Other
-        }
+        PaypalMethod::CreateInvoice => HistoryKind::InvoiceCreated,
+        PaypalMethod::SendInvoice => HistoryKind::InvoiceSent,
+        PaypalMethod::ReadOrder
+        | PaypalMethod::Reporting
+        | PaypalMethod::ReadInvoice
+        | PaypalMethod::Other => HistoryKind::Other,
     }
 }
 /// Fold verified rows (oldest first) into steps (oldest first). `statuses` answers the HTTP
@@ -336,8 +347,12 @@ pub(crate) fn project(
                             p.kind,
                             HistoryKind::WithdrawSent | HistoryKind::WithdrawReceived
                         ) && to == DealState::Withdrawn;
+                        // A rescue opens at AGREED and is receipted when PayPal shows it paid.
+                        let rescue = (p.kind == HistoryKind::RenewalFailed
+                            && to == DealState::Agreed)
+                            || (p.kind == HistoryKind::InvoicePaid && to == DealState::Receipted);
                         if p.state_after.is_none()
-                            && (passing(to) || withdraw || state_kind(to, None) == p.kind)
+                            && (passing(to) || withdraw || rescue || state_kind(to, None) == p.kind)
                         {
                             p.state_after = Some(to);
                             continue;
@@ -484,6 +499,9 @@ mod tests {
             include_str!("relay.rs"),
             include_str!("pairing.rs"),
             include_str!("../../table-ledger/src/limits.rs"),
+            include_str!("../../table-ledger/src/rescue.rs"),
+            include_str!("../../table-app/src/rescue.rs"),
+            include_str!("rescue.rs"),
             include_str!("../../table-ledger/src/witness.rs"),
         ];
         let mut found = std::collections::BTreeSet::new();
@@ -731,6 +749,27 @@ mod tests {
                 step(K::Other, A::None),
             ),
             ("edited.offline", json!({}), step(K::Other, A::None)),
+            // Subscription rescue: a failed renewal, the owner's invoice steps, PayPal's PAID.
+            (
+                "rescue.opened",
+                json!({"source":"replay","lever":"DISCOUNT_THIS_CYCLE"}),
+                step(K::RenewalFailed, A::None),
+            ),
+            (
+                "money.observed",
+                json!({"operation":"invoice-create","confirmed":true,"decided_by":owner}),
+                step(K::InvoiceCreated, A::Owner),
+            ),
+            (
+                "money.observed",
+                json!({"operation":"invoice-send","confirmed":true,"decided_by":owner}),
+                step(K::InvoiceSent, A::Owner),
+            ),
+            (
+                "rescue.paid",
+                json!({"invoice_id":"INV-1","counted":false}),
+                step(K::InvoicePaid, A::None),
+            ),
             // The owner signed new wallet limits: bookkeeping, not a step of any deal.
             ("wallet_limit.signed", json!({"version":1}), None),
             // An agent intent the wallet limits refused is a signed rule's refusal like any other.

@@ -27,7 +27,7 @@ export type MockIntent = {
 };
 export type MockUsage = { dealsToday: number; totalToday: number };
 
-const NUMBER: Record<Clause['type'], number> = { roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7 };
+const NUMBER: Record<Clause['type'], number> = { roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7, lever: 8 };
 const MAX_SAFE = Number.MAX_SAFE_INTEGER;
 
 /** Money::decimal(): "11960.00". */

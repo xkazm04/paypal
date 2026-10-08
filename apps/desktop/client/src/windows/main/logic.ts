@@ -46,7 +46,6 @@ export function moduleOf(deal: Pick<Deal, 'kind' | 'shield'>, attention?: Pick<A
 /** Modules whose one decision depends on a backend that is not attached yet. */
 export const PENDING_BACKEND: Partial<Record<Module, string>> = {
   counter: 'Your shop’s catalog is not connected yet, so list prices, stock and quotes can’t be shown. Orders you already have still appear here.',
-  rescue: 'Fixes for failed renewals can’t be sent yet. You can look at each option; nothing is sent until this is connected.',
 };
 
 // ---- states -------------------------------------------------------------------------------
@@ -62,7 +61,7 @@ export function beadKind(d: DealLike): BeadKind {
   const s = d.state;
   if (OFF.has(s)) return 'off';
   if (s === 'REFUSED' || s === 'MISMATCH' || s === 'DISPUTED') return 'stopped';
-  if (s === 'FAILED') return d.kind === 'rescue' ? 'moving' : 'stopped';
+  if (s === 'FAILED') return 'stopped';
   if (d.shield === 'BLOCK') return 'stopped';
   if (SETTLED.has(s)) return 'settled';
   if (s === 'AUTHORIZED' || d.shield === 'HOLD') return 'held';
@@ -78,7 +77,9 @@ export function chipClass(d: DealLike): ChipClass {
   if (SETTLED.has(s)) return 'done';
   if (s === 'AUTHORIZED') return 'held';
   if (s === 'REFUSED' || s === 'MISMATCH' || s === 'DISPUTED') return 'bad';
-  if (s === 'FAILED') return d.kind === 'rescue' ? 'wait' : 'bad';
+  if (s === 'FAILED') return 'bad';
+  // A failed renewal waits at AGREED for the owner's fix (Rust rescue.rs).
+  if (s === 'AGREED' && d.kind === 'rescue') return 'wait';
   if (s === 'AWAITING_APPROVAL' || s === 'APPROVED') return 'wait';
   return 'live';
 }
@@ -89,7 +90,7 @@ export const stateLabel = (s: DealState, ctx?: { side?: Side; kind?: DealKind })
 export const stateCode = (s: DealState): string => s.replace(/_/g, ' ');
 
 export function isTerminal(d: DealLike): boolean {
-  return OFF.has(d.state) || SETTLED.has(d.state) || d.state === 'REFUSED' || d.state === 'MISMATCH' || d.state === 'DISPUTED' || (d.state === 'FAILED' && d.kind !== 'rescue');
+  return OFF.has(d.state) || SETTLED.has(d.state) || d.state === 'REFUSED' || d.state === 'MISMATCH' || d.state === 'DISPUTED' || d.state === 'FAILED';
 }
 export const isLive = (d: DealLike): boolean => !isTerminal(d);
 export const isSettled = (d: DealLike): boolean => SETTLED.has(d.state);
@@ -108,7 +109,7 @@ const PATHS: Record<DealKind, DealState[]> = {
   haggle: ['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'CAPTURED', 'RECEIPTED', 'RECONCILED'],
   purchase: ['AGREED', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECONCILED'],
   shop_order: ['LISTED', 'AGREED', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECONCILED'],
-  rescue: ['FAILED', 'AWAITING_APPROVAL', 'CAPTURED', 'RECONCILED'],
+  rescue: ['AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'RECEIPTED'],
   invoice: ['AWAITING_APPROVAL', 'CAPTURED', 'RECONCILED'],
 };
 /** A seller-side haggle authorizes and captures itself. */
@@ -154,6 +155,11 @@ export function sumByCurrency(items: Money[]): Money[] {
 /** What the money is doing right now, in words. Never claims more than the state says. */
 export function moneyNow(d: Pick<Deal, 'state' | 'side' | 'kind' | 'shield'>): string {
   if (d.shield === 'HOLD' && !isTerminal(d)) return 'paused by a scam check · nothing sent to PayPal';
+  if (d.kind === 'rescue') {
+    if (d.state === 'AGREED') return 'nothing sent · a fix waits for you';
+    if (d.state === 'SETTLING') return 'nothing paid · the invoice you approved is being made';
+    if (d.state === 'AWAITING_APPROVAL') return 'nothing paid yet · the subscriber has an invoice to pay';
+  }
   switch (d.state) {
     case 'PAIRING': case 'LISTED': case 'NEGOTIATING': case 'AGREED': return 'nothing moved · nothing sent to PayPal yet';
     case 'SETTLING': return 'nothing moved · the PayPal order is being made';
@@ -165,7 +171,7 @@ export function moneyNow(d: Pick<Deal, 'state' | 'side' | 'kind' | 'shield'>): s
     case 'VOIDED': case 'AUTO_VOIDED': return 'hold released · nothing paid';
     case 'REFUSED': return 'nothing moved · refused before PayPal was asked';
     case 'MISMATCH': return 'nothing moved · no pay button was offered';
-    case 'FAILED': return d.kind === 'rescue' ? 'renewal failed · nothing recovered yet' : 'failed · see the PayPal proof';
+    case 'FAILED': return d.kind === 'rescue' ? 'invoice cancelled · nothing recovered' : 'failed · see the PayPal proof';
     case 'REFUNDED': return 'refunded';
     case 'DISPUTED': return 'disputed at PayPal';
   }
@@ -187,7 +193,7 @@ export function amountNote(d: Pick<Deal, 'state' | 'side' | 'shield' | 'kind'>):
     case 'REFUSED': return 'never sent';
     case 'VOIDED': case 'AUTO_VOIDED': return 'hold released';
     case 'WITHDRAWN': case 'EXPIRED': return 'no money moved';
-    case 'FAILED': return d.kind === 'rescue' ? 'renewal failed' : 'failed';
+    case 'FAILED': return d.kind === 'rescue' ? 'invoice cancelled' : 'failed';
     default: return 'proposed';
   }
 }
@@ -483,7 +489,7 @@ export function historyAt(steps: readonly HistoryStep[], t: number): Map<string,
 
 /** A tick's colour on the PayPal lane: who decided the call. */
 export type TickTone = 'owner' | 'rule' | 'buyer' | 'default' | 'refused' | 'unknown';
-const MONEY_CALLS: ReadonlySet<PaypalMethod> = new Set(['create_order', 'authorize', 'capture', 'void']);
+const MONEY_CALLS: ReadonlySet<PaypalMethod> = new Set(['create_order', 'authorize', 'capture', 'void', 'create_invoice', 'send_invoice']);
 /** True for a step that asked PayPal to move money (an order, a hold, a payment, a release). */
 export const isMoneyCall = (s: HistoryStep): boolean => s.paypal.type === 'call' && MONEY_CALLS.has(s.paypal.method);
 /** True for a step your rules or a check refused before PayPal was asked. */
@@ -587,6 +593,10 @@ export function stepSentence(s: HistoryStep, ctx: { title: string; side?: Side }
     case 'disputed': return `${x} is disputed at PayPal.`;
     case 'checking_with_paypal': return `PayPal’s answer about ${x} didn’t arrive, so the wallet is asking PayPal what happened. Nothing more is sent until it knows.`;
     case 'other': return `Something was recorded on ${x}.`;
+    case 'renewal_failed': return `A renewal failed on ${x}. A fix waits for you; nothing is sent until you approve it.`;
+    case 'invoice_created': return `${by('The wallet')} had PayPal make the invoice for ${x}. Nobody is asked to pay yet.${tail}`;
+    case 'invoice_sent': return `${by('The wallet')} had PayPal send the invoice for ${x} to the subscriber.${tail}`;
+    case 'invoice_paid': return `The subscriber paid the invoice for ${x} on PayPal.`;
   }
 }
 

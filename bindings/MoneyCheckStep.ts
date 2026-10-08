@@ -3,4 +3,4 @@
 /**
  * The PayPal step a [`MoneyCheck`] is about.
  */
-export type MoneyCheckStep = "create" | "authorize" | "capture" | "void";
+export type MoneyCheckStep = "create" | "authorize" | "capture" | "void" | "invoice_create" | "invoice_send";

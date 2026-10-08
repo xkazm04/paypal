@@ -70,6 +70,8 @@ pub enum Action {
     Simulate(MandateSimulateArgs),
     EnvelopeSign(EnvelopeSignArgs),
     EnvelopeGet,
+    RescueReplay(RescueReplayArgs),
+    RescueBook,
 }
 pub struct Caller {
     pub label: String,

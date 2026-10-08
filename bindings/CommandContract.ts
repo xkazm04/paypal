@@ -53,6 +53,8 @@ import type { ProofReport } from "./ProofReport";
 import type { QuitArgs } from "./QuitArgs";
 import type { QuitSummary } from "./QuitSummary";
 import type { ReconcileArgs } from "./ReconcileArgs";
+import type { RescueBook } from "./RescueBook";
+import type { RescueReplayArgs } from "./RescueReplayArgs";
 import type { RunSnapshot } from "./RunSnapshot";
 import type { SettingsSnapshot } from "./SettingsSnapshot";
 import type { SignedEnvelope } from "./SignedEnvelope";
@@ -85,4 +87,12 @@ envelope_sign: Command<EnvelopeSignArgs, SignedEnvelope>,
 /**
  * The wallet-wide limits and live exposure numbers only (main, tumbler, approval).
  */
-envelope_get: Command<null, ExposureView>, };
+envelope_get: Command<null, ExposureView>, 
+/**
+ * Records a failed renewal as a labelled replay and opens its rescue (approval, privileged).
+ */
+rescue_replay: Command<RescueReplayArgs, Deal>, 
+/**
+ * Every rescue and the recovered money, read from the wallet (main and approval).
+ */
+rescue_book: Command<null, RescueBook>, };

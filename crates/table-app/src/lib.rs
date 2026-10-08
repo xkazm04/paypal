@@ -13,3 +13,5 @@ pub use resolve::*;
 mod relay;
 pub use auth::*;
 pub use pipeline::*;
+mod rescue;
+pub use rescue::*;
