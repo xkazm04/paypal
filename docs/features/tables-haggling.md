@@ -3,8 +3,8 @@
 Tables is where the owner's agent bargains over one item with another wallet's agent, inside a
 price range the owner signed. A "table" is one haggle deal: offers and counters go back and forth
 as signed messages, and nothing is agreed above the owner's "most you'll pay" or below their
-"least you'll accept". The page is for Maya, a PayPal merchant who wants the haggling done for her
-and only wants to be asked when a price needs her. It also covers the wallet's own deterministic
+"least you'll accept". The page is for a PayPal merchant (Maya, in the design's stories) who wants the haggling done
+for them and only wants to be asked when a price needs them. It also covers the wallet's own deterministic
 negotiator (the "Practice agent"), shopping around with several sellers at once, and keeping
 market prices fresh under a signed rule.
 
