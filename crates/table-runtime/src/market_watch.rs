@@ -140,6 +140,7 @@ impl Runtime {
             mandate_id: deal.mandate_id,
             mandate_version: deal.mandate_version,
             currency: deal.terms.currency,
+            product_id: product_id.to_owned(),
         };
         let product_id = product_id.to_owned();
         match self.pipeline.wallet.ledger.reserve_market_check(
@@ -208,6 +209,12 @@ impl Runtime {
             return Ok(());
         };
         if !self.market_watch_still_bound(&job, now)? {
+            return Ok(());
+        }
+        // Only a re-checkable record of the rule's product is stored (market-data-2).
+        if !crate::market::record_prices(&reference, &job.product_id) {
+            self.market_watch_retry
+                .insert(id, now.saturating_add(MARKET_WATCH_RETRY_SECS));
             return Ok(());
         }
         match self

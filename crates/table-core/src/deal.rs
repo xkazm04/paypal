@@ -253,6 +253,12 @@ pub struct DealEvidence {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub house_record: Option<HouseRecord>,
+    /// The deal's price against the market prices it was bargained on, computed again from the
+    /// wallet's own record (market-data-2); null when the deal never had a market price. Older
+    /// shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub fair_price: Option<crate::FairPrice>,
 }
 /// How the house's record compares with the signed head the wallet kept with the receipt (T9).
 /// Evidence only: no state here moves or holds money.

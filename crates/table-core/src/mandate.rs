@@ -221,6 +221,16 @@ impl MandatePayload {
             _ => None,
         })
     }
+    /// The market product a market record for `item` must price (market-data-2): the product the
+    /// owner bound to the item in this mandate's market-watch rule; for an item with no such
+    /// binding, the item itself when it is a well-formed market product id (an item may be
+    /// named by the market's own product id); otherwise none, and no market record is bound.
+    pub fn market_product_for<'a>(&'a self, item: &'a ItemRef) -> Option<&'a str> {
+        match self.market_watch_for(item) {
+            Some((watched, _)) => Some(watched.product_id.as_str()),
+            None => Some(item.as_str()).filter(|id| crate::market_product_valid(id)),
+        }
+    }
     pub fn hash(&self) -> Result<H256, DomainError> {
         self.validate().map_err(|_| DomainError::InvalidTerms)?;
         Ok(commitment(self)?)

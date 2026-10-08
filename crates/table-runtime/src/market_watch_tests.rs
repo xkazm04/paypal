@@ -46,10 +46,11 @@ impl table_market::MarketApi for WatchMarket {
         if self.fail.load(Ordering::SeqCst) {
             return Err(table_market::Error::Unavailable);
         }
-        Ok(MarketRef::from_comparables(
-            vec![Money::new(self.median.load(Ordering::SeqCst), currency).unwrap()],
-            self.clock.now(),
+        Ok(MarketRef::certified_prices(
+            product,
             H256::digest(b"comparables"),
+            &[Money::new(self.median.load(Ordering::SeqCst), currency).unwrap()],
+            self.clock.now(),
         )
         .unwrap())
     }
@@ -560,15 +561,44 @@ async fn an_answer_that_no_longer_fits_the_deal_or_its_rules_is_dropped() {
         Delivery::DigitalNow,
         watched(Side::Buyer, 12),
     );
-    let mut job = r.plan_market_watch(200).unwrap().pop().unwrap();
+    let job = r.plan_market_watch(200).unwrap().pop().unwrap();
+    assert_eq!(job.binding.deal_id, rebound.id);
+    // market-data-2: an answer pricing another product than the rule binds is not stored.
+    let wrong = job.clone();
+    r.market_watched(
+        wrong,
+        Ok(MarketRef::certified_prices(
+            "p-other",
+            H256::ZERO,
+            &[Money::new(1200, Currency::USD).unwrap()],
+            200,
+        )
+        .unwrap()),
+    )
+    .unwrap();
+    assert!(
+        r.pipeline
+            .wallet
+            .ledger
+            .get_deal(rebound.id)
+            .unwrap()
+            .market
+            .is_none()
+    );
+    let mut job = r
+        .plan_market_watch(200 + MARKET_WATCH_RETRY_SECS)
+        .unwrap()
+        .pop()
+        .unwrap();
     assert_eq!(job.binding.deal_id, rebound.id);
     job.product_id = "p-other".into();
     r.market_watched(
         job,
-        Ok(MarketRef::from_comparables(
-            vec![Money::new(1200, Currency::USD).unwrap()],
-            200,
+        Ok(MarketRef::certified_prices(
+            "p-other",
             H256::ZERO,
+            &[Money::new(1200, Currency::USD).unwrap()],
+            200,
         )
         .unwrap()),
     )

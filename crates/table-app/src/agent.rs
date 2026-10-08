@@ -678,6 +678,9 @@ impl Wallet {
                     .filter(|m| market_fresh(Some(m), now))
                     .ok_or(Error::Agent(RefusalCode::MarketUnavailable))?;
                 reference.cached = true;
+                // The agent sees the band only: the comparables and the market's product ids
+                // behind it (market-data-2) are evidence for the owner, never agent input.
+                reference.certificate = None;
                 Ok(serde_json::to_value(reference).map_err(|_| Error::Invalid)?)
             }
             AgentRequest::Book(query) => {

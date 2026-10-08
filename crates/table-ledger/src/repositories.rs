@@ -237,6 +237,13 @@ fn apply_decided(
         params![enum_text(&next)?, at.to_string(), id.to_string()],
     )?;
     let mut detail = json!({"from":deal.state,"to":next});
+    // The wallet's own-side commitment to the market price it bargained on (market-data-2):
+    // the agreement row names the digest of the market record the deal held when it was agreed.
+    if next == DealState::Agreed
+        && let Some(market) = &deal.market
+    {
+        detail["market"] = serde_json::to_value(market.commitment()?)?;
+    }
     if let Some(decided) = decided {
         conn.execute(
             "UPDATE deals SET decided_by=?1 WHERE id=?2",
@@ -491,6 +498,26 @@ impl Ledger {
         if market.p25.currency() != deal.terms.currency || market.retrieved_at > at {
             return Err(LedgerError::Conflict);
         }
+        // A re-checkable record (market-data-2) names the product it priced: it must be the
+        // product the deal's rules bind to the deal's item.
+        if let Some(certificate) = &market.certificate {
+            let mandate = read_mandate_evidence(&self.conn, deal.mandate_id, deal.mandate_version)?;
+            if mandate.payload.market_product_for(&deal.terms.item_ref)
+                != Some(certificate.product_id.as_str())
+            {
+                return Err(LedgerError::Conflict);
+            }
+        }
+        let mut detail =
+            json!({"retrieved_at":market.retrieved_at,"response_hash":market.response_hash});
+        // The whole record goes into the hash chain, so the snapshot a deal is agreed on can be
+        // re-checked later from the wallet's own rows and from a proof file.
+        if let Some(digest) = market.digest()? {
+            let mut kept = market.clone();
+            kept.cached = false;
+            detail["digest"] = serde_json::to_value(digest)?;
+            detail["reference"] = serde_json::to_value(&kept)?;
+        }
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -505,7 +532,7 @@ impl Ledger {
                 actor: "market".into(),
                 action: "market.observed".into(),
                 deal_id: Some(id),
-                detail: json!({"retrieved_at":market.retrieved_at,"response_hash":market.response_hash}),
+                detail,
             },
         )?;
         tx.commit()?;
