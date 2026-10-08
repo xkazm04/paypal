@@ -31,7 +31,7 @@ const OFF: ReadonlySet<DealState> = new Set(['WITHDRAWN', 'EXPIRED', 'VOIDED', '
 /** Last happy-path step a terminal state is known to have reached (mirrors logic.ts). */
 const BRANCH_AFTER: Partial<Record<DealState, DealState>> = { VOIDED: 'AUTHORIZED', AUTO_VOIDED: 'AUTHORIZED', REFUNDED: 'CAPTURED', DISPUTED: 'CAPTURED', MISMATCH: 'SETTLING' };
 
-type StripDeal = Pick<Deal, 'kind' | 'side' | 'state' | 'shield'>;
+type StripDeal = Pick<Deal, 'kind' | 'side' | 'state' | 'shield'> & { decided_by?: Deal['decided_by'] };
 
 /** The step label in this deal's words. A buyer haggle never sees the capture itself: the seller's
  *  wallet captures, so its CAPTURED step is the seller's attestation until a receipt arrives. */
@@ -65,7 +65,9 @@ export function mirrorStrip(d: StripDeal, opts: { needsYou?: boolean; reconcilia
   let reached = after ? path.indexOf(after) : -1;
   if (d.state === 'MISMATCH' && reached < 0) reached = path.indexOf('AGREED');
   const tone: 'bad' | 'off' = OFF.has(d.state) ? 'off' : 'bad';
-  const label = d.state === 'REFUSED' && d.shield === 'BLOCK' ? 'Blocked by a scam check' : stateLabel(d.state, d);
+  // Nobody walked away from a deal the deadline withdrew: it lapsed (the banner says the same).
+  const lapsed = d.state === 'WITHDRAWN' && d.decided_by?.type === 'safe_default';
+  const label = d.state === 'REFUSED' && d.shield === 'BLOCK' ? 'Blocked by a scam check' : lapsed ? 'Lapsed' : stateLabel(d.state, d);
   return {
     steps: path.map((s, i) => ({ key: s, label: stepLabel(d, s), status: i <= reached ? 'done' : 'todo', tone: null })),
     term: { label, tone },

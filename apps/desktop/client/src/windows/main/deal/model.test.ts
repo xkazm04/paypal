@@ -49,6 +49,9 @@ describe('mirrorStrip: steps per kind', () => {
     expect(mirrorStrip(mk({ kind: 'purchase', state: 'CAPTURED', shield: null })).tone).toBe('ok');
     expect(mirrorStrip(mk({ kind: 'rescue', side: 'seller', state: 'AGREED', shield: null })).term).toBeNull();
     expect(mirrorStrip(mk({ kind: 'rescue', side: 'seller', state: 'FAILED', shield: null })).term).toEqual({ label: 'Fix failed', tone: 'bad' });
+    // A deal the deadline withdrew lapsed; nobody walked away (the banner says the same).
+    expect(mirrorStrip(mk({ state: 'WITHDRAWN', shield: null, decided_by: { type: 'safe_default', deadline: 1 } })).term?.label).toBe('Lapsed');
+    expect(mirrorStrip(mk({ state: 'WITHDRAWN', shield: null, decided_by: null })).term?.label).not.toBe('Lapsed');
   });
   it('moves a captured deal onto RECONCILED only when the statement matched', () => {
     const d = mk({ kind: 'purchase', side: 'buyer', state: 'CAPTURED', shield: null });
