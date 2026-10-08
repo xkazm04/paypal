@@ -9,7 +9,7 @@ import type { TranscriptStep } from '@bindings/TranscriptStep';
 import type { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMoney, nowUnix, shortHash, shortId } from '../../../lib/format';
 import { useMutation } from '../../../lib/hooks';
-import { marketWords, PROOF_SAVE_WARNING } from '../../../lib/words';
+import { HOUSE_RECORD_NAME, houseRecordWord, marketWords, PROOF_SAVE_WARNING } from '../../../lib/words';
 import { ModeBadge, WalletNotice } from '../../../shared/honesty';
 import { Btn, Chip, Empty, Kv, Loading, Sheet } from '../../../shared/ui';
 import { ConvergenceChart, MarketBand, MiniBand } from '../charts';
@@ -35,6 +35,7 @@ export function ProofPanel({ deal, ev, band, onOpen }: { deal: Deal; ev: EvState
   const sameCur = !!mk && deal.terms.unit_price.currency === mk.median.currency;
   const mw = mk && sameCur ? marketWords(deal.terms.unit_price.minor, mk.p25.minor, mk.median.minor, mk.p75.minor) : null;
   const loading = <span className="dim">loading…</span>;
+  const house = e?.house_record ? houseRecordWord(e.house_record) : null;
   return (
     <div className="dv-proof">
       <button type="button" className="dv-pc" onClick={() => onOpen('paypal')}>
@@ -67,6 +68,14 @@ export function ProofPanel({ deal, ev, band, onOpen }: { deal: Deal; ev: EvState
         </span>
         <span className="why">{mk ? `Similar listings: ${formatMoney(mk.p25)} to ${formatMoney(mk.p75)}.` : 'No comparison for this item, so market checks are skipped, not passed.'}</span>
       </button>
+      {house && e?.house_record ? (
+        <button type="button" className={`dv-pc dv-pc-wide${house.warns ? ` warn ${house.tone}` : ''}`} onClick={() => onOpen('paypal')}>
+          <span className="k">{HOUSE_RECORD_NAME}</span>
+          <span className="v"><Chip tone={house.tone}>{house.text}</Chip>
+            <span className="dim">{e.house_record.checked_at !== null ? `compared ${clockLabel(e.house_record.checked_at)}` : `kept ${clockLabel(e.house_record.kept_at)}`}</span></span>
+          <span className="why">{house.means}</span>
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -90,6 +99,7 @@ export function EvidenceSheet({ kind, deal, ev, band, onFresh, onClose }: {
     <Kv items={[
       ['Receipt', <><Chip tone={evidenceLabel(deal, e.receipt).tone}>{evidenceLabel(deal, e.receipt).text}</Chip> {evidenceLabel(deal, e.receipt).why}</>],
       ['Statement', <><Chip tone={reconciliationLabel(e.reconciliation).tone}>{reconciliationLabel(e.reconciliation).text}</Chip> {reconciliationLabel(e.reconciliation).why}</>],
+      e.house_record ? [HOUSE_RECORD_NAME, <><Chip tone={houseRecordWord(e.house_record).tone}>{houseRecordWord(e.house_record).text}</Chip> {houseRecordWord(e.house_record).means}</>] : null,
     ]} />
   ) : ev.error ? <WalletNotice error={ev.error} what="Proof" /> : <Loading what="the PayPal proof" />;
 

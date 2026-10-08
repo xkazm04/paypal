@@ -1,7 +1,10 @@
 //! Deterministic hosted seller; payment authority stays in the durable Rust pipeline.
 mod environment;
+mod glass;
 mod hosted;
+mod routes;
 pub use environment::*;
+pub use glass::*;
 pub use hosted::*;
 pub use table_core::negotiation::{Decision, Policy};
 #[cfg(test)]

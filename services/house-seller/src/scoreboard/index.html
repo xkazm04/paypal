@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Every deal the house seller made, signed with its key, with live checks that it kept the rules its owner signed.">
+<title>House seller · public record</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/house/scoreboard.css">
+<script src="/house/scoreboard.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#deals">Skip to the deals</a>
+<header class="bar">
+  <div class="wrap bar-in">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="9" width="18" height="3" rx="1.5"/><rect x="5" y="12" width="2.2" height="8" rx="1.1"/><rect x="16.8" y="12" width="2.2" height="8" rx="1.1"/><circle cx="12" cy="5.5" r="2.5"/></svg>
+      <span class="brand-name">The Table</span>
+      <span class="brand-sep" aria-hidden="true">/</span>
+      <span class="brand-page">House seller</span>
+      <span class="mode" title="The house seller is paid in PayPal's test money only.">Sandbox</span>
+    </div>
+    <div class="bar-right">
+      <span class="fresh" id="fresh" aria-live="polite">Loading…</span>
+      <button type="button" class="icon-btn" id="theme" aria-label="Switch between light and dark">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="intro">
+    <h1>Every deal the house seller made, in the open.</h1>
+    <p class="lede">The house seller is a demo shop that is always open. Its agent haggles and gets paid only under rules its owner signed. This is its whole record, signed with its key, and checked in your browser right now. This page only reads: nothing here can move money.</p>
+  </section>
+
+  <section class="tiles" aria-label="At a glance">
+    <div class="tile"><span class="t-k">Deals today</span><span class="t-v unknown" id="t-today">—</span><span class="t-s" id="t-today-s">&nbsp;</span></div>
+    <div class="tile"><span class="t-k">Typical discount off the asking price</span><span class="t-v unknown" id="t-discount">—</span><span class="t-s" id="t-discount-s">&nbsp;</span></div>
+    <div class="tile"><span class="t-k">Turned away</span><span class="t-v unknown" id="t-refused">—</span><span class="t-s" id="t-refused-s">&nbsp;</span></div>
+    <div class="tile"><span class="t-k">Entries in the signed record</span><span class="t-v unknown" id="t-rows">—</span><span class="t-s" id="t-rows-s">&nbsp;</span></div>
+  </section>
+
+  <section class="card checks" aria-labelledby="checks-h">
+    <div class="card-h">
+      <h2 id="checks-h">Did the house keep its rules?</h2>
+      <span class="verdict" id="verdict" aria-live="polite"></span>
+    </div>
+    <ul class="check-list" id="checks"><li class="check pending"><span class="ck-i" aria-hidden="true"></span><span class="ck-t">Checking…</span></li></ul>
+  </section>
+
+  <section class="card" id="deals" aria-labelledby="deals-h">
+    <div class="card-h">
+      <h2 id="deals-h">Deals</h2>
+      <label class="find">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+        <span class="sr">Find your deal</span>
+        <input id="find" type="search" autocomplete="off" spellcheck="false" placeholder="Find your deal by its number or record mark">
+      </label>
+    </div>
+    <div class="table-wrap">
+      <table class="deals">
+        <thead><tr>
+          <th scope="col">When</th>
+          <th scope="col">Deal</th>
+          <th scope="col">Item</th>
+          <th scope="col" class="num">Asking</th>
+          <th scope="col" class="num">Agreed</th>
+          <th scope="col" class="num">Off</th>
+          <th scope="col">Status</th>
+          <th scope="col">PayPal</th>
+          <th scope="col">Buyer</th>
+        </tr></thead>
+        <tbody id="rows"><tr class="empty"><td colspan="9">Loading the record…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="more" hidden><button type="button" class="btn" id="older" hidden>Show older deals</button></div>
+  </section>
+
+  <details class="card proof">
+    <summary><h2>Check it yourself</h2><span class="sum-s">Download the record and check it on your own computer</span></summary>
+    <div class="proof-body">
+      <p>The record and its signed head are public. Save both and run the offline checker from the project; it reads the files only and never goes online.</p>
+      <p class="links"><a href="/v1/house/ledger?limit=100" download="house-ledger.json">Download the record</a><a href="/v1/house/head" download="house-head.json">Download the signed head</a></p>
+      <pre class="cmd"><code>table-verify --house house-ledger.json --head house-head.json</code></pre>
+      <p class="small">Your wallet keeps the house's signed head with every receipt from the house seller. If the house ever shows a shorter or different record later, your wallet says so on that deal.</p>
+      <dl class="keys" id="keys"></dl>
+    </div>
+  </details>
+</main>
+
+<footer class="wrap foot">
+  <p>Buyers appear only as the first characters of their key. No names, no messages, no PayPal account details are published.</p>
+</footer>
+<noscript><p class="wrap noscript">Turn on JavaScript to read the record here, or download it from <a href="/v1/house/ledger">/v1/house/ledger</a>.</p></noscript>
+</body>
+</html>
