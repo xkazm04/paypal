@@ -970,6 +970,9 @@ fn audit_rows(seller: &house_seller::Seller, id: DealId, action: &str) -> Vec<se
         .collect()
 }
 
+/// Real-time bound for the actor to reach a step. The house clock is simulated, so this only
+/// guards against a hang; 10 s timed out when the machine was busy compiling in parallel.
+const LIVENESS_SECS: u64 = 60;
 #[tokio::test]
 async fn house_health_stays_up_through_a_slow_tick_of_several_deals() {
     use axum::http::StatusCode;
@@ -985,9 +988,12 @@ async fn house_health_stays_up_through_a_slow_tick_of_several_deals() {
     let handle = running.handle.clone();
     let router = house_seller::router(house.store.clone(), handle.clone());
     for _ in &house.deals {
-        tokio::time::timeout(std::time::Duration::from_secs(10), api.entered.notified())
-            .await
-            .unwrap();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(LIVENESS_SECS),
+            api.entered.notified(),
+        )
+        .await
+        .unwrap();
         // The actor is inside a PayPal call right now.
         assert_eq!(healthz(&router).await, StatusCode::OK);
         api.resume.add_permits(1);
@@ -995,7 +1001,7 @@ async fn house_health_stays_up_through_a_slow_tick_of_several_deals() {
     let elapsed = house.clock.0.load(std::sync::atomic::Ordering::SeqCst) - started;
     assert!(elapsed > 2 * house_seller::HEARTBEAT_STALE, "{elapsed}");
     for id in &house.deals {
-        let deal = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        let deal = tokio::time::timeout(std::time::Duration::from_secs(LIVENESS_SECS), async {
             loop {
                 let deal = handle.snapshot(*id).await.unwrap();
                 if deal.state == DealState::AwaitingApproval {
@@ -1009,9 +1015,12 @@ async fn house_health_stays_up_through_a_slow_tick_of_several_deals() {
         assert_eq!(deal.state, DealState::AwaitingApproval);
     }
     // A call that hangs past the threshold is still a stalled actor (C-8): /healthz reads 503.
-    tokio::time::timeout(std::time::Duration::from_secs(10), api.entered.notified())
-        .await
-        .unwrap();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(LIVENESS_SECS),
+        api.entered.notified(),
+    )
+    .await
+    .unwrap();
     assert_eq!(healthz(&router).await, StatusCode::OK);
     house.clock.0.fetch_add(
         house_seller::HEARTBEAT_STALE,
