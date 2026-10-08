@@ -31,7 +31,7 @@ export function Sheet({ tab, pair, onTab, onClose }: { tab: SheetTab; /** Connec
     <div className="setup-head">
       <div className="ui-seg" role="tablist" aria-label="Settings sections">
         {TABS.map((t) => (
-          <button key={t.value} type="button" role="tab" aria-selected={tab === t.value} aria-pressed={tab === t.value} onClick={() => onTab(t.value)}>{t.label}</button>
+          <button key={t.value} type="button" role="tab" aria-selected={tab === t.value} onClick={() => onTab(t.value)}>{t.label}</button>
         ))}
       </div>
       {w.locked ? <Chip tone="gold" title="Locked after 15 quiet minutes: approving asks for Windows Hello">locked</Chip> : null}

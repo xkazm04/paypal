@@ -23,7 +23,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div className="ui-toasts" role="status" aria-live="polite">
+      <div className="ui-toasts" role="status" aria-live="polite" data-layer-free="">
         {toasts.map((t) => <div key={t.id} className={`ui-toast ${t.tone === 'info' ? '' : t.tone}`}>{t.node}</div>)}
       </div>
     </ToastCtx.Provider>

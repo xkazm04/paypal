@@ -457,7 +457,7 @@ function GridRow({ deal, label, title, cpName, statement, off, selected, onOpen 
   const mkt = marketText(deal);
   const wd = wordOf(deal);
   const onKey = (e: KeyboardEvent<HTMLTableRowElement>) => {
-    if (e.key === 'Enter') { e.preventDefault(); onOpen(); return; }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); return; }
     const dir = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
     if (!dir) return;
     e.preventDefault();
@@ -466,7 +466,8 @@ function GridRow({ deal, label, title, cpName, statement, off, selected, onOpen 
   };
   const day = dayKey(deal);
   return (
-    <tr className={`r ${off ? 'off' : ''}`} tabIndex={0} aria-selected={selected} onClick={onOpen} onKeyDown={onKey}>
+    <tr className={`r ${off ? 'off' : ''}`} tabIndex={0} aria-selected={selected} onClick={onOpen} onKeyDown={onKey}
+      aria-label={`${title} · ${cpName} · ${wd.text} · ${formatMinor(t.minor, t.currency)}`}>
       <td className="clip">
         <span className="mono">{label}</span><span className="day">{day ? dayLabel(day).split(' ')[0] : ''}</span>{title} <span className="cp">· {cpName}</span>
         {deal.mode !== 'sandbox' ? <> <ModeBadge mode={deal.mode} /></> : null}

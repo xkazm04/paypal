@@ -20,6 +20,11 @@ export type HoldButtonProps = {
   hint?: string;
 };
 
+/** What a screen reader hears while holding: nothing, then "Keep holding", then "Confirmed". */
+export function holdWord(done: boolean, progress: number): string {
+  return done ? 'Confirmed' : progress > 0 ? 'Keep holding' : '';
+}
+
 export function HoldButton({ children, onConfirm, ms = 1200, disabled, kind = 'gold', title, className, hint = 'Press and hold to confirm' }: HoldButtonProps) {
   const [p, setP] = useState(0);
   const [done, setDone] = useState(false);
@@ -77,7 +82,8 @@ export function HoldButton({ children, onConfirm, ms = 1200, disabled, kind = 'g
         {done ? <path d="M7 11.2l2.6 2.6L15 8.4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /> : null}
       </svg>
       <span className="lbl">{children}</span>
-      <span className="sr-only" aria-live="polite">{done ? 'Confirmed' : p > 0 ? `${Math.round(p * 100)}%` : ''}</span>
+      {/* One word per phase, never a running percentage (that would be read out every frame). */}
+      <span className="sr-only" aria-live="polite">{holdWord(done, p)}</span>
     </button>
   );
 }

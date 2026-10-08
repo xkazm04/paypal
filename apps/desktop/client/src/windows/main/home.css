@@ -44,7 +44,9 @@
   border-bottom-color: color-mix(in srgb, var(--line) 70%, transparent); background: color-mix(in srgb, var(--material) 55%, transparent); }
 .home .brand { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; white-space: nowrap; }
 .home .brand svg { width: 18px; height: 18px; flex: none; }
-.home .brand b { font: var(--fw-semibold) var(--fs-title3)/1 var(--display); }
+.home .brand h1 { margin: 0; font: var(--fw-semibold) var(--fs-title3)/1 var(--display); }
+/* the dial is one keyboard stop (a slider): a round ring when it has keyboard focus */
+.home .dial:focus-visible { outline: 2px solid var(--focus); outline-offset: -6px; border-radius: 50%; }
 .home .brand span { font-size: var(--fs-small); color: var(--dim); overflow: hidden; text-overflow: ellipsis; }
 .home .top .kbd { margin-left: 2px; }
 .home .lockbtn svg { width: 12px; height: 12px; flex: none; }
