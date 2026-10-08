@@ -368,7 +368,7 @@ fn only_a_paid_receipted_invoice_on_a_paypal_reported_failure_counts_as_recovere
 }
 
 #[test]
-fn migration_0009_keeps_every_operation_and_its_check_and_admits_the_invoice_steps() {
+fn migration_0011_keeps_every_operation_and_its_check_and_admits_the_invoice_steps() {
     let mut w = world();
     let deal = open(
         &mut w,
