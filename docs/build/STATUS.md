@@ -1710,3 +1710,13 @@ A second independent read-only review of the code merged after the first review 
 - **Behaviour changes (all tighten):** agent offers/accepts are refused out of turn and after the deal's own lapse time; accept above clause 6 → REFUSED `owner_approval`; role/deal mismatches → `out_of_scope`; a stale market → `market_unavailable`; every refused agent call is audited (incl. mandate-clause purchase refusals). The agent sees money as `{minor, currency}`.
 - **UNVERIFIED:** whether claude-code / codex-cli surface MCP `structuredContent` with protocolVersion 2024-11-05 (the first text block carries the same JSON).
 - **Left:** live use waits on the attested native engine session (engine-adapters-1); the house rounds-to-agreement benchmark; an approval-window view of refusals per code.
+
+### Client code splitting (2ea22c8; perf, client only)
+
+Surfaces that are not on a window's first paint now load as their own chunks; the "chunk over 500 kB" warning is gone.
+- `src/lib/lazy.ts`: `lazyPart(load)` behaves like `React.lazy` until its chunk arrives, then renders directly (later navigation never suspends or flashes); `.preload()` loads once and retries after a failure; `preloadWhenIdle(parts)` loads parts after first paint.
+- **Main:** the six module pages, the Settings / Connections / Agent rules tabs, the quit sheet, the deal page's proof tab and its sheets, the Rewind scrubber and hub (`RewindParts.tsx`) and the Book proof check sheet are lazy and preloaded when idle; Home/Dial and the deal page's "What happened" stay eager. **Approval:** owner configuration (preloaded at once), the rules editor with its what-if and the replay sheet are lazy; a deal review stays in the entry chunk.
+- Calm loading states (a module shows its title and icon plus "Loading this page…"); stylesheets stay eager and each window's CSS is byte-identical; the mock backend stays a dynamic chunk never in a window's initial graph; CSP unchanged.
+- **Sizes (minified):** main entry 500.96 → 133.83 kB (gzip 146.6 → 42.5); approval entry 176.62 → 100.30 kB; initial JS main 805 → ~454 kB, approval 481 → ~399 kB; largest chunk now react-dom (212 kB).
+- Tests: `src/lib/lazy.test.tsx` (4); client 750; the director `--check` passes all 21 beats. Before/after screenshots match apart from the Dial's animation.
+- Left: no error boundary for a chunk that fails to load (assets are local in the shell).
