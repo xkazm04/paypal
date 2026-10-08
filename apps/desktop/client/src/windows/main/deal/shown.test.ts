@@ -40,7 +40,7 @@ describe('what you were shown', () => {
       rungs: [mark('shown', t(5, 11, 48)), mark('snoozed', t(5, 12, 0)), mark('review_opened', t(8, 11, 0)), mark('notified', t(8, 11, 38))],
     });
     expect(shownParts(s, t(9, 9, 0))).toEqual([
-      `Hold released by itself ${shownTime(t(8, 11, 53), t(9, 9, 0))}`, `shown ${shownTime(t(5, 11, 48), t(8, 0, 0))}`, `snoozed ${shownTime(t(5, 12, 0), t(8, 0, 0))}`,
+      `Hold released ${shownTime(t(8, 11, 53), t(9, 9, 0))}`, `shown ${shownTime(t(5, 11, 48), t(8, 0, 0))}`, `snoozed ${shownTime(t(5, 12, 0), t(8, 0, 0))}`,
       'opened 11:00', 'notified 11:38', 'nothing was paid',
     ]);
     expect(shownTime(t(5, 11, 48), t(8, 0, 0))).toMatch(/^[A-Z][a-z]{2} 11:48$/);

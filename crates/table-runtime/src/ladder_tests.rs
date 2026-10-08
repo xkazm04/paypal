@@ -71,7 +71,7 @@ fn recomputed(r: &Runtime, id: DealId, deadline: i64) -> H256 {
 }
 
 #[tokio::test]
-async fn an_ignored_gate_is_shown_breathes_is_notified_and_its_lapse_cites_the_chain() {
+async fn w6_an_ignored_gate_is_shown_breathes_is_notified_and_its_lapse_cites_the_chain() {
     let (mut r, _, http, clock, _) = runtime(true);
     // Created three hours before its deadline, then left alone.
     let deadline = 100 + 3 * H;
@@ -157,12 +157,24 @@ async fn an_ignored_gate_is_shown_breathes_is_notified_and_its_lapse_cites_the_c
             (R::Notified, deadline - 14 * 60)
         ]
     );
+    // The deal's proof file carries the rung rows in its audit segment, and still verifies offline.
+    let proof = r.export_proof(deal.id).unwrap();
+    assert_eq!(
+        proof
+            .audit
+            .iter()
+            .filter(|row| row.action == table_ledger::RUNG_ACTION)
+            .count(),
+        3
+    );
+    let report = table_verify::verify_bundle(&proof);
+    assert!(report.verified(), "{:#?}", report.checks);
     // No money moved, and no PayPal call was made.
     assert!(http.0.lock().unwrap().paths.is_empty());
 }
 
 #[tokio::test]
-async fn do_not_disturb_records_why_the_owner_was_not_notified() {
+async fn w5_do_not_disturb_records_why_the_owner_was_not_notified() {
     let (mut r, _, _, clock, _) = runtime(true);
     let deadline = 100 + 3 * H;
     let deal = gate(&mut r, deadline);
@@ -516,7 +528,7 @@ async fn no_rung_row_is_ever_written_for_a_deal_not_in_a_snapshot() {
 }
 
 #[tokio::test]
-async fn a_rung_that_cannot_be_written_never_delays_the_default() {
+async fn f3_w6_a_rung_that_cannot_be_written_never_delays_the_default() {
     // A GATE left alone lapses at its deadline, rungs or not.
     let (mut r, _, _, clock, _) = runtime(true);
     let deadline = 100 + 3 * H;
