@@ -248,7 +248,7 @@ export const CardForm = forwardRef(function CardForm(p: CardProps, ref: Ref<HTML
   const table = acts.find((a) => a.action === 'open_in_table');
   const r = rung(item.deadline, now);
   const clock = cardClock(item, now);
-  const label = `${hold ? 'Paused' : 'Decision'} ${item.label}. ${hold ? '' : 'Enter reviews, '}W withdraws, Escape returns to rest.`;
+  const label = `${item.money_check ? 'Checking with PayPal' : hold ? 'Paused' : 'Decision'} ${item.label}. ${hold ? '' : 'Enter reviews, '}W withdraws, Escape returns to rest.`;
   const askId = `c-ask-${item.deal_id}`;
 
   let line3: ReactNode;
@@ -378,7 +378,7 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
                   <span className="t1"><Headline text={it.headline} minor={it.amount_minor} currency={it.currency} />{it.counterparty ? <span className="who"> · {it.counterparty}</span> : null}</span>
                   <span className="t2"><Hourglass />If you do nothing: <b>{it.on_silence}</b></span>
                 </span>
-                {hold ? <Chip tone="coral">Paused</Chip> : null}
+                {it.money_check ? <Chip tone="dashed">Checking</Chip> : hold ? <Chip tone="coral">Paused</Chip> : null}
                 <span className="cd">{it.deadline !== null ? timeLeftWords(it.deadline - p.now) : 'no clock'}</span>
               </button>
             );

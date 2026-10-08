@@ -265,7 +265,18 @@ export function mockBackend(label: WindowLabel): MockBackend {
         if (!ints && (typeof v !== 'string' || !v.length || v.length > 256)) rejected('filters: text values are 1 to 256 characters');
       }
     }
-    return { view: o.view as BookView, metrics: metrics as BookQuery['metrics'], filters: filters as BookQuery['filters'], group_by: group_by as BookQuery['group_by'], range: (o.range ?? null) as BookQuery['range'], limit };
+    // compile(): a range is [from, to) of RFC 3339 times, from strictly before to.
+    const range = (o.range ?? null) as BookQuery['range'];
+    if (range !== null) {
+      if (typeof range !== 'object' || Array.isArray(range)) rejected('invalid type: expected struct BookRange');
+      for (const k of Object.keys(range)) if (k !== 'from' && k !== 'to') rejected(`unknown field \`${k}\`, expected \`from\` or \`to\``);
+      const t = (x: unknown) => (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$/.test(x) ? Date.parse(x) : NaN);
+      const from = t(range.from);
+      const to = t(range.to);
+      if (!Number.isFinite(from) || !Number.isFinite(to)) rejected('range: from and to must be RFC 3339 times');
+      if (from >= to) rejected('range: from must be before to');
+    }
+    return { view: o.view as BookView, metrics: metrics as BookQuery['metrics'], filters: filters as BookQuery['filters'], group_by: group_by as BookQuery['group_by'], range, limit };
   }
   /** Runtime::check_draft: a draft binds to its target (shape and currency only). */
   function checkDraft(t: ApprovalTarget | null, dealId: string | null, draft: ApprovalDraft): void {
@@ -503,7 +514,9 @@ export function mockBackend(label: WindowLabel): MockBackend {
           default: return null;
         }
       };
-      const keep = (d: Deal) => q.filters.every((f) => {
+      const span = q.range ? [Math.floor(Date.parse(q.range.from) / 1000), Math.floor(Date.parse(q.range.to) / 1000)] as const : null;
+      const inRange = (d: Deal) => !span || (d.created_at !== undefined && d.created_at >= span[0] && d.created_at < span[1]);
+      const keep = (d: Deal) => inRange(d) && q.filters.every((f) => {
         const v = col(d, f.field);
         const vals = Array.isArray(f.value) ? f.value : [f.value];
         switch (f.op) {

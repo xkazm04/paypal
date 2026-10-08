@@ -231,6 +231,41 @@ pub struct DealEvidence {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub money_check: Option<MoneyCheck>,
+    /// For a deal with the house: the house's signed record kept with the receipt and how the
+    /// house's later record compares with it; null otherwise. Older shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub house_record: Option<HouseRecord>,
+}
+/// How the house's record compares with the signed head the wallet kept with the receipt (T9).
+/// Evidence only: no state here moves or holds money.
+#[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HouseRecordState {
+    /// Kept with the receipt; not compared with a later record yet.
+    Kept,
+    /// A later signed record still contains the kept one.
+    Holds,
+    /// A later signed record is longer, but the house was not asked to prove it contains the kept
+    /// one yet.
+    Longer,
+    /// The house started a new record (for example after a disk loss).
+    Restarted,
+    /// The house's record got shorter since the receipt.
+    Shorter,
+    /// The house's record no longer contains the one it signed at the receipt.
+    Rewritten,
+}
+#[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HouseRecord {
+    pub state: HouseRecordState,
+    /// When the wallet kept the house's signed record.
+    pub kept_at: Timestamp,
+    /// Entries in the house's record at that moment.
+    pub entries: u64,
+    /// When the wallet last compared a later record; null when it has not.
+    pub checked_at: Option<Timestamp>,
 }
 /// The PayPal step a [`MoneyCheck`] is about.
 #[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

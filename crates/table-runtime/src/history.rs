@@ -130,6 +130,8 @@ const BOOKKEEPING: &[&str] = &[
     "mandate.revoked",
     "deal.mandate_rebound",
     "wallet_limit.signed",
+    "house.head_kept",
+    "house.head_checked",
 ];
 /// What one row says, before folding.
 enum Row {
@@ -500,6 +502,7 @@ mod tests {
             include_str!("../../table-ledger/src/rescue.rs"),
             include_str!("../../table-app/src/rescue.rs"),
             include_str!("rescue.rs"),
+            include_str!("../../table-ledger/src/witness.rs"),
         ];
         let mut found = std::collections::BTreeSet::new();
         for source in sources {
@@ -775,6 +778,14 @@ mod tests {
                 json!({"layer":"wallet_limit","reason":"wallet limit max_held"}),
                 step(K::IntentRefused, A::SignedRule { clause: None }),
             ),
+            // The house's signed record kept beside a HOUSE receipt, and a later look at it (T9):
+            // evidence bookkeeping, not a step of the deal.
+            (
+                "house.head_kept",
+                json!({"row_count":12,"prefix_rows":null}),
+                None,
+            ),
+            ("house.head_checked", json!({"row_count":14}), None),
         ];
         for (action, detail, expected) in &table {
             assert_eq!(one(action, detail.clone()), *expected, "{action} {detail}");
