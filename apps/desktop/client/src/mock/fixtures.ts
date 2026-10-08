@@ -594,6 +594,11 @@ export function buildHistory(now: number): HistoryStep[] {
   on(D('D-0187'), 0, '15:20', 'offer_received');
   on(D('D-0176'), 0, '16:00', 'created');
   on(D('D-0176'), 0, '16:04', 'offer_sent', 'NEGOTIATING', AGENT);
+  // The haggling agent pushes past the most you'll pay twice, then reaches for a money tool it has
+  // no such thing as: each refused before PayPal is asked (the safety record counts them).
+  on(D('D-0187'), 0, '15:24', 'intent_refused', null, { type: 'signed_rule', clause: 4 });
+  on(D('D-0187'), 0, '15:25', 'intent_refused', null, { type: 'signed_rule', clause: 4 });
+  on(D('D-0176'), 0, '16:30', 'intent_refused', null, { type: 'signed_rule', clause: null });
   // Tuesday: the 40 × GPU request is refused by the per-deal limit; PayPal is never asked.
   on(D('D-0187'), 1, '09:40', 'agreed', 'AGREED', RULE6);
   on(D('D-0187'), 1, '09:52', 'pay_link_received', 'AWAITING_APPROVAL');
@@ -654,6 +659,8 @@ export function buildHistory(now: number): HistoryStep[] {
   ago(D('D-0189'), 3 * 3600 + 300, 'countersigned', null, RULE6);
   ago(D('D-0189'), 3 * 3600 + 300, 'order_created', 'AWAITING_APPROVAL', RULE6, call('create_order'));
   ago(D('D-0189'), 3 * 3600 + 240, 'pay_link_sent', null, AGENT);
+  // The selling agent tries to collect the payment itself: it has no tool for that.
+  ago(D('D-0189'), 3 * 3600 + 200, 'intent_refused', null, { type: 'signed_rule', clause: null });
   ago(D('D-0198'), 2 * 3600, 'created');
   ago(D('D-0198'), 2 * 3600 - 60, 'proposed', 'AGREED', AGENT);
   ago(D('D-0198'), 2 * 3600 - 70, 'shield_held');

@@ -16,7 +16,7 @@ import { DealRow, HeaderArt, Loading, LockGlyph, Silence, useCpLookup } from '..
 import { useWorld } from '../world';
 
 /** Navigation a module page may use: open a deal (Layer 2) or an owner sheet. */
-export type Nav = { onDeal: (id: string) => void; onSheet: (t: SheetTab) => void };
+export type Nav = { onDeal: (id: string) => void; onSheet: (t: SheetTab) => void; /** Opens "Your safety record". */ onSafety?: () => void };
 /** Props every module page receives: its own deals (already sorted by useSorted) and nav. */
 export type ModuleProps = { deals: Deal[]; nav: Nav };
 

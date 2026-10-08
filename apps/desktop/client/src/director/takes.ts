@@ -166,6 +166,13 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
     { in: 'main', text: 'USB-C dock for the test bench' },
     { deal: HOLD, state: 'AUTO_VOIDED' },
   ],
+  'end-safety': [
+    { window: 'main', open: true },
+    { in: 'main', text: 'Your safety record' },
+    { in: 'main', text: 'Nothing moved without your say-so.' },
+    { in: 'main', text: 'PayPal was never asked for any of them' },
+    { deal: HOLD, state: 'AUTO_VOIDED' },
+  ],
   end: [
     { window: 'main', open: true },
     { in: 'main', text: 'This week' },
