@@ -3,16 +3,26 @@
 // Mandates list (setup/Mandates.tsx). Everything privileged - storing credentials, signing
 // mandates, unlocking, confirming pairing words - only hands off to the approval window.
 // API unchanged for App.tsx: <Sheet tab onTab onClose/>; Esc closes through the layer stack.
-import { useState } from 'react';
+// The three tabs are their own chunks (lib/lazy.ts), preloaded once the window is idle; the sheet
+// frame and its tabs open at once, and a tab not loaded yet shows a calm loading line.
+import { Suspense, useState } from 'react';
 import { ModeBadge } from '../../shared/honesty';
+import { lazyPart } from '../../lib/lazy';
 import { Chip, Sheet as UiSheet, useDetail } from '../../shared/ui';
 import type { SheetTab } from './logic';
-import { SetupCircuit } from './setup/CircuitView';
-import { MandatesList } from './setup/Mandates';
-import { PairingDesk } from './setup/PairingDesk';
+import '../../shared/ownerKey.css';
+import './setup/setup.css';
 import type { PairMode } from './setup/pairing';
+import { Loading } from './ui';
 import { useWorld } from './world';
 import './sheet.css';
+
+const SetupCircuit = lazyPart(() => import('./setup/CircuitView').then((m) => m.SetupCircuit));
+const MandatesList = lazyPart(() => import('./setup/Mandates').then((m) => m.MandatesList));
+const PairingDesk = lazyPart(() => import('./setup/PairingDesk').then((m) => m.PairingDesk));
+
+/** The sheet's tabs, for the window's idle preload (App.tsx). */
+export const SHEET_TABS = [SetupCircuit, PairingDesk, MandatesList] as const;
 
 const TABS: ReadonlyArray<{ value: SheetTab; label: string }> = [
   { value: 'settings', label: 'Settings' },
@@ -41,9 +51,11 @@ export function Sheet({ tab, pair, onTab, onClose }: { tab: SheetTab; /** Connec
   return (
     // A stray click on the scrim must not drop a pairing code that is being polled.
     <UiSheet title={title} onClose={onClose} head={head} dismissOnScrim={tab !== 'pairing'} className={`setup-sheet tab-${tab}${tab === 'settings' ? ` det-${detail}` : ''}`}>
-      {tab === 'settings' ? <SetupCircuit onPair={(m) => { setPairMode(m); onTab('pairing'); }} onMandates={() => onTab('mandates')} detail={detail} setDetail={setDetail} />
-        : tab === 'pairing' ? <PairingDesk mode={pairMode} setMode={setPairMode} />
-          : <MandatesList />}
+      <Suspense fallback={<Loading what={tab === 'settings' ? 'settings' : tab === 'pairing' ? 'connections' : 'agent rules'} />}>
+        {tab === 'settings' ? <SetupCircuit onPair={(m) => { setPairMode(m); onTab('pairing'); }} onMandates={() => onTab('mandates')} detail={detail} setDetail={setDetail} />
+          : tab === 'pairing' ? <PairingDesk mode={pairMode} setMode={setPairMode} />
+            : <MandatesList />}
+      </Suspense>
     </UiSheet>
   );
 }

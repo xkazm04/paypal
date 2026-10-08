@@ -3,28 +3,40 @@
 // needs you), then four plain sections: What happened · Your rules · Who you're dealing with ·
 // Proof from PayPal. Every explanation is layer 2 (Popover / Sheet).
 // One decision here (review in the approval window, or withdraw); there is never a money button.
-import { useMemo, useState, type KeyboardEvent } from 'react';
+import { Suspense, useMemo, useState, type KeyboardEvent } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { DealEvidence } from '@bindings/DealEvidence';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { shortHash, shortId } from '../../lib/format';
 import { dealWatch } from '../../lib/marketWatch';
 import { useMutation, useQuery } from '../../lib/hooks';
+import { lazyPart } from '../../lib/lazy';
 import { RunBadge, WalletNotice } from '../../shared/honesty';
 import { houseRecordWord, INSTRUCTIONS, kindWord, rulesName } from '../../lib/words';
-import { Btn, Chip, Hint, Kv, PageHead, Popover } from '../../shared/ui';
+import { Btn, Chip, Hint, Kv, Loading, PageHead, Popover } from '../../shared/ui';
 import { canStartAgent } from './logic';
 import { mc, useCpLookup, useToast } from './ui';
 import { useWorld } from './world';
 import { WhatHappened, WhoYouDealWith, YourRules } from './deal/Columns';
 import { DealStory, StateStrip, Summary } from './deal/Decision';
-import { EvidenceSheet, ProofPanel, TranscriptSheet, type EvidenceKind } from './deal/Evidence';
+import type { EvidenceKind } from './deal/Evidence';
+import './charts.css'; // the proof's charts (deal/Evidence.tsx) style eagerly, in their old place
 import { mayWithdraw, mirrorStrip, readClauses } from './deal/model';
 import { ruleChecks, rulesBadge, standingFacts } from './deal/story';
 import { WhoDecided } from './deal/WhoDecided';
-import { InstructionsSheet, InstructionsValue } from './deal/Instructions';
+import { InstructionsValue } from './deal/InstructionsValue';
 import { shortTitle } from './home/model';
 import './deal.css';
+
+// The first tab (What happened) is the deal page's first paint; the proof tab, the proof sheets,
+// the export and the instructions are their own chunks, preloaded once the window is idle.
+const ProofPanel = lazyPart(() => import('./deal/Evidence').then((m) => m.ProofPanel));
+const EvidenceSheet = lazyPart(() => import('./deal/Evidence').then((m) => m.EvidenceSheet));
+const TranscriptSheet = lazyPart(() => import('./deal/Evidence').then((m) => m.TranscriptSheet));
+const InstructionsSheet = lazyPart(() => import('./deal/Instructions').then((m) => m.InstructionsSheet));
+
+/** The deal page's later parts, for the window's idle preload (App.tsx). */
+export const DEAL_PARTS = [ProofPanel, EvidenceSheet, TranscriptSheet, InstructionsSheet] as const;
 
 type Tab = 'happened' | 'rules' | 'who' | 'proof';
 const TABS: readonly { key: Tab; label: string }[] = [
@@ -141,10 +153,13 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
         ) : tab === 'who' ? (
           <WhoYouDealWith deal={deal} cp={cp} offersUsed={deal.kind === 'haggle' && disp.band ? `${disp.band.rounds_used} of ${disp.band.max_rounds} used` : null} />
         ) : (
-          <ProofPanel deal={deal} ev={{ data: evidence, error: evq.error }} band={disp.band} watch={watch} onOpen={setSheet} />
+          <Suspense fallback={<Loading what="the proof" />}>
+            <ProofPanel deal={deal} ev={{ data: evidence, error: evq.error }} band={disp.band} watch={watch} onOpen={setSheet} />
+          </Suspense>
         )}
       </div>
 
+      <Suspense fallback={null}>
       {sheet === 'instructions' && run?.playbook ? (
         <InstructionsSheet playbook={run.playbook} onClose={() => setSheet(null)} />
       ) : sheet === 'instructions' ? null : sheet === 'transcript' ? (
@@ -153,6 +168,7 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
         <EvidenceSheet kind={sheet} deal={deal} ev={{ data: evidence, error: evq.error }} band={disp.band} watch={watch}
           onFresh={(e) => setFresh({ id: deal.id, e })} onClose={() => setSheet(null)} />
       ) : null}
+      </Suspense>
     </div>
   );
 }

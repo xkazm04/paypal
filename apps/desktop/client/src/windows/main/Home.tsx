@@ -3,7 +3,7 @@
 // ledger, every open decision with its default on silence) and a 28px status footer (shortcuts: ?).
 // Detail opens in a Popover (hub "Details", the ledger's Held / In motion / Stopped lists).
 // Nothing turns without the owner: money only ever moves from the approval window.
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import type { Module } from '@bindings/Module';
@@ -21,7 +21,8 @@ import {
   beadKind, beadSummary, chipClass, dealTotal, historyAt, isLive, ledgerScope, moduleIndex, moneyNow, reviewVerb, spendToday, splitHeadline, stateLabel, summarize, sumByCurrency,
   weekBounds, type LedgerScope, type LedgerSummary,
 } from './logic';
-import { RewindBar, RewindHub, useRewind } from './Rewind';
+import { lazyPart } from '../../lib/lazy';
+import { useRewind } from './Rewind';
 import { StartAbout, StartHub, StartSide, useStart, useStartActions, type StartActions } from './home/Start';
 import { AwayCard, AwayHub, useAway, type Away } from './home/AwayCard';
 import type { GettingStarted } from '../../lib/firstRun';
@@ -31,6 +32,12 @@ import { StatusChips } from './Status';
 import { LockGlyph, mc } from './ui';
 import { useWorld } from './world';
 import './home.css';
+
+// The Rewind's scrubber and hub are their own chunk, preloaded once the window is idle (App.tsx).
+const RewindBar = lazyPart(() => import('./RewindParts').then((m) => m.RewindBar));
+const RewindHub = lazyPart(() => import('./RewindParts').then((m) => m.RewindHub));
+/** Home's later parts, for the window's idle preload. */
+export const HOME_PARTS = [RewindBar, RewindHub] as const;
 
 type Props = {
   active: boolean;
@@ -262,13 +269,13 @@ export function Home(p: Props) {
             clearTimeout(timers.current.idle);
             if (!inside) timers.current.idle = setTimeout(() => { if (p.active && !zooming.current) pointNeeds(); }, 1500);
           }}>
-          {rewind && !firstRun ? <RewindHub r={rw} labelOf={labelOf} onOpenDeal={p.onOpenDeal} /> : (
+          {rewind && !firstRun ? <Suspense fallback={null}><RewindHub r={rw} labelOf={labelOf} onOpenDeal={p.onOpenDeal} /></Suspense> : (
             <Hub start={firstRun ? { gs: start, act: startAct } : null} mode={mode} sel={sel} item={top} index={safeNeedIdx} count={needs.length} summary={summary} week={scope.scope === 'week'}
               away={away} onRewindAt={openRewindAt}
               onOpen={zoomInto} onBack={pointNeeds} onPage={cycleNeed} onDeal={p.onOpenDeal} />
           )}
         </Dial>
-        {rewind && !firstRun ? <RewindBar r={rw} labelOf={labelOf} onOpenDeal={p.onOpenDeal} onExit={() => setRewind(false)} /> : null}
+        {rewind && !firstRun ? <Suspense fallback={null}><RewindBar r={rw} labelOf={labelOf} onOpenDeal={p.onOpenDeal} onExit={() => setRewind(false)} /></Suspense> : null}
         <section className="col r needs" aria-label="Needs you">
           {firstRun ? <StartAbout /> : <NeedsList needs={needs} on={mode === 'needs' ? safeNeedIdx : -1}
             onPoint={(i) => { if (intro === 'done') { setNeedIdx(i); setMode('needs'); } }} onOpen={p.onOpenDeal} />}
