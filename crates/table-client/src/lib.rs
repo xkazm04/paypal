@@ -1025,6 +1025,8 @@ pub struct CommandContract {
     pub rescue_watch_add: Command<RescueWatchArgs, Vec<RescueWatchView>>,
     /// Stops watching one subscription (approval, privileged).
     pub rescue_watch_stop: Command<RescueWatchStopArgs, Vec<RescueWatchView>>,
+    /// "Your safety record": the whole-ledger money-authority check on the owner's ledger (main).
+    pub safety_record: Command<(), SafetyRecord>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -1204,6 +1206,110 @@ pub enum PaypalOutcome {
     Ok,
     Failed,
     Unknown,
+}
+
+/// "Your safety record" (ops-and-delivery-1 slice 2): the whole-ledger money-authority check the
+/// hostile-agent gauntlet runs, run on the owner's own ledger. Every number is counted in Rust
+/// from the verified audit chain and each deal's verified export; the webview only draws it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct SafetyRecord {
+    /// When the check ran (Unix seconds).
+    pub checked_at: i64,
+    /// Records in the audit chain.
+    pub records: u64,
+    /// The chain's head when it verifies; `None` when it does not.
+    pub head: Option<H256>,
+    /// The whole audit chain verifies, record by record.
+    pub intact: bool,
+    /// Deals in the ledger, and how many of the newest were checked (at most `SAFETY_DEALS`).
+    pub deals_total: u64,
+    pub deals_checked: u32,
+    /// Checked deals whose signed message history verified.
+    pub transcripts_verified: u32,
+    /// Money steps at PayPal on the checked deals, by who decided them.
+    pub money: SafetyMoney,
+    /// Agent requests the wallet refused on the checked deals, and by kind of reason.
+    pub refusals: u32,
+    pub refusal_families: Vec<SafetyRefusalCount>,
+    /// Deals the rules refused, and the PayPal calls recorded on them (must be 0).
+    pub refused_deals: u32,
+    pub refused_deal_calls: u32,
+    /// Every break of the invariant found (must be empty), at most `SAFETY_VIOLATIONS` of them;
+    /// `violations_total` counts them all.
+    pub violations: Vec<SafetyViolation>,
+    pub violations_total: u32,
+}
+/// Deals the safety record checks at most (the newest); `deals_checked` says how many it did.
+pub const SAFETY_DEALS: u32 = 1000;
+/// Violations the safety record lists at most; `violations_total` counts them all.
+pub const SAFETY_VIOLATIONS: usize = 50;
+/// Money steps (create, authorize, capture, void, invoice) by the authority each stood on.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct SafetyMoney {
+    /// The owner, in the approval window.
+    pub owner: u32,
+    /// A rule the owner signed (the countersign under the ask-me threshold).
+    pub signed_rule: u32,
+    /// The owner's signed shop rules collecting what a buyer approved at PayPal.
+    pub shop_rules: u32,
+    /// The house seller's signed rules.
+    pub house_rules: u32,
+    /// A deadline's safe default, and how many of those were cancellations (voids).
+    pub safe_default: u32,
+    pub safe_default_voids: u32,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct SafetyRefusalCount {
+    pub family: SafetyRefusalFamily,
+    pub count: u32,
+}
+/// Why the wallet said no to an agent, grouped from the closed refusal codes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum SafetyRefusalFamily {
+    /// A rule the owner signed (limits, price range, offers left, the ask-me threshold, payees,
+    /// wallet-wide limits, a shop-around table already won).
+    YourRules,
+    /// The scam check held the deal.
+    ScamCheck,
+    /// Out of turn, after the deal closed, while paused, or from an ended or unready session.
+    OutOfTurn,
+    /// Something the agent's role has no tool for, or another deal than its own.
+    NotAllowed,
+    /// A request the wallet could not use (malformed, bad numbers, no market price, busy).
+    Unusable,
+    /// An older record that names no reason code.
+    Older,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct SafetyViolation {
+    /// The deal it is on; `None` for the chain itself.
+    pub deal_id: Option<DealId>,
+    pub kind: SafetyViolationKind,
+    /// The precise finding for Details (names steps, rules and paths; never the other side's words).
+    pub detail: String,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum SafetyViolationKind {
+    /// A money step with no authority that fits it.
+    Authority,
+    /// A money call at PayPal with no recorded money step behind it.
+    UntrackedCall,
+    /// Something stored about PayPal carries the other side's words.
+    CounterpartyText,
+    /// A deal the rules refused reached PayPal.
+    RefusedDealCalled,
+    /// The independent proof checker disagreed with the record.
+    VerifierCheck,
+    /// The audit chain does not verify.
+    ChainBroken,
+    /// A deal's evidence does not verify.
+    EvidenceUnreadable,
 }
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]

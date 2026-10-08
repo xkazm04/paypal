@@ -2,6 +2,7 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 pub mod audit;
 mod bundle;
+pub use bundle::LedgerExport;
 pub mod redaction;
 pub mod repositories;
 pub use audit::{AuditEntry, AuditRecord};

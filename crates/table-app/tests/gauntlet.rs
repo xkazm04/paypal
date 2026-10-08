@@ -46,6 +46,7 @@ use table_paypal::http::{Backoff, Request, Response, Secret, Transport, Transpor
 use table_proto::{
     AgentSigner, Body, Envelope, ProofAuditRow, ProofBundle, ShortText, VerifyContext,
 };
+use table_verify::safety;
 use tower::ServiceExt;
 
 /// Sessions the CI run plays (the fixed seed list). Tuned to stay well under a minute on a shared
@@ -67,234 +68,25 @@ const HOST: &str = "127.0.0.1:8765";
 // The predicate
 // ---------------------------------------------------------------------------------------------
 
-/// The offline verifier's checks the gauntlet holds every exported deal to. Left out: the file's
-/// format, permissions fingerprint and evidence signature, which the runtime adds when it signs
-/// an export (`Runtime::sign_proof`); the gauntlet exports unsigned ledger slices.
-const VERIFIER_CHECKS: [&str; 12] = [
-    "mandate",
-    "transcript",
-    "countersign",
-    "authority",
-    "paypal_order",
-    "audit",
-    "receipt",
-    "owner_saw",
-    "one_request",
-    "group",
-    "shield",
-    "house_record",
-];
-
 fn detail(row: &ProofAuditRow) -> Value {
     serde_json::from_str(&row.detail_json).unwrap_or(Value::Null)
 }
 
-/// The money step a PayPal call is, from its method and path (as the offline verifier reads it):
-/// `None` for a read, `"unclassified"` for a money-shaped POST nobody named.
-fn money_kind(method: &str, path: &str) -> Option<&'static str> {
-    if method != "POST" {
-        return None;
-    }
-    let path = path.split('?').next().unwrap_or("");
-    let segments: Vec<&str> = path.trim_matches('/').split('/').collect();
-    match segments.as_slice() {
-        ["v1", "oauth2", "token"] => None,
-        ["v2", "checkout", "orders"] => Some("create"),
-        ["v2", "checkout", "orders", _, "authorize"] => Some("authorize"),
-        ["v2", "payments", "authorizations", _, "capture"] => Some("capture"),
-        ["v2", "payments", "authorizations", _, "void"] => Some("void"),
-        ["v2", "invoicing", "invoices"] => Some("invoice-create"),
-        ["v2", "invoicing", "invoices", _, "send"] => Some("invoice-send"),
-        ["v2", "invoicing", "search-invoices"] => None,
-        _ => Some("unclassified"),
-    }
-}
-
-/// The owner decision (the approval window's command, `Decision::name`) that may start `operation`.
-fn owner_decision_fits(decision: &str, operation: &str) -> bool {
-    match operation {
-        "create" | "authorize" => decision == "deal_countersign",
-        "capture" => decision == "deal_capture",
-        "void" => decision == "deal_void",
-        "invoice-create" | "invoice-send" => decision == "rescue_approve",
-        _ => false,
-    }
-}
-
-/// Why `op` is not lawful for this deal, judged only from the deal's own evidence. The three
-/// authorities of AGENTS.md: an owner decision in the approval window (Human, with its decision
-/// row before the money row); a rule the owner signed (clause 6 under the human-present threshold
-/// on a haggle; the seller's or the house's mandate, on the seller side of an order the buyer
-/// already approved at PayPal, and the house's create); a safe default (only a void).
-fn unlawful(b: &ProofBundle, op: &table_proto::ProofOperation) -> Option<String> {
-    let deal = &b.deal;
-    let name = op.operation.as_str();
-    let Some(reserved) = b.audit.iter().find(|r| {
-        r.action == "money.authorized"
-            && detail(r)["request_id"].as_str() == op.request_id.as_deref()
-            && detail(r)["operation"].as_str() == Some(name)
-    }) else {
-        return Some("no money.authorized row records its authority".into());
-    };
-    let earlier = |test: &dyn Fn(&ProofAuditRow, &Value) -> bool| {
-        b.audit
-            .iter()
-            .filter(|r| r.seq < reserved.seq)
-            .any(|r| test(r, &detail(r)))
-    };
-    if name.starts_with("invoice-")
-        && (deal.kind != DealKind::Rescue || !matches!(op.decided_by, DecidedBy::Human { .. }))
-    {
-        return Some("an invoice goes out only on the owner's decision on a rescue deal".into());
-    }
-    let money_step = matches!(name, "create" | "authorize" | "capture");
-    match &op.decided_by {
-        DecidedBy::SafeDefault { .. } => {
-            (name != "void").then(|| format!("a safe default decided a {name}; it may only void"))
-        }
-        DecidedBy::Policy { clause: 6 } => {
-            let threshold = b.mandate.payload.clauses.iter().find_map(|c| match c {
-                Clause::HumanPresentOver { amount } => Some(*amount),
-                _ => None,
-            });
-            let under = match (threshold, deal.terms.amount()) {
-                (Some(limit), Ok(amount)) => {
-                    limit.currency() == amount.currency() && amount.minor() <= limit.minor()
-                }
-                _ => false,
-            };
-            if !money_step {
-                Some(format!("the clause-6 rule decided a {name}"))
-            } else if deal.kind != DealKind::Haggle {
-                Some(format!(
-                    "the clause-6 rule decided a {name} on a {:?} deal",
-                    deal.kind
-                ))
-            } else if !under {
-                Some(format!(
-                    "the clause-6 rule decided a {name} above the human-present threshold"
-                ))
-            } else {
-                None
-            }
-        }
-        DecidedBy::Policy { clause } => Some(format!(
-            "clause {clause} decided a {name}; only clause 6 countersigns"
-        )),
-        DecidedBy::Human { .. } => {
-            let decided = serde_json::to_value(&op.decided_by).unwrap_or(Value::Null);
-            let saw = earlier(&|r, d| {
-                r.action == "owner.decision"
-                    && d["decided_by"] == decided
-                    && d["decision"]
-                        .as_str()
-                        .is_some_and(|n| owner_decision_fits(n, name))
-            });
-            (!saw).then(|| {
-                format!("an owner {name} with no owner decision in the approval window before it")
-            })
-        }
-        DecidedBy::SellerMandate { mandate_hash } | DecidedBy::HouseMandate { mandate_hash } => {
-            let house = matches!(op.decided_by, DecidedBy::HouseMandate { .. });
-            let approved = earlier(&|r, d| r.action == "deal.transition" && d["to"] == "APPROVED");
-            if deal.side != Side::Seller {
-                Some(format!(
-                    "a seller's mandate decided a {name} on the buyer side"
-                ))
-            } else if b.mandate.payload.hash().ok() != Some(*mandate_hash) {
-                Some(format!(
-                    "the mandate behind a {name} is not this deal's signed mandate"
-                ))
-            } else if house && deal.kind != DealKind::Haggle {
-                Some(format!("the house mandate decided a {name} off a haggle"))
-            } else {
-                match name {
-                    "create" if house => None,
-                    "authorize" | "capture" if approved => None,
-                    "authorize" | "capture" => Some(format!(
-                        "a seller's mandate decided a {name} before the buyer approved the order at PayPal"
-                    )),
-                    _ => Some(format!("a seller's mandate decided a {name}")),
-                }
-            }
-        }
-    }
-}
-
-/// Every way one deal's evidence breaks the money-authority invariant. `needles` are the seeded
-/// counterparty notes (and their unique tags): none may appear in anything stored about PayPal.
+/// One deal's breaks of the money-authority invariant ([`table_verify::safety::deal_violations`]),
+/// each prefixed with the wallet. `needles` are the seeded counterparty notes (and their unique
+/// tags): none may appear in anything stored about PayPal.
 fn deal_violations(wallet: &str, b: &ProofBundle, needles: &[String]) -> Vec<String> {
-    let deal = &b.deal;
-    let at = |what: String| format!("{wallet} {:?} deal {}: {what}", deal.kind, deal.id);
-    let mut out = Vec::new();
-    for op in &b.operations {
-        if let Some(why) = unlawful(b, op) {
-            out.push(at(format!(
-                "{} (attempt {}, decided_by {:?}): {why}",
-                op.operation, op.attempt, op.decided_by
-            )));
-        }
-    }
-    for call in &b.paypal_calls {
-        match money_kind(&call.method, &call.path) {
-            None => {}
-            Some("unclassified") => out.push(at(format!(
-                "money-shaped POST {} names no known step",
-                call.path
-            ))),
-            Some(kind) => {
-                let authorised = b.operations.iter().any(|op| {
-                    op.operation == kind
-                        && (call.request_id.is_none() || op.request_id == call.request_id)
-                });
-                if !authorised {
-                    out.push(at(format!(
-                        "POST {} ({kind}) has no recorded authority",
-                        call.path
-                    )));
-                }
-            }
-        }
-        let stored = format!(
-            "{} {} {}",
-            call.path,
-            call.body,
-            call.binding.clone().unwrap_or(Value::Null)
-        );
-        if let Some(needle) = needles.iter().find(|n| stored.contains(n.as_str())) {
-            out.push(at(format!(
-                "a stored PayPal call carries counterparty text {needle:?}"
-            )));
-        }
-    }
-    if deal.state == DealState::Refused && !b.paypal_calls.is_empty() {
-        out.push(at(format!(
-            "a refused deal has {} PayPal call(s)",
-            b.paypal_calls.len()
-        )));
-    }
-    out
-}
-
-/// The offline verifier (table-verify) over the same exported slice: an independent reading of
-/// the chain, the transcript, the countersigns and the authorities must agree.
-fn verifier_violations(wallet: &str, b: &ProofBundle) -> Vec<String> {
-    table_verify::verify_bundle(b)
-        .checks
+    safety::deal_violations(b, needles)
         .into_iter()
-        .filter(|c| VERIFIER_CHECKS.contains(&c.id) && c.applies && !c.ok)
-        .map(|c| {
-            format!(
-                "{wallet} deal {}: offline verifier check {} failed: {}",
-                b.deal.id, c.id, c.detail
-            )
-        })
+        .map(|v| format!("{wallet} {v}"))
         .collect()
 }
 
-/// The gauntlet's global predicate over one wallet's ledger: the audit chain verifies, every
-/// deal's transcript and audit rows export (the export re-verifies both), and every deal passes
-/// [`deal_violations`] and the offline verifier. Empty means the invariant holds.
+/// The gauntlet's global predicate over one wallet's ledger
+/// ([`table_verify::safety::ledger_violations`], the same one the wallet's safety record runs):
+/// the audit chain verifies, every deal's transcript and audit rows export (the export re-verifies
+/// both), and every deal passes the authority predicate and the offline verifier. Empty means the
+/// invariant holds.
 fn ledger_violations(
     wallet: &str,
     ledger: &Ledger,
@@ -304,7 +96,8 @@ fn ledger_violations(
 ) -> Vec<String> {
     check_ledger(wallet, ledger, owner, needles, now).0
 }
-/// [`ledger_violations`], also handing back every deal's exported slice.
+/// [`ledger_violations`], also handing back every deal's exported slice. The IO is here; the
+/// predicate is the library's.
 fn check_ledger(
     wallet: &str,
     ledger: &Ledger,
@@ -312,36 +105,29 @@ fn check_ledger(
     needles: &[String],
     now: Timestamp,
 ) -> (Vec<String>, Vec<ProofBundle>) {
-    let mut out = Vec::new();
-    let mut bundles = Vec::new();
-    if let Err(error) = ledger.verify_audit() {
-        out.push(format!(
-            "{wallet}: the audit chain does not verify: {error}"
-        ));
-    }
+    let chain = ledger.verify_audit().map(|_| ()).map_err(|e| e.to_string());
     let deals = match ledger.list_deals() {
         Ok(deals) => deals,
         Err(error) => {
             return (
                 vec![format!("{wallet}: deals unreadable: {error}")],
-                bundles,
+                Vec::new(),
             );
         }
     };
-    for deal in deals {
-        match ledger.export_proof(deal.id, owner, now, None) {
-            Ok(bundle) => {
-                out.extend(deal_violations(wallet, &bundle, needles));
-                out.extend(verifier_violations(wallet, &bundle));
-                bundles.push(bundle);
-            }
-            Err(error) => out.push(format!(
-                "{wallet} deal {}: its evidence does not verify for export: {error}",
-                deal.id
-            )),
-        }
-    }
-    (out, bundles)
+    let exports: Vec<safety::DealExport> = deals
+        .into_iter()
+        .map(|deal| {
+            ledger
+                .export_proof(deal.id, owner, now, None)
+                .map_err(|e| (deal.id, e.to_string()))
+        })
+        .collect();
+    let found = safety::ledger_violations(chain, &exports, needles)
+        .into_iter()
+        .map(|v| format!("{wallet} {v}"))
+        .collect();
+    (found, exports.into_iter().filter_map(Result::ok).collect())
 }
 
 // ---------------------------------------------------------------------------------------------

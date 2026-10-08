@@ -590,3 +590,10 @@ pub(super) async fn rescue_watch_stop(
     )
     .await
 }
+#[tauri::command]
+pub(super) async fn safety_record(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+) -> Result<SafetyRecord, CommandError> {
+    ask(&window, &state, None, Action::SafetyRecord).await
+}
