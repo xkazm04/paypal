@@ -10,6 +10,7 @@ import type { DealEvidence } from '@bindings/DealEvidence';
 import type { DealState } from '@bindings/DealState';
 import type { EngineInfo } from '@bindings/EngineInfo';
 import type { H256 } from '@bindings/H256';
+import type { HouseRecord } from '@bindings/HouseRecord';
 import type { MoneyCheck } from '@bindings/MoneyCheck';
 import type { Money } from '@bindings/Money';
 import type { OpenMandate } from '@bindings/OpenMandate';
@@ -163,6 +164,8 @@ export function buildMockState(now: number): MockState {
     decided?: NonNullable<Deal['decided_by']>;
     /** A money step whose PayPal answer was lost, being checked with PayPal (T10). */
     check?: MoneyCheck;
+    /** A receipt from the house seller: its signed record kept with the receipt (T9). */
+    house?: HouseRecord;
     /** [created_at, updated_at]; omitted = created a day ago, changed two minutes ago. */
     at?: [number, number];
     attention?: Omit<AttentionItem, 'deal_id' | 'label' | 'amount_minor' | 'currency' | 'mode' | 'deadline' | 'on_silence'> | null;
@@ -191,7 +194,7 @@ export function buildMockState(now: number): MockState {
     };
     const deadline = o.deadline ?? null;
     const display: DealDisplay = { deal_id: id, label: o.label, title: o.title, deadline, on_silence: o.silence ?? null, band: o.band ?? null };
-    const evidence: DealEvidence = { deal_id: id, receipt: o.receipt ?? 'NONE', reconciliation: o.reconciliation ?? 'not_applicable', money_check: o.check ?? null };
+    const evidence: DealEvidence = { deal_id: id, receipt: o.receipt ?? 'NONE', reconciliation: o.reconciliation ?? 'not_applicable', money_check: o.check ?? null, house_record: o.house ?? null };
     const attention: AttentionItem | null = o.attention
       ? {
           ...o.attention,

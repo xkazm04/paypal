@@ -83,6 +83,14 @@ pub trait RelayApi: Send + Sync {
     ) -> Result<table_proto::HouseResponse, Error> {
         Err(Error::Unavailable)
     }
+    /// The house's latest signed head of its audit chain (T9, GET /v1/house/head). Read-only.
+    async fn house_head(&self) -> Result<table_proto::SignedHouseHead, Error> {
+        Err(Error::Unavailable)
+    }
+    /// The house's signed chain hash at `rows` (T9, GET /v1/house/prefix). Read-only.
+    async fn house_prefix(&self, _rows: u64) -> Result<table_proto::SignedHousePrefix, Error> {
+        Err(Error::Unavailable)
+    }
     /// A bodiless request to the deployment's health route: wakes a sleeping host (the co-hosted
     /// HOUSE) and carries nothing. Implementations without a host to wake say so.
     async fn wake(&self) -> Result<(), Error> {
@@ -129,6 +137,21 @@ impl Client {
         self.origin
             .join(&format!("v1/mailbox/{}{suffix}", mailbox.hex()))
             .map_err(|_| Error::Invalid)
+    }
+    /// A small answer (a signed head or prefix), read whole up to 4 KiB.
+    async fn bounded(mut response: reqwest::Response) -> Result<Vec<u8>, Error> {
+        const MAX: usize = 4096;
+        if response.content_length().is_some_and(|n| n > MAX as u64) {
+            return Err(Error::Invalid);
+        }
+        let mut bytes = Vec::new();
+        while let Some(chunk) = response.chunk().await.map_err(|_| Error::Unavailable)? {
+            if bytes.len().saturating_add(chunk.len()) > MAX {
+                return Err(Error::Invalid);
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        Ok(bytes)
     }
     async fn checked(request: reqwest::RequestBuilder) -> Result<reqwest::Response, Error> {
         let mut response = request.send().await.map_err(|_| Error::Unavailable)?;
@@ -177,6 +200,23 @@ impl RelayApi for Client {
             bytes.extend_from_slice(&chunk);
         }
         serde_json::from_slice(&bytes).map_err(|_| Error::Invalid)
+    }
+    async fn house_head(&self) -> Result<table_proto::SignedHouseHead, Error> {
+        let url = self
+            .origin
+            .join("v1/house/head")
+            .map_err(|_| Error::Invalid)?;
+        serde_json::from_slice(&Self::bounded(Self::checked(self.http.get(url)).await?).await?)
+            .map_err(|_| Error::Invalid)
+    }
+    async fn house_prefix(&self, rows: u64) -> Result<table_proto::SignedHousePrefix, Error> {
+        let url = self
+            .origin
+            .join("v1/house/prefix")
+            .map_err(|_| Error::Invalid)?;
+        let request = self.http.get(url).query(&[("rows", rows.to_string())]);
+        serde_json::from_slice(&Self::bounded(Self::checked(request).await?).await?)
+            .map_err(|_| Error::Invalid)
     }
     async fn wake(&self) -> Result<(), Error> {
         // The rendezvous service's own /healthz route (services/rendezvous), not a PayPal call.

@@ -1,3 +1,4 @@
+use crate::glass::Published;
 use crate::{Decision, Policy};
 use axum::{
     Json, Router,
@@ -9,8 +10,8 @@ use axum::{
 use ed25519_dalek::{Signer, SigningKey};
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use table_app::{
     AgentRequest, AgentRole, AgentScope, AgentService, Authority, OfferInput, Pipeline, Wallet,
@@ -18,8 +19,8 @@ use table_app::{
 use table_core::*;
 use table_ledger::{Counterparty, Direction, Ledger, LedgerError, PairedVia};
 use table_proto::{
-    AgentSigner, Body, HouseRelease, HouseRequest, HouseResponse, HouseTable, PairingIdentity,
-    ReasonCode, ShortText, SignedPairingIdentity,
+    AgentSigner, Body, HouseRefusals, HouseRelease, HouseRequest, HouseResponse, HouseTable,
+    PairingIdentity, ReasonCode, ShortText, SignedHousePrefix, SignedPairingIdentity,
 };
 use tokio::sync::{Notify, mpsc, oneshot};
 
@@ -151,13 +152,13 @@ impl<K: Hash + Eq + Copy, S: PartialEq + Copy> PollSchedule<K, S> {
 pub struct Seller {
     pub pipeline: Pipeline,
     owner: SigningKey,
-    agent: SigningKey,
-    release: HouseRelease,
-    mandate: OpenMandate,
-    policy: Policy,
+    pub(crate) agent: SigningKey,
+    pub(crate) release: HouseRelease,
+    pub(crate) mandate: OpenMandate,
+    pub(crate) policy: Policy,
     terms: Terms,
     category: Category,
-    clock: Arc<dyn Clock>,
+    pub(crate) clock: Arc<dyn Clock>,
     relay: Arc<dyn table_relay::RelayApi>,
     polls: PollSchedule<DealId, DealState>,
     log: Arc<dyn Log>,
@@ -166,6 +167,11 @@ pub struct Seller {
     failing: HashMap<(Option<DealId>, &'static str), &'static str>,
     /// Clock seconds of the actor's last sign of life, read by `/healthz`.
     heartbeat: Arc<AtomicI64>,
+    /// Table requests turned away since start (T9), by fixed reason code.
+    pub(crate) refusals: HouseRefusals,
+    /// The public projection and signed head the read routes serve (T9).
+    pub(crate) published: Arc<RwLock<Option<Arc<Published>>>>,
+    pub(crate) published_at: Option<i64>,
 }
 
 /// A money operation reserved (its request id written) but never finished: the process stopped
@@ -287,6 +293,12 @@ impl Seller {
             terms,
             category,
             heartbeat: Arc::new(AtomicI64::new(clock.now())),
+            refusals: HouseRefusals {
+                since: clock.now(),
+                ..HouseRefusals::default()
+            },
+            published: Arc::new(RwLock::new(None)),
+            published_at: None,
             clock,
             relay,
             polls: PollSchedule::new(),
@@ -375,7 +387,16 @@ impl Seller {
         }
         result
     }
+    /// Seats a buyer at a new table. A request turned away is counted by its fixed reason code
+    /// for the public ledger (T9) and writes nothing.
     pub fn table(&mut self, request: HouseRequest) -> Result<HouseResponse, Error> {
+        let result = self.seat(request);
+        if let Err(error) = &result {
+            self.note_refusal(error);
+        }
+        result
+    }
+    fn seat(&mut self, request: HouseRequest) -> Result<HouseResponse, Error> {
         let now = self.clock.now();
         self.pipeline.wallet.ledger.active_mandate(
             self.mandate.payload.id,
@@ -843,6 +864,7 @@ type Reply = oneshot::Sender<Result<HouseResponse, Error>>;
 enum Message {
     Table(HouseRequest, Reply),
     Snapshot(DealId, oneshot::Sender<Result<Deal, Error>>),
+    Prefix(u64, oneshot::Sender<Result<SignedHousePrefix, Error>>),
 }
 #[derive(Clone)]
 pub struct HouseHandle {
@@ -850,6 +872,8 @@ pub struct HouseHandle {
     heartbeat: Arc<AtomicI64>,
     clock: Arc<dyn Clock>,
     timeout: Duration,
+    /// The actor's latest published projection and head; the read routes serve only this.
+    published: Arc<RwLock<Option<Arc<Published>>>>,
 }
 impl std::fmt::Debug for HouseHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -875,10 +899,20 @@ impl HouseHandle {
         let (tx, rx) = oneshot::channel();
         self.ask(Message::Table(request, tx), rx).await
     }
-    /// Trusted Rust inspection; no public HTTP route exposes financial state.
+    /// Trusted Rust inspection of one full deal row (PayPal ids included); never served over
+    /// HTTP. The public view is [`HouseHandle::published`].
     pub async fn snapshot(&self, id: DealId) -> Result<Deal, Error> {
         let (tx, rx) = oneshot::channel();
         self.ask(Message::Snapshot(id, tx), rx).await
+    }
+    /// The house's signed chain hash at `rows`, from the published chain (signed by the actor).
+    pub async fn prefix(&self, rows: u64) -> Result<SignedHousePrefix, Error> {
+        let (tx, rx) = oneshot::channel();
+        self.ask(Message::Prefix(rows, tx), rx).await
+    }
+    /// The latest published projection and signed head (T9); `None` before the first refresh.
+    pub fn published(&self) -> Option<Arc<Published>> {
+        self.published.read().ok().and_then(|p| p.clone())
     }
     /// False when the actor has shown no sign of life for more than [`HEARTBEAT_STALE`] seconds
     /// (stalled or dead).
@@ -917,6 +951,7 @@ pub fn start(mut seller: Seller) -> House {
         heartbeat: seller.heartbeat.clone(),
         clock: seller.clock.clone(),
         timeout: REPLY_TIMEOUT,
+        published: seller.published.clone(),
     };
     let stop = Arc::new(Notify::new());
     let stopped = stop.clone();
@@ -926,6 +961,8 @@ pub fn start(mut seller: Seller) -> House {
                 .log
                 .line(&format!("house step=startup deal=- error={}", e.code()));
         }
+        let published = seller.publish().map(|_| ());
+        let _ = seller.noted("publish", None, published);
         let mut timer = tokio::time::interval(Duration::from_secs(1));
         timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
@@ -936,11 +973,15 @@ pub fn start(mut seller: Seller) -> House {
                 request=rx.recv()=>match request {
                     Some(Message::Table(request,reply))=>{if !reply.is_closed(){let _=reply.send(seller.table(request));}},
                     Some(Message::Snapshot(id,reply))=>{let _=reply.send(seller.pipeline.wallet.ledger.get_deal(id).map_err(Error::from));},
+                    Some(Message::Prefix(rows,reply))=>{let _=reply.send(seller.prefix(rows));},
                     None=>break,
                 },
                 _=timer.tick()=>{
                     // The tick beats the heartbeat and logs each failed step itself.
                     let _=seller.tick().await;
+                    // The public projection and head, at most once a minute (T9).
+                    let refreshed=seller.refresh();
+                    let _=seller.noted("publish",None,refreshed);
                 },
             }
         }
@@ -953,6 +994,12 @@ pub fn router(relay: Arc<rendezvous::MemoryStore>, house: HouseHandle) -> Router
         Router::new()
             .route("/healthz", get(healthz))
             .route("/v1/house/tables", post(table))
+            .route("/v1/house/head", get(crate::routes::head))
+            .route("/v1/house/prefix", get(crate::routes::prefix))
+            .route("/v1/house/ledger", get(crate::routes::ledger))
+            .route("/house", get(crate::routes::scoreboard))
+            .route("/house/scoreboard.css", get(crate::routes::scoreboard_css))
+            .route("/house/scoreboard.js", get(crate::routes::scoreboard_js))
             .layer(DefaultBodyLimit::max(16384))
             .with_state(house),
     )
@@ -965,7 +1012,7 @@ async fn healthz(State(house): State<HouseHandle>) -> StatusCode {
     }
 }
 /// Mandate clause 5 (velocity): the signed per-day deal count and total.
-const DAILY_LIMIT_CLAUSE: u8 = 5;
+pub(crate) const DAILY_LIMIT_CLAUSE: u8 = 5;
 async fn table(
     State(house): State<HouseHandle>,
     Json(request): Json<HouseRequest>,
@@ -1050,6 +1097,7 @@ mod tests {
                 heartbeat: Arc::new(AtomicI64::new(beat)),
                 clock: Arc::new(Fixed(100)),
                 timeout,
+                published: Arc::new(RwLock::new(None)),
             },
             rx,
         )

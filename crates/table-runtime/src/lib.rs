@@ -21,6 +21,7 @@ mod simulate;
 #[cfg(test)]
 mod tests;
 pub mod vault;
+mod witness;
 pub use actor::*;
 pub use service::*;
 use table_client::{CommandError, ErrorCode};

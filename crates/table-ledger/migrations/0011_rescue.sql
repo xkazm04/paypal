@@ -1,4 +1,4 @@
--- Subscription rescue, one lever (DECISIONS 13): a failed renewal and its one fix, and the rescue
+-- 0011 (user_version 11). Subscription rescue, one lever (DECISIONS 13): a failed renewal and its one fix, and the rescue
 -- invoice's two PayPal steps as reserved money operations with one request id each, exactly like
 -- the order steps. SQLite cannot widen a CHECK in place, so `operations` is rebuilt with its rows,
 -- and `operation_checks` (which references it) with it. Columns and keys are unchanged.

@@ -127,20 +127,21 @@ async fn invoice_numbers_are_short_deterministic_and_search_is_a_read() {
             .as_deref(),
         Some(number.as_str())
     );
-    let requests = fake.requests.lock().unwrap();
-    assert_eq!(
-        requests[1].url,
-        "https://api-m.sandbox.paypal.com/v2/invoicing/search-invoices"
-    );
-    assert_eq!(requests[1].body, Some(json!({"invoice_number": number})));
-    // A search sends no request id: it is a read and reserves nothing.
-    assert!(
-        !requests[1]
-            .headers
-            .iter()
-            .any(|(name, _)| name == "PayPal-Request-Id")
-    );
-    drop(requests);
+    {
+        let requests = fake.requests.lock().unwrap();
+        assert_eq!(
+            requests[1].url,
+            "https://api-m.sandbox.paypal.com/v2/invoicing/search-invoices"
+        );
+        assert_eq!(requests[1].body, Some(json!({"invoice_number": number})));
+        // A search sends no request id: it is a read and reserves nothing.
+        assert!(
+            !requests[1]
+                .headers
+                .iter()
+                .any(|(name, _)| name == "PayPal-Request-Id")
+        );
+    }
     assert!(client.search_invoices("bad number").await.is_err());
     let mut bad = invoice_request();
     bad.invoice_number = "x".repeat(26);

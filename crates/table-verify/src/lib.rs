@@ -4,7 +4,9 @@
 //! and everything that does not. The bundle's own keys are the trust anchors; the report prints
 //! the owner key id so a checker can compare it with the one the owner shows them.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
+mod house;
 use ed25519_dalek::{Signature, VerifyingKey};
+pub use house::*;
 use serde_json::Value;
 use table_core::{
     Clause, DealId, DealKind, DecidedBy, H256, KeyId, Mode, Side, canonical_bytes, invoice_id,
