@@ -185,7 +185,56 @@ impl Ledger {
             },
             money_check: self.money_check(id)?,
             house_record: self.house_record(id)?,
+            fair_price: self.fair_price(id)?,
         })
+    }
+    /// The deal's fair-price certificate (market-data-2), computed again from the wallet's own
+    /// hash-chained rows: the market record its agreement row committed to, re-checked from
+    /// the kept comparables; before agreement, the latest market price.
+    pub fn fair_price(&self, id: DealId) -> Result<Option<table_core::FairPrice>, LedgerError> {
+        let deal = read_deal(&self.conn, id)?;
+        let mut statement = self.conn.prepare(
+            "SELECT action,detail_json FROM audit_log WHERE deal_id=?1 AND action IN ('deal.transition','market.observed') ORDER BY seq",
+        )?;
+        let rows = statement
+            .query_map([id.to_string()], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        let parsed: Vec<(String, serde_json::Value)> = rows
+            .into_iter()
+            .map(|(action, detail)| {
+                (
+                    action,
+                    serde_json::from_str(&detail).unwrap_or(serde_json::Value::Null),
+                )
+            })
+            .collect();
+        let found = table_core::market_rows(
+            parsed
+                .iter()
+                .map(|(action, detail)| (action.as_str(), detail)),
+        );
+        Ok(table_core::fair_price(
+            found.commitment.as_ref(),
+            &found.observed,
+            if found.agreed {
+                None
+            } else {
+                deal.market.as_ref()
+            },
+            deal.terms.unit_price,
+        )
+        .or_else(|| {
+            // Agreed with no market price at the time: the latest one, if any, is not what the
+            // deal was bargained on, so it is shown uncommitted.
+            found
+                .agreed
+                .then(|| {
+                    table_core::fair_price(None, &[], deal.market.as_ref(), deal.terms.unit_price)
+                })
+                .flatten()
+        }))
     }
     /// Only own-account reporting can promote seller attestation. This grants no payment authority.
     pub fn confirm_reporting(

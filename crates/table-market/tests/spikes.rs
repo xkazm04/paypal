@@ -40,6 +40,6 @@ async fn spike_7_channel3_demo_monitor_tracking() {
     let history = client.history(&product, 1).await;
     println!(
         "TABLE_SPIKE_EVIDENCE:{}",
-        serde_json::json!({"spike":7,"product_id":product,"currency":"USD","p25_minor":reference.p25.minor(),"median_minor":reference.median.minor(),"p75_minor":reference.p75.minor(),"response_hash":reference.response_hash,"retrieved_at":reference.retrieved_at,"tracking":"active","history_points":history.as_ref().ok().map(|h|h.len()),"history_status":if history.is_ok(){"available"}else{"unverified"},"history_failure":history.as_ref().err().map(|e|e.to_string()),"verdict":"comparables_and_tracking_verified"})
+        serde_json::json!({"spike":7,"product_id":product,"currency":"USD","p25_minor":reference.p25.minor(),"median_minor":reference.median.minor(),"p75_minor":reference.p75.minor(),"response_hash":reference.response_hash,"retrieved_at":reference.retrieved_at,"comparables":reference.certificate.as_ref().map(|c|c.comparables.len()),"comparables_with_id":reference.certificate.as_ref().map(|c|c.comparables.iter().filter(|x|x.product_id.is_some()).count()),"tracking":"active","history_points":history.as_ref().ok().map(|h|h.len()),"history_status":if history.is_ok(){"available"}else{"unverified"},"history_failure":history.as_ref().err().map(|e|e.to_string()),"verdict":"comparables_and_tracking_verified"})
     );
 }

@@ -159,3 +159,206 @@ async fn a_v2_proof_shows_the_checklist_behind_each_owner_decision_and_one_reque
     assert_eq!(file.same_version, Some(false));
     assert_eq!(file.authority_manifest, Some(H256([5; 32]).hex()));
 }
+
+/// market-data-2: a re-checkable market record of `prices` (minor units) for the deal's item.
+fn certified(deal: &Deal, prices: &[i64], at: Timestamp) -> MarketRef {
+    let comparables = prices
+        .iter()
+        .enumerate()
+        .map(|(i, minor)| MarketComparable {
+            minor: *minor,
+            product_id: Some(format!("similar-{i}")),
+        })
+        .collect();
+    MarketRef::certified(
+        MarketCertificate::new(
+            deal.terms.item_ref.as_str().into(),
+            H256::digest(format!("raw {prices:?}").as_bytes()),
+            MarketMatch::Similar,
+            deal.terms.currency,
+            comparables,
+        )
+        .unwrap(),
+        at,
+    )
+    .unwrap()
+}
+/// The wallet commits the digest of the market record it bargained on into the row of the deal's
+/// agreement; the proof file carries the comparables, and the verifier computes the quartiles
+/// again, matches the digest and reports where the price sits. A later market price does not
+/// change what the deal was agreed on, and a forged comparable fails the `market` check.
+#[tokio::test]
+async fn a_fair_price_certificate_is_committed_at_agreement_and_computed_again_offline() {
+    let (mut r, vault, _http, _clock, _) = runtime(true);
+    credentials(vault.as_ref());
+    let (deal, peer) = setup_unpriced(&mut r, Side::Seller, Delivery::DigitalNow);
+    assert_eq!(deal.terms.unit_price.minor(), 1200);
+    // 1200 sits above 1000 and 1100 and below 1300 and 1500: the 50th percentile of four.
+    let bargained = certified(&deal, &[1500, 1000, 1300, 1100], 100);
+    r.pipeline
+        .wallet
+        .ledger
+        .store_market_reference(deal.id, &bargained, 100)
+        .unwrap();
+    // Before agreement the evidence shows the latest price, not yet committed.
+    let early = r
+        .pipeline
+        .wallet
+        .ledger
+        .fair_price(deal.id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (early.state, early.committed, early.percentile, early.prices),
+        (FairPriceState::Rechecked, false, Some(50), 4)
+    );
+    agree(&mut r, &deal, &peer);
+    let agreed = r
+        .pipeline
+        .wallet
+        .ledger
+        .fair_price(deal.id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (agreed.state, agreed.committed, agreed.percentile),
+        (FairPriceState::Rechecked, true, Some(50))
+    );
+    // A market price read after agreement does not move the certificate.
+    let later = certified(&deal, &[900, 950, 1000], 101);
+    r.pipeline
+        .wallet
+        .ledger
+        .store_market_reference(deal.id, &later, 101)
+        .unwrap();
+    let evidence = r.pipeline.wallet.ledger.deal_evidence(deal.id).unwrap();
+    let fair = evidence.fair_price.unwrap();
+    assert_eq!(
+        (
+            fair.state,
+            fair.committed,
+            fair.percentile,
+            fair.prices,
+            fair.retrieved_at
+        ),
+        (FairPriceState::Rechecked, true, Some(50), 4, Some(100))
+    );
+    let bundle = assert_proof_verifies(&r, deal.id);
+    let line = proof_line(&bundle, "market");
+    assert!(line.ok && line.applies, "{line:?}");
+    assert!(
+        line.detail
+            .starts_with("12.00 USD is the 50th percentile of 4 market prices"),
+        "{line:?}"
+    );
+    // The agreement row commits to the bargained record's digest, in the hash chain.
+    let agreement = bundle
+        .audit
+        .iter()
+        .find(|r| r.action == "deal.transition" && r.detail_json.contains("\"to\":\"AGREED\""))
+        .unwrap();
+    assert!(
+        agreement
+            .detail_json
+            .contains(&serde_json::to_string(&bargained.digest().unwrap().unwrap()).unwrap()),
+        "{}",
+        agreement.detail_json
+    );
+    // The file keeps typed numbers and ids only.
+    let text = serde_json::to_string(&bundle).unwrap();
+    assert!(text.contains("similar-3"));
+
+    // A forged comparable in the deal's latest record: it no longer computes to its quartiles.
+    assert_forgery_fails(&r, &bundle, "market", |p| {
+        let market = p.deal.market.as_mut().unwrap();
+        market.certificate.as_mut().unwrap().comparables[0].minor = 901;
+    });
+    // A forged comparable in the bargained record, with its quartiles recomputed so the record
+    // is consistent on its own: its digest is no longer the one the agreement row committed to.
+    assert_forgery_fails(&r, &bundle, "market", |p| {
+        let first = p
+            .audit
+            .iter_mut()
+            .find(|r| r.action == "market.observed")
+            .unwrap();
+        let mut detail: serde_json::Value = serde_json::from_str(&first.detail_json).unwrap();
+        let mut forged: MarketRef = serde_json::from_value(detail["reference"].clone()).unwrap();
+        let mut certificate = forged.certificate.take().unwrap();
+        certificate.comparables[0].minor = 1050;
+        forged = MarketRef::certified(certificate, forged.retrieved_at).unwrap();
+        detail["reference"] = serde_json::to_value(&forged).unwrap();
+        first.detail_json = String::from_utf8(canonical_bytes(&detail).unwrap()).unwrap();
+    });
+    // The bargained record left out of the file.
+    assert_forgery_fails(&r, &bundle, "market", |p| {
+        let first = p
+            .audit
+            .iter()
+            .find(|r| r.action == "market.observed")
+            .unwrap()
+            .seq;
+        p.audit.retain(|r| r.seq != first);
+    });
+}
+
+/// A deal agreed on an older market record (no comparables kept) still loads and its file still
+/// verifies: the market line reads "not checked", as it does for a deal agreed with no market
+/// price at all. Neither is a pass.
+#[tokio::test]
+async fn an_older_market_record_still_verifies_and_reads_not_recheckable() {
+    let (mut r, vault, _http, _clock, _) = runtime(true);
+    credentials(vault.as_ref());
+    let (deal, peer) = setup_unpriced(&mut r, Side::Seller, Delivery::DigitalNow);
+    let older = MarketRef::from_comparables(vec![deal.terms.unit_price], 100, H256::ZERO).unwrap();
+    r.pipeline
+        .wallet
+        .ledger
+        .store_market_reference(deal.id, &older, 100)
+        .unwrap();
+    agree(&mut r, &deal, &peer);
+    assert!(
+        r.pipeline
+            .wallet
+            .ledger
+            .get_deal(deal.id)
+            .unwrap()
+            .market
+            .is_some()
+    );
+    let fair = r
+        .pipeline
+        .wallet
+        .ledger
+        .fair_price(deal.id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (fair.state, fair.committed, fair.percentile),
+        (FairPriceState::NotRecheckable, true, None)
+    );
+    let bundle = assert_proof_verifies(&r, deal.id);
+    let line = proof_line(&bundle, "market");
+    assert!(
+        !line.ok && !line.applies && line.detail.contains("older market record"),
+        "{line:?}"
+    );
+
+    let (mut r, vault, _http, _clock, _) = runtime(true);
+    credentials(vault.as_ref());
+    let (deal, peer) = setup_unpriced(&mut r, Side::Seller, Delivery::DigitalNow);
+    agree(&mut r, &deal, &peer);
+    assert!(
+        r.pipeline
+            .wallet
+            .ledger
+            .fair_price(deal.id)
+            .unwrap()
+            .is_none()
+    );
+    let bundle = assert_proof_verifies(&r, deal.id);
+    let line = proof_line(&bundle, "market");
+    assert!(
+        !line.ok && !line.applies && line.detail.contains("no market price"),
+        "{line:?}"
+    );
+}
