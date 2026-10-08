@@ -54,6 +54,24 @@ impl Ledger {
         })
         .transpose()
     }
+    /// When this wallet signed the deal's latest outbound SETTLE (its `iat`): a buyer wallet
+    /// counts its approval window, and its grace for the RECEIPT, from it. `None` before one.
+    pub fn settle_signed_at(&self, id: DealId) -> Result<Option<Timestamp>, LedgerError> {
+        use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+        let raw: Option<String> = self.conn.query_row("SELECT raw_jws FROM envelopes WHERE deal_id=?1 AND dir='out' AND typ='SETTLE' ORDER BY rowid DESC LIMIT 1",[id.to_string()],|r|r.get(0)).optional()?;
+        raw.map(|raw| {
+            let bytes = URL_SAFE_NO_PAD
+                .decode(
+                    raw.split('.')
+                        .nth(1)
+                        .ok_or(LedgerError::Integrity("envelope shape"))?,
+                )
+                .map_err(|_| LedgerError::Integrity("envelope encoding"))?;
+            let e: table_proto::Envelope = serde_json::from_slice(&bytes)?;
+            Ok(e.iat)
+        })
+        .transpose()
+    }
     pub fn negotiation_status(&self, id: DealId) -> Result<Option<NegotiationStatus>, LedgerError> {
         Ok(self
             .conn

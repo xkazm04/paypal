@@ -1406,7 +1406,8 @@ impl Ledger {
             )
             .optional()?
             .ok_or(LedgerError::NotFound)?;
-        if due > at {
+        let deal = read_deal(&tx, id)?;
+        if due.saturating_add(crate::receipt::lapse_grace(&tx, &deal)?) > at {
             return Err(LedgerError::Conflict);
         }
         apply_decided(

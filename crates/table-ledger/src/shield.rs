@@ -74,8 +74,10 @@ impl Ledger {
     /// Records the verdict the shield computed for a money step on `terms_hash`, and the rule
     /// that decided it, in the deal row and one audit row. Writes only when something changed,
     /// so a step the scheduler retries every tick records its verdict once. A raised verdict is
-    /// only ever raised further here (it stays raised); a BLOCK never changes. A release survives
-    /// only a HOLD recorded again for the same terms. Returns whether a row was written.
+    /// only ever raised further here (it stays raised), or, when released, takes the rule of a
+    /// HOLD its release does not cover; a BLOCK never changes. A release survives only a HOLD
+    /// recorded again for the same terms, and covers only the rules it names. Returns whether a
+    /// row was written.
     pub fn record_shield(
         &mut self,
         id: DealId,
@@ -88,8 +90,22 @@ impl Ledger {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let s = stored(&tx, id)?;
+        // A raised HOLD with a release for these terms, and a HOLD judged for a rule on the
+        // other side of that release: a rule it does not cover (a new hold the release would
+        // otherwise hide), or one it does once the uncovered rule stopped holding. The judged
+        // rule is recorded, so the deal shows the hold that is really there, naming its rule;
+        // the release stays beside it for the rules it covers (the owner's next release adds
+        // the rest). Without a live release nothing is hidden and nothing changes here.
+        let moved = s.raised()
+            && verdict == ShieldVerdict::Hold
+            && s.verdict == Some(verdict)
+            && rule.is_some()
+            && rule != s.rule
+            && s.release
+                .as_ref()
+                .is_some_and(|r| r.terms_hash == terms_hash && r.covers(rule) != r.covers(s.rule));
         let terms = if s.raised() {
-            if s.verdict.is_some_and(|old| verdict <= old) {
+            if s.verdict.is_some_and(|old| verdict <= old) && !moved {
                 return Ok(false);
             }
             None
@@ -244,9 +260,10 @@ impl Ledger {
         tx.commit()?;
         Ok(())
     }
-    /// One audit row per (deal, money step, verdict) the shield refused: a refusal the scheduler
-    /// meets again on every tick is recorded once. Nothing else is written: no operation, no
-    /// PayPal call. Returns whether the row was new.
+    /// One audit row per refusal of a money step by the shield: a refusal the scheduler meets
+    /// again on every tick (same step, verdict, rule and terms, nothing in the shield's record
+    /// changed since) is recorded once. Nothing else is written: no operation, no PayPal call.
+    /// Returns whether the row was new.
     #[allow(clippy::too_many_arguments)] // One typed column per fact the row records.
     pub fn record_shield_refusal(
         &mut self,
@@ -261,9 +278,19 @@ impl Ledger {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let terms = read_deal(&tx, id)?.terms.hash()?;
+        // The same refusal again (step, verdict, rule and terms) is one row while the shield's
+        // record of the deal has not changed since it; after a new hold, a release or a new
+        // verdict, the step refused again is another refusal and gets its own row.
         let seen: bool = tx.query_row(
-            "SELECT EXISTS(SELECT 1 FROM audit_log WHERE deal_id=?1 AND action='shield.refused' AND json_extract(detail_json,'$.step')=?2 AND json_extract(detail_json,'$.verdict')=?3)",
-            params![id.to_string(), step, enum_text(&verdict)?],
+            "SELECT EXISTS(SELECT 1 FROM audit_log r WHERE r.deal_id=?1 AND r.action='shield.refused' AND json_extract(r.detail_json,'$.step')=?2 AND json_extract(r.detail_json,'$.verdict')=?3 AND json_extract(r.detail_json,'$.rule') IS ?4 AND json_extract(r.detail_json,'$.terms_hash') IS json(?5) AND r.seq>(SELECT COALESCE(MAX(c.seq),0) FROM audit_log c WHERE c.deal_id=?1 AND c.action IN ('shield.checked','shield.raised','shield.released')))",
+            params![
+                id.to_string(),
+                step,
+                enum_text(&verdict)?,
+                rule.as_ref().map(enum_text).transpose()?,
+                serde_json::to_string(&terms)?,
+            ],
             |r| r.get(0),
         )?;
         if seen {
@@ -281,6 +308,7 @@ impl Ledger {
                     "attempt": attempt,
                     "verdict": verdict,
                     "rule": rule,
+                    "terms_hash": terms,
                     "refused_authority": refused,
                 }),
             },

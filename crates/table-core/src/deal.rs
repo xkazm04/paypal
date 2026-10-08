@@ -115,6 +115,13 @@ pub const ORDER_APPROVAL_SECS: i64 = 6 * 3600;
 /// now frees its slot after 30 minutes instead of 6 hours. Both the HOUSE and a buyer wallet
 /// that paired with the HOUSE through its release pin use it, so the buyer's countdown is true.
 pub const HOUSE_APPROVAL_SECS: i64 = 30 * 60;
+/// How long past [`HOUSE_APPROVAL_SECS`] a buyer wallet paired with the HOUSE waits before an
+/// order still out for approval lapses there. The HOUSE may see the approval in the last seconds
+/// of its window, then authorize, capture and relay its RECEIPT; the buyer's wallet must still be
+/// listening when it lands. The person's approval countdown still ends with the HOUSE's window;
+/// only the lapse waits, and waiting moves no money. house-seller asserts at compile time that it
+/// covers the HOUSE's slowest finish, and the HOUSE voids rather than capture when it could not.
+pub const HOUSE_RECEIPT_GRACE_SECS: i64 = 15 * 60;
 impl DealState {
     pub const fn pre_capture(self) -> bool {
         matches!(

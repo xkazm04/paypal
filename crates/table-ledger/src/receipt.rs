@@ -3,7 +3,7 @@ use crate::{
     AuditEntry, Direction, Ledger, LedgerError, audit,
     repositories::{append_verified, apply, read_deal},
 };
-use rusqlite::{TransactionBehavior, params};
+use rusqlite::{Connection, TransactionBehavior, params};
 use table_core::*;
 use table_proto::{Body, ReceiptStatus, VerifiedEnvelope};
 // Same local identifier policy as table-paypal::ResourceId. Peer prose must not
@@ -15,7 +15,40 @@ fn paypal_identifier(id: &str) -> bool {
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
 }
+fn paired_via_house(conn: &Connection, deal: &Deal) -> Result<bool, LedgerError> {
+    Ok(conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM counterparties WHERE key_id=?1 AND paired_via='house')",
+        [deal.counterparty.as_str()],
+        |r| r.get(0),
+    )?)
+}
+/// How long past its recorded deadline a deal waits before the safe default lets it lapse.
+/// Zero, except for a buyer deal paired with the HOUSE whose order is out for approval: the
+/// HOUSE may see the approval in the last seconds of its window and then authorize, capture and
+/// relay its RECEIPT, so this wallet waits [`HOUSE_RECEIPT_GRACE_SECS`] more for it. The recorded
+/// deadline (the person's approval countdown) is unchanged; waiting moves no money.
+pub(crate) fn lapse_grace(conn: &Connection, deal: &Deal) -> Result<i64, LedgerError> {
+    let awaiting = deal.side == Side::Buyer
+        && matches!(
+            deal.state,
+            DealState::AwaitingApproval | DealState::Approved
+        );
+    Ok(if awaiting && paired_via_house(conn, deal)? {
+        HOUSE_RECEIPT_GRACE_SECS
+    } else {
+        0
+    })
+}
 impl Ledger {
+    /// When the deal's safe default applies: its recorded deadline plus [`lapse_grace`]; `None`
+    /// when the deal has no deadline.
+    pub fn lapse_at(&self, id: DealId) -> Result<Option<Timestamp>, LedgerError> {
+        let Some((due, _)) = self.deadline(id)? else {
+            return Ok(None);
+        };
+        let deal = read_deal(&self.conn, id)?;
+        Ok(Some(due.saturating_add(lapse_grace(&self.conn, &deal)?)))
+    }
     pub fn accept_buyer_settle(
         &mut self,
         verified: &VerifiedEnvelope,
@@ -70,12 +103,7 @@ impl Ledger {
         apply(&tx, deal.id, DealEvent::SettleVerified, at)?;
         // A seller paired through the HOUSE release pin lets its order lapse sooner
         // (HOUSE_APPROVAL_SECS), so this wallet's countdown matches the seller's.
-        let house: bool = tx.query_row(
-            "SELECT EXISTS(SELECT 1 FROM counterparties WHERE key_id=?1 AND paired_via='house')",
-            [deal.counterparty.as_str()],
-            |r| r.get(0),
-        )?;
-        let window = if house {
+        let window = if paired_via_house(&tx, &deal)? {
             HOUSE_APPROVAL_SECS
         } else {
             ORDER_APPROVAL_SECS
