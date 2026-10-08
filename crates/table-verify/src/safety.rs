@@ -16,7 +16,7 @@ use table_proto::{ProofAuditRow, ProofBundle, ProofOperation};
 /// The offline verifier's checks every exported deal is held to. Left out: the file's format,
 /// permissions fingerprint and evidence signature, which the runtime adds when it signs an export
 /// for sharing; the predicate reads unsigned ledger slices.
-pub const VERIFIER_CHECKS: [&str; 12] = [
+pub const VERIFIER_CHECKS: [&str; 13] = [
     "mandate",
     "transcript",
     "countersign",
@@ -29,6 +29,7 @@ pub const VERIFIER_CHECKS: [&str; 12] = [
     "group",
     "shield",
     "house_record",
+    "market",
 ];
 
 /// What kind of break a [`Violation`] is. Closed, so a client can say it in its own words.

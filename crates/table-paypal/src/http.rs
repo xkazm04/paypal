@@ -46,9 +46,30 @@ impl fmt::Debug for Response {
 #[derive(Debug, Error)]
 #[error("HTTP transport failed (response may be unknown)")]
 pub struct TransportError;
+/// A response exactly as its bytes arrived, before any parsing. Market calls use it so the
+/// wallet hashes what the service actually returned (market-data-2), not a re-serialised body.
+#[derive(Clone)]
+pub struct RawResponse {
+    pub status: u16,
+    pub bytes: Vec<u8>,
+}
+impl fmt::Debug for RawResponse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RawResponse")
+            .field("status", &self.status)
+            .field("len", &self.bytes.len())
+            .finish()
+    }
+}
 #[async_trait]
 pub trait Transport: Send + Sync {
     async fn send(&self, request: Request) -> Result<Response, TransportError>;
+    /// The answer's bytes as they arrived, unparsed. A transport that holds only parsed bodies
+    /// refuses, so a caller never hashes a re-serialised body by mistake.
+    async fn send_raw(&self, request: Request) -> Result<RawResponse, TransportError> {
+        let _ = request;
+        Err(TransportError)
+    }
 }
 /// The bound on one HTTP request (an OAuth token request or an API call), in seconds.
 pub const REQUEST_TIMEOUT_SECS: u64 = 30;
@@ -72,6 +93,21 @@ impl ReqwestTransport {
 #[async_trait]
 impl Transport for ReqwestTransport {
     async fn send(&self, request: Request) -> Result<Response, TransportError> {
+        let RawResponse { status, bytes } = self.fetch(request).await?;
+        let body = if bytes.is_empty() {
+            Value::Null
+        } else {
+            serde_json::from_slice(&bytes).map_err(|_| TransportError)?
+        };
+        Ok(Response { status, body })
+    }
+    async fn send_raw(&self, request: Request) -> Result<RawResponse, TransportError> {
+        self.fetch(request).await
+    }
+}
+impl ReqwestTransport {
+    /// Sends the request and reads at most 1 MiB of the answer, unparsed.
+    async fn fetch(&self, request: Request) -> Result<RawResponse, TransportError> {
         let method =
             reqwest::Method::from_bytes(request.method.as_bytes()).map_err(|_| TransportError)?;
         let mut builder = self.0.request(method, request.url);
@@ -95,12 +131,7 @@ impl Transport for ReqwestTransport {
             }
             bytes.extend_from_slice(&chunk);
         }
-        let body = if bytes.is_empty() {
-            Value::Null
-        } else {
-            serde_json::from_slice(&bytes).map_err(|_| TransportError)?
-        };
-        Ok(Response { status, body })
+        Ok(RawResponse { status, bytes })
     }
 }
 #[async_trait]

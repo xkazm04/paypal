@@ -527,7 +527,8 @@ fn assert_proof_verifies(r: &Runtime, id: DealId) -> table_proto::ProofBundle {
     bundle
 }
 /// The checks the second proof format adds.
-pub(crate) const V2_CHECKS: [&str; 6] = [
+pub(crate) const V2_CHECKS: [&str; 7] = [
+    "market",
     "owner_saw",
     "one_request",
     "group",
@@ -672,7 +673,13 @@ fn setup_delivery(r: &mut Runtime, side: Side, delivery: Delivery) -> (Deal, Age
         .ledger
         .store_market_reference(
             deal.id,
-            &MarketRef::from_comparables(vec![deal.terms.unit_price], 100, H256::ZERO).unwrap(),
+            &MarketRef::certified_prices(
+                deal.terms.item_ref.as_str(),
+                H256::digest(b"similar"),
+                &[deal.terms.unit_price],
+                100,
+            )
+            .unwrap(),
             100,
         )
         .unwrap();
@@ -974,14 +981,17 @@ struct MarketFixture {
 impl table_market::MarketApi for MarketFixture {
     async fn comparables(
         &self,
-        _: &str,
+        product: &str,
         currency: Currency,
     ) -> Result<MarketRef, table_market::Error> {
         self.calls.fetch_add(1, Ordering::SeqCst);
-        Ok(
-            MarketRef::from_comparables(vec![Money::new(1300, currency).unwrap()], 100, H256::ZERO)
-                .unwrap(),
+        Ok(MarketRef::certified_prices(
+            product,
+            H256::digest(b"similar"),
+            &[Money::new(1300, currency).unwrap()],
+            100,
         )
+        .unwrap())
     }
     async fn start_tracking(&self, _: &str) -> Result<(), table_market::Error> {
         unreachable!()
@@ -1001,10 +1011,14 @@ async fn native_market_refresh_checks_owner_before_io_and_rechecks_bound_terms_a
     });
     r.attach_market(market.clone());
     let binding = r.prepare_market(deal.id).unwrap();
-    let reference = MarketRef::from_comparables(
-        vec![Money::new(1300, Currency::USD).unwrap()],
-        100,
+    // No market-watch rule names the item, and the item is named by a market product id: the
+    // item itself is the product.
+    assert_eq!(binding.product_id, "monitor");
+    let reference = MarketRef::certified_prices(
+        "monitor",
         H256::ZERO,
+        &[Money::new(1300, Currency::USD).unwrap()],
+        100,
     )
     .unwrap();
     let mut stale = binding.clone();
@@ -1050,18 +1064,63 @@ async fn native_market_refresh_checks_owner_before_io_and_rechecks_bound_terms_a
     r.selected = Some(deal.id);
     let token = unlock_runtime(&mut r);
     r.attach_market(market.clone());
+    // market-data-2: a record for a product the rules do not bind to the deal's item is
+    // refused, and a record that is not re-checkable is not stored by the owner's refresh.
+    let binding = r.prepare_market(deal.id).unwrap();
+    let other = MarketRef::certified_prices(
+        "product1",
+        H256::ZERO,
+        &[Money::new(1300, Currency::USD).unwrap()],
+        100,
+    )
+    .unwrap();
+    assert!(r.store_market(binding.clone(), other).is_err());
+    let older = MarketRef::from_comparables(
+        vec![Money::new(1300, Currency::USD).unwrap()],
+        100,
+        H256::ZERO,
+    )
+    .unwrap();
+    assert!(r.store_market(binding, older).is_err());
+    // The deal keeps the record its setup stored; neither refused record replaced it.
+    let kept = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().market;
+    assert_eq!(
+        kept.unwrap().certificate.unwrap().raw_sha256,
+        H256::digest(b"similar")
+    );
     let (actor, _events) = spawn(r);
+    assert!(
+        actor
+            .market_refresh(
+                caller("approval", Some(&token)),
+                MarketRefreshArgs {
+                    deal_id: deal.id,
+                    product_id: "product1".into(),
+                },
+            )
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        market.calls.load(Ordering::SeqCst),
+        0,
+        "a product not bound to the item is refused before any market call"
+    );
     let reference = actor
         .market_refresh(
             caller("approval", Some(&token)),
             MarketRefreshArgs {
                 deal_id: deal.id,
-                product_id: "product1".into(),
+                product_id: "monitor".into(),
             },
         )
         .await
         .unwrap();
     assert_eq!(reference.median.minor(), 1300);
+    assert_eq!(
+        reference.certificate.as_ref().unwrap().product_id,
+        "monitor"
+    );
     assert_eq!(market.calls.load(Ordering::SeqCst), 1);
     let stored: Deal = actor
         .execute(caller("main", None), Action::Deal(deal.id))

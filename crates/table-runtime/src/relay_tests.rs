@@ -1144,8 +1144,9 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
     b.execute::<MarketRef>(
         caller("approval", Some(&b_token)),
         Action::MarketStore(
-            binding,
-            MarketRef::from_comparables(vec![terms.unit_price], 100, H256::ZERO).unwrap(),
+            binding.clone(),
+            MarketRef::certified_prices(&binding.product_id, H256::ZERO, &[terms.unit_price], 100)
+                .unwrap(),
         ),
     )
     .await

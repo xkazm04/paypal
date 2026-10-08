@@ -190,6 +190,9 @@
 /* Keep prices fresh (T15): the typical-price card says when a signed rule keeps it fresh. */
 .dv-pc .why .dv-fresh { color: var(--teal); }
 .dv-pc .why .dv-fresh.used { color: var(--gold-l); }
+.dv-pc .why .dv-fair { display: block; margin-top: 2px; color: var(--ok); }
+.dv-pc .why .dv-fair.line { color: inherit; }
+.dv-pc .why .dv-fair.red { color: var(--red-l); }
 /* Agent instructions (agent-tool-surface-1): the run's playbook, word for word, in a sheet. */
 .dv-instr-v { display: inline-flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; }
 .dv-instr-h { margin: var(--sp-3) 0 var(--sp-1); font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); }

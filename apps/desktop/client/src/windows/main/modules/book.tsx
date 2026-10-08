@@ -17,13 +17,14 @@ import type { BookAnswer } from '@bindings/BookAnswer';
 import type { Currency } from '@bindings/Currency';
 import type { JsonValue } from '@bindings/serde_json/JsonValue';
 import type { DealEvidence } from '@bindings/DealEvidence';
+import type { FairPrice } from '@bindings/FairPrice';
 import type { Money } from '@bindings/Money';
 import type { MoneyCheck } from '@bindings/MoneyCheck';
 import { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMinor, shortId } from '../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../../lib/lazy';
-import { AUDIT_BROKEN, heldWords, marketWords, modeWord, moneyCheckWord, receiptWord, stateWord, timeLeftWords } from '../../../lib/words';
+import { AUDIT_BROKEN, FAIR_PRICE_NAME, fairPriceWords, heldWords, marketWords, modeWord, moneyCheckWord, receiptWord, stateWord, timeLeftWords } from '../../../lib/words';
 import { Glyph } from '../../../shared/modules';
 import { Countdown, ModeBadge, WalletNotice } from '../../../shared/honesty';
 import {
@@ -55,12 +56,23 @@ type StmtFilter = 'all' | Statement;
 const TONE: Record<ChipClass, ChipTone | undefined> = { live: 'teal', wait: 'gold', held: 'coral', done: 'ok', bad: 'red', off: undefined };
 const STMT_TONE: Record<Statement, ChipTone | undefined> = { matched: 'ok', pending_reporting: 'gold', mismatch: 'red', not_applicable: undefined, unknown: 'dashed' };
 const wordOf = (d: Deal) => stateWord(d.state, { side: d.side, kind: d.kind });
-/** Where the deal price sits against the market, in words; the percentile stays in the tooltip. */
-function marketText(d: Deal): { text: string; tip: string } | null {
+/** Where the deal price sits against the market, in words; the percentile stays in the tooltip.
+ *  With the deal's fair-price certificate (the market prices it was agreed on, worked out again by
+ *  the wallet), the certificate speaks: its percentile, re-checked, or that the record is older. */
+function marketText(d: Deal, fair: FairPrice | null = null): { text: string; tip: string } | null {
   const m = d.market;
   const u = d.terms.unit_price;
+  if (fair?.state === 'rechecked' && fair.percentile !== null) {
+    const fp = fairPriceWords(fair, u);
+    return { text: fp.short, tip: `${fp.text}. ${fp.means}` };
+  }
+  if (fair?.state === 'broken') {
+    const fp = fairPriceWords(fair, u);
+    return { text: fp.short, tip: fp.means };
+  }
   if (!m || m.median.currency !== u.currency) return null;
-  return { text: marketWords(u.minor, m.p25.minor, m.median.minor, m.p75.minor).text, tip: `${marketPosition(u.minor, m.p25.minor, m.median.minor, m.p75.minor)} of the market range` };
+  const tip = `${marketPosition(u.minor, m.p25.minor, m.median.minor, m.p75.minor)} of the market range`;
+  return { text: marketWords(u.minor, m.p25.minor, m.median.minor, m.p75.minor).text, tip: fair ? `${tip} · ${fairPriceWords(fair, u).text.toLowerCase()}` : tip };
 }
 const QUERY_KEY: Record<string, string> = { view: 'Looks at', filter: 'Only', range: 'When', group_by: 'One line per', metrics: 'Shows' };
 const GROUP_NAME: Partial<Record<Deal['kind'], string>> = { haggle: 'Haggles', purchase: 'Purchases', shop_order: 'Shop orders', rescue: 'Rescues', invoice: 'Invoices' };
@@ -298,7 +310,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
                     <tr key={`g-${k}`} className="grp"><td colSpan={8}>{GROUP_NAME[k] ?? kindLabel(k)} · {rs.length}</td></tr>,
                     ...rs.map((d) => (
                       <GridRow key={d.id} deal={d} label={label(d)} title={w.display(d).title} cpName={cp(d.counterparty).name} statement={evLoading ? null : stmt(d)}
-                        off={!!lit && !lit.has(d.id)} selected={sel === d.id} onOpen={() => setSel(d.id)} />
+                        fair={ev.map.get(d.id)?.fair_price ?? null} off={!!lit && !lit.has(d.id)} selected={sel === d.id} onOpen={() => setSel(d.id)} />
                     )),
                   ];
                 })}
@@ -454,12 +466,12 @@ function StmtChip({ s }: { s: Statement | null }) {
   return <Chip tone={STMT_TONE[s]} className={s === 'pending_reporting' ? 'dashed' : undefined} title={STATEMENT_TIP[s]}>{STATEMENT_WORD[s]}</Chip>;
 }
 
-function GridRow({ deal, label, title, cpName, statement, off, selected, onOpen }: {
-  deal: Deal; label: string; title: string; cpName: string; statement: Statement | null; off: boolean; selected: boolean; onOpen: () => void;
+function GridRow({ deal, label, title, cpName, statement, fair, off, selected, onOpen }: {
+  deal: Deal; label: string; title: string; cpName: string; statement: Statement | null; fair: FairPrice | null; off: boolean; selected: boolean; onOpen: () => void;
 }) {
   const t = dealTotal(deal);
   const b = bucketOf(deal);
-  const mkt = marketText(deal);
+  const mkt = marketText(deal, fair);
   const wd = wordOf(deal);
   const onKey = (e: KeyboardEvent<HTMLTableRowElement>) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); return; }
@@ -761,6 +773,12 @@ function ReadBody({ lens, rows }: { lens: Lens; rows: number }) {
   );
 }
 
+/** The deal's fair-price certificate in one line: "$329.00 is the 62nd percentile of 13 market prices · re-checked". */
+function FairPriceLine({ deal, fair }: { deal: Deal; fair: FairPrice }) {
+  const fp = fairPriceWords(fair, deal.terms.unit_price);
+  return <span title={fp.means}><Chip tone={fp.tone}>{fp.short}</Chip> {fp.text}</span>;
+}
+
 function MarketBand({ deal }: { deal: Deal }) {
   const m = deal.market;
   const u = deal.terms.unit_price;
@@ -812,6 +830,7 @@ function RowDetail({ deal, evidence, evError }: { deal: Deal; evidence: DealEvid
         ['Receipt', evidence ? <span title={receiptWord(evidence.receipt).means}>{receiptWord(evidence.receipt).text}</span> : <span className="dim">unknown</span>],
         ['Statement', <>{STATEMENT_WORD[s]} <span className="dim">· {STATEMENT_TIP[s]}</span></>],
         ['Market', <MarketBand deal={deal} />],
+        evidence?.fair_price ? [FAIR_PRICE_NAME, <FairPriceLine deal={deal} fair={evidence.fair_price} />] : null,
         ['PayPal ids', ids ? <span className="mono dim">{ids}</span> : <span className="dim">no PayPal call</span>],
         ['Rules', <span className="dim" title={`${shortId(deal.mandate_id)} · version ${deal.mandate_version}`}>signed rules, version {deal.mandate_version}</span>],
       ]} />
