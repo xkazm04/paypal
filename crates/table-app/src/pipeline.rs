@@ -404,9 +404,7 @@ impl Pipeline {
                 unit_price: deal.terms.unit_price,
                 // The 40% rule runs on any reference; only a fresh one can clear the deal.
                 market: deal.market.as_ref(),
-                market_fresh: deal.market.as_ref().is_some_and(|m| {
-                    now >= m.retrieved_at && now.saturating_sub(m.retrieved_at) < 900
-                }),
+                market_fresh: market_fresh(deal.market.as_ref(), now),
                 first_seen: self
                     .wallet
                     .ledger

@@ -125,6 +125,7 @@ export function milestones(strip: MirrorStrip): Milestones {
 /** The report's clause numbering (§8): ClauseRef.number uses it (clause 6 = human present). */
 export const CLAUSE_NUMBER: Record<Clause['type'], number> = {
   roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7,
+  market_watch: 9,
 };
 /** A rule's plain name (lib/words.ts RULE_NAME); the number stays for Details only. */
 export const CLAUSE_TITLE: Record<Clause['type'], string> = RULE_NAME;
@@ -207,6 +208,11 @@ export function readClauses(clauses: readonly Clause[], d: Pick<Deal, 'kind' | '
       }
       case 'payees':
         return { reading: 'unknown', fact: 'the payee is checked by your wallet before any payment, not on this screen' };
+      // It only keeps a typical price fresh: it never allows, asks or refuses anything.
+      case 'market_watch':
+        return c.items.some((i) => i.item_ref === d.terms.item_ref)
+          ? { reading: 'na', fact: 'keeps this item’s typical price fresh · it never approves anything' }
+          : { reading: 'na', fact: 'not for this item' };
     }
   }
 }

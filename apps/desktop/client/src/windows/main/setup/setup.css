@@ -283,3 +283,7 @@
 .setup-sheet .cn-m-t { margin: 0; display: flex; flex-direction: column; gap: 2px; color: var(--muted); line-height: 1.35; }
 .setup-sheet .cn-m-t b { color: var(--text); font-weight: var(--fw-semibold); font-size: var(--fs-title3); }
 @media (prefers-reduced-motion: reduce) { .setup-sheet .cn-in em { animation: none; } }
+/* Keep prices fresh (T15): one line per rule under the market step. */
+.setup-sheet .su-s .su-watch { flex-basis: 100%; font-size: var(--fs-small); color: var(--muted); }
+.setup-sheet .su-s .su-watch b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.setup-sheet .su-s .su-watch.used b { color: var(--gold); }

@@ -1,6 +1,38 @@
 use crate::{DomainError, H256, Money, Timestamp};
 use serde::{Deserialize, Serialize};
 
+/// A market reference clears a deal only while it is younger than this (the shield's freshness
+/// bound; older references can still hold a deal, never clear it).
+pub const MARKET_FRESH_SECS: i64 = 900;
+/// A watched item's reference is refreshed this long before it stops being fresh, so the fetch
+/// lands before the bound. The market client serves its cache only while an entry has at least
+/// this much freshness left, so a refresh is never answered with the reference it replaces.
+pub const MARKET_REFRESH_LEAD_SECS: i64 = 60;
+
+/// Whether `market` is recent enough at `now` to clear a deal: retrieved no later than `now` and
+/// less than [`MARKET_FRESH_SECS`] ago.
+pub fn market_fresh(market: Option<&MarketRef>, now: Timestamp) -> bool {
+    market.is_some_and(|m| {
+        now >= m.retrieved_at && now.saturating_sub(m.retrieved_at) < MARKET_FRESH_SECS
+    })
+}
+/// Whether a reference is due a refresh at `now`: absent, from the future, or within
+/// [`MARKET_REFRESH_LEAD_SECS`] of its freshness bound.
+pub fn market_refresh_due(market: Option<&MarketRef>, now: Timestamp) -> bool {
+    !market.is_some_and(|m| {
+        now >= m.retrieved_at
+            && now.saturating_sub(m.retrieved_at) < MARKET_FRESH_SECS - MARKET_REFRESH_LEAD_SECS
+    })
+}
+/// A product id the market service is asked about: 1 to 128 ASCII letters, digits, `-` or `_`.
+pub fn market_product_valid(product: &str) -> bool {
+    !product.is_empty()
+        && product.len() <= 128
+        && product
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
+}
+
 #[derive(ts_rs::TS, Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MarketRef {

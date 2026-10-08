@@ -630,6 +630,24 @@ pub struct OwnerFacts {
     pub engines: Vec<EngineProbe>,
     pub credentials: Vec<CredentialFact>,
     pub agents: Vec<AgentRosterEntry>,
+    /// The rule sets in force that keep market prices fresh (T15), with today's price checks.
+    pub market_watch: Vec<MarketWatchFact>,
+}
+/// A rule set in force with a market-watch rule (T15): the items whose market price the wallet
+/// keeps fresh, and today's price checks against the rule's daily allowance. Reading market
+/// prices moves no money.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct MarketWatchFact {
+    pub mandate_id: table_core::MandateId,
+    pub mandate_version: u32,
+    pub agent: AgentSlot,
+    pub items: Vec<table_core::WatchedItem>,
+    pub max_per_day: u16,
+    /// Price checks made today (UTC day), counted from the audit log.
+    pub used_today: u32,
+    /// Today's allowance is used up: no price is checked again until the next UTC day.
+    pub used_up: bool,
 }
 /// The latest own-account Transaction Search call: when, and the HTTP status PayPal answered
 /// (0 = no response).

@@ -122,10 +122,12 @@ export const RULE_NAME: Record<Clause['type'], string> = {
   velocity: 'Daily limit',
   human_present_over: 'Ask me above',
   payees: 'Approved payees',
+  market_watch: 'Keep prices fresh',
 };
 /** Clause number (1-7) for a clause type: Details only. */
 export const RULE_NUMBER: Record<Clause['type'], number> = {
   roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7,
+  market_watch: 9,
 };
 const RULE_BY_NUMBER = Object.fromEntries(Object.entries(RULE_NUMBER).map(([k, n]) => [n, k])) as Record<number, Clause['type']>;
 /** "Limit per deal" for clause 3; falls back to "Rule N" for numbers outside 1-7. */
@@ -151,6 +153,7 @@ export function ruleSentence(c: Clause): string {
     case 'velocity': return `up to ${c.max_deals_day} deals and ${formatMoney(c.max_total_day)} a day`;
     case 'human_present_over': return `asks you above ${formatMoney(c.amount)}`;
     case 'payees': return c.payees.length ? `only ${joinWords(c.payees)}` : 'no one yet';
+    case 'market_watch': return `keeps prices fresh for ${joinWords(c.items.map((i) => i.item_ref))} · ${checksADay(c.max_refreshes_day)}`;
   }
 }
 
@@ -170,6 +173,15 @@ export function marketWords(v: number, p25: number, median: number, p75: number)
   if (v <= p75 * 1.15) return { text: 'above typical', tone: 'gold', means: 'Above the usual range of comparable listings.' };
   return { text: 'well above typical', tone: 'red', means: 'Far above the usual range of comparable listings.' };
 }
+
+/** "up to 12 checks a day": a market-watch rule's daily allowance (T15). */
+export const checksADay = (n: number): string => `up to ${n} ${n === 1 ? 'check' : 'checks'} a day`;
+/** "Price checks today: 3 of 12": a market-watch rule's day so far (owner facts). */
+export const priceChecksToday = (used: number, max: number): string => `Price checks today: ${used} of ${max}`;
+/** A deal whose item a signed rule keeps priced (T15). */
+export const KEPT_FRESH = 'Kept fresh by your rules';
+/** The rule's price checks for today are used up: prices are not checked again until tomorrow. */
+export const PRICE_CHECKS_USED_UP = 'Today’s price checks are used up. Prices are checked again tomorrow; until then, a deal with an old price waits for you.';
 
 // ---- small helpers --------------------------------------------------------------------------------------
 

@@ -9,6 +9,7 @@ mod history;
 mod limits;
 mod market;
 pub use market::VaultMarketKey;
+mod market_watch;
 mod pairing;
 mod policy;
 mod proof;

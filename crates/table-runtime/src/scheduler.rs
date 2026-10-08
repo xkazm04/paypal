@@ -18,6 +18,11 @@ impl Runtime {
                 failure.get_or_insert(error);
             }
         }
+        // Watched items' market prices are fetched outside the actor; an answer lands on a
+        // later turn of the loop, and a step it lets through runs on the tick after (T15).
+        if let Err(error) = self.start_market_watch(now) {
+            failure.get_or_insert(error);
+        }
         failure.map_or(Ok(()), Err)
     }
     async fn tick_deal(&mut self, deal: &Deal, now: i64) -> Result<(), CommandError> {

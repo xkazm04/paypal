@@ -177,3 +177,10 @@
 .ow-lim-in { display: flex; align-items: center; gap: var(--sp-2); }
 .ow-lim-in .ui-field { width: 120px; }
 .ow-lim-in .dim { min-width: 72px; font-size: var(--fs-small); }
+
+/* Keep prices fresh (T15): item and product rows, then the day's allowance. */
+.ow-watch-rows { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 4px var(--sp-2); align-items: center; }
+.ow-watch-row { display: contents; }
+.ow-watch .ow-watch-n { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--text); }
+.ow-watch .ow-watch-n .ui-field { width: 52px; text-align: center; font-variant-numeric: tabular-nums; }
+.ow-watch > .ui-btn { justify-self: start; }

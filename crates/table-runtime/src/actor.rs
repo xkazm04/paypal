@@ -114,6 +114,11 @@ pub(crate) enum Message {
         VerifiedReauth,
         oneshot::Sender<Result<(), CommandError>>,
     ),
+    /// A market-watch price check's answer, fetched outside the actor (T15).
+    MarketWatched(
+        Box<crate::market_watch::WatchJob>,
+        Result<MarketRef, table_market::Error>,
+    ),
 }
 /// Created only after the injected OS verifier succeeds, and never deserializable.
 pub(crate) struct VerifiedReauth;
@@ -313,6 +318,7 @@ async fn run(
                 Some(Message::AgentRefused(scope,tool,reason,reply))=>{let now=runtime.clock.now(); let _=reply.send(table_app::AgentService::record_refusal(&mut runtime.pipeline.wallet,&scope,&tool,&reason,now));},
                 Some(Message::Engine(run,event))=>{match runtime.engine_event(run,event){Ok(Some(snapshot))=>{let _=events.send(WalletEvent::Agent(snapshot));},Ok(None)=>{},Err(error)=>{let _=runtime.finish_run(run,RunState::Failed); let _=events.send(WalletEvent::Fault(error));}}},
                 Some(Message::EngineFinished(run,result))=>{let state=if matches!(result,Ok(table_engine::TerminalVerdict::Clean)){RunState::Clean}else{RunState::Failed}; match runtime.finish_run(run,state){Ok(Some(snapshot))=>{let _=events.send(WalletEvent::Agent(snapshot));},Ok(None)=>{},Err(error)=>{let _=events.send(WalletEvent::Fault(error));}}},
+                Some(Message::MarketWatched(job,result))=>{if let Err(error)=runtime.market_watched(*job,result){let _=events.send(WalletEvent::Fault(error));}},
                 None=>break,
             },
             _=interval.tick()=>{

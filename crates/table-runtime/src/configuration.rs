@@ -317,6 +317,7 @@ impl Runtime {
             engines,
             credentials,
             agents,
+            market_watch: self.market_watch_facts()?,
         })
     }
     /// The audit chain for Book, newest first, projected to closed facts.

@@ -1,4 +1,4 @@
-// Mandate editor drafts: owner-typed strings for the seven clause kinds (bindings/Clause.ts),
+// Mandate editor drafts: owner-typed strings for the clause kinds (bindings/Clause.ts),
 // converted exactly into the Rust shapes. Rust validates and signs; this only shapes input.
 import type { AgentSlot } from '@bindings/AgentSlot';
 import type { Category } from '@bindings/Category';
@@ -7,6 +7,7 @@ import type { Currency } from '@bindings/Currency';
 import type { DealKind } from '@bindings/DealKind';
 import type { OpenMandate } from '@bindings/OpenMandate';
 import type { Role } from '@bindings/Role';
+import { MAX_MARKET_CHECKS_DAY, MAX_WATCHED_ITEMS, marketWatchRefusal, productValid } from '../../lib/marketWatch';
 import { minorToInput, parseMoneyInput } from './model';
 
 export type ClauseDraft =
@@ -16,7 +17,11 @@ export type ClauseDraft =
   | { type: 'band'; items: string; floor: string; ceiling: string; rounds: string; deadline: string }
   | { type: 'velocity'; deals: string; total: string }
   | { type: 'human_present_over'; amount: string }
-  | { type: 'payees'; payees: string };
+  | { type: 'payees'; payees: string }
+  | { type: 'market_watch'; items: WatchDraft[]; checks: string };
+
+/** One watched item as typed: your item, and the product the market service prices it by. */
+export type WatchDraft = { item: string; product: string };
 
 export type ClauseType = ClauseDraft['type'];
 
@@ -28,10 +33,11 @@ export const CLAUSE_KINDS: ReadonlyArray<{ type: ClauseType; name: string; hint:
   { type: 'velocity', name: 'Daily limit', hint: 'deals and money per day' },
   { type: 'human_present_over', name: 'Ask me above', hint: 'above this amount, you decide' },
   { type: 'payees', name: 'Approved payees', hint: 'who agents may pay on their own' },
+  { type: 'market_watch', name: 'Keep prices fresh', hint: 'check typical prices for your items on its own, a set number of times a day; it never approves anything' },
 ];
 
 /** Rust's clause numbers (table-core Clause::number). */
-export const CLAUSE_NUMBER: Record<ClauseType, number> = { roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7 };
+export const CLAUSE_NUMBER: Record<ClauseType, number> = { roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7, market_watch: 9 };
 
 export const ROLES: readonly Role[] = ['buy', 'sell', 'shop', 'rescue'];
 export const CATEGORIES: readonly Category[] = ['office', 'parts', 'compute', 'service', 'other'];
@@ -67,6 +73,7 @@ export function emptyClause(type: ClauseType, now: number): ClauseDraft {
     case 'velocity': return { type, deals: '12', total: '' };
     case 'human_present_over': return { type, amount: '' };
     case 'payees': return { type, payees: '' };
+    case 'market_watch': return { type, items: [{ item: '', product: '' }], checks: '12' };
   }
 }
 
@@ -111,6 +118,7 @@ export function draftFrom(m: OpenMandate & { agent?: AgentSlot }, now: number): 
         case 'velocity': return { type: 'velocity', deals: String(c.max_deals_day), total: money(c.max_total_day.minor) };
         case 'human_present_over': return { type: 'human_present_over', amount: money(c.amount.minor) };
         case 'payees': return { type: 'payees', payees: c.payees.join(', ') };
+        case 'market_watch': return { type: 'market_watch', items: c.items.map((i) => ({ item: i.item_ref, product: i.product_id })), checks: String(c.max_refreshes_day) };
       }
     }),
   };
@@ -190,6 +198,17 @@ export function buildClause(c: ClauseDraft, cur: Currency, n: string): { clause:
       clause = { type: 'payees', payees };
       break;
     }
+    case 'market_watch': {
+      const items = c.items.map((i) => ({ item_ref: i.item.trim(), product_id: i.product.trim() })).filter((i) => i.item_ref || i.product_id);
+      const checks = int(c.checks);
+      if (!items.length) errors.push(`${n}: name at least one item`);
+      if (items.some((i) => !i.item_ref)) errors.push(`${n}: every price-service product needs your item`);
+      const bad = items.find((i) => i.item_ref && !productValid(i.product_id));
+      if (bad) errors.push(`${n}: “${bad.product_id || bad.item_ref}” needs a product code made of letters, digits, - or _`);
+      if (checks === null || checks < 1 || checks > MAX_MARKET_CHECKS_DAY) errors.push(`${n}: checks a day must be 1–${MAX_MARKET_CHECKS_DAY}`);
+      if (checks !== null) clause = { type: 'market_watch', items, max_refreshes_day: checks };
+      break;
+    }
   }
   return { clause: errors.length ? null : clause, errors };
 }
@@ -257,6 +276,11 @@ export function ruleProblems(clauses: readonly DraftClause[], notBefore: number 
       case 'payees':
         if (!c.payees.length) out.push({ clause: 7, why: 'no payees' });
         break;
+      case 'market_watch': {
+        const why = marketWatchRefusal(c);
+        if (why) out.push({ clause: 9, why: REFUSAL_WORDS[why] ?? why });
+        break;
+      }
       default:
         break;
     }
@@ -298,6 +322,10 @@ const REFUSAL_WORDS: Record<string, string> = {
   'band required for haggle and shop orders': 'haggles and shop orders need a price range',
   'no role in the roles clause can act on the per-deal kind': 'none of what you allowed agents to do fits this kind of deal, so nothing would ever be allowed',
   'band lacks the side the allowed roles use': 'agents that buy need a most-you’ll-pay, and agents that sell need a least-you’ll-accept',
+  'invalid market watch': `it names no item, or more than ${MAX_WATCHED_ITEMS}`,
+  'invalid price check allowance': `checks a day must be 1–${MAX_MARKET_CHECKS_DAY}`,
+  'invalid market product': 'a product code can only use letters, digits, - or _',
+  'item watched twice': 'an item is listed twice',
 };
 
 /** A REFUSED from mandate_sign or band_set ("mandate clause 4: …"), as one plain sentence. */

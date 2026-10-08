@@ -104,5 +104,7 @@ mod relay;
 mod resolver;
 pub use relay::*;
 pub use resolver::*;
+mod market_watch;
 #[cfg(test)]
 mod tests;
+pub use market_watch::*;

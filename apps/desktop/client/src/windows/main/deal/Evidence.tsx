@@ -9,7 +9,8 @@ import type { TranscriptStep } from '@bindings/TranscriptStep';
 import type { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMoney, nowUnix, shortHash, shortId } from '../../../lib/format';
 import { useMutation } from '../../../lib/hooks';
-import { marketWords, PROOF_SAVE_WARNING } from '../../../lib/words';
+import type { DealWatch } from '../../../lib/marketWatch';
+import { KEPT_FRESH, marketWords, PRICE_CHECKS_USED_UP, priceChecksToday, PROOF_SAVE_WARNING } from '../../../lib/words';
 import { ModeBadge, WalletNotice } from '../../../shared/honesty';
 import { Btn, Chip, Empty, Kv, Loading, Sheet } from '../../../shared/ui';
 import { ConvergenceChart, MarketBand, MiniBand } from '../charts';
@@ -25,7 +26,14 @@ type EvState = { data: DealEvidence | undefined; error: WalletError | null };
 const REFS: Array<[PaypalRefKey, string]> = [['order', 'Order'], ['authorization', 'Hold'], ['capture', 'Payment']];
 const REF_NAME: Record<PaypalRefKey, string> = { order: 'Order', authorization: 'Hold', capture: 'Payment', subscription: 'Subscription' };
 
-export function ProofPanel({ deal, ev, band, onOpen }: { deal: Deal; ev: EvState; band: DisplayBand | null; onOpen: (k: EvidenceKind) => void }) {
+/** The typical-price card's line about a signed keep-prices-fresh rule (T15); null when not watched. */
+export function watchWhy(watch: DealWatch | null | undefined, priced: boolean): string | null {
+  if (!watch) return null;
+  if (watch.usedUp) return 'Today’s price checks are used up; checked again tomorrow.';
+  return priced ? `${KEPT_FRESH}.` : `${KEPT_FRESH}: the first check is on its way.`;
+}
+
+export function ProofPanel({ deal, ev, band, watch, onOpen }: { deal: Deal; ev: EvState; band: DisplayBand | null; watch?: DealWatch | null; onOpen: (k: EvidenceKind) => void }) {
   const e = ev.data;
   const evl = e ? evidenceLabel(deal, e.receipt) : null;
   const rec = e ? reconciliationLabel(e.reconciliation) : null;
@@ -65,14 +73,17 @@ export function ProofPanel({ deal, ev, band, onOpen }: { deal: Deal; ev: EvState
             <span title={sameCur ? `${marketPosition(deal.terms.unit_price.minor, mk.p25.minor, mk.median.minor, mk.p75.minor)} of ${formatMoney(mk.p25)}–${formatMoney(mk.p75)}` : undefined}>{mw ? mw.text : `middle ${formatMoney(mk.median)}`}</span></>
             : <span className="dv-none"><i aria-hidden="true" />No comparison</span>}
         </span>
-        <span className="why">{mk ? `Similar listings: ${formatMoney(mk.p25)} to ${formatMoney(mk.p75)}.` : 'No comparison for this item, so market checks are skipped, not passed.'}</span>
+        <span className="why">
+          {mk ? `Similar listings: ${formatMoney(mk.p25)} to ${formatMoney(mk.p75)}.` : watch && !watch.usedUp ? 'No comparison yet.' : 'No comparison for this item, so market checks are skipped, not passed.'}
+          {watch ? <span className={`dv-fresh ${watch.usedUp ? 'used' : ''}`} title={watch.usedUp ? PRICE_CHECKS_USED_UP : `${priceChecksToday(watch.used, watch.max)}. The wallet checks the typical price on its own; it never approves anything.`}> {watchWhy(watch, !!mk)}</span> : null}
+        </span>
       </button>
     </div>
   );
 }
 
-export function EvidenceSheet({ kind, deal, ev, band, onFresh, onClose }: {
-  kind: EvidenceKind; deal: Deal; ev: EvState; band: DisplayBand | null; onFresh: (e: DealEvidence) => void; onClose: () => void;
+export function EvidenceSheet({ kind, deal, ev, band, watch, onFresh, onClose }: {
+  kind: EvidenceKind; deal: Deal; ev: EvState; band: DisplayBand | null; watch?: DealWatch | null; onFresh: (e: DealEvidence) => void; onClose: () => void;
 }) {
   const rec = useMutation('deal_reconcile');
   const toast = useToast();
@@ -140,10 +151,11 @@ export function EvidenceSheet({ kind, deal, ev, band, onFresh, onClose }: {
             ['This deal', mw ? <><b className="money">{formatMoney(price)}</b> · {mw.text}</> : <span className="dim">{formatMoney(price)} · in another currency than the comparison</span>],
             ['Typical range', <span className="money">{formatMoney(mk.p25)} – {formatMoney(mk.p75)} · middle {formatMoney(mk.median)}</span>],
             ['Checked', `${clockLabel(mk.retrieved_at)}${mk.cached ? ' · saved copy' : ''}`],
+            ...(watch ? [['Kept fresh', watch.usedUp ? <span className="gold">{PRICE_CHECKS_USED_UP}</span> : `${KEPT_FRESH} · ${priceChecksToday(watch.used, watch.max).toLowerCase()}`] as const] : []),
           ]} />
           <p className="ui-hint">A comparison with similar listings, not a recommendation.</p>
         </>
-      ) : <p className="dv-p">No comparison for this item, so price checks against the market are skipped, not passed.</p>}
+      ) : <p className="dv-p">{watch && !watch.usedUp ? `No comparison yet. ${KEPT_FRESH}: the first check is on its way.` : 'No comparison for this item, so price checks against the market are skipped, not passed.'}</p>}
     </Sheet>
   );
 }
