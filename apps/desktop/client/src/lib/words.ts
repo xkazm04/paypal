@@ -234,7 +234,7 @@ const HEADLINE_VERBS: readonly (readonly [RegExp, string])[] = [
 /** "Countersign $329.00" → "Approve $329.00"; "Mismatch · SETTLE $339 ≠ deal $329" → plain words. */
 export function headlineWords(h: string): string {
   const mm = /^Mismatch · SETTLE (\S+) ≠ deal (\S+)/.exec(h);
-  if (mm) return `Asked ${mm[1]}, not the agreed ${mm[2]}`;
+  if (mm) return `Asked ${mm[1]}, not ${mm[2]}`;
   for (const [re, to] of HEADLINE_VERBS) if (re.test(h)) return h.replace(re, to);
   return h;
 }

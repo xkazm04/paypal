@@ -36,7 +36,7 @@ describe('dealAnswer: one sentence a first-time reader understands', () => {
     const a = answer('D-0199');
     expect(a.tone).toBe('alert');
     expect(a.sub).toContain(CLOSED);
-    expect(a.sub).toContain('Asked $339.00, not the agreed $329.00');
+    expect(a.sub).toContain('Asked $339.00, not $329.00');
     expect(`${a.title} ${a.sub}`).not.toMatch(/approve|pay it|collect/i);
   });
   it('refusals and blocks are alerts that say nothing moved', () => {
