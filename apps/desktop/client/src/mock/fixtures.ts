@@ -20,6 +20,7 @@ import type { PendingPairing } from '@bindings/PendingPairing';
 import type { PairingWords } from '@bindings/PairingWords';
 import type { RunSnapshot } from '@bindings/RunSnapshot';
 import type { SettingsSnapshot } from '@bindings/SettingsSnapshot';
+import type { ShieldRule } from '@bindings/ShieldRule';
 import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import type { AuditRow } from '@bindings/AuditRow';
 import type { CounterpartyNote } from '@bindings/CounterpartyNote';
@@ -157,6 +158,8 @@ export function buildMockState(now: number): MockState {
     price: number;
     state: DealState;
     shield?: ShieldVerdict | null;
+    /** The rule that decided `shield`, as Rust records it (Deal.shield_rule); none for a CLEAR or a mismatch hold. */
+    shieldRule?: ShieldRule | null;
     market?: [number, number, number] | null;
     paypal?: Partial<Deal['paypal']>;
     deadline?: number | null;
@@ -199,6 +202,7 @@ export function buildMockState(now: number): MockState {
         : null,
       shield: o.shield ?? null,
       ...(o.decided ? { decided_by: o.decided } : {}),
+      ...(o.shieldRule ? { shield_rule: o.shieldRule } : {}),
     };
     const deadline = o.deadline ?? null;
     const display: DealDisplay = { deal_id: id, label: o.label, title: o.title, deadline, on_silence: o.silence ?? null, band: o.band ?? null };
@@ -282,11 +286,16 @@ export function buildMockState(now: number): MockState {
   add({ label: 'D-0185', title: 'Screen-wipe kit', kind: 'shop_order', side: 'seller', cp: KEY.lark, item: 'wipe-kit', price: 18.5, state: 'CAPTURED', mandate: MANDATE_S3, reconciliation: 'matched', receipt: 'PAYPAL_VERIFIED', paypal: { order: '3MK825R', capture: '7BN4' }, decided: { type: 'seller_mandate', mandate_hash: fakeHash('S-3:payload') }, at: [back(0.48), back(0.46)] });
 
   // --- Shield -------------------------------------------------------------------------------
-  add({ label: 'D-0196', title: '27-inch 4K monitor (unsolicited offer)', kind: 'purchase', side: 'buyer', cp: KEY.hub, item: 'monitor-27-4k', price: 460, state: 'REFUSED', shield: 'BLOCK', market: [301, 318, 336], at: [back(0.3), back(0.3) + 2] });
+  // As Rust records it (shield slice 2): the verdict and the rule that decided it, from typed facts
+  // only. D-0196's payee is not the agreed one (BLOCK); D-0198 is a new payee, but its $70 a unit
+  // is 59% over a $44 median, and the price check comes first, so it is a price HOLD. A new payee
+  // over 100.00 on its own only asks (the settled design); the friends & family note on D-0198 is
+  // their words, which no check reads.
+  add({ label: 'D-0196', title: '27-inch 4K monitor (unsolicited offer)', kind: 'purchase', side: 'buyer', cp: KEY.hub, item: 'monitor-27-4k', price: 460, state: 'REFUSED', shield: 'BLOCK', shieldRule: 'payee_mismatch', market: [301, 318, 336], at: [back(0.3), back(0.3) + 2] });
   add({
-    label: 'D-0198', title: 'Monitor stand, walnut', kind: 'purchase', side: 'buyer', cp: KEY.pixel, item: 'stand', qty: 2, price: 70, state: 'AGREED', shield: 'HOLD', market: [38, 44, 49],
+    label: 'D-0198', title: 'Monitor stand, walnut', kind: 'purchase', side: 'buyer', cp: KEY.pixel, item: 'stand', qty: 2, price: 70, state: 'AGREED', shield: 'HOLD', shieldRule: 'price_over_market', market: [38, 44, 49],
     deadline: now + 5 * H + 58 * 60, silence: 'the request lapses at the deadline · nothing is paid', at: [now - 2 * H + 60, now - 2 * H + 300],
-    attention: { kind: 'hold', module: 'shield', headline: 'Release or keep hold $140.00', counterparty: 'pixel-bay (new today)', clause: null, urgency: 'calm', actions: ['withdraw', 'open_in_table'] },
+    attention: { kind: 'hold', module: 'shield', headline: 'Payment held $140.00', counterparty: 'pixel-bay', clause: null, urgency: 'calm', actions: ['withdraw', 'open_in_table'], shield_rule: 'price_over_market' },
   });
 
   // --- Rescue -------------------------------------------------------------------------------

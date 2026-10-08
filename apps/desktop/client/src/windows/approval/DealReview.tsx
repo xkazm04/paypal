@@ -18,7 +18,7 @@ import type { RescueLever } from '@bindings/RescueLever';
 import { WalletError, toWalletError } from '../../lib/contract';
 import { useCounterparties, useDealDisplay } from '../../lib/display';
 import { formatMoney, nowUnix, shortId } from '../../lib/format';
-import { RESCUE_APPROVE_DOES, RESCUE_REPLAY_NOT_COUNTED, SUMMARY_CHANGED, reasonWords, subscriberName, reconWord, receiptWord, silenceWords } from '../../lib/words';
+import { RESCUE_APPROVE_DOES, RESCUE_REPLAY_NOT_COUNTED, SUMMARY_CHANGED, reasonWords, subscriberName, reconWord, receiptWord, shieldRuleWord, silenceWords } from '../../lib/words';
 import { useEvent, useNow, usePrefersReducedMotion, useQuery } from '../../lib/hooks';
 import { backend } from '../../lib/runtime';
 import { MODULES } from '../../shared/modules';
@@ -335,7 +335,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const act: Intent = g.ownerAccept.visible ? 'accept' : g.openPaypal.visible ? 'open' : g.capture.visible ? 'capture' : g.countersign.visible ? 'countersign' : g.rescue.visible ? 'rescue' : g.releaseHold.visible ? 'release' : null;
   const says = summarySentence({ kind: diff.kind, phase, deal: d, summary, who, total, settle, twin: diff.twin, act, inBrowser });
   // "Why?" and "What happens next": built from the same facts as the sentence above.
-  const facts: WhyFacts = { phase, who, total, askAbove: askAboveOf(mandate), highPrice: highPriceWord(d) };
+  const facts: WhyFacts = { phase, who, total, askAbove: askAboveOf(mandate), highPrice: highPriceWord(d), shieldRule: d.shield_rule ? shieldRuleWord(d.shield_rule).means : null };
   const answerWhyText = answerWhy({ ...facts, kind: diff.kind, act, deal: d, rows: diff.rows, twin: diff.twin, settle, unavailable: summary.unavailable_reason ? reasonWords(summary.unavailable_reason) : null });
   const path = nextSteps({ kind: diff.kind, phase, deal: d, summary, who, total, act });
 

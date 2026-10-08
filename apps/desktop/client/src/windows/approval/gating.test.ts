@@ -580,3 +580,13 @@ describe('the wallet’s checklist gates every money decision (T5)', () => {
     expect(ownerAcceptArgs(haggle())?.checks_hash).toEqual(CHECKS_HASH);
   });
 });
+
+describe('shield slice 2: the approval window names the rule the wallet recorded', () => {
+  it('a pause shows its rule from Rust; a pause with no rule says so instead of guessing', () => {
+    const named = buildDiff(dinput(summary({ state: 'AGREED', shield: 'HOLD', shield_rule: 'price_over_market' })));
+    expect(row(named.rows, 'rule')).toMatchObject({ rel: '!', tone: 'hold', right: 'Price far above usual' });
+    expect(row(named.rows, 'rule').note).toBeUndefined();
+    const unnamed = buildDiff(dinput(summary({ state: 'AGREED', shield: 'HOLD' })));
+    expect(row(unnamed.rows, 'rule').note).toBe('which rule paused it isn’t recorded for this deal');
+  });
+});

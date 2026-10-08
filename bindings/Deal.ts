@@ -32,6 +32,7 @@ decided_by?: DecidedBy | null,
 shield_rule?: ShieldRule | null, 
 /**
  * The owner's release of a HOLD in the approval window, while it still applies: only for
- * the terms it was given for (a terms change drops it and the shield judges again).
+ * the terms it was given for (a terms change drops it and the shield judges again). The
+ * HOLD it covers reads as ASK in `shield`: the owner's decision is the check.
  */
 shield_release?: ShieldRelease | null, };

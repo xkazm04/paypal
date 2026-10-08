@@ -12,7 +12,7 @@ import type { ReceiptEvent } from '@bindings/ReceiptEvent';
 import type { TumblerPreferences } from '@bindings/TumblerPreferences';
 import type { VisualState } from '@bindings/VisualState';
 import { clockLabel, countdown, formatMinor } from '../../lib/format';
-import { headlineWords, moneyCheckWord, ruleNameOf, silenceWords, timeLeftWords } from '../../lib/words';
+import { headlineWords, moneyCheckWord, ruleNameOf, shieldRuleWord, silenceWords, timeLeftWords } from '../../lib/words';
 
 /** Rust's size table (crates/table-attention placement.rs). The page never sends pixels;
  *  this copy exists only so the browser preview can draw a frame of the same size. */
@@ -264,14 +264,18 @@ export function ringFill(deadline: number | null, now: number): number | null {
 /** r2-tumbler: the two sentences behind "Why?" in the details popover. Deterministic: only the item's
  *  kind, the rule Rust named, its deadline and its own safe default. Nothing the counterparty wrote
  *  (W4), no number that is not already on the card, no prediction. */
-export function cardWhy(item: Pick<AttentionItem, 'kind' | 'clause' | 'on_silence' | 'money_check'>): [string, string] {
+export function cardWhy(item: Pick<AttentionItem, 'kind' | 'clause' | 'on_silence' | 'money_check' | 'shield_rule'>): [string, string] {
   const rule = clauseText(item.clause);
   if (item.money_check) {
     const silence = silenceWords(item.on_silence).trim().replace(/[.,\s]+$/, '');
     return [moneyCheckWord(item.money_check).means, `If you do nothing, ${silence}.`];
   }
+  // A scam-check pause names the check that paused it: a closed name from the wallet core, worded
+  // here; never the other side's words.
+  const shield = item.kind === 'hold' && item.shield_rule ? shieldRuleWord(item.shield_rule).means : null;
   const ask = item.kind === 'hold'
-    ? (rule ? `It is paused because of ${rule}, so it can’t be paid until you decide.` : 'It is paused, so it can’t be paid until you decide.')
+    ? (shield ? `A scam check paused it: ${shield.charAt(0).toLowerCase()}${shield.slice(1).replace(/\.$/, '')}. It can’t be paid until you decide.`
+      : rule ? `It is paused because of ${rule}, so it can’t be paid until you decide.` : 'It is paused, so it can’t be paid until you decide.')
     : (rule ? `${rule.charAt(0).toUpperCase()}${rule.slice(1)} sends this one to you.` : 'It needs your decision before it can go ahead.');
   const silence = item.on_silence.trim().replace(/\s*·\s*/g, ', ').replace(/[.,\s]+$/, '');
   return [ask, `If you do nothing, ${silence}.`];

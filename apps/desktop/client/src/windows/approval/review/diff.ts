@@ -16,7 +16,7 @@ import type { MandatePayload } from '@bindings/MandatePayload';
 import type { Money } from '@bindings/Money';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { formatMoney } from '../../../lib/format';
-import { percentWords, shieldWord } from '../../../lib/words';
+import { percentWords, shieldReleased, shieldRuleWord, shieldWord } from '../../../lib/words';
 import { isTerminal, ownsPaypalResource } from '../gating';
 import { dealTotal } from '../model';
 
@@ -158,11 +158,15 @@ const KIND_WORD: Record<Deal['kind'], string> = { purchase: 'purchase', haggle: 
 function shieldRow(d: Deal): DiffRow {
   const v = d.shield;
   const rel: Rel = v === 'CLEAR' || v === 'ASK' ? '=' : v === 'HOLD' ? '!' : v === 'BLOCK' ? '≠' : '?';
+  // Which check decided it comes from the wallet core (Deal.shield_rule), never from this window.
+  const rule = d.shield_rule ? shieldRuleWord(d.shield_rule) : null;
+  const released = shieldReleased(d);
   return {
     id: 'shield', name: 'Scam check', left: 'must look safe, or ask you',
-    right: v === null ? 'not run yet' : v === 'ASK' ? 'Check with you · this review is the check' : v === 'HOLD' ? 'Paused for you' : shieldWord(v).text,
+    right: v === null ? 'not run yet' : released ? 'You let it go on after a pause' : v === 'ASK' ? 'Check with you · this review is the check' : v === 'HOLD' ? 'Paused for you' : shieldWord(v).text,
     rel, tone: v === 'BLOCK' ? 'bad' : toneOf(rel), word: v === 'CLEAR' ? 'safe' : v === 'ASK' ? 'asks you' : v === 'BLOCK' ? 'blocked' : undefined,
-    src: v === null ? 'The scam check has not looked at this deal yet.' : 'The scam check’s verdict on this deal. Checks can only add caution, never remove it.',
+    src: v === null ? 'The scam check has not looked at this deal yet.'
+      : rule ? `${rule.means} Checks can only add caution, never remove it.` : 'The scam check’s verdict on this deal. Checks can only add caution, never remove it.',
   };
 }
 
@@ -290,7 +294,9 @@ export function buildDiff(i: DiffInput): Diff {
       const per = clauseOf(i.mandate, 'per_deal', (c) => c.kind === d.kind);
       const perRel = per ? relWithin(total, per.c.max_amount) : '?';
       const rows: DiffRow[] = [
-        { id: 'rule', name: 'Scam check', left: 'a safety rule paused it', right: 'Paused before any PayPal call', rel: '!', tone: 'hold', src: 'The scam check’s verdict on this deal.', note: 'which rule paused it isn’t shown in this window' },
+        d.shield_rule
+          ? { id: 'rule', name: 'Scam check', left: 'a safety rule paused it', right: shieldRuleWord(d.shield_rule).text, rel: '!', tone: 'hold', src: `${shieldRuleWord(d.shield_rule).means} Paused before any PayPal call.` }
+          : { id: 'rule', name: 'Scam check', left: 'a safety rule paused it', right: 'Paused before any PayPal call', rel: '!', tone: 'hold', src: 'The scam check’s verdict on this deal.', note: 'which rule paused it isn’t recorded for this deal' },
         counterpartyRow(i),
         per
           ? { id: 'perdeal', name: 'Limit per deal', left: `up to ${formatMoney(per.c.max_amount)} per ${KIND_WORD[d.kind]}`, right: T, rel: perRel, tone: toneOf(perRel), src: `Your signed rules, rule ${per.n}.` }
