@@ -1267,7 +1267,9 @@ impl Pipeline {
         if deal.kind == DealKind::Rescue {
             return self.rescue_deadline(id, now).await;
         }
-        let Some((due, _)) = self.wallet.ledger.deadline(id)? else {
+        // A HOUSE-paired buyer deal out for approval waits a grace past its deadline for the
+        // HOUSE's RECEIPT (table-ledger `lapse_at`); every other deal lapses at its deadline.
+        let Some(due) = self.wallet.ledger.lapse_at(id)? else {
             return Ok(false);
         };
         if due > now || deal.state.terminal() || deal.mode == Mode::Replay {
