@@ -146,6 +146,123 @@ fn another(r: &mut Runtime, deal: &Deal, item: &str) -> Deal {
     .unwrap()
 }
 
+/// Collects the faults the actor publishes, so a wait that gives up can say what went wrong.
+fn faults_of(
+    mut events: tokio::sync::broadcast::Receiver<WalletEvent>,
+) -> Arc<std::sync::Mutex<Vec<String>>> {
+    let faults = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let sink = faults.clone();
+    tokio::spawn(async move {
+        loop {
+            match events.recv().await {
+                Ok(WalletEvent::Fault(error)) => sink.lock().unwrap().push(format!("{error:?}")),
+                Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    });
+    faults
+}
+/// The deal's audit trail, newest first, as the owner's audit page shows it.
+async fn trail(actor: &ActorHandle, id: DealId) -> Vec<AuditRow> {
+    let page: AuditPage = actor
+        .execute(
+            caller("main", None),
+            Action::AuditPage(AuditPageArgs {
+                before: None,
+                limit: 200,
+            }),
+        )
+        .await
+        .unwrap();
+    page.rows
+        .into_iter()
+        .filter(|r| r.deal_id == Some(id))
+        .collect()
+}
+/// What a wait that gave up saw: the market service's calls and open gate, the deal as the actor
+/// last answered it, the day's recorded price checks, the forecast for the deal, the actor's
+/// faults and the deal's audit trail. Each read has its own short bound: the actor may be stuck.
+async fn watch_state(
+    actor: &ActorHandle,
+    id: DealId,
+    market: &WatchMarket,
+    last: Option<Deal>,
+    faults: &std::sync::Mutex<Vec<String>>,
+) -> String {
+    let bound = std::time::Duration::from_secs(5);
+    let mut out = format!(
+        "market calls {}, gate permits {}; ",
+        market.calls.load(Ordering::SeqCst),
+        market.gate.available_permits()
+    );
+    out += &match last {
+        Some(d) => format!(
+            "deal last seen {:?}, market {:?}, decided_by {:?}; ",
+            d.state,
+            d.market.map(|m| (m.median.minor(), m.retrieved_at)),
+            d.decided_by
+        ),
+        None => "the actor never answered for the deal; ".into(),
+    };
+    let facts = tokio::time::timeout(
+        bound,
+        actor.execute::<OwnerFacts>(caller("main", None), Action::OwnerFacts),
+    )
+    .await;
+    out += &match facts {
+        Ok(Ok(f)) => format!(
+            "checks recorded today {:?}; ",
+            f.market_watch
+                .iter()
+                .map(|w| w.used_today)
+                .collect::<Vec<_>>()
+        ),
+        other => format!("owner facts unreadable: {other:?}; "),
+    };
+    let attention = tokio::time::timeout(
+        bound,
+        actor
+            .execute::<table_attention::AttentionSnapshot>(caller("main", None), Action::Attention),
+    )
+    .await;
+    out += &match attention {
+        Ok(Ok(a)) => format!(
+            "forecast {:?}; ",
+            a.forecast.map(|f| f
+                .into_iter()
+                .filter(|l| l.deal_id == id)
+                .map(|l| l.action)
+                .collect::<Vec<_>>())
+        ),
+        other => format!("attention unreadable: {other:?}; "),
+    };
+    out += &format!("faults {:?}; ", faults.lock().unwrap());
+    let audit = tokio::time::timeout(
+        bound,
+        actor.execute::<AuditPage>(
+            caller("main", None),
+            Action::AuditPage(AuditPageArgs {
+                before: None,
+                limit: 200,
+            }),
+        ),
+    )
+    .await;
+    out += &match audit {
+        Ok(Ok(page)) => format!(
+            "audit (newest first) {:?}",
+            page.rows
+                .iter()
+                .filter(|r| r.deal_id.is_none_or(|d| d == id))
+                .map(|r| format!("{}@{} {}", r.action, r.at, r.actor))
+                .collect::<Vec<_>>()
+        ),
+        other => format!("audit unreadable: {other:?}"),
+    };
+    out
+}
+
 #[tokio::test]
 async fn a_watched_seller_deal_no_longer_stalls_its_policy_countersign_runs_on_a_fresh_price() {
     let (mut r, vault, http, clock, _) = runtime(true);
@@ -475,24 +592,35 @@ async fn the_actor_checks_prices_outside_its_loop_and_the_forecast_waits_for_the
     let market = WatchMarket::new(clock.clone(), 1200, false);
     r.attach_market(market.clone());
     set(&clock, 200);
-    let (actor, _events) = spawn(r);
+    let (actor, events) = spawn(r);
+    let faults = faults_of(events);
     let id = deal.id;
     let wait = |what: &'static str| {
         let actor = actor.clone();
         let market = market.clone();
+        let faults = faults.clone();
         async move {
+            let last = std::sync::Mutex::new(None::<Deal>);
             // A liveness bound, not a speed bound: the loop returns as soon as the step lands, and
             // a loaded host (a full workspace run on shared CPUs) can take many seconds per tick.
-            tokio::time::timeout(std::time::Duration::from_secs(90), async {
+            let landed = tokio::time::timeout(std::time::Duration::from_secs(90), async {
                 loop {
                     let deal: Deal = actor
                         .execute(caller("main", None), Action::Deal(id))
                         .await
                         .unwrap();
+                    *last.lock().unwrap() = Some(deal.clone());
+                    // Each condition is a fact that stays true once reached, never a passing
+                    // state: the double approves every order, so the tick after the create runs
+                    // the deal on to its receipt (H5), and a poll waiting to see the deal stand in
+                    // AwaitingApproval misses that one-tick window when the host is busy.
                     let done = match what {
                         "asked" => market.calls.load(Ordering::SeqCst) == 1,
                         "stored" => deal.market.is_some(),
-                        _ => deal.state == DealState::AwaitingApproval,
+                        _ => trail(&actor, id)
+                            .await
+                            .iter()
+                            .any(|r| r.to == Some(DealState::AwaitingApproval)),
                     };
                     if done {
                         return deal;
@@ -500,8 +628,17 @@ async fn the_actor_checks_prices_outside_its_loop_and_the_forecast_waits_for_the
                     tokio::time::sleep(std::time::Duration::from_millis(20)).await;
                 }
             })
-            .await
-            .expect(what)
+            .await;
+            match landed {
+                Ok(deal) => deal,
+                Err(_) => {
+                    let last = last.lock().unwrap().take();
+                    panic!(
+                        "waited 90 s for {what:?}: {}",
+                        watch_state(&actor, id, &market, last, &faults).await
+                    )
+                }
+            }
         }
     };
     // The fetch waits on the market service; the actor keeps answering meanwhile.
@@ -524,8 +661,24 @@ async fn the_actor_checks_prices_outside_its_loop_and_the_forecast_waits_for_the
     market.gate.add_permits(1);
     let stored = wait("stored").await;
     assert_eq!(stored.market.unwrap().median.minor(), 1200);
-    let created = wait("created").await;
-    assert_eq!(created.decided_by, Some(DecidedBy::Policy { clause: 6 }));
+    wait("created").await;
+    // The order was created on the owner's signed rule once the price had landed. The trail is
+    // newest first, so the creating transition sits before (is newer than) the stored reference.
+    let rows = trail(&actor, id).await;
+    let at = |pick: &dyn Fn(&AuditRow) -> bool| rows.iter().position(pick).unwrap();
+    let created = at(&|r| r.to == Some(DealState::AwaitingApproval));
+    let observed = at(&|r| r.action == "market.observed");
+    assert!(
+        created < observed,
+        "the order waited for the price: {rows:?}"
+    );
+    assert!(
+        rows[created..]
+            .iter()
+            .any(|r| r.action == "deal.countersigned"
+                && r.decided_by == Some(DecidedBy::Policy { clause: 6 })),
+        "the create ran on clause 6: {rows:?}"
+    );
     assert_eq!(market.calls.load(Ordering::SeqCst), 1);
     let facts: OwnerFacts = actor
         .execute(caller("main", None), Action::OwnerFacts)
