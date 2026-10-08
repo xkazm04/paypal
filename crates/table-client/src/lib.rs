@@ -7,6 +7,7 @@ pub use table_proto::{PairingIdentity, SignedPairingIdentity};
 use ts_rs::TS;
 pub mod authority;
 mod authority_table;
+pub mod playbooks;
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
@@ -31,7 +32,7 @@ impl From<table_app::Error> for CommandError {
         let code = match &error {
             table_app::Error::Locked => ErrorCode::Locked,
             table_app::Error::Permission => ErrorCode::Permission,
-            table_app::Error::Refused(_) => ErrorCode::Refused,
+            table_app::Error::Refused(_) | table_app::Error::Agent(_) => ErrorCode::Refused,
             table_app::Error::Invalid
             | table_app::Error::Domain(_)
             | table_app::Error::Protocol(_) => ErrorCode::Invalid,
@@ -412,6 +413,12 @@ pub struct RunSnapshot {
     pub engine: table_engine::EngineId,
     pub mode: Mode,
     pub state: RunState,
+    /// The fixed role playbook an agent app run was started with (its system prompt, shown
+    /// word for word in the run's details); null for the policy negotiator, which reads none.
+    /// Older shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub playbook: Option<table_core::Playbook>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]

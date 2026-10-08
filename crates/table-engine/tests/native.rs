@@ -40,6 +40,7 @@ fn job() -> AgentJob {
     AgentJob {
         run: RunId(ulid::Ulid::new()),
         prompt: "TRUSTED input $(evil) `literal` \" ; &".into(),
+        playbook: None,
     }
 }
 #[test]
@@ -239,6 +240,7 @@ async fn cancellation_kills_descendants_and_dropped_runs_remove_registration() {
                 AgentJob {
                     run,
                     prompt: "again".into(),
+                    playbook: None,
                 },
                 grant(),
                 tx,

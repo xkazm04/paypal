@@ -197,7 +197,7 @@ pub(crate) enum Message {
     AgentRefused(
         table_app::AgentScope,
         String,
-        String,
+        table_core::RefusalCode,
         oneshot::Sender<Result<(), table_app::Error>>,
     ),
     Engine(RunId, table_engine::EngineEvent),
@@ -420,7 +420,7 @@ async fn run(
                 Some(Message::RelayFinished(deliveries))=>{if let Err(error)=runtime.relay_finished(deliveries){let _=events.send(WalletEvent::Fault(error));}},
                 Some(Message::WitnessFinished(fetch))=>{if let Err(error)=runtime.witness_finished(*fetch){let _=events.send(WalletEvent::Fault(error));}},
                 Some(Message::Agent(run,scope,request,reply))=>{let _=reply.send(runtime.agent_intent(run,&scope,request));},
-                Some(Message::AgentRefused(scope,tool,reason,reply))=>{let now=runtime.clock.now(); let _=reply.send(table_app::AgentService::record_refusal(&mut runtime.pipeline.wallet,&scope,&tool,&reason,now));},
+                Some(Message::AgentRefused(scope,tool,code,reply))=>{let now=runtime.clock.now(); let _=reply.send(table_app::AgentService::record_refusal(&mut runtime.pipeline.wallet,&scope,&tool,code,now));},
                 Some(Message::Engine(run,event))=>{match runtime.engine_event(run,event){Ok(Some(snapshot))=>{let _=events.send(WalletEvent::Agent(snapshot));},Ok(None)=>{},Err(error)=>{let _=runtime.finish_run(run,RunState::Failed); let _=events.send(WalletEvent::Fault(error));}}},
                 Some(Message::EngineFinished(run,result))=>{let state=if matches!(result,Ok(table_engine::TerminalVerdict::Clean)){RunState::Clean}else{RunState::Failed}; match runtime.finish_run(run,state){Ok(Some(snapshot))=>{let _=events.send(WalletEvent::Agent(snapshot));},Ok(None)=>{},Err(error)=>{let _=events.send(WalletEvent::Fault(error));}}},
                 Some(Message::MarketWatched(job,result))=>{if let Err(error)=runtime.market_watched(*job,result){let _=events.send(WalletEvent::Fault(error));}},

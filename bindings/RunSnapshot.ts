@@ -2,7 +2,14 @@
 import type { DealId } from "./DealId";
 import type { EngineId } from "./EngineId";
 import type { Mode } from "./Mode";
+import type { Playbook } from "./Playbook";
 import type { RunId } from "./RunId";
 import type { RunState } from "./RunState";
 
-export type RunSnapshot = { run: RunId, deal_id: DealId, engine: EngineId, mode: Mode, state: RunState, };
+export type RunSnapshot = { run: RunId, deal_id: DealId, engine: EngineId, mode: Mode, state: RunState, 
+/**
+ * The fixed role playbook an agent app run was started with (its system prompt, shown
+ * word for word in the run's details); null for the policy negotiator, which reads none.
+ * Older shells omit it.
+ */
+playbook?: Playbook | null, };

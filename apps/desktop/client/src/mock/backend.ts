@@ -33,6 +33,7 @@ import { mockCheck, mockValidate, type MockIntent } from './simulate';
 import { mockEnvelopeRefusal, mockExposureView } from './exposure';
 import type { RescueView } from '@bindings/RescueView';
 import type { Money } from '@bindings/Money';
+import type { Playbook } from '@bindings/Playbook';
 import { RESCUE_NO_RULES, RESCUE_SENT_SILENCE, RESCUE_SILENCE } from '../lib/words';
 import { invoiceText, leverOf, maskEmail, proposeDiscount, validEmail, validSubscriptionId } from './rescue';
 import { AUTHORITY, AUTHORITY_MANIFEST, type CommandAuthority } from '@bindings/authority';
@@ -495,7 +496,11 @@ export function mockBackend(label: WindowLabel): MockBackend {
     agent_start: ({ deal_id }) => {
       // engines.rs: a scripted-engine run is a practice run; any other keeps the deal's mode.
       const engine = state.settings.selected_engine;
-      const run = { run: fakeUlid(`run:${deal_id}:${Date.now()}`), deal_id, engine, mode: engine === 'scripted' ? 'scripted_engine' as const : find(deal_id).deal.mode, state: 'running' as const };
+      const deal = find(deal_id).deal;
+      // engines.rs: an agent app run starts from its role's playbook; the policy negotiator reads none.
+      const playbook: Playbook | null = engine === 'scripted' ? null
+        : deal.kind === 'purchase' ? 'shopper' : deal.side === 'buyer' ? 'buyer_haggler' : 'seller_counter';
+      const run = { run: fakeUlid(`run:${deal_id}:${Date.now()}`), deal_id, engine, mode: engine === 'scripted' ? 'scripted_engine' as const : deal.mode, state: 'running' as const, playbook };
       state.runs = [run, ...state.runs].slice(0, 64);
       save();
       emit('agent:changed', run);

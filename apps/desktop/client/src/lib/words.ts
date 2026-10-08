@@ -6,6 +6,7 @@ import type { DealKind } from '@bindings/DealKind';
 import type { DealState } from '@bindings/DealState';
 import type { HouseRecord } from '@bindings/HouseRecord';
 import type { Mode } from '@bindings/Mode';
+import type { Playbook } from '@bindings/Playbook';
 import type { MoneyCheck } from '@bindings/MoneyCheck';
 import type { MoneyCheckStep } from '@bindings/MoneyCheckStep';
 import type { ReceiptEvidence } from '@bindings/ReceiptEvidence';
@@ -525,3 +526,19 @@ export const sellersWord = (n: number): string => `${n} ${n === 1 ? 'seller' : '
 export const GROUP_CLOSED: Word = { text: 'Another seller agreed', tone: 'line', means: 'Another seller agreed first, so your wallet told this seller no with a signed message. No money moved.' };
 /** The table that agreed first. */
 export const GROUP_WINNER: Word = { text: 'Agreed first', tone: 'ok', means: 'This seller agreed first. It goes on like any single deal: nothing is paid until it is approved on PayPal.' };
+
+// ---- agent instructions (role playbooks) ---------------------------------------------------------
+
+/** The instructions an agent app starts from, named by the job they describe. */
+export const PLAYBOOK_NAME: Record<Playbook, string> = {
+  buyer_haggler: 'Bargaining to buy',
+  seller_counter: 'Answering buyers’ offers',
+  shopper: 'Proposing a purchase',
+  shop_assistant: 'Answering questions about your records',
+};
+export const INSTRUCTIONS = 'Agent instructions';
+/** The sheet's title and its one lead line. */
+export const INSTRUCTIONS_TITLE = 'What your agent app is told';
+export const INSTRUCTIONS_LEAD = 'Your agent app starts from these instructions, word for word. They cannot widen your rules: your wallet checks every step against what you signed, and nothing the other side writes ever reaches the agent.';
+/** A practice-agent run reads no written instructions: it follows fixed price rules. */
+export const INSTRUCTIONS_NONE = 'None: fixed price rules inside your range';
