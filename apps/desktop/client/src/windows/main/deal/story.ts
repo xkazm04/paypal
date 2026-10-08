@@ -61,7 +61,9 @@ export function dealAnswer(d: AnswerDeal, c: AnswerCtx): DealAnswer {
 
   if (isTerminal(d)) {
     const settled = d.state === 'CAPTURED' || d.state === 'RECEIPTED' || d.state === 'RECONCILED';
-    return { tone: settled ? 'done' : 'calm', title: CLOSED, sub: `${settled ? `${w.text} · ${amt}` : w.means}${decided}` };
+    // A deal the deadline ended was not walked away from: say that nobody acted in time.
+    const lapsed = who.who === 'default' && (d.state === 'WITHDRAWN' || d.state === 'EXPIRED') ? 'Nobody acted before the deadline, so it ended. No money moved.' : null;
+    return { tone: settled ? 'done' : 'calm', title: CLOSED, sub: `${settled ? `${w.text} · ${amt}` : lapsed ?? w.means}${decided}` };
   }
 
   // Not paid and not failed: PayPal's own record decides which, and nothing moves until then.

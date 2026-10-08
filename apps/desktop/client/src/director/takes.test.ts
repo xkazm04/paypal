@@ -109,7 +109,7 @@ describe('each beat’s end state', () => {
     ]);
     // a held request's card: its sentence wraps across lines, and it may only offer to show why
     const held = (buttons: string[]) => seen({
-      text: { main: MOCK_BADGE, tumbler: `Amount didn’t match:\n  asked $339.00,   agreed $329.00 ${MOCK_BADGE}`, approval: '' },
+      text: { main: MOCK_BADGE, tumbler: `Asked $339.00,\n  not the   agreed $329.00 ${MOCK_BADGE}`, approval: '' },
       buttons: { main: [], tumbler: buttons, approval: [] },
     });
     expect(checkBeat('mismatch-card', held(['See why ↗']))).toEqual([]);

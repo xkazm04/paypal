@@ -105,7 +105,7 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   ],
   'silence-lapsed': [
     { in: 'tumbler', text: 'Withdrawn' },
-    { in: 'tumbler', text: 'nothing was paid' },
+    { in: 'tumbler', text: 'nothing paid' },
     { in: 'main', text: 'Refurbished 27-inch 4K monitor' },
     { deal: HAGGLE, state: 'WITHDRAWN' },
   ],
@@ -122,7 +122,7 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
     { deal: MISMATCH, state: 'MISMATCH' },
   ],
   'mismatch-card': [
-    { in: 'tumbler', text: 'Amount didn’t match: asked $339.00, agreed $329.00' },
+    { in: 'tumbler', text: 'Asked $339.00, not the agreed $329.00' },
     // the caption says the card only offers to show why: no withdraw on a held request
     { in: 'tumbler', button: /See why/ },
     { in: 'tumbler', button: /^Withdraw\b/, absent: true },
@@ -158,7 +158,7 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   ],
   'closed-released': [
     { in: 'tumbler', text: 'Hold released' },
-    { in: 'tumbler', text: 'nothing was paid' },
+    { in: 'tumbler', text: 'nothing paid' },
     { deal: HOLD, state: 'AUTO_VOIDED' },
   ],
   'end-table': [
