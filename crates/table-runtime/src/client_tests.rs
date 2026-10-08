@@ -286,7 +286,7 @@ async fn mandate_list_resolves_every_slot_from_the_pinned_key() {
     assert!(http.0.lock().unwrap().paths.is_empty());
 }
 
-fn counter(r: &mut Runtime, deal: &Deal, peer: &AgentSigner, price: i64) {
+pub(super) fn counter(r: &mut Runtime, deal: &Deal, peer: &AgentSigner, price: i64) {
     let current = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap();
     let mut nonce = [0; 16];
     getrandom::fill(&mut nonce).unwrap();
