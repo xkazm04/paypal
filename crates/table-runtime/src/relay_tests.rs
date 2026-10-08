@@ -1,4 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+#[path = "glass_tests.rs"]
+mod glass_tests;
 #[path = "house_tests.rs"]
 mod house_tests;
 use crate::tests::policy_tests::{attach, install, runs, settled};
@@ -244,6 +246,29 @@ impl table_relay::RelayApi for InProcessRelay {
                     "POST",
                     "/v1/house/tables".into(),
                     serde_json::to_string(request).unwrap(),
+                )
+                .await?,
+        )
+        .map_err(|_| table_relay::Error::Invalid)
+    }
+    async fn house_head(&self) -> Result<table_proto::SignedHouseHead, table_relay::Error> {
+        serde_json::from_slice(
+            &self
+                .request("GET", "/v1/house/head".into(), String::new())
+                .await?,
+        )
+        .map_err(|_| table_relay::Error::Invalid)
+    }
+    async fn house_prefix(
+        &self,
+        rows: u64,
+    ) -> Result<table_proto::SignedHousePrefix, table_relay::Error> {
+        serde_json::from_slice(
+            &self
+                .request(
+                    "GET",
+                    format!("/v1/house/prefix?rows={rows}"),
+                    String::new(),
                 )
                 .await?,
         )

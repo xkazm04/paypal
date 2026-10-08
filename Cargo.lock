@@ -4298,6 +4298,7 @@ name = "table-verify"
 version = "0.1.0"
 dependencies = [
  "ed25519-dalek",
+ "serde",
  "serde_json",
  "table-core",
  "table-proto",
