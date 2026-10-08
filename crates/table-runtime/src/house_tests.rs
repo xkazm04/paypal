@@ -1000,11 +1000,15 @@ async fn house_health_stays_up_through_a_slow_tick_of_several_deals() {
     }
     let elapsed = house.clock.0.load(std::sync::atomic::Ordering::SeqCst) - started;
     assert!(elapsed > 2 * house_seller::HEARTBEAT_STALE, "{elapsed}");
+    // Read the deals from the ledger file, not through the actor: once the creates are done the
+    // actor may already sit in a gated approval poll, and a busy actor answers Unavailable (C-8).
+    let reader = table_ledger::Ledger::open(&house.path).unwrap();
     for id in &house.deals {
         let deal = tokio::time::timeout(std::time::Duration::from_secs(LIVENESS_SECS), async {
             loop {
-                let deal = handle.snapshot(*id).await.unwrap();
-                if deal.state == DealState::AwaitingApproval {
+                if let Ok(deal) = reader.get_deal(*id)
+                    && deal.state == DealState::AwaitingApproval
+                {
                     break deal;
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(10)).await;
@@ -1014,6 +1018,7 @@ async fn house_health_stays_up_through_a_slow_tick_of_several_deals() {
         .unwrap();
         assert_eq!(deal.state, DealState::AwaitingApproval);
     }
+    drop(reader);
     // A call that hangs past the threshold is still a stalled actor (C-8): /healthz reads 503.
     tokio::time::timeout(
         std::time::Duration::from_secs(LIVENESS_SECS),
