@@ -8,6 +8,8 @@ use table_ledger::Recipient;
 
 /// The plain-words refusal when no signed rescue rules exist.
 pub const NO_RESCUE_RULES: &str = "Sign rules for fixing failed renewals first.";
+/// The plain-words refusal of a decision on a fix whose one invoice send already ended.
+pub const RESCUE_ENDED: &str = "This fix already ended; nothing was sent.";
 
 impl Runtime {
     /// The active mandate whose rules allow rescue, if any (the latest one signed).
@@ -109,8 +111,11 @@ impl Runtime {
             && !open
             && match deal.state {
                 DealState::Agreed => true,
+                // A send that already ended (closed not done) is never offered again.
                 DealState::Settling => {
-                    deal.paypal.order.is_some() && app(ledger.rescue_decision(deal.id))?.is_some()
+                    deal.paypal.order.is_some()
+                        && app(ledger.rescue_decision(deal.id))?.is_some()
+                        && !app(ledger.rescue_send_reserved(deal.id))?
                 }
                 _ => false,
             })
