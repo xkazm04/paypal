@@ -25,6 +25,8 @@ import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import type { AuditRow } from '@bindings/AuditRow';
 import type { CounterpartyNote } from '@bindings/CounterpartyNote';
 import type { HistoryStep } from '@bindings/HistoryStep';
+import type { NotifySuppression } from '@bindings/NotifySuppression';
+import type { RungMark } from '@bindings/RungMark';
 import type { CounterpartyDisplay, DealDisplay, TranscriptStep } from '../lib/pending';
 import { MONEY_CHECK_SILENCE, RESCUE_SENT_SILENCE, RESCUE_SILENCE } from '../lib/words';
 import type { MockEnvelope } from './exposure';
@@ -84,6 +86,9 @@ export type MockState = {
   audit?: AuditRow[];
   /** Maya's week as deal_history projects it (oldest first): who decided each step. */
   history?: HistoryStep[];
+  /** The rungs of the attention ladder recorded per card and deadline (attention-ladder-1), as
+   *  Rust's `attention.rung` rows: the deadline's safe default cites them on its history step. */
+  rungs?: Array<{ deal_id: string; deadline: number; mark: RungMark }>;
   /** owner_facts inputs that settings do not carry. */
   credentialsStoredAt?: { paypal_sandbox: number | null; channel3: number | null };
   lastReportingPoll?: { at: number; status: number } | null;
@@ -273,6 +278,10 @@ export function buildMockState(now: number): MockState {
     attention: { kind: 'hold', module: 'tables', headline: 'Mismatch · SETTLE $339.00 ≠ deal $329.00', counterparty: 'Dan · north-desk', clause: null, urgency: 'calm', actions: ['open_in_table'] },
   });
 
+  // Left alone at its approval: the deadline lapsed it, and the record says what Maya was shown
+  // before it did (attention-ladder-1). No money moved.
+  add({ label: 'D-0184', title: 'Refurbished 27-inch QHD monitor', kind: 'haggle', side: 'buyer', cp: KEY.dan, item: 'monitor-27-qhd', price: 289, state: 'WITHDRAWN', mandate: MANDATE_M14, version: 2, decided: { type: 'safe_default', deadline: back(0.62) }, at: [back(0.66), back(0.62)] });
+
   // --- Spend (firewall) ------------------------------------------------------------------
   add({ label: 'D-0192', title: '40 × GPU (cloud rental, 1 month)', kind: 'purchase', side: 'buyer', cp: KEY.gpu, item: 'gpu-rental', qty: 40, price: 299, state: 'REFUSED', decided: { type: 'policy', clause: 3 }, at: [back(0.55), back(0.55) + 1] });
   add({
@@ -449,7 +458,7 @@ export function buildMockState(now: number): MockState {
   // The category each deal was created with. D-0180 predates categories on record, so the
   // what-if shows it as not checked instead of guessing.
   const CATEGORY: Record<string, Category> = {
-    'D-0193': 'office', 'D-0204': 'office', 'D-0201': 'office', 'D-0187': 'office', 'D-0176': 'office', 'D-0199': 'office',
+    'D-0193': 'office', 'D-0204': 'office', 'D-0184': 'office', 'D-0201': 'office', 'D-0187': 'office', 'D-0176': 'office', 'D-0199': 'office',
     'D-0192': 'compute', 'D-0190': 'parts', 'D-0186': 'office', 'D-0183': 'parts', 'D-0181': 'parts',
     'Q-0207': 'office', 'D-0189': 'office', 'D-0185': 'office', 'D-0196': 'office', 'D-0198': 'office',
     'D-0188': 'service', 'D-0182': 'service', 'D-0178': 'service',
@@ -564,10 +573,12 @@ export function buildHistory(now: number): HistoryStep[] {
   // would crowd into a few hours, so they go on last week instead. "Ago" steps stay near now.
   const DAY = 86400;
   const monday = mondayOf(now);
-  type Raw = { deal: string; at: { day: number; hm: string } | { ago: number }; kind: HistoryStep['kind']; to?: HistoryStep['state_after']; by?: Auth; pp?: HistoryStep['paypal'] };
+  /** A rung of the attention ladder a safe default cites (attention-ladder-1), on the week's clock. */
+  type RawRung = { day: number; hm: string; rung: RungMark['rung']; reason?: NotifySuppression };
+  type Raw = { deal: string; at: { day: number; hm: string } | { ago: number }; kind: HistoryStep['kind']; to?: HistoryStep['state_after']; by?: Auth; pp?: HistoryStep['paypal']; rungs?: RawRung[] };
   const raw: Raw[] = [];
-  const on = (deal: string, day: number, hm: string, kind: HistoryStep['kind'], to: HistoryStep['state_after'] = null, by: Auth = NOBODY, pp: HistoryStep['paypal'] = NO_CALL) =>
-    raw.push({ deal, at: { day, hm }, kind, to, by, pp });
+  const on = (deal: string, day: number, hm: string, kind: HistoryStep['kind'], to: HistoryStep['state_after'] = null, by: Auth = NOBODY, pp: HistoryStep['paypal'] = NO_CALL, rungs?: RawRung[]) =>
+    raw.push({ deal, at: { day, hm }, kind, to, by, pp, ...(rungs ? { rungs } : {}) });
   const ago = (deal: string, secs: number, kind: HistoryStep['kind'], to: HistoryStep['state_after'] = null, by: Auth = NOBODY, pp: HistoryStep['paypal'] = NO_CALL) =>
     raw.push({ deal, at: { ago: secs }, kind, to, by, pp });
   /** A purchase the agent proposed and your rule approved: order, buyer approval, hold. */
@@ -599,6 +610,18 @@ export function buildHistory(now: number): HistoryStep[] {
   on(D('D-0192'), 1, '14:02', 'refused', 'REFUSED', { type: 'signed_rule', clause: 3 });
   on(D('D-0187'), 1, '15:30', 'receipted', 'RECEIPTED');
   on(D('D-0176'), 1, '16:10', 'withdraw_sent', 'WITHDRAWN', AGENT);
+  // A QHD monitor Dan agreed to at $289, over "ask me above": it waited for Maya's approval and,
+  // left alone, lapsed at 18:00. She was shown it, notified and opened it; no money moved.
+  on(D('D-0184'), 1, '15:30', 'created');
+  on(D('D-0184'), 1, '15:31', 'offer_received', 'LISTED');
+  on(D('D-0184'), 1, '15:33', 'offer_sent', 'NEGOTIATING', AGENT);
+  on(D('D-0184'), 1, '16:02', 'accept_received', 'AGREED');
+  on(D('D-0184'), 1, '18:00', 'lapsed', 'WITHDRAWN', DEFAULT, NO_CALL, [
+    { day: 1, hm: '16:02', rung: 'shown' },
+    { day: 1, hm: '16:02', rung: 'breathing' },
+    { day: 1, hm: '17:45', rung: 'notified' },
+    { day: 1, hm: '17:50', rung: 'card_opened' },
+  ]);
   // Wednesday: a shop sale the buyer approved is collected under your shop rules, no click.
   // D-0194: the buyer approved, the shop rules put it on hold, and the capture's answer was lost.
   ago(D('D-0194'), 6 * 3600, 'created');
@@ -619,7 +642,11 @@ export function buildHistory(now: number): HistoryStep[] {
   purchase(D('D-0180'), 2, 15, 10);
   // Thursday: the power supply's hold runs out at 72 h and releases itself; you release the
   // duplicate thermal-pads hold yourself; packing supplies are paid on your rule.
-  on(D('D-0181'), 3, '11:53', 'auto_voided', 'AUTO_VOIDED', DEFAULT, call('void'));
+  // Do Not Disturb was on when its one reminder was due, and the record says so.
+  on(D('D-0181'), 3, '11:53', 'auto_voided', 'AUTO_VOIDED', DEFAULT, call('void'), [
+    { day: 0, hm: '11:48', rung: 'shown' },
+    { day: 3, hm: '11:38', rung: 'notify_suppressed', reason: 'do_not_disturb' },
+  ]);
   on(D('D-0180'), 3, '16:40', 'voided', 'VOIDED', OWNER, call('void'));
   purchase(D('D-0186'), 3, 10, 2);
   on(D('D-0186'), 3, '10:11', 'captured', 'CAPTURED', RULE6, call('capture'));
@@ -675,7 +702,9 @@ export function buildHistory(now: number): HistoryStep[] {
   const [base, scale] = room >= last ? [monday, 1] : room >= last / 4 ? [monday, room / last] : [monday - 7 * DAY, 1];
   const timed = raw.map((r, i) => ({ r, i, at: 'day' in r.at ? Math.round(base + offset(r.at) * scale) : now - r.at.ago }));
   timed.sort((a, b) => a.at - b.at || a.i - b.i);
+  const rungAt = (x: RawRung) => Math.round(base + offset(x) * scale);
   return timed.map(({ r, at }, k) => ({
     at, deal_id: r.deal, seq: k + 1, kind: r.kind, state_after: r.to ?? null, authority: r.by ?? NOBODY, paypal: r.pp ?? NO_CALL,
+    ...(r.rungs ? { rungs: r.rungs.map((x) => ({ rung: x.rung, at: rungAt(x), ...(x.reason ? { reason: x.reason } : {}) })) } : {}),
   }));
 }

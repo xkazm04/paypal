@@ -1,9 +1,11 @@
 //! SQLite repositories with atomic protocol ingestion and append-only chained audit evidence.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
+pub mod attention;
 pub mod audit;
 mod bundle;
 pub mod redaction;
 pub mod repositories;
+pub use attention::{RUNG_ACTION, RungRow, SilenceEvidence, rung_chain_hash};
 pub use audit::{AuditEntry, AuditRecord};
 pub use redaction::*;
 pub use repositories::*;

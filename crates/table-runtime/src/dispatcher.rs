@@ -180,16 +180,17 @@ impl Runtime {
                 source.clause = self.human_present_clause(deal)?;
             }
             let item = source.item(now);
+            // A snooze hides a GATE until it runs out or the notification rung pierces it.
             if item.kind == table_attention::AttnKind::Gate
-                && item
-                    .deadline
-                    .is_some_and(|due| due.saturating_sub(now) > 900)
-                && app(self
-                    .pipeline
-                    .wallet
-                    .ledger
-                    .preference::<i64>(&format!("snooze.{}", deal.id)))?
-                .is_some_and(|until| until > now)
+                && table_attention::LADDER.snooze_hides(
+                    item.deadline,
+                    app(self
+                        .pipeline
+                        .wallet
+                        .ledger
+                        .preference::<i64>(&format!("snooze.{}", deal.id)))?,
+                    now,
+                )
             {
                 continue;
             }
@@ -218,6 +219,9 @@ impl Runtime {
         snapshot.forecast = self.forecast(now).ok();
         // Each card's silence line follows the forecast beside it (DECISIONS 15).
         table_attention::word_silence(&mut snapshot, &sources);
+        // What the owner is offered now is evidence (attention-ladder-1). A rung that cannot be
+        // written is dropped; it never fails the snapshot.
+        self.record_snapshot_rungs(&snapshot.items, now);
         Ok(snapshot)
     }
     pub(crate) async fn execute(
@@ -255,8 +259,7 @@ impl Runtime {
                     i.deal_id == deal_id
                         && i.kind == table_attention::AttnKind::Gate
                         && i.deadline == Some(deadline)
-                        && deadline > now
-                        && deadline.saturating_sub(now) <= 900
+                        && table_attention::LADDER.notify_due(i.deadline, now)
                 }) {
                     return json(false);
                 }
@@ -276,6 +279,51 @@ impl Runtime {
                     .wallet
                     .ledger
                     .set_preference(&format!("notification.{deal_id}.{deadline}"), &false))?;
+                // The owner was not told; a later claim that shows it records Notified too.
+                if let Some(item) = self.due_gate(deal_id, deadline) {
+                    let now = self.clock.now();
+                    self.record_rung(
+                        &item,
+                        LadderRung::NotifySuppressed,
+                        Some(NotifySuppression::NotShown),
+                        now,
+                    );
+                }
+                json(())
+            }
+            Action::NotificationShown { deal_id, deadline } => {
+                // Only a notification this deal's claim holds, for a card still due.
+                allowed(label, &["tumbler"])?;
+                let claimed = app(self
+                    .pipeline
+                    .wallet
+                    .ledger
+                    .preference::<bool>(&format!("notification.{deal_id}.{deadline}")))?
+                .unwrap_or(false);
+                let item = self.due_gate(deal_id, deadline).filter(|_| claimed);
+                let now = self.clock.now();
+                json(
+                    item.is_some_and(|item| {
+                        self.record_rung(&item, LadderRung::Notified, None, now)
+                    }),
+                )
+            }
+            Action::NotificationSuppressed {
+                deal_id,
+                deadline,
+                reason,
+            } => {
+                allowed(label, &["tumbler"])?;
+                let item = self.due_gate(deal_id, deadline);
+                let now = self.clock.now();
+                json(item.is_some_and(|item| {
+                    self.record_rung(&item, LadderRung::NotifySuppressed, Some(reason), now)
+                }))
+            }
+            Action::CardOpened(id) => {
+                // The shell's main_open from a Tumbler card: the owner opened the deal.
+                allowed(label, &["tumbler"])?;
+                self.record_card_rung(id, LadderRung::CardOpened);
                 json(())
             }
             Action::CheckPrivilege => json(()),
@@ -344,7 +392,11 @@ impl Runtime {
                 json(())
             }
             Action::OpenApproval(args) => {
+                let deal = args.deal_id;
                 self.open_approval(label, args)?;
+                if let Some(id) = deal {
+                    self.record_card_rung(id, LadderRung::ReviewOpened);
+                }
                 json(())
             }
             Action::OwnerFacts => json(self.owner_facts()?),
@@ -533,18 +585,18 @@ impl Runtime {
             }
             Action::Snooze(id) => {
                 let now = self.clock.now();
-                if !self.attention()?.items.iter().any(|i| {
+                let Some(item) = self.attention()?.items.into_iter().find(|i| {
                     i.deal_id == id
                         && i.kind == table_attention::AttnKind::Gate
-                        && i.deadline.is_some_and(|d| d.saturating_sub(now) > 2700)
-                }) {
+                        && table_attention::LADDER.snooze_allowed(i.deadline, now)
+                }) else {
                     return Err(invalid());
-                }
-                app(self
-                    .pipeline
-                    .wallet
-                    .ledger
-                    .set_preference(&format!("snooze.{id}"), &now.saturating_add(1800)))?;
+                };
+                self.record_rung(&item, LadderRung::Snoozed, None, now);
+                app(self.pipeline.wallet.ledger.set_preference(
+                    &format!("snooze.{id}"),
+                    &table_attention::LADDER.snooze_until(now),
+                ))?;
                 json(())
             }
             Action::Decision(args, decision) => self.decide(label, token, args, decision).await,

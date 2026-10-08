@@ -8,7 +8,10 @@ import type { BookView } from '@bindings/BookView';
 import type { JsonValue } from '@bindings/serde_json/JsonValue';
 import type { ApprovalDraft } from '@bindings/ApprovalDraft';
 import type { ApprovalTarget } from '@bindings/ApprovalTarget';
+import type { AttentionItem } from '@bindings/AttentionItem';
 import type { AttentionSnapshot } from '@bindings/AttentionSnapshot';
+import type { LadderRung } from '@bindings/LadderRung';
+import type { NotifySuppression } from '@bindings/NotifySuppression';
 import type { Deal } from '@bindings/Deal';
 import type { DealState } from '@bindings/DealState';
 import type { EventContract } from '@bindings/EventContract';
@@ -38,6 +41,7 @@ import { RESCUE_NO_RULES, RESCUE_SENT_SILENCE, RESCUE_SILENCE, RESCUE_WATCH_FULL
 import type { RescueWatchView } from '@bindings/RescueWatchView';
 import { invoiceText, leverOf, maskEmail, proposeDiscount, RESCUE_WATCH_MAX, RESCUE_WATCH_READS_DAY, validEmail, validSubscriptionId } from './rescue';
 import { AUTHORITY, AUTHORITY_MANIFEST, type CommandAuthority } from '@bindings/authority';
+import { LADDER } from '@bindings/ladder';
 import { buildFirstRunState, firstRunPreview, PRACTICE_TERMS, withFirstRun, worldKeys } from './firstRun';
 
 type Envelope =
@@ -63,7 +67,7 @@ const TARGETS: Record<EventName, WindowLabel[]> = {
   'pairing:pinned': ['main'],
 };
 
-export const STORE_KEY = 'the-table-mock-state-v14'; // v14: the owner's watched subscriptions (rescue detection); v13: the shield's rule on each deal and a release bound to its terms (shield slice 2); v12: shop-around groups and the house seller's D-0204 (T8); v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
+export const STORE_KEY = 'the-table-mock-state-v15'; // v15: the attention ladder's recorded rungs and D-0184's lapse that cites them (attention-ladder-1); v14: the owner's watched subscriptions (rescue detection); v13: the shield's rule on each deal and a release bound to its terms (shield slice 2); v12: shop-around groups and the house seller's D-0204 (T8); v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
 const DEGRADE_KEY = 'the-table-mock-degrade';
 /** The preview clock's offset from wall time, shared by every mock window of this origin. */
 export const CLOCK_KEY = 'the-table-mock-clock';
@@ -311,17 +315,43 @@ export function mockBackend(label: WindowLabel): MockBackend {
   const limitsNone = params.get('limits') === 'none';
   const envelope = () => (limitsNone ? null : state.envelope ?? null);
   const exposureView = () => mockExposureView(state.deals.map((d) => d.deal), envelope(), nowUnix());
+  // As Runtime::record_rung (attention-ladder-1): a card's rung for its live deadline, once each.
+  // Recorded in memory; the next save carries it, and the deadline's sweep cites it.
+  function recordRung(a: AttentionItem, rung: LadderRung, reason?: NotifySuppression): void {
+    const now = nowUnix();
+    if (a.deadline === null || a.deadline <= now) return;
+    const list = state.rungs ?? [];
+    if (list.some((r) => r.deal_id === a.deal_id && r.deadline === a.deadline && r.mark.rung === rung)) return;
+    state.rungs = [...list, { deal_id: a.deal_id, deadline: a.deadline, mark: { rung, at: now, ...(reason ? { reason } : {}) } }];
+  }
+  /** As Runtime::record_snapshot_rungs: each card shown, each gate breathing, each due notice held back. */
+  function snapshotRungs(items: readonly AttentionItem[]): void {
+    const p = state.settings.preferences;
+    for (const a of items) {
+      recordRung(a, 'shown');
+      if (a.kind !== 'gate' || a.deadline === null) continue;
+      const left = a.deadline - nowUnix();
+      if (!p.dnd && left > 0 && left <= LADDER.breathe_secs) recordRung(a, 'breathing');
+      if (left > 0 && left <= LADDER.notify_secs && (p.dnd || !p.notifications)) recordRung(a, 'notify_suppressed', p.dnd ? 'do_not_disturb' : 'notifications_off');
+    }
+  }
+  /** An owner act on a deal's card (opened, reviewed, snoozed), when it has one. */
+  const cardRung = (dealId: string, rung: LadderRung) => {
+    const a = state.deals.find((d) => d.deal.id === dealId)?.attention;
+    if (a && (a.kind !== 'gate' || (state.snoozed?.[a.deal_id] ?? 0) <= nowUnix())) recordRung(a, rung);
+  };
   const attention = (): AttentionSnapshot => {
     const items = state.deals
       .map((d) => d.attention)
       .filter((a): a is NonNullable<typeof a> => a !== null)
       .filter((a) => (label === 'approval' ? a.deal_id === selected : true))
-      .filter((a) => a.kind !== 'gate' || (state.snoozed?.[a.deal_id] ?? 0) <= nowUnix() || (a.deadline ?? Infinity) - nowUnix() <= 900)
+      .filter((a) => a.kind !== 'gate' || (state.snoozed?.[a.deal_id] ?? 0) <= nowUnix() || (a.deadline ?? Infinity) - nowUnix() <= LADDER.notify_secs)
       .map((a) => {
         const left = a.deadline === null ? Infinity : a.deadline - nowUnix();
-        return { ...a, urgency: left <= 15 * 60 ? ('now' as const) : left <= 2 * 3600 ? ('soon' as const) : ('calm' as const) };
+        return { ...a, urgency: left <= LADDER.notify_secs ? ('now' as const) : left <= LADDER.breathe_secs ? ('soon' as const) : ('calm' as const) };
       })
       .sort((x, y) => (x.deadline ?? Infinity) - (y.deadline ?? Infinity));
+    snapshotRungs(items);
     const exposure = exposureView();
     const rows = exposure.currencies;
     return {
@@ -527,6 +557,8 @@ export function mockBackend(label: WindowLabel): MockBackend {
     },
     attention_list: () => attention(),
     main_open: ({ deal_id }) => {
+      // Opened from its Tumbler card: the owner's own act (attention-ladder-1).
+      if (deal_id && label === 'tumbler') cardRung(deal_id, 'card_opened');
       if (label === 'main') emit('main:route', { deal_id });
       else openWindow(`index.html${deal_id ? `#d=${deal_id}` : ''}`, 'the-table-main');
       return null;
@@ -545,7 +577,10 @@ export function mockBackend(label: WindowLabel): MockBackend {
       if (pairing) {
         if (label !== 'main') fail('PERMISSION', 'pairing handoff is main-only');
         if (!state.pendingPairings?.some((p) => JSON.stringify(p.pairing_id) === JSON.stringify(pairing) && p.expires > nowUnix())) fail('INVALID', 'unknown or expired pairing');
-      } else if (deal_id) find(deal_id);
+      } else if (deal_id) {
+        find(deal_id);
+        cardRung(deal_id, 'review_opened');
+      }
       const q = new URLSearchParams();
       if (pairing) q.set('pairing', JSON.stringify(pairing));
       else if (deal_id) q.set('deal', deal_id);
@@ -751,8 +786,9 @@ export function mockBackend(label: WindowLabel): MockBackend {
     },
     deal_snooze: ({ deal_id }) => {
       const d = find(deal_id);
-      if (d.attention?.kind !== 'gate' || (d.attention.deadline ?? 0) - nowUnix() <= 2700) fail('INVALID', 'snooze requires a gate more than 45 minutes away');
-      state.snoozed = { ...state.snoozed, [deal_id]: nowUnix() + 1800 };
+      if (d.attention?.kind !== 'gate' || (d.attention.deadline ?? 0) - nowUnix() <= LADDER.snooze_min_left_secs) fail('INVALID', 'snooze requires a gate more than 45 minutes away');
+      recordRung(d.attention, 'snoozed');
+      state.snoozed = { ...state.snoozed, [deal_id]: nowUnix() + LADDER.snooze_secs };
       save();
       emit('attention:changed', attention());
       return null;
@@ -1194,7 +1230,9 @@ export function mockBackend(label: WindowLabel): MockBackend {
       const history = state.history ?? buildMockState(nowUnix()).history ?? [];
       const kind = to === 'AUTO_VOIDED' ? 'auto_voided' : to === 'WITHDRAWN' ? 'lapsed' : 'expired';
       const paypal = to === 'AUTO_VOIDED' ? { type: 'call' as const, method: 'void' as const, outcome: 'ok' as const } : { type: 'none' as const };
-      state.history = [...history, { at: now, deal_id: d.deal.id, seq: history.reduce((m, h) => Math.max(m, h.seq), 0) + 1, kind, state_after: to, authority: { type: 'safe_default' }, paypal }];
+      // The default cites the rungs recorded for this deadline (attention-ladder-1); it never waits on one.
+      const rungs = (state.rungs ?? []).filter((r) => r.deal_id === d.deal.id && r.deadline === due).map((r) => r.mark);
+      state.history = [...history, { at: now, deal_id: d.deal.id, seq: history.reduce((m, h) => Math.max(m, h.seq), 0) + 1, kind, state_after: to, authority: { type: 'safe_default' }, paypal, rungs }];
       lapsed.push(d);
     }
     if (lapsed.length) save();

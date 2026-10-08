@@ -7,6 +7,7 @@ pub use table_proto::{PairingIdentity, SignedPairingIdentity};
 use ts_rs::TS;
 pub mod authority;
 mod authority_table;
+pub mod ladder;
 pub mod playbooks;
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -1097,6 +1098,12 @@ pub struct HistoryStep {
     pub state_after: Option<table_core::DealState>,
     pub authority: HistoryAuthority,
     pub paypal: HistoryPaypal,
+    /// On a safe default that cites them (attention-ladder-1): the rungs of the attention ladder
+    /// the owner was offered for that deadline before it, oldest first; empty when the card was
+    /// never shown. Absent on every other step, and on a default recorded before rungs were.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub rungs: Option<Vec<table_core::RungMark>>,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]

@@ -11,6 +11,7 @@ import type { Mode } from '@bindings/Mode';
 import type { ReceiptEvent } from '@bindings/ReceiptEvent';
 import type { TumblerPreferences } from '@bindings/TumblerPreferences';
 import type { VisualState } from '@bindings/VisualState';
+import { LADDER } from '@bindings/ladder';
 import { clockLabel, countdown, formatMinor } from '../../lib/format';
 import { headlineWords, moneyCheckWord, ruleNameOf, shieldRuleWord, silenceWords, timeLeftWords } from '../../lib/words';
 
@@ -26,14 +27,15 @@ export const FORM_SIZE: Record<Form, readonly [number, number]> = {
   welcome: [440, 228],
 };
 
+/** The ladder's rungs, read from Rust's one schedule (bindings/ladder.ts, table_attention::LADDER). */
 export const SECONDS = {
   /** deadline ≤ 2 h: the ring breathes */
-  soon: 2 * 3600,
+  soon: LADDER.breathe_secs,
   /** deadline ≤ 15 min: tray dot + one OS notification (Rust) */
-  now: 15 * 60,
+  now: LADDER.notify_secs,
   /** Snooze exists only when the deadline is more than 45 min away */
-  snoozeMinLeft: 45 * 60,
-  snooze: 30 * 60,
+  snoozeMinLeft: LADDER.snooze_min_left_secs,
+  snooze: LADDER.snooze_secs,
 } as const;
 
 export const TICKER_MS = { default: 6000, receipt: 2500, info: 2500 } as const;

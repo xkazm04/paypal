@@ -24,6 +24,7 @@ import './charts.css'; // the proof's charts (deal/Evidence.tsx) style eagerly, 
 import { mayWithdraw, mirrorStrip, readClauses } from './deal/model';
 import { ruleChecks, rulesBadge, standingFacts } from './deal/story';
 import { WhoDecided } from './deal/WhoDecided';
+import { ShownStrip } from './deal/ShownStrip';
 import { InstructionsValue } from './deal/InstructionsValue';
 import { shortTitle } from './home/model';
 import './deal.css';
@@ -128,6 +129,7 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
 
       <Summary deal={deal} strip={strip} deadline={deadline} check={check} />
       <StateStrip strip={strip} />
+      <ShownStrip deal={deal} />
       <DealStory deal={deal} need={need} canWithdraw={withdrawable} theirName={them} them={them} latest={latest} band={bandReading}
         readings={readings} deadline={deadline} check={check} />
 
