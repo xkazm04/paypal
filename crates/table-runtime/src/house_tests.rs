@@ -1280,12 +1280,160 @@ async fn house_unapproved_deal_lapses_after_thirty_minutes_and_frees_its_slot() 
             })
             .is_ok()
     );
+    // The buyer's wallet keeps listening for a late RECEIPT a grace past the same window, then
+    // lets its side lapse too; waiting moved nothing.
+    let grace_end =
+        created + table_core::HOUSE_APPROVAL_SECS + table_core::HOUSE_RECEIPT_GRACE_SECS;
+    for at in [created + table_core::HOUSE_APPROVAL_SECS, grace_end - 1] {
+        assert!(!buyer.pipeline.deadline_default(id, at).await.unwrap());
+        assert_eq!(
+            buyer.pipeline.wallet.ledger.get_deal(id).unwrap().state,
+            DealState::AwaitingApproval
+        );
+    }
+    assert!(
+        buyer
+            .pipeline
+            .deadline_default(id, grace_end)
+            .await
+            .unwrap()
+    );
+    assert_eq!(
+        buyer.pipeline.wallet.ledger.get_deal(id).unwrap().state,
+        DealState::Expired
+    );
     let paths = http.0.lock().unwrap().paths.clone();
     assert!(
         !paths
             .iter()
             .any(|p| p.ends_with("/authorize") || p.ends_with("/capture")),
         "{paths:?}"
+    );
+    seller.pipeline.wallet.ledger.verify_audit().unwrap();
+}
+
+/// The settle step of a HOUSE table at `created`, with its SETTLE delivered to the buyer.
+async fn house_settled(
+    seller: &mut house_seller::Seller,
+    buyer: &mut Runtime,
+    id: DealId,
+    created: i64,
+) {
+    seller
+        .pipeline
+        .create(
+            id,
+            1,
+            Category::Parts,
+            table_app::Authority::HouseMandate,
+            created,
+        )
+        .await
+        .unwrap();
+    let settle = seller.pipeline.wallet.ledger.relay_work().unwrap()[0]
+        .outgoing
+        .iter()
+        .last()
+        .unwrap()
+        .1
+        .clone();
+    buyer
+        .pipeline
+        .wallet
+        .receive_relay(id, &settle, Category::Parts, created)
+        .unwrap();
+}
+
+#[tokio::test]
+async fn house_approval_in_its_last_minute_ends_receipted_on_both_sides() {
+    use std::sync::atomic::Ordering::SeqCst;
+    let (mut seller, mut buyer, id, _, clock, store) = agreed_house().await;
+    let created = clock.0.load(SeqCst);
+    house_settled(&mut seller, &mut buyer, id, created).await;
+    // The buyer approves on PayPal in minute 29; the HOUSE's poll then sees it, and it
+    // authorizes and captures before its own window ends.
+    clock
+        .0
+        .store(created + table_core::HOUSE_APPROVAL_SECS - 60, SeqCst);
+    for _ in 0..3 {
+        seller.tick().await.unwrap();
+    }
+    let sold = seller.pipeline.wallet.ledger.get_deal(id).unwrap();
+    assert_eq!(sold.state, DealState::Receipted);
+    // The RECEIPT crosses the relay after the buyer's approval countdown ended: its wallet is
+    // still listening, so it never reads "lapsed" for a deal the HOUSE captured.
+    let late = created + table_core::HOUSE_APPROVAL_SECS + 90;
+    assert!(!buyer.pipeline.deadline_default(id, late).await.unwrap());
+    assert_eq!(
+        buyer.pipeline.wallet.ledger.get_deal(id).unwrap().state,
+        DealState::AwaitingApproval
+    );
+    let work = &seller.pipeline.wallet.ledger.relay_work().unwrap()[0];
+    let batch = store
+        .poll(work.mailbox, &work.generation, 0, 0)
+        .await
+        .unwrap();
+    let receipt = batch.messages.last().unwrap();
+    buyer
+        .pipeline
+        .wallet
+        .receive_relay(id, receipt, Category::Parts, late)
+        .unwrap();
+    let bought = buyer.pipeline.wallet.ledger.get_deal(id).unwrap();
+    assert_eq!(bought.state, DealState::Receipted);
+    assert_eq!(bought.paypal.capture, sold.paypal.capture);
+    assert_eq!(bought.transcript_head, sold.transcript_head);
+    // Nothing lapses afterwards on either side.
+    let after = created + table_core::HOUSE_APPROVAL_SECS + table_core::HOUSE_RECEIPT_GRACE_SECS;
+    assert!(!buyer.pipeline.deadline_default(id, after).await.unwrap());
+    assert_eq!(
+        buyer.pipeline.wallet.ledger.get_deal(id).unwrap().state,
+        DealState::Receipted
+    );
+}
+
+#[tokio::test]
+async fn house_voids_a_hold_whose_receipt_could_no_longer_reach_the_buyer() {
+    use std::sync::atomic::Ordering::SeqCst;
+    let (mut seller, mut buyer, id, http, clock, _) = agreed_house().await;
+    let created = clock.0.load(SeqCst);
+    house_settled(&mut seller, &mut buyer, id, created).await;
+    // Approved and authorized in minute 29...
+    clock
+        .0
+        .store(created + table_core::HOUSE_APPROVAL_SECS - 60, SeqCst);
+    for _ in 0..2 {
+        seller.tick().await.unwrap();
+    }
+    assert_eq!(
+        seller.pipeline.wallet.ledger.get_deal(id).unwrap().state,
+        DealState::Authorized
+    );
+    // ...then the HOUSE stalls until the buyer's wallet is about to let the deal lapse: a
+    // capture now could not be reported in time, so the hold is voided instead.
+    clock.0.store(
+        created + table_core::HOUSE_APPROVAL_SECS + table_core::HOUSE_RECEIPT_GRACE_SECS - 60,
+        SeqCst,
+    );
+    seller.tick().await.unwrap();
+    let deal = seller.pipeline.wallet.ledger.get_deal(id).unwrap();
+    assert_eq!(deal.state, DealState::AutoVoided);
+    let paths = http.0.lock().unwrap().paths.clone();
+    assert!(!paths.iter().any(|p| p.ends_with("/capture")), "{paths:?}");
+    assert!(paths.iter().any(|p| p.ends_with("/void")), "{paths:?}");
+    // The buyer's side lapses at the end of its grace: both records say no money moved.
+    let grace_end =
+        created + table_core::HOUSE_APPROVAL_SECS + table_core::HOUSE_RECEIPT_GRACE_SECS;
+    assert!(
+        buyer
+            .pipeline
+            .deadline_default(id, grace_end)
+            .await
+            .unwrap()
+    );
+    assert_eq!(
+        buyer.pipeline.wallet.ledger.get_deal(id).unwrap().state,
+        DealState::Expired
     );
     seller.pipeline.wallet.ledger.verify_audit().unwrap();
 }
