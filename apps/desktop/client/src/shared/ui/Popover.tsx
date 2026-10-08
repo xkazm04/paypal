@@ -62,7 +62,7 @@ export function Popover({ anchor, onClose, title, className, children }: Popover
   }, [anchor]);
 
   return createPortal(
-    <div ref={el} className={`ui-popover ${className ?? ''}`} role="dialog" aria-label={typeof title === 'string' ? title : undefined} tabIndex={-1}
+    <div ref={el} className={`ui-popover ${className ?? ''}`} role="dialog" aria-label={typeof title === 'string' ? title : undefined} tabIndex={-1} data-layer-free=""
       style={pos ? { left: pos.left, top: pos.top } : { left: 0, top: 0, visibility: 'hidden' }}>
       {title ? <h3>{title}</h3> : null}
       {children}

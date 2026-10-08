@@ -25,7 +25,12 @@ impl Runtime {
         };
         let mut sources = Vec::new();
         for deal in app(self.pipeline.wallet.ledger.list_deals())? {
-            if deal.mode == Mode::Replay || deal.state.terminal() {
+            // A deal whose money step is being checked with PayPal is forecast nothing: no step
+            // runs and no default is promised until PayPal's record settles it (T10).
+            if deal.mode == Mode::Replay
+                || deal.state.terminal()
+                || self.pipeline.has_open_operation(deal.id)?
+            {
                 continue;
             }
             sources.push(self.forecast_source(&deal, now, ctx.horizon_secs)?);
@@ -103,7 +108,9 @@ impl Runtime {
     ///   verdict or payee does not age. What does age (the reference going stale, the
     ///   counterparty's first day ending) moves only between ASK and CLEAR, and both pass;
     /// - the mandate refuses from its expiry and its band deadline on, and its start lies before
-    ///   the deal's agreement; the velocity window is the deal's own agreement day.
+    ///   the deal's agreement; the velocity window is the deal's own agreement day;
+    /// - the market-watch rule (T15) never refreshes a seller deal past Agreed
+    ///   (`table_core::market_watch_open`), so no new reference lands inside this window.
     ///
     /// A gate refusing now forecasts no money moving, so any case this misses fails closed.
     fn seller_mandate_window(

@@ -12,7 +12,7 @@ fn signer() -> AgentSigner {
     bytes.fill(0);
     signer
 }
-fn setup() -> (Ledger, Deal, AgentSigner, AgentSigner, AgentSigner) {
+pub(crate) fn setup() -> (Ledger, Deal, AgentSigner, AgentSigner, AgentSigner) {
     let (owner, own, peer) = (signer(), signer(), signer());
     let mut ledger = Ledger::in_memory().unwrap();
     let money = |v| Money::new(v, Currency::USD).unwrap();
@@ -94,6 +94,8 @@ fn setup() -> (Ledger, Deal, AgentSigner, AgentSigner, AgentSigner) {
         market: None,
         shield: None,
         decided_by: None,
+        shield_rule: None,
+        shield_release: None,
     };
     ledger.create_deal(&deal, 100).unwrap();
     (ledger, deal, owner, own, peer)
@@ -148,7 +150,7 @@ fn migrations_are_transactional_idempotent_and_foreign_keys_enabled() {
         .conn
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 8);
+    assert_eq!(version, 14);
     let connection = ledger.conn;
     let ledger = Ledger::from_connection(connection).unwrap();
     assert_eq!(ledger.audit_count().unwrap(), 0);
@@ -163,7 +165,7 @@ fn client_migration_preserves_timestamps_and_labels_survive_older_imports() {
     let (ledger, deal, _, _, _) = setup();
     let conn = ledger.conn;
     conn.execute_batch(
-        "DROP TABLE deal_labels; DROP INDEX deals_created_at; ALTER TABLE paypal_calls DROP COLUMN binding_json; PRAGMA user_version=5;",
+        "DROP TABLE rescue_watches; DROP TRIGGER deals_block_stays; DROP TRIGGER deals_block_never_released; ALTER TABLE deals DROP COLUMN shield_rule; ALTER TABLE deals DROP COLUMN shield_terms; ALTER TABLE deals DROP COLUMN shield_release_json; DROP TRIGGER deals_group_agrees_once; DROP TRIGGER deals_group_once; DROP TABLE deal_groups; DROP INDEX deals_group; ALTER TABLE deals DROP COLUMN group_id; DROP TABLE rescue_cases; DROP TABLE house_heads; DROP TABLE wallet_envelopes; DROP TABLE operation_resolutions; DROP TABLE deal_labels; DROP INDEX deals_created_at; ALTER TABLE paypal_calls DROP COLUMN binding_json; PRAGMA user_version=5;",
     )
     .unwrap();
     let mut ledger = Ledger::from_connection(conn).unwrap();
@@ -2067,3 +2069,55 @@ fn open_operations_list_unknown_and_stale_pending_rows_and_resolution_only_appen
     assert_eq!(ledger.operation_count(deal.id).unwrap(), 1);
     ledger.verify_audit().unwrap();
 }
+#[test]
+fn history_rows_are_deal_scoped_windowed_capped_and_refused_whole_on_a_broken_chain() {
+    let (mut ledger, deal, _, _, _) = setup();
+    ledger.refuse(deal.id, 3, 150).unwrap();
+    let (rows, more) = ledger.history_rows(None, None, None, 100).unwrap();
+    assert!(!more && !rows.is_empty());
+    assert!(rows.iter().all(|r| r.deal_id.is_some()));
+    assert!(rows.windows(2).all(|w| w[0].seq < w[1].seq));
+    assert_eq!(rows.last().unwrap().action, "deal.transition");
+    // [from, to) and one deal only.
+    let (late, _) = ledger
+        .history_rows(Some(deal.id), Some(150), Some(151), 100)
+        .unwrap();
+    assert_eq!(late.len(), 1);
+    let (other, _) = ledger
+        .history_rows(
+            Some("00000000000000000000000009".parse().unwrap()),
+            None,
+            None,
+            100,
+        )
+        .unwrap();
+    assert!(other.is_empty());
+    // The cap keeps the newest rows and says that older ones were left out.
+    let (newest, more) = ledger.history_rows(None, None, None, 1).unwrap();
+    assert!(more);
+    assert_eq!(newest[0].seq, rows.last().unwrap().seq);
+    assert!(ledger.paypal_statuses_at(deal.id, 150).unwrap().is_empty());
+    // A row altered offline: an error, never a partial list.
+    ledger
+        .conn
+        .execute_batch("DROP TRIGGER audit_no_update;")
+        .unwrap();
+    ledger
+        .conn
+        .execute("UPDATE audit_log SET action='deal.created' WHERE seq=2", [])
+        .unwrap();
+    assert!(matches!(
+        ledger.history_rows(None, None, None, 100),
+        Err(LedgerError::Integrity(_))
+    ));
+    assert!(matches!(
+        ledger.history_rows(Some(deal.id), Some(150), None, 100),
+        Err(LedgerError::Integrity(_))
+    ));
+}
+#[path = "limits_tests.rs"]
+mod limits_tests;
+#[path = "market_tests.rs"]
+mod market_tests;
+#[path = "market_watch_tests.rs"]
+mod market_watch_tests;

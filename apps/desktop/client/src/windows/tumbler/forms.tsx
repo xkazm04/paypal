@@ -12,7 +12,9 @@ import type { Mode } from '@bindings/Mode';
 import type { DealDisplay } from '../../lib/pending';
 import type { WalletError } from '../../lib/contract';
 import { clockLabel, formatMinor, shortId } from '../../lib/format';
-import { timeLeftWords } from '../../lib/words';
+import { readLimits } from '../../lib/limits';
+import { FIRST_RUN_TITLE, houseWords, SAFETY_PROMISE, START_STEP, shieldRuleWord, timeLeftWords, type StartStepKey } from '../../lib/words';
+import type { GettingStarted } from '../../lib/firstRun';
 import { useQuery } from '../../lib/hooks';
 import { ModeBadge } from '../../shared/honesty';
 import { MODULE } from '../../shared/modules';
@@ -21,6 +23,7 @@ import {
   MODE_SHORT, approveWindow, cardActions, cardClock, cardQuestion, cardWhy, hhmm, ladderCaption, ladderFill, ringFill, rung, spendMeter, splitHeadline,
   type CardAction, type Handoff, type Ticker,
 } from './logic';
+import { WALK_AWAY_HOURS, walkAway, type WalkAway } from './logic';
 
 const MODE_TEXT: Record<Mode, string> = { sandbox: 'Sandbox', replay: 'Replay', scripted_engine: 'Practice agent' };
 
@@ -86,8 +89,8 @@ export function Notice({ failure }: { failure: { what: string; error: WalletErro
 
 /** Which rung a deadline is on, in words, with its wall-clock end: the card's ladder caption,
  *  which lives on the rule's tooltip and in the details popover (the card has no room for it). */
-function ladderLine(deadline: number | null, now: number, hold: boolean): string {
-  const cap = ladderCaption(rung(deadline, now), hold);
+function ladderLine(deadline: number | null, now: number, hold: boolean, checking = false): string {
+  const cap = ladderCaption(rung(deadline, now), hold, checking);
   if (deadline === null) return cap;
   return `${cap} · until ${deadline - now > 20 * 3600 ? clockLabel(deadline) : hhmm(deadline)}`;
 }
@@ -193,10 +196,11 @@ function CardDetails({ item, now, anchor, actions, pending, onAction, onClose }:
       </div>
       <Kv items={[
         ['Deal', <span className="mono">{item.label} · {MODULE[item.module].name}</span>],
-        ['With', item.counterparty ?? 'a connected wallet'],
+        ['With', item.counterparty ? houseWords(item.counterparty) : 'a connected wallet'],
         title ? ['Item', title] : null,
+        hold && item.shield_rule ? ['Paused by', shieldRuleWord(item.shield_rule).text] : null,
         ['Deadline', item.deadline !== null ? clockLabel(item.deadline) : 'none · paused until you act'],
-        ['Time', ladderLine(item.deadline, now, hold)],
+        ['Time', ladderLine(item.deadline, now, hold, !!item.money_check)],
         ['Mode', MODE_TEXT[item.mode]],
       ]} />
       {table || lapse || snooze ? (
@@ -246,7 +250,8 @@ export const CardForm = forwardRef(function CardForm(p: CardProps, ref: Ref<HTML
   const table = acts.find((a) => a.action === 'open_in_table');
   const r = rung(item.deadline, now);
   const clock = cardClock(item, now);
-  const label = `${hold ? 'Paused' : 'Decision'} ${item.label}. ${hold ? '' : 'Enter reviews, '}W withdraws, Escape returns to rest.`;
+  // Spoken names carry the plain headline, never the deal's id (UX-GUIDE: ids live in Details).
+  const label = `${item.money_check ? 'Checking with PayPal' : hold ? 'Paused' : 'Decision'}: ${item.headline}. ${hold ? '' : 'Enter reviews, '}W withdraws, Escape returns to rest.`;
   const askId = `c-ask-${item.deal_id}`;
 
   let line3: ReactNode;
@@ -261,7 +266,7 @@ export const CardForm = forwardRef(function CardForm(p: CardProps, ref: Ref<HTML
     );
   } else {
     line3 = p.failure ? <Notice failure={p.failure} /> : (
-      <p className="c-who" title={`${item.counterparty ?? 'a connected wallet'} · If you do nothing: ${item.on_silence}`}>
+      <p className="c-who" title={`${item.counterparty ? houseWords(item.counterparty) : 'a connected wallet'} · If you do nothing: ${item.on_silence}`}>
         <span className="c-sil"><Hourglass />If you do nothing: <b>{item.on_silence}</b></span>
       </p>
     );
@@ -297,7 +302,7 @@ export const CardForm = forwardRef(function CardForm(p: CardProps, ref: Ref<HTML
       <div className="f-head nt">
         <span className="ui-dot mdot" aria-hidden="true" />
         <span className="kick" title={`${MODULE[item.module].name} · ${item.label}`}><b>{MODULE[item.module].name}</b></span>
-        <span className={`c-cd ${hold ? 'hold' : ''}${clock.urgent ? ' r-now' : ''}`} title={ladderLine(item.deadline, now, hold)}>{hold && item.deadline !== null ? `Paused · ${clock.text}` : `${clock.text.charAt(0).toUpperCase()}${clock.text.slice(1)}`}</span>
+        <span className={`c-cd ${hold ? 'hold' : ''}${clock.urgent ? ' r-now' : ''}`} title={ladderLine(item.deadline, now, hold, !!item.money_check)}>{item.money_check ? (item.deadline !== null ? `Checking · ${clock.text}` : 'Checking') : hold && item.deadline !== null ? `Paused · ${clock.text}` : `${clock.text.charAt(0).toUpperCase()}${clock.text.slice(1)}`}</span>
         <Flags mode={item.mode} locked={p.locked} compact />
       </div>
       <div className="c-line nt">
@@ -305,7 +310,7 @@ export const CardForm = forwardRef(function CardForm(p: CardProps, ref: Ref<HTML
       </div>
       <div className="c-r3 nt nb">
         {line3}
-        <InfoBtn label={`Details for ${item.label}`} open={!!infoAt} onToggle={(el) => setInfoAt((x) => (x ? null : el))} />
+        <InfoBtn label={`Details: ${item.headline}`} open={!!infoAt} onToggle={(el) => setInfoAt((x) => (x ? null : el))} />
       </div>
       <div className="c-r4 nb">{line4}</div>
       {ringed ? null : <DeadlineRule deadline={item.deadline} now={now} hold={hold} className="nb" />}
@@ -336,8 +341,13 @@ export type StackProps = {
 export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<HTMLDivElement>) {
   const s = p.snapshot;
   const spend = s ? spendMeter(s) : null;
-  const [pop, setPop] = useState<{ el: HTMLElement; which: 'stopped' | 'motion' } | null>(null);
-  const toggle = (which: 'stopped' | 'motion') => (el: HTMLElement) => setPop((x) => (x && x.which === which ? null : { el, which }));
+  // Real meters from the wallet's exposure (T14), against the signed wallet limits.
+  const lim = s ? readLimits(s.exposure) : null;
+  const limHint = (of: string | null) => of ?? (lim?.status === 'expired' ? 'limits ran out' : lim?.status === 'unverified' ? 'limits not checked' : 'no wallet limit');
+  const deals = lim?.meters.find((m) => m.key === 'deals');
+  const walk = s ? walkAway(s) : null;
+  const [pop, setPop] = useState<{ el: HTMLElement; which: 'stopped' | 'motion' | 'walk' } | null>(null);
+  const toggle = (which: 'stopped' | 'motion' | 'walk') => (el: HTMLElement) => setPop((x) => (x && x.which === which ? null : { el, which }));
   return (
     <div ref={ref} className="f stack" tabIndex={-1} aria-label="Everything open">
       <div className="s-head">
@@ -365,13 +375,13 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
             const hold = it.kind === 'hold';
             return (
               <button key={it.deal_id} type="button" className={`ui-row two act s-row ${hold ? 'hold' : 'gate'} r-${r}`} onClick={() => p.onOpen(it.deal_id)}
-                title={`${it.label} · ${MODULE[it.module].name}`}>
+                title={`${MODULE[it.module].name} · ${it.headline} · If you do nothing: ${it.on_silence}`}>
                 <span className="bd" aria-hidden="true" />
                 <span className="main">
-                  <span className="t1"><Headline text={it.headline} minor={it.amount_minor} currency={it.currency} />{it.counterparty ? <span className="who"> · {it.counterparty}</span> : null}</span>
-                  <span className="t2"><Hourglass />If you do nothing: {it.on_silence}</span>
+                  <span className="t1"><Headline text={it.headline} minor={it.amount_minor} currency={it.currency} />{it.counterparty ? <span className="who"> · {houseWords(it.counterparty)}</span> : null}</span>
+                  <span className="t2"><Hourglass />If you do nothing: <b>{it.on_silence}</b></span>
                 </span>
-                {hold ? <Chip tone="coral">Paused</Chip> : null}
+                {it.money_check ? <Chip tone="dashed">Checking</Chip> : hold ? <Chip tone="coral">Paused</Chip> : null}
                 <span className="cd">{it.deadline !== null ? timeLeftWords(it.deadline - p.now) : 'no clock'}</span>
               </button>
             );
@@ -381,6 +391,12 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
         )}
       </div>
       {p.failure ? <div className="s-fail"><Notice failure={p.failure} /></div> : null}
+      <div className={`s-walk${walk && !walk.known ? ' unknown' : ''}`}>
+        <Hourglass />
+        <span className="k">If you walk away</span>
+        <span className="v">{walk ? <WalkSummary walk={walk} /> : '—'}</span>
+        <InfoBtn label="What happens if you walk away" open={pop?.which === 'walk'} onToggle={toggle('walk')} />
+      </div>
       <div className="s-sum">
         <span>Stopped today</span><b className={s && s.stopped_today > 0 ? 'stop' : ''}>{s?.stopped_today ?? '—'}</b>
         <InfoBtn label="What was stopped today" open={pop?.which === 'stopped'} onToggle={toggle('stopped')} />
@@ -389,8 +405,33 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
         <InfoBtn label="What is in motion" open={pop?.which === 'motion'} onToggle={toggle('motion')} />
         {p.paused ? <Chip tone="line">Paused</Chip> : null}
       </div>
-      <div className="s-meters">
-        {p.metersAvailable && s && spend ? (
+      <div className={`s-meters${lim ? ' lim' : ''}`}>
+        {lim && s ? (
+          <>
+            {lim.meters.length ? lim.meters.filter((m) => m.key !== 'deals').map((m) => (
+              <div key={m.key} className={`ui-stat${m.near ? ' near' : ''}`}
+                title={`${m.why}${m.key === 'out' && deals ? ` ${deals.label}: ${deals.value}${deals.of ? ` ${deals.of}` : ''}.` : ''} ${lim.line}`}>
+                <span className="k">{m.label}</span>
+                <span className="v">{m.value}</span>
+                {m.fill !== null ? <Meter value={m.fill} tone={m.near ? 'gold' : undefined} label={`${m.label} against ${m.of}`} /> : null}
+                <span className={`ui-hint${lim.status === 'expired' || lim.status === 'unverified' ? ' gold' : ''}`}>{limHint(m.of)}</span>
+              </div>
+            )) : (
+              <div className="ui-stat" title={lim.line}>
+                <span className="k">Paid out today</span>
+                <span className="v none">{lim.mixed ? 'mixed' : 'nothing'}</span>
+                <span className={`ui-hint${lim.status === 'expired' || lim.status === 'unverified' ? ' gold' : ''}`}>{lim.mixed ? 'more than one currency' : limHint(null)}</span>
+              </div>
+            )}
+            {p.metersAvailable ? (
+              <div className="ui-stat eng" title="What the AI likely cost. An estimate, never a bill, never PayPal money.">
+                <span className="k">AI usage</span>
+                <span className="v">≈ ${s.engine_estimate_today_usd.toFixed(2)}</span>
+                <span className="ui-hint">estimate</span>
+              </div>
+            ) : null}
+          </>
+        ) : p.metersAvailable && s && spend ? (
           <>
             <div className="ui-stat" title="Money your agents paid today. Shown only when every deal uses one currency; otherwise nothing is added up.">
               <span className="k">Spent today</span>
@@ -408,7 +449,11 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
           <p className="m-off">Today’s spending appears here once the wallet can count it. Nothing is guessed until then.</p>
         )}
       </div>
-      {pop ? (
+      {pop?.which === 'walk' ? (
+        <Popover anchor={pop.el} onClose={() => setPop(null)} className="t-pop t-walk" title={`If you walk away · next ${WALK_AWAY_HOURS} h`}>
+          <WalkDetails walk={walk} />
+        </Popover>
+      ) : pop ? (
         <Popover anchor={pop.el} onClose={() => setPop(null)} className="t-pop" title={pop.which === 'stopped' ? 'Stopped today · 0 PayPal calls' : 'In motion · no decision needed'}>
           {pop.which === 'stopped' ? (
             <p className="t-pop-p">
@@ -428,6 +473,44 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
     </div>
   );
 });
+
+/** The stack's one-line walk-away summary: money out (always zero), money in, holds released. */
+function WalkSummary({ walk }: { walk: WalkAway }) {
+  if (!walk.known) return <>{walk.summary}</>;
+  return (
+    <>
+      <b className="w-out" title="Your wallet sends no money while you are away">{walk.out ?? 'nothing'}</b> out
+      {walk.inUpTo ? <> · up to <b className="w-in" title="Only if a buyer approves on PayPal in time">{walk.inUpTo}</b> in</>
+        : walk.inSure ? <> · <b className="w-in" title="Payments buyers already approved">{walk.inSure}</b> in</> : null}
+      {walk.releases ? <> · {walk.releases} hold{walk.releases === 1 ? '' : 's'} released</> : null}
+      {!walk.lines.length && !walk.inUpTo && !walk.inSure && !walk.releases ? <> · nothing scheduled</> : null}
+    </>
+  );
+}
+
+/** Layer 2: the first few lines (time · what happens · on whose authority). */
+function WalkDetails({ walk }: { walk: WalkAway | null }) {
+  if (!walk || !walk.known) {
+    return <p className="t-pop-p">The wallet couldn’t work out what happens next just now, so nothing here is a promise. Open The Table to see each deal.</p>;
+  }
+  return (
+    <>
+      {walk.lines.length ? (
+        <ul className="w-lines">
+          {walk.lines.map((l) => (
+            <li key={l.key} className={l.conditional ? 'if' : ''}>
+              <span className="w-when">{l.when}</span>
+              <span className="w-what">{l.what}</span>
+              <span className="w-who">{l.who}</span>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="t-pop-p">Nothing is scheduled. Every open deal waits for you.</p>}
+      {walk.more ? <p className="t-pop-p w-more">and {walk.more} more</p> : null}
+      <Hint className="t-pop-hint">Your wallet never sends money on its own. Closing the window keeps this running; quitting The Table stops it.</Hint>
+    </>
+  );
+}
 
 // ------------------------------------------------------------------------------- hand-off
 
@@ -471,7 +554,7 @@ export const HandoffForm = forwardRef(function HandoffForm(p: HandoffProps, ref:
   const win = approveWindow(p.handoff.approveUntil, p.now);
   const silence = it?.on_silence ?? p.display?.on_silence ?? 'the order expires · no money moves';
   return (
-    <div ref={ref} className="f handoff" tabIndex={-1} aria-label={`Approval in progress in your browser${label ? ` · ${label}` : ''}`}
+    <div ref={ref} className="f handoff" tabIndex={-1} aria-label={`Approval in progress in your browser${title ? ` · ${title}` : ''}`}
       style={it ? { ['--mc' as string]: MODULE[it.module].cssVar } : undefined}>
       <div className="f-head nt">
         <span className="ui-dot mdot" aria-hidden="true" />
@@ -521,7 +604,14 @@ const Mini = ({ ring, children }: { ring: 'gold' | 'line'; children?: ReactNode 
  * clears the puck in either corner, and the foot (keyboard promise, summon chord, Got it) beside
  * the puck when it sits at the bottom.
  */
-export const WelcomeForm = forwardRef(function WelcomeForm(p: { mode: Mode | null; locked: boolean; onOk: () => void }, ref: Ref<HTMLDivElement>) {
+export const WelcomeForm = forwardRef(function WelcomeForm(p: {
+  mode: Mode | null; locked: boolean; onOk: () => void;
+  /** First run: the three steps instead of the legend (lib/firstRun.ts); null = the everyday welcome. */
+  start?: GettingStarted | null;
+  onStep?: (k: StartStepKey) => void;
+  failure?: { what: string; error: WalletError } | null;
+}, ref: Ref<HTMLDivElement>) {
+  if (p.start) return <FirstRunWelcome ref={ref} {...p} start={p.start} />;
   return (
     <div ref={ref} className="f welcome" tabIndex={-1} aria-label="The Table is closed">
       <div className="f-head nt"><span className="kick">Your mini window</span><Flags mode={p.mode} locked={p.locked} /></div>
@@ -531,13 +621,54 @@ export const WelcomeForm = forwardRef(function WelcomeForm(p: { mode: Mode | nul
         <li title="A gold ring on the puck: something needs you"><Mini ring="gold"><text className="m-n" x="13" y="16.5" textAnchor="middle">4</text></Mini><span><b>Gold ring</b> · needs you</span></li>
         <li title="A dot on the rim: one open decision"><Mini ring="line"><circle className="m-bead" cx="13" cy="3.2" r="2.4" /></Mini><span><b>A dot</b> · one open decision</span></li>
         <li title="If you do nothing, the safe default runs: waiting never pays anyone"><Mini ring="line"><path className="m-dash" d="M9 13h8" strokeWidth="1.6" /></Mini><span><b>Waiting</b> · never pays anyone</span></li>
-        <li title="Review ↗ opens the approval window: only that window can pay"><Mini ring="line"><path className="m-lock" d="M10 14.5v-2.5a3 3 0 0 1 6 0v2.5M9 14.5h8v4H9z" fill="none" strokeWidth="1.3" /></Mini><span><b>Review ↗</b> · only approval pays</span></li>
+        <li title="Review ↗ opens the approval window: only that window can pay"><Mini ring="line"><path className="m-lock" d="M10 14.5v-2.5a3 3 0 0 1 6 0v2.5M9 14.5h8v4H9z" fill="none" strokeWidth="1.3" /></Mini><span><b>Review ↗</b> · you decide there</span></li>
       </ul>
       <div className="w-foot nb">
         <p className="w-kb">I never take your keyboard.</p>
         <div className="w-ok">
           <span className="ui-hint"><span className="kbd">Ctrl</span> <span className="kbd">Shift</span> <span className="kbd">Space</span> summons or hides me</span>
           <Btn kind="gold" sm onClick={p.onOk}>Got it</Btn>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+/*
+ * First run at the same 440 x 228: the same three steps and words as The Table and the approval
+ * window. Title, the safety promise (two lines), the steps as three one-line links, then the next
+ * step in gold beside "Later". The Tumbler reads settings only, so a step it can't tell stays
+ * numbered, never ticked.
+ */
+const FirstRunWelcome = forwardRef(function FirstRunWelcome(p: {
+  mode: Mode | null; locked: boolean; onOk: () => void; start: GettingStarted; onStep?: (k: StartStepKey) => void; failure?: { what: string; error: WalletError } | null;
+}, ref: Ref<HTMLDivElement>) {
+  const next = p.start.next;
+  return (
+    <div ref={ref} className="f welcome fr" tabIndex={-1} aria-label="Getting started">
+      <div className="f-head nt"><span className="kick">Welcome · {p.start.done} of {p.start.total} done</span><Flags mode={p.mode} locked={p.locked} /></div>
+      <h2 className="w-h nt">{FIRST_RUN_TITLE}</h2>
+      <p className="w-p fr-promise nt">{SAFETY_PROMISE}</p>
+      <ol className="fr-steps" aria-label={`Getting started: ${p.start.done} of ${p.start.total} done`}>
+        {p.start.steps.map((s) => {
+          const done = s.state === 'done';
+          return (
+            <li key={s.key} className={`s-${s.state}`}>
+              <button type="button" className="fr-step" disabled={done} onClick={() => p.onStep?.(s.key)}
+                title={done ? START_STEP[s.key].done : START_STEP[s.key].where}>
+                <span className="fr-n" aria-hidden="true">{done ? '✓' : s.n}</span>
+                <span className="fr-t">{done ? START_STEP[s.key].done : START_STEP[s.key].title}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      <div className="w-foot nb">
+        {p.failure ? <Notice failure={p.failure} /> : null}
+        <div className="w-ok">
+          <span className="ui-hint" aria-hidden="true" />
+          <Btn kind="plain" sm onClick={p.onOk} title="Ctrl Shift Space summons or hides me. I never take your keyboard.">Later</Btn>
+          {next ? <Btn kind="gold" sm onClick={() => p.onStep?.(next)} title={START_STEP[next].where}>{START_STEP[next].act}{next === 'practice' ? '' : ' ↗'}</Btn> : null}
         </div>
       </div>
     </div>

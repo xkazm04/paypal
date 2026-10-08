@@ -13,7 +13,7 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import type { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMoney, shortHash, shortId } from '../../../lib/format';
-import { ruleNameOf, rulesName, shieldWord } from '../../../lib/words';
+import { houseWords, ruleNameOf, rulesName, shieldWord } from '../../../lib/words';
 import { Btn, Chip, ChecksSummary, Empty, Icon, Kv, Loading, Popover, Sheet } from '../../../shared/ui';
 import { isLive, pairingFact } from '../logic';
 import { NoteChip } from '../modules/shield/NoteChip';
@@ -56,8 +56,10 @@ export function WhatHappened({ deal, steps, error, clauses, theirName, facts, fa
   const allOk = !!steps && steps.every((s) => s.verified);
   const them = firstName(theirName);
   const newest = steps?.reduce<number>((m, s) => Math.max(m, s.seq), -1) ?? -1;
-  // Newest at the bottom: open the thread scrolled to it.
-  useEffect(() => { const el = box.current; if (el) el.scrollTop = el.scrollHeight; }, [rows.length]);
+  // Newest at the bottom: open the thread scrolled to it. The top edge fades only while something
+  // is hidden above it, so a short thread never looks cut off.
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => { const el = box.current; if (el) { el.scrollTop = el.scrollHeight; setHidden(el.scrollTop > 0); } }, [rows.length]);
   return (
     <div className={`dv-happen ${facts.length ? 'has-facts' : ''}`}>
       <section className="dv-thread" aria-label="What happened">
@@ -73,7 +75,7 @@ export function WhatHappened({ deal, steps, error, clauses, theirName, facts, fa
         {error ? (
           <Empty>The conversation couldn’t be loaded right now. It is still stored with the deal.</Empty>
         ) : !steps ? <Loading what="the conversation" /> : (
-          <ol className="dv-chat" ref={box} onKeyDown={arrows}>
+          <ol className={`dv-chat ${hidden ? 'more-above' : ''}`} ref={box} onKeyDown={arrows} onScroll={(e) => setHidden(e.currentTarget.scrollTop > 0)}>
             {!nEnv ? (
               <li className="sys wide"><span>{deal.kind !== 'haggle' ? 'Nothing was negotiated.' : isLive(deal) ? 'No offers yet.' : 'No offers are stored with this deal.'}</span></li>
             ) : null}
@@ -218,7 +220,7 @@ export function WhoYouDealWith({ deal, cp, offersUsed }: { deal: Deal; cp: Cp; o
       </header>
       <div className="ui-group">
         {row('Identity', <Chip tone={pf.tone} title={pf.why}>{pf.text}</Chip>)}
-        {cp.entry?.declared_payee ? row('Gets paid as', <span title="The PayPal payee they declared when you connected; checked again before any payment">{cp.entry.declared_payee}</span>) : null}
+        {cp.entry?.declared_payee ? row('Gets paid as', <span title="The PayPal payee they declared when you connected; checked again before any payment">{houseWords(cp.entry.declared_payee)}</span>) : null}
         {cp.entry ? row('Known since', `${fmtDate(cp.entry.first_seen)} · ${cp.entry.deals_closed} earlier ${cp.entry.deals_closed === 1 ? 'deal' : 'deals'}`) : null}
         {row('Scam check', sw ? <Chip tone={sw.tone} title={sw.means}>{sw.text}</Chip> : <span className="dim">not run</span>)}
         {deal.kind === 'haggle' ? row(deal.side === 'buyer' ? 'Their lowest' : 'Their highest', <span className="dim" title="Only a sealed commitment is shared; you never see their limit, and they never see yours">kept private</span>) : null}
@@ -230,7 +232,7 @@ export function WhoYouDealWith({ deal, cp, offersUsed }: { deal: Deal; cp: Cp; o
           <Kv items={[
             ['Who', cp.house ? 'The house seller, built into this app' : cp.known ? 'A wallet you have dealt with' : 'A wallet you never named'],
             ['Identity', pf.why],
-            cp.entry?.declared_payee ? ['Gets paid as', cp.entry.declared_payee] : null,
+            cp.entry?.declared_payee ? ['Gets paid as', houseWords(cp.entry.declared_payee)] : null,
             cp.entry ? ['Known since', fmtDate(cp.entry.first_seen)] : null,
             cp.entry ? ['Earlier deals', String(cp.entry.deals_closed)] : null,
             deal.kind === 'haggle' ? [deal.side === 'buyer' ? 'Their lowest price' : 'Their highest price', <span className="dim">kept private · only a sealed commitment is shared</span>] : null,

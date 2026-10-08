@@ -14,8 +14,8 @@
 .mod-book .tile { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-1); }
 .mod-book .tile .tk { display: flex; align-items: center; gap: 6px; font-weight: var(--fw-semibold); color: var(--muted); }
 .mod-book .tile .tv { display: flex; flex-direction: column; gap: 2px; min-height: 34px; }
-.mod-book .tile .fig { font: var(--fw-semibold) var(--fs-display)/1.15 var(--num); font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; }
-.mod-book .tile .fig small { margin-left: var(--sp-2); font: var(--fw-regular) var(--fs-small) var(--font); letter-spacing: 0; color: var(--dim); }
+.mod-book .tile .fig { font: var(--fw-semibold) var(--fs-display)/1.15 var(--num); font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--sp-2); }
+.mod-book .tile .fig small { font: var(--fw-regular) var(--fs-small) var(--font); letter-spacing: 0; color: var(--dim); }
 .mod-book .tile .fig.none { color: var(--dim); font-weight: var(--fw-regular); }
 .mod-book .tile .tn { font-size: var(--fs-small); color: var(--dim); }
 .mod-book .tl-captured .tk .ui-icon, .mod-book .tl-captured .fig:not(.none) { color: var(--ok); }
@@ -221,6 +221,44 @@
 .mod-book .qchip.unk { border-style: dashed; color: var(--muted); }
 .mod-book .wm + .ask { margin-top: var(--sp-5); }
 
+/* "I read this as:" - the wallet's own reading of a typed question, and the unsure line */
+.mod-book .rd { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--line); }
+.mod-book .rd-h { color: var(--muted); font-size: var(--fs-small); }
+.mod-book .rd-chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin: 0; padding: 0; list-style: none; }
+.mod-book .rd-chip { display: inline-flex; align-items: center; gap: 2px; height: 26px; padding: 0 2px 0 var(--sp-3); border: 1px solid color-mix(in srgb, var(--m-book) 55%, var(--line2));
+  border-radius: 999px; background: color-mix(in srgb, var(--m-book) 12%, var(--panel)); color: var(--text); white-space: nowrap; }
+.mod-book .rd-chip.rd-when, .mod-book .rd-chip.rd-group { padding-left: var(--sp-1); }
+.mod-book .rd-t { padding-right: var(--sp-1); }
+.mod-book .rd-sel { appearance: none; field-sizing: content; height: 22px; padding: 0 18px 0 var(--sp-2); border: 0; border-radius: 999px; background: transparent; color: inherit; font: inherit; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 9px) 55%, calc(100% - 5px) 55%; background-size: 4px 4px; background-repeat: no-repeat; }
+.mod-book .rd-sel:hover { background-color: var(--hover); }
+.mod-book .rd-sel option { background: var(--panel); color: var(--text); }
+.mod-book .rd-x { display: inline-grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); font: inherit; line-height: 1; cursor: pointer; }
+.mod-book .rd-x:hover { background: var(--hover); color: var(--text); }
+.mod-book .rd-x:focus-visible, .mod-book .rd-sel:focus-visible, .mod-book .rd-sug:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.mod-book .rd-ai { margin-left: auto; }
+.mod-book .rd-unsure { flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
+.mod-book .rd-msg { margin: 0; }
+.mod-book .rd-try { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); }
+.mod-book .rd-sug { display: inline-flex; align-items: center; height: 26px; padding: 0 var(--sp-3); border: 1px solid var(--line2); border-radius: 999px; background: var(--panel);
+  color: var(--text); font: inherit; cursor: pointer; white-space: nowrap; }
+.mod-book .rd-sug:hover { background: var(--hover); border-color: var(--dim); }
+.mod-book .rd-unsure .rd-ai { margin-left: 0; }
+
 @media (max-width: 1180px) {
   .mod-book .wm-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* "Check a proof file": the file's owner key whole, and whether it is this wallet's own. The sheet
+   renders in the layer root, outside .mod-book. */
+.pc-key { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pc-match { font-size: var(--fs-small); color: var(--dim); }
+.pc-match.mine { color: var(--ok); }
+.pc-match.other { color: var(--gold-l); }
+.pc-print { overflow-wrap: anywhere; }
+
+/* The audit trail when the records fail their link check: what it means, then what to do. */
+.au-broken { display: flex; flex-direction: column; gap: var(--sp-2); }
+.au-broken h3 { margin: var(--sp-2) 0 0; font-size: var(--fs-body); font-weight: var(--fw-semibold); }
+.au-broken ol { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 4px; }

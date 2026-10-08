@@ -17,8 +17,10 @@
 .mod-tables .tb-page > .ui-explainer-link { align-self: flex-start; }
 .mod-tables .tb-decisions, .mod-tables .tb-tables { display: flex; flex-direction: column; gap: var(--sp-3); }
 .mod-tables .tb-decisions .ui-decision + .ui-decision { margin-top: 0; }
-.mod-tables .tb-h2 { margin: var(--sp-2) 0 0; display: flex; align-items: baseline; gap: var(--sp-2); font: var(--fw-semibold) var(--fs-title3)/1.2 var(--display); }
-.mod-tables .tb-h2 span { font: var(--fw-regular) var(--fs-small) var(--font); color: var(--dim); }
+/* the same quiet list heading as every other module's sections (.ui-section-h) */
+.mod-tables .tb-h2 { margin: var(--sp-2) 0 calc(-1 * var(--sp-1)); padding: 0 var(--sp-1); display: flex; align-items: baseline; gap: var(--sp-2);
+  font: var(--fw-semibold) var(--fs-small)/1.4 var(--font); color: var(--muted); }
+.mod-tables .tb-h2 span { font-weight: var(--fw-regular); color: var(--dim); }
 .mod-tables .tb-need .tb-stand { padding-top: var(--sp-3); border-top: 1px solid var(--line); }
 .mod-tables .tb-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--sp-3) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2); }
 .mod-tables .tb-card-h { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
@@ -176,3 +178,8 @@
 
 /* while the fence is dragged */
 .mod-tables .tb-ladder.dragging, .mod-tables .tb-ladder.dragging * { cursor: grabbing; user-select: none; }
+
+/* shop around: one card per group of sellers for one item (modules/tables/ShopAround.tsx) */
+.mod-tables .tb-groups { display: flex; flex-direction: column; gap: var(--sp-3); }
+.mod-tables .tb-group .ui-group { margin: 0; }
+.mod-tables .tb-group-foot { margin: 0; color: var(--muted); font-size: var(--fs-small); }

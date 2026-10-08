@@ -15,9 +15,15 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { MarketRef } from '@bindings/MarketRef';
 import type { Money } from '@bindings/Money';
 import { exponent, formatMinor } from '../../../../lib/format';
+import { itemWords } from '../../../../lib/words';
 import { dealTotal, isLive, mandatesGoverning } from '../../logic';
 
 // ---- money input ------------------------------------------------------------------------------
+
+/** "$" for USD, the code otherwise ("JPY"): the mark in front of a typed price, so it never reads as a bare number. */
+export function currencyMark(c: Currency): string {
+  return formatMinor(0, c).replace(/[\d.,\s\u00a0\u2212-]/g, '') || c;
+}
 
 /** "58", "58.5", "$1,058.50" → integer minor units in `currency`; null when it is not an amount.
  *  String arithmetic only: no float ever touches the amount. */
@@ -79,6 +85,10 @@ export function sellerMandates(list: readonly MandateListEntry[]): MandateListEn
 type BandClause = Extract<Clause, { type: 'band' }>;
 
 const stamp = (d: Deal): number => d.updated_at ?? d.created_at ?? 0;
+
+/** An item's name for the page: the title an order gave it, or else a plain name made from the code
+ *  in your shop rules ("dp-cable-2m" → "DP cable 2m"). The code itself stays in Details. */
+export const itemName = (row: Pick<CatalogRow, 'title' | 'itemRef'>): string => row.title ?? itemWords(row.itemRef);
 
 /** One row per item the Counter knows: every item a seller-mandate band names, plus every item a
  *  counter deal is for. Market comes from the freshest MarketRef on any deal for that item. */

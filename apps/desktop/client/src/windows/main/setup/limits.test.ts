@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import { buildMockState } from '../../../mock/fixtures';
-import { agentTitle, limitLines, rulesAnswer, ruleState } from './limits';
+import { agentTitle, limitLines, rulesAnswer, ruleState, setsLine } from './limits';
 
 const NOW = 1_800_000_000;
 const state = buildMockState(NOW);
@@ -39,6 +39,14 @@ describe('agent rule cards', () => {
     expect(agentTitle('shopper')).toBe('Shopper');
     expect(agentTitle('assistant', ['shop order'])).toBe('Assistant · shop order');
     expect(agentTitle('')).toBe('Agent');
+  });
+
+  it('counts rule sets beside agents only when an agent holds several', () => {
+    expect(setsLine(list.filter((m, i, a) => a.findIndex((x) => x.agent === m.agent) === i))).toBeNull();
+    expect(setsLine([])).toBeNull();
+    const latest = list.filter((m, i, a) => !a.some((x, j) => j !== i && x.payload.id === m.payload.id && x.payload.version > m.payload.version));
+    expect(setsLine(latest)).toBe('3 agents · 5 rule sets');
+    expect(setsLine([{ agent: 'assistant' }, { agent: 'assistant' }])).toBe('1 agent · 2 rule sets');
   });
 
   it('a rule set is active only inside its window', () => {

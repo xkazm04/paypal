@@ -26,6 +26,7 @@ import { useCpLookup, useToast } from '../ui';
 import { useWorld } from '../world';
 import type { ModuleProps } from './common';
 import { NoteChip } from './shield/NoteChip';
+import { ShopAroundButton, ShopAroundCards } from './tables/ShopAround';
 import {
   bandOf, consequences, diffLines, draftValid, fenceKey, fits, ladderScale, lastPriced, moveFence, parseAmount, posPct, priceAt,
   LIMIT_WORD, sameBand, short, standLine, standing, stepStates, tabLine, toInput, topPct, unitOf, type BandDraft, type Consequence, type Priced, type Scale,
@@ -107,10 +108,13 @@ export function Tables({ deals, nav }: ModuleProps) {
   });
 
   const [closedA, setClosedA] = useState<HTMLElement | null>(null);
+  // Shop around (T8): the groups of sellers for one item, each seller's latest signed price.
+  const groups = useQuery('deal_groups', null, { refreshOn: ['deal:changed'] });
   const actions = (
     <>
       <DetailToggle value={detail} onChange={setDetail} />
       <Btn aria-haspopup="dialog" onClick={(e) => { const t = e.currentTarget; setClosedA((x) => (x ? null : t)); }}>Closed · {closed.length} ▾</Btn>
+      <ShopAroundButton groups={groups.data ?? []} deals={deals} onGrouped={() => void groups.refetch()} />
       <Btn kind="primary" onClick={() => nav.onSheet('pairing')} title="Start haggling with another wallet over an item, join with a code, or try the house seller">Open a table</Btn>
     </>
   );
@@ -136,6 +140,8 @@ export function Tables({ deals, nav }: ModuleProps) {
           ))}
         </section>
       ) : null}
+
+      <ShopAroundCards groups={groups.data ?? []} deals={deals} nav={nav} />
 
       {!strip.length || !cur ? (
         <>
@@ -246,7 +252,7 @@ function ClosedRow({ deal, onOpen }: { deal: Deal; onOpen: () => void }) {
   const t = dealTotal(deal);
   const struck = ['WITHDRAWN', 'EXPIRED', 'VOIDED', 'AUTO_VOIDED', 'REFUSED'].includes(deal.state);
   return (
-    <Row title={w.display(deal).title} sub={`${n.short} · ${w.display(deal).label}`} onOpen={onOpen}>
+    <Row title={w.display(deal).title} sub={n.short} onOpen={onOpen}>
       <StateTag deal={deal} />
       <span className={`amt ${struck ? 'struck' : ''}`}><MinorMoney minor={t.minor} currency={t.currency} /></span>
     </Row>
@@ -417,13 +423,13 @@ function NeedCard({ deal, need, st, nav, onRange, compact }: { deal: Deal; need:
     });
   }
   if (mayWithdraw) options.push({ kind: 'danger', label: 'Withdraw', means: 'Your agent leaves the table. No money moves.', onClick: () => setAsk(true) });
-  if (!review) options.push({ label: 'Open the deal', means: 'See what happened and why nothing can be paid.', onClick: () => nav.onDeal(deal.id) });
+  if (!review) options.push({ label: 'Open deal', means: 'See what happened and why nothing can be paid.', onClick: () => nav.onDeal(deal.id) });
   return (
     <>
       <DecisionCard className="tb-need"
         context={<><Icon name="tag" size={14} />Table with {n.short}<StateTag deal={deal} /><NoteChip dealId={deal.id} who={n.full} /></>}
         question={question} why={why} amount={amt && review ? amt : undefined} options={options}
-        silence={plainSilence(need.on_silence)} deadline={need.deadline} onDetails={() => nav.onDeal(deal.id)} detailsLabel="Open the deal">
+        silence={plainSilence(need.on_silence)} deadline={need.deadline} onDetails={() => nav.onDeal(deal.id)} detailsLabel="Open deal">
         {review && !compact ? <StandBlock deal={deal} st={st} who={n.short} onRange={onRange} /> : null}
         {open.error ? <WalletNotice error={open.error} what="Approval window" /> : null}
         {withdraw.error ? <WalletNotice error={withdraw.error} what="Withdraw" /> : null}
@@ -774,7 +780,8 @@ function BandInspector({ deal, st, need, who, theirs, yours, signed, scale, mova
             </Group>
           ) : (
             <div className="tb-signrow">
-              <Btn kind="gold" ref={signRef} locked={w.locked} disabled={!(st.read && drafting && valid) || open.pending}
+              {/* Gold only once there is something to sign: an idle sign button never competes with the card's one decision. */}
+              <Btn kind={st.read && drafting && valid ? 'gold' : undefined} ref={signRef} locked={w.locked} disabled={!(st.read && drafting && valid) || open.pending}
                 onClick={() => void handOff()} title={w.locked ? 'Locked after 15 quiet minutes: the approval window asks for Windows Hello' : 'Opens the approval window, the only place new limits are signed'}>
                 Review and sign ↗
               </Btn>

@@ -8,10 +8,13 @@ import type { TranscriptType } from '@bindings/TranscriptType';
 import type { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMoney, shortHash, shortId } from '../../../lib/format';
 import { WalletNotice } from '../../../shared/honesty';
-import { reasonWords, receiptWord, reconWord } from '../../../lib/words';
+import { CHECK_STATUS_WORD, NOT_REPORTED, reasonWords, receiptWord, reconWord } from '../../../lib/words';
+import type { ApprovalCheckStatus } from '@bindings/ApprovalCheckStatus';
 import { Btn, Kv, Sheet } from '../../../shared/ui';
 import type { Step } from '../model';
-import { relMark, rowWord, type DiffRow } from './diff';
+import { relMark, rowWord, type DiffRow, type Mark } from './diff';
+
+const STATUS_MARK: Record<ApprovalCheckStatus, Mark> = { pass: '✓', fail: '✕', wait: '…', not_applicable: 'i' };
 import { MarkIcon, MarketTrack, StateList } from './Parts';
 
 /** One source line per row: relation, both full values, and where they came from. */
@@ -25,7 +28,7 @@ export function Sources({ rows }: { rows: DiffRow[] }) {
           <span className="v">
             {r.left}
             <span className="op">·</span>
-            {r.right ?? <span className="dr-unk">not shown here</span>}
+            {r.right ?? <span className="dr-unk" title={NOT_REPORTED.means}>{NOT_REPORTED.text}</span>}
             <span className="op">·</span>
             <span className="rw">{rowWord(r)}</span>
           </span>
@@ -43,7 +46,7 @@ export function RowDetail({ row, heads }: { row: DiffRow; heads: [string, string
     <Kv
       items={[
         [heads[0], row.left],
-        [heads[1], row.right ?? <span className="dr-unk">not shown here</span>],
+        [heads[1], row.right ?? <span className="dr-unk" title={NOT_REPORTED.means}>{NOT_REPORTED.text}</span>],
         ['Reading', <span className="rd"><MarkIcon mark={relMark(row.rel, row.tone)} /> {row.tone === 'ok' ? 'passes' : row.tone === 'bad' ? 'fails' : row.rel === '?' ? 'not checked here, so not a pass' : rowWord(row)}</span>],
         ['Where from', row.src],
         row.note ? ['Note', <span className="coral">{row.note}</span>] : null,
@@ -86,6 +89,18 @@ export function DetailsSheet(p: {
   const ev = p.summary.evidence;
   return (
     <Sheet title={p.title} onClose={p.onClose} size="wide" className="dr-sheet" footer={<Btn kind="primary" onClick={p.onClose}>Done</Btn>}>
+      <Sec title="What your wallet checked · your decision is bound to exactly this list">
+        <div className="ui-group srcs wc-srcs">
+          {p.summary.checks.map((c) => (
+            <div key={c.id} className="src" data-check={c.id}>
+              <span className="g" aria-label={CHECK_STATUS_WORD[c.status]}><MarkIcon mark={STATUS_MARK[c.status]} /></span>
+              <span className="n">{CHECK_STATUS_WORD[c.status]}</span>
+              <span className="v">{c.text}</span>
+              <span className="s">{c.detail}</span>
+            </div>
+          ))}
+        </div>
+      </Sec>
       <Sec title={`${p.heads[0]} · ${p.heads[1]} · where each check comes from`}>
         <Sources rows={p.rows} />
       </Sec>
@@ -138,6 +153,7 @@ export function DetailsSheet(p: {
             ['PayPal statement', reconWord(ev.reconciliation).text],
             ['Deal', <span className="mono">{d.id}</span>],
             ['Agreed terms', <span className="mono">{shortHash(p.summary.terms_hash)} · try {p.summary.attempt}</span>],
+            ['Checklist', <span className="mono">{shortHash(p.summary.checks_hash)}</span>],
             ['Signed history', <span className="mono">{shortHash(d.transcript_head)}</span>],
             ['Rules', <span className="mono">{shortId(d.mandate_id)} · version {d.mandate_version}</span>],
             p.summary.unavailable_reason ? ['Wallet note', reasonWords(p.summary.unavailable_reason)] : null,

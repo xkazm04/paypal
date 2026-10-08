@@ -5,6 +5,8 @@ import type { DealKind } from "./DealKind";
 import type { ItemRef } from "./ItemRef";
 import type { Money } from "./Money";
 import type { PayeeRef } from "./PayeeRef";
+import type { RescueLever } from "./RescueLever";
 import type { Role } from "./Role";
+import type { WatchedItem } from "./WatchedItem";
 
-export type Clause = { "type": "roles", roles: Array<Role>, } | { "type": "counterparties", rule: CpRule, } | { "type": "per_deal", kind: DealKind, max_amount: Money, categories: Array<Category>, } | { "type": "band", item_refs: Array<ItemRef>, floor: Money | null, ceiling: Money | null, max_rounds: number, deadline: number, } | { "type": "velocity", max_deals_day: number, max_total_day: Money, } | { "type": "human_present_over", amount: Money, } | { "type": "payees", payees: Array<PayeeRef>, };
+export type Clause = { "type": "roles", roles: Array<Role>, } | { "type": "counterparties", rule: CpRule, } | { "type": "per_deal", kind: DealKind, max_amount: Money, categories: Array<Category>, } | { "type": "band", item_refs: Array<ItemRef>, floor: Money | null, ceiling: Money | null, max_rounds: number, deadline: number, } | { "type": "velocity", max_deals_day: number, max_total_day: Money, } | { "type": "human_present_over", amount: Money, } | { "type": "payees", payees: Array<PayeeRef>, } | { "type": "lever", levers: Array<RescueLever>, max_discount_bp: number, max_discount: Money, } | { "type": "market_watch", items: Array<WatchedItem>, max_refreshes_day: number, };

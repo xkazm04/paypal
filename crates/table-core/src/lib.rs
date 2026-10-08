@@ -1,16 +1,24 @@
 //! Pure wallet domain. Time, identity generation and all IO are supplied by callers.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
+pub mod agent;
 pub mod canonical;
+mod checks;
+pub use checks::*;
 pub mod deal;
+mod exposure;
+pub use exposure::*;
 mod display;
 pub use display::*;
 pub mod ids;
+mod ladder;
+pub use ladder::*;
 pub mod mandate;
 pub mod market;
 pub mod money;
 pub mod negotiation;
 pub mod rescue;
 
+pub use agent::*;
 pub use canonical::{H256, canonical_bytes, commitment};
 pub use deal::*;
 pub use ids::*;
@@ -34,3 +42,5 @@ impl Clock for FixedClock {
 }
 mod book;
 pub use book::*;
+mod market_watch;
+pub use market_watch::*;

@@ -5,7 +5,8 @@
 // both sides (or Rust itself verified the equality, e.g. can_open_paypal ⇒ the SETTLE matched the
 // signed amount, invoice id and approve-link host). Anything the window cannot see is '?'
 // (unknown, drawn dashed), never a pass. This module decides what to SAY; gating.ts decides what
-// is allowed, and a red row here can only narrow it further (anyCheckFailed).
+// is allowed from Rust's flags and the wallet's own checklist (ApprovalSummary.checks), never
+// from these rows.
 import type { ApprovalSummary } from '@bindings/ApprovalSummary';
 import type { Clause } from '@bindings/Clause';
 import type { Deal } from '@bindings/Deal';
@@ -15,7 +16,7 @@ import type { MandatePayload } from '@bindings/MandatePayload';
 import type { Money } from '@bindings/Money';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { formatMoney } from '../../../lib/format';
-import { shieldWord } from '../../../lib/words';
+import { houseWords, percentWords, shieldReleased, shieldRuleWord, shieldWord } from '../../../lib/words';
 import { isTerminal, ownsPaypalResource } from '../gating';
 import { dealTotal } from '../model';
 
@@ -157,11 +158,15 @@ const KIND_WORD: Record<Deal['kind'], string> = { purchase: 'purchase', haggle: 
 function shieldRow(d: Deal): DiffRow {
   const v = d.shield;
   const rel: Rel = v === 'CLEAR' || v === 'ASK' ? '=' : v === 'HOLD' ? '!' : v === 'BLOCK' ? '≠' : '?';
+  // Which check decided it comes from the wallet core (Deal.shield_rule), never from this window.
+  const rule = d.shield_rule ? shieldRuleWord(d.shield_rule) : null;
+  const released = shieldReleased(d);
   return {
     id: 'shield', name: 'Scam check', left: 'must look safe, or ask you',
-    right: v === null ? 'not run yet' : v === 'ASK' ? 'Check with you · this review is the check' : v === 'HOLD' ? 'Paused for you' : shieldWord(v).text,
+    right: v === null ? 'not run yet' : released ? 'You let it go on after a pause' : v === 'ASK' ? 'Check with you · this review is the check' : v === 'HOLD' ? 'Paused for you' : shieldWord(v).text,
     rel, tone: v === 'BLOCK' ? 'bad' : toneOf(rel), word: v === 'CLEAR' ? 'safe' : v === 'ASK' ? 'asks you' : v === 'BLOCK' ? 'blocked' : undefined,
-    src: v === null ? 'The scam check has not looked at this deal yet.' : 'The scam check’s verdict on this deal. Checks can only add caution, never remove it.',
+    src: v === null ? 'The scam check has not looked at this deal yet.'
+      : rule ? `${rule.means} Checks can only add caution, never remove it.` : 'The scam check’s verdict on this deal. Checks can only add caution, never remove it.',
   };
 }
 
@@ -200,7 +205,7 @@ function payeesRow(i: DiffInput): DiffRow | null {
   const listed = cp.known && p.c.payees.includes(label);
   const shown = cp.house ? 'the house seller' : label;
   return {
-    id: 'payees', name: 'Approved payees', left: p.c.payees.length ? p.c.payees.join(', ') : 'none yet',
+    id: 'payees', name: 'Approved payees', left: p.c.payees.length ? p.c.payees.map(houseWords).join(', ') : 'none yet',
     right: cp.known ? (listed ? `${shown} is on it` : `${shown} isn’t on it`) : null,
     rel: !cp.known ? '?' : listed ? '=' : '∉', tone: !cp.known ? 'info' : listed ? 'ok' : 'info', word: !cp.known ? undefined : listed ? 'listed' : 'so you’re asked',
     src: listed ? 'Your signed rules, approved payees.' : 'Payees not on your list always come to you to decide.',
@@ -289,7 +294,9 @@ export function buildDiff(i: DiffInput): Diff {
       const per = clauseOf(i.mandate, 'per_deal', (c) => c.kind === d.kind);
       const perRel = per ? relWithin(total, per.c.max_amount) : '?';
       const rows: DiffRow[] = [
-        { id: 'rule', name: 'Scam check', left: 'a safety rule paused it', right: 'Paused before any PayPal call', rel: '!', tone: 'hold', src: 'The scam check’s verdict on this deal.', note: 'which rule paused it isn’t shown in this window' },
+        d.shield_rule
+          ? { id: 'rule', name: 'Scam check', left: 'a safety rule paused it', right: shieldRuleWord(d.shield_rule).text, rel: '!', tone: 'hold', src: `${shieldRuleWord(d.shield_rule).means} Paused before any PayPal call.` }
+          : { id: 'rule', name: 'Scam check', left: 'a safety rule paused it', right: 'Paused before any PayPal call', rel: '!', tone: 'hold', src: 'The scam check’s verdict on this deal.', note: 'which rule paused it isn’t recorded for this deal' },
         counterpartyRow(i),
         per
           ? { id: 'perdeal', name: 'Limit per deal', left: `up to ${formatMoney(per.c.max_amount)} per ${KIND_WORD[d.kind]}`, right: T, rel: perRel, tone: toneOf(perRel), src: `Your signed rules, rule ${per.n}.` }
@@ -318,13 +325,27 @@ export function buildDiff(i: DiffInput): Diff {
     }
 
     case 'lever': {
+      // The one fix the wallet worked out (summary.rescue) against the signed fixes rule. Rust's
+      // checklist is the authority; these rows only lay the same facts side by side.
+      const v = i.summary.rescue ?? null;
+      const o = v?.offer ?? null;
+      const lc = i.mandate?.payload.clauses.find((c): c is Extract<Clause, { type: 'lever' }> => c.type === 'lever');
+      const inside = o && lc ? o.discount_bp <= lc.max_discount_bp && o.discount.currency === lc.max_discount.currency && o.discount.minor <= lc.max_discount.minor : null;
+      const amountRel = o ? relSame(o.invoice, total) : '?';
+      const replay = d.mode === 'replay' || v?.source === 'replay';
       const rows: DiffRow[] = [
-        { id: 'lever', name: 'Fix', left: 'a fix your rescue rules allow', right: null, rel: '?', tone: 'info', src: 'Which fix and its limit aren’t shown in this window yet.' },
-        { id: 'invoice', name: 'Invoice', left: 'one PayPal invoice', right: T, rel: '?', tone: 'info', src: 'The amount on this rescue.' },
+        { id: 'lever', name: 'Fix', left: lc ? `at most ${percentWords(lc.max_discount_bp)} or ${formatMoney(lc.max_discount)} off` : 'a fix your rescue rules allow',
+          right: o ? `${percentWords(o.discount_bp)} off: ${formatMoney(o.discount)} less` : null, rel: inside === null ? '?' : inside ? '≥' : '<', tone: inside === null ? 'info' : inside ? 'ok' : 'bad',
+          src: o ? 'Your wallet worked out this one discount inside your rules for fixing failed renewals. The plan price stays the same for everyone.' : 'The fix isn’t shown in this window yet.' },
+        { id: 'invoice', name: 'Invoice', left: o ? `this cycle, ${formatMoney(o.cycle)} before the discount` : 'one PayPal invoice', right: o ? `asks ${formatMoney(o.invoice)}` : T, rel: amountRel, tone: amountRel === '?' ? 'info' : toneOf(amountRel),
+          src: 'One PayPal invoice for this cycle only. Its amount is the signed amount of this rescue; nothing is charged until the subscriber pays it.' },
+        { id: 'to', name: 'Sent to', left: 'the subscriber whose renewal failed', right: v ? v.recipient : null, rel: v ? '✓' : '?', tone: v ? 'ok' : 'info', word: v ? 'by PayPal' : undefined,
+          src: 'PayPal emails the invoice to the address on the failed renewal (shown masked). No PayPal link opens here.' },
         mandateRow(i),
-        { id: 'source', name: 'Source', left: 'a real failed renewal', right: d.mode === 'replay' ? 'a replay of a recorded failure' : 'sandbox renewal', rel: d.mode === 'replay' ? '?' : '=', tone: 'info', src: d.mode === 'replay' ? 'A replay: not a live sandbox payment.' : 'A failed renewal reported by PayPal’s sandbox.' },
+        { id: 'source', name: 'Source', left: 'a failed renewal', right: replay ? 'replayed by you · never counted' : 'reported by PayPal', rel: replay ? '!' : '✓', tone: replay ? 'hold' : 'ok',
+          src: replay ? 'PayPal can’t make a test renewal fail, so this one was replayed. Its invoice is real, and what it brings in is never counted as recovered.' : 'PayPal reported this renewal failed. Paid and receipted, it counts as recovered.' },
       ];
-      return { kind, heads: ['Your rescue rules allow', 'This fix'], rows, twin: { left: { k: 'Plan price', v: null }, op: '?', right: { k: 'This fix invoices', v: T }, tone: 'info' } };
+      return { kind, heads: ['Your rescue rules allow', 'This fix'], rows, twin: { left: { k: 'Renewal that failed', v: o ? formatMoney(o.cycle) : null }, op: o ? '>' : '?', right: { k: 'This fix invoices', v: T }, tone: o ? 'ok' : 'info' } };
     }
 
     case 'review': {

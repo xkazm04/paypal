@@ -7,6 +7,7 @@
 //
 // Sources of truth for these rules: docs/build/STATUS.md "Client handoff" and the Rust summary
 // (crates/table-runtime/src/service.rs `summary`/`decide`, table-core `DealState::terminal`).
+import type { ApprovalCheckId } from '@bindings/ApprovalCheckId';
 import type { ApprovalSummary } from '@bindings/ApprovalSummary';
 import type { Deal } from '@bindings/Deal';
 import type { DealState } from '@bindings/DealState';
@@ -29,8 +30,6 @@ export type GateContext = {
   lockedByError: boolean;
   /** The approval capability was obtained (held in memory only). */
   tokenReady: boolean;
-  /** The checklist contains a failed (✗) line. */
-  anyCheckFailed: boolean;
   /** Text the owner typed to release a shield HOLD. */
   typedName: string;
   /** The display name the owner must type exactly (payee / counterparty display). */
@@ -73,7 +72,8 @@ export function isTerminal(state: DealState): boolean {
  * The owner's own PayPal resources: seller-side deals and the owner's own purchases. A buyer's
  * haggle or shop order runs on the SELLER's credentials, so the buyer never authorizes,
  * captures or voids it (STATUS: "do not offer buyer-side capture/authorize buttons").
- * Rescue and invoice executors are deferred; replay is never executed.
+ * A rescue's invoice has its own decision (the rescue gate); invoices are deferred; replay is
+ * never executed.
  */
 export function ownsPaypalResource(deal: Pick<Deal, 'side' | 'kind' | 'mode'>): boolean {
   if (deal.kind === 'rescue' || deal.kind === 'invoice') return false;
@@ -90,6 +90,19 @@ export function offersOwnerAccept(summary: Pick<ApprovalSummary, 'can_owner_acce
   const d = summary.deal;
   return summary.can_owner_accept === true && d.side === 'buyer' && d.kind === 'haggle' && d.mode !== 'replay';
 }
+
+/**
+ * The wallet's checklist lets a money decision through: it has lines and none fails. A release
+ * of a shield hold is the decision about the shield line, so that one line is exempt for it
+ * (Rust applies the same rule when the decision arrives). A wait line is checked by the step
+ * the decision starts, before any money moves, so it never blocks. No checklist (an older
+ * shell) allows nothing.
+ */
+export function checksAllow(summary: Pick<ApprovalSummary, 'checks'>, exempt?: ApprovalCheckId): boolean {
+  const checks = summary.checks ?? [];
+  return checks.length > 0 && checks.every((c) => c.status !== 'fail' || c.id === exempt);
+}
+const CHECK_BLOCK = 'A check above failed, so this can’t go ahead.';
 
 export function isLocked(ctx: Pick<GateContext, 'summary' | 'settingsLocked' | 'lockedByError'>): boolean {
   return ctx.summary.locked || ctx.settingsLocked || ctx.lockedByError;
@@ -119,9 +132,11 @@ export function deriveGates(ctx: GateContext): Gates {
     if (locked) return 'Locked. Unlock with Windows Hello first.';
     return null;
   };
+  // Every money decision needs the wallet's checklist to have no failed line.
+  const checkBlock = checksAllow(summary) ? null : CHECK_BLOCK;
   // Money-moving controls additionally need Rust's can_release.
   const moneyBlock = (): string | null =>
-    privilegedBlock() ?? (summary.can_release ? null : summary.unavailable_reason ?? 'The wallet can’t do this for this deal right now.');
+    privilegedBlock() ?? checkBlock ?? (summary.can_release ? null : summary.unavailable_reason ?? 'The wallet can’t do this for this deal right now.');
 
   const gate = (visible: boolean, block: string | null): Gate =>
     visible ? { visible: true, enabled: block === null, reason: block } : HIDDEN;
@@ -131,7 +146,7 @@ export function deriveGates(ctx: GateContext): Gates {
   // needs the capability + unlock like every other decision. Never on a mismatch or a held shield.
   const ownerAccept = gate(
     offersOwnerAccept(summary) && !terminal && !mismatch && !held,
-    privilegedBlock() ?? (summary.counter_hash ? null : 'Their latest offer hasn’t arrived yet.'),
+    privilegedBlock() ?? checkBlock ?? (summary.counter_hash ? null : 'Their latest offer hasn’t arrived yet.'),
   );
 
   // Countersign: AGREED → create the order, APPROVED → authorize. Owned resources only; a held
@@ -143,27 +158,31 @@ export function deriveGates(ctx: GateContext): Gates {
 
   // Browser approval: the buyer approves the core-verified order in the system browser. Gated
   // separately on can_open_paypal (buyer credentials are unnecessary). Never on a mismatch, never
-  // under a HOLD/BLOCK, and only when every check reads ✓.
+  // under a HOLD/BLOCK, and only when no line of the wallet's checklist fails.
   const openPaypal = gate(
     deal.side === 'buyer' && state === 'AWAITING_APPROVAL' && !mismatch && !held,
     privilegedBlock() ??
-      (ctx.anyCheckFailed ? 'A check above failed, so PayPal won’t open.' : null) ??
+      (checkBlock ? 'A check above failed, so PayPal won’t open.' : null) ??
       (summary.can_open_paypal ? null : 'Waiting until the seller’s payment request is checked.'),
   );
 
   // Capture / void an authorization the owner holds (the 3-day honor clock).
   const authorized = owns && state === 'AUTHORIZED' && !mismatch;
   const capture = gate(authorized && shield !== 'BLOCK', moneyBlock());
-  const voidGate = gate(authorized, moneyBlock());
+  // Void is the safe direction: it needs the capability and can_release, never the checklist.
+  const voidGate = gate(authorized, privilegedBlock() ?? (summary.can_release ? null : summary.unavailable_reason ?? 'The wallet can’t do this for this deal right now.'));
 
   // Shield HOLD → ASK only, after the owner types the name exactly. BLOCK has no release at all.
   const releaseHold = gate(
     shield === 'HOLD' && !terminal,
-    privilegedBlock() ?? (namesMatch(ctx.typedName, ctx.expectedName) ? null : ctx.expectedName ? 'Type the name exactly as shown to unpause.' : 'The payee’s name isn’t available to confirm.'),
+    privilegedBlock() ??
+      (checksAllow(summary, 'shield') ? null : CHECK_BLOCK) ??
+      (namesMatch(ctx.typedName, ctx.expectedName) ? null : ctx.expectedName ? 'Type the name exactly as shown to unpause.' : 'The payee’s name isn’t available to confirm.'),
   );
 
-  // Rescue lever: rendered so its availability is honest; Rust answers UNAVAILABLE until P3.
-  const rescue = gate(deal.kind === 'rescue' && (!terminal || state === 'FAILED'), moneyBlock());
+  // Rescue fix: the owner approves the one discount invoice for a failed renewal (AGREED), or the
+  // send of an invoice already made (SETTLING, only when Rust says it is the next step).
+  const rescue = gate(deal.kind === 'rescue' && !held && (state === 'AGREED' || (state === 'SETTLING' && summary.can_release)), moneyBlock());
 
   // Withdraw is the safe direction: no unlock, no capability, no PayPal call.
   const withdraw = gate(WITHDRAWABLE.has(state), null);
@@ -178,9 +197,10 @@ export function anyMoneyEnabled(g: Gates): boolean {
   return g.ownerAccept.enabled || g.countersign.enabled || g.openPaypal.enabled || g.capture.enabled || g.void.enabled || g.releaseHold.enabled || g.rescue.enabled;
 }
 
-/** DecisionArgs come only from the Rust summary - never composed from UI state. */
+/** DecisionArgs come only from the Rust summary - never composed from UI state. They carry the
+ *  hash of the exact checklist shown, so Rust refuses the decision if it changed since. */
 export function decisionArgs(s: ApprovalSummary): DecisionArgs {
-  return { deal_id: s.deal.id, attempt: s.attempt, terms_hash: s.terms_hash };
+  return { deal_id: s.deal.id, attempt: s.attempt, terms_hash: s.terms_hash, checks_hash: s.checks_hash };
 }
 
 /** Owner ACCEPT additionally binds the exact latest inbound COUNTER digest Rust reported.

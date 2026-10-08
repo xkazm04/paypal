@@ -6,4 +6,17 @@ import type { ProofCheckLine } from "./ProofCheckLine";
 /**
  * The offline verifier's report on a proof file the owner picked. Values come from the file.
  */
-export type ProofReport = { deal_id: DealId, mode: Mode, owner_key_id: string, verified: boolean, checks: Array<ProofCheckLine>, };
+export type ProofReport = { deal_id: DealId, mode: Mode, 
+/**
+ * The full id of the owner key the file names (64 hex characters), or "invalid".
+ */
+owner_key_id: string, verified: boolean, checks: Array<ProofCheckLine>, 
+/**
+ * The permissions fingerprint the file names (hex; null in a first-format file).
+ */
+authority_manifest: string | null, 
+/**
+ * Whether that fingerprint is this wallet's own: the file was saved by a build with the same
+ * permissions. Null when the file names none.
+ */
+same_version: boolean | null, };

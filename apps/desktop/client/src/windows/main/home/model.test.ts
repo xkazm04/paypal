@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
 import { buildMockState } from '../../../mock/fixtures';
 import { weekBounds } from '../logic';
-import { chipTone, dealCount, ledgerLine, moneyList, shortTitle, silenceParts, timeLeft, weekLabel } from './model';
+import { chipTone, dealCount, dialValueText, ledgerLine, moneyList, shortTitle, silenceParts, timeLeft, weekLabel } from './model';
 
 const NOW = 1_800_000_000;
 const deals = buildMockState(NOW).deals.map((d) => d.deal);
@@ -52,5 +52,14 @@ describe('home model', () => {
     expect(ledgerLine('held', { ...any, state: 'NEGOTIATING', shield: 'HOLD' }, 'x')).toContain('paused by a scam check');
     expect(ledgerLine('stopped', { ...any, state: 'REFUSED', shield: 'BLOCK' }, 'Refurbished GPU')).toBe('blocked · GPU');
     expect(ledgerLine('moving', { ...any, state: 'AWAITING_APPROVAL', shield: null }, 'Dock')).toBe('waiting for approval · Dock');
+  });
+
+  it('reads the dial for a screen reader: the part under the index, then the decision it points at', () => {
+    const spend = { name: 'Spend', long: 'Agent purchases' };
+    expect(dialValueText({ firstRun: false, mode: 'module', module: spend, needsHere: 0, need: null })).toBe('Spend, agent purchases');
+    expect(dialValueText({ firstRun: false, mode: 'module', module: spend, needsHere: 2, need: null })).toBe('Spend, agent purchases: 2 need you');
+    expect(dialValueText({ firstRun: false, mode: 'needs', module: spend, needsHere: 1, need: { headline: 'Pay partsco $64.00', index: 0, count: 6 } }))
+      .toBe('Spend, agent purchases: Pay partsco $64.00 · 1 of 6 need you');
+    expect(dialValueText({ firstRun: true, mode: 'needs', module: spend, needsHere: 0, need: null })).toBe('Spend, agent purchases. Opens once setup is done');
   });
 });

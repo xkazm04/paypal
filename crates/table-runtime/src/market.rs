@@ -10,6 +10,18 @@ pub struct MarketBinding {
     pub mandate_id: MandateId,
     pub mandate_version: u32,
     pub currency: Currency,
+    /// The market product the deal's rules bind to its item (market-data-2): the only product a
+    /// market record for this deal may price.
+    pub product_id: String,
+}
+/// A market record may be stored for the deal only when it is re-checkable and prices the
+/// product the binding names.
+pub(crate) fn record_prices(reference: &MarketRef, product_id: &str) -> bool {
+    reference
+        .certificate
+        .as_ref()
+        .is_some_and(|c| c.product_id == product_id)
+        && reference.validate().is_ok()
 }
 pub struct VaultMarketKey(pub Arc<dyn crate::vault::Vault>);
 impl std::fmt::Debug for VaultMarketKey {
@@ -46,12 +58,24 @@ impl Runtime {
         self.pipeline
             .wallet
             .check_mandate(id, category, self.clock.now())?;
+        let mandate = app(self.pipeline.wallet.ledger.active_mandate(
+            deal.mandate_id,
+            deal.mandate_version,
+            &self.owner()?.verifying_key(),
+        ))?;
+        // An item no rule binds to a market product has no market price to fetch.
+        let product_id = mandate
+            .payload
+            .market_product_for(&deal.terms.item_ref)
+            .ok_or_else(invalid)?
+            .to_owned();
         Ok(MarketBinding {
             deal_id: id,
             terms_hash: deal.terms.hash().map_err(table_app::Error::from)?,
             mandate_id: deal.mandate_id,
             mandate_version: deal.mandate_version,
             currency: deal.terms.currency,
+            product_id,
         })
     }
     pub(crate) fn store_market(
@@ -64,6 +88,8 @@ impl Runtime {
             || current.mandate_id != binding.mandate_id
             || current.mandate_version != binding.mandate_version
             || current.currency != binding.currency
+            || current.product_id != binding.product_id
+            || !record_prices(&reference, &binding.product_id)
         {
             return Err(invalid());
         }
@@ -99,6 +125,11 @@ impl ActorHandle {
                 Action::MarketPrepare(args.deal_id),
             )
             .await?;
+        // The asked product must be the one the deal's rules bind to its item: refused before
+        // any market call.
+        if args.product_id != binding.product_id {
+            return Err(invalid());
+        }
         let market = self
             .market
             .as_ref()

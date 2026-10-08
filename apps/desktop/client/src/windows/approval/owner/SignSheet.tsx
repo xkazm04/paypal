@@ -26,19 +26,18 @@ export function canonical(v: unknown): string {
   return JSON.stringify(v);
 }
 
-export type Consequence = { change: Change; text: string; moved: number };
-
 type Props = {
   base: MandateListEntry | null;
   args: MandateSignArgs;
   changes: Change[];
-  consequences: Consequence[] | null;
+  /** The wallet's what-if for this draft (mandate_simulate): the one-line summary and what moved. */
+  whatIf: { summary: string; hits: string } | null;
   problems: RuleProblem[];
   onClose: () => void;
   onSigned: (m: OpenMandate) => void;
 };
 
-export function SignSheet({ base, args, changes, consequences, problems, onClose, onSigned }: Props) {
+export function SignSheet({ base, args, changes, whatIf, problems, onClose, onSigned }: Props) {
   const s = useSession();
   const [error, setError] = useState<WalletError | null>(null);
   const locked = s.settingsLocked || s.lockedByError;
@@ -101,17 +100,16 @@ export function SignSheet({ base, args, changes, consequences, problems, onClose
 
       <Section title="In plain words">
         <ul className="ow-conseq">
-          {consequences
-            ? consequences.map((c, i) => (
-                <li key={i} className={c.change.dir}>
-                  {c.change.text}. {c.text}
-                </li>
-              ))
-            : changes.map((c, i) => (
-                <li key={i} className={c.dir}>
-                  {c.text} <span className="dim">· this week’s effect can’t be worked out here</span>
-                </li>
-              ))}
+          {changes.map((c, i) => (
+            <li key={i} className={c.dir}>
+              {c.text}.
+            </li>
+          ))}
+          <li className="live">
+            {whatIf
+              ? `${whatIf.summary}${whatIf.hits ? ` Against the rules now, it would have ${whatIf.hits}.` : ' No deal this week would have gone differently.'}`
+              : 'This week’s deals haven’t been tried against this version yet.'}
+          </li>
           <li className="live">New rules apply to new requests only. Anything already on hold, invoiced or approved stays as it is.</li>
           {base ? <li className="live">Haggles still open stay tied to the version they started under, so once you sign they need starting again.</li> : null}
         </ul>
@@ -120,7 +118,7 @@ export function SignSheet({ base, args, changes, consequences, problems, onClose
             {problems.map((p, i) => <li key={i}>{ruleNameOf(p.clause)}: {p.why}</li>)}
           </ul>
         ) : null}
-        <p className="ui-hint">This is a preview. The wallet checks everything again when you sign.</p>
+        <p className="ui-hint">This week’s deals were tried with the wallet’s own check. Signing checks everything again, and every new request is checked too.</p>
       </Section>
 
       <Section title="What you sign"> 

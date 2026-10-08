@@ -84,6 +84,69 @@ fn order() -> CreateOrder {
         merchant_id: ResourceId::new("merchant").unwrap(),
     }
 }
+fn invoice_request() -> InvoiceRequest {
+    let deal = order().deal;
+    let offer = propose_discount(
+        Money::parse("80.00", Currency::USD).unwrap(),
+        2000,
+        Money::parse("20.00", Currency::USD).unwrap(),
+    )
+    .unwrap();
+    InvoiceRequest {
+        deal,
+        recipient_email: "buyer@example.invalid".into(),
+        amount: order().amount,
+        invoice_number: rescue_invoice_number(deal, 1).unwrap(),
+        text: invoice_text(&offer),
+    }
+}
+#[tokio::test]
+async fn invoice_numbers_are_short_deterministic_and_search_is_a_read() {
+    let deal = order().deal;
+    let number = rescue_invoice_number(deal, 1).unwrap();
+    assert_eq!(number, "RZZZZZZZZZZZZZZZZ-1");
+    assert!(number.len() <= 25);
+    assert_eq!(rescue_invoice_number(deal, 1).unwrap(), number);
+    assert_ne!(rescue_invoice_number(deal, 2).unwrap(), number);
+    assert!(rescue_invoice_number(deal, 0).is_err());
+    let (client, fake, _) = setup(vec![
+        oauth(),
+        response(
+            200,
+            json!({"items":[{"id":"INV1","status":"DRAFT","detail":{"reference":deal.to_string(),"invoice_number":number}}]}),
+        ),
+    ]);
+    let found = client.search_invoices(&number).await.unwrap().value;
+    assert_eq!(found.items.len(), 1);
+    assert_eq!(
+        found.items[0]
+            .detail
+            .as_ref()
+            .unwrap()
+            .invoice_number
+            .as_deref(),
+        Some(number.as_str())
+    );
+    {
+        let requests = fake.requests.lock().unwrap();
+        assert_eq!(
+            requests[1].url,
+            "https://api-m.sandbox.paypal.com/v2/invoicing/search-invoices"
+        );
+        assert_eq!(requests[1].body, Some(json!({"invoice_number": number})));
+        // A search sends no request id: it is a read and reserves nothing.
+        assert!(
+            !requests[1]
+                .headers
+                .iter()
+                .any(|(name, _)| name == "PayPal-Request-Id")
+        );
+    }
+    assert!(client.search_invoices("bad number").await.is_err());
+    let mut bad = invoice_request();
+    bad.invoice_number = "x".repeat(26);
+    assert!(bad.body().is_err());
+}
 fn order_wire(status: &str) -> Value {
     let expected = order();
     let mut body = expected.body().unwrap();
@@ -120,14 +183,7 @@ async fn secondary_endpoints_are_typed_exact_and_never_reprice_a_plan() {
     let sub = ResourceId::new("I-SUB").unwrap();
     let rid = RequestId::for_operation(order().deal, 1, "invoice-create").unwrap();
     client
-        .create_invoice(
-            &InvoiceRequest {
-                deal: order().deal,
-                recipient_email: "buyer@example.invalid".into(),
-                amount: order().amount,
-            },
-            &rid,
-        )
+        .create_invoice(&invoice_request(), &rid)
         .await
         .unwrap();
     client
@@ -144,6 +200,7 @@ async fn secondary_endpoints_are_typed_exact_and_never_reprice_a_plan() {
             .billing_info
             .unwrap()
             .outstanding_balance
+            .unwrap()
             .money()
             .unwrap()
             .minor(),
@@ -216,6 +273,15 @@ async fn secondary_endpoints_are_typed_exact_and_never_reprice_a_plan() {
         requests[1].body.as_ref().unwrap()["items"][0]["unit_amount"]["value"],
         "64.00"
     );
+    // The fixed wording and the deterministic invoice number travel; nothing else is free text.
+    let body = requests[1].body.as_ref().unwrap();
+    assert_eq!(body["items"][0]["name"], invoice_request().text.item);
+    assert_eq!(body["detail"]["note"], invoice_request().text.note);
+    assert_eq!(
+        body["detail"]["invoice_number"],
+        rescue_invoice_number(order().deal, 1).unwrap()
+    );
+    assert_eq!(body["detail"]["reference"], order().deal.to_string());
     assert_eq!(
         requests[7].body.as_ref().unwrap(),
         &json!({"plan_id":"P-CHEAPER"})
@@ -240,11 +306,7 @@ async fn secondary_mutation_unknown_or_5xx_does_not_retry_without_proven_idempot
         assert!(
             client
                 .create_invoice(
-                    &InvoiceRequest {
-                        deal: order().deal,
-                        recipient_email: "buyer@example.invalid".into(),
-                        amount: order().amount
-                    },
+                    &invoice_request(),
                     &RequestId::for_operation(order().deal, 1, "invoice-create").unwrap()
                 )
                 .await

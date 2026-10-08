@@ -5,19 +5,22 @@
 import { Fragment, useState } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
+import type { MoneyCheck } from '@bindings/MoneyCheck';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { clockLabel } from '../../../lib/format';
 import { useMutation } from '../../../lib/hooks';
-import { silenceWords } from '../../../lib/words';
+import { moneyCheckWord, silenceWords } from '../../../lib/words';
 import { Countdown, MinorMoney, ModeBadge, WalletNotice } from '../../../shared/honesty';
 import { AnswerBar, Btn, Chip, DecisionCard, Icon, Sheet, Silence, type DecisionOption } from '../../../shared/ui';
+import { shortTitle } from '../home/model';
 import { amountNote, amountTone, dealTotal, moneyNow } from '../logic';
 import { useToast } from '../ui';
 import { useWorld } from '../world';
+import { releasable } from '../modules/shield/matrix';
 import { milestones, stateTone, withdrawWhat, type ClauseReading, type MirrorStrip, type Reading } from './model';
 import { dealAnswer, decisionQuestion, decisionWhy, reviewMeans } from './story';
 
-export function Summary({ deal, strip, deadline }: { deal: Deal; strip: MirrorStrip; deadline: number | null }) {
+export function Summary({ deal, strip, deadline, check }: { deal: Deal; strip: MirrorStrip; deadline: number | null; check?: MoneyCheck | null }) {
   const w = useWorld();
   const t = dealTotal(deal);
   // The title bar already carries the window's mode badge; repeat it only when this deal differs.
@@ -27,11 +30,14 @@ export function Summary({ deal, strip, deadline }: { deal: Deal; strip: MirrorSt
     <div className="dv-figs">
       <div className="dv-hero">
         <span className={`dv-amt ${amountTone(deal)}`} title={amountNote(deal)}><MinorMoney minor={t.minor} currency={t.currency} /></span>
-        <span className="dv-pills"><Chip tone={stateTone(strip)}>{state}</Chip>{ownMode ? <ModeBadge mode={deal.mode} /> : null}</span>
+        <span className="dv-pills">
+          {check ? <Chip tone="dashed" title={moneyCheckWord(check).means}>{moneyCheckWord(check).text}</Chip> : <Chip tone={stateTone(strip)}>{state}</Chip>}
+          {ownMode ? <ModeBadge mode={deal.mode} /> : null}
+        </span>
       </div>
       <div className="dv-f">
         <span className="k">Money right now</span>
-        <span className="v">{moneyNow(deal)}</span>
+        <span className="v">{check ? 'Not confirmed yet, PayPal is being asked' : moneyNow(deal)}</span>
       </div>
       {deadline ? (
         <div className="dv-f push">
@@ -51,6 +57,8 @@ export function StateStrip({ strip }: { strip: MirrorStrip }) {
   const ended = !!m.end;
   return (
     <ol className={`dv-ms ${ended ? 'ended' : ''}`} aria-label="Where this deal is">
+      {/* Ended before the first milestone: the marker leads, and every milestone after it is skipped. */}
+      {m.end && m.end.after === null ? <EndMark end={m.end} first /> : null}
       {m.items.map((it, i) => (
         <Fragment key={it.key}>
           <li className={`ms ${it.status} ${it.tone ?? ''} ${ended && it.status === 'todo' ? 'skipped' : ''}`} aria-current={it.status === 'cur' ? 'step' : undefined} title={it.detail}>
@@ -62,7 +70,6 @@ export function StateStrip({ strip }: { strip: MirrorStrip }) {
           {i < m.items.length - 1 && !(m.end && m.end.after === it.key) ? <li className={`bar ${it.status === 'done' ? 'done' : ''}`} aria-hidden="true" /> : null}
         </Fragment>
       ))}
-      {m.end && m.end.after === null ? <EndMark end={m.end} first /> : null}
     </ol>
   );
 }
@@ -75,14 +82,16 @@ function EndMark({ end, first }: { end: NonNullable<ReturnType<typeof milestones
         <span className="stop" aria-hidden="true">{end.tone === 'bad' ? '×' : '–'}</span>
         <span>Ended · <b>{end.label}</b></span>
       </li>
+      {first ? <li className="bar cut" aria-hidden="true" /> : null}
     </>
   );
 }
 
 /** The answer (one sentence) and, if the deal needs the owner, the one decision with what each option does. */
-export function DealStory({ deal, need, canWithdraw, theirName, them, latest, band, readings, deadline }: {
+export function DealStory({ deal, need, canWithdraw, theirName, them, latest, band, readings, deadline, check }: {
   deal: Deal; need: AttentionItem | undefined; canWithdraw: boolean; theirName: string; them: string;
   latest: TranscriptStep | null; band: Reading | null; readings: readonly ClauseReading[]; deadline: number | null;
+  check?: MoneyCheck | null;
 }) {
   const w = useWorld();
   const toast = useToast();
@@ -97,7 +106,7 @@ export function DealStory({ deal, need, canWithdraw, theirName, them, latest, ba
   const mayLapse = !!need?.actions.includes('let_lapse') && deal.state !== 'MISMATCH';
   const silence = need?.on_silence ?? disp.on_silence;
   const wText = withdrawWhat(deal, theirName);
-  const answer = dealAnswer(deal, { need, them, latest, band, mayWithdraw: canWithdraw });
+  const answer = dealAnswer(deal, { need, them, latest, band, mayWithdraw: canWithdraw, check });
 
   const options: DecisionOption[] = [];
   if (need && review) {
@@ -106,6 +115,16 @@ export function DealStory({ deal, need, canWithdraw, theirName, them, latest, ba
       label: <>{w.locked ? <Icon name="hold" size={13} /> : null} Review &amp; approve ↗</>,
       means: reviewMeans(deal, w.locked),
       title: w.locked ? 'Opens the approval window, which asks for Windows Hello first' : 'Opens the approval window: the only place money can be released',
+    });
+  }
+  // A live scam-check pause: the same hand-off as the Shield page (the typed-name release happens in
+  // the approval window). Releasing never pays.
+  if (need && !review && releasable(deal)) {
+    options.push({
+      kind: 'gold', onClick: () => void open.run({ deal_id: deal.id }), disabled: open.pending,
+      label: <>{w.locked ? <Icon name="hold" size={13} /> : null} Review &amp; release ↗</>,
+      means: 'Opens the approval window. You type the payee’s name there to release it. Releasing doesn’t pay.',
+      title: w.locked ? 'Opens the approval window, which asks for Windows Hello first' : 'Opens the approval window, where you type the payee’s name to release it',
     });
   }
   if (need && mayLapse) {
@@ -132,13 +151,13 @@ export function DealStory({ deal, need, canWithdraw, theirName, them, latest, ba
       ) : null}
       {[open.error, lapse.error].map((e, i) => (e ? <WalletNotice key={i} error={e} what={i === 0 ? 'Approval window' : 'Let it lapse'} /> : null))}
       {sheet ? (
-        <Sheet title={`Withdraw from ${disp.label}?`} size="narrow" onClose={() => setSheet(false)}
+        <Sheet title={`Withdraw from “${shortTitle(disp.title)}”?`} size="narrow" onClose={() => setSheet(false)}
           footer={
             <>
               <Btn onClick={() => setSheet(false)}>Keep the deal</Btn>
               <Btn kind="danger" disabled={withdraw.pending} onClick={async () => {
                 const r = await withdraw.run({ deal_id: deal.id });
-                if (r === null) { setSheet(false); toast(<>{disp.label} withdrawn. <b>No money moved.</b></>, 'ok'); }
+                if (r === null) { setSheet(false); toast(<>{shortTitle(disp.title)} withdrawn. <b>No money moved.</b></>, 'ok'); }
               }}>{withdraw.pending ? 'Withdrawing…' : 'Withdraw'}</Btn>
             </>
           }>

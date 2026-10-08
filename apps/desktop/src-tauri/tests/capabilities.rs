@@ -34,10 +34,14 @@ fn w3_release_set_is_approval_only_and_all_commands_are_declared() {
         assert_eq!(selector[0], label);
     }
     assert_eq!(granted.len(), table_client::COMMANDS.len());
+    // build.rs hands Tauri the authority table's own command list (T11), included by path.
     let build = include_str!("../build.rs");
-    for command in table_client::COMMANDS {
-        assert!(build.contains(&format!("\"{command}\"")));
-    }
+    assert!(build.contains("#[path = \"../../../crates/table-client/src/authority_table.rs\"]"));
+    assert!(build.contains(".commands(authority_table::COMMANDS)"));
+    assert!(
+        !build.contains("\"get_settings\""),
+        "build.rs keeps no hand list"
+    );
     // A command declared and granted but not registered fails only at runtime; compare the
     // generate_handler! list with COMMANDS in both directions.
     let native = include_str!("../src/native.rs");
@@ -80,6 +84,12 @@ fn client_reads_and_snooze_have_their_precise_label_grants() {
         ("owner-facts", vec!["main", "approval"]),
         ("book-query", vec!["main"]),
         ("proof-check", vec!["main"]),
+        ("deal-history", vec!["main"]),
+        ("mandate-simulate", vec!["approval"]),
+        ("envelope-sign", vec!["approval"]),
+        ("envelope-get", vec!["main", "tumbler", "approval"]),
+        ("rescue-replay", vec!["approval"]),
+        ("rescue-book", vec!["main", "approval"]),
     ] {
         for raw in capabilities {
             let v: Value = serde_json::from_str(raw).unwrap();
@@ -92,4 +102,38 @@ fn client_reads_and_snooze_have_their_precise_label_grants() {
             assert_eq!(granted, labels.contains(&label), "{command} on {label}");
         }
     }
+}
+#[test]
+fn shell_answered_commands_check_their_own_row_of_the_authority_table() {
+    // The commands the shell answers itself never reach the runtime's gate, so each handler must
+    // call the table-driven `label(&window, "<command>")` with its own name.
+    let sources = [
+        include_str!("../src/native.rs"),
+        include_str!("../src/native/commands.rs"),
+        include_str!("../src/native/routing.rs"),
+        include_str!("../src/native/surface.rs"),
+        include_str!("../src/native/events.rs"),
+    ]
+    .concat();
+    for a in table_client::authority::AUTHORITY
+        .iter()
+        .filter(|a| a.enforcer == table_client::authority::Enforcer::Shell)
+    {
+        let handler = sources
+            .split(&format!("fn {}(", a.name))
+            .nth(1)
+            .and_then(|rest| rest.split("#[tauri::command]").next())
+            .unwrap_or_else(|| panic!("no handler for {}", a.name));
+        assert!(
+            handler.contains(&format!("label(&window, \"{}\")?;", a.name)),
+            "{} must check its own row",
+            a.name
+        );
+    }
+    // Every label() call names a real row, and no hand-kept label list is left in the shell.
+    for call in sources.split("label(&window, \"").skip(1) {
+        let name = call.split('"').next().unwrap();
+        assert!(table_client::authority::authority(name).is_some(), "{name}");
+    }
+    assert!(!sources.contains("label(&window, &["));
 }

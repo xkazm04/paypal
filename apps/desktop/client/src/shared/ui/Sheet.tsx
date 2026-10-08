@@ -3,7 +3,7 @@
 // Esc (topmost layer only, see layers.ts) and on a scrim click, and gives focus back on close.
 import { useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { useFocusOnMount, useReturnFocus, trapTab } from './focus';
+import { useFocusOnMount, useModalFocus, useReturnFocus, trapTab } from './focus';
 import { useLayer } from './layers';
 
 export type SheetSize = 'narrow' | 'default' | 'wide';
@@ -30,11 +30,12 @@ export function Sheet({ title, onClose, size = 'default', footer, head, dismissO
   useLayer(onClose, 'sheet');
   useReturnFocus();
   useFocusOnMount(h2);
+  useModalFocus(box, h2);
   return createPortal(
     <>
       <div className="ui-scrim" aria-hidden="true" onMouseDown={dismissOnScrim ? onClose : undefined} />
       <section ref={box} className={`ui-sheet ${size === 'default' ? '' : size} ${className ?? ''}`} role="dialog" aria-modal="true" aria-labelledby={`${id}-h`}
-        onKeyDown={(e) => trapTab(e, box.current)}>
+        tabIndex={-1} onKeyDown={(e) => trapTab(e, box.current)}>
         <header className="ui-sheet-h">
           <h2 id={`${id}-h`} tabIndex={-1} ref={h2}>{title}</h2>
           {head}

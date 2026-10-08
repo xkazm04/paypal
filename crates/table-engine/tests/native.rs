@@ -1,4 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+// The process tests are Windows-only; on other hosts only the resolver test runs.
+#![cfg_attr(not(windows), allow(dead_code, unused_imports))]
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use table_core::RunId;
 use table_engine::*;
@@ -38,6 +40,7 @@ fn job() -> AgentJob {
     AgentJob {
         run: RunId(ulid::Ulid::new()),
         prompt: "TRUSTED input $(evil) `literal` \" ; &".into(),
+        playbook: None,
     }
 }
 #[test]
@@ -57,7 +60,9 @@ fn direct_and_npm_resolution_never_executes_shim_text() {
         script
     );
     assert!(!exe.prefix[0].starts_with(r"\\?\"));
-    std::fs::write(root.join("codex.exe"), "fixture").unwrap();
+    // The direct binary wins over the npm layout; its name is platform-specific.
+    let direct = if cfg!(windows) { "codex.exe" } else { "codex" };
+    std::fs::write(root.join(direct), "fixture").unwrap();
     assert!(
         resolve_command(EngineId::CodexCli, &[root])
             .unwrap()
@@ -235,6 +240,7 @@ async fn cancellation_kills_descendants_and_dropped_runs_remove_registration() {
                 AgentJob {
                     run,
                     prompt: "again".into(),
+                    playbook: None,
                 },
                 grant(),
                 tx,

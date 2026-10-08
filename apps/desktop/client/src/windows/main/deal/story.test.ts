@@ -36,12 +36,14 @@ describe('dealAnswer: one sentence a first-time reader understands', () => {
     const a = answer('D-0199');
     expect(a.tone).toBe('alert');
     expect(a.sub).toContain(CLOSED);
-    expect(a.sub).toContain('asked $339.00, agreed $329.00');
+    expect(a.sub).toContain('Asked $339.00, not $329.00');
     expect(`${a.title} ${a.sub}`).not.toMatch(/approve|pay it|collect/i);
   });
   it('refusals and blocks are alerts that say nothing moved', () => {
     expect(answer('D-0196').tone).toBe('alert');
     expect(answer('D-0196').title).toContain('stopped this for good');
+    // The check that stopped it is the wallet core's recorded rule, in plain words.
+    expect(answer('D-0196').sub).toBe('The money would go to someone other than the payee you agreed with. ' + CLOSED);
     expect(answer('D-0192').title).toContain('refused this before PayPal was asked');
     expect(answer('D-0192').sub).toContain(CLOSED);
   });
@@ -56,7 +58,8 @@ describe('dealAnswer: one sentence a first-time reader understands', () => {
   it('a paused request and a failed renewal name what the owner is asked', () => {
     expect(answer('D-0198').title).toContain('paused for your check');
     expect(answer('D-0198').title).toContain('Nothing was sent to PayPal');
-    expect(dealAnswer(deal('D-0188'), { need: entry('D-0188').attention ?? undefined, them: 'S-14', latest: null, band: null, mayWithdraw: false }).title).toBe('S-14’s $9.60 renewal didn’t go through. You choose the fix.');
+    expect(answer('D-0198').sub).toBe('The price is more than 1.4 × the usual price.');
+    expect(dealAnswer(deal('D-0188'), { need: entry('D-0188').attention ?? undefined, them: 'S-14', latest: null, band: null, mayWithdraw: false }).title).toBe('S-14’s renewal didn’t go through. You choose the fix: a $9.60 invoice for this cycle.');
   });
   it('a live deal with nothing for the owner is calm and may mention withdrawing', () => {
     const a = dealAnswer({ ...deal('D-0193') }, { need: undefined, them: 'Dan', latest: last('D-0193'), band: null, mayWithdraw: true });
@@ -72,8 +75,9 @@ describe('the decision card words', () => {
     const n = (l: string) => entry(l).attention!;
     expect(decisionQuestion(deal('D-0193'), n('D-0193'), 'Dan')).toBe('Accept Dan’s $329.00?');
     expect(decisionQuestion(deal('D-0190'), n('D-0190'), 'partsco')).toBe('Pay partsco $64.00, or release the hold?');
-    expect(decisionQuestion(deal('D-0198'), n('D-0198'), 'pixel-bay')).toBe('Withdraw pixel-bay’s paused $140.00 request?');
-    expect(decisionQuestion(deal('D-0188'), n('D-0188'), 'S-14')).toBe('Approve a fix for S-14’s failed $9.60 renewal?');
+    expect(decisionQuestion(deal('D-0198'), n('D-0198'), 'pixel-bay')).toBe('Let this $140.00 payment to pixel-bay go ahead?');
+    expect(decisionQuestion({ ...deal('D-0198'), state: 'WITHDRAWN' }, n('D-0198'), 'pixel-bay')).toBe('Withdraw pixel-bay’s paused $140.00 request?');
+    expect(decisionQuestion(deal('D-0188'), n('D-0188'), 'S-14')).toBe('Approve a $9.60 invoice to fix S-14’s failed renewal?');
   });
   it('names the rule that asks, in plain words', () => {
     const d = deal('D-0193');
@@ -82,7 +86,10 @@ describe('the decision card words', () => {
     expect(decisionWhy(deal('D-0198'), { clause: null }, [], 'x')).toBe('A scam check paused this before PayPal was asked.');
     expect(decisionWhy(deal('D-0188'), { clause: null }, [], 'x')).toBeNull();
     const p = deal('D-0190');
-    expect(decisionWhy(p, entry('D-0190').attention!, readClauses(clausesOf(p), p, { asks: 7 }), p.mandate_id)).not.toMatch(/HOUSE/);
+    // The payees rule names the house seller as a name, never "HOUSE".
+    expect(decisionWhy(p, { clause: { mandate_id: p.mandate_id, number: 7 } }, readClauses(clausesOf(p), p, { asks: 7 }), p.mandate_id)).toMatch(/^Because of your rule “Approved payees” \(only .*House seller.*\)\.$/);
+    // D-0190's $64.00 hold is under the ask-me threshold: as in Rust, its attention item names no rule.
+    expect(decisionWhy(p, entry('D-0190').attention!, readClauses(clausesOf(p), p), p.mandate_id)).toBeNull();
   });
   it('the review option only hands off: it always says nothing moves until you confirm in the approval window', () => {
     for (const l of ['D-0193', 'D-0190', 'D-0188', 'D-0198']) {
@@ -148,5 +155,15 @@ describe('where it stands', () => {
     const f = standingFacts(e.deal, null, null, 'pixel-bay');
     expect(f.map((x) => x.k)).toContain('Quantity');
     expect(standingFacts(deal('D-0180'), null, null, 'x').find((x) => x.k === 'Typical price')).toBeUndefined();
+  });
+  it('a failed renewal shows what failed and what the fix invoices, as Rescue and the approval window do', () => {
+    const d = deal('D-0188');
+    const offer = world.rescue?.[d.id]?.offer ?? null;
+    expect(offer).not.toBeNull();
+    expect(standingFacts(d, null, null, 'S-14', offer).map((x) => [x.k, x.v])).toEqual([
+      ['Renewal that failed', '$12.00'], ['This fix invoices', '$9.60'], ['Discount', '20% off this cycle only'],
+    ]);
+    // Without the wallet's rescue read it says only the deal's own price.
+    expect(standingFacts(d, null, null, 'S-14', null).map((x) => x.k)).toEqual(['Price']);
   });
 });

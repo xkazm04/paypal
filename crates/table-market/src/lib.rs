@@ -6,7 +6,10 @@ use std::{
     fmt,
     sync::Arc,
 };
-use table_core::{Clock, Currency, H256, MarketRef, Money};
+use table_core::{
+    Clock, Currency, H256, MAX_MARKET_COMPARABLES, MarketCertificate, MarketComparable,
+    MarketMatch, MarketRef, Money,
+};
 use table_paypal::http::{Request, Secret, Transport};
 use thiserror::Error;
 use tokio::sync::Mutex;
@@ -77,6 +80,27 @@ impl Client {
             _ => Err(Error::Unavailable),
         }
     }
+    /// A POST whose answer is kept as the bytes that arrived (market-data-2): the caller hashes
+    /// them before it parses anything.
+    async fn post_raw(&self, path: &str, body: Value) -> Result<Vec<u8>, Error> {
+        let key = self.key.load().await?;
+        let r = self
+            .transport
+            .send_raw(Request {
+                method: "POST",
+                url: format!("https://api.trychannel3.com{path}"),
+                headers: vec![("x-api-key".into(), key)],
+                body: Some(body),
+                form: None,
+            })
+            .await
+            .map_err(|_| Error::Unavailable)?;
+        match r.status {
+            200 => Ok(r.bytes),
+            404 => Err(Error::NoReference),
+            _ => Err(Error::Unavailable),
+        }
+    }
     pub async fn cached(&self, product: &str, currency: Currency) -> Option<MarketRef> {
         self.cache
             .lock()
@@ -90,12 +114,7 @@ impl Client {
     }
 }
 fn valid_product(product: &str) -> Result<(), Error> {
-    if product.is_empty()
-        || product.len() > 128
-        || !product
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
-    {
+    if !table_core::market_product_valid(product) {
         return Err(Error::Invalid);
     }
     Ok(())
@@ -112,25 +131,31 @@ fn price(value: &Value, currency: Currency) -> Result<Money, Error> {
 impl MarketApi for Client {
     async fn comparables(&self, product: &str, currency: Currency) -> Result<MarketRef, Error> {
         valid_product(product)?;
+        // A cached band is served only while it has more than the refresh lead of freshness
+        // left, so a scheduled refresh (T15) always fetches a new one.
         if let Some(r) = self.cached(product, currency).await
-            && self.clock.now().saturating_sub(r.retrieved_at) < 900
+            && !table_core::market_refresh_due(Some(&r), self.clock.now())
         {
             return Ok(r);
         }
         // Verified 2026-10-02: api-reference/v1/similar-products.md (path /v1/similar).
-        let raw = self
-            .request(
-                "POST",
+        let bytes = self
+            .post_raw(
                 "/v1/similar",
-                Some(json!({"product_id":product,"limit":30,"config":{"currency":currency}})),
+                json!({"product_id":product,"limit":MAX_MARKET_COMPARABLES,"config":{"currency":currency}}),
             )
             .await?;
+        // The hash is of the bytes exactly as they arrived, taken before parsing: parsing and
+        // re-serialising would re-order keys and re-write numbers.
+        let raw_sha256 = H256::digest(&bytes);
+        let raw: Value = serde_json::from_slice(&bytes).map_err(|_| Error::Invalid)?;
         let products = raw
             .get("products")
             .and_then(Value::as_array)
             .ok_or(Error::Invalid)?;
-        let mut prices = Vec::new();
-        for p in products {
+        let mut comparables = Vec::new();
+        // At most the request's own result limit is kept, in the service's order.
+        for p in products.iter().take(MAX_MARKET_COMPARABLES) {
             let offers = p
                 .get("offers")
                 .and_then(Value::as_array)
@@ -149,12 +174,33 @@ impl MarketApi for Client {
                 }
             }
             if let Some(m) = best {
-                prices.push(m);
+                // UNVERIFIED: the per-product id field is read as `id`; the research and the
+                // recorded fixtures do not show it. An absent or malformed id is kept as none,
+                // never as text (a title or merchant prose is never stored).
+                let product_id = p
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .filter(|id| table_core::market_product_valid(id))
+                    .map(str::to_owned);
+                comparables.push(MarketComparable {
+                    minor: m.minor(),
+                    product_id,
+                });
             }
         }
-        let hash = H256::digest(&serde_json::to_vec(&raw).map_err(|_| Error::Invalid)?);
-        let band = MarketRef::from_comparables(prices, self.clock.now(), hash)
-            .map_err(|_| Error::NoReference)?;
+        if comparables.is_empty() {
+            return Err(Error::NoReference);
+        }
+        let certificate = MarketCertificate::new(
+            product.to_owned(),
+            raw_sha256,
+            MarketMatch::Similar,
+            currency,
+            comparables,
+        )
+        .map_err(|_| Error::Invalid)?;
+        let band =
+            MarketRef::certified(certificate, self.clock.now()).map_err(|_| Error::NoReference)?;
         self.cache
             .lock()
             .await

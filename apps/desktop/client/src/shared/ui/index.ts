@@ -4,7 +4,7 @@ export { Sheet, type SheetProps, type SheetSize } from './Sheet';
 export { Popover, type PopoverProps } from './Popover';
 export { Inspector, InspectorHostProvider, Split, useInspectorHost, type InspectorProps } from './Inspector';
 export { closeTopLayer, layerCount, pushLayer, topLayerKind, useLayer, useLayerCount, type LayerKind } from './layers';
-export { trapTab, useFocusOnMount, useReturnFocus } from './focus';
+export { focusLost, modalFocusTarget, shouldRescue, trapTab, useFocusOnMount, useFocusRescue, useModalFocus, useReturnFocus } from './focus';
 export { ToastProvider, useToast, TOAST_MS, type PushToast, type ToastTone } from './toast';
 export { ThemeSwitch } from './ThemeSwitch';
 export * from './story';

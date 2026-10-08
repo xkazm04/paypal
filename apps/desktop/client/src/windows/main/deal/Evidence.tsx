@@ -9,7 +9,8 @@ import type { TranscriptStep } from '@bindings/TranscriptStep';
 import type { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMoney, nowUnix, shortHash, shortId } from '../../../lib/format';
 import { useMutation } from '../../../lib/hooks';
-import { marketWords, PROOF_SAVE_WARNING } from '../../../lib/words';
+import type { DealWatch } from '../../../lib/marketWatch';
+import { FAIR_PRICE_NAME, fairPriceWords, HOUSE_RECORD_NAME, houseRecordWord, KEPT_FRESH, marketWords, PRICE_CHECKS_USED_UP, priceChecksToday, PROOF_FILE_SHOWS, PROOF_SAVE_WARNING } from '../../../lib/words';
 import { ModeBadge, WalletNotice } from '../../../shared/honesty';
 import { Btn, Chip, Empty, Kv, Loading, Sheet } from '../../../shared/ui';
 import { ConvergenceChart, MarketBand, MiniBand } from '../charts';
@@ -25,7 +26,14 @@ type EvState = { data: DealEvidence | undefined; error: WalletError | null };
 const REFS: Array<[PaypalRefKey, string]> = [['order', 'Order'], ['authorization', 'Hold'], ['capture', 'Payment']];
 const REF_NAME: Record<PaypalRefKey, string> = { order: 'Order', authorization: 'Hold', capture: 'Payment', subscription: 'Subscription' };
 
-export function ProofPanel({ deal, ev, band, onOpen }: { deal: Deal; ev: EvState; band: DisplayBand | null; onOpen: (k: EvidenceKind) => void }) {
+/** The typical-price card's line about a signed keep-prices-fresh rule (T15); null when not watched. */
+export function watchWhy(watch: DealWatch | null | undefined, priced: boolean): string | null {
+  if (!watch) return null;
+  if (watch.usedUp) return 'Today’s price checks are used up; checked again tomorrow.';
+  return priced ? `${KEPT_FRESH}.` : `${KEPT_FRESH}: the first check is on its way.`;
+}
+
+export function ProofPanel({ deal, ev, band, watch, onOpen }: { deal: Deal; ev: EvState; band: DisplayBand | null; watch?: DealWatch | null; onOpen: (k: EvidenceKind) => void }) {
   const e = ev.data;
   const evl = e ? evidenceLabel(deal, e.receipt) : null;
   const rec = e ? reconciliationLabel(e.reconciliation) : null;
@@ -35,6 +43,8 @@ export function ProofPanel({ deal, ev, band, onOpen }: { deal: Deal; ev: EvState
   const sameCur = !!mk && deal.terms.unit_price.currency === mk.median.currency;
   const mw = mk && sameCur ? marketWords(deal.terms.unit_price.minor, mk.p25.minor, mk.median.minor, mk.p75.minor) : null;
   const loading = <span className="dim">loading…</span>;
+  const house = e?.house_record ? houseRecordWord(e.house_record) : null;
+  const fair = e?.fair_price ? fairPriceWords(e.fair_price, deal.terms.unit_price) : null;
   return (
     <div className="dv-proof">
       <button type="button" className="dv-pc" onClick={() => onOpen('paypal')}>
@@ -65,14 +75,26 @@ export function ProofPanel({ deal, ev, band, onOpen }: { deal: Deal; ev: EvState
             <span title={sameCur ? `${marketPosition(deal.terms.unit_price.minor, mk.p25.minor, mk.median.minor, mk.p75.minor)} of ${formatMoney(mk.p25)}–${formatMoney(mk.p75)}` : undefined}>{mw ? mw.text : `middle ${formatMoney(mk.median)}`}</span></>
             : <span className="dv-none"><i aria-hidden="true" />No comparison</span>}
         </span>
-        <span className="why">{mk ? `Similar listings: ${formatMoney(mk.p25)} to ${formatMoney(mk.p75)}.` : 'No comparison for this item, so market checks are skipped, not passed.'}</span>
+        <span className="why">
+          {mk ? `Similar listings: ${formatMoney(mk.p25)} to ${formatMoney(mk.p75)}.` : watch && !watch.usedUp ? 'No comparison yet.' : 'No comparison for this item, so market checks are skipped, not passed.'}
+          {fair ? <span className={`dv-fair ${fair.tone}`} title={fair.means}> {fair.text}.</span> : null}
+          {watch ?<span className={`dv-fresh ${watch.usedUp ? 'used' : ''}`} title={watch.usedUp ? PRICE_CHECKS_USED_UP : `${priceChecksToday(watch.used, watch.max)}. The wallet checks the typical price on its own; it never approves anything.`}> {watchWhy(watch, !!mk)}</span> : null}
+        </span>
       </button>
+      {house && e?.house_record ? (
+        <button type="button" className={`dv-pc dv-pc-wide${house.warns ? ` warn ${house.tone}` : ''}`} onClick={() => onOpen('paypal')}>
+          <span className="k">{HOUSE_RECORD_NAME}</span>
+          <span className="v"><Chip tone={house.tone}>{house.text}</Chip>
+            <span className="dim">{e.house_record.checked_at !== null ? `compared ${clockLabel(e.house_record.checked_at)}` : `kept ${clockLabel(e.house_record.kept_at)}`}</span></span>
+          <span className="why">{house.means}</span>
+        </button>
+      ) : null}
     </div>
   );
 }
 
-export function EvidenceSheet({ kind, deal, ev, band, onFresh, onClose }: {
-  kind: EvidenceKind; deal: Deal; ev: EvState; band: DisplayBand | null; onFresh: (e: DealEvidence) => void; onClose: () => void;
+export function EvidenceSheet({ kind, deal, ev, band, watch, onFresh, onClose }: {
+  kind: EvidenceKind; deal: Deal; ev: EvState; band: DisplayBand | null; watch?: DealWatch | null; onFresh: (e: DealEvidence) => void; onClose: () => void;
 }) {
   const rec = useMutation('deal_reconcile');
   const toast = useToast();
@@ -90,6 +112,7 @@ export function EvidenceSheet({ kind, deal, ev, band, onFresh, onClose }: {
     <Kv items={[
       ['Receipt', <><Chip tone={evidenceLabel(deal, e.receipt).tone}>{evidenceLabel(deal, e.receipt).text}</Chip> {evidenceLabel(deal, e.receipt).why}</>],
       ['Statement', <><Chip tone={reconciliationLabel(e.reconciliation).tone}>{reconciliationLabel(e.reconciliation).text}</Chip> {reconciliationLabel(e.reconciliation).why}</>],
+      e.house_record ? [HOUSE_RECORD_NAME, <><Chip tone={houseRecordWord(e.house_record).tone}>{houseRecordWord(e.house_record).text}</Chip> {houseRecordWord(e.house_record).means}</>] : null,
     ]} />
   ) : ev.error ? <WalletNotice error={ev.error} what="Proof" /> : <Loading what="the PayPal proof" />;
 
@@ -131,6 +154,7 @@ export function EvidenceSheet({ kind, deal, ev, band, onFresh, onClose }: {
   const limit = band && deal.kind === 'haggle' ? (deal.side === 'buyer' ? (band.ceiling ? { label: 'most you’ll pay', value: band.ceiling } : null) : (band.floor ? { label: 'least you’ll accept', value: band.floor } : null)) : null;
   const price = deal.terms.unit_price;
   const mw = mk && price.currency === mk.median.currency ? marketWords(price.minor, mk.p25.minor, mk.median.minor, mk.p75.minor) : null;
+  const fair = e?.fair_price ? fairPriceWords(e.fair_price, price) : null;
   return (
     <Sheet title="Typical price" size="wide" onClose={onClose} footer={done}>
       {mk ? (
@@ -140,10 +164,12 @@ export function EvidenceSheet({ kind, deal, ev, band, onFresh, onClose }: {
             ['This deal', mw ? <><b className="money">{formatMoney(price)}</b> · {mw.text}</> : <span className="dim">{formatMoney(price)} · in another currency than the comparison</span>],
             ['Typical range', <span className="money">{formatMoney(mk.p25)} – {formatMoney(mk.p75)} · middle {formatMoney(mk.median)}</span>],
             ['Checked', `${clockLabel(mk.retrieved_at)}${mk.cached ? ' · saved copy' : ''}`],
+            fair && e?.fair_price ? [FAIR_PRICE_NAME, <><Chip tone={fair.tone} title={fair.means}>{fair.short}</Chip> {fair.text}. <span className="dim">{fair.means}</span></>] : null,
+            ...(watch ? [['Kept fresh', watch.usedUp ? <span className="gold">{PRICE_CHECKS_USED_UP}</span> : `${KEPT_FRESH} · ${priceChecksToday(watch.used, watch.max).toLowerCase()}`] as const] : []),
           ]} />
           <p className="ui-hint">A comparison with similar listings, not a recommendation.</p>
         </>
-      ) : <p className="dv-p">No comparison for this item, so price checks against the market are skipped, not passed.</p>}
+      ) : <p className="dv-p">{watch && !watch.usedUp ? `No comparison yet. ${KEPT_FRESH}: the first check is on its way.` : 'No comparison for this item, so price checks against the market are skipped, not passed.'}</p>}
     </Sheet>
   );
 }
@@ -174,6 +200,8 @@ export function TranscriptSheet({ deal, label, steps, error, band, theirName, on
       {confirming ? (
         <Sheet title="Save signed proof" onClose={() => setConfirming(false)}
           footer={<><Btn onClick={() => setConfirming(false)}>Cancel</Btn><Btn kind="primary" onClick={() => void save()}>Save</Btn></>}>
+          <p className="dv-p">Anyone with the file can check, without your wallet:</p>
+          <ul className="dv-list">{PROOF_FILE_SHOWS.map((line) => <li key={line}>{line}</li>)}</ul>
           <p className="dv-p">{PROOF_SAVE_WARNING}</p>
         </Sheet>
       ) : null}

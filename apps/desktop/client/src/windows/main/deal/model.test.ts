@@ -24,7 +24,7 @@ const clauses: Clause[] = clausesOf(byLabel('D-0193'));
 describe('mirrorStrip: steps per kind', () => {
   it('hides the steps a kind does not have', () => {
     expect(labels(mk({ kind: 'purchase', side: 'buyer', state: 'AUTHORIZED' }))).toEqual(['Agreed', 'Waiting for approval', 'Approved on PayPal', 'On hold', 'Paid', 'Paid, on statement']);
-    expect(labels(mk({ kind: 'rescue', side: 'seller', state: 'FAILED' }))).toEqual(['Renewal failed', 'Waiting for subscriber', 'Paid to you', 'Paid to you, on statement']);
+    expect(labels(mk({ kind: 'rescue', side: 'seller', state: 'AGREED' }))).toEqual(['Renewal failed', 'Sending invoice', 'Waiting for subscriber', 'Paid to you, receipt saved']);
     expect(labels(mk({ kind: 'invoice', side: 'seller', state: 'AWAITING_APPROVAL' }))).toEqual(['Waiting for buyer', 'Paid to you', 'Paid to you, on statement']);
     const purchase = labels(mk({ kind: 'purchase', side: 'buyer', state: 'AGREED' }));
     expect(purchase).not.toContain('Negotiating');
@@ -47,7 +47,11 @@ describe('mirrorStrip: steps per kind', () => {
     expect(mirrorStrip(mk({ kind: 'purchase', state: 'AUTHORIZED', shield: null })).tone).toBe('held');
     expect(mirrorStrip(mk({ kind: 'purchase', state: 'AGREED', shield: 'HOLD' })).tone).toBe('held');
     expect(mirrorStrip(mk({ kind: 'purchase', state: 'CAPTURED', shield: null })).tone).toBe('ok');
-    expect(mirrorStrip(mk({ kind: 'rescue', side: 'seller', state: 'FAILED', shield: null })).term).toBeNull();
+    expect(mirrorStrip(mk({ kind: 'rescue', side: 'seller', state: 'AGREED', shield: null })).term).toBeNull();
+    expect(mirrorStrip(mk({ kind: 'rescue', side: 'seller', state: 'FAILED', shield: null })).term).toEqual({ label: 'Fix failed', tone: 'bad' });
+    // A deal the deadline withdrew lapsed; nobody walked away (the banner says the same).
+    expect(mirrorStrip(mk({ state: 'WITHDRAWN', shield: null, decided_by: { type: 'safe_default', deadline: 1 } })).term?.label).toBe('Lapsed');
+    expect(mirrorStrip(mk({ state: 'WITHDRAWN', shield: null, decided_by: null })).term?.label).not.toBe('Lapsed');
   });
   it('moves a captured deal onto RECONCILED only when the statement matched', () => {
     const d = mk({ kind: 'purchase', side: 'buyer', state: 'CAPTURED', shield: null });
@@ -90,8 +94,9 @@ describe('milestones: five plain steps instead of the protocol states', () => {
     expect(milestones(mirrorStrip(byLabel('D-0196'))).end?.after).toBeNull();
   });
   it('joins a rescue’s failed renewal to the next milestone', () => {
-    const r = milestones(mirrorStrip(mk({ kind: 'rescue', side: 'seller', state: 'FAILED', shield: null })));
-    expect(r.items[0]).toMatchObject({ key: 'approve', status: 'cur' });
+    const r = milestones(mirrorStrip(mk({ kind: 'rescue', side: 'seller', state: 'AGREED', shield: null })));
+    expect(r.items[0]).toMatchObject({ key: 'agree', status: 'cur' });
+    expect(r.items.map((i) => i.key)).toEqual(['agree', 'approve', 'proof']);
   });
 });
 
@@ -99,7 +104,9 @@ describe('readClauses', () => {
   const d0193 = byLabel('D-0193');
   it('numbers clauses as the report does and keeps clause order', () => {
     expect(CLAUSE_NUMBER.human_present_over).toBe(6);
-    expect(readClauses(clauses, d0193).map((c) => c.n)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    // The sourcing rules also keep this item's typical price fresh (rule 9, T15): it decides nothing.
+    expect(readClauses(clauses, d0193).map((c) => c.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 9]);
+    expect(readClauses(clauses, d0193).find((c) => c.n === 9)).toMatchObject({ reading: 'na', fact: expect.stringContaining('never approves anything') });
   });
   it('reads the signed numbers for a haggle: band and per-deal within, human present asks', () => {
     const r = readClauses(clauses, d0193, { rounds: { used: 5, max: 6 } });
@@ -184,7 +191,7 @@ describe('timeline, evidence and decision', () => {
   });
   it('builds the decision line from the attention item, else from what may be done', () => {
     const need = world.deals.find((x) => x.display.label === 'D-0190')!.attention!;
-    expect(decisionLine(byLabel('D-0190'), need, false)).toMatchObject({ tone: 'need', t1: 'Capture or void $64.00', t2: 'Approved payees · partsco (payee route)' });
+    expect(decisionLine(byLabel('D-0190'), need, false)).toMatchObject({ tone: 'need', t1: 'Capture or void $64.00', t2: 'partsco' });
     expect(decisionLine(mk({ state: 'LISTED' }), undefined, true).tone).toBe('may');
     expect(decisionLine(byLabel('D-0196'), undefined, false).chip.text).toBe('Closed');
     expect(decisionLine(byLabel('D-0196'), undefined, false).t2).toBeNull(); // nothing recorded: nothing claimed

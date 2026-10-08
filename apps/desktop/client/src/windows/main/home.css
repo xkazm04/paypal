@@ -44,7 +44,9 @@
   border-bottom-color: color-mix(in srgb, var(--line) 70%, transparent); background: color-mix(in srgb, var(--material) 55%, transparent); }
 .home .brand { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; white-space: nowrap; }
 .home .brand svg { width: 18px; height: 18px; flex: none; }
-.home .brand b { font: var(--fw-semibold) var(--fs-title3)/1 var(--display); }
+.home .brand h1 { margin: 0; font: var(--fw-semibold) var(--fs-title3)/1 var(--display); }
+/* the dial is one keyboard stop (a slider): a round ring when it has keyboard focus */
+.home .dial:focus-visible { outline: 2px solid var(--focus); outline-offset: -6px; border-radius: 50%; }
 .home .brand span { font-size: var(--fs-small); color: var(--dim); overflow: hidden; text-overflow: ellipsis; }
 .home .top .kbd { margin-left: 2px; }
 .home .lockbtn svg { width: 12px; height: 12px; flex: none; }
@@ -55,6 +57,7 @@
   padding: 0 var(--sp-4); font-size: var(--fs-small); color: var(--dim); white-space: nowrap; min-width: 0; }
 .home .foot .kbd { margin: 0 3px; }
 .home .foot .hint { justify-self: center; }
+.home .help-chip { width: 20px; padding: 0; justify-content: center; font-weight: var(--fw-semibold); }
 .home .foot .r { display: flex; justify-content: flex-end; align-items: center; gap: var(--sp-2); min-width: 0; }
 .home .clk { color: var(--muted); font-size: var(--fs-small); font-family: var(--num); font-variant-numeric: tabular-nums; }
 .home .chipsrow { display: inline-flex; gap: var(--sp-1); align-items: center; min-width: 0; overflow: hidden; }
@@ -102,12 +105,18 @@
 .home .col .ui-hint { margin: 0; padding: 0 var(--sp-1); }
 .home .ui-row .dotm, .home-pop .ui-row .dotm { width: 8px; height: 8px; border-radius: 50%; background: var(--mc); flex: none; }
 .home .needs .ui-row .t1 b { font-weight: var(--fw-semibold); }
-/* the default on silence is the point of each row: let it wrap to two lines instead of cutting it off */
-.home .needs .ui-row .sil { display: block; min-width: 0; overflow: hidden; }
-.home .needs .ui-row .sil .ui-silence { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; overflow: hidden; line-height: 1.3; }
-.home .needs .ui-row.two { align-items: flex-start; padding-top: 7px; padding-bottom: 7px; }
-.home .needs .ui-row.two .rt { padding-top: 1px; }
-.home .needs .ui-row.two .dotm { margin-top: 6px; }
+/* A Needs-you row is three lines on a grid: what + how much, who + time left, then the default on
+   silence across the full width (it is the point of the row, so it wraps instead of being cut). */
+.home .needs .need-row { display: grid; grid-template-columns: 8px minmax(0, 1fr); column-gap: var(--sp-2); row-gap: 1px; align-items: baseline;
+  padding-top: 8px; padding-bottom: 9px; }
+.home .needs .need-row .dotm { grid-row: 1; align-self: center; }
+.home .needs .need-row > :not(.dotm) { grid-column: 2; min-width: 0; }
+.home .needs .need-row .nr-a, .home .needs .need-row .nr-b { display: flex; align-items: baseline; gap: var(--sp-2); min-width: 0; }
+.home .needs .need-row .nr-a b { flex: 1; min-width: 0; font-weight: var(--fw-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home .needs .need-row .nr-b { font-size: var(--fs-small); }
+.home .needs .need-row .who { flex: 1; min-width: 0; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home .needs .need-row .sil { display: block; margin-top: 2px; }
+.home .needs .need-row .sil .ui-silence { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; overflow: hidden; line-height: 1.35; }
 .home .needs .ui-row.on { background: color-mix(in srgb, var(--gold) 13%, transparent); box-shadow: inset 3px 0 0 var(--gold); }
 .home .needs .ui-row.u-now .id { color: var(--red-l); }
 .home .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 2px var(--sp-3); padding: 0 var(--sp-1); font-size: var(--fs-small); color: var(--dim); }
@@ -172,6 +181,12 @@
 .home .p-who { font-size: max(12.5px, 1.8cqmin); color: var(--muted); }
 .home .plate .sil, .home .plate .ui-silence { font-size: max(12px, 1.7cqmin); }
 .home .plate .sil .ui-silence { display: block; }
+/* the hub's default on silence may take two lines: cutting it mid-sentence hides the answer to "what if I wait?" */
+.home .plate .sil { white-space: normal; text-overflow: clip; }
+.home .plate .sil .ui-silence { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; line-height: 1.35; max-width: 46ch; margin: 0 auto; }
+.home .p-tag .p-left { font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+.home .p-tag .p-left.gold { color: var(--gold-l); }
+.home .p-tag .p-left.red { color: var(--red-l); }
 .home .p-acts { display: flex; gap: 1cqmin; align-items: center; margin-top: .6cqmin; }
 .home .p-acts .ui-btn.plain { height: max(26px, 4.4cqmin); font-size: max(12px, 1.7cqmin); }
 .home .plate .notice { margin-top: .8cqmin; text-align: left; }
@@ -227,3 +242,71 @@
   .home.zoom .dialwrap { transform: none; filter: none; transition: opacity .25s; }
   .home.zoom .col.l, .home.zoom .col.r { transform: none; }
 }
+/* Today against the wallet limits (T14): the figure and the limit on one line, the bar under them. */
+.home .col .lim-row { flex-wrap: wrap; row-gap: 3px; padding-top: 6px; padding-bottom: 7px; }
+.home .col .lim-row .amt small { font-size: var(--fs-small); font-weight: var(--fw-regular, 400); }
+.home .col .lim-row .ui-meter { flex: 1 0 100%; }
+
+/* ---- first run (home/Start.tsx): the goal, progress, the promise once, the next step in gold ---- */
+/* nothing on the dial needs a look yet: no sector is singled out while the hub explains */
+.home.first-run .wedge.on .tint { opacity: .5; }
+.home.first-run .wedge.on .edge { stroke-opacity: 0; }
+.home.first-run .dialwrap .window { opacity: .35; }
+.home .hc.first { gap: 1.4cqmin; }
+.home .h-first { max-width: 15em; text-wrap: balance; }
+.home .h-prog { font-size: max(12px, 1.7cqmin); }
+.home .h-prog i { width: max(18px, 3cqmin); height: max(4px, .6cqmin); }
+.home .h-promise { display: flex; align-items: flex-start; gap: .5em; max-width: 30em; text-align: left; font-size: max(12.5px, 1.8cqmin); line-height: 1.4; color: var(--muted);
+  padding: 1cqmin 1.6cqmin; border-radius: var(--r); background: color-mix(in srgb, var(--panel) 70%, transparent); border: 1px solid var(--line); }
+.home .h-promise .ui-icon { flex: none; margin-top: .2em; color: var(--ok); }
+.home .hc.first .gbtn { margin-top: .4cqmin; }
+.home .col .start-steps { margin-top: 2px; }
+.home .start-about { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-3); }
+.home .start-about li { display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: var(--sp-2); align-items: start; }
+.home .start-about .sa-ico { grid-row: span 2; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--teal-l); background: color-mix(in srgb, var(--teal) 14%, transparent); }
+.home .start-about b { font-weight: var(--fw-semibold); line-height: 1.3; }
+.home .start-about span { font-size: var(--fs-small); color: var(--dim); line-height: 1.35; }
+
+/* ---- While you were away (home/AwayCard.tsx): calm, compact, never gold (Needs you keeps the gold) ---- */
+.home .away .ui-section-h { align-items: center; }
+.home .aw-x { width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--dim); font-size: 15px; line-height: 1; cursor: pointer; }
+.home .aw-x:hover { color: var(--text); background: var(--hover); }
+.home .aw-card { padding: var(--sp-2) 0 0; }
+.home .away .aw-since { margin: 0 var(--sp-3) var(--sp-1); font-size: var(--fs-small); color: var(--dim); }
+.home .aw-lead { margin: 0 var(--sp-3) var(--sp-1); font-weight: var(--fw-semibold); }
+.home .aw-lines { list-style: none; margin: 0; padding: 0; }
+.home .aw-line { display: grid; grid-template-columns: 10px minmax(0, 1fr); column-gap: var(--sp-2); align-items: baseline; width: 100%; padding: 5px var(--sp-3); border: 0; background: none;
+  color: var(--muted); font: inherit; font-size: var(--fs-small); line-height: 1.4; text-align: left; cursor: pointer; }
+.home .aw-line:hover { background: var(--hover); color: var(--text); }
+.home .aw-say b { font: var(--fw-semibold) 1em var(--num); font-variant-numeric: tabular-nums; color: var(--text); }
+/* the mark says what a line is (colour always with words): paid/collected green, stopped a red ×,
+   checking dashed, held and calm lines a quiet ring */
+.home .aw-mark { width: 8px; height: 8px; border-radius: 50%; align-self: center; justify-self: center; border: 1.5px solid var(--dim); font-style: normal; box-sizing: border-box; }
+.home .aw-line.t-out .aw-mark, .home .aw-line.t-in .aw-mark { border-color: var(--ok); background: var(--ok); }
+.home .aw-line.t-held .aw-mark { border-color: var(--muted); }
+.home .aw-line.t-check .aw-mark { border-style: dashed; border-color: var(--muted); }
+.home .aw-line.t-stopped .aw-mark { width: auto; height: auto; border: 0; border-radius: 0; color: var(--red-l); font-weight: var(--fw-bold); font-size: 13px; line-height: 1; }
+.home .aw-more { display: block; margin: 2px var(--sp-3) 0; padding: 0; border: 0; background: none; font: inherit; font-size: var(--fs-small); color: var(--dim); cursor: pointer; text-align: left; }
+.home .aw-more:hover { color: var(--text); text-decoration: underline; }
+.home .aw-foot { display: flex; flex-wrap: wrap; align-items: center; row-gap: 2px; column-gap: var(--sp-2); padding: var(--sp-1) var(--sp-3) var(--sp-2); margin-top: var(--sp-1); border-top: 1px solid var(--line); font-size: var(--fs-small); }
+.home .aw-needs { color: var(--muted); white-space: nowrap; }
+.home .aw-rw { margin-left: auto; padding: 2px 0; border: 0; background: none; color: var(--teal-l); font: inherit; cursor: pointer; white-space: nowrap; }
+.home .aw-rw:hover { text-decoration: underline; }
+.home .col .away + .ui-section { margin-top: var(--sp-4); }
+
+/* in the hub when nothing needs Maya: the promise first, then the lines left-aligned */
+.home .hc.aw-hub { gap: .9cqmin; }
+.home .aw-hub .aw-eyebrow { color: var(--dim); }
+.home .aw-hub .aw-h { font: var(--fw-semibold) max(17px, 3.2cqmin)/1.1 var(--display); letter-spacing: -.02em; color: var(--text); }
+.home .aw-hub .aw-since { font-size: max(12px, 1.7cqmin); color: var(--dim); }
+.home .aw-hub .aw-lead { margin: .4cqmin 0 0; font-size: max(13px, 1.9cqmin); color: var(--text); }
+.home .aw-hub .aw-lines { width: 100%; margin-top: .4cqmin; padding: .6cqmin 0; border-radius: 1.2cqmin; background: color-mix(in srgb, var(--panel) 70%, transparent); border: 1px solid var(--line); }
+.home .aw-hub .aw-line { font-size: max(12px, 1.75cqmin); padding: .5cqmin 1.6cqmin; }
+.home .aw-hub .aw-more { margin: 0 auto; text-align: center; font-size: max(12px, 1.6cqmin); }
+.home .aw-hub .aw-acts { display: flex; gap: 2cqmin; align-items: center; }
+.home .aw-hub .aw-acts .hm-back:hover { color: var(--text); }
+/* On hold: each direction on its own line, as in Book (money going out and coming in are never added) */
+.home .col .ui-row .amt.held { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; font-size: var(--fs-body); flex: none; }
+.home .col .ui-row:has(.amt.held) .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home .col .ui-row .amt.held > span { white-space: nowrap; }
+.home .col .ui-row .amt.held small { display: inline; font-size: var(--fs-small); font-weight: var(--fw-regular, 400); color: var(--muted); }

@@ -1,18 +1,22 @@
 // Round 2 for the Rescue page (docs/ux/ROUND-2.md, experiment r2-rescue): pure helpers, no React, no IPC.
-//   previewFor    "what the subscriber would get": a small mock of the invoice line or email subject,
-//                 built only from known facts (plan name, amount, PayPal's retry date); an amount the
-//                 owner has not chosen yet reads "you choose it in the approval window"
+//   previewFor    "what the subscriber would get": for the discount, the wallet's own invoice line and
+//                 price (RescueView.text and .offer, the fixed template in Rust table-core rescue.rs, the
+//                 same words PayPal shows the subscriber); for the fixes not built yet, an illustration
+//                 with the amount left open
 //   fixWhy        two plain sentences behind each fix and behind "Do nothing"
-//   rescueStrip   money at risk · in progress · recovered (replays and practice rows never count as recovered)
-// UNVERIFIED: the real wording of the invoice and of the emails is the fixed template the owner sends
-// (research does not give its text); the lines below are an illustration of what each fix sends, not the
-// final template. Unit-tested in preview.test.ts.
+//   rescueStrip   money at risk · in progress · recovered (the wallet's own total: replays, practice rows
+//                 and invoices only sent never count)
+// Unit-tested in preview.test.ts.
 import type { Currency } from '@bindings/Currency';
 import type { Deal } from '@bindings/Deal';
 import type { Money } from '@bindings/Money';
+import type { RescueBook } from '@bindings/RescueBook';
+import type { RescueOffer } from '@bindings/RescueOffer';
+import type { RescueView } from '@bindings/RescueView';
 import { formatMinor } from '../../../../lib/format';
+import { percentWords } from '../../../../lib/words';
 import { dealTotal, sumByCurrency } from '../../logic';
-import { recovered, type Col, type Rows } from './model';
+import { atRiskOf, recovered, type Col, type Rows } from './model';
 
 /** The words for an amount the owner has not chosen yet. */
 export const YOU_CHOOSE = 'you choose it in the approval window';
@@ -45,7 +49,9 @@ export type Preview = {
   /** One short follow-on line, facts only. */
   note: string | null;
 };
-export type PreviewCtx = { item: string; amount: Money; retryAt: number | null };
+export type PreviewCtx = { item: string; amount: Money; retryAt: number | null; /** The wallet's rescue read (fix and invoice wording). */ view?: Pick<RescueView, 'offer' | 'text'> | null };
+/** The words for the discount before the wallet has shown it. */
+export const BY_WALLET = 'worked out by your wallet';
 
 const money = (m: Money) => formatMinor(m.minor, m.currency as Currency);
 
@@ -58,8 +64,12 @@ export function previewFor(col: Col, c: PreviewCtx): Preview {
         channel: 'retry', kind: 'From PayPal', line: c.retryAt ? `PayPal retries ${retryDate(c.retryAt)}` : `No retry is set for ${plan}`,
         amount: { label: plan, text: amt, unknown: false }, note: 'No message from you',
       };
-    case 'DISCOUNT_THIS_CYCLE':
-      return { channel: 'invoice', kind: 'Invoice line', line: `${plan} · this month only`, amount: { label: 'Price this month', text: YOU_CHOOSE, unknown: true }, note: `Usual price ${amt}` };
+    case 'DISCOUNT_THIS_CYCLE': {
+      const v = c.view;
+      return v
+        ? { channel: 'invoice', kind: 'Invoice line', line: v.text.item, amount: { label: 'This cycle', text: money(v.offer.invoice), unknown: false }, note: `Usual price ${money(v.offer.cycle)} · ${percentWords(v.offer.discount_bp)} off` }
+        : { channel: 'invoice', kind: 'Invoice line', line: `${plan} · this cycle only`, amount: { label: 'This cycle', text: BY_WALLET, unknown: true }, note: `Usual price ${amt}` };
+    }
     case 'PAUSE':
       return { channel: 'email', kind: 'Email subject', line: `Your ${plan} is paused for now`, amount: null, note: `Restart date: ${YOU_CHOOSE}` };
     case 'RETRY_AFTER_FIX':
@@ -71,7 +81,7 @@ export function previewFor(col: Col, c: PreviewCtx): Preview {
 
 // ---- Why? ---------------------------------------------------------------------------------------------------------
 
-export type FixWhyCtx = { amount: Money; retryAt: number | null; /** cellState's code when the fix is switched off. */ offCode?: string };
+export type FixWhyCtx = { amount: Money; retryAt: number | null; /** cellState's code when the fix is switched off. */ offCode?: string; /** The wallet's fix, when shown. */ offer?: RescueOffer | null };
 
 /** The question a fix's Why? answers. */
 export const fixQuestion = (col: Col): string => (col === 'NONE' ? 'Why is doing nothing safe?' : 'Why this fix?');
@@ -79,12 +89,15 @@ export const fixQuestion = (col: Col): string => (col === 'NONE' ? 'Why is doing
 /** Two plain sentences, from the lever list and facts on the card; no model, no guess, no new number. */
 export function fixWhy(col: Col, c: FixWhyCtx): [string, string] {
   if (c.offCode === 'REPLAY') return ['This renewal is a replay, so there is no real balance to collect.', 'Nothing was sent, and doing nothing is still safe.'];
+  if (c.offCode === 'NOT_BUILT') return ['This fix isn’t available yet, so it can’t be sent.', 'Doing nothing is still safe: PayPal retries on its own.'];
   if (c.offCode) return ['PayPal’s own retry is due within a day, so this fix is not offered right now.', 'Doing nothing lets that retry run.'];
   switch (col) {
     case 'NONE':
       return ['Nothing is sent, so nobody is contacted and no money moves.', c.retryAt ? `PayPal retries the payment by itself on ${retryDate(c.retryAt)}.` : 'PayPal has no retry set, so this month stays unpaid.'];
     case 'DISCOUNT_THIS_CYCLE':
-      return ['It makes one PayPal invoice for the missed month at a price you choose, for this subscriber only.', 'The plan price stays the same for everyone.'];
+      return [c.offer
+        ? `It makes one PayPal invoice for the missed cycle at ${money(c.offer.invoice)}, ${percentWords(c.offer.discount_bp)} off, for this subscriber only.`
+        : 'It makes one PayPal invoice for the missed cycle at a discount inside your rules, for this subscriber only.', 'The plan price stays the same for everyone.'];
     case 'PAUSE':
       return ['It pauses this one subscription now and restarts it on a date you agree.', 'The email is a fixed template that you send yourself.'];
     case 'RETRY_AFTER_FIX':
@@ -107,12 +120,13 @@ export type RescueStrip = {
   notReal: number;
 };
 
-export function rescueStrip(rows: Rows, deals: readonly Deal[]): RescueStrip {
+export function rescueStrip(rows: Rows, deals: readonly Deal[], book: Pick<RescueBook, 'cases' | 'recovered'> | null | undefined): RescueStrip {
   const live = [...rows.failing, ...rows.inflight];
+  // At risk is the renewal that failed (the cycle's price), not the discounted invoice.
   return {
-    atRisk: sumByCurrency(rows.failing.map(dealTotal)),
+    atRisk: sumByCurrency(rows.failing.map((d) => atRiskOf(d, book))),
     inProgress: sumByCurrency(rows.inflight.map(dealTotal)),
-    recovered: recovered(deals).totals,
+    recovered: recovered(deals, book).totals,
     failing: rows.failing.length,
     inflight: rows.inflight.length,
     notReal: live.filter((d) => d.mode === 'replay' || d.mode === 'scripted_engine').length,

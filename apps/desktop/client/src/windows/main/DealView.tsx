@@ -3,24 +3,41 @@
 // needs you), then four plain sections: What happened · Your rules · Who you're dealing with ·
 // Proof from PayPal. Every explanation is layer 2 (Popover / Sheet).
 // One decision here (review in the approval window, or withdraw); there is never a money button.
-import { useMemo, useState, type KeyboardEvent } from 'react';
+import { Suspense, useMemo, useState, type KeyboardEvent } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { DealEvidence } from '@bindings/DealEvidence';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { shortHash, shortId } from '../../lib/format';
+import { dealWatch } from '../../lib/marketWatch';
 import { useMutation, useQuery } from '../../lib/hooks';
-import { WalletNotice } from '../../shared/honesty';
-import { kindWord, rulesName } from '../../lib/words';
-import { Btn, Chip, Hint, Kv, PageHead, Popover } from '../../shared/ui';
+import { lazyPart } from '../../lib/lazy';
+import { RunBadge, WalletNotice } from '../../shared/honesty';
+import { houseRecordWord, INSTRUCTIONS, kindWord, rulesName } from '../../lib/words';
+import { Btn, Chip, Hint, Kv, Loading, PageHead, Popover } from '../../shared/ui';
 import { canStartAgent } from './logic';
 import { mc, useCpLookup, useToast } from './ui';
 import { useWorld } from './world';
 import { WhatHappened, WhoYouDealWith, YourRules } from './deal/Columns';
 import { DealStory, StateStrip, Summary } from './deal/Decision';
-import { EvidenceSheet, ProofPanel, TranscriptSheet, type EvidenceKind } from './deal/Evidence';
+import type { EvidenceKind } from './deal/Evidence';
+import './charts.css'; // the proof's charts (deal/Evidence.tsx) style eagerly, in their old place
 import { mayWithdraw, mirrorStrip, readClauses } from './deal/model';
 import { ruleChecks, rulesBadge, standingFacts } from './deal/story';
+import { WhoDecided } from './deal/WhoDecided';
+import { ShownStrip } from './deal/ShownStrip';
+import { InstructionsValue } from './deal/InstructionsValue';
+import { shortTitle } from './home/model';
 import './deal.css';
+
+// The first tab (What happened) is the deal page's first paint; the proof tab, the proof sheets,
+// the export and the instructions are their own chunks, preloaded once the window is idle.
+const ProofPanel = lazyPart(() => import('./deal/Evidence').then((m) => m.ProofPanel));
+const EvidenceSheet = lazyPart(() => import('./deal/Evidence').then((m) => m.EvidenceSheet));
+const TranscriptSheet = lazyPart(() => import('./deal/Evidence').then((m) => m.TranscriptSheet));
+const InstructionsSheet = lazyPart(() => import('./deal/Instructions').then((m) => m.InstructionsSheet));
+
+/** The deal page's later parts, for the window's idle preload (App.tsx). */
+export const DEAL_PARTS = [ProofPanel, EvidenceSheet, TranscriptSheet, InstructionsSheet] as const;
 
 type Tab = 'happened' | 'rules' | 'who' | 'proof';
 const TABS: readonly { key: Tab; label: string }[] = [
@@ -40,12 +57,18 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
   const tr = useQuery('deal_transcript', { deal_id: deal.id }, { refreshOn: ['deal:changed'] });
   const evq = useQuery('deal_evidence', { deal_id: deal.id }, { refreshOn: ['deal:changed', 'receipt:created'] });
   const mandates = useQuery('mandate_list', null, { refreshOn: ['settings:changed'] });
+  // Whether a signed rule keeps this item's typical price fresh (owner facts; unknown = not shown).
+  const ownerFacts = useQuery('owner_facts', null, { refreshOn: ['settings:changed', 'deal:changed'] });
+  const watch = dealWatch(ownerFacts.data?.market_watch, deal);
+  // A failed renewal's numbers: the cycle that failed and the fix's invoice, as Rescue and the approval window show them.
+  const rescue = useQuery('rescue_book', null, { enabled: deal.kind === 'rescue', refreshOn: ['deal:changed'] });
+  const offer = deal.kind === 'rescue' ? rescue.data?.cases.find((v) => v.deal_id === deal.id)?.offer ?? null : null;
   const [fresh, setFresh] = useState<{ id: string; e: DealEvidence } | null>(null);
   const evidence = fresh && fresh.id === deal.id ? fresh.e : evq.data;
 
   const [tabAt, setTabAt] = useState<{ id: string; tab: Tab }>({ id: deal.id, tab: 'happened' });
   const tab: Tab = tabAt.id === deal.id ? tabAt.tab : 'happened';
-  const [sheet, setSheet] = useState<EvidenceKind | 'transcript' | null>(null);
+  const [sheet, setSheet] = useState<EvidenceKind | 'transcript' | 'instructions' | null>(null);
   const [facts, setFacts] = useState<HTMLElement | null>(null);
 
   const entry = mandates.data?.find((m) => m.payload.id === deal.mandate_id && m.payload.version === deal.mandate_version);
@@ -57,15 +80,21 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
     rounds: disp.band ? { used: disp.band.rounds_used, max: disp.band.max_rounds } : null,
   }), [clauses, deal, need, cp.house, disp.band]);
 
-  const strip = mirrorStrip(deal, { needsYou: !!need, reconciliation: evidence?.reconciliation ?? null });
-  const withdrawable = mayWithdraw(deal, need);
+  const mirrored = mirrorStrip(deal, { needsYou: !!need, reconciliation: evidence?.reconciliation ?? null });
+  // While PayPal is being asked, the current step reads "Checking", not the state Rust last saw.
+  const pending = evidence?.money_check ?? need?.money_check ?? null;
+  const strip = pending ? { ...mirrored, steps: mirrored.steps.map((s) => (s.status === 'cur' ? { ...s, label: 'Checking' } : s)) } : mirrored;
+  // A payment step being checked with PayPal (from the deal's evidence, or its card).
+  const check = pending;
+  const withdrawable = mayWithdraw(deal, need) && !check;
   const deadline = need?.deadline ?? disp.deadline;
   const run = (w.runs.data ?? []).find((r) => r.deal_id === deal.id);
   const them = cp.name.split(' · ')[0] ?? cp.name;
   const latest = useMemo(() => (tr.data ?? []).reduce<TranscriptStep | null>((a, s) => (!a || s.seq > a.seq ? s : a), null), [tr.data]);
   const bandReading = deal.kind === 'haggle' ? (readings.find((r) => r.n === 4)?.reading ?? null) : null;
   const badge = rulesBadge(ruleChecks(readings));
-  const nFacts = standingFacts(deal, disp.band, latest, them);
+  const houseRecord = evidence?.house_record ? houseRecordWord(evidence.house_record) : null;
+  const nFacts = standingFacts(deal, disp.band, latest, them, offer);
 
   const go = (t: Tab) => setTabAt({ id: deal.id, tab: t });
   const onTabKey = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -81,7 +110,7 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
   return (
     <div style={mc(module)} className="dealview">
       <PageHead focusKey={deal.id} title={disp.title}
-        sub={<>{deal.side === 'buyer' ? 'You’re buying' : 'You’re selling'} · {kindWord(deal.kind)} · {disp.label}</>}
+        sub={<>{deal.side === 'buyer' ? 'You’re buying' : 'You’re selling'} · {kindWord(deal.kind)}</>}
         actions={<>
           <AgentAction deal={deal} label={disp.label} />
           <Btn sm kind="plain" onClick={(e) => { const t = e.currentTarget; setFacts((x) => (x ? null : t)); }}>Details</Btn>
@@ -94,16 +123,18 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
             ['Deal', <span className="mono">{disp.label} · {shortId(deal.id, 6, 4)}</span>],
             ['Exact state', <span className="mono">{deal.state.replace(/_/g, ' ').toLowerCase()}</span>],
             ['Rules', <>{entry ? rulesName(entry.agent) : 'Rules'} · version {deal.mandate_version} <span className="mono dim">{shortId(deal.mandate_id)}</span></>],
-            run ? ['Agent app', <span className="mono">{run.engine}</span>] : null,
+            run ? ['Agent app', <><span className="mono">{run.engine}</span> <RunBadge run={run} /></>] : null,
+            run ? [INSTRUCTIONS, <InstructionsValue run={run} onOpen={() => { setFacts(null); setSheet('instructions'); }} />] : null,
             ['Record', <span className="mono">{shortHash(deal.transcript_head)}</span>],
           ]} />
         </Popover>
       ) : null}
 
-      <Summary deal={deal} strip={strip} deadline={deadline} />
+      <Summary deal={deal} strip={strip} deadline={deadline} check={check} />
       <StateStrip strip={strip} />
+      <ShownStrip deal={deal} />
       <DealStory deal={deal} need={need} canWithdraw={withdrawable} theirName={them} them={them} latest={latest} band={bandReading}
-        readings={readings} deadline={deadline} />
+        readings={readings} deadline={deadline} check={check} />
 
       <div className="dv-tabs" role="tablist" aria-label="About this deal" onKeyDown={onTabKey}>
         {TABS.map((t) => (
@@ -111,28 +142,38 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
             tabIndex={tab === t.key ? 0 : -1} className="dv-tab" onClick={() => go(t.key)}>
             {t.label}
             {t.key === 'rules' && badge ? <Chip tone={badge.tone}>{badge.text}</Chip> : null}
+            {t.key === 'proof' && houseRecord?.warns ? <Chip tone={houseRecord.tone} title={houseRecord.means}>{houseRecord.text}</Chip> : null}
           </button>
         ))}
       </div>
       <div id="dv-panel" role="tabpanel" aria-labelledby={`dv-tab-${tab}`} className="dv-tabpanel">
         {tab === 'happened' ? (
+<>
           <WhatHappened deal={deal} steps={tr.data} error={tr.error} clauses={clauses} theirName={cp.name}
             facts={nFacts} factsTitle={deal.kind === 'haggle' ? 'Where it stands' : 'The numbers'} />
+          <WhoDecided deal={deal} title={shortTitle(disp.title)} />
+          </>
         ) : tab === 'rules' ? (
           <YourRules deal={deal} readings={readings} mandate={{ entry, newer, error: mandates.error, loading: !mandates.data && !mandates.error }} />
         ) : tab === 'who' ? (
           <WhoYouDealWith deal={deal} cp={cp} offersUsed={deal.kind === 'haggle' && disp.band ? `${disp.band.rounds_used} of ${disp.band.max_rounds} used` : null} />
         ) : (
-          <ProofPanel deal={deal} ev={{ data: evidence, error: evq.error }} band={disp.band} onOpen={setSheet} />
+          <Suspense fallback={<Loading what="the proof" />}>
+            <ProofPanel deal={deal} ev={{ data: evidence, error: evq.error }} band={disp.band} watch={watch} onOpen={setSheet} />
+          </Suspense>
         )}
       </div>
 
-      {sheet === 'transcript' ? (
+      <Suspense fallback={null}>
+      {sheet === 'instructions' && run?.playbook ? (
+        <InstructionsSheet playbook={run.playbook} onClose={() => setSheet(null)} />
+      ) : sheet === 'instructions' ? null : sheet === 'transcript' ? (
         <TranscriptSheet deal={deal} label={disp.label} steps={tr.data} error={tr.error} band={disp.band} theirName={cp.name} onClose={() => setSheet(null)} />
       ) : sheet ? (
-        <EvidenceSheet kind={sheet} deal={deal} ev={{ data: evidence, error: evq.error }} band={disp.band}
+        <EvidenceSheet kind={sheet} deal={deal} ev={{ data: evidence, error: evq.error }} band={disp.band} watch={watch}
           onFresh={(e) => setFresh({ id: deal.id, e })} onClose={() => setSheet(null)} />
       ) : null}
+      </Suspense>
     </div>
   );
 }
@@ -145,10 +186,11 @@ function AgentAction({ deal, label }: { deal: Deal; label: string }) {
   if (!canStartAgent(deal)) return null;
   const paused = !!w.settings.data?.agents_paused;
   const run = (w.runs.data ?? []).find((r) => r.deal_id === deal.id && (r.state === 'running' || r.state === 'starting'));
-  if (run) return <Chip tone="ok" title={`Run ${shortId(run.run)} on ${run.engine}`}>Agent {run.state}</Chip>;
+  if (run) return <><Chip tone="ok" title={`Run ${shortId(run.run)} on ${run.engine}`}>Agent {run.state}</Chip><RunBadge run={run} /></>;
   return (
     <>
-      <Btn sm kind="primary" disabled={paused || start.pending} title={paused ? 'All agents are paused; resume them in Settings' : 'Let your agent bargain for this deal, inside your rules'}
+      {/* While the deal needs the owner, the gold Review is the one decision on the page: this stays quiet. */}
+      <Btn sm kind={w.needOf(deal.id) ? undefined : 'primary'} disabled={paused || start.pending} title={paused ? 'All agents are paused; resume them in Settings' : 'Let your agent bargain for this deal, inside your rules'}
         onClick={async () => { const r = await start.run({ deal_id: deal.id }); if (r) toast(<>Your agent is <b>{r.state}</b> on {label}</>, 'ok'); }}>
         {paused ? 'Agents paused' : 'Start agent'}
       </Btn>

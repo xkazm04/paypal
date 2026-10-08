@@ -7,20 +7,20 @@ import type { Deal } from '@bindings/Deal';
 import type { MarketRef } from '@bindings/MarketRef';
 import type { Mode } from '@bindings/Mode';
 import { clockLabel, formatMoney } from '../../../lib/format';
-import { marketWords } from '../../../lib/words';
+import { marketWords, NOT_REPORTED } from '../../../lib/words';
 import { Countdown, MockBadge, ModeBadge } from '../../../shared/honesty';
-import { Btn, Crumbs, Hourglass, Spacer, TitleBar, type CheckItem, type ChipTone } from '../../../shared/ui';
+import { Btn, Crumbs, Hourglass, Spacer, TitleBar, type ChipTone } from '../../../shared/ui';
 import { marketPercentile, STEP } from '../model';
 import type { Step } from '../model';
 import { Emblem } from '../ui';
 import { relMark, rowWord, type DiffRow, type Mark, type RowTone, type Twin } from './diff';
-import { checkStateOf } from './says';
 
 const cx = (...c: Array<string | false | null | undefined>) => c.filter(Boolean).join(' ');
 
 // ---- chrome ---------------------------------------------------------------------------------
 
-/** The approval window's own title bar. Sheets drop from its bottom edge (--sheet-top). */
+/** The approval window's own title bar. Sheets drop from its bottom edge (--sheet-top). The deal
+ *  review passes no `label`: its heading names the deal and its id lives in Details (UX-GUIDE). */
 export function ReviewBar({ module, label, mode, onDetails }: { module: string | null; label: string | null; mode: Mode | undefined; onDetails?: (e: MouseEvent<HTMLButtonElement>) => void }) {
   return (
     <TitleBar className="dr-bar">
@@ -62,7 +62,7 @@ export function TwinHeader({ twin, checking }: { twin: Twin; checking: boolean }
     <div className={cx('dr-twin', tone === 'bad' && 't-bad', held && 't-hold')}>
       <div className="tw l">
         <span className="twk">{twin.left.k}</span>
-        {twin.left.v ? <span className="tw-amt money">{twin.left.v}</span> : <span className="tw-amt unk">not shown here</span>}
+        {twin.left.v ? <span className="tw-amt money">{twin.left.v}</span> : <span className="tw-amt unk" title={NOT_REPORTED.means}>{NOT_REPORTED.text}</span>}
       </div>
       <div className={`tw-op ${tone}`} role="img" aria-label={checking ? 'checking' : word}>
         <MarkIcon mark={mark} className="big" />
@@ -70,7 +70,7 @@ export function TwinHeader({ twin, checking }: { twin: Twin; checking: boolean }
       </div>
       <div className="tw r">
         <span className="twk">{twin.right.k}</span>
-        {twin.right.v ? <span className="tw-amt money">{twin.right.v}</span> : <span className="tw-amt unk">{twin.op === '≠' ? 'differs' : 'not shown here'}</span>}
+        {twin.right.v ? <span className="tw-amt money">{twin.right.v}</span> : <span className="tw-amt unk">{twin.op === '≠' ? 'differs' : NOT_REPORTED.text}</span>}
       </div>
     </div>
   );
@@ -117,7 +117,7 @@ export function DiffTable({ heads, rows, set, revealed, onOpen, open }: {
         const tone: RowTone = wait ? 'wait' : x.tone;
         const mark: Mark = wait ? '…' : relMark(x.rel, x.tone);
         const word = wait ? 'checking' : rowWord(x);
-        const right = x.right ?? 'not shown here';
+        const right = x.right ?? NOT_REPORTED.text;
         return (
           <button
             key={x.id}
@@ -135,46 +135,12 @@ export function DiffTable({ heads, rows, set, revealed, onOpen, open }: {
               <MarkIcon mark={mark} />
               <span className="w">{word}</span>
             </span>
-            <span className="dv">{wait ? <span className="dim">reading…</span> : x.right ?? <span className="dr-unk">not shown here</span>}</span>
+            <span className="dv">{wait ? <span className="dim">reading…</span> : x.right ?? <span className="dr-unk" title={NOT_REPORTED.means}>{NOT_REPORTED.text}</span>}</span>
           </button>
         );
       })}
     </div>
   );
-}
-
-/** The Diff's rows as checks for the checks summary: exceptions open, passes folded. Each row keeps
- *  its source popover: the name is a button, so "Show all" still reaches where every check came from. */
-export function rowChecks(rows: readonly DiffRow[], set: RowSet, onOpen: (row: DiffRow, set: RowSet, el: HTMLElement) => void, open: string | null, whyOf: (row: DiffRow, state: CheckItem['state']) => ReactNode): CheckItem[] {
-  // What stopped it first, then what asks you, then what could not be checked; passes last (folded anyway).
-  const rank: Record<CheckItem['state'], number> = { fail: 0, ask: 1, unknown: 2, pass: 3 };
-  return [...rows].sort((a, b) => rank[checkStateOf(a)] - rank[checkStateOf(b)]).map((x) => {
-    const word = rowWord(x);
-    const right = x.right ?? 'not shown here';
-    const on = open === `${set}:${x.id}`;
-    const state = checkStateOf(x);
-    const why = whyOf(x, state);
-    const value = x.right ? <span className={cx('rv', x.tone)}>{x.right}</span> : <span className="dr-unk">not shown here</span>;
-    return {
-      state,
-      title: x.src,
-      name: (
-        <button
-          type="button"
-          className={cx('dr-src', on && 'on')}
-          onClick={(e) => onOpen(x, set, e.currentTarget)}
-          onKeyDown={onRowKey}
-          aria-expanded={on}
-          aria-label={`${x.name}: ${x.left}; ${right}; ${word}. Show where this comes from`}
-        >
-          <b>{x.name}</b>
-          <span className="l">{x.left}</span>
-        </button>
-      ),
-      // An exception carries its "Why?" beside the value.
-      value: why ? <span className="dr-vw">{value}{why}</span> : value,
-    };
-  });
 }
 
 // ---- market ---------------------------------------------------------------------------------

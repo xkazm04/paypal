@@ -19,7 +19,7 @@ use table_paypal::{Observation, OrderStatus, RequestId, ResourceId};
 pub const PENDING_STALE_SECS: i64 = 190;
 /// PayPal keeps a PayPal-Request-Id for 6 hours (.research/paypal-platform.md, Orders v2
 /// idempotency [S-spec]); a create re-sent inside it returns the first order, not a second.
-const REQUEST_ID_KEPT_SECS: i64 = 6 * 3600;
+pub(crate) const REQUEST_ID_KEPT_SECS: i64 = 6 * 3600;
 /// A call whose answer was lost in this process is read back no sooner than this after it
 /// started: PayPal may still be committing it, and a read that races the commit sees the old
 /// state. A reservation left `pending` by a stopped call has no such wait.
@@ -56,6 +56,22 @@ impl Pipeline {
         self.started
             .saturating_add(1)
             .max(now.saturating_sub(PENDING_STALE_SECS))
+    }
+    /// Whether the deal has a money operation whose outcome is not settled, a live call and a
+    /// parked one included. While it has, no new money step starts for it.
+    pub fn has_open_operation(&self, id: DealId) -> Result<bool, Error> {
+        Ok(!self
+            .wallet
+            .ledger
+            .open_operations(Some(id), Timestamp::MAX)?
+            .is_empty())
+    }
+    /// Whether a re-send of `op` must wait: the deal has no agent key to sign what PayPal would
+    /// confirm (only a void goes again without it), or the owner paused all agents and `op` was a
+    /// clause-6 policy step. Waiting writes nothing; the next tick asks again.
+    fn holds_resend(&self, op: &OpenOperation) -> bool {
+        (self.signer_missing && op.operation != "void")
+            || (self.policy_paused && matches!(op.decided_by, DecidedBy::Policy { .. }))
     }
     /// Money operations whose PayPal outcome is unknown and not yet settled, parked ones
     /// included, oldest first.
@@ -102,17 +118,21 @@ impl Pipeline {
         if request.as_str() != op.request_id {
             return Err(LedgerError::Integrity("operation request id").into());
         }
-        if deal.mode == Mode::Replay {
+        // A rescue's invoice is real even when its failure was replayed (rescue.rs).
+        if deal.mode == Mode::Replay && deal.kind != DealKind::Rescue {
             return Ok(());
         }
         match op.operation {
+            "invoice-create" | "invoice-send" => self.resolve_invoice(&deal, op, None, now).await,
+            // Confirming a create signs the SETTLE: without the agent key it waits.
+            "create" if self.signer_missing => Ok(()),
             "create" => self.resolve_create(&deal, op, &request, mode, now).await,
             "authorize" => self.resolve_authorize(&deal, op, &request, mode, now).await,
             _ => self.resolve_payment(&deal, op, &request, mode, now).await,
         }
     }
     #[allow(clippy::too_many_arguments)] // Private helper mirrors the ledger's resolution row.
-    fn record(
+    pub(crate) fn record(
         &mut self,
         deal: &Deal,
         op: &OpenOperation,
@@ -137,7 +157,7 @@ impl Pipeline {
         Ok(())
     }
     /// One audit row says the owner must decide; the resolver leaves it alone from then on.
-    fn park(
+    pub(crate) fn park(
         &mut self,
         deal: &Deal,
         op: &OpenOperation,
@@ -145,6 +165,11 @@ impl Pipeline {
         observations: &[Observation],
         now: Timestamp,
     ) -> Result<(), Error> {
+        // Already waiting for the owner: one audit row says so, and a read that finds the same
+        // again adds none.
+        if op.needs_owner {
+            return Ok(());
+        }
         self.record(
             deal,
             op,
@@ -158,7 +183,7 @@ impl Pipeline {
     }
     /// The read-back or re-send itself failed: its evidence is kept (one row for a run of
     /// failures) and the operation stays open for the next tick.
-    fn defer(
+    pub(crate) fn defer(
         &mut self,
         deal: &Deal,
         op: &OpenOperation,
@@ -251,7 +276,8 @@ impl Pipeline {
         if deal.state != DealState::Settling || mode == Resolve::Deadline {
             return Ok(());
         }
-        let expected = self.expected(deal, op.attempt)?;
+        // As recorded: a mandate revoked while the step is open still lets PayPal's record be read.
+        let expected = self.recorded_order(deal, op.attempt)?;
         let (order, observations) = if let Some(order_id) = deal.paypal.order.clone() {
             let resource = ResourceId::new(order_id.as_str()).map_err(|_| Error::Invalid)?;
             match self.api.get_order(&resource).await {
@@ -260,13 +286,21 @@ impl Pipeline {
                 Err(e) => return self.defer(deal, op, &e, now),
             }
         } else {
+            if now.saturating_sub(op.started_at) < REQUEST_ID_KEPT_SECS && self.holds_resend(op) {
+                return Ok(());
+            }
             if now.saturating_sub(op.started_at) >= REQUEST_ID_KEPT_SECS
                 || !self.may_resend(deal, op, mode, now)?
             {
                 return self.park(deal, op, "none", &[], now);
             }
             self.record(deal, op, "none", Outcome::Resent, &[], None, None, now)?;
-            match self.api.create_order(&expected, request).await {
+            // Only a send takes the live mandate's payee.
+            match self
+                .api
+                .create_order(&self.expected(deal, op.attempt)?, request)
+                .await
+            {
                 Ok(r) => (r.value, r.observations),
                 Err(e) => return self.defer(deal, op, &e, now),
             }
@@ -329,7 +363,9 @@ impl Pipeline {
         // never committed.
         let untouched = r.value.id == order_id
             && r.value.status == OrderStatus::Approved
-            && r.value.verify(&self.expected(deal, op.attempt)?).is_ok()
+            && r.value
+                .verify(&self.recorded_order(deal, op.attempt)?)
+                .is_ok()
             && r.value.purchase_units[0].payments.authorizations.is_empty();
         if !untouched {
             return self.park(deal, op, status, &r.observations, now);
@@ -345,6 +381,9 @@ impl Pipeline {
                 None,
                 now,
             );
+        }
+        if self.holds_resend(op) {
+            return Ok(());
         }
         if !self.may_resend(deal, op, mode, now)? {
             return self.park(deal, op, status, &r.observations, now);
@@ -439,6 +478,8 @@ impl Pipeline {
                 None,
                 now,
             ),
+            // The receipt it confirms is signed with the deal's agent key: without it, wait.
+            ("capture", "CAPTURED") if self.signer_missing => Ok(()),
             ("capture", "CAPTURED") => self.confirm_capture(deal, op, r.observations, now).await,
             ("capture", "VOIDED") if !captured => self.record(
                 deal,
@@ -470,6 +511,9 @@ impl Pipeline {
                         None,
                         now,
                     );
+                }
+                if self.holds_resend(op) {
+                    return Ok(());
                 }
                 if !self.may_resend(deal, op, mode, now)? {
                     return self.park(deal, op, observed, &r.observations, now);
@@ -600,7 +644,9 @@ impl Pipeline {
         let capture = match r.value.purchase_units.first() {
             Some(unit)
                 if r.value.id == order_id
-                    && r.value.verify(&self.expected(deal, op.attempt)?).is_ok()
+                    && r.value
+                        .verify(&self.recorded_order(deal, op.attempt)?)
+                        .is_ok()
                     && unit.payments.captures.len() == 1 =>
             {
                 Some(&unit.payments.captures[0])

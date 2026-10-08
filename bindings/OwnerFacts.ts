@@ -2,6 +2,8 @@
 import type { AgentRosterEntry } from "./AgentRosterEntry";
 import type { CredentialFact } from "./CredentialFact";
 import type { EngineProbe } from "./EngineProbe";
+import type { KeyId } from "./KeyId";
+import type { MarketWatchFact } from "./MarketWatchFact";
 import type { ReportingPoll } from "./ReportingPoll";
 
 /**
@@ -11,4 +13,14 @@ export type OwnerFacts = { locked: boolean,
 /**
  * Seconds until the approval window idle-locks; null while it is locked.
  */
-lock_in: number | null, last_reporting_poll: ReportingPoll | null, engines: Array<EngineProbe>, credentials: Array<CredentialFact>, agents: Array<AgentRosterEntry>, };
+lock_in: number | null, last_reporting_poll: ReportingPoll | null, engines: Array<EngineProbe>, credentials: Array<CredentialFact>, agents: Array<AgentRosterEntry>, 
+/**
+ * The rule sets in force that keep market prices fresh (T15), with today's price checks.
+ */
+market_watch: Array<MarketWatchFact>, 
+/**
+ * The id of the owner's public key (SHA-256 of it, 64 hex characters): the key a proof file
+ * of this wallet names, so a person checking one compares it with this. Public; the private
+ * key never leaves the OS keychain.
+ */
+owner_key_id: KeyId, };

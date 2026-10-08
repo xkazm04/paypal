@@ -30,8 +30,27 @@ pub enum Action {
     ApprovalPairing,
     Credentials(crate::vault::CredentialEntry),
     CheckPrivilege,
-    ClaimNotification { deal_id: DealId, deadline: i64 },
-    ReleaseNotification { deal_id: DealId, deadline: i64 },
+    ClaimNotification {
+        deal_id: DealId,
+        deadline: i64,
+    },
+    ReleaseNotification {
+        deal_id: DealId,
+        deadline: i64,
+    },
+    /// The shell showed the claimed notification (attention-ladder-1: the Notified rung).
+    NotificationShown {
+        deal_id: DealId,
+        deadline: i64,
+    },
+    /// The notification was due but the shell held it back (Do Not Disturb, the system's quiet).
+    NotificationSuppressed {
+        deal_id: DealId,
+        deadline: i64,
+        reason: NotifySuppression,
+    },
+    /// The owner opened this deal from its Tumbler card.
+    CardOpened(DealId),
     Engine(table_engine::EngineId),
     Engines,
     Start(DealId),
@@ -66,6 +85,122 @@ pub enum Action {
     QuitConfirm(QuitArgs),
     Handoff(DealId),
     ExportProof(DealId),
+    DealHistory(DealHistoryArgs),
+    Simulate(MandateSimulateArgs),
+    EnvelopeSign(EnvelopeSignArgs),
+    EnvelopeGet,
+    RescueReplay(RescueReplayArgs),
+    RescueBook,
+    GroupOpen(DealGroupOpenArgs),
+    Groups,
+    RescueWatchAdd(RescueWatchArgs),
+    RescueWatchStop(RescueWatchStopArgs),
+    SafetyRecord,
+}
+impl Action {
+    /// The IPC command this action serves, whose row in the authority table
+    /// (`table_client::authority`) gates it before anything else runs. `None` for the shell's
+    /// and the runtime's own internal steps, which keep their literal label checks.
+    pub fn command(&self) -> Option<&'static str> {
+        Some(match self {
+            Action::Settings => "get_settings",
+            Action::ListDeals => "list_deals",
+            Action::Deal(_) => "get_deal",
+            Action::Evidence(_) => "deal_evidence",
+            Action::Reconcile(_) => "deal_reconcile",
+            Action::Attention => "attention_list",
+            Action::Summary(_) => "approval_summary",
+            Action::ApprovalSelection => "approval_selection",
+            Action::Display(_) => "deal_display",
+            Action::Transcript(_) => "deal_transcript",
+            Action::Counterparties => "counterparty_list",
+            Action::CounterpartyNote(_) => "counterparty_note",
+            Action::Token => "approval_token",
+            Action::OpenApproval(_) => "approval_open",
+            Action::ApprovalHandoff => "approval_handoff",
+            Action::AuditPage(_) => "audit_page",
+            Action::OwnerFacts => "owner_facts",
+            Action::BookQuery(_) => "book_query",
+            Action::ApprovalPairing => "approval_pairing",
+            // set_credentials checks privilege before the OS prompt, then stores the entry.
+            Action::Credentials(_) | Action::CheckPrivilege => "set_credentials",
+            Action::Engine(_) => "engine_select",
+            Action::Engines => "engine_status",
+            Action::Start(_) => "agent_start",
+            Action::Runs => "agent_runs",
+            // market_refresh binds the deal before the lookup and stores the answer after it.
+            Action::MarketPrepare(_) | Action::MarketStore(..) => "market_refresh",
+            Action::Resume => "resume_all_agents",
+            Action::Mandates => "mandate_list",
+            Action::Sign(_) => "mandate_sign",
+            Action::Revoke(_) => "mandate_revoke",
+            Action::Band(_) => "band_set",
+            Action::PairCreate(_) => "pairing_create",
+            Action::PairJoin(_) => "pairing_join",
+            Action::PairPoll(_) | Action::PairOffer(_) => "pairing_poll",
+            Action::PairConfirm(_) => "pairing_confirm",
+            Action::PairAbort(_) => "pairing_abort",
+            Action::HouseWake => "house_wake",
+            Action::Preferences(_) => "settings_write",
+            Action::Withdraw(_) => "deal_withdraw",
+            Action::LetLapse(_) => "deal_let_lapse",
+            Action::Snooze(_) => "deal_snooze",
+            Action::Decision(_, decision) => decision.name(),
+            Action::Create(_) => "deal_create",
+            Action::Join(_) => "deal_join",
+            Action::Pause => "pause_all_agents",
+            Action::QuitSummary => "quit_summary",
+            Action::QuitConfirm(_) => "quit_confirm",
+            Action::ExportProof(_) => "deal_export_proof",
+            Action::DealHistory(_) => "deal_history",
+            Action::Simulate(_) => "mandate_simulate",
+            Action::EnvelopeSign(_) => "envelope_sign",
+            Action::EnvelopeGet => "envelope_get",
+            Action::RescueReplay(_) => "rescue_replay",
+            Action::RescueBook => "rescue_book",
+            Action::GroupOpen(_) => "deal_group_open",
+            Action::Groups => "deal_groups",
+            Action::RescueWatchAdd(_) => "rescue_watch_add",
+            Action::RescueWatchStop(_) => "rescue_watch_stop",
+            Action::SafetyRecord => "safety_record",
+            Action::Select(_)
+            | Action::SelectPairing(_)
+            | Action::ClaimNotification { .. }
+            | Action::ReleaseNotification { .. }
+            | Action::NotificationShown { .. }
+            | Action::NotificationSuppressed { .. }
+            | Action::CardOpened(_)
+            | Action::HouseOffer(_)
+            | Action::HousePair(_)
+            | Action::HouseStatus(_)
+            | Action::PairWire(_)
+            | Action::Handoff(_) => return None,
+        })
+    }
+    /// The deal an action names, for the table's selected-deal column.
+    pub(crate) fn deal(&self) -> Option<DealId> {
+        match self {
+            Action::Deal(id)
+            | Action::Evidence(id)
+            | Action::Summary(id)
+            | Action::Display(id)
+            | Action::Transcript(id)
+            | Action::CounterpartyNote(id)
+            | Action::Start(id)
+            | Action::MarketPrepare(id)
+            | Action::Withdraw(id)
+            | Action::LetLapse(id)
+            | Action::Snooze(id)
+            | Action::Handoff(id)
+            | Action::ExportProof(id) => Some(*id),
+            Action::Reconcile(args) => Some(args.deal_id),
+            Action::Band(args) => Some(args.deal_id),
+            Action::MarketStore(binding, _) => Some(binding.deal_id),
+            Action::Decision(args, _) => Some(args.deal_id),
+            Action::Join(args) => Some(args.deal_id),
+            _ => None,
+        }
+    }
 }
 pub struct Caller {
     pub label: String,
@@ -80,6 +215,7 @@ impl std::fmt::Debug for Caller {
 }
 pub(crate) enum Message {
     RelayFinished(Vec<crate::relay::Delivery>),
+    WitnessFinished(Box<crate::witness::WitnessFetch>),
     Agent(
         RunId,
         table_app::AgentScope,
@@ -89,7 +225,7 @@ pub(crate) enum Message {
     AgentRefused(
         table_app::AgentScope,
         String,
-        String,
+        table_core::RefusalCode,
         oneshot::Sender<Result<(), table_app::Error>>,
     ),
     Engine(RunId, table_engine::EngineEvent),
@@ -109,6 +245,11 @@ pub(crate) enum Message {
         u64,
         VerifiedReauth,
         oneshot::Sender<Result<(), CommandError>>,
+    ),
+    /// A market-watch price check's answer, fetched outside the actor (T15).
+    MarketWatched(
+        Box<crate::market_watch::WatchJob>,
+        Result<MarketRef, table_market::Error>,
     ),
 }
 /// Created only after the injected OS verifier succeeds, and never deserializable.
@@ -301,18 +442,21 @@ async fn run(
         tokio::select! {
             message=receiver.recv()=>match message{
                 Some(Message::Execute(caller,action,reply))=>{let _=reply.send(runtime.execute(caller,*action).await); for event in runtime.emitted.drain(..){let _=events.send(event);}},
-                Some(Message::BeginUnlock(caller,reply))=>{let _=reply.send(runtime.pipeline.approval.begin_unlock(&caller.label,caller.token.as_deref().unwrap_or("")).map_err(Into::into));},
+                Some(Message::BeginUnlock(caller,reply))=>{let _=reply.send(if table_client::authority::admits("unlock",&caller.label){runtime.pipeline.approval.begin_unlock(&caller.label,caller.token.as_deref().unwrap_or("")).map_err(Into::into)}else{Err(crate::permission())});},
                 Some(Message::FinishUnlock(caller,generation,proof,reply))=>{let _=reply.send(runtime.pipeline.approval.finish_unlock(&caller.label,caller.token.as_deref().unwrap_or(""),generation,&proof,runtime.clock.now()).map_err(Into::into));},
                 Some(Message::AttachMcp(server,url))=>{runtime.mcp=Some((server,url));},
                 Some(Message::RelayFinished(deliveries))=>{if let Err(error)=runtime.relay_finished(deliveries){let _=events.send(WalletEvent::Fault(error));}},
+                Some(Message::WitnessFinished(fetch))=>{if let Err(error)=runtime.witness_finished(*fetch){let _=events.send(WalletEvent::Fault(error));}},
                 Some(Message::Agent(run,scope,request,reply))=>{let _=reply.send(runtime.agent_intent(run,&scope,request));},
-                Some(Message::AgentRefused(scope,tool,reason,reply))=>{let now=runtime.clock.now(); let _=reply.send(table_app::AgentService::record_refusal(&mut runtime.pipeline.wallet,&scope,&tool,&reason,now));},
+                Some(Message::AgentRefused(scope,tool,code,reply))=>{let now=runtime.clock.now(); let _=reply.send(table_app::AgentService::record_refusal(&mut runtime.pipeline.wallet,&scope,&tool,code,now));},
                 Some(Message::Engine(run,event))=>{match runtime.engine_event(run,event){Ok(Some(snapshot))=>{let _=events.send(WalletEvent::Agent(snapshot));},Ok(None)=>{},Err(error)=>{let _=runtime.finish_run(run,RunState::Failed); let _=events.send(WalletEvent::Fault(error));}}},
                 Some(Message::EngineFinished(run,result))=>{let state=if matches!(result,Ok(table_engine::TerminalVerdict::Clean)){RunState::Clean}else{RunState::Failed}; match runtime.finish_run(run,state){Ok(Some(snapshot))=>{let _=events.send(WalletEvent::Agent(snapshot));},Ok(None)=>{},Err(error)=>{let _=events.send(WalletEvent::Fault(error));}}},
+                Some(Message::MarketWatched(job,result))=>{if let Err(error)=runtime.market_watched(*job,result){let _=events.send(WalletEvent::Fault(error));}},
                 None=>break,
             },
             _=interval.tick()=>{
                 if let Err(error)=runtime.start_relay(){let _=events.send(WalletEvent::Fault(error));}
+                if let Err(error)=runtime.start_witness(){let _=events.send(WalletEvent::Fault(error));}
                 if let Err(error)=runtime.tick().await{let _=events.send(WalletEvent::Fault(error));}
             },
         }

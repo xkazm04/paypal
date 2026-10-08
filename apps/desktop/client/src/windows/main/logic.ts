@@ -20,8 +20,11 @@ import type { DealState } from '@bindings/DealState';
 import type { Module } from '@bindings/Module';
 import type { Money } from '@bindings/Money';
 import type { Side } from '@bindings/Side';
+import type { HistoryAuthority } from '@bindings/HistoryAuthority';
+import type { HistoryStep } from '@bindings/HistoryStep';
+import type { PaypalMethod } from '@bindings/PaypalMethod';
 import { formatMinor } from '../../lib/format';
-import { RULE_NAME, ruleNameOf, ruleSentence, stateWord } from '../../lib/words';
+import { refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, stateWord } from '../../lib/words';
 
 export const MODULE_KEYS: readonly Module[] = ['tables', 'spend', 'counter', 'book', 'shield', 'rescue'];
 export const moduleIndex = (m: Module): number => MODULE_KEYS.indexOf(m);
@@ -43,7 +46,6 @@ export function moduleOf(deal: Pick<Deal, 'kind' | 'shield'>, attention?: Pick<A
 /** Modules whose one decision depends on a backend that is not attached yet. */
 export const PENDING_BACKEND: Partial<Record<Module, string>> = {
   counter: 'Your shop’s catalog is not connected yet, so list prices, stock and quotes can’t be shown. Orders you already have still appear here.',
-  rescue: 'Fixes for failed renewals can’t be sent yet. You can look at each option; nothing is sent until this is connected.',
 };
 
 // ---- states -------------------------------------------------------------------------------
@@ -59,7 +61,7 @@ export function beadKind(d: DealLike): BeadKind {
   const s = d.state;
   if (OFF.has(s)) return 'off';
   if (s === 'REFUSED' || s === 'MISMATCH' || s === 'DISPUTED') return 'stopped';
-  if (s === 'FAILED') return d.kind === 'rescue' ? 'moving' : 'stopped';
+  if (s === 'FAILED') return 'stopped';
   if (d.shield === 'BLOCK') return 'stopped';
   if (SETTLED.has(s)) return 'settled';
   if (s === 'AUTHORIZED' || d.shield === 'HOLD') return 'held';
@@ -75,7 +77,9 @@ export function chipClass(d: DealLike): ChipClass {
   if (SETTLED.has(s)) return 'done';
   if (s === 'AUTHORIZED') return 'held';
   if (s === 'REFUSED' || s === 'MISMATCH' || s === 'DISPUTED') return 'bad';
-  if (s === 'FAILED') return d.kind === 'rescue' ? 'wait' : 'bad';
+  if (s === 'FAILED') return 'bad';
+  // A failed renewal waits at AGREED for the owner's fix (Rust rescue.rs).
+  if (s === 'AGREED' && d.kind === 'rescue') return 'wait';
   if (s === 'AWAITING_APPROVAL' || s === 'APPROVED') return 'wait';
   return 'live';
 }
@@ -86,7 +90,7 @@ export const stateLabel = (s: DealState, ctx?: { side?: Side; kind?: DealKind })
 export const stateCode = (s: DealState): string => s.replace(/_/g, ' ');
 
 export function isTerminal(d: DealLike): boolean {
-  return OFF.has(d.state) || SETTLED.has(d.state) || d.state === 'REFUSED' || d.state === 'MISMATCH' || d.state === 'DISPUTED' || (d.state === 'FAILED' && d.kind !== 'rescue');
+  return OFF.has(d.state) || SETTLED.has(d.state) || d.state === 'REFUSED' || d.state === 'MISMATCH' || d.state === 'DISPUTED' || d.state === 'FAILED';
 }
 export const isLive = (d: DealLike): boolean => !isTerminal(d);
 export const isSettled = (d: DealLike): boolean => SETTLED.has(d.state);
@@ -105,7 +109,7 @@ const PATHS: Record<DealKind, DealState[]> = {
   haggle: ['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'CAPTURED', 'RECEIPTED', 'RECONCILED'],
   purchase: ['AGREED', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECONCILED'],
   shop_order: ['LISTED', 'AGREED', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECONCILED'],
-  rescue: ['FAILED', 'AWAITING_APPROVAL', 'CAPTURED', 'RECONCILED'],
+  rescue: ['AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'RECEIPTED'],
   invoice: ['AWAITING_APPROVAL', 'CAPTURED', 'RECONCILED'],
 };
 /** A seller-side haggle authorizes and captures itself. */
@@ -151,6 +155,11 @@ export function sumByCurrency(items: Money[]): Money[] {
 /** What the money is doing right now, in words. Never claims more than the state says. */
 export function moneyNow(d: Pick<Deal, 'state' | 'side' | 'kind' | 'shield'>): string {
   if (d.shield === 'HOLD' && !isTerminal(d)) return 'paused by a scam check · nothing sent to PayPal';
+  if (d.kind === 'rescue') {
+    if (d.state === 'AGREED') return 'nothing sent · a fix waits for you';
+    if (d.state === 'SETTLING') return 'nothing paid · the invoice you approved is being made';
+    if (d.state === 'AWAITING_APPROVAL') return 'nothing paid yet · the subscriber has an invoice to pay';
+  }
   switch (d.state) {
     case 'PAIRING': case 'LISTED': case 'NEGOTIATING': case 'AGREED': return 'nothing moved · nothing sent to PayPal yet';
     case 'SETTLING': return 'nothing moved · the PayPal order is being made';
@@ -162,7 +171,7 @@ export function moneyNow(d: Pick<Deal, 'state' | 'side' | 'kind' | 'shield'>): s
     case 'VOIDED': case 'AUTO_VOIDED': return 'hold released · nothing paid';
     case 'REFUSED': return 'nothing moved · refused before PayPal was asked';
     case 'MISMATCH': return 'nothing moved · no pay button was offered';
-    case 'FAILED': return d.kind === 'rescue' ? 'renewal failed · nothing recovered yet' : 'failed · see the PayPal proof';
+    case 'FAILED': return d.kind === 'rescue' ? 'invoice cancelled · nothing recovered' : 'failed · see the PayPal proof';
     case 'REFUNDED': return 'refunded';
     case 'DISPUTED': return 'disputed at PayPal';
   }
@@ -184,7 +193,7 @@ export function amountNote(d: Pick<Deal, 'state' | 'side' | 'shield' | 'kind'>):
     case 'REFUSED': return 'never sent';
     case 'VOIDED': case 'AUTO_VOIDED': return 'hold released';
     case 'WITHDRAWN': case 'EXPIRED': return 'no money moved';
-    case 'FAILED': return d.kind === 'rescue' ? 'renewal failed' : 'failed';
+    case 'FAILED': return d.kind === 'rescue' ? 'invoice cancelled' : 'failed';
     default: return 'proposed';
   }
 }
@@ -204,7 +213,7 @@ export function decidedBy(d: Pick<Deal, 'decided_by'>): DecidedFact {
     case 'policy': return { who: 'policy', text: `your rule · ${ruleNameOf(v.clause).toLowerCase()}`, why: `A rule you signed decided it without asking you: “${ruleNameOf(v.clause)}” (rule ${v.clause}).` };
     case 'seller_mandate': return { who: 'policy', text: 'your shop rules', why: 'Your signed shop rules collected it after the buyer approved on PayPal.' };
     case 'house_mandate': return { who: 'policy', text: 'house seller rules', why: 'The house seller’s fixed rules decided it.' };
-    case 'safe_default': return { who: 'default', text: 'deadline passed', why: 'Nobody acted before the deadline, so the safe default applied. It never pays.' };
+    case 'safe_default': return { who: 'default', text: 'the deadline', why: 'Nobody acted before the deadline, so the safe default applied. It never pays.' };
   }
 }
 
@@ -458,3 +467,155 @@ export function beadSummary(deals: DealLike[]): string {
   for (const d of deals) n.set(beadKind(d), (n.get(beadKind(d)) ?? 0) + 1);
   return order.filter((k) => n.get(k)).map((k) => `${n.get(k)} ${BEAD_WORD[k]}`).join(' · ');
 }
+
+// ---- Rewind: the week replayed from the verified record (deal_history) -----------------------------
+
+/** Where each deal stood at time `t` (Unix seconds), from the history steps: the state after its
+ *  latest step at or before `t`, and whether a safety check had paused it then. A deal whose first
+ *  step is after `t` did not exist yet and is absent. A deal that began but has no state yet is
+ *  still connecting. Steps may come in any order; equal times follow the record's order. */
+export type HistoryPoint = { state: DealState; paused: boolean; last: HistoryStep };
+export function historyAt(steps: readonly HistoryStep[], t: number): Map<string, HistoryPoint> {
+  const ordered = [...steps].sort((a, b) => a.at - b.at || a.seq - b.seq);
+  const out = new Map<string, HistoryPoint>();
+  for (const s of ordered) {
+    if (s.at > t) break;
+    const was = out.get(s.deal_id);
+    const paused = s.kind === 'shield_held' ? true : s.kind === 'hold_released' ? false : was?.paused ?? false;
+    out.set(s.deal_id, { state: s.state_after ?? was?.state ?? 'PAIRING', paused, last: s });
+  }
+  return out;
+}
+
+/** A tick's colour on the PayPal lane: who decided the call. */
+export type TickTone = 'owner' | 'rule' | 'buyer' | 'default' | 'refused' | 'unknown';
+const MONEY_CALLS: ReadonlySet<PaypalMethod> = new Set(['create_order', 'authorize', 'capture', 'void', 'create_invoice', 'send_invoice']);
+/** True for a step that asked PayPal to move money (an order, a hold, a payment, a release). */
+export const isMoneyCall = (s: HistoryStep): boolean => s.paypal.type === 'call' && MONEY_CALLS.has(s.paypal.method);
+/** True for a step your rules or a check refused before PayPal was asked. */
+export const isRefusal = (s: HistoryStep): boolean => s.kind === 'refused' || s.kind === 'intent_refused';
+/** The steps the lane draws: every money call, and every refusal (an × with no PayPal call). */
+export const laneSteps = (steps: readonly HistoryStep[]): HistoryStep[] => steps.filter((s) => isMoneyCall(s) || isRefusal(s));
+
+/** Owner = gold, a rule you signed = teal, the buyer's approval under your shop rules = green, a
+ *  safe default = grey; a refusal is an ×. An agent or nobody is never a money call's authority,
+ *  so that shows as unknown (dashed) rather than borrowing a colour. */
+export function tickTone(s: HistoryStep): TickTone {
+  if (isRefusal(s)) return 'refused';
+  switch (s.authority.type) {
+    case 'owner': return 'owner';
+    case 'signed_rule': case 'house_mandate': return 'rule';
+    case 'seller_mandate': return 'buyer';
+    case 'safe_default': return 'default';
+    case 'agent_intent': case 'none': return 'unknown';
+    // The shop-around rule only ever says no to a seller; it never moves money.
+    case 'group_rule': return 'default';
+  }
+}
+export const TICK_WORD: Record<TickTone, string> = {
+  owner: 'You decided',
+  rule: 'Your signed rule',
+  buyer: 'Buyer approved, your shop rules collected',
+  default: 'Safe default',
+  refused: 'Refused, PayPal never asked',
+  unknown: 'Not recorded',
+};
+
+/** Who decided a step, in Maya's words ("You", "Your rules", ...); empty when nobody decided. */
+export function whoDecided(a: HistoryAuthority): string {
+  switch (a.type) {
+    case 'owner': return 'You';
+    case 'signed_rule': return 'Your rules';
+    case 'seller_mandate': return 'Your shop rules';
+    case 'house_mandate': return 'The house seller’s rules';
+    case 'safe_default': return 'The safe default';
+    case 'agent_intent': return 'Your agent';
+    case 'none': return '';
+    case 'group_rule': return 'Your shop-around choice';
+  }
+}
+
+/** "Tue 14:02" (local), the moment a step happened. */
+export function stepTime(unix: number): string {
+  const d = new Date(unix * 1000);
+  return `${d.toLocaleDateString('en-GB', { weekday: 'short' })} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+}
+
+/** One step in plain words, without its time: who did what to which deal, and what PayPal saw.
+ *  `title` is the deal's short title; `side` adjusts paying vs collecting. Never a clause number. */
+export function stepSentence(s: HistoryStep, ctx: { title: string; side?: Side }): string {
+  const x = ctx.title;
+  const who = whoDecided(s.authority);
+  const by = (fallback: string) => who || fallback;
+  const call = s.paypal.type === 'call' ? s.paypal.outcome : null;
+  const tail = call === 'failed' ? ' PayPal said no.' : call === 'unknown' ? ' PayPal’s answer is not confirmed yet.' : '';
+  const seller = ctx.side === 'seller';
+  switch (s.kind) {
+    case 'refused': {
+      const clause = s.authority.type === 'signed_rule' ? s.authority.clause : null;
+      return clause !== null
+        ? `Your rules refused ${x}: ${refusedBecause(clause)}. PayPal was never asked.`
+        : `A safety check refused ${x}. PayPal was never asked.`;
+    }
+    case 'intent_refused': return `Your rules stopped your agent on ${x}. PayPal was never asked.`;
+    case 'created': return `${x} started.`;
+    case 'offer_sent': return `Your agent made an offer on ${x}.`;
+    case 'offer_received': return `They made an offer on ${x}.`;
+    case 'accept_sent': return `Your agent accepted ${x}.`;
+    case 'accept_received': return `They accepted ${x}.`;
+    case 'owner_accepted': return `You accepted ${x}.`;
+    case 'agreed': return who && who !== 'Your agent' ? `${who} agreed ${x}.` : `${x} was agreed.`;
+    case 'proposed': return `Your agent asked to buy ${x}.`;
+    case 'countersigned': return `${by('Someone')} approved ${x}.`;
+    case 'pay_link_sent': return `The PayPal link for ${x} went to the buyer.`;
+    case 'pay_link_received': return `The seller sent the PayPal link for ${x}.`;
+    case 'approval_notice': return `The buyer says ${x} is approved on PayPal.`;
+    case 'order_created': return `${by('The wallet')} asked PayPal for the order for ${x}.${tail}`;
+    case 'approved_by_buyer': return seller ? `The buyer approved ${x} on PayPal.` : `${x} was approved on PayPal.`;
+    case 'authorized': return s.authority.type === 'seller_mandate'
+      ? `The buyer approved, so your shop rules put ${x} on hold at PayPal.${tail}`
+      : `${by('The wallet')} put ${x} on hold at PayPal.${tail}`;
+    case 'captured': return s.authority.type === 'seller_mandate'
+      ? `The buyer approved, so your shop rules collected ${x}.${tail}`
+      : `${by('The wallet')} ${seller ? 'collected' : 'paid for'} ${x}.${tail}`;
+    case 'voided': return `${by('The wallet')} released the hold on ${x}. Nothing was paid.${tail}`;
+    case 'auto_voided': return `The hold on ${x} ran out and released itself. Nothing was paid.${tail}`;
+    case 'receipt_sent': case 'receipt_received': case 'receipted': return `The receipt for ${x} was saved.`;
+    case 'reporting_checked': return `${x} was checked against PayPal’s statement.`;
+    case 'reconciled': return `${x} is on PayPal’s statement.`;
+    case 'withdraw_sent': return `Your side walked away from ${x}. No money moved.`;
+    case 'withdraw_received': return `They walked away from ${x}. No money moved.`;
+    case 'withdrawn': return `${x} was withdrawn. No money moved.`;
+    case 'expired': return `The deadline passed on ${x}. No money moved.`;
+    case 'lapsed': return `Nobody acted on ${x} in time, so it lapsed. No money moved.`;
+    case 'shield_held': return `A safety check paused ${x} before PayPal was asked.`;
+    case 'hold_released': return `You let ${x} go on after a safety pause.`;
+    case 'mismatch': return `The payment request for ${x} did not match the deal. No pay button was offered.`;
+    case 'failed': return `${x} failed at PayPal.`;
+    case 'refunded': return `${x} was refunded.`;
+    case 'disputed': return `${x} is disputed at PayPal.`;
+    case 'checking_with_paypal': return `PayPal’s answer about ${x} didn’t arrive, so the wallet is asking PayPal what happened. Nothing more is sent until it knows.`;
+    case 'other': return `Something was recorded on ${x}.`;
+    case 'renewal_failed': return `A renewal failed on ${x}. A fix waits for you; nothing is sent until you approve it.`;
+    case 'invoice_created': return `${by('The wallet')} had PayPal make the invoice for ${x}. Nobody is asked to pay yet.${tail}`;
+    case 'invoice_sent': return `${by('The wallet')} had PayPal send the invoice for ${x} to the subscriber.${tail}`;
+    case 'invoice_paid': return `The subscriber paid the invoice for ${x} on PayPal.`;
+    case 'group_withdrawn': return `Another seller agreed first, so your wallet told this seller no on ${x}. No money moved.`;
+  }
+}
+
+/** The hub's line for the step under the playhead: "Tue 14:02 · Your rules refused 40 × GPU: …". */
+export const narrate = (s: HistoryStep, ctx: { title: string; side?: Side }): string => `${stepTime(s.at)} · ${stepSentence(s, ctx)}`;
+
+/** The latest step at or before `t` (the record's order breaks ties): what the hub tells. */
+export function stepUnder(steps: readonly HistoryStep[], t: number): HistoryStep | null {
+  let best: HistoryStep | null = null;
+  for (const s of steps) {
+    if (s.at > t) continue;
+    if (!best || s.at > best.at || (s.at === best.at && s.seq > best.seq)) best = s;
+  }
+  return best;
+}
+
+/** Where `t` sits on a [start, end) week, 0..1, clamped. */
+export const weekFraction = (t: number, start: number, end: number): number => (end <= start ? 0 : Math.min(1, Math.max(0, (t - start) / (end - start))));

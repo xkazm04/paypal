@@ -7,6 +7,7 @@ use table_paypal::{
 };
 use table_proto::{Body, ShortText};
 mod resolve;
+pub(crate) use resolve::REQUEST_ID_KEPT_SECS;
 pub use resolve::{PENDING_STALE_SECS, Resolve, SETTLE_SECS};
 #[derive(Debug)]
 pub enum Authority {
@@ -22,6 +23,55 @@ pub enum MoneyStep {
     Authorize,
     Capture,
 }
+impl MoneyStep {
+    /// The operation name the ledger and the audit log use for this step.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Create => "create",
+            Self::Authorize => "authorize",
+            Self::Capture => "capture",
+        }
+    }
+}
+/// What the scam shield says about a deal at a time, and why (shield slice 2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ShieldGate {
+    /// The verdict before any release: what the deal row records.
+    pub verdict: ShieldVerdict,
+    /// The rule that decided `verdict`; `None` for a CLEAR and for a hold with no named rule.
+    pub rule: Option<ShieldRule>,
+    /// The verdict is a HOLD the owner released for the deal's current terms, and the release
+    /// names every rule holding it. The money steps then judge it as ASK: the owner's decisions
+    /// and the seller's money in pass, a clause-6 policy step still waits for the owner.
+    pub released: bool,
+}
+impl ShieldGate {
+    /// The verdict the money steps are judged by.
+    pub const fn gating(&self) -> ShieldVerdict {
+        if self.released {
+            ShieldVerdict::Ask
+        } else {
+            self.verdict
+        }
+    }
+}
+/// One input to the shield's verdict: what the rules computed now, or what the deal row keeps.
+#[derive(Debug, Clone, Copy)]
+struct ShieldSource {
+    verdict: ShieldVerdict,
+    rule: Option<ShieldRule>,
+}
+/// Whether a recorded verdict still binds the deal whatever the rules say now. A raised verdict
+/// (a second opinion, the order check's payee BLOCK, a settlement mismatch) and any HOLD or BLOCK
+/// do; an ASK the rules computed (no market reference, a new counterparty) is judged again, so
+/// a market price that lands later can clear it.
+fn binds(verdict: ShieldVerdict, rule: Option<ShieldRule>) -> bool {
+    verdict >= ShieldVerdict::Hold
+        || !matches!(
+            rule,
+            Some(ShieldRule::NoMarketReference | ShieldRule::NewCounterpartyOverThreshold)
+        )
+}
 /// The scam shield's gate on a money step, shared by `create`, `authorize`, `capture` and
 /// [`Pipeline::step_allowed`] so their copies cannot drift. HOLD and BLOCK stop every step under
 /// every authority. ASK passes the owner's decision and the house release everywhere, and the
@@ -29,7 +79,7 @@ pub enum MoneyStep {
 /// seller deal whose order the buyer already approved at PayPal, and receiving money on it
 /// needs no click (acceptance H5). Every other ASK, including the seller's create on policy,
 /// still waits for the owner.
-fn shield_allows(shield: ShieldVerdict, decision: &DecidedBy, step: MoneyStep) -> bool {
+pub(crate) fn shield_allows(shield: ShieldVerdict, decision: &DecidedBy, step: MoneyStep) -> bool {
     match shield {
         ShieldVerdict::Clear => true,
         ShieldVerdict::Ask => match decision {
@@ -45,11 +95,28 @@ fn shield_allows(shield: ShieldVerdict, decision: &DecidedBy, step: MoneyStep) -
 pub struct Pipeline {
     pub wallet: Wallet,
     pub approval: ApprovalSession,
-    api: Arc<dyn PayPalApi>,
+    pub(crate) api: Arc<dyn PayPalApi>,
     house: Option<table_proto::HouseRelease>,
     /// When this process opened the pipeline: a reservation still `pending` from before it has
     /// no live call (see [`Pipeline::stale_before`]).
     started: Timestamp,
+    /// The owner paused all agents: the read-back resolver sends nothing again under the
+    /// clause-6 policy, exactly as the scheduler starts no create under it (T10).
+    pub policy_paused: bool,
+    /// The deal being ticked has no agent key to sign with (its mandate was revoked, or the key is
+    /// gone). The read-back resolver then settles only what needs no signature (a void, a step
+    /// PayPal shows not done) and sends nothing again but a void; a capture or a paid invoice
+    /// PayPal confirms waits for the key, since its receipt is signed. The deadline's safe default
+    /// still applies. Set by the runtime around one deal's tick, and cleared after it.
+    pub signer_missing: bool,
+    /// Set to the deal when a money step is refused by the scam shield (the refusal is in the
+    /// audit log). The scheduler clears it before a step and reads it after, to tell a recorded
+    /// refusal, which waits for the owner, from a fault.
+    pub shield_refused: Option<DealId>,
+    /// Invoicing, for the rescue invoice (set by the trusted shell; `None` sends no invoice).
+    pub(crate) secondary: Option<Arc<dyn table_paypal::SecondaryApi>>,
+    /// When each rescue invoice was last read, so PAID is polled on a cadence.
+    pub(crate) rescue_polled: std::collections::BTreeMap<DealId, Timestamp>,
 }
 impl std::fmt::Debug for Pipeline {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -123,6 +190,11 @@ impl Pipeline {
             return Err(Error::Permission);
         }
         self.wallet.check_mandate(id, category, now)?;
+        // Shop around (T8): never offered once another table of the group agreed or holds our
+        // one ACCEPT; the ledger refuses it again in the transaction that would record it.
+        if self.wallet.ledger.group_accept_blocked(id, true)? {
+            return Err(table_ledger::LedgerError::GroupClosed.into());
+        }
         let (seq, hash, direction, counter) = self.wallet.ledger.last_proposal(id)?;
         let (offer_seq, terms_hash) = self.wallet.ledger.pending_offer(id)?;
         if !counter
@@ -152,10 +224,13 @@ impl Pipeline {
         if deal.state != DealState::Authorized
             || deal.mode == Mode::Replay
             || attempt != self.wallet.ledger.settled_attempt(id)?
+            || self.has_open_operation(id)?
         {
             return Err(Error::Permission);
         }
         let request = RequestId::for_operation(id, attempt, "void").map_err(|_| Error::Invalid)?;
+        let resource = ResourceId::new(deal.paypal.authorization.clone().ok_or(Error::Invalid)?)
+            .map_err(|_| Error::Invalid)?;
         self.wallet.ledger.reserve_operation(
             id,
             attempt,
@@ -164,21 +239,32 @@ impl Pipeline {
             &DecidedBy::Human { at: ticket.at },
             now,
         )?;
-        let resource = ResourceId::new(deal.paypal.authorization.clone().ok_or(Error::Invalid)?)
-            .map_err(|_| Error::Invalid)?;
-        match self.api.void(&resource, &request).await {
+        self.send_void(&deal, attempt, &resource, &request, DealEvent::Void, now)
+            .await
+    }
+    /// Send the void reserved under `request` and finish its operation with PayPal's answer.
+    pub(crate) async fn send_void(
+        &mut self,
+        deal: &Deal,
+        attempt: u8,
+        resource: &ResourceId,
+        request: &RequestId,
+        event: DealEvent,
+        now: Timestamp,
+    ) -> Result<(), Error> {
+        match self.api.void(resource, request).await {
             Ok(r) => self.complete(
-                &deal,
+                deal,
                 attempt,
                 "void",
                 &r.observations,
                 &deal.paypal,
-                Some(DealEvent::Void),
+                Some(event),
                 now,
             ),
             Err(e) => {
                 self.complete(
-                    &deal,
+                    deal,
                     attempt,
                     "void",
                     e.observations(),
@@ -199,9 +285,27 @@ impl Pipeline {
         now: Timestamp,
     ) -> Result<(), Error> {
         let deal = self.wallet.ledger.get_deal(id)?;
-        self.approval
-            .validate(&ticket, id, deal.terms.hash()?, attempt, now)?;
-        self.wallet.ledger.release_shield_hold(id, now)?;
+        let terms = deal.terms.hash()?;
+        self.approval.validate(&ticket, id, terms, attempt, now)?;
+        // Only a HOLD is released, and only the rules holding it now, for these terms. A BLOCK
+        // never is; a hold with no named rule (a settlement mismatch) is not either.
+        let sources = self.shield_sources(&deal, now)?;
+        let gate = Self::judge(&deal, &sources);
+        if gate.verdict != ShieldVerdict::Hold {
+            return Err(Error::Permission);
+        }
+        let rules = sources
+            .iter()
+            .filter(|s| s.verdict == ShieldVerdict::Hold)
+            .map(|s| s.rule.ok_or(Error::Permission))
+            .collect::<Result<Vec<_>, _>>()?;
+        // The hold the owner saw is recorded first, then the release beside it.
+        self.wallet
+            .ledger
+            .record_shield(id, gate.verdict, gate.rule, terms, now)?;
+        self.wallet
+            .ledger
+            .release_shield_hold(id, &rules, terms, now)?;
         Ok(())
     }
 
@@ -211,7 +315,7 @@ impl Pipeline {
         if deal.state != DealState::AwaitingApproval
             || attempt != self.wallet.ledger.settled_attempt(id)?
             || deal.mode == Mode::Replay
-            || deal.shield.is_some_and(|v| v >= ShieldVerdict::Hold)
+            || deal.shield_held()
         {
             return Err(Error::Permission);
         }
@@ -228,9 +332,7 @@ impl Pipeline {
     ) -> Result<(), Error> {
         self.wallet.ledger.raise_shield(id, verdict, now)?;
         let deal = self.wallet.ledger.get_deal(id)?;
-        if deal.state == DealState::Authorized
-            && deal.shield.is_some_and(|v| v >= ShieldVerdict::Hold)
-        {
+        if deal.state == DealState::Authorized && deal.shield_held() {
             self.auto_void(id, self.wallet.ledger.settled_attempt(id)?, now)
                 .await?;
         }
@@ -243,7 +345,16 @@ impl Pipeline {
             house: None,
             started: now,
             approval: ApprovalSession::new(now)?,
+            policy_paused: false,
+            signer_missing: false,
+            shield_refused: None,
+            secondary: None,
+            rescue_polled: std::collections::BTreeMap::new(),
         })
+    }
+    /// Trusted shell setup only: the Invoicing client the rescue invoice goes through.
+    pub fn set_secondary(&mut self, api: Option<Arc<dyn table_paypal::SecondaryApi>>) {
+        self.secondary = api;
     }
     /// Trusted hosted setup only. No IPC or agent request can install this authority.
     pub fn enable_house(
@@ -277,8 +388,18 @@ impl Pipeline {
         self.house = Some(release);
         Ok(())
     }
-    fn expected(&self, deal: &Deal, attempt: u8) -> Result<CreateOrder, Error> {
+    pub(crate) fn expected(&self, deal: &Deal, attempt: u8) -> Result<CreateOrder, Error> {
         let payee = self.wallet.settlement_payee(deal)?;
+        Self::order_for(deal, attempt, payee)
+    }
+    /// The order a read-back must find: as `expected`, with the payee from the deal's mandate
+    /// as recorded, so a mandate revoked while a step is open still lets PayPal's record be
+    /// checked. A read-back grants nothing; every send takes `expected`.
+    pub(crate) fn recorded_order(&self, deal: &Deal, attempt: u8) -> Result<CreateOrder, Error> {
+        let payee = self.wallet.recorded_payee(deal)?;
+        Self::order_for(deal, attempt, payee)
+    }
+    fn order_for(deal: &Deal, attempt: u8, payee: PayeeRef) -> Result<CreateOrder, Error> {
         Ok(CreateOrder {
             deal: deal.id,
             attempt,
@@ -287,7 +408,7 @@ impl Pipeline {
             merchant_id: ResourceId::new(payee.as_str()).map_err(|_| Error::Invalid)?,
         })
     }
-    fn authority(
+    pub(crate) fn authority(
         &mut self,
         deal: &Deal,
         category: Category,
@@ -298,6 +419,11 @@ impl Pipeline {
         // No PayPal step of a purchase runs on policy: only the owner's decision starts,
         // authorizes or captures it, whatever the amount and whatever clause 6 allows.
         if matches!(authority, Authority::Policy) && deal.kind == DealKind::Purchase {
+            return Err(Error::Permission);
+        }
+        // A rescue invoice goes out only on the owner's decision in the approval window: no
+        // signed rule, seller or house mandate, or safe default ever sends one.
+        if deal.kind == DealKind::Rescue && !matches!(authority, Authority::Owner(_)) {
             return Err(Error::Permission);
         }
         let decision = self.wallet.mandate_check(deal, category, now)?;
@@ -350,7 +476,7 @@ impl Pipeline {
             _ => Err(Error::Permission),
         }
     }
-    fn countersign(
+    pub(crate) fn countersign(
         &mut self,
         deal: &Deal,
         attempt: u8,
@@ -380,12 +506,30 @@ impl Pipeline {
         self.wallet.ledger.countersign(&c, attempt, now)?;
         Ok(())
     }
-    fn shield(&self, deal: &Deal, now: Timestamp) -> Result<ShieldVerdict, Error> {
-        let payee = self.wallet.settlement_payee(deal)?;
-        if deal.shield.is_some_and(|v| v >= ShieldVerdict::Hold) {
-            return Ok(deal.shield.unwrap_or(ShieldVerdict::Hold));
+    /// The shield's inputs for `deal` at `now`: what the deal row keeps, if it still binds the
+    /// deal (first), and what the deterministic rules compute now. A BLOCK kept on the deal is
+    /// final, so the rules are not consulted (`table_shield::evaluate`'s order).
+    fn shield_sources(&self, deal: &Deal, now: Timestamp) -> Result<Vec<ShieldSource>, Error> {
+        let kept = deal
+            .shield_recorded()
+            .filter(|v| binds(*v, deal.shield_rule))
+            .map(|verdict| ShieldSource {
+                verdict,
+                rule: deal.shield_rule,
+            });
+        // A rescue asks the owner's own subscriber to pay the owner: the payee, price and new-
+        // counterparty rules guard money going out, so only a verdict raised on the deal applies.
+        if deal.kind == DealKind::Rescue {
+            return Ok(vec![kept.unwrap_or(ShieldSource {
+                verdict: ShieldVerdict::Clear,
+                rule: None,
+            })]);
         }
-        let rules = table_shield::rules(
+        let payee = self.wallet.settlement_payee(deal)?;
+        if let Some(block) = kept.filter(|k| k.verdict == ShieldVerdict::Block) {
+            return Ok(vec![block]);
+        }
+        let found = table_shield::explain(
             &table_shield::Case {
                 expected_payee: &payee,
                 actual_payee: &payee,
@@ -394,9 +538,7 @@ impl Pipeline {
                 unit_price: deal.terms.unit_price,
                 // The 40% rule runs on any reference; only a fresh one can clear the deal.
                 market: deal.market.as_ref(),
-                market_fresh: deal.market.as_ref().is_some_and(|m| {
-                    now >= m.retrieved_at && now.saturating_sub(m.retrieved_at) < 900
-                }),
+                market_fresh: market_fresh(deal.market.as_ref(), now),
                 first_seen: self
                     .wallet
                     .ledger
@@ -406,7 +548,80 @@ impl Pipeline {
             },
             now,
         )?;
-        Ok(table_shield::combine(rules, deal.shield))
+        let mut sources: Vec<ShieldSource> = kept.into_iter().collect();
+        sources.push(ShieldSource {
+            verdict: found.verdict,
+            rule: found.rule,
+        });
+        Ok(sources)
+    }
+    /// The verdict is the most cautious input (a kept verdict can only add caution, as
+    /// `table_shield::combine`). Its rule is a kept one's before a computed one's, and one the
+    /// owner has not released before one they have. The release counts only when it names the
+    /// rule of every input that holds.
+    fn judge(deal: &Deal, sources: &[ShieldSource]) -> ShieldGate {
+        let verdict = sources
+            .iter()
+            .map(|s| s.verdict)
+            .max()
+            .unwrap_or(ShieldVerdict::Clear);
+        let covered = |s: &ShieldSource| {
+            deal.shield_release
+                .as_ref()
+                .is_some_and(|r| r.covers(s.rule))
+        };
+        let top = || sources.iter().filter(|s| s.verdict == verdict);
+        let released = verdict == ShieldVerdict::Hold && top().all(covered);
+        let rule = top()
+            .find(|s| !covered(s))
+            .or_else(|| top().next())
+            .and_then(|s| s.rule);
+        ShieldGate {
+            verdict,
+            rule,
+            released,
+        }
+    }
+    /// What the shield says about `deal` at `now` and why, without recording it.
+    pub fn shield_gate(&self, deal: &Deal, now: Timestamp) -> Result<ShieldGate, Error> {
+        Ok(Self::judge(deal, &self.shield_sources(deal, now)?))
+    }
+    pub(crate) fn shield(&self, deal: &Deal, now: Timestamp) -> Result<ShieldVerdict, Error> {
+        Ok(self.shield_gate(deal, now)?.gating())
+    }
+    /// The scam shield's gate on a real money step (shield slice 2): judges the step, records the
+    /// verdict and its rule in the deal row (only when they changed), and on a refusal records it
+    /// once per (deal, step, verdict) and refuses before any operation, countersign or PayPal call.
+    fn shield_step(
+        &mut self,
+        deal: &Deal,
+        decision: &DecidedBy,
+        step: MoneyStep,
+        attempt: u8,
+        now: Timestamp,
+    ) -> Result<(), Error> {
+        let gate = self.shield_gate(deal, now)?;
+        self.wallet.ledger.record_shield(
+            deal.id,
+            gate.verdict,
+            gate.rule,
+            deal.terms.hash()?,
+            now,
+        )?;
+        if shield_allows(gate.gating(), decision, step) {
+            return Ok(());
+        }
+        self.wallet.ledger.record_shield_refusal(
+            deal.id,
+            step.name(),
+            attempt,
+            gate.gating(),
+            gate.rule,
+            decision,
+            now,
+        )?;
+        self.shield_refused = Some(deal.id);
+        Err(Error::Permission)
     }
     /// Read-only: the scam shield verdict the money steps would judge this deal by at `now`.
     pub fn shield_verdict(&self, id: DealId, now: Timestamp) -> Result<ShieldVerdict, Error> {
@@ -445,7 +660,7 @@ impl Pipeline {
         if reached {
             deal.state = entry;
         }
-        if deal.state != entry || deal.mode == Mode::Replay {
+        if deal.state != entry || deal.mode == Mode::Replay || self.has_open_operation(id)? {
             return Ok(false);
         }
         let attempt = match step {
@@ -521,7 +736,7 @@ impl Pipeline {
             .collect()
     }
     #[allow(clippy::too_many_arguments)] // Private helper mirrors the typed ledger outcome.
-    fn complete(
+    pub(crate) fn complete(
         &mut self,
         deal: &Deal,
         attempt: u8,
@@ -551,13 +766,14 @@ impl Pipeline {
         now: Timestamp,
     ) -> Result<String, Error> {
         let deal = self.wallet.ledger.get_deal(id)?;
-        if deal.state != DealState::Agreed || deal.mode == Mode::Replay {
+        if deal.state != DealState::Agreed
+            || deal.mode == Mode::Replay
+            || self.has_open_operation(id)?
+        {
             return Err(Error::Permission);
         }
         let decision = self.authority(&deal, category, authority, attempt, now)?;
-        if !shield_allows(self.shield(&deal, now)?, &decision, MoneyStep::Create) {
-            return Err(Error::Permission);
-        }
+        self.shield_step(&deal, &decision, MoneyStep::Create, attempt, now)?;
         let expected = self.expected(&deal, attempt)?;
         expected.body().map_err(|_| Error::Invalid)?;
         self.countersign(&deal, attempt, &decision, now)?;
@@ -574,7 +790,24 @@ impl Pipeline {
         self.wallet
             .ledger
             .apply_event(id, DealEvent::BeginSettlement, now)?;
-        let response = match self.api.create_order(&expected, &request).await {
+        self.send_create(&deal, attempt, &expected, &request, now, now)
+            .await
+    }
+    /// Send the create reserved under `request` and finish its operation with PayPal's answer.
+    /// The approval deadline runs from `created_from`: the reservation time on a re-send, so it
+    /// never outlasts PayPal's own window for an order that may be older than this answer.
+    pub(crate) async fn send_create(
+        &mut self,
+        deal: &Deal,
+        attempt: u8,
+        expected: &CreateOrder,
+        request: &RequestId,
+        created_from: Timestamp,
+        now: Timestamp,
+    ) -> Result<String, Error> {
+        let id = deal.id;
+        let deal = deal.clone();
+        let response = match self.api.create_order(expected, request).await {
             Ok(r) => r,
             Err(e) => {
                 self.complete(
@@ -591,7 +824,8 @@ impl Pipeline {
         };
         let mut refs = deal.paypal.clone();
         refs.order = Some(response.value.id.clone());
-        let Some(url) = self.created_link(&deal, &expected, &response.value) else {
+        let Some(url) = self.created_link(&deal, expected, &response.value) else {
+            self.raise_payee_mismatch(&deal, &response.value, expected, now)?;
             self.complete(
                 &deal,
                 attempt,
@@ -612,7 +846,15 @@ impl Pipeline {
             Some(DealEvent::SettleVerified),
             now,
         )?;
-        self.send_settle(id, attempt, response.value.id, &url, &expected, now, now)
+        self.send_settle(
+            id,
+            attempt,
+            response.value.id,
+            &url,
+            expected,
+            created_from,
+            now,
+        )
     }
     /// The verified approval link of a freshly created order, or `None` when it fails the
     /// truth checks `create` runs: the order binding, status CREATED and one PayPal-host link.
@@ -638,9 +880,16 @@ impl Pipeline {
         created: Timestamp,
         now: Timestamp,
     ) -> Result<String, Error> {
+        // The HOUSE pipeline (its release-pinned authority is installed) lets an unapproved
+        // order lapse sooner, so an abandoned table frees its slot (HOUSE_APPROVAL_SECS).
+        let window = if self.house.is_some() {
+            HOUSE_APPROVAL_SECS
+        } else {
+            ORDER_APPROVAL_SECS
+        };
         self.wallet
             .ledger
-            .set_deadline(id, created.saturating_add(6 * 3600), None, now)?;
+            .set_deadline(id, created.saturating_add(window), None, now)?;
         let updated = self.wallet.ledger.get_deal(id)?;
         let envelope = self.wallet.signed(
             &updated,
@@ -673,7 +922,7 @@ impl Pipeline {
             .and_then(|u| u.payments.authorizations.first());
         let valid = order.id == order_id
             && order.status == OrderStatus::Completed
-            && order.verify(&self.expected(deal, attempt)?).is_ok()
+            && order.verify(&self.recorded_order(deal, attempt)?).is_ok()
             && order.purchase_units[0].payments.authorizations.len() == 1
             && authorization.is_some_and(|a| {
                 a.status == "CREATED"
@@ -713,6 +962,30 @@ impl Pipeline {
             .apply_event(id, DealEvent::ReceiptVerified, now)?;
         Ok(receipt.raw().into())
     }
+    /// The order check's half of the payee rule: an order PayPal shows paying another payee than
+    /// the agreed one is a scam shield BLOCK on the deal (rule `payee_mismatch`), raised before the
+    /// deal enters MISMATCH. It reads only PayPal's typed payee field, never a counterparty's words.
+    fn raise_payee_mismatch(
+        &mut self,
+        deal: &Deal,
+        order: &table_paypal::Order,
+        expected: &CreateOrder,
+        now: Timestamp,
+    ) -> Result<(), Error> {
+        let other = order
+            .purchase_units
+            .iter()
+            .any(|u| u.payee.merchant_id != expected.merchant_id.as_str());
+        if other {
+            self.wallet.ledger.raise_shield_for(
+                deal.id,
+                ShieldVerdict::Block,
+                ShieldRule::PayeeMismatch,
+                now,
+            )?;
+        }
+        Ok(())
+    }
     pub async fn poll_approval(
         &mut self,
         id: DealId,
@@ -740,8 +1013,9 @@ impl Pipeline {
         for call in self.calls(id, &r.observations, now)? {
             self.wallet.ledger.record_paypal_call(&call, &[])?;
         }
-        if r.value.id != order.as_str() || r.value.verify(&self.expected(&deal, attempt)?).is_err()
-        {
+        let expected = self.expected(&deal, attempt)?;
+        if r.value.id != order.as_str() || r.value.verify(&expected).is_err() {
+            self.raise_payee_mismatch(&deal, &r.value, &expected, now)?;
             self.wallet
                 .ledger
                 .apply_event(id, DealEvent::Mismatch, now)?;
@@ -767,16 +1041,17 @@ impl Pipeline {
         if deal.state != DealState::Approved
             || deal.mode == Mode::Replay
             || attempt != self.wallet.ledger.settled_attempt(id)?
+            || self.has_open_operation(id)?
         {
             return Err(Error::Permission);
         }
         let decision = self.authority(&deal, category, authority, attempt, now)?;
-        if !shield_allows(self.shield(&deal, now)?, &decision, MoneyStep::Authorize) {
-            return Err(Error::Permission);
-        }
+        self.shield_step(&deal, &decision, MoneyStep::Authorize, attempt, now)?;
         self.countersign(&deal, attempt, &decision, now)?;
         let request =
             RequestId::for_operation(id, attempt, "authorize").map_err(|_| Error::Invalid)?;
+        let resource = ResourceId::new(deal.paypal.order.clone().ok_or(Error::Invalid)?)
+            .map_err(|_| Error::Invalid)?;
         self.wallet.ledger.reserve_operation(
             id,
             attempt,
@@ -785,9 +1060,21 @@ impl Pipeline {
             &decision,
             now,
         )?;
-        let resource = ResourceId::new(deal.paypal.order.clone().ok_or(Error::Invalid)?)
-            .map_err(|_| Error::Invalid)?;
-        let r = match self.api.authorize(&resource, &request).await {
+        self.send_authorize(&deal, attempt, &resource, &request, now)
+            .await
+    }
+    /// Send the authorize reserved under `request` and finish its operation with PayPal's answer.
+    pub(crate) async fn send_authorize(
+        &mut self,
+        deal: &Deal,
+        attempt: u8,
+        resource: &ResourceId,
+        request: &RequestId,
+        now: Timestamp,
+    ) -> Result<(), Error> {
+        let id = deal.id;
+        let deal = deal.clone();
+        let r = match self.api.authorize(resource, request).await {
             Ok(r) => r,
             Err(e) => {
                 self.complete(
@@ -842,13 +1129,12 @@ impl Pipeline {
         if deal.state != DealState::Authorized
             || deal.mode == Mode::Replay
             || attempt != self.wallet.ledger.settled_attempt(id)?
+            || self.has_open_operation(id)?
         {
             return Err(Error::Permission);
         }
         let decision = self.authority(&deal, category, authority, attempt, now)?;
-        if !shield_allows(self.shield(&deal, now)?, &decision, MoneyStep::Capture) {
-            return Err(Error::Permission);
-        }
+        self.shield_step(&deal, &decision, MoneyStep::Capture, attempt, now)?;
         let deadline = self.wallet.ledger.deadline(id)?.ok_or(Error::Invalid)?;
         if now >= deadline.0 {
             return Err(Error::Permission);
@@ -858,6 +1144,8 @@ impl Pipeline {
         }
         let request =
             RequestId::for_operation(id, attempt, "capture").map_err(|_| Error::Invalid)?;
+        let resource = ResourceId::new(deal.paypal.authorization.clone().ok_or(Error::Invalid)?)
+            .map_err(|_| Error::Invalid)?;
         self.wallet.ledger.reserve_operation(
             id,
             attempt,
@@ -866,11 +1154,24 @@ impl Pipeline {
             &decision,
             now,
         )?;
-        let resource = ResourceId::new(deal.paypal.authorization.clone().ok_or(Error::Invalid)?)
-            .map_err(|_| Error::Invalid)?;
+        self.send_capture(&deal, attempt, &resource, &request, now)
+            .await
+    }
+    /// Send the capture reserved under `request` and finish its operation with PayPal's answer;
+    /// a confirmed capture signs and records the receipt.
+    pub(crate) async fn send_capture(
+        &mut self,
+        deal: &Deal,
+        attempt: u8,
+        resource: &ResourceId,
+        request: &RequestId,
+        now: Timestamp,
+    ) -> Result<String, Error> {
+        let id = deal.id;
+        let deal = deal.clone();
         let r = match self
             .api
-            .capture(&resource, deal.terms.amount()?, &request)
+            .capture(resource, deal.terms.amount()?, request)
             .await
         {
             Ok(r) => r,
@@ -924,7 +1225,7 @@ impl Pipeline {
             return Err(Error::Invalid);
         }
         let due = self.wallet.ledger.deadline(id)?.ok_or(Error::Invalid)?.0;
-        let held = deal.shield.is_some_and(|v| v >= ShieldVerdict::Hold);
+        let held = deal.shield_held();
         if now < due && !held {
             return Err(Error::Permission);
         }
@@ -942,6 +1243,8 @@ impl Pipeline {
             deadline: if held { now } else { due },
         };
         let request = RequestId::for_operation(id, attempt, "void").map_err(|_| Error::Invalid)?;
+        let resource = ResourceId::new(deal.paypal.authorization.clone().ok_or(Error::Invalid)?)
+            .map_err(|_| Error::Invalid)?;
         self.wallet.ledger.reserve_operation(
             id,
             attempt,
@@ -950,35 +1253,13 @@ impl Pipeline {
             &authority,
             now,
         )?;
-        let resource = ResourceId::new(deal.paypal.authorization.clone().ok_or(Error::Invalid)?)
-            .map_err(|_| Error::Invalid)?;
-        match self.api.void(&resource, &request).await {
-            Ok(r) => self.complete(
-                &deal,
-                attempt,
-                "void",
-                &r.observations,
-                &deal.paypal,
-                Some(if held {
-                    DealEvent::Void
-                } else {
-                    DealEvent::AutoVoid
-                }),
-                now,
-            ),
-            Err(e) => {
-                self.complete(
-                    &deal,
-                    attempt,
-                    "void",
-                    e.observations(),
-                    &deal.paypal,
-                    None,
-                    now,
-                )?;
-                Err(Error::Unavailable)
-            }
-        }
+        let event = if held {
+            DealEvent::Void
+        } else {
+            DealEvent::AutoVoid
+        };
+        self.send_void(&deal, attempt, &resource, &request, event, now)
+            .await
     }
     /// Applies every due deadline default. One deal's failure (an unknown void) never starves
     /// the deals after it; the first error is returned once all of them were attempted.
@@ -986,10 +1267,22 @@ impl Pipeline {
         let mut changed = Vec::new();
         let mut failure = None;
         for deal in self.wallet.ledger.list_deals()? {
+            // A rescue's invoice is real even when its failure was replayed: it is polled and
+            // its deadline applied whatever the mode (rescue.rs).
+            if deal.kind == DealKind::Rescue {
+                match self.rescue_tick(deal.id, now).await {
+                    Ok(true) => changed.push(deal.id),
+                    Ok(false) => {}
+                    Err(error) => {
+                        failure.get_or_insert(error);
+                    }
+                }
+                continue;
+            }
             if deal.mode == Mode::Replay {
                 continue;
             }
-            match self.default_on_deadline(&deal, now).await {
+            match self.deadline_default(deal.id, now).await {
                 Ok(true) => changed.push(deal.id),
                 Ok(false) => {}
                 Err(error) => {
@@ -999,37 +1292,43 @@ impl Pipeline {
         }
         failure.map_or(Ok(changed), Err)
     }
-    async fn default_on_deadline(&mut self, deal: &Deal, now: Timestamp) -> Result<bool, Error> {
-        let Some((due, _)) = self.wallet.ledger.deadline(deal.id)? else {
+    /// The deadline default for one deal, if its deadline is due: auto-void an authorization,
+    /// let any earlier state lapse. A money step whose outcome is unknown is read back first; while
+    /// it stays unknown nothing is sent (no void after a capture that may have gone through), and
+    /// only an order creation whose payment link never left the wallet lapses with its deal.
+    pub async fn deadline_default(&mut self, id: DealId, now: Timestamp) -> Result<bool, Error> {
+        let deal = self.wallet.ledger.get_deal(id)?;
+        if deal.kind == DealKind::Rescue {
+            return self.rescue_deadline(id, now).await;
+        }
+        // A HOUSE-paired buyer deal out for approval waits a grace past its deadline for the
+        // HOUSE's RECEIPT (table-ledger `lapse_at`); every other deal lapses at its deadline.
+        let Some(due) = self.wallet.ledger.lapse_at(id)? else {
             return Ok(false);
         };
-        if due > now || deal.state.terminal() {
+        if due > now || deal.state.terminal() || deal.mode == Mode::Replay {
             return Ok(false);
         }
-        self.deadline_default(deal, now).await
-    }
-    /// The deadline default of one due deal, shared by both schedulers. An authorize whose
-    /// outcome is unknown is read back first: a hold PayPal placed is voided, not forgotten
-    /// behind an EXPIRED deal.
-    pub async fn deadline_default(&mut self, deal: &Deal, now: Timestamp) -> Result<bool, Error> {
-        let mut deal = deal.clone();
+        let mut deal = deal;
+        // An unknown authorize or capture is read back before the default voids or expires: a
+        // hold PayPal placed is voided, not forgotten behind an EXPIRED deal.
         if deal.state.pre_capture() && deal.state != DealState::Authorized {
-            self.resolve_deal(deal.id, Resolve::Deadline, now).await?;
-            deal = self.wallet.ledger.get_deal(deal.id)?;
+            self.resolve_deal(id, Resolve::Deadline, now).await?;
+            deal = self.wallet.ledger.get_deal(id)?;
             if self
                 .wallet
                 .ledger
-                .deadline(deal.id)?
+                .deadline(id)?
                 .is_none_or(|(due, _)| due > now)
             {
                 return Ok(true);
             }
         }
         if deal.state == DealState::Authorized {
-            self.auto_void(deal.id, self.wallet.ledger.settled_attempt(deal.id)?, now)
+            self.auto_void(id, self.wallet.ledger.settled_attempt(id)?, now)
                 .await?;
         } else if deal.state.pre_capture() {
-            self.wallet.ledger.apply_deadline_default(deal.id, now)?;
+            self.wallet.ledger.apply_deadline_default(id, now)?;
         } else {
             return Ok(false);
         }

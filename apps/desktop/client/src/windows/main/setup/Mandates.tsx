@@ -12,7 +12,7 @@ import { NO_LONGER_FITS, WalletNotice } from '../../../shared/honesty';
 import { AnswerBar, Chip, DetailToggle, Group, Icon, Kv, Loading, Silence, useDetail, type IconName } from '../../../shared/ui';
 import { useWorld } from '../world';
 import { Handoff, Info } from './common';
-import { agentTitle, limitLines, rulesAnswer, ruleState } from './limits';
+import { agentTitle, limitLines, rulesAnswer, ruleState, setsLine } from './limits';
 import './setup.css';
 
 const dateLabel = (unix: number) => new Date(unix * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -50,6 +50,7 @@ export function MandatesList() {
       ) : null}
       <div className="mand-bar">
         <h3>{detail === 'detailed' ? 'Every rule set' : 'Your agents'}</h3>
+        {detail === 'simple' && setsLine(list) ? <span className="mand-n">{setsLine(list)}</span> : null}
         <span className="ui-spacer" />
         {q.data && list.length && detail === 'detailed' ? <Handoff label="Change rules" kind="default" locked={w.locked} target="mandate" title={w.locked ? 'Locked: the approval window asks for Windows Hello first' : 'Opens the approval window, where you sign rules'} /> : null}
         {q.data && list.length ? <DetailToggle value={detail} onChange={setDetail} detailedLabel="Full list" /> : null}

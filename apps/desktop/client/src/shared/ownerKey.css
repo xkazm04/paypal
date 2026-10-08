@@ -1,0 +1,10 @@
+/* The owner's key in groups of four (src/shared/ownerKey.tsx). The groups sit on a grid so a
+   person reading two keys side by side compares them column by column. */
+.key-id { display: inline-grid; gap: 2px 10px; justify-content: start; color: var(--text); user-select: all; }
+.key-id.c8 { grid-template-columns: repeat(8, max-content); }
+.key-id.c4 { grid-template-columns: repeat(4, max-content); }
+.owner-key { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.owner-key .ok-head { display: flex; align-items: center; gap: var(--sp-2); }
+.owner-key .ok-head b { font-weight: var(--fw-semibold); }
+.owner-key .ok-head .ui-btn { margin-left: auto; }
+.owner-key .ui-hint { margin: 0; }

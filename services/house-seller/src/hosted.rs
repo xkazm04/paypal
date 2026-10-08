@@ -1,3 +1,4 @@
+use crate::glass::Published;
 use crate::{Decision, Policy};
 use axum::{
     Json, Router,
@@ -9,8 +10,8 @@ use axum::{
 use ed25519_dalek::{Signer, SigningKey};
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use table_app::{
     AgentRequest, AgentRole, AgentScope, AgentService, Authority, OfferInput, Pipeline, Resolve,
@@ -19,8 +20,8 @@ use table_app::{
 use table_core::*;
 use table_ledger::{Counterparty, Direction, Ledger, LedgerError, PairedVia};
 use table_proto::{
-    AgentSigner, Body, HouseRelease, HouseRequest, HouseResponse, HouseTable, PairingIdentity,
-    ReasonCode, ShortText, SignedPairingIdentity,
+    AgentSigner, Body, HouseRefusals, HouseRelease, HouseRequest, HouseResponse, HouseTable,
+    PairingIdentity, ReasonCode, ShortText, SignedHousePrefix, SignedPairingIdentity,
 };
 use tokio::sync::{Notify, mpsc, oneshot};
 
@@ -63,9 +64,11 @@ impl Error {
                 LedgerError::Integrity(_) => "ledger.integrity",
                 LedgerError::NotFound => "ledger.not_found",
                 LedgerError::Conflict => "ledger.conflict",
+                LedgerError::GroupClosed => "ledger.group_closed",
             },
             Self::App(e) => match e {
                 table_app::Error::Refused(_) => "app.refused",
+                table_app::Error::Agent(_) => "app.agent_refused",
                 table_app::Error::Protocol(_) => "app.protocol",
                 table_app::Error::Domain(_) => "app.domain",
                 table_app::Error::Invalid => "app.invalid",
@@ -93,22 +96,53 @@ impl Log for Stderr {
 
 /// How long a table request waits for the actor before the caller sees 503.
 const REPLY_TIMEOUT: Duration = Duration::from_secs(20);
-/// table-paypal's bound on one HTTP request: `ReqwestTransport`'s timeout
-/// (crates/table-paypal/src/http.rs).
-const PAYPAL_REQUEST_SECS: i64 = 30;
-/// One PayPal call makes at most 3 attempts (`execute_policy` in crates/table-paypal/src/client.rs),
-/// each at most an OAuth token request plus the call itself, with `ExponentialBackoff` waits of
-/// 1 s and 2 s between attempts.
-const PAYPAL_ATTEMPTS: i64 = 3;
-const PAYPAL_BACKOFF_SECS: i64 = 1 + 2;
-/// The longest single awaited deal step (one PayPal call): 3 x (30 + 30) + 3 = 183 s.
+/// Requests the actor queues for buyers' tables (and trusted snapshots); beyond it, 429.
+const TABLE_QUEUE: usize = 4;
+/// Public prefix reads the actor queues on their own channel, so a flood of them is turned away
+/// on that channel and never takes a buyer's table slot; beyond it, 429.
+const PREFIX_QUEUE: usize = 4;
+/// table-paypal's bound on one HTTP request (`ReqwestTransport`'s timeout).
+const PAYPAL_REQUEST_SECS: i64 = table_paypal::http::REQUEST_TIMEOUT_SECS as i64;
+/// One PayPal call makes at most `table_paypal::ATTEMPTS` attempts, each at most an OAuth token
+/// request plus the call itself.
+const PAYPAL_ATTEMPTS: i64 = table_paypal::ATTEMPTS as i64;
+/// The `ExponentialBackoff` waits between those attempts: 1 s and 2 s today.
+const PAYPAL_BACKOFF_SECS: i64 = {
+    let mut total = 0;
+    let mut attempt = 0;
+    while attempt + 1 < table_paypal::ATTEMPTS {
+        total += table_paypal::http::backoff_secs(attempt) as i64;
+        attempt += 1;
+    }
+    total
+};
+/// The longest single awaited deal step (one PayPal call), from table-paypal's own constants:
+/// 3 x (30 + 30) + 3 = 183 s today.
 const LONGEST_STEP_SECS: i64 = PAYPAL_ATTEMPTS * 2 * PAYPAL_REQUEST_SECS + PAYPAL_BACKOFF_SECS;
-/// A heartbeat older than this (seconds) makes `/healthz` answer 503: 183 s plus 7 s for the
-/// ledger writes around a step and the 1 s timer, so 190 s. The heartbeat is written around
-/// each awaited step, so only an await longer than any PayPal call can take reads as stalled.
-pub const HEARTBEAT_STALE: i64 = LONGEST_STEP_SECS + 7;
-// A slow PayPal call is never read as a stall.
-const _: () = assert!(HEARTBEAT_STALE > LONGEST_STEP_SECS);
+/// The actor's timer tick, and room for the ledger writes around one step.
+const TICK_SECS: i64 = 1;
+const LEDGER_SLACK_SECS: i64 = 6;
+/// A heartbeat older than this (seconds) makes `/healthz` answer 503: the 183 s step plus the
+/// 1 s tick and 6 s of ledger writes around it. The heartbeat is written around each awaited
+/// step, so only an await longer than any PayPal call can take reads as stalled. A fixed number,
+/// so the host's health-check settings can be set against it (DECISIONS 12).
+pub const HEARTBEAT_STALE: i64 = 190;
+// A slow PayPal call is never read as a stall: if table-paypal's timeout, attempt count or
+// backoff grows, this stops compiling until HEARTBEAT_STALE (and the host's settings) follow.
+const _: () = assert!(HEARTBEAT_STALE >= LONGEST_STEP_SECS + TICK_SECS + LEDGER_SLACK_SECS);
+// And a stalled actor is still noticed within a few minutes.
+const _: () = assert!(HEARTBEAT_STALE <= 2 * LONGEST_STEP_SECS);
+/// One deal step at its slowest: the PayPal call, the tick that starts it and its ledger writes.
+const STEP_SECS: i64 = LONGEST_STEP_SECS + TICK_SECS + LEDGER_SLACK_SECS;
+/// Room for a signed RECEIPT to cross the relay and be read by the buyer's wallet, which polls
+/// its mailbox every second and backs off to 32 s while the relay is unreachable.
+const RECEIPT_DELIVERY_SECS: i64 = 120;
+// An approval the HOUSE sees in the last second of its window (the poll that sees it, then the
+// authorization, then the capture) still has its RECEIPT reach the buyer's wallet before that
+// wallet lets the deal lapse (HOUSE_RECEIPT_GRACE_SECS past the same window): the HOUSE stops
+// polling and authorizing at its own deadline, so a margin of zero before it is enough. A
+// capture that would start later than this is voided instead (`Seller::bound_capture`).
+const _: () = assert!(HOUSE_RECEIPT_GRACE_SECS >= 3 * STEP_SECS + RECEIPT_DELIVERY_SECS);
 /// An operation still unresolved is logged again at most this often (seconds), so a HOUSE that
 /// keeps failing to reach PayPal's truth is never silent after one line.
 pub const PENDING_REPORT_SECS: i64 = 600;
@@ -155,13 +189,13 @@ impl<K: Hash + Eq + Copy, S: PartialEq + Copy> PollSchedule<K, S> {
 pub struct Seller {
     pub pipeline: Pipeline,
     owner: SigningKey,
-    agent: SigningKey,
-    release: HouseRelease,
-    mandate: OpenMandate,
-    policy: Policy,
+    pub(crate) agent: SigningKey,
+    pub(crate) release: HouseRelease,
+    pub(crate) mandate: OpenMandate,
+    pub(crate) policy: Policy,
     terms: Terms,
     category: Category,
-    clock: Arc<dyn Clock>,
+    pub(crate) clock: Arc<dyn Clock>,
     relay: Arc<dyn table_relay::RelayApi>,
     polls: PollSchedule<DealId, DealState>,
     log: Arc<dyn Log>,
@@ -172,6 +206,11 @@ pub struct Seller {
     reported: HashMap<(DealId, &'static str, u8), (bool, i64)>,
     /// Clock seconds of the actor's last sign of life, read by `/healthz`.
     heartbeat: Arc<AtomicI64>,
+    /// Table requests turned away since start (T9), by fixed reason code.
+    pub(crate) refusals: HouseRefusals,
+    /// The public projection and signed head the read routes serve (T9).
+    pub(crate) published: Arc<RwLock<Option<Arc<Published>>>>,
+    pub(crate) published_at: Option<i64>,
 }
 
 /// A money operation whose PayPal outcome is unknown and not yet resolved: its call failed
@@ -295,6 +334,12 @@ impl Seller {
             terms,
             category,
             heartbeat: Arc::new(AtomicI64::new(clock.now())),
+            refusals: HouseRefusals {
+                since: clock.now(),
+                ..HouseRefusals::default()
+            },
+            published: Arc::new(RwLock::new(None)),
+            published_at: None,
             clock,
             relay,
             polls: PollSchedule::new(),
@@ -394,7 +439,16 @@ impl Seller {
         }
         result
     }
+    /// Seats a buyer at a new table. A request turned away is counted by its fixed reason code
+    /// for the public ledger (T9) and writes nothing.
     pub fn table(&mut self, request: HouseRequest) -> Result<HouseResponse, Error> {
+        let result = self.seat(request);
+        if let Err(error) = &result {
+            self.note_refusal(error);
+        }
+        result
+    }
+    fn seat(&mut self, request: HouseRequest) -> Result<HouseResponse, Error> {
         let now = self.clock.now();
         self.pipeline.wallet.ledger.active_mandate(
             self.mandate.payload.id,
@@ -442,6 +496,8 @@ impl Seller {
             market: None,
             shield: None,
             decided_by: None,
+            shield_rule: None,
+            shield_release: None,
         };
         // No PayPal call (including a poll) can precede a successful mandate check.
         self.mandate
@@ -694,7 +750,7 @@ impl Seller {
             if *delivery != self.terms.delivery
                 || matches!(
                     self.policy
-                        .decide(*price, u8::try_from(round).unwrap_or(u8::MAX))
+                        .decide_on_schedule(*price, u8::try_from(round).unwrap_or(u8::MAX))
                         .map_err(|_| Error::Invalid)?,
                     Decision::Counter(_) | Decision::Withdraw
                 )
@@ -730,7 +786,7 @@ impl Seller {
             let round = self.pipeline.wallet.ledger.peer_offer_count(deal.id)?;
             let decision = self
                 .policy
-                .decide(price, u8::try_from(round).unwrap_or(u8::MAX))
+                .decide_on_schedule(price, u8::try_from(round).unwrap_or(u8::MAX))
                 .map_err(|_| Error::Invalid)?;
             let decision = if delivery != self.terms.delivery && decision == Decision::Accept {
                 Decision::Counter(price)
@@ -771,12 +827,37 @@ impl Seller {
         }
         Ok(())
     }
+    /// An authorized deal's capture deadline is the last moment a capture still has its RECEIPT
+    /// reach the buyer's wallet before that wallet lets the deal lapse (it counts
+    /// [`HOUSE_APPROVAL_SECS`] and then [`HOUSE_RECEIPT_GRACE_SECS`] from this HOUSE's own
+    /// SETTLE), not the authorization's 72 hours. Past it the deadline's safe default voids the
+    /// hold, and no capture (nor a re-send of one) starts, so a HOUSE that stalled never captures
+    /// money the buyer's record says did not move. Recorded once, in the audit chain.
+    fn bound_capture(&mut self, id: DealId, now: i64) -> Result<(), Error> {
+        let ledger = &mut self.pipeline.wallet.ledger;
+        let (Some(signed), Some((due, authorization))) =
+            (ledger.settle_signed_at(id)?, ledger.deadline(id)?)
+        else {
+            return Ok(());
+        };
+        let capture_by = signed
+            .saturating_add(HOUSE_APPROVAL_SECS)
+            .saturating_add(HOUSE_RECEIPT_GRACE_SECS)
+            .saturating_sub(STEP_SECS + RECEIPT_DELIVERY_SECS);
+        if capture_by < due {
+            ledger.set_deadline(id, capture_by, authorization, now)?;
+        }
+        Ok(())
+    }
     async fn advance(&mut self, deal: &Deal, now: i64) -> Result<(), Error> {
         if deal.state != DealState::AwaitingApproval {
             self.polls.forget(&deal.id);
         }
         if deal.state.terminal() {
             return Ok(());
+        }
+        if deal.state == DealState::Authorized {
+            self.bound_capture(deal.id, now)?;
         }
         if self
             .pipeline
@@ -788,7 +869,7 @@ impl Seller {
             self.polls.forget(&deal.id);
             // The default reads an unknown authorize or capture back before it voids or
             // expires, and never voids beside a capture PayPal may have made.
-            self.pipeline.deadline_default(deal, now).await?;
+            self.pipeline.deadline_default(deal.id, now).await?;
             return Ok(());
         }
         // A money operation whose PayPal outcome is unknown reaches PayPal's truth before the
@@ -852,12 +933,18 @@ enum Message {
     Table(HouseRequest, Reply),
     Snapshot(DealId, oneshot::Sender<Result<Deal, Error>>),
 }
+/// A public prefix read: rows, and where the signed answer goes.
+type PrefixAsk = (u64, oneshot::Sender<Result<SignedHousePrefix, Error>>);
 #[derive(Clone)]
 pub struct HouseHandle {
     tx: mpsc::Sender<Message>,
+    /// Prefix reads, on their own bounded queue (see [`PREFIX_QUEUE`]).
+    prefixes: mpsc::Sender<PrefixAsk>,
     heartbeat: Arc<AtomicI64>,
     clock: Arc<dyn Clock>,
     timeout: Duration,
+    /// The actor's latest published projection and head; the read routes serve only this.
+    published: Arc<RwLock<Option<Arc<Published>>>>,
 }
 impl std::fmt::Debug for HouseHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -865,12 +952,13 @@ impl std::fmt::Debug for HouseHandle {
     }
 }
 impl HouseHandle {
-    async fn ask<T>(
+    async fn ask<M, T>(
         &self,
-        message: Message,
+        queue: &mpsc::Sender<M>,
+        message: M,
         rx: oneshot::Receiver<Result<T, Error>>,
     ) -> Result<T, Error> {
-        self.tx.try_send(message).map_err(|e| match e {
+        queue.try_send(message).map_err(|e| match e {
             mpsc::error::TrySendError::Full(_) => Error::Full,
             mpsc::error::TrySendError::Closed(_) => Error::Unavailable,
         })?;
@@ -881,12 +969,23 @@ impl HouseHandle {
     }
     pub async fn table(&self, request: HouseRequest) -> Result<HouseResponse, Error> {
         let (tx, rx) = oneshot::channel();
-        self.ask(Message::Table(request, tx), rx).await
+        self.ask(&self.tx, Message::Table(request, tx), rx).await
     }
-    /// Trusted Rust inspection; no public HTTP route exposes financial state.
+    /// Trusted Rust inspection of one full deal row (PayPal ids included); never served over
+    /// HTTP. The public view is [`HouseHandle::published`].
     pub async fn snapshot(&self, id: DealId) -> Result<Deal, Error> {
         let (tx, rx) = oneshot::channel();
-        self.ask(Message::Snapshot(id, tx), rx).await
+        self.ask(&self.tx, Message::Snapshot(id, tx), rx).await
+    }
+    /// The house's signed chain hash at `rows`, from the published chain (signed by the actor,
+    /// which holds the key). Asked on the prefix queue, never the tables queue.
+    pub async fn prefix(&self, rows: u64) -> Result<SignedHousePrefix, Error> {
+        let (tx, rx) = oneshot::channel();
+        self.ask(&self.prefixes, (rows, tx), rx).await
+    }
+    /// The latest published projection and signed head (T9); `None` before the first refresh.
+    pub fn published(&self) -> Option<Arc<Published>> {
+        self.published.read().ok().and_then(|p| p.clone())
     }
     /// False when the actor has shown no sign of life for more than [`HEARTBEAT_STALE`] seconds
     /// (stalled or dead).
@@ -918,17 +1017,22 @@ pub fn spawn(seller: Seller) -> HouseHandle {
 }
 /// Starts the actor. Each tick resolves and reports any operation a previous run left pending.
 pub fn start(mut seller: Seller) -> House {
-    let (tx, mut rx) = mpsc::channel::<Message>(4);
+    let (tx, mut rx) = mpsc::channel::<Message>(TABLE_QUEUE);
+    let (prefixes, mut prefix_rx) = mpsc::channel::<PrefixAsk>(PREFIX_QUEUE);
     let handle = HouseHandle {
         tx,
+        prefixes,
         heartbeat: seller.heartbeat.clone(),
         clock: seller.clock.clone(),
         timeout: REPLY_TIMEOUT,
+        published: seller.published.clone(),
     };
     let stop = Arc::new(Notify::new());
     let stopped = stop.clone();
     let task = tokio::spawn(async move {
-        let mut timer = tokio::time::interval(Duration::from_secs(1));
+        let published = seller.publish().map(|_| ());
+        let _ = seller.noted("publish", None, published);
+        let mut timer = tokio::time::interval(Duration::from_secs(TICK_SECS.unsigned_abs()));
         timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             // A stop is seen between ticks, never inside one: a money step is never cut off.
@@ -940,9 +1044,17 @@ pub fn start(mut seller: Seller) -> House {
                     Some(Message::Snapshot(id,reply))=>{let _=reply.send(seller.pipeline.wallet.ledger.get_deal(id).map_err(Error::from));},
                     None=>break,
                 },
+                // After the tables queue: a buyer's table is never kept waiting by prefix reads.
+                ask=prefix_rx.recv()=>match ask {
+                    Some((rows,reply))=>{let _=reply.send(seller.prefix(rows));},
+                    None=>break,
+                },
                 _=timer.tick()=>{
                     // The tick beats the heartbeat and logs each failed step itself.
                     let _=seller.tick().await;
+                    // The public projection and head, at most once a minute (T9).
+                    let refreshed=seller.refresh();
+                    let _=seller.noted("publish",None,refreshed);
                 },
             }
         }
@@ -955,6 +1067,12 @@ pub fn router(relay: Arc<rendezvous::MemoryStore>, house: HouseHandle) -> Router
         Router::new()
             .route("/healthz", get(healthz))
             .route("/v1/house/tables", post(table))
+            .route("/v1/house/head", get(crate::routes::head))
+            .route("/v1/house/prefix", get(crate::routes::prefix))
+            .route("/v1/house/ledger", get(crate::routes::ledger))
+            .route("/house", get(crate::routes::scoreboard))
+            .route("/house/scoreboard.css", get(crate::routes::scoreboard_css))
+            .route("/house/scoreboard.js", get(crate::routes::scoreboard_js))
             .layer(DefaultBodyLimit::max(16384))
             .with_state(house),
     )
@@ -967,7 +1085,7 @@ async fn healthz(State(house): State<HouseHandle>) -> StatusCode {
     }
 }
 /// Mandate clause 5 (velocity): the signed per-day deal count and total.
-const DAILY_LIMIT_CLAUSE: u8 = 5;
+pub(crate) const DAILY_LIMIT_CLAUSE: u8 = 5;
 async fn table(
     State(house): State<HouseHandle>,
     Json(request): Json<HouseRequest>,
@@ -986,9 +1104,11 @@ async fn table(
                 refused(table_relay::Refusal::DailyLimit)
             }
             Error::Invalid
-            | Error::App(table_app::Error::Refused(_) | table_app::Error::Permission) => {
-                refused(table_relay::Refusal::Other)
-            }
+            | Error::App(
+                table_app::Error::Refused(_)
+                | table_app::Error::Agent(_)
+                | table_app::Error::Permission,
+            ) => refused(table_relay::Refusal::Other),
             Error::Full => StatusCode::TOO_MANY_REQUESTS.into_response(),
             _ => StatusCode::SERVICE_UNAVAILABLE.into_response(),
         }
@@ -1045,15 +1165,30 @@ mod tests {
         }
     }
     fn handle(timeout: Duration, beat: i64) -> (HouseHandle, mpsc::Receiver<Message>) {
+        let (h, rx, _) = handle_with_prefixes(timeout, beat);
+        (h, rx)
+    }
+    fn handle_with_prefixes(
+        timeout: Duration,
+        beat: i64,
+    ) -> (
+        HouseHandle,
+        mpsc::Receiver<Message>,
+        mpsc::Receiver<PrefixAsk>,
+    ) {
         let (tx, rx) = mpsc::channel(1);
+        let (prefixes, prefix_rx) = mpsc::channel(PREFIX_QUEUE);
         (
             HouseHandle {
                 tx,
+                prefixes,
                 heartbeat: Arc::new(AtomicI64::new(beat)),
                 clock: Arc::new(Fixed(100)),
                 timeout,
+                published: Arc::new(RwLock::new(None)),
             },
             rx,
+            prefix_rx,
         )
     }
     fn deal() -> DealId {
@@ -1074,6 +1209,36 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(20)).await;
         assert!(matches!(h.snapshot(deal()).await, Err(Error::Full)));
         let _ = first.await;
+    }
+    /// A flood of public prefix reads fills only the prefix queue: the route answers 429 while the
+    /// tables queue stays empty, and a buyer's table request still finds its slot. Before, both
+    /// shared the actor's one 4-slot queue, so prefix GETs turned buyers away with 429.
+    #[tokio::test]
+    async fn prefix_reads_never_take_a_tables_slot() {
+        let (h, mut rx, _prefixes) = handle_with_prefixes(Duration::from_millis(20), 100);
+        for _ in 0..PREFIX_QUEUE {
+            // Queued, unanswered here: each caller gives up at its timeout.
+            assert!(matches!(h.prefix(1).await, Err(Error::Unavailable)));
+        }
+        assert!(matches!(h.prefix(1).await, Err(Error::Full)));
+        let store = Arc::new(rendezvous::MemoryStore::new(Arc::new(Fixed(100))));
+        let response = router(store, h.clone())
+            .oneshot(
+                Request::get("/v1/house/prefix?rows=1")
+                    .body(HttpBody::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+        assert!(
+            rx.try_recv().is_err(),
+            "no prefix read is on the tables queue"
+        );
+        let buyer = h.clone();
+        let ask = tokio::spawn(async move { buyer.snapshot(deal()).await });
+        assert!(matches!(rx.recv().await, Some(Message::Snapshot(..))));
+        let _ = ask.await;
     }
     #[tokio::test]
     async fn reply_that_never_comes_is_unavailable_after_the_timeout() {

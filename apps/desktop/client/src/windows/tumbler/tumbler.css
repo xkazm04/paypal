@@ -211,6 +211,7 @@ body.w-tumbler #root { position: fixed; inset: 0; }
 .s-row .t1 .amt { font-weight: var(--fw-semibold); color: var(--gold-l); }
 .s-row .t1 .who { color: var(--muted); font-weight: var(--fw-regular); }
 .s-row .t2 .hg { display: inline-block; width: 10px; height: 12px; margin-right: 5px; vertical-align: -1px; }
+.s-row .t2 b { color: var(--muted); font-weight: var(--fw-semibold); }
 .s-row.hold .t1 .amt { color: var(--coral-l); }
 .s-row .bd { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); flex: none; }
 .s-row.hold .bd { background: var(--coral); }
@@ -226,6 +227,23 @@ body.w-tumbler #root { position: fixed; inset: 0; }
 .s-sum b.stop { color: var(--coral-l); }
 .s-sum b.mot { color: var(--teal-l); }
 .s-sum .ui-chip { margin-left: var(--sp-1); }
+/* If you walk away: one line from the forecast; the lines sit behind ⓘ (t-walk). */
+.s-walk { flex: none; display: flex; align-items: center; gap: var(--sp-1); height: var(--row); padding: 0 var(--sp-4); border-top: 1px solid var(--line);
+  font-size: var(--fs-small); color: var(--dim); white-space: nowrap; min-width: 0; }
+.s-walk .hg { width: 10px; height: 12px; flex: none; color: var(--muted); }
+.s-walk .k { flex: none; color: var(--muted); }
+.s-walk .v { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.s-walk .v b { font: var(--fw-semibold) var(--fs-body) var(--num); font-variant-numeric: tabular-nums; color: var(--text); }
+.s-walk .v b.w-in { color: var(--teal-l); }
+.s-walk.unknown .v { color: var(--dim); font-style: italic; }
+.t-walk { width: 320px; }
+.w-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.w-lines li { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--sp-2); font-size: var(--fs-small); line-height: 1.35; }
+.w-lines .w-when { grid-column: 1 / -1; color: var(--dim); font-variant-numeric: tabular-nums; }
+.w-lines li.if .w-when { color: var(--gold-l); }
+.w-lines .w-what { min-width: 0; color: var(--text); }
+.w-lines .w-who { color: var(--muted); white-space: nowrap; }
+.w-more { margin-top: 6px; font-size: var(--fs-small); }
 .s-meters { flex: none; min-height: 88px; padding: var(--sp-2) var(--sp-4); border-top: 1px solid var(--line);
   display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); align-content: center; }
 .py-b.px-r .s-meters { padding-right: calc(var(--sp-4) + var(--notch)); } .py-b.px-l .s-meters { padding-left: calc(var(--sp-4) + var(--notch)); }
@@ -235,6 +253,12 @@ body.w-tumbler #root { position: fixed; inset: 0; }
 .s-meters .eng { padding-left: var(--sp-3); border-left: 1px dashed var(--line2); }
 .s-meters .eng .v { color: var(--muted); }
 .m-off { grid-column: 1 / -1; margin: 0; font-size: var(--fs-small); color: var(--dim); line-height: 1.35; }
+/* Wallet limits (T14): paid out today and on hold now against the signed limits, then the AI estimate. */
+.s-meters.lim { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--sp-3); }
+.s-meters.lim .ui-stat .v { font-size: var(--fs-body); }
+.s-meters .ui-stat.near .v { color: var(--gold-l); }
+.s-meters .ui-hint.gold { color: var(--gold-l); }
+.s-meters .ui-stat .ui-hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------------------------------------------------------------- hand-off: 440 x 160, five rows
    y: 10 head 32 · 34 approve 58 · 62 approve window 80 · 84 default 118 · 124 links 146 (bottom 14).
@@ -291,6 +315,27 @@ body.w-tumbler #root { position: fixed; inset: 0; }
 .w-ok { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
 .w-ok .ui-hint { flex: 1; min-width: 0; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .w-ok .ui-btn { flex: none; }
+
+/* first run (FirstRunWelcome), same 440 x 228: head 10-32 · title 36-58 · promise 60-94 (two lines,
+   beside a top puck) · steps 100-166 (three 22 px links; the last falls beside a bottom puck, so the
+   list steps aside then) · foot at the bottom. */
+.f.welcome.fr { grid-template-rows: 22px 26px 36px auto 1fr; }
+.fr-promise { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: var(--fs-small); line-height: 17px; }
+.fr-steps { list-style: none; margin: 6px 0 0; padding: 0; display: grid; grid-auto-rows: 22px; }
+.py-b.px-r .fr-steps { margin-right: var(--notch); } .py-b.px-l .fr-steps { margin-left: var(--notch); }
+.fr-step { width: 100%; height: 22px; display: flex; align-items: center; gap: 8px; padding: 0 4px; margin-left: -4px; border: 0; border-radius: var(--r-sm); background: none;
+  color: var(--text); font: inherit; font-size: var(--fs-small); text-align: left; cursor: pointer; min-width: 0; }
+.fr-step:hover:not([disabled]) { background: var(--hover); }
+.fr-step:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.fr-step[disabled] { cursor: default; }
+.fr-n { flex: none; width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font: var(--fw-semibold) 10px/1 var(--num); color: var(--muted); border: 1.25px solid var(--line2); }
+.fr-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s-next .fr-n { color: var(--on-gold); background: var(--gold); border-color: var(--gold); }
+.s-next .fr-t { font-weight: var(--fw-semibold); }
+.s-done .fr-n { color: var(--on-ok); background: var(--ok); border-color: var(--ok); }
+.s-done .fr-t { color: var(--muted); }
+.s-unknown .fr-n { border-style: dashed; }
+.f.welcome.fr .w-foot .notice { font-size: var(--fs-small); }
 
 /* ---------------------------------------------------------------- tab (docked to a screen edge) */
 .tabbtn { position: absolute; inset: 0; padding: 0; border: 0; background: none; cursor: pointer; touch-action: none; }

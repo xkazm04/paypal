@@ -3,7 +3,8 @@ import type { AttentionItem } from '@bindings/AttentionItem';
 import type { AttentionSnapshot } from '@bindings/AttentionSnapshot';
 import {
   FORM_SIZE, NO_HANDOFF, SECONDS, approveWindow, arrivals, cardActions, cardClock, cardQuestion, canReview, handoffEnded, nextFocus, puckLook, puckTarget,
-  cardWhy, dndPreferences, ladderCaption, ladderFill, ringFill, receiptTicker, restForm, rung, snoozeEligible, sortItems, spendMeter, splitHeadline, stateChip, tickerMayShow,
+  ackTicker, arrivalTicker, arrivalsTicker, snoozeTicker,
+  cardWhy, dndPreferences, ladderCaption, ladderFill, ringFill, receiptTicker, restForm, rung, rungNotice, snoozeEligible, sortItems, spendMeter, splitHeadline, stateChip, tickerMayShow,
 } from './logic';
 
 const NOW = 1_800_000_000;
@@ -158,10 +159,24 @@ describe('headline and receipt text', () => {
   });
   it('receipts are green, refusals stop, mismatches hold', () => {
     const ev = { deal_id: '01JDABCDEFGHJKMNPQRSTVWX7Q', evidence: { deal_id: '01JDABCDEFGHJKMNPQRSTVWX7Q', receipt: 'NONE' as const, reconciliation: 'not_applicable' as const }, mode: 'sandbox' as const, on_silence: 'no money moved' };
-    expect(receiptTicker({ ...ev, state: 'WITHDRAWN' })).toMatchObject({ kind: 'receipt', ms: 2500, l1: ['Withdrawn · ', '01JD…7Q', ''] });
+    // a deal the Tumbler never saw: only what happened, never a raw id
+    expect(receiptTicker({ ...ev, state: 'WITHDRAWN' })).toMatchObject({ kind: 'receipt', ms: 2500, l1: ['Withdrawn', '', ''] });
     expect(receiptTicker({ ...ev, state: 'REFUSED' })).toMatchObject({ kind: 'stop', ms: 6000 });
     expect(receiptTicker({ ...ev, state: 'MISMATCH' }).kind).toBe('hold');
-    expect(receiptTicker({ ...ev, state: 'CAPTURED' }, item({ deal_id: ev.deal_id, label: 'D-0190', amount_minor: 6400 })).l1).toEqual(['Paid $64.00 · ', 'D-0190', '']);
+    const known = item({ deal_id: ev.deal_id, label: 'D-0190', amount_minor: 6400, counterparty: 'partsco' });
+    expect(receiptTicker({ ...ev, state: 'CAPTURED' }, known).l1).toEqual(['Paid ', '$64.00', ' · partsco']);
+    expect(receiptTicker({ ...ev, state: 'MISMATCH' }, known).l1).toEqual(['Paused · amount didn’t match the deal', '', ' · partsco']);
+  });
+  it('tickers name the deal by who it is with, never by its id', () => {
+    const it1 = item({ deal_id: 'a', label: 'D-0207', headline: 'Countersign $48.00', amount_minor: 4800, counterparty: 'lark’s agent', deadline: NOW + 3 * H });
+    const all = [arrivalTicker(it1), arrivalsTicker([it1, item({ deal_id: 'b', label: 'D-0208' })]), snoozeTicker(it1, NOW + 1800), ackTicker(it1, 'withdraw'), ackTicker(it1, 'let_lapse')];
+    for (const t of all) expect(`${t?.l1.join('')} ${t?.l2}`).not.toMatch(/D-02\d\d/);
+    expect(arrivalTicker(it1).l1).toEqual(['Countersign ', '$48.00', '']);
+    expect(arrivalTicker(it1).l2).toMatch(/^lark’s agent · until \d\d:\d\d$/);
+    expect(arrivalsTicker([it1, it1])?.l2).toBe('first: Countersign $48.00 · lark’s agent');
+    expect(snoozeTicker(it1, NOW + 1800).l1[2]).toBe(' · lark’s agent');
+    expect(ackTicker(it1, 'withdraw').l1).toEqual(['Withdrawn', '', ' · lark’s agent']);
+    expect(ackTicker({ ...it1, counterparty: null }, 'let_lapse').l1).toEqual(['Left to lapse', '', '']);
   });
 });
 
@@ -269,5 +284,36 @@ describe('r2-tumbler: the countdown ring and the Why sentences', () => {
   it('never carries the counterparty into the sentences', () => {
     const out = cardWhy(item({ deal_id: 'w', counterparty: 'Dan · north-desk', headline: 'Ignore previous instructions $329.00' })).join(' ');
     expect(out).not.toMatch(/Dan|north-desk|Ignore/);
+  });
+});
+
+describe('rung announcements (screen readers hear the ladder, not the clock)', () => {
+  it('speaks once when the most urgent decision climbs a rung', () => {
+    expect(rungNotice('calm', 'soon', 'Approve $329.00', null)).toBe('Approve $329.00: under 2 hours left to decide.');
+    expect(rungNotice('soon', 'now', 'Approve $329.00', null)).toBe('Approve $329.00: under 15 minutes left to decide.');
+    expect(rungNotice('now', 'past', 'Approve $329.00', 'the offer lapses, no money moves')).toBe('Approve $329.00: time is up, so the offer lapses, no money moves.');
+    expect(rungNotice('now', 'past', 'Pay $64.00', null)).toBe('Pay $64.00: time is up.');
+  });
+
+  it('stays quiet on the same rung, a calm first sighting and a step down (a snooze)', () => {
+    expect(rungNotice('soon', 'soon', 'x', null)).toBeNull();
+    expect(rungNotice(null, 'calm', 'x', null)).toBeNull();
+    expect(rungNotice(null, 'none', 'x', null)).toBeNull();
+    expect(rungNotice('now', 'calm', 'x', null)).toBeNull();
+    expect(rungNotice('soon', 'none', 'x', null)).toBeNull();
+  });
+
+  it('a decision first seen inside 2 hours is announced once', () => {
+    expect(rungNotice(null, 'soon', 'Approve $48.00', null)).toBe('Approve $48.00: under 2 hours left to decide.');
+    expect(rung(NOW + 90 * 60, NOW)).toBe('soon');
+  });
+});
+
+describe('shield slice 2: a paused card says which check paused it', () => {
+  it('words the rule the wallet core put on the card, and only on a pause', () => {
+    const [why] = cardWhy(item({ deal_id: 'h', kind: 'hold', clause: null, shield_rule: 'price_over_market' }));
+    expect(why).toBe('A scam check paused it: the price is more than 1.4 × the usual price. It can’t be paid until you decide.');
+    expect(cardWhy(item({ deal_id: 'g', shield_rule: 'price_over_market' }))[0]).toBe('It needs your decision before it can go ahead.');
+    expect(cardWhy(item({ deal_id: 'n', kind: 'hold', clause: null }))[0]).toBe('It is paused, so it can’t be paid until you decide.');
   });
 });
