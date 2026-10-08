@@ -318,6 +318,8 @@ impl Runtime {
             credentials,
             agents,
             market_watch: self.market_watch_facts()?,
+            owner_key_id: table_proto::key_id(&self.pipeline.wallet.owner_public_key())
+                .map_err(|_| unavailable("Owner key unavailable"))?,
         })
     }
     /// The audit chain for Book, newest first, projected to closed facts.

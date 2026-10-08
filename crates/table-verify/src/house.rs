@@ -371,6 +371,7 @@ pub fn verify_house(
                     id,
                     name,
                     ok,
+                    checked: true,
                     detail,
                 }
             })

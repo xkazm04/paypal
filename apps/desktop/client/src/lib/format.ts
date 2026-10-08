@@ -49,6 +49,19 @@ export function shortId(id: string, head = 4, tail = 2): string {
   return id.length <= head + tail + 1 ? id : `${id.slice(0, head)}…${tail > 0 ? id.slice(-tail) : ''}`;
 }
 
+/** A key id in groups of four characters ("5e3a 91c0 …"), so a person can read it out and
+ *  compare it group by group. Every character is kept: the full id is the anchor. */
+export function keyGroups(id: string): string[] {
+  return id.match(/.{1,4}/g) ?? [];
+}
+
+/** A proof file's owner key against this wallet's own: 'mine', 'other', or null while this
+ *  wallet's key is not known. Compared in full, case-insensitively (both are hex). */
+export function keyMatch(fileKey: string, ownKey: string | null | undefined): 'mine' | 'other' | null {
+  if (!ownKey) return null;
+  return fileKey.toLowerCase() === ownKey.toLowerCase() ? 'mine' : 'other';
+}
+
 /** Hex prefix of a 32-byte digest: "7c1e…94". */
 export function shortHash(h: H256 | null | undefined): string {
   if (!h) return '—';

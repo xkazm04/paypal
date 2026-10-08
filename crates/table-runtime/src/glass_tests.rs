@@ -106,7 +106,7 @@ async fn house_projection_carries_no_free_text_payee_paypal_id_or_full_guest_key
     );
     assert_eq!(view.closed.len(), 1);
     assert!(view.paypal_calls >= 4);
-    // Only priced messages are rounds (the NOTE is not): the listing, the guest's 12.00 offer,
+    // Only priced messages are rounds (the NOTE is not): the listing, the guest's 22.50 offer,
     // the house's accept of it and the guest's closing accept, both at the offer's price.
     use table_proto::{HouseParty as P, HousePriceKind as R};
     let shape: Vec<(P, R, u32)> = view
@@ -123,7 +123,7 @@ async fn house_projection_carries_no_free_text_payee_paypal_id_or_full_guest_key
             (P::Guest, R::Accept, 1)
         ]
     );
-    assert_eq!(view.rounds[1].price.map(|p| p.minor()), Some(1200));
+    assert_eq!(view.rounds[1].price.map(|p| p.minor()), Some(2250));
     assert_eq!(view.rounds[2].price, view.rounds[1].price);
     assert_eq!(view.rounds[3].price, Some(view.price));
     assert!(view.rounds.iter().all(|r| !r.declined));

@@ -14,6 +14,7 @@ import { fingerprintGroups, PERMISSIONS_FINGERPRINT, PERMISSIONS_FINGERPRINT_MEA
 import { useStart } from '../home/Start';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import { ModeBadge, RunBadge, WalletNotice } from '../../../shared/honesty';
+import { OwnerKey } from '../../../shared/ownerKey';
 import { AnswerBar, Btn, Chip, DetailToggle, Group, Icon, Kv, Popover, Row, Section, Silence, layerCount, topLayerKind, useToast, type DetailMode, type IconName } from '../../../shared/ui';
 import { useWorld } from '../world';
 import { deriveCircuit, initialPart, PART_NAME, setupProgress, settingsAnswer, stepPart, type Break, type Circuit, type PartId } from './circuit';
@@ -395,6 +396,8 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
             <CredRow name="Market prices" stored={s ? s.channel3_configured : null} storedAt={f?.credentials.find((c) => c.kind === 'channel3')?.stored_at ?? null} locked={locked} />
           </Group>
           <div className="acts"><WhoChip who="only-you" locked={locked} /><span className="ui-hint">typed into a Windows dialog</span></div>
+          {/* The one key this page shows whole: public, and the anchor for anyone checking a proof file. */}
+          <div className="ui-section"><OwnerKey id={f?.owner_key_id} error={facts.error} cols={4} /></div>
           <div className="ui-section"><Silence text={s?.payment_executor_configured ? 'your saved keys stay' : 'nothing is saved'}>{s?.payment_executor_configured ? null : ' · PayPal is never called'}</Silence></div>
         </>
       );

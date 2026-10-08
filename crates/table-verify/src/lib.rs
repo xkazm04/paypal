@@ -22,12 +22,17 @@ pub struct Check {
     pub id: &'static str,
     pub name: &'static str,
     pub ok: bool,
+    /// False when the check could not be made because the file lacks the record it compares
+    /// (an order PayPal answered, saved before the wallet kept order records). `ok` is false
+    /// then too: a check not made never counts towards verified.
+    pub checked: bool,
     pub detail: String,
 }
 #[derive(Debug, Clone)]
 pub struct Report {
     pub deal: DealId,
     pub mode: Mode,
+    /// The owner key's full id (64 hex characters), or "invalid".
     pub owner_key_id: String,
     pub checks: Vec<Check>,
 }
@@ -38,7 +43,20 @@ impl Report {
 }
 
 type Outcome = Result<String, String>;
-type CheckFn = fn(&ProofBundle) -> Outcome;
+/// Why a check did not pass: it failed, or (`checked: false`) the file lacks what it compares.
+struct Miss {
+    detail: String,
+    checked: bool,
+}
+impl From<String> for Miss {
+    fn from(detail: String) -> Self {
+        Self {
+            detail,
+            checked: true,
+        }
+    }
+}
+type CheckFn = fn(&ProofBundle) -> Result<String, Miss>;
 
 fn agent_key(bundle: &ProofBundle) -> Result<VerifyingKey, String> {
     VerifyingKey::from_bytes(&bundle.mandate.payload.agent_key)
@@ -322,7 +340,7 @@ fn answers_with_order(method: &str, path: &str) -> bool {
     )
 }
 
-fn bindings(bundle: &ProofBundle) -> Outcome {
+fn bindings(bundle: &ProofBundle) -> Result<String, Miss> {
     let deal = &bundle.deal;
     let terms = deal.terms.hash().map_err(|e| e.to_string())?.hex();
     let amount = deal.terms.amount().map_err(|e| e.to_string())?;
@@ -335,16 +353,21 @@ fn bindings(bundle: &ProofBundle) -> Outcome {
             .and_then(Value::as_array)
             .filter(|units| !units.is_empty())
         else {
-            // An order PayPal answered with no stored binding proves nothing. Bundles recorded
-            // before the wallet stored bindings fail here too, by design.
+            // An order PayPal answered with no stored binding proves nothing, so the bundle is
+            // never verified. A bundle saved before the wallet stored bindings (migration 0007)
+            // has none, and stripping them is no different, so the line reads "not checked":
+            // the comparison could not be made, which is not the same as a mismatch.
             let answered = call.status.is_some_and(|s| (200..300).contains(&s));
             if !answered || !answers_with_order(&call.method, &call.path) {
                 continue;
             }
-            return Err(format!(
-                "{} {}: PayPal answered with an order but no order binding was recorded (a wallet older than the binding record fails here)",
-                call.method, call.path
-            ));
+            return Err(Miss {
+                detail: format!(
+                    "not checked: {} {}: PayPal answered with an order, but the file holds no order record to compare (a wallet older than the order record saved it)",
+                    call.method, call.path
+                ),
+                checked: false,
+            });
         };
         for unit in units {
             let field = |name: &str| unit.get(name).and_then(Value::as_str);
@@ -358,43 +381,40 @@ fn bindings(bundle: &ProofBundle) -> Outcome {
                 return Err(format!(
                     "{}: the order record lacks custom_id, invoice id or payee, so it proves nothing",
                     call.path
-                ));
+                ).into());
             };
             if custom != terms {
-                return Err(format!(
-                    "{}: custom_id is not this deal's terms hash",
-                    call.path
-                ));
+                return Err(
+                    format!("{}: custom_id is not this deal's terms hash", call.path).into(),
+                );
             }
             if !bundle
                 .closed_mandates
                 .iter()
                 .any(|c| c.mandate.invoice_id == invoice)
             {
-                return Err(format!("{}: invoice id matches no countersign", call.path));
+                return Err(format!("{}: invoice id matches no countersign", call.path).into());
             }
             if !bundle
                 .closed_mandates
                 .iter()
                 .any(|c| c.mandate.payee.as_str() == payee)
             {
-                return Err(format!(
-                    "{}: PayPal payee is not the countersigned payee",
-                    call.path
-                ));
+                return Err(
+                    format!("{}: PayPal payee is not the countersigned payee", call.path).into(),
+                );
             }
             let (Some(value), Some(currency)) = (
                 unit.pointer("/amount/value").and_then(Value::as_str),
                 unit.pointer("/amount/currency_code")
                     .and_then(Value::as_str),
             ) else {
-                return Err(format!("{}: the order record lacks the amount", call.path));
+                return Err(format!("{}: the order record lacks the amount", call.path).into());
             };
             if value != amount.decimal() || currency != amount.currency().to_string() {
-                return Err(format!(
-                    "{}: PayPal amount is not the signed amount",
-                    call.path
-                ));
+                return Err(
+                    format!("{}: PayPal amount is not the signed amount", call.path).into(),
+                );
             }
             checked += 1;
         }
@@ -490,27 +510,31 @@ pub const KNOWN_LIMIT: &str =
 
 pub fn verify_bundle(bundle: &ProofBundle) -> Report {
     let checks: [(&'static str, &'static str, CheckFn); 9] = [
-        ("format", "format", format),
-        ("mandate", "owner signed the mandate", mandate),
-        ("transcript", "transcript signatures and chain", transcript),
+        ("format", "format", |b| Ok(format(b)?)),
+        ("mandate", "owner signed the mandate", |b| Ok(mandate(b)?)),
+        ("transcript", "transcript signatures and chain", |b| {
+            Ok(transcript(b)?)
+        }),
         (
             "countersign",
             "closed mandate binds terms and amount",
-            closed,
+            |b| Ok(closed(b)?),
         ),
         (
             "authority",
             "every money call has a lawful authority",
-            authority,
+            |b| Ok(authority(b)?),
         ),
         (
             "paypal_order",
             "PayPal order matches the signed terms",
             bindings,
         ),
-        ("audit", "audit rows hash-consistent", audit),
-        ("receipt", "receipt inside the transcript", receipts),
-        ("evidence", "evidence head signed", evidence),
+        ("audit", "audit rows hash-consistent", |b| Ok(audit(b)?)),
+        ("receipt", "receipt inside the transcript", |b| {
+            Ok(receipts(b)?)
+        }),
+        ("evidence", "evidence head signed", |b| Ok(evidence(b)?)),
     ];
     Report {
         deal: bundle.deal.id,
@@ -518,21 +542,19 @@ pub fn verify_bundle(bundle: &ProofBundle) -> Report {
         owner_key_id: VerifyingKey::from_bytes(&bundle.owner_key)
             .ok()
             .and_then(|k| key_id(&k).ok())
-            .map_or_else(
-                || "invalid".into(),
-                |k| k.as_str().chars().take(16).collect(),
-            ),
+            .map_or_else(|| "invalid".into(), |k| k.as_str().to_owned()),
         checks: checks
             .into_iter()
             .map(|(id, name, check)| {
-                let (ok, detail) = match check(bundle) {
-                    Ok(detail) => (true, detail),
-                    Err(detail) => (false, detail),
+                let (ok, checked, detail) = match check(bundle) {
+                    Ok(detail) => (true, true, detail),
+                    Err(miss) => (false, miss.checked, miss.detail),
                 };
                 Check {
                     id,
                     name,
                     ok,
+                    checked,
                     detail,
                 }
             })

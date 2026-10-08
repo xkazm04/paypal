@@ -6,6 +6,8 @@ use serde_json::{Value, json};
 use std::{fmt, sync::Arc};
 use table_core::{Clock, Money};
 use tokio::sync::Mutex;
+/// Attempts one PayPal call makes at most; between them the backoff waits.
+pub const ATTEMPTS: u8 = 3;
 #[async_trait]
 pub trait Credentials: Send + Sync {
     async fn load(&self) -> Result<(Secret, Secret), Error>;
@@ -151,7 +153,7 @@ impl Client {
     ) -> Result<ApiResponse<Value>, Error> {
         let mut observations = Vec::new();
         let mut refreshed = false;
-        for attempt in 0..3 {
+        for attempt in 0..ATTEMPTS {
             let token = self.token().await?;
             let mut headers = vec![
                 (
@@ -175,7 +177,7 @@ impl Client {
                 .await;
             let response = match response {
                 Ok(r) => r,
-                Err(_) if retry && attempt < 2 => {
+                Err(_) if retry && attempt + 1 < ATTEMPTS => {
                     observations.push(Observation {
                         method,
                         path: path.clone(),
@@ -218,12 +220,13 @@ impl Client {
                     observations,
                 });
             }
-            if response.status == 401 && !refreshed && attempt < 2 {
+            if response.status == 401 && !refreshed && attempt + 1 < ATTEMPTS {
                 *self.token.lock().await = None;
                 refreshed = true;
                 continue;
             }
-            if retry && (response.status == 429 || response.status >= 500) && attempt < 2 {
+            if retry && (response.status == 429 || response.status >= 500) && attempt + 1 < ATTEMPTS
+            {
                 self.backoff.wait(attempt).await;
                 continue;
             }

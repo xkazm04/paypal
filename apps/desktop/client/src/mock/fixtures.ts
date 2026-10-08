@@ -118,6 +118,8 @@ const MANDATE_M14 = fakeUlid('M-14'); // haggle · sourcing agent
 const MANDATE_S2 = fakeUlid('S-2'); // shop floors · monitor arms
 const MANDATE_S3 = fakeUlid('S-3'); // shop floors · small items
 const MANDATE_R3 = fakeUlid('R-3'); // subscription rescue
+/** The owner's public key id (owner_facts): 64 hex characters, as Rust derives it from the owner key. */
+export const MOCK_OWNER_KEY_ID = '5e3a91c07b2f48d6a1e09c3b7f52d84e6c19a0b3f7d2e85c4a61b09e3d7f2c58';
 const KEY = {
   dan: 'kp_47be0d',
   house: 'kp_house01',
