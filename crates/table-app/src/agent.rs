@@ -144,6 +144,10 @@ impl Wallet {
     pub fn select_signer(&mut self, signer: AgentSigner) {
         self.signer = signer;
     }
+    /// The owner's public key (public; the private key stays in the keychain).
+    pub fn owner_public_key(&self) -> VerifyingKey {
+        self.owner
+    }
     pub fn agent_public_key(&self) -> VerifyingKey {
         self.signer.public_key()
     }

@@ -4,4 +4,9 @@
  * One verifier check, keyed by its stable id; the client words it, `detail` is the verifier's own
  * line and comes from the file, so it is shown only as text.
  */
-export type ProofCheckLine = { id: string, ok: boolean, detail: string, };
+export type ProofCheckLine = { id: string, ok: boolean, 
+/**
+ * False when the file lacks the record this check compares, so it could not be made (`ok`
+ * is false too; the file is not verified).
+ */
+checked: boolean, detail: string, };

@@ -6,4 +6,8 @@ import type { ProofCheckLine } from "./ProofCheckLine";
 /**
  * The offline verifier's report on a proof file the owner picked. Values come from the file.
  */
-export type ProofReport = { deal_id: DealId, mode: Mode, owner_key_id: string, verified: boolean, checks: Array<ProofCheckLine>, };
+export type ProofReport = { deal_id: DealId, mode: Mode, 
+/**
+ * The full id of the owner key the file names (64 hex characters), or "invalid".
+ */
+owner_key_id: string, verified: boolean, checks: Array<ProofCheckLine>, };

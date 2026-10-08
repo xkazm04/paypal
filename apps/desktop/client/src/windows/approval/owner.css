@@ -218,3 +218,6 @@
 .ow-watch .ow-watch-n { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--text); }
 .ow-watch .ow-watch-n .ui-field { width: 52px; text-align: center; font-variant-numeric: tabular-nums; }
 .ow-watch > .ui-btn { justify-self: start; }
+
+/* Details: the owner key, shown on request inside its group (src/shared/ownerKey.tsx). */
+.ow-key { padding: var(--sp-2) var(--sp-3) var(--sp-3); border-top: 1px solid var(--line); }

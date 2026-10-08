@@ -50,6 +50,12 @@ pub struct TransportError;
 pub trait Transport: Send + Sync {
     async fn send(&self, request: Request) -> Result<Response, TransportError>;
 }
+/// The bound on one HTTP request (an OAuth token request or an API call), in seconds.
+pub const REQUEST_TIMEOUT_SECS: u64 = 30;
+/// How long [`ExponentialBackoff`] waits after a failed attempt (counted from 0), in seconds.
+pub const fn backoff_secs(attempt: u8) -> u64 {
+    1 << if attempt < 4 { attempt } else { 4 }
+}
 #[derive(Debug)]
 pub struct ReqwestTransport(reqwest::Client);
 impl ReqwestTransport {
@@ -57,7 +63,7 @@ impl ReqwestTransport {
         Ok(Self(
             reqwest::Client::builder()
                 .redirect(reqwest::redirect::Policy::none())
-                .timeout(Duration::from_secs(30))
+                .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS))
                 .build()
                 .map_err(|_| TransportError)?,
         ))
@@ -106,6 +112,6 @@ pub struct ExponentialBackoff;
 #[async_trait]
 impl Backoff for ExponentialBackoff {
     async fn wait(&self, attempt: u8) {
-        tokio::time::sleep(Duration::from_secs(1 << attempt.min(4))).await;
+        tokio::time::sleep(Duration::from_secs(backoff_secs(attempt))).await;
     }
 }

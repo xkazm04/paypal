@@ -19,7 +19,7 @@ import type { ArgsOf, Backend, CommandName, EventName, InvokeOptions, PayloadOf,
 import { WalletError } from '../lib/contract';
 import { clockOffset, setClockOffset, simulateClock } from '../lib/clock';
 import { formatMoney, nowUnix } from '../lib/format';
-import { buildMockState, fakeHash, fakeUlid, type MockDeal, type MockGroup, type MockState } from './fixtures';
+import { buildMockState, fakeHash, fakeUlid, MOCK_OWNER_KEY_ID, type MockDeal, type MockGroup, type MockState } from './fixtures';
 import type { DealGroupView } from '@bindings/DealGroupView';
 import { ON_QUIT, mockForecast, mockQuitLines, quitPending, type ForecastDeal } from './forecast';
 import type { ApprovalCheckId } from '@bindings/ApprovalCheckId';
@@ -612,6 +612,9 @@ export function mockBackend(label: WindowLabel): MockBackend {
     // As Runtime::audit_page: newest first, `before` exclusive, 1..=200, closed facts only.
     audit_page: ({ before, limit }) => {
       if (limit < 1 || limit > 200) fail('INVALID', 'limit is 1 to 200');
+      // ?records=broken previews a chain that fails its check: Rust verifies the whole chain
+      // before every page and answers LEDGER_TRUST with no rows.
+      if (params.get('records') === 'broken') fail('LEDGER_TRUST', 'ledger integrity failure: audit sequence/previous hash');
       const older = (state.audit ?? []).filter((r) => before == null || r.seq < before).sort((a, b) => b.seq - a.seq);
       const rows = older.slice(0, limit);
       return { rows, next_before: older.length > limit ? rows[rows.length - 1]?.seq ?? null : null };
@@ -658,6 +661,8 @@ export function mockBackend(label: WindowLabel): MockBackend {
             const used = state.marketChecksToday?.[m.payload.id] ?? 0;
             return [{ mandate_id: m.payload.id, mandate_version: m.payload.version, agent: m.agent, items: c.items, max_per_day: c.max_refreshes_day, used_today: used, used_up: used >= c.max_refreshes_day }];
           })),
+        // The owner's public key id (public; the private key never leaves the keychain).
+        owner_key_id: MOCK_OWNER_KEY_ID,
       };
     },
     approval_handoff: () => {

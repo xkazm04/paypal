@@ -14,7 +14,13 @@ fn print(checks: &[table_verify::Check]) {
     for check in checks {
         println!(
             "{} {:<42} {}",
-            if check.ok { "✓" } else { "✗" },
+            if check.ok {
+                "✓"
+            } else if check.checked {
+                "✗"
+            } else {
+                "-"
+            },
             check.name,
             check.detail
         );
