@@ -426,14 +426,45 @@ fn house_buyer(
     (buyer, request, response)
 }
 
-async fn agreed_house() -> (
+type HouseTable = (
     house_seller::Seller,
     Runtime,
     DealId,
     Arc<crate::tests::OfflineHttp>,
     Arc<crate::tests::TestClock>,
     Arc<rendezvous::MemoryStore>,
-) {
+);
+async fn agreed_house() -> HouseTable {
+    let (mut seller, mut buyer, id, http, clock, store) = house_offered("22.50").await;
+    let out = seller.pipeline.wallet.ledger.relay_work().unwrap()[0]
+        .outgoing
+        .clone();
+    let raw = out.iter().last().unwrap().1.clone();
+    buyer
+        .pipeline
+        .wallet
+        .receive_relay(id, &raw, Category::Parts, 100)
+        .unwrap();
+    let raw = buyer
+        .pipeline
+        .wallet
+        .accept(id, 1, Category::Parts, 100)
+        .unwrap();
+    seller
+        .pipeline
+        .wallet
+        .receive_relay(id, &raw, Category::Parts, 100)
+        .unwrap();
+    assert_eq!(
+        seller.pipeline.wallet.ledger.get_deal(id).unwrap().state,
+        DealState::Agreed
+    );
+    (seller, buyer, id, http, clock, store)
+}
+
+/// A paired HOUSE table where the guest's agent has offered `price` once and the house has
+/// answered it (one tick).
+async fn house_offered(price: &str) -> HouseTable {
     use table_app::{AgentRequest, AgentRole, AgentScope, AgentService};
     let (mut seller, release, http, clock, store) = hosted_fixture();
     let (mut buyer, _, response) = house_buyer(&mut seller, release);
@@ -445,11 +476,20 @@ async fn agreed_house() -> (
             display_name: "HOUSE".into(),
         })
         .unwrap();
+    // The guest offers the house's round-one price (22.50): the house accepts an offer only at
+    // or above the price it would counter that round, never its public floor in one round
+    // (scan C-14). Its agent may agree to that much without asking (clause 6 at 25.00).
+    let mut buyer_clauses = clauses(Side::Buyer, DealKind::Haggle);
+    for clause in &mut buyer_clauses {
+        if let Clause::HumanPresentOver { amount } = clause {
+            *amount = Money::new(2500, Currency::USD).unwrap();
+        }
+    }
     let mandate = buyer
         .sign_mandate(MandateSignArgs {
             id: None,
             agent: AgentSlot::Negotiator,
-            clauses: clauses(Side::Buyer, DealKind::Haggle),
+            clauses: buyer_clauses,
             not_before: 0,
             expires: 1000000,
         })
@@ -488,7 +528,7 @@ async fn agreed_house() -> (
             },
             AgentRequest::decode(
                 "send_offer",
-                serde_json::json!({"deal_id":id,"price":"12.00","delivery":{"type":"digital_now"}}),
+                serde_json::json!({"deal_id":id,"price":price,"delivery":{"type":"digital_now"}}),
             )
             .unwrap(),
             100,
@@ -500,29 +540,6 @@ async fn agreed_house() -> (
         .receive_relay(id, raw["jws"].as_str().unwrap(), Category::Parts, 100)
         .unwrap();
     seller.tick().await.unwrap();
-    let out = seller.pipeline.wallet.ledger.relay_work().unwrap()[0]
-        .outgoing
-        .clone();
-    let raw = out.iter().last().unwrap().1.clone();
-    buyer
-        .pipeline
-        .wallet
-        .receive_relay(id, &raw, Category::Parts, 100)
-        .unwrap();
-    let raw = buyer
-        .pipeline
-        .wallet
-        .accept(id, 1, Category::Parts, 100)
-        .unwrap();
-    seller
-        .pipeline
-        .wallet
-        .receive_relay(id, &raw, Category::Parts, 100)
-        .unwrap();
-    assert_eq!(
-        seller.pipeline.wallet.ledger.get_deal(id).unwrap().state,
-        DealState::Agreed
-    );
     (seller, buyer, id, http, clock, store)
 }
 
@@ -1265,9 +1282,19 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
     }
     let unbound = detail(&stripped, "paypal_order");
     assert!(!unbound.ok, "{unbound:?}");
+    // The file lacks the record to compare: the line reads "not checked", never verified.
+    assert!(!unbound.checked, "{unbound:?}");
     assert!(
-        unbound.detail.contains("/v2/checkout/orders"),
+        unbound.detail.starts_with("not checked") && unbound.detail.contains("/v2/checkout/orders"),
         "{unbound:?}"
+    );
+    assert!(!table_verify::verify_bundle(&stripped).verified());
+    let file = table_client::check_proof_file(&serde_json::to_vec(&stripped).unwrap()).unwrap();
+    assert!(!file.verified);
+    assert!(
+        file.checks
+            .iter()
+            .any(|c| c.id == "paypal_order" && !c.ok && !c.checked)
     );
     // Each tamper fails its own check, and every one breaks the signed evidence head.
     type Tamper = fn(&mut table_proto::ProofBundle);
@@ -1370,6 +1397,8 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
         let mut forged = seller_proof.clone();
         tamper(&mut forged);
         assert!(!detail(&forged, check).ok, "{check} accepted a forgery");
+        // A forgery is a failed check, never "not checked".
+        assert!(detail(&forged, check).checked, "{check}");
         assert!(!detail(&forged, "evidence").ok);
         assert!(!table_verify::verify_bundle(&forged).verified());
         // The in-app check reads the same file the same way.

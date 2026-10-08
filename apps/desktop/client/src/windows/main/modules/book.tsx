@@ -22,7 +22,7 @@ import type { MoneyCheck } from '@bindings/MoneyCheck';
 import { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMinor, shortId } from '../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
-import { marketWords, modeWord, moneyCheckWord, receiptWord, stateWord, timeLeftWords } from '../../../lib/words';
+import { AUDIT_BROKEN, marketWords, modeWord, moneyCheckWord, receiptWord, stateWord, timeLeftWords } from '../../../lib/words';
 import { Glyph } from '../../../shared/modules';
 import { Countdown, ModeBadge, WalletNotice } from '../../../shared/honesty';
 import {
@@ -825,13 +825,23 @@ function AuditSheet({ label, onClose }: { label: (id: string) => string; onClose
     const r = await read.run({ before, limit: 50 });
     if (r) { setRows((x) => [...x, ...r.rows]); setNext(r.next_before); }
   };
+  // The whole chain is checked before every page, so a failed check shows no rows at all: say
+  // what that means and what to do, and let the owner check again (not a dead end).
+  const broken = read.error?.code === 'LEDGER_TRUST';
+  const again = () => { setRows([]); setNext(undefined); void more(null); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void more(null); }, []);
   return (
     <Sheet title="Audit trail · newest first" size="wide" onClose={onClose}
-      footer={<>{next ? <Btn disabled={read.pending} onClick={() => void more(next)}>{read.pending ? 'Reading…' : 'Older ›'}</Btn> : null}<Btn kind="primary" onClick={onClose}>Done</Btn></>}>
-      {read.error ? <WalletNotice error={read.error} what="Audit trail" /> : null}
-      {next === undefined && !read.error ? <Loading what="the audit trail" /> : (
+      footer={<>{broken ? <Btn className="left" disabled={read.pending} onClick={again}>{read.pending ? 'Checking…' : 'Check again'}</Btn> : null}{next ? <Btn disabled={read.pending} onClick={() => void more(next)}>{read.pending ? 'Reading…' : 'Older ›'}</Btn> : null}<Btn kind="primary" onClick={onClose}>Done</Btn></>}>
+      {broken ? (
+        <div className="au-broken">
+          <AnswerBar tone="alert" title={AUDIT_BROKEN.title} sub={AUDIT_BROKEN.means} />
+          <h3>What to do</h3>
+          <ol>{AUDIT_BROKEN.todo.map((t) => <li key={t}>{t}</li>)}</ol>
+        </div>
+      ) : read.error ? <WalletNotice error={read.error} what="Audit trail" /> : null}
+      {broken ? null : next === undefined && !read.error ? <Loading what="the audit trail" /> : (
         <table className="ui-table">
           <thead><tr><th>#</th><th>When</th><th>Who</th><th>What</th><th>Deal</th><th>Decided by · change</th></tr></thead>
           <tbody>

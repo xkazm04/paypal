@@ -10,10 +10,11 @@ import type { HouseState } from '@bindings/HouseState';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { WalletError } from '../../lib/contract';
 import { useNow, useQuery } from '../../lib/hooks';
-import { FIRST_RUN_TITLE, rulesName, SAFETY_PROMISE, START_STEP, timeLeftWords, type StartStepKey } from '../../lib/words';
+import { FIRST_RUN_TITLE, OWNER_KEY, rulesName, SAFETY_PROMISE, START_STEP, timeLeftWords, type StartStepKey } from '../../lib/words';
 import { connectionFacts, gettingStarted, rulesInForce } from '../../lib/firstRun';
 import { StartProgress, StartSteps, type StepAction } from '../../shared/start';
 import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
+import { OwnerKey } from '../../shared/ownerKey';
 import { AnswerBar, Btn, Chip, Group, Hint, Popover, Row, Section, type ChipTone } from '../../shared/ui';
 import { MandateEditor } from './MandateEditor';
 import { clauseText, isMandateActive } from './model';
@@ -45,6 +46,7 @@ const INFO = {
   house: 'A demo shop that is always open, built into this app. Join its table from The Table, then confirm its four words here.',
   mandates: 'What each agent may do without asking you. Open a set of rules to see how this week would have gone under a change, before you sign it. Withdrawn rules stop every agent that used them.',
   pairing: 'Connecting starts in The Table: one of you creates a code, the other joins it. Then each of you checks the same four words here, in your own approval window.',
+  key: 'Your rules and approvals are signed with your owner key, which never leaves this computer. Its id is public: a proof file names it, so whoever checks one compares it with the id you send them.',
 } as const;
 type InfoKey = keyof typeof INFO;
 
@@ -64,6 +66,10 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
   const pairing = useQuery('approval_pairing', null, { refreshOn: ['settings:changed'] });
   // Who is connected (first run: has the house seller been connected yet?).
   const connections = useQuery('counterparty_list', null, { refreshOn: ['settings:changed'] });
+  // Read-only owner facts: here, the owner's public key id for Details.
+  const facts = useQuery('owner_facts', null, { refreshOn: ['settings:changed'] });
+  /** Details (Layer 2): the owner's key, shown on request. */
+  const [details, setDetails] = useState(false);
   const pendingPairing = pairing.data;
   const refetchPairing = pairing.refetch;
   useEffect(() => {
@@ -273,6 +279,15 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
                 <Chip tone="line">none</Chip>
               </Row>
             )}
+          </Group>
+        </Section>
+
+        <Section title="Details" end={i('key')}>
+          <Group>
+            <Row title={OWNER_KEY.label} sub="For anyone who checks a proof file you send">
+              <Btn sm aria-expanded={details} onClick={() => setDetails((x) => !x)}>{details ? 'Hide' : 'Show'}</Btn>
+            </Row>
+            {details ? <div className="ow-key"><OwnerKey id={facts.data?.owner_key_id} error={facts.error} heading={false} /></div> : null}
           </Group>
         </Section>
       </main>

@@ -67,7 +67,19 @@ impl Ledger {
         )?;
         apply(&tx, deal.id, DealEvent::BeginSettlement, at)?;
         apply(&tx, deal.id, DealEvent::SettleVerified, at)?;
-        tx.execute("INSERT INTO deadlines(deal_id,due_at) VALUES (?1,?2) ON CONFLICT(deal_id) DO UPDATE SET due_at=excluded.due_at",params![deal.id.to_string(),e.iat.saturating_add(6*3600)])?;
+        // A seller paired through the HOUSE release pin lets its order lapse sooner
+        // (HOUSE_APPROVAL_SECS), so this wallet's countdown matches the seller's.
+        let house: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM counterparties WHERE key_id=?1 AND paired_via='house')",
+            [deal.counterparty.as_str()],
+            |r| r.get(0),
+        )?;
+        let window = if house {
+            HOUSE_APPROVAL_SECS
+        } else {
+            ORDER_APPROVAL_SECS
+        };
+        tx.execute("INSERT INTO deadlines(deal_id,due_at) VALUES (?1,?2) ON CONFLICT(deal_id) DO UPDATE SET due_at=excluded.due_at",params![deal.id.to_string(),e.iat.saturating_add(window)])?;
         tx.commit()?;
         Ok(())
     }
