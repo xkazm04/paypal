@@ -14,6 +14,7 @@ import type { Role } from '@bindings/Role';
 import type { Side } from '@bindings/Side';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import { exponent } from '../lib/format';
+import { marketWatchRefusal } from '../lib/marketWatch';
 
 export type Refusal = { clause: number; reason: string };
 export type MockIntent = {
@@ -27,7 +28,7 @@ export type MockIntent = {
 };
 export type MockUsage = { dealsToday: number; totalToday: number };
 
-const NUMBER: Record<Clause['type'], number> = { roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7 };
+const NUMBER: Record<Clause['type'], number> = { roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7, market_watch: 9 };
 const MAX_SAFE = Number.MAX_SAFE_INTEGER;
 
 /** Money::decimal(): "11960.00". */
@@ -73,6 +74,10 @@ export function mockValidate(p: MandatePayload): Refusal | null {
     }
     if (c.type === 'velocity' && c.max_deals_day === 0) return { clause: 5, reason: 'empty velocity allowance' };
     if (c.type === 'payees' && !c.payees.length) return { clause: 7, reason: 'empty payee allowance' };
+    if (c.type === 'market_watch') {
+      const why = marketWatchRefusal(c);
+      if (why) return { clause: 9, reason: why };
+    }
   }
   for (const n of [1, 2, 3, 5, 6, 7]) if (!seen.has(n)) return { clause: n, reason: 'required clause missing' };
   let currency: Currency | null = null;
@@ -160,6 +165,9 @@ export function mockCheck(p: MandatePayload, i: MockIntent, usage: MockUsage, no
         break;
       case 'payees':
         if (!c.payees.includes(payee)) return refuse(7, 'payee not allowed');
+        break;
+      // Reading market prices grants nothing: no intent is allowed, asked or refused by it.
+      case 'market_watch':
         break;
     }
   }

@@ -130,6 +130,7 @@ const BOOKKEEPING: &[&str] = &[
     "mandate.revoked",
     "deal.mandate_rebound",
     "wallet_limit.signed",
+    "market.checked",
 ];
 /// What one row says, before folding.
 enum Row {
@@ -482,6 +483,7 @@ mod tests {
             include_str!("relay.rs"),
             include_str!("pairing.rs"),
             include_str!("../../table-ledger/src/limits.rs"),
+            include_str!("../../table-ledger/src/market_watch.rs"),
         ];
         let mut found = std::collections::BTreeSet::new();
         for source in sources {
@@ -730,6 +732,12 @@ mod tests {
             ("edited.offline", json!({}), step(K::Other, A::None)),
             // The owner signed new wallet limits: bookkeeping, not a step of any deal.
             ("wallet_limit.signed", json!({"version":1}), None),
+            // A price check under the owner's market-watch rule reads prices; no money step.
+            (
+                "market.checked",
+                json!({"product_id":"p-1","count":1,"max_per_day":12}),
+                None,
+            ),
             // An agent intent the wallet limits refused is a signed rule's refusal like any other.
             (
                 "intent.refused",

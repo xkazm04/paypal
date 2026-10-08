@@ -4,6 +4,8 @@ import { useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { AgentSlot } from '@bindings/AgentSlot';
 import type { Currency } from '@bindings/Currency';
 import type { DealKind } from '@bindings/DealKind';
+import { MAX_MARKET_CHECKS_DAY, MAX_WATCHED_ITEMS } from '../../../lib/marketWatch';
+import { checksADay } from '../../../lib/words';
 import { Btn, Popover } from '../../../shared/ui';
 import { CATEGORIES, CLAUSE_KINDS, CLAUSE_NUMBER, emptyClause, KINDS, missingKinds, ROLES, withClause, type ClauseDraft, type ClauseType, type MandateDraft } from '../mandateDraft';
 
@@ -54,10 +56,15 @@ const summary = (c: ClauseDraft): string => {
     case 'per_deal': return `${c.kind.replace('_', ' ')} · ${c.categories.join(', ') || 'any category'}`;
     case 'band': return c.items || 'no items yet';
     case 'payees': return c.payees || 'none';
+    case 'market_watch': {
+      const items = c.items.map((i) => i.item.trim()).filter(Boolean);
+      const n = Number(c.checks);
+      return `${items.length ? items.join(', ') : 'no items yet'} · ${Number.isInteger(n) && n > 0 ? checksADay(n) : 'checks a day not set'}`;
+    }
     default: return '';
   }
 };
-const LABEL: Partial<Record<ClauseType, string>> = { roles: 'What agents may do', counterparties: 'Who they deal with', per_deal: 'What they may buy', band: 'Items with a price range', payees: 'Approved payees' };
+const LABEL: Partial<Record<ClauseType, string>> = { roles: 'What agents may do', counterparties: 'Who they deal with', per_deal: 'What they may buy', band: 'Items with a price range', payees: 'Approved payees', market_watch: 'Keep prices fresh' };
 
 export function WhoWhat({ d, setD, now, changed, baseAgent }: { d: MandateDraft; setD: (d: MandateDraft) => void; now: number; changed: (t: ClauseType | 'slot' | 'valid') => boolean; baseAgent: AgentSlot | null }) {
   const [open, setOpen] = useState<{ k: Key; el: HTMLElement } | null>(null);
@@ -203,7 +210,44 @@ function ClauseEditor({ c, set }: { c: ClauseDraft; set: (c: ClauseDraft) => voi
           <span className="ui-hint">Agents may pay only these payees on their own. Anyone else comes to you.</span>
         </label>
       );
+    case 'market_watch':
+      return <WatchEditor c={c} set={set} />;
     default:
       return null;
   }
+}
+
+/** "Keep prices fresh for: … up to N checks a day": one row per item and the product the price
+ *  service knows it by, then the day's allowance. It lets the wallet read prices, nothing more. */
+function WatchEditor({ c, set }: { c: Extract<ClauseDraft, { type: 'market_watch' }>; set: (c: ClauseDraft) => void }) {
+  const row = (i: number, v: { item?: string; product?: string }) => set({ ...c, items: c.items.map((x, j) => (j === i ? { ...x, ...v } : x)) });
+  const n = Number(c.checks) || 0;
+  return (
+    <div className="ow-form ow-watch">
+      <span>Keep prices fresh for</span>
+      <div className="ow-watch-rows" role="group" aria-label="Items kept priced">
+        <span className="ui-hint">your item</span>
+        <span className="ui-hint">product at the price service</span>
+        <span />
+        {c.items.map((x, i) => (
+          <div key={i} className="ow-watch-row">
+            <input className="ui-field mono" value={x.item} spellCheck={false} aria-label={`Item ${i + 1}`} placeholder="monitor-27-4k" onChange={(e) => row(i, { item: e.target.value })} />
+            <input className="ui-field mono" value={x.product} spellCheck={false} aria-label={`Product for item ${i + 1}`} placeholder="product code" onChange={(e) => row(i, { product: e.target.value })} />
+            <Btn kind="plain" sm icon aria-label={`Remove item ${i + 1}`} disabled={c.items.length <= 1} onClick={() => set({ ...c, items: c.items.filter((_, j) => j !== i) })}>×</Btn>
+          </div>
+        ))}
+      </div>
+      <Btn kind="plain" sm disabled={c.items.length >= MAX_WATCHED_ITEMS} onClick={() => set({ ...c, items: [...c.items, { item: '', product: '' }] })}>+ Add an item</Btn>
+      <span className="ow-watch-n">
+        up to
+        <span className="ow-stepper">
+          <Btn sm icon aria-label="fewer checks a day" disabled={n <= 1} onClick={() => set({ ...c, checks: String(Math.max(1, n - 1)) })}>−</Btn>
+          <input className="ui-field" inputMode="numeric" value={c.checks} aria-label="Checks a day" onChange={(e) => set({ ...c, checks: e.target.value.replace(/[^0-9]/g, '') })} />
+          <Btn sm icon aria-label="more checks a day" disabled={n >= MAX_MARKET_CHECKS_DAY} onClick={() => set({ ...c, checks: String(Math.min(MAX_MARKET_CHECKS_DAY, n + 1)) })}>+</Btn>
+        </span>
+        checks a day
+      </span>
+      <span className="ui-hint">The wallet checks the typical price of these items on its own, so a fresh price is there when your rules decide. It never approves or pays anything.</span>
+    </div>
+  );
 }

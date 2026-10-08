@@ -61,7 +61,26 @@ pub enum Clause {
     Payees {
         payees: Vec<PayeeRef>,
     },
+    /// Lets the wallet keep the market price of these items fresh, up to `max_refreshes_day`
+    /// price checks a UTC day. It only lets the wallet read market prices: it grants no money
+    /// authority, and `check()` never reads it.
+    MarketWatch {
+        items: Vec<WatchedItem>,
+        max_refreshes_day: u16,
+    },
 }
+/// One watched item: the owner's item and the market product that prices it.
+#[derive(ts_rs::TS, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WatchedItem {
+    pub item_ref: ItemRef,
+    pub product_id: String,
+}
+/// The most price checks a day a market-watch rule may allow (a wallet guard on the market
+/// service's credits, not a service limit).
+pub const MAX_MARKET_CHECKS_DAY: u16 = 200;
+/// The most items one market-watch rule may name.
+pub const MAX_WATCHED_ITEMS: usize = 20;
 impl Clause {
     pub const fn number(&self) -> u8 {
         match self {
@@ -72,6 +91,7 @@ impl Clause {
             Self::Velocity { .. } => 5,
             Self::HumanPresentOver { .. } => 6,
             Self::Payees { .. } => 7,
+            Self::MarketWatch { .. } => 9,
         }
     }
 }
@@ -167,6 +187,20 @@ const fn role_side(role: Role) -> Side {
 }
 
 impl MandatePayload {
+    /// The market product the owner bound to `item` in this mandate's market-watch rule, and
+    /// the rule's daily price-check allowance; `None` when the item is not watched.
+    pub fn market_watch_for(&self, item: &ItemRef) -> Option<(&WatchedItem, u16)> {
+        self.clauses.iter().find_map(|c| match c {
+            Clause::MarketWatch {
+                items,
+                max_refreshes_day,
+            } => items
+                .iter()
+                .find(|watched| &watched.item_ref == item)
+                .map(|watched| (watched, *max_refreshes_day)),
+            _ => None,
+        })
+    }
     pub fn hash(&self) -> Result<H256, DomainError> {
         self.validate().map_err(|_| DomainError::InvalidTerms)?;
         Ok(commitment(self)?)
@@ -180,7 +214,7 @@ impl MandatePayload {
         {
             return Err(Refusal::new(1, "invalid mandate version or validity"));
         }
-        let mut seen = [false; 8];
+        let mut seen = [false; 10];
         let mut clauses: Vec<_> = self.clauses.iter().collect();
         clauses.sort_by_key(|clause| clause.number());
         for clause in clauses {
@@ -225,6 +259,28 @@ impl MandatePayload {
                 }
                 Clause::Payees { payees } if payees.is_empty() => {
                     return Err(Refusal::new(7, "empty payee allowance"));
+                }
+                Clause::MarketWatch {
+                    items,
+                    max_refreshes_day,
+                } => {
+                    if items.is_empty() || items.len() > MAX_WATCHED_ITEMS {
+                        return Err(Refusal::new(9, "invalid market watch"));
+                    }
+                    if *max_refreshes_day == 0 || *max_refreshes_day > MAX_MARKET_CHECKS_DAY {
+                        return Err(Refusal::new(9, "invalid price check allowance"));
+                    }
+                    if items
+                        .iter()
+                        .any(|item| !crate::market_product_valid(&item.product_id))
+                    {
+                        return Err(Refusal::new(9, "invalid market product"));
+                    }
+                    if items.iter().enumerate().any(|(i, item)| {
+                        items[..i].iter().any(|seen| seen.item_ref == item.item_ref)
+                    }) {
+                        return Err(Refusal::new(9, "item watched twice"));
+                    }
                 }
                 _ => {}
             }
@@ -462,6 +518,9 @@ impl MandatePayload {
                 Clause::Payees { payees } if !payees.contains(intent.payee) => {
                     return Err(Refusal::new(7, "payee not allowed"));
                 }
+                // Reading market prices grants nothing: no intent is allowed, asked or refused
+                // by it.
+                Clause::MarketWatch { .. } => {}
                 _ => {}
             }
         }
@@ -781,6 +840,114 @@ mod tests {
                 .unwrap_err()
                 .clause,
             4
+        );
+    }
+    fn watch(items: &[(&str, &str)], max: u16) -> Clause {
+        Clause::MarketWatch {
+            items: items
+                .iter()
+                .map(|(item, product)| WatchedItem {
+                    item_ref: ItemRef::new(*item).unwrap(),
+                    product_id: (*product).into(),
+                })
+                .collect(),
+            max_refreshes_day: max,
+        }
+    }
+    #[test]
+    fn a_market_watch_rule_is_validated_at_signing() {
+        let with = |clause: Clause| {
+            let mut p = policy(DealKind::Purchase, Side::Buyer);
+            p.clauses.push(clause);
+            p.validate()
+        };
+        assert!(with(watch(&[("dock", "p-dock_1")], 12)).is_ok());
+        assert!(with(watch(&[("dock", "p-dock")], MAX_MARKET_CHECKS_DAY)).is_ok());
+        for (clause, reason) in [
+            (watch(&[], 12), "invalid market watch"),
+            (
+                watch(&[("dock", "p-dock")], 0),
+                "invalid price check allowance",
+            ),
+            (
+                watch(&[("dock", "p-dock")], MAX_MARKET_CHECKS_DAY + 1),
+                "invalid price check allowance",
+            ),
+            (watch(&[("dock", "")], 12), "invalid market product"),
+            (watch(&[("dock", "p dock")], 12), "invalid market product"),
+            (watch(&[("dock", "p/../x")], 12), "invalid market product"),
+            (
+                watch(&[("dock", &"p".repeat(129))], 12),
+                "invalid market product",
+            ),
+            (
+                watch(&[("dock", "p-1"), ("dock", "p-2")], 12),
+                "item watched twice",
+            ),
+        ] {
+            let refusal = with(clause).unwrap_err();
+            assert_eq!((refusal.clause, refusal.reason.as_str()), (9, reason));
+        }
+        let many: Vec<(String, String)> = (0..=MAX_WATCHED_ITEMS)
+            .map(|i| (format!("item-{i}"), format!("p-{i}")))
+            .collect();
+        let many: Vec<(&str, &str)> = many.iter().map(|(a, b)| (a.as_str(), b.as_str())).collect();
+        assert_eq!(
+            with(watch(&many, 12)).unwrap_err().reason,
+            "invalid market watch"
+        );
+        let mut twice = policy(DealKind::Purchase, Side::Buyer);
+        twice.clauses.push(watch(&[("dock", "p-dock")], 12));
+        twice.clauses.push(watch(&[("cable", "p-cable")], 12));
+        assert_eq!(twice.validate().unwrap_err().reason, "duplicate clause");
+    }
+    #[test]
+    fn a_market_watch_rule_grants_no_money_authority_and_changes_no_answer() {
+        for side in [Side::Buyer, Side::Seller] {
+            let kind = if side == Side::Buyer {
+                DealKind::Purchase
+            } else {
+                DealKind::ShopOrder
+            };
+            let plain = policy(kind, side);
+            let mut watched = plain.clone();
+            watched.clauses.push(watch(&[("dock", "p-dock")], 200));
+            assert_eq!(
+                watched
+                    .market_watch_for(&ItemRef::new("dock").unwrap())
+                    .map(|(i, n)| (i.product_id.as_str(), n)),
+                Some(("p-dock", 200))
+            );
+            assert!(
+                watched
+                    .market_watch_for(&ItemRef::new("cable").unwrap())
+                    .is_none()
+            );
+            assert!(
+                plain
+                    .market_watch_for(&ItemRef::new("dock").unwrap())
+                    .is_none()
+            );
+            for minor in (0..=30000).step_by(250) {
+                for category in [Category::Office, Category::Compute] {
+                    for (rounds, now) in [(0, 100), (6, 100), (0, 900), (0, 1000)] {
+                        assert_eq!(
+                            check(&watched, minor, side, category, rounds, now),
+                            check(&plain, minor, side, category, rounds, now),
+                            "{side:?} {minor} {category:?} {rounds} {now}"
+                        );
+                    }
+                }
+            }
+        }
+        // The rule alone is not a mandate: the required rules are still required.
+        let only = MandatePayload {
+            clauses: vec![watch(&[("dock", "p-dock")], 12)],
+            ..policy(DealKind::Purchase, Side::Buyer)
+        };
+        assert_eq!(
+            only.validate().unwrap_err().reason,
+            "required clause missing"
         );
     }
     #[test]

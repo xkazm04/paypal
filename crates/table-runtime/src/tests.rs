@@ -11,6 +11,8 @@ mod h5_tests;
 mod history_tests;
 #[path = "limits_tests.rs"]
 mod limits_tests;
+#[path = "market_watch_tests.rs"]
+mod market_watch_tests;
 #[path = "policy_tests.rs"]
 pub(crate) mod policy_tests;
 #[path = "quit_tests.rs"]
@@ -572,11 +574,20 @@ fn setup_delivery(r: &mut Runtime, side: Side, delivery: Delivery) -> (Deal, Age
 }
 /// A deal with no market reference: the shield asks for every agent authority.
 fn setup_unpriced(r: &mut Runtime, side: Side, delivery: Delivery) -> (Deal, AgentSigner) {
+    setup_with(r, side, delivery, clauses(side, DealKind::Haggle))
+}
+/// A deal with no market reference under a new mandate of these clauses.
+fn setup_with(
+    r: &mut Runtime,
+    side: Side,
+    delivery: Delivery,
+    clauses: Vec<Clause>,
+) -> (Deal, AgentSigner) {
     let mandate = r
         .sign_mandate(MandateSignArgs {
             id: None,
             agent: AgentSlot::Negotiator,
-            clauses: clauses(side, DealKind::Haggle),
+            clauses,
             not_before: 0,
             expires: 1_000_000,
         })

@@ -90,12 +90,7 @@ impl Client {
     }
 }
 fn valid_product(product: &str) -> Result<(), Error> {
-    if product.is_empty()
-        || product.len() > 128
-        || !product
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
-    {
+    if !table_core::market_product_valid(product) {
         return Err(Error::Invalid);
     }
     Ok(())
@@ -112,8 +107,10 @@ fn price(value: &Value, currency: Currency) -> Result<Money, Error> {
 impl MarketApi for Client {
     async fn comparables(&self, product: &str, currency: Currency) -> Result<MarketRef, Error> {
         valid_product(product)?;
+        // A cached band is served only while it has more than the refresh lead of freshness
+        // left, so a scheduled refresh (T15) always fetches a new one.
         if let Some(r) = self.cached(product, currency).await
-            && self.clock.now().saturating_sub(r.retrieved_at) < 900
+            && !table_core::market_refresh_due(Some(&r), self.clock.now())
         {
             return Ok(r);
         }

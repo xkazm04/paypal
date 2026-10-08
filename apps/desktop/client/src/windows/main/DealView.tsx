@@ -8,6 +8,7 @@ import type { Deal } from '@bindings/Deal';
 import type { DealEvidence } from '@bindings/DealEvidence';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { shortHash, shortId } from '../../lib/format';
+import { dealWatch } from '../../lib/marketWatch';
 import { useMutation, useQuery } from '../../lib/hooks';
 import { RunBadge, WalletNotice } from '../../shared/honesty';
 import { kindWord, rulesName } from '../../lib/words';
@@ -42,6 +43,9 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
   const tr = useQuery('deal_transcript', { deal_id: deal.id }, { refreshOn: ['deal:changed'] });
   const evq = useQuery('deal_evidence', { deal_id: deal.id }, { refreshOn: ['deal:changed', 'receipt:created'] });
   const mandates = useQuery('mandate_list', null, { refreshOn: ['settings:changed'] });
+  // Whether a signed rule keeps this item's typical price fresh (owner facts; unknown = not shown).
+  const ownerFacts = useQuery('owner_facts', null, { refreshOn: ['settings:changed', 'deal:changed'] });
+  const watch = dealWatch(ownerFacts.data?.market_watch, deal);
   const [fresh, setFresh] = useState<{ id: string; e: DealEvidence } | null>(null);
   const evidence = fresh && fresh.id === deal.id ? fresh.e : evq.data;
 
@@ -133,14 +137,14 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
         ) : tab === 'who' ? (
           <WhoYouDealWith deal={deal} cp={cp} offersUsed={deal.kind === 'haggle' && disp.band ? `${disp.band.rounds_used} of ${disp.band.max_rounds} used` : null} />
         ) : (
-          <ProofPanel deal={deal} ev={{ data: evidence, error: evq.error }} band={disp.band} onOpen={setSheet} />
+          <ProofPanel deal={deal} ev={{ data: evidence, error: evq.error }} band={disp.band} watch={watch} onOpen={setSheet} />
         )}
       </div>
 
       {sheet === 'transcript' ? (
         <TranscriptSheet deal={deal} label={disp.label} steps={tr.data} error={tr.error} band={disp.band} theirName={cp.name} onClose={() => setSheet(null)} />
       ) : sheet ? (
-        <EvidenceSheet kind={sheet} deal={deal} ev={{ data: evidence, error: evq.error }} band={disp.band}
+        <EvidenceSheet kind={sheet} deal={deal} ev={{ data: evidence, error: evq.error }} band={disp.band} watch={watch}
           onFresh={(e) => setFresh({ id: deal.id, e })} onClose={() => setSheet(null)} />
       ) : null}
     </div>

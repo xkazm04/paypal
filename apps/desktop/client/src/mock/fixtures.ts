@@ -95,6 +95,8 @@ export type MockState = {
   categories?: Record<string, Category>;
   /** The newest signed wallet limits (T14); null = none signed. `forged` previews a row that fails verification. */
   envelope?: MockEnvelope | null;
+  /** Price checks made today under each mandate's keep-prices-fresh rule (T15), by mandate id. */
+  marketChecksToday?: Record<string, number>;
 };
 
 // One mandate per role, as Rust requires: a band clause refuses every item outside it, a mandate
@@ -320,6 +322,7 @@ export function buildMockState(now: number): MockState {
       { type: 'per_deal', kind: 'haggle', max_amount: usd(340), categories: ['office', 'parts'] },
       band(['monitor-27-4k', 'monitor-27-qhd', 'monitor-24-ips'], null, 340),
       ...common(['north-desk', 'HOUSE']),
+      { type: 'market_watch', items: [{ item_ref: 'monitor-27-4k', product_id: 'lg-27uk850-w' }, { item_ref: 'monitor-24-ips', product_id: 'dell-p2422h' }], max_refreshes_day: 12 },
     ], 3),
     mandate(MANDATE_S2, 1, 'quoting', [
       { type: 'roles', roles: ['shop'] },
@@ -327,6 +330,7 @@ export function buildMockState(now: number): MockState {
       { type: 'per_deal', kind: 'shop_order', max_amount: usd(500), categories: ['office', 'parts'] },
       band(['monitor-arm', 'monitor-arm-dual'], 58, null, now + 20 * 86400),
       ...common(['second-screen-biz']),
+      { type: 'market_watch', items: [{ item_ref: 'monitor-arm', product_id: 'ergotron-lx-45-241' }], max_refreshes_day: 6 },
     ], 12),
     mandate(MANDATE_S3, 1, 'quoting', [
       { type: 'roles', roles: ['shop'] },
@@ -415,6 +419,8 @@ export function buildMockState(now: number): MockState {
     audit,
     history,
     credentialsStoredAt: { paypal_sandbox: now - 12 * 86400, channel3: null },
+    // Maya's sourcing rules have used 3 of 12 price checks today; the monitor-arm floor rules all 6.
+    marketChecksToday: { [MANDATE_M14]: 3, [MANDATE_S2]: 6 },
     lastReportingPoll: { at: now - 40 * 60, status: 200 },
     enginesProbedAt: now - 300,
     settings: {

@@ -81,6 +81,9 @@ function mandateFact(i: MockCheckInput, payee: string | null): MandateFact {
         break;
       case 'roles':
         break;
+      // Keeping prices fresh grants nothing and refuses nothing.
+      case 'market_watch':
+        break;
     }
   }
   // The wallet limits sit above every mandate and only ever refuse (Rust: clause 0).

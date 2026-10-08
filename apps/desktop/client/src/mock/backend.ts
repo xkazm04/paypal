@@ -54,7 +54,7 @@ const TARGETS: Record<EventName, WindowLabel[]> = {
   'pairing:pinned': ['main'],
 };
 
-export const STORE_KEY = 'the-table-mock-state-v9'; // v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
+export const STORE_KEY = 'the-table-mock-state-v10'; // v10: keep-prices-fresh rules and today's price checks (T15); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
 const DEGRADE_KEY = 'the-table-mock-degrade';
 /** The preview clock's offset from wall time, shared by every mock window of this origin. */
 export const CLOCK_KEY = 'the-table-mock-clock';
@@ -215,6 +215,8 @@ export function mockBackend(label: WindowLabel): MockBackend {
         case 'velocity': return c.max_total_day.currency === d.deal.terms.currency && amount + state.walletSpendTodayMinor <= c.max_total_day.minor;
         case 'human_present_over': return c.amount.currency === d.deal.terms.currency; // Only this clause is satisfied by the owner decision.
         case 'payees': return !!cp?.declared_payee && c.payees.includes(cp.declared_payee);
+        // Keeping prices fresh grants nothing and refuses nothing.
+        case 'market_watch': return true;
       }
     });
   }
@@ -556,6 +558,13 @@ export function mockBackend(label: WindowLabel): MockBackend {
           // The mock's runs are all haggles, so they belong to the negotiator slot.
           running: slot === 'negotiator' ? state.runs.filter((r) => r.state === 'running' || r.state === 'starting').length : 0,
         })),
+        // As Runtime::market_watch_facts: rules in force with a keep-prices-fresh rule, and today's checks.
+        market_watch: mandates.filter((m) => !m.refusal && m.payload.not_before <= nowUnix() && nowUnix() < m.payload.expires).flatMap((m) =>
+          m.payload.clauses.flatMap((c) => {
+            if (c.type !== 'market_watch') return [];
+            const used = state.marketChecksToday?.[m.payload.id] ?? 0;
+            return [{ mandate_id: m.payload.id, mandate_version: m.payload.version, agent: m.agent, items: c.items, max_per_day: c.max_refreshes_day, used_today: used, used_up: used >= c.max_refreshes_day }];
+          })),
       };
     },
     approval_handoff: () => {

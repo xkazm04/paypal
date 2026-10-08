@@ -25,6 +25,7 @@ const TERM_WORD: Record<string, string> = {
   'band deadline': 'price-range end', 'band items': 'items with a price range', 'money per day': 'daily money limit', 'deals per day': 'deals per day',
   '“you decide over” threshold': 'ask-me limit', 'the payee allowlist': 'approved payees', 'pinned keys': 'listed wallets', 'deal kind': 'what it covers',
   'agent slot': 'agent', roles: 'what agents may do', counterparties: 'who they deal with', categories: 'categories', currency: 'currency', expiry: 'end date',
+  'watched items': 'items kept priced', 'checks per day': 'price checks a day',
 };
 export const termWord = (term: string): string => TERM_WORD[term] ?? term;
 
@@ -69,6 +70,16 @@ function clauseDiff(a: Clause, b: Clause, out: Change[]) {
     money(out, c, 'human_present_over', '“you decide over” threshold', a.amount, b.amount, true);
   } else if (a.type === 'payees' && b.type === 'payees') {
     members(out, c, 'payees', 'the payee allowlist', a.payees, b.payees, true);
+  } else if (a.type === 'market_watch' && b.type === 'market_watch') {
+    // Keeping prices fresh grants nothing, so no change here widens or restricts what agents do.
+    const pair = (i: { item_ref: string; product_id: string }) => `${i.item_ref} (${i.product_id})`;
+    const before = a.items.map(pair);
+    const after = b.items.map(pair);
+    for (const v of after) if (!before.includes(v)) out.push({ clause: c, type: 'market_watch', term: 'watched items', from: '—', to: v, dir: 'changes', text: `Keeping ${v} priced` });
+    for (const v of before) if (!after.includes(v)) out.push({ clause: c, type: 'market_watch', term: 'watched items', from: v, to: '—', dir: 'changes', text: `No longer keeping ${v} priced` });
+    if (a.max_refreshes_day !== b.max_refreshes_day) {
+      out.push({ clause: c, type: 'market_watch', term: 'checks per day', from: String(a.max_refreshes_day), to: String(b.max_refreshes_day), dir: 'changes', text: `Changing the price checks a day ${a.max_refreshes_day} → ${b.max_refreshes_day}` });
+    }
   }
 }
 
@@ -91,9 +102,11 @@ export function diffPolicy(base: DiffSide | null, draft: DiffSide): Change[] {
     const x = a.find((c) => c.type === k.type);
     const y = b.find((c) => c.type === k.type);
     const n = CLAUSE_NUMBER[k.type];
+    // Keeping prices fresh grants nothing: adding or removing it neither widens nor restricts.
+    const neutral = k.type === 'market_watch';
     if (x && y) clauseDiff(x, y, out);
-    else if (x && !y && !draft.clauses.some((c) => c.type === k.type)) out.push({ clause: n, type: k.type, term: name(k.type).toLowerCase(), from: 'signed', to: 'removed', dir: 'widens', text: `Removing “${name(k.type)}”` });
-    else if (!x && y) out.push({ clause: n, type: k.type, term: name(k.type).toLowerCase(), from: base ? 'none' : '—', to: 'added', dir: base ? 'restricts' : 'changes', text: `Adding “${name(k.type)}”` });
+    else if (x && !y && !draft.clauses.some((c) => c.type === k.type)) out.push({ clause: n, type: k.type, term: name(k.type).toLowerCase(), from: 'signed', to: 'removed', dir: neutral ? 'changes' : 'widens', text: `Removing “${name(k.type)}”` });
+    else if (!x && y) out.push({ clause: n, type: k.type, term: name(k.type).toLowerCase(), from: base ? 'none' : '—', to: 'added', dir: base && !neutral ? 'restricts' : 'changes', text: `Adding “${name(k.type)}”` });
   }
   return out;
 }

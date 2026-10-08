@@ -106,6 +106,12 @@ pub struct Runtime {
     pub(crate) engine_probed_at: Vec<(table_engine::EngineId, i64)>,
     /// The transcript head each deal's last policy run was armed for: one run per peer message.
     pub(crate) armed: BTreeMap<DealId, H256>,
+    /// Deals whose market-watch price check is in flight (T15): never two at once for a deal.
+    pub(crate) market_watch_busy: std::collections::BTreeSet<DealId>,
+    /// When a deal whose price check failed may be checked again.
+    pub(crate) market_watch_retry: BTreeMap<DealId, i64>,
+    /// Rules (mandate, version, allowance) whose price checks are used up, until the day ends.
+    pub(crate) market_watch_used_up: BTreeMap<(MandateId, u32, u16), i64>,
     /// Test-only: overrides the signed band in the brief, to prove the mandate still refuses.
     #[cfg(test)]
     pub(crate) brief_tamper: Option<(Option<Money>, Option<Money>)>,
@@ -195,6 +201,9 @@ impl Runtime {
             emitted: Vec::new(),
             engine_probed_at: Vec::new(),
             armed: BTreeMap::new(),
+            market_watch_busy: std::collections::BTreeSet::new(),
+            market_watch_retry: BTreeMap::new(),
+            market_watch_used_up: BTreeMap::new(),
             #[cfg(test)]
             brief_tamper: None,
             #[cfg(test)]

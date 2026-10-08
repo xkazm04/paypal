@@ -38,3 +38,5 @@ impl Clock for FixedClock {
 }
 mod book;
 pub use book::*;
+mod market_watch;
+pub use market_watch::*;

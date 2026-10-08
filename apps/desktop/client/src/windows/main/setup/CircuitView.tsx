@@ -9,7 +9,8 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNod
 import type { EngineId } from '@bindings/EngineId';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import { clockLabel, nowUnix } from '../../../lib/format';
-import { rulesName } from '../../../lib/words';
+import { watchLine } from '../../../lib/marketWatch';
+import { PRICE_CHECKS_USED_UP, rulesName } from '../../../lib/words';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import { ModeBadge, RunBadge, WalletNotice } from '../../../shared/honesty';
 import { AnswerBar, Btn, Chip, DetailToggle, Group, Icon, Kv, Popover, Row, Section, Silence, layerCount, topLayerKind, useToast, type DetailMode, type IconName } from '../../../shared/ui';
@@ -206,7 +207,15 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
     state: s ? (s.channel3_configured ? 'done' : 'idle') : 'unknown',
     icon: s?.channel3_configured ? 'check' : 'tag',
     title: 'Market prices',
-    status: !s ? <Chip tone="dashed">not loaded yet</Chip> : s.channel3_configured ? `Key saved${marketAt ? ` ${shortDate(marketAt)}` : ''}` : 'Optional. Without it, items show no typical price.',
+    status: !s ? <Chip tone="dashed">not loaded yet</Chip> : s.channel3_configured ? (
+      <>
+        <span>Key saved{marketAt ? ` ${shortDate(marketAt)}` : ''}</span>
+        {(f?.market_watch ?? []).map((w) => {
+          const l = watchLine(w);
+          return <span key={`${w.mandate_id}:${w.mandate_version}`} className={`su-watch ${l.usedUp ? 'used' : ''}`} title={l.usedUp ? PRICE_CHECKS_USED_UP : undefined}><b>{l.checks}</b> · {l.rest}</span>;
+        })}
+      </>
+    ) : (f?.market_watch.length ? 'Add the key so your rules can keep prices fresh. Until then, items show no typical price.' : 'Optional. Without it, items show no typical price.'),
     action: s ? <Handoff label={s.channel3_configured ? 'Replace key' : 'Add key'} kind="default" locked={locked} target="credentials" /> : null,
   };
   const stepAgents: Step = !s

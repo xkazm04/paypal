@@ -78,6 +78,39 @@ async fn tracking_is_explicit_and_history_never_drives_band() {
     assert_eq!(requests[1].method, "GET");
     assert!(requests[1].url.ends_with("/history/product?days=30"));
 }
+#[derive(Debug)]
+struct Moving(std::sync::atomic::AtomicI64);
+impl Clock for Moving {
+    fn now(&self) -> Timestamp {
+        self.0.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+#[tokio::test]
+async fn a_cached_band_within_the_refresh_lead_is_fetched_again() {
+    let fake = Arc::new(Fake::default());
+    let clock = Arc::new(Moving(std::sync::atomic::AtomicI64::new(1_000)));
+    let client = Client::new(fake.clone(), Arc::new(Key), clock.clone());
+    client.comparables("product", Currency::USD).await.unwrap();
+    let lead_starts = 1_000 + MARKET_FRESH_SECS - MARKET_REFRESH_LEAD_SECS;
+    clock
+        .0
+        .store(lead_starts - 1, std::sync::atomic::Ordering::SeqCst);
+    assert!(
+        client
+            .comparables("product", Currency::USD)
+            .await
+            .unwrap()
+            .cached
+    );
+    assert_eq!(fake.0.lock().unwrap().len(), 1);
+    clock
+        .0
+        .store(lead_starts, std::sync::atomic::Ordering::SeqCst);
+    let fresh = client.comparables("product", Currency::USD).await.unwrap();
+    assert!(!fresh.cached);
+    assert_eq!(fresh.retrieved_at, lead_starts);
+    assert_eq!(fake.0.lock().unwrap().len(), 2);
+}
 #[derive(Debug, Default)]
 struct MixedHistory;
 #[async_trait]
