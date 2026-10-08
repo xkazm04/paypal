@@ -6,12 +6,31 @@ they touch money: every payment is a deal with a counterparty, bounded by a mand
 signed, countersigned by the wallet only if it fits, settled by PayPal with one human approval,
 and provable by both sides. The LLM engine is the user's own `claude-code` or `codex-cli`.
 
-Status (2026-10-06): **backend B0–B8 and plumbing P1, P2, P4, P5 are built and offline-tested**
-- money pipeline, ledger, PayPal clients, MCP tools, two-wallet relay pairing and the hosted HOUSE
-seller - and the **React client** (main, Tumbler, approval) is wired to the real IPC contract with a
-mock backend for browser preview. Not yet verified: an interactive run inside the native shell,
-live PayPal sandbox and engine spikes (native engines stay gated until spike 2 proves isolation),
-and deployment. Rescue execution and catalog tools are deferred. See
+Status (2026-10-08): **backend B0–B8 and plumbing P1, P2, P4, P5 are built and offline-tested**
+(money pipeline, ledger, PayPal clients, MCP tools, two-wallet relay pairing, the hosted house seller)
+and the **React client** (main, Tumbler, approval) runs on the real IPC contract, with a mock backend
+for browser preview. On top of that, these moonshot themes are built:
+
+- **Provable:** signed offline proof bundles checked by `table-verify` (T1); an approval checklist
+  composed in Rust and bound to every owner decision by its hash (T5); "who decided" for every money
+  step, with a Rewind of the week on the Dial (T6); one authority table for every IPC command, with a
+  permissions fingerprint (T11); a glass-box house seller that publishes a signed record and a public
+  scoreboard (T9).
+- **Safe by default:** the walk-away forecast in the Tumbler and an honest quit confirm (T4); a
+  read-back resolver that settles PayPal calls whose answer was lost, never under a second request id
+  (T10); owner-signed wallet-wide limits above every agent's rules (T14).
+- **Useful:** a deterministic negotiator that haggles with no LLM (T2); "shop around" with several
+  sellers where the first signed agreement wins (T8); a what-if of new rules against last week before
+  signing (T12); market prices kept fresh under a signed rule (T15); subscription rescue with one
+  owner-approved discount invoice, counted only when PayPal confirms it paid; plain-language questions
+  to the Book, answered by the wallet's own reading (no AI).
+- **For Maya and for judges:** a first-run path to a first safe deal, two design polish passes, a WCAG
+  2.2 AA keyboard and screen-reader pass, and a no-install director that plays "Maya's week" across
+  all three windows (below), with a rig for repeatable video takes.
+
+Not yet verified: an interactive run inside the native Windows shell (several shell edits are
+compiled only on Windows), live PayPal sandbox checks and engine spikes (native engines stay gated
+until spike 2 proves isolation; spike 8 for invoices waits for the owner), and deployment. See
 [`docs/build/STATUS.md`](docs/build/STATUS.md) for phase status, decisions and acceptance coverage.
 
 Run the backend checks on Windows with `./scripts/check.ps1`. It runs formatting, Clippy with
