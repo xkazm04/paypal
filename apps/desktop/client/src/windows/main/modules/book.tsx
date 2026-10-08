@@ -10,7 +10,7 @@
 // grid. A typed question is read by the wallet itself (./book/understand.ts: a fixed word list, no
 // AI) into the same closed query, shown back as chips the owner can remove or change, and answered
 // the same way; a question it cannot read says which words it did not get. Book only reads.
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { AuditRow } from '@bindings/AuditRow';
 import type { BookAnswer } from '@bindings/BookAnswer';
@@ -22,6 +22,7 @@ import type { MoneyCheck } from '@bindings/MoneyCheck';
 import { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMinor, shortId } from '../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
+import { lazyPart, preloadWhenIdle } from '../../../lib/lazy';
 import { AUDIT_BROKEN, marketWords, modeWord, moneyCheckWord, receiptWord, stateWord, timeLeftWords } from '../../../lib/words';
 import { Glyph } from '../../../shared/modules';
 import { Countdown, ModeBadge, WalletNotice } from '../../../shared/honesty';
@@ -41,9 +42,11 @@ import { AskChips } from './book/AskChips';
 import { ReadingChips, UnsureLine } from './book/AskReading';
 import { compose, isUnsure, knownParties, lensQuery, MAX_ASK, understand, type AskCtx, type ReadingChip, type Understood, type Unsure } from './book/understand';
 import { MoneyWent } from './book/MoneyWent';
-import { ProofCheckSheet } from './book/ProofCheck';
 import { totalWhy, type TotalKey } from './book/where';
 import './book.css';
+
+// The proof check sheet is its own chunk, preloaded once the Book page is idle (lib/lazy.ts).
+const ProofCheckSheet = lazyPart(() => import('./book/ProofCheck').then((m) => m.ProofCheckSheet));
 
 type Phase = 'IDLE' | 'UNSURE' | 'BLOCKED' | 'DRAFTED' | 'RESULT' | 'EMPTY';
 type StmtFilter = 'all' | Statement;
@@ -89,6 +92,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
   const [reading, setReading] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
   const [proofOpen, setProofOpen] = useState(false);
+  useEffect(() => preloadWhenIdle([ProofCheckSheet]), []);
   // The lens's query, checked and answered by Rust (book_query, read-only). The window still
   // runs the same lens over its own rows to light them in the grid.
   const bq = useMutation('book_query');
@@ -313,7 +317,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
         </Sheet>
       ) : null}
 
-      {proofOpen ? <ProofCheckSheet onClose={() => setProofOpen(false)} /> : null}
+      {proofOpen ? <Suspense fallback={null}><ProofCheckSheet onClose={() => setProofOpen(false)} /></Suspense> : null}
       {auditOpen ? <AuditSheet label={(id) => { const d = all.find((x) => x.id === id); return d ? label(d) : shortId(id); }} onClose={() => setAuditOpen(false)} /> : null}
 
       {selDeal ? (

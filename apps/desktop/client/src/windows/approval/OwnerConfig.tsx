@@ -2,7 +2,7 @@
 // A calm checklist on the v2 kit - unlock, keys (native dialog only), agent app (read-only),
 // house seller, agent rules (opens the What-if editor), pairing (opens the four-word confirm). Layer 1 is
 // one row per item; explanations sit in popovers. Nothing here pays anyone.
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import type { CredentialArgs } from '@bindings/CredentialArgs';
 import type { Deal } from '@bindings/Deal';
 import type { Clause } from '@bindings/Clause';
@@ -10,22 +10,26 @@ import type { HouseState } from '@bindings/HouseState';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { WalletError } from '../../lib/contract';
 import { useNow, useQuery } from '../../lib/hooks';
+import { lazyPart, preloadWhenIdle } from '../../lib/lazy';
 import { FIRST_RUN_TITLE, OWNER_KEY, rulesName, SAFETY_PROMISE, START_STEP, timeLeftWords, type StartStepKey } from '../../lib/words';
 import { connectionFacts, gettingStarted, rulesInForce } from '../../lib/firstRun';
 import { StartProgress, StartSteps, type StepAction } from '../../shared/start';
 import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
 import { OwnerKey } from '../../shared/ownerKey';
 import { AnswerBar, Btn, Chip, Group, Hint, Popover, Row, Section, type ChipTone } from '../../shared/ui';
-import { MandateEditor } from './MandateEditor';
 import { clauseText, isMandateActive } from './model';
 import { PairingConfirm } from './PairingConfirm';
 import { WalletLimits } from './owner/WalletLimits';
-import { RescueReplay } from './owner/RescueReplay';
 import { rescueRules } from './owner/replay';
 import { useHandoff } from './selection';
 import { useSession } from './session';
 import { Header, LockCard } from './ui';
 import './owner.css';
+
+// The rules editor (with its what-if) and the replay sheet are their own chunks, preloaded once
+// this page is idle (lib/lazy.ts).
+const MandateEditor = lazyPart(() => import('./MandateEditor').then((m) => m.MandateEditor));
+const RescueReplay = lazyPart(() => import('./owner/RescueReplay').then((m) => m.RescueReplay));
 
 const ENGINE_NAME = { 'claude-code': 'claude-code', 'codex-cli': 'codex-cli', scripted: 'practice agent' } as const;
 const HOUSE_TEXT: Record<HouseState, string> = {
@@ -89,6 +93,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
   const [routed, setRouted] = useState(false);
   /** The "Replay a failed renewal" sheet (The Table's Rescue page opens this window for it). */
   const [replaying, setReplaying] = useState(false);
+  useEffect(() => preloadWhenIdle([MandateEditor, RescueReplay]), []);
   useEffect(() => {
     if (routed || !handoff) return;
     setRouted(true);
@@ -109,7 +114,15 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
   }, [leaving, list]);
 
   if (editing) {
+    // Only if the editor is opened before its chunk arrived: the editor's frame, empty.
+    const waiting = (
+      <div className="aw ow ow-ed">
+        <Header mode={st?.mode} />
+        <main className="aw-body ow-body" aria-busy="true" />
+      </div>
+    );
     return (
+      <Suspense fallback={waiting}>
       <MandateEditor
         mode={st?.mode}
         entries={list}
@@ -127,6 +140,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
           void s.refreshSettings();
         }}
       />
+      </Suspense>
     );
   }
 
@@ -291,7 +305,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
           </Group>
         </Section>
       </main>
-      {replaying ? <RescueReplay entries={list} locked={locked} onClose={() => setReplaying(false)} onReplayed={(deal) => { setReplaying(false); onReplayed?.(deal); }} /> : null}
+      {replaying ? <Suspense fallback={null}><RescueReplay entries={list} locked={locked} onClose={() => setReplaying(false)} onReplayed={(deal) => { setReplaying(false); onReplayed?.(deal); }} /></Suspense> : null}
       {info ? (
         <Popover anchor={info.el} onClose={() => setInfo(null)} className="ow-pop">
           <p className="ow-p">{INFO[info.k]}</p>

@@ -1,26 +1,32 @@
 // The Main window of The Table: Layer 0 (the Dial), Layer 1 (six modules), Layer 2 (deal detail),
 // plus the owner configuration sheet and Ctrl K find. Routing follows both the `main:route` event
 // and location.hash (#m=<module>, #d=<deal id or label>, #s=<sheet>).
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Module } from '@bindings/Module';
 import type { TumblerStatus } from '@bindings/TumblerStatus';
 import { useEvent } from '../../lib/hooks';
+import { lazyPart, preloadWhenIdle } from '../../lib/lazy';
 import { MODULE, MODULES } from '../../shared/modules';
 import { layerCount, useLayerCount } from '../../shared/ui/layers';
-import { DealView } from './DealView';
-import { Home } from './Home';
+import { DEAL_PARTS, DealView } from './DealView';
+import { HOME_PARTS, Home } from './Home';
 import { shortTitle } from './home/model';
 import { formatHash, parseHash, resolveDealRef, stateLabel, type Route, type SheetTab } from './logic';
-import { ModuleView } from './Modules';
+import { MODULE_PAGES, ModuleView } from './Modules';
 import { Palette } from './Palette';
-import { QuitSheet } from './QuitSheet';
+import './quit.css';
 import { Shell, type Crumb } from './Shell';
-import { Sheet } from './Sheet';
+import { SHEET_TABS, Sheet } from './Sheet';
 import type { PairMode } from './setup/pairing';
 import { Shortcuts } from './Shortcuts';
 import { CounterpartyProvider, Loading, ToastProvider, useToast } from './ui';
 import { useWorld, WorldProvider } from './world';
 import { silenceWords } from '../../lib/words';
+
+// Not on the first paint (Home, or a deal opened from a link): loaded as their own chunks and
+// preloaded once the window is idle, so opening them later is instant (lib/lazy.ts).
+const QuitSheet = lazyPart(() => import('./QuitSheet').then((m) => m.QuitSheet));
+const LATER = [...MODULE_PAGES, ...DEAL_PARTS, ...HOME_PARTS, ...SHEET_TABS, QuitSheet];
 
 export function App() {
   return (
@@ -53,6 +59,7 @@ function Main() {
   // layer stack consumes Esc first (window capture phase), so the Esc handler below only runs when
   // none is open; page keys (1-6 here, arrows/Enter/1-6 on Home) pause while one is open.
   const layers = useLayerCount();
+  useEffect(() => preloadWhenIdle(LATER), []);
 
   const deals = w.deals.data;
   const deal = route.level === 'deal' && deals ? resolveDealRef(route.deal, deals, w.labels) : undefined;
@@ -157,7 +164,7 @@ function Main() {
       {sheet ? <Sheet tab={sheet} pair={pairStart} onTab={setSheet} onClose={() => setSheet(null)} /> : null}
       {palette ? <Palette onClose={() => setPalette(false)} onModule={goModule} onDeal={goDeal} onSheet={openSheet} onQuit={() => setQuit(true)} /> : null}
       {help ? <Shortcuts onClose={() => setHelp(false)} /> : null}
-      {quit ? <QuitSheet onClose={() => setQuit(false)} /> : null}
+      {quit ? <Suspense fallback={null}><QuitSheet onClose={() => setQuit(false)} /></Suspense> : null}
     </>
   );
 }
