@@ -4,13 +4,31 @@ use crate::*;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use table_core::{DealId, Money, Timestamp};
+use table_core::{DealId, InvoiceText, Money, Timestamp};
+
+/// The invoice number a rescue invoice carries for `(deal, attempt)`: "R", the deal ULID's last
+/// 16 characters (its random part) and the attempt. Deterministic, so a lost create can be looked
+/// up by it and never needs a second invoice; short, because PayPal caps the field.
+// UNVERIFIED: the research names Invoicing v2 but not `detail.invoice_number`, its length cap
+// (25 characters assumed) or its per-merchant uniqueness; spike 8 records whether the search
+// finds the invoice by it.
+pub fn rescue_invoice_number(deal: DealId, attempt: u8) -> Result<String, Error> {
+    if !(1..=3).contains(&attempt) {
+        return Err(Error::Invalid);
+    }
+    let id = deal.to_string();
+    Ok(format!("R{}-{attempt}", &id[id.len() - 16..]))
+}
 
 #[derive(Clone)]
 pub struct InvoiceRequest {
     pub deal: DealId,
     pub recipient_email: String,
     pub amount: Money,
+    /// From [`rescue_invoice_number`].
+    pub invoice_number: String,
+    /// The wallet's fixed wording (table-core `invoice_text`); never counterparty or agent text.
+    pub text: InvoiceText,
 }
 impl std::fmt::Debug for InvoiceRequest {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -24,13 +42,30 @@ impl InvoiceRequest {
             || self.recipient_email.len() > 254
             || !self.recipient_email.contains('@')
             || self.recipient_email.contains(['\r', '\n', ' '])
+            || self.invoice_number.is_empty()
+            || self.invoice_number.len() > 25
+            || !self
+                .invoice_number
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+            || self.text.item.is_empty()
+            || self.text.item.len() > 200
+            || self.text.note.len() > 4000
         {
             return Err(Error::Invalid);
         }
+        // UNVERIFIED: `detail.invoice_number` and `detail.note` (field names from the public
+        // invoicing_v2 spec as recalled; the research lists the endpoints only).
         Ok(
-            json!({"detail":{"currency_code":self.amount.currency(),"reference":self.deal.to_string()},"primary_recipients":[{"billing_info":{"email_address":self.recipient_email}}],"items":[{"name":"One agreed cycle","quantity":"1","unit_amount":amount_wire(self.amount)}]}),
+            json!({"detail":{"currency_code":self.amount.currency(),"reference":self.deal.to_string(),"invoice_number":self.invoice_number,"note":self.text.note},"primary_recipients":[{"billing_info":{"email_address":self.recipient_email}}],"items":[{"name":self.text.item,"quantity":"1","unit_amount":amount_wire(self.amount)}]}),
         )
     }
+}
+/// The invoice's own reference fields, as PayPal returns them.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct InvoiceDetail {
+    pub reference: Option<String>,
+    pub invoice_number: Option<String>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Invoice {
@@ -38,6 +73,15 @@ pub struct Invoice {
     pub status: String,
     pub amount: Option<WireAmount>,
     pub due_amount: Option<WireAmount>,
+    #[serde(default)]
+    pub detail: Option<InvoiceDetail>,
+}
+/// A page of `search-invoices` results.
+// UNVERIFIED: the response's `items` array (research lists the endpoint, not its body).
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct InvoiceList {
+    #[serde(default)]
+    pub items: Vec<Invoice>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SubscriptionBilling {
@@ -131,6 +175,14 @@ pub trait SecondaryApi: Send + Sync {
     ) -> Result<ApiResponse<TransactionPage>, Error>;
     async fn list_disputes(&self) -> Result<ApiResponse<DisputeList>, Error>;
     async fn get_dispute(&self, id: &ResourceId) -> Result<ApiResponse<Dispute>, Error>;
+    /// Find invoices by invoice number: the read-back for a rescue invoice whose create answer
+    /// was lost. A read: it creates nothing. Implementations without it find nothing.
+    async fn search_invoices(
+        &self,
+        _invoice_number: &str,
+    ) -> Result<ApiResponse<InvoiceList>, Error> {
+        Err(Error::Invalid)
+    }
 }
 fn iso(at: Timestamp) -> Result<String, Error> {
     time::OffsetDateTime::from_unix_timestamp(at)
@@ -330,6 +382,29 @@ impl SecondaryApi for Client {
             "GET",
             format!("/v1/customer/disputes/{}", id.as_str()),
             None,
+            None,
+        )
+        .await
+    }
+    // UNVERIFIED: the search body field `invoice_number`. The research lists
+    // POST /v2/invoicing/search-invoices [S-spec] but not its filters; a filter PayPal ignores can
+    // only return invoices the caller then fails to match, so the read-back stays parked.
+    async fn search_invoices(
+        &self,
+        invoice_number: &str,
+    ) -> Result<ApiResponse<InvoiceList>, Error> {
+        if invoice_number.is_empty()
+            || invoice_number.len() > 25
+            || !invoice_number
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+        {
+            return Err(Error::Invalid);
+        }
+        self.decoded(
+            "POST",
+            "/v2/invoicing/search-invoices".into(),
+            Some(json!({"invoice_number":invoice_number})),
             None,
         )
         .await

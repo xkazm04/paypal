@@ -34,7 +34,7 @@ export function gateColumns(clauses: readonly Clause[]): GateColumn[] {
 
 /** Short column titles for the gate (the full rule name, RULE_NAME, goes in tooltips and Layer 2). */
 export const COLUMN_NAME: Record<Clause['type'], string> = {
-  roles: 'Allowed', counterparties: 'Who', per_deal: 'Per purchase', band: 'Price range', velocity: 'Daily limit', human_present_over: 'Ask me', payees: 'Payees',
+  roles: 'Allowed', counterparties: 'Who', per_deal: 'Per purchase', band: 'Price range', velocity: 'Daily limit', human_present_over: 'Ask me', payees: 'Payees', lever: 'Fixes',
 };
 
 const money = (m: { minor: number; currency: Parameters<typeof formatMinor>[1] }) => formatMinor(m.minor, m.currency).replace(/\.00$/, '');
@@ -47,8 +47,9 @@ export function columnValue(c: Clause): string {
     case 'velocity': return `${c.max_deals_day} a day`;
     case 'human_present_over': return `above ${money(c.amount)}`;
     case 'payees': return `${c.payees.length} approved`;
-    case 'counterparties': return c.rule.type === 'paired' ? 'connected only' : c.rule.type === 'house' ? 'house only' : `${c.rule.keys.length} verified`;
+    case 'counterparties': return c.rule.type === 'paired' ? 'connected only' : c.rule.type === 'house' ? 'house only' : c.rule.type === 'subscribers' ? 'subscribers' : `${c.rule.keys.length} verified`;
     case 'band': return c.ceiling ? `up to ${money(c.ceiling)}` : 'any price';
+    case 'lever': return `up to ${money(c.max_discount)} off`;
   }
 }
 
@@ -72,7 +73,7 @@ export function perDealCheck(d: Pick<Deal, 'kind' | 'terms'>, c: Extract<Clause,
 }
 
 /** Rust's clause numbers (Clause::number): a refusal names the clause by type, not by position. */
-export const CLAUSE_NO: Record<Clause['type'], number> = { roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7 };
+export const CLAUSE_NO: Record<Clause['type'], number> = { roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7, lever: 8 };
 
 /** One lane: what the ask can be said to have met at each gate column. */
 export function laneCells(d: Pick<Deal, 'kind' | 'terms' | 'state' | 'paypal'> & Partial<Pick<Deal, 'decided_by'>>, cols: readonly GateColumn[], need?: Pick<AttentionItem, 'clause'> | null): Cell[] {

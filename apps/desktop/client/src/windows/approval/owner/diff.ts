@@ -16,8 +16,8 @@ const name = (t: ClauseType) => CLAUSE_KINDS.find((k) => k.type === t)?.name ?? 
 const m = (x: Money | null | undefined) => (x ? formatMinor(x.minor, x.currency) : 'none');
 /** Times are typed to the minute (datetime-local), so they compare to the minute. */
 const minute = (t: number) => Math.floor(t / 60);
-const RANK = { house: 0, pinned: 1, paired: 2 } as const;
-const RULE = { house: 'only the house seller', pinned: 'only listed wallets', paired: 'any wallet you connected' } as const;
+const RANK = { house: 0, subscribers: 0, pinned: 1, paired: 2 } as const;
+const RULE = { house: 'only the house seller', subscribers: 'only your own subscribers', pinned: 'only listed wallets', paired: 'any wallet you connected' } as const;
 
 /** A changed term in plain words (the term itself stays the stable key the tests pin). */
 const TERM_WORD: Record<string, string> = {
@@ -69,6 +69,9 @@ function clauseDiff(a: Clause, b: Clause, out: Change[]) {
     money(out, c, 'human_present_over', '“you decide over” threshold', a.amount, b.amount, true);
   } else if (a.type === 'payees' && b.type === 'payees') {
     members(out, c, 'payees', 'the payee allowlist', a.payees, b.payees, true);
+  } else if (a.type === 'lever' && b.type === 'lever') {
+    num(out, c, 'lever', 'discount limit', a.max_discount_bp, b.max_discount_bp, (v) => `${v / 100}%`, true);
+    money(out, c, 'lever', 'discount cap per cycle', a.max_discount, b.max_discount, true);
   }
 }
 

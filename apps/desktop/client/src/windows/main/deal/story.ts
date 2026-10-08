@@ -57,7 +57,7 @@ export function dealAnswer(d: AnswerDeal, c: AnswerCtx): DealAnswer {
       : { tone: 'alert', title: 'Your rules refused this before PayPal was asked. Nothing moved.', sub: who.who === 'none' ? CLOSED : `Refused by ${who.text}. ${CLOSED}` };
   }
   if (d.state === 'DISPUTED') return { tone: 'alert', title: 'There is an open dispute at PayPal.', sub: CLOSED };
-  if (d.state === 'FAILED' && d.kind !== 'rescue') return { tone: 'alert', title: 'The payment failed at PayPal.', sub: CLOSED };
+  if (d.state === 'FAILED') return { tone: 'alert', title: d.kind === 'rescue' ? 'The invoice was cancelled at PayPal. Nothing was recovered.' : 'The payment failed at PayPal.', sub: CLOSED };
 
   if (isTerminal(d)) {
     const settled = d.state === 'CAPTURED' || d.state === 'RECEIPTED' || d.state === 'RECONCILED';
@@ -75,7 +75,7 @@ export function dealAnswer(d: AnswerDeal, c: AnswerCtx): DealAnswer {
   if (c.need) {
     if (d.state === 'AUTHORIZED') return { tone: 'need', title: `${amt} for ${c.them} is on hold at PayPal. Pay it or release it; you decide.`, sub: null };
     if (d.shield === 'HOLD') return { tone: 'need', title: `${c.them}’s ${amt} request was paused for your check. Nothing was sent to PayPal.`, sub: null };
-    if (d.kind === 'rescue') return { tone: 'need', title: `${c.them}’s ${amt} renewal didn’t go through. You choose the fix.`, sub: null };
+    if (d.kind === 'rescue') return { tone: 'need', title: `${c.them.charAt(0).toUpperCase()}${c.them.slice(1)}’s renewal didn’t go through. You choose the fix: a ${amt} invoice for this cycle.`, sub: null };
     if (d.kind === 'haggle') return { tone: 'need', title: `${latest ?? `${c.them} has an offer`}.${bandPhrase(c.band)}`, sub: null };
     return { tone: 'need', title: `${headlineWords(c.need.headline)} with ${c.them}. Your call.`, sub: null };
   }
@@ -99,7 +99,7 @@ export function decisionQuestion(d: QDeal, need: Pick<AttentionItem, 'headline'>
   const amt = formatMoney(dealTotal(d));
   if (d.state === 'AUTHORIZED') return `Pay ${them} ${amt}, or release the hold?`;
   if (d.shield === 'HOLD') return `Withdraw ${them}’s paused ${amt} request?`;
-  if (d.kind === 'rescue') return `Approve a fix for ${them}’s failed ${amt} renewal?`;
+  if (d.kind === 'rescue') return `Approve a ${amt} invoice to fix ${them}’s failed renewal?`;
   if (d.kind === 'haggle') return d.side === 'buyer' ? `Accept ${them}’s ${formatMoney(d.terms.unit_price)}?` : `Sell to ${them} for ${formatMoney(d.terms.unit_price)}?`;
   return `${headlineWords(need.headline)} with ${them}?`;
 }

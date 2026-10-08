@@ -233,8 +233,18 @@ describe('countersign / capture follow the Rust decision table', () => {
     const g = deriveGates(ctx(summary({ state: 'AUTHORIZED' })));
     expect(g.capture.enabled && g.void.enabled).toBe(true);
   });
-  it('rescue renders (Rust answers UNAVAILABLE) but never for other kinds', () => {
-    for (const s of everything()) if (deriveGates(ctx(s)).rescue.visible) expect(s.deal.kind).toBe('rescue');
+  it('rescue renders only for a failed renewal’s fix (or a made invoice Rust says to send), never for other kinds', () => {
+    for (const s of everything()) {
+      const g = deriveGates(ctx(s));
+      if (g.rescue.visible) expect(s.deal.kind).toBe('rescue');
+      if (g.rescue.visible) expect(['AGREED', 'SETTLING']).toContain(s.deal.state);
+    }
+    const rescue = (state: DealState, o: Partial<ApprovalSummary> = {}) => deriveGates(ctx(summary({ kind: 'rescue', side: 'seller', state }, o))).rescue;
+    expect(rescue('AGREED')).toMatchObject({ visible: true, enabled: true });
+    expect(rescue('SETTLING', { can_release: false }).visible).toBe(false);
+    expect(rescue('SETTLING').visible).toBe(true);
+    for (const st of ['AWAITING_APPROVAL', 'RECEIPTED', 'FAILED', 'EXPIRED'] as const) expect(rescue(st).visible).toBe(false);
+    expect(rescue('AGREED', { can_release: false, unavailable_reason: null })).toMatchObject({ visible: true, enabled: false });
   });
   it('DecisionArgs come straight from the summary', () => {
     const s = summary({}, { attempt: 2 });
@@ -541,7 +551,7 @@ describe('the wallet’s checklist gates every money decision (T5)', () => {
     ['countersign', summary({ state: 'AGREED' }), (g) => g.countersign],
     ['open PayPal', summary({ state: 'AWAITING_APPROVAL' }), (g) => g.openPaypal],
     ['capture', summary({ state: 'AUTHORIZED' }), (g) => g.capture],
-    ['rescue', summary({ kind: 'rescue', side: 'seller', state: 'FAILED' }), (g) => g.rescue],
+    ['rescue', summary({ kind: 'rescue', side: 'seller', state: 'AGREED' }), (g) => g.rescue],
   ];
   it('a failed line disables each money decision; a line that waits for the step does not', () => {
     for (const [name, s, pick] of cases) {

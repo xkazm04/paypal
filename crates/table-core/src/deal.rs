@@ -163,6 +163,12 @@ pub enum DealEvent {
     AutoVoid,
     Refund,
     Dispute,
+    /// A failed renewal was recorded (read from PayPal, or replayed) and its one fix passed the
+    /// mandate check: the rescue deal waits at AGREED for the owner. Accepted only on a rescue.
+    RescueOpened,
+    /// PayPal confirmed the rescue invoice exists as a draft; the deal stays SETTLING until it is
+    /// sent. Nobody has been asked to pay yet.
+    InvoiceDrafted,
 }
 
 pub fn transition(state: DealState, event: DealEvent) -> Result<DealState, DomainError> {
@@ -173,6 +179,8 @@ pub fn transition(state: DealState, event: DealEvent) -> Result<DealState, Domai
         (S::Listed | S::Negotiating, E::OfferVerified) => S::Negotiating,
         (S::Negotiating, E::TwoAcceptsVerified) => S::Agreed,
         (S::Pairing, E::PurchaseCleared) => S::Agreed,
+        (S::Pairing, E::RescueOpened) => S::Agreed,
+        (S::Settling, E::InvoiceDrafted) => S::Settling,
         (S::Agreed, E::BeginSettlement) => S::Settling,
         (S::Settling, E::SettleVerified) => S::AwaitingApproval,
         (S::AwaitingApproval, E::OrderApproved) => S::Approved,
@@ -267,6 +275,10 @@ pub enum MoneyCheckStep {
     Authorize,
     Capture,
     Void,
+    /// A rescue invoice being made (a draft nobody is asked to pay yet).
+    InvoiceCreate,
+    /// A rescue invoice being sent to the subscriber.
+    InvoiceSend,
 }
 /// `Checking`: the wallet has not asked PayPal yet, or is about to ask again. `Parked`: PayPal's
 /// answer could not be read or did not settle the question, so nothing more is sent for this
@@ -296,6 +308,8 @@ impl MoneyCheckStep {
             "authorize" => Some(Self::Authorize),
             "capture" => Some(Self::Capture),
             "void" => Some(Self::Void),
+            "invoice-create" => Some(Self::InvoiceCreate),
+            "invoice-send" => Some(Self::InvoiceSend),
             _ => None,
         }
     }

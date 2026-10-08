@@ -86,15 +86,46 @@ describe('mock backend mirrors the shell gates', () => {
     await expect(mockBackend('main').invoke('proof_check', null)).rejects.toMatchObject({ code: 'UNAVAILABLE' });
     await expect(mockBackend('approval').invoke('proof_check', null)).rejects.toMatchObject({ code: 'PERMISSION' });
   });
-  it('never fakes the rescue executor', async () => {
+  it('approves a rescue fix only as Rust does: bound to the checklist, the terms and a waiting fix', async () => {
     const rescue = fakeUlid('D-0188');
     history.replaceState(null, '', `/approval.html?deal=${rescue}`);
     const approval = mockBackend('approval');
     const token = await approval.invoke('approval_token', null);
-    // Like Rust: the decision is bound to the checklist first, then the executor answers.
+    // Like Rust: the decision is bound to the checklist first, then the terms.
     await expect(approval.invoke('rescue_approve', { deal_id: rescue, attempt: 1, terms_hash: fakeHash('t') }, { token })).rejects.toMatchObject({ code: 'INVALID', message: 'The summary changed. Review it again.' });
-    const { checks_hash } = await approval.invoke('approval_summary', { deal_id: rescue });
-    await expect(approval.invoke('rescue_approve', { deal_id: rescue, attempt: 1, terms_hash: fakeHash('t'), checks_hash }, { token })).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+    const s = await approval.invoke('approval_summary', { deal_id: rescue });
+    expect(s.rescue?.offer).toMatchObject({ lever: 'DISCOUNT_THIS_CYCLE', cycle: { minor: 1200 }, discount: { minor: 240 }, invoice: { minor: 960 }, discount_bp: 2000 });
+    expect(s.rescue?.text.note).toContain('20% off: 9.60 USD instead of 12.00 USD');
+    expect(s.checks.find((c) => c.id === 'amount')?.text).toBe('The invoice asks $9.60: 20% off this cycle’s $12.00.');
+    expect(s.checks.every((c) => c.status !== 'fail')).toBe(true);
+    expect(s.can_release).toBe(true);
+    await expect(approval.invoke('rescue_approve', { deal_id: rescue, attempt: 1, terms_hash: fakeHash('t'), checks_hash: s.checks_hash }, { token })).rejects.toMatchObject({ code: 'INVALID' });
+    await expect(mockBackend('main').invoke('rescue_approve', { deal_id: rescue, attempt: 1, terms_hash: s.terms_hash, checks_hash: s.checks_hash })).rejects.toMatchObject({ code: 'PERMISSION' });
+    const deal = await approval.invoke('rescue_approve', { deal_id: rescue, attempt: 1, terms_hash: s.terms_hash, checks_hash: s.checks_hash }, { token });
+    expect(deal).toMatchObject({ state: 'AWAITING_APPROVAL', decided_by: { type: 'human' } });
+    expect(deal.paypal.order).toMatch(/^INV2-/);
+    // Sent is not paid, and this failure was replayed: nothing counts as recovered.
+    const book = await mockBackend('main').invoke('rescue_book', null);
+    expect(book.cases.find((v) => v.deal_id === rescue)).toMatchObject({ counted: false, invoice: deal.paypal.order });
+    expect(book.recovered).toEqual([{ minor: 900, currency: 'USD' }]);
+    // A second approval finds no waiting fix.
+    const again = await approval.invoke('approval_summary', { deal_id: rescue });
+    expect(again.can_release).toBe(false);
+  });
+  it('replays a failed renewal only in the approval window, under signed fixes rules, and rebinds the window to it', async () => {
+    history.replaceState(null, '', '/approval.html?target=rescue');
+    const approval = mockBackend('approval');
+    const token = await approval.invoke('approval_token', null);
+    const args = { subscription_id: 'I-BW452GLLEP1G', subscriber_email: 'sam@example.com', plan: 'care-plan', amount: { minor: 1500, currency: 'USD' as const } };
+    await expect(mockBackend('main').invoke('rescue_replay', args)).rejects.toMatchObject({ code: 'PERMISSION' });
+    await expect(approval.invoke('rescue_replay', args)).rejects.toMatchObject({ code: 'PERMISSION' });
+    await expect(approval.invoke('rescue_replay', { ...args, subscriber_email: 'sam' }, { token })).rejects.toMatchObject({ code: 'INVALID', message: 'That is not an email address.' });
+    await expect(approval.invoke('rescue_replay', { ...args, subscription_id: 'I BW' }, { token })).rejects.toMatchObject({ code: 'INVALID', message: 'That is not a PayPal subscription id.' });
+    const deal = await approval.invoke('rescue_replay', args, { token });
+    expect(deal).toMatchObject({ kind: 'rescue', state: 'AGREED', mode: 'replay', terms: { unit_price: { minor: 1200 } } });
+    expect(await approval.invoke('approval_selection', null)).toBe(deal.id);
+    const s = await approval.invoke('approval_summary', { deal_id: deal.id });
+    expect(s.rescue).toMatchObject({ source: 'replay', recipient: 's•••@example.com', counted: false, offer: { discount: { minor: 300 } } });
   });
   it('sorts attention by deadline and keeps the default-on-silence line', async () => {
     const tumbler = mockBackend('tumbler');

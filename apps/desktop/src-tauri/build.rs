@@ -98,6 +98,8 @@ fn table_commands() -> &'static [&'static str] {
         "mandate_simulate",
         "envelope_sign",
         "envelope_get",
+        "rescue_replay",
+        "rescue_book",
     ]
 }
 #[cfg(not(windows))]

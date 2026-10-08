@@ -209,15 +209,22 @@ Environment: `PAYPAL_SANDBOX_CLIENT_ID`, `PAYPAL_SANDBOX_SECRET`,
 `TABLE_LIVE_SANDBOX`. Use the invoicing merchant's app and a sandbox personal
 recipient's email. Ignored test: `table-paypal::spike_8_invoice_create_send_paid`.
 
-Creates one USD 1.00 invoice with a fresh deal reference, sends it once, then polls
-up to ten minutes. Log into sandbox.paypal.com as that recipient, locate the invoice
-and pay it on the hosted page. Expected automated evidence: invoice id/reference,
-send operation, PAID status and exactly USD 1.00 total. Record whether email actually
-arrived and the route the recipient used; the API cannot prove delivery to an inbox.
-No email credentials are loaded and no wallet-to-subscriber email is sent.
-Invoicing POST failures are not automatically retried. This confirms the rail;
-rescue detection, owner-bound lever execution, double-billing prevention and invoice
-recovery accounting remain separate P3 work.
+Asked of the owner; not run by a builder. Creates one USD 1.00 invoice in the
+wallet's own rescue shape (a DISCOUNT_THIS_CYCLE offer on a USD 1.25 cycle under a
+20% / USD 1.00 fixes clause, the fixed invoice wording from `table-core`
+`invoice_text`, and the deterministic invoice number `rescue_invoice_number(deal, 1)`),
+searches for it by that number (the read-back a lost create relies on), sends it once,
+then polls up to ten minutes. Log into sandbox.paypal.com as that recipient, locate the
+invoice and pay it on the hosted page. Expected automated evidence: invoice id/reference,
+invoice number, `invoice_searched` (`search_ok`, `found_by_number`: the UNVERIFIED search
+field), send operation, PAID status and exactly USD 1.00 total. Record whether email
+actually arrived and the route the recipient used; the API cannot prove delivery to an
+inbox. No email credentials are loaded and no wallet-to-subscriber email is sent.
+Invoicing POST failures are not automatically retried. This confirms the rail and the
+read-back the wallet's rescue flow (table-app `rescue.rs`) stands on; the flow itself is
+covered offline by `table-app/tests/rescue.rs`. If `found_by_number` is false, a lost
+create can never be resolved automatically and parks for the owner (it is never sent
+again).
 
 ## Failure handling and recording
 

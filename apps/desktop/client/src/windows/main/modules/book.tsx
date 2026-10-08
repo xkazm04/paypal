@@ -497,7 +497,7 @@ function Outlook({ deals, label, onOpen, simple, checking = () => false }: { dea
   const checks = deals.filter(checking);
   const holds = deals.filter((d) => d.state === 'AUTHORIZED' && !checking(d));
   const links = deals.filter((d) => d.state === 'AWAITING_APPROVAL');
-  const failing = deals.filter((d) => d.kind === 'rescue' && d.state === 'FAILED');
+  const failing = deals.filter((d) => d.kind === 'rescue' && d.state === 'AGREED');
   const items: OutItem[] = [
     { k: 'holds', n: holds.length, label: holds.length === 1 ? 'hold to decide' : 'holds to decide', first: first(holds), deadline: null, short: 'the hold is released, nothing is paid', silence: null },
     { k: 'links', n: links.length, label: links.length === 1 ? 'payment link open' : 'payment links open', first: first(links), deadline: null, short: 'the link lapses, no money moves', silence: null },

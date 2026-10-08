@@ -227,6 +227,41 @@ fn apply_decided(
     )?;
     Ok(())
 }
+/// A new deal row (PAIRING, empty transcript, no PayPal refs) under an active mandate, with its
+/// `deal.created` audit row and display label, inside the caller's transaction.
+pub(crate) fn insert_deal(
+    conn: &Connection,
+    deal: &Deal,
+    at: Timestamp,
+) -> Result<(), LedgerError> {
+    if deal.state != DealState::Pairing
+        || deal.transcript_head != H256::ZERO
+        || deal.paypal != PaypalRefs::default()
+    {
+        return Err(LedgerError::Conflict);
+    }
+    let hash = deal.terms.hash()?;
+    if let Some(market) = &deal.market {
+        market.validate()?;
+    }
+    read_mandate(conn, deal.mandate_id, deal.mandate_version)?;
+    conn.execute("INSERT INTO deals(id,kind,side,counterparty,mandate_id,mandate_version,item_ref,qty,unit_price_minor,currency,delivery,state,terms_hash,transcript_head,reconciliation,created_at,updated_at,mode,market_json,shield_verdict) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,'n/a',?15,?15,?16,?17,?18)",params![deal.id.to_string(),enum_text(&deal.kind)?,enum_text(&deal.side)?,deal.counterparty.as_str(),deal.mandate_id.to_string(),deal.mandate_version,deal.terms.item_ref.as_str(),deal.terms.qty,deal.terms.unit_price.minor(),deal.terms.currency.to_string(),json_text(&deal.terms.delivery)?,enum_text(&deal.state)?,&hash.0[..],&H256::ZERO.0[..],at.to_string(),enum_text(&deal.mode)?,deal.market.as_ref().map(json_text).transpose()?,deal.shield.as_ref().map(enum_text).transpose()?])?;
+    audit::append(
+        conn,
+        &AuditEntry {
+            at,
+            actor: "policy".into(),
+            action: "deal.created".into(),
+            deal_id: Some(deal.id),
+            detail: json!({"kind":deal.kind,"mode":deal.mode,"terms_hash":hash}),
+        },
+    )?;
+    conn.execute(
+        "INSERT INTO deal_labels(deal_id) VALUES (?1)",
+        [deal.id.to_string()],
+    )?;
+    Ok(())
+}
 /// States in the forward chain from AGREED on, every one reached through AGREED.
 fn agreed_or_later(state: DealState) -> bool {
     use DealState as S;
@@ -1329,35 +1364,10 @@ impl Ledger {
         Ok(())
     }
     pub fn create_deal(&mut self, deal: &Deal, at: Timestamp) -> Result<(), LedgerError> {
-        if deal.state != DealState::Pairing
-            || deal.transcript_head != H256::ZERO
-            || deal.paypal != PaypalRefs::default()
-        {
-            return Err(LedgerError::Conflict);
-        }
-        let hash = deal.terms.hash()?;
-        if let Some(market) = &deal.market {
-            market.validate()?;
-        }
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        read_mandate(&tx, deal.mandate_id, deal.mandate_version)?;
-        tx.execute("INSERT INTO deals(id,kind,side,counterparty,mandate_id,mandate_version,item_ref,qty,unit_price_minor,currency,delivery,state,terms_hash,transcript_head,reconciliation,created_at,updated_at,mode,market_json,shield_verdict) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,'n/a',?15,?15,?16,?17,?18)",params![deal.id.to_string(),enum_text(&deal.kind)?,enum_text(&deal.side)?,deal.counterparty.as_str(),deal.mandate_id.to_string(),deal.mandate_version,deal.terms.item_ref.as_str(),deal.terms.qty,deal.terms.unit_price.minor(),deal.terms.currency.to_string(),json_text(&deal.terms.delivery)?,enum_text(&deal.state)?,&hash.0[..],&H256::ZERO.0[..],at.to_string(),enum_text(&deal.mode)?,deal.market.as_ref().map(json_text).transpose()?,deal.shield.as_ref().map(enum_text).transpose()?])?;
-        audit::append(
-            &tx,
-            &AuditEntry {
-                at,
-                actor: "policy".into(),
-                action: "deal.created".into(),
-                deal_id: Some(deal.id),
-                detail: json!({"kind":deal.kind,"mode":deal.mode,"terms_hash":hash}),
-            },
-        )?;
-        tx.execute(
-            "INSERT INTO deal_labels(deal_id) VALUES (?1)",
-            [deal.id.to_string()],
-        )?;
+        insert_deal(&tx, deal, at)?;
         tx.commit()?;
         Ok(())
     }

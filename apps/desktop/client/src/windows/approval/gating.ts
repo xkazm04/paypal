@@ -72,7 +72,8 @@ export function isTerminal(state: DealState): boolean {
  * The owner's own PayPal resources: seller-side deals and the owner's own purchases. A buyer's
  * haggle or shop order runs on the SELLER's credentials, so the buyer never authorizes,
  * captures or voids it (STATUS: "do not offer buyer-side capture/authorize buttons").
- * Rescue and invoice executors are deferred; replay is never executed.
+ * A rescue's invoice has its own decision (the rescue gate); invoices are deferred; replay is
+ * never executed.
  */
 export function ownsPaypalResource(deal: Pick<Deal, 'side' | 'kind' | 'mode'>): boolean {
   if (deal.kind === 'rescue' || deal.kind === 'invoice') return false;
@@ -179,8 +180,9 @@ export function deriveGates(ctx: GateContext): Gates {
       (namesMatch(ctx.typedName, ctx.expectedName) ? null : ctx.expectedName ? 'Type the name exactly as shown to unpause.' : 'The payee’s name isn’t available to confirm.'),
   );
 
-  // Rescue lever: rendered so its availability is honest; Rust answers UNAVAILABLE until P3.
-  const rescue = gate(deal.kind === 'rescue' && (!terminal || state === 'FAILED'), moneyBlock());
+  // Rescue fix: the owner approves the one discount invoice for a failed renewal (AGREED), or the
+  // send of an invoice already made (SETTLING, only when Rust says it is the next step).
+  const rescue = gate(deal.kind === 'rescue' && !held && (state === 'AGREED' || (state === 'SETTLING' && summary.can_release)), moneyBlock());
 
   // Withdraw is the safe direction: no unlock, no capability, no PayPal call.
   const withdraw = gate(WITHDRAWABLE.has(state), null);
