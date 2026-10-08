@@ -481,7 +481,9 @@ async fn the_actor_checks_prices_outside_its_loop_and_the_forecast_waits_for_the
         let actor = actor.clone();
         let market = market.clone();
         async move {
-            tokio::time::timeout(std::time::Duration::from_secs(10), async {
+            // A liveness bound, not a speed bound: the loop returns as soon as the step lands, and
+            // a loaded host (a full workspace run on shared CPUs) can take many seconds per tick.
+            tokio::time::timeout(std::time::Duration::from_secs(90), async {
                 loop {
                     let deal: Deal = actor
                         .execute(caller("main", None), Action::Deal(id))

@@ -83,7 +83,7 @@ describe('mandate drafts', () => {
   });
   it('lists the clause kinds still missing and replaces one clause', () => {
     const d = newDraft(T);
-    expect(missingKinds(d)).toEqual(['per_deal', 'band', 'velocity', 'payees']);
+    expect(missingKinds(d)).toEqual(['per_deal', 'band', 'velocity', 'payees', 'market_watch']);
     const e = withClause(d, 2, { type: 'human_present_over', amount: '99' });
     expect(e.clauses[2]).toEqual({ type: 'human_present_over', amount: '99' });
     expect(d.clauses[2]).toEqual({ type: 'human_present_over', amount: '' });

@@ -101,7 +101,9 @@ describe('readClauses', () => {
   const d0193 = byLabel('D-0193');
   it('numbers clauses as the report does and keeps clause order', () => {
     expect(CLAUSE_NUMBER.human_present_over).toBe(6);
-    expect(readClauses(clauses, d0193).map((c) => c.n)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    // The sourcing rules also keep this item's typical price fresh (rule 9, T15): it decides nothing.
+    expect(readClauses(clauses, d0193).map((c) => c.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 9]);
+    expect(readClauses(clauses, d0193).find((c) => c.n === 9)).toMatchObject({ reading: 'na', fact: expect.stringContaining('never approves anything') });
   });
   it('reads the signed numbers for a haggle: band and per-deal within, human present asks', () => {
     const r = readClauses(clauses, d0193, { rounds: { used: 5, max: 6 } });

@@ -286,4 +286,4 @@
 /* Keep prices fresh (T15): one line per rule under the market step. */
 .setup-sheet .su-s .su-watch { flex-basis: 100%; font-size: var(--fs-small); color: var(--muted); }
 .setup-sheet .su-s .su-watch b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
-.setup-sheet .su-s .su-watch.used b { color: var(--gold); }
+.setup-sheet .su-s .su-watch.used b { color: var(--gold-l); }

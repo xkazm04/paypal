@@ -188,4 +188,4 @@
 .dv-who-decided .dv-wd-none { margin: 0; padding: var(--sp-3); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); color: var(--dim); }
 /* Keep prices fresh (T15): the typical-price card says when a signed rule keeps it fresh. */
 .dv-pc .why .dv-fresh { color: var(--teal); }
-.dv-pc .why .dv-fresh.used { color: var(--gold); }
+.dv-pc .why .dv-fresh.used { color: var(--gold-l); }
