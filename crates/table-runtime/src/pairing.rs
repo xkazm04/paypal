@@ -16,8 +16,10 @@ fn main_caller() -> Caller {
         token: None,
     }
 }
-fn check_pairing_caller(caller: &Caller) -> Result<(), CommandError> {
-    if caller.label != "main" {
+/// The authority table's label gate for the pairing commands that do IO outside the actor (none
+/// of them takes a token); the actions they run inside the actor are gated again there.
+fn check_pairing_caller(caller: &Caller, command: &str) -> Result<(), CommandError> {
+    if !table_client::authority::admits(command, &caller.label) {
         return Err(permission());
     }
     Ok(())
@@ -76,7 +78,7 @@ impl ActorHandle {
         caller: Caller,
         args: PairingCreateArgs,
     ) -> Result<PairingOffer, CommandError> {
-        check_pairing_caller(&caller)?;
+        check_pairing_caller(&caller, "pairing_create")?;
         let _permit = self
             .pairing_jobs
             .try_acquire()
@@ -92,7 +94,7 @@ impl ActorHandle {
         caller: Caller,
         mut args: PairingJoinArgs,
     ) -> Result<PairingWords, CommandError> {
-        check_pairing_caller(&caller)?;
+        check_pairing_caller(&caller, "pairing_join")?;
         let _permit = self
             .pairing_jobs
             .try_acquire()
@@ -167,7 +169,7 @@ impl ActorHandle {
     /// same house state the HOUSE pairing uses (idle -> waking -> ready). No money, no pairing,
     /// no signed data: it only shortens the cold start before "Sit down with the house".
     pub(crate) async fn house_wake(&self, caller: Caller) -> Result<HouseState, CommandError> {
-        check_pairing_caller(&caller)?;
+        check_pairing_caller(&caller, "house_wake")?;
         let settings: SettingsSnapshot =
             self.execute_local(main_caller(), Action::Settings).await?;
         if settings.house == HouseState::Unavailable {
@@ -205,7 +207,7 @@ impl ActorHandle {
         caller: Caller,
         args: PairingPollArgs,
     ) -> Result<Option<PairingWords>, CommandError> {
-        check_pairing_caller(&caller)?;
+        check_pairing_caller(&caller, "pairing_poll")?;
         let _permit = self
             .pairing_jobs
             .try_acquire()

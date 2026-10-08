@@ -53,6 +53,31 @@ fn checked_in_bindings_match_every_rust_command_event_and_dependency() {
     assert_eq!(contract, commands);
 }
 #[test]
+fn checked_in_authority_files_match_the_authority_table() {
+    // T11: the mock's gate table and the three capability files are generated from one table.
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let read = |path: PathBuf| {
+        std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("{}: {e}", path.display()))
+            .replace("\r\n", "\n")
+    };
+    let ts = read(manifest.join("../../bindings/authority.ts"));
+    assert_eq!(
+        ts,
+        table_client::authority::typescript().unwrap(),
+        "stale bindings/authority.ts; run generate-bindings"
+    );
+    assert!(ts.contains(table_client::authority::manifest_hex().unwrap()));
+    let capabilities = manifest.join("../../apps/desktop/src-tauri/capabilities");
+    for (file, contents) in table_client::authority::capability_files().unwrap() {
+        assert_eq!(
+            read(capabilities.join(&file)),
+            contents,
+            "stale capabilities/{file}; run generate-bindings"
+        );
+    }
+}
+#[test]
 fn wire_numbers_tags_and_closed_decisions_match_the_client_contract() {
     let config = Config::new().with_large_int("number");
     let join: table_client::PairingJoinArgs = serde_json::from_value(serde_json::json!({

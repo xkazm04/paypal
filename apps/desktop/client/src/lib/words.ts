@@ -397,3 +397,14 @@ export function houseRecordWord(r: HouseRecord): Word & { warns: boolean } {
     case 'rewritten': return { text: 'Record changed', tone: 'red', warns: true, means: 'The house’s record no longer contains the one it signed at your receipt. No money moved. Keep your signed proof: it shows what the house agreed.' };
   }
 }
+
+// ---- permissions fingerprint (T11): who may do what, as one checkable code -------------------------
+
+/** Details only: the fingerprint of which window may do what in this version of the app. */
+export const PERMISSIONS_FINGERPRINT = 'Permissions fingerprint';
+/** What the fingerprint means, for its tooltip. */
+export const PERMISSIONS_FINGERPRINT_MEANS = 'A short code for which window may do what in this version of the app. The same code means the same permissions.';
+/** The fingerprint in groups of eight, so it can be read out and compared. */
+export function fingerprintGroups(hex: string): string {
+  return (hex.match(/.{1,8}/g) ?? []).join(' ');
+}

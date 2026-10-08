@@ -7,7 +7,7 @@ pub(super) async fn main_open(
     state: State<'_, DesktopState>,
     args: MainRoute,
 ) -> Result<(), CommandError> {
-    label(&window, &["main", "tumbler"])?;
+    label(&window, "main_open")?;
     if let Some(id) = args.deal_id {
         let _: Deal = state
             .actor
@@ -94,7 +94,7 @@ pub(super) async fn unlock(
     args: UnlockArgs,
 ) -> Result<(), CommandError> {
     let _ = args;
-    label(&window, &["approval"])?;
+    label(&window, "unlock")?;
     let hwnd = window.hwnd().map_err(|_| invalid())?.0 as isize;
     state
         .actor

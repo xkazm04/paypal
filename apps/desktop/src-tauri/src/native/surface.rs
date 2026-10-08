@@ -115,7 +115,7 @@ pub(super) fn tumbler_drag(
     app: AppHandle,
     state: State<'_, DesktopState>,
 ) -> Result<(), CommandError> {
-    label(&window, &["tumbler"])?;
+    label(&window, "tumbler_drag")?;
     set_form(&app, Form::Rest)?;
     state.surface.lock().map_err(|_| invalid())?.dragging = true;
     window.start_dragging().map_err(|_| invalid())
@@ -126,7 +126,7 @@ pub(super) fn tumbler_snap(
     app: AppHandle,
     state: State<'_, DesktopState>,
 ) -> Result<Snap, CommandError> {
-    label(&window, &["tumbler"])?;
+    label(&window, "tumbler_snap")?;
     let monitor = window
         .current_monitor()
         .map_err(|_| invalid())?
@@ -279,7 +279,7 @@ pub(super) fn tumbler_set_form(
     app: AppHandle,
     args: FormArgs,
 ) -> Result<(), CommandError> {
-    label(&window, &["tumbler"])?;
+    label(&window, "tumbler_set_form")?;
     set_form(&app, args.form)
 }
 #[tauri::command]
@@ -289,7 +289,7 @@ pub(super) fn tumbler_pin(
     state: State<'_, DesktopState>,
     args: PinArgs,
 ) -> Result<(), CommandError> {
-    label(&window, &["tumbler"])?;
+    label(&window, "tumbler_pin")?;
     window
         .set_always_on_top(args.pinned)
         .map_err(|_| invalid())?;
