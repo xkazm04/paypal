@@ -103,7 +103,12 @@ export type MockState = {
   rescue?: Record<string, RescueView>;
   /** Price checks made today under each mandate's keep-prices-fresh rule (T15), by mandate id. */
   marketChecksToday?: Record<string, number>;
+  /** Shop-around groups (T8): one buyer intent across several sellers' tables. */
+  groups?: MockGroup[];
 };
+/** A shop-around group as the ledger keeps it (deal_groups + deals.group_id). `sample` marks the
+ *  fixture's own group, which `?groups=none` hides to preview the "Shop around" action. */
+export type MockGroup = { group_id: string; item_ref: string; opened_at: number; winner: string | null; deal_ids: string[]; sample?: boolean };
 
 // One mandate per role, as Rust requires: a band clause refuses every item outside it, a mandate
 // holds at most one band, and haggle / shop-order mandates need one. Purchases therefore sit in a
@@ -227,6 +232,16 @@ export function buildMockState(now: number): MockState {
     band: { floor: null, ceiling: usd(340), max_rounds: 6, rounds_used: 5 },
     transcript: haggle.map(([seq, by, typ, p], i) => ({ seq, by, typ, price: usd(p), at: now - (40 - i * 4) * 60, verified: true })),
     attention: { kind: 'gate', module: 'tables', headline: 'Countersign $329.00', counterparty: 'Dan · north-desk', clause: { mandate_id: MANDATE_M14, number: 6 }, urgency: 'calm', actions: ['review', 'withdraw', 'snooze30', 'open_in_table'] },
+  });
+  // Maya shops around for the same monitor: the house seller has a table too (T8). Its counter is
+  // above Dan's and the agent answered it, so nothing waits for her on this table.
+  add({
+    label: 'D-0204', title: 'Refurbished 27-inch 4K monitor', kind: 'haggle', side: 'buyer', cp: KEY.house, item: 'monitor-27-4k',
+    price: 312, state: 'NEGOTIATING', shield: 'CLEAR', market: [301, 318, 336], deadline: now + 3 * H + 57 * 60 + 56, mandate: MANDATE_M14,
+    silence: 'the offer lapses at the deadline, no money moves', at: [now - 41 * 60, now - 3 * 60],
+    band: { floor: null, ceiling: usd(340), max_rounds: 6, rounds_used: 3 },
+    transcript: ([[1, 'them', 'LISTING', 349], [2, 'you', 'OFFER', 290], [3, 'them', 'COUNTER', 339], [4, 'you', 'COUNTER', 305], [5, 'them', 'COUNTER', 334], [6, 'you', 'COUNTER', 312]] as const)
+      .map(([seq, by, typ, p], i) => ({ seq, by, typ, price: usd(p), at: now - (40 - i * 7) * 60, verified: true })),
   });
   add({ label: 'D-0201', title: 'Refurbished 24-inch IPS monitor', kind: 'haggle', side: 'buyer', cp: KEY.house, item: 'monitor-24-ips', price: 0.01, state: 'PAIRING', mandate: MANDATE_M14, at: [now - 3 * 60, now - 2 * 60], silence: 'the house seller is waking up · nothing is offered yet' });
   add({ label: 'D-0187', title: 'Refurbished 24-inch monitor', kind: 'haggle', side: 'buyer', cp: KEY.dan, item: 'monitor-24-ips', price: 212, state: 'RECEIPTED', mandate: MANDATE_M14, version: 2, market: [199, 207, 221], receipt: 'SELLER_ATTESTED', reconciliation: 'matched', paypal: { order: '5UV28QK1', authorization: '3HF1Z', capture: '8TA0W' }, decided: POLICY6, at: [back(0.9), back(0.82)] });
@@ -418,7 +433,7 @@ export function buildMockState(now: number): MockState {
   // The category each deal was created with. D-0180 predates categories on record, so the
   // what-if shows it as not checked instead of guessing.
   const CATEGORY: Record<string, Category> = {
-    'D-0193': 'office', 'D-0201': 'office', 'D-0187': 'office', 'D-0176': 'office', 'D-0199': 'office',
+    'D-0193': 'office', 'D-0204': 'office', 'D-0201': 'office', 'D-0187': 'office', 'D-0176': 'office', 'D-0199': 'office',
     'D-0192': 'compute', 'D-0190': 'parts', 'D-0186': 'office', 'D-0183': 'parts', 'D-0181': 'parts',
     'Q-0207': 'office', 'D-0189': 'office', 'D-0185': 'office', 'D-0196': 'office', 'D-0198': 'office',
     'D-0188': 'service', 'D-0182': 'service', 'D-0178': 'service',
@@ -443,8 +458,13 @@ export function buildMockState(now: number): MockState {
     };
   }
 
+  // The sample group: Dan's and the house seller's tables for the 27-inch 4K monitor.
+  const groupIds = ['D-0193', 'D-0204'].map((l) => deals.find((d) => d.display.label === l)?.deal.id).filter((x): x is string => !!x);
+  const groups: MockGroup[] = [{ group_id: fakeUlid('G-0012'), item_ref: 'monitor-27-4k', opened_at: now - 40 * 60, winner: null, deal_ids: groupIds, sample: true }];
+
   return {
     rescue,
+    groups,
     categories,
     notes,
     audit,
@@ -614,6 +634,12 @@ export function buildHistory(now: number): HistoryStep[] {
   ago(D('D-0193'), 40 * 60, 'offer_received', 'LISTED');
   ago(D('D-0193'), 36 * 60, 'offer_sent', 'NEGOTIATING', AGENT);
   ago(D('D-0193'), 4 * 60, 'offer_received');
+  // The house seller's table for the same monitor, shopped around with Dan's (T8).
+  ago(D('D-0204'), 41 * 60, 'created');
+  ago(D('D-0204'), 40 * 60, 'offer_received', 'LISTED');
+  ago(D('D-0204'), 32 * 60, 'offer_sent', 'NEGOTIATING', AGENT);
+  ago(D('D-0204'), 12 * 60, 'offer_received');
+  ago(D('D-0204'), 5 * 60, 'offer_sent', null, AGENT);
 
   const offset = (a: { day: number; hm: string }) => {
     const [h, m] = a.hm.split(':').map(Number);

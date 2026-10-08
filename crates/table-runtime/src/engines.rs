@@ -332,9 +332,16 @@ impl Runtime {
         self.pipeline
             .wallet
             .check_mandate(scope.deal_id, scope.category, self.clock.now())?;
-        self.pipeline
+        let answer = self
+            .pipeline
             .wallet
-            .invoke(scope, request, self.clock.now())
+            .invoke(scope, request, self.clock.now());
+        // The agent's ACCEPT may have agreed a grouped table: withdraw its siblings now (the next
+        // tick retries and reports a failure).
+        if answer.is_ok() {
+            let _ = self.close_groups();
+        }
+        answer
     }
     pub(crate) fn finish_run(
         &mut self,

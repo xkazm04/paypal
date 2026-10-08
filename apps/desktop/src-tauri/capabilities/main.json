@@ -43,6 +43,8 @@
     "allow-proof-check",
     "allow-deal-history",
     "allow-envelope-get",
-    "allow-rescue-book"
+    "allow-rescue-book",
+    "allow-deal-group-open",
+    "allow-deal-groups"
   ]
 }

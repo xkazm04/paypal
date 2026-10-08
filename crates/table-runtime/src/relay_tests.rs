@@ -1409,3 +1409,331 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
     drop(a);
     drop(b);
 }
+
+/// Shop around (T8) end to end: one buyer wallet opens a table with HOUSE and one with a desktop
+/// seller ("Dan") for the same monitor, groups them in main and starts the policy negotiator on
+/// both. HOUSE counters; the owner accepts it; HOUSE's table settles exactly like the H6 single
+/// deal, and the wallet withdraws Dan's table with a signed WITHDRAW that Dan's wallet receives as
+/// a normal withdraw through the same in-process relay. One order, one capture, at HOUSE only.
+#[tokio::test]
+async fn a_shop_around_group_with_house_and_a_desktop_seller_closes_through_the_in_process_relay() {
+    let (seller, release, house_http, _, store) = hosted_fixture();
+    let house = house_seller::spawn(seller);
+    let router = house_seller::router(store, house.clone());
+    let (mut buyer, _, buyer_http, _, _) = runtime(true);
+    let (mut dan, _, dan_http, _, _) = runtime(true);
+    buyer.house_release = Some(release);
+    buyer.house_state = HouseState::Idle;
+    // One buyer mandate for the whole group: paired sellers (HOUSE is paired too), and an opening
+    // at 5.00 under the house floor, which HOUSE declines as evidence and answers with a counter.
+    let mut buyer_clauses = clauses(Side::Buyer, DealKind::Haggle);
+    if let Clause::Band { floor, .. } = &mut buyer_clauses[3] {
+        *floor = Some(Money::new(500, Currency::USD).unwrap());
+    }
+    let mandate = buyer
+        .sign_mandate(MandateSignArgs {
+            id: None,
+            agent: AgentSlot::Negotiator,
+            clauses: buyer_clauses,
+            not_before: 0,
+            expires: 1000000,
+        })
+        .unwrap();
+    // Dan sells the same monitor; his floor takes the 5.00 opening as a lawful offer.
+    let mut dan_clauses = clauses(Side::Seller, DealKind::Haggle);
+    if let Clause::Band { floor, .. } = &mut dan_clauses[3] {
+        *floor = Some(Money::new(400, Currency::USD).unwrap());
+    }
+    let dan_mandate = dan
+        .sign_mandate(MandateSignArgs {
+            id: None,
+            agent: AgentSlot::Negotiator,
+            clauses: dan_clauses,
+            not_before: 0,
+            expires: 1000000,
+        })
+        .unwrap();
+    let loopback = install(&mut buyer);
+    let (a, _) = spawn(buyer.with_relay(Arc::new(InProcessRelay(router.clone()))));
+    let (d, _) = spawn(dan.with_relay(Arc::new(InProcessRelay(router))));
+    attach(&a, &loopback, 8767).await;
+    let a_token: String = a
+        .execute(caller("approval", None), Action::Token)
+        .await
+        .unwrap();
+    a.unlock(caller("approval", Some(&a_token)), 0)
+        .await
+        .unwrap();
+    let d_token: String = d
+        .execute(caller("approval", None), Action::Token)
+        .await
+        .unwrap();
+    d.unlock(caller("approval", Some(&d_token)), 0)
+        .await
+        .unwrap();
+    // Table 1: the house seller, paired and joined exactly as in the H6 test.
+    let words: PairingWords = a
+        .execute(
+            caller("main", None),
+            Action::PairJoin(PairingJoinArgs {
+                code: "HOUSE".into(),
+                peer: None,
+                side: Side::Buyer,
+                payee: PayeeRef::new("buyer").unwrap(),
+            }),
+        )
+        .await
+        .unwrap();
+    let house_key: KeyId = a
+        .execute(
+            caller("approval", Some(&a_token)),
+            Action::PairConfirm(PairingConfirmArgs {
+                pairing_id: words.pairing_id,
+                words: words.words,
+                display_name: "HOUSE".into(),
+            }),
+        )
+        .await
+        .unwrap();
+    let table = words.house_table.unwrap();
+    let house_id = table.deal_id;
+    a.execute::<Deal>(
+        caller("approval", Some(&a_token)),
+        Action::Join(DealJoinArgs {
+            deal_id: house_id,
+            create: DealCreateArgs {
+                kind: DealKind::Haggle,
+                side: Side::Buyer,
+                counterparty: house_key,
+                mandate_id: mandate.payload.id,
+                mandate_version: 1,
+                terms: table.terms.clone(),
+                category: table.category,
+            },
+        }),
+    )
+    .await
+    .unwrap();
+    // Table 2: Dan's desktop wallet, paired with the code he shares.
+    let offer: PairingOffer = d
+        .execute(
+            caller("main", None),
+            Action::PairCreate(PairingCreateArgs {
+                side: Side::Seller,
+                payee: PayeeRef::new("merchant").unwrap(),
+            }),
+        )
+        .await
+        .unwrap();
+    let buyer_words: PairingWords = a
+        .execute(
+            caller("main", None),
+            Action::PairJoin(PairingJoinArgs {
+                code: offer.code.clone(),
+                peer: None,
+                side: Side::Buyer,
+                payee: PayeeRef::new("buyer").unwrap(),
+            }),
+        )
+        .await
+        .unwrap();
+    let dan_words = d
+        .execute::<Option<PairingWords>>(
+            caller("main", None),
+            Action::PairPoll(PairingPollArgs {
+                code: offer.code.clone(),
+            }),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    let dan_key: KeyId = a
+        .execute(
+            caller("approval", Some(&a_token)),
+            Action::PairConfirm(PairingConfirmArgs {
+                pairing_id: buyer_words.pairing_id,
+                words: buyer_words.words,
+                display_name: "Dan".into(),
+            }),
+        )
+        .await
+        .unwrap();
+    let buyer_key: KeyId = d
+        .execute(
+            caller("approval", Some(&d_token)),
+            Action::PairConfirm(PairingConfirmArgs {
+                pairing_id: dan_words.pairing_id,
+                words: dan_words.words,
+                display_name: "Maya".into(),
+            }),
+        )
+        .await
+        .unwrap();
+    let dan_terms = Terms {
+        unit_price: Money::new(1200, Currency::USD).unwrap(),
+        ..table.terms.clone()
+    };
+    let dan_deal: Deal = d
+        .execute(
+            caller("approval", Some(&d_token)),
+            Action::Create(DealCreateArgs {
+                kind: DealKind::Haggle,
+                side: Side::Seller,
+                counterparty: buyer_key,
+                mandate_id: dan_mandate.payload.id,
+                mandate_version: 1,
+                terms: dan_terms.clone(),
+                category: table.category,
+            }),
+        )
+        .await
+        .unwrap();
+    let dan_id = dan_deal.id;
+    a.execute::<Deal>(
+        caller("approval", Some(&a_token)),
+        Action::Join(DealJoinArgs {
+            deal_id: dan_id,
+            create: DealCreateArgs {
+                kind: DealKind::Haggle,
+                side: Side::Buyer,
+                counterparty: dan_key,
+                mandate_id: mandate.payload.id,
+                mandate_version: 1,
+                terms: dan_terms,
+                category: table.category,
+            },
+        }),
+    )
+    .await
+    .unwrap();
+    state(&a, house_id, DealState::Listed).await;
+    state(&a, dan_id, DealState::Listed).await;
+    // Dan is away from his desk: his agent never answers, so only HOUSE can win here.
+    d.execute::<()>(caller("main", None), Action::Pause)
+        .await
+        .unwrap();
+    // The owner shops around from main: one group, two sellers, same item, same band.
+    let group: DealGroupView = a
+        .execute(
+            caller("main", None),
+            Action::GroupOpen(DealGroupOpenArgs {
+                deal_ids: vec![house_id, dan_id],
+            }),
+        )
+        .await
+        .unwrap();
+    assert_eq!(group.winner, None);
+    for id in [house_id, dan_id] {
+        let run: RunSnapshot = a
+            .execute(caller("main", None), Action::Start(id))
+            .await
+            .unwrap();
+        assert_eq!(run.mode, Mode::ScriptedEngine);
+    }
+    // Dan's wallet receives the buyer's signed opening offer on its own table.
+    state(&d, dan_id, DealState::Negotiating).await;
+    // HOUSE counters 22.50 and signs its ACCEPT; the buyer's agent may not take it alone (over
+    // clause 6), so it waits for the owner.
+    tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        loop {
+            let seller_deal = house.snapshot(house_id).await.unwrap();
+            let buyer_deal: Deal = a
+                .execute(caller("main", None), Action::Deal(house_id))
+                .await
+                .unwrap();
+            if buyer_deal.terms.unit_price.minor() == 2250
+                && seller_deal.transcript_head == buyer_deal.transcript_head
+            {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let groups: Vec<DealGroupView> = a
+        .execute(caller("main", None), Action::Groups)
+        .await
+        .unwrap();
+    let prices: Vec<_> = groups[0]
+        .tables
+        .iter()
+        .map(|t| (t.deal_id, t.seller_price.map(|p| p.minor())))
+        .collect();
+    assert!(prices.contains(&(house_id, Some(2250))), "{prices:?}");
+    assert!(prices.contains(&(dan_id, Some(1200))), "{prices:?}");
+    a.execute::<()>(caller("main", None), Action::Select(Some(house_id)))
+        .await
+        .unwrap();
+    let summary: ApprovalSummary = a
+        .execute(caller("approval", None), Action::Summary(house_id))
+        .await
+        .unwrap();
+    assert!(summary.can_owner_accept);
+    a.execute::<Deal>(
+        caller("approval", Some(&a_token)),
+        Action::Decision(
+            DecisionArgs {
+                deal_id: house_id,
+                attempt: summary.attempt,
+                terms_hash: summary.terms_hash,
+                counter_hash: summary.counter_hash,
+                checks_hash: Some(summary.checks_hash),
+            },
+            Decision::OwnerAccept,
+        ),
+    )
+    .await
+    .unwrap();
+    // HOUSE won: Dan's table is withdrawn by the group rule on both desks, signed, no money.
+    let lost = state(&a, dan_id, DealState::Withdrawn).await;
+    let dan_side = state(&d, dan_id, DealState::Withdrawn).await;
+    assert_eq!(lost.transcript_head, dan_side.transcript_head);
+    // HOUSE's table settles exactly like the single H6 deal.
+    let closed = state(&a, house_id, DealState::Receipted).await;
+    let seller_closed = house.snapshot(house_id).await.unwrap();
+    assert_eq!(closed.transcript_head, seller_closed.transcript_head);
+    assert_eq!(closed.paypal.capture, seller_closed.paypal.capture);
+    assert_eq!(closed.terms.unit_price.minor(), 2250);
+    let groups: Vec<DealGroupView> = a
+        .execute(caller("main", None), Action::Groups)
+        .await
+        .unwrap();
+    assert_eq!(groups[0].winner, Some(house_id));
+    assert!(
+        groups[0]
+            .tables
+            .iter()
+            .any(|t| t.deal_id == dan_id && t.closed_by_group)
+    );
+    let history: DealHistory = a
+        .execute(
+            caller("main", None),
+            Action::DealHistory(DealHistoryArgs {
+                deal_id: Some(dan_id),
+                from: None,
+                to: None,
+            }),
+        )
+        .await
+        .unwrap();
+    assert!(history.steps.iter().any(
+        |s| s.kind == HistoryKind::GroupWithdrawn && s.authority == HistoryAuthority::GroupRule
+    ));
+    // PayPal: one order, one hold, one capture, all at HOUSE; the buyer and Dan made no call.
+    assert!(buyer_http.0.lock().unwrap().paths.is_empty());
+    assert!(dan_http.0.lock().unwrap().paths.is_empty());
+    let paths = house_http.0.lock().unwrap().paths.clone();
+    assert_eq!(
+        paths
+            .iter()
+            .filter(|p| p.ends_with("/v2/checkout/orders"))
+            .count(),
+        1
+    );
+    assert_eq!(
+        paths.iter().filter(|p| p.ends_with("/authorize")).count(),
+        1
+    );
+    assert_eq!(paths.iter().filter(|p| p.ends_with("/capture")).count(), 1);
+}

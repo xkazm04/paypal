@@ -19,7 +19,8 @@ import type { ArgsOf, Backend, CommandName, EventName, InvokeOptions, PayloadOf,
 import { WalletError } from '../lib/contract';
 import { clockOffset, setClockOffset, simulateClock } from '../lib/clock';
 import { formatMoney, nowUnix } from '../lib/format';
-import { buildMockState, fakeHash, fakeUlid, type MockDeal, type MockState } from './fixtures';
+import { buildMockState, fakeHash, fakeUlid, type MockDeal, type MockGroup, type MockState } from './fixtures';
+import type { DealGroupView } from '@bindings/DealGroupView';
 import { ON_QUIT, mockForecast, mockQuitLines, quitPending, type ForecastDeal } from './forecast';
 import type { ApprovalCheckId } from '@bindings/ApprovalCheckId';
 import type { DecisionArgs } from '@bindings/DecisionArgs';
@@ -60,7 +61,7 @@ const TARGETS: Record<EventName, WindowLabel[]> = {
   'pairing:pinned': ['main'],
 };
 
-export const STORE_KEY = 'the-table-mock-state-v11'; // v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
+export const STORE_KEY = 'the-table-mock-state-v12'; // v12: shop-around groups and the house seller's D-0204 (T8); v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
 const DEGRADE_KEY = 'the-table-mock-degrade';
 /** The preview clock's offset from wall time, shared by every mock window of this origin. */
 export const CLOCK_KEY = 'the-table-mock-clock';
@@ -415,6 +416,54 @@ export function mockBackend(label: WindowLabel): MockBackend {
     for (const v of Object.values(state.rescue ?? {})) if (v.counted) by.set(v.offer.invoice.currency, (by.get(v.offer.invoice.currency) ?? 0) + v.offer.invoice.minor);
     return [...by.entries()].map(([currency, minor]) => ({ minor, currency }));
   }
+  // ---- shop around (T8): as the ledger's group guard and Runtime::close_groups -------------------
+  // ?groups=none previews the wallet before the sample group was opened ("Shop around" shows).
+  const groupsNone = params.get('groups') === 'none';
+  const groups = (): MockGroup[] => (state.groups ?? []).filter((g) => !(groupsNone && g.sample));
+  const groupOfDeal = (id: string) => groups().find((g) => g.deal_ids.includes(id));
+  /** Our ACCEPT is out on this table: signed after the latest offer, the deal still negotiating. */
+  function acceptOut(d: MockDeal): boolean {
+    const last = d.transcript.reduce((i, t, n) => (t.typ === 'OFFER' || t.typ === 'COUNTER' ? n : i), -1);
+    return d.deal.state === 'NEGOTIATING' && d.transcript.some((t, n) => n > last && t.by === 'you' && t.typ === 'ACCEPT');
+  }
+  /** The ledger's accept guard: another table agreed, or holds the group's one ACCEPT. */
+  function groupBlocked(id: string): boolean {
+    const g = groupOfDeal(id);
+    if (!g) return false;
+    if (g.winner && g.winner !== id) return true;
+    return g.deal_ids.some((o) => o !== id && acceptOut(find(o)));
+  }
+  function groupView(g: MockGroup): DealGroupView {
+    const priced = (d: MockDeal, by: 'you' | 'them') =>
+      [...d.transcript].reverse().find((t) => t.by === by && (t.typ === 'LISTING' || t.typ === 'OFFER' || t.typ === 'COUNTER'))?.price ?? null;
+    return {
+      group_id: g.group_id, item_ref: g.item_ref, opened_at: g.opened_at, winner: g.winner,
+      tables: g.deal_ids.map((id) => {
+        const d = find(id);
+        return {
+          deal_id: id, counterparty: d.deal.counterparty, state: d.deal.state, seller_price: priced(d, 'them'), our_price: priced(d, 'you'),
+          closed_by_group: !!g.winner && g.winner !== id && d.deal.state === 'WITHDRAWN',
+        };
+      }),
+    };
+  }
+  /** The group rule after a table agreed: claim the group, then a signed WITHDRAW to every other open table. */
+  function closeGroup(winner: string): void {
+    const g = groupOfDeal(winner);
+    if (!g || g.winner) return;
+    g.winner = winner;
+    const history = state.history ?? buildMockState(nowUnix()).history ?? [];
+    for (const id of g.deal_ids) {
+      const d = find(id);
+      if (id === winner || !['PAIRING', 'LISTED', 'NEGOTIATING'].includes(d.deal.state)) continue;
+      d.transcript.push({ seq: d.transcript.length + 1, by: 'you', typ: 'WITHDRAW', price: null, at: nowUnix(), verified: true });
+      history.push({ at: nowUnix(), deal_id: id, seq: history.reduce((m, h) => Math.max(m, h.seq), 0) + 1, kind: 'group_withdrawn', state_after: 'WITHDRAWN', authority: { type: 'group_rule' }, paypal: { type: 'none' } });
+      state.history = history;
+      transition(id, 'WITHDRAWN');
+      emit('receipt:created', { deal_id: id, evidence: d.evidence, mode: d.deal.mode, state: 'WITHDRAWN', on_silence: 'withdrawn · no money moved' });
+    }
+    save();
+  }
   function openWindow(page: string, name: string, features?: string): void {
     window.open(withFirstRun(page, firstRun), name, features);
   }
@@ -643,7 +692,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
         can_owner_accept: !locked && d.deal.side === 'buyer' && d.deal.kind === 'haggle' && d.deal.state === 'NEGOTIATING'
           && !shieldStops && d.deal.mode === 'sandbox' && (d.display.deadline ?? 0) > nowUnix()
           && d.transcript.some((s) => s.by === 'them' && s.typ === 'COUNTER')
-          && !d.transcript.some((s) => s.by === 'you' && s.typ === 'ACCEPT') && ownerMandateAllows(d),
+          && !d.transcript.some((s) => s.by === 'you' && s.typ === 'ACCEPT') && ownerMandateAllows(d) && !groupBlocked(deal_id),
         locked,
         can_release: !locked && state.settings.payment_executor_configured && !buyerHaggle && d.deal.shield !== 'BLOCK' && d.deal.state !== 'MISMATCH' && (!rescue || rescueReleasable(d)),
         can_open_paypal: !locked && d.deal.state === 'AWAITING_APPROVAL' && !shieldStops,
@@ -704,9 +753,14 @@ export function mockBackend(label: WindowLabel): MockBackend {
       const s = handlers.approval_summary({ deal_id: args.deal_id });
       if (args.attempt !== s.attempt || JSON.stringify(args.terms_hash) !== JSON.stringify(s.terms_hash)
         || !args.counter_hash || JSON.stringify(args.counter_hash) !== JSON.stringify(s.counter_hash)) fail('INVALID', 'stale decision');
+      // As the ledger's group guard (T8): refused before anything is signed (REFUSED, not a gate).
+      if (groupBlocked(args.deal_id)) fail('REFUSED', 'another table in this group already agreed');
       if (!s.can_owner_accept || !ownerMandateAllows(d)) fail('PERMISSION', 'owner accept is unavailable');
       d.transcript.push({ seq: d.transcript.length + 1, by: 'you', typ: 'ACCEPT', price: null, at: nowUnix(), verified: true });
-      return transition(args.deal_id, d.transcript.some((s) => s.by === 'them' && s.typ === 'ACCEPT') ? 'AGREED' : 'NEGOTIATING', { decided_by: { type: 'human', at: nowUnix() } });
+      const agreed = d.transcript.some((s) => s.by === 'them' && s.typ === 'ACCEPT');
+      const deal = transition(args.deal_id, agreed ? 'AGREED' : 'NEGOTIATING', { decided_by: { type: 'human', at: nowUnix() } });
+      if (agreed) closeGroup(args.deal_id);
+      return deal;
     },
     unlock: (_a, opts) => {
       if (label !== 'approval') fail('UNSUPPORTED', 'unlock runs only in the approval window');
@@ -1038,6 +1092,25 @@ export function mockBackend(label: WindowLabel): MockBackend {
       cases: state.deals.filter((d) => d.deal.kind === 'rescue').flatMap((d) => (state.rescue?.[d.deal.id] ? [state.rescue[d.deal.id]!] : [])),
       recovered: rescueRecovered(),
     }),
+    // As Runtime::open_group (T8): open buyer haggles for one item under one set of rules, one
+    // table per seller, none holding our ACCEPT. Grouping only restricts; no money moves.
+    deal_group_open: ({ deal_ids }) => {
+      const tables = deal_ids.map(find);
+      const first = tables[0]?.deal;
+      const grouped = new Set(groups().flatMap((g) => g.deal_ids));
+      const ok = !!first && tables.length >= 2 && tables.length <= 8
+        && new Set(deal_ids).size === deal_ids.length && new Set(tables.map((d) => d.deal.counterparty)).size === tables.length
+        && tables.every((d) => d.deal.side === 'buyer' && d.deal.kind === 'haggle' && ['PAIRING', 'LISTED', 'NEGOTIATING'].includes(d.deal.state)
+          && !grouped.has(d.deal.id) && d.deal.mandate_id === first.mandate_id && d.deal.terms.item_ref === first.terms.item_ref && !acceptOut(d));
+      if (!ok || !first) fail('INVALID', 'Invalid or stale wallet command');
+      const g: MockGroup = { group_id: fakeUlid(`G:${deal_ids.join(',')}:${nowUnix()}`), item_ref: first.terms.item_ref, opened_at: nowUnix(), winner: null, deal_ids: [...deal_ids] };
+      state.groups = [...(state.groups ?? []), g];
+      save();
+      for (const d of tables) emit('deal:changed', { deal: d.deal, mode: d.deal.mode });
+      return groupView(g);
+    },
+    // As Runtime::group_views: every group, newest first, typed signed prices only.
+    deal_groups: () => [...groups()].sort((a, b) => b.opened_at - a.opened_at).map(groupView),
   };
 
   // ---- the preview world (director and preview stage only; no money operation) ----------------

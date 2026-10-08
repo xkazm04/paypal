@@ -72,6 +72,8 @@ pub enum Action {
     EnvelopeGet,
     RescueReplay(RescueReplayArgs),
     RescueBook,
+    GroupOpen(DealGroupOpenArgs),
+    Groups,
 }
 impl Action {
     /// The IPC command this action serves, whose row in the authority table
@@ -134,6 +136,8 @@ impl Action {
             Action::EnvelopeGet => "envelope_get",
             Action::RescueReplay(_) => "rescue_replay",
             Action::RescueBook => "rescue_book",
+            Action::GroupOpen(_) => "deal_group_open",
+            Action::Groups => "deal_groups",
             Action::Select(_)
             | Action::SelectPairing(_)
             | Action::ClaimNotification { .. }

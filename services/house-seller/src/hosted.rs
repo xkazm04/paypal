@@ -63,6 +63,7 @@ impl Error {
                 LedgerError::Integrity(_) => "ledger.integrity",
                 LedgerError::NotFound => "ledger.not_found",
                 LedgerError::Conflict => "ledger.conflict",
+                LedgerError::GroupClosed => "ledger.group_closed",
             },
             Self::App(e) => match e {
                 table_app::Error::Refused(_) => "app.refused",

@@ -26,6 +26,7 @@ import { useCpLookup, useToast } from '../ui';
 import { useWorld } from '../world';
 import type { ModuleProps } from './common';
 import { NoteChip } from './shield/NoteChip';
+import { ShopAroundButton, ShopAroundCards } from './tables/Groups';
 import {
   bandOf, consequences, diffLines, draftValid, fenceKey, fits, ladderScale, lastPriced, moveFence, parseAmount, posPct, priceAt,
   LIMIT_WORD, sameBand, short, standLine, standing, stepStates, tabLine, toInput, topPct, unitOf, type BandDraft, type Consequence, type Priced, type Scale,
@@ -107,10 +108,13 @@ export function Tables({ deals, nav }: ModuleProps) {
   });
 
   const [closedA, setClosedA] = useState<HTMLElement | null>(null);
+  // Shop around (T8): the groups of sellers for one item, each seller's latest signed price.
+  const groups = useQuery('deal_groups', null, { refreshOn: ['deal:changed'] });
   const actions = (
     <>
       <DetailToggle value={detail} onChange={setDetail} />
       <Btn aria-haspopup="dialog" onClick={(e) => { const t = e.currentTarget; setClosedA((x) => (x ? null : t)); }}>Closed · {closed.length} ▾</Btn>
+      <ShopAroundButton groups={groups.data ?? []} deals={deals} onGrouped={() => void groups.refetch()} />
       <Btn kind="primary" onClick={() => nav.onSheet('pairing')} title="Start haggling with another wallet over an item, join with a code, or try the house seller">Open a table</Btn>
     </>
   );
@@ -136,6 +140,8 @@ export function Tables({ deals, nav }: ModuleProps) {
           ))}
         </section>
       ) : null}
+
+      <ShopAroundCards groups={groups.data ?? []} deals={deals} nav={nav} />
 
       {!strip.length || !cur ? (
         <>

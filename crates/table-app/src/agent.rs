@@ -1,7 +1,7 @@
 use ed25519_dalek::VerifyingKey;
 use serde::{Deserialize, Serialize};
 use table_core::*;
-use table_ledger::{AuditEntry, Direction, Ledger, LedgerError};
+use table_ledger::{AuditEntry, Direction, GroupLoser, Ledger, LedgerError};
 use table_proto::{
     AgentSigner, Body, Envelope, ProtocolError, ReasonCode, VerifiedEnvelope, VerifyContext, verify,
 };
@@ -188,6 +188,11 @@ impl Wallet {
         let (seq, hash) = self.ledger.pending_offer(id)?;
         if seq != offer_seq || hash != deal.terms.hash()? {
             return Err(Error::Invalid);
+        }
+        // Shop around (T8): refused before anything is signed when another table of the group
+        // agreed or holds our one ACCEPT. The ledger checks the same rule again when recording.
+        if self.ledger.group_accept_blocked(id, true)? {
+            return Err(LedgerError::GroupClosed.into());
         }
         let envelope = self.signed(
             &deal,
@@ -389,6 +394,43 @@ impl Wallet {
             )
             .into_result()?)
     }
+    /// The group rule's signed WITHDRAW of a table another seller's agreement closed (T8): no
+    /// money moves, the seller sees a normal WITHDRAW, and `group.withdrawn` records the group rule
+    /// as what decided it, in the same transaction. The caller selects the deal's agent signer.
+    pub fn withdraw_for_group(&mut self, loser: &GroupLoser, now: Timestamp) -> Result<(), Error> {
+        let deal = self.ledger.get_deal(loser.deal_id)?;
+        if self.ledger.group_of(deal.id)? != Some(loser.group_id) {
+            return Err(Error::Invalid);
+        }
+        transition(deal.state, DealEvent::Withdraw)?;
+        let envelope = self.signed(
+            &deal,
+            Body::Withdraw {
+                reason: ReasonCode::Price,
+            },
+            now,
+        )?;
+        self.ledger.commit_group_withdraw(&envelope, now)?;
+        Ok(())
+    }
+    /// A group refusal of the agent's ACCEPT leaves an `intent.refused` row (T8).
+    fn record_group_refusal(
+        &mut self,
+        deal: DealId,
+        error: &Error,
+        now: Timestamp,
+    ) -> Result<(), Error> {
+        if matches!(error, Error::Ledger(LedgerError::GroupClosed)) {
+            self.ledger.append_audit(&AuditEntry {
+                at: now,
+                actor: "agent".into(),
+                action: "intent.refused".into(),
+                deal_id: Some(deal),
+                detail: serde_json::json!({"layer":"group","reason":error.to_string()}),
+            })?;
+        }
+        Ok(())
+    }
     /// An envelope refusal of an agent's intent leaves an `intent.refused` row naming the limit.
     fn record_limit_refusal(
         &mut self,
@@ -534,6 +576,7 @@ impl AgentService for Wallet {
                     Ok(raw) => raw,
                     Err(error) => {
                         self.record_limit_refusal(input.deal_id, &error, now)?;
+                        self.record_group_refusal(input.deal_id, &error, now)?;
                         return Err(error);
                     }
                 };
