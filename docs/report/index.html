@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overnight Build Report</title>
+<meta name="description" content="What the overnight build waves added to The Table, the PayPal agentic wallet: features, safety evidence, quality and what is still open.">
+<link rel="stylesheet" href="report.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><span class="pill gold">The Table</span> PayPal agentic wallet · build report · 7–8 Oct 2026 · branch <code>claude/confident-euler-99xqm9</code></div>
+    <h1>Ten waves overnight: from a safe spine to a wallet a merchant can trust with their agents</h1>
+    <p class="lede">One coordinator planned the waves. Parallel builder sessions each built one theme in their own worktree. After every merge the coordinator ran the full Rust and client gates and the demo rehearsal check. Every feature below sits on the same rule: the AI agent never moves money.</p>
+
+    <div class="stats" aria-label="Key numbers">
+      <div class="stat"><div class="n">10</div><div class="k">build waves</div><div class="d">+ wave 0: green Linux CI</div></div>
+      <div class="stat"><div class="n">32</div><div class="k">builder merges</div><div class="d">131 commits, 489 files</div></div>
+      <div class="stat"><div class="n">+54.8k</div><div class="k">lines added</div><div class="d">3.2k removed</div></div>
+      <div class="stat"><div class="n">540 / 0</div><div class="k">Rust tests passed / failed</div><div class="d">9 ignored (live sandbox, env-gated)</div></div>
+      <div class="stat"><div class="n">810</div><div class="k">client tests</div><div class="d">76 files, typecheck + build clean</div></div>
+      <div class="stat"><div class="n">0</div><div class="k">safety-rule violations</div><div class="d">3,757 hostile agent calls, 400 sessions</div></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section aria-labelledby="spine">
+  <h2 id="spine">The rule every wave kept</h2>
+  <p class="sub">Money moves at PayPal only from the Rust pipeline, and only on one of three authorities. Each authority is recorded per money step in <code>decided_by</code> and in the hash-chained audit log.</p>
+  <div class="auth">
+    <div class="card owner"><h3>1 · The owner, in the approval window</h3><p>A hold-to-confirm decision in the one window whose commands can countersign, release or approve. It needs a token, the right window label and an unlocked wallet. Since T5 it is bound to the exact checklist the owner saw.</p></div>
+    <div class="card rule"><h3>2 · A rule the owner signed</h3><p>A countersign under the owner's threshold, or the seller collecting an order the buyer already approved on PayPal. The house seller acts on its release-pinned rules.</p></div>
+    <div class="card def"><h3>3 · A safe default</h3><p>Void the hold or let it lapse at the deadline. Never capture. Silence never moves money, and since wave 9 the wallet records what the owner was shown before a deadline default applied.</p></div>
+  </div>
+  <div class="never">The agent has no tool that pays, captures, voids or refunds. <span>A refused intent leaves zero PayPal calls. The gauntlet re-checks this across the whole ledger after every generated session.</span></div>
+</section>
+
+<section aria-labelledby="waves">
+  <h2 id="waves">Wave by wave</h2>
+  <p class="sub">Themes T1–T19 come from the moonshot backlog (<code>docs/concepts/moonshot-backlog.md</code> §1a). Every wave ended green on the full gates.</p>
+  <ol class="timeline">
+    <li class="wave"><span class="dot">0</span><div class="body"><div class="head"><h3>Green Linux CI</h3><span class="pill line">foundation</span></div>
+      <ul><li>The engine tests assumed Windows binary names, and Windows-only helpers tripped clippy on Linux. Both fixed, so every later merge could be gated on Linux.</li></ul></div></li>
+    <li class="wave"><span class="dot">1</span><div class="body"><div class="head"><h3>Truth at the decision, the walk-away, the judge path</h3><span class="pill blue">T5 · T4 · T2 · T7</span></div>
+      <ul><li><b>Rust-composed approval checks (T5):</b> the READY checklist is built by the pipeline. Its <code>checks_hash</code> must come back with the owner's decision, or Rust refuses it.</li>
+      <li><b>Walk-away forecast (T4):</b> "If you walk away" in the Tumbler and the quit confirm. A property test shows the forecast never ends with money moving out.</li>
+      <li><b>"Practice agent" badge (T2):</b> runs of the deterministic negotiator are labelled as such.</li>
+      <li><b>Maya's week director (T7):</b> a watch-only browser preview of all three windows, needing no install.</li></ul></div></li>
+    <li class="wave"><span class="dot">2</span><div class="body"><div class="head"><h3>Who decided, what-if, polish 1</h3><span class="pill blue">T6 · T12</span></div>
+      <ul><li><b>Rewind (T6):</b> a <code>deal_history</code> projection and a scrubber under the Dial. Each money step is coloured by who decided it: owner, signed rule or safe default.</li>
+      <li><b>Mandate what-if (T12):</b> before signing, a draft's verdicts are replayed over last week's recorded intents, shown as "before" and "after".</li>
+      <li><b>Design polish 1:</b> module pages, the deal page and sheets.</li></ul></div></li>
+    <li class="wave"><span class="dot">3</span><div class="body"><div class="head"><h3>PayPal ground truth and the wallet envelope</h3><span class="pill blue">T10 · T14</span></div>
+      <ul><li><b>Read-back resolver (T10):</b> when a PayPal answer is lost, the wallet reads the truth back. It then confirms, re-sends with the same PayPal-Request-Id, or parks the step. Exactly once, never twice.</li>
+      <li><b>Wallet-wide limits (T14):</b> an owner-signed envelope, checked after the mandate and before any network call, with real meters.</li></ul></div></li>
+    <li class="wave"><span class="dot">4</span><div class="body"><div class="head"><h3>Rescue, market evidence, the glass-box house seller</h3><span class="pill blue">rescue · T15 · T9</span></div>
+      <ul><li><b>Subscription rescue:</b> the one lever, a discount for this cycle, end to end. An owner-approved invoice, polled until paid; money counts as recovered only from a verified capture.</li>
+      <li><b>MarketWatch (T15):</b> a signed rule keeps market prices fresh, so policy countersign can run. It makes no PayPal calls.</li>
+      <li><b>Glass-box house seller (T9):</b> a public signed ledger with a head every minute. The buyer keeps the head beside its receipt, plus a scoreboard page and a verifier.</li>
+      <li><b>Polish 2</b> (the Dial, the Tumbler, the approval window) and <b>Book: ask in your own words</b>.</li></ul></div></li>
+    <li class="wave"><span class="dot">5</span><div class="body"><div class="head"><h3>Shop around, one authority table, first run, accessibility</h3><span class="pill blue">T8 · T11</span></div>
+      <ul><li><b>Shop around (T8):</b> one buyer intent goes to several sellers, and the first signed agreement wins. The losing tables get a signed withdrawal, and only one reservation counts against the budget.</li>
+      <li><b>Authority manifest (T11):</b> one table declares who may call each IPC command. It generates the command lists, capabilities and mock gates, and its fingerprint is pinned.</li>
+      <li><b>First run</b> from install to a first safe deal; <b>WCAG 2.2 AA</b> accessibility and keyboard pass; <b>director takes</b> (stills, video, rehearsal check).</li></ul></div></li>
+    <li class="wave"><span class="dot">6</span><div class="body"><div class="head"><h3>Review everything</h3><span class="pill red">adversarial review</span></div>
+      <ul><li><b>Money-path review:</b> no invariant was broken. Liveness fixes covered the owner void, the rescue send, a revoked mandate and the house seller's prefix queue.</li>
+      <li><b>While you were away</b> on Home; the council's open items (owner-key anchor, house seller slots and floor); a README refresh.</li></ul></div></li>
+    <li class="wave"><span class="dot">7</span><div class="body"><div class="head"><h3>A real table for the agent, stronger proof, Shield slice 2</h3><span class="pill blue">agent surface · T1 v2</span></div>
+      <ul><li><b>Agent tool surface:</b> the agent reads a closed projection that cannot carry counterparty text. Refusals come back as closed codes, every one is audited, and the role playbooks are compiled in.</li>
+      <li><b>Proof bundle v2:</b> new verifier checks. The owner saw the checklist; one request id per step; at most one winning group table; Shield releases; house seller heads; the permissions fingerprint.</li>
+      <li><b>Shield slice 2:</b> verdicts, rules, refusals and releases are recorded and explained, and a HOLD really holds.</li>
+      <li><b>Second review fixes:</b> the house seller's 30-minute boundary race; Shield release and refusal deduplication; an ended rescue re-send.</li></ul></div></li>
+    <li class="wave"><span class="dot">8</span><div class="body"><div class="head"><h3>Root causes, detection, speed</h3><span class="pill line">quality</span></div>
+      <ul><li>Two flaky tests root-caused. The fixes made tests read state that stays true; no test was skipped.</li>
+      <li><b>Rescue detection:</b> owner-watched subscriptions are read with GET only, on a budget. Each failed renewal opens exactly one counted fix.</li>
+      <li><b>Code splitting</b> of the client.</li></ul></div></li>
+    <li class="wave"><span class="dot">9</span><div class="body"><div class="head"><h3>Prove it at scale, informed silence, polish 3</h3><span class="pill teal">gauntlet · attention-ladder-1</span></div>
+      <ul><li><b>Hostile-agent gauntlet:</b> seeded sessions through the real MCP router and pipeline. After every session a whole-ledger predicate checks that every money row has a lawful authority. The CI <b>acceptance matrix</b> covers all 17 never-cut criteria, and CI uploads an offline <b>safety dossier</b>.</li>
+      <li><b>Informed silence:</b> one ladder schedule replaced six copies. Shown, notified and opened events are recorded in the audit log, and the safe default cites them: "Lapsed 10:37 · shown 09:00 · notified 10:25 · opened 10:29 · no money moved".</li>
+      <li><b>Polish 3:</b> amounts agree across Home, Book and Rescue; plain check words; no raw codes or "HOUSE" on screen.</li>
+      <li><b>CI repaired on Windows:</b> case-colliding file names and CRLF prompts. A guard test catches both now, and both OS legs are green.</li></ul></div></li>
+    <li class="wave"><span class="dot">10</span><div class="body"><div class="head"><h3>Evidence anyone can re-check, and the safety record in the app</h3><span class="pill teal">market-data-2 · ops-and-delivery-1</span></div>
+      <ul><li><b>Fair-price certificate:</b> market evidence keeps the raw-response hash and up to 30 comparable prices, so the quartiles recompute exactly. The record the deal was agreed on is committed in the hash chain, and the verifier gained a 16th check, <code>market</code>: "$212.00 is the 62nd percentile of 13 market prices · re-checked".</li>
+      <li><b>Your safety record:</b> the gauntlet's predicate became a library and runs on the owner's own ledger, from the Book or Ctrl K. It shows the record count, whether the chain is unbroken, money steps by who decided, and the agent refusals PayPal never saw. Any finding turns the sheet red and names the deal. Maya's week gained a 22nd beat for it.</li>
+      <li><b>Module documentation:</b> 16 pages in <code>docs/features/</code>, each checked against the code, plus this report.</li></ul></div></li>
+  </ol>
+</section>
+
+<section aria-labelledby="pillars">
+  <h2 id="pillars">What a merchant gets</h2>
+  <p class="sub">The same work, grouped by the product goals: automate the business, handle payments, protect, and stay understandable.</p>
+  <div class="pillars">
+    <div class="card pillar"><h3><span class="sw" style="background:var(--teal)"></span>Automate the business</h3><ul>
+      <li><b>Tables:</b> agents haggle inside a signed price range, including a deterministic negotiator that needs no LLM. Every agreed price carries a re-checkable fair-price certificate.</li>
+      <li><b>Shop around:</b> one item, several sellers, first agreement wins.</li>
+      <li><b>Counter:</b> the owner's own shop. Buyers' agents order there, never below the lowest prices, and buyer-approved orders are collected without a click.</li>
+      <li><b>Rescue:</b> watched subscriptions, one discount fix per failed renewal.</li>
+      <li><b>MarketWatch:</b> fresh market prices under a signed allowance.</li></ul></div>
+    <div class="card pillar"><h3><span class="sw" style="background:var(--blue)"></span>Payments that add up</h3><ul>
+      <li>Holds at PayPal, then capture or release. The <b>read-back resolver</b> makes each money step exactly-once.</li>
+      <li><b>Wallet-wide limits</b> above every mandate.</li>
+      <li><b>Book:</b> every payment in one list, matched to PayPal's statement, with "ask in your own words".</li>
+      <li>Amounts agree across every surface (polish 3).</li></ul></div>
+    <div class="card pillar"><h3><span class="sw" style="background:var(--red)"></span>Protect</h3><ul>
+      <li><b>Shield:</b> new payees and odd prices pause before PayPal is asked. Only the owner can release.</li>
+      <li><b>Rust-attested checklist</b> bound to each decision.</li>
+      <li><b>Proof bundle v2</b> plus an offline verifier anyone can run.</li>
+      <li><b>Gauntlet</b> and acceptance matrix in CI; a <b>safety dossier</b> artifact; <b>Your safety record</b> in the app.</li>
+      <li><b>Authority manifest:</b> one table decides who may call each command.</li></ul></div>
+    <div class="card pillar"><h3><span class="sw" style="background:var(--violet)"></span>Understandable, world-class UX</h3><ul>
+      <li><b>Rewind:</b> who decided each money step.</li>
+      <li><b>Walk-away forecast</b> and <b>What you were shown</b>: silence is explained, never feared.</li>
+      <li><b>While you were away</b>, first run, WCAG 2.2 AA, three polish passes.</li>
+      <li><b>Maya's week director:</b> judges watch it work without installing anything.</li></ul></div>
+  </div>
+</section>
+
+<section aria-labelledby="growth">
+  <h2 id="growth">Growth of the safety net</h2>
+  <p class="sub">Before the first wave (<code>ec80b00</code>) and now. Test counts are test functions in source.</p>
+  <div class="card">
+    <div class="bars">
+      <div class="bar"><span class="label">Rust test functions</span><span class="track"><span class="was" style="width:57.8%"></span><span class="now" style="width:100%"></span></span><span class="v">323 → 559</span></div>
+      <div class="bar"><span class="label">Client test cases</span><span class="track"><span class="was" style="width:60.3%"></span><span class="now" style="width:100%"></span></span><span class="v">454 → 753</span></div>
+      <div class="bar"><span class="label">Ledger migrations</span><span class="track"><span class="was" style="width:50%"></span><span class="now" style="width:100%"></span></span><span class="v">7 → 14</span></div>
+      <div class="bar"><span class="label">Never-cut criteria with a test</span><span class="track"><span class="was" style="width:82.4%"></span><span class="now" style="width:100%"></span></span><span class="v">14 → 17</span></div>
+    </div>
+    <div class="legend"><span><span class="sw" style="background:var(--ink3);opacity:.6"></span> before</span><span><span class="sw" style="background:var(--teal)"></span> now</span></div>
+  </div>
+</section>
+
+<section aria-labelledby="gates">
+  <h2 id="gates">Gates at the last merge</h2>
+  <div class="scroll"><table class="tbl">
+    <thead><tr><th>Gate</th><th>Result</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>cargo fmt</code>, <code>cargo clippy -D warnings</code></td><td><span class="pill teal">clean</span></td><td>whole workspace, all targets</td></tr>
+      <tr><td><code>cargo test --workspace</code></td><td class="num"><span class="pill teal">540 passed</span></td><td>0 failed · 9 ignored: live PayPal sandbox checks, env-gated</td></tr>
+      <tr><td>Client typecheck · tests · build</td><td class="num"><span class="pill teal">810 passed</span></td><td>76 files; a case-collision guard for Windows checkouts</td></tr>
+      <tr><td>Director rehearsal (<code>takes --check</code>)</td><td><span class="pill teal">22 / 22 beats</span></td><td>every beat of Maya's week shows its end state</td></tr>
+      <tr><td>GitHub CI (Windows + Ubuntu, client, deny)</td><td><span class="pill teal">green</span></td><td>green again since run 41; the Windows leg compiles the native shell again</td></tr>
+      <tr><td>Hostile-agent gauntlet</td><td><span class="pill teal">0 violations</span></td><td>64 fixed seeds in CI; 400 seeds locally (3,757 calls, 2,204 refused, 702 money operations)</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section aria-labelledby="open">
+  <h2 id="open">Honest edges</h2>
+  <div class="two">
+    <div class="card"><h3>Done and verified</h3><ul class="checks ok">
+      <li><b>Two adversarial reviews</b> of the money paths found no broken invariant. Every finding was fixed with a regression test.</li>
+      <li><b>Flaky tests root-caused</b>, never skipped: actor gated polls, and one-tick states.</li>
+      <li><b>CI red for ~6 hours</b> (Windows file-name collisions, CRLF prompts) was found and fixed, and a guard was added.</li>
+      <li>Dev builds now optimise crypto and SQLite, which makes the gauntlet about 5× faster.</li></ul></div>
+    <div class="card"><h3>Needs the owner</h3><ul class="checks open">
+      <li><b>Rescue double charge:</b> after a fix's invoice is paid, PayPal may still retry the full renewal. Stopping it (suspend, or charging the owed balance instead of invoicing) is a lever-design decision.</li>
+      <li><b>Spike 8:</b> one live sandbox invoice and subscription read. Several subscription fields are marked UNVERIFIED.</li>
+      <li><b>T3 real engine session</b> stays gated on spike 2. The deterministic negotiator carries the demo.</li>
+      <li>Native Windows UAT: notifications, Do Not Disturb, Hello. Acceptance IDs not yet covered by Rust tests: F5, M1, M2, C2, R2, U1–U4, W1, W2, W7, W9.</li></ul></div>
+  </div>
+</section>
+
+<section aria-labelledby="docs">
+  <h2 id="docs">Module documentation</h2>
+  <p class="sub">What each part is today, in a stable shape. The build log stays in <a href="../build/STATUS.md">STATUS.md</a>.</p>
+  <div class="docs">
+    <a href="../features/README.md">Index<span>all modules at a glance</span></a>
+    <a href="../features/tables-haggling.md">Tables<span>haggles, negotiator, shop around, market watch</span></a>
+    <a href="../features/spend-purchases.md">Spend<span>agent purchases, holds, wallet limits</span></a>
+    <a href="../features/counter-shop.md">Counter<span>the owner's shop and the house seller</span></a>
+    <a href="../features/rescue.md">Rescue<span>failed renewals, one fix, watch list</span></a>
+    <a href="../features/shield.md">Shield<span>scam checks, holds, releases</span></a>
+    <a href="../features/book.md">Book<span>every payment, matched to PayPal</span></a>
+    <a href="../features/home-and-rewind.md">Home and Rewind<span>the Dial, while you were away, who decided</span></a>
+    <a href="../features/approval-window.md">Approval window<span>the only place money decisions happen</span></a>
+    <a href="../features/tumbler-and-attention.md">Tumbler and attention<span>ladder, notifications, informed silence</span></a>
+    <a href="../features/mandates-and-rules.md">Mandates and rules<span>what the owner signs</span></a>
+    <a href="../features/money-pipeline.md">Money pipeline<span>authorities, PayPal calls, resolver</span></a>
+    <a href="../features/agents-and-engines.md">Agents and engines<span>projection, refusal codes, playbooks</span></a>
+    <a href="../features/proof-and-verification.md">Proof and verification<span>bundle, verifier, gauntlet, dossier</span></a>
+    <a href="../features/ipc-and-authority.md">IPC and authority<span>three windows, one authority table</span></a>
+    <a href="../features/pairing-relay-house.md">Pairing, relay, house seller<span>signed envelopes, glass box</span></a>
+    <a href="../features/preview-and-director.md">Preview and director<span>browser mock, Maya's week</span></a>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">Generated from the repository's own build log (<code>docs/build/STATUS.md</code>), git history (<code>ec80b00..HEAD</code>) and the gate runs of 8 Oct 2026. Module pages: <a href="../features/README.md">docs/features</a>. Apache-2.0.</div>
+</footer>
+</body>
+</html>

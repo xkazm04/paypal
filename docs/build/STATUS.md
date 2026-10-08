@@ -1804,3 +1804,23 @@ Wording and consistency pass over Book, Rescue, Shield, Counter, Spend, Home, th
 - **Deviations:** the commitment sits in the AGREED transition row, not the ACCEPT envelope; a deal agreed before this build reads "not checked"; the Book SQL metric `avg_vs_market_pct` still uses `market_json`'s median.
 - **UNVERIFIED:** the per-product id field of the `/v1/similar` answer is read as `id` (not in the research or fixtures; spike 7 now prints `comparables` and `comparables_with_id`); whether the service honours `limit` 30; the raw hash is over the body bytes after HTTP content decoding.
 - **Left:** cross-wallet disclosure (the peer sees a digest; a dossier reveals the vector); the Book metric over the committed record; a no-install checker; a live check with a real market key.
+
+### Module documentation and the build report (docs pass, 2026-10-08)
+
+- **New:** `docs/features/` holds 16 module pages plus an index (`README.md`), each in one shape: what the owner sees, how it works and who decides each money step, safety properties, where it lives, tests that pin it, known gaps / UNVERIFIED. Every cited path, type, command and test was grepped against the code. `docs/report/index.html` + `report.css` is a self-contained summary of the overnight waves (light and dark, phone width).
+- **STATUS entries the writers found stale (the code wins; older sections are kept as the log):**
+  - The "Client handoff" table (~line 1095) says `rescue_approve` answers UNAVAILABLE; it is implemented end to end (`Decision::Rescue` in `table-runtime/src/service.rs` → `table-app/src/rescue.rs`).
+  - The open question (~line 210) "Revoke is let through the idle lock" is stale: `mandate_revoke` needs the token and an unlocked session (`authority_table.rs` row, `Runtime::admit`).
+  - The scripted engine is described as a table-view-only fixture (~lines 607, 1054-1056); since T2 it is the policy negotiator (`table-runtime/src/engines.rs`).
+  - T11 counts (66 commands / 60 runtime-enforced) are now 71 rows after `safety_record` (65 runtime, 6 shell); 21 are in the approval-only release set (26 rows are callable from the approval window alone).
+  - T11 "Left" still lists the fingerprint in the proof bundle; proof v2 added it.
+  - The acceptance map's S2 row cites `shield_ask_and_revoked_mandates_stop_each_money_grant_before_network`; the test is `shield_ask_stops_policy_and_a_revoked_mandate_stops_the_seller_before_network` (`crates/table-app/tests/pipeline.rs`).
+  - The "wakes in about a minute" house copy is now at `windows/main/setup/CircuitView.tsx:429` and `windows/approval/OwnerConfig.tsx:39`, still contradicting the paid instance in `render.yaml`.
+- **Code follow-ups the writers found (not fixed in this pass):**
+  - The mock credits purchase create/authorize/capture to "signed rule, clause 6" (D-0183, D-0186, D-0190 in `mock/fixtures.ts`), which Rust refuses for purchases (`pipeline.rs`, DECISIONS §3). The preview's Rewind and "Who decided" overstate what a rule can do.
+  - `engines.rs` still answers "Scripted fixture supports table-view only" for practice shopper / assistant runs (pre-T2 wording that can reach the UI).
+  - `shield.tsx` explains the "AI second opinion" as reading a payee's message, but it has no production caller and `prompts/shield.md` is a stub.
+  - The Shield's "more than 100.00" wording (`words.ts`) assumes a two-decimal currency; the rule is 10000 minor units of the deal's currency.
+  - No screen calls `deal_create` / `deal_join` or `market_refresh`; the house practice table is never joined from the UI.
+  - The mock's `FORM_SIZE` for Tumbler forms (`mock/backend.ts`) disagrees with Rust `table-attention/src/placement.rs` (only the mock's `tumbler:orient` payload).
+  - `Home.tsx`'s header comment says money only moves from the approval window; signed rules and safe defaults also move money (AGENTS.md).
