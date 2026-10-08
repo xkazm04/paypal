@@ -4,6 +4,7 @@
 import type { Clause } from '@bindings/Clause';
 import type { DealKind } from '@bindings/DealKind';
 import type { DealState } from '@bindings/DealState';
+import type { HouseRecord } from '@bindings/HouseRecord';
 import type { Mode } from '@bindings/Mode';
 import type { MoneyCheck } from '@bindings/MoneyCheck';
 import type { MoneyCheckStep } from '@bindings/MoneyCheckStep';
@@ -321,3 +322,23 @@ export const WALLET_LIMITS_ABOUT = 'One cap above all your agents’ rules. It c
 /** Signed limits ran out, or could not be checked: money out stops until they are signed again. */
 export const LIMITS_EXPIRED = 'Your wallet limits ran out, so your agents can’t pay anyone until you set them again.';
 export const LIMITS_UNVERIFIED = 'Your wallet limits couldn’t be checked, so your agents can’t pay anyone until you set them again.';
+
+// ---- the house seller's signed record (T9): kept with a receipt from the house seller ------------
+
+/** The card's name for the house seller's signed record. */
+export const HOUSE_RECORD_NAME = 'House seller’s record';
+/** The warning on a deal when the house's record shrank since the receipt (evidence only). */
+export const HOUSE_RECORD_SHORTER = 'The house’s record got shorter since your receipt';
+/** How the house seller's later record compares with the one kept with your receipt. Evidence only:
+ *  a warning changes nothing about the money; it tells you to keep your signed proof. */
+export function houseRecordWord(r: HouseRecord): Word & { warns: boolean } {
+  const kept = `${r.entries.toLocaleString('en-US')} entries, kept with your receipt`;
+  switch (r.state) {
+    case 'kept': return { text: 'Kept with your receipt', tone: 'line', warns: false, means: `The house seller signed its whole record when you were paid up: ${kept}. Your wallet compares it with the house’s later record.` };
+    case 'holds': return { text: 'Still matches', tone: 'ok', warns: false, means: `The house seller’s later record still contains the one kept with your receipt (${kept}).` };
+    case 'longer': return { text: 'Grown since', tone: 'line', warns: false, means: `The house seller’s record has grown since your receipt (${kept}). Your wallet checks that it still contains yours.` };
+    case 'restarted': return { text: 'House started a new record', tone: 'coral', warns: true, means: 'The house seller started a new record since your receipt, for example after its storage was replaced. Your receipt and PayPal’s own records are unchanged. Keep your signed proof.' };
+    case 'shorter': return { text: 'Record got shorter', tone: 'red', warns: true, means: `${HOUSE_RECORD_SHORTER}. No money moved. Keep your signed proof: it shows what the house agreed.` };
+    case 'rewritten': return { text: 'Record changed', tone: 'red', warns: true, means: 'The house’s record no longer contains the one it signed at your receipt. No money moved. Keep your signed proof: it shows what the house agreed.' };
+  }
+}
