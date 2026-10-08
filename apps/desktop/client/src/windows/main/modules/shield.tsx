@@ -121,7 +121,9 @@ export function Shield({ deals, nav }: ModuleProps) {
   const blocked = cols.filter((d) => d.shield === 'BLOCK');
   const closed = cols.filter((d) => d.shield === 'HOLD' && !needOf(d));
   const cleared = cols.filter((d) => d.shield === 'CLEAR' && !needOf(d));
-  const other = cols.filter((d) => d.shield !== 'BLOCK' && d.shield !== 'HOLD' && d.shield !== 'CLEAR' && !needOf(d));
+  // A hold the owner released goes on for its terms: it is not stopped, so it sits with you, not under "Stopped".
+  const released = cols.filter((d) => d.shield !== 'BLOCK' && !!d.shield_release && !needOf(d));
+  const other = cols.filter((d) => d.shield !== 'BLOCK' && d.shield !== 'HOLD' && d.shield !== 'CLEAR' && !d.shield_release && !needOf(d));
   const stopped = [...blocked, ...closed, ...other];
 
   const cellProps = (r: number, col: number, extra = '') => ({
@@ -251,6 +253,11 @@ export function Shield({ deals, nav }: ModuleProps) {
           {stopped.length ? (
             <Section title="Stopped" end={count(stopped.length, 'payment')}>
               <Group className="sh-list">{stopped.map((d) => <ShieldRow key={d.id} deal={d} onOpen={() => nav.onDeal(d.id)} />)}</Group>
+            </Section>
+          ) : null}
+          {released.length ? (
+            <Section title="You let these go on" end={count(released.length, 'payment')}>
+              <Group className="sh-list">{released.map((d) => <ShieldRow key={d.id} deal={d} onOpen={() => nav.onDeal(d.id)} />)}</Group>
             </Section>
           ) : null}
           {cleared.length ? (
