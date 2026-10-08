@@ -326,7 +326,14 @@ fn wide_wallet_limits_never_loosen_a_mandate() {
         panic!("{error:?}");
     };
     assert_ne!(refusal.clause, ENVELOPE_CLAUSE);
-    assert!(refused_rows(&r, deal.id).is_empty());
+    // One refusal row, the mandate's clause 3, never the wallet limit's.
+    let rows = refused_rows(&r, deal.id);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["layer"], "wallet");
+    assert_eq!(
+        rows[0]["code"],
+        serde_json::json!({"code":"mandate_clause","clause":3})
+    );
     // Inside both: allowed.
     let ok = purchase(&mut r, &peer, 1200);
     propose(&mut r, &ok).unwrap();

@@ -128,6 +128,12 @@ pub struct OpenMandate {
     pub owner_sig: Vec<u8>,
 }
 
+/// Clause 4's reasons that an agent refusal names by code (`RefusalCode::from_refusal`): one
+/// spelling, here, for both the check that writes them and the code that reads them.
+pub const DEADLINE_REACHED: &str = "deadline reached";
+pub const MAX_ROUNDS_REACHED: &str = "max_rounds reached";
+/// The start of clause 4's "price X above ceiling Y" / "price X below floor Y".
+pub const BAND_PRICE: &str = "price ";
 #[derive(ts_rs::TS, Debug, Error, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[error("{}", refusal_text(*.clause, .reason))]
 #[serde(deny_unknown_fields)]
@@ -518,10 +524,10 @@ impl MandatePayload {
                         return Err(Refusal::new(4, "item outside band"));
                     }
                     if now >= *deadline {
-                        return Err(Refusal::new(4, "deadline reached"));
+                        return Err(Refusal::new(4, DEADLINE_REACHED));
                     }
                     if intent.rounds_used >= *max_rounds {
-                        return Err(Refusal::new(4, "max_rounds reached"));
+                        return Err(Refusal::new(4, MAX_ROUNDS_REACHED));
                     }
                     // Band refers to the signed unit price, per-deal/velocity to the full total.
                     let price = intent.terms.unit_price;
@@ -539,7 +545,7 @@ impl MandatePayload {
                             return Err(Refusal::new(
                                 4,
                                 format!(
-                                    "price {} above ceiling {}",
+                                    "{BAND_PRICE}{} above ceiling {}",
                                     price.decimal(),
                                     bound.decimal()
                                 ),
@@ -549,7 +555,7 @@ impl MandatePayload {
                             return Err(Refusal::new(
                                 4,
                                 format!(
-                                    "price {} below floor {}",
+                                    "{BAND_PRICE}{} below floor {}",
                                     price.decimal(),
                                     bound.decimal()
                                 ),
@@ -703,6 +709,33 @@ mod tests {
             },
             now,
         )
+    }
+    #[test]
+    fn clause_four_refusals_reach_the_agent_as_their_own_codes() {
+        use crate::RefusalCode as C;
+        let p = policy(DealKind::Purchase, Side::Buyer);
+        let code = |r: Result<MandateDecision, Refusal>| C::from_refusal(&r.unwrap_err());
+        assert_eq!(
+            code(check(&p, 10_001, Side::Buyer, Category::Parts, 0, 100)),
+            C::OutsideBand
+        );
+        assert_eq!(
+            code(check(&p, 6_000, Side::Buyer, Category::Parts, 6, 100)),
+            C::RoundsExhausted
+        );
+        assert_eq!(
+            code(check(&p, 6_000, Side::Buyer, Category::Parts, 0, 900)),
+            C::DeadlinePassed
+        );
+        assert_eq!(
+            code(check(&p, 6_000, Side::Buyer, Category::Compute, 0, 100)),
+            C::MandateClause { clause: 3 }
+        );
+        let s = policy(DealKind::ShopOrder, Side::Seller);
+        assert_eq!(
+            code(check(&s, 5_799, Side::Seller, Category::Parts, 0, 100)),
+            C::OutsideBand
+        );
     }
     #[test]
     fn f1_refusal_message_is_exact() {

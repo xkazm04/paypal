@@ -55,13 +55,13 @@ impl AgentService for CountingWallet {
         &mut self,
         scope: &AgentScope,
         tool: &str,
-        reason: &str,
+        code: RefusalCode,
         now: i64,
     ) -> Result<(), table_app::Error> {
         self.wallet
             .lock()
             .map_err(|_| table_app::Error::Unavailable)?
-            .record_refusal(scope, tool, reason, now)
+            .record_refusal(scope, tool, code, now)
     }
 }
 async fn agent_spike(id: EngineId, number: u8) {
@@ -96,7 +96,7 @@ async fn agent_spike(id: EngineId, number: u8) {
     let service = tokio::spawn(axum::serve(listener, server.clone().router()).into_future());
     let (tx, mut rx) = tokio::sync::mpsc::channel(16);
     let run = RunId(ulid::Ulid::new());
-    let job=AgentJob{run,prompt:"Call the wallet table_view tool exactly once. Then say done. Do not offer, accept, withdraw or purchase anything.".into()};
+    let job=AgentJob{run,prompt:"Call the wallet table_view tool exactly once. Then say done. Do not offer, accept, withdraw or purchase anything.".into(),playbook:Some(Playbook::BuyerHaggler)};
     let mcp = McpGrant {
         url: format!("http://127.0.0.1:{port}/mcp"),
         token: grant.token.clone(),

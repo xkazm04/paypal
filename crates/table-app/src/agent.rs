@@ -24,6 +24,49 @@ pub enum Error {
     Permission,
     #[error("LOCKED")]
     Locked,
+    /// An agent intent refused for a reason no other variant names (its turn, the run, the
+    /// shield, the owner's in-person threshold). The code is closed; the text is fixed.
+    #[error("agent refusal: {}", .0.tag())]
+    Agent(RefusalCode),
+}
+/// The closed code an agent hears for `error`. Never the error's own text: a ledger or protocol
+/// error is named only by its category.
+pub fn refusal_code(error: &Error) -> RefusalCode {
+    match error {
+        Error::Agent(code) => *code,
+        Error::Refused(refusal) => RefusalCode::from_refusal(refusal),
+        Error::Ledger(LedgerError::GroupClosed) => RefusalCode::GroupClosed,
+        Error::Permission => RefusalCode::OutOfScope,
+        Error::Invalid
+        | Error::Domain(_)
+        | Error::Protocol(_)
+        | Error::Ledger(LedgerError::NotFound) => RefusalCode::InvalidRequest,
+        Error::Unavailable | Error::Locked | Error::Ledger(_) => RefusalCode::Unavailable,
+    }
+}
+/// The signed rule's own words for a mandate or wallet-limit refusal ("mandate clause 4: price
+/// 352.00 above ceiling 340.00"). The wallet writes them from fixed templates and typed numbers
+/// only; no other error's text is ever shown to an agent.
+pub fn refusal_detail(error: &Error) -> Option<String> {
+    match error {
+        Error::Refused(refusal) => Some(refusal.to_string()),
+        _ => None,
+    }
+}
+/// A table-side refusal as an error. Clause 4's rounds and deadline stay mandate refusals (the
+/// same `Refused` the mandate check returns), so every caller sees one shape for them.
+fn refused(code: RefusalCode) -> Error {
+    let clause4 = |reason: &str| {
+        Error::Refused(Refusal {
+            clause: 4,
+            reason: reason.into(),
+        })
+    };
+    match code {
+        RefusalCode::RoundsExhausted => clause4(MAX_ROUNDS_REACHED),
+        RefusalCode::DeadlinePassed => clause4(DEADLINE_REACHED),
+        other => Error::Agent(other),
+    }
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -31,6 +74,17 @@ pub enum AgentRole {
     Negotiator,
     Shopper,
     Assistant,
+}
+impl AgentRole {
+    /// The fixed playbook a native engine in this role starts from.
+    pub const fn playbook(self, side: Side) -> Playbook {
+        match (self, side) {
+            (Self::Negotiator, Side::Buyer) => Playbook::BuyerHaggler,
+            (Self::Negotiator, Side::Seller) => Playbook::SellerCounter,
+            (Self::Shopper, _) => Playbook::Shopper,
+            (Self::Assistant, _) => Playbook::ShopAssistant,
+        }
+    }
 }
 #[derive(Debug, Clone)]
 pub struct AgentScope {
@@ -93,6 +147,18 @@ pub enum AgentRequest {
     Book(BookQuery),
 }
 impl AgentRequest {
+    /// The MCP tool this request came from.
+    pub const fn tool(&self) -> &'static str {
+        match self {
+            Self::Accept(_) => "accept_offer",
+            Self::View(_) => "table_view",
+            Self::Offer(_) => "send_offer",
+            Self::Withdraw(_) => "withdraw_offer",
+            Self::Purchase(_) => "propose_purchase",
+            Self::Market(_) => "market_reference",
+            Self::Book(_) => "book_query",
+        }
+    }
     pub fn decode(name: &str, value: serde_json::Value) -> Result<Self, Error> {
         match name {
             "accept_offer" => serde_json::from_value(value).map(Self::Accept),
@@ -117,11 +183,12 @@ pub trait AgentService: Send {
     ) -> Result<serde_json::Value, Error>;
     /// Records a call refused before it reached invoke (session not enabled, a tool outside the
     /// role's catalog, a malformed call), so reaching for a missing money tool leaves a trace.
+    /// `invoke` records its own refusals: every refused call leaves exactly one row.
     fn record_refusal(
         &mut self,
         scope: &AgentScope,
         tool: &str,
-        reason: &str,
+        code: RefusalCode,
         now: Timestamp,
     ) -> Result<(), Error>;
 }
@@ -414,42 +481,90 @@ impl Wallet {
         self.ledger.commit_group_withdraw(&envelope, now)?;
         Ok(())
     }
-    /// A group refusal of the agent's ACCEPT leaves an `intent.refused` row (T8).
-    fn record_group_refusal(
-        &mut self,
-        deal: DealId,
-        error: &Error,
-        now: Timestamp,
-    ) -> Result<(), Error> {
-        if matches!(error, Error::Ledger(LedgerError::GroupClosed)) {
-            self.ledger.append_audit(&AuditEntry {
-                at: now,
-                actor: "agent".into(),
-                action: "intent.refused".into(),
-                deal_id: Some(deal),
-                detail: serde_json::json!({"layer":"group","reason":error.to_string()}),
-            })?;
-        }
-        Ok(())
+    /// The table as this wallet's agent may see it (design §6.4): typed numbers and enums only,
+    /// built from the signed band, the verified transcript's prices and the negotiation row.
+    pub fn projection(&self, deal: &Deal, now: Timestamp) -> Result<AgentProjection, Error> {
+        let m = self
+            .ledger
+            .active_mandate(deal.mandate_id, deal.mandate_version, &self.owner)?;
+        let band = m.payload.clauses.iter().find_map(|c| match c {
+            Clause::Band {
+                floor,
+                ceiling,
+                max_rounds,
+                deadline,
+                ..
+            } => Some(BandTerms {
+                floor: *floor,
+                ceiling: *ceiling,
+                max_rounds: *max_rounds,
+                deadline: *deadline,
+            }),
+            _ => None,
+        });
+        let (paired, house, _) = self.ledger.counterparty_policy(&deal.counterparty)?;
+        let steps = self.ledger.deal_transcript(deal.id)?;
+        let status = self.ledger.negotiation_status(deal.id)?;
+        Ok(AgentProjection::build(ProjectionInput {
+            deal,
+            band,
+            rounds_used: self.ledger.negotiation_rounds(deal.id)?,
+            steps: &steps,
+            offer_seq: status.as_ref().map(|s| s.offer_seq),
+            own_accept: status.is_some_and(|s| s.own_accept),
+            counterparty: match (paired, house) {
+                (_, true) => TableCounterparty::House,
+                (true, false) => TableCounterparty::PairedWallet,
+                (false, false) => TableCounterparty::Unpaired,
+            },
+            lapses_at: self.ledger.deadline(deal.id)?.map(|(due, _)| due),
+            now,
+        }))
     }
-    /// An envelope refusal of an agent's intent leaves an `intent.refused` row naming the limit.
-    fn record_limit_refusal(
+    /// One `intent.refused` row for a refused agent call: the layer that refused it, the tool
+    /// (a bounded identifier; it is model output), the closed code and a reason the wallet wrote
+    /// (a mandate's own refusal text, else the code's fixed sentence). Never counterparty text.
+    pub fn audit_refusal(
         &mut self,
         deal: DealId,
+        layer: &str,
+        tool: &str,
         error: &Error,
         now: Timestamp,
     ) -> Result<(), Error> {
-        if let Error::Refused(refusal) = error
-            && refusal.clause == ENVELOPE_CLAUSE
+        let code = refusal_code(error);
+        let reason = match error {
+            Error::Refused(refusal) => refusal.to_string(),
+            _ => code.text().into(),
+        };
+        let layer = match code {
+            RefusalCode::GroupClosed => "group",
+            RefusalCode::WalletLimit { .. } => "wallet_limit",
+            _ => layer,
+        };
+        let tool = if !tool.is_empty()
+            && tool.len() <= 64
+            && tool
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
         {
-            self.ledger.append_audit(&AuditEntry {
-                at: now,
-                actor: "agent".into(),
-                action: "intent.refused".into(),
-                deal_id: Some(deal),
-                detail: serde_json::json!({"layer":"wallet_limit","reason":refusal.to_string()}),
-            })?;
-        }
+            tool
+        } else {
+            "unrecognised"
+        };
+        self.ledger.append_audit(&AuditEntry {
+            at: now,
+            actor: "agent".into(),
+            action: "intent.refused".into(),
+            deal_id: Some(deal),
+            detail: serde_json::json!({
+                "layer": layer,
+                "tool": tool,
+                "code": code,
+                "clause": code.clause(),
+                "reason": reason,
+            }),
+        })?;
         Ok(())
     }
     pub(crate) fn signed(
@@ -516,28 +631,10 @@ impl AgentService for Wallet {
         &mut self,
         scope: &AgentScope,
         tool: &str,
-        reason: &str,
+        code: RefusalCode,
         now: Timestamp,
     ) -> Result<(), Error> {
-        // The tool name is model output: only a bounded identifier is kept, never free text.
-        let tool = if !tool.is_empty()
-            && tool.len() <= 64
-            && tool
-                .bytes()
-                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
-        {
-            tool
-        } else {
-            "unrecognised"
-        };
-        self.ledger.append_audit(&AuditEntry {
-            at: now,
-            actor: "agent".into(),
-            action: "intent.refused".into(),
-            deal_id: Some(scope.deal_id),
-            detail: serde_json::json!({"layer":"mcp","tool":tool,"reason":reason}),
-        })?;
-        Ok(())
+        self.audit_refusal(scope.deal_id, "mcp", tool, &Error::Agent(code), now)
     }
     fn invoke(
         &mut self,
@@ -545,77 +642,106 @@ impl AgentService for Wallet {
         request: AgentRequest,
         now: Timestamp,
     ) -> Result<serde_json::Value, Error> {
+        let tool = request.tool();
+        let mut audited = false;
+        let answer = self.serve(scope, request, now, &mut audited);
+        if let Err(error) = &answer
+            && !audited
+        {
+            self.audit_refusal(scope.deal_id, "wallet", tool, error, now)?;
+        }
+        answer
+    }
+}
+impl Wallet {
+    /// The agent's intents. Every check runs before any write; no path here calls PayPal.
+    fn serve(
+        &mut self,
+        scope: &AgentScope,
+        request: AgentRequest,
+        now: Timestamp,
+        audited: &mut bool,
+    ) -> Result<serde_json::Value, Error> {
         let mut deal = self.ledger.get_deal(scope.deal_id)?;
+        let out_of_scope = Error::Agent(RefusalCode::OutOfScope);
+        let negotiator = scope.role == AgentRole::Negotiator;
         match request {
             AgentRequest::Market(input) => {
                 if !matches!(scope.role, AgentRole::Negotiator | AgentRole::Shopper)
                     || input.item_ref != deal.terms.item_ref
                 {
-                    return Err(Error::Permission);
+                    return Err(out_of_scope);
                 }
                 self.mandate_check(&deal, scope.category, now)?;
-                let mut reference = deal.market.ok_or(Error::Unavailable)?;
-                if now < reference.retrieved_at || now.saturating_sub(reference.retrieved_at) >= 900
-                {
-                    return Err(Error::Unavailable);
-                }
+                let mut reference = deal
+                    .market
+                    .filter(|m| market_fresh(Some(m), now))
+                    .ok_or(Error::Agent(RefusalCode::MarketUnavailable))?;
                 reference.cached = true;
                 Ok(serde_json::to_value(reference).map_err(|_| Error::Invalid)?)
             }
             AgentRequest::Book(query) => {
                 if scope.role != AgentRole::Assistant {
-                    return Err(Error::Permission);
+                    return Err(out_of_scope);
                 }
                 self.mandate_check(&deal, scope.category, now)?;
                 Ok(self.ledger.book_query(&query)?)
             }
             AgentRequest::Accept(input) => {
-                if scope.role != AgentRole::Negotiator || input.deal_id != scope.deal_id {
-                    return Err(Error::Permission);
+                if !negotiator || input.deal_id != scope.deal_id {
+                    return Err(out_of_scope);
                 }
-                let raw = match self.accept(input.deal_id, input.offer_seq, scope.category, now) {
-                    Ok(raw) => raw,
-                    Err(error) => {
-                        self.record_limit_refusal(input.deal_id, &error, now)?;
-                        self.record_group_refusal(input.deal_id, &error, now)?;
-                        return Err(error);
-                    }
-                };
-                Ok(serde_json::json!({"jws":raw}))
+                if let Some(code) = self
+                    .projection(&deal, now)?
+                    .refusal(AgentTool::AcceptOffer, &deal)
+                {
+                    return Err(refused(code));
+                }
+                // Above the owner's in-person threshold only the owner accepts (clause 6).
+                if let MandateDecision::Ask { clause } =
+                    self.mandate_check(&deal, scope.category, now)?
+                {
+                    return Err(Error::Agent(RefusalCode::OwnerApproval { clause }));
+                }
+                let raw = self.accept(input.deal_id, input.offer_seq, scope.category, now)?;
+                Ok(self.answer(raw, None, deal.id, now))
             }
             AgentRequest::View(input) => {
-                if scope.role != AgentRole::Negotiator
-                    || input.deal_id.is_some_and(|id| id != scope.deal_id)
-                {
-                    return Err(Error::Permission);
+                if !negotiator || input.deal_id.is_some_and(|id| id != scope.deal_id) {
+                    return Err(out_of_scope);
                 }
-                Ok(serde_json::to_value(deal).map_err(|_| Error::Invalid)?)
+                Ok(serde_json::to_value(self.projection(&deal, now)?)
+                    .map_err(|_| Error::Invalid)?)
             }
             AgentRequest::Withdraw(input) => {
-                if scope.role != AgentRole::Negotiator || input.deal_id != scope.deal_id {
-                    return Err(Error::Permission);
+                if !negotiator || input.deal_id != scope.deal_id {
+                    return Err(out_of_scope);
+                }
+                if let Some(code) = self
+                    .projection(&deal, now)?
+                    .refusal(AgentTool::WithdrawOffer, &deal)
+                {
+                    return Err(refused(code));
                 }
                 let raw = self.withdraw(deal.id, input.reason, now)?;
-                Ok(serde_json::json!({"jws":raw}))
+                Ok(self.answer(raw, None, deal.id, now))
             }
             AgentRequest::Offer(input) => {
-                if scope.role != AgentRole::Negotiator || input.deal_id != scope.deal_id {
-                    return Err(Error::Permission);
+                if !negotiator || input.deal_id != scope.deal_id {
+                    return Err(out_of_scope);
+                }
+                // The table first (its turn, rounds, deadline, a shield hold), then the mandate.
+                if let Some(code) = self
+                    .projection(&deal, now)?
+                    .refusal(AgentTool::SendOffer, &deal)
+                {
+                    return Err(refused(code));
                 }
                 let price =
                     Money::parse(&input.price, deal.terms.currency).map_err(|_| Error::Invalid)?;
                 deal.terms.unit_price = price;
                 deal.terms.delivery = input.delivery;
-                if let Err(error) = self.mandate_check_rounds(&deal, scope.category, now, true) {
-                    self.ledger.append_audit(&AuditEntry {
-                        at: now,
-                        actor: "agent".into(),
-                        action: "intent.refused".into(),
-                        deal_id: Some(deal.id),
-                        detail: serde_json::json!({"reason":error.to_string()}),
-                    })?;
-                    return Err(error);
-                }
+                self.mandate_check_rounds(&deal, scope.category, now, true)?;
                 let body = if deal.side == Side::Buyer {
                     Body::Offer {
                         price,
@@ -635,14 +761,19 @@ impl AgentService for Wallet {
                     Some(DealEvent::OfferVerified),
                     now,
                 )?;
-                Ok(serde_json::json!({"jws":envelope.raw(),"terms_hash":deal.terms.hash()?}))
+                Ok(self.answer(
+                    envelope.raw().into(),
+                    Some(deal.terms.hash()?),
+                    deal.id,
+                    now,
+                ))
             }
             AgentRequest::Purchase(input) => {
                 if scope.role != AgentRole::Shopper
                     || deal.kind != DealKind::Purchase
                     || input.category != scope.category
                 {
-                    return Err(Error::Permission);
+                    return Err(out_of_scope);
                 }
                 let (_, _, payee) = self.ledger.counterparty_policy(&deal.counterparty)?;
                 if input.payee_ref != payee || input.items.len() != 1 {
@@ -665,7 +796,9 @@ impl AgentService for Wallet {
                         Ok(serde_json::json!({"deal_id":deal.id,"status":"pending"}))
                     }
                     Err(error) => {
-                        self.record_limit_refusal(deal.id, &error, now)?;
+                        // The refused intent is recorded before the deal's own refusal, in order.
+                        self.audit_refusal(deal.id, "wallet", "propose_purchase", &error, now)?;
+                        *audited = true;
                         if let Error::Refused(refusal) = &error {
                             self.ledger.refuse(deal.id, refusal.clause, now)?;
                         }
@@ -674,6 +807,30 @@ impl AgentService for Wallet {
                 }
             }
         }
+    }
+    /// A signed step's answer: the JWS, the terms hash for an offer, and the table as it stands
+    /// now, so the agent never acts on a stale view. The step is already committed: a table that
+    /// cannot be read now is left out rather than failing the step.
+    fn answer(
+        &self,
+        jws: String,
+        terms_hash: Option<H256>,
+        id: DealId,
+        now: Timestamp,
+    ) -> serde_json::Value {
+        let table = self
+            .ledger
+            .get_deal(id)
+            .ok()
+            .and_then(|deal| self.projection(&deal, now).ok());
+        let mut answer = serde_json::json!({"jws": jws});
+        if let Some(hash) = terms_hash {
+            answer["terms_hash"] = serde_json::json!(hash);
+        }
+        if let Some(table) = table {
+            answer["table"] = serde_json::to_value(table).unwrap_or(serde_json::Value::Null);
+        }
+        answer
     }
 }
 

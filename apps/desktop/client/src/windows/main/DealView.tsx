@@ -11,7 +11,7 @@ import { shortHash, shortId } from '../../lib/format';
 import { dealWatch } from '../../lib/marketWatch';
 import { useMutation, useQuery } from '../../lib/hooks';
 import { RunBadge, WalletNotice } from '../../shared/honesty';
-import { houseRecordWord, kindWord, rulesName } from '../../lib/words';
+import { houseRecordWord, INSTRUCTIONS, kindWord, rulesName } from '../../lib/words';
 import { Btn, Chip, Hint, Kv, PageHead, Popover } from '../../shared/ui';
 import { canStartAgent } from './logic';
 import { mc, useCpLookup, useToast } from './ui';
@@ -22,6 +22,7 @@ import { EvidenceSheet, ProofPanel, TranscriptSheet, type EvidenceKind } from '.
 import { mayWithdraw, mirrorStrip, readClauses } from './deal/model';
 import { ruleChecks, rulesBadge, standingFacts } from './deal/story';
 import { WhoDecided } from './deal/WhoDecided';
+import { InstructionsSheet, InstructionsValue } from './deal/Instructions';
 import { shortTitle } from './home/model';
 import './deal.css';
 
@@ -51,7 +52,7 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
 
   const [tabAt, setTabAt] = useState<{ id: string; tab: Tab }>({ id: deal.id, tab: 'happened' });
   const tab: Tab = tabAt.id === deal.id ? tabAt.tab : 'happened';
-  const [sheet, setSheet] = useState<EvidenceKind | 'transcript' | null>(null);
+  const [sheet, setSheet] = useState<EvidenceKind | 'transcript' | 'instructions' | null>(null);
   const [facts, setFacts] = useState<HTMLElement | null>(null);
 
   const entry = mandates.data?.find((m) => m.payload.id === deal.mandate_id && m.payload.version === deal.mandate_version);
@@ -107,6 +108,7 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
             ['Exact state', <span className="mono">{deal.state.replace(/_/g, ' ').toLowerCase()}</span>],
             ['Rules', <>{entry ? rulesName(entry.agent) : 'Rules'} · version {deal.mandate_version} <span className="mono dim">{shortId(deal.mandate_id)}</span></>],
             run ? ['Agent app', <><span className="mono">{run.engine}</span> <RunBadge run={run} /></>] : null,
+            run ? [INSTRUCTIONS, <InstructionsValue run={run} onOpen={() => { setFacts(null); setSheet('instructions'); }} />] : null,
             ['Record', <span className="mono">{shortHash(deal.transcript_head)}</span>],
           ]} />
         </Popover>
@@ -143,7 +145,9 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
         )}
       </div>
 
-      {sheet === 'transcript' ? (
+      {sheet === 'instructions' && run?.playbook ? (
+        <InstructionsSheet playbook={run.playbook} onClose={() => setSheet(null)} />
+      ) : sheet === 'instructions' ? null : sheet === 'transcript' ? (
         <TranscriptSheet deal={deal} label={disp.label} steps={tr.data} error={tr.error} band={disp.band} theirName={cp.name} onClose={() => setSheet(null)} />
       ) : sheet ? (
         <EvidenceSheet kind={sheet} deal={deal} ev={{ data: evidence, error: evq.error }} band={disp.band} watch={watch}

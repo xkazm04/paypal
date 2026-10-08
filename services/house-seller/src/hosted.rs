@@ -67,6 +67,7 @@ impl Error {
             },
             Self::App(e) => match e {
                 table_app::Error::Refused(_) => "app.refused",
+                table_app::Error::Agent(_) => "app.agent_refused",
                 table_app::Error::Protocol(_) => "app.protocol",
                 table_app::Error::Domain(_) => "app.domain",
                 table_app::Error::Invalid => "app.invalid",
@@ -1065,9 +1066,11 @@ async fn table(
                 refused(table_relay::Refusal::DailyLimit)
             }
             Error::Invalid
-            | Error::App(table_app::Error::Refused(_) | table_app::Error::Permission) => {
-                refused(table_relay::Refusal::Other)
-            }
+            | Error::App(
+                table_app::Error::Refused(_)
+                | table_app::Error::Agent(_)
+                | table_app::Error::Permission,
+            ) => refused(table_relay::Refusal::Other),
             Error::Full => StatusCode::TOO_MANY_REQUESTS.into_response(),
             _ => StatusCode::SERVICE_UNAVAILABLE.into_response(),
         }
