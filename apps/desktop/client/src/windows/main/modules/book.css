@@ -221,6 +221,31 @@
 .mod-book .qchip.unk { border-style: dashed; color: var(--muted); }
 .mod-book .wm + .ask { margin-top: var(--sp-5); }
 
+/* "I read this as:" - the wallet's own reading of a typed question, and the unsure line */
+.mod-book .rd { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--line); }
+.mod-book .rd-h { color: var(--muted); font-size: var(--fs-small); }
+.mod-book .rd-chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin: 0; padding: 0; list-style: none; }
+.mod-book .rd-chip { display: inline-flex; align-items: center; gap: 2px; height: 26px; padding: 0 2px 0 var(--sp-3); border: 1px solid color-mix(in srgb, var(--m-book) 55%, var(--line2));
+  border-radius: 999px; background: color-mix(in srgb, var(--m-book) 12%, var(--panel)); color: var(--text); white-space: nowrap; }
+.mod-book .rd-chip.rd-when, .mod-book .rd-chip.rd-group { padding-left: var(--sp-1); }
+.mod-book .rd-t { padding-right: var(--sp-1); }
+.mod-book .rd-sel { appearance: none; field-sizing: content; height: 22px; padding: 0 18px 0 var(--sp-2); border: 0; border-radius: 999px; background: transparent; color: inherit; font: inherit; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 9px) 55%, calc(100% - 5px) 55%; background-size: 4px 4px; background-repeat: no-repeat; }
+.mod-book .rd-sel:hover { background-color: var(--hover); }
+.mod-book .rd-sel option { background: var(--panel); color: var(--text); }
+.mod-book .rd-x { display: inline-grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); font: inherit; line-height: 1; cursor: pointer; }
+.mod-book .rd-x:hover { background: var(--hover); color: var(--text); }
+.mod-book .rd-x:focus-visible, .mod-book .rd-sel:focus-visible, .mod-book .rd-sug:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.mod-book .rd-ai { margin-left: auto; }
+.mod-book .rd-unsure { flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
+.mod-book .rd-msg { margin: 0; }
+.mod-book .rd-try { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); }
+.mod-book .rd-sug { display: inline-flex; align-items: center; height: 26px; padding: 0 var(--sp-3); border: 1px solid var(--line2); border-radius: 999px; background: var(--panel);
+  color: var(--text); font: inherit; cursor: pointer; white-space: nowrap; }
+.mod-book .rd-sug:hover { background: var(--hover); border-color: var(--dim); }
+.mod-book .rd-unsure .rd-ai { margin-left: 0; }
+
 @media (max-width: 1180px) {
   .mod-book .wm-grid { grid-template-columns: minmax(0, 1fr); }
 }
