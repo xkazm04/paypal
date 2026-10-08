@@ -13,9 +13,9 @@ import { OwnerKey } from './ownerKey';
 
 const OTHER = 'a'.repeat(64);
 const report = (owner: string, checks: ProofReport['checks'], verified = false): ProofReport => ({
-  deal_id: '01JD0000000000000000000000' as ProofReport['deal_id'], mode: 'sandbox', owner_key_id: owner, verified, checks,
+  deal_id: '01JD0000000000000000000000' as ProofReport['deal_id'], mode: 'sandbox', owner_key_id: owner, verified, checks, authority_manifest: null, same_version: null,
 });
-const ok = (id: string) => ({ id, ok: true, checked: true, detail: `${id} holds` });
+const ok = (id: string) => ({ id, ok: true, checked: true, applies: true, detail: `${id} holds` });
 
 describe('the owner key anchor', () => {
   afterEach(cleanup);
@@ -70,7 +70,7 @@ describe('the owner key anchor', () => {
   });
 
   it('an order record the file lacks reads "not checked", not failed, and the file is not verified', () => {
-    const unchecked = { id: 'paypal_order', ok: false, checked: false, detail: 'not checked: POST /v2/checkout/orders' };
+    const unchecked = { id: 'paypal_order', ok: false, checked: false, applies: true, detail: 'not checked: POST /v2/checkout/orders' };
     const r = render(<ProofReportView report={report(OTHER, [ok('format'), unchecked])} own={null} />);
     expect(r.container.textContent).toContain(PROOF_SOME_UNCHECKED);
     expect(r.container.textContent).not.toContain('Some checks did not pass');
@@ -78,7 +78,7 @@ describe('the owner key anchor', () => {
     expect(r.container.textContent).toContain(PROOF_NOT_CHECKED);
     expect(r.getByLabelText('not checked')).toBeTruthy();
     cleanup();
-    const failed = render(<ProofReportView report={report(OTHER, [unchecked, { id: 'audit', ok: false, checked: true, detail: 'row 3' }])} own={null} />);
+    const failed = render(<ProofReportView report={report(OTHER, [unchecked, { id: 'audit', ok: false, checked: true, applies: true, detail: 'row 3' }])} own={null} />);
     expect(failed.container.textContent).toContain('Some checks did not pass');
   });
 });

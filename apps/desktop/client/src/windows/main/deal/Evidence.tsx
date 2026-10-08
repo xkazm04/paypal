@@ -10,7 +10,7 @@ import type { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMoney, nowUnix, shortHash, shortId } from '../../../lib/format';
 import { useMutation } from '../../../lib/hooks';
 import type { DealWatch } from '../../../lib/marketWatch';
-import { HOUSE_RECORD_NAME, houseRecordWord, KEPT_FRESH, marketWords, PRICE_CHECKS_USED_UP, priceChecksToday, PROOF_SAVE_WARNING } from '../../../lib/words';
+import { HOUSE_RECORD_NAME, houseRecordWord, KEPT_FRESH, marketWords, PRICE_CHECKS_USED_UP, priceChecksToday, PROOF_FILE_SHOWS, PROOF_SAVE_WARNING } from '../../../lib/words';
 import { ModeBadge, WalletNotice } from '../../../shared/honesty';
 import { Btn, Chip, Empty, Kv, Loading, Sheet } from '../../../shared/ui';
 import { ConvergenceChart, MarketBand, MiniBand } from '../charts';
@@ -196,6 +196,8 @@ export function TranscriptSheet({ deal, label, steps, error, band, theirName, on
       {confirming ? (
         <Sheet title="Save signed proof" onClose={() => setConfirming(false)}
           footer={<><Btn onClick={() => setConfirming(false)}>Cancel</Btn><Btn kind="primary" onClick={() => void save()}>Save</Btn></>}>
+          <p className="dv-p">Anyone with the file can check, without your wallet:</p>
+          <ul className="dv-list">{PROOF_FILE_SHOWS.map((line) => <li key={line}>{line}</li>)}</ul>
           <p className="dv-p">{PROOF_SAVE_WARNING}</p>
         </Sheet>
       ) : null}

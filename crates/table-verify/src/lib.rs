@@ -5,6 +5,7 @@
 //! the owner key id so a checker can compare it with the one the owner shows them.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 mod house;
+mod v2;
 use ed25519_dalek::{Signature, VerifyingKey};
 pub use house::*;
 use serde_json::Value;
@@ -12,8 +13,8 @@ use table_core::{
     Clause, DealId, DealKind, DecidedBy, H256, KeyId, Mode, Side, canonical_bytes, invoice_id,
 };
 use table_proto::{
-    Body, MemoryNonces, PROOF_FORMAT, ProofBundle, VerifyContext, key_id, verify,
-    verify_mandate_signature,
+    Body, MemoryNonces, PROOF_FORMAT, PROOF_FORMAT_V1, ProofAuditRow, ProofBundle, VerifyContext,
+    key_id, verify, verify_mandate_signature,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,6 +27,10 @@ pub struct Check {
     /// (an order PayPal answered, saved before the wallet kept order records). `ok` is false
     /// then too: a check not made never counts towards verified.
     pub checked: bool,
+    /// False when the deal has nothing of the kind the check is about (no owner decision, no
+    /// group, no shield hold, ..., or a first-format file that carries none of it). The line reads
+    /// "not checked" and makes no claim either way: it neither passes nor holds the file back.
+    pub applies: bool,
     pub detail: String,
 }
 #[derive(Debug, Clone)]
@@ -34,25 +39,42 @@ pub struct Report {
     pub mode: Mode,
     /// The owner key's full id (64 hex characters), or "invalid".
     pub owner_key_id: String,
+    /// The permissions fingerprint the file names (hex), from a v2 file.
+    pub authority_manifest: Option<String>,
     pub checks: Vec<Check>,
 }
 impl Report {
+    /// Every check that applies passed. A check that does not apply (nothing of its kind in the
+    /// deal) is no claim; a check that applies but could not be made holds the file back.
     pub fn verified(&self) -> bool {
-        self.checks.iter().all(|c| c.ok)
+        self.checks.iter().all(|c| c.ok || !c.applies)
     }
 }
 
 type Outcome = Result<String, String>;
-/// Why a check did not pass: it failed, or (`checked: false`) the file lacks what it compares.
+/// Why a check did not pass: it failed, or (`checked: false`) the file lacks what it compares,
+/// or (`applies: false`) the deal has nothing of the kind the check is about.
 struct Miss {
     detail: String,
     checked: bool,
+    applies: bool,
 }
 impl From<String> for Miss {
     fn from(detail: String) -> Self {
         Self {
             detail,
             checked: true,
+            applies: true,
+        }
+    }
+}
+impl Miss {
+    /// Nothing of this kind in the deal: "not checked", and no claim either way.
+    fn absent(detail: &str) -> Self {
+        Self {
+            detail: detail.to_owned(),
+            checked: false,
+            applies: false,
         }
     }
 }
@@ -66,11 +88,19 @@ fn signed_by(key: &VerifyingKey, message: &[u8], signature: &[u8]) -> bool {
     Signature::from_slice(signature).is_ok_and(|sig| key.verify_strict(message, &sig).is_ok())
 }
 
+/// Both formats verify, each under its own rules: a v1 file carries no v2 field, and a v2 file
+/// names the permissions fingerprint it was saved under.
 fn format(bundle: &ProofBundle) -> Outcome {
-    if bundle.format == PROOF_FORMAT {
-        Ok(PROOF_FORMAT.into())
-    } else {
-        Err(format!("unknown format {:?}", bundle.format))
+    match bundle.format.as_str() {
+        PROOF_FORMAT_V1 if bundle.has_v2_fields() => {
+            Err("a first-format file carries records only the second format has".into())
+        }
+        PROOF_FORMAT_V1 => Ok(format!("{PROOF_FORMAT_V1} (the first proof format)")),
+        PROOF_FORMAT if bundle.authority_manifest.is_none() => {
+            Err("the file does not name the permissions it was saved under".into())
+        }
+        PROOF_FORMAT => Ok(PROOF_FORMAT.into()),
+        other => Err(format!("unknown format {other:?}")),
     }
 }
 
@@ -362,6 +392,7 @@ fn bindings(bundle: &ProofBundle) -> Result<String, Miss> {
                 continue;
             }
             return Err(Miss {
+                applies: true,
                 detail: format!(
                     "not checked: {} {}: PayPal answered with an order, but the file holds no order record to compare (a wallet older than the order record saved it)",
                     call.method, call.path
@@ -428,24 +459,31 @@ fn bindings(bundle: &ProofBundle) -> Result<String, Miss> {
     }
 }
 
+/// One audit row's detail, after checking it is canonical and that the row's hash covers it,
+/// the row's other fields and `deal`.
+fn row_detail(row: &ProofAuditRow, deal: DealId) -> Result<Value, String> {
+    let detail: Value =
+        serde_json::from_str(&row.detail_json).map_err(|_| format!("row {}: detail", row.seq))?;
+    let canonical = canonical_bytes(&detail).map_err(|e| e.to_string())?;
+    if canonical != row.detail_json.as_bytes() {
+        return Err(format!("row {}: detail is not canonical", row.seq));
+    }
+    // The ledger's preimage: {seq, at, actor, action, deal_id, detail_json}, chained.
+    let preimage = serde_json::json!({
+        "seq": row.seq, "at": row.at, "actor": row.actor, "action": row.action,
+        "deal_id": deal, "detail_json": detail,
+    });
+    let bytes = canonical_bytes(&preimage).map_err(|e| e.to_string())?;
+    if H256::chain(row.prev_hash, &bytes) != row.hash {
+        return Err(format!("row {}: hash does not match its contents", row.seq));
+    }
+    Ok(detail)
+}
+
 fn audit(bundle: &ProofBundle) -> Outcome {
     let mut last: Option<(i64, H256)> = None;
     for row in &bundle.audit {
-        let detail: Value = serde_json::from_str(&row.detail_json)
-            .map_err(|_| format!("row {}: detail", row.seq))?;
-        let canonical = canonical_bytes(&detail).map_err(|e| e.to_string())?;
-        if canonical != row.detail_json.as_bytes() {
-            return Err(format!("row {}: detail is not canonical", row.seq));
-        }
-        // The ledger's preimage: {seq, at, actor, action, deal_id, detail_json}, chained.
-        let preimage = serde_json::json!({
-            "seq": row.seq, "at": row.at, "actor": row.actor, "action": row.action,
-            "deal_id": bundle.deal.id, "detail_json": detail,
-        });
-        let bytes = canonical_bytes(&preimage).map_err(|e| e.to_string())?;
-        if H256::chain(row.prev_hash, &bytes) != row.hash {
-            return Err(format!("row {}: hash does not match its contents", row.seq));
-        }
+        row_detail(row, bundle.deal.id)?;
         if let Some((seq, hash)) = last {
             if row.seq <= seq {
                 return Err(format!("row {}: out of order", row.seq));
@@ -509,7 +547,7 @@ pub const KNOWN_LIMIT: &str =
     "This file cannot show whether newer records were removed from the end of the wallet's record.";
 
 pub fn verify_bundle(bundle: &ProofBundle) -> Report {
-    let checks: [(&'static str, &'static str, CheckFn); 9] = [
+    let checks: [(&'static str, &'static str, CheckFn); 15] = [
         ("format", "format", |b| Ok(format(b)?)),
         ("mandate", "owner signed the mandate", |b| Ok(mandate(b)?)),
         ("transcript", "transcript signatures and chain", |b| {
@@ -534,6 +572,33 @@ pub fn verify_bundle(bundle: &ProofBundle) -> Report {
         ("receipt", "receipt inside the transcript", |b| {
             Ok(receipts(b)?)
         }),
+        // The second format's checks (v2.rs); each reads "not checked" on a v1 file.
+        (
+            "owner_saw",
+            "the owner saw the checklist before each decision",
+            v2::owner_saw,
+        ),
+        (
+            "one_request",
+            "no second request to PayPal",
+            v2::one_request,
+        ),
+        (
+            "group",
+            "a shop-around group left one agreed table",
+            v2::group,
+        ),
+        (
+            "shield",
+            "nothing paid past a hold without a release",
+            v2::shield,
+        ),
+        (
+            "house_record",
+            "the house's kept record verifies and never shrank",
+            v2::house_record,
+        ),
+        ("permissions", "permissions fingerprint", v2::permissions),
         ("evidence", "evidence head signed", |b| Ok(evidence(b)?)),
     ];
     Report {
@@ -543,18 +608,20 @@ pub fn verify_bundle(bundle: &ProofBundle) -> Report {
             .ok()
             .and_then(|k| key_id(&k).ok())
             .map_or_else(|| "invalid".into(), |k| k.as_str().to_owned()),
+        authority_manifest: bundle.authority_manifest.map(H256::hex),
         checks: checks
             .into_iter()
             .map(|(id, name, check)| {
-                let (ok, checked, detail) = match check(bundle) {
-                    Ok(detail) => (true, true, detail),
-                    Err(miss) => (false, miss.checked, miss.detail),
+                let (ok, checked, applies, detail) = match check(bundle) {
+                    Ok(detail) => (true, true, true, detail),
+                    Err(miss) => (false, miss.checked, miss.applies, miss.detail),
                 };
                 Check {
                     id,
                     name,
                     ok,
                     checked,
+                    applies,
                     detail,
                 }
             })

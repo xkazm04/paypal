@@ -578,6 +578,45 @@ async fn buyer_keeps_the_house_head_with_the_receipt_and_flags_a_shrinking_recor
     assert_eq!(kept.entries, served.head.row_count);
     assert!(served.head.row_count > before && served.head.at == 200);
     assert_eq!(kept.checked_at, None);
+    // Proof v2: the buyer's file carries the kept head and the release pin; it verifies offline.
+    let export = || async {
+        actor
+            .execute::<table_proto::ProofBundle>(caller("main", None), Action::ExportProof(id))
+            .await
+            .unwrap()
+    };
+    let proof = export().await;
+    let report = table_verify::verify_bundle(&proof);
+    assert!(report.verified(), "{:#?}", report.checks);
+    let line = report
+        .checks
+        .iter()
+        .find(|c| c.id == "house_record")
+        .unwrap();
+    assert!(line.ok && line.applies, "{line:?}");
+    let house = proof.house.as_ref().unwrap();
+    assert_eq!(house.heads.len(), 1);
+    assert!(house.heads[0].receipt);
+    assert_eq!(house.heads[0].head, served);
+    assert_eq!(house.release.agent_key, release.agent_key);
+    // A kept head altered after the fact no longer verifies against the pin.
+    let mut forged = proof.clone();
+    forged.house.as_mut().unwrap().heads[0].head.head.row_count += 1;
+    let line = table_verify::verify_bundle(&forged)
+        .checks
+        .into_iter()
+        .find(|c| c.id == "house_record")
+        .unwrap();
+    assert!(!line.ok && line.checked, "{line:?}");
+    // A pin for another house is not the house this deal was made with.
+    let mut forged = proof.clone();
+    forged.house.as_mut().unwrap().release.agent_key = [3; 32];
+    let line = table_verify::verify_bundle(&forged)
+        .checks
+        .into_iter()
+        .find(|c| c.id == "house_record")
+        .unwrap();
+    assert!(!line.ok && line.checked, "{line:?}");
     // Later the house serves a shorter record of the same epoch: evidence on the deal.
     *relay.head.lock().unwrap() = Some(sign(
         &boot.config.agent,
@@ -595,6 +634,26 @@ async fn buyer_keeps_the_house_head_with_the_receipt_and_flags_a_shrinking_recor
     let flagged = house_record(&actor, id, HouseRecordState::Shorter).await;
     assert_eq!(flagged.entries, kept.entries);
     assert!(flagged.checked_at.is_some());
+    // The file saved now carries the shorter head too, and its house line fails by name.
+    let shrunk = export().await;
+    assert_eq!(shrunk.house.as_ref().unwrap().heads.len(), 2);
+    let report = table_verify::verify_bundle(&shrunk);
+    let line = report
+        .checks
+        .iter()
+        .find(|c| c.id == "house_record")
+        .unwrap();
+    assert!(
+        !line.ok && line.checked && line.detail.contains("got shorter"),
+        "{line:?}"
+    );
+    assert!(!report.verified());
+    assert!(
+        report
+            .checks
+            .iter()
+            .all(|c| c.id == "house_record" || c.ok || !c.applies)
+    );
     // No money effect: the deal stays receipted and the buyer made no PayPal call.
     let deal: Deal = actor
         .execute(caller("main", None), Action::Deal(id))
