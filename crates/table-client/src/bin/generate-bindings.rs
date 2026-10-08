@@ -14,6 +14,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         root.join("authority.ts"),
         table_client::authority::typescript()?,
     )?;
+    // The role playbooks, word for word, for a run's details.
+    std::fs::write(
+        root.join("playbooks.ts"),
+        table_client::playbooks::typescript()?,
+    )?;
     let capabilities = manifest.join("../../apps/desktop/src-tauri/capabilities");
     for (file, contents) in table_client::authority::capability_files()? {
         std::fs::write(capabilities.join(file), contents)?;

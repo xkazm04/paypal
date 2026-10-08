@@ -187,8 +187,15 @@ fn classify(record: &AuditRecord) -> Row {
             None => other,
         },
         "purchase.proposed" => Row::Step(K::Proposed, A::AgentIntent),
-        // The refusal's reason is free text; only that a signed rule refused it is said.
-        "intent.refused" => Row::Step(K::IntentRefused, A::SignedRule { clause: None }),
+        // The refusal's reason is never shown; only that a signed rule refused it, and which
+        // mandate clause when the row's closed code names one (clause 0, the wallet-wide
+        // limits, is not a mandate clause).
+        "intent.refused" => Row::Step(
+            K::IntentRefused,
+            A::SignedRule {
+                clause: typed::<u8>(record, "clause").filter(|c| *c != 0),
+            },
+        ),
         "shield.raised" => Row::Step(K::ShieldHeld, A::None),
         // Only an owner ticket releases a hold (Pipeline::owner_release_hold).
         "shield.released" => Row::Step(K::HoldReleased, A::Owner),
@@ -852,6 +859,22 @@ mod tests {
             (
                 "intent.refused",
                 json!({"layer":"group","reason":"another table in this group already agreed"}),
+                step(K::IntentRefused, A::SignedRule { clause: None }),
+            ),
+            // A coded refusal (agent-tool-surface-1) names its clause when one refused.
+            (
+                "intent.refused",
+                json!({"layer":"wallet","tool":"send_offer","code":{"code":"outside_band"},"clause":4,"reason":"mandate clause 4: price 25.01 above ceiling 25.00"}),
+                step(K::IntentRefused, A::SignedRule { clause: Some(4) }),
+            ),
+            (
+                "intent.refused",
+                json!({"layer":"mcp","tool":"capture","code":{"code":"tool_absent"},"clause":null,"reason":"No such tool."}),
+                step(K::IntentRefused, A::SignedRule { clause: None }),
+            ),
+            (
+                "intent.refused",
+                json!({"layer":"wallet","tool":"propose_purchase","code":{"code":"wallet_limit","limit":"held"},"clause":0,"reason":"wallet limit max_held"}),
                 step(K::IntentRefused, A::SignedRule { clause: None }),
             ),
         ];

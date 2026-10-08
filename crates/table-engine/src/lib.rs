@@ -43,6 +43,9 @@ pub enum Profile {
 pub struct AgentJob {
     pub run: RunId,
     pub prompt: String,
+    /// The fixed role playbook a native engine starts from (its system prompt). `None` for the
+    /// policy negotiator, which reads no prompt, and for toolless jobs.
+    pub playbook: Option<table_core::Playbook>,
 }
 pub struct McpGrant {
     pub url: String,

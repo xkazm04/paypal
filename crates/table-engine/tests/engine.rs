@@ -165,6 +165,7 @@ async fn scripted_runs_are_labelled_and_schema_checked_and_cancelled() {
             AgentJob {
                 run,
                 prompt: "trusted".into(),
+                playbook: None,
             },
             McpGrant {
                 url: String::new(),
@@ -188,7 +189,8 @@ async fn scripted_runs_are_labelled_and_schema_checked_and_cancelled() {
             .run(
                 AgentJob {
                     run,
-                    prompt: String::new()
+                    prompt: String::new(),
+                    playbook: None,
                 },
                 McpGrant {
                     url: String::new(),
@@ -265,4 +267,18 @@ fn stream_allowlist_is_exactly_the_tools_the_wallet_server_serves() {
     let allowed: BTreeSet<&str> = TOOLS.iter().copied().collect();
     assert_eq!(allowed, served);
     assert!(!wallet_tool("mcp__wallet__shop_checkout"));
+}
+#[test]
+fn a_native_agent_run_is_told_its_role_playbook_and_a_toolless_one_never_is() {
+    for playbook in table_core::Playbook::ALL {
+        assert_eq!(
+            system_prompt(Profile::Agent, Some(playbook)),
+            playbook.text()
+        );
+        let toolless = system_prompt(Profile::Toolless, Some(playbook));
+        assert_ne!(toolless, playbook.text());
+        assert!(!toolless.contains("send_offer"));
+    }
+    // Without a playbook an agent run still gets the fixed fence, never an empty prompt.
+    assert!(system_prompt(Profile::Agent, None).contains("wallet enforces all authority"));
 }

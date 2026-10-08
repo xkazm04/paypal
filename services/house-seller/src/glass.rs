@@ -246,7 +246,11 @@ impl Seller {
             }
             Error::Full => r.full = r.full.saturating_add(1),
             Error::Invalid
-            | Error::App(table_app::Error::Refused(_) | table_app::Error::Permission) => {
+            | Error::App(
+                table_app::Error::Refused(_)
+                | table_app::Error::Agent(_)
+                | table_app::Error::Permission,
+            ) => {
                 r.other = r.other.saturating_add(1);
             }
             _ => {}

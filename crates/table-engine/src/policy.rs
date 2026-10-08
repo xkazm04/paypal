@@ -1,7 +1,8 @@
 //! Deterministic policy negotiator: an `EngineAdapter` with no model behind it. It reaches the
 //! wallet only through the run's loopback MCP grant, the exact path a native engine uses, so every
 //! intent it makes passes the same mandate check. It reads only the typed `table_view` projection
-//! (never counterparty free text) plus a typed brief the Rust runtime built from the signed mandate.
+//! (`AgentProjection`: closed by type, so no counterparty free text) plus a typed brief the Rust
+//! runtime built from the signed mandate.
 use crate::{
     AgentJob, EngineAdapter, EngineEvent, EngineId, EngineInfo, Error, McpGrant, Schema,
     TerminalVerdict,
@@ -11,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, sync::Arc, sync::Mutex};
 use table_core::negotiation::{BuyerPolicy, Decision, Policy};
-use table_core::{Deal, Money, RunId, Side, Timestamp};
+use table_core::{AgentProjection, Money, RunId, Side, Timestamp};
 use tokio::sync::mpsc::Sender;
 
 /// One JSON-RPC POST to the grant's URL. Production speaks HTTP to the loopback listener; tests
@@ -58,9 +59,9 @@ enum Act {
     Accept,
     Withdraw,
 }
-fn decide(brief: &PolicyBrief, deal: &Deal) -> Result<Act, Error> {
+fn decide(brief: &PolicyBrief, table: &AgentProjection) -> Result<Act, Error> {
     let money = |_| Error::Invalid;
-    let price = deal.terms.unit_price;
+    let price = table.price;
     match brief.stance {
         Stance::Observe => Ok(Act::Nothing),
         Stance::Confirm => Ok(Act::Accept),
@@ -81,7 +82,7 @@ fn decide(brief: &PolicyBrief, deal: &Deal) -> Result<Act, Error> {
                 })
             }
             Side::Buyer => {
-                let fresh = deal.market.as_ref().filter(|m| {
+                let fresh = table.market.as_ref().filter(|m| {
                     brief.now >= m.retrieved_at && brief.now - m.retrieved_at < MARKET_FRESH_SECS
                 });
                 let policy = BuyerPolicy::anchored(
@@ -230,10 +231,10 @@ impl EngineAdapter for PolicyEngine {
             self.check_cancelled(job.run)?;
         }
         let view = view.ok_or(Error::Invalid)?;
-        let deal: Deal = serde_json::from_value(view).map_err(|_| Error::Invalid)?;
-        let act = decide(&brief, &deal)?;
+        let table: AgentProjection = serde_json::from_value(view).map_err(|_| Error::Invalid)?;
+        let act = decide(&brief, &table)?;
         self.check_cancelled(job.run)?;
-        let deal_id = deal.id;
+        let deal_id = table.deal_id;
         // A refusal is the mandate doing its job: the wallet audited it, the run still ends clean.
         match act {
             Act::Nothing => {}
@@ -242,7 +243,7 @@ impl EngineAdapter for PolicyEngine {
                     &mcp,
                     3,
                     "send_offer",
-                    json!({"deal_id":deal_id,"price":price.decimal(),"delivery":deal.terms.delivery}),
+                    json!({"deal_id":deal_id,"price":price.decimal(),"delivery":table.delivery}),
                 )
                 .await?;
             }
@@ -315,8 +316,8 @@ mod tests {
         assert_eq!(back.ceiling, Some(money(2500)));
         assert!(serde_json::from_str::<PolicyBrief>("{\"stance\":\"free text\"}").is_err());
     }
-    fn deal(side: Side, price: i64) -> Deal {
-        serde_json::from_value(json!({
+    fn deal(side: Side, price: i64) -> AgentProjection {
+        let deal: table_core::Deal = serde_json::from_value(json!({
             "id":"01J00000000000000000000000","kind":"haggle","side":side,
             "counterparty":"peer",
             "terms":{"item_ref":"monitor","qty":1,"unit_price":Money::new(price,Currency::USD).unwrap(),
@@ -326,7 +327,21 @@ mod tests {
             "transcript_head":vec![0; 32],
             "paypal":{},"mode":"sandbox","market":null,"shield":null
         }))
-        .unwrap()
+        .unwrap();
+        project(&deal)
+    }
+    fn project(deal: &table_core::Deal) -> AgentProjection {
+        AgentProjection::build(table_core::ProjectionInput {
+            deal,
+            band: None,
+            rounds_used: 0,
+            steps: &[],
+            offer_seq: None,
+            own_accept: false,
+            counterparty: table_core::TableCounterparty::PairedWallet,
+            lapses_at: None,
+            now: 100,
+        })
     }
     #[test]
     fn decisions_follow_the_side_and_never_leave_the_signed_band() {
@@ -373,16 +388,27 @@ mod tests {
     }
     #[test]
     fn a_stale_market_median_is_ignored_and_a_fresh_one_caps_the_target() {
-        let mut d = deal(Side::Buyer, 9000);
+        let mut d: table_core::Deal = serde_json::from_value(json!({
+            "id":"01J00000000000000000000000","kind":"haggle","side":"buyer",
+            "counterparty":"peer",
+            "terms":{"item_ref":"monitor","qty":1,"unit_price":money(9000),
+                "currency":"USD","delivery":{"type":"digital_now"}},
+            "state":"NEGOTIATING",
+            "mandate_id":"01J00000000000000000000001","mandate_version":1,
+            "transcript_head":vec![0; 32],
+            "paypal":{},"mode":"sandbox","market":null,"shield":null
+        }))
+        .unwrap();
         let mut b = brief(Stance::Respond, Side::Buyer);
         b.max_rounds = 1;
         d.market = Some(
             table_core::MarketRef::from_comparables(vec![money(1500)], 100, table_core::H256::ZERO)
                 .unwrap(),
         );
+        let table = project(&d);
         b.now = 200;
-        assert_eq!(decide(&b, &d).unwrap(), Act::Offer(money(1500)));
+        assert_eq!(decide(&b, &table).unwrap(), Act::Offer(money(1500)));
         b.now = 100 + 900;
-        assert_eq!(decide(&b, &d).unwrap(), Act::Offer(money(2500)));
+        assert_eq!(decide(&b, &table).unwrap(), Act::Offer(money(2500)));
     }
 }

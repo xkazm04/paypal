@@ -48,6 +48,7 @@ fn main() {
                             AgentJob {
                                 run: table_core::RunId(ulid::Ulid::new()),
                                 prompt: "Offline environment check".into(),
+                                playbook: None,
                             },
                             McpGrant {
                                 url: "http://127.0.0.1:8765/mcp".into(),
