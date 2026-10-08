@@ -203,10 +203,13 @@ async fn a_decision_while_a_check_fails_is_refused_and_a_release_may_fail_only_t
     )
     .await
     .unwrap();
-    assert_eq!(
-        r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().shield,
-        Some(ShieldVerdict::Ask)
-    );
+    // The recorded HOLD stays; the owner's release sits beside it, for these terms and this rule,
+    // and the deal reads ASK: the owner's decision is the check.
+    let held = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap();
+    assert_eq!(held.shield, Some(ShieldVerdict::Ask));
+    assert_eq!(held.shield_recorded(), Some(ShieldVerdict::Hold));
+    assert_eq!(held.shield_rule, Some(ShieldRule::ModelCaution));
+    assert!(held.shield_released() && !held.shield_held());
     let rows = decision_rows(&r, deal.id);
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].detail["decision"], "shield_release");

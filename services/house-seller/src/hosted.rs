@@ -465,6 +465,8 @@ impl Seller {
             market: None,
             shield: None,
             decided_by: None,
+            shield_rule: None,
+            shield_release: None,
         };
         // No PayPal call (including a poll) can precede a successful mandate check.
         self.mandate

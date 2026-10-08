@@ -117,6 +117,7 @@ mod tests {
                 deadline,
                 mode: Mode::Sandbox,
                 shield_hold: false,
+                shield_rule: None,
                 needs_owner_accept: false,
                 money_check: None,
             },

@@ -6,6 +6,7 @@ import type { DealId } from "./DealId";
 import type { Mode } from "./Mode";
 import type { Module } from "./Module";
 import type { MoneyCheck } from "./MoneyCheck";
+import type { ShieldRule } from "./ShieldRule";
 import type { TumblerAction } from "./TumblerAction";
 import type { Urgency } from "./Urgency";
 
@@ -14,4 +15,9 @@ export type AttentionItem = { deal_id: DealId, label: string, kind: AttnKind, mo
  * Set while a money step's PayPal outcome is unknown: the card is a HOLD that only opens
  * the deal. Older shells omit it.
  */
-money_check?: MoneyCheck | null, };
+money_check?: MoneyCheck | null, 
+/**
+ * On a card the scam shield holds: the rule that holds it (a closed name the window words
+ * plainly; never counterparty text). Older shells omit it.
+ */
+shield_rule?: ShieldRule | null, };

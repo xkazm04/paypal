@@ -12,6 +12,8 @@ import type { ReceiptEvidence } from '@bindings/ReceiptEvidence';
 import type { Reconciliation } from '@bindings/Reconciliation';
 import type { Role } from '@bindings/Role';
 import type { Side } from '@bindings/Side';
+import type { ShieldRelease } from '@bindings/ShieldRelease';
+import type { ShieldRule } from '@bindings/ShieldRule';
 import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import { formatMoney } from './format';
 
@@ -95,6 +97,23 @@ const SHIELD: Record<ShieldVerdict, Word> = {
   BLOCK: { text: 'Blocked', tone: 'red', means: 'Stopped for good. A block cannot be released.' },
 };
 export const shieldWord = (v: ShieldVerdict): Word => SHIELD[v];
+
+/** Which check decided the verdict, as the wallet core names it (Deal.shield_rule, a closed list;
+ *  never the other side's words). `text` is a short label, `means` the plain sentence. */
+const SHIELD_RULE: Record<ShieldRule, Word> = {
+  payee_mismatch: { text: 'Different payee', tone: 'red', means: 'The money would go to someone other than the payee you agreed with.' },
+  friends_and_family: { text: 'Friends & family', tone: 'red', means: 'It asks to be paid as friends & family, which has no buyer protection.' },
+  no_market_reference: { text: 'No usual price', tone: 'gold', means: 'There is no recent usual price to compare it with, so the shield asks you.' },
+  price_over_market: { text: 'Price far above usual', tone: 'gold', means: 'The price is more than 1.4 × the usual price.' },
+  new_counterparty_over_threshold: { text: 'New payee, large amount', tone: 'gold', means: 'A payee first seen in the last 24 hours is asking for more than 100.00, so the shield asks you.' },
+  model_caution: { text: 'A second look', tone: 'gold', means: 'A second look asked for caution. It can only make things safer.' },
+};
+export const shieldRuleWord = (r: ShieldRule): Word => SHIELD_RULE[r];
+
+/** Whether the owner released this deal's pause for its current terms (Deal.shield_release, from
+ *  the wallet core; it is dropped there when the terms change). */
+export const shieldReleased = (d: { shield: ShieldVerdict | null; shield_rule?: ShieldRule | null; shield_release?: ShieldRelease | null }): boolean =>
+  !!d.shield_release && !!d.shield_rule && d.shield_release.rules.includes(d.shield_rule) && (d.shield === 'ASK' || d.shield === 'HOLD');
 
 // ---- PayPal evidence --------------------------------------------------------------------------------
 

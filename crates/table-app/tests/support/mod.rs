@@ -98,6 +98,8 @@ pub fn setup(side: Side, kind: DealKind) -> (Wallet, Deal, AgentSigner, AgentSig
         market: Some(MarketRef::from_comparables(vec![money(1200)], 100, H256::ZERO).unwrap()),
         shield: None,
         decided_by: None,
+        shield_rule: None,
+        shield_release: None,
     };
     ledger.create_deal(&deal, 100).unwrap();
     (

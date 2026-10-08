@@ -1952,10 +1952,10 @@ async fn shield_hold_release_is_owner_bound_and_block_can_never_be_released() {
     )
     .await
     .unwrap();
-    assert_eq!(
-        r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().shield,
-        Some(ShieldVerdict::Ask)
-    );
+    let released = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap();
+    assert_eq!(released.shield, Some(ShieldVerdict::Ask));
+    assert!(released.shield_released() && !released.shield_held());
+    assert_eq!(released.decided_by, Some(DecidedBy::Human { at: 100 }));
     r.pipeline
         .wallet
         .ledger

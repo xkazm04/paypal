@@ -106,6 +106,8 @@ fn deal_for(w: &World, id: u128, c: &RescueCase) -> Deal {
         market: None,
         shield: None,
         decided_by: None,
+        shield_rule: None,
+        shield_release: None,
     }
 }
 fn open(w: &mut World, id: u128, c: &RescueCase, at: Timestamp) -> Result<Deal, LedgerError> {
@@ -411,7 +413,7 @@ fn migration_0011_keeps_every_operation_and_its_check_and_admits_the_invoice_ste
     );
     // Run 0011 again over the rows, as an upgrade from version 10 does.
     let conn = w.ledger.conn;
-    conn.execute_batch("DROP TRIGGER deals_group_agrees_once; DROP TRIGGER deals_group_once; DROP TABLE deal_groups; DROP INDEX deals_group; ALTER TABLE deals DROP COLUMN group_id; DROP TABLE rescue_cases; PRAGMA user_version=10;")
+    conn.execute_batch("DROP TRIGGER deals_block_stays; DROP TRIGGER deals_block_never_released; ALTER TABLE deals DROP COLUMN shield_rule; ALTER TABLE deals DROP COLUMN shield_terms; ALTER TABLE deals DROP COLUMN shield_release_json; DROP TRIGGER deals_group_agrees_once; DROP TRIGGER deals_group_once; DROP TABLE deal_groups; DROP INDEX deals_group; ALTER TABLE deals DROP COLUMN group_id; DROP TABLE rescue_cases; PRAGMA user_version=10;")
         .unwrap();
     let ledger = Ledger::from_connection(conn).unwrap();
     let open_ops = ledger.open_operations(Some(deal.id)).unwrap();

@@ -129,6 +129,8 @@ impl Fixture {
                 market: None,
                 shield: None,
                 decided_by: None,
+                shield_rule: None,
+                shield_release: None,
             };
             ledger.create_deal(&deal, 100).unwrap();
             ledger

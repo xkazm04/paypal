@@ -18,7 +18,7 @@ import type { Deal } from '@bindings/Deal';
 import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import { formatMinor, shortId } from '../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
-import { joinWords, shieldWord } from '../../../lib/words';
+import { joinWords, shieldReleased, shieldRuleWord, shieldWord } from '../../../lib/words';
 import { MinorMoney, WalletNotice } from '../../../shared/honesty';
 import { Glyph, MODULE } from '../../../shared/modules';
 import {
@@ -352,10 +352,13 @@ function ShieldRow({ deal, onOpen }: { deal: Deal; onOpen: () => void }) {
   const tone = { block: 'red', closed: 'dim', clear: 'ok', other: 'gold' }[kind];
   const icon = { block: 'block', closed: 'pause', clear: 'check', other: 'eye' }[kind] as 'block' | 'pause' | 'check' | 'eye';
   const pill = kind === 'closed' ? <Chip tone="line" title="The shield paused it and it closed without being released">Paused, then closed</Chip> : <VerdictChip v={deal.shield} />;
-  const sub = kind === 'block' ? <span className="tx-red">Blocked for good · it can’t be released · {paypalLine(deal)[1]}</span>
-    : kind === 'closed' ? <>Paused by the shield, then {stateLabel(deal.state, deal).toLowerCase()} · {a.toLowerCase()}</>
+  // Which check decided it: recorded by the wallet core (Deal.shield_rule), never guessed here.
+  const why = deal.shield_rule ? `${shieldRuleWord(deal.shield_rule).text.toLowerCase()} · ` : '';
+  const sub = kind === 'block' ? <span className="tx-red">Blocked for good · {why}it can’t be released · {paypalLine(deal)[1]}</span>
+    : kind === 'closed' ? <>Paused by the shield · {why}then {stateLabel(deal.state, deal).toLowerCase()} · {a.toLowerCase()}</>
       : kind === 'clear' ? <>{disp.title} · {stateLabel(deal.state, deal)}</>
-        : <>{disp.title} · decided in {MODULE[w.moduleOfDeal(deal)].name}</>;
+        : shieldReleased(deal) ? <>{disp.title} · you let it go on after a pause · decided in {MODULE[w.moduleOfDeal(deal)].name}</>
+          : <>{disp.title} · {why}decided in {MODULE[w.moduleOfDeal(deal)].name}</>;
   return (
     <Row className="sh-row" onOpen={onOpen} label={`${cp.name}, ${deal.shield ? shieldWord(deal.shield).text : 'no verdict'}. Open the deal`}
       lead={<span className={`sh-lead ${tone}`} aria-hidden="true"><Icon name={icon} size={13} /></span>}
@@ -522,6 +525,8 @@ function CellStory({ rk, deal, need, now, onRelease, onRefuse, onDeal, onHow }: 
         <div className="sh-ik">Shield says · {disp.title}</div>
         <h2>{v ? v.text : 'No verdict yet'}</h2>
         <p className="sh-det">{v ? v.means : 'The shield has not recorded a verdict for this deal.'}</p>
+        {deal.shield_rule ? <p className="sh-det"><b>Decided by:</b> {shieldRuleWord(deal.shield_rule).text}. {shieldRuleWord(deal.shield_rule).means}</p> : null}
+        {shieldReleased(deal) ? <p className="sh-det">You let it go on after a pause, for these terms only. A change to the deal is checked again.</p> : null}
         <ul className="sh-cklist">
           {CHECKS.map((chk, i) => {
             const x = checkCell(chk.k, deal, cp.entry, now);
