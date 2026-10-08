@@ -232,6 +232,18 @@ impl Pipeline {
         Ok(Some(deal))
     }
 
+    /// Read-only: whether the fix's one invoice send ended without sending: it was reserved, is
+    /// no longer open, and the deal still waits at SETTLING with its invoice a draft (a send
+    /// PayPal showed not done, closed). Such a fix is never sent again, not even on a fresh
+    /// owner decision, so the decision is refused before anything is written.
+    pub fn rescue_send_ended(&self, id: DealId) -> Result<bool, Error> {
+        Ok(
+            self.wallet.ledger.get_deal(id)?.state == DealState::Settling
+                && !self.has_open_operation(id)?
+                && self.wallet.ledger.rescue_send_reserved(id)?,
+        )
+    }
+
     /// The owner's decision on the fix (approval window only, through the runtime's privileged
     /// gate and checks hash). On AGREED it creates the invoice and sends it; on a SETTLING deal
     /// whose invoice exists but was never sent, it sends it. A step whose PayPal answer was lost is
@@ -251,11 +263,12 @@ impl Pipeline {
             self.resolve(id, Some(ticket), now).await?;
             return Ok(());
         }
-        if self
-            .wallet
-            .ledger
-            .deadline(id)?
-            .is_none_or(|(due, _)| due <= now)
+        if self.rescue_send_ended(id)?
+            || self
+                .wallet
+                .ledger
+                .deadline(id)?
+                .is_none_or(|(due, _)| due <= now)
         {
             return Err(Error::Permission);
         }

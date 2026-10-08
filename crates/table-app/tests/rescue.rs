@@ -796,7 +796,15 @@ async fn a_lost_send_still_draft_at_the_deadline_closes_and_frees_the_subscripti
     r.p.approval
         .unlock("approval", &r.token, &Reauth, past_window)
         .unwrap();
-    assert!(r.approve(id, past_window).await.is_err());
+    // Refused as the owner's permission (it used to fail on the ledger's unique request id),
+    // before anything is written.
+    assert!(r.p.rescue_send_ended(id).unwrap());
+    let audit = r.p.wallet.ledger.audit_count().unwrap();
+    assert!(matches!(
+        r.approve(id, past_window).await,
+        Err(table_app::Error::Permission)
+    ));
+    assert_eq!(r.p.wallet.ledger.audit_count().unwrap(), audit);
     assert_eq!(r.sends(), 1);
     assert!(r.p.tick(T0 + 4 * 86400).await.unwrap().contains(&id));
     assert_eq!(r.state(id), DealState::Expired);

@@ -357,4 +357,14 @@ impl Ledger {
         text.map(|t| serde_json::from_str(&t).map_err(Into::into))
             .transpose()
     }
+
+    /// Whether the rescue invoice's send was ever reserved (open, done or closed). A send has one
+    /// request id for its whole life, so a second one is never reserved.
+    pub fn rescue_send_reserved(&self, id: DealId) -> Result<bool, LedgerError> {
+        Ok(self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM operations WHERE deal_id=?1 AND operation='invoice-send')",
+            [id.to_string()],
+            |r| r.get(0),
+        )?)
+    }
 }

@@ -530,6 +530,14 @@ impl Runtime {
                 if deal.kind != DealKind::Rescue {
                     return Err(invalid());
                 }
+                // A fix whose one send already ended is never sent again: refused before the
+                // owner's decision row or anything else is written.
+                if self.pipeline.rescue_send_ended(deal.id)? {
+                    return Err(CommandError {
+                        code: ErrorCode::Permission,
+                        message: crate::rescue::RESCUE_ENDED.into(),
+                    });
+                }
                 if !self.settings()?.payment_executor_configured || self.secondary.is_none() {
                     return Err(unavailable("Enter PayPal sandbox credentials"));
                 }
