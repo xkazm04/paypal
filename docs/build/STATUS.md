@@ -1720,3 +1720,8 @@ Surfaces that are not on a window's first paint now load as their own chunks; th
 - **Sizes (minified):** main entry 500.96 → 133.83 kB (gzip 146.6 → 42.5); approval entry 176.62 → 100.30 kB; initial JS main 805 → ~454 kB, approval 481 → ~399 kB; largest chunk now react-dom (212 kB).
 - Tests: `src/lib/lazy.test.tsx` (4); client 750; the director `--check` passes all 21 beats. Before/after screenshots match apart from the Dial's animation.
 - Left: no error boundary for a chunk that fails to load (assets are local in the shell).
+
+### Market-watch actor test flake, root-caused (4e96995, test only)
+
+- **Cause:** the "created" wait polled for the deal to *be* in `AwaitingApproval`, but the offline PayPal double approves every order, so the next actor tick authorizes and captures under the seller mandate (H5) and the deal reaches `Receipted`; `AwaitingApproval` lasts one tick. On a loaded host the 1 s interval wins `select!` over the test's queued poll and the window is missed. Failing runs reported `deal last seen Receipted, market calls 1, checks [1], faults []`. The product is correct and unchanged.
+- **Fix:** waits use only conditions that stay true once reached (call count, stored price, the move into `AwaitingApproval` in the audit trail); assertions check that move is newer than `market.observed` and the countersign is `Policy { clause: 6 }`; a wait that gives up reports calls, gate, the last deal seen, checks, forecast, actor faults and the audit trail. Under CPU load (load 12–20): 3/3 failed before, 0/35 after. The other polling loops wait for states that stay put; three short 3 s tick-driven waits were widened to 30 s (coordinator).
