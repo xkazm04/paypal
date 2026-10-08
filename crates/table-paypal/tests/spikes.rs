@@ -255,11 +255,23 @@ async fn spike_5_return_destinations() {
 async fn spike_8_invoice_create_send_paid() {
     let client = client();
     let expected = order();
+    // The wallet's own rescue shape: a discount on a $1.25 cycle under a 20% / $1.00 clause is
+    // a $1.00 invoice, with the fixed wording and the deterministic invoice number.
+    let offer = propose_discount(
+        Money::parse("1.25", Currency::USD).unwrap(),
+        2000,
+        Money::parse("1.00", Currency::USD).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(offer.invoice, expected.amount);
+    let invoice_number = rescue_invoice_number(expected.deal, 1).unwrap();
     let invoice = InvoiceRequest {
         deal: expected.deal,
         recipient_email: std::env::var("PAYPAL_SANDBOX_INVOICE_EMAIL")
             .expect("Recipient sandbox personal account email required"),
         amount: expected.amount,
+        invoice_number: invoice_number.clone(),
+        text: invoice_text(&offer),
     };
     let created = client
         .create_invoice(&invoice, &request(&expected, "invoice-create"))
@@ -267,7 +279,17 @@ async fn spike_8_invoice_create_send_paid() {
         .expect("Preserve reference; unknown create is not automatically retried")
         .value;
     let id = ResourceId::new(created.id).unwrap();
-    emit(json!({"invoice_id":id.as_str(),"reference":expected.deal,"stage":"invoice_created"}));
+    emit(
+        json!({"invoice_id":id.as_str(),"reference":expected.deal,"invoice_number":invoice_number,"status":created.status,"stage":"invoice_created"}),
+    );
+    // Evidence for the read-back a lost create relies on (UNVERIFIED search field).
+    let search = client.search_invoices(&invoice_number).await;
+    emit(json!({
+        "stage":"invoice_searched",
+        "search_ok":search.is_ok(),
+        "found_by_number":search.as_ref().is_ok_and(|r| r.value.items.iter().any(|i| i.id == id.as_str())),
+        "results":search.as_ref().map_or(0, |r| r.value.items.len()),
+    }));
     client
         .send_invoice(&id, &request(&expected, "invoice-send"))
         .await

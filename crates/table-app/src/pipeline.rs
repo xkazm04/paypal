@@ -46,6 +46,10 @@ pub struct Pipeline {
     /// The owner paused all agents: the read-back resolver sends nothing again under the
     /// clause-6 policy, exactly as the scheduler starts no create under it (T10).
     pub policy_paused: bool,
+    /// Invoicing, for the rescue invoice (set by the trusted shell; `None` sends no invoice).
+    pub(crate) secondary: Option<Arc<dyn table_paypal::SecondaryApi>>,
+    /// When each rescue invoice was last read, so PAID is polled on a cadence.
+    pub(crate) rescue_polled: std::collections::BTreeMap<DealId, Timestamp>,
 }
 impl std::fmt::Debug for Pipeline {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -253,7 +257,13 @@ impl Pipeline {
             house: None,
             approval: ApprovalSession::new(now)?,
             policy_paused: false,
+            secondary: None,
+            rescue_polled: std::collections::BTreeMap::new(),
         })
+    }
+    /// Trusted shell setup only: the Invoicing client the rescue invoice goes through.
+    pub fn set_secondary(&mut self, api: Option<Arc<dyn table_paypal::SecondaryApi>>) {
+        self.secondary = api;
     }
     /// Trusted hosted setup only. No IPC or agent request can install this authority.
     pub fn enable_house(
@@ -310,6 +320,11 @@ impl Pipeline {
         if matches!(authority, Authority::Policy) && deal.kind == DealKind::Purchase {
             return Err(Error::Permission);
         }
+        // A rescue invoice goes out only on the owner's decision in the approval window: no
+        // signed rule, seller or house mandate, or safe default ever sends one.
+        if deal.kind == DealKind::Rescue && !matches!(authority, Authority::Owner(_)) {
+            return Err(Error::Permission);
+        }
         let decision = self.wallet.mandate_check(deal, category, now)?;
         match authority {
             Authority::HouseMandate
@@ -360,7 +375,7 @@ impl Pipeline {
             _ => Err(Error::Permission),
         }
     }
-    fn countersign(
+    pub(crate) fn countersign(
         &mut self,
         deal: &Deal,
         attempt: u8,
@@ -391,6 +406,11 @@ impl Pipeline {
         Ok(())
     }
     pub(crate) fn shield(&self, deal: &Deal, now: Timestamp) -> Result<ShieldVerdict, Error> {
+        // A rescue asks the owner's own subscriber to pay the owner: the payee, price and new-
+        // counterparty rules guard money going out, so only a verdict raised on the deal applies.
+        if deal.kind == DealKind::Rescue {
+            return Ok(deal.shield.unwrap_or(ShieldVerdict::Clear));
+        }
         let payee = self.wallet.settlement_payee(deal)?;
         if deal.shield.is_some_and(|v| v >= ShieldVerdict::Hold) {
             return Ok(deal.shield.unwrap_or(ShieldVerdict::Hold));
@@ -529,7 +549,7 @@ impl Pipeline {
             .collect()
     }
     #[allow(clippy::too_many_arguments)] // Private helper mirrors the typed ledger outcome.
-    fn complete(
+    pub(crate) fn complete(
         &mut self,
         deal: &Deal,
         attempt: u8,
@@ -1008,6 +1028,18 @@ impl Pipeline {
             Err(error) => failure = Some(error),
         }
         for deal in self.wallet.ledger.list_deals()? {
+            // A rescue's invoice is real even when its failure was replayed: it is polled and
+            // its deadline applied whatever the mode (rescue.rs).
+            if deal.kind == DealKind::Rescue {
+                match self.rescue_tick(deal.id, now).await {
+                    Ok(true) => changed.push(deal.id),
+                    Ok(false) => {}
+                    Err(error) => {
+                        failure.get_or_insert(error);
+                    }
+                }
+                continue;
+            }
             if deal.mode == Mode::Replay {
                 continue;
             }
@@ -1027,6 +1059,9 @@ impl Pipeline {
     /// only an order creation whose payment link never left the wallet lapses with its deal.
     pub async fn deadline_default(&mut self, id: DealId, now: Timestamp) -> Result<bool, Error> {
         let deal = self.wallet.ledger.get_deal(id)?;
+        if deal.kind == DealKind::Rescue {
+            return self.rescue_deadline(id, now).await;
+        }
         let Some((due, _)) = self.wallet.ledger.deadline(id)? else {
             return Ok(false);
         };

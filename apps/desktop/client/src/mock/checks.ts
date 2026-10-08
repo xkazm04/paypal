@@ -9,8 +9,10 @@ import type { Deal } from '@bindings/Deal';
 import type { H256 } from '@bindings/H256';
 import type { Money } from '@bindings/Money';
 import type { OpenMandate } from '@bindings/OpenMandate';
+import type { RescueView } from '@bindings/RescueView';
 import type { CounterpartyDisplay, TranscriptStep } from '../lib/pending';
 import { formatMoney, lineTotal } from '../lib/format';
+import { percentWords } from '../lib/words';
 import { fakeHash } from './fixtures';
 
 export type MockCheckInput = {
@@ -24,10 +26,12 @@ export type MockCheckInput = {
   now: number;
   /** The wallet limits' refusal of this deal (src/mock/exposure.ts), checked after the mandate. */
   limitRefusal?: string | null;
+  /** On a rescue deal: its stored failure and fix (rescue_book's row), if the wallet has one. */
+  rescue?: RescueView;
 };
 
 const line = (id: ApprovalCheckId, status: ApprovalCheckStatus, text: string, detail: string): ApprovalCheck => ({ id, status, text, detail });
-const RULE: Record<number, string> = { 1: 'what agents may do', 2: 'who they deal with', 3: 'the limit per deal', 4: 'the price range', 5: 'the daily limit', 6: 'ask me above', 7: 'approved payees', 0: 'your wallet limits' };
+const RULE: Record<number, string> = { 1: 'what agents may do', 2: 'who they deal with', 3: 'the limit per deal', 4: 'the price range', 5: 'the daily limit', 6: 'ask me above', 7: 'approved payees', 8: 'fixes for failed renewals', 0: 'your wallet limits' };
 const code = (m: Money) => formatMoney(m, { code: true });
 const ORDER_EXPECTED = new Set<Deal['state']>(['AGREED', 'SETTLING']);
 
@@ -55,7 +59,9 @@ function mandateFact(i: MockCheckInput, payee: string | null): MandateFact {
   for (const c of m.payload.clauses) {
     switch (c.type) {
       case 'counterparties':
-        if (!i.counterparty || i.counterparty.pairing === 'unpaired') return { k: 'refused', clause: 2, reason: 'counterparty is not pinned/paired as required' };
+        // A subscriber has no wallet: "your own subscribers" allows rescue only (Rust CpRule::Subscribers).
+        if (c.rule.type === 'subscribers' ? d.kind !== 'rescue' : d.kind === 'rescue' || !i.counterparty || i.counterparty.pairing === 'unpaired')
+          return { k: 'refused', clause: 2, reason: 'counterparty is not pinned/paired as required' };
         break;
       case 'per_deal':
         if (c.kind !== d.kind) return { k: 'refused', clause: 3, reason: 'deal kind not allowed' };
@@ -80,12 +86,17 @@ function mandateFact(i: MockCheckInput, payee: string | null): MandateFact {
         if (!payee || !c.payees.includes(payee)) return { k: 'refused', clause: 7, reason: 'payee not allowed' };
         break;
       case 'roles':
+        if (d.kind === 'rescue' && !c.roles.includes('rescue')) return { k: 'refused', clause: 1, reason: 'role not allowed' };
+        break;
+      case 'lever':
+        // Its bounds are checked on the fix itself (Rust rescue::check_offer).
         break;
       // Keeping prices fresh grants nothing and refuses nothing.
       case 'market_watch':
         break;
     }
   }
+  if (d.kind === 'rescue' && !m.payload.clauses.some((c) => c.type === 'lever')) return { k: 'refused', clause: 8, reason: 'fixes clause missing' };
   // The wallet limits sit above every mandate and only ever refuse (Rust: clause 0).
   if (i.limitRefusal) return { k: 'refused', clause: 0, reason: i.limitRefusal };
   return ask ? { k: 'ask', threshold: ask } : { k: 'allow', perDeal };
@@ -156,6 +167,30 @@ export function mockChecks(i: MockCheckInput): ApprovalCheck[] {
     case 'ask': out.push(line('mandate', 'pass', `Above your ask-me limit of ${formatMoney(m.threshold)}, so it’s your call.`, `${which}: clause 6 asks the owner above ${code(m.threshold)}; the owner decision satisfies it`)); break;
     case 'refused': out.push(line('mandate', 'fail', `Outside your rules: ${RULE[m.clause] ?? 'a rule'}.`, `${which}: clause ${m.clause} refuses: ${m.reason}`)); break;
     case 'retired': out.push(line('mandate', 'fail', 'These rules are no longer in force.', `${which} is not active (revoked, replaced, expired or not yet in force)`)); break;
+  }
+  return d.kind === 'rescue' ? rescueLines(i, out, m) : out;
+}
+
+/** Rust compose_rescue: the fix's amount against the signed fixes rule, no PayPal link, one
+ *  invoice this cycle, and the rescue rules in place of the amount, host, invoice and mandate lines. */
+function rescueLines(i: MockCheckInput, lines: ApprovalCheck[], m: MandateFact): ApprovalCheck[] {
+  const d = i.deal;
+  const v = i.rescue;
+  const o = v?.offer;
+  const lever = i.mandate?.payload.clauses.find((c): c is Extract<typeof c, { type: 'lever' }> => c.type === 'lever');
+  const out = [...lines];
+  out[0] = o && d.terms.qty === 1 && o.invoice.minor === d.terms.unit_price.minor && o.invoice.currency === d.terms.currency
+    ? line('amount', 'pass', `The invoice asks ${formatMoney(o.invoice)}: ${percentWords(o.discount_bp)} off this cycle’s ${formatMoney(o.cycle)}.`,
+      `rescue offer ${o.lever}: cycle ${code(o.cycle)} − discount ${code(o.discount)} = invoice ${code(o.invoice)} = signed terms (qty 1) (mock)`)
+    : line('amount', 'fail', 'The fix’s amount can’t be confirmed.', 'no rescue row, or its offer is not what the deal\'s terms invoice');
+  out[2] = line('host', 'not_applicable', 'No PayPal link is opened: PayPal emails the invoice to your subscriber.', 'Invoicing v2: POST /v2/invoicing/invoices then …/{id}/send; no approve link');
+  out[3] = v
+    ? line('invoice', 'pass', d.mode === 'replay' ? 'A replayed failure: the invoice is real, but what it brings in is not counted as recovered.' : 'This subscriber gets one invoice for this cycle.',
+      `one rescue per subscription per failed cycle; invoice number ${d.id}-1 (attempt 1)${d.paypal.order ? `; PayPal invoice ${d.paypal.order}` : ''} (mock)`)
+    : line('invoice', 'fail', 'The failed renewal behind this fix can’t be read.', 'no rescue row for this deal');
+  if ((m.k === 'allow' || m.k === 'ask') && lever) {
+    out[5] = line('mandate', 'pass', `Inside your rescue rules: at most ${percentWords(lever.max_discount_bp)} or ${formatMoney(lever.max_discount)} off a cycle.`,
+      `mandate ${d.mandate_id} v${d.mandate_version}: clauses 1-7 allow; clause 8 allows DISCOUNT_THIS_CYCLE up to ${lever.max_discount_bp} bp and ${code(lever.max_discount)}`);
   }
   return out;
 }

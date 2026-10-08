@@ -11,7 +11,7 @@ import { shortHash, shortId } from '../../lib/format';
 import { dealWatch } from '../../lib/marketWatch';
 import { useMutation, useQuery } from '../../lib/hooks';
 import { RunBadge, WalletNotice } from '../../shared/honesty';
-import { kindWord, rulesName } from '../../lib/words';
+import { houseRecordWord, kindWord, rulesName } from '../../lib/words';
 import { Btn, Chip, Hint, Kv, PageHead, Popover } from '../../shared/ui';
 import { canStartAgent } from './logic';
 import { mc, useCpLookup, useToast } from './ui';
@@ -76,6 +76,7 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
   const latest = useMemo(() => (tr.data ?? []).reduce<TranscriptStep | null>((a, s) => (!a || s.seq > a.seq ? s : a), null), [tr.data]);
   const bandReading = deal.kind === 'haggle' ? (readings.find((r) => r.n === 4)?.reading ?? null) : null;
   const badge = rulesBadge(ruleChecks(readings));
+  const houseRecord = evidence?.house_record ? houseRecordWord(evidence.house_record) : null;
   const nFacts = standingFacts(deal, disp.band, latest, them);
 
   const go = (t: Tab) => setTabAt({ id: deal.id, tab: t });
@@ -122,6 +123,7 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
             tabIndex={tab === t.key ? 0 : -1} className="dv-tab" onClick={() => go(t.key)}>
             {t.label}
             {t.key === 'rules' && badge ? <Chip tone={badge.tone}>{badge.text}</Chip> : null}
+            {t.key === 'proof' && houseRecord?.warns ? <Chip tone={houseRecord.tone} title={houseRecord.means}>{houseRecord.text}</Chip> : null}
           </button>
         ))}
       </div>

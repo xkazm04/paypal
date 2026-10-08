@@ -12,12 +12,14 @@ import { minorToInput, parseMoneyInput } from './model';
 
 export type ClauseDraft =
   | { type: 'roles'; roles: Role[] }
-  | { type: 'counterparties'; rule: 'paired' | 'house' | 'pinned'; keys: string }
+  | { type: 'counterparties'; rule: 'paired' | 'house' | 'pinned' | 'subscribers'; keys: string }
   | { type: 'per_deal'; kind: DealKind; max: string; categories: Category[] }
   | { type: 'band'; items: string; floor: string; ceiling: string; rounds: string; deadline: string }
   | { type: 'velocity'; deals: string; total: string }
   | { type: 'human_present_over'; amount: string }
   | { type: 'payees'; payees: string }
+  /** Rescue only: the discount the wallet may offer on one missed cycle (percent and money cap). */
+  | { type: 'lever'; percent: string; max: string }
   | { type: 'market_watch'; items: WatchDraft[]; checks: string };
 
 /** One watched item as typed: your item, and the product the market service prices it by. */
@@ -33,11 +35,27 @@ export const CLAUSE_KINDS: ReadonlyArray<{ type: ClauseType; name: string; hint:
   { type: 'velocity', name: 'Daily limit', hint: 'deals and money per day' },
   { type: 'human_present_over', name: 'Ask me above', hint: 'above this amount, you decide' },
   { type: 'payees', name: 'Approved payees', hint: 'who agents may pay on their own' },
+  { type: 'lever', name: 'Fixes for failed renewals', hint: 'rescue only: the most a one-time discount on a missed cycle may take off' },
   { type: 'market_watch', name: 'Keep prices fresh', hint: 'check typical prices for your items on its own, a set number of times a day; it never approves anything' },
 ];
 
 /** Rust's clause numbers (table-core Clause::number). */
-export const CLAUSE_NUMBER: Record<ClauseType, number> = { roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7, market_watch: 9 };
+export const CLAUSE_NUMBER: Record<ClauseType, number> = { roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7, lever: 8, market_watch: 9 };
+
+/** "20" or "12.5" → basis points (2000, 1250); null when it is not a percent above 0 and below 100. */
+export function percentToBp(s: string): number | null {
+  const t = s.trim().replace(/%$/, '').trim();
+  if (!/^\d{1,2}(\.\d{1,2})?$/.test(t)) return null;
+  const [whole, frac = ''] = t.split('.');
+  const bp = Number(whole) * 100 + Number(frac.padEnd(2, '0'));
+  return bp > 0 && bp < 10000 ? bp : null;
+}
+/** 2000 → "20", 1250 → "12.5". */
+export function bpToPercent(bp: number): string {
+  const whole = Math.floor(bp / 100);
+  const frac = bp % 100;
+  return frac === 0 ? String(whole) : `${whole}.${String(frac).padStart(2, '0').replace(/0$/, '')}`;
+}
 
 export const ROLES: readonly Role[] = ['buy', 'sell', 'shop', 'rescue'];
 export const CATEGORIES: readonly Category[] = ['office', 'parts', 'compute', 'service', 'other'];
@@ -73,6 +91,7 @@ export function emptyClause(type: ClauseType, now: number): ClauseDraft {
     case 'velocity': return { type, deals: '12', total: '' };
     case 'human_present_over': return { type, amount: '' };
     case 'payees': return { type, payees: '' };
+    case 'lever': return { type, percent: '20', max: '' };
     case 'market_watch': return { type, items: [{ item: '', product: '' }], checks: '12' };
   }
 }
@@ -94,6 +113,7 @@ function firstCurrency(clauses: Clause[]): Currency {
     if (c.type === 'velocity') return c.max_total_day.currency;
     if (c.type === 'human_present_over') return c.amount.currency;
     if (c.type === 'band') return (c.ceiling ?? c.floor)?.currency ?? 'USD';
+    if (c.type === 'lever') return c.max_discount.currency;
   }
   return 'USD';
 }
@@ -118,6 +138,7 @@ export function draftFrom(m: OpenMandate & { agent?: AgentSlot }, now: number): 
         case 'velocity': return { type: 'velocity', deals: String(c.max_deals_day), total: money(c.max_total_day.minor) };
         case 'human_present_over': return { type: 'human_present_over', amount: money(c.amount.minor) };
         case 'payees': return { type: 'payees', payees: c.payees.join(', ') };
+        case 'lever': return { type: 'lever', percent: bpToPercent(c.max_discount_bp), max: money(c.max_discount.minor) };
         case 'market_watch': return { type: 'market_watch', items: c.items.map((i) => ({ item: i.item_ref, product: i.product_id })), checks: String(c.max_refreshes_day) };
       }
     }),
@@ -198,6 +219,13 @@ export function buildClause(c: ClauseDraft, cur: Currency, n: string): { clause:
       clause = { type: 'payees', payees };
       break;
     }
+    case 'lever': {
+      const bp = percentToBp(c.percent);
+      const max = money(c.max, `${n} most off a cycle`, true);
+      if (bp === null) errors.push(`${n}: the discount must be a percent above 0 and below 100`);
+      if (bp !== null && max) clause = { type: 'lever', levers: ['DISCOUNT_THIS_CYCLE'], max_discount_bp: bp, max_discount: max };
+      break;
+    }
     case 'market_watch': {
       const items = c.items.map((i) => ({ item_ref: i.item.trim(), product_id: i.product.trim() })).filter((i) => i.item_ref || i.product_id);
       const checks = int(c.checks);
@@ -276,6 +304,10 @@ export function ruleProblems(clauses: readonly DraftClause[], notBefore: number 
       case 'payees':
         if (!c.payees.length) out.push({ clause: 7, why: 'no payees' });
         break;
+      case 'lever':
+        if (c.max_discount_bp <= 0 || c.max_discount_bp >= 10000) out.push({ clause: 8, why: 'the discount must be above 0% and below 100%' });
+        if (c.max_discount.minor <= 0) out.push({ clause: 8, why: 'it allows no discount' });
+        break;
       case 'market_watch': {
         const why = marketWatchRefusal(c);
         if (why) out.push({ clause: 9, why: REFUSAL_WORDS[why] ?? why });
@@ -284,6 +316,15 @@ export function ruleProblems(clauses: readonly DraftClause[], notBefore: number 
       default:
         break;
     }
+  }
+  // Rescue is a set of rules of its own: the rescue job, "your own subscribers" and the fixes
+  // rule come together (Rust validate()).
+  const rolesClause = clauses.find((c): c is Extract<Clause, { type: 'roles' }> => c.type === 'roles' && !isIncomplete(c));
+  const rescue = !!rolesClause?.roles.includes('rescue');
+  const subscribers = clauses.some((c) => c.type === 'counterparties' && !isIncomplete(c) && c.rule.type === 'subscribers');
+  if (rescue !== seen.has(8)) out.push({ clause: 8, why: rescue ? 'rescuing renewals needs “Fixes for failed renewals”' : '“Fixes for failed renewals” is only for rescuing renewals' });
+  if (subscribers !== rescue || (rescue && (rolesClause?.roles.length ?? 0) !== 1)) {
+    out.push({ clause: 2, why: 'rescuing renewals deals only with your own subscribers, in rules of its own' });
   }
   for (const n of [1, 2, 3, 5, 6, 7]) {
     if (seen.has(n)) continue;
@@ -322,6 +363,12 @@ const REFUSAL_WORDS: Record<string, string> = {
   'band required for haggle and shop orders': 'haggles and shop orders need a price range',
   'no role in the roles clause can act on the per-deal kind': 'none of what you allowed agents to do fits this kind of deal, so nothing would ever be allowed',
   'band lacks the side the allowed roles use': 'agents that buy need a most-you’ll-pay, and agents that sell need a least-you’ll-accept',
+  'empty or repeated fix list': 'the fixes rule names no fix',
+  'only the discount this cycle is available': 'only a discount on one cycle can be offered for now',
+  'discount must be above 0% and below 100%': 'the discount must be above 0% and below 100%',
+  'empty discount allowance': 'it allows no discount',
+  'the rescue role and the fixes clause go together': 'rescuing renewals and “Fixes for failed renewals” go together',
+  'rescue deals only with your own subscribers, in a mandate of its own': 'rescuing renewals deals only with your own subscribers, in rules of its own',
   'invalid market watch': `it names no item, or more than ${MAX_WATCHED_ITEMS}`,
   'invalid price check allowance': `checks a day must be 1–${MAX_MARKET_CHECKS_DAY}`,
   'invalid market product': 'a product code can only use letters, digits, - or _',
@@ -353,7 +400,9 @@ const roleActs = (role: Role, kind: DealKind): boolean => {
 
 /** Clause kinds the draft does not have yet (Rust allows one of each). */
 export function missingKinds(d: MandateDraft): ClauseType[] {
-  return CLAUSE_KINDS.map((k) => k.type).filter((t) => !d.clauses.some((c) => c.type === t));
+  // The fixes rule belongs to rules for rescuing renewals only: offered once that job is allowed.
+  const rescue = d.clauses.some((c) => c.type === 'roles' && c.roles.includes('rescue'));
+  return CLAUSE_KINDS.map((k) => k.type).filter((t) => !d.clauses.some((c) => c.type === t) && (t !== 'lever' || rescue));
 }
 
 /** Replace clause `i` (keeps the rest untouched). */

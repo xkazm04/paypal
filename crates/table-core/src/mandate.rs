@@ -1,6 +1,6 @@
 use crate::{
-    DealKind, DomainError, H256, ItemRef, KeyId, MandateId, Money, PayeeRef, Side, Terms,
-    Timestamp, commitment,
+    DealKind, DomainError, H256, ItemRef, KeyId, MandateId, Money, PayeeRef, RescueLever, Side,
+    Terms, Timestamp, commitment,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -25,9 +25,14 @@ pub enum Category {
 #[derive(ts_rs::TS, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum CpRule {
-    Pinned { keys: Vec<KeyId> },
+    Pinned {
+        keys: Vec<KeyId>,
+    },
     Paired,
     House,
+    /// The owner's own subscribers: the plain PayPal buyers of a rescue deal, who have no wallet
+    /// to pair with. It allows only the rescue role (design report §7, subscription rescue).
+    Subscribers,
 }
 
 #[derive(ts_rs::TS, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -61,6 +66,14 @@ pub enum Clause {
     Payees {
         payees: Vec<PayeeRef>,
     },
+    /// Clause 8, rescue only: the fixes the wallet may suggest for one failed renewal, and their
+    /// bounds per subscriber per cycle. A discount is at most `max_discount_bp` of the cycle's
+    /// price and at most `max_discount` in money, whichever is lower.
+    Lever {
+        levers: Vec<RescueLever>,
+        max_discount_bp: u16,
+        max_discount: Money,
+    },
     /// Lets the wallet keep the market price of these items fresh, up to `max_refreshes_day`
     /// price checks a UTC day. It only lets the wallet read market prices: it grants no money
     /// authority, and `check()` never reads it.
@@ -91,6 +104,7 @@ impl Clause {
             Self::Velocity { .. } => 5,
             Self::HumanPresentOver { .. } => 6,
             Self::Payees { .. } => 7,
+            Self::Lever { .. } => 8,
             Self::MarketWatch { .. } => 9,
         }
     }
@@ -260,6 +274,31 @@ impl MandatePayload {
                 Clause::Payees { payees } if payees.is_empty() => {
                     return Err(Refusal::new(7, "empty payee allowance"));
                 }
+                Clause::Lever {
+                    levers,
+                    max_discount_bp,
+                    max_discount,
+                } => {
+                    if levers.is_empty()
+                        || levers
+                            .iter()
+                            .enumerate()
+                            .any(|(i, lever)| levers[..i].contains(lever))
+                    {
+                        return Err(Refusal::new(8, "empty or repeated fix list"));
+                    }
+                    // Only the discount has an executor: a fix nothing can carry out is refused
+                    // at signing, not discovered on a failed renewal.
+                    if levers.iter().any(|l| *l != RescueLever::DiscountThisCycle) {
+                        return Err(Refusal::new(8, "only the discount this cycle is available"));
+                    }
+                    if *max_discount_bp == 0 || *max_discount_bp >= 10000 {
+                        return Err(Refusal::new(8, "discount must be above 0% and below 100%"));
+                    }
+                    if max_discount.minor() == 0 {
+                        return Err(Refusal::new(8, "empty discount allowance"));
+                    }
+                }
                 Clause::MarketWatch {
                     items,
                     max_refreshes_day,
@@ -300,6 +339,7 @@ impl MandatePayload {
                 }
                 Clause::Velocity { max_total_day, .. } => vec![*max_total_day],
                 Clause::HumanPresentOver { amount } => vec![*amount],
+                Clause::Lever { max_discount, .. } => vec![*max_discount],
                 _ => Vec::new(),
             };
             for amount in amounts {
@@ -310,6 +350,33 @@ impl MandatePayload {
                     ));
                 }
             }
+        }
+        // Rescue is a mandate of its own: the rescue role, the subscribers rule and the fixes
+        // clause come together or not at all.
+        let roles_list = self.clauses.iter().find_map(|c| match c {
+            Clause::Roles { roles } => Some(roles.as_slice()),
+            _ => None,
+        });
+        let rescue = roles_list.is_some_and(|r| r.contains(&Role::Rescue));
+        let subscribers = self.clauses.iter().any(|c| {
+            matches!(
+                c,
+                Clause::Counterparties {
+                    rule: CpRule::Subscribers
+                }
+            )
+        });
+        if rescue != seen[8] {
+            return Err(Refusal::new(
+                8,
+                "the rescue role and the fixes clause go together",
+            ));
+        }
+        if subscribers != rescue || (rescue && roles_list.is_some_and(|r| r.len() != 1)) {
+            return Err(Refusal::new(
+                2,
+                "rescue deals only with your own subscribers, in a mandate of its own",
+            ));
         }
         let banded = self.clauses.iter().any(|c| {
             matches!(
@@ -395,6 +462,7 @@ impl MandatePayload {
                         }
                         CpRule::Paired => intent.paired,
                         CpRule::House => intent.paired && intent.house,
+                        CpRule::Subscribers => intent.role == Role::Rescue && !intent.paired,
                     };
                     if !allowed {
                         return Err(Refusal::new(
@@ -518,11 +586,16 @@ impl MandatePayload {
                 Clause::Payees { payees } if !payees.contains(intent.payee) => {
                     return Err(Refusal::new(7, "payee not allowed"));
                 }
+                // Its bounds are checked on the rescue offer itself (`rescue::check_offer`).
+                Clause::Lever { .. } => {}
                 // Reading market prices grants nothing: no intent is allowed, asked or refused
                 // by it.
                 Clause::MarketWatch { .. } => {}
                 _ => {}
             }
+        }
+        if intent.role == Role::Rescue && !self.clauses.iter().any(|c| c.number() == 8) {
+            return Err(Refusal::new(8, "fixes clause missing"));
         }
         if matches!(intent.kind, DealKind::Haggle | DealKind::ShopOrder)
             && !self

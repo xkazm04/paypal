@@ -15,12 +15,14 @@ mod policy;
 mod proof;
 pub mod reauth;
 mod relay;
+mod rescue;
 mod scheduler;
 mod service;
 mod simulate;
 #[cfg(test)]
 mod tests;
 pub mod vault;
+mod witness;
 pub use actor::*;
 pub use service::*;
 use table_client::{CommandError, ErrorCode};

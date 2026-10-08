@@ -16,7 +16,7 @@ import type { MandatePayload } from '@bindings/MandatePayload';
 import type { Money } from '@bindings/Money';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { formatMoney } from '../../../lib/format';
-import { shieldWord } from '../../../lib/words';
+import { percentWords, shieldWord } from '../../../lib/words';
 import { isTerminal, ownsPaypalResource } from '../gating';
 import { dealTotal } from '../model';
 
@@ -319,13 +319,27 @@ export function buildDiff(i: DiffInput): Diff {
     }
 
     case 'lever': {
+      // The one fix the wallet worked out (summary.rescue) against the signed fixes rule. Rust's
+      // checklist is the authority; these rows only lay the same facts side by side.
+      const v = i.summary.rescue ?? null;
+      const o = v?.offer ?? null;
+      const lc = i.mandate?.payload.clauses.find((c): c is Extract<Clause, { type: 'lever' }> => c.type === 'lever');
+      const inside = o && lc ? o.discount_bp <= lc.max_discount_bp && o.discount.currency === lc.max_discount.currency && o.discount.minor <= lc.max_discount.minor : null;
+      const amountRel = o ? relSame(o.invoice, total) : '?';
+      const replay = d.mode === 'replay' || v?.source === 'replay';
       const rows: DiffRow[] = [
-        { id: 'lever', name: 'Fix', left: 'a fix your rescue rules allow', right: null, rel: '?', tone: 'info', src: 'Which fix and its limit aren’t shown in this window yet.' },
-        { id: 'invoice', name: 'Invoice', left: 'one PayPal invoice', right: T, rel: '?', tone: 'info', src: 'The amount on this rescue.' },
+        { id: 'lever', name: 'Fix', left: lc ? `at most ${percentWords(lc.max_discount_bp)} or ${formatMoney(lc.max_discount)} off` : 'a fix your rescue rules allow',
+          right: o ? `${percentWords(o.discount_bp)} off: ${formatMoney(o.discount)} less` : null, rel: inside === null ? '?' : inside ? '≥' : '<', tone: inside === null ? 'info' : inside ? 'ok' : 'bad',
+          src: o ? 'Your wallet worked out this one discount inside your rules for fixing failed renewals. The plan price stays the same for everyone.' : 'The fix isn’t shown in this window yet.' },
+        { id: 'invoice', name: 'Invoice', left: o ? `this cycle, ${formatMoney(o.cycle)} before the discount` : 'one PayPal invoice', right: o ? `asks ${formatMoney(o.invoice)}` : T, rel: amountRel, tone: amountRel === '?' ? 'info' : toneOf(amountRel),
+          src: 'One PayPal invoice for this cycle only. Its amount is the signed amount of this rescue; nothing is charged until the subscriber pays it.' },
+        { id: 'to', name: 'Sent to', left: 'the subscriber whose renewal failed', right: v ? v.recipient : null, rel: v ? '✓' : '?', tone: v ? 'ok' : 'info', word: v ? 'by PayPal' : undefined,
+          src: 'PayPal emails the invoice to the address on the failed renewal (shown masked). No PayPal link opens here.' },
         mandateRow(i),
-        { id: 'source', name: 'Source', left: 'a real failed renewal', right: d.mode === 'replay' ? 'a replay of a recorded failure' : 'sandbox renewal', rel: d.mode === 'replay' ? '?' : '=', tone: 'info', src: d.mode === 'replay' ? 'A replay: not a live sandbox payment.' : 'A failed renewal reported by PayPal’s sandbox.' },
+        { id: 'source', name: 'Source', left: 'a failed renewal', right: replay ? 'replayed by you · never counted' : 'reported by PayPal', rel: replay ? '!' : '✓', tone: replay ? 'hold' : 'ok',
+          src: replay ? 'PayPal can’t make a test renewal fail, so this one was replayed. Its invoice is real, and what it brings in is never counted as recovered.' : 'PayPal reported this renewal failed. Paid and receipted, it counts as recovered.' },
       ];
-      return { kind, heads: ['Your rescue rules allow', 'This fix'], rows, twin: { left: { k: 'Plan price', v: null }, op: '?', right: { k: 'This fix invoices', v: T }, tone: 'info' } };
+      return { kind, heads: ['Your rescue rules allow', 'This fix'], rows, twin: { left: { k: 'Renewal that failed', v: o ? formatMoney(o.cycle) : null }, op: o ? '>' : '?', right: { k: 'This fix invoices', v: T }, tone: o ? 'ok' : 'info' } };
     }
 
     case 'review': {

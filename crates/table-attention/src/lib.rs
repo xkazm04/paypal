@@ -18,6 +18,11 @@ use table_core::{
 /// The card's line while a money step's PayPal outcome is being checked (T10). Nothing is sent,
 /// and nothing is collected, until PayPal's own record settles it.
 pub const MONEY_CHECK_SILENCE: &str = "nothing more is sent until PayPal confirms";
+/// A rescue fix waiting for the owner: nothing is sent, and PayPal retries the payment itself.
+pub const RESCUE_SILENCE: &str = "nothing is sent · PayPal retries the payment by itself";
+/// A rescue invoice with the subscriber: it stays open; nothing is collected by the wallet.
+pub const RESCUE_SENT_SILENCE: &str =
+    "the invoice stays open until it expires · nothing is charged unless the subscriber pays";
 
 #[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -153,8 +158,17 @@ impl AttentionSource {
         if let Some(check) = self.money_check {
             return self.checking_item(check, now);
         }
+        let rescue = self.module == Module::Rescue;
         let kind = if self.shield_hold || self.state == DealState::Mismatch {
             AttnKind::Hold
+        } else if rescue
+            && matches!(
+                self.state,
+                DealState::Settling | DealState::AwaitingApproval
+            )
+        {
+            // The invoice is with the subscriber: nothing for the owner to decide.
+            AttnKind::Motion
         } else if self.needs_owner_accept && self.state == DealState::Negotiating {
             AttnKind::Gate
         } else {
@@ -178,6 +192,9 @@ impl AttentionSource {
             }
         };
         let action = match (kind, self.state) {
+            (AttnKind::Gate, DealState::Agreed) if rescue => "Approve rescue lever",
+            (AttnKind::Motion, DealState::Settling) if rescue => "Sending invoice",
+            (AttnKind::Motion, DealState::AwaitingApproval) if rescue => "Invoice sent",
             (AttnKind::Gate, DealState::Authorized) => "Capture or void",
             (AttnKind::Gate, DealState::AwaitingApproval) => "Review payment",
             (AttnKind::Gate, _) => "Countersign",
@@ -186,7 +203,16 @@ impl AttentionSource {
             (AttnKind::Motion, _) => "Negotiating",
             (AttnKind::Receipt, _) => "Deal updated",
         };
-        let on_silence = if self.state == DealState::Authorized {
+        let on_silence = if rescue && self.state == DealState::Agreed {
+            RESCUE_SILENCE
+        } else if rescue
+            && matches!(
+                self.state,
+                DealState::Settling | DealState::AwaitingApproval
+            )
+        {
+            RESCUE_SENT_SILENCE
+        } else if self.state == DealState::Authorized {
             "authorization auto-voids at the deadline; no capture"
         } else {
             "the offer or order lapses at the deadline; no money moves"

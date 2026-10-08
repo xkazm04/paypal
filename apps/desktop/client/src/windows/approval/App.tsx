@@ -5,6 +5,7 @@
 // Bootstrap: obtain the capability (memory only, SessionProvider), resolve the selected deal
 // (approval_selection → attention_list → approval:summary event). A deal → review mode (The Diff);
 // none → owner configuration mode.
+import { useState } from 'react';
 import { ToastProvider } from '../../shared/ui';
 import { DealReview } from './DealReview';
 import { OwnerConfig } from './OwnerConfig';
@@ -25,6 +26,9 @@ export function App() {
 
 function Approval() {
   const sel = useSelection();
+  // A failed renewal replayed in this window: Rust selected its new rescue deal for review.
+  const [replayed, setReplayed] = useState<string | null>(null);
+  if (replayed) return <DealReview key={replayed} dealId={replayed} seed={null} />;
   if (sel.status === 'resolving') {
     return (
       <div className="aw dr phase-checking">
@@ -44,5 +48,5 @@ function Approval() {
   }
   if (sel.dealId) return <DealReview key={sel.dealId} dealId={sel.dealId} seed={sel.seed} />;
   const hint = sel.source === 'unknown' ? 'If you opened this window to review a deal, its summary appears here as soon as the wallet sends it.' : null;
-  return <OwnerConfig hint={hint} />;
+  return <OwnerConfig hint={hint} onReplayed={(deal) => setReplayed(deal.id)} />;
 }

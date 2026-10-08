@@ -171,6 +171,20 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
               onChange={(amount) => set(i, { ...c, amount })} onRemove={() => remove(i)} />
           );
         }
+        case 'lever': {
+          // Rescue only: the most a one-time discount on one missed cycle may take off (share and cap).
+          const sl = signedOf('lever');
+          return (
+            <Lever key={i} n={8} title="Most off one missed renewal" value={c.max} currency={cur} signed={sameCur && sl ? sl.max_discount.minor : null}
+              ticks={null} tickNote="Each failed renewal gets one discount inside both limits, worked out by your wallet." dir={dirOf('lever', 'discount cap per cycle')}
+              onChange={(max) => set(i, { ...c, max })} onRemove={() => remove(i)}>
+              <label className="ui-hint ow-inline">
+                and at most <input className="ui-field num ow-pct" inputMode="decimal" value={c.percent} aria-label="Most off, as a percent of the renewal" onChange={(e) => set(i, { ...c, percent: e.target.value })} /> %
+              </label>
+              {sl && String(sl.max_discount_bp / 100) !== c.percent.trim() ? <span className="ui-hint gold">was {sl.max_discount_bp / 100}%</span> : null}
+            </Lever>
+          );
+        }
         default:
           return null;
       }

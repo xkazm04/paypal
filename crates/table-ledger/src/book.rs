@@ -78,12 +78,18 @@ fn compile(query: &BookQuery) -> Result<(String, Vec<Value>), LedgerError> {
         groups.push(column.into());
     }
     for metric in &query.metrics {
-        columns.push(match metric{
-        BookMetric::Count=>"COUNT(*) AS count".into(),
-        BookMetric::SumAmount=>format!("SUM({AMOUNT}) AS sum_amount"),
-        BookMetric::AvgVsMarketPct=>format!("SUM({MARKET})/NULLIF(COUNT({MARKET}),0) AS avg_vs_market_bp"),
-        BookMetric::RecoveredSum=>"SUM(CASE WHEN d.kind='rescue' AND d.state='RECEIPTED' AND d.mode='sandbox' AND r.capture_id IS NOT NULL AND r.verified_at IS NOT NULL THEN r.amount_minor ELSE 0 END) AS recovered_sum".into(),
-    });
+        columns.push(match metric {
+            BookMetric::Count => "COUNT(*) AS count".into(),
+            BookMetric::SumAmount => format!("SUM({AMOUNT}) AS sum_amount"),
+            BookMetric::AvgVsMarketPct => {
+                format!("SUM({MARKET})/NULLIF(COUNT({MARKET}),0) AS avg_vs_market_bp")
+            }
+            // The rescue module's one predicate (rescue.rs `COUNTED`): never REPLAY, never "sent".
+            BookMetric::RecoveredSum => format!(
+                "SUM(CASE WHEN {} THEN d.qty*d.unit_price_minor ELSE 0 END) AS recovered_sum",
+                crate::rescue::COUNTED
+            ),
+        });
     }
     if query.view == BookView::PaypalCalls && query.metrics.contains(&BookMetric::RecoveredSum) {
         return Err(invalid(
@@ -327,13 +333,33 @@ mod tests {
             let q: BookQuery = serde_json::from_value(value).unwrap();
             assert!(ledger.book_query(&q).is_err());
         }
-        for (id, mode, amount) in [
-            ("S", "sandbox", 960),
-            ("R", "replay", 1200),
-            ("E", "scripted_engine", 1500),
+        // Only S counts: R is a replayed failure, E a scripted engine's, P a PayPal-reported one
+        // that was only sent, U one whose send was never confirmed.
+        for (id, mode, source, state, send, amount) in [
+            ("S", "sandbox", "paypal", "RECEIPTED", "confirmed", 960),
+            ("R", "replay", "replay", "RECEIPTED", "confirmed", 1200),
+            (
+                "E",
+                "scripted_engine",
+                "paypal",
+                "RECEIPTED",
+                "confirmed",
+                1500,
+            ),
+            (
+                "P",
+                "sandbox",
+                "paypal",
+                "AWAITING_APPROVAL",
+                "confirmed",
+                700,
+            ),
+            ("U", "sandbox", "paypal", "RECEIPTED", "unknown", 800),
         ] {
-            ledger.conn.execute("INSERT INTO deals(id,kind,side,mandate_id,mandate_version,qty,unit_price_minor,currency,state,created_at,updated_at,mode) VALUES (?1,'rescue','seller','fixture',1,1,?2,'USD','RECEIPTED','100','100',?3)",rusqlite::params![id,amount,mode]).unwrap();
-            ledger.conn.execute("INSERT INTO receipts(deal_id,capture_id,amount_minor,raw_jws,transcript_head,verified_at) VALUES (?1,'fixture-capture',?2,'synthetic',zeroblob(32),'100')",rusqlite::params![id,amount]).unwrap();
+            ledger.conn.execute("INSERT INTO deals(id,kind,side,mandate_id,mandate_version,qty,unit_price_minor,currency,state,created_at,updated_at,mode,pp_order_id,receipt_evidence) VALUES (?1,'rescue','seller','fixture',1,1,?2,'USD',?4,'100','100',?3,'INV-'||?1,'paypal_verified')",rusqlite::params![id,amount,mode,state]).unwrap();
+            ledger.conn.execute("INSERT INTO receipts(deal_id,capture_id,amount_minor,raw_jws,transcript_head,verified_at) VALUES (?1,'INV-'||?1,?2,'synthetic',zeroblob(32),'100')",rusqlite::params![id,amount]).unwrap();
+            ledger.conn.execute("INSERT INTO rescue_cases(deal_id,source,subscription_id,recipient,offer_json,failed_payments,failed_on) VALUES (?1,?2,'I-'||?1,'s@example.com','{}',1,0)",rusqlite::params![id,source]).unwrap();
+            ledger.conn.execute("INSERT INTO operations(deal_id,attempt,operation,request_id,decided_by,status,started_at) VALUES (?1,1,'invoice-send',?1||'-send','{}',?2,100)",rusqlite::params![id,send]).unwrap();
         }
         let q: BookQuery =
             serde_json::from_value(json!({"view":"receipts","metrics":["recovered_sum"]})).unwrap();

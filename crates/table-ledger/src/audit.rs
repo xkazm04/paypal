@@ -64,6 +64,10 @@ fn stored(row: &rusqlite::Row<'_>) -> rusqlite::Result<StoredRow> {
 }
 /// Recomputes one row's hash from its stored predecessor link; returns (prev, hash).
 fn check(row: StoredRow) -> Result<(H256, H256), LedgerError> {
+    checked(row).map(|(prev, hash, _)| (prev, hash))
+}
+/// As [`check`], also returning the row's time.
+fn checked(row: StoredRow) -> Result<(H256, H256, Timestamp), LedgerError> {
     let prev = hash_blob(row.prev)?;
     let hash = hash_blob(row.hash)?;
     let at = row
@@ -90,9 +94,16 @@ fn check(row: StoredRow) -> Result<(H256, H256), LedgerError> {
     if H256::chain(prev, &canonical_bytes(&preimage)?) != hash {
         return Err(LedgerError::Integrity("audit row hash"));
     }
-    Ok((prev, hash))
+    Ok((prev, hash, at))
 }
 pub(crate) fn verify(conn: &Connection) -> Result<H256, LedgerError> {
+    walk(conn, |_, _| {})
+}
+/// Verifies the whole chain, handing each row's (hash, time) to `each` in order; returns the head.
+pub(crate) fn walk(
+    conn: &Connection,
+    mut each: impl FnMut(H256, Timestamp),
+) -> Result<H256, LedgerError> {
     let mut statement = conn.prepare(&format!("SELECT {COLUMNS} FROM audit_log ORDER BY seq"))?;
     let mut rows = statement.query([])?;
     let mut previous = H256::ZERO;
@@ -102,10 +113,11 @@ pub(crate) fn verify(conn: &Connection) -> Result<H256, LedgerError> {
         if row.seq != expected_seq {
             return Err(LedgerError::Integrity("audit sequence/previous hash"));
         }
-        let (prev, hash) = check(row)?;
+        let (prev, hash, at) = checked(row)?;
         if prev != previous {
             return Err(LedgerError::Integrity("audit sequence/previous hash"));
         }
+        each(hash, at);
         previous = hash;
         expected_seq = expected_seq
             .checked_add(1)

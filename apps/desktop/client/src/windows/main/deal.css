@@ -136,6 +136,10 @@
 .dv-pc { display: flex; flex-direction: column; gap: 6px; align-items: stretch; min-width: 0; padding: var(--sp-3) var(--sp-4); background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--r-lg); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .dv-pc:hover { background: var(--panel2); border-color: var(--line2); }
+/* the house seller's signed record (T9): full width, a red edge only when it warns */
+.dv-pc-wide { grid-column: 1 / -1; }
+.dv-pc.warn { border-color: color-mix(in srgb, var(--refuse) 55%, transparent); }
+.dv-pc.warn.coral { border-color: color-mix(in srgb, var(--coral) 55%, transparent); }
 .dv-pc .k { display: flex; font-size: var(--fs-small); color: var(--dim); }
 .dv-pc .k::after { content: "›"; margin-left: auto; }
 .dv-pc .v { display: flex; gap: var(--sp-2); align-items: center; min-height: 24px; min-width: 0; }

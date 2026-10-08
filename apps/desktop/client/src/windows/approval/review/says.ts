@@ -7,7 +7,7 @@ import type { ApprovalSummary } from '@bindings/ApprovalSummary';
 import type { Deal } from '@bindings/Deal';
 import type { Money } from '@bindings/Money';
 import { formatMoney } from '../../../lib/format';
-import { reconWord, receiptWord, stateWord } from '../../../lib/words';
+import { percentWords, reconWord, receiptWord, stateWord } from '../../../lib/words';
 import type { CheckState, IconName, StoryTone } from '../../../shared/ui';
 import type { Phase } from '../model';
 import type { DiffKind, DiffRow, Twin } from './diff';
@@ -37,6 +37,12 @@ export type SaysInput = {
 // ---- sentences for the phases that have no decision --------------------------------------------
 
 export function waitingText(d: Deal, cp: string): string {
+  if (d.kind === 'rescue') {
+    if (d.state === 'SETTLING') return 'PayPal is making and sending the invoice you approved. Nothing is paid until the subscriber pays it.';
+    return d.mode === 'replay'
+      ? 'The invoice is with the subscriber. Nothing is charged unless they pay it, and this replayed failure is never counted as recovered.'
+      : 'The invoice is with the subscriber. Nothing is charged unless they pay it; it counts as recovered once PayPal shows it paid.';
+  }
   if (d.state === 'AGREED') return `Agreed. ${cp}’s wallet now makes the PayPal order; paying opens here once the wallet has checked it. No money has moved.`;
   if (d.state === 'SETTLING') return `${cp}’s wallet is making the PayPal order. Paying opens here once the wallet has checked it.`;
   if (d.side === 'seller' && d.state === 'AWAITING_APPROVAL') return `The order is ready. ${cp} approves it on PayPal’s page, and the wallet checks with PayPal. No money has moved.`;
@@ -51,7 +57,7 @@ export function stoppedText(d: Deal): string {
     case 'REFUSED': return 'Refused by your rules. No money moved.';
     case 'VOIDED': return 'Hold released. Nothing was paid.';
     case 'AUTO_VOIDED': return 'The hold ran out after 3 days and released itself. Nothing was paid.';
-    case 'FAILED': return 'Failed. The wallet stopped this deal; no money moved from this window.';
+    case 'FAILED': return d.kind === 'rescue' ? 'The invoice was cancelled at PayPal. Nothing was recovered.' : 'Failed. The wallet stopped this deal; no money moved from this window.';
     case 'REFUNDED': return 'Refunded on PayPal.';
     case 'DISPUTED': return 'Disputed on PayPal. The proof is in The Table.';
     default: return `${stateWord(d.state).text}.`;
@@ -92,6 +98,10 @@ export function summarySentence(i: SaysInput): Says {
   }
   if (phase === 'waiting' && act !== 'rescue') return { tone: 'calm', icon: 'clock', text: waitingText(d, who) };
   if (phase === 'done') {
+    if (d.kind === 'rescue') {
+      const counted = i.summary.rescue?.counted === true;
+      return { tone: 'done', icon: 'check', text: `The subscriber paid the ${total} invoice.`, sub: counted ? 'PayPal shows it paid and the receipt is saved, so it counts as money you got back.' : d.mode === 'replay' ? 'This failure was replayed, so it is never counted as money you got back.' : evidenceSub(i.summary) };
+    }
     if (d.side === 'seller') return { tone: 'done', icon: 'check', text: `You collected ${total} from ${who}.`, sub: evidenceSub(i.summary) };
     // Only PayPal's own confirmation says "paid"; a seller's word alone is reported as theirs.
     if (i.summary.evidence.receipt !== 'PAYPAL_VERIFIED') {
@@ -129,10 +139,13 @@ export function summarySentence(i: SaysInput): Says {
       return d.state === 'APPROVED'
         ? { tone: 'need', icon: 'you', text: `${who} approved ${total} on PayPal. Approving puts the money on hold; collecting it is a separate step.` }
         : { tone: 'need', icon: 'you', text: `You and ${who} agreed ${total}. Approving creates the PayPal order; ${d.side === 'seller' ? 'no money moves until they approve it on PayPal.' : 'no money moves yet.'}` };
-    case 'rescue':
+    case 'rescue': {
+      const o = i.summary.rescue?.offer;
+      const fix = o ? `${percentWords(o.discount_bp)} off this cycle’s ${formatMoney(o.cycle)}` : 'a discount on this cycle';
       return d.mode === 'replay'
-        ? { tone: 'need', icon: 'renew', text: `Approving this ${total} fix is a replay of a recorded failure: it runs the recorded steps and invoices nothing real.` }
-        : { tone: 'need', icon: 'renew', text: `Approving sends one ${total} PayPal invoice to this subscriber. Nothing else is sent.` };
+        ? { tone: 'need', icon: 'renew', text: `Approving sends one ${total} PayPal invoice, ${fix}. The failure is a replay, so what it brings in is never counted.` }
+        : { tone: 'need', icon: 'renew', text: `Approving sends one ${total} PayPal invoice to this subscriber, ${fix}. Nothing is charged until they pay it.` };
+    }
     case 'release':
       return { tone: 'need', icon: 'pause', text: `Unpausing lets ${who}’s ${total} request go on. It doesn’t pay anything.` };
     default:

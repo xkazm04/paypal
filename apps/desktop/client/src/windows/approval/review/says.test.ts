@@ -70,9 +70,11 @@ describe('the approval sentence says what you approve, and never more than the f
     const v = summary({ kind: 'purchase', state: 'CAPTURED' }, { evidence: { deal_id: 'x', receipt: 'PAYPAL_VERIFIED', reconciliation: 'matched' } });
     expect(says({ kind: 'approve', phase: 'done', summary: v, deal: v.deal }).text).toBe('Paid Dan $329.00. PayPal confirmed it.');
   });
-  it('a replay never claims anything real is invoiced', () => {
-    const s = summary({ kind: 'rescue', side: 'seller', state: 'FAILED', mode: 'replay' });
-    expect(says({ kind: 'lever', act: 'rescue', summary: s, deal: s.deal }).text).toMatch(/invoices nothing real/);
+  it('a replayed failure says its real invoice is never counted; a sent invoice is never called paid', () => {
+    const s = summary({ kind: 'rescue', side: 'seller', state: 'AGREED', mode: 'replay' });
+    expect(says({ kind: 'lever', act: 'rescue', summary: s, deal: s.deal }).text).toMatch(/never counted/);
+    const sent = summary({ kind: 'rescue', side: 'seller', state: 'AWAITING_APPROVAL' });
+    expect(says({ kind: 'lever', act: null, phase: 'waiting', summary: sent, deal: sent.deal }).text).toMatch(/Nothing is charged unless they pay it/);
   });
 });
 

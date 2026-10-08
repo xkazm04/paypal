@@ -115,7 +115,7 @@ export function answerWhy(i: AnswerWhyInput): WhyAnswer | null {
         question: 'Why is this my call?',
         lines: [
           'A fix that invoices a subscriber only runs on your approval, never on an agent’s.',
-          d.mode === 'replay' ? 'This is a replay, so approving runs recorded steps and invoices nothing real.' : i.unavailable ? i.unavailable : `Approving sends one ${total} PayPal invoice to this subscriber.`,
+          i.unavailable ? i.unavailable : d.mode === 'replay' ? `Approving sends one real ${total} PayPal invoice; the failure is a replay, so it is never counted.` : `Approving sends one ${total} PayPal invoice to this subscriber.`,
         ],
       };
     case 'release':

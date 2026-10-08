@@ -32,7 +32,8 @@ export function Shell({ module, crumbs, onHome, onModule, onSheet, onFind, tumbl
     <div className="ui-app shell-app" style={mc(module)}>
       <TitleBar>
         <Btn sm onClick={onHome} title="Back to The Table (Esc)">‹ The Table</Btn>
-        <Crumbs items={[{ label: 'The Table', onClick: onHome }, ...crumbs]} />
+        {/* The back button already says "The Table"; the crumbs start at the module. */}
+        <Crumbs items={crumbs} />
         <Spacer />
         {settings ? <ModeBadge mode={settings.mode} /> : null}
         <span className="tb-hide"><MockBadge /></span>
