@@ -7,6 +7,8 @@
 pub mod acceptance;
 mod house;
 mod v2;
+// The whole-ledger money-authority predicate (ops-and-delivery-1): the gauntlet and the app share it.
+pub mod safety;
 use ed25519_dalek::{Signature, VerifyingKey};
 pub use house::*;
 use serde_json::Value;

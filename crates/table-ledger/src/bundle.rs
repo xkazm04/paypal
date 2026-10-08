@@ -19,6 +19,16 @@ fn key(blob: Vec<u8>, what: &'static str) -> Result<[u8; 32], LedgerError> {
     blob.try_into().map_err(|_| LedgerError::Integrity(what))
 }
 type RawRow = (i64, String, String, String, String, Vec<u8>, Vec<u8>);
+/// The whole-ledger export behind the safety record ([`Ledger::export_proofs`]).
+#[derive(Debug)]
+pub struct LedgerExport {
+    /// The verified audit chain's head.
+    pub head: H256,
+    /// Deals in the ledger (the export holds at most the newest `limit` of them).
+    pub total: u64,
+    /// Each exported deal's slice, or the deal and why its evidence would not export.
+    pub deals: Vec<Result<ProofBundle, (DealId, LedgerError)>>,
+}
 /// Audit rows of one deal, oldest first; with `group_only`, only its shop-around rows.
 fn audit_rows(
     conn: &rusqlite::Connection,
@@ -73,6 +83,54 @@ impl Ledger {
     ) -> Result<ProofBundle, LedgerError> {
         self.verify_transcript(id)?;
         let head_hash = self.verify_audit()?;
+        self.export_at_head(id, owner, at, house, head_hash)
+    }
+    /// The newest `limit` deals' unsigned bundles for the whole-ledger safety record: the audit
+    /// chain is verified once (a broken chain is an error, never a partial list), then each deal
+    /// exports as [`Ledger::export_proof`] would (its transcript re-verified) or says why it
+    /// could not. Returns the chain head, the number of deals in the ledger and the exports,
+    /// oldest of the newest first.
+    pub fn export_proofs(
+        &self,
+        limit: u32,
+        owner: &VerifyingKey,
+        at: Timestamp,
+        house: Option<&HouseRelease>,
+    ) -> Result<LedgerExport, LedgerError> {
+        let head = self.verify_audit()?;
+        let total = crate::count(
+            self.conn
+                .query_row("SELECT COUNT(*) FROM deals", [], |r| r.get::<_, i64>(0))?,
+        )?;
+        let mut statement = self
+            .conn
+            .prepare("SELECT id FROM deals ORDER BY id DESC LIMIT ?1")?;
+        let mut ids = statement
+            .query_map([i64::from(limit)], |r| r.get::<_, String>(0))?
+            .map(|id| {
+                id?.parse::<DealId>()
+                    .map_err(|_| LedgerError::Integrity("deal id"))
+            })
+            .collect::<Result<Vec<_>, LedgerError>>()?;
+        ids.reverse();
+        let deals = ids
+            .into_iter()
+            .map(|id| {
+                self.verify_transcript(id)
+                    .and_then(|_| self.export_at_head(id, owner, at, house, head))
+                    .map_err(|e| (id, e))
+            })
+            .collect();
+        Ok(LedgerExport { head, total, deals })
+    }
+    fn export_at_head(
+        &self,
+        id: DealId,
+        owner: &VerifyingKey,
+        at: Timestamp,
+        house: Option<&HouseRelease>,
+        head_hash: H256,
+    ) -> Result<ProofBundle, LedgerError> {
         let deal = self.get_deal(id)?;
         // Historical evidence: a revoked or superseded mandate still proves what was signed.
         let mandate = self.mandate_evidence(deal.mandate_id, deal.mandate_version, owner)?;
