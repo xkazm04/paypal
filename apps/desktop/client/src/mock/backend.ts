@@ -20,6 +20,7 @@ import { WalletError } from '../lib/contract';
 import { clockOffset, setClockOffset, simulateClock } from '../lib/clock';
 import { formatMoney, nowUnix } from '../lib/format';
 import { buildMockState, fakeHash, fakeUlid, MOCK_OWNER_KEY_ID, type MockDeal, type MockGroup, type MockState } from './fixtures';
+import { safetyRecordOf } from './safety';
 import type { DealGroupView } from '@bindings/DealGroupView';
 import { ON_QUIT, mockForecast, mockQuitLines, quitPending, type ForecastDeal } from './forecast';
 import type { ApprovalCheckId } from '@bindings/ApprovalCheckId';
@@ -63,7 +64,7 @@ const TARGETS: Record<EventName, WindowLabel[]> = {
   'pairing:pinned': ['main'],
 };
 
-export const STORE_KEY = 'the-table-mock-state-v15'; // v15: D-0190's attention names no rule, as Rust does (polish 3); v14: the owner's watched subscriptions (rescue detection); v13: the shield's rule on each deal and a release bound to its terms (shield slice 2); v12: shop-around groups and the house seller's D-0204 (T8); v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
+export const STORE_KEY = 'the-table-mock-state-v16'; // v16: agents' refused requests in Maya's week (safety record); v15: D-0190's attention names no rule, as Rust does (polish 3); v14: the owner's watched subscriptions (rescue detection); v13: the shield's rule on each deal and a release bound to its terms (shield slice 2); v12: shop-around groups and the house seller's D-0204 (T8); v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
 const DEGRADE_KEY = 'the-table-mock-degrade';
 /** The preview clock's offset from wall time, shared by every mock window of this origin. */
 export const CLOCK_KEY = 'the-table-mock-clock';
@@ -1165,6 +1166,10 @@ export function mockBackend(label: WindowLabel): MockBackend {
       save();
       return state.rescueWatches;
     },
+    // As Runtime::safety_record: main only, a read; counted from the same week deal_history serves.
+    safety_record: () => safetyRecordOf(state, state.history ?? buildMockState(nowUnix()).history ?? [], nowUnix(), {
+      broken: params.get('records') === 'broken', violation: params.get('safety') === 'violation',
+    }),
   };
 
   // ---- the preview world (director and preview stage only; no money operation) ----------------

@@ -158,7 +158,12 @@ export const BEATS: readonly Beat[] = [
     do: [{ do: 'main', open: true, route: '#d=D-0190' }, ...h.undock()],
   },
   {
-    id: 'end', chapter: 'end', at: 159, focus: 'desk',
+    id: 'end-safety', chapter: 'end', at: 159, focus: 'main',
+    caption: 'Her safety record checks every entry the wallet wrote: who decided each money step, and that PayPal never heard of a request her rules refused.',
+    do: [{ do: 'main', open: true, route: '#m=book&p=safety' }],
+  },
+  {
+    id: 'end', chapter: 'end', at: 170, focus: 'desk',
     caption: 'Every deadline this week ended the same way: nothing was paid. Waiting never sends money. That rule lives in the wallet’s code, not in an agent’s instructions.',
     do: [{ do: 'main', open: true, route: '' }],
   },

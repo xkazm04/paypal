@@ -16,7 +16,7 @@ const GROUP_TEXT: Record<Group, string> = { Modules: 'Go to', Deals: 'Deals', Ow
 /** `also` is searched but not shown (a deal's label: typing "D-0193" still finds it; ids stay off Layer 1). */
 type Item = { key: string; group: Group; title: string; sub: string; also?: string; hint?: string; color?: string; go: () => void };
 
-export function Palette({ onClose, onModule, onDeal, onSheet, onQuit }: { onClose: () => void; onModule: (m: Module) => void; onDeal: (id: string) => void; onSheet: (t: SheetTab) => void; onQuit?: () => void }) {
+export function Palette({ onClose, onModule, onDeal, onSheet, onSafety, onQuit }: { onClose: () => void; onModule: (m: Module) => void; onDeal: (id: string) => void; onSheet: (t: SheetTab) => void; onSafety?: () => void; onQuit?: () => void }) {
   const w = useWorld();
   const cp = useCpLookup();
   const [q, setQ] = useState('');
@@ -38,8 +38,9 @@ export function Palette({ onClose, onModule, onDeal, onSheet, onQuit }: { onClos
     { key: 's-settings', group: 'Owner', title: 'Settings', sub: 'agent app, pause agents, PayPal key, lock', go: () => onSheet('settings') },
     { key: 's-pairing', group: 'Owner', title: 'Connections', sub: 'connect with another wallet or the house seller', go: () => onSheet('pairing') },
     { key: 's-mandates', group: 'Owner', title: 'Agent rules', sub: 'what your agents may do · change in the approval window', go: () => onSheet('mandates') },
+    ...(onSafety ? [{ key: 's-safety', group: 'Owner' as const, title: 'Your safety record', sub: 'every money step and who decided it · check again', go: onSafety }] : []),
     ...(onQuit ? [{ key: 's-quit', group: 'Owner' as const, title: 'Quit The Table', sub: 'stops the wallet · see what waits first', go: onQuit }] : []),
-  ], [w, cp, onModule, onDeal, onSheet, onQuit]);
+  ], [w, cp, onModule, onDeal, onSheet, onSafety, onQuit]);
   const needle = q.trim().toLowerCase();
   const items = (needle ? all.filter((i) => `${i.title} ${i.sub} ${i.also ?? ''}`.toLowerCase().includes(needle)) : all).slice(0, 40);
   const pick = (i: Item | undefined) => { if (!i) return; onClose(); i.go(); };
