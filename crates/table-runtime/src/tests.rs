@@ -1,4 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+#[path = "authority_tests.rs"]
+mod authority_tests;
 #[path = "checks_tests.rs"]
 mod checks_tests;
 #[path = "client_tests.rs"]

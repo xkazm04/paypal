@@ -34,6 +34,7 @@ import type { RescueView } from '@bindings/RescueView';
 import type { Money } from '@bindings/Money';
 import { RESCUE_NO_RULES, RESCUE_SENT_SILENCE, RESCUE_SILENCE } from '../lib/words';
 import { invoiceText, leverOf, maskEmail, proposeDiscount, validEmail, validSubscriptionId } from './rescue';
+import { AUTHORITY, AUTHORITY_MANIFEST, type CommandAuthority } from '@bindings/authority';
 
 type Envelope =
   | { kind: 'event'; event: EventName; targets: WindowLabel[]; payload: unknown }
@@ -129,27 +130,16 @@ function pendingFail(cmd: string): never {
 }
 const TOKEN = 'mock-approval-capability';
 const IDLE_LOCK_SECONDS = 15 * 60;
-const ALL: WindowLabel[] = ['main', 'tumbler', 'approval'];
-const ROUTE: WindowLabel[] = ['main', 'tumbler'];
-const REVIEW: WindowLabel[] = ['main', 'approval'];
-const GATES: Record<CommandName, WindowLabel[]> = {
-  get_settings: ALL, attention_list: ALL, deal_withdraw: ALL, deal_display: ALL,
-  list_deals: ['main'], get_deal: ['main'], deal_evidence: ['main'], deal_reconcile: ['main'], engine_status: ['main'],
-  engine_select: ['main'], agent_start: ['main'], agent_runs: ['main'], resume_all_agents: ['main'],
-  pairing_create: ['main'], pairing_join: ['main'], pairing_poll: ['main'],
-  main_open: ROUTE, approval_open: ROUTE, settings_write: ROUTE, pause_all_agents: ROUTE,
-  deal_let_lapse: ROUTE, quit_summary: ROUTE, quit_confirm: ROUTE,
-  mandate_list: REVIEW, counterparty_list: REVIEW, deal_transcript: REVIEW, counterparty_note: ['main'], house_wake: ['main'], pairing_abort: ['main', 'approval'], approval_handoff: ['approval'], audit_page: ['main'], owner_facts: REVIEW, book_query: ['main'], deal_export_proof: REVIEW, proof_check: ['main'], deal_history: ['main'],
-  tumbler_set_form: ['tumbler'], tumbler_pin: ['tumbler'], tumbler_drag: ['tumbler'], tumbler_snap: ['tumbler'], deal_snooze: ['tumbler'],
-  market_refresh: ['approval'], approval_selection: ['approval'], approval_pairing: ['approval'], approval_summary: ['approval'],
-  approval_token: ['approval'], unlock: ['approval'], deal_owner_accept: ['approval'], deal_countersign: ['approval'],
-  deal_capture: ['approval'], deal_void: ['approval'], shield_release: ['approval'], rescue_approve: ['approval'],
-  open_paypal_in_browser: ['approval'], set_credentials: ['approval'], mandate_sign: ['approval'], mandate_revoke: ['approval'],
-  band_set: ['approval'], pairing_confirm: ['approval'], deal_create: ['approval'], deal_join: ['approval'],
-  mandate_simulate: ['approval'],
-  envelope_sign: ['approval'], envelope_get: ALL,
-  rescue_replay: ['approval'], rescue_book: REVIEW,
-};
+/** Who may call each command: the Rust authority table (T11), generated into bindings, never a
+ *  hand-kept copy. The type check fails here if a command has no row. */
+const GATES: Record<CommandName, CommandAuthority> = AUTHORITY;
+
+/** A refusal by the gate itself (label, token, idle lock, selected deal), as the shell's
+ *  authority check answers it; anything a handler refuses after the gate is a plain WalletError. */
+export class GateError extends WalletError {}
+function gateFail(code: 'PERMISSION' | 'LOCKED', message: string): never {
+  throw new GateError({ code, message });
+}
 
 function fail(code: WalletError['code'], message: string): never {
   throw new WalletError({ code, message });
@@ -172,7 +162,11 @@ export function mockBackend(label: WindowLabel): MockBackend {
   function load(): MockState | null {
     try {
       const raw = sessionStorage.getItem(STORE_KEY) ?? localStorage.getItem(STORE_KEY);
-      return raw ? (JSON.parse(raw) as MockState) : null;
+      if (!raw) return null;
+      const stored = JSON.parse(raw) as MockState;
+      // The fingerprint is this build's authority table, never stored data.
+      stored.settings = { ...stored.settings, authority_manifest: AUTHORITY_MANIFEST };
+      return stored;
     } catch {
       return null;
     }
@@ -346,12 +340,21 @@ export function mockBackend(label: WindowLabel): MockBackend {
   const forceLocked = params.get('locked') === '1';
   const isLocked = () => forceLocked || state.settings.locked || nowUnix() - lastPrivileged > IDLE_LOCK_SECONDS;
 
+  /** The authority table's gate, in the runtime's order: label, token, idle lock, selected deal. */
+  function gate(cmd: CommandName, args: unknown, opts: InvokeOptions | undefined): void {
+    const g = GATES[cmd];
+    if (!g.labels.includes(label)) gateFail('PERMISSION', `${cmd} is not available to ${label}`);
+    if (g.token && opts?.token !== TOKEN) gateFail('PERMISSION', 'missing approval capability');
+    if (g.unlock && isLocked()) gateFail('LOCKED', 'idle for more than 15 minutes · unlock with Windows Hello');
+    const bound = g.selection === 'required' || (g.selection === 'in_approval' && label === 'approval');
+    if (bound && (args as { deal_id?: string } | null)?.deal_id !== selected) gateFail('PERMISSION', 'not the selected deal');
+  }
   /** The real shell's privileged gate: approval label AND token AND unlocked AND selected. */
   function privileged(opts: InvokeOptions | undefined, dealId?: string): void {
-    if (label !== 'approval') fail('PERMISSION', 'privileged commands run only in the approval window');
-    if (opts?.token !== TOKEN) fail('PERMISSION', 'missing approval capability');
-    if (isLocked()) fail('LOCKED', 'idle for more than 15 minutes · unlock with Windows Hello');
-    if (dealId !== undefined && dealId !== selected) fail('PERMISSION', 'this approval window is bound to another deal');
+    if (label !== 'approval') gateFail('PERMISSION', 'privileged commands run only in the approval window');
+    if (opts?.token !== TOKEN) gateFail('PERMISSION', 'missing approval capability');
+    if (isLocked()) gateFail('LOCKED', 'idle for more than 15 minutes · unlock with Windows Hello');
+    if (dealId !== undefined && dealId !== selected) gateFail('PERMISSION', 'this approval window is bound to another deal');
     lastPrivileged = nowUnix();
   }
   /** The wallet's checklist for a deal now, as Rust composes it (src/mock/checks.ts). */
@@ -412,7 +415,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
   }
 
   const handlers: { [K in CommandName]: (args: ArgsOf<K>, opts?: InvokeOptions) => ResultOf<K> } = {
-    get_settings: () => ({ ...state.settings, locked: isLocked() }),
+    get_settings: () => ({ ...state.settings, locked: isLocked(), authority_manifest: AUTHORITY_MANIFEST }),
     list_deals: () => state.deals.map((d) => d.deal),
     get_deal: ({ deal_id }) => find(deal_id).deal,
     deal_evidence: ({ deal_id }) => find(deal_id).evidence,
@@ -1131,10 +1134,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
     world,
     async invoke<K extends CommandName>(cmd: K, args: ArgsOf<K>, opts?: InvokeOptions): Promise<ResultOf<K>> {
       await new Promise((r) => setTimeout(r, 40)); // IPC is async; keep the UI honest about it
-      if (!GATES[cmd].includes(label)) fail('PERMISSION', `${cmd} is not available to ${label}`);
-      if (label === 'approval' && ['deal_display', 'deal_transcript'].includes(cmd)) {
-        if ((args as ArgsOf<'deal_display'>).deal_id !== selected) fail('PERMISSION', 'not the selected deal');
-      }
+      gate(cmd, args, opts);
       const h = handlers[cmd] as (a: ArgsOf<K>, o?: InvokeOptions) => ResultOf<K>;
       return h(args, opts);
     },
