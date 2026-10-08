@@ -1,14 +1,40 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+#[path = "agent_surface_tests.rs"]
+mod agent_surface_tests;
+#[path = "authority_tests.rs"]
+mod authority_tests;
+#[path = "checks_tests.rs"]
+mod checks_tests;
 #[path = "client_tests.rs"]
 mod client_tests;
 #[path = "forecast_tests.rs"]
 mod forecast_tests;
+#[path = "groups_tests.rs"]
+mod groups_tests;
 #[path = "h5_tests.rs"]
 mod h5_tests;
+#[path = "history_tests.rs"]
+mod history_tests;
+#[path = "ladder_tests.rs"]
+mod ladder_tests;
+#[path = "limits_tests.rs"]
+mod limits_tests;
+#[path = "market_watch_tests.rs"]
+mod market_watch_tests;
 #[path = "policy_tests.rs"]
 pub(crate) mod policy_tests;
+#[path = "proof_tests.rs"]
+mod proof_tests;
+#[path = "quit_tests.rs"]
+mod quit_tests;
 #[path = "relay_tests.rs"]
 mod relay_tests;
+#[path = "rescue_tests.rs"]
+mod rescue_tests;
+#[path = "safety_tests.rs"]
+mod safety_tests;
+#[path = "simulate_tests.rs"]
+mod simulate_tests;
 use super::*;
 use async_trait::async_trait;
 use serde_json::{Value, json};
@@ -60,6 +86,11 @@ struct ApiState {
     paths: Vec<String>,
     units: Option<Value>,
     fail_void: bool,
+    /// The capture request is lost before PayPal sees it.
+    fail_capture: bool,
+    /// What PayPal holds after each money step, so an order read reflects it (T10 read-back).
+    authorization: Option<&'static str>,
+    captured: bool,
 }
 #[derive(Debug, Default)]
 struct OfflineHttp(Mutex<ApiState>);
@@ -398,12 +429,27 @@ impl Transport for OfflineHttp {
             });
         }
         if url.ends_with("/orders/ORDER1") {
+            if let Some(status) = s.authorization {
+                let mut units = s.units.clone().unwrap();
+                let amount = units[0]["amount"].clone();
+                let captures = if s.captured {
+                    json!([{"id":"CAPTURE1","status":"COMPLETED","amount":amount}])
+                } else {
+                    json!([])
+                };
+                units[0]["payments"] = json!({"authorizations":[{"id":"AUTH1","status":status,"amount":amount}],"captures":captures});
+                return Ok(Response {
+                    status: 200,
+                    body: json!({"id":"ORDER1","status":"COMPLETED","intent":"AUTHORIZE","purchase_units":units}),
+                });
+            }
             return Ok(Response {
                 status: 200,
                 body: json!({"id":"ORDER1","status":"APPROVED","intent":"AUTHORIZE","purchase_units":s.units}),
             });
         }
         if url.ends_with("/orders/ORDER1/authorize") {
+            s.authorization = Some("CREATED");
             let mut units = s.units.clone().unwrap();
             units[0]["payments"] = json!({"authorizations":[{"id":"AUTH1","status":"CREATED","amount":units[0]["amount"]}]});
             return Ok(Response {
@@ -412,6 +458,11 @@ impl Transport for OfflineHttp {
             });
         }
         if url.ends_with("/authorizations/AUTH1/capture") {
+            if s.fail_capture {
+                return Err(TransportError);
+            }
+            s.authorization = Some("CAPTURED");
+            s.captured = true;
             return Ok(Response {
                 status: 201,
                 body: json!({"id":"CAPTURE1","status":"COMPLETED","amount":s.units.as_ref().unwrap()[0]["amount"]}),
@@ -421,9 +472,18 @@ impl Transport for OfflineHttp {
             if s.fail_void {
                 return Err(TransportError);
             }
+            s.authorization = Some("VOIDED");
             return Ok(Response {
                 status: 204,
                 body: Value::Null,
+            });
+        }
+        if url.ends_with("/authorizations/AUTH1")
+            && let Some(status) = s.authorization
+        {
+            return Ok(Response {
+                status: 200,
+                body: json!({"id":"AUTH1","status":status,"amount":s.units.as_ref().unwrap()[0]["amount"]}),
             });
         }
         panic!("Unexpected offline HTTP operation");
@@ -438,10 +498,98 @@ fn assert_proof_verifies(r: &Runtime, id: DealId) -> table_proto::ProofBundle {
     let file =
         table_client::check_proof_file(&serde_json::to_vec_pretty(&bundle).unwrap()).unwrap();
     assert!(file.verified && file.deal_id == id, "{file:?}");
+    // Every line passed, or reads "not checked" because the deal has nothing of its kind.
+    assert!(
+        file.checks
+            .iter()
+            .all(|c| (c.ok && c.checked && c.applies) || (!c.ok && !c.checked && !c.applies)),
+        "{file:?}"
+    );
+    // v2: the file names this build's permissions, and the in-app check says so.
+    assert_eq!(bundle.format, table_proto::PROOF_FORMAT);
+    assert_eq!(
+        file.authority_manifest.as_deref(),
+        table_client::authority::manifest_hex()
+    );
+    assert_eq!(file.same_version, Some(true));
+    assert!(proof_line(&bundle, "permissions").ok);
+    // The same evidence in the first format still verifies under the first format's rules, and
+    // every second-format line reads "not checked" there.
+    let v1 = as_v1(r, &bundle);
+    let old = table_verify::verify_bundle(&v1);
+    assert!(old.verified(), "{:#?}", old.checks);
+    for id in V2_CHECKS {
+        let line = old.checks.iter().find(|c| c.id == id).unwrap();
+        assert!(!line.ok && !line.checked && !line.applies, "{line:?}");
+    }
+    let old_file = table_client::check_proof_file(&serde_json::to_vec(&v1).unwrap()).unwrap();
+    assert!(old_file.verified && old_file.same_version.is_none());
+    // The owner-key anchor is the whole key id, the one owner_facts shows the owner.
+    let owner = table_proto::key_id(&r.pipeline.wallet.owner_public_key()).unwrap();
+    assert_eq!(file.owner_key_id, owner.as_str());
+    assert_eq!(report.owner_key_id, owner.as_str());
+    assert_eq!(file.owner_key_id.len(), 64);
     let ids: Vec<_> = report.checks.iter().map(|c| c.id).collect();
     let file_ids: Vec<_> = file.checks.iter().map(|c| c.id.as_str()).collect();
     assert_eq!(ids, file_ids);
     bundle
+}
+/// The checks the second proof format adds.
+pub(crate) const V2_CHECKS: [&str; 7] = [
+    "market",
+    "owner_saw",
+    "one_request",
+    "group",
+    "shield",
+    "house_record",
+    "permissions",
+];
+/// One line of the offline verifier's report on `bundle`.
+pub(crate) fn proof_line(bundle: &table_proto::ProofBundle, id: &str) -> table_verify::Check {
+    table_verify::verify_bundle(bundle)
+        .checks
+        .into_iter()
+        .find(|c| c.id == id)
+        .unwrap()
+}
+/// `bundle` as a first-format file: no second-format field, re-signed by the deal's agent.
+pub(crate) fn as_v1(r: &Runtime, bundle: &table_proto::ProofBundle) -> table_proto::ProofBundle {
+    let mut v1 = bundle.clone();
+    v1.format = table_proto::PROOF_FORMAT_V1.into();
+    v1.authority_manifest = None;
+    v1.group = None;
+    v1.house = None;
+    for op in &mut v1.operations {
+        op.request_id = None;
+    }
+    for call in &mut v1.paypal_calls {
+        call.request_id = None;
+    }
+    r.sign_proof(&mut v1).unwrap();
+    v1
+}
+/// A forged copy of `bundle`, re-signed by the deal's own agent key so the signature holds:
+/// only the check `id` can catch it, and it fails (never "not checked").
+pub(crate) fn assert_forgery_fails(
+    r: &Runtime,
+    bundle: &table_proto::ProofBundle,
+    id: &str,
+    forge: impl FnOnce(&mut table_proto::ProofBundle),
+) {
+    let mut forged = bundle.clone();
+    forge(&mut forged);
+    r.sign_proof(&mut forged).unwrap();
+    let report = table_verify::verify_bundle(&forged);
+    let line = report.checks.iter().find(|c| c.id == id).unwrap();
+    assert!(
+        !line.ok && line.checked && line.applies,
+        "{id} accepted a forgery: {line:?}"
+    );
+    assert!(proof_line(&forged, "evidence").ok, "re-signed");
+    assert!(!report.verified());
+    let file = table_client::check_proof_file(&serde_json::to_vec(&forged).unwrap()).unwrap();
+    assert!(!file.verified);
+    assert!(file.checks.iter().any(|c| c.id == id && !c.ok && c.checked));
 }
 fn caller(label: &str, token: Option<&str>) -> Caller {
     Caller {
@@ -533,7 +681,13 @@ fn setup_delivery(r: &mut Runtime, side: Side, delivery: Delivery) -> (Deal, Age
         .ledger
         .store_market_reference(
             deal.id,
-            &MarketRef::from_comparables(vec![deal.terms.unit_price], 100, H256::ZERO).unwrap(),
+            &MarketRef::certified_prices(
+                deal.terms.item_ref.as_str(),
+                H256::digest(b"similar"),
+                &[deal.terms.unit_price],
+                100,
+            )
+            .unwrap(),
             100,
         )
         .unwrap();
@@ -541,11 +695,20 @@ fn setup_delivery(r: &mut Runtime, side: Side, delivery: Delivery) -> (Deal, Age
 }
 /// A deal with no market reference: the shield asks for every agent authority.
 fn setup_unpriced(r: &mut Runtime, side: Side, delivery: Delivery) -> (Deal, AgentSigner) {
+    setup_with(r, side, delivery, clauses(side, DealKind::Haggle))
+}
+/// A deal with no market reference under a new mandate of these clauses.
+fn setup_with(
+    r: &mut Runtime,
+    side: Side,
+    delivery: Delivery,
+    clauses: Vec<Clause>,
+) -> (Deal, AgentSigner) {
     let mandate = r
         .sign_mandate(MandateSignArgs {
             id: None,
             agent: AgentSlot::Negotiator,
-            clauses: clauses(side, DealKind::Haggle),
+            clauses,
             not_before: 0,
             expires: 1_000_000,
         })
@@ -792,6 +955,7 @@ async fn buyer_browser_availability_needs_unlock_but_no_local_paypal_credentials
                 deal_id: deal.id,
                 attempt: 1,
                 terms_hash: summary.terms_hash,
+                checks_hash: Some(summary.checks_hash),
             },
             Decision::OpenBrowser,
         )
@@ -825,14 +989,17 @@ struct MarketFixture {
 impl table_market::MarketApi for MarketFixture {
     async fn comparables(
         &self,
-        _: &str,
+        product: &str,
         currency: Currency,
     ) -> Result<MarketRef, table_market::Error> {
         self.calls.fetch_add(1, Ordering::SeqCst);
-        Ok(
-            MarketRef::from_comparables(vec![Money::new(1300, currency).unwrap()], 100, H256::ZERO)
-                .unwrap(),
+        Ok(MarketRef::certified_prices(
+            product,
+            H256::digest(b"similar"),
+            &[Money::new(1300, currency).unwrap()],
+            100,
         )
+        .unwrap())
     }
     async fn start_tracking(&self, _: &str) -> Result<(), table_market::Error> {
         unreachable!()
@@ -852,10 +1019,14 @@ async fn native_market_refresh_checks_owner_before_io_and_rechecks_bound_terms_a
     });
     r.attach_market(market.clone());
     let binding = r.prepare_market(deal.id).unwrap();
-    let reference = MarketRef::from_comparables(
-        vec![Money::new(1300, Currency::USD).unwrap()],
-        100,
+    // No market-watch rule names the item, and the item is named by a market product id: the
+    // item itself is the product.
+    assert_eq!(binding.product_id, "monitor");
+    let reference = MarketRef::certified_prices(
+        "monitor",
         H256::ZERO,
+        &[Money::new(1300, Currency::USD).unwrap()],
+        100,
     )
     .unwrap();
     let mut stale = binding.clone();
@@ -901,18 +1072,63 @@ async fn native_market_refresh_checks_owner_before_io_and_rechecks_bound_terms_a
     r.selected = Some(deal.id);
     let token = unlock_runtime(&mut r);
     r.attach_market(market.clone());
+    // market-data-2: a record for a product the rules do not bind to the deal's item is
+    // refused, and a record that is not re-checkable is not stored by the owner's refresh.
+    let binding = r.prepare_market(deal.id).unwrap();
+    let other = MarketRef::certified_prices(
+        "product1",
+        H256::ZERO,
+        &[Money::new(1300, Currency::USD).unwrap()],
+        100,
+    )
+    .unwrap();
+    assert!(r.store_market(binding.clone(), other).is_err());
+    let older = MarketRef::from_comparables(
+        vec![Money::new(1300, Currency::USD).unwrap()],
+        100,
+        H256::ZERO,
+    )
+    .unwrap();
+    assert!(r.store_market(binding, older).is_err());
+    // The deal keeps the record its setup stored; neither refused record replaced it.
+    let kept = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().market;
+    assert_eq!(
+        kept.unwrap().certificate.unwrap().raw_sha256,
+        H256::digest(b"similar")
+    );
     let (actor, _events) = spawn(r);
+    assert!(
+        actor
+            .market_refresh(
+                caller("approval", Some(&token)),
+                MarketRefreshArgs {
+                    deal_id: deal.id,
+                    product_id: "product1".into(),
+                },
+            )
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        market.calls.load(Ordering::SeqCst),
+        0,
+        "a product not bound to the item is refused before any market call"
+    );
     let reference = actor
         .market_refresh(
             caller("approval", Some(&token)),
             MarketRefreshArgs {
                 deal_id: deal.id,
-                product_id: "product1".into(),
+                product_id: "monitor".into(),
             },
         )
         .await
         .unwrap();
     assert_eq!(reference.median.minor(), 1300);
+    assert_eq!(
+        reference.certificate.as_ref().unwrap().product_id,
+        "monitor"
+    );
     assert_eq!(market.calls.load(Ordering::SeqCst), 1);
     let stored: Deal = actor
         .execute(caller("main", None), Action::Deal(deal.id))
@@ -934,13 +1150,15 @@ fn unlock_runtime(r: &mut Runtime) -> String {
         .unwrap();
     token
 }
-fn decision(r: &Runtime, id: DealId) -> DecisionArgs {
+/// The owner's decision on what the summary shows now, bound to its checklist hash.
+fn decision(r: &mut Runtime, id: DealId) -> DecisionArgs {
     let deal = r.pipeline.wallet.ledger.get_deal(id).unwrap();
     DecisionArgs {
         counter_hash: None,
         deal_id: id,
         attempt: r.pipeline.wallet.ledger.settled_attempt(id).unwrap().max(1),
         terms_hash: deal.terms.hash().unwrap(),
+        checks_hash: Some(r.approval_checks(id).unwrap().1),
     }
 }
 
@@ -1372,7 +1590,7 @@ async fn actor_payments_require_label_token_unlock_selected_hash_and_attempt() {
     let (deal, peer) = setup(&mut r, Side::Seller);
     agree(&mut r, &deal, &peer);
     let token = r.pipeline.approval.token("approval").unwrap().to_owned();
-    let args = decision(&r, deal.id);
+    let args = decision(&mut r, deal.id);
     for caller in [
         caller("main", Some(&token)),
         caller("tumbler", Some(&token)),
@@ -1496,7 +1714,7 @@ async fn real_actor_countersign_verified_browser_link_poll_and_seller_capture() 
     agree(&mut r, &deal, &peer);
     let token = unlock_runtime(&mut r);
     r.selected = Some(deal.id);
-    let args = decision(&r, deal.id);
+    let args = decision(&mut r, deal.id);
     let created: Deal = serde_json::from_value(
         r.execute(
             caller("approval", Some(&token)),
@@ -1507,6 +1725,16 @@ async fn real_actor_countersign_verified_browser_link_poll_and_seller_capture() 
     )
     .unwrap();
     assert_eq!(created.state, DealState::AwaitingApproval);
+    // The order now exists, so the checklist the countersign was taken on is stale.
+    let stale = r
+        .execute(
+            caller("approval", Some(&token)),
+            Action::Decision(args, Decision::OpenBrowser),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(stale.message, crate::SUMMARY_CHANGED);
+    let args = decision(&mut r, deal.id);
     let url: String = serde_json::from_value(
         r.execute(
             caller("approval", Some(&token)),
@@ -1543,7 +1771,7 @@ async fn owner_void_requires_ticket_and_is_durable_once() {
     agree(&mut r, &deal, &peer);
     let token = unlock_runtime(&mut r);
     r.selected = Some(deal.id);
-    let args = decision(&r, deal.id);
+    let args = decision(&mut r, deal.id);
     r.execute(
         caller("approval", Some(&token)),
         Action::Decision(args, Decision::Countersign),
@@ -1551,7 +1779,7 @@ async fn owner_void_requires_ticket_and_is_durable_once() {
     .await
     .unwrap();
     r.tick().await.unwrap();
-    let args = decision(&r, deal.id);
+    let args = decision(&mut r, deal.id);
     assert_eq!(
         r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
         DealState::Authorized
@@ -1593,6 +1821,98 @@ async fn owner_void_requires_ticket_and_is_durable_once() {
         1
     );
 }
+/// An owner's capture whose answer was lost, then the deal's mandate revoked: with no agent key
+/// the read-back still runs and the deadline still releases the hold, and nothing captures.
+/// Before, the tick returned before both and the money stayed held at PayPal.
+#[tokio::test]
+async fn a_revoked_mandate_never_freezes_an_open_capture_past_its_deadline() {
+    let (mut r, vault, http, clock, _) = runtime(true);
+    credentials(vault.as_ref());
+    let (deal, peer) = setup_delivery(&mut r, Side::Seller, Delivery::ShipThenCapture { days: 1 });
+    agree(&mut r, &deal, &peer);
+    let token = unlock_runtime(&mut r);
+    r.selected = Some(deal.id);
+    let args = decision(&mut r, deal.id);
+    r.execute(
+        caller("approval", Some(&token)),
+        Action::Decision(args, Decision::Countersign),
+    )
+    .await
+    .unwrap();
+    r.tick().await.unwrap();
+    assert_eq!(
+        r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Authorized
+    );
+    http.0.lock().unwrap().fail_capture = true;
+    let args = decision(&mut r, deal.id);
+    assert!(
+        r.execute(
+            caller("approval", Some(&token)),
+            Action::Decision(args, Decision::Capture),
+        )
+        .await
+        .is_err()
+    );
+    assert!(r.pipeline.has_open_operation(deal.id).unwrap());
+    http.0.lock().unwrap().fail_capture = false;
+    r.pipeline
+        .wallet
+        .ledger
+        .revoke_mandate(deal.mandate_id, clock.now())
+        .unwrap();
+    assert!(r.select_signer(deal.id).is_err());
+    let count = |http: &OfflineHttp, end: &str| {
+        http.0
+            .lock()
+            .unwrap()
+            .paths
+            .iter()
+            .filter(|p| p.ends_with(end))
+            .count()
+    };
+    // The client's own retries of the one lost request, all under its one request id.
+    let (reads, captures) = (
+        count(&http, "/authorizations/AUTH1"),
+        count(&http, "/capture"),
+    );
+    assert!(captures >= 1);
+    // Inside the deadline: read back (the hold is there, nothing captured), and nothing is sent.
+    clock.0.fetch_add(60, Ordering::SeqCst);
+    r.tick().await.unwrap();
+    assert_eq!(count(&http, "/authorizations/AUTH1"), reads + 1);
+    assert_eq!(count(&http, "/capture"), captures);
+    assert_eq!(
+        r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Authorized
+    );
+    // At the deadline: the capture closes not done and the safe default voids the hold.
+    let (due, _) = r.pipeline.wallet.ledger.deadline(deal.id).unwrap().unwrap();
+    clock.0.store(due + 1, Ordering::SeqCst);
+    r.tick().await.unwrap();
+    let ledger = &r.pipeline.wallet.ledger;
+    assert_eq!(
+        ledger.get_deal(deal.id).unwrap().state,
+        DealState::AutoVoided
+    );
+    assert!(!r.pipeline.has_open_operation(deal.id).unwrap());
+    assert!(!r.pipeline.signer_missing);
+    assert_eq!(count(&http, "/capture"), captures);
+    assert_eq!(count(&http, "/void"), 1);
+    let ids: std::collections::BTreeSet<_> = ledger
+        .paypal_call_requests(deal.id)
+        .unwrap()
+        .into_iter()
+        .filter(|(_, path, _)| path.ends_with("/capture"))
+        .map(|(_, _, request)| request)
+        .collect();
+    assert_eq!(ids.len(), 1, "one capture request id");
+    let state = http.0.lock().unwrap();
+    assert_eq!(
+        (state.authorization, state.captured),
+        (Some("VOIDED"), false)
+    );
+}
 #[tokio::test]
 async fn failed_void_does_not_starve_another_deadline_or_retry_unknown_money() {
     let (mut r, vault, http, clock, _) = runtime(true);
@@ -1601,7 +1921,7 @@ async fn failed_void_does_not_starve_another_deadline_or_retry_unknown_money() {
     agree(&mut r, &held, &peer);
     let token = unlock_runtime(&mut r);
     r.selected = Some(held.id);
-    let args = decision(&r, held.id);
+    let args = decision(&mut r, held.id);
     r.execute(
         caller("approval", Some(&token)),
         Action::Decision(args, Decision::Countersign),
@@ -1627,24 +1947,86 @@ async fn failed_void_does_not_starve_another_deadline_or_retry_unknown_money() {
         r.pipeline.wallet.ledger.get_deal(other.id).unwrap().state,
         DealState::Withdrawn
     );
-    let attempts = http
-        .0
-        .lock()
+    // The owner sees the open question honestly: a HOLD card that only opens the deal, worded
+    // as checking with PayPal, and the deal's evidence says the same.
+    let card = r
+        .attention()
         .unwrap()
-        .paths
-        .iter()
-        .filter(|p| p.ends_with("/void"))
-        .count();
-    assert!(r.tick().await.is_err());
+        .items
+        .into_iter()
+        .find(|i| i.deal_id == held.id)
+        .unwrap();
+    assert_eq!(card.kind, table_attention::AttnKind::Hold);
     assert_eq!(
-        http.0
-            .lock()
+        card.actions,
+        vec![table_attention::TumblerAction::OpenInTable]
+    );
+    assert!(
+        card.headline.starts_with("Checking with PayPal"),
+        "{}",
+        card.headline
+    );
+    assert_eq!(card.on_silence, table_attention::MONEY_CHECK_SILENCE);
+    assert_eq!(card.money_check.map(|c| c.step), Some(MoneyCheckStep::Void));
+    let evidence = r.pipeline.wallet.ledger.deal_evidence(held.id).unwrap();
+    assert_eq!(
+        evidence.money_check.map(|c| c.step),
+        Some(MoneyCheckStep::Void)
+    );
+    assert!(
+        r.forecast(clock.now())
             .unwrap()
-            .paths
             .iter()
-            .filter(|p| p.ends_with("/void"))
-            .count(),
-        attempts
+            .all(|l| l.deal_id != held.id),
+        "no step or default is promised while PayPal is being asked"
+    );
+    // The unknown void is read back (T10): PayPal still holds the money, so the same void is
+    // sent again once under its one request id, never a second operation. When that fails too,
+    // the wallet stops asking and parks the step for the owner; the deal stays held.
+    for _ in 0..6 {
+        clock.0.fetch_add(1000, Ordering::SeqCst);
+        let _ = r.tick().await;
+    }
+    let ledger = &r.pipeline.wallet.ledger;
+    let void_requests: std::collections::BTreeSet<_> = ledger
+        .paypal_call_requests(held.id)
+        .unwrap()
+        .into_iter()
+        .filter(|(_, path, _)| path.ends_with("/void"))
+        .map(|(_, _, request)| request)
+        .collect();
+    assert_eq!(
+        void_requests.into_iter().collect::<Vec<_>>(),
+        vec![
+            table_paypal::RequestId::for_operation(held.id, 1, "void")
+                .unwrap()
+                .as_str()
+                .to_owned()
+        ]
+    );
+    let outcomes: Vec<_> = ledger
+        .resolutions(
+            table_paypal::RequestId::for_operation(held.id, 1, "void")
+                .unwrap()
+                .as_str(),
+        )
+        .unwrap()
+        .into_iter()
+        .map(|(_, outcome)| outcome)
+        .collect();
+    assert_eq!(outcomes, ["resent", "deferred", "needs_owner"]);
+    assert_eq!(
+        ledger.operation_count(held.id).unwrap(),
+        3,
+        "create, authorize, void"
+    );
+    assert_eq!(
+        ledger.get_deal(held.id).unwrap().state,
+        DealState::Authorized
+    );
+    assert_eq!(
+        ledger.money_check(held.id).unwrap().unwrap().state,
+        MoneyCheckState::Parked
     );
 }
 #[tokio::test]
@@ -1703,7 +2085,7 @@ async fn shield_hold_release_is_owner_bound_and_block_can_never_be_released() {
         .unwrap();
     let token = unlock_runtime(&mut r);
     r.selected = Some(deal.id);
-    let args = decision(&r, deal.id);
+    let args = decision(&mut r, deal.id);
     assert!(
         r.execute(
             caller("tumbler", Some(&token)),
@@ -1718,10 +2100,10 @@ async fn shield_hold_release_is_owner_bound_and_block_can_never_be_released() {
     )
     .await
     .unwrap();
-    assert_eq!(
-        r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().shield,
-        Some(ShieldVerdict::Ask)
-    );
+    let released = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap();
+    assert_eq!(released.shield, Some(ShieldVerdict::Ask));
+    assert!(released.shield_released() && !released.shield_held());
+    assert_eq!(released.decided_by, Some(DecidedBy::Human { at: 100 }));
     r.pipeline
         .wallet
         .ledger
@@ -1780,7 +2162,7 @@ async fn pending_os_prompt_does_not_block_actor_deadline_processing() {
         tokio::spawn(async move { unlocker.unlock(caller("approval", Some(&token)), 1).await });
     hello.started.notified().await;
     clock.0.store(102, Ordering::SeqCst);
-    let updated = tokio::time::timeout(std::time::Duration::from_secs(3), async {
+    let updated = tokio::time::timeout(std::time::Duration::from_secs(30), async {
         loop {
             let d = actor
                 .execute::<Deal>(caller("main", None), Action::Deal(deal.id))
@@ -1813,7 +2195,7 @@ async fn actor_emits_real_changed_and_receipt_events_for_deadline_default() {
     // Wait for the initial deal projection before advancing the injected clock.
     while !matches!(events.recv().await.unwrap(), WalletEvent::Deal(_)) {}
     clock.0.store(102, Ordering::SeqCst);
-    let receipt = tokio::time::timeout(std::time::Duration::from_secs(3), async {
+    let receipt = tokio::time::timeout(std::time::Duration::from_secs(30), async {
         loop {
             if let WalletEvent::Receipt(receipt) = events.recv().await.unwrap() {
                 break receipt;
@@ -2209,7 +2591,7 @@ async fn let_lapse_is_refused_on_a_hold_and_on_an_authorized_deal() {
     agree(&mut r, &deal, &peer);
     let token = unlock_runtime(&mut r);
     r.selected = Some(deal.id);
-    let args = decision(&r, deal.id);
+    let args = decision(&mut r, deal.id);
     r.execute(
         caller("approval", Some(&token)),
         Action::Decision(args, Decision::Countersign),

@@ -14,6 +14,37 @@ fn allowed(label: &str, labels: &[&str]) -> Result<(), CommandError> {
     }
 }
 impl Runtime {
+    /// The authority table's row for `command`: the window label, then the approval token and
+    /// the unlock, then the selected deal. Refusals are PERMISSION, or LOCKED for an idle lock.
+    pub(crate) fn admit(
+        &mut self,
+        command: &str,
+        label: &str,
+        token: Option<&str>,
+        deal: Option<DealId>,
+    ) -> Result<(), CommandError> {
+        let row = table_client::authority::authority(command).ok_or_else(permission)?;
+        if !row.admits(label) {
+            return Err(permission());
+        }
+        if row.unlock {
+            self.guard(label, token)?;
+        } else if row.token {
+            self.pipeline
+                .approval
+                .begin_unlock(label, token.ok_or_else(permission)?)?;
+        }
+        let bound = match row.selection {
+            table_client::authority::Selection::Required => true,
+            table_client::authority::Selection::InApproval => label == "approval",
+            table_client::authority::Selection::None
+            | table_client::authority::Selection::PairingInApproval => false,
+        };
+        if bound && (deal.is_none() || self.selected != deal) {
+            return Err(permission());
+        }
+        Ok(())
+    }
     fn needs_owner_accept(&self, deal: &Deal) -> Result<bool, CommandError> {
         let ledger = &self.pipeline.wallet.ledger;
         if deal.side != Side::Buyer
@@ -90,9 +121,11 @@ impl Runtime {
             })
             .transpose()
             .map_err(table_app::Error::from)?;
-        let item = table_attention::AttentionSource::from_deal(&deal, number, None, None, deadline)
-            .map_err(table_app::Error::from)?
-            .item(self.clock.now());
+        let mut source =
+            table_attention::AttentionSource::from_deal(&deal, number, None, None, deadline)
+                .map_err(table_app::Error::from)?;
+        source.money_check = app(self.pipeline.wallet.ledger.money_check(id))?;
+        let item = source.item(self.clock.now());
         Ok(DealDisplay {
             deal_id: id,
             label: item.label,
@@ -120,12 +153,15 @@ impl Runtime {
                 .map(|c| (c.key_id, c.display_name))
                 .collect();
         for deal in &deals {
-            if app(self
-                .pipeline
-                .wallet
-                .ledger
-                .preference::<bool>(&format!("lapse.{}", deal.id)))?
-            .unwrap_or(false)
+            // A money step being checked with PayPal is shown even on a deal left to lapse.
+            let money_check = app(self.pipeline.wallet.ledger.money_check(deal.id))?;
+            if money_check.is_none()
+                && app(self
+                    .pipeline
+                    .wallet
+                    .ledger
+                    .preference::<bool>(&format!("lapse.{}", deal.id)))?
+                .unwrap_or(false)
             {
                 continue;
             }
@@ -138,21 +174,23 @@ impl Runtime {
             )
             .map_err(table_app::Error::from)?;
             source.needs_owner_accept = self.needs_owner_accept(deal)?;
+            source.money_check = money_check;
             // A gate names the clause that sent it to the owner; holds come from the shield.
             if source.item(now).kind == table_attention::AttnKind::Gate {
                 source.clause = self.human_present_clause(deal)?;
             }
             let item = source.item(now);
+            // A snooze hides a GATE until it runs out or the notification rung pierces it.
             if item.kind == table_attention::AttnKind::Gate
-                && item
-                    .deadline
-                    .is_some_and(|due| due.saturating_sub(now) > 900)
-                && app(self
-                    .pipeline
-                    .wallet
-                    .ledger
-                    .preference::<i64>(&format!("snooze.{}", deal.id)))?
-                .is_some_and(|until| until > now)
+                && table_attention::LADDER.snooze_hides(
+                    item.deadline,
+                    app(self
+                        .pipeline
+                        .wallet
+                        .ledger
+                        .preference::<i64>(&format!("snooze.{}", deal.id)))?,
+                    now,
+                )
             {
                 continue;
             }
@@ -164,10 +202,26 @@ impl Runtime {
             .first()
             .map(|d| d.terms.currency)
             .filter(|currency| deals.iter().all(|d| d.terms.currency == *currency));
+        // Real meters (T14): the day's money out from the exposure fold. A failed read leaves
+        // the meters off; it never fails the attention snapshot.
+        snapshot.exposure = self.envelope_view().ok();
+        if let Some(view) = &snapshot.exposure {
+            match view.currencies.as_slice() {
+                [one] => {
+                    snapshot.wallet_spend_today_minor = one.out_today.minor();
+                    snapshot.wallet_spend_today_currency = Some(one.currency);
+                }
+                [] => {}
+                _ => snapshot.wallet_spend_today_currency = None,
+            }
+        }
         // A failed read hides the forecast; it never fails the attention snapshot.
         snapshot.forecast = self.forecast(now).ok();
         // Each card's silence line follows the forecast beside it (DECISIONS 15).
         table_attention::word_silence(&mut snapshot, &sources);
+        // What the owner is offered now is evidence (attention-ladder-1). A rung that cannot be
+        // written is dropped; it never fails the snapshot.
+        self.record_snapshot_rungs(&snapshot.items, now);
         Ok(snapshot)
     }
     pub(crate) async fn execute(
@@ -178,6 +232,10 @@ impl Runtime {
         let label = caller.label.as_str();
         let token = caller.token.as_deref();
         allowed(label, &["main", "tumbler", "approval"])?;
+        // The authority table's gate for every IPC command (T11), before anything else runs.
+        if let Some(command) = action.command() {
+            self.admit(command, label, token, action.deal())?;
+        }
         match action {
             Action::HouseOffer(args) => {
                 allowed(label, &["main"])?;
@@ -192,14 +250,8 @@ impl Runtime {
                 self.house_state = state;
                 json(())
             }
-            Action::MarketPrepare(id) => {
-                self.guard(label, token)?;
-                json(self.prepare_market(id)?)
-            }
-            Action::MarketStore(binding, reference) => {
-                self.guard(label, token)?;
-                json(self.store_market(binding, reference)?)
-            }
+            Action::MarketPrepare(id) => json(self.prepare_market(id)?),
+            Action::MarketStore(binding, reference) => json(self.store_market(binding, reference)?),
             Action::ClaimNotification { deal_id, deadline } => {
                 allowed(label, &["tumbler"])?;
                 let now = self.clock.now();
@@ -207,8 +259,7 @@ impl Runtime {
                     i.deal_id == deal_id
                         && i.kind == table_attention::AttnKind::Gate
                         && i.deadline == Some(deadline)
-                        && deadline > now
-                        && deadline.saturating_sub(now) <= 900
+                        && table_attention::LADDER.notify_due(i.deadline, now)
                 }) {
                     return json(false);
                 }
@@ -228,59 +279,72 @@ impl Runtime {
                     .wallet
                     .ledger
                     .set_preference(&format!("notification.{deal_id}.{deadline}"), &false))?;
+                // The owner was not told; a later claim that shows it records Notified too.
+                if let Some(item) = self.due_gate(deal_id, deadline) {
+                    let now = self.clock.now();
+                    self.record_rung(
+                        &item,
+                        LadderRung::NotifySuppressed,
+                        Some(NotifySuppression::NotShown),
+                        now,
+                    );
+                }
                 json(())
             }
-            Action::CheckPrivilege => {
-                self.guard(label, token)?;
+            Action::NotificationShown { deal_id, deadline } => {
+                // Only a notification this deal's claim holds, for a card still due.
+                allowed(label, &["tumbler"])?;
+                let claimed = app(self
+                    .pipeline
+                    .wallet
+                    .ledger
+                    .preference::<bool>(&format!("notification.{deal_id}.{deadline}")))?
+                .unwrap_or(false);
+                let item = self.due_gate(deal_id, deadline).filter(|_| claimed);
+                let now = self.clock.now();
+                json(
+                    item.is_some_and(|item| {
+                        self.record_rung(&item, LadderRung::Notified, None, now)
+                    }),
+                )
+            }
+            Action::NotificationSuppressed {
+                deal_id,
+                deadline,
+                reason,
+            } => {
+                allowed(label, &["tumbler"])?;
+                let item = self.due_gate(deal_id, deadline);
+                let now = self.clock.now();
+                json(item.is_some_and(|item| {
+                    self.record_rung(&item, LadderRung::NotifySuppressed, Some(reason), now)
+                }))
+            }
+            Action::CardOpened(id) => {
+                // The shell's main_open from a Tumbler card: the owner opened the deal.
+                allowed(label, &["tumbler"])?;
+                self.record_card_rung(id, LadderRung::CardOpened);
                 json(())
             }
+            Action::CheckPrivilege => json(()),
             Action::Settings => json(self.settings()?),
-            Action::ApprovalSelection => {
-                allowed(label, &["approval"])?;
-                json(self.selected)
-            }
-            Action::Display(id) => {
-                if label == "approval" && self.selected != Some(id) {
-                    return Err(permission());
-                }
-                json(self.deal_display(id)?)
-            }
-            Action::Transcript(id) => {
-                allowed(label, &["main", "approval"])?;
-                if label == "approval" && self.selected != Some(id) {
-                    return Err(permission());
-                }
-                json(app(self.pipeline.wallet.ledger.deal_transcript(id))?)
-            }
-            Action::Counterparties => {
-                allowed(label, &["main", "approval"])?;
-                json(app(self.pipeline.wallet.ledger.counterparty_list())?)
-            }
+            Action::ApprovalSelection => json(self.selected),
+            Action::Display(id) => json(self.deal_display(id)?),
+            Action::Transcript(id) => json(app(self.pipeline.wallet.ledger.deal_transcript(id))?),
+            Action::Counterparties => json(app(self.pipeline.wallet.ledger.counterparty_list())?),
             Action::CounterpartyNote(id) => {
                 // Untrusted words: the main window only, behind "note ›" and the quarantine box.
                 // Never the Tumbler; the approval window has no read of it.
-                allowed(label, &["main"])?;
                 json(app(self.pipeline.wallet.ledger.latest_note(id))?)
             }
-            Action::ListDeals => {
-                allowed(label, &["main"])?;
-                json(app(self.pipeline.wallet.ledger.list_deals())?)
-            }
-            Action::Deal(id) => {
-                allowed(label, &["main"])?;
-                json(app(self.pipeline.wallet.ledger.get_deal(id))?)
-            }
-            Action::Evidence(id) => {
-                allowed(label, &["main"])?;
-                json(app(self.pipeline.wallet.ledger.deal_evidence(id))?)
-            }
+            Action::ListDeals => json(app(self.pipeline.wallet.ledger.list_deals())?),
+            Action::Deal(id) => json(app(self.pipeline.wallet.ledger.get_deal(id))?),
+            Action::Evidence(id) => json(app(self.pipeline.wallet.ledger.deal_evidence(id))?),
             Action::ExportProof(id) => {
                 // Read-only evidence; the owner saves it from the main or approval window.
-                allowed(label, &["main", "approval"])?;
                 json(self.export_proof(id)?)
             }
             Action::Reconcile(args) => {
-                allowed(label, &["main"])?;
                 let api = self
                     .secondary
                     .clone()
@@ -314,13 +378,7 @@ impl Runtime {
                 }
                 json(snapshot)
             }
-            Action::Summary(id) => {
-                allowed(label, &["approval"])?;
-                if self.selected != Some(id) {
-                    return Err(permission());
-                }
-                json(self.summary(id)?)
-            }
+            Action::Summary(id) => json(self.summary(id)?),
             Action::Token => json(self.pipeline.approval.token(label)?),
             Action::Select(id) => {
                 allowed(label, &["main", "tumbler"])?;
@@ -334,18 +392,17 @@ impl Runtime {
                 json(())
             }
             Action::OpenApproval(args) => {
-                allowed(label, &["main", "tumbler"])?;
+                let deal = args.deal_id;
                 self.open_approval(label, args)?;
+                if let Some(id) = deal {
+                    self.record_card_rung(id, LadderRung::ReviewOpened);
+                }
                 json(())
             }
-            Action::OwnerFacts => {
-                allowed(label, &["main", "approval"])?;
-                json(self.owner_facts()?)
-            }
+            Action::OwnerFacts => json(self.owner_facts()?),
             Action::BookQuery(args) => {
                 // Main's Book only. The closed schema and its rules are checked in Rust; a
                 // rejection comes back verbatim as INVALID, before any connection is opened.
-                allowed(label, &["main"])?;
                 let rejected = |reason: String| CommandError {
                     code: ErrorCode::Invalid,
                     message: format!("BookQuery rejected: {reason}"),
@@ -363,18 +420,16 @@ impl Runtime {
                     .unwrap_or_default();
                 json(BookAnswer { query, rows })
             }
-            Action::AuditPage(args) => {
-                allowed(label, &["main"])?;
-                json(self.audit_page(args)?)
+            Action::AuditPage(args) => json(self.audit_page(args)?),
+            Action::DealHistory(args) => {
+                // Main's Rewind and deal page only: a read of the verified chain, no unlock.
+                json(self.deal_history(args)?)
             }
-            Action::ApprovalHandoff => {
-                allowed(label, &["approval"])?;
-                json(ApprovalHandoff {
-                    target: self.approval_target,
-                    deal_id: self.selected,
-                    draft: self.approval_draft.clone(),
-                })
-            }
+            Action::ApprovalHandoff => json(ApprovalHandoff {
+                target: self.approval_target,
+                deal_id: self.selected,
+                draft: self.approval_draft.clone(),
+            }),
             Action::SelectPairing(id) => {
                 allowed(label, &["main"])?;
                 if !self
@@ -391,7 +446,6 @@ impl Runtime {
                 json(())
             }
             Action::ApprovalPairing => {
-                allowed(label, &["approval"])?;
                 let pending = self
                     .selected_pairing
                     .and_then(|id| self.pending.get(&id))
@@ -413,13 +467,11 @@ impl Runtime {
                 json(pending)
             }
             Action::Credentials(args) => {
-                self.guard(label, token)?;
                 self.credentials(args)?;
                 self.pipeline.credentials_changed().await;
                 json(())
             }
             Action::Engine(engine) => {
-                allowed(label, &["main"])?;
                 if !self
                     .engine_info()?
                     .iter()
@@ -435,20 +487,10 @@ impl Runtime {
                 self.engine = engine;
                 json(())
             }
-            Action::Engines => {
-                allowed(label, &["main"])?;
-                json(self.engine_info()?)
-            }
-            Action::Start(id) => {
-                allowed(label, &["main"])?;
-                json(self.start_agent(id)?)
-            }
-            Action::Runs => {
-                allowed(label, &["main"])?;
-                json(self.run_snapshots())
-            }
+            Action::Engines => json(self.engine_info()?),
+            Action::Start(id) => json(self.start_agent(id)?),
+            Action::Runs => json(self.run_snapshots()),
             Action::Resume => {
-                allowed(label, &["main"])?;
                 app(self
                     .pipeline
                     .wallet
@@ -457,16 +499,9 @@ impl Runtime {
                 self.paused = false;
                 json(())
             }
-            Action::Mandates => {
-                allowed(label, &["main", "approval"])?;
-                json(self.mandate_list()?)
-            }
-            Action::Sign(args) => {
-                self.guard(label, token)?;
-                json(self.sign_mandate(args)?)
-            }
+            Action::Mandates => json(self.mandate_list()?),
+            Action::Sign(args) => json(self.sign_mandate(args)?),
             Action::Revoke(args) => {
-                self.guard(label, token)?;
                 app(self
                     .pipeline
                     .wallet
@@ -474,29 +509,16 @@ impl Runtime {
                     .revoke_mandate(args.id, self.clock.now()))?;
                 json(())
             }
-            Action::Band(args) => {
-                self.guard(label, token)?;
-                json(self.band(args)?)
-            }
-            Action::PairCreate(args) => {
-                allowed(label, &["main"])?;
-                json(self.pairing_create(args)?)
-            }
-            Action::PairJoin(args) => {
-                allowed(label, &["main"])?;
-                json(self.pairing_join(args)?)
-            }
+            Action::Band(args) => json(self.band(args)?),
+            Action::PairCreate(args) => json(self.pairing_create(args)?),
+            Action::PairJoin(args) => json(self.pairing_join(args)?),
             Action::PairPoll(_) | Action::HouseWake => Err(invalid()),
-            Action::PairOffer(args) => {
-                allowed(label, &["main"])?;
-                json(self.pairing_offer(args)?)
-            }
+            Action::PairOffer(args) => json(self.pairing_offer(args)?),
             Action::PairWire(bundle) => {
                 allowed(label, &["main"])?;
                 json(self.pairing_wire(bundle)?)
             }
             Action::PairConfirm(args) => {
-                self.guard(label, token)?;
                 let pairing_id = args.pairing_id;
                 let house = self.pending.get(&pairing_id).is_some_and(|p| p.house);
                 let key_id = self.pairing_confirm(args)?;
@@ -512,7 +534,6 @@ impl Runtime {
                 // Aborting restricts (nothing is pinned, nothing is sent), so either window may
                 // do it without the capability. The approval window may end only the pairing it
                 // was opened for.
-                allowed(label, &["main", "approval"])?;
                 if label == "approval"
                     && (args.code.is_some() || args.pairing_id != self.selected_pairing)
                 {
@@ -522,7 +543,6 @@ impl Runtime {
                 json(())
             }
             Action::Preferences(preferences) => {
-                allowed(label, &["main", "tumbler"])?;
                 app(self
                     .pipeline
                     .wallet
@@ -532,8 +552,11 @@ impl Runtime {
                 json(())
             }
             Action::Withdraw(id) => {
-                if label == "approval" && self.selected != Some(id) {
-                    return Err(permission());
+                // A rescue can be dropped only before its invoice exists: once made, the deal
+                // follows PayPal's own record of it.
+                let deal = app(self.pipeline.wallet.ledger.get_deal(id))?;
+                if deal.kind == DealKind::Rescue && deal.state != DealState::Agreed {
+                    return Err(invalid());
                 }
                 self.select_signer(id)?;
                 self.pipeline.wallet.withdraw(
@@ -544,7 +567,6 @@ impl Runtime {
                 json(())
             }
             Action::LetLapse(id) => {
-                allowed(label, &["main", "tumbler"])?;
                 // The same gate the card offered: a Hold or an Authorized deal has no Let lapse.
                 if !self.attention()?.items.iter().any(|i| {
                     i.deal_id == id
@@ -562,36 +584,30 @@ impl Runtime {
                 json(())
             }
             Action::Snooze(id) => {
-                allowed(label, &["tumbler"])?;
                 let now = self.clock.now();
-                if !self.attention()?.items.iter().any(|i| {
+                let Some(item) = self.attention()?.items.into_iter().find(|i| {
                     i.deal_id == id
                         && i.kind == table_attention::AttnKind::Gate
-                        && i.deadline.is_some_and(|d| d.saturating_sub(now) > 2700)
-                }) {
+                        && table_attention::LADDER.snooze_allowed(i.deadline, now)
+                }) else {
                     return Err(invalid());
-                }
-                app(self
-                    .pipeline
-                    .wallet
-                    .ledger
-                    .set_preference(&format!("snooze.{id}"), &now.saturating_add(1800)))?;
+                };
+                self.record_rung(&item, LadderRung::Snoozed, None, now);
+                app(self.pipeline.wallet.ledger.set_preference(
+                    &format!("snooze.{id}"),
+                    &table_attention::LADDER.snooze_until(now),
+                ))?;
                 json(())
             }
             Action::Decision(args, decision) => self.decide(label, token, args, decision).await,
-            Action::Create(args) => {
-                self.guard(label, token)?;
-                json(self.create_deal(args)?)
-            }
+            Action::Create(args) => json(self.create_deal(args)?),
             Action::Join(args) => {
-                self.guard(label, token)?;
                 if args.create.side != Side::Buyer || args.create.kind != DealKind::Haggle {
                     return Err(invalid());
                 }
                 json(self.create_deal_id(args.create, args.deal_id)?)
             }
             Action::Pause => {
-                allowed(label, &["main", "tumbler"])?;
                 app(self
                     .pipeline
                     .wallet
@@ -601,12 +617,8 @@ impl Runtime {
                 self.cancel_runs()?;
                 json(())
             }
-            Action::QuitSummary => {
-                allowed(label, &["main", "tumbler"])?;
-                json(self.quit_summary()?)
-            }
+            Action::QuitSummary => json(self.quit_summary()?),
             Action::QuitConfirm(args) => {
-                allowed(label, &["main", "tumbler"])?;
                 if self.quit_summary()?.confirmation_id != args.confirmation_id {
                     return Err(invalid());
                 }
@@ -630,6 +642,40 @@ impl Runtime {
                     approve_until,
                 })
             }
+            Action::Simulate(args) => {
+                // The mandate editor lives in the approval window. Read-only and moves nothing,
+                // so no token or unlock is asked for.
+                json(self.mandate_simulate(args)?)
+            }
+            Action::EnvelopeSign(args) => {
+                // Privileged like mandate_sign: the approval label, its token, and unlocked.
+                json(self.sign_envelope(args)?)
+            }
+            Action::EnvelopeGet => {
+                // Limits and numbers only; every window shows the meters.
+                json(self.envelope_view()?)
+            }
+            Action::RescueReplay(args) => {
+                // Privileged like deal_create: it opens a deal that can lead to an invoice.
+                crate::rescue::check_replay_args(&args)?;
+                json(self.rescue_replay(args)?)
+            }
+            Action::RescueBook => {
+                // Numbers and masked addresses only; never the Tumbler.
+                json(self.rescue_book()?)
+            }
+            Action::GroupOpen(args) => {
+                // Shop around (T8): grouping only restricts, so main may do it without a token.
+                json(self.open_group(args)?)
+            }
+            Action::Groups => json(self.group_views()?),
+            Action::RescueWatchAdd(args) => {
+                // Owner configuration: which subscriptions the wallet reads for a failed renewal.
+                json(self.rescue_watch_add(args)?)
+            }
+            Action::RescueWatchStop(args) => json(self.rescue_watch_stop(&args)?),
+            // "Your safety record": the whole-ledger check, counts and findings only (main).
+            Action::SafetyRecord => json(self.safety_record()?),
         }
     }
     fn quit_summary(&mut self) -> Result<QuitSummary, CommandError> {
@@ -643,11 +689,44 @@ impl Runtime {
                         | DealState::Approved
                         | DealState::Authorized
                         | DealState::Mismatch
-                ) || d.shield.is_some_and(|v| v >= ShieldVerdict::Hold)
+                ) || (d.shield_held()
+                    // A refused or withdrawn deal is no pending decision, whatever its verdict.
+                    && !d.state.terminal())
             })
             .collect::<Vec<_>>();
         let pending = pending_deals.iter().map(|d| d.id).collect::<Vec<_>>();
-        let bytes = canonical_bytes(&pending_deals).map_err(|_| invalid())?;
-        Ok(QuitSummary{confirmation_id:H256::digest(&bytes),pending,on_quit:"Agents stop. Polling and wallet deadline processing stop. Nothing is paid. PayPal-side windows expire on their own without capture.".into()})
+        // Quitting stops the scheduler, so every money step the forecast holds will not happen
+        // while the wallet is off. An unreadable forecast leaves only the general sentence.
+        let lines = match self.forecast(self.clock.now()) {
+            Ok(forecast) => {
+                let mut sources = Vec::with_capacity(pending_deals.len());
+                for deal in &pending_deals {
+                    sources.push(table_attention::QuitSource {
+                        deal_id: deal.id,
+                        display_number: app(self.pipeline.wallet.ledger.display_number(deal.id))?,
+                        state: deal.state,
+                        side: deal.side,
+                        amount: deal.terms.amount().map_err(table_app::Error::from)?,
+                    });
+                }
+                Some(table_attention::quit_lines(&sources, &forecast))
+            }
+            Err(_) => None,
+        };
+        let on_quit = table_attention::quit::ON_QUIT.to_owned();
+        let (while_off, at_paypal) = match lines {
+            Some(l) => (Some(l.while_off), Some(l.at_paypal)),
+            None => (None, None),
+        };
+        // The confirmation binds everything the confirm shows, not only the deals.
+        let bytes = canonical_bytes(&(&pending_deals, &while_off, &at_paypal, &on_quit))
+            .map_err(|_| invalid())?;
+        Ok(QuitSummary {
+            confirmation_id: H256::digest(&bytes),
+            pending,
+            on_quit,
+            while_off,
+            at_paypal,
+        })
     }
 }

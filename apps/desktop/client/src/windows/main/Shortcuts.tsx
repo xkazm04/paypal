@@ -15,7 +15,9 @@ const GROUPS: readonly { title: string; keys: Keys }[] = [
   ] },
   { title: 'The Table (home)', keys: [
     [['←', '→'], 'Turn the dial (or scroll)'],
+    [['↑', '↓'], 'Previous or next decision that needs you'],
     [['Enter'], 'Open the highlighted part'],
+    [['R'], 'Rewind the week: replay who decided each payment (Space plays, Esc returns)'],
   ] },
   { title: 'Tables', keys: [
     [['↑', '↓'], 'Move your price limit (Shift: 5 steps, Page Up/Down: 10)'],

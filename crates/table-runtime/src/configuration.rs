@@ -317,6 +317,9 @@ impl Runtime {
             engines,
             credentials,
             agents,
+            market_watch: self.market_watch_facts()?,
+            owner_key_id: table_proto::key_id(&self.pipeline.wallet.owner_public_key())
+                .map_err(|_| unavailable("Owner key unavailable"))?,
         })
     }
     /// The audit chain for Book, newest first, projected to closed facts.
@@ -362,12 +365,14 @@ impl Runtime {
         Ok(AuditPage { rows, next_before })
     }
 
-    pub(crate) fn sign_mandate(
-        &mut self,
+    /// The unsigned payload `mandate_sign` would sign for these args; `mandate_simulate` replays
+    /// the very same payload.
+    pub(crate) fn draft_payload(
+        &self,
         args: MandateSignArgs,
-    ) -> Result<OpenMandate, CommandError> {
+    ) -> Result<MandatePayload, CommandError> {
         let id = args.id.unwrap_or_else(|| MandateId(ulid::Ulid::new()));
-        let payload = MandatePayload {
+        Ok(MandatePayload {
             id,
             version: app(self.pipeline.wallet.ledger.next_mandate_version(id))?,
             agent_key: existing_signing_key(self.vault.as_ref(), args.agent.key_name())
@@ -377,7 +382,14 @@ impl Runtime {
             clauses: args.clauses,
             not_before: args.not_before,
             expires: args.expires,
-        };
+        })
+    }
+
+    pub(crate) fn sign_mandate(
+        &mut self,
+        args: MandateSignArgs,
+    ) -> Result<OpenMandate, CommandError> {
+        let payload = self.draft_payload(args)?;
         // A policy rule's refusal is an answer for the owner, not a ledger fault: it travels as
         // REFUSED with its reason. verify_mandate_signature stays the fail-closed backstop.
         payload.validate().map_err(table_app::Error::from)?;

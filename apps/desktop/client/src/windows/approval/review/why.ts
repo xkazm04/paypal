@@ -36,6 +36,9 @@ export type WhyFacts = {
   askAbove: Money | null;
   /** From highPriceWord(). */
   highPrice: string | null;
+  /** The rule that decided the scam check's verdict, in plain words (Deal.shield_rule from the
+   *  wallet core, worded by shieldRuleWord); null when none is recorded. */
+  shieldRule?: string | null;
 };
 
 // ---- the answer sentence ------------------------------------------------------------------------
@@ -73,7 +76,8 @@ export function answerWhy(i: AnswerWhyInput): WhyAnswer | null {
     return {
       question: 'Why was this paused?',
       lines: [
-        seen.length ? `The wallet doesn’t say which check paused it. What you can see: ${seen.join(' and ')}.` : 'The wallet doesn’t say which check paused it, and nothing else on this page explains it.',
+        i.shieldRule ? `The scam check paused it: ${i.shieldRule.charAt(0).toLowerCase()}${i.shieldRule.slice(1)}`
+          : seen.length ? `The wallet doesn’t say which check paused it. What you can see: ${seen.join(' and ')}.` : 'The wallet doesn’t say which check paused it, and nothing else on this page explains it.',
         'Unpausing pays nothing: it turns “Paused for you” into “Check with you”, and you still approve the payment itself.',
       ],
     };
@@ -115,7 +119,7 @@ export function answerWhy(i: AnswerWhyInput): WhyAnswer | null {
         question: 'Why is this my call?',
         lines: [
           'A fix that invoices a subscriber only runs on your approval, never on an agent’s.',
-          d.mode === 'replay' ? 'This is a replay, so approving runs recorded steps and invoices nothing real.' : i.unavailable ? i.unavailable : `Approving sends one ${total} PayPal invoice to this subscriber.`,
+          i.unavailable ? i.unavailable : d.mode === 'replay' ? `Approving sends one real ${total} PayPal invoice; the failure is a replay, so it is never counted.` : `Approving sends one ${total} PayPal invoice to this subscriber.`,
         ],
       };
     case 'release':
@@ -141,12 +145,12 @@ export function rowWhy(row: DiffRow, state: CheckState, f: WhyFacts): WhyAnswer 
   switch (row.id) {
     case 'shield':
     case 'rule': {
-      if (row.rel === '≠') return { question: 'Why was this blocked?', lines: ['A scam check blocked this payment.', 'A block can’t be overridden, here or anywhere, and no money moved.'] };
+      if (row.rel === '≠') return { question: 'Why was this blocked?', lines: [f.shieldRule ? `A scam check blocked this payment. ${f.shieldRule}` : 'A scam check blocked this payment.', 'A block can’t be overridden, here or anywhere, and no money moved.'] };
       if (row.rel === '!' || row.id === 'rule') {
         return {
           question: 'Why is the scam check paused?',
           lines: [
-            'The scam check paused this payment before PayPal was asked.',
+            f.shieldRule ? `The scam check paused this payment before PayPal was asked. ${f.shieldRule}` : 'The scam check paused this payment before PayPal was asked.',
             f.phase === 'mismatch' ? 'The deal also stopped on the amount, so nothing can be paid either way.' : 'Unpausing pays nothing; it only lets the request go on to your own approval.',
           ],
         };

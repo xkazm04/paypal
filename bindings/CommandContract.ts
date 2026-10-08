@@ -18,11 +18,17 @@ import type { DealArgs } from "./DealArgs";
 import type { DealCreateArgs } from "./DealCreateArgs";
 import type { DealDisplay } from "./DealDisplay";
 import type { DealEvidence } from "./DealEvidence";
+import type { DealGroupOpenArgs } from "./DealGroupOpenArgs";
+import type { DealGroupView } from "./DealGroupView";
+import type { DealHistory } from "./DealHistory";
+import type { DealHistoryArgs } from "./DealHistoryArgs";
 import type { DealId } from "./DealId";
 import type { DealJoinArgs } from "./DealJoinArgs";
 import type { DecisionArgs } from "./DecisionArgs";
 import type { EngineInfo } from "./EngineInfo";
 import type { EngineSelectArgs } from "./EngineSelectArgs";
+import type { EnvelopeSignArgs } from "./EnvelopeSignArgs";
+import type { ExposureView } from "./ExposureView";
 import type { FormArgs } from "./FormArgs";
 import type { HouseState } from "./HouseState";
 import type { KeyId } from "./KeyId";
@@ -30,6 +36,8 @@ import type { MainRoute } from "./MainRoute";
 import type { MandateListEntry } from "./MandateListEntry";
 import type { MandateRevokeArgs } from "./MandateRevokeArgs";
 import type { MandateSignArgs } from "./MandateSignArgs";
+import type { MandateSimulateArgs } from "./MandateSimulateArgs";
+import type { MandateSimulation } from "./MandateSimulation";
 import type { MarketRef } from "./MarketRef";
 import type { MarketRefreshArgs } from "./MarketRefreshArgs";
 import type { OpenMandate } from "./OpenMandate";
@@ -47,8 +55,15 @@ import type { ProofReport } from "./ProofReport";
 import type { QuitArgs } from "./QuitArgs";
 import type { QuitSummary } from "./QuitSummary";
 import type { ReconcileArgs } from "./ReconcileArgs";
+import type { RescueBook } from "./RescueBook";
+import type { RescueReplayArgs } from "./RescueReplayArgs";
+import type { RescueWatchArgs } from "./RescueWatchArgs";
+import type { RescueWatchStopArgs } from "./RescueWatchStopArgs";
+import type { RescueWatchView } from "./RescueWatchView";
 import type { RunSnapshot } from "./RunSnapshot";
+import type { SafetyRecord } from "./SafetyRecord";
 import type { SettingsSnapshot } from "./SettingsSnapshot";
+import type { SignedEnvelope } from "./SignedEnvelope";
 import type { Snap } from "./Snap";
 import type { TranscriptStep } from "./TranscriptStep";
 import type { TumblerPreferences } from "./TumblerPreferences";
@@ -62,4 +77,48 @@ deal_export_proof: Command<DealArgs, boolean>,
 /**
  * Checks a proof file the owner picks in a native open dialog; null if cancelled.
  */
-proof_check: Command<null, ProofReport | null>, };
+proof_check: Command<null, ProofReport | null>, 
+/**
+ * Who decided each money step: the verified audit chain as closed steps (main only).
+ */
+deal_history: Command<DealHistoryArgs, DealHistory>, 
+/**
+ * What-if before signing: a draft replayed over recorded deals. Read-only, approval only.
+ */
+mandate_simulate: Command<MandateSimulateArgs, MandateSimulation>, 
+/**
+ * Signs the wallet-wide limits with the owner key (approval window, privileged).
+ */
+envelope_sign: Command<EnvelopeSignArgs, SignedEnvelope>, 
+/**
+ * The wallet-wide limits and live exposure numbers only (main, tumbler, approval).
+ */
+envelope_get: Command<null, ExposureView>, 
+/**
+ * Records a failed renewal as a labelled replay and opens its rescue (approval, privileged).
+ */
+rescue_replay: Command<RescueReplayArgs, Deal>, 
+/**
+ * Every rescue and the recovered money, read from the wallet (main and approval).
+ */
+rescue_book: Command<null, RescueBook>, 
+/**
+ * Shop around (T8): groups open buyer tables for one item; first to agree wins (main).
+ */
+deal_group_open: Command<DealGroupOpenArgs, DealGroupView>, 
+/**
+ * Every shop-around group with each seller's latest signed price (main).
+ */
+deal_groups: Command<null, Array<DealGroupView>>, 
+/**
+ * Watches one of the owner's subscriptions for a failed renewal (approval, privileged).
+ */
+rescue_watch_add: Command<RescueWatchArgs, Array<RescueWatchView>>, 
+/**
+ * Stops watching one subscription (approval, privileged).
+ */
+rescue_watch_stop: Command<RescueWatchStopArgs, Array<RescueWatchView>>, 
+/**
+ * "Your safety record": the whole-ledger money-authority check on the owner's ledger (main).
+ */
+safety_record: Command<null, SafetyRecord>, };

@@ -3,7 +3,7 @@ use crate::{
     AuditEntry, Direction, Ledger, LedgerError, audit,
     repositories::{append_verified, apply, read_deal},
 };
-use rusqlite::{TransactionBehavior, params};
+use rusqlite::{Connection, TransactionBehavior, params};
 use table_core::*;
 use table_proto::{Body, ReceiptStatus, VerifiedEnvelope};
 // Same local identifier policy as table-paypal::ResourceId. Peer prose must not
@@ -15,7 +15,40 @@ fn paypal_identifier(id: &str) -> bool {
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
 }
+fn paired_via_house(conn: &Connection, deal: &Deal) -> Result<bool, LedgerError> {
+    Ok(conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM counterparties WHERE key_id=?1 AND paired_via='house')",
+        [deal.counterparty.as_str()],
+        |r| r.get(0),
+    )?)
+}
+/// How long past its recorded deadline a deal waits before the safe default lets it lapse.
+/// Zero, except for a buyer deal paired with the HOUSE whose order is out for approval: the
+/// HOUSE may see the approval in the last seconds of its window and then authorize, capture and
+/// relay its RECEIPT, so this wallet waits [`HOUSE_RECEIPT_GRACE_SECS`] more for it. The recorded
+/// deadline (the person's approval countdown) is unchanged; waiting moves no money.
+pub(crate) fn lapse_grace(conn: &Connection, deal: &Deal) -> Result<i64, LedgerError> {
+    let awaiting = deal.side == Side::Buyer
+        && matches!(
+            deal.state,
+            DealState::AwaitingApproval | DealState::Approved
+        );
+    Ok(if awaiting && paired_via_house(conn, deal)? {
+        HOUSE_RECEIPT_GRACE_SECS
+    } else {
+        0
+    })
+}
 impl Ledger {
+    /// When the deal's safe default applies: its recorded deadline plus [`lapse_grace`]; `None`
+    /// when the deal has no deadline.
+    pub fn lapse_at(&self, id: DealId) -> Result<Option<Timestamp>, LedgerError> {
+        let Some((due, _)) = self.deadline(id)? else {
+            return Ok(None);
+        };
+        let deal = read_deal(&self.conn, id)?;
+        Ok(Some(due.saturating_add(lapse_grace(&self.conn, &deal)?)))
+    }
     pub fn accept_buyer_settle(
         &mut self,
         verified: &VerifiedEnvelope,
@@ -43,7 +76,8 @@ impl Ledger {
             || table_proto::validate_settle(&e.body, deal.id, &deal.terms, deal.mode).is_err()
         {
             tx.execute(
-                "UPDATE deals SET shield_verdict='HOLD' WHERE id=?1",
+                // A raised HOLD with no rule (a mismatch is never released); a BLOCK stays.
+                "UPDATE deals SET shield_verdict=CASE WHEN shield_verdict='BLOCK' THEN 'BLOCK' ELSE 'HOLD' END,shield_rule=CASE WHEN shield_verdict='BLOCK' THEN shield_rule END,shield_terms=CASE WHEN shield_verdict='BLOCK' THEN shield_terms END,shield_release_json=NULL WHERE id=?1",
                 [deal.id.to_string()],
             )?;
             apply(&tx, deal.id, DealEvent::Mismatch, at)?;
@@ -67,7 +101,14 @@ impl Ledger {
         )?;
         apply(&tx, deal.id, DealEvent::BeginSettlement, at)?;
         apply(&tx, deal.id, DealEvent::SettleVerified, at)?;
-        tx.execute("INSERT INTO deadlines(deal_id,due_at) VALUES (?1,?2) ON CONFLICT(deal_id) DO UPDATE SET due_at=excluded.due_at",params![deal.id.to_string(),e.iat.saturating_add(6*3600)])?;
+        // A seller paired through the HOUSE release pin lets its order lapse sooner
+        // (HOUSE_APPROVAL_SECS), so this wallet's countdown matches the seller's.
+        let window = if paired_via_house(&tx, &deal)? {
+            HOUSE_APPROVAL_SECS
+        } else {
+            ORDER_APPROVAL_SECS
+        };
+        tx.execute("INSERT INTO deadlines(deal_id,due_at) VALUES (?1,?2) ON CONFLICT(deal_id) DO UPDATE SET due_at=excluded.due_at",params![deal.id.to_string(),e.iat.saturating_add(window)])?;
         tx.commit()?;
         Ok(())
     }
@@ -142,7 +183,58 @@ impl Ledger {
                 "mismatch" => Reconciliation::Mismatch,
                 _ => return Err(LedgerError::Integrity("reconciliation")),
             },
+            money_check: self.money_check(id)?,
+            house_record: self.house_record(id)?,
+            fair_price: self.fair_price(id)?,
         })
+    }
+    /// The deal's fair-price certificate (market-data-2), computed again from the wallet's own
+    /// hash-chained rows: the market record its agreement row committed to, re-checked from
+    /// the kept comparables; before agreement, the latest market price.
+    pub fn fair_price(&self, id: DealId) -> Result<Option<table_core::FairPrice>, LedgerError> {
+        let deal = read_deal(&self.conn, id)?;
+        let mut statement = self.conn.prepare(
+            "SELECT action,detail_json FROM audit_log WHERE deal_id=?1 AND action IN ('deal.transition','market.observed') ORDER BY seq",
+        )?;
+        let rows = statement
+            .query_map([id.to_string()], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        let parsed: Vec<(String, serde_json::Value)> = rows
+            .into_iter()
+            .map(|(action, detail)| {
+                (
+                    action,
+                    serde_json::from_str(&detail).unwrap_or(serde_json::Value::Null),
+                )
+            })
+            .collect();
+        let found = table_core::market_rows(
+            parsed
+                .iter()
+                .map(|(action, detail)| (action.as_str(), detail)),
+        );
+        Ok(table_core::fair_price(
+            found.commitment.as_ref(),
+            &found.observed,
+            if found.agreed {
+                None
+            } else {
+                deal.market.as_ref()
+            },
+            deal.terms.unit_price,
+        )
+        .or_else(|| {
+            // Agreed with no market price at the time: the latest one, if any, is not what the
+            // deal was bargained on, so it is shown uncommitted.
+            found
+                .agreed
+                .then(|| {
+                    table_core::fair_price(None, &[], deal.market.as_ref(), deal.terms.unit_price)
+                })
+                .flatten()
+        }))
     }
     /// Only own-account reporting can promote seller attestation. This grants no payment authority.
     pub fn confirm_reporting(

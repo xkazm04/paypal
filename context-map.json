@@ -307,7 +307,9 @@
             "crates/table-mcp/tests/server.rs",
             "crates/table-shield/Cargo.toml",
             "crates/table-shield/src/lib.rs",
-            "prompts/negotiator.md",
+            "prompts/buyer-haggler.md",
+            "prompts/seller-counter.md",
+            "prompts/shop-assistant.md",
             "prompts/shield.md",
             "prompts/shopper.md"
           ]

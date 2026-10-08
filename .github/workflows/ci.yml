@@ -30,6 +30,8 @@ jobs:
           command: check
   rust:
     strategy:
+      # One OS failing must not cancel the other: each leg reports its own failures.
+      fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
@@ -52,4 +54,40 @@ jobs:
           components: rustfmt, clippy
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo test --workspace
+      # With TABLE_EVIDENCE_DIR set, the H6 golden run writes its signed proof file and the
+      # hostile-agent gauntlet its summary there (ops-and-delivery-1 safety dossier).
+      - run: cargo test --workspace --no-fail-fast
+        env:
+          TABLE_EVIDENCE_DIR: ${{ github.workspace }}/safety-dossier
+      # Which test carries which §13 / window acceptance ID; fails while a never-cut ID has none.
+      - name: Acceptance matrix
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          mkdir -p safety-dossier
+          cargo test --workspace -- --list 2>&1 \
+            | cargo run -q -p table-verify --bin acceptance-matrix \
+            | tee safety-dossier/acceptance-matrix.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify the safety dossier offline
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(safety-dossier/*.tableproof)
+          test ${#files[@]} -gt 0
+          for f in "${files[@]}"; do
+            cargo run -q -p table-verify --bin table-verify -- "$f" | tee "${f%.tableproof}.verify.txt"
+          done
+          {
+            echo '## Safety dossier'
+            echo
+            echo '```'
+            cat safety-dossier/gauntlet.txt safety-dossier/*.verify.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: safety-dossier
+          path: safety-dossier/
+          if-no-files-found: error

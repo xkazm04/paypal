@@ -17,7 +17,7 @@ import type { Role } from '@bindings/Role';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import type { TranscriptType } from '@bindings/TranscriptType';
 import { formatMinor, formatMoney } from '../../../lib/format';
-import { MILESTONES, milestoneOf, RULE_NAME, ruleNameOf, type Milestone } from '../../../lib/words';
+import { houseWords, MILESTONES, milestoneOf, RULE_NAME, ruleNameOf, type Milestone } from '../../../lib/words';
 import { canWithdraw, clauseText, dealTotal, decidedBy, isTerminal, pathFor, stateLabel } from '../logic';
 
 // ---- the state strip ---------------------------------------------------------------------------
@@ -31,7 +31,7 @@ const OFF: ReadonlySet<DealState> = new Set(['WITHDRAWN', 'EXPIRED', 'VOIDED', '
 /** Last happy-path step a terminal state is known to have reached (mirrors logic.ts). */
 const BRANCH_AFTER: Partial<Record<DealState, DealState>> = { VOIDED: 'AUTHORIZED', AUTO_VOIDED: 'AUTHORIZED', REFUNDED: 'CAPTURED', DISPUTED: 'CAPTURED', MISMATCH: 'SETTLING' };
 
-type StripDeal = Pick<Deal, 'kind' | 'side' | 'state' | 'shield'>;
+type StripDeal = Pick<Deal, 'kind' | 'side' | 'state' | 'shield'> & { decided_by?: Deal['decided_by'] };
 
 /** The step label in this deal's words. A buyer haggle never sees the capture itself: the seller's
  *  wallet captures, so its CAPTURED step is the seller's attestation until a receipt arrives. */
@@ -65,7 +65,9 @@ export function mirrorStrip(d: StripDeal, opts: { needsYou?: boolean; reconcilia
   let reached = after ? path.indexOf(after) : -1;
   if (d.state === 'MISMATCH' && reached < 0) reached = path.indexOf('AGREED');
   const tone: 'bad' | 'off' = OFF.has(d.state) ? 'off' : 'bad';
-  const label = d.state === 'REFUSED' && d.shield === 'BLOCK' ? 'Blocked by a scam check' : stateLabel(d.state, d);
+  // Nobody walked away from a deal the deadline withdrew: it lapsed (the banner says the same).
+  const lapsed = d.state === 'WITHDRAWN' && d.decided_by?.type === 'safe_default';
+  const label = d.state === 'REFUSED' && d.shield === 'BLOCK' ? 'Blocked by a scam check' : lapsed ? 'Lapsed' : stateLabel(d.state, d);
   return {
     steps: path.map((s, i) => ({ key: s, label: stepLabel(d, s), status: i <= reached ? 'done' : 'todo', tone: null })),
     term: { label, tone },
@@ -124,7 +126,8 @@ export function milestones(strip: MirrorStrip): Milestones {
 
 /** The report's clause numbering (§8): ClauseRef.number uses it (clause 6 = human present). */
 export const CLAUSE_NUMBER: Record<Clause['type'], number> = {
-  roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7,
+  roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7, lever: 8,
+  market_watch: 9,
 };
 /** A rule's plain name (lib/words.ts RULE_NAME); the number stays for Details only. */
 export const CLAUSE_TITLE: Record<Clause['type'], string> = RULE_NAME;
@@ -207,6 +210,14 @@ export function readClauses(clauses: readonly Clause[], d: Pick<Deal, 'kind' | '
       }
       case 'payees':
         return { reading: 'unknown', fact: 'the payee is checked by your wallet before any payment, not on this screen' };
+      case 'lever':
+        if (d.kind !== 'rescue') return { reading: 'na', fact: 'only for failed renewals' };
+        return { reading: 'unknown', fact: 'your wallet checks the fix against this before any invoice is made' };
+      // It only keeps a typical price fresh: it never allows, asks or refuses anything.
+      case 'market_watch':
+        return c.items.some((i) => i.item_ref === d.terms.item_ref)
+          ? { reading: 'na', fact: 'keeps this item’s typical price fresh · it never approves anything' }
+          : { reading: 'na', fact: 'not for this item' };
     }
   }
 }
@@ -297,7 +308,7 @@ export type DecisionLine = { tone: 'need' | 'may' | 'calm'; chip: { tone: Tone; 
 
 export function decisionLine(d: Pick<Deal, 'state' | 'kind' | 'shield'> & Partial<Pick<Deal, 'decided_by'>>, need: Pick<AttentionItem, 'headline' | 'clause' | 'counterparty'> | undefined, mayWithdraw: boolean): DecisionLine {
   if (need) {
-    const t2 = [need.clause ? ruleNameOf(need.clause.number) : null, need.counterparty].filter(Boolean).join(' · ');
+    const t2 = [need.clause ? ruleNameOf(need.clause.number) : null, need.counterparty ? houseWords(need.counterparty) : null].filter(Boolean).join(' · ');
     return { tone: 'need', chip: { tone: 'gold', text: 'Needs you' }, t1: need.headline, t2: t2 || null };
   }
   if (mayWithdraw) return { tone: 'may', chip: { tone: 'line', text: 'You may withdraw' }, t1: 'Nothing waits for you', t2: 'withdrawing is free · it cannot move money' };
@@ -311,7 +322,9 @@ export function decisionLine(d: Pick<Deal, 'state' | 'kind' | 'shield'> & Partia
 
 /** Withdraw is offered where Rust accepts it; with an open item only when the item offers it
  *  (a haggle may always be withdrawn while it is still a table). Rust re-checks. */
-export function mayWithdraw(d: Pick<Deal, 'state' | 'kind' | 'shield'>, need: Pick<AttentionItem, 'actions'> | undefined): boolean {
+export function mayWithdraw(d: Pick<Deal, 'state' | 'kind' | 'shield'>, need: (Pick<AttentionItem, 'actions'> & Partial<Pick<AttentionItem, 'money_check'>>) | undefined): boolean {
+  // A payment step being checked with PayPal keeps the deal reserved: Rust refuses a withdraw.
+  if (need?.money_check) return false;
   return canWithdraw(d) && (!need || need.actions.includes('withdraw') || d.kind === 'haggle');
 }
 

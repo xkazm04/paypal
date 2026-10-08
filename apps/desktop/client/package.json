@@ -9,7 +9,8 @@
     "build": "tsc --noEmit -p tsconfig.json && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "takes": "node scripts/takes.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.1",

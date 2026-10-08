@@ -6,7 +6,10 @@ use crate::{
 };
 use rusqlite::{OptionalExtension, TransactionBehavior, params};
 use serde_json::{Value, json};
-use table_core::{DealEvent, DealId, DecidedBy, PaypalRefs, Timestamp};
+use table_core::{
+    DealEvent, DealId, DecidedBy, MoneyCheck, MoneyCheckState, MoneyCheckStep, PaypalRefs,
+    Timestamp,
+};
 
 /// What one resolution step found. `Confirmed` and `Absent` close the operation; `NeedsOwner`
 /// parks it until the owner decides; `Resent` and `Deferred` leave it open.
@@ -69,6 +72,8 @@ fn operation_name(raw: &str) -> Result<&'static str, LedgerError> {
         "authorize" => Ok("authorize"),
         "capture" => Ok("capture"),
         "void" => Ok("void"),
+        "invoice-create" => Ok("invoice-create"),
+        "invoice-send" => Ok("invoice-send"),
         _ => Err(LedgerError::Integrity("operation kind")),
     }
 }
@@ -103,7 +108,7 @@ impl Ledger {
              AND NOT EXISTS(SELECT 1 FROM operation_resolutions r WHERE r.request_id=o.request_id AND r.outcome IN ('confirmed','absent'))
              AND (?2 IS NULL OR o.deal_id=?2)
              ORDER BY o.started_at,o.deal_id,o.attempt,
-             CASE o.operation WHEN 'create' THEN 0 WHEN 'authorize' THEN 1 WHEN 'capture' THEN 2 ELSE 3 END",
+             CASE o.operation WHEN 'create' THEN 0 WHEN 'authorize' THEN 1 WHEN 'capture' THEN 2 WHEN 'void' THEN 3 WHEN 'invoice-create' THEN 4 ELSE 5 END",
         )?;
         let rows =
             statement.query_map(params![stale_before, deal.map(|d| d.to_string())], |r| {
@@ -224,6 +229,42 @@ impl Ledger {
         )?;
         tx.commit()?;
         Ok(())
+    }
+    /// What the owner sees about the deal's oldest open money operation (every `unknown` row and
+    /// every `pending` one, a live call included); `None` when there is none.
+    pub fn money_check(&self, id: DealId) -> Result<Option<MoneyCheck>, LedgerError> {
+        let Some(op) = self
+            .open_operations(Some(id), Timestamp::MAX)?
+            .into_iter()
+            .next()
+        else {
+            return Ok(None);
+        };
+        Ok(Some(MoneyCheck {
+            step: MoneyCheckStep::parse(op.operation)
+                .ok_or(LedgerError::Integrity("operation kind"))?,
+            state: if op.needs_owner {
+                MoneyCheckState::Parked
+            } else {
+                MoneyCheckState::Checking
+            },
+            since: op.started_at,
+            next_check: None,
+        }))
+    }
+    /// Each recorded PayPal call of a deal as (method, path, request id), oldest first. Read-only;
+    /// lets a check prove one operation never went out under two request ids.
+    pub fn paypal_call_requests(
+        &self,
+        id: DealId,
+    ) -> Result<Vec<(String, String, String)>, LedgerError> {
+        let mut q = self.conn.prepare(
+            "SELECT method,path,request_id FROM paypal_calls WHERE deal_id=?1 ORDER BY id",
+        )?;
+        let rows = q
+            .query_map([id.to_string()], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
     }
     /// The resolution outcomes written for one request id, oldest first.
     pub fn resolutions(&self, request_id: &str) -> Result<Vec<(String, String)>, LedgerError> {

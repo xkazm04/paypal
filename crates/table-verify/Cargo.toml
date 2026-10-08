@@ -13,9 +13,15 @@ workspace = true
 [dependencies]
 table-core.workspace = true
 table-proto.workspace = true
+serde.workspace = true
 serde_json.workspace = true
 ed25519-dalek.workspace = true
 
 [[bin]]
 name = "table-verify"
 path = "src/main.rs"
+
+# CI: `cargo test --workspace -- --list 2>&1 | acceptance-matrix` (ops-and-delivery-1).
+[[bin]]
+name = "acceptance-matrix"
+path = "src/acceptance_main.rs"

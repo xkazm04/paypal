@@ -105,6 +105,23 @@ pub enum DealState {
     Refunded,
     Disputed,
 }
+/// How long the buyer has to approve an order the seller's wallet created: PayPal's default
+/// window for the payer's approval, 6 hours from creation (.research/paypal-platform.md,
+/// "Approval window" [S-spec]). Silence past it lets the deal lapse; no money moves.
+pub const ORDER_APPROVAL_SECS: i64 = 6 * 3600;
+/// The hosted HOUSE seller's approval window: 30 minutes, well inside PayPal's 6 hours. The HOUSE
+/// is a practice shop with 64 table slots, and an agreed deal holds its slot until it is paid or
+/// lapses; a person who just agreed at its table approves within minutes, so an abandoned deal
+/// now frees its slot after 30 minutes instead of 6 hours. Both the HOUSE and a buyer wallet
+/// that paired with the HOUSE through its release pin use it, so the buyer's countdown is true.
+pub const HOUSE_APPROVAL_SECS: i64 = 30 * 60;
+/// How long past [`HOUSE_APPROVAL_SECS`] a buyer wallet paired with the HOUSE waits before an
+/// order still out for approval lapses there. The HOUSE may see the approval in the last seconds
+/// of its window, then authorize, capture and relay its RECEIPT; the buyer's wallet must still be
+/// listening when it lands. The person's approval countdown still ends with the HOUSE's window;
+/// only the lapse waits, and waiting moves no money. house-seller asserts at compile time that it
+/// covers the HOUSE's slowest finish, and the HOUSE voids rather than capture when it could not.
+pub const HOUSE_RECEIPT_GRACE_SECS: i64 = 15 * 60;
 impl DealState {
     pub const fn pre_capture(self) -> bool {
         matches!(
@@ -163,6 +180,12 @@ pub enum DealEvent {
     AutoVoid,
     Refund,
     Dispute,
+    /// A failed renewal was recorded (read from PayPal, or replayed) and its one fix passed the
+    /// mandate check: the rescue deal waits at AGREED for the owner. Accepted only on a rescue.
+    RescueOpened,
+    /// PayPal confirmed the rescue invoice exists as a draft; the deal stays SETTLING until it is
+    /// sent. Nobody has been asked to pay yet.
+    InvoiceDrafted,
 }
 
 pub fn transition(state: DealState, event: DealEvent) -> Result<DealState, DomainError> {
@@ -173,6 +196,8 @@ pub fn transition(state: DealState, event: DealEvent) -> Result<DealState, Domai
         (S::Listed | S::Negotiating, E::OfferVerified) => S::Negotiating,
         (S::Negotiating, E::TwoAcceptsVerified) => S::Agreed,
         (S::Pairing, E::PurchaseCleared) => S::Agreed,
+        (S::Pairing, E::RescueOpened) => S::Agreed,
+        (S::Settling, E::InvoiceDrafted) => S::Settling,
         (S::Agreed, E::BeginSettlement) => S::Settling,
         (S::Settling, E::SettleVerified) => S::AwaitingApproval,
         (S::AwaitingApproval, E::OrderApproved) => S::Approved,
@@ -218,6 +243,99 @@ pub struct DealEvidence {
     pub deal_id: DealId,
     pub receipt: ReceiptEvidence,
     pub reconciliation: Reconciliation,
+    /// A money step whose PayPal outcome is not confirmed yet; null when there is none. Older
+    /// shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub money_check: Option<MoneyCheck>,
+    /// For a deal with the house: the house's signed record kept with the receipt and how the
+    /// house's later record compares with it; null otherwise. Older shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub house_record: Option<HouseRecord>,
+    /// The deal's price against the market prices it was bargained on, computed again from the
+    /// wallet's own record (market-data-2); null when the deal never had a market price. Older
+    /// shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub fair_price: Option<crate::FairPrice>,
+}
+/// How the house's record compares with the signed head the wallet kept with the receipt (T9).
+/// Evidence only: no state here moves or holds money.
+#[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HouseRecordState {
+    /// Kept with the receipt; not compared with a later record yet.
+    Kept,
+    /// A later signed record still contains the kept one.
+    Holds,
+    /// A later signed record is longer, but the house was not asked to prove it contains the kept
+    /// one yet.
+    Longer,
+    /// The house started a new record (for example after a disk loss).
+    Restarted,
+    /// The house's record got shorter since the receipt.
+    Shorter,
+    /// The house's record no longer contains the one it signed at the receipt.
+    Rewritten,
+}
+#[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HouseRecord {
+    pub state: HouseRecordState,
+    /// When the wallet kept the house's signed record.
+    pub kept_at: Timestamp,
+    /// Entries in the house's record at that moment.
+    pub entries: u64,
+    /// When the wallet last compared a later record; null when it has not.
+    pub checked_at: Option<Timestamp>,
+}
+/// The PayPal step a [`MoneyCheck`] is about.
+#[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MoneyCheckStep {
+    Create,
+    Authorize,
+    Capture,
+    Void,
+    /// A rescue invoice being made (a draft nobody is asked to pay yet).
+    InvoiceCreate,
+    /// A rescue invoice being sent to the subscriber.
+    InvoiceSend,
+}
+/// `Checking`: the wallet has not asked PayPal yet, or is about to ask again. `Parked`: PayPal's
+/// answer could not be read or did not settle the question, so nothing more is sent for this
+/// deal until it does; the deadline can only let the deal lapse or release a hold.
+#[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MoneyCheckState {
+    Checking,
+    Parked,
+}
+/// A money step sent to PayPal whose answer never arrived or could not be read (T10). The
+/// wallet reads PayPal's own record before anything else happens to the deal.
+#[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MoneyCheck {
+    pub step: MoneyCheckStep,
+    pub state: MoneyCheckState,
+    /// When the step was sent.
+    pub since: Timestamp,
+    /// When the wallet asks PayPal next; null when it is not scheduled.
+    pub next_check: Option<Timestamp>,
+}
+impl MoneyCheckStep {
+    pub fn parse(operation: &str) -> Option<Self> {
+        match operation {
+            "create" => Some(Self::Create),
+            "authorize" => Some(Self::Authorize),
+            "capture" => Some(Self::Capture),
+            "void" => Some(Self::Void),
+            "invoice-create" => Some(Self::InvoiceCreate),
+            "invoice-send" => Some(Self::InvoiceSend),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Error)]
@@ -272,6 +390,40 @@ pub struct Deal {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional = nullable)]
     pub decided_by: Option<DecidedBy>,
+    /// Which rule decided `shield` (a closed name, never counterparty text). Absent while nothing
+    /// was recorded, for a CLEAR, and for a hold the wallet raised on a settlement mismatch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional = nullable)]
+    pub shield_rule: Option<ShieldRule>,
+    /// The owner's release of a HOLD in the approval window, while it still applies: only for
+    /// the terms it was given for (a terms change drops it and the shield judges again). The
+    /// HOLD it covers reads as ASK in `shield`: the owner's decision is the check.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional = nullable)]
+    pub shield_release: Option<ShieldRelease>,
+}
+impl Deal {
+    /// Whether the recorded verdict stops this deal for the owner: a BLOCK, or a HOLD the owner
+    /// has not released for these terms and this rule.
+    pub fn shield_held(&self) -> bool {
+        self.shield_recorded() >= Some(ShieldVerdict::Hold) && !self.shield_released()
+    }
+    /// Whether the recorded verdict is a HOLD the owner released for these terms and its rule.
+    pub fn shield_released(&self) -> bool {
+        matches!(self.shield, Some(ShieldVerdict::Ask | ShieldVerdict::Hold))
+            && self
+                .shield_release
+                .as_ref()
+                .is_some_and(|r| r.covers(self.shield_rule))
+    }
+    /// The verdict as recorded, before the owner's release: a released HOLD is a HOLD here.
+    pub fn shield_recorded(&self) -> Option<ShieldVerdict> {
+        if self.shield_released() {
+            Some(ShieldVerdict::Hold)
+        } else {
+            self.shield
+        }
+    }
 }
 fn timestamp_unavailable(value: &Timestamp) -> bool {
     *value == 0
@@ -284,6 +436,40 @@ pub enum ShieldVerdict {
     Ask,
     Hold,
     Block,
+}
+/// The scam shield rule that decided a verdict, in the shield's own order (report §7). Closed:
+/// the deterministic rules over typed facts, and the one quarantined second opinion that can only
+/// add caution. Never derived from counterparty free text.
+#[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ShieldRule {
+    /// BLOCK: the money would go to another payee than the agreed one.
+    PayeeMismatch,
+    /// BLOCK: a request to be paid as friends and family (no buyer protection).
+    FriendsAndFamily,
+    /// ASK: no market reference recent enough to clear the price.
+    NoMarketReference,
+    /// HOLD: the unit price is more than 1.4 x the market median.
+    PriceOverMarket,
+    /// ASK: a counterparty first seen in the last 24 hours, over the threshold.
+    NewCounterpartyOverThreshold,
+    /// A raised verdict from outside the rules; it can only add caution.
+    ModelCaution,
+}
+/// The owner's release of a shield HOLD, decided in the approval window (`decided_by` human at
+/// `at`). It covers the rules it names, for the terms hash it was given for, and nothing else.
+#[derive(ts_rs::TS, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ShieldRelease {
+    pub terms_hash: crate::H256,
+    pub rules: Vec<ShieldRule>,
+    pub at: Timestamp,
+}
+impl ShieldRelease {
+    /// A hold whose rule is unknown is never covered: only a named rule can be released.
+    pub fn covers(&self, rule: Option<ShieldRule>) -> bool {
+        rule.is_some_and(|r| self.rules.contains(&r))
+    }
 }
 impl Deal {
     pub fn apply(&mut self, event: DealEvent) -> Result<(), DomainError> {

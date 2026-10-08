@@ -1,15 +1,16 @@
 // Round 2 for the Shield page (docs/ux/ROUND-2.md, experiment r2-shield): pure helpers, no React, no IPC.
 //   weekStrip     the three big tiles: checked, paused, blocked (counts from the deals the page already has)
 //   compareRows   "what's normal vs this payment", only from facts the client holds; unknown stays unknown
-//   checkLights   which of the three check groups tripped, which passed, which are not shown here
+//   checkLights   which of the three check groups tripped, which passed, which did not stop it
 //   whyFor        the two plain sentences behind a reason: deterministic, no invented number
 // The contract gives the client the shield's verdict only (see matrix.ts), so a light is never green
 // unless the client can derive that result itself from the typical price it holds. Unit-tested in normal.test.ts.
 import type { CounterpartyDisplay } from '@bindings/CounterpartyDisplay';
 import type { Deal } from '@bindings/Deal';
 import { formatMinor } from '../../../../lib/format';
+import { shieldRuleWord } from '../../../../lib/words';
 import { ledgerScope } from '../../logic';
-import { ago, checkCell, overMedian, STAGES, type ReasonKind, type Stage } from './matrix';
+import { ago, checkCell, overMedian, quietCheck, STAGES, type ReasonKind, type Stage } from './matrix';
 
 const DAY = 86400;
 /** The shield pauses a price this far above typical (percent), the same line the reasons use. */
@@ -110,19 +111,42 @@ export type LightState = 'tripped' | 'passed' | 'skipped' | 'unknown';
 export type Light = { stage: Stage; name: string; state: LightState; word: string; detail: string };
 
 /** One light per check group, in the shield's order. Only a fact the client holds can trip or pass a
- *  light; everything else is "not shown here" (dashed). A light is never green on a guess. */
-export function checkLights(d: PayeeDeal, cp: CounterpartyDisplay | undefined, now: number): Light[] {
+ *  light; a group whose own result isn't reported here stays dashed, labelled by what the deal does
+ *  record ("Didn't stop it" when another rule decided, "No alert" when the shield let it through,
+ *  "Not reported" otherwise). A light is never green on a guess. */
+export function checkLights(d: PayeeDeal & Pick<Deal, 'shield_rule'> & Partial<Pick<Deal, 'shield'>>, cp: CounterpartyDisplay | undefined, now: number): Light[] {
+  const quiet = quietCheck(d);
   const fresh = !!cp && now - cp.first_seen < DAY;
   const p = overMedian(d);
+  const rule = d.shield_rule ?? null;
+  // The rule the wallet core recorded decides which light tripped; nothing is inferred over it.
+  if (rule) {
+    const w = shieldRuleWord(rule);
+    const fixedRule = rule === 'payee_mismatch' || rule === 'friends_and_family' || rule === 'new_counterparty_over_threshold';
+    const fixed: Light = fixedRule
+      ? { stage: 'rules', name: STAGES.rules, state: 'tripped', word: w.text, detail: rule === 'new_counterparty_over_threshold' ? checkCell('newcp', d, cp, now).l : w.means }
+      : { stage: 'rules', name: STAGES.rules, state: 'unknown', word: quiet.text, detail: 'The fixed checks (payee match, friends & family, new payee) didn’t stop this payment. Their own results aren’t reported to this screen, so they aren’t marked as passed.' };
+    const price: Light = rule === 'price_over_market'
+      ? { stage: 'market', name: STAGES.market, state: 'tripped', word: 'Too high', detail: checkCell('market', d, cp, now).l }
+      : rule === 'no_market_reference'
+        ? { stage: 'market', name: STAGES.market, state: 'skipped', word: 'No price to compare', detail: checkCell('market', d, cp, now).l }
+        : p === null
+          ? { stage: 'market', name: STAGES.market, state: 'skipped', word: 'No price to compare', detail: checkCell('market', d, cp, now).l }
+          : { stage: 'market', name: STAGES.market, state: p >= PAUSE_PCT ? 'tripped' : 'passed', word: p >= PAUSE_PCT ? 'Too high' : 'Fine', detail: checkCell('market', d, cp, now).l };
+    const ai: Light = rule === 'model_caution'
+      ? { stage: 'engine', name: STAGES.engine, state: 'tripped', word: w.text, detail: w.means }
+      : { stage: 'engine', name: STAGES.engine, state: 'unknown', word: quiet.text, detail: checkCell('typology', d, cp, now).l };
+    return [fixed, price, ai];
+  }
   const fixed: Light = fresh
     ? { stage: 'rules', name: STAGES.rules, state: 'tripped', word: 'New payee', detail: checkCell('newcp', d, cp, now).l }
-    : { stage: 'rules', name: STAGES.rules, state: 'unknown', word: 'Not shown here', detail: cp ? 'This payee is not new. The other fixed checks (payee match, friends & family) do not report to this window.' : 'The wallet has no record of this payee, and the fixed checks do not report to this window.' };
+    : { stage: 'rules', name: STAGES.rules, state: 'unknown', word: quiet.text, detail: `${cp ? 'This payee is not new.' : 'The wallet has no record of this payee.'} ${quiet.means}` };
   const price: Light = p === null
     ? { stage: 'market', name: STAGES.market, state: 'skipped', word: 'No price to compare', detail: checkCell('market', d, cp, now).l }
     : p >= PAUSE_PCT
       ? { stage: 'market', name: STAGES.market, state: 'tripped', word: 'Too high', detail: checkCell('market', d, cp, now).l }
       : { stage: 'market', name: STAGES.market, state: 'passed', word: 'Fine', detail: checkCell('market', d, cp, now).l };
-  const ai: Light = { stage: 'engine', name: STAGES.engine, state: 'unknown', word: 'Not shown here', detail: checkCell('typology', d, cp, now).l };
+  const ai: Light = { stage: 'engine', name: STAGES.engine, state: 'unknown', word: quiet.text, detail: checkCell('typology', d, cp, now).l };
   return [fixed, price, ai];
 }
 
@@ -133,6 +157,9 @@ export function whyQuestion(kind: ReasonKind): string {
     case 'noprice': return 'Why does a missing typical price matter?';
     case 'newcp': return 'Why does a new payee matter?';
     case 'norecord': return 'Why does an unknown payee matter?';
+    case 'payee': return 'Why does the payee matter?';
+    case 'ff': return 'Why does friends & family matter?';
+    case 'second': return 'What is the second look?';
     case 'other': return 'Why was it paused?';
   }
 }
@@ -160,6 +187,12 @@ export function whyFor(kind: ReasonKind, d: PayeeDeal, cp: CounterpartyDisplay |
       ];
     case 'norecord':
       return ['The wallet has no record of this payee, so it cannot tell how long you have known them.', 'The shield asks you instead of guessing.'];
+    case 'payee':
+      return ['The money would go to someone other than the payee you agreed with.', 'That is how most payment scams work, so the shield blocks it for good.'];
+    case 'ff':
+      return ['A friends & family payment has no buyer protection.', 'A request to be paid that way is a common scam sign, so the shield blocks it for good.'];
+    case 'second':
+      return ['A second look at this payment asked for caution.', 'It can only make a payment safer, never approve one, and it never reads their words as instructions.'];
     case 'other':
       return ['This window receives the shield’s verdict, not which of its checks found something.', 'Nothing was sent to PayPal, and nothing moves until you decide.'];
   }

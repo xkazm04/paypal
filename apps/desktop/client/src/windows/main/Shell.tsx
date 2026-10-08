@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 import type { Module } from '@bindings/Module';
 import type { TumblerStatus } from '@bindings/TumblerStatus';
 import { useMutation } from '../../lib/hooks';
+import { readLimits } from '../../lib/limits';
 import { MockBadge, ModeBadge } from '../../shared/honesty';
 import { Glyph, MODULE, MODULES } from '../../shared/modules';
 import { Btn, Chip, Crumbs, InspectorHostProvider, Sidebar, SidebarItem, Spacer, TitleBar, useInspectorHost } from '../../shared/ui';
@@ -31,16 +32,19 @@ export function Shell({ module, crumbs, onHome, onModule, onSheet, onFind, tumbl
     <div className="ui-app shell-app" style={mc(module)}>
       <TitleBar>
         <Btn sm onClick={onHome} title="Back to The Table (Esc)">‹ The Table</Btn>
-        <Crumbs items={[{ label: 'The Table', onClick: onHome }, ...crumbs]} />
+        {/* The back button already says "The Table"; the crumbs start at the module. */}
+        <Crumbs items={crumbs} />
         <Spacer />
         {settings ? <ModeBadge mode={settings.mode} /> : null}
         <span className="tb-hide"><MockBadge /></span>
-        {settings?.meters_available && att ? (
+        {(settings?.meters_available || att?.exposure) && att ? (
           <>
-            <SpendMeter minor={att.wallet_spend_today_minor} currency={att.wallet_spend_today_currency} />
-            <div className="tb-meter eng" title="What your agent app estimates its AI usage cost today. An estimate, not a bill, and never used for money decisions.">
-              <b>~${att.engine_estimate_today_usd.toFixed(2)}</b><span>AI usage, estimate</span>
-            </div>
+            <SpendMeter att={att} />
+            {settings?.meters_available ? (
+              <div className="tb-meter eng" title="What your agent app estimates its AI usage cost today. An estimate, not a bill, and never used for money decisions.">
+                <b>~${att.engine_estimate_today_usd.toFixed(2)}</b><span>AI usage, estimate</span>
+              </div>
+            ) : null}
           </>
         ) : settings ? (
           <Chip tone="dashed" title="Today’s spend and AI usage appear here once the wallet can count them.">spend not counted yet</Chip>
@@ -85,8 +89,17 @@ export function moduleName(m: Module): string {
   return MODULE[m].name;
 }
 
-function SpendMeter({ minor, currency }: { minor: number; currency: Parameters<typeof spendToday>[1] }) {
-  const sp = spendToday(minor, currency);
+function SpendMeter({ att }: { att: NonNullable<ReturnType<typeof useWorld>['attention']['data']> }) {
+  // With the wallet's exposure (T14): today's money out against the signed limit, gold near it.
+  const out = readLimits(att.exposure)?.meters.find((m) => m.key === 'out');
+  if (out) {
+    return (
+      <div className={`tb-meter${out.near ? ' near' : ''}`} title={out.why}>
+        <b>{out.value}</b><span>paid out today{out.of ? ` · ${out.of}` : ''}</span>
+      </div>
+    );
+  }
+  const sp = spendToday(att.wallet_spend_today_minor, att.wallet_spend_today_currency);
   return (
     <div className={`tb-meter ${sp.exact ? '' : 'unknown'}`} title={sp.why ?? 'What your agents committed today'}>
       <b>{sp.text}</b><span>spent today</span>

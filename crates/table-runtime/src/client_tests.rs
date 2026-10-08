@@ -286,7 +286,7 @@ async fn mandate_list_resolves_every_slot_from_the_pinned_key() {
     assert!(http.0.lock().unwrap().paths.is_empty());
 }
 
-fn counter(r: &mut Runtime, deal: &Deal, peer: &AgentSigner, price: i64) {
+pub(super) fn counter(r: &mut Runtime, deal: &Deal, peer: &AgentSigner, price: i64) {
     let current = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap();
     let mut nonce = [0; 16];
     getrandom::fill(&mut nonce).unwrap();
@@ -331,7 +331,7 @@ fn counter(r: &mut Runtime, deal: &Deal, peer: &AgentSigner, price: i64) {
         )
         .unwrap();
 }
-fn note(r: &mut Runtime, deal: &Deal, peer: &AgentSigner, text: &str) {
+pub(super) fn note(r: &mut Runtime, deal: &Deal, peer: &AgentSigner, text: &str) {
     let current = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap();
     let mut nonce = [0; 16];
     getrandom::fill(&mut nonce).unwrap();
@@ -366,7 +366,7 @@ fn note(r: &mut Runtime, deal: &Deal, peer: &AgentSigner, text: &str) {
         )
         .unwrap();
 }
-fn negotiating() -> (Runtime, Deal, AgentSigner, Arc<OfflineHttp>, Arc<TestClock>) {
+pub(super) fn negotiating() -> (Runtime, Deal, AgentSigner, Arc<OfflineHttp>, Arc<TestClock>) {
     let (mut r, _, http, clock, _) = runtime(true);
     let (deal, peer) = setup(&mut r, Side::Buyer);
     counter(&mut r, &deal, &peer, 1200);
@@ -411,6 +411,7 @@ fn owner_args(r: &mut Runtime, id: DealId) -> DecisionArgs {
         attempt: s.attempt,
         terms_hash: s.terms_hash,
         counter_hash: s.counter_hash,
+        checks_hash: Some(s.checks_hash),
     }
 }
 
@@ -940,6 +941,20 @@ async fn owner_facts_and_audit_pages_are_read_only_closed_and_label_scoped() {
     .unwrap();
     let facts = r.owner_facts().unwrap();
     assert!(facts.locked && facts.lock_in.is_none());
+    // The owner's own key id, whole: the anchor a proof file's owner key is compared with.
+    let owner = crate::vault::existing_signing_key(r.vault.as_ref(), "owner").unwrap();
+    assert_eq!(
+        facts.owner_key_id,
+        table_proto::key_id(&owner.verifying_key()).unwrap()
+    );
+    assert_eq!(facts.owner_key_id.as_str().len(), 64);
+    assert!(
+        facts
+            .owner_key_id
+            .as_str()
+            .bytes()
+            .all(|b| b.is_ascii_hexdigit())
+    );
     assert!(facts.last_reporting_poll.is_none());
     let creds: Vec<_> = facts
         .credentials
@@ -982,6 +997,9 @@ async fn owner_facts_and_audit_pages_are_read_only_closed_and_label_scoped() {
     clock.0.fetch_add(840, Ordering::SeqCst);
     assert!(r.owner_facts().unwrap().locked);
 
+    // The actor's attention read records the rungs the owner is shown (attention-ladder-1); the
+    // clock stands still, so one read records them all before the count.
+    r.attention().unwrap();
     let total = r.pipeline.wallet.ledger.audit_count().unwrap();
     let (actor, _) = spawn(r);
     for label in ["tumbler", "approval"] {
@@ -1063,7 +1081,10 @@ async fn owner_facts_and_audit_pages_are_read_only_closed_and_label_scoped() {
 
 #[tokio::test]
 async fn owner_book_query_is_closed_main_only_and_rejections_are_verbatim_invalid() {
-    let (r, deal, _, http, _) = negotiating();
+    let (mut r, deal, _, http, _) = negotiating();
+    // The actor's attention read records the rungs the owner is shown (attention-ladder-1); the
+    // clock stands still, so one read records them all before the count.
+    r.attention().unwrap();
     let audit_before = r.pipeline.wallet.ledger.audit_count().unwrap();
     let amount = r
         .pipeline

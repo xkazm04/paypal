@@ -2,14 +2,15 @@
 // the current form's exact logical pixels, anchored at the puck corner - what the native window
 // does in the shell. The controls simulate what the Rust core would emit; they are labelled as
 // such and never ship in the desktop window (App.tsx loads this module only for the mock).
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import type { AttentionItem } from '@bindings/AttentionItem';
-import type { AttentionSnapshot } from '@bindings/AttentionSnapshot';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { Form } from '@bindings/Form';
-import { useEvent } from '../../../lib/hooks';
+import { clockOffset } from '../../../lib/clock';
+import { useEvent, useNow } from '../../../lib/hooks';
 import { backend } from '../../../lib/runtime';
 import { MockBadge } from '../../../shared/honesty';
-import { mockInject, resetMockState } from '../../../mock/backend';
+import { mockInject, resetMockState, type MockBackend } from '../../../mock/backend';
+import { runActions, type Action, type Stage } from '../../../director/actions';
+import { helpers as pv } from '../../../director/helpers';
 import { FORM_SIZE } from '../logic';
 import { Tumbler } from '../Tumbler';
 import './preview.css';
@@ -21,17 +22,6 @@ const GAP = 16;
 /** Inject a Rust-shaped event through the mock (it routes it to its target windows). */
 const simulate = mockInject;
 const setForm = (form: Form) => void backend().invoke('tumbler_set_form', { form });
-const nowUnix = () => Math.floor(Date.now() / 1000);
-
-async function patchSnapshot(fn: (s: AttentionSnapshot) => AttentionSnapshot): Promise<AttentionSnapshot> {
-  const s = fn(await backend().invoke('attention_list', null));
-  simulate('attention:changed', s);
-  return s;
-}
-const withItem = (s: AttentionSnapshot, label: string, fn: (i: AttentionItem) => AttentionItem): AttentionSnapshot => ({
-  ...s,
-  items: s.items.map((i) => (i.label === label ? fn(i) : i)).sort((a, b) => (a.deadline ?? Infinity) - (b.deadline ?? Infinity)),
-});
 
 export default function Preview() {
   const [form, setFormState] = useState<Form>('rest');
@@ -39,8 +29,11 @@ export default function Preview() {
   const [open, setOpen] = useState(true);
   const [locked, setLocked] = useState(false);
   const [needs, setNeeds] = useState(0);
-  const [clock, setClock] = useState(() => new Date());
+  const now = useNow();
   const [log, setLog] = useState<string[]>([]);
+  // The controls are the director's beat helpers (director/helpers.ts) run on this window's mock.
+  const stage = useMemo<Stage>(() => ({ world: (backend() as MockBackend).world, form: setForm, main: () => {}, approval: () => {} }), []);
+  const run = (actions: Action[]) => runActions(stage, actions);
   // every tumbler:form re-sends this stage's orientation (the mock's own placement is a stub)
   const [formSeq, setFormSeq] = useState(0);
   const deskRef = useRef<HTMLDivElement>(null);
@@ -53,8 +46,6 @@ export default function Preview() {
   useEvent('attention:changed', (s) => setNeeds(s.items.length));
   useEffect(() => {
     void backend().invoke('attention_list', null).then((s) => setNeeds(s.items.length));
-    const t = setInterval(() => setClock(new Date()), 15_000);
-    return () => clearInterval(t);
   }, []);
 
   const [w, h] = FORM_SIZE[form];
@@ -116,42 +107,26 @@ export default function Preview() {
         <span className="apps"><i className="a1" /><i className="a2" /><i className="a3" /><i className="a4 on" /></span>
         <span className="tray">
           <span className="wal">◎{needs ? <i className="dot" /> : null}</span>
-          <span className="clk">{clock.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+          <span className="clk">{new Date(now * 1000).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
         </span>
       </nav>
 
       <aside className={`pv-ctl${open ? '' : ' closed'}${corner === 'tl' ? ' right' : ''}`} aria-label="Preview controls, not part of the product">
         <button className="ph" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          <span><b>Preview controls</b><em>simulate what Rust emits · not part of the product</em></span>
+          <span><b>Preview controls</b><em>simulate what the wallet sends · not part of the product</em></span>
           <span className="tog">{open ? 'hide' : 'show'}</span>
         </button>
         {open ? (
           <div className="body">
             <div className="grp">
               <h4>Windows</h4>
-              {ctl('The Table closed (first time)', 'Rust shows the welcome form', () => setForm('welcome'))}
-              {ctl('Dock to screen edge', 'as a snap to the edge would: tab form', () => setForm('tab'))}
-              {ctl('Undock', 'as a drag back into free space: rest', () => setForm('rest'))}
-              {ctl('PayPal opened in browser', 'tumbler:handoff for D-0193 (approve window) + hand-off form', () =>
-                void backend().invoke('attention_list', null).then((s) => {
-                  const d = s.items.find((i) => i.label === 'D-0193' && i.kind === 'gate') ?? s.items.find((i) => i.kind === 'gate');
-                  if (!d) return;
-                  simulate('tumbler:handoff', { deal_id: d.deal_id, approve_until: d.deadline ?? nowUnix() + 3600 });
-                  setForm('handoff');
-                }))}
-              {ctl('…with ≤ 15 min to approve', 'tumbler:handoff, approve_until in 12 min', () =>
-                void backend().invoke('attention_list', null).then((s) => {
-                  const d = s.items.find((i) => i.label === 'D-0193' && i.kind === 'gate') ?? s.items.find((i) => i.kind === 'gate');
-                  if (!d) return;
-                  simulate('tumbler:handoff', { deal_id: d.deal_id, approve_until: nowUnix() + 12 * 60 });
-                  setForm('handoff');
-                }))}
-              {ctl('Hand-off form only', 'older shell: no tumbler:handoff, stays generic', () => setForm('handoff'))}
-              {ctl('Simulate: PayPal APPROVED (polled)', 'receipt for D-0193', () =>
-                void backend().invoke('attention_list', null).then((s) => {
-                  const d = s.items.find((i) => i.label === 'D-0193');
-                  if (d) simulate('receipt:created', { deal_id: d.deal_id, evidence: { deal_id: d.deal_id, receipt: 'NONE', reconciliation: 'not_applicable' }, mode: d.mode, state: 'APPROVED', on_silence: 'approved on PayPal · polled, never the redirect' });
-                }))}
+              {ctl('The Table closed (first time)', 'the wallet shows the welcome form', () => run(pv.tableClosedFirstTime()))}
+              {ctl('Dock to screen edge', 'as a snap to the edge would: tab form', () => run(pv.dock()))}
+              {ctl('Undock', 'as a drag back into free space: rest', () => run(pv.undock()))}
+              {ctl('PayPal opened in browser', 'tumbler:handoff for D-0193 (approve window) + hand-off form', () => run(pv.paypalOpened()))}
+              {ctl('…with ≤ 15 min to approve', 'tumbler:handoff, approve_until in 12 min', () => run(pv.paypalOpenedLate()))}
+              {ctl('Hand-off form only', 'older shell: no tumbler:handoff, stays generic', () => run(pv.handoffOnly()))}
+              {ctl('Simulate: PayPal APPROVED (polled)', 'receipt for D-0193', () => run(pv.paypalApproved()))}
               <div className="seg" role="group" aria-label="Puck corner">
                 <span>Puck corner</span>
                 <button aria-pressed={corner === 'br'} onClick={() => setCorner('br')}>bottom-right</button>
@@ -159,48 +134,29 @@ export default function Preview() {
               </div>
             </div>
             <div className="grp">
-              <h4>Attention · D-0193</h4>
-              {ctl('Deadline ≤ 2 h', 'the ring breathes (unless reduced motion)', () => {
-                void patchSnapshot((s) => withItem(s, 'D-0193', (i) => ({ ...i, deadline: nowUnix() + 100 * 60, urgency: 'soon' })));
-                simulate('tumbler:visual', { opacity_percent: 100, breathe: true });
-              })}
-              {ctl('Deadline ≤ 15 min', 'urgency now', () => {
-                void patchSnapshot((s) => withItem(s, 'D-0193', (i) => ({ ...i, deadline: nowUnix() + 14 * 60, urgency: 'now' })));
-                simulate('tumbler:visual', { opacity_percent: 100, breathe: true });
-              })}
-              {ctl('Notification clicked', 'Rust opens the card: tumbler:selected', () =>
-                void backend().invoke('attention_list', null).then((s) => {
-                  const d = s.items.find((i) => i.label === 'D-0193') ?? s.items[0];
-                  if (!d) return;
-                  setForm('card');
-                  simulate('tumbler:selected', { deal_id: d.deal_id });
-                }))}
-              {ctl('MISMATCH arrives', 'SETTLE ≠ the signed deal: HOLD', () =>
-                void patchSnapshot((s) => withItem(s, 'D-0193', (i) => ({ ...i, kind: 'hold', headline: 'Payment held $329.00', deadline: null, urgency: 'calm', on_silence: 'the order is never approved · no money moves', actions: ['withdraw', 'open_in_table'] }))))}
+              <h4>Attention · D-0193 · simulated clock</h4>
+              {ctl('Deadline ≤ 2 h', 'the clock runs ahead; the ring breathes (unless reduced motion)', () => run(pv.deadlineSoon()))}
+              {ctl('Deadline ≤ 15 min', 'the clock runs ahead; urgency now', () => run(pv.deadlineNow()))}
+              {ctl('Deadline passes', 'the safe default runs: withdrawn, no money moves', () => run(pv.deadlinePasses()))}
+              {ctl('Notification clicked', 'the wallet opens the card: tumbler:selected', () => run(pv.notificationClicked()))}
+              {ctl('Amount mismatch arrives', 'D-0199: the payment request differs from the signed deal: held', () => run(pv.mismatchArrives()))}
             </div>
             <div className="grp">
               <h4>Other events</h4>
-              {ctl('New decision arrives', 'ring + bead + arrival ticker', () =>
-                void patchSnapshot((s) => ({
-                  ...s,
-                  items: [...s.items, {
-                    deal_id: '01JDPREVIEWARRIVAL00000207', label: 'D-0207', kind: 'gate', module: 'counter', headline: 'Countersign $48.00', amount_minor: 4800, currency: 'USD',
-                    counterparty: 'lark’s agent', clause: null, deadline: nowUnix() + 3 * 3600, on_silence: 'the quote lapses at its deadline · no money moves', urgency: 'calm', mode: 'sandbox',
-                    actions: ['review', 'withdraw', 'let_lapse', 'snooze30', 'open_in_table'],
-                  } satisfies AttentionItem],
-                })))}
-              {ctl('Agent refused', 'STOP ticker · never pulses', () => void patchSnapshot((s) => ({ ...s, stopped_today: s.stopped_today + 1 })))}
+              {ctl('New decision arrives', 'ring + bead + arrival ticker', () => run(pv.newDecision()))}
+              {ctl('Agent refused', 'STOP ticker · never pulses', () => run(pv.agentRefused()))}
               {ctl('Idle lock', 'locked after 15 min idle', () => {
                 const next = !locked;
                 setLocked(next);
-                void backend().invoke('get_settings', null).then((st) => simulate('settings:changed', { ...st, locked: next }));
-                void patchSnapshot((s) => ({ ...s, locked: next }));
+                run(pv.idleLock(next));
               }, locked)}
-              {ctl('Quiet dim', 'tumbler:visual 55 % after 45 s idle', () => simulate('tumbler:visual', { opacity_percent: 55, breathe: false }))}
-              {ctl('Reset sample data', 'reload Maya’s week', () => { resetMockState(); location.reload(); })}
+              {ctl('Quiet dim', 'tumbler:visual 55 % after 45 s idle', () => run(pv.quietDim()))}
+              {ctl('Four hours pass', 'every deadline that passes takes its safe default', () => run(pv.hoursPass(4)))}
+              {ctl('Reset sample data', 'reload Maya’s week on a wall clock', () => { resetMockState(); location.reload(); })}
             </div>
             <div className="readout">
               form <b>{form}</b> · {w}×{h} · puck {corner === 'br' ? 'bottom-right' : 'top-left'}
+              {clockOffset() ? <div>clock +{Math.round(clockOffset() / 60)} min (simulated)</div> : null}
               {log.map((l, i) => <div key={i}>{l}</div>)}
             </div>
           </div>

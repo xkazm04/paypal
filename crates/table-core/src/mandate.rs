@@ -1,6 +1,6 @@
 use crate::{
-    DealKind, DomainError, H256, ItemRef, KeyId, MandateId, Money, PayeeRef, Side, Terms,
-    Timestamp, commitment,
+    DealKind, DomainError, H256, ItemRef, KeyId, MandateId, Money, PayeeRef, RescueLever, Side,
+    Terms, Timestamp, commitment,
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -25,9 +25,14 @@ pub enum Category {
 #[derive(ts_rs::TS, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum CpRule {
-    Pinned { keys: Vec<KeyId> },
+    Pinned {
+        keys: Vec<KeyId>,
+    },
     Paired,
     House,
+    /// The owner's own subscribers: the plain PayPal buyers of a rescue deal, who have no wallet
+    /// to pair with. It allows only the rescue role (design report §7, subscription rescue).
+    Subscribers,
 }
 
 #[derive(ts_rs::TS, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -61,7 +66,34 @@ pub enum Clause {
     Payees {
         payees: Vec<PayeeRef>,
     },
+    /// Clause 8, rescue only: the fixes the wallet may suggest for one failed renewal, and their
+    /// bounds per subscriber per cycle. A discount is at most `max_discount_bp` of the cycle's
+    /// price and at most `max_discount` in money, whichever is lower.
+    Lever {
+        levers: Vec<RescueLever>,
+        max_discount_bp: u16,
+        max_discount: Money,
+    },
+    /// Lets the wallet keep the market price of these items fresh, up to `max_refreshes_day`
+    /// price checks a UTC day. It only lets the wallet read market prices: it grants no money
+    /// authority, and `check()` never reads it.
+    MarketWatch {
+        items: Vec<WatchedItem>,
+        max_refreshes_day: u16,
+    },
 }
+/// One watched item: the owner's item and the market product that prices it.
+#[derive(ts_rs::TS, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WatchedItem {
+    pub item_ref: ItemRef,
+    pub product_id: String,
+}
+/// The most price checks a day a market-watch rule may allow (a wallet guard on the market
+/// service's credits, not a service limit).
+pub const MAX_MARKET_CHECKS_DAY: u16 = 200;
+/// The most items one market-watch rule may name.
+pub const MAX_WATCHED_ITEMS: usize = 20;
 impl Clause {
     pub const fn number(&self) -> u8 {
         match self {
@@ -72,6 +104,8 @@ impl Clause {
             Self::Velocity { .. } => 5,
             Self::HumanPresentOver { .. } => 6,
             Self::Payees { .. } => 7,
+            Self::Lever { .. } => 8,
+            Self::MarketWatch { .. } => 9,
         }
     }
 }
@@ -94,12 +128,26 @@ pub struct OpenMandate {
     pub owner_sig: Vec<u8>,
 }
 
+/// Clause 4's reasons that an agent refusal names by code (`RefusalCode::from_refusal`): one
+/// spelling, here, for both the check that writes them and the code that reads them.
+pub const DEADLINE_REACHED: &str = "deadline reached";
+pub const MAX_ROUNDS_REACHED: &str = "max_rounds reached";
+/// The start of clause 4's "price X above ceiling Y" / "price X below floor Y".
+pub const BAND_PRICE: &str = "price ";
 #[derive(ts_rs::TS, Debug, Error, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[error("mandate clause {clause}: {reason}")]
+#[error("{}", refusal_text(*.clause, .reason))]
 #[serde(deny_unknown_fields)]
 pub struct Refusal {
     pub clause: u8,
     pub reason: String,
+}
+/// A mandate clause names itself; clause 0 is the wallet-wide limits (`ENVELOPE_CLAUSE`).
+fn refusal_text(clause: u8, reason: &str) -> String {
+    if clause == crate::ENVELOPE_CLAUSE {
+        format!("wallet limit {reason}")
+    } else {
+        format!("mandate clause {clause}: {reason}")
+    }
 }
 impl Refusal {
     fn new(clause: u8, reason: impl Into<String>) -> Self {
@@ -159,6 +207,30 @@ const fn role_side(role: Role) -> Side {
 }
 
 impl MandatePayload {
+    /// The market product the owner bound to `item` in this mandate's market-watch rule, and
+    /// the rule's daily price-check allowance; `None` when the item is not watched.
+    pub fn market_watch_for(&self, item: &ItemRef) -> Option<(&WatchedItem, u16)> {
+        self.clauses.iter().find_map(|c| match c {
+            Clause::MarketWatch {
+                items,
+                max_refreshes_day,
+            } => items
+                .iter()
+                .find(|watched| &watched.item_ref == item)
+                .map(|watched| (watched, *max_refreshes_day)),
+            _ => None,
+        })
+    }
+    /// The market product a market record for `item` must price (market-data-2): the product the
+    /// owner bound to the item in this mandate's market-watch rule; for an item with no such
+    /// binding, the item itself when it is a well-formed market product id (an item may be
+    /// named by the market's own product id); otherwise none, and no market record is bound.
+    pub fn market_product_for<'a>(&'a self, item: &'a ItemRef) -> Option<&'a str> {
+        match self.market_watch_for(item) {
+            Some((watched, _)) => Some(watched.product_id.as_str()),
+            None => Some(item.as_str()).filter(|id| crate::market_product_valid(id)),
+        }
+    }
     pub fn hash(&self) -> Result<H256, DomainError> {
         self.validate().map_err(|_| DomainError::InvalidTerms)?;
         Ok(commitment(self)?)
@@ -172,7 +244,7 @@ impl MandatePayload {
         {
             return Err(Refusal::new(1, "invalid mandate version or validity"));
         }
-        let mut seen = [false; 8];
+        let mut seen = [false; 10];
         let mut clauses: Vec<_> = self.clauses.iter().collect();
         clauses.sort_by_key(|clause| clause.number());
         for clause in clauses {
@@ -218,6 +290,53 @@ impl MandatePayload {
                 Clause::Payees { payees } if payees.is_empty() => {
                     return Err(Refusal::new(7, "empty payee allowance"));
                 }
+                Clause::Lever {
+                    levers,
+                    max_discount_bp,
+                    max_discount,
+                } => {
+                    if levers.is_empty()
+                        || levers
+                            .iter()
+                            .enumerate()
+                            .any(|(i, lever)| levers[..i].contains(lever))
+                    {
+                        return Err(Refusal::new(8, "empty or repeated fix list"));
+                    }
+                    // Only the discount has an executor: a fix nothing can carry out is refused
+                    // at signing, not discovered on a failed renewal.
+                    if levers.iter().any(|l| *l != RescueLever::DiscountThisCycle) {
+                        return Err(Refusal::new(8, "only the discount this cycle is available"));
+                    }
+                    if *max_discount_bp == 0 || *max_discount_bp >= 10000 {
+                        return Err(Refusal::new(8, "discount must be above 0% and below 100%"));
+                    }
+                    if max_discount.minor() == 0 {
+                        return Err(Refusal::new(8, "empty discount allowance"));
+                    }
+                }
+                Clause::MarketWatch {
+                    items,
+                    max_refreshes_day,
+                } => {
+                    if items.is_empty() || items.len() > MAX_WATCHED_ITEMS {
+                        return Err(Refusal::new(9, "invalid market watch"));
+                    }
+                    if *max_refreshes_day == 0 || *max_refreshes_day > MAX_MARKET_CHECKS_DAY {
+                        return Err(Refusal::new(9, "invalid price check allowance"));
+                    }
+                    if items
+                        .iter()
+                        .any(|item| !crate::market_product_valid(&item.product_id))
+                    {
+                        return Err(Refusal::new(9, "invalid market product"));
+                    }
+                    if items.iter().enumerate().any(|(i, item)| {
+                        items[..i].iter().any(|seen| seen.item_ref == item.item_ref)
+                    }) {
+                        return Err(Refusal::new(9, "item watched twice"));
+                    }
+                }
                 _ => {}
             }
         }
@@ -236,6 +355,7 @@ impl MandatePayload {
                 }
                 Clause::Velocity { max_total_day, .. } => vec![*max_total_day],
                 Clause::HumanPresentOver { amount } => vec![*amount],
+                Clause::Lever { max_discount, .. } => vec![*max_discount],
                 _ => Vec::new(),
             };
             for amount in amounts {
@@ -246,6 +366,33 @@ impl MandatePayload {
                     ));
                 }
             }
+        }
+        // Rescue is a mandate of its own: the rescue role, the subscribers rule and the fixes
+        // clause come together or not at all.
+        let roles_list = self.clauses.iter().find_map(|c| match c {
+            Clause::Roles { roles } => Some(roles.as_slice()),
+            _ => None,
+        });
+        let rescue = roles_list.is_some_and(|r| r.contains(&Role::Rescue));
+        let subscribers = self.clauses.iter().any(|c| {
+            matches!(
+                c,
+                Clause::Counterparties {
+                    rule: CpRule::Subscribers
+                }
+            )
+        });
+        if rescue != seen[8] {
+            return Err(Refusal::new(
+                8,
+                "the rescue role and the fixes clause go together",
+            ));
+        }
+        if subscribers != rescue || (rescue && roles_list.is_some_and(|r| r.len() != 1)) {
+            return Err(Refusal::new(
+                2,
+                "rescue deals only with your own subscribers, in a mandate of its own",
+            ));
         }
         let banded = self.clauses.iter().any(|c| {
             matches!(
@@ -331,6 +478,7 @@ impl MandatePayload {
                         }
                         CpRule::Paired => intent.paired,
                         CpRule::House => intent.paired && intent.house,
+                        CpRule::Subscribers => intent.role == Role::Rescue && !intent.paired,
                     };
                     if !allowed {
                         return Err(Refusal::new(
@@ -386,10 +534,10 @@ impl MandatePayload {
                         return Err(Refusal::new(4, "item outside band"));
                     }
                     if now >= *deadline {
-                        return Err(Refusal::new(4, "deadline reached"));
+                        return Err(Refusal::new(4, DEADLINE_REACHED));
                     }
                     if intent.rounds_used >= *max_rounds {
-                        return Err(Refusal::new(4, "max_rounds reached"));
+                        return Err(Refusal::new(4, MAX_ROUNDS_REACHED));
                     }
                     // Band refers to the signed unit price, per-deal/velocity to the full total.
                     let price = intent.terms.unit_price;
@@ -407,7 +555,7 @@ impl MandatePayload {
                             return Err(Refusal::new(
                                 4,
                                 format!(
-                                    "price {} above ceiling {}",
+                                    "{BAND_PRICE}{} above ceiling {}",
                                     price.decimal(),
                                     bound.decimal()
                                 ),
@@ -417,7 +565,7 @@ impl MandatePayload {
                             return Err(Refusal::new(
                                 4,
                                 format!(
-                                    "price {} below floor {}",
+                                    "{BAND_PRICE}{} below floor {}",
                                     price.decimal(),
                                     bound.decimal()
                                 ),
@@ -454,8 +602,16 @@ impl MandatePayload {
                 Clause::Payees { payees } if !payees.contains(intent.payee) => {
                     return Err(Refusal::new(7, "payee not allowed"));
                 }
+                // Its bounds are checked on the rescue offer itself (`rescue::check_offer`).
+                Clause::Lever { .. } => {}
+                // Reading market prices grants nothing: no intent is allowed, asked or refused
+                // by it.
+                Clause::MarketWatch { .. } => {}
                 _ => {}
             }
+        }
+        if intent.role == Role::Rescue && !self.clauses.iter().any(|c| c.number() == 8) {
+            return Err(Refusal::new(8, "fixes clause missing"));
         }
         if matches!(intent.kind, DealKind::Haggle | DealKind::ShopOrder)
             && !self
@@ -563,6 +719,33 @@ mod tests {
             },
             now,
         )
+    }
+    #[test]
+    fn clause_four_refusals_reach_the_agent_as_their_own_codes() {
+        use crate::RefusalCode as C;
+        let p = policy(DealKind::Purchase, Side::Buyer);
+        let code = |r: Result<MandateDecision, Refusal>| C::from_refusal(&r.unwrap_err());
+        assert_eq!(
+            code(check(&p, 10_001, Side::Buyer, Category::Parts, 0, 100)),
+            C::OutsideBand
+        );
+        assert_eq!(
+            code(check(&p, 6_000, Side::Buyer, Category::Parts, 6, 100)),
+            C::RoundsExhausted
+        );
+        assert_eq!(
+            code(check(&p, 6_000, Side::Buyer, Category::Parts, 0, 900)),
+            C::DeadlinePassed
+        );
+        assert_eq!(
+            code(check(&p, 6_000, Side::Buyer, Category::Compute, 0, 100)),
+            C::MandateClause { clause: 3 }
+        );
+        let s = policy(DealKind::ShopOrder, Side::Seller);
+        assert_eq!(
+            code(check(&s, 5_799, Side::Seller, Category::Parts, 0, 100)),
+            C::OutsideBand
+        );
     }
     #[test]
     fn f1_refusal_message_is_exact() {
@@ -773,6 +956,114 @@ mod tests {
                 .unwrap_err()
                 .clause,
             4
+        );
+    }
+    fn watch(items: &[(&str, &str)], max: u16) -> Clause {
+        Clause::MarketWatch {
+            items: items
+                .iter()
+                .map(|(item, product)| WatchedItem {
+                    item_ref: ItemRef::new(*item).unwrap(),
+                    product_id: (*product).into(),
+                })
+                .collect(),
+            max_refreshes_day: max,
+        }
+    }
+    #[test]
+    fn a_market_watch_rule_is_validated_at_signing() {
+        let with = |clause: Clause| {
+            let mut p = policy(DealKind::Purchase, Side::Buyer);
+            p.clauses.push(clause);
+            p.validate()
+        };
+        assert!(with(watch(&[("dock", "p-dock_1")], 12)).is_ok());
+        assert!(with(watch(&[("dock", "p-dock")], MAX_MARKET_CHECKS_DAY)).is_ok());
+        for (clause, reason) in [
+            (watch(&[], 12), "invalid market watch"),
+            (
+                watch(&[("dock", "p-dock")], 0),
+                "invalid price check allowance",
+            ),
+            (
+                watch(&[("dock", "p-dock")], MAX_MARKET_CHECKS_DAY + 1),
+                "invalid price check allowance",
+            ),
+            (watch(&[("dock", "")], 12), "invalid market product"),
+            (watch(&[("dock", "p dock")], 12), "invalid market product"),
+            (watch(&[("dock", "p/../x")], 12), "invalid market product"),
+            (
+                watch(&[("dock", &"p".repeat(129))], 12),
+                "invalid market product",
+            ),
+            (
+                watch(&[("dock", "p-1"), ("dock", "p-2")], 12),
+                "item watched twice",
+            ),
+        ] {
+            let refusal = with(clause).unwrap_err();
+            assert_eq!((refusal.clause, refusal.reason.as_str()), (9, reason));
+        }
+        let many: Vec<(String, String)> = (0..=MAX_WATCHED_ITEMS)
+            .map(|i| (format!("item-{i}"), format!("p-{i}")))
+            .collect();
+        let many: Vec<(&str, &str)> = many.iter().map(|(a, b)| (a.as_str(), b.as_str())).collect();
+        assert_eq!(
+            with(watch(&many, 12)).unwrap_err().reason,
+            "invalid market watch"
+        );
+        let mut twice = policy(DealKind::Purchase, Side::Buyer);
+        twice.clauses.push(watch(&[("dock", "p-dock")], 12));
+        twice.clauses.push(watch(&[("cable", "p-cable")], 12));
+        assert_eq!(twice.validate().unwrap_err().reason, "duplicate clause");
+    }
+    #[test]
+    fn a_market_watch_rule_grants_no_money_authority_and_changes_no_answer() {
+        for side in [Side::Buyer, Side::Seller] {
+            let kind = if side == Side::Buyer {
+                DealKind::Purchase
+            } else {
+                DealKind::ShopOrder
+            };
+            let plain = policy(kind, side);
+            let mut watched = plain.clone();
+            watched.clauses.push(watch(&[("dock", "p-dock")], 200));
+            assert_eq!(
+                watched
+                    .market_watch_for(&ItemRef::new("dock").unwrap())
+                    .map(|(i, n)| (i.product_id.as_str(), n)),
+                Some(("p-dock", 200))
+            );
+            assert!(
+                watched
+                    .market_watch_for(&ItemRef::new("cable").unwrap())
+                    .is_none()
+            );
+            assert!(
+                plain
+                    .market_watch_for(&ItemRef::new("dock").unwrap())
+                    .is_none()
+            );
+            for minor in (0..=30000).step_by(250) {
+                for category in [Category::Office, Category::Compute] {
+                    for (rounds, now) in [(0, 100), (6, 100), (0, 900), (0, 1000)] {
+                        assert_eq!(
+                            check(&watched, minor, side, category, rounds, now),
+                            check(&plain, minor, side, category, rounds, now),
+                            "{side:?} {minor} {category:?} {rounds} {now}"
+                        );
+                    }
+                }
+            }
+        }
+        // The rule alone is not a mandate: the required rules are still required.
+        let only = MandatePayload {
+            clauses: vec![watch(&[("dock", "p-dock")], 12)],
+            ..policy(DealKind::Purchase, Side::Buyer)
+        };
+        assert_eq!(
+            only.validate().unwrap_err().reason,
+            "required clause missing"
         );
     }
     #[test]

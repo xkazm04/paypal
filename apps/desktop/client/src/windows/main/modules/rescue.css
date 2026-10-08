@@ -73,6 +73,8 @@
 .mod-rescue .cell[aria-disabled="true"] .v { color: var(--dim); font-weight: var(--fw-regular); }
 .mod-rescue .cell.unknown .v { font-size: var(--fs-small); }
 .mod-rescue .cell.peek { box-shadow: 0 0 0 1px var(--focus); }
+.mod-rescue .cell.offer .v { color: var(--text); }
+.mod-rescue .cell.offer .s { color: var(--ok); }
 .mod-rescue td.neverc { text-align: center; vertical-align: middle; padding: 0 var(--sp-1); color: var(--dim); font-size: var(--fs-small);
   border-left: 1px dashed color-mix(in srgb, var(--refuse) 35%, var(--line));
   background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--refuse) 6%, transparent) 0 6px, transparent 6px 12px); }
@@ -147,3 +149,21 @@
 .mod-rescue .rs-get.off .ln { color: var(--dim); font-weight: var(--fw-regular); }
 .mod-rescue .rs-why { padding: 5px var(--sp-3) 8px; }
 .mod-rescue .rs-why .ui-why { margin-left: 0; padding: 0; }
+/* The invoice's wording, as the wallet sends it (RescueView.text). */
+.mod-rescue .rs-inv { padding: var(--sp-2) var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg2); }
+.mod-rescue .rs-inv .it { margin: 0 0 var(--sp-1); font-weight: var(--fw-semibold); }
+.mod-rescue .rs-inv .nt { margin: 0 0 var(--sp-2); color: var(--muted); }
+/* Watched subscriptions: one quiet row above the failed renewals. */
+.mod-rescue .rsc-watch { margin: 0 0 var(--sp-4); }
+/* the fixes this renewal can't have: one quiet line under the cards, reasons behind Why? */
+.mod-rescue .rs-notoff { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--sp-2); margin: var(--sp-2) 0 0; font-size: var(--fs-small); color: var(--dim); }
+.mod-rescue .rs-notoff .ui-why { margin-left: 0; }
+.rs-notoff-list { margin: 0 0 var(--sp-2); padding-left: 18px; }
+.rs-notoff-list li + li { margin-top: 4px; }
+/* polish 3: in the narrow matrix (inspector open, 1280 wide) headers and cells wrap instead of cutting words */
+.mod-rescue .mx th { white-space: normal; line-height: 1.2; }
+.mod-rescue .mx .cell { height: auto; min-height: 44px; padding-top: 4px; padding-bottom: 4px; }
+.mod-rescue .mx .cell .v, .mod-rescue .mx .cell .s { white-space: normal; line-height: 1.25; }
+.mod-rescue .mx col.c-who { width: 160px; }
+.mod-rescue .mx col.c-act { width: 86px; }
+.mod-rescue .mx .who .l2 .ui-chip { max-width: 100%; white-space: normal; height: auto; }

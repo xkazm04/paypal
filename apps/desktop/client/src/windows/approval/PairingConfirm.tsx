@@ -16,6 +16,7 @@ import { clockLabel, shortId } from '../../lib/format';
 import { useNow, useQuery } from '../../lib/hooks';
 import { WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Chip, Hourglass, Kv, Popover, Sheet } from '../../shared/ui';
+import { houseWords } from '../../lib/words';
 import { useSession } from './session';
 
 /** Rust stores the label as ShortText<32>: at most 32 UTF-8 bytes, no control characters. */
@@ -222,9 +223,9 @@ function PinnedSheet({ p, onClose }: { p: Pinned; onClose: () => void }) {
         items={[
           ['Connected by', p.house ? 'the built-in check and the four words' : 'a code and the four words · the code can’t be used again'],
           ['Words', <span key="w"><b>{p.words.join(' · ')}</b> · {clockLabel(p.at)}</span>],
-          ['First seen', cp ? clockLabel(cp.first_seen) : cps.error ? <span key="f" className="dim">not shown here</span> : <span key="f" className="dim">not yet</span>],
+          ['First seen', cp ? clockLabel(cp.first_seen) : cps.error ? <span key="f" className="dim">can’t be read right now</span> : <span key="f" className="dim">not yet</span>],
           ['Deals closed', cp ? String(cp.deals_closed) : '—'],
-          ['Their payee', cp?.declared_payee ? <span key="p" className="mono">{cp.declared_payee}</span> : <span key="p" className="dim">not yet</span>],
+          ['Their payee', cp?.declared_payee ? <span key="p" className={cp.house ? undefined : 'mono'}>{houseWords(cp.declared_payee)}</span> : <span key="p" className="dim">not yet</span>],
           ['Wallet key', <span key="k" className="mono ow-fpr">{p.key}</span>],
         ]}
       />

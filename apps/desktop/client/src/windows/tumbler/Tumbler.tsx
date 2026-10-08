@@ -17,12 +17,15 @@ import type { WindowSide } from '@bindings/WindowSide';
 import { toWalletError, type WalletError } from '../../lib/contract';
 import { useEvent, useNow, usePrefersReducedMotion, useQuery } from '../../lib/hooks';
 import { backend } from '../../lib/runtime';
+import { nowUnix } from '../../lib/format';
+import { gettingStarted } from '../../lib/firstRun';
+import { START_STEP, type StartStepKey } from '../../lib/words';
 import { PuckArt } from './Puck';
 import { CardForm, HandoffForm, StackForm, TabForm, TickerForm, WelcomeForm } from './forms';
 import {
   plainItems,
   NO_HANDOFF, SECONDS, ackTicker, arrivals, arrivalsTicker, canReview, dndPreferences, handoffEnded, nextFocus, puckLook, puckTarget, receiptTicker,
-  restForm, snoozeEligible, snoozeTicker, sortItems, stopTicker, tickerMayShow, type CardAction, type Handoff, type Ticker,
+  restForm, rung, rungNotice, snoozeEligible, snoozeTicker, sortItems, stopTicker, tickerMayShow, type CardAction, type Handoff, type Rung, type Ticker,
 } from './logic';
 
 type Failure = { dealId: string | null; what: string; error: WalletError };
@@ -90,6 +93,19 @@ export function Tumbler() {
   const mode = settings?.mode ?? items[0]?.mode ?? null;
   const dnd = settings?.preferences.dnd ?? false;
   const look = puckLook(snapshot, { now, visual, reducedMotion, dnd });
+  // The ladder for screen readers: the most urgent decision is announced once when it climbs a
+  // rung (2 h, 15 min, time up), never by a ticking clock.
+  const top = items[0];
+  const topRung: Rung = top ? rung(top.deadline, now) : 'none';
+  const rungSeen = useRef(new Map<string, Rung>());
+  const [rungSays, setRungSays] = useState('');
+  useEffect(() => {
+    if (!top) return;
+    const prev = rungSeen.current.get(top.deal_id) ?? null;
+    rungSeen.current.set(top.deal_id, topRung);
+    const said = rungNotice(prev, topRung, top.headline, top.on_silence.trim().replace(/\s*·\s*/g, ', ').replace(/[.,\s]+$/, '') || null);
+    if (said) setRungSays(said);
+  }, [top, topRung]);
   // the hand-off deal's label and own-catalog title (degrades to the item / a short id)
   const handoffDisplay = useQuery('deal_display', { deal_id: handoff.dealId ?? '' }, { enabled: !!handoff.dealId });
 
@@ -360,14 +376,14 @@ export function Tumbler() {
   // Rust owns the snooze (deal_snooze: GATE, deadline > 45 min, 30 min, persisted); the page
   // pre-filters with the same rule and then only reflects the next snapshot, where the item is gone.
   const snooze = useCallback(async (it: AttentionItem) => {
-    if (!snoozeEligible(it, Math.floor(Date.now() / 1000))) return;
+    if (!snoozeEligible(it, nowUnix())) return;
     setSnoozing(it.deal_id);
     // hold the card on this item while Rust's next snapshot drops it, until the ticker takes over
     if (ack.current) clearTimeout(ack.current.timer);
     ack.current = { dealId: it.deal_id, timer: setTimeout(() => (ack.current = null), ACK_MS) };
     try {
       await backend().invoke('deal_snooze', { deal_id: it.deal_id });
-      pushTicker(snoozeTicker(it, Math.floor(Date.now() / 1000) + SECONDS.snooze), true);
+      pushTicker(snoozeTicker(it, nowUnix() + SECONDS.snooze), true);
       void refetchAttention();
     } catch (e) {
       if (ack.current?.dealId === it.deal_id) {
@@ -380,6 +396,19 @@ export function Tumbler() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pushTicker, refetchAttention]);
+
+  // First run: the welcome shows the three steps; each opens where it happens (the approval
+  // window for keys and rules, The Table for the house seller). Settings are all the Tumbler reads.
+  const start = settings?.first_run ? gettingStarted({ firstRun: true, paypal: settings.payment_executor_configured, rulesInForce: null, houseConnected: null, otherConnections: null }) : null;
+  const startStep = useCallback(async (k: StartStepKey) => {
+    try {
+      if (k === 'practice') await backend().invoke('main_open', { deal_id: null });
+      else await backend().invoke('approval_open', { deal_id: null, target: k === 'paypal' ? 'credentials' : 'mandate' });
+    } catch (e) {
+      fail(null, START_STEP[k].act, e);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openInTable = useCallback(async (dealId: string | null) => {
     try {
@@ -490,7 +519,7 @@ export function Tumbler() {
   const handoffItem = handoff.dealId ? items.find((i) => i.deal_id === handoff.dealId) ?? known.current.get(handoff.dealId) ?? null : null;
   const display = handoffDisplay.data && handoffDisplay.data.deal_id === handoff.dealId ? handoffDisplay.data : null;
   const count = look.needs;
-  const puckLabel = `The Tumbler · ${count ? `${count} need${count === 1 ? 's' : ''} you · ${items[0]?.label ?? ''}` : `nothing needs you · ${snapshot?.in_motion ?? 0} in motion`}${mode ? ` · ${mode}` : ''}${locked ? ' · locked' : ''}`;
+  const puckLabel = `The Tumbler · ${count ? `${count} need${count === 1 ? 's' : ''} you · ${items[0]?.headline ?? ''}` : `nothing needs you · ${snapshot?.in_motion ?? 0} in motion`}${mode ? ` · ${mode}` : ''}${locked ? ' · locked' : ''}`;
 
   let body: ReactNode = null;
   if (form === 'ticker') body = <TickerForm ticker={ticker} onOpen={openFromTicker} />;
@@ -521,7 +550,7 @@ export function Tumbler() {
     );
   else if (form === 'handoff')
     body = <HandoffForm ref={formEl} handoff={handoff} item={handoffItem} display={display} now={now} locked={locked} mode={mode} onTable={() => void openInTable(handoff.dealId)} onRest={rest} />;
-  else if (form === 'welcome') body = <WelcomeForm ref={formEl} mode={mode} locked={locked} onOk={rest} />;
+  else if (form === 'welcome') body = <WelcomeForm ref={formEl} mode={mode} locked={locked} onOk={rest} start={start} onStep={(k) => void startStep(k)} failure={failure && failure.dealId === null ? failure : null} />;
 
   const kindClass = form === 'card' && cardItem ? (cardItem.kind === 'hold' ? ' k-hold' : ' k-gate') : form === 'ticker' && ticker ? ` k-${ticker.kind}` : '';
   const classes = [
@@ -532,6 +561,7 @@ export function Tumbler() {
   return (
     <div className={classes} onKeyDown={onRootKey} style={form === 'rest' || form === 'tab' ? { opacity: look.opacity / 100 } : undefined}
       aria-label="The Tumbler" role="complementary">
+      <span className="sr-only" role="status" aria-live="polite">{rungSays}</span>
       {form === 'tab' ? (
         <button className="tabbtn" onClick={onPuckClick} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
           aria-label={`${puckLabel} · docked`} title={`${puckLabel} · docked · click to open, drag to undock`}>

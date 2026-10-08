@@ -5,6 +5,10 @@ pub use table_core::{CounterpartyDisplay, CounterpartyNote, DealDisplay, Transcr
 use table_core::{Deal, DealId, H256, Mode};
 pub use table_proto::{PairingIdentity, SignedPairingIdentity};
 use ts_rs::TS;
+pub mod authority;
+mod authority_table;
+pub mod ladder;
+pub mod playbooks;
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
@@ -29,12 +33,14 @@ impl From<table_app::Error> for CommandError {
         let code = match &error {
             table_app::Error::Locked => ErrorCode::Locked,
             table_app::Error::Permission => ErrorCode::Permission,
-            table_app::Error::Refused(_) => ErrorCode::Refused,
+            table_app::Error::Refused(_) | table_app::Error::Agent(_) => ErrorCode::Refused,
             table_app::Error::Invalid
             | table_app::Error::Domain(_)
             | table_app::Error::Protocol(_) => ErrorCode::Invalid,
             table_app::Error::Unavailable => ErrorCode::Unavailable,
             table_app::Error::Ledger(table_ledger::LedgerError::NotFound) => ErrorCode::NotFound,
+            // Shop around: another table of the group already agreed. A refusal, not a fault.
+            table_app::Error::Ledger(table_ledger::LedgerError::GroupClosed) => ErrorCode::Refused,
             table_app::Error::Ledger(_) => ErrorCode::LedgerTrust,
         };
         Self {
@@ -58,6 +64,12 @@ pub struct DecisionArgs {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub counter_hash: Option<H256>,
+    /// The `ApprovalSummary.checks_hash` the owner decided on. Required for every money
+    /// decision except the safe direction (void); Rust recomputes the checklist at decision time
+    /// and refuses an absent or different hash before any PayPal call or write.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub checks_hash: Option<H256>,
 }
 impl std::fmt::Debug for DecisionArgs {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -111,6 +123,9 @@ pub struct SettingsSnapshot {
     pub selected_engine: table_engine::EngineId,
     pub preferences: TumblerPreferences,
     pub relay_available: bool,
+    /// Lowercase hex fingerprint of the authority table this build enforces (who may call each
+    /// command); the same value as `AUTHORITY_MANIFEST` in `bindings/authority.ts`.
+    pub authority_manifest: String,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -146,6 +161,10 @@ pub enum ApprovalTarget {
     Credentials,
     Mandate,
     Unlock,
+    /// Record a failed renewal as a labelled replay (rescue_replay).
+    Rescue,
+    /// Watch the owner's subscriptions for a failed renewal (rescue_watch_add).
+    RescueWatch,
 }
 /// A draft carried from Main to the approval window. Closed shapes and typed values only.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -251,6 +270,82 @@ pub struct MandateSignArgs {
 pub struct MandateRevokeArgs {
     pub id: table_core::MandateId,
 }
+/// The owner's wallet-wide limits to sign (T14): one currency, three numbers and an expiry. The
+/// wallet picks the next version and signs with the owner key; nothing here loosens a mandate.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct EnvelopeSignArgs {
+    pub currency: table_core::Currency,
+    pub max_out_day: table_core::Money,
+    pub max_held: table_core::Money,
+    pub max_deals_day: u16,
+    pub expires: i64,
+}
+/// What-if before signing: the draft exactly as `mandate_sign` takes it, replayed over the deals
+/// recorded in a window. Read-only: nothing is signed, written or sent to PayPal.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct MandateSimulateArgs {
+    pub draft: MandateSignArgs,
+    /// Window start, Unix seconds. Default: seven days before `to`.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub from: Option<i64>,
+    /// Window end, Unix seconds. Default: now.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub to: Option<i64>,
+}
+/// One mandate's answer to one recorded intent, from `MandatePayload::check` itself.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum SimulatedVerdict {
+    Allow,
+    /// The owner would be asked (clause 6 above its threshold).
+    Ask {
+        clause: u8,
+    },
+    /// The clause that refuses first, with the check's own reason.
+    Refuse {
+        clause: u8,
+        reason: String,
+    },
+    /// A fact the intent needs is not on record, so nothing is guessed.
+    NotSimulated,
+}
+/// A recorded deal under the rules in force (`before`) and under the draft (`after`). Only
+/// owner-bound facts: no counterparty words.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct SimulatedLine {
+    pub deal_id: DealId,
+    /// The deal's display label ("D-0193").
+    pub label: String,
+    /// The deal's title as Main shows it (owner-bound, never counterparty words).
+    pub title: String,
+    /// The item the deal is bound to, as the band clause names items.
+    pub item_ref: table_core::ItemRef,
+    pub kind: table_core::DealKind,
+    pub side: table_core::Side,
+    /// When the deal was recorded (Unix seconds); 0 = not on record.
+    pub at: i64,
+    /// The deal total; null when the recorded terms have no valid total.
+    #[ts(optional = nullable)]
+    pub amount: Option<table_core::Money>,
+    pub unit_price: table_core::Money,
+    pub before: SimulatedVerdict,
+    pub after: SimulatedVerdict,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct MandateSimulation {
+    /// The window actually replayed, Unix seconds.
+    pub from: i64,
+    pub to: i64,
+    pub lines: Vec<SimulatedLine>,
+    /// Lines whose intent could not be rebuilt from the record (both verdicts not simulated).
+    pub not_simulated: u32,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct BandArgs {
@@ -321,6 +416,12 @@ pub struct RunSnapshot {
     pub engine: table_engine::EngineId,
     pub mode: Mode,
     pub state: RunState,
+    /// The fixed role playbook an agent app run was started with (its system prompt, shown
+    /// word for word in the run's details); null for the policy negotiator, which reads none.
+    /// Older shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub playbook: Option<table_core::Playbook>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -407,9 +508,20 @@ pub struct ReconcileArgs {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct QuitSummary {
+    /// Binds the pending deals and every line below; quit_confirm refuses if any changed.
     pub confirmation_id: H256,
     pub pending: Vec<DealId>,
     pub on_quit: String,
+    /// What will not happen while the wallet is off, one line per pending deal the forecast moves
+    /// money for (or that waits). None when the forecast could not be read; older shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub while_off: Option<Vec<table_attention::QuitLine>>,
+    /// What PayPal still does by itself (a payment request or a hold running out). None when the
+    /// forecast could not be read; older shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub at_paypal: Option<Vec<table_attention::QuitLine>>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -432,6 +544,148 @@ pub struct ApprovalSummary {
     pub can_release: bool,
     pub can_open_paypal: bool,
     pub unavailable_reason: Option<String>,
+    /// The checklist the pipeline composed from the predicates that gate the decision; the
+    /// window renders it verbatim and never adds a line of its own.
+    pub checks: Vec<table_core::ApprovalCheck>,
+    /// Domain-separated digest of `checks` (`table_core::checks_hash`); a decision sends it back.
+    pub checks_hash: H256,
+    /// On a rescue deal: the failed renewal, its one fix and the invoice's fixed wording. Older
+    /// shells omit it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional = nullable)]
+    pub rescue: Option<RescueView>,
+}
+/// A failed renewal and its one fix, as the wallet computed and stored it. No subscriber or
+/// agent text: the invoice wording is the wallet's fixed template filled with these numbers.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct RescueView {
+    pub deal_id: DealId,
+    pub source: table_core::RescueSource,
+    pub offer: table_core::RescueOffer,
+    pub text: table_core::InvoiceText,
+    pub failed_payments: u32,
+    /// PayPal's own next retry, when known.
+    #[ts(optional = nullable)]
+    pub next_retry_at: Option<i64>,
+    /// The subscriber's address, masked ("s•••@example.com").
+    pub recipient: String,
+    /// The PayPal invoice, once made.
+    #[ts(optional = nullable)]
+    pub invoice: Option<String>,
+    /// PayPal showed it paid and the wallet receipted it, on a failure PayPal reported: this is
+    /// the only money counted as recovered.
+    pub counted: bool,
+}
+/// Shop around (T8): group open buyer tables for one item, each with a different paired seller,
+/// under one signed mandate. The first table to agree wins; the wallet withdraws the others with
+/// a signed WITHDRAW. Grouping only restricts: it moves no money and grants nothing.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct DealGroupOpenArgs {
+    pub deal_ids: Vec<DealId>,
+}
+/// One table of a shop-around group: typed, signed prices only (never the seller's words).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct GroupTable {
+    pub deal_id: DealId,
+    pub counterparty: table_core::KeyId,
+    pub state: table_core::DealState,
+    /// The seller's latest signed price (listing or counter); null before any.
+    pub seller_price: Option<table_core::Money>,
+    /// Our latest signed offer; null before any.
+    pub our_price: Option<table_core::Money>,
+    /// Withdrawn by the group rule because another table agreed first.
+    pub closed_by_group: bool,
+}
+/// A shop-around group as the owner sees it: one buyer intent, several sellers, one winner.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct DealGroupView {
+    pub group_id: table_core::GroupId,
+    pub item_ref: table_core::ItemRef,
+    pub opened_at: i64,
+    /// The table that agreed; null while the sellers are still bargaining.
+    pub winner: Option<DealId>,
+    /// Oldest table first.
+    pub tables: Vec<GroupTable>,
+}
+/// Every rescue, and the recovered money (one total per currency, never summed across them).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct RescueBook {
+    pub cases: Vec<RescueView>,
+    pub recovered: Vec<table_core::Money>,
+    /// The owner's own subscriptions the wallet reads for a failed renewal, oldest first.
+    pub watching: Vec<RescueWatchView>,
+    /// Subscription reads made today (UTC) and the most the wallet makes in a day.
+    pub watch_reads_today: u32,
+    pub watch_reads_max: u32,
+}
+/// Watch one of the owner's own subscriptions for a failed renewal (approval, privileged). The
+/// wallet reads it from PayPal every few hours, read only; a failure opens one fix that waits for
+/// the owner, PayPal-reported, so what it brings in can count.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct RescueWatchArgs {
+    /// The PayPal subscription id to watch.
+    pub subscription_id: String,
+    /// The subscriber's email address a fix's invoice goes to, as the owner enters it (the
+    /// subscription read does not supply it).
+    pub subscriber_email: String,
+    /// The plan, as your own item name.
+    pub plan: table_core::ItemRef,
+}
+/// Stop watching one subscription (approval, privileged). A fix it already opened is unchanged.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct RescueWatchStopArgs {
+    pub subscription_id: String,
+}
+/// What the wallet last learned about a watched subscription.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum RescueWatchState {
+    /// Not read yet.
+    Waiting,
+    /// The last read showed no failed payment.
+    Paid,
+    /// The current failure already has its one fix.
+    FixOpened,
+    /// A failure the wallet does not fix on its own (more than one cycle owed, or the rules do
+    /// not allow a fix): it is shown, nothing is sent.
+    FailedNoFix,
+    /// The last reads could not be used; the wallet tries again later.
+    CantRead,
+}
+/// One watched subscription, as the Rescue page and the approval window show it.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct RescueWatchView {
+    pub subscription_id: String,
+    /// The subscriber's address, masked ("s•••@example.com").
+    pub recipient: String,
+    pub plan: table_core::ItemRef,
+    pub state: RescueWatchState,
+    pub added_at: i64,
+    #[ts(optional = nullable)]
+    pub last_read_at: Option<i64>,
+    pub next_read_at: i64,
+}
+/// A failed renewal the owner records as a labelled replay: PayPal documents no way to fail a
+/// sandbox renewal. The deal carries the REPLAY mode; its invoice is real, never counted.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct RescueReplayArgs {
+    /// The PayPal subscription id the failure is about.
+    pub subscription_id: String,
+    /// The subscriber's email address the invoice goes to.
+    pub subscriber_email: String,
+    /// The plan, as your own item name.
+    pub plan: table_core::ItemRef,
+    /// The cycle's price at the plan.
+    pub amount: table_core::Money,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -532,6 +786,28 @@ pub struct OwnerFacts {
     pub engines: Vec<EngineProbe>,
     pub credentials: Vec<CredentialFact>,
     pub agents: Vec<AgentRosterEntry>,
+    /// The rule sets in force that keep market prices fresh (T15), with today's price checks.
+    pub market_watch: Vec<MarketWatchFact>,
+    /// The id of the owner's public key (SHA-256 of it, 64 hex characters): the key a proof file
+    /// of this wallet names, so a person checking one compares it with this. Public; the private
+    /// key never leaves the OS keychain.
+    pub owner_key_id: table_core::KeyId,
+}
+/// A rule set in force with a market-watch rule (T15): the items whose market price the wallet
+/// keeps fresh, and today's price checks against the rule's daily allowance. Reading market
+/// prices moves no money.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct MarketWatchFact {
+    pub mandate_id: table_core::MandateId,
+    pub mandate_version: u32,
+    pub agent: AgentSlot,
+    pub items: Vec<table_core::WatchedItem>,
+    pub max_per_day: u16,
+    /// Price checks made today (UTC day), counted from the audit log.
+    pub used_today: u32,
+    /// Today's allowance is used up: no price is checked again until the next UTC day.
+    pub used_up: bool,
 }
 /// The latest own-account Transaction Search call: when, and the HTTP status PayPal answered
 /// (0 = no response).
@@ -593,6 +869,13 @@ pub struct BookAnswer {
 pub struct ProofCheckLine {
     pub id: String,
     pub ok: bool,
+    /// False when the file lacks the record this check compares, so it could not be made (`ok`
+    /// is false too; the file is not verified).
+    pub checked: bool,
+    /// False when the deal has nothing of the kind this check is about (or the file is in the
+    /// first proof format): the line reads "not checked" and neither passes nor holds the file
+    /// back.
+    pub applies: bool,
     pub detail: String,
 }
 /// The offline verifier's report on a proof file the owner picked. Values come from the file.
@@ -601,9 +884,15 @@ pub struct ProofCheckLine {
 pub struct ProofReport {
     pub deal_id: DealId,
     pub mode: Mode,
+    /// The full id of the owner key the file names (64 hex characters), or "invalid".
     pub owner_key_id: String,
     pub verified: bool,
     pub checks: Vec<ProofCheckLine>,
+    /// The permissions fingerprint the file names (hex; null in a first-format file).
+    pub authority_manifest: Option<String>,
+    /// Whether that fingerprint is this wallet's own: the file was saved by a build with the same
+    /// permissions. Null when the file names none.
+    pub same_version: Option<bool>,
 }
 /// No real proof file comes near this; a larger one is refused before it is parsed.
 pub const PROOF_FILE_LIMIT: usize = 8 * 1024 * 1024;
@@ -622,17 +911,25 @@ pub fn check_proof_file(bytes: &[u8]) -> Result<ProofReport, CommandError> {
         refuse("This file is not a proof file saved by this wallet, so there is nothing to check.")
     })?;
     let report = table_verify::verify_bundle(&bundle);
+    let own = authority::manifest_hex();
     Ok(ProofReport {
         deal_id: report.deal,
         mode: report.mode,
         owner_key_id: report.owner_key_id.clone(),
         verified: report.verified(),
+        same_version: report
+            .authority_manifest
+            .as_deref()
+            .map(|theirs| own == Some(theirs)),
+        authority_manifest: report.authority_manifest,
         checks: report
             .checks
             .into_iter()
             .map(|c| ProofCheckLine {
                 id: c.id.into(),
                 ok: c.ok,
+                checked: c.checked,
+                applies: c.applies,
                 detail: c.detail,
             })
             .collect(),
@@ -709,6 +1006,28 @@ pub struct CommandContract {
     pub deal_export_proof: Command<DealArgs, bool>,
     /// Checks a proof file the owner picks in a native open dialog; null if cancelled.
     pub proof_check: Command<(), Option<ProofReport>>,
+    /// Who decided each money step: the verified audit chain as closed steps (main only).
+    pub deal_history: Command<DealHistoryArgs, DealHistory>,
+    /// What-if before signing: a draft replayed over recorded deals. Read-only, approval only.
+    pub mandate_simulate: Command<MandateSimulateArgs, MandateSimulation>,
+    /// Signs the wallet-wide limits with the owner key (approval window, privileged).
+    pub envelope_sign: Command<EnvelopeSignArgs, table_core::SignedEnvelope>,
+    /// The wallet-wide limits and live exposure numbers only (main, tumbler, approval).
+    pub envelope_get: Command<(), table_core::ExposureView>,
+    /// Records a failed renewal as a labelled replay and opens its rescue (approval, privileged).
+    pub rescue_replay: Command<RescueReplayArgs, Deal>,
+    /// Every rescue and the recovered money, read from the wallet (main and approval).
+    pub rescue_book: Command<(), RescueBook>,
+    /// Shop around (T8): groups open buyer tables for one item; first to agree wins (main).
+    pub deal_group_open: Command<DealGroupOpenArgs, DealGroupView>,
+    /// Every shop-around group with each seller's latest signed price (main).
+    pub deal_groups: Command<(), Vec<DealGroupView>>,
+    /// Watches one of the owner's subscriptions for a failed renewal (approval, privileged).
+    pub rescue_watch_add: Command<RescueWatchArgs, Vec<RescueWatchView>>,
+    /// Stops watching one subscription (approval, privileged).
+    pub rescue_watch_stop: Command<RescueWatchStopArgs, Vec<RescueWatchView>>,
+    /// "Your safety record": the whole-ledger money-authority check on the owner's ledger (main).
+    pub safety_record: Command<(), SafetyRecord>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -744,87 +1063,261 @@ pub struct EventContract {
     #[serde(rename = "pairing:pinned")]
     pub pairing_pinned: PairingPinned,
 }
-pub const COMMANDS: &[&str] = &[
-    "deal_snooze",
-    "approval_selection",
-    "deal_display",
-    "deal_transcript",
-    "counterparty_list",
-    "approval_pairing",
-    "deal_owner_accept",
-    "get_settings",
-    "list_deals",
-    "get_deal",
-    "deal_evidence",
-    "deal_reconcile",
-    "engine_status",
-    "attention_list",
-    "main_open",
-    "approval_open",
-    "approval_summary",
-    "approval_token",
-    "tumbler_set_form",
-    "tumbler_pin",
-    "deal_withdraw",
-    "deal_let_lapse",
-    "unlock",
-    "deal_countersign",
-    "deal_capture",
-    "deal_void",
-    "shield_release",
-    "rescue_approve",
-    "open_paypal_in_browser",
-    "set_credentials",
-    "engine_select",
-    "mandate_list",
-    "mandate_sign",
-    "mandate_revoke",
-    "band_set",
-    "pairing_create",
-    "pairing_join",
-    "pairing_poll",
-    "pairing_confirm",
-    "settings_write",
-    "deal_create",
-    "deal_join",
-    "pause_all_agents",
-    "resume_all_agents",
-    "agent_start",
-    "agent_runs",
-    "market_refresh",
-    "quit_summary",
-    "quit_confirm",
-    "tumbler_drag",
-    "tumbler_snap",
-    "counterparty_note",
-    "pairing_abort",
-    "house_wake",
-    "approval_handoff",
-    "audit_page",
-    "owner_facts",
-    "book_query",
-    "deal_export_proof",
-    "proof_check",
-];
-pub const RELEASE_COMMANDS: &[&str] = &[
-    "deal_owner_accept",
-    "market_refresh",
-    "unlock",
-    "deal_countersign",
-    "deal_capture",
-    "deal_void",
-    "shield_release",
-    "rescue_approve",
-    "open_paypal_in_browser",
-    "approval_token",
-    "set_credentials",
-    "mandate_sign",
-    "mandate_revoke",
-    "band_set",
-    "pairing_confirm",
-    "deal_create",
-    "deal_join",
-];
+/// Every IPC command and the release set, derived from the authority table (`authority_table.rs`).
+pub use authority::{COMMANDS, RELEASE_COMMANDS};
+/// The Rewind read: one deal or every deal, optionally within `[from, to)` (Unix seconds, as every
+/// other timestamp in the contract).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct DealHistoryArgs {
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub deal_id: Option<DealId>,
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub from: Option<i64>,
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub to: Option<i64>,
+}
+/// The newest steps, oldest first. `truncated` is set when older steps in the window were left out.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct DealHistory {
+    pub steps: Vec<HistoryStep>,
+    pub truncated: bool,
+}
+/// One step of a deal, projected from a verified audit row (and the PayPal calls it recorded).
+/// Closed facts only: no detail text, payload, request id or counterparty words ever cross.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct HistoryStep {
+    pub at: i64,
+    pub deal_id: DealId,
+    /// The audit row this step stands for (the money step's own row when rows were folded).
+    pub seq: u64,
+    pub kind: HistoryKind,
+    pub state_after: Option<table_core::DealState>,
+    pub authority: HistoryAuthority,
+    pub paypal: HistoryPaypal,
+    /// On a safe default that cites them (attention-ladder-1): the rungs of the attention ladder
+    /// the owner was offered for that deadline before it, oldest first; empty when the card was
+    /// never shown. Absent on every other step, and on a default recorded before rungs were.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub rungs: Option<Vec<table_core::RungMark>>,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum HistoryKind {
+    Created,
+    OfferSent,
+    OfferReceived,
+    AcceptSent,
+    AcceptReceived,
+    OwnerAccepted,
+    Agreed,
+    Proposed,
+    Countersigned,
+    PayLinkSent,
+    PayLinkReceived,
+    ApprovalNotice,
+    OrderCreated,
+    ApprovedByBuyer,
+    Authorized,
+    Captured,
+    Voided,
+    AutoVoided,
+    ReceiptSent,
+    ReceiptReceived,
+    Receipted,
+    ReportingChecked,
+    Reconciled,
+    WithdrawSent,
+    WithdrawReceived,
+    Withdrawn,
+    Expired,
+    Lapsed,
+    Refused,
+    IntentRefused,
+    ShieldHeld,
+    HoldReleased,
+    Mismatch,
+    Failed,
+    Refunded,
+    Disputed,
+    /// PayPal's answer to a money step never arrived; the wallet is asking PayPal what happened.
+    CheckingWithPaypal,
+    Other,
+    /// A subscriber's renewal failed and a rescue fix waits for the owner.
+    RenewalFailed,
+    /// The rescue invoice was made at PayPal (a draft nobody is asked to pay yet).
+    InvoiceCreated,
+    /// The rescue invoice was sent to the subscriber by PayPal.
+    InvoiceSent,
+    /// PayPal shows the rescue invoice paid.
+    InvoicePaid,
+    /// Shop around: another seller's table agreed first, so the group rule withdrew this one with
+    /// a signed WITHDRAW. No money moved.
+    GroupWithdrawn,
+}
+/// Who decided a step, from the typed `decided_by` the chain recorded (never inferred from text).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum HistoryAuthority {
+    /// The owner, in the approval window.
+    Owner,
+    /// A rule the owner signed; `clause` when the row names it.
+    SignedRule {
+        clause: Option<u8>,
+    },
+    /// The seller mandate on an order the buyer approved at PayPal.
+    SellerMandate,
+    HouseMandate,
+    /// A deadline passed: no money moves, or a hold is voided.
+    SafeDefault,
+    /// The owner's agent proposed or signed it; never the authority on a money call.
+    AgentIntent,
+    None,
+    /// The shop-around rule the owner chose: the first table to agree wins, the others are
+    /// withdrawn. It only ever withdraws; never the authority on a money call.
+    GroupRule,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum HistoryPaypal {
+    /// PayPal was not asked at this step.
+    None,
+    Call {
+        method: PaypalMethod,
+        outcome: PaypalOutcome,
+    },
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum PaypalMethod {
+    CreateOrder,
+    Authorize,
+    Capture,
+    Void,
+    ReadOrder,
+    Reporting,
+    Other,
+    CreateInvoice,
+    SendInvoice,
+    ReadInvoice,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum PaypalOutcome {
+    Ok,
+    Failed,
+    Unknown,
+}
+
+/// "Your safety record" (ops-and-delivery-1 slice 2): the whole-ledger money-authority check the
+/// hostile-agent gauntlet runs, run on the owner's own ledger. Every number is counted in Rust
+/// from the verified audit chain and each deal's verified export; the webview only draws it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct SafetyRecord {
+    /// When the check ran (Unix seconds).
+    pub checked_at: i64,
+    /// Records in the audit chain.
+    pub records: u64,
+    /// The chain's head when it verifies; `None` when it does not.
+    pub head: Option<H256>,
+    /// The whole audit chain verifies, record by record.
+    pub intact: bool,
+    /// Deals in the ledger, and how many of the newest were checked (at most `SAFETY_DEALS`).
+    pub deals_total: u64,
+    pub deals_checked: u32,
+    /// Checked deals whose signed message history verified.
+    pub transcripts_verified: u32,
+    /// Money steps at PayPal on the checked deals, by who decided them.
+    pub money: SafetyMoney,
+    /// Agent requests the wallet refused on the checked deals, and by kind of reason.
+    pub refusals: u32,
+    pub refusal_families: Vec<SafetyRefusalCount>,
+    /// Deals the rules refused, and the PayPal calls recorded on them (must be 0).
+    pub refused_deals: u32,
+    pub refused_deal_calls: u32,
+    /// Every break of the invariant found (must be empty), at most `SAFETY_VIOLATIONS` of them;
+    /// `violations_total` counts them all.
+    pub violations: Vec<SafetyViolation>,
+    pub violations_total: u32,
+}
+/// Deals the safety record checks at most (the newest); `deals_checked` says how many it did.
+pub const SAFETY_DEALS: u32 = 1000;
+/// Violations the safety record lists at most; `violations_total` counts them all.
+pub const SAFETY_VIOLATIONS: usize = 50;
+/// Money steps (create, authorize, capture, void, invoice) by the authority each stood on.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct SafetyMoney {
+    /// The owner, in the approval window.
+    pub owner: u32,
+    /// A rule the owner signed (the countersign under the ask-me threshold).
+    pub signed_rule: u32,
+    /// The owner's signed shop rules collecting what a buyer approved at PayPal.
+    pub shop_rules: u32,
+    /// The house seller's signed rules.
+    pub house_rules: u32,
+    /// A deadline's safe default, and how many of those were cancellations (voids).
+    pub safe_default: u32,
+    pub safe_default_voids: u32,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct SafetyRefusalCount {
+    pub family: SafetyRefusalFamily,
+    pub count: u32,
+}
+/// Why the wallet said no to an agent, grouped from the closed refusal codes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum SafetyRefusalFamily {
+    /// A rule the owner signed (limits, price range, offers left, the ask-me threshold, payees,
+    /// wallet-wide limits, a shop-around table already won).
+    YourRules,
+    /// The scam check held the deal.
+    ScamCheck,
+    /// Out of turn, after the deal closed, while paused, or from an ended or unready session.
+    OutOfTurn,
+    /// Something the agent's role has no tool for, or another deal than its own.
+    NotAllowed,
+    /// A request the wallet could not use (malformed, bad numbers, no market price, busy).
+    Unusable,
+    /// An older record that names no reason code.
+    Older,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct SafetyViolation {
+    /// The deal it is on; `None` for the chain itself.
+    pub deal_id: Option<DealId>,
+    pub kind: SafetyViolationKind,
+    /// The precise finding for Details (names steps, rules and paths; never the other side's words).
+    pub detail: String,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum SafetyViolationKind {
+    /// A money step with no authority that fits it.
+    Authority,
+    /// A money call at PayPal with no recorded money step behind it.
+    UntrackedCall,
+    /// Something stored about PayPal carries the other side's words.
+    CounterpartyText,
+    /// A deal the rules refused reached PayPal.
+    RefusedDealCalled,
+    /// The independent proof checker disagreed with the record.
+    VerifierCheck,
+    /// The audit chain does not verify.
+    ChainBroken,
+    /// A deal's evidence does not verify.
+    EvidenceUnreadable,
+}
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod proof_file_tests {

@@ -43,8 +43,10 @@ fn invalid() -> CommandError {
         message: "Invalid native window command".into(),
     }
 }
-fn label(window: &WebviewWindow, allowed: &[&str]) -> Result<(), CommandError> {
-    if allowed.contains(&window.label()) {
+/// The authority table's label gate for a command the shell answers itself (T11); the runtime
+/// checks every other command against the same table.
+fn label(window: &WebviewWindow, command: &str) -> Result<(), CommandError> {
+    if table_client::authority::admits(command, window.label()) {
         Ok(())
     } else {
         Err(table_app::Error::Permission.into())
@@ -180,7 +182,18 @@ pub fn run() -> Result<(), tauri::Error> {
             approval_handoff,
             audit_page,
             owner_facts,
-            book_query
+            book_query,
+            deal_history,
+            mandate_simulate,
+            envelope_sign,
+            envelope_get,
+            rescue_replay,
+            rescue_book,
+            deal_group_open,
+            deal_groups,
+            rescue_watch_add,
+            rescue_watch_stop,
+            safety_record
         ])
         .setup(|app| {
             let data = app.path().app_data_dir()?;

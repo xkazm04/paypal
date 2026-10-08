@@ -50,13 +50,14 @@ describe('generated client requests and mock gates', () => {
     const token = await approval.invoke('approval_token', null);
     const s = await approval.invoke('approval_summary', { deal_id: ID });
     expect(s.can_owner_accept).toBe(true);
-    const args = { deal_id: ID, attempt: s.attempt, terms_hash: s.terms_hash, counter_hash: s.counter_hash };
+    const args = { deal_id: ID, attempt: s.attempt, terms_hash: s.terms_hash, counter_hash: s.counter_hash, checks_hash: s.checks_hash };
     await expect(approval.invoke('deal_owner_accept', args)).rejects.toMatchObject({ code: 'PERMISSION' });
     await expect(approval.invoke('deal_owner_accept', { ...args, counter_hash: fakeHash('stale') }, { token })).rejects.toMatchObject({ code: 'INVALID' });
     await expect(approval.invoke('deal_owner_accept', { ...args, terms_hash: fakeHash('stale terms') }, { token })).rejects.toMatchObject({ code: 'INVALID' });
     const d = await approval.invoke('deal_owner_accept', args, { token });
     expect(d.updated_at).toBe(NOW);
-    expect(d.created_at).toBe(NOW - 86400);
+    // Accepting changes the deal, not when it started.
+    expect(d.created_at).toBe(buildMockState(NOW).deals.find((x) => x.deal.id === ID)?.deal.created_at);
     expect((await approval.invoke('deal_transcript', { deal_id: ID })).at(-1)?.typ).toBe('ACCEPT');
     await expect(approval.invoke('deal_owner_accept', args, { token })).rejects.toMatchObject({ code: 'INVALID' });
   });
@@ -120,7 +121,7 @@ describe('generated client requests and mock gates', () => {
     await main.listen('tumbler:handoff', (p) => wrong.push(p));
     const token = await approval.invoke('approval_token', null);
     const s = await approval.invoke('approval_summary', { deal_id: ID });
-    const args = { deal_id: ID, attempt: 1, terms_hash: s.terms_hash };
+    const args = { deal_id: ID, attempt: 1, terms_hash: s.terms_hash, checks_hash: s.checks_hash };
     await expect(main.invoke('open_paypal_in_browser', args, { token })).rejects.toMatchObject({ code: 'PERMISSION' });
     expect(seen).toHaveLength(0);
     await approval.invoke('open_paypal_in_browser', args, { token });

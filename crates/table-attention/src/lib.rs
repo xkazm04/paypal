@@ -2,16 +2,29 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 pub mod forecast;
 pub mod placement;
+pub mod quit;
+pub mod schedule;
 pub mod silence;
 pub use forecast::*;
 pub use placement::*;
+pub use quit::{QuitEffect, QuitLine, QuitLines, QuitSource, quit_lines, quit_message};
+pub use schedule::{LADDER, LadderSchedule};
 pub use silence::word_silence;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use table_core::{
-    Currency, DealEvent, DealId, DealState, MandateId, Mode, Module, Money, Timestamp,
+    Currency, DealEvent, DealId, DealState, MandateId, Mode, Module, Money, MoneyCheck, Timestamp,
 };
+
+/// The card's line while a money step's PayPal outcome is being checked (T10). Nothing is sent,
+/// and nothing is collected, until PayPal's own record settles it.
+pub const MONEY_CHECK_SILENCE: &str = "nothing more is sent until PayPal confirms";
+/// A rescue fix waiting for the owner: nothing is sent, and PayPal retries the payment itself.
+pub const RESCUE_SILENCE: &str = "nothing is sent · PayPal retries the payment by itself";
+/// A rescue invoice with the subscriber: it stays open; nothing is collected by the wallet.
+pub const RESCUE_SENT_SILENCE: &str =
+    "the invoice stays open until it expires · nothing is charged unless the subscriber pays";
 
 #[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -61,6 +74,16 @@ pub struct AttentionItem {
     pub urgency: Urgency,
     pub mode: Mode,
     pub actions: Vec<TumblerAction>,
+    /// Set while a money step's PayPal outcome is unknown: the card is a HOLD that only opens
+    /// the deal. Older shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub money_check: Option<MoneyCheck>,
+    /// On a card the scam shield holds: the rule that holds it (a closed name the window words
+    /// plainly; never counterparty text). Older shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub shield_rule: Option<table_core::ShieldRule>,
 }
 #[derive(ts_rs::TS, Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -80,7 +103,11 @@ pub struct AttentionSnapshot {
     // not be read; older shells omit it.
     #[serde(default)]
     #[ts(optional = nullable)]
-    pub forecast: Option<Vec<ForecastLine>>,
+    pub forecast: Option<Vec<ForecastLine>>, // The wallet-wide limits and money out right now (T14): limits and numbers only. None while
+    // they could not be read; older shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub exposure: Option<table_core::ExposureView>,
 }
 
 /// Origin: pairing record confirmed by the owner. No merchant title, memo or NOTE field.
@@ -97,7 +124,11 @@ pub struct AttentionSource {
     pub deadline: Option<Timestamp>,
     pub mode: Mode,
     pub shield_hold: bool,
+    /// The rule that holds the deal, when the shield holds it (shield slice 2).
+    pub shield_rule: Option<table_core::ShieldRule>,
     pub needs_owner_accept: bool,
+    /// A money step whose PayPal outcome is not confirmed (T10).
+    pub money_check: Option<MoneyCheck>,
 }
 impl AttentionSource {
     pub fn from_deal(
@@ -125,15 +156,27 @@ impl AttentionSource {
             clause,
             deadline,
             mode: deal.mode,
-            shield_hold: deal
-                .shield
-                .is_some_and(|v| v >= table_core::ShieldVerdict::Hold),
+            shield_hold: deal.shield_held(),
+            shield_rule: deal.shield_rule.filter(|_| deal.shield_held()),
             needs_owner_accept: false,
+            money_check: None,
         })
     }
     pub fn item(&self, now: Timestamp) -> AttentionItem {
+        if let Some(check) = self.money_check {
+            return self.checking_item(check, now);
+        }
+        let rescue = self.module == Module::Rescue;
         let kind = if self.shield_hold || self.state == DealState::Mismatch {
             AttnKind::Hold
+        } else if rescue
+            && matches!(
+                self.state,
+                DealState::Settling | DealState::AwaitingApproval
+            )
+        {
+            // The invoice is with the subscriber: nothing for the owner to decide.
+            AttnKind::Motion
         } else if self.needs_owner_accept && self.state == DealState::Negotiating {
             AttnKind::Gate
         } else {
@@ -157,6 +200,9 @@ impl AttentionSource {
             }
         };
         let action = match (kind, self.state) {
+            (AttnKind::Gate, DealState::Agreed) if rescue => "Approve rescue lever",
+            (AttnKind::Motion, DealState::Settling) if rescue => "Sending invoice",
+            (AttnKind::Motion, DealState::AwaitingApproval) if rescue => "Invoice sent",
             (AttnKind::Gate, DealState::Authorized) => "Capture or void",
             (AttnKind::Gate, DealState::AwaitingApproval) => "Review payment",
             (AttnKind::Gate, _) => "Countersign",
@@ -165,7 +211,16 @@ impl AttentionSource {
             (AttnKind::Motion, _) => "Negotiating",
             (AttnKind::Receipt, _) => "Deal updated",
         };
-        let on_silence = if self.state == DealState::Authorized {
+        let on_silence = if rescue && self.state == DealState::Agreed {
+            RESCUE_SILENCE
+        } else if rescue
+            && matches!(
+                self.state,
+                DealState::Settling | DealState::AwaitingApproval
+            )
+        {
+            RESCUE_SENT_SILENCE
+        } else if self.state == DealState::Authorized {
             "authorization auto-voids at the deadline; no capture"
         } else {
             "the offer or order lapses at the deadline; no money moves"
@@ -182,7 +237,7 @@ impl AttentionSource {
             if self.state != DealState::Authorized && allows(DealEvent::Deadline) {
                 actions.push(TumblerAction::LetLapse);
             }
-            if self.deadline.is_some_and(|d| d.saturating_sub(now) > 2700) {
+            if LADDER.snooze_allowed(self.deadline, now) {
                 actions.push(TumblerAction::Snooze30);
             }
         } else if kind == AttnKind::Hold
@@ -206,13 +261,37 @@ impl AttentionSource {
             urgency: urgency(self.deadline, now),
             mode: self.mode,
             actions,
+            money_check: None,
+            shield_rule: self.shield_rule.filter(|_| self.shield_hold),
+        }
+    }
+    /// A deal whose money step is being checked with PayPal: a HOLD with no decision on it and
+    /// no way to walk away, because the deal stays reserved until PayPal's record settles it.
+    fn checking_item(&self, check: MoneyCheck, now: Timestamp) -> AttentionItem {
+        AttentionItem {
+            deal_id: self.deal_id,
+            label: format!("D-{:04}", self.display_number),
+            kind: AttnKind::Hold,
+            module: self.module,
+            headline: format!("Checking with PayPal {}", self.amount),
+            amount_minor: self.amount.minor(),
+            currency: self.amount.currency(),
+            counterparty: self.pairing_display_name.clone(),
+            clause: None,
+            deadline: self.deadline,
+            on_silence: MONEY_CHECK_SILENCE.to_owned(),
+            urgency: urgency(self.deadline, now),
+            mode: self.mode,
+            actions: vec![TumblerAction::OpenInTable],
+            money_check: Some(check),
+            shield_rule: None,
         }
     }
 }
 pub fn urgency(deadline: Option<Timestamp>, now: Timestamp) -> Urgency {
     match deadline.map(|d| d.saturating_sub(now)) {
-        Some(left) if left <= 900 => Urgency::Now,
-        Some(left) if left <= 7200 => Urgency::Soon,
+        Some(left) if left <= LADDER.notify_secs => Urgency::Now,
+        Some(left) if left <= LADDER.breathe_secs => Urgency::Soon,
         _ => Urgency::Calm,
     }
 }
@@ -222,14 +301,11 @@ pub fn quiet_opacity_percent(
     last_interaction: Timestamp,
     now: Timestamp,
 ) -> u8 {
-    let imminent = items.iter().any(|item| {
-        item.kind == AttnKind::Gate
-            && item
-                .deadline
-                .is_some_and(|deadline| deadline > now && deadline.saturating_sub(now) <= 7200)
-    });
-    if now.saturating_sub(last_interaction) >= 45 && !imminent {
-        55
+    let imminent = items
+        .iter()
+        .any(|item| item.kind == AttnKind::Gate && LADDER.breathes(item.deadline, now));
+    if now.saturating_sub(last_interaction) >= LADDER.quiet_after_secs && !imminent {
+        LADDER.quiet_opacity_percent
     } else {
         100
     }
@@ -263,18 +339,23 @@ pub fn snapshot(
         engine_estimate_today_usd,
         locked,
         forecast: None,
+        exposure: None,
     }
 }
 
 #[derive(Debug, Default)]
 pub struct AttentionLadder {
     notified: HashSet<(DealId, Option<Timestamp>)>,
+    suppressed: HashSet<(DealId, Option<Timestamp>)>,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LadderEffects {
     pub show_without_activation: bool,
     pub breathe: bool,
     pub notify: bool,
+    /// The notification was due but Do Not Disturb (or the system's quiet) held it back: once
+    /// per card and deadline, so the wallet can record that the owner was not told.
+    pub suppressed: bool,
     pub tray_dot: bool,
 }
 impl AttentionLadder {
@@ -284,6 +365,7 @@ impl AttentionLadder {
     pub fn forget_absent(&mut self, items: &[AttentionItem]) {
         let live: HashSet<_> = items.iter().map(|i| (i.deal_id, i.deadline)).collect();
         self.notified.retain(|key| live.contains(key));
+        self.suppressed.retain(|key| live.contains(key));
     }
     /// Take back a rung whose toast could not be shown, so a later tick inside the same rung
     /// can try again.
@@ -298,14 +380,15 @@ impl AttentionLadder {
         reduced_motion: bool,
     ) -> LadderEffects {
         let gate = item.kind == AttnKind::Gate;
-        let live = item.deadline.is_none_or(|at| at > now);
-        let urgency = urgency(item.deadline, now);
-        let urgent = gate && live && urgency == Urgency::Now;
-        let notify = urgent && !dnd && self.notified.insert((item.deal_id, item.deadline));
+        let urgent = gate && LADDER.notify_due(item.deadline, now);
+        let key = (item.deal_id, item.deadline);
+        let notify = urgent && !dnd && self.notified.insert(key);
+        let suppressed = urgent && dnd && self.suppressed.insert(key);
         LadderEffects {
             show_without_activation: gate || item.kind == AttnKind::Hold,
-            breathe: gate && live && urgency != Urgency::Calm && !dnd && !reduced_motion,
+            breathe: gate && LADDER.breathes(item.deadline, now) && !dnd && !reduced_motion,
             notify,
+            suppressed,
             tray_dot: matches!(item.kind, AttnKind::Gate | AttnKind::Hold),
         }
     }
@@ -328,6 +411,8 @@ mod tests {
             deadline: Some(deadline),
             mode: Mode::Sandbox,
             shield_hold: false,
+            shield_rule: None,
+            money_check: None,
         }
     }
     #[test]
@@ -361,6 +446,85 @@ mod tests {
         assert!(view.locked);
         assert_eq!(view.items.len(), 1);
         assert!(!view.items[0].on_silence.is_empty());
+    }
+    #[test]
+    fn a_money_check_is_a_hold_that_only_opens_the_deal_and_never_promises_money() {
+        for state in [
+            DealState::Settling,
+            DealState::Approved,
+            DealState::Authorized,
+        ] {
+            for parked in [
+                table_core::MoneyCheckState::Checking,
+                table_core::MoneyCheckState::Parked,
+            ] {
+                let mut s = source(1, 8000);
+                s.state = state;
+                s.money_check = Some(MoneyCheck {
+                    step: table_core::MoneyCheckStep::Capture,
+                    state: parked,
+                    since: 0,
+                    next_check: None,
+                });
+                let item = s.item(0);
+                assert_eq!(item.kind, AttnKind::Hold);
+                assert_eq!(item.actions, vec![TumblerAction::OpenInTable]);
+                assert!(item.headline.starts_with("Checking with PayPal"));
+                assert_eq!(item.on_silence, MONEY_CHECK_SILENCE);
+                assert_eq!(item.money_check, s.money_check);
+                let mut ladder = AttentionLadder::default();
+                let fx = ladder.evaluate(&item, 0, false, false);
+                assert!(fx.show_without_activation && fx.tray_dot && !fx.notify);
+            }
+        }
+    }
+    #[test]
+    fn a_shield_hold_card_names_its_rule_and_a_released_hold_is_no_hold() {
+        use table_core::{ShieldRelease, ShieldRule, ShieldVerdict};
+        let mut s = source(1, 8000);
+        s.shield_hold = true;
+        s.shield_rule = Some(ShieldRule::PriceOverMarket);
+        let item = s.item(0);
+        assert_eq!(item.kind, AttnKind::Hold);
+        assert_eq!(item.shield_rule, Some(ShieldRule::PriceOverMarket));
+        // The rule is a closed name: the card carries no counterparty text.
+        let json = serde_json::to_string(&item).unwrap();
+        assert!(json.contains("\"shield_rule\":\"price_over_market\""));
+        // Not held: no rule on the card.
+        s.shield_hold = false;
+        let item = s.item(0);
+        assert_eq!(item.kind, AttnKind::Gate);
+        assert_eq!(item.shield_rule, None);
+        // From a deal: a HOLD the owner released for these terms is not a hold card.
+        let mut deal: table_core::Deal = serde_json::from_value(serde_json::json!({
+            "id": "00000000000000000000000001", "kind": "haggle", "side": "seller",
+            "counterparty": "peer",
+            "terms": {"item_ref": "monitor", "qty": 1,
+                "unit_price": {"minor": 32900, "currency": "USD"}, "currency": "USD",
+                "delivery": {"type": "digital_now"}},
+            "state": "APPROVED", "mandate_id": "00000000000000000000000002", "mandate_version": 1,
+            "transcript_head": vec![0; 32], "paypal": {}, "mode": "sandbox", "market": null,
+            "shield": "HOLD", "shield_rule": "model_caution"
+        }))
+        .unwrap();
+        let held = AttentionSource::from_deal(&deal, 1, None, None, Some(8000)).unwrap();
+        assert!(held.shield_hold);
+        assert_eq!(held.item(0).shield_rule, Some(ShieldRule::ModelCaution));
+        deal.shield_release = Some(ShieldRelease {
+            terms_hash: deal.terms.hash().unwrap(),
+            rules: vec![ShieldRule::ModelCaution],
+            at: 0,
+        });
+        let released = AttentionSource::from_deal(&deal, 1, None, None, Some(8000)).unwrap();
+        assert!(!released.shield_hold);
+        assert_eq!(released.item(0).kind, AttnKind::Gate);
+        assert_eq!(released.item(0).shield_rule, None);
+        deal.shield = Some(ShieldVerdict::Block);
+        assert!(
+            AttentionSource::from_deal(&deal, 1, None, None, Some(8000))
+                .unwrap()
+                .shield_hold
+        );
     }
     #[test]
     fn hold_has_no_review_and_authorized_has_no_withdraw() {
@@ -418,6 +582,56 @@ mod tests {
         assert!(!ladder.evaluate(&item, 0, false, true).breathe);
         assert!(!ladder.evaluate(&item, 0, true, false).breathe);
         assert!(ladder.evaluate(&item, 0, false, false).breathe);
+    }
+    #[test]
+    fn dnd_records_one_suppression_per_card_and_deadline_and_never_notifies() {
+        let item = source(1, 840).item(0);
+        let mut ladder = AttentionLadder::default();
+        let fx = ladder.evaluate(&item, 0, true, false);
+        assert!(fx.suppressed && !fx.notify);
+        assert!(!ladder.evaluate(&item, 1, true, false).suppressed);
+        // Not yet due: nothing to suppress.
+        let calm = source(2, 2000).item(0);
+        assert!(!ladder.evaluate(&calm, 0, true, false).suppressed);
+        // Do Not Disturb turned off before the deadline: the notification is still shown once.
+        assert!(ladder.evaluate(&item, 2, false, false).notify);
+        ladder.forget_absent(&[]);
+        assert!(ladder.suppressed.is_empty() && ladder.notified.is_empty());
+    }
+    #[test]
+    fn urgency_ladder_and_quiet_rule_agree_with_the_one_schedule_at_every_boundary() {
+        let l = LADDER;
+        for left in [
+            l.breathe_secs + 1,
+            l.breathe_secs,
+            l.snooze_min_left_secs + 1,
+            l.snooze_min_left_secs,
+            l.notify_secs + 1,
+            l.notify_secs,
+            1,
+        ] {
+            let item = source(1, left).item(0);
+            let mut ladder = AttentionLadder::default();
+            let fx = ladder.evaluate(&item, 0, false, false);
+            assert_eq!(fx.breathe, l.breathes(Some(left), 0), "{left}");
+            assert_eq!(fx.notify, l.notify_due(Some(left), 0), "{left}");
+            assert_eq!(
+                urgency(Some(left), 0) != Urgency::Calm,
+                l.breathes(Some(left), 0)
+            );
+            assert_eq!(
+                item.actions.contains(&TumblerAction::Snooze30),
+                l.snooze_allowed(Some(left), 0)
+            );
+            assert_eq!(
+                quiet_opacity_percent(std::slice::from_ref(&item), 0, l.quiet_after_secs),
+                if l.breathes(Some(left), l.quiet_after_secs) {
+                    100
+                } else {
+                    l.quiet_opacity_percent
+                }
+            );
+        }
     }
     #[test]
     fn quiet_after_45_seconds_except_imminent_gates() {

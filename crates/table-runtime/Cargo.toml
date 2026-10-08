@@ -30,11 +30,12 @@ thiserror.workspace = true
 getrandom.workspace = true
 ulid.workspace = true
 zeroize = "1"
+# The whole-ledger safety record runs the offline verifier's predicate (already a table-client dependency).
+table-verify = {path="../table-verify"}
 [dev-dependencies]
 base64.workspace = true
 house-seller = {path="../../services/house-seller"}
 rendezvous = {path="../../services/rendezvous"}
-table-verify = {path="../table-verify"}
 tower = {version="0.5",features=["util"]}
 [target.'cfg(windows)'.dependencies]
 keyring = { version = "=3.6.1", default-features = false, features = ["windows-native"] }

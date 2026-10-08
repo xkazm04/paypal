@@ -11,6 +11,7 @@ pub(crate) struct Delivery {
 }
 impl Runtime {
     pub fn with_secondary(mut self, api: Arc<dyn table_paypal::SecondaryApi>) -> Self {
+        self.pipeline.set_secondary(Some(api.clone()));
         self.secondary = Some(api);
         self
     }
@@ -149,6 +150,9 @@ impl Runtime {
                 .ledger
                 .finish_inbox(&message, accepted, self.clock.now()))?;
         }
+        // An inbound ACCEPT may have agreed a grouped table: withdraw its siblings now. A failure
+        // here is retried and reported by the next tick.
+        let _ = self.close_groups();
         failure.map_or(Ok(()), Err)
     }
 }

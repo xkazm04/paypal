@@ -1,7 +1,7 @@
 // Layer 0's machined vault dial. React renders the structure; rotation is applied imperatively
 // (a damped spring on requestAnimationFrame) so turning never re-renders the tree. Medallions and
 // beads stay upright while the rotor turns.
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as RMouseEvent, type PointerEvent as RPointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as RMouseEvent, type PointerEvent as RPointerEvent, type ReactNode } from 'react';
 import { MODULES } from '../../shared/modules';
 import { DID, dialBezel, dialDefs, groove, hubPlate, INDEX, medallionArt, P, RING_HIT, rotorBase, rotorDividers, SPEC, url, WINDOW_PATH } from './art';
 import { Chip, type ChipTone } from '../../shared/ui';
@@ -30,6 +30,10 @@ type Props = {
   onBead: (id: string) => void;
   onTurn: (dir: 1 | -1) => void;
   onPointerInside: (inside: boolean) => void;
+  /** What a screen reader hears for the part under the index (the slider's value text). */
+  valueText: string;
+  /** First run: the dial is drawn but does not turn or open anything yet. */
+  disabled?: boolean;
   children: ReactNode;
 };
 
@@ -203,6 +207,7 @@ export function Dial(p: Props) {
     return () => ro.disconnect();
   }, []);
 
+  const hintId = useId();
   const hi = p.focus;
   const winColor = p.mode === 'module' ? MODULES[hi]?.cssVar ?? P.gold : P.gold;
 
@@ -210,8 +215,11 @@ export function Dial(p: Props) {
     <div className="dialwrap" ref={wrapRef}
       onPointerEnter={() => p.onPointerInside(true)}
       onPointerLeave={() => { clearDwell(); setTip(null); p.onPointerInside(false); }}>
-      <svg ref={svgRef} className="dial" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet" role="group"
-        aria-label="The dial: six parts of your wallet on the outer ring, every deal as a dot on the middle ring, what needs you in the centre. Turn with the left and right arrow keys or the mouse wheel; Enter opens."
+      {/* A slider for assistive tech: one focus stop, the part under the index is its value, and
+          the keys Home already handles (arrows, 1-6, Enter) operate it. Its art is presentational. */}
+      <svg ref={svgRef} className="dial" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet"
+        role="slider" aria-roledescription="dial" aria-label="The dial" tabIndex={p.disabled ? -1 : 0} aria-disabled={p.disabled || undefined}
+        aria-orientation="horizontal" aria-valuemin={1} aria-valuemax={MODULES.length} aria-valuenow={p.focus + 1} aria-valuetext={p.valueText} aria-describedby={hintId}
         onPointerMove={onMove} onClick={onClick}>
         <g dangerouslySetInnerHTML={{ __html: STATIC.back }} />
         <g ref={rotorRef}>
@@ -249,7 +257,7 @@ export function Dial(p: Props) {
         </g>
         <g>
           {p.beads.map((b) => (
-            <g key={b.id} className={`bead k-${b.kind}`} role="button" aria-label={`${b.tip.label} · ${b.tip.state}${b.needs ? ' · needs you' : ''}`}
+            <g key={b.id} className={`bead k-${b.kind}`}
               ref={(el) => { if (el) beadRefs.current.set(b.id, el); else beadRefs.current.delete(b.id); }}
               onClick={(e) => { e.stopPropagation(); setTip(null); if (p.intro === 'run') p.onSkipIntro(); else p.onBead(b.id); }}
               onPointerEnter={(e) => setTip({ b: b.tip, ...tipPos(e.clientX, e.clientY) })}
@@ -266,6 +274,9 @@ export function Dial(p: Props) {
         <g pointerEvents="none" dangerouslySetInnerHTML={{ __html: SPEC }} />
         <g key={p.flash} className={`idx ${p.flash ? 'flash' : ''}`} pointerEvents="none" dangerouslySetInnerHTML={{ __html: INDEX }} />
       </svg>
+      <span id={hintId} className="sr-only">
+        Six parts of your wallet on the outer ring, every deal as a dot on the middle ring, what needs you in the centre. Left and right arrows turn the dial, up and down step through what needs you, Enter opens, 1 to 6 jump to a part.
+      </span>
       <div className="hub">{p.children}</div>
       {tip ? (
         <div className="beadtip" role="tooltip" style={{ left: tip.x, top: tip.y, '--mc': tip.b.color } as CSSProperties}>

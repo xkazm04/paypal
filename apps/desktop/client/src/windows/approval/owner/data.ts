@@ -1,27 +1,48 @@
-// What the what-if replay reads. Both are read-only.
-//   list_deals        - main-only in Rust today (dispatcher.rs allowed(label, ["main"]) and the
-//                       approval capability lacks allow-list-deals), so in this window it answers
-//                       PERMISSION and the replay renders UNAVAILABLE. When a mandate_preview
-//                       command (or approval read access) lands, the replay lights up unchanged.
-//   counterparty_list - allowed here; exactly the word-confirmed counterparties (+ HOUSE flag).
-import type { CounterpartyDisplay } from '@bindings/CounterpartyDisplay';
-import type { Deal } from '@bindings/Deal';
-import type { WalletError } from '../../../lib/contract';
-import { useQuery } from '../../../lib/hooks';
+// What the what-if reads: mandate_simulate (approval only, read-only, no unlock). Rust replays the
+// draft and the rules in force over this week's recorded deals with its own check; nothing is
+// signed, written or sent. The call is debounced so typing or dragging a limit asks once it
+// settles, and the last answer stays on screen (marked as updating) until the next one lands.
+import { useEffect, useRef, useState } from 'react';
+import type { MandateSimulateArgs } from '@bindings/MandateSimulateArgs';
+import type { MandateSimulation } from '@bindings/MandateSimulation';
+import { toWalletError, type WalletError } from '../../../lib/contract';
+import { backend } from '../../../lib/runtime';
 
-export type ReplayData = {
-  /** undefined = still reading; null = not readable here (see dealsError). */
-  deals: Deal[] | null | undefined;
-  dealsError: WalletError | null;
-  counterparties: CounterpartyDisplay[] | null;
+/** How long the draft must stay still before the wallet is asked again. */
+export const SIMULATE_DEBOUNCE_MS = 400;
+
+export type Simulation = {
+  /** The latest answer (it may be for an earlier draft while `updating`); null before the first. */
+  sim: MandateSimulation | null;
+  /** The latest failure (REFUSED = this draft can't be signed), cleared by the next answer. */
+  error: WalletError | null;
+  /** A newer draft is waiting for its answer. */
+  updating: boolean;
 };
 
-export function useReplayData(): ReplayData {
-  const deals = useQuery('list_deals', null, { refreshOn: ['settings:changed'] });
-  const cps = useQuery('counterparty_list', null, { refreshOn: ['settings:changed'] });
-  return {
-    deals: deals.error ? null : deals.loading && deals.data === undefined ? undefined : deals.data ?? null,
-    dealsError: deals.error,
-    counterparties: cps.error ? null : cps.data ?? null,
-  };
+type Invoke = (args: MandateSimulateArgs) => Promise<MandateSimulation>;
+const viaBackend: Invoke = (args) => backend().invoke('mandate_simulate', args);
+
+/** Ask Rust for the what-if of `args` once it has been still for `delay` ms. null = nothing to ask. */
+export function useSimulation(args: MandateSimulateArgs | null, opts: { delay?: number; invoke?: Invoke } = {}): Simulation {
+  const delay = opts.delay ?? SIMULATE_DEBOUNCE_MS;
+  const invoke = useRef(opts.invoke ?? viaBackend);
+  invoke.current = opts.invoke ?? viaBackend;
+  const key = args ? JSON.stringify(args) : null;
+  const [answer, setAnswer] = useState<{ key: string | null; sim: MandateSimulation | null; error: WalletError | null }>({ key: null, sim: null, error: null });
+  useEffect(() => {
+    if (key === null) return;
+    let live = true;
+    const timer = setTimeout(() => {
+      invoke.current(JSON.parse(key) as MandateSimulateArgs).then(
+        (sim) => live && setAnswer({ key, sim, error: null }),
+        (e: unknown) => live && setAnswer((a) => ({ key, sim: a.sim, error: toWalletError(e) })),
+      );
+    }, delay);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [key, delay]);
+  return { sim: answer.sim, error: answer.error, updating: key !== null && answer.key !== key };
 }

@@ -14,14 +14,12 @@ pub enum Decision {
     Withdraw,
 }
 impl Policy {
-    pub fn decide(&self, offer: Money, round: u8) -> Result<Decision, MoneyError> {
+    /// This round's counter price, conceding linearly from the ask to the floor over
+    /// `max_rounds`; `None` when the round is outside the rounds (withdraw).
+    fn schedule(&self, round: u8) -> Result<Option<Money>, MoneyError> {
         self.floor.same_currency(self.ask)?;
-        offer.same_currency(self.floor)?;
         if round == 0 || round > self.max_rounds || self.floor.minor() > self.ask.minor() {
-            return Ok(Decision::Withdraw);
-        }
-        if offer.minor() >= self.floor.minor() {
-            return Ok(Decision::Accept);
+            return Ok(None);
         }
         let remaining = i64::from(self.max_rounds - round);
         let span = self.ask.minor() - self.floor.minor();
@@ -30,7 +28,34 @@ impl Policy {
                 i128::from(span) * i128::from(remaining) / i128::from(self.max_rounds.max(1)),
             )
             .map_err(|_| MoneyError::Overflow)?;
-        Ok(Decision::Counter(Money::new(minor, self.floor.currency())?))
+        Ok(Some(Money::new(minor, self.floor.currency())?))
+    }
+    pub fn decide(&self, offer: Money, round: u8) -> Result<Decision, MoneyError> {
+        offer.same_currency(self.floor)?;
+        let Some(schedule) = self.schedule(round)? else {
+            return Ok(Decision::Withdraw);
+        };
+        if offer.minor() >= self.floor.minor() {
+            return Ok(Decision::Accept);
+        }
+        Ok(Decision::Counter(schedule))
+    }
+    /// The HOUSE seller's rule (scan C-14): its floor is public, since it is a clause of the
+    /// owner-signed mandate every buyer verifies, so the floor cannot be its acceptance line.
+    /// Each round it accepts only an offer at or above the price it would counter that round,
+    /// which concedes from the ask to the floor and reaches the floor only in the last round.
+    /// A floor bid is countered until then. Counters are those of [`Policy::decide`], never
+    /// below the floor; the withdraw rules are the same.
+    pub fn decide_on_schedule(&self, offer: Money, round: u8) -> Result<Decision, MoneyError> {
+        offer.same_currency(self.floor)?;
+        let Some(schedule) = self.schedule(round)? else {
+            return Ok(Decision::Withdraw);
+        };
+        Ok(if offer.minor() >= schedule.minor() {
+            Decision::Accept
+        } else {
+            Decision::Counter(schedule)
+        })
     }
 }
 /// Buyer mirror: opens low and concedes linearly over `max_rounds` toward the target, the lower of
@@ -162,6 +187,67 @@ mod tests {
             })
             .collect();
         assert_eq!(counters, [1150, 1100, 1050, 1000]);
+    }
+    #[test]
+    fn house_schedule_counters_a_floor_bid_until_the_last_round_and_never_goes_below() {
+        let p = Policy {
+            floor: money(1000),
+            ask: money(2500),
+            max_rounds: 6,
+        };
+        // A floor bid does not close in one round: it is countered on the schedule.
+        let counters: Vec<i64> = (1..=6)
+            .filter_map(|r| match p.decide_on_schedule(money(1000), r).unwrap() {
+                Decision::Counter(m) => Some(m.minor()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(counters, [2250, 2000, 1750, 1500, 1250]);
+        assert_eq!(
+            p.decide_on_schedule(money(1000), 6).unwrap(),
+            Decision::Accept
+        );
+        // Below the floor is never accepted, even in the last round; the counter is the floor.
+        assert_eq!(
+            p.decide_on_schedule(money(999), 6).unwrap(),
+            Decision::Counter(money(1000))
+        );
+        // An offer at or above this round's counter closes at once.
+        assert_eq!(
+            p.decide_on_schedule(money(2250), 1).unwrap(),
+            Decision::Accept
+        );
+        assert_eq!(
+            p.decide_on_schedule(money(2249), 1).unwrap(),
+            Decision::Counter(money(2250))
+        );
+        for round in 0..=8 {
+            for offer in [0, 500, 999, 1000, 1500, 2249, 2250, 2500, 9999] {
+                match p.decide_on_schedule(money(offer), round).unwrap() {
+                    Decision::Counter(m) => assert!(m.minor() >= 1000 && m.minor() <= 2500),
+                    Decision::Accept => assert!(offer >= 1000),
+                    Decision::Withdraw => assert!(round == 0 || round > 6),
+                }
+            }
+        }
+        assert!(
+            p.decide_on_schedule(Money::new(2500, Currency::EUR).unwrap(), 1)
+                .is_err()
+        );
+        // A zero floor keeps the same rule: the floor is reached only in the last round.
+        let free = Policy {
+            floor: money(0),
+            ask: money(600),
+            max_rounds: 3,
+        };
+        assert_eq!(
+            free.decide_on_schedule(money(0), 1).unwrap(),
+            Decision::Counter(money(400))
+        );
+        assert_eq!(
+            free.decide_on_schedule(money(0), 3).unwrap(),
+            Decision::Accept
+        );
     }
     #[test]
     fn buyer_opens_low_concedes_to_target_and_never_exceeds_ceiling() {

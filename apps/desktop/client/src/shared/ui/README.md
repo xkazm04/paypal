@@ -30,6 +30,22 @@ closes the **topmost** layer on Esc and stops the event. So:
 - Effects run child-first: open a nested layer after its parent (on a click), not in the same commit.
 - Sheets focus their **heading**, never a button (Enter must not release money), trap Tab, and give
   focus back on close. Money buttons inside a sheet still only hand off to the approval window.
+- Modals (`Sheet`, the Find palette) also call `useModalFocus(box, home)`: focus that lands behind
+  the scrim (a Tab from the page body after a click on plain text) goes back to `home` (the
+  heading). The box has `tabIndex={-1}`. Floating pieces that belong to a modal but portal
+  elsewhere (popovers, toasts) carry `data-layer-free`.
+- A page whose focused button can disappear (a decided money button) calls
+  `useFocusRescue(headingRef)`: focus lands on the heading instead of the page body.
+
+## Accessibility (WCAG 2.2 AA)
+
+- Text inks are checked against every surface in both themes by `src/lib/contrast.test.ts`; change
+  a colour token and that test tells you if anything became hard to read.
+- Ticking clocks (`Countdown`) are `role="timer"` (not live): nothing is read out every second. The
+  Tumbler announces a deadline once per rung of the ladder (2 h, 15 min, time up), politely.
+- Several links with one visible word ("Proof", "Why?") get a unique name from their question.
+- The Dial is one keyboard stop, a slider (`aria-roledescription="dial"`): arrows turn it, Enter
+  opens, 1-6 jump; its value text says the part and the decision it points at.
 
 ## Components
 

@@ -1,6 +1,7 @@
 import type { Currency } from '@bindings/Currency';
 import type { Money } from '@bindings/Money';
 import type { H256 } from '@bindings/H256';
+import { clockNow } from './clock';
 
 /** Minor-unit exponents, matching the Rust Currency table. Money never touches floats in Rust;
  *  the client only formats it for display. */
@@ -9,6 +10,11 @@ const EXPONENT: Record<Currency, number> = {
   JPY: 0, HUF: 2, KWD: 3, BHD: 3,
 };
 const SYMBOL: Partial<Record<Currency, string>> = { USD: '$', EUR: '€', GBP: '£' };
+
+/** "$" for currencies with a familiar symbol, else the ISO code ("CHF"). */
+export function currencyMark(c: Currency): string {
+  return SYMBOL[c] ?? c;
+}
 
 export function exponent(c: Currency): number {
   return EXPONENT[c];
@@ -43,6 +49,19 @@ export function shortId(id: string, head = 4, tail = 2): string {
   return id.length <= head + tail + 1 ? id : `${id.slice(0, head)}…${tail > 0 ? id.slice(-tail) : ''}`;
 }
 
+/** A key id in groups of four characters ("5e3a 91c0 …"), so a person can read it out and
+ *  compare it group by group. Every character is kept: the full id is the anchor. */
+export function keyGroups(id: string): string[] {
+  return id.match(/.{1,4}/g) ?? [];
+}
+
+/** A proof file's owner key against this wallet's own: 'mine', 'other', or null while this
+ *  wallet's key is not known. Compared in full, case-insensitively (both are hex). */
+export function keyMatch(fileKey: string, ownKey: string | null | undefined): 'mine' | 'other' | null {
+  if (!ownKey) return null;
+  return fileKey.toLowerCase() === ownKey.toLowerCase() ? 'mine' : 'other';
+}
+
 /** Hex prefix of a 32-byte digest: "7c1e…94". */
 export function shortHash(h: H256 | null | undefined): string {
   if (!h) return '—';
@@ -50,13 +69,15 @@ export function shortHash(h: H256 | null | undefined): string {
   return `${hex.slice(0, 4)}…${hex.slice(-2)}`;
 }
 
-/** Remaining time as "3:57:56" (or "2 d 19 h" when over a day). Negative → "0:00:00". */
+/** Remaining time as a ticking clock "3:57:56" under a day; over a day it reads as words, the
+ *  way UX-GUIDE spells time in sentences: "2 days 19 h", "1 day 3 h", "3 days" (no "0 h").
+ *  Negative → "0:00:00". */
 export function countdown(deadline: number, now: number): string {
   let s = Math.max(0, Math.floor(deadline - now));
   if (s >= 86400) {
     const d = Math.floor(s / 86400);
     const h = Math.floor((s % 86400) / 3600);
-    return `${d} d ${h} h`;
+    return `${d} ${d === 1 ? 'day' : 'days'}${h ? ` ${h} h` : ''}`;
   }
   const h = Math.floor(s / 3600);
   s -= h * 3600;
@@ -65,14 +86,17 @@ export function countdown(deadline: number, now: number): string {
   return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
-/** "Thu 18:00" in local time from Unix seconds. */
-export function clockLabel(unix: number): string {
+/** "Thu 18:00" in local time from Unix seconds, within six days of `now`; further away a weekday
+ *  would read as this week, so it says the date: "3 Nov 18:00". */
+export function clockLabel(unix: number, now: number = nowUnix()): string {
   const d = new Date(unix * 1000);
-  const day = d.toLocaleDateString('en-US', { weekday: 'short' });
+  const near = Math.abs(unix - now) < 6 * 86400;
+  const day = near ? d.toLocaleDateString('en-US', { weekday: 'short' }) : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   const t = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   return `${day} ${t}`;
 }
 
+/** Unix seconds from the one client clock (wall time in the shell; see lib/clock.ts). */
 export function nowUnix(): number {
-  return Math.floor(Date.now() / 1000);
+  return clockNow();
 }

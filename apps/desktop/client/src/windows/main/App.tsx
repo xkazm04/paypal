@@ -1,23 +1,34 @@
 // The Main window of The Table: Layer 0 (the Dial), Layer 1 (six modules), Layer 2 (deal detail),
 // plus the owner configuration sheet and Ctrl K find. Routing follows both the `main:route` event
 // and location.hash (#m=<module>, #d=<deal id or label>, #s=<sheet>).
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Module } from '@bindings/Module';
 import type { TumblerStatus } from '@bindings/TumblerStatus';
 import { useEvent } from '../../lib/hooks';
+import { lazyPart, preloadWhenIdle } from '../../lib/lazy';
 import { MODULE, MODULES } from '../../shared/modules';
 import { layerCount, useLayerCount } from '../../shared/ui/layers';
-import { DealView } from './DealView';
-import { Home } from './Home';
+import { DEAL_PARTS, DealView } from './DealView';
+import { HOME_PARTS, Home } from './Home';
+import { shortTitle } from './home/model';
 import { formatHash, parseHash, resolveDealRef, stateLabel, type Route, type SheetTab } from './logic';
-import { ModuleView } from './Modules';
+import { MODULE_PAGES, ModuleView } from './Modules';
 import { Palette } from './Palette';
+import { safetyInHash, withSafety } from './safety/model';
+import './quit.css';
 import { Shell, type Crumb } from './Shell';
-import { Sheet } from './Sheet';
+import { SHEET_TABS, Sheet } from './Sheet';
+import type { PairMode } from './setup/pairing';
 import { Shortcuts } from './Shortcuts';
 import { CounterpartyProvider, Loading, ToastProvider, useToast } from './ui';
 import { useWorld, WorldProvider } from './world';
 import { silenceWords } from '../../lib/words';
+
+// Not on the first paint (Home, or a deal opened from a link): loaded as their own chunks and
+// preloaded once the window is idle, so opening them later is instant (lib/lazy.ts).
+const QuitSheet = lazyPart(() => import('./QuitSheet').then((m) => m.QuitSheet));
+const SafetySheet = lazyPart(() => import('./safety/SafetySheet').then((m) => m.SafetySheet));
+const LATER = [...MODULE_PAGES, ...DEAL_PARTS, ...HOME_PARTS, ...SHEET_TABS, QuitSheet, SafetySheet];
 
 export function App() {
   return (
@@ -37,8 +48,14 @@ function Main() {
   const initial = useMemo(() => parseHash(location.hash), []);
   const [route, setRoute] = useState<Route>(initial.route);
   const [sheet, setSheet] = useState<SheetTab | null>(initial.sheet);
+  // Connections can open on a way of connecting (first run: the house seller's tab).
+  const [pairStart, setPairStart] = useState<PairMode | undefined>(undefined);
   const [palette, setPalette] = useState(false);
   const [help, setHelp] = useState(false);
+  const [quit, setQuit] = useState(false);
+  // "Your safety record" (#…&p=safety): opened from the Book or Ctrl K.
+  const [safetyAtStart] = useState(() => safetyInHash(location.hash));
+  const [safety, setSafety] = useState(safetyAtStart);
   const [returned, setReturned] = useState<{ module: Module; n: number } | null>(null);
   const [tumbler, setTumbler] = useState<TumblerStatus | null>(null);
   const routeRef = useRef(route);
@@ -47,6 +64,7 @@ function Main() {
   // layer stack consumes Esc first (window capture phase), so the Esc handler below only runs when
   // none is open; page keys (1-6 here, arrows/Enter/1-6 on Home) pause while one is open.
   const layers = useLayerCount();
+  useEffect(() => preloadWhenIdle(LATER), []);
 
   const deals = w.deals.data;
   const deal = route.level === 'deal' && deals ? resolveDealRef(route.deal, deals, w.labels) : undefined;
@@ -54,11 +72,11 @@ function Main() {
 
   // ---- hash <-> route -------------------------------------------------------------------------
   useEffect(() => {
-    const h = formatHash(route, sheet);
+    const h = withSafety(formatHash(route, sheet), safety);
     if (location.hash !== h) history.replaceState(null, '', `${location.pathname}${location.search}${h}`);
-  }, [route, sheet]);
+  }, [route, sheet, safety]);
   useEffect(() => {
-    const on = () => { const p = parseHash(location.hash); setRoute(p.route); setSheet(p.sheet); };
+    const on = () => { const p = parseHash(location.hash); setRoute(p.route); setSheet(p.sheet); setSafety(safetyInHash(location.hash)); };
     window.addEventListener('hashchange', on);
     return () => window.removeEventListener('hashchange', on);
   }, []);
@@ -73,7 +91,8 @@ function Main() {
   }, [currentModule]);
   const goModule = useCallback((m: Module) => { setRoute({ level: 'module', module: m }); }, []);
   const goDeal = useCallback((id: string) => { setRoute({ level: 'deal', deal: id }); }, []);
-  const openSheet = useCallback((t: SheetTab) => { setPalette(false); setSheet(t); }, []);
+  const openSheet = useCallback((t: SheetTab, pair?: PairMode) => { setPalette(false); setPairStart(pair); setSheet(t); }, []);
+  const openSafety = useCallback(() => { setPalette(false); setSafety(true); }, []);
 
   const back = useCallback(() => {
     if (palette) { setPalette(false); return; }
@@ -107,13 +126,16 @@ function Main() {
   useEvent('main:route', (r) => {
     setPalette(false);
     setSheet(null);
+    setSafety(false);
     if (r.deal_id) goDeal(r.deal_id);
     else goHome();
   });
   useEvent('tumbler:status', (s) => setTumbler(s));
   useEvent('wallet:error', (e) => toast(<>{e.message}</>, 'bad'));
   useEvent('receipt:created', (r) => {
-    const label = w.labels.get(r.deal_id) ?? r.deal_id.slice(0, 6);
+    // Name the deal by what it is (ids belong in Details, UX-GUIDE).
+    const deal = w.deals.data?.find((d) => d.id === r.deal_id);
+    const label = deal ? shortTitle(w.display(deal).title) : 'A deal';
     toast(<>{label} · <b>{stateLabel(r.state)}</b> · {silenceWords(r.on_silence)}</>, r.state === 'CAPTURED' || r.state === 'RECEIPTED' ? 'ok' : 'info');
   });
 
@@ -122,12 +144,14 @@ function Main() {
   if (route.level === 'module') {
     layer = (
       <Shell module={route.module} crumbs={[{ label: MODULE[route.module].name }]} onHome={goHome} onModule={goModule} onSheet={openSheet} onFind={() => setPalette(true)} tumbler={tumbler}>
-        <ModuleView module={route.module} nav={{ onDeal: goDeal, onSheet: openSheet }} />
+        <ModuleView module={route.module} nav={{ onDeal: goDeal, onSheet: openSheet, onSafety: openSafety }} />
       </Shell>
     );
   } else if (route.level === 'deal') {
     const m = currentModule ?? 'book';
-    const crumbs: Crumb[] = [{ label: MODULE[m].name, onClick: () => goModule(m) }, { label: deal ? w.display(deal).label : route.deal }];
+    // the deal by its title (UX-GUIDE: ids live in Details)
+    const disp = deal ? w.display(deal) : null;
+    const crumbs: Crumb[] = [{ label: MODULE[m].name, onClick: () => goModule(m) }, { label: disp ? disp.title : 'Deal' }];
     layer = (
       <Shell module={m} crumbs={crumbs} onHome={goHome} onModule={goModule} onSheet={openSheet} onFind={() => setPalette(true)} tumbler={tumbler}>
         {deal ? <DealView deal={deal} onModule={() => goModule(m)} />
@@ -142,11 +166,13 @@ function Main() {
     <>
       <Home active={route.level === 'home'} returnedFrom={returned} keysEnabled={!sheet && !palette && layers === 0} tumbler={tumbler}
         onOpenModule={goModule} onOpenDeal={goDeal} onOpenSheet={openSheet} onFind={() => setPalette(true)}
-        skipIntro={initial.route.level !== 'home' || initial.sheet !== null} />
+        skipIntro={initial.route.level !== 'home' || initial.sheet !== null || safetyAtStart} />
       {layer}
-      {sheet ? <Sheet tab={sheet} onTab={setSheet} onClose={() => setSheet(null)} /> : null}
-      {palette ? <Palette onClose={() => setPalette(false)} onModule={goModule} onDeal={goDeal} onSheet={openSheet} /> : null}
+      {sheet ? <Sheet tab={sheet} pair={pairStart} onTab={setSheet} onClose={() => setSheet(null)} /> : null}
+      {safety ? <Suspense fallback={null}><SafetySheet onClose={() => setSafety(false)} onDeal={(id) => { setSafety(false); goDeal(id); }} /></Suspense> : null}
+      {palette ? <Palette onClose={() => setPalette(false)} onModule={goModule} onDeal={goDeal} onSheet={openSheet} onSafety={openSafety} onQuit={() => setQuit(true)} /> : null}
       {help ? <Shortcuts onClose={() => setHelp(false)} /> : null}
+      {quit ? <Suspense fallback={null}><QuitSheet onClose={() => setQuit(false)} /></Suspense> : null}
     </>
   );
 }

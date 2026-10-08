@@ -64,7 +64,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or_else(|_| "8080".into())
         .parse::<u16>()?;
     let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::UNSPECIFIED, port)).await?;
-    // Logs any money operation a previous run left pending, then starts the actor.
+    // Starts the actor, which first reads back from PayPal any money operation a previous run
+    // left unknown (confirm, re-send under the same request id, or park), one log line each.
     let house = house_seller::start(seller);
     // On a stop signal: no new connections, requests in flight finish, then the actor drains
     // (the tick in flight finishes) before the process exits.

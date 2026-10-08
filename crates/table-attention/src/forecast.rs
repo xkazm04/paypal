@@ -31,12 +31,17 @@ pub struct ForecastSource {
     pub lapse_chosen: bool,
     pub mandate_retired: bool,
     /// Whether the pipeline's own create gate (clause 6 and the shield) lets
-    /// `Authority::Policy` create this seller order at `now`.
+    /// `Authority::Policy` create this seller order at `now`, judged on the market reference
+    /// stored now. A price check the owner's market-watch rule has scheduled or has in flight
+    /// (T15) is never counted: its answer is not certain to arrive, nor to clear the deal, before
+    /// the step. Once it lands, the next forecast judges the stored reference.
     pub policy_create_allowed: bool,
     /// The pipeline's own authorize and capture gate under `Authority::SellerMandate` (mandate
     /// and shield) passes at every time in `[now, until)`; `None` when it refuses at `now`.
     /// The shield asks once the market reference is older than its freshness window, and
-    /// nothing refreshes it while the owner is away, so the window only shrinks. The caller may
+    /// both ASK and CLEAR pass the seller mandate. The owner's market-watch rule (T15) refreshes
+    /// a seller deal's reference only up to Agreed, never in this window, so the window only
+    /// shrinks. The caller may
     /// cap `until` at the deal's deadline or the horizon end, past which nothing is forecast.
     pub seller_mandate_until: Option<Timestamp>,
 }

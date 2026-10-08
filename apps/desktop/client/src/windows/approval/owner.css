@@ -5,7 +5,7 @@
    the scale. The window is 744 px wide. */
 
 /* ---- page roots ------------------------------------------------------------------------- */
-.ow.ow-ed { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.ow.ow-ed { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
 .ow .ow-body { padding: var(--sp-3) var(--sp-4) var(--sp-4); }
 .ow-p { margin: 0 0 var(--sp-2); color: var(--muted); line-height: var(--lh); }
 .ow-p:last-child { margin-bottom: 0; }
@@ -22,6 +22,34 @@
 .ow-progress i { width: 28px; height: 4px; border-radius: 2px; background: var(--line2); }
 .ow-progress i.on { background: var(--teal); }
 .ow-progress span { margin-left: var(--sp-2); font: var(--fw-semibold) var(--fs-small) var(--font); color: var(--dim); }
+/* first run: the three steps (shared/start.tsx), three across at 744 px */
+.ow-start { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-2) 0; font-size: var(--fs-small); }
+.ow-start .dim { color: var(--dim); }
+.ow-steps.start-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2); }
+.ow-steps.start-steps .ss-go { height: 100%; align-content: start; }
+@media (max-width: 600px) { .ow-steps.start-steps { grid-template-columns: minmax(0, 1fr); } }
+
+/* first-run rules: start from a ready-made set (MandateEditor, templates.ts) */
+.ow-tpl { margin: var(--sp-3) 0 0; }
+.ow-tpl-h { display: flex; align-items: baseline; gap: var(--sp-2); margin-bottom: var(--sp-2); }
+.ow-tpl-h b { font-weight: var(--fw-semibold); }
+.ow-tpl-h span { font-size: var(--fs-small); color: var(--dim); }
+.ow-tpl-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2); }
+.ow-tpl-card { display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 9px var(--sp-3); border: 1px solid var(--line); border-radius: var(--r);
+  background: var(--panel); color: var(--text); font: inherit; cursor: pointer; min-width: 0; }
+.ow-tpl-card:hover { background: var(--hover); }
+.ow-tpl-card:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ow-tpl-card[aria-pressed="true"] { border-color: var(--teal); box-shadow: inset 0 0 0 1px var(--teal); background: var(--sel); }
+.ow-tpl-card b { font-weight: var(--fw-semibold); line-height: 1.3; }
+.ow-tpl-card span { font-size: var(--fs-small); color: var(--dim); line-height: 1.35; }
+.ow-tpl-card .ow-tpl-blank { color: var(--gold-l); }
+.ow-tpl-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-2) var(--sp-3); margin-top: var(--sp-3);
+  padding: var(--sp-3); border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--line)); border-radius: var(--r); background: color-mix(in srgb, var(--gold) 6%, var(--panel)); }
+.ow-tpl-field { display: grid; gap: 4px; min-width: 0; }
+.ow-tpl-field b { font-weight: var(--fw-semibold); }
+.ow-tpl-field .ui-field { width: 100%; }
+.ow-tpl-field span { font-size: var(--fs-small); color: var(--dim); line-height: 1.35; }
+@media (max-width: 600px) { .ow-tpl-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---- what-if editor: toolbar ------------------------------------------------------------- */
 .ow-tabs { gap: var(--sp-2); background: var(--material); }
@@ -51,11 +79,15 @@
 .ow-switch { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-top: var(--sp-1); }
 .ow-switch .ui-chip { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
-/* the replay */
+/* the week, tried by the wallet: only the deals whose answer changes, the rest folded */
 .ow-rp { table-layout: fixed; margin-top: var(--sp-2); }
-.ow-rp col.c-t { width: 84px; } .ow-rp col.c-a { width: 92px; } .ow-rp col.c-v { width: 120px; }
-.ow-rp tbody tr { cursor: pointer; }
-.ow-rp tbody tr:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.ow-rp col.c-t { width: 76px; } .ow-rp col.c-a { width: 84px; } .ow-rp col.c-v { width: 176px; }
+.ow-rp td { vertical-align: top; }
+.ow-rp tr.fold td, .ow-rp tr.none td { padding-top: var(--sp-1); padding-bottom: var(--sp-1); }
+.ow-vd { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; max-width: 100%; }
+.ow-vd .why { font-size: var(--fs-small); line-height: var(--lh-tight); color: var(--muted); white-space: normal; overflow-wrap: anywhere; }
+.ow-wi { transition: opacity var(--t-fast); }
+.ow-wi.updating { opacity: 0.6; }
 .ow-rp tr.chg td { background: color-mix(in srgb, var(--gold) 8%, transparent); }
 .ow-rp tr.chg td:first-child { box-shadow: inset 2px 0 0 var(--gold); }
 .ow-rp td.t { font: var(--fs-small) var(--mono); color: var(--dim); }
@@ -63,10 +95,6 @@
 .ow-rp .it { color: var(--muted); }
 .ow-na { display: grid; gap: var(--sp-2); margin-top: var(--sp-3); }
 .ow-na .ui-hint { margin: 0; line-height: var(--lh); }
-.ow-why { max-width: 480px; }
-.ow-reasons ul { list-style: none; margin: var(--sp-1) 0 0; padding: 0; display: grid; gap: 2px; }
-.ow-reasons li { display: flex; align-items: baseline; gap: var(--sp-1); font-size: var(--fs-small); }
-.ow-reasons li .ui-chip { flex: none; }
 
 /* the levers: a track with this week's deals as ticks */
 .ow-levers { padding-top: var(--sp-2); }
@@ -103,6 +131,7 @@
 .ow-stepper output { min-width: 24px; text-align: center; font-variant-numeric: tabular-nums; }
 .ow-inline { display: inline-flex; align-items: center; gap: var(--sp-1); margin: 0; }
 .ow-inline .ui-field { width: 190px; }
+.ow-inline .ui-field.ow-pct { width: 64px; }
 .ow-pair + .ow-lever { border-top: 0; }
 
 /* who and what */
@@ -111,6 +140,12 @@
 .ow-ww .ui-row.chg { box-shadow: inset 2px 0 0 var(--gold); }
 .ow-ww .ui-row.chg .val { color: var(--gold-l); }
 .ow-endline { display: block; margin-top: var(--sp-3); }
+
+/* the one-line what-if summary, directly above Sign */
+.ow-sum { display: flex; align-items: baseline; gap: var(--sp-2); min-width: 0; margin: 0; padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--line); background: var(--panel); font-size: var(--fs-small); }
+.ow-sum .k { flex: none; color: var(--dim); }
+.ow-sum .v { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); transition: opacity var(--t-fast); }
+.ow-sum.updating .v { opacity: 0.6; }
 
 /* footer */
 .ow-foot { display: flex; align-items: center; gap: var(--sp-2); min-height: 44px; padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--line); background: var(--material); }
@@ -161,3 +196,28 @@
 .ow-means h3 { margin: 0 0 var(--sp-1); font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); }
 .ow-means ul { margin: 0; padding-left: 16px; }
 .ow-means li { margin: 2px 0; }
+/* Wallet limits (T14): each limit with today's meter beside it; the change sheet's three fields. */
+.ow-lim-m { flex: none; width: 150px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.ow-lim-m .amt { font-size: var(--fs-small); }
+.ow-lim-m .ui-meter { width: 100%; }
+.ow-lim-form { display: grid; gap: var(--sp-3); margin: var(--sp-3) 0; }
+.ow-lim-f { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--sp-3); }
+.ow-lim-f > span:first-child { color: var(--text); }
+.ow-lim-in { display: flex; align-items: center; gap: var(--sp-2); }
+.ow-lim-in .ui-field { width: 120px; }
+.ow-lim-in .dim { min-width: 72px; font-size: var(--fs-small); }
+/* The replay of a failed renewal (owner/RescueReplay.tsx): ids and addresses need room. */
+.ow-rr .ow-lim-f { grid-template-columns: 170px minmax(0, 1fr); }
+.ow-rr .ow-lim-in .ui-field { width: 100%; min-width: 0; flex: 1; }
+.ow-rr .ow-lim-in .ui-field.num { width: 120px; flex: none; }
+.ow-rr .ow-lim-in .dim { min-width: 0; }
+
+/* Keep prices fresh (T15): item and product rows, then the day's allowance. */
+.ow-watch-rows { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 4px var(--sp-2); align-items: center; }
+.ow-watch-row { display: contents; }
+.ow-watch .ow-watch-n { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--text); }
+.ow-watch .ow-watch-n .ui-field { width: 52px; text-align: center; font-variant-numeric: tabular-nums; }
+.ow-watch > .ui-btn { justify-self: start; }
+
+/* Details: the owner key, shown on request inside its group (src/shared/ownerKey.tsx). */
+.ow-key { padding: var(--sp-2) var(--sp-3) var(--sp-3); border-top: 1px solid var(--line); }

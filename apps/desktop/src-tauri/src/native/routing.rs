@@ -7,7 +7,7 @@ pub(super) async fn main_open(
     state: State<'_, DesktopState>,
     args: MainRoute,
 ) -> Result<(), CommandError> {
-    label(&window, &["main", "tumbler"])?;
+    label(&window, "main_open")?;
     if let Some(id) = args.deal_id {
         let _: Deal = state
             .actor
@@ -20,6 +20,20 @@ pub(super) async fn main_open(
             )
             .await?;
         *state.route.lock().map_err(|_| invalid())? = Some(id);
+        // Opened from its Tumbler card: the owner's own act, recorded as a rung
+        // (attention-ladder-1). A failed write never stops the window opening.
+        if window.label() == "tumbler" {
+            let _ = state
+                .actor
+                .execute::<()>(
+                    Caller {
+                        label: "tumbler".into(),
+                        token: None,
+                    },
+                    Action::CardOpened(id),
+                )
+                .await;
+        }
     }
     let main = app.get_webview_window("main").ok_or_else(invalid)?;
     main.show().map_err(|_| invalid())?;
@@ -94,7 +108,7 @@ pub(super) async fn unlock(
     args: UnlockArgs,
 ) -> Result<(), CommandError> {
     let _ = args;
-    label(&window, &["approval"])?;
+    label(&window, "unlock")?;
     let hwnd = window.hwnd().map_err(|_| invalid())?.0 as isize;
     state
         .actor

@@ -12,8 +12,8 @@ use std::{
     collections::BTreeMap,
     sync::{Arc, Mutex},
 };
-use table_app::{AgentRequest, AgentRole, AgentScope, AgentService};
-use table_core::{Clock, H256, RunId};
+use table_app::{AgentRequest, AgentRole, AgentScope, AgentService, refusal_code, refusal_detail};
+use table_core::{Clock, H256, Playbook, RefusalCode, RunId};
 #[async_trait]
 pub trait AsyncAgentService: Send + Sync {
     async fn invoke(
@@ -27,7 +27,7 @@ pub trait AsyncAgentService: Send + Sync {
         &self,
         scope: &AgentScope,
         tool: &str,
-        reason: &str,
+        code: RefusalCode,
         now: i64,
     ) -> Result<(), table_app::Error>;
 }
@@ -50,13 +50,13 @@ impl AsyncAgentService for SyncService {
         &self,
         scope: &AgentScope,
         tool: &str,
-        reason: &str,
+        code: RefusalCode,
         now: i64,
     ) -> Result<(), table_app::Error> {
         self.0
             .lock()
             .map_err(|_| table_app::Error::Unavailable)?
-            .record_refusal(scope, tool, reason, now)
+            .record_refusal(scope, tool, code, now)
     }
 }
 #[derive(Debug, Clone)]
@@ -216,6 +216,49 @@ pub const fn catalog(role: AgentRole) -> &'static [&'static str] {
         AgentRole::Assistant => &["book_query"],
     }
 }
+/// What each tool does, in one fixed sentence the agent reads in `tools/list`.
+pub const fn description(tool: &str) -> &'static str {
+    match tool.as_bytes() {
+        b"table_view" => {
+            "Read the table: your side, the signed band (floor, ceiling, rounds left, deadline), the \
+             market, the price history, whose turn it is and which tools can succeed now. Read only."
+        }
+        b"market_reference" => {
+            "Read the cached market prices (p25, median, p75) for this table's item. Read only."
+        }
+        b"send_offer" => {
+            "Sign and send a price for this deal. Refused, with a code, outside the signed band, \
+             out of turn, after the deadline or with no rounds left. Moves no money."
+        }
+        b"accept_offer" => {
+            "Sign an ACCEPT of the other side's latest price (offer_seq from the table). Refused, \
+             with a code, when the price needs the owner in person. Moves no money."
+        }
+        b"withdraw_offer" => "Sign a WITHDRAW and leave the table. Moves no money.",
+        b"propose_purchase" => {
+            "Propose one purchase from an approved shop. It waits for the owner; it pays nothing."
+        }
+        b"book_query" => "Read grouped numbers from the owner's own records. Read only.",
+        _ => "",
+    }
+}
+/// The fixed playbook a native engine in `role` on a `side` deal starts from.
+pub const fn playbook(role: AgentRole, side: table_core::Side) -> Playbook {
+    role.playbook(side)
+}
+/// An `isError` tool result: the closed code, the clause when one refused, a fixed sentence and,
+/// for a signed rule's refusal, that rule's own words (`refusal_detail`), both as structured
+/// content and as the text an older client reads. Never any other error's text.
+// UNVERIFIED: whether claude-code / codex-cli surface `structuredContent` to the model on a
+// server that answers `initialize` with protocolVersion 2024-11-05 (the field arrived in a later
+// MCP revision). The first text block carries the same JSON, so either reading gets the code.
+pub fn refusal_result(code: RefusalCode, detail: Option<String>) -> Value {
+    let mut wire = code.wire();
+    if let (Some(object), Some(detail)) = (wire.as_object_mut(), detail) {
+        object.insert("detail".into(), detail.into());
+    }
+    json!({"isError":true,"content":[{"type":"text","text":wire.to_string()}],"structuredContent":wire})
+}
 /// The closed Delivery enum as the agent sees it, so a bad shape is not found by trial.
 fn delivery_schema() -> Value {
     let variant = |tag: &str, extra: Value| {
@@ -246,7 +289,7 @@ fn tools(role: AgentRole) -> Vec<Value> {
             "send_offer"=>json!({"type":"object","additionalProperties":false,"required":["deal_id","price","delivery"],"properties":{"deal_id":{"type":"string"},"price":{"type":"string","pattern":"^[0-9]+\\.[0-9]{2}$"},"delivery":delivery_schema()}}),
             "withdraw_offer"=>json!({"type":"object","additionalProperties":false,"required":["deal_id","reason"],"properties":{"deal_id":{"type":"string"},"reason":{"enum":["PRICE","TIMING","OTHER"]}}}),
             _=>json!({"type":"object","additionalProperties":false,"required":["payee_ref","items","amount","category"],"properties":{"payee_ref":{"type":"string"},"items":{"type":"array","minItems":1,"maxItems":1,"items":{"type":"object","additionalProperties":false,"required":["ref","qty"],"properties":{"ref":{"type":"string"},"qty":{"type":"integer","minimum":1}}}},"amount":{"type":"string"},"category":{"enum":["office","parts","compute","service","other"]}}}),
-        };json!({"name":name,"description":"Submit a bounded wallet intent","inputSchema":schema})
+        };json!({"name":name,"description":description(name),"inputSchema":schema})
     }).collect()
 }
 async fn handle(
@@ -309,42 +352,51 @@ async fn handle(
                     .and_then(Value::as_str)
                     .unwrap_or("")
                     .to_owned();
-                // Every refusal here is audited before the agent hears about it.
+                // Every refusal here is audited before the agent hears about it; refusals past this
+                // point are audited by the wallet (or the runtime) that made them.
                 let refused = if !session.enabled {
-                    Some(("session not enabled", table_app::Error::Permission))
+                    Some(RefusalCode::SessionNotEnabled)
                 } else {
                     None
                 };
                 let call = match refused {
-                    Some(refusal) => Err(refusal),
+                    Some(code) => Err(code),
                     None => serde_json::from_value::<Call>(rpc.params.clone())
-                        .map_err(|_| ("malformed tool call", table_app::Error::Invalid)),
+                        .map_err(|_| RefusalCode::MalformedCall),
                 };
                 let request = call.and_then(|call| {
                     if !catalog(scope.role).contains(&call.name.as_str()) {
-                        return Err(("tool not in role catalog", table_app::Error::Permission));
+                        return Err(RefusalCode::ToolAbsent);
                     }
                     AgentRequest::decode(&call.name, call.arguments)
-                        .map_err(|error| ("malformed tool arguments", error))
+                        .map_err(|_| RefusalCode::MalformedCall)
                 });
                 match request {
-                    Ok(request) => s.service.invoke(&scope, request, now, session.run).await,
-                    Err((reason, error)) => {
+                    Ok(request) => s
+                        .service
+                        .invoke(&scope, request, now, session.run)
+                        .await
+                        .map_err(|error| (refusal_code(&error), refusal_detail(&error))),
+                    Err(code) => {
                         s.service
-                            .record_refusal(&scope, &named, reason, now)
-                            .await?;
-                        Err(error)
+                            .record_refusal(&scope, &named, code, now)
+                            .await
+                            .map_err(|error| (refusal_code(&error), None))?;
+                        Err((code, None))
                     }
                 }
             }
             .await;
             match result {
                 Ok(value) => {
-                    json!({"isError":false,"content":[{"type":"text","text":value.to_string()}]})
+                    let text = value.to_string();
+                    if value.is_object() {
+                        json!({"isError":false,"content":[{"type":"text","text":text}],"structuredContent":value})
+                    } else {
+                        json!({"isError":false,"content":[{"type":"text","text":text}]})
+                    }
                 }
-                Err(error) => {
-                    json!({"isError":true,"content":[{"type":"text","text":error.to_string()}]})
-                }
+                Err((code, detail)) => refusal_result(code, detail),
             }
         }
         _ => {

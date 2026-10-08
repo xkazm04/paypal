@@ -7,56 +7,77 @@
 // amount, status, PayPal statement). Detailed: the week's ledger grid whose four money columns carry
 // their own totals, with the statement filter, audit trail and CSV export. A lens (a fixed BookQuery)
 // is drafted, read, then run read-only over the same rows and dims the rows it did not return in the
-// grid. Typed questions need the assistant's book_query tool, which this shell does not register:
-// they get an honest UNAVAILABLE. Book only reads.
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+// grid. A typed question is read by the wallet itself (./book/understand.ts: a fixed word list, no
+// AI) into the same closed query, shown back as chips the owner can remove or change, and answered
+// the same way; a question it cannot read says which words it did not get. Book only reads.
+import { Suspense, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { AuditRow } from '@bindings/AuditRow';
 import type { BookAnswer } from '@bindings/BookAnswer';
 import type { Currency } from '@bindings/Currency';
 import type { JsonValue } from '@bindings/serde_json/JsonValue';
 import type { DealEvidence } from '@bindings/DealEvidence';
+import type { FairPrice } from '@bindings/FairPrice';
 import type { Money } from '@bindings/Money';
+import type { MoneyCheck } from '@bindings/MoneyCheck';
 import { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMinor, shortId } from '../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
-import { marketWords, modeWord, receiptWord, stateWord, timeLeftWords } from '../../../lib/words';
+import { lazyPart, preloadWhenIdle } from '../../../lib/lazy';
+import { AUDIT_BROKEN, FAIR_PRICE_NAME, fairPriceWords, heldWords, marketWords, modeWord, moneyCheckWord, receiptWord, stateWord, timeLeftWords } from '../../../lib/words';
 import { Glyph } from '../../../shared/modules';
 import { Countdown, ModeBadge, WalletNotice } from '../../../shared/honesty';
 import {
   AnswerBar, Btn, Chip, DetailToggle, Explainer, Field, Group, Icon, Kv, Loading, PageHead, Popover, Row, Section, Seg, Sheet, Silence, useDetail, useExperiment, useLayer, useLayerCount, useToast, Why,
   type ChipTone, type ExplainerStep, type IconName,
 } from '../../../shared/ui';
-import { amountTone, chipClass, dealTotal, decidedBy, ledgerScope, marketPosition, moneyNow, PENDING_BACKEND, type ChipClass } from '../logic';
+import { amountTone, chipClass, dealTotal, decidedBy, ledgerScope, marketPosition, moneyNow, type ChipClass } from '../logic';
 import { useCpLookup } from '../ui';
 import { useAllEvidence, useWorld } from '../world';
+import { atRiskOf } from './rescue/model';
 import type { ModuleProps } from './common';
 import {
   BUCKET_LABEL, BUCKET_SUB, BUCKETS, bucketOf, dayKey, dayLabel, dirOf, KIND_ORDER, kindLabel, LENSES, queryText, readQuery, runQuery,
-  STATEMENT_TIP, STATEMENT_WORD, statementCounts, sums, toCSV, type Bucket, type Ctx, type Group as LensGroup, type Lens, type Result, type Statement,
+  stateGroupLabel, STATEMENT_TIP, STATEMENT_WORD, statementCounts, sums, toCSV, type Bucket, type Ctx, type Group as LensGroup, type Lens, type Result, type Statement,
 } from './book/model';
 import { AskChips } from './book/AskChips';
+import { ReadingChips, UnsureLine } from './book/AskReading';
+import { compose, isUnsure, knownParties, lensQuery, MAX_ASK, understand, type AskCtx, type ReadingChip, type Understood, type Unsure } from './book/understand';
 import { MoneyWent } from './book/MoneyWent';
-import { ProofCheckSheet } from './book/ProofCheck';
 import { totalWhy, type TotalKey } from './book/where';
 import './book.css';
 
-type Phase = 'IDLE' | 'UNAVAILABLE' | 'BLOCKED' | 'DRAFTED' | 'RESULT' | 'EMPTY';
+// The proof check sheet is its own chunk, preloaded once the Book page is idle (lib/lazy.ts).
+const ProofCheckSheet = lazyPart(() => import('./book/ProofCheck').then((m) => m.ProofCheckSheet));
+
+type Phase = 'IDLE' | 'UNSURE' | 'BLOCKED' | 'DRAFTED' | 'RESULT' | 'EMPTY';
 type StmtFilter = 'all' | Statement;
 
 const TONE: Record<ChipClass, ChipTone | undefined> = { live: 'teal', wait: 'gold', held: 'coral', done: 'ok', bad: 'red', off: undefined };
 const STMT_TONE: Record<Statement, ChipTone | undefined> = { matched: 'ok', pending_reporting: 'gold', mismatch: 'red', not_applicable: undefined, unknown: 'dashed' };
-const NO_ENGINE = new WalletError({ code: 'UNAVAILABLE', message: PENDING_BACKEND.book ?? 'Typed questions need your agent app, which is not connected. The quick views below work without it.' });
 const wordOf = (d: Deal) => stateWord(d.state, { side: d.side, kind: d.kind });
-/** Where the deal price sits against the market, in words; the percentile stays in the tooltip. */
-function marketText(d: Deal): { text: string; tip: string } | null {
+/** Where the deal price sits against the market, in words; the percentile stays in the tooltip.
+ *  With the deal's fair-price certificate (the market prices it was agreed on, worked out again by
+ *  the wallet), the certificate speaks: its percentile, re-checked, or that the record is older. */
+function marketText(d: Deal, fair: FairPrice | null = null): { text: string; tip: string } | null {
   const m = d.market;
   const u = d.terms.unit_price;
+  if (fair?.state === 'rechecked' && fair.percentile !== null) {
+    const fp = fairPriceWords(fair, u);
+    return { text: fp.short, tip: `${fp.text}. ${fp.means}` };
+  }
+  if (fair?.state === 'broken') {
+    const fp = fairPriceWords(fair, u);
+    return { text: fp.short, tip: fp.means };
+  }
   if (!m || m.median.currency !== u.currency) return null;
-  return { text: marketWords(u.minor, m.p25.minor, m.median.minor, m.p75.minor).text, tip: `${marketPosition(u.minor, m.p25.minor, m.median.minor, m.p75.minor)} of the market range` };
+  const tip = `${marketPosition(u.minor, m.p25.minor, m.median.minor, m.p75.minor)} of the market range`;
+  return { text: marketWords(u.minor, m.p25.minor, m.median.minor, m.p75.minor).text, tip: fair ? `${tip} · ${fairPriceWords(fair, u).text.toLowerCase()}` : tip };
 }
-const QUERY_KEY: Record<string, string> = { view: 'Looks at', filter: 'Only', group_by: 'One line per', metrics: 'Shows' };
+const QUERY_KEY: Record<string, string> = { view: 'Looks at', filter: 'Only', range: 'When', group_by: 'One line per', metrics: 'Shows' };
 const GROUP_NAME: Partial<Record<Deal['kind'], string>> = { haggle: 'Haggles', purchase: 'Purchases', shop_order: 'Shop orders', rescue: 'Rescues', invoice: 'Invoices' };
+/** Column heads for a grouping, in plain words. */
+const GROUP_HEAD: Record<string, string> = { kind: 'Kind', counterparty: 'Who', state: 'Status', day: 'Day', decided_by: 'Decided by' };
 
 /** The Book page. The root (.module.mod-book, --mc) comes from ModuleView. */
 export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
@@ -84,11 +105,18 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
   const [reading, setReading] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
   const [proofOpen, setProofOpen] = useState(false);
+  useEffect(() => preloadWhenIdle([ProofCheckSheet]), []);
   // The lens's query, checked and answered by Rust (book_query, read-only). The window still
   // runs the same lens over its own rows to light them in the grid.
   const bq = useMutation('book_query');
   const [answer, setAnswer] = useState<BookAnswer | null>(null);
   const facts = useQuery('owner_facts', null, { refreshOn: ['deal:changed', 'receipt:created'] });
+  // Typed questions: the wallet's own reading (chips) or the words it did not get.
+  const cps = useQuery('counterparty_list', null, { refreshOn: ['deal:changed'] });
+  const askCtx: AskCtx = useMemo(() => ({ now, offsetMin: -new Date(now * 1000).getTimezoneOffset(), parties: knownParties(cps.data ?? []) }), [now, cps.data]);
+  const [chips, setChips] = useState<ReadingChip[] | null>(null);
+  const [unsure, setUnsure] = useState<Unsure | null>(null);
+  const latest = useRef(0);
   const poll = facts.data?.last_reporting_poll ?? null;
   const ask = useRef<HTMLInputElement>(null);
   const layers = useLayerCount();
@@ -98,24 +126,54 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
   // Round 2 (docs/ux/ROUND-2.md): bars, the PayPal-agrees meter, question chips and a Why? on each total. Off = round 1.
   const r2 = useExperiment('r2-book');
 
-  const discard = () => { setPhase('IDLE'); setAsked(''); setLens(null); setRes(null); setAnswer(null); bq.reset(); };
-  const pickLens = (l: Lens) => { setAsked(l.question); setLens(l); setRes(null); setPhase(l.unavailable ? 'BLOCKED' : 'DRAFTED'); if (ask.current) ask.current.value = l.question; };
-  const run = () => {
-    if (!lens || lens.unavailable) return;
+  const discard = () => {
+    setPhase('IDLE'); setAsked(''); setLens(null); setRes(null); setAnswer(null); setChips(null); setUnsure(null); bq.reset();
+    latest.current++;
+    if (ask.current) ask.current.value = '';
+  };
+  const pickLens = (l: Lens) => { setAsked(l.question); setLens(l); setRes(null); setChips(null); setUnsure(null); setPhase(l.unavailable ? 'BLOCKED' : 'DRAFTED'); if (ask.current) ask.current.value = l.question; };
+  /** Light the rows the query returns, and ask the wallet the same closed query (read-only). */
+  const execute = (l: Lens, rows: readonly Deal[], query: JsonValue) => {
     const n = seq + 1;
-    const r = runQuery(lens.query, ledger, ctx);
+    const r = runQuery(l.query, rows, ctx);
+    const mine = ++latest.current;
     setAnswer(null);
-    void bq.run({ query: lens.query as unknown as JsonValue }).then((a) => setAnswer(a ?? null));
+    void bq.run({ query }).then((a) => { if (latest.current === mine) setAnswer(a ?? null); });
     setSeq(n);
     setRes({ ...r, seq: n });
     setPhase(r.rows.length ? 'RESULT' : 'EMPTY');
     setReading(false);
   };
+  const run = () => {
+    if (!lens || lens.unavailable) return;
+    execute(lens, ledger, lens.query as unknown as JsonValue);
+  };
+  /** A question the wallet read: answered at once over every deal on record, its reading shown as chips. */
+  const answerAsked = (u: Understood, text: string) => {
+    const l: Lens = { id: 'asked', short: 'Your question', question: text, query: lensQuery(u.query) };
+    setAsked(text); setLens(l); setChips(u.reading); setUnsure(null);
+    execute(l, all, u.query as unknown as JsonValue);
+  };
+  const showUnsure = (u: Unsure, text: string) => {
+    latest.current++;
+    setAsked(text); setLens(null); setRes(null); setAnswer(null); setChips(null); setUnsure(u); setPhase('UNSURE'); bq.reset();
+  };
+  const askText = (text: string) => {
+    const u = understand(text, askCtx);
+    if (isUnsure(u)) showUnsure(u, text);
+    else answerAsked(u, text);
+  };
   const onAsk = (e: FormEvent) => {
     e.preventDefault();
     const q = ask.current?.value.trim() ?? '';
     if (!q) { ask.current?.focus(); return; }
-    setAsked(q); setLens(null); setRes(null); setPhase('UNAVAILABLE');
+    askText(q);
+  };
+  const onTry = (text: string) => { if (ask.current) ask.current.value = text; askText(text); };
+  const onChips = (next: ReadingChip[]) => {
+    const u = compose(next, askCtx);
+    if (isUnsure(u)) showUnsure(u, asked);
+    else answerAsked(u, asked);
   };
 
   // Esc clears the lens and the slip before it leaves the page (a layer, ahead of App's handler).
@@ -156,20 +214,22 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
     <>
       <PageHead title="Book" icon={<Glyph module="book" />} focusKey="book"
         sub={<>All payments · {scope.scope === 'week' ? 'this week' : 'everything on record'} · as of {clockLabel(now)}</>}
-        actions={<DetailToggle value={detail} onChange={setDetail} />} />
+        actions={<>{nav.onSafety ? <Btn sm onClick={nav.onSafety} title="Check every entry on record: who decided each money step, and what your agents were refused">Your safety record</Btn> : null}<DetailToggle value={detail} onChange={setDetail} /></>} />
 
-      <WeekAnswer deals={ledger} week={scope.scope === 'week'} />
+      <WeekAnswer deals={ledger} week={scope.scope === 'week'} checking={ledger.filter((d) => ev.map.get(d.id)?.money_check ?? w.needOf(d.id)?.money_check).length} />
       <Explainer id="book" title="How your book works" steps={HOW_BOOK} />
       {!detailed ? <Totals deals={ledger} why={r2} /> : null}
 
-      <Outlook deals={ledger} label={label} onOpen={(id) => setSel(id)} simple={!detailed} />
+      <Outlook deals={ledger} label={label} onOpen={(id) => setSel(id)} simple={!detailed} checking={(d) => !!(ev.map.get(d.id)?.money_check ?? w.needOf(d.id)?.money_check)} />
 
       {r2 && !detailed ? <MoneyWent deals={ledger} stmt={evLoading ? () => null : stmt} checkedAt={poll && poll.status === 200 ? clockLabel(poll.at) : null}
         titleOf={(d) => w.display(d).title} onOpen={(id) => setSel(id)} /> : null}
 
       <section className="ui-section ask" aria-label="Ask the book">
         <form className="askrow" onSubmit={onAsk}>
-          <Field ref={ask} search className="askf" autoComplete="off" aria-label="Ask the book" placeholder="Ask about your agents’ money, in your own words" />
+          <Field ref={ask} search className="askf" autoComplete="off" aria-label="Ask the book" maxLength={MAX_ASK} placeholder="Ask about your agents’ money, in your own words"
+            title="For example: how much was paid this week, by shop? Enter asks, Esc clears."
+            onKeyDown={(e) => { if (e.key === 'Escape' && phase === 'IDLE' && e.currentTarget.value) { e.preventDefault(); e.stopPropagation(); e.currentTarget.value = ''; } }} />
           <Btn type="submit">Ask</Btn>
         </form>
         {r2 ? <AskChips activeId={lens?.id ?? null} onPick={(id) => { const l = LENSES.find((x) => x.id === id); if (l) pickLens(l); }} /> : (
@@ -185,13 +245,15 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
         )}
         {phase !== 'IDLE' ? (
           <Slip phase={phase} asked={asked} lens={lens} res={res} answer={answer} answerError={bq.error} answering={bq.pending} detailed={detailed} onRead={() => setReading(true)} onRun={run} onDiscard={discard}
-            onCsv={() => res && exportRows(res.rows, queryText(res.query), `book-lens-${res.seq}`)} />
+            onCsv={() => res && exportRows(res.rows, queryText(res.query), `book-lens-${res.seq}`)} cpName={(k) => cp(k).name}
+            reading={chips ? <ReadingChips reading={chips} ctx={askCtx} onChange={onChips} /> : null}
+            unsure={unsure ? <UnsureLine unsure={unsure} onTry={onTry} /> : null} />
         ) : null}
       </section>
 
       {!detailed ? (
         <RecentPayments deals={ledger} all={showAll} onAll={setShowAll} stmt={evLoading ? () => null : stmt} onOpen={(id) => setSel(id)}
-          whoOf={(d) => cp(d.counterparty).name} titleOf={(d) => w.display(d).title} />
+          whoOf={(d) => cp(d.counterparty).name} titleOf={(d) => w.display(d).title} checkOf={(d) => ev.map.get(d.id)?.money_check ?? w.needOf(d.id)?.money_check ?? null} />
       ) : (
       <section className="ui-section" aria-label="The ledger">
         <div className="gridbox">
@@ -248,7 +310,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
                     <tr key={`g-${k}`} className="grp"><td colSpan={8}>{GROUP_NAME[k] ?? kindLabel(k)} · {rs.length}</td></tr>,
                     ...rs.map((d) => (
                       <GridRow key={d.id} deal={d} label={label(d)} title={w.display(d).title} cpName={cp(d.counterparty).name} statement={evLoading ? null : stmt(d)}
-                        off={!!lit && !lit.has(d.id)} selected={sel === d.id} onOpen={() => setSel(d.id)} />
+                        fair={ev.map.get(d.id)?.fair_price ?? null} off={!!lit && !lit.has(d.id)} selected={sel === d.id} onOpen={() => setSel(d.id)} />
                     )),
                   ];
                 })}
@@ -268,7 +330,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
         </Sheet>
       ) : null}
 
-      {proofOpen ? <ProofCheckSheet onClose={() => setProofOpen(false)} /> : null}
+      {proofOpen ? <Suspense fallback={null}><ProofCheckSheet onClose={() => setProofOpen(false)} /></Suspense> : null}
       {auditOpen ? <AuditSheet label={(id) => { const d = all.find((x) => x.id === id); return d ? label(d) : shortId(id); }} onClose={() => setAuditOpen(false)} /> : null}
 
       {selDeal ? (
@@ -294,17 +356,17 @@ const moneyList = (ms: readonly Money[]) => ms.map((m) => formatMinor(m.minor, m
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** The answer at the top: where the money is. Every figure is summed per state, direction and currency. */
-function WeekAnswer({ deals, week }: { deals: Deal[]; week: boolean }) {
+function WeekAnswer({ deals, week, checking = 0 }: { deals: Deal[]; week: boolean; checking?: number }) {
   const when = week ? 'This week' : 'On record';
   if (!deals.length) return <AnswerBar tone="calm" icon="book" title="Nothing yet. No payments are on record." sub="They appear here as soon as an agent proposes a deal." />;
   const s = sums(deals);
   const out = moneyList(s.captured.out);
   const inn = moneyList(s.captured.in);
-  const held = moneyList([...s.held.out, ...s.held.in]);
+  const held = heldWords(moneyList(s.held.out), moneyList(s.held.in));
   const stopped = deals.filter((d) => bucketOf(d) === 'stopped').length;
   const holds = deals.filter((d) => d.state === 'AUTHORIZED').length;
   const title = out && inn ? `${when}: ${out} paid out, ${inn} paid in.` : out ? `${when}: ${out} paid out. Nothing paid in yet.` : inn ? `${when}: ${inn} paid in. Nothing paid out.` : `${when}: no money has moved yet.`;
-  const bits = [held ? `${held} is on hold at PayPal, not paid yet.` : '', stopped ? `${plural(stopped, 'payment was', 'payments were')} stopped or paid back.` : ''].filter(Boolean);
+  const bits = [held ?? '', checking ? `${plural(checking, 'payment is', 'payments are')} being checked with PayPal.` : '', stopped ? `${plural(stopped, 'payment was', 'payments were')} stopped or paid back.` : ''].filter(Boolean);
   return <AnswerBar tone={holds ? 'need' : 'calm'} icon={holds ? undefined : 'book'} title={title} sub={bits.length ? bits.join(' ') : undefined} />;
 }
 
@@ -350,8 +412,9 @@ function TotalWhy({ k, label, deals }: { k: TotalKey; label: string; deals: Deal
 }
 
 /** The newest payments, one simple row each: when, who and what, status, amount and PayPal's own statement. */
-function RecentPayments({ deals, all, onAll, stmt, onOpen, whoOf, titleOf }: {
+function RecentPayments({ deals, all, onAll, stmt, onOpen, whoOf, titleOf, checkOf = () => null }: {
   deals: Deal[]; all: boolean; onAll: (v: boolean) => void; stmt: (d: Deal) => Statement | null; onOpen: (id: string) => void; whoOf: (d: Deal) => string; titleOf: (d: Deal) => string;
+  checkOf?: (d: Deal) => MoneyCheck | null;
 }) {
   const stamp = (d: Deal) => d.updated_at ?? d.created_at ?? 0;
   const sorted = [...deals].sort((a, b) => stamp(b) - stamp(a));
@@ -361,14 +424,13 @@ function RecentPayments({ deals, all, onAll, stmt, onOpen, whoOf, titleOf }: {
       <Group empty="No deals yet. They appear here as soon as an agent proposes one.">
         {shown.length ? shown.map((d) => {
           const t = dealTotal(d);
-          const wd = wordOf(d);
           const tone = amountTone(d);
           return (
             <Row key={d.id} className="pay" onOpen={() => onOpen(d.id)}
               lead={<span className="when">{stamp(d) ? clockLabel(stamp(d)) : '—'}</span>}
               title={titleOf(d)} sub={<span className="cp">{whoOf(d)}</span>}>
               {d.mode !== 'sandbox' ? <ModeBadge mode={d.mode} /> : null}
-              <span className="pst"><Chip tone={TONE[chipClass(d)]} title={wd.means}>{wd.text}</Chip></span>
+              <span className="pst"><StatusChip deal={d} check={checkOf(d)} /></span>
               <span className="pstm"><StmtChip s={stmt(d)} /></span>
               <span className={`amt ${tone}`}>{formatMinor(t.minor, t.currency)}{dirOf(d) === 'in' ? <span className="in">in</span> : null}</span>
             </Row>
@@ -390,21 +452,29 @@ function MoneyLines({ out, inn, bucket }: { out: Money[]; inn: Money[]; bucket: 
   );
 }
 
+/** The deal's status pill; a payment whose PayPal answer was lost reads "Checking with PayPal",
+ *  dashed like every unknown, never paid and never failed. */
+function StatusChip({ deal, check }: { deal: Deal; check: MoneyCheck | null | undefined }) {
+  if (check) return <Chip tone="dashed" title={moneyCheckWord(check).means}>{moneyCheckWord(check).text}</Chip>;
+  const wd = wordOf(deal);
+  return <Chip tone={TONE[chipClass(deal)]} title={wd.means}>{wd.text}</Chip>;
+}
+
 function StmtChip({ s }: { s: Statement | null }) {
   if (s === null) return <span className="dim" title="Reading the PayPal proof">…</span>;
   if (s === 'not_applicable') return <span className="dim" title={STATEMENT_TIP[s]}>—</span>;
   return <Chip tone={STMT_TONE[s]} className={s === 'pending_reporting' ? 'dashed' : undefined} title={STATEMENT_TIP[s]}>{STATEMENT_WORD[s]}</Chip>;
 }
 
-function GridRow({ deal, label, title, cpName, statement, off, selected, onOpen }: {
-  deal: Deal; label: string; title: string; cpName: string; statement: Statement | null; off: boolean; selected: boolean; onOpen: () => void;
+function GridRow({ deal, label, title, cpName, statement, fair, off, selected, onOpen }: {
+  deal: Deal; label: string; title: string; cpName: string; statement: Statement | null; fair: FairPrice | null; off: boolean; selected: boolean; onOpen: () => void;
 }) {
   const t = dealTotal(deal);
   const b = bucketOf(deal);
-  const mkt = marketText(deal);
+  const mkt = marketText(deal, fair);
   const wd = wordOf(deal);
   const onKey = (e: KeyboardEvent<HTMLTableRowElement>) => {
-    if (e.key === 'Enter') { e.preventDefault(); onOpen(); return; }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); return; }
     const dir = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
     if (!dir) return;
     e.preventDefault();
@@ -413,7 +483,8 @@ function GridRow({ deal, label, title, cpName, statement, off, selected, onOpen 
   };
   const day = dayKey(deal);
   return (
-    <tr className={`r ${off ? 'off' : ''}`} tabIndex={0} aria-selected={selected} onClick={onOpen} onKeyDown={onKey}>
+    <tr className={`r ${off ? 'off' : ''}`} tabIndex={0} aria-selected={selected} onClick={onOpen} onKeyDown={onKey}
+      aria-label={`${title} · ${cpName} · ${wd.text} · ${formatMinor(t.minor, t.currency)}`}>
       <td className="clip">
         <span className="mono">{label}</span><span className="day">{day ? dayLabel(day).split(' ')[0] : ''}</span>{title} <span className="cp">· {cpName}</span>
         {deal.mode !== 'sandbox' ? <> <ModeBadge mode={deal.mode} /></> : null}
@@ -430,22 +501,29 @@ function GridRow({ deal, label, title, cpName, statement, off, selected, onOpen 
 
 type OutItem = { k: string; n: number; label: string; first: Deal | undefined; deadline: number | null; short: string; silence: string | null };
 
-const OUT_ICON: Record<string, IconName> = { holds: 'hold', links: 'link', renew: 'renew' };
+const OUT_ICON: Record<string, IconName> = { holds: 'hold', links: 'link', renew: 'renew', checking: 'clock' };
 
-function Outlook({ deals, label, onOpen, simple }: { deals: Deal[]; label: (d: Deal) => string; onOpen: (id: string) => void; simple: boolean }) {
+function Outlook({ deals, label, onOpen, simple, checking = () => false }: { deals: Deal[]; label: (d: Deal) => string; onOpen: (id: string) => void; simple: boolean; checking?: (d: Deal) => boolean }) {
   const w = useWorld();
   const now = useNow();
   const [open, setOpen] = useState<{ k: string; a: HTMLElement } | null>(null);
+  // A failing renewal shows what is at risk (the missed cycle), as Rescue does, never the fix's discounted invoice.
+  const rescue = useQuery('rescue_book', null, { refreshOn: ['deal:changed', 'receipt:created', 'attention:changed'] });
+  const amountOf = (k: string, d: Deal): Money => (k === 'renew' ? atRiskOf(d, rescue.data) : dealTotal(d));
   const dl = (d: Deal) => w.needOf(d.id)?.deadline ?? w.display(d).deadline;
   const sil = (d: Deal | undefined) => (d ? w.needOf(d.id)?.on_silence ?? w.display(d).on_silence : null);
   const first = (xs: Deal[]) => [...xs].sort((a, b) => (dl(a) ?? Infinity) - (dl(b) ?? Infinity))[0];
-  const holds = deals.filter((d) => d.state === 'AUTHORIZED');
+  // A payment whose PayPal answer was lost is counted as checking with PayPal: not a hold to
+  // decide, not paid, not failed.
+  const checks = deals.filter(checking);
+  const holds = deals.filter((d) => d.state === 'AUTHORIZED' && !checking(d));
   const links = deals.filter((d) => d.state === 'AWAITING_APPROVAL');
-  const failing = deals.filter((d) => d.kind === 'rescue' && d.state === 'FAILED');
+  const failing = deals.filter((d) => d.kind === 'rescue' && d.state === 'AGREED');
   const items: OutItem[] = [
     { k: 'holds', n: holds.length, label: holds.length === 1 ? 'hold to decide' : 'holds to decide', first: first(holds), deadline: null, short: 'the hold is released, nothing is paid', silence: null },
     { k: 'links', n: links.length, label: links.length === 1 ? 'payment link open' : 'payment links open', first: first(links), deadline: null, short: 'the link lapses, no money moves', silence: null },
     { k: 'renew', n: failing.length, label: failing.length === 1 ? 'renewal failing' : 'renewals failing', first: first(failing), deadline: null, short: 'PayPal retries on its own', silence: null },
+    { k: 'checking', n: checks.length, label: checks.length === 1 ? 'payment checking with PayPal' : 'payments checking with PayPal', first: first(checks), deadline: null, short: 'nothing more is sent until PayPal confirms', silence: null },
   ].map((it) => ({ ...it, deadline: it.first ? dl(it.first) : null, silence: sil(it.first) }));
   const cur = open ? items.find((x) => x.k === open.k) : undefined;
   const pop = open && cur ? (
@@ -454,7 +532,7 @@ function Outlook({ deals, label, onOpen, simple }: { deals: Deal[]; label: (d: D
         {cur.first ? (
           <Kv items={[
             ['Deal', <Btn sm kind="plain" onClick={() => { setOpen(null); if (cur.first) onOpen(cur.first.id); }}>{label(cur.first)} · {w.display(cur.first).title}</Btn>],
-            ['Amount', <span className="money">{formatMinor(dealTotal(cur.first).minor, dealTotal(cur.first).currency)}</span>],
+            [cur.k === 'renew' ? 'At risk' : 'Amount', <span className="money">{formatMinor(amountOf(cur.k, cur.first).minor, amountOf(cur.k, cur.first).currency)}</span>],
             cur.deadline ? ['Deadline', <>{clockLabel(cur.deadline)} · <Countdown deadline={cur.deadline} /> left</>] : null,
             ['If you do nothing', cur.silence ?? cur.short],
           ]} />
@@ -470,14 +548,14 @@ function Outlook({ deals, label, onOpen, simple }: { deals: Deal[]; label: (d: D
         {due.length ? (
           <div className="attn">
             {due.map((it) => {
-              const t = it.first ? dealTotal(it.first) : null;
+              const t = it.first ? amountOf(it.k, it.first) : null;
               return (
                 <button key={it.k} type="button" className="at-card" aria-haspopup="dialog"
                   onClick={(e) => { const a = e.currentTarget; setOpen((o) => (o?.k === it.k ? null : { k: it.k, a })); }}>
                   <span className="at-ico"><Icon name={OUT_ICON[it.k] ?? 'alert'} size={18} /></span>
                   <span className="at-main">
                     <span className="at-t"><b>{it.n}</b> {it.label}</span>
-                    <span className="at-s">{it.first && t ? <><span className="money">{formatMinor(t.minor, t.currency)}</span>{it.deadline ? ` · ${timeLeftWords(it.deadline - now)} left` : ''}</> : null}</span>
+                    <span className="at-s">{it.first && t ? <><span className="money">{formatMinor(t.minor, t.currency)}</span>{it.k === 'renew' ? ' at risk' : ''}{it.deadline ? ` · ${timeLeftWords(it.deadline - now)} left` : ''}</> : null}</span>
                     <Silence className="at-sil" text={it.short} />
                   </span>
                   <span className="chev" aria-hidden="true" />
@@ -493,7 +571,7 @@ function Outlook({ deals, label, onOpen, simple }: { deals: Deal[]; label: (d: D
   return (
     <Group className="outlook" label="Cash-flow outlook">
       {items.map((it) => {
-        const t = it.first ? dealTotal(it.first) : null;
+        const t = it.first ? amountOf(it.k, it.first) : null;
         return (
           <button key={it.k} type="button" className="ui-row two act" aria-haspopup="dialog"
             onClick={(e) => { const a = e.currentTarget; setOpen((o) => (o?.k === it.k ? null : { k: it.k, a })); }}>
@@ -510,19 +588,20 @@ function Outlook({ deals, label, onOpen, simple }: { deals: Deal[]; label: (d: D
   );
 }
 
-function Slip({ phase, asked, lens, res, answer, answerError, answering, detailed, onRead, onRun, onDiscard, onCsv }: {
+function Slip({ phase, asked, lens, res, answer, answerError, answering, detailed, onRead, onRun, onDiscard, onCsv, cpName, reading, unsure }: {
   phase: Phase; asked: string; lens: Lens | null; res: (Result & { seq: number }) | null;
   answer: BookAnswer | null; answerError: WalletError | null; answering: boolean; detailed: boolean;
   onRead: () => void; onRun: () => void; onDiscard: () => void; onCsv: () => void;
+  cpName: (key: string) => string; reading: ReactNode; unsure: ReactNode;
 }) {
   const q = lens ? queryText(lens.query) : '';
   let chip: ReactNode = null;
   let t2: ReactNode = null;
   let end: ReactNode = null;
-  if (phase === 'UNAVAILABLE') {
-    chip = <Chip tone="dashed">can’t answer yet</Chip>;
-    t2 = <span className="t2">typed questions need your agent app · try a quick view below</span>;
-    end = <Btn sm kind="plain" onClick={onDiscard}>Discard</Btn>;
+  if (phase === 'UNSURE') {
+    chip = <Chip tone="dashed">not sure</Chip>;
+    t2 = <span className="t2">nothing was looked up · try one of these</span>;
+    end = <Btn sm kind="plain" onClick={onDiscard} title="Esc">Clear</Btn>;
   } else if (phase === 'BLOCKED') {
     chip = <Chip tone="dashed">can’t run</Chip>;
     t2 = <span className="t2">{lens?.unavailable ?? 'this view can’t run yet'}</span>;
@@ -536,7 +615,7 @@ function Slip({ phase, asked, lens, res, answer, answerError, answering, detaile
     chip = <Chip tone={phase === 'RESULT' ? 'ok' : undefined}>{phase === 'RESULT' ? 'answer' : 'nothing found'}</Chip>;
     t2 = <span className="t2" title={q}>{res.rows.length} deal{res.rows.length === 1 ? '' : 's'} in the answer{detailed ? ' · highlighted below' : ''}</span>;
     end = <><Btn sm onClick={onRead}>Details ›</Btn>
-      {phase === 'RESULT' ? <Btn sm onClick={onCsv}>Export CSV</Btn> : null}<Btn sm kind="plain" onClick={onDiscard}>Clear</Btn></>;
+      {phase === 'RESULT' ? <Btn sm onClick={onCsv}>Export CSV</Btn> : null}<Btn sm kind="plain" onClick={onDiscard} title="Esc">Clear</Btn></>;
   }
   return (
     <div className="slip">
@@ -547,12 +626,13 @@ function Slip({ phase, asked, lens, res, answer, answerError, answering, detaile
           
           {end}
         </div>
-        {phase === 'UNAVAILABLE' ? <WalletNotice error={NO_ENGINE} what="Ask the book" /> : null}
+        {phase === 'UNSURE' ? unsure : null}
+        {phase === 'RESULT' || phase === 'EMPTY' ? reading : null}
         {phase === 'BLOCKED' && lens?.unavailable ? <WalletNotice error={new WalletError({ code: 'UNAVAILABLE', message: lens.unavailable })} what={lens.short} /> : null}
         {phase === 'RESULT' && res ? <Pivot res={res} /> : null}
         {(phase === 'RESULT' || phase === 'EMPTY') && answering ? <Loading what="the wallet’s answer" /> : null}
         {(phase === 'RESULT' || phase === 'EMPTY') && answerError ? <WalletNotice error={answerError} what="The wallet’s answer" /> : null}
-        {(phase === 'RESULT' || phase === 'EMPTY') && answer ? <WalletAnswer answer={answer} /> : null}
+        {(phase === 'RESULT' || phase === 'EMPTY') && answer ? <WalletAnswer answer={answer} cpName={cpName} /> : null}
       </Group>
     </div>
   );
@@ -573,7 +653,7 @@ function StmtSummary({ c }: { c: Record<Statement, number> }) {
 
 /** The wallet's own answer to the view (book_query): totals per currency and mode, exact minor
  *  units and basis points, read on a read-only connection. */
-function WalletAnswer({ answer }: { answer: BookAnswer }) {
+function WalletAnswer({ answer, cpName }: { answer: BookAnswer; cpName: (key: string) => string }) {
   const groups = answer.query.group_by;
   const m = answer.query.metrics;
   const cell = (row: Record<string, JsonValue>, k: string) => row[k] ?? null;
@@ -587,7 +667,7 @@ function WalletAnswer({ answer }: { answer: BookAnswer }) {
       {answer.rows.length ? (
         <table className="ui-table pivot">
           <thead><tr>
-            <th>Currency</th><th>Mode</th>{groups.map((g) => <th key={g}>{g === 'decided_by' ? 'decided by' : g.replace(/_/g, ' ')}</th>)}
+            <th>Currency</th><th>Mode</th>{groups.map((g) => <th key={g}>{GROUP_HEAD[g] ?? g}</th>)}
             {m.includes('count') ? <th className="num">Rows</th> : null}
             {m.includes('sum_amount') ? <th className="num">Amount</th> : null}
             {m.includes('avg_vs_market_pct') ? <th className="num">vs market</th> : null}
@@ -602,7 +682,12 @@ function WalletAnswer({ answer }: { answer: BookAnswer }) {
                   <td>{(() => { const v = cell(row, 'mode'); return v === 'sandbox' || v === 'replay' || v === 'scripted_engine' ? modeWord(v) : String(v); })()}</td>
                   {groups.map((g) => {
                     const v = cell(row, g);
-                    const text = g === 'decided_by' && typeof v === 'string' ? (() => { try { return decidedBy({ decided_by: JSON.parse(v) as Deal['decided_by'] }).text; } catch { return v; } })() : v === null ? '—' : String(v);
+                    const text = g === 'decided_by' && typeof v === 'string' ? (() => { try { return decidedBy({ decided_by: JSON.parse(v) as Deal['decided_by'] }).text; } catch { return v; } })()
+                      : v === null ? '—' : typeof v !== 'string' ? String(v)
+                      : g === 'counterparty' ? cpName(v)
+                      : g === 'state' ? stateGroupLabel(v as Deal['state'])
+                      : g === 'kind' ? GROUP_NAME[v as Deal['kind']] ?? v
+                      : g === 'day' ? dayLabel(v) : v;
                     return <td key={g}>{text}</td>;
                   })}
                   {m.includes('count') ? <td className="num">{String(cell(row, 'count'))}</td> : null}
@@ -627,7 +712,7 @@ function Pivot({ res }: { res: Result }) {
   return (
     <table className="ui-table pivot">
       <thead><tr>
-        <th>{gb.length ? gb.join(' · ').replace(/_/g, ' ') : 'In this view'}</th>
+        <th>{gb.length ? gb.map((g) => GROUP_HEAD[g] ?? g).join(' · ') : 'In this view'}</th>
         {m.includes('count') ? <th className="num">Deals</th> : null}
         {m.includes('sum_amount') ? BUCKETS.map((b) => <th key={b} className="num">{BUCKET_LABEL[b]}</th>) : null}
         {m.includes('avg_vs_market_pct') ? <th className="num">vs market</th> : null}
@@ -688,6 +773,12 @@ function ReadBody({ lens, rows }: { lens: Lens; rows: number }) {
   );
 }
 
+/** The deal's fair-price certificate in one line: "$329.00 is the 62nd percentile of 13 market prices · re-checked". */
+function FairPriceLine({ deal, fair }: { deal: Deal; fair: FairPrice }) {
+  const fp = fairPriceWords(fair, deal.terms.unit_price);
+  return <span title={fp.means}><Chip tone={fp.tone}>{fp.short}</Chip> {fp.text}</span>;
+}
+
 function MarketBand({ deal }: { deal: Deal }) {
   const m = deal.market;
   const u = deal.terms.unit_price;
@@ -724,7 +815,7 @@ function RowDetail({ deal, evidence, evError }: { deal: Deal; evidence: DealEvid
   return (
     <div className="bk-l2">
       <div className="chips">
-        <Chip tone={TONE[chipClass(deal)]} title={wordOf(deal).means}>{wordOf(deal).text}</Chip>
+        <StatusChip deal={deal} check={evidence?.money_check ?? need?.money_check} />
         <StmtChip s={s} />
         <ModeBadge mode={deal.mode} />
       </div>
@@ -739,6 +830,7 @@ function RowDetail({ deal, evidence, evError }: { deal: Deal; evidence: DealEvid
         ['Receipt', evidence ? <span title={receiptWord(evidence.receipt).means}>{receiptWord(evidence.receipt).text}</span> : <span className="dim">unknown</span>],
         ['Statement', <>{STATEMENT_WORD[s]} <span className="dim">· {STATEMENT_TIP[s]}</span></>],
         ['Market', <MarketBand deal={deal} />],
+        evidence?.fair_price ? [FAIR_PRICE_NAME, <FairPriceLine deal={deal} fair={evidence.fair_price} />] : null,
         ['PayPal ids', ids ? <span className="mono dim">{ids}</span> : <span className="dim">no PayPal call</span>],
         ['Rules', <span className="dim" title={`${shortId(deal.mandate_id)} · version ${deal.mandate_version}`}>signed rules, version {deal.mandate_version}</span>],
       ]} />
@@ -760,13 +852,23 @@ function AuditSheet({ label, onClose }: { label: (id: string) => string; onClose
     const r = await read.run({ before, limit: 50 });
     if (r) { setRows((x) => [...x, ...r.rows]); setNext(r.next_before); }
   };
+  // The whole chain is checked before every page, so a failed check shows no rows at all: say
+  // what that means and what to do, and let the owner check again (not a dead end).
+  const broken = read.error?.code === 'LEDGER_TRUST';
+  const again = () => { setRows([]); setNext(undefined); void more(null); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void more(null); }, []);
   return (
     <Sheet title="Audit trail · newest first" size="wide" onClose={onClose}
-      footer={<>{next ? <Btn disabled={read.pending} onClick={() => void more(next)}>{read.pending ? 'Reading…' : 'Older ›'}</Btn> : null}<Btn kind="primary" onClick={onClose}>Done</Btn></>}>
-      {read.error ? <WalletNotice error={read.error} what="Audit trail" /> : null}
-      {next === undefined && !read.error ? <Loading what="the audit trail" /> : (
+      footer={<>{broken ? <Btn className="left" disabled={read.pending} onClick={again}>{read.pending ? 'Checking…' : 'Check again'}</Btn> : null}{next ? <Btn disabled={read.pending} onClick={() => void more(next)}>{read.pending ? 'Reading…' : 'Older ›'}</Btn> : null}<Btn kind="primary" onClick={onClose}>Done</Btn></>}>
+      {broken ? (
+        <div className="au-broken">
+          <AnswerBar tone="alert" title={AUDIT_BROKEN.title} sub={AUDIT_BROKEN.means} />
+          <h3>What to do</h3>
+          <ol>{AUDIT_BROKEN.todo.map((t) => <li key={t}>{t}</li>)}</ol>
+        </div>
+      ) : read.error ? <WalletNotice error={read.error} what="Audit trail" /> : null}
+      {broken ? null : next === undefined && !read.error ? <Loading what="the audit trail" /> : (
         <table className="ui-table">
           <thead><tr><th>#</th><th>When</th><th>Who</th><th>What</th><th>Deal</th><th>Decided by · change</th></tr></thead>
           <tbody>

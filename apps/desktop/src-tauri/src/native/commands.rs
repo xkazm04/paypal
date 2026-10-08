@@ -82,6 +82,14 @@ pub(super) async fn audit_page(
     ask(&window, &state, None, Action::AuditPage(args)).await
 }
 #[tauri::command]
+pub(super) async fn deal_history(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    args: DealHistoryArgs,
+) -> Result<DealHistory, CommandError> {
+    ask(&window, &state, None, Action::DealHistory(args)).await
+}
+#[tauri::command]
 pub(super) async fn owner_facts(
     window: WebviewWindow,
     state: State<'_, DesktopState>,
@@ -276,7 +284,7 @@ pub(super) async fn set_credentials(
     request: tauri::ipc::Request<'_>,
     args: CredentialArgs,
 ) -> Result<(), CommandError> {
-    label(&window, &["approval"])?;
+    label(&window, "set_credentials")?;
     let hwnd = window.hwnd().map_err(|_| invalid())?.0 as isize;
     state
         .actor
@@ -469,7 +477,7 @@ pub(super) async fn proof_check(
 ) -> Result<Option<ProofReport>, CommandError> {
     use std::io::Read;
     use tauri_plugin_dialog::DialogExt;
-    label(&window, &["main"])?;
+    label(&window, "proof_check")?;
     // The owner picks the file; the webview never sees a path or the bytes, only the report.
     let (sender, receiver) = tokio::sync::oneshot::channel();
     window
@@ -493,4 +501,99 @@ pub(super) async fn proof_check(
             message: "That file could not be opened, so it was not checked.".into(),
         })?;
     check_proof_file(&bytes).map(Some)
+}
+#[tauri::command]
+pub(super) async fn mandate_simulate(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    args: MandateSimulateArgs,
+) -> Result<MandateSimulation, CommandError> {
+    ask(&window, &state, None, Action::Simulate(args)).await
+}
+#[tauri::command]
+pub(super) async fn envelope_sign(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    request: tauri::ipc::Request<'_>,
+    args: EnvelopeSignArgs,
+) -> Result<table_core::SignedEnvelope, CommandError> {
+    ask(&window, &state, Some(&request), Action::EnvelopeSign(args)).await
+}
+#[tauri::command]
+pub(super) async fn envelope_get(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+) -> Result<table_core::ExposureView, CommandError> {
+    ask(&window, &state, None, Action::EnvelopeGet).await
+}
+#[tauri::command]
+pub(super) async fn rescue_replay(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    request: tauri::ipc::Request<'_>,
+    args: RescueReplayArgs,
+) -> Result<Deal, CommandError> {
+    let deal: Deal = ask(&window, &state, Some(&request), Action::RescueReplay(args)).await?;
+    // Rust selected the new rescue deal for this window: the shell's summary pushes follow it.
+    *state.selected.lock().map_err(|_| invalid())? = Some(deal.id);
+    Ok(deal)
+}
+#[tauri::command]
+pub(super) async fn rescue_book(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+) -> Result<RescueBook, CommandError> {
+    ask(&window, &state, None, Action::RescueBook).await
+}
+#[tauri::command]
+pub(super) async fn deal_group_open(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    args: DealGroupOpenArgs,
+) -> Result<DealGroupView, CommandError> {
+    ask(&window, &state, None, Action::GroupOpen(args)).await
+}
+#[tauri::command]
+pub(super) async fn deal_groups(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+) -> Result<Vec<DealGroupView>, CommandError> {
+    ask(&window, &state, None, Action::Groups).await
+}
+#[tauri::command]
+pub(super) async fn rescue_watch_add(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    request: tauri::ipc::Request<'_>,
+    args: RescueWatchArgs,
+) -> Result<Vec<RescueWatchView>, CommandError> {
+    ask(
+        &window,
+        &state,
+        Some(&request),
+        Action::RescueWatchAdd(args),
+    )
+    .await
+}
+#[tauri::command]
+pub(super) async fn rescue_watch_stop(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    request: tauri::ipc::Request<'_>,
+    args: RescueWatchStopArgs,
+) -> Result<Vec<RescueWatchView>, CommandError> {
+    ask(
+        &window,
+        &state,
+        Some(&request),
+        Action::RescueWatchStop(args),
+    )
+    .await
+}
+#[tauri::command]
+pub(super) async fn safety_record(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+) -> Result<SafetyRecord, CommandError> {
+    ask(&window, &state, None, Action::SafetyRecord).await
 }

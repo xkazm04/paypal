@@ -8,10 +8,13 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import type { EngineId } from '@bindings/EngineId';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
-import { clockLabel } from '../../../lib/format';
-import { rulesName } from '../../../lib/words';
+import { clockLabel, nowUnix } from '../../../lib/format';
+import { watchLine } from '../../../lib/marketWatch';
+import { fingerprintGroups, PERMISSIONS_FINGERPRINT, PERMISSIONS_FINGERPRINT_MEANS, PRICE_CHECKS_USED_UP, rulesName, START_STEP } from '../../../lib/words';
+import { useStart } from '../home/Start';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
-import { ModeBadge, WalletNotice } from '../../../shared/honesty';
+import { ModeBadge, RunBadge, WalletNotice } from '../../../shared/honesty';
+import { OwnerKey } from '../../../shared/ownerKey';
 import { AnswerBar, Btn, Chip, DetailToggle, Group, Icon, Kv, Popover, Row, Section, Silence, layerCount, topLayerKind, useToast, type DetailMode, type IconName } from '../../../shared/ui';
 import { useWorld } from '../world';
 import { deriveCircuit, initialPart, PART_NAME, setupProgress, settingsAnswer, stepPart, type Break, type Circuit, type PartId } from './circuit';
@@ -46,7 +49,7 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
   const facts = useQuery('owner_facts', null, { refreshOn: ['settings:changed', 'agent:changed'] });
   const f = facts.data;
   const factsAt = useRef<number>(0);
-  useEffect(() => { if (f) factsAt.current = Math.floor(Date.now() / 1000); }, [f]);
+  useEffect(() => { if (f) factsAt.current = nowUnix(); }, [f]);
   const mandates = useQuery('mandate_list', null, { refreshOn: ['settings:changed'] });
   const select = useMutation('engine_select');
   const pause = useMutation('pause_all_agents');
@@ -54,6 +57,8 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
   const toast = useToast();
   const now = useNow();
   const locked = w.locked;
+  // First run: the checklist is the same three steps as Home (PayPal, rules, the house seller).
+  const start = useStart();
 
   // When Rust probed the engine executables this session (owner_facts), not when this window read them.
   const probedAt = f?.engines.reduce<number | null>((a, e) => (e.probed_at && (!a || e.probed_at > a) ? e.probed_at : a), null) ?? null;
@@ -143,8 +148,11 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
   );
 
   // ---- the checklist (Simple) ----------------------------------------------------------------
-  const answer = settingsAnswer(c, { firstRun: !!s?.first_run, settingsKnown: !!s, locked });
-  const progress = setupProgress(c);
+  const firstSteps = start.show;
+  const answer = firstSteps
+    ? { tone: 'need' as const, title: 'Let’s get your wallet ready', sub: `${start.total - start.done} ${start.total - start.done === 1 ? 'step' : 'steps'} left. Nothing pays without you or a rule you signed.` }
+    : settingsAnswer(c, { firstRun: !!s?.first_run, settingsKnown: !!s, locked });
+  const progress = firstSteps ? { done: start.done, total: start.total } : setupProgress(c);
   const brk = (k: Break['key']) => c.breaks.find((b) => b.key === k);
   const silenceOf = (b: Break) => <Silence text={b.silence}>{` · ${b.then}`}</Silence>;
   // One gold button in the whole sheet: the first hand-off that is actually needed.
@@ -161,12 +169,13 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
   const nWorking = running ? running.length : null;
 
   const keyBreak = brk('credentials');
+  const keyTitle = firstSteps ? START_STEP.paypal.title : 'Connect PayPal';
   const stepKey: Step = keyBreak
-    ? { state: 'todo', icon: 'alert', title: 'Connect PayPal', status: silenceOf(keyBreak), action: <Handoff label="Add PayPal key" kind={goldKey === 'credentials' ? 'gold' : 'default'} locked={locked} target="credentials" /> }
+    ? { state: 'todo', icon: 'alert', title: keyTitle, status: silenceOf(keyBreak), action: <Handoff label={firstSteps ? START_STEP.paypal.act : 'Add PayPal key'} kind={goldKey === 'credentials' ? 'gold' : 'default'} locked={locked} target="credentials" /> }
     : c.parts.keychain.state === 'unknown'
-      ? { state: 'unknown', icon: 'eye', title: 'Connect PayPal', status: <Chip tone="dashed">not checked yet</Chip>, action: null }
+      ? { state: 'unknown', icon: 'eye', title: keyTitle, status: <Chip tone="dashed">not checked yet</Chip>, action: null }
       : {
-        state: 'done', icon: 'check', title: 'Connect PayPal',
+        state: 'done', icon: 'check', title: keyTitle,
         status: <>Key saved{keyAt ? ` ${shortDate(keyAt)}` : ''} <Chip tone="dashed" title="The wallet doesn’t test the PayPal connection live, so it can’t say it works">connection not tested</Chip></>,
         action: <Handoff label="Replace key" kind="default" locked={locked} target="credentials" />,
       };
@@ -206,9 +215,27 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
     state: s ? (s.channel3_configured ? 'done' : 'idle') : 'unknown',
     icon: s?.channel3_configured ? 'check' : 'tag',
     title: 'Market prices',
-    status: !s ? <Chip tone="dashed">not loaded yet</Chip> : s.channel3_configured ? `Key saved${marketAt ? ` ${shortDate(marketAt)}` : ''}` : 'Optional. Without it, items show no typical price.',
+    status: !s ? <Chip tone="dashed">not loaded yet</Chip> : s.channel3_configured ? (
+      <>
+        <span>Key saved{marketAt ? ` ${shortDate(marketAt)}` : ''}</span>
+        {(f?.market_watch ?? []).map((w) => {
+          const l = watchLine(w);
+          return <span key={`${w.mandate_id}:${w.mandate_version}`} className={`su-watch ${l.usedUp ? 'used' : ''}`} title={l.usedUp ? PRICE_CHECKS_USED_UP : undefined}><b>{l.checks}</b> · {l.rest}</span>;
+        })}
+      </>
+    ) : (f?.market_watch.length ? 'Add the key so your rules can keep prices fresh. Until then, items show no typical price.' : 'Optional. Without it, items show no typical price.'),
     action: s ? <Handoff label={s.channel3_configured ? 'Replace key' : 'Add key'} kind="default" locked={locked} target="credentials" /> : null,
   };
+  // First run's third step: a practice deal with the house seller, done once it is connected.
+  const practice = start.steps.find((x) => x.key === 'practice');
+  const stepPractice: Step = practice?.state === 'done'
+    ? { state: 'done', icon: 'check', title: START_STEP.practice.title, status: 'House seller connected · its practice table is ready', action: <Btn kind="default" sm onClick={() => onPair('house')}>Open a table with it ›</Btn> }
+    : house === 'unavailable'
+      ? { state: 'unknown', icon: 'store', title: START_STEP.practice.title, status: <Chip tone="dashed">not part of this version</Chip>, action: null }
+      : {
+        state: 'todo', icon: 'store', title: START_STEP.practice.title, status: START_STEP.practice.sub,
+        action: <Btn kind={!goldKey && practice?.state === 'next' ? 'gold' : 'default'} sm onClick={() => onPair('house')}>{START_STEP.practice.act} ›</Btn>,
+      };
   const stepAgents: Step = !s
     ? { state: 'unknown', icon: 'eye', title: 'Your agents', status: <Chip tone="dashed">not loaded yet</Chip>, action: null }
     : paused
@@ -229,7 +256,7 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
         {w.settings.error && !s ? <WalletNotice error={w.settings.error} what="Settings" /> : null}
         <AnswerBar tone={answer.tone} title={answer.title} sub={answer.sub} />
         <div className="su-bar">
-          <h3>{detailed ? 'How your money is protected' : `Setup · ${progress.done} of ${progress.total} done`}</h3>
+          <h3>{detailed ? 'How your money is protected' : `${firstSteps ? 'Getting started' : 'Setup'} · ${progress.done} of ${progress.total} done`}</h3>
           <span className="ui-spacer" />
           {detailed ? <Info label="Who can set what" text="Who can set what" className="wide"><WhoCanSetWhat locked={locked} /></Info> : null}
           <DetailToggle value={detail} onChange={setDetail} detailedLabel="Detailed" />
@@ -255,11 +282,11 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
         ) : (
           <>
             <div className="su-list" role="list" aria-label="Setup steps">
-              <StepRow {...stepKey} /><StepRow {...stepRules} /><StepRow {...stepEngine} />
+              <StepRow {...stepKey} /><StepRow {...stepRules} />{firstSteps ? <StepRow {...stepPractice} /> : <StepRow {...stepEngine} />}
             </div>
             <h3 className="su-h">Also here</h3>
             <div className="su-list" role="list" aria-label="Other settings">
-              <StepRow {...stepAgents} /><StepRow {...stepLock} /><StepRow {...stepHouse} /><StepRow {...stepMarket} />
+              {firstSteps ? <StepRow {...stepEngine} /> : null}<StepRow {...stepAgents} /><StepRow {...stepLock} />{firstSteps ? null : <StepRow {...stepHouse} />}<StepRow {...stepMarket} />
             </div>
             <h3 className="su-h">How your money is protected</h3>
             <ol className="su-chain" aria-label="How your money is protected">
@@ -309,7 +336,7 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
           <Group empty={running === null ? 'Agent activity can’t be read.' : 'No agent is working right now.'}>
             {(running ?? []).slice(0, 6).map((r) => (
               <Row key={r.run} id={w.labels.get(r.deal_id) ?? 'deal'} title={r.engine === 'scripted' ? 'practice agent' : r.engine}>
-                <span className="end"><Chip tone={paused ? 'coral' : 'teal'}>{r.state === 'starting' ? 'starting' : 'working'}</Chip></span>
+                <span className="end"><RunBadge run={r} /><Chip tone={paused ? 'coral' : 'teal'}>{r.state === 'starting' ? 'starting' : 'working'}</Chip></span>
               </Row>
             ))}
           </Group>
@@ -369,6 +396,8 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
             <CredRow name="Market prices" stored={s ? s.channel3_configured : null} storedAt={f?.credentials.find((c) => c.kind === 'channel3')?.stored_at ?? null} locked={locked} />
           </Group>
           <div className="acts"><WhoChip who="only-you" locked={locked} /><span className="ui-hint">typed into a Windows dialog</span></div>
+          {/* The one key this page shows whole: public, and the anchor for anyone checking a proof file. */}
+          <div className="ui-section"><OwnerKey id={f?.owner_key_id} error={facts.error} cols={4} /></div>
           <div className="ui-section"><Silence text={s?.payment_executor_configured ? 'your saved keys stay' : 'nothing is saved'}>{s?.payment_executor_configured ? null : ' · PayPal is never called'}</Silence></div>
         </>
       );
@@ -408,7 +437,8 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
       case 'lock': return (
         <>
           {head('everything inside the gold frame needs you, unlocked', (
-            <Kv items={[['Locks', 'saved keys · rules · connections · approvals · releases · paying on PayPal'], ['Never locks', 'looking around · pausing agents · choosing the agent app · the house seller'], ['After', '15 quiet minutes · PayPal’s own rule · nobody can make it longer'], ['Unlock', 'Windows Hello, in the approval window']]} />
+            <Kv items={[['Locks', 'saved keys · rules · connections · approvals · releases · paying on PayPal'], ['Never locks', 'looking around · pausing agents · choosing the agent app · the house seller'], ['After', '15 quiet minutes · PayPal’s own rule · nobody can make it longer'], ['Unlock', 'Windows Hello, in the approval window'],
+              [PERMISSIONS_FINGERPRINT, s?.authority_manifest ? <span className="mono" title={PERMISSIONS_FINGERPRINT_MEANS}>{fingerprintGroups(s.authority_manifest)}</span> : <Chip tone="dashed">unknown</Chip>]]} />
           ))}
           <div className="ui-section"><Kv items={[
             ['Now', locked ? 'locked' : 'unlocked'],

@@ -25,3 +25,11 @@ table-shield.workspace = true
 table-attention.workspace = true
 table-engine.workspace = true
 url.workspace = true
+
+[dev-dependencies]
+# The gauntlet (tests/gauntlet.rs) drives the real loopback MCP server in process and checks every
+# exported deal with the offline verifier. All are workspace crates or already in Cargo.lock.
+table-mcp = { path = "../table-mcp" }
+table-verify = { path = "../table-verify" }
+axum.workspace = true
+tower = { version = "0.5", features = ["util"] }

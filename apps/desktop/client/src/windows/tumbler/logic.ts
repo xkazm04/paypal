@@ -11,8 +11,9 @@ import type { Mode } from '@bindings/Mode';
 import type { ReceiptEvent } from '@bindings/ReceiptEvent';
 import type { TumblerPreferences } from '@bindings/TumblerPreferences';
 import type { VisualState } from '@bindings/VisualState';
-import { clockLabel, countdown, formatMinor, shortId } from '../../lib/format';
-import { headlineWords, ruleNameOf, silenceWords, timeLeftWords } from '../../lib/words';
+import { LADDER } from '@bindings/ladder';
+import { clockLabel, countdown, formatMinor } from '../../lib/format';
+import { headlineWords, houseWords, moneyCheckWord, ruleNameOf, shieldRuleWord, silenceWords, timeLeftWords } from '../../lib/words';
 
 /** Rust's size table (crates/table-attention placement.rs). The page never sends pixels;
  *  this copy exists only so the browser preview can draw a frame of the same size. */
@@ -26,14 +27,15 @@ export const FORM_SIZE: Record<Form, readonly [number, number]> = {
   welcome: [440, 228],
 };
 
+/** The ladder's rungs, read from Rust's one schedule (bindings/ladder.ts, table_attention::LADDER). */
 export const SECONDS = {
   /** deadline ≤ 2 h: the ring breathes */
-  soon: 2 * 3600,
+  soon: LADDER.breathe_secs,
   /** deadline ≤ 15 min: tray dot + one OS notification (Rust) */
-  now: 15 * 60,
+  now: LADDER.notify_secs,
   /** Snooze exists only when the deadline is more than 45 min away */
-  snoozeMinLeft: 45 * 60,
-  snooze: 30 * 60,
+  snoozeMinLeft: LADDER.snooze_min_left_secs,
+  snooze: LADDER.snooze_secs,
 } as const;
 
 export const TICKER_MS = { default: 6000, receipt: 2500, info: 2500 } as const;
@@ -51,6 +53,24 @@ export function rung(deadline: number | null, now: number): Rung {
   if (left <= SECONDS.now) return 'now';
   if (left <= SECONDS.soon) return 'soon';
   return 'calm';
+}
+
+const RUNG_ORDER: Record<Rung, number> = { none: 0, calm: 1, soon: 2, now: 3, past: 4 };
+
+/**
+ * What a screen reader hears when the most urgent decision climbs a rung of the ladder - once per
+ * rung, never every second (the clocks themselves are not live regions). Null when nothing new:
+ * a first sighting on a calm rung, the same rung again, or a step down (a snooze, a new deadline).
+ * `what` is the plain headline ("Approve $329.00"); `silence` the default in plain words.
+ */
+export function rungNotice(prev: Rung | null, next: Rung, what: string, silence: string | null): string | null {
+  if (prev === next || RUNG_ORDER[next] <= RUNG_ORDER[prev ?? 'calm']) return null;
+  switch (next) {
+    case 'soon': return `${what}: under 2 hours left to decide.`;
+    case 'now': return `${what}: under 15 minutes left to decide.`;
+    case 'past': return `${what}: time is up${silence ? `, so ${silence}` : ''}.`;
+    default: return null;
+  }
 }
 
 /** GATE and HOLD items sorted by deadline (no clock last), then id - the same order Rust uses. */
@@ -185,8 +205,10 @@ export function cardActions(item: AttentionItem, now: number): CardAction[] {
 
 /** The state chip on a card or stack row: text plus colour, never colour alone. A snoozed GATE
  *  never reaches the page (Rust drops it from the snapshot), so there is no "Snoozed" state. */
-export type StateChip = { tone: 'gold' | 'coral'; text: 'Paused' | 'In approval' | 'Needs you' };
+export type StateChip = { tone: 'gold' | 'coral'; text: 'Paused' | 'In approval' | 'Needs you' | 'Checking' };
 export function stateChip(item: AttentionItem, inApproval: boolean): StateChip {
+  // A payment step being checked with PayPal is not paused for a decision: nothing is asked of you.
+  if (item.money_check) return { tone: 'coral', text: 'Checking' };
   if (item.kind === 'hold') return { tone: 'coral', text: 'Paused' };
   return { tone: 'gold', text: inApproval ? 'In approval' : 'Needs you' };
 }
@@ -196,7 +218,7 @@ export function stateChip(item: AttentionItem, inApproval: boolean): StateChip {
  *  counterparty, never anything they wrote: free text has no path into the Tumbler. */
 export function cardQuestion(item: Pick<AttentionItem, 'headline' | 'amount_minor' | 'currency' | 'kind' | 'counterparty'>): { lead: string; amount: string | null; tail: string } {
   const end = item.kind === 'gate' ? '?' : '';
-  const who = item.counterparty ? ` with ${item.counterparty}` : '';
+  const who = item.counterparty ? ` with ${houseWords(item.counterparty)}` : '';
   const s = splitHeadline(item.headline, item.amount_minor, item.currency);
   if (s) return { lead: s.lead, amount: s.amount, tail: `${who}${end}` };
   return { lead: `${item.headline}${who}${end}`, amount: null, tail: '' };
@@ -204,7 +226,8 @@ export function cardQuestion(item: Pick<AttentionItem, 'headline' | 'amount_mino
 
 /** The card's clock in words: "3 h 57 min left", "time is up", or, for a paused item with no
  *  deadline, that it waits for you. Never a ticking second counter: the rung carries urgency. */
-export function cardClock(item: Pick<AttentionItem, 'deadline' | 'kind'>, now: number): { text: string; urgent: boolean } {
+export function cardClock(item: Pick<AttentionItem, 'deadline' | 'kind' | 'money_check'>, now: number): { text: string; urgent: boolean } {
+  if (item.deadline === null && item.money_check) return { text: 'checking with PayPal', urgent: false };
   if (item.deadline === null) return { text: item.kind === 'hold' ? 'paused until you act' : 'no deadline', urgent: false };
   const left = item.deadline - now;
   if (left <= 0) return { text: 'time is up', urgent: true };
@@ -222,7 +245,8 @@ export function ladderFill(left: number): number {
 
 /** One plain line under the gauge: how much time is left, in words. The ladder (breathing, the
  *  15-minute notice) is for decisions only; a paused item just shows its clock. */
-export function ladderCaption(r: Rung, hold = false): string {
+export function ladderCaption(r: Rung, hold = false, checking = false): string {
+  if (checking) return 'checking with PayPal · nothing more is sent until it confirms';
   if (hold && r !== 'none' && r !== 'past') return 'paused · it can’t be paid · its safe default runs at the deadline';
   switch (r) {
     case 'none': return hold ? 'no deadline · paused until you act' : 'no deadline';
@@ -242,10 +266,18 @@ export function ringFill(deadline: number | null, now: number): number | null {
 /** r2-tumbler: the two sentences behind "Why?" in the details popover. Deterministic: only the item's
  *  kind, the rule Rust named, its deadline and its own safe default. Nothing the counterparty wrote
  *  (W4), no number that is not already on the card, no prediction. */
-export function cardWhy(item: Pick<AttentionItem, 'kind' | 'clause' | 'on_silence'>): [string, string] {
+export function cardWhy(item: Pick<AttentionItem, 'kind' | 'clause' | 'on_silence' | 'money_check' | 'shield_rule'>): [string, string] {
   const rule = clauseText(item.clause);
+  if (item.money_check) {
+    const silence = silenceWords(item.on_silence).trim().replace(/[.,\s]+$/, '');
+    return [moneyCheckWord(item.money_check).means, `If you do nothing, ${silence}.`];
+  }
+  // A scam-check pause names the check that paused it: a closed name from the wallet core, worded
+  // here; never the other side's words.
+  const shield = item.kind === 'hold' && item.shield_rule ? shieldRuleWord(item.shield_rule).means : null;
   const ask = item.kind === 'hold'
-    ? (rule ? `It is paused because of ${rule}, so it can’t be paid until you decide.` : 'It is paused, so it can’t be paid until you decide.')
+    ? (shield ? `A scam check paused it: ${shield.charAt(0).toLowerCase()}${shield.slice(1).replace(/\.$/, '')}. It can’t be paid until you decide.`
+      : rule ? `It is paused because of ${rule}, so it can’t be paid until you decide.` : 'It is paused, so it can’t be paid until you decide.')
     : (rule ? `${rule.charAt(0).toUpperCase()}${rule.slice(1)} sends this one to you.` : 'It needs your decision before it can go ahead.');
   const silence = item.on_silence.trim().replace(/\s*·\s*/g, ', ').replace(/[.,\s]+$/, '');
   return [ask, `If you do nothing, ${silence}.`];
@@ -299,6 +331,10 @@ export function clauseText(c: ClauseRef | null): string | null {
 let seq = 0;
 const key = (p: string) => `${p}:${++seq}`;
 
+// Tickers name a deal by who it is with (Rust's composed display name), never by its id:
+// UX-GUIDE keeps ids in Details, and a raw id ("01JD…7Q") would mean nothing to the owner.
+const withWho = (i: AttentionItem | undefined): string => (i?.counterparty ? ` · ${i.counterparty}` : '');
+
 export function arrivalTicker(item: AttentionItem): Ticker {
   const hold = item.kind === 'hold';
   const when = item.deadline !== null ? `until ${hhmm(item.deadline)}` : 'no clock';
@@ -306,8 +342,9 @@ export function arrivalTicker(item: AttentionItem): Ticker {
   return {
     key: key('arrive'),
     kind: hold ? 'hold' : 'gate',
-    l1: split ? [`${split.lead} `, split.amount, ` · ${item.label}`] : [`${item.headline} · `, item.label, ''],
-    l2: hold ? `paused · can’t be paid · ${item.on_silence}` : `${item.counterparty ?? 'a connected wallet'} · ${when}`,
+    // who it is with is on line two ("Dan · until 18:00"), so line one is only what and how much
+    l1: split ? [`${split.lead} `, split.amount, ''] : [item.headline, '', ''],
+    l2: item.money_check ? `checking with PayPal · ${silenceWords(item.on_silence)}` : hold ? `paused · can’t be paid · ${item.on_silence}` : `${item.counterparty ? houseWords(item.counterparty) : 'a connected wallet'} · ${when}`,
     mode: item.mode,
     dealId: item.deal_id,
     ms: TICKER_MS.default,
@@ -322,7 +359,7 @@ export function arrivalsTicker(items: readonly AttentionItem[]): Ticker | null {
     key: key('arrive'),
     kind: items.some((i) => i.kind === 'gate') ? 'gate' : 'hold',
     l1: ['', String(items.length), ' new items need you'],
-    l2: `first: ${first.headline} · ${first.label}`,
+    l2: `first: ${first.headline}${withWho(first)}`,
     mode: first.mode,
     dealId: first.deal_id,
     ms: TICKER_MS.default,
@@ -347,15 +384,15 @@ const RECEIPT_VERB: Partial<Record<DealState, string>> = {
 };
 
 /** A receipt from Rust. REFUSED reads as a STOP, MISMATCH as a HOLD, everything else is green.
- *  `known` is the last attention item for the deal, used only for its label and amount. */
+ *  `known` is the last attention item for the deal, used only for its amount and who it is with;
+ *  a deal the Tumbler never saw says only what happened. */
 export function receiptTicker(ev: ReceiptEvent, known?: AttentionItem): Ticker {
   const kind: TickerKind = ev.state === 'REFUSED' ? 'stop' : ev.state === 'MISMATCH' ? 'hold' : 'receipt';
   const verb = RECEIPT_VERB[ev.state] ?? 'Updated';
-  const amount = known ? ` ${formatMinor(known.amount_minor, known.currency)}` : '';
   return {
     key: key('receipt'),
     kind,
-    l1: [`${verb}${kind === 'hold' ? '' : amount} · `, known?.label ?? shortId(ev.deal_id), ''],
+    l1: known && kind !== 'hold' ? [`${verb} `, formatMinor(known.amount_minor, known.currency), withWho(known)] : [verb, '', withWho(known)],
     l2: silenceWords(ev.on_silence),
     mode: ev.mode,
     dealId: ev.deal_id,
@@ -379,7 +416,7 @@ export function snoozeTicker(item: AttentionItem, until: number): Ticker {
   return {
     key: key('snooze'),
     kind: 'info',
-    l1: ['Reminder set · ', item.label, ` · back at ${hhmm(until)}`],
+    l1: ['Reminder set · back at ', hhmm(until), withWho(item)],
     l2: 'the deadline still runs · you still get the 15-minute reminder',
     mode: item.mode,
     dealId: item.deal_id,
@@ -392,7 +429,7 @@ export function ackTicker(item: AttentionItem, action: 'withdraw' | 'let_lapse')
   return {
     key: key('ack'),
     kind: 'info',
-    l1: action === 'withdraw' ? ['Withdrawn · ', item.label, ''] : ['Left to lapse · ', item.label, ''],
+    l1: [action === 'withdraw' ? 'Withdrawn' : 'Left to lapse', '', withWho(item)],
     l2: action === 'withdraw' ? 'nothing was sent to PayPal' : item.on_silence,
     mode: item.mode,
     dealId: null,
@@ -446,4 +483,122 @@ export const MODE_SHORT: Record<Mode, string> = { sandbox: 'SANDBOX', replay: 'R
 /** The core's attention items in plain words (lib/words.ts); ids, amounts and actions untouched. */
 export function plainItems(items: readonly AttentionItem[]): AttentionItem[] {
   return items.map((i) => ({ ...i, headline: headlineWords(i.headline), on_silence: silenceWords(i.on_silence) }));
+}
+
+// ---------------------------------------------------------------------------------------
+// if you walk away (the walk-away forecast, T4)
+//
+// Every number and line comes from `AttentionSnapshot.forecast`, which Rust computes from the
+// scheduler's own rules. Labels are deal numbers; no counterparty text is read here (W4).
+
+/** The forecast's horizon (crates/table-runtime/src/forecast.rs FORECAST_HORIZON_SECS). */
+export const WALK_AWAY_HOURS = 72;
+
+export type WalkLine = {
+  key: string;
+  /** "Now", "If the buyer approves" or "Thu 18:00". */
+  when: string;
+  /** "D-0189 $90.00 collected" */
+  what: string;
+  /** On whose authority, in plain words. */
+  who: 'your rule' | 'safe default' | 'the buyer already approved';
+  /** Depends on an outside event (the buyer approving on PayPal). */
+  conditional: boolean;
+};
+export type WalkAway =
+  | { known: false; summary: string }
+  | {
+      known: true;
+      /** "$0.00" per currency (" + " between currencies); null when no currency is known. */
+      out: string | null;
+      /** Money that comes in without anyone deciding anything more; null when none. */
+      inSure: string | null;
+      /** Sure money plus money that comes in only if a buyer approves; null without the latter. */
+      inUpTo: string | null;
+      /** Holds released by the safe default (not counting ones that start only on approval). */
+      releases: number;
+      /** At most three lines, the ones that act first. */
+      lines: WalkLine[];
+      more: number;
+      /** One line for the stack: "$0.00 out · up to $90.00 in · 1 hold released". */
+      summary: string;
+    };
+
+type ForecastRow = NonNullable<AttentionSnapshot['forecast']>[number];
+const WALK_LINES = 3;
+
+function perCurrency(sums: Map<Currency, number>): string | null {
+  const parts = [...sums].filter(([, v]) => v !== 0).map(([c, v]) => formatMinor(v, c));
+  return parts.length ? parts.join(' + ') : null;
+}
+function walkWhat(l: ForecastRow): string {
+  const amt = formatMinor(l.amount_minor, l.currency);
+  switch (l.action) {
+    case 'lapse': return `${l.label} lapses, nothing is paid`;
+    case 'expire': return `${l.label} payment request expires, nothing is paid`;
+    case 'auto_void': return `${l.label} hold of ${amt} released`;
+    case 'create_order': return `${l.label} payment request sent to the buyer`;
+    case 'authorize': return `${l.label} ${amt} put on hold for you`;
+    case 'capture': return `${l.label} ${amt} collected`;
+  }
+}
+function walkWho(l: ForecastRow): WalkLine['who'] {
+  if (l.authority === 'safe_default') return 'safe default';
+  if (l.authority === 'seller_mandate' && l.trigger !== 'buyer_approves') return 'the buyer already approved';
+  return 'your rule';
+}
+function walkWhen(l: ForecastRow): string {
+  if (l.trigger === 'buyer_approves') return 'If the buyer approves';
+  if (l.trigger === 'next_tick' || l.at === null) return 'Now';
+  return clockLabel(l.at);
+}
+const TRIGGER_ORDER: Record<ForecastRow['trigger'], number> = { next_tick: 0, buyer_approves: 1, deadline: 2 };
+
+/** The "If you walk away" block: totals per currency and the first few lines, or an honest
+ *  "can't forecast" when the snapshot carries no forecast (an older shell, or a failed read). */
+export function walkAway(s: Pick<AttentionSnapshot, 'forecast' | 'wallet_spend_today_currency'> | undefined): WalkAway {
+  const forecast = s?.forecast;
+  if (!s || !forecast) return { known: false, summary: 'Can’t forecast right now' };
+  const out = new Map<Currency, number>();
+  const sure = new Map<Currency, number>();
+  const upTo = new Map<Currency, number>();
+  let conditionalIn = false;
+  let releases = 0;
+  const add = (m: Map<Currency, number>, c: Currency, v: number) => m.set(c, (m.get(c) ?? 0) + v);
+  for (const l of forecast) {
+    add(out, l.currency, l.direction === 'out' ? l.amount_minor : 0);
+    if (l.direction === 'in') {
+      add(upTo, l.currency, l.amount_minor);
+      if (l.trigger === 'buyer_approves') conditionalIn = true;
+      else add(sure, l.currency, l.amount_minor);
+    }
+    if (l.action === 'auto_void' && l.trigger !== 'buyer_approves') releases += 1;
+  }
+  if (!out.size && s.wallet_spend_today_currency) out.set(s.wallet_spend_today_currency, 0);
+  const outText = out.size ? [...out].map(([c, v]) => formatMinor(v, c)).join(' + ') : null;
+  const inSure = perCurrency(sure);
+  const inUpTo = conditionalIn ? perCurrency(upTo) : null;
+
+  // One line per step that matters: a capture stands for the authorize before it, and a hold
+  // that would start only on approval is not a line of its own.
+  const shown = forecast.filter((l) => {
+    if (l.action === 'auto_void' && l.trigger === 'buyer_approves') return false;
+    if (l.action === 'authorize') return !forecast.some((c) => c.deal_id === l.deal_id && c.action === 'capture' && c.trigger === l.trigger);
+    return true;
+  });
+  const ordered = [...shown].sort((a, b) => TRIGGER_ORDER[a.trigger] - TRIGGER_ORDER[b.trigger] || (a.at ?? 0) - (b.at ?? 0));
+  const lines = ordered.slice(0, WALK_LINES).map((l, i): WalkLine => ({
+    key: `${l.deal_id}:${l.action}:${i}`,
+    when: walkWhen(l),
+    what: walkWhat(l),
+    who: walkWho(l),
+    conditional: l.trigger === 'buyer_approves',
+  }));
+
+  const parts = [outText ? `${outText} out` : 'nothing goes out'];
+  if (inUpTo) parts.push(`up to ${inUpTo} in`);
+  else if (inSure) parts.push(`${inSure} in`);
+  if (releases) parts.push(`${releases} hold${releases === 1 ? '' : 's'} released`);
+  if (!forecast.length) parts.push('nothing scheduled');
+  return { known: true, out: outText, inSure, inUpTo, releases, lines, more: Math.max(0, ordered.length - WALK_LINES), summary: parts.join(' · ') };
 }

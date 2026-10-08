@@ -75,9 +75,9 @@ export function nextSteps(i: NextInput): NextStep[] | null {
         }
         return [you('You approve here', true), paypal('The PayPal order is created'), d.side === 'seller' ? them(`${who} approves it on PayPal`) : you('You approve it on PayPal')];
       case 'rescue':
-        if (d.mode === 'replay') return [you('You approve the fix here', true), wallet('The recorded steps run'), wallet('Nothing real is invoiced')];
-        if (i.summary.unavailable_reason) return [you('You approve the fix here', true), wallet('Sending fixes isn’t connected yet'), wallet('Nothing is invoiced')];
-        return [you('You approve the fix here', true), paypal(`One ${total} invoice goes to the subscriber`), wallet('Recovered once they pay')];
+        if (i.summary.unavailable_reason) return [you('You approve the fix here', true), wallet('The invoice can’t be sent right now'), wallet('Nothing is invoiced')];
+        return [you('You approve the fix here', true), paypal(`One ${total} invoice goes to the subscriber`),
+          wallet(d.mode === 'replay' ? 'Never counted: a replayed failure' : 'Counted once PayPal shows it paid')];
       case 'release':
         return [you('You unpause it here', true), wallet('It becomes “Check with you”'), you('You still approve the payment itself')];
       default:

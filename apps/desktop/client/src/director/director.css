@@ -1,0 +1,136 @@
+/* The scenario director (director.html): browser preview only, never a desktop window.
+   A dark stage, the three real windows floating on it at their native sizes, a calm caption rail.
+   Tokens only (src/design/tokens.css); the light theme comes from <html data-theme="light">. */
+
+body.w-director { margin: 0; overflow: hidden; background: var(--stage); }
+:root {
+  --stage: #07090c;
+  --stage-glow-a: color-mix(in srgb, var(--teal) 14%, transparent);
+  --stage-glow-b: color-mix(in srgb, var(--gold) 7%, transparent);
+  --win-shadow: 0 50px 110px rgba(0, 0, 0, .55), 0 18px 40px rgba(0, 0, 0, .38), 0 0 0 1px rgba(255, 255, 255, .07);
+  --rail: color-mix(in srgb, #0b0e12 88%, transparent);
+}
+:root[data-theme="light"] {
+  --stage: #dfe5ee;
+  --stage-glow-a: color-mix(in srgb, var(--pp-sky) 18%, transparent);
+  --stage-glow-b: color-mix(in srgb, var(--pp-gold) 16%, transparent);
+  --win-shadow: 0 50px 110px rgba(14, 27, 54, .22), 0 16px 36px rgba(14, 27, 54, .16), 0 0 0 1px rgba(14, 27, 54, .10);
+  --rail: color-mix(in srgb, #ffffff 86%, transparent);
+}
+
+.dir { height: 100vh; min-height: 560px; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; color: var(--text);
+  font: var(--fw-regular) var(--fs-body)/var(--lh) var(--font); }
+
+/* ---- the permanent banner ---------------------------------------------------------------- */
+.dir-banner { position: relative; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 34px; padding: 6px 16px;
+  background: color-mix(in srgb, var(--gold) 13%, var(--stage)); color: var(--gold-l);
+  border-bottom: 1px solid color-mix(in srgb, var(--gold) 28%, transparent);
+  font: var(--fw-medium) 13px/1.3 var(--font); letter-spacing: .01em; text-align: center; }
+.dir-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 22%, transparent); }
+
+/* ---- the stage --------------------------------------------------------------------------- */
+.dir-stage { position: relative; overflow: hidden; overflow: clip;
+  background:
+    radial-gradient(60% 70% at 82% 18%, var(--stage-glow-a), transparent 70%),
+    radial-gradient(50% 60% at 8% 92%, var(--stage-glow-b), transparent 70%),
+    radial-gradient(120% 120% at 50% 40%, transparent 55%, rgba(0, 0, 0, .35)),
+    var(--stage); }
+:root[data-theme="light"] .dir-stage { background:
+    radial-gradient(60% 70% at 82% 18%, var(--stage-glow-a), transparent 70%),
+    radial-gradient(50% 60% at 8% 92%, var(--stage-glow-b), transparent 70%),
+    var(--stage); }
+.dir-desk { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform;
+  transition: transform 1.1s cubic-bezier(.65, 0, .35, 1), opacity .4s ease; }
+.reduced .dir-desk, .reduced .dir-win, .reduced .dir-ghost { transition: none; }
+
+.dir-win { position: absolute; display: flex; flex-direction: column; border-radius: 10px; overflow: hidden; overflow: clip; background: var(--panel);
+  box-shadow: var(--win-shadow); transition: opacity .5s ease, transform .7s var(--ease), visibility 0s; }
+.dir-win.closed { opacity: 0; visibility: hidden; transform: translateY(28px) scale(.965); pointer-events: none;
+  transition: opacity .45s ease, transform .6s var(--ease), visibility 0s .6s; }
+.dir-win iframe { display: block; flex: none; border: 0; background: var(--bg); }
+.dir-win.w-approval { z-index: 2; }
+.dir-win.w-approval iframe { color-scheme: dark; }
+
+.dir-bar { flex: none; display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; background: #161b21; color: #b6bec8;
+  border-bottom: 1px solid #262d36; font: var(--fw-regular) 12px/1 var(--font); user-select: none; }
+:root[data-theme="light"] .w-main .dir-bar { background: #eef1f6; color: #3f4d66; border-bottom-color: #dfe4eb; }
+.dir-bar b { font-weight: var(--fw-semibold); color: inherit; }
+.dir-bar-ic { width: 12px; height: 12px; border-radius: 3px; background: linear-gradient(135deg, var(--teal), var(--gold)); }
+.dir-bar-note { color: #8e98a4; }
+.dir-bar-note::before { content: "·"; margin-right: 8px; }
+.dir-bar-wc { margin-left: auto; display: flex; gap: 18px; opacity: .55; }
+.dir-bar-wc i { position: relative; width: 10px; height: 10px; }
+.dir-bar-wc .min::after { content: ""; position: absolute; left: 0; right: 0; top: 5px; height: 1px; background: currentColor; }
+.dir-bar-wc .max { border: 1px solid currentColor; }
+.dir-bar-wc .x::before, .dir-bar-wc .x::after { content: ""; position: absolute; left: -1px; right: -1px; top: 5px; height: 1px; background: currentColor; transform: rotate(45deg); }
+.dir-bar-wc .x::after { transform: rotate(-45deg); }
+
+/* where The Table was, while it is closed */
+.dir-ghost { position: absolute; display: grid; place-items: center; border-radius: 10px; opacity: 0; pointer-events: none;
+  border: 1.5px dashed color-mix(in srgb, var(--dim) 45%, transparent); transition: opacity .6s ease .2s; }
+.dir-ghost.on { opacity: 1; }
+.dir-ghost span { font: var(--fw-medium) 26px/1.2 var(--display); color: var(--dim); letter-spacing: .01em; }
+
+/* the Tumbler's corner of the desk: transparent, always on top */
+.dir-tum { position: absolute; z-index: 4; }
+.dir-tum iframe { display: block; border: 0; background: transparent; color-scheme: dark; }
+
+.dir-loading { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; border-radius: 999px; background: var(--rail); box-shadow: var(--shadow-2); color: var(--muted); font-size: 14px; }
+.dir-loading span { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line2); border-top-color: var(--teal-l); animation: dirSpin .9s linear infinite; }
+@keyframes dirSpin { to { transform: rotate(360deg); } }
+
+/* ---- the caption rail -------------------------------------------------------------------- */
+.dir-rail { position: relative; z-index: 3; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 32px; row-gap: 12px;
+  padding: 14px 28px 14px; background: var(--rail); border-top: 1px solid var(--line);
+  backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2); }
+.dir-cap { min-width: 0; }
+.dir-kicker { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font: var(--fw-semibold) 12px/1.2 var(--font); letter-spacing: .09em; text-transform: uppercase; }
+.dir-chap { color: var(--gold-l); }
+.dir-time { display: inline-flex; align-items: center; gap: 8px; color: var(--dim); letter-spacing: .04em; text-transform: none; font-weight: var(--fw-medium); font-variant-numeric: tabular-nums; }
+.dir-time em { font-style: normal; padding: 2px 8px; border-radius: 999px; color: var(--teal-l); background: color-mix(in srgb, var(--teal) 16%, transparent); }
+.dir-text { margin: 7px 0 0; max-width: 72ch; min-height: 2.8em; font: var(--fw-regular) clamp(17px, 1.5vw, 25px)/1.4 var(--display); letter-spacing: -.005em; color: var(--text);
+  text-wrap: pretty; }
+
+.dir-ctl { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 10px; }
+.dir-transport { display: flex; align-items: center; gap: 8px; }
+.dir-btn { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; border-radius: 50%; cursor: pointer;
+  border: 1px solid var(--line2); background: color-mix(in srgb, var(--panel) 80%, transparent); color: var(--text);
+  transition: background var(--t-fast), transform var(--t-fast), border-color var(--t-fast); }
+.dir-btn:hover:not(:disabled) { background: var(--panel3); }
+.dir-btn:active:not(:disabled) { transform: scale(.96); }
+.dir-btn:disabled { opacity: .35; cursor: default; }
+.dir-btn.play { width: 48px; height: 48px; border: 0; background: var(--text); color: var(--bg); box-shadow: 0 6px 18px rgba(0, 0, 0, .3); }
+.dir-btn.play:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 88%, var(--teal)); }
+.dir-btn:focus-visible { outline-offset: 3px; border-radius: 50%; }
+.dir-opts { display: flex; gap: 6px; }
+.dir-chip { height: 26px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line2); background: none; color: var(--muted); cursor: pointer; font-size: 12px; }
+.dir-chip:hover { background: var(--hover); }
+.dir-chip[aria-pressed="true"] { color: var(--teal-l); border-color: var(--sel-line); background: var(--sel); }
+.dir-chip:focus-visible { border-radius: 999px; }
+
+/* the scrubber: one segment per chapter, one dot per beat */
+.dir-scrub { grid-column: 1 / -1; display: flex; gap: 10px; min-width: 0; }
+.dir-seg { flex-basis: 0; min-width: 92px; display: flex; flex-direction: column; gap: 6px; }
+.dir-seg-t { font-size: 12px; line-height: 1.2; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color var(--t-med); }
+.dir-seg.on .dir-seg-t { color: var(--text); }
+.dir-ticks { position: relative; height: 14px; }
+.dir-ticks::before { content: ""; position: absolute; left: 0; right: 0; top: 6px; height: 2px; border-radius: 2px; background: var(--line2); }
+.dir-fill { position: absolute; left: 0; top: 6px; height: 2px; border-radius: 2px; background: var(--teal-l); transition: width .2s linear; }
+.dir-tick { position: absolute; top: 1px; width: 12px; height: 12px; margin-left: -6px; padding: 0; border-radius: 50%; cursor: pointer;
+  border: 2px solid var(--line2); background: var(--stage); transition: transform var(--t-fast), background var(--t-fast), border-color var(--t-fast); }
+.dir-tick:hover { transform: scale(1.25); border-color: var(--muted); }
+.dir-tick.past { border-color: var(--teal-l); background: var(--teal-l); }
+.dir-tick.on { border-color: var(--text); background: var(--text); transform: scale(1.3); box-shadow: 0 0 0 4px color-mix(in srgb, var(--text) 16%, transparent); }
+.dir-tick:focus-visible { outline-offset: 2px; border-radius: 50%; }
+
+@media (max-height: 760px) {
+  .dir-rail { padding: 10px 24px; row-gap: 8px; }
+  .dir-text { font-size: clamp(16px, 1.35vw, 21px); }
+}
+
+/* a recorded take (?take=1, scripts/takes.mjs): no transport on screen, no pointer; the banner,
+   the caption and the chapter scrubber stay */
+.dir-ctl[hidden] { display: none; }
+.dir.take { cursor: none; }
+.dir.take .dir-tick { pointer-events: none; }

@@ -2,13 +2,18 @@
 //
 // The lever list is closed and comes from the design (docs/design/the-table.html §7, "The four
 // levers"): DISCOUNT_THIS_CYCLE, PAUSE, RETRY_AFTER_FIX, DOWNGRADE. The plan-wide price change
-// (update-pricing-schemes) is banned from the tool surface (acceptance R3). What the contract gives
-// per subscriber today: the rescue deal (state, amount, mode), its deadline (PayPal's next retry),
-// and the attention item when a lever waits for the owner. It does NOT carry which lever the agent
-// suggests, which levers the rescue mandate enables, or a way to pick one: those cells stay unknown.
+// (update-pricing-schemes) is banned from the tool surface (acceptance R3). One lever is built end
+// to end (DECISIONS §13): DISCOUNT_THIS_CYCLE, whose one fix per failed renewal the wallet computes
+// inside the signed fixes rule (rescue_book's RescueView.offer). The other three are not built yet
+// and say so. Recovered money is the wallet's own total (RescueBook.recovered): only an invoice
+// PayPal shows paid, receipted, on a failure PayPal reported; never a replay, never "sent".
 import type { Currency } from '@bindings/Currency';
 import type { Deal } from '@bindings/Deal';
-import { dealTotal, isLive, isSettled } from '../../logic';
+import type { Money } from '@bindings/Money';
+import type { RescueBook } from '@bindings/RescueBook';
+import type { RescueOffer } from '@bindings/RescueOffer';
+import type { RescueView } from '@bindings/RescueView';
+import { dealTotal, isLive } from '../../logic';
 
 export type LeverKey = 'DISCOUNT_THIS_CYCLE' | 'PAUSE' | 'RETRY_AFTER_FIX' | 'DOWNGRADE';
 export type Col = 'NONE' | LeverKey;
@@ -42,12 +47,16 @@ const DAY = 86400;
 export type CellState =
   /** the default: nothing is sent */
   | { kind: 'default'; sub: string }
-  /** refused by a rule Rust enforces, decidable from the deal alone */
+  /** the one fix the wallet worked out inside your fixes rule */
+  | { kind: 'offer'; offer: RescueOffer }
+  /** refused by a rule Rust enforces, decidable from the deal alone, or not built yet */
   | { kind: 'off'; code: string; why: string }
-  /** the contract does not say */
+  /** the wallet has not said (its rescue read is missing) */
   | { kind: 'unknown'; why: string };
 
-export const UNKNOWN_LEVER = 'The contract carries no lever list, suggestion or per-lever check for this subscriber, and the rescue mandate has no lever clause yet.';
+export const UNKNOWN_LEVER = 'Your wallet hasn’t shown the fix for this renewal yet.';
+/** The three fixes that are not built yet: shown so the list stays honest, never offered. */
+export const NOT_BUILT = 'Not available yet: only a discount on this cycle can be sent for now';
 
 /** "4 d", "17 h 59 m", "now" - as coarse as the data. */
 export function retryLeft(deadline: number, now: number): string {
@@ -61,26 +70,48 @@ export function retryLeft(deadline: number, now: number): string {
 
 /** One cell of the matrix. Only rules the deal itself can decide are shown as "off": RETRY_AFTER_FIX
  *  is disabled on REPLAY rows (no real balance) and while PayPal's own retry is under 24 h away. */
-export function cellState(d: Pick<Deal, 'mode'>, col: Col, deadline: number | null, now: number): CellState {
+export function cellState(d: Pick<Deal, 'mode'>, col: Col, deadline: number | null, now: number, view?: Pick<RescueView, 'offer'> | null): CellState {
   if (col === 'NONE') return { kind: 'default', sub: deadline ? `retry ${retryLeft(deadline, now)}` : 'cycle unpaid' };
+  if (col === 'DISCOUNT_THIS_CYCLE') return view ? { kind: 'offer', offer: view.offer } : { kind: 'unknown', why: UNKNOWN_LEVER };
   if (col === 'RETRY_AFTER_FIX') {
     if (d.mode === 'replay') return { kind: 'off', code: 'REPLAY', why: 'REPLAY row · no real balance to capture' };
     if (deadline && deadline - now < DAY) return { kind: 'off', code: 'retry <24h', why: 'PayPal’s own retry is due within 24 h' };
   }
-  return { kind: 'unknown', why: UNKNOWN_LEVER };
+  return { kind: 'off', code: 'NOT_BUILT', why: NOT_BUILT };
+}
+
+/** A fix the owner can pick on the card: the computed discount, or doing nothing. */
+export const pickable = (st: CellState): boolean => st.kind === 'default' || st.kind === 'offer';
+
+/** The card's fixes, split: the ones shown as cards (doing nothing, the discount, and any the wallet
+ *  has not answered for yet, which stay dashed), and the ones switched off for this renewal, folded
+ *  into one quiet line with each one's reason code (cellState's), in the lever list's order. */
+export function splitFixes(d: Pick<Deal, 'mode'>, deadline: number | null, now: number, view?: Pick<RescueView, 'offer'> | null): { open: Col[]; off: Array<{ col: LeverKey; code: string; why: string }> } {
+  const open: Col[] = [];
+  const off: Array<{ col: LeverKey; code: string; why: string }> = [];
+  for (const col of COLS) {
+    const st = cellState(d, col, deadline, now, view);
+    if (st.kind === 'off' && col !== 'NONE') off.push({ col, code: st.code, why: st.why });
+    else open.push(col);
+  }
+  return { open, off };
 }
 
 /** Rules the inspector lists for a lever: ✓ holds, ✕ refuses, ? not in the contract. */
-export function rulesFor(d: Pick<Deal, 'mode'>, col: LeverKey, deadline: number | null, now: number): Array<['ok' | 'x' | 'unk', string]> {
+export function rulesFor(d: Pick<Deal, 'mode'>, col: LeverKey, deadline: number | null, now: number, view?: Pick<RescueView, 'offer'> | null): Array<['ok' | 'x' | 'unk', string]> {
   const r: Array<['ok' | 'x' | 'unk', string]> = [['ok', 'acts on this one subscriber only']];
-  r.push(['unk', 'whether your rescue rules allow this fix is not shown yet']);
+  if (col === 'DISCOUNT_THIS_CYCLE') {
+    r.push(view ? ['ok', 'inside your rules for fixing failed renewals, worked out by your wallet'] : ['unk', UNKNOWN_LEVER]);
+    r.push(['ok', 'one invoice for this cycle only; PayPal emails it, nothing is charged']);
+    if (d.mode === 'replay') r.push(['ok', 'a replayed failure: the invoice is real, and what it brings in is never counted']);
+  } else r.push(['x', NOT_BUILT.toLowerCase()]);
   if (col === 'RETRY_AFTER_FIX') {
     r.push([d.mode === 'replay' ? 'x' : 'ok', d.mode === 'replay' ? 'a replayed renewal: there is no real balance to collect' : 'a real failed payment, not a replay']);
     const soon = !!deadline && deadline - now < DAY;
     r.push([soon ? 'x' : 'ok', `PayPal’s own retry is more than a day away (${deadline ? `in ${retryLeft(deadline, now)}` : 'none scheduled'})`]);
   }
   r.push(['ok', 'the plan price stays the same for everyone']);
-  r.push(['ok', 'the email is a fixed template, never written by an agent']);
+  r.push(['ok', col === 'DISCOUNT_THIS_CYCLE' ? 'the invoice wording is your wallet’s, never written by an agent' : 'the email is a fixed template, never written by an agent']);
   return r;
 }
 
@@ -90,13 +121,16 @@ export const isRescueDeal = (d: Pick<Deal, 'kind'>): boolean => d.kind === 'resc
 
 export type Rows = { failing: Deal[]; inflight: Deal[]; settled: Deal[] };
 
-/** Failing renewals (one lever each) by PayPal's next retry, then levers in flight, then settled. */
+/** A failed renewal whose fix waits for the owner (Rust: a rescue deal at AGREED). */
+export const isFailing = (d: Pick<Deal, 'kind' | 'state'>): boolean => d.kind === 'rescue' && d.state === 'AGREED';
+
+/** Failing renewals (one fix each) by PayPal's next retry, then invoices in flight, then closed. */
 export function splitRows(deals: readonly Deal[], deadlineOf: (d: Deal) => number | null): Rows {
   const rescue = deals.filter(isRescueDeal);
   const dl = (d: Deal) => deadlineOf(d) ?? Infinity;
   return {
-    failing: rescue.filter((d) => d.state === 'FAILED' && isLive(d)).sort((a, b) => dl(a) - dl(b)),
-    inflight: rescue.filter((d) => d.state !== 'FAILED' && isLive(d)).sort((a, b) => dl(a) - dl(b)),
+    failing: rescue.filter((d) => isFailing(d) && isLive(d)).sort((a, b) => dl(a) - dl(b)),
+    inflight: rescue.filter((d) => !isFailing(d) && isLive(d)).sort((a, b) => dl(a) - dl(b)),
     settled: rescue.filter((d) => !isLive(d)),
   };
 }
@@ -105,21 +139,37 @@ export function splitRows(deals: readonly Deal[], deadlineOf: (d: Deal) => numbe
 
 export type Recovered = { counted: Deal[]; notCounted: Array<{ deal: Deal; why: string }>; totals: Array<{ minor: number; currency: Currency }> };
 
-/** Recovered revenue = settled rescue invoices and captures, never REPLAY or scripted-only rows.
- *  Sums stay per currency; they are never mixed. */
-export function recovered(deals: readonly Deal[]): Recovered {
+/** Why a rescue does not count as money you got back (model codes; the page words them). */
+export type NotCountedWhy = 'REPLAY' | 'scripted' | 'failing' | 'sent' | 'unverified' | 'closed';
+
+/** Recovered revenue is the wallet's own answer: the cases it marks counted and its per-currency
+ *  totals (RescueBook). The page never adds a deal up itself, so "sent", a replay or a practice
+ *  row can never turn into recovered money here. Without the read (an older shell), nothing counts. */
+export function recovered(deals: readonly Deal[], book: Pick<RescueBook, 'cases' | 'recovered'> | null | undefined): Recovered {
   const counted: Deal[] = [];
-  const notCounted: Array<{ deal: Deal; why: string }> = [];
+  const notCounted: Array<{ deal: Deal; why: NotCountedWhy }> = [];
+  const viewOf = new Map((book?.cases ?? []).map((v) => [v.deal_id, v]));
   for (const d of deals.filter(isRescueDeal)) {
-    if (d.mode === 'replay') notCounted.push({ deal: d, why: 'REPLAY row · never counts on its own' });
-    else if (d.mode === 'scripted_engine') notCounted.push({ deal: d, why: 'scripted-engine row' });
-    else if (isSettled(d)) counted.push(d);
-    else if (isLive(d)) notCounted.push({ deal: d, why: d.state === 'FAILED' ? 'renewal still failing · nothing recovered yet' : 'not paid yet' });
+    const v = viewOf.get(d.id);
+    if (v?.counted) counted.push(d);
+    else if (d.mode === 'replay' || v?.source === 'replay') notCounted.push({ deal: d, why: 'REPLAY' });
+    else if (d.mode === 'scripted_engine') notCounted.push({ deal: d, why: 'scripted' });
+    else if (isFailing(d)) notCounted.push({ deal: d, why: 'failing' });
+    else if (isLive(d)) notCounted.push({ deal: d, why: 'sent' });
+    else if (d.state === 'RECEIPTED' || d.state === 'RECONCILED' || d.state === 'CAPTURED') notCounted.push({ deal: d, why: 'unverified' });
+    else notCounted.push({ deal: d, why: 'closed' });
   }
-  const by = new Map<Currency, number>();
-  for (const d of counted) { const t = dealTotal(d); by.set(t.currency, (by.get(t.currency) ?? 0) + t.minor); }
-  return { counted, notCounted, totals: [...by.entries()].map(([currency, minor]) => ({ currency, minor })) };
+  return { counted, notCounted, totals: (book?.recovered ?? []).map((m: Money) => ({ minor: m.minor, currency: m.currency })) };
 }
+
+/** The wallet's rescue read for one deal, if it has one. */
+export const viewFor = (book: Pick<RescueBook, 'cases'> | null | undefined, id: string): RescueView | undefined => book?.cases.find((v) => v.deal_id === id);
+
+/** What a failed renewal puts at risk: the missed cycle at the plan's price (RescueOffer.cycle), never
+ *  the discounted invoice the fix would send. Every surface that shows a failing renewal's amount
+ *  (Rescue's strip, answer and card, Book's "Needs attention") uses this, so they agree. Without the
+ *  wallet's rescue read it falls back to the deal's own terms. */
+export const atRiskOf = (d: Deal, book: Pick<RescueBook, 'cases'> | null | undefined): Money => viewFor(book, d.id)?.offer.cycle ?? dealTotal(d);
 
 // ---- keyboard movement in the matrix --------------------------------------------------------------
 

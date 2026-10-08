@@ -120,7 +120,9 @@
 .setup-sheet .wz-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
 .setup-sheet .wz-panel { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); padding: var(--sp-3) var(--sp-4); }
 .setup-sheet .wz-panel.st-on { background: var(--panel2); border-color: color-mix(in srgb, var(--teal) 55%, var(--line)); box-shadow: var(--shadow-1), inset 3px 0 0 var(--teal); padding: var(--sp-4) var(--sp-5) var(--sp-5); }
-.setup-sheet .wz-panel.st-todo { opacity: .72; }
+/* a step still to come reads quieter, but its words stay readable (no opacity on text, WCAG 1.4.3) */
+.setup-sheet .wz-panel.st-todo { border-style: dashed; background: transparent; }
+.setup-sheet .wz-panel.st-todo .wz-h h3 { color: var(--muted); }
 .setup-sheet .wz-h { display: flex; align-items: center; gap: var(--sp-3); }
 .setup-sheet .wz-h h3 { margin: 0; font: var(--fw-semibold) var(--fs-title2)/1.2 var(--display); flex: 1; min-width: 0; }
 .setup-sheet .wz-panel:not(.st-on) .wz-h h3 { font-size: var(--fs-title3); }
@@ -176,6 +178,7 @@
 .setup-sheet .mand { max-width: 940px; margin: 0 auto; }
 .setup-sheet .mand-bar { display: flex; align-items: center; gap: var(--sp-2); margin: 0 0 var(--sp-3); }
 .setup-sheet .mand-bar h3 { margin: 0; font: var(--fw-semibold) var(--fs-title3)/1.2 var(--display); }
+.setup-sheet .mand-bar .mand-n { color: var(--dim); font-size: var(--fs-small); }
 .setup-sheet .ag-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3); }
 .setup-sheet .ag-card { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4); border-radius: var(--r-lg); background: var(--panel2); border: 1px solid var(--line); min-width: 0; }
 .setup-sheet .ag-h { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
@@ -225,7 +228,7 @@
 .setup-sheet .su-act .notice { margin: 0; }
 /* how your money is protected, as four links of a chain */
 .setup-sheet .su-chain { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); }
-.setup-sheet .su-link { position: relative; display: grid; grid-template-columns: 36px 1fr; grid-template-rows: auto auto; column-gap: var(--sp-2); align-items: center;
+.setup-sheet .su-link { position: relative; display: grid; grid-template-columns: 36px 1fr; grid-template-rows: auto auto; column-gap: var(--sp-2); align-items: center; align-content: center;
   padding: var(--sp-3); border-radius: var(--r-lg); background: var(--panel2); border: 1px solid var(--line); }
 .setup-sheet .su-link + .su-link::before { content: "›"; position: absolute; left: calc(-1 * var(--sp-3) + 1px); top: 50%; width: calc(var(--sp-3) - 2px); transform: translateY(-55%); text-align: center; color: var(--dim); font-size: 16px; line-height: 1; }
 .setup-sheet .su-ci { grid-row: span 2; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; color: var(--teal-l); background: color-mix(in srgb, var(--teal) 14%, transparent); }
@@ -260,9 +263,10 @@
 /* the mirror: what they should see, as a quiet picture of their window */
 .setup-sheet .cn-mirror { position: sticky; top: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-3); border-radius: var(--r-lg);
   border: 1px dashed var(--line2); background: color-mix(in srgb, var(--panel) 70%, transparent); min-width: 0; }
-.setup-sheet .cn-m-h { display: flex; align-items: center; gap: var(--sp-2); color: var(--coral-l); min-width: 0; }
+.setup-sheet .cn-m-h { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--sp-2); color: var(--coral-l); min-width: 0; }
 .setup-sheet .cn-m-h b { font-weight: var(--fw-semibold); color: var(--text); white-space: nowrap; }
-.setup-sheet .cn-m-h span { margin-left: auto; color: var(--dim); font-size: var(--fs-small); white-space: nowrap; }
+/* the caption sits under the title, in line with it: the 256px column has no room beside it */
+.setup-sheet .cn-m-h span { flex-basis: 100%; margin-left: 22px; color: var(--dim); font-size: var(--fs-small); }
 .setup-sheet .cn-win { border-radius: var(--r); background: var(--bg2); box-shadow: inset 0 0 0 1px var(--line2); overflow: hidden; }
 .setup-sheet .cn-bar { display: flex; gap: 4px; padding: 7px 9px; background: var(--panel3); }
 .setup-sheet .cn-bar i { width: 7px; height: 7px; border-radius: 50%; background: var(--line2); }
@@ -281,3 +285,7 @@
 .setup-sheet .cn-m-t { margin: 0; display: flex; flex-direction: column; gap: 2px; color: var(--muted); line-height: 1.35; }
 .setup-sheet .cn-m-t b { color: var(--text); font-weight: var(--fw-semibold); font-size: var(--fs-title3); }
 @media (prefers-reduced-motion: reduce) { .setup-sheet .cn-in em { animation: none; } }
+/* Keep prices fresh (T15): one line per rule under the market step. */
+.setup-sheet .su-s .su-watch { flex-basis: 100%; font-size: var(--fs-small); color: var(--muted); }
+.setup-sheet .su-s .su-watch b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.setup-sheet .su-s .su-watch.used b { color: var(--gold-l); }

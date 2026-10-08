@@ -44,6 +44,8 @@ macro_rules! ulid_id {
 ulid_id!(DealId);
 ulid_id!(MandateId);
 ulid_id!(RunId);
+// A shop-around group: one buyer intent across several tables (theme T8).
+ulid_id!(GroupId);
 
 macro_rules! text_id {
     ($name:ident) => {

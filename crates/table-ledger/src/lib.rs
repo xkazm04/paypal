@@ -1,9 +1,12 @@
 //! SQLite repositories with atomic protocol ingestion and append-only chained audit evidence.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
+pub mod attention;
 pub mod audit;
 mod bundle;
+pub use bundle::LedgerExport;
 pub mod redaction;
 pub mod repositories;
+pub use attention::{RUNG_ACTION, RungRow, SilenceEvidence, rung_chain_hash};
 pub use audit::{AuditEntry, AuditRecord};
 pub use redaction::*;
 pub use repositories::*;
@@ -29,6 +32,10 @@ pub enum LedgerError {
     NotFound,
     #[error("conflicting or stale write")]
     Conflict,
+    /// Shop around (T8): another table in this deal's group already agreed, or holds the group's
+    /// one outstanding ACCEPT. A refusal of the intent, not a fault.
+    #[error("another table in this group already agreed")]
+    GroupClosed,
 }
 /// Deliberately no public raw-SQL/connection API. Only typed repositories cross this edge.
 #[derive(Debug)]
@@ -46,7 +53,7 @@ impl Ledger {
         conn.execute_batch("PRAGMA foreign_keys=ON; PRAGMA recursive_triggers=ON;")?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version > 8 {
+        if version > 14 {
             return Err(LedgerError::Integrity("newer schema"));
         }
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -74,7 +81,25 @@ impl Ledger {
         if version < 8 {
             tx.execute_batch(include_str!("../migrations/0008_resolution.sql"))?;
         }
-        tx.execute_batch("PRAGMA user_version=8;")?;
+        if version < 9 {
+            tx.execute_batch(include_str!("../migrations/0009_wallet_limits.sql"))?;
+        }
+        if version < 10 {
+            tx.execute_batch(include_str!("../migrations/0010_house_heads.sql"))?;
+        }
+        if version < 11 {
+            tx.execute_batch(include_str!("../migrations/0011_rescue.sql"))?;
+        }
+        if version < 12 {
+            tx.execute_batch(include_str!("../migrations/0012_deal_groups.sql"))?;
+        }
+        if version < 13 {
+            tx.execute_batch(include_str!("../migrations/0013_shield_record.sql"))?;
+        }
+        if version < 14 {
+            tx.execute_batch(include_str!("../migrations/0014_rescue_watch.sql"))?;
+        }
+        tx.execute_batch("PRAGMA user_version=14;")?;
         tx.commit()?;
         let ledger = Self { conn };
         ledger.verify_audit()?;
@@ -94,11 +119,31 @@ mod book;
 pub use book::book_query_rejection;
 mod display;
 mod house;
+mod limits;
 pub use house::*;
 mod receipt;
 mod relay;
+mod rescue;
 pub use relay::*;
+pub use rescue::*;
 mod resolution;
 pub use resolution::*;
+mod glass;
+pub use glass::*;
+mod witness;
+pub use witness::*;
+mod groups;
+mod market_watch;
+mod shield;
+pub use groups::*;
+#[cfg(test)]
+mod groups_tests;
+#[cfg(test)]
+mod rescue_tests;
+#[cfg(test)]
+mod shield_tests;
 #[cfg(test)]
 mod tests;
+pub use market_watch::*;
+mod rescue_watch;
+pub use rescue_watch::*;

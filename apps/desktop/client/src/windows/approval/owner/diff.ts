@@ -6,7 +6,6 @@ import type { Currency } from '@bindings/Currency';
 import type { Money } from '@bindings/Money';
 import { formatMinor, shortId } from '../../../lib/format';
 import { CLAUSE_KINDS, CLAUSE_NUMBER, isIncomplete, type ClauseType, type DraftClause } from '../mandateDraft';
-import type { ReplayRow } from './preview';
 
 export type Dir = 'widens' | 'restricts' | 'changes';
 export type Change = { clause: number; type: ClauseType | 'meta'; term: string; from: string; to: string; dir: Dir; text: string };
@@ -17,8 +16,8 @@ const name = (t: ClauseType) => CLAUSE_KINDS.find((k) => k.type === t)?.name ?? 
 const m = (x: Money | null | undefined) => (x ? formatMinor(x.minor, x.currency) : 'none');
 /** Times are typed to the minute (datetime-local), so they compare to the minute. */
 const minute = (t: number) => Math.floor(t / 60);
-const RANK = { house: 0, pinned: 1, paired: 2 } as const;
-const RULE = { house: 'only the house seller', pinned: 'only listed wallets', paired: 'any wallet you connected' } as const;
+const RANK = { house: 0, subscribers: 0, pinned: 1, paired: 2 } as const;
+const RULE = { house: 'only the house seller', subscribers: 'only your own subscribers', pinned: 'only listed wallets', paired: 'any wallet you connected' } as const;
 
 /** A changed term in plain words (the term itself stays the stable key the tests pin). */
 const TERM_WORD: Record<string, string> = {
@@ -26,6 +25,7 @@ const TERM_WORD: Record<string, string> = {
   'band deadline': 'price-range end', 'band items': 'items with a price range', 'money per day': 'daily money limit', 'deals per day': 'deals per day',
   '“you decide over” threshold': 'ask-me limit', 'the payee allowlist': 'approved payees', 'pinned keys': 'listed wallets', 'deal kind': 'what it covers',
   'agent slot': 'agent', roles: 'what agents may do', counterparties: 'who they deal with', categories: 'categories', currency: 'currency', expiry: 'end date',
+  'watched items': 'items kept priced', 'checks per day': 'price checks a day',
 };
 export const termWord = (term: string): string => TERM_WORD[term] ?? term;
 
@@ -70,6 +70,19 @@ function clauseDiff(a: Clause, b: Clause, out: Change[]) {
     money(out, c, 'human_present_over', '“you decide over” threshold', a.amount, b.amount, true);
   } else if (a.type === 'payees' && b.type === 'payees') {
     members(out, c, 'payees', 'the payee allowlist', a.payees, b.payees, true);
+  } else if (a.type === 'lever' && b.type === 'lever') {
+    num(out, c, 'lever', 'discount limit', a.max_discount_bp, b.max_discount_bp, (v) => `${v / 100}%`, true);
+    money(out, c, 'lever', 'discount cap per cycle', a.max_discount, b.max_discount, true);
+  } else if (a.type === 'market_watch' && b.type === 'market_watch') {
+    // Keeping prices fresh grants nothing, so no change here widens or restricts what agents do.
+    const pair = (i: { item_ref: string; product_id: string }) => `${i.item_ref} (${i.product_id})`;
+    const before = a.items.map(pair);
+    const after = b.items.map(pair);
+    for (const v of after) if (!before.includes(v)) out.push({ clause: c, type: 'market_watch', term: 'watched items', from: '—', to: v, dir: 'changes', text: `Keeping ${v} priced` });
+    for (const v of before) if (!after.includes(v)) out.push({ clause: c, type: 'market_watch', term: 'watched items', from: v, to: '—', dir: 'changes', text: `No longer keeping ${v} priced` });
+    if (a.max_refreshes_day !== b.max_refreshes_day) {
+      out.push({ clause: c, type: 'market_watch', term: 'checks per day', from: String(a.max_refreshes_day), to: String(b.max_refreshes_day), dir: 'changes', text: `Changing the price checks a day ${a.max_refreshes_day} → ${b.max_refreshes_day}` });
+    }
   }
 }
 
@@ -92,44 +105,11 @@ export function diffPolicy(base: DiffSide | null, draft: DiffSide): Change[] {
     const x = a.find((c) => c.type === k.type);
     const y = b.find((c) => c.type === k.type);
     const n = CLAUSE_NUMBER[k.type];
+    // Keeping prices fresh grants nothing: adding or removing it neither widens nor restricts.
+    const neutral = k.type === 'market_watch';
     if (x && y) clauseDiff(x, y, out);
-    else if (x && !y && !draft.clauses.some((c) => c.type === k.type)) out.push({ clause: n, type: k.type, term: name(k.type).toLowerCase(), from: 'signed', to: 'removed', dir: 'widens', text: `Removing “${name(k.type)}”` });
-    else if (!x && y) out.push({ clause: n, type: k.type, term: name(k.type).toLowerCase(), from: base ? 'none' : '—', to: 'added', dir: base ? 'restricts' : 'changes', text: `Adding “${name(k.type)}”` });
+    else if (x && !y && !draft.clauses.some((c) => c.type === k.type)) out.push({ clause: n, type: k.type, term: name(k.type).toLowerCase(), from: 'signed', to: 'removed', dir: neutral ? 'changes' : 'widens', text: `Removing “${name(k.type)}”` });
+    else if (!x && y) out.push({ clause: n, type: k.type, term: name(k.type).toLowerCase(), from: base ? 'none' : '—', to: 'added', dir: base && !neutral ? 'restricts' : 'changes', text: `Adding “${name(k.type)}”` });
   }
   return out;
-}
-
-/** The signed clauses with only one clause kind taken from the draft, so a consequence can be
- *  pinned to the change that caused it. */
-export function oneClauseFromDraft(base: readonly Clause[], draft: readonly DraftClause[], type: ClauseType): DraftClause[] {
-  const fromDraft = draft.find((c) => c.type === type);
-  const rest = base.filter((c) => c.type !== type);
-  return fromDraft ? [...rest, fromDraft] : rest;
-}
-
-const join = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
-
-/** "would have refused 01JD…7Q (cables) …" for the rows whose verdict moved. Empty when none moved. */
-export function hitPhrase(rows: readonly ReplayRow[], tag: (r: ReplayRow) => string): string {
-  const g = { refused: [] as string[], passed: [] as string[], asked: [] as string[], policy: [] as string[], unknown: [] as string[], other: [] as string[] };
-  for (const r of rows) {
-    if (!r.moved) continue;
-    const t = tag(r);
-    const a = r.signed.outcome;
-    const b = r.draft.outcome;
-    if (b === 'refused' && a !== 'refused') g.refused.push(t);
-    else if (a === 'refused' && b !== 'refused' && b !== 'unknown') g.passed.push(t);
-    else if (b === 'asks' && a === 'policy') g.asked.push(t);
-    else if (b === 'policy' && a === 'asks') g.policy.push(t);
-    else if (b === 'unknown' || a === 'unknown') g.unknown.push(t);
-    else g.other.push(t);
-  }
-  const p: string[] = [];
-  if (g.refused.length) p.push(`refused ${join(g.refused)} before PayPal was asked`);
-  if (g.passed.length) p.push(`let ${join(g.passed)} through`);
-  if (g.asked.length) p.push(`asked you about ${join(g.asked)} instead of letting the agent decide`);
-  if (g.policy.length) p.push(`let the agent settle ${join(g.policy)} without asking you`);
-  if (g.unknown.length) p.push(`changed ${join(g.unknown)} in a way this preview can’t finish (the wallet decides)`);
-  if (g.other.length) p.push(`changed the reason on ${join(g.other)}`);
-  return p.join('; ');
 }

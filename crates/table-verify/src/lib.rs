@@ -4,14 +4,20 @@
 //! and everything that does not. The bundle's own keys are the trust anchors; the report prints
 //! the owner key id so a checker can compare it with the one the owner shows them.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
+pub mod acceptance;
+mod house;
+mod v2;
+// The whole-ledger money-authority predicate (ops-and-delivery-1): the gauntlet and the app share it.
+pub mod safety;
 use ed25519_dalek::{Signature, VerifyingKey};
+pub use house::*;
 use serde_json::Value;
 use table_core::{
     Clause, DealId, DealKind, DecidedBy, H256, KeyId, Mode, Side, canonical_bytes, invoice_id,
 };
 use table_proto::{
-    Body, MemoryNonces, PROOF_FORMAT, ProofBundle, VerifyContext, key_id, verify,
-    verify_mandate_signature,
+    Body, MemoryNonces, PROOF_FORMAT, PROOF_FORMAT_V1, ProofAuditRow, ProofBundle, VerifyContext,
+    key_id, verify, verify_mandate_signature,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -20,23 +26,62 @@ pub struct Check {
     pub id: &'static str,
     pub name: &'static str,
     pub ok: bool,
+    /// False when the check could not be made because the file lacks the record it compares
+    /// (an order PayPal answered, saved before the wallet kept order records). `ok` is false
+    /// then too: a check not made never counts towards verified.
+    pub checked: bool,
+    /// False when the deal has nothing of the kind the check is about (no owner decision, no
+    /// group, no shield hold, ..., or a first-format file that carries none of it). The line reads
+    /// "not checked" and makes no claim either way: it neither passes nor holds the file back.
+    pub applies: bool,
     pub detail: String,
 }
 #[derive(Debug, Clone)]
 pub struct Report {
     pub deal: DealId,
     pub mode: Mode,
+    /// The owner key's full id (64 hex characters), or "invalid".
     pub owner_key_id: String,
+    /// The permissions fingerprint the file names (hex), from a v2 file.
+    pub authority_manifest: Option<String>,
     pub checks: Vec<Check>,
 }
 impl Report {
+    /// Every check that applies passed. A check that does not apply (nothing of its kind in the
+    /// deal) is no claim; a check that applies but could not be made holds the file back.
     pub fn verified(&self) -> bool {
-        self.checks.iter().all(|c| c.ok)
+        self.checks.iter().all(|c| c.ok || !c.applies)
     }
 }
 
 type Outcome = Result<String, String>;
-type CheckFn = fn(&ProofBundle) -> Outcome;
+/// Why a check did not pass: it failed, or (`checked: false`) the file lacks what it compares,
+/// or (`applies: false`) the deal has nothing of the kind the check is about.
+struct Miss {
+    detail: String,
+    checked: bool,
+    applies: bool,
+}
+impl From<String> for Miss {
+    fn from(detail: String) -> Self {
+        Self {
+            detail,
+            checked: true,
+            applies: true,
+        }
+    }
+}
+impl Miss {
+    /// Nothing of this kind in the deal: "not checked", and no claim either way.
+    fn absent(detail: &str) -> Self {
+        Self {
+            detail: detail.to_owned(),
+            checked: false,
+            applies: false,
+        }
+    }
+}
+type CheckFn = fn(&ProofBundle) -> Result<String, Miss>;
 
 fn agent_key(bundle: &ProofBundle) -> Result<VerifyingKey, String> {
     VerifyingKey::from_bytes(&bundle.mandate.payload.agent_key)
@@ -46,11 +91,19 @@ fn signed_by(key: &VerifyingKey, message: &[u8], signature: &[u8]) -> bool {
     Signature::from_slice(signature).is_ok_and(|sig| key.verify_strict(message, &sig).is_ok())
 }
 
+/// Both formats verify, each under its own rules: a v1 file carries no v2 field, and a v2 file
+/// names the permissions fingerprint it was saved under.
 fn format(bundle: &ProofBundle) -> Outcome {
-    if bundle.format == PROOF_FORMAT {
-        Ok(PROOF_FORMAT.into())
-    } else {
-        Err(format!("unknown format {:?}", bundle.format))
+    match bundle.format.as_str() {
+        PROOF_FORMAT_V1 if bundle.has_v2_fields() => {
+            Err("a first-format file carries records only the second format has".into())
+        }
+        PROOF_FORMAT_V1 => Ok(format!("{PROOF_FORMAT_V1} (the first proof format)")),
+        PROOF_FORMAT if bundle.authority_manifest.is_none() => {
+            Err("the file does not name the permissions it was saved under".into())
+        }
+        PROOF_FORMAT => Ok(PROOF_FORMAT.into()),
+        other => Err(format!("unknown format {other:?}")),
     }
 }
 
@@ -273,6 +326,10 @@ fn operation_of(method: &str, path: &str) -> Option<&'static str> {
         ["v2", "checkout", "orders", _, "authorize"] => Some("authorize"),
         ["v2", "payments", "authorizations", _, "capture"] => Some("capture"),
         ["v2", "payments", "authorizations", _, "void"] => Some("void"),
+        // Subscription rescue: the owner's discount invoice (create, then send). A search is a read.
+        ["v2", "invoicing", "invoices"] => Some("invoice-create"),
+        ["v2", "invoicing", "invoices", _, "send"] => Some("invoice-send"),
+        ["v2", "invoicing", "search-invoices"] => None,
         _ => Some("unclassified"),
     }
 }
@@ -280,6 +337,16 @@ fn operation_of(method: &str, path: &str) -> Option<&'static str> {
 fn authority(bundle: &ProofBundle) -> Outcome {
     let mut verdicts = Vec::new();
     for op in &bundle.operations {
+        // An invoice is a rescue fix only, and only the owner can send one (DECISIONS §13).
+        if op.operation.starts_with("invoice-")
+            && (bundle.deal.kind != DealKind::Rescue
+                || !matches!(op.decided_by, DecidedBy::Human { .. }))
+        {
+            return Err(format!(
+                "{} (attempt {}): an invoice needs the owner's decision on a rescue deal",
+                op.operation, op.attempt
+            ));
+        }
         let why = lawful(bundle, &op.operation, &op.decided_by)
             .map_err(|e| format!("{} (attempt {}): {e}", op.operation, op.attempt))?;
         verdicts.push(format!("{}: {why}", op.operation));
@@ -320,7 +387,7 @@ fn answers_with_order(method: &str, path: &str) -> bool {
     )
 }
 
-fn bindings(bundle: &ProofBundle) -> Outcome {
+fn bindings(bundle: &ProofBundle) -> Result<String, Miss> {
     let deal = &bundle.deal;
     let terms = deal.terms.hash().map_err(|e| e.to_string())?.hex();
     let amount = deal.terms.amount().map_err(|e| e.to_string())?;
@@ -333,16 +400,22 @@ fn bindings(bundle: &ProofBundle) -> Outcome {
             .and_then(Value::as_array)
             .filter(|units| !units.is_empty())
         else {
-            // An order PayPal answered with no stored binding proves nothing. Bundles recorded
-            // before the wallet stored bindings fail here too, by design.
+            // An order PayPal answered with no stored binding proves nothing, so the bundle is
+            // never verified. A bundle saved before the wallet stored bindings (migration 0007)
+            // has none, and stripping them is no different, so the line reads "not checked":
+            // the comparison could not be made, which is not the same as a mismatch.
             let answered = call.status.is_some_and(|s| (200..300).contains(&s));
             if !answered || !answers_with_order(&call.method, &call.path) {
                 continue;
             }
-            return Err(format!(
-                "{} {}: PayPal answered with an order but no order binding was recorded (a wallet older than the binding record fails here)",
-                call.method, call.path
-            ));
+            return Err(Miss {
+                applies: true,
+                detail: format!(
+                    "not checked: {} {}: PayPal answered with an order, but the file holds no order record to compare (a wallet older than the order record saved it)",
+                    call.method, call.path
+                ),
+                checked: false,
+            });
         };
         for unit in units {
             let field = |name: &str| unit.get(name).and_then(Value::as_str);
@@ -356,43 +429,40 @@ fn bindings(bundle: &ProofBundle) -> Outcome {
                 return Err(format!(
                     "{}: the order record lacks custom_id, invoice id or payee, so it proves nothing",
                     call.path
-                ));
+                ).into());
             };
             if custom != terms {
-                return Err(format!(
-                    "{}: custom_id is not this deal's terms hash",
-                    call.path
-                ));
+                return Err(
+                    format!("{}: custom_id is not this deal's terms hash", call.path).into(),
+                );
             }
             if !bundle
                 .closed_mandates
                 .iter()
                 .any(|c| c.mandate.invoice_id == invoice)
             {
-                return Err(format!("{}: invoice id matches no countersign", call.path));
+                return Err(format!("{}: invoice id matches no countersign", call.path).into());
             }
             if !bundle
                 .closed_mandates
                 .iter()
                 .any(|c| c.mandate.payee.as_str() == payee)
             {
-                return Err(format!(
-                    "{}: PayPal payee is not the countersigned payee",
-                    call.path
-                ));
+                return Err(
+                    format!("{}: PayPal payee is not the countersigned payee", call.path).into(),
+                );
             }
             let (Some(value), Some(currency)) = (
                 unit.pointer("/amount/value").and_then(Value::as_str),
                 unit.pointer("/amount/currency_code")
                     .and_then(Value::as_str),
             ) else {
-                return Err(format!("{}: the order record lacks the amount", call.path));
+                return Err(format!("{}: the order record lacks the amount", call.path).into());
             };
             if value != amount.decimal() || currency != amount.currency().to_string() {
-                return Err(format!(
-                    "{}: PayPal amount is not the signed amount",
-                    call.path
-                ));
+                return Err(
+                    format!("{}: PayPal amount is not the signed amount", call.path).into(),
+                );
             }
             checked += 1;
         }
@@ -406,24 +476,31 @@ fn bindings(bundle: &ProofBundle) -> Outcome {
     }
 }
 
+/// One audit row's detail, after checking it is canonical and that the row's hash covers it,
+/// the row's other fields and `deal`.
+fn row_detail(row: &ProofAuditRow, deal: DealId) -> Result<Value, String> {
+    let detail: Value =
+        serde_json::from_str(&row.detail_json).map_err(|_| format!("row {}: detail", row.seq))?;
+    let canonical = canonical_bytes(&detail).map_err(|e| e.to_string())?;
+    if canonical != row.detail_json.as_bytes() {
+        return Err(format!("row {}: detail is not canonical", row.seq));
+    }
+    // The ledger's preimage: {seq, at, actor, action, deal_id, detail_json}, chained.
+    let preimage = serde_json::json!({
+        "seq": row.seq, "at": row.at, "actor": row.actor, "action": row.action,
+        "deal_id": deal, "detail_json": detail,
+    });
+    let bytes = canonical_bytes(&preimage).map_err(|e| e.to_string())?;
+    if H256::chain(row.prev_hash, &bytes) != row.hash {
+        return Err(format!("row {}: hash does not match its contents", row.seq));
+    }
+    Ok(detail)
+}
+
 fn audit(bundle: &ProofBundle) -> Outcome {
     let mut last: Option<(i64, H256)> = None;
     for row in &bundle.audit {
-        let detail: Value = serde_json::from_str(&row.detail_json)
-            .map_err(|_| format!("row {}: detail", row.seq))?;
-        let canonical = canonical_bytes(&detail).map_err(|e| e.to_string())?;
-        if canonical != row.detail_json.as_bytes() {
-            return Err(format!("row {}: detail is not canonical", row.seq));
-        }
-        // The ledger's preimage: {seq, at, actor, action, deal_id, detail_json}, chained.
-        let preimage = serde_json::json!({
-            "seq": row.seq, "at": row.at, "actor": row.actor, "action": row.action,
-            "deal_id": bundle.deal.id, "detail_json": detail,
-        });
-        let bytes = canonical_bytes(&preimage).map_err(|e| e.to_string())?;
-        if H256::chain(row.prev_hash, &bytes) != row.hash {
-            return Err(format!("row {}: hash does not match its contents", row.seq));
-        }
+        row_detail(row, bundle.deal.id)?;
         if let Some((seq, hash)) = last {
             if row.seq <= seq {
                 return Err(format!("row {}: out of order", row.seq));
@@ -487,28 +564,64 @@ pub const KNOWN_LIMIT: &str =
     "This file cannot show whether newer records were removed from the end of the wallet's record.";
 
 pub fn verify_bundle(bundle: &ProofBundle) -> Report {
-    let checks: [(&'static str, &'static str, CheckFn); 9] = [
-        ("format", "format", format),
-        ("mandate", "owner signed the mandate", mandate),
-        ("transcript", "transcript signatures and chain", transcript),
+    let checks: [(&'static str, &'static str, CheckFn); 16] = [
+        ("format", "format", |b| Ok(format(b)?)),
+        ("mandate", "owner signed the mandate", |b| Ok(mandate(b)?)),
+        ("transcript", "transcript signatures and chain", |b| {
+            Ok(transcript(b)?)
+        }),
         (
             "countersign",
             "closed mandate binds terms and amount",
-            closed,
+            |b| Ok(closed(b)?),
         ),
         (
             "authority",
             "every money call has a lawful authority",
-            authority,
+            |b| Ok(authority(b)?),
         ),
         (
             "paypal_order",
             "PayPal order matches the signed terms",
             bindings,
         ),
-        ("audit", "audit rows hash-consistent", audit),
-        ("receipt", "receipt inside the transcript", receipts),
-        ("evidence", "evidence head signed", evidence),
+        ("audit", "audit rows hash-consistent", |b| Ok(audit(b)?)),
+        ("receipt", "receipt inside the transcript", |b| {
+            Ok(receipts(b)?)
+        }),
+        // The second format's checks (v2.rs); each reads "not checked" on a v1 file.
+        (
+            "owner_saw",
+            "the owner saw the checklist before each decision",
+            v2::owner_saw,
+        ),
+        (
+            "one_request",
+            "no second request to PayPal",
+            v2::one_request,
+        ),
+        (
+            "group",
+            "a shop-around group left one agreed table",
+            v2::group,
+        ),
+        (
+            "shield",
+            "nothing paid past a hold without a release",
+            v2::shield,
+        ),
+        (
+            "house_record",
+            "the house's kept record verifies and never shrank",
+            v2::house_record,
+        ),
+        (
+            "market",
+            "the market price it was agreed on computes again",
+            v2::market,
+        ),
+        ("permissions", "permissions fingerprint", v2::permissions),
+        ("evidence", "evidence head signed", |b| Ok(evidence(b)?)),
     ];
     Report {
         deal: bundle.deal.id,
@@ -516,24 +629,51 @@ pub fn verify_bundle(bundle: &ProofBundle) -> Report {
         owner_key_id: VerifyingKey::from_bytes(&bundle.owner_key)
             .ok()
             .and_then(|k| key_id(&k).ok())
-            .map_or_else(
-                || "invalid".into(),
-                |k| k.as_str().chars().take(16).collect(),
-            ),
+            .map_or_else(|| "invalid".into(), |k| k.as_str().to_owned()),
+        authority_manifest: bundle.authority_manifest.map(H256::hex),
         checks: checks
             .into_iter()
             .map(|(id, name, check)| {
-                let (ok, detail) = match check(bundle) {
-                    Ok(detail) => (true, detail),
-                    Err(detail) => (false, detail),
+                let (ok, checked, applies, detail) = match check(bundle) {
+                    Ok(detail) => (true, true, true, detail),
+                    Err(miss) => (false, miss.checked, miss.applies, miss.detail),
                 };
                 Check {
                     id,
                     name,
                     ok,
+                    checked,
+                    applies,
                     detail,
                 }
             })
             .collect(),
+    }
+}
+
+#[cfg(test)]
+mod operation_tests {
+    use super::operation_of;
+
+    #[test]
+    fn rescue_invoices_are_money_steps_and_the_search_is_a_read() {
+        assert_eq!(
+            operation_of("POST", "/v2/invoicing/invoices"),
+            Some("invoice-create")
+        );
+        assert_eq!(
+            operation_of("POST", "/v2/invoicing/invoices/INV2-ABCD/send"),
+            Some("invoice-send")
+        );
+        assert_eq!(operation_of("POST", "/v2/invoicing/search-invoices"), None);
+        assert_eq!(
+            operation_of("GET", "/v2/invoicing/invoices/INV2-ABCD"),
+            None
+        );
+        assert_eq!(
+            operation_of("POST", "/v2/invoicing/invoices/INV2-ABCD/cancel"),
+            Some("unclassified")
+        );
+        assert_eq!(operation_of("POST", "/v2/checkout/orders"), Some("create"));
     }
 }

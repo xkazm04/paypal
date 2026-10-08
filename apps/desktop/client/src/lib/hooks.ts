@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import type { ArgsOf, CommandName, EventName, InvokeOptions, PayloadOf, ResultOf } from './contract';
 import { WalletError, toWalletError } from './contract';
 import { backend } from './runtime';
+import { onClockChange } from './clock';
 import { nowUnix } from './format';
 
 /** Subscribe to a targeted Rust event for the lifetime of the component. */
@@ -106,18 +107,24 @@ export function useMutation<K extends CommandName>(cmd: K): Mutation<K> {
 }
 
 /** A ticking Unix-seconds clock for countdowns. Countdowns are computed from absolute
- *  deadlines, so a throttled hidden webview self-corrects on the next tick. */
+ *  deadlines, so a throttled hidden webview self-corrects on the next tick. It reads the one
+ *  client clock (lib/clock.ts): wall time in the shell; in a browser preview a jump of the
+ *  simulated clock re-renders every countdown at once instead of on the next second. */
 const clock = (() => {
   let now = nowUnix();
   const subs = new Set<() => void>();
   let timer: ReturnType<typeof setInterval> | null = null;
+  let offJump: (() => void) | null = null;
+  const tick = () => { now = nowUnix(); subs.forEach((s) => s()); };
   return {
     subscribe(cb: () => void) {
       subs.add(cb);
-      if (!timer) timer = setInterval(() => { now = nowUnix(); subs.forEach((s) => s()); }, 1000);
+      if (!timer) timer = setInterval(tick, 1000);
+      if (!offJump) offJump = onClockChange(tick);
       return () => {
         subs.delete(cb);
         if (!subs.size && timer) { clearInterval(timer); timer = null; }
+        if (!subs.size && offJump) { offJump(); offJump = null; }
       };
     },
     get: () => now,

@@ -67,3 +67,11 @@ body.w-tumbler:has(.pv) { background: var(--bg); }
 .pv-ctl .seg button[aria-pressed="true"] { border-color: var(--sel-line); color: var(--teal-l); }
 .pv-ctl .readout { font: var(--fs-small)/1.5 var(--mono); color: var(--dim); padding-top: var(--sp-2); border-top: 1px dashed var(--line2); }
 .pv-ctl .readout b { color: var(--gold-l); font-weight: var(--fw-semibold); }
+
+/* the director's frame (tumbler.html?frame=director): a transparent corner of the desktop */
+.pv-framed { position: fixed; inset: 0; overflow: hidden; font: var(--fw-regular) var(--fs-body)/var(--lh) var(--font); color: var(--text); }
+.pv-framed .pv-frame::after { display: none; }
+.pv-framed .pv-frame .tum { filter: drop-shadow(0 12px 18px rgba(0, 0, 0, .4)) drop-shadow(0 2px 4px rgba(0, 0, 0, .3)); }
+.pv-framed-foot { position: absolute; right: 40px; bottom: 2px; height: 26px; display: flex; align-items: center; gap: 10px; z-index: 3;
+  padding: 0 3px 0 12px; border-radius: 999px; background: color-mix(in srgb, var(--bg) 82%, transparent); box-shadow: inset 0 0 0 1px var(--line); }
+.pv-framed-name { font: var(--fw-semibold) var(--fs-small)/1 var(--font); letter-spacing: .08em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }

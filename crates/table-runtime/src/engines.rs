@@ -59,7 +59,7 @@ impl table_mcp::AsyncAgentService for ActorBridge {
         &self,
         scope: &AgentScope,
         tool: &str,
-        reason: &str,
+        code: RefusalCode,
         _: i64,
     ) -> Result<(), table_app::Error> {
         let (tx, rx) = tokio::sync::oneshot::channel();
@@ -69,7 +69,7 @@ impl table_mcp::AsyncAgentService for ActorBridge {
             .send(crate::actor::Message::AgentRefused(
                 scope.clone(),
                 tool.into(),
-                reason.into(),
+                code,
                 tx,
             ))
             .await
@@ -191,12 +191,23 @@ impl Runtime {
         if self.engine == EngineId::Scripted && scope.role != AgentRole::Negotiator {
             return Err(unavailable("Scripted fixture supports table-view only"));
         }
-        // This is a typed Rust projection: no NOTES, invoice memo or remote prose. The policy
-        // negotiator gets its typed brief instead of the deal snapshot.
-        let prompt = if self.engine == EngineId::Scripted {
-            serde_json::to_string(&self.policy_brief(&deal)?).map_err(|_| invalid())?
+        // A native engine starts from the closed table projection (no NOTE, invoice memo or remote
+        // prose can be represented in it) and its role's compiled-in playbook. The policy
+        // negotiator gets its typed brief and reads the same projection through `table_view`.
+        let (prompt, playbook) = if self.engine == EngineId::Scripted {
+            (
+                serde_json::to_string(&self.policy_brief(&deal)?).map_err(|_| invalid())?,
+                None,
+            )
         } else {
-            serde_json::to_string(&deal).map_err(|_| invalid())?
+            let table = if scope.role == AgentRole::Negotiator {
+                serde_json::to_value(self.pipeline.wallet.projection(&deal, self.clock.now())?)
+                    .map_err(|_| invalid())?
+            } else {
+                // Shopper and assistant runs have no table to read: only the deal's closed ids.
+                serde_json::json!({"deal_id": deal.id, "kind": deal.kind, "item_ref": deal.terms.item_ref})
+            };
+            (table.to_string(), Some(scope.role.playbook(deal.side)))
         };
         let run = RunId(ulid::Ulid::new());
         let expires = self.clock.now().checked_add(120).ok_or_else(invalid)?;
@@ -210,6 +221,7 @@ impl Runtime {
                 deal.mode
             },
             state: RunState::Starting,
+            playbook,
         };
         let (server, url) = self
             .mcp
@@ -231,12 +243,20 @@ impl Runtime {
             actor: "runtime".into(),
             action: "run.start".into(),
             deal_id: Some(id),
-            detail: serde_json::json!({"run":run,"engine":self.engine,"mode":snapshot.mode}),
+            detail: serde_json::json!({"run":run,"engine":self.engine,"mode":snapshot.mode,"playbook":playbook}),
         }))?;
         let engine = adapter.clone();
         let task = tokio::spawn(async move {
             let (tx, mut rx) = tokio::sync::mpsc::channel(16);
-            let execution = engine.run(AgentJob { run, prompt }, mcp, tx);
+            let execution = engine.run(
+                AgentJob {
+                    run,
+                    prompt,
+                    playbook,
+                },
+                mcp,
+                tx,
+            );
             let events = async {
                 while let Some(event) = rx.recv().await {
                     if let Some(sender) = sender.upgrade() {
@@ -314,16 +334,43 @@ impl Runtime {
         scope: &AgentScope,
         request: AgentRequest,
     ) -> Result<serde_json::Value, table_app::Error> {
-        if self.paused
-            || !self.runs.get(&run).is_some_and(|r| {
-                r.snapshot.state == RunState::Running
-                    && r.expires > self.clock.now()
-                    && r.scope.deal_id == scope.deal_id
-                    && r.scope.role == scope.role
-                    && r.scope.category == scope.category
-            })
-        {
-            return Err(table_app::Error::Permission);
+        let tool = request.tool();
+        // Refusals before the wallet are recorded here, once; the wallet records its own.
+        if let Err(error) = self.agent_gate(run, scope) {
+            self.pipeline.wallet.audit_refusal(
+                scope.deal_id,
+                "runtime",
+                tool,
+                &error,
+                self.clock.now(),
+            )?;
+            return Err(error);
+        }
+        let answer = self
+            .pipeline
+            .wallet
+            .invoke(scope, request, self.clock.now());
+        // The agent's ACCEPT may have agreed a grouped table: withdraw its siblings now (the next
+        // tick retries and reports a failure).
+        if answer.is_ok() {
+            let _ = self.close_groups();
+        }
+        answer
+    }
+    /// Whether `run` may still act for `scope` now: agents not paused, the run live and the same
+    /// deal, role and category, the deal's signer selectable and its mandate still allowing it.
+    fn agent_gate(&mut self, run: RunId, scope: &AgentScope) -> Result<(), table_app::Error> {
+        if self.paused {
+            return Err(table_app::Error::Agent(RefusalCode::Paused));
+        }
+        if !self.runs.get(&run).is_some_and(|r| {
+            r.snapshot.state == RunState::Running
+                && r.expires > self.clock.now()
+                && r.scope.deal_id == scope.deal_id
+                && r.scope.role == scope.role
+                && r.scope.category == scope.category
+        }) {
+            return Err(table_app::Error::Agent(RefusalCode::RunEnded));
         }
         self.select_signer(scope.deal_id)
             .map_err(|_| table_app::Error::Permission)?;
@@ -332,9 +379,7 @@ impl Runtime {
         self.pipeline
             .wallet
             .check_mandate(scope.deal_id, scope.category, self.clock.now())?;
-        self.pipeline
-            .wallet
-            .invoke(scope, request, self.clock.now())
+        Ok(())
     }
     pub(crate) fn finish_run(
         &mut self,

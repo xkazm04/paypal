@@ -27,16 +27,12 @@ pub(super) fn request_quit(app: &AppHandle) {
                 hide_and_exit(&handle);
                 return;
             }
-            let message = format!(
-                "{} pending decisions: {}. {}",
+            // Deal numbers and Rust-composed lines from the walk-away forecast; never ids.
+            let message = table_attention::quit_message(
                 summary.pending.len(),
-                summary
-                    .pending
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                summary.on_quit
+                summary.while_off.as_deref(),
+                summary.at_paypal.as_deref(),
+                &summary.on_quit,
             );
             let app = handle.clone();
             handle
@@ -61,6 +57,10 @@ pub(super) fn request_quit(app: &AppHandle) {
                                 .is_ok()
                             {
                                 hide_and_exit(&app);
+                            } else {
+                                // What was shown changed (a deal, or what it does while off):
+                                // ask again with the current lines instead of quitting silently.
+                                request_quit(&app);
                             }
                         });
                     }
@@ -116,7 +116,7 @@ pub(super) async fn produce(
                 notify_due(&app,&data,&preferences,&mut ladder).await;
                 let now=table_core::Clock::now(&table_runtime::SystemClock);
                 let visual=VisualState{opacity_percent:if preferences.quiet{table_attention::quiet_opacity_percent(&data.items,last,now)}else{100},
-                    breathe:!preferences.dnd && !table_os::notifications_suppressed() && data.items.iter().any(|i|i.kind==table_attention::AttnKind::Gate && i.deadline.is_some_and(|d|d>now&&d.saturating_sub(now)<=7200))};
+                    breathe:!preferences.dnd && !table_os::notifications_suppressed() && data.items.iter().any(|i|i.kind==table_attention::AttnKind::Gate && table_attention::LADDER.breathes(i.deadline,now))};
                 if let Ok(encoded)=serde_json::to_string(&visual) && visual_previous.as_ref()!=Some(&encoded){visual_previous=Some(encoded);let _=app.emit_to("tumbler","tumbler:visual",visual);}
             }
             continue;
@@ -237,6 +237,14 @@ async fn notify_due(
     ladder: &mut AttentionLadder,
 ) {
     let dnd = preferences.dnd || !preferences.notifications || table_os::notifications_suppressed();
+    // Why a due notification is held back, recorded as a rung (attention-ladder-1).
+    let reason = if preferences.dnd {
+        table_core::NotifySuppression::DoNotDisturb
+    } else if !preferences.notifications {
+        table_core::NotifySuppression::NotificationsOff
+    } else {
+        table_core::NotifySuppression::SystemQuiet
+    };
     ladder.forget_absent(&data.items);
     for item in &data.items {
         let effects = ladder.evaluate(
@@ -245,6 +253,26 @@ async fn notify_due(
             dnd,
             false,
         );
+        if effects.suppressed
+            && let Some(deadline) = item.deadline
+        {
+            // The owner was not told: say so in the record. A failed write changes nothing.
+            let _ = app
+                .state::<DesktopState>()
+                .actor
+                .execute::<serde_json::Value>(
+                    Caller {
+                        label: "tumbler".into(),
+                        token: None,
+                    },
+                    Action::NotificationSuppressed {
+                        deal_id: item.deal_id,
+                        deadline,
+                        reason,
+                    },
+                )
+                .await;
+        }
         if effects.notify
             && let Some(deadline) = item.deadline
         {
@@ -285,6 +313,14 @@ async fn notify_due(
             .await;
             if shown == Some(false) {
                 ladder.release(id, deadline);
+            }
+            if shown == Some(true) {
+                // The owner was told: the Notified rung (attention-ladder-1).
+                let _ = call(Action::NotificationShown {
+                    deal_id: id,
+                    deadline,
+                })
+                .await;
             }
         }
     }
