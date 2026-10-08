@@ -237,6 +237,83 @@ fn a_release_covers_its_terms_and_rules_only_and_a_block_is_never_released_or_lo
 }
 
 #[test]
+fn a_released_raised_hold_does_not_hide_a_new_hold_for_another_rule() {
+    let (mut ledger, deal, ..) = setup();
+    let terms = deal.terms.hash().unwrap();
+    ledger
+        .raise_shield(deal.id, ShieldVerdict::Hold, 101)
+        .unwrap();
+    ledger
+        .release_shield_hold(deal.id, &[ShieldRule::ModelCaution], terms, 102)
+        .unwrap();
+    assert!(!ledger.get_deal(deal.id).unwrap().shield_held());
+    // The rules now hold the price too: the deal shows a hold naming the price rule, and the
+    // release of the second opinion's caution stays beside it.
+    let price = Some(ShieldRule::PriceOverMarket);
+    assert!(
+        ledger
+            .record_shield(deal.id, ShieldVerdict::Hold, price, terms, 103)
+            .unwrap()
+    );
+    let d = ledger.get_deal(deal.id).unwrap();
+    assert!(d.shield_held());
+    assert_eq!(d.shield, Some(ShieldVerdict::Hold));
+    assert_eq!(d.shield_rule, price);
+    assert_eq!(
+        d.shield_release.as_ref().map(|r| r.rules.clone()),
+        Some(vec![ShieldRule::ModelCaution])
+    );
+    let raised = rows(&ledger, deal.id, "shield.raised");
+    let newest = raised.iter().max_by_key(|r| r.at).unwrap();
+    assert_eq!(newest.detail["rule"], "price_over_market");
+    // Judged again every tick, it is recorded once.
+    assert!(
+        !ledger
+            .record_shield(deal.id, ShieldVerdict::Hold, price, terms, 104)
+            .unwrap()
+    );
+    // The price stops holding: only the released caution is left, and the deal reads released.
+    assert!(
+        ledger
+            .record_shield(
+                deal.id,
+                ShieldVerdict::Hold,
+                Some(ShieldRule::ModelCaution),
+                terms,
+                105
+            )
+            .unwrap()
+    );
+    let d = ledger.get_deal(deal.id).unwrap();
+    assert!(!d.shield_held() && d.shield_released());
+    assert!(
+        !ledger
+            .record_shield(
+                deal.id,
+                ShieldVerdict::Hold,
+                Some(ShieldRule::ModelCaution),
+                terms,
+                106
+            )
+            .unwrap()
+    );
+    // Without a release, a raised HOLD keeps its own rule (nothing is hidden).
+    let (mut ledger, deal, ..) = setup();
+    ledger
+        .raise_shield(deal.id, ShieldVerdict::Hold, 101)
+        .unwrap();
+    assert!(
+        !ledger
+            .record_shield(deal.id, ShieldVerdict::Hold, price, terms, 102)
+            .unwrap()
+    );
+    let d = ledger.get_deal(deal.id).unwrap();
+    assert!(d.shield_held());
+    assert_eq!(d.shield_rule, Some(ShieldRule::ModelCaution));
+    ledger.verify_audit().unwrap();
+}
+
+#[test]
 fn a_refused_step_is_recorded_once_per_step_and_verdict() {
     let (mut ledger, deal, ..) = setup();
     let seller = DecidedBy::SellerMandate {
@@ -270,6 +347,56 @@ fn a_refused_step_is_recorded_once_per_step_and_verdict() {
     assert_eq!(first.detail["refused_authority"]["type"], "seller_mandate");
     // A refusal is recorded, never a PayPal call.
     assert_eq!(ledger.paypal_call_count(deal.id).unwrap(), 0);
+    ledger.verify_audit().unwrap();
+}
+
+#[test]
+fn a_step_refused_again_after_a_release_and_a_new_hold_is_a_second_refusal() {
+    let (mut ledger, deal, ..) = setup();
+    let terms = deal.terms.hash().unwrap();
+    let seller = DecidedBy::SellerMandate {
+        mandate_hash: H256::ZERO,
+    };
+    let refuse = |ledger: &mut Ledger, rule, at| {
+        ledger
+            .record_shield_refusal(
+                deal.id,
+                "authorize",
+                1,
+                ShieldVerdict::Hold,
+                Some(rule),
+                &seller,
+                at,
+            )
+            .unwrap()
+    };
+    ledger
+        .raise_shield(deal.id, ShieldVerdict::Hold, 101)
+        .unwrap();
+    assert!(refuse(&mut ledger, ShieldRule::ModelCaution, 102));
+    assert!(!refuse(&mut ledger, ShieldRule::ModelCaution, 103));
+    // Another rule holding the same step is another refusal.
+    assert!(refuse(&mut ledger, ShieldRule::PriceOverMarket, 104));
+    // The owner releases the hold; a new second opinion raises it again; the step is refused
+    // again for the same rule: a real second refusal, with its own row.
+    ledger
+        .release_shield_hold(deal.id, &[ShieldRule::ModelCaution], terms, 105)
+        .unwrap();
+    ledger
+        .raise_shield(deal.id, ShieldVerdict::Hold, 106)
+        .unwrap();
+    assert!(refuse(&mut ledger, ShieldRule::ModelCaution, 107));
+    assert!(!refuse(&mut ledger, ShieldRule::ModelCaution, 108));
+    // A terms change is another refusal too.
+    reprice(&ledger, deal.id, 30000);
+    assert!(refuse(&mut ledger, ShieldRule::ModelCaution, 109));
+    assert!(!refuse(&mut ledger, ShieldRule::ModelCaution, 110));
+    let refused = rows(&ledger, deal.id, "shield.refused");
+    let mut at: Vec<_> = refused.iter().map(|r| r.at).collect();
+    at.sort_unstable();
+    assert_eq!(at, [102, 104, 107, 109]);
+    let first = refused.iter().find(|r| r.at == 102).unwrap();
+    assert_eq!(first.detail["terms_hash"], serde_json::json!(terms));
     ledger.verify_audit().unwrap();
 }
 

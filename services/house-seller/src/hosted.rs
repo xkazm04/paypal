@@ -130,6 +130,17 @@ pub const HEARTBEAT_STALE: i64 = 190;
 const _: () = assert!(HEARTBEAT_STALE >= LONGEST_STEP_SECS + TICK_SECS + LEDGER_SLACK_SECS);
 // And a stalled actor is still noticed within a few minutes.
 const _: () = assert!(HEARTBEAT_STALE <= 2 * LONGEST_STEP_SECS);
+/// One deal step at its slowest: the PayPal call, the tick that starts it and its ledger writes.
+const STEP_SECS: i64 = LONGEST_STEP_SECS + TICK_SECS + LEDGER_SLACK_SECS;
+/// Room for a signed RECEIPT to cross the relay and be read by the buyer's wallet, which polls
+/// its mailbox every second and backs off to 32 s while the relay is unreachable.
+const RECEIPT_DELIVERY_SECS: i64 = 120;
+// An approval the HOUSE sees in the last second of its window (the poll that sees it, then the
+// authorization, then the capture) still has its RECEIPT reach the buyer's wallet before that
+// wallet lets the deal lapse (HOUSE_RECEIPT_GRACE_SECS past the same window): the HOUSE stops
+// polling and authorizing at its own deadline, so a margin of zero before it is enough. A
+// capture that would start later than this is voided instead (`Seller::bound_capture`).
+const _: () = assert!(HOUSE_RECEIPT_GRACE_SECS >= 3 * STEP_SECS + RECEIPT_DELIVERY_SECS);
 /// First wait between approval polls of one deal; doubles up to [`POLL_MAX`].
 const POLL_FIRST: i64 = 5;
 const POLL_MAX: i64 = 60;
@@ -792,12 +803,37 @@ impl Seller {
         }
         Ok(())
     }
+    /// An authorized deal's capture deadline is the last moment a capture still has its RECEIPT
+    /// reach the buyer's wallet before that wallet lets the deal lapse (it counts
+    /// [`HOUSE_APPROVAL_SECS`] and then [`HOUSE_RECEIPT_GRACE_SECS`] from this HOUSE's own
+    /// SETTLE), not the authorization's 72 hours. Past it the deadline's safe default voids the
+    /// hold, and no capture (nor a re-send of one) starts, so a HOUSE that stalled never captures
+    /// money the buyer's record says did not move. Recorded once, in the audit chain.
+    fn bound_capture(&mut self, id: DealId, now: i64) -> Result<(), Error> {
+        let ledger = &mut self.pipeline.wallet.ledger;
+        let (Some(signed), Some((due, authorization))) =
+            (ledger.settle_signed_at(id)?, ledger.deadline(id)?)
+        else {
+            return Ok(());
+        };
+        let capture_by = signed
+            .saturating_add(HOUSE_APPROVAL_SECS)
+            .saturating_add(HOUSE_RECEIPT_GRACE_SECS)
+            .saturating_sub(STEP_SECS + RECEIPT_DELIVERY_SECS);
+        if capture_by < due {
+            ledger.set_deadline(id, capture_by, authorization, now)?;
+        }
+        Ok(())
+    }
     async fn advance(&mut self, deal: &Deal, now: i64) -> Result<(), Error> {
         if deal.state != DealState::AwaitingApproval {
             self.polls.forget(&deal.id);
         }
         if deal.state.terminal() {
             return Ok(());
+        }
+        if deal.state == DealState::Authorized {
+            self.bound_capture(deal.id, now)?;
         }
         // A money step whose PayPal outcome is unknown is read back first, on its own backoff,
         // and nothing more is sent for the deal until it is settled (T10).

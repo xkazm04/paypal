@@ -378,6 +378,62 @@ async fn rescue_ready(r: &mut Runtime) -> (Deal, String) {
     (deal, token)
 }
 
+/// A fix whose one send closed not done (its invoice still a draft) is refused in plain words on
+/// a fresh decision, before the owner's decision row or anything else is written. It used to
+/// write the decision row and then fail on the ledger's unique request id.
+#[tokio::test]
+async fn a_fix_whose_send_ended_is_refused_in_plain_words_and_writes_nothing() {
+    let (mut r, vault, _, clock, _) = runtime(true);
+    credentials(vault.as_ref());
+    let paypal = with_invoicing(&mut r);
+    let (deal, token) = rescue_ready(&mut r).await;
+    paypal.0.lock().unwrap().lose_send = true;
+    let args = decision(&mut r, deal.id);
+    assert!(
+        r.execute(
+            caller("approval", Some(&token)),
+            Action::Decision(args, Decision::Rescue),
+        )
+        .await
+        .is_err()
+    );
+    // The lost send is read back as not done and closed; the fix stays SETTLING, a draft.
+    r.pipeline
+        .wallet
+        .ledger
+        .close_operation(
+            deal.id,
+            1,
+            "invoice-send",
+            table_ledger::CheckReason::NotDone,
+            clock.now(),
+        )
+        .unwrap();
+    assert!(!r.pipeline.has_open_operation(deal.id).unwrap());
+    assert_eq!(
+        r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Settling
+    );
+    paypal.0.lock().unwrap().lose_send = false;
+    // The approval window no longer offers it.
+    assert!(!r.summary(deal.id).unwrap().can_release);
+    let posts = paypal.0.lock().unwrap().posts.len();
+    let audit = r.pipeline.wallet.ledger.audit_count().unwrap();
+    let args = decision(&mut r, deal.id);
+    let error = r
+        .execute(
+            caller("approval", Some(&token)),
+            Action::Decision(args, Decision::Rescue),
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(error.code, ErrorCode::Permission), "{error:?}");
+    assert_eq!(error.message, crate::rescue::RESCUE_ENDED);
+    assert_eq!(r.pipeline.wallet.ledger.audit_count().unwrap(), audit);
+    assert_eq!(paypal.0.lock().unwrap().posts.len(), posts);
+    r.pipeline.wallet.ledger.verify_audit().unwrap();
+}
+
 /// The rescue rules revoked while a fix's send is unknown: with no agent key the send is still
 /// read back, and at PayPal's retry the draft closes not done and the fix expires. Before, the
 /// tick returned at once, the rescue stayed open and refused every later one for the

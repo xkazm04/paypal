@@ -1348,6 +1348,53 @@ async fn a_released_second_opinion_hold_is_no_silent_ask_and_a_block_has_no_rele
         .await
         .unwrap();
 
+    // A released second opinion, then the rules hold the price: the deal shows a hold naming
+    // the price rule (the release does not hide it), until the owner releases that one too.
+    let (mut p, mock, id, token, hash) = at_step(MoneyStep::Authorize, ShieldVerdict::Hold).await;
+    let t = p
+        .approval
+        .ticket("approval", &token, id, hash, 1, 100)
+        .unwrap();
+    p.owner_release_hold(id, 1, t, 100).unwrap();
+    assert!(!p.wallet.ledger.get_deal(id).unwrap().shield_held());
+    let price = p.wallet.ledger.get_deal(id).unwrap().terms.unit_price;
+    let market = MarketRef::from_comparables(
+        vec![Money::new(price.minor() / 2, price.currency()).unwrap()],
+        100,
+        H256::ZERO,
+    )
+    .unwrap();
+    p.wallet
+        .ledger
+        .store_market_reference(id, &market, 100)
+        .unwrap();
+    let calls = mock.calls.lock().unwrap().len();
+    for at in [101, 102] {
+        assert!(
+            p.authorize(id, 1, Category::Parts, Authority::SellerMandate, at)
+                .await
+                .is_err()
+        );
+    }
+    let held = p.wallet.ledger.get_deal(id).unwrap();
+    assert!(held.shield_held());
+    assert_eq!(held.shield, Some(ShieldVerdict::Hold));
+    assert_eq!(held.shield_rule, Some(ShieldRule::PriceOverMarket));
+    let refused = shield_refusals(&p, id);
+    assert_eq!(refused.len(), 1);
+    assert_eq!(refused[0].detail["rule"], "price_over_market");
+    assert_eq!(mock.calls.lock().unwrap().len(), calls);
+    let t = p
+        .approval
+        .ticket("approval", &token, id, hash, 1, 103)
+        .unwrap();
+    p.owner_release_hold(id, 1, t, 103).unwrap();
+    let released = p.wallet.ledger.get_deal(id).unwrap();
+    assert!(!released.shield_held());
+    p.authorize(id, 1, Category::Parts, Authority::SellerMandate, 103)
+        .await
+        .unwrap();
+
     // A BLOCK has no release.
     let (mut p, mock, id, token, hash) = at_step(MoneyStep::Authorize, ShieldVerdict::Block).await;
     let t = p
