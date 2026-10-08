@@ -1,0 +1,48 @@
+# Acceptance IDs: design report §13 (docs/design/the-table.html, H F M C S R E U) and
+# docs/design/window-duality.md §7 (W). One ID per line, then a short paraphrase.
+# A leading * marks a never-cut ID. §13's never-cut line names capabilities, not IDs:
+# "mandate + signer · haggle + house seller · firewall refusal + auth/capture · approval window +
+# idle lock · both engines + scripted · Channel3 band". Mapped as the ops-and-delivery-1 card
+# does: haggle + house seller -> H1-H6; firewall refusal + auth/capture + idle lock -> F1-F4;
+# Channel3 band and the shield's refusals/void path -> S1-S3; both engines + scripted -> E1-E3;
+# approval window -> W3.
+*H1 send_offer above the ceiling is an error naming clause 4; no outbound envelope
+*H2 a reused nonce, wrong aud, past exp, seq gap or bad signature is rejected, audited, state unchanged
+*H3 two ACCEPTs: same terms_hash, one AUTHORIZE order, invoice_id {deal ULID}-{attempt}
+*H4 no "Open PayPal" when the SETTLE amount, intent or host does not match
+*H5 within 60 s of APPROVED the seller authorizes and captures; both RECEIPTED, same head
+*H6 a fresh install closes a deal with HOUSE in under 5 min
+*F1 "40 x GPU" is REFUSED with the clause 3 text and 0 paypal_calls rows
+*F2 in-band purchase AUTHORIZE -> APPROVED -> authorize; capture only after a countersign; void path; one order per request id
+*F3 an authorization undecided for 72 h is voided by policy and audited
+*F4 after 15 min idle every privileged command is LOCKED until re-auth
+F5 a payee-route deal carries the "payee route · sandbox" label in the UI and exports
+M1 shop_search/quote/checkout work locally and from a paired wallet; capture only after APPROVED
+M2 the feed export has every required Store Sync field
+M3 no tool call can produce a quote below an item's floor
+C1 a BookQuery failing the schema is INVALID; a valid query runs read-only
+C2 a row absent from Transaction Search is pending, then matched; 31-day window, page_size <= 500
+*S1 a payee mismatch blocks without an engine; price > 1.4 x median HOLDs; no reference is not passed
+*S2 HOLD on an authorized purchase voids; no engine output turns BLOCK into CLEAR
+*S3 a decoy MCP server never reaches the tool-less run
+R1 a failed subscription payment opens a rescue deal with one lever inside the rescue mandate
+R2 recovered revenue counts paid rescue invoices and real captures, never REPLAY rows
+R3 paypal_calls never holds an update-pricing-schemes path
+*E1 both adapters pass one conformance suite for both profiles
+*E2 the scripted engine is labelled on every agent card
+*E3 no argv combines --output-format stream-json with --json-schema
+U1 every Needs-you item renders its default-on-silence text
+U2 every screen and export carries a mode badge
+U3 counterparty text never renders as markdown or links
+U4 at 1280 x 800 no UI text is under 12 px
+W1 closing main hides it; tray restores the same route
+W2 an arriving GATE item does not change the foreground window
+*W3 a release command from tumbler or main is a permission error; the release set is approval-only
+W4 an injection note never renders on any Tumbler form
+W5 a GATE with 14 min left fires one OS notification; none under Do Not Disturb
+W6 a passed deadline applies the default with one audit row; a lapse adds no paypal_calls row
+W7 withdraw from the Tumbler writes one signed WITHDRAW and no PayPal call
+W8 placement and snap arithmetic passes at 100%, 125% and 150%
+W9 a second launch focuses the existing Tumbler
+W10 prefers-reduced-motion stops the ring breathing
+W11 with the idle lock on the Tumbler still shows cards; Review opens LOCKED
