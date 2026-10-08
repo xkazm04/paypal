@@ -78,6 +78,15 @@ migrating an older installation. Use sandbox credentials only. `/healthz` is ava
 startup; `/v1/house/tables` accepts a closed HouseRequest and returns a signed
 HouseResponse. Invalid requests fail, capacity returns 429, actor failure returns 503.
 
+Public read routes (T9, glass-box HOUSE; read-only, no secrets, no PayPal call, no write):
+`GET /v1/house/head` returns the audit-chain head signed by the release agent key (refreshed at
+most once a minute; 503 until the first refresh), `GET /v1/house/prefix?rows=N` the signed chain
+hash at an earlier row count, `GET /v1/house/ledger?limit=&before=` a typed page of house deals
+(newest first, at most 100 per page, 500 held), and `GET /house` the scoreboard page (its own
+script and stylesheet only, strict CSP). A new disk starts a new epoch (first-row hash), shown on
+the scoreboard and to wallets as "the house started a new record". The judge path: finish a HOUSE
+deal, open `<origin>/house`, find the deal number, compare the record mark with the wallet's.
+
 Set the desktop relay origin and call `pairing_join` with code HOUSE, buyer side and
 the buyer payee, omitting peer. `get_settings().house` and `settings:changed` expose
 `idle`, `waking`, `ready` or `unavailable`: render **House waking** while the HTTPS

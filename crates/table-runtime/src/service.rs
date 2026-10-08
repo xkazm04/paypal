@@ -106,6 +106,8 @@ pub struct Runtime {
     pub(crate) engine_probed_at: Vec<(table_engine::EngineId, i64)>,
     /// The transcript head each deal's last policy run was armed for: one run per peer message.
     pub(crate) armed: BTreeMap<DealId, H256>,
+    /// The house's signed record kept beside HOUSE receipts (T9).
+    pub(crate) witness: crate::witness::Witness,
     /// Test-only: overrides the signed band in the brief, to prove the mandate still refuses.
     #[cfg(test)]
     pub(crate) brief_tamper: Option<(Option<Money>, Option<Money>)>,
@@ -195,6 +197,7 @@ impl Runtime {
             emitted: Vec::new(),
             engine_probed_at: Vec::new(),
             armed: BTreeMap::new(),
+            witness: crate::witness::Witness::default(),
             #[cfg(test)]
             brief_tamper: None,
             #[cfg(test)]
