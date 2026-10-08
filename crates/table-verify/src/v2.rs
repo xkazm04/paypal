@@ -7,7 +7,7 @@
 //! these records, so on a v1 file every one of them reads "not checked".
 use crate::{Miss, operation_of, row_detail};
 use serde_json::Value;
-use table_core::{DealState, DecidedBy, H256, ShieldRule, ShieldVerdict};
+use table_core::{DealState, DecidedBy, H256, MarketCommitment, ShieldRule, ShieldVerdict};
 use table_proto::{
     HeadVerdict, PROOF_FORMAT_V1, ProofAuditRow, ProofBundle, compare_heads, prefix_contradicts,
 };
@@ -524,6 +524,124 @@ pub(crate) fn house_record(bundle: &ProofBundle) -> Result<String, Miss> {
         "{} entries at your receipt; {consistent}; signed by the pinned house key",
         b.row_count
     ))
+}
+
+/// market-data-2: the market price the deal was agreed on can be computed again. The agreement
+/// row (hash-chained) names the digest of the market record the deal held; that record is in
+/// the deal's rows with its comparables. The check recomputes the quartiles from the
+/// comparables, matches the digest, checks the record prices the product the owner's rules bind
+/// to the item, and reports where the deal price sits. A deal agreed with no market price, or on
+/// an older record that kept no comparables, reads "not checked": never a pass by default.
+pub(crate) fn market(bundle: &ProofBundle) -> Result<String, Miss> {
+    if let Some(miss) = older(bundle) {
+        return Err(miss);
+    }
+    let deal = &bundle.deal;
+    if deal.market.as_ref().is_some_and(|m| m.validate().is_err()) {
+        return Err(
+            "the deal's latest market record does not compute again to its own quartiles"
+                .to_owned()
+                .into(),
+        );
+    }
+    let details: Vec<(&str, Value)> = bundle
+        .audit
+        .iter()
+        .map(|row| (row.action.as_str(), detail(row)))
+        .collect();
+    // The deal's latest re-checkable record is one its rows recorded, comparables and all.
+    if let Some(latest) = deal.market.as_ref().and_then(|m| m.digest().ok().flatten()) {
+        let recorded = details.iter().any(|(action, d)| {
+            *action == "market.observed"
+                && typed::<H256>(d, "digest") == Some(latest)
+                && typed::<table_core::MarketRef>(d, "reference").is_some_and(|r| {
+                    r.validate().is_ok() && r.digest().ok().flatten() == Some(latest)
+                })
+        });
+        if !recorded {
+            return Err(
+                "the deal's latest market record is not the one its rows recorded"
+                    .to_owned()
+                    .into(),
+            );
+        }
+    }
+    let found = table_core::market_rows(details.iter().map(|(a, d)| (*a, d)));
+    if !found.agreed {
+        return Err(Miss::absent("not checked: the deal is not agreed yet"));
+    }
+    let digest = match found.commitment {
+        None => {
+            return Err(Miss::absent(
+                "not checked: the deal had no market price when it was agreed",
+            ));
+        }
+        Some(MarketCommitment::V1 { .. }) => {
+            return Err(Miss::absent(
+                "not checked: the deal was agreed on an older market record, which kept no prices to compute again",
+            ));
+        }
+        Some(MarketCommitment::V2 { digest }) => digest,
+    };
+    let Some(reference) = found
+        .observed
+        .iter()
+        .rfind(|r| r.digest().ok().flatten() == Some(digest))
+    else {
+        return Err(
+            "the market record the deal was agreed on is missing, or its prices no longer compute to what it said"
+                .to_owned()
+                .into(),
+        );
+    };
+    let Some(certificate) = reference.certificate.as_ref() else {
+        return Err("the committed market record has no prices"
+            .to_owned()
+            .into());
+    };
+    if bundle
+        .mandate
+        .payload
+        .market_product_for(&deal.terms.item_ref)
+        != Some(certificate.product_id.as_str())
+    {
+        return Err(
+            "the market record prices another product than the owner's rules bind to the item"
+                .to_owned()
+                .into(),
+        );
+    }
+    let price = deal.terms.unit_price;
+    let percentile = certificate
+        .percentile(price)
+        .map_err(|_| "the market record is in another currency than the deal".to_owned())?;
+    Ok(format!(
+        "{} {} is the {} percentile of {} market prices for product {}; quartiles {} / {} / {} computed again from them; agreed on record {} (response {})",
+        price.decimal(),
+        price.currency(),
+        ordinal(percentile),
+        certificate.comparables.len(),
+        certificate.product_id,
+        reference.p25.decimal(),
+        reference.median.decimal(),
+        reference.p75.decimal(),
+        short(digest),
+        short(reference.response_hash),
+    ))
+}
+fn short(hash: H256) -> String {
+    hash.hex().chars().take(12).collect()
+}
+/// 1st, 2nd, 3rd, 4th, 11th, 12th, 13th, 21st, ...
+fn ordinal(n: u8) -> String {
+    let suffix = match (n % 10, n % 100) {
+        (_, 11..=13) => "th",
+        (1, _) => "st",
+        (2, _) => "nd",
+        (3, _) => "rd",
+        _ => "th",
+    };
+    format!("{n}{suffix}")
 }
 
 /// T11: the permissions fingerprint of the build that saved the file. Shown, not judged: the

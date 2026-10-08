@@ -17,6 +17,9 @@ import type { Side } from '@bindings/Side';
 import type { ShieldRelease } from '@bindings/ShieldRelease';
 import type { ShieldRule } from '@bindings/ShieldRule';
 import type { ShieldVerdict } from '@bindings/ShieldVerdict';
+import type { FairPrice } from '@bindings/FairPrice';
+import type { Money } from '@bindings/Money';
+import { ordinal } from './fairPrice';
 import { formatMoney } from './format';
 
 /** Tone of a status pill: maps onto the `ui-chip` tones. */
@@ -212,6 +215,38 @@ export function marketWords(v: number, p25: number, median: number, p75: number)
   return { text: 'well above typical', tone: 'red', means: 'Far above the usual range of comparable listings.' };
 }
 
+/** The name of the fair-price line on a deal's proof (market-data-2). */
+export const FAIR_PRICE_NAME = 'Price vs market';
+/** The deal's price against the market prices it was agreed on (DealEvidence.fair_price), worked
+ *  out again by the wallet: "$329.00 is the 62nd percentile of 13 market prices · re-checked". */
+export function fairPriceWords(fp: FairPrice, price: Money): Word & { short: string } {
+  if (fp.state === 'rechecked' && fp.percentile !== null) {
+    const n = `${fp.prices} market ${fp.prices === 1 ? 'price' : 'prices'}`;
+    return {
+      text: `${formatMoney(price)} is the ${ordinal(fp.percentile)} percentile of ${n} · re-checked`,
+      short: `${ordinal(fp.percentile)} percentile of ${fp.prices}`,
+      tone: 'ok',
+      means: fp.committed
+        ? 'Worked out again from the market prices this deal was agreed on, kept with the deal.'
+        : 'Worked out again from the latest market prices; the deal is not agreed yet.',
+    };
+  }
+  if (fp.state === 'not_recheckable') {
+    return {
+      text: 'Older market record, not re-checkable',
+      short: 'older record',
+      tone: 'line',
+      means: 'This deal was priced before the wallet kept the market prices behind the typical price, so it can’t be worked out again.',
+    };
+  }
+  return {
+    text: 'Market record doesn’t add up',
+    short: 'doesn’t add up',
+    tone: 'red',
+    means: 'The market prices kept with this deal no longer give the typical price it was agreed on.',
+  };
+}
+
 /** "up to 12 checks a day": a market-watch rule's daily allowance (T15). */
 export const checksADay = (n: number): string => `up to ${n} ${n === 1 ? 'check' : 'checks'} a day`;
 /** "Price checks today: 3 of 12": a market-watch rule's day so far (owner facts). */
@@ -342,6 +377,7 @@ export const PROOF_CHECKS: Readonly<Record<string, string>> = {
   house_record: 'The house seller’s signed record, kept with your receipt, checks out and never got shorter.',
   permissions: 'The file names the permissions of the app version that saved it.',
   evidence: 'The deal’s agent signed the whole file, so nothing in it was changed afterwards.',
+  market: 'The market prices kept with the deal still give the typical price it was agreed on.',
 };
 /** Why a check reads "not checked": the deal had nothing of its kind, so it makes no claim either way. */
 export const PROOF_NOT_APPLICABLE: Readonly<Record<string, string>> = {
@@ -351,7 +387,14 @@ export const PROOF_NOT_APPLICABLE: Readonly<Record<string, string>> = {
   shield: 'Not checked: no safety check paused or blocked this deal.',
   house_record: 'Not checked: no house seller’s record was kept with this deal.',
   permissions: 'Not checked: files saved by older versions of the wallet don’t name their permissions.',
+  market: 'Not checked: the deal had no market price when it was agreed.',
 };
+/** The market line's other "not checked" reasons, told apart by the checker's own fixed words. */
+export function proofMarketNotChecked(detail: string): string {
+  if (/older market record/.test(detail)) return 'Not checked: the deal was agreed on an older market record, which kept no prices to work out again.';
+  if (/not agreed yet/.test(detail)) return 'Not checked: the deal is not agreed yet.';
+  return PROOF_NOT_APPLICABLE.market ?? 'Not checked.';
+}
 /** Said for any check when the file is an older kind that carries none of the newer records. */
 export const PROOF_OLDER_FILE = 'Not checked: files saved by older versions of the wallet don’t carry this record.';
 /** The file's permissions fingerprint against this wallet's own. */
@@ -370,6 +413,7 @@ export const PROOF_FILE_SHOWS = [
   'If a safety check paused the deal, that nothing was paid unless you released it.',
   'If you bought from the house seller, its signed record kept with your receipt.',
   'The permissions of this version of the app.',
+  'The market prices the deal was agreed on, so anyone can work out the typical price again.',
 ] as const;
 /** The checks trust the keys inside the file, so the owner key is the anchor a person compares. */
 export const PROOF_KEY_ANCHOR = 'Compare this owner key with the key the owner shows you: the checks use the keys inside the file.';

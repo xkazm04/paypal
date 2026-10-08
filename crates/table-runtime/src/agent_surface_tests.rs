@@ -263,3 +263,42 @@ fn runtime_refusals_are_coded_audited_once_and_call_no_paypal() {
     ledger.verify_audit().unwrap();
     assert!(http.0.lock().unwrap().paths.is_empty());
 }
+
+/// market-data-2: the comparables and the market's product ids behind a band are the owner's
+/// evidence; the agent's market tool answers with the band alone, as before.
+#[test]
+fn the_agent_market_tool_answers_with_the_band_and_never_the_comparables() {
+    let (mut r, deal, _, _, _) = client_tests::negotiating();
+    let mut certificate = MarketRef::certified_prices(
+        deal.terms.item_ref.as_str(),
+        H256::digest(b"similar"),
+        &[Money::new(1800, Currency::USD).unwrap()],
+        100,
+    )
+    .unwrap()
+    .certificate
+    .unwrap();
+    certificate.comparables[0].product_id = Some("similar-product-7".into());
+    let band = MarketRef::certified(certificate, 100).unwrap();
+    r.pipeline
+        .wallet
+        .ledger
+        .store_market_reference(deal.id, &band, 100)
+        .unwrap();
+    let answer = r
+        .pipeline
+        .wallet
+        .invoke(
+            &scope(&deal),
+            AgentRequest::decode(
+                "market_reference",
+                json!({"item_ref": deal.terms.item_ref.as_str()}),
+            )
+            .unwrap(),
+            100,
+        )
+        .unwrap();
+    assert_eq!(answer["median"]["minor"], 1800);
+    let text = answer.to_string();
+    assert!(!text.contains("certificate") && !text.contains("similar-product-7"));
+}

@@ -9,7 +9,7 @@ import { keyMatch } from '../../../../lib/format';
 import { useMutation, useQuery } from '../../../../lib/hooks';
 import {
   fingerprintGroups, modeWord, PERMISSIONS_FINGERPRINT, PERMISSIONS_FINGERPRINT_MEANS, PROOF_ALL_THAT_APPLY, PROOF_CHECKS, PROOF_KEY_ANCHOR,
-  PROOF_KEY_MATCH, PROOF_LIMIT, PROOF_NOT_APPLICABLE, PROOF_NOT_CHECKED, PROOF_OLDER_FILE, PROOF_SOME_UNCHECKED, PROOF_VERSION_MATCH,
+  PROOF_KEY_MATCH, PROOF_LIMIT, PROOF_NOT_APPLICABLE, PROOF_NOT_CHECKED, PROOF_OLDER_FILE, PROOF_SOME_UNCHECKED, PROOF_VERSION_MATCH, proofMarketNotChecked,
 } from '../../../../lib/words';
 import { WalletNotice } from '../../../../shared/honesty';
 import { KeyId } from '../../../../shared/ownerKey';
@@ -46,6 +46,7 @@ export function ProofCheckSheet({ onClose }: { onClose: () => void }) {
 function notCheckedWords(c: ProofCheckLine, older: boolean): string {
   if (c.applies) return PROOF_NOT_CHECKED;
   if (older) return PROOF_OLDER_FILE;
+  if (c.id === 'market') return proofMarketNotChecked(c.detail);
   return PROOF_NOT_APPLICABLE[c.id] ?? PROOF_OLDER_FILE;
 }
 

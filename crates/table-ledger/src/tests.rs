@@ -2024,5 +2024,7 @@ fn history_rows_are_deal_scoped_windowed_capped_and_refused_whole_on_a_broken_ch
 }
 #[path = "limits_tests.rs"]
 mod limits_tests;
+#[path = "market_tests.rs"]
+mod market_tests;
 #[path = "market_watch_tests.rs"]
 mod market_watch_tests;

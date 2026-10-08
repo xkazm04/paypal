@@ -13,6 +13,7 @@ import type { EngineInfo } from '@bindings/EngineInfo';
 import type { H256 } from '@bindings/H256';
 import type { HouseRecord } from '@bindings/HouseRecord';
 import type { MoneyCheck } from '@bindings/MoneyCheck';
+import type { MarketRef } from '@bindings/MarketRef';
 import type { Money } from '@bindings/Money';
 import type { OpenMandate } from '@bindings/OpenMandate';
 import type { AgentSlot } from '@bindings/AgentSlot';
@@ -28,6 +29,7 @@ import type { HistoryStep } from '@bindings/HistoryStep';
 import type { NotifySuppression } from '@bindings/NotifySuppression';
 import type { RungMark } from '@bindings/RungMark';
 import type { CounterpartyDisplay, DealDisplay, TranscriptStep } from '../lib/pending';
+import { fairPriceOf } from '../lib/fairPrice';
 import { MONEY_CHECK_SILENCE, RESCUE_SENT_SILENCE, RESCUE_SILENCE } from '../lib/words';
 import type { MockEnvelope } from './exposure';
 import type { RescueView } from '@bindings/RescueView';
@@ -50,6 +52,32 @@ export function fakeHash(seed: string): H256 {
     out.push(h & 0xff);
   }
   return out as H256;
+}
+
+/** The market product the sample rules bind to an item (their keep-prices-fresh rules); any other
+ *  item is named by its own market product id, as Rust's `market_product_for` reads it. */
+const WATCHED_PRODUCT: Readonly<Record<string, string>> = { 'monitor-27-4k': 'lg-27uk850-w', 'monitor-24-ips': 'dell-p2422h', 'monitor-arm': 'ergotron-lx-45-241' };
+/** A re-checkable market record (market-data-2) whose quartiles are exactly `q` (dollars): 13
+ *  comparables with the quartiles at positions 3, 6 and 9, the rest spread around them, each with
+ *  a sample product id. Typed numbers and ids only, as Rust keeps them. */
+export function certifiedMarket(seed: string, item: string, q: readonly [number, number, number], retrievedAt: number): MarketRef {
+  const [p25, med, p75] = q.map((v) => usd(v).minor) as [number, number, number];
+  const lo = Math.max(1, Math.floor((med - p25) / 3));
+  const hi = Math.max(1, Math.floor((p75 - med) / 3));
+  const minors = [
+    p25 - 3 * lo, p25 - 2 * lo, p25 - lo, p25,
+    p25 + Math.floor((med - p25) / 3), p25 + Math.floor((2 * (med - p25)) / 3), med,
+    med + Math.floor((p75 - med) / 3), med + Math.floor((2 * (p75 - med)) / 3), p75,
+    p75 + hi, p75 + 2 * hi, p75 + 3 * hi,
+  ].map((m) => Math.max(1, m));
+  const raw = fakeHash(`${seed}:raw`);
+  return {
+    p25: usd(q[0]), median: usd(q[1]), p75: usd(q[2]), retrieved_at: retrievedAt, response_hash: raw, cached: true,
+    certificate: {
+      product_id: WATCHED_PRODUCT[item] ?? item, raw_sha256: raw, match_kind: 'similar', currency: USD,
+      comparables: minors.map((minor, i) => ({ minor, product_id: `sim-${item}-${String(i + 1).padStart(2, '0')}` })),
+    },
+  };
 }
 
 const ULID_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
@@ -173,6 +201,8 @@ export function buildMockState(now: number): MockState {
     /** The rule that decided `shield`, as Rust records it (Deal.shield_rule); none for a CLEAR or a mismatch hold. */
     shieldRule?: ShieldRule | null;
     market?: [number, number, number] | null;
+    /** The market record is from before the wallet kept comparables (market-data-2): not re-checkable. */
+    olderMarket?: boolean;
     paypal?: Partial<Deal['paypal']>;
     deadline?: number | null;
     silence?: string | null;
@@ -210,7 +240,9 @@ export function buildMockState(now: number): MockState {
       paypal: { order: null, authorization: null, capture: null, subscription: null, ...o.paypal },
       mode: o.mode ?? 'sandbox',
       market: o.market
-        ? { p25: usd(o.market[0]), median: usd(o.market[1]), p75: usd(o.market[2]), retrieved_at: now - 120, response_hash: fakeHash(`${o.label}:mkt`), cached: true }
+        ? o.olderMarket
+          ? { p25: usd(o.market[0]), median: usd(o.market[1]), p75: usd(o.market[2]), retrieved_at: now - 120, response_hash: fakeHash(`${o.label}:mkt`), cached: true }
+          : certifiedMarket(o.label, o.item, o.market, now - 120)
         : null,
       shield: o.shield ?? null,
       ...(o.decided ? { decided_by: o.decided } : {}),
@@ -218,7 +250,10 @@ export function buildMockState(now: number): MockState {
     };
     const deadline = o.deadline ?? null;
     const display: DealDisplay = { deal_id: id, label: o.label, title: o.title, deadline, on_silence: o.silence ?? null, band: o.band ?? null };
-    const evidence: DealEvidence = { deal_id: id, receipt: o.receipt ?? 'NONE', reconciliation: o.reconciliation ?? 'not_applicable', money_check: o.check ?? null, house_record: o.house ?? null };
+    const evidence: DealEvidence = {
+      deal_id: id, receipt: o.receipt ?? 'NONE', reconciliation: o.reconciliation ?? 'not_applicable', money_check: o.check ?? null, house_record: o.house ?? null,
+      fair_price: fairPriceOf(deal.state, deal.market, deal.terms.unit_price),
+    };
     const attention: AttentionItem | null = o.attention
       ? {
           ...o.attention,
@@ -309,7 +344,7 @@ export function buildMockState(now: number): MockState {
   // is 59% over a $44 median, and the price check comes first, so it is a price HOLD. A new payee
   // over 100.00 on its own only asks (the settled design); the friends & family note on D-0198 is
   // their words, which no check reads.
-  add({ label: 'D-0196', title: '27-inch 4K monitor (unsolicited offer)', kind: 'purchase', side: 'buyer', cp: KEY.hub, item: 'monitor-27-4k', price: 460, state: 'REFUSED', shield: 'BLOCK', shieldRule: 'payee_mismatch', market: [301, 318, 336], at: [back(0.3), back(0.3) + 2] });
+  add({ label: 'D-0196', title: '27-inch 4K monitor (unsolicited offer)', kind: 'purchase', side: 'buyer', cp: KEY.hub, item: 'monitor-27-4k', price: 460, state: 'REFUSED', shield: 'BLOCK', shieldRule: 'payee_mismatch', market: [301, 318, 336], olderMarket: true, at: [back(0.3), back(0.3) + 2] });
   add({
     label: 'D-0198', title: 'Monitor stand, walnut', kind: 'purchase', side: 'buyer', cp: KEY.pixel, item: 'stand', qty: 2, price: 70, state: 'AGREED', shield: 'HOLD', shieldRule: 'price_over_market', market: [38, 44, 49],
     deadline: now + 5 * H + 58 * 60, silence: 'the request lapses at the deadline · nothing is paid', at: [now - 2 * H + 60, now - 2 * H + 300],

@@ -564,7 +564,7 @@ pub const KNOWN_LIMIT: &str =
     "This file cannot show whether newer records were removed from the end of the wallet's record.";
 
 pub fn verify_bundle(bundle: &ProofBundle) -> Report {
-    let checks: [(&'static str, &'static str, CheckFn); 15] = [
+    let checks: [(&'static str, &'static str, CheckFn); 16] = [
         ("format", "format", |b| Ok(format(b)?)),
         ("mandate", "owner signed the mandate", |b| Ok(mandate(b)?)),
         ("transcript", "transcript signatures and chain", |b| {
@@ -614,6 +614,11 @@ pub fn verify_bundle(bundle: &ProofBundle) -> Report {
             "house_record",
             "the house's kept record verifies and never shrank",
             v2::house_record,
+        ),
+        (
+            "market",
+            "the market price it was agreed on computes again",
+            v2::market,
         ),
         ("permissions", "permissions fingerprint", v2::permissions),
         ("evidence", "evidence head signed", |b| Ok(evidence(b)?)),
