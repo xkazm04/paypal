@@ -113,14 +113,14 @@ export default function Preview() {
 
       <aside className={`pv-ctl${open ? '' : ' closed'}${corner === 'tl' ? ' right' : ''}`} aria-label="Preview controls, not part of the product">
         <button className="ph" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          <span><b>Preview controls</b><em>simulate what Rust emits · not part of the product</em></span>
+          <span><b>Preview controls</b><em>simulate what the wallet sends · not part of the product</em></span>
           <span className="tog">{open ? 'hide' : 'show'}</span>
         </button>
         {open ? (
           <div className="body">
             <div className="grp">
               <h4>Windows</h4>
-              {ctl('The Table closed (first time)', 'Rust shows the welcome form', () => run(pv.tableClosedFirstTime()))}
+              {ctl('The Table closed (first time)', 'the wallet shows the welcome form', () => run(pv.tableClosedFirstTime()))}
               {ctl('Dock to screen edge', 'as a snap to the edge would: tab form', () => run(pv.dock()))}
               {ctl('Undock', 'as a drag back into free space: rest', () => run(pv.undock()))}
               {ctl('PayPal opened in browser', 'tumbler:handoff for D-0193 (approve window) + hand-off form', () => run(pv.paypalOpened()))}
@@ -138,8 +138,8 @@ export default function Preview() {
               {ctl('Deadline ≤ 2 h', 'the clock runs ahead; the ring breathes (unless reduced motion)', () => run(pv.deadlineSoon()))}
               {ctl('Deadline ≤ 15 min', 'the clock runs ahead; urgency now', () => run(pv.deadlineNow()))}
               {ctl('Deadline passes', 'the safe default runs: withdrawn, no money moves', () => run(pv.deadlinePasses()))}
-              {ctl('Notification clicked', 'Rust opens the card: tumbler:selected', () => run(pv.notificationClicked()))}
-              {ctl('MISMATCH arrives', 'D-0199: SETTLE ≠ the signed deal: HOLD', () => run(pv.mismatchArrives()))}
+              {ctl('Notification clicked', 'the wallet opens the card: tumbler:selected', () => run(pv.notificationClicked()))}
+              {ctl('Amount mismatch arrives', 'D-0199: the payment request differs from the signed deal: held', () => run(pv.mismatchArrives()))}
             </div>
             <div className="grp">
               <h4>Other events</h4>
