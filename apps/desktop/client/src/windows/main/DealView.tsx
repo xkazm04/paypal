@@ -59,6 +59,9 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
   // Whether a signed rule keeps this item's typical price fresh (owner facts; unknown = not shown).
   const ownerFacts = useQuery('owner_facts', null, { refreshOn: ['settings:changed', 'deal:changed'] });
   const watch = dealWatch(ownerFacts.data?.market_watch, deal);
+  // A failed renewal's numbers: the cycle that failed and the fix's invoice, as Rescue and the approval window show them.
+  const rescue = useQuery('rescue_book', null, { enabled: deal.kind === 'rescue', refreshOn: ['deal:changed'] });
+  const offer = deal.kind === 'rescue' ? rescue.data?.cases.find((v) => v.deal_id === deal.id)?.offer ?? null : null;
   const [fresh, setFresh] = useState<{ id: string; e: DealEvidence } | null>(null);
   const evidence = fresh && fresh.id === deal.id ? fresh.e : evq.data;
 
@@ -90,7 +93,7 @@ export function DealView({ deal }: { deal: Deal; onModule?: () => void }) {
   const bandReading = deal.kind === 'haggle' ? (readings.find((r) => r.n === 4)?.reading ?? null) : null;
   const badge = rulesBadge(ruleChecks(readings));
   const houseRecord = evidence?.house_record ? houseRecordWord(evidence.house_record) : null;
-  const nFacts = standingFacts(deal, disp.band, latest, them);
+  const nFacts = standingFacts(deal, disp.band, latest, them, offer);
 
   const go = (t: Tab) => setTabAt({ id: deal.id, tab: t });
   const onTabKey = (e: KeyboardEvent<HTMLDivElement>) => {
