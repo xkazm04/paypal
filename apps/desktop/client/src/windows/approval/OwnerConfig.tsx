@@ -4,6 +4,7 @@
 // one row per item; explanations sit in popovers. Nothing here pays anyone.
 import { useEffect, useState } from 'react';
 import type { CredentialArgs } from '@bindings/CredentialArgs';
+import type { Deal } from '@bindings/Deal';
 import type { Clause } from '@bindings/Clause';
 import type { HouseState } from '@bindings/HouseState';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
@@ -16,6 +17,8 @@ import { MandateEditor } from './MandateEditor';
 import { clauseText, isMandateActive } from './model';
 import { PairingConfirm } from './PairingConfirm';
 import { WalletLimits } from './owner/WalletLimits';
+import { RescueReplay } from './owner/RescueReplay';
+import { rescueRules } from './owner/replay';
 import { useHandoff } from './selection';
 import { useSession } from './session';
 import { Header, LockCard } from './ui';
@@ -45,7 +48,7 @@ type InfoKey = keyof typeof INFO;
 
 const TARGET_TEXT = { credentials: 'save a key', mandate: 'sign rules', unlock: 'unlock with Windows Hello' } as const;
 
-export function OwnerConfig({ hint }: { hint: string | null }) {
+export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A replayed renewal opened its fix: review it here. */ onReplayed?: (deal: Deal) => void }) {
   const s = useSession();
   const now = useNow();
   // What The Table opened this window for (approval_handoff); a mandate target opens the editor
@@ -74,10 +77,13 @@ export function OwnerConfig({ hint }: { hint: string | null }) {
   const [editing, setEditing] = useState<{ sel: string | null } | null>(null);
   const [leaving, setLeaving] = useState<string | null>(null);
   const [routed, setRouted] = useState(false);
+  /** The "Replay a failed renewal" sheet (The Table's Rescue page opens this window for it). */
+  const [replaying, setReplaying] = useState(false);
   useEffect(() => {
     if (routed || !handoff) return;
     setRouted(true);
     if (handoff.target === 'mandate') setEditing({ sel: floorSeed?.mandate_id ?? null });
+    if (handoff.target === 'rescue') setReplaying(true);
   }, [handoff, routed, floorSeed]);
   const [info, setInfo] = useState<{ k: InfoKey; el: HTMLElement } | null>(null);
   const st = s.settings;
@@ -191,6 +197,15 @@ export function OwnerConfig({ hint }: { hint: string | null }) {
           </Group>
         </Section>
 
+        <Section title="Failed renewals">
+          <Group>
+            <Row title="Replay a failed renewal" sub={rescueRules(list, now) ? 'PayPal can’t fail a test renewal, so you can replay one and approve its fix' : 'Sign rules for fixing failed renewals first'}>
+              <Chip tone="line">replay</Chip>
+              <Btn sm onClick={() => setReplaying(true)}>Replay one…</Btn>
+            </Row>
+          </Group>
+        </Section>
+
         <WalletLimits view={limits.data} error={limits.error} loading={limits.loading} locked={locked}
           currency={active.flatMap((m) => m.payload.clauses).find((c) => c.type === 'per_deal')?.max_amount.currency ?? 'USD'}
           onSigned={() => void limits.refetch()} />
@@ -211,6 +226,7 @@ export function OwnerConfig({ hint }: { hint: string | null }) {
           </Group>
         </Section>
       </main>
+      {replaying ? <RescueReplay entries={list} locked={locked} onClose={() => setReplaying(false)} onReplayed={(deal) => { setReplaying(false); onReplayed?.(deal); }} /> : null}
       {info ? (
         <Popover anchor={info.el} onClose={() => setInfo(null)} className="ow-pop">
           <p className="ow-p">{INFO[info.k]}</p>

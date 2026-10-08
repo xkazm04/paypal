@@ -24,7 +24,7 @@ const clauses: Clause[] = clausesOf(byLabel('D-0193'));
 describe('mirrorStrip: steps per kind', () => {
   it('hides the steps a kind does not have', () => {
     expect(labels(mk({ kind: 'purchase', side: 'buyer', state: 'AUTHORIZED' }))).toEqual(['Agreed', 'Waiting for approval', 'Approved on PayPal', 'On hold', 'Paid', 'Paid, on statement']);
-    expect(labels(mk({ kind: 'rescue', side: 'seller', state: 'FAILED' }))).toEqual(['Renewal failed', 'Waiting for subscriber', 'Paid to you', 'Paid to you, on statement']);
+    expect(labels(mk({ kind: 'rescue', side: 'seller', state: 'AGREED' }))).toEqual(['Renewal failed', 'Sending invoice', 'Waiting for subscriber', 'Paid to you, receipt saved']);
     expect(labels(mk({ kind: 'invoice', side: 'seller', state: 'AWAITING_APPROVAL' }))).toEqual(['Waiting for buyer', 'Paid to you', 'Paid to you, on statement']);
     const purchase = labels(mk({ kind: 'purchase', side: 'buyer', state: 'AGREED' }));
     expect(purchase).not.toContain('Negotiating');
@@ -47,7 +47,8 @@ describe('mirrorStrip: steps per kind', () => {
     expect(mirrorStrip(mk({ kind: 'purchase', state: 'AUTHORIZED', shield: null })).tone).toBe('held');
     expect(mirrorStrip(mk({ kind: 'purchase', state: 'AGREED', shield: 'HOLD' })).tone).toBe('held');
     expect(mirrorStrip(mk({ kind: 'purchase', state: 'CAPTURED', shield: null })).tone).toBe('ok');
-    expect(mirrorStrip(mk({ kind: 'rescue', side: 'seller', state: 'FAILED', shield: null })).term).toBeNull();
+    expect(mirrorStrip(mk({ kind: 'rescue', side: 'seller', state: 'AGREED', shield: null })).term).toBeNull();
+    expect(mirrorStrip(mk({ kind: 'rescue', side: 'seller', state: 'FAILED', shield: null })).term).toEqual({ label: 'Fix failed', tone: 'bad' });
   });
   it('moves a captured deal onto RECONCILED only when the statement matched', () => {
     const d = mk({ kind: 'purchase', side: 'buyer', state: 'CAPTURED', shield: null });
@@ -90,8 +91,9 @@ describe('milestones: five plain steps instead of the protocol states', () => {
     expect(milestones(mirrorStrip(byLabel('D-0196'))).end?.after).toBeNull();
   });
   it('joins a rescue’s failed renewal to the next milestone', () => {
-    const r = milestones(mirrorStrip(mk({ kind: 'rescue', side: 'seller', state: 'FAILED', shield: null })));
-    expect(r.items[0]).toMatchObject({ key: 'approve', status: 'cur' });
+    const r = milestones(mirrorStrip(mk({ kind: 'rescue', side: 'seller', state: 'AGREED', shield: null })));
+    expect(r.items[0]).toMatchObject({ key: 'agree', status: 'cur' });
+    expect(r.items.map((i) => i.key)).toEqual(['agree', 'approve', 'proof']);
   });
 });
 

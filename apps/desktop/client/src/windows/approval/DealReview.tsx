@@ -18,7 +18,7 @@ import type { RescueLever } from '@bindings/RescueLever';
 import { WalletError, toWalletError } from '../../lib/contract';
 import { useCounterparties, useDealDisplay } from '../../lib/display';
 import { formatMoney, nowUnix, shortId } from '../../lib/format';
-import { SUMMARY_CHANGED, reasonWords, reconWord, receiptWord, silenceWords } from '../../lib/words';
+import { RESCUE_APPROVE_DOES, RESCUE_REPLAY_NOT_COUNTED, SUMMARY_CHANGED, reasonWords, subscriberName, reconWord, receiptWord, silenceWords } from '../../lib/words';
 import { useEvent, useNow, usePrefersReducedMotion, useQuery } from '../../lib/hooks';
 import { backend } from '../../lib/runtime';
 import { MODULES } from '../../shared/modules';
@@ -52,7 +52,7 @@ const KIND_MODULE: Record<Deal['kind'], Module> = { haggle: 'tables', purchase: 
 
 type Pop = { key: string; anchor: HTMLElement };
 
-const LEVER_NAME: Record<RescueLever, string> = { DISCOUNT_THIS_CYCLE: 'a discount this month', PAUSE: 'a pause', RETRY_AFTER_FIX: 'a retry after they fix their card', DOWNGRADE: 'a cheaper plan' };
+const LEVER_NAME: Record<RescueLever, string> = { DISCOUNT_THIS_CYCLE: 'the discount on this cycle', PAUSE: 'a pause', RETRY_AFTER_FIX: 'a retry after they fix their card', DOWNGRADE: 'a cheaper plan' };
 
 export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSummary | null }) {
   const s = useSession();
@@ -99,8 +99,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   }, [refetch, s.settings]);
 
   const deal = summary?.deal;
-  // A rescue lives on a FAILED renewal: that state is where its decision is, not its end.
-  const terminal = deal ? isTerminal(deal.state) && !(deal.kind === 'rescue' && deal.state === 'FAILED') : false;
+  const terminal = deal ? isTerminal(deal.state) : false;
   useEffect(() => {
     if (!deal || terminal) return;
     const t = setInterval(() => void refetch(), inBrowser ? POLL_IN_BROWSER_MS : POLL_IDLE_MS);
@@ -121,7 +120,8 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
 
   const attn = attention.data?.items.find((i) => i.deal_id === dealId);
   const cp = deal ? lookup(deal.counterparty) : undefined;
-  const cpName = cp?.known ? cp.name : attn?.counterparty ?? (deal ? `key ${shortId(deal.counterparty)}` : '');
+  // A subscriber has no wallet: a rescue names them by their subscription.
+  const cpName = cp?.known ? cp.name : attn?.counterparty ?? (deal ? subscriberName(deal.counterparty) ?? `key ${shortId(deal.counterparty)}` : '');
   const mandate = useMemo(() => {
     if (!deal || !mandates.data) return undefined;
     // A set the wallet now refuses (refusal) is listed but not in force for this deal.
@@ -439,7 +439,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
           </section>
         )}
 
-        {!decided ? <MarketLine deal={d} onInfo={(el) => openPop('mkt', el)} /> : null}
+        {!decided && d.kind !== 'rescue' ? <MarketLine deal={d} onInfo={(el) => openPop('mkt', el)} /> : null}
 
         {summary.unavailable_reason && !terminal && !(g.ownerAccept.visible && phase === 'ready') ? (
           <div className="dr-mkt">
@@ -449,12 +449,14 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
           </div>
         ) : null}
 
-        {handoff?.draft?.type === 'lever' && d.kind === 'rescue' && !terminal ? (
+        {handoff?.draft?.type === 'lever' && d.kind === 'rescue' && g.rescue.visible ? (
           <div className="dr-mkt">
             <span className="k">Your pick</span>
             <span className="t">You picked <b>{LEVER_NAME[handoff.draft.lever]}</b> in The Table. Approving it is still your decision, here.</span>
           </div>
         ) : null}
+
+        {d.kind === 'rescue' && summary.rescue ? <InvoiceCard view={summary.rescue} total={total} sent={!!d.paypal.order} /> : null}
 
         {g.bandSet.visible && !locked ? <BandAdjust deal={d} band={display?.band ?? null} gate={g.bandSet} onDone={refetch} draft={handoff?.draft?.type === 'band' && handoff.deal_id === d.id ? handoff.draft : null} /> : null}
       </main>
@@ -635,7 +637,7 @@ function Actions(p: {
     if (g.openPaypal.visible)
       money.push({ key: 'pp', gate: g.openPaypal, label: wait('open_paypal_in_browser', phase === 'in_browser' ? 'Open PayPal again ↗' : 'Open PayPal in your browser ↗'), kind: phase === 'in_browser' ? 'default' : 'gold', money: true, run: p.onOpen });
     if (g.capture.visible) money.push({ key: 'cap', gate: g.capture, label: wait('deal_capture', p.seller ? word(`Collect ${p.total}`) : word(`Pay ${p.who} ${p.total}`)), kind: 'gold', money: true, run: () => p.onDecide('deal_capture', 'Not paid') });
-    if (g.rescue.visible) money.push({ key: 'res', gate: g.rescue, label: wait('rescue_approve', word(`Approve fix · ${p.total}`)), kind: 'gold', money: true, run: () => p.onDecide('rescue_approve', 'Fix not approved') });
+    if (g.rescue.visible) money.push({ key: 'res', gate: g.rescue, label: wait('rescue_approve', word(`Approve the discount · ${p.total}`)), kind: 'gold', money: true, run: () => p.onDecide('rescue_approve', 'Fix not approved') });
     if (g.releaseHold.visible) money.push({ key: 'rel', gate: g.releaseHold, label: wait('shield_release', word('Unpause')), kind: 'gold', money: true, run: () => p.onDecide('shield_release', 'Still paused') });
   }
   if (phase === 'in_browser' || phase === 'done' || phase === 'stopped' || phase === 'mismatch' || phase === 'block')
@@ -745,6 +747,22 @@ function Hint(p: {
   return null;
 }
 
+// ---- the rescue invoice ------------------------------------------------------------------------
+
+/** The invoice's fixed wording, as the wallet will send it (Rust table-core invoice_text): the owner
+ *  reads exactly what PayPal shows the subscriber. No agent or subscriber text is in it. */
+function InvoiceCard({ view, total, sent }: { view: NonNullable<ApprovalSummary['rescue']>; total: string; sent: boolean }) {
+  return (
+    <section className="dr-inv" aria-label="The invoice">
+      <h2 className="dr-sec">{sent ? 'The invoice PayPal sent' : 'The invoice PayPal will send'} <span className="dim">· to {view.recipient}</span></h2>
+      <div className="dr-inv-b">
+        <div className="ln"><span className="it">{view.text.item}</span><b className="money">{total}</b></div>
+        <p className="nt">{view.text.note}</p>
+      </div>
+    </section>
+  );
+}
+
 // ---- words -----------------------------------------------------------------------------------
 
 function verb(d: Deal, ownerAccept: boolean): string {
@@ -758,7 +776,7 @@ function verb(d: Deal, ownerAccept: boolean): string {
 
 function clockLabelFor(d: Deal, phase: Phase): string {
   if (phase === 'hold') return 'Request ends in';
-  if (d.kind === 'rescue') return 'PayPal retries in';
+  if (d.kind === 'rescue') return d.state === 'AGREED' ? 'PayPal retries in' : 'Invoice open for';
   switch (d.state) {
     case 'AWAITING_APPROVAL': return 'Time to approve on PayPal';
     case 'AUTHORIZED': return 'Hold releases in';
@@ -809,7 +827,7 @@ function noteFor(phase: Phase, g: Gates, d: Deal, total: string, cp: string): { 
   if (g.releaseHold.visible) return { short: 'Unpausing lets the request go on. It doesn’t pay anything.', full: <p className="pop-p">Unpausing turns “Paused for you” into “Check with you”. It doesn’t pay: you still approve the payment itself afterwards.</p> };
   if (g.capture.visible) return { short: d.side === 'seller' ? `Collecting takes the ${total} on hold. Releasing cancels it.` : `Paying sends the ${total} on hold to ${cp}. Releasing cancels it, nothing is paid.`, full: <p className="pop-p">{d.side === 'seller' ? `Collecting takes the ${total} PayPal is holding for you.` : `Paying sends the ${total} PayPal is holding to ${cp}.`} Releasing cancels the hold and nothing is paid. If nobody decides, the hold releases by itself after 3 days.</p> };
   if (g.countersign.visible) return { short: d.state === 'APPROVED' ? 'Approving puts the money on hold. Paying is a separate step.' : 'Approving creates the PayPal order. No money moves yet.', full: <p className="pop-p">{d.state === 'APPROVED' ? 'Approving puts the money the buyer approved on hold at PayPal. Collecting it comes back to this window as its own decision.' : 'Approving creates the PayPal order from what you agreed. No money moves until the buyer approves on PayPal’s page.'}</p> };
-  if (g.rescue.visible) return { short: d.mode === 'replay' ? 'A replay: nothing real is invoiced.' : 'Sends one PayPal invoice to this one subscriber.', full: <p className="pop-p">{d.mode === 'replay' ? 'This is a replay of a recorded failure: approving runs the recorded steps and nothing real is invoiced.' : 'Approving the fix sends one PayPal invoice to this subscriber, from a fixed template.'}</p> };
+  if (g.rescue.visible) return { short: d.mode === 'replay' ? 'Sends one real invoice. A replayed failure is never counted.' : 'Sends one PayPal invoice to this one subscriber. Nothing is charged.', full: <><p className="pop-p">{RESCUE_APPROVE_DOES}</p>{d.mode === 'replay' ? <p className="pop-p">{RESCUE_REPLAY_NOT_COUNTED}</p> : null}</> };
   return null;
 }
 
@@ -832,11 +850,14 @@ function outcomeText(cmd: DecisionCmd, deal: Deal, cp: string): string {
     case 'shield_release':
       return `Unpaused (${deal.shield === 'ASK' ? 'now checks with you' : st.toLowerCase()}). Nothing was paid.`;
     case 'rescue_approve':
-      return `Fix approved (${st.toLowerCase()}).`;
+      return deal.state === 'AWAITING_APPROVAL'
+        ? 'Approved. PayPal sent the invoice to the subscriber. Nothing is paid until they pay it.'
+        : `Approved. PayPal is making the invoice (${st.toLowerCase()}); nothing more is sent until the wallet knows it was made.`;
   }
 }
 
 function waitingTitle(d: Deal, cp: string): string {
+  if (d.kind === 'rescue') return d.state === 'SETTLING' ? 'PayPal is making the invoice' : 'The invoice is with the subscriber';
   if (d.state === 'AGREED') return `Agreed · waiting for ${cp}’s payment request`;
   if (d.state === 'SETTLING') return `${cp}’s wallet is making the PayPal order`;
   if (d.side === 'seller' && d.state === 'AWAITING_APPROVAL') return 'Waiting for the buyer to approve on PayPal';

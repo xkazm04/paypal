@@ -21,7 +21,8 @@ describe('money states', () => {
     expect(bucketOf(deal('a', { state: 'REFUSED' }))).toBe('stopped');
     expect(bucketOf(deal('a', { state: 'NEGOTIATING' }))).toBe('motion');
     expect(bucketOf(deal('a', { state: 'AGREED', shield: 'HOLD' }))).toBe('motion');
-    expect(bucketOf(deal('a', { state: 'FAILED', kind: 'rescue' }))).toBe('motion');
+    expect(bucketOf(deal('a', { state: 'AGREED', kind: 'rescue' }))).toBe('motion');
+    expect(bucketOf(deal('a', { state: 'FAILED', kind: 'rescue' }))).toBe('stopped');
   });
   it('never adds states, directions or currencies together', () => {
     const s = sums([

@@ -5,6 +5,7 @@ import type { Deal } from '@bindings/Deal';
 import type { CounterpartyDisplay, DealDisplay } from './pending';
 import { shortId } from './format';
 import { useQuery } from './hooks';
+import { subscriberName } from './words';
 
 export function fallbackDisplay(deal: Deal): DealDisplay {
   return { deal_id: deal.id, label: shortId(deal.id), title: deal.terms.item_ref, deadline: null, on_silence: null, band: null };
@@ -23,7 +24,7 @@ export function useCounterparties(): (key: string) => { name: string; house: boo
     const map = new Map((q.data ?? []).map((c) => [c.key_id, c]));
     return (key: string) => {
       const c = map.get(key);
-      return c ? { name: c.house ? houseName(c.display_name) : c.display_name, house: c.house, known: true, entry: c } : { name: shortId(key), house: false, known: false };
+      return c ? { name: c.house ? houseName(c.display_name) : c.display_name, house: c.house, known: true, entry: c } : { name: subscriberName(key) ?? shortId(key), house: false, known: false };
     };
   }, [q.data]);
 }

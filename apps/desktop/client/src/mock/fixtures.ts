@@ -23,8 +23,10 @@ import type { AuditRow } from '@bindings/AuditRow';
 import type { CounterpartyNote } from '@bindings/CounterpartyNote';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import type { CounterpartyDisplay, DealDisplay, TranscriptStep } from '../lib/pending';
-import { MONEY_CHECK_SILENCE } from '../lib/words';
+import { MONEY_CHECK_SILENCE, RESCUE_SENT_SILENCE, RESCUE_SILENCE } from '../lib/words';
 import type { MockEnvelope } from './exposure';
+import type { RescueView } from '@bindings/RescueView';
+import { invoiceText, proposeDiscount } from './rescue';
 
 export const USD: Currency = 'USD';
 export const usd = (dollars: number): Money => ({ minor: Math.round(dollars * 100), currency: USD });
@@ -95,6 +97,8 @@ export type MockState = {
   categories?: Record<string, Category>;
   /** The newest signed wallet limits (T14); null = none signed. `forged` previews a row that fails verification. */
   envelope?: MockEnvelope | null;
+  /** Each rescue deal's failed renewal and fix, as rescue_book and approval_summary read them. */
+  rescue?: Record<string, RescueView>;
 };
 
 // One mandate per role, as Rust requires: a band clause refuses every item outside it, a mandate
@@ -265,16 +269,19 @@ export function buildMockState(now: number): MockState {
   });
 
   // --- Rescue -------------------------------------------------------------------------------
+  // As Rust (table-app rescue.rs): a failed renewal waits at AGREED with one fix inside the rescue
+  // rules; the owner's approval makes and sends one invoice; PAID read back from PayPal and
+  // receipted is the only money counted. A replayed failure is invoiced for real but never counts.
   add({
-    label: 'D-0188', title: 'Care plan · subscriber S-14', kind: 'rescue', side: 'seller', cp: KEY.s14, item: 'care-plan', price: 9.6, state: 'FAILED', mode: 'replay', mandate: MANDATE_R3, version: 1,
-    deadline: now + 4 * 86400, silence: 'nothing is sent · PayPal retries the payment by itself', at: [now - 52 * 60, now - 50 * 60],
-    attention: { kind: 'gate', module: 'rescue', headline: 'Approve rescue lever $9.60', counterparty: 'subscriber S-14', clause: null, urgency: 'calm', actions: ['review', 'let_lapse', 'open_in_table'] },
+    label: 'D-0188', title: 'Care plan · subscriber S-14', kind: 'rescue', side: 'seller', cp: KEY.s14, item: 'care-plan', price: 9.6, state: 'AGREED', mode: 'replay', mandate: MANDATE_R3, version: 1,
+    deadline: now + 4 * 86400, silence: RESCUE_SILENCE, at: [now - 52 * 60, now - 50 * 60],
+    attention: { kind: 'gate', module: 'rescue', headline: 'Approve rescue lever $9.60', counterparty: null, clause: null, urgency: 'calm', actions: ['review', 'withdraw', 'let_lapse', 'snooze30', 'open_in_table'] },
   });
 
   add({ label: 'D-0182', title: 'Care plan · subscriber S-22', kind: 'rescue', side: 'seller', cp: KEY.s22, item: 'care-plan', price: 12, state: 'AWAITING_APPROVAL', mandate: MANDATE_R3, version: 1,
-    paypal: { order: 'INV2-3PX9' }, deadline: now + 6 * 86400, at: [back(0.62), back(0.6)], silence: 'the invoice stays open until it is due · nothing is charged unless the subscriber pays' });
-  add({ label: 'D-0178', title: 'Care plan · subscriber S-07', kind: 'rescue', side: 'seller', cp: KEY.s07, item: 'care-plan', price: 9, state: 'CAPTURED', mandate: MANDATE_R3, version: 1,
-    receipt: 'PAYPAL_VERIFIED', reconciliation: 'matched', paypal: { order: 'INV2-8K4R', capture: '2RC7' }, at: [back(0.8), back(0.52)] });
+    paypal: { order: 'INV2-3PX9' }, decided: { type: 'human', at: now - 2 * 86400 }, deadline: now + 28 * 86400, at: [back(0.62), back(0.6)], silence: RESCUE_SENT_SILENCE });
+  add({ label: 'D-0178', title: 'Care plan · subscriber S-07', kind: 'rescue', side: 'seller', cp: KEY.s07, item: 'care-plan', price: 9, state: 'RECEIPTED', mandate: MANDATE_R3, version: 1,
+    receipt: 'PAYPAL_VERIFIED', paypal: { order: 'INV2-8K4R' }, decided: { type: 'human', at: back(0.8) }, at: [back(0.8), back(0.52)] });
 
   // --- A payment being checked with PayPal (T10) --------------------------------------------
   // The seller's collection went out on its signed rule; PayPal's answer was lost and PayPal could
@@ -337,9 +344,10 @@ export function buildMockState(now: number): MockState {
     ], 12),
     mandate(MANDATE_R3, 1, 'rescue', [
       { type: 'roles', roles: ['rescue'] },
-      { type: 'counterparties', rule: { type: 'paired' } },
-      { type: 'per_deal', kind: 'rescue', max_amount: usd(12), categories: ['service'] },
+      { type: 'counterparties', rule: { type: 'subscribers' } },
+      { type: 'per_deal', kind: 'rescue', max_amount: usd(50), categories: ['service'] },
       ...common(['second-screen-biz'], 120),
+      { type: 'lever', levers: ['DISCOUNT_THIS_CYCLE'], max_discount_bp: 2000, max_discount: usd(5) },
     ], 12),
   ];
   const mandateSlots: Record<string, AgentSlot> = {
@@ -409,7 +417,26 @@ export function buildMockState(now: number): MockState {
   };
   const categories = Object.fromEntries(deals.flatMap((d) => (CATEGORY[d.display.label] ? [[d.deal.id, CATEGORY[d.display.label]!]] : [])));
 
+  // Each renewal's fix, from the rescue rules (20% off, at most $5.00 a cycle): $12.00 → $9.60,
+  // $15.00 → $12.00, $11.25 → $9.00. S-07's was reported by PayPal and paid: the money counted.
+  const lever = { max_discount_bp: 2000, max_discount: usd(5) };
+  const rescue: Record<string, RescueView> = {};
+  for (const [label, cycle, source, email, retry, counted] of [
+    ['D-0188', 12, 'replay', 'subscriber14@example.com', now + 4 * 86400, false],
+    ['D-0182', 15, 'paypal', 'subscriber22@example.com', null, false],
+    ['D-0178', 11.25, 'paypal', 'subscriber07@example.com', null, true],
+  ] as const) {
+    const d = deals.find((x) => x.display.label === label);
+    const offer = proposeDiscount(usd(cycle), lever);
+    if (!d || !offer) continue;
+    rescue[d.deal.id] = {
+      deal_id: d.deal.id, source, offer, text: invoiceText(offer), failed_payments: 1, next_retry_at: retry,
+      recipient: `${email.slice(0, 1)}•••@example.com`, invoice: d.deal.paypal.order, counted,
+    };
+  }
+
   return {
+    rescue,
     categories,
     notes,
     audit,
@@ -541,14 +568,16 @@ export function buildHistory(now: number): HistoryStep[] {
   purchase(D('D-0186'), 3, 10, 2);
   on(D('D-0186'), 3, '10:11', 'captured', 'CAPTURED', RULE6, call('capture'));
   // Renewals: a failed one waiting for a fix, an invoice sent, and one the subscriber paid.
-  on(D('D-0178'), 0, '13:00', 'failed', 'FAILED');
+  on(D('D-0178'), 0, '13:00', 'renewal_failed', 'AGREED');
   on(D('D-0178'), 0, '13:20', 'countersigned', null, OWNER);
-  on(D('D-0178'), 0, '13:21', 'pay_link_sent', 'AWAITING_APPROVAL');
-  on(D('D-0178'), 1, '10:02', 'captured', 'CAPTURED');
-  on(D('D-0188'), 1, '08:00', 'failed', 'FAILED');
-  on(D('D-0182'), 2, '08:30', 'failed', 'FAILED');
+  on(D('D-0178'), 0, '13:20', 'invoice_created', 'SETTLING', OWNER, call('create_invoice'));
+  on(D('D-0178'), 0, '13:21', 'invoice_sent', 'AWAITING_APPROVAL', OWNER, call('send_invoice'));
+  on(D('D-0178'), 1, '10:02', 'invoice_paid', 'RECEIPTED');
+  on(D('D-0188'), 1, '08:00', 'renewal_failed', 'AGREED');
+  on(D('D-0182'), 2, '08:30', 'renewal_failed', 'AGREED');
   on(D('D-0182'), 2, '08:45', 'countersigned', null, OWNER);
-  on(D('D-0182'), 2, '08:46', 'pay_link_sent', 'AWAITING_APPROVAL');
+  on(D('D-0182'), 2, '08:45', 'invoice_created', 'SETTLING', OWNER, call('create_invoice'));
+  on(D('D-0182'), 2, '08:46', 'invoice_sent', 'AWAITING_APPROVAL', OWNER, call('send_invoice'));
   // Recent: what is still in play.
   ago(D('Q-0207'), 50 * 60, 'created');
   ago(D('Q-0207'), 50 * 60 - 30, 'offer_sent', 'LISTED', AGENT);
