@@ -38,6 +38,10 @@ const OPENING = 2;
 const MIDWAY = 6;
 const HER_LAST = 10;
 const ALL_STEPS = Number.MAX_SAFE_INTEGER;
+/** The mismatch deal while the haggle plays: Dan's $329 counter, not yet accepted. Agreed, it
+ *  would sit on her wallet limits (most on hold at once) and the haggle's review could not go
+ *  ahead, which is not this chapter's story. */
+const COUNTERED = 3;
 /** The mismatch deal before the seller's payment request: both sides accepted $329. */
 const ACCEPTED = 4;
 
@@ -47,7 +51,7 @@ export const BEATS: readonly Beat[] = [
     caption: 'Maya runs a small monitor shop. Her AI agents haggle, buy and sell for her. Three windows: The Table, the small Tumbler on her desk, and the approval window, where only she decides.',
     do: [
       { do: 'rewind', deal: HAGGLE, upTo: OPENING },
-      { do: 'rewind', deal: MISMATCH, upTo: ACCEPTED, interim: { state: 'AGREED', shield: 'CLEAR' } },
+      { do: 'rewind', deal: MISMATCH, upTo: COUNTERED, interim: { state: 'NEGOTIATING', shield: 'CLEAR' } },
       { do: 'main', open: true, route: '' },
       ...h.undock(),
     ],
@@ -74,7 +78,7 @@ export const BEATS: readonly Beat[] = [
   },
   {
     id: 'haggle-card', chapter: 'haggle', at: 39, focus: 'tumbler',
-    caption: 'One click on the notification opens the card. The Tumbler can withdraw, snooze or open the review. It has no pay button.',
+    caption: 'One click on the notification opens the card. From here she can withdraw or open the review. The Tumbler has no pay button.',
     do: h.notificationClicked(HAGGLE),
   },
   {
@@ -100,7 +104,13 @@ export const BEATS: readonly Beat[] = [
   {
     id: 'mismatch-agreed', chapter: 'mismatch', at: 81, focus: 'main',
     caption: 'Another deal: Maya and Dan agreed on $329 for a QHD monitor. Now Dan’s side sends its payment request.',
-    do: [{ do: 'main', open: true, route: '#d=D-0199' }],
+    // the Tumbler goes back to its puck: the lapsed haggle's card is done, and the held request
+    // should arrive on a quiet desk, not behind another deal's card
+    do: [
+      { do: 'rewind', deal: MISMATCH, upTo: ACCEPTED, interim: { state: 'AGREED', shield: 'CLEAR' } },
+      { do: 'main', open: true, route: '#d=D-0199' },
+      ...h.undock(),
+    ],
   },
   {
     id: 'mismatch-arrives', chapter: 'mismatch', at: 88, focus: 'desk',
@@ -109,7 +119,7 @@ export const BEATS: readonly Beat[] = [
   },
   {
     id: 'mismatch-card', chapter: 'mismatch', at: 96, focus: 'tumbler',
-    caption: 'A held request has no pay button anywhere. She can withdraw it, or look closer.',
+    caption: 'A held request has no pay button anywhere. The Tumbler only offers to show her why.',
     do: h.notificationClicked(MISMATCH),
   },
   {
