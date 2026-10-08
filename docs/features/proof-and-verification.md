@@ -8,7 +8,8 @@ offline: with the `table-verify` command-line tool, or in the wallet's own Book 
 proof file". The same verifier runs in CI over a golden deal. CI also runs a seeded
 hostile-agent gauntlet and an acceptance matrix that maps every design acceptance ID to the tests
 that carry it. Together these are the "safety dossier" a judge, an accountant or the other side of
-a deal can read without trusting the wallet's screens.
+a deal can read without trusting the wallet's screens. The gauntlet's whole-ledger check also runs
+inside the app, on the owner's own ledger, as "Your safety record".
 
 ## What the owner sees
 
@@ -30,6 +31,21 @@ a deal can read without trusting the wallet's screens.
   checking a file compares against.
 - **Book › Audit trail:** if the chain fails its check, the sheet says so in plain words and
   offers "Check again" (`AUDIT_BROKEN`). It shows no partial history.
+- **main window, "Your safety record"** (`windows/main/safety/SafetySheet.tsx`), opened from the
+  Book head or Ctrl K. A verdict ("Nothing moved without your say-so.") and up to three
+  sentences, for example "131 records, unbroken. PayPal was asked to move money 24 times: … Your
+  agents were refused 5 times; PayPal was never asked for any of them." The headline counts
+  money steps at PayPal ("PayPal was asked to move money N times"), never "money moved". Below it:
+  a bar of who decided each money step (you, a rule you signed, the house seller's rules, your
+  shop rules after the buyer approved, a safe default) in the Rewind's colours, a scope line
+  ("All 12 deals checked." or "Checked the latest 1,000 of …") and "Check again". Details adds
+  the newest record's fingerprint in groups of 8, deals checked, message histories verified,
+  refused deals with the PayPal calls on them, refusals per kind, and each finding's exact text.
+  - Any finding turns the sheet red: "Something on record broke your safety rules." (or "N
+    things …"), "Look at this now", each finding in plain words with the deal's title and "Open
+    deal ›". At most 50 findings are listed; the total is always shown.
+  - A broken chain reads "Your record doesn't check out.", counts nothing, and shows the repair
+    steps from `AUDIT_BROKEN`.
 
 ## How it works
 
@@ -46,7 +62,7 @@ a deal can read without trusting the wallet's screens.
    operations and calls. No v2 field carries counterparty free text. The evidence commitment uses
    the file's own format string as its domain, so a v2 file relabelled v1 fails.
 3. **Check.** `table_verify::verify_bundle` (`crates/table-verify/src/lib.rs`, `v2.rs`) runs
-   15 checks with stable ids:
+   16 checks with stable ids:
 
    | id | what it checks |
    | --- | --- |
@@ -63,12 +79,14 @@ a deal can read without trusting the wallet's screens.
    | `group` | at most one agreed table in a group, the winner; withdrawals follow the win |
    | `shield` | no non-void money step while BLOCK or an unreleased HOLD covers these terms |
    | `house_record` | kept house heads verify against the pin and never shrink |
+   | `market` | the market price the deal was agreed on computes again: the digest in the AGREED row matches a `market.observed` record whose quartiles recompute from its comparables, for the product the signed mandate binds to the item; reports "X USD is the Nth percentile of K market prices" |
    | `permissions` | the permissions fingerprint (in the app: same or different version) |
    | `evidence` | the evidence head is signed by the deal's agent |
 
    Each `Check` has `ok`, `checked` and `applies`. `Report::verified()` holds when every check
    that applies passed (`ok || !applies`). A check with nothing to check reads "not checked" and
-   makes no claim. A check that applies but cannot be made, such as an order record saved before
+   makes no claim. `market` reads "not checked" when the deal is not agreed, had no market price
+   at agreement, was agreed on an older record without comparables, or the file is v1. A check that applies but cannot be made, such as an order record saved before
    bindings were stored, holds the file back.
 4. **In the app.** `proof_check` (main, answered by the shell) reads the file through a native open
    dialog. `table_client::check_proof_file` caps it at `PROOF_FILE_LIMIT` (8 MiB), parses it, runs
@@ -93,7 +111,16 @@ a deal can read without trusting the wallet's screens.
      `SafeDefault` only voids. `Policy` acts only under clause 6 on a haggle. `Human` acts only
      after an `owner.decision` row. Seller and house mandates act seller-side only, and only
      after APPROVED. Invoices run only on `Human` for a rescue. No stored call contains a note or
-     the session tag. `verify_bundle` passes.
+     the session tag. Every one of the 13 verifier checks in `VERIFIER_CHECKS` that applies
+     passes (`mandate` through `house_record`, plus `market`; `format`, `permissions` and
+     `evidence` are left out because the slices are unsigned).
+   - **The predicate is a library.** It lives in `crates/table-verify/src/safety.rs` (pure):
+     `money_kind`, `unlawful`, `deal_violations`, `verifier_violations`, `VERIFIER_CHECKS` and
+     `ledger_violations(chain, &[DealExport], needles)`, with findings as `Violation { deal, kind,
+     detail }` (`ViolationKind`: authority, untracked_call, counterparty_text,
+     refused_deal_called, verifier_check, chain_broken, evidence_unreadable). `tally()` counts
+     money steps by authority, `intent.refused` codes, and refused deals with their PayPal calls.
+     `gauntlet.rs` keeps thin IO wrappers around it; the app runs the same predicate (step 9).
 
    CI runs 64 fixed seeds (`CI_SESSIONS`). `TABLE_GAUNTLET_SESSIONS=n` runs more, and
    `TABLE_GAUNTLET_SEED` replays one.
@@ -105,6 +132,20 @@ a deal can read without trusting the wallet's screens.
    `TABLE_EVIDENCE_DIR` set, so the H6 golden run writes `h6-house-deal-buyer.tableproof` and the
    gauntlet writes its summary. CI then writes the acceptance matrix into the job summary, runs
    `table-verify` over every `.tableproof`, and uploads the `safety-dossier` artifact.
+9. **"Your safety record" in the app.** `safety_record` (main window, read, answered by the
+   runtime, `crates/table-runtime/src/safety.rs`) verifies the audit chain once. A broken chain
+   answers `intact: false`, no head, one `chain_broken` finding and no counts. Otherwise
+   `Ledger::export_proofs(limit, owner, at, house)` (`crates/table-ledger/src/bundle.rs`) returns a
+   `LedgerExport { head, total, deals }`: the newest `SAFETY_DEALS` (1000) deals, each exported as
+   `export_proof` would (transcript re-verified) or as `(id, error)` when it cannot be. The runtime
+   runs `ledger_violations` and `tally()` over them, with no note needles, and answers
+   `SafetyRecord { checked_at, records, head, intact, deals_total, deals_checked,
+   transcripts_verified, money, refusals, refusal_families, refused_deals, refused_deal_calls,
+   violations, violations_total }`. `SafetyMoney` counts owner, signed_rule, shop_rules,
+   house_rules, safe_default and safe_default_voids. `SafetyRefusalFamily` groups the closed
+   refusal codes into your_rules, scam_check, out_of_turn, not_allowed, unusable and older (a row
+   with no code). At most `SAFETY_VIOLATIONS` (50) findings are sent. It writes no row and makes no
+   call. The client (`windows/main/safety/model.ts`) only puts the numbers into sentences.
 
 ## Safety properties
 
@@ -118,6 +159,10 @@ a deal can read without trusting the wallet's screens.
 | The in-app check is the CLI check | both call `table_verify::verify_bundle`; `check_proof_file` is pure |
 | No counterparty prose is interpreted | the verifier never prints or parses NOTE text; v2 adds no free-text field |
 | Hostile agents leave only lawful money rows | gauntlet predicate, plus mutation tests proving the predicate catches misfits |
+| The app's safety record is the gauntlet's check | both call `table_verify::safety::ledger_violations` |
+| The safety record never shows a partial count over a broken chain | runtime `safety_record` returns `intact: false` with no counts |
+| The safety record is read-only and carries no counterparty text | main-only read; findings name steps, rules and paths; no note needles |
+| A forged market certificate is caught | `market` check, also in `VERIFIER_CHECKS` |
 
 ## Where it lives
 
@@ -126,10 +171,13 @@ a deal can read without trusting the wallet's screens.
 | Format | `crates/table-proto/src/proof.rs` | `ProofBundle`, `PROOF_FORMAT`, `PROOF_FORMAT_V1`, `ProofGroup`, `ProofHouse` |
 | Export | `crates/table-ledger/src/bundle.rs`, `crates/table-runtime/src/proof.rs` | `Ledger::export_proof`, `Runtime::sign_proof` |
 | Verifier | `crates/table-verify/src/lib.rs`, `v2.rs`, `house.rs`, `main.rs` | `verify_bundle`, `Report::verified`, `Check`, `verify_house`, CLI `table-verify` |
+| Safety predicate | `crates/table-verify/src/safety.rs` | `ledger_violations`, `deal_violations`, `verifier_violations`, `VERIFIER_CHECKS`, `Violation`, `ViolationKind`, `tally`, `Tally`, `Authority`, `DealExport` |
+| Safety record | `crates/table-ledger/src/bundle.rs`, `crates/table-runtime/src/safety.rs`, `crates/table-client/src/lib.rs` | `Ledger::export_proofs`, `LedgerExport`, `SafetyRecord`, `SafetyMoney`, `SafetyRefusalFamily`, `SafetyViolation`, `SafetyViolationKind`, `SAFETY_DEALS`, `SAFETY_VIOLATIONS` |
 | Acceptance | `crates/table-verify/src/acceptance.rs`, `acceptance_main.rs`, `acceptance-ids.txt` | bin `acceptance-matrix` |
 | Gauntlet | `crates/table-app/tests/gauntlet.rs` | `h1_h2_f1_s2_hostile_agent_gauntlet_leaves_only_lawful_money_rows` |
 | IPC glue | `crates/table-client/src/lib.rs` | `check_proof_file`, `PROOF_FILE_LIMIT`, `ProofReport`, `ProofCheckLine` |
 | Client | `windows/main/deal/Evidence.tsx`, `windows/main/modules/book/ProofCheck.tsx`, `shared/ownerKey.tsx`, `lib/words.ts` | Save signed proof, Check a proof file, owner key |
+| Client | `windows/main/safety/model.ts`, `SafetySheet.tsx`, `safety.css`; `mock/safety.ts` | `safetyWords`, `scopeWords`, `authorityParts`, `SafetySheet` (lazy) |
 | CI | `.github/workflows/ci.yml` | safety dossier steps |
 
 IPC commands (from `crates/table-client/src/authority_table.rs`):
@@ -139,6 +187,7 @@ IPC commands (from `crates/table-client/src/authority_table.rs`):
 | `deal_export_proof` | main, approval | read | runtime |
 | `proof_check` | main | read | shell |
 | `audit_page` | main | read | runtime |
+| `safety_record` | main | read | runtime |
 | `owner_facts` (carries `owner_key_id`) | main, approval | read | runtime |
 
 ## Tests that pin it
@@ -149,7 +198,19 @@ IPC commands (from `crates/table-client/src/authority_table.rs`):
   `two_wallet_actors_negotiate_and_settle_through_in_process_relay_without_buyer_api_access`
   exports both sides and forges bundles that must each fail their named check.
   `h6_fresh_wallet_pairs_house_and_closes_through_in_process_relay_with_mock_paypal` is the golden run.
+- `crates/table-runtime/src/proof_tests.rs`:
+  `a_fair_price_certificate_is_committed_at_agreement_and_computed_again_offline` (three
+  forgeries each fail `market`), `an_older_market_record_still_verifies_and_reads_not_recheckable`.
 - `crates/table-runtime/src/tests.rs`: `assert_proof_verifies`, used by forecast, ladder and other tests.
+- `crates/table-verify/src/safety.rs`: `money_kind_names_every_money_post_and_reads_nothing_else`,
+  `a_broken_chain_and_an_unexportable_deal_are_named`.
+- `crates/table-runtime/src/safety_tests.rs`:
+  `the_safety_record_counts_lawful_money_steps_by_authority_and_finds_nothing`,
+  `a_hold_left_alone_counts_as_a_safe_default_that_only_cancelled`,
+  `a_refused_deal_has_zero_paypal_calls_and_its_refusal_is_counted_as_your_rules`,
+  `an_authority_less_capture_is_named_with_its_deal`,
+  `the_safety_record_is_main_only_and_never_carries_their_words`;
+  `crates/table-runtime/src/safety.rs`: `every_refusal_code_has_a_family_and_a_row_without_one_is_older`.
 - `crates/table-app/tests/gauntlet.rs`: `h1_h2_f1_s2_hostile_agent_gauntlet_leaves_only_lawful_money_rows`,
   `the_predicate_names_an_authority_less_capture_and_every_misfit_authority`,
   `the_predicate_names_counterparty_text_at_paypal_and_calls_on_a_refused_deal`,
@@ -158,7 +219,8 @@ IPC commands (from `crates/table-client/src/authority_table.rs`):
   `the_list_holds_every_section_13_and_window_id_and_the_never_cut_set`,
   `every_listed_id_is_stated_in_the_design_documents`.
 - `crates/table-verify/src/lib.rs`: `rescue_invoices_are_money_steps_and_the_search_is_a_read`.
-- Client: `windows/main/modules/book/proofV2.test.tsx`, `shared/ownerKey.test.tsx`.
+- Client: `windows/main/modules/book/proofV2.test.tsx`, `book/proofMarket.test.tsx`,
+  `shared/ownerKey.test.tsx`, `windows/main/safety/model.test.ts`, `safety/view.test.tsx`.
 
 ## Known gaps and UNVERIFIED
 
@@ -183,6 +245,13 @@ IPC commands (from `crates/table-client/src/authority_table.rs`):
 - The gauntlet emulates the approval window inside `table-app` (no runtime-level gauntlet with
   paused agents or the resolver). The dossier carries the buyer's file only. CI runs 64 seeds,
   not thousands, and the dossier steps have not yet run on GitHub.
+- "Your safety record" checks the newest 1000 deals only (the scope line says so). It runs
+  without note needles, so it cannot yet name a stored call that carries an inbound NOTE's text
+  (the gauntlet can). It is not yet run on the house wallet or written as a whole-ledger dossier
+  file in CI, and the Rewind has no tick linking to it.
+- `market` reads "not checked" for a deal agreed before this build or on an older market record;
+  the commitment sits in the AGREED transition row, not in the signed ACCEPT. See
+  [tables-haggling.md](./tables-haggling.md) for the certificate's UNVERIFIED items.
 - The acceptance matrix (STATUS, 2026-10-08) covers 27 of 40 IDs, all 17 never-cut. Still without
   a Rust test: F5, M1, M2, C2, R2, U1–U4, W1, W2, W7, W9.
 
@@ -195,4 +264,6 @@ IPC commands (from `crates/table-client/src/authority_table.rs`):
 - [ipc-and-authority.md](./ipc-and-authority.md): the permissions fingerprint.
 - Design: [the-table.html](../design/the-table.html) §9 (trust model), §13 (acceptance);
   [window-duality.md](../design/window-duality.md) §7; [STATUS.md](../build/STATUS.md)
-  "T1 proof bundle", "Proof bundle v2", "Hostile-agent gauntlet and acceptance matrix".
+  "T1 proof bundle", "Proof bundle v2", "Hostile-agent gauntlet and acceptance matrix",
+  "Your safety record" (the whole-ledger check in the app), "Fair-price certificate on every
+  receipt".

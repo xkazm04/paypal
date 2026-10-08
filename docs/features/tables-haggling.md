@@ -19,6 +19,9 @@ market prices fresh under a signed rule.
   stands" bar: your offers, their offers, your limit. Closed tables fold into simple rows.
 - "Typical price" from market prices (`marketWords()`: typical / a bit above / well above), with
   "A comparison with similar listings, not a recommendation."
+- On the deal's Proof tab (Typical price card and sheet) and in the Book, **Price vs market**
+  (`FAIR_PRICE_NAME`): "$212.00 is the 62nd percentile of 13 market prices · re-checked", "Older
+  market record, not re-checkable", or in red "Market record doesn't add up" (`fairPriceWords()`).
 - Their latest note only through the quarantine chip (`modules/shield/NoteChip.tsx`), main window
   only, never acted on.
 - **Detailed** view: table tabs and a vertical price ladder (`modules/tables/ladder.ts`). Dragging
@@ -111,7 +114,38 @@ flowchart LR
    audit row before fetching, and stores the answer only if the deal, terms, rules and currency
    still match (`crates/table-runtime/src/market_watch.rs`). A seller deal is watched only up to
    AGREED, a buyer deal until capture. The rule grants no money authority: `check()` never reads
-   it. A one-off paid lookup is `market_refresh` (approval window, privileged).
+   it. A one-off paid lookup is `market_refresh` (approval window, privileged); it refuses a
+   product other than the one the deal's rules bind to its item before any market call.
+9. **Fair-price certificate.** Market evidence is a record anyone can compute again:
+   - **Raw-bytes hash.** `table_market::Client::comparables` POSTs `/v1/similar` through
+     `table_paypal::http::Transport::send_raw`, which returns `RawResponse { status, bytes }`, and
+     takes `H256::digest` of the bytes before parsing. The trait's default `send_raw` refuses, so a
+     transport that holds only parsed bodies gives no market record.
+   - **Comparables.** `MarketRef` gains an optional `certificate: MarketCertificate { product_id,
+     raw_sha256, match_kind: Similar, currency, comparables }` (`crates/table-core/src/market.rs`);
+     a record without one keeps its v1 bytes. The comparables are sorted, 1 to
+     `MAX_MARKET_COMPARABLES` (30), each a price in minor units with the market's product id only
+     when it is well formed. No titles or merchant text are kept.
+   - **Quartiles recomputed.** `validate()` recomputes p25, median and p75 from the comparables
+     (`from_comparables`, exact integer equality, same currency, `raw_sha256 == response_hash`)
+     on every read and store. `percentile` is integer arithmetic: the share priced below, an equal
+     price counting as half, rounded half up.
+   - **Bound to the item.** `MandatePayload::market_product_for(item)` names the product a record
+     may price: the product the owner's "Keep prices fresh" rule binds to the item, else the item
+     itself when it is a well-formed product id. `Ledger::store_market_reference` refuses a record
+     for another product (`Conflict`, no row); the runtime's `MarketBinding` carries
+     `product_id` and stores only records with a certificate.
+   - **Committed at agreement.** The `market.observed` audit row carries the whole record and its
+     `digest()` (commitment over "table.market.v2", the read time and the certificate) inside the
+     hash chain. The `deal.transition` row to AGREED carries `market`, a `MarketCommitment` (V2
+     digest, or V1 response hash for an older record) to the record the deal was agreed on. There
+     is no wire change. `DealEvidence.fair_price` (`FairPrice { state, committed, percentile,
+     prices, retrieved_at }`, state rechecked / not_recheckable / broken) is recomputed from those
+     rows, and the verifier's `market` check repeats it offline (see
+     [proof-and-verification.md](./proof-and-verification.md)).
+   - **The agent sees the band only.** The `market_reference` answer drops the certificate
+     (`crates/table-app/src/agent.rs`): quartiles and freshness, never the comparables or the
+     market's product ids.
 
 ## Safety properties
 
@@ -127,6 +161,9 @@ flowchart LR
   `deals_group_agrees_once` trigger in `0012_deal_groups.sql`.
 - **Their words stay data.** The projection carries only typed prices and phases; a counterparty
   NOTE never reaches the agent or the Tumbler.
+- **A market price can be checked again.** The quartiles are recomputed from the kept
+  comparables on every read; a record for a product the signed rules do not bind to the item is
+  refused; the record a deal was agreed on is committed in the hash-chained AGREED row.
 - **Price checks are bounded and audited first**; the allowance survives re-signing and crashes
   (`market_checks_today` counts per rules, per UTC day, across versions).
 - **Silence never moves money**: a lapsed table is WITHDRAWN under `SafeDefault`.
@@ -137,15 +174,19 @@ flowchart LR
 |---|---|---|
 | Domain | `crates/table-core/src/negotiation.rs` | `Policy::decide`, `Policy::decide_on_schedule` (house), `BuyerPolicy::{opening, target, decide}` |
 | Domain | `crates/table-core/src/agent.rs` | `AgentProjection`, `RefusalCode`, `Playbook` (`prompts/buyer-haggler.md`, `prompts/seller-counter.md`) |
-| Domain | `crates/table-core/src/mandate.rs`, `market.rs`, `market_watch.rs` | `Clause::Band`, `Clause::MarketWatch` (clause 9), `MARKET_FRESH_SECS`, `market_watch_step` |
+| Domain | `crates/table-core/src/mandate.rs`, `market.rs`, `market_watch.rs` | `Clause::Band`, `Clause::MarketWatch` (clause 9), `MARKET_FRESH_SECS`, `market_watch_step`, `market_product_for` |
+| Domain | `crates/table-core/src/market.rs` | `MarketCertificate`, `MarketComparable`, `MAX_MARKET_COMPARABLES`, `MarketCommitment`, `FairPrice`, `FairPriceState`, `market_rows`, `fair_price` |
+| Market client | `crates/table-market/src/lib.rs`, `crates/table-paypal/src/http.rs` | `Client::comparables`, `Transport::send_raw`, `RawResponse` |
 | Engine | `crates/table-engine/src/policy.rs` | `PolicyEngine`, `PolicyBrief`, `Stance` |
 | Agent tools | `crates/table-mcp/src/lib.rs`, `crates/table-app/src/agent.rs` | `table_view`, `send_offer`, `accept_offer`, `withdraw_offer`, `market_reference` |
 | Runtime | `crates/table-runtime/src/policy.rs`, `engines.rs`, `groups.rs`, `market_watch.rs` | `arm_policy_run`, run cap, `close_groups`, `start_market_watch`, `market_watched` |
 | Ledger | `crates/table-ledger/src/groups.rs`, `market_watch.rs` | `open_group`, `accept_guard`, `commit_group_withdraw`, `reserve_market_check` |
+| Ledger | `crates/table-ledger/src/repositories.rs`, `receipt.rs` | `store_market_reference`, AGREED row's `market`, `Ledger::fair_price` |
 | Migration | `crates/table-ledger/migrations/0012_deal_groups.sql` | `deal_groups`, `deals.group_id`, agree-once triggers |
 | Client | `apps/desktop/client/src/windows/main/modules/tables.tsx`, `tables/` | page, `ladder.ts`, `groups.ts`, `ShopAround.tsx` |
 | Client | `apps/desktop/client/src/windows/approval/BandAdjust.tsx`, `DealReview.tsx` | price-range signing, owner accept |
 | Client | `apps/desktop/client/src/lib/marketWatch.ts` | "Keep prices fresh" words and facts |
+| Client | `apps/desktop/client/src/lib/fairPrice.ts`, `lib/words.ts` | quartiles, percentile, ordinal; `fairPriceWords`, `FAIR_PRICE_NAME` |
 
 IPC commands (rows in `crates/table-client/src/authority_table.rs`):
 
@@ -184,8 +225,24 @@ IPC commands (rows in `crates/table-client/src/authority_table.rs`):
 - `a_market_watch_rule_grants_no_money_authority_and_changes_no_answer` (`crates/table-core/src/mandate.rs`)
 - `the_daily_allowance_is_never_exceeded_and_owner_facts_say_when_it_is_used_up`
   (`crates/table-runtime/src/market_watch_tests.rs`)
+- `a_certified_band_is_computed_again_from_its_stored_comparables_on_every_read`,
+  `a_certificate_keeps_only_well_formed_ids_and_at_most_the_result_limit`,
+  `the_deal_price_percentile_counts_an_equal_price_as_half`,
+  `an_older_record_reads_as_not_recheckable_and_a_missing_commitment_as_broken`
+  (`crates/table-core/src/market.rs`)
+- `comparables_cache_preserves_exact_money_and_excludes_text`,
+  `the_response_hash_is_of_the_bytes_that_arrived_not_of_re_serialised_json`,
+  `a_transport_that_cannot_give_the_bytes_gives_no_market_record` (`crates/table-market/tests/market.rs`)
+- `a_market_record_for_a_product_not_bound_to_the_deals_item_is_refused`
+  (`crates/table-ledger/src/market_tests.rs`)
+- `a_fair_price_certificate_is_committed_at_agreement_and_computed_again_offline`,
+  `an_older_market_record_still_verifies_and_reads_not_recheckable`
+  (`crates/table-runtime/src/proof_tests.rs`)
+- `the_agent_market_tool_answers_with_the_band_and_never_the_comparables`
+  (`crates/table-runtime/src/agent_surface_tests.rs`)
 - Client: `windows/main/modules/tables/groups.test.ts`, `tables/ladder.test.ts`,
-  `src/mock/groups.test.ts`, `src/lib/marketWatch.test.ts`
+  `src/mock/groups.test.ts`, `src/lib/marketWatch.test.ts`, `src/lib/fairPrice.test.ts`,
+  `src/mock/fairPrice.test.ts`
 
 ## Known gaps and UNVERIFIED
 
@@ -200,6 +257,14 @@ IPC commands (rows in `crates/table-client/src/authority_table.rs`):
   `deal_group_open` is a main-window act without unlock, by choice (it moves no money).
 - No client control calls `market_refresh` (only the mock implements it). The mock never makes
   price checks (fixed counts). No live test of the refresh loop with a real market key.
+- Fair-price certificate: the commitment sits in the wallet's own AGREED row, not in the signed
+  ACCEPT, so the other side sees no market digest; a deal agreed before this build reads "not
+  checked". No dossier yet reveals the comparables to the other wallet, there is no no-install
+  checker, and no live check has run with a real market key.
+- UNVERIFIED (fair-price certificate): the per-product id field of the `/v1/similar` answer is read
+  as `id` (not in the research or fixtures; spike 7 prints `comparables` and
+  `comparables_with_id`); whether the service honours `limit` 30; the raw hash is over the body
+  bytes after HTTP content decoding.
 - UNVERIFIED: the market service's per-call credit cost; `MAX_MARKET_CHECKS_DAY` (200) and
   `MAX_WATCHED_ITEMS` (20) are wallet guards, not service limits. Live market fetch unverified.
 - Native engines stay unavailable until their isolation spike passes; only the Practice agent runs.
@@ -214,4 +279,4 @@ IPC commands (rows in `crates/table-client/src/authority_table.rs`):
   [money-pipeline.md](./money-pipeline.md)
 - Design: [the-table.html §6 haggle protocol](../design/the-table.html#haggle),
   [capability 9](../design/the-table.html#cap-9), [Tables module](../design/the-table.html#m-9)
-- Build log: [STATUS.md](../build/STATUS.md) (T2, T8, T15), [DECISIONS.md](../build/DECISIONS.md) §5, §10
+- Build log: [STATUS.md](../build/STATUS.md) (T2, T8, T15, "Fair-price certificate on every receipt"), [DECISIONS.md](../build/DECISIONS.md) §5, §10
