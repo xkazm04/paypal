@@ -308,3 +308,12 @@ describe('rung announcements (screen readers hear the ladder, not the clock)', (
     expect(rung(NOW + 90 * 60, NOW)).toBe('soon');
   });
 });
+
+describe('shield slice 2: a paused card says which check paused it', () => {
+  it('words the rule the wallet core put on the card, and only on a pause', () => {
+    const [why] = cardWhy(item({ deal_id: 'h', kind: 'hold', clause: null, shield_rule: 'price_over_market' }));
+    expect(why).toBe('A scam check paused it: the price is more than 1.4 × the usual price. It can’t be paid until you decide.');
+    expect(cardWhy(item({ deal_id: 'g', shield_rule: 'price_over_market' }))[0]).toBe('It needs your decision before it can go ahead.');
+    expect(cardWhy(item({ deal_id: 'n', kind: 'hold', clause: null }))[0]).toBe('It is paused, so it can’t be paid until you decide.');
+  });
+});

@@ -10,10 +10,21 @@ import type { H256 } from '@bindings/H256';
 import type { Money } from '@bindings/Money';
 import type { OpenMandate } from '@bindings/OpenMandate';
 import type { RescueView } from '@bindings/RescueView';
+import type { ShieldRule } from '@bindings/ShieldRule';
 import type { CounterpartyDisplay, TranscriptStep } from '../lib/pending';
 import { formatMoney, lineTotal } from '../lib/format';
-import { percentWords } from '../lib/words';
+import { percentWords, shieldReleased } from '../lib/words';
 import { fakeHash } from './fixtures';
+
+/** table-app checks.rs `shield_rule_words`, verbatim (the approval checklist's shield line). */
+export const SHIELD_RULE_WORDS: Record<ShieldRule, string> = {
+  payee_mismatch: 'The money would go to another payee than the one you agreed',
+  friends_and_family: 'It asks to be paid as friends and family, which has no buyer protection',
+  no_market_reference: 'There is no recent usual price to compare it with',
+  price_over_market: 'The price is far above the usual price',
+  new_counterparty_over_threshold: 'A new payee is asking for a large amount',
+  model_caution: 'A second look asked for caution',
+};
 
 export type MockCheckInput = {
   deal: Deal;
@@ -151,12 +162,20 @@ export function mockChecks(i: MockCheckInput): ApprovalCheck[] {
     out.push(line('invoice', 'not_applicable', 'No PayPal order is used for this step.', 'no SETTLE: no order exists for this deal'));
   }
 
-  // shield (the mock runs no rules: an unset verdict reads as the rules finding nothing)
-  switch (d.shield ?? 'CLEAR') {
-    case 'CLEAR': out.push(line('shield', 'pass', 'Scam check: looks safe.', 'shield verdict CLEAR (rules re-run now, combined with any stored verdict)')); break;
-    case 'ASK': out.push(line('shield', 'pass', 'Scam check: check with you. Your decision is the check.', 'shield verdict ASK: only an owner decision (or the house release) passes it')); break;
-    case 'HOLD': out.push(line('shield', 'fail', 'Scam check: paused for you. Unpause it first.', 'shield verdict HOLD stops every money step under every authority')); break;
-    case 'BLOCK': out.push(line('shield', 'fail', 'Scam check: blocked. It can’t be released.', 'shield verdict BLOCK stops every money step; no release exists')); break;
+  // shield (the mock runs no rules: an unset verdict reads as the rules finding nothing). The rule
+  // that decided it is Rust's recorded one (Deal.shield_rule), worded as checks.rs words it.
+  const shieldRule = d.shield_rule ?? null;
+  const why = shieldRule ? ` ${SHIELD_RULE_WORDS[shieldRule]}.` : '';
+  const ruleName = shieldRule ?? 'none';
+  if (d.shield === 'ASK' && shieldReleased(d)) {
+    out.push(line('shield', 'pass', `Scam check: you let this go on after a pause.${why} Your decision is the check.`, `shield verdict HOLD (rule ${ruleName}) released by the owner for these terms: judged as ASK`));
+  } else {
+    switch (d.shield ?? 'CLEAR') {
+      case 'CLEAR': out.push(line('shield', 'pass', 'Scam check: looks safe.', 'shield verdict CLEAR (rules re-run now, combined with any stored verdict)')); break;
+      case 'ASK': out.push(line('shield', 'pass', `Scam check: check with you.${why} Your decision is the check.`, `shield verdict ASK (rule ${ruleName}): only an owner decision (or the house release) passes it`)); break;
+      case 'HOLD': out.push(line('shield', 'fail', `Scam check: paused for you.${why} Unpause it first.`, `shield verdict HOLD (rule ${ruleName}) stops every money step under every authority`)); break;
+      case 'BLOCK': out.push(line('shield', 'fail', `Scam check: blocked.${why} It can’t be released.`, `shield verdict BLOCK (rule ${ruleName}) stops every money step; no release exists`)); break;
+    }
   }
 
   // mandate

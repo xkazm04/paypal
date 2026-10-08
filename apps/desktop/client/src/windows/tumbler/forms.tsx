@@ -13,7 +13,7 @@ import type { DealDisplay } from '../../lib/pending';
 import type { WalletError } from '../../lib/contract';
 import { clockLabel, formatMinor, shortId } from '../../lib/format';
 import { readLimits } from '../../lib/limits';
-import { FIRST_RUN_TITLE, SAFETY_PROMISE, START_STEP, timeLeftWords, type StartStepKey } from '../../lib/words';
+import { FIRST_RUN_TITLE, SAFETY_PROMISE, START_STEP, shieldRuleWord, timeLeftWords, type StartStepKey } from '../../lib/words';
 import type { GettingStarted } from '../../lib/firstRun';
 import { useQuery } from '../../lib/hooks';
 import { ModeBadge } from '../../shared/honesty';
@@ -198,6 +198,7 @@ function CardDetails({ item, now, anchor, actions, pending, onAction, onClose }:
         ['Deal', <span className="mono">{item.label} · {MODULE[item.module].name}</span>],
         ['With', item.counterparty ?? 'a connected wallet'],
         title ? ['Item', title] : null,
+        hold && item.shield_rule ? ['Paused by', shieldRuleWord(item.shield_rule).text] : null,
         ['Deadline', item.deadline !== null ? clockLabel(item.deadline) : 'none · paused until you act'],
         ['Time', ladderLine(item.deadline, now, hold, !!item.money_check)],
         ['Mode', MODE_TEXT[item.mode]],

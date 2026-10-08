@@ -8,7 +8,7 @@ import type { DisplayBand } from '@bindings/DisplayBand';
 import type { MoneyCheck } from '@bindings/MoneyCheck';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { formatMoney } from '../../../lib/format';
-import { headlineWords, MONEY_CHECK_PARKED, marketWords, moneyCheckStep, ruleNameOf, stateWord } from '../../../lib/words';
+import { headlineWords, MONEY_CHECK_PARKED, marketWords, moneyCheckStep, ruleNameOf, shieldRuleWord, stateWord } from '../../../lib/words';
 import { dealTotal, decidedBy, isTerminal } from '../logic';
 import { latestText, timelineRows, type ClauseReading, type Reading, type TimelineRow } from './model';
 
@@ -17,7 +17,7 @@ export type DealAnswer = { tone: AnswerTone; title: string; sub: string | null }
 
 export const CLOSED = 'This deal is closed. Nothing here can move money.';
 
-type AnswerDeal = Pick<Deal, 'state' | 'kind' | 'side' | 'shield' | 'terms'> & Partial<Pick<Deal, 'decided_by'>>;
+type AnswerDeal = Pick<Deal, 'state' | 'kind' | 'side' | 'shield' | 'terms'> & Partial<Pick<Deal, 'decided_by' | 'shield_rule'>>;
 
 export type AnswerCtx = {
   need: Pick<AttentionItem, 'headline' | 'actions'> | undefined;
@@ -53,7 +53,7 @@ export function dealAnswer(d: AnswerDeal, c: AnswerCtx): DealAnswer {
   }
   if (d.state === 'REFUSED') {
     return d.shield === 'BLOCK'
-      ? { tone: 'alert', title: 'A scam check stopped this for good. Nothing was sent to PayPal.', sub: CLOSED }
+      ? { tone: 'alert', title: 'A scam check stopped this for good. Nothing was sent to PayPal.', sub: d.shield_rule ? `${shieldRuleWord(d.shield_rule).means} ${CLOSED}` : CLOSED }
       : { tone: 'alert', title: 'Your rules refused this before PayPal was asked. Nothing moved.', sub: who.who === 'none' ? CLOSED : `Refused by ${who.text}. ${CLOSED}` };
   }
   if (d.state === 'DISPUTED') return { tone: 'alert', title: 'There is an open dispute at PayPal.', sub: CLOSED };
@@ -76,7 +76,7 @@ export function dealAnswer(d: AnswerDeal, c: AnswerCtx): DealAnswer {
 
   if (c.need) {
     if (d.state === 'AUTHORIZED') return { tone: 'need', title: `${amt} for ${c.them} is on hold at PayPal. Pay it or release it; you decide.`, sub: null };
-    if (d.shield === 'HOLD') return { tone: 'need', title: `${c.them}’s ${amt} request was paused for your check. Nothing was sent to PayPal.`, sub: null };
+    if (d.shield === 'HOLD') return { tone: 'need', title: `${c.them}’s ${amt} request was paused for your check. Nothing was sent to PayPal.`, sub: d.shield_rule ? shieldRuleWord(d.shield_rule).means : null };
     if (d.kind === 'rescue') return { tone: 'need', title: `${c.them.charAt(0).toUpperCase()}${c.them.slice(1)}’s renewal didn’t go through. You choose the fix: a ${amt} invoice for this cycle.`, sub: null };
     if (d.kind === 'haggle') return { tone: 'need', title: `${latest ?? `${c.them} has an offer`}.${bandPhrase(c.band)}`, sub: null };
     return { tone: 'need', title: `${headlineWords(c.need.headline)} with ${c.them}. Your call.`, sub: null };

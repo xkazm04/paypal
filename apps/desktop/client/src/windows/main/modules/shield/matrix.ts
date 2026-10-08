@@ -1,8 +1,9 @@
 // Pure logic for the Shield page (Evidence matrix, prototype/pages/shield/variant-2): the grid's
 // rows, what each check cell can honestly say, the PayPal line and the keyboard cursor.
 //
-// The contract gives the client the verdict only (Deal.shield). It returns no per-check result,
-// no deciding check and no counterparty note. So a check cell is one of:
+// The contract gives the client the verdict (Deal.shield) and, since shield slice 2, the rule that
+// decided it (Deal.shield_rule, recorded by the wallet core). It returns no per-check result and
+// no counterparty note. So a check cell is one of:
 //   - "fact": what the check reads, from data the client does hold (counterparty_list first_seen /
 //     deals_closed, Deal.market) — shown as facts, never as the shield's own pass/hit;
 //   - "skip": the market rule had no reference to compare with (no Deal.market) — not passed;
@@ -11,8 +12,10 @@
 // No React, no IPC; unit-tested in matrix.test.ts.
 import type { CounterpartyDisplay } from '@bindings/CounterpartyDisplay';
 import type { Deal } from '@bindings/Deal';
+import type { ShieldRule } from '@bindings/ShieldRule';
 import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import { formatMinor } from '../../../../lib/format';
+import { shieldRuleWord } from '../../../../lib/words';
 import { isTerminal, moneyNow } from '../../logic';
 
 export type CheckKey = 'payee' | 'ff' | 'newcp' | 'market' | 'typology';
@@ -78,13 +81,31 @@ export function checkCell(k: CheckKey, d: Pick<Deal, 'terms' | 'market'>, cp: Co
 }
 
 /** Which fact a reason stands on (round 2 writes its "Why?" from it). */
-export type ReasonKind = 'price' | 'noprice' | 'newcp' | 'norecord' | 'other';
+export type ReasonKind = 'price' | 'noprice' | 'newcp' | 'norecord' | 'payee' | 'ff' | 'second' | 'other';
 export type Reason = { kind: ReasonKind; icon: 'tag' | 'you' | 'eye' | 'shield'; text: string; detail: string };
 
-/** Why a payment was paused, as two or three plain facts for the decision card. Only facts the
- *  client holds (price against typical, how new the payee is) are named; the shield's own deciding
- *  check is not exposed, so when none of those facts explains the pause, one honest line says so. */
-export function reasonsFor(d: Pick<Deal, 'terms' | 'market'>, cp: CounterpartyDisplay | undefined, now: number): Reason[] {
+const RULE_REASON: Record<ShieldRule, { kind: ReasonKind; icon: Reason['icon'] }> = {
+  payee_mismatch: { kind: 'payee', icon: 'you' },
+  friends_and_family: { kind: 'ff', icon: 'shield' },
+  no_market_reference: { kind: 'noprice', icon: 'eye' },
+  price_over_market: { kind: 'price', icon: 'tag' },
+  new_counterparty_over_threshold: { kind: 'newcp', icon: 'you' },
+  model_caution: { kind: 'second', icon: 'shield' },
+};
+
+/** Why a payment was paused. The wallet core records which check decided it (Deal.shield_rule):
+ *  that one reason is shown, in plain words, with the price figure when it is the price. A deal
+ *  with no recorded rule (from before the shield said why) falls back to the facts the client
+ *  holds (price against typical, how new the payee is), and one honest line when none explains it. */
+export function reasonsFor(d: Pick<Deal, 'terms' | 'market' | 'shield_rule'>, cp: CounterpartyDisplay | undefined, now: number): Reason[] {
+  if (d.shield_rule) {
+    const { kind, icon } = RULE_REASON[d.shield_rule];
+    const word = shieldRuleWord(d.shield_rule);
+    const p = overMedian(d);
+    const text = kind === 'price' && p !== null ? `${p}% above the usual price` : word.text;
+    const detail = kind === 'price' || kind === 'noprice' ? checkCell('market', d, cp, now).l : kind === 'newcp' ? checkCell('newcp', d, cp, now).l : word.means;
+    return [{ kind, icon, text, detail }];
+  }
   const out: Reason[] = [];
   const p = overMedian(d);
   if (p === null) out.push({ kind: 'noprice', icon: 'eye', text: 'No usual price to compare with, so it asks you', detail: checkCell('market', d, cp, now).l });
