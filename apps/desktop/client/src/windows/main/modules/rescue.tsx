@@ -69,7 +69,7 @@ const GIST: Record<LeverKey, string> = {
   DOWNGRADE: 'cheaper plan',
 };
 /** Column names short enough for the matrix; the full name is in the tooltip and the inspector. */
-const HEAD: Record<LeverKey, string> = { DISCOUNT_THIS_CYCLE: 'Discount', PAUSE: 'Pause', RETRY_AFTER_FIX: 'Retry later', DOWNGRADE: 'Downgrade' };
+const HEAD: Record<LeverKey, string> = { DISCOUNT_THIS_CYCLE: 'Discount', PAUSE: 'Pause', RETRY_AFTER_FIX: 'Retry later', DOWNGRADE: 'Smaller plan' };
 const wordOf = (d: Deal) => stateWord(d.state, { side: d.side, kind: d.kind });
 const retryWords = (deadline: number | null, now: number) => (deadline ? `retry in ${timeLeftWords(deadline - now).replace(/ \d+ h$/, '')}` : 'no retry set');
 const coarse = (deadline: number, now: number) => timeLeftWords(deadline - now).replace(/ \d+ h$/, '');

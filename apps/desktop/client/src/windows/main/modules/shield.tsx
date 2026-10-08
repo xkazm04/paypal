@@ -236,7 +236,7 @@ export function Shield({ deals, nav }: ModuleProps) {
       {detailed ? (
         !cols.length ? <div className="ui-group"><div className="ui-empty">Nothing paused, nothing blocked. The shield hasn’t had to check anyone yet.</div></div> : (
           <div className="sh-mxwrap">
-            <table className="sh-mx" role="grid" aria-label="Shield checks for each payee" aria-readonly="true" ref={grid}>
+            <table className="sh-mx" style={{ minWidth: 148 + cols.length * 150 }} role="grid" aria-label="Shield checks for each payee" aria-readonly="true" ref={grid}>
               <colgroup><col className="lab" />{cols.map((d) => <col key={d.id} />)}</colgroup>
               <thead>
                 <tr>

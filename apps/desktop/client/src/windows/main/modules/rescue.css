@@ -160,3 +160,10 @@
 .mod-rescue .rs-notoff .ui-why { margin-left: 0; }
 .rs-notoff-list { margin: 0 0 var(--sp-2); padding-left: 18px; }
 .rs-notoff-list li + li { margin-top: 4px; }
+/* polish 3: in the narrow matrix (inspector open, 1280 wide) headers and cells wrap instead of cutting words */
+.mod-rescue .mx th { white-space: normal; line-height: 1.2; }
+.mod-rescue .mx .cell { height: auto; min-height: 44px; padding-top: 4px; padding-bottom: 4px; }
+.mod-rescue .mx .cell .v, .mod-rescue .mx .cell .s { white-space: normal; line-height: 1.25; }
+.mod-rescue .mx col.c-who { width: 160px; }
+.mod-rescue .mx col.c-act { width: 86px; }
+.mod-rescue .mx .who .l2 .ui-chip { max-width: 100%; white-space: normal; height: auto; }

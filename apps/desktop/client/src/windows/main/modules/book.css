@@ -14,8 +14,8 @@
 .mod-book .tile { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-1); }
 .mod-book .tile .tk { display: flex; align-items: center; gap: 6px; font-weight: var(--fw-semibold); color: var(--muted); }
 .mod-book .tile .tv { display: flex; flex-direction: column; gap: 2px; min-height: 34px; }
-.mod-book .tile .fig { font: var(--fw-semibold) var(--fs-display)/1.15 var(--num); font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; }
-.mod-book .tile .fig small { margin-left: var(--sp-2); font: var(--fw-regular) var(--fs-small) var(--font); letter-spacing: 0; color: var(--dim); }
+.mod-book .tile .fig { font: var(--fw-semibold) var(--fs-display)/1.15 var(--num); font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--sp-2); }
+.mod-book .tile .fig small { font: var(--fw-regular) var(--fs-small) var(--font); letter-spacing: 0; color: var(--dim); }
 .mod-book .tile .fig.none { color: var(--dim); font-weight: var(--fw-regular); }
 .mod-book .tile .tn { font-size: var(--fs-small); color: var(--dim); }
 .mod-book .tl-captured .tk .ui-icon, .mod-book .tl-captured .fig:not(.none) { color: var(--ok); }
