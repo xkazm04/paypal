@@ -29,6 +29,10 @@ pub enum LedgerError {
     NotFound,
     #[error("conflicting or stale write")]
     Conflict,
+    /// Shop around (T8): another table in this deal's group already agreed, or holds the group's
+    /// one outstanding ACCEPT. A refusal of the intent, not a fault.
+    #[error("another table in this group already agreed")]
+    GroupClosed,
 }
 /// Deliberately no public raw-SQL/connection API. Only typed repositories cross this edge.
 #[derive(Debug)]
@@ -46,7 +50,7 @@ impl Ledger {
         conn.execute_batch("PRAGMA foreign_keys=ON; PRAGMA recursive_triggers=ON;")?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version > 11 {
+        if version > 12 {
             return Err(LedgerError::Integrity("newer schema"));
         }
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -83,7 +87,10 @@ impl Ledger {
         if version < 11 {
             tx.execute_batch(include_str!("../migrations/0011_rescue.sql"))?;
         }
-        tx.execute_batch("PRAGMA user_version=11;")?;
+        if version < 12 {
+            tx.execute_batch(include_str!("../migrations/0012_deal_groups.sql"))?;
+        }
+        tx.execute_batch("PRAGMA user_version=12;")?;
         tx.commit()?;
         let ledger = Self { conn };
         ledger.verify_audit()?;
@@ -116,7 +123,11 @@ mod glass;
 pub use glass::*;
 mod witness;
 pub use witness::*;
+mod groups;
 mod market_watch;
+pub use groups::*;
+#[cfg(test)]
+mod groups_tests;
 #[cfg(test)]
 mod rescue_tests;
 #[cfg(test)]

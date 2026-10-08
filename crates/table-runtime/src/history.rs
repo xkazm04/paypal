@@ -133,6 +133,10 @@ const BOOKKEEPING: &[&str] = &[
     "house.head_kept",
     "house.head_checked",
     "market.checked",
+    // Shop around (T8): grouping tables and the group's one agreement are bookkeeping; the
+    // agreement itself is the table's AGREED step and each withdrawal is its own step.
+    "group.opened",
+    "group.won",
 ];
 /// What one row says, before folding.
 enum Row {
@@ -256,6 +260,11 @@ fn classify(record: &AuditRecord) -> Row {
         // Bookkeeping: a resolved operation shows as its `money.observed` step, a re-send reuses the
         // same operation and request id, and an owner decision's authority is on its money rows.
         "money.resent" | "money.resolved" | "owner.decision" => Row::Skip,
+        // Another table of the group agreed first: the group rule withdrew this one (T8).
+        "group.withdrawn" => match record.detail.get("decided_by").and_then(|d| d.as_str()) {
+            Some(table_ledger::GROUP_RULE) => Row::Step(K::GroupWithdrawn, A::GroupRule),
+            _ => other,
+        },
         // A failed renewal opened a rescue: the fix waits for the owner.
         "rescue.opened" => Row::Step(K::RenewalFailed, A::None),
         // PayPal shows the rescue invoice paid; the subscriber paid it on PayPal's page.
@@ -331,7 +340,10 @@ pub(crate) fn project(
                     // written twice (a receipt, a mismatch) is one step.
                     let owner_accept =
                         p.kind == HistoryKind::OwnerAccepted && kind == HistoryKind::AcceptSent;
-                    if owner_accept || p.kind == kind {
+                    // The group rule's withdrawal is sent as the agent's signed WITHDRAW.
+                    let group =
+                        p.kind == HistoryKind::GroupWithdrawn && kind == HistoryKind::WithdrawSent;
+                    if owner_accept || group || p.kind == kind {
                         continue;
                     }
                 }
@@ -346,7 +358,9 @@ pub(crate) fn project(
                     if let Some(p) = previous.and_then(|i| steps.get_mut(i)) {
                         let withdraw = matches!(
                             p.kind,
-                            HistoryKind::WithdrawSent | HistoryKind::WithdrawReceived
+                            HistoryKind::WithdrawSent
+                                | HistoryKind::WithdrawReceived
+                                | HistoryKind::GroupWithdrawn
                         ) && to == DealState::Withdrawn;
                         // A rescue opens at AGREED and is receipted when PayPal shows it paid.
                         let rescue = (p.kind == HistoryKind::RenewalFailed
@@ -505,6 +519,8 @@ mod tests {
             include_str!("rescue.rs"),
             include_str!("../../table-ledger/src/witness.rs"),
             include_str!("../../table-ledger/src/market_watch.rs"),
+            include_str!("../../table-ledger/src/groups.rs"),
+            include_str!("groups.rs"),
         ];
         let mut found = std::collections::BTreeSet::new();
         for source in sources {
@@ -794,6 +810,25 @@ mod tests {
                 None,
             ),
             ("house.head_checked", json!({"row_count":14}), None),
+            // Shop around (T8): grouping and the group's one agreement are bookkeeping; a table the
+            // group rule withdrew is its own step, decided by the group rule, never a money call.
+            ("group.opened", json!({"group_id":"G","tables":2}), None),
+            ("group.won", json!({"group_id":"G"}), None),
+            (
+                "group.withdrawn",
+                json!({"group_id":"G","winner":"D","decided_by":"group_rule"}),
+                step(K::GroupWithdrawn, A::GroupRule),
+            ),
+            (
+                "group.withdrawn",
+                json!({"group_id":"G","winner":"D","decided_by":"the seller said so"}),
+                step(K::Other, A::None),
+            ),
+            (
+                "intent.refused",
+                json!({"layer":"group","reason":"another table in this group already agreed"}),
+                step(K::IntentRefused, A::SignedRule { clause: None }),
+            ),
         ];
         for (action, detail, expected) in &table {
             assert_eq!(one(action, detail.clone()), *expected, "{action} {detail}");

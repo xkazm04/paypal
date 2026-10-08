@@ -5,6 +5,7 @@ pub mod credentials;
 mod dispatcher;
 mod engines;
 mod forecast;
+mod groups;
 mod history;
 mod limits;
 mod market;

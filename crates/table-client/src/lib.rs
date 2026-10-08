@@ -37,6 +37,8 @@ impl From<table_app::Error> for CommandError {
             | table_app::Error::Protocol(_) => ErrorCode::Invalid,
             table_app::Error::Unavailable => ErrorCode::Unavailable,
             table_app::Error::Ledger(table_ledger::LedgerError::NotFound) => ErrorCode::NotFound,
+            // Shop around: another table of the group already agreed. A refusal, not a fault.
+            table_app::Error::Ledger(table_ledger::LedgerError::GroupClosed) => ErrorCode::Refused,
             table_app::Error::Ledger(_) => ErrorCode::LedgerTrust,
         };
         Self {
@@ -565,6 +567,40 @@ pub struct RescueView {
     /// the only money counted as recovered.
     pub counted: bool,
 }
+/// Shop around (T8): group open buyer tables for one item, each with a different paired seller,
+/// under one signed mandate. The first table to agree wins; the wallet withdraws the others with
+/// a signed WITHDRAW. Grouping only restricts: it moves no money and grants nothing.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct DealGroupOpenArgs {
+    pub deal_ids: Vec<DealId>,
+}
+/// One table of a shop-around group: typed, signed prices only (never the seller's words).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct GroupTable {
+    pub deal_id: DealId,
+    pub counterparty: table_core::KeyId,
+    pub state: table_core::DealState,
+    /// The seller's latest signed price (listing or counter); null before any.
+    pub seller_price: Option<table_core::Money>,
+    /// Our latest signed offer; null before any.
+    pub our_price: Option<table_core::Money>,
+    /// Withdrawn by the group rule because another table agreed first.
+    pub closed_by_group: bool,
+}
+/// A shop-around group as the owner sees it: one buyer intent, several sellers, one winner.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct DealGroupView {
+    pub group_id: table_core::GroupId,
+    pub item_ref: table_core::ItemRef,
+    pub opened_at: i64,
+    /// The table that agreed; null while the sellers are still bargaining.
+    pub winner: Option<DealId>,
+    /// Oldest table first.
+    pub tables: Vec<GroupTable>,
+}
 /// Every rescue, and the recovered money (one total per currency, never summed across them).
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -892,6 +928,10 @@ pub struct CommandContract {
     pub rescue_replay: Command<RescueReplayArgs, Deal>,
     /// Every rescue and the recovered money, read from the wallet (main and approval).
     pub rescue_book: Command<(), RescueBook>,
+    /// Shop around (T8): groups open buyer tables for one item; first to agree wins (main).
+    pub deal_group_open: Command<DealGroupOpenArgs, DealGroupView>,
+    /// Every shop-around group with each seller's latest signed price (main).
+    pub deal_groups: Command<(), Vec<DealGroupView>>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -1015,6 +1055,9 @@ pub enum HistoryKind {
     InvoiceSent,
     /// PayPal shows the rescue invoice paid.
     InvoicePaid,
+    /// Shop around: another seller's table agreed first, so the group rule withdrew this one with
+    /// a signed WITHDRAW. No money moved.
+    GroupWithdrawn,
 }
 /// Who decided a step, from the typed `decided_by` the chain recorded (never inferred from text).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -1034,6 +1077,9 @@ pub enum HistoryAuthority {
     /// The owner's agent proposed or signed it; never the authority on a money call.
     AgentIntent,
     None,
+    /// The shop-around rule the owner chose: the first table to agree wins, the others are
+    /// withdrawn. It only ever withdraws; never the authority on a money call.
+    GroupRule,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]

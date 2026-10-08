@@ -7,6 +7,8 @@ mod checks_tests;
 mod client_tests;
 #[path = "forecast_tests.rs"]
 mod forecast_tests;
+#[path = "groups_tests.rs"]
+mod groups_tests;
 #[path = "h5_tests.rs"]
 mod h5_tests;
 #[path = "history_tests.rs"]

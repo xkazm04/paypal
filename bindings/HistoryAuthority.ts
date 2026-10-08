@@ -3,4 +3,4 @@
 /**
  * Who decided a step, from the typed `decided_by` the chain recorded (never inferred from text).
  */
-export type HistoryAuthority = { "type": "owner" } | { "type": "signed_rule", clause: number | null, } | { "type": "seller_mandate" } | { "type": "house_mandate" } | { "type": "safe_default" } | { "type": "agent_intent" } | { "type": "none" };
+export type HistoryAuthority = { "type": "owner" } | { "type": "signed_rule", clause: number | null, } | { "type": "seller_mandate" } | { "type": "house_mandate" } | { "type": "safe_default" } | { "type": "agent_intent" } | { "type": "none" } | { "type": "group_rule" };
