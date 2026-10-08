@@ -224,6 +224,72 @@ pub fn invoice_text(offer: &RescueOffer) -> InvoiceText {
         ),
     }
 }
+
+/// Watching the owner's own subscriptions for a failed renewal (rescue detection). The wallet
+/// reads each watched subscription from PayPal at a modest cadence; a read never writes at PayPal
+/// and never moves money. These are wallet guards, not PayPal limits.
+pub const RESCUE_WATCH_READ_SECS: i64 = 6 * 3600;
+/// The first wait after a read that could not be used; it doubles per try, up to the cadence.
+pub const RESCUE_WATCH_RETRY_SECS: i64 = 300;
+/// The most subscriptions one wallet watches.
+pub const RESCUE_WATCH_MAX: usize = 20;
+/// The most subscription reads the watch makes in one UTC day, across every watched subscription
+/// (20 watches at four reads a day is 80; the rest is room for retries).
+pub const RESCUE_WATCH_READS_DAY: u32 = 100;
+/// The most reads one scheduler tick starts, so a long list never holds the tick.
+pub const RESCUE_WATCH_PER_TICK: usize = 2;
+
+/// When a watched subscription is read again after `tries` reads in a row that could not be used.
+pub fn rescue_watch_retry_secs(tries: u32) -> i64 {
+    let shift = tries.saturating_sub(1).min(16);
+    RESCUE_WATCH_RETRY_SECS
+        .saturating_mul(1_i64 << shift)
+        .min(RESCUE_WATCH_READ_SECS)
+}
+
+/// What one subscription read says, in the only fields detection uses.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SubscriptionFacts {
+    /// The subscription is ACTIVE or SUSPENDED (one cancelled or expired is never fixed).
+    pub live: bool,
+    /// PayPal's count of consecutive failed payments ("resets to 0 after a successful payment").
+    pub failed_payments: u32,
+    /// What PayPal shows owed, when the read carries it.
+    pub owed: Option<Money>,
+}
+
+/// What detection does with one read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WatchVerdict {
+    /// No failed payment: the renewals are paid, and a later failure is a new one.
+    Paid,
+    /// Exactly one failed payment, never fixed in this run of failures: open one rescue for it.
+    Open { cycle: Money },
+    /// A failure this watch already opened a fix for: nothing more, whatever the next read says,
+    /// until PayPal shows a successful payment again.
+    Handled,
+    /// A failure detection does not fix: more than one cycle owed, no amount owed, or the
+    /// subscription is not live.
+    NoFix,
+}
+
+/// One fix per failure: a rescue opens only for exactly one failed payment with an amount owed on
+/// a live subscription, and only once per run of failures (`handled`).
+pub fn watch_verdict(facts: &SubscriptionFacts, handled: bool) -> WatchVerdict {
+    if facts.failed_payments == 0 {
+        return WatchVerdict::Paid;
+    }
+    if handled {
+        return WatchVerdict::Handled;
+    }
+    match facts.owed {
+        Some(cycle) if facts.live && facts.failed_payments == 1 && cycle.minor() > 0 => {
+            WatchVerdict::Open { cycle }
+        }
+        _ => WatchVerdict::NoFix,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -438,5 +504,59 @@ mod tests {
             assert!(discounted(amount, bp).unwrap().minor() <= 999);
         }
         assert!(discounted(amount, 10001).is_err());
+    }
+    #[test]
+    fn a_watch_opens_one_fix_per_run_of_failures_and_only_for_one_cycle_owed() {
+        let usd = |v| Money::new(v, Currency::USD).unwrap();
+        let facts = |live, failed_payments, owed: Option<i64>| SubscriptionFacts {
+            live,
+            failed_payments,
+            owed: owed.map(usd),
+        };
+        assert_eq!(
+            watch_verdict(&facts(true, 1, Some(1200)), false),
+            WatchVerdict::Open { cycle: usd(1200) }
+        );
+        // The same failure read again after its fix opened: nothing more.
+        assert_eq!(
+            watch_verdict(&facts(true, 1, Some(1200)), true),
+            WatchVerdict::Handled
+        );
+        assert_eq!(
+            watch_verdict(&facts(true, 2, Some(2400)), true),
+            WatchVerdict::Handled
+        );
+        // A paid renewal ends the run, whatever was handled.
+        for handled in [false, true] {
+            assert_eq!(
+                watch_verdict(&facts(true, 0, Some(0)), handled),
+                WatchVerdict::Paid
+            );
+        }
+        // Several cycles owed, nothing owed, no amount read, or a subscription that is not live.
+        for f in [
+            facts(true, 2, Some(2400)),
+            facts(true, 1, Some(0)),
+            facts(true, 1, None),
+            facts(false, 1, Some(1200)),
+        ] {
+            assert_eq!(watch_verdict(&f, false), WatchVerdict::NoFix, "{f:?}");
+        }
+    }
+    #[test]
+    fn a_watch_that_cannot_read_backs_off_up_to_its_cadence() {
+        assert_eq!(rescue_watch_retry_secs(1), RESCUE_WATCH_RETRY_SECS);
+        assert_eq!(rescue_watch_retry_secs(2), 2 * RESCUE_WATCH_RETRY_SECS);
+        assert_eq!(rescue_watch_retry_secs(4), 8 * RESCUE_WATCH_RETRY_SECS);
+        let mut last = 0;
+        for tries in 0..100 {
+            let wait = rescue_watch_retry_secs(tries);
+            assert!(wait >= last && wait <= RESCUE_WATCH_READ_SECS);
+            last = wait;
+        }
+        assert_eq!(last, RESCUE_WATCH_READ_SECS);
+        // The day's budget covers every watch at its cadence.
+        let per_day = usize::try_from(86400 / RESCUE_WATCH_READ_SECS).unwrap();
+        assert!(RESCUE_WATCH_MAX * per_day <= RESCUE_WATCH_READS_DAY as usize);
     }
 }

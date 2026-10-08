@@ -463,6 +463,26 @@ impl Fixture {
                 .await
             }
             "deal_groups" => self.exec(&c, Action::Groups).await,
+            "rescue_watch_add" => {
+                self.exec(
+                    &c,
+                    Action::RescueWatchAdd(RescueWatchArgs {
+                        subscription_id: "I-NOT-A-SUBSCRIPTION".into(),
+                        subscriber_email: "not an email".into(),
+                        plan: ItemRef::new("plan").unwrap(),
+                    }),
+                )
+                .await
+            }
+            "rescue_watch_stop" => {
+                self.exec(
+                    &c,
+                    Action::RescueWatchStop(RescueWatchStopArgs {
+                        subscription_id: "I-NOT-WATCHED".into(),
+                    }),
+                )
+                .await
+            }
             other => panic!("no conformance call for {other}: add it here when adding the row"),
         };
         value.map(|_| ())

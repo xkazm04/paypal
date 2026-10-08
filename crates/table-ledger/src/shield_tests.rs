@@ -405,7 +405,7 @@ fn migration_0013_reads_an_older_raised_verdict_as_the_second_opinions() {
     let (ledger, deal, ..) = setup();
     let conn = ledger.conn;
     conn.execute_batch(
-        "DROP TRIGGER deals_block_stays; DROP TRIGGER deals_block_never_released; ALTER TABLE deals DROP COLUMN shield_rule; ALTER TABLE deals DROP COLUMN shield_terms; ALTER TABLE deals DROP COLUMN shield_release_json; PRAGMA user_version=12;",
+        "DROP TABLE rescue_watches; DROP TRIGGER deals_block_stays; DROP TRIGGER deals_block_never_released; ALTER TABLE deals DROP COLUMN shield_rule; ALTER TABLE deals DROP COLUMN shield_terms; ALTER TABLE deals DROP COLUMN shield_release_json; PRAGMA user_version=12;",
     )
     .unwrap();
     conn.execute(

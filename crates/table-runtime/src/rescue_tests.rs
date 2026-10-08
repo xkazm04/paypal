@@ -16,6 +16,9 @@ struct Book {
     posts: Vec<String>,
     /// The send request is lost before PayPal sees it.
     lose_send: bool,
+    /// What a subscription read answers (None: PayPal does not answer), and how many were made.
+    subscription: Option<Value>,
+    subscription_reads: Vec<String>,
 }
 #[derive(Debug, Default)]
 struct Invoicing(Mutex<Book>);
@@ -97,9 +100,17 @@ impl SecondaryApi for Invoicing {
     }
     async fn get_subscription(
         &self,
-        _: &ResourceId,
+        id: &ResourceId,
     ) -> Result<ApiResponse<Subscription>, PaypalError> {
-        Err(PaypalError::Invalid)
+        let mut b = self.0.lock().unwrap();
+        b.subscription_reads.push(id.as_str().into());
+        let mut wire = b.subscription.clone().ok_or(PaypalError::Invalid)?;
+        wire["id"] = json!(id.as_str());
+        let path = format!("/v1/billing/subscriptions/{}", id.as_str());
+        Ok(ApiResponse {
+            value: serde_json::from_value(wire.clone()).unwrap(),
+            observations: vec![seen("GET", &path, "", wire)],
+        })
     }
     async fn suspend_subscription(
         &self,
@@ -505,4 +516,253 @@ async fn a_revoked_rescue_mandate_still_lets_an_unsent_fix_expire_and_never_sign
         );
     }
     assert_eq!(paypal.0.lock().unwrap().posts.len(), 2);
+}
+
+fn watch_args(id: &str) -> RescueWatchArgs {
+    RescueWatchArgs {
+        subscription_id: id.into(),
+        subscriber_email: "watched@example.com".into(),
+        plan: ItemRef::new("care-plan").unwrap(),
+    }
+}
+fn failing(failed: u32, owed: &str) -> Value {
+    json!({"id":"","status":"ACTIVE","plan_id":"P-1","billing_info":{"outstanding_balance":{"currency_code":"USD","value":owed},"failed_payments_count":failed}})
+}
+
+/// The owner's watch list in the approval window, and the scheduler's read of it: a real failed
+/// renewal opens one PayPal-reported fix that waits for the owner, and once the owner approves it
+/// and PayPal shows the invoice paid, it counts as recovered. Detection itself only reads.
+#[tokio::test]
+async fn a_watched_failed_renewal_opens_one_fix_that_counts_only_once_the_owner_approves_and_it_is_paid()
+ {
+    let (mut r, vault, _, clock, _) = runtime(true);
+    credentials(vault.as_ref());
+    let paypal = with_invoicing(&mut r);
+    // Without rescue rules the watch is refused in plain words and nothing is written.
+    let token = unlock_runtime(&mut r);
+    let error = r
+        .execute(
+            caller("approval", Some(&token)),
+            Action::RescueWatchAdd(watch_args("I-W1")),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(error.message, crate::rescue::NO_RESCUE_RULES);
+    assert!(
+        r.pipeline
+            .wallet
+            .ledger
+            .rescue_watches()
+            .unwrap()
+            .is_empty()
+    );
+    r.sign_mandate(MandateSignArgs {
+        id: None,
+        agent: AgentSlot::Assistant,
+        clauses: rescue_clauses(),
+        not_before: 0,
+        expires: 10_000_000,
+    })
+    .unwrap();
+    // Owner configuration: never Main or the Tumbler, never without the token.
+    for who in [
+        caller("main", Some(&token)),
+        caller("tumbler", Some(&token)),
+        caller("approval", None),
+    ] {
+        let error = r
+            .execute(who, Action::RescueWatchAdd(watch_args("I-W1")))
+            .await
+            .unwrap_err();
+        assert!(matches!(error.code, ErrorCode::Permission), "{error:?}");
+    }
+    let token = unlock_runtime(&mut r);
+    let mut bad = watch_args("I-W1");
+    bad.subscriber_email = "not an email".into();
+    assert!(
+        r.execute(
+            caller("approval", Some(&token)),
+            Action::RescueWatchAdd(bad)
+        )
+        .await
+        .is_err()
+    );
+    let list: Vec<RescueWatchView> = serde_json::from_value(
+        r.execute(
+            caller("approval", Some(&token)),
+            Action::RescueWatchAdd(watch_args("I-W1")),
+        )
+        .await
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(list.len(), 1);
+    assert_eq!(
+        (list[0].state, list[0].recipient.as_str()),
+        (RescueWatchState::Waiting, "w•••@example.com")
+    );
+    assert!(paypal.0.lock().unwrap().subscription_reads.is_empty());
+    // The scheduler reads it: one failed payment opens the one fix, from a GET alone.
+    paypal.0.lock().unwrap().subscription = Some(failing(1, "12.00"));
+    r.tick().await.unwrap();
+    let deals = r.pipeline.wallet.ledger.list_deals().unwrap();
+    assert_eq!(deals.len(), 1);
+    let deal = deals[0].clone();
+    assert_eq!(
+        (deal.kind, deal.state, deal.mode, deal.terms.unit_price),
+        (DealKind::Rescue, DealState::Agreed, Mode::Sandbox, usd(960))
+    );
+    assert!(paypal.0.lock().unwrap().posts.is_empty());
+    let book = r.rescue_book().unwrap();
+    assert_eq!(book.cases[0].source, RescueSource::Paypal);
+    assert_eq!(book.watching[0].state, RescueWatchState::FixOpened);
+    assert_eq!(
+        (book.watch_reads_today, book.watch_reads_max),
+        (1, table_core::RESCUE_WATCH_READS_DAY)
+    );
+    // Not due again until the cadence; then read again, and the same failure opens nothing more.
+    r.tick().await.unwrap();
+    assert_eq!(paypal.0.lock().unwrap().subscription_reads.len(), 1);
+    clock.0.store(
+        clock.now() + table_core::RESCUE_WATCH_READ_SECS,
+        Ordering::SeqCst,
+    );
+    r.tick().await.unwrap();
+    assert_eq!(paypal.0.lock().unwrap().subscription_reads.len(), 2);
+    assert_eq!(r.pipeline.wallet.ledger.list_deals().unwrap().len(), 1);
+    assert!(paypal.0.lock().unwrap().posts.is_empty());
+    // The owner opens it from The Table and approves the fix; PayPal shows it paid; it counts,
+    // being PayPal-reported.
+    r.execute(
+        caller("main", None),
+        Action::OpenApproval(ApprovalOpenArgs {
+            deal_id: Some(deal.id),
+            pairing: None,
+            target: None,
+            draft: None,
+        }),
+    )
+    .await
+    .unwrap();
+    let token = unlock_runtime(&mut r);
+    let args = decision(&mut r, deal.id);
+    r.execute(
+        caller("approval", Some(&token)),
+        Action::Decision(args, Decision::Rescue),
+    )
+    .await
+    .unwrap();
+    assert_eq!(paypal.0.lock().unwrap().posts.len(), 2);
+    paypal.0.lock().unwrap().status = "PAID";
+    r.tick().await.unwrap();
+    let book = r.rescue_book().unwrap();
+    assert!(book.cases[0].counted);
+    assert_eq!(book.recovered, vec![usd(960)]);
+    // The Rewind keeps the watch rows out of the deal's steps; the chain verifies.
+    r.pipeline.wallet.ledger.verify_audit().unwrap();
+}
+
+/// The watch pass keeps to its budget: a few reads a tick, none while agents are paused, none of
+/// a subscription no longer watched, and never a write at PayPal.
+#[tokio::test]
+async fn the_watch_pass_reads_a_few_a_tick_never_while_paused_and_never_writes() {
+    let (mut r, vault, _, _, _) = runtime(true);
+    credentials(vault.as_ref());
+    let paypal = with_invoicing(&mut r);
+    r.sign_mandate(MandateSignArgs {
+        id: None,
+        agent: AgentSlot::Assistant,
+        clauses: rescue_clauses(),
+        not_before: 0,
+        expires: 10_000_000,
+    })
+    .unwrap();
+    let token = unlock_runtime(&mut r);
+    for id in ["I-A", "I-B", "I-C"] {
+        r.execute(
+            caller("approval", Some(&token)),
+            Action::RescueWatchAdd(watch_args(id)),
+        )
+        .await
+        .unwrap();
+    }
+    paypal.0.lock().unwrap().subscription = Some(failing(0, "0.00"));
+    r.paused = true;
+    r.tick().await.unwrap();
+    assert!(paypal.0.lock().unwrap().subscription_reads.is_empty());
+    r.paused = false;
+    r.tick().await.unwrap();
+    assert_eq!(
+        paypal.0.lock().unwrap().subscription_reads.len(),
+        table_core::RESCUE_WATCH_PER_TICK
+    );
+    // The third is read on the next tick, unless the owner stopped watching it.
+    r.execute(
+        caller("approval", Some(&token)),
+        Action::RescueWatchStop(RescueWatchStopArgs {
+            subscription_id: "I-C".into(),
+        }),
+    )
+    .await
+    .unwrap();
+    r.tick().await.unwrap();
+    assert_eq!(
+        paypal.0.lock().unwrap().subscription_reads,
+        vec!["I-A".to_owned(), "I-B".to_owned()]
+    );
+    let error = r
+        .execute(
+            caller("approval", Some(&token)),
+            Action::RescueWatchStop(RescueWatchStopArgs {
+                subscription_id: "I-C".into(),
+            }),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(error.message, crate::rescue::NOT_WATCHED);
+    let book = r.rescue_book().unwrap();
+    assert_eq!(book.watching.len(), 2);
+    assert!(
+        book.watching
+            .iter()
+            .all(|w| w.state == RescueWatchState::Paid)
+    );
+    assert!(r.pipeline.wallet.ledger.list_deals().unwrap().is_empty());
+    assert!(paypal.0.lock().unwrap().posts.is_empty());
+}
+
+/// A REPLAY of a watched subscription never counts, and is not the watch's fix: the replay stays
+/// what it was, and the watch still opens nothing while that replay's fix is live.
+#[tokio::test]
+async fn a_replay_of_a_watched_subscription_still_never_counts() {
+    let (mut r, vault, _, _, _) = runtime(true);
+    credentials(vault.as_ref());
+    let paypal = with_invoicing(&mut r);
+    let (deal, token) = rescue_ready(&mut r).await;
+    r.execute(
+        caller("approval", Some(&token)),
+        Action::RescueWatchAdd(watch_args("I-S14")),
+    )
+    .await
+    .unwrap();
+    paypal.0.lock().unwrap().subscription = Some(failing(1, "12.00"));
+    r.tick().await.unwrap();
+    assert_eq!(paypal.0.lock().unwrap().subscription_reads.len(), 1);
+    // The replay's fix is live, so no second fix opens for the same subscription.
+    assert_eq!(r.pipeline.wallet.ledger.list_deals().unwrap().len(), 1);
+    let book = r.rescue_book().unwrap();
+    assert_eq!(book.watching[0].state, RescueWatchState::FailedNoFix);
+    let args = decision(&mut r, deal.id);
+    r.execute(
+        caller("approval", Some(&token)),
+        Action::Decision(args, Decision::Rescue),
+    )
+    .await
+    .unwrap();
+    paypal.0.lock().unwrap().status = "PAID";
+    r.tick().await.unwrap();
+    let book = r.rescue_book().unwrap();
+    assert_eq!(book.cases[0].source, RescueSource::Replay);
+    assert!(!book.cases[0].counted);
+    assert!(book.recovered.is_empty());
 }

@@ -74,6 +74,8 @@ pub enum Action {
     RescueBook,
     GroupOpen(DealGroupOpenArgs),
     Groups,
+    RescueWatchAdd(RescueWatchArgs),
+    RescueWatchStop(RescueWatchStopArgs),
 }
 impl Action {
     /// The IPC command this action serves, whose row in the authority table
@@ -138,6 +140,8 @@ impl Action {
             Action::RescueBook => "rescue_book",
             Action::GroupOpen(_) => "deal_group_open",
             Action::Groups => "deal_groups",
+            Action::RescueWatchAdd(_) => "rescue_watch_add",
+            Action::RescueWatchStop(_) => "rescue_watch_stop",
             Action::Select(_)
             | Action::SelectPairing(_)
             | Action::ClaimNotification { .. }

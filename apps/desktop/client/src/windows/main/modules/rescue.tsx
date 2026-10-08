@@ -12,14 +12,14 @@
 // Below: invoices with the subscriber and money that came back.
 // Detailed: the lever matrix (prototype/pages/rescue/variant-3) in place of the cards and lists, with
 // the inspector following the focused cell. A plan-wide price change is the one thing never offered.
-import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { RescueBook } from '@bindings/RescueBook';
 import type { RescueView } from '@bindings/RescueView';
 import { clockLabel, formatMinor, formatMoney, shortId } from '../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import {
-  percentWords, RESCUE_APPROVE_DOES, RESCUE_COUNTED, RESCUE_REPLAY_ABOUT as RESCUE_REPLAY_ABOUT_TEXT, RESCUE_REPLAY_NOT_COUNTED, RESCUE_SENT_NOT_COUNTED, rescueSourceWord, ruleSentence, silenceWords, stateWord, subscriberName, timeLeftWords,
+  percentWords, RESCUE_APPROVE_DOES, RESCUE_COUNTED, RESCUE_REPLAY_ABOUT as RESCUE_REPLAY_ABOUT_TEXT, RESCUE_REPLAY_NOT_COUNTED, RESCUE_SENT_NOT_COUNTED, RESCUE_WATCH_ABOUT, rescueSourceWord, ruleSentence, silenceWords, stateWord, subscriberName, timeLeftWords, watchingWords,
 } from '../../../lib/words';
 import { ModeBadge, WalletNotice } from '../../../shared/honesty';
 import { Glyph } from '../../../shared/modules';
@@ -41,6 +41,13 @@ const TONE: Record<ChipClass, ChipTone | undefined> = { live: 'teal', wait: 'cor
 /** The wallet's rescue read, shared by the page's parts (null until it answers or on an older shell). */
 function useRescueBook(): { book: RescueBook | null; error: ReturnType<typeof useQuery<'rescue_book'>>['error'] } {
   const q = useQuery('rescue_book', null, { refreshOn: ['deal:changed', 'receipt:created', 'attention:changed'] });
+  // The watch list changes in the approval window; read it again when this window is back in front.
+  const refetch = q.refetch;
+  useEffect(() => {
+    const again = () => void refetch();
+    window.addEventListener('focus', again);
+    return () => window.removeEventListener('focus', again);
+  }, [refetch]);
   return { book: q.data ?? null, error: q.error };
 }
 
@@ -130,6 +137,7 @@ export function Rescue({ deals, nav }: ModuleProps) {
       {bookError ? <WalletNotice error={bookError} what="Fixes and recovered money can’t be read" /> : null}
       {!detailed ? <RescueMoney strip={rescueStrip(rows, w.deals.data ?? [], book)} /> : null}
       <Explainer id="rescue" title="How rescue works" steps={HOW_RESCUE} />
+      <WatchRow book={book} failed={!!bookError} />
 
       {!detailed ? (
         <>
@@ -485,6 +493,32 @@ function RecoveredButton({ deals, book, label }: { deals: Deal[]; book: RescueBo
         </Popover>
       ) : null}
     </>
+  );
+}
+
+/** The owner's watched subscriptions: how many, today's checks, and where to change the list (the
+ *  approval window, like every other owner setting). Checking only reads PayPal. */
+function WatchRow({ book, failed }: { book: RescueBook | null; failed: boolean }) {
+  const open = useMutation('approval_open');
+  const n = book?.watching.length ?? 0;
+  const failing = book?.watching.filter((w) => w.state === 'fix_opened' || w.state === 'failed_no_fix').length ?? 0;
+  const sub = !book
+    ? failed ? 'Can’t be read right now' : 'Reading…'
+    : n === 0
+      ? 'Watch a subscription and your wallet checks it with PayPal for a failed renewal. Checking never moves money.'
+      : failing
+        ? `${failing} with a failed renewal · checked with PayPal every few hours; checking never moves money`
+        : 'Checked with PayPal every few hours for a failed renewal; checking never moves money';
+  return (
+    <Group className="rsc-watch">
+      <Row title={book ? watchingWords(n) : 'Watched subscriptions'} sub={sub}>
+        {book && n ? <Chip tone="line" title={RESCUE_WATCH_ABOUT}>{book.watch_reads_today} of {book.watch_reads_max} checks today</Chip> : null}
+        <Btn sm onClick={() => void open.run({ deal_id: null, target: 'rescue_watch' })} disabled={open.pending} title={`${RESCUE_WATCH_ABOUT} Opens the approval window.`}>
+          {n ? 'Manage ↗' : 'Watch a subscription ↗'}
+        </Btn>
+      </Row>
+      {open.error ? <WalletNotice error={open.error} what="Approval window" /> : null}
+    </Group>
   );
 }
 

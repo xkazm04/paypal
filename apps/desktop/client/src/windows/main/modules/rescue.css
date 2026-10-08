@@ -153,3 +153,5 @@
 .mod-rescue .rs-inv { padding: var(--sp-2) var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg2); }
 .mod-rescue .rs-inv .it { margin: 0 0 var(--sp-1); font-weight: var(--fw-semibold); }
 .mod-rescue .rs-inv .nt { margin: 0 0 var(--sp-2); color: var(--muted); }
+/* Watched subscriptions: one quiet row above the failed renewals. */
+.mod-rescue .rsc-watch { margin: 0 0 var(--sp-4); }

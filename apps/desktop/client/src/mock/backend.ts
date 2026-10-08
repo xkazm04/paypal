@@ -34,8 +34,9 @@ import { mockEnvelopeRefusal, mockExposureView } from './exposure';
 import type { RescueView } from '@bindings/RescueView';
 import type { Money } from '@bindings/Money';
 import type { Playbook } from '@bindings/Playbook';
-import { RESCUE_NO_RULES, RESCUE_SENT_SILENCE, RESCUE_SILENCE } from '../lib/words';
-import { invoiceText, leverOf, maskEmail, proposeDiscount, validEmail, validSubscriptionId } from './rescue';
+import { RESCUE_NO_RULES, RESCUE_SENT_SILENCE, RESCUE_SILENCE, RESCUE_WATCH_FULL } from '../lib/words';
+import type { RescueWatchView } from '@bindings/RescueWatchView';
+import { invoiceText, leverOf, maskEmail, proposeDiscount, RESCUE_WATCH_MAX, RESCUE_WATCH_READS_DAY, validEmail, validSubscriptionId } from './rescue';
 import { AUTHORITY, AUTHORITY_MANIFEST, type CommandAuthority } from '@bindings/authority';
 import { buildFirstRunState, firstRunPreview, PRACTICE_TERMS, withFirstRun, worldKeys } from './firstRun';
 
@@ -62,7 +63,7 @@ const TARGETS: Record<EventName, WindowLabel[]> = {
   'pairing:pinned': ['main'],
 };
 
-export const STORE_KEY = 'the-table-mock-state-v13'; // v13: the shield's rule on each deal and a release bound to its terms (shield slice 2); v12: shop-around groups and the house seller's D-0204 (T8); v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
+export const STORE_KEY = 'the-table-mock-state-v14'; // v14: the owner's watched subscriptions (rescue detection); v13: the shield's rule on each deal and a release bound to its terms (shield slice 2); v12: shop-around groups and the house seller's D-0204 (T8); v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
 const DEGRADE_KEY = 'the-table-mock-degrade';
 /** The preview clock's offset from wall time, shared by every mock window of this origin. */
 export const CLOCK_KEY = 'the-table-mock-clock';
@@ -1111,6 +1112,9 @@ export function mockBackend(label: WindowLabel): MockBackend {
     rescue_book: () => ({
       cases: state.deals.filter((d) => d.deal.kind === 'rescue').flatMap((d) => (state.rescue?.[d.deal.id] ? [state.rescue[d.deal.id]!] : [])),
       recovered: rescueRecovered(),
+      watching: state.rescueWatches ?? [],
+      watch_reads_today: state.rescueWatchReadsToday ?? 0,
+      watch_reads_max: RESCUE_WATCH_READS_DAY,
     }),
     // As Runtime::open_group (T8): open buyer haggles for one item under one set of rules, one
     // table per seller, none holding our ACCEPT. Grouping only restricts; no money moves.
@@ -1131,6 +1135,36 @@ export function mockBackend(label: WindowLabel): MockBackend {
     },
     // As Runtime::group_views: every group, newest first, typed signed prices only.
     deal_groups: () => [...groups()].sort((a, b) => b.opened_at - a.opened_at).map(groupView),
+    // As Runtime::rescue_watch_add: approval only, privileged, under signed rescue rules; at most
+    // RESCUE_WATCH_MAX at once. Nothing is checked here (the mock never reads PayPal).
+    rescue_watch_add: (args, opts) => {
+      privileged(opts);
+      if (!rescueMandate()) fail('INVALID', RESCUE_NO_RULES);
+      const email = args.subscriber_email.trim();
+      if (!validEmail(email)) fail('INVALID', 'That is not an email address.');
+      const id = args.subscription_id.trim();
+      if (!validSubscriptionId(id)) fail('INVALID', 'That is not a PayPal subscription id.');
+      if (!/^[A-Za-z0-9\-_.:@+]{1,128}$/.test(args.plan)) fail('INVALID', 'Invalid or stale wallet command');
+      const list = state.rescueWatches ?? [];
+      const existing = list.find((w) => w.subscription_id === id);
+      if (!existing && list.length >= RESCUE_WATCH_MAX) fail('INVALID', RESCUE_WATCH_FULL);
+      const now = nowUnix();
+      const view: RescueWatchView = existing
+        ? { ...existing, recipient: maskEmail(email), plan: args.plan, next_read_at: now }
+        : { subscription_id: id, recipient: maskEmail(email), plan: args.plan, state: 'waiting', added_at: now, last_read_at: null, next_read_at: now };
+      state.rescueWatches = existing ? list.map((w) => (w.subscription_id === id ? view : w)) : [...list, view];
+      save();
+      return state.rescueWatches;
+    },
+    // As Runtime::rescue_watch_stop: approval only, privileged; a fix it already opened is unchanged.
+    rescue_watch_stop: ({ subscription_id }, opts) => {
+      privileged(opts);
+      const list = state.rescueWatches ?? [];
+      if (!list.some((w) => w.subscription_id === subscription_id.trim())) fail('INVALID', 'That subscription isn’t being watched.');
+      state.rescueWatches = list.filter((w) => w.subscription_id !== subscription_id.trim());
+      save();
+      return state.rescueWatches;
+    },
   };
 
   // ---- the preview world (director and preview stage only; no money operation) ----------------

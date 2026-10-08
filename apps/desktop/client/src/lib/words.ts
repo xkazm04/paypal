@@ -457,6 +457,20 @@ export function subscriberName(key: string): string | null {
   const id = key.slice(4);
   return `subscriber ${id.length > 12 ? `${id.slice(0, 11)}…` : id}`;
 }
+/** Watching subscriptions for a failed renewal (the owner's list, read from PayPal). */
+export const RESCUE_WATCH_ABOUT = 'Your wallet checks each subscription you watch with PayPal every few hours. If a renewal fails, it suggests one fix inside your rules and asks you here. Checking never sends anything and never moves money.';
+export const RESCUE_WATCH_EMAIL = 'PayPal doesn’t give your wallet the subscriber’s email, so enter the one you have. A fix’s invoice goes there.';
+export const RESCUE_WATCH_FULL = 'You’re watching as many subscriptions as your wallet checks. Stop watching one first.';
+/** "Watching 2 subscriptions"; "Not watching any subscriptions yet" for none. */
+export const watchingWords = (n: number): string => (n === 0 ? 'Not watching any subscriptions yet' : `Watching ${n} subscription${n === 1 ? '' : 's'}`);
+/** What the wallet last learned about a watched subscription, in words, with its chip tone. */
+export const RESCUE_WATCH_STATE: Record<'waiting' | 'paid' | 'fix_opened' | 'failed_no_fix' | 'cant_read', { text: string; tone: 'line' | 'ok' | 'gold' | 'coral' | 'dashed'; means: string }> = {
+  waiting: { text: 'not checked yet', tone: 'line', means: 'Your wallet checks it with PayPal within a few minutes.' },
+  paid: { text: 'renewals paid', tone: 'ok', means: 'The last check showed no failed payment.' },
+  fix_opened: { text: 'fix suggested', tone: 'gold', means: 'A renewal failed and your wallet suggested one fix. It is not suggested again for the same failure.' },
+  failed_no_fix: { text: 'failed · no fix', tone: 'coral', means: 'A renewal failed, but no fix fits your rules (or more than one payment is owed). Nothing is sent; PayPal retries by itself.' },
+  cant_read: { text: 'can’t check now', tone: 'dashed', means: 'PayPal didn’t answer. Your wallet tries again later.' },
+};
 
 // ---- the house seller's signed record (T9): kept with a receipt from the house seller ------------
 
