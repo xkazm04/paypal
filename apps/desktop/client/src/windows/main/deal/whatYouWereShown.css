@@ -1,5 +1,5 @@
 /* "What you were shown" (deal/ShownStrip.tsx): one quiet line on a deal its deadline ended. */
-.dv-shown { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; row-gap: 2px; max-width: 780px; margin: var(--sp-2) 0 0; font-size: var(--fs-small); color: var(--dim); font-variant-numeric: tabular-nums; }
+.dv-shown { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; row-gap: 2px; margin: var(--sp-2) 0 var(--sp-3); font-size: var(--fs-small); color: var(--dim); font-variant-numeric: tabular-nums; }
 .dv-shown .hg { display: inline-block; width: 10px; height: 12px; align-self: center; color: var(--dim); }
 .dv-shown .lbl { color: var(--muted); font-weight: var(--fw-semibold); }
 .dv-shown .lbl::after { content: ':'; }

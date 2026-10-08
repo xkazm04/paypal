@@ -13,7 +13,7 @@ import { NEVER_SHOWN, NOT_NOTIFIED_BECAUSE } from '../../../lib/words';
 const ENDING: Partial<Record<HistoryKind, readonly [string, string]>> = {
   lapsed: ['Lapsed', 'no money moved'],
   expired: ['Expired', 'no money moved'],
-  auto_voided: ['Hold released by itself', 'nothing was paid'],
+  auto_voided: ['Hold released', 'nothing was paid'],
 };
 
 /** The deal's ending under the safe default, when it cites what the owner was shown. */
