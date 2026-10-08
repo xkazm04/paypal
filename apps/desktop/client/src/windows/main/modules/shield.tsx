@@ -147,7 +147,7 @@ export function Shield({ deals, nav }: ModuleProps) {
           <th scope="row">Other checks</th>
           <td colSpan={cols.length} className={!passes ? 'faint' : ''}>
             <div className="rc"><span className="sh-unk" aria-hidden="true" /><span className="t">{UNSHOWN.map((k) => CHECKS.find((x) => x.k === k)!.short).join(' · ')}</span>
-              <span className="d">results not shown here, counted in “Shield says”</span>
+              <span className="d">their own results aren’t reported here; each counts in “Shield says”</span>
               <Btn kind="plain" sm className="sh-more" onClick={() => setHow(true)}>How it works ›</Btn></div>
           </td>
         </tr>,
@@ -236,7 +236,7 @@ export function Shield({ deals, nav }: ModuleProps) {
       {detailed ? (
         !cols.length ? <div className="ui-group"><div className="ui-empty">Nothing paused, nothing blocked. The shield hasn’t had to check anyone yet.</div></div> : (
           <div className="sh-mxwrap">
-            <table className="sh-mx" role="grid" aria-label="Shield checks for each payee" aria-readonly="true" ref={grid}>
+            <table className="sh-mx" style={{ minWidth: 148 + cols.length * 150 }} role="grid" aria-label="Shield checks for each payee" aria-readonly="true" ref={grid}>
               <colgroup><col className="lab" />{cols.map((d) => <col key={d.id} />)}</colgroup>
               <thead>
                 <tr>

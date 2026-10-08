@@ -305,3 +305,8 @@
 .home .aw-hub .aw-more { margin: 0 auto; text-align: center; font-size: max(12px, 1.6cqmin); }
 .home .aw-hub .aw-acts { display: flex; gap: 2cqmin; align-items: center; }
 .home .aw-hub .aw-acts .hm-back:hover { color: var(--text); }
+/* On hold: each direction on its own line, as in Book (money going out and coming in are never added) */
+.home .col .ui-row .amt.held { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; font-size: var(--fs-body); flex: none; }
+.home .col .ui-row:has(.amt.held) .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home .col .ui-row .amt.held > span { white-space: nowrap; }
+.home .col .ui-row .amt.held small { display: inline; font-size: var(--fs-small); font-weight: var(--fw-regular, 400); color: var(--muted); }

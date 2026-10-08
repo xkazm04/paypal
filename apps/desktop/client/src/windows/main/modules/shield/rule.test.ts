@@ -6,7 +6,7 @@ import type { Deal } from '@bindings/Deal';
 import type { ShieldRule } from '@bindings/ShieldRule';
 import { shieldReleased, shieldRuleWord } from '../../../../lib/words';
 import { checkLights, whyFor, whyQuestion } from './normal';
-import { reasonsFor } from './matrix';
+import { checkCell, reasonsFor } from './matrix';
 
 const usd = (d: number) => ({ minor: Math.round(d * 100), currency: 'USD' as const });
 const NOW = 1_800_000_000;
@@ -62,5 +62,28 @@ describe('the Shield page shows the recorded rule, not a guess', () => {
   });
   it('a deal with no recorded rule keeps the facts-only reasons', () => {
     expect(reasonsFor(deal({ market, shield: 'HOLD' }), fresh, NOW).map((r) => r.kind)).toEqual(['price', 'newcp']);
+  });
+});
+
+describe('a check with no result here reads calmly, never as a pass (polish 3)', () => {
+  it('another recorded rule: the other groups "Didn’t stop it", dashed, with the reason it is not a pass', () => {
+    const lights = checkLights(deal({ market, shield: 'HOLD', shield_rule: 'price_over_market' }), fresh, NOW);
+    expect(lights.map((l) => [l.state, l.word])).toEqual([['unknown', 'Didn’t stop it'], ['tripped', 'Too high'], ['unknown', 'Didn’t stop it']]);
+    for (const l of lights) expect(`${l.word} ${l.detail}`).not.toMatch(/shown here|this window/i);
+    expect(lights[0]!.detail).toMatch(/aren’t marked as passed/);
+  });
+  it('a cleared payment: "No alert"; no recorded rule on a pause: "Not reported"; never "passed"', () => {
+    const old = { ...fresh, first_seen: NOW - 9 * 86400 };
+    const clear = checkLights(deal({ market: { ...market, median: usd(66) }, shield: 'CLEAR' }), old, NOW);
+    expect(clear.map((l) => l.word)).toEqual(['No alert', 'Fine', 'No alert']);
+    const legacy = checkLights(deal({ market: { ...market, median: usd(66) }, shield: 'HOLD' }), old, NOW);
+    expect(legacy.map((l) => [l.state, l.word])).toEqual([['unknown', 'Not reported'], ['passed', 'Fine'], ['unknown', 'Not reported']]);
+  });
+  it('the matrix cell of the check that decided is a fact; the others stay dashed with the same words', () => {
+    const d = deal({ market, shield: 'BLOCK', shield_rule: 'payee_mismatch' });
+    expect(checkCell('payee', d, fresh, NOW)).toMatchObject({ r: 'fact', s: 'different payee' });
+    expect(checkCell('ff', d, fresh, NOW)).toMatchObject({ r: 'na', s: 'didn’t stop it' });
+    expect(checkCell('typology', deal({ shield: 'CLEAR' }), fresh, NOW)).toMatchObject({ r: 'na', s: 'no alert' });
+    expect(checkCell('typology', deal(), fresh, NOW)).toMatchObject({ r: 'na', s: 'not reported' });
   });
 });

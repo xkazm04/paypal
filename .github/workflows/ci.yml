@@ -30,6 +30,8 @@ jobs:
           command: check
   rust:
     strategy:
+      # One OS failing must not cancel the other: each leg reports its own failures.
+      fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
@@ -54,7 +56,7 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       # With TABLE_EVIDENCE_DIR set, the H6 golden run writes its signed proof file and the
       # hostile-agent gauntlet its summary there (ops-and-delivery-1 safety dossier).
-      - run: cargo test --workspace
+      - run: cargo test --workspace --no-fail-fast
         env:
           TABLE_EVIDENCE_DIR: ${{ github.workspace }}/safety-dossier
       # Which test carries which §13 / window acceptance ID; fails while a never-cut ID has none.

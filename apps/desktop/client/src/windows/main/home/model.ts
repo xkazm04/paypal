@@ -5,7 +5,7 @@ import type { Money } from '@bindings/Money';
 import { formatMoney } from '../../../lib/format';
 import { timeLeftWords } from '../../../lib/words';
 import type { ChipTone } from '../../../shared/ui';
-import { dealTotal, stateLabel, type ChipClass, type LedgerSummary } from '../logic';
+import { dealTotal, stateLabel, sumByCurrency, type ChipClass, type LedgerSummary } from '../logic';
 
 /** "the offer lapses at 18:00 · no money moves" -> head "the offer lapses at 18:00", rest "no money moves". */
 export function silenceParts(text: string): { head: string; rest: string | null } {
@@ -46,6 +46,23 @@ export function timeLeft(deadline: number | null, now: number): { text: string; 
 
 /** Drops the noise a one-line row cannot afford ("Refurbished ", a trailing "(…)"). */
 export const shortTitle = (t: string): string => t.replace(/^Refurbished /, '').replace(/ \(.*\)$/, '');
+
+/** What is on hold at PayPal (AUTHORIZED), per direction and currency: the same figures as Book's
+ *  "On hold" tile. Money going out and coming in are never added together, and a payment a scam
+ *  check paused is not on hold at PayPal (nothing was sent): it shows under Needs you instead. */
+export function heldAtPayPal(held: readonly Deal[]): { deals: Deal[]; out: Money[]; inn: Money[] } {
+  const deals = held.filter((d) => d.state === 'AUTHORIZED');
+  return {
+    deals,
+    out: sumByCurrency(deals.filter((d) => d.side === 'buyer').map(dealTotal)),
+    inn: sumByCurrency(deals.filter((d) => d.side === 'seller').map(dealTotal)),
+  };
+}
+/** "$64.00 out · $118.00 in", "$64.00 out", "nothing": what is on hold, each direction named. */
+export function heldLine(h: { out: Money[]; inn: Money[] }): string {
+  const parts = [h.out.length ? `${moneyList(h.out)} out` : '', h.inn.length ? `${moneyList(h.inn)} in` : ''].filter(Boolean);
+  return parts.length ? parts.join(' · ') : 'nothing';
+}
 
 /** The deals behind one ledger row. */
 export const ledgerDeals = (kind: LedgerKind, s: LedgerSummary): Deal[] => s[kind];

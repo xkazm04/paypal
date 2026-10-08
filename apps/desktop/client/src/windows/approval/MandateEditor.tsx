@@ -377,7 +377,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
                 ['Signed', 'with your owner key'],
                 ['Version', base.payload.version],
                 ['Reference', <span key="id" className="mono">{base.payload.id} · agent key {shortHash(base.payload.agent_key)}</span>],
-                ['Earlier versions', <span key="v" className="dim">not shown here, only the rules in force</span>],
+                ['Earlier versions', <span key="v" className="dim">this view lists only the rules in force</span>],
               ]}
             />
           ) : (

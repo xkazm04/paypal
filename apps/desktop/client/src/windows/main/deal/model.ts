@@ -17,7 +17,7 @@ import type { Role } from '@bindings/Role';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import type { TranscriptType } from '@bindings/TranscriptType';
 import { formatMinor, formatMoney } from '../../../lib/format';
-import { MILESTONES, milestoneOf, RULE_NAME, ruleNameOf, type Milestone } from '../../../lib/words';
+import { houseWords, MILESTONES, milestoneOf, RULE_NAME, ruleNameOf, type Milestone } from '../../../lib/words';
 import { canWithdraw, clauseText, dealTotal, decidedBy, isTerminal, pathFor, stateLabel } from '../logic';
 
 // ---- the state strip ---------------------------------------------------------------------------
@@ -306,7 +306,7 @@ export type DecisionLine = { tone: 'need' | 'may' | 'calm'; chip: { tone: Tone; 
 
 export function decisionLine(d: Pick<Deal, 'state' | 'kind' | 'shield'> & Partial<Pick<Deal, 'decided_by'>>, need: Pick<AttentionItem, 'headline' | 'clause' | 'counterparty'> | undefined, mayWithdraw: boolean): DecisionLine {
   if (need) {
-    const t2 = [need.clause ? ruleNameOf(need.clause.number) : null, need.counterparty].filter(Boolean).join(' · ');
+    const t2 = [need.clause ? ruleNameOf(need.clause.number) : null, need.counterparty ? houseWords(need.counterparty) : null].filter(Boolean).join(' · ');
     return { tone: 'need', chip: { tone: 'gold', text: 'Needs you' }, t1: need.headline, t2: t2 || null };
   }
   if (mayWithdraw) return { tone: 'may', chip: { tone: 'line', text: 'You may withdraw' }, t1: 'Nothing waits for you', t2: 'withdrawing is free · it cannot move money' };

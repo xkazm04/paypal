@@ -6,9 +6,10 @@ import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import type { DisplayBand } from '@bindings/DisplayBand';
 import type { MoneyCheck } from '@bindings/MoneyCheck';
+import type { RescueOffer } from '@bindings/RescueOffer';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { formatMoney } from '../../../lib/format';
-import { headlineWords, MONEY_CHECK_PARKED, marketWords, moneyCheckStep, ruleNameOf, shieldRuleWord, stateWord } from '../../../lib/words';
+import { headlineWords, houseWords, MONEY_CHECK_PARKED, marketWords, percentWords, moneyCheckStep, ruleNameOf, shieldRuleWord, stateWord } from '../../../lib/words';
 import { dealTotal, decidedBy, isTerminal } from '../logic';
 import { latestText, timelineRows, type ClauseReading, type Reading, type TimelineRow } from './model';
 
@@ -100,7 +101,8 @@ type QDeal = Pick<Deal, 'state' | 'kind' | 'side' | 'shield' | 'terms'>;
 export function decisionQuestion(d: QDeal, need: Pick<AttentionItem, 'headline'>, them: string): string {
   const amt = formatMoney(dealTotal(d));
   if (d.state === 'AUTHORIZED') return `Pay ${them} ${amt}, or release the hold?`;
-  if (d.shield === 'HOLD') return `Withdraw ${them}’s paused ${amt} request?`;
+  // A live pause is released (or refused) by the owner, as on the Shield page; a closed one can only be withdrawn.
+  if (d.shield === 'HOLD') return isTerminal(d) ? `Withdraw ${them}’s paused ${amt} request?` : `Let this ${amt} payment to ${them} go ahead?`;
   if (d.kind === 'rescue') return `Approve a ${amt} invoice to fix ${them}’s failed renewal?`;
   if (d.kind === 'haggle') return d.side === 'buyer' ? `Accept ${them}’s ${formatMoney(d.terms.unit_price)}?` : `Sell to ${them} for ${formatMoney(d.terms.unit_price)}?`;
   return `${headlineWords(need.headline)} with ${them}?`;
@@ -110,7 +112,7 @@ export function decisionQuestion(d: QDeal, need: Pick<AttentionItem, 'headline'>
 export function decisionWhy(d: Pick<Deal, 'shield'>, need: Pick<AttentionItem, 'clause'>, readings: readonly ClauseReading[], mandateId: string): string | null {
   const n = need.clause && need.clause.mandate_id === mandateId ? need.clause.number : null;
   const r = n !== null ? readings.find((x) => x.n === n) : undefined;
-  if (r) return `Because of your rule “${r.title}” (${r.rule.replace(/\bHOUSE\b/g, 'the house seller')}).`;
+  if (r) return `Because of your rule “${r.title}” (${houseWords(r.rule)}).`;
   if (need.clause) return `Because of your rule “${ruleNameOf(need.clause.number)}”.`;
   if (d.shield === 'HOLD') return 'A scam check paused this before PayPal was asked.';
   return null;
@@ -170,9 +172,14 @@ export function threadRows(steps: readonly TranscriptStep[], d: Pick<Deal, 'crea
 export type Fact = { k: string; v: string; tone?: 'ok' | 'gold' | 'red' | 'dim' };
 
 /** The right-hand "where it stands" facts: numbers only, from the signed terms and the band. */
-export function standingFacts(d: Pick<Deal, 'kind' | 'side' | 'terms' | 'market'>, band: DisplayBand | null, latest: TranscriptStep | null, them: string): Fact[] {
+export function standingFacts(d: Pick<Deal, 'kind' | 'side' | 'terms' | 'market'>, band: DisplayBand | null, latest: TranscriptStep | null, them: string, offer?: RescueOffer | null): Fact[] {
   const out: Fact[] = [];
-  if (d.kind === 'haggle') {
+  if (d.kind === 'rescue' && offer) {
+    // The same two figures as Rescue and the approval window: what failed, and what the fix invoices.
+    out.push({ k: 'Renewal that failed', v: formatMoney(offer.cycle) });
+    out.push({ k: 'This fix invoices', v: formatMoney(offer.invoice) });
+    out.push({ k: 'Discount', v: `${percentWords(offer.discount_bp)} off this cycle only` });
+  } else if (d.kind === 'haggle') {
     if (latest?.price) out.push({ k: latest.by === 'them' ? `${them}’s latest` : 'Your latest', v: formatMoney(latest.price) });
     const limit = band ? (d.side === 'buyer' ? band.ceiling : band.floor) : null;
     if (limit) out.push({ k: d.side === 'buyer' ? 'Most you’ll pay' : 'Least you’ll accept', v: formatMoney(limit) });

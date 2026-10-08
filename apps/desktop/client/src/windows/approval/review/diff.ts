@@ -16,7 +16,7 @@ import type { MandatePayload } from '@bindings/MandatePayload';
 import type { Money } from '@bindings/Money';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { formatMoney } from '../../../lib/format';
-import { percentWords, shieldReleased, shieldRuleWord, shieldWord } from '../../../lib/words';
+import { houseWords, percentWords, shieldReleased, shieldRuleWord, shieldWord } from '../../../lib/words';
 import { isTerminal, ownsPaypalResource } from '../gating';
 import { dealTotal } from '../model';
 
@@ -205,7 +205,7 @@ function payeesRow(i: DiffInput): DiffRow | null {
   const listed = cp.known && p.c.payees.includes(label);
   const shown = cp.house ? 'the house seller' : label;
   return {
-    id: 'payees', name: 'Approved payees', left: p.c.payees.length ? p.c.payees.join(', ') : 'none yet',
+    id: 'payees', name: 'Approved payees', left: p.c.payees.length ? p.c.payees.map(houseWords).join(', ') : 'none yet',
     right: cp.known ? (listed ? `${shown} is on it` : `${shown} isn’t on it`) : null,
     rel: !cp.known ? '?' : listed ? '=' : '∉', tone: !cp.known ? 'info' : listed ? 'ok' : 'info', word: !cp.known ? undefined : listed ? 'listed' : 'so you’re asked',
     src: listed ? 'Your signed rules, approved payees.' : 'Payees not on your list always come to you to decide.',

@@ -16,6 +16,7 @@ import { shortTitle } from '../home/model';
 import { amountNote, amountTone, dealTotal, moneyNow } from '../logic';
 import { useToast } from '../ui';
 import { useWorld } from '../world';
+import { releasable } from '../modules/shield/matrix';
 import { milestones, stateTone, withdrawWhat, type ClauseReading, type MirrorStrip, type Reading } from './model';
 import { dealAnswer, decisionQuestion, decisionWhy, reviewMeans } from './story';
 
@@ -114,6 +115,16 @@ export function DealStory({ deal, need, canWithdraw, theirName, them, latest, ba
       label: <>{w.locked ? <Icon name="hold" size={13} /> : null} Review &amp; approve ↗</>,
       means: reviewMeans(deal, w.locked),
       title: w.locked ? 'Opens the approval window, which asks for Windows Hello first' : 'Opens the approval window: the only place money can be released',
+    });
+  }
+  // A live scam-check pause: the same hand-off as the Shield page (the typed-name release happens in
+  // the approval window). Releasing never pays.
+  if (need && !review && releasable(deal)) {
+    options.push({
+      kind: 'gold', onClick: () => void open.run({ deal_id: deal.id }), disabled: open.pending,
+      label: <>{w.locked ? <Icon name="hold" size={13} /> : null} Review &amp; release ↗</>,
+      means: 'Opens the approval window. You type the payee’s name there to release it. Releasing doesn’t pay.',
+      title: w.locked ? 'Opens the approval window, which asks for Windows Hello first' : 'Opens the approval window, where you type the payee’s name to release it',
     });
   }
   if (need && mayLapse) {
