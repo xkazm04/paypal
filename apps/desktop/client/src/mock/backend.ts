@@ -18,6 +18,7 @@ import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import type { ArgsOf, Backend, CommandName, EventName, InvokeOptions, PayloadOf, ResultOf, WindowLabel } from '../lib/contract';
 import { WalletError } from '../lib/contract';
 import { clockOffset, setClockOffset, simulateClock } from '../lib/clock';
+import { fairPriceOf } from '../lib/fairPrice';
 import { formatMoney, nowUnix } from '../lib/format';
 import { buildMockState, fakeHash, fakeUlid, MOCK_OWNER_KEY_ID, type MockDeal, type MockGroup, type MockState } from './fixtures';
 import type { DealGroupView } from '@bindings/DealGroupView';
@@ -63,7 +64,7 @@ const TARGETS: Record<EventName, WindowLabel[]> = {
   'pairing:pinned': ['main'],
 };
 
-export const STORE_KEY = 'the-table-mock-state-v15'; // v15: D-0190's attention names no rule, as Rust does (polish 3); v14: the owner's watched subscriptions (rescue detection); v13: the shield's rule on each deal and a release bound to its terms (shield slice 2); v12: shop-around groups and the house seller's D-0204 (T8); v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
+export const STORE_KEY = 'the-table-mock-state-v16'; // v16: market records keep their comparables, a re-checkable fair price on each deal (market-data-2); v15: D-0190's attention names no rule, as Rust does (polish 3); v14: the owner's watched subscriptions (rescue detection); v13: the shield's rule on each deal and a release bound to its terms (shield slice 2); v12: shop-around groups and the house seller's D-0204 (T8); v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
 const DEGRADE_KEY = 'the-table-mock-degrade';
 /** The preview clock's offset from wall time, shared by every mock window of this origin. */
 export const CLOCK_KEY = 'the-table-mock-clock';
@@ -474,7 +475,11 @@ export function mockBackend(label: WindowLabel): MockBackend {
     get_settings: () => ({ ...state.settings, locked: isLocked(), authority_manifest: AUTHORITY_MANIFEST }),
     list_deals: () => state.deals.map((d) => d.deal),
     get_deal: ({ deal_id }) => find(deal_id).deal,
-    deal_evidence: ({ deal_id }) => find(deal_id).evidence,
+    // The fair price is worked out from the deal's market record as Rust does from its rows.
+    deal_evidence: ({ deal_id }) => {
+      const d = find(deal_id);
+      return { ...d.evidence, fair_price: fairPriceOf(d.deal.state, d.deal.market, d.deal.terms.unit_price) };
+    },
     // A browser preview has no ledger or agent key to sign with: say so instead of faking a file.
     deal_export_proof: ({ deal_id }) => { find(deal_id); return fail('UNAVAILABLE', `Proof export needs the native wallet: the bundle is signed by the deal's agent key`); },
     // Checking a file needs the wallet's own file dialog and checker; the preview has neither.
@@ -520,9 +525,15 @@ export function mockBackend(label: WindowLabel): MockBackend {
       emit('settings:changed', state.settings);
       return null;
     },
-    market_refresh: ({ deal_id }, opts) => {
+    market_refresh: ({ deal_id, product_id }, opts) => {
       privileged(opts, deal_id);
       const d = find(deal_id);
+      // As Runtime::market_refresh: only the product the deal's rules bind to its item, refused
+      // before any market call (market-data-2).
+      const latest = activeMandate(d.deal.mandate_id);
+      const watched = latest?.payload.clauses.flatMap((c) => (c.type === 'market_watch' ? c.items : [])).find((i) => i.item_ref === d.deal.terms.item_ref);
+      const bound = watched ? watched.product_id : /^[A-Za-z0-9_-]{1,128}$/.test(d.deal.terms.item_ref) ? d.deal.terms.item_ref : null;
+      if (product_id !== bound) fail('INVALID', 'that market product does not price this item under its rules');
       return d.deal.market ?? fail('UNAVAILABLE', 'no market reference for this item');
     },
     attention_list: () => attention(),

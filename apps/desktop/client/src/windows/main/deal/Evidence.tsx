@@ -10,7 +10,7 @@ import type { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMoney, nowUnix, shortHash, shortId } from '../../../lib/format';
 import { useMutation } from '../../../lib/hooks';
 import type { DealWatch } from '../../../lib/marketWatch';
-import { HOUSE_RECORD_NAME, houseRecordWord, KEPT_FRESH, marketWords, PRICE_CHECKS_USED_UP, priceChecksToday, PROOF_FILE_SHOWS, PROOF_SAVE_WARNING } from '../../../lib/words';
+import { FAIR_PRICE_NAME, fairPriceWords, HOUSE_RECORD_NAME, houseRecordWord, KEPT_FRESH, marketWords, PRICE_CHECKS_USED_UP, priceChecksToday, PROOF_FILE_SHOWS, PROOF_SAVE_WARNING } from '../../../lib/words';
 import { ModeBadge, WalletNotice } from '../../../shared/honesty';
 import { Btn, Chip, Empty, Kv, Loading, Sheet } from '../../../shared/ui';
 import { ConvergenceChart, MarketBand, MiniBand } from '../charts';
@@ -44,6 +44,7 @@ export function ProofPanel({ deal, ev, band, watch, onOpen }: { deal: Deal; ev: 
   const mw = mk && sameCur ? marketWords(deal.terms.unit_price.minor, mk.p25.minor, mk.median.minor, mk.p75.minor) : null;
   const loading = <span className="dim">loading…</span>;
   const house = e?.house_record ? houseRecordWord(e.house_record) : null;
+  const fair = e?.fair_price ? fairPriceWords(e.fair_price, deal.terms.unit_price) : null;
   return (
     <div className="dv-proof">
       <button type="button" className="dv-pc" onClick={() => onOpen('paypal')}>
@@ -76,7 +77,8 @@ export function ProofPanel({ deal, ev, band, watch, onOpen }: { deal: Deal; ev: 
         </span>
         <span className="why">
           {mk ? `Similar listings: ${formatMoney(mk.p25)} to ${formatMoney(mk.p75)}.` : watch && !watch.usedUp ? 'No comparison yet.' : 'No comparison for this item, so market checks are skipped, not passed.'}
-          {watch ? <span className={`dv-fresh ${watch.usedUp ? 'used' : ''}`} title={watch.usedUp ? PRICE_CHECKS_USED_UP : `${priceChecksToday(watch.used, watch.max)}. The wallet checks the typical price on its own; it never approves anything.`}> {watchWhy(watch, !!mk)}</span> : null}
+          {fair ? <span className={`dv-fair ${fair.tone}`} title={fair.means}> {fair.text}.</span> : null}
+          {watch ?<span className={`dv-fresh ${watch.usedUp ? 'used' : ''}`} title={watch.usedUp ? PRICE_CHECKS_USED_UP : `${priceChecksToday(watch.used, watch.max)}. The wallet checks the typical price on its own; it never approves anything.`}> {watchWhy(watch, !!mk)}</span> : null}
         </span>
       </button>
       {house && e?.house_record ? (
@@ -152,6 +154,7 @@ export function EvidenceSheet({ kind, deal, ev, band, watch, onFresh, onClose }:
   const limit = band && deal.kind === 'haggle' ? (deal.side === 'buyer' ? (band.ceiling ? { label: 'most you’ll pay', value: band.ceiling } : null) : (band.floor ? { label: 'least you’ll accept', value: band.floor } : null)) : null;
   const price = deal.terms.unit_price;
   const mw = mk && price.currency === mk.median.currency ? marketWords(price.minor, mk.p25.minor, mk.median.minor, mk.p75.minor) : null;
+  const fair = e?.fair_price ? fairPriceWords(e.fair_price, price) : null;
   return (
     <Sheet title="Typical price" size="wide" onClose={onClose} footer={done}>
       {mk ? (
@@ -161,6 +164,7 @@ export function EvidenceSheet({ kind, deal, ev, band, watch, onFresh, onClose }:
             ['This deal', mw ? <><b className="money">{formatMoney(price)}</b> · {mw.text}</> : <span className="dim">{formatMoney(price)} · in another currency than the comparison</span>],
             ['Typical range', <span className="money">{formatMoney(mk.p25)} – {formatMoney(mk.p75)} · middle {formatMoney(mk.median)}</span>],
             ['Checked', `${clockLabel(mk.retrieved_at)}${mk.cached ? ' · saved copy' : ''}`],
+            fair && e?.fair_price ? [FAIR_PRICE_NAME, <><Chip tone={fair.tone} title={fair.means}>{fair.short}</Chip> {fair.text}. <span className="dim">{fair.means}</span></>] : null,
             ...(watch ? [['Kept fresh', watch.usedUp ? <span className="gold">{PRICE_CHECKS_USED_UP}</span> : `${KEPT_FRESH} · ${priceChecksToday(watch.used, watch.max).toLowerCase()}`] as const] : []),
           ]} />
           <p className="ui-hint">A comparison with similar listings, not a recommendation.</p>
