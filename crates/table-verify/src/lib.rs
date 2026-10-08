@@ -323,6 +323,10 @@ fn operation_of(method: &str, path: &str) -> Option<&'static str> {
         ["v2", "checkout", "orders", _, "authorize"] => Some("authorize"),
         ["v2", "payments", "authorizations", _, "capture"] => Some("capture"),
         ["v2", "payments", "authorizations", _, "void"] => Some("void"),
+        // Subscription rescue: the owner's discount invoice (create, then send). A search is a read.
+        ["v2", "invoicing", "invoices"] => Some("invoice-create"),
+        ["v2", "invoicing", "invoices", _, "send"] => Some("invoice-send"),
+        ["v2", "invoicing", "search-invoices"] => None,
         _ => Some("unclassified"),
     }
 }
@@ -330,6 +334,16 @@ fn operation_of(method: &str, path: &str) -> Option<&'static str> {
 fn authority(bundle: &ProofBundle) -> Outcome {
     let mut verdicts = Vec::new();
     for op in &bundle.operations {
+        // An invoice is a rescue fix only, and only the owner can send one (DECISIONS §13).
+        if op.operation.starts_with("invoice-")
+            && (bundle.deal.kind != DealKind::Rescue
+                || !matches!(op.decided_by, DecidedBy::Human { .. }))
+        {
+            return Err(format!(
+                "{} (attempt {}): an invoice needs the owner's decision on a rescue deal",
+                op.operation, op.attempt
+            ));
+        }
         let why = lawful(bundle, &op.operation, &op.decided_by)
             .map_err(|e| format!("{} (attempt {}): {e}", op.operation, op.attempt))?;
         verdicts.push(format!("{}: {why}", op.operation));
@@ -626,5 +640,32 @@ pub fn verify_bundle(bundle: &ProofBundle) -> Report {
                 }
             })
             .collect(),
+    }
+}
+
+#[cfg(test)]
+mod operation_tests {
+    use super::operation_of;
+
+    #[test]
+    fn rescue_invoices_are_money_steps_and_the_search_is_a_read() {
+        assert_eq!(
+            operation_of("POST", "/v2/invoicing/invoices"),
+            Some("invoice-create")
+        );
+        assert_eq!(
+            operation_of("POST", "/v2/invoicing/invoices/INV2-ABCD/send"),
+            Some("invoice-send")
+        );
+        assert_eq!(operation_of("POST", "/v2/invoicing/search-invoices"), None);
+        assert_eq!(
+            operation_of("GET", "/v2/invoicing/invoices/INV2-ABCD"),
+            None
+        );
+        assert_eq!(
+            operation_of("POST", "/v2/invoicing/invoices/INV2-ABCD/cancel"),
+            Some("unclassified")
+        );
+        assert_eq!(operation_of("POST", "/v2/checkout/orders"), Some("create"));
     }
 }
