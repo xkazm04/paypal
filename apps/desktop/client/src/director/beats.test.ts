@@ -36,7 +36,7 @@ describe('the beat file', () => {
       for (const a of b.do) {
         expect(KINDS).toContain(a.do);
         if ('deal' in a && typeof a.deal === 'string') expect(labels, `${b.id} → ${a.deal}`).toContain(a.deal);
-        if (a.do === 'main' && a.route) expect(a.route).toMatch(/^#(d|m)=[A-Za-z0-9-]+$/);
+        if (a.do === 'main' && a.route) expect(a.route).toMatch(/^#(d|m)=[A-Za-z0-9-]+(&p=safety)?$/);
       }
     }
   });

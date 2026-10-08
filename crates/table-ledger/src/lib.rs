@@ -3,6 +3,7 @@
 pub mod attention;
 pub mod audit;
 mod bundle;
+pub use bundle::LedgerExport;
 pub mod redaction;
 pub mod repositories;
 pub use attention::{RUNG_ACTION, RungRow, SilenceEvidence, rung_chain_hash};

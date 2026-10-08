@@ -202,7 +202,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
     <>
       <PageHead title="Book" icon={<Glyph module="book" />} focusKey="book"
         sub={<>All payments · {scope.scope === 'week' ? 'this week' : 'everything on record'} · as of {clockLabel(now)}</>}
-        actions={<DetailToggle value={detail} onChange={setDetail} />} />
+        actions={<>{nav.onSafety ? <Btn sm onClick={nav.onSafety} title="Check every entry on record: who decided each money step, and what your agents were refused">Your safety record</Btn> : null}<DetailToggle value={detail} onChange={setDetail} /></>} />
 
       <WeekAnswer deals={ledger} week={scope.scope === 'week'} checking={ledger.filter((d) => ev.map.get(d.id)?.money_check ?? w.needOf(d.id)?.money_check).length} />
       <Explainer id="book" title="How your book works" steps={HOW_BOOK} />

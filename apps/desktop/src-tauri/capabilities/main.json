@@ -45,6 +45,7 @@
     "allow-envelope-get",
     "allow-rescue-book",
     "allow-deal-group-open",
-    "allow-deal-groups"
+    "allow-deal-groups",
+    "allow-safety-record"
   ]
 }
