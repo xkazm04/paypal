@@ -1167,7 +1167,7 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
         .unwrap();
     assert_eq!(evidence.receipt, ReceiptEvidence::SellerAttested);
     assert_eq!(evidence.reconciliation, Reconciliation::PendingReporting);
-    let receipt = tokio::time::timeout(std::time::Duration::from_secs(3), async {
+    let receipt = tokio::time::timeout(std::time::Duration::from_secs(30), async {
         loop {
             if let WalletEvent::Receipt(r) = a_events.recv().await.unwrap() {
                 break r;

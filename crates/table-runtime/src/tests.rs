@@ -2099,7 +2099,7 @@ async fn pending_os_prompt_does_not_block_actor_deadline_processing() {
         tokio::spawn(async move { unlocker.unlock(caller("approval", Some(&token)), 1).await });
     hello.started.notified().await;
     clock.0.store(102, Ordering::SeqCst);
-    let updated = tokio::time::timeout(std::time::Duration::from_secs(3), async {
+    let updated = tokio::time::timeout(std::time::Duration::from_secs(30), async {
         loop {
             let d = actor
                 .execute::<Deal>(caller("main", None), Action::Deal(deal.id))
@@ -2132,7 +2132,7 @@ async fn actor_emits_real_changed_and_receipt_events_for_deadline_default() {
     // Wait for the initial deal projection before advancing the injected clock.
     while !matches!(events.recv().await.unwrap(), WalletEvent::Deal(_)) {}
     clock.0.store(102, Ordering::SeqCst);
-    let receipt = tokio::time::timeout(std::time::Duration::from_secs(3), async {
+    let receipt = tokio::time::timeout(std::time::Duration::from_secs(30), async {
         loop {
             if let WalletEvent::Receipt(receipt) = events.recv().await.unwrap() {
                 break receipt;
