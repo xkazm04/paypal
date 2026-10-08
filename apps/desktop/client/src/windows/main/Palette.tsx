@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Module } from '@bindings/Module';
 import { MODULES } from '../../shared/modules';
-import { Dot, Field, trapTab, useLayer, useReturnFocus } from '../../shared/ui';
+import { Dot, Field, trapTab, useLayer, useModalFocus, useReturnFocus } from '../../shared/ui';
 import { stateLabel, type SheetTab } from './logic';
 import { useCpLookup } from './ui';
 import { useWorld } from './world';
@@ -26,6 +26,7 @@ export function Palette({ onClose, onModule, onDeal, onSheet, onQuit }: { onClos
   const list = useRef<HTMLDivElement>(null);
   useLayer(onClose, 'palette');
   useReturnFocus();
+  useModalFocus(box, input);
   useEffect(() => { input.current?.focus(); }, []);
 
   const all = useMemo<Item[]>(() => [
@@ -52,7 +53,7 @@ export function Palette({ onClose, onModule, onDeal, onSheet, onQuit }: { onClos
   return createPortal(
     <>
       <div className="ui-scrim" aria-hidden="true" onMouseDown={onClose} />
-      <div ref={box} className="pal" role="dialog" aria-modal="true" aria-label="Find" onKeyDown={(e) => trapTab(e, box.current)}>
+      <div ref={box} className="pal" role="dialog" aria-modal="true" aria-label="Find" tabIndex={-1} onKeyDown={(e) => trapTab(e, box.current)}>
         <div className="pal-h">
           <Field ref={input} search value={q} placeholder="Find a deal, a person or a place…" aria-label="Find" autoComplete="off" spellCheck={false}
             role="combobox" aria-expanded="true" aria-controls="pal-list" aria-activedescendant={items[cur] ? `pal-${items[cur].key}` : undefined}

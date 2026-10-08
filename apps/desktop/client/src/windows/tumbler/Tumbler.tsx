@@ -25,7 +25,7 @@ import { CardForm, HandoffForm, StackForm, TabForm, TickerForm, WelcomeForm } fr
 import {
   plainItems,
   NO_HANDOFF, SECONDS, ackTicker, arrivals, arrivalsTicker, canReview, dndPreferences, handoffEnded, nextFocus, puckLook, puckTarget, receiptTicker,
-  restForm, snoozeEligible, snoozeTicker, sortItems, stopTicker, tickerMayShow, type CardAction, type Handoff, type Ticker,
+  restForm, rung, rungNotice, snoozeEligible, snoozeTicker, sortItems, stopTicker, tickerMayShow, type CardAction, type Handoff, type Rung, type Ticker,
 } from './logic';
 
 type Failure = { dealId: string | null; what: string; error: WalletError };
@@ -93,6 +93,19 @@ export function Tumbler() {
   const mode = settings?.mode ?? items[0]?.mode ?? null;
   const dnd = settings?.preferences.dnd ?? false;
   const look = puckLook(snapshot, { now, visual, reducedMotion, dnd });
+  // The ladder for screen readers: the most urgent decision is announced once when it climbs a
+  // rung (2 h, 15 min, time up), never by a ticking clock.
+  const top = items[0];
+  const topRung: Rung = top ? rung(top.deadline, now) : 'none';
+  const rungSeen = useRef(new Map<string, Rung>());
+  const [rungSays, setRungSays] = useState('');
+  useEffect(() => {
+    if (!top) return;
+    const prev = rungSeen.current.get(top.deal_id) ?? null;
+    rungSeen.current.set(top.deal_id, topRung);
+    const said = rungNotice(prev, topRung, top.headline, top.on_silence.trim().replace(/\s*·\s*/g, ', ').replace(/[.,\s]+$/, '') || null);
+    if (said) setRungSays(said);
+  }, [top, topRung]);
   // the hand-off deal's label and own-catalog title (degrades to the item / a short id)
   const handoffDisplay = useQuery('deal_display', { deal_id: handoff.dealId ?? '' }, { enabled: !!handoff.dealId });
 
@@ -506,7 +519,7 @@ export function Tumbler() {
   const handoffItem = handoff.dealId ? items.find((i) => i.deal_id === handoff.dealId) ?? known.current.get(handoff.dealId) ?? null : null;
   const display = handoffDisplay.data && handoffDisplay.data.deal_id === handoff.dealId ? handoffDisplay.data : null;
   const count = look.needs;
-  const puckLabel = `The Tumbler · ${count ? `${count} need${count === 1 ? 's' : ''} you · ${items[0]?.label ?? ''}` : `nothing needs you · ${snapshot?.in_motion ?? 0} in motion`}${mode ? ` · ${mode}` : ''}${locked ? ' · locked' : ''}`;
+  const puckLabel = `The Tumbler · ${count ? `${count} need${count === 1 ? 's' : ''} you · ${items[0]?.headline ?? ''}` : `nothing needs you · ${snapshot?.in_motion ?? 0} in motion`}${mode ? ` · ${mode}` : ''}${locked ? ' · locked' : ''}`;
 
   let body: ReactNode = null;
   if (form === 'ticker') body = <TickerForm ticker={ticker} onOpen={openFromTicker} />;
@@ -548,6 +561,7 @@ export function Tumbler() {
   return (
     <div className={classes} onKeyDown={onRootKey} style={form === 'rest' || form === 'tab' ? { opacity: look.opacity / 100 } : undefined}
       aria-label="The Tumbler" role="complementary">
+      <span className="sr-only" role="status" aria-live="polite">{rungSays}</span>
       {form === 'tab' ? (
         <button className="tabbtn" onClick={onPuckClick} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
           aria-label={`${puckLabel} · docked`} title={`${puckLabel} · docked · click to open, drag to undock`}>

@@ -12,6 +12,7 @@ import { useMutation } from '../../../lib/hooks';
 import { moneyCheckWord, silenceWords } from '../../../lib/words';
 import { Countdown, MinorMoney, ModeBadge, WalletNotice } from '../../../shared/honesty';
 import { AnswerBar, Btn, Chip, DecisionCard, Icon, Sheet, Silence, type DecisionOption } from '../../../shared/ui';
+import { shortTitle } from '../home/model';
 import { amountNote, amountTone, dealTotal, moneyNow } from '../logic';
 import { useToast } from '../ui';
 import { useWorld } from '../world';
@@ -139,13 +140,13 @@ export function DealStory({ deal, need, canWithdraw, theirName, them, latest, ba
       ) : null}
       {[open.error, lapse.error].map((e, i) => (e ? <WalletNotice key={i} error={e} what={i === 0 ? 'Approval window' : 'Let it lapse'} /> : null))}
       {sheet ? (
-        <Sheet title={`Withdraw from ${disp.label}?`} size="narrow" onClose={() => setSheet(false)}
+        <Sheet title={`Withdraw from “${shortTitle(disp.title)}”?`} size="narrow" onClose={() => setSheet(false)}
           footer={
             <>
               <Btn onClick={() => setSheet(false)}>Keep the deal</Btn>
               <Btn kind="danger" disabled={withdraw.pending} onClick={async () => {
                 const r = await withdraw.run({ deal_id: deal.id });
-                if (r === null) { setSheet(false); toast(<>{disp.label} withdrawn. <b>No money moved.</b></>, 'ok'); }
+                if (r === null) { setSheet(false); toast(<>{shortTitle(disp.title)} withdrawn. <b>No money moved.</b></>, 'ok'); }
               }}>{withdraw.pending ? 'Withdrawing…' : 'Withdraw'}</Btn>
             </>
           }>

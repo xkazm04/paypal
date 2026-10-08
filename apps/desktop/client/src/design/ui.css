@@ -117,7 +117,7 @@ button.ui-row { width: 100%; border: 0; background: none; color: inherit; font: 
 
 .ui-seg { display: inline-flex; padding: 2px; gap: 2px; border-radius: var(--r-sm); background: var(--panel3); }
 .ui-seg button { height: var(--ctl-sm); padding: 0 var(--sp-2); border: 0; border-radius: 4px; background: none; color: var(--muted); font-size: var(--fs-small); font-weight: var(--fw-medium); cursor: pointer; }
-.ui-seg button[aria-pressed="true"], .ui-seg button.on { background: var(--panel); color: var(--text); box-shadow: var(--shadow-1); }
+.ui-seg button[aria-pressed="true"], .ui-seg button[role="tab"][aria-selected="true"], .ui-seg button.on { background: var(--panel); color: var(--text); box-shadow: var(--shadow-1); }
 
 .ui-field { height: var(--ctl); padding: 0 var(--sp-2); border-radius: var(--r-sm); border: 1px solid var(--line2); background: var(--panel); color: var(--text); min-width: 0; }
 .ui-field:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 25%, transparent); }
@@ -265,7 +265,7 @@ button.ui-chip:hover { filter: brightness(1.12); }
 .ui-decision .dc-more { background: none; border: 0; color: var(--teal-l); font-weight: var(--fw-semibold); cursor: pointer; padding: 0; }
 .ui-decision .dc-q { display: flex; gap: var(--sp-4); align-items: flex-start; }
 .ui-decision .q { flex: 1; min-width: 0; }
-.ui-decision h3 { font: var(--fw-semibold) var(--fs-title3)/1.3 var(--display); margin: 0; }
+.ui-decision h2, .ui-decision h3 { font: var(--fw-semibold) var(--fs-title3)/1.3 var(--display); margin: 0; }
 .ui-decision .why { margin: 4px 0 0; color: var(--muted); display: flex; gap: 6px; align-items: flex-start; }
 .ui-decision .why .ui-icon { margin-top: 2px; color: var(--gold-l); }
 .ui-decision .amt { font: var(--fw-semibold) var(--fs-display)/1 var(--num); font-variant-numeric: tabular-nums; letter-spacing: -.01em; flex: none; }

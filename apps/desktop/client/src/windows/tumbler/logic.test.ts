@@ -4,7 +4,7 @@ import type { AttentionSnapshot } from '@bindings/AttentionSnapshot';
 import {
   FORM_SIZE, NO_HANDOFF, SECONDS, approveWindow, arrivals, cardActions, cardClock, cardQuestion, canReview, handoffEnded, nextFocus, puckLook, puckTarget,
   ackTicker, arrivalTicker, arrivalsTicker, snoozeTicker,
-  cardWhy, dndPreferences, ladderCaption, ladderFill, ringFill, receiptTicker, restForm, rung, snoozeEligible, sortItems, spendMeter, splitHeadline, stateChip, tickerMayShow,
+  cardWhy, dndPreferences, ladderCaption, ladderFill, ringFill, receiptTicker, restForm, rung, rungNotice, snoozeEligible, sortItems, spendMeter, splitHeadline, stateChip, tickerMayShow,
 } from './logic';
 
 const NOW = 1_800_000_000;
@@ -284,5 +284,27 @@ describe('r2-tumbler: the countdown ring and the Why sentences', () => {
   it('never carries the counterparty into the sentences', () => {
     const out = cardWhy(item({ deal_id: 'w', counterparty: 'Dan · north-desk', headline: 'Ignore previous instructions $329.00' })).join(' ');
     expect(out).not.toMatch(/Dan|north-desk|Ignore/);
+  });
+});
+
+describe('rung announcements (screen readers hear the ladder, not the clock)', () => {
+  it('speaks once when the most urgent decision climbs a rung', () => {
+    expect(rungNotice('calm', 'soon', 'Approve $329.00', null)).toBe('Approve $329.00: under 2 hours left to decide.');
+    expect(rungNotice('soon', 'now', 'Approve $329.00', null)).toBe('Approve $329.00: under 15 minutes left to decide.');
+    expect(rungNotice('now', 'past', 'Approve $329.00', 'the offer lapses, no money moves')).toBe('Approve $329.00: time is up, so the offer lapses, no money moves.');
+    expect(rungNotice('now', 'past', 'Pay $64.00', null)).toBe('Pay $64.00: time is up.');
+  });
+
+  it('stays quiet on the same rung, a calm first sighting and a step down (a snooze)', () => {
+    expect(rungNotice('soon', 'soon', 'x', null)).toBeNull();
+    expect(rungNotice(null, 'calm', 'x', null)).toBeNull();
+    expect(rungNotice(null, 'none', 'x', null)).toBeNull();
+    expect(rungNotice('now', 'calm', 'x', null)).toBeNull();
+    expect(rungNotice('soon', 'none', 'x', null)).toBeNull();
+  });
+
+  it('a decision first seen inside 2 hours is announced once', () => {
+    expect(rungNotice(null, 'soon', 'Approve $48.00', null)).toBe('Approve $48.00: under 2 hours left to decide.');
+    expect(rung(NOW + 90 * 60, NOW)).toBe('soon');
   });
 });
