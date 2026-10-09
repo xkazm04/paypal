@@ -11,6 +11,8 @@ pub enum SettlementError {
     Mismatch,
     #[error("approval link must be HTTPS on the mode's exact PayPal host")]
     Host,
+    #[error("approval link must open the SETTLE order")]
+    Order,
 }
 /// Browser edge accepts this opaque result, never a URL supplied by a webview.
 #[derive(Debug, Clone)]
@@ -41,6 +43,7 @@ pub fn validate_settle(
     mode: Mode,
 ) -> Result<VerifiedApprovalUrl, SettlementError> {
     let Body::Settle {
+        order_id,
         approve_url,
         amount,
         invoice_id: inv,
@@ -58,7 +61,20 @@ pub fn validate_settle(
     {
         return Err(SettlementError::Mismatch);
     }
-    approval_url(approve_url.as_str(), mode)
+    let verified = approval_url(approve_url.as_str(), mode)?;
+    // UNVERIFIED: the Orders v2 approve link shape `/checkoutnow?token=<order id>` is recalled,
+    // not sourced (.research/paypal-platform.md does not document it); confirm against a real
+    // sandbox link and record it in docs/build/STATUS.md.
+    let mut pairs = verified.0.query_pairs();
+    let bound = verified.0.path() == "/checkoutnow"
+        && matches!(
+            (pairs.next(), pairs.next()),
+            (Some((key, token)), None) if key == "token" && token == order_id.as_str()
+        );
+    if !bound {
+        return Err(SettlementError::Order);
+    }
+    Ok(verified)
 }
 pub fn validate_accept(
     body: &Body,
