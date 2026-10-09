@@ -12,7 +12,7 @@ import { clockLabel } from '../lib/format';
 import { useNow, usePrefersReducedMotion } from '../lib/hooks';
 import { applyTheme, getTheme, setTheme, type Theme } from '../lib/theme';
 import { mockBackend } from '../mock/backend';
-import { applyWorld, foldScene, INITIAL_SCENE, runActions, WORLD_ACTIONS, type Scene, type Stage } from './actions';
+import { applyWorld, foldScene, INITIAL_SCENE, placeTours, runActions, WORLD_ACTIONS, type Scene, type Stage } from './actions';
 import type { Beat, Focus } from './beats';
 import { frameUrls, type Story } from './stories';
 import { checkBeat, expectedDeals, selectChapter, storyStartOn, takePlan, wholeTake, type ChapterTake, type Seen, type TakePlan } from './takes';
@@ -238,6 +238,8 @@ export function Director({ story }: { story: Story }) {
     startOffset.current = clockOffset();
     for (const b of BEATS.slice(0, target)) for (const a of b.do) if (WORLD_ACTIONS.has(a.do)) applyWorld(world, a);
     const sc = BEATS.slice(0, target).reduce((s, b) => foldScene(s, b.do), INITIAL_SCENE);
+    // First run: each window's tour as the earlier beats pointed it, before the frames load.
+    if (story.firstRun) placeTours(sc.tour);
     const approvalId = sc.approval ? world.deal(sc.approval)?.deal.id ?? null : null;
     setMainOpen(sc.main.open);
     setApprovalOpen(!!approvalId || sc.owner);
@@ -248,7 +250,7 @@ export function Director({ story }: { story: Story }) {
     setIndex(target - 1);
     tRef.current = BEATS[target]?.at ?? 0;
     setT(tRef.current);
-  }, [world, BEATS, urls]);
+  }, [world, BEATS, urls, story.firstRun]);
 
   const frameLoaded = useCallback((which: 'main' | 'tumbler' | 'approval', epoch: number) => {
     const p = pending.current;

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { gettingStarted, type StartFacts } from './firstRun';
 import {
-  loadTour, resetTourMemory, saveTour, TOUR_KEY, TOUR_NEW, TOUR_STOPS, tourEnd, tourKey, tourMove, tourReopen, tourStops, tourView, type TourStop,
+  loadTour, resetTourMemory, saveTour, TOUR_KEY, TOUR_NEW, TOUR_STOPS, tourEnd, tourFromStorage, tourKey, tourMove, tourReopen, tourStops, tourView, type TourStop,
 } from './tour';
 import { TOUR, TOUR_STOP, tourCount } from './words';
 
@@ -117,6 +117,21 @@ describe('the tour: saved progress', () => {
     resetTourMemory();
     expect(loadTour('main', tourKey(true)).status).toBe('finished');
     expect(loadTour('main', tourKey(false))).toEqual(TOUR_NEW);
+  });
+
+  it('follows another page’s write to its own key only, and remembers it', () => {
+    const key = tourKey(true);
+    saveTour('approval', tourMove('approval.steps'), key);
+    const written = JSON.stringify({ approval: { status: 'active', at: 'approval.config' }, main: { status: 'finished', at: null } });
+    expect(tourFromStorage('approval', key, { key: TOUR_KEY, newValue: written })).toBeNull();
+    expect(tourFromStorage('approval', key, { key: 'table-theme', newValue: 'light' })).toBeNull();
+    expect(loadTour('approval', key)).toEqual({ status: 'active', at: 'approval.steps' });
+    expect(tourFromStorage('approval', key, { key, newValue: written })).toEqual({ status: 'active', at: 'approval.config' });
+    // what this page remembers now agrees with the write, though it saved another stop itself
+    expect(loadTour('approval', key)).toEqual({ status: 'active', at: 'approval.config' });
+    // a write with nothing valid for this window, or the key removed, starts it anew
+    expect(tourFromStorage('tumbler', key, { key, newValue: written })).toEqual(TOUR_NEW);
+    expect(tourFromStorage('approval', key, { key, newValue: null })).toEqual(TOUR_NEW);
   });
 
   it('survives storage that throws: the tour still works for the session', () => {
