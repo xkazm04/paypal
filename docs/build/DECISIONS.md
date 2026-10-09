@@ -326,3 +326,37 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - desktop `native::events::fault_tests::each_failure_streak_is_shown_once`.
 
   The client was not typechecked.
+
+## 16. The public servers get their limits from tower-http and hyper-util, already in the lock
+
+- **Date:** 2026-10-09
+- **Decided by:** the App Master
+- **Constraint:** security scan 2026-10-07 finding C-6 (Medium, denial of service). The HOUSE and the
+  standalone relay both served through plain `axum::serve`: no header-read timeout, no body or
+  request timeout, no connection limit, and no limit on concurrent long-polls. A few hundred idle
+  sockets could starve a 512 MB instance. Whether Render's edge proxy enforces any of these is
+  unverified, and nothing in the research says it does.
+- **Decision:** `tower-http` (feature `timeout` only) and `hyper-util` (server, graceful shutdown,
+  service) and `hyper` become direct workspace dependencies of `rendezvous`. All three were already
+  in `Cargo.lock` as transitive dependencies: the lock gains no package and no version change, only
+  dependency edges inside existing entries (`rendezvous` gains three, `tower-http` gains `tokio`).
+  `rendezvous::serve` replaces `axum::serve` in both binaries; the HOUSE still drains its actor
+  after serve returns. Limits, each a named constant with its reason in `serve.rs` and `lib.rs`:
+  - 512 open connections (a semaphore permit taken before accept; at the limit clients wait in the
+    backlog, the listener stays open);
+  - 10 s to read a request head;
+  - 10 s for each body chunk to arrive;
+  - 30 s for a whole request, above the 25 s long-poll cap and the HOUSE's 20 s actor reply timeout;
+  - 128 concurrent long-polls across both poll routes; past that a poll answers at once as if
+    `wait=0`, never with an error. The wallet polls once per tick (wait 0, then 2 s), so an
+    immediate empty answer is not a hot loop.
+- **Lost:**
+  - Hand-rolled timeouts only (tokio timers around every handler and a hand-made accept loop): more
+    code to get wrong, and tower-http's layers are the tested form of the same thing.
+  - Relying on Render's edge: unverified, not under our control, and absent when the relay runs
+    anywhere else.
+- **Consequences:** the supply chain is unchanged. A client that stalls costs one socket for at most
+  the timeouts above. The timeouts are applied once to the finished router inside `serve`, so the
+  HOUSE's own routes are covered without touching `hosted.rs`.
+- **Evidence:** `services/rendezvous/src/serve.rs`, `services/rendezvous/tests/serve.rs`; commits on
+  branch autopilot/codebase-security-scan-a7e8fc6e.
