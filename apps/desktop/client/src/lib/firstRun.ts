@@ -5,8 +5,10 @@
 //                                 false when only settings were read)
 //   3 Practice with the house     done when the house seller is connected (counterparty_list house:
 //                                 true), which is when its practice table is yours to join
-//   4 Choose your agent app       done when settings.selected_engine is claude-code or codex-cli; never
-//                                 while it is 'scripted' (the practice agent a new wallet starts on).
+//   4 Choose your agent app       done when settings.selected_engine is claude-code or codex-cli, or when it
+//                                 is 'scripted' and settings.engine_chosen is true (the owner kept the
+//                                 practice agent on purpose). The 'scripted' a new wallet starts on, with
+//                                 engine_chosen false, never counts.
 //                                 Main also reads engine_status: an app it reports unavailable is not done.
 // The practice deal runs on the practice agent, so the agent app comes last: it is the one step that
 // needs something installed outside the wallet, and nothing before it waits on it.
@@ -29,6 +31,8 @@ export type StartFacts = {
   engine: EngineId | null;
   /** engine_status says the selected app is available (main only); null or absent = not read here. */
   engineAvailable?: boolean | null;
+  /** settings.engine_chosen: the owner chose an agent app, the practice agent included; null or absent = not read. */
+  engineChosen?: boolean | null;
 };
 
 /** done · next (the one step the gold button goes to) · todo · unknown (this window cannot tell). */
@@ -50,15 +54,16 @@ export const START_ORDER: readonly StartStepKey[] = ['paypal', 'rules', 'practic
 const known = (b: boolean | null): StartStepState => (b === null ? 'unknown' : b ? 'done' : 'todo');
 
 /** The agent app step: an app chosen (not the practice agent) and not reported unavailable. */
-export function engineChosen(engine: EngineId | null, available?: boolean | null): boolean | null {
+export function engineChosen(engine: EngineId | null, available?: boolean | null, chosen?: boolean | null): boolean | null {
   if (engine === null) return null;
-  return engine !== 'scripted' && available !== false;
+  if (engine === 'scripted') return chosen === true;
+  return available !== false;
 }
 
 export function gettingStarted(f: StartFacts): GettingStarted {
   const rules = f.rulesInForce !== null ? f.rulesInForce > 0 : f.firstRun === null ? null : !f.firstRun;
   const raw: Record<StartStepKey, StartStepState> = {
-    paypal: known(f.paypal), rules: known(rules), practice: known(f.houseConnected), engine: known(engineChosen(f.engine, f.engineAvailable)),
+    paypal: known(f.paypal), rules: known(rules), practice: known(f.houseConnected), engine: known(engineChosen(f.engine, f.engineAvailable, f.engineChosen)),
   };
   const next = START_ORDER.find((k) => raw[k] === 'todo') ?? null;
   const steps = START_ORDER.map((key, i) => ({ key, n: i + 1, state: key === next ? 'next' as const : raw[key] }));

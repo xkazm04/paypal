@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { connectionFacts, engineChosen, gettingStarted, rulesInForce, START_ORDER, type StartFacts } from './firstRun';
-import { FIRST_RUN_TITLE, SAFETY_PROMISE, START_STEP } from './words';
+import { FIRST_RUN_TITLE, KEEP_PRACTICE_AGENT, SAFETY_PROMISE, START_STEP } from './words';
 import { buildFirstRunState } from '../mock/firstRun';
 
 const fresh: StartFacts = { firstRun: true, paypal: false, rulesInForce: 0, houseConnected: false, otherConnections: 0, engine: 'scripted' };
@@ -40,6 +40,23 @@ describe('first-run steps from settings, signed rules, connections and the agent
     expect(states({ ...fresh, engine: 'claude-code', engineAvailable: false })[3]).toBe('todo');
     expect(states({ ...fresh, engine: 'claude-code', engineAvailable: true })[3]).toBe('done');
     expect(states({ ...fresh, engine: 'claude-code', engineAvailable: null })[3]).toBe('done');
+  });
+
+  it('an owner with neither app who keeps the practice agent finishes step 4; the default alone never does', () => {
+    expect(engineChosen('scripted', null, true)).toBe(true);
+    expect(engineChosen('scripted', null, false)).toBe(false);
+    expect(engineChosen('scripted', null, null)).toBe(false);
+    // The default 'scripted' without the choice stays to do.
+    expect(states({ ...fresh, engine: 'scripted', engineChosen: false })[3]).toBe('todo');
+    expect(states({ ...fresh, engine: 'scripted' })[3]).toBe('todo');
+    // A chosen app reported unavailable stays to do, whatever engine_chosen says.
+    expect(states({ ...fresh, engine: 'claude-code', engineAvailable: false, engineChosen: true })[3]).toBe('todo');
+    // Keeping the practice agent: all four steps done, Home leaves getting-started.
+    const kept: StartFacts = { firstRun: false, paypal: true, rulesInForce: 1, houseConnected: true, otherConnections: 0, engine: 'scripted', engineChosen: true };
+    expect(gettingStarted(kept)).toMatchObject({ show: false, done: 4, next: null });
+    expect(gettingStarted({ ...kept, engineChosen: false })).toMatchObject({ show: true, done: 3, next: 'engine' });
+    expect(KEEP_PRACTICE_AGENT.act).toBe('Keep the practice agent for now');
+    expect(JSON.stringify(KEEP_PRACTICE_AGENT)).not.toMatch(/—|Claude|Codex|OpenAI|Anthropic|connected|AI agent/);
   });
 
   it('every step done ends the path, and so does connecting other wallets', () => {

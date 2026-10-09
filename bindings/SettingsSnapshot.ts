@@ -8,7 +8,12 @@ export type SettingsSnapshot = { house: HouseState, mode: Mode, locked: boolean,
 /**
  * Suppress spend/cost/stopped meters until their accounting sources are attached.
  */
-meters_available: boolean, client_pending: boolean, first_run: boolean, channel3_configured: boolean, agents_paused: boolean, selected_engine: EngineId, preferences: TumblerPreferences, relay_available: boolean, 
+meters_available: boolean, client_pending: boolean, first_run: boolean, channel3_configured: boolean, agents_paused: boolean, selected_engine: EngineId, 
+/**
+ * The owner has chosen an agent app through `engine_select` (the ledger preference exists),
+ * including the practice agent. False on a new wallet, whose `scripted` is only a default.
+ */
+engine_chosen: boolean, preferences: TumblerPreferences, relay_available: boolean, 
 /**
  * Lowercase hex fingerprint of the authority table this build enforces (who may call each
  * command); the same value as `AUTHORITY_MANIFEST` in `bindings/authority.ts`.

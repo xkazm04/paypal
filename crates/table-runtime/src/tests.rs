@@ -2075,6 +2075,24 @@ async fn missing_credentials_and_unavailable_engine_are_explicit() {
 }
 
 #[tokio::test]
+async fn keeping_the_practice_agent_is_a_recorded_choice_not_the_default() {
+    let (mut r, _, http, _, _) = runtime(true);
+    let fresh = r.settings().unwrap();
+    assert!(!fresh.engine_chosen);
+    assert_eq!(fresh.selected_engine, table_engine::EngineId::Scripted);
+    r.execute(
+        caller("main", None),
+        Action::Engine(table_engine::EngineId::Scripted),
+    )
+    .await
+    .unwrap();
+    let kept = r.settings().unwrap();
+    assert!(kept.engine_chosen);
+    assert_eq!(kept.selected_engine, table_engine::EngineId::Scripted);
+    assert!(http.0.lock().unwrap().paths.is_empty());
+}
+
+#[tokio::test]
 async fn shield_hold_release_is_owner_bound_and_block_can_never_be_released() {
     let (mut r, _, http, _, _) = runtime(true);
     let (deal, _) = setup(&mut r, Side::Seller);

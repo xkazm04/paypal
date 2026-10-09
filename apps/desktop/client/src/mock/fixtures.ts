@@ -557,6 +557,7 @@ export function buildMockState(now: number): MockState {
       channel3_configured: true,
       agents_paused: false,
       selected_engine: 'claude-code',
+      engine_chosen: true,
       preferences: { pinned: true, position: null, form: 'rest', quiet: false, dnd: false, notifications: true, snap: 'free' },
       relay_available: true,
       authority_manifest: AUTHORITY_MANIFEST,

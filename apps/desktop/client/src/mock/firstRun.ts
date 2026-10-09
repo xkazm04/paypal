@@ -43,6 +43,7 @@ export function buildFirstRunState(now: number): MockState {
       channel3_configured: false,
       agents_paused: false,
       selected_engine: 'scripted',
+      engine_chosen: false,
       preferences: { ...base.settings.preferences, form: 'rest' },
     },
     deals: [],

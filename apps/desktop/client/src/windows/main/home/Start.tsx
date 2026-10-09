@@ -32,8 +32,8 @@ export function useStart(): GettingStarted {
   const engine = s?.selected_engine ?? null;
   const engineAvailable = engine && engines.data ? engines.data.find((e) => e.id === engine)?.available ?? false : null;
   return useMemo(() => gettingStarted({
-    firstRun: fresh ?? null, paypal: paypal ?? null, rulesInForce: inForce, ...connectionFacts(conn), engine, engineAvailable,
-  }), [fresh, paypal, inForce, conn, engine, engineAvailable]);
+    firstRun: fresh ?? null, paypal: paypal ?? null, rulesInForce: inForce, ...connectionFacts(conn), engine, engineAvailable, engineChosen: s?.engine_chosen ?? null,
+  }), [fresh, paypal, inForce, conn, engine, engineAvailable, s?.engine_chosen]);
 }
 
 export type StartActions = { go: (k: StartStepKey) => void; busy: StartStepKey | null; error: WalletError | null };

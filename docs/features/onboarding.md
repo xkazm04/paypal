@@ -13,9 +13,14 @@ The steps only open the place where each thing happens, and the tour only points
 1. **Add your PayPal sandbox keys.** Done when the sandbox keys are saved (they are not checked against PayPal).
 2. **Sign your agents' rules.** Done when a signed set of rules is in force.
 3. **Try a practice deal with the house seller.** Done when the house seller is connected.
-4. **Choose your agent app.** Done when the agents run in `claude-code` or `codex-cli`. It stays
-   to do while the practice agent is in use (a new wallet starts on it), and in The Table also
-   while the chosen app is reported as not installed or not ready.
+4. **Choose your agent app.** Done when the agents run in `claude-code` or `codex-cli`, or when the
+   owner has kept the practice agent on purpose ("Keep the practice agent for now" in Settings,
+   which calls `engine_select('scripted')` and sets `settings.engine_chosen`). The practice agent a
+   new wallet starts on, with no choice made, never counts, and in The Table the step also stays
+   to do while the chosen app is reported as not installed or not ready. An owner with no agent
+   app can therefore finish all four steps; the row then reads "Practice agent kept. Add your own
+   agent app any time." and never says an AI agent is connected. The Tumbler and the approval
+   window do not yet pass `engine_chosen`, so there that step still reads to do.
 
 The next step to do carries the view's one gold button. A done step is ticked. A step a window
 cannot check is numbered with a dashed ring ("not checked from here"), never ticked.

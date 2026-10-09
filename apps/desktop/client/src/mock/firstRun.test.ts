@@ -40,7 +40,7 @@ describe('?first_run=1: the mock as a brand-new wallet', () => {
 
   it('a fresh wallet: no deals, rules, keys, limits or connections, and first_run true', () => {
     const s = buildFirstRunState(NOW);
-    expect(s.settings).toMatchObject({ first_run: true, payment_executor_configured: false, channel3_configured: false, meters_available: false, selected_engine: 'scripted', house: 'idle', agents_paused: false });
+    expect(s.settings).toMatchObject({ first_run: true, payment_executor_configured: false, channel3_configured: false, meters_available: false, selected_engine: 'scripted', engine_chosen: false, house: 'idle', agents_paused: false });
     expect(s.deals).toEqual([]);
     expect(s.mandates).toEqual([]);
     expect(s.counterparties).toEqual([]);
@@ -71,6 +71,14 @@ describe('?first_run=1: the mock as a brand-new wallet', () => {
     expect((await sample.invoke('get_settings', null)).first_run).toBe(false);
     expect((await sample.invoke('list_deals', null)).length).toBe(buildMockState(NOW).deals.length);
     expect(localStorage.getItem(`${STORE_KEY}:first-run`)).toBeNull(); // nothing written yet
+  });
+
+  it('keeping the practice agent is a recorded choice: engine_select sets engine_chosen', async () => {
+    at('/index.html?first_run=1');
+    const main = mockBackend('main');
+    expect(await main.invoke('get_settings', null)).toMatchObject({ selected_engine: 'scripted', engine_chosen: false });
+    await main.invoke('engine_select', { engine: 'scripted' });
+    expect(await main.invoke('get_settings', null)).toMatchObject({ selected_engine: 'scripted', engine_chosen: true });
   });
 
   it('walks the three steps: keys, rules, then the house seller', async () => {
