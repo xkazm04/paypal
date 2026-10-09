@@ -81,6 +81,19 @@ describe('the tour on screen', () => {
     expect(JSON.parse(localStorage.getItem(TOUR_KEY)!).approval.status).toBe('finished');
   });
 
+  it('announces a new stop: after Next or an arrow key, focus is on the dialog, which holds the new title', () => {
+    const r = render(<Page><Tour win="approval" gs={gs} firstRun /></Page>);
+    expect(document.activeElement?.textContent).toBe(TOUR.next);
+    fireEvent.click(r.getByText(TOUR.next));
+    expect(title()).toBe(TOUR_STOP['approval.steps'].title);
+    expect(document.activeElement).toBe(mark());
+    expect(mark()!.getAttribute('tabindex')).toBe('-1');
+    expect(document.getElementById(mark()!.getAttribute('aria-labelledby')!)?.textContent).toBe(TOUR_STOP['approval.steps'].title);
+    fireEvent.keyDown(mark()!, { key: 'ArrowRight' });
+    expect(title()).toBe(TOUR_STOP['approval.engine'].title);
+    expect(document.activeElement).toBe(mark());
+  });
+
   it('Skip tour ends it, it stays closed after a reload, and focus goes back where it was', () => {
     const page = (tour: boolean) => <Page><button type="button">before</button>{tour ? <Tour win="approval" gs={gs} firstRun /> : null}</Page>;
     const r = render(page(false));
