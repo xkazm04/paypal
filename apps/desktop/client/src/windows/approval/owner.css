@@ -22,10 +22,11 @@
 .ow-progress i { width: 28px; height: 4px; border-radius: 2px; background: var(--line2); }
 .ow-progress i.on { background: var(--teal); }
 .ow-progress span { margin-left: var(--sp-2); font: var(--fw-semibold) var(--fs-small) var(--font); color: var(--dim); }
-/* first run: the three steps (shared/start.tsx), three across at 744 px */
+/* first run: the four steps (shared/start.tsx), two by two at 744 px */
 .ow-start { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-2) 0; font-size: var(--fs-small); }
 .ow-start .dim { color: var(--dim); }
-.ow-steps.start-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2); }
+.ow-start .ow-tour { margin-left: auto; }
+.ow-steps.start-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); }
 .ow-steps.start-steps .ss-go { height: 100%; align-content: start; }
 @media (max-width: 600px) { .ow-steps.start-steps { grid-template-columns: minmax(0, 1fr); } }
 

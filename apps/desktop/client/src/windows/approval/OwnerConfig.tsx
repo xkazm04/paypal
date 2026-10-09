@@ -14,6 +14,7 @@ import { lazyPart, preloadWhenIdle } from '../../lib/lazy';
 import { FIRST_RUN_TITLE, OWNER_KEY, rulesName, SAFETY_PROMISE, START_STEP, timeLeftWords, watchingWords, type StartStepKey } from '../../lib/words';
 import { connectionFacts, gettingStarted, rulesInForce } from '../../lib/firstRun';
 import { StartProgress, StartSteps, type StepAction } from '../../shared/start';
+import { TakeTour, Tour } from '../../shared/tour';
 import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
 import { OwnerKey } from '../../shared/ownerKey';
 import { AnswerBar, Btn, Chip, Group, Hint, Popover, Row, Section, type ChipTone } from '../../shared/ui';
@@ -211,7 +212,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
         <h1 className="sr-only">{first ? `Welcome: ${FIRST_RUN_TITLE.toLowerCase()}` : 'Wallet setup'}</h1>
         {first ? (
           <>
-            <div className="ow-answer">
+            <div className="ow-answer" data-tour="approval-answer">
               <AnswerBar tone="need" icon="shield" title={FIRST_RUN_TITLE} sub={SAFETY_PROMISE}
                 // Locked: the lock card below holds the one gold button (Unlock with Windows Hello).
                 actions={nextStep && !locked ? (
@@ -221,7 +222,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
                 ) : null} />
             </div>
             <div className="ow-start">
-              <StartProgress gs={gs} /><span className="dim">· nothing on this page pays anyone</span>
+              <StartProgress gs={gs} /><span className="dim">· nothing on this page pays anyone</span><TakeTour win="approval" gs={gs} className="ow-tour" />
             </div>
             <StartSteps gs={gs} action={stepAction} className="ow-steps" busy={s.pending === 'set_credentials' ? 'paypal' : null}
               elsewhere={{ practice: 'Next, in The Table: Connections › House seller', engine: 'In The Table: Settings › Agent app' }} />
@@ -247,7 +248,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
         {s.settingsError ? <WalletNotice error={s.settingsError} what="Settings can’t be read" /> : null}
         {!s.tokenReady && s.tokenError ? <WalletNotice error={s.tokenError} what="This window can’t approve right now" /> : null}
 
-        <Section title="Wallet" end={i('unlock')}>
+        <Section title="Wallet" end={i('unlock')} tour="owner-config">
           <Group>
             <Row title="Unlock" sub={locked ? 'Changes here ask for Windows Hello' : 'Locks again after 15 quiet minutes'} need={locked}>
               {locked ? <Chip tone="gold">locked</Chip> : <Chip tone="ok">unlocked</Chip>}
@@ -324,6 +325,8 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
           <p className="ow-p">{INFO[info.k]}</p>
         </Popover>
       ) : null}
+      {/* First run: the tour walks this window's setup; it only points, never signs or saves. */}
+      <Tour win="approval" gs={gs} firstRun={first} />
     </div>
   );
 }

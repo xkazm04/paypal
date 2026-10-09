@@ -645,15 +645,15 @@ const FirstRunWelcome = forwardRef(function FirstRunWelcome(p: {
 }, ref: Ref<HTMLDivElement>) {
   const next = p.start.next;
   return (
-    <div ref={ref} className="f welcome fr" tabIndex={-1} aria-label="Getting started">
+    <div ref={ref} className="f welcome fr" tabIndex={-1} aria-label="Getting started" data-tour="tumbler-welcome">
       <div className="f-head nt"><span className="kick">Welcome · {p.start.done} of {p.start.total} done</span><Flags mode={p.mode} locked={p.locked} /></div>
       <h2 className="w-h nt">{FIRST_RUN_TITLE}</h2>
-      <p className="w-p fr-promise nt">{SAFETY_PROMISE}</p>
-      <ol className="fr-steps" aria-label={`Getting started: ${p.start.done} of ${p.start.total} done`}>
+      <p className="w-p fr-promise nt" data-tour="tumbler-promise">{SAFETY_PROMISE}</p>
+      <ol className="fr-steps" aria-label={`Getting started: ${p.start.done} of ${p.start.total} done`} data-tour="tumbler-steps">
         {p.start.steps.map((s) => {
           const done = s.state === 'done';
           return (
-            <li key={s.key} className={`s-${s.state}`}>
+            <li key={s.key} className={`s-${s.state}`} data-tour={`step-${s.key}`}>
               <button type="button" className="fr-step" disabled={done} onClick={() => p.onStep?.(s.key)}
                 title={done ? START_STEP[s.key].done : START_STEP[s.key].where}>
                 <span className="fr-n" aria-hidden="true">{done ? '✓' : s.n}</span>

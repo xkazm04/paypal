@@ -20,6 +20,7 @@ import { backend } from '../../lib/runtime';
 import { nowUnix } from '../../lib/format';
 import { gettingStarted } from '../../lib/firstRun';
 import { START_STEP, type StartStepKey } from '../../lib/words';
+import { Tour } from '../../shared/tour';
 import { PuckArt } from './Puck';
 import { CardForm, HandoffForm, StackForm, TabForm, TickerForm, WelcomeForm } from './forms';
 import {
@@ -574,6 +575,8 @@ export function Tumbler() {
           {form !== 'rest' ? <div className="plate" aria-hidden="true" /> : null}
           <div className="tbody">
             {body}
+            {/* First run: the tour walks the welcome's parts while it is open (it never takes the keyboard from another app). */}
+            <Tour win="tumbler" gs={start} firstRun={!!start} />
             {stale && (form === 'card' || form === 'stack') ? (
               <div className="t-fail avail" role="status"><span className="msg">These cards may be out of date until the wallet reads them again.</span></div>
             ) : null}

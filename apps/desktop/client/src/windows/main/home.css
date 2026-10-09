@@ -260,6 +260,7 @@
   padding: 1cqmin 1.6cqmin; border-radius: var(--r); background: color-mix(in srgb, var(--panel) 70%, transparent); border: 1px solid var(--line); }
 .home .h-promise .ui-icon { flex: none; margin-top: .2em; color: var(--ok); }
 .home .hc.first .gbtn { margin-top: .4cqmin; }
+.home .hc.first .h-tour { margin-top: -.6cqmin; }
 .home .col .start-steps { margin-top: 2px; }
 .home .start-about { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-3); }
 .home .start-about li { display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: var(--sp-2); align-items: start; }
