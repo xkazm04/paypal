@@ -2,8 +2,8 @@
 // one bead per open item beside its module's tick, a gold ring when anything needs Maya (coral
 // when only holds wait), the count in the centre and the mode engraved below it.
 // Geometry is numbers only; every colour is a token, set by class in tumbler.css (gradient stops
-// included) or, for the module ticks, as `var(--m-<module>)` through CSSOM. The Tumbler never
-// sets data-theme, so the tokens resolve to the dark set: the puck is a fixed physical object.
+// included) or, for the module ticks, as `var(--m-<module>)` through CSSOM. The Tumbler follows the
+// stored theme like The Table, so the puck's tokens resolve to the dark or the light set.
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Mode } from '@bindings/Mode';
 import { MODULES } from '../../shared/modules';

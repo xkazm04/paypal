@@ -205,7 +205,7 @@ body.w-tumbler #root { position: fixed; inset: 0; }
 .ui-btn.t-ico { width: var(--ctl-sm); padding: 0; color: var(--dim); }
 .t-ico svg { width: 14px; height: 14px; flex: none; }
 .ui-btn.t-ico.on { color: var(--gold-l); background: color-mix(in srgb, var(--gold) 15%, transparent); }
-.s-list { flex: 1; min-height: 0; overflow-y: auto; border-top: 1px solid var(--line); scrollbar-width: thin; }
+.s-list { flex: 1; min-height: 0; overflow-y: auto; border-top: 1px solid var(--line); }
 .s-row { padding-left: var(--sp-4); padding-right: var(--sp-4); }
 .s-row + .s-row { border-top: 1px solid var(--line); }
 .s-row .t1 .amt { font-weight: var(--fw-semibold); color: var(--gold-l); }

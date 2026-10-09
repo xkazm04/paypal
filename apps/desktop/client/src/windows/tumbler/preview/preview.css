@@ -49,7 +49,7 @@ body.w-tumbler:has(.pv) { background: var(--bg); }
 
 /* controls (dashed: not the product) */
 .pv-ctl { position: absolute; top: var(--sp-3); left: var(--sp-3); z-index: 4; width: 280px; max-height: calc(100vh - 80px); overflow: auto; border-radius: var(--r);
-  background: color-mix(in srgb, var(--bg2) 94%, transparent); box-shadow: var(--shadow-2); outline: 1px dashed var(--line2); outline-offset: -1px; scrollbar-width: thin; }
+  background: color-mix(in srgb, var(--bg2) 94%, transparent); box-shadow: var(--shadow-2); outline: 1px dashed var(--line2); outline-offset: -1px; }
 .pv-ctl.right { left: auto; right: var(--sp-3); top: 52px; }
 .pv-ctl .ph { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border: 0; background: none; cursor: pointer; text-align: left; color: inherit; font: inherit; }
 .pv-ctl .ph b { display: block; font: var(--fw-bold) var(--fs-small) var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }

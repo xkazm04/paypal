@@ -1,8 +1,8 @@
 // Theme for the main window: 'dark' (the Dial, default) or 'light' (PayPal palette).
 // Stored per browser origin in localStorage under `table-theme`; storage can be missing or throw
 // (private mode, blocked site data, previews), so every access is guarded and dark is the fallback.
-// Only the main window applies a stored theme (windows/main/entry.tsx); the Tumbler and the
-// approval window are always dark. Tokens: src/design/tokens.css `[data-theme="light"]`.
+// The main window and the Tumbler follow the stored theme (initTheme, followStoredTheme); the
+// approval window is always dark. Tokens: src/design/tokens.css `[data-theme="light"]`.
 
 export type Theme = 'dark' | 'light';
 export const THEME_KEY = 'table-theme';
@@ -64,4 +64,16 @@ export function onThemeChange(fn: (t: Theme) => void): () => void {
 export function currentTheme(): Theme {
   const v = typeof document === 'undefined' ? undefined : document.documentElement.dataset.theme;
   return isTheme(v) ? v : getTheme();
+}
+
+/** Applies the stored theme and follows later changes made in another window of this origin
+ *  (the `storage` event). For windows that never show the switch themselves (the Tumbler). */
+export function followStoredTheme(): Theme {
+  const t = initTheme();
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', (e) => {
+      if (e.key === null || e.key === THEME_KEY) applyTheme(getTheme());
+    });
+  }
+  return t;
 }

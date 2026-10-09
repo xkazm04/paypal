@@ -1824,3 +1824,9 @@ Wording and consistency pass over Book, Rescue, Shield, Counter, Spend, Home, th
   - No screen calls `deal_create` / `deal_join` or `market_refresh`; the house practice table is never joined from the UI.
   - The mock's `FORM_SIZE` for Tumbler forms (`mock/backend.ts`) disagrees with Rust `table-attention/src/placement.rs` (only the mock's `tumbler:orient` payload).
   - `Home.tsx`'s header comment says money only moves from the approval window; signed rules and safe defaults also move money (AGENTS.md).
+
+## Tumbler follows the theme; 2px scrollbars (2026-10-08)
+
+- The Tumbler now applies the stored theme (`followStoredTheme()` in `lib/theme.ts`, called from its entry) and follows a switch made in The Table through the `storage` event. The approval window stays dark. Its CSS was already token-only, so the light set needed no new colours.
+- All windows share 2px scrollbars (`design/base.css`, `::-webkit-scrollbar`, thumb `--line2`, hover `--dim`). The per-window `scrollbar-width: thin` rules were removed because Chromium ignores the pseudo-elements when they are set; `scrollbar-width` remains only as a fallback for engines without them.
+- Not checked by eye: the browser extension was not connected. Typecheck and the 811 client tests pass.
