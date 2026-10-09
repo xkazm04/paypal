@@ -92,7 +92,8 @@ line) walks it again from the first stop. The agent app stop drops out once an a
 
 - `lib/firstRun.test.ts`: the fresh-wallet order (four steps, PayPal next, the agent app last); the
   agent app done on `claude-code` / `codex-cli`, to do on the practice agent or when reported
-  unavailable, unknown while settings are unread; per-window facts; the words.
+  unavailable, unknown while settings are unread; per-window facts; the `?first_run=1` world (four
+  steps, the agent app to do on the practice agent); the words.
 - `shared/start.test.tsx`: the list ticks, marks next and offers one quiet click; "in The Table"
   instead of a button; the agent app step to do, done and unknown.
 - `lib/tour.test.ts`: the stop order per window; the start on a fresh wallet; Next, Back, Finish;

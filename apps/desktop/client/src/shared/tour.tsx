@@ -120,7 +120,12 @@ export function Tour({ win, gs, firstRun, paused = false, storageKey }: {
     measure();
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
-    return () => { window.removeEventListener('resize', measure); window.removeEventListener('scroll', measure, true); };
+    // The anchor or the mark changing size (a step ticked, the hub's text) moves it too.
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    const a = findAnchor(anchorName);
+    if (a) ro?.observe(a);
+    if (markRef.current) ro?.observe(markRef.current);
+    return () => { window.removeEventListener('resize', measure); window.removeEventListener('scroll', measure, true); ro?.disconnect(); };
   }, [anchorName, stopId, sig]);
 
   // A stop whose element is scrolled away is brought into view once, without animation.

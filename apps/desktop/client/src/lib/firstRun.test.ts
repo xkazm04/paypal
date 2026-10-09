@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { connectionFacts, engineChosen, gettingStarted, rulesInForce, START_ORDER, type StartFacts } from './firstRun';
 import { FIRST_RUN_TITLE, SAFETY_PROMISE, START_STEP } from './words';
+import { buildFirstRunState } from '../mock/firstRun';
 
 const fresh: StartFacts = { firstRun: true, paypal: false, rulesInForce: 0, houseConnected: false, otherConnections: 0, engine: 'scripted' };
 const states = (f: StartFacts) => gettingStarted(f).steps.map((s) => s.state);
@@ -76,6 +77,17 @@ describe('first-run steps from settings, signed rules, connections and the agent
     expect(unread.steps.every((s) => s.state === 'unknown')).toBe(true);
     // With connections unread, a wallet that signed rules does not guess it is still getting started.
     expect(gettingStarted({ firstRun: false, paypal: false, rulesInForce: 1, houseConnected: null, otherConnections: null, engine: 'scripted' }).show).toBe(false);
+  });
+
+  it('the ?first_run=1 preview world: four steps, the agent app among them and to do on the practice agent', () => {
+    const w = buildFirstRunState(1_800_000_000);
+    const gs = gettingStarted({
+      firstRun: w.settings.first_run, paypal: w.settings.payment_executor_configured, rulesInForce: w.mandates.length,
+      ...connectionFacts(w.counterparties), engine: w.settings.selected_engine,
+    });
+    expect(w.settings.selected_engine).toBe('scripted');
+    expect(gs).toMatchObject({ show: true, total: 4, done: 0, next: 'paypal' });
+    expect(gs.steps[3]).toEqual({ key: 'engine', n: 4, state: 'todo' });
   });
 
   it('connections: the house seller apart from everyone else', () => {
