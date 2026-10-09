@@ -1866,3 +1866,7 @@ Goal 1 of the weekend brief, its measure "Director beat plays it in the mock". R
 - **Still unverified:** the real 440 x 228 transparent Tumbler is native UAT. Gates this slice: typecheck clean, vitest 862 of 862, build ok, `cargo test --workspace` green (no Rust changed).
 - **Still native UAT:** the coach mark over the real 440 x 228 transparent, always-on-top Tumbler (slice 1's open item) is untouched by the director, which frames the Tumbler in a browser.
 - **Known:** the preview clock's storage key (`the-table-mock-clock`) is shared by both mock worlds (`mock/backend.ts`), so a First run seek resets the clock a sample-week tab reads, as a Maya's week seek already does. A First run seek also resets the `?first_run=1` preview's own tour progress.
+
+## Onboarding rework (lite r1 value-1)
+
+The council-lite r1 must-address: step 1 read "PayPal sandbox connected" when the keys were only saved, never checked. Fixed by relabelling to the fact (words only; no logic, IPC or Rust). Step 1 now reads: title "Add your PayPal sandbox keys", done "PayPal sandbox keys saved", act "Add PayPal keys" (also the setup circuit's non-first-run title). Test: `step 1 says the fact: the keys are saved, never connected, checked or verified` in `lib/firstRun.test.ts` (and `shared/start.test.tsx` pins the done label). A live key check is not built: it needs a live PayPal call, left to the sandbox spikes.

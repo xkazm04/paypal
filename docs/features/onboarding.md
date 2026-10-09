@@ -10,7 +10,7 @@ The steps only open the place where each thing happens, and the tour only points
 
 **The four steps.** "Your first safe deal in 4 steps" (the count follows the steps):
 
-1. **Connect PayPal sandbox.** Done when the sandbox keys are saved.
+1. **Add your PayPal sandbox keys.** Done when the sandbox keys are saved (they are not checked against PayPal).
 2. **Sign your agents' rules.** Done when a signed set of rules is in force.
 3. **Try a practice deal with the house seller.** Done when the house seller is connected.
 4. **Choose your agent app.** Done when the agents run in `claude-code` or `codex-cli`. It stays
@@ -133,8 +133,7 @@ beat's end state, including the stop each window's mark shows:
 
 ## Known gaps
 
-- The director's First run story was checked by its tests, not by eye: `takes --check --story
-  first-run` has not been run (no Playwright on the machine that built it).
+- The director's First run story has been played: STATUS "Played (slice 3, 2026-10-09)", First run 15 of 15.
 - Not seen in the running app: the coach mark over the Tumbler's transparent, always-on-top window
   (whether clicks reach it outside the welcome form) and its look at 440 x 228 were checked only
   by the placement tests, never by eye.
