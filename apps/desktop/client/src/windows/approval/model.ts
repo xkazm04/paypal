@@ -5,7 +5,9 @@ import type { ApprovalSummary } from '@bindings/ApprovalSummary';
 import type { Clause } from '@bindings/Clause';
 import type { Currency } from '@bindings/Currency';
 import type { Deal } from '@bindings/Deal';
+import type { DealKind } from '@bindings/DealKind';
 import type { DealState } from '@bindings/DealState';
+import type { Side } from '@bindings/Side';
 import type { Delivery } from '@bindings/Delivery';
 import type { MarketRef } from '@bindings/MarketRef';
 import type { Money } from '@bindings/Money';
@@ -71,7 +73,7 @@ export function deliveryText(d: Delivery): string {
 }
 
 /** A deal state in plain words (lib/words.ts). */
-export const stateWord = (s: DealState): string => plainState(s).text;
+export const stateWord = (s: DealState, ctx?: { side?: Side; kind?: DealKind }): string => plainState(s, ctx).text;
 
 // ---------------------------------------------------------------------------------------------
 // the checklist: composed by the wallet from the predicates that gate the decision. The window
@@ -124,7 +126,7 @@ export function buildStrip(summary: ApprovalSummary | undefined, phase: Phase, l
   const d = summary.deal;
   const s = d.state;
   if (phase === 'mismatch' || phase === 'stopped' || phase === 'block') {
-    const end = phase === 'block' ? STEP.blocked : stateWord(s);
+    const end = phase === 'block' ? STEP.blocked : stateWord(s, d);
     return [{ label: STEP.checking, status: 'done' }, { label: STEP.terms, status: 'done' }, { label: end, status: 'bad' }];
   }
   if (d.kind === 'rescue') {
@@ -139,7 +141,7 @@ export function buildStrip(summary: ApprovalSummary | undefined, phase: Phase, l
   if (d.side === 'seller') {
     labels = [STEP.checking, s === 'AGREED' ? (locked ? STEP.locked : STEP.yours) : STEP.youApproved, STEP.buyer, STEP.held, STEP.paid, STEP.receipt];
     at = PRE.has(s) && s !== 'SETTLING' ? 1 : s === 'SETTLING' || s === 'AWAITING_APPROVAL' || s === 'APPROVED' ? 2 : s === 'AUTHORIZED' ? 3 : s === 'CAPTURED' ? 4 : 5;
-    if (PRE.has(s) && s !== 'AGREED') labels[1] = stateWord(s);
+    if (PRE.has(s) && s !== 'AGREED') labels[1] = stateWord(s, d);
   } else {
     const purchase = d.kind === 'purchase';
     labels = [STEP.checking, ready, STEP.browser, STEP.approved, purchase ? STEP.held : STEP.sellerPaid, purchase ? STEP.paid : STEP.receipt];
@@ -150,7 +152,7 @@ export function buildStrip(summary: ApprovalSummary | undefined, phase: Phase, l
           ? locked ? STEP.locked : STEP.yours
           : !purchase && s === 'NEGOTIATING' && summary.can_owner_accept === true
             ? locked ? STEP.locked : STEP.yours
-            : stateWord(s);
+            : stateWord(s, d);
     } else if (s === 'AWAITING_APPROVAL') at = phase === 'in_browser' ? 2 : 1;
     else if (s === 'APPROVED') at = 3;
     else if (s === 'AUTHORIZED') at = purchase ? 4 : 3;
@@ -173,4 +175,34 @@ export const clauseText = (c: Clause): string => ruleSentence(c);
 
 export function isMandateActive(m: OpenMandate, now: number): boolean {
   return m.payload.not_before <= now && m.payload.expires > now;
+}
+
+// ---------------------------------------------------------------------------------------------
+// what the window says right after the owner decides
+
+export type DecisionCmd = 'deal_owner_accept' | 'deal_countersign' | 'deal_capture' | 'deal_void' | 'shield_release' | 'rescue_approve';
+
+export function outcomeText(cmd: DecisionCmd, deal: Deal, cp: string): string {
+  const st = stateWord(deal.state, deal);
+  const pp = deal.paypal;
+  switch (cmd) {
+    case 'deal_owner_accept':
+      return deal.state === 'AGREED'
+        ? `Approved. You and ${cp} agreed ${formatMoney(dealTotal(deal))}. No money moved. Paying opens here once their payment request is checked.`
+        : `Your approval is recorded (${st.toLowerCase()}). No money moved; the deal is agreed once ${cp}’s wallet answers.`;
+    case 'deal_countersign':
+      return deal.state === 'AUTHORIZED'
+        ? 'Approved. The money is on hold at PayPal, not paid yet.'
+        : `Approved (${st.toLowerCase()})${pp.order ? ' · the PayPal order is made' : ''}. No money moved yet.`;
+    case 'deal_capture':
+      return `Payment sent · ${st.toLowerCase()}${pp.capture ? ' · confirmed by PayPal' : ''}.`;
+    case 'deal_void':
+      return deal.state === 'VOIDED' ? 'Hold released. Nothing was paid.' : `Release requested (${st.toLowerCase()}).`;
+    case 'shield_release':
+      return `Unpaused (${deal.shield === 'ASK' ? 'now checks with you' : st.toLowerCase()}). Nothing was paid.`;
+    case 'rescue_approve':
+      return deal.state === 'AWAITING_APPROVAL'
+        ? 'Approved. PayPal sent the invoice to the subscriber. Nothing is paid until they pay it.'
+        : `Approved. PayPal is making the invoice (${st.toLowerCase()}); nothing more is sent until the wallet knows it was made.`;
+  }
 }

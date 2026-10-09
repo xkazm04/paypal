@@ -3,7 +3,7 @@ import type { Deal } from '@bindings/Deal';
 import type { DealState } from '@bindings/DealState';
 import { buildMockState, usd } from '../../mock/fixtures';
 import {
-  amountTone, beadAngles, beadKind, beadSummary, C, canStartAgent, canWithdraw, chipClass, clauseText, formatHash, introEase, isOwnerAccept, ledgerScope, mandatesGoverning,
+  amountTone, beadAngles, beadKind, isSettled, stateLabel, beadSummary, C, canStartAgent, canWithdraw, chipClass, clauseText, formatHash, introEase, isOwnerAccept, ledgerScope, mandatesGoverning,
   marketPosition, moduleOf, moneyNow, niceTicks, parseHash, pol, R, resolveDealRef, reviewVerb, rotationFor, sectorAt, shortestTarget,
   spendToday, splitHeadline, STEP, stripFor, sumByCurrency, summarize, toPolar, wedgePath, weekBounds,
 } from './logic';
@@ -123,8 +123,8 @@ describe('ledger summary', () => {
   it('sums moved money per side and currency in exact minor units', () => {
     const needs = new Set(world.deals.filter((d) => d.attention).map((d) => d.deal.id));
     const s = summarize(deals, needs);
-    // buyer captured/receipted: 212 + 45 + 38 ; seller captured: 18.50 shop + 9.00 recovered rescue
-    expect(s.out).toEqual([usd(295)]);
+    // buyer captured/reconciled: 45 + 38 (D-0187's 212 is only the seller's receipt, so not yet counted); seller captured: 18.50 shop + 9.00 recovered rescue
+    expect(s.out).toEqual([usd(83)]);
     expect(s.inn).toEqual([usd(27.5)]);
     // D-0194's collection is being checked with PayPal: its money is still counted where Rust last
     // saw it (held), never as paid.
@@ -305,5 +305,26 @@ describe('charts', () => {
     expect(marketPosition(34000, 30100, 31800, 33600)).toBe('above p75');
     expect(marketPosition(31800, 30100, 31800, 33600)).toBe('p50');
     expect(marketPosition(32900, 30100, 31800, 33600)).toBe('p65');
+  });
+});
+
+describe('a buyer’s RECEIPTED deal is the seller’s word, not paid', () => {
+  const buyer = (state: DealState) => mk({ kind: 'haggle', side: 'buyer', state, shield: null });
+  it('waits on the chip and the bead, and does not count as settled', () => {
+    expect(chipClass(buyer('RECEIPTED'))).toBe('wait');
+    expect(beadKind(buyer('RECEIPTED'))).not.toBe('settled');
+    expect(isSettled(buyer('RECEIPTED'))).toBe(false);
+    expect(amountTone(buyer('RECEIPTED'))).not.toBe('moved');
+    expect(moneyNow(buyer('RECEIPTED'))).not.toBe('paid');
+  });
+  it('is paid once PayPal’s statement matches, and for the seller at once', () => {
+    expect(chipClass(buyer('RECONCILED'))).toBe('done');
+    expect(beadKind(buyer('RECONCILED'))).toBe('settled');
+    expect(chipClass(mk({ kind: 'haggle', side: 'seller', state: 'RECEIPTED', shield: null }))).toBe('done');
+    expect(beadKind(mk({ kind: 'haggle', side: 'seller', state: 'RECEIPTED', shield: null }))).toBe('settled');
+  });
+  it('the sample week’s D-0187 reads as the seller’s word', () => {
+    expect(chipClass(byLabel('D-0187'))).toBe('wait');
+    expect(stateLabel(byLabel('D-0187').state, byLabel('D-0187'))).toBe('Seller says paid');
   });
 });

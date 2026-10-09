@@ -60,7 +60,7 @@ export function stoppedText(d: Deal): string {
     case 'FAILED': return d.kind === 'rescue' ? 'The invoice was cancelled at PayPal. Nothing was recovered.' : 'Failed. The wallet stopped this deal; no money moved from this window.';
     case 'REFUNDED': return 'Refunded on PayPal.';
     case 'DISPUTED': return 'Disputed on PayPal. The proof is in The Table.';
-    default: return `${stateWord(d.state).text}.`;
+    default: return `${stateWord(d.state, d).text}.`;
   }
 }
 

@@ -24,12 +24,12 @@ import type { HistoryAuthority } from '@bindings/HistoryAuthority';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import type { PaypalMethod } from '@bindings/PaypalMethod';
 import { formatMinor } from '../../lib/format';
-import { refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, stateWord } from '../../lib/words';
+import { refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, sellerSaysOnly, stateWord } from '../../lib/words';
 
 export const MODULE_KEYS: readonly Module[] = ['tables', 'spend', 'counter', 'book', 'shield', 'rescue'];
 export const moduleIndex = (m: Module): number => MODULE_KEYS.indexOf(m);
 
-type DealLike = Pick<Deal, 'kind' | 'shield' | 'state'>;
+type DealLike = Pick<Deal, 'kind' | 'shield' | 'state'> & Partial<Pick<Deal, 'side'>>;
 
 export function moduleOf(deal: Pick<Deal, 'kind' | 'shield'>, attention?: Pick<AttentionItem, 'module'> | null): Module {
   if (attention) return attention.module;
@@ -51,6 +51,8 @@ export const PENDING_BACKEND: Partial<Record<Module, string>> = {
 // ---- states -------------------------------------------------------------------------------
 
 const SETTLED: ReadonlySet<DealState> = new Set(['CAPTURED', 'RECEIPTED', 'RECONCILED']);
+/** Paid as far as this wallet knows: money moved and, for a buyer, PayPal said so. */
+const paid = (d: DealLike): boolean => SETTLED.has(d.state) && !sellerSaysOnly(d);
 const OFF: ReadonlySet<DealState> = new Set(['WITHDRAWN', 'EXPIRED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED']);
 const LIVE: ReadonlySet<DealState> = new Set(['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING']);
 
@@ -63,7 +65,7 @@ export function beadKind(d: DealLike): BeadKind {
   if (s === 'REFUSED' || s === 'MISMATCH' || s === 'DISPUTED') return 'stopped';
   if (s === 'FAILED') return 'stopped';
   if (d.shield === 'BLOCK') return 'stopped';
-  if (SETTLED.has(s)) return 'settled';
+  if (paid(d)) return 'settled';
   if (s === 'AUTHORIZED' || d.shield === 'HOLD') return 'held';
   return 'moving';
 }
@@ -74,7 +76,8 @@ export type ChipClass = 'live' | 'wait' | 'held' | 'done' | 'bad' | 'off';
 export function chipClass(d: DealLike): ChipClass {
   const s = d.state;
   if (OFF.has(s)) return 'off';
-  if (SETTLED.has(s)) return 'done';
+  if (paid(d)) return 'done';
+  if (sellerSaysOnly(d)) return 'wait';
   if (s === 'AUTHORIZED') return 'held';
   if (s === 'REFUSED' || s === 'MISMATCH' || s === 'DISPUTED') return 'bad';
   if (s === 'FAILED') return 'bad';
@@ -93,7 +96,7 @@ export function isTerminal(d: DealLike): boolean {
   return OFF.has(d.state) || SETTLED.has(d.state) || d.state === 'REFUSED' || d.state === 'MISMATCH' || d.state === 'DISPUTED' || d.state === 'FAILED';
 }
 export const isLive = (d: DealLike): boolean => !isTerminal(d);
-export const isSettled = (d: DealLike): boolean => SETTLED.has(d.state);
+export const isSettled = (d: DealLike): boolean => paid(d);
 export const isStopped = (d: DealLike): boolean => beadKind(d) === 'stopped';
 
 /** States from which the owner may send a signed WITHDRAW (Rust re-checks; this only hides the button). */
@@ -128,7 +131,7 @@ export function stripFor(d: Pick<Deal, 'kind' | 'side' | 'state' | 'shield'>): S
   const label = (s: DealState) => stateLabel(s, { side: d.side, kind: d.kind });
   const at = path.indexOf(d.state);
   if (at >= 0) {
-    const tone: StripStep['tone'] = SETTLED.has(d.state) ? 'ok' : d.shield === 'BLOCK' ? 'bad' : 'gold';
+    const tone: StripStep['tone'] = paid(d) ? 'ok' : d.shield === 'BLOCK' ? 'bad' : 'gold';
     return path.map((s, i) => ({ state: s, label: label(s), status: i < at ? 'done' : i === at ? 'cur' : 'todo', tone: i === at ? tone : null }));
   }
   // Terminal (or off-path) state: mark the known-reached prefix, then append the terminal step.
@@ -166,7 +169,7 @@ export function moneyNow(d: Pick<Deal, 'state' | 'side' | 'kind' | 'shield'>): s
     case 'AWAITING_APPROVAL': return d.side === 'seller' ? 'nothing moved · waiting for the buyer to approve on PayPal' : 'nothing moved · waiting for approval on PayPal';
     case 'APPROVED': return 'approved on PayPal · not yet authorized or captured';
     case 'AUTHORIZED': return 'on hold at PayPal · not paid until collected';
-    case 'CAPTURED': case 'RECEIPTED': case 'RECONCILED': return d.side === 'seller' ? 'paid to you' : 'paid';
+    case 'CAPTURED': case 'RECEIPTED': case 'RECONCILED': return d.side === 'seller' ? 'paid to you' : sellerSaysOnly(d) ? 'the seller says paid · not checked with PayPal yet' : 'paid';
     case 'WITHDRAWN': case 'EXPIRED': return 'nothing moved';
     case 'VOIDED': case 'AUTO_VOIDED': return 'hold released · nothing paid';
     case 'REFUSED': return 'nothing moved · refused before PayPal was asked';
@@ -179,7 +182,7 @@ export function moneyNow(d: Pick<Deal, 'state' | 'side' | 'kind' | 'shield'>): s
 
 /** Row amount styling: proposed vs moved vs struck never look alike. */
 export function amountTone(d: DealLike): 'moved' | 'held' | 'proposed' | 'struck' {
-  if (SETTLED.has(d.state)) return 'moved';
+  if (paid(d)) return 'moved';
   if (OFF.has(d.state) || d.state === 'REFUSED' || d.shield === 'BLOCK') return 'struck';
   if (beadKind(d) === 'held') return 'held';
   return 'proposed';
@@ -189,7 +192,7 @@ export function amountNote(d: Pick<Deal, 'state' | 'side' | 'shield' | 'kind'>):
   if (d.shield === 'HOLD' && !isTerminal(d)) return 'paused';
   switch (d.state) {
     case 'AUTHORIZED': return 'on hold at PayPal';
-    case 'CAPTURED': case 'RECEIPTED': case 'RECONCILED': return d.side === 'seller' ? 'paid to you' : 'paid';
+    case 'CAPTURED': case 'RECEIPTED': case 'RECONCILED': return d.side === 'seller' ? 'paid to you' : sellerSaysOnly(d) ? 'the seller says paid · not checked with PayPal yet' : 'paid';
     case 'REFUSED': return 'never sent';
     case 'VOIDED': case 'AUTO_VOIDED': return 'hold released';
     case 'WITHDRAWN': case 'EXPIRED': return 'no money moved';
@@ -238,7 +241,7 @@ export type LedgerSummary = { out: Money[]; inn: Money[]; held: Deal[]; moving: 
 /** Ledger summary from list_deals. `needs` = deal ids with an open attention item (they are
  *  shown on the right, so "in motion" lists only what runs on its own). */
 export function summarize(deals: Deal[], needs: ReadonlySet<string>): LedgerSummary {
-  const settled = deals.filter((d) => SETTLED.has(d.state));
+  const settled = deals.filter((d) => paid(d));
   return {
     out: sumByCurrency(settled.filter((d) => d.side === 'buyer').map(dealTotal)),
     inn: sumByCurrency(settled.filter((d) => d.side === 'seller').map(dealTotal)),

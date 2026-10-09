@@ -9,7 +9,7 @@ import type { MoneyCheck } from '@bindings/MoneyCheck';
 import type { RescueOffer } from '@bindings/RescueOffer';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { formatMoney } from '../../../lib/format';
-import { headlineWords, houseWords, MONEY_CHECK_PARKED, marketWords, percentWords, moneyCheckStep, ruleNameOf, shieldRuleWord, stateWord } from '../../../lib/words';
+import { headlineWords, houseWords, MONEY_CHECK_PARKED, marketWords, percentWords, moneyCheckStep, ruleNameOf, shieldRuleWord, sellerSaysOnly, stateWord } from '../../../lib/words';
 import { dealTotal, decidedBy, isTerminal } from '../logic';
 import { latestText, timelineRows, type ClauseReading, type Reading, type TimelineRow } from './model';
 
@@ -61,7 +61,7 @@ export function dealAnswer(d: AnswerDeal, c: AnswerCtx): DealAnswer {
   if (d.state === 'FAILED') return { tone: 'alert', title: d.kind === 'rescue' ? 'The invoice was cancelled at PayPal. Nothing was recovered.' : 'The payment failed at PayPal.', sub: CLOSED };
 
   if (isTerminal(d)) {
-    const settled = d.state === 'CAPTURED' || d.state === 'RECEIPTED' || d.state === 'RECONCILED';
+    const settled = (d.state === 'CAPTURED' || d.state === 'RECEIPTED' || d.state === 'RECONCILED') && !sellerSaysOnly(d);
     // A deal the deadline ended was not walked away from: say that nobody acted in time.
     const lapsed = who.who === 'default' && (d.state === 'WITHDRAWN' || d.state === 'EXPIRED') ? 'Nobody acted before the deadline, so it ended. No money moved.' : null;
     return { tone: settled ? 'done' : 'calm', title: CLOSED, sub: `${settled ? `${w.text} · ${amt}` : lapsed ?? w.means}${decided}` };

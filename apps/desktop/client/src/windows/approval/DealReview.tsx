@@ -18,7 +18,7 @@ import type { RescueLever } from '@bindings/RescueLever';
 import { WalletError, toWalletError } from '../../lib/contract';
 import { useCounterparties, useDealDisplay } from '../../lib/display';
 import { formatMoney, nowUnix, shortId } from '../../lib/format';
-import { houseWords, RESCUE_APPROVE_DOES, RESCUE_REPLAY_NOT_COUNTED, SUMMARY_CHANGED, reasonWords, subscriberName, reconWord, receiptWord, shieldRuleWord, silenceWords } from '../../lib/words';
+import { houseWords, RESCUE_APPROVE_DOES, RESCUE_REPLAY_NOT_COUNTED, SUMMARY_CHANGED, reasonWords, subscriberName, reconWord, receiptWord, shieldRuleWord, silenceWords, sellerSaysOnly } from '../../lib/words';
 import { useEvent, useNow, usePrefersReducedMotion, useQuery } from '../../lib/hooks';
 import { backend } from '../../lib/runtime';
 import { MODULES } from '../../shared/modules';
@@ -27,7 +27,7 @@ import { AnswerBar, Btn, Field, HoldButton, Popover, Sheet, layerCount, useFocus
 import { MarkIcon } from './review/Parts';
 import { BandAdjust } from './BandAdjust';
 import { decisionArgs, deriveGates, isLocked, isTerminal, namesMatch, ownerAcceptArgs, type Gate, type Gates } from './gating';
-import { buildStrip, dealTotal, derivePhase, stateWord, type Phase } from './model';
+import { buildStrip, dealTotal, derivePhase, outcomeText, stateWord, type DecisionCmd, type Phase } from './model';
 import { buildDiff, buildEvidence, lastAmount, type DiffRow } from './review/diff';
 import { WalletChecks, checksLine } from './review/Checks';
 import { DetailsSheet, RowDetail } from './review/Details';
@@ -41,7 +41,6 @@ import { useSession } from './session';
 import { HelloGlyph, LockGlyph } from './ui';
 import './approval.css';
 
-type DecisionCmd = 'deal_owner_accept' | 'deal_countersign' | 'deal_capture' | 'deal_void' | 'shield_release' | 'rescue_approve';
 
 const POLL_IN_BROWSER_MS = 3000;
 const POLL_IDLE_MS = 10000;
@@ -799,7 +798,7 @@ function statusOf(phase: Phase, d: Deal, s: ApprovalSummary, total: string, cp: 
     case 'waiting':
       return { chip: 'gold', title: waitingTitle(d, cp), body: waitingText(d, cp) };
     case 'done':
-      return { chip: 'ok', title: `${stateWord(d.state)} · ${total}`, body: doneText(d, s, total) };
+      return { chip: sellerSaysOnly(d) ? 'gold' : 'ok', title: `${stateWord(d.state, d)} · ${total}`, body: doneText(d, s, total) };
     case 'stopped':
       return { chip: d.state === 'REFUSED' || d.state === 'FAILED' || d.state === 'DISPUTED' ? 'red' : '', title: stoppedText(d), body: stoppedText(d) };
     case 'block':
@@ -835,31 +834,6 @@ function noteFor(phase: Phase, g: Gates, d: Deal, total: string, cp: string): { 
   return null;
 }
 
-function outcomeText(cmd: DecisionCmd, deal: Deal, cp: string): string {
-  const st = stateWord(deal.state);
-  const pp = deal.paypal;
-  switch (cmd) {
-    case 'deal_owner_accept':
-      return deal.state === 'AGREED'
-        ? `Approved. You and ${cp} agreed ${formatMoney(dealTotal(deal))}. No money moved. Paying opens here once their payment request is checked.`
-        : `Your approval is recorded (${st.toLowerCase()}). No money moved; the deal is agreed once ${cp}’s wallet answers.`;
-    case 'deal_countersign':
-      return deal.state === 'AUTHORIZED'
-        ? 'Approved. The money is on hold at PayPal, not paid yet.'
-        : `Approved (${st.toLowerCase()})${pp.order ? ' · the PayPal order is made' : ''}. No money moved yet.`;
-    case 'deal_capture':
-      return `Payment sent · ${st.toLowerCase()}${pp.capture ? ' · confirmed by PayPal' : ''}.`;
-    case 'deal_void':
-      return deal.state === 'VOIDED' ? 'Hold released. Nothing was paid.' : `Release requested (${st.toLowerCase()}).`;
-    case 'shield_release':
-      return `Unpaused (${deal.shield === 'ASK' ? 'now checks with you' : st.toLowerCase()}). Nothing was paid.`;
-    case 'rescue_approve':
-      return deal.state === 'AWAITING_APPROVAL'
-        ? 'Approved. PayPal sent the invoice to the subscriber. Nothing is paid until they pay it.'
-        : `Approved. PayPal is making the invoice (${st.toLowerCase()}); nothing more is sent until the wallet knows it was made.`;
-  }
-}
-
 function waitingTitle(d: Deal, cp: string): string {
   if (d.kind === 'rescue') return d.state === 'SETTLING' ? 'PayPal is making the invoice' : 'The invoice is with the subscriber';
   if (d.state === 'AGREED') return `Agreed · waiting for ${cp}’s payment request`;
@@ -873,7 +847,7 @@ function doneText(d: Deal, s: ApprovalSummary, total: string): string {
   const ev = s.evidence;
   const evidence = receiptWord(ev.receipt).text;
   const recon = ev.reconciliation === 'not_applicable' ? '' : reconWord(ev.reconciliation).text.toLowerCase();
-  return `${total}${d.paypal.capture ? ' paid' : ''} · ${evidence}${recon ? ` · ${recon}` : ''}. Reference numbers are under Details.`;
+  return `${total}${d.paypal.capture && !sellerSaysOnly(d) ? ' paid' : ''} · ${evidence}${recon ? ` · ${recon}` : ''}. Reference numbers are under Details.`;
 }
 
 function terminalNote(state: Deal['state'], phase: Phase): string {
