@@ -1,6 +1,6 @@
 // First run: from install to a first safe deal in four steps, the same on every surface (Home,
 // the Settings sheet, the Tumbler's welcome, the approval window's owner configuration).
-//   1 Connect PayPal sandbox      done when the sandbox keys are saved (settings.payment_executor_configured)
+//   1 Add your PayPal keys        done when the sandbox keys are saved, not checked (settings.payment_executor_configured)
 //   2 Sign your agents' rules     done when a signed set of rules is in force (mandate_list; first_run
 //                                 false when only settings were read)
 //   3 Practice with the house     done when the house seller is connected (counterparty_list house:

@@ -19,7 +19,7 @@ describe('first-run steps list', () => {
     const r = render(<StartSteps gs={gs} action={(k: StartStepKey) => ({ label: `go ${k}`, title: k, run: () => run(k) })} />);
     const items = r.container.querySelectorAll('li.ss');
     expect([...items].map((li) => li.className)).toEqual(['ss s-done', 'ss s-next', 'ss s-todo', 'ss s-todo']);
-    expect(items[0]!.textContent).toContain('PayPal sandbox connected');
+    expect(items[0]!.textContent).toContain('PayPal sandbox keys saved');
     expect(items[0]!.querySelector('button')).toBeNull();
     expect(r.container.querySelectorAll('button')).toHaveLength(3);
     expect(r.container.querySelector('.gold')).toBeNull();
