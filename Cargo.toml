@@ -34,6 +34,9 @@ table-engine = { path = "crates/table-engine" }
 table-shield = { path = "crates/table-shield" }
 table-app = { path = "crates/table-app" }
 axum = "0.8"
+hyper = { version = "1", default-features = false, features = ["server", "http1"] }
+hyper-util = { version = "0.1", default-features = false, features = ["tokio", "server", "http1", "service", "server-graceful"] }
+tower-http = { version = "0.6", default-features = false, features = ["timeout"] }
 ts-rs = { version = "12", features = ["no-serde-warnings", "serde-json-impl"] }
 table-client = {path="crates/table-client"}
 

@@ -1,4 +1,5 @@
 //! Bounded store-and-forward relay. It has no signing keys or PayPal credentials.
+pub mod serve;
 use async_trait::async_trait;
 use axum::{
     Json, Router,
@@ -7,6 +8,7 @@ use axum::{
     routing::{get, post, put},
 };
 use serde::Deserialize;
+pub use serve::{Limits, serve, serve_with};
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
 use table_core::Clock;
 use tokio::sync::{Mutex, Notify};
