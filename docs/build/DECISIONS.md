@@ -411,3 +411,118 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   theme) and 6c15500 (played in the rig, both stories pass); tests `lib/tour.test.ts`,
   `shared/tour.test.tsx`, `director/firstRunStory.test.ts` (writes only to `table-tour:first-run`,
   no world, money or lock action).
+
+## 18. Step 1 says the keys are saved, not connected
+
+- **Date:** 2026-10-09
+- **Decided by:** the App Master, on first-run-onboarding lite r1 value-1 (the review report is not
+  in the repository: what it said is taken from the commit messages)
+- **Constraint:** the first-run step ticks when a keychain entry exists, and the keys are never
+  checked against PayPal. No live PayPal call is made without an operator ask (AGENTS.md).
+- **Decision:** the words state the fact (the keys are saved), and a test pins them. There is no
+  live key check at first run.
+- **Lost:** a live key check against the sandbox at step 1. That is a live PayPal call that needs the
+  operator's ask, and a network dependency in first run.
+- **Consequences:** step 1 can be done with keys PayPal would refuse. The owner finds that out on the
+  first real call, not at step 1. Not confirmed: whether any later surface reports a bad key early.
+- **Evidence:** c40a9a1 (relabels the step to 'Add your PayPal sandbox keys' / 'PayPal sandbox keys
+  saved') and 8b1aed7 (words, `docs/features/onboarding.md`, STATUS entry). The test c40a9a1 adds is
+  'step 1 says the fact: the keys are saved, never connected, checked or verified' in
+  `apps/desktop/client/src/lib/firstRun.test.ts`.
+
+## 19. At the deadline a parked money step is read back once, and PayPal's answer decides
+
+- **Date:** 2026-10-09
+- **Decided by:** the App Master, on deal-to-settlement lite r1 robustness-1 and robustness-2 (the
+  review report is not in the repository; taken from the commit message of 5bea1b1)
+- **Constraint:** silence never moves money (AGENTS.md). `resolve_deal` skipped parked steps, so a
+  parked capture or void left `auto_void` refusing forever (the deal sat On hold with PayPal's hold in
+  place), and `deadline_default` dropped `resolve_deal`'s answer and expired a deal whose authorize
+  was still parked or younger than `SETTLE_SECS`.
+- **Decision:**
+  - A parked authorize, capture or void is read back under `Resolve::Deadline` once the deal's
+    deadline has passed. A read grants nothing, and what PayPal shows decides.
+  - A hold is voided once, by the safe default. At the deadline a void goes once more under its own
+    request id whoever decided it, so an owner's parked void completes without a ticket.
+  - 'No authorization' is recorded as absent and the deal lapses.
+  - A committed capture is recorded as PayPal's truth, with no void.
+  - An unreadable read leaves the hold for the next tick.
+  - `deadline_default` returns `Unavailable` while an authorize is open (its `Ok(true)`/`Ok(false)`
+    contract is unchanged). `apply_deadline_default` in table-ledger refuses with `Conflict` while the
+    deal has an authorize with no confirmed or absent resolution, so no caller can bypass the check.
+- **Lost:**
+  - (a) Expiring at the deadline without a read-back: it can leave a hold in place, or record a lapse
+    over a committed capture.
+  - (b) Capturing at the deadline: it would let silence move money, which is forbidden.
+- **Consequences:** a deal whose PayPal read keeps failing stays open past its deadline until a read
+  succeeds. What the lite r1 left open is listed in STATUS.md.
+- **Evidence:** 5bea1b1 (the fix) and 9c3ed7e (docs and STATUS). Tests 5bea1b1 adds, in
+  `crates/table-app/tests/pipeline.rs`: `parked_capture_at_the_deadline_settles_to_what_paypal_shows`,
+  `parked_authorize_at_the_deadline_lapses_or_is_voided_by_what_paypal_shows`,
+  `parked_void_at_the_deadline_goes_once_more_under_its_own_request_id`,
+  `deadline_waits_for_an_unsettled_authorize_before_expiring`; and in
+  `crates/table-ledger/src/tests.rs`: `deadline_default_refuses_while_an_authorize_is_open`.
+
+## 20. Step 4 is finished only by an explicit owner choice, and every window reads it through one helper
+
+- **Date:** 2026-10-09
+- **Decided by:** the App Master, on first-run-onboarding full council r1 value-1: 'A judge with no
+  engine CLI can never finish step 4, so Home stays in onboarding and hides the practice deal it
+  promised' (the council report is not in the repository; the quotation is as given in the task and
+  not checked against the report)
+- **Constraint:** `claude-code` and `codex-cli` stay gated, so a judge without them could never
+  finish step 4. But the default `scripted` engine must not count as a choice, or the step means
+  nothing.
+- **Decision:**
+  - `SettingsSnapshot.engine_chosen` (the ledger preference 'engine' exists) is the fact.
+  - 'Keep the practice agent for now' sets it. The default never counts.
+  - `settingsFacts` in `lib/firstRun.ts` is the one mapping that Home, the Tumbler and the approval
+    window use, so no window can drop a settings fact.
+- **Lost:**
+  - (a) Counting the default engine as chosen.
+  - (b) Making step 4 optional.
+  - (c) Each window building its own facts, which is what let the Tumbler and OwnerConfig drop
+    `engine_chosen` at 9d2bae2.
+- **Consequences:** `SettingsSnapshot` gained a field (binding, mock, fixtures). Whether the
+  permissions fingerprint changed is not confirmed here.
+- **Evidence:** 9d2bae2 (the field, the choice, the words) and 398f683 (`settingsFacts`). Tests: the
+  Rust `keeping_the_practice_agent_is_a_recorded_choice_not_the_default` in
+  `crates/table-runtime/src/tests.rs`, and in `apps/desktop/client/src/lib/firstRun.test.ts` the
+  group 'settingsFacts: one mapping for Home, the Tumbler and the approval window' plus 'an owner
+  with neither app who keeps the practice agent finishes step 4; the default alone never does'.
+
+## 21. Native agent apps stay gated until the deal page names the run that actually acted
+
+- **Date:** 2026-10-09
+- **Decided by:** the App Master, on agent-negotiation-run lite r1 value-3 (ready at 0.62 with no
+  must-address; the report is not in the repository)
+- **Constraint:** the deal's Details read the first run listed for the deal
+  (`apps/desktop/client/src/windows/main/DealView.tsx:91`, `.find((r) => r.deal_id === deal.id)`).
+  With more than one run, the page can name a run that did not act. A native engine is exactly where
+  the owner most needs to know which agent acted. Whether that list is ordered oldest first is not
+  confirmed.
+- **Decision:** `claude-code` and `codex-cli` stay probed but gated. The practice (policy) agent is
+  the only engine that runs a deal until value-3 is fixed.
+- **Lost:** ungating the native engines now for the demo.
+- **Consequences:** the demo runs on the practice agent. Ungating also waits for robustness-2 (runs
+  are not reaped at 120 s) and robustness-3 (a cancelled deal is not answered after Pause and
+  Resume).
+- **Evidence:** decided, implementation in flight; no commit.
+
+## 22. For the submission, a wallet seller's practice agent accepts a first offer at or above its floor
+
+- **Date:** 2026-10-09
+- **Decided by:** the App Master, on agent-negotiation-run lite r1 value-4 (the report is not in the
+  repository)
+- **Constraint:** the submission cut (section 1) and the 2026-11-12 deadline. A seller policy that
+  holds out is new negotiation behaviour, outside wave 1.
+- **Decision:** the behaviour stays as it is for the submission. A scheduled seller policy that holds
+  out above the floor is post-submission.
+- **Lost:** building a seller counter policy before the video.
+- **Consequences:** a seller wallet in the demo can agree to the first acceptable offer, so the video
+  must not claim that the seller haggles up. The HOUSE seller is different: it has its own rule,
+  `decide_on_schedule`, which does not accept at its public floor until the last round.
+- **Evidence:** decided, with no commit. The wallet seller's path is `decide` in
+  `crates/table-engine/src/policy.rs:62` (the `Side::Seller` arm, lines 68-82, calls
+  `Policy::decide`), which accepts at `offer >= floor` in `crates/table-core/src/negotiation.rs:40-42`;
+  the test assertion is at `crates/table-engine/src/policy.rs:367`.
