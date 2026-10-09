@@ -21,7 +21,7 @@ or pay anything.
 | card | 440 × 152 | One decision or pause: "Approve $329.00 with Dan?", time left in words, the "If you do nothing" line, the actions. |
 | stack | 440 × 336 | Every open item, today's meters (paid out today, on hold now, against wallet limits), the "If you walk away" row, Do not disturb, pin. |
 | handoff | 440 × 160 | PayPal is open in the browser: the approve window counting down while the wallet polls. |
-| welcome | 440 × 228 | First time The Table is closed, and the first-run three steps. |
+| welcome | 440 × 228 | First time The Table is closed, and the first-run steps (four, with the tour; see [Onboarding](onboarding.md)). |
 
 **Cards.** A decision (GATE) reads as a question; a pause (HOLD) as a statement with a coral
 "Paused" chip and the rule that paused it ("Paused by …", from the wallet's closed rule names). A

@@ -29,8 +29,9 @@ money: they read the ledger and hand off to the approval window.
 - Footer: status chips, a "Rewind" chip, a quiet `?` chip (keyboard shortcuts sheet), the Tumbler
   pill ("Mini window · shown · 2 waiting") and the clock.
 - First run: the Dial is drawn but does not turn; the hub and columns show "Your first safe deal
-  in 3 steps" (connect PayPal sandbox, sign your agents' rules, try a practice deal with the house
-  seller), with the next step as the only gold button.
+  in 4 steps" (connect PayPal sandbox, sign your agents' rules, try a practice deal with the house
+  seller, choose your agent app), with the next step as the only gold button, and the tour walks
+  them once ([Onboarding](onboarding.md)).
 
 **While you were away (`main`, Home).** A compact card above "This week" when something needs the
 owner, or the hub's content when nothing does. Lines are grouped by outcome (paid, collected,

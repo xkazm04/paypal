@@ -37,6 +37,7 @@ A refused intent leaves zero PayPal calls.
 
 | Page | In one line |
 |---|---|
+| [Onboarding](onboarding.md) | The four getting-started steps in every window (PayPal, rules, a practice deal, the agent app) and the first-run tour; neither can move money. |
 | [Home and Rewind](home-and-rewind.md) | The Dial; "While you were away"; what happens if you walk away; who decided each money step. |
 | [Tables: haggling](tables-haggling.md) | Agents bargain inside a signed price range. Covers the practice negotiator, shopping around several sellers, fresh market prices and the fair-price certificate. |
 | [Spend: purchases](spend-purchases.md) | Agents propose purchases. The wallet checks them against the rules and wallet-wide limits, and the owner pays or releases the hold. |
