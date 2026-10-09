@@ -1,0 +1,28 @@
+/* The onboarding tour (src/shared/tour.tsx): one coach mark beside the stop's element and a quiet
+   ring around it. Left/top come from React's style prop (CSSOM, allowed by the CSP). Inks are the
+   palette's text tokens on --panel2, so the token contrast tests cover them (shared/tour.test.tsx
+   checks the pairs used here). Motion only when the owner has not asked for less. */
+.tour-ring { position: fixed; z-index: var(--z-popover); pointer-events: none; border-radius: var(--r);
+  box-shadow: 0 0 0 2px var(--focus), 0 0 0 6px color-mix(in srgb, var(--focus) 18%, transparent); }
+
+.tour-mark { position: fixed; z-index: var(--z-popover); width: 300px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto;
+  padding: var(--sp-3); border-radius: var(--r-lg); background: var(--panel2); color: var(--text); box-shadow: var(--shadow-3);
+  display: flex; flex-direction: column; gap: 6px; }
+.tour-head { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.tour-kick { flex: 1; min-width: 0; font-size: var(--fs-small); color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tour-skip { flex: none; margin-right: calc(-1 * var(--sp-1)); }
+.tour-title { margin: 0; font: var(--fw-semibold) var(--fs-title3)/1.3 var(--font); color: var(--text); }
+.tour-text { margin: 0; font-size: var(--fs-body); line-height: 1.45; color: var(--muted); }
+.tour-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-top: var(--sp-1); }
+.tour-mark :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* the Tumbler is 440 x 228 at most: a smaller mark that still fits beside the welcome */
+.tour-mark.tour-tumbler { width: 260px; padding: var(--sp-2) var(--sp-3); gap: 4px; }
+.tour-tumbler .tour-title { font-size: var(--fs-body); }
+.tour-tumbler .tour-text { font-size: var(--fs-small); line-height: 1.4; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .tour-mark { animation: tour-in var(--t-med) var(--ease); transition: left var(--t-med) var(--ease), top var(--t-med) var(--ease); }
+  .tour-ring { transition: left var(--t-med) var(--ease), top var(--t-med) var(--ease), width var(--t-med) var(--ease), height var(--t-med) var(--ease); }
+}
+@keyframes tour-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }

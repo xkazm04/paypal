@@ -24,6 +24,7 @@ import {
 import { lazyPart } from '../../lib/lazy';
 import { useRewind } from './Rewind';
 import { StartAbout, StartHub, StartSide, useStart, useStartActions, type StartActions } from './home/Start';
+import { Tour } from '../../shared/tour';
 import { AwayCard, AwayHub, useAway, type Away } from './home/AwayCard';
 import type { GettingStarted } from '../../lib/firstRun';
 import type { PairMode } from './setup/pairing';
@@ -299,6 +300,8 @@ export function Home(p: Props) {
         </span>
       </footer>
       {help ? <Shortcuts onClose={() => setHelp(false)} /> : null}
+      {/* First run: the tour walks Home's getting-started parts once the dial has settled. */}
+      <Tour win="main" gs={start} firstRun={firstRun} paused={!p.active || intro !== 'done'} />
     </div>
   );
 }
@@ -630,7 +633,7 @@ export function LockIndicator() {
   const open = useMutation('approval_open');
   const L = w.locked;
   return (
-    <Btn sm className={`lockbtn ${L ? 'is-locked' : ''}`} onClick={() => { if (L) void open.run({ deal_id: null }); }} aria-disabled={!L}
+    <Btn sm className={`lockbtn ${L ? 'is-locked' : ''}`} data-tour="approval-way" onClick={() => { if (L) void open.run({ deal_id: null }); }} aria-disabled={!L}
       title={L ? 'Locked after 15 quiet minutes. You can still look around; approving money asks for Windows Hello. Click to unlock.'
         : 'Approvals lock after 15 quiet minutes, then ask for Windows Hello.'}>
       <LockGlyph locked={L} />{L ? 'Locked' : 'Unlocked'}

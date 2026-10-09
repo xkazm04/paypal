@@ -11,6 +11,7 @@ import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import { FIRST_RUN_TITLE, SAFETY_PROMISE, START_STEP, type StartStepKey } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
 import { StartProgress, StartSteps, type StepAction } from '../../../shared/start';
+import { TakeTour } from '../../../shared/tour';
 import { Icon, Section, type IconName } from '../../../shared/ui';
 import { LockGlyph } from '../ui';
 import { useWorld } from '../world';
@@ -61,17 +62,18 @@ export function StartHub({ gs, act }: { gs: GettingStarted; act: StartActions })
   const next = gs.next;
   const opensApproval = next === 'paypal' || next === 'rules';
   return (
-    <div className="hc first">
+    <div className="hc first" data-tour="start-hub">
       <div className="h-eyebrow">Welcome to The Table</div>
       <div className="h-calm h-first">{FIRST_RUN_TITLE}</div>
       <StartProgress gs={gs} className="h-prog" />
-      <div className="h-promise"><Icon name="shield" size={14} />{SAFETY_PROMISE}</div>
+      <div className="h-promise" data-tour="safety-promise"><Icon name="shield" size={14} />{SAFETY_PROMISE}</div>
       {next ? (
         <button type="button" className="gbtn" onClick={(e) => { stop(e); act.go(next); }} disabled={act.busy !== null} title={START_STEP[next].where}>
           {opensApproval && w.locked ? <LockGlyph locked /> : null}{act.busy ? 'Opening…' : START_STEP[next].act}{opensApproval ? ' ↗' : ''}
         </button>
       ) : null}
       {act.error ? <WalletNotice error={act.error} what="Approval window" /> : null}
+      <TakeTour win="main" gs={gs} className="h-tour" />
     </div>
   );
 }

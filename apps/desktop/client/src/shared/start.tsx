@@ -19,7 +19,7 @@ export function StartSteps({ gs, action, elsewhere, busy, className }: {
   className?: string;
 }) {
   return (
-    <ol className={`start-steps${className ? ` ${className}` : ''}`} aria-label={`Getting started: ${gs.done} of ${gs.total} done`}>
+    <ol className={`start-steps${className ? ` ${className}` : ''}`} aria-label={`Getting started: ${gs.done} of ${gs.total} done`} data-tour="start-steps">
       {gs.steps.map((s) => <StepItem key={s.key} s={s} act={s.state === 'done' ? null : action(s.key)} elsewhere={elsewhere?.[s.key]} busy={busy === s.key} />)}
     </ol>
   );
@@ -39,7 +39,7 @@ function StepItem({ s, act, elsewhere, busy }: { s: StartStep; act: StepAction; 
   );
   const state = done ? 'done' : s.state === 'next' ? 'next' : s.state === 'unknown' ? 'not checked' : 'to do';
   return (
-    <li className={`ss s-${s.state}`} aria-label={`Step ${s.n}: ${w.title}, ${state}`}>
+    <li className={`ss s-${s.state}`} aria-label={`Step ${s.n}: ${w.title}, ${state}`} data-tour={`step-${s.key}`}>
       {act ? (
         <button type="button" className="ss-go" onClick={act.run} disabled={busy} title={act.title}>
           {body}

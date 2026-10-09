@@ -1,4 +1,4 @@
-/* The three first-run steps (src/shared/start.tsx): Home's left column, the approval window's
+/* The first-run steps (src/shared/start.tsx): Home's left column, the approval window's
    owner configuration. Steps wrap (a narrow column never cuts a step's name); done steps are green
    with a check, the next one carries a gold marker (the gold button itself lives outside the list). */
 .start-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -25,7 +25,7 @@
 .start-steps .s-done .ss-text b { color: var(--muted); }
 .start-steps .s-unknown .ss-mark { border-style: dashed; }
 
-/* progress: three dots and "1 of 3 done" */
+/* progress: one dot a step and "1 of 4 done" */
 .start-progress { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-small); color: var(--dim); }
 .start-progress i { width: 18px; height: 4px; border-radius: 2px; background: var(--line2); }
 .start-progress i.on { background: var(--ok); }

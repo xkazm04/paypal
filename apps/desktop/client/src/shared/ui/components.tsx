@@ -97,9 +97,9 @@ export function PageHead({ title, icon, sub, info, actions, focusKey, className,
   );
 }
 
-export function Section({ title, end, children, className }: { title?: ReactNode; end?: ReactNode; children: ReactNode; className?: string }) {
+export function Section({ title, end, children, className, tour }: { title?: ReactNode; end?: ReactNode; children: ReactNode; className?: string; tour?: string }) {
   return (
-    <section className={cx('ui-section', className)}>
+    <section className={cx('ui-section', className)} data-tour={tour}>
       {title || end ? <div className="ui-section-h">{title ? <h2>{title}</h2> : null}{end ? <span className="end">{end}</span> : null}</div> : null}
       {children}
     </section>
