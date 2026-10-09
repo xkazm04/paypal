@@ -11,8 +11,15 @@ The steps only open the place where each thing happens, and the tour only points
 **The four steps.** "Your first safe deal in 4 steps" (the count follows the steps):
 
 1. **Add your PayPal sandbox keys.** Done when the sandbox keys are saved (they are not checked against PayPal).
+   The step says where they come from: registering at developer.paypal.com creates a sandbox
+   business account with its test keys (the approval window's "about" note says the same). Pasted
+   keys are trimmed of surrounding spaces; a key that is empty after trimming is refused. Once the
+   secure store has the keys they count as saved, even if the date kept beside them could not be written.
 2. **Sign your agents' rules.** Done when a signed set of rules is in force.
-3. **Try a practice deal with the house seller.** Done when the house seller is connected.
+3. **Try a practice deal with the house seller.** Done when the house seller is connected. A done
+   step keeps one quiet click, "Start a practice deal" (Home); the approval window shows where it
+   starts ("in The Table: Connections › House seller"). The Tumbler cannot tell this step, so it
+   never shows it done. No other done step has an action.
 4. **Choose your agent app.** Done when the agents run in `claude-code` or `codex-cli`, or when the
    owner has kept the practice agent on purpose ("Keep the practice agent for now" in Settings,
    which calls `engine_select('scripted')` and sets `settings.engine_chosen`). The practice agent a
@@ -66,7 +73,9 @@ line) walks it again from the first stop. The agent app stop drops out once an a
   that is missing or throws falls back to memory, so the tour still works for the session.
 - **On screen.** `shared/tour.tsx` places the mark with `getBoundingClientRect` and React's style
   prop (the CSP allows CSSOM, not inline style strings). It re-places it on resize and scroll and
-  keeps it inside the viewport. It is a labelled, non-modal dialog. Focus moves into it only while
+  keeps it inside the viewport. It is a labelled, non-modal dialog. When Next, Back or an arrow key
+  moves to a new stop, focus moves to the dialog itself (`tabIndex` -1) so a screen reader reads the
+  new title and text. Focus moves into it only while
   the window already has focus, so the Tumbler never takes the keyboard from another app, and goes
   back afterwards. The mark waits while a sheet, popover or confirm is open, and in The Table until
   the dial's intro has settled.
