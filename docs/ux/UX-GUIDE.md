@@ -62,7 +62,7 @@ paragraph**:
 | refused at clause 3 | **Over the per-purchase limit** | Name the rule, then the number. |
 | Unlocked / LOCKED | **Unlocked** / **Locked, unlock with Windows Hello** | |
 | sandbox / replay / scripted engine | **Sandbox / Replay / Practice agent** | The mode badge is mandatory (design §10.1); case is not. |
-| unknown / parked money operation | **Checking with PayPal** (dashed); parked: "We couldn't confirm a payment with PayPal. Nothing more will be sent until we can." | Never "failed", never "paid", never "unknown". Words in `moneyCheckWord()`. |
+| unknown / parked money operation | **Checking with PayPal** (dashed); parked: "We couldn’t confirm a payment with PayPal. At the deadline the wallet asks PayPal what happened, and what PayPal shows decides. A hold is released; nothing is collected." | Never "failed", never "paid", never "unknown". Words in `moneyCheckWord()`. |
 
 Rule names (mandate clauses):
 
