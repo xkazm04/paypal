@@ -622,6 +622,34 @@ export const START_STEP: Record<StartStepKey, { title: string; sub: string; done
 /** The first-run heading: what the steps lead to (the count follows START_STEP). */
 export const FIRST_RUN_TITLE = `Your first safe deal in ${Object.keys(START_STEP).length} steps`;
 
+// ---- the tour: a few coach marks on first run, one window at a time ------------------------------
+
+/** Every stop of the tour, by window (lib/tour.ts holds their order and anchors). */
+export type TourStopId =
+  | 'main.hub' | 'main.promise' | 'main.steps' | 'main.engine' | 'main.approval'
+  | 'tumbler.what' | 'tumbler.needs' | 'tumbler.engine' | 'tumbler.waiting'
+  | 'approval.only' | 'approval.steps' | 'approval.engine' | 'approval.config';
+/** A stop's words: a short title and one or two plain sentences. The tour only points; it never acts. */
+export const TOUR_STOP: Record<TourStopId, { title: string; text: string }> = {
+  'main.hub': { title: 'Start here', text: 'These steps get your wallet ready for a first safe deal. The gold button always takes you to the next one.' },
+  'main.promise': { title: 'Your money stays put', text: 'This promise holds on every screen. If you do nothing, no money moves.' },
+  'main.steps': { title: 'One click to each step', text: 'Each step opens where it happens. A tick means it is done, and you can do them in any order.' },
+  'main.engine': { title: 'Your agent app', text: 'Your agents run in claude-code or codex-cli on this computer. Until you choose one, a practice agent with fixed price rules plays for you.' },
+  'main.approval': { title: 'Approvals have their own window', text: 'Paying, saving your PayPal keys and signing rules happen only in the approval window. It locks after 15 quiet minutes.' },
+  'tumbler.what': { title: 'Your mini window', text: 'It stays small at the edge of your screen while The Table is closed. Your agents keep working.' },
+  'tumbler.needs': { title: 'It shows what needs you', text: 'A gold ring means something needs you. Each step here opens where it happens.' },
+  'tumbler.engine': { title: 'Agent app: in The Table', text: 'You choose claude-code or codex-cli in The Table. This step opens it for you.' },
+  'tumbler.waiting': { title: 'If you do nothing', text: 'Waiting never sends your money. When a deadline passes, nothing is sent and any hold is released.' },
+  'approval.only': { title: 'Money decisions happen here', text: 'This is the only window that can approve a payment, save your PayPal keys or sign rules.' },
+  'approval.steps': { title: 'The same steps as The Table', text: 'The steps for this window are one click here. The others say where they happen.' },
+  'approval.engine': { title: 'Agent app: in The Table', text: 'You choose claude-code or codex-cli in The Table. This window shows which one your agents use.' },
+  'approval.config': { title: 'Your wallet setup', text: 'Unlock, your PayPal keys, market prices and the agent app are kept here. Nothing on this page pays anyone.' },
+};
+/** The tour's own buttons and labels. */
+export const TOUR = { take: 'Take the tour', takeTitle: 'A short walk through this window. It never clicks, signs or pays.', skip: 'Skip tour', next: 'Next', back: 'Back', finish: 'Finish', label: 'Tour' } as const;
+/** "2 of 5" under a stop. */
+export const tourCount = (n: number, total: number): string => `${n} of ${total}`;
+
 // ---- shop around (several sellers, one buyer intent) -------------------------------------------
 
 export const SHOP_AROUND = 'Shop around';
