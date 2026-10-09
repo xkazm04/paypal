@@ -603,7 +603,7 @@ export const SAFETY_PROMISE = 'Nothing pays without you or a rule you signed. Wa
 export type StartStepKey = 'paypal' | 'rules' | 'practice' | 'engine';
 export const START_STEP: Record<StartStepKey, { title: string; sub: string; done: string; act: string; where: string }> = {
   paypal: {
-    title: 'Connect PayPal sandbox', sub: 'Test money only · the keys stay on this computer', done: 'PayPal sandbox connected', act: 'Connect PayPal',
+    title: 'Add your PayPal sandbox keys', sub: 'Test money only · the keys stay on this computer', done: 'PayPal sandbox keys saved', act: 'Add PayPal keys',
     where: 'Opens the approval window, where a secure dialog saves your sandbox keys',
   },
   rules: {

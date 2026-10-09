@@ -99,7 +99,7 @@ describe('first-run steps from settings, signed rules, connections and the agent
   it('the words: one plain sentence per step, no internals, the promise said once, the count follows the steps', () => {
     expect(START_ORDER).toEqual(['paypal', 'rules', 'practice', 'engine']);
     expect(Object.keys(START_STEP).sort()).toEqual([...START_ORDER].sort());
-    expect(START_STEP.paypal.title).toBe('Connect PayPal sandbox');
+    expect(START_STEP.paypal.title).toBe('Add your PayPal sandbox keys');
     expect(START_STEP.rules.title).toBe('Sign your agents’ rules');
     expect(START_STEP.practice.title).toBe('Try a practice deal with the house seller');
     expect(START_STEP.engine.title).toBe('Choose your agent app');
@@ -109,5 +109,12 @@ describe('first-run steps from settings, signed rules, connections and the agent
     expect(all).not.toMatch(/mandate|credential|clause|keyring|Rust|HOUSE|_open|token|scripted|engine/);
     // Agent apps are named by their ids, never by a vendor's product name.
     expect(all).not.toMatch(/Claude|Anthropic|OpenAI|Codex|GPT/);
+  });
+
+  it('step 1 says the fact: the keys are saved, never connected, checked or verified', () => {
+    const row = gettingStarted({ ...fresh, paypal: true }).steps[0]!;
+    expect(row).toMatchObject({ key: 'paypal', state: 'done' });
+    expect(START_STEP.paypal.done).toBe('PayPal sandbox keys saved');
+    for (const text of Object.values(START_STEP.paypal)) expect(text).not.toMatch(/connected|checked|verified/i);
   });
 });

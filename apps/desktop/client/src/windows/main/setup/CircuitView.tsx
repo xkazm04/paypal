@@ -169,7 +169,7 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
   const nWorking = running ? running.length : null;
 
   const keyBreak = brk('credentials');
-  const keyTitle = firstSteps ? START_STEP.paypal.title : 'Connect PayPal';
+  const keyTitle = firstSteps ? START_STEP.paypal.title : START_STEP.paypal.act;
   const stepKey: Step = keyBreak
     ? { state: 'todo', icon: 'alert', title: keyTitle, status: silenceOf(keyBreak), action: <Handoff label={firstSteps ? START_STEP.paypal.act : 'Add PayPal key'} kind={goldKey === 'credentials' ? 'gold' : 'default'} locked={locked} target="credentials" /> }
     : c.parts.keychain.state === 'unknown'
