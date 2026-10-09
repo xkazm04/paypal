@@ -182,6 +182,10 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   ],
 };
 
+/** Each First run beat's settled end state (firstRunStory.ts), kept apart from Maya's week's.
+ *  Written with the rehearsal step; until then every first-run beat reports it has none. */
+export const FIRST_RUN_EXPECT: Readonly<Record<string, readonly Expect[]>> = {};
+
 /** Deal labels any expectation names (the director reads their states for `Seen.states`). */
 export function expectedDeals(expect: Readonly<Record<string, readonly Expect[]>> = EXPECT): string[] {
   const out = new Set<string>();
@@ -240,7 +244,7 @@ export function slug(s: string): string {
  * zero-padded to two digits. A beat id that already starts with its chapter is not repeated
  * (`haggle-gate` in chapter `haggle` → `04-haggle-gate.png`; `intro` → `00-intro.png`).
  */
-export function stillName(index: number, beat: Pick<Beat, 'id' | 'chapter'>, ext = 'png'): string {
+export function stillName(index: number, beat: { id: string; chapter: string }, ext = 'png'): string {
   const id = slug(beat.id);
   const chapter = slug(beat.chapter);
   const tail = id === chapter ? id : id.startsWith(`${chapter}-`) ? id : `${chapter}-${id}`;
@@ -248,7 +252,7 @@ export function stillName(index: number, beat: Pick<Beat, 'id' | 'chapter'>, ext
 }
 
 export type ChapterTake = {
-  chapter: Chapter;
+  chapter: Chapter<string>;
   /** Chapter number as the caption rail counts it (0 = the opening, 1 = the haggle, ...). */
   number: number;
   /** Index of the chapter's first and last beat. */
@@ -264,7 +268,7 @@ export type ChapterTake = {
  * it ("1 · The haggle" is 1; the opening is 0) or its id ("haggle"). Null when there is no such
  * chapter.
  */
-export function selectChapter(sel: string | number, beats: readonly Beat[] = BEATS, chapters: readonly Chapter[] = CHAPTERS, length = SCRIPT_LENGTH): ChapterTake | null {
+export function selectChapter(sel: string | number, beats: readonly Beat<string>[] = BEATS, chapters: readonly Chapter<string>[] = CHAPTERS, length = SCRIPT_LENGTH): ChapterTake | null {
   const raw = typeof sel === 'number' ? String(sel) : sel.trim();
   const number = /^\d+$/.test(raw) ? Number(raw) : chapters.findIndex((c) => c.id === raw);
   const chapter = chapters[number];
@@ -279,7 +283,7 @@ export function selectChapter(sel: string | number, beats: readonly Beat[] = BEA
 }
 
 /** The whole story as one take. */
-export function wholeTake(beats: readonly Beat[] = BEATS, length = SCRIPT_LENGTH): { first: number; last: number; from: number; to: number } {
+export function wholeTake(beats: readonly Beat<string>[] = BEATS, length = SCRIPT_LENGTH): { first: number; last: number; from: number; to: number } {
   return { first: 0, last: beats.length - 1, from: beats[0]?.at ?? 0, to: length };
 }
 
@@ -302,13 +306,16 @@ export function storyStartOn(date: string | null | undefined, today: Date = new 
 
 /** What the rig reads from the page: the beat list and the take arithmetic, as plain data. */
 export type TakePlan = {
+  /** The story the page plays (`?story=`; Maya's week is `maya`). */
+  story: string;
   length: number;
   chapters: Array<{ id: string; title: string }>;
   beats: Array<{ index: number; id: string; chapter: string; at: number; focus: Beat['focus']; still: string }>;
 };
 
-export function takePlan(beats: readonly Beat[] = BEATS, chapters: readonly Chapter[] = CHAPTERS, length = SCRIPT_LENGTH): TakePlan {
+export function takePlan(beats: readonly Beat<string>[] = BEATS, chapters: readonly Chapter<string>[] = CHAPTERS, length = SCRIPT_LENGTH, story = 'maya'): TakePlan {
   return {
+    story,
     length,
     chapters: chapters.map((c) => ({ id: c.id, title: c.title })),
     beats: beats.map((b, index) => ({ index, id: b.id, chapter: b.chapter, at: b.at, focus: b.focus, still: stillName(index, b) })),

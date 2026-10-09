@@ -13,7 +13,8 @@ import { useNow, usePrefersReducedMotion } from '../lib/hooks';
 import { applyTheme, getTheme, setTheme, type Theme } from '../lib/theme';
 import { mockBackend } from '../mock/backend';
 import { applyWorld, foldScene, INITIAL_SCENE, runActions, WORLD_ACTIONS, type Scene, type Stage } from './actions';
-import { BEATS, CHAPTERS, SCRIPT_LENGTH, chapterOf, type Focus } from './beats';
+import type { Beat, Focus } from './beats';
+import { frameUrls, type Story } from './stories';
 import { checkBeat, expectedDeals, selectChapter, storyStartOn, takePlan, wholeTake, type ChapterTake, type Seen, type TakePlan } from './takes';
 
 type Rect = { x: number; y: number; w: number; h: number };
@@ -61,13 +62,13 @@ function param(name: string): string | null {
   }
 }
 
-function startIndex(): number {
+function startIndex(beats: readonly Beat<string>[]): number {
   const b = param('beat');
   if (!b) return 0;
-  const byId = BEATS.findIndex((x) => x.id === b);
+  const byId = beats.findIndex((x) => x.id === b);
   if (byId >= 0) return byId;
   const n = Number(b);
-  return Number.isInteger(n) && n >= 0 && n < BEATS.length ? n : 0;
+  return Number.isInteger(n) && n >= 0 && n < beats.length ? n : 0;
 }
 
 function camera(rect: Rect, box: { w: number; h: number }): CSSProperties {
@@ -132,9 +133,10 @@ export type TakesHook = {
   pause(): void;
 };
 
-const approvalUrl = (id: string | null) => (id ? `approval.html?deal=${encodeURIComponent(id)}&target=deal` : 'about:blank');
-
-export function Director() {
+/** `story`: Maya's week, or First run on the brand-new wallet's world (stories.ts, `?story=`). */
+export function Director({ story }: { story: Story }) {
+  const { beats: BEATS, chapters: CHAPTERS, length: SCRIPT_LENGTH } = story;
+  const urls = useMemo(() => frameUrls(story), [story]);
   // The wallet core's stand-in for this preview (a mock instance with no window of its own).
   const core = useMemo(() => mockBackend('main'), []);
   const world = core.world;
@@ -189,10 +191,14 @@ export function Director() {
       if (route !== null) navigateMain(route);
     },
     approval: (id) => {
-      if (id) setFrames((f) => ({ ...f, approvalSrc: approvalUrl(id), approvalKey: f.approvalKey + 1 }));
+      if (id) setFrames((f) => ({ ...f, approvalSrc: urls.approval(id), approvalKey: f.approvalKey + 1 }));
       setApprovalOpen(!!id);
     },
-  }), [world, navigateMain]);
+    owner: () => {
+      setFrames((f) => ({ ...f, approvalSrc: urls.owner, approvalKey: f.approvalKey + 1 }));
+      setApprovalOpen(true);
+    },
+  }), [world, navigateMain, urls]);
 
   // A framed window may move focus into itself when the story drives it (a card opening, a route).
   // Unless the viewer is working in that frame, give the keyboard back to the director.
@@ -222,7 +228,7 @@ export function Director() {
     setViewerFocus(null);
     indexRef.current = i;
     setIndex(i);
-  }, [stage, keepKeyboard]);
+  }, [stage, keepKeyboard, BEATS]);
 
   /** Rebuild the world up to beat `n`, reload the frames on that scene, then play beat `n`. */
   const seek = useCallback((n: number) => {
@@ -234,15 +240,15 @@ export function Director() {
     const sc = BEATS.slice(0, target).reduce((s, b) => foldScene(s, b.do), INITIAL_SCENE);
     const approvalId = sc.approval ? world.deal(sc.approval)?.deal.id ?? null : null;
     setMainOpen(sc.main.open);
-    setApprovalOpen(!!approvalId);
+    setApprovalOpen(!!approvalId || sc.owner);
     const epoch = ++epochRef.current;
     pending.current = { epoch, n: target, scene: sc, loaded: new Set() };
-    setFrames((f) => ({ epoch, mainSrc: `index.html${sc.main.route ?? ''}`, approvalSrc: approvalUrl(approvalId), approvalKey: f.approvalKey + 1 }));
+    setFrames((f) => ({ epoch, mainSrc: urls.main(sc.main.route), approvalSrc: sc.owner ? urls.owner : urls.approval(approvalId), approvalKey: f.approvalKey + 1 }));
     indexRef.current = target - 1;
     setIndex(target - 1);
     tRef.current = BEATS[target]?.at ?? 0;
     setT(tRef.current);
-  }, [world]);
+  }, [world, BEATS, urls]);
 
   const frameLoaded = useCallback((which: 'main' | 'tumbler' | 'approval', epoch: number) => {
     const p = pending.current;
@@ -284,8 +290,8 @@ export function Director() {
   useEffect(() => {
     if (booted.current) return;
     booted.current = true;
-    seek(startIndex());
-  }, [seek]);
+    seek(startIndex(BEATS));
+  }, [seek, BEATS]);
 
   // ---- the scenario clock ----------------------------------------------------------------------
   useEffect(() => {
@@ -302,7 +308,7 @@ export function Director() {
       if (tRef.current >= SCRIPT_LENGTH) setPlaying(false);
     }, 200);
     return () => clearInterval(id);
-  }, [playing, ready, play]);
+  }, [playing, ready, play, BEATS, SCRIPT_LENGTH]);
 
   const atEnd = index >= BEATS.length - 1 && t >= SCRIPT_LENGTH - 0.01;
   const onPlay = useCallback(() => {
@@ -319,7 +325,7 @@ export function Director() {
     tRef.current = BEATS[n]?.at ?? tRef.current;
     setT(tRef.current);
     play(n);
-  }, [play, ready]);
+  }, [play, ready, BEATS]);
   const onPrev = useCallback(() => seek(Math.max(0, indexRef.current - 1)), [seek]);
   const onRestart = useCallback(() => { seek(0); setPlaying(true); }, [seek]);
 
@@ -339,7 +345,7 @@ export function Director() {
   const live = useRef({ ready, index, t, playing, mainOpen, approvalOpen });
   live.current = { ready, index, t, playing, mainOpen, approvalOpen };
   useEffect(() => {
-    const deals = expectedDeals();
+    const deals = expectedDeals(story.expect);
     const seen = (): Seen => ({
       banner: document.querySelector<HTMLElement>('.dir-banner')?.innerText ?? '',
       text: { main: frameText(mainRef.current), tumbler: frameText(tumblerRef.current), approval: frameText(approvalRef.current) },
@@ -348,15 +354,15 @@ export function Director() {
       states: Object.fromEntries(deals.map((l) => [l, world.deal(l)?.deal.state])),
     });
     const hook: TakesHook = {
-      plan: takePlan(),
-      chapter: (sel) => selectChapter(sel),
-      whole: wholeTake(),
+      plan: takePlan(BEATS, CHAPTERS, SCRIPT_LENGTH, story.id),
+      chapter: (sel) => selectChapter(sel, BEATS, CHAPTERS, SCRIPT_LENGTH),
+      whole: wholeTake(BEATS, SCRIPT_LENGTH),
       now: () => {
         const c = live.current;
         return { ready: c.ready, index: c.index, beat: BEATS[c.index]?.id ?? null, t: tRef.current, playing: c.playing };
       },
       seen,
-      verify: () => checkBeat(BEATS[live.current.index]?.id ?? '', seen()),
+      verify: () => checkBeat(BEATS[live.current.index]?.id ?? '', seen(), story.expect),
       play: () => setPlaying(true),
       pause: () => setPlaying(false),
     };
@@ -364,7 +370,7 @@ export function Director() {
     return () => {
       delete (window as unknown as { __takes?: TakesHook }).__takes;
     };
-  }, [world]);
+  }, [world, story, BEATS, CHAPTERS, SCRIPT_LENGTH]);
 
   // ---- layout ----------------------------------------------------------------------------------
   useEffect(() => {
@@ -421,7 +427,7 @@ export function Director() {
     }
   };
 
-  const chapter = beat ? chapterOf(beat.chapter) : CHAPTERS[0];
+  const chapter = beat ? CHAPTERS.find((c) => c.id === beat.chapter) : CHAPTERS[0];
   const chapterNo = beat ? CHAPTERS.findIndex((c) => c.id === beat.chapter) : 0;
   const later = offsetWords(clockOffset() - startOffset.current);
 
@@ -452,7 +458,7 @@ export function Director() {
           </section>
 
           <section className="dir-tum" style={{ left: WIN.tumbler.x, top: WIN.tumbler.y, width: WIN.tumbler.w, height: WIN.tumbler.h }} aria-label="The Tumbler">
-            <iframe key={`t${frames.epoch}`} ref={tumblerRef} name="the-table-tumbler" title="The Tumbler" src="tumbler.html?frame=director"
+            <iframe key={`t${frames.epoch}`} ref={tumblerRef} name="the-table-tumbler" title="The Tumbler" src={urls.tumbler}
               width={WIN.tumbler.w} height={WIN.tumbler.h} onLoad={(e) => { watchInput(e.currentTarget); frameLoaded('tumbler', frames.epoch); }} />
           </section>
         </div>
@@ -487,9 +493,9 @@ export function Director() {
 
         <nav className="dir-scrub" aria-label="Beats">
           {CHAPTERS.map((c) => {
-            const beats = BEATS.map((b, i) => ({ b, i })).filter((x) => x.b.chapter === c.id);
-            const first = beats[0];
-            const lastBeat = beats[beats.length - 1];
+            const inChapter = BEATS.map((b, i) => ({ b, i })).filter((x) => x.b.chapter === c.id);
+            const first = inChapter[0];
+            const lastBeat = inChapter[inChapter.length - 1];
             if (!first || !lastBeat) return null;
             const nextChapter = BEATS[lastBeat.i + 1];
             const end = nextChapter ? nextChapter.at : SCRIPT_LENGTH;
@@ -499,7 +505,7 @@ export function Director() {
                 <span className="dir-seg-t">{c.title}</span>
                 <div className="dir-ticks">
                   <span className="dir-fill" style={{ width: `${(Math.max(0, Math.min(1, (t - first.b.at) / span)) * 100).toFixed(2)}%` }} aria-hidden="true" />
-                  {beats.map(({ b, i }) => (
+                  {inChapter.map(({ b, i }) => (
                     <button key={b.id} className={`dir-tick${i === index ? ' on' : i < index ? ' past' : ''}`}
                       style={{ left: `${(((b.at - first.b.at) / span) * 100).toFixed(2)}%` }}
                       onClick={() => seek(i)} aria-label={`Go to: ${b.caption}`} aria-current={i === index ? 'step' : undefined} title={b.caption} />
