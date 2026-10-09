@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { connectionFacts, engineChosen, gettingStarted, rulesInForce, START_ORDER, type StartFacts } from './firstRun';
+import { connectionFacts, engineChosen, gettingStarted, rulesInForce, settingsFacts, START_ORDER, type StartFacts } from './firstRun';
 import { FIRST_RUN_TITLE, KEEP_PRACTICE_AGENT, SAFETY_PROMISE, START_STEP } from './words';
+import type { SettingsSnapshot } from '@bindings/SettingsSnapshot';
 import { buildFirstRunState } from '../mock/firstRun';
 
 const fresh: StartFacts = { firstRun: true, paypal: false, rulesInForce: 0, houseConnected: false, otherConnections: 0, engine: 'scripted' };
@@ -133,5 +134,31 @@ describe('first-run steps from settings, signed rules, connections and the agent
     expect(row).toMatchObject({ key: 'paypal', state: 'done' });
     expect(START_STEP.paypal.done).toBe('PayPal sandbox keys saved');
     for (const text of Object.values(START_STEP.paypal)) expect(text).not.toMatch(/connected|checked|verified/i);
+  });
+  describe('settingsFacts: one mapping for Home, the Tumbler and the approval window', () => {
+    const snap = (o: Partial<SettingsSnapshot>) => ({ first_run: true, payment_executor_configured: true, selected_engine: 'scripted', engine_chosen: false, ...o }) as SettingsSnapshot;
+
+    it('maps a snapshot field by field and returns nulls without one', () => {
+      expect(settingsFacts(snap({ first_run: false, payment_executor_configured: false, selected_engine: 'codex-cli', engine_chosen: true })))
+        .toEqual({ firstRun: false, paypal: false, engine: 'codex-cli', engineChosen: true });
+      const none = { firstRun: null, paypal: null, engine: null, engineChosen: null };
+      expect(settingsFacts(null)).toEqual(none);
+      expect(settingsFacts(undefined)).toEqual(none);
+    });
+
+    it('Tumbler-shaped facts: step 4 is done on a kept practice agent, not on the default', () => {
+      const tumbler = (st: SettingsSnapshot): StartFacts => ({ ...settingsFacts(st), firstRun: true, rulesInForce: null, houseConnected: null, otherConnections: null });
+      expect(gettingStarted(tumbler(snap({ engine_chosen: true }))).steps[3]!.state).toBe('done');
+      expect(gettingStarted(tumbler(snap({ engine_chosen: false }))).steps[3]!.state).not.toBe('done');
+    });
+
+    it('OwnerConfig-shaped facts give the same step 4 as Home for the same snapshot', () => {
+      for (const engine_chosen of [true, false]) {
+        const st = snap({ first_run: false, engine_chosen });
+        const home = gettingStarted({ ...settingsFacts(st), rulesInForce: 1, ...connectionFacts([]), engineAvailable: null });
+        const owner = gettingStarted({ ...settingsFacts(st), rulesInForce: 1, ...connectionFacts([]) });
+        expect(owner.steps[3]).toEqual(home.steps[3]);
+      }
+    });
   });
 });

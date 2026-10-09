@@ -19,8 +19,9 @@ The steps only open the place where each thing happens, and the tour only points
    new wallet starts on, with no choice made, never counts, and in The Table the step also stays
    to do while the chosen app is reported as not installed or not ready. An owner with no agent
    app can therefore finish all four steps; the row then reads "Practice agent kept. Add your own
-   agent app any time." and never says an AI agent is connected. The Tumbler and the approval
-   window do not yet pass `engine_chosen`, so there that step still reads to do.
+   agent app any time." and never says an AI agent is connected. Home, the Tumbler
+   and the approval window all read `engine_chosen` (with the other settings facts) through the one
+   helper `settingsFacts`, so step 4 reads the same in all three.
 
 The next step to do carries the view's one gold button. A done step is ticked. A step a window
 cannot check is numbered with a dashed ring ("not checked from here"), never ticked.
