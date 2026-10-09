@@ -1,20 +1,36 @@
-# The director: "Maya's week" (browser preview only)
+# The director: "Maya's week" and "First run" (browser preview only)
 
 `director.html` frames the three real windows (The Table, the Tumbler, the approval window) on
-the browser mock and plays the beat file (`beats.ts`) across them, with captions. It is a judge
-path that needs no install and the rehearsal rig for the video. It never runs inside the desktop
+the browser mock and plays a story's beat file across them, with captions. It is a judge path
+that needs no install and the rehearsal rig for the video. It never runs inside the desktop
 shell, and it never clicks inside a window: no beat can approve, pay, capture or release.
+
+Two stories, chosen with `?story=` (`stories.ts`):
+
+- **Maya's week** (no `story`, the default; `beats.ts`): the sample week, about three minutes.
+- **First run** (`?story=first-run`; `firstRunStory.ts`): the onboarding on a brand-new wallet,
+  94 s. Every frame and the page's own mock core open in the `?first_run=1` world (the page adds
+  `first_run=1` to its own address), so the sample week's stored state is never touched. Home
+  shows the four getting-started steps with the agent app to do on the practice agent, and the
+  tour's coach mark walks each window's stops: The Table's five, then the Tumbler's four on its
+  first-run welcome, then the approval window's four on the owner's setup. The tour moves by
+  `{ do: 'tour', win, at }`, which writes that window's saved tour progress under the first-run
+  key; the framed window follows the write (its `storage` event). Nothing presses Next, Back or
+  Skip. An unknown `story` plays Maya's week.
 
 | File | What it holds |
 | --- | --- |
-| `beats.ts` | the story: chapters, beats, their times, captions and actions |
-| `actions.ts` | what a beat can do on the mock world (no money action exists) |
+| `beats.ts` | Maya's week: chapters, beats, their times, captions and actions |
+| `firstRunStory.ts` | First run: the same, on the brand-new wallet's world |
+| `stories.ts` | `?story=`: which story, and the frames' addresses in its world |
+| `actions.ts` | what a beat can do on the mock world (no money action exists), and the tour's pointer |
 | `helpers.ts` | every Tumbler preview control as a beat helper |
-| `takes.ts` | per-beat expected end state on screen, still names, chapter takes, story date |
+| `takes.ts` | per-beat expected end state on screen (`EXPECT`, `FIRST_RUN_EXPECT`), still names, chapter takes, story date |
 | `retime.ts` | puts a lagging screen recording back on the beat file's clock |
 | `Director.tsx` | the stage, the camera, the caption rail, and the `window.__takes` hook |
 
-Run it: `pnpm --dir apps/desktop/client dev`, then open `/director.html`.
+Run it: `pnpm --dir apps/desktop/client dev`, then open `/director.html` (Maya's week) or
+`/director.html?story=first-run`.
 
 URL parameters: `?beat=<index or id>` starts at a beat, `?play=0` starts paused,
 `?camera=desk` keeps the whole desk in view, `?date=YYYY-MM-DD` starts the story at 14:02:04
@@ -61,11 +77,23 @@ pnpm --dir apps/desktop/client takes --video /tmp/takes/haggle.webm --chapter 1
 
 # Against a server you already run (dev or `vite preview` of a build):
 pnpm --dir apps/desktop/client takes --check --url http://localhost:1444/
+
+# First run instead of Maya's week: the same three modes take --story first-run.
+pnpm --dir apps/desktop/client takes --check --story first-run
+pnpm --dir apps/desktop/client takes --stills /tmp/takes/first-run --story first-run
+pnpm --dir apps/desktop/client takes --video /tmp/takes/first-run.webm --story first-run
 ```
+
+`--story` must name a story the page plays: the script refuses when the director's plan says
+another (an unknown `story` would otherwise quietly play Maya's week). First run's stills are
+named the same way (`00-start.png` ... `14-end.png`): give them their own directory.
 
 In this dev container: `PW_CHROMIUM=/opt/pw-browsers/chromium-1194/chrome-linux/chrome`.
 
 A video run also checks each beat as it plays and fails if one does not show its end state before
 the next beat starts. Write takes outside the repository. The expected end states live in
 `EXPECT` in `takes.ts`, next to the story tests they mirror (`story.test.ts`); a new beat needs an
-entry there, and `takes.test.ts` fails until it has one.
+entry there, and `takes.test.ts` fails until it has one. First run's live beside them in
+`FIRST_RUN_EXPECT` (never in `EXPECT`'s keys), mirrored by `firstRunStory.test.ts`: the four steps
+(PayPal next, the agent app to do) and the stop each window's mark shows, read from the mark's
+`data-tour-stop` and the steps' `s-<state>` class.

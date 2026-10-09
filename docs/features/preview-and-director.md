@@ -89,6 +89,8 @@ desktop with the puck in a corner and controls that simulate what the wallet cor
    `src/director/helpers.ts` holds every Tumbler preview control as a beat helper, so the preview
    stage and the director run the same code. `Director.tsx` frames the windows as iframes and
    refuses to run inside the shell (`director/entry.tsx`).
+   `director.html?story=first-run` plays a second story, "First run": the onboarding tour on a
+   brand-new wallet (`?first_run=1` world), see [Onboarding](./onboarding.md#watch-it).
 7. **Takes: a rehearsal rig.** `apps/desktop/client/scripts/takes.mjs` (`pnpm takes`) drives the
    director through the read-only `window.__takes` hook (plan, now, seen, verify, play, pause); it
    never clicks inside a framed window. `--check` runs every beat and fails on a page or console

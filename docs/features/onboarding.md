@@ -75,6 +75,28 @@ line) walks it again from the first stop. The agent app stop drops out once an a
   its own, so a view keeps exactly one.
 - It never starts again by itself once skipped or finished.
 
+## Watch it
+
+The director plays the onboarding with no install: `pnpm --dir apps/desktop/client dev`, then
+open `/director.html?story=first-run` ("First run", 94 s, five chapters). Its three frames, and the
+page's own mock core, open in the `?first_run=1` world, so the sample week stays as it was:
+
+1. **Day one.** Home on a brand-new wallet: the four steps, PayPal next, the agent app to do on
+   the practice agent.
+2. **The Table.** The mark walks Home's five stops: the hub, the promise, the step list, the agent
+   app step, the way to the approval window.
+3. **The Tumbler.** Its first-run welcome opens and the mark walks its four stops.
+4. **The approval window.** It opens on the owner's setup and the mark walks its four stops.
+5. **Ready for a first deal.** Each window's tour is put away; Home shows the four steps.
+
+The director never clicks inside a window and never presses Next, Back or Skip. A beat's
+`{ do: 'tour', win, at }` writes that window's saved progress under `table-tour:first-run`, and
+the framed window's coach mark follows the write (`storage` event, `shared/tour.tsx`). No beat
+signs, saves, pays or locks (`src/director/firstRunStory.test.ts`). The rehearsal checks each
+beat's end state, including the stop each window's mark shows:
+`pnpm --dir apps/desktop/client takes --check --story first-run` (Playwright needed; see
+`src/director/README.md`). Maya's week (`/director.html`) is unchanged.
+
 ## Where it lives
 
 | Part | Path |
@@ -87,6 +109,7 @@ line) walks it again from the first stop. The agent app stop drops out once an a
 | The Tumbler | `windows/tumbler/forms.tsx` (`FirstRunWelcome`), `windows/tumbler/Tumbler.tsx` |
 | The approval window | `windows/approval/OwnerConfig.tsx` |
 | Preview world | `mock/firstRun.ts` (`?first_run=1`, `selected_engine: 'scripted'`) |
+| Director story | `director/firstRunStory.ts`, `director/stories.ts`, `director/actions.ts` (`tour`, `owner`), `director/takes.ts` (`FIRST_RUN_EXPECT`) |
 
 ## Tests
 
@@ -102,11 +125,16 @@ line) walks it again from the first stop. The agent app stop drops out once an a
 - `shared/tour.test.tsx`: a stop shows as a labelled dialog with no gold button; Next, Back and
   the arrow keys move; Finish and Skip (and Esc) end it for good; focus returns; "Take the tour"
   reopens; an absent or hidden anchor is never shown; it waits under a layer and does not take the
-  keyboard from an unfocused window; placement stays inside the viewport; contrast in both themes.
+  keyboard from an unfocused window; placement stays inside the viewport; contrast in both themes;
+  a `storage` write to the window's own key moves the mark, any other key does not.
+- `director/firstRunStory.test.ts`, `director/stories.test.ts`, `director/takes.test.ts`: the
+  story's stops are each window's, in order, all walked; no world, money or lock action; only the
+  first-run tour key is written; the beat file's timing and words; every beat's end state.
 
 ## Known gaps
 
-- The Director beat that plays the tour is the next slice.
+- The director's First run story was checked by its tests, not by eye: `takes --check --story
+  first-run` has not been run (no Playwright on the machine that built it).
 - Not seen in the running app: the coach mark over the Tumbler's transparent, always-on-top window
   (whether clicks reach it outside the welcome form) and its look at 440 x 228 were checked only
   by the placement tests, never by eye.
