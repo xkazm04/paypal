@@ -92,3 +92,11 @@ describe('csv', () => {
     expect(csv).toContain(',9.60,USD,');
   });
 });
+
+describe('a buyer’s RECEIPTED deal is not in the Paid bucket', () => {
+  it('stays in progress until PayPal’s statement matches', () => {
+    expect(bucketOf(deal('a', { kind: 'haggle', state: 'RECEIPTED' }))).toBe('motion');
+    expect(bucketOf(deal('a', { kind: 'haggle', state: 'RECONCILED' }))).toBe('captured');
+    expect(bucketOf(deal('a', { kind: 'haggle', side: 'seller', state: 'RECEIPTED' }))).toBe('captured');
+  });
+});

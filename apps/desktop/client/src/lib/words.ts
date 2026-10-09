@@ -51,6 +51,9 @@ const STATE: Record<DealState, Word> = {
   DISPUTED: { text: 'Disputed', tone: 'red', means: 'There is an open dispute at PayPal.' },
 };
 
+/** What the seller's receipt is worth to the buyer's wallet until PayPal's own statement matches it. */
+export const SELLER_SAYS_PAID = 'The seller says the payment went through. Your wallet has not checked it with PayPal yet.';
+
 /** A deal state in Maya's words. `side` / `kind` adjust the few states that read differently. */
 export function stateWord(state: DealState, ctx: { side?: Side; kind?: DealKind } = {}): Word {
   if (state === 'AWAITING_APPROVAL' && ctx.side === 'seller' && ctx.kind !== 'rescue') {
@@ -66,6 +69,11 @@ export function stateWord(state: DealState, ctx: { side?: Side; kind?: DealKind 
   }
   if (state === 'SETTLING' && ctx.kind === 'rescue') {
     return { text: 'Sending invoice', tone: 'gold', means: 'PayPal is making or sending the invoice you approved. Nothing is paid until the subscriber pays it.' };
+  }
+  // A buyer's deal reaches RECEIPTED only on the seller's signed receipt (evidence seller_attested);
+  // it is paid for the buyer only once PayPal's statement matches (RECONCILED).
+  if (sellerSaysOnly({ state, ...ctx })) {
+    return { text: 'Seller says paid', tone: 'gold', means: SELLER_SAYS_PAID };
   }
   if ((state === 'CAPTURED' || state === 'RECEIPTED' || state === 'RECONCILED') && ctx.side === 'seller') {
     const base = STATE[state];
@@ -700,3 +708,7 @@ export const NOT_NOTIFIED_BECAUSE: Record<NotifySuppression, string> = {
 };
 /** A card left alone that never reached the screen before its deadline. */
 export const NEVER_SHOWN = 'not shown to you before the deadline';
+
+/** A buyer haggle or shop order is RECEIPTED only on the seller's signed receipt (ledger accept_seller_receipt, evidence seller_attested); PayPal has not confirmed it until RECONCILED. */
+export const sellerSaysOnly = (d: { state: DealState; side?: Side; kind?: DealKind }): boolean =>
+  d.state === 'RECEIPTED' && d.side === 'buyer' && (d.kind === undefined || d.kind === 'haggle' || d.kind === 'shop_order');

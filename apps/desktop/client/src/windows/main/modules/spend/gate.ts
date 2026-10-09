@@ -19,7 +19,7 @@ import type { Clause } from '@bindings/Clause';
 import type { Deal } from '@bindings/Deal';
 import type { DealState } from '@bindings/DealState';
 import { formatMinor } from '../../../../lib/format';
-import { kindWord, RULE_NAME, stateWord } from '../../../../lib/words';
+import { kindWord, RULE_NAME, sellerSaysOnly, stateWord } from '../../../../lib/words';
 import { dealTotal } from '../../logic';
 
 export type GateColumn = { n: number; clause: Clause };
@@ -110,14 +110,15 @@ export function laneCells(d: Pick<Deal, 'kind' | 'terms' | 'state' | 'paypal'> &
 export type Outcome = { kind: 'refused' | 'held' | 'paid' | 'voided' | 'waiting' | 'other'; label: string; tone: 'red' | 'gold' | 'ok' | 'line' | 'teal' };
 
 /** The "At PayPal" end of a lane. */
-export function outcomeOf(d: Pick<Deal, 'state'>): Outcome {
+export function outcomeOf(d: Pick<Deal, 'state'> & Partial<Pick<Deal, 'side' | 'kind'>>): Outcome {
   switch (d.state) {
     case 'REFUSED': return { kind: 'refused', label: 'Refused', tone: 'red' };
     case 'AUTHORIZED': return { kind: 'held', label: 'On hold', tone: 'gold' };
-    case 'CAPTURED': case 'RECEIPTED': case 'RECONCILED': return { kind: 'paid', label: 'Paid', tone: 'ok' };
+    case 'RECEIPTED': return sellerSaysOnly(d) ? { kind: 'waiting', label: stateWord(d.state, d).text, tone: 'gold' } : { kind: 'paid', label: 'Paid', tone: 'ok' };
+    case 'CAPTURED': case 'RECONCILED': return { kind: 'paid', label: 'Paid', tone: 'ok' };
     case 'VOIDED': case 'AUTO_VOIDED': return { kind: 'voided', label: 'Hold released', tone: 'line' };
-    case 'AWAITING_APPROVAL': case 'APPROVED': return { kind: 'waiting', label: stateWord(d.state).text, tone: 'gold' };
-    default: return { kind: 'other', label: stateWord(d.state).text, tone: 'teal' };
+    case 'AWAITING_APPROVAL': case 'APPROVED': return { kind: 'waiting', label: stateWord(d.state, d).text, tone: 'gold' };
+    default: return { kind: 'other', label: stateWord(d.state, d).text, tone: 'teal' };
   }
 }
 

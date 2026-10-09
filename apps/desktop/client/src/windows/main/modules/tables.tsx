@@ -13,7 +13,7 @@ import type { Currency } from '@bindings/Currency';
 import type { Deal } from '@bindings/Deal';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { clockLabel } from '../../../lib/format';
-import { headlineWords, marketWords, ruleNameOf, silenceWords, stateWord } from '../../../lib/words';
+import { headlineWords, marketWords, ruleNameOf, sellerSaysOnly, silenceWords, stateWord } from '../../../lib/words';
 import { useMutation, useQuery } from '../../../lib/hooks';
 import { Countdown, MinorMoney, WalletNotice } from '../../../shared/honesty';
 import { Glyph } from '../../../shared/modules';
@@ -227,7 +227,8 @@ function TablesAnswer({ needDeals, live }: { needDeals: Deal[]; live: number }) 
 
 // ---- small pieces ----------------------------------------------------------------------------------
 
-function stateTone(d: Pick<Deal, 'state'>): ChipTone | undefined {
+function stateTone(d: Pick<Deal, 'state'> & Partial<Pick<Deal, 'side' | 'kind'>>): ChipTone | undefined {
+  if (sellerSaysOnly(d)) return 'gold';
   switch (d.state) {
     case 'CAPTURED': case 'RECEIPTED': case 'RECONCILED': return 'ok';
     case 'WITHDRAWN': case 'EXPIRED': case 'VOIDED': case 'AUTO_VOIDED': return undefined;

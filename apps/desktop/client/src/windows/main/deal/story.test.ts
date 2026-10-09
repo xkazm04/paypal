@@ -167,3 +167,17 @@ describe('where it stands', () => {
     expect(standingFacts(d, null, null, 'S-14', null).map((x) => x.k)).toEqual(['Price']);
   });
 });
+
+describe('a buyer’s deal the seller says is paid', () => {
+  it('is not closed as paid: D-0187 reads the seller’s word and stays calm, not done', () => {
+    const a = answer('D-0187');
+    expect(a.tone).toBe('calm');
+    expect(a.sub).toContain('Seller says paid');
+  });
+  it('a buyer deal PayPal’s statement matched is closed as paid', () => {
+    const d = { ...deal('D-0187'), state: 'RECONCILED' as const };
+    const a = dealAnswer(d, { need: undefined, them: 'Dan', latest: null, band: null, mayWithdraw: false });
+    expect(a.tone).toBe('done');
+    expect(a.sub).toContain('Paid, on statement');
+  });
+});

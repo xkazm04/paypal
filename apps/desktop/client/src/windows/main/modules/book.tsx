@@ -331,7 +331,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
       ) : null}
 
       {proofOpen ? <Suspense fallback={null}><ProofCheckSheet onClose={() => setProofOpen(false)} /></Suspense> : null}
-      {auditOpen ? <AuditSheet label={(id) => { const d = all.find((x) => x.id === id); return d ? label(d) : shortId(id); }} onClose={() => setAuditOpen(false)} /> : null}
+      {auditOpen ? <AuditSheet sideOf={(id) => all.find((x) => x.id === id)?.side} label={(id) => { const d = all.find((x) => x.id === id); return d ? label(d) : shortId(id); }} onClose={() => setAuditOpen(false)} /> : null}
 
       {selDeal ? (
         <Sheet title={<>{label(selDeal)} · {w.display(selDeal).title}</>} size="wide" onClose={() => setSel(null)}
@@ -685,7 +685,7 @@ function WalletAnswer({ answer, cpName }: { answer: BookAnswer; cpName: (key: st
                     const text = g === 'decided_by' && typeof v === 'string' ? (() => { try { return decidedBy({ decided_by: JSON.parse(v) as Deal['decided_by'] }).text; } catch { return v; } })()
                       : v === null ? '—' : typeof v !== 'string' ? String(v)
                       : g === 'counterparty' ? cpName(v)
-                      : g === 'state' ? stateGroupLabel(v as Deal['state'])
+                      : g === 'state' ? stateGroupLabel(v.replace(':buyer', '') as Deal['state'], v.endsWith(':buyer') ? 'buyer' : undefined)
                       : g === 'kind' ? GROUP_NAME[v as Deal['kind']] ?? v
                       : g === 'day' ? dayLabel(v) : v;
                     return <td key={g}>{text}</td>;
@@ -844,7 +844,7 @@ function RowDetail({ deal, evidence, evError }: { deal: Deal; evidence: DealEvid
 /** The hash-chained audit log, newest first, one page at a time (audit_page). The chain is
  *  verified in Rust before every page; only closed facts cross: who, what, when, which deal, and
  *  the typed decision or transition a row records. */
-function AuditSheet({ label, onClose }: { label: (id: string) => string; onClose: () => void }) {
+function AuditSheet({ label, sideOf, onClose }: { label: (id: string) => string; sideOf: (id: string) => Deal['side'] | undefined; onClose: () => void }) {
   const read = useMutation('audit_page');
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [next, setNext] = useState<number | null | undefined>(undefined);
@@ -879,7 +879,7 @@ function AuditSheet({ label, onClose }: { label: (id: string) => string; onClose
                 <td title={r.actor}>{r.actor.split(':')[0]}</td>
                 <td title={r.action}>{r.action.replace(/[._]/g, ' ').toLowerCase()}</td>
                 <td>{r.deal_id ? label(r.deal_id) : <span className="dim">—</span>}</td>
-                <td>{r.decided_by ? decidedBy({ decided_by: r.decided_by }).text : null}{r.decided_by && r.to ? ' · ' : null}{r.to ? `${r.from ? `${stateWord(r.from).text} → ` : ''}${stateWord(r.to).text}` : null}{!r.decided_by && !r.to ? <span className="dim">—</span> : null}</td>
+                <td>{r.decided_by ? decidedBy({ decided_by: r.decided_by }).text : null}{r.decided_by && r.to ? ' · ' : null}{r.to ? `${r.from ? `${stateWord(r.from, { side: r.deal_id ? sideOf(r.deal_id) : undefined }).text} → ` : ''}${stateWord(r.to, { side: r.deal_id ? sideOf(r.deal_id) : undefined }).text}` : null}{!r.decided_by && !r.to ? <span className="dim">—</span> : null}</td>
               </tr>
             ))}
           </tbody>

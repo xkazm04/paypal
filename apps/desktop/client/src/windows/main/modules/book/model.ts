@@ -12,7 +12,7 @@ import type { DealState } from '@bindings/DealState';
 import type { Money } from '@bindings/Money';
 import type { Reconciliation } from '@bindings/Reconciliation';
 import { exponent } from '../../../../lib/format';
-import { stateWord } from '../../../../lib/words';
+import { sellerSaysOnly, stateWord } from '../../../../lib/words';
 import { dealTotal, decidedBy, isSettled, isTerminal, sumByCurrency } from '../../logic';
 
 // ---- money states ------------------------------------------------------------------------------
@@ -23,9 +23,10 @@ export const BUCKET_LABEL: Record<Bucket, string> = { captured: 'Paid', held: 'O
 export const BUCKET_SUB: Record<Bucket, string> = { captured: 'the money moved', held: 'held at PayPal, not paid yet', motion: 'nothing paid yet', stopped: 'never paid, or paid back' };
 
 /** Captured = settled; held = authorized at PayPal; stopped = ended without (or reversing) payment; else in motion. */
-export function bucketOf(d: Pick<Deal, 'state' | 'kind' | 'shield'>): Bucket {
+export function bucketOf(d: Pick<Deal, 'state' | 'kind' | 'shield'> & Partial<Pick<Deal, 'side'>>): Bucket {
   if (isSettled(d)) return 'captured';
   if (d.state === 'AUTHORIZED') return 'held';
+  if (sellerSaysOnly(d)) return 'motion';
   if (isTerminal(d)) return 'stopped';
   return 'motion';
 }
@@ -172,14 +173,14 @@ export function aggregate(rows: readonly Deal[], ctx: Ctx): Agg {
 }
 
 /** A status as a line label: the plain word, with the self-releasing hold told apart from yours. */
-export const stateGroupLabel = (s: DealState): string => (s === 'AUTO_VOIDED' ? 'Hold released by itself' : stateWord(s).text);
+export const stateGroupLabel = (s: DealState, side?: Deal['side']): string => (s === 'AUTO_VOIDED' ? 'Hold released by itself' : stateWord(s, { side }).text);
 
 const DECIDED_GROUP: Record<ReturnType<typeof decidedBy>['who'], string> = { policy: 'policy (a rule you signed)', you: 'you', default: 'safe default', none: 'no decision recorded' };
 
 function groupKey(d: Deal, g: GroupBy, ctx: Ctx): [string, string] {
   switch (g) {
     case 'kind': return [String(KIND_ORDER.indexOf(d.kind)).padStart(2, '0'), kindLabel(d.kind)];
-    case 'state': return [d.state, stateGroupLabel(d.state)];
+    case 'state': return [sellerSaysOnly(d) ? 'RECEIPTED:buyer' : d.state, stateGroupLabel(d.state, d.side)];
     case 'day': { const k = dayKey(d); return [k ?? '9999', dayLabel(k)]; }
     case 'counterparty': return [ctx.cpName(d), ctx.cpName(d)];
     case 'decided_by': { const f = decidedBy(d); return [f.who, DECIDED_GROUP[f.who]]; }

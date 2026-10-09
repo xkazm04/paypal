@@ -17,7 +17,7 @@ import type { Role } from '@bindings/Role';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import type { TranscriptType } from '@bindings/TranscriptType';
 import { formatMinor, formatMoney } from '../../../lib/format';
-import { houseWords, MILESTONES, milestoneOf, RULE_NAME, ruleNameOf, type Milestone } from '../../../lib/words';
+import { houseWords, MILESTONES, SELLER_SAYS_PAID, sellerSaysOnly, milestoneOf, RULE_NAME, ruleNameOf, type Milestone } from '../../../lib/words';
 import { canWithdraw, clauseText, dealTotal, decidedBy, isTerminal, pathFor, stateLabel } from '../logic';
 
 // ---- the state strip ---------------------------------------------------------------------------
@@ -37,6 +37,8 @@ type StripDeal = Pick<Deal, 'kind' | 'side' | 'state' | 'shield'> & { decided_by
  *  wallet captures, so its CAPTURED step is the seller's attestation until a receipt arrives. */
 export function stepLabel(d: Pick<Deal, 'kind' | 'side'>, s: DealState): string {
   if (s === 'CAPTURED' && d.kind === 'haggle' && d.side === 'buyer') return 'Seller says paid';
+  // The strip step is the receipt; the state chip (stateWord) carries "Seller says paid".
+  if (sellerSaysOnly({ state: s, ...d })) return 'Receipt saved';
   return stateLabel(s, d);
 }
 
@@ -51,7 +53,7 @@ export function mirrorStrip(d: StripDeal, opts: { needsYou?: boolean; reconcilia
   if (opts.reconciliation === 'matched' && (state === 'CAPTURED' || state === 'RECEIPTED') && path.includes('RECONCILED')) state = 'RECONCILED';
   const at = path.indexOf(state);
   if (at >= 0) {
-    const tone: StepTone = SETTLED.has(state) ? 'ok'
+    const tone: StepTone = SETTLED.has(state) && !sellerSaysOnly({ state, side: d.side, kind: d.kind }) ? 'ok'
       : opts.needsYou ? 'need'
         : state === 'AUTHORIZED' || d.shield === 'HOLD' ? 'held'
           : d.shield === 'BLOCK' ? 'bad' : 'live';
@@ -276,7 +278,7 @@ export type Label = { tone: Tone; text: string; why: string };
 /** Has money moved, and who says so. Seller-attested is never shown as receipted. */
 export function evidenceLabel(d: Pick<Deal, 'state' | 'kind' | 'side'>, receipt: ReceiptEvidence): Label {
   if (receipt === 'PAYPAL_VERIFIED') return { tone: 'ok', text: 'PayPal receipt', why: 'Your wallet checked the payment with PayPal itself.' };
-  if (receipt === 'SELLER_ATTESTED') return { tone: 'coral', text: 'Seller says paid', why: 'The seller says the payment went through. Your wallet has not checked it with PayPal yet.' };
+  if (receipt === 'SELLER_ATTESTED') return { tone: 'coral', text: 'Seller says paid', why: SELLER_SAYS_PAID };
   if (d.state === 'AUTHORIZED') return { tone: 'gold', text: 'On hold', why: 'PayPal is holding the money. A hold has no receipt until it is paid.' };
   if (SETTLED.has(d.state)) return { tone: 'dashed', text: 'No receipt yet', why: 'The deal says paid, but no receipt is stored with it yet.' };
   return { tone: 'line', text: 'Nothing paid yet', why: 'No money has moved.' };
