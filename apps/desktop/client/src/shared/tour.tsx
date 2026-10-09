@@ -159,6 +159,18 @@ export function Tour({ win, gs, firstRun, paused = false, storageKey }: {
     };
   }, [open]);
 
+  // A new stop is announced: focus moves to the dialog itself, so a screen reader reads its new
+  // title and text. Only when focus is already inside the mark (Next, Back, the arrow keys), so a
+  // stop that changes by itself never takes focus from the page. Programmatic focus on the
+  // container shows no ring; :focus-visible handles the rest.
+  const lastStop = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = lastStop.current;
+    lastStop.current = stopId;
+    const mark = markRef.current;
+    if (prev && stopId && prev !== stopId && mark?.contains(document.activeElement)) mark.focus({ preventScroll: true });
+  }, [stopId]);
+
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Escape') skip();
     else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { if (view?.next) update(tourMove(view.next)); }
@@ -175,7 +187,7 @@ export function Tour({ win, gs, firstRun, paused = false, storageKey }: {
   return createPortal(
     <>
       {box ? <div className="tour-ring" aria-hidden="true" style={box.ring} /> : null}
-      <div ref={markRef} className={`tour-mark tour-${win}`} role="dialog" aria-modal="false" aria-labelledby={titleId} aria-describedby={textId}
+      <div ref={markRef} className={`tour-mark tour-${win}`} role="dialog" aria-modal="false" aria-labelledby={titleId} aria-describedby={textId} tabIndex={-1}
         data-tour-stop={view.stop.id} onKeyDown={onKeyDown} onClick={(e) => e.stopPropagation()}
         style={box ? box.mark : { left: EDGE, top: EDGE, visibility: 'hidden' }}>
         <div className="tour-head">
