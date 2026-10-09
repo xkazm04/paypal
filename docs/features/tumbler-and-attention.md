@@ -25,8 +25,8 @@ or pay anything.
 
 **Cards.** A decision (GATE) reads as a question; a pause (HOLD) as a statement with a coral
 "Paused" chip and the rule that paused it ("Paused by …", from the wallet's closed rule names). A
-payment step whose PayPal answer was lost reads "Checking" with "nothing more is sent until PayPal
-confirms". Every card carries the mode badge and the lock indicator. Actions, in order: "Review ↗"
+payment step whose PayPal answer was lost reads "Checking" with "at the deadline the wallet asks PayPal what happened, releases any hold and collects nothing".
+Every card carries the mode badge and the lock indicator. Actions, in order: "Review ↗"
 (gold, decisions only), Withdraw (asks once), "Open in The Table ↗", "Let it lapse", "Remind me in
 30 min". A pause offers only Withdraw and "See why in The Table ↗". There is no approve button and no
 approve hotkey.

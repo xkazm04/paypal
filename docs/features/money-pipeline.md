@@ -13,13 +13,13 @@ sees its effects as plain states ("Preparing payment", "On hold", "Paid", "Hold 
 
 - **main window.** Each deal's state pill (from `stateWord()`), its "If you do nothing" line, and a
   "Who decided" list on the deal page: you, your signed rule, the buyer's approval under your shop
-  rules, or the safe default. A step whose PayPal answer was lost shows a dashed "Checking with
-  PayPal" pill. A parked one reads "We couldn't confirm a payment with PayPal. Nothing more will
+  rules, or the safe default. A buyer's haggle or shop-order deal at RECEIPTED reads "Seller says paid"
+  (gold, not settled) until PayPal's statement matches and it becomes "Paid, on statement". A step whose PayPal answer was lost shows a dashed "Checking with
+  PayPal" pill. A parked one reads "We couldn't confirm a payment with PayPal. At the deadline the wallet asks PayPal what happened, and what PayPal shows decides. A hold is released; nothing is collected." (`MONEY_CHECK_PARKED` in `apps/desktop/client/src/lib/words.ts`). The
   be sent until we can." (`MONEY_CHECK_PARKED` in `apps/desktop/client/src/lib/words.ts`). The
-  Rewind on Home draws one tick per money operation, coloured by who decided it (see
   [home-and-rewind.md](./home-and-rewind.md)).
 - **tumbler.** A money step being checked appears as a hold card with only "open in The Table"
-  and the silence line "nothing more is sent until PayPal confirms". The "If you walk away" row
+  and the silence line "at the deadline the wallet asks PayPal what happened, releases any hold and collects nothing". The "If you walk away" row
   sums money out, money in and holds released from the same forecast the pipeline obeys (see
   [tumbler-and-attention.md](./tumbler-and-attention.md)).
 - **approval window.** The only place an owner money decision starts: "Hold to approve",
