@@ -11,6 +11,8 @@ import type { Form } from '@bindings/Form';
 import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import type { VisualState } from '@bindings/VisualState';
 import { nowUnix } from '../lib/format';
+import type { TourWindow } from '../lib/tour';
+import type { TourStopId } from '../lib/words';
 import type { MockWorld } from '../mock/backend';
 
 export type Action =
@@ -39,7 +41,13 @@ export type Action =
   /** The Table (main window) opens or closes, optionally on a route ("#d=D-0193", "#m=spend"). */
   | { do: 'main'; open: boolean; route?: string }
   /** The approval window opens on a deal's review, or closes (null). Opening never decides. */
-  | { do: 'approval'; deal: string | null };
+  | { do: 'approval'; deal: string | null }
+  /** The approval window opens on the owner's own setup (no deal), as `approval_open` with no deal
+   *  does. Opening never signs or saves; closing it is `{ do: 'approval', deal: null }`. */
+  | { do: 'owner' }
+  /** Presentation only: a window's onboarding tour shows this stop (null: the tour is put away).
+   *  It points; it never presses Next, Back or Skip inside a window. */
+  | { do: 'tour'; win: TourWindow; at: TourStopId | null };
 
 export type ActionKind = Action['do'];
 
@@ -55,6 +63,8 @@ export interface Stage {
   main(open: boolean, route: string | null): void;
   /** Open the approval window on a deal id, or close it. A stage without one ignores it. */
   approval(dealId: string | null): void;
+  /** Open the approval window on the owner's setup. A stage without one leaves it out. */
+  owner?(): void;
 }
 
 const dealId = (w: MockWorld, label: string): string | null => w.deal(label)?.deal.id ?? null;
@@ -143,6 +153,9 @@ export function runAction(stage: Stage, a: Action): void {
     case 'approval':
       stage.approval(a.deal ? dealId(w, a.deal) : null);
       return;
+    case 'owner':
+      stage.owner?.();
+      return;
   }
 }
 
@@ -156,12 +169,14 @@ export type Scene = {
   main: { open: boolean; route: string | null };
   /** Deal label the approval window is open on, or null. */
   approval: string | null;
+  /** The approval window is open on the owner's setup (no deal). */
+  owner: boolean;
   form: Form;
   selected: string | null;
   visual: VisualState | null;
 };
 
-export const INITIAL_SCENE: Scene = { main: { open: true, route: null }, approval: null, form: 'rest', selected: null, visual: null };
+export const INITIAL_SCENE: Scene = { main: { open: true, route: null }, approval: null, owner: false, form: 'rest', selected: null, visual: null };
 
 export function foldScene(scene: Scene, actions: readonly Action[]): Scene {
   let s = scene;
@@ -172,7 +187,8 @@ export function foldScene(scene: Scene, actions: readonly Action[]): Scene {
       case 'handoff': s = { ...s, form: 'handoff' }; break;
       case 'visual': s = { ...s, visual: a.visual }; break;
       case 'main': s = { ...s, main: { open: a.open, route: a.route ?? s.main.route } }; break;
-      case 'approval': s = { ...s, approval: a.deal }; break;
+      case 'approval': s = { ...s, approval: a.deal, owner: false }; break;
+      case 'owner': s = { ...s, approval: null, owner: true }; break;
       default: break;
     }
   }

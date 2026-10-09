@@ -11,11 +11,12 @@ import { HAGGLE, HOLD, MISMATCH, helpers as h } from './helpers';
 export type ChapterId = 'intro' | 'haggle' | 'silence' | 'mismatch' | 'closed' | 'end';
 export type Focus = 'desk' | 'main' | 'tumbler' | 'approval';
 
-export type Chapter = { id: ChapterId; title: string };
+/** A chapter of a story; `C` is the story's chapter ids (Maya's week by default). */
+export type Chapter<C extends string = ChapterId> = { id: C; title: string };
 
-export type Beat = {
+export type Beat<C extends string = ChapterId> = {
   id: string;
-  chapter: ChapterId;
+  chapter: C;
   /** Seconds from the start of the scenario at which the beat plays. */
   at: number;
   /** What a judge reads: plain words, no internals. */
@@ -178,7 +179,7 @@ export function chapterOf(id: ChapterId): Chapter {
 }
 
 /** Index of the last beat due at scenario time `t` (-1 before the first). */
-export function beatAt(t: number, beats: readonly Beat[] = BEATS): number {
+export function beatAt(t: number, beats: readonly Beat<string>[] = BEATS): number {
   let i = -1;
   for (let k = 0; k < beats.length; k++) if ((beats[k]?.at ?? Infinity) <= t) i = k;
   return i;
