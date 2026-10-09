@@ -360,3 +360,54 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   HOUSE's own routes are covered without touching `hosted.rs`.
 - **Evidence:** `services/rendezvous/src/serve.rs`, `services/rendezvous/tests/serve.rs`; commits on
   branch autopilot/codebase-security-scan-a7e8fc6e.
+
+## 17. The onboarding tour is data and one coach mark per window, with no library
+
+- **Date:** 2026-10-09
+- **Decided by:** the App Master, on the operator's weekend goal 1 (2026-10-09)
+- **Constraint:** a new owner needs a short walk through the wallet's first steps, in three windows
+  (`main`, `tumbler`, `approval`) that share no page and no process. The CSP is `default-src 'self'`,
+  the repo keeps new dependencies to a minimum (AGENTS.md), and the tour must not be able to move
+  money: the approval window stays the only place that countersigns, and no IPC command was to
+  change for the tour.
+- **Decision:**
+  - **No tour library.** The tour is data: `lib/tour.ts` lists 13 stops (5 in The Table, 4 in the
+    Tumbler, 4 in the approval window), each with a `data-tour` anchor on an existing element.
+    `shared/tour.tsx` places the mark with `getBoundingClientRect` and React's style prop.
+  - **One coach mark per window, not one tour across windows.** Each window keeps its own progress
+    in `localStorage` (`table-tour`, and `table-tour:first-run` for the `?first_run=1` preview),
+    guarded with an in-memory fallback. The tour starts by itself only on first run. Skip or finish
+    keeps it closed until 'Take the tour'. A stop whose anchor is missing is passed over. The agent
+    app stop drops out once an app is chosen.
+  - **The Tumbler never takes the keyboard.** Focus moves into the mark only while its window
+    already has focus.
+  - **The director points a framed window's tour by writing to storage**, `{ do: 'tour', win, at }`,
+    with no click. That is not a world action, and nothing in the tour approves, signs, pays,
+    captures or locks.
+  - **'Choose your agent app' is the fourth step**: done on `claude-code` or `codex-cli`, to do on
+    the practice agent. The Tumbler's step opens The Table's Home, not Settings, because `main_open`
+    takes only a deal id.
+  - **The rehearsal rig uses a Playwright installed outside the repo**, pointed at through the
+    `PLAYWRIGHT` environment variable. Playwright is never a dependency.
+- **Lost:**
+  - A tour library (a step-by-step overlay package): it needs inline styles or injected CSS the CSP
+    refuses, and it is a new dependency for 13 sentences.
+  - One tour across the three windows, with shared progress: the windows share no page, so it would
+    need a new IPC command or a cross-window channel, and a tour that moves focus between windows
+    would take the keyboard.
+  - The Tumbler's step opening Settings directly: it needs a new `main_open` target, an IPC change.
+  - Driving the tour in the director by clicking Next: a click is a world action the director does
+    not make. A storage write needs none.
+  - Playwright as a dev dependency: a browser download and a lock change for a rehearsal that only
+    the builder runs.
+- **Consequences:** a stop is a row of data and a words entry, so adding one needs no component. A
+  window whose anchor is not on screen skips that stop rather than pointing at nothing. The Tumbler's
+  agent app step takes two clicks (The Table's Home, then its gold button). The rehearsal runs only
+  where Playwright is installed (`docs/features/onboarding.md`, `src/director/README.md`). No IPC
+  command, Rust, binding, capability or dependency changed, so the permissions fingerprint is
+  unchanged.
+- **Evidence:** commits be501cc (the fourth step), 94cf308 (tour model), 2e0df6e (coach mark),
+  2ef9204 (the director's tour action), a2bc9a6 (rehearsal), 2c9dc41 (Tumbler frame in the light
+  theme) and 6c15500 (played in the rig, both stories pass); tests `lib/tour.test.ts`,
+  `shared/tour.test.tsx`, `director/firstRunStory.test.ts` (writes only to `table-tour:first-run`,
+  no world, money or lock action).
