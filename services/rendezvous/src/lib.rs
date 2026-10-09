@@ -11,7 +11,7 @@ use serde::Deserialize;
 pub use serve::{Limits, serve, serve_with, with_timeouts};
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
 use table_core::Clock;
-use tokio::sync::{Mutex, Notify};
+use tokio::sync::{Mutex, Notify, Semaphore};
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("mailbox not found or expired")]
@@ -62,9 +62,13 @@ impl Inner {
         self.total_bytes = self.total_bytes.saturating_sub(released);
     }
 }
+/// Long-polls held open at once, across both poll routes. A held poll costs a task and a waker, so
+/// this bounds that memory; past it a poll answers at once as if `wait=0` and the client re-polls.
+pub const MAX_LONG_POLLS: usize = 128;
 pub struct MemoryStore {
     inner: Mutex<Inner>,
     clock: Arc<dyn Clock>,
+    polls: Semaphore,
 }
 impl std::fmt::Debug for MemoryStore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -73,9 +77,14 @@ impl std::fmt::Debug for MemoryStore {
 }
 impl MemoryStore {
     pub fn new(clock: Arc<dyn Clock>) -> Self {
+        Self::with_poll_limit(clock, MAX_LONG_POLLS)
+    }
+    /// A store that holds at most `max_polls` long-polls open at once (tests pass a small one).
+    pub fn with_poll_limit(clock: Arc<dyn Clock>, max_polls: usize) -> Self {
         Self {
             inner: Mutex::new(Inner::default()),
             clock,
+            polls: Semaphore::new(max_polls),
         }
     }
     async fn waiter(&self, h: &str) -> Arc<Notify> {
@@ -295,7 +304,9 @@ async fn read(
     tokio::pin!(notified);
     notified.as_mut().enable();
     let result = s.read(&h, q.after).await?;
-    if !result.is_empty() || q.wait == 0 {
+    // No free poll slot: answer now with what there is, as if wait=0 (never an error).
+    let slot = s.polls.try_acquire();
+    if !result.is_empty() || q.wait == 0 || slot.is_err() {
         return Ok(Json(result));
     }
     let _ = tokio::time::timeout(Duration::from_secs(u64::from(q.wait)), notified).await;
@@ -356,7 +367,12 @@ async fn sync(
     tokio::pin!(notified);
     notified.as_mut().enable();
     let batch = s.batch(&h, &q.generation, q.after).await?;
-    if !batch.messages.is_empty() || q.wait == 0 || batch.generation != q.generation {
+    let slot = s.polls.try_acquire();
+    if !batch.messages.is_empty()
+        || q.wait == 0
+        || batch.generation != q.generation
+        || slot.is_err()
+    {
         return Ok(Json(batch));
     }
     let _ = tokio::time::timeout(Duration::from_secs(u64::from(q.wait)), notified).await;

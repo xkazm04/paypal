@@ -203,3 +203,59 @@ async fn a_long_poll_of_25_seconds_still_answers_under_the_default_limits() {
         .unwrap();
     assert_eq!(polled.status(), 200);
 }
+
+#[tokio::test(start_paused = true)]
+async fn long_polls_past_the_permit_limit_answer_at_once_and_permits_come_back() {
+    use rendezvous::{MemoryStore, relay_router};
+    use std::sync::Arc;
+    use tower::ServiceExt;
+    let store = Arc::new(MemoryStore::with_poll_limit(
+        Arc::new(table_core::FixedClock(0)),
+        1,
+    ));
+    let app = relay_router(store);
+    let h = "d".repeat(64);
+    let get = |uri: String| {
+        axum::http::Request::builder()
+            .uri(uri)
+            .body(axum::body::Body::empty())
+            .unwrap()
+    };
+    let put = axum::http::Request::builder()
+        .method("PUT")
+        .uri(format!("/v1/mailbox/{h}"))
+        .body(axum::body::Body::empty())
+        .unwrap();
+    assert_eq!(app.clone().oneshot(put).await.unwrap().status(), 201);
+    // sync only waits when the caller already holds the box's current generation.
+    let probe = app
+        .clone()
+        .oneshot(get(format!("/v1/mailbox/{h}/sync?after=0")))
+        .await
+        .unwrap();
+    let probe: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(probe.into_body(), 1 << 16)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    let generation = probe["generation"].as_str().unwrap().to_string();
+    let sync = format!("sync?after=0&generation={generation}");
+    for route in ["envelopes?after=0", sync.as_str()] {
+        let uri = format!("/v1/mailbox/{h}/{route}&wait=25");
+        // The first poll takes the only permit and waits.
+        let first = tokio::spawn(app.clone().oneshot(get(uri.clone())));
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        // The second finds none free and answers now, with the current (empty) content.
+        let before = tokio::time::Instant::now();
+        let second = app.clone().oneshot(get(uri.clone())).await.unwrap();
+        assert_eq!(second.status(), 200);
+        assert!(before.elapsed() < Duration::from_secs(1));
+        // The first ends at its 25 s wait, and its permit is back for the next poll.
+        assert_eq!(first.await.unwrap().unwrap().status(), 200);
+        let again = tokio::time::Instant::now();
+        let third = app.clone().oneshot(get(uri)).await.unwrap();
+        assert_eq!(third.status(), 200);
+        assert!(again.elapsed() >= Duration::from_secs(25));
+    }
+}
