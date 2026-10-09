@@ -134,6 +134,8 @@ describe('first-run steps from settings, signed rules, connections and the agent
     expect(row).toMatchObject({ key: 'paypal', state: 'done' });
     expect(START_STEP.paypal.done).toBe('PayPal sandbox keys saved');
     for (const text of Object.values(START_STEP.paypal)) expect(text).not.toMatch(/connected|checked|verified/i);
+    // Step 1 says where the keys come from (the sourced fact only) and keeps the test-money meaning.
+    expect(START_STEP.paypal.sub).toBe('Test money only · registering at developer.paypal.com creates a sandbox business account with its test keys');
   });
   describe('settingsFacts: one mapping for Home, the Tumbler and the approval window', () => {
     const snap = (o: Partial<SettingsSnapshot>) => ({ first_run: true, payment_executor_configured: true, selected_engine: 'scripted', engine_chosen: false, ...o }) as SettingsSnapshot;

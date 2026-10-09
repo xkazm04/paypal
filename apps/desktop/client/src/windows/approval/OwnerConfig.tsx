@@ -47,7 +47,7 @@ const PAIRING_RECHECK_MS = 30_000;
 
 const INFO = {
   unlock: 'Signing rules, saving keys and connecting wallets ask for Windows Hello first. Like PayPal, the wallet locks again after 15 quiet minutes. You can always look around.',
-  creds: 'A Windows dialog asks for each key and saves it in your computer’s secure store. Nothing is typed into this window, and the key never shows up here.',
+  creds: 'Registering at developer.paypal.com creates a sandbox business account with its test keys; that is where yours come from. A Windows dialog asks for each key and saves it in your computer’s secure store. Nothing is typed into this window, and the key never shows up here.',
   engine: 'The agent app is chosen in The Table, under Settings. This window only shows which one is in use.',
   house: 'A demo shop that is always open, built into this app. Join its table from The Table, then confirm its four words here.',
   mandates: 'What each agent may do without asking you. Open a set of rules to see how this week would have gone under a change, before you sign it. Withdrawn rules stop every agent that used them.',
