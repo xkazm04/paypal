@@ -135,6 +135,36 @@ describe('the tour on screen', () => {
     expect(mark()).not.toBeNull();
   });
 
+  it('follows a write to its own key from another page (the director), and ignores any other key', () => {
+    render(<Page><Tour win="approval" gs={gs} firstRun /></Page>);
+    expect(mark()?.dataset.tourStop).toBe('approval.only');
+    const write = (key: string, at: string) => act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key, newValue: JSON.stringify({ approval: { status: 'active', at } }) }));
+    });
+    write(TOUR_KEY, 'approval.config');
+    expect(mark()?.dataset.tourStop).toBe('approval.config');
+    expect(title()).toBe(TOUR_STOP['approval.config'].title);
+    // another key (the first-run world's tour, the theme) leaves the mark where it is
+    write(`${TOUR_KEY}:first-run`, 'approval.steps');
+    write('table-theme', 'approval.steps');
+    expect(mark()?.dataset.tourStop).toBe('approval.config');
+    // nothing was saved by the window itself: it only followed
+    expect(localStorage.getItem(TOUR_KEY)).toBeNull();
+  });
+
+  it('a framed window in the first-run world follows the first-run key', () => {
+    const key = `${TOUR_KEY}:first-run`;
+    render(<Page><Tour win="approval" gs={gs} firstRun storageKey={key} /></Page>);
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key, newValue: JSON.stringify({ approval: { status: 'active', at: 'approval.engine' } }) }));
+    });
+    expect(mark()?.dataset.tourStop).toBe('approval.engine');
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key, newValue: JSON.stringify({ approval: { status: 'finished', at: null } }) }));
+    });
+    expect(mark()).toBeNull();
+  });
+
   it('does not take the keyboard while the window is not focused', () => {
     vi.spyOn(document, 'hasFocus').mockReturnValue(false);
     render(<Page><Tour win="approval" gs={gs} firstRun /></Page>);

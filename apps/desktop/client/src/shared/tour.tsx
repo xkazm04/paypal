@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { GettingStarted } from '../lib/firstRun';
-import { loadTour, saveTour, TOUR_STOPS, tourEnd, tourKey, tourMove, tourReopen, tourStops, tourView, type TourProgress, type TourWindow } from '../lib/tour';
+import { loadTour, saveTour, TOUR_STOPS, tourEnd, tourFromStorage, tourKey, tourMove, tourReopen, tourStops, tourView, type TourProgress, type TourWindow } from '../lib/tour';
 import { TOUR, tourCount } from '../lib/words';
 import { Btn } from './ui';
 import { useLayerCount } from './ui/layers';
@@ -73,6 +73,14 @@ export function Tour({ win, gs, firstRun, paused = false, storageKey }: {
     const r = (w: TourWindow) => { if (w === win) setP(loadTour(win, key)); };
     reopeners.add(r);
     return () => { reopeners.delete(r); };
+  }, [win, key]);
+
+  // Another page wrote this world's tour (the director's First run story points a framed window's
+  // mark this way, never by a click): follow it when the write is to this key.
+  useEffect(() => {
+    const on = (e: StorageEvent) => { const np = tourFromStorage(win, key, e); if (np) setP(np); };
+    window.addEventListener('storage', on);
+    return () => window.removeEventListener('storage', on);
   }, [win, key]);
 
   // Which anchors are on screen, kept as a signature so a page change re-renders only when it matters.

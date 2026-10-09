@@ -152,6 +152,18 @@ export function saveTour(win: TourWindow, p: TourProgress, key: string = tourKey
   }
 }
 
+/**
+ * Another page wrote the tour's progress (the director's First run story, another tab): this
+ * window's progress as written, or null when the write was to some other key. What this page
+ * remembers follows the write, so a later load agrees with what is on screen.
+ */
+export function tourFromStorage(win: TourWindow, key: string, e: { key: string | null; newValue: string | null }): TourProgress | null {
+  if (e.key !== key) return null;
+  const p = parse(e.newValue)?.[win] ?? TOUR_NEW;
+  memory.set(key, { ...memory.get(key), [win]: p });
+  return p;
+}
+
 /** Tests only: forget what this session saved. */
 export function resetTourMemory(): void {
   memory.clear();

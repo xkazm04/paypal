@@ -11,7 +11,7 @@ import type { Form } from '@bindings/Form';
 import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import type { VisualState } from '@bindings/VisualState';
 import { nowUnix } from '../lib/format';
-import type { TourWindow } from '../lib/tour';
+import { saveTour, TOUR_NEW, tourEnd, tourKey, tourMove, type TourWindow } from '../lib/tour';
 import type { TourStopId } from '../lib/words';
 import type { MockWorld } from '../mock/backend';
 
@@ -156,7 +156,25 @@ export function runAction(stage: Stage, a: Action): void {
     case 'owner':
       stage.owner?.();
       return;
+    case 'tour':
+      pointTour(a.win, a.at);
+      return;
   }
+}
+
+/**
+ * A framed window's tour shows `at` (null: put away), written as that window's saved progress under
+ * the first-run world's key; the window follows the write (shared/tour.tsx). Nothing is clicked.
+ */
+export function pointTour(win: TourWindow, at: TourStopId | null | undefined): void {
+  saveTour(win, at === undefined ? TOUR_NEW : at === null ? tourEnd('finished') : tourMove(at), tourKey(true));
+}
+
+const TOUR_WINDOWS: readonly TourWindow[] = ['main', 'tumbler', 'approval'];
+
+/** On a seek: every window's tour as the earlier beats left it (a window never pointed starts anew). */
+export function placeTours(tour: Scene['tour']): void {
+  for (const w of TOUR_WINDOWS) pointTour(w, tour[w]);
 }
 
 export function runActions(stage: Stage, actions: readonly Action[]): void {
@@ -171,12 +189,14 @@ export type Scene = {
   approval: string | null;
   /** The approval window is open on the owner's setup (no deal). */
   owner: boolean;
+  /** The stop each window's tour was pointed at (null: put away; missing: never pointed). */
+  tour: Partial<Record<TourWindow, TourStopId | null>>;
   form: Form;
   selected: string | null;
   visual: VisualState | null;
 };
 
-export const INITIAL_SCENE: Scene = { main: { open: true, route: null }, approval: null, owner: false, form: 'rest', selected: null, visual: null };
+export const INITIAL_SCENE: Scene = { main: { open: true, route: null }, approval: null, owner: false, tour: {}, form: 'rest', selected: null, visual: null };
 
 export function foldScene(scene: Scene, actions: readonly Action[]): Scene {
   let s = scene;
@@ -189,6 +209,7 @@ export function foldScene(scene: Scene, actions: readonly Action[]): Scene {
       case 'main': s = { ...s, main: { open: a.open, route: a.route ?? s.main.route } }; break;
       case 'approval': s = { ...s, approval: a.deal, owner: false }; break;
       case 'owner': s = { ...s, approval: null, owner: true }; break;
+      case 'tour': s = { ...s, tour: { ...s.tour, [a.win]: a.at } }; break;
       default: break;
     }
   }
