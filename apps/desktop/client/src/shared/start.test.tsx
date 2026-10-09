@@ -30,6 +30,29 @@ describe('first-run steps list', () => {
     expect(r.getByLabelText('Getting started: 1 of 4 done')).toBeTruthy();
   });
 
+  it('a done practice step keeps one quiet click to start a practice deal; a done keys step keeps none', () => {
+    const run = vi.fn();
+    const connected = gettingStarted({ ...facts, houseConnected: true });
+    const r = render(<StartSteps gs={connected} action={(k: StartStepKey) => ({ label: `go ${k}`, title: k, run: () => run(k) })} />);
+    const items = r.container.querySelectorAll('li.ss');
+    expect(items[0]!.className).toBe('ss s-done');
+    expect(items[0]!.querySelector('button')).toBeNull();
+    expect(items[2]!.className).toBe('ss s-done');
+    expect(items[2]!.textContent).toContain('House seller connected');
+    expect(items[2]!.querySelector('button')!.textContent).toContain('Start a practice deal');
+    // Keys (done), practice (done): the rules and the agent app are still to do.
+    expect(r.container.querySelectorAll('button')).toHaveLength(3);
+    fireEvent.click(r.getByText('Start a practice deal'));
+    expect(run).toHaveBeenCalledWith('practice');
+  });
+
+  it('where the click cannot happen, a done practice step says where the practice deal starts', () => {
+    const r = render(<StartSteps gs={gettingStarted({ ...facts, houseConnected: true })} action={() => null} elsewhere={{ practice: 'Start it in The Table', engine: 'In The Table' }} />);
+    expect(r.container.querySelectorAll('button')).toHaveLength(0);
+    expect(r.getByText('Start it in The Table')).toBeTruthy();
+    expect(r.getByText('In The Table')).toBeTruthy();
+  });
+
   it('a step that happens in another window says where instead of offering a button', () => {
     const r = render(<StartSteps gs={gs} action={() => null} elsewhere={{ practice: 'In The Table', engine: 'In The Table: Settings › Agent app' }} />);
     expect(r.container.querySelectorAll('button')).toHaveLength(0);
