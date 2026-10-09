@@ -16,7 +16,7 @@ sees its effects as plain states ("Preparing payment", "On hold", "Paid", "Hold 
   rules, or the safe default. A buyer's haggle or shop-order deal at RECEIPTED reads "Seller says paid"
   (gold, not settled) until PayPal's statement matches and it becomes "Paid, on statement". A step whose PayPal answer was lost shows a dashed "Checking with
   PayPal" pill. A parked one reads "We couldn't confirm a payment with PayPal. At the deadline the wallet asks PayPal what happened, and what PayPal shows decides. A hold is released; nothing is collected." (`MONEY_CHECK_PARKED` in `apps/desktop/client/src/lib/words.ts`). The
-  be sent until we can." (`MONEY_CHECK_PARKED` in `apps/desktop/client/src/lib/words.ts`). The
+  Rewind on Home draws one tick per money operation, coloured by who decided it (see
   [home-and-rewind.md](./home-and-rewind.md)).
 - **tumbler.** A money step being checked appears as a hold card with only "open in The Table"
   and the silence line "at the deadline the wallet asks PayPal what happened, releases any hold and collects nothing". The "If you walk away" row
