@@ -316,6 +316,26 @@ fn h4_settle_rejects_amount_intent_invoice_attempt_and_host_mismatch() {
         assert!(approval_url(url, Mode::Sandbox).is_err(), "{url}");
     }
     assert!(approval_url("https://www.sandbox.paypal.com", Mode::Replay).is_err());
+    for url in [
+        "https://www.sandbox.paypal.com/checkoutnow?token=ORDER2",
+        "https://www.sandbox.paypal.com/checkoutnow?token=ORDER1&x=1",
+        "https://www.sandbox.paypal.com/checkoutnow?token=ORDER1&token=ORDER1",
+        "https://www.sandbox.paypal.com/checkoutnow",
+        "https://www.sandbox.paypal.com/checkoutnow?token=",
+        "https://www.sandbox.paypal.com/checkoutnow?x=ORDER1",
+        "https://www.sandbox.paypal.com/myaccount/transfer?token=ORDER1",
+        "https://www.sandbox.paypal.com/checkoutnow?token=order1",
+        "https://www.sandbox.paypal.com/checkoutnow?token=ORDER1%20",
+    ] {
+        let mut bad = body.clone();
+        if let Body::Settle { approve_url, .. } = &mut bad {
+            *approve_url = ShortText::new(url.into()).unwrap();
+        }
+        assert!(
+            validate_settle(&bad, deal, &terms, Mode::Sandbox).is_err(),
+            "{url}"
+        );
+    }
 }
 #[test]
 fn accept_requires_last_offer_and_exact_terms_hash() {
