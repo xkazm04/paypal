@@ -1,11 +1,17 @@
-// First run: from install to a first safe deal in three steps, the same on every surface (Home,
+// First run: from install to a first safe deal in four steps, the same on every surface (Home,
 // the Settings sheet, the Tumbler's welcome, the approval window's owner configuration).
 //   1 Connect PayPal sandbox      done when the sandbox keys are saved (settings.payment_executor_configured)
 //   2 Sign your agents' rules     done when a signed set of rules is in force (mandate_list; first_run
 //                                 false when only settings were read)
 //   3 Practice with the house     done when the house seller is connected (counterparty_list house:
 //                                 true), which is when its practice table is yours to join
+//   4 Choose your agent app       done when settings.selected_engine is claude-code or codex-cli; never
+//                                 while it is 'scripted' (the practice agent a new wallet starts on).
+//                                 Main also reads engine_status: an app it reports unavailable is not done.
+// The practice deal runs on the practice agent, so the agent app comes last: it is the one step that
+// needs something installed outside the wallet, and nothing before it waits on it.
 // Pure: facts in, steps out. A fact a window cannot read stays unknown and is never shown as done.
+import type { EngineId } from '@bindings/EngineId';
 import type { StartStepKey } from './words';
 
 export type StartFacts = {
@@ -19,36 +25,50 @@ export type StartFacts = {
   houseConnected: boolean | null;
   /** Wallets other than the house seller that are connected; null = not known. */
   otherConnections: number | null;
+  /** settings.selected_engine; null = settings not read. */
+  engine: EngineId | null;
+  /** engine_status says the selected app is available (main only); null or absent = not read here. */
+  engineAvailable?: boolean | null;
 };
 
 /** done · next (the one step the gold button goes to) · todo · unknown (this window cannot tell). */
 export type StartStepState = 'done' | 'next' | 'todo' | 'unknown';
-export type StartStep = { key: StartStepKey; n: 1 | 2 | 3; state: StartStepState };
+export type StartStep = { key: StartStepKey; n: number; state: StartStepState };
 export type GettingStarted = {
   /** Show the getting-started path instead of the everyday view. */
   show: boolean;
   steps: StartStep[];
   done: number;
-  total: 3;
+  /** START_ORDER's length. */
+  total: number;
   /** The first step still to do (gold); null when every step is done or unknown. */
   next: StartStepKey | null;
 };
 
-export const START_ORDER: readonly StartStepKey[] = ['paypal', 'rules', 'practice'];
+export const START_ORDER: readonly StartStepKey[] = ['paypal', 'rules', 'practice', 'engine'];
 
 const known = (b: boolean | null): StartStepState => (b === null ? 'unknown' : b ? 'done' : 'todo');
 
+/** The agent app step: an app chosen (not the practice agent) and not reported unavailable. */
+export function engineChosen(engine: EngineId | null, available?: boolean | null): boolean | null {
+  if (engine === null) return null;
+  return engine !== 'scripted' && available !== false;
+}
+
 export function gettingStarted(f: StartFacts): GettingStarted {
   const rules = f.rulesInForce !== null ? f.rulesInForce > 0 : f.firstRun === null ? null : !f.firstRun;
-  const raw: Record<StartStepKey, StartStepState> = { paypal: known(f.paypal), rules: known(rules), practice: known(f.houseConnected) };
+  const raw: Record<StartStepKey, StartStepState> = {
+    paypal: known(f.paypal), rules: known(rules), practice: known(f.houseConnected), engine: known(engineChosen(f.engine, f.engineAvailable)),
+  };
   const next = START_ORDER.find((k) => raw[k] === 'todo') ?? null;
-  const steps = START_ORDER.map((key, i) => ({ key, n: (i + 1) as 1 | 2 | 3, state: key === next ? 'next' as const : raw[key] }));
+  const steps = START_ORDER.map((key, i) => ({ key, n: i + 1, state: key === next ? 'next' as const : raw[key] }));
   const done = steps.filter((s) => s.state === 'done').length;
+  const total = START_ORDER.length;
   // A brand-new wallet (no rules yet) always shows the path. After the rules are signed it stays
-  // until the three steps are done, but only while the owner has connected nobody else: an owner
+  // until every step is done, but only while the owner has connected nobody else: an owner
   // already dealing with other wallets is past getting started, whatever is left.
-  const show = f.firstRun === true || (f.firstRun === false && done < 3 && f.otherConnections === 0);
-  return { show, steps, done, total: 3, next };
+  const show = f.firstRun === true || (f.firstRun === false && done < total && f.otherConnections === 0);
+  return { show, steps, done, total, next };
 }
 
 /** The slice of counterparty_list the steps read. */

@@ -1,8 +1,8 @@
 // Home on first run: "what is this, is my money safe, what do I do first" in one look. The hub
-// names the goal (a first safe deal in three steps), shows the progress, says the safety promise
-// once and holds the one gold button: the next step. The left column lists the three steps, each
-// one click to where it happens (the approval window's keys or rules, the house seller's tab in
-// Connections); the right column says what The Table is. Nothing here signs, saves or pays:
+// names the goal (a first safe deal in four steps), shows the progress, says the safety promise
+// once and holds the one gold button: the next step. The left column lists the steps, each one
+// click to where it happens (the approval window's keys or rules, the house seller's tab in
+// Connections, Setup's agent app); the right column says what The Table is. Nothing here signs, saves or pays:
 // privileged steps only open the approval window (approval_open with a target).
 import { useCallback, useMemo, useState, type MouseEvent } from 'react';
 import type { WalletError } from '../../../lib/contract';
@@ -26,26 +26,34 @@ export function useStart(): GettingStarted {
   const fresh = s?.first_run;
   const paypal = s?.payment_executor_configured;
   const conn = cps.data;
+  // The Table can also ask whether the chosen agent app is installed and ready (engine_status).
+  const engines = useQuery('engine_status', null, { refreshOn: ['settings:changed'] });
+  const engine = s?.selected_engine ?? null;
+  const engineAvailable = engine && engines.data ? engines.data.find((e) => e.id === engine)?.available ?? false : null;
   return useMemo(() => gettingStarted({
-    firstRun: fresh ?? null, paypal: paypal ?? null, rulesInForce: inForce, ...connectionFacts(conn),
-  }), [fresh, paypal, inForce, conn]);
+    firstRun: fresh ?? null, paypal: paypal ?? null, rulesInForce: inForce, ...connectionFacts(conn), engine, engineAvailable,
+  }), [fresh, paypal, inForce, conn, engine, engineAvailable]);
 }
 
 export type StartActions = { go: (k: StartStepKey) => void; busy: StartStepKey | null; error: WalletError | null };
 
-/** Each step's one click: keys and rules open the approval window there; practice opens the house seller's tab. */
-export function useStartActions(onHouse: () => void): StartActions {
+/** Each step's one click: keys and rules open the approval window there; practice opens the house
+ *  seller's tab; the agent app opens Setup, where it is chosen. */
+export function useStartActions(onHouse: () => void, onEngine: () => void): StartActions {
   const { run, error } = useMutation('approval_open');
   const [busy, setBusy] = useState<StartStepKey | null>(null);
   const go = useCallback((k: StartStepKey) => {
     if (k === 'practice') { onHouse(); return; }
+    if (k === 'engine') { onEngine(); return; }
     setBusy(k);
     void run({ deal_id: null, target: k === 'paypal' ? 'credentials' : 'mandate' }).finally(() => setBusy(null));
-  }, [run, onHouse]);
+  }, [run, onHouse, onEngine]);
   return { go, busy, error };
 }
 
 const stop = (e: MouseEvent) => e.stopPropagation();
+/** Steps that happen here in The Table (the rest open the approval window). */
+const inTable = (k: StartStepKey) => k === 'practice' || k === 'engine';
 
 /** The hub: the goal, the progress, the promise and the next step as the only gold button. */
 export function StartHub({ gs, act }: { gs: GettingStarted; act: StartActions }) {
@@ -68,10 +76,10 @@ export function StartHub({ gs, act }: { gs: GettingStarted; act: StartActions })
   );
 }
 
-/** Left column: the three steps, each one quiet click to where it happens. */
+/** Left column: the steps, each one quiet click to where it happens. */
 export function StartSide({ gs, act }: { gs: GettingStarted; act: StartActions }) {
   const action = (k: StartStepKey): StepAction => ({
-    label: `${START_STEP[k].act}${k === 'practice' ? ' ›' : ' ↗'}`,
+    label: `${START_STEP[k].act}${inTable(k) ? ' ›' : ' ↗'}`,
     title: START_STEP[k].where,
     run: () => act.go(k),
   });

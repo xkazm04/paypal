@@ -599,10 +599,8 @@ export function fingerprintGroups(hex: string): string {
 
 /** The safety promise, said once per surface on the first-run path (Home hub, Tumbler, approval window). */
 export const SAFETY_PROMISE = 'Nothing pays without you or a rule you signed. Waiting never sends money.';
-/** The first-run heading: what the three steps lead to. */
-export const FIRST_RUN_TITLE = 'Your first safe deal in 3 steps';
-/** The three first-run steps, in the order every surface shows them. */
-export type StartStepKey = 'paypal' | 'rules' | 'practice';
+/** The first-run steps, in the order every surface shows them (lib/firstRun.ts START_ORDER). */
+export type StartStepKey = 'paypal' | 'rules' | 'practice' | 'engine';
 export const START_STEP: Record<StartStepKey, { title: string; sub: string; done: string; act: string; where: string }> = {
   paypal: {
     title: 'Connect PayPal sandbox', sub: 'Test money only · the keys stay on this computer', done: 'PayPal sandbox connected', act: 'Connect PayPal',
@@ -616,7 +614,13 @@ export const START_STEP: Record<StartStepKey, { title: string; sub: string; done
     title: 'Try a practice deal with the house seller', sub: 'A demo shop that is always open · sandbox money', done: 'House seller connected', act: 'Try the house seller',
     where: 'Opens Connections on the house seller, a practice shop built into the app',
   },
+  engine: {
+    title: 'Choose your agent app', sub: 'claude-code or codex-cli · the practice agent plays until then', done: 'Agent app chosen', act: 'Choose agent app',
+    where: 'Opens Setup in The Table on the agent app your agents run in',
+  },
 };
+/** The first-run heading: what the steps lead to (the count follows START_STEP). */
+export const FIRST_RUN_TITLE = `Your first safe deal in ${Object.keys(START_STEP).length} steps`;
 
 // ---- shop around (several sellers, one buyer intent) -------------------------------------------
 

@@ -173,10 +173,10 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
   }
 
   const active = list.filter((m) => isMandateActive(m, now) && !m.refusal);
-  // First run: the same three steps as The Table (lib/firstRun.ts), with the next one in gold.
+  // First run: the same steps as The Table (lib/firstRun.ts), with the next one in gold.
   const gs = gettingStarted({
     firstRun: st ? st.first_run : null, paypal: st ? st.payment_executor_configured : null,
-    rulesInForce: rulesInForce(mandates.data, now), ...connectionFacts(connections.data),
+    rulesInForce: rulesInForce(mandates.data, now), ...connectionFacts(connections.data), engine: st ? st.selected_engine : null,
   });
   const first = gs.show;
   const saveKeys = async () => {
@@ -190,7 +190,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
     if (k === 'paypal') void saveKeys();
     else if (k === 'rules') setEditing({ sel: null });
   };
-  const stepAction = (k: StartStepKey): StepAction => (k === 'practice' ? null : {
+  const stepAction = (k: StartStepKey): StepAction => (k === 'practice' || k === 'engine' ? null : {
     label: locked ? 'Unlock first' : k === 'paypal' ? 'Add keys…' : 'Choose rules…',
     title: locked ? 'Unlock with Windows Hello first' : k === 'paypal' ? 'A secure dialog asks for your sandbox keys and saves them on this computer' : 'Start from a ready-made set of rules, check it, then sign',
     run: () => runStep(k),
@@ -224,7 +224,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
               <StartProgress gs={gs} /><span className="dim">· nothing on this page pays anyone</span>
             </div>
             <StartSteps gs={gs} action={stepAction} className="ow-steps" busy={s.pending === 'set_credentials' ? 'paypal' : null}
-              elsewhere={{ practice: 'Next, in The Table: Connections › House seller' }} />
+              elsewhere={{ practice: 'Next, in The Table: Connections › House seller', engine: 'In The Table: Settings › Agent app' }} />
             {startError ? <WalletNotice error={startError} what={`${START_STEP.paypal.title}: not saved`} /> : null}
           </>
         ) : null}

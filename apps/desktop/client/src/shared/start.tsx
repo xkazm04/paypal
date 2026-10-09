@@ -1,4 +1,4 @@
-// The three first-run steps as one list, the same in The Table and the approval window: a marker
+// The first-run steps as one list, the same in The Table and the approval window: a marker
 // (number, a check when done, dashed when this window can't tell), the step in plain words and,
 // while it is still to do, one quiet click to where it happens. The gold action stays outside the
 // list (the hub's or the answer bar's button), so a view never has two gold buttons.
@@ -61,10 +61,11 @@ function stepDoneLine(k: StartStepKey): string {
     case 'paypal': return 'Saved securely on this computer';
     case 'rules': return 'Your agents act only inside them';
     case 'practice': return 'Its practice table is ready for you';
+    case 'engine': return 'Your agents run in it';
   }
 }
 
-/** "● ● ○  2 of 3 done": progress as dots and words, for the hub and the answer bars. */
+/** "● ● ○ ○  2 of 4 done": progress as dots and words, for the hub and the answer bars. */
 export function StartProgress({ gs, className }: { gs: GettingStarted; className?: string }) {
   return (
     <span className={`start-progress${className ? ` ${className}` : ''}`} role="img" aria-label={`${gs.done} of ${gs.total} steps done`}>

@@ -606,7 +606,7 @@ const Mini = ({ ring, children }: { ring: 'gold' | 'line'; children?: ReactNode 
  */
 export const WelcomeForm = forwardRef(function WelcomeForm(p: {
   mode: Mode | null; locked: boolean; onOk: () => void;
-  /** First run: the three steps instead of the legend (lib/firstRun.ts); null = the everyday welcome. */
+  /** First run: the steps instead of the legend (lib/firstRun.ts); null = the everyday welcome. */
   start?: GettingStarted | null;
   onStep?: (k: StartStepKey) => void;
   failure?: { what: string; error: WalletError } | null;
@@ -635,8 +635,8 @@ export const WelcomeForm = forwardRef(function WelcomeForm(p: {
 });
 
 /*
- * First run at the same 440 x 228: the same three steps and words as The Table and the approval
- * window. Title, the safety promise (two lines), the steps as three one-line links, then the next
+ * First run at the same 440 x 228: the same steps and words as The Table and the approval
+ * window. Title, the safety promise (two lines), the steps as one-line links, then the next
  * step in gold beside "Later". The Tumbler reads settings only, so a step it can't tell stays
  * numbered, never ticked.
  */
@@ -668,7 +668,7 @@ const FirstRunWelcome = forwardRef(function FirstRunWelcome(p: {
         <div className="w-ok">
           <span className="ui-hint" aria-hidden="true" />
           <Btn kind="plain" sm onClick={p.onOk} title="Ctrl Shift Space summons or hides me. I never take your keyboard.">Later</Btn>
-          {next ? <Btn kind="gold" sm onClick={() => p.onStep?.(next)} title={START_STEP[next].where}>{START_STEP[next].act}{next === 'practice' ? '' : ' ↗'}</Btn> : null}
+          {next ? <Btn kind="gold" sm onClick={() => p.onStep?.(next)} title={START_STEP[next].where}>{START_STEP[next].act}{next === 'practice' || next === 'engine' ? '' : ' ↗'}</Btn> : null}
         </div>
       </div>
     </div>
