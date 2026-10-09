@@ -87,16 +87,21 @@ impl Pipeline {
     }
     /// Resolves every open operation of a deal, oldest first, and stops at the first that
     /// cannot be read back this time (`Unavailable`; the next tick tries again) or is still
-    /// within [`SETTLE_SECS`]. Parked ones are skipped. `Ok(true)` when nothing is left open,
-    /// so the deal's next step may run.
+    /// within [`SETTLE_SECS`]. Parked ones wait for the owner, except a parked authorize,
+    /// capture or void once the deal's deadline passed: it is read back under
+    /// [`Resolve::Deadline`], which grants nothing, so the safe default can settle it by what
+    /// PayPal shows. `Ok(true)` when nothing is left open, so the deal's next step may run.
     pub async fn resolve_deal(
         &mut self,
         id: DealId,
         mode: Resolve,
         now: Timestamp,
     ) -> Result<bool, Error> {
+        let at_deadline = self.deadline_passed(id, mode, now)?;
         for op in self.open_operations(Some(id), now)? {
-            if op.needs_owner {
+            if op.needs_owner
+                && !(at_deadline && matches!(op.operation, "authorize" | "capture" | "void"))
+            {
                 continue;
             }
             if !op.pending && now < op.started_at.saturating_add(SETTLE_SECS) {
@@ -130,6 +135,16 @@ impl Pipeline {
             "authorize" => self.resolve_authorize(&deal, op, &request, mode, now).await,
             _ => self.resolve_payment(&deal, op, &request, mode, now).await,
         }
+    }
+    /// A read-back at the deal's deadline (or past it): the only time a parked step is read
+    /// again without the owner, and a void goes once more whoever decided it.
+    fn deadline_passed(&self, id: DealId, mode: Resolve, now: Timestamp) -> Result<bool, Error> {
+        Ok(mode == Resolve::Deadline
+            && self
+                .wallet
+                .ledger
+                .deadline(id)?
+                .is_some_and(|(due, _)| due <= now))
     }
     #[allow(clippy::too_many_arguments)] // Private helper mirrors the ledger's resolution row.
     pub(crate) fn record(
@@ -205,7 +220,9 @@ impl Pipeline {
     /// Whether the original request may be sent once more. Policy, the seller mandate and the
     /// house mandate re-run `authority()` and the shield on the step's entry state and must
     /// yield the very authority recorded; an owner ticket is never reused (park); a safe
-    /// default may send again only a void; a capture is never sent after the deadline.
+    /// default may send again only a void; a capture is never sent after the deadline. At the
+    /// deadline a void goes again under its own request id whoever decided it: the safe
+    /// default (AGENTS.md invariant 3) is its authority, and no ticket is reused for it.
     fn may_resend(
         &mut self,
         deal: &Deal,
@@ -220,7 +237,10 @@ impl Pipeline {
             "create" => (MoneyStep::Create, DealState::Agreed),
             "authorize" => (MoneyStep::Authorize, DealState::Approved),
             "capture" => (MoneyStep::Capture, DealState::Authorized),
-            _ => return Ok(matches!(op.decided_by, DecidedBy::SafeDefault { .. })),
+            _ => {
+                return Ok(matches!(op.decided_by, DecidedBy::SafeDefault { .. })
+                    || self.deadline_passed(deal.id, mode, now)?);
+            }
         };
         let Resolve::Advance(category) = mode else {
             return Ok(false);

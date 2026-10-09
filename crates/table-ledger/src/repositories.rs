@@ -1484,11 +1484,23 @@ impl Ledger {
         Ok(())
     }
     /// Silence on a pre-capture deal: the safe default (withdraw or expire) at its recorded
-    /// deadline. Never a money call; an authorization needs the void path instead.
+    /// deadline. Never a money call; an authorization needs the void path instead. A deal with
+    /// an authorize whose outcome is not settled (live, unknown or parked) is refused
+    /// (`Conflict`): PayPal may hold money for it, and an expired deal would never void it.
     pub fn apply_deadline_default(&mut self, id: DealId, at: Timestamp) -> Result<(), LedgerError> {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let open_authorize: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM operations o WHERE o.deal_id=?1 AND o.operation='authorize'
+             AND o.status IN ('pending','unknown')
+             AND NOT EXISTS(SELECT 1 FROM operation_resolutions r WHERE r.request_id=o.request_id AND r.outcome IN ('confirmed','absent')))",
+            [id.to_string()],
+            |r| r.get(0),
+        )?;
+        if open_authorize {
+            return Err(LedgerError::Conflict);
+        }
         let due: Timestamp = tx
             .query_row(
                 "SELECT due_at FROM deadlines WHERE deal_id=?1",

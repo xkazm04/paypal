@@ -1976,6 +1976,54 @@ fn the_ledger_stores_the_carried_binding_and_never_re_projects_the_redacted_resp
     assert_eq!(stored, vec![carried]);
     assert!(stored[0].to_string().contains("payee_merchant_id"));
 }
+/// Deal-to-settlement robustness-2: no caller expires a deal past an authorize whose outcome is
+/// not settled, live, unknown or parked; once PayPal's answer closes it, the default applies.
+#[test]
+fn deadline_default_refuses_while_an_authorize_is_open() {
+    let (mut ledger, deal, ..) = setup();
+    ledger.set_deadline(deal.id, 150, None, 100).unwrap();
+    let authority = DecidedBy::Human { at: 100 };
+    ledger
+        .reserve_operation(deal.id, 1, "authorize", "req-authorize", &authority, 100)
+        .unwrap();
+    let step = |outcome| Resolution {
+        id: deal.id,
+        request_id: "req-authorize",
+        observed: "APPROVED",
+        outcome,
+        calls: &[],
+        refs: None,
+        event: None,
+        at: 160,
+    };
+    // Live (pending), then parked for the owner: refused either way, and nothing is written.
+    let before = ledger.get_deal(deal.id).unwrap().state;
+    assert!(matches!(
+        ledger.apply_deadline_default(deal.id, 160),
+        Err(LedgerError::Conflict)
+    ));
+    ledger
+        .record_resolution(step(ResolutionOutcome::NeedsOwner))
+        .unwrap();
+    assert!(matches!(
+        ledger.apply_deadline_default(deal.id, 160),
+        Err(LedgerError::Conflict)
+    ));
+    assert_eq!(ledger.get_deal(deal.id).unwrap().state, before);
+    assert_eq!(ledger.get_deal(deal.id).unwrap().decided_by, None);
+    // PayPal shows no authorization: the step is recorded absent and the deal lapses.
+    ledger
+        .record_resolution(step(ResolutionOutcome::Absent))
+        .unwrap();
+    ledger.apply_deadline_default(deal.id, 160).unwrap();
+    let lapsed = ledger.get_deal(deal.id).unwrap();
+    assert!(lapsed.state.terminal());
+    assert_eq!(
+        lapsed.decided_by,
+        Some(DecidedBy::SafeDefault { deadline: 150 })
+    );
+    ledger.verify_audit().unwrap();
+}
 #[test]
 fn open_operations_list_unknown_and_stale_pending_rows_and_resolution_only_appends() {
     let (mut ledger, deal, _, _, _) = setup();
