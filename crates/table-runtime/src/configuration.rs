@@ -210,12 +210,14 @@ impl Runtime {
         self.vault
             .write(name, &bytes)
             .map_err(|_| unavailable("OS secret store write failed"))?;
-        // Only the date is kept beside it, as a plain preference: never the secret or its length.
-        app(self
+        // The keys are saved once the vault write succeeds; the date is best-effort, and
+        // owner_facts reads a missing date as stored with stored_at None.
+        let now = self.clock.now();
+        let _ = self
             .pipeline
             .wallet
             .ledger
-            .set_preference(&format!("credential.{name}.stored_at"), &self.clock.now()))?;
+            .set_preference(&format!("credential.{name}.stored_at"), &now);
         Ok(())
     }
     /// Read-only owner facts (Settings, Book). No secret, key or permission crosses.
