@@ -1585,10 +1585,10 @@ fn signed_buyer_settlement_truth_mismatch_holds_and_has_no_browser_link_or_money
             )
             .unwrap(),
             approve_url: ShortText::new(
-                if invalid == 0 {
-                    "https://www.sandbox.paypal.com.attacker.invalid/checkoutnow"
-                } else {
-                    "https://www.sandbox.paypal.com/checkoutnow"
+                match invalid {
+                    0 => "https://www.sandbox.paypal.com.attacker.invalid/checkoutnow",
+                    4 => "https://www.sandbox.paypal.com/checkoutnow",
+                    _ => "https://www.sandbox.paypal.com/checkoutnow?token=ORDER1",
                 }
                 .into(),
             )
