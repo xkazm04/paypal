@@ -613,7 +613,7 @@ export type StartStepKey = 'paypal' | 'rules' | 'practice' | 'engine';
  *  ticked step keeps, and `doneWhere` says where that click goes when this window cannot take it. */
 export const START_STEP: Record<StartStepKey, { title: string; sub: string; done: string; doneLine: string; doneAct?: string; doneWhere?: string; act: string; where: string }> = {
   paypal: {
-    title: 'Add your PayPal sandbox keys', sub: 'Test money only · the keys stay on this computer', done: 'PayPal sandbox keys saved', doneLine: 'Saved securely on this computer', act: 'Add PayPal keys',
+    title: 'Add your PayPal sandbox keys', sub: 'Test money only · registering at developer.paypal.com creates a sandbox business account with its test keys', done: 'PayPal sandbox keys saved', doneLine: 'Saved securely on this computer', act: 'Add PayPal keys',
     where: 'Opens the approval window, where a secure dialog saves your sandbox keys',
   },
   rules: {
