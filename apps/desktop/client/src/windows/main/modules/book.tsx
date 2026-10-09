@@ -523,7 +523,7 @@ function Outlook({ deals, label, onOpen, simple, checking = () => false }: { dea
     { k: 'holds', n: holds.length, label: holds.length === 1 ? 'hold to decide' : 'holds to decide', first: first(holds), deadline: null, short: 'the hold is released, nothing is paid', silence: null },
     { k: 'links', n: links.length, label: links.length === 1 ? 'payment link open' : 'payment links open', first: first(links), deadline: null, short: 'the link lapses, no money moves', silence: null },
     { k: 'renew', n: failing.length, label: failing.length === 1 ? 'renewal failing' : 'renewals failing', first: first(failing), deadline: null, short: 'PayPal retries on its own', silence: null },
-    { k: 'checking', n: checks.length, label: checks.length === 1 ? 'payment checking with PayPal' : 'payments checking with PayPal', first: first(checks), deadline: null, short: 'nothing more is sent until PayPal confirms', silence: null },
+    { k: 'checking', n: checks.length, label: checks.length === 1 ? 'payment checking with PayPal' : 'payments checking with PayPal', first: first(checks), deadline: null, short: 'nothing is collected until PayPal confirms', silence: null },
   ].map((it) => ({ ...it, deadline: it.first ? dl(it.first) : null, silence: sil(it.first) }));
   const cur = open ? items.find((x) => x.k === open.k) : undefined;
   const pop = open && cur ? (

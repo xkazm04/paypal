@@ -71,3 +71,13 @@ describe('mock parity: Rust keeps a deal reserved while PayPal is being asked', 
     expect(items.find((i) => i.deal_id === id)?.money_check?.state).toBe('parked');
   });
 });
+
+describe('the parked words promise only what the wallet does', () => {
+  it('say the deadline read-back and that nothing is collected, and promise no retry', () => {
+    for (const s of [MONEY_CHECK_PARKED, MONEY_CHECK_SILENCE]) {
+      expect(s).toMatch(/at the deadline/i);
+      expect(s).toMatch(/nothing is collected|collects nothing/);
+      expect(s).not.toMatch(/keeps asking|until we can|nothing more/i);
+    }
+  });
+});

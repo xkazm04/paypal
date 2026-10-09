@@ -502,7 +502,7 @@ const CHECK_STEP: Record<MoneyCheckStep, string> = {
 };
 export const moneyCheckStep = (s: MoneyCheckStep): string => CHECK_STEP[s];
 /** The one sentence for a parked check (the owner sees it on the card and the deal). */
-export const MONEY_CHECK_PARKED = 'We couldn’t confirm a payment with PayPal. Nothing more will be sent until we can.';
+export const MONEY_CHECK_PARKED = 'We couldn’t confirm a payment with PayPal. At the deadline the wallet asks PayPal what happened, and what PayPal shows decides. A hold is released; nothing is collected.';
 /** The pill and its meaning. Dashed, like every unknown: never green, never red. */
 export function moneyCheckWord(c: MoneyCheck): { text: string; means: string } {
   return c.state === 'parked'
@@ -510,7 +510,7 @@ export function moneyCheckWord(c: MoneyCheck): { text: string; means: string } {
     : { text: 'Checking with PayPal', means: `PayPal’s answer about ${CHECK_STEP[c.step]} didn’t arrive. The wallet is asking PayPal what happened. Nothing more is sent until it knows.` };
 }
 /** The card's "if you do nothing" line while PayPal is being asked (the same words Rust sends). */
-export const MONEY_CHECK_SILENCE = 'nothing more is sent until PayPal confirms';
+export const MONEY_CHECK_SILENCE = 'at the deadline the wallet asks PayPal what happened, releases any hold and collects nothing';
 
 // ---- wallet limits (T14): one cap above every set of rules ------------------------------------------
 
