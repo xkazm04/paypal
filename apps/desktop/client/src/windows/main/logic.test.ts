@@ -51,7 +51,8 @@ describe('bead and chip state mapping', () => {
   });
   it('green settled, x stopped, hollow off', () => {
     expect(k('CAPTURED')).toBe('settled');
-    expect(k('RECEIPTED')).toBe('settled');
+    expect(k('RECEIPTED', { side: 'seller' })).toBe('settled');
+    expect(k('RECEIPTED', { side: 'buyer', kind: 'haggle' })).toBe('moving'); // the seller's word only, until PayPal's statement matches
     expect(k('RECONCILED')).toBe('settled');
     expect(k('REFUSED')).toBe('stopped');
     expect(k('MISMATCH')).toBe('stopped');

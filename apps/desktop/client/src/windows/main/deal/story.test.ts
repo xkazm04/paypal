@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Clause } from '@bindings/Clause';
 import type { Deal } from '@bindings/Deal';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
+import { SELLER_SAYS_PAID } from '../../../lib/words';
 import { buildMockState } from '../../../mock/fixtures';
 import { readClauses, type Reading } from './model';
 import { CLOSED, dealAnswer, decisionQuestion, decisionWhy, reviewMeans, ruleChecks, rulesBadge, standingFacts, threadRows } from './story';
@@ -172,7 +173,8 @@ describe('a buyer’s deal the seller says is paid', () => {
   it('is not closed as paid: D-0187 reads the seller’s word and stays calm, not done', () => {
     const a = answer('D-0187');
     expect(a.tone).toBe('calm');
-    expect(a.sub).toContain('Seller says paid');
+    expect(a.sub).toContain(SELLER_SAYS_PAID);
+    expect(a.sub).not.toContain('Paid, on statement');
   });
   it('a buyer deal PayPal’s statement matched is closed as paid', () => {
     const d = { ...deal('D-0187'), state: 'RECONCILED' as const };
