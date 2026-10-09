@@ -69,9 +69,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let house = house_seller::start(seller);
     // On a stop signal: no new connections, requests in flight finish, then the actor drains
     // (the tick in flight finishes) before the process exits.
-    axum::serve(listener, house_seller::router(relay, house.handle.clone()))
-        .with_graceful_shutdown(shutdown())
-        .await?;
+    rendezvous::serve(
+        listener,
+        house_seller::router(relay, house.handle.clone()),
+        shutdown(),
+    )
+    .await?;
     house.drain().await;
     Ok(())
 }

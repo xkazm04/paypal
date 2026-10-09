@@ -14,9 +14,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or_else(|_| "8080".into())
         .parse::<u16>()?;
     let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::UNSPECIFIED, port)).await?;
-    axum::serve(
+    // ctrl-c stops accepting and lets requests in flight finish; if the signal cannot be
+    // watched the relay simply never stops by itself.
+    let stop = async {
+        if tokio::signal::ctrl_c().await.is_err() {
+            std::future::pending::<()>().await;
+        }
+    };
+    rendezvous::serve(
         listener,
         rendezvous::router(Arc::new(rendezvous::MemoryStore::new(Arc::new(Time)))),
+        stop,
     )
     .await?;
     Ok(())

@@ -3256,6 +3256,8 @@ dependencies = [
  "async-trait",
  "axum",
  "getrandom 0.3.4",
+ "hyper",
+ "hyper-util",
  "serde",
  "serde_json",
  "table-core",
@@ -3263,6 +3265,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "tower",
+ "tower-http",
 ]
 
 [[package]]
@@ -5010,6 +5013,7 @@ dependencies = [
  "http",
  "http-body",
  "pin-project-lite",
+ "tokio",
  "tower",
  "tower-layer",
  "tower-service",

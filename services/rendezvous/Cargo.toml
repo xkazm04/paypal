@@ -11,7 +11,10 @@ workspace = true
 
 [dependencies]
 axum.workspace = true
-tokio.workspace = true
+hyper.workspace = true
+hyper-util.workspace = true
+tower-http.workspace = true
+tokio = { workspace = true, features = ["signal"] }
 async-trait.workspace = true
 serde.workspace = true
 thiserror.workspace = true
