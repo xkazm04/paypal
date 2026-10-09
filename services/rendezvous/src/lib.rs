@@ -8,7 +8,7 @@ use axum::{
     routing::{get, post, put},
 };
 use serde::Deserialize;
-pub use serve::{Limits, serve, serve_with};
+pub use serve::{Limits, serve, serve_with, with_timeouts};
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
 use table_core::Clock;
 use tokio::sync::{Mutex, Notify};
