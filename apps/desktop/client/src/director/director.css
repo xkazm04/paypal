@@ -71,9 +71,9 @@ body.w-director { margin: 0; overflow: hidden; background: var(--stage); }
 .dir-ghost.on { opacity: 1; }
 .dir-ghost span { font: var(--fw-medium) 26px/1.2 var(--display); color: var(--dim); letter-spacing: .01em; }
 
-/* the Tumbler's corner of the desk: transparent, always on top */
+/* the Tumbler's corner of the desk: transparent, always on top. No colour-scheme of its own: the frame follows the page, or the browser paints it opaque white in the light theme */
 .dir-tum { position: absolute; z-index: 4; }
-.dir-tum iframe { display: block; border: 0; background: transparent; color-scheme: dark; }
+.dir-tum iframe { display: block; border: 0; background: transparent; }
 
 .dir-loading { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; display: flex; align-items: center; gap: 10px;
   padding: 10px 16px; border-radius: 999px; background: var(--rail); box-shadow: var(--shadow-2); color: var(--muted); font-size: 14px; }
