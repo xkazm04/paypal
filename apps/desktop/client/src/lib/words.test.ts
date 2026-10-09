@@ -22,3 +22,11 @@ describe('a buyer is told only what the wallet knows about a seller receipt', ()
     expect(sellerSaysOnly({ state: 'RECEIPTED', side: 'seller', kind: 'haggle' })).toBe(false);
   });
 });
+
+describe('the amount-mismatch words hold whenever the mismatch is found', () => {
+  it('claim neither a pay button nor that PayPal was never asked', () => {
+    const w = stateWord('MISMATCH', { side: 'buyer', kind: 'haggle' });
+    expect(w.means).toMatch(/will not be paid/);
+    expect(w.means).not.toMatch(/pay button|never asked/);
+  });
+});

@@ -43,7 +43,7 @@ const STATE: Record<DealState, Word> = {
   WITHDRAWN: { text: 'Withdrawn', tone: 'line', means: 'Someone walked away before paying. No money moved.' },
   EXPIRED: { text: 'Expired', tone: 'line', means: 'The deadline passed. No money moved.' },
   REFUSED: { text: 'Refused', tone: 'red', means: 'Your rules or a safety check refused it before PayPal was ever asked.' },
-  MISMATCH: { text: 'Amount didn’t match', tone: 'red', means: 'The payment request did not match the agreed deal, so no pay button was offered.' },
+  MISMATCH: { text: 'Amount didn’t match', tone: 'red', means: 'The payment request did not match the agreed deal, so the wallet stopped it. It will not be paid.' },
   FAILED: { text: 'Failed', tone: 'red', means: 'The payment failed at PayPal.' },
   VOIDED: { text: 'Hold released', tone: 'line', means: 'The hold was cancelled. Nothing was paid.' },
   AUTO_VOIDED: { text: 'Hold released', tone: 'line', means: 'The hold ran out and released itself. Nothing was paid.' },
