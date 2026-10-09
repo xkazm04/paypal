@@ -195,7 +195,10 @@ export function outcomeText(cmd: DecisionCmd, deal: Deal, cp: string): string {
         ? 'Approved. The money is on hold at PayPal, not paid yet.'
         : `Approved (${st.toLowerCase()})${pp.order ? ' · the PayPal order is made' : ''}. No money moved yet.`;
     case 'deal_capture':
-      return `Payment sent · ${st.toLowerCase()}${pp.capture ? ' · confirmed by PayPal' : ''}.`;
+      // A buyer pays out; a seller collects money that comes in.
+      return deal.side === 'seller'
+        ? `Payment collected · ${st.toLowerCase()}${pp.capture ? ' · confirmed by PayPal' : ''}.`
+        : `Payment sent · ${st.toLowerCase()}${pp.capture ? ' · confirmed by PayPal' : ''}.`;
     case 'deal_void':
       return deal.state === 'VOIDED' ? 'Hold released. Nothing was paid.' : `Release requested (${st.toLowerCase()}).`;
     case 'shield_release':
