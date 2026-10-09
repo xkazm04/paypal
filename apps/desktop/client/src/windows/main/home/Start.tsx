@@ -6,7 +6,7 @@
 // privileged steps only open the approval window (approval_open with a target).
 import { useCallback, useMemo, useState, type MouseEvent } from 'react';
 import type { WalletError } from '../../../lib/contract';
-import { connectionFacts, gettingStarted, rulesInForce, type GettingStarted } from '../../../lib/firstRun';
+import { connectionFacts, gettingStarted, rulesInForce, settingsFacts, type GettingStarted } from '../../../lib/firstRun';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import { FIRST_RUN_TITLE, SAFETY_PROMISE, START_STEP, type StartStepKey } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
@@ -24,16 +24,14 @@ export function useStart(): GettingStarted {
   const mandates = useQuery('mandate_list', null, { refreshOn: ['settings:changed'] });
   const cps = useQuery('counterparty_list', null, { refreshOn: ['pairing:pinned', 'settings:changed'] });
   const inForce = rulesInForce(mandates.data, now);
-  const fresh = s?.first_run;
-  const paypal = s?.payment_executor_configured;
   const conn = cps.data;
   // The Table can also ask whether the chosen agent app is installed and ready (engine_status).
   const engines = useQuery('engine_status', null, { refreshOn: ['settings:changed'] });
   const engine = s?.selected_engine ?? null;
   const engineAvailable = engine && engines.data ? engines.data.find((e) => e.id === engine)?.available ?? false : null;
   return useMemo(() => gettingStarted({
-    firstRun: fresh ?? null, paypal: paypal ?? null, rulesInForce: inForce, ...connectionFacts(conn), engine, engineAvailable, engineChosen: s?.engine_chosen ?? null,
-  }), [fresh, paypal, inForce, conn, engine, engineAvailable, s?.engine_chosen]);
+    ...settingsFacts(s), rulesInForce: inForce, ...connectionFacts(conn), engineAvailable,
+  }), [s, inForce, conn, engineAvailable]);
 }
 
 export type StartActions = { go: (k: StartStepKey) => void; busy: StartStepKey | null; error: WalletError | null };

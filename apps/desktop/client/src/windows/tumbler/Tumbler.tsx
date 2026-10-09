@@ -18,7 +18,7 @@ import { toWalletError, type WalletError } from '../../lib/contract';
 import { useEvent, useNow, usePrefersReducedMotion, useQuery } from '../../lib/hooks';
 import { backend } from '../../lib/runtime';
 import { nowUnix } from '../../lib/format';
-import { gettingStarted } from '../../lib/firstRun';
+import { gettingStarted, settingsFacts } from '../../lib/firstRun';
 import { START_STEP, type StartStepKey } from '../../lib/words';
 import { Tour } from '../../shared/tour';
 import { PuckArt } from './Puck';
@@ -401,7 +401,7 @@ export function Tumbler() {
   // First run: the welcome shows the steps; each opens where it happens (the approval window for
   // keys and rules, The Table for the house seller and the agent app). Settings are all the Tumbler reads.
   const start = settings?.first_run ? gettingStarted({
-    firstRun: true, paypal: settings.payment_executor_configured, rulesInForce: null, houseConnected: null, otherConnections: null, engine: settings.selected_engine,
+    ...settingsFacts(settings), firstRun: true, rulesInForce: null, houseConnected: null, otherConnections: null,
   }) : null;
   const startStep = useCallback(async (k: StartStepKey) => {
     try {

@@ -12,7 +12,7 @@ import type { WalletError } from '../../lib/contract';
 import { useNow, useQuery } from '../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../lib/lazy';
 import { FIRST_RUN_TITLE, OWNER_KEY, rulesName, SAFETY_PROMISE, START_STEP, timeLeftWords, watchingWords, type StartStepKey } from '../../lib/words';
-import { connectionFacts, gettingStarted, rulesInForce } from '../../lib/firstRun';
+import { connectionFacts, gettingStarted, rulesInForce, settingsFacts } from '../../lib/firstRun';
 import { StartProgress, StartSteps, type StepAction } from '../../shared/start';
 import { TakeTour, Tour } from '../../shared/tour';
 import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
@@ -176,8 +176,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
   const active = list.filter((m) => isMandateActive(m, now) && !m.refusal);
   // First run: the same steps as The Table (lib/firstRun.ts), with the next one in gold.
   const gs = gettingStarted({
-    firstRun: st ? st.first_run : null, paypal: st ? st.payment_executor_configured : null,
-    rulesInForce: rulesInForce(mandates.data, now), ...connectionFacts(connections.data), engine: st ? st.selected_engine : null,
+    ...settingsFacts(st), rulesInForce: rulesInForce(mandates.data, now), ...connectionFacts(connections.data),
   });
   const first = gs.show;
   const saveKeys = async () => {

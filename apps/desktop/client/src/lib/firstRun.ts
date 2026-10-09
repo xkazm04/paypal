@@ -13,7 +13,10 @@
 // The practice deal runs on the practice agent, so the agent app comes last: it is the one step that
 // needs something installed outside the wallet, and nothing before it waits on it.
 // Pure: facts in, steps out. A fact a window cannot read stays unknown and is never shown as done.
+// Every window (Home, the Tumbler, the approval window) maps the settings facts through
+// settingsFacts, so none can drop one (engine_chosen included) and the steps agree everywhere.
 import type { EngineId } from '@bindings/EngineId';
+import type { SettingsSnapshot } from '@bindings/SettingsSnapshot';
 import type { StartStepKey } from './words';
 
 export type StartFacts = {
@@ -74,6 +77,12 @@ export function gettingStarted(f: StartFacts): GettingStarted {
   // already dealing with other wallets is past getting started, whatever is left.
   const show = f.firstRun === true || (f.firstRun === false && done < total && f.otherConnections === 0);
   return { show, steps, done, total, next };
+}
+
+/** The settings facts the steps read, mapped in one place so no window can drop one (null = settings not read). */
+export function settingsFacts(st: SettingsSnapshot | null | undefined): Pick<StartFacts, 'firstRun' | 'paypal' | 'engine' | 'engineChosen'> {
+  if (!st) return { firstRun: null, paypal: null, engine: null, engineChosen: null };
+  return { firstRun: st.first_run, paypal: st.payment_executor_configured, engine: st.selected_engine, engineChosen: st.engine_chosen };
 }
 
 /** The slice of counterparty_list the steps read. */
