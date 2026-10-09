@@ -92,23 +92,39 @@ flowchart LR
 7. **Deadlines default safely.** `Pipeline::deadline_default` runs every tick. An AUTHORIZED
    deal is voided under `SafeDefault`. Any earlier state lapses through
    `Ledger::apply_deadline_default`: WITHDRAWN up to and including Agreed, EXPIRED from
-   Settling to Approved, with no PayPal call.
+   Settling to Approved, with no PayPal call. A deal whose authorize is not settled (too young
+   to read back, unreadable, or parked) is not expired: PayPal may hold money for it, so
+   `deadline_default` answers `Unavailable` and the next tick reads it again, and the ledger
+   refuses the lapse itself (`Conflict`) while such an authorize is open.
    A HOLD or BLOCK raised on an AUTHORIZED deal through `Pipeline::apply_shield` voids it at
    once. A hold found when a capture is refused waits for the owner or the 72-hour auto-void.
    A default never captures. Order approval
    windows: `ORDER_APPROVAL_SECS` (6 h), or `HOUSE_APPROVAL_SECS` (30 min) for house deals
    (`crates/table-core/src/deal.rs`).
 8. **Read back what was lost.** A step whose answer was lost, timed out, did not decode or was
-   left `pending` by a crash stays reserved. `Pipeline::resolve` / `resolve_due`
-   (`crates/table-app/src/resolve.rs`) read the order and do exactly one of three things:
-   - **confirm**: finish under the original `decided_by`.
-   - **re-send with the identical request id**: only inside the 6 h request-id window, at most
-     `MAX_RESENDS` (3) times, after re-running authority, shield, deadline and pause checks.
-   - **park**: back off 15 s doubling to 15 min.
+   left `pending` by a crash stays reserved. `Pipeline::resolve_deal`
+   (`crates/table-app/src/pipeline/resolve.rs`) reads it back no sooner than `SETTLE_SECS` (5 s)
+   after it started, under `Resolve::Advance` before the deal's next step or `Resolve::Deadline`
+   at a deadline or shield hold, and appends one `operation_resolutions` row
+   (`crates/table-ledger/src/resolution.rs`, `record_resolution`):
+   - **confirmed**: PayPal shows it committed; finished under the original `decided_by`.
+   - **absent**: PayPal shows it never committed and it will not be sent again.
+   - **resent**: the original request, same request id and same recorded authority (re-checked
+     first), sent once more; never a third time. A capture is never re-sent at or after its
+     deadline.
+   - **needs_owner** (parked): one audit row; not retried while the owner decides.
+   - **deferred**: the read itself failed; one row for a run of failures, the next tick tries
+     again.
 
-   A create has no read-back. Inside 6 h it is re-sent under its own id, otherwise it lapses.
-   A lost void is re-sent under its own id until it settles. While an operation is open, no
-   other step, no withdraw and no void starts for that deal.
+   A create whose order id was recorded is read back; otherwise, inside PayPal's 6 h request-id
+   window, it is re-sent under its own id, and past it parked. At a deadline a create is left to
+   the lapse (its approval link never left the wallet). Once the deal's deadline has passed a
+   parked authorize, capture or void is read back under `Resolve::Deadline` (a GET grants
+   nothing) and settled by what PayPal shows: a hold still in place is voided once under the
+   void's own request id on the safe default, no authorization is recorded absent and the deal
+   lapses, a capture PayPal committed is recorded and no void is sent. A void goes once more at
+   the deadline whoever decided it. While an operation is open, no other step, no withdraw and no
+   void starts for that deal.
 
 Who decides each step, at a glance:
 
@@ -134,7 +150,7 @@ the owner paused the agents, the approval window is locked or every window is hi
 | The LLM never moves money | `table_mcp::catalog` serves no money tool; `AgentService` owns no PayPal client; only `Pipeline` holds `PayPalApi` |
 | Mandate check before any network call | `mandate_check_rounds` → `MandatePayload::check` → `envelope_check`, called from `authority()` before `reserve_operation` |
 | Refused intents leave zero `paypal_calls` rows | trigger `no_calls_for_refused_deal` (0002); MCP and gauntlet tests |
-| One request id per operation, never a second | `operations` PK and `UNIQUE request_id` (0003/0011); the resolver never calls `reserve_operation` and parks as ambiguous if the stored id differs |
+| One request id per operation, never a second | `operations` PK and `UNIQUE request_id` (0003/0011); the resolver never calls `reserve_operation`, and refuses (an integrity error) an operation whose stored id differs from `RequestId::for_operation` |
 | Purchases and rescues never run on a rule | `Pipeline::authority()` first two guards |
 | Silence never moves money out | `deadline_default` / `auto_void` choose only lapse or void; `authority()` never returns `SafeDefault`, so no create, authorize or capture can run under it |
 | Owner decisions bound to what was shown | runtime `decide()` recomputes checks and compares `checks_hash`, writes `owner.decision` before the step (`crates/table-runtime/src/service.rs`) |
@@ -148,12 +164,12 @@ the owner paused the agents, the approval window is locked or every window is hi
 | --- | --- | --- |
 | Domain (pure) | `crates/table-core/src/deal.rs`, `mandate.rs`, `exposure.rs`, `checks.rs` | `DealState`, `DecidedBy`, `invoice_id`, `ORDER_APPROVAL_SECS`, `MandatePayload::check`, `WalletEnvelope`, `checks_hash` |
 | Pipeline | `crates/table-app/src/pipeline.rs` | `Authority`, `MoneyStep`, `shield_allows`, `authority`, `create`, `poll_approval`, `authorize`, `capture`, `owner_void`, `auto_void`, `tick`, `deadline_default`, `step_allowed` |
-| Read-back | `crates/table-app/src/resolve.rs` | `resolve`, `resolve_due`, `resend_gate`, `resolve_void`, `REQUEST_ID_WINDOW_SECS`, `MAX_RESENDS`, `check_backoff` |
+| Read-back | `crates/table-app/src/pipeline/resolve.rs` | `Resolve` (`Advance`, `Deadline`), `resolve_deal`, `open_operations`, `has_open_operation`, `may_resend`, `park`, `defer`, `SETTLE_SECS`, `PENDING_STALE_SECS`, `REQUEST_ID_KEPT_SECS` |
 | Rescue money | `crates/table-app/src/rescue.rs` | `rescue_approve`, `resolve_invoice_send`, `rescue_tick`, `rescue_deadline` |
 | Owner session | `crates/table-app/src/auth.rs` | `ApprovalSession` (15-minute idle lock), `OwnerTicket` (60 s) |
 | PayPal client | `crates/table-paypal/src/client.rs`, `types.rs`, `secondary.rs` | `PayPalApi`, `Client::sandbox`, `RequestId`, `Order::verify`, `SecondaryApi` (invoicing, subscriptions, reporting, disputes) |
-| Ledger | `crates/table-ledger/src/repositories.rs`, `resolver.rs`, `audit.rs`, `redaction.rs` | `reserve_operation`, `finish_operation`, `apply_deadline_default`, `park_operation`, `resolve_confirmed`, `verify_audit` |
-| Migrations | `crates/table-ledger/migrations/` | 0001 `deals`, `paypal_calls`, `audit_log`; 0002 integrity triggers; 0003 `operations`, `deadlines`; 0007 `binding_json`; 0008 `operation_checks`; 0011 invoice operations |
+| Ledger | `crates/table-ledger/src/repositories.rs`, `resolution.rs`, `audit.rs`, `redaction.rs` | `reserve_operation`, `finish_operation`, `apply_deadline_default` (refuses while an authorize is open), `open_operations`, `record_resolution`, `money_check`, `paypal_call_requests`, `verify_audit` |
+| Migrations | `crates/table-ledger/migrations/` | 0001 `deals`, `paypal_calls`, `audit_log`; 0002 integrity triggers; 0003 `operations`, `deadlines`; 0007 `binding_json`; 0008 `operation_resolutions`; 0011 invoice operations |
 | Runtime | `crates/table-runtime/src/scheduler.rs`, `service.rs` | `Runtime::tick`, `tick_deal`, `decide` |
 
 IPC commands that reach the pipeline (all: approval window only, token + unlock + selected deal,
@@ -172,9 +188,20 @@ results: `deal_evidence` and `deal_reconcile` (main), `approval_summary` (approv
   `a_purchase_never_runs_on_policy_and_the_owner_path_captures_it`,
   `the_shield_gate_matrix_pins_h5_and_step_allowed_agrees_with_every_real_step`,
   `h4_changed_paypal_truth_enters_mismatch_and_cannot_capture`.
-- `crates/table-app/tests/resolver.rs`: `no_path_sends_one_operation_under_two_request_ids`
-  (4 operations × 5 chaos modes × 40 ticks), `lost_answer_after_paypal_did_it_confirms_with_one_paypal_write`,
-  `unreadable_paypal_parks_and_the_deadline_never_collects`.
+- `crates/table-app/tests/pipeline.rs`, read-back (T10):
+  `lost_answers_resolve_to_paypal_truth_with_one_commit_per_request_id` (the chaos matrix: create,
+  authorize, capture and void × answer lost before or after PayPal commits),
+  `lost_capture_then_deadline_confirms_the_capture_and_never_voids`,
+  `uncommitted_capture_at_the_deadline_is_given_up_and_voided`,
+  `failed_read_back_at_the_deadline_skips_the_void_and_retries_next_tick`,
+  `human_authority_unknown_capture_is_parked_for_the_owner_and_never_resent`,
+  `unknown_money_outcome_is_reserved_and_never_recreated`; parked steps at the deadline:
+  `parked_capture_at_the_deadline_settles_to_what_paypal_shows`,
+  `parked_authorize_at_the_deadline_lapses_or_is_voided_by_what_paypal_shows`,
+  `parked_void_at_the_deadline_goes_once_more_under_its_own_request_id`,
+  `deadline_waits_for_an_unsettled_authorize_before_expiring`.
+- `crates/table-ledger/src/tests.rs`: `open_operations_list_unknown_and_stale_pending_rows_and_resolution_only_appends`,
+  `deadline_default_refuses_while_an_authorize_is_open`.
 - `crates/table-app/src/auth.rs`: `owner_tickets_bind_terms_deal_attempt_expiry_and_session_generation`.
 - `crates/table-paypal/tests/client.rs`: `retries_reuse_request_id_and_oauth_is_not_evidence`,
   `h4_truth_binding_and_host_allowlist`.
