@@ -609,21 +609,23 @@ export function fingerprintGroups(hex: string): string {
 export const SAFETY_PROMISE = 'Nothing pays without you or a rule you signed. Waiting never sends money.';
 /** The first-run steps, in the order every surface shows them (lib/firstRun.ts START_ORDER). */
 export type StartStepKey = 'paypal' | 'rules' | 'practice' | 'engine';
-export const START_STEP: Record<StartStepKey, { title: string; sub: string; done: string; act: string; where: string }> = {
+/** `done` heads a ticked step and `doneLine` sits under it; `doneAct` (practice only) is the quiet click a
+ *  ticked step keeps, and `doneWhere` says where that click goes when this window cannot take it. */
+export const START_STEP: Record<StartStepKey, { title: string; sub: string; done: string; doneLine: string; doneAct?: string; doneWhere?: string; act: string; where: string }> = {
   paypal: {
-    title: 'Add your PayPal sandbox keys', sub: 'Test money only · the keys stay on this computer', done: 'PayPal sandbox keys saved', act: 'Add PayPal keys',
+    title: 'Add your PayPal sandbox keys', sub: 'Test money only · the keys stay on this computer', done: 'PayPal sandbox keys saved', doneLine: 'Saved securely on this computer', act: 'Add PayPal keys',
     where: 'Opens the approval window, where a secure dialog saves your sandbox keys',
   },
   rules: {
-    title: 'Sign your agents’ rules', sub: 'How much, with whom, and when they ask you', done: 'Rules signed', act: 'Sign rules',
+    title: 'Sign your agents’ rules', sub: 'How much, with whom, and when they ask you', done: 'Rules signed', doneLine: 'Your agents act only inside them', act: 'Sign rules',
     where: 'Opens the approval window: start from a ready-made set of rules, check it, then sign',
   },
   practice: {
-    title: 'Try a practice deal with the house seller', sub: 'A demo shop that is always open · sandbox money', done: 'House seller connected', act: 'Try the house seller',
+    title: 'Try a practice deal with the house seller', sub: 'A demo shop that is always open · sandbox money', done: 'House seller connected', doneLine: 'Its practice table is ready for you', doneAct: 'Start a practice deal', doneWhere: 'To start a practice deal, open The Table: Connections › House seller', act: 'Try the house seller',
     where: 'Opens Connections on the house seller, a practice shop built into the app',
   },
   engine: {
-    title: 'Choose your agent app', sub: 'claude-code or codex-cli · the practice agent plays until then', done: 'Agent app chosen', act: 'Choose agent app',
+    title: 'Choose your agent app', sub: 'claude-code or codex-cli · the practice agent plays until then', done: 'Agent app chosen', doneLine: 'Your agents run in it', act: 'Choose agent app',
     where: 'Opens Setup in The Table on the agent app your agents run in',
   },
 };

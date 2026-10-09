@@ -224,7 +224,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
               <StartProgress gs={gs} /><span className="dim">· nothing on this page pays anyone</span><TakeTour win="approval" gs={gs} className="ow-tour" />
             </div>
             <StartSteps gs={gs} action={stepAction} className="ow-steps" busy={s.pending === 'set_credentials' ? 'paypal' : null}
-              elsewhere={{ practice: 'Next, in The Table: Connections › House seller', engine: 'In The Table: Settings › Agent app' }} />
+              elsewhere={{ practice: gs.steps.find((x) => x.key === 'practice')?.state === 'done' ? START_STEP.practice.doneWhere : 'Next, in The Table: Connections › House seller', engine: 'In The Table: Settings › Agent app' }} />
             {startError ? <WalletNotice error={startError} what={`${START_STEP.paypal.title}: not saved`} /> : null}
           </>
         ) : null}

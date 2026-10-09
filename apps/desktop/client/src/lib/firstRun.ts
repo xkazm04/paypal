@@ -5,6 +5,7 @@
 //                                 false when only settings were read)
 //   3 Practice with the house     done when the house seller is connected (counterparty_list house:
 //                                 true), which is when its practice table is yours to join
+//                                 A done step 3 keeps one quiet click that starts a practice deal (START_STEP.practice.doneAct).
 //   4 Choose your agent app       done when settings.selected_engine is claude-code or codex-cli, or when it
 //                                 is 'scripted' and settings.engine_chosen is true (the owner kept the
 //                                 practice agent on purpose). The 'scripted' a new wallet starts on, with
