@@ -397,12 +397,14 @@ export function Tumbler() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pushTicker, refetchAttention]);
 
-  // First run: the welcome shows the three steps; each opens where it happens (the approval
-  // window for keys and rules, The Table for the house seller). Settings are all the Tumbler reads.
-  const start = settings?.first_run ? gettingStarted({ firstRun: true, paypal: settings.payment_executor_configured, rulesInForce: null, houseConnected: null, otherConnections: null }) : null;
+  // First run: the welcome shows the steps; each opens where it happens (the approval window for
+  // keys and rules, The Table for the house seller and the agent app). Settings are all the Tumbler reads.
+  const start = settings?.first_run ? gettingStarted({
+    firstRun: true, paypal: settings.payment_executor_configured, rulesInForce: null, houseConnected: null, otherConnections: null, engine: settings.selected_engine,
+  }) : null;
   const startStep = useCallback(async (k: StartStepKey) => {
     try {
-      if (k === 'practice') await backend().invoke('main_open', { deal_id: null });
+      if (k === 'practice' || k === 'engine') await backend().invoke('main_open', { deal_id: null });
       else await backend().invoke('approval_open', { deal_id: null, target: k === 'paypal' ? 'credentials' : 'mandate' });
     } catch (e) {
       fail(null, START_STEP[k].act, e);

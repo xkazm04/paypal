@@ -59,11 +59,11 @@ export function Home(p: Props) {
   const deals = useMemo(() => w.deals.data ?? [], [w.deals.data]);
   const needs = w.needs;
   const settings = w.settings.data;
-  // First run: the three steps from install to a first safe deal (home/Start.tsx).
+  // First run: the steps from install to a first safe deal (home/Start.tsx).
   const start = useStart();
   const firstRun = start.show;
   const { onOpenSheet } = p;
-  const startAct = useStartActions(useCallback(() => onOpenSheet('pairing', 'house'), [onOpenSheet]));
+  const startAct = useStartActions(useCallback(() => onOpenSheet('pairing', 'house'), [onOpenSheet]), useCallback(() => onOpenSheet('settings'), [onOpenSheet]));
 
   const [mode, setMode] = useState<'needs' | 'module'>('needs');
   const [sel, setSel] = useState(0);

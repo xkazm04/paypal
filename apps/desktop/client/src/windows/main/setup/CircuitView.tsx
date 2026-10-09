@@ -57,7 +57,7 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
   const toast = useToast();
   const now = useNow();
   const locked = w.locked;
-  // First run: the checklist is the same three steps as Home (PayPal, rules, the house seller).
+  // First run: the checklist is the same steps as Home (PayPal, rules, the house seller, the agent app).
   const start = useStart();
 
   // When Rust probed the engine executables this session (owner_facts), not when this window read them.
@@ -236,6 +236,15 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
         state: 'todo', icon: 'store', title: START_STEP.practice.title, status: START_STEP.practice.sub,
         action: <Btn kind={!goldKey && practice?.state === 'next' ? 'gold' : 'default'} sm onClick={() => onPair('house')}>{START_STEP.practice.act} ›</Btn>,
       };
+  // First run's fourth step: an agent app chosen. The practice agent is ready from the start, so
+  // while it is the one in use the step stays to do, and its one click opens the picker.
+  const engineStep = start.steps.find((x) => x.key === 'engine');
+  const stepEngineFirst: Step = !engBreak && (engineStep?.state === 'todo' || engineStep?.state === 'next')
+    ? {
+      state: 'todo', icon: 'agent', title: START_STEP.engine.title, status: START_STEP.engine.sub,
+      action: <Btn kind={!goldKey && engineStep.state === 'next' ? 'gold' : 'default'} sm aria-expanded={!!pickAt} onClick={(e) => { const t = e.currentTarget; setPickAt((x) => (x ? null : t)); }}>{START_STEP.engine.act}…</Btn>,
+    }
+    : stepEngine;
   const stepAgents: Step = !s
     ? { state: 'unknown', icon: 'eye', title: 'Your agents', status: <Chip tone="dashed">not loaded yet</Chip>, action: null }
     : paused
@@ -282,11 +291,11 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
         ) : (
           <>
             <div className="su-list" role="list" aria-label="Setup steps">
-              <StepRow {...stepKey} /><StepRow {...stepRules} />{firstSteps ? <StepRow {...stepPractice} /> : <StepRow {...stepEngine} />}
+              <StepRow {...stepKey} /><StepRow {...stepRules} />{firstSteps ? <><StepRow {...stepPractice} /><StepRow {...stepEngineFirst} /></> : <StepRow {...stepEngine} />}
             </div>
             <h3 className="su-h">Also here</h3>
             <div className="su-list" role="list" aria-label="Other settings">
-              {firstSteps ? <StepRow {...stepEngine} /> : null}<StepRow {...stepAgents} /><StepRow {...stepLock} />{firstSteps ? null : <StepRow {...stepHouse} />}<StepRow {...stepMarket} />
+              <StepRow {...stepAgents} /><StepRow {...stepLock} />{firstSteps ? null : <StepRow {...stepHouse} />}<StepRow {...stepMarket} />
             </div>
             <h3 className="su-h">How your money is protected</h3>
             <ol className="su-chain" aria-label="How your money is protected">
