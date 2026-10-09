@@ -190,35 +190,29 @@ impl Runtime {
         .collect()
     }
     pub(crate) fn credentials(&mut self, args: CredentialEntry) -> Result<(), CommandError> {
+        // Pasted values often carry surrounding spaces or a newline: trim, then refuse what is empty.
         let valid = |s: &str| !s.is_empty() && s.len() <= 1024 && !s.chars().any(char::is_control);
         let (name, bytes) = match &args {
             CredentialEntry::PaypalSandbox {
                 client_id,
                 client_secret,
-            } if valid(client_id) && valid(client_secret) => (
+            } if valid(client_id.trim()) && valid(client_secret.trim()) => (
                 "paypal.sandbox",
                 Zeroizing::new(
-                    serde_json::to_vec(&(client_id.as_str(), client_secret.as_str()))
+                    serde_json::to_vec(&(client_id.trim(), client_secret.trim()))
                         .map_err(|_| invalid())?,
                 ),
             ),
-            CredentialEntry::Channel3 { key } if valid(key) => {
-                ("channel3", Zeroizing::new(key.as_bytes().to_vec()))
+            CredentialEntry::Channel3 { key } if valid(key.trim()) => {
+                ("channel3", Zeroizing::new(key.trim().as_bytes().to_vec()))
             }
             _ => return Err(invalid()),
         };
-        self.vault
-            .write(name, &bytes)
-            .map_err(|_| unavailable("OS secret store write failed"))?;
-        // The keys are saved once the vault write succeeds; the date is best-effort, and
-        // owner_facts reads a missing date as stored with stored_at None.
         let now = self.clock.now();
-        let _ = self
-            .pipeline
-            .wallet
-            .ledger
-            .set_preference(&format!("credential.{name}.stored_at"), &now);
-        Ok(())
+        let ledger = &mut self.pipeline.wallet.ledger;
+        store_credential(self.vault.as_ref(), name, &bytes, || {
+            ledger.set_preference(&format!("credential.{name}.stored_at"), &now)
+        })
     }
     /// Read-only owner facts (Settings, Book). No secret, key or permission crosses.
     pub(crate) fn owner_facts(&mut self) -> Result<OwnerFacts, CommandError> {
@@ -469,4 +463,19 @@ impl Runtime {
         ))?;
         Ok(mandate)
     }
+}
+
+/// The keys are saved once the vault write succeeds; the date kept beside them (never the secret
+/// or its length) is best-effort, and owner_facts reads a missing date as stored with stored_at None.
+pub(crate) fn store_credential<E>(
+    vault: &dyn crate::vault::Vault,
+    name: &str,
+    bytes: &[u8],
+    write_date: impl FnOnce() -> Result<(), E>,
+) -> Result<(), CommandError> {
+    vault
+        .write(name, bytes)
+        .map_err(|_| unavailable("OS secret store write failed"))?;
+    let _ = write_date();
+    Ok(())
 }
