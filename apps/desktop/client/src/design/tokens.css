@@ -1,8 +1,8 @@
 /* The Table design tokens, v2 (accepted 2026-10-06; spec: prototype/shared/tokens.css).
    The Dial's colour language with a macOS-like density and type scale, in two themes.
-     dark  (default)  - the decided Dial palette. The Tumbler and the approval window are always dark.
+     dark  (default)  - the decided Dial palette. The approval window is always dark.
      light            - PayPal's palette; opt-in with <html data-theme="light"> (src/lib/theme.ts).
-                        Only the main window applies a stored theme; only Home shows the switch.
+                        The main window and the Tumbler follow the stored theme; only Home shows the switch.
    Colour meaning is fixed in both themes:
      teal  = your side / moving        coral = counterparty / alerts / holds
      gold  = PayPal settlement / needs you        ok (green) = settled / receipt     refuse (red) = refused

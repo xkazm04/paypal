@@ -10,6 +10,16 @@ button, input, select, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-radius: var(--r-sm); }
 /* Headings take programmatic focus (screen readers land on them); that is not a keyboard target. */
 h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus, h3[tabindex="-1"]:focus, [tabindex="-1"]:focus:not(:focus-visible) { outline: none; }
+/* Scrollbars: 2px, in the theme's colours, vertical and horizontal alike (all three windows).
+   Chromium ignores ::-webkit-scrollbar once scrollbar-width/-color is set, so those are only the
+   fallback for engines without the pseudo-elements. A list that hides its bar sets display: none. */
+::-webkit-scrollbar { width: 2px; height: 2px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 1px; }
+::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active { background: var(--dim); }
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
+}
 [hidden] { display: none !important; }
 ::selection { background: var(--sel); }
 

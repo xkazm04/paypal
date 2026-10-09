@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyTheme, currentTheme, getTheme, initTheme, onThemeChange, setTheme, THEME_KEY } from './theme';
+import { applyTheme, currentTheme, followStoredTheme, getTheme, initTheme, onThemeChange, setTheme, THEME_KEY } from './theme';
 
 describe('theme', () => {
   beforeEach(() => {
@@ -55,5 +55,13 @@ describe('theme', () => {
     applyTheme('light', el);
     expect(el.dataset.theme).toBe('light');
     expect(document.documentElement.dataset.theme).toBeUndefined();
+  });
+  it('followStoredTheme applies the stored theme and follows another window', () => {
+    localStorage.setItem(THEME_KEY, 'light');
+    expect(followStoredTheme()).toBe('light');
+    expect(document.documentElement.dataset.theme).toBe('light');
+    localStorage.setItem(THEME_KEY, 'dark');
+    window.dispatchEvent(new StorageEvent('storage', { key: THEME_KEY }));
+    expect(document.documentElement.dataset.theme).toBe('dark');
   });
 });

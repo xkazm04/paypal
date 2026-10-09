@@ -18,7 +18,8 @@ desktop with the puck in a corner and controls that simulate what the wallet cor
 
 **The director** (`/director.html`, or a static `dist` build served from anywhere):
 - A stage with the three windows framed at their native sizes (The Table 1280 × 800, the approval
-  window 744 × 660, the Tumbler in a corner), dark or light following the theme switch.
+  window 744 × 660, the Tumbler in a corner), dark or light following the theme switch (The Table and the Tumbler
+  follow it, live across windows; the approval window stays dark).
 - A camera that follows each beat, a caption rail with the simulated time, play / pause /
   previous / next / restart (Space, ←, →, Home) and a per-chapter scrubber.
 - The banner: "Browser preview with sample data — not the wallet. No PayPal page is ever shown."

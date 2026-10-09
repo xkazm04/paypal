@@ -381,7 +381,7 @@ export function Director() {
   const shot = (focus === 'approval' && !approvalOpen) || (focus === 'main' && !mainOpen) ? 'desk' : focus;
   const deskStyle = camera(CAMERA[shot], box);
 
-  // The Table follows the stored theme; the Tumbler and the approval window are always dark.
+  // The Table follows the stored theme; the approval window is always dark.
   const applyFrameTheme = useCallback((th: Theme) => {
     try {
       applyTheme(th, mainRef.current?.contentDocument?.documentElement ?? null);

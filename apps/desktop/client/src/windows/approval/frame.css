@@ -29,7 +29,7 @@ body.w-approval { background: var(--bg); overflow: hidden; }
 .aw-head .badge { font-size: .86rem; }
 
 /* ---- body ------------------------------------------------------------------------------ */
-.aw-body { min-width: 0; overflow-x: hidden; overflow-y: auto; padding: 1rem 1.45rem 1rem; scrollbar-width: thin; scrollbar-color: var(--line2) transparent; outline: none; }
+.aw-body { min-width: 0; overflow-x: hidden; overflow-y: auto; padding: 1rem 1.45rem 1rem; outline: none; }
 .a-kick { font: 600 .86rem/1.3 var(--font); letter-spacing: .13em; text-transform: uppercase; color: var(--gold-l); }
 .a-kick.bad { color: var(--red-l); }
 .a-kick.ok { color: var(--ok); }
