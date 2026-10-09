@@ -1,9 +1,12 @@
 // The rehearsal rig's pure side: still names, chapter takes, the story date, and the per-beat
 // end-state check that makes a broken beat fail before a take.
 import { describe, expect, it } from 'vitest';
+import { FIRST_RUN_TITLE, SAFETY_PROMISE } from '../lib/words';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat } from './beats';
+import { FIRST_RUN_BEATS, FIRST_RUN_CHAPTERS, FIRST_RUN_LENGTH } from './firstRunStory';
 import { HAGGLE, HOLD, MISMATCH } from './helpers';
-import { BANNER, EXPECT, MOCK_BADGE, checkBeat, expectedDeals, selectChapter, slug, stillName, storyStartOn, takePlan, wholeTake, type Seen } from './takes';
+import { STORIES } from './stories';
+import { BANNER, EXPECT, FIRST_RUN_EXPECT, MOCK_BADGE, checkBeat, expectedDeals, selectChapter, slug, stillName, storyStartOn, takePlan, wholeTake, type Seen } from './takes';
 
 const beat = (id: string, chapter: Beat['chapter']): Pick<Beat, 'id' | 'chapter'> => ({ id, chapter });
 
@@ -139,5 +142,75 @@ describe('each beat’s end state', () => {
       states: { [MISMATCH]: 'MISMATCH' },
     }));
     expect(mismatch).toEqual(['the approval window should offer no button like /^\\s*(pay|approve|accept|capture|release|confirm)\\b/i, offers “Approve anyway”']);
+  });
+});
+
+describe('the second story: First run', () => {
+  const plan = () => takePlan(FIRST_RUN_BEATS, FIRST_RUN_CHAPTERS, FIRST_RUN_LENGTH, 'first-run');
+  const steps = (engine = 'todo') => ({ paypal: 'next', rules: 'todo', practice: 'unknown', engine });
+  const firstRun = (over: Partial<Seen> = {}): Seen => seen({
+    text: { main: `${FIRST_RUN_TITLE} ${MOCK_BADGE}`, tumbler: `${FIRST_RUN_TITLE} ${SAFETY_PROMISE} ${MOCK_BADGE}`, approval: '' },
+    states: {},
+    tour: { main: 'main.approval', tumbler: 'tumbler.engine', approval: null },
+    steps: { main: steps(), tumbler: steps(), approval: {} },
+    ...over,
+  });
+
+  it('has its own end state for every beat, apart from Maya’s, naming no deal', () => {
+    for (const b of FIRST_RUN_BEATS) expect(FIRST_RUN_EXPECT[b.id]?.length, b.id).toBeGreaterThan(0);
+    expect(Object.keys(FIRST_RUN_EXPECT).sort()).toEqual(FIRST_RUN_BEATS.map((b) => b.id).sort());
+    expect(expectedDeals(FIRST_RUN_EXPECT)).toEqual([]);
+    // Maya's keys are still exactly her beats
+    expect(Object.keys(EXPECT).sort()).toEqual(BEATS.map((b) => b.id).sort());
+    expect(STORIES['first-run'].expect).toBe(FIRST_RUN_EXPECT);
+    expect(STORIES.maya.expect).toBe(EXPECT);
+  });
+
+  it('names its stills and plans its takes like Maya’s week', () => {
+    const p = plan();
+    expect(p.story).toBe('first-run');
+    expect(takePlan().story).toBe('maya');
+    const names = p.beats.map((b) => b.still);
+    expect(new Set(names).size).toBe(names.length);
+    expect([...names].sort()).toEqual(names);
+    for (const n of names) expect(n).toMatch(/^\d{2}-[a-z0-9]+(-[a-z0-9]+)*\.png$/);
+    expect(names[0]).toBe('00-start.png');
+    expect(names).toContain('06-tumbler-what.png');
+    expect(names.at(-1)).toBe(`${FIRST_RUN_BEATS.length - 1}-end.png`);
+    // its chapters tile the story, counted as the caption rail counts them
+    let at = 0;
+    for (let n = 0; n < FIRST_RUN_CHAPTERS.length; n++) {
+      const c = selectChapter(n, FIRST_RUN_BEATS, FIRST_RUN_CHAPTERS, FIRST_RUN_LENGTH);
+      expect(c?.chapter.id).toBe(FIRST_RUN_CHAPTERS[n]?.id);
+      expect(c?.from).toBe(at);
+      at = c?.to ?? NaN;
+    }
+    expect(at).toBe(FIRST_RUN_LENGTH);
+    expect(selectChapter('tumbler', FIRST_RUN_BEATS, FIRST_RUN_CHAPTERS, FIRST_RUN_LENGTH)?.number).toBe(2);
+    expect(selectChapter('haggle', FIRST_RUN_BEATS, FIRST_RUN_CHAPTERS, FIRST_RUN_LENGTH)).toBeNull();
+    expect(wholeTake(FIRST_RUN_BEATS, FIRST_RUN_LENGTH)).toEqual({ first: 0, last: FIRST_RUN_BEATS.length - 1, from: 0, to: FIRST_RUN_LENGTH });
+  });
+
+  it('checks the mark’s stop and the steps’ states, and says what is wrong', () => {
+    const check = (id: string, s: Seen) => checkBeat(id, s, FIRST_RUN_EXPECT);
+    expect(check('tumbler-engine', firstRun())).toEqual([]);
+    expect(check('tumbler-engine', firstRun({ tour: { main: null, tumbler: 'tumbler.needs', approval: null } })))
+      .toEqual(['the Tumbler should show the tour at “tumbler.engine”, shows “tumbler.needs”']);
+    expect(check('tumbler-engine', firstRun({ tour: undefined })))
+      .toEqual(['the Tumbler should show the tour at “tumbler.engine”, shows no mark']);
+    expect(check('tumbler-engine', firstRun({ steps: { main: steps(), tumbler: steps('done'), approval: {} } })))
+      .toEqual(['the Tumbler should show the step “engine” as todo, shows done']);
+    expect(check('tumbler-engine', firstRun({ steps: { main: steps(), tumbler: {}, approval: {} } })))
+      .toEqual(['the Tumbler should show the step “engine”']);
+    // the four steps: PayPal next, nothing done, the agent app to do
+    expect(check('tumbler-needs', firstRun({ tour: { main: null, tumbler: 'tumbler.needs', approval: null } }))).toEqual([]);
+    expect(check('tumbler-needs', firstRun({ tour: { main: null, tumbler: 'tumbler.needs', approval: null }, steps: { main: {}, tumbler: { ...steps(), rules: 'done' }, approval: {} } })))
+      .toEqual(['the Tumbler should not show the step “rules” as done']);
+    // the ending: no mark left in The Table or the Tumbler
+    const end = firstRun({ text: { main: `${FIRST_RUN_TITLE} ${MOCK_BADGE}`, tumbler: MOCK_BADGE, approval: '' }, tour: { main: null, tumbler: null, approval: null } });
+    expect(check('end', end)).toEqual([]);
+    expect(check('end', { ...end, tour: { main: 'main.approval', tumbler: null, approval: null } })).toEqual(['The Table should show no tour mark, shows “main.approval”']);
+    // a Maya beat id is not a First run beat
+    expect(check('haggle-card', firstRun())).toEqual(['no expected end state is written for beat “haggle-card”']);
   });
 });

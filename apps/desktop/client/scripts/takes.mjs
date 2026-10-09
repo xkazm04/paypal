@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Repeatable takes of the "Maya's week" director (director.html): stills of every beat, a video of
-// the whole story or one chapter, and a rehearsal check that fails loudly on a broken beat.
+// Repeatable takes of the director (director.html): stills of every beat, a video of the whole story
+// or one chapter, and a rehearsal check that fails loudly on a broken beat. It plays "Maya's week"
+// unless --story names another (--story first-run: the onboarding on a brand-new wallet).
 //
 // BROWSER PREVIEW ONLY: it drives the director on the browser mock. It never clicks inside a
 // framed window (the director has no approve or pay action, and neither does this script), never
@@ -11,9 +12,9 @@
 // without it Playwright's own download is used. ffmpeg (optional) retimes a video onto the beat
 // file's clock (src/director/retime.ts). See src/director/README.md for the commands.
 //
-//   node scripts/takes.mjs --check
-//   node scripts/takes.mjs --stills <dir> [--theme dark|light|both]
-//   node scripts/takes.mjs --video <file.webm> [--chapter <n|id>]
+//   node scripts/takes.mjs --check [--story first-run]
+//   node scripts/takes.mjs --stills <dir> [--theme dark|light|both] [--story first-run]
+//   node scripts/takes.mjs --video <file.webm> [--chapter <n|id>] [--story first-run]
 //
 // Options: --url <base> (a running dev or preview server; default: start `vite` on --port),
 // --port <n> (default 1444), --date YYYY-MM-DD (the story's day; default 2026-11-05),
@@ -61,12 +62,14 @@ function parseArgs(argv) {
       case '--theme': o.theme = v; break;
       case '--date': o.date = v; break;
       case '--tz': o.tz = v; break;
+      case '--story': o.story = v; break;
       default: throw new Error(`unknown option: ${a}`);
     }
   }
   if (!['dark', 'light', 'both'].includes(o.theme)) throw new Error('--theme is dark, light or both');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date)) throw new Error('--date is YYYY-MM-DD');
   if (o.chapter !== undefined && !o.video) throw new Error('--chapter goes with --video');
+  if (o.story !== undefined && !/^[a-z0-9-]+$/.test(o.story)) throw new Error('--story is a story id, for example first-run');
   if (!o.help && !o.check && !o.stills && !o.video) o.help = true;
   return o;
 }
@@ -79,6 +82,8 @@ const USAGE = `takes: stills, video and a rehearsal check of the director (brows
   --theme dark|light|both theme of The Table and the stage for --stills (default dark)
   --video <file.webm>     the whole story at 1920x1080 in real time (cue sheet: <file>.cues.json)
   --chapter <n|id>        with --video: one chapter (1 = the haggle, as the caption rail counts)
+  --story <id>            the story to play (default: Maya's week); first-run is the onboarding on
+                          a brand-new wallet
   --url <base>            a running dev or preview server (default: start vite on --port)
   --port <n>              port for the server this script starts (default 1444)
   --date YYYY-MM-DD       the story's day (default 2026-11-05), --tz <zone> its time zone
@@ -193,15 +198,19 @@ function watchErrors(page) {
 }
 
 function directorUrl(base, o, index, play) {
-  const q = new URLSearchParams({ beat: String(index), play: play ? '1' : '0', take: '1', date: o.date });
+  const q = new URLSearchParams({ ...(o.story ? { story: o.story } : {}), beat: String(index), play: play ? '1' : '0', take: '1', date: o.date });
   return new URL(`director.html?${q}`, base).href;
 }
 
 const hook = (page, fn, arg) => page.evaluate(fn, arg);
 
-async function plan(page) {
+async function plan(page, o) {
   await page.waitForFunction(() => !!window.__takes, null, { timeout: 30_000 });
-  return hook(page, () => window.__takes.plan);
+  const p = await hook(page, () => window.__takes.plan);
+  // an unknown --story would quietly play Maya's week: refuse instead
+  const want = o.story ?? 'maya';
+  if (p.story !== want) throw new Error(`the director plays "${p.story}", not "${want}"`);
+  return p;
 }
 
 async function fontsReady(page) {
@@ -263,7 +272,7 @@ async function runCheck(browser, base, o) {
   const page = await ctx.newPage();
   const errors = watchErrors(page);
   await page.goto(directorUrl(base, o, 0, false));
-  const p = await plan(page);
+  const p = await plan(page, o);
   let broken = 0;
   for (const b of p.beats) {
     errors.length = 0;
@@ -295,7 +304,7 @@ async function runStills(browser, base, o) {
     const page = await ctx.newPage();
     const errors = watchErrors(page);
     await page.goto(directorUrl(base, o, 0, false));
-    const p = await plan(page);
+    const p = await plan(page, o);
     for (const b of p.beats) {
       errors.length = 0;
       await page.goto(directorUrl(base, o, b.index, false));
@@ -366,7 +375,7 @@ async function runVideo(browser, base, o) {
   const probeCtx = await newContext(browser, o, 'dark');
   const probe = await probeCtx.newPage();
   await probe.goto(directorUrl(base, o, 0, false));
-  await plan(probe);
+  await plan(probe, o);
   const span = o.chapter !== undefined
     ? await hook(probe, (sel) => window.__takes.chapter(/^\d+$/.test(sel) ? Number(sel) : sel), o.chapter)
     : await hook(probe, () => window.__takes.whole);
@@ -463,6 +472,7 @@ async function runVideo(browser, base, o) {
   }
   rmSync(rawDir, { recursive: true, force: true });
   const sheet = {
+    story: p.story,
     take: o.chapter !== undefined ? `chapter ${o.chapter}` : 'whole story',
     date: o.date,
     tz: o.tz,

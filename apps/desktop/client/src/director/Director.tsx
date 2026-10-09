@@ -118,6 +118,32 @@ function frameButtons(f: HTMLIFrameElement | null | undefined): string[] {
   }
 }
 
+/** The stop the tour's coach mark shows in a framed window (null: no mark, or not placed yet). */
+function frameTour(f: HTMLIFrameElement | null | undefined): string | null {
+  try {
+    const m = f?.contentDocument?.querySelector<HTMLElement>('.tour-mark[data-tour-stop]');
+    return m && m.style.visibility !== 'hidden' && m.getClientRects().length > 0 ? m.dataset.tourStop ?? null : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The getting-started steps a framed window draws: step key -> state (from its `s-<state>` class). */
+function frameSteps(f: HTMLIFrameElement | null | undefined): Record<string, string> {
+  try {
+    const out: Record<string, string> = {};
+    for (const el of f?.contentDocument?.querySelectorAll<HTMLElement>('li[data-tour^="step-"]') ?? []) {
+      if (el.getClientRects().length === 0 || el.closest('[aria-hidden="true"], [hidden], [inert]')) continue;
+      const state = /\bs-(done|next|todo|unknown)\b/.exec(el.className)?.[1];
+      const key = el.dataset.tour?.slice('step-'.length);
+      if (state && key) out[key] = state;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 /** The read-only hook the rehearsal rig (scripts/takes.mjs) drives the director through. */
 export type TakesHook = {
   plan: TakePlan;
@@ -354,6 +380,8 @@ export function Director({ story }: { story: Story }) {
       buttons: { main: frameButtons(mainRef.current), tumbler: frameButtons(tumblerRef.current), approval: frameButtons(approvalRef.current) },
       open: { main: live.current.mainOpen, approval: live.current.approvalOpen },
       states: Object.fromEntries(deals.map((l) => [l, world.deal(l)?.deal.state])),
+      tour: { main: frameTour(mainRef.current), tumbler: frameTour(tumblerRef.current), approval: frameTour(approvalRef.current) },
+      steps: { main: frameSteps(mainRef.current), tumbler: frameSteps(tumblerRef.current), approval: frameSteps(approvalRef.current) },
     });
     const hook: TakesHook = {
       plan: takePlan(BEATS, CHAPTERS, SCRIPT_LENGTH, story.id),

@@ -6,6 +6,8 @@
 // Everything here is pure: the director gathers what its three frames show into a `Seen` and
 // `checkBeat` says what is missing. A broken beat fails loudly here before a take is recorded.
 import type { DealState } from '@bindings/DealState';
+import type { StartStepState } from '../lib/firstRun';
+import { FIRST_RUN_TITLE, SAFETY_PROMISE, type StartStepKey, type TourStopId } from '../lib/words';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat, type Chapter } from './beats';
 import { HAGGLE, HOLD, MISMATCH } from './helpers';
 
@@ -21,7 +23,11 @@ export type Expect =
   /** A window the director shows or hides. */
   | { window: 'main' | 'approval'; open: boolean }
   /** A deal of the sample week, by label, is in this state on the mock world. */
-  | { deal: string; state: DealState };
+  | { deal: string; state: DealState }
+  /** The tour's coach mark in a framed window shows this stop (null: no mark there). */
+  | { in: FrameName; tour: TourStopId | null }
+  /** A getting-started step drawn in a framed window is in this state. `absent`: drawn, and not in it. */
+  | { in: FrameName; step: StartStepKey; state: StartStepState; absent?: true };
 
 /** What the director's stage shows right now (gathered by the director, checked here). */
 export type Seen = {
@@ -34,6 +40,10 @@ export type Seen = {
   open: { main: boolean; approval: boolean };
   /** Deal label -> state on the mock world, for the labels the expectations name. */
   states: Record<string, DealState | undefined>;
+  /** The stop each framed window's coach mark shows (its `data-tour-stop`), null when none is drawn. */
+  tour?: Record<FrameName, string | null>;
+  /** The getting-started steps each framed window draws: step key -> state (`s-next`, `s-todo`, ...). */
+  steps?: Record<FrameName, Record<string, string>>;
 };
 
 /** The banner every frame of every take carries. */
@@ -182,9 +192,57 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   ],
 };
 
-/** Each First run beat's settled end state (firstRunStory.ts), kept apart from Maya's week's.
- *  Written with the rehearsal step; until then every first-run beat reports it has none. */
-export const FIRST_RUN_EXPECT: Readonly<Record<string, readonly Expect[]>> = {};
+/** The four getting-started steps on a brand-new wallet, as a window draws them: PayPal next, the
+ *  agent app still to do on the practice agent, nothing done. */
+const FOUR_STEPS = (f: FrameName): Expect[] => [
+  { in: f, text: FIRST_RUN_TITLE },
+  { in: f, step: 'paypal', state: 'next' },
+  { in: f, step: 'rules', state: 'done', absent: true },
+  { in: f, step: 'practice', state: 'done', absent: true },
+  { in: f, step: 'engine', state: 'todo' },
+];
+const NO_MARK = (f: FrameName): Expect => ({ in: f, tour: null });
+
+/** Each First run beat's settled end state (firstRunStory.ts), kept apart from Maya's week's: the
+ *  four steps where a window shows them and the stop each window's mark shows. */
+export const FIRST_RUN_EXPECT: Readonly<Record<string, readonly Expect[]>> = {
+  start: [
+    { window: 'main', open: true },
+    { window: 'approval', open: false },
+    ...FOUR_STEPS('main'),
+    { in: 'main', tour: 'main.hub' },
+    TUMBLER_AT_REST,
+    NO_MARK('tumbler'),
+  ],
+  'table-hub': [...FOUR_STEPS('main'), { in: 'main', tour: 'main.hub' }],
+  'table-promise': [{ in: 'main', text: SAFETY_PROMISE }, { in: 'main', tour: 'main.promise' }],
+  'table-steps': [...FOUR_STEPS('main'), { in: 'main', tour: 'main.steps' }],
+  'table-engine': [{ in: 'main', step: 'engine', state: 'todo' }, { in: 'main', tour: 'main.engine' }],
+  'table-approval': [{ window: 'approval', open: false }, { in: 'main', tour: 'main.approval' }],
+  'tumbler-what': [...FOUR_STEPS('tumbler'), { in: 'tumbler', tour: 'tumbler.what' }, NO_PAY_IN_TUMBLER],
+  'tumbler-needs': [...FOUR_STEPS('tumbler'), { in: 'tumbler', tour: 'tumbler.needs' }],
+  'tumbler-engine': [{ in: 'tumbler', step: 'engine', state: 'todo' }, { in: 'tumbler', tour: 'tumbler.engine' }],
+  'tumbler-waiting': [{ in: 'tumbler', text: SAFETY_PROMISE }, { in: 'tumbler', tour: 'tumbler.waiting' }, NO_PAY_IN_TUMBLER],
+  'approval-only': [
+    { window: 'approval', open: true },
+    ...FOUR_STEPS('approval'),
+    { in: 'approval', tour: 'approval.only' },
+    { in: 'approval', button: PAYS, absent: true },
+    TUMBLER_AT_REST,
+    NO_MARK('tumbler'),
+  ],
+  'approval-steps': [...FOUR_STEPS('approval'), { in: 'approval', tour: 'approval.steps' }],
+  'approval-engine': [{ in: 'approval', step: 'engine', state: 'todo' }, { in: 'approval', tour: 'approval.engine' }],
+  'approval-config': [{ window: 'approval', open: true }, { in: 'approval', tour: 'approval.config' }, { in: 'approval', button: PAYS, absent: true }],
+  end: [
+    { window: 'main', open: true },
+    { window: 'approval', open: false },
+    ...FOUR_STEPS('main'),
+    NO_MARK('main'),
+    NO_MARK('tumbler'),
+    TUMBLER_AT_REST,
+  ],
+};
 
 /** Deal labels any expectation names (the director reads their states for `Seen.states`). */
 export function expectedDeals(expect: Readonly<Record<string, readonly Expect[]>> = EXPECT): string[] {
@@ -221,6 +279,14 @@ export function checkBeat(beatId: string, seen: Seen, expect: Readonly<Record<st
     } else if ('deal' in e) {
       const s = seen.states[e.deal];
       if (s !== e.state) fail.push(`${e.deal} should be ${e.state}, is ${s ?? 'missing'}`);
+    } else if ('tour' in e) {
+      const at = seen.tour?.[e.in] ?? null;
+      if (at !== e.tour) fail.push(e.tour === null ? `${WINDOW_WORD[e.in]} should show no tour mark, shows “${at}”` : `${WINDOW_WORD[e.in]} should show the tour at “${e.tour}”, shows ${at ? `“${at}”` : 'no mark'}`);
+    } else if ('step' in e) {
+      const st = seen.steps?.[e.in]?.[e.step];
+      if (st === undefined) fail.push(`${WINDOW_WORD[e.in]} should show the step “${e.step}”`);
+      else if (e.absent && st === e.state) fail.push(`${WINDOW_WORD[e.in]} should not show the step “${e.step}” as ${e.state}`);
+      else if (!e.absent && st !== e.state) fail.push(`${WINDOW_WORD[e.in]} should show the step “${e.step}” as ${e.state}, shows ${st}`);
     } else if ('button' in e) {
       const found = seen.buttons[e.in].filter((b) => e.button.test(b));
       if (e.absent && found.length) fail.push(`${WINDOW_WORD[e.in]} should offer no button like ${String(e.button)}, offers “${found.join('”, “')}”`);
