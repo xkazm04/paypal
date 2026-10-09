@@ -121,6 +121,9 @@ pub struct SettingsSnapshot {
     pub channel3_configured: bool,
     pub agents_paused: bool,
     pub selected_engine: table_engine::EngineId,
+    /// The owner has chosen an agent app through `engine_select` (the ledger preference exists),
+    /// including the practice agent. False on a new wallet, whose `scripted` is only a default.
+    pub engine_chosen: bool,
     pub preferences: TumblerPreferences,
     pub relay_available: bool,
     /// Lowercase hex fingerprint of the authority table this build enforces (who may call each

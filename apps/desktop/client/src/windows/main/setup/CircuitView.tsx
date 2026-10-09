@@ -10,7 +10,7 @@ import type { EngineId } from '@bindings/EngineId';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import { clockLabel, nowUnix } from '../../../lib/format';
 import { watchLine } from '../../../lib/marketWatch';
-import { fingerprintGroups, PERMISSIONS_FINGERPRINT, PERMISSIONS_FINGERPRINT_MEANS, PRICE_CHECKS_USED_UP, rulesName, START_STEP } from '../../../lib/words';
+import { fingerprintGroups, PERMISSIONS_FINGERPRINT, PERMISSIONS_FINGERPRINT_MEANS, KEEP_PRACTICE_AGENT, PRICE_CHECKS_USED_UP, rulesName, START_STEP } from '../../../lib/words';
 import { useStart } from '../home/Start';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import { ModeBadge, RunBadge, WalletNotice } from '../../../shared/honesty';
@@ -239,12 +239,22 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
   // First run's fourth step: an agent app chosen. The practice agent is ready from the start, so
   // while it is the one in use the step stays to do, and its one click opens the picker.
   const engineStep = start.steps.find((x) => x.key === 'engine');
+  // Keeping the practice agent is an explicit choice (engine_select); the default alone never counts.
+  const keptPractice = !engBreak && engineStep?.state === 'done' && s?.selected_engine === 'scripted';
   const stepEngineFirst: Step = !engBreak && (engineStep?.state === 'todo' || engineStep?.state === 'next')
     ? {
       state: 'todo', icon: 'agent', title: START_STEP.engine.title, status: START_STEP.engine.sub,
-      action: <Btn kind={!goldKey && engineStep.state === 'next' ? 'gold' : 'default'} sm aria-expanded={!!pickAt} onClick={(e) => { const t = e.currentTarget; setPickAt((x) => (x ? null : t)); }}>{START_STEP.engine.act}…</Btn>,
+      action: <>
+        <Btn kind={!goldKey && engineStep.state === 'next' ? 'gold' : 'default'} sm aria-expanded={!!pickAt} onClick={(e) => { const t = e.currentTarget; setPickAt((x) => (x ? null : t)); }}>{START_STEP.engine.act}…</Btn>
+        {s?.selected_engine === 'scripted' ? <Btn sm disabled={select.pending} onClick={() => void pickEngine('scripted')} title={KEEP_PRACTICE_AGENT.where}>{KEEP_PRACTICE_AGENT.act}</Btn> : null}
+      </>,
     }
-    : stepEngine;
+    : keptPractice
+      ? {
+        state: 'done', icon: 'check', title: START_STEP.engine.title, status: KEEP_PRACTICE_AGENT.done,
+        action: <Btn kind="default" sm aria-expanded={!!pickAt} onClick={(e) => { const t = e.currentTarget; setPickAt((x) => (x ? null : t)); }}>Change</Btn>,
+      }
+      : stepEngine;
   const stepAgents: Step = !s
     ? { state: 'unknown', icon: 'eye', title: 'Your agents', status: <Chip tone="dashed">not loaded yet</Chip>, action: null }
     : paused

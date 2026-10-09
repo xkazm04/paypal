@@ -619,6 +619,12 @@ export const START_STEP: Record<StartStepKey, { title: string; sub: string; done
     where: 'Opens Setup in The Table on the agent app your agents run in',
   },
 };
+/** Step 4 for an owner with no agent app: keeping the practice agent is a choice, and says only that. */
+export const KEEP_PRACTICE_AGENT = {
+  act: 'Keep the practice agent for now',
+  done: 'Practice agent kept. Add your own agent app any time.',
+  where: 'The practice agent plays your deals until you add an agent app',
+};
 /** The first-run heading: what the steps lead to (the count follows START_STEP). */
 export const FIRST_RUN_TITLE = `Your first safe deal in ${Object.keys(START_STEP).length} steps`;
 

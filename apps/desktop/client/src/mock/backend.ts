@@ -525,7 +525,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
     engine_select: ({ engine }) => {
       const e = state.engines.find((x) => x.id === engine);
       if (!e?.available) fail('UNAVAILABLE', `${engine} is installed but waits for its isolation spike`);
-      state.settings = { ...state.settings, selected_engine: engine };
+      state.settings = { ...state.settings, selected_engine: engine, engine_chosen: true };
       save();
       emit('settings:changed', state.settings);
       return null;

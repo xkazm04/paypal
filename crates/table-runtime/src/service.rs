@@ -298,6 +298,12 @@ impl Runtime {
             .is_empty(),
             agents_paused: self.paused,
             selected_engine: self.engine,
+            engine_chosen: app(self
+                .pipeline
+                .wallet
+                .ledger
+                .preference::<table_engine::EngineId>("engine"))?
+            .is_some(),
             preferences: self.preferences.clone(),
             meters_available: false,
             client_pending: false,
