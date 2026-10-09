@@ -1293,9 +1293,12 @@ impl Pipeline {
         failure.map_or(Ok(changed), Err)
     }
     /// The deadline default for one deal, if its deadline is due: auto-void an authorization,
-    /// let any earlier state lapse. A money step whose outcome is unknown is read back first; while
-    /// it stays unknown nothing is sent (no void after a capture that may have gone through), and
-    /// only an order creation whose payment link never left the wallet lapses with its deal.
+    /// let any earlier state lapse. A money step whose outcome is unknown is read back first, a
+    /// parked one included; while it stays unknown nothing is sent (no void after a capture that
+    /// may have gone through), and only an order creation whose payment link never left the
+    /// wallet lapses with its deal. An authorize still open (too young to read back, unreadable,
+    /// or showing what no check accepts) keeps the deal from expiring: `Unavailable`, and the
+    /// next tick reads it again.
     pub async fn deadline_default(&mut self, id: DealId, now: Timestamp) -> Result<bool, Error> {
         let deal = self.wallet.ledger.get_deal(id)?;
         if deal.kind == DealKind::Rescue {
@@ -1322,6 +1325,17 @@ impl Pipeline {
                 .is_none_or(|(due, _)| due > now)
             {
                 return Ok(true);
+            }
+            // PayPal may hold money for an authorize not yet settled: the deal does not expire
+            // over it (the ledger refuses that too).
+            if self
+                .wallet
+                .ledger
+                .open_operations(Some(id), Timestamp::MAX)?
+                .iter()
+                .any(|op| op.operation == "authorize")
+            {
+                return Err(Error::Unavailable);
             }
         }
         if deal.state == DealState::Authorized {
