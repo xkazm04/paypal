@@ -1910,3 +1910,21 @@ Full council r1 (run e04a5556, head 8b1aed7) must-address: "A judge with no engi
 - **Not done (outside the declared paths):** the Tumbler (`windows/tumbler/Tumbler.tsx`) and the approval window (`windows/approval/OwnerConfig.tsx`) build StartFacts without `engineChosen`, so there the kept practice agent still shows step 4 to do. One line each: pass `settings.engine_chosen`.
 - **Follow-up (closes the line above):** `settingsFacts(st)` in `lib/firstRun.ts` maps first_run, payment_executor_configured, selected_engine and engine_chosen (nulls when settings are unread); `useStart`, the Tumbler and `OwnerConfig` all spread it, so no window can drop a settings fact. Tests in `lib/firstRun.test.ts`: the helper field by field, Tumbler-shaped facts (step 4 done with scripted + engine_chosen, not done without), and OwnerConfig-shaped facts equal to Home's step 4. tsc and vitest were not run (no `node_modules` in the worktree).
 - **Gates:** cargo gates run in the worktree (see the result). tsc and vitest were not run: the worktree has no `apps/desktop/client/node_modules`.
+
+## Onboarding rework after full council round 1 (2026-10-10, e04a5556)
+
+Five medium findings closed, one commit each (client tsc/vitest not run in the worktree; the
+Rust gate was):
+
+- robustness-3: a ledger failure after the keychain write no longer reports "not saved" (8bd8444).
+- robustness-2 (a, b) and craft-7: pasted keys are trimmed, empty-after-trim refused; failure branches
+  tested through `store_credential` in `configuration.rs` (92115ee). (c) `credential_prompt.rs`
+  branches and (d) a live `KeyringVault` test are left out of scope.
+- value-2: a done practice step keeps one click, `START_STEP.practice.doneAct` (29e583b). The
+  done lines moved into `START_STEP.*.doneLine`. The Tumbler's welcome list is in
+  `windows/tumbler/forms.tsx` (outside this slice) and never shows step 3 done, so it is unchanged.
+- value-3: step 1 and the approval window's keys note say where sandbox keys come from, only
+  what `.research/paypal-platform.md` sources [S] (a3e717a). The native dialog text is unchanged.
+- craft-2: focus moves to the tour dialog on each new stop (3a80fc3).
+
+No new UNVERIFIED items.
