@@ -1452,6 +1452,84 @@ async fn credentials_are_privileged_write_only_and_never_appear_in_settings() {
     assert!(settings.payment_executor_configured);
     assert!(http.0.lock().unwrap().paths.is_empty());
 }
+fn paypal_entry(id: &str, secret: &str) -> vault::CredentialEntry {
+    vault::CredentialEntry::PaypalSandbox {
+        client_id: zeroize::Zeroizing::new(id.into()),
+        client_secret: zeroize::Zeroizing::new(secret.into()),
+    }
+}
+#[test]
+fn credential_values_that_fail_validation_write_nothing() {
+    let long = "x".repeat(1025);
+    for bad in ["", "   \t ", long.as_str(), "ab\u{7}cd"] {
+        for entry in [
+            paypal_entry(bad, "secret"),
+            paypal_entry("id", bad),
+            vault::CredentialEntry::Channel3 {
+                key: zeroize::Zeroizing::new(bad.into()),
+            },
+        ] {
+            let (mut r, vault, _, _, _) = runtime(true);
+            assert!(r.credentials(entry).is_err(), "{bad:?}");
+            assert!(vault.read("paypal.sandbox").unwrap().is_none());
+            assert!(vault.read("channel3").unwrap().is_none());
+            for name in ["paypal.sandbox", "channel3"] {
+                let date = r
+                    .pipeline
+                    .wallet
+                    .ledger
+                    .preference::<i64>(&format!("credential.{name}.stored_at"))
+                    .unwrap();
+                assert!(date.is_none());
+            }
+        }
+    }
+}
+#[test]
+fn credential_values_are_stored_trimmed() {
+    let (mut r, vault, _, _, _) = runtime(true);
+    r.credentials(paypal_entry("  id-1 \n", "\tsecret-1  "))
+        .unwrap();
+    let stored = vault.read("paypal.sandbox").unwrap().unwrap();
+    assert_eq!(
+        serde_json::from_slice::<(String, String)>(&stored).unwrap(),
+        ("id-1".to_string(), "secret-1".to_string())
+    );
+    let date = r
+        .pipeline
+        .wallet
+        .ledger
+        .preference::<i64>("credential.paypal.sandbox.stored_at")
+        .unwrap();
+    assert!(date.is_some());
+}
+struct FailingVault;
+impl Vault for FailingVault {
+    fn read(&self, _: &str) -> Result<Option<zeroize::Zeroizing<Vec<u8>>>, vault::VaultError> {
+        Ok(None)
+    }
+    fn write(&self, _: &str, _: &[u8]) -> Result<(), vault::VaultError> {
+        Err(vault::VaultError::Unavailable)
+    }
+}
+#[test]
+fn a_failed_vault_write_reports_the_error_and_writes_no_date() {
+    let mut date_written = false;
+    let err = configuration::store_credential(&FailingVault, "paypal.sandbox", b"k", || {
+        date_written = true;
+        Ok::<(), ()>(())
+    })
+    .unwrap_err();
+    assert_eq!(err.message, "OS secret store write failed");
+    assert!(!date_written);
+}
+#[test]
+fn a_failed_date_write_after_a_vault_success_still_saves_the_keys() {
+    let vault = MemoryVault::default();
+    configuration::store_credential(&vault, "paypal.sandbox", b"keys", || Err::<(), _>("ledger"))
+        .unwrap();
+    assert_eq!(&**vault.read("paypal.sandbox").unwrap().unwrap(), b"keys");
+}
 #[tokio::test]
 async fn pairing_requires_signed_identity_all_words_and_owner_authority() {
     let (mut a, _, _, _, _) = runtime(true);
