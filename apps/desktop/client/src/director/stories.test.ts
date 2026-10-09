@@ -1,6 +1,8 @@
 // The director's two stories: `?story=` picks one (Maya's week stays the default), First run's
 // beat file follows the same rules as Maya's (beats.test.ts), and its frames open in the brand-new
 // wallet's world so the sample week's storage is never touched.
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { ActionKind } from './actions';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH } from './beats';
@@ -99,5 +101,17 @@ describe('the First run beat file', () => {
   it('leaves Maya’s week as it was: 22 beats, the last caption ending at 182 s', () => {
     expect(BEATS).toHaveLength(22);
     expect(SCRIPT_LENGTH).toBe(182);
+  });
+});
+
+describe('the Tumbler frame on the desk', () => {
+  it('is transparent in both themes: its iframe sets no colour-scheme of its own', () => {
+    // A frame whose colour-scheme differs from its page's is painted opaque white by the browser,
+    // which hid the approval window and the tour's marks behind the Tumbler in the light theme.
+    const css = readFileSync(resolve(process.cwd(), 'src/director/director.css'), 'utf8');
+    const rule = css.split('\n').find((l) => l.startsWith('.dir-tum iframe'));
+    expect(rule).toBeDefined();
+    expect(rule).toContain('background: transparent');
+    expect(rule).not.toContain('color-scheme');
   });
 });
