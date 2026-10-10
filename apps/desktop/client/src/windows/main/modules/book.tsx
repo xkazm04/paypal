@@ -42,7 +42,7 @@ import {
 } from './book/model';
 import { AskChips } from './book/AskChips';
 import { ReadingChips, UnsureLine } from './book/AskReading';
-import { compose, isUnsure, knownParties, lensQuery, MAX_ASK, understand, type AskCtx, type ReadingChip, type Understood, type Unsure } from './book/understand';
+import { compose, isUnsure, knownParties, lensAsRun, lensQuery, MAX_ASK, understand, type AskCtx, type ReadingChip, type Understood, type Unsure } from './book/understand';
 import { MoneyWent } from './book/MoneyWent';
 import { totalWhy, type TotalKey } from './book/where';
 import './book.css';
@@ -135,7 +135,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
     latest.current++;
     if (ask.current) ask.current.value = '';
   };
-  const pickLens = (l: Lens) => { setAsked(l.question); setLens(l); setRes(null); setChips(null); setUnsure(null); setPhase(l.unavailable ? 'BLOCKED' : 'DRAFTED'); if (ask.current) ask.current.value = l.question; };
+  const pickLens = (picked: Lens) => { const l = lensAsRun(picked, askCtx); setAsked(l.question); setLens(l); setRes(null); setChips(null); setUnsure(null); setPhase(l.unavailable ? 'BLOCKED' : 'DRAFTED'); if (ask.current) ask.current.value = l.question; };
   /** Light the rows the query returns, and ask the wallet the same closed query (read-only). */
   const execute = (l: Lens, rows: readonly Deal[], query: JsonValue) => {
     const n = seq + 1;
@@ -150,7 +150,11 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
   };
   const run = () => {
     if (!lens || lens.unavailable) return;
-    execute(lens, ledger, lens.query as unknown as JsonValue);
+    // The week lens asks for this week; the others name no time. Window and wallet read the same
+    // deals: every deal on record, as a typed question does (the grid dims or shows by id).
+    const l = lensAsRun(lens, askCtx);
+    setLens(l);
+    execute(l, all, l.query as unknown as JsonValue);
   };
   /** A question the wallet read: answered at once over every deal on record, its reading shown as chips. */
   const answerAsked = (u: Understood, text: string) => {
