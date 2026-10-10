@@ -861,7 +861,7 @@ pub struct AgentRosterEntry {
 pub struct BookQueryArgs {
     pub query: serde_json::Value,
 }
-/// Aggregate rows, grouped by currency and mode first: amounts in minor units, market distance in
+/// Aggregate rows, grouped by currency, mode and direction (out or in) first: amounts in minor units, market distance in
 /// basis points. Read on a read-only connection; nothing is written.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]

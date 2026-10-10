@@ -607,7 +607,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
       return null;
     },
     // As Runtime::book_query: the closed BookQuery, its rules named verbatim, aggregates per
-    // currency and mode (minor units, basis points). Read-only.
+    // currency, mode and direction (minor units, basis points). Read-only.
     book_query: ({ query }) => {
       const q = checkBookQuery(query);
       const views: Record<BookView, (d: MockState['deals'][number]) => boolean> = {
