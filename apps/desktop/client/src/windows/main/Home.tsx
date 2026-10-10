@@ -19,7 +19,7 @@ import { Dial, LegendBead, type Bead } from './Dial';
 import { chipTone, dealCount, dialValueText, heldAtPayPal, heldLine, LEDGER_TITLE, ledgerDeals, ledgerLine, moneyList, shortTitle, silenceParts, timeLeft, weekLabel, type LedgerKind } from './home/model';
 import {
   beadKind, beadSummary, chipClass, dealTotal, historyAt, isLive, ledgerScope, moduleIndex, moneyNow, reviewVerb, spendToday, splitHeadline, stateLabel, summarize,
-  isTerminal, weekBounds, type LedgerScope, type LedgerSummary,
+  isTerminal, rewindCheckTip, weekBounds, type LedgerScope, type LedgerSummary,
 } from './logic';
 import { lazyPart } from '../../lib/lazy';
 import { useRewind } from './Rewind';
@@ -226,9 +226,13 @@ export function Home(p: Props) {
       const d = deals.find((x) => x.id === b.id);
       if (!p || !d) return [];
       const then = { ...d, state: p.state, shield: p.paused ? 'HOLD' as const : null };
-      return [{ ...b, kind: beadKind(then), needs: false, tip: { ...b.tip, state: stateLabel(p.state, d), tone: chipTone(chipClass(then)), money: moneyNow(then), need: null } }];
+      const ck = rewindCheckTip(rw.steps, p, d, rw.unshown);
+      const look = ck
+        ? { state: ck.state, tone: 'dashed' as const, money: ck.money }
+        : { state: stateLabel(p.state, d), tone: chipTone(chipClass(then)), money: moneyNow(then) };
+      return [{ ...b, kind: beadKind(then), needs: false, tip: { ...b.tip, ...look, need: null } }];
     });
-  }, [rewind, rw.steps, rw.t, beads, deals]);
+  }, [rewind, rw.steps, rw.t, rw.unshown, beads, deals]);
 
   const cls = ['home', intro !== 'done' ? 'intro' : '', zoom ? 'zoom' : '', p.active ? '' : 'away', firstRun ? 'first-run' : '', rewind && !firstRun ? 'rewind' : ''].join(' ');
 
