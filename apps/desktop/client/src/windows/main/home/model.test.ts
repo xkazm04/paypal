@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
 import { buildMockState } from '../../../mock/fixtures';
-import { weekBounds } from '../logic';
-import { chipTone, dealCount, dialValueText, ledgerLine, moneyList, shortTitle, silenceParts, timeLeft, weekLabel } from './model';
+import { summarize, weekBounds } from '../logic';
+import { chipTone, dealCount, dialValueText, heldAtPayPal, heldLine, ledgerLine, moneyList, shortTitle, silenceParts, timeLeft, weekLabel } from './model';
 
 const NOW = 1_800_000_000;
 const deals = buildMockState(NOW).deals.map((d) => d.deal);
@@ -52,6 +52,18 @@ describe('home model', () => {
     expect(ledgerLine('held', { ...any, state: 'NEGOTIATING', shield: 'HOLD' }, 'x')).toContain('paused by a scam check');
     expect(ledgerLine('stopped', { ...any, state: 'REFUSED', shield: 'BLOCK' }, 'Refurbished GPU')).toBe('blocked · GPU');
     expect(ledgerLine('moving', { ...any, state: 'AWAITING_APPROVAL', shield: null }, 'Dock')).toBe('waiting for approval · Dock');
+  });
+
+  it('does not count a payment being checked with PayPal as on hold', () => {
+    const state = buildMockState(NOW);
+    const checking = new Set(state.deals.filter((d) => d.attention?.money_check).map((d) => d.deal.id));
+    expect(checking.size).toBe(1); // D-0194: AUTHORIZED, seller, $118.00, capture parked
+    const s = summarize(state.deals.map((d) => d.deal), new Set(state.deals.filter((d) => d.attention).map((d) => d.deal.id)));
+    const h = heldAtPayPal(s.held, checking);
+    expect(h.inn).toEqual([]);
+    expect(h.out).toEqual(heldAtPayPal(s.held).out);
+    expect(h.deals.some((d) => checking.has(d.id))).toBe(false);
+    expect(heldLine(h)).toBe('$64.00 out');
   });
 
   it('reads the dial for a screen reader: the part under the index, then the decision it points at', () => {

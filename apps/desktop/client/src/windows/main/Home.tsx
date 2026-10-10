@@ -10,7 +10,7 @@ import type { Module } from '@bindings/Module';
 import type { TumblerStatus } from '@bindings/TumblerStatus';
 import { formatMinor } from '../../lib/format';
 import { readLimits, type LimitMeter } from '../../lib/limits';
-import { houseWords, kindWord, ruleNameOf } from '../../lib/words';
+import { houseWords, kindWord, moneyCheckNow, moneyCheckPill, ruleNameOf } from '../../lib/words';
 import { useMutation, useNow, usePrefersReducedMotion } from '../../lib/hooks';
 import { Countdown, MockBadge, ModeBadge, WalletNotice } from '../../shared/honesty';
 import { MODULE, MODULES } from '../../shared/modules';
@@ -19,7 +19,7 @@ import { Dial, LegendBead, type Bead } from './Dial';
 import { chipTone, dealCount, dialValueText, heldAtPayPal, heldLine, LEDGER_TITLE, ledgerDeals, ledgerLine, moneyList, shortTitle, silenceParts, timeLeft, weekLabel, type LedgerKind } from './home/model';
 import {
   beadKind, beadSummary, chipClass, dealTotal, historyAt, isLive, ledgerScope, moduleIndex, moneyNow, reviewVerb, spendToday, splitHeadline, stateLabel, summarize,
-  weekBounds, type LedgerScope, type LedgerSummary,
+  isTerminal, weekBounds, type LedgerScope, type LedgerSummary,
 } from './logic';
 import { lazyPart } from '../../lib/lazy';
 import { useRewind } from './Rewind';
@@ -181,6 +181,7 @@ export function Home(p: Props) {
         tip: {
           label: disp.label, title: disp.title, amount: formatMinor(t.minor, t.currency), state: stateLabel(d.state, d), tone: chipTone(chipClass(d)),
           module: `${MODULE[m].name} · ${kindWord(d.kind)}`, color: MODULE[m].cssVar, money: moneyNow(d), need: need ? need.headline : null,
+          ...(need?.money_check ? { state: moneyCheckPill(need.money_check, isTerminal(d)).text, tone: 'dashed' as const, money: moneyCheckNow(isTerminal(d)) } : {}),
         },
       };
     });
@@ -367,7 +368,7 @@ function Hub({ start, mode, sel, item, index, count, summary, week, away, onRewi
       <div className="hc" key={`n-${item.deal_id}`}>
         <div className="h-row">
           <div className="h-count">{count}</div>
-          <div className="h-lbl"><b>Need{count === 1 ? 's' : ''} you</b><span>no money moves until you decide</span></div>
+          <div className="h-lbl"><b>Need{count === 1 ? 's' : ''} you</b><span>{item.money_check ? 'nothing more is sent for this payment' : 'no money moves until you decide'}</span></div>
         </div>
         <NeedPlate item={item} onDeal={onDeal} />
         {count > 1 ? (
@@ -384,7 +385,7 @@ function Hub({ start, mode, sel, item, index, count, summary, week, away, onRewi
   if (away.summary) return <AwayHub s={away.summary} onDismiss={away.dismiss} onDeal={onDeal} onRewind={onRewindAt} />;
 
   const meters = !!settings?.meters_available;
-  const held = heldAtPayPal(summary.held);
+  const held = heldAtPayPal(summary.held, checkingIds(w.needs));
   return (
     <div className="hc" key="quiet">
       <div className="h-eyebrow">All quiet</div>
@@ -397,6 +398,9 @@ function Hub({ start, mode, sel, item, index, count, summary, week, away, onRewi
     </div>
   );
 }
+
+/** The deals whose attention item is a payment being checked with PayPal. */
+const checkingIds = (needs: readonly AttentionItem[]): ReadonlySet<string> => new Set(needs.filter((n) => n.money_check).map((n) => n.deal_id));
 
 /** The one decision on the hub: what, how much, with whom, the default on silence, one button. */
 function NeedPlate({ item, onDeal }: { item: AttentionItem; onDeal: (id: string) => void }) {
@@ -435,10 +439,10 @@ function NeedPlate({ item, onDeal }: { item: AttentionItem; onDeal: (id: string)
           <Kv items={[
             ['Item', title ?? <span className="dim">no title yet</span>],
             ['With', item.counterparty ? houseWords(item.counterparty) : <span className="dim">not named yet</span>],
-            deal ? ['Status', <Chip tone={chipTone(chipClass(deal))}>{stateLabel(deal.state, deal)}</Chip>] : null,
+            deal ? ['Status', item.money_check ? <Chip tone="dashed" title={moneyCheckPill(item.money_check, isTerminal(deal)).means}>{moneyCheckPill(item.money_check, isTerminal(deal)).text}</Chip> : <Chip tone={chipTone(chipClass(deal))}>{stateLabel(deal.state, deal)}</Chip>] : null,
             ['Asks you', item.headline],
             item.clause ? ['Why you', <>your rule “{ruleNameOf(item.clause.number)}”</>] : null,
-            deal ? ['Money now', moneyNow(deal)] : null,
+            deal ? ['Money now', item.money_check ? moneyCheckNow(isTerminal(deal)) : moneyNow(deal)] : null,
             item.deadline ? ['Time left', <Countdown deadline={item.deadline} />] : null,
             ['If you do nothing', item.on_silence],
           ]} />
@@ -466,7 +470,7 @@ function Ledger({ s, scope, onDeal, onBook }: { s: LedgerSummary; scope: LedgerS
   const all = w.deals.data ?? [];
   if (w.deals.error && !w.deals.data) return <WalletNotice error={w.deals.error} what="Ledger" />;
   // The same figures as Book's "On hold": PayPal holds only, each direction on its own line.
-  const held = heldAtPayPal(s.held);
+  const held = heldAtPayPal(s.held, checkingIds(w.needs));
   const shown: LedgerSummary = { ...s, held: held.deals };
   const toggle = (kind: LedgerKind) => (e: MouseEvent<HTMLButtonElement>) => {
     const anchor = e.currentTarget;
