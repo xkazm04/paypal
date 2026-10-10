@@ -700,7 +700,7 @@ export const TOUR_STOP: Record<TourStopId, { title: string; text: string }> = {
   'tumbler.what': { title: 'Your mini window', text: 'It stays small at the edge of your screen while The Table is closed. Your agents keep working.' },
   'tumbler.needs': { title: 'It shows what needs you', text: 'A gold ring means something needs you. Each step here opens where it happens.' },
   'tumbler.engine': { title: 'Agent app: in The Table', text: 'You choose claude-code or codex-cli in The Table. This step opens it for you.' },
-  'tumbler.waiting': { title: 'If you do nothing', text: 'Waiting never sends your money. When a deadline passes, nothing is sent and any hold is released.' },
+  'tumbler.waiting': { title: 'If you do nothing', text: 'Waiting never sends your money. At a deadline the wallet starts nothing new, and what PayPal shows decides.' },
   'approval.only': { title: 'Money decisions happen here', text: 'This is the only window that can approve a payment, save your PayPal keys or sign rules.' },
   'approval.steps': { title: 'The same steps as The Table', text: 'The steps for this window are one click here. The others say where they happen.' },
   'approval.engine': { title: 'Agent app: in The Table', text: 'You choose claude-code or codex-cli in The Table. This window shows which one your agents use.' },
