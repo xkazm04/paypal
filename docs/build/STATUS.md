@@ -2063,7 +2063,7 @@ Ids are the ones on main.
 - **43de15e:** the Rewind uses that read when the check began in an earlier week.
 - **1881489:** `docs/features/home-and-rewind.md` brought to these words.
 - **Gates.** The merge gate runs cargo test only. The App Master measured, on main: client `tsc --noEmit` exit 0 and vitest 946 of 946 in 87 files at 3698520; `tsc` exit 0 and vitest 955 of 955 in 88 files at 1881489.
-- **Council.** wallet-deal-dashboard lite r2 is ready (lite), overall 0.62, coverage 0.70. Its one must-address is the Rewind's bead tip (robustness-1), which is in rework and not merged.
+- **Council.** wallet-deal-dashboard lite r2 is ready (lite), overall 0.62, coverage 0.70. Its one must-address was the Rewind's bead tip (robustness-1); the bead tip is fixed in "Rewind bead tip rework" below.
 
 ## Scan C-9b (2026-10-10; DECISIONS.md section 33)
 
@@ -2086,3 +2086,48 @@ Ids are the ones on main.
 - **c5e1694:** the Book's detail Money line and the Counter panel's Money and Outcome lines say the payment is being checked, not that it is on hold.
 - **Gates.** The merge gate's cargo test passed at 9fe08fb and at c5e1694. The App Master measured `cargo fmt --all --check` exit 0 at 9fe08fb, and client `tsc` exit 0 and vitest 961 of 961 in 88 files at c5e1694.
 - **Open:** part 3 (the Tumbler's ended card cannot be dismissed; it needs a design in `crates/table-attention`), and the surfaces listed under Open in DECISIONS.md section 34.
+
+## Rewind bead tip rework (2026-10-10; wallet-deal-dashboard lite r2 robustness-1; DECISIONS.md section 34)
+
+Ids are the ones on main.
+
+- **0705f3f:** one reading of a money step being open, `checkOpenThrough` (`windows/main/logic.ts`); `endedBeforePayPalShowed` keeps its results and shares the loop.
+- **448fda5:** the Rewind's bead tip reads a payment being checked with PayPal, not on hold or nothing moved. New `rewindCheckTip` (`logic.ts`), `MONEY_CHECK_PILL` and `moneyCheckPillText` (`lib/words.ts`); Home's past beads use them.
+- **Open:** none here. The bead's drawn shape was fixed in the next section (662286b).
+
+## Deal dashboard rework after full council round 1 (2026-10-10; DECISIONS.md section 36)
+
+Ids are the ones on main.
+
+- **35af182:** `readEach` (`lib/readEach.ts`): per-deal reads at most 8 at once, each rejected after 10 s.
+- **deb1002:** an ending whose record could not be read is 'Not available yet', never 'no money moved'. `useEndedUnshown` returns a third outcome, `unread`; new `ENDING_UNREAD_PILL`, `ENDING_UNREAD_NOW`, `endingUnreadSentence` and `endingUnreadLine`.
+- **88a7109:** the away card reads statements only for the unconfirmed endings it words (`statementReadIds`), capped and through `readEach`.
+- **4eff7a9:** `deal_display` is read again only for live deals and deals whose row changed (`windows/main/displays.ts`).
+- **662286b:** a payment whose outcome is not known is a dashed bead (`BeadKind` 'unknown'), never on hold; new `beadLook.ts`; the dial legend says 'not known yet'.
+- **b8625d3:** the Rewind says when a busy week shows only its latest steps (`REWIND_TRUNCATED`).
+- **7322f9f:** test fix: real timers before `waitFor` in the never-answering read test.
+- **Gates.** The merge gate runs cargo test only. The App Master measured these on main:
+  - at b8625d3: client `tsc --noEmit` exit 0, and vitest 994 of 995 in 91 files. The one failure was a harness timeout in `unshown.test.ts`, fixed by 7322f9f;
+  - at 7322f9f: `tsc` exit 0, and vitest 995 of 995 in 91 files.
+- **Council.**
+  - wallet-deal-dashboard full r1 failed: overall 0.31, coverage 0.25, robustness 0.45 under its 0.50 floor.
+  - Full r2 is ready: overall 0.55, coverage 0.80, robustness 0.68, economics 0.10.
+  - Open: economics-1, economics-2 and economics-3, which wait on the operator's Approval (DECISIONS.md section 36).
+  - The judges are uncalibrated.
+
+## Rescue rework after deadline-safe-default lite r1 (2026-10-10; DECISIONS.md section 37)
+
+Ids are the ones on main.
+
+- **30de99a:** R1. A parked invoice send is read at its deadline or past the request id window (`REQUEST_ID_KEPT_SECS`), at most hourly (`PARKED_READ_SECS`), so a draft closes not done.
+- **6904055:** R2 and R3. A sent invoice is never expired unread; a create still closes at its deadline without an invoicing client; a failed deadline read waits and retries at `RESCUE_POLL_SECS`.
+- **e7222e1:** R4. The forecast leaves out a deal with an open operation (test only).
+- **Gates.**
+  - The merge gate's cargo test passed (run 2be0bddf).
+  - The App Master measured on main at e7222e1: `cargo test -p table-app --test rescue` 18 of 18, `cargo test -p table-runtime` 194 of 194, and `cargo fmt --all --check` exit 0.
+  - `cargo clippy --workspace --all-targets -- -D warnings` exited 0 at e7222e1. The dashboard full r2 pass measured it first-hand.
+- **Council.**
+  - Tiered major at wake 68.
+  - deadline-safe-default lite r1 was ready at 0.8129, and this rework closes its one must-address.
+  - Full r1 is ready: overall 0.585, coverage 0.80, robustness 0.72, economics 0.10, no hard failures.
+  - Open: robustness-1, economics-1 and economics-2, which wait on the operator's Approval (DECISIONS.md sections 35 and 37).
