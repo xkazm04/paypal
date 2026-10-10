@@ -1441,6 +1441,83 @@ fn seller_receipt_without_handoff_is_refused_once_and_changes_nothing() {
     assert_eq!(action_rows(&ledger, deal.id, "receipt.refused"), 2);
     ledger.verify_audit().unwrap();
 }
+/// value-1 (DECISIONS.md section 23): a seller's RECEIPT is the seller's word. Before the owner
+/// opened the PayPal link it is refused; after it, the same RECEIPT may still land before this
+/// wallet saw PayPal's approval, and the deal still never reads as paid in the Book.
+#[test]
+fn seller_receipt_before_buyer_approval_never_reads_as_paid() {
+    let (mut ledger, deal, _, own, peer) = setup();
+    advance(&mut ledger, deal.id, false);
+    for event in [DealEvent::BeginSettlement, DealEvent::SettleVerified] {
+        ledger.apply_event(deal.id, event, 100).unwrap();
+    }
+    ledger.set_deal_category(deal.id, Category::Parts).unwrap();
+    ledger
+        .conn
+        .execute(
+            "UPDATE deals SET pp_order_id='ORDER1',attempt=1 WHERE id=?1",
+            [deal.id.to_string()],
+        )
+        .unwrap();
+    let mut e = inbound(&deal, &own, &peer);
+    e.typ = MsgType::Receipt;
+    e.body = Body::Receipt {
+        capture_id: ShortText::new("CAPTURE1".into()).unwrap(),
+        amount: deal.terms.amount().unwrap(),
+        status: ReceiptStatus::Completed,
+        transcript_head: H256::ZERO,
+    };
+    let raw = peer.sign(&e).unwrap();
+    // (i) No handoff: refused, once, and nothing else moves.
+    for _ in 0..2 {
+        let verified = ledger.preview_inbound(deal.id, &raw, 100).unwrap();
+        assert!(ledger.accept_seller_receipt(&verified, 100).is_err());
+    }
+    assert_eq!(
+        ledger.get_deal(deal.id).unwrap().state,
+        DealState::AwaitingApproval
+    );
+    assert_eq!(
+        ledger.deal_evidence(deal.id).unwrap().receipt,
+        ReceiptEvidence::None
+    );
+    assert_eq!(receipt_rows(&ledger, deal.id), 0);
+    assert_eq!(action_rows(&ledger, deal.id, "receipt.refused"), 1);
+    assert_eq!(ledger.paypal_call_count(deal.id).unwrap(), 0);
+    // (ii) The owner opened the link; the RECEIPT lands before PayPal's approval reached this
+    // wallet. It is the seller's word: RECEIPTED, seller_attested, and not paid in the Book.
+    ledger.handoff(deal.id).unwrap();
+    let verified = ledger.preview_inbound(deal.id, &raw, 100).unwrap();
+    ledger.accept_seller_receipt(&verified, 100).unwrap();
+    assert_eq!(
+        ledger.get_deal(deal.id).unwrap().state,
+        DealState::Receipted
+    );
+    assert_eq!(
+        ledger.deal_evidence(deal.id).unwrap().receipt,
+        ReceiptEvidence::SellerAttested
+    );
+    let book = |query: serde_json::Value| {
+        let query: BookQuery = serde_json::from_value(query).unwrap();
+        ledger.book_query(&query).unwrap()["rows"]
+            .as_array()
+            .unwrap()
+            .clone()
+    };
+    // The Book's "Paid" chip (client understand.ts PAID) counts nothing.
+    let paid = book(json!({"view":"deals","metrics":["count"],
+        "filters":[{"field":"state","op":"in","value":["CAPTURED","RECEIPTED","RECONCILED"]}]}));
+    assert!(paid.is_empty(), "{paid:?}");
+    let by_state = book(json!({"view":"deals","metrics":["count"],"group_by":["state"]}));
+    assert_eq!(by_state.len(), 1);
+    assert_eq!(by_state[0]["state"], "RECEIPTED:buyer");
+    assert_eq!(by_state[0]["count"], 1);
+    let seller_word = book(json!({"view":"deals","metrics":["count"],
+        "filters":[{"field":"state","op":"eq","value":"RECEIPTED:buyer"}]}));
+    assert_eq!(seller_word[0]["count"], 1);
+    assert_eq!(ledger.paypal_call_count(deal.id).unwrap(), 0);
+    ledger.verify_audit().unwrap();
+}
 #[test]
 fn buyer_receipt_rejects_amount_head_status_state_role_owned_purchase_and_replay() {
     for invalid in 0..9 {
