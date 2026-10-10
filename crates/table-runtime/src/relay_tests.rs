@@ -1265,10 +1265,6 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
     assert!(buyer_http.0.lock().unwrap().paths.is_empty());
     // A relay restart resets its volatile mailbox, while both wallets retain signed history: the
     // six signed messages are listing, offer, two accepts, settle and receipt.
-    // A legitimate reset comes later than the reset window (scan C-9a).
-    for c in [&buyer_clock, &clock] {
-        c.0.fetch_add(600, std::sync::atomic::Ordering::SeqCst);
-    }
     store.remove(&mailbox.hex()).await.unwrap();
     store.create(&mailbox.hex()).await.unwrap();
     tokio::time::timeout(std::time::Duration::from_secs(30), async {
