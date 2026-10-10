@@ -968,6 +968,8 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
     (`windows/main/unshown.ts`) reads `deal_evidence` for each such ending, and a `money_check` there means the
     deal ended with a step open. A failed read leaves its deal out, so that deal keeps today's words. The away card
     waits for the reads. Read-only.
+    - **Amended 2026-10-10 (section 36).** A failed read no longer keeps today's words. An ending whose record could
+      not be read is 'not available yet'. The sentence above stands as the record of the decision at the time.
   - In the Book, an UNCONFIRMED end is keyed `unconfirmed` (`statementKey`), not `pending_reporting`. It has a 'No
     match' statement filter and a dashed 'no match' chip in the lens table. The CSV keeps its values.
 - **Lost:**
@@ -979,7 +981,8 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - An ended deal with an open check also leaves the Not confirmed and Stopped totals.
   - The tone of the Book's week answer still counts every AUTHORIZED deal (`holds` in `WeekAnswer`).
 - **Open:**
-  - The Rewind's bead tip (dashboard lite r2 robustness-1) is in rework. It is not part of this section.
+  - The Rewind's bead tip (dashboard lite r2 robustness-1) was fixed at 0705f3f and 448fda5 (2026-10-10; STATUS
+    'Rewind bead tip rework'). It was not part of this section.
   - Part 2's builder named other surfaces that may still word a checked payment as on hold. Checked against main on
     2026-10-10:
     - `modules/book/understand.ts:70`: the 'On hold' chip ('Held at PayPal, not paid yet', states AUTHORIZED);
@@ -1032,3 +1035,83 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   `a_parked_capture_paypal_shows_unreadably_waits_at_its_deadline_and_sends_nothing`,
   `a_parked_capture_whose_read_fails_at_its_deadline_waits_then_settles`,
   `a_parked_void_paypal_shows_unreadably_waits_at_its_deadline` and `a_restart_reads_a_parked_capture_at_once`.
+
+## 36. An ending whose record could not be read is 'not available yet', never 'no money moved'
+
+- **Date:** 2026-10-10
+- **Decided by:** the App Master at wake 67 (2026-10-10), reversing its own earlier call. It reverses one line of
+  section 34, which recorded that call as 'A failed read leaves its deal out, so that deal keeps today's words.'
+  The council reports are not in the repository; they are cited as wallet-deal-dashboard full r1 (2026-10-10) and
+  full r2 (2026-10-10).
+- **Constraint.**
+  - wallet-deal-dashboard full r1 failed: robustness was 0.45, under its 0.50 floor (overall 0.31, coverage 0.25).
+    A failed `deal_evidence` read left the deal out of `useEndedUnshown`'s set, and the deal then read 'no money
+    moved' (in `unshown.ts`, the Rewind tip, the narration and the away card). That is the claim the read exists to
+    stop.
+  - Its economics line: `world.tsx` read `deal_display` for every lifetime deal, and the away card read
+    `deal_evidence` for every UNCONFIRMED deal.
+- **Decision.** What each commit does (client only; every read is read-only):
+  - 35af182: `readEach` (`apps/desktop/client/src/lib/readEach.ts`) reads the ids at most `READ_CONCURRENCY` = 8 at
+    once, rejects a read still out after `READ_TIMEOUT_MS` = 10 000 ms, and settles each read in the order of the
+    ids. The per-deal fan-outs go through it. An invoke cannot be cancelled, so a read that timed out is only no
+    longer waited on.
+  - deb1002: the third outcome, unread. `useEndedUnshown` returns `unshown`, `unread` and `pending`. A read that was
+    rejected or timed out, and any ending past `ENDING_READS_MAX` (500, mirroring `HISTORY_STEPS`), is unread. The
+    words are `ENDING_UNREAD_PILL` = 'Not available yet' and `ENDING_UNREAD_NOW` = 'not available yet · this deal’s
+    record could not be read' (`lib/words.ts`); the Rewind narrates `endingUnreadSentence`, the away card words it
+    with `endingUnreadLine`. A read that never answers no longer holds the Rewind on 'reading the week' or hides the
+    away card.
+  - 88a7109: the away card reads statements (`deal_evidence`) only for the unconfirmed endings it words
+    (`statementReadIds`), capped at `ENDING_READS_MAX`, through `readEach`, and only once the history read is in
+    without an error.
+  - 4eff7a9: `deal_display` is read again only for live deals and for deals whose row changed
+    (`windows/main/displays.ts`, `useDisplays`; the token is the state and `updated_at`). CAPTURED and RECEIPTED
+    count as live (`CHECKED_AFTER_END`), because a capture read-back on a paid deal closes its money check without
+    moving `updated_at`. `useAllEvidence` is unchanged.
+  - 662286b: a payment whose outcome is not known is a dashed bead (`BeadKind` 'unknown', which `beadKind` never
+    returns), never on hold; the dial legend says `BEAD_UNKNOWN_LEGEND` = 'not known yet'. `beadLook.ts`
+    (`liveLook`, `pastLook`) holds the mapping.
+  - b8625d3: the Rewind says when a busy week shows only its latest steps: `REWIND_TRUNCATED`, shown when
+    `deal_history` sets `truncated`.
+  - 7322f9f: the test fix, real timers back before `waitFor` in the never-answering read test (`unshown.test.ts`).
+  - The Rewind bead tip itself was fixed before, at 0705f3f (`checkOpenThrough`) and 448fda5 (`rewindCheckTip`).
+- **Lost:** a failed read keeping today's words.
+- **Open.** Checked against main on 2026-10-10. From wallet-deal-dashboard full r2 (ready, overall 0.55, coverage
+  0.80, robustness 0.68, economics 0.10; the judges are uncalibrated):
+  - Places outside the rework that may still say 'no money moved' or 'on hold' for an ending the code cannot place:
+    - `amountNote` (`windows/main/logic.ts:205`): 'on hold at PayPal' for AUTHORIZED and 'no money moved' for
+      WITHDRAWN and EXPIRED, with no check of `money_check`. Used at `windows/main/ui.tsx:84` and
+      `windows/main/modules/spend.tsx:458` and `:539`. The deal page (`deal/Decision.tsx:34`) uses the check's words
+      instead when there is one.
+    - `liveLook` (`beadLook.ts`) and `moneyNow` (`logic.ts:173`) when attention has no item for the deal: the bead
+      falls back to the deal state's words. The same holds for `summarize().held` (`logic.ts:259`) and Home's
+      `heldAtPayPal(..., checkingIds(w.needs))` (`Home.tsx:390` and `:475`) when `attention_list` fails or lags.
+    - The Shield: `windows/main/modules/shield/matrix.ts:149-150` (`moneyNow(d)` on an order made) and
+      `windows/main/modules/shield.tsx:556` ('Money right now: ...').
+    - While the endings reads are pending, the Rewind's dial beads do not wait for them (`Home.tsx` ~:223-233), so an
+      ending the code cannot yet place shows 'nothing moved' for up to 10 s per read (full r2 robustness-3).
+  - Waiting on the operator's Approval (full r2 `must_address`):
+    - economics-1: `displays.ts` `CHECKED_AFTER_END` re-reads every CAPTURED and RECEIPTED deal on each refetch,
+      because `record_resolution` does not move `deals.updated_at` when it records the outcome
+      (`crates/table-app/src/pipeline/resolve.rs:518`, `:528` and `:531`). The fix the council names is in Rust:
+      `record_resolution` moves `updated_at`, then `CHECKED_AFTER_END` is deleted. deadline-safe-default full r1
+      (2026-10-10) found nothing on a deadline path that reads `deals.updated_at`, so moving it cannot alter a
+      deadline.
+    - economics-2: a dropped `deal_display` batch keeps reading, and batches can overlap without limit.
+    - economics-3: `useAllEvidence` (`world.tsx:71`, used at `modules/book.tsx:93`) reads `deal_evidence` for every
+      lifetime deal at once.
+- **Evidence:** the commits above; the tests, by file:
+  - `lib/readEach.test.ts`: the describe 'readEach' ('never has more than `concurrency` reads out at once',
+    'rejects a read that never settles once its time limit has passed');
+  - `windows/main/unshown.test.ts`: 'counts a read that never answers as unread once its time limit has passed'
+    in the describe 'useEndedUnshown', and the real-timers fix of 7322f9f;
+  - `windows/main/rewind.test.ts`: the describes 'checkOpenThrough: a money step open by the steps up to one',
+    'rewindCheckTip: the Rewind’s bead tip while a money step is open' and 'an ending whose own record could not be
+    read';
+  - `windows/main/home/away.test.ts`: 'tells an ending whose own record could not be read as not available yet,
+    never as no money moved' and the describe 'statementReadIds: the deals whose line uses a statement read';
+  - `windows/main/displays.test.ts`: the describes 'displayToken' and 'displaysToRead' ('reads a paid deal whose
+    money check can close without its row changing');
+  - `windows/main/beadLook.test.ts`: the describes 'liveLook: a bead as the deal stands now' and 'pastLook: a bead
+    on the Rewind';
+  - b8625d3 has no test of its own.
