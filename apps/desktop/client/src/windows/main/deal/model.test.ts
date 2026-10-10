@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { Clause } from '@bindings/Clause';
 import type { Deal } from '@bindings/Deal';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
+import { unconfirmedMeans } from '../../../lib/words';
 import { buildMockState, usd } from '../../../mock/fixtures';
 import {
   attestOf, CLAUSE_NUMBER, decisionLine, envelopeLink, evidenceLabel, latestText, mayWithdraw, milestones, mirrorStrip, readClauses, reconciliationLabel,
-  roleFor, stateTone, stepLabel, timelineRows, withdrawWhat,
+  roleFor, statementLabel, stateTone, stepLabel, timelineRows, withdrawWhat,
 } from './model';
 
 const NOW = 1_800_000_000;
@@ -215,5 +216,18 @@ describe('timeline, evidence and decision', () => {
   it('says the latest envelope in a few words', () => {
     expect(latestText(world.deals.find((x) => x.display.label === 'D-0193')!.transcript, 'Dan')).toBe('Dan offered $329.00');
     expect(latestText([], 'Dan')).toBeNull();
+  });
+});
+
+describe('statementLabel: an ended deal is not a delay', () => {
+  it.each([true, false, null] as const)('UNCONFIRMED, read %s, says how it ended', (read) => {
+    const l = statementLabel('UNCONFIRMED', { reconciliation: 'pending_reporting', statement_unmatched: read });
+    expect(l.text).toBe(reconciliationLabel('pending_reporting').text);
+    expect(l.tone).toBe(reconciliationLabel('pending_reporting').tone);
+    expect(l.why).toBe(unconfirmedMeans(read));
+    expect(l.why).not.toContain('a delay, not a doubt');
+  });
+  it('RECEIPTED with pending_reporting is the plain delay line', () => {
+    expect(statementLabel('RECEIPTED', { reconciliation: 'pending_reporting', statement_unmatched: true })).toEqual(reconciliationLabel('pending_reporting'));
   });
 });

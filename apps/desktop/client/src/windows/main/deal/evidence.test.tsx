@@ -7,7 +7,7 @@ import { STATEMENT_CHECK_NEEDS_KEYS, unconfirmedMeans } from '../../../lib/words
 import { mockBackend, resetMockState } from '../../../mock/backend';
 import { buildMockState } from '../../../mock/fixtures';
 import { ToastProvider } from '../ui';
-import { EvidenceSheet } from './Evidence';
+import { EvidenceSheet, ProofPanel, type EvidenceKind } from './Evidence';
 
 const hoisted = vi.hoisted(() => ({ current: null as Backend | null }));
 vi.mock('../../../lib/runtime', () => ({ backend: () => hoisted.current }));
@@ -28,10 +28,10 @@ function withKeys(configured: boolean): Backend {
     },
   };
 }
-const sheet = (state: 'RECEIPTED' | 'UNCONFIRMED' | 'RECONCILED', statementUnmatched?: boolean | null) => {
+const sheet = (state: 'RECEIPTED' | 'UNCONFIRMED' | 'RECONCILED', statementUnmatched?: boolean | null, kind: EvidenceKind = 'books') => {
   const deal = { ...buyer.deal, state };
   const data = { ...buyer.evidence, receipt: 'SELLER_ATTESTED' as const, reconciliation: 'pending_reporting' as const, statement_unmatched: statementUnmatched };
-  return render(<ToastProvider><EvidenceSheet kind="books" deal={deal} ev={{ data, error: null }} band={null} onFresh={() => {}} onClose={() => {}} /></ToastProvider>);
+  return render(<ToastProvider><EvidenceSheet kind={kind} deal={deal} ev={{ data, error: null }} band={null} onFresh={() => {}} onClose={() => {}} /></ToastProvider>);
 };
 
 describe('the statement check on a deal PayPal has not confirmed', () => {
@@ -76,5 +76,40 @@ describe('the UNCONFIRMED end is worded by whether a statement read happened', (
     expect(unconfirmedMeans(read)).toContain(phrase);
     // Only a read that came back unmatched may say the statement did not show it.
     expect(/did not show|never showed/.test(unconfirmedMeans(read))).toBe(read === true);
+  });
+});
+
+describe('an ended deal is never called a delay', () => {
+  const DELAY = /a delay, not a doubt/;
+  beforeEach(() => { resetMockState(); hoisted.current = withKeys(true); });
+  afterEach(() => { cleanup(); hoisted.current = null; });
+
+  it('the books and paypal sheets do not say it on UNCONFIRMED', async () => {
+    sheet('UNCONFIRMED', true);
+    await screen.findByRole('button', { name: 'Done' });
+    expect(screen.queryByText(DELAY)).toBeNull();
+    cleanup();
+    sheet('UNCONFIRMED', true, 'paypal');
+    await screen.findByRole('button', { name: 'Done' });
+    expect(screen.queryByText(DELAY)).toBeNull();
+  });
+
+  it('the books sheet still says it on RECEIPTED', async () => {
+    sheet('RECEIPTED');
+    expect(await screen.findByText(DELAY, { exact: false })).not.toBeNull();
+  });
+
+  it('the paypal sheet shows the UNCONFIRMED words exactly once', async () => {
+    sheet('UNCONFIRMED', false, 'paypal');
+    await screen.findByRole('button', { name: 'Done' });
+    expect(screen.getAllByText(unconfirmedMeans(false), { exact: false })).toHaveLength(1);
+  });
+
+  it('the proof panel does not say it on UNCONFIRMED', () => {
+    const deal = { ...buyer.deal, state: 'UNCONFIRMED' as const };
+    const data = { ...buyer.evidence, receipt: 'SELLER_ATTESTED' as const, reconciliation: 'pending_reporting' as const, statement_unmatched: true };
+    render(<ProofPanel deal={deal} ev={{ data, error: null }} band={null} onOpen={() => {}} />);
+    expect(screen.queryByText(DELAY)).toBeNull();
+    expect(screen.getByText(unconfirmedMeans(true), { exact: false })).not.toBeNull();
   });
 });
