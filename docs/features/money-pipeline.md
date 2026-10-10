@@ -14,7 +14,10 @@ sees its effects as plain states ("Preparing payment", "On hold", "Paid", "Hold 
 - **main window.** Each deal's state pill (from `stateWord()`), its "If you do nothing" line, and a
   "Who decided" list on the deal page: you, your signed rule, the buyer's approval under your shop
   rules, or the safe default. A buyer's haggle or shop-order deal at RECEIPTED reads "Seller says paid"
-  (gold, not settled) until PayPal's statement matches and it becomes "Paid, on statement". A step whose PayPal answer was lost shows a dashed "Checking with
+  (gold, not settled) until PayPal's statement matches and it becomes "Paid, on statement". If the
+  statement never shows it within 72 hours the deal ends "Not confirmed by PayPal" (coral, closed,
+  never paid; this wallet moved nothing). A seller's receipt that arrives before the owner opened the
+  PayPal link is refused and shows in the deal's history as such. A step whose PayPal answer was lost shows a dashed "Checking with
   PayPal" pill. A parked one reads "We couldn't confirm a payment with PayPal. At the deadline the wallet asks PayPal what happened, and what PayPal shows decides. A hold is released; nothing is collected." (`MONEY_CHECK_PARKED` in `apps/desktop/client/src/lib/words.ts`). The
   Rewind on Home draws one tick per money operation, coloured by who decided it (see
   [home-and-rewind.md](./home-and-rewind.md)).
@@ -125,6 +128,24 @@ flowchart LR
    lapses, a capture PayPal committed is recorded and no void is sent. A void goes once more at
    the deadline whoever decided it. While an operation is open, no other step, no withdraw and no
    void starts for that deal.
+9. **A seller's receipt is the seller's word** (DECISIONS.md section 23). On a buyer's haggle or shop
+   order the seller's wallet captures, so this wallet learns of the payment only from the seller's
+   signed RECEIPT (`Ledger::accept_seller_receipt`, `crates/table-ledger/src/receipt.rs`):
+   - The owner's `Decision::OpenBrowser` records the browser handoff (`Ledger::handoff`) in the
+     same step as the owner's decision, before the link is returned
+     (`crates/table-runtime/src/service.rs`). A receipt on a deal with no recorded handoff is
+     refused: one `receipt.refused` row per distinct receipt (actor `peer:<iss>`, reason
+     `no_handoff`), nothing else changes, and the deal lapses by its own approval countdown.
+   - An accepted receipt moves the deal to RECEIPTED with `receipt_evidence = seller_attested`
+     and `reconciliation = pending_reporting`. Only the owner's reporting read (`Pipeline::reconcile`,
+     `crates/table-app/src/reconciliation.rs`) can promote it: a match makes it
+     `paypal_verified` and RECONCILED; a complete read with no match appends
+     `receipt.reporting_unmatched` and changes nothing.
+   - If no statement match comes within `CORROBORATION_SECS` (72 h, 24 times the 3 h reporting
+     lag) of the receipt, the scheduler's `Ledger::lapse_corroboration` ends the deal UNCONFIRMED
+     under the safe default (one `receipt.unconfirmed` row; no PayPal call, no money). Its
+     evidence is kept, and a later statement match still moves it to RECONCILED. UNCONFIRMED is
+     terminal and counts as spent in the exposure fold (the money may have left).
 
 Who decides each step, at a glance:
 
@@ -153,6 +174,7 @@ the owner paused the agents, the approval window is locked or every window is hi
 | One request id per operation, never a second | `operations` PK and `UNIQUE request_id` (0003/0011); the resolver never calls `reserve_operation`, and refuses (an integrity error) an operation whose stored id differs from `RequestId::for_operation` |
 | Purchases and rescues never run on a rule | `Pipeline::authority()` first two guards |
 | Silence never moves money out | `deadline_default` / `auto_void` choose only lapse or void; `authority()` never returns `SafeDefault`, so no create, authorize or capture can run under it |
+| The seller's word never reads as paid, and always ends | `accept_seller_receipt` refuses a receipt with no handoff; `lapse_corroboration` ends an uncorroborated one UNCONFIRMED; the Book keys it `RECEIPTED:buyer` (`crates/table-ledger/src/book.rs`) |
 | Owner decisions bound to what was shown | runtime `decide()` recomputes checks and compares `checks_hash`, writes `owner.decision` before the step (`crates/table-runtime/src/service.rs`) |
 | Audit is append-only and hash-chained | triggers `audit_no_update` / `audit_no_delete` / `audit_no_replace`; tail check on append, full check on open and every 500th append |
 | PayPal evidence carries no payer text | allowlist redaction in `table-paypal` and `crates/table-ledger/src/redaction.rs` (`binding_projection`) |
@@ -202,6 +224,17 @@ results: `deal_evidence` and `deal_reconcile` (main), `approval_summary` (approv
   `deadline_waits_for_an_unsettled_authorize_before_expiring`.
 - `crates/table-ledger/src/tests.rs`: `open_operations_list_unknown_and_stale_pending_rows_and_resolution_only_appends`,
   `deadline_default_refuses_while_an_authorize_is_open`.
+- The seller's receipt (DECISIONS.md section 23): `crates/table-ledger/src/tests.rs`
+  `seller_receipt_before_buyer_approval_never_reads_as_paid`,
+  `seller_receipt_without_handoff_is_refused_once_and_changes_nothing`,
+  `a_seller_attested_deal_ends_unconfirmed_after_72_hours_and_a_late_match_still_counts`,
+  `a_reconciled_deal_a_seller_deal_and_an_unreceipted_deal_never_lapse_unconfirmed`;
+  `crates/table-runtime/src/tests.rs`
+  `a_scheduler_tick_past_the_corroboration_window_ends_a_seller_attested_deal_unconfirmed` and
+  `buyer_browser_availability_needs_unlock_but_no_local_paypal_credentials` (OpenBrowser alone
+  records the handoff); `crates/table-app/tests/pipeline.rs`
+  `own_account_reporting_requires_success_exact_capture_amount_currency_direction_and_complete_pages`
+  (an UNCONFIRMED deal reconciles; an unmatched read is recorded).
 - `crates/table-app/src/auth.rs`: `owner_tickets_bind_terms_deal_attempt_expiry_and_session_generation`.
 - `crates/table-paypal/tests/client.rs`: `retries_reuse_request_id_and_oauth_is_not_evidence`,
   `h4_truth_binding_and_host_allowlist`.

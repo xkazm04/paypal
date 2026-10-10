@@ -89,8 +89,9 @@ Deal states (`stateWord()`):
 | APPROVED | Approved on PayPal | wait |
 | AUTHORIZED | On hold | held |
 | CAPTURED | Paid | done |
-| RECEIPTED | Paid, receipt saved | done |
+| RECEIPTED | Paid, receipt saved (buyer haggle or shop order, on the seller's receipt alone: Seller says paid) | done (seller says: wait) |
 | RECONCILED | Paid, on statement | done |
+| UNCONFIRMED | Not confirmed by PayPal (the seller said paid; PayPal's statement never showed it; this wallet moved nothing) | bad (coral, never done) |
 | WITHDRAWN | Withdrawn | off |
 | EXPIRED | Expired | off |
 | VOIDED / AUTO_VOIDED | Hold released | off |
