@@ -3,7 +3,7 @@ import type { BookQuery } from "./BookQuery";
 import type { JsonValue } from "./serde_json/JsonValue";
 
 /**
- * Aggregate rows, grouped by currency and mode first: amounts in minor units, market distance in
+ * Aggregate rows, grouped by currency, mode and direction (out or in) first: amounts in minor units, market distance in
  * basis points. Read on a read-only connection; nothing is written.
  */
 export type BookAnswer = { query: BookQuery, rows: Array<JsonValue>, };

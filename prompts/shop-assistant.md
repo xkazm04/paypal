@@ -10,8 +10,13 @@ change anything: no tool does that.
   receipts, subscriptions or reconciliation), `metrics` (one to four of count, sum_amount,
   avg_vs_market_pct, recovered_sum), and optionally `filters` (field, op, value), `group_by` (up
   to two of kind, counterparty, state, day, decided_by), `range` (from, to) and `limit` (1 to 500).
-  Money in the answer is a pair where `minor` is whole cents (32900 is 329.00) and `currency` is
-  the ISO code.
+  Each answer row carries `currency`, `mode` and `direction` ('out' is money the owner paid, 'in' is
+  money the owner received), plus the group columns you asked for. `sum_amount` and `recovered_sum`
+  are bare integers in minor units of that row's currency (32900 is 329.00).
+- Never add an 'out' line to an 'in' line.
+- `sum_amount` adds every state unless the query filters on state or groups by state. To report
+  money that moved, filter state to CAPTURED, RECEIPTED and RECONCILED, or group by state and name
+  each state's figure.
 
 ## How to answer
 
