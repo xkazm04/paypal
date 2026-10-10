@@ -80,9 +80,13 @@ export function statementWords(s: Statement, state?: DealState, read: StatementR
   return statementEnded(s, state) ? { word: UNCONFIRMED_STATEMENT_WORD, tip: unconfirmedMeans(read) } : { word: STATEMENT_WORD[s], tip: STATEMENT_TIP[s] };
 }
 
-export function statementCounts(deals: readonly Deal[], stmt: (d: Deal) => Statement): Record<Statement, number> {
-  const c: Record<Statement, number> = { matched: 0, pending_reporting: 0, mismatch: 0, not_applicable: 0, unknown: 0 };
-  for (const d of deals) c[stmt(d)]++;
+/** A deal's statement as the filters and counts key it: an UNCONFIRMED end is its own key, not a wait. */
+export type StatementKey = Statement | 'unconfirmed';
+export const statementKey = (s: Statement, state: DealState | undefined): StatementKey => (statementEnded(s, state) ? 'unconfirmed' : s);
+
+export function statementCounts(deals: readonly Deal[], stmt: (d: Deal) => Statement): Record<StatementKey, number> {
+  const c: Record<StatementKey, number> = { matched: 0, pending_reporting: 0, unconfirmed: 0, mismatch: 0, not_applicable: 0, unknown: 0 };
+  for (const d of deals) c[statementKey(stmt(d), d.state)]++;
   return c;
 }
 
@@ -164,7 +168,7 @@ export function readQuery(q: BookQuery): Array<[string, string]> {
 }
 
 export type Ctx = { stmt: (d: Deal) => Statement; cpName: (d: Deal) => string };
-export type Agg = { count: number; sums: Sums; pct: { avg: number; n: number } | null; recovered: Money[]; stmt: Record<Statement, number> };
+export type Agg = { count: number; sums: Sums; pct: { avg: number; n: number } | null; recovered: Money[]; stmt: Record<StatementKey, number> };
 export type Group = Agg & { key: string; label: string };
 export type Result = { query: BookQuery; rows: Deal[]; groups: Group[]; all: Agg };
 
