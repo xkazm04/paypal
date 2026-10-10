@@ -4,7 +4,7 @@ import type { Deal } from '@bindings/Deal';
 import type { JsonValue } from '@bindings/serde_json/JsonValue';
 import { mockBackend, resetMockState } from '../../../../mock/backend';
 import { dirOf, outsideGrid, runQuery, stateKey, type Ctx } from './model';
-import { understand, type AskCtx, type Understanding, type Understood } from './understand';
+import { lensQuery, understand, type AskCtx, type Understanding, type Understood } from './understand';
 
 // Wednesday 7 Oct 2026, 15:30 in a UTC+2 calendar.
 const NOW = Date.UTC(2026, 9, 7, 13, 30) / 1000;
@@ -34,7 +34,7 @@ describe('a paid-only question keeps money out and money in apart', () => {
   ];
   it('the window sums out 2 / 1500 and in 2 / 1000, and the stopped deal is in neither', () => {
     const { query } = ok(understand('how much was paid this week', CTX));
-    const r = runQuery(query, fixture, ctx);
+    const r = runQuery(lensQuery(query), fixture, ctx);
     expect(r.rows.map((d) => d.id)).toEqual(['out_a', 'out_b', 'in_a', 'in_b']);
     expect(r.all.sums.captured.out).toEqual([{ currency: 'USD', minor: 1500 }]);
     expect(r.all.sums.captured.in).toEqual([{ currency: 'USD', minor: 1000 }]);
@@ -70,6 +70,7 @@ describe('the mock book_query answers a direction line like Rust', () => {
       const [n, sum] = expected.get(k) ?? [0, 0];
       expected.set(k, [n + 1, sum + d.terms.unit_price.minor * d.terms.qty]);
     }
+    expect(new Set([...expected.keys()].map((k) => k.split('|')[2]))).toEqual(new Set(['out', 'in']));
     expect(new Map(rows.map((r) => [`${r.currency}|${r.mode}|${r.direction}`, [r.count, r.sum_amount]]))).toEqual(expected);
   });
 });
