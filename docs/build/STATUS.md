@@ -2177,5 +2177,21 @@ Ids are the ones on main.
 - **Tests.**
   - Rust: `book::tests::a_range_counts_only_deals_created_from_from_and_before_to` (deals before, at from, inside, at to, after; counts only [from, to)).
   - Client (`modules/book/lensRange.test.ts`): 'a ranged week query' (carries the range of a typed this week; the window returns exactly the rows the Rust test counts) and 'a preset lens that names no time' (unchanged, reads every deal). Both use the same fixture instants.
-- **Gates.** `cargo test -p table-ledger`, clippy on table-ledger, `git diff --check`. Client tsc and vitest were not run by the gate (no node_modules in the worktree); the client test is unrun.
+- **Gates.** `cargo test -p table-ledger`, clippy on table-ledger, `git diff --check`. Client tsc and vitest were not run by the gate (no node_modules in the worktree); the App Master ran them read-only on main at cdd949d: tsc --noEmit exit 0, vitest 998 of 998 in 92 files, lensRange.test.ts 3 of 3.
 - **Open.** weekBounds (logic.ts, local Date) and whenSpan (understand.ts, fixed offset at now) may differ in a DST-change week; neither was changed.
+
+## Book answer direction and counts (ops-ledger-query lite r2 must-address 1 and 2)
+
+Ids are the ones on main.
+
+- **Commits:** 909a02c (code, tests), and the docs commit that carries this section.
+- **Defects.** The wallet's table added money out and money in into one Amount; and the answer counted every deal on record while the grid, its chip and 'It only reads your N deals' counted the week's.
+- **Change.**
+  - `compile()` (`crates/table-ledger/src/book.rs`) adds `direction` ('out' for the buyer side, 'in' otherwise) as an always-on column and group, after mode. No `BookGroup` variant, so table-core, bindings and the table-mcp schema are unchanged. The mock's `book_query` keys its rows the same way.
+  - `WalletAnswer` (`book.tsx`) has a Money column, a dim 'in' on money-in amounts as in the window pivot, and a hint that says out and in are on separate lines.
+  - `ReadBody` gets `all.length`. The Slip says how many answer deals are highlighted and how many are older than this week when `outsideGrid` (`modules/book/model.ts`) finds some that the grid does not show; otherwise it reads as before.
+- **Tests.**
+  - Rust: `book::tests::a_paid_question_answers_money_out_and_money_in_on_separate_lines` (out 2 / 1500, in 2 / 1000, stopped deal in neither).
+  - Client (`modules/book/direction.test.ts`): 'a paid-only question keeps money out and money in apart' (same fixture, window sums), 'the mock book_query answers a direction line like Rust' (mock rows against the deals on record), and 'deals the answer reaches but the grid does not show' (`outsideGrid`).
+- **Gates.** `cargo fmt --all --check`, clippy and `cargo test` on table-ledger, `cargo test -p table-runtime`, `cargo test -p table-mcp`, `git diff --check`. Client tsc and vitest were not run by the gate (no node_modules in the worktree); the new client test is unrun, and the mock test assumes the mock seeds deals.
+- **Open.** The answer still adds stopped, held and in-progress money when no state chip is set (r1 value-3). 'Spend' and 'receive' both read as Paid. The `BookAnswer` doc comment in table-core was not touched.
