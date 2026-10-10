@@ -66,12 +66,13 @@ export function wizardSteps(phase: PairPhase, matched: boolean, pinned: boolean)
 export type PairAnswer = { tone: 'calm' | 'need' | 'done'; title: string; sub: string };
 
 /** The one sentence at the top of the Connections sheet: where the connection stands. */
-export function pairAnswer(mode: PairMode, phase: PairPhase, matched: boolean, pinned: boolean): PairAnswer {
+export function pairAnswer(mode: PairMode, phase: PairPhase, matched: boolean, pinned: boolean, houseConnected = false): PairAnswer {
   if (pinned) return { tone: 'done', title: 'You’re connected', sub: 'You can open a table now. No money moved.' };
   if (phase === 'words' && matched) return { tone: 'need', title: 'Confirm in the approval window', sub: 'Only you can confirm there. Until you do, nobody is connected.' };
   if (phase === 'words') return { tone: 'need', title: 'Match the four words with them', sub: 'If all four match, go on. If even one differs, stop.' };
   if (phase === 'code') return { tone: 'calm', title: 'Waiting for them to type your code', sub: 'Give them only the code. You match four words next.' };
   if (mode === 'join') return { tone: 'calm', title: 'Type the code they gave you', sub: 'You match four words next. No money moves while connecting.' };
+  if (mode === 'house' && houseConnected) return { tone: 'calm', title: 'Open a new practice table', sub: 'The house seller is already connected. You check its four words once more. No money moves.' };
   if (mode === 'house') return { tone: 'calm', title: 'Connect with the house seller', sub: 'A practice shop that is always there. No money moves while connecting.' };
   return { tone: 'calm', title: 'Connect with another wallet', sub: 'Make a code and give it to them. No money moves while connecting.' };
 }
@@ -139,3 +140,7 @@ export function mirrorText(mode: PairMode, stage: MirrorStage): Mirror {
     case 'done': return { title: 'Connected on your side', line: 'They are connected once they confirm in their own window.' };
   }
 }
+
+/** The house desk's own words: a house seller already connected is a new practice table, not a connection. */
+export const houseWords = (connected: boolean): { first: string; act: string } =>
+  connected ? { first: 'Open a new practice table', act: 'Open a new practice table' } : { first: 'Connect with the house', act: 'Connect with the house' };
