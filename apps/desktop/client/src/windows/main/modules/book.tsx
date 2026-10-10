@@ -93,7 +93,9 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
   const ev = useAllEvidence(w.deals.data, 0);
   const evLoading = !ev.map.size && !ev.error && !!all.length;
   const stmt = (d: Deal): Statement => ev.map.get(d.id)?.reconciliation ?? 'unknown';
-  const ctx: Ctx = { stmt, cpName: (d) => cp(d.counterparty).name };
+  // A payment whose PayPal answer was lost: not a hold, and not paid. One lookup for every figure here.
+  const checking = (d: Deal): boolean => !!(ev.map.get(d.id)?.money_check ?? w.needOf(d.id)?.money_check);
+  const ctx: Ctx = { stmt, cpName: (d) => cp(d.counterparty).name, checking };
   const label = (d: Deal) => w.display(d).label;
 
   const [phase, setPhase] = useState<Phase>('IDLE');
@@ -196,7 +198,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
   const lit = res && phase === 'RESULT' ? new Set(res.rows.map((d) => d.id)) : null;
   const visible = ledger.filter((d) => (stmtF === 'all' || statementKey(stmt(d), d.state) === stmtF) && (!bucketF || bucketOf(d) === bucketF));
   const counts = statementCounts(ledger, stmt);
-  const totals = sums(ledger);
+  const totals = sums(ledger, checking);
   const selDeal = sel ? all.find((d) => d.id === sel) : undefined;
 
   const exportRows = (rows: Deal[], query: string, name: string) => {
@@ -218,11 +220,11 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
         sub={<>All payments · {scope.scope === 'week' ? 'this week' : 'everything on record'} · as of {clockLabel(now)}</>}
         actions={<>{nav.onSafety ? <Btn sm onClick={nav.onSafety} title="Check every entry on record: who decided each money step, and what your agents were refused">Your safety record</Btn> : null}<DetailToggle value={detail} onChange={setDetail} /></>} />
 
-      <WeekAnswer deals={ledger} week={scope.scope === 'week'} checking={ledger.filter((d) => ev.map.get(d.id)?.money_check ?? w.needOf(d.id)?.money_check).length} />
+      <WeekAnswer deals={ledger} week={scope.scope === 'week'} checking={checking} />
       <Explainer id="book" title="How your book works" steps={HOW_BOOK} />
-      {!detailed ? <Totals deals={ledger} why={r2} /> : null}
+      {!detailed ? <Totals deals={ledger} why={r2} checking={checking} /> : null}
 
-      <Outlook deals={ledger} label={label} onOpen={(id) => setSel(id)} simple={!detailed} checking={(d) => !!(ev.map.get(d.id)?.money_check ?? w.needOf(d.id)?.money_check)} />
+      <Outlook deals={ledger} label={label} onOpen={(id) => setSel(id)} simple={!detailed} checking={checking} />
 
       {r2 && !detailed ? <MoneyWent deals={ledger} stmt={evLoading ? () => null : stmt} checkedAt={poll && poll.status === 200 ? clockLabel(poll.at) : null}
         titleOf={(d) => w.display(d).title} onOpen={(id) => setSel(id)} /> : null}
@@ -293,7 +295,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
                 {BUCKETS.map((b) => (
                   <th key={b} className="num">
                     <button type="button" className="tot" aria-pressed={bucketF === b} onClick={() => setBucketF((x) => (x === b ? null : b))}
-                      title={`${BUCKET_LABEL[b]}: ${BUCKET_SUB[b]} · ${ledger.filter((d) => bucketOf(d) === b).length} deals. Click to filter.`}>
+                      title={`${BUCKET_LABEL[b]}: ${BUCKET_SUB[b]} · ${ledger.filter((d) => bucketOf(d) === b && !checking(d)).length} deals. Click to filter.`}>
                       <MoneyLines out={totals[b].out} inn={totals[b].in} bucket={b} />
                     </button>
                   </th>
@@ -359,24 +361,26 @@ const moneyList = (ms: readonly Money[]) => ms.map((m) => formatMinor(m.minor, m
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** The answer at the top: where the money is. Every figure is summed per state, direction and currency. */
-function WeekAnswer({ deals, week, checking = 0 }: { deals: Deal[]; week: boolean; checking?: number }) {
+function WeekAnswer({ deals, week, checking = () => false }: { deals: Deal[]; week: boolean; checking?: (d: Deal) => boolean }) {
   const when = week ? 'This week' : 'On record';
   if (!deals.length) return <AnswerBar tone="calm" icon="book" title="Nothing yet. No payments are on record." sub="They appear here as soon as an agent proposes a deal." />;
-  const s = sums(deals);
+  const s = sums(deals, checking);
+  const checked = deals.filter(checking).length;
   const out = moneyList(s.captured.out);
   const inn = moneyList(s.captured.in);
   const held = heldWords(moneyList(s.held.out), moneyList(s.held.in));
-  const stopped = deals.filter((d) => bucketOf(d) === 'stopped').length;
+  const stopped = deals.filter((d) => bucketOf(d) === 'stopped' && !checking(d)).length;
   const holds = deals.filter((d) => d.state === 'AUTHORIZED').length;
   const title = out && inn ? `${when}: ${out} paid out, ${inn} paid in.` : out ? `${when}: ${out} paid out. Nothing paid in yet.` : inn ? `${when}: ${inn} paid in. Nothing paid out.` : `${when}: no money has moved yet.`;
-  const bits = [held ?? '', checking ? `${plural(checking, 'payment is', 'payments are')} being checked with PayPal.` : '', stopped ? `${plural(stopped, 'payment was', 'payments were')} stopped or paid back.` : ''].filter(Boolean);
+  const bits = [held ?? '', checked ? `${plural(checked, 'payment is', 'payments are')} being checked with PayPal.` : '', stopped ? `${plural(stopped, 'payment was', 'payments were')} stopped or paid back.` : ''].filter(Boolean);
   return <AnswerBar tone={holds ? 'need' : 'calm'} icon={holds ? undefined : 'book'} title={title} sub={bits.length ? bits.join(' ') : undefined} />;
 }
 
 type Tile = { k: string; label: string; icon: IconName; bucket: Bucket; out: Money[]; inn: Money[]; n: number; note: string };
 
 /** Four plain totals. Each currency keeps its own line; a hold is never added to what was paid. */
-function Totals({ deals, why }: { deals: Deal[]; why?: boolean }) {
+function Totals({ deals: all, why, checking = () => false }: { deals: Deal[]; why?: boolean; checking?: (d: Deal) => boolean }) {
+  const deals = all.filter((d) => !checking(d));
   const s = sums(deals);
   const n = (b: Bucket, dir?: 'out' | 'in') => deals.filter((d) => bucketOf(d) === b && (!dir || dirOf(d) === dir)).length;
   const tiles: Tile[] = [

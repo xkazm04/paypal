@@ -42,11 +42,15 @@ export const dirOf = (d: Pick<Deal, 'side'>): Dir => (d.side === 'buyer' ? 'out'
 
 export type Sums = Record<Bucket, Record<Dir, Money[]>>;
 
-/** Per state, per direction, per currency. Nothing is ever summed across those. */
-export function sums(deals: readonly Deal[]): Sums {
+/** Per state, per direction, per currency. Nothing is ever summed across those. A deal for which
+ *  `checking` holds (its payment is being checked with PayPal) is in no bucket: PayPal may already
+ *  have collected it, so it is not money on hold, and it is not paid either. Home leaves it out of
+ *  what is held for the same reason (heldAtPayPal). */
+export function sums(deals: readonly Deal[], checking: (d: Deal) => boolean = () => false): Sums {
   const out = {} as Sums;
+  const counted = deals.filter((d) => !checking(d));
   for (const b of BUCKETS) {
-    const inB = deals.filter((d) => bucketOf(d) === b);
+    const inB = counted.filter((d) => bucketOf(d) === b);
     out[b] = { out: sumByCurrency(inB.filter((d) => dirOf(d) === 'out').map(dealTotal)), in: sumByCurrency(inB.filter((d) => dirOf(d) === 'in').map(dealTotal)) };
   }
   return out;
@@ -167,7 +171,7 @@ export function readQuery(q: BookQuery): Array<[string, string]> {
   return lines;
 }
 
-export type Ctx = { stmt: (d: Deal) => Statement; cpName: (d: Deal) => string };
+export type Ctx = { stmt: (d: Deal) => Statement; cpName: (d: Deal) => string; checking?: (d: Deal) => boolean };
 export type Agg = { count: number; sums: Sums; pct: { avg: number; n: number } | null; recovered: Money[]; stmt: Record<StatementKey, number> };
 export type Group = Agg & { key: string; label: string };
 export type Result = { query: BookQuery; rows: Deal[]; groups: Group[]; all: Agg };
@@ -188,7 +192,7 @@ export function aggregate(rows: readonly Deal[], ctx: Ctx): Agg {
   const pcts = rows.map(vsMedianPct).filter((p): p is number => p !== null);
   return {
     count: rows.length,
-    sums: sums(rows),
+    sums: sums(rows, ctx.checking),
     pct: pcts.length ? { avg: Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length), n: pcts.length } : null,
     recovered: sumByCurrency(rows.filter(isRecovered).map(dealTotal)),
     stmt: statementCounts(rows, ctx.stmt),
