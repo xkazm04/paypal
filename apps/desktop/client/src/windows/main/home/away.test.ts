@@ -157,6 +157,24 @@ describe('awaySummary', () => {
     expect(s.text).not.toMatch(/clause|capture|authoriz|void|seller_mandate|signed_rule|\bA\b|GPU/i);
   });
 
+  it('tells an ending as unshown when the deal’s own record says a check was open, though no check step is passed', () => {
+    const steps = [step('SALE', SEEN + H, 'expired', DEFAULT, { type: 'none' }, 'EXPIRED')];
+    const s = awaySummary(steps, DEALS, SEEN, NOW, { unshown: new Set(['SALE']) });
+    expect(s.lines).toHaveLength(1);
+    expect(s.lines[0]?.outcome).toBe('unshown');
+    expect(s.lines[0]?.text).toBe('1 deal ended before PayPal showed what happened to the payment ($90.00): look at it in PayPal');
+    expect(s.lead).toBeNull();
+    expect(s.text).not.toContain('no money moved');
+  });
+
+  it('keeps the lapsed line when the steps hold only the expiry and the record says nothing', () => {
+    const steps = [step('SALE', SEEN + H, 'expired', DEFAULT, { type: 'none' }, 'EXPIRED')];
+    const s = awaySummary(steps, DEALS, SEEN, NOW);
+    expect(s.lines).toHaveLength(1);
+    expect(s.lines[0]?.outcome).toBe('lapsed');
+    expect(s.lines[0]?.text).toBe('1 deal ran out of time (no money moved)');
+  });
+
   it('tells the same line when the check began before the window and the expiry is inside it', () => {
     const steps = [
       step('SALE', SEEN - 2 * H, 'checking_with_paypal'),
