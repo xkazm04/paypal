@@ -10,7 +10,7 @@ import type { Module } from '@bindings/Module';
 import type { TumblerStatus } from '@bindings/TumblerStatus';
 import { formatMinor } from '../../lib/format';
 import { readLimits, type LimitMeter } from '../../lib/limits';
-import { houseWords, kindWord, moneyCheckNow, moneyCheckPill, ruleNameOf } from '../../lib/words';
+import { BEAD_UNKNOWN_LEGEND, houseWords, kindWord, moneyCheckNow, moneyCheckPill, ruleNameOf } from '../../lib/words';
 import { useMutation, useNow, usePrefersReducedMotion } from '../../lib/hooks';
 import { Countdown, MockBadge, ModeBadge, WalletNotice } from '../../shared/honesty';
 import { MODULE, MODULES } from '../../shared/modules';
@@ -18,9 +18,10 @@ import { Btn, Chip, Explainer, focusLost, Group, Hint, Kv, Meter, Popover, Secti
 import { Dial, LegendBead, type Bead } from './Dial';
 import { chipTone, dealCount, dialValueText, heldAtPayPal, heldLine, LEDGER_TITLE, ledgerDeals, ledgerLine, moneyList, shortTitle, silenceParts, timeLeft, weekLabel, type LedgerKind } from './home/model';
 import {
-  beadKind, beadSummary, chipClass, dealTotal, historyAt, isLive, ledgerScope, moduleIndex, moneyNow, reviewVerb, spendToday, splitHeadline, stateLabel, summarize,
-  isTerminal, rewindCheckTip, weekBounds, type LedgerScope, type LedgerSummary,
+  beadSummary, chipClass, dealTotal, historyAt, isLive, ledgerScope, moduleIndex, moneyNow, reviewVerb, spendToday, splitHeadline, stateLabel, summarize,
+  isTerminal, weekBounds, type LedgerScope, type LedgerSummary,
 } from './logic';
+import { liveLook, pastLook } from './beadLook';
 import { lazyPart } from '../../lib/lazy';
 import { useRewind } from './Rewind';
 import { StartAbout, StartHub, StartSide, useStart, useStartActions, type StartActions } from './home/Start';
@@ -176,12 +177,13 @@ export function Home(p: Props) {
       const disp = w.display(d);
       const need = w.needOf(d.id);
       const t = dealTotal(d);
+      // A payment being checked with PayPal is a dashed bead with the check's words (beadLook.ts).
+      const look = liveLook(d, need);
       return {
-        id: d.id, m: moduleIndex(m), kind: beadKind(d), needs: !!need,
+        id: d.id, m: moduleIndex(m), kind: look.kind, needs: !!need,
         tip: {
-          label: disp.label, title: disp.title, amount: formatMinor(t.minor, t.currency), state: stateLabel(d.state, d), tone: chipTone(chipClass(d)),
-          module: `${MODULE[m].name} · ${kindWord(d.kind)}`, color: MODULE[m].cssVar, money: moneyNow(d), need: need ? need.headline : null,
-          ...(need?.money_check ? { state: moneyCheckPill(need.money_check, isTerminal(d)).text, tone: 'dashed' as const, money: moneyCheckNow(isTerminal(d)) } : {}),
+          label: disp.label, title: disp.title, amount: formatMinor(t.minor, t.currency), state: look.state, tone: look.tone,
+          module: `${MODULE[m].name} · ${kindWord(d.kind)}`, color: MODULE[m].cssVar, money: look.money, need: need ? need.headline : null,
         },
       };
     });
@@ -225,12 +227,8 @@ export function Home(p: Props) {
       const p = at.get(b.id);
       const d = deals.find((x) => x.id === b.id);
       if (!p || !d) return [];
-      const then = { ...d, state: p.state, shield: p.paused ? 'HOLD' as const : null };
-      const ck = rewindCheckTip(rw.steps, p, d, rw.unshown, rw.unread);
-      const look = ck
-        ? { state: ck.state, tone: 'dashed' as const, money: ck.money }
-        : { state: stateLabel(p.state, d), tone: chipTone(chipClass(then)), money: moneyNow(then) };
-      return [{ ...b, kind: beadKind(then), needs: false, tip: { ...b.tip, ...look, need: null } }];
+      const look = pastLook(rw.steps, p, d, rw.unshown, rw.unread);
+      return [{ ...b, kind: look.kind, needs: false, tip: { ...b.tip, state: look.state, tone: look.tone, money: look.money, need: null } }];
     });
   }, [rewind, rw.steps, rw.t, rw.unshown, rw.unread, beads, deals]);
 
@@ -515,6 +513,7 @@ function Ledger({ s, scope, onDeal, onBook }: { s: LedgerSummary; scope: LedgerS
         <div className="legend" aria-label="What the dots on the dial mean">
           <span><LegendBead kind="moving" />in progress</span>
           <span><LegendBead kind="held" />on hold</span>
+          <span><LegendBead kind="unknown" />{BEAD_UNKNOWN_LEGEND}</span>
           <span><LegendBead kind="settled" />paid</span>
           <span><LegendBead kind="stopped" />stopped</span>
           <span><LegendBead kind="off" />withdrawn</span>

@@ -25,7 +25,7 @@ import type { HistoryStep } from '@bindings/HistoryStep';
 import type { PaypalMethod } from '@bindings/PaypalMethod';
 import type { ReceiptEvent } from '@bindings/ReceiptEvent';
 import { formatMinor } from '../../lib/format';
-import { ENDING_UNREAD_NOW, ENDING_UNREAD_PILL, endingUnreadSentence, moneyCheckNow, moneyCheckPillText, receiptRefusedSentence, refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, sellerSaysOnly, stateWord, unconfirmedSentence } from '../../lib/words';
+import { BEAD_UNKNOWN_LEGEND, ENDING_UNREAD_NOW, ENDING_UNREAD_PILL, endingUnreadSentence, moneyCheckNow, moneyCheckPillText, receiptRefusedSentence, refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, sellerSaysOnly, stateWord, unconfirmedSentence } from '../../lib/words';
 
 export const MODULE_KEYS: readonly Module[] = ['tables', 'spend', 'counter', 'book', 'shield', 'rescue'];
 export const moduleIndex = (m: Module): number => MODULE_KEYS.indexOf(m);
@@ -57,7 +57,9 @@ const paid = (d: DealLike): boolean => SETTLED.has(d.state) && !sellerSaysOnly(d
 const OFF: ReadonlySet<DealState> = new Set(['WITHDRAWN', 'EXPIRED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED']);
 const LIVE: ReadonlySet<DealState> = new Set(['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING']);
 
-export type BeadKind = 'moving' | 'held' | 'settled' | 'stopped' | 'off';
+/** `unknown` (a dashed outline) is never a state's own kind: beadKind does not return it. The dial
+ *  draws it for a payment whose outcome is not known (beadLook.ts), so it never looks on hold. */
+export type BeadKind = 'moving' | 'held' | 'settled' | 'stopped' | 'off' | 'unknown';
 
 /** Bead on the middle ring: teal moving / gold+lock held / green settled / x stopped / hollow off. */
 export function beadKind(d: DealLike): BeadKind {
@@ -474,7 +476,7 @@ export function mandatesGoverning<M extends { payload: { clauses: Clause[] } }>(
   return list.filter((m) => m.payload.clauses.some((c) => c.type === 'per_deal' && c.kind === kind));
 }
 
-const BEAD_WORD: Record<BeadKind, string> = { moving: 'moving', held: 'held', settled: 'settled', stopped: 'stopped', off: 'withdrawn or voided' };
+const BEAD_WORD: Record<BeadKind, string> = { moving: 'moving', held: 'held', settled: 'settled', stopped: 'stopped', off: 'withdrawn or voided', unknown: BEAD_UNKNOWN_LEGEND };
 
 /** "1 held · 2 settled · 1 stopped" for a module's deals (hub headline when nothing needs you). */
 export function beadSummary(deals: DealLike[]): string {
