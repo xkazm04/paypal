@@ -2623,26 +2623,30 @@ fn inbox_rows(ledger: &Ledger, id: DealId) -> Vec<(String, i64, String)> {
         .collect()
 }
 #[test]
-fn c9a_a_reset_inside_the_window_is_refused_and_writes_nothing() {
+fn c9a_first_adoption_starts_no_window_and_a_reset_inside_it_is_refused() {
     let (mut ledger, deal, _, _, _) = setup();
     ledger.bind_relay(deal.id, H256::digest(b"m"), 100).unwrap();
-    let (a, b) = ("a".repeat(32), "b".repeat(32));
+    let (a, b, c) = ("a".repeat(32), "b".repeat(32), "c".repeat(32));
     ledger
         .stage_relay_batch(deal.id, &a, 0, &["x.y.z".into()], 1000)
         .unwrap();
-    assert_eq!(route_state(&ledger, deal.id), (a.clone(), 1, 1000));
+    assert_eq!(route_state(&ledger, deal.id), (a, 1, 0));
+    ledger
+        .stage_relay_batch(deal.id, &b, 0, &["x.y.z".into()], 1000)
+        .unwrap();
+    assert_eq!(route_state(&ledger, deal.id), (b.clone(), 1, 1000));
     let rows = inbox_rows(&ledger, deal.id);
     // A clock that went backwards counts as inside the window.
     for now in [1000, 1599, 500] {
         assert!(matches!(
-            ledger.stage_relay_batch(deal.id, &b, 0, &["x.y.z".into()], now),
+            ledger.stage_relay_batch(deal.id, &c, 0, &["x.y.z".into()], now),
             Err(LedgerError::Conflict)
         ));
-        assert_eq!(route_state(&ledger, deal.id), (a.clone(), 1, 1000));
+        assert_eq!(route_state(&ledger, deal.id), (b.clone(), 1, 1000));
         assert_eq!(inbox_rows(&ledger, deal.id), rows);
     }
-    ledger.stage_relay_batch(deal.id, &b, 0, &[], 1600).unwrap();
-    assert_eq!(route_state(&ledger, deal.id), (b, 0, 1600));
+    ledger.stage_relay_batch(deal.id, &c, 0, &[], 1600).unwrap();
+    assert_eq!(route_state(&ledger, deal.id), (c, 0, 1600));
 }
 #[test]
 fn c9a_an_accepted_reset_prunes_settled_rows_of_this_deal_only() {
