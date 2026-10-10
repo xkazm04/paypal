@@ -38,7 +38,7 @@ import { atRiskOf } from './rescue/model';
 import type { ModuleProps } from './common';
 import {
   BUCKET_LABEL, BUCKET_SUB, BUCKETS, bucketOf, dayKey, dayLabel, dirOf, KIND_ORDER, kindLabel, LENSES, queryText, readQuery, runQuery,
-  serverStateLabel, STATEMENT_TIP, STATEMENT_WORD, statementCounts, sums, toCSV, type Bucket, type Ctx, type Group as LensGroup, type Lens, type Result, type Statement,
+  serverStateLabel, STATEMENT_TIP, STATEMENT_WORD, statementCounts, statementEnded, statementWords, sums, toCSV, type Bucket, type Ctx, type Group as LensGroup, type Lens, type Result, type Statement,
 } from './book/model';
 import { AskChips } from './book/AskChips';
 import { ReadingChips, UnsureLine } from './book/AskReading';
@@ -431,7 +431,7 @@ function RecentPayments({ deals, all, onAll, stmt, onOpen, whoOf, titleOf, check
               title={titleOf(d)} sub={<span className="cp">{whoOf(d)}</span>}>
               {d.mode !== 'sandbox' ? <ModeBadge mode={d.mode} /> : null}
               <span className="pst"><StatusChip deal={d} check={checkOf(d)} /></span>
-              <span className="pstm"><StmtChip s={stmt(d)} /></span>
+              <span className="pstm"><StmtChip s={stmt(d)} state={d.state} /></span>
               <span className={`amt ${tone}`}>{formatMinor(t.minor, t.currency)}{dirOf(d) === 'in' ? <span className="in">in</span> : null}</span>
             </Row>
           );
@@ -460,10 +460,14 @@ function StatusChip({ deal, check }: { deal: Deal; check: MoneyCheck | null | un
   return <Chip tone={TONE[chipClass(deal)]} title={wd.means}>{wd.text}</Chip>;
 }
 
-function StmtChip({ s }: { s: Statement | null }) {
+/** The deal's statement chip. A deal that ended UNCONFIRMED keeps reconciliation
+ *  pending_reporting, but its chip is an end, dashed like an unknown: never "paid", never a wait. */
+function StmtChip({ s, state, read }: { s: Statement | null; state: Deal['state']; read?: boolean | null }) {
   if (s === null) return <span className="dim" title="Reading the PayPal proof">…</span>;
   if (s === 'not_applicable') return <span className="dim" title={STATEMENT_TIP[s]}>—</span>;
-  return <Chip tone={STMT_TONE[s]} className={s === 'pending_reporting' ? 'dashed' : undefined} title={STATEMENT_TIP[s]}>{STATEMENT_WORD[s]}</Chip>;
+  const words = statementWords(s, state, read ?? null);
+  if (statementEnded(s, state)) return <Chip tone="dashed" title={words.tip}>{words.word}</Chip>;
+  return <Chip tone={STMT_TONE[s]} className={s === 'pending_reporting' ? 'dashed' : undefined} title={words.tip}>{words.word}</Chip>;
 }
 
 function GridRow({ deal, label, title, cpName, statement, fair, off, selected, onOpen }: {
@@ -494,7 +498,7 @@ function GridRow({ deal, label, title, cpName, statement, fair, off, selected, o
         <td key={k} className={`num c-${k}`}>{k === b ? <>{formatMinor(t.minor, t.currency)}{dirOf(deal) === 'in' ? <span className="in">in</span> : null}</> : null}</td>
       ))}
       <td className="dim c-mkt" title={mkt?.tip}>{mkt ? mkt.text : '—'}</td>
-      <td><StmtChip s={statement} /></td>
+      <td><StmtChip s={statement} state={deal.state} /></td>
     </tr>
   );
 }
@@ -808,6 +812,7 @@ function RowDetail({ deal, evidence, evError }: { deal: Deal; evidence: DealEvid
   const t = dealTotal(deal);
   const b = bucketOf(deal);
   const s: Statement = evidence?.reconciliation ?? 'unknown';
+  const stmtWords = statementWords(s, deal.state, evidence?.statement_unmatched ?? null);
   const pp = deal.paypal;
   const ids = [pp.order && `order ${pp.order}`, pp.authorization && `auth ${pp.authorization}`, pp.capture && `capture ${pp.capture}`, pp.subscription && `subscription ${pp.subscription}`].filter(Boolean).join(' · ');
   const deadline = need?.deadline ?? disp.deadline;
@@ -816,7 +821,7 @@ function RowDetail({ deal, evidence, evError }: { deal: Deal; evidence: DealEvid
     <div className="bk-l2">
       <div className="chips">
         <StatusChip deal={deal} check={evidence?.money_check ?? need?.money_check} />
-        <StmtChip s={s} />
+        <StmtChip s={s} state={deal.state} read={evidence?.statement_unmatched} />
         <ModeBadge mode={deal.mode} />
       </div>
       <Kv items={[
@@ -828,7 +833,7 @@ function RowDetail({ deal, evidence, evError }: { deal: Deal; evidence: DealEvid
         silence ? ['If you do nothing', silence] : null,
         ['Decided by', <DecidedText deal={deal} />],
         ['Receipt', evidence ? <span title={receiptWord(evidence.receipt).means}>{receiptWord(evidence.receipt).text}</span> : <span className="dim">unknown</span>],
-        ['Statement', <>{STATEMENT_WORD[s]} <span className="dim">· {STATEMENT_TIP[s]}</span></>],
+        ['Statement', <>{stmtWords.word} <span className="dim">· {stmtWords.tip}</span></>],
         ['Market', <MarketBand deal={deal} />],
         evidence?.fair_price ? [FAIR_PRICE_NAME, <FairPriceLine deal={deal} fair={evidence.fair_price} />] : null,
         ['PayPal ids', ids ? <span className="mono dim">{ids}</span> : <span className="dim">no PayPal call</span>],

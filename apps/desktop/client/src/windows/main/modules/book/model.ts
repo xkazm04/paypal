@@ -12,7 +12,7 @@ import type { DealState } from '@bindings/DealState';
 import type { Money } from '@bindings/Money';
 import type { Reconciliation } from '@bindings/Reconciliation';
 import { exponent } from '../../../../lib/format';
-import { sellerSaysOnly, stateWord } from '../../../../lib/words';
+import { sellerSaysOnly, stateWord, unconfirmedMeans, type StatementRead } from '../../../../lib/words';
 import { dealTotal, decidedBy, isSettled, isTerminal, sumByCurrency } from '../../logic';
 
 // ---- money states ------------------------------------------------------------------------------
@@ -66,6 +66,19 @@ export const STATEMENT_TIP: Record<Statement, string> = {
 };
 /** Statement words for the screen (STATEMENT_SHORT stays the export's stable value). */
 export const STATEMENT_WORD: Record<Statement, string> = { matched: 'on statement', pending_reporting: 'not yet', mismatch: 'differs', not_applicable: 'no payment', unknown: 'unknown' };
+/** The statement word for a deal that ended UNCONFIRMED: no match, and no longer a wait. */
+export const UNCONFIRMED_STATEMENT_WORD = 'no match';
+
+/** Whether a deal's statement is an UNCONFIRMED end rather than a wait. Such a deal keeps
+ *  reconciliation pending_reporting, but it is past a delay and was never paid (DECISIONS 28). */
+export const statementEnded = (s: Statement | null, state: DealState | undefined): boolean => s === 'pending_reporting' && state === 'UNCONFIRMED';
+
+/** The statement word and tip for a deal in `state`, as statementLabel words the deal page: an
+ *  UNCONFIRMED end says how it ended, by whether a statement read came back unmatched (`read`),
+ *  and never says paid or a delay. Every other deal keeps STATEMENT_WORD and STATEMENT_TIP. */
+export function statementWords(s: Statement, state?: DealState, read: StatementRead = null): { word: string; tip: string } {
+  return statementEnded(s, state) ? { word: UNCONFIRMED_STATEMENT_WORD, tip: unconfirmedMeans(read) } : { word: STATEMENT_WORD[s], tip: STATEMENT_TIP[s] };
+}
 
 export function statementCounts(deals: readonly Deal[], stmt: (d: Deal) => Statement): Record<Statement, number> {
   const c: Record<Statement, number> = { matched: 0, pending_reporting: 0, mismatch: 0, not_applicable: 0, unknown: 0 };

@@ -83,7 +83,7 @@ describe('PayPal agrees', () => {
   const table: Record<string, Statement | null> = { a: 'matched', b: 'matched', c: 'pending_reporting', d: 'mismatch', e: 'unknown', f: 'not_applicable' };
   it('counts payments that needed a statement and never counts unknown as matched', () => {
     const a = agreement(rows, (d) => table[d.id] ?? null);
-    expect(a).toEqual({ needed: 5, matched: 2, notYet: 1, differs: 1, unknown: 1, loading: false });
+    expect(a).toEqual({ needed: 5, matched: 2, notYet: 1, differs: 1, unknown: 1, unconfirmed: 0, loading: false });
     expect(agreeFigure(a)).toBe('2 of 5');
     expect(agreeLine(a)).toBe('1 not there yet, 1 differs, 1 couldn’t be checked.');
   });
@@ -108,7 +108,7 @@ describe('PayPal agrees', () => {
     expect(two).toContain('1 payment is waiting for the statement');
     expect(two).toContain('not counted as matched');
     expect(two).toContain('Last checked 14:05.');
-    expect(agreeWhy({ needed: 2, matched: 2, notYet: 0, differs: 0, unknown: 0, loading: false }, null)[1]).toBe('Right now 2 of 2 are on it and nothing differs.');
+    expect(agreeWhy({ needed: 2, matched: 2, notYet: 0, differs: 0, unknown: 0, unconfirmed: 0, loading: false }, null)[1]).toBe('Right now 2 of 2 are on it and nothing differs.');
   });
 });
 
