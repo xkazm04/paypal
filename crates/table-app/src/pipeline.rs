@@ -1298,7 +1298,9 @@ impl Pipeline {
     /// may have gone through), and only an order creation whose payment link never left the
     /// wallet lapses with its deal. An authorize still open (too young to read back, unreadable,
     /// or showing what no check accepts) keeps the deal from expiring: `Unavailable`, and the
-    /// next tick reads it again.
+    /// next tick reads it again. One showing what no check accepts
+    /// [`table_ledger::UNREAD_AUTHORIZE_SECS`] after its first attempt ends the deal in the
+    /// read-back itself, and nothing is sent.
     pub async fn deadline_default(&mut self, id: DealId, now: Timestamp) -> Result<bool, Error> {
         let deal = self.wallet.ledger.get_deal(id)?;
         if deal.kind == DealKind::Rescue {
@@ -1324,6 +1326,11 @@ impl Pipeline {
                 .deadline(id)?
                 .is_none_or(|(due, _)| due > now)
             {
+                return Ok(true);
+            }
+            // The read-back ended the deal over an authorize PayPal never showed in a form a
+            // check accepts (`end_unread_authorize`).
+            if deal.state.terminal() {
                 return Ok(true);
             }
             // PayPal may hold money for an authorize not yet settled: the deal does not expire
