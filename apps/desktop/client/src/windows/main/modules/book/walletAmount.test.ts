@@ -52,9 +52,10 @@ describe('walletSumsApart', () => {
   });
 
   it('is true when each line holds one money state', () => {
+    const byState: BookQuery = { view: 'deals', group_by: ['state'], metrics: ['count', 'sum_amount'] };
     expect(walletSumsApart(lens('stopped').query)).toBe(true);
     expect(walletSumsApart(lens('mismatch').query)).toBe(true);
-    expect(walletSumsApart({ view: 'deals', group_by: ['state'], metrics: ['count', 'sum_amount'] })).toBe(true);
+    expect(walletSumsApart(byState)).toBe(true);
     expect(walletSumsApart(stateIs('in', ['CAPTURED', 'RECEIPTED', 'RECONCILED']))).toBe(true);
   });
 });
