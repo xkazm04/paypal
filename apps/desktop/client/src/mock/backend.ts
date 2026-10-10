@@ -372,7 +372,11 @@ export function mockBackend(label: WindowLabel): MockBackend {
   };
   // ?forecast=off previews a shell whose forecast read failed (the snapshot then carries none).
   const forecastOff = params.get('forecast') === 'off';
-  const forecastDeals = (): ForecastDeal[] => state.deals.map((d) => ({ deal: d.deal, label: d.display.label, deadline: d.display.deadline }));
+  const forecastDeals = (): ForecastDeal[] => state.deals.map((d) => ({
+    deal: d.deal, label: d.display.label, deadline: d.display.deadline,
+    // The mock keeps no receipt time: the deal's last change stands in for it.
+    receiptAt: d.deal.side === 'buyer' && d.deal.state === 'RECEIPTED' && d.evidence.receipt === 'SELLER_ATTESTED' ? d.deal.updated_at ?? null : null,
+  }));
   const forecast = () => (forecastOff ? null : mockForecast(forecastDeals(), {
     now: nowUnix(), paused: state.settings.agents_paused, executorConfigured: state.settings.payment_executor_configured,
   }));

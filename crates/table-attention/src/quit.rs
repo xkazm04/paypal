@@ -246,6 +246,7 @@ mod tests {
                 mandate_retired: false,
                 policy_create_allowed: true,
                 seller_mandate_until: Some(NOW + 3600),
+                receipt_at: None,
             },
         )
     }

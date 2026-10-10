@@ -32,6 +32,16 @@ describe('mock walk-away forecast mirrors the Rust rules', () => {
     expect(mockQuitLines([d], f).at_paypal.map((l) => l.effect)).toEqual(['seller_may_collect', 'hold_runs_out']);
   });
 
+  it('a buyer’s seller-attested deal forecasts ending UNCONFIRMED at the receipt plus 72 hours, a rule no money rides on', () => {
+    const attested = (receiptAt: number | null): ForecastDeal => ({ ...fd({ state: 'RECEIPTED', side: 'buyer' }, null), receiptAt });
+    const f = mockForecast([attested(NOW - H)], ctx);
+    expect(f.map((l) => [l.action, l.trigger, l.at, l.authority, l.direction, l.end_state]))
+      .toEqual([['unconfirm', 'deadline', NOW - H + 72 * H, 'safe_default', 'none', 'UNCONFIRMED']]);
+    expect(mockForecast([attested(NOW - 73 * H)], ctx).map((l) => [l.action, l.trigger, l.at])).toEqual([['unconfirm', 'next_tick', null]]);
+    expect(mockForecast([attested(null)], ctx)).toEqual([]);
+    expect(mockForecast([{ ...fd({ state: 'RECEIPTED', side: 'seller' }, null), receiptAt: NOW - H }], ctx)).toEqual([]);
+  });
+
   it('a refused deal is never pending, whatever its verdict; a mismatch is', () => {
     expect(quitPending(fd({ state: 'REFUSED', side: 'buyer', shield: 'BLOCK' }).deal)).toBe(false);
     expect(quitPending(fd({ state: 'MISMATCH', side: 'buyer', shield: 'HOLD' }).deal)).toBe(true);

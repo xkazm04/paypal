@@ -488,3 +488,28 @@ async fn a_failed_forecast_read_hides_the_forecast_but_keeps_attention() {
     assert!(snapshot.forecast.is_none());
     assert!(snapshot.items.iter().all(|i| i.deal_id == deal.id));
 }
+
+/// decisions 28 (b): a buyer's deal only the seller says is paid forecasts that it ends UNCONFIRMED
+/// at the receipt time plus 72 hours, and the scheduler does exactly that, with no PayPal call.
+#[tokio::test]
+async fn a_seller_attested_buyer_deal_forecasts_and_meets_its_unconfirmed_end() {
+    let (mut r, _, http, clock, _) = runtime(true);
+    let deal = receipted_on_the_sellers_word(&mut r);
+    set(&clock, T0);
+    let lines = lines_for(&mut r, deal.id);
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert_eq!(lines[0].action, ForecastAction::Unconfirm);
+    assert_eq!(lines[0].at, Some(100 + CORROBORATION_SECS));
+    assert_eq!(lines[0].authority, ForecastAuthority::SafeDefault);
+    assert_eq!(lines[0].end_state, DealState::Unconfirmed);
+    // Before the time it stands; at the time the real scheduler ends it there.
+    set(&clock, 100 + CORROBORATION_SECS - 1);
+    r.tick().await.unwrap();
+    assert_eq!(state(&r, deal.id), DealState::Receipted);
+    set(&clock, 100 + CORROBORATION_SECS);
+    r.tick().await.unwrap();
+    assert_eq!(state(&r, deal.id), DealState::Unconfirmed);
+    assert!(lines_for(&mut r, deal.id).is_empty());
+    assert!(http.0.lock().unwrap().paths.is_empty());
+    r.pipeline.wallet.ledger.verify_audit().unwrap();
+}

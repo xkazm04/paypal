@@ -225,14 +225,7 @@ impl Ledger {
         {
             return Ok(false);
         }
-        let received: Option<Timestamp> = tx
-            .query_row(
-                "SELECT MIN(CAST(verified_at AS INTEGER)) FROM receipts WHERE deal_id=?1 AND verified_at IS NOT NULL",
-                [id.to_string()],
-                |r| r.get(0),
-            )
-            .optional()?
-            .flatten();
+        let received = first_receipt_at(&tx, id)?;
         let Some(received) = received else {
             return Ok(false);
         };
@@ -267,6 +260,23 @@ impl Ledger {
         apply(&tx, id, DealEvent::CorroborationLapsed, now)?;
         tx.commit()?;
         Ok(true)
+    }
+    /// When a buyer's RECEIPTED deal got the seller's receipt that PayPal's statement has not
+    /// matched (the start of the corroboration window); `None` for any other deal.
+    pub fn seller_attested_receipt_at(&self, id: DealId) -> Result<Option<Timestamp>, LedgerError> {
+        let deal = read_deal(&self.conn, id)?;
+        let evidence: String = self.conn.query_row(
+            "SELECT receipt_evidence FROM deals WHERE id=?1",
+            [id.to_string()],
+            |r| r.get(0),
+        )?;
+        if deal.side != Side::Buyer
+            || deal.state != DealState::Receipted
+            || evidence != "seller_attested"
+        {
+            return Ok(None);
+        }
+        first_receipt_at(&self.conn, id)
     }
     /// For a deal that ended UNCONFIRMED: whether a statement read came back unmatched before it
     /// did (the `receipt.unconfirmed` row's `statement_unmatched`). `None` for any other deal, and
@@ -429,4 +439,18 @@ impl Ledger {
         tx.commit()?;
         Ok(())
     }
+}
+/// When the first verified receipt on a deal was accepted.
+fn first_receipt_at(
+    conn: &rusqlite::Connection,
+    id: DealId,
+) -> Result<Option<Timestamp>, LedgerError> {
+    Ok(conn
+        .query_row(
+            "SELECT MIN(CAST(verified_at AS INTEGER)) FROM receipts WHERE deal_id=?1 AND verified_at IS NOT NULL",
+            [id.to_string()],
+            |r| r.get(0),
+        )
+        .optional()?
+        .flatten())
 }

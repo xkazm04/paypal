@@ -4,8 +4,8 @@
 //! owner authority, and no line moves money out.
 use serde::{Deserialize, Serialize};
 use table_core::{
-    Currency, DealEvent, DealId, DealKind, DealState, Delivery, Mode, Money, Side, Timestamp,
-    transition,
+    CORROBORATION_SECS, Currency, DealEvent, DealId, DealKind, DealState, Delivery, Mode, Money,
+    Side, Timestamp, transition,
 };
 
 /// Seconds the order-creation step gives a new order. Mirrors
@@ -44,6 +44,11 @@ pub struct ForecastSource {
     /// shrinks. The caller may
     /// cap `until` at the deal's deadline or the horizon end, past which nothing is forecast.
     pub seller_mandate_until: Option<Timestamp>,
+    /// When a buyer's deal in RECEIPTED got its seller-attested receipt (the seller's word, not
+    /// yet PayPal's statement); `None` for every other deal. The deal ends UNCONFIRMED at this
+    /// time plus [`CORROBORATION_SECS`] unless PayPal's statement matches first (the scheduler's
+    /// time-only lapse, `Ledger::lapse_corroboration`).
+    pub receipt_at: Option<Timestamp>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -67,6 +72,8 @@ pub enum ForecastAction {
     Lapse,
     Expire,
     AutoVoid,
+    /// A buyer's seller-attested deal ends "not confirmed by PayPal" after the corroboration window.
+    Unconfirm,
     CreateOrder,
     Authorize,
     Capture,
@@ -135,6 +142,32 @@ fn deal_lines(s: &ForecastSource, ctx: &ForecastContext, out: &mut Vec<ForecastL
     use ForecastTrigger as T;
 
     let horizon_end = ctx.now.saturating_add(ctx.horizon_secs);
+    if s.state == DealState::Receipted {
+        // The lapse line: only a buyer's deal the seller alone says is paid; no PayPal call, no
+        // money. An owner's statement check that matches first makes it RECONCILED instead.
+        if let Some(received) = s.receipt_at.filter(|_| s.side == Side::Buyer)
+            && let Ok(end) = transition(DealState::Receipted, DealEvent::CorroborationLapsed)
+        {
+            let due = received.saturating_add(CORROBORATION_SECS);
+            let overdue = due <= ctx.now;
+            if overdue || due <= horizon_end {
+                out.push(ForecastLine {
+                    deal_id: s.deal_id,
+                    label: format!("D-{:04}", s.display_number),
+                    trigger: if overdue { T::NextTick } else { T::Deadline },
+                    at: if overdue { None } else { Some(due) },
+                    action: A::Unconfirm,
+                    authority: Auth::SafeDefault,
+                    direction: D::None,
+                    amount_minor: s.amount.minor(),
+                    currency: s.amount.currency(),
+                    end_state: end,
+                    before: None,
+                });
+            }
+        }
+        return;
+    }
     // Authorize and capture call PayPal with the stored sandbox credentials, so without a
     // payment executor the tick fails on them (scheduler.rs `tick_deal`, pipeline `authorize`),
     // exactly as the create does. No such step is forecast then.
@@ -302,6 +335,7 @@ mod tests {
             mandate_retired: false,
             policy_create_allowed: true,
             seller_mandate_until: Some(NOW + 3600),
+            receipt_at: None,
         }
     }
 
@@ -508,6 +542,34 @@ mod tests {
                 "{s:?}"
             );
         }
+    }
+
+    #[test]
+    fn a_seller_attested_buyer_deal_forecasts_ending_unconfirmed_at_receipt_plus_72_hours() {
+        let received = NOW - 3600;
+        let mut s = source(Side::Buyer, DealKind::Haggle, DealState::Receipted);
+        s.receipt_at = Some(received);
+        let lines = forecast(std::slice::from_ref(&s), &ctx());
+        assert_eq!(lines.len(), 1);
+        let l = &lines[0];
+        assert_eq!(l.action, ForecastAction::Unconfirm);
+        assert_eq!(l.trigger, ForecastTrigger::Deadline);
+        assert_eq!(l.at, Some(received + CORROBORATION_SECS));
+        assert_eq!(l.authority, ForecastAuthority::SafeDefault);
+        assert_eq!(l.direction, ForecastDirection::None);
+        assert_eq!(l.end_state, DealState::Unconfirmed);
+        assert_eq!(l.before, None);
+        // Past due, the next tick ends it.
+        s.receipt_at = Some(NOW - CORROBORATION_SECS - 1);
+        let overdue = forecast(std::slice::from_ref(&s), &ctx());
+        assert_eq!(overdue[0].trigger, ForecastTrigger::NextTick);
+        assert_eq!(overdue[0].at, None);
+        // No receipt time (PayPal's own receipt, or none) and a seller's deal get no such line.
+        s.receipt_at = None;
+        assert!(forecast(std::slice::from_ref(&s), &ctx()).is_empty());
+        s.receipt_at = Some(received);
+        s.side = Side::Seller;
+        assert!(forecast(std::slice::from_ref(&s), &ctx()).is_empty());
     }
 
     #[test]

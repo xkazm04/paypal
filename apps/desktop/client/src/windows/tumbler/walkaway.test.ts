@@ -109,3 +109,16 @@ describe('if you walk away', () => {
     expect(Object.keys(r.lines[0] ?? {}).sort()).toEqual(['conditional', 'key', 'what', 'when', 'who']);
   });
 });
+
+describe('if you walk away: a seller-attested deal ending unconfirmed', () => {
+  it('is a line of its own that moves no money and names the safe default', () => {
+    const unconfirm = line({ action: 'unconfirm', end_state: 'UNCONFIRMED' });
+    const r = walk([unconfirm]);
+    expect(r.known && r.lines).toHaveLength(1);
+    const l = r.known ? r.lines[0]! : null;
+    expect(l?.what).toBe('D-0189 ends as not confirmed by PayPal unless PayPal’s statement shows it first');
+    expect(l?.who).toBe('safe default');
+    expect(l?.conditional).toBe(false);
+    expect(r.known && r.out).toBe('$0.00');
+  });
+});
