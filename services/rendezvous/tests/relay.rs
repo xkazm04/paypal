@@ -262,6 +262,40 @@ async fn many_callers_filling_the_http_share_leave_the_house_reserve() {
     assert!(house_create(&s, HOUSE_RESERVE).await.is_err());
 }
 #[tokio::test]
+async fn a_full_house_does_not_take_the_http_share_from_wallets() {
+    let s = MemoryStore::new(Arc::new(table_core::FixedClock(0)));
+    for n in 0..HOUSE_RESERVE {
+        house_create(&s, n).await.unwrap();
+    }
+    let a = caller("198.51.100.1");
+    for n in 0..CALLER_ALLOWANCE {
+        s.create_as(&hash(n), a).await.unwrap();
+    }
+    assert!(matches!(
+        s.create_as(&hash(CALLER_ALLOWANCE), a).await,
+        Err(Error::Full)
+    ));
+    // A fresh caller still pairs, with the HOUSE full and one caller at its allowance.
+    s.create_as(&hash(1000), caller("198.51.100.2"))
+        .await
+        .unwrap();
+    // The HTTP share is 192; the 256 store cap still refuses past it.
+    let share = MAX_MAILBOXES - HOUSE_RESERVE;
+    for n in 0..share - CALLER_ALLOWANCE - 1 {
+        s.create_as(
+            &hash(2000 + n),
+            caller(&format!("10.0.{}.{}", n / 256, n % 256)),
+        )
+        .await
+        .unwrap();
+    }
+    assert!(matches!(
+        s.create_as(&hash(9000), caller("192.0.2.1")).await,
+        Err(Error::Full)
+    ));
+    assert!(matches!(s.create(&hash(9001)).await, Err(Error::Full)));
+}
+#[tokio::test]
 async fn re_creating_a_mailbox_costs_nothing_and_expiry_releases_the_allowance() {
     let clock = Arc::new(Time(AtomicI64::new(0)));
     let s = MemoryStore::new(clock.clone());

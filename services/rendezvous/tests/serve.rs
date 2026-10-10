@@ -267,7 +267,10 @@ fn who() -> Router {
         get(
             |axum::Extension(c): axum::Extension<rendezvous::Connection>,
              headers: axum::http::HeaderMap| async move {
-                c.caller(&headers).ip().to_string()
+                match c.caller(&headers) {
+                    Ok(caller) => Ok(caller.ip().to_string()),
+                    Err(e) => Err(axum::http::StatusCode::from(e)),
+                }
             },
         ),
     )
@@ -330,12 +333,30 @@ async fn behind_one_proxy_the_rightmost_forwarded_for_entry_is_the_caller() {
         .await,
         "198.51.100.4"
     );
-    // No header, or an unreadable proxy entry: the TCP peer, never a client entry.
-    assert_eq!(caller_of(addr, &[]).await, "127.0.0.1");
-    assert_eq!(
-        caller_of(addr, &["x-forwarded-for: 203.0.113.9, nonsense"]).await,
-        "127.0.0.1"
-    );
+    // No header, or an unreadable proxy entry: refused (400), never the TCP peer (the shared
+    // proxy) and never a client entry. This pinned a fall back to the peer before.
+    for headers in [
+        &[][..],
+        &["x-forwarded-for: 203.0.113.9, nonsense"][..],
+        &["x-forwarded-for: 203.0.113.9,"][..],
+    ] {
+        let reply = request(addr, "GET /who", headers).await;
+        assert!(reply.starts_with("HTTP/1.1 400"), "{reply}");
+    }
+}
+
+#[tokio::test]
+async fn a_byte_outside_ascii_to_the_left_does_not_void_the_proxy_entry() {
+    let addr = start_app(who(), hops(1)).await;
+    let mut s = TcpStream::connect(addr).await.unwrap();
+    s.write_all(
+        b"GET /who HTTP/1.1\r\nhost: x\r\nconnection: close\r\nx-forwarded-for: \xff, 198.51.100.4\r\ncontent-length: 0\r\n\r\n",
+    )
+    .await
+    .unwrap();
+    let reply = read_all(&mut s).await;
+    assert!(reply.starts_with("HTTP/1.1 200"), "{reply}");
+    assert!(reply.ends_with("198.51.100.4"), "{reply}");
 }
 
 #[tokio::test]
@@ -384,5 +405,52 @@ async fn over_a_socket_one_caller_is_refused_past_its_allowance_and_forging_does
     assert_eq!(
         status(request(addr, &put(CALLER_ALLOWANCE), &[forged]).await),
         "429"
+    );
+}
+
+#[tokio::test]
+async fn behind_one_proxy_a_forged_byte_cannot_move_the_key_to_the_proxy_or_pass_a_bad_entry() {
+    use rendezvous::{CALLER_ALLOWANCE, MemoryStore, relay_router};
+    use std::sync::Arc;
+    let store = Arc::new(MemoryStore::new(Arc::new(table_core::FixedClock(0))));
+    let addr = start_app(relay_router(store), hops(1)).await;
+    let put = |n: usize| format!("PUT /v1/mailbox/{n:064x}");
+    let raw = |n: usize, line: &[u8]| {
+        let mut b = format!("{} HTTP/1.1\r\nhost: x\r\nconnection: close\r\n", put(n)).into_bytes();
+        b.extend_from_slice(line);
+        b.extend_from_slice(b"\r\ncontent-length: 0\r\n\r\n");
+        b
+    };
+    let send = |bytes: Vec<u8>| async move {
+        let mut s = TcpStream::connect(addr).await.unwrap();
+        s.write_all(&bytes).await.unwrap();
+        read_all(&mut s).await[9..12].to_string()
+    };
+    // A non-ASCII byte to the left is charged to the proxy's entry: take that key to its allowance.
+    for n in 0..CALLER_ALLOWANCE {
+        assert_eq!(
+            send(raw(n, b"x-forwarded-for: \xff, 198.51.100.4")).await,
+            "201"
+        );
+    }
+    assert_eq!(
+        send(raw(CALLER_ALLOWANCE, b"x-forwarded-for: 198.51.100.4")).await,
+        "429"
+    );
+    // A different proxy-written entry is a different caller.
+    assert_eq!(
+        send(raw(9000, b"x-forwarded-for: \xff, 198.51.100.5")).await,
+        "201"
+    );
+    // A nonsense or absent nth entry gets no 201 and no row.
+    assert_eq!(
+        send(raw(9001, b"x-forwarded-for: 198.51.100.4, nonsense")).await,
+        "400"
+    );
+    assert_eq!(send(raw(9001, b"x-forwarded-for: \xff")).await, "400");
+    assert_eq!(send(raw(9001, b"x-other: 1")).await, "400");
+    assert_eq!(
+        send(raw(9001, b"x-forwarded-for: 198.51.100.6")).await,
+        "201"
     );
 }

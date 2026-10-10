@@ -1,6 +1,7 @@
 //! The one HTTP server loop of the public relay and the HOUSE. `axum::serve` has no header-read
 //! timeout and no connection limit, so a few hundred idle sockets could starve a 512 MB instance
 //! (scan-2026-10-07 C-6). Every bound is a named constant; tests pass smaller ones in [`Limits`].
+use crate::Error;
 use axum::{
     Router,
     http::{HeaderMap, StatusCode},
@@ -114,26 +115,32 @@ impl Connection {
     /// The key a caller's mailbox allowance is counted under. With no trusted proxy it is the TCP
     /// peer. Behind `n` proxies it is the `n`th `X-Forwarded-For` entry from the right: each proxy
     /// appends the address it received from, so the rightmost `n` entries were written by proxies
-    /// and everything to their left by the client, who can write anything. A missing or
-    /// unreadable entry falls back to the TCP peer (a proxy), never to a client-written entry.
-    pub fn caller(&self, headers: &HeaderMap) -> Caller {
-        let forwarded = self
-            .trusted_proxy_hops
-            .checked_sub(1)
-            .and_then(|skip| {
-                // Repeated headers form one list, in order (RFC 9110 section 5.3).
-                let entries: Vec<&str> = headers
-                    .get_all("x-forwarded-for")
-                    .iter()
-                    .map(|v| v.to_str().ok())
-                    .collect::<Option<Vec<_>>>()?
-                    .into_iter()
-                    .flat_map(|v| v.split(','))
-                    .collect();
-                entries.into_iter().rev().nth(skip)
-            })
-            .and_then(forwarded_ip);
-        Caller::from_ip(forwarded.unwrap_or_else(|| self.peer.ip()))
+    /// and everything to their left by the client, who can write anything.
+    ///
+    /// The lines are split on raw bytes and only the `n`th entry is decoded, so a byte the client
+    /// put in an entry to the left (httparse admits 0x80..=0xFF, `to_str` refuses it) cannot void
+    /// the list. With `n >= 1` a missing or unparsable entry is refused with [`Error::Invalid`]
+    /// (400), never answered with the TCP peer: behind a proxy the peer is the shared proxy, and a
+    /// fallback would let a client move its key onto it and hold a second allowance. 400 and not 429
+    /// because the request is malformed for this deployment (a wrong hop count, or a proxy that
+    /// appended nothing), and a wallet should not retry it as capacity.
+    pub fn caller(&self, headers: &HeaderMap) -> Result<Caller, Error> {
+        let Some(skip) = self.trusted_proxy_hops.checked_sub(1) else {
+            return Ok(Caller::from_ip(self.peer.ip()));
+        };
+        // Repeated headers form one list, in order (RFC 9110 section 5.3).
+        headers
+            .get_all("x-forwarded-for")
+            .iter()
+            .flat_map(|v| v.as_bytes().split(|b| *b == b','))
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .nth(skip)
+            .and_then(|entry| std::str::from_utf8(entry).ok())
+            .and_then(forwarded_ip)
+            .map(Caller::from_ip)
+            .ok_or(Error::Invalid)
     }
 }
 
