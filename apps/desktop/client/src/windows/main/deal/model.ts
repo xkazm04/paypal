@@ -17,7 +17,7 @@ import type { Role } from '@bindings/Role';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import type { TranscriptType } from '@bindings/TranscriptType';
 import { formatMinor, formatMoney } from '../../../lib/format';
-import { houseWords, MILESTONES, SELLER_SAYS_PAID, sellerSaysOnly, milestoneOf, RULE_NAME, ruleNameOf, type Milestone } from '../../../lib/words';
+import { houseWords, MILESTONES, SELLER_SAYS_PAID, sellerSaysOnly, milestoneOf, RULE_NAME, ruleNameOf, unconfirmedMeans, type Milestone } from '../../../lib/words';
 import { canWithdraw, clauseText, dealTotal, decidedBy, isTerminal, pathFor, stateLabel } from '../logic';
 
 // ---- the state strip ---------------------------------------------------------------------------
@@ -291,6 +291,14 @@ export function reconciliationLabel(r: Reconciliation): Label {
     case 'mismatch': return { tone: 'red', text: 'Statement differs', why: 'Your PayPal statement does not match this deal. Look at the PayPal records.' };
     case 'not_applicable': return { tone: 'line', text: 'Not needed', why: 'Nothing was paid, so nothing should appear on the statement.' };
   }
+}
+
+/** The statement line for a deal in `state`. A deal that ended UNCONFIRMED keeps reconciliation
+ *  pending_reporting, but it is past a delay: say how it ended, by whether a read happened. */
+export function statementLabel(state: DealState, evidence: { reconciliation: Reconciliation; statement_unmatched?: boolean | null }): Label {
+  const base = reconciliationLabel(evidence.reconciliation);
+  if (state === 'UNCONFIRMED' && evidence.reconciliation === 'pending_reporting') return { ...base, why: unconfirmedMeans(evidence.statement_unmatched ?? null) };
+  return base;
 }
 
 export type PaypalRefKey = 'order' | 'authorization' | 'capture' | 'subscription';

@@ -10,13 +10,13 @@ import type { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMoney, nowUnix, shortHash, shortId } from '../../../lib/format';
 import { useMutation, useQuery } from '../../../lib/hooks';
 import type { DealWatch } from '../../../lib/marketWatch';
-import { FAIR_PRICE_NAME, fairPriceWords, HOUSE_RECORD_NAME, houseRecordWord, KEPT_FRESH, marketWords, PRICE_CHECKS_USED_UP, priceChecksToday, PROOF_FILE_SHOWS, PROOF_SAVE_WARNING, STATEMENT_CHECK_NEEDS_KEYS, unconfirmedMeans } from '../../../lib/words';
+import { FAIR_PRICE_NAME, fairPriceWords, HOUSE_RECORD_NAME, houseRecordWord, KEPT_FRESH, marketWords, PRICE_CHECKS_USED_UP, priceChecksToday, PROOF_FILE_SHOWS, PROOF_SAVE_WARNING, STATEMENT_CHECK_NEEDS_KEYS } from '../../../lib/words';
 import { ModeBadge, WalletNotice } from '../../../shared/honesty';
 import { Btn, Chip, Empty, Kv, Loading, Sheet } from '../../../shared/ui';
 import { ConvergenceChart, MarketBand, MiniBand } from '../charts';
 import { isLive, marketPosition } from '../logic';
 import { useToast } from '../ui';
-import { attestOf, evidenceLabel, reconciliationLabel, stepWords, type PaypalRefKey } from './model';
+import { attestOf, evidenceLabel, reconciliationLabel, statementLabel, stepWords, type PaypalRefKey } from './model';
 
 export type EvidenceKind = 'paypal' | 'books' | 'market';
 
@@ -36,7 +36,7 @@ export function watchWhy(watch: DealWatch | null | undefined, priced: boolean): 
 export function ProofPanel({ deal, ev, band, watch, onOpen }: { deal: Deal; ev: EvState; band: DisplayBand | null; watch?: DealWatch | null; onOpen: (k: EvidenceKind) => void }) {
   const e = ev.data;
   const evl = e ? evidenceLabel(deal, e.receipt) : null;
-  const rec = e ? reconciliationLabel(e.reconciliation) : null;
+  const rec = e ? statementLabel(deal.state, e) : null;
   const mk = deal.market;
   const limit = band ? (deal.side === 'buyer' ? band.ceiling : band.floor) : null;
   const any = REFS.some(([k]) => deal.paypal[k]);
@@ -118,8 +118,7 @@ export function EvidenceSheet({ kind, deal, ev, band, watch, onFresh, onClose }:
   const evidenceKv = e ? (
     <Kv items={[
       ['Receipt', <><Chip tone={evidenceLabel(deal, e.receipt).tone}>{evidenceLabel(deal, e.receipt).text}</Chip> {evidenceLabel(deal, e.receipt).why}</>],
-      ['Statement', <><Chip tone={reconciliationLabel(e.reconciliation).tone}>{reconciliationLabel(e.reconciliation).text}</Chip> {reconciliationLabel(e.reconciliation).why}</>],
-      deal.state === 'UNCONFIRMED' ? ['Ended', unconfirmedMeans(e.statement_unmatched)] : null,
+      ['Statement', <><Chip tone={statementLabel(deal.state, e).tone}>{statementLabel(deal.state, e).text}</Chip> {statementLabel(deal.state, e).why}</>],
       e.house_record ? [HOUSE_RECORD_NAME, <><Chip tone={houseRecordWord(e.house_record).tone}>{houseRecordWord(e.house_record).text}</Chip> {houseRecordWord(e.house_record).means}</>] : null,
     ]} />
   ) : ev.error ? <WalletNotice error={ev.error} what="Proof" /> : <Loading what="the PayPal proof" />;
@@ -150,8 +149,8 @@ export function EvidenceSheet({ kind, deal, ev, band, watch, onFresh, onClose }:
       <Sheet title="PayPal statement" onClose={onClose} footer={<>{reconcile}{done}</>}>
         {e ? (
           <>
-            <p className="dv-p"><Chip tone={reconciliationLabel(e.reconciliation).tone}>{reconciliationLabel(e.reconciliation).text}</Chip></p>
-            <p className="dv-p muted">{reconciliationLabel(e.reconciliation).why}</p>
+            <p className="dv-p"><Chip tone={statementLabel(deal.state, e).tone}>{statementLabel(deal.state, e).text}</Chip></p>
+            <p className="dv-p muted">{statementLabel(deal.state, e).why}</p>
           </>
         ) : ev.error ? <WalletNotice error={ev.error} what="Proof" /> : <Loading what="the statement" />}
         {rec.error ? <WalletNotice error={rec.error} what="Statement check" /> : null}
