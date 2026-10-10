@@ -4,7 +4,7 @@ import { SELLER_SAYS_PAID } from '../../lib/words';
 import type { AttentionSnapshot } from '@bindings/AttentionSnapshot';
 import {
   FORM_SIZE, NO_HANDOFF, SECONDS, approveWindow, arrivals, cardActions, cardClock, cardQuestion, canReview, handoffEnded, nextFocus, puckLook, puckTarget,
-  ackTicker, arrivalTicker, arrivalsTicker, snoozeTicker,
+  ackTicker, arrivalTicker, arrivalsTicker, snoozeTicker, plainItems,
   cardWhy, dndPreferences, ladderCaption, ladderFill, ringFill, receiptTicker, restForm, rung, rungNotice, snoozeEligible, sortItems, spendMeter, splitHeadline, stateChip, tickerMayShow,
 } from './logic';
 
@@ -222,6 +222,22 @@ describe('snooze words promise only the card’s return', () => {
     expect(t.l2).toMatch(/card comes back/);
     expect(t.l2).toMatch(/deadline still runs/);
     expect(ladderCaption(rung(NOW + 600, NOW), false)).not.toMatch(/reminder|notif/i);
+  });
+});
+
+describe('a seller’s held payment reads Collect, a buyer’s Pay', () => {
+  const held = (headline: string, on_silence: string) => item({ deal_id: 's', headline, amount_minor: 6400, currency: 'USD', on_silence, deadline: NOW + 3 * H, actions: ['review', 'open_in_table'] });
+  it('the card, the ticker and the stack row start with Collect for the seller', () => {
+    const [seller] = plainItems([held('Collect or release $64.00', 'the hold releases itself at the deadline; nothing is taken')]);
+    expect(cardQuestion(seller).lead).toBe('Collect or release');
+    expect(arrivalTicker(seller).l1[0]).toBe('Collect or release ');
+    expect(splitHeadline(seller.headline, seller.amount_minor, seller.currency)?.lead).toBe('Collect or release');
+    expect(seller.on_silence).toBe('the hold releases itself at the deadline, nothing is taken');
+    expect(seller.on_silence).not.toMatch(/paid|capture|void/i);
+  });
+  it('the buyer’s keeps Pay or release', () => {
+    const [buyer] = plainItems([held('Capture or void $64.00', 'authorization auto-voids at the deadline; no capture')]);
+    expect(cardQuestion(buyer).lead).toBe('Pay or release');
   });
 });
 

@@ -377,6 +377,8 @@ export function headlineWords(h: string): string {
 
 const SILENCE_EXACT: Readonly<Record<string, string>> = {
   'authorization auto-voids at the deadline; no capture': 'the hold releases itself at the deadline, nothing is paid',
+  // A seller's held payment when no forecast words it (SELLER_AUTHORIZED_SILENCE in table-attention, byte-identical).
+  'the hold releases itself at the deadline; nothing is taken': 'the hold releases itself at the deadline, nothing is taken',
   'the offer or order lapses at the deadline; no money moves': 'the offer lapses at the deadline, no money moves',
   'Deadline or safe decision completed; no capture was made': 'deadline passed, nothing paid',
   'Seller attested payment; PayPal reporting is pending': 'the seller says paid · not on PayPal’s statement yet',

@@ -27,6 +27,11 @@ pub const MONEY_CHECK_SILENCE: &str = "at the deadline the wallet asks PayPal wh
 /// sent, and the owner looks at the payment in PayPal. The client keeps a byte-identical copy.
 pub const MONEY_CHECK_ENDED_SILENCE: &str =
     "the deal has ended and the wallet sends nothing more: look at this payment in PayPal";
+/// A seller's held payment at its deadline, when no forecast words it: the hold releases itself
+/// and nothing is taken (the forecast line replaces it whenever the wallet would collect).
+/// The client keeps a byte-identical copy.
+pub const SELLER_AUTHORIZED_SILENCE: &str =
+    "the hold releases itself at the deadline; nothing is taken";
 /// A rescue fix waiting for the owner: nothing is sent, and PayPal retries the payment itself.
 pub const RESCUE_SILENCE: &str = "nothing is sent · PayPal retries the payment by itself";
 /// A rescue invoice with the subscriber: it stays open; nothing is collected by the wallet.
@@ -212,6 +217,9 @@ impl AttentionSource {
             (AttnKind::Gate, DealState::Agreed) if rescue => "Approve rescue lever",
             (AttnKind::Motion, DealState::Settling) if rescue => "Sending invoice",
             (AttnKind::Motion, DealState::AwaitingApproval) if rescue => "Invoice sent",
+            (AttnKind::Gate, DealState::Authorized) if self.side == table_core::Side::Seller => {
+                "Collect or release"
+            }
             (AttnKind::Gate, DealState::Authorized) => "Capture or void",
             (AttnKind::Gate, DealState::AwaitingApproval) => "Review payment",
             (AttnKind::Gate, _) => "Countersign",
@@ -229,6 +237,8 @@ impl AttentionSource {
             )
         {
             RESCUE_SENT_SILENCE
+        } else if self.state == DealState::Authorized && self.side == table_core::Side::Seller {
+            SELLER_AUTHORIZED_SILENCE
         } else if self.state == DealState::Authorized {
             "authorization auto-voids at the deadline; no capture"
         } else {
@@ -499,6 +509,24 @@ mod tests {
                 assert!(fx.show_without_activation && fx.tray_dot && !fx.notify);
             }
         }
+    }
+    #[test]
+    fn an_authorized_gate_reads_by_side_collect_for_a_seller_capture_for_a_buyer() {
+        let mut s = source(1, 8000);
+        s.state = DealState::Authorized;
+        let buyer = s.item(0);
+        assert_eq!(buyer.kind, AttnKind::Gate);
+        assert_eq!(buyer.headline, "Capture or void 329.00 USD");
+        assert_eq!(
+            buyer.on_silence,
+            "authorization auto-voids at the deadline; no capture"
+        );
+        s.side = table_core::Side::Seller;
+        let seller = s.item(0);
+        assert_eq!(seller.kind, AttnKind::Gate);
+        assert_eq!(seller.headline, "Collect or release 329.00 USD");
+        assert_eq!(seller.on_silence, SELLER_AUTHORIZED_SILENCE);
+        assert!(!seller.on_silence.contains("capture") && !seller.on_silence.contains("void"));
     }
     #[test]
     fn a_deal_that_ended_with_its_money_step_unsettled_says_to_look_in_paypal_with_no_clock() {
