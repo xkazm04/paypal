@@ -95,7 +95,7 @@ function ladderLine(deadline: number | null, now: number, hold: boolean, checkin
   return `${cap} · until ${deadline - now > 20 * 3600 ? clockLabel(deadline) : hhmm(deadline)}`;
 }
 
-const LADDER_HELP = 'The ring starts breathing 2 hours before the deadline, you get one reminder at 15 minutes, then the safe default runs';
+const LADDER_HELP = 'The ring starts breathing 2 hours before the deadline, the card comes back by 15 minutes, then the safe default runs';
 
 /** The attention ladder for one deadline as a 2 px rule with the 15-minute and 2-hour rungs
  *  ticked. No clock is drawn dashed (unknown), never empty. */
@@ -219,7 +219,7 @@ const ACTION_TITLE: Partial<Record<CardAction['action'], string>> = {
   review: 'Opens the approval window, the only window that can release money (Enter)',
   withdraw: 'Walk away from this deal · no money moves (W · asks once)',
   let_lapse: 'Let it run out now · no money moves',
-  snooze30: 'Remind me in 30 min · the deadline still runs and the 15-minute reminder still comes',
+  snooze30: 'Hide this card for 30 min · it comes back and the deadline still runs',
 };
 
 /** The card's line-4 buttons: one gold way in to the approval window and a quiet Withdraw for a
