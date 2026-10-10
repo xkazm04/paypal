@@ -504,15 +504,15 @@ export function historyAt(steps: readonly HistoryStep[], t: number): Map<string,
   return out;
 }
 
-/** True when `end` is a deal's ending at its deadline (expired or lapsed) while a money step was still
- *  being checked with PayPal: PayPal never showed what happened, so "no money moved" is not known. */
-export function endedBeforePayPalShowed(steps: readonly HistoryStep[], end: HistoryStep): boolean {
-  if (end.kind !== 'expired' && end.kind !== 'lapsed') return false;
-  const before = steps
-    .filter((s) => s.deal_id === end.deal_id && (s.at < end.at || (s.at === end.at && s.seq < end.seq)))
+/** True when a money step of `last`'s deal is still being checked with PayPal once `last` has happened:
+ *  by the deal's steps up to and including `last` (by time, then record order), a check opened and
+ *  no money call since answered ok or failed. A step of another deal, or after `last`, does not count. */
+export function checkOpenThrough(steps: readonly HistoryStep[], last: HistoryStep): boolean {
+  const through = steps
+    .filter((s) => s.deal_id === last.deal_id && (s.at < last.at || (s.at === last.at && s.seq <= last.seq)))
     .sort((a, b) => a.at - b.at || a.seq - b.seq);
   let open = false;
-  for (const s of before) {
+  for (const s of through) {
     if (s.kind === 'checking_with_paypal') open = true;
     else if (isMoneyCall(s) && s.paypal.type === 'call') {
       if (s.paypal.outcome === 'unknown') open = true;
@@ -520,6 +520,13 @@ export function endedBeforePayPalShowed(steps: readonly HistoryStep[], end: Hist
     }
   }
   return open;
+}
+
+/** True when `end` is a deal's ending at its deadline (expired or lapsed) while a money step was still
+ *  being checked with PayPal: PayPal never showed what happened, so "no money moved" is not known. */
+export function endedBeforePayPalShowed(steps: readonly HistoryStep[], end: HistoryStep): boolean {
+  if (end.kind !== 'expired' && end.kind !== 'lapsed') return false;
+  return checkOpenThrough(steps, end);
 }
 
 /** A tick's colour on the PayPal lane: who decided the call. */

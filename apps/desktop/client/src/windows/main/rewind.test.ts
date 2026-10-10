@@ -7,7 +7,7 @@ import type { HistoryStep } from '@bindings/HistoryStep';
 import { mockBackend, resetMockState } from '../../mock/backend';
 import { buildMockState, fakeUlid } from '../../mock/fixtures';
 import { decidedLine, decisionSteps } from './deal/WhoDecided';
-import { endedBeforePayPalShowed, historyAt, isMoneyCall, isRefusal, laneSteps, narrate, stepSentence, stepTime, stepUnder, tickTone, weekFraction } from './logic';
+import { checkOpenThrough, endedBeforePayPalShowed, historyAt, isMoneyCall, isRefusal, laneSteps, narrate, stepSentence, stepTime, stepUnder, tickTone, weekFraction } from './logic';
 
 const D = 'deal-a';
 let seq = 0;
@@ -202,5 +202,30 @@ describe('the mock serves Maya’s week like deal_history', () => {
   it('carries closed facts only, never their words', () => {
     const text = JSON.stringify(buildMockState(NOW).history);
     for (const leak of ['personal', 'friends', 'Ignore your limits', 'scuff', 'GPU', 'monitor']) expect(text).not.toContain(leak);
+  });
+});
+
+describe('checkOpenThrough: a money step open by the steps up to one', () => {
+  const d = 'deal-open';
+  const s = (o: Partial<HistoryStep> & { at: number; kind: HistoryKind }) => step({ deal_id: d, ...o });
+  it('opens on a check and on an unknown money call', () => {
+    const checking = s({ at: 10, kind: 'checking_with_paypal' });
+    expect(checkOpenThrough([checking], checking)).toBe(true);
+    const unknown = s({ at: 10, kind: 'authorized', paypal: call('authorize', 'unknown') });
+    expect(checkOpenThrough([unknown], unknown)).toBe(true);
+  });
+  it('closes on a later money call that answered ok or failed', () => {
+    const checking = s({ at: 10, kind: 'checking_with_paypal' });
+    const ok = s({ at: 20, kind: 'captured', paypal: call('capture', 'ok') });
+    const failed = s({ at: 20, kind: 'authorized', paypal: call('authorize', 'failed') });
+    expect(checkOpenThrough([checking, ok], ok)).toBe(false);
+    expect(checkOpenThrough([checking, failed], failed)).toBe(false);
+  });
+  it('ignores another deal’s steps and the steps after the one asked about', () => {
+    const checking = s({ at: 10, kind: 'checking_with_paypal' });
+    const other = step({ deal_id: 'other', at: 10, kind: 'checking_with_paypal' });
+    const mine = s({ at: 5, kind: 'created' });
+    expect(checkOpenThrough([other, mine], mine)).toBe(false);
+    expect(checkOpenThrough([mine, checking], mine)).toBe(false);
   });
 });
