@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
-import { bucketOf, csvCell, decimal, LENSES, readQuery, runQuery, serverStateLabel, stateKey, statementCounts, sums, toCSV, vsMedianPct, type BookQuery, type Ctx } from './model';
+import { BUCKET_LABEL, BUCKET_SUB, BUCKETS, bucketOf, csvCell, decimal, LENSES, readQuery, runQuery, serverStateLabel, stateKey, statementCounts, sums, toCSV, vsMedianPct, type BookQuery, type Ctx } from './model';
 
 const H = Array.from({ length: 32 }, () => 0) as unknown as Deal['transcript_head'];
 function deal(id: string, o: Partial<Deal> & { price?: number; cur?: Deal['terms']['currency'] } = {}): Deal {
@@ -125,7 +125,23 @@ describe('the Book never reads a deal PayPal has not confirmed as paid (value-1)
     expect(lines['UNCONFIRMED']).toEqual(['Not confirmed by PayPal', 1]);
     expect(lines['RECEIPTED']).toEqual(['Paid, receipt saved', 2]);
     expect(r.groups.reduce((n, g) => n + g.count, 0)).toBe(4);
-    // Neither Paid nor Stopped ("never paid"): it waits beside the seller's word.
-    expect(bucketOf(unconfirmed)).toBe('motion');
+    // Neither Paid nor Stopped ("never paid") nor In progress: an end of its own.
+    expect(bucketOf(unconfirmed)).toBe('unconfirmed');
+    expect(bucketOf(sellerWord)).toBe('motion');
+  });
+});
+
+describe('a deal PayPal did not confirm is an end of its own in the Book', () => {
+  it('has its own bucket, column and label, apart from In progress, Paid and Stopped', () => {
+    expect(BUCKETS).toContain('unconfirmed');
+    expect(BUCKET_LABEL.unconfirmed).toBe('Not confirmed');
+    expect(BUCKET_SUB.unconfirmed).not.toMatch(/did not show|never showed/);
+    expect(bucketOf(deal('u', { kind: 'haggle', state: 'UNCONFIRMED' }))).toBe('unconfirmed');
+    expect(bucketOf(deal('u', { kind: 'haggle', state: 'UNCONFIRMED', side: 'seller' }))).toBe('unconfirmed');
+    const s = sums([deal('u', { kind: 'haggle', state: 'UNCONFIRMED' }), deal('m', { kind: 'haggle', state: 'RECEIPTED' })]);
+    expect(s.unconfirmed.out).toHaveLength(1);
+    expect(s.motion.out).toHaveLength(1);
+    expect(s.captured.out).toEqual([]);
+    expect(s.stopped.out).toEqual([]);
   });
 });
