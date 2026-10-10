@@ -123,6 +123,7 @@ impl Runtime {
     }
     fn consume_inbox(&mut self) -> Result<(), CommandError> {
         let mut failure = None;
+        let mut rejected = Vec::new();
         for message in app(self.pipeline.wallet.ledger.pending_inbox())? {
             let duplicate = app(self
                 .pipeline
@@ -143,11 +144,7 @@ impl Runtime {
                 // than retrying it, and faulting, on every tick.
                 let deal = app(self.pipeline.wallet.ledger.get_deal(message.deal_id))?;
                 if self.mandate_retired(&deal)? {
-                    app(self.pipeline.wallet.ledger.finish_inbox(
-                        &message,
-                        false,
-                        self.clock.now(),
-                    ))?;
+                    rejected.push(message);
                 } else {
                     failure.get_or_insert(error);
                 }
@@ -172,11 +169,35 @@ impl Runtime {
                 }
                 Err(_) => false,
             };
+            if accepted {
+                app(self
+                    .pipeline
+                    .wallet
+                    .ledger
+                    .finish_inbox(&message, true, self.clock.now()))?;
+            } else {
+                rejected.push(message);
+            }
+        }
+        // One audit row per deal and generation, not per message. A pass that returns before the
+        // loop ends leaves its collected rows pending: the next pass rejects them again and
+        // writes their row then. That moves no money and applies nothing.
+        let mut groups: Vec<Vec<table_ledger::InboxMessage>> = Vec::new();
+        for message in rejected {
+            match groups
+                .iter_mut()
+                .find(|g| g[0].deal_id == message.deal_id && g[0].generation == message.generation)
+            {
+                Some(group) => group.push(message),
+                None => groups.push(vec![message]),
+            }
+        }
+        for group in &groups {
             app(self
                 .pipeline
                 .wallet
                 .ledger
-                .finish_inbox(&message, accepted, self.clock.now()))?;
+                .reject_inbox(group, self.clock.now()))?;
         }
         // An inbound ACCEPT may have agreed a grouped table: withdraw its siblings now. A failure
         // here is retried and reported by the next tick.

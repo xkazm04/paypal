@@ -603,3 +603,71 @@ async fn a_refused_relay_batch_stops_one_delivery_and_not_the_round() {
     );
     assert_eq!(state(0).outgoing.len(), 1);
 }
+
+// Scan C-9b: a hostile relay's rejected messages cost one audit row per deal and generation.
+fn junk_batch_rows(s: &mut Shop, deals: &[usize]) -> Vec<table_ledger::AuditRecord> {
+    let before = s.r.pipeline.wallet.ledger.audit_count().unwrap();
+    let generation = "a".repeat(32);
+    let messages: Vec<String> = (0..5).map(|i| format!("m{i}.y.z")).collect();
+    let mut deliveries = Vec::new();
+    for &n in deals {
+        let id = s.id(n);
+        s.r.pipeline
+            .wallet
+            .ledger
+            .bind_relay(id, H256::digest(id.to_string().as_bytes()), 100)
+            .unwrap();
+        let batch = table_relay::Batch {
+            generation: generation.clone(),
+            after: 0,
+            messages: messages.clone(),
+        };
+        deliveries.push(crate::relay::Delivery::for_test(id, vec![batch], vec![]));
+    }
+    s.r.relay_finished(deliveries).unwrap();
+    assert_eq!(s.r.relay_failures, 0);
+    let ledger = &s.r.pipeline.wallet.ledger;
+    assert!(ledger.pending_inbox().unwrap().is_empty());
+    let added = usize::try_from(ledger.audit_count().unwrap() - before).unwrap();
+    let (rows, _) = ledger
+        .audit_page(None, u16::try_from(added).unwrap())
+        .unwrap();
+    rows
+}
+fn assert_one_rejection_row(rows: &[table_ledger::AuditRecord], id: DealId) {
+    let mine: Vec<_> = rows
+        .iter()
+        .filter(|r| r.action == "envelope.rejected" && r.deal_id == Some(id))
+        .collect();
+    assert_eq!(mine.len(), 1);
+    assert_eq!(mine[0].detail["count"], 5);
+    let digests: Vec<H256> = (0..5)
+        .map(|i| H256::digest(format!("m{i}.y.z").as_bytes()))
+        .collect();
+    assert_eq!(mine[0].detail["raw_hashes"], serde_json::json!(digests));
+}
+#[tokio::test]
+async fn a_hostile_relay_batch_is_rejected_with_one_audit_row() {
+    let mut s = shop(1, clauses(Side::Buyer, DealKind::Haggle));
+    let rows = junk_batch_rows(&mut s, &[0]);
+    assert_eq!(
+        rows.iter()
+            .filter(|r| r.action == "envelope.rejected")
+            .count(),
+        1
+    );
+    assert_one_rejection_row(&rows, s.id(0));
+}
+#[tokio::test]
+async fn a_hostile_relay_batch_for_two_deals_is_two_audit_rows() {
+    let mut s = shop(2, clauses(Side::Buyer, DealKind::Haggle));
+    let rows = junk_batch_rows(&mut s, &[0, 1]);
+    assert_eq!(
+        rows.iter()
+            .filter(|r| r.action == "envelope.rejected")
+            .count(),
+        2
+    );
+    assert_one_rejection_row(&rows, s.id(0));
+    assert_one_rejection_row(&rows, s.id(1));
+}
