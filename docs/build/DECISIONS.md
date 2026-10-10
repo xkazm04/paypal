@@ -1115,3 +1115,59 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - `windows/main/beadLook.test.ts`: the describes 'liveLook: a bead as the deal stands now' and 'pastLook: a bead
     on the Rewind';
   - b8625d3 has no test of its own.
+
+## 37. A rescue deal's deadline: a draft ends, a sent invoice is read first, a parked send is read hourly (deadline-safe-default rework after lite r1)
+
+- **Date:** 2026-10-10
+- **Decided by:** the App Master, wakes 69 to 71 (2026-10-10). Run 2be0bddf built it. The council reports are not in
+  the repository; they are cited as deadline-safe-default lite r1 (2026-10-10) and full r1 (2026-10-10).
+- **Constraint.**
+  - lite r1's must-address, verbatim: 'robustness: A rescue deal with a parked invoice send is never read or ended
+    at its deadline'.
+  - Without an invoicing client, `rescue_tick` returned early, so a draft create never closed.
+  - `rescue_deadline` could expire a sent invoice unread, and `unwrap_or(false)` counted a failed read as unpaid.
+- **Decision.** `rescue_deadline`'s doc comment (`crates/table-app/src/rescue.rs`, :674-679) is the rule:
+
+  > A rescue deal's deadline: nothing is sent and nothing is collected. An unapproved fix
+  > lapses (PayPal retries by itself); a draft never sent expires; a sent invoice is read
+  > once more, then expires if it is not paid. A send whose answer is still unknown keeps the
+  > deal open: that invoice may be with the subscriber. A sent invoice ends at its deadline
+  > only after a read shows it unpaid, and without the invoicing client or the deal's agent
+  > key it waits until they come back.
+
+  - 30de99a (R1): `rescue_resolve` reads a parked send (`needs_owner`, no owner ticket) once either the deal's
+    deadline or `REQUEST_ID_KEPT_SECS` (6 h from the step's start) has passed. It reads at most once per
+    `PARKED_READ_SECS`, keyed by request id, and records the time before the read, so a failing read is throttled
+    too. `resolve_invoice_send` then closes a DRAFT as not done, and at the deadline the deal takes
+    `apply_deadline_default`.
+  - 6904055 (R2 and R3): with no invoicing client, a create still closes at its deadline (that needs no read) and a
+    sent invoice waits. A failed deadline read waits and retries at `RESCUE_POLL_SECS` (60 s). `Error::Unavailable`
+    answers `Ok(false)`, and every other error propagates.
+  - e7222e1 (R4): the forecast test, a deal with an open operation is left out of the forecast.
+- **Lost:**
+  - expiring a sent invoice unread;
+  - counting a failed read as unpaid;
+  - a draft create that never closes without a client.
+- **Open.** From deadline-safe-default full r1 (ready, overall 0.585, coverage 0.80, robustness 0.72, economics
+  0.10, no hard failures; the judges are uncalibrated), checked in code on 2026-10-10. All wait on the operator's
+  Approval:
+  - robustness-1 (`rescue.rs:902-910`, `pipeline/resolve.rs:206-208`, `rescue.rs:697-719`): a parked send whose
+    invoice reads neither DRAFT nor SENT (CANCELLED, other, or not matching) never ends after its deadline.
+    `resolve_invoice_send` parks it as 'other' (`rescue.rs:903` and `:909`), `park` returns at once for a step
+    already waiting for the owner, and `rescue_deadline` answers `Ok(false)` for any open operation but a SETTLING
+    invoice-create. The council's closing test parks a send, cancels the invoice, ticks past the deadline and asserts
+    Expired with one send.
+  - the rework's edge: an AwaitingApproval rescue deal whose deadline poll fails with an error other than
+    `Unavailable` returns that error once per `RESCUE_POLL_SECS` and stays open. The council judged it reachable
+    only through a corrupt row or a ledger fault, and no test covers it.
+  - a sent invoice past its deadline whose read keeps failing waits at the 60 s cadence with no ceiling. With no
+    client or no key, the deal waits with no ceiling, by design.
+- **Evidence:** in `crates/table-app/tests/rescue.rs`:
+  - `a_parked_send_is_read_and_ended_at_the_deadline`;
+  - `a_parked_send_past_the_request_id_window_closes_not_done`;
+  - `a_parked_send_whose_read_fails_is_read_once_an_hour`;
+  - `without_a_client_a_create_open_at_the_deadline_closes_and_the_deal_expires`;
+  - `without_a_client_a_sent_invoice_waits_and_is_read_once_it_is_back`;
+  - `a_failed_read_at_the_deadline_waits_and_retries_on_the_poll_cadence`;
+
+  and in `crates/table-runtime/src/forecast_tests.rs`: `a_deal_with_an_open_operation_is_left_out_of_the_forecast`.
