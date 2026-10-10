@@ -195,7 +195,21 @@ unlock):
 
 - Reconciliation runs only when the owner clicks "Check my PayPal statement" on a deal; there is no
   background statement check and no Book-wide "check all".
-- Book totals still count a capture whose PayPal answer was lost and parked under "On hold".
+- Book totals no longer count a capture whose PayPal answer was lost and parked under "On hold"
+  (85faf93, DECISIONS section 34): `sums(deals, checking)` puts a payment being checked with PayPal in
+  no bucket, because PayPal may already have collected it. Its row keeps its amount in its bucket
+  column and the bucket filter still lists it there; the tone of the week answer still counts every
+  AUTHORIZED deal (`holds` in `WeekAnswer`). Surfaces outside the Book that may still word a checked
+  payment as on hold are listed in DECISIONS section 34's Open item and section 36's Open item.
+- "Check my PayPal statement" asks for `start = now - 3 days` (`windows/main/deal/Evidence.tsx`, the
+  `rec.run` call). A deal that lapsed to UNCONFIRMED after the 72 h corroboration window
+  (`CORROBORATION_SECS`) therefore cannot be found by the check, whose window no longer reaches its
+  payment (deal-to-settlement full r1 (2026-10-10), robustness-1). Waits on the operator's Approval.
+  Step 4's "last three days" is what the check does.
+- `statement_unmatched` is fixed when the deal lapses (the `receipt.unconfirmed` audit row,
+  `crates/table-ledger/src/receipt.rs` ~:255, read by `statement_unmatched` at ~:284-296). After a later
+  owner check that finds nothing, the words still say the wallet did not check (deal-to-settlement full r1
+  (2026-10-10), craft-1 and robustness-5). Waits on the operator's Approval.
 - Book metrics are not yet read from the wallet-limits exposure fold; the page's local recovered
   estimate could read `rescue_book` instead.
 - Typed questions: spending and receiving both read as "Paid" (direction is not a `BookQuery`
