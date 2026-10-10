@@ -38,7 +38,9 @@ const READ_PAGE: usize = 32;
 /// Live mailboxes in the whole store.
 pub const MAX_MAILBOXES: usize = 256;
 /// Slots HTTP creates can never take, so the co-hosted HOUSE (which creates in process, through
-/// `table_relay::RelayApi`) always has room. The HOUSE ledger holds at most 64 live relay routes
+/// `table_relay::RelayApi`) always has room. HTTP-created mailboxes alone are counted against the
+/// remaining `MAX_MAILBOXES - HOUSE_RESERVE`; HOUSE mailboxes count only against the store cap.
+/// The HOUSE ledger holds at most 64 live relay routes
 /// (`bind_relay` in `table-ledger`), one mailbox each, so 64 slots cover every deal it can have
 /// open. A wallet's create of a HOUSE deal's mailbox finds it already made and costs nothing.
 pub const HOUSE_RESERVE: usize = 64;
@@ -47,7 +49,9 @@ pub const HOUSE_RESERVE: usize = 64;
 /// at most 64 live relay routes (`bind_relay`); pending pairings add a mailbox each, but a demo
 /// pairs a handful of times, far below what a full book of routes leaves unused. Two wallets
 /// behind one home NAT address (the two-desktop demo) share one key, so 2 x 64 = 128. That
-/// leaves 256 - 64 - 128 = 64 HTTP slots for every other caller while one caller is at its limit.
+/// leaves 256 - 64 - 128 = 64 HTTP slots for every other caller while one caller is at its limit,
+/// and that holds with the HOUSE full too: its 64 mailboxes are not in the HTTP count, so 192 HTTP
+/// plus 64 HOUSE fit the 256 store cap exactly.
 pub const CALLER_ALLOWANCE: usize = 128;
 #[derive(Debug)]
 struct BoxState {
@@ -162,7 +166,11 @@ impl MemoryStore {
                 .values()
                 .filter(|b| b.creator == Some(caller))
                 .count();
-            if inner.boxes.len() >= MAX_MAILBOXES - HOUSE_RESERVE || held >= CALLER_ALLOWANCE {
+            // Only HTTP-created mailboxes fill the HTTP share, so live HOUSE mailboxes (which have
+            // their own reserve) never cost wallet pairings a slot. The store cap above still
+            // refuses every create once all 256 are live.
+            let http = inner.boxes.values().filter(|b| b.creator.is_some()).count();
+            if http >= MAX_MAILBOXES - HOUSE_RESERVE || held >= CALLER_ALLOWANCE {
                 return Err(Error::Full);
             }
         }
@@ -312,7 +320,7 @@ async fn create(
     headers: HeaderMap,
 ) -> Result<StatusCode, StatusCode> {
     match connection {
-        Some(Extension(connection)) => s.create_as(&h, connection.caller(&headers)).await?,
+        Some(Extension(connection)) => s.create_as(&h, connection.caller(&headers)?).await?,
         // A request with no connection info comes from a router driven in process (the
         // table-runtime and HOUSE tests call it with `oneshot`), and keeps the plain store cap.
         // Production never gets here: `serve_with` attaches a `Connection` to every request.
