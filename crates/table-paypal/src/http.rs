@@ -3,10 +3,10 @@ use async_trait::async_trait;
 use serde_json::Value;
 use std::{fmt, time::Duration};
 use thiserror::Error;
-pub struct Secret(String);
+pub struct Secret(zeroize::Zeroizing<String>);
 impl Secret {
     pub fn new(value: String) -> Self {
-        Self(value)
+        Self(zeroize::Zeroizing::new(value))
     }
     pub fn expose(&self) -> &str {
         &self.0
@@ -79,6 +79,21 @@ pub const fn backoff_secs(attempt: u8) -> u64 {
 }
 #[derive(Debug)]
 pub struct ReqwestTransport(reqwest::Client);
+/// Builds one header; Authorization is marked sensitive so reqwest and hyper never print it.
+/// An invalid name or value fails the request and is never logged.
+fn header_pair(
+    name: &str,
+    value: &Secret,
+) -> Result<(reqwest::header::HeaderName, reqwest::header::HeaderValue), TransportError> {
+    let name =
+        reqwest::header::HeaderName::from_bytes(name.as_bytes()).map_err(|_| TransportError)?;
+    let mut value =
+        reqwest::header::HeaderValue::from_str(value.expose()).map_err(|_| TransportError)?;
+    if name == reqwest::header::AUTHORIZATION {
+        value.set_sensitive(true);
+    }
+    Ok((name, value))
+}
 impl ReqwestTransport {
     pub fn new() -> Result<Self, TransportError> {
         Ok(Self(
@@ -111,8 +126,9 @@ impl ReqwestTransport {
         let method =
             reqwest::Method::from_bytes(request.method.as_bytes()).map_err(|_| TransportError)?;
         let mut builder = self.0.request(method, request.url);
-        for (name, value) in request.headers {
-            builder = builder.header(name, value.expose());
+        for (name, value) in &request.headers {
+            let (name, value) = header_pair(name, value)?;
+            builder = builder.header(name, value);
         }
         if let Some(body) = request.body {
             builder = builder.json(&body);
@@ -144,5 +160,36 @@ pub struct ExponentialBackoff;
 impl Backoff for ExponentialBackoff {
     async fn wait(&self, attempt: u8) {
         tokio::time::sleep(Duration::from_secs(backoff_secs(attempt))).await;
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn authorization_header_is_sensitive() {
+        let (name, value) = header_pair("Authorization", &Secret::new("Bearer x".into())).unwrap();
+        assert_eq!(name, reqwest::header::AUTHORIZATION);
+        assert!(value.is_sensitive());
+        let (_, other) =
+            header_pair("Prefer", &Secret::new("return=representation".into())).unwrap();
+        assert!(!other.is_sensitive());
+    }
+
+    #[test]
+    fn invalid_header_value_fails() {
+        assert!(
+            header_pair(
+                "Authorization",
+                &Secret::new(
+                    "a
+b"
+                    .into()
+                )
+            )
+            .is_err()
+        );
     }
 }
