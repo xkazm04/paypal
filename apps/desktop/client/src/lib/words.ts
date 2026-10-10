@@ -554,6 +554,17 @@ export const MONEY_CHECK_SILENCE = 'at the deadline the wallet asks PayPal what 
 export const MONEY_CHECK_ENDED_SILENCE = 'the deal has ended and the wallet sends nothing more: look at this payment in PayPal';
 /** The deal page's answer for that end: what PayPal could not show, and what to do. */
 export const MONEY_CHECK_ENDED = 'PayPal never showed what happened to this payment, so the wallet stopped asking and the deal ended. Look at the payment in PayPal: the wallet sends nothing more.';
+/** Money right now, while PayPal is being asked. */
+export const MONEY_CHECK_NOW = 'not confirmed yet · PayPal is being asked';
+/** Money right now, once the deal ended before PayPal showed what happened. */
+export const MONEY_CHECK_ENDED_NOW = 'PayPal never showed what happened · look at this payment in PayPal';
+/** The pill of an ended deal whose check never got an answer (`ended` is isTerminal(deal)). */
+export const MONEY_CHECK_ENDED_PILL = 'Not shown by PayPal';
+/** The same end, short enough for the What you were shown strip. */
+export const MONEY_CHECK_ENDED_SHORT = 'PayPal never showed what happened to the payment';
+/** The check's pill: while the deal lives it is moneyCheckWord, once it ended it says PayPal never showed. */
+export function moneyCheckPill(c: MoneyCheck, ended: boolean): { text: string; means: string } { return ended ? { text: MONEY_CHECK_ENDED_PILL, means: MONEY_CHECK_ENDED } : moneyCheckWord(c); }
+export const moneyCheckNow = (ended: boolean): string => (ended ? MONEY_CHECK_ENDED_NOW : MONEY_CHECK_NOW);
 
 // ---- wallet limits (T14): one cap above every set of rules ------------------------------------------
 
