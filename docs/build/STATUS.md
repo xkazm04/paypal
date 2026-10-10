@@ -2131,3 +2131,36 @@ Ids are the ones on main.
   - deadline-safe-default lite r1 was ready at 0.8129, and this rework closes its one must-address.
   - Full r1 is ready: overall 0.585, coverage 0.80, robustness 0.72, economics 0.10, no hard failures.
   - Open: robustness-1, economics-1 and economics-2, which wait on the operator's Approval (DECISIONS.md sections 35 and 37).
+
+## Deal-to-settlement full council round 1 (2026-10-10)
+
+Ids are the ones on main.
+
+- **Commits:** none. The council reviewed head bc09444.
+- **Council.**
+  - Ready, round 1 of 3 (full mode). Overall 0.6075, coverage 0.80.
+  - Value 0.62, craft 0.68, robustness 0.80, economics 0.10. Rivalry is unmeasured, by the App Master's decision. No hard failures.
+  - The judges are uncalibrated. The council report is not in the repository; it is cited as deal-to-settlement full r1 (2026-10-10).
+- **Lite r3's must-address, condition by condition.**
+  - Words: closed. No surface claims a statement read that did not happen at the lapse.
+  - Offer: closed on the offer, open on effect. 'Check my PayPal statement' is offered on RECEIPTED and UNCONFIRMED, but it looks back 3 days, so it cannot match a deal that lapsed after 72 h (robustness-1).
+  - Rust tests: closed. `a_lapse_with_no_statement_read_never_claims_one` and `a_lapse_after_an_unmatched_statement_read_says_so` (`crates/table-ledger/src/tests.rs`), and `the_unconfirmed_reason_claims_a_statement_read_only_when_one_was_made` (`crates/table-runtime/src/tests.rs`).
+- **Open, waiting on the operator's Approval.**
+  - robustness-1: the statement check on UNCONFIRMED asks for `start = now - 3 days` (`windows/main/deal/Evidence.tsx`).
+  - robustness-2: three parked waits have no time bound, and no owner command settles a parked step (the decided behaviour of DECISIONS.md sections 31 and 35).
+  - craft-1 and robustness-5: `statement_unmatched` is fixed at the lapse, so a later owner check that finds nothing leaves 'did not check' on screen.
+  - economics-3, economics-4 and economics-5: a parked authorize is re-read every tick; the parked-read throttle map is in memory and never pruned; RECEIPTED and CAPTURED buyer deals are ticked with a write lock for good.
+  - Three earlier lines, re-measured and still present: deadline-safe-default full r1 economics-1 and economics-2, and wallet-deal-dashboard full r2 economics-1.
+- **Not measured.** Rivalry; clippy, test, tsc and vitest were not re-run by the council; a live sandbox.
+
+## Security scan addendum (2026-10-10; docs/security/scan-2026-10-07.md)
+
+Ids are the ones on main.
+
+- **db81fd7:** a read-only, docs-only addendum. It covers the engine surface the 10-07 scan skipped and the delta 6f7beb3..bc09444.
+- **Findings.**
+  - C-17 (Low, PLAUSIBLE), C-18 (Low, PLAUSIBLE, latent), C-19 (Low), C-20 (Info) and C-21 (Info). None is High and no fix was made.
+  - C-12 is narrowed and still PLAUSIBLE. No new P-n. Open publication blockers: P-1 only.
+  - No native engine can start today: `NativeEngine::probe` reports `available: false`.
+- **Gates.** `git diff --check`; `cargo deny --workspace check advisories` ok; the merge gate's cargo test passed (run 5bed37ed).
+- **Not checked.** A live engine; codex-cli's built-in tools; `crates/table-runtime/src/scheduler.rs`; the dependency licences and `pnpm audit`.
