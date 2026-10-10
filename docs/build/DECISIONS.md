@@ -881,3 +881,46 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Evidence:** 673d7f8, `cardWhy` in `apps/desktop/client/src/windows/tumbler/logic.ts`, and the test 'the card
   says the wallet stopped and what to do, with the line Rust sends' in
   `apps/desktop/client/src/lib/moneyCheck.test.ts`.
+
+## 33. Relay generation resets: one per ten minutes per deal, counted from the last reset (scan C-9a, C-9a2)
+
+- **Date:** 2026-10-10
+- **Decided by:** the App Master, wake 57 (C-9a) and wake 59 (C-9a2).
+- **Constraint.**
+  - The relay is untrusted.
+  - Scan C-9: a hostile relay that answers every poll with a fresh generation and 256 junk messages grows
+    `relay_inbox` and the audit log for every live deal.
+  - A legitimate relay resets a deal only on a restart or a 24-hour mailbox expiry.
+  - A HOUSE pair table has a 300 s silence deadline, so a fresh table must recover from one lost mailbox at once.
+- **Decision.**
+  - A `Conflict` from `stage_relay_batch` stops only that deal's delivery (`relay_finished` in
+    `crates/table-runtime/src/relay.rs`); the round, the other deals and the inbox pass go on.
+  - A change of generation away from a non-empty generation is a reset. A deal takes at most one reset per
+    `RESET_WINDOW_SECS` (600 s), counted from its last accepted reset. A reset inside the window returns `Conflict`
+    and writes nothing. A clock that went backwards counts as inside the window.
+  - The first adoption from the empty generation is not a reset and starts no window. `generation_at` 0 means
+    never reset, which includes every route migrated from version 14.
+  - An accepted change of generation prunes that deal's applied and rejected `relay_inbox` rows of other
+    generations; pending rows stay.
+  - 1024 inbox rows per deal (`INBOX_CAP`) is a backstop that returns `Conflict`.
+  - Migration 0015 runs only when `relay_routes` has no `generation_at` column (`crates/table-ledger/src/lib.rs`),
+    because the older-schema tests step `user_version` back without dropping the column.
+- **Lost:**
+  - the window starting at the first adoption (a3d9a92 as first built). A fresh deal could not take its first
+    real reset for 600 s, so a HOUSE pair table caught by a restart in its first minutes lapsed instead of
+    replaying. 0092ad2 kept two tests green only by moving their clocks 600 s on, and 58e3517 restored both;
+  - having no window and no cap, as before C-9a.
+- **Cost kept:** a deal that was reset waits 600 s before its next reset, so a second mailbox loss inside that
+  window only delays that deal. Silence deadlines are unaffected.
+- **Migration note:** `0015_relay_reset.sql` says `generation_at` is '0 until the first adoption'. Since 2044b21 it
+  is 0 until the first reset. A shipped migration is not edited, so this section is the correction.
+- **Open:** C-9b. `finish_inbox` still writes one audit row per rejected message. The scan's fix asks for one
+  `envelope.rejected` row per batch, holding the count and the message hashes.
+- **Evidence:** commits a3d9a92, 0092ad2, 2044b21 and 58e3517; in `crates/table-ledger/src/tests.rs`:
+  `c9a_first_adoption_starts_no_window_and_a_reset_inside_it_is_refused`,
+  `c9a_an_accepted_reset_prunes_settled_rows_of_this_deal_only`,
+  `c9a_a_deal_past_the_inbox_cap_is_refused_and_writes_nothing` and
+  `c9a_a_version_14_ledger_migrates_and_reads_generation_at_zero`;
+  `a_refused_relay_batch_stops_one_delivery_and_not_the_round` (`crates/table-runtime/src/groups_tests.rs`);
+  `house_reopens_durable_pair_table_and_outbox_and_replays_after_mailbox_loss` (`house_tests.rs`);
+  `two_wallet_actors_negotiate_and_settle_through_in_process_relay_without_buyer_api_access` (`relay_tests.rs`).
