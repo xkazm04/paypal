@@ -1028,7 +1028,17 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
     at once. Authorize is not throttled: a parked authorize is still read on every tick.
 - **Lost:** `Unavailable` on every tick, and a read on every tick.
 - **Open:**
-  - Nobody has yet read the scheduler, `hosted.rs` or `rescue.rs` for other per-tick reads of a parked step.
+  - **Amended 2026-10-10** (deadline-safe-default full r1, 2026-10-10; the first bullet used to say that nobody had
+    yet read the scheduler, `hosted.rs` or `rescue.rs` for other per-tick reads of a parked step). Answered:
+    - `rescue.rs` reads a parked send at most once per `PARKED_READ_SECS` (section 37). It polls a sent invoice past
+      its deadline once per `RESCUE_POLL_SECS`.
+    - A parked authorize at the deadline is still read on every tick, for up to 72 h (section 31 item 3).
+    - An unknown step that is not parked is read on every tick while PayPal fails (`scheduler.rs:84-89` →
+      `deadline_default` → `resolve_deal`), and `paypal_calls` rows are written at that rate. This is full r1's
+      economics-1, which waits on the operator.
+    - Per-tick queries scale with the lifetime ledger (`list_deals`, `open_operations`). This is full r1's
+      economics-2, which waits on the operator.
+    - `services/house-seller/src/hosted.rs` was read only at :835-935.
   - The Tumbler's ended card cannot be dismissed. That is rework C part 3, which needs a design in
     `crates/table-attention`.
 - **Evidence:** 975e168 and 9fe08fb; in `crates/table-app/tests/pipeline.rs`:
