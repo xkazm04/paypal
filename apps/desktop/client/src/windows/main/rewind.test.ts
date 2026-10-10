@@ -1,13 +1,15 @@
 // T6 Rewind: the week replayed from deal_history. historyAt places beads, ticks are coloured by
 // who decided, the hub narrates in plain words, and the mock serves the same closed steps, main only.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Deal } from '@bindings/Deal';
 import type { HistoryAuthority } from '@bindings/HistoryAuthority';
 import type { HistoryKind } from '@bindings/HistoryKind';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import { mockBackend, resetMockState } from '../../mock/backend';
 import { buildMockState, fakeUlid } from '../../mock/fixtures';
 import { decidedLine, decisionSteps } from './deal/WhoDecided';
-import { checkOpenThrough, endedBeforePayPalShowed, historyAt, isMoneyCall, isRefusal, laneSteps, narrate, stepSentence, stepTime, stepUnder, tickTone, weekFraction } from './logic';
+import { MONEY_CHECK_ENDED_NOW, MONEY_CHECK_ENDED_PILL, MONEY_CHECK_NOW } from '../../lib/words';
+import { checkOpenThrough, endedBeforePayPalShowed, historyAt, isMoneyCall, isRefusal, laneSteps, narrate, rewindCheckTip, stepSentence, stepTime, stepUnder, tickTone, weekFraction } from './logic';
 
 const D = 'deal-a';
 let seq = 0;
@@ -227,5 +229,44 @@ describe('checkOpenThrough: a money step open by the steps up to one', () => {
     const mine = s({ at: 5, kind: 'created' });
     expect(checkOpenThrough([other, mine], mine)).toBe(false);
     expect(checkOpenThrough([mine, checking], mine)).toBe(false);
+  });
+});
+
+describe('rewindCheckTip: the Rewind’s bead tip while a money step is open', () => {
+  const NOW = 1_800_000_000;
+  const d = 'deal-tip';
+  const s = (o: Partial<HistoryStep> & { at: number; kind: HistoryKind }) => step({ deal_id: d, ...o });
+  const tipOf = (steps: HistoryStep[], t: number, deal: Deal, unshown: ReadonlySet<string> = new Set()) => {
+    const p = historyAt(steps, t).get(deal.id);
+    if (!p) throw new Error('deal absent at the playhead');
+    return rewindCheckTip(steps, p, deal, unshown);
+  };
+  const deal = (id: string, state: Deal['state']): Deal => ({ ...buildMockState(NOW).deals[0]!.deal, id, state });
+
+  it('reads D-0194 as being checked with PayPal at the opening playhead', () => {
+    const st = buildMockState(NOW);
+    const d194 = st.deals.find((x) => x.display.label === 'D-0194')!.deal;
+    const steps = st.history ?? [];
+    const lastAt = Math.max(...steps.filter((x) => x.deal_id === d194.id).map((x) => x.at));
+    expect(tipOf(steps, lastAt, d194)).toEqual({ state: 'Checking with PayPal', money: MONEY_CHECK_NOW });
+  });
+  it('reads an EXPIRED deal whose check was open as PayPal never showed', () => {
+    const e = deal(d, 'EXPIRED');
+    for (const open of [s({ at: 10, kind: 'checking_with_paypal' }), s({ at: 10, kind: 'authorized', paypal: call('authorize', 'unknown') })]) {
+      const steps = [open, s({ at: 40, kind: 'expired', state_after: 'EXPIRED' })];
+      const tip = tipOf(steps, 50, e);
+      expect(tip).toEqual({ state: MONEY_CHECK_ENDED_PILL, money: MONEY_CHECK_ENDED_NOW });
+      expect(tip?.money).not.toMatch(/nothing moved|on hold/i);
+    }
+  });
+  it('reads an ending whose check began before the week from the unshown set only', () => {
+    const e = deal(d, 'EXPIRED');
+    const steps = [s({ at: 40, kind: 'expired', state_after: 'EXPIRED' })];
+    expect(tipOf(steps, 50, e, new Set([d]))).toEqual({ state: MONEY_CHECK_ENDED_PILL, money: MONEY_CHECK_ENDED_NOW });
+    expect(tipOf(steps, 50, e, new Set())).toBeNull();
+  });
+  it('gives nothing once a capture answered ok', () => {
+    const steps = [s({ at: 10, kind: 'checking_with_paypal' }), s({ at: 20, kind: 'captured', state_after: 'CAPTURED', paypal: call('capture', 'ok') })];
+    expect(tipOf(steps, 30, deal(d, 'CAPTURED'))).toBeNull();
   });
 });

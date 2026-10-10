@@ -25,7 +25,7 @@ import type { HistoryStep } from '@bindings/HistoryStep';
 import type { PaypalMethod } from '@bindings/PaypalMethod';
 import type { ReceiptEvent } from '@bindings/ReceiptEvent';
 import { formatMinor } from '../../lib/format';
-import { receiptRefusedSentence, refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, sellerSaysOnly, stateWord, unconfirmedSentence } from '../../lib/words';
+import { moneyCheckNow, moneyCheckPillText, receiptRefusedSentence, refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, sellerSaysOnly, stateWord, unconfirmedSentence } from '../../lib/words';
 
 export const MODULE_KEYS: readonly Module[] = ['tables', 'spend', 'counter', 'book', 'shield', 'rescue'];
 export const moduleIndex = (m: Module): number => MODULE_KEYS.indexOf(m);
@@ -527,6 +527,15 @@ export function checkOpenThrough(steps: readonly HistoryStep[], last: HistorySte
 export function endedBeforePayPalShowed(steps: readonly HistoryStep[], end: HistoryStep): boolean {
   if (end.kind !== 'expired' && end.kind !== 'lapsed') return false;
   return checkOpenThrough(steps, end);
+}
+
+/** The Rewind's bead tip for a deal whose money step is open at the playhead (the pill and the money
+ *  line the live tip shows at Home), or null when nothing is open. `unshown` holds the deals whose
+ *  ending came after a check that began before the week. */
+export function rewindCheckTip(steps: readonly HistoryStep[], p: HistoryPoint, deal: Deal, unshown: ReadonlySet<string>): { state: string; money: string } | null {
+  const ended = isTerminal({ ...deal, state: p.state });
+  if (!(checkOpenThrough(steps, p.last) || (ended && unshown.has(deal.id)))) return null;
+  return { state: moneyCheckPillText(ended), money: moneyCheckNow(ended) };
 }
 
 /** A tick's colour on the PayPal lane: who decided the call. */
