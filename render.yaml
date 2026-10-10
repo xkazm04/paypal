@@ -27,3 +27,7 @@ services:
         sync: false
       - key: HOUSE_LEDGER_PATH
         value: /var/lib/table/house.sqlite3
+      # Keys each relay caller on the rightmost X-Forwarded-For entry, the one Render's proxy
+      # appends. UNVERIFIED: that Render puts exactly one proxy hop in front of a web service.
+      - key: RELAY_TRUSTED_PROXY_HOPS
+        value: "1"
