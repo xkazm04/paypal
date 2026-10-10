@@ -1,7 +1,7 @@
 // One subscription set for the whole Main window: settings, ledger, attention, agent runs and the
 // deal_display projection. Events are projections, not state: every event triggers a refetch
 // of the snapshot it affects (useQuery subscribes first, then fetches).
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { AttentionSnapshot } from '@bindings/AttentionSnapshot';
 import type { Deal } from '@bindings/Deal';
@@ -9,13 +9,13 @@ import type { DealEvidence } from '@bindings/DealEvidence';
 import type { Module } from '@bindings/Module';
 import type { RunSnapshot } from '@bindings/RunSnapshot';
 import type { SettingsSnapshot } from '@bindings/SettingsSnapshot';
-import { toWalletError, type WalletError } from '../../lib/contract';
+import type { WalletError } from '../../lib/contract';
 import { fallbackDisplay } from '../../lib/display';
 import { useQuery, type Query } from '../../lib/hooks';
 import type { DealDisplay } from '@bindings/DealDisplay';
-import { backend } from '../../lib/runtime';
 import { headlineWords, silenceWords } from '../../lib/words';
 import { useDisplays } from './displays';
+import { useEvidence } from './evidence';
 import { moduleOf } from './logic';
 
 export type Display = DealDisplay & { fallback: boolean };
@@ -44,32 +44,10 @@ export function useWorld(): World {
   return w;
 }
 
-/** Fetch one read per deal in parallel, keeping per-deal failures (a failed read degrades, never blocks). */
-function usePerDeal<T>(cmd: 'deal_display' | 'deal_evidence', deals: Deal[] | undefined, extraKey = ''): { map: Map<string, T>; error: WalletError | null } {
-  const [state, setState] = useState<{ map: Map<string, T>; error: WalletError | null }>({ map: new Map(), error: null });
-  useEffect(() => {
-    if (!deals) return;
-    let dead = false;
-    void Promise.allSettled(deals.map((d) => backend().invoke(cmd, { deal_id: d.id }))).then((rs) => {
-      if (dead) return;
-      const map = new Map<string, T>();
-      let error: WalletError | null = null;
-      rs.forEach((r, i) => {
-        const d = deals[i];
-        if (!d) return;
-        if (r.status === 'fulfilled') map.set(d.id, r.value as T);
-        else error = toWalletError(r.reason);
-      });
-      setState({ map, error });
-    });
-    return () => { dead = true; };
-  }, [cmd, deals, extraKey]);
-  return state;
-}
-
-/** Evidence for every deal (Book). Refetches with the ledger. */
-export function useAllEvidence(deals: Deal[] | undefined, bump: number): { map: Map<string, DealEvidence>; error: WalletError | null } {
-  return usePerDeal<DealEvidence>('deal_evidence', deals, String(bump));
+/** Evidence for every deal (Book). Read once per open and again only for the deals whose evidence
+ *  can have changed (evidence.ts); `bump` is unused. */
+export function useAllEvidence(deals: Deal[] | undefined, _bump: number): { map: Map<string, DealEvidence>; error: WalletError | null } {
+  return useEvidence(deals);
 }
 
 export function WorldProvider({ children }: { children: ReactNode }) {
