@@ -150,7 +150,7 @@ fn migrations_are_transactional_idempotent_and_foreign_keys_enabled() {
         .conn
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 14);
+    assert_eq!(version, 15);
     let connection = ledger.conn;
     let ledger = Ledger::from_connection(connection).unwrap();
     assert_eq!(ledger.audit_count().unwrap(), 0);
@@ -1154,7 +1154,7 @@ fn relay_inbox_cursor_and_outbox_survive_disk_reopen_and_generation_reset() {
     ledger.record_outbound(&verified, 100).unwrap();
     let generation = "a".repeat(32);
     ledger
-        .stage_relay_batch(deal.id, &generation, 0, &["aaa.bbb.ccc".into()])
+        .stage_relay_batch(deal.id, &generation, 0, &["aaa.bbb.ccc".into()], 100)
         .unwrap();
     ledger
         .acknowledge_relay(deal.id, &generation, verified.hash())
@@ -1177,7 +1177,7 @@ fn relay_inbox_cursor_and_outbox_survive_disk_reopen_and_generation_reset() {
     assert_eq!(messages.len(), 1);
     assert!(
         reopened
-            .stage_relay_batch(deal.id, &generation, 0, &[])
+            .stage_relay_batch(deal.id, &generation, 0, &[], 100)
             .is_err()
     );
     reopened.finish_inbox(&messages[0], false, 101).unwrap();
@@ -1187,7 +1187,7 @@ fn relay_inbox_cursor_and_outbox_survive_disk_reopen_and_generation_reset() {
         verified.hash()
     );
     reopened
-        .stage_relay_batch(deal.id, &"b".repeat(32), 0, &[])
+        .stage_relay_batch(deal.id, &"b".repeat(32), 0, &[], 700)
         .unwrap();
     assert_eq!(reopened.relay_work().unwrap()[0].outgoing[0].1, raw);
     reopened.verify_audit().unwrap();
@@ -2599,4 +2599,117 @@ fn the_display_counts_an_unconfirmed_deal_as_closed() {
         DealState::Unconfirmed
     );
     assert_eq!(closed(&ledger), 1);
+}
+
+// Scan C-9a: a relay reset is rate-limited, prunes settled staging, and a deal's inbox is capped.
+fn route_state(ledger: &Ledger, id: DealId) -> (String, i64, i64) {
+    ledger
+        .conn
+        .query_row(
+            "SELECT generation,cursor,generation_at FROM relay_routes WHERE deal_id=?1",
+            [id.to_string()],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .unwrap()
+}
+fn inbox_rows(ledger: &Ledger, id: DealId) -> Vec<(String, i64, String)> {
+    let mut q = ledger
+        .conn
+        .prepare("SELECT generation,position,status FROM relay_inbox WHERE deal_id=?1 ORDER BY generation,position")
+        .unwrap();
+    q.query_map([id.to_string()], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+        .unwrap()
+        .map(Result::unwrap)
+        .collect()
+}
+#[test]
+fn c9a_a_reset_inside_the_window_is_refused_and_writes_nothing() {
+    let (mut ledger, deal, _, _, _) = setup();
+    ledger.bind_relay(deal.id, H256::digest(b"m"), 100).unwrap();
+    let (a, b) = ("a".repeat(32), "b".repeat(32));
+    ledger
+        .stage_relay_batch(deal.id, &a, 0, &["x.y.z".into()], 1000)
+        .unwrap();
+    assert_eq!(route_state(&ledger, deal.id), (a.clone(), 1, 1000));
+    let rows = inbox_rows(&ledger, deal.id);
+    // A clock that went backwards counts as inside the window.
+    for now in [1000, 1599, 500] {
+        assert!(matches!(
+            ledger.stage_relay_batch(deal.id, &b, 0, &["x.y.z".into()], now),
+            Err(LedgerError::Conflict)
+        ));
+        assert_eq!(route_state(&ledger, deal.id), (a.clone(), 1, 1000));
+        assert_eq!(inbox_rows(&ledger, deal.id), rows);
+    }
+    ledger.stage_relay_batch(deal.id, &b, 0, &[], 1600).unwrap();
+    assert_eq!(route_state(&ledger, deal.id), (b, 0, 1600));
+}
+#[test]
+fn c9a_an_accepted_reset_prunes_settled_rows_of_this_deal_only() {
+    let (mut ledger, deal, _, _, _) = setup();
+    let other = budget_deal(&mut ledger, &deal, 1);
+    for d in [deal.id, other.id] {
+        ledger
+            .bind_relay(d, H256::digest(d.to_string().as_bytes()), 100)
+            .unwrap();
+    }
+    let (a, b) = ("a".repeat(32), "b".repeat(32));
+    let batch: Vec<String> = (0..3).map(|i| format!("m{i}.y.z")).collect();
+    for d in [deal.id, other.id] {
+        ledger.stage_relay_batch(d, &a, 0, &batch, 1000).unwrap();
+    }
+    let mut pending = ledger.pending_inbox().unwrap();
+    pending.retain(|m| m.deal_id == deal.id);
+    ledger.finish_inbox(&pending[0], true, 1001).unwrap();
+    ledger.finish_inbox(&pending[1], false, 1001).unwrap();
+    let other_rows = inbox_rows(&ledger, other.id);
+    let audit = ledger.audit_count().unwrap();
+    ledger
+        .stage_relay_batch(deal.id, &b, 0, &["n.y.z".into()], 2000)
+        .unwrap();
+    assert_eq!(
+        inbox_rows(&ledger, deal.id),
+        vec![(a, 3, "pending".to_string()), (b, 1, "pending".to_string())]
+    );
+    assert_eq!(inbox_rows(&ledger, other.id), other_rows);
+    assert_eq!(ledger.audit_count().unwrap(), audit);
+    ledger.verify_audit().unwrap();
+}
+#[test]
+fn c9a_a_deal_past_the_inbox_cap_is_refused_and_writes_nothing() {
+    let (mut ledger, deal, _, _, _) = setup();
+    ledger.bind_relay(deal.id, H256::digest(b"m"), 100).unwrap();
+    let full: Vec<String> = (0..256).map(|i| format!("m{i}.y.z")).collect();
+    // Pending rows are never pruned, so each reset (600 s apart) adds a whole generation.
+    for (n, g) in ['a', 'b', 'c', 'd'].into_iter().enumerate() {
+        ledger
+            .stage_relay_batch(
+                deal.id,
+                &g.to_string().repeat(32),
+                0,
+                &full,
+                1000 + 600 * n as i64,
+            )
+            .unwrap();
+    }
+    assert_eq!(inbox_rows(&ledger, deal.id).len(), 1024);
+    let before = route_state(&ledger, deal.id);
+    assert!(matches!(
+        ledger.stage_relay_batch(deal.id, &"e".repeat(32), 0, &["x.y.z".into()], 5000),
+        Err(LedgerError::Conflict)
+    ));
+    assert_eq!(route_state(&ledger, deal.id), before);
+    assert_eq!(inbox_rows(&ledger, deal.id).len(), 1024);
+}
+#[test]
+fn c9a_a_version_14_ledger_migrates_and_reads_generation_at_zero() {
+    let (mut ledger, deal, _, _, _) = setup();
+    ledger.bind_relay(deal.id, H256::digest(b"m"), 100).unwrap();
+    let conn = ledger.conn;
+    conn.execute_batch(
+        "ALTER TABLE relay_routes DROP COLUMN generation_at; PRAGMA user_version=14;",
+    )
+    .unwrap();
+    let ledger = Ledger::from_connection(conn).unwrap();
+    assert_eq!(route_state(&ledger, deal.id), (String::new(), 0, 0));
 }
