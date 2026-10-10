@@ -2048,4 +2048,41 @@ Ids are the ones on main.
 - **2044b21:** C-9a2. The window counts from the last reset, not from the first adoption; the first adoption from the empty generation starts no window, so a fresh deal recovers at once from one lost mailbox.
 - **58e3517:** the two mailbox-loss tests are back to replaying at once, with no clock move.
 - **Gates.** The merge gate's cargo test passed at 0092ad2 (run 068ff2b3) and at 58e3517 (run 3cf37560). Both builders reported `cargo fmt --all --check` and `clippy --workspace --all-targets -D warnings` clean on their branches. The App Master measured `cargo fmt --all --check` exit 0 on main at 58e3517. No gate has measured clippy on main.
-- **Open:** C-9b. `finish_inbox` still writes one audit row per rejected message; the scan asks for one `envelope.rejected` row per batch, with the count and the message hashes.
+- **Open:** none here. C-9b is fixed in the next section (Scan C-9b).
+
+## Deal dashboard rework and the unshown read (2026-10-10; DECISIONS.md section 34)
+
+Ids are the ones on main.
+
+- **8e56ef1:** an ended money check on the deal page says PayPal never showed, not that it is being asked. New `MONEY_CHECK_NOW`, `MONEY_CHECK_ENDED_NOW`, `MONEY_CHECK_ENDED_PILL`, `MONEY_CHECK_ENDED_SHORT`, `moneyCheckPill` and `moneyCheckNow` in `lib/words.ts`; the deal page's Summary uses them once the deal is terminal.
+- **d8582bb:** the away card does not open with 'No money moved.' while a payment is being checked with PayPal.
+- **b7d2e84:** Home does not count a payment being checked as on hold (`heldAtPayPal` takes the deal ids being checked). It shows under Needs you with the check's pill and Money line on the bead tip, the hub label and the details.
+- **3698520:** a deal that ended at its deadline while PayPal was being asked never says no money moved. New `endedBeforePayPalShowed` in `windows/main/logic.ts`; the Rewind narration, Who decided, What you were shown and the away card (new outcome `unshown`) tell that PayPal never showed what happened.
+- **b5ccad5:** `windows/main/unshown.ts` (`endingsToRead`, `useEndedUnshown`) reads a deal's own record (`deal_evidence` `money_check`) for a deadline ending the steps cannot place. Read-only; a failed read leaves the deal out.
+- **0670480:** the away card uses that read, and waits for it.
+- **43de15e:** the Rewind uses that read when the check began in an earlier week.
+- **1881489:** `docs/features/home-and-rewind.md` brought to these words.
+- **Gates.** The merge gate runs cargo test only. The App Master measured, on main: client `tsc --noEmit` exit 0 and vitest 946 of 946 in 87 files at 3698520; `tsc` exit 0 and vitest 955 of 955 in 88 files at 1881489.
+- **Council.** wallet-deal-dashboard lite r2 is ready (lite), overall 0.62, coverage 0.70. Its one must-address is the Rewind's bead tip (robustness-1), which is in rework and not merged.
+
+## Scan C-9b (2026-10-10; DECISIONS.md section 33)
+
+Ids are the ones on main.
+
+- **f870297:** `Ledger::reject_inbox` rejects a batch of one deal and one generation in one transaction and appends one `envelope.rejected` row holding the generation, the count, the raw-message digests and the reason; `finish_inbox(false)` is a batch of one.
+- **6f7beb3:** `consume_inbox` collects a pass's refused messages and rejects them one batch per deal and generation.
+- **Gates.** The merge gate's cargo test passed (run 43982be1). The App Master measured `cargo fmt --all --check` exit 0 on main at 6f7beb3. The builder reported clippy clean.
+- **Open:** C-9c. The HOUSE (`services/house-seller/src/hosted.rs`) still writes one row per message; it needs an inbox test harness.
+
+## Deal-to-settlement rework C, parts 1 and 2 (2026-10-10; DECISIONS.md sections 34 and 35)
+
+Ids are the ones on main.
+
+- **975e168:** part 1, R1. `deadline_default` answers `Ok(false)` for an AUTHORIZED deal whose only open operations are a parked capture or void the read-back could not settle; nothing is sent.
+- **9fe08fb:** part 1, R2. A parked capture or void is read back at its deadline at most once an hour (`PARKED_READ_SECS`, in memory per request id); a parked authorize is still read every tick.
+- **767043a:** the Book's statement filter and lens table count a deal that ended UNCONFIRMED as 'No match', an end, not as 'Not yet'.
+- **85faf93:** the Book's On hold figures (the tile and its Why, the week answer, the grid totals and the lens table) leave out a payment being checked with PayPal, as Home does.
+- **33f2c56:** the Book's status pill and grid row word a check with `moneyCheckPill`, so a deal that ended reads 'Not shown by PayPal'.
+- **c5e1694:** the Book's detail Money line and the Counter panel's Money and Outcome lines say the payment is being checked, not that it is on hold.
+- **Gates.** The merge gate's cargo test passed at 9fe08fb and at c5e1694. The App Master measured `cargo fmt --all --check` exit 0 at 9fe08fb, and client `tsc` exit 0 and vitest 961 of 961 in 88 files at c5e1694.
+- **Open:** part 3 (the Tumbler's ended card cannot be dismissed; it needs a design in `crates/table-attention`), and the surfaces listed under Open in DECISIONS.md section 34.
