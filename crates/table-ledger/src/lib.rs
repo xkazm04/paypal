@@ -53,7 +53,7 @@ impl Ledger {
         conn.execute_batch("PRAGMA foreign_keys=ON; PRAGMA recursive_triggers=ON;")?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version > 14 {
+        if version > 15 {
             return Err(LedgerError::Integrity("newer schema"));
         }
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -99,7 +99,16 @@ impl Ledger {
         if version < 14 {
             tx.execute_batch(include_str!("../migrations/0014_rescue_watch.sql"))?;
         }
-        tx.execute_batch("PRAGMA user_version=14;")?;
+        // The older-schema tests step user_version back without dropping this column.
+        let has_reset_column: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('relay_routes') WHERE name='generation_at')",
+            [],
+            |r| r.get(0),
+        )?;
+        if version < 15 && !has_reset_column {
+            tx.execute_batch(include_str!("../migrations/0015_relay_reset.sql"))?;
+        }
+        tx.execute_batch("PRAGMA user_version=15;")?;
         tx.commit()?;
         let ledger = Self { conn };
         ledger.verify_audit()?;

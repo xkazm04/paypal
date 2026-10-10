@@ -18,6 +18,12 @@ pub struct InboxMessage {
     pub position: u64,
     pub raw: String,
 }
+/// A legitimate relay resets a deal's generation on a restart or a 24-hour mailbox expiry, not twice
+/// in ten minutes; a refused reset only delays that deal and never moves money.
+const RESET_WINDOW_SECS: i64 = 600;
+/// Backstop only: one generation holds at most 256 rows and settled rows of earlier generations are
+/// pruned on reset, so a legitimate deal never nears this.
+const INBOX_CAP: i64 = 1024;
 impl Ledger {
     pub fn pin_pairing_mailbox(&mut self, peer: &KeyId, hash: H256) -> Result<(), LedgerError> {
         self.conn.execute(
@@ -163,6 +169,7 @@ impl Ledger {
         generation: &str,
         after: u64,
         messages: &[String],
+        now: Timestamp,
     ) -> Result<(), LedgerError> {
         if generation.len() != 32
             || !generation.bytes().all(|b| b.is_ascii_hexdigit())
@@ -174,13 +181,25 @@ impl Ledger {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let (old, cursor): (String, u64) = tx.query_row(
-            "SELECT generation,cursor FROM relay_routes WHERE deal_id=?1",
+        let (old, cursor, changed_at): (String, u64, i64) = tx.query_row(
+            "SELECT generation,cursor,generation_at FROM relay_routes WHERE deal_id=?1",
             [id.to_string()],
-            |r| Ok((r.get(0)?, u64::from(r.get::<_, u32>(1)?))),
+            |r| Ok((r.get(0)?, u64::from(r.get::<_, u32>(1)?), r.get(2)?)),
         )?;
-        if (old == generation && cursor != after) || (old != generation && after != 0) {
+        let reset = old != generation;
+        if (!reset && cursor != after) || (reset && after != 0) {
             return Err(LedgerError::Conflict);
+        }
+        if reset && !old.is_empty() && now.saturating_sub(changed_at) < RESET_WINDOW_SECS {
+            return Err(LedgerError::Conflict);
+        }
+        if reset {
+            // Transport staging, not evidence: an applied message lives in envelopes and a
+            // rejected one is in the audit log by its raw hash. Pending rows are kept.
+            tx.execute(
+                "DELETE FROM relay_inbox WHERE deal_id=?1 AND generation<>?2 AND status IN ('applied','rejected')",
+                params![id.to_string(), generation],
+            )?;
         }
         for (offset, raw) in messages.iter().enumerate() {
             tx.execute(
@@ -193,12 +212,22 @@ impl Ledger {
                 ],
             )?;
         }
+        let held: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM relay_inbox WHERE deal_id=?1",
+            [id.to_string()],
+            |r| r.get(0),
+        )?;
+        if held > INBOX_CAP {
+            return Err(LedgerError::Conflict);
+        }
         tx.execute(
-            "UPDATE relay_routes SET generation=?1,cursor=?2 WHERE deal_id=?3",
+            "UPDATE relay_routes SET generation=?1,cursor=?2,generation_at=CASE WHEN ?4 THEN ?5 ELSE generation_at END WHERE deal_id=?3",
             params![
                 generation,
                 (after + messages.len() as u64) as u32,
-                id.to_string()
+                id.to_string(),
+                reset,
+                now
             ],
         )?;
         tx.commit()?;

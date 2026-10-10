@@ -823,7 +823,7 @@ async fn a_retired_mandate_leaves_deals_to_their_deadline_without_repeating_faul
         .bind_relay(deal.id, H256::digest(b"mailbox"), 100)
         .unwrap();
     ledger
-        .stage_relay_batch(deal.id, &"a".repeat(32), 0, &["aaa.bbb.ccc".into()])
+        .stage_relay_batch(deal.id, &"a".repeat(32), 0, &["aaa.bbb.ccc".into()], 100)
         .unwrap();
     ledger.revoke_mandate(deal.mandate_id, 100).unwrap();
     r.tick().await.unwrap();

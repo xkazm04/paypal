@@ -642,7 +642,7 @@ impl Seller {
             .map_err(Error::from);
         for work in self.noted("deliver", None, work)? {
             let id = work.deal_id;
-            let result = self.deliver(work).await;
+            let result = self.deliver(work, now).await;
             self.beat();
             if let Err(e) = self.noted("deliver", Some(id), result) {
                 failure.get_or_insert(e);
@@ -705,7 +705,11 @@ impl Seller {
             .map_err(Error::from);
         self.noted(step, None, deals)
     }
-    async fn deliver(&mut self, work: table_ledger::RelayWork) -> Result<(), Error> {
+    async fn deliver(
+        &mut self,
+        work: table_ledger::RelayWork,
+        now: Timestamp,
+    ) -> Result<(), Error> {
         self.relay
             .create(work.mailbox)
             .await
@@ -722,6 +726,7 @@ impl Seller {
             &generation,
             batch.after,
             &batch.messages,
+            now,
         )?;
         // Generation changes replay durable history on the next tick, just like the wallet.
         if work.generation == generation {

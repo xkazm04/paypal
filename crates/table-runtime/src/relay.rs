@@ -9,6 +9,21 @@ pub(crate) struct Delivery {
     acknowledgements: Vec<(String, H256)>,
     failed: bool,
 }
+#[cfg(test)]
+impl Delivery {
+    pub(crate) fn for_test(
+        id: DealId,
+        batches: Vec<table_relay::Batch>,
+        acknowledgements: Vec<(String, H256)>,
+    ) -> Self {
+        Self {
+            id,
+            batches,
+            acknowledgements,
+            failed: false,
+        }
+    }
+}
 impl Runtime {
     pub fn with_secondary(mut self, api: Arc<dyn table_paypal::SecondaryApi>) -> Self {
         self.pipeline.set_secondary(Some(api.clone()));
@@ -64,13 +79,26 @@ impl Runtime {
         let mut failure = false;
         for delivery in deliveries {
             failure |= delivery.failed;
+            let mut refused = false;
             for batch in delivery.batches {
-                app(self.pipeline.wallet.ledger.stage_relay_batch(
+                match self.pipeline.wallet.ledger.stage_relay_batch(
                     delivery.id,
                     &batch.generation,
                     batch.after,
                     &batch.messages,
-                ))?;
+                    self.clock.now(),
+                ) {
+                    Ok(()) => {}
+                    // One deal's refusal stops that deal only; it is no relay fault.
+                    Err(table_ledger::LedgerError::Conflict) => {
+                        refused = true;
+                        break;
+                    }
+                    Err(e) => return app(Err(e)),
+                }
+            }
+            if refused {
+                continue;
             }
             for (generation, hash) in delivery.acknowledgements {
                 app(self

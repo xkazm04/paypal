@@ -482,7 +482,7 @@ async fn two_seller_accepts_in_one_inbox_pass_make_exactly_one_agreement() {
         s.r.pipeline
             .wallet
             .ledger
-            .stage_relay_batch(s.id(n), &"a".repeat(32), 0, std::slice::from_ref(raw))
+            .stage_relay_batch(s.id(n), &"a".repeat(32), 0, std::slice::from_ref(raw), 100)
             .unwrap();
     }
     s.r.start_relay().unwrap();
@@ -548,4 +548,60 @@ async fn grouping_is_refused_for_tables_that_are_not_one_open_buyer_intent() {
     s.group(&[0, 1]).await;
     assert_eq!(s.groups().await.len(), 1);
     s.no_paypal();
+}
+
+// Scan C-9a: one deal's refused batch stops that deal only, not the round.
+#[tokio::test]
+async fn a_refused_relay_batch_stops_one_delivery_and_not_the_round() {
+    let mut s = shop(2, clauses(Side::Buyer, DealKind::Haggle));
+    for n in [0, 1] {
+        s.counter(n, 1200);
+        s.agent_accepts(n).unwrap();
+        let id = s.id(n);
+        let ledger = &mut s.r.pipeline.wallet.ledger;
+        ledger
+            .bind_relay(id, H256::digest(id.to_string().as_bytes()), 100)
+            .unwrap();
+    }
+    let (a, b) = ("a".repeat(32), "b".repeat(32));
+    // Table 0 changed generation a moment ago, so a second change is refused.
+    let (first, now) = (s.id(0), s.r.clock.now());
+    s.r.pipeline
+        .wallet
+        .ledger
+        .stage_relay_batch(first, &a, 0, &[], now)
+        .unwrap();
+    let work = s.r.pipeline.wallet.ledger.relay_work().unwrap();
+    let ack = |n: usize, generation: &str| {
+        let hash = work.iter().find(|w| w.deal_id == s.id(n)).unwrap().outgoing[0].0;
+        vec![(generation.to_string(), hash)]
+    };
+    let batch = |generation: &str, messages| table_relay::Batch {
+        generation: generation.to_string(),
+        after: 0,
+        messages,
+    };
+    let refused = crate::relay::Delivery::for_test(s.id(0), vec![batch(&b, vec![])], ack(0, &b));
+    let valid = crate::relay::Delivery::for_test(
+        s.id(1),
+        vec![batch(&a, vec!["aaa.bbb.ccc".into()])],
+        ack(1, &a),
+    );
+    s.r.relay_finished(vec![refused, valid]).unwrap();
+    assert_eq!(s.r.relay_failures, 0);
+    assert_eq!(s.r.relay_retry_at, 0);
+    let after = s.r.pipeline.wallet.ledger.relay_work().unwrap();
+    let state = |n: usize| after.iter().find(|w| w.deal_id == s.id(n)).unwrap();
+    // The valid delivery's batch is staged and its acknowledgement recorded.
+    assert_eq!(
+        (state(1).generation.as_str(), state(1).cursor),
+        (a.as_str(), 1)
+    );
+    assert!(state(1).outgoing.is_empty());
+    // The refused delivery keeps its generation and cursor and records no acknowledgement.
+    assert_eq!(
+        (state(0).generation.as_str(), state(0).cursor),
+        (a.as_str(), 0)
+    );
+    assert_eq!(state(0).outgoing.len(), 1);
 }
