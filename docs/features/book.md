@@ -215,7 +215,8 @@ unlock):
 - Book metrics are not yet read from the wallet-limits exposure fold; the page's local recovered
   estimate could read `rescue_book` instead.
 - Typed questions: spending and receiving both read as "Paid" (direction is not a `BookQuery`
-  field; the answer keeps out and in on their own lines); grouped by day, the window uses local
+  field; the answer keeps out and in on their own lines, and the wallet's table now does too, through
+  the `direction` column); grouped by day, the window uses local
   days while Rust answers in UTC days; amount, date and vs-market comparisons ("over $100") stay
   "unsure"; no suggestions while typing; the slip shows the original text after chip edits.
 - The Book query metric `avg_vs_market_pct` still reads the latest market record's median
