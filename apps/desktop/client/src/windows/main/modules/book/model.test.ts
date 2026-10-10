@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
-import { BUCKET_LABEL, BUCKET_SUB, BUCKETS, bucketOf, csvCell, decimal, LENSES, readQuery, runQuery, serverStateLabel, stateKey, statementCounts, sums, toCSV, vsMedianPct, type BookQuery, type Ctx } from './model';
+import { BUCKET_LABEL, BUCKET_SUB, BUCKETS, bucketOf, csvCell, decimal, LENSES, readQuery, runQuery, serverStateLabel, stateKey, statementCounts, statementKey, sums, toCSV, vsMedianPct, type BookQuery, type Ctx } from './model';
 
 const H = Array.from({ length: 32 }, () => 0) as unknown as Deal['transcript_head'];
 function deal(id: string, o: Partial<Deal> & { price?: number; cur?: Deal['terms']['currency'] } = {}): Deal {
@@ -143,5 +143,19 @@ describe('a deal PayPal did not confirm is an end of its own in the Book', () =>
     expect(s.motion.out).toHaveLength(1);
     expect(s.captured.out).toEqual([]);
     expect(s.stopped.out).toEqual([]);
+  });
+});
+
+describe('a deal that ended UNCONFIRMED is counted as an end, not as a wait', () => {
+  const ended = deal('u', { kind: 'haggle', state: 'UNCONFIRMED' });
+  const paid = deal('r', { kind: 'haggle', state: 'RECEIPTED' });
+  const pending = () => 'pending_reporting' as const;
+  it('keys it unconfirmed, and a RECEIPTED deal keeps pending_reporting', () => {
+    expect(statementKey('pending_reporting', 'UNCONFIRMED')).toBe('unconfirmed');
+    expect(statementKey('pending_reporting', 'RECEIPTED')).toBe('pending_reporting');
+    expect(statementKey('matched', 'UNCONFIRMED')).toBe('matched');
+  });
+  it('counts it apart from pending_reporting', () => {
+    expect(statementCounts([ended, paid], pending)).toEqual({ matched: 0, pending_reporting: 1, unconfirmed: 1, mismatch: 0, not_applicable: 0, unknown: 0 });
   });
 });

@@ -38,7 +38,7 @@ import { atRiskOf } from './rescue/model';
 import type { ModuleProps } from './common';
 import {
   BUCKET_LABEL, BUCKET_SUB, BUCKETS, bucketOf, dayKey, dayLabel, dirOf, KIND_ORDER, kindLabel, LENSES, queryText, readQuery, runQuery,
-  serverStateLabel, STATEMENT_TIP, STATEMENT_WORD, statementCounts, statementEnded, statementWords, sums, toCSV, type Bucket, type Ctx, type Group as LensGroup, type Lens, type Result, type Statement,
+  serverStateLabel, STATEMENT_TIP, STATEMENT_WORD, UNCONFIRMED_STATEMENT_WORD, statementCounts, statementEnded, statementKey, statementWords, sums, toCSV, type Bucket, type Ctx, type Group as LensGroup, type Lens, type Result, type Statement, type StatementKey,
 } from './book/model';
 import { AskChips } from './book/AskChips';
 import { ReadingChips, UnsureLine } from './book/AskReading';
@@ -51,9 +51,11 @@ import './book.css';
 const ProofCheckSheet = lazyPart(() => import('./book/ProofCheck').then((m) => m.ProofCheckSheet));
 
 type Phase = 'IDLE' | 'UNSURE' | 'BLOCKED' | 'DRAFTED' | 'RESULT' | 'EMPTY';
-type StmtFilter = 'all' | Statement;
+type StmtFilter = 'all' | StatementKey;
 
 const TONE: Record<ChipClass, ChipTone | undefined> = { live: 'teal', wait: 'gold', held: 'coral', done: 'ok', bad: 'red', off: undefined };
+const UNCONFIRMED_LABEL = 'No match';
+const UNCONFIRMED_TIP = statementWords('pending_reporting', 'UNCONFIRMED', null).tip;
 const STMT_TONE: Record<Statement, ChipTone | undefined> = { matched: 'ok', pending_reporting: 'gold', mismatch: 'red', not_applicable: undefined, unknown: 'dashed' };
 const wordOf = (d: Deal) => stateWord(d.state, { side: d.side, kind: d.kind });
 /** Where the deal price sits against the market, in words; the percentile stays in the tooltip.
@@ -192,7 +194,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
   }, [layers, phase, sel]);
 
   const lit = res && phase === 'RESULT' ? new Set(res.rows.map((d) => d.id)) : null;
-  const visible = ledger.filter((d) => (stmtF === 'all' || stmt(d) === stmtF) && (!bucketF || bucketOf(d) === bucketF));
+  const visible = ledger.filter((d) => (stmtF === 'all' || statementKey(stmt(d), d.state) === stmtF) && (!bucketF || bucketOf(d) === bucketF));
   const counts = statementCounts(ledger, stmt);
   const totals = sums(ledger);
   const selDeal = sel ? all.find((d) => d.id === sel) : undefined;
@@ -268,6 +270,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
               { value: 'all', label: <>All <span className="cnt">{ledger.length}</span></> },
               { value: 'matched', label: <>On statement <span className="cnt">{counts.matched}</span></>, title: STATEMENT_TIP.matched },
               { value: 'pending_reporting', label: <>Not yet <span className="cnt">{counts.pending_reporting}</span></>, title: STATEMENT_TIP.pending_reporting },
+              ...(counts.unconfirmed && !evLoading ? [{ value: 'unconfirmed' as const, label: <>{UNCONFIRMED_LABEL} <span className="cnt">{counts.unconfirmed}</span></>, title: UNCONFIRMED_TIP }] : []),
               { value: 'mismatch', label: <>Differs <span className="cnt">{counts.mismatch}</span></>, title: STATEMENT_TIP.mismatch },
               { value: 'not_applicable', label: <>No payment <span className="cnt">{counts.not_applicable}</span></>, title: STATEMENT_TIP.not_applicable },
               ...(counts.unknown && !evLoading ? [{ value: 'unknown' as const, label: <>Unknown <span className="cnt">{counts.unknown}</span></>, title: STATEMENT_TIP.unknown }] : []),
@@ -649,10 +652,12 @@ function SumCell({ out, inn, bucket }: { out: Money[]; inn: Money[]; bucket: Buc
   return <>{parts.flatMap((p, i) => (i ? [<span key={`s${i}`} className="dim"> · </span>, p] : [p]))}</>;
 }
 
-function StmtSummary({ c }: { c: Record<Statement, number> }) {
-  const xs = (['matched', 'pending_reporting', 'mismatch', 'unknown'] as const).filter((s) => c[s]);
+function StmtSummary({ c }: { c: Record<StatementKey, number> }) {
+  const xs = (['matched', 'pending_reporting', 'unconfirmed', 'mismatch', 'unknown'] as const).filter((s) => c[s]);
   if (!xs.length) return <span className="dim">—</span>;
-  return <>{xs.map((s) => <Chip key={s} tone={STMT_TONE[s]} className={s === 'pending_reporting' ? 'dashed' : undefined} title={STATEMENT_TIP[s]}>{c[s]} {STATEMENT_WORD[s]}</Chip>)}</>;
+  return <>{xs.map((s) => s === 'unconfirmed'
+    ? <Chip key={s} tone="dashed" title={UNCONFIRMED_TIP}>{c[s]} {UNCONFIRMED_STATEMENT_WORD}</Chip>
+    : <Chip key={s} tone={STMT_TONE[s]} className={s === 'pending_reporting' ? 'dashed' : undefined} title={STATEMENT_TIP[s]}>{c[s]} {STATEMENT_WORD[s]}</Chip>)}</>;
 }
 
 /** The wallet's own answer to the view (book_query): totals per currency and mode, exact minor
