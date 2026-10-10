@@ -15,7 +15,7 @@ import type { BookRange } from '@bindings/BookRange';
 import type { CounterpartyDisplay } from '@bindings/CounterpartyDisplay';
 import type { DealKind } from '@bindings/DealKind';
 import type { DealState } from '@bindings/DealState';
-import type { BookQuery as LensQuery, Filter } from './model';
+import type { BookQuery as LensQuery, Filter, Lens } from './model';
 import { bookRejection, rfc3339Seconds } from './rules';
 import { houseWords } from '../../../../lib/words';
 
@@ -393,6 +393,12 @@ export function lensQuery(q: BookQuery): LensQuery {
     return [];
   });
   return { view: q.view === 'reconciliation' ? 'reconciliation' : 'deals', filters, group_by: q.group_by, metrics: q.metrics, range: q.range };
+}
+
+/** A preset lens as it runs now. The week lens asks for this week (the same range a typed "this
+ *  week" sends), worked out here at run time; every other preset names no time and stays as it is. */
+export function lensAsRun(l: Lens, ctx: Pick<AskCtx, 'now' | 'offsetMin'>): Lens {
+  return l.id === 'week' ? { ...l, query: { ...l.query, range: whenRange({ k: 'this_week' }, ctx) } } : l;
 }
 
 /** Swap one chip for another (an edited time or grouping), or drop it (`next` null). */
