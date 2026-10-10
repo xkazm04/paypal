@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
-import { bucketOf, csvCell, decimal, LENSES, readQuery, runQuery, statementCounts, sums, toCSV, vsMedianPct, type Ctx } from './model';
+import { bucketOf, csvCell, decimal, LENSES, readQuery, runQuery, serverStateLabel, stateKey, statementCounts, sums, toCSV, vsMedianPct, type BookQuery, type Ctx } from './model';
 
 const H = Array.from({ length: 32 }, () => 0) as unknown as Deal['transcript_head'];
 function deal(id: string, o: Partial<Deal> & { price?: number; cur?: Deal['terms']['currency'] } = {}): Deal {
@@ -98,5 +98,34 @@ describe('a buyer’s RECEIPTED deal is not in the Paid bucket', () => {
     expect(bucketOf(deal('a', { kind: 'haggle', state: 'RECEIPTED' }))).toBe('motion');
     expect(bucketOf(deal('a', { kind: 'haggle', state: 'RECONCILED' }))).toBe('captured');
     expect(bucketOf(deal('a', { kind: 'haggle', side: 'seller', state: 'RECEIPTED' }))).toBe('captured');
+  });
+});
+
+describe('the Book never reads a deal PayPal has not confirmed as paid (value-1)', () => {
+  // The Paid chip's states (understand.ts PAID), as the Book asks for them.
+  const paid: BookQuery = { view: 'deals', filters: [{ field: 'state', op: 'in', value: ['CAPTURED', 'RECEIPTED', 'RECONCILED'] }], metrics: ['count'] };
+  const sellerWord = deal('s', { kind: 'haggle', state: 'RECEIPTED' });
+  const unconfirmed = deal('u', { kind: 'haggle', state: 'UNCONFIRMED' });
+  const rows = [sellerWord, unconfirmed, deal('p', { kind: 'purchase', state: 'RECEIPTED' }), deal('h', { kind: 'haggle', side: 'seller', state: 'RECEIPTED' })];
+  it('renders a server row RECEIPTED:buyer under the Seller-says-paid label', () => {
+    expect(serverStateLabel('RECEIPTED:buyer')).toBe('Seller says paid');
+    expect(serverStateLabel('RECEIPTED')).toBe('Paid, receipt saved');
+    expect(serverStateLabel('UNCONFIRMED')).toBe('Not confirmed by PayPal');
+  });
+  it('keys a seller-attested RECEIPTED deal as Rust does, and the Paid states leave it and UNCONFIRMED out', () => {
+    expect(stateKey(sellerWord)).toBe('RECEIPTED:buyer');
+    expect(stateKey(rows[2]!)).toBe('RECEIPTED');
+    expect(stateKey(rows[3]!)).toBe('RECEIPTED');
+    expect(runQuery(paid, rows, ctx).rows.map((d) => d.id)).toEqual(['p', 'h']);
+  });
+  it('gives the seller’s word its own state line, and UNCONFIRMED its own', () => {
+    const r = runQuery({ view: 'deals', group_by: ['state'], metrics: ['count'] }, rows, ctx);
+    const lines = Object.fromEntries(r.groups.map((g) => [g.key, [g.label, g.count]]));
+    expect(lines['RECEIPTED:buyer']).toEqual(['Seller says paid', 1]);
+    expect(lines['UNCONFIRMED']).toEqual(['Not confirmed by PayPal', 1]);
+    expect(lines['RECEIPTED']).toEqual(['Paid, receipt saved', 2]);
+    expect(r.groups.reduce((n, g) => n + g.count, 0)).toBe(4);
+    // Neither Paid nor Stopped ("never paid"): it waits beside the seller's word.
+    expect(bucketOf(unconfirmed)).toBe('motion');
   });
 });

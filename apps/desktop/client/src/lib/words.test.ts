@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SELLER_SAYS_PAID, sellerSaysOnly, stateWord } from './words';
+import { receiptRefusedSentence, SELLER_SAYS_PAID, sellerSaysOnly, silenceWords, stateWord, unconfirmedSentence } from './words';
 
 describe('a buyer is told only what the wallet knows about a seller receipt', () => {
   it('a buyer RECEIPTED deal reads "Seller says paid" with a waiting tone and the one shared sentence', () => {
@@ -28,5 +28,22 @@ describe('the amount-mismatch words hold whenever the mismatch is found', () => 
     const w = stateWord('MISMATCH', { side: 'buyer', kind: 'haggle' });
     expect(w.means).toMatch(/will not be paid/);
     expect(w.means).not.toMatch(/pay button|never asked/);
+  });
+});
+
+describe('a deal PayPal never confirmed is an end, never paid', () => {
+  it('UNCONFIRMED reads "Not confirmed by PayPal", not in the ok tone, and says nothing moved here', () => {
+    for (const side of ['buyer', 'seller', undefined] as const) {
+      const w = stateWord('UNCONFIRMED', { side, kind: 'haggle' });
+      expect(w.text).toBe('Not confirmed by PayPal');
+      expect(w.tone).toBe('coral');
+      expect(w.means).toBe('The seller said it was paid, but PayPal’s statement never showed the payment. This wallet moved nothing.');
+    }
+  });
+  it('the history and Rust’s silence sentence say the same in plain words', () => {
+    expect(unconfirmedSentence('the dock')).toBe('The seller said the dock was paid, but PayPal’s statement never showed it, so it ends here. Your wallet moved no money.');
+    expect(receiptRefusedSentence('the dock')).toBe('The seller said the dock was paid before you opened the PayPal link, so your wallet did not accept it. No money moved.');
+    expect(silenceWords("PayPal reporting never showed the seller's payment; this wallet moved no money")).toBe('PayPal’s statement never showed it · this wallet moved nothing');
+    expect(silenceWords('Seller attested payment; PayPal reporting is pending')).toBe('the seller says paid · not on PayPal’s statement yet');
   });
 });

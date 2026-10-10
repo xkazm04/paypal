@@ -3,7 +3,7 @@ import type { Deal } from '@bindings/Deal';
 import type { DealState } from '@bindings/DealState';
 import { buildMockState, usd } from '../../mock/fixtures';
 import {
-  amountTone, beadAngles, beadKind, isSettled, stateLabel, beadSummary, C, canStartAgent, canWithdraw, chipClass, clauseText, formatHash, introEase, isOwnerAccept, ledgerScope, mandatesGoverning,
+  amountNote, amountTone, beadAngles, beadKind, isSettled, isTerminal, receiptToast, stateLabel, beadSummary, C, canStartAgent, canWithdraw, chipClass, clauseText, formatHash, introEase, isOwnerAccept, ledgerScope, mandatesGoverning,
   marketPosition, moduleOf, moneyNow, niceTicks, parseHash, pol, R, resolveDealRef, reviewVerb, rotationFor, sectorAt, shortestTarget,
   spendToday, splitHeadline, STEP, stripFor, sumByCurrency, summarize, toPolar, wedgePath, weekBounds,
 } from './logic';
@@ -327,5 +327,29 @@ describe('a buyer’s RECEIPTED deal is the seller’s word, not paid', () => {
   it('the sample week’s D-0187 reads as the seller’s word', () => {
     expect(chipClass(byLabel('D-0187'))).toBe('wait');
     expect(stateLabel(byLabel('D-0187').state, byLabel('D-0187'))).toBe('Seller says paid');
+  });
+});
+
+describe('a seller’s receipt is the seller’s word, and a deal PayPal never confirmed is an end (value-1)', () => {
+  const ev = (state: DealState, receipt: 'NONE' | 'SELLER_ATTESTED' | 'PAYPAL_VERIFIED') => ({ state, evidence: { deal_id: 'd', receipt, reconciliation: 'pending_reporting' as const } });
+  it('the main window’s receipt toast never reads the seller’s word as paid', () => {
+    expect(receiptToast(ev('RECEIPTED', 'SELLER_ATTESTED'))).toEqual({ text: 'Seller says paid', tone: 'gold' });
+    expect(receiptToast(ev('RECEIPTED', 'PAYPAL_VERIFIED'))).toEqual({ text: 'Paid, receipt saved', tone: 'ok' });
+    expect(receiptToast(ev('UNCONFIRMED', 'SELLER_ATTESTED'))).toEqual({ text: 'Not confirmed by PayPal', tone: 'bad' });
+    expect(receiptToast(ev('WITHDRAWN', 'NONE'))).toEqual({ text: 'Withdrawn', tone: 'info' });
+  });
+  it('UNCONFIRMED is closed, never settled, and says what is known about the money', () => {
+    const d = { state: 'UNCONFIRMED' as const, side: 'buyer' as const, kind: 'haggle' as const, shield: null };
+    expect(isTerminal(d)).toBe(true);
+    expect(isSettled(d)).toBe(false);
+    expect(beadKind(d)).toBe('stopped');
+    expect(chipClass(d)).toBe('bad');
+    expect(moneyNow(d)).toBe('the seller says paid · PayPal’s statement never showed it');
+    expect(amountNote(d)).toBe('not confirmed by PayPal');
+    expect(stateLabel('UNCONFIRMED', d)).toBe('Not confirmed by PayPal');
+    const strip = stripFor(d);
+    expect(strip[strip.length - 1]).toMatchObject({ state: 'UNCONFIRMED', status: 'cur', tone: 'bad' });
+    expect(strip.find((s) => s.state === 'AWAITING_APPROVAL')?.status).toBe('done');
+    expect(strip.find((s) => s.state === 'CAPTURED')?.status).toBe('todo');
   });
 });

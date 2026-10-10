@@ -12,7 +12,7 @@ const ORDER_CREATED_DEADLINE_SECS = 6 * 3600;
 const AUTHORIZED_DEADLINE_SECS = 72 * 3600;
 export const FORECAST_HORIZON_SECS = 72 * 3600;
 
-const TERMINAL: ReadonlySet<DealState> = new Set(['CAPTURED', 'RECEIPTED', 'RECONCILED', 'WITHDRAWN', 'EXPIRED', 'REFUSED', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED']);
+const TERMINAL: ReadonlySet<DealState> = new Set(['CAPTURED', 'RECEIPTED', 'RECONCILED', 'WITHDRAWN', 'EXPIRED', 'REFUSED', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'UNCONFIRMED']);
 const PRE_CAPTURE: ReadonlySet<DealState> = new Set(['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED']);
 
 export type ForecastDeal = { deal: Deal; label: string; deadline: number | null };
@@ -87,7 +87,7 @@ const T = {
 } as const;
 
 /** `DealState::terminal()` in table-core. */
-const ENDED: ReadonlySet<DealState> = new Set(['WITHDRAWN', 'EXPIRED', 'REFUSED', 'MISMATCH', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'RECONCILED']);
+const ENDED: ReadonlySet<DealState> = new Set(['WITHDRAWN', 'EXPIRED', 'REFUSED', 'MISMATCH', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'RECONCILED', 'UNCONFIRMED']);
 /** A deal the quit confirm lists (dispatcher.rs `quit_summary`). */
 export function quitPending(deal: Deal): boolean {
   return ['AGREED', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'MISMATCH'].includes(deal.state)

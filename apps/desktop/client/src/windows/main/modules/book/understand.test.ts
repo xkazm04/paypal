@@ -262,3 +262,18 @@ describe('the mock book_query answers every reading', () => {
       .rejects.toMatchObject({ code: 'INVALID', message: 'BookQuery rejected: range: from must be before to' });
   });
 });
+
+describe('the Paid and Stopped chips leave out what PayPal has not confirmed (value-1)', () => {
+  const states = (q: string): string[] => (ok(understand(q, CTX)).query.filters.find((f) => f.field === 'state')?.value ?? []) as string[];
+  it('Paid asks only for CAPTURED, RECEIPTED and RECONCILED: never the seller’s word (RECEIPTED:buyer) nor UNCONFIRMED', () => {
+    const paid = states('How much was paid this week, by shop?');
+    expect(paid).toEqual(PAID);
+    expect(paid).not.toContain('RECEIPTED:buyer');
+    expect(paid).not.toContain('UNCONFIRMED');
+  });
+  it('Stopped ("never paid") does not claim UNCONFIRMED either', () => {
+    const stopped = states('How many deals were stopped last week?');
+    expect(stopped).toEqual(STOPPED);
+    expect(stopped).not.toContain('UNCONFIRMED');
+  });
+});

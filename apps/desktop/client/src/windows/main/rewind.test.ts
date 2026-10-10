@@ -96,13 +96,15 @@ describe('narration: plain words, never machinery', () => {
       .toBe('Your rules asked PayPal for the order for the dock. PayPal’s answer is not confirmed yet.');
     expect(stepSentence(step({ at: 1, kind: 'receipt_refused', authority: { type: 'none' } }), { title: 'the dock' }))
       .toBe('The seller said the dock was paid before you opened the PayPal link, so your wallet did not accept it. No money moved.');
+    expect(stepSentence(step({ at: 1, kind: 'unconfirmed', state_after: 'UNCONFIRMED', authority: { type: 'safe_default' } }), { title: 'the dock' }))
+      .toBe('The seller said the dock was paid, but PayPal’s statement never showed it, so it ends here. Your wallet moved no money.');
     expect(decidedLine(step({ at: 1, kind: 'refused', authority: { type: 'signed_rule', clause: 3 } }))).toBe('Refused · PayPal never asked');
     expect(decidedLine(step({ at: 1, kind: 'countersigned', authority: { type: 'owner' } }))).toBe('You · no PayPal call');
   });
   it('never names a clause number, an internal word or an id, for every kind and authority', () => {
     const kinds: HistoryKind[] = ['created', 'offer_sent', 'offer_received', 'accept_sent', 'accept_received', 'owner_accepted', 'agreed', 'proposed', 'countersigned',
       'pay_link_sent', 'pay_link_received', 'approval_notice', 'order_created', 'approved_by_buyer', 'authorized', 'captured', 'voided', 'auto_voided', 'receipt_sent',
-      'receipt_received', 'receipted', 'receipt_refused', 'reporting_checked', 'reconciled', 'withdraw_sent', 'withdraw_received', 'withdrawn', 'expired', 'lapsed', 'refused',
+      'receipt_received', 'receipted', 'receipt_refused', 'unconfirmed', 'reporting_checked', 'reconciled', 'withdraw_sent', 'withdraw_received', 'withdrawn', 'expired', 'lapsed', 'refused',
       'intent_refused', 'shield_held', 'hold_released', 'mismatch', 'failed', 'refunded', 'disputed', 'other'];
     const auths: HistoryAuthority[] = [{ type: 'owner' }, { type: 'signed_rule', clause: 6 }, { type: 'signed_rule', clause: null }, { type: 'seller_mandate' },
       { type: 'house_mandate' }, { type: 'safe_default' }, { type: 'agent_intent' }, { type: 'none' }];

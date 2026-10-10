@@ -49,6 +49,7 @@ const STATE: Record<DealState, Word> = {
   AUTO_VOIDED: { text: 'Hold released', tone: 'line', means: 'The hold ran out and released itself. Nothing was paid.' },
   REFUNDED: { text: 'Refunded', tone: 'line', means: 'The payment was returned.' },
   DISPUTED: { text: 'Disputed', tone: 'red', means: 'There is an open dispute at PayPal.' },
+  UNCONFIRMED: { text: 'Not confirmed by PayPal', tone: 'coral', means: 'The seller said it was paid, but PayPal’s statement never showed the payment. This wallet moved nothing.' },
 };
 
 /** What the seller's receipt is worth to the buyer's wallet until PayPal's own statement matches it. */
@@ -58,6 +59,11 @@ export const SELLER_SAYS_PAID = 'The seller says the payment went through. Your 
  *  nothing changed on the deal (history step `receipt_refused`). `x` is the deal's short title. */
 export const receiptRefusedSentence = (x: string): string =>
   `The seller said ${x} was paid before you opened the PayPal link, so your wallet did not accept it. No money moved.`;
+
+/** A buyer's deal the seller said was paid that PayPal's statement never showed within the wallet's
+ *  72-hour window (state UNCONFIRMED, history step `unconfirmed`). `x` is the deal's short title. */
+export const unconfirmedSentence = (x: string): string =>
+  `The seller said ${x} was paid, but PayPal’s statement never showed it, so it ends here. Your wallet moved no money.`;
 
 /** A deal state in Maya's words. `side` / `kind` adjust the few states that read differently. */
 export function stateWord(state: DealState, ctx: { side?: Side; kind?: DealKind } = {}): Word {
@@ -354,6 +360,8 @@ const SILENCE_EXACT: Readonly<Record<string, string>> = {
   'authorization auto-voids at the deadline; no capture': 'the hold releases itself at the deadline, nothing is paid',
   'the offer or order lapses at the deadline; no money moves': 'the offer lapses at the deadline, no money moves',
   'Deadline or safe decision completed; no capture was made': 'deadline passed, nothing paid',
+  'Seller attested payment; PayPal reporting is pending': 'the seller says paid · not on PayPal’s statement yet',
+  "PayPal reporting never showed the seller's payment; this wallet moved no money": 'PayPal’s statement never showed it · this wallet moved nothing',
 };
 /** The core's default-on-silence sentence, in plain words where it is a known phrase. */
 export const silenceWords = (s: string): string => SILENCE_EXACT[s] ?? s.replace(/\bauto-void\b/g, 'auto-release');

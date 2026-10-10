@@ -616,7 +616,8 @@ export function mockBackend(label: WindowLabel): MockBackend {
       const col = (d: Deal, f: string): string | number | null => {
         switch (f) {
           case 'kind': return d.kind;
-          case 'state': return d.state;
+          // As book.rs STATE: a RECEIPTED deal on the seller's word alone is its own key.
+          case 'state': return d.state === 'RECEIPTED' && state.deals.find((x) => x.deal.id === d.id)?.evidence.receipt === 'SELLER_ATTESTED' ? 'RECEIPTED:buyer' : d.state;
           case 'counterparty': return d.counterparty;
           case 'decided_by': return d.decided_by ? JSON.stringify(d.decided_by) : null;
           case 'amount': return d.terms.unit_price.minor * d.terms.qty;
