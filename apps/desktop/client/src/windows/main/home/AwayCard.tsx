@@ -5,12 +5,16 @@
 // moment when several deals sit behind it. Read-only: nothing here can move money.
 import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
 import type { Deal } from '@bindings/Deal';
+import type { HistoryStep } from '@bindings/HistoryStep';
 import { clockNow } from '../../../lib/clock';
 import { useNow, useQuery } from '../../../lib/hooks';
 import { backend } from '../../../lib/runtime';
 import type { StatementRead } from '../../../lib/words';
 import { stepTime } from '../logic';
+import { useEndedUnshown } from '../unshown';
 import { awaySummary, readLastSeen, SEEN_AFTER_MS, worthShowing, writeLastSeen, type AwayLine, type AwaySummary } from './away';
+
+const NO_STEPS: readonly HistoryStep[] = [];
 
 export type Away = {
   /** null while the record is read, after a dismiss, on first run, or when the record can't be read. */
@@ -61,11 +65,13 @@ export function useAway(o: { active: boolean; enabled: boolean; needs: number; d
 
   const dismiss = useCallback(() => { setDismissed(true); writeLastSeen(clockNow()); }, []);
   const data = q.data;
+  // Endings whose check began before the window are told by the deal's own record; the card waits for it.
+  const { unshown, pending } = useEndedUnshown(data?.steps ?? NO_STEPS, on && !!data && !q.error);
   const summary = useMemo(() => {
-    if (!on || !data || q.error) return null;
-    const s = awaySummary(data.steps, o.deals, seen.at, Math.max(now, seen.at), { needs: o.needs, truncated: data.truncated, reads });
+    if (!on || !data || q.error || pending) return null;
+    const s = awaySummary(data.steps, o.deals, seen.at, Math.max(now, seen.at), { needs: o.needs, truncated: data.truncated, reads, unshown });
     return worthShowing(s) ? s : null;
-  }, [on, data, q.error, o.deals, seen.at, now, o.needs, reads]);
+  }, [on, data, q.error, o.deals, seen.at, now, o.needs, reads, unshown, pending]);
   return { summary, dismiss };
 }
 

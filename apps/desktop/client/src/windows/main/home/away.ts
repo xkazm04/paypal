@@ -89,7 +89,7 @@ function authorityOf(s: HistoryStep): AwayAuthority {
 
 /** One step as an event the summary counts, or null for steps that tell Maya nothing new here
  *  (offers, receipts, order creation and the like stay in the Rewind). */
-function eventOf(s: HistoryStep, deal: Deal | undefined, reads: ReadonlyMap<string, StatementRead>, all: readonly HistoryStep[]): Event | null {
+function eventOf(s: HistoryStep, deal: Deal | undefined, reads: ReadonlyMap<string, StatementRead>, all: readonly HistoryStep[], unshown: ReadonlySet<string>): Event | null {
   const who = authorityOf(s);
   const side: 'buyer' | 'seller' = deal ? deal.side : who === 'buyer' ? 'seller' : 'buyer';
   const base = { deal: s.deal_id, at: s.at, seq: s.seq, side };
@@ -110,7 +110,7 @@ function eventOf(s: HistoryStep, deal: Deal | undefined, reads: ReadonlyMap<stri
     case 'failed': return ev('failed');
     case 'renewal_failed': return ev('renewal');
     // An ending at the deadline while PayPal was still being asked is not "no money moved": PayPal never showed.
-    case 'expired': case 'lapsed': return endedBeforePayPalShowed(all, s) ? ev('unshown', 'default') : ev('lapsed', 'default');
+    case 'expired': case 'lapsed': return endedBeforePayPalShowed(all, s) || unshown.has(s.deal_id) ? ev('unshown', 'default') : ev('lapsed', 'default');
     // The seller said it was paid and PayPal's statement did not confirm it in 72 hours.
     case 'unconfirmed': return { ...ev('unconfirmed', 'default'), read: reads.get(s.deal_id) };
     case 'refunded': return ev('refunded');
@@ -213,13 +213,15 @@ const runOn = (t: string): string => (t.startsWith('PayPal') ? t : t.charAt(0).t
  *  `deals` give the amounts and which side of a deal Maya is on. */
 export function awaySummary(
   steps: readonly HistoryStep[], deals: readonly Deal[], lastSeen: number, now: number,
-  opts: { needs?: number; truncated?: boolean; /** Per deal: did a statement read come back unmatched (absent = not known). */ reads?: ReadonlyMap<string, StatementRead> } = {},
+  opts: { needs?: number; truncated?: boolean; /** Per deal: did a statement read come back unmatched (absent = not known). */ reads?: ReadonlyMap<string, StatementRead>;
+    /** The deals whose own record shows they ended while a money step was open, for endings whose check began before these steps. */
+    unshown?: ReadonlySet<string> } = {},
 ): AwaySummary {
   const byId = new Map(deals.map((d) => [d.id, d]));
   const inWindow = steps.filter((s) => s.at >= lastSeen && s.at <= now).sort((a, b) => a.at - b.at || a.seq - b.seq);
   const events: Event[] = [];
   for (const s of inWindow) {
-    const e = eventOf(s, byId.get(s.deal_id), opts.reads ?? new Map(), steps);
+    const e = eventOf(s, byId.get(s.deal_id), opts.reads ?? new Map(), steps, opts.unshown ?? new Set());
     if (e) events.push(e);
   }
   // Drop what a later step on the same deal settled.
