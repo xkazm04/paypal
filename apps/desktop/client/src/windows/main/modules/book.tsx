@@ -24,14 +24,14 @@ import { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMinor, shortId } from '../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../../lib/lazy';
-import { AUDIT_BROKEN, FAIR_PRICE_NAME, fairPriceWords, heldWords, marketWords, modeWord, moneyCheckWord, receiptWord, stateWord, timeLeftWords } from '../../../lib/words';
+import { AUDIT_BROKEN, FAIR_PRICE_NAME, fairPriceWords, heldWords, marketWords, modeWord, moneyCheckNow, moneyCheckPill, receiptWord, stateWord, timeLeftWords } from '../../../lib/words';
 import { Glyph } from '../../../shared/modules';
 import { Countdown, ModeBadge, WalletNotice } from '../../../shared/honesty';
 import {
   AnswerBar, Btn, Chip, DetailToggle, Explainer, Field, Group, Icon, Kv, Loading, PageHead, Popover, Row, Section, Seg, Sheet, Silence, useDetail, useExperiment, useLayer, useLayerCount, useToast, Why,
   type ChipTone, type ExplainerStep, type IconName,
 } from '../../../shared/ui';
-import { amountTone, chipClass, dealTotal, decidedBy, ledgerScope, marketPosition, moneyNow, type ChipClass } from '../logic';
+import { amountTone, chipClass, dealTotal, decidedBy, isTerminal, ledgerScope, marketPosition, moneyNow, type ChipClass } from '../logic';
 import { useCpLookup } from '../ui';
 import { useAllEvidence, useWorld } from '../world';
 import { atRiskOf } from './rescue/model';
@@ -314,7 +314,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
                   return [
                     <tr key={`g-${k}`} className="grp"><td colSpan={8}>{GROUP_NAME[k] ?? kindLabel(k)} · {rs.length}</td></tr>,
                     ...rs.map((d) => (
-                      <GridRow key={d.id} deal={d} label={label(d)} title={w.display(d).title} cpName={cp(d.counterparty).name} statement={evLoading ? null : stmt(d)}
+                      <GridRow key={d.id} deal={d} check={ev.map.get(d.id)?.money_check ?? w.needOf(d.id)?.money_check ?? null} label={label(d)} title={w.display(d).title} cpName={cp(d.counterparty).name} statement={evLoading ? null : stmt(d)}
                         fair={ev.map.get(d.id)?.fair_price ?? null} off={!!lit && !lit.has(d.id)} selected={sel === d.id} onOpen={() => setSel(d.id)} />
                     )),
                   ];
@@ -460,9 +460,13 @@ function MoneyLines({ out, inn, bucket }: { out: Money[]; inn: Money[]; bucket: 
 }
 
 /** The deal's status pill; a payment whose PayPal answer was lost reads "Checking with PayPal",
- *  dashed like every unknown, never paid and never failed. */
+ *  dashed like every unknown, never paid and never failed. Once the deal ended with the check
+ *  still open it says PayPal never showed what happened (moneyCheckPill). */
 function StatusChip({ deal, check }: { deal: Deal; check: MoneyCheck | null | undefined }) {
-  if (check) return <Chip tone="dashed" title={moneyCheckWord(check).means}>{moneyCheckWord(check).text}</Chip>;
+  if (check) {
+    const pill = moneyCheckPill(check, isTerminal(deal));
+    return <Chip tone="dashed" title={pill.means}>{pill.text}</Chip>;
+  }
   const wd = wordOf(deal);
   return <Chip tone={TONE[chipClass(deal)]} title={wd.means}>{wd.text}</Chip>;
 }
@@ -477,13 +481,13 @@ function StmtChip({ s, state, read }: { s: Statement | null; state: Deal['state'
   return <Chip tone={STMT_TONE[s]} className={s === 'pending_reporting' ? 'dashed' : undefined} title={words.tip}>{words.word}</Chip>;
 }
 
-function GridRow({ deal, label, title, cpName, statement, fair, off, selected, onOpen }: {
-  deal: Deal; label: string; title: string; cpName: string; statement: Statement | null; fair: FairPrice | null; off: boolean; selected: boolean; onOpen: () => void;
+function GridRow({ deal, check, label, title, cpName, statement, fair, off, selected, onOpen }: {
+  deal: Deal; check: MoneyCheck | null; label: string; title: string; cpName: string; statement: Statement | null; fair: FairPrice | null; off: boolean; selected: boolean; onOpen: () => void;
 }) {
   const t = dealTotal(deal);
   const b = bucketOf(deal);
   const mkt = marketText(deal, fair);
-  const wd = wordOf(deal);
+  const wd = check ? moneyCheckPill(check, isTerminal(deal)) : wordOf(deal);
   const onKey = (e: KeyboardEvent<HTMLTableRowElement>) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); return; }
     const dir = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
@@ -500,7 +504,7 @@ function GridRow({ deal, label, title, cpName, statement, fair, off, selected, o
         <span className="mono">{label}</span><span className="day">{day ? dayLabel(day).split(' ')[0] : ''}</span>{title} <span className="cp">· {cpName}</span>
         {deal.mode !== 'sandbox' ? <> <ModeBadge mode={deal.mode} /></> : null}
       </td>
-      <td><Chip tone={TONE[chipClass(deal)]} title={wd.means}>{wd.text}</Chip></td>
+      <td><StatusChip deal={deal} check={check} /></td>
       {BUCKETS.map((k) => (
         <td key={k} className={`num c-${k}`}>{k === b ? <>{formatMinor(t.minor, t.currency)}{dirOf(deal) === 'in' ? <span className="in">in</span> : null}</> : null}</td>
       ))}
