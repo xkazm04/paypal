@@ -10,6 +10,7 @@ import type { WalletError } from '../../lib/contract';
 import { useQuery } from '../../lib/hooks';
 import './rewind.css';
 import { laneSteps, weekBounds, type TickTone } from './logic';
+import { useEndedUnshown } from './unshown';
 
 const WEEK = 7 * 86400;
 /** A full week plays in this many seconds. */
@@ -25,6 +26,8 @@ export type RewindState = {
   /** The latest moment the playhead may reach: now, or the week's end for a past week. */
   limit: number;
   steps: HistoryStep[];
+  /** Deals whose own record shows they ended while a money step was open, for endings whose check began before this week's steps. */
+  unshown: ReadonlySet<string>;
   loading: boolean;
   error: WalletError | null;
   playing: boolean;
@@ -42,6 +45,7 @@ export function useRewind(on: boolean, now: number, reduced: boolean): RewindSta
   const limit = Math.min(now, end);
   const q = useQuery('deal_history', { deal_id: null, from: start, to: end }, { enabled: on, refreshOn: ['deal:changed'] });
   const steps = useMemo(() => q.data?.steps ?? [], [q.data]);
+  const { unshown, pending } = useEndedUnshown(steps, on);
   const [t, setT] = useState(limit);
   const [playing, setPlaying] = useState(false);
   const live = useRef({ t, limit, start, steps });
@@ -90,7 +94,7 @@ export function useRewind(on: boolean, now: number, reduced: boolean): RewindSta
     return () => cancelAnimationFrame(raf);
   }, [on, playing, reduced]);
 
-  return { start, end, t: Math.min(t, limit), limit, steps, loading: q.loading && !q.data, error: q.error, playing, weekBack, seek, play, pause, shiftWeek };
+  return { start, end, t: Math.min(t, limit), limit, steps, unshown, loading: (q.loading && !q.data) || pending, error: q.error, playing, weekBack, seek, play, pause, shiftWeek };
 }
 
 /** One tick's mark: a bar coloured by authority, or an × for a refusal. */
