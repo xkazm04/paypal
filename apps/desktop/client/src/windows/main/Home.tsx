@@ -251,7 +251,7 @@ export function Home(p: Props) {
         <section className="col l" aria-label={scope.scope === 'week' ? 'This week' : 'The ledger'}>
           {firstRun ? null : <Explainer id="home" title="How The Table works" steps={HOME_STEPS} className="home-ex" />}
           {!firstRun && needs.length && away.summary ? <AwayCard s={away.summary} onDismiss={away.dismiss} onDeal={p.onOpenDeal} onRewind={openRewindAt} /> : null}
-          {firstRun ? <StartSide gs={start} act={startAct} /> : <Ledger s={summary} scope={scope} onDeal={p.onOpenDeal} onBook={() => zoomInto(moduleIndex('book'))} />}
+          {firstRun ? <StartSide gs={start} act={startAct} underway={deals.filter(isLive).map((d) => ({ id: d.id, label: w.display(d).label, title: w.display(d).title }))} onDeal={p.onOpenDeal} /> : <Ledger s={summary} scope={scope} onDeal={p.onOpenDeal} onBook={() => zoomInto(moduleIndex('book'))} />}
         </section>
         <Dial beads={firstRun ? [] : rewind ? pastBeads : beads} badges={firstRun || rewind ? [0, 0, 0, 0, 0, 0] : badges} focus={focus} mode={mode} intro={intro} reduced={reduced}
           glow={!firstRun && !rewind && needs.length > 0} flash={flash}

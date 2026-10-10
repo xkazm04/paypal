@@ -8,7 +8,7 @@ import { useCallback, useMemo, useState, type MouseEvent } from 'react';
 import type { WalletError } from '../../../lib/contract';
 import { connectionFacts, gettingStarted, rulesInForce, settingsFacts, type GettingStarted } from '../../../lib/firstRun';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
-import { FIRST_RUN_TITLE, SAFETY_PROMISE, START_STEP, type StartStepKey } from '../../../lib/words';
+import { FIRST_RUN_TITLE, SAFETY_PROMISE, START_STEP, START_UNDERWAY, type StartStepKey } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
 import { StartProgress, StartSteps, type StepAction } from '../../../shared/start';
 import { TakeTour } from '../../../shared/tour';
@@ -77,16 +77,35 @@ export function StartHub({ gs, act }: { gs: GettingStarted; act: StartActions })
 }
 
 /** Left column: the steps, each one quiet click to where it happens. */
-export function StartSide({ gs, act }: { gs: GettingStarted; act: StartActions }) {
+export type UnderwayDeal = { id: string; label: string; title: string };
+
+export function StartSide({ gs, act, underway = [], onDeal }: { gs: GettingStarted; act: StartActions; underway?: UnderwayDeal[]; onDeal?: (id: string) => void }) {
   const action = (k: StartStepKey): StepAction => ({
     label: `${START_STEP[k].act}${inTable(k) ? ' ›' : ' ↗'}`,
     title: START_STEP[k].where,
     run: () => act.go(k),
   });
   return (
-    <Section title="Getting started" end={<span className="dim">{gs.done} of {gs.total}</span>}>
-      <StartSteps gs={gs} action={action} busy={act.busy} />
-    </Section>
+    <>
+      {underway.length && onDeal ? (
+        <Section title={START_UNDERWAY.title}>
+          <ul className="start-steps" aria-label={START_UNDERWAY.title}>
+            {underway.map((d) => (
+              <li key={d.id} className="ss s-next">
+                <button type="button" className="ss-go" onClick={() => onDeal(d.id)} title={START_UNDERWAY.where}>
+                  <span className="ss-mark" aria-hidden="true"><Icon name="store" size={13} /></span>
+                  <span className="ss-text"><b>{d.label}</b><span>{d.title}</span></span>
+                  <span className="ss-act">{START_UNDERWAY.act}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+      <Section title="Getting started" end={<span className="dim">{gs.done} of {gs.total}</span>}>
+        <StartSteps gs={gs} action={action} busy={act.busy} />
+      </Section>
+    </>
   );
 }
 
