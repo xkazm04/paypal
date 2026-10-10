@@ -8,11 +8,12 @@ import type { Deal } from '@bindings/Deal';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import { clockNow } from '../../../lib/clock';
 import { useNow, useQuery } from '../../../lib/hooks';
+import { readEach } from '../../../lib/readEach';
 import { backend } from '../../../lib/runtime';
 import type { StatementRead } from '../../../lib/words';
 import { stepTime } from '../logic';
-import { useEndedUnshown } from '../unshown';
-import { awaySummary, readLastSeen, SEEN_AFTER_MS, worthShowing, writeLastSeen, type AwayLine, type AwaySummary } from './away';
+import { ENDING_READS_MAX, useEndedUnshown } from '../unshown';
+import { awaySummary, readLastSeen, statementReadIds, SEEN_AFTER_MS, worthShowing, writeLastSeen, type AwayLine, type AwaySummary } from './away';
 
 const NO_STEPS: readonly HistoryStep[] = [];
 
@@ -30,21 +31,25 @@ export function useAway(o: { active: boolean; enabled: boolean; needs: number; d
   const on = o.enabled && !dismissed;
   const q = useQuery('deal_history', { deal_id: null, from: seen.at, to: null }, { enabled: on, refreshOn: ['deal:changed'] });
   const now = useNow();
-  // Whether a statement read came back unmatched, for the deals that ended unconfirmed: it words their line.
-  const unconfirmed = useMemo(() => o.deals.filter((d) => d.state === 'UNCONFIRMED').map((d) => d.id).join(','), [o.deals]);
+  const data = q.data;
+  // Whether a statement read came back unmatched, for the deals whose line is an unconfirmed ending in
+  // this window's steps (the only line that uses it), capped like the endings' reads. A read that
+  // failed or timed out stays out of `reads`, so its line says the wallet has no match, true either way.
+  const unconfirmed = useMemo(() => statementReadIds(data?.steps ?? NO_STEPS).slice(0, ENDING_READS_MAX).join(','), [data]);
+  const reading = on && !!data && !q.error;
   const [reads, setReads] = useState<ReadonlyMap<string, StatementRead>>(new Map());
   useEffect(() => {
-    if (!on || !unconfirmed) return;
+    if (!reading || !unconfirmed) return;
     const ids = unconfirmed.split(',');
     let dead = false;
-    void Promise.allSettled(ids.map((id) => backend().invoke('deal_evidence', { deal_id: id }))).then((rs) => {
+    void readEach(ids, (id) => backend().invoke('deal_evidence', { deal_id: id })).then((rs) => {
       if (dead) return;
       const m = new Map<string, StatementRead>();
       rs.forEach((r, i) => { const id = ids[i]; if (id && r.status === 'fulfilled') m.set(id, r.value.statement_unmatched); });
       setReads(m);
     });
     return () => { dead = true; };
-  }, [on, unconfirmed]);
+  }, [reading, unconfirmed]);
 
   useEffect(() => {
     if (!o.active || !o.enabled) return;
@@ -64,7 +69,6 @@ export function useAway(o: { active: boolean; enabled: boolean; needs: number; d
   }, [o.active, o.enabled]);
 
   const dismiss = useCallback(() => { setDismissed(true); writeLastSeen(clockNow()); }, []);
-  const data = q.data;
   // Endings whose check began before the window are told by the deal's own record; the card waits for it.
   // An ending whose record could not be read is worded as not known (unread), never as no money moved.
   const { unshown, unread, pending } = useEndedUnshown(data?.steps ?? NO_STEPS, on && !!data && !q.error);

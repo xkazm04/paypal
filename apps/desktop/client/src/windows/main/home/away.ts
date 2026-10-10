@@ -122,6 +122,12 @@ function eventOf(s: HistoryStep, deal: Deal | undefined, reads: ReadonlyMap<stri
   }
 }
 
+/** The deals whose line uses a statement read: the 'unconfirmed' steps (eventOf's only reader of
+ *  `reads`), as sorted, distinct deal ids. The away card reads deal_evidence for these only. */
+export function statementReadIds(steps: readonly HistoryStep[]): string[] {
+  return [...new Set(steps.filter((s) => s.kind === 'unconfirmed').map((s) => s.deal_id))].sort();
+}
+
 /** Later outcomes on the same deal that settle an earlier one: a hold that was then paid,
  *  collected, released or questioned is told once, by what happened last; a check with PayPal
  *  that then resolved is told by its answer. */
