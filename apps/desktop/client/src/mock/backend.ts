@@ -503,7 +503,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
   }
 
   const handlers: { [K in CommandName]: (args: ArgsOf<K>, opts?: InvokeOptions) => ResultOf<K> } = {
-    get_settings: () => ({ ...state.settings, locked: isLocked(), authority_manifest: AUTHORITY_MANIFEST }),
+    get_settings: () => ({ ...state.settings, house_connected: state.counterparties.some((c) => c.house), locked: isLocked(), authority_manifest: AUTHORITY_MANIFEST }),
     list_deals: () => state.deals.map((d) => d.deal),
     get_deal: ({ deal_id }) => find(deal_id).deal,
     // The fair price is worked out from the deal's market record as Rust does from its rows.
@@ -1017,7 +1017,9 @@ export function mockBackend(label: WindowLabel): MockBackend {
       state.counterparties = [...state.counterparties, { key_id: key, display_name: /[:/@\\]/.test(display_name) ? 'Paired counterparty' : display_name, house: pending.house, first_seen: nowUnix(), deals_closed: 0,
         pairing: pending.house ? 'house_pinned' : 'words_confirmed', declared_payee: pending.house ? 'HOUSE' : null }];
       state.pendingPairings = state.pendingPairings?.filter((p) => p !== pending);
+      if (pending.house) state.settings = { ...state.settings, house_connected: true };
       save();
+      if (pending.house) emit('settings:changed', state.settings);
       emit('pairing:pinned', { pairing_id, key_id: key, house: pending.house });
       return key;
     },

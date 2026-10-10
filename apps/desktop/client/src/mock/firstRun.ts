@@ -44,6 +44,7 @@ export function buildFirstRunState(now: number): MockState {
       agents_paused: false,
       selected_engine: 'scripted',
       engine_chosen: false,
+      house_connected: false,
       preferences: { ...base.settings.preferences, form: 'rest' },
     },
     deals: [],

@@ -304,6 +304,10 @@ impl Runtime {
                 .ledger
                 .preference::<table_engine::EngineId>("engine"))?
             .is_some(),
+            // The same ledger read, and the same HousePinned flag, as counterparty_list.
+            house_connected: app(self.pipeline.wallet.ledger.counterparty_list())?
+                .iter()
+                .any(|c| c.house),
             preferences: self.preferences.clone(),
             meters_available: false,
             client_pending: false,
