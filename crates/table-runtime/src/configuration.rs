@@ -210,8 +210,11 @@ impl Runtime {
         };
         let now = self.clock.now();
         let ledger = &mut self.pipeline.wallet.ledger;
-        store_credential(self.vault.as_ref(), name, &bytes, || {
-            ledger.set_preference(&format!("credential.{name}.stored_at"), &now)
+        store_credential(self.vault.as_ref(), name, &bytes, |keep| {
+            ledger.set_preference(
+                &format!("credential.{name}.stored_at"),
+                &keep.then_some(now),
+            )
         })
     }
     /// Read-only owner facts (Settings, Book). No secret, key or permission crosses.
@@ -242,7 +245,8 @@ impl Runtime {
                         .pipeline
                         .wallet
                         .ledger
-                        .preference::<i64>(&format!("credential.{name}.stored_at")))?
+                        .preference::<Option<i64>>(&format!("credential.{name}.stored_at")))?
+                    .flatten()
                 } else {
                     None
                 },
@@ -467,15 +471,21 @@ impl Runtime {
 
 /// The keys are saved once the vault write succeeds; the date kept beside them (never the secret
 /// or its length) is best-effort, and owner_facts reads a missing date as stored with stored_at None.
+/// `write_date(true)` records the date, `write_date(false)` clears it. When recording fails, the
+/// date of the keys just replaced must not stay as the new keys' date, so it is cleared (best
+/// effort; a null date reads as none). The diagnostic names the credential only.
 pub(crate) fn store_credential<E>(
     vault: &dyn crate::vault::Vault,
     name: &str,
     bytes: &[u8],
-    write_date: impl FnOnce() -> Result<(), E>,
+    mut write_date: impl FnMut(bool) -> Result<(), E>,
 ) -> Result<(), CommandError> {
     vault
         .write(name, bytes)
         .map_err(|_| unavailable("OS secret store write failed"))?;
-    let _ = write_date();
+    if write_date(true).is_err() {
+        eprintln!("The Table: the date of the saved {name} keys could not be recorded");
+        let _ = write_date(false);
+    }
     Ok(())
 }

@@ -1645,7 +1645,7 @@ impl Vault for FailingVault {
 #[test]
 fn a_failed_vault_write_reports_the_error_and_writes_no_date() {
     let mut date_written = false;
-    let err = configuration::store_credential(&FailingVault, "paypal.sandbox", b"k", || {
+    let err = configuration::store_credential(&FailingVault, "paypal.sandbox", b"k", |_| {
         date_written = true;
         Ok::<(), ()>(())
     })
@@ -1656,9 +1656,37 @@ fn a_failed_vault_write_reports_the_error_and_writes_no_date() {
 #[test]
 fn a_failed_date_write_after_a_vault_success_still_saves_the_keys() {
     let vault = MemoryVault::default();
-    configuration::store_credential(&vault, "paypal.sandbox", b"keys", || Err::<(), _>("ledger"))
-        .unwrap();
+    configuration::store_credential(&vault, "paypal.sandbox", b"keys", |_| {
+        Err::<(), _>("ledger")
+    })
+    .unwrap();
     assert_eq!(&**vault.read("paypal.sandbox").unwrap().unwrap(), b"keys");
+}
+#[test]
+fn a_replace_whose_date_write_fails_does_not_keep_the_old_date() {
+    let (mut r, vault, _, _, _) = runtime(true);
+    r.credentials(paypal_entry("id-1", "secret-1")).unwrap();
+    let old = r.owner_facts().unwrap().credentials[0].stored_at;
+    assert!(old.is_some());
+    let key = "credential.paypal.sandbox.stored_at";
+    let ledger = &mut r.pipeline.wallet.ledger;
+    configuration::store_credential(vault.as_ref(), "paypal.sandbox", b"new-keys", |keep| {
+        if keep {
+            Err("ledger")
+        } else {
+            ledger
+                .set_preference(key, &None::<i64>)
+                .map_err(|_| "ledger")
+        }
+    })
+    .unwrap();
+    let fact = &r.owner_facts().unwrap().credentials[0];
+    assert!(fact.stored);
+    assert_eq!(fact.stored_at, None);
+    assert_eq!(
+        &**vault.read("paypal.sandbox").unwrap().unwrap(),
+        b"new-keys"
+    );
 }
 #[tokio::test]
 async fn pairing_requires_signed_identity_all_words_and_owner_authority() {
