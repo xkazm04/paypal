@@ -222,6 +222,13 @@ function groupKey(d: Deal, g: GroupBy, ctx: Ctx): [string, string] {
   }
 }
 
+/** How many of the answer's deals the grid does not show (the answer reads every deal on record,
+ *  the grid only the week's). */
+export function outsideGrid(answer: readonly Pick<Deal, 'id'>[], grid: readonly Pick<Deal, 'id'>[]): number {
+  const shown = new Set(grid.map((d) => d.id));
+  return answer.filter((d) => !shown.has(d.id)).length;
+}
+
 /** Run a lens over the rows the window already holds. Read-only by construction. */
 export function runQuery(q: BookQuery, deals: readonly Deal[], ctx: Ctx): Result {
   let rows = q.view === 'reconciliation' ? deals.filter((d) => !!d.paypal.capture) : [...deals];

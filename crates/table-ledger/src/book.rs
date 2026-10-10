@@ -29,6 +29,9 @@ const MARKET: &str = "(d.unit_price_minor-json_extract(d.market_json,'$.median.m
 /// `RECEIPTED:buyer`, the key the client Book already uses: a filter on the paid states leaves it
 /// out, and a line per state shows it apart (DECISIONS.md section 23).
 const STATE: &str = "CASE WHEN d.state='RECEIPTED' AND d.receipt_evidence='seller_attested' THEN 'RECEIPTED:buyer' ELSE d.state END";
+/// Money out (the buyer side) and money in (the seller side) are never one line: direction is an
+/// always-on split like currency and mode, the client's `Dir` values.
+const DIRECTION: &str = "CASE d.side WHEN 'buyer' THEN 'out' ELSE 'in' END";
 fn field(field: BookField) -> &'static str {
     match field {
         BookField::Kind => "d.kind",
@@ -75,8 +78,13 @@ fn compile(query: &BookQuery) -> Result<(String, Vec<Value>), LedgerError> {
     let mut columns = vec![
         "d.currency AS currency".to_owned(),
         "d.mode AS mode".to_owned(),
+        format!("{DIRECTION} AS direction"),
     ];
-    let mut groups = vec!["d.currency".to_owned(), "d.mode".to_owned()];
+    let mut groups = vec![
+        "d.currency".to_owned(),
+        "d.mode".to_owned(),
+        DIRECTION.to_owned(),
+    ];
     for g in &query.group_by {
         let (name, column) = group(*g);
         columns.push(format!("{column} AS {name}"));
@@ -370,6 +378,36 @@ mod tests {
             .map(|r| r["count"].as_i64().unwrap())
             .sum();
         assert_eq!(all, 6);
+    }
+    // Mirrored by the client test "a paid-only question keeps money out and money in apart" in
+    // apps/desktop/client/src/windows/main/modules/book/direction.test.ts: same sides, states,
+    // amounts, same numbers.
+    #[test]
+    fn a_paid_question_answers_money_out_and_money_in_on_separate_lines() {
+        let ledger = Ledger::in_memory().unwrap();
+        for (id, side, state, amount) in [
+            ("out_a", "buyer", "CAPTURED", 1000),
+            ("out_b", "buyer", "RECONCILED", 500),
+            ("in_a", "seller", "CAPTURED", 700),
+            ("in_b", "seller", "RECEIPTED", 300),
+            ("stopped", "buyer", "VOIDED", 900),
+        ] {
+            ledger.conn.execute("INSERT INTO deals(id,kind,side,mandate_id,mandate_version,qty,unit_price_minor,currency,state,created_at,updated_at,mode) VALUES (?1,'purchase',?2,'fixture',1,1,?3,'USD',?4,'100','100','sandbox')",rusqlite::params![id,side,amount,state]).unwrap();
+        }
+        let q: BookQuery = serde_json::from_value(json!({"view":"deals","metrics":["count","sum_amount"],"filters":[{"field":"state","op":"in","value":["CAPTURED","RECEIPTED","RECONCILED"]}]})).unwrap();
+        let rows = ledger.book_query(&q).unwrap()["rows"].clone();
+        let rows = rows.as_array().unwrap();
+        assert_eq!(rows.len(), 2);
+        let line = |direction: &str| {
+            rows.iter().find(|r| r["direction"] == direction).map(|r| {
+                (
+                    r["count"].as_i64().unwrap(),
+                    r["sum_amount"].as_i64().unwrap(),
+                )
+            })
+        };
+        assert_eq!(line("out"), Some((2, 1500)));
+        assert_eq!(line("in"), Some((2, 1000)));
     }
     #[test]
     fn query_bounds_and_recovered_metric_exclude_replay() {

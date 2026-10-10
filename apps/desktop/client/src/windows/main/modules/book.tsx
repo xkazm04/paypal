@@ -39,6 +39,7 @@ import type { ModuleProps } from './common';
 import {
   BUCKET_LABEL, BUCKET_SUB, BUCKETS, bucketOf, dayKey, dayLabel, dirOf, KIND_ORDER, kindLabel, LENSES, queryText, readQuery, runQuery,
   serverStateLabel, STATEMENT_TIP, STATEMENT_WORD, UNCONFIRMED_STATEMENT_WORD, statementCounts, statementEnded, statementKey, statementWords, sums, toCSV, type Bucket, type Ctx, type Group as LensGroup, type Lens, type Result, type Statement, type StatementKey,
+  outsideGrid,
 } from './book/model';
 import { AskChips } from './book/AskChips';
 import { ReadingChips, UnsureLine } from './book/AskReading';
@@ -252,7 +253,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
         </div>
         )}
         {phase !== 'IDLE' ? (
-          <Slip phase={phase} asked={asked} lens={lens} res={res} answer={answer} answerError={bq.error} answering={bq.pending} detailed={detailed} onRead={() => setReading(true)} onRun={run} onDiscard={discard}
+          <Slip phase={phase} asked={asked} lens={lens} res={res} answer={answer} answerError={bq.error} answering={bq.pending} detailed={detailed} outside={res ? outsideGrid(res.rows, ledger) : 0} onRead={() => setReading(true)} onRun={run} onDiscard={discard}
             onCsv={() => res && exportRows(res.rows, queryText(res.query), `book-lens-${res.seq}`)} cpName={(k) => cp(k).name}
             reading={chips ? <ReadingChips reading={chips} ctx={askCtx} onChange={onChips} /> : null}
             unsure={unsure ? <UnsureLine unsure={unsure} onTry={onTry} /> : null} />
@@ -335,7 +336,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
             <Btn onClick={() => setReading(false)}>Close</Btn>
             {phase === 'DRAFTED' ? <Btn kind="primary" onClick={run}>Show answer</Btn> : null}
           </>}>
-          <ReadBody lens={lens} rows={ledger.length} />
+          <ReadBody lens={lens} rows={all.length} />
         </Sheet>
       ) : null}
 
@@ -607,9 +608,9 @@ function Outlook({ deals, label, onOpen, simple, checking = () => false }: { dea
   );
 }
 
-function Slip({ phase, asked, lens, res, answer, answerError, answering, detailed, onRead, onRun, onDiscard, onCsv, cpName, reading, unsure }: {
+function Slip({ phase, asked, lens, res, answer, answerError, answering, detailed, outside, onRead, onRun, onDiscard, onCsv, cpName, reading, unsure }: {
   phase: Phase; asked: string; lens: Lens | null; res: (Result & { seq: number }) | null;
-  answer: BookAnswer | null; answerError: WalletError | null; answering: boolean; detailed: boolean;
+  answer: BookAnswer | null; answerError: WalletError | null; answering: boolean; detailed: boolean; outside: number;
   onRead: () => void; onRun: () => void; onDiscard: () => void; onCsv: () => void;
   cpName: (key: string) => string; reading: ReactNode; unsure: ReactNode;
 }) {
@@ -632,7 +633,7 @@ function Slip({ phase, asked, lens, res, answer, answerError, answering, detaile
       <Btn sm kind="primary" onClick={onRun} title="Ctrl+Enter">Show answer</Btn><Btn sm kind="plain" onClick={onDiscard}>Discard</Btn></>;
   } else if (res) {
     chip = <Chip tone={phase === 'RESULT' ? 'ok' : undefined}>{phase === 'RESULT' ? 'answer' : 'nothing found'}</Chip>;
-    t2 = <span className="t2" title={q}>{res.rows.length} deal{res.rows.length === 1 ? '' : 's'} in the answer{detailed ? ' · highlighted below' : ''}</span>;
+    t2 = <span className="t2" title={q}>{res.rows.length} deal{res.rows.length === 1 ? '' : 's'} in the answer{detailed ? (outside ? ` · ${res.rows.length - outside} highlighted below, ${outside} older than this week` : ' · highlighted below') : ''}</span>;
     end = <><Btn sm onClick={onRead}>Details ›</Btn>
       {phase === 'RESULT' ? <Btn sm onClick={onCsv}>Export CSV</Btn> : null}<Btn sm kind="plain" onClick={onDiscard} title="Esc">Clear</Btn></>;
   }
@@ -680,15 +681,17 @@ function WalletAnswer({ answer, cpName }: { answer: BookAnswer; cpName: (key: st
   const cell = (row: Record<string, JsonValue>, k: string) => row[k] ?? null;
   const money = (row: Record<string, JsonValue>, k: string) => {
     const v = cell(row, k);
-    return typeof v === 'number' ? formatMinor(v, row.currency as Currency) : <span className="dim">—</span>;
+    if (typeof v !== 'number') return <span className="dim">—</span>;
+    const text = formatMinor(v, row.currency as Currency);
+    return cell(row, 'direction') === 'out' ? text : <>{text}<span className="dim"> in</span></>;
   };
   return (
     <div className="ui-section">
-      <p className="ui-hint">Checked by your wallet · {answer.rows.length} line{answer.rows.length === 1 ? '' : 's'} · each currency and mode on its own line</p>
+      <p className="ui-hint">Checked by your wallet · {answer.rows.length} line{answer.rows.length === 1 ? '' : 's'} · each currency and mode on its own line, and money out and money in on separate lines</p>
       {answer.rows.length ? (
         <table className="ui-table pivot">
           <thead><tr>
-            <th>Currency</th><th>Mode</th>{groups.map((g) => <th key={g}>{GROUP_HEAD[g] ?? g}</th>)}
+            <th>Currency</th><th>Mode</th><th>Money</th>{groups.map((g) => <th key={g}>{GROUP_HEAD[g] ?? g}</th>)}
             {m.includes('count') ? <th className="num">Rows</th> : null}
             {m.includes('sum_amount') ? <th className="num">Amount</th> : null}
             {m.includes('avg_vs_market_pct') ? <th className="num">vs market</th> : null}
@@ -701,6 +704,7 @@ function WalletAnswer({ answer, cpName }: { answer: BookAnswer; cpName: (key: st
                 <tr key={i}>
                   <td className="mono">{String(cell(row, 'currency'))}</td>
                   <td>{(() => { const v = cell(row, 'mode'); return v === 'sandbox' || v === 'replay' || v === 'scripted_engine' ? modeWord(v) : String(v); })()}</td>
+                  <td>{cell(row, 'direction') === 'out' ? 'out' : <span className="dim">in</span>}</td>
                   {groups.map((g) => {
                     const v = cell(row, g);
                     const text = g === 'decided_by' && typeof v === 'string' ? (() => { try { return decidedBy({ decided_by: JSON.parse(v) as Deal['decided_by'] }).text; } catch { return v; } })()
