@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AttentionItem } from '@bindings/AttentionItem';
-import { SELLER_SAYS_PAID } from '../../lib/words';
+import { MONEY_CHECK_ENDED, MONEY_CHECK_ENDED_SILENCE, MONEY_CHECK_SILENCE, SELLER_SAYS_PAID } from '../../lib/words';
 import type { AttentionSnapshot } from '@bindings/AttentionSnapshot';
 import {
   FORM_SIZE, NO_HANDOFF, SECONDS, approveWindow, arrivals, cardActions, cardClock, cardQuestion, canReview, handoffEnded, nextFocus, puckLook, puckTarget,
@@ -238,6 +238,26 @@ describe('a seller’s held payment reads Collect, a buyer’s Pay', () => {
   it('the buyer’s keeps Pay or release', () => {
     const [buyer] = plainItems([held('Capture or void $64.00', 'authorization auto-voids at the deadline; no capture')]);
     expect(cardQuestion(buyer).lead).toBe('Pay or release');
+  });
+});
+
+describe('a deal that ended with its money step unsettled', () => {
+  const ended = item({
+    deal_id: 'e', kind: 'hold', headline: 'Look at $64.00 in PayPal', amount_minor: 6400, currency: 'USD', deadline: null,
+    on_silence: MONEY_CHECK_ENDED_SILENCE, actions: ['open_in_table'],
+    money_check: { step: 'authorize', state: 'parked', since: 0, next_check: null },
+  });
+  it('says it ended and that the wallet sends nothing more, never Checking', () => {
+    expect(stateChip(ended, false)).toEqual({ tone: 'coral', text: 'Ended' });
+    expect(cardClock(ended, NOW).text).toBe('ended · nothing more is sent');
+    expect(cardWhy(ended)[0]).toBe(MONEY_CHECK_ENDED);
+    const t = arrivalTicker(ended);
+    expect(t.l2).toBe('the deal has ended · the wallet sends nothing more');
+    expect(ladderCaption(rung(null, NOW), true, true, true)).toBe('the deal ended · the wallet sends nothing more');
+    for (const w of [cardClock(ended, NOW).text, ...cardWhy(ended), t.l2]) expect(w).not.toMatch(/checking|asks PayPal/i);
+  });
+  it('leaves a live parked check as it was', () => {
+    expect(stateChip({ ...ended, on_silence: MONEY_CHECK_SILENCE }, false).text).toBe('Checking');
   });
 });
 

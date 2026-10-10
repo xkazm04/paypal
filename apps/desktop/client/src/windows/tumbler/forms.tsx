@@ -20,7 +20,7 @@ import { ModeBadge } from '../../shared/honesty';
 import { MODULE } from '../../shared/modules';
 import { Btn, Chip, Hint, Hourglass, Kv, Meter, Popover } from '../../shared/ui';
 import {
-  MODE_SHORT, approveWindow, cardActions, cardClock, cardQuestion, cardWhy, hhmm, ladderCaption, ladderFill, ringFill, rung, spendMeter, splitHeadline,
+  MODE_SHORT, approveWindow, cardActions, cardClock, cardQuestion, cardWhy, hhmm, moneyCheckEnded, ladderCaption, ladderFill, ringFill, rung, spendMeter, splitHeadline,
   type CardAction, type Handoff, type Ticker,
 } from './logic';
 import { WALK_AWAY_HOURS, walkAway, type WalkAway } from './logic';
@@ -89,8 +89,8 @@ export function Notice({ failure }: { failure: { what: string; error: WalletErro
 
 /** Which rung a deadline is on, in words, with its wall-clock end: the card's ladder caption,
  *  which lives on the rule's tooltip and in the details popover (the card has no room for it). */
-function ladderLine(deadline: number | null, now: number, hold: boolean, checking = false): string {
-  const cap = ladderCaption(rung(deadline, now), hold, checking);
+function ladderLine(deadline: number | null, now: number, hold: boolean, checking = false, ended = false): string {
+  const cap = ladderCaption(rung(deadline, now), hold, checking, ended);
   if (deadline === null) return cap;
   return `${cap} · until ${deadline - now > 20 * 3600 ? clockLabel(deadline) : hhmm(deadline)}`;
 }
@@ -200,7 +200,7 @@ function CardDetails({ item, now, anchor, actions, pending, onAction, onClose }:
         title ? ['Item', title] : null,
         hold && item.shield_rule ? ['Paused by', shieldRuleWord(item.shield_rule).text] : null,
         ['Deadline', item.deadline !== null ? clockLabel(item.deadline) : 'none · paused until you act'],
-        ['Time', ladderLine(item.deadline, now, hold, !!item.money_check)],
+        ['Time', ladderLine(item.deadline, now, hold, !!item.money_check, moneyCheckEnded(item))],
         ['Mode', MODE_TEXT[item.mode]],
       ]} />
       {table || lapse || snooze ? (
@@ -251,7 +251,7 @@ export const CardForm = forwardRef(function CardForm(p: CardProps, ref: Ref<HTML
   const r = rung(item.deadline, now);
   const clock = cardClock(item, now);
   // Spoken names carry the plain headline, never the deal's id (UX-GUIDE: ids live in Details).
-  const label = `${item.money_check ? 'Checking with PayPal' : hold ? 'Paused' : 'Decision'}: ${item.headline}. ${hold ? '' : 'Enter reviews, '}W withdraws, Escape returns to rest.`;
+  const label = `${moneyCheckEnded(item) ? 'Ended' : item.money_check ? 'Checking with PayPal' : hold ? 'Paused' : 'Decision'}: ${item.headline}. ${hold ? '' : 'Enter reviews, '}W withdraws, Escape returns to rest.`;
   const askId = `c-ask-${item.deal_id}`;
 
   let line3: ReactNode;
@@ -302,7 +302,7 @@ export const CardForm = forwardRef(function CardForm(p: CardProps, ref: Ref<HTML
       <div className="f-head nt">
         <span className="ui-dot mdot" aria-hidden="true" />
         <span className="kick" title={`${MODULE[item.module].name} · ${item.label}`}><b>{MODULE[item.module].name}</b></span>
-        <span className={`c-cd ${hold ? 'hold' : ''}${clock.urgent ? ' r-now' : ''}`} title={ladderLine(item.deadline, now, hold, !!item.money_check)}>{item.money_check ? (item.deadline !== null ? `Checking · ${clock.text}` : 'Checking') : hold && item.deadline !== null ? `Paused · ${clock.text}` : `${clock.text.charAt(0).toUpperCase()}${clock.text.slice(1)}`}</span>
+        <span className={`c-cd ${hold ? 'hold' : ''}${clock.urgent ? ' r-now' : ''}`} title={ladderLine(item.deadline, now, hold, !!item.money_check, moneyCheckEnded(item))}>{moneyCheckEnded(item) ? 'Ended' : item.money_check ? (item.deadline !== null ? `Checking · ${clock.text}` : 'Checking') : hold && item.deadline !== null ? `Paused · ${clock.text}` : `${clock.text.charAt(0).toUpperCase()}${clock.text.slice(1)}`}</span>
         <Flags mode={item.mode} locked={p.locked} compact />
       </div>
       <div className="c-line nt">
@@ -381,7 +381,7 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
                   <span className="t1"><Headline text={it.headline} minor={it.amount_minor} currency={it.currency} />{it.counterparty ? <span className="who"> · {houseWords(it.counterparty)}</span> : null}</span>
                   <span className="t2"><Hourglass />If you do nothing: <b>{it.on_silence}</b></span>
                 </span>
-                {it.money_check ? <Chip tone="dashed">Checking</Chip> : hold ? <Chip tone="coral">Paused</Chip> : null}
+                {moneyCheckEnded(it) ? <Chip tone="dashed">Ended</Chip> : it.money_check ? <Chip tone="dashed">Checking</Chip> : hold ? <Chip tone="coral">Paused</Chip> : null}
                 <span className="cd">{it.deadline !== null ? timeLeftWords(it.deadline - p.now) : 'no clock'}</span>
               </button>
             );
