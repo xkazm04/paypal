@@ -80,6 +80,20 @@ describe('Home and Book agree on what is on hold', () => {
   });
 });
 
+describe('Home and Book agree on a payment being checked with PayPal', () => {
+  it('a deal whose capture is being checked is on hold in neither: D-0194 leaves, D-0190 stays', () => {
+    const mock = buildMockState(NOW).deals;
+    const deals = mock.map((d) => d.deal);
+    const ids = new Set(mock.filter((d) => d.evidence.money_check).map((d) => d.deal.id));
+    expect(mock.find((d) => d.display.label === 'D-0194')?.evidence.money_check).toBeTruthy();
+    const home = heldAtPayPal(summarize(deals, new Set()).held, ids);
+    const book = sums(deals, (d) => ids.has(d.id)).held;
+    expect(home.out).toEqual(book.out);
+    expect(home.inn).toEqual(book.in);
+    expect(heldLine(home)).toBe('$64.00 out');
+  });
+});
+
 describe('Rescue: the fixes a renewal can’t have, in one line', () => {
   it('names them in the cards’ own words, lower-cased, joined', () => {
     expect(notOfferedLine(['Pause for a while', 'Retry later', 'Smaller plan'])).toBe('Not offered for this renewal: pause for a while, retry later and smaller plan.');

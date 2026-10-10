@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
-import { BUCKET_LABEL, BUCKET_SUB, BUCKETS, bucketOf, csvCell, decimal, LENSES, readQuery, runQuery, serverStateLabel, stateKey, statementCounts, statementKey, sums, toCSV, vsMedianPct, type BookQuery, type Ctx } from './model';
+import { aggregate, BUCKET_LABEL, BUCKET_SUB, BUCKETS, bucketOf, csvCell, decimal, LENSES, readQuery, runQuery, serverStateLabel, stateKey, statementCounts, statementKey, sums, toCSV, vsMedianPct, type BookQuery, type Ctx } from './model';
 
 const H = Array.from({ length: 32 }, () => 0) as unknown as Deal['transcript_head'];
 function deal(id: string, o: Partial<Deal> & { price?: number; cur?: Deal['terms']['currency'] } = {}): Deal {
@@ -157,5 +157,30 @@ describe('a deal that ended UNCONFIRMED is counted as an end, not as a wait', ()
   });
   it('counts it apart from pending_reporting', () => {
     expect(statementCounts([ended, paid], pending)).toEqual({ matched: 0, pending_reporting: 1, unconfirmed: 1, mismatch: 0, not_applicable: 0, unknown: 0 });
+  });
+});
+
+describe('a payment being checked with PayPal is not on hold', () => {
+  const buyer = deal('b', { state: 'AUTHORIZED', price: 11800 });
+  const seller = deal('s', { state: 'AUTHORIZED', side: 'seller', price: 6400 });
+  const other = deal('o', { state: 'AUTHORIZED', price: 500 });
+  const checked = (d: Deal) => d.id === 'b' || d.id === 's';
+  it('leaves a checked deal in no bucket, in either direction', () => {
+    const s = sums([buyer, seller, other], checked);
+    for (const b of BUCKETS) expect(s[b].in).toEqual([]);
+    expect(s.held.out).toEqual([{ minor: 500, currency: 'USD' }]);
+    for (const b of BUCKETS.filter((x) => x !== 'held')) expect(s[b].out).toEqual([]);
+  });
+  it('keeps today’s result without a predicate', () => {
+    const s = sums([buyer, seller, other]);
+    expect(s.held.out).toEqual([{ minor: 12300, currency: 'USD' }]);
+    expect(s.held.in).toEqual([{ minor: 6400, currency: 'USD' }]);
+  });
+  it('aggregate honours ctx.checking and counts an UNCONFIRMED end as unconfirmed', () => {
+    const ended = deal('u', { kind: 'haggle', state: 'UNCONFIRMED' });
+    const a = aggregate([buyer, other, ended], { stmt: () => 'pending_reporting', cpName: (d) => d.counterparty, checking: (d) => d.id === 'b' });
+    expect(a.sums.held.out).toEqual([{ minor: 500, currency: 'USD' }]);
+    expect(a.stmt.unconfirmed).toBe(1);
+    expect(a.stmt.pending_reporting).toBe(2);
   });
 });
