@@ -274,28 +274,82 @@ impl Ledger {
             |r| r.get(0),
         )?)
     }
+    /// Finishes one inbox message. An accepted message becomes `applied`; a rejected one goes
+    /// through [`Self::reject_inbox`] as a batch of one, so every relay rejection has one shape.
     pub fn finish_inbox(
         &mut self,
         message: &InboxMessage,
         accepted: bool,
         at: Timestamp,
     ) -> Result<(), LedgerError> {
+        if !accepted {
+            return self.reject_inbox(std::slice::from_ref(message), at);
+        }
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        if tx.execute("UPDATE relay_inbox SET status=?1 WHERE deal_id=?2 AND generation=?3 AND position=?4 AND status='pending'", params![if accepted {"applied"} else {"rejected"},message.deal_id.to_string(),message.generation,u32::try_from(message.position).map_err(|_|LedgerError::Conflict)?])? != 1 { return Err(LedgerError::Conflict); }
-        if !accepted {
-            audit::append(
-                &tx,
-                &AuditEntry {
-                    at,
-                    actor: "relay".into(),
-                    action: "envelope.rejected".into(),
-                    deal_id: Some(message.deal_id),
-                    detail: serde_json::json!({"raw_hash":H256::digest(message.raw.as_bytes()),"reason":"protocol or mandate rejection"}),
-                },
-            )?;
+        if tx.execute("UPDATE relay_inbox SET status='applied' WHERE deal_id=?1 AND generation=?2 AND position=?3 AND status='pending'", params![message.deal_id.to_string(),message.generation,u32::try_from(message.position).map_err(|_|LedgerError::Conflict)?])? != 1 { return Err(LedgerError::Conflict); }
+        tx.commit()?;
+        Ok(())
+    }
+    /// Rejects a batch of pending inbox messages with one `envelope.rejected` audit row.
+    ///
+    /// An empty slice writes nothing and returns `Ok(())`. Every message must carry the first
+    /// message's `deal_id` and `generation`, and there may be at most 256 of them; otherwise it
+    /// returns `Conflict` and writes nothing. It runs in one Immediate transaction: each
+    /// message's `relay_inbox` row (deal, generation, position, status `pending`) becomes
+    /// `rejected`; if an UPDATE changes anything other than exactly one row (a position repeated
+    /// in the slice ends here too) it returns `Conflict` and drops the transaction. It then
+    /// appends exactly one audit row (actor `relay`, action `envelope.rejected`, the deal) whose
+    /// detail holds `generation`, `count`, `raw_hashes` (digests in slice order) and `reason`.
+    /// Raw text never reaches the audit log, only digests. Then it commits.
+    pub fn reject_inbox(
+        &mut self,
+        messages: &[InboxMessage],
+        at: Timestamp,
+    ) -> Result<(), LedgerError> {
+        let Some(first) = messages.first() else {
+            return Ok(());
+        };
+        if messages.len() > 256
+            || messages
+                .iter()
+                .any(|m| m.deal_id != first.deal_id || m.generation != first.generation)
+        {
+            return Err(LedgerError::Conflict);
         }
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        for message in messages {
+            let position = u32::try_from(message.position).map_err(|_| LedgerError::Conflict)?;
+            if tx.execute(
+                "UPDATE relay_inbox SET status='rejected' WHERE deal_id=?1 AND generation=?2 AND position=?3 AND status='pending'",
+                params![message.deal_id.to_string(), message.generation, position],
+            )? != 1
+            {
+                return Err(LedgerError::Conflict);
+            }
+        }
+        let raw_hashes: Vec<H256> = messages
+            .iter()
+            .map(|m| H256::digest(m.raw.as_bytes()))
+            .collect();
+        audit::append(
+            &tx,
+            &AuditEntry {
+                at,
+                actor: "relay".into(),
+                action: "envelope.rejected".into(),
+                deal_id: Some(first.deal_id),
+                detail: serde_json::json!({
+                    "generation": first.generation,
+                    "count": messages.len(),
+                    "raw_hashes": raw_hashes,
+                    "reason": "protocol or mandate rejection",
+                }),
+            },
+        )?;
         tx.commit()?;
         Ok(())
     }

@@ -2705,6 +2705,110 @@ fn c9a_a_deal_past_the_inbox_cap_is_refused_and_writes_nothing() {
     assert_eq!(route_state(&ledger, deal.id), before);
     assert_eq!(inbox_rows(&ledger, deal.id).len(), 1024);
 }
+// Scan C-9b: a rejected batch costs one audit row holding the count and the message hashes.
+fn stage_n(ledger: &mut Ledger, id: DealId, generation: &str, n: usize, at: i64) {
+    let batch: Vec<String> = (0..n).map(|i| format!("m{i}.y.z")).collect();
+    ledger
+        .stage_relay_batch(id, generation, 0, &batch, at)
+        .unwrap();
+}
+#[test]
+fn c9b_a_rejected_batch_writes_one_audit_row() {
+    let (mut ledger, deal, _, _, _) = setup();
+    ledger.bind_relay(deal.id, H256::digest(b"m"), 100).unwrap();
+    let a = "a".repeat(32);
+    stage_n(&mut ledger, deal.id, &a, 3, 1000);
+    let pending = ledger.pending_inbox().unwrap();
+    let before = ledger.audit_count().unwrap();
+    ledger.reject_inbox(&pending, 1001).unwrap();
+    assert_eq!(ledger.audit_count().unwrap(), before + 1);
+    let (rows, _) = ledger.audit_page(None, 1).unwrap();
+    let row = &rows[0];
+    assert_eq!(row.action, "envelope.rejected");
+    assert_eq!(row.actor, "relay");
+    assert_eq!(row.deal_id, Some(deal.id));
+    assert_eq!(row.detail["count"], 3);
+    assert_eq!(row.detail["generation"], a.as_str());
+    let digests: Vec<H256> = (0..3)
+        .map(|i| H256::digest(format!("m{i}.y.z").as_bytes()))
+        .collect();
+    assert_eq!(row.detail["raw_hashes"], serde_json::json!(digests));
+    assert!(!row.detail.to_string().contains("y.z"));
+    assert!(
+        inbox_rows(&ledger, deal.id)
+            .iter()
+            .all(|r| r.2 == "rejected")
+    );
+    assert!(ledger.pending_inbox().unwrap().is_empty());
+    ledger.verify_audit().unwrap();
+}
+#[test]
+fn c9b_a_batch_that_is_not_one_deal_one_generation_all_pending_writes_nothing() {
+    let (mut ledger, deal, _, _, _) = setup();
+    let other = budget_deal(&mut ledger, &deal, 1);
+    for d in [deal.id, other.id] {
+        ledger
+            .bind_relay(d, H256::digest(d.to_string().as_bytes()), 100)
+            .unwrap();
+    }
+    let (a, b) = ("a".repeat(32), "b".repeat(32));
+    stage_n(&mut ledger, deal.id, &a, 2, 1000);
+    stage_n(&mut ledger, other.id, &a, 2, 1000);
+    stage_n(&mut ledger, deal.id, &b, 2, 2000);
+    let of = |d: DealId, g: &str, p: u64| InboxMessage {
+        deal_id: d,
+        generation: g.to_string(),
+        position: p,
+        raw: format!("m{}.y.z", p - 1),
+    };
+    ledger
+        .finish_inbox(&of(deal.id, &b, 2), true, 2001)
+        .unwrap();
+    let snapshot = |l: &Ledger| {
+        (
+            l.audit_count().unwrap(),
+            inbox_rows(l, deal.id),
+            inbox_rows(l, other.id),
+        )
+    };
+    let before = snapshot(&ledger);
+    let cases = [
+        vec![of(deal.id, &a, 1), of(other.id, &a, 2)],
+        vec![of(deal.id, &a, 1), of(deal.id, &b, 1)],
+        vec![of(deal.id, &a, 1), of(deal.id, &b, 2)],
+        vec![of(deal.id, &a, 1), of(deal.id, &a, 1)],
+    ];
+    for case in cases {
+        assert!(matches!(
+            ledger.reject_inbox(&case, 3000),
+            Err(LedgerError::Conflict)
+        ));
+        assert_eq!(snapshot(&ledger), before);
+    }
+    ledger.reject_inbox(&[], 3000).unwrap();
+    assert_eq!(snapshot(&ledger), before);
+    ledger.verify_audit().unwrap();
+}
+#[test]
+fn c9b_finish_inbox_rejection_is_a_batch_of_one() {
+    let (mut ledger, deal, _, _, _) = setup();
+    ledger.bind_relay(deal.id, H256::digest(b"m"), 100).unwrap();
+    stage_n(&mut ledger, deal.id, &"a".repeat(32), 2, 1000);
+    let pending = ledger.pending_inbox().unwrap();
+    let before = ledger.audit_count().unwrap();
+    ledger.finish_inbox(&pending[0], true, 1001).unwrap();
+    assert_eq!(ledger.audit_count().unwrap(), before);
+    ledger.finish_inbox(&pending[1], false, 1001).unwrap();
+    assert_eq!(ledger.audit_count().unwrap(), before + 1);
+    let (rows, _) = ledger.audit_page(None, 1).unwrap();
+    assert_eq!(rows[0].action, "envelope.rejected");
+    assert_eq!(rows[0].detail["count"], 1);
+    assert_eq!(
+        rows[0].detail["raw_hashes"],
+        serde_json::json!([H256::digest(pending[1].raw.as_bytes())])
+    );
+    ledger.verify_audit().unwrap();
+}
 #[test]
 fn c9a_a_version_14_ledger_migrates_and_reads_generation_at_zero() {
     let (mut ledger, deal, _, _, _) = setup();
