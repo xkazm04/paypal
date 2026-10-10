@@ -151,6 +151,22 @@ export const LENSES: readonly Lens[] = [
     query: { view: 'deals', filters: [{ field: 'kind', op: 'in', value: ['rescue', 'invoice'] }], group_by: ['state'], metrics: ['count', 'recovered_sum'] } },
 ];
 
+/** Whether every line of the wallet's answer to this query holds one money state, so its Amount
+ *  adds nothing across states: the query groups by state, or filters state to values (eq or in)
+ *  that all fall in one bucket. The wallet's own sum_amount adds every state it reaches, so any
+ *  other query (including `ne`, and a filter spanning two buckets) has no Amount to show. The
+ *  bucket is judged on a plain deal; the bucket rule stays here, not in Rust. */
+export function walletSumsApart(query: { group_by?: readonly string[] | null; filters?: ReadonlyArray<{ field: string; op: string; value: unknown }> | null }): boolean {
+  if (query.group_by?.includes('state')) return true;
+  return (query.filters ?? []).some((f) => {
+    if (f.field !== 'state' || (f.op !== 'eq' && f.op !== 'in')) return false;
+    const values = Array.isArray(f.value) ? f.value : [f.value];
+    if (!values.length || !values.every((v) => typeof v === 'string')) return false;
+    const buckets = new Set(values.map((state) => bucketOf({ state: state as DealState, kind: 'purchase', shield: null })));
+    return buckets.size === 1;
+  });
+}
+
 /** The query exactly as it runs, on one line. */
 export const queryText = (q: BookQuery): string => JSON.stringify(q);
 
