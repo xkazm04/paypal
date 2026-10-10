@@ -93,11 +93,17 @@ plan price for everyone.
 7. **Lost answers.** A lost create is found by the deal's deterministic invoice number
    (`rescue_invoice_number(deal, 1)`) and never made twice; if PayPal cannot find it, the step
    parks and the fix lapses. A lost send is read back and re-sent only under its own request id
-   after a fresh owner decision; past the deadline or the 6 h request-id window it closes as not
-   done and the subscription is free for a later fix.
+   after a fresh owner decision. A parked send (`needs_owner`, no owner ticket) is read by
+   `rescue_resolve` once the deal's deadline or the 6 h request-id window (`REQUEST_ID_KEPT_SECS`)
+   has passed, at most once per `PARKED_READ_SECS` (an hour, recorded before the read, so a failing
+   read is throttled too); a DRAFT then closes not done and the subscription is free for a later fix.
 8. **Silence.** An unapproved fix lapses (PayPal retries by itself); an unsent draft expires; a
-   sent invoice expires unpaid. Nothing is collected by default. The scheduler only reads back and
-   applies deadlines; it never starts a create or a send.
+   sent invoice is read once more at the deadline and expires only after a read shows it unpaid.
+   A send whose answer is still unknown keeps the deal open: that invoice may be with the
+   subscriber. Without the invoicing client or the deal's agent key a sent invoice waits (a create
+   still closes at its deadline, which needs no read). A failed deadline read waits and retries at
+   `RESCUE_POLL_SECS`. Nothing is collected by default. The scheduler only reads back and applies
+   deadlines; it never starts a create or a send.
 
 ## Safety properties
 
@@ -122,7 +128,7 @@ plan price for everyone.
 | Layer | Path | Key items |
 |---|---|---|
 | Domain | `crates/table-core/src/rescue.rs` | `RescueLever`, `propose_discount`, `check_offer`, `discounted`, `invoice_text`, `watch_verdict`, watch guards |
-| Pipeline | `crates/table-app/src/rescue.rs` | `rescue_open`, `rescue_watch_read`, `rescue_detect`, `rescue_approve`, `rescue_poll`, `rescue_deadline`, `resolve_invoice_create`, `resolve_invoice_send` |
+| Pipeline | `crates/table-app/src/rescue.rs` | `rescue_open`, `rescue_watch_read`, `rescue_detect`, `rescue_approve`, `rescue_poll`, `rescue_resolve`, `rescue_deadline`, `RESCUE_POLL_SECS`, `PARKED_READ_SECS` (imported from `pipeline`), `resolve_invoice_create`, `resolve_invoice_send` |
 | Pipeline | `crates/table-app/src/checks.rs` | `compose_rescue` (the rescue checklist) |
 | Runtime | `crates/table-runtime/src/rescue.rs` | `rescue_replay`, `rescue_book`, `rescue_watch_add`, `tick_rescue_watch`, `tick_rescue`, plain-word refusals |
 | Ledger | `crates/table-ledger/src/rescue.rs`, `rescue_watch.rs` | `RescueCase`, `Recipient` (masked), `COUNTED`, `rescue_recovered`, watch list and read budget |
@@ -154,7 +160,13 @@ IPC commands (rows in `crates/table-client/src/authority_table.rs`):
   `a_replayed_failure_is_invoiced_on_the_owners_decision_but_never_counts`,
   `silence_lets_a_fix_lapse_and_an_unpaid_invoice_expire_and_nothing_is_collected`,
   `a_watched_subscription_opens_exactly_one_fix_per_failure_and_never_writes_at_paypal`,
-  `a_lost_send_still_draft_at_the_deadline_closes_and_frees_the_subscription`
+  `a_lost_send_still_draft_at_the_deadline_closes_and_frees_the_subscription`,
+  `a_parked_send_is_read_and_ended_at_the_deadline`,
+  `a_parked_send_past_the_request_id_window_closes_not_done`,
+  `a_parked_send_whose_read_fails_is_read_once_an_hour`,
+  `without_a_client_a_create_open_at_the_deadline_closes_and_the_deal_expires`,
+  `without_a_client_a_sent_invoice_waits_and_is_read_once_it_is_back`,
+  `a_failed_read_at_the_deadline_waits_and_retries_on_the_poll_cadence`
   (`crates/table-app/tests/rescue.rs`)
 - `a_watched_failed_renewal_opens_one_fix_that_counts_only_once_the_owner_approves_and_it_is_paid`,
   `the_watch_pass_reads_a_few_a_tick_never_while_paused_and_never_writes`,
@@ -188,6 +200,15 @@ IPC commands (rows in `crates/table-client/src/authority_table.rs`):
   `billing_info.last_failed_payment.next_payment_retry_time` and the `fields=last_failed_payment`
   query. PayPal documents no way to fail a sandbox renewal, so detection has never seen a live
   failure. The 20 / 100 a day / 6 h guards are the wallet's own limits, not PayPal's.
+- Open after deadline-safe-default full r1 (2026-10-10), held in DECISIONS section 37; all wait on the
+  operator's Approval:
+  - robustness-1: a parked send whose invoice reads neither DRAFT nor SENT (CANCELLED, other, or not
+    matching) never ends after its deadline (`rescue.rs:902-910`, `pipeline/resolve.rs:206-208`,
+    `rescue.rs:697-719`).
+  - An AwaitingApproval rescue deal whose deadline poll fails with an error other than `Unavailable`
+    returns that error once per `RESCUE_POLL_SECS` and stays open; no test covers it.
+  - A sent invoice past its deadline whose read keeps failing waits at the 60 s cadence with no
+    ceiling. With no client or no key the deal waits with no ceiling, by design.
 - The "Client handoff" table in STATUS still lists `rescue_approve` as UNAVAILABLE; the code
   implements it.
 
