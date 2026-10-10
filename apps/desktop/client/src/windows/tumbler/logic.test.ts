@@ -186,11 +186,17 @@ describe('headline and receipt text', () => {
     expect(verified.l1[0]).toBe('Receipt saved ');
     const ended = receiptTicker({
       deal_id: id, evidence: { deal_id: id, receipt: 'SELLER_ATTESTED', reconciliation: 'pending_reporting' }, mode: 'sandbox', state: 'UNCONFIRMED',
-      on_silence: "PayPal reporting never showed the seller's payment; this wallet moved no money",
+      on_silence: "PayPal's statement did not show the seller's payment; this wallet moved no money",
     }, known);
     expect(ended.kind).toBe('hold');
     expect(ended.l1).toEqual(['Not confirmed by PayPal', '', ' · partsco']);
-    expect(ended.l2).toBe('PayPal’s statement never showed it · this wallet moved nothing');
+    expect(ended.l2).toBe('PayPal’s statement did not show it · this wallet moved nothing');
+    // No read was made: the Tumbler never says PayPal's statement did not show it.
+    const unread = receiptTicker({
+      deal_id: id, evidence: { deal_id: id, receipt: 'SELLER_ATTESTED', reconciliation: 'pending_reporting' }, mode: 'sandbox', state: 'UNCONFIRMED',
+      on_silence: "This wallet did not check PayPal's statement for the seller's payment; it moved no money",
+    }, known);
+    expect(unread.l2).toBe('your wallet did not check PayPal’s statement · it moved nothing');
     expect(ended.ms).toBe(6000);
   });
   it('tickers name the deal by who it is with, never by its id', () => {

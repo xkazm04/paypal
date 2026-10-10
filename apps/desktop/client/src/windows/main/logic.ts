@@ -189,7 +189,7 @@ export function moneyNow(d: Pick<Deal, 'state' | 'side' | 'kind' | 'shield'>): s
     case 'FAILED': return d.kind === 'rescue' ? 'invoice cancelled · nothing recovered' : 'failed · see the PayPal proof';
     case 'REFUNDED': return 'refunded';
     case 'DISPUTED': return 'disputed at PayPal';
-    case 'UNCONFIRMED': return 'the seller says paid · PayPal’s statement never showed it';
+    case 'UNCONFIRMED': return 'the seller says paid · no match on PayPal’s statement';
   }
 }
 

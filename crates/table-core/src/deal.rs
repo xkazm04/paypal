@@ -276,6 +276,12 @@ pub struct DealEvidence {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub fair_price: Option<crate::FairPrice>,
+    /// For a deal that ended UNCONFIRMED: true when a statement read of PayPal came back
+    /// unmatched before it ended, false when no read was made; null for any other deal. Older
+    /// shells omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub statement_unmatched: Option<bool>,
 }
 /// How the house's record compares with the signed head the wallet kept with the receipt (T9).
 /// Evidence only: no state here moves or holds money.

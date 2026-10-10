@@ -97,7 +97,7 @@ describe('narration: plain words, never machinery', () => {
     expect(stepSentence(step({ at: 1, kind: 'receipt_refused', authority: { type: 'none' } }), { title: 'the dock' }))
       .toBe('The seller said the dock was paid before you opened the PayPal link, so your wallet did not accept it. No money moved.');
     expect(stepSentence(step({ at: 1, kind: 'unconfirmed', state_after: 'UNCONFIRMED', authority: { type: 'safe_default' } }), { title: 'the dock' }))
-      .toBe('The seller said the dock was paid, but PayPal’s statement never showed it, so it ends here. Your wallet moved no money.');
+      .toBe('The seller said the dock was paid, but your wallet has no match for it on PayPal’s statement, so it ends here. Your wallet moved no money.');
     expect(decidedLine(step({ at: 1, kind: 'refused', authority: { type: 'signed_rule', clause: 3 } }))).toBe('Refused · PayPal never asked');
     expect(decidedLine(step({ at: 1, kind: 'countersigned', authority: { type: 'owner' } }))).toBe('You · no PayPal call');
   });

@@ -8,9 +8,9 @@ import type { DisplayBand } from '@bindings/DisplayBand';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import type { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMoney, nowUnix, shortHash, shortId } from '../../../lib/format';
-import { useMutation } from '../../../lib/hooks';
+import { useMutation, useQuery } from '../../../lib/hooks';
 import type { DealWatch } from '../../../lib/marketWatch';
-import { FAIR_PRICE_NAME, fairPriceWords, HOUSE_RECORD_NAME, houseRecordWord, KEPT_FRESH, marketWords, PRICE_CHECKS_USED_UP, priceChecksToday, PROOF_FILE_SHOWS, PROOF_SAVE_WARNING } from '../../../lib/words';
+import { FAIR_PRICE_NAME, fairPriceWords, HOUSE_RECORD_NAME, houseRecordWord, KEPT_FRESH, marketWords, PRICE_CHECKS_USED_UP, priceChecksToday, PROOF_FILE_SHOWS, PROOF_SAVE_WARNING, STATEMENT_CHECK_NEEDS_KEYS, unconfirmedMeans } from '../../../lib/words';
 import { ModeBadge, WalletNotice } from '../../../shared/honesty';
 import { Btn, Chip, Empty, Kv, Loading, Sheet } from '../../../shared/ui';
 import { ConvergenceChart, MarketBand, MiniBand } from '../charts';
@@ -98,8 +98,15 @@ export function EvidenceSheet({ kind, deal, ev, band, watch, onFresh, onClose }:
 }) {
   const rec = useMutation('deal_reconcile');
   const toast = useToast();
+  const settings = useQuery('get_settings', null, { refreshOn: ['settings:changed'] });
   const e = ev.data;
-  const reconcile = deal.state === 'RECEIPTED' ? (
+  // The statement check is the owner's, read-only, and works on a deal PayPal's statement has not
+  // matched yet: RECEIPTED, or UNCONFIRMED (a late match still counts). It needs the PayPal keys.
+  const checkable = deal.state === 'RECEIPTED' || deal.state === 'UNCONFIRMED';
+  const needsKeys = settings.data?.payment_executor_configured === false;
+  const reconcile = checkable && needsKeys ? (
+    <span className="ui-hint">{STATEMENT_CHECK_NEEDS_KEYS}</span>
+  ) : checkable ? (
     <Btn className="left" disabled={rec.pending} title="Looks this payment up on your own PayPal statement. Read-only."
       onClick={async () => {
         const now = nowUnix();
@@ -112,6 +119,7 @@ export function EvidenceSheet({ kind, deal, ev, band, watch, onFresh, onClose }:
     <Kv items={[
       ['Receipt', <><Chip tone={evidenceLabel(deal, e.receipt).tone}>{evidenceLabel(deal, e.receipt).text}</Chip> {evidenceLabel(deal, e.receipt).why}</>],
       ['Statement', <><Chip tone={reconciliationLabel(e.reconciliation).tone}>{reconciliationLabel(e.reconciliation).text}</Chip> {reconciliationLabel(e.reconciliation).why}</>],
+      deal.state === 'UNCONFIRMED' ? ['Ended', unconfirmedMeans(e.statement_unmatched)] : null,
       e.house_record ? [HOUSE_RECORD_NAME, <><Chip tone={houseRecordWord(e.house_record).tone}>{houseRecordWord(e.house_record).text}</Chip> {houseRecordWord(e.house_record).means}</>] : null,
     ]} />
   ) : ev.error ? <WalletNotice error={ev.error} what="Proof" /> : <Loading what="the PayPal proof" />;
