@@ -1,13 +1,14 @@
 // "What you were shown": on a deal that ended at its deadline, the rungs of the attention ladder the
 // owner was actually offered before the default ran, from the wallet's own record (deal_history:
 // the safe default's step carries the rungs it cites, attention-ladder-1). Pure: no React, no IPC.
-// "Lapsed 18:00 · shown 16:02 · notified 17:45 · opened 17:50 · no money moved". Times are local;
+// "Lapsed 18:00 · shown 16:02 · notified 17:45 · opened 17:50 · no money moved". When PayPal never
+// showed what happened to a payment that was being checked, the last part says that instead. Times are local;
 // a time on another day than the ending carries its weekday. Never ids, never the other side's words.
 import type { HistoryKind } from '@bindings/HistoryKind';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import type { LadderRung } from '@bindings/LadderRung';
 import type { RungMark } from '@bindings/RungMark';
-import { NEVER_SHOWN, NOT_NOTIFIED_BECAUSE } from '../../../lib/words';
+import { MONEY_CHECK_ENDED_SHORT, NEVER_SHOWN, NOT_NOTIFIED_BECAUSE } from '../../../lib/words';
 
 /** How a deadline's safe default ended the deal, and what it did to the money. */
 const ENDING: Partial<Record<HistoryKind, readonly [string, string]>> = {
@@ -41,10 +42,12 @@ const first = (rungs: readonly RungMark[], ...kinds: LadderRung[]) => rungs.find
 /**
  * The strip's parts in reading order: the ending and its time, then what the owner was offered in the
  * order it happened (shown, snoozed, notified or why not, opened), then what happened to the money.
- * `now` places the ending: today's ending shows only its time.
+ * `now` places the ending: today's ending shows only its time. `unshown` (see
+ * endedBeforePayPalShowed) swaps "no money moved" for what PayPal never showed.
  */
-export function shownParts(step: HistoryStep, now: number): string[] {
-  const [ending, money] = ENDING[step.kind] ?? ['Ended', 'no money moved'];
+export function shownParts(step: HistoryStep, now: number, unshown = false): string[] {
+  const [ending, was] = ENDING[step.kind] ?? ['Ended', 'no money moved'];
+  const money = unshown ? MONEY_CHECK_ENDED_SHORT : was;
   const rungs = step.rungs ?? [];
   const head = `${ending} ${shownTime(step.at, now)}`;
   if (!rungs.length) return [head, NEVER_SHOWN, money];

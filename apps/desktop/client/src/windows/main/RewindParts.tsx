@@ -5,7 +5,7 @@ import type { Deal } from '@bindings/Deal';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import { WalletNotice } from '../../shared/honesty';
 import { weekLabel } from './home/model';
-import { isRefusal, laneSteps, narrate, stepTime, stepUnder, TICK_WORD, tickTone, weekFraction, type TickTone } from './logic';
+import { endedBeforePayPalShowed, isRefusal, laneSteps, narrate, stepTime, stepUnder, TICK_WORD, tickTone, weekFraction, type TickTone } from './logic';
 import { TickMark, type RewindState } from './Rewind';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -101,7 +101,7 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit }: { r: RewindState; 
           {ticks.map(({ s, f, dx, tone }) => {
             const who = labelOf(s.deal_id);
             if (!who) return null;
-            const said = narrate(s, { title: who.title, side: who.deal.side });
+            const said = narrate(s, { title: who.title, side: who.deal.side, unshown: endedBeforePayPalShowed(r.steps, s) });
             return (
               <button key={`${s.deal_id}-${s.seq}`} type="button" className={`rw-tick t-${tone} ${s.at <= r.t ? 'on' : ''}`}
                 style={{ left: `calc(${f * 100}% + ${dx}px)` } as CSSProperties}
@@ -140,7 +140,7 @@ export function RewindHub({ r, labelOf, onOpenDeal }: { r: RewindState; labelOf:
           <>
             <div className={`rw-say ${money && tone ? `t-${tone}` : ''}`}>
               {money && tone ? <TickMark tone={tone} /> : null}
-              <span>{narrate(step, { title: who.title, side: who.deal.side })}</span>
+              <span>{narrate(step, { title: who.title, side: who.deal.side, unshown: endedBeforePayPalShowed(r.steps, step) })}</span>
             </div>
             <div className="rw-meta">
               {!money || !tone ? 'no PayPal call' : tone === 'refused' ? (step.authority.type === 'signed_rule' ? 'Stopped by your rules' : 'Stopped by a safety check') : TICK_WORD[tone]}

@@ -142,6 +142,33 @@ describe('awaySummary', () => {
     expect(s.text).not.toContain('no money moved');
   });
 
+  it('tells a deal that ended at its deadline while PayPal was being asked as one line, never as no money moved', () => {
+    const steps = [
+      step('SALE', SEEN + H, 'authorized', SHOP, ok('authorize')),
+      step('SALE', SEEN + 2 * H, 'checking_with_paypal'),
+      step('SALE', SEEN + 3 * H, 'expired', DEFAULT, { type: 'none' }, 'EXPIRED'),
+    ];
+    const s = awaySummary(steps, DEALS, SEEN, NOW);
+    expect(s.lines).toHaveLength(1);
+    expect(s.lines[0]?.outcome).toBe('unshown');
+    expect(s.lines[0]?.text).toBe('1 deal ended before PayPal showed what happened to the payment ($90.00): look at it in PayPal');
+    expect(s.lead).toBeNull();
+    expect(s.text).not.toContain('no money moved');
+    expect(s.text).not.toMatch(/clause|capture|authoriz|void|seller_mandate|signed_rule|\bA\b|GPU/i);
+  });
+
+  it('tells the same line when the check began before the window and the expiry is inside it', () => {
+    const steps = [
+      step('SALE', SEEN - 2 * H, 'checking_with_paypal'),
+      step('SALE', SEEN + H, 'expired', DEFAULT, { type: 'none' }, 'EXPIRED'),
+    ];
+    const s = awaySummary(steps, DEALS, SEEN, NOW);
+    expect(s.lines.map((l) => l.outcome)).toEqual(['unshown']);
+    expect(s.lines[0]?.text).toBe('1 deal ended before PayPal showed what happened to the payment ($90.00): look at it in PayPal');
+    expect(s.lead).toBeNull();
+    expect(s.text).not.toContain('no money moved');
+  });
+
   it('a capture whose answer is unknown is a check, a failed one is a no from PayPal', () => {
     const s = awaySummary([
       step('A', SEEN + H, 'captured', RULE, answer('capture', 'unknown')),

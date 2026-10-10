@@ -504,6 +504,24 @@ export function historyAt(steps: readonly HistoryStep[], t: number): Map<string,
   return out;
 }
 
+/** True when `end` is a deal's ending at its deadline (expired or lapsed) while a money step was still
+ *  being checked with PayPal: PayPal never showed what happened, so "no money moved" is not known. */
+export function endedBeforePayPalShowed(steps: readonly HistoryStep[], end: HistoryStep): boolean {
+  if (end.kind !== 'expired' && end.kind !== 'lapsed') return false;
+  const before = steps
+    .filter((s) => s.deal_id === end.deal_id && (s.at < end.at || (s.at === end.at && s.seq < end.seq)))
+    .sort((a, b) => a.at - b.at || a.seq - b.seq);
+  let open = false;
+  for (const s of before) {
+    if (s.kind === 'checking_with_paypal') open = true;
+    else if (isMoneyCall(s) && s.paypal.type === 'call') {
+      if (s.paypal.outcome === 'unknown') open = true;
+      else if (s.paypal.outcome === 'ok' || s.paypal.outcome === 'failed') open = false;
+    }
+  }
+  return open;
+}
+
 /** A tick's colour on the PayPal lane: who decided the call. */
 export type TickTone = 'owner' | 'rule' | 'buyer' | 'default' | 'refused' | 'unknown';
 const MONEY_CALLS: ReadonlySet<PaypalMethod> = new Set(['create_order', 'authorize', 'capture', 'void', 'create_invoice', 'send_invoice']);
@@ -560,7 +578,7 @@ export function stepTime(unix: number): string {
 
 /** One step in plain words, without its time: who did what to which deal, and what PayPal saw.
  *  `title` is the deal's short title; `side` adjusts paying vs collecting. Never a clause number. */
-export function stepSentence(s: HistoryStep, ctx: { title: string; side?: Side }): string {
+export function stepSentence(s: HistoryStep, ctx: { title: string; side?: Side; unshown?: boolean }): string {
   const x = ctx.title;
   const who = whoDecided(s.authority);
   const by = (fallback: string) => who || fallback;
@@ -605,8 +623,9 @@ export function stepSentence(s: HistoryStep, ctx: { title: string; side?: Side }
     case 'withdraw_sent': return `Your side walked away from ${x}. No money moved.`;
     case 'withdraw_received': return `They walked away from ${x}. No money moved.`;
     case 'withdrawn': return `${x} was withdrawn. No money moved.`;
-    case 'expired': return `The deadline passed on ${x}. No money moved.`;
-    case 'lapsed': return `Nobody acted on ${x} in time, so it lapsed. No money moved.`;
+    case 'expired': case 'lapsed':
+      if (ctx.unshown) return `${x} ended at its deadline before PayPal showed what happened to its payment. Look at the payment in PayPal.`;
+      return s.kind === 'expired' ? `The deadline passed on ${x}. No money moved.` : `Nobody acted on ${x} in time, so it lapsed. No money moved.`;
     case 'shield_held': return `A safety check paused ${x} before PayPal was asked.`;
     case 'hold_released': return `You let ${x} go on after a safety pause.`;
     case 'mismatch': return `The payment request for ${x} did not match the deal. No pay button was offered.`;
@@ -624,7 +643,7 @@ export function stepSentence(s: HistoryStep, ctx: { title: string; side?: Side }
 }
 
 /** The hub's line for the step under the playhead: "Tue 14:02 · Your rules refused 40 × GPU: …". */
-export const narrate = (s: HistoryStep, ctx: { title: string; side?: Side }): string => `${stepTime(s.at)} · ${stepSentence(s, ctx)}`;
+export const narrate = (s: HistoryStep, ctx: { title: string; side?: Side; unshown?: boolean }): string => `${stepTime(s.at)} · ${stepSentence(s, ctx)}`;
 
 /** The latest step at or before `t` (the record's order breaks ties): what the hub tells. */
 export function stepUnder(steps: readonly HistoryStep[], t: number): HistoryStep | null {
