@@ -179,9 +179,9 @@ IPC commands (from `authority_table.rs`):
   numbers), `windows/main/home/away.test.ts` (currencies never added, lost answer reads as
   checking), `windows/main/home/AwayCard.test.tsx`, `windows/main/quit.test.ts`,
   `windows/tumbler/walkaway.test.ts`, `windows/main/home/model.test.ts` (dial value text, a payment being checked is not on hold),
-  `windows/main/deal/Decision.test.tsx`, `windows/main/unshown.test.ts` (which endings are read, a
-  failed read keeps today's words), and the away, rewind and shown cases for an ending unshown by
-  the deal's own record.
+  `windows/main/deal/Decision.test.tsx`, `windows/main/unshown.test.ts` (which endings are read, the deals whose record shows an open check), and
+  in `windows/main/home/away.test.ts` the two cases that pass the deal's own record (`unshown`). The rewind and
+  shown cases for an ending unshown come from the steps (`endedBeforePayPalShowed`), not from the deal's own record.
 
 ## Known gaps and UNVERIFIED
 
@@ -194,8 +194,9 @@ IPC commands (from `authority_table.rs`):
   carried `detail.clause`.
 - One tick per money operation, not one per `paypal_calls` row: order and reporting reads are not
   ticks. There is no link from a tick to a Proof drawer.
-- Book's On hold tile still counts a payment being checked with PayPal, so Home and Book differ for
-  such a deal until the deal rework that fixes Book (`lib/polish3.test.ts` pins Book's figure).
+- The Book's On hold now leaves out a payment being checked with PayPal, as Home does (85faf93; `lib/polish3.test.ts`).
+  The Book's week answer tone still counts every AUTHORIZED deal (DECISIONS section 34).
+- The Rewind's bead tip is still open (dashboard lite r2 robustness-1) and in rework.
 - The away card's "last seen" is per browser profile (localStorage), not per owner.
 - The director's own time words still say "N d N h later"; a lapsed haggle's chip can read
   "Withdrawn" while its banner says it lapsed (noted for the next polish pass).
