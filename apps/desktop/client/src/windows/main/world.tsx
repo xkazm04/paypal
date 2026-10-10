@@ -15,6 +15,7 @@ import { useQuery, type Query } from '../../lib/hooks';
 import type { DealDisplay } from '@bindings/DealDisplay';
 import { backend } from '../../lib/runtime';
 import { headlineWords, silenceWords } from '../../lib/words';
+import { useDisplays } from './displays';
 import { moduleOf } from './logic';
 
 export type Display = DealDisplay & { fallback: boolean };
@@ -76,7 +77,8 @@ export function WorldProvider({ children }: { children: ReactNode }) {
   const deals = useQuery('list_deals', null, { refreshOn: ['deal:changed', 'receipt:created'] });
   const attention = useQuery('attention_list', null, { refreshOn: ['attention:changed', 'deal:changed', 'settings:changed'] });
   const runs = useQuery('agent_runs', null, { refreshOn: ['agent:changed'] });
-  const disp = usePerDeal<DealDisplay>('deal_display', deals.data);
+  // Only the live deals and the deals whose row changed are read again (displays.ts).
+  const disp = useDisplays(deals.data);
 
   const world = useMemo<World>(() => {
     // Plain-word headlines for every surface of this window (lib/words.ts); ids and amounts are untouched.
