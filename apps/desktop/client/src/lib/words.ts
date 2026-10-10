@@ -582,6 +582,8 @@ export const endingUnreadLine = (n: number): [string, string] => [
   `${n} ${n === 1 ? 'deal' : 'deals'} ended at the deadline, but ${n === 1 ? 'its record' : 'their records'} could not be read (`,
   `): whether money moved is not available yet, so open ${n === 1 ? 'it' : 'them'}`,
 ];
+/** The dial legend's word for a dashed bead: a payment whose outcome the wallet does not know yet. */
+export const BEAD_UNKNOWN_LEGEND = 'not known yet';
 
 // ---- wallet limits (T14): one cap above every set of rules ------------------------------------------
 

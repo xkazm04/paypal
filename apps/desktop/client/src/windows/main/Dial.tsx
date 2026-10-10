@@ -308,6 +308,8 @@ export function BeadShape({ kind, needs }: { kind: BeadKind; needs: boolean }) {
       {kind === 'settled' ? <circle r="6.5" fill={url(DID.okg)} /> : null}
       {kind === 'stopped' ? <path d="M-6.5 -6.5L6.5 6.5M6.5 -6.5L-6.5 6.5" stroke="var(--dim)" strokeWidth="3.2" strokeLinecap="round" /> : null}
       {kind === 'off' ? <circle r="7" fill="none" stroke="var(--dim)" strokeWidth="2.2" /> : null}
+      {/* Not known yet (a payment being checked with PayPal, or an ending that could not be read): a dashed outline, never gold, green or red. */}
+      {kind === 'unknown' ? <circle r="10" fill="none" stroke="var(--dim)" strokeWidth="2.2" strokeDasharray="3.4 3" /> : null}
       <circle r="19" fill="transparent" />
     </>
   );
@@ -322,6 +324,7 @@ export function LegendBead({ kind }: { kind: BeadKind | 'needs' }) {
       {kind === 'settled' ? <circle r="6" fill="var(--ok)" /> : null}
       {kind === 'stopped' ? <path d="M-6 -6L6 6M6 -6L-6 6" stroke="var(--dim)" strokeWidth="3" strokeLinecap="round" /> : null}
       {kind === 'off' ? <circle r="7" fill="none" stroke="var(--dim)" strokeWidth="2.2" /> : null}
+      {kind === 'unknown' ? <circle r="8.5" fill="none" stroke="var(--dim)" strokeWidth="2.2" strokeDasharray="3 2.6" /> : null}
       {kind === 'needs' ? <><circle r="11" fill="none" stroke={P.gold} strokeWidth="2.4" /><circle r="5" fill="var(--teal)" /></> : null}
     </svg>
   );
