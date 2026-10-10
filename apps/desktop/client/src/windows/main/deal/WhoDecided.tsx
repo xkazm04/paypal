@@ -7,7 +7,7 @@ import type { HistoryStep } from '@bindings/HistoryStep';
 import { useQuery } from '../../../lib/hooks';
 import { WalletNotice } from '../../../shared/honesty';
 import { Loading } from '../../../shared/ui';
-import { isMoneyCall, isRefusal, stepSentence, stepTime, tickTone, whoDecided } from '../logic';
+import { endedBeforePayPalShowed, isMoneyCall, isRefusal, stepSentence, stepTime, tickTone, whoDecided } from '../logic';
 import { TickMark } from '../Rewind';
 
 /** "You · PayPal call", "Your rules · no PayPal call", "Refused · PayPal never asked". */
@@ -25,7 +25,8 @@ export function decisionSteps(steps: readonly HistoryStep[]): HistoryStep[] {
 
 export function WhoDecided({ deal, title }: { deal: Deal; title: string }) {
   const q = useQuery('deal_history', { deal_id: deal.id }, { refreshOn: ['deal:changed', 'receipt:created'] });
-  const steps = decisionSteps(q.data?.steps ?? []);
+  const all = q.data?.steps ?? [];
+  const steps = decisionSteps(all);
   return (
     <section className="dv-who-decided" aria-label="Who decided">
       <header>
@@ -43,7 +44,7 @@ export function WhoDecided({ deal, title }: { deal: Deal; title: string }) {
                   <li key={s.seq} className={money ? `t-${tone}` : ''}>
                     {money ? <TickMark tone={tone} /> : <i className="dv-wd-dot" aria-hidden="true" />}
                     <time>{stepTime(s.at)}</time>
-                    <span className="say">{stepSentence(s, { title, side: deal.side })}</span>
+                    <span className="say">{stepSentence(s, { title, side: deal.side, unshown: endedBeforePayPalShowed(all, s) })}</span>
                     <span className="by">{decidedLine(s)}</span>
                   </li>
                 );

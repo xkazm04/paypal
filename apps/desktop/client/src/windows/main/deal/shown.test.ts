@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import type { RungMark } from '@bindings/RungMark';
+import { MONEY_CHECK_ENDED_SHORT } from '../../../lib/words';
 import { buildMockState, fakeUlid } from '../../../mock/fixtures';
 import { shownParts, shownStep, shownTime } from './shown';
 
@@ -16,6 +17,13 @@ describe('what you were shown', () => {
   it('reads the brief’s lapse word for word: ending, shown, notified, opened, no money moved', () => {
     const s = step({ rungs: [mark('shown', t(6, 16, 2)), mark('breathing', t(6, 16, 2)), mark('notified', t(6, 17, 45)), mark('card_opened', t(6, 17, 50))] });
     expect(shownParts(s, t(6, 20, 0)).join(' · ')).toBe('Lapsed 18:00 · shown 16:02 · notified 17:45 · opened 17:50 · no money moved');
+  });
+
+  it('when PayPal never showed what happened to the payment, ends with that and not no money moved', () => {
+    const s = step({ rungs: [mark('shown', t(6, 16, 2)), mark('notified', t(6, 17, 45))] });
+    const parts = shownParts(s, t(6, 20, 0), true);
+    expect(parts).toEqual(['Lapsed 18:00', 'shown 16:02', 'notified 17:45', MONEY_CHECK_ENDED_SHORT]);
+    expect(parts.join(' ')).not.toMatch(/no money moved/i);
   });
 
   it('says plainly why the owner was not notified, and never says notified when she was not', () => {

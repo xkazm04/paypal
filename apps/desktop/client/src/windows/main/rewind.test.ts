@@ -7,7 +7,7 @@ import type { HistoryStep } from '@bindings/HistoryStep';
 import { mockBackend, resetMockState } from '../../mock/backend';
 import { buildMockState, fakeUlid } from '../../mock/fixtures';
 import { decidedLine, decisionSteps } from './deal/WhoDecided';
-import { historyAt, isMoneyCall, isRefusal, laneSteps, narrate, stepSentence, stepTime, stepUnder, tickTone, weekFraction } from './logic';
+import { endedBeforePayPalShowed, historyAt, isMoneyCall, isRefusal, laneSteps, narrate, stepSentence, stepTime, stepUnder, tickTone, weekFraction } from './logic';
 
 const D = 'deal-a';
 let seq = 0;
@@ -101,6 +101,28 @@ describe('narration: plain words, never machinery', () => {
     expect(decidedLine(step({ at: 1, kind: 'refused', authority: { type: 'signed_rule', clause: 3 } }))).toBe('Refused · PayPal never asked');
     expect(decidedLine(step({ at: 1, kind: 'countersigned', authority: { type: 'owner' } }))).toBe('You · no PayPal call');
   });
+  it('says an ending at the deadline before PayPal showed what happened, and tells what to do', () => {
+    for (const kind of ['expired', 'lapsed'] as const) {
+      expect(stepSentence(step({ at: 1, kind, authority: { type: 'safe_default' } }), { title: 'the dock', unshown: true }))
+        .toBe('the dock ended at its deadline before PayPal showed what happened to its payment. Look at the payment in PayPal.');
+    }
+    expect(stepSentence(step({ at: 1, kind: 'expired' }), { title: 'the dock' })).toBe('The deadline passed on the dock. No money moved.');
+  });
+  it('endedBeforePayPalShowed: a check still open at a deadline ending', () => {
+    const d = 'deal-unshown';
+    const s = (o: Partial<HistoryStep> & { at: number; kind: HistoryKind }) => step({ deal_id: d, ...o });
+    const checking = s({ at: 10, kind: 'checking_with_paypal' });
+    const expired = s({ at: 40, kind: 'expired' });
+    const lapsed = s({ at: 40, kind: 'lapsed' });
+    expect(endedBeforePayPalShowed([checking, expired], expired)).toBe(true);
+    expect(endedBeforePayPalShowed([s({ at: 5, kind: 'authorized', paypal: call('authorize', 'unknown') }), lapsed], lapsed)).toBe(true);
+    expect(endedBeforePayPalShowed([checking, s({ at: 20, kind: 'captured', paypal: call('capture') }), expired], expired)).toBe(false);
+    expect(endedBeforePayPalShowed([checking, s({ at: 20, kind: 'authorized', paypal: call('authorize', 'failed') }), expired], expired)).toBe(false);
+    expect(endedBeforePayPalShowed([expired], expired)).toBe(false);
+    expect(endedBeforePayPalShowed([checking, expired], checking)).toBe(false); // not an ending
+    // Another deal's check does not count.
+    expect(endedBeforePayPalShowed([step({ deal_id: 'other', at: 10, kind: 'checking_with_paypal' }), expired], expired)).toBe(false);
+  });
   it('never names a clause number, an internal word or an id, for every kind and authority', () => {
     const kinds: HistoryKind[] = ['created', 'offer_sent', 'offer_received', 'accept_sent', 'accept_received', 'owner_accepted', 'agreed', 'proposed', 'countersigned',
       'pay_link_sent', 'pay_link_received', 'approval_notice', 'order_created', 'approved_by_buyer', 'authorized', 'captured', 'voided', 'auto_voided', 'receipt_sent',
@@ -108,8 +130,8 @@ describe('narration: plain words, never machinery', () => {
       'intent_refused', 'shield_held', 'hold_released', 'mismatch', 'failed', 'refunded', 'disputed', 'other'];
     const auths: HistoryAuthority[] = [{ type: 'owner' }, { type: 'signed_rule', clause: 6 }, { type: 'signed_rule', clause: null }, { type: 'seller_mandate' },
       { type: 'house_mandate' }, { type: 'safe_default' }, { type: 'agent_intent' }, { type: 'none' }];
-    for (const kind of kinds) for (const authority of auths) for (const side of ['buyer', 'seller'] as const) {
-      const text = stepSentence(step({ at: 1, kind, authority, paypal: call('capture') }), { title: 'X', side });
+    for (const kind of kinds) for (const authority of auths) for (const side of ['buyer', 'seller'] as const) for (const unshown of [false, true]) {
+      const text = stepSentence(step({ at: 1, kind, authority, paypal: call('capture') }), { title: 'X', side, unshown });
       expect(text, `${kind} ${authority.type}`).not.toMatch(/clause|mandate|_|capture|authoriz|\bvoid|envelope|\d|undefined|null/i);
       expect(text.trim().endsWith('.'), text).toBe(true);
     }

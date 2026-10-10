@@ -1,19 +1,22 @@
 // "What you were shown": a quiet one-line strip on a deal its deadline ended, saying what the owner
 // was offered before the safe default ran (shown, notified or why not, opened) and that no money
-// moved. Read-only, from the same verified record as "Who decided"; nothing shows on any other deal.
+// moved (or, when a payment was still being checked, that PayPal never showed what happened).
+// Read-only, from the same verified record as "Who decided"; nothing shows on any other deal.
 import type { Deal } from '@bindings/Deal';
 import { nowUnix } from '../../../lib/format';
 import { useQuery } from '../../../lib/hooks';
 import { SHOWN_TITLE } from '../../../lib/words';
 import { Hourglass } from '../../../shared/ui';
+import { endedBeforePayPalShowed } from '../logic';
 import { shownParts, shownStep } from './shown';
 import './whatYouWereShown.css';
 
 export function ShownStrip({ deal }: { deal: Deal }) {
   const q = useQuery('deal_history', { deal_id: deal.id }, { refreshOn: ['deal:changed', 'receipt:created'] });
-  const step = shownStep(q.data?.steps ?? []);
+  const all = q.data?.steps ?? [];
+  const step = shownStep(all);
   if (!step) return null;
-  const parts = shownParts(step, nowUnix());
+  const parts = shownParts(step, nowUnix(), endedBeforePayPalShowed(all, step));
   return (
     <p className="dv-shown">
       <Hourglass />
