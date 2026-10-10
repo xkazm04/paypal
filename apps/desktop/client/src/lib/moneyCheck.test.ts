@@ -110,7 +110,8 @@ describe('a deal that ended before PayPal showed what happened to its payment', 
     const item = { ...parked.attention!, deadline: null, headline: 'Look at $118.00 in PayPal', on_silence: MONEY_CHECK_ENDED_SILENCE, money_check: check };
     const [, silence] = cardWhy(item);
     expect(silenceWords(item.on_silence)).toBe(MONEY_CHECK_ENDED_SILENCE);
-    expect(silence).toBe(`If you do nothing, ${MONEY_CHECK_ENDED_SILENCE}.`);
+    expect(silence).toBe(`${MONEY_CHECK_ENDED_SILENCE.charAt(0).toUpperCase()}${MONEY_CHECK_ENDED_SILENCE.slice(1)}.`);
+    expect(silence).not.toMatch(/^If you do nothing/);
     expect(MONEY_CHECK_ENDED_SILENCE).toMatch(/look at this payment in PayPal/);
     expect(MONEY_CHECK_ENDED_SILENCE).not.toMatch(/at the deadline|asks PayPal/);
   });

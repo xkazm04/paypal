@@ -276,7 +276,10 @@ export function ringFill(deadline: number | null, now: number): number | null {
  *  (W4), no number that is not already on the card, no prediction. */
 export function cardWhy(item: Pick<AttentionItem, 'kind' | 'clause' | 'on_silence' | 'money_check' | 'shield_rule'>): [string, string] {
   const rule = clauseText(item.clause);
-  if (moneyCheckEnded(item)) return [MONEY_CHECK_ENDED, 'The deal has ended and the wallet sends nothing more.'];
+  if (moneyCheckEnded(item)) {
+    const ended = silenceWords(item.on_silence).trim().replace(/[.,\s]+$/, '');
+    return [MONEY_CHECK_ENDED, `${ended.charAt(0).toUpperCase()}${ended.slice(1)}.`];
+  }
   if (item.money_check) {
     const silence = silenceWords(item.on_silence).trim().replace(/[.,\s]+$/, '');
     return [moneyCheckWord(item.money_check).means, `If you do nothing, ${silence}.`];
