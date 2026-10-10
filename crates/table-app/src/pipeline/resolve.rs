@@ -26,6 +26,11 @@ pub(crate) const REQUEST_ID_KEPT_SECS: i64 = 6 * 3600;
 /// started: PayPal may still be committing it, and a read that races the commit sees the old
 /// state. A reservation left `pending` by a stopped call has no such wait.
 pub const SETTLE_SECS: i64 = 5;
+/// The least time between two deadline read-backs of one parked capture or void. A parked
+/// step's outcome can change only on PayPal's side, and one read an hour keeps the deadline's
+/// read-back from asking PayPal every second. The time is kept in memory (`Pipeline`), so a
+/// restart reads at once.
+pub const PARKED_READ_SECS: i64 = 3600;
 
 /// Why the resolver runs, which decides what it may send again.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,7 +97,10 @@ impl Pipeline {
     /// within [`SETTLE_SECS`]. Parked ones wait for the owner, except a parked authorize,
     /// capture or void once the deal's deadline passed: it is read back under
     /// [`Resolve::Deadline`], which grants nothing, so the safe default can settle it by what
-    /// PayPal shows. `Ok(true)` when nothing is left open, so the deal's next step may run.
+    /// PayPal shows. A parked capture or void is read back at most once per
+    /// [`PARKED_READ_SECS`] (a parked authorize on every tick); one skipped for that is passed
+    /// over like any parked step. `Ok(true)` when nothing is left open, so the deal's next step
+    /// may run.
     pub async fn resolve_deal(
         &mut self,
         id: DealId,
@@ -108,6 +116,17 @@ impl Pipeline {
             }
             if !op.pending && now < op.started_at.saturating_add(SETTLE_SECS) {
                 break;
+            }
+            if op.needs_owner && matches!(op.operation, "capture" | "void") {
+                let recent = self
+                    .parked_read
+                    .get(&op.request_id)
+                    .is_some_and(|last| now < last.saturating_add(PARKED_READ_SECS));
+                if recent {
+                    continue;
+                }
+                // Recorded before the read, so a read that fails is throttled too.
+                self.parked_read.insert(op.request_id.clone(), now);
             }
             self.resolve_one(&op, mode, now).await?;
         }
