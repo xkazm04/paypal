@@ -49,9 +49,11 @@ export const shortTitle = (t: string): string => t.replace(/^Refurbished /, '').
 
 /** What is on hold at PayPal (AUTHORIZED), per direction and currency: the same figures as Book's
  *  "On hold" tile. Money going out and coming in are never added together, and a payment a scam
- *  check paused is not on hold at PayPal (nothing was sent): it shows under Needs you instead. */
-export function heldAtPayPal(held: readonly Deal[]): { deals: Deal[]; out: Money[]; inn: Money[] } {
-  const deals = held.filter((d) => d.state === 'AUTHORIZED');
+ *  check paused is not on hold at PayPal (nothing was sent): it shows under Needs you instead. A
+ *  payment being checked with PayPal (`checking` holds its deal ids) is not counted as on hold
+ *  either: it shows under Needs you with the check's words. */
+export function heldAtPayPal(held: readonly Deal[], checking: ReadonlySet<string> = new Set()): { deals: Deal[]; out: Money[]; inn: Money[] } {
+  const deals = held.filter((d) => d.state === 'AUTHORIZED' && !checking.has(d.id));
   return {
     deals,
     out: sumByCurrency(deals.filter((d) => d.side === 'buyer').map(dealTotal)),
