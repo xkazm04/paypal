@@ -22,6 +22,11 @@ use table_core::{
 /// recorded as paid, and a hold PayPal shows keeps its own deadline (a seller's sale delivered at
 /// once is collected under the seller's rules first). No release is promised here.
 pub const MONEY_CHECK_SILENCE: &str = "at the deadline the wallet asks PayPal what happened, and what PayPal shows decides: a payment PayPal already took stays paid";
+/// The card's line once the deal ended with a money step PayPal never showed in a form a check
+/// accepts (`Ledger::end_unread_authorize`, or an order that lapsed unread): nothing more is
+/// sent, and the owner looks at the payment in PayPal. The client keeps a byte-identical copy.
+pub const MONEY_CHECK_ENDED_SILENCE: &str =
+    "the deal has ended and the wallet sends nothing more: look at this payment in PayPal";
 /// A rescue fix waiting for the owner: nothing is sent, and PayPal retries the payment itself.
 pub const RESCUE_SILENCE: &str = "nothing is sent · PayPal retries the payment by itself";
 /// A rescue invoice with the subscriber: it stays open; nothing is collected by the wallet.
@@ -271,20 +276,33 @@ impl AttentionSource {
     }
     /// A deal whose money step is being checked with PayPal: a HOLD with no decision on it and
     /// no way to walk away, because the deal stays reserved until PayPal's record settles it.
+    /// A deal that ended with the step still unsettled keeps the HOLD, with no clock: the wallet
+    /// stopped asking and sends nothing more, and the owner looks at the payment in PayPal.
     fn checking_item(&self, check: MoneyCheck, now: Timestamp) -> AttentionItem {
+        let ended = self.state.terminal();
+        let deadline = self.deadline.filter(|_| !ended);
         AttentionItem {
             deal_id: self.deal_id,
             label: format!("D-{:04}", self.display_number),
             kind: AttnKind::Hold,
             module: self.module,
-            headline: format!("Checking with PayPal {}", self.amount),
+            headline: if ended {
+                format!("Look at {} in PayPal", self.amount)
+            } else {
+                format!("Checking with PayPal {}", self.amount)
+            },
             amount_minor: self.amount.minor(),
             currency: self.amount.currency(),
             counterparty: self.pairing_display_name.clone(),
             clause: None,
-            deadline: self.deadline,
-            on_silence: MONEY_CHECK_SILENCE.to_owned(),
-            urgency: urgency(self.deadline, now),
+            deadline,
+            on_silence: if ended {
+                MONEY_CHECK_ENDED_SILENCE
+            } else {
+                MONEY_CHECK_SILENCE
+            }
+            .to_owned(),
+            urgency: urgency(deadline, now),
             mode: self.mode,
             actions: vec![TumblerAction::OpenInTable],
             money_check: Some(check),
@@ -480,6 +498,29 @@ mod tests {
                 let fx = ladder.evaluate(&item, 0, false, false);
                 assert!(fx.show_without_activation && fx.tray_dot && !fx.notify);
             }
+        }
+    }
+    #[test]
+    fn a_deal_that_ended_with_its_money_step_unsettled_says_to_look_in_paypal_with_no_clock() {
+        let mut s = source(1, 8000);
+        s.state = DealState::Expired;
+        s.money_check = Some(MoneyCheck {
+            step: table_core::MoneyCheckStep::Authorize,
+            state: table_core::MoneyCheckState::Parked,
+            since: 0,
+            next_check: None,
+        });
+        let item = s.item(9000);
+        assert_eq!(item.kind, AttnKind::Hold);
+        assert_eq!(item.actions, vec![TumblerAction::OpenInTable]);
+        assert!(item.headline.starts_with("Look at "));
+        assert!(item.headline.ends_with(" in PayPal"));
+        assert_eq!(item.on_silence, MONEY_CHECK_ENDED_SILENCE);
+        assert_eq!(item.deadline, None);
+        assert_eq!(item.urgency, Urgency::Calm);
+        assert_eq!(item.money_check, s.money_check);
+        for words in [item.on_silence.as_str(), item.headline.as_str()] {
+            assert!(!words.contains("asks PayPal") && !words.contains("Checking"));
         }
     }
     #[test]

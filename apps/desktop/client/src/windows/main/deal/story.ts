@@ -9,7 +9,7 @@ import type { MoneyCheck } from '@bindings/MoneyCheck';
 import type { RescueOffer } from '@bindings/RescueOffer';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { formatMoney } from '../../../lib/format';
-import { headlineWords, houseWords, MONEY_CHECK_PARKED, marketWords, percentWords, moneyCheckStep, ruleNameOf, shieldRuleWord, sellerSaysOnly, stateWord } from '../../../lib/words';
+import { headlineWords, houseWords, MONEY_CHECK_ENDED, MONEY_CHECK_PARKED, marketWords, percentWords, moneyCheckStep, ruleNameOf, shieldRuleWord, sellerSaysOnly, stateWord } from '../../../lib/words';
 import { dealTotal, decidedBy, isTerminal } from '../logic';
 import { latestText, timelineRows, type ClauseReading, type Reading, type TimelineRow } from './model';
 
@@ -56,6 +56,11 @@ export function dealAnswer(d: AnswerDeal, c: AnswerCtx): DealAnswer {
     return d.shield === 'BLOCK'
       ? { tone: 'alert', title: 'A scam check stopped this for good. Nothing was sent to PayPal.', sub: d.shield_rule ? `${shieldRuleWord(d.shield_rule).means} ${CLOSED}` : CLOSED }
       : { tone: 'alert', title: 'Your rules refused this before PayPal was asked. Nothing moved.', sub: who.who === 'none' ? CLOSED : `Refused by ${who.text}. ${CLOSED}` };
+  }
+  // Ended with a step PayPal never showed (a hold read back in no form the wallet accepts, or an
+  // order that lapsed unread): say so before any "no money moved", which the wallet cannot know.
+  if (isTerminal(d) && c.check) {
+    return { tone: 'need', title: MONEY_CHECK_ENDED, sub: `PayPal’s answer about ${moneyCheckStep(c.check.step)} for ${amt} never came in a form the wallet could read. ${CLOSED}` };
   }
   if (d.state === 'DISPUTED') return { tone: 'alert', title: 'There is an open dispute at PayPal.', sub: CLOSED };
   if (d.state === 'UNCONFIRMED') return { tone: 'alert', title: w.means, sub: CLOSED };

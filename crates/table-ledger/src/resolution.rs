@@ -2,14 +2,19 @@
 //! them. The `operations` row a reservation wrote is never rewritten (migration 0008).
 use crate::{
     AuditEntry, Ledger, LedgerError, PaypalCall, audit,
-    repositories::{apply, insert_calls},
+    repositories::{apply, apply_decided, insert_calls, read_deal},
 };
 use rusqlite::{OptionalExtension, TransactionBehavior, params};
 use serde_json::{Value, json};
 use table_core::{
-    DealEvent, DealId, DecidedBy, MoneyCheck, MoneyCheckState, MoneyCheckStep, PaypalRefs,
-    Timestamp,
+    DealEvent, DealId, DealState, DecidedBy, MoneyCheck, MoneyCheckState, MoneyCheckStep,
+    PaypalRefs, Timestamp,
 };
+
+/// How long after an authorize was first sent the deadline keeps reading back a record no check
+/// accepts: the 72 h a confirmed hold is re-armed to (the honor period `confirm_authorization`
+/// counts from the first attempt). At this bound the deal ends (`end_unread_authorize`).
+pub const UNREAD_AUTHORIZE_SECS: i64 = 72 * 3600;
 
 /// What one resolution step found. `Confirmed` and `Absent` close the operation; `NeedsOwner`
 /// parks it until the owner decides; `Resent` and `Deferred` leave it open.
@@ -226,6 +231,64 @@ impl Ledger {
                 deal_id: Some(id),
                 detail: json!({"operation":operation,"request_id":request_id,"observed":observed,"outcome":outcome.as_str(),"confirmed":event.is_some(),"decided_by":serde_json::from_str::<Value>(&authority)?}),
             },
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+    /// The end of a parked authorize whose deadline read still shows a record no check accepts
+    /// [`UNREAD_AUTHORIZE_SECS`] after it was first sent: the deal, still APPROVED and past its
+    /// deadline, takes its deadline's safe default (EXPIRED) and `calls`, the read that found it,
+    /// are kept. Nothing is sent: the hold, if PayPal placed one, has no authorization id the
+    /// wallet verified, so it is neither voided nor captured. The operation stays parked, which
+    /// is how the owner keeps seeing that PayPal never showed what happened. Anything else is
+    /// refused (`Conflict`), so `apply_deadline_default`'s refusal over an open authorize holds
+    /// for every other case.
+    pub fn end_unread_authorize(
+        &mut self,
+        id: DealId,
+        request_id: &str,
+        calls: &[PaypalCall],
+        at: Timestamp,
+    ) -> Result<(), LedgerError> {
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let parked: Option<Timestamp> = tx
+            .query_row(
+                "SELECT o.started_at FROM operations o
+                 WHERE o.request_id=?1 AND o.deal_id=?2 AND o.operation='authorize' AND o.status IN ('pending','unknown')
+                 AND EXISTS(SELECT 1 FROM operation_resolutions r WHERE r.request_id=o.request_id AND r.outcome='needs_owner')
+                 AND NOT EXISTS(SELECT 1 FROM operation_resolutions r WHERE r.request_id=o.request_id AND r.outcome IN ('confirmed','absent'))",
+                params![request_id, id.to_string()],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let Some(started) = parked else {
+            return Err(LedgerError::Conflict);
+        };
+        let due: Option<Timestamp> = tx
+            .query_row(
+                "SELECT due_at FROM deadlines WHERE deal_id=?1",
+                [id.to_string()],
+                |r| r.get(0),
+            )
+            .optional()?;
+        let Some(due) = due else {
+            return Err(LedgerError::Conflict);
+        };
+        if at < started.saturating_add(UNREAD_AUTHORIZE_SECS)
+            || due > at
+            || read_deal(&tx, id)?.state != DealState::Approved
+        {
+            return Err(LedgerError::Conflict);
+        }
+        insert_calls(&tx, id, calls, at)?;
+        apply_decided(
+            &tx,
+            id,
+            DealEvent::Deadline,
+            Some(&DecidedBy::SafeDefault { deadline: due }),
+            at,
         )?;
         tx.commit()?;
         Ok(())

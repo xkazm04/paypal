@@ -240,7 +240,7 @@ pub(crate) fn apply(
 }
 /// A transition that is itself a decision records its authority on the deal row and in the same
 /// audit entry, so `Deal::decided_by` is exactly what the hash chain says.
-fn apply_decided(
+pub(crate) fn apply_decided(
     conn: &Connection,
     id: DealId,
     event: DealEvent,

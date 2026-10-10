@@ -548,6 +548,10 @@ export function moneyCheckWord(c: MoneyCheck): { text: string; means: string } {
 }
 /** The card's "if you do nothing" line while PayPal is being asked (the same words Rust sends). */
 export const MONEY_CHECK_SILENCE = 'at the deadline the wallet asks PayPal what happened, and what PayPal shows decides: a payment PayPal already took stays paid';
+/** The card's line once the deal ended before PayPal showed what happened (the same words Rust sends). */
+export const MONEY_CHECK_ENDED_SILENCE = 'the deal has ended and the wallet sends nothing more: look at this payment in PayPal';
+/** The deal page's answer for that end: what PayPal could not show, and what to do. */
+export const MONEY_CHECK_ENDED = 'PayPal never showed what happened to this payment, so the wallet stopped asking and the deal ended. Look at the payment in PayPal: the wallet sends nothing more.';
 
 // ---- wallet limits (T14): one cap above every set of rules ------------------------------------------
 

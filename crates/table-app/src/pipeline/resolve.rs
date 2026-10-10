@@ -10,7 +10,9 @@
 use super::{Authority, MoneyStep, Pipeline, shield_allows};
 use crate::Error;
 use table_core::*;
-use table_ledger::{LedgerError, OpenOperation, Resolution, ResolutionOutcome as Outcome};
+use table_ledger::{
+    LedgerError, OpenOperation, Resolution, ResolutionOutcome as Outcome, UNREAD_AUTHORIZE_SECS,
+};
 use table_paypal::{Observation, OrderStatus, RequestId, ResourceId};
 
 /// A reservation still `pending` this long after it started has no live call: the longest one
@@ -388,6 +390,25 @@ impl Pipeline {
                 .is_ok()
             && r.value.purchase_units[0].payments.authorizations.is_empty();
         if !untouched {
+            // Read at the deadline UNREAD_AUTHORIZE_SECS after the first attempt and still no
+            // record a check accepts: the deal ends on its deadline's safe default and nothing is
+            // sent (no authorization id was verified to void). The step stays parked for the
+            // owner, who looks at the payment in PayPal.
+            if self.deadline_passed(deal.id, mode, now)?
+                && now >= op.started_at.saturating_add(UNREAD_AUTHORIZE_SECS)
+            {
+                // A first park keeps this read with its row; a step parked earlier keeps it here.
+                let calls = if op.needs_owner {
+                    self.calls(deal.id, &r.observations, now)?
+                } else {
+                    self.park(deal, op, status, &r.observations, now)?;
+                    Vec::new()
+                };
+                self.wallet
+                    .ledger
+                    .end_unread_authorize(deal.id, &op.request_id, &calls, now)?;
+                return Ok(());
+            }
             return self.park(deal, op, status, &r.observations, now);
         }
         if mode == Resolve::Deadline {

@@ -2422,3 +2422,149 @@ async fn deadline_waits_for_an_unsettled_authorize_before_expiring() {
     assert_eq!(api.calls("/void"), 0);
     assert_one_request_id_per_operation(&p, &api, deal.id, "parked authorize, unreadable");
 }
+
+/// Deal-to-settlement robustness-4 (r3): a parked authorize whose deadline read shows a record
+/// no check accepts (here an authorization in a status the wallet does not know) has an end. Each
+/// tick before UNREAD_AUTHORIZE_SECS after the first attempt still waits (`Unavailable`) and
+/// writes nothing; at the bound the deal takes its deadline's safe default (EXPIRED) and the
+/// step stays parked so the owner keeps seeing it. No authorize, capture or void is sent or
+/// recorded, before or after, and the ledger still refuses to expire the deal any sooner.
+#[tokio::test]
+async fn a_parked_authorize_paypal_never_shows_readably_ends_at_its_bound_and_sends_nothing() {
+    for parked_before in [true, false] {
+        let case = format!("parked before the deadline: {parked_before}");
+        let api = LossyApi::losing("authorize", Loss::Before);
+        let (mut p, deal, sent) = if parked_before {
+            // The owner's authorize: a lost answer is parked (no ticket is reused).
+            let (mut p, deal, token) = owner_approved_on(&api).await;
+            let t = owner_ticket(&mut p, &deal, &token);
+            assert!(
+                p.authorize(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+                    .await
+                    .is_err(),
+                "{case}"
+            );
+            assert!(
+                !p.resolve_deal(deal.id, Resolve::Advance(Category::Parts), 110)
+                    .await
+                    .unwrap(),
+                "{case}"
+            );
+            assert_eq!(outcomes_of(&p, deal.id, "authorize"), ["needs_owner"]);
+            (p, deal, 100)
+        } else {
+            // The seller's own authorize, sent just before the deadline and first read at the
+            // bound.
+            let (_, seller, deal) = agreed();
+            let mut p = Pipeline::new(seller, api.clone(), 100).unwrap();
+            p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+                .await
+                .unwrap();
+            api.approve();
+            assert!(p.poll_approval(deal.id, 1, 100).await.unwrap(), "{case}");
+            let sent = 100 + ORDER_APPROVAL_SECS - 2;
+            assert!(
+                p.authorize(deal.id, 1, Category::Parts, Authority::SellerMandate, sent)
+                    .await
+                    .is_err(),
+                "{case}"
+            );
+            assert!(outcomes_of(&p, deal.id, "authorize").is_empty(), "{case}");
+            (p, deal, sent)
+        };
+        // PayPal now shows the order with an authorization no check accepts.
+        api.truth.lock().unwrap().authorization = Some("PENDING");
+        let due = 100 + ORDER_APPROVAL_SECS;
+        let bound = sent + UNREAD_AUTHORIZE_SECS;
+        let posts = |api: &LossyApi| {
+            let truth = api.truth.lock().unwrap();
+            truth.calls.iter().filter(|c| c.starts_with("POST")).count()
+        };
+        let money_rows = |p: &Pipeline| {
+            p.wallet
+                .ledger
+                .paypal_call_requests(deal.id)
+                .unwrap()
+                .into_iter()
+                .filter(|(_, path, _)| {
+                    path.ends_with("/authorize")
+                        || path.ends_with("/capture")
+                        || path.ends_with("/void")
+                })
+                .count()
+        };
+        let sent_before = posts(&api);
+        let authorize = RequestId::for_operation(deal.id, 1, "authorize").unwrap();
+        if parked_before {
+            // Ticks past the deadline and before the bound: read, still waiting, nothing written.
+            let calls = p.wallet.ledger.paypal_call_requests(deal.id).unwrap().len();
+            let head = p.wallet.ledger.audit_page(None, u16::MAX).unwrap().0.len();
+            for at in [due, due + 1, bound - 1] {
+                assert!(
+                    matches!(p.tick(at).await, Err(table_app::Error::Unavailable)),
+                    "{case} at {at}"
+                );
+                assert_eq!(
+                    p.wallet.ledger.get_deal(deal.id).unwrap().state,
+                    DealState::Approved,
+                    "{case} at {at}"
+                );
+            }
+            assert!(
+                api.calls("GET /v2/checkout/orders/ORDER1") >= 3,
+                "{case}: read each tick"
+            );
+            assert_eq!(
+                p.wallet.ledger.paypal_call_requests(deal.id).unwrap().len(),
+                calls,
+                "{case}: a read that finds the same again writes nothing"
+            );
+            assert_eq!(
+                p.wallet.ledger.audit_page(None, u16::MAX).unwrap().0.len(),
+                head,
+                "{case}"
+            );
+            // The ledger refuses to end it, or to expire it, any sooner.
+            assert!(matches!(
+                p.wallet
+                    .ledger
+                    .end_unread_authorize(deal.id, authorize.as_str(), &[], bound - 1),
+                Err(LedgerError::Conflict)
+            ));
+        }
+        assert!(matches!(
+            p.wallet.ledger.apply_deadline_default(deal.id, bound),
+            Err(LedgerError::Conflict)
+        ));
+        // The bound: the deal ends on its deadline's safe default.
+        let reads = p.wallet.ledger.paypal_call_requests(deal.id).unwrap().len();
+        assert_eq!(p.tick(bound).await.unwrap(), vec![deal.id], "{case}");
+        let d = p.wallet.ledger.get_deal(deal.id).unwrap();
+        assert_eq!(d.state, DealState::Expired, "{case}");
+        assert_eq!(
+            d.decided_by,
+            Some(DecidedBy::SafeDefault { deadline: due }),
+            "{case}"
+        );
+        // The read that found it is kept; the step stays parked for the owner.
+        assert_eq!(
+            p.wallet.ledger.paypal_call_requests(deal.id).unwrap().len(),
+            reads + 1,
+            "{case}"
+        );
+        assert_eq!(outcomes_of(&p, deal.id, "authorize"), ["needs_owner"]);
+        let check = p.wallet.ledger.money_check(deal.id).unwrap().unwrap();
+        assert_eq!(check.step, MoneyCheckStep::Authorize, "{case}");
+        assert_eq!(check.state, MoneyCheckState::Parked, "{case}");
+        // It stops answering on every tick, and nothing was ever sent or recorded.
+        assert!(p.tick(bound + 1).await.unwrap().is_empty(), "{case}");
+        assert!(p.tick(bound + 3600).await.unwrap().is_empty(), "{case}");
+        assert_eq!(posts(&api), sent_before, "{case}: no PayPal write");
+        assert_eq!(api.calls("/authorize"), 0, "{case}");
+        assert_eq!(api.calls("/capture"), 0, "{case}");
+        assert_eq!(api.calls("/void"), 0, "{case}");
+        assert_eq!(money_rows(&p), 0, "{case}: no money call recorded");
+        assert!(api.commits().keys().all(|r| r != authorize.as_str()));
+        p.wallet.ledger.verify_audit().unwrap();
+    }
+}
