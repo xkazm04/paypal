@@ -1,8 +1,7 @@
 # HOUSE deployment
 
 The root `render.yaml` and `Dockerfile` run **one co-hosted house-seller + rendezvous**
-process. The old files under `services/rendezvous/` are compatibility entry points.
-Use one Blueprint, not both. Auto-deploy is off. No deployment, container build,
+process. Auto-deploy is off. No deployment, container build,
 secret provisioning or live PayPal request was performed in this session.
 
 The seller uses a paid single instance with a persistent SQLite disk. Only paths
@@ -26,6 +25,7 @@ financial ledger would lose durable operation reservations. See Render's
 | HOUSE_PAYPAL_CLIENT_SECRET | Server runtime | Matching sandbox REST app secret. |
 | HOUSE_LEDGER_PATH | Server runtime | SQLite path under the persistent disk mount configured in the Blueprint. |
 | PORT | Server runtime, supplied by Render | Listener port. |
+| RELAY_TRUSTED_PROXY_HOPS | Server runtime; plain value `1` in the root Blueprint | Reverse proxies in front of the server. Unset or `0`: each relay caller is keyed on the TCP peer and `X-Forwarded-For` is ignored. `n`: keyed on the `n`th `X-Forwarded-For` entry from the right. Anything but a whole number from 0 to 8 stops startup. The key counts each caller's mailbox creates (128 live per IPv4 address or IPv6 /64; 64 of the 256 slots are kept for the HOUSE). UNVERIFIED: that Render runs one proxy hop that appends the client address as the rightmost entry. |
 | TABLE_RELAY_URL | Desktop process runtime | Deployment HTTPS origin, without a path, credentials, query or fragment. |
 
 No values belong in source control, `.env` files, fixtures or console transcripts.
