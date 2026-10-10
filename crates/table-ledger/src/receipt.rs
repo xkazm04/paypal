@@ -3,7 +3,7 @@ use crate::{
     AuditEntry, Direction, Ledger, LedgerError, audit,
     repositories::{append_verified, apply, read_deal},
 };
-use rusqlite::{Connection, TransactionBehavior, params};
+use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use table_core::*;
 use table_proto::{Body, ReceiptStatus, VerifiedEnvelope};
 // Same local identifier policy as table-paypal::ResourceId. Peer prose must not
@@ -143,6 +143,47 @@ impl Ledger {
             || *amount != deal.terms.amount()?
             || *transcript_head != e.prev
         {
+            return Err(LedgerError::Conflict);
+        }
+        // The seller can only have been paid after the owner opened the PayPal link. A receipt
+        // before that is the seller's word alone: refused, with one row per distinct receipt so
+        // the owner sees it, and nothing else changes. The deal keeps its approval countdown and
+        // lapses by its own safe default.
+        let handed_off: bool = tx
+            .query_row(
+                "SELECT browser_handoff FROM deal_context WHERE deal_id=?1",
+                [deal.id.to_string()],
+                |r| r.get(0),
+            )
+            .optional()?
+            .unwrap_or(false);
+        if !handed_off {
+            let raw_hash = serde_json::to_value(verified.hash())?;
+            let mut query = tx.prepare(
+                "SELECT detail_json FROM audit_log WHERE deal_id=?1 AND action='receipt.refused'",
+            )?;
+            let seen = query
+                .query_map([deal.id.to_string()], |r| r.get::<_, String>(0))?
+                .collect::<Result<Vec<_>, _>>()?
+                .iter()
+                .any(|text| {
+                    serde_json::from_str::<serde_json::Value>(text)
+                        .is_ok_and(|detail| detail.get("raw_hash") == Some(&raw_hash))
+                });
+            drop(query);
+            if !seen {
+                audit::append(
+                    &tx,
+                    &AuditEntry {
+                        at,
+                        actor: format!("peer:{}", e.iss),
+                        action: "receipt.refused".into(),
+                        deal_id: Some(deal.id),
+                        detail: serde_json::json!({"raw_hash":raw_hash,"reason":"no_handoff"}),
+                    },
+                )?;
+                tx.commit()?;
+            }
             return Err(LedgerError::Conflict);
         }
         append_verified(&tx, verified, Direction::Inbound, at)?;

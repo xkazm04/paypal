@@ -24,7 +24,7 @@ import type { HistoryAuthority } from '@bindings/HistoryAuthority';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import type { PaypalMethod } from '@bindings/PaypalMethod';
 import { formatMinor } from '../../lib/format';
-import { refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, sellerSaysOnly, stateWord } from '../../lib/words';
+import { receiptRefusedSentence, refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, sellerSaysOnly, stateWord } from '../../lib/words';
 
 export const MODULE_KEYS: readonly Module[] = ['tables', 'spend', 'counter', 'book', 'shield', 'rescue'];
 export const moduleIndex = (m: Module): number => MODULE_KEYS.indexOf(m);
@@ -584,6 +584,7 @@ export function stepSentence(s: HistoryStep, ctx: { title: string; side?: Side }
     case 'voided': return `${by('The wallet')} released the hold on ${x}. Nothing was paid.${tail}`;
     case 'auto_voided': return `The hold on ${x} ran out and released itself. Nothing was paid.${tail}`;
     case 'receipt_sent': case 'receipt_received': case 'receipted': return `The receipt for ${x} was saved.`;
+    case 'receipt_refused': return receiptRefusedSentence(x);
     case 'reporting_checked': return `${x} was checked against PayPal’s statement.`;
     case 'reconciled': return `${x} is on PayPal’s statement.`;
     case 'withdraw_sent': return `Your side walked away from ${x}. No money moved.`;

@@ -54,6 +54,11 @@ const STATE: Record<DealState, Word> = {
 /** What the seller's receipt is worth to the buyer's wallet until PayPal's own statement matches it. */
 export const SELLER_SAYS_PAID = 'The seller says the payment went through. Your wallet has not checked it with PayPal yet.';
 
+/** A seller's receipt that came before the owner opened the PayPal link: the wallet refused it and
+ *  nothing changed on the deal (history step `receipt_refused`). `x` is the deal's short title. */
+export const receiptRefusedSentence = (x: string): string =>
+  `The seller said ${x} was paid before you opened the PayPal link, so your wallet did not accept it. No money moved.`;
+
 /** A deal state in Maya's words. `side` / `kind` adjust the few states that read differently. */
 export function stateWord(state: DealState, ctx: { side?: Side; kind?: DealKind } = {}): Word {
   if (state === 'AWAITING_APPROVAL' && ctx.side === 'seller' && ctx.kind !== 'rescue') {

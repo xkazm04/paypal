@@ -327,6 +327,62 @@ async fn state(actor: &ActorHandle, id: DealId, expected: DealState) -> Deal {
     .unwrap()
 }
 
+/// The buyer's owner opens the PayPal link in the approval window (Decision::OpenBrowser) as
+/// soon as the deal waits for approval; only then does the seller's mock PayPal see the buyer's
+/// approval. That is the real order of events, and a seller receipt before it is refused.
+pub(crate) async fn open_paypal(
+    actor: &ActorHandle,
+    token: &str,
+    id: DealId,
+    paypal: &crate::tests::OfflineHttp,
+) {
+    state(actor, id, DealState::AwaitingApproval).await;
+    actor
+        .execute::<()>(caller("main", None), Action::Select(Some(id)))
+        .await
+        .unwrap();
+    let summary: ApprovalSummary = actor
+        .execute(caller("approval", None), Action::Summary(id))
+        .await
+        .unwrap();
+    let url: String = actor
+        .execute(
+            caller("approval", Some(token)),
+            Action::Decision(
+                DecisionArgs {
+                    deal_id: id,
+                    attempt: summary.attempt,
+                    terms_hash: summary.terms_hash,
+                    counter_hash: summary.counter_hash,
+                    checks_hash: Some(summary.checks_hash),
+                },
+                Decision::OpenBrowser,
+            ),
+        )
+        .await
+        .unwrap();
+    assert!(url.starts_with("https://www.sandbox.paypal.com/"));
+    paypal.0.lock().unwrap().awaiting_payer = false;
+}
+
+/// [`open_paypal`] on a runtime a test drives by hand: the owner's OpenBrowser decision, now.
+pub(crate) async fn open_paypal_now(buyer: &mut Runtime, id: DealId) {
+    let token = crate::tests::unlock_runtime(buyer);
+    buyer.selected = Some(id);
+    let args = crate::tests::decision(buyer, id);
+    let url: String = serde_json::from_value(
+        buyer
+            .execute(
+                caller("approval", Some(&token)),
+                Action::Decision(args, Decision::OpenBrowser),
+            )
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert!(url.starts_with("https://www.sandbox.paypal.com/"));
+}
+
 type HostedFixture = (
     house_seller::Seller,
     table_proto::HouseRelease,
@@ -776,6 +832,7 @@ async fn house_no_capture_without_verified_approval_deadline_expires_and_authori
 #[tokio::test]
 async fn h6_fresh_wallet_pairs_house_and_closes_through_in_process_relay_with_mock_paypal() {
     let (seller, release, house_http, _, store) = hosted_fixture();
+    house_http.0.lock().unwrap().awaiting_payer = true;
     let house = house_seller::spawn(seller);
     let router = house_seller::router(store, house.clone());
     let (mut buyer, _, buyer_http, _, _) = runtime(true);
@@ -938,6 +995,7 @@ async fn h6_fresh_wallet_pairs_house_and_closes_through_in_process_relay_with_mo
         )
         .await
         .unwrap();
+    open_paypal(&actor, &token, id, &house_http).await;
     let closed = state(&actor, id, DealState::Receipted).await;
     let seller_closed = house.snapshot(id).await.unwrap();
     assert_eq!(closed.transcript_head, seller_closed.transcript_head);
@@ -986,8 +1044,9 @@ async fn h6_fresh_wallet_pairs_house_and_closes_through_in_process_relay_with_mo
 #[tokio::test]
 async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without_buyer_api_access()
 {
-    let (mut buyer, _, buyer_http, _, _) = runtime(true);
+    let (mut buyer, _, buyer_http, buyer_clock, _) = runtime(true);
     let (mut seller, seller_vault, seller_http, clock, _) = runtime(true);
+    seller_http.0.lock().unwrap().awaiting_payer = true;
     credentials(seller_vault.as_ref());
     let mut mandates = Vec::new();
     let mut loopbacks = Vec::new();
@@ -1020,7 +1079,7 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
         currency: Currency::USD,
         delivery: Delivery::DigitalNow,
     };
-    let store = Arc::new(rendezvous::MemoryStore::new(clock));
+    let store = Arc::new(rendezvous::MemoryStore::new(clock.clone()));
     let relay = Arc::new(InProcessRelay(rendezvous::router(store.clone())));
     let (a, mut a_events) = spawn(buyer.with_relay(relay.clone()));
     let (b, _) = spawn(seller.with_relay(relay));
@@ -1164,6 +1223,12 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
         .await
         .unwrap();
     assert_eq!(opening.mode, Mode::ScriptedEngine);
+    open_paypal(&a, &a_token, id, &seller_http).await;
+    // The seller's wallet reads the order again 10 seconds after its last read; both wallets'
+    // clocks move on together.
+    for c in [&clock, &buyer_clock] {
+        c.0.fetch_add(10, std::sync::atomic::Ordering::SeqCst);
+    }
     let seller_final = state(&b, id, DealState::Receipted).await;
     let buyer_final = state(&a, id, DealState::Receipted).await;
     // Both sides' negotiation came from policy runs, all clean. The price is under the buyer's
@@ -1466,6 +1531,7 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
 #[tokio::test]
 async fn a_shop_around_group_with_house_and_a_desktop_seller_closes_through_the_in_process_relay() {
     let (seller, release, house_http, _, store) = hosted_fixture();
+    house_http.0.lock().unwrap().awaiting_payer = true;
     let house = house_seller::spawn(seller);
     let router = house_seller::router(store, house.clone());
     let (mut buyer, _, buyer_http, _, _) = runtime(true);
@@ -1738,6 +1804,7 @@ async fn a_shop_around_group_with_house_and_a_desktop_seller_closes_through_the_
     let dan_side = state(&d, dan_id, DealState::Withdrawn).await;
     assert_eq!(lost.transcript_head, dan_side.transcript_head);
     // HOUSE's table settles exactly like the single H6 deal.
+    open_paypal(&a, &a_token, house_id, &house_http).await;
     let closed = state(&a, house_id, DealState::Receipted).await;
     let seller_closed = house.snapshot(house_id).await.unwrap();
     assert_eq!(closed.transcript_head, seller_closed.transcript_head);

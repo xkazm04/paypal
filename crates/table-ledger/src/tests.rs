@@ -1303,6 +1303,9 @@ fn receipted_route_stays_polled_and_delivers_what_it_owes() {
 fn seller_receipt_is_atomic_bound_attestation_and_never_a_paypal_call() {
     let (mut ledger, deal, _, own, peer) = setup();
     advance(&mut ledger, deal.id, true);
+    // The owner opened the PayPal link (Decision::OpenBrowser records it).
+    ledger.set_deal_category(deal.id, Category::Parts).unwrap();
+    ledger.handoff(deal.id).unwrap();
     ledger
         .conn
         .execute(
@@ -1360,6 +1363,84 @@ fn seller_receipt_is_atomic_bound_attestation_and_never_a_paypal_call() {
     ledger.verify_audit().unwrap();
 }
 
+/// Counts one action's rows on a deal (receipt.refused, receipt.unconfirmed, ...).
+fn action_rows(ledger: &Ledger, id: DealId, action: &str) -> i64 {
+    ledger
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM audit_log WHERE deal_id=?1 AND action=?2",
+            params![id.to_string(), action],
+            |r| r.get(0),
+        )
+        .unwrap()
+}
+fn receipt_rows(ledger: &Ledger, id: DealId) -> i64 {
+    ledger
+        .conn
+        .query_row(
+            "SELECT COUNT(*) FROM receipts WHERE deal_id=?1",
+            [id.to_string()],
+            |r| r.get(0),
+        )
+        .unwrap()
+}
+#[test]
+fn seller_receipt_without_handoff_is_refused_once_and_changes_nothing() {
+    let (mut ledger, deal, _, own, peer) = setup();
+    advance(&mut ledger, deal.id, true);
+    ledger.set_deal_category(deal.id, Category::Parts).unwrap();
+    ledger
+        .conn
+        .execute(
+            "UPDATE deals SET pp_order_id='ORDER1',attempt=1 WHERE id=?1",
+            [deal.id.to_string()],
+        )
+        .unwrap();
+    let mut e = inbound(&deal, &own, &peer);
+    e.typ = MsgType::Receipt;
+    e.body = Body::Receipt {
+        capture_id: ShortText::new("CAPTURE1".into()).unwrap(),
+        amount: deal.terms.amount().unwrap(),
+        status: ReceiptStatus::Completed,
+        transcript_head: H256::ZERO,
+    };
+    let raw = peer.sign(&e).unwrap();
+    let before = ledger.get_deal(deal.id).unwrap();
+    let due = ledger.deadline(deal.id).unwrap();
+    for _ in 0..2 {
+        let verified = ledger.preview_inbound(deal.id, &raw, 100).unwrap();
+        assert!(matches!(
+            ledger.accept_seller_receipt(&verified, 100),
+            Err(LedgerError::Conflict)
+        ));
+    }
+    // One row per distinct receipt; nothing else moved.
+    assert_eq!(action_rows(&ledger, deal.id, "receipt.refused"), 1);
+    let after = ledger.get_deal(deal.id).unwrap();
+    assert_eq!(after.state, DealState::Approved);
+    assert_eq!(after.paypal.capture, None);
+    assert_eq!(after.transcript_head, before.transcript_head);
+    assert_eq!(ledger.deadline(deal.id).unwrap(), due);
+    let evidence = ledger.deal_evidence(deal.id).unwrap();
+    assert_eq!(evidence.receipt, ReceiptEvidence::None);
+    assert_eq!(evidence.reconciliation, Reconciliation::NotApplicable);
+    assert_eq!(receipt_rows(&ledger, deal.id), 0);
+    assert!(!ledger.contains(&e.iss, &e.nonce).unwrap());
+    assert!(
+        !ledger
+            .has_envelope_hash(deal.id, H256::digest(raw.as_bytes()))
+            .unwrap()
+    );
+    assert_eq!(ledger.paypal_call_count(deal.id).unwrap(), 0);
+    // A different receipt is its own row.
+    e.nonce = [9; 16];
+    let other = ledger
+        .preview_inbound(deal.id, &peer.sign(&e).unwrap(), 100)
+        .unwrap();
+    assert!(ledger.accept_seller_receipt(&other, 100).is_err());
+    assert_eq!(action_rows(&ledger, deal.id, "receipt.refused"), 2);
+    ledger.verify_audit().unwrap();
+}
 #[test]
 fn buyer_receipt_rejects_amount_head_status_state_role_owned_purchase_and_replay() {
     for invalid in 0..9 {
@@ -1513,6 +1594,8 @@ fn buyer_settle_validation_and_commit_are_atomic_and_reporting_mismatch_does_not
     let verified = ledger
         .preview_inbound(deal.id, &peer.sign(&e).unwrap(), 100)
         .unwrap();
+    ledger.set_deal_category(deal.id, Category::Parts).unwrap();
+    ledger.handoff(deal.id).unwrap();
     ledger.accept_seller_receipt(&verified, 100).unwrap();
     assert!(
         ledger

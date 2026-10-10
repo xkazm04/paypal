@@ -886,6 +886,13 @@ impl World {
                 100,
             )
             .unwrap();
+        // The runtime writes each deal's context when it creates it; the owner's handoff of the
+        // PayPal link is recorded there.
+        for id in [HAGGLE, PURCHASE] {
+            ledger
+                .set_deal_category(id.parse().unwrap(), Category::Parts)
+                .unwrap();
+        }
         let buyer = Party::new("buyer", ledger, &buyer_owner, &buyer_agent, &clock);
         // The seller: its agent may accept anything in its band (no in-person threshold below
         // the ceiling), and its money in runs on its own signed mandate.
@@ -1449,7 +1456,10 @@ impl World {
                 let deal = if purchase { self.purchase } else { self.haggle };
                 let link = self.buyer.with(|p| {
                     let attempt = p.wallet.ledger.settled_attempt(deal).ok()?.max(1);
-                    p.approval_link(deal, attempt).ok()
+                    let link = p.approval_link(deal, attempt).ok()?;
+                    // The owner's OpenBrowser decision records the handoff as the link leaves.
+                    p.wallet.ledger.handoff(deal).ok()?;
+                    Some(link)
                 });
                 if let Some(order) = link.as_deref().and_then(|l| l.split("token=").nth(1)) {
                     let sandbox = if purchase {
