@@ -16,7 +16,7 @@
 //! a sandbox renewal) leads to a real sandbox invoice on the owner's decision, as the design says,
 //! but its deal keeps the REPLAY mode and never counts as recovered.
 use crate::pipeline::shield_allows;
-use crate::pipeline::{REQUEST_ID_KEPT_SECS, SETTLE_SECS};
+use crate::pipeline::{PARKED_READ_SECS, REQUEST_ID_KEPT_SECS, SETTLE_SECS};
 use crate::{Authority, Error, MoneyStep, OwnerTicket, Pipeline};
 use table_core::*;
 use table_ledger::{
@@ -743,7 +743,27 @@ impl Pipeline {
     ) -> Result<bool, Error> {
         for op in self.open_operations(Some(id), now)? {
             if op.needs_owner && ticket.is_none() {
-                continue;
+                // A parked send waits for the owner until the fix's deadline or the request id's
+                // window ends; then it is read (once an hour), so a draft closes not done.
+                let ends = op.operation == "invoice-send"
+                    && (self
+                        .wallet
+                        .ledger
+                        .deadline(id)?
+                        .is_some_and(|(due, _)| due <= now)
+                        || now.saturating_sub(op.started_at) >= REQUEST_ID_KEPT_SECS);
+                if !ends {
+                    continue;
+                }
+                let recent = self
+                    .parked_read
+                    .get(&op.request_id)
+                    .is_some_and(|last| now < last.saturating_add(PARKED_READ_SECS));
+                if recent {
+                    continue;
+                }
+                // Recorded before the read, so a read that fails is throttled too.
+                self.parked_read.insert(op.request_id.clone(), now);
             }
             if !op.pending && ticket.is_none() && now < op.started_at.saturating_add(SETTLE_SECS) {
                 break;

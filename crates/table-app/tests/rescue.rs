@@ -987,3 +987,55 @@ async fn past_the_retry_time_an_open_draft_send_is_never_sent_again() {
         ["DRAFT"]
     );
 }
+
+/// A lost send read as DRAFT on the first tick parks for the owner. At the deadline the parked
+/// step is read again and closed not done, so the fix expires and the subscription is free.
+#[tokio::test]
+async fn a_parked_send_is_read_and_ended_at_the_deadline() {
+    let mut r = rig();
+    let id = r.lost_send(1, 4 * 86400).await;
+    r.p.rescue_tick(id, T0 + SETTLE_SECS).await.unwrap();
+    let open = r.p.open_operations(Some(id), T0 + SETTLE_SECS).unwrap();
+    assert!(open.len() == 1 && open[0].needs_owner);
+    assert!(r.p.rescue_tick(id, T0 + 4 * 86400).await.unwrap());
+    assert_eq!(r.state(id), DealState::Expired);
+    assert!(!r.p.has_open_operation(id).unwrap());
+    assert_eq!(r.sends(), 1);
+    assert!(r.writes().iter().all(|(s, _)| *s != "send"));
+    let later = T0 + 5 * 86400;
+    let mut f = failure(RescueSource::Paypal, "I-SUB1");
+    (f.failed_at, f.next_retry_at) = (later, Some(later + 4 * 86400));
+    r.p.rescue_open(did(2), &f, (MANDATE.parse().unwrap(), 1), later)
+        .unwrap();
+}
+
+/// Past the request id's window, before the deadline, a parked send closes not done.
+#[tokio::test]
+async fn a_parked_send_past_the_request_id_window_closes_not_done() {
+    let mut r = rig();
+    let id = r.lost_send(1, 4 * 86400).await;
+    r.p.rescue_tick(id, T0 + SETTLE_SECS).await.unwrap();
+    assert!(r.p.has_open_operation(id).unwrap());
+    r.p.rescue_tick(id, T0 + 6 * 3600 + 60).await.unwrap();
+    assert!(!r.p.has_open_operation(id).unwrap());
+    assert_eq!(r.state(id), DealState::Settling);
+}
+
+/// A parked send whose read fails at the deadline is read again only an hour later.
+#[tokio::test]
+async fn a_parked_send_whose_read_fails_is_read_once_an_hour() {
+    let mut r = rig();
+    let id = r.lost_send(1, 4 * 86400).await;
+    r.p.rescue_tick(id, T0 + SETTLE_SECS).await.unwrap();
+    r.pp.set(|w| w.reads_fail = true);
+    let due = T0 + 4 * 86400;
+    let before = r.pp.get(|w| w.reads);
+    r.p.rescue_tick(id, due).await.unwrap();
+    assert_eq!(r.pp.get(|w| w.reads), before + 1);
+    r.p.rescue_tick(id, due + 1).await.unwrap();
+    r.p.rescue_tick(id, due + 3599).await.unwrap();
+    assert_eq!(r.pp.get(|w| w.reads), before + 1);
+    r.p.rescue_tick(id, due + 3600).await.unwrap();
+    assert_eq!(r.pp.get(|w| w.reads), before + 2);
+    assert!(r.p.has_open_operation(id).unwrap());
+}

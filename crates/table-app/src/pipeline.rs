@@ -7,7 +7,7 @@ use table_paypal::{
 };
 use table_proto::{Body, ShortText};
 mod resolve;
-pub(crate) use resolve::REQUEST_ID_KEPT_SECS;
+pub(crate) use resolve::{PARKED_READ_SECS, REQUEST_ID_KEPT_SECS};
 pub use resolve::{PENDING_STALE_SECS, Resolve, SETTLE_SECS};
 #[derive(Debug)]
 pub enum Authority {
