@@ -522,6 +522,8 @@ const REFUSED_BECAUSE: Readonly<Record<number, string>> = {
   7: 'not an approved payee',
   0: 'over your wallet limits',
 };
+/** The Rewind's line when the week's record had more steps than one read returns (the oldest are left out). */
+export const REWIND_TRUNCATED = 'A lot happened this week, so only the latest steps are here. Older steps are in Book’s record.';
 /** Why a rule refused, in words, for "Your rules refused 40 × GPU: over the per-deal limit". */
 export const refusedBecause = (clause: number): string => REFUSED_BECAUSE[clause] ?? `against “${ruleNameOf(clause)}”`;
 

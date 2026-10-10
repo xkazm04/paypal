@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, type CSSProperties, type KeyboardEvent, typ
 import type { Deal } from '@bindings/Deal';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import { WalletNotice } from '../../shared/honesty';
+import { REWIND_TRUNCATED } from '../../lib/words';
 import { weekLabel } from './home/model';
 import { endingCtx, isRefusal, laneSteps, narrate, stepTime, stepUnder, TICK_WORD, tickTone, weekFraction, type TickTone } from './logic';
 import { TickMark, type RewindState } from './Rewind';
@@ -117,6 +118,7 @@ export function RewindBar({ r, labelOf, onOpenDeal, onExit }: { r: RewindState; 
           {DAYS.map((d, i) => <span key={d} style={{ left: `${((i + 0.5) / 7) * 100}%` } as CSSProperties}>{d}</span>)}
         </div>
       </div>
+      {r.truncated ? <p className="dim">{REWIND_TRUNCATED}</p> : null}
       {r.error ? <WalletNotice error={r.error} what="The week’s record" /> : null}
     </div>
   );
