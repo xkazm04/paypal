@@ -87,15 +87,16 @@ impl Client {
             redactions: Mutex::new(Vec::new()),
         }
     }
-    async fn token(&self) -> Result<String, Error> {
+    async fn token(&self) -> Result<Secret, Error> {
         let mut cache = self.token.lock().await;
         if let Some(t) = cache.as_ref()
             && self.clock.now() < t.expires
         {
-            return Ok(t.value.expose().to_owned());
+            return Ok(Secret::new(t.value.expose().to_owned()));
         }
         let (id, secret) = self.credentials.load().await?;
-        let basic = STANDARD.encode(format!("{}:{}", id.expose(), secret.expose()));
+        let pair = zeroize::Zeroizing::new(format!("{}:{}", id.expose(), secret.expose()));
+        let basic = zeroize::Zeroizing::new(STANDARD.encode(pair.as_bytes()));
         let response = self
             .transport
             .send(Request {
@@ -103,7 +104,7 @@ impl Client {
                 url: "https://api-m.sandbox.paypal.com/v1/oauth2/token".into(),
                 headers: vec![(
                     "Authorization".into(),
-                    Secret::new(format!("Basic {basic}")),
+                    Secret::new(format!("Basic {}", basic.as_str())),
                 )],
                 body: None,
                 form: Some("grant_type=client_credentials"),
@@ -113,13 +114,15 @@ impl Client {
         if response.status != 200 {
             return Err(Error::Credentials);
         }
-        let value = response
-            .body
-            .get("access_token")
-            .and_then(Value::as_str)
-            .filter(|v| !v.is_empty())
-            .ok_or(Error::Credentials)?
-            .to_owned();
+        let value = Secret::new(
+            response
+                .body
+                .get("access_token")
+                .and_then(Value::as_str)
+                .filter(|v| !v.is_empty())
+                .ok_or(Error::Credentials)?
+                .to_owned(),
+        );
         let seconds = response
             .body
             .get("expires_in")
@@ -127,11 +130,15 @@ impl Client {
             .filter(|v| *v > 30 && *v <= 86400)
             .ok_or(Error::Credentials)?;
         *cache = Some(Token {
-            value: Secret::new(value.clone()),
+            value: Secret::new(value.expose().to_owned()),
             expires: self.clock.now().saturating_add(seconds - 30),
         });
-        *self.redactions.lock().await =
-            vec![id, secret, Secret::new(basic), Secret::new(value.clone())];
+        *self.redactions.lock().await = vec![
+            id,
+            secret,
+            Secret::new(basic.as_str().to_owned()),
+            Secret::new(value.expose().to_owned()),
+        ];
         Ok(value)
     }
     pub(crate) async fn execute(
@@ -158,7 +165,7 @@ impl Client {
             let mut headers = vec![
                 (
                     "Authorization".into(),
-                    Secret::new(format!("Bearer {token}")),
+                    Secret::new(format!("Bearer {}", token.expose())),
                 ),
                 ("Prefer".into(), Secret::new("return=representation".into())),
             ];
@@ -337,5 +344,53 @@ impl PayPalApi for Client {
             None,
         )
         .await
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use super::*;
+
+    struct Creds;
+    #[async_trait]
+    impl Credentials for Creds {
+        async fn load(&self) -> Result<(Secret, Secret), Error> {
+            Ok((Secret::new("id".into()), Secret::new("secret".into())))
+        }
+    }
+    struct Oauth;
+    #[async_trait]
+    impl Transport for Oauth {
+        async fn send(&self, _: Request) -> Result<Response, TransportError> {
+            Ok(Response {
+                status: 200,
+                body: json!({"access_token":"tok","expires_in":3600}),
+            })
+        }
+    }
+    struct Fixed;
+    impl Clock for Fixed {
+        fn now(&self) -> i64 {
+            0
+        }
+    }
+    struct NoWait;
+    #[async_trait]
+    impl Backoff for NoWait {
+        async fn wait(&self, _: u8) {}
+    }
+
+    #[tokio::test]
+    async fn token_is_a_redacted_secret() {
+        let client = Client::sandbox(
+            Arc::new(Oauth),
+            Arc::new(Creds),
+            Arc::new(Fixed),
+            Arc::new(NoWait),
+        );
+        let token = client.token().await.unwrap();
+        assert_eq!(token.expose(), "tok");
+        assert_eq!(format!("{token:?}"), "[REDACTED]");
     }
 }
