@@ -914,8 +914,24 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   window only delays that deal. Silence deadlines are unaffected.
 - **Migration note:** `0015_relay_reset.sql` says `generation_at` is '0 until the first adoption'. Since 2044b21 it
   is 0 until the first reset. A shipped migration is not edited, so this section is the correction.
-- **Open:** C-9b. `finish_inbox` still writes one audit row per rejected message. The scan's fix asks for one
-  `envelope.rejected` row per batch, holding the count and the message hashes.
+- **Amendment, 2026-10-10 (C-9b):** the wallet now writes one `envelope.rejected` audit row per batch of one deal
+  and one generation (f870297, 6f7beb3).
+  - `Ledger::reject_inbox` (`crates/table-ledger/src/relay.rs`) takes at most 256 messages, all of the first
+    message's deal and generation, and otherwise returns `Conflict` and writes nothing. In one Immediate
+    transaction it turns each message's pending row into `rejected` (any UPDATE that does not change exactly one row
+    is a `Conflict`) and appends one row: actor `relay`, action `envelope.rejected`, the deal, and a detail of
+    `generation`, `count`, `raw_hashes` (digests in slice order) and `reason`. No raw text reaches the audit log.
+  - `finish_inbox(false)` is a batch of one.
+  - `consume_inbox` (`crates/table-runtime/src/relay.rs`) collects a pass's refused messages and rejects them one
+    batch per deal and generation. A pass that returns early leaves its collected rows pending, and the next pass
+    writes their row then.
+  - **Open: C-9c.** The HOUSE (`services/house-seller/src/hosted.rs`, which calls `finish_inbox` per message) still writes one row per message. Fixing it
+    needs an inbox test harness.
+  - Evidence: in `crates/table-ledger/src/tests.rs` `c9b_a_rejected_batch_writes_one_audit_row`,
+    `c9b_a_batch_that_is_not_one_deal_one_generation_all_pending_writes_nothing` and
+    `c9b_finish_inbox_rejection_is_a_batch_of_one`; in `crates/table-runtime/src/groups_tests.rs`
+    `a_hostile_relay_batch_is_rejected_with_one_audit_row` and
+    `a_hostile_relay_batch_for_two_deals_is_two_audit_rows`.
 - **Evidence:** commits a3d9a92, 0092ad2, 2044b21 and 58e3517; in `crates/table-ledger/src/tests.rs`:
   `c9a_first_adoption_starts_no_window_and_a_reset_inside_it_is_refused`,
   `c9a_an_accepted_reset_prunes_settled_rows_of_this_deal_only`,
