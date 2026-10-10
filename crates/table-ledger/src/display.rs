@@ -12,8 +12,9 @@ impl Ledger {
         )?)
     }
     pub fn counterparty_list(&self) -> Result<Vec<CounterpartyDisplay>, LedgerError> {
+        // UNCONFIRMED counts as a closed deal (it ended), never as a paid one: this count says closed.
         let mut stmt = self.conn.prepare("SELECT c.key_id,c.display_name,c.paired_via,c.first_seen,
-            (SELECT COUNT(*) FROM deals d WHERE d.counterparty=c.key_id AND d.state IN ('RECEIPTED','RECONCILED')),
+            (SELECT COUNT(*) FROM deals d WHERE d.counterparty=c.key_id AND d.state IN ('RECEIPTED','RECONCILED','UNCONFIRMED')),
             c.words_confirmed_at,c.declared_payee
             FROM counterparties c WHERE c.key_id NOT LIKE 'sub:%' ORDER BY c.key_id")?;
         let rows = stmt.query_map([], |r| {
