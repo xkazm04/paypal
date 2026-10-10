@@ -990,3 +990,29 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
     `windows/main/unshown.test.ts`; in `modules/book/model.test.ts` the describes 'a deal that ended UNCONFIRMED is
     counted as an end, not as a wait' and 'a payment being checked with PayPal is not on hold'; in
     `lib/polish3.test.ts` the describe 'Home and Book agree on a payment being checked with PayPal'.
+
+## 35. A parked capture or void that PayPal does not settle waits at the deadline without an error, and is read back at most once an hour (deal-to-settlement rework C part 1)
+
+- **Date:** 2026-10-10
+- **Decided by:** the App Master, 2026-10-10 (rework C part 1).
+- **Constraint.**
+  - An AUTHORIZED deal cannot auto-void while its capture may have happened.
+  - The deadline answered `Unavailable` on every tick.
+- **Decision.**
+  - In `deadline_default`'s AUTHORIZED branch (`crates/table-app/src/pipeline.rs`), when every open operation is a
+    parked (`needs_owner`) capture or void (`only_parked_money_open`) and `auto_void` answers `Unavailable`, it
+    returns `Ok(false)`: the deal stays AUTHORIZED, nothing is sent, and the owner's money-check card already says
+    to look in PayPal. Any other open operation keeps `Unavailable`.
+  - `PARKED_READ_SECS` = 3600 (`crates/table-app/src/pipeline/resolve.rs`). `resolve_deal` reads a parked capture
+    or void back at most once per `PARKED_READ_SECS`, by request id. The time is kept in memory
+    (`Pipeline::parked_read`) and recorded before the read, so a failing read is throttled too, and a restart reads
+    at once. Authorize is not throttled: a parked authorize is still read on every tick.
+- **Lost:** `Unavailable` on every tick, and a read on every tick.
+- **Open:**
+  - Nobody has yet read the scheduler, `hosted.rs` or `rescue.rs` for other per-tick reads of a parked step.
+  - The Tumbler's ended card cannot be dismissed. That is rework C part 3, which needs a design in
+    `crates/table-attention`.
+- **Evidence:** 975e168 and 9fe08fb; in `crates/table-app/tests/pipeline.rs`:
+  `a_parked_capture_paypal_shows_unreadably_waits_at_its_deadline_and_sends_nothing`,
+  `a_parked_capture_whose_read_fails_at_its_deadline_waits_then_settles`,
+  `a_parked_void_paypal_shows_unreadably_waits_at_its_deadline` and `a_restart_reads_a_parked_capture_at_once`.
