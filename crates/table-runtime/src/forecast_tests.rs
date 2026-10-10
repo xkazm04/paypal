@@ -513,3 +513,98 @@ async fn a_seller_attested_buyer_deal_forecasts_and_meets_its_unconfirmed_end() 
     assert!(http.0.lock().unwrap().paths.is_empty());
     r.pipeline.wallet.ledger.verify_audit().unwrap();
 }
+
+/// The sandbox client behind a wire that loses the first capture answer before PayPal commits it.
+struct LosesACapture {
+    inner: table_paypal::Client,
+    lose: std::sync::atomic::AtomicBool,
+}
+#[async_trait]
+impl table_paypal::PayPalApi for LosesACapture {
+    async fn create_order(
+        &self,
+        order: &table_paypal::CreateOrder,
+        id: &table_paypal::RequestId,
+    ) -> Result<table_paypal::ApiResponse<table_paypal::Order>, table_paypal::Error> {
+        self.inner.create_order(order, id).await
+    }
+    async fn get_order(
+        &self,
+        id: &table_paypal::ResourceId,
+    ) -> Result<table_paypal::ApiResponse<table_paypal::Order>, table_paypal::Error> {
+        self.inner.get_order(id).await
+    }
+    async fn authorize(
+        &self,
+        id: &table_paypal::ResourceId,
+        request: &table_paypal::RequestId,
+    ) -> Result<table_paypal::ApiResponse<table_paypal::Order>, table_paypal::Error> {
+        self.inner.authorize(id, request).await
+    }
+    async fn capture(
+        &self,
+        id: &table_paypal::ResourceId,
+        amount: Money,
+        request: &table_paypal::RequestId,
+    ) -> Result<table_paypal::ApiResponse<table_paypal::Payment>, table_paypal::Error> {
+        if self.lose.swap(false, Ordering::SeqCst) {
+            return Err(table_paypal::Error::Unknown {
+                observations: vec![],
+            });
+        }
+        self.inner.capture(id, amount, request).await
+    }
+    async fn void(
+        &self,
+        id: &table_paypal::ResourceId,
+        request: &table_paypal::RequestId,
+    ) -> Result<table_paypal::ApiResponse<()>, table_paypal::Error> {
+        self.inner.void(id, request).await
+    }
+    async fn get_authorization(
+        &self,
+        id: &table_paypal::ResourceId,
+    ) -> Result<table_paypal::ApiResponse<table_paypal::Payment>, table_paypal::Error> {
+        self.inner.get_authorization(id).await
+    }
+}
+
+/// A deal whose money step is open (a capture whose answer was lost) is left out of the
+/// forecast: no step runs and no default is promised until PayPal's record settles it. Another
+/// deal still has its lines.
+#[tokio::test]
+async fn a_deal_with_an_open_operation_is_left_out_of_the_forecast() {
+    let (_, vault, http, clock, hello) = runtime(true);
+    let api = Arc::new(LosesACapture {
+        inner: table_paypal::Client::sandbox(
+            http.clone(),
+            Arc::new(VaultCredentials(vault.clone())),
+            clock.clone(),
+            Arc::new(NoDelay),
+        ),
+        lose: std::sync::atomic::AtomicBool::new(true),
+    });
+    let mut r = Runtime::new(
+        Ledger::in_memory().unwrap(),
+        vault.clone(),
+        hello,
+        api,
+        clock.clone(),
+    )
+    .unwrap();
+    let lost = ordered(&mut r, &vault, Delivery::DigitalNow).await;
+    r.pipeline
+        .wallet
+        .ledger
+        .apply_event(lost.id, DealEvent::OrderApproved, 100)
+        .unwrap();
+    set(&clock, T0);
+    assert!(r.tick().await.is_err());
+    assert_eq!(state(&r, lost.id), DealState::Authorized);
+    assert!(r.pipeline.has_open_operation(lost.id).unwrap());
+    // Another deal, agreed with a fresh market, keeps its place in the forecast.
+    let other = seller_agreed(&mut r, &vault, Delivery::DigitalNow, true);
+    let lines = r.forecast(T0 + 1).unwrap();
+    assert!(lines.iter().all(|l| l.deal_id != lost.id), "{lines:?}");
+    assert!(lines.iter().any(|l| l.deal_id == other.id), "{lines:?}");
+}
