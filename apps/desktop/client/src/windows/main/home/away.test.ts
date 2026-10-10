@@ -343,3 +343,32 @@ describe('last seen', () => {
     expect(() => writeLastSeen(NOW, blocked)).not.toThrow();
   });
 });
+
+describe('awaySummary: a deal that ended unconfirmed', () => {
+  const U = deal('U', 6400, 'buyer', 'USD', 'haggle');
+  const V = deal('V', 1000, 'buyer', 'USD', 'haggle');
+  const ended = (id: string) => step(id, SEEN + 2 * H, 'unconfirmed', DEFAULT, { type: 'none' }, 'UNCONFIRMED');
+  const text = (reads?: Map<string, boolean>) => awaySummary([ended('U')], [U], SEEN, NOW, { reads }).lines[0]?.text ?? '';
+  it('is listed as an end, by the safe default, never as paid, and does not claim no money moved', () => {
+    const s = awaySummary([ended('U')], [U], SEEN, NOW);
+    expect(s.lines).toHaveLength(1);
+    expect(s.lines[0]).toMatchObject({ outcome: 'unconfirmed', authority: 'default', tone: 'check', totals: [], deals: ['U'] });
+    expect(s.moved).toBe(false);
+    expect(s.lead).toBeNull();
+    expect(s.quiet).toBe(false);
+    expect(s.text).not.toContain('no money moved; ');
+  });
+  it('says only what is true when the deal’s read status is not known', () => {
+    expect(text()).toBe('1 deal ended as not confirmed by PayPal: the seller said it was paid, but your wallet has no match for it on PayPal’s statement (this wallet moved nothing)');
+    expect(text()).not.toMatch(/did not show|never showed/);
+  });
+  it('splits on whether a statement read came back unmatched', () => {
+    expect(text(new Map([['U', true]]))).toContain('PayPal’s statement did not show it');
+    const unread = text(new Map([['U', false]]));
+    expect(unread).toContain('your wallet did not check PayPal’s statement');
+    expect(unread).not.toMatch(/did not show|never showed/);
+    // Two deals with different read status are two lines, so neither line claims the other's read.
+    const both = awaySummary([ended('U'), ended('V')], [U, V], SEEN, NOW, { reads: new Map([['U', true], ['V', false]]) });
+    expect(both.lines).toHaveLength(2);
+  });
+});

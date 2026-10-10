@@ -7,6 +7,8 @@ import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'reac
 import type { Deal } from '@bindings/Deal';
 import { clockNow } from '../../../lib/clock';
 import { useNow, useQuery } from '../../../lib/hooks';
+import { backend } from '../../../lib/runtime';
+import type { StatementRead } from '../../../lib/words';
 import { stepTime } from '../logic';
 import { awaySummary, readLastSeen, SEEN_AFTER_MS, worthShowing, writeLastSeen, type AwayLine, type AwaySummary } from './away';
 
@@ -24,6 +26,21 @@ export function useAway(o: { active: boolean; enabled: boolean; needs: number; d
   const on = o.enabled && !dismissed;
   const q = useQuery('deal_history', { deal_id: null, from: seen.at, to: null }, { enabled: on, refreshOn: ['deal:changed'] });
   const now = useNow();
+  // Whether a statement read came back unmatched, for the deals that ended unconfirmed: it words their line.
+  const unconfirmed = useMemo(() => o.deals.filter((d) => d.state === 'UNCONFIRMED').map((d) => d.id).join(','), [o.deals]);
+  const [reads, setReads] = useState<ReadonlyMap<string, StatementRead>>(new Map());
+  useEffect(() => {
+    if (!on || !unconfirmed) return;
+    const ids = unconfirmed.split(',');
+    let dead = false;
+    void Promise.allSettled(ids.map((id) => backend().invoke('deal_evidence', { deal_id: id }))).then((rs) => {
+      if (dead) return;
+      const m = new Map<string, StatementRead>();
+      rs.forEach((r, i) => { const id = ids[i]; if (id && r.status === 'fulfilled') m.set(id, r.value.statement_unmatched); });
+      setReads(m);
+    });
+    return () => { dead = true; };
+  }, [on, unconfirmed]);
 
   useEffect(() => {
     if (!o.active || !o.enabled) return;
@@ -46,9 +63,9 @@ export function useAway(o: { active: boolean; enabled: boolean; needs: number; d
   const data = q.data;
   const summary = useMemo(() => {
     if (!on || !data || q.error) return null;
-    const s = awaySummary(data.steps, o.deals, seen.at, Math.max(now, seen.at), { needs: o.needs, truncated: data.truncated });
+    const s = awaySummary(data.steps, o.deals, seen.at, Math.max(now, seen.at), { needs: o.needs, truncated: data.truncated, reads });
     return worthShowing(s) ? s : null;
-  }, [on, data, q.error, o.deals, seen.at, now, o.needs]);
+  }, [on, data, q.error, o.deals, seen.at, now, o.needs, reads]);
   return { summary, dismiss };
 }
 
