@@ -39,7 +39,7 @@ import type { ModuleProps } from './common';
 import {
   BUCKET_LABEL, BUCKET_SUB, BUCKETS, bucketOf, dayKey, dayLabel, dirOf, KIND_ORDER, kindLabel, LENSES, queryText, readQuery, runQuery,
   serverStateLabel, STATEMENT_TIP, STATEMENT_WORD, UNCONFIRMED_STATEMENT_WORD, statementCounts, statementEnded, statementKey, statementWords, sums, toCSV, type Bucket, type Ctx, type Group as LensGroup, type Lens, type Result, type Statement, type StatementKey,
-  outsideGrid,
+  outsideGrid, walletSumsApart,
 } from './book/model';
 import { AskChips } from './book/AskChips';
 import { ReadingChips, UnsureLine } from './book/AskReading';
@@ -673,11 +673,16 @@ function StmtSummary({ c }: { c: Record<StatementKey, number> }) {
     : <Chip key={s} tone={STMT_TONE[s]} className={s === 'pending_reporting' ? 'dashed' : undefined} title={STATEMENT_TIP[s]}>{c[s]} {STATEMENT_WORD[s]}</Chip>)}</>;
 }
 
-/** The wallet's own answer to the view (book_query): totals per currency and mode, exact minor
- *  units and basis points, read on a read-only connection. */
+/** The wallet's own answer to the view (book_query): one line per currency, mode and direction
+ *  (money out or money in), exact minor units and basis points, read on a read-only connection.
+ *  Its Amount adds every state the query reaches, so the column shows only when each line holds
+ *  one money state (walletSumsApart: the query groups by status or filters to one kind of
+ *  status); otherwise it is left out and the hint says so. Recovered is paid-only and always shows. */
 function WalletAnswer({ answer, cpName }: { answer: BookAnswer; cpName: (key: string) => string }) {
   const groups = answer.query.group_by;
   const m = answer.query.metrics;
+  const showAmount = m.includes('sum_amount') && walletSumsApart(answer.query);
+  const amountLeftOut = m.includes('sum_amount') && !showAmount;
   const cell = (row: Record<string, JsonValue>, k: string) => row[k] ?? null;
   const money = (row: Record<string, JsonValue>, k: string) => {
     const v = cell(row, k);
@@ -688,12 +693,13 @@ function WalletAnswer({ answer, cpName }: { answer: BookAnswer; cpName: (key: st
   return (
     <div className="ui-section">
       <p className="ui-hint">Checked by your wallet · {answer.rows.length} line{answer.rows.length === 1 ? '' : 's'} · each currency and mode on its own line, and money out and money in on separate lines</p>
+      {amountLeftOut ? <p className="ui-hint">Amounts are left out here: with no status picked they would add paid, on hold, in progress and stopped money together. Pick a status, or ask by status, to see them.</p> : null}
       {answer.rows.length ? (
         <table className="ui-table pivot">
           <thead><tr>
             <th>Currency</th><th>Mode</th><th>Money</th>{groups.map((g) => <th key={g}>{GROUP_HEAD[g] ?? g}</th>)}
             {m.includes('count') ? <th className="num">Rows</th> : null}
-            {m.includes('sum_amount') ? <th className="num">Amount</th> : null}
+            {showAmount ? <th className="num">Amount</th> : null}
             {m.includes('avg_vs_market_pct') ? <th className="num">vs market</th> : null}
             {m.includes('recovered_sum') ? <th className="num">Recovered</th> : null}
           </tr></thead>
@@ -716,7 +722,7 @@ function WalletAnswer({ answer, cpName }: { answer: BookAnswer; cpName: (key: st
                     return <td key={g}>{text}</td>;
                   })}
                   {m.includes('count') ? <td className="num">{String(cell(row, 'count'))}</td> : null}
-                  {m.includes('sum_amount') ? <td className="num">{money(row, 'sum_amount')}</td> : null}
+                  {showAmount ? <td className="num">{money(row, 'sum_amount')}</td> : null}
                   {m.includes('avg_vs_market_pct') ? <td className="num">{typeof cell(row, 'avg_vs_market_bp') === 'number' ? `${(cell(row, 'avg_vs_market_bp') as number) / 100}%` : <span className="dim">no market price</span>}</td> : null}
                   {m.includes('recovered_sum') ? <td className="num">{money(row, 'recovered_sum')}</td> : null}
                 </tr>
