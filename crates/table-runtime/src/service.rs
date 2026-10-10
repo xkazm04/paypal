@@ -138,6 +138,51 @@ impl std::fmt::Debug for Runtime {
     }
 }
 impl Runtime {
+    /// Mint every agent key for a fresh wallet. Once the ledger holds anything, a missing key
+    /// fails closed instead of quietly giving the agent a new identity: the Negotiator always
+    /// (it signs for the wallet), Shopper and Assistant when an active mandate pins a key that no
+    /// present slot holds (a slot the wallet never bound is minted as before).
+    fn provision_agent_keys(
+        ledger: &table_ledger::Ledger,
+        vault: &dyn Vault,
+        owner: &ed25519_dalek::VerifyingKey,
+    ) -> Result<ed25519_dalek::SigningKey, CommandError> {
+        const SLOTS: [AgentSlot; 3] = [
+            AgentSlot::Negotiator,
+            AgentSlot::Shopper,
+            AgentSlot::Assistant,
+        ];
+        let failed = || unavailable("Agent key provisioning failed");
+        if app(ledger.is_fresh())? {
+            for slot in SLOTS {
+                signing_key(vault, slot.key_name()).map_err(|_| failed())?;
+            }
+            return signing_key(vault, AgentSlot::Negotiator.key_name()).map_err(|_| failed());
+        }
+        let negotiator =
+            existing_signing_key(vault, AgentSlot::Negotiator.key_name()).map_err(|_| failed())?;
+        let mut present = vec![negotiator.verifying_key().to_bytes()];
+        let mut missing = Vec::new();
+        for slot in &SLOTS[1..] {
+            match existing_signing_key(vault, slot.key_name()) {
+                Ok(key) => present.push(key.verifying_key().to_bytes()),
+                Err(crate::vault::VaultError::Missing) => missing.push(*slot),
+                Err(_) => return Err(failed()),
+            }
+        }
+        if !missing.is_empty() {
+            let lost_key_pinned = app(ledger.list_mandates(owner))?
+                .iter()
+                .any(|listed| !present.contains(&listed.mandate.payload.agent_key));
+            if lost_key_pinned {
+                return Err(failed());
+            }
+            for slot in missing {
+                signing_key(vault, slot.key_name()).map_err(|_| failed())?;
+            }
+        }
+        Ok(negotiator)
+    }
     pub fn new(
         ledger: table_ledger::Ledger,
         vault: Arc<dyn Vault>,
@@ -153,18 +198,11 @@ impl Runtime {
             existing_signing_key(vault.as_ref(), "owner")
         }
         .map_err(|_| unavailable("Owner key provisioning failed"))?;
-        for slot in [
-            AgentSlot::Negotiator,
-            AgentSlot::Shopper,
-            AgentSlot::Assistant,
-        ] {
-            signing_key(vault.as_ref(), slot.key_name())
-                .map_err(|_| unavailable("Agent key provisioning failed"))?;
-        }
-        let signer = AgentSigner::from_key(
-            signing_key(vault.as_ref(), AgentSlot::Negotiator.key_name())
-                .map_err(|_| unavailable("Agent key unavailable"))?,
-        );
+        let signer = AgentSigner::from_key(Self::provision_agent_keys(
+            &ledger,
+            vault.as_ref(),
+            &owner.verifying_key(),
+        )?);
         let preferences = app(ledger.preference("tumbler"))?.unwrap_or_default();
         let engine = app(ledger.preference("engine"))?.unwrap_or(table_engine::EngineId::Scripted);
         let paused = app(ledger.preference("agents_paused"))?.unwrap_or(false);

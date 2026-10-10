@@ -1370,6 +1370,93 @@ fn a_lost_owner_key_fails_closed_once_the_wallet_has_history() {
     std::fs::remove_file(path).unwrap();
 }
 #[test]
+fn a_lost_agent_key_fails_closed_only_for_a_slot_the_wallet_used() {
+    let build = |ledger: Ledger, vault: Arc<MemoryVault>| {
+        let clock = Arc::new(TestClock(AtomicI64::new(100)));
+        Runtime::new(
+            ledger,
+            vault.clone(),
+            Arc::new(Hello {
+                calls: AtomicUsize::new(0),
+                verified: true,
+            }),
+            Arc::new(table_paypal::Client::sandbox(
+                Arc::new(OfflineHttp::default()),
+                Arc::new(VaultCredentials(vault)),
+                clock.clone(),
+                Arc::new(NoDelay),
+            )),
+            clock,
+        )
+    };
+    let slots = [
+        AgentSlot::Negotiator,
+        AgentSlot::Shopper,
+        AgentSlot::Assistant,
+    ];
+    let mut entropy = [0; 16];
+    getrandom::fill(&mut entropy).unwrap();
+    let name: String = entropy.iter().map(|b| format!("{b:02x}")).collect();
+    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.build/tmp");
+    std::fs::create_dir_all(&directory).unwrap();
+    let path = directory.join(format!("agents-{name}.sqlite3"));
+    let original = Arc::new(MemoryVault::default());
+    // A fresh wallet mints every slot.
+    let mut r = build(Ledger::open(&path).unwrap(), original.clone()).unwrap();
+    for slot in slots {
+        assert!(original.read(slot.key_name()).unwrap().is_some());
+    }
+    r.sign_mandate(MandateSignArgs {
+        id: None,
+        agent: AgentSlot::Shopper,
+        clauses: clauses(Side::Buyer, DealKind::Purchase),
+        not_before: 0,
+        expires: 1000000,
+    })
+    .unwrap();
+    drop(r);
+    // A copy of the keyring without one slot.
+    let without = |lost: &str| {
+        let vault = Arc::new(MemoryVault::default());
+        for key in [
+            "owner",
+            "agent.negotiator",
+            "agent.shopper",
+            "agent.assistant",
+        ] {
+            if key != lost
+                && let Some(value) = original.read(key).unwrap()
+            {
+                vault.write(key, &value).unwrap();
+            }
+        }
+        vault
+    };
+    for slot in slots {
+        assert!(original.read(slot.key_name()).unwrap().is_some());
+    }
+    let names: Vec<&str> = slots.iter().map(|s| s.key_name()).collect();
+    assert_eq!(
+        names,
+        ["agent.negotiator", "agent.shopper", "agent.assistant"]
+    );
+    // The Shopper is bound by a mandate: losing it fails closed and mints nothing.
+    let lost = without("agent.shopper");
+    let error = build(Ledger::open(&path).unwrap(), lost.clone()).unwrap_err();
+    assert!(matches!(error.code, ErrorCode::Unavailable), "{error:?}");
+    assert_eq!(error.message, "Agent key provisioning failed");
+    assert!(lost.read("agent.shopper").unwrap().is_none());
+    // The Negotiator signs for the wallet: losing it fails closed too.
+    let lost = without("agent.negotiator");
+    assert!(build(Ledger::open(&path).unwrap(), lost.clone()).is_err());
+    assert!(lost.read("agent.negotiator").unwrap().is_none());
+    // The Assistant was never bound: its slot is minted as before.
+    let lost = without("agent.assistant");
+    assert!(build(Ledger::open(&path).unwrap(), lost.clone()).is_ok());
+    assert!(lost.read("agent.assistant").unwrap().is_some());
+    std::fs::remove_file(path).unwrap();
+}
+#[test]
 fn signing_refuses_a_mandate_no_role_can_act_under() {
     let (mut r, ..) = runtime(false);
     // A sell-only mandate over a purchase kind could never allow an intent.
