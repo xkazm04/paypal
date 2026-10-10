@@ -53,7 +53,7 @@ const HIDDEN: Gate = { visible: false, enabled: false, reason: null };
 
 /** Rust `DealState::terminal()`. */
 export const TERMINAL: ReadonlySet<DealState> = new Set<DealState>([
-  'WITHDRAWN', 'EXPIRED', 'REFUSED', 'MISMATCH', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'RECONCILED',
+  'WITHDRAWN', 'EXPIRED', 'REFUSED', 'MISMATCH', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'RECONCILED', 'UNCONFIRMED',
 ]);
 
 /** Rust `transition(s, Withdraw)`: pre-capture and not an authorization (that one is voided). */

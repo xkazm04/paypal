@@ -13,9 +13,10 @@ export type MockEnvelope = { payload: WalletEnvelope; signedAt: number; forged?:
 
 const DAY = 86_400;
 const RELEASED = new Set<DealState>(['REFUSED', 'WITHDRAWN', 'EXPIRED', 'VOIDED', 'AUTO_VOIDED']);
-const AGREED_OR_LATER = new Set<DealState>(['AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECEIPTED', 'RECONCILED', 'REFUNDED', 'DISPUTED']);
+const AGREED_OR_LATER = new Set<DealState>(['AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECEIPTED', 'RECONCILED', 'REFUNDED', 'DISPUTED', 'UNCONFIRMED']);
 const COMMITTED = new Set<DealState>(['AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED']);
-const PAID = new Set<DealState>(['CAPTURED', 'RECEIPTED', 'RECONCILED', 'REFUNDED', 'DISPUTED']);
+// UNCONFIRMED counts as spent (Rust paid_state): the money may have left.
+const PAID = new Set<DealState>(['CAPTURED', 'RECEIPTED', 'RECONCILED', 'REFUNDED', 'DISPUTED', 'UNCONFIRMED']);
 
 const total = (d: Deal) => d.terms.unit_price.minor * d.terms.qty;
 const day = (t: number) => Math.floor(t / DAY);

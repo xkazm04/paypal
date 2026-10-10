@@ -51,7 +51,7 @@ export function ordinal(n: number): string {
 }
 
 const AGREED_OR_LATER: ReadonlySet<DealState> = new Set<DealState>([
-  'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECEIPTED', 'RECONCILED', 'MISMATCH', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED',
+  'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECEIPTED', 'RECONCILED', 'MISMATCH', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'UNCONFIRMED',
 ]);
 /** The mock's fair price for a deal whose market record it holds (Rust reads it from its rows). */
 export function fairPriceOf(state: DealState, market: MarketRef | null | undefined, price: Money): FairPrice | null {

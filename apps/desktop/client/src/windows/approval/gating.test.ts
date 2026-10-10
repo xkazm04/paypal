@@ -25,7 +25,7 @@ function checks(o: { fail?: ApprovalCheckId[]; wait?: ApprovalCheckId[] } = {}):
 }
 const ALL_STATES: DealState[] = [
   'PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECEIPTED',
-  'RECONCILED', 'WITHDRAWN', 'EXPIRED', 'REFUSED', 'MISMATCH', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED',
+  'RECONCILED', 'WITHDRAWN', 'EXPIRED', 'REFUSED', 'MISMATCH', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'UNCONFIRMED',
 ];
 const KINDS: DealKind[] = ['purchase', 'haggle', 'shop_order', 'rescue', 'invoice'];
 const SIDES: Side[] = ['buyer', 'seller'];

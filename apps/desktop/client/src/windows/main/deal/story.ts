@@ -58,6 +58,7 @@ export function dealAnswer(d: AnswerDeal, c: AnswerCtx): DealAnswer {
       : { tone: 'alert', title: 'Your rules refused this before PayPal was asked. Nothing moved.', sub: who.who === 'none' ? CLOSED : `Refused by ${who.text}. ${CLOSED}` };
   }
   if (d.state === 'DISPUTED') return { tone: 'alert', title: 'There is an open dispute at PayPal.', sub: CLOSED };
+  if (d.state === 'UNCONFIRMED') return { tone: 'alert', title: w.means, sub: CLOSED };
   if (d.state === 'FAILED') return { tone: 'alert', title: d.kind === 'rescue' ? 'The invoice was cancelled at PayPal. Nothing was recovered.' : 'The payment failed at PayPal.', sub: CLOSED };
 
   if (isTerminal(d)) {

@@ -23,8 +23,9 @@ import type { Side } from '@bindings/Side';
 import type { HistoryAuthority } from '@bindings/HistoryAuthority';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import type { PaypalMethod } from '@bindings/PaypalMethod';
+import type { ReceiptEvent } from '@bindings/ReceiptEvent';
 import { formatMinor } from '../../lib/format';
-import { receiptRefusedSentence, refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, sellerSaysOnly, stateWord } from '../../lib/words';
+import { receiptRefusedSentence, refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, sellerSaysOnly, stateWord, unconfirmedSentence } from '../../lib/words';
 
 export const MODULE_KEYS: readonly Module[] = ['tables', 'spend', 'counter', 'book', 'shield', 'rescue'];
 export const moduleIndex = (m: Module): number => MODULE_KEYS.indexOf(m);
@@ -63,7 +64,8 @@ export function beadKind(d: DealLike): BeadKind {
   const s = d.state;
   if (OFF.has(s)) return 'off';
   if (s === 'REFUSED' || s === 'MISMATCH' || s === 'DISPUTED') return 'stopped';
-  if (s === 'FAILED') return 'stopped';
+  // PayPal's statement never showed the seller's payment: an end that went wrong, like a dispute.
+  if (s === 'FAILED' || s === 'UNCONFIRMED') return 'stopped';
   if (d.shield === 'BLOCK') return 'stopped';
   if (paid(d)) return 'settled';
   if (s === 'AUTHORIZED' || d.shield === 'HOLD') return 'held';
@@ -80,11 +82,20 @@ export function chipClass(d: DealLike): ChipClass {
   if (sellerSaysOnly(d)) return 'wait';
   if (s === 'AUTHORIZED') return 'held';
   if (s === 'REFUSED' || s === 'MISMATCH' || s === 'DISPUTED') return 'bad';
-  if (s === 'FAILED') return 'bad';
+  if (s === 'FAILED' || s === 'UNCONFIRMED') return 'bad';
   // A failed renewal waits at AGREED for the owner's fix (Rust rescue.rs).
   if (s === 'AGREED' && d.kind === 'rescue') return 'wait';
   if (s === 'AWAITING_APPROVAL' || s === 'APPROVED') return 'wait';
   return 'live';
+}
+
+/** The main window's toast for a receipt event from Rust. A receipt that is only the seller's word
+ *  reads "Seller says paid" in the waiting tone, never as paid (DECISIONS.md section 23); a deal
+ *  PayPal never confirmed reads as a problem. */
+export function receiptToast(r: Pick<ReceiptEvent, 'state' | 'evidence'>): { text: string; tone: 'ok' | 'info' | 'bad' | 'gold' } {
+  if (r.state === 'RECEIPTED' && r.evidence.receipt === 'SELLER_ATTESTED') return { text: stateWord('RECEIPTED', { side: 'buyer' }).text, tone: 'gold' };
+  if (r.state === 'UNCONFIRMED') return { text: stateWord('UNCONFIRMED').text, tone: 'bad' };
+  return { text: stateWord(r.state).text, tone: r.state === 'CAPTURED' || r.state === 'RECEIPTED' ? 'ok' : 'info' };
 }
 
 /** A deal state in plain words (lib/words.ts); pass side/kind where the deal is at hand. */
@@ -93,7 +104,7 @@ export const stateLabel = (s: DealState, ctx?: { side?: Side; kind?: DealKind })
 export const stateCode = (s: DealState): string => s.replace(/_/g, ' ');
 
 export function isTerminal(d: DealLike): boolean {
-  return OFF.has(d.state) || SETTLED.has(d.state) || d.state === 'REFUSED' || d.state === 'MISMATCH' || d.state === 'DISPUTED' || d.state === 'FAILED';
+  return OFF.has(d.state) || SETTLED.has(d.state) || d.state === 'REFUSED' || d.state === 'MISMATCH' || d.state === 'DISPUTED' || d.state === 'FAILED' || d.state === 'UNCONFIRMED';
 }
 export const isLive = (d: DealLike): boolean => !isTerminal(d);
 export const isSettled = (d: DealLike): boolean => paid(d);
@@ -118,7 +129,8 @@ const PATHS: Record<DealKind, DealState[]> = {
 /** A seller-side haggle authorizes and captures itself. */
 const HAGGLE_SELLER: DealState[] = ['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECEIPTED', 'RECONCILED'];
 /** Where a terminal state branches off the happy path (last step known to be reached). */
-const BRANCH_AFTER: Partial<Record<DealState, DealState>> = { VOIDED: 'AUTHORIZED', AUTO_VOIDED: 'AUTHORIZED', REFUNDED: 'CAPTURED', DISPUTED: 'CAPTURED', MISMATCH: 'SETTLING' };
+// UNCONFIRMED: the order was out for approval; that PayPal approved or collected it was never shown.
+const BRANCH_AFTER: Partial<Record<DealState, DealState>> = { VOIDED: 'AUTHORIZED', AUTO_VOIDED: 'AUTHORIZED', REFUNDED: 'CAPTURED', DISPUTED: 'CAPTURED', MISMATCH: 'SETTLING', UNCONFIRMED: 'AWAITING_APPROVAL' };
 
 export type StripStep = { state: DealState; label: string; status: 'done' | 'cur' | 'todo'; tone: 'gold' | 'ok' | 'bad' | 'off' | null };
 
@@ -177,6 +189,7 @@ export function moneyNow(d: Pick<Deal, 'state' | 'side' | 'kind' | 'shield'>): s
     case 'FAILED': return d.kind === 'rescue' ? 'invoice cancelled · nothing recovered' : 'failed · see the PayPal proof';
     case 'REFUNDED': return 'refunded';
     case 'DISPUTED': return 'disputed at PayPal';
+    case 'UNCONFIRMED': return 'the seller says paid · PayPal’s statement never showed it';
   }
 }
 
@@ -197,6 +210,7 @@ export function amountNote(d: Pick<Deal, 'state' | 'side' | 'shield' | 'kind'>):
     case 'VOIDED': case 'AUTO_VOIDED': return 'hold released';
     case 'WITHDRAWN': case 'EXPIRED': return 'no money moved';
     case 'FAILED': return d.kind === 'rescue' ? 'invoice cancelled' : 'failed';
+    case 'UNCONFIRMED': return 'not confirmed by PayPal';
     default: return 'proposed';
   }
 }
@@ -585,6 +599,7 @@ export function stepSentence(s: HistoryStep, ctx: { title: string; side?: Side }
     case 'auto_voided': return `The hold on ${x} ran out and released itself. Nothing was paid.${tail}`;
     case 'receipt_sent': case 'receipt_received': case 'receipted': return `The receipt for ${x} was saved.`;
     case 'receipt_refused': return receiptRefusedSentence(x);
+    case 'unconfirmed': return unconfirmedSentence(x);
     case 'reporting_checked': return `${x} was checked against PayPal’s statement.`;
     case 'reconciled': return `${x} is on PayPal’s statement.`;
     case 'withdraw_sent': return `Your side walked away from ${x}. No money moved.`;

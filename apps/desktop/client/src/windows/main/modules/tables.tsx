@@ -233,6 +233,7 @@ function stateTone(d: Pick<Deal, 'state'> & Partial<Pick<Deal, 'side' | 'kind'>>
     case 'CAPTURED': case 'RECEIPTED': case 'RECONCILED': return 'ok';
     case 'WITHDRAWN': case 'EXPIRED': case 'VOIDED': case 'AUTO_VOIDED': return undefined;
     case 'REFUSED': case 'MISMATCH': case 'FAILED': case 'DISPUTED': return 'red';
+    case 'UNCONFIRMED': return 'coral';
     case 'PAIRING': case 'LISTED': return 'line';
     case 'AWAITING_APPROVAL': case 'APPROVED': case 'AUTHORIZED': return 'gold';
     default: return 'teal';

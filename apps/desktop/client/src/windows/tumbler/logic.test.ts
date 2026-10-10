@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AttentionItem } from '@bindings/AttentionItem';
+import { SELLER_SAYS_PAID } from '../../lib/words';
 import type { AttentionSnapshot } from '@bindings/AttentionSnapshot';
 import {
   FORM_SIZE, NO_HANDOFF, SECONDS, approveWindow, arrivals, cardActions, cardClock, cardQuestion, canReview, handoffEnded, nextFocus, puckLook, puckTarget,
@@ -166,6 +167,31 @@ describe('headline and receipt text', () => {
     const known = item({ deal_id: ev.deal_id, label: 'D-0190', amount_minor: 6400, counterparty: 'partsco' });
     expect(receiptTicker({ ...ev, state: 'CAPTURED' }, known).l1).toEqual(['Paid ', '$64.00', ' · partsco']);
     expect(receiptTicker({ ...ev, state: 'MISMATCH' }, known).l1).toEqual(['Paused · amount didn’t match the deal', '', ' · partsco']);
+  });
+  it('a receipt that is only the seller’s word is never green, and a deal PayPal never confirmed holds (value-1)', () => {
+    const id = '01JDABCDEFGHJKMNPQRSTVWX7Q';
+    const known = item({ deal_id: id, label: 'D-0190', amount_minor: 6400, counterparty: 'partsco' });
+    const said = receiptTicker({
+      deal_id: id, evidence: { deal_id: id, receipt: 'SELLER_ATTESTED', reconciliation: 'pending_reporting' }, mode: 'sandbox', state: 'RECEIPTED',
+      on_silence: 'Seller attested payment; PayPal reporting is pending',
+    }, known);
+    expect(said.kind).toBe('info');
+    expect(said.l1).toEqual(['Seller says paid ', '$64.00', ' · partsco']);
+    expect(said.l2).toBe(SELLER_SAYS_PAID);
+    // PayPal's own receipt stays green.
+    const verified = receiptTicker({
+      deal_id: id, evidence: { deal_id: id, receipt: 'PAYPAL_VERIFIED', reconciliation: 'matched' }, mode: 'sandbox', state: 'RECEIPTED', on_silence: 'Payment captured and receipt verified',
+    }, known);
+    expect(verified.kind).toBe('receipt');
+    expect(verified.l1[0]).toBe('Receipt saved ');
+    const ended = receiptTicker({
+      deal_id: id, evidence: { deal_id: id, receipt: 'SELLER_ATTESTED', reconciliation: 'pending_reporting' }, mode: 'sandbox', state: 'UNCONFIRMED',
+      on_silence: "PayPal reporting never showed the seller's payment; this wallet moved no money",
+    }, known);
+    expect(ended.kind).toBe('hold');
+    expect(ended.l1).toEqual(['Not confirmed by PayPal', '', ' · partsco']);
+    expect(ended.l2).toBe('PayPal’s statement never showed it · this wallet moved nothing');
+    expect(ended.ms).toBe(6000);
   });
   it('tickers name the deal by who it is with, never by its id', () => {
     const it1 = item({ deal_id: 'a', label: 'D-0207', headline: 'Countersign $48.00', amount_minor: 4800, counterparty: 'lark’s agent', deadline: NOW + 3 * H });

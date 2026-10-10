@@ -11,7 +11,7 @@ import { layerCount, useLayerCount } from '../../shared/ui/layers';
 import { DEAL_PARTS, DealView } from './DealView';
 import { HOME_PARTS, Home } from './Home';
 import { shortTitle } from './home/model';
-import { formatHash, parseHash, resolveDealRef, stateLabel, type Route, type SheetTab } from './logic';
+import { formatHash, parseHash, receiptToast, resolveDealRef, type Route, type SheetTab } from './logic';
 import { MODULE_PAGES, ModuleView } from './Modules';
 import { Palette } from './Palette';
 import { safetyInHash, withSafety } from './safety/model';
@@ -136,7 +136,9 @@ function Main() {
     // Name the deal by what it is (ids belong in Details, UX-GUIDE).
     const deal = w.deals.data?.find((d) => d.id === r.deal_id);
     const label = deal ? shortTitle(w.display(deal).title) : 'A deal';
-    toast(<>{label} · <b>{stateLabel(r.state)}</b> · {silenceWords(r.on_silence)}</>, r.state === 'CAPTURED' || r.state === 'RECEIPTED' ? 'ok' : 'info');
+    // A receipt that is only the seller's word never reads as paid (receiptToast).
+    const said = receiptToast(r);
+    toast(<>{label} · <b>{said.text}</b> · {silenceWords(r.on_silence)}</>, said.tone);
   });
 
   // ---- layers ----------------------------------------------------------------------------------

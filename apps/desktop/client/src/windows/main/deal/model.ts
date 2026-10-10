@@ -29,7 +29,7 @@ export type MirrorStrip = { steps: MirrorStep[]; term: { label: string; tone: 'b
 const SETTLED: ReadonlySet<DealState> = new Set(['CAPTURED', 'RECEIPTED', 'RECONCILED']);
 const OFF: ReadonlySet<DealState> = new Set(['WITHDRAWN', 'EXPIRED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED']);
 /** Last happy-path step a terminal state is known to have reached (mirrors logic.ts). */
-const BRANCH_AFTER: Partial<Record<DealState, DealState>> = { VOIDED: 'AUTHORIZED', AUTO_VOIDED: 'AUTHORIZED', REFUNDED: 'CAPTURED', DISPUTED: 'CAPTURED', MISMATCH: 'SETTLING' };
+const BRANCH_AFTER: Partial<Record<DealState, DealState>> = { VOIDED: 'AUTHORIZED', AUTO_VOIDED: 'AUTHORIZED', REFUNDED: 'CAPTURED', DISPUTED: 'CAPTURED', MISMATCH: 'SETTLING', UNCONFIRMED: 'AWAITING_APPROVAL' };
 
 type StripDeal = Pick<Deal, 'kind' | 'side' | 'state' | 'shield'> & { decided_by?: Deal['decided_by'] };
 

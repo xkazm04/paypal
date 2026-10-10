@@ -13,7 +13,7 @@ import type { TumblerPreferences } from '@bindings/TumblerPreferences';
 import type { VisualState } from '@bindings/VisualState';
 import { LADDER } from '@bindings/ladder';
 import { clockLabel, countdown, formatMinor } from '../../lib/format';
-import { headlineWords, houseWords, moneyCheckWord, ruleNameOf, shieldRuleWord, silenceWords, timeLeftWords } from '../../lib/words';
+import { headlineWords, houseWords, moneyCheckWord, ruleNameOf, SELLER_SAYS_PAID, shieldRuleWord, silenceWords, stateWord, timeLeftWords } from '../../lib/words';
 
 /** Rust's size table (crates/table-attention placement.rs). The page never sends pixels;
  *  this copy exists only so the browser preview can draw a frame of the same size. */
@@ -381,19 +381,24 @@ const RECEIPT_VERB: Partial<Record<DealState, string>> = {
   MISMATCH: 'Paused · amount didn’t match the deal',
   FAILED: 'Failed',
   DISPUTED: 'Disputed',
+  UNCONFIRMED: stateWord('UNCONFIRMED').text,
 };
 
-/** A receipt from Rust. REFUSED reads as a STOP, MISMATCH as a HOLD, everything else is green.
- *  `known` is the last attention item for the deal, used only for its amount and who it is with;
- *  a deal the Tumbler never saw says only what happened. */
+/** A receipt from Rust. REFUSED reads as a STOP; MISMATCH, and a deal PayPal never confirmed, as a
+ *  HOLD; a receipt that is only the seller's word as information, never green (DECISIONS.md
+ *  section 23); everything else is green. `known` is the last attention item for the deal, used
+ *  only for its amount and who it is with; a deal the Tumbler never saw says only what happened. */
 export function receiptTicker(ev: ReceiptEvent, known?: AttentionItem): Ticker {
-  const kind: TickerKind = ev.state === 'REFUSED' ? 'stop' : ev.state === 'MISMATCH' ? 'hold' : 'receipt';
-  const verb = RECEIPT_VERB[ev.state] ?? 'Updated';
+  const sellerSays = ev.state === 'RECEIPTED' && ev.evidence.receipt === 'SELLER_ATTESTED';
+  const kind: TickerKind = ev.state === 'REFUSED' ? 'stop'
+    : ev.state === 'MISMATCH' || ev.state === 'UNCONFIRMED' ? 'hold'
+      : sellerSays ? 'info' : 'receipt';
+  const verb = sellerSays ? stateWord('RECEIPTED', { side: 'buyer' }).text : RECEIPT_VERB[ev.state] ?? 'Updated';
   return {
     key: key('receipt'),
     kind,
     l1: known && kind !== 'hold' ? [`${verb} `, formatMinor(known.amount_minor, known.currency), withWho(known)] : [verb, '', withWho(known)],
-    l2: silenceWords(ev.on_silence),
+    l2: sellerSays ? SELLER_SAYS_PAID : silenceWords(ev.on_silence),
     mode: ev.mode,
     dealId: ev.deal_id,
     ms: kind === 'receipt' ? TICKER_MS.receipt : TICKER_MS.default,

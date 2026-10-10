@@ -38,7 +38,7 @@ import { atRiskOf } from './rescue/model';
 import type { ModuleProps } from './common';
 import {
   BUCKET_LABEL, BUCKET_SUB, BUCKETS, bucketOf, dayKey, dayLabel, dirOf, KIND_ORDER, kindLabel, LENSES, queryText, readQuery, runQuery,
-  stateGroupLabel, STATEMENT_TIP, STATEMENT_WORD, statementCounts, sums, toCSV, type Bucket, type Ctx, type Group as LensGroup, type Lens, type Result, type Statement,
+  serverStateLabel, STATEMENT_TIP, STATEMENT_WORD, statementCounts, sums, toCSV, type Bucket, type Ctx, type Group as LensGroup, type Lens, type Result, type Statement,
 } from './book/model';
 import { AskChips } from './book/AskChips';
 import { ReadingChips, UnsureLine } from './book/AskReading';
@@ -685,7 +685,7 @@ function WalletAnswer({ answer, cpName }: { answer: BookAnswer; cpName: (key: st
                     const text = g === 'decided_by' && typeof v === 'string' ? (() => { try { return decidedBy({ decided_by: JSON.parse(v) as Deal['decided_by'] }).text; } catch { return v; } })()
                       : v === null ? '—' : typeof v !== 'string' ? String(v)
                       : g === 'counterparty' ? cpName(v)
-                      : g === 'state' ? stateGroupLabel(v.replace(':buyer', '') as Deal['state'], v.endsWith(':buyer') ? 'buyer' : undefined)
+                      : g === 'state' ? serverStateLabel(v)
                       : g === 'kind' ? GROUP_NAME[v as Deal['kind']] ?? v
                       : g === 'day' ? dayLabel(v) : v;
                     return <td key={g}>{text}</td>;
