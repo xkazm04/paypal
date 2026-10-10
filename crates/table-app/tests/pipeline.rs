@@ -18,6 +18,8 @@ struct MockApi {
     approved: AtomicBool,
     mismatch: AtomicBool,
     bad_link: AtomicBool,
+    /// The approve link the order answers with instead of its own.
+    link: Mutex<Option<&'static str>>,
     void_unknown: AtomicBool,
 }
 impl MockApi {
@@ -29,6 +31,9 @@ impl MockApi {
         body["links"] = json!([{"rel":"approve","href":"https://www.sandbox.paypal.com/checkoutnow?token=ORDER1"}]);
         if self.bad_link.load(Ordering::SeqCst) {
             body["links"][0]["href"] = json!("https://paypal.com.attacker.invalid/checkoutnow");
+        }
+        if let Some(href) = *self.link.lock().unwrap() {
+            body["links"][0]["href"] = json!(href);
         }
         if self.mismatch.load(Ordering::SeqCst) {
             body["purchase_units"][0]["amount"]["value"] = json!("13.00");
@@ -677,6 +682,67 @@ async fn invalid_approval_link_records_evidence_and_cannot_be_opened_or_recreate
     );
     assert_eq!(mock.calls.lock().unwrap().len(), 1);
     p.wallet.ledger.verify_audit().unwrap();
+}
+/// Deal-to-settlement craft-2 (r3): the seller signs a SETTLE only for a link its buyer's
+/// `validate_settle` would open. A link on PayPal's host that carries another order's token, or
+/// an extra query pair, signs nothing and records no outbound envelope; the deal is a mismatch,
+/// as for a link off PayPal's host. A link bound to the order still signs, and the buyer's check
+/// accepts the very SETTLE that was signed.
+#[tokio::test]
+async fn the_seller_signs_no_settle_for_a_paypal_link_that_does_not_open_its_own_order() {
+    for (href, signs) in [
+        (
+            "https://www.sandbox.paypal.com/checkoutnow?token=ORDER2",
+            false,
+        ),
+        (
+            "https://www.sandbox.paypal.com/checkoutnow?token=ORDER1&next=x",
+            false,
+        ),
+        (
+            "https://www.sandbox.paypal.com/checkoutnow?token=ORDER1",
+            true,
+        ),
+    ] {
+        let (_, seller, deal) = agreed();
+        let mock = Arc::new(MockApi::default());
+        *mock.link.lock().unwrap() = Some(href);
+        let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
+        let out = |p: &Pipeline| {
+            p.wallet
+                .ledger
+                .envelope_count(deal.id, Direction::Outbound)
+                .unwrap()
+        };
+        let before = out(&p);
+        let created = p
+            .create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+            .await;
+        let state = p.wallet.ledger.get_deal(deal.id).unwrap().state;
+        if signs {
+            created.unwrap();
+            assert_eq!(out(&p), before + 1, "{href}");
+            assert_eq!(state, DealState::AwaitingApproval, "{href}");
+            let Some((Direction::Outbound, body)) = p.wallet.ledger.last_message(deal.id).unwrap()
+            else {
+                panic!("{href}: no SETTLE sent");
+            };
+            assert!(matches!(body, Body::Settle { .. }), "{href}");
+            validate_settle(&body, deal.id, &deal.terms, deal.mode).unwrap();
+        } else {
+            assert!(matches!(created, Err(table_app::Error::Invalid)), "{href}");
+            assert_eq!(out(&p), before, "{href}: no SETTLE signed");
+            assert_eq!(state, DealState::Mismatch, "{href}");
+            // The buyer would have refused the same link, by the same rule.
+            assert_eq!(
+                order_approval_url(href, "ORDER1", deal.mode).map(|_| ()),
+                Err(SettlementError::Order),
+                "{href}"
+            );
+        }
+        assert_eq!(p.wallet.ledger.paypal_call_count(deal.id).unwrap(), 1);
+        p.wallet.ledger.verify_audit().unwrap();
+    }
 }
 #[tokio::test]
 async fn shield_ask_stops_policy_and_a_revoked_mandate_stops_the_seller_before_network() {

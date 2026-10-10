@@ -857,7 +857,9 @@ impl Pipeline {
         )
     }
     /// The verified approval link of a freshly created order, or `None` when it fails the
-    /// truth checks `create` runs: the order binding, status CREATED and one PayPal-host link.
+    /// truth checks `create` runs: the order binding, status CREATED and one PayPal-host link
+    /// that opens this very order, by the rule the buyer's `validate_settle` applies
+    /// (`table_proto::order_approval_url`). The seller never signs a SETTLE its buyer refuses.
     fn created_link(&self, deal: &Deal, expected: &CreateOrder, order: &Order) -> Option<String> {
         if order.verify(expected).is_err() || order.status != OrderStatus::Created {
             return None;
@@ -865,7 +867,9 @@ impl Pipeline {
         order
             .approval_url()
             .ok()
-            .and_then(|url| table_proto::approval_url(url.as_str(), deal.mode).ok())
+            .and_then(|url| {
+                table_proto::order_approval_url(url.as_str(), &order.id, deal.mode).ok()
+            })
             .map(|url| url.as_str().to_owned())
     }
     /// Starts the approval window at `created` and signs and records the SETTLE to the buyer.
