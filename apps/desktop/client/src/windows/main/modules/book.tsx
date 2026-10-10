@@ -828,19 +828,20 @@ function RowDetail({ deal, evidence, evError }: { deal: Deal; evidence: DealEvid
   const stmtWords = statementWords(s, deal.state, evidence?.statement_unmatched ?? null);
   const pp = deal.paypal;
   const ids = [pp.order && `order ${pp.order}`, pp.authorization && `auth ${pp.authorization}`, pp.capture && `capture ${pp.capture}`, pp.subscription && `subscription ${pp.subscription}`].filter(Boolean).join(' · ');
+  const check = evidence?.money_check ?? need?.money_check;
   const deadline = need?.deadline ?? disp.deadline;
   const silence = need?.on_silence ?? disp.on_silence;
   return (
     <div className="bk-l2">
       <div className="chips">
-        <StatusChip deal={deal} check={evidence?.money_check ?? need?.money_check} />
+        <StatusChip deal={deal} check={check} />
         <StmtChip s={s} state={deal.state} read={evidence?.statement_unmatched} />
         <ModeBadge mode={deal.mode} />
       </div>
       <Kv items={[
         ['With', cp.name],
         ['What', `${GROUP_NAME[deal.kind] ?? kindLabel(deal.kind)} · you ${deal.side === 'seller' ? 'sell' : 'buy'} · ${deal.terms.qty > 1 ? `${deal.terms.qty} × ` : ''}${deal.terms.item_ref}`],
-        ['Money', <><span className={`money bk-${b}`}>{formatMinor(t.minor, t.currency)}</span> {dirOf(deal) === 'in' ? 'coming in' : 'going out'} · {moneyNow(deal)}</>],
+        ['Money', <><span className={`money bk-${b}`}>{formatMinor(t.minor, t.currency)}</span> {dirOf(deal) === 'in' ? 'coming in' : 'going out'} · {check ? moneyCheckNow(isTerminal(deal)) : moneyNow(deal)}</>],
         ['When', <>{deal.created_at ? <>started {clockLabel(deal.created_at)}</> : 'no time recorded'}{deal.updated_at ? <> · last change {clockLabel(deal.updated_at)}</> : null}</>],
         deadline ? ['Deadline', <>{clockLabel(deadline)} · <Countdown deadline={deadline} /> left</>] : null,
         silence ? ['If you do nothing', silence] : null,
