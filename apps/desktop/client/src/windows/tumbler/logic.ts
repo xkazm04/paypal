@@ -551,7 +551,7 @@ function walkWhat(l: ForecastRow): string {
     case 'lapse': return `${l.label} lapses, nothing is paid`;
     case 'expire': return `${l.label} payment request expires, nothing is paid`;
     case 'auto_void': return `${l.label} hold of ${amt} released`;
-    case 'unconfirm': return `${l.label} ends as not confirmed by PayPal unless PayPal’s statement shows it first`;
+    case 'unconfirm': return `${l.label} ends as not confirmed by PayPal`;
     case 'create_order': return `${l.label} payment request sent to the buyer`;
     case 'authorize': return `${l.label} ${amt} put on hold for you`;
     case 'capture': return `${l.label} ${amt} collected`;
