@@ -13,7 +13,7 @@ import type { TumblerPreferences } from '@bindings/TumblerPreferences';
 import type { VisualState } from '@bindings/VisualState';
 import { LADDER } from '@bindings/ladder';
 import { clockLabel, countdown, formatMinor } from '../../lib/format';
-import { headlineWords, houseWords, moneyCheckWord, ruleNameOf, SELLER_SAYS_PAID, shieldRuleWord, silenceWords, stateWord, timeLeftWords } from '../../lib/words';
+import { headlineWords, houseWords, MONEY_CHECK_ENDED, MONEY_CHECK_ENDED_SILENCE, moneyCheckWord, ruleNameOf, SELLER_SAYS_PAID, shieldRuleWord, silenceWords, stateWord, timeLeftWords } from '../../lib/words';
 
 /** Rust's size table (crates/table-attention placement.rs). The page never sends pixels;
  *  this copy exists only so the browser preview can draw a frame of the same size. */
@@ -205,8 +205,14 @@ export function cardActions(item: AttentionItem, now: number): CardAction[] {
 
 /** The state chip on a card or stack row: text plus colour, never colour alone. A snoozed GATE
  *  never reaches the page (Rust drops it from the snapshot), so there is no "Snoozed" state. */
-export type StateChip = { tone: 'gold' | 'coral'; text: 'Paused' | 'In approval' | 'Needs you' | 'Checking' };
+export type StateChip = { tone: 'gold' | 'coral'; text: 'Paused' | 'In approval' | 'Needs you' | 'Checking' | 'Ended' };
+
+/** A deal that ended with its money step unsettled. AttentionItem carries no state, so this reads
+ *  the core's own sentence for that end (MONEY_CHECK_ENDED_SILENCE, byte-identical to Rust's). */
+export const moneyCheckEnded = (item: Pick<AttentionItem, 'money_check' | 'on_silence'>): boolean =>
+  !!item.money_check && item.on_silence === MONEY_CHECK_ENDED_SILENCE;
 export function stateChip(item: AttentionItem, inApproval: boolean): StateChip {
+  if (moneyCheckEnded(item)) return { tone: 'coral', text: 'Ended' };
   // A payment step being checked with PayPal is not paused for a decision: nothing is asked of you.
   if (item.money_check) return { tone: 'coral', text: 'Checking' };
   if (item.kind === 'hold') return { tone: 'coral', text: 'Paused' };
@@ -226,7 +232,8 @@ export function cardQuestion(item: Pick<AttentionItem, 'headline' | 'amount_mino
 
 /** The card's clock in words: "3 h 57 min left", "time is up", or, for a paused item with no
  *  deadline, that it waits for you. Never a ticking second counter: the rung carries urgency. */
-export function cardClock(item: Pick<AttentionItem, 'deadline' | 'kind' | 'money_check'>, now: number): { text: string; urgent: boolean } {
+export function cardClock(item: Pick<AttentionItem, 'deadline' | 'kind' | 'money_check' | 'on_silence'>, now: number): { text: string; urgent: boolean } {
+  if (moneyCheckEnded(item)) return { text: 'ended · nothing more is sent', urgent: false };
   if (item.deadline === null && item.money_check) return { text: 'checking with PayPal', urgent: false };
   if (item.deadline === null) return { text: item.kind === 'hold' ? 'paused until you act' : 'no deadline', urgent: false };
   const left = item.deadline - now;
@@ -245,7 +252,8 @@ export function ladderFill(left: number): number {
 
 /** One plain line under the gauge: how much time is left, in words. The ladder (breathing, the
  *  15-minute notice) is for decisions only; a paused item just shows its clock. */
-export function ladderCaption(r: Rung, hold = false, checking = false): string {
+export function ladderCaption(r: Rung, hold = false, checking = false, ended = false): string {
+  if (ended) return 'the deal ended · the wallet sends nothing more';
   if (checking) return 'checking with PayPal · what PayPal shows decides';
   if (hold && r !== 'none' && r !== 'past') return 'paused · it can’t be paid · its safe default runs at the deadline';
   switch (r) {
@@ -268,6 +276,7 @@ export function ringFill(deadline: number | null, now: number): number | null {
  *  (W4), no number that is not already on the card, no prediction. */
 export function cardWhy(item: Pick<AttentionItem, 'kind' | 'clause' | 'on_silence' | 'money_check' | 'shield_rule'>): [string, string] {
   const rule = clauseText(item.clause);
+  if (moneyCheckEnded(item)) return [MONEY_CHECK_ENDED, 'The deal has ended and the wallet sends nothing more.'];
   if (item.money_check) {
     const silence = silenceWords(item.on_silence).trim().replace(/[.,\s]+$/, '');
     return [moneyCheckWord(item.money_check).means, `If you do nothing, ${silence}.`];
@@ -344,7 +353,7 @@ export function arrivalTicker(item: AttentionItem): Ticker {
     kind: hold ? 'hold' : 'gate',
     // who it is with is on line two ("Dan · until 18:00"), so line one is only what and how much
     l1: split ? [`${split.lead} `, split.amount, ''] : [item.headline, '', ''],
-    l2: item.money_check ? `checking with PayPal · ${silenceWords(item.on_silence)}` : hold ? `paused · can’t be paid · ${item.on_silence}` : `${item.counterparty ? houseWords(item.counterparty) : 'a connected wallet'} · ${when}`,
+    l2: moneyCheckEnded(item) ? 'the deal has ended · the wallet sends nothing more' : item.money_check ? `checking with PayPal · ${silenceWords(item.on_silence)}` : hold ? `paused · can’t be paid · ${item.on_silence}` : `${item.counterparty ? houseWords(item.counterparty) : 'a connected wallet'} · ${when}`,
     mode: item.mode,
     dealId: item.deal_id,
     ms: TICKER_MS.default,
