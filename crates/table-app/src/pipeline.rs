@@ -117,6 +117,9 @@ pub struct Pipeline {
     pub(crate) secondary: Option<Arc<dyn table_paypal::SecondaryApi>>,
     /// When each rescue invoice was last read, so PAID is polled on a cadence.
     pub(crate) rescue_polled: std::collections::BTreeMap<DealId, Timestamp>,
+    /// When each parked capture or void was last read back at its deadline, by request id, so the
+    /// read is hourly (`PARKED_READ_SECS`). In memory only: a restart reads at once.
+    pub(crate) parked_read: std::collections::BTreeMap<String, Timestamp>,
 }
 impl std::fmt::Debug for Pipeline {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -350,6 +353,7 @@ impl Pipeline {
             shield_refused: None,
             secondary: None,
             rescue_polled: std::collections::BTreeMap::new(),
+            parked_read: std::collections::BTreeMap::new(),
         })
     }
     /// Trusted shell setup only: the Invoicing client the rescue invoice goes through.

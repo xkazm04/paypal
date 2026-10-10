@@ -2427,13 +2427,33 @@ async fn a_parked_capture_paypal_shows_unreadably_waits_at_its_deadline_and_send
         let due = 100 + 72 * 3600;
         let posts = post_count(&api);
         let head = audit_len(&p);
-        for at in [due, due + 1] {
+        let calls = p.wallet.ledger.paypal_call_requests(deal.id).unwrap().len();
+        // One read an hour: due and due + 3600 read, the ticks between them do not.
+        for (at, reads) in [
+            (due, 1),
+            (due + 1, 0),
+            (due + 60, 0),
+            (due + 3599, 0),
+            (due + 3600, 1),
+        ] {
+            let before = api.calls("GET /v2/payments/authorizations/AUTH1");
             assert!(p.tick(at).await.unwrap().is_empty(), "{case} at {at}");
+            assert_eq!(
+                api.calls("GET /v2/payments/authorizations/AUTH1") - before,
+                reads,
+                "{case} at {at}"
+            );
             assert_eq!(
                 p.wallet.ledger.get_deal(deal.id).unwrap().state,
                 DealState::Authorized,
                 "{case} at {at}"
             );
+            assert_eq!(
+                p.wallet.ledger.paypal_call_requests(deal.id).unwrap().len(),
+                calls,
+                "{case} at {at}"
+            );
+            assert_eq!(audit_len(&p), head, "{case} at {at}");
         }
         assert_eq!(
             outcomes_of(&p, deal.id, "capture"),
@@ -2448,7 +2468,7 @@ async fn a_parked_capture_paypal_shows_unreadably_waits_at_its_deadline_and_send
         assert_eq!(check.state, MoneyCheckState::Parked, "{case}");
         assert_eq!(audit_len(&p), head, "{case}: nothing recorded");
         api.truth.lock().unwrap().authorization = Some(paypal);
-        assert_eq!(p.tick(due + 2).await.unwrap(), vec![deal.id], "{case}");
+        assert_eq!(p.tick(due + 7200).await.unwrap(), vec![deal.id], "{case}");
         let d = p.wallet.ledger.get_deal(deal.id).unwrap();
         if paypal == "CREATED" {
             assert_eq!(d.state, DealState::AutoVoided, "{case}");
@@ -2499,12 +2519,22 @@ async fn a_parked_capture_whose_read_fails_at_its_deadline_waits_then_settles() 
         outcomes_of(&p, deal.id, "capture"),
         ["needs_owner", "deferred"]
     );
+    // The failing read is not repeated within the hour, and is tried again after it.
+    let gets = |api: &LossyApi| {
+        api.calls("GET /v2/payments/authorizations/AUTH1")
+            + api.calls("GET /v2/checkout/orders/ORDER1")
+    };
+    let read = gets(&api);
+    assert!(p.tick(due + 1).await.unwrap().is_empty());
+    assert_eq!(gets(&api), read);
+    assert!(p.tick(due + 3600).await.unwrap().is_empty());
+    assert!(gets(&api) > read);
     {
         let mut truth = api.truth.lock().unwrap();
         truth.created = true;
         truth.authorization = held;
     }
-    assert_eq!(p.tick(due + 1).await.unwrap(), vec![deal.id]);
+    assert_eq!(p.tick(due + 7200).await.unwrap(), vec![deal.id]);
     assert_eq!(
         p.wallet.ledger.get_deal(deal.id).unwrap().state,
         DealState::AutoVoided
@@ -2541,8 +2571,15 @@ async fn a_parked_void_paypal_shows_unreadably_waits_at_its_deadline() {
     );
     assert_eq!(api.calls("/void"), 0);
     assert_eq!(outcomes_of(&p, deal.id, "void"), ["needs_owner"]);
+    let reads = || api.calls("GET /v2/payments/authorizations/AUTH1");
+    let read = reads();
+    assert!(p.tick(due + 1).await.unwrap().is_empty());
+    assert!(p.tick(due + 3599).await.unwrap().is_empty());
+    assert_eq!(reads(), read);
+    assert!(p.tick(due + 3600).await.unwrap().is_empty());
+    assert_eq!(reads(), read + 1);
     api.truth.lock().unwrap().authorization = Some("CREATED");
-    assert_eq!(p.tick(due + 1).await.unwrap(), vec![deal.id]);
+    assert_eq!(p.tick(due + 7200).await.unwrap(), vec![deal.id]);
     assert_eq!(
         p.wallet.ledger.get_deal(deal.id).unwrap().state,
         DealState::Voided
@@ -2553,6 +2590,27 @@ async fn a_parked_void_paypal_shows_unreadably_waits_at_its_deadline() {
         ["needs_owner", "resent", "confirmed"]
     );
     assert_one_request_id_per_operation(&p, &api, deal.id, "parked void");
+}
+
+/// Deal-to-settlement rework C: the hourly cadence of a parked read is kept in memory, so a
+/// restarted wallet reads a parked capture at once.
+#[tokio::test]
+async fn a_restart_reads_a_parked_capture_at_once() {
+    let (api, mut p, deal) = parked_capture_deal(Some("PENDING")).await;
+    let due = 100 + 72 * 3600;
+    let reads = || api.calls("GET /v2/payments/authorizations/AUTH1");
+    let read = reads();
+    assert!(p.tick(due).await.unwrap().is_empty());
+    assert_eq!(reads(), read + 1);
+    let mut fresh = Pipeline::new(p.wallet, api.clone(), due + 10).unwrap();
+    assert!(fresh.tick(due + 11).await.unwrap().is_empty());
+    assert_eq!(reads(), read + 2);
+    assert!(fresh.tick(due + 12).await.unwrap().is_empty());
+    assert_eq!(reads(), read + 2);
+    assert_eq!(
+        fresh.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Authorized
+    );
 }
 
 /// Deal-to-settlement robustness-2: at the order's deadline an authorize whose answer was lost
