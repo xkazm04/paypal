@@ -2164,3 +2164,18 @@ Ids are the ones on main.
   - No native engine can start today: `NativeEngine::probe` reports `available: false`.
 - **Gates.** `git diff --check`; `cargo deny --workspace check advisories` ok; the merge gate's cargo test passed (run 5bed37ed).
 - **Not checked.** A live engine; codex-cli's built-in tools; `crates/table-runtime/src/scheduler.rs`; the dependency licences and `pnpm audit`.
+
+## Book lens range (ops-ledger-query lite r1 must-address 2)
+
+Ids are the ones on main.
+
+- **Commits:** d65a9d6 (Rust test), 4e5efe7 (client change and test), and the docs commit that carries this section.
+- **Defect:** the 'week' lens had no range. The window ran it over `ledgerScope` deals, and `bq.run` sent it unranged, so Rust answered over every deal.
+- **Change.**
+  - `lensAsRun` (`modules/book/understand.ts`) gives the week lens `whenRange({ k: 'this_week' }, { now, offsetMin })` at pick and at run time, the range a typed 'this week' sends. The ranged query is the one shown (`queryText`, `readQuery`).
+  - `run()` in `book.tsx` now runs every preset over `all`, as `answerAsked` does. Rows outside the ledger scope are not in the grid, so they are simply not lit, as for a typed question. The grid, totals, `WeekAnswer`, `ledgerScope` and `weekBounds` are unchanged.
+- **Tests.**
+  - Rust: `book::tests::a_range_counts_only_deals_created_from_from_and_before_to` (deals before, at from, inside, at to, after; counts only [from, to)).
+  - Client (`modules/book/lensRange.test.ts`): 'a ranged week query' (carries the range of a typed this week; the window returns exactly the rows the Rust test counts) and 'a preset lens that names no time' (unchanged, reads every deal). Both use the same fixture instants.
+- **Gates.** `cargo test -p table-ledger`, clippy on table-ledger, `git diff --check`. Client tsc and vitest were not run by the gate (no node_modules in the worktree); the client test is unrun.
+- **Open.** weekBounds (logic.ts, local Date) and whenSpan (understand.ts, fixed offset at now) may differ in a DST-change week; neither was changed.
