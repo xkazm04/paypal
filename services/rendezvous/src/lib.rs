@@ -3,12 +3,12 @@ pub mod serve;
 use async_trait::async_trait;
 use axum::{
     Json, Router,
-    extract::{DefaultBodyLimit, Path, Query, State},
-    http::StatusCode,
+    extract::{DefaultBodyLimit, Extension, Path, Query, State},
+    http::{HeaderMap, StatusCode},
     routing::{get, post, put},
 };
 use serde::Deserialize;
-pub use serve::{Limits, serve, serve_with, with_timeouts};
+pub use serve::{Caller, Connection, Limits, serve, serve_with, with_timeouts};
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
 use table_core::Clock;
 use tokio::sync::{Mutex, Notify, Semaphore};
@@ -18,6 +18,7 @@ pub enum Error {
     Missing,
     #[error("invalid relay request")]
     Invalid,
+    /// The store, a mailbox or the caller's allowance is full (HTTP 429).
     #[error("relay capacity reached")]
     Full,
 }
@@ -34,6 +35,20 @@ const MAX_MAILBOX_BYTES: usize = 256 * 1024;
 const MAX_TOTAL_BYTES: usize = 64 * 1024 * 1024;
 /// A read returns at most this many messages; the caller advances its cursor by what it got.
 const READ_PAGE: usize = 32;
+/// Live mailboxes in the whole store.
+pub const MAX_MAILBOXES: usize = 256;
+/// Slots HTTP creates can never take, so the co-hosted HOUSE (which creates in process, through
+/// `table_relay::RelayApi`) always has room. The HOUSE ledger holds at most 64 live relay routes
+/// (`bind_relay` in `table-ledger`), one mailbox each, so 64 slots cover every deal it can have
+/// open. A wallet's create of a HOUSE deal's mailbox finds it already made and costs nothing.
+pub const HOUSE_RESERVE: usize = 64;
+/// Live mailboxes one caller (see [`Caller`]) may have created over HTTP. A wallet creates one
+/// mailbox per relay work item (`deliver` in `table-runtime/src/relay.rs`), and its ledger holds
+/// at most 64 live relay routes (`bind_relay`); pending pairings add a mailbox each, but a demo
+/// pairs a handful of times, far below what a full book of routes leaves unused. Two wallets
+/// behind one home NAT address (the two-desktop demo) share one key, so 2 x 64 = 128. That
+/// leaves 256 - 64 - 128 = 64 HTTP slots for every other caller while one caller is at its limit.
+pub const CALLER_ALLOWANCE: usize = 128;
 #[derive(Debug)]
 struct BoxState {
     generation: String,
@@ -42,6 +57,9 @@ struct BoxState {
     bytes: usize,
     /// Long-polls wait on their own mailbox only; a send elsewhere never wakes them.
     changed: Arc<Notify>,
+    /// Who created it over HTTP, charged against that caller's allowance until it expires. None
+    /// for an in-process create (the HOUSE), which no allowance counts.
+    creator: Option<Caller>,
 }
 #[derive(Debug, Default)]
 struct Inner {
@@ -119,9 +137,14 @@ fn valid_jws(jws: &str) -> bool {
                     .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
         })
 }
-#[async_trait]
-impl Mailbox for MemoryStore {
-    async fn create(&self, h: &str) -> Result<(), Error> {
+impl MemoryStore {
+    /// Creates a mailbox for an HTTP caller: refused [`HOUSE_RESERVE`] slots below the store cap,
+    /// and once `caller` holds [`CALLER_ALLOWANCE`] live mailboxes. Re-creating one that exists
+    /// succeeds and costs nothing; an expired mailbox no longer counts.
+    pub async fn create_as(&self, h: &str, caller: Caller) -> Result<(), Error> {
+        self.create_by(h, Some(caller)).await
+    }
+    async fn create_by(&self, h: &str, caller: Option<Caller>) -> Result<(), Error> {
         if !valid_hash(h) {
             return Err(Error::Invalid);
         }
@@ -130,8 +153,18 @@ impl Mailbox for MemoryStore {
         if inner.boxes.contains_key(h) {
             return Ok(());
         }
-        if inner.boxes.len() >= 256 {
+        if inner.boxes.len() >= MAX_MAILBOXES {
             return Err(Error::Full);
+        }
+        if let Some(caller) = caller {
+            let held = inner
+                .boxes
+                .values()
+                .filter(|b| b.creator == Some(caller))
+                .count();
+            if inner.boxes.len() >= MAX_MAILBOXES - HOUSE_RESERVE || held >= CALLER_ALLOWANCE {
+                return Err(Error::Full);
+            }
         }
         inner.boxes.insert(
             h.into(),
@@ -145,9 +178,17 @@ impl Mailbox for MemoryStore {
                 messages: Vec::new(),
                 bytes: 0,
                 changed: Arc::new(Notify::new()),
+                creator: caller,
             },
         );
         Ok(())
+    }
+}
+#[async_trait]
+impl Mailbox for MemoryStore {
+    /// An in-process create: no caller, no allowance, no reserve; only the store cap applies.
+    async fn create(&self, h: &str) -> Result<(), Error> {
+        self.create_by(h, None).await
     }
     async fn send(&self, h: &str, jws: String) -> Result<u64, Error> {
         if !valid_hash(h) || !valid_jws(&jws) {
@@ -267,8 +308,16 @@ impl table_relay::RelayApi for MemoryStore {
 async fn create(
     State(s): State<Arc<MemoryStore>>,
     Path(h): Path<String>,
+    connection: Option<Extension<Connection>>,
+    headers: HeaderMap,
 ) -> Result<StatusCode, StatusCode> {
-    s.create(&h).await?;
+    match connection {
+        Some(Extension(connection)) => s.create_as(&h, connection.caller(&headers)).await?,
+        // A request with no connection info comes from a router driven in process (the
+        // table-runtime and HOUSE tests call it with `oneshot`), and keeps the plain store cap.
+        // Production never gets here: `serve_with` attaches a `Connection` to every request.
+        None => s.create(&h).await?,
+    }
     Ok(StatusCode::CREATED)
 }
 async fn send(

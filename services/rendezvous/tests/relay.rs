@@ -219,3 +219,100 @@ async fn reads_are_paged_and_the_cursor_recovers_every_message_in_order() {
     assert_eq!(got, sent);
     assert_eq!(via_batch, sent);
 }
+fn caller(ip: &str) -> Caller {
+    Caller::from_ip(ip.parse().unwrap())
+}
+/// The HOUSE's path: an in-process create through the wallet-facing relay contract.
+async fn house_create(s: &MemoryStore, n: usize) -> Result<(), table_relay::Error> {
+    table_relay::RelayApi::create(s, table_core::H256::digest(format!("house {n}").as_bytes()))
+        .await
+}
+#[tokio::test]
+async fn one_caller_uses_up_its_allowance_and_a_second_caller_and_the_house_still_create() {
+    let s = MemoryStore::new(Arc::new(table_core::FixedClock(0)));
+    let (a, b) = (caller("198.51.100.1"), caller("198.51.100.2"));
+    for n in 0..CALLER_ALLOWANCE {
+        s.create_as(&hash(n), a).await.unwrap();
+    }
+    assert!(matches!(
+        s.create_as(&hash(CALLER_ALLOWANCE), a).await,
+        Err(Error::Full)
+    ));
+    // A fresh pair mailbox from someone else, and the HOUSE's own create, still succeed.
+    s.create_as(&hash(1000), b).await.unwrap();
+    house_create(&s, 0).await.unwrap();
+}
+#[tokio::test]
+async fn many_callers_filling_the_http_share_leave_the_house_reserve() {
+    let s = MemoryStore::new(Arc::new(table_core::FixedClock(0)));
+    let share = MAX_MAILBOXES - HOUSE_RESERVE;
+    for n in 0..share {
+        s.create_as(&hash(n), caller(&format!("10.0.{}.{}", n / 256, n % 256)))
+            .await
+            .unwrap();
+    }
+    assert!(matches!(
+        s.create_as(&hash(share), caller("192.0.2.1")).await,
+        Err(Error::Full)
+    ));
+    for n in 0..HOUSE_RESERVE {
+        house_create(&s, n).await.unwrap();
+    }
+    // The store cap still holds for the HOUSE too.
+    assert!(house_create(&s, HOUSE_RESERVE).await.is_err());
+}
+#[tokio::test]
+async fn re_creating_a_mailbox_costs_nothing_and_expiry_releases_the_allowance() {
+    let clock = Arc::new(Time(AtomicI64::new(0)));
+    let s = MemoryStore::new(clock.clone());
+    let (a, b, c) = (
+        caller("198.51.100.1"),
+        caller("198.51.100.2"),
+        caller("198.51.100.3"),
+    );
+    // b reaches its allowance, then a fills the rest of the HTTP share.
+    for n in 0..CALLER_ALLOWANCE {
+        s.create_as(&hash(n), b).await.unwrap();
+    }
+    assert!(matches!(s.create_as(&hash(500), b).await, Err(Error::Full)));
+    let rest = MAX_MAILBOXES - HOUSE_RESERVE - CALLER_ALLOWANCE;
+    for n in 0..rest {
+        s.create_as(&hash(1000 + n), a).await.unwrap();
+    }
+    assert!(matches!(s.create_as(&hash(501), a).await, Err(Error::Full)));
+    assert!(matches!(s.create_as(&hash(502), c).await, Err(Error::Full)));
+    // Re-creating what exists still succeeds for everyone, even at a limit: nothing is added.
+    s.create_as(&hash(1000), a).await.unwrap();
+    s.create_as(&hash(1000), b).await.unwrap();
+    s.create_as(&hash(0), c).await.unwrap();
+    s.create(&hash(0)).await.unwrap();
+    // A day later every mailbox has expired and the whole allowance is free again.
+    clock.0.store(86400, Ordering::SeqCst);
+    for n in 0..CALLER_ALLOWANCE {
+        s.create_as(&hash(5000 + n), b).await.unwrap();
+    }
+    assert!(matches!(
+        s.create_as(&hash(9999), b).await,
+        Err(Error::Full)
+    ));
+    s.create_as(&hash(9999), a).await.unwrap();
+}
+#[test]
+fn an_ipv6_caller_is_its_slash_64_and_an_ipv4_mapped_one_is_its_ipv4() {
+    assert_eq!(caller("2001:db8:1:2::a"), caller("2001:db8:1:2:ffff:1:2:3"));
+    assert_ne!(caller("2001:db8:1:2::a"), caller("2001:db8:1:3::a"));
+    assert_eq!(caller("2001:db8:1:2::a").ip().to_string(), "2001:db8:1:2::");
+    assert_eq!(caller("::ffff:198.51.100.1"), caller("198.51.100.1"));
+    assert_ne!(caller("198.51.100.1"), caller("198.51.100.2"));
+}
+#[test]
+fn the_proxy_hop_setting_is_a_small_whole_number_or_startup_fails() {
+    use rendezvous::serve::proxy_hops;
+    assert_eq!(proxy_hops(None).unwrap(), 0);
+    assert_eq!(proxy_hops(Some("")).unwrap(), 0);
+    assert_eq!(proxy_hops(Some(" 1 ")).unwrap(), 1);
+    assert_eq!(proxy_hops(Some("8")).unwrap(), 8);
+    for bad in ["one", "-1", "1.0", "9", "true"] {
+        assert!(proxy_hops(Some(bad)).is_err(), "{bad}");
+    }
+}

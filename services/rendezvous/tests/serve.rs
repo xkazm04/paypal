@@ -259,3 +259,130 @@ async fn long_polls_past_the_permit_limit_answer_at_once_and_permits_come_back()
         assert!(again.elapsed() >= Duration::from_secs(25));
     }
 }
+
+/// An app that answers with the caller key `serve_with` attached, as text.
+fn who() -> Router {
+    Router::new().route(
+        "/who",
+        get(
+            |axum::Extension(c): axum::Extension<rendezvous::Connection>,
+             headers: axum::http::HeaderMap| async move {
+                c.caller(&headers).ip().to_string()
+            },
+        ),
+    )
+}
+fn hops(trusted_proxy_hops: usize) -> Limits {
+    Limits {
+        trusted_proxy_hops,
+        ..Limits::default()
+    }
+}
+/// Sends one request with `headers` (each a full `name: value` line) and returns the reply.
+async fn request(addr: std::net::SocketAddr, head: &str, headers: &[&str]) -> String {
+    let mut s = TcpStream::connect(addr).await.unwrap();
+    let mut text = format!("{head} HTTP/1.1\r\nhost: x\r\nconnection: close\r\n");
+    for h in headers {
+        text.push_str(h);
+        text.push_str("\r\n");
+    }
+    text.push_str("content-length: 0\r\n\r\n");
+    s.write_all(text.as_bytes()).await.unwrap();
+    read_all(&mut s).await
+}
+async fn caller_of(addr: std::net::SocketAddr, headers: &[&str]) -> String {
+    let reply = request(addr, "GET /who", headers).await;
+    assert!(reply.starts_with("HTTP/1.1 200"), "{reply}");
+    reply.rsplit("\r\n").next().unwrap().to_string()
+}
+
+#[tokio::test]
+async fn with_no_trusted_proxy_a_forged_forwarded_for_does_not_change_the_caller() {
+    let addr = start_app(who(), hops(0)).await;
+    assert_eq!(caller_of(addr, &[]).await, "127.0.0.1");
+    assert_eq!(
+        caller_of(addr, &["x-forwarded-for: 203.0.113.9"]).await,
+        "127.0.0.1"
+    );
+    assert_eq!(
+        caller_of(addr, &["x-forwarded-for: 203.0.113.9, 198.51.100.4"]).await,
+        "127.0.0.1"
+    );
+}
+
+#[tokio::test]
+async fn behind_one_proxy_the_rightmost_forwarded_for_entry_is_the_caller() {
+    let addr = start_app(who(), hops(1)).await;
+    // The client wrote the left entry; the proxy appended the right one.
+    assert_eq!(
+        caller_of(addr, &["x-forwarded-for: 203.0.113.9, 198.51.100.4"]).await,
+        "198.51.100.4"
+    );
+    // Repeated headers are one list in order: the last entry of the last header.
+    assert_eq!(
+        caller_of(
+            addr,
+            &[
+                "x-forwarded-for: 203.0.113.9",
+                "x-forwarded-for: 198.51.100.4"
+            ]
+        )
+        .await,
+        "198.51.100.4"
+    );
+    // No header, or an unreadable proxy entry: the TCP peer, never a client entry.
+    assert_eq!(caller_of(addr, &[]).await, "127.0.0.1");
+    assert_eq!(
+        caller_of(addr, &["x-forwarded-for: 203.0.113.9, nonsense"]).await,
+        "127.0.0.1"
+    );
+}
+
+#[tokio::test]
+async fn two_ipv6_addresses_in_one_slash_64_share_a_caller() {
+    let addr = start_app(who(), hops(1)).await;
+    let one = caller_of(addr, &["x-forwarded-for: 2001:db8:1:2::a"]).await;
+    let two = caller_of(addr, &["x-forwarded-for: [2001:db8:1:2:ffff::1]:443"]).await;
+    let other = caller_of(addr, &["x-forwarded-for: 2001:db8:1:3::a"]).await;
+    assert_eq!(one, "2001:db8:1:2::");
+    assert_eq!(one, two);
+    assert_ne!(one, other);
+}
+
+#[tokio::test]
+async fn over_a_socket_one_caller_is_refused_past_its_allowance_and_forging_does_not_help() {
+    use rendezvous::{CALLER_ALLOWANCE, MemoryStore, relay_router};
+    use std::sync::Arc;
+    let put = |n: usize| format!("PUT /v1/mailbox/{n:064x}");
+    let status = |reply: String| reply[9..12].to_string();
+    // Behind one proxy: the proxy-appended entry is the key.
+    let store = Arc::new(MemoryStore::new(Arc::new(table_core::FixedClock(0))));
+    let addr = start_app(relay_router(store), hops(1)).await;
+    let me = "x-forwarded-for: 198.51.100.1";
+    for n in 0..CALLER_ALLOWANCE {
+        assert_eq!(status(request(addr, &put(n), &[me]).await), "201");
+    }
+    assert_eq!(
+        status(request(addr, &put(CALLER_ALLOWANCE), &[me]).await),
+        "429"
+    );
+    // Re-creating one of its own still answers 201.
+    assert_eq!(status(request(addr, &put(0), &[me]).await), "201");
+    // A client-written entry to the left of the proxy's changes nothing.
+    let forged = "x-forwarded-for: 203.0.113.9, 198.51.100.1";
+    assert_eq!(status(request(addr, &put(9000), &[forged]).await), "429");
+    let other = "x-forwarded-for: 198.51.100.2";
+    assert_eq!(status(request(addr, &put(9000), &[other]).await), "201");
+    // With no trusted proxy, a client rotating forged headers is still one caller.
+    let store = Arc::new(MemoryStore::new(Arc::new(table_core::FixedClock(0))));
+    let addr = start_app(relay_router(store), hops(0)).await;
+    for n in 0..CALLER_ALLOWANCE {
+        let forged = format!("x-forwarded-for: 203.0.{}.{}", n / 256, n % 256);
+        assert_eq!(status(request(addr, &put(n), &[&forged]).await), "201");
+    }
+    let forged = "x-forwarded-for: 192.0.2.77";
+    assert_eq!(
+        status(request(addr, &put(CALLER_ALLOWANCE), &[forged]).await),
+        "429"
+    );
+}
