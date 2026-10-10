@@ -691,6 +691,22 @@ impl Ledger {
             .map(|raw| serde_json::from_str(raw).map_err(Into::into))
             .collect()
     }
+    /// Every distinct agent public key any mandate row ever bound, whatever its status (active,
+    /// superseded, revoked or expired). Read-only; a key that is not 32 bytes is an integrity fault.
+    pub fn mandate_agent_keys(&self) -> Result<Vec<[u8; 32]>, LedgerError> {
+        let mut statement = self
+            .conn
+            .prepare("SELECT DISTINCT agent_pubkey FROM mandates ORDER BY agent_pubkey")?;
+        let raw = statement
+            .query_map([], |r| r.get::<_, Vec<u8>>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        raw.into_iter()
+            .map(|key| {
+                key.try_into()
+                    .map_err(|_| LedgerError::Integrity("agent key length"))
+            })
+            .collect()
+    }
     /// Every active mandate for the owner's list. One the owner signed that today's
     /// `validate()` refuses (an older wallet's policy) is listed with that refusal so it can be
     /// signed again or withdrawn; `active_mandate` still refuses it, so nothing acts under it.
