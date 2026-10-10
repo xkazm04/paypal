@@ -8,6 +8,7 @@
 .mod-book .bk-held, .bk-l2 .bk-held { color: var(--gold-l); }
 .mod-book .bk-motion, .bk-l2 .bk-motion { color: var(--teal-l); }
 .mod-book .bk-stopped, .bk-l2 .bk-stopped { color: var(--dim); }
+.mod-book .bk-unconfirmed, .bk-l2 .bk-unconfirmed { color: var(--coral, var(--gold-l)); }
 
 /* Simple: four plain totals, each currency on its own line, never added together */
 .mod-book .totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); }
@@ -98,6 +99,7 @@
 .mod-book .ledger tr.off td { opacity: .3; }
 .mod-book .ledger td.c-held { color: var(--gold-l); }
 .mod-book .ledger td.c-motion { color: var(--muted); }
+.mod-book .ledger td.c-unconfirmed { color: var(--coral, var(--gold-l)); }
 .mod-book .ledger td.c-stopped { color: var(--dim); text-decoration: line-through; }
 .mod-book .ledger .in { color: var(--dim); font-size: var(--fs-small); margin-left: 3px; display: inline-block; }
 .mod-book .ledger .day { color: var(--dim); font-size: var(--fs-small); margin: 0 6px; }
@@ -134,6 +136,7 @@
 .bk-l2 .mk-dot.mk-held { fill: var(--gold-l); }
 .bk-l2 .mk-dot.mk-motion { fill: var(--panel); stroke: var(--teal-l); }
 .bk-l2 .mk-dot.mk-stopped { fill: var(--dim); }
+.bk-l2 .mk-dot.mk-unconfirmed { fill: var(--panel); stroke: var(--dim); }
 .mod-book .slip .ui-silence { flex: none; }
 
 /* ---- Round 2 (experiment r2-book): why on each total, where the money went, PayPal agrees, question chips ---- */

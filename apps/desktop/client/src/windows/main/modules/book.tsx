@@ -744,7 +744,7 @@ function GridHelp() {
         <Popover anchor={a} onClose={() => setA(null)} title="Reading this table">
           <div className="bk-pop">
             <Kv items={[
-              ['Money', 'paid, on hold, in progress and stopped each have their own column and total. A hold is not a payment.'],
+              ['Money', 'paid, on hold, in progress, not confirmed and stopped each have their own column and total. A hold is not a payment.'],
               ['On hold', 'PayPal is holding the money; it is not paid yet'],
               ['Statement', 'whether PayPal’s own statement shows the payment yet (it can lag up to 3 hours)'],
               ['Rows', 'click one for its PayPal proof'],

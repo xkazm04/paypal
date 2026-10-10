@@ -17,17 +17,22 @@ import { dealTotal, decidedBy, isSettled, isTerminal, sumByCurrency } from '../.
 
 // ---- money states ------------------------------------------------------------------------------
 
-export type Bucket = 'captured' | 'held' | 'motion' | 'stopped';
-export const BUCKETS: readonly Bucket[] = ['captured', 'held', 'motion', 'stopped'];
-export const BUCKET_LABEL: Record<Bucket, string> = { captured: 'Paid', held: 'On hold', motion: 'In progress', stopped: 'Stopped' };
-export const BUCKET_SUB: Record<Bucket, string> = { captured: 'the money moved', held: 'held at PayPal, not paid yet', motion: 'nothing paid yet', stopped: 'never paid, or paid back' };
+export type Bucket = 'captured' | 'held' | 'motion' | 'unconfirmed' | 'stopped';
+export const BUCKETS: readonly Bucket[] = ['captured', 'held', 'motion', 'unconfirmed', 'stopped'];
+export const BUCKET_LABEL: Record<Bucket, string> = { captured: 'Paid', held: 'On hold', motion: 'In progress', unconfirmed: 'Not confirmed', stopped: 'Stopped' };
+export const BUCKET_SUB: Record<Bucket, string> = {
+  captured: 'the money moved', held: 'held at PayPal, not paid yet', motion: 'nothing paid yet',
+  unconfirmed: 'ended: the seller said it was paid, but your wallet has no match for it on PayPal’s statement', stopped: 'never paid, or paid back',
+};
 
 /** Captured = settled; held = authorized at PayPal; stopped = ended without (or reversing) payment; else in motion. */
 export function bucketOf(d: Pick<Deal, 'state' | 'kind' | 'shield'> & Partial<Pick<Deal, 'side'>>): Bucket {
   if (isSettled(d)) return 'captured';
   if (d.state === 'AUTHORIZED') return 'held';
-  // The seller's word, and a deal PayPal's statement never showed: neither paid nor "never paid".
-  if (sellerSaysOnly(d) || d.state === 'UNCONFIRMED') return 'motion';
+  // A deal PayPal's statement did not confirm is an end of its own: neither paid, nor "never paid",
+  // nor still in progress. The seller's word alone is still in progress.
+  if (d.state === 'UNCONFIRMED') return 'unconfirmed';
+  if (sellerSaysOnly(d)) return 'motion';
   if (isTerminal(d)) return 'stopped';
   return 'motion';
 }

@@ -65,7 +65,7 @@ export function whereTheMoneyWent(deals: readonly Deal[]): BarChart[] {
     const f = flowOf(d);
     if (f) { row.minor[f] += t.minor; row.n[f]++; }
     else if (bucketOf(d) === 'captured') row.replays++;
-    else row.open++;
+    else if (bucketOf(d) !== 'unconfirmed') row.open++;
     rows.set(key, row);
   }
   const by = new Map<Currency, BarRow[]>();
