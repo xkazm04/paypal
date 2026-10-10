@@ -1039,3 +1039,60 @@ async fn a_parked_send_whose_read_fails_is_read_once_an_hour() {
     assert_eq!(r.pp.get(|w| w.reads), before + 2);
     assert!(r.p.has_open_operation(id).unwrap());
 }
+
+/// With no invoicing client a draft create still closes at its deadline (that needs no read).
+#[tokio::test]
+async fn without_a_client_a_create_open_at_the_deadline_closes_and_the_deal_expires() {
+    let mut r = rig();
+    let id = r.open(1, RescueSource::Paypal).id;
+    r.pp.set(|w| w.lose.push("create"));
+    assert!(r.approve(id, T0).await.is_err());
+    r.p.set_secondary(None);
+    assert!(!r.p.rescue_tick(id, T0 + 20).await.unwrap());
+    assert!(r.p.has_open_operation(id).unwrap());
+    assert!(r.p.rescue_tick(id, T0 + 4 * 86400).await.unwrap());
+    assert_eq!(r.state(id), DealState::Expired);
+    assert!(!r.p.has_open_operation(id).unwrap());
+}
+
+/// A sent invoice is never expired unread: without the client it waits, and once the client is
+/// back the next tick reads it and ends it.
+#[tokio::test]
+async fn without_a_client_a_sent_invoice_waits_and_is_read_once_it_is_back() {
+    let mut r = rig();
+    let id = r.open(1, RescueSource::Paypal).id;
+    r.approve(id, T0).await.unwrap();
+    let due = T0 + 31 * 86400;
+    let (writes, calls) = (r.writes().len(), r.calls(id));
+    r.p.set_secondary(None);
+    assert!(!r.p.rescue_tick(id, due).await.unwrap());
+    assert_eq!(r.state(id), DealState::AwaitingApproval);
+    assert_eq!((r.writes().len(), r.calls(id)), (writes, calls));
+    r.p.set_secondary(Some(r.pp.clone()));
+    assert!(r.p.rescue_tick(id, due + 1).await.unwrap());
+    assert_eq!(r.state(id), DealState::Expired);
+}
+
+/// A read that fails at the deadline never expires the invoice; the retry keeps the poll cadence.
+#[tokio::test]
+async fn a_failed_read_at_the_deadline_waits_and_retries_on_the_poll_cadence() {
+    let mut r = rig();
+    let id = r.open(1, RescueSource::Paypal).id;
+    r.approve(id, T0).await.unwrap();
+    let due = T0 + 31 * 86400;
+    r.pp.set(|w| w.reads_fail = true);
+    let before = r.pp.get(|w| w.reads);
+    assert!(!r.p.rescue_tick(id, due).await.unwrap());
+    assert_eq!(r.state(id), DealState::AwaitingApproval);
+    assert_eq!(r.pp.get(|w| w.reads), before + 1);
+    r.pp.set(|w| w.reads_fail = false);
+    assert!(
+        !r.p.rescue_tick(id, due + RESCUE_POLL_SECS - 1)
+            .await
+            .unwrap()
+    );
+    assert_eq!(r.pp.get(|w| w.reads), before + 1);
+    assert_eq!(r.state(id), DealState::AwaitingApproval);
+    assert!(r.p.rescue_tick(id, due + RESCUE_POLL_SECS).await.unwrap());
+    assert_eq!(r.state(id), DealState::Expired);
+}

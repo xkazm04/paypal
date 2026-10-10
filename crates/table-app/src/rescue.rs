@@ -646,14 +646,12 @@ impl Pipeline {
             return Ok(false);
         }
         if self.has_open_operation(id)? {
-            if self.secondary.is_none() {
-                return Ok(false);
+            // Without the invoicing client nothing can be read, but a draft create still closes
+            // at its deadline (that needs no read).
+            if self.secondary.is_some() && self.rescue_resolve(id, None, now).await? {
+                return Ok(true);
             }
-            let settled = self.rescue_resolve(id, None, now).await?;
-            if !settled {
-                return self.rescue_deadline(id, now).await;
-            }
-            return Ok(true);
+            return self.rescue_deadline(id, now).await;
         }
         if self
             .wallet
@@ -676,7 +674,9 @@ impl Pipeline {
     /// A rescue deal's deadline: nothing is sent and nothing is collected. An unapproved fix
     /// lapses (PayPal retries by itself); a draft never sent expires; a sent invoice is read
     /// once more, then expires if it is not paid. A send whose answer is still unknown keeps the
-    /// deal open: that invoice may be with the subscriber.
+    /// deal open: that invoice may be with the subscriber. A sent invoice ends at its deadline
+    /// only after a read shows it unpaid, and without the invoicing client or the deal's agent
+    /// key it waits until they come back.
     pub(crate) async fn rescue_deadline(
         &mut self,
         id: DealId,
@@ -717,11 +717,25 @@ impl Pipeline {
             }
             return Ok(false);
         }
-        if deal.state == DealState::AwaitingApproval
-            && self.secondary.is_some()
-            && self.rescue_poll(id, now).await.unwrap_or(false)
-        {
-            return Ok(true);
+        if deal.state == DealState::AwaitingApproval {
+            // A sent invoice is never expired unread: without the client, or while PayPal
+            // cannot be read, it waits. The read keeps the poll cadence.
+            if self.secondary.is_none() {
+                return Ok(false);
+            }
+            let due_poll = self
+                .rescue_polled
+                .get(&id)
+                .is_none_or(|at| now.saturating_sub(*at) >= RESCUE_POLL_SECS);
+            if !due_poll {
+                return Ok(false);
+            }
+            match self.rescue_poll(id, now).await {
+                Ok(true) => return Ok(true),
+                Ok(false) => {}
+                Err(Error::Unavailable) => return Ok(false),
+                Err(e) => return Err(e),
+            }
         }
         let deal = self.wallet.ledger.get_deal(id)?;
         if deal.state.pre_capture() && !deal.state.terminal() {
