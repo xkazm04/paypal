@@ -126,6 +126,9 @@ the deal page shows them in quarantine.
   mutation; reconciliation only adds evidence (a matched statement) and an audit row.
 - **Never added across currencies or directions**; a hold is never counted as paid; stopped money
   stays separate; an unknown statement is never counted as "on statement".
+- **The wallet's table shows an Amount only when each line holds one money state**: when the query
+  groups by status or filters to statuses of one kind (`walletSumsApart`, `modules/book/model.ts`).
+  Otherwise the Amount is left out and a hint says why; Rows, vs market and Recovered stay.
 - **No AI reads the owner's question**; it never leaves the machine and is never guessed.
 - **Rejections never echo a value**: the fixed reason names the rule only.
 - **Their words never appear** in the Book; counterparty text stays in the deal page's quarantine.
@@ -212,6 +215,12 @@ unlock):
   `crates/table-ledger/src/receipt.rs` ~:255, read by `statement_unmatched` at ~:284-296). After a later
   owner check that finds nothing, the words still say the wallet did not check (deal-to-settlement full r1
   (2026-10-10), craft-1 and robustness-5). Waits on the operator's Approval.
+- Each Book open reads every deal's evidence once, 8 at a time (`windows/main/evidence.ts`); a
+  refetch re-reads only the deals whose evidence can change. No batched evidence command exists.
+- The assistant's `sum_amount` still adds every state unless the query filters or groups by state;
+  its playbook (`prompts/shop-assistant.md`) now says so.
+- On the owner path, a serde rejection quotes an unknown variant string (`dispatcher.rs` ~:406-411),
+  so "Rejections never echo a value" holds for the rules, not for the schema stage.
 - Book metrics are not yet read from the wallet-limits exposure fold; the page's local recovered
   estimate could read `rescue_book` instead.
 - Typed questions: spending and receiving both read as "Paid" (direction is not a `BookQuery`
