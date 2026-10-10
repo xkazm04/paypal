@@ -831,7 +831,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   PayPal, and the deadline read-back only learns that it went through. Any other delivery is never captured
   by the scheduler, and the re-armed deadline auto-voids it on the safe default. No new void, no new capture
   path, `scheduler.rs` unchanged. The code already did this; the commit only adds the test.
-  - **Evidence:** ddd0db4, `a_sellers_hold_found_at_the_deadline_is_collected_only_when_delivered_at_once`
+  - **Evidence:** 0739a29, `a_sellers_hold_found_at_the_deadline_is_collected_only_when_delivered_at_once`
     (`crates/table-runtime/src/resolve_tests.rs`).
 - **3. Decision, the end the builder chose (robustness-4).** A parked authorize whose deadline read still
   shows a record no check accepts (an order or authorization that is not the untouched APPROVED order and not
@@ -854,7 +854,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - an EXPIRED deal can carry a parked authorize forever, and its Tumbler card cannot be dismissed;
   - EXPIRED's state words say 'No money moved', which this deal cannot promise; the deal page answer
     overrides them there.
-- **Evidence:** 37d7217, `a_parked_authorize_paypal_never_shows_readably_ends_at_its_bound_and_sends_nothing`
+- **Evidence:** d100027, `a_parked_authorize_paypal_never_shows_readably_ends_at_its_bound_and_sends_nothing`
   (`crates/table-app/tests/pipeline.rs`) and `a_deal_that_ended_with_its_money_step_unsettled_says_to_look_in_paypal_with_no_clock`
   (`crates/table-attention/src/lib.rs`).
 - **Also in this delivery (words and binding, no decision):** f03bf6e rewrote the parked money-check words
