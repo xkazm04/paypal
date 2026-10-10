@@ -132,6 +132,16 @@ describe('awaySummary', () => {
     expect(s.moved).toBe(false);
   });
 
+  it('does not open with No money moved while a payment is still being checked with PayPal', () => {
+    const steps = [
+      step('SALE', SEEN + H, 'authorized', SHOP, ok('authorize')),
+      step('SALE', SEEN + 2 * H, 'checking_with_paypal'),
+    ];
+    const s = awaySummary(steps, DEALS, SEEN, NOW);
+    expect(s.lead).toBeNull();
+    expect(s.text).not.toContain('no money moved');
+  });
+
   it('a capture whose answer is unknown is a check, a failed one is a no from PayPal', () => {
     const s = awaySummary([
       step('A', SEEN + H, 'captured', RULE, answer('capture', 'unknown')),
@@ -287,6 +297,7 @@ describe('awaySummary', () => {
     // The lost capture answer on the shop sale is a check, never counted as money in.
     expect(s.lines.some((l) => l.outcome === 'checking')).toBe(true);
     expect(s.lines.find((l) => l.outcome === 'checking')?.deals).toHaveLength(1);
+    expect(s.lead).toBeNull();
   });
 });
 

@@ -55,7 +55,7 @@ export type AwaySummary = {
   moved: boolean;
   /** True when nothing at all was recorded in the window. */
   quiet: boolean;
-  /** "No money moved." when nothing was paid or collected, else null. */
+  /** "No money moved." when nothing was paid or collected and no payment is unconfirmed or being checked with PayPal, else null. */
   lead: string | null;
   needs: number;
   /** "2 things need you", or null. */
@@ -254,13 +254,16 @@ export function awaySummary(
   const quiet = lines.length === 0;
   // A deal that ended unconfirmed may have been paid at PayPal: the summary does not say no money moved then.
   const unconfirmed = lines.some((l) => l.outcome === 'unconfirmed');
-  const lead = quiet ? 'Nothing happened. No money moved.' : moved || unconfirmed ? null : 'No money moved.';
+  // A payment being checked with PayPal is not known to have stayed put either.
+  const checking = lines.some((l) => l.tone === 'check');
+  const open = moved || unconfirmed || checking;
+  const lead = quiet ? 'Nothing happened. No money moved.' : open ? null : 'No money moved.';
   const needs = Math.max(0, opts.needs ?? 0);
   const needsLine = needs ? `${plural(needs, 'thing needs', 'things need')} you` : null;
   const since = sinceWords(lastSeen, now);
   const body = lines.map((l) => runOn(l.text)).join(', ');
   const text = [
-    `While you were away (${since}): ${quiet ? 'nothing happened and no money moved' : `${moved || unconfirmed ? '' : 'no money moved; '}${body}`}.`,
+    `While you were away (${since}): ${quiet ? 'nothing happened and no money moved' : `${open ? '' : 'no money moved; '}${body}`}.`,
     needsLine ? `${needsLine.charAt(0).toUpperCase()}${needsLine.slice(1)}.` : '',
   ].filter(Boolean).join(' ');
   return { since: lastSeen, now, sinceWords: since, lines, out, inn, moved, quiet, lead, needs, needsLine, partial: !!opts.truncated, text };
