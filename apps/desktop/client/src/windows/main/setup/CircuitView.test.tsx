@@ -1,6 +1,6 @@
 // A failed engine pick shows its error in the Simple checklist, beside the button that was
 // clicked, with the popover closed (first-run-onboarding round 2, robustness-2).
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Backend } from '../../../lib/contract';
 import { WalletError } from '../../../lib/contract';
