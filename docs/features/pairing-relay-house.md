@@ -239,7 +239,7 @@ Events: `pairing:pinned` → main; `settings:changed` carries `HouseState`.
   - A wallet seller refuses below-floor offers rather than countering.
   - During the 15-minute grace, a house-paired buyer deal can show a passed deadline. A capture
     confirmed after the grace can leave the buyer EXPIRED.
-  - Mailbox creation on the rendezvous is unauthenticated (backlog card relay-and-rendezvous-1).
+  - Mailbox creation on the rendezvous is unauthenticated (backlog card relay-and-rendezvous-1). Since ad2ef32 each caller (IPv4 address or IPv6 /64; behind Render, the rightmost `X-Forwarded-For` entry, UNVERIFIED) may hold 128 live mailboxes, and 64 of the 256 are kept for the HOUSE, so one caller can no longer fill the relay. Two addresses still can fill the HTTP share for a day; HOUSE deals keep working.
 
 ## Related
 
