@@ -1236,7 +1236,8 @@ impl Pipeline {
         // An authorize or capture whose outcome is unknown is read back first, and a void left
         // unknown is settled (or sent once more) instead of reserved again. A capture PayPal
         // shows committed is confirmed and no void is sent; one still unknown, or a read-back
-        // that failed, leaves the hold in place this tick, which moves no money.
+        // that failed, leaves the hold in place this tick, which moves no money
+        // (`deadline_default` answers `Ok(false)` when only parked steps remain).
         if !self.resolve_deal(id, Resolve::Deadline, now).await? {
             return Err(Error::Unavailable);
         }
@@ -1296,6 +1297,18 @@ impl Pipeline {
         }
         failure.map_or(Ok(changed), Err)
     }
+    /// Whether the deal's open operations are all a parked (owner-pending) capture or void, and
+    /// at least one is open.
+    fn only_parked_money_open(&self, id: DealId) -> Result<bool, Error> {
+        let open = self
+            .wallet
+            .ledger
+            .open_operations(Some(id), Timestamp::MAX)?;
+        Ok(!open.is_empty()
+            && open
+                .iter()
+                .all(|op| op.needs_owner && matches!(op.operation, "capture" | "void")))
+    }
     /// The deadline default for one deal, if its deadline is due: auto-void an authorization,
     /// let any earlier state lapse. A money step whose outcome is unknown is read back first, a
     /// parked one included; while it stays unknown nothing is sent (no void after a capture that
@@ -1304,7 +1317,11 @@ impl Pipeline {
     /// or showing what no check accepts) keeps the deal from expiring: `Unavailable`, and the
     /// next tick reads it again. One showing what no check accepts
     /// [`table_ledger::UNREAD_AUTHORIZE_SECS`] after its first attempt ends the deal in the
-    /// read-back itself, and nothing is sent.
+    /// read-back itself, and nothing is sent. An AUTHORIZED deal whose only open operations are
+    /// a parked capture or void that the read-back could not settle (PayPal shows a status no
+    /// check accepts, a different id or amount, or the read failed) answers `Ok(false)`: no end
+    /// state is true, so the deal stays AUTHORIZED, nothing is sent, and the owner's money-check
+    /// card already says to look in PayPal. Any other open operation keeps `Unavailable`.
     pub async fn deadline_default(&mut self, id: DealId, now: Timestamp) -> Result<bool, Error> {
         let deal = self.wallet.ledger.get_deal(id)?;
         if deal.kind == DealKind::Rescue {
@@ -1350,8 +1367,11 @@ impl Pipeline {
             }
         }
         if deal.state == DealState::Authorized {
-            self.auto_void(id, self.wallet.ledger.settled_attempt(id)?, now)
-                .await?;
+            let attempt = self.wallet.ledger.settled_attempt(id)?;
+            match self.auto_void(id, attempt, now).await {
+                Err(Error::Unavailable) if self.only_parked_money_open(id)? => return Ok(false),
+                result => result?,
+            }
         } else if deal.state.pre_capture() {
             self.wallet.ledger.apply_deadline_default(id, now)?;
         } else {

@@ -2381,6 +2381,180 @@ async fn parked_void_at_the_deadline_goes_once_more_under_its_own_request_id() {
     assert_one_request_id_per_operation(&p, &api, deal.id, "parked void");
 }
 
+/// A deal whose capture was lost and parked for the owner at 110, PayPal showing `paypal`.
+async fn parked_capture_deal(
+    paypal: Option<&'static str>,
+) -> (std::sync::Arc<LossyApi>, Pipeline, Deal) {
+    let api = LossyApi::losing("capture", Loss::Before);
+    let (mut p, deal, token) = owner_approved_on(&api).await;
+    let t = owner_ticket(&mut p, &deal, &token);
+    p.authorize(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+        .await
+        .unwrap();
+    let t = owner_ticket(&mut p, &deal, &token);
+    assert!(
+        p.capture(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+            .await
+            .is_err()
+    );
+    assert!(
+        !p.resolve_deal(deal.id, Resolve::Advance(Category::Parts), 110)
+            .await
+            .unwrap()
+    );
+    assert_eq!(outcomes_of(&p, deal.id, "capture"), ["needs_owner"]);
+    api.truth.lock().unwrap().authorization = paypal;
+    (api, p, deal)
+}
+
+fn post_count(api: &LossyApi) -> usize {
+    let truth = api.truth.lock().unwrap();
+    truth.calls.iter().filter(|c| c.starts_with("POST")).count()
+}
+
+fn audit_len(p: &Pipeline) -> usize {
+    p.wallet.ledger.audit_page(None, u16::MAX).unwrap().0.len()
+}
+
+/// Deal-to-settlement rework C, capture: a parked capture whose read-back at the deadline shows
+/// what no check accepts leaves the deal AUTHORIZED and the step parked, without an error, and
+/// sends nothing; a later read settles it by what PayPal shows (absent then void, or confirmed).
+#[tokio::test]
+async fn a_parked_capture_paypal_shows_unreadably_waits_at_its_deadline_and_sends_nothing() {
+    for paypal in ["CREATED", "CAPTURED"] {
+        let case = format!("then {paypal}");
+        let (api, mut p, deal) = parked_capture_deal(Some("PENDING")).await;
+        let due = 100 + 72 * 3600;
+        let posts = post_count(&api);
+        let head = audit_len(&p);
+        for at in [due, due + 1] {
+            assert!(p.tick(at).await.unwrap().is_empty(), "{case} at {at}");
+            assert_eq!(
+                p.wallet.ledger.get_deal(deal.id).unwrap().state,
+                DealState::Authorized,
+                "{case} at {at}"
+            );
+        }
+        assert_eq!(
+            outcomes_of(&p, deal.id, "capture"),
+            ["needs_owner"],
+            "{case}"
+        );
+        assert_eq!(post_count(&api), posts, "{case}: nothing sent");
+        assert_eq!(api.calls("/void"), 0, "{case}");
+        assert_eq!(api.calls("/capture"), 0, "{case}");
+        let check = p.wallet.ledger.money_check(deal.id).unwrap().unwrap();
+        assert_eq!(check.step, MoneyCheckStep::Capture, "{case}");
+        assert_eq!(check.state, MoneyCheckState::Parked, "{case}");
+        assert_eq!(audit_len(&p), head, "{case}: nothing recorded");
+        api.truth.lock().unwrap().authorization = Some(paypal);
+        assert_eq!(p.tick(due + 2).await.unwrap(), vec![deal.id], "{case}");
+        let d = p.wallet.ledger.get_deal(deal.id).unwrap();
+        if paypal == "CREATED" {
+            assert_eq!(d.state, DealState::AutoVoided, "{case}");
+            assert_eq!(
+                d.decided_by,
+                Some(DecidedBy::SafeDefault { deadline: due }),
+                "{case}"
+            );
+            assert_eq!(api.calls("/void"), 1, "{case}");
+            assert_eq!(
+                outcomes_of(&p, deal.id, "capture"),
+                ["needs_owner", "absent"],
+                "{case}"
+            );
+        } else {
+            assert_eq!(d.state, DealState::Receipted, "{case}");
+            assert_eq!(d.paypal.capture.as_deref(), Some("CAPTURE1"), "{case}");
+            assert_eq!(api.calls("/void"), 0, "{case}");
+            assert_eq!(
+                outcomes_of(&p, deal.id, "capture"),
+                ["needs_owner", "confirmed"],
+                "{case}"
+            );
+        }
+        assert_one_request_id_per_operation(&p, &api, deal.id, &case);
+        p.wallet.ledger.verify_audit().unwrap();
+    }
+}
+
+/// Deal-to-settlement rework C, a failing read: a parked capture PayPal cannot be read for at
+/// the deadline waits without an error and sends nothing; once PayPal answers, the step settles.
+#[tokio::test]
+async fn a_parked_capture_whose_read_fails_at_its_deadline_waits_then_settles() {
+    let (api, mut p, deal) = parked_capture_deal(Some("CREATED")).await;
+    let due = 100 + 72 * 3600;
+    let held = {
+        let mut truth = api.truth.lock().unwrap();
+        truth.created = false;
+        truth.authorization.take()
+    };
+    assert!(p.tick(due).await.unwrap().is_empty());
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Authorized
+    );
+    assert_eq!(api.calls("/void"), 0);
+    assert_eq!(
+        outcomes_of(&p, deal.id, "capture"),
+        ["needs_owner", "deferred"]
+    );
+    {
+        let mut truth = api.truth.lock().unwrap();
+        truth.created = true;
+        truth.authorization = held;
+    }
+    assert_eq!(p.tick(due + 1).await.unwrap(), vec![deal.id]);
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::AutoVoided
+    );
+    assert_eq!(api.calls("/void"), 1);
+    assert_one_request_id_per_operation(&p, &api, deal.id, "failing read");
+    p.wallet.ledger.verify_audit().unwrap();
+}
+
+/// Deal-to-settlement rework C, void: a parked void whose read-back at the deadline shows what no
+/// check accepts is not sent again and raises no error; once PayPal shows the hold, it goes once
+/// more under its own request id.
+#[tokio::test]
+async fn a_parked_void_paypal_shows_unreadably_waits_at_its_deadline() {
+    let api = LossyApi::losing("void", Loss::Before);
+    let (mut p, deal, token) = owner_approved_on(&api).await;
+    let t = owner_ticket(&mut p, &deal, &token);
+    p.authorize(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+        .await
+        .unwrap();
+    let t = owner_ticket(&mut p, &deal, &token);
+    assert!(p.owner_void(deal.id, 1, t, 100).await.is_err());
+    assert!(
+        !p.resolve_deal(deal.id, Resolve::Advance(Category::Parts), 110)
+            .await
+            .unwrap()
+    );
+    api.truth.lock().unwrap().authorization = Some("PENDING");
+    let due = 100 + 72 * 3600;
+    assert!(p.tick(due).await.unwrap().is_empty());
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Authorized
+    );
+    assert_eq!(api.calls("/void"), 0);
+    assert_eq!(outcomes_of(&p, deal.id, "void"), ["needs_owner"]);
+    api.truth.lock().unwrap().authorization = Some("CREATED");
+    assert_eq!(p.tick(due + 1).await.unwrap(), vec![deal.id]);
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Voided
+    );
+    assert_eq!(api.calls("/void"), 1);
+    assert_eq!(
+        outcomes_of(&p, deal.id, "void"),
+        ["needs_owner", "resent", "confirmed"]
+    );
+    assert_one_request_id_per_operation(&p, &api, deal.id, "parked void");
+}
+
 /// Deal-to-settlement robustness-2: at the order's deadline an authorize whose answer was lost
 /// less than SETTLE_SECS ago, or a parked one PayPal cannot be read for, keeps the deal from
 /// expiring. Once PayPal answers, the deal lapses (no authorization) or its hold is recorded and
