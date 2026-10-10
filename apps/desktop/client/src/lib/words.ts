@@ -648,6 +648,8 @@ export const KEEP_PRACTICE_AGENT = {
   done: 'Practice agent kept. Add your own agent app any time.',
   where: 'The practice agent plays your deals until you add an agent app',
 };
+/** First run's left column while a practice deal is open: the deal the path just started, one click away. */
+export const START_UNDERWAY = { title: 'Under way', act: 'Open ›', where: 'Open this practice deal' };
 /** The first-run heading: what the steps lead to (the count follows START_STEP). */
 export const FIRST_RUN_TITLE = `Your first safe deal in ${Object.keys(START_STEP).length} steps`;
 
