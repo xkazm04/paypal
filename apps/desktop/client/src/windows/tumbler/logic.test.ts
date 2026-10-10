@@ -228,7 +228,7 @@ describe('snooze words promise only the card’s return', () => {
 describe('a seller’s held payment reads Collect, a buyer’s Pay', () => {
   const held = (headline: string, on_silence: string) => item({ deal_id: 's', headline, amount_minor: 6400, currency: 'USD', on_silence, deadline: NOW + 3 * H, actions: ['review', 'open_in_table'] });
   it('the card, the ticker and the stack row start with Collect for the seller', () => {
-    const [seller] = plainItems([held('Collect or release $64.00', 'the hold releases itself at the deadline; nothing is taken')]);
+    const seller = plainItems([held('Collect or release $64.00', 'the hold releases itself at the deadline; nothing is taken')])[0]!;
     expect(cardQuestion(seller).lead).toBe('Collect or release');
     expect(arrivalTicker(seller).l1[0]).toBe('Collect or release ');
     expect(splitHeadline(seller.headline, seller.amount_minor, seller.currency)?.lead).toBe('Collect or release');
@@ -236,7 +236,7 @@ describe('a seller’s held payment reads Collect, a buyer’s Pay', () => {
     expect(seller.on_silence).not.toMatch(/paid|capture|void/i);
   });
   it('the buyer’s keeps Pay or release', () => {
-    const [buyer] = plainItems([held('Capture or void $64.00', 'authorization auto-voids at the deadline; no capture')]);
+    const buyer = plainItems([held('Capture or void $64.00', 'authorization auto-voids at the deadline; no capture')])[0]!;
     expect(cardQuestion(buyer).lead).toBe('Pay or release');
   });
 });
