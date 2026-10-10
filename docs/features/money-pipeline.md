@@ -18,11 +18,11 @@ sees its effects as plain states ("Preparing payment", "On hold", "Paid", "Hold 
   statement never shows it within 72 hours the deal ends "Not confirmed by PayPal" (coral, closed,
   never paid; this wallet moved nothing). A seller's receipt that arrives before the owner opened the
   PayPal link is refused and shows in the deal's history as such. A step whose PayPal answer was lost shows a dashed "Checking with
-  PayPal" pill. A parked one reads "We couldn't confirm a payment with PayPal. At the deadline the wallet asks PayPal what happened, and what PayPal shows decides. A hold is released; nothing is collected." (`MONEY_CHECK_PARKED` in `apps/desktop/client/src/lib/words.ts`). The
+  PayPal" pill. A parked one reads "We couldn’t confirm a payment with PayPal. At the deadline the wallet asks PayPal what happened, and what PayPal shows decides. A payment PayPal already took stays paid. A hold PayPal shows is released at its own deadline, unless it is paid first: by you, or by your rules when it is a sale delivered at once. If PayPal shows no payment, no money moves." (`MONEY_CHECK_PARKED` in `apps/desktop/client/src/lib/words.ts`). Once the deal has ended with the step still unread, the pill reads "Not shown by PayPal" and the deal page says PayPal never showed what happened; an ending whose own record could not be read reads "Not available yet" (DECISIONS.md sections 34 and 36). The
   Rewind on Home draws one tick per money operation, coloured by who decided it (see
   [home-and-rewind.md](./home-and-rewind.md)).
 - **tumbler.** A money step being checked appears as a hold card with only "open in The Table"
-  and the silence line "at the deadline the wallet asks PayPal what happened, releases any hold and collects nothing". The "If you walk away" row
+  and the silence line "at the deadline the wallet asks PayPal what happened, and what PayPal shows decides: a payment PayPal already took stays paid" (`MONEY_CHECK_SILENCE`). The "If you walk away" row
   sums money out, money in and holds released from the same forecast the pipeline obeys (see
   [tumbler-and-attention.md](./tumbler-and-attention.md)).
 - **approval window.** The only place an owner money decision starts: "Hold to approve",
@@ -99,9 +99,34 @@ flowchart LR
    to read back, unreadable, or parked) is not expired: PayPal may hold money for it, so
    `deadline_default` answers `Unavailable` and the next tick reads it again, and the ledger
    refuses the lapse itself (`Conflict`) while such an authorize is open.
+   - **A seller's CREATED authorization found at the deadline** (DECISIONS.md section 31 item 1)
+     is recorded (`money.resolved` confirmed) and its deadline is re-armed to the first attempt
+     + 72 h (`confirm_authorization`). When delivery is `DigitalNow` the next tick captures it
+     under `Authority::SellerMandate`, because the authorize went out before the deadline for
+     an order the buyer approved at PayPal. Any other delivery is never captured by the
+     scheduler, and the re-armed deadline auto-voids it on the safe default.
+   - **A parked authorize that never reads acceptably** (a record no check accepts) ends at
+     `op.started_at + UNREAD_AUTHORIZE_SECS` = 72 h: the deal, still APPROVED and past its
+     deadline, takes `DealEvent::Deadline` to EXPIRED under `SafeDefault`
+     (`Ledger::end_unread_authorize`). Nothing is sent: no void and no capture, and the
+     operation stays parked so the money-check card keeps showing it (section 31 item 3).
+   - **A parked capture or void** that PayPal does not settle waits: when every open operation
+     is a parked capture or void and `auto_void` answers `Unavailable`, `deadline_default`
+     returns `Ok(false)`, the deal stays AUTHORIZED and nothing is sent. It is read back at
+     most once per `PARKED_READ_SECS` (3600), by request id, the time kept in memory and
+     recorded before the read; a restart reads at once (section 35). A parked authorize is not
+     throttled and is still read on every tick.
+   - **A rescue deal's deadline** follows section 37 (`rescue_deadline`): an unapproved fix
+     lapses; a draft create never sent expires, with or without the invoicing client; a sent
+     invoice is read first and expires only if the read shows it unpaid, so with no client, no
+     agent key or an unavailable read it waits and retries every `RESCUE_POLL_SECS` (60 s); a
+     parked invoice send is read once the deadline or `REQUEST_ID_KEPT_SECS` has passed,
+     hourly, and a DRAFT closes as not done.
+
    A HOLD or BLOCK raised on an AUTHORIZED deal through `Pipeline::apply_shield` voids it at
    once. A hold found when a capture is refused waits for the owner or the 72-hour auto-void.
-   A default never captures. Order approval
+   A default never captures; the one capture found at a deadline is the item 1 case above,
+   made under `SellerMandate`, not `SafeDefault`. Order approval
    windows: `ORDER_APPROVAL_SECS` (6 h), or `HOUSE_APPROVAL_SECS` (30 min) for house deals
    (`crates/table-core/src/deal.rs`).
 8. **Read back what was lost.** A step whose answer was lost, timed out, did not decode or was
@@ -173,7 +198,7 @@ the owner paused the agents, the approval window is locked or every window is hi
 | Refused intents leave zero `paypal_calls` rows | trigger `no_calls_for_refused_deal` (0002); MCP and gauntlet tests |
 | One request id per operation, never a second | `operations` PK and `UNIQUE request_id` (0003/0011); the resolver never calls `reserve_operation`, and refuses (an integrity error) an operation whose stored id differs from `RequestId::for_operation` |
 | Purchases and rescues never run on a rule | `Pipeline::authority()` first two guards |
-| Silence never moves money out | `deadline_default` / `auto_void` choose only lapse or void; `authority()` never returns `SafeDefault`, so no create, authorize or capture can run under it |
+| Silence never moves money out | `deadline_default` / `auto_void` choose only lapse or void; `authority()` never returns `SafeDefault`, so no create, authorize or capture can run under it. The one capture found at a deadline (a seller's CREATED authorization, DigitalNow, section 31 item 1) is made by the next tick under `SellerMandate`, not `SafeDefault` |
 | The seller's word never reads as paid, and always ends | `accept_seller_receipt` refuses a receipt with no handoff; `lapse_corroboration` ends an uncorroborated one UNCONFIRMED; the Book keys it `RECEIPTED:buyer` (`crates/table-ledger/src/book.rs`) |
 | Owner decisions bound to what was shown | runtime `decide()` recomputes checks and compares `checks_hash`, writes `owner.decision` before the step (`crates/table-runtime/src/service.rs`) |
 | Audit is append-only and hash-chained | triggers `audit_no_update` / `audit_no_delete` / `audit_no_replace`; tail check on append, full check on open and every 500th append |
@@ -186,8 +211,8 @@ the owner paused the agents, the approval window is locked or every window is hi
 | --- | --- | --- |
 | Domain (pure) | `crates/table-core/src/deal.rs`, `mandate.rs`, `exposure.rs`, `checks.rs` | `DealState`, `DecidedBy`, `invoice_id`, `ORDER_APPROVAL_SECS`, `MandatePayload::check`, `WalletEnvelope`, `checks_hash` |
 | Pipeline | `crates/table-app/src/pipeline.rs` | `Authority`, `MoneyStep`, `shield_allows`, `authority`, `create`, `poll_approval`, `authorize`, `capture`, `owner_void`, `auto_void`, `tick`, `deadline_default`, `step_allowed` |
-| Read-back | `crates/table-app/src/pipeline/resolve.rs` | `Resolve` (`Advance`, `Deadline`), `resolve_deal`, `open_operations`, `has_open_operation`, `may_resend`, `park`, `defer`, `SETTLE_SECS`, `PENDING_STALE_SECS`, `REQUEST_ID_KEPT_SECS` |
-| Rescue money | `crates/table-app/src/rescue.rs` | `rescue_approve`, `resolve_invoice_send`, `rescue_tick`, `rescue_deadline` |
+| Read-back | `crates/table-app/src/pipeline/resolve.rs` | `Resolve` (`Advance`, `Deadline`), `resolve_deal`, `open_operations`, `has_open_operation`, `may_resend`, `park`, `defer`, `confirm_authorization`, `SETTLE_SECS`, `PENDING_STALE_SECS`, `REQUEST_ID_KEPT_SECS`, `PARKED_READ_SECS` (with `Pipeline::parked_read`, in `pipeline.rs`) |
+| Rescue money | `crates/table-app/src/rescue.rs` | `rescue_approve`, `resolve_invoice_send`, `rescue_resolve`, `rescue_poll`, `rescue_tick`, `rescue_deadline`, `RESCUE_POLL_SECS` |
 | Owner session | `crates/table-app/src/auth.rs` | `ApprovalSession` (15-minute idle lock), `OwnerTicket` (60 s) |
 | PayPal client | `crates/table-paypal/src/client.rs`, `types.rs`, `secondary.rs` | `PayPalApi`, `Client::sandbox`, `RequestId`, `Order::verify`, `SecondaryApi` (invoicing, subscriptions, reporting, disputes) |
 | Ledger | `crates/table-ledger/src/repositories.rs`, `resolution.rs`, `audit.rs`, `redaction.rs` | `reserve_operation`, `finish_operation`, `apply_deadline_default` (refuses while an authorize is open), `open_operations`, `record_resolution`, `money_check`, `paypal_call_requests`, `verify_audit` |
@@ -222,6 +247,25 @@ results: `deal_evidence` and `deal_reconcile` (main), `approval_summary` (approv
   `parked_authorize_at_the_deadline_lapses_or_is_voided_by_what_paypal_shows`,
   `parked_void_at_the_deadline_goes_once_more_under_its_own_request_id`,
   `deadline_waits_for_an_unsettled_authorize_before_expiring`.
+- Deadlines (DECISIONS.md sections 31, 35 and 37):
+  - section 31: `a_sellers_hold_found_at_the_deadline_is_collected_only_when_delivered_at_once`
+    (`crates/table-runtime/src/resolve_tests.rs`);
+    `a_parked_authorize_paypal_never_shows_readably_ends_at_its_bound_and_sends_nothing`
+    (`crates/table-app/tests/pipeline.rs`);
+    `a_deal_that_ended_with_its_money_step_unsettled_says_to_look_in_paypal_with_no_clock`
+    (`crates/table-attention/src/lib.rs`);
+  - section 35, all in `crates/table-app/tests/pipeline.rs`:
+    `a_parked_capture_paypal_shows_unreadably_waits_at_its_deadline_and_sends_nothing`,
+    `a_parked_capture_whose_read_fails_at_its_deadline_waits_then_settles`,
+    `a_parked_void_paypal_shows_unreadably_waits_at_its_deadline`,
+    `a_restart_reads_a_parked_capture_at_once`;
+  - section 37, in `crates/table-app/tests/rescue.rs`: `a_parked_send_is_read_and_ended_at_the_deadline`,
+    `a_parked_send_past_the_request_id_window_closes_not_done`,
+    `a_parked_send_whose_read_fails_is_read_once_an_hour`,
+    `without_a_client_a_create_open_at_the_deadline_closes_and_the_deal_expires`,
+    `without_a_client_a_sent_invoice_waits_and_is_read_once_it_is_back`,
+    `a_failed_read_at_the_deadline_waits_and_retries_on_the_poll_cadence`; and in
+    `crates/table-runtime/src/forecast_tests.rs`: `a_deal_with_an_open_operation_is_left_out_of_the_forecast`.
 - `crates/table-ledger/src/tests.rs`: `open_operations_list_unknown_and_stale_pending_rows_and_resolution_only_appends`,
   `deadline_default_refuses_while_an_authorize_is_open`.
 - The seller's receipt (DECISIONS.md section 23): `crates/table-ledger/src/tests.rs`
@@ -262,7 +306,15 @@ results: `deal_evidence` and `deal_reconcile` (main), `approval_summary` (approv
   amount. If it does not, `Order::verify` refuses the order.
 - Left by the read-back work: no approval-window action re-sends an owner-decided step under a
   fresh ticket. Open operations on deals that ended another way (a peer WITHDRAW) are not
-  resolved. The Book still counts a parked capture under "On hold".
+  resolved. The Book counted a parked capture under "On hold" until DECISIONS.md section 34 (85faf93).
+- Deadline paths, from deadline-safe-default full r1 (2026-10-10; DECISIONS.md sections 35 and 37). The first
+  three wait on the operator's Approval:
+  - robustness-1: a parked rescue invoice send whose invoice reads neither DRAFT nor SENT (CANCELLED, other, or not
+    matching) never ends after its deadline.
+  - economics-1: an unknown step that is not parked is read on every tick while PayPal fails (`scheduler.rs` →
+    `deadline_default` → `resolve_deal`), with no throttle, and `paypal_calls` rows are written at that rate.
+  - economics-2: per-tick queries (`list_deals`, `open_operations`) scale with the lifetime ledger.
+  - A parked authorize at the deadline is still read on every tick, for up to 72 h, and the reads are not recorded.
 - Recovery of a missing SETTLE or RECEIPT after a confirmed money write (crash between writes)
   is deferred. External anchoring of the audit head is deferred, so removal of the newest
   audit rows cannot be detected from the wallet alone.
