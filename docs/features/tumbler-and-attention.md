@@ -25,7 +25,7 @@ or pay anything.
 
 **Cards.** A decision (GATE) reads as a question; a pause (HOLD) as a statement with a coral
 "Paused" chip and the rule that paused it ("Paused by …", from the wallet's closed rule names). A
-payment step whose PayPal answer was lost reads "Checking" with "at the deadline the wallet asks PayPal what happened, releases any hold and collects nothing".
+payment step whose PayPal answer was lost reads "Checking" with "If you do nothing, at the deadline the wallet asks PayPal what happened, and what PayPal shows decides: a payment PayPal already took stays paid." When that deal has ended, the chip reads "Ended" and the Why? ends "The deal has ended and the wallet sends nothing more: look at this payment in PayPal." (673d7f8, DECISIONS 32). A seller's held payment asks "Collect or release" (5c4f642).
 Every card carries the mode badge and the lock indicator. Actions, in order: "Review ↗"
 (gold, decisions only), Withdraw (asks once), "Open in The Table ↗", "Let it lapse", "Remind me in
 30 min". A pause offers only Withdraw and "See why in The Table ↗". There is no approve button and no
@@ -35,8 +35,7 @@ approve hotkey.
 (opens the approval window; it never approves), W = Withdraw (press twice), Esc = back to rest.
 
 **The ladder on screen.** A 2 px deadline rule and an amount ring empty fastest in the last two
-hours; the caption reads "plenty of time", "less than 2 hours left", "less than 15 min left · last
-reminder", "time is up · the safe default runs". A screen reader hears the top decision once per
+hours; the caption reads "plenty of time", "less than 2 hours left", "less than 15 min left", "time is up · the safe default runs". A screen reader hears the top decision once per
 rung ("Approve $329.00: under 15 minutes left to decide."), never every second. After 45 seconds
 without interaction the puck dims to 55 %, unless a decision is inside 2 hours.
 
