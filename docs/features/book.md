@@ -32,7 +32,9 @@ command it uses is a read.
   stopped", "Amounts that didn't match"), and for a typed question an "I read this as:" line of
   chips the owner can remove or change, with the note "Understood by your wallet · no AI involved".
   A question it cannot read says which words it did not understand and offers three phrasings that
-  work. Enter asks, Esc clears.
+  work. Enter asks, Esc clears. The "This week vs market" view asks for this week (Monday to
+  Monday, in the owner's calendar), the same span a typed "this week" asks for; the other views ask
+  for everything on record. The window and the wallet answer over the same deals.
 - **Recent payments**: one row each (when, who, what, amount, status, PayPal statement), and
   "Where the money went" bars with a "PayPal agrees" meter (`book/MoneyWent.tsx`). Statement words:
   "On statement", "Not on statement yet" ("PayPal's statement can lag up to 3 hours"), "Statement
