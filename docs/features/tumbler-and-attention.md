@@ -17,7 +17,7 @@ or pay anything.
 | --- | --- | --- |
 | rest | 88 × 88 | The engraved puck: six module ticks, one bead per open item, a gold ring when something needs them (coral when only pauses wait), the count, the mode engraved below. |
 | tab | 28 × 96 | Docked flush to a screen edge. |
-| ticker | 420 × 88 | One line: an arrival, a receipt, a stop; returns to rest after 6 s (2.5 s for a receipt). |
+| ticker | 420 × 88 | One line: an arrival, a receipt, a stop; returns to rest after 6 s (2.5 s for a receipt). A receipt is green only when it is PayPal's word: a buyer's RECEIPTED deal on the seller's receipt alone reads "Seller says paid" with "The seller says the payment went through. Your wallet has not checked it with PayPal yet." in the info tone, and "Not confirmed by PayPal" (UNCONFIRMED) holds in coral (`receiptTicker`, DECISIONS.md section 23). |
 | card | 440 × 152 | One decision or pause: "Approve $329.00 with Dan?", time left in words, the "If you do nothing" line, the actions. |
 | stack | 440 × 336 | Every open item, today's meters (paid out today, on hold now, against wallet limits), the "If you walk away" row, Do not disturb, pin. |
 | handoff | 440 × 160 | PayPal is open in the browser: the approve window counting down while the wallet polls. |
@@ -114,6 +114,9 @@ its deadline reads "Hold released … nothing was paid".
   (`f3_w6_a_rung_that_cannot_be_written_never_delays_the_default`).
 - **Rungs only for what they could have seen.** No rung row for a deal not in a snapshot.
 - **The lock preserves items.** An idle-locked wallet still shows every card.
+- **The seller's word is never green.** `receiptTicker` keys on the receipt event's evidence: a
+  `SELLER_ATTESTED` RECEIPTED receipt is an info ticker, UNCONFIRMED a hold ticker. In Rust an
+  UNCONFIRMED deal is an end the owner reads (`AttnKind::Receipt`), never a gate, with no action.
 
 ## Where it lives
 
@@ -163,7 +166,10 @@ Events to the Tumbler: `attention:changed`, `receipt:created`, `settings:changed
   `crates/table-core/src/ladder.rs`: `every_rung_name_is_its_wire_name`.
 - `apps/desktop/src-tauri/src/native/events.rs`: `each_failure_streak_is_shown_once` and the
   `notify_tests` module (at most one notification; a failed toast releases the claim).
-- Client: `windows/tumbler/ladder.test.ts`, `windows/tumbler/logic.test.ts` (tickers never name ids),
+- `crates/table-attention/src/lib.rs`: `every_offered_action_is_one_the_state_machine_accepts`
+  (UNCONFIRMED included: a Receipt, no action).
+- Client: `windows/tumbler/ladder.test.ts`, `windows/tumbler/logic.test.ts` (tickers never name ids;
+  "a receipt that is only the seller's word is never green, and a deal PayPal never confirmed holds"),
   `windows/tumbler/walkaway.test.ts`, `windows/main/deal/shown.test.ts`.
 
 ## Known gaps and UNVERIFIED

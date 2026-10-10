@@ -71,6 +71,14 @@ the deal page shows them in quarantine.
    "BookQuery rejected: <reason>" verbatim) and runs it on a read-only ledger connection
    (`Ledger::book_query`, `crates/table-ledger/src/book.rs`). `recovered_sum` uses the rescue
    module's one `COUNTED` predicate, so a replay or a merely sent invoice never counts.
+   A deal's state, for filters and for the per-state line, is read as
+   `CASE WHEN d.state='RECEIPTED' AND d.receipt_evidence='seller_attested' THEN 'RECEIPTED:buyer'
+   ELSE d.state END` (`STATE` in `book.rs`; the client's `stateKey` in `book/model.ts` and the mock
+   key the same way). So the "Paid" chip (CAPTURED, RECEIPTED, RECONCILED) leaves out a buyer's deal
+   that only the seller says is paid, and its line reads "Seller says paid" (`serverStateLabel`).
+   UNCONFIRMED (PayPal's statement never showed the seller's payment) is in neither the Paid chip
+   nor the Stopped chip ("never paid"); the Book's totals keep it, like the seller's word, under
+   "In progress" (DECISIONS.md section 23).
 3. **"Ask in your own words."** `understand()` in `book/understand.ts` is a pure reader with a
    fixed word list: no LLM, no network, no IO. It reads time ranges (today, this/last week with
    Monday weeks, this/last month, last N days, "since <weekday>", month names, all time; sent as
@@ -82,13 +90,15 @@ the deal page shows them in quarantine.
    a guard and test oracle; Rust still checks every query. A late answer to an older question is
    ignored.
 4. **Reconciliation with PayPal, on the owner's click** (`deal_reconcile`, main window). For a
-   sandbox deal in RECEIPTED, `Pipeline::reconcile` (`crates/table-app/src/reconciliation.rs`)
+   sandbox deal in RECEIPTED or UNCONFIRMED, `Pipeline::reconcile` (`crates/table-app/src/reconciliation.rs`)
    writes a `receipt.reporting_checked` audit row, then reads the owner's own Transaction Search
    (`GET /v1/reporting/transactions`) for the last three days, at most 20 pages of 500, recording
    every call in `paypal_calls`. A row matches on the capture id, status `S` and the exact amount
    and currency (a buyer's row is a negative debit). One match moves the deal to RECONCILED
-   (`Ledger::confirm_reporting`); none leaves it "not on statement yet"; more than one, a partial
-   page set or a failed status is refused.
+   (`Ledger::confirm_reporting`), an UNCONFIRMED one included; none leaves it "not on statement
+   yet" and appends a `receipt.reporting_unmatched` row; more than one, a partial page set or a
+   failed status is refused. A buyer's seller-attested deal that stays unmatched 72 hours after its
+   receipt ends UNCONFIRMED (see [money-pipeline.md](./money-pipeline.md), step 9).
 5. **Audit trail.** `audit_page` pages the hash-chained `audit_log` newest first (1 to 200 rows),
    verifying the chain before it answers; a broken chain is an error, never a partial list.
 6. **Proof file check** (`proof_check`, main window, answered by the shell). A native file dialog
@@ -159,6 +169,8 @@ unlock):
 
 - `file_book_connection_reads_committed_data_and_rejects_mutation`,
   `query_bounds_and_recovered_metric_exclude_replay`,
+  `seller_receipt_before_buyer_approval_never_reads_as_paid` (`crates/table-ledger/src/tests.rs`:
+  the Paid filter counts nothing and the state line is `RECEIPTED:buyer`),
   `rejections_name_the_rule_in_fixed_words_and_never_echo_a_value` (`crates/table-ledger/src/book.rs`)
 - `owner_book_query_is_closed_main_only_and_rejections_are_verbatim_invalid`,
   `owner_facts_and_audit_pages_are_read_only_closed_and_label_scoped`
@@ -172,7 +184,9 @@ unlock):
   (`crates/table-ledger/src/rescue_tests.rs`)
 - `crates/table-runtime/src/safety_tests.rs` (counts by authority, refused deals with zero PayPal
   calls, an authority-less capture named with its deal, main only, no counterparty words)
-- Client: `windows/main/modules/book/understand.test.ts` (47 phrasings to exact queries),
+- Client: `windows/main/modules/book/understand.test.ts` (47 phrasings to exact queries; the Paid
+  and Stopped chips leave out `RECEIPTED:buyer` and UNCONFIRMED), `book/model.test.ts` ("the Book
+  never reads a deal PayPal has not confirmed as paid"),
   `book/AskReading.test.tsx`, `book/where.test.ts`, `book/model.test.ts`, `book/proofV2.test.tsx`,
   `book/proofMarket.test.tsx`, `lib/fairPrice.test.ts`, `windows/main/safety/model.test.ts`,
   `safety/view.test.tsx`

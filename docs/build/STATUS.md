@@ -1928,3 +1928,68 @@ Rust gate was):
 - craft-2: focus moves to the tour dialog on each new stop (3a80fc3).
 
 No new UNVERIFIED items.
+
+## Deal-to-settlement rework after lite r2 (value-1, robustness-1; DECISIONS.md section 23)
+
+Council-lite round 2 (run b7b8408a, head 5635a68) must-address lines 1 and 2. Reconciled against
+main (3049d68) first: no part was done there (`accept_seller_receipt` read no handoff, there was no
+end for a seller-attested deal, `book.rs` keyed on `d.state` alone).
+
+- **robustness-1 (a), a155a43: a seller receipt with no handoff is refused.** `Decision::OpenBrowser`
+  (`table-runtime/src/service.rs`) records `Ledger::handoff` in the same step as the owner's
+  decision, before the URL is returned; `Action::Handoff` still records it too. `accept_seller_receipt`
+  (`table-ledger/src/receipt.rs`), after its existing checks, refuses a buyer deal with no recorded
+  handoff: one `receipt.refused` row per distinct raw hash (actor `peer:<iss>`, reason `no_handoff`),
+  committed, then `Conflict`. State, deadline, receipts, `pp_capture_id`, `receipt_evidence` and the
+  transcript are unchanged; the envelope is not appended; no Mismatch. History step
+  `receipt_refused` (new `HistoryKind::ReceiptRefused`). Tests: `seller_receipt_without_handoff_is_refused_once_and_changes_nothing`;
+  `buyer_browser_availability_needs_unlock_but_no_local_paypal_credentials` (OpenBrowser alone
+  records the handoff). Every test that drives a buyer to RECEIPTED on a seller receipt hands off
+  first (ledger tests, table-app `pipeline.rs` and the gauntlet's Approve move, table-runtime
+  relay, H6 HOUSE, glass, shop-around and house tests). The runtime test PayPal double gains
+  `awaiting_payer` (order reads say PAYER_ACTION_REQUIRED) so the in-process relay tests approve only
+  after the owner's OpenBrowser decision, the real order of events; no assertion was weakened and
+  there is no test-only bypass in production code.
+- **value-1 Rust, d57371b.** `book.rs` reads the state for filters and groups as `CASE WHEN
+  d.state='RECEIPTED' AND d.receipt_evidence='seller_attested' THEN 'RECEIPTED:buyer' ELSE d.state
+  END`. r1's test: `seller_receipt_before_buyer_approval_never_reads_as_paid` (no handoff: refused, one
+  row, no PayPal call; after it: RECEIPTED seller_attested before PayPal's approval, the Paid filter
+  counts nothing, the state group is `RECEIPTED:buyer`).
+- **robustness-1 (b), 67fd34b: the defined end is UNCONFIRMED.** `DealState::Unconfirmed` (terminal,
+  not pre-capture), `DealEvent::CorroborationLapsed` (RECEIPTED to UNCONFIRMED), a late
+  `ReportingMatched` still moves UNCONFIRMED to RECONCILED, `CORROBORATION_SECS` = 72 h.
+  `Ledger::lapse_corroboration` (one IMMEDIATE transaction; buyer, RECEIPTED, seller_attested, 72 h
+  after `receipts.verified_at`) appends one `receipt.unconfirmed` row (actor `policy`, capture id,
+  receipt time, reconciliation, `decided_by` safe default) and leaves evidence and reconciliation as
+  they are; the scheduler tick calls it for buyer RECEIPTED deals (no PayPal call, no money).
+  `reconcile` and `confirm_reporting` accept RECEIPTED or UNCONFIRMED; an unmatched complete read
+  appends `receipt.reporting_unmatched` (history: ReportingChecked). Classified: exposure
+  `paid_state` and `agreed_or_later` and the ledger's usage set (counts as spent), agent phase Closed,
+  attention Receipt (never a Gate), forecast state table and T4 property (21 states), verifier
+  `agreed`, `on_silence` words. No migration (`deals.state` has no CHECK), no table-proto change.
+  Tests: the transition table; `a_seller_attested_deal_ends_unconfirmed_after_72_hours_and_a_late_match_still_counts`,
+  `a_reconciled_deal_a_seller_deal_and_an_unreceipted_deal_never_lapse_unconfirmed`;
+  `a_scheduler_tick_past_the_corroboration_window_ends_a_seller_attested_deal_unconfirmed` (one
+  history step, safe default); the reporting test reconciles an UNCONFIRMED deal and pins the
+  unmatched row.
+- **value-1 client, 162fbb5.** `STATE.UNCONFIRMED` "Not confirmed by PayPal" (coral). The Book keys
+  a seller-attested deal `RECEIPTED:buyer` locally too (`stateKey`) and labels a server row
+  "Seller says paid" (`serverStateLabel`); the Paid chip leaves it and UNCONFIRMED out, Stopped does
+  not claim UNCONFIRMED. The Tumbler ticker reads a SELLER_ATTESTED receipt "Seller says paid" with
+  `SELLER_SAYS_PAID` in the info kind, UNCONFIRMED holds. Also found and fixed, not in the council's
+  list: the main window's receipt toast (`windows/main/App.tsx`) read a seller-attested receipt as
+  "Paid, receipt saved" in the ok tone (`receiptToast`). UNCONFIRMED is terminal on every client
+  surface (bead "stopped", chip "bad", strip branches after the approval wait), and the approval
+  TERMINAL set and the mocks mirror Rust. tsc and vitest were not run (no client `node_modules` in the
+  worktree).
+- **Deviation from the design report:** UNCONFIRMED is not in the report's deal-state list (section
+  6.3). It is the defined end of a buyer's deal the seller said was paid and PayPal's statement never
+  showed.
+- **Left:** no walk-away forecast line for the lapse (`ForecastSource` carries no receipt time);
+  "While you were away" (`home/away.ts`) does not list an UNCONFIRMED end; `display.rs` counterparty
+  counts are unchanged; the HOUSE witness keeps heads only for RECEIPTED and RECONCILED deals; the
+  Book totals keep UNCONFIRMED under "In progress" beside the seller's word while Home's bead counts
+  it "Stopped for safety".
+
+No new UNVERIFIED items: the 72 h window rests on the research's 3 h reporting lag [S-spec].
+
