@@ -4,7 +4,7 @@ import type { Deal } from '@bindings/Deal';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import { buildMockState } from '../../../mock/fixtures';
 import { endingUnreadLine } from '../../../lib/words';
-import { awaySummary, LAST_SEEN_KEY, QUIET_NEWS_AFTER, readLastSeen, sinceWords, startOfToday, worthShowing, writeLastSeen } from './away';
+import { awaySummary, LAST_SEEN_KEY, QUIET_NEWS_AFTER, readLastSeen, sinceWords, startOfToday, statementReadIds, worthShowing, writeLastSeen } from './away';
 
 // Thursday 8 Oct 2026, 08:30 local; Maya last looked yesterday at 18:40.
 const NOW = Math.floor(new Date(2026, 9, 8, 8, 30).getTime() / 1000);
@@ -439,5 +439,23 @@ describe('awaySummary: a deal that ended unconfirmed', () => {
     // Two deals with different read status are two lines, so neither line claims the other's read.
     const both = awaySummary([ended('U'), ended('V')], [U, V], SEEN, NOW, { reads: new Map([['U', true], ['V', false]]) });
     expect(both.lines).toHaveLength(2);
+  });
+});
+
+describe('statementReadIds: the deals whose line uses a statement read', () => {
+  it('counts only the unconfirmed steps', () => {
+    expect(statementReadIds([
+      step('A', SEEN + H, 'captured', RULE, ok('capture'), 'CAPTURED'),
+      step('B', SEEN + H, 'expired', DEFAULT, { type: 'none' }, 'EXPIRED'),
+      step('U', SEEN + 2 * H, 'unconfirmed', DEFAULT, { type: 'none' }, 'UNCONFIRMED'),
+    ])).toEqual(['U']);
+  });
+  it('returns the ids sorted and distinct', () => {
+    const u = (id: string) => step(id, SEEN + H, 'unconfirmed', DEFAULT, { type: 'none' }, 'UNCONFIRMED');
+    expect(statementReadIds([u('Z'), u('M'), u('Z'), u('A')])).toEqual(['A', 'M', 'Z']);
+  });
+  it('gives an empty list when no deal ended unconfirmed', () => {
+    expect(statementReadIds([])).toEqual([]);
+    expect(statementReadIds([step('A', SEEN + H, 'lapsed', DEFAULT)])).toEqual([]);
   });
 });
