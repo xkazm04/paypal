@@ -160,7 +160,7 @@ describe('first-run steps from settings, signed rules, connections and the agent
       expect(gettingStarted(tumbler(snap({ house_connected: false }))).steps[2]!.state).not.toBe('done');
     });
 
-    it('the mock: pinning the house sets house_connected and tells settings:changed', async () => {
+    it('the mock: a first-run wallet starts with house_connected false', async () => {
       const { mockBackend, resetMockState } = await import('../mock/backend');
       resetMockState();
       history.replaceState(null, '', '/index.html?first_run=1');
