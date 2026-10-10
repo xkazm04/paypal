@@ -19,7 +19,10 @@ pub struct InboxMessage {
     pub raw: String,
 }
 /// A legitimate relay resets a deal's generation on a restart or a 24-hour mailbox expiry, not twice
-/// in ten minutes; a refused reset only delays that deal and never moves money.
+/// in ten minutes; a refused reset only delays that deal and never moves money. The window counts
+/// from the last reset. The first adoption from the empty generation is not a reset and does not
+/// start it, so a fresh deal recovers at once from one lost mailbox. `generation_at` 0 means the
+/// route has never been reset.
 const RESET_WINDOW_SECS: i64 = 600;
 /// Backstop only: one generation holds at most 256 rows and settled rows of earlier generations are
 /// pruned on reset, so a legitimate deal never nears this.
@@ -187,10 +190,11 @@ impl Ledger {
             |r| Ok((r.get(0)?, u64::from(r.get::<_, u32>(1)?), r.get(2)?)),
         )?;
         let reset = old != generation;
+        let real_reset = reset && !old.is_empty();
         if (!reset && cursor != after) || (reset && after != 0) {
             return Err(LedgerError::Conflict);
         }
-        if reset && !old.is_empty() && now.saturating_sub(changed_at) < RESET_WINDOW_SECS {
+        if real_reset && changed_at > 0 && now.saturating_sub(changed_at) < RESET_WINDOW_SECS {
             return Err(LedgerError::Conflict);
         }
         if reset {
@@ -226,7 +230,7 @@ impl Ledger {
                 generation,
                 (after + messages.len() as u64) as u32,
                 id.to_string(),
-                reset,
+                real_reset,
                 now
             ],
         )?;

@@ -563,14 +563,12 @@ async fn a_refused_relay_batch_stops_one_delivery_and_not_the_round() {
             .bind_relay(id, H256::digest(id.to_string().as_bytes()), 100)
             .unwrap();
     }
-    let (a, b) = ("a".repeat(32), "b".repeat(32));
-    // Table 0 changed generation a moment ago, so a second change is refused.
+    let (a, b, c) = ("a".repeat(32), "b".repeat(32), "c".repeat(32));
+    // Table 0 was reset a moment ago, so another change is refused.
     let (first, now) = (s.id(0), s.r.clock.now());
-    s.r.pipeline
-        .wallet
-        .ledger
-        .stage_relay_batch(first, &a, 0, &[], now)
-        .unwrap();
+    let ledger = &mut s.r.pipeline.wallet.ledger;
+    ledger.stage_relay_batch(first, &a, 0, &[], now).unwrap();
+    ledger.stage_relay_batch(first, &c, 0, &[], now).unwrap();
     let work = s.r.pipeline.wallet.ledger.relay_work().unwrap();
     let ack = |n: usize, generation: &str| {
         let hash = work.iter().find(|w| w.deal_id == s.id(n)).unwrap().outgoing[0].0;
@@ -601,7 +599,7 @@ async fn a_refused_relay_batch_stops_one_delivery_and_not_the_round() {
     // The refused delivery keeps its generation and cursor and records no acknowledgement.
     assert_eq!(
         (state(0).generation.as_str(), state(0).cursor),
-        (a.as_str(), 0)
+        (c.as_str(), 0)
     );
     assert_eq!(state(0).outgoing.len(), 1);
 }
