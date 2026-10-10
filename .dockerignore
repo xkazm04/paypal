@@ -4,3 +4,11 @@ target
 prototype
 .research
 bindings
+.env
+.env.*
+.contest
+.claude
+.personas
+**/node_modules
+**/dist
+docs
