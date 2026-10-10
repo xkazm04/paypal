@@ -197,7 +197,9 @@ impl AttentionSource {
                 | DealState::AutoVoided
                 | DealState::Refunded
                 | DealState::Disputed
-                | DealState::Failed => AttnKind::Receipt,
+                | DealState::Failed
+                // PayPal never showed the seller's payment: an end the owner reads, never a gate.
+                | DealState::Unconfirmed => AttnKind::Receipt,
                 _ => AttnKind::Motion,
             }
         };
@@ -546,6 +548,7 @@ mod tests {
             DealState::Mismatch,
             DealState::Captured,
             DealState::Receipted,
+            DealState::Unconfirmed,
         ] {
             for shield_hold in [false, true] {
                 let mut s = source(1, 8000);
@@ -565,6 +568,10 @@ mod tests {
                 }
             }
         }
+        // An end the owner reads, never a gate.
+        let mut unconfirmed = source(1, 8000);
+        unconfirmed.state = DealState::Unconfirmed;
+        assert_eq!(unconfirmed.item(0).kind, AttnKind::Receipt);
         let mut mismatch = source(1, 8000);
         mismatch.state = DealState::Mismatch;
         assert_eq!(mismatch.item(0).kind, AttnKind::Hold);

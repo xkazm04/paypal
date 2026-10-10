@@ -90,6 +90,7 @@ const fn agreed_or_later(state: DealState) -> bool {
             | DealState::Reconciled
             | DealState::Refunded
             | DealState::Disputed
+            | DealState::Unconfirmed
     )
 }
 const fn committed_state(state: DealState) -> bool {
@@ -98,6 +99,8 @@ const fn committed_state(state: DealState) -> bool {
         DealState::Agreed | DealState::Settling | DealState::AwaitingApproval | DealState::Approved
     )
 }
+/// UNCONFIRMED counts as spent: the money may have left even though PayPal's statement never
+/// showed it, so a spending limit never frees it.
 const fn paid_state(state: DealState) -> bool {
     matches!(
         state,
@@ -106,6 +109,7 @@ const fn paid_state(state: DealState) -> bool {
             | DealState::Reconciled
             | DealState::Refunded
             | DealState::Disputed
+            | DealState::Unconfirmed
     )
 }
 

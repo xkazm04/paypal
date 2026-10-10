@@ -103,6 +103,7 @@ fn state_kind(to: DealState, authority: Option<HistoryAuthority>) -> HistoryKind
         S::AutoVoided => K::AutoVoided,
         S::Refunded => K::Refunded,
         S::Disputed => K::Disputed,
+        S::Unconfirmed => K::Unconfirmed,
         S::Pairing | S::Listed | S::Negotiating | S::Settling => K::Other,
     }
 }
@@ -269,6 +270,10 @@ fn classify(record: &AuditRecord) -> Row {
         // A seller's receipt before the owner opened the PayPal link: refused, nothing changed.
         "receipt.refused" => Row::Step(K::ReceiptRefused, A::None),
         "receipt.reporting_checked" => Row::Step(K::ReportingChecked, A::Owner),
+        // A statement read that found no matching payment is part of the owner's check.
+        "receipt.reporting_unmatched" => Row::Step(K::ReportingChecked, A::None),
+        // PayPal's statement never showed the seller's payment: the safe default ends the deal.
+        "receipt.unconfirmed" => Row::Step(K::Unconfirmed, A::SafeDefault),
         "receipt.reconciled" => {
             if record.detail.get("matched").and_then(|m| m.as_bool()) == Some(true) {
                 Row::Step(K::Reconciled, A::None)
@@ -729,6 +734,11 @@ mod tests {
             ),
             (
                 "deal.transition",
+                json!({"from":"RECEIPTED","to":"UNCONFIRMED"}),
+                step(K::Unconfirmed, A::None),
+            ),
+            (
+                "deal.transition",
                 json!({"from":"X","to":"NOT_A_STATE"}),
                 step(K::Other, A::None),
             ),
@@ -845,6 +855,16 @@ mod tests {
                 "receipt.reporting_checked",
                 json!({}),
                 step(K::ReportingChecked, A::Owner),
+            ),
+            (
+                "receipt.reporting_unmatched",
+                json!({"from":0,"to":100,"capture_id":"CAPTURE1"}),
+                step(K::ReportingChecked, A::None),
+            ),
+            (
+                "receipt.unconfirmed",
+                json!({"capture_id":"CAPTURE1","received_at":100,"reconciliation":"pending_reporting","decided_by":lapse}),
+                step(K::Unconfirmed, A::SafeDefault),
             ),
             (
                 "receipt.reconciled",

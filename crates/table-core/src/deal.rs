@@ -104,7 +104,17 @@ pub enum DealState {
     AutoVoided,
     Refunded,
     Disputed,
+    /// A buyer's deal the seller said was paid (RECEIPTED on the seller's signed receipt alone)
+    /// whose payment PayPal's own statement never showed within [`CORROBORATION_SECS`]. An end the
+    /// owner reads: this wallet moved no money, and a statement match that comes later still
+    /// moves it to RECONCILED.
+    Unconfirmed,
 }
+/// How long a buyer's deal that only the seller says is paid waits for PayPal's statement to
+/// show the payment before it ends UNCONFIRMED: 72 hours. Reporting lags up to 3 hours
+/// (.research/paypal-platform.md:36 and :490 [S-spec]); 72 hours is 24 times that lag and gives
+/// the owner three days to check the statement. Ending it moves no money and makes no PayPal call.
+pub const CORROBORATION_SECS: i64 = 72 * 3600;
 /// How long the buyer has to approve an order the seller's wallet created: PayPal's default
 /// window for the payer's approval, 6 hours from creation (.research/paypal-platform.md,
 /// "Approval window" [S-spec]). Silence past it lets the deal lapse; no money moves.
@@ -149,6 +159,7 @@ impl DealState {
                 | Self::Refunded
                 | Self::Disputed
                 | Self::Reconciled
+                | Self::Unconfirmed
         )
     }
 }
@@ -171,6 +182,9 @@ pub enum DealEvent {
     ReceiptVerified,
     SellerReceiptVerified,
     ReportingMatched,
+    /// [`CORROBORATION_SECS`] passed on a buyer's seller-attested RECEIPTED deal with no matching
+    /// PayPal statement row. Supplied only by the ledger's corroboration lapse.
+    CorroborationLapsed,
     Withdraw,
     Deadline,
     Refuse,
@@ -206,6 +220,9 @@ pub fn transition(state: DealState, event: DealEvent) -> Result<DealState, Domai
         (S::Captured, E::ReceiptVerified) => S::Receipted,
         (S::AwaitingApproval | S::Approved, E::SellerReceiptVerified) => S::Receipted,
         (S::Receipted, E::ReportingMatched) => S::Reconciled,
+        (S::Receipted, E::CorroborationLapsed) => S::Unconfirmed,
+        // A statement match that comes after the lapse still counts.
+        (S::Unconfirmed, E::ReportingMatched) => S::Reconciled,
         (S::Captured | S::Receipted | S::Reconciled, E::Refund) => S::Refunded,
         (S::Captured | S::Receipted | S::Reconciled, E::Dispute) => S::Disputed,
         (S::Authorized, E::Void) => S::Voided,
@@ -584,6 +601,7 @@ mod tests {
             DealState::Failed,
             DealState::Refunded,
             DealState::Disputed,
+            DealState::Unconfirmed,
         ] {
             for event in [
                 DealEvent::Withdraw,
@@ -599,6 +617,40 @@ mod tests {
             DealState::AutoVoided
         );
         assert!(transition(DealState::Authorized, DealEvent::Deadline).is_err());
+    }
+    #[test]
+    fn only_a_receipted_deal_lapses_unconfirmed_and_a_late_statement_match_still_counts() {
+        assert_eq!(
+            transition(DealState::Receipted, DealEvent::CorroborationLapsed).unwrap(),
+            DealState::Unconfirmed
+        );
+        assert_eq!(
+            transition(DealState::Unconfirmed, DealEvent::ReportingMatched).unwrap(),
+            DealState::Reconciled
+        );
+        assert!(DealState::Unconfirmed.terminal());
+        assert!(!DealState::Unconfirmed.pre_capture());
+        for state in [
+            DealState::AwaitingApproval,
+            DealState::Approved,
+            DealState::Captured,
+            DealState::Reconciled,
+            DealState::Unconfirmed,
+            DealState::Expired,
+        ] {
+            assert!(transition(state, DealEvent::CorroborationLapsed).is_err());
+        }
+        for event in [
+            DealEvent::Withdraw,
+            DealEvent::Deadline,
+            DealEvent::Mismatch,
+            DealEvent::Fail,
+            DealEvent::Void,
+            DealEvent::SellerReceiptVerified,
+        ] {
+            assert!(transition(DealState::Unconfirmed, event).is_err());
+        }
+        assert_eq!(CORROBORATION_SECS, 24 * 3 * 3600);
     }
     #[test]
     fn purchase_cleared_moves_only_pairing_to_agreed() {
@@ -626,6 +678,7 @@ mod tests {
             DealState::AutoVoided,
             DealState::Refunded,
             DealState::Disputed,
+            DealState::Unconfirmed,
         ] {
             assert!(matches!(
                 transition(state, DealEvent::PurchaseCleared),

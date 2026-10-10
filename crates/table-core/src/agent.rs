@@ -51,7 +51,9 @@ impl TablePhase {
             | S::Voided
             | S::AutoVoided
             | S::Refunded
-            | S::Disputed => Self::Closed,
+            | S::Disputed
+            // PayPal never showed the seller's payment: an end, never paid.
+            | S::Unconfirmed => Self::Closed,
         }
     }
     /// Bargaining is possible: an offer can still go out.

@@ -218,6 +218,7 @@ fn agreed(state: DealState) -> bool {
             | S::AutoVoided
             | S::Refunded
             | S::Disputed
+            | S::Unconfirmed
     )
 }
 

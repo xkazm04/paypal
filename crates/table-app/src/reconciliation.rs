@@ -11,7 +11,11 @@ impl Pipeline {
     ) -> Result<(), Error> {
         window.validate().map_err(|_| Error::Invalid)?;
         let deal = self.wallet.ledger.get_deal(id)?;
-        if deal.mode != Mode::Sandbox || deal.state != DealState::Receipted || window.page != 1 {
+        // UNCONFIRMED too: a statement match after the corroboration lapse still counts.
+        if deal.mode != Mode::Sandbox
+            || !matches!(deal.state, DealState::Receipted | DealState::Unconfirmed)
+            || window.page != 1
+        {
             return Err(Error::Permission);
         }
         let capture = deal.paypal.capture.as_deref().ok_or(Error::Invalid)?;
@@ -80,6 +84,16 @@ impl Pipeline {
             self.wallet
                 .ledger
                 .confirm_reporting(id, capture, *amount, now)?;
+        } else {
+            // The statement read found no such payment: recorded, so the owner sees it was looked
+            // for. Nothing else changes.
+            self.wallet.ledger.append_audit(&table_ledger::AuditEntry {
+                at: now,
+                actor: "paypal-reporting".into(),
+                action: "receipt.reporting_unmatched".into(),
+                deal_id: Some(id),
+                detail: serde_json::json!({"from":window.from,"to":window.to,"capture_id":capture}),
+            })?;
         }
         Ok(())
     }

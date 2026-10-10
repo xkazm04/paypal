@@ -1166,6 +1166,9 @@ pub enum HistoryKind {
     /// Shop around: another seller's table agreed first, so the group rule withdrew this one with
     /// a signed WITHDRAW. No money moved.
     GroupWithdrawn,
+    /// The seller said a buyer's deal was paid, and PayPal's statement never showed it within the
+    /// wallet's 72-hour window: the deal ends here. This wallet moved no money.
+    Unconfirmed,
 }
 /// Who decided a step, from the typed `decided_by` the chain recorded (never inferred from text).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

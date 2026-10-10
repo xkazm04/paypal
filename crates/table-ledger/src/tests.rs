@@ -1518,6 +1518,149 @@ fn seller_receipt_before_buyer_approval_never_reads_as_paid() {
     assert_eq!(ledger.paypal_call_count(deal.id).unwrap(), 0);
     ledger.verify_audit().unwrap();
 }
+/// A buyer deal at RECEIPTED on the seller's receipt alone (accepted at 100, after the handoff).
+fn seller_attested(ledger: &mut Ledger, deal: &Deal, own: &AgentSigner, peer: &AgentSigner) {
+    advance(ledger, deal.id, true);
+    ledger.set_deal_category(deal.id, Category::Parts).unwrap();
+    ledger.handoff(deal.id).unwrap();
+    ledger
+        .conn
+        .execute(
+            "UPDATE deals SET pp_order_id='ORDER1',attempt=1 WHERE id=?1",
+            [deal.id.to_string()],
+        )
+        .unwrap();
+    let mut e = inbound(deal, own, peer);
+    e.typ = MsgType::Receipt;
+    e.body = Body::Receipt {
+        capture_id: ShortText::new("CAPTURE1".into()).unwrap(),
+        amount: deal.terms.amount().unwrap(),
+        status: ReceiptStatus::Completed,
+        transcript_head: H256::ZERO,
+    };
+    let verified = ledger
+        .preview_inbound(deal.id, &peer.sign(&e).unwrap(), 100)
+        .unwrap();
+    ledger.accept_seller_receipt(&verified, 100).unwrap();
+    assert_eq!(
+        ledger.get_deal(deal.id).unwrap().state,
+        DealState::Receipted
+    );
+}
+/// PayPal's own statement row for CAPTURE1 at the deal's amount, as a recorded reporting read.
+fn statement_shows(ledger: &mut Ledger, deal: &Deal, at: Timestamp) {
+    ledger
+        .record_paypal_call(
+            &PaypalCall {
+                deal_id: deal.id,
+                method: HttpMethod::Get,
+                path: PaypalPath::new("/v1/reporting/transactions".into()).unwrap(),
+                request_id: format!("report-{at}"),
+                status: 200,
+                debug_id: None,
+                response: json!({"transaction_details":[{"transaction_info":{"transaction_id":"CAPTURE1","transaction_status":"S","transaction_amount":{"currency_code":"USD","value":format!("-{}", deal.terms.amount().unwrap().decimal())}}}]}),
+                binding: None,
+                at,
+            },
+            &[],
+        )
+        .unwrap();
+}
+#[test]
+fn a_seller_attested_deal_ends_unconfirmed_after_72_hours_and_a_late_match_still_counts() {
+    let (mut ledger, deal, _, own, peer) = setup();
+    seller_attested(&mut ledger, &deal, &own, &peer);
+    let due = 100 + CORROBORATION_SECS;
+    let before = ledger.get_deal(deal.id).unwrap();
+    // Not before 72 hours.
+    assert!(!ledger.lapse_corroboration(deal.id, due - 1).unwrap());
+    assert_eq!(
+        ledger.get_deal(deal.id).unwrap().state,
+        DealState::Receipted
+    );
+    assert_eq!(action_rows(&ledger, deal.id, "receipt.unconfirmed"), 0);
+    // At 72 hours: UNCONFIRMED, one row, decided by the safe default; evidence kept.
+    assert!(ledger.lapse_corroboration(deal.id, due).unwrap());
+    assert!(!ledger.lapse_corroboration(deal.id, due + 10).unwrap());
+    let ended = ledger.get_deal(deal.id).unwrap();
+    assert_eq!(ended.state, DealState::Unconfirmed);
+    assert_eq!(ended.decided_by, before.decided_by);
+    assert_eq!(ended.paypal.capture.as_deref(), Some("CAPTURE1"));
+    assert_eq!(action_rows(&ledger, deal.id, "receipt.unconfirmed"), 1);
+    let detail: serde_json::Value = serde_json::from_str(
+        &ledger
+            .conn
+            .query_row(
+                "SELECT detail_json FROM audit_log WHERE deal_id=?1 AND action='receipt.unconfirmed'",
+                [deal.id.to_string()],
+                |r| r.get::<_, String>(0),
+            )
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(detail["capture_id"], "CAPTURE1");
+    assert_eq!(detail["received_at"], 100);
+    assert_eq!(detail["reconciliation"], "pending_reporting");
+    assert_eq!(
+        detail["decided_by"],
+        json!({"type":"safe_default","deadline":due})
+    );
+    let evidence = ledger.deal_evidence(deal.id).unwrap();
+    assert_eq!(evidence.receipt, ReceiptEvidence::SellerAttested);
+    assert_eq!(evidence.reconciliation, Reconciliation::PendingReporting);
+    assert_eq!(ledger.paypal_call_count(deal.id).unwrap(), 0);
+    // A statement match that comes late still counts.
+    statement_shows(&mut ledger, &deal, due + 20);
+    ledger
+        .confirm_reporting(deal.id, "CAPTURE1", deal.terms.amount().unwrap(), due + 20)
+        .unwrap();
+    assert_eq!(
+        ledger.get_deal(deal.id).unwrap().state,
+        DealState::Reconciled
+    );
+    let evidence = ledger.deal_evidence(deal.id).unwrap();
+    assert_eq!(evidence.receipt, ReceiptEvidence::PaypalVerified);
+    assert_eq!(evidence.reconciliation, Reconciliation::Matched);
+    ledger.verify_audit().unwrap();
+}
+#[test]
+fn a_reconciled_deal_a_seller_deal_and_an_unreceipted_deal_never_lapse_unconfirmed() {
+    let far = 100 + 10 * CORROBORATION_SECS;
+    // RECONCILED: PayPal's statement matched in time.
+    let (mut ledger, deal, _, own, peer) = setup();
+    seller_attested(&mut ledger, &deal, &own, &peer);
+    statement_shows(&mut ledger, &deal, 200);
+    ledger
+        .confirm_reporting(deal.id, "CAPTURE1", deal.terms.amount().unwrap(), 200)
+        .unwrap();
+    assert!(!ledger.lapse_corroboration(deal.id, far).unwrap());
+    assert_eq!(
+        ledger.get_deal(deal.id).unwrap().state,
+        DealState::Reconciled
+    );
+    // A seller's own RECEIPTED deal is PayPal's word, never the peer's.
+    let (mut ledger, deal, _, own, peer) = setup();
+    seller_attested(&mut ledger, &deal, &own, &peer);
+    ledger
+        .conn
+        .execute(
+            "UPDATE deals SET side='seller' WHERE id=?1",
+            [deal.id.to_string()],
+        )
+        .unwrap();
+    assert!(!ledger.lapse_corroboration(deal.id, far).unwrap());
+    assert_eq!(
+        ledger.get_deal(deal.id).unwrap().state,
+        DealState::Receipted
+    );
+    // A deal with no receipt at all.
+    let (mut ledger, deal, _, _, _) = setup();
+    advance(&mut ledger, deal.id, true);
+    assert!(!ledger.lapse_corroboration(deal.id, far).unwrap());
+    assert_eq!(ledger.get_deal(deal.id).unwrap().state, DealState::Approved);
+    assert_eq!(action_rows(&ledger, deal.id, "receipt.unconfirmed"), 0);
+    assert_eq!(ledger.paypal_call_count(deal.id).unwrap(), 0);
+}
 #[test]
 fn buyer_receipt_rejects_amount_head_status_state_role_owned_purchase_and_replay() {
     for invalid in 0..9 {

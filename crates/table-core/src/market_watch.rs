@@ -87,7 +87,7 @@ mod tests {
         )
         .unwrap()
     }
-    const ALL: [DealState; 20] = [
+    const ALL: [DealState; 21] = [
         DealState::Pairing,
         DealState::Listed,
         DealState::Negotiating,
@@ -108,6 +108,7 @@ mod tests {
         DealState::AutoVoided,
         DealState::Refunded,
         DealState::Disputed,
+        DealState::Unconfirmed,
     ];
 
     #[test]
