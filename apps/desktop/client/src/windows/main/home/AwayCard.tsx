@@ -66,12 +66,13 @@ export function useAway(o: { active: boolean; enabled: boolean; needs: number; d
   const dismiss = useCallback(() => { setDismissed(true); writeLastSeen(clockNow()); }, []);
   const data = q.data;
   // Endings whose check began before the window are told by the deal's own record; the card waits for it.
-  const { unshown, pending } = useEndedUnshown(data?.steps ?? NO_STEPS, on && !!data && !q.error);
+  // An ending whose record could not be read is worded as not known (unread), never as no money moved.
+  const { unshown, unread, pending } = useEndedUnshown(data?.steps ?? NO_STEPS, on && !!data && !q.error);
   const summary = useMemo(() => {
     if (!on || !data || q.error || pending) return null;
-    const s = awaySummary(data.steps, o.deals, seen.at, Math.max(now, seen.at), { needs: o.needs, truncated: data.truncated, reads, unshown });
+    const s = awaySummary(data.steps, o.deals, seen.at, Math.max(now, seen.at), { needs: o.needs, truncated: data.truncated, reads, unshown, unread });
     return worthShowing(s) ? s : null;
-  }, [on, data, q.error, o.deals, seen.at, now, o.needs, reads, unshown, pending]);
+  }, [on, data, q.error, o.deals, seen.at, now, o.needs, reads, unshown, unread, pending]);
   return { summary, dismiss };
 }
 

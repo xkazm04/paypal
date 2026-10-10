@@ -1,7 +1,8 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import type { Backend } from '../../lib/contract';
+import { READ_TIMEOUT_MS } from '../../lib/readEach';
 import { endingsToRead, useEndedUnshown } from './unshown';
 
 const hoisted = vi.hoisted(() => ({ current: null as Backend | null }));
@@ -47,8 +48,28 @@ describe('useEndedUnshown', () => {
     expect(result.current.pending).toBe(true);
     await waitFor(() => expect(result.current.pending).toBe(false));
     expect([...result.current.unshown]).toEqual(['A']);
+    // C's read failed: its ending is not known, so it is unread rather than left with the calm words.
+    expect([...result.current.unread]).toEqual(['C']);
     expect(invoke).toHaveBeenCalledTimes(3);
     expect(invoke.mock.calls.every((c) => c[0] === 'deal_evidence')).toBe(true);
+  });
+
+  it('counts a read that never answers as unread once its time limit has passed', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      invoke.mockImplementation((_cmd: string, args: { deal_id: string }) =>
+        args.deal_id === 'B' ? new Promise(() => {}) : Promise.resolve({ money_check: args.deal_id === 'A' ? { open: true } : null }));
+      const { result } = renderHook(() => useEndedUnshown(endings, true));
+      expect(result.current.pending).toBe(true);
+      await act(async () => { await vi.advanceTimersByTimeAsync(READ_TIMEOUT_MS - 1); });
+      expect(result.current.pending).toBe(true);
+      await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+      await waitFor(() => expect(result.current.pending).toBe(false));
+      expect([...result.current.unread]).toEqual(['B']);
+      expect([...result.current.unshown]).toEqual(['A']);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('reads nothing when disabled', () => {

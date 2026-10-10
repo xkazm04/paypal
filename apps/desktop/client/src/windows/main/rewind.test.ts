@@ -8,8 +8,8 @@ import type { HistoryStep } from '@bindings/HistoryStep';
 import { mockBackend, resetMockState } from '../../mock/backend';
 import { buildMockState, fakeUlid } from '../../mock/fixtures';
 import { decidedLine, decisionSteps } from './deal/WhoDecided';
-import { MONEY_CHECK_ENDED_NOW, MONEY_CHECK_ENDED_PILL, MONEY_CHECK_NOW } from '../../lib/words';
-import { checkOpenThrough, endedBeforePayPalShowed, historyAt, isMoneyCall, isRefusal, laneSteps, narrate, rewindCheckTip, stepSentence, stepTime, stepUnder, tickTone, weekFraction } from './logic';
+import { ENDING_UNREAD_NOW, ENDING_UNREAD_PILL, endingUnreadSentence, MONEY_CHECK_ENDED_NOW, MONEY_CHECK_ENDED_PILL, MONEY_CHECK_NOW } from '../../lib/words';
+import { checkOpenThrough, endedBeforePayPalShowed, endingCtx, historyAt, isMoneyCall, isRefusal, laneSteps, narrate, rewindCheckTip, stepSentence, stepTime, stepUnder, tickTone, weekFraction } from './logic';
 
 const D = 'deal-a';
 let seq = 0;
@@ -268,5 +268,37 @@ describe('rewindCheckTip: the Rewind’s bead tip while a money step is open', (
   it('gives nothing once a capture answered ok', () => {
     const steps = [s({ at: 10, kind: 'checking_with_paypal' }), s({ at: 20, kind: 'captured', state_after: 'CAPTURED', paypal: call('capture', 'ok') })];
     expect(tipOf(steps, 30, deal(d, 'CAPTURED'))).toBeNull();
+  });
+});
+
+describe('an ending whose own record could not be read', () => {
+  const NOW = 1_800_000_000;
+  const d = 'deal-unread';
+  const s = (o: Partial<HistoryStep> & { at: number; kind: HistoryKind }) => step({ deal_id: d, ...o });
+  const deal = (state: Deal['state']): Deal => ({ ...buildMockState(NOW).deals[0]!.deal, id: d, state });
+
+  it('endingCtx: unshown wins over unread, and unread holds only when not unshown', () => {
+    const expired = s({ at: 40, kind: 'expired', state_after: 'EXPIRED' });
+    const both = new Set([d]);
+    expect(endingCtx([expired], expired, both, both)).toEqual({ unshown: true, unread: false });
+    expect(endingCtx([s({ at: 10, kind: 'checking_with_paypal' }), expired], expired, new Set(), both)).toEqual({ unshown: true, unread: false });
+    expect(endingCtx([expired], expired, new Set(), both)).toEqual({ unshown: false, unread: true });
+    expect(endingCtx([expired], expired, new Set(), new Set())).toEqual({ unshown: false, unread: false });
+  });
+
+  it('narrates it as not available yet, never as no money moved', () => {
+    for (const kind of ['expired', 'lapsed'] as const) {
+      const text = stepSentence(step({ at: 1, kind, authority: { type: 'safe_default' } }), { title: 'the dock', unread: true });
+      expect(text).toBe(endingUnreadSentence('the dock'));
+      expect(text).not.toMatch(/No money moved|nothing moved/i);
+    }
+  });
+
+  it('gives the Rewind tip the unread pill and line, and nothing when the record was read', () => {
+    const steps = [s({ at: 40, kind: 'expired', state_after: 'EXPIRED' })];
+    const p = historyAt(steps, 50).get(d);
+    if (!p) throw new Error('deal absent at the playhead');
+    expect(rewindCheckTip(steps, p, deal('EXPIRED'), new Set(), new Set([d]))).toEqual({ state: ENDING_UNREAD_PILL, money: ENDING_UNREAD_NOW });
+    expect(rewindCheckTip(steps, p, deal('EXPIRED'), new Set(), new Set())).toBeNull();
   });
 });

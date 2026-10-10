@@ -28,6 +28,8 @@ export type RewindState = {
   steps: HistoryStep[];
   /** Deals whose own record shows they ended while a money step was open, for endings whose check began before this week's steps. */
   unshown: ReadonlySet<string>;
+  /** Deals that ended at the deadline whose own record could not be read: whether money moved is not known yet. */
+  unread: ReadonlySet<string>;
   loading: boolean;
   error: WalletError | null;
   playing: boolean;
@@ -45,7 +47,7 @@ export function useRewind(on: boolean, now: number, reduced: boolean): RewindSta
   const limit = Math.min(now, end);
   const q = useQuery('deal_history', { deal_id: null, from: start, to: end }, { enabled: on, refreshOn: ['deal:changed'] });
   const steps = useMemo(() => q.data?.steps ?? [], [q.data]);
-  const { unshown, pending } = useEndedUnshown(steps, on);
+  const { unshown, unread, pending } = useEndedUnshown(steps, on);
   const [t, setT] = useState(limit);
   const [playing, setPlaying] = useState(false);
   const live = useRef({ t, limit, start, steps });
@@ -94,7 +96,7 @@ export function useRewind(on: boolean, now: number, reduced: boolean): RewindSta
     return () => cancelAnimationFrame(raf);
   }, [on, playing, reduced]);
 
-  return { start, end, t: Math.min(t, limit), limit, steps, unshown, loading: (q.loading && !q.data) || pending, error: q.error, playing, weekBack, seek, play, pause, shiftWeek };
+  return { start, end, t: Math.min(t, limit), limit, steps, unshown, unread, loading: (q.loading && !q.data) || pending, error: q.error, playing, weekBack, seek, play, pause, shiftWeek };
 }
 
 /** One tick's mark: a bar coloured by authority, or an × for a refusal. */

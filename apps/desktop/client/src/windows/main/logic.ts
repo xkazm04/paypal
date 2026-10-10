@@ -25,7 +25,7 @@ import type { HistoryStep } from '@bindings/HistoryStep';
 import type { PaypalMethod } from '@bindings/PaypalMethod';
 import type { ReceiptEvent } from '@bindings/ReceiptEvent';
 import { formatMinor } from '../../lib/format';
-import { moneyCheckNow, moneyCheckPillText, receiptRefusedSentence, refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, sellerSaysOnly, stateWord, unconfirmedSentence } from '../../lib/words';
+import { ENDING_UNREAD_NOW, ENDING_UNREAD_PILL, endingUnreadSentence, moneyCheckNow, moneyCheckPillText, receiptRefusedSentence, refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, sellerSaysOnly, stateWord, unconfirmedSentence } from '../../lib/words';
 
 export const MODULE_KEYS: readonly Module[] = ['tables', 'spend', 'counter', 'book', 'shield', 'rescue'];
 export const moduleIndex = (m: Module): number => MODULE_KEYS.indexOf(m);
@@ -529,13 +529,24 @@ export function endedBeforePayPalShowed(steps: readonly HistoryStep[], end: Hist
   return checkOpenThrough(steps, end);
 }
 
+/** How a deadline ending `s` reads: `unshown` when it came while a money step was open (by the steps,
+ *  or by the deal's own record), else `unread` when that record could not be read. */
+export function endingCtx(steps: readonly HistoryStep[], s: HistoryStep, unshown: ReadonlySet<string>, unread: ReadonlySet<string>): { unshown: boolean; unread: boolean } {
+  const shown = endedBeforePayPalShowed(steps, s) || unshown.has(s.deal_id);
+  return { unshown: shown, unread: !shown && unread.has(s.deal_id) };
+}
+
+const NO_IDS: ReadonlySet<string> = new Set();
+
 /** The Rewind's bead tip for a deal whose money step is open at the playhead (the pill and the money
  *  line the live tip shows at Home), or null when nothing is open. `unshown` holds the deals whose
- *  ending came after a check that began before the week. */
-export function rewindCheckTip(steps: readonly HistoryStep[], p: HistoryPoint, deal: Deal, unshown: ReadonlySet<string>): { state: string; money: string } | null {
+ *  ending came after a check that began before the week; `unread` the endings whose own record could
+ *  not be read, which read as not available yet rather than as nothing moved. */
+export function rewindCheckTip(steps: readonly HistoryStep[], p: HistoryPoint, deal: Deal, unshown: ReadonlySet<string>, unread: ReadonlySet<string> = NO_IDS): { state: string; money: string } | null {
   const ended = isTerminal({ ...deal, state: p.state });
-  if (!(checkOpenThrough(steps, p.last) || (ended && unshown.has(deal.id)))) return null;
-  return { state: moneyCheckPillText(ended), money: moneyCheckNow(ended) };
+  if (checkOpenThrough(steps, p.last) || (ended && unshown.has(deal.id))) return { state: moneyCheckPillText(ended), money: moneyCheckNow(ended) };
+  if (ended && unread.has(deal.id)) return { state: ENDING_UNREAD_PILL, money: ENDING_UNREAD_NOW };
+  return null;
 }
 
 /** A tick's colour on the PayPal lane: who decided the call. */
@@ -594,7 +605,7 @@ export function stepTime(unix: number): string {
 
 /** One step in plain words, without its time: who did what to which deal, and what PayPal saw.
  *  `title` is the deal's short title; `side` adjusts paying vs collecting. Never a clause number. */
-export function stepSentence(s: HistoryStep, ctx: { title: string; side?: Side; unshown?: boolean }): string {
+export function stepSentence(s: HistoryStep, ctx: { title: string; side?: Side; unshown?: boolean; unread?: boolean }): string {
   const x = ctx.title;
   const who = whoDecided(s.authority);
   const by = (fallback: string) => who || fallback;
@@ -641,6 +652,7 @@ export function stepSentence(s: HistoryStep, ctx: { title: string; side?: Side; 
     case 'withdrawn': return `${x} was withdrawn. No money moved.`;
     case 'expired': case 'lapsed':
       if (ctx.unshown) return `${x} ended at its deadline before PayPal showed what happened to its payment. Look at the payment in PayPal.`;
+      if (ctx.unread) return endingUnreadSentence(x);
       return s.kind === 'expired' ? `The deadline passed on ${x}. No money moved.` : `Nobody acted on ${x} in time, so it lapsed. No money moved.`;
     case 'shield_held': return `A safety check paused ${x} before PayPal was asked.`;
     case 'hold_released': return `You let ${x} go on after a safety pause.`;
@@ -659,7 +671,7 @@ export function stepSentence(s: HistoryStep, ctx: { title: string; side?: Side; 
 }
 
 /** The hub's line for the step under the playhead: "Tue 14:02 · Your rules refused 40 × GPU: …". */
-export const narrate = (s: HistoryStep, ctx: { title: string; side?: Side; unshown?: boolean }): string => `${stepTime(s.at)} · ${stepSentence(s, ctx)}`;
+export const narrate = (s: HistoryStep, ctx: { title: string; side?: Side; unshown?: boolean; unread?: boolean }): string => `${stepTime(s.at)} · ${stepSentence(s, ctx)}`;
 
 /** The latest step at or before `t` (the record's order breaks ties): what the hub tells. */
 export function stepUnder(steps: readonly HistoryStep[], t: number): HistoryStep | null {

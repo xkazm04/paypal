@@ -3,6 +3,7 @@ import type { Currency } from '@bindings/Currency';
 import type { Deal } from '@bindings/Deal';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import { buildMockState } from '../../../mock/fixtures';
+import { endingUnreadLine } from '../../../lib/words';
 import { awaySummary, LAST_SEEN_KEY, QUIET_NEWS_AFTER, readLastSeen, sinceWords, startOfToday, worthShowing, writeLastSeen } from './away';
 
 // Thursday 8 Oct 2026, 08:30 local; Maya last looked yesterday at 18:40.
@@ -165,6 +166,18 @@ describe('awaySummary', () => {
     expect(s.lines[0]?.text).toBe('1 deal ended before PayPal showed what happened to the payment ($90.00): look at it in PayPal');
     expect(s.lead).toBeNull();
     expect(s.text).not.toContain('no money moved');
+  });
+
+  it('tells an ending whose own record could not be read as not available yet, never as no money moved', () => {
+    const steps = [step('SALE', SEEN + H, 'expired', DEFAULT, { type: 'none' }, 'EXPIRED')];
+    const s = awaySummary(steps, DEALS, SEEN, NOW, { unread: new Set(['SALE']) });
+    const [before, after] = endingUnreadLine(1);
+    expect(s.lines).toHaveLength(1);
+    expect(s.lines[0]?.outcome).toBe('unread');
+    expect(s.lines[0]?.tone).toBe('check');
+    expect(s.lines[0]?.text).toBe(`${before}$90.00${after}`);
+    expect(s.lead).toBeNull();
+    expect(s.text).not.toMatch(/no money moved/i);
   });
 
   it('keeps the lapsed line when the steps hold only the expiry and the record says nothing', () => {
