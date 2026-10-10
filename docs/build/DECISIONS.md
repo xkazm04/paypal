@@ -558,7 +558,25 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - `accept_seller_receipt` (`crates/table-ledger/src/receipt.rs:115`) moves a buyer deal to RECEIPTED
     even when the owner never opened the PayPal link. `browser_handoff` is recorded
     (`crates/table-ledger/src/repositories.rs:654`, read at :666) but receipt.rs does not mention it.
-  A rework follows, and this section is amended when it merges.
+  - **Amended 2026-10-10.** The rework merged (deal-to-settlement run 1edb842c, at 2ff7ea1).
+    - The decision is carried by 186578d: `crates/table-ledger/src/book.rs:31` keys a RECEIPTED deal
+      with `receipt_evidence` `seller_attested` as `RECEIPTED:buyer`. Test:
+      `seller_receipt_before_buyer_approval_never_reads_as_paid`
+      (`crates/table-ledger/src/tests.rs:1448`).
+    - And by d9621b4, with the client tests it adds: the Book's `stateKey` and `serverStateLabel`
+      (`modules/book/model.ts`), the Paid and Stopped chips (`modules/book/understand.ts`), the
+      Tumbler's `receiptTicker` (`windows/tumbler/logic.ts`), and the main window's `receiptToast`
+      (`apps/desktop/client/src/windows/main/App.tsx`, function in `windows/main/logic.ts`). The
+      council had not listed the toast; it read a seller-attested receipt as 'Paid, receipt saved' in
+      the ok tone.
+    - The Decision bullet's 'Rust is unchanged' no longer holds: 186578d changes `book.rs`, and
+      e2290a0 and ccc548e change the ledger further (sections 27 and 28).
+    - The UNVERIFIED notes, from d9621b4's diff: the Tumbler site (`windows/tumbler/logic.ts` around
+      :373-400) was `receiptTicker`, which gave every RECEIPTED state the `receipt` kind (green) and
+      the verb from `RECEIPT_VERB`; confirmed faulty and fixed. For `book.tsx` around :688 the diff
+      only swaps `stateGroupLabel(v.replace(':buyer',''), side)` for `serverStateLabel(v)`, so it
+      moved the label into the Book model; whether the old line misread the seller's word is
+      UNVERIFIED (not run against the old code).
 - **Evidence:** 8288cba, with the tests it adds in `apps/desktop/client/src/lib/words.test.ts`:
   'a buyer RECEIPTED deal reads "Seller says paid" with a waiting tone and the one shared sentence',
   'a buyer RECONCILED deal is paid, on PayPal's statement', 'a seller RECEIPTED deal still reads paid
@@ -568,7 +586,9 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   and acb0dab (fmt). The Rust test
   `seller_receipt_is_atomic_bound_attestation_and_never_a_paypal_call`
   (`crates/table-ledger/src/tests.rs:1303`) pins `seller_attested` on a buyer deal after a seller
-  receipt. The client tests were not run for this entry.
+  receipt. The client tests were not run for this entry. Amendment evidence: 186578d and d9621b4;
+  client tsc exit 0 and vitest 895 of 895 passed (82 files) on main at 2ff7ea1, run by the App
+  Master on 2026-10-10 (reported to the builder; not re-run here).
 
 ## 24. The SETTLE approve link must open its own order (C-10)
 
@@ -641,7 +661,97 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Decision:** a per-caller create allowance. It is proved by a test in which one caller exhausts its
   allowance, and a fresh pair mailbox and a create on the HOUSE path still succeed.
 - **Lost:** accepting the risk for the judging window.
-- **Consequences:** the fix is not merged yet. This section records the decision and is amended with
-  the commit when it lands. Whether the submitted build carries a relay address is a question open
-  with the operator.
-- **Evidence:** none in the repository yet: no commit and no test.
+- **Consequences:** fixed in ad2ef32 (2026-10-10). N = `CALLER_ALLOWANCE` = 128 live mailboxes per caller: a wallet holds at most 64 live relay routes (`bind_relay` in table-ledger), one mailbox each, and two wallets behind one home NAT address (the two-desktop demo) share a key, so 2 x 64. R = `HOUSE_RESERVE` = 64: HTTP creates are refused at 256 - 64 = 192 live mailboxes; the HOUSE ledger holds at most 64 live routes, so its in-process create (`RelayApi::create`, which bypasses the allowance) always has room, and a wallet's later create of a HOUSE deal's mailbox finds it already made and costs nothing. Caller key: the TCP peer; with `RELAY_TRUSTED_PROXY_HOPS=n` set, the nth `X-Forwarded-For` entry from the right (the proxy-appended one, never a client-written one); IPv6 keyed on its /64; a missing or unreadable entry falls back to the TCP peer; an unparsable setting (or above 8) fails startup, because falling back to 0 would key everyone on the proxy and quietly lock all callers out after one fills 128, and falling back to the header would let clients choose their key. UNVERIFIED: the root render.yaml sets the hop count to 1, assuming Render runs exactly one proxy that appends the client address as the rightmost entry; .research does not document it. Residual: two IPv4 addresses (or two /64s) can still fill the 192-slot HTTP share for 24 h; HOUSE deals survive through the reserve, wallet-to-wallet pairing does not. Authenticated PUT stays with relay-and-rendezvous-1. Whether the submitted build carries a relay address is still open with the operator.
+- **Evidence:** ad2ef32: services/rendezvous/tests/relay.rs (`one_caller_uses_up_its_allowance_and_a_second_caller_and_the_house_still_create`, `many_callers_filling_the_http_share_leave_the_house_reserve`, `re_creating_a_mailbox_costs_nothing_and_expiry_releases_the_allowance`, `an_ipv6_caller_is_its_slash_64_and_an_ipv4_mapped_one_is_its_ipv4`, `the_proxy_hop_setting_is_a_small_whole_number_or_startup_fails`) and services/rendezvous/tests/serve.rs, over a real socket through serve_with (`with_no_trusted_proxy_a_forged_forwarded_for_does_not_change_the_caller`, `behind_one_proxy_the_rightmost_forwarded_for_entry_is_the_caller`, `two_ipv6_addresses_in_one_slash_64_share_a_caller`, `over_a_socket_one_caller_is_refused_past_its_allowance_and_forging_does_not_help`). 4909d48 deletes services/rendezvous/Dockerfile and services/rendezvous/render.yaml (security scan P-4).
+
+## 27. A seller's receipt on a buyer deal counts only after the owner opened the PayPal link
+
+- **Date:** 2026-10-10
+- **Decided by:** the App Master, on deal-to-settlement lite r2 robustness-1 (a) (the report is not in
+  the repository; taken from the task brief)
+- **Constraint:** `apps/desktop/src-tauri/src/native/routing.rs` (:131-137) opens the browser before
+  `Action::Handoff` (`crates/table-runtime/src/dispatcher.rs:628`) records the handoff, and
+  `Action::Handoff` can fail (the selected deal changed, or the deadline passed). `accept_seller_receipt`
+  read no handoff.
+- **Decision:** `Decision::OpenBrowser` (`crates/table-runtime/src/service.rs:563`) records
+  `Ledger::handoff` together with the owner's decision, before the URL is returned. `Action::Handoff`
+  records it again, which is harmless. `accept_seller_receipt` (`crates/table-ledger/src/receipt.rs`)
+  refuses a buyer deal with no handoff: it appends one `receipt.refused` audit row per distinct raw
+  hash (actor `peer:<iss>`, reason `no_handoff`; `receipt.rs:163-182`), then returns Conflict. Nothing
+  else changes. The deal keeps its approval countdown and lapses by its own safe default.
+- **Lost:**
+  - holding the receipt in a new state the owner sees (a receipt that arrives before the link opened
+    cannot be a payment, and it would add a state);
+  - accepting the receipt as before.
+- **Consequences:** the runtime test PayPal double gains `awaiting_payer`: order reads say
+  PAYER_ACTION_REQUIRED until the owner's OpenBrowser decision, which is the real order of events.
+  Production code has no bypass.
+- **Evidence:** ccc548e; `seller_receipt_without_handoff_is_refused_once_and_changes_nothing`
+  (`crates/table-ledger/src/tests.rs:1388`); `buyer_browser_availability_needs_unlock_but_no_local_paypal_credentials`
+  (`crates/table-runtime/src/tests.rs:897`).
+
+## 28. A buyer's deal PayPal never corroborates ends UNCONFIRMED after 72 hours
+
+- **Date:** 2026-10-10
+- **Decided by:** the App Master, on lite r2 robustness-1 (b) (the report is not in the repository;
+  taken from the task brief)
+- **Constraint:** a seller-attested RECEIPTED deal had no end. It was past the deadline's safe default
+  (`crates/table-app/src/pipeline.rs:1340-1348`: only pre-capture states lapse), and a reporting read
+  with no match recorded nothing (`crates/table-app/src/reconciliation.rs`).
+- **Decision:** a terminal `DealState::Unconfirmed`, reached through `DealEvent::CorroborationLapsed`
+  at `receipts.verified_at` + `CORROBORATION_SECS` (`crates/table-core/src/deal.rs:117`). 72 h is 24
+  times PayPal's reporting lag of up to 3 h (`.research/paypal-platform.md:36` and :490, [S-spec]).
+  - The scheduler tick runs `Ledger::lapse_corroboration`. It makes no PayPal call and moves no money.
+  - A late `ReportingMatched` moves UNCONFIRMED to RECONCILED.
+  - Exposure counts an UNCONFIRMED deal as spent, because money may have left.
+  - A reconcile with no match appends `receipt.reporting_unmatched`
+    (`crates/table-app/src/reconciliation.rs:93`).
+  - `deals.decided_by` is left unchanged; the `receipt.unconfirmed` row carries the safe default. The
+    App Master accepted this.
+- **Lost:**
+  - leaving the deal RECEIPTED forever;
+  - moving it back to a pre-capture state (money may have left);
+  - a shorter window.
+- **Consequences:** UNCONFIRMED is a deviation from the design report's state list (section 6.3). The
+  App Master answered the builder's questions as follows; each answer is decided and waits for one
+  delivery:
+  - `display.rs` counts UNCONFIRMED as a closed deal, never as paid;
+  - the walk-away forecast gains a lapse line, and `ForecastSource` gains the receipt time for it;
+  - the Book gives UNCONFIRMED a bucket of its own, as an end, not under 'In progress' (the words on
+    Home's bead are left to the council);
+  - 'While you were away' (`apps/desktop/client/src/windows/main/home/away.ts`) lists an UNCONFIRMED
+    end.
+
+  The HOUSE witness stays as it is.
+- **Evidence:** e2290a0 and d9621b4;
+  `a_seller_attested_deal_ends_unconfirmed_after_72_hours_and_a_late_match_still_counts`
+  (`crates/table-ledger/src/tests.rs:1570`);
+  `a_reconciled_deal_a_seller_deal_and_an_unreceipted_deal_never_lapse_unconfirmed` (:1627);
+  `a_scheduler_tick_past_the_corroboration_window_ends_a_seller_attested_deal_unconfirmed`
+  (`crates/table-runtime/src/tests.rs:995`).
+
+## 29. The PayPal keys dialog stays on CredUIPromptForCredentialsW for the submission
+
+- **Date:** 2026-10-10
+- **Decided by:** the App Master, on first-run-onboarding full r2 craft-1 (med; the report is not in
+  the repository)
+- **Constraint:**
+  - the keys never cross the webview (`crates/table-runtime/src/credentials.rs:1`, AGENTS.md);
+  - the prompt sits behind the `CredentialPrompt` trait (`crates/table-runtime/src/credentials.rs:6`);
+  - `crates/table-os/src/credential_prompt.rs:57-69` calls `CredUIPromptForCredentialsW` with
+    GENERIC_CREDENTIALS, ALWAYS_SHOW_UI, DO_NOT_PERSIST and EXCLUDE_CERTIFICATES, with `Zeroizing`
+    buffers and a SAFETY note (:52);
+  - the dialog's native UAT is a milestone-4 item that has not run, so a rewrite of the unsafe FFI
+    could not be checked on a real desktop before the submission.
+
+  The call arrived with the initial import c855696, so its original reason is not in this repository.
+- **Decision:** keep the call for the submission. The message text maps Username to the client id and
+  Password to the secret (:28). The caption reads 'API credentials' (:41).
+- **Lost:**
+  - `CredUIPromptForWindowsCredentialsW` with `CredUnPackAuthenticationBufferW`. The council called it
+    Microsoft's advice for Vista and later; that is UNVERIFIED (its general knowledge, not looked
+    up). It costs more unsafe code and a packed buffer to unpack;
+  - an in-webview form, which the invariant forbids.
+- **Consequences:** the dialog's fields read Username and Password. Revisit after the submission.
+- **Evidence:** `crates/table-os/src/credential_prompt.rs:28`, :41 and :52-68 as above; no commit
+  changes it (c855696 is the import).
