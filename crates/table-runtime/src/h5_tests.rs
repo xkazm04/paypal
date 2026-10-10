@@ -26,7 +26,7 @@ fn state(r: &Runtime, id: DealId) -> DealState {
 }
 /// Each money operation's authority, as its `money.authorized` audit row records it (the same
 /// value the ledger writes to `operations.decided_by`).
-fn money_authorities(r: &Runtime, id: DealId) -> Vec<(String, DecidedBy)> {
+pub(super) fn money_authorities(r: &Runtime, id: DealId) -> Vec<(String, DecidedBy)> {
     let (rows, _) = r.pipeline.wallet.ledger.audit_page(None, 1000).unwrap();
     let mut found: Vec<_> = rows
         .into_iter()
@@ -58,8 +58,17 @@ pub(super) async fn owner_ordered(
     vault: &MemoryVault,
     http: &OfflineHttp,
 ) -> Deal {
+    owner_ordered_for(r, vault, http, Delivery::DigitalNow).await
+}
+/// [`owner_ordered`] for a deal of the given delivery.
+pub(super) async fn owner_ordered_for(
+    r: &mut Runtime,
+    vault: &MemoryVault,
+    http: &OfflineHttp,
+    delivery: Delivery,
+) -> Deal {
     credentials(vault);
-    let (deal, peer) = setup_unpriced(r, Side::Seller, Delivery::DigitalNow);
+    let (deal, peer) = setup_unpriced(r, Side::Seller, delivery);
     agree(r, &deal, &peer);
     assert!(r.settings().unwrap().payment_executor_configured);
     r.tick().await.unwrap();
