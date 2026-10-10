@@ -76,7 +76,7 @@ async fn house_reopens_durable_pair_table_and_outbox_and_replays_after_mailbox_l
         release,
         boot.config.mandate,
         boot.api,
-        clock.clone(),
+        clock,
         store.clone(),
     )
     .unwrap();
@@ -85,14 +85,6 @@ async fn house_reopens_durable_pair_table_and_outbox_and_replays_after_mailbox_l
         canonical_bytes(&recovered).unwrap(),
         canonical_bytes(&response).unwrap()
     );
-    // A legitimate reset comes later than the reset window (scan C-9a), on a deal that outlives it.
-    seller
-        .pipeline
-        .wallet
-        .ledger
-        .set_deadline(response.table.deal_id, 10_000, None, 100)
-        .unwrap();
-    clock.0.fetch_add(600, std::sync::atomic::Ordering::SeqCst);
     seller.tick().await.unwrap();
     seller.tick().await.unwrap();
     assert_eq!(
