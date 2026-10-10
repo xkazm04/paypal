@@ -252,7 +252,7 @@ export function ladderCaption(r: Rung, hold = false, checking = false): string {
     case 'none': return hold ? 'no deadline · paused until you act' : 'no deadline';
     case 'calm': return 'plenty of time';
     case 'soon': return 'less than 2 hours left';
-    case 'now': return 'less than 15 min left · last reminder';
+    case 'now': return 'less than 15 min left';
     case 'past': return 'time is up · the safe default runs';
   }
 }
@@ -421,8 +421,8 @@ export function snoozeTicker(item: AttentionItem, until: number): Ticker {
   return {
     key: key('snooze'),
     kind: 'info',
-    l1: ['Reminder set · back at ', hhmm(until), withWho(item)],
-    l2: 'the deadline still runs · you still get the 15-minute reminder',
+    l1: ['Snoozed · back at ', hhmm(until), withWho(item)],
+    l2: 'the card comes back · the deadline still runs',
     mode: item.mode,
     dealId: item.deal_id,
     ms: TICKER_MS.info,

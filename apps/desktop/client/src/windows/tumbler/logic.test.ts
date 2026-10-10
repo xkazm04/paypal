@@ -212,6 +212,19 @@ describe('headline and receipt text', () => {
   });
 });
 
+describe('snooze words promise only the card’s return', () => {
+  it('is offered whatever the preferences, and says no reminder or notification', () => {
+    const it1 = item({ deal_id: 'z', deadline: NOW + 3 * H });
+    // the offer reads the item and the clock only, never the Do not disturb or notification preference
+    expect(cardActions(it1, NOW).map((a) => a.action)).toContain('snooze30');
+    const t = snoozeTicker(it1, NOW + 1800);
+    expect(`${t.l1.join('')} ${t.l2}`).not.toMatch(/reminder|notif/i);
+    expect(t.l2).toMatch(/card comes back/);
+    expect(t.l2).toMatch(/deadline still runs/);
+    expect(ladderCaption(rung(NOW + 600, NOW), false)).not.toMatch(/reminder|notif/i);
+  });
+});
+
 describe('hand-off (tumbler:handoff)', () => {
   const d = item({ deal_id: 'd', headline: 'Review payment $329.00' });
   it('ends when its deal leaves the list or turns into a hold, never while generic', () => {
