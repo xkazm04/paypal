@@ -608,6 +608,12 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - Lite r2 found two follow-ups (report not in the repository; from the task brief). The seller
     wallet signs a SETTLE whose link it checked for the host only (craft-2). No `checks.rs` line
     states the order binding (craft-6). Neither was checked here.
+- **Amended 2026-10-10 (deal-to-settlement lite r3 craft-2, 56cfc60):** `table_proto::order_approval_url`
+  (`crates/table-proto/src/settlement.rs:42`) is now the one binding rule. It is called by `validate_settle`
+  and by the seller's `created_link` (create and its resolver), so the seller no longer signs a SETTLE its
+  buyer would refuse: a PayPal-host link to another order, or with an extra query pair, signs no SETTLE and
+  records no outbound envelope. This closes the first follow-up above (craft-2). The link shape stays
+  UNVERIFIED.
 - **Evidence:** 95d7b37 (`crates/table-proto/src/settlement.rs` and `crates/table-proto/tests/protocol.rs`;
   the cases are added to `h4_settle_rejects_amount_intent_invoice_attempt_and_host_mismatch`) and
   5635a68 (binds the approve link in the cases of
@@ -725,6 +731,35 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 
   The HOUSE witness stays as it is.
 - **Amended 2026-10-10 (deal-to-settlement lite r3 robustness-1; decided, waits for one delivery):** The council found, verbatim: 'UNCONFIRMED lapses on time alone: a buyer deal PayPal shows as paid ends Not confirmed by PayPal, and the in-app statement check that could still save it is gone' (the report is not in the repository; taken from the task brief). Decision: option (c), with split words. The 72 h time-only lapse stays. The lapse records whether a statement read for the deal came back unmatched (receipt.reporting_unmatched). With an unmatched read, the words may say that PayPal's statement did not show the payment. With no read, they say the wallet did not check with PayPal, never that PayPal's statement did not show it. The statement check is offered on an UNCONFIRMED deal, and a wallet without PayPal keys says what the check needs. A Rust test will prove that a lapse with no read never claims a read. Lost: (a) lapsing only after an unmatched read, because a buyer wallet without PayPal keys would never lapse, which reopens this section; (b) a statement read made by the scheduler before the lapse, because it is a new outbound PayPal call made without the owner, and the line closes without it. No money moves on this path. The council's anchors: receipt.rs:212, Evidence.tsx:102, words.ts:52, :66 and :364, logic.ts:192, actor.rs:492.
+- **Delivered 2026-10-10 (rework A: e876b3a, 5e2290d, f120bc9, a290602, 56e0bb9, 83ca634):**
+  - The 72 h lapse stays time-only: `Ledger::lapse_corroboration` (`crates/table-ledger/src/receipt.rs`) adds
+    no PayPal call and no wait. It records `statement_unmatched` in the `receipt.unconfirmed` row: true when
+    the deal has a `receipt.reporting_unmatched` row, else false; no migration, no column.
+    `Ledger::statement_unmatched` reads it back (None for other deals and for rows written before the
+    fact, which then get the unknown wording); `DealEvidence.statement_unmatched` carries it
+    (`bindings/DealEvidence.ts`). The statement check is offered on an UNCONFIRMED deal (5e2290d). The
+    runtime reconcile already admitted UNCONFIRMED; nothing was rebuilt there (e876b3a only drops an unused
+    import).
+  - (a) `counterparty_list` counts UNCONFIRMED in `deals_closed` (f120bc9). (b) `ForecastSource.receipt_at`
+    and `ForecastAction::Unconfirm`: a seller-attested buyer deal in RECEIPTED forecasts ending UNCONFIRMED at
+    receipt + `CORROBORATION_SECS`, NextTick when overdue (a290602); the no-money-out property test is
+    unchanged. (c) the Book gets an 'unconfirmed' bucket, 'Not confirmed', as an end (56e0bb9). (d) 'While you
+    were away' lists an UNCONFIRMED end, worded by read status (83ca634).
+  - Tests: `a_lapse_with_no_statement_read_never_claims_one`, `a_lapse_after_an_unmatched_statement_read_says_so`
+    (`crates/table-ledger/src/tests.rs`); `the_unconfirmed_reason_claims_a_statement_read_only_when_one_was_made`,
+    `an_owner_reconcile_through_the_runtime_on_an_unconfirmed_deal_ends_reconciled`
+    (`crates/table-runtime/src/tests.rs`); the display, forecast, Book and away tests.
+  - Five decisions the builder put to the App Master, **accepted by the App Master 2026-10-10:**
+    1. 'While you were away': a summary with an UNCONFIRMED line no longer says 'No money moved.', because a
+       buyer's UNCONFIRMED deal may have been paid at PayPal; the line itself says 'this wallet moved nothing'.
+    2. The Book's four Totals tiles are unchanged (no fifth tile): UNCONFIRMED money shows in the grid's own
+       'Not confirmed' column and its filter. 'Where the money went' no longer counts UNCONFIRMED deals as
+       still in progress.
+    3. The History step 'unconfirmed' carries no read fact, so Rewind keeps the unknown wording; carrying
+       `statement_unmatched` on the history step needs a binding and a runtime change, left for the council.
+    4. Home's bead words were left to the council as asked; `Home.tsx` was not touched.
+    5. The mock backend approximates the receipt time for the forecast with the deal's `updated_at`, so a
+       browser preview is not exact.
 - **Evidence:** e2290a0 and d9621b4;
   `a_seller_attested_deal_ends_unconfirmed_after_72_hours_and_a_late_match_still_counts`
   (`crates/table-ledger/src/tests.rs:1570`);
@@ -757,3 +792,75 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Consequences:** the dialog's fields read Username and Password. Revisit after the submission.
 - **Evidence:** `crates/table-os/src/credential_prompt.rs:28`, :41 and :52-68 as above; no commit
   changes it (c855696 is the import).
+
+## 30. The Tumbler learns that the house seller is connected from a boolean in the settings snapshot
+
+- **Date:** 2026-10-10
+- **Decided by:** the builder of first-run-onboarding full r2 (the report is not in the repository),
+  merged with the polish; the text is the builder's, copied here
+- **Constraint:** the Tumbler's first-run step 3 (the practice deal) needs to know the house seller is
+  connected. `counterparty_list` is granted to `main` and `approval` only, because counterparty names are
+  untrusted words that must never reach the Tumbler.
+- **Decision:** `SettingsSnapshot` already serves every window, so it carries a boolean `house_connected`.
+  `Runtime::settings` computes it from the same ledger read and `HousePinned` flag as `counterparty_list`
+  (`crates/table-runtime/src/service.rs:346`). A boolean cannot carry a counterparty word. No
+  authority-table row changed. `settings:changed` reaches the Tumbler on a pin because the actor diffs the
+  serialized snapshot each tick, which now includes the field; `pairing:pinned` goes to `main` only and is
+  not needed.
+- **Lost:** granting `counterparty_list` to the Tumbler, which would put counterparty names in a window that
+  must never show them.
+- **Consequences:** re-running `pairing_join` HOUSE for an already pinned house still asks for the same four
+  words, so the desk now says 'You check its four words once more'. Whether that re-check is redundant on a
+  pinned house is the operator's call (the builder gathered no evidence and kept it as it was).
+- **Evidence:** 0561c75 (`SettingsSnapshot.house_connected`, `crates/table-client/src/lib.rs`, `bindings/SettingsSnapshot.ts`,
+  the mock and the Tumbler); 7e0aca1 (names the mock check for what it asserts);
+  `settings_tell_whether_the_house_is_connected_without_the_counterparty_list`
+  (`crates/table-runtime/src/tests.rs`). The client tests were written without `node_modules`; see STATUS.md.
+
+## 31. A seller's hold found at the deadline, and the end of an authorize PayPal never shows readably (deal-to-settlement lite r3)
+
+- **Date:** 2026-10-10
+- **Decided by:** item 1 by the App Master on 2026-10-10, and it changes no money behaviour. Item 3's end was
+  chosen by the builder within the App Master's limits and accepted by the App Master on 2026-10-10. The
+  council report (lite r3) is not in the repository; the item numbers follow the task brief.
+- **1. Constraint and decision (robustness-3).** At the deadline, a seller's authorize that PayPal shows as a
+  CREATED authorization is recorded (`money.resolved` confirmed) and the deadline is re-armed to the first
+  attempt + 72 h (`confirm_authorization`, `crates/table-app/src/pipeline/resolve.rs`). When delivery is
+  `DigitalNow` the next scheduler tick captures it under `Authority::SellerMandate`, and that capture
+  stands: the authorize went out before the deadline under authority 2, for an order the buyer approved at
+  PayPal, and the deadline read-back only learns that it went through. Any other delivery is never captured
+  by the scheduler, and the re-armed deadline auto-voids it on the safe default. No new void, no new capture
+  path, `scheduler.rs` unchanged. The code already did this; the commit only adds the test.
+  - **Evidence:** ddd0db4, `a_sellers_hold_found_at_the_deadline_is_collected_only_when_delivered_at_once`
+    (`crates/table-runtime/src/resolve_tests.rs`).
+- **3. Decision, the end the builder chose (robustness-4).** A parked authorize whose deadline read still
+  shows a record no check accepts (an order or authorization that is not the untouched APPROVED order and not
+  one verified CREATED authorization of the deal's amount) ends at `op.started_at + UNREAD_AUTHORIZE_SECS`
+  = 72 h, the honor period `confirm_authorization` re-arms a hold to. At that read the deal, which must
+  still be APPROVED and past its deadline, takes `DealEvent::Deadline` to EXPIRED with `decided_by`
+  `SafeDefault { deadline: the deal's deadline }` (`Ledger::end_unread_authorize`,
+  `crates/table-ledger/src/resolution.rs`). That read's GET calls are kept. Nothing is sent: no void, because
+  no authorization id was verified, and no capture. No schema change: no new resolution outcome, and the
+  operation stays parked (`needs_owner`), so `money_check` keeps showing it. The attention card on the ended
+  deal has no clock, its headline is 'Look at <amount> in PayPal', and its silence line is
+  `MONEY_CHECK_ENDED_SILENCE`. The deal page answers with `MONEY_CHECK_ENDED`. The ledger refuses the end
+  before the bound, before the deadline, off APPROVED, or for an op that is not a parked authorize;
+  `apply_deadline_default` is not changed.
+- **Lost:**
+  - a void (needs a verified authorization id);
+  - a new outcome such as `given_up` (needs a migration);
+  - ending the unreadable (deferred) case too, which still waits, as robustness-2 decided.
+- **Consequences:**
+  - an EXPIRED deal can carry a parked authorize forever, and its Tumbler card cannot be dismissed;
+  - EXPIRED's state words say 'No money moved', which this deal cannot promise; the deal page answer
+    overrides them there.
+- **Evidence:** 37d7217, `a_parked_authorize_paypal_never_shows_readably_ends_at_its_bound_and_sends_nothing`
+  (`crates/table-app/tests/pipeline.rs`) and `a_deal_that_ended_with_its_money_step_unsettled_says_to_look_in_paypal_with_no_clock`
+  (`crates/table-attention/src/lib.rs`).
+- **Also in this delivery (words and binding, no decision):** f03bf6e rewrote the parked money-check words
+  (value-2: what PayPal shows decides; a payment PayPal already took stays paid). 56cfc60 made the approve-link
+  binding one rule (see the amendment to section 24). 6a0c44d made the Book's statement chip, grid, row detail
+  and 'PayPal agrees' card state-aware, so an UNCONFIRMED deal reads 'no match' with `unconfirmedMeans(read)`,
+  never 'Paid' and never a delay. It stays in `agreementGaps` as its own kind `unconfirmed`, sorted after
+  mismatch and before unknown and pending_reporting, because money may have left (exposure counts it as spent,
+  section 28) and the statement check can still match it to RECONCILED.
