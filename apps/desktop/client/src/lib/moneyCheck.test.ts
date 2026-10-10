@@ -73,11 +73,24 @@ describe('mock parity: Rust keeps a deal reserved while PayPal is being asked', 
 });
 
 describe('the parked words promise only what the wallet does', () => {
-  it('say the deadline read-back and that nothing is collected, and promise no retry', () => {
+  it('say the deadline read-back, that PayPal’s answer decides and a payment it took stays paid, and promise no retry', () => {
     for (const s of [MONEY_CHECK_PARKED, MONEY_CHECK_SILENCE]) {
       expect(s).toMatch(/at the deadline/i);
-      expect(s).toMatch(/nothing is collected|collects nothing/);
+      expect(s).toMatch(/what PayPal shows decides/);
+      expect(s).toMatch(/a payment PayPal already took stays paid/i);
       expect(s).not.toMatch(/keeps asking|until we can|nothing more/i);
+      // A hold PayPal shows may still be paid (by the owner, or a sale delivered at once):
+      // nothing promises that nothing is collected.
+      expect(s).not.toMatch(/nothing is collected|collects nothing/i);
     }
+  });
+
+  it('promise a release only where the wallet releases: at the hold’s own deadline, unless it is paid first', () => {
+    expect(MONEY_CHECK_PARKED).toMatch(/released at its own deadline, unless it is paid first/);
+    expect(MONEY_CHECK_PARKED).toMatch(/a sale delivered at once/);
+    expect(MONEY_CHECK_SILENCE).not.toMatch(/release/i);
+    const a = dealAnswer(parked.deal, { need: parked.attention ?? undefined, them: 'lark', latest: null, band: null, mayWithdraw: false, check: parked.evidence.money_check });
+    expect(a.sub).not.toMatch(/release/i);
+    expect(a.sub).toMatch(/what PayPal shows decides/);
   });
 });

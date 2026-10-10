@@ -127,7 +127,7 @@ describe('awaySummary', () => {
     ];
     const s = awaySummary(steps, DEALS, SEEN, NOW);
     expect(s.lines.map((l) => l.outcome)).toEqual(['checking']);
-    expect(s.lines[0]?.text).toBe('Checking with PayPal on 1 payment ($90.00): nothing is collected until PayPal confirms');
+    expect(s.lines[0]?.text).toBe('Checking with PayPal on 1 payment ($90.00): not paid and not failed until PayPal shows which');
     expect(s.lines[0]?.tone).toBe('check');
     expect(s.moved).toBe(false);
   });

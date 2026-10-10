@@ -17,11 +17,11 @@ use table_core::{
     Currency, DealEvent, DealId, DealState, MandateId, Mode, Module, Money, MoneyCheck, Timestamp,
 };
 
-/// The card's line while a money step's PayPal outcome is being checked (T10).
-/// Nothing is collected until PayPal's own record settles it. A parked step is read back at
-/// the deal's deadline and what PayPal shows decides; the safe default releases a hold.
-pub const MONEY_CHECK_SILENCE: &str =
-    "at the deadline the wallet asks PayPal what happened, releases any hold and collects nothing";
+/// The card's line while a money step's PayPal outcome is being checked (T10). A parked step is
+/// read back at the deal's deadline and what PayPal shows decides: a capture PayPal committed is
+/// recorded as paid, and a hold PayPal shows keeps its own deadline (a seller's sale delivered at
+/// once is collected under the seller's rules first). No release is promised here.
+pub const MONEY_CHECK_SILENCE: &str = "at the deadline the wallet asks PayPal what happened, and what PayPal shows decides: a payment PayPal already took stays paid";
 /// A rescue fix waiting for the owner: nothing is sent, and PayPal retries the payment itself.
 pub const RESCUE_SILENCE: &str = "nothing is sent · PayPal retries the payment by itself";
 /// A rescue invoice with the subscriber: it stays open; nothing is collected by the wallet.
