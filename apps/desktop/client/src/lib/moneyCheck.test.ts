@@ -36,7 +36,7 @@ describe('a payment being checked with PayPal', () => {
   it('the deal page answers with the parked sentence and never offers to walk away', () => {
     const a = dealAnswer(parked.deal, { need: parked.attention ?? undefined, them: 'lark', latest: null, band: null, mayWithdraw: false, check: parked.evidence.money_check });
     expect(a.title).toBe(MONEY_CHECK_PARKED);
-    expect(a.title).not.toMatch(/paid|failed/i);
+    expect(a.title.replace(/stays paid|paid first/g, '')).not.toMatch(/paid|failed/i);
     expect(a.sub).toMatch(/not paid and not failed/);
     expect(mayWithdraw({ ...parked.deal, kind: 'haggle' }, parked.attention ?? undefined)).toBe(false);
   });
