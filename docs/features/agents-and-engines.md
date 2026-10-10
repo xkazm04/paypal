@@ -169,6 +169,17 @@ Event `agent:changed` (main) carries `RunSnapshot` with no model text.
 - **Native engines are gated.** No real model has run. Spikes 1 and 2 (decoy MCP config, tool
   inventory before input, live isolation and cancellation) are unrun (`docs/build/SPIKES.md`).
   Only the version-only spike 6 passed. Probed versions: claude-code 2.1.287, codex-cli 0.160.0.
+- Engine findings of the 2026-10-10 scan addendum (`docs/security/scan-2026-10-07.md`, severities and
+  meanings as the scan gives them). None can be reached today: `NativeEngine::probe` reports
+  `available: false`, and `start_agent` refuses an unavailable engine.
+  - C-17 (Low, PLAUSIBLE): `argv` has no `--safe-mode` (only `--setting-sources project`), so an ambient
+    `CLAUDE.md` in the owner's profile or above the run directory may reach a claude-code agent.
+  - C-18 (Low, PLAUSIBLE, latent): codex-cli's `read-only` sandbox denies writes, not reads, its other
+    built-in tools are not enumerated, and the run root sits beside `wallet.sqlite`.
+  - C-19 (Low): a run task that dies without `EngineFinished` keeps its slot in `runs`, against the
+    4-run limit and the one-run-per-deal check, until a full cancel or restart.
+  - C-12 (Low, PLAUSIBLE, narrowed): stays PLAUSIBLE until a live conformance spike shows an engine
+    child cannot read the keyring entries (`*.TheTable.AgenticWallet`) or the ledger.
 - `// UNVERIFIED:` in code:
   - `crates/table-engine/src/argv.rs`: codex-cli MCP approval mode, and `env_http_headers` on
     the installed version.
