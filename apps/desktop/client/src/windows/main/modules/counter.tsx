@@ -18,8 +18,8 @@ import {
   AnswerBar, Btn, Chip, DetailToggle, Explainer, Field, Group, Icon, Inspector, Kv, Loading, PageHead, Popover, Row, Section, Seg, Silence, useDetail, useLayer, useLayerCount, useToast,
   type ChipTone, type ExplainerStep,
 } from '../../../shared/ui';
-import { chipClass, dealTotal, isLive, moneyNow, pairingFact, PENDING_BACKEND, stripFor, sumByCurrency, type ChipClass } from '../logic';
-import { houseWords, silenceWords, stateWord, timeLeftWords } from '../../../lib/words';
+import { chipClass, dealTotal, isLive, isTerminal, moneyNow, pairingFact, PENDING_BACKEND, stripFor, sumByCurrency, type ChipClass } from '../logic';
+import { houseWords, moneyCheckNow, silenceWords, stateWord, timeLeftWords } from '../../../lib/words';
 import { Glyph } from '../../../shared/modules';
 import { useCpLookup } from '../ui';
 import { useWorld } from '../world';
@@ -474,6 +474,8 @@ function DealDetail({ deal, row, draft, mandate, onOpenDeal }: { deal: Deal; row
   const ids = [pp.order && `order ${pp.order}`, pp.authorization && `auth ${pp.authorization}`, pp.capture && `capture ${pp.capture}`].filter(Boolean).join(' · ');
   const silence = need?.on_silence ?? disp.on_silence;
   const live = isLive(deal);
+  const check = need?.money_check;
+  const now = check ? moneyCheckNow(isTerminal(deal)) : moneyNow(deal);
   return (
     <>
       <div className="l2-top">
@@ -490,8 +492,8 @@ function DealDetail({ deal, row, draft, mandate, onOpenDeal }: { deal: Deal; row
       <Kv className="l2-kv" items={[
         ['Buyer', <><span className="cp">{c.name}</span> · <span title={pairingFact(c.entry).why}>{pairingFact(c.entry).text}</span>{c.entry ? <> · first seen {clockLabel(c.entry.first_seen)} · {c.entry.deals_closed} closed before</> : null}</>],
         ['Item', <>{disp.title}{deal.terms.qty > 1 ? ` · ${deal.terms.qty} ×` : ''}{row?.signed ? <> · lowest price {formatMoney(row.signed)}</> : ' · no lowest price set'}</>],
-        ['Money', moneyNow(deal)],
-        [live ? 'If you do nothing' : 'Outcome', silence ?? (live ? 'no money moves' : moneyNow(deal))],
+        ['Money', now],
+        [live ? 'If you do nothing' : 'Outcome', silence ?? (live ? 'no money moves' : now)],
         !!ids && ['PayPal ids', <span className="mono dim">{ids}</span>],
         ['Buyer key', <span className="mono dim" title={mandate ? mandateTip(mandate) : undefined}>{shortId(deal.counterparty)}{c.entry?.declared_payee ? ` · pays from ${houseWords(c.entry.declared_payee)}` : ''}</span>],
       ]} />
