@@ -96,6 +96,11 @@ impl Runtime {
             mandate_retired,
             policy_create_allowed,
             seller_mandate_until,
+            receipt_at: app(self
+                .pipeline
+                .wallet
+                .ledger
+                .seller_attested_receipt_at(deal.id))?,
         })
     }
     /// The end of the window `[now, until)` in which authorize and capture under the seller

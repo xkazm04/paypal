@@ -15,7 +15,9 @@ export const FORECAST_HORIZON_SECS = 72 * 3600;
 const TERMINAL: ReadonlySet<DealState> = new Set(['CAPTURED', 'RECEIPTED', 'RECONCILED', 'WITHDRAWN', 'EXPIRED', 'REFUSED', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'UNCONFIRMED']);
 const PRE_CAPTURE: ReadonlySet<DealState> = new Set(['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED']);
 
-export type ForecastDeal = { deal: Deal; label: string; deadline: number | null };
+/** `receiptAt`: when a buyer's seller-attested receipt was accepted (RECEIPTED only), else null / absent. */
+export type ForecastDeal = { deal: Deal; label: string; deadline: number | null; receiptAt?: number | null };
+const CORROBORATION_SECS = 72 * 3600;
 export type ForecastCtx = { now: number; paused: boolean; executorConfigured: boolean };
 
 function amountOf(deal: Deal): number {
@@ -26,8 +28,23 @@ function amountOf(deal: Deal): number {
 export function mockForecast(deals: readonly ForecastDeal[], ctx: ForecastCtx): ForecastLine[] {
   const out: ForecastLine[] = [];
   const horizonEnd = ctx.now + FORECAST_HORIZON_SECS;
-  for (const { deal, label, deadline: dealDeadline } of deals) {
-    if (deal.mode === 'replay' || TERMINAL.has(deal.state)) continue;
+  for (const { deal, label, deadline: dealDeadline, receiptAt } of deals) {
+    if (deal.mode === 'replay') continue;
+    // A buyer's deal only the seller says is paid ends UNCONFIRMED unless PayPal's statement matches
+    // first (forecast.rs, Ledger::lapse_corroboration): the time alone, no PayPal call, no money.
+    if (deal.state === 'RECEIPTED' && deal.side === 'buyer' && receiptAt != null) {
+      const due = receiptAt + CORROBORATION_SECS;
+      if (due <= horizonEnd) {
+        const overdue = due <= ctx.now;
+        out.push({
+          deal_id: deal.id, label, amount_minor: amountOf(deal), currency: deal.terms.currency, before: null,
+          trigger: overdue ? 'next_tick' : 'deadline', at: overdue ? null : due,
+          action: 'unconfirm', authority: 'safe_default', direction: 'none', end_state: 'UNCONFIRMED',
+        });
+      }
+      continue;
+    }
+    if (TERMINAL.has(deal.state)) continue;
     const before = dealDeadline;
     const line = (o: Pick<ForecastLine, 'trigger' | 'at' | 'action' | 'authority' | 'direction' | 'end_state'>): ForecastLine => ({
       deal_id: deal.id, label, amount_minor: amountOf(deal), currency: deal.terms.currency,

@@ -45,7 +45,11 @@ fn from_lines(lines: &[&ForecastLine]) -> Option<&'static str> {
         ForecastAction::Lapse => LAPSE,
         ForecastAction::Expire => EXPIRE,
         ForecastAction::AutoVoid => RELEASE,
-        ForecastAction::CreateOrder | ForecastAction::Authorize | ForecastAction::Capture => {
+        // A buyer's seller-attested deal: no attention card words it (it asks nothing of the owner).
+        ForecastAction::CreateOrder
+        | ForecastAction::Authorize
+        | ForecastAction::Capture
+        | ForecastAction::Unconfirm => {
             return None;
         }
     })
@@ -135,6 +139,7 @@ mod tests {
                 mandate_retired: false,
                 policy_create_allowed: true,
                 seller_mandate_until: Some(NOW + 3600),
+                receipt_at: None,
             },
         )
     }
