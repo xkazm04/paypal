@@ -14,13 +14,13 @@ import type { PairingWords } from '@bindings/PairingWords';
 import type { Side } from '@bindings/Side';
 import type { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMoney, shortHash, shortId } from '../../../lib/format';
-import { useEvent, useMutation } from '../../../lib/hooks';
+import { useEvent, useMutation, useQuery } from '../../../lib/hooks';
 import { WalletNotice } from '../../../shared/honesty';
 import { AnswerBar, Btn, Chip, Field, Icon, Kv, Seg, Silence, useToast } from '../../../shared/ui';
 import { useWorld } from '../world';
 import { Handoff, Info } from './common';
 import {
-  allTicked, canSubmit, joinCode, mirrorStage, mirrorText, modeLocked, newTicks, pairAnswer, pairPhase, tickLabel, tickProgress, toggleTick, wizardSteps,
+  allTicked, canSubmit, joinCode, mirrorStage, mirrorText, modeLocked, newTicks, houseWords, pairAnswer, pairPhase, tickLabel, tickProgress, toggleTick, wizardSteps,
   type MirrorStage, type PairMode, type Ticks, type WizardKey, type WizardState,
 } from './pairing';
 import './setup.css';
@@ -34,6 +34,9 @@ const MODES: ReadonlyArray<{ value: PairMode; label: string; title: string }> = 
 const FIRST_TITLE: Record<PairMode, string> = { create: 'Share a code', join: 'Enter their code', house: 'Connect with the house' };
 const DEFAULT_SIDE: Record<PairMode, Side> = { create: 'seller', join: 'buyer', house: 'buyer' };
 
+// The payee the owner typed last in this session, so a second table does not ask again.
+let lastPayee = '';
+
 export function PairingDesk({ mode, setMode }: { mode: PairMode; setMode: (m: PairMode) => void }) {
   const w = useWorld();
   const s = w.settings.data;
@@ -44,10 +47,14 @@ export function PairingDesk({ mode, setMode }: { mode: PairMode; setMode: (m: Pa
   const poll = useMutation('pairing_poll');
   const abort = useMutation('pairing_abort');
   const wake = useMutation('house_wake');
+  const cps = useQuery('counterparty_list', null, { refreshOn: ['pairing:pinned', 'settings:changed'] });
+  // Frozen when the owner starts, so the words do not flip when this very pairing pins the house.
+  const [startedAs, setStartedAs] = useState<boolean | null>(null);
+  const houseConnected = startedAs ?? !!cps.data?.some((c) => c.house);
   const approval = useMutation('approval_open');
 
   const [side, setSide] = useState<Side>(DEFAULT_SIDE[mode]);
-  const [payee, setPayee] = useState('');
+  const [payee, setPayee] = useState(lastPayee);
   const [code, setCode] = useState('');
   const [offer, setOffer] = useState<PairingOffer | null>(null);
   const [words, setWords] = useState<PairingWords | null>(null);
@@ -58,7 +65,7 @@ export function PairingDesk({ mode, setMode }: { mode: PairMode; setMode: (m: Pa
   const [ticks, setTicks] = useState<Ticks>(() => newTicks());
   const phase = pairPhase(!!offer, !!words);
 
-  const reset = () => { setOffer(null); setWords(null); setPinned(false); setMatched(false); setTicks(newTicks()); setPollErr(null); setPolls(0); create.reset(); join.reset(); abort.reset(); };
+  const reset = () => { setStartedAs(null); setOffer(null); setWords(null); setPinned(false); setMatched(false); setTicks(newTicks()); setPollErr(null); setPolls(0); create.reset(); join.reset(); abort.reset(); };
   /** Ends the pairing in Rust (by our code while waiting, by its id once words are out), then here. */
   const end = async () => {
     const r = words ? await abort.run({ pairing_id: words.pairing_id, code: null }) : offer ? await abort.run({ pairing_id: null, code: offer.code }) : null;
@@ -118,6 +125,8 @@ export function PairingDesk({ mode, setMode }: { mode: PairMode; setMode: (m: Pa
     e.preventDefault();
     if (!canSubmit(mode, { payee, code }, house)) return;
     setWords(null); setPollErr(null); setPolls(0);
+    lastPayee = payee.trim();
+    setStartedAs(!!cps.data?.some((c) => c.house));
     if (mode === 'create') {
       const r = await create.run({ side, payee: payee.trim() });
       if (r) setOffer(r);
@@ -141,7 +150,7 @@ export function PairingDesk({ mode, setMode }: { mode: PairMode; setMode: (m: Pa
   const steps = wizardSteps(phase, matched, pinned);
   const busy = create.pending || join.pending;
   const houseWaking = mode === 'house' && (join.pending || house === 'waking');
-  const answer = pairAnswer(mode, phase, matched, pinned);
+  const answer = pairAnswer(mode, phase, matched, pinned, houseConnected);
   const table = words?.house_table ?? null;
 
   // ---- panel 1: the code ---------------------------------------------------------------------
@@ -184,7 +193,7 @@ export function PairingDesk({ mode, setMode }: { mode: PairMode; setMode: (m: Pa
         {house === 'unavailable' ? null : <Fields side="buyer" setSide={() => {}} fixed payee={payee} setPayee={setPayee} />}
         <div className="wz-acts">
           {house === 'unavailable' ? <span className="ui-hint"><Chip tone="dashed">unavailable</Chip> not part of this version</span>
-            : <Btn kind="primary" className="big" type="submit" disabled={busy || !canSubmit('house', { payee, code }, house)}>{houseWaking ? 'Waking up…' : 'Connect with the house'}</Btn>}
+            : <Btn kind="primary" className="big" type="submit" disabled={busy || !canSubmit('house', { payee, code }, house)}>{houseWaking ? 'Waking up…' : houseWords(houseConnected).act}</Btn>}
           {house === 'idle' ? <Btn disabled={wake.pending || busy} title="Wakes it ahead of time. Nothing is connected, no money moves." onClick={() => void wake.run(null)}>{wake.pending ? 'Waking…' : 'Wake it now'}</Btn> : null}
           <Silence className="wz-sil" text="nothing happens">{' · no money moves'}</Silence>
         </div>
@@ -287,7 +296,7 @@ export function PairingDesk({ mode, setMode }: { mode: PairMode; setMode: (m: Pa
 
   const stepsList = (
     <ol className="wz-steps" aria-label="Connecting, step by step">
-      <Panel n={1} state={stateOf('code')} title={FIRST_TITLE[mode]}>{first}</Panel>
+      <Panel n={1} state={stateOf('code')} title={mode === 'house' ? houseWords(houseConnected).first : FIRST_TITLE[mode]}>{first}</Panel>
       <Panel n={2} state={stateOf('words')} title="Match 4 words" hint={hint2} fold={words ? <>You matched <b>{words.words.join(' · ')}</b></> : null}>{second}</Panel>
       <Panel n={3} state={stateOf('confirm')} title={pinned ? 'Connected' : 'Confirm'} hint="You confirm in the approval window, where only you can." open={stateOf('confirm') === 'on' || pinned}>{third}</Panel>
     </ol>

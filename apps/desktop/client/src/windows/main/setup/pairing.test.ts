@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  allTicked, canSubmit, joinCode, mirrorStage, mirrorText, modeLocked, newTicks, pairAnswer, pairPhase, pairSteps, tickLabel, tickProgress, ticksDone, toggleTick, wizardSteps,
+  allTicked, canSubmit, joinCode, mirrorStage, mirrorText, modeLocked, newTicks, houseWords, pairAnswer, pairPhase, pairSteps, tickLabel, tickProgress, ticksDone, toggleTick, wizardSteps,
 } from './pairing';
 
 describe('pairing · Main side', () => {
@@ -128,5 +128,16 @@ describe('r2-connect: the word ticks and the mirror', () => {
       }
     }
     expect(mirrorText('create', 'done').line).toMatch(/once they confirm/);
+  });
+
+  it('a house seller already connected is a new practice table; without one the words stay', () => {
+    expect(pairAnswer('house', 'idle', false, false, true).title).toBe('Open a new practice table');
+    expect(pairAnswer('house', 'idle', false, false, true).sub).toContain('already connected');
+    expect(pairAnswer('house', 'idle', false, false, false).title).toBe('Connect with the house seller');
+    expect(pairAnswer('house', 'idle', false, false).title).toBe('Connect with the house seller');
+    // The four-word check is unchanged either way.
+    expect(pairAnswer('house', 'words', false, false, true)).toEqual(pairAnswer('house', 'words', false, false, false));
+    expect(houseWords(true)).toEqual({ first: 'Open a new practice table', act: 'Open a new practice table' });
+    expect(houseWords(false)).toEqual({ first: 'Connect with the house', act: 'Connect with the house' });
   });
 });
