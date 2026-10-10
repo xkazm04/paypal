@@ -64,6 +64,8 @@ describe('useEndedUnshown', () => {
       await act(async () => { await vi.advanceTimersByTimeAsync(READ_TIMEOUT_MS - 1); });
       expect(result.current.pending).toBe(true);
       await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+      // testing-library's waitFor awaits a real setTimeout(0) and advances fake timers only under jest, so real timers come back once the time limit has been crossed.
+      vi.useRealTimers();
       await waitFor(() => expect(result.current.pending).toBe(false));
       expect([...result.current.unread]).toEqual(['B']);
       expect([...result.current.unshown]).toEqual(['A']);
