@@ -50,7 +50,7 @@ paragraph**:
 | countersign / owner accept | **Approve** | |
 | capture | **Pay** (buyer) / **Collect** (seller) | "Capture" only in Details. |
 | void / auto-void | **Cancel and release the hold** / **releases by itself** | |
-| authorization / AUTHORIZED | **On hold at PayPal** | |
+| authorization / AUTHORIZED | **On hold at PayPal** | A payment being checked with PayPal is not on hold: see the "On hold, on Home and in the Book" row (DECISIONS section 34). `amountNote` (`windows/main/logic.ts`) still returns 'on hold at PayPal' for every AUTHORIZED deal, with no check of `money_check`; that is an open item of DECISIONS section 36. |
 | counterparty | their name; "the other side" when generic | |
 | pairing / words confirmed | **connect** / **verified** | "Pair" is fine as a verb (like a headset). |
 | HOUSE seller | **House seller** (a demo shop that is always open) | Never all-caps. |
@@ -70,6 +70,8 @@ paragraph**:
 | statement check on UNCONFIRMED | **Check my PayPal statement**; without PayPal keys: "Checking your PayPal statement needs your PayPal keys. Add them in your wallet setup first. The check only reads; it never pays." | `STATEMENT_CHECK_NEEDS_KEYS`. |
 | UNCONFIRMED in the Book | bucket **Not confirmed** (an end, apart from In progress; tip "ended: the seller said it was paid, but your wallet has no match for it on PayPal’s statement"); statement chip **no match** (dashed); 'PayPal agrees' legend **Not confirmed N**; the statement filter has **No match** and the lens table a dashed chip (`statementKey` keys an UNCONFIRMED end apart from Not yet; the CSV keeps its values) | `UNCONFIRMED_STATEMENT_WORD`; the reading guide says "paid, on hold, in progress, not confirmed and stopped each have their own column and total". |
 | On hold, on Home and in the Book | a payment being checked with PayPal is **not** on hold: Home's On hold and the Book's On hold figures (the tile, the week answer, the grid totals, the lens table) leave it out, and it shows as **Checking with PayPal** (**Not shown by PayPal** once the deal ended). The live bead tip shows the check's pill and Money line | `heldAtPayPal(held, checking)` and `sums(deals, checking)`; `moneyCheckPill`, `moneyCheckNow` (DECISIONS section 34). A checked deal's Book row still shows its amount in its column. |
+| an ending whose record could not be read | pill **Not available yet** (`ENDING_UNREAD_PILL`); Money line "not available yet · this deal’s record could not be read" (`ENDING_UNREAD_NOW`) | `useEndedUnshown` returns `unshown`, `unread` and `pending`; an ending whose `deal_evidence` read was rejected, timed out or lies past the read cap is `unread`. The Rewind narrates `endingUnreadSentence` and the away card words it with `endingUnreadLine`. No surface words such an ending as "no money moved" (DECISIONS section 36, deb1002). |
+| a Rewind bead whose payment outcome is not known; a busy week | a dashed bead, never on hold; its legend reads "not known yet" (`BEAD_UNKNOWN_LEGEND`). A busy week reads "A lot happened this week, so only the latest steps are here. Older steps are in Book’s record." (`REWIND_TRUNCATED`) | `beadLook.ts` (`liveLook`, `pastLook`) holds the mapping (662286b). `REWIND_TRUNCATED` shows when `deal_history` sets `truncated` (b8625d3). DECISIONS section 36. |
 | UNCONFIRMED in While you were away | "N deals ended as not confirmed by PayPal: the seller said they were paid, but your wallet has no match for it on PayPal’s statement (this wallet moved nothing)"; the tail changes with the read, as above | `home/away.ts`. The summary no longer opens with "No money moved." when this line is present. |
 | walk-away forecast, UNCONFIRMED | "D-0189 ends as not confirmed by PayPal" | Tumbler, `windows/tumbler/logic.ts:557`. It no longer says "unless PayPal’s statement shows it first". |
 | first-run deals started by the path | **Under way** (section), **Open ›** ("Open this practice deal") | `START_UNDERWAY`. |
@@ -121,7 +123,9 @@ Deal states (`stateWord()`):
   alerts, gold = needs you / held at PayPal, green = paid, red = stopped. Always with a word.
 - **Unknown** is a dashed outline with the word "unknown" or "not available yet", never a
   question-mark wall: if more than two neighbouring facts are unknown, show one line
-  ("3 checks aren't available yet") that expands on click.
+  ("3 checks aren't available yet") that expands on click. For a money outcome the word is
+  never "unknown": a payment being checked reads "Checking with PayPal", and an ending whose
+  record could not be read reads "Not available yet" (DECISIONS sections 34 and 36).
 - **If you do nothing** (`<Silence>`): hourglass glyph, then the consequence in bold, then the
   countdown. Same look everywhere.
 - **Icons over captions**: a lock for held, a check for passed, an × for stopped, an hourglass
