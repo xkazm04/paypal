@@ -94,6 +94,22 @@ describe('the tour on screen', () => {
     expect(document.activeElement).toBe(mark());
   });
 
+  it('Back onto the first stop keeps focus in the dialog, by click and by ArrowLeft', () => {
+    const r = render(<Page><Tour win="approval" gs={gs} firstRun /></Page>);
+    const inDialog = () => mark()!.contains(document.activeElement);
+    fireEvent.click(r.getByText(TOUR.next));
+    const back = r.getByText(TOUR.back);
+    back.focus();
+    fireEvent.click(back);
+    expect(r.queryByText(TOUR.back)).toBeNull();
+    expect(inDialog()).toBe(true);
+    fireEvent.click(r.getByText(TOUR.next));
+    r.getByText(TOUR.back).focus();
+    fireEvent.keyDown(r.getByText(TOUR.back), { key: 'ArrowLeft' });
+    expect(r.queryByText(TOUR.back)).toBeNull();
+    expect(inDialog()).toBe(true);
+  });
+
   it('Skip tour ends it, it stays closed after a reload, and focus goes back where it was', () => {
     const page = (tour: boolean) => <Page><button type="button">before</button>{tour ? <Tour win="approval" gs={gs} firstRun /> : null}</Page>;
     const r = render(page(false));
