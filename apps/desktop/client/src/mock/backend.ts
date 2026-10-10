@@ -647,7 +647,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
       });
       const groups = new Map<string, { row: Record<string, unknown>; ds: Deal[] }>();
       for (const m of state.deals.filter((d) => views[q.view](d)).map((d) => d.deal).filter(keep)) {
-        const row: Record<string, unknown> = { currency: m.terms.currency, mode: m.mode };
+        const row: Record<string, unknown> = { currency: m.terms.currency, mode: m.mode, direction: m.side === 'buyer' ? 'out' : 'in' };
         for (const g of q.group_by) row[g] = col(m, g);
         const k = JSON.stringify(row);
         const e = groups.get(k) ?? { row, ds: [] };
