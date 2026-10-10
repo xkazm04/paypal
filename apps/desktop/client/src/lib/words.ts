@@ -569,6 +569,19 @@ export function moneyCheckPill(c: MoneyCheck, ended: boolean): { text: string; m
 /** moneyCheckPill's text, for a surface that holds no MoneyCheck (the Rewind). */
 export const moneyCheckPillText = (ended: boolean): string => (ended ? MONEY_CHECK_ENDED_PILL : MONEY_CHECK_PILL);
 export const moneyCheckNow = (ended: boolean): string => (ended ? MONEY_CHECK_ENDED_NOW : MONEY_CHECK_NOW);
+/** The pill of a deal that ended at its deadline whose own record could not be read, so the wallet
+ *  cannot tell whether a payment was still being checked: unknown, never the calm ending. */
+export const ENDING_UNREAD_PILL = 'Not available yet';
+/** Money right now for that ending: not "nothing moved", which the wallet cannot know. */
+export const ENDING_UNREAD_NOW = 'not available yet · this deal’s record could not be read';
+/** The Rewind's sentence for that ending, with the deal's short title. */
+export const endingUnreadSentence = (x: string): string =>
+  `${x} ended at its deadline, but its record could not be read, so whether money moved is not available yet. Open the deal.`;
+/** The away card's line for `n` such endings, around its amount: `before` + amount + `after`. */
+export const endingUnreadLine = (n: number): [string, string] => [
+  `${n} ${n === 1 ? 'deal' : 'deals'} ended at the deadline, but ${n === 1 ? 'its record' : 'their records'} could not be read (`,
+  `): whether money moved is not available yet, so open ${n === 1 ? 'it' : 'them'}`,
+];
 
 // ---- wallet limits (T14): one cap above every set of rules ------------------------------------------
 

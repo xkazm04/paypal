@@ -226,13 +226,13 @@ export function Home(p: Props) {
       const d = deals.find((x) => x.id === b.id);
       if (!p || !d) return [];
       const then = { ...d, state: p.state, shield: p.paused ? 'HOLD' as const : null };
-      const ck = rewindCheckTip(rw.steps, p, d, rw.unshown);
+      const ck = rewindCheckTip(rw.steps, p, d, rw.unshown, rw.unread);
       const look = ck
         ? { state: ck.state, tone: 'dashed' as const, money: ck.money }
         : { state: stateLabel(p.state, d), tone: chipTone(chipClass(then)), money: moneyNow(then) };
       return [{ ...b, kind: beadKind(then), needs: false, tip: { ...b.tip, ...look, need: null } }];
     });
-  }, [rewind, rw.steps, rw.t, rw.unshown, beads, deals]);
+  }, [rewind, rw.steps, rw.t, rw.unshown, rw.unread, beads, deals]);
 
   const cls = ['home', intro !== 'done' ? 'intro' : '', zoom ? 'zoom' : '', p.active ? '' : 'away', firstRun ? 'first-run' : '', rewind && !firstRun ? 'rewind' : ''].join(' ');
 
