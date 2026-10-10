@@ -281,6 +281,17 @@ async fn own_account_reporting_requires_success_exact_capture_amount_currency_di
             Arc::new(ImmediateBackoff),
         );
         let mut buyer = Pipeline::new(buyer, Arc::new(MockApi::default()), 100).unwrap();
+        // Case 1 is read after the corroboration window ended the deal UNCONFIRMED: a late
+        // statement match still counts.
+        if case == 1 {
+            assert!(
+                buyer
+                    .wallet
+                    .ledger
+                    .lapse_corroboration(deal.id, 100 + CORROBORATION_SECS)
+                    .unwrap()
+            );
+        }
         let result = buyer
             .reconcile(
                 deal.id,
@@ -318,6 +329,23 @@ async fn own_account_reporting_requires_success_exact_capture_amount_currency_di
             },
             "case {case}"
         );
+        if case == 1 {
+            assert_eq!(
+                buyer.wallet.ledger.get_deal(deal.id).unwrap().state,
+                DealState::Reconciled
+            );
+        }
+        // A complete read that found no such payment says so in the record, and nothing else.
+        let unmatched = buyer
+            .wallet
+            .ledger
+            .audit_page(None, 500)
+            .unwrap()
+            .0
+            .iter()
+            .filter(|r| r.action == "receipt.reporting_unmatched")
+            .count();
+        assert_eq!(unmatched, usize::from(matches!(case, 0 | 4)), "case {case}");
         assert_eq!(buyer.wallet.ledger.paypal_call_count(deal.id).unwrap(), 1);
         // The owner's "last Transaction Search poll" fact reads the recorded call back.
         assert_eq!(

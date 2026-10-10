@@ -489,6 +489,9 @@ async fn run(
                                     "Seller attested payment; PayPal reporting is pending"
                                 }
                                 DealState::Receipted => "Payment captured and receipt verified",
+                                DealState::Unconfirmed => {
+                                    "PayPal reporting never showed the seller's payment; this wallet moved no money"
+                                }
                                 DealState::Withdrawn
                                 | DealState::Expired
                                 | DealState::Voided

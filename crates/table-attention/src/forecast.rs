@@ -329,9 +329,10 @@ mod tests {
             AutoVoided => 17,
             Refunded => 18,
             Disputed => 19,
+            Unconfirmed => 20,
         }
     }
-    const ALL_STATES: [DealState; 20] = [
+    const ALL_STATES: [DealState; 21] = [
         DealState::Pairing,
         DealState::Listed,
         DealState::Negotiating,
@@ -352,6 +353,7 @@ mod tests {
         DealState::AutoVoided,
         DealState::Refunded,
         DealState::Disputed,
+        DealState::Unconfirmed,
     ];
 
     #[test]
@@ -413,7 +415,7 @@ mod tests {
                 }
             }
         }
-        assert_eq!(checked, 20 * 2 * 5 * 2 * 4 * 3 * 4 * 32);
+        assert_eq!(checked, 21 * 2 * 5 * 2 * 4 * 3 * 4 * 32);
     }
 
     fn check(s: &ForecastSource, c: &ForecastContext) {

@@ -334,6 +334,7 @@ fn agreed_or_later(state: DealState) -> bool {
             | S::Reconciled
             | S::Refunded
             | S::Disputed
+            | S::Unconfirmed
     )
 }
 struct DbNonces<'a>(&'a Connection);

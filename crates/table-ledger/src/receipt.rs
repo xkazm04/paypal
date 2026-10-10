@@ -203,6 +203,62 @@ impl Ledger {
         tx.commit()?;
         Ok(())
     }
+    /// The defined end of a buyer's deal that only the seller says is paid: once
+    /// [`CORROBORATION_SECS`] passed since the seller's receipt was accepted with no PayPal
+    /// statement match, the deal ends UNCONFIRMED with one `receipt.unconfirmed` row, decided by
+    /// the safe default. Its evidence and reconciliation are kept as they are, so a late
+    /// statement match still moves it to RECONCILED. No PayPal call, no money. Every other deal,
+    /// and this one before its time, is left alone. Returns whether it ended the deal.
+    pub fn lapse_corroboration(&mut self, id: DealId, now: Timestamp) -> Result<bool, LedgerError> {
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let deal = read_deal(&tx, id)?;
+        let (evidence, reconciliation): (String, String) = tx.query_row(
+            "SELECT receipt_evidence,reconciliation FROM deals WHERE id=?1",
+            [id.to_string()],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        if deal.side != Side::Buyer
+            || deal.state != DealState::Receipted
+            || evidence != "seller_attested"
+        {
+            return Ok(false);
+        }
+        let received: Option<Timestamp> = tx
+            .query_row(
+                "SELECT MIN(CAST(verified_at AS INTEGER)) FROM receipts WHERE deal_id=?1 AND verified_at IS NOT NULL",
+                [id.to_string()],
+                |r| r.get(0),
+            )
+            .optional()?
+            .flatten();
+        let Some(received) = received else {
+            return Ok(false);
+        };
+        let due = received.saturating_add(CORROBORATION_SECS);
+        if due > now {
+            return Ok(false);
+        }
+        audit::append(
+            &tx,
+            &AuditEntry {
+                at: now,
+                actor: "policy".into(),
+                action: "receipt.unconfirmed".into(),
+                deal_id: Some(id),
+                detail: serde_json::json!({
+                    "capture_id": deal.paypal.capture,
+                    "received_at": received,
+                    "reconciliation": reconciliation,
+                    "decided_by": DecidedBy::SafeDefault { deadline: due },
+                }),
+            },
+        )?;
+        apply(&tx, id, DealEvent::CorroborationLapsed, now)?;
+        tx.commit()?;
+        Ok(true)
+    }
     pub fn deal_evidence(&self, id: DealId) -> Result<DealEvidence, LedgerError> {
         let (receipt, reconciliation): (String, String) = self.conn.query_row(
             "SELECT receipt_evidence,reconciliation FROM deals WHERE id=?1",
@@ -289,7 +345,8 @@ impl Ledger {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let deal = read_deal(&tx, id)?;
-        if deal.state != DealState::Receipted
+        // UNCONFIRMED too: a statement match that comes after the corroboration lapse counts.
+        if !matches!(deal.state, DealState::Receipted | DealState::Unconfirmed)
             || deal.mode != Mode::Sandbox
             || deal.paypal.capture.as_deref() != Some(capture)
         {

@@ -25,6 +25,23 @@ impl Runtime {
             if deal.mode == Mode::Replay || deal.state.terminal() {
                 continue;
             }
+            // A buyer's deal only the seller says is paid ends UNCONFIRMED once PayPal's statement
+            // has not shown it for CORROBORATION_SECS. No PayPal call; no money moves.
+            if deal.side == Side::Buyer && deal.state == DealState::Receipted {
+                match app(self
+                    .pipeline
+                    .wallet
+                    .ledger
+                    .lapse_corroboration(deal.id, now))
+                {
+                    Ok(true) => continue,
+                    Ok(false) => {}
+                    Err(error) => {
+                        failure.get_or_insert(error);
+                        continue;
+                    }
+                }
+            }
             let result = self.tick_deal(&deal, now).await;
             if let Err(error) = result {
                 failure.get_or_insert(error);

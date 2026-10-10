@@ -988,6 +988,129 @@ async fn buyer_browser_availability_needs_unlock_but_no_local_paypal_credentials
     assert!(r.pipeline.wallet.ledger.handed_off(deal.id).unwrap());
     assert!(http.0.lock().unwrap().paths.is_empty());
 }
+/// robustness-1 (b): a buyer's deal only the seller says is paid has a defined end. The scheduler
+/// leaves it RECEIPTED until PayPal's statement has not shown it for 72 hours, then ends it
+/// UNCONFIRMED, with no PayPal call and no money moved.
+#[tokio::test]
+async fn a_scheduler_tick_past_the_corroboration_window_ends_a_seller_attested_deal_unconfirmed() {
+    let (mut r, _, http, clock, _) = runtime(true);
+    let (deal, peer) = setup(&mut r, Side::Buyer);
+    for event in [
+        DealEvent::ListingVerified,
+        DealEvent::OfferVerified,
+        DealEvent::TwoAcceptsVerified,
+    ] {
+        r.pipeline
+            .wallet
+            .ledger
+            .apply_event(deal.id, event, 100)
+            .unwrap();
+    }
+    let aud = table_proto::key_id(&r.pipeline.wallet.agent_public_key()).unwrap();
+    let envelope = |seq: u32, prev: H256, body: Body| {
+        let mut nonce = [0; 16];
+        getrandom::fill(&mut nonce).unwrap();
+        Envelope {
+            v: 1,
+            typ: body.typ(),
+            deal_id: deal.id,
+            seq,
+            prev,
+            iss: peer.key_id().unwrap(),
+            aud: aud.clone(),
+            iat: 100,
+            exp: 700,
+            nonce,
+            body,
+        }
+    };
+    let settle = peer
+        .sign(&envelope(
+            1,
+            H256::ZERO,
+            Body::Settle {
+                order_id: ShortText::new("ORDER1".into()).unwrap(),
+                approve_url: ShortText::new(
+                    "https://www.sandbox.paypal.com/checkoutnow?token=ORDER1".into(),
+                )
+                .unwrap(),
+                amount: deal.terms.amount().unwrap(),
+                invoice_id: ShortText::new(invoice_id(deal.id, 1).unwrap()).unwrap(),
+                intent: table_proto::Intent::Authorize,
+                attempt: 1,
+            },
+        ))
+        .unwrap();
+    r.pipeline
+        .wallet
+        .receive_relay(deal.id, &settle, Category::Parts, 100)
+        .unwrap();
+    // The owner opened the PayPal link; the seller's receipt is then accepted, at 100.
+    r.pipeline.wallet.ledger.handoff(deal.id).unwrap();
+    let head = r
+        .pipeline
+        .wallet
+        .ledger
+        .get_deal(deal.id)
+        .unwrap()
+        .transcript_head;
+    let receipt = peer
+        .sign(&envelope(
+            2,
+            head,
+            Body::Receipt {
+                capture_id: ShortText::new("CAPTURE1".into()).unwrap(),
+                amount: deal.terms.amount().unwrap(),
+                status: table_proto::ReceiptStatus::Completed,
+                transcript_head: head,
+            },
+        ))
+        .unwrap();
+    r.pipeline
+        .wallet
+        .receive_relay(deal.id, &receipt, Category::Parts, 100)
+        .unwrap();
+    let state = |r: &Runtime| r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state;
+    assert_eq!(state(&r), DealState::Receipted);
+    clock
+        .0
+        .store(100 + CORROBORATION_SECS - 1, Ordering::SeqCst);
+    r.tick().await.unwrap();
+    assert_eq!(state(&r), DealState::Receipted);
+    clock.0.store(100 + CORROBORATION_SECS, Ordering::SeqCst);
+    r.tick().await.unwrap();
+    assert_eq!(state(&r), DealState::Unconfirmed);
+    r.tick().await.unwrap();
+    assert_eq!(state(&r), DealState::Unconfirmed);
+    let evidence = r.pipeline.wallet.ledger.deal_evidence(deal.id).unwrap();
+    assert_eq!(evidence.receipt, ReceiptEvidence::SellerAttested);
+    assert_eq!(evidence.reconciliation, Reconciliation::PendingReporting);
+    assert_eq!(
+        r.pipeline.wallet.ledger.paypal_call_count(deal.id).unwrap(),
+        0
+    );
+    assert!(http.0.lock().unwrap().paths.is_empty());
+    // The owner's history ends on one step, decided by the safe default.
+    let history = r
+        .deal_history(DealHistoryArgs {
+            deal_id: Some(deal.id),
+            ..Default::default()
+        })
+        .unwrap();
+    let last = history.steps.last().unwrap();
+    assert_eq!(last.kind, HistoryKind::Unconfirmed);
+    assert_eq!(last.authority, HistoryAuthority::SafeDefault);
+    assert_eq!(last.state_after, Some(DealState::Unconfirmed));
+    assert_eq!(
+        history
+            .steps
+            .iter()
+            .filter(|s| s.kind == HistoryKind::Unconfirmed)
+            .count(),
+        1
+    );
+    r.pipeline.wallet.ledger.verify_audit().unwrap();
+}
 #[derive(Debug)]
 struct MarketFixture {
     calls: AtomicUsize,
