@@ -20,7 +20,9 @@ money: they read the ledger and hand off to the approval window.
   nothing" line and "Open deal". Arrows turn the dial, up/down cycle decisions, Enter or `1`-`6`
   opens a module. For a screen reader the dial is one slider stop with a spoken value.
 - Left column, "This week" (Monday to Sunday, local time): paid out and paid in per currency,
-  "On hold" (PayPal holds only, one line per direction, the same figures as Book), "In motion",
+  "On hold" (PayPal holds only, one line per direction; it leaves out a payment being checked with
+  PayPal, which shows under Needs you with the check's words, `heldAtPayPal` in `home/model.ts`),
+  "In motion",
   "Stopped"; the "Today" meters (paid out today and on hold now against the owner's wallet limits,
   gold at four fifths; "No wallet limit" when none are signed); a legend for the beads.
 - Right column, "Needs you": one three-line row per open decision (verb and amount, who and time
@@ -35,10 +37,13 @@ money: they read the ledger and hand off to the approval window.
 
 **While you were away (`main`, Home).** A compact card above "This week" when something needs the
 owner, or the hub's content when nothing does. Lines are grouped by outcome (paid, collected,
-invoice paid, on hold, released, checking with PayPal, refused, paused, mismatch, failed, renewal
+invoice paid, on hold, released, checking with PayPal, ended before PayPal showed, refused, paused, mismatch, failed, renewal
 failed, lapsed, refunded, disputed) and by who decided (you, your rules, the buyer's approval under
 your shop rules, the safe default, a safety check, not recorded). It shows at most four lines,
-then "and N more on the Rewind". When nothing was paid or collected it says "No money moved." Each
+then "and N more on the Rewind". The summary opens with "No money moved." only when nothing was
+paid or collected and no line is not confirmed or being checked with PayPal. A deal that ended at
+its deadline while a payment was still being checked is told from the deal's own record when the
+steps in the window cannot say (`windows/main/unshown.ts`); the card waits for that read. Each
 line opens its deal or the Rewind at its first step; "See it on the Rewind" opens the Rewind at the
 moment the owner last looked. The card never carries a gold control and can be dismissed.
 
@@ -59,7 +64,9 @@ coloured by authority: you = gold, a rule you signed = teal, the buyer's approva
 rules = green, the safe default = grey, a refusal = a red ×; an agent or nobody is dashed. Clicking
 a tick opens the deal. The hub narrates the step in plain words, for example "Tue 14:02 · Your
 rules refused 40 × GPU: over the per-deal limit. PayPal was never asked." The deal page carries the
-same record as a compact "Who decided" list.
+same record as a compact "Who decided" list. An ending at the deadline while PayPal was still being
+asked is narrated with `stepSentence`'s unshown sentence (`logic.ts`), also when the check began in
+an earlier week (read from the deal's own record, `windows/main/unshown.ts`).
 
 ## How it works
 
@@ -171,7 +178,10 @@ IPC commands (from `authority_table.rs`):
 - Client: `windows/main/rewind.test.ts` (tick colours, plain-word narration, no ids or clause
   numbers), `windows/main/home/away.test.ts` (currencies never added, lost answer reads as
   checking), `windows/main/home/AwayCard.test.tsx`, `windows/main/quit.test.ts`,
-  `windows/tumbler/walkaway.test.ts`, `windows/main/home/model.test.ts` (dial value text).
+  `windows/tumbler/walkaway.test.ts`, `windows/main/home/model.test.ts` (dial value text, a payment being checked is not on hold),
+  `windows/main/deal/Decision.test.tsx`, `windows/main/unshown.test.ts` (which endings are read, a
+  failed read keeps today's words), and the away, rewind and shown cases for an ending unshown by
+  the deal's own record.
 
 ## Known gaps and UNVERIFIED
 
@@ -184,6 +194,8 @@ IPC commands (from `authority_table.rs`):
   carried `detail.clause`.
 - One tick per money operation, not one per `paypal_calls` row: order and reporting reads are not
   ticks. There is no link from a tick to a Proof drawer.
+- Book's On hold tile still counts a payment being checked with PayPal, so Home and Book differ for
+  such a deal until the deal rework that fixes Book (`lib/polish3.test.ts` pins Book's figure).
 - The away card's "last seen" is per browser profile (localStorage), not per owner.
 - The director's own time words still say "N d N h later"; a lapsed haggle's chip can read
   "Withdrawn" while its banner says it lapsed (noted for the next polish pass).
