@@ -516,6 +516,51 @@ fn mandate_versions_are_signed_immutable_monotonic_and_revocable() {
     ledger.verify_audit().unwrap();
 }
 #[test]
+fn mandate_agent_keys_returns_every_key_ever_bound_once_whatever_the_status() {
+    let (mut ledger, deal, owner, first, _) = setup();
+    assert_eq!(
+        ledger.mandate_agent_keys().unwrap(),
+        vec![first.public_key().to_bytes()]
+    );
+    // Version 2 binds another key and supersedes version 1.
+    let (second, third) = (signer(), signer());
+    let mut mandate = ledger
+        .active_mandate(deal.mandate_id, 1, &owner.public_key())
+        .unwrap();
+    mandate.payload.version = 2;
+    mandate.payload.agent_key = second.public_key().to_bytes();
+    mandate.owner_sig = owner.sign_payload(&mandate.payload).unwrap();
+    ledger
+        .insert_mandate(&mandate, &owner.public_key(), 101)
+        .unwrap();
+    // A second mandate binds a third key and is revoked.
+    mandate.payload.id = "00000000000000000000000009".parse().unwrap();
+    mandate.payload.version = 1;
+    mandate.payload.agent_key = third.public_key().to_bytes();
+    mandate.owner_sig = owner.sign_payload(&mandate.payload).unwrap();
+    ledger
+        .insert_mandate(&mandate, &owner.public_key(), 102)
+        .unwrap();
+    ledger.revoke_mandate(mandate.payload.id, 103).unwrap();
+    // A later version that repeats a key does not list it twice.
+    let mut repeat = ledger
+        .active_mandate(deal.mandate_id, 2, &owner.public_key())
+        .unwrap();
+    repeat.payload.version = 3;
+    repeat.owner_sig = owner.sign_payload(&repeat.payload).unwrap();
+    ledger
+        .insert_mandate(&repeat, &owner.public_key(), 104)
+        .unwrap();
+    let mut want = vec![
+        first.public_key().to_bytes(),
+        second.public_key().to_bytes(),
+        third.public_key().to_bytes(),
+    ];
+    want.sort();
+    assert_eq!(ledger.mandate_agent_keys().unwrap(), want);
+    ledger.verify_audit().unwrap();
+}
+#[test]
 fn a_signed_mandate_todays_rules_refuse_is_listed_flagged_never_active_and_revocable() {
     let (mut ledger, deal, owner, own, _) = setup();
     // The way an older wallet holds it: signed by the owner, but its band now lacks the side

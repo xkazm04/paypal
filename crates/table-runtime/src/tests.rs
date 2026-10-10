@@ -1457,6 +1457,91 @@ fn a_lost_agent_key_fails_closed_only_for_a_slot_the_wallet_used() {
     std::fs::remove_file(path).unwrap();
 }
 #[test]
+fn a_lost_agent_key_bound_only_by_a_mandate_no_longer_active_fails_closed() {
+    let build = |ledger: Ledger, vault: Arc<MemoryVault>| {
+        let clock = Arc::new(TestClock(AtomicI64::new(100)));
+        Runtime::new(
+            ledger,
+            vault.clone(),
+            Arc::new(Hello {
+                calls: AtomicUsize::new(0),
+                verified: true,
+            }),
+            Arc::new(table_paypal::Client::sandbox(
+                Arc::new(OfflineHttp::default()),
+                Arc::new(VaultCredentials(vault)),
+                clock.clone(),
+                Arc::new(NoDelay),
+            )),
+            clock,
+        )
+    };
+    let sign = |r: &mut Runtime, id: Option<MandateId>, agent: AgentSlot| {
+        r.sign_mandate(MandateSignArgs {
+            id,
+            agent,
+            clauses: clauses(Side::Buyer, DealKind::Purchase),
+            not_before: 0,
+            expires: 1000000,
+        })
+        .unwrap()
+        .payload
+        .id
+    };
+    let temporary = |label: &str| {
+        let mut entropy = [0; 16];
+        getrandom::fill(&mut entropy).unwrap();
+        let name: String = entropy.iter().map(|b| format!("{b:02x}")).collect();
+        let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.build/tmp");
+        std::fs::create_dir_all(&directory).unwrap();
+        directory.join(format!("{label}-{name}.sqlite3"))
+    };
+    let without = |original: &MemoryVault, lost: &str| {
+        let vault = Arc::new(MemoryVault::default());
+        for key in [
+            "owner",
+            "agent.negotiator",
+            "agent.shopper",
+            "agent.assistant",
+        ] {
+            if key != lost
+                && let Some(value) = original.read(key).unwrap()
+            {
+                vault.write(key, &value).unwrap();
+            }
+        }
+        vault
+    };
+    // (a) The Shopper's only mandate was revoked: its lost key still fails closed.
+    let path = temporary("revoked");
+    let original = Arc::new(MemoryVault::default());
+    let mut r = build(Ledger::open(&path).unwrap(), original.clone()).unwrap();
+    let id = sign(&mut r, None, AgentSlot::Shopper);
+    r.pipeline.wallet.ledger.revoke_mandate(id, 101).unwrap();
+    drop(r);
+    let lost = without(&original, "agent.shopper");
+    let error = build(Ledger::open(&path).unwrap(), lost.clone()).unwrap_err();
+    assert!(matches!(error.code, ErrorCode::Unavailable), "{error:?}");
+    assert_eq!(error.message, "Agent key provisioning failed");
+    assert!(lost.read("agent.shopper").unwrap().is_none());
+    assert!(build(Ledger::open(&path).unwrap(), original.clone()).is_ok());
+    std::fs::remove_file(path).unwrap();
+    // (b) The Assistant's mandate was superseded by one that binds the Shopper.
+    let path = temporary("superseded");
+    let original = Arc::new(MemoryVault::default());
+    let mut r = build(Ledger::open(&path).unwrap(), original.clone()).unwrap();
+    let id = sign(&mut r, None, AgentSlot::Assistant);
+    sign(&mut r, Some(id), AgentSlot::Shopper);
+    drop(r);
+    let lost = without(&original, "agent.assistant");
+    let error = build(Ledger::open(&path).unwrap(), lost.clone()).unwrap_err();
+    assert!(matches!(error.code, ErrorCode::Unavailable), "{error:?}");
+    assert_eq!(error.message, "Agent key provisioning failed");
+    assert!(lost.read("agent.assistant").unwrap().is_none());
+    assert!(build(Ledger::open(&path).unwrap(), original).is_ok());
+    std::fs::remove_file(path).unwrap();
+}
+#[test]
 fn signing_refuses_a_mandate_no_role_can_act_under() {
     let (mut r, ..) = runtime(false);
     // A sell-only mandate over a purchase kind could never allow an intent.
