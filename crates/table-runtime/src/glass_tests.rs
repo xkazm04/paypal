@@ -421,8 +421,9 @@ async fn house_record(actor: &ActorHandle, id: DealId, want: HouseRecordState) -
 #[tokio::test]
 async fn buyer_keeps_the_house_head_with_the_receipt_and_flags_a_shrinking_record_without_moving_money()
  {
-    let ((seller, release, _, house_clock, store), boot) =
+    let ((seller, release, house_http, house_clock, store), boot) =
         hosted_fixture_ledger(table_ledger::Ledger::in_memory().unwrap());
+    house_http.0.lock().unwrap().awaiting_payer = true;
     let house = house_seller::spawn(seller);
     let relay = Arc::new(SwitchRelay {
         inner: InProcessRelay(house_seller::router(store, house.clone())),
@@ -566,6 +567,7 @@ async fn buyer_keeps_the_house_head_with_the_receipt_and_flags_a_shrinking_recor
         )
         .await
         .unwrap();
+    open_paypal(&actor, &token, id, &house_http).await;
     state(&actor, id, DealState::Receipted).await;
     // The house's head from before the receipt is not kept; its next minutely head is.
     let before = house.published().unwrap().view.head.head.row_count;

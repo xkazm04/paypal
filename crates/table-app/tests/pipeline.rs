@@ -246,6 +246,12 @@ async fn own_account_reporting_requires_success_exact_capture_amount_currency_di
         buyer
             .receive_relay(deal.id, &settle, Category::Parts, 100)
             .unwrap();
+        // The owner opens the PayPal link (Decision::OpenBrowser) before anyone can approve.
+        buyer
+            .ledger
+            .set_deal_category(deal.id, Category::Parts)
+            .unwrap();
+        buyer.ledger.handoff(deal.id).unwrap();
         mock.approved.store(true, Ordering::SeqCst);
         seller.poll_approval(deal.id, 1, 100).await.unwrap();
         seller

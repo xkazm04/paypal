@@ -566,6 +566,10 @@ impl Runtime {
                 self.pipeline.wallet.check_mandate(deal.id, category, now)?;
                 let url = self.pipeline.approval_link(deal.id, args.attempt)?;
                 self.record(deal.id, decision, &args, checks, now)?;
+                // The link leaves Rust here: the handoff is recorded with the owner's decision,
+                // before the browser opens (Action::Handoff records it again, harmlessly). A
+                // seller's receipt on a buyer deal with no handoff is refused (receipt.rs).
+                app(self.pipeline.wallet.ledger.handoff(deal.id))?;
                 return serde_json::to_value(url).map_err(|_| invalid());
             }
             Decision::Countersign | Decision::Capture => {

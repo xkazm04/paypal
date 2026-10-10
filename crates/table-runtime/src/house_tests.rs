@@ -1440,6 +1440,7 @@ async fn house_approval_in_its_last_minute_ends_receipted_on_both_sides() {
     let (mut seller, mut buyer, id, _, clock, store) = agreed_house().await;
     let created = clock.0.load(SeqCst);
     house_settled(&mut seller, &mut buyer, id, created).await;
+    open_paypal_now(&mut buyer, id).await;
     // The buyer approves on PayPal in minute 29; the HOUSE's poll then sees it, and it
     // authorizes and captures before its own window ends.
     clock

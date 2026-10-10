@@ -91,6 +91,9 @@ struct ApiState {
     /// What PayPal holds after each money step, so an order read reflects it (T10 read-back).
     authorization: Option<&'static str>,
     captured: bool,
+    /// The buyer has not approved on PayPal yet: an order read says PAYER_ACTION_REQUIRED. A
+    /// test sets it until the buyer's owner opened the PayPal link, the real order of events.
+    awaiting_payer: bool,
 }
 #[derive(Debug, Default)]
 struct OfflineHttp(Mutex<ApiState>);
@@ -445,7 +448,7 @@ impl Transport for OfflineHttp {
             }
             return Ok(Response {
                 status: 200,
-                body: json!({"id":"ORDER1","status":"APPROVED","intent":"AUTHORIZE","purchase_units":s.units}),
+                body: json!({"id":"ORDER1","status":if s.awaiting_payer {"PAYER_ACTION_REQUIRED"} else {"APPROVED"},"intent":"AUTHORIZE","purchase_units":s.units}),
             });
         }
         if url.ends_with("/orders/ORDER1/authorize") {
@@ -946,6 +949,7 @@ async fn buyer_browser_availability_needs_unlock_but_no_local_paypal_credentials
     assert!(summary.can_open_paypal);
     assert!(!summary.can_release);
     assert!(!r.settings().unwrap().payment_executor_configured);
+    assert!(!r.pipeline.wallet.ledger.handed_off(deal.id).unwrap());
     let url = r
         .decide(
             "approval",
@@ -965,6 +969,9 @@ async fn buyer_browser_availability_needs_unlock_but_no_local_paypal_credentials
         url,
         "https://www.sandbox.paypal.com/checkoutnow?token=ORDER1"
     );
+    // The owner's decision alone records the handoff, before the link opens and whatever the
+    // Tumbler's Handoff then does: a seller receipt after it is no longer refused.
+    assert!(r.pipeline.wallet.ledger.handed_off(deal.id).unwrap());
     assert!(
         r.execute(caller("main", None), Action::Handoff(deal.id))
             .await

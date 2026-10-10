@@ -1134,6 +1134,9 @@ pub enum HistoryKind {
     ReceiptSent,
     ReceiptReceived,
     Receipted,
+    /// The seller's receipt arrived before the owner opened the PayPal link, so the wallet
+    /// refused it: the seller's word alone. Nothing changed on the deal; no money moved.
+    ReceiptRefused,
     ReportingChecked,
     Reconciled,
     WithdrawSent,

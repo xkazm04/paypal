@@ -266,6 +266,8 @@ fn classify(record: &AuditRecord) -> Row {
             }
         }
         "receipt.verified" | "receipt.seller_attested" => Row::Step(K::Receipted, A::None),
+        // A seller's receipt before the owner opened the PayPal link: refused, nothing changed.
+        "receipt.refused" => Row::Step(K::ReceiptRefused, A::None),
         "receipt.reporting_checked" => Row::Step(K::ReportingChecked, A::Owner),
         "receipt.reconciled" => {
             if record.detail.get("matched").and_then(|m| m.as_bool()) == Some(true) {
@@ -833,6 +835,11 @@ mod tests {
                 "receipt.seller_attested",
                 json!({}),
                 step(K::Receipted, A::None),
+            ),
+            (
+                "receipt.refused",
+                json!({"raw_hash":H256::ZERO,"reason":"no_handoff"}),
+                step(K::ReceiptRefused, A::None),
             ),
             (
                 "receipt.reporting_checked",
