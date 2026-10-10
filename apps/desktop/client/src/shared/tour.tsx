@@ -99,8 +99,11 @@ export function Tour({ win, gs, firstRun, paused = false, storageKey }: {
   const view = paused || covered ? null : tourView(stops, p, firstRun, (a) => present.has(a));
 
   const update = useCallback((np: TourProgress) => { saveTour(win, np, key); setP(np); }, [win, key]);
-  const goNext = () => { if (!view) return; update(view.next ? tourMove(view.next) : tourEnd('finished')); };
-  const goBack = () => { if (view?.back) update(tourMove(view.back)); };
+  // The owner moved the tour (Next, Back, an arrow key): the new stop is announced even when the
+  // button they used is gone by then (Back at stop 1), which would leave focus on the page.
+  const moved = useRef(false);
+  const goNext = () => { if (!view) return; if (view.next) moved.current = true; update(view.next ? tourMove(view.next) : tourEnd('finished')); };
+  const goBack = () => { if (view?.back) { moved.current = true; update(tourMove(view.back)); } };
   const skip = () => update(tourEnd('skipped'));
 
   // Placement: the ring hugs the anchor, the mark sits beside it inside the viewport.
@@ -160,20 +163,23 @@ export function Tour({ win, gs, firstRun, paused = false, storageKey }: {
   }, [open]);
 
   // A new stop is announced: focus moves to the dialog itself, so a screen reader reads its new
-  // title and text. Only when focus is already inside the mark (Next, Back, the arrow keys), so a
-  // stop that changes by itself never takes focus from the page. Programmatic focus on the
-  // container shows no ring; :focus-visible handles the rest.
+  // title and text. Only when the owner moved it (Next, Back, the arrow keys) or focus is already
+  // inside the mark, so a stop that changes by itself never takes focus from the page. Back is
+  // unmounted at stop 1 and drops focus to the body, so the move itself is what we trust, not
+  // where focus is afterwards. After a keyboard Next, Chromium does ring the dialog (:focus-visible).
   const lastStop = useRef<string | null>(null);
   useEffect(() => {
     const prev = lastStop.current;
     lastStop.current = stopId;
     const mark = markRef.current;
-    if (prev && stopId && prev !== stopId && mark?.contains(document.activeElement)) mark.focus({ preventScroll: true });
+    const byOwner = moved.current;
+    moved.current = false;
+    if (prev && stopId && prev !== stopId && (byOwner || mark?.contains(document.activeElement))) mark?.focus({ preventScroll: true });
   }, [stopId]);
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Escape') skip();
-    else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { if (view?.next) update(tourMove(view.next)); }
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { if (view?.next) { moved.current = true; update(tourMove(view.next)); } }
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goBack();
     else return;
     e.preventDefault();
