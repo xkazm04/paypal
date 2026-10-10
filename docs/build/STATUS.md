@@ -2038,3 +2038,14 @@ Ids are the ones on main.
 - **e91e859:** C-11b. A lost Shopper or Assistant key fails closed when any past mandate bound it, whatever its status (new read-only `Ledger::mandate_agent_keys`); C-11 is closed in the scan (docs/security/scan-2026-10-07.md).
 - **The main-green fix.** 84e03ca left client tsc at exit 1 (8 errors in tumbler/logic.test.ts) and vitest at 936 of 937. 673d7f8 fixed both. The App Master measured tsc exit 0 and vitest 937 of 937 in 86 files on main at 673d7f8. The merge gate runs cargo test only; the client gates are not in it.
 - **Open, not changed.** The scheduler captures a seller's Authorized DigitalNow sale on its next tick, under the seller's mandate, unless the shield holds it. So its 'Collect or release' card may not last as a decision (the Tumbler builder's scheduler finding). It goes to the deal-to-settlement full council.
+
+## Scan C-9a and C-9a2 (2026-10-10; DECISIONS.md section 33)
+
+Ids are the ones on main.
+
+- **a3d9a92:** C-9a. A refused relay batch stops that one deal's delivery, not the round. A deal takes at most one generation reset per 600 s, inbox rows of other generations that were already applied or rejected are pruned on a reset, and a deal holds at most 1024 inbox rows. Migration 0015 adds `relay_routes.generation_at`.
+- **0092ad2:** the two mailbox-loss tests moved their clocks 600 s on so they stayed green under the first window.
+- **2044b21:** C-9a2. The window counts from the last reset, not from the first adoption; the first adoption from the empty generation starts no window, so a fresh deal recovers at once from one lost mailbox.
+- **58e3517:** the two mailbox-loss tests are back to replaying at once, with no clock move.
+- **Gates.** The merge gate's cargo test passed at 0092ad2 (run 068ff2b3) and at 58e3517 (run 3cf37560). Both builders reported `cargo fmt --all --check` and `clippy --workspace --all-targets -D warnings` clean on their branches. The App Master measured `cargo fmt --all --check` exit 0 on main at 58e3517. No gate has measured clippy on main.
+- **Open:** C-9b. `finish_inbox` still writes one audit row per rejected message; the scan asks for one `envelope.rejected` row per batch, with the count and the message hashes.
