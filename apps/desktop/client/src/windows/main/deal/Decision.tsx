@@ -9,11 +9,11 @@ import type { MoneyCheck } from '@bindings/MoneyCheck';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { clockLabel } from '../../../lib/format';
 import { useMutation } from '../../../lib/hooks';
-import { moneyCheckWord, silenceWords } from '../../../lib/words';
+import { moneyCheckNow, moneyCheckPill, silenceWords } from '../../../lib/words';
 import { Countdown, MinorMoney, ModeBadge, WalletNotice } from '../../../shared/honesty';
 import { AnswerBar, Btn, Chip, DecisionCard, Icon, Sheet, Silence, type DecisionOption } from '../../../shared/ui';
 import { shortTitle } from '../home/model';
-import { amountNote, amountTone, dealTotal, moneyNow } from '../logic';
+import { amountNote, amountTone, dealTotal, isTerminal, moneyNow } from '../logic';
 import { useToast } from '../ui';
 import { useWorld } from '../world';
 import { releasable } from '../modules/shield/matrix';
@@ -25,19 +25,21 @@ export function Summary({ deal, strip, deadline, check }: { deal: Deal; strip: M
   const t = dealTotal(deal);
   // The title bar already carries the window's mode badge; repeat it only when this deal differs.
   const ownMode = w.settings.data?.mode !== deal.mode;
+  const ended = isTerminal(deal);
+  const pill = check ? moneyCheckPill(check, ended) : null;
   const state = strip.term ? strip.term.label : (strip.steps.find((s) => s.status === 'cur')?.label ?? deal.state);
   return (
     <div className="dv-figs">
       <div className="dv-hero">
-        <span className={`dv-amt ${amountTone(deal)}`} title={amountNote(deal)}><MinorMoney minor={t.minor} currency={t.currency} /></span>
+        <span className={`dv-amt ${amountTone(deal)}`} title={check ? moneyCheckNow(ended) : amountNote(deal)}><MinorMoney minor={t.minor} currency={t.currency} /></span>
         <span className="dv-pills">
-          {check ? <Chip tone="dashed" title={moneyCheckWord(check).means}>{moneyCheckWord(check).text}</Chip> : <Chip tone={stateTone(strip)}>{state}</Chip>}
+          {pill ? <Chip tone="dashed" title={pill.means}>{pill.text}</Chip> : <Chip tone={stateTone(strip)}>{state}</Chip>}
           {ownMode ? <ModeBadge mode={deal.mode} /> : null}
         </span>
       </div>
       <div className="dv-f">
         <span className="k">Money right now</span>
-        <span className="v">{check ? 'Not confirmed yet, PayPal is being asked' : moneyNow(deal)}</span>
+        <span className="v">{check ? moneyCheckNow(ended) : moneyNow(deal)}</span>
       </div>
       {deadline ? (
         <div className="dv-f push">

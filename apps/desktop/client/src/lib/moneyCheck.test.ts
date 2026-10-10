@@ -6,7 +6,7 @@ import { buildMockState, fakeUlid } from '../mock/fixtures';
 import { dealAnswer } from '../windows/main/deal/story';
 import { mayWithdraw } from '../windows/main/deal/model';
 import { cardActions, cardClock, cardWhy, stateChip } from '../windows/tumbler/logic';
-import { MONEY_CHECK_ENDED, MONEY_CHECK_ENDED_SILENCE, MONEY_CHECK_PARKED, MONEY_CHECK_SILENCE, moneyCheckWord, silenceWords } from './words';
+import { MONEY_CHECK_ENDED, MONEY_CHECK_ENDED_NOW, MONEY_CHECK_ENDED_PILL, MONEY_CHECK_ENDED_SHORT, MONEY_CHECK_ENDED_SILENCE, MONEY_CHECK_NOW, MONEY_CHECK_PARKED, MONEY_CHECK_SILENCE, moneyCheckWord, silenceWords } from './words';
 
 const NOW = 1_800_000_000;
 const world = buildMockState(NOW);
@@ -47,7 +47,7 @@ describe('a payment being checked with PayPal', () => {
     const checking = moneyCheckWord({ ...check, state: 'checking', step: 'create' });
     expect(checking.text).toBe('Checking with PayPal');
     expect(checking.means).toMatch(/payment request/);
-    for (const s of [MONEY_CHECK_PARKED, checking.means, MONEY_CHECK_SILENCE, MONEY_CHECK_ENDED, MONEY_CHECK_ENDED_SILENCE]) expect(s).not.toMatch(/capture|void|authoriz|request id|Rust|unknown/i);
+    for (const s of [MONEY_CHECK_PARKED, checking.means, MONEY_CHECK_SILENCE, MONEY_CHECK_ENDED, MONEY_CHECK_ENDED_SILENCE, MONEY_CHECK_NOW, MONEY_CHECK_ENDED_NOW, MONEY_CHECK_ENDED_PILL, MONEY_CHECK_ENDED_SHORT]) expect(s).not.toMatch(/capture|void|authoriz|request id|Rust|unknown/i);
   });
 });
 
