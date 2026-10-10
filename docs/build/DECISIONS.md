@@ -864,3 +864,20 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   never 'Paid' and never a delay. It stays in `agreementGaps` as its own kind `unconfirmed`, sorted after
   mismatch and before unknown and pending_reporting, because money may have left (exposure counts it as spent,
   section 28) and the statement check can still match it to RECONCILED.
+
+## 32. An ended money-check card shows Rust's line, without the If you do nothing frame
+
+- **Date:** 2026-10-10
+- **Decided by:** the App Master, wake 55 (2026-10-10), after the Tumbler rework (95b0362) left main red.
+- **Constraint.** A deal can end with a parked money step (section 31, item 3). Its Tumbler card then has no
+  clock and nothing waits on the owner: the deal has already ended, so there is no silence to describe.
+- **Decision.** On the Tumbler card of an ended deal, the second 'Why?' sentence is `MONEY_CHECK_ENDED_SILENCE`,
+  the line Rust sends, capitalised and ending with a full stop: 'The deal has ended and the wallet sends nothing
+  more: look at this payment in PayPal.' The first sentence stays `MONEY_CHECK_ENDED`.
+- **Lost:**
+  - the hand-written 'The deal has ended and the wallet sends nothing more.' of 95b0362. It dropped the line
+    Rust sends ('look at this payment in PayPal') and drifted from it;
+  - the 'If you do nothing,' frame. The deal has already ended, and nothing waits on the owner's silence.
+- **Evidence:** 673d7f8, `cardWhy` in `apps/desktop/client/src/windows/tumbler/logic.ts`, and the test 'the card
+  says the wallet stopped and what to do, with the line Rust sends' in
+  `apps/desktop/client/src/lib/moneyCheck.test.ts`.
