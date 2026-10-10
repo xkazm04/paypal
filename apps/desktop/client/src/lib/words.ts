@@ -27,6 +27,21 @@ export type WordTone = 'teal' | 'gold' | 'ok' | 'red' | 'coral' | 'line';
 export type Word = { text: string; tone: WordTone; /** One sentence for a tooltip / popover. */ means: string };
 
 // ---- deal states --------------------------------------------------------------------------------
+/** Whether a statement read of PayPal for the deal came back unmatched before it ended
+ *  (`DealEvidence.statement_unmatched`): true = a read found nothing, false = none was made,
+ *  null / undefined = not known here, so only what is true either way may be said. */
+export type StatementRead = boolean | null | undefined;
+
+/** In place of "Check my PayPal statement" when the wallet has no PayPal keys: what the check needs. */
+export const STATEMENT_CHECK_NEEDS_KEYS = 'Checking your PayPal statement needs your PayPal keys. Add them in your wallet setup first. The check only reads; it never pays.';
+
+/** What a deal's "Not confirmed by PayPal" end means, worded by what the wallet actually did. */
+export function unconfirmedMeans(read: StatementRead): string {
+  if (read === true) return 'The seller said it was paid, but PayPal’s statement did not show the payment. This wallet moved nothing.';
+  if (read === false) return 'The seller said it was paid, but this wallet did not check PayPal’s statement. It moved nothing.';
+  return 'The seller said it was paid, but this wallet has no match for it on PayPal’s statement. It moved nothing.';
+}
+
 
 const STATE: Record<DealState, Word> = {
   PAIRING: { text: 'Connecting', tone: 'teal', means: 'The two wallets are confirming each other. Nothing is offered yet.' },
@@ -49,7 +64,7 @@ const STATE: Record<DealState, Word> = {
   AUTO_VOIDED: { text: 'Hold released', tone: 'line', means: 'The hold ran out and released itself. Nothing was paid.' },
   REFUNDED: { text: 'Refunded', tone: 'line', means: 'The payment was returned.' },
   DISPUTED: { text: 'Disputed', tone: 'red', means: 'There is an open dispute at PayPal.' },
-  UNCONFIRMED: { text: 'Not confirmed by PayPal', tone: 'coral', means: 'The seller said it was paid, but PayPal’s statement never showed the payment. This wallet moved nothing.' },
+  UNCONFIRMED: { text: 'Not confirmed by PayPal', tone: 'coral', means: unconfirmedMeans(null) },
 };
 
 /** What the seller's receipt is worth to the buyer's wallet until PayPal's own statement matches it. */
@@ -60,13 +75,17 @@ export const SELLER_SAYS_PAID = 'The seller says the payment went through. Your 
 export const receiptRefusedSentence = (x: string): string =>
   `The seller said ${x} was paid before you opened the PayPal link, so your wallet did not accept it. No money moved.`;
 
-/** A buyer's deal the seller said was paid that PayPal's statement never showed within the wallet's
- *  72-hour window (state UNCONFIRMED, history step `unconfirmed`). `x` is the deal's short title. */
-export const unconfirmedSentence = (x: string): string =>
-  `The seller said ${x} was paid, but PayPal’s statement never showed it, so it ends here. Your wallet moved no money.`;
+/** A buyer's deal the seller said was paid that PayPal's statement did not confirm within the wallet's
+ *  72-hour window (state UNCONFIRMED, history step `unconfirmed`). `x` is the deal's short title;
+ *  `read` is whether a statement read came back unmatched (unknown says only what is true either way). */
+export const unconfirmedSentence = (x: string, read?: StatementRead): string =>
+  read === true ? `The seller said ${x} was paid, but PayPal’s statement did not show it, so it ends here. Your wallet moved no money.`
+    : read === false ? `The seller said ${x} was paid, but your wallet did not check PayPal’s statement, so it ends here. Your wallet moved no money.`
+      : `The seller said ${x} was paid, but your wallet has no match for it on PayPal’s statement, so it ends here. Your wallet moved no money.`;
 
 /** A deal state in Maya's words. `side` / `kind` adjust the few states that read differently. */
-export function stateWord(state: DealState, ctx: { side?: Side; kind?: DealKind } = {}): Word {
+export function stateWord(state: DealState, ctx: { side?: Side; kind?: DealKind; read?: StatementRead } = {}): Word {
+  if (state === 'UNCONFIRMED' && ctx.read !== undefined) return { ...STATE.UNCONFIRMED, means: unconfirmedMeans(ctx.read) };
   if (state === 'AWAITING_APPROVAL' && ctx.side === 'seller' && ctx.kind !== 'rescue') {
     return { text: 'Waiting for buyer', tone: 'gold', means: 'The buyer has a PayPal link to approve. No money has moved yet.' };
   }
@@ -361,7 +380,12 @@ const SILENCE_EXACT: Readonly<Record<string, string>> = {
   'the offer or order lapses at the deadline; no money moves': 'the offer lapses at the deadline, no money moves',
   'Deadline or safe decision completed; no capture was made': 'deadline passed, nothing paid',
   'Seller attested payment; PayPal reporting is pending': 'the seller says paid · not on PayPal’s statement yet',
-  "PayPal reporting never showed the seller's payment; this wallet moved no money": 'PayPal’s statement never showed it · this wallet moved nothing',
+  // An UNCONFIRMED end, by whether a statement read came back unmatched (actor.rs unconfirmed_reason).
+  "PayPal's statement did not show the seller's payment; this wallet moved no money": 'PayPal’s statement did not show it · this wallet moved nothing',
+  "This wallet did not check PayPal's statement for the seller's payment; it moved no money": 'your wallet did not check PayPal’s statement · it moved nothing',
+  "This wallet has no PayPal statement match for the seller's payment; it moved no money": 'no match on PayPal’s statement · this wallet moved nothing',
+  // The sentence older shells sent; it claimed a read it could not know about, so it reads as the unknown case.
+  "PayPal reporting never showed the seller's payment; this wallet moved no money": 'no match on PayPal’s statement · this wallet moved nothing',
 };
 /** The core's default-on-silence sentence, in plain words where it is a known phrase. */
 export const silenceWords = (s: string): string => SILENCE_EXACT[s] ?? s.replace(/\bauto-void\b/g, 'auto-release');

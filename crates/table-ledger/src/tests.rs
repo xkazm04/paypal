@@ -2472,3 +2472,59 @@ mod limits_tests;
 mod market_tests;
 #[path = "market_watch_tests.rs"]
 mod market_watch_tests;
+/// robustness-1 (c): the lapse is time-only and records whether a statement read came back
+/// unmatched before it; with no read it never claims one.
+#[test]
+fn a_lapse_with_no_statement_read_never_claims_one() {
+    let (mut ledger, deal, _, own, peer) = setup();
+    seller_attested(&mut ledger, &deal, &own, &peer);
+    assert_eq!(ledger.statement_unmatched(deal.id).unwrap(), None);
+    assert!(
+        ledger
+            .lapse_corroboration(deal.id, 100 + CORROBORATION_SECS)
+            .unwrap()
+    );
+    let detail: serde_json::Value = serde_json::from_str(
+        &ledger
+            .conn
+            .query_row(
+                "SELECT detail_json FROM audit_log WHERE deal_id=?1 AND action='receipt.unconfirmed'",
+                [deal.id.to_string()],
+                |r| r.get::<_, String>(0),
+            )
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(detail["statement_unmatched"], false);
+    assert_eq!(ledger.statement_unmatched(deal.id).unwrap(), Some(false));
+    assert_eq!(
+        ledger.deal_evidence(deal.id).unwrap().statement_unmatched,
+        Some(false)
+    );
+    ledger.verify_audit().unwrap();
+}
+#[test]
+fn a_lapse_after_an_unmatched_statement_read_says_so() {
+    let (mut ledger, deal, _, own, peer) = setup();
+    seller_attested(&mut ledger, &deal, &own, &peer);
+    ledger
+        .append_audit(&AuditEntry {
+            at: 200,
+            actor: "paypal-reporting".into(),
+            action: "receipt.reporting_unmatched".into(),
+            deal_id: Some(deal.id),
+            detail: json!({"from":0,"to":300,"capture_id":"CAPTURE1"}),
+        })
+        .unwrap();
+    assert!(
+        ledger
+            .lapse_corroboration(deal.id, 100 + CORROBORATION_SECS)
+            .unwrap()
+    );
+    assert_eq!(ledger.statement_unmatched(deal.id).unwrap(), Some(true));
+    assert_eq!(
+        ledger.deal_evidence(deal.id).unwrap().statement_unmatched,
+        Some(true)
+    );
+    ledger.verify_audit().unwrap();
+}

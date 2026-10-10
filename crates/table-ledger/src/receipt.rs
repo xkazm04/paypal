@@ -240,6 +240,14 @@ impl Ledger {
         if due > now {
             return Ok(false);
         }
+        // Whether the owner's statement read for this deal came back unmatched before the lapse
+        // (its `receipt.reporting_unmatched` row). Kept in the row so the words never claim a read
+        // that did not happen; the lapse itself waits for nothing and calls nothing.
+        let unmatched_reads: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM audit_log WHERE deal_id=?1 AND action='receipt.reporting_unmatched'",
+            [id.to_string()],
+            |r| r.get(0),
+        )?;
         audit::append(
             &tx,
             &AuditEntry {
@@ -251,6 +259,7 @@ impl Ledger {
                     "capture_id": deal.paypal.capture,
                     "received_at": received,
                     "reconciliation": reconciliation,
+                    "statement_unmatched": unmatched_reads > 0,
                     "decided_by": DecidedBy::SafeDefault { deadline: due },
                 }),
             },
@@ -258,6 +267,22 @@ impl Ledger {
         apply(&tx, id, DealEvent::CorroborationLapsed, now)?;
         tx.commit()?;
         Ok(true)
+    }
+    /// For a deal that ended UNCONFIRMED: whether a statement read came back unmatched before it
+    /// did (the `receipt.unconfirmed` row's `statement_unmatched`). `None` for any other deal, and
+    /// for a row written before the fact was kept: the words then say only what is true either way.
+    pub fn statement_unmatched(&self, id: DealId) -> Result<Option<bool>, LedgerError> {
+        let detail: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT detail_json FROM audit_log WHERE deal_id=?1 AND action='receipt.unconfirmed' ORDER BY rowid DESC LIMIT 1",
+                [id.to_string()],
+                |r| r.get(0),
+            )
+            .optional()?;
+        Ok(detail
+            .and_then(|d| serde_json::from_str::<serde_json::Value>(&d).ok())
+            .and_then(|v| v.get("statement_unmatched").and_then(|b| b.as_bool())))
     }
     pub fn deal_evidence(&self, id: DealId) -> Result<DealEvidence, LedgerError> {
         let (receipt, reconciliation): (String, String) = self.conn.query_row(
@@ -283,6 +308,7 @@ impl Ledger {
             money_check: self.money_check(id)?,
             house_record: self.house_record(id)?,
             fair_price: self.fair_price(id)?,
+            statement_unmatched: self.statement_unmatched(id)?,
         })
     }
     /// The deal's fair-price certificate (market-data-2), computed again from the wallet's own

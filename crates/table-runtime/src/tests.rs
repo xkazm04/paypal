@@ -94,6 +94,8 @@ struct ApiState {
     /// The buyer has not approved on PayPal yet: an order read says PAYER_ACTION_REQUIRED. A
     /// test sets it until the buyer's owner opened the PayPal link, the real order of events.
     awaiting_payer: bool,
+    /// The rows PayPal's statement read answers with (`/v1/reporting/transactions`).
+    reporting: Option<Value>,
 }
 #[derive(Debug, Default)]
 struct OfflineHttp(Mutex<ApiState>);
@@ -421,6 +423,12 @@ impl Transport for OfflineHttp {
             return Ok(Response {
                 status: 200,
                 body: json!({"access_token":random_text(),"expires_in":300}),
+            });
+        }
+        if url.contains("/v1/reporting/transactions?") {
+            return Ok(Response {
+                status: 200,
+                body: json!({"transaction_details":s.reporting.clone().unwrap_or(json!([])),"page":1,"total_pages":1}),
             });
         }
         if url.ends_with("/v2/checkout/orders") {
@@ -988,13 +996,9 @@ async fn buyer_browser_availability_needs_unlock_but_no_local_paypal_credentials
     assert!(r.pipeline.wallet.ledger.handed_off(deal.id).unwrap());
     assert!(http.0.lock().unwrap().paths.is_empty());
 }
-/// robustness-1 (b): a buyer's deal only the seller says is paid has a defined end. The scheduler
-/// leaves it RECEIPTED until PayPal's statement has not shown it for 72 hours, then ends it
-/// UNCONFIRMED, with no PayPal call and no money moved.
-#[tokio::test]
-async fn a_scheduler_tick_past_the_corroboration_window_ends_a_seller_attested_deal_unconfirmed() {
-    let (mut r, _, http, clock, _) = runtime(true);
-    let (deal, peer) = setup(&mut r, Side::Buyer);
+/// A buyer deal whose seller receipt was accepted at 100 as the seller's word only: RECEIPTED, seller-attested.
+fn receipted_on_the_sellers_word(r: &mut Runtime) -> Deal {
+    let (deal, peer) = setup(r, Side::Buyer);
     for event in [
         DealEvent::ListingVerified,
         DealEvent::OfferVerified,
@@ -1070,6 +1074,15 @@ async fn a_scheduler_tick_past_the_corroboration_window_ends_a_seller_attested_d
         .wallet
         .receive_relay(deal.id, &receipt, Category::Parts, 100)
         .unwrap();
+    deal
+}
+/// robustness-1 (b): a buyer's deal only the seller says is paid has a defined end. The scheduler
+/// leaves it RECEIPTED until PayPal's statement has not shown it for 72 hours, then ends it
+/// UNCONFIRMED, with no PayPal call and no money moved.
+#[tokio::test]
+async fn a_scheduler_tick_past_the_corroboration_window_ends_a_seller_attested_deal_unconfirmed() {
+    let (mut r, _, http, clock, _) = runtime(true);
+    let deal = receipted_on_the_sellers_word(&mut r);
     let state = |r: &Runtime| r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state;
     assert_eq!(state(&r), DealState::Receipted);
     clock
@@ -3066,4 +3079,65 @@ fn settings_tell_whether_the_house_is_connected_without_the_counterparty_list() 
     assert!(!r.settings().unwrap().house_connected);
     insert(&mut r, "house-peer", PairedVia::House);
     assert!(r.settings().unwrap().house_connected);
+}
+/// robustness-1 (c): the unconfirmed-reason claims a statement read only when one was made, and
+/// says only what is true either way when that is unknown.
+#[test]
+fn the_unconfirmed_reason_claims_a_statement_read_only_when_one_was_made() {
+    use crate::actor::unconfirmed_reason;
+    assert!(unconfirmed_reason(Some(true)).contains("did not show"));
+    let none = unconfirmed_reason(Some(false));
+    assert!(none.contains("did not check") && !none.contains("did not show"));
+    let unknown = unconfirmed_reason(None);
+    assert!(!unknown.contains("did not show") && !unknown.contains("never showed"));
+}
+/// robustness-1 (c): the owner's statement check, through the runtime, on a deal that already
+/// ended UNCONFIRMED. A read that finds nothing leaves it UNCONFIRMED and keeps the read in the
+/// record; a read that matches ends it RECONCILED. Nothing else is refused for that state.
+#[tokio::test]
+async fn an_owner_reconcile_through_the_runtime_on_an_unconfirmed_deal_ends_reconciled() {
+    let (mut r, vault, http, clock, _) = runtime(true);
+    credentials(vault.as_ref());
+    let api = Arc::new(table_paypal::Client::sandbox(
+        http.clone(),
+        Arc::new(VaultCredentials(vault.clone())),
+        clock.clone(),
+        Arc::new(NoDelay),
+    ));
+    r.secondary = Some(api.clone());
+    r.pipeline.set_secondary(Some(api));
+    let deal = receipted_on_the_sellers_word(&mut r);
+    clock.0.store(100 + CORROBORATION_SECS, Ordering::SeqCst);
+    r.tick().await.unwrap();
+    let state = |r: &Runtime| r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state;
+    assert_eq!(state(&r), DealState::Unconfirmed);
+    // The statement shows nothing: still UNCONFIRMED, the read is in the record.
+    reconcile_main(&mut r, deal.id, 100 + CORROBORATION_SECS)
+        .await
+        .unwrap();
+    assert_eq!(state(&r), DealState::Unconfirmed);
+    // The statement shows the payment (a buyer's debit): RECONCILED.
+    http.0.lock().unwrap().reporting = Some(json!([{"transaction_info":{
+        "transaction_id":"CAPTURE1","transaction_status":"S",
+        "transaction_amount":{"currency_code":"USD","value":format!("-{}", deal.terms.amount().unwrap().decimal())}}}]));
+    reconcile_main(&mut r, deal.id, 100 + CORROBORATION_SECS)
+        .await
+        .unwrap();
+    assert_eq!(state(&r), DealState::Reconciled);
+    r.pipeline.wallet.ledger.verify_audit().unwrap();
+}
+async fn reconcile_main(
+    r: &mut Runtime,
+    id: DealId,
+    end: Timestamp,
+) -> Result<Value, CommandError> {
+    r.execute(
+        caller("main", None),
+        Action::Reconcile(ReconcileArgs {
+            deal_id: id,
+            start: 0,
+            end,
+        }),
+    )
+    .await
 }

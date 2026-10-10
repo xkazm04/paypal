@@ -344,7 +344,7 @@ describe('a seller’s receipt is the seller’s word, and a deal PayPal never c
     expect(isSettled(d)).toBe(false);
     expect(beadKind(d)).toBe('stopped');
     expect(chipClass(d)).toBe('bad');
-    expect(moneyNow(d)).toBe('the seller says paid · PayPal’s statement never showed it');
+    expect(moneyNow(d)).toBe('the seller says paid · no match on PayPal’s statement');
     expect(amountNote(d)).toBe('not confirmed by PayPal');
     expect(stateLabel('UNCONFIRMED', d)).toBe('Not confirmed by PayPal');
     const strip = stripFor(d);

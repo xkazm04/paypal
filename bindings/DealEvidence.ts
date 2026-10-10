@@ -22,4 +22,10 @@ house_record?: HouseRecord | null,
  * wallet's own record (market-data-2); null when the deal never had a market price. Older
  * shells omit it.
  */
-fair_price?: FairPrice | null, };
+fair_price?: FairPrice | null, 
+/**
+ * For a deal that ended UNCONFIRMED: true when a statement read of PayPal came back
+ * unmatched before it ended, false when no read was made; null for any other deal. Older
+ * shells omit it.
+ */
+statement_unmatched?: boolean | null, };

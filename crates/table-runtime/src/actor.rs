@@ -370,6 +370,21 @@ impl ActorHandle {
         rx.await.map_err(|_| unavailable("Wallet actor stopped"))?
     }
 }
+/// The core's default-on-silence sentence for a deal that ended UNCONFIRMED, split on whether a
+/// statement read for it came back unmatched (`None`: unknown, so only what is true either way).
+pub(crate) fn unconfirmed_reason(unmatched_read: Option<bool>) -> &'static str {
+    match unmatched_read {
+        Some(true) => {
+            "PayPal's statement did not show the seller's payment; this wallet moved no money"
+        }
+        Some(false) => {
+            "This wallet did not check PayPal's statement for the seller's payment; it moved no money"
+        }
+        None => {
+            "This wallet has no PayPal statement match for the seller's payment; it moved no money"
+        }
+    }
+}
 pub fn spawn(mut runtime: Runtime) -> (ActorHandle, broadcast::Receiver<WalletEvent>) {
     let (sender, receiver) = mpsc::channel(64);
     let (events, listen) = broadcast::channel(128);
@@ -489,9 +504,15 @@ async fn run(
                                     "Seller attested payment; PayPal reporting is pending"
                                 }
                                 DealState::Receipted => "Payment captured and receipt verified",
-                                DealState::Unconfirmed => {
-                                    "PayPal reporting never showed the seller's payment; this wallet moved no money"
-                                }
+                                DealState::Unconfirmed => unconfirmed_reason(
+                                    runtime
+                                        .pipeline
+                                        .wallet
+                                        .ledger
+                                        .statement_unmatched(deal.id)
+                                        .ok()
+                                        .flatten(),
+                                ),
                                 DealState::Withdrawn
                                 | DealState::Expired
                                 | DealState::Voided
