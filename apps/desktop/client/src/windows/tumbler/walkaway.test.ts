@@ -116,7 +116,7 @@ describe('if you walk away: a seller-attested deal ending unconfirmed', () => {
     const r = walk([unconfirm]);
     expect(r.known && r.lines).toHaveLength(1);
     const l = r.known ? r.lines[0]! : null;
-    expect(l?.what).toBe('D-0189 ends as not confirmed by PayPal unless PayPal’s statement shows it first');
+    expect(l?.what).toBe('D-0189 ends as not confirmed by PayPal');
     expect(l?.who).toBe('safe default');
     expect(l?.conditional).toBe(false);
     expect(r.known && r.out).toBe('$0.00');

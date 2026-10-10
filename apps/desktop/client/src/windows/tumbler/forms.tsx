@@ -218,7 +218,7 @@ function CardDetails({ item, now, anchor, actions, pending, onAction, onClose }:
 const ACTION_TITLE: Partial<Record<CardAction['action'], string>> = {
   review: 'Opens the approval window, the only window that can release money (Enter)',
   withdraw: 'Walk away from this deal · no money moves (W · asks once)',
-  let_lapse: 'Let it run out now · no money moves',
+  let_lapse: 'Let it run out at its deadline · no money moves',
   snooze30: 'Hide this card for 30 min · it comes back and the deadline still runs',
 };
 
@@ -257,7 +257,7 @@ export const CardForm = forwardRef(function CardForm(p: CardProps, ref: Ref<HTML
   let line3: ReactNode;
   let line4: ReactNode;
   if (p.confirming) {
-    line3 = <p className="c-ask" id={askId}>Withdraw {item.label}? A signed WITHDRAW moves only toward the default · no money moves.</p>;
+    line3 = <p className="c-ask" id={askId}>Walk away from this deal{item.counterparty ? ` with ${houseWords(item.counterparty)}` : ''}? Your wallet tells them you are out · no money moves.</p>;
     line4 = (
       <div className="c-acts" role="group" aria-label="Confirm withdraw" aria-describedby={askId}>
         <Btn kind="danger" sm data-autofocus onClick={() => p.onConfirm(true)} disabled={p.busy}>Withdraw</Btn>
