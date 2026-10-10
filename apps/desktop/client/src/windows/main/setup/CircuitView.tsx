@@ -189,9 +189,11 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
         status: `Signed for ${liveAgents} ${liveAgents === 1 ? 'agent' : 'agents'}${liveUntil ? ` · active until ${shortDate(liveUntil)}` : ''}`,
         action: <Btn kind="default" sm onClick={onMandates}>Agent rules ›</Btn>,
       };
+  // A failed pick shows where the button was clicked (the popover, when open, shows it itself).
+  const pickError = select.error && !pickAt ? <WalletNotice error={select.error} what="Agent app" /> : null;
   const stepEngine: Step = engBreak
     ? {
-      state: 'todo', icon: 'alert', title: 'Choose an agent app', status: silenceOf(engBreak),
+      state: 'todo', icon: 'alert', title: 'Choose an agent app', status: <>{silenceOf(engBreak)}{pickError}</>,
       action: <>{probeBtn(true)}{engBreak.scriptedFix ? <Btn sm disabled={select.pending} onClick={() => void pickEngine('scripted')} title="A scripted agent with no AI model, for trying things out">Use practice agent</Btn> : null}</>,
     }
     : engPart.state === 'unknown'
@@ -243,7 +245,7 @@ export function SetupCircuit({ onPair, onMandates, detail, setDetail }: { onPair
   const keptPractice = !engBreak && engineStep?.state === 'done' && s?.selected_engine === 'scripted';
   const stepEngineFirst: Step = !engBreak && (engineStep?.state === 'todo' || engineStep?.state === 'next')
     ? {
-      state: 'todo', icon: 'agent', title: START_STEP.engine.title, status: START_STEP.engine.sub,
+      state: 'todo', icon: 'agent', title: START_STEP.engine.title, status: <>{START_STEP.engine.sub}{pickError}</>,
       action: <>
         <Btn kind={!goldKey && engineStep.state === 'next' ? 'gold' : 'default'} sm aria-expanded={!!pickAt} onClick={(e) => { const t = e.currentTarget; setPickAt((x) => (x ? null : t)); }}>{START_STEP.engine.act}…</Btn>
         {s?.selected_engine === 'scripted' ? <Btn sm disabled={select.pending} onClick={() => void pickEngine('scripted')} title={KEEP_PRACTICE_AGENT.where}>{KEEP_PRACTICE_AGENT.act}</Btn> : null}
