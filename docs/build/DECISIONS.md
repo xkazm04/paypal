@@ -526,3 +526,122 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   `crates/table-engine/src/policy.rs:62` (the `Side::Seller` arm, lines 68-82, calls
   `Policy::decide`), which accepts at `offer >= floor` in `crates/table-core/src/negotiation.rs:40-42`;
   the test assertion is at `crates/table-engine/src/policy.rs:367`.
+
+## 23. A buyer's deal reads 'Seller says paid' until PayPal's statement matches
+
+- **Date:** 2026-10-10
+- **Decided by:** the App Master, on deal-to-settlement lite r1 value-1 (the review report is not in
+  the repository: what it said is taken from the commit message of 8288cba and the task brief)
+- **Constraint:** a buyer haggle or shop order reaches RECEIPTED only through `accept_seller_receipt`,
+  which records `receipt_evidence='seller_attested'`. It becomes `paypal_verified` (and RECONCILED)
+  only when the reporting reconcile matches. So a buyer's RECEIPTED deal is the seller's word, not
+  PayPal's.
+- **Decision:** that round changed the words, not the ledger. `stateWord` gained a buyer exception
+  (`SELLER_SAYS_PAID`, gold tone, `apps/desktop/client/src/lib/words.ts`), and every surface that
+  shows a deal state passes side and kind. 8288cba's message lists them: `beadKind`, `chipClass`,
+  `isSettled`, the amount tone and note, the Book bucket and group, the ledger sums and the deal
+  answer no longer treat such a deal as settled; the approval window's `outcomeText` moved into
+  `windows/approval/model.ts` unchanged so it can be tested. Rust is unchanged.
+- **Lost:**
+  - reading RECEIPTED as paid on both sides, which claims money PayPal has not confirmed;
+  - hiding the seller's receipt until PayPal matches, so the owner would not see that the seller says
+    it collected.
+- **Consequences:** the decision is NOT yet fully carried. Lite r2 (2026-10-10, ready 0.6657; its
+  report is not in the repository, taken from the task brief) found:
+  - the Book's 'Paid' chip (`apps/desktop/client/src/windows/main/modules/book/understand.ts`, `PAID`
+    at :57 and the chip at :69), the Book state groups (`modules/book.tsx`, around :688) and the
+    Tumbler receipt ticker (`windows/tumbler/logic.ts`, around :373) still read such a deal as paid.
+    UNVERIFIED: :57 and :69 are confirmed to hold the `PAID` list and the chip; book.tsx :688 already
+    passes a side to `stateGroupLabel` and logic.ts :373 is a state-label map, so those two were not
+    confirmed as the faulty lines;
+  - no Rust test pins the closing condition (UNVERIFIED: not searched exhaustively);
+  - `accept_seller_receipt` (`crates/table-ledger/src/receipt.rs:115`) moves a buyer deal to RECEIPTED
+    even when the owner never opened the PayPal link. `browser_handoff` is recorded
+    (`crates/table-ledger/src/repositories.rs:654`, read at :666) but receipt.rs does not mention it.
+  A rework follows, and this section is amended when it merges.
+- **Evidence:** 8288cba, with the tests it adds in `apps/desktop/client/src/lib/words.test.ts`:
+  'a buyer RECEIPTED deal reads "Seller says paid" with a waiting tone and the one shared sentence',
+  'a buyer RECONCILED deal is paid, on PayPal's statement', 'a seller RECEIPTED deal still reads paid
+  to you', 'only a buyer haggle or shop order depends on the seller's receipt'; and in
+  `windows/main/deal/story.test.ts`: 'is not closed as paid: D-0187 reads the seller's word and stays
+  calm, not done', 'a buyer deal PayPal's statement matched is closed as paid'. Then 3b3a712 (docs)
+  and acb0dab (fmt). The Rust test
+  `seller_receipt_is_atomic_bound_attestation_and_never_a_paypal_call`
+  (`crates/table-ledger/src/tests.rs:1303`) pins `seller_attested` on a buyer deal after a seller
+  receipt. The client tests were not run for this entry.
+
+## 24. The SETTLE approve link must open its own order (C-10)
+
+- **Date:** 2026-10-10 (95d7b37 is dated 2026-10-10 in git)
+- **Decided by:** the App Master, on security scan finding C-10 (scan of 2026-10-07, per STATUS.md)
+- **Constraint:** the buyer opened whatever approve link the seller's SETTLE carried, and checked only
+  its host.
+- **Decision:** `validate_settle` requires the path `/checkoutnow` and exactly one query pair
+  `token=<order id>`, percent-decoded and matched exactly. Anything else is refused as
+  `SettlementError::Order`, so the check fails closed.
+- **Lost:** the host-only check, under which a seller could send a link to another order on PayPal's
+  host.
+- **Consequences:**
+  - The link shape is UNVERIFIED: it is recalled, not sourced (STATUS.md, the C-10 entry around
+    :1331). If a real Orders v2 approve link differs, legitimate links are refused until a sandbox
+    spike in milestone 4 confirms the shape.
+  - Lite r2 found two follow-ups (report not in the repository; from the task brief). The seller
+    wallet signs a SETTLE whose link it checked for the host only (craft-2). No `checks.rs` line
+    states the order binding (craft-6). Neither was checked here.
+- **Evidence:** 95d7b37 (`crates/table-proto/src/settlement.rs` and `crates/table-proto/tests/protocol.rs`;
+  the cases are added to `h4_settle_rejects_amount_intent_invoice_attempt_and_host_mismatch`) and
+  5635a68 (binds the approve link in the cases of
+  `signed_buyer_settlement_truth_mismatch_holds_and_has_no_browser_link_or_money_calls`,
+  `crates/table-ledger/src/tests.rs`).
+
+## 25. Saving the PayPal keys: the keychain write decides, and a finished practice step still leads into a deal
+
+- **Date:** 2026-10-10
+- **Decided by:** the App Master, on first-run-onboarding full r1 (run e04a5556) robustness-3,
+  craft-7 and value-2 (the reports are not in the repository; taken from the task brief and the
+  commit messages)
+- **Decision:**
+  - (a) Once the vault write succeeds, the keys ARE saved. The `credential.<name>.stored_at` date is
+    best-effort, and a failing date write returns Ok. `owner_facts` reads a missing date as stored,
+    with `stored_at` None.
+  - (b) Pasted values are trimmed before they are validated and stored. A value empty after trimming
+    is refused.
+  - (c) Step 3 stays done when the house seller connects, and Rust is unchanged. A done practice step
+    keeps one click that starts a practice deal on Home, and the approval window says where that deal
+    starts. The Tumbler is unchanged: it reads `houseConnected` as null, so step 3 is never shown done
+    there, and as the next step it keeps its click that opens The Table.
+- **Lost:**
+  - (a) failing the save when only the date fails, which showed a false 'not saved' while the keys
+    were stored;
+  - (b) storing the value as pasted, where surrounding spaces fail only later, at PayPal;
+  - (c) ticking step 3 only after a practice deal, which needs a new Rust fact and a ledger read. The
+    click gets the owner there without one.
+- **Consequences:**
+  - stored keys can show no saved date;
+  - the Tumbler's step 3 can read not done while Home reads done;
+  - the `credential_prompt.rs` error branches and a live `KeyringVault` test (r1 robustness-2 parts c
+    and d) remain open.
+- **Evidence:** 8bd8444 (`crates/table-runtime/src/configuration.rs`), 92115ee (same file, plus tests
+  in `crates/table-runtime/src/tests.rs`: `credential_values_that_fail_validation_write_nothing`,
+  `credential_values_are_stored_trimmed`, `a_failed_vault_write_reports_the_error_and_writes_no_date`,
+  `a_failed_date_write_after_a_vault_success_still_saves_the_keys`) and 29e583b (tests in
+  `apps/desktop/client/src/shared/start.test.tsx`: 'a done practice step keeps one quiet click to
+  start a practice deal; a done keys step keeps none', 'where the click cannot happen, a done practice
+  step says where the practice deal starts'); and 22de10e (docs and STATUS). The client tests were not
+  run for this entry.
+
+## 26. The hosted relay's mailbox exhaustion is fixed before submission, not accepted
+
+- **Date:** 2026-10-09
+- **Decided by:** the App Master, on hosted-relay-service lite r1 robustness-1 (the report is not in
+  the repository; taken from the task brief). The operator was told and may overrule it.
+- **Constraint:** one anonymous client can fill all 256 rendezvous mailboxes for 24 h
+  (`services/rendezvous/src/lib.rs`: the 256 cap at :133, the 86400 s expiry at :144). Milestone 4
+  deploys the relay inside the HOUSE, whatever the operator decides about a built-in relay address.
+- **Decision:** a per-caller create allowance. It is proved by a test in which one caller exhausts its
+  allowance, and a fresh pair mailbox and a create on the HOUSE path still succeed.
+- **Lost:** accepting the risk for the judging window.
+- **Consequences:** the fix is not merged yet. This section records the decision and is amended with
+  the commit when it lands. Whether the submitted build carries a relay address is a question open
+  with the operator.
+- **Evidence:** none in the repository yet: no commit and no test.
