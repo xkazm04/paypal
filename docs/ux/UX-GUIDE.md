@@ -62,7 +62,15 @@ paragraph**:
 | refused at clause 3 | **Over the per-purchase limit** | Name the rule, then the number. |
 | Unlocked / LOCKED | **Unlocked** / **Locked, unlock with Windows Hello** | |
 | sandbox / replay / scripted engine | **Sandbox / Replay / Practice agent** | The mode badge is mandatory (design §10.1); case is not. |
-| unknown / parked money operation | **Checking with PayPal** (dashed); parked: "We couldn’t confirm a payment with PayPal. At the deadline the wallet asks PayPal what happened, and what PayPal shows decides. A hold is released; nothing is collected." | Never "failed", never "paid", never "unknown". Words in `moneyCheckWord()`. |
+| unknown / parked money operation | **Checking with PayPal** (dashed); parked: "We couldn’t confirm a payment with PayPal. At the deadline the wallet asks PayPal what happened, and what PayPal shows decides. A payment PayPal already took stays paid. A hold PayPal shows is released at its own deadline, unless it is paid first: by you, or by your rules when it is a sale delivered at once. If PayPal shows no payment, no money moves." | The words never say this payment failed or was paid; they may say a payment PayPal already took stays paid (r3 value-2). Never "unknown". Words in `moneyCheckWord()`. |
+| a parked step whose deal ended (EXPIRED) | card: **Look at $X in PayPal**, "If you do nothing: the deal has ended and the wallet sends nothing more: look at this payment in PayPal"; deal page: "PayPal never showed what happened to this payment, so the wallet stopped asking and the deal ended. Look at the payment in PayPal: the wallet sends nothing more." | `MONEY_CHECK_ENDED_SILENCE`, `MONEY_CHECK_ENDED`. No clock on the card. |
+| UNCONFIRMED, by whether a statement read happened | read came back unmatched: "The seller said it was paid, but PayPal’s statement did not show the payment. This wallet moved nothing."; no read: "…but this wallet did not check PayPal’s statement. It moved nothing."; not known: "…but this wallet has no match for it on PayPal’s statement. It moved nothing." | `unconfirmedMeans(read)`. Never "a delay, not a doubt". The proof card, the Statement rows (7bb3c6a), the Book tip and the state's means all use it; the Evidence sheet has no separate "Ended" row. |
+| statement check on UNCONFIRMED | **Check my PayPal statement**; without PayPal keys: "Checking your PayPal statement needs your PayPal keys. Add them in your wallet setup first. The check only reads; it never pays." | `STATEMENT_CHECK_NEEDS_KEYS`. |
+| UNCONFIRMED in the Book | bucket **Not confirmed** (an end, apart from In progress; tip "ended: the seller said it was paid, but your wallet has no match for it on PayPal’s statement"); statement chip **no match** (dashed); 'PayPal agrees' legend **Not confirmed N** | `UNCONFIRMED_STATEMENT_WORD`; the reading guide says "paid, on hold, in progress, not confirmed and stopped each have their own column and total". |
+| UNCONFIRMED in While you were away | "N deals ended as not confirmed by PayPal: the seller said they were paid, but your wallet has no match for it on PayPal’s statement (this wallet moved nothing)"; the tail changes with the read, as above | `home/away.ts`. The summary no longer opens with "No money moved." when this line is present. |
+| walk-away forecast, UNCONFIRMED | "D-0189 ends as not confirmed by PayPal unless PayPal’s statement shows it first" | Tumbler, `windows/tumbler/logic.ts`. |
+| first-run deals started by the path | **Under way** (section), **Open ›** ("Open this practice deal") | `START_UNDERWAY`. |
+| house seller already connected | **Open a new practice table** (sub: "The house seller is already connected. You check its four words once more. No money moves."); first time: **Connect with the house seller** | `connect` stays for first pairing only; `windows/main/setup/pairing.ts`. |
 
 Rule names (mandate clauses):
 
@@ -91,7 +99,7 @@ Deal states (`stateWord()`):
 | CAPTURED | Paid | done |
 | RECEIPTED | Paid, receipt saved (buyer haggle or shop order, on the seller's receipt alone: Seller says paid) | done (seller says: wait) |
 | RECONCILED | Paid, on statement | done |
-| UNCONFIRMED | Not confirmed by PayPal (the seller said paid; PayPal's statement never showed it; this wallet moved nothing) | bad (coral, never done) |
+| UNCONFIRMED | Not confirmed by PayPal (the seller said paid; the means line says whether a statement read found nothing, see the rows above; this wallet moved nothing) | bad (coral, never done) |
 | WITHDRAWN | Withdrawn | off |
 | EXPIRED | Expired | off |
 | VOIDED / AUTO_VOIDED | Hold released | off |
