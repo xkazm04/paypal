@@ -924,3 +924,69 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   `a_refused_relay_batch_stops_one_delivery_and_not_the_round` (`crates/table-runtime/src/groups_tests.rs`);
   `house_reopens_durable_pair_table_and_outbox_and_replays_after_mailbox_loss` (`house_tests.rs`);
   `two_wallet_actors_negotiate_and_settle_through_in_process_relay_without_buyer_api_access` (`relay_tests.rs`).
+
+## 34. A payment being checked with PayPal is not on hold, and an ending while it was being checked never says no money moved
+
+- **Date:** 2026-10-10
+- **Decided by:** the App Master, wakes 58, 60 and 63.
+- **Constraint.**
+  - When PayPal's answer about a money step is lost, the wallet does not know whether money moved (AGENTS.md's
+    UNVERIFIED rule).
+  - Home and the Book disagreed about such a deal.
+- **Decision.**
+  - `heldAtPayPal` (`apps/desktop/client/src/windows/main/home/model.ts`) leaves a payment being checked out of On
+    hold. Its second argument is the set of deal ids whose attention item carries a `money_check`. The Book's
+    `sums(deals, checking)` (`modules/book/model.ts`) does the same, and puts such a deal in no other bucket
+    either: PayPal may already have collected it, so it is not money on hold, and it is not paid.
+  - The pill is `moneyCheckPill(check, isTerminal(deal))` (`lib/words.ts`): 'Checking with PayPal' while the deal
+    lives, 'Not shown by PayPal' once it ended. The Money line is `moneyCheckNow(ended)`: 'not confirmed yet ·
+    PayPal is being asked', or 'PayPal never showed what happened · look at this payment in PayPal'. Home's bead
+    tip, hub label and Needs-you details, the deal page, the Book's grid row, status pill and detail, and the
+    Counter panel's Money and Outcome lines use them.
+  - A deal that ended at its deadline with a step still open never says no money moved. The steps tell this
+    through `endedBeforePayPalShowed` (`windows/main/logic.ts`): an `expired` or `lapsed` step with a
+    `checking_with_paypal` step or an `unknown` money call before it that no later `ok` or `failed` call closed.
+    The Rewind narration, Who decided, What you were shown and the away card word it from that.
+  - When the steps a surface holds cannot tell (the away card reads from the owner's last look and the Rewind reads
+    one week, so a check that began earlier is out of sight), the deal's own record does: `useEndedUnshown`
+    (`windows/main/unshown.ts`) reads `deal_evidence` for each such ending, and a `money_check` there means the
+    deal ended with a step open. A failed read leaves its deal out, so that deal keeps today's words. The away card
+    waits for the reads. Read-only.
+  - In the Book, an UNCONFIRMED end is keyed `unconfirmed` (`statementKey`), not `pending_reporting`. It has a 'No
+    match' statement filter and a dashed 'no match' chip in the lens table. The CSV keeps its values.
+- **Lost:**
+  - counting a checked AUTHORIZED payment as on hold;
+  - showing 'Checking with PayPal' after the deal ended.
+- **Cost kept:**
+  - A checked deal's Book row keeps its amount in its bucket column while the totals leave it out, and the bucket
+    filter still lists it under its bucket.
+  - An ended deal with an open check also leaves the Not confirmed and Stopped totals.
+  - The tone of the Book's week answer still counts every AUTHORIZED deal (`holds` in `WeekAnswer`).
+- **Open:**
+  - The Rewind's bead tip (dashboard lite r2 robustness-1) is in rework. It is not part of this section.
+  - Part 2's builder named other surfaces that may still word a checked payment as on hold. Checked against main on
+    2026-10-10:
+    - `modules/book/understand.ts:70`: the 'On hold' chip ('Held at PayPal, not paid yet', states AUTHORIZED);
+    - `modules/rescue.tsx:468`: `deskLine` ends in `moneyNow(d)`, which says 'on hold at PayPal' for AUTHORIZED
+      (whether a rescue deal can be AUTHORIZED was not checked);
+    - `modules/spend.tsx:163`, `:184` and `:200`, and `modules/spend/gate.ts:116` ('On hold');
+    - `windows/main/logic.ts` `moneyNow` (its AUTHORIZED line) and the dial: `moneyNow` is still what Home's bead
+      tip shows for a deal without a check item; the dial itself was not read;
+    - `windows/tumbler/logic.ts:383` (the receipt verb 'On hold').
+  - Not as described: `windows/approval/DealReview.tsx:785` is the clock label 'Hold releases in', not a line
+    that says the money is on hold. In the Rust `book_query` answer (`crates/table-ledger/src/book.rs`) no
+    hold wording was found; it was not read in full.
+- **Evidence:**
+  - the commits: 8e56ef1, d8582bb, b7d2e84 and 3698520 (the rework); b5ccad5, 0670480, 43de15e and 1881489 (the
+    unshown read); 767043a, 85faf93, 33f2c56 and c5e1694 (the Book, rework C part 2);
+  - the tests, by file: in `windows/main/deal/Decision.test.tsx` the describe 'Summary while a money check is
+    open'; in `windows/main/home/model.test.ts` 'does not count a payment being checked with PayPal as on hold';
+    in `windows/main/home/away.test.ts` 'does not open with No money moved while a payment is still being checked
+    with PayPal', 'tells a deal that ended at its deadline while PayPal was being asked as one line, never as no
+    money moved' and 'tells an ending as unshown when the deal’s own record says a check was open, though no check
+    step is passed'; in `windows/main/rewind.test.ts` 'endedBeforePayPalShowed: a check still open at a deadline
+    ending'; in `windows/main/deal/shown.test.ts` 'when PayPal never showed what happened to the payment, ends with
+    that and not no money moved'; the describes 'endingsToRead' and 'useEndedUnshown' in
+    `windows/main/unshown.test.ts`; in `modules/book/model.test.ts` the describes 'a deal that ended UNCONFIRMED is
+    counted as an end, not as a wait' and 'a payment being checked with PayPal is not on hold'; in
+    `lib/polish3.test.ts` the describe 'Home and Book agree on a payment being checked with PayPal'.
