@@ -2528,3 +2528,30 @@ fn a_lapse_after_an_unmatched_statement_read_says_so() {
     );
     ledger.verify_audit().unwrap();
 }
+/// decisions 28 (a): the counterparty's closed-deal count includes a deal that ended UNCONFIRMED,
+/// and it is the only count the display makes: UNCONFIRMED is closed, never paid.
+#[test]
+fn the_display_counts_an_unconfirmed_deal_as_closed() {
+    let (mut ledger, deal, _, own, peer) = setup();
+    seller_attested(&mut ledger, &deal, &own, &peer);
+    let closed = |ledger: &Ledger| {
+        ledger
+            .counterparty_list()
+            .unwrap()
+            .into_iter()
+            .find(|c| c.key_id == deal.counterparty)
+            .unwrap()
+            .deals_closed
+    };
+    assert_eq!(closed(&ledger), 1);
+    assert!(
+        ledger
+            .lapse_corroboration(deal.id, 100 + CORROBORATION_SECS)
+            .unwrap()
+    );
+    assert_eq!(
+        ledger.get_deal(deal.id).unwrap().state,
+        DealState::Unconfirmed
+    );
+    assert_eq!(closed(&ledger), 1);
+}
