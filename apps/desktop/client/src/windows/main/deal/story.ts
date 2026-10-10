@@ -72,7 +72,7 @@ export function dealAnswer(d: AnswerDeal, c: AnswerCtx): DealAnswer {
   if (c.check) {
     const step = moneyCheckStep(c.check.step);
     return c.check.state === 'parked'
-      ? { tone: 'need', title: MONEY_CHECK_PARKED, sub: `PayPal’s answer about ${step} for ${amt} didn’t arrive. It is not paid and not failed until PayPal says which: at the deadline the wallet asks PayPal, and any hold is released.` }
+      ? { tone: 'need', title: MONEY_CHECK_PARKED, sub: `PayPal’s answer about ${step} for ${amt} didn’t arrive. It is not paid and not failed until PayPal says which: at the deadline the wallet asks PayPal, and what PayPal shows decides.` }
       : { tone: 'need', title: `Checking ${step} for ${amt} with PayPal.`, sub: 'PayPal’s answer didn’t arrive. Nothing more is sent until PayPal confirms what happened.' };
   }
 

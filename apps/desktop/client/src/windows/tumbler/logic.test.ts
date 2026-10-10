@@ -267,6 +267,11 @@ describe('card state chip and ladder gauge (v2 card)', () => {
     expect(ladderCaption(rung(NOW - 1, NOW))).toMatch(/default/);
     expect(ladderCaption(rung(NOW + 600, NOW), true)).not.toMatch(/reminder|hours left/);
   });
+  it('a payment being checked with PayPal: PayPal’s answer decides, and nothing promises it was not taken', () => {
+    const caption = ladderCaption(rung(NOW + H, NOW), false, true);
+    expect(caption).toBe('checking with PayPal · what PayPal shows decides');
+    expect(caption).not.toMatch(/nothing is collected|released/);
+  });
 });
 
 describe('the card: one question, one clock', () => {

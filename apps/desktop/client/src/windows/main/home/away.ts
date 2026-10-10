@@ -157,7 +157,7 @@ function words(outcome: AwayOutcome, who: AwayAuthority, n: number, read?: State
       if (who === 'rules') return [`${holds} released under your rules (`, ', nothing was paid)'];
       return [`${holds} released (`, ', nothing was paid)'];
     }
-    case 'checking': return [`Checking with PayPal on ${plural(n, 'payment', 'payments')} (`, '): nothing is collected until PayPal confirms'];
+    case 'checking': return [`Checking with PayPal on ${plural(n, 'payment', 'payments')} (`, '): not paid and not failed until PayPal shows which'];
     case 'refused': return who === 'rules'
       ? [`${plural(n, 'request was', 'requests were')} refused by your rules (PayPal was never asked)`, '']
       : [`${plural(n, 'request was', 'requests were')} stopped by a safety check (PayPal was never asked)`, ''];

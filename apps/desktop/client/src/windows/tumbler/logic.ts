@@ -246,7 +246,7 @@ export function ladderFill(left: number): number {
 /** One plain line under the gauge: how much time is left, in words. The ladder (breathing, the
  *  15-minute notice) is for decisions only; a paused item just shows its clock. */
 export function ladderCaption(r: Rung, hold = false, checking = false): string {
-  if (checking) return 'checking with PayPal · nothing is collected until it confirms';
+  if (checking) return 'checking with PayPal · what PayPal shows decides';
   if (hold && r !== 'none' && r !== 'past') return 'paused · it can’t be paid · its safe default runs at the deadline';
   switch (r) {
     case 'none': return hold ? 'no deadline · paused until you act' : 'no deadline';
