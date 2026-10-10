@@ -24,10 +24,15 @@ pub fn book_query_rejection(query: &BookQuery) -> Option<&'static str> {
 const AMOUNT: &str = "d.qty*d.unit_price_minor";
 // Percentage output/filter uses integer basis points. No floating money arithmetic.
 const MARKET: &str = "(d.unit_price_minor-json_extract(d.market_json,'$.median.minor'))*10000/NULLIF(json_extract(d.market_json,'$.median.minor'),0)";
+/// A deal's state as the Book reads it. A RECEIPTED deal whose receipt is only the seller's word
+/// (a buyer's haggle or shop order before PayPal's statement matched it) is its own key,
+/// `RECEIPTED:buyer`, the key the client Book already uses: a filter on the paid states leaves it
+/// out, and a line per state shows it apart (DECISIONS.md section 23).
+const STATE: &str = "CASE WHEN d.state='RECEIPTED' AND d.receipt_evidence='seller_attested' THEN 'RECEIPTED:buyer' ELSE d.state END";
 fn field(field: BookField) -> &'static str {
     match field {
         BookField::Kind => "d.kind",
-        BookField::State => "d.state",
+        BookField::State => STATE,
         BookField::Counterparty => "d.counterparty",
         BookField::Amount => AMOUNT,
         BookField::CreatedAt => "CAST(d.created_at AS INTEGER)",
@@ -39,7 +44,7 @@ fn group(group: BookGroup) -> (&'static str, &'static str) {
     match group {
         BookGroup::Kind => ("kind", "d.kind"),
         BookGroup::Counterparty => ("counterparty", "d.counterparty"),
-        BookGroup::State => ("state", "d.state"),
+        BookGroup::State => ("state", STATE),
         BookGroup::Day => ("day", "date(CAST(d.created_at AS INTEGER),'unixepoch')"),
         BookGroup::DecidedBy => ("decided_by", "d.decided_by"),
     }
