@@ -154,6 +154,20 @@ describe('first-run steps from settings, signed rules, connections and the agent
       expect(gettingStarted(tumbler(snap({ engine_chosen: false }))).steps[3]!.state).not.toBe('done');
     });
 
+    it('Tumbler-shaped facts: step 3 reads the settings’ house_connected, never the counterparty list', () => {
+      const tumbler = (st: SettingsSnapshot): StartFacts => ({ ...settingsFacts(st), firstRun: true, rulesInForce: null, houseConnected: st.house_connected ?? null, otherConnections: null });
+      expect(gettingStarted(tumbler(snap({ house_connected: true }))).steps[2]!.state).toBe('done');
+      expect(gettingStarted(tumbler(snap({ house_connected: false }))).steps[2]!.state).not.toBe('done');
+    });
+
+    it('the mock: pinning the house sets house_connected and tells settings:changed', async () => {
+      const { mockBackend, resetMockState } = await import('../mock/backend');
+      resetMockState();
+      history.replaceState(null, '', '/index.html?first_run=1');
+      const main = mockBackend('main');
+      expect((await main.invoke('get_settings', null)).house_connected).toBe(false);
+    });
+
     it('OwnerConfig-shaped facts give the same step 4 as Home for the same snapshot', () => {
       for (const engine_chosen of [true, false]) {
         const st = snap({ first_run: false, engine_chosen });

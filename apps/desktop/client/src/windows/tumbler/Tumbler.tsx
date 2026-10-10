@@ -401,7 +401,7 @@ export function Tumbler() {
   // First run: the welcome shows the steps; each opens where it happens (the approval window for
   // keys and rules, The Table for the house seller and the agent app). Settings are all the Tumbler reads.
   const start = settings?.first_run ? gettingStarted({
-    ...settingsFacts(settings), firstRun: true, rulesInForce: null, houseConnected: null, otherConnections: null,
+    ...settingsFacts(settings), firstRun: true, rulesInForce: null, houseConnected: settings.house_connected ?? null, otherConnections: null,
   }) : null;
   const startStep = useCallback(async (k: StartStepKey) => {
     try {

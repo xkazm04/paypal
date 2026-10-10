@@ -13,7 +13,13 @@ meters_available: boolean, client_pending: boolean, first_run: boolean, channel3
  * The owner has chosen an agent app through `engine_select` (the ledger preference exists),
  * including the practice agent. False on a new wallet, whose `scripted` is only a default.
  */
-engine_chosen: boolean, preferences: TumblerPreferences, relay_available: boolean, 
+engine_chosen: boolean, 
+/**
+ * The house seller is connected (a counterparty pinned through HOUSE). A boolean only, so a
+ * window that may not read `counterparty_list` (the Tumbler) can tell the first-run path's
+ * practice step is done without any counterparty word reaching it.
+ */
+house_connected: boolean, preferences: TumblerPreferences, relay_available: boolean, 
 /**
  * Lowercase hex fingerprint of the authority table this build enforces (who may call each
  * command); the same value as `AUTHORITY_MANIFEST` in `bindings/authority.ts`.

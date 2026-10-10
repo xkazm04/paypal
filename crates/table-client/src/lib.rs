@@ -124,6 +124,10 @@ pub struct SettingsSnapshot {
     /// The owner has chosen an agent app through `engine_select` (the ledger preference exists),
     /// including the practice agent. False on a new wallet, whose `scripted` is only a default.
     pub engine_chosen: bool,
+    /// The house seller is connected (a counterparty pinned through HOUSE). A boolean only, so a
+    /// window that may not read `counterparty_list` (the Tumbler) can tell the first-run path's
+    /// practice step is done without any counterparty word reaching it.
+    pub house_connected: bool,
     pub preferences: TumblerPreferences,
     pub relay_available: bool,
     /// Lowercase hex fingerprint of the authority table this build enforces (who may call each

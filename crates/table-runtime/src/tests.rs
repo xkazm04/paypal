@@ -3041,3 +3041,29 @@ async fn a_tick_never_starts_an_order_for_a_cleared_purchase() {
         0
     );
 }
+#[test]
+fn settings_tell_whether_the_house_is_connected_without_the_counterparty_list() {
+    let (mut r, _, _, _, _) = runtime(true);
+    assert!(!r.settings().unwrap().house_connected);
+    fn insert(r: &mut Runtime, name: &str, via: PairedVia) {
+        let peer = AgentSigner::from_key(signing_key(&MemoryVault::default(), name).unwrap());
+        r.pipeline
+            .wallet
+            .ledger
+            .insert_counterparty(&Counterparty {
+                key_id: peer.key_id().unwrap(),
+                owner_key: peer.public_key().to_bytes(),
+                agent_key: peer.public_key().to_bytes(),
+                display_name: ShortText::new("Peer".into()).unwrap(),
+                paired_via: via,
+                words_confirmed_at: Some(100),
+                declared_payee: PayeeRef::new("merchant").unwrap(),
+                first_seen: 0,
+            })
+            .unwrap();
+    }
+    insert(&mut r, "code-peer", PairedVia::Code);
+    assert!(!r.settings().unwrap().house_connected);
+    insert(&mut r, "house-peer", PairedVia::House);
+    assert!(r.settings().unwrap().house_connected);
+}
