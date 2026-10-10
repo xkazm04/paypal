@@ -14,7 +14,7 @@ import type { Money } from '@bindings/Money';
 import { formatMinor } from '../../../../lib/format';
 import { stateWord } from '../../../../lib/words';
 import { dealTotal } from '../../logic';
-import { bucketOf, dirOf, isRecovered, LENSES, type Bucket, type Dir, type Statement } from './model';
+import { bucketOf, dirOf, isRecovered, LENSES, STATEMENT_WORD, statementEnded, UNCONFIRMED_STATEMENT_WORD, type Bucket, type Dir, type Statement } from './model';
 
 // ---- where the money went --------------------------------------------------------------------------
 
@@ -112,19 +112,22 @@ export type Agreement = {
   /** Payments that needed a place on PayPal's statement (everything except "no payment"). */
   needed: number;
   matched: number; notYet: number; differs: number; unknown: number;
+  /** Deals that ended UNCONFIRMED with no match on the statement: an end, never counted as not yet. */
+  unconfirmed: number;
   /** Still reading the statement for some deals. */
   loading: boolean;
 };
 
 /** stmt returns null while the proof is still being read. Unknown is its own count and never matched. */
 export function agreement(deals: readonly Deal[], stmt: (d: Deal) => Statement | null): Agreement {
-  const a: Agreement = { needed: 0, matched: 0, notYet: 0, differs: 0, unknown: 0, loading: false };
+  const a: Agreement = { needed: 0, matched: 0, notYet: 0, differs: 0, unknown: 0, unconfirmed: 0, loading: false };
   for (const d of deals) {
     const s = stmt(d);
     if (s === null) { a.loading = true; continue; }
     if (s === 'not_applicable') continue;
     a.needed++;
     if (s === 'matched') a.matched++;
+    else if (statementEnded(s, d.state)) a.unconfirmed++;
     else if (s === 'pending_reporting') a.notYet++;
     else if (s === 'mismatch') a.differs++;
     else a.unknown++;
@@ -132,15 +135,21 @@ export function agreement(deals: readonly Deal[], stmt: (d: Deal) => Statement |
   return a;
 }
 
-export type Gap = { deal: Deal; statement: 'mismatch' | 'unknown' | 'pending_reporting' };
-const GAP_ORDER: Record<Gap['statement'], number> = { mismatch: 0, unknown: 1, pending_reporting: 2 };
+/** A payment not on the statement. `unconfirmed`: the deal ended UNCONFIRMED with no match; it
+ *  stays a gap, because money may have left and a statement check can still find it, but it is
+ *  an end listed after the differences and before every wait, never as "not yet". */
+export type Gap = { deal: Deal; statement: 'mismatch' | 'unconfirmed' | 'unknown' | 'pending_reporting' };
+const GAP_ORDER: Record<Gap['statement'], number> = { mismatch: 0, unconfirmed: 1, unknown: 2, pending_reporting: 3 };
+/** A gap's word on the meter's list. */
+export const GAP_WORD: Record<Gap['statement'], string> = { mismatch: STATEMENT_WORD.mismatch, unconfirmed: UNCONFIRMED_STATEMENT_WORD, unknown: STATEMENT_WORD.unknown, pending_reporting: STATEMENT_WORD.pending_reporting };
 
 /** The payments that are not on the statement (yet): the exceptions behind the meter, differences first. */
 export function agreementGaps(deals: readonly Deal[], stmt: (d: Deal) => Statement | null): Gap[] {
   const gaps: Gap[] = [];
   for (const d of deals) {
     const s = stmt(d);
-    if (s === 'mismatch' || s === 'unknown' || s === 'pending_reporting') gaps.push({ deal: d, statement: s });
+    if (statementEnded(s, d.state)) gaps.push({ deal: d, statement: 'unconfirmed' });
+    else if (s === 'mismatch' || s === 'unknown' || s === 'pending_reporting') gaps.push({ deal: d, statement: s });
   }
   return gaps.sort((a, b) => GAP_ORDER[a.statement] - GAP_ORDER[b.statement]);
 }
@@ -154,6 +163,7 @@ export function agreeLine(a: Agreement): string {
   const rest = [
     a.notYet ? `${a.notYet} not there yet` : '',
     a.differs ? `${a.differs} ${a.differs === 1 ? 'differs' : 'differ'}` : '',
+    a.unconfirmed ? `${a.unconfirmed} not confirmed by PayPal` : '',
     a.unknown ? `${a.unknown} couldn’t be checked` : '',
   ].filter(Boolean);
   if (!rest.length) return 'Every one is on the statement. Nothing differs.';
@@ -166,6 +176,7 @@ export function agreeWhy(a: Agreement, checkedAt: string | null): [string, strin
   const bits = [
     a.notYet ? `${plural(a.notYet, 'payment is', 'payments are')} waiting for the statement` : '',
     a.differs ? `${plural(a.differs, 'shows', 'show')} a different amount or payment on the statement, which is a real difference to look at` : '',
+    a.unconfirmed ? `${plural(a.unconfirmed, 'deal', 'deals')} ended not confirmed by PayPal: the seller said paid, and this wallet has no match on the statement` : '',
     a.unknown ? `${plural(a.unknown, 'payment', 'payments')} couldn’t be read, so ${a.unknown === 1 ? 'it is' : 'they are'} not counted as matched` : '',
   ].filter(Boolean);
   const second = `${bits.length ? `Right now ${bits.join('; ')}.` : `Right now ${a.matched} of ${a.needed} are on it and nothing differs.`}${checkedAt ? ` Last checked ${checkedAt}.` : ''}`;

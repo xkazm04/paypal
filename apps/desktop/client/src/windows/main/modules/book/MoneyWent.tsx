@@ -4,10 +4,11 @@
 // design tokens (book.css); text stays in text colours, the marks carry the series.
 import type { Deal } from '@bindings/Deal';
 import { formatMinor } from '../../../../lib/format';
+import { unconfirmedMeans } from '../../../../lib/words';
 import { Icon, Section, Why } from '../../../../shared/ui';
-import { STATEMENT_WORD, type Statement } from './model';
+import type { Statement } from './model';
 import {
-  agreeFigure, agreeLine, agreeWhy, agreement, agreementGaps, chartSummary, FLOW_WORD, FLOWS, inProgressCount, plural, rowName, rowSummary, sharePct, whereTheMoneyWent,
+  agreeFigure, agreeLine, agreeWhy, agreement, agreementGaps, chartSummary, FLOW_WORD, FLOWS, GAP_WORD, inProgressCount, plural, rowName, rowSummary, sharePct, whereTheMoneyWent,
   type Agreement, type BarChart, type BarRow, type Flow, type Gap,
 } from './where';
 
@@ -71,12 +72,13 @@ type Opener = { titleOf: (d: Deal) => string; onOpen: (id: string) => void };
 
 function AgreeCard({ a, gaps, checkedAt, titleOf, onOpen }: { a: Agreement; gaps: Gap[]; checkedAt: string | null } & Opener) {
   const [one, two] = agreeWhy(a, checkedAt);
-  const slots: Array<'ok' | 'notyet' | 'differs' | 'unknown'> = [
-    ...Array<'ok'>(a.matched).fill('ok'), ...Array<'notyet'>(a.notYet).fill('notyet'), ...Array<'differs'>(a.differs).fill('differs'), ...Array<'unknown'>(a.unknown).fill('unknown'),
+  // An UNCONFIRMED end is drawn dashed like an unknown, never as a wait for the statement.
+  const slots: Array<'ok' | 'notyet' | 'differs' | 'unconfirmed' | 'unknown'> = [
+    ...Array<'ok'>(a.matched).fill('ok'), ...Array<'notyet'>(a.notYet).fill('notyet'), ...Array<'differs'>(a.differs).fill('differs'), ...Array<'unconfirmed'>(a.unconfirmed).fill('unconfirmed'), ...Array<'unknown'>(a.unknown).fill('unknown'),
   ];
   const grouped = slots.length > 30;
   const blocks: Array<{ k: (typeof slots)[number]; n: number }> = grouped
-    ? (['ok', 'notyet', 'differs', 'unknown'] as const).map((k) => ({ k, n: slots.filter((s) => s === k).length })).filter((b) => b.n)
+    ? (['ok', 'notyet', 'differs', 'unconfirmed', 'unknown'] as const).map((k) => ({ k, n: slots.filter((s) => s === k).length })).filter((b) => b.n)
     : slots.map((k) => ({ k, n: 1 }));
   const label = a.needed ? `${agreeFigure(a)} payments are on your PayPal statement. ${agreeLine(a)}` : 'No payment has needed a place on your PayPal statement yet.';
   return (
@@ -93,7 +95,7 @@ function AgreeCard({ a, gaps, checkedAt, titleOf, onOpen }: { a: Agreement; gaps
           <div className="ag-sub">{a.needed ? 'payments are on your PayPal statement' : 'No payment has needed a place on the statement yet.'}</div>
           {a.needed ? (
             <div className="ag-meter" role="img" aria-label={label}>
-              {blocks.map((b, i) => <span key={i} className={`ag-b b-${b.k}`} style={grouped ? { flex: b.n } : undefined} />)}
+              {blocks.map((b, i) => <span key={i} className={`ag-b b-${b.k === 'unconfirmed' ? 'unknown' : b.k}`} style={grouped ? { flex: b.n } : undefined} />)}
             </div>
           ) : null}
           {a.needed ? (
@@ -101,16 +103,17 @@ function AgreeCard({ a, gaps, checkedAt, titleOf, onOpen }: { a: Agreement; gaps
               <span role="listitem"><Swatch kind="ok" />On statement <b>{a.matched}</b></span>
               <span role="listitem" title="Paid, but PayPal’s statement can take up to 3 hours to show it"><Swatch kind="notyet" />Not yet <b>{a.notYet}</b></span>
               <span role="listitem" title="PayPal’s statement shows a different amount or payment than the deal"><Swatch kind="differs" />Differs <b>{a.differs}</b></span>
+              {a.unconfirmed ? <span role="listitem" title={unconfirmedMeans(null)}><Swatch kind="unknown" />Not confirmed <b>{a.unconfirmed}</b></span> : null}
               {a.unknown ? <span role="listitem" title="The PayPal proof could not be read"><Swatch kind="unknown" />Unknown <b>{a.unknown}</b></span> : null}
             </div>
           ) : null}
           {gaps.length ? (
-            <ul className="ag-gaps" aria-label="Payments not on the statement yet">
+            <ul className="ag-gaps" aria-label="Payments not on the statement">
               {gaps.slice(0, 4).map((g) => (
                 <li key={g.deal.id}>
                   <button type="button" onClick={() => onOpen(g.deal.id)} title="Open this payment">
                     <span className="g-t">{titleOf(g.deal)}</span>
-                    <span className={`g-s st-${g.statement}`}>{STATEMENT_WORD[g.statement]}</span>
+                    <span className={`g-s st-${g.statement === 'unconfirmed' ? 'unknown' : g.statement}`}>{GAP_WORD[g.statement]}</span>
                   </button>
                 </li>
               ))}
