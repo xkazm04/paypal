@@ -1328,7 +1328,7 @@ unchanged (no generated type changed; `TranscriptBy`/`TranscriptType` only gaine
 - **C-2 (Medium) fixed.** `Client::execute` projects the binding from the raw body before redaction (`Observation.binding` -> `PaypalCall.binding`); `record_paypal_call` and `finish_operation` store it instead of re-projecting the redacted body, so `paypal_calls.binding_json` now holds `custom_id`, `invoice_id`, `payee_merchant_id` and amount on the live path. `table-verify` requires all four on every order record with purchase units and its result text names what it compared. Tests: `create_observation_binds_custom_id_invoice_payee_and_amount_without_the_email` (`table-paypal/tests/client.rs`), `the_ledger_stores_the_carried_binding_and_never_re_projects_the_redacted_response` and `paypal_bindings_keep_identifiers_and_amount_but_never_payer_text_or_links` (`table-ledger`), and the custom_id, payee and missing-field tamper cases in `two_wallet_actors_negotiate_and_settle_through_in_process_relay_without_buyer_api_access` (`table-runtime/src/relay_tests.rs`). Bindings recorded before this fix lack custom_id and payee and now fail verification.
 - **C-5 (Medium) fixed.** The HOUSE seller no longer polls an `AwaitingApproval` deal every second. `Seller` keeps an in-memory per-deal `PollSchedule` (`services/house-seller/src/hosted.rs`): first poll at once, then 5 s doubling to a 60 s cap, restarted when the deal's state changes and dropped when the deal leaves `AwaitingApproval` or reaches its deadline. Deadlines and the `Agreed`, `Approved` and `Authorized` steps still run on every tick. A deal that is never approved gets 363 polls over the 6 h window instead of about 21,600. No ledger change and no migration. Tests: `six_hour_window_polls_a_few_hundred_times_not_21600`, `backoff_doubles_to_the_cap`, `state_change_resets_the_interval`, `deals_are_scheduled_independently_and_forgotten`. The scan's optional skip of identical polls in `record_paypal_call` was not done.
 - **C-8 (Low) fixed.** A stalled or dead HOUSE actor is now visible. `HouseHandle::table` and `snapshot` answer 429 only when the channel is full, `Unavailable` (503) when it is closed, and `Unavailable` when the actor does not reply within 20 s. The actor writes an `AtomicI64` heartbeat on every timer tick, and HOUSE serves its own `/healthz`, which answers 503 when the heartbeat is more than 30 s old and 200 otherwise. `rendezvous` gained `relay_router` (mailbox routes without `/healthz`); `rendezvous::router` is that plus the always-200 `/healthz`, so the standalone rendezvous binary is unchanged. Tests: `closed_channel_is_unavailable`, `full_channel_is_full`, `reply_that_never_comes_is_unavailable_after_the_timeout`, `healthz_follows_the_heartbeat`; `services/rendezvous/tests/relay.rs` still passes.
-- **C-10 (security scan 2026-10-07, Low) fixed in 95d7b37:** table-proto validate_settle now binds the SETTLE approve_url to its own order. The path must be exactly /checkoutnow, and the query must be exactly one pair token=<order_id> (percent-decoded, exact match). Anything else is refused with the new SettlementError::Order ("approval link must open the SETTLE order"), distinct from Host. approval_url() is unchanged. UNVERIFIED: the /checkoutnow?token=<order id> approve-link shape is recalled, not sourced (.research/paypal-platform.md does not document it); a sandbox spike must record a real Orders v2 approve link and confirm it, otherwise legitimate links may be refused.
+- **C-10 (security scan 2026-10-07, Low) fixed in 95d7b37:** table-proto validate_settle now binds the SETTLE approve_url to its own order. The path must be exactly /checkoutnow, and the query must be exactly one pair token=<order_id> (percent-decoded, exact match). Anything else is refused with the new SettlementError::Order ("approval link must open the SETTLE order"), distinct from Host. approval_url() is unchanged. UNVERIFIED: the /checkoutnow?token=<order id> approve-link shape is recalled, not sourced (.research/paypal-platform.md does not document it); a sandbox spike must record a real Orders v2 approve link and confirm it, otherwise legitimate links may be refused. 5635a68 also binds the approve link in the settlement-truth test cases 1-3 (`crates/table-ledger/src/tests.rs`). Lite r2 follow-ups craft-2 (the seller wallet signs a SETTLE whose link it checked for the host only) and craft-6 (no `checks.rs` line states the order binding) remain open (DECISIONS 24).
 - **C-6 (Medium) fixed.** The HOUSE and the standalone relay now serve through `rendezvous::serve` instead of `axum::serve` (5e12453, 2f0e35b, 48ce7f6; DECISIONS section 16, e5cdddd). Limits: at most 512 open connections (clients wait in the backlog past that); 10 s to read a request head; 10 s for each body chunk; 30 s for a whole request (above the 25 s long-poll cap and the HOUSE's 20 s actor reply timeout); at most 128 concurrent long-polls across both poll routes, and a poll over that is answered at once as `wait=0`, never with an error. The timeouts are applied once to the finished router, so the HOUSE's own routes are covered. Tests in `services/rendezvous/tests/serve.rs`: `a_partial_header_is_closed_after_the_header_timeout`, `the_connection_limit_holds_and_frees_on_close`, `a_body_trickled_past_the_timeout_is_refused`, `a_request_over_the_whole_timeout_answers_408`, `a_long_poll_of_25_seconds_still_answers_under_the_default_limits`, `long_polls_past_the_permit_limit_answer_at_once_and_permits_come_back`. Whether Render's edge enforces any of this stays unverified.
 - **house-seller-demo council-lite r1 rework (2026-10-07; 0373f21 line 1, d7ec3d1 line 3, 5915462 line 2).** Three fixes.
   (1) A full HOUSE (429) and a refusing HOUSE (any other 4xx, with a fixed refusal body naming daily_limit or other, and no free text) are told apart from a HOUSE that did not answer: `table_relay::Error::{Full, Refused}` and `answer_error`. The wallet words each case under REFUSED ('The house is full right now', 'The house has hit its limit for today', 'The house turned this table down', each with 'No money moved') and leaves the house Ready. Only no answer is UNAVAILABLE ('The house is waking or could not be reached') and goes back to Idle. A failed join no longer marks the house 'not part of this version'. PairingDesk shows 'Try again; nothing is lost' only for UNAVAILABLE and drops the unmeasured 'about a minute'.
@@ -1935,7 +1935,7 @@ Council-lite round 2 (run b7b8408a, head 5635a68) must-address lines 1 and 2. Re
 main (3049d68) first: no part was done there (`accept_seller_receipt` read no handoff, there was no
 end for a seller-attested deal, `book.rs` keyed on `d.state` alone).
 
-- **robustness-1 (a), a155a43: a seller receipt with no handoff is refused.** `Decision::OpenBrowser`
+- **robustness-1 (a), ccc548e: a seller receipt with no handoff is refused.** `Decision::OpenBrowser`
   (`table-runtime/src/service.rs`) records `Ledger::handoff` in the same step as the owner's
   decision, before the URL is returned; `Action::Handoff` still records it too. `accept_seller_receipt`
   (`table-ledger/src/receipt.rs`), after its existing checks, refuses a buyer deal with no recorded
@@ -1950,12 +1950,12 @@ end for a seller-attested deal, `book.rs` keyed on `d.state` alone).
   `awaiting_payer` (order reads say PAYER_ACTION_REQUIRED) so the in-process relay tests approve only
   after the owner's OpenBrowser decision, the real order of events; no assertion was weakened and
   there is no test-only bypass in production code.
-- **value-1 Rust, d57371b.** `book.rs` reads the state for filters and groups as `CASE WHEN
+- **value-1 Rust, 186578d.** `book.rs` reads the state for filters and groups as `CASE WHEN
   d.state='RECEIPTED' AND d.receipt_evidence='seller_attested' THEN 'RECEIPTED:buyer' ELSE d.state
   END`. r1's test: `seller_receipt_before_buyer_approval_never_reads_as_paid` (no handoff: refused, one
   row, no PayPal call; after it: RECEIPTED seller_attested before PayPal's approval, the Paid filter
   counts nothing, the state group is `RECEIPTED:buyer`).
-- **robustness-1 (b), 67fd34b: the defined end is UNCONFIRMED.** `DealState::Unconfirmed` (terminal,
+- **robustness-1 (b), e2290a0: the defined end is UNCONFIRMED.** `DealState::Unconfirmed` (terminal,
   not pre-capture), `DealEvent::CorroborationLapsed` (RECEIPTED to UNCONFIRMED), a late
   `ReportingMatched` still moves UNCONFIRMED to RECONCILED, `CORROBORATION_SECS` = 72 h.
   `Ledger::lapse_corroboration` (one IMMEDIATE transaction; buyer, RECEIPTED, seller_attested, 72 h
@@ -1972,7 +1972,7 @@ end for a seller-attested deal, `book.rs` keyed on `d.state` alone).
   `a_scheduler_tick_past_the_corroboration_window_ends_a_seller_attested_deal_unconfirmed` (one
   history step, safe default); the reporting test reconciles an UNCONFIRMED deal and pins the
   unmatched row.
-- **value-1 client, 162fbb5.** `STATE.UNCONFIRMED` "Not confirmed by PayPal" (coral). The Book keys
+- **value-1 client, d9621b4.** `STATE.UNCONFIRMED` "Not confirmed by PayPal" (coral). The Book keys
   a seller-attested deal `RECEIPTED:buyer` locally too (`stateKey`) and labels a server row
   "Seller says paid" (`serverStateLabel`); the Paid chip leaves it and UNCONFIRMED out, Stopped does
   not claim UNCONFIRMED. The Tumbler ticker reads a SELLER_ATTESTED receipt "Seller says paid" with
@@ -1985,11 +1985,16 @@ end for a seller-attested deal, `book.rs` keyed on `d.state` alone).
 - **Deviation from the design report:** UNCONFIRMED is not in the report's deal-state list (section
   6.3). It is the defined end of a buyer's deal the seller said was paid and PayPal's statement never
   showed.
-- **Left:** no walk-away forecast line for the lapse (`ForecastSource` carries no receipt time);
-  "While you were away" (`home/away.ts`) does not list an UNCONFIRMED end; `display.rs` counterparty
-  counts are unchanged; the HOUSE witness keeps heads only for RECEIPTED and RECONCILED deals; the
-  Book totals keep UNCONFIRMED under "In progress" beside the seller's word while Home's bead counts
-  it "Stopped for safety".
+- **Client checks after the merge (2026-10-10):** client tsc exit 0 and vitest 895 of 895 (82 files) on main at 2ff7ea1, run by the App Master. Clippy (--workspace --all-targets --exclude table-desktop, -D warnings) was reported clean by the builder before its rebase onto 4909d48; the merge gate did not run it.
+- **Left:** four items are decided and wait for one delivery (DECISIONS 28): `display.rs` counts
+  UNCONFIRMED as a closed deal, never as paid; the walk-away forecast gains a lapse line and
+  `ForecastSource` gains the receipt time for it; the Book gives UNCONFIRMED a bucket of its own, as an
+  end, not under "In progress" (the words on Home's bead are left to the council); "While you were
+  away" (`home/away.ts`) lists an UNCONFIRMED end. The HOUSE witness is kept as it is (heads only for
+  RECEIPTED and RECONCILED deals).
 
 No new UNVERIFIED items: the 72 h window rests on the research's 3 h reporting lag [S-spec].
 
+## Hosted relay rework after lite r1 (DECISIONS.md section 26)
+
+- **Hosted relay mailbox exhaustion fixed (2026-10-10, ad2ef32; DECISIONS 26; hosted-relay-service lite r1 robustness-1, the count half of relay-and-rendezvous-1).** `PUT /v1/mailbox/{hash}` over HTTP is now charged to a caller key: the TCP peer, or, with `RELAY_TRUSTED_PROXY_HOPS=n`, the nth `X-Forwarded-For` entry from the right (IPv6 keyed on its /64). A caller may hold 128 live mailboxes (`CALLER_ALLOWANCE`), and HTTP creates stop 64 slots below the 256 cap (`HOUSE_RESERVE`), so the HOUSE's in-process create always has room. Re-creating an existing mailbox is free; expiry (24 h) releases the slot. An unparsable hop setting fails startup. Deviation / UNVERIFIED: the root render.yaml sets `RELAY_TRUSTED_PROXY_HOPS=1` on the assumption that Render runs one proxy hop that appends the client address as the rightmost entry; nothing in .research documents it. Verify once on a deploy, e.g. by logging the derived key for a request from a known address. Residual: a caller with 2 IPv4 addresses (or 2 /64s) can still fill the 192-slot HTTP share; HOUSE deals keep working through the reserve, but wallet-to-wallet pairing does not. Authenticated `PUT` (the rest of relay-and-rendezvous-1) remains open. **P-4 fixed (4909d48):** services/rendezvous/Dockerfile and render.yaml deleted; the root blueprint is the only deployment. No new dependency; Cargo.lock unchanged.
