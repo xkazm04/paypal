@@ -317,6 +317,60 @@ mod tests {
         );
         ledger.verify_audit().unwrap();
     }
+    // Mirrored by the client test "a ranged week query" in apps/desktop/client/src/windows/main/modules/book/model.test.ts:
+    // same instants (Mon 5 Oct 2026 00:00 to Mon 12 Oct 00:00, UTC+2), same counts.
+    #[test]
+    fn a_range_counts_only_deals_created_from_from_and_before_to() {
+        const FROM: i64 = 1_791_151_200;
+        const TO: i64 = 1_791_756_000;
+        let ledger = Ledger::in_memory().unwrap();
+        for (id, kind, created) in [
+            ("before", "purchase", FROM - 1),
+            ("at_from", "purchase", FROM),
+            ("inside_a", "haggle", FROM + 3 * 86_400),
+            ("inside_b", "haggle", TO - 1),
+            ("at_to", "purchase", TO),
+            ("after", "purchase", TO + 1),
+        ] {
+            ledger.conn.execute("INSERT INTO deals(id,kind,side,mandate_id,mandate_version,qty,unit_price_minor,currency,state,created_at,updated_at,mode) VALUES (?1,?2,'buyer','fixture',1,1,500,'USD','CAPTURED',?3,?3,'sandbox')",rusqlite::params![id,kind,created.to_string()]).unwrap();
+        }
+        let count_by_kind = |range: Json| {
+            let q: BookQuery = serde_json::from_value(
+                json!({"view":"deals","metrics":["count"],"group_by":["kind"],"range":range}),
+            )
+            .unwrap();
+            let result = ledger.book_query(&q).unwrap();
+            let mut counts: Vec<(String, i64)> = result["rows"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|r| {
+                    (
+                        r["kind"].as_str().unwrap().to_string(),
+                        r["count"].as_i64().unwrap(),
+                    )
+                })
+                .collect();
+            counts.sort();
+            counts
+        };
+        // [from, to): the deal at `from` counts, the deal at `to` does not.
+        assert_eq!(
+            count_by_kind(json!({"from":"2026-10-04T22:00:00Z","to":"2026-10-11T22:00:00Z"})),
+            vec![("haggle".to_string(), 2), ("purchase".to_string(), 1)]
+        );
+        // Without a range every deal on record counts.
+        let q: BookQuery =
+            serde_json::from_value(json!({"view":"deals","metrics":["count"],"group_by":["kind"]}))
+                .unwrap();
+        let all: i64 = ledger.book_query(&q).unwrap()["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| r["count"].as_i64().unwrap())
+            .sum();
+        assert_eq!(all, 6);
+    }
     #[test]
     fn query_bounds_and_recovered_metric_exclude_replay() {
         let ledger = Ledger::in_memory().unwrap();
