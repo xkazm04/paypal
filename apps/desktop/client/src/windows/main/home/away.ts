@@ -6,13 +6,14 @@ import type { Currency } from '@bindings/Currency';
 import type { Deal } from '@bindings/Deal';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import type { Money } from '@bindings/Money';
+import type { StatementRead } from '../../../lib/words';
 import { dealTotal } from '../logic';
 import { moneyList } from './model';
 
 /** What happened, as Maya would group it. */
 export type AwayOutcome =
   | 'paid' | 'collected' | 'invoice_paid' | 'on_hold' | 'released' | 'checking'
-  | 'refused' | 'paused' | 'mismatch' | 'failed' | 'renewal' | 'lapsed' | 'refunded' | 'disputed';
+  | 'refused' | 'paused' | 'mismatch' | 'failed' | 'renewal' | 'lapsed' | 'unconfirmed' | 'refunded' | 'disputed';
 /** On whose authority: you, a rule you signed, the buyer's approval under your shop rules, the safe
  *  default on a deadline, a safety check, or nobody recorded. */
 export type AwayAuthority = 'owner' | 'rules' | 'buyer' | 'default' | 'safety' | 'none';
@@ -65,14 +66,14 @@ export type AwaySummary = {
   text: string;
 };
 
-type Event = { outcome: AwayOutcome; authority: AwayAuthority; deal: string; at: number; seq: number; side: 'buyer' | 'seller' };
+type Event = { outcome: AwayOutcome; authority: AwayAuthority; deal: string; at: number; seq: number; side: 'buyer' | 'seller'; read?: StatementRead };
 
-const ORDER: readonly AwayOutcome[] = ['paid', 'collected', 'invoice_paid', 'on_hold', 'released', 'checking', 'refused', 'paused', 'mismatch', 'failed', 'renewal', 'lapsed', 'refunded', 'disputed'];
+const ORDER: readonly AwayOutcome[] = ['paid', 'collected', 'invoice_paid', 'on_hold', 'released', 'checking', 'refused', 'paused', 'mismatch', 'failed', 'renewal', 'lapsed', 'unconfirmed', 'refunded', 'disputed'];
 const WHO_ORDER: readonly AwayAuthority[] = ['owner', 'rules', 'buyer', 'default', 'safety', 'none'];
 const WITH_AMOUNT: ReadonlySet<AwayOutcome> = new Set(['paid', 'collected', 'invoice_paid', 'on_hold', 'released', 'checking']);
 const TONE: Record<AwayOutcome, AwayTone> = {
   paid: 'out', collected: 'in', invoice_paid: 'in', on_hold: 'held', released: 'calm', checking: 'check',
-  refused: 'stopped', paused: 'stopped', mismatch: 'stopped', failed: 'stopped', renewal: 'stopped', lapsed: 'calm', refunded: 'calm', disputed: 'stopped',
+  refused: 'stopped', paused: 'stopped', mismatch: 'stopped', failed: 'stopped', renewal: 'stopped', lapsed: 'calm', unconfirmed: 'check', refunded: 'calm', disputed: 'stopped',
 };
 
 /** The recorded authority of a step, in the summary's terms. */
@@ -88,7 +89,7 @@ function authorityOf(s: HistoryStep): AwayAuthority {
 
 /** One step as an event the summary counts, or null for steps that tell Maya nothing new here
  *  (offers, receipts, order creation and the like stay in the Rewind). */
-function eventOf(s: HistoryStep, deal: Deal | undefined): Event | null {
+function eventOf(s: HistoryStep, deal: Deal | undefined, reads: ReadonlyMap<string, StatementRead>): Event | null {
   const who = authorityOf(s);
   const side: 'buyer' | 'seller' = deal ? deal.side : who === 'buyer' ? 'seller' : 'buyer';
   const base = { deal: s.deal_id, at: s.at, seq: s.seq, side };
@@ -109,6 +110,8 @@ function eventOf(s: HistoryStep, deal: Deal | undefined): Event | null {
     case 'failed': return ev('failed');
     case 'renewal_failed': return ev('renewal');
     case 'expired': case 'lapsed': return ev('lapsed', 'default');
+    // The seller said it was paid and PayPal's statement did not confirm it in 72 hours.
+    case 'unconfirmed': return { ...ev('unconfirmed', 'default'), read: reads.get(s.deal_id) };
     case 'refunded': return ev('refunded');
     case 'disputed': return ev('disputed');
     default: return null;
@@ -126,7 +129,7 @@ const SETTLES: Partial<Record<AwayOutcome, ReadonlySet<AwayOutcome>>> = {
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
 /** The sentence for one line, around its amount (A). */
-function words(outcome: AwayOutcome, who: AwayAuthority, n: number): [string, string] {
+function words(outcome: AwayOutcome, who: AwayAuthority, n: number, read?: StatementRead): [string, string] {
   switch (outcome) {
     case 'paid':
       if (who === 'rules') return ['Your agents paid ', ` under your rules (${plural(n, 'purchase', 'purchases')})`];
@@ -165,6 +168,14 @@ function words(outcome: AwayOutcome, who: AwayAuthority, n: number): [string, st
     case 'failed': return [`PayPal said no on ${plural(n, 'deal', 'deals')} (no money moved)`, ''];
     case 'renewal': return [`${plural(n, 'subscription renewal', 'subscription renewals')} failed (nothing is sent until you approve a fix)`, ''];
     case 'lapsed': return [`${plural(n, 'deal', 'deals')} ran out of time (no money moved)`, ''];
+    case 'unconfirmed': {
+      // True in every case: only a statement read that came back unmatched may say it did not show.
+      const said = `${plural(n, 'deal ended', 'deals ended')} as not confirmed by PayPal: the seller said ${n === 1 ? 'it was' : 'they were'} paid, but `;
+      const was = n === 1 ? 'it' : 'them';
+      if (read === true) return [`${said}PayPal’s statement did not show ${was} (this wallet moved nothing)`, ''];
+      if (read === false) return [`${said}your wallet did not check PayPal’s statement (this wallet moved nothing)`, ''];
+      return [`${said}your wallet has no match for ${was} on PayPal’s statement (this wallet moved nothing)`, ''];
+    }
     case 'refunded': return [`${plural(n, 'payment was', 'payments were')} refunded`, ''];
     case 'disputed': return [`${plural(n, 'payment is', 'payments are')} disputed at PayPal`, ''];
   }
@@ -200,13 +211,13 @@ const runOn = (t: string): string => (t.startsWith('PayPal') ? t : t.charAt(0).t
  *  `deals` give the amounts and which side of a deal Maya is on. */
 export function awaySummary(
   steps: readonly HistoryStep[], deals: readonly Deal[], lastSeen: number, now: number,
-  opts: { needs?: number; truncated?: boolean } = {},
+  opts: { needs?: number; truncated?: boolean; /** Per deal: did a statement read come back unmatched (absent = not known). */ reads?: ReadonlyMap<string, StatementRead> } = {},
 ): AwaySummary {
   const byId = new Map(deals.map((d) => [d.id, d]));
   const inWindow = steps.filter((s) => s.at >= lastSeen && s.at <= now).sort((a, b) => a.at - b.at || a.seq - b.seq);
   const events: Event[] = [];
   for (const s of inWindow) {
-    const e = eventOf(s, byId.get(s.deal_id));
+    const e = eventOf(s, byId.get(s.deal_id), opts.reads ?? new Map());
     if (e) events.push(e);
   }
   // Drop what a later step on the same deal settled.
@@ -217,7 +228,8 @@ export function awaySummary(
 
   const groups = new Map<string, Event[]>();
   for (const e of kept) {
-    const key = `${e.outcome}:${e.authority}`;
+    // Deals that ended unconfirmed are told apart by what the wallet did, so a line never claims a read it did not make.
+    const key = e.outcome === 'unconfirmed' ? `${e.outcome}:${e.authority}:${String(e.read ?? 'unknown')}` : `${e.outcome}:${e.authority}`;
     groups.set(key, [...(groups.get(key) ?? []), e]);
   }
   const lines: AwayLine[] = [...groups.entries()].map(([key, es]) => {
@@ -229,7 +241,7 @@ export function awaySummary(
     const known = ids.map((id) => byId.get(id)).filter((d): d is Deal => !!d);
     const totals = WITH_AMOUNT.has(outcome) ? sumByCurrency(known.map(dealTotal)) : [];
     const uncounted = WITH_AMOUNT.has(outcome) ? ids.length - known.length : 0;
-    const [before, after] = words(outcome, authority, count);
+    const [before, after] = words(outcome, authority, count, first.read);
     const amount = !WITH_AMOUNT.has(outcome) ? null : totals.length ? `${moneyList(totals)}${uncounted ? ' and more' : ''}` : 'an amount not shown';
     const body = `${before}${amount ?? ''}${after}`;
     const text = body.charAt(0).toUpperCase() + body.slice(1);
@@ -240,13 +252,15 @@ export function awaySummary(
   const inn = sumByCurrency(lines.filter((l) => l.outcome === 'collected' || l.outcome === 'invoice_paid').flatMap((l) => l.totals));
   const moved = lines.some((l) => l.outcome === 'paid' || l.outcome === 'collected' || l.outcome === 'invoice_paid');
   const quiet = lines.length === 0;
-  const lead = quiet ? 'Nothing happened. No money moved.' : moved ? null : 'No money moved.';
+  // A deal that ended unconfirmed may have been paid at PayPal: the summary does not say no money moved then.
+  const unconfirmed = lines.some((l) => l.outcome === 'unconfirmed');
+  const lead = quiet ? 'Nothing happened. No money moved.' : moved || unconfirmed ? null : 'No money moved.';
   const needs = Math.max(0, opts.needs ?? 0);
   const needsLine = needs ? `${plural(needs, 'thing needs', 'things need')} you` : null;
   const since = sinceWords(lastSeen, now);
   const body = lines.map((l) => runOn(l.text)).join(', ');
   const text = [
-    `While you were away (${since}): ${quiet ? 'nothing happened and no money moved' : `${moved ? '' : 'no money moved; '}${body}`}.`,
+    `While you were away (${since}): ${quiet ? 'nothing happened and no money moved' : `${moved || unconfirmed ? '' : 'no money moved; '}${body}`}.`,
     needsLine ? `${needsLine.charAt(0).toUpperCase()}${needsLine.slice(1)}.` : '',
   ].filter(Boolean).join(' ');
   return { since: lastSeen, now, sinceWords: since, lines, out, inn, moved, quiet, lead, needs, needsLine, partial: !!opts.truncated, text };
