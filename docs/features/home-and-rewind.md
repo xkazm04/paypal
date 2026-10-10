@@ -43,7 +43,7 @@ your shop rules, the safe default, a safety check, not recorded). It shows at mo
 then "and N more on the Rewind". The summary opens with "No money moved." only when nothing was
 paid or collected and no line is not confirmed or being checked with PayPal. A deal that ended at
 its deadline while a payment was still being checked is told from the deal's own record when the
-steps in the window cannot say (`windows/main/unshown.ts`); the card waits for that read. Each
+steps in the window cannot say (`windows/main/unshown.ts`); the card waits for that read. A deal whose record could not be read is worded 'not available yet', not as no money moved. Each
 line opens its deal or the Rewind at its first step; "See it on the Rewind" opens the Rewind at the
 moment the owner last looked. The card never carries a gold control and can be dismissed.
 
@@ -196,7 +196,17 @@ IPC commands (from `authority_table.rs`):
   ticks. There is no link from a tick to a Proof drawer.
 - The Book's On hold now leaves out a payment being checked with PayPal, as Home does (85faf93; `lib/polish3.test.ts`).
   The Book's week answer tone still counts every AUTHORIZED deal (DECISIONS section 34).
-- The Rewind's bead tip is still open (dashboard lite r2 robustness-1) and in rework.
+- The Rewind's bead tip reads a payment being checked with PayPal (a dashed bead and the check's pill and Money line),
+  not on hold or nothing moved (0705f3f, 448fda5; `rewindCheckTip`).
+- An ending whose own record could not be read (the read failed or timed out, or the week held more than 500
+  endings) reads 'Not available yet' on the away card, the Rewind narration and the bead tip, never 'No money
+  moved' (deb1002; DECISIONS.md section 36).
+- Open, from wallet-deal-dashboard full r2 (waiting on the operator's Approval; DECISIONS.md section 36):
+  economics-1, `deal_display` is read again on each refetch for every CAPTURED and RECEIPTED deal, because
+  `record_resolution` does not move `deals.updated_at`; economics-2, a dropped `deal_display` batch keeps reading
+  and batches can overlap without limit; economics-3, `useAllEvidence` (the Book) reads `deal_evidence` for every
+  lifetime deal at once. The amount note on a deal row (`amountNote`) and the Shield word a deal from its
+  state alone, so a checked payment can still read as on hold there.
 - The away card's "last seen" is per browser profile (localStorage), not per owner.
 - The director's own time words still say "N d N h later"; a lapsed haggle's chip can read
   "Withdrawn" while its banner says it lapsed (noted for the next polish pass).
