@@ -592,11 +592,11 @@ function blockedReason(g: Gates, locked: boolean): string | null {
 }
 
 /** The money actions that are hold-to-confirm (never Open PayPal, Withdraw, Cancel or Close). */
-const HOLD_KEYS: ReadonlySet<string> = new Set(['oa', 'cs', 'cap', 'res', 'rel']);
+export const HOLD_KEYS: ReadonlySet<string> = new Set(['oa', 'cs', 'cap', 'res', 'rel']);
 
 type Act = { key: string; gate: Gate; label: string; kind: 'gold' | 'default' | 'danger' | 'plain'; money: boolean; run: () => void };
 
-function Actions(p: {
+export function Actions(p: {
   phase: Phase;
   gates: Gates;
   locked: boolean;
