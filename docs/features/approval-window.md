@@ -84,7 +84,8 @@ words per code and never the wallet's own text: "The wallet couldn't read this d
 window and open the deal again.", "This window can't approve anything right now. Money stays where
 it is.", and for unlock "Still locked" with a reason that names Windows Hello (not set up, not
 ready, did not confirm it was you). The heading never claims a cancel: the wallet reports a cancel
-and a failed scan alike.
+and a failed scan alike. `LockCard`, `PairingConfirm` and `OwnerConfig` show the same plain words
+for the same failures, never the wallet's text.
 
 **Locked.** "Locked. Money stays where it is until you unlock." Every money button is disabled and
 the gold button becomes "Unlock with Windows Hello". Reading stays possible. Withdraw stays
@@ -226,6 +227,17 @@ IPC commands granted to the approval window (from `authority_table.rs`):
   text, not `REACHED_PAYPAL`, and still reads "couldn't be reached, so nothing was done".
 - After the request-id window, approving a closed rescue send is refused with a ledger conflict
   rather than plain words.
+- "The wallet asks PayPal what happened" is untrue in two cases. After a lost owner create the step
+  is parked with no PayPal call (`pipeline/resolve.rs`, around :331-336). For a parked capture,
+  authorize or void, nothing reads the step again until the deadline, and the refused step cannot
+  follow it: a capture is never sent at the deadline.
+- After the window is closed and opened again it shows no open step: the strip reads "On hold" and
+  Collect stays live, because `can_release` ignores open operations. A hold there is refused with
+  `STEP_NOT_CONFIRMED` and moves no money.
+- A parked owner capture leaves the owner no action in the window until the deadline releases the
+  hold; every later hold is refused until then.
+- The pairing "can't be made any more: it lapsed or no longer matches" sentence is also what an
+  unusable name gets (INVALID), where "lapsed" is wrong.
 
 ## Related
 
