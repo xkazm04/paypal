@@ -1181,3 +1181,83 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - `a_failed_read_at_the_deadline_waits_and_retries_on_the_poll_cadence`;
 
   and in `crates/table-runtime/src/forecast_tests.rs`: `a_deal_with_an_open_operation_is_left_out_of_the_forecast`.
+
+## 38. The Book leaves a mixed Amount out in the client, keeps its evidence reads in the feature, and caches them past the Book (ops-ledger-query full r1 to r3)
+
+- **Date:** 2026-10-11
+- **Decided by:** the App Master, through two reworks. After full r1: 23ed4af (the wallet's table shows an Amount only
+  when each line holds one money state), 3d34c8c (read deal evidence only for deals whose evidence can have changed) and
+  a22d58d (the playbook names direction and state). After full r2: d4b28c1 (`readEach` takes an AbortSignal) and 3656abf
+  (an evidence cache that outlives the Book, one abortable pass at a time, narrower re-read rules), with 43942f4 and
+  55723c4 for the docs. The council reports are not in the repository; they are cited as ops-ledger-query full r1
+  (2026-10-10), full r2 (2026-10-11) and full r3 (2026-10-11). `readEach` itself came in section 36 (35af182).
+- **Constraint.**
+  - From full r1's must-address: value-1 (with no state filter, the wallet's table added paid, held, in-progress and
+    stopped money into one Amount) and economics-1 (opening the Book sent one `deal_evidence` read per deal, and sent
+    them all again on every deal-list refetch).
+  - From full r2's: economics-1 (every Book open still read every deal's evidence and every refetch re-read most paid
+    deals) and economics-6 (a superseded pass kept reading, because `dead` only dropped its results).
+- **Decision.** Three choices, all in the client. No Rust changed, so there is no new command, no authority-table row
+  and no `PINNED_MANIFEST` change (theme T11).
+  1. **The Amount is suppressed in the client, not split by a Rust state bucket (23ed4af,
+     `modules/book/model.ts` and `modules/book.tsx`).** `WalletAnswer` shows the Amount column only when
+     `walletSumsApart(answer.query)` is true: the query groups by state, or filters state (`eq` or `in`) to values that
+     share one `bucketOf` bucket, judged on a plain deal. Otherwise one hint says amounts are left out. The reason given
+     at the time (STATUS): the bucket rule lives in the client, and a Rust copy would be another hand-kept copy of it.
+  2. **The evidence fan-out is fixed inside this feature (3d34c8c, d4b28c1; `lib/readEach.ts`,
+     `windows/main/evidence.ts`).** `lib/readEach.ts` is the shared helper for width (`READ_CONCURRENCY`, 8), timeout
+     (`READ_TIMEOUT_MS`, 10 s) and abort. `evidence.ts` keeps its own re-read rule (`evidenceToRead`), its own pass and its
+     own cache. The reason given at the time (STATUS): the Book is the only caller of `useAllEvidence`.
+  3. **A module-level client cache outlives the Book, instead of a batched IPC command (3656abf, `evidence.ts`).**
+     Answers are kept at module scope and written as they land; one pass runs at a time and a newer list or the Book
+     closing aborts it. No new command, no Rust, no authority-table row and no `PINNED_MANIFEST` change. STATUS: the
+     council named a cache that outlives the Book as one way to close economics-1.
+- **How full r3 judged each choice** (its 'Shape choices' section):
+  1. Supported for the Book: the hint tells the owner why and what to pick. Not supported for the assistant path
+     (value-shape-1): `book_query` still hands the model a `sum_amount` over every state, guarded only by a playbook
+     sentence, and neither guards against the `paypal_calls` multiplication. Checked on main: the `sum_amount` metric is
+     `SUM({AMOUNT}) AS sum_amount` (`crates/table-ledger/src/book.rs:96`); the `paypal_calls` view joins `deals` to
+     `paypal_calls`, one row per PayPal call (`book.rs:113-115`); the playbook's guard is
+     `prompts/shop-assistant.md:17-19` ("`sum_amount` adds every state unless the query filters on state or groups by
+     state"). Still so.
+  2. Supported for the shared helper and a per-feature re-read rule. Not supported for per-feature pump and cache
+     machinery, since the other `deal_evidence` readers neither join nor reuse the Book's cache. Not needed for
+     correctness.
+  3. Supported by economics-1's count: later opens and refetches drop to the live set, which a per-open batched command
+     would not achieve unless paged. The residue is the first open after each wallet start: N IPC round-trips and N
+     actor messages, each of which reloads the whole ledger.
+- **Lost:**
+  - a Rust-side state bucket in `book_query`: full r1's closes-when for value-1 offered "the state bucket becomes an
+    always-on split like direction" as one of two ways to close it; full r3 shape choice 1 says it would protect both
+    the Book and the assistant path;
+  - one store shared by every `deal_evidence` reader (`displayToken` in `lib/` plus one store factory): craft's
+    suggested convergence in full r3 shape choice 2;
+  - a batched or paged `deal_evidence` command: full r2's closes-when for economics-1 ("a batched or paged read
+    limited to the deals the Book shows") and full r3 shape choice 3;
+  - the cheapest shape in full r3, from economics (shape choice 3): the cache plus one batched cold fill, which would
+    remove the N round-trips and N whole-ledger reloads per wallet start.
+- **Open.** Waiting on the operator's decision, the two highs in full r3's must-address:
+  - economics-9 (`readEach.ts`:13-21, :52, :60 and `evidence.ts`:157): a timed-out evidence read frees its slot while
+    its IPC call is still out, so the 8-read bound holds per slot, not per call. Closes when: 'the number of unsettled
+    `deal_evidence` invokes can never exceed READ_CONCURRENCY, timeouts included, and a test pins it: with an invoke
+    that never settles, 50 (or 10,000) ids, fake timers advanced past several timeouts, and 5 refetches, the fake invoke
+    is called at most 8 times.'
+  - value-6 (`book.tsx`:225, :154-159, :636): in the Simple view, an answer reaches deals outside the week list and the
+    slip does not say so. Closes when: 'an answer in the Simple view that reaches deals outside the week list says so on
+    the slip (the count of older deals, or "everything on record"), pinned by a client test over a ledger with an older
+    deal.'
+  - Docs lag, recorded and not fixed here: `evidence.ts` ~:15-16 and `docs/features/book.md` Known gaps ("At most 8
+    reads are in flight") hold per slot, not per IPC call (craft-h, economics-9).
+- **Evidence:**
+  - `modules/book/walletAmount.test.ts`: 'the week lens over paid, held and stopped money' ('the window keeps the three
+    states apart', 'the wallet shows no combined Amount for it') and 'walletSumsApart' ('is false when the lines span
+    money states', 'is true when each line holds one money state').
+  - `windows/main/evidence.test.ts`: 'a ledger of 10,000 ended deals' ('with nothing changed names no read, and a
+    reopened Book or a refetch makes none', 'adds only a changed deal, a live deal and a deal with an open money check');
+    'one pass at a time' ('keeps 5 refetches during a pass to 8 reads in flight and 50 plus the changed deals reads',
+    'stops reading when the Book closes and keeps the reads that finished').
+  - `lib/readEach.test.ts`: 'never has more than `concurrency` reads out at once', 'starts no further read once the
+    signal is aborted, and keeps the reads that finished'. No test pins the `deal_evidence` call count under timeouts
+    (economics-9).
+  - STATUS sections 'Book wallet amounts and evidence reads (ops-ledger-query full r1 must-address 1 and 2)' and
+    'Book evidence reads bounded (ops-ledger-query full r2 must-address 1 and 2)'.
