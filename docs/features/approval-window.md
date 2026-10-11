@@ -199,6 +199,9 @@ IPC commands granted to the approval window (from `authority_table.rs`):
   MISMATCH, buyer haggle, owner accept), `windows/approval/review/checks.test.tsx`,
   `src/mock/checks.test.ts`, `windows/approval/owner/watch.test.ts`, `src/lib/limits.test.ts`,
   `src/mock/authority.test.ts`.
+- Client: `windows/approval/notices.test.ts` reads the window's sources and pins that every token, unlock
+  and pairing-read notice carries plain words (`footerNoticeText`), never the wallet's own text. The token
+  notice now reads plain words everywhere in this window (deal, owner settings and wallet setup).
 
 ## Known gaps and UNVERIFIED
 

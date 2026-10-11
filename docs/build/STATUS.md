@@ -2329,3 +2329,22 @@ refusal on Capture are unchanged.
   live (the larger option: it needs `ApprovalSummary`, bindings, gating and the mock backend; not
   built this round). robustness-4 (errors raised after the money step, and an IPC transport
   failure) and craft-12 are not part of this rework.
+
+### After full r3: the token notice reads plain words everywhere (craft-24)
+
+- **Feature:** owner-approval-decision. Base 90887b5. Client only; no Rust touched. Client tsc and
+  vitest were not run, by the builder or by the merge gate (no node_modules in the worktree); the
+  Director runs them on main.
+- **craft-24 is closed by this change, outside the council** (there is no round 4). `OwnerConfig.tsx`
+  :169 and :248 now pass `message={footerNoticeText('token', s.tokenError)}`, as `DealReview.tsx` does.
+  The pairing read notice in `PairingConfirm.tsx` also passes words, through a new `'pairing_read'`
+  kind. Codes `approval_pairing` can return (the row is OPEN: no token, no unlock): PERMISSION
+  (dispatcher.rs `allowed`, lib.rs `permission`), UNAVAILABLE ("Wallet actor stopped", actor.rs
+  `execute_local`) and INVALID (an unreadable answer, same place); the words make no claim about money.
+- **Tests that pin it.** `model.test.ts` (the new kind in the kinds loop; a token error whose message is
+  "Wallet actor stopped" shows none of it) and the new `notices.test.ts`, which reads every `.tsx` under
+  `windows/approval` and asserts exactly 3 token notices, at least 3 unlock notices and the pairing read
+  notice all carry `message=`. Other `WalletNotice` sites belong to other features and are not asserted.
+- **Still open for the operator:** craft-25 (the "asks PayPal" clauses are untrue for a lost owner create
+  and a parked step), craft-26 (after a remount, Collect stays live), craft-27 (pairing INVALID for an
+  unusable name), robustness-3 (no render test), robustness-4 and craft-12.
