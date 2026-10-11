@@ -27,7 +27,7 @@ import { AnswerBar, Btn, Field, HoldButton, Popover, Sheet, layerCount, useFocus
 import { MarkIcon } from './review/Parts';
 import { BandAdjust } from './BandAdjust';
 import { decisionArgs, deriveGates, isLocked, isTerminal, namesMatch, ownerAcceptArgs, type Gate, type Gates } from './gating';
-import { buildStrip, dealTotal, derivePhase, outcomeText, stateWord, type DecisionCmd, type Phase } from './model';
+import { buildStrip, dealTotal, derivePhase, OFFER_NOT_HERE, outcomeText, refusalText, stateWord, type DecisionCmd, type Phase } from './model';
 import { buildDiff, buildEvidence, lastAmount, type DiffRow } from './review/diff';
 import { WalletChecks, checksLine } from './review/Checks';
 import { DetailsSheet, RowDetail } from './review/Details';
@@ -225,7 +225,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
     // Owner ACCEPT binds the exact counter Rust reported; every other decision the terms only.
     const args = cmd === 'deal_owner_accept' ? ownerAcceptArgs(summary) : decisionArgs(summary);
     if (!args) {
-      setFailure({ what, error: new WalletError({ code: 'INVALID', message: 'their latest offer hasn’t arrived yet' }) });
+      setFailure({ what, error: new WalletError({ code: 'INVALID', message: OFFER_NOT_HERE }) });
       return;
     }
     const r = await s.call<DecisionCmd>(cmd, args, true);
@@ -491,7 +491,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
           </label>
         ) : null}
 
-        {failure ? <WalletNotice error={failure.error} what={failure.what} /> : null}
+        {failure ? <WalletNotice error={failure.error} what={failure.what} message={refusalText(failure.error)} /> : null}
         {!s.tokenReady && s.tokenError ? <WalletNotice error={s.tokenError} what="This window can’t approve right now" /> : null}
         {s.unlockError ? <WalletNotice error={s.unlockError} what={s.unlockError.isAvailabilityState ? 'Still locked' : 'Still locked · Windows Hello was cancelled'} /> : null}
 
