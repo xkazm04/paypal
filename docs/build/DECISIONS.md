@@ -1261,3 +1261,99 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
     (economics-9).
   - STATUS sections 'Book wallet amounts and evidence reads (ops-ledger-query full r1 must-address 1 and 2)' and
     'Book evidence reads bounded (ops-ledger-query full r2 must-address 1 and 2)'.
+
+## 39. A step that may have reached PayPal is told apart in Rust and worded in the client, an open earlier step has its own refusal, and every notice shows plain words (owner-approval-decision full r1 to r3)
+
+- **Date:** 2026-10-11
+- **Decided by:** the App Master, through reworks after each full round. After full r1 (head 404c9c3): deb06ca and 1272dd3
+  (the runtime tells a reserved or sent step from a refusal; a void whose answer is lost has its own sentence), 969e98f (a
+  step that reached PayPal never reads as Not paid or nothing was done), 8c20abd (the first-read, token and unlock notices
+  say plain words) and 02870aa (docs). Then 9a92a52 (the void sentence in the window) and 4f9141a (docs, STATUS second pass),
+  which is the head of full r2. After full r2: ee5f4dc (a second step on a deal with an open PayPal step says it is not
+  confirmed yet), 6ca87aa (its own heading and sentence, mirrored in `words.ts`) and 90887b5 (docs, third pass, the head of
+  full r3). After full r3, outside the council: ce1a441 (the token and pairing-read notices show plain words, with a wiring
+  test; craft-24) and 24a17ca (docs), with cb965ed (the test's `found[0]` narrowed for client tsc). The council reports are
+  not in the repository; they are cited as owner-approval-decision full r1, full r2 and full r3 (all 2026-10-11), with the
+  lite r1 (2026-10-09) as background.
+- **Constraint.**
+  - From full r1's must-address, lines 1-2 (one defect seen by robustness and craft): a capture or authorize that reached
+    PayPal and then failed was shown to the owner as "Not paid ... nothing was done". Line 3: three footer notices (token,
+    unlock, first read) showed the wallet's raw text.
+  - From full r2's, lines 1-2 (one defect seen by robustness and craft): a second hold while the first step was still open
+    read "Not paid ... nothing was done". Line 3 (craft-17): `LockCard` and `PairingConfirm` still showed the wallet's unlock
+    and pairing text.
+  - From full r3's: craft-24 (high), the token notice still showed the wallet's raw text in two of its three places
+    (`OwnerConfig.tsx`, the pairing-focus view and wallet setup).
+- **Decision.** Three choices. No new IPC command, no authority-table row and no `PINNED_MANIFEST` change.
+  1. **"May have reached PayPal" is decided in Rust by an operation reserved during the call, and reaches the window as text,
+     not as a new code or field.** `decide()` compares the deal's reserved-operation count before and after the call
+     (`after_paypal_with`, `crates/table-runtime/src/service.rs`). If it grew, the answer is code UNAVAILABLE with an exact
+     sentence (`REACHED_PAYPAL`, or `VOID_REACHED_PAYPAL` for an owner's void). The client recognises the sentence by its
+     exact text (`windows/approval/model.ts`, :295 and :300). The sentences are copied by hand into `lib/words.ts`; the only
+     guard is the Rust test `the_wallet_sentences_match_the_client_words_byte_for_byte` (`reached_paypal_tests.rs`, :425-437),
+     which reads `words.ts` with `include_str!`.
+  2. **The open-operation remap (option B of full r2's closes-when).** When the call reserved nothing, the pipeline said
+     PERMISSION, and `has_open_operation` is `Ok(true)`, `after_paypal_with` returns UNAVAILABLE with `STEP_NOT_CONFIRMED`
+     (`service.rs`, :725-731). The client gives it its own heading, "Not sent: an earlier step isn’t confirmed yet". Option
+     (A), not chosen: `approval_summary` sets `can_release` false while an operation is open, so Collect is disabled across a
+     remount.
+  3. **Every notice in the window shows plain words through `footerNoticeText(kind, error)`.** The kinds are `token`, `unlock`,
+     `pairing` and `pairing_read` (and `read` for the first read). Users: `DealReview` (read :306, token :496, unlock :497),
+     `OwnerConfig` (token :169 and :248), `LockCard` (`ui.tsx:95`, unlock) and `PairingConfirm` (pairing read :121, unlock
+     :206, pairing :207). It is pinned by `notices.test.ts`, a source-reading wiring test, not by rendered components.
+- **How the council judged it** (full r3, 'r2's must_address, condition by condition', and its med lines):
+  1. Closed for r1's lines 1-2: every answer after a decision or refusal that the tests reach is now true about money. The
+     text-matching shape itself was not endorsed: craft's lead craft-22 (deciding the case by an operation-count delta) stays
+     in its verdict.
+  2. Closed in behaviour as option (B). The remount gap (option A) stays at med (craft-26, value-6, robustness-14); it is not
+     must-address. The new sentences have their own truth gaps (craft-25, med). Low L3: when `has_open_operation` returns Err,
+     the result falls back to PERMISSION's "nothing was done" (the `Ok(_) => refusal` arm). That is the one non-conservative
+     arm.
+  3. Meets the test condition only at the helper and source level: `model.test.ts` checks `footerNoticeText`, and nothing
+     renders `DealReview`, `LockCard` or `PairingConfirm` (robustness-3, med). craft-24 was closed after r3 by ce1a441, which
+     the council did not re-judge.
+- **Checked on main (cb965ed).** `resolve_create` is in `crates/table-app/src/pipeline/resolve.rs` (:307; the lost-create park
+  at :331-336), not in table-engine. r3 cites `after_paypal_with` at `service.rs:722-735`; main has the function at :715-735,
+  with the open-operation arm at :725-731. `can_release` is at `service.rs:436-441`; the gates read it at `gating.ts:139` and
+  :173 (r3 says :171). The rest of what this section cites matches r3.
+- **Lost:**
+  - option (A), the open step visible in `approval_summary` with the money buttons disabled across a remount;
+  - a dedicated error code or a `reached` field instead of text matching (craft's lead craft-22 in r3's Leads): the Rust
+    sentence and the client words can drift, and one Rust test is the only guard;
+  - rendered tests for `DealReview`, `LockCard` and `PairingConfirm`.
+- **Open.** With the operator, because no fourth round exists (r3's Report and Approval):
+  - craft-25: (i) after a lost owner create, `resolve_create` parks the step with no PayPal call, yet `REACHED_PAYPAL` says
+    "the wallet asks PayPal what happened"; (ii) for a parked capture, authorize or void, `STEP_NOT_CONFIRMED`'s "asks PayPal
+    what happened first" is false in time, and "first" suggests the refused step can follow, which it cannot. Closes when
+    `decide()` tells the parked case apart (by `needs_owner`) and its sentence ends as `MONEY_CHECK_PARKED` does, a lost owner
+    create gets a variant without the read-back claim, and one runtime test and one model test pin it;
+  - craft-26 / value-6: after a remount the window shows no open step, the strip reads "On hold" and Collect stays live. A
+    hold there is refused with `STEP_NOT_CONFIRMED` and moves no money. Value adds the parked owner capture: every later hold
+    is refused until the deadline releases the hold, and the owner has no next step;
+  - craft-27: the pairing INVALID sentence (`model.ts`, :248-249) says "lapsed" for an unusable name too (`ShortText` →
+    `Error::Protocol` → INVALID); value disagrees on reachability;
+  - robustness-3 (no render test), robustness-4 (errors raised after the money step finished bypass `after_paypal`) and
+    craft-12 (UNAVAILABLE reads "couldn’t be reached, try again" on the lost-agent-key and missing-credentials paths).
+  - Docs lag, recorded and not fixed here: STATUS.md's first-pass section (~:2240-2243) still quotes "won't send it again; the
+    deal shows where it stands" without a superseded mark, and its truth-table rows for a lost create say "read-back, parked,
+    as (a)".
+- **Evidence:**
+  - `crates/table-runtime/src/reached_paypal_tests.rs`: `a_capture_whose_answer_is_lost_reads_as_reached_paypal`,
+    `a_capture_answer_that_does_not_verify_reads_as_reached_paypal`,
+    `a_confirmed_operation_with_the_deal_moved_reads_as_reached_paypal`,
+    `an_authorize_whose_answer_is_lost_reads_as_reached_paypal`, `a_capture_refused_before_any_call_keeps_its_own_error`,
+    `a_void_whose_answer_is_lost_reads_as_reached_paypal`, `a_void_refused_before_any_call_keeps_its_own_error`,
+    `a_second_capture_while_the_first_is_open_is_not_confirmed_yet`, `a_void_while_the_capture_is_open_is_not_confirmed_yet`,
+    `a_second_countersign_while_the_authorize_is_open_is_not_confirmed_yet`,
+    `a_permission_refusal_with_no_open_operation_stays_permission`,
+    `the_wallet_sentences_match_the_client_words_byte_for_byte`.
+  - `windows/approval/model.test.ts`: 'what the window says when a step reached PayPal and is not confirmed' (including 'is the
+    same bytes as the wallet’s sentence (service.rs REACHED_PAYPAL)', 'recognises it only by its exact text' and 'the second
+    answer on capture, countersign and void is headed for the open step, not “Not paid”') and 'the footer notices say plain
+    words, never the wallet’s own text' (including 'the lock card, the pairing unlock notice and the pairing refusal never carry
+    the wallet’s message or the word cancel').
+  - `windows/approval/notices.test.ts`: 'the approval window’s notices never show the wallet’s own text' ('every token notice
+    carries footerNoticeText(token)', 'every unlock notice carries footerNoticeText(unlock)', 'the pairing read notice carries
+    a message').
+  - Not run for this entry (docs only). The gate results are the reports': r3 records fmt, clippy and `cargo test --workspace`
+    at 90887b5 and client tsc plus vitest 1065 of 1065 from the dispatcher's run.
