@@ -58,6 +58,24 @@ paused by a scam check.
 - **Details**: the owner key in groups of four with Copy (the permissions fingerprint is shown in
   `main`'s Settings, not here).
 
+**After a PayPal answer that is lost or unconfirmed.** A capture, a countersign (the order or the
+hold) or a rescue send whose request was reserved or sent and then failed is not a refusal. The
+wallet answers "That reached PayPal, so the wallet won't send it again. The deal shows where it
+stands." (`REACHED_PAYPAL`, code UNAVAILABLE), the window heads it "Payment not confirmed yet"
+("Collection not confirmed yet" for a seller, "Order" or "Hold not confirmed yet" for a countersign,
+"Sending the fix isn't confirmed yet" for a rescue) and never says "Not paid", "nothing was done"
+or "try again". The notice shows only while the refetched deal is still in the state the decision
+started from; once it moves (captured, receipted, on hold), the notice goes and the window's own
+sentence stands. The rule is the ledger's: an operation was reserved during the call. A refusal
+before any call keeps its own code and sentence.
+
+**When the first read, the permission or the unlock fails.** The three footer notices say plain
+words per code and never the wallet's own text: "The wallet couldn't read this deal yet. Close this
+window and open the deal again.", "This window can't approve anything right now. Money stays where
+it is.", and for unlock "Still locked" with a reason that names Windows Hello (not set up, not
+ready, did not confirm it was you). The heading never claims a cancel: the wallet reports a cancel
+and a failed scan alike.
+
 **Locked.** "Locked. Money stays where it is until you unlock." Every money button is disabled and
 the gold button becomes "Unlock with Windows Hello". Reading stays possible. Withdraw stays
 available (it is the safe direction).
@@ -188,6 +206,11 @@ IPC commands granted to the approval window (from `authority_table.rs`):
 - There is no Proof drawer that shows an `owner.decision` row ("owner saw: …") yet, and no action to
   re-send an owner-decided step under a fresh ticket after a lost answer.
 - Wallet limits hold one currency; a decision does not yet show "after this: $X of $Y today".
+- A receipt that fails to sign or store after a confirmed capture is not retried by the wallet's
+  read-back (only open operations are); the deal stays captured without a receipt until a later
+  change. A void whose answer is lost shows the old "nothing was done" sentence.
+- An IPC transport failure during a decision reaches the window as UNAVAILABLE with the transport's
+  text, not `REACHED_PAYPAL`, and still reads "couldn't be reached, so nothing was done".
 - After the request-id window, approving a closed rescue send is refused with a ledger conflict
   rather than plain words.
 
