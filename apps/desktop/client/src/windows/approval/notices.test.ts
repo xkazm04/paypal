@@ -35,7 +35,7 @@ describe('the approval window’s notices never show the wallet’s own text', (
   it('the pairing read notice carries a message', () => {
     const found = about('readError');
     expect(found.length).toBe(1);
-    expect(found[0].file).toBe('PairingConfirm.tsx');
-    expect(found[0].element).toContain("message={footerNoticeText('pairing_read'");
+    expect(found[0]!.file).toBe('PairingConfirm.tsx');
+    expect(found[0]!.element).toContain("message={footerNoticeText('pairing_read'");
   });
 });
