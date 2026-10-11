@@ -21,12 +21,28 @@ function timed<T>(read: (id: string) => Promise<T>, id: string, ms: number): Pro
   });
 }
 
+/** The reason an id settles with when the pass was aborted before its read started. */
+export class ReadAborted extends Error {
+  constructor(id: string) {
+    super(`read of ${id} was not started: the pass was aborted`);
+    this.name = 'ReadAborted';
+  }
+}
+
+/** True for the reason of a read that never started because its pass was aborted, as opposed to a
+ *  read that ran and failed. */
+export function isAborted(reason: unknown): boolean {
+  return reason instanceof ReadAborted;
+}
+
 /** Reads every id, at most `concurrency` at once, and settles each read as Promise.allSettled
- *  would, in the order of `ids`. A read still out after `timeoutMs` counts as rejected. */
+ *  would, in the order of `ids`. A read still out after `timeoutMs` counts as rejected. Once
+ *  `signal` is aborted no further read starts (reads already out run to their end); each id that
+ *  never started settles rejected with a reason for which isAborted is true. */
 export async function readEach<T>(
   ids: readonly string[],
   read: (id: string) => Promise<T>,
-  o: { concurrency?: number; timeoutMs?: number } = {},
+  o: { concurrency?: number; timeoutMs?: number; signal?: AbortSignal } = {},
 ): Promise<PromiseSettledResult<T>[]> {
   const width = Math.max(1, Math.floor(o.concurrency ?? READ_CONCURRENCY));
   const ms = o.timeoutMs ?? READ_TIMEOUT_MS;
@@ -37,6 +53,10 @@ export async function readEach<T>(
       const i = next;
       next += 1;
       const id = ids[i] as string;
+      if (o.signal?.aborted) {
+        out[i] = { status: 'rejected', reason: new ReadAborted(id) };
+        continue;
+      }
       out[i] = await timed(read, id, ms).then(
         (value): PromiseSettledResult<T> => ({ status: 'fulfilled', value }),
         (reason: unknown): PromiseSettledResult<T> => ({ status: 'rejected', reason }),
