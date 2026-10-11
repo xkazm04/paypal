@@ -210,3 +210,90 @@ async fn a_capture_refused_before_any_call_keeps_its_own_error() {
     );
     assert_eq!(captures(&http), 0);
 }
+
+fn voids(r: &Runtime, id: DealId) -> usize {
+    r.pipeline
+        .wallet
+        .ledger
+        .paypal_call_requests(id)
+        .unwrap()
+        .into_iter()
+        .filter(|(_, path, _)| path.ends_with("/void"))
+        .map(|(_, _, request)| request)
+        .collect::<std::collections::BTreeSet<_>>()
+        .len()
+}
+
+/// The owner's void whose answer is lost: the hold may be released, so the window is told the
+/// release may have reached PayPal and is not known yet (never "nothing was done"). The deal
+/// stays Authorized with the void open for the deadline's read-back, under one request id.
+#[tokio::test]
+async fn a_void_whose_answer_is_lost_reads_as_reached_paypal() {
+    let (mut r, vault, http, _, _) = runtime(true);
+    credentials(vault.as_ref());
+    let (deal, token) = authorized(&mut r).await;
+    http.0.lock().unwrap().fail_void = true;
+    let args = decision(&mut r, deal.id);
+    let error = r
+        .execute(
+            caller("approval", Some(&token)),
+            Action::Decision(args, Decision::Void),
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(error.code, ErrorCode::Unavailable), "{error:?}");
+    assert_eq!(error.message, crate::VOID_REACHED_PAYPAL);
+    for banned in ["nothing was done", "Not paid", "try again", "won’t send"] {
+        assert!(!error.message.contains(banned), "{}", error.message);
+    }
+    assert_eq!(
+        r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Authorized
+    );
+    assert!(r.pipeline.has_open_operation(deal.id).unwrap());
+    assert_eq!(voids(&r, deal.id), 1);
+}
+
+/// A void refused before any call (the wrong window) keeps its code and message and reserves
+/// nothing.
+#[tokio::test]
+async fn a_void_refused_before_any_call_keeps_its_own_error() {
+    let (mut r, vault, http, _, _) = runtime(true);
+    credentials(vault.as_ref());
+    let (deal, token) = authorized(&mut r).await;
+    let operations = r.pipeline.wallet.ledger.operation_count(deal.id).unwrap();
+    let args = decision(&mut r, deal.id);
+    let error = r
+        .execute(
+            caller("main", Some(&token)),
+            Action::Decision(args.clone(), Decision::Void),
+        )
+        .await
+        .unwrap_err();
+    assert_ne!(error.message, crate::VOID_REACHED_PAYPAL, "{error:?}");
+    assert_ne!(error.message, crate::REACHED_PAYPAL, "{error:?}");
+    // Past the guard, a stale attempt is refused by the decision's own check.
+    let mut stale = args;
+    stale.attempt = 9;
+    let error = r
+        .execute(
+            caller("approval", Some(&token)),
+            Action::Decision(stale, Decision::Void),
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(error.code, ErrorCode::Invalid), "{error:?}");
+    assert_eq!(
+        r.pipeline.wallet.ledger.operation_count(deal.id).unwrap(),
+        operations
+    );
+    assert_eq!(voids(&r, deal.id), 0);
+    assert!(
+        http.0
+            .lock()
+            .unwrap()
+            .paths
+            .iter()
+            .all(|p| !p.ends_with("/void"))
+    );
+}

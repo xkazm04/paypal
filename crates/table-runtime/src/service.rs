@@ -46,9 +46,15 @@ pub const SUMMARY_CHANGED: &str = "The summary changed. Review it again.";
 /// The plain-words refusal of a money decision while a check on the deal fails.
 pub const CHECK_FAILED: &str = "A check on this deal failed, so nothing was done.";
 /// The plain-words answer when a PayPal step failed after its request was reserved at PayPal:
-/// the money may have moved or may be held, so it never reads as "nothing was done".
-pub const REACHED_PAYPAL: &str =
-    "That reached PayPal, so the wallet won’t send it again. The deal shows where it stands.";
+/// the money may have moved or may be held, so it never reads as "nothing was done". A reserved
+/// operation is a local row, not proof that PayPal got the request, so it says "may have", and it
+/// is true when the request never arrived, when its answer was lost or did not verify, and when
+/// PayPal confirmed and the receipt then failed. An owner ticket is never reused and nothing
+/// resends a step by itself, so "on its own" holds in every case.
+pub const REACHED_PAYPAL: &str = "That may have reached PayPal. The wallet won’t send it again on its own. The deal shows where it stands.";
+/// The same for the owner's void. At the deadline the resolver sends the void once more under its
+/// own request id, so this makes no claim that it won't be sent again.
+pub const VOID_REACHED_PAYPAL: &str = "The release may have reached PayPal, and its outcome isn’t known yet. The deal shows where it stands.";
 fn summary_changed() -> CommandError {
     CommandError {
         code: ErrorCode::Invalid,
@@ -572,9 +578,14 @@ impl Runtime {
                 let _ = self.close_groups();
             }
             Decision::Void => {
-                self.pipeline
+                let before = self.operations_reserved(deal.id)?;
+                let sent = self
+                    .pipeline
                     .owner_void(deal.id, args.attempt, ticket, now)
-                    .await?
+                    .await;
+                sent.map_err(|e| {
+                    self.after_paypal_with(deal.id, before, e.into(), VOID_REACHED_PAYPAL)
+                })?
             }
             Decision::ReleaseHold => {
                 self.record(deal.id, decision, &args, checks, now)?;
@@ -690,11 +701,21 @@ impl Runtime {
         before: u64,
         refusal: CommandError,
     ) -> CommandError {
+        self.after_paypal_with(id, before, refusal, REACHED_PAYPAL)
+    }
+    /// `after_paypal` with the sentence for the step (the void has its own).
+    fn after_paypal_with(
+        &self,
+        id: DealId,
+        before: u64,
+        refusal: CommandError,
+        reached: &str,
+    ) -> CommandError {
         match self.operations_reserved(id) {
-            Ok(now) if now > before => unavailable(REACHED_PAYPAL),
+            Ok(now) if now > before => unavailable(reached),
             Ok(_) => refusal,
             // The ledger cannot be read: the call may have been made, so never say it was not.
-            Err(_) => unavailable(REACHED_PAYPAL),
+            Err(_) => unavailable(reached),
         }
     }
     pub(crate) fn create_deal(&mut self, args: DealCreateArgs) -> Result<Deal, CommandError> {
