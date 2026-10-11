@@ -60,17 +60,21 @@ paused by a scam check.
 
 **After a PayPal answer that is lost or unconfirmed.** A capture, a countersign (the order or the
 hold) or a rescue send whose request was reserved or sent and then failed is not a refusal. The
-wallet answers "That may have reached PayPal. The wallet won't send it again on its own. The deal
-shows where it stands." (`REACHED_PAYPAL`, code UNAVAILABLE; a reserved operation is a local row,
+wallet answers "That may have reached PayPal. The wallet won't send it again on its own. Where PayPal's
+answer is unclear, the wallet asks PayPal what happened." (`REACHED_PAYPAL`, code UNAVAILABLE; a reserved operation is a local row,
 so it says "may have", which is true whether the request never arrived, its answer was lost or did
 not verify, or PayPal confirmed and the receipt then failed). An owner's void whose answer is lost
 gets its own sentence, "The release may have reached PayPal, and its outcome isn't known yet. The
-deal shows where it stands." (`VOID_REACHED_PAYPAL`), headed "Release not confirmed yet"; it does
+wallet asks PayPal what happened, and asks again at the deadline." (`VOID_REACHED_PAYPAL`), headed "Release not confirmed yet"; it does
 not say the release won't be sent again, because at the deadline the wallet sends the void once
 more under its own request id. The window heads it "Payment not confirmed yet"
 ("Collection not confirmed yet" for a seller, "Order" or "Hold not confirmed yet" for a countersign,
 "Sending the fix isn't confirmed yet" for a rescue) and never says "Not paid", "nothing was done"
-or "try again". The notice shows only while the refetched deal is still in the state the decision
+or "try again". A second hold, countersign or void while the earlier step is still open sends nothing and
+reserves nothing; the wallet answers "An earlier PayPal step on this deal isn't confirmed yet, so
+this one wasn't sent. The wallet asks PayPal what happened first." (`STEP_NOT_CONFIRMED`, code
+UNAVAILABLE), headed "Not sent: an earlier step isn't confirmed yet" whatever step is open. The
+notice shows only while the refetched deal is still in the state the decision
 started from; once it moves (captured, receipted, on hold), the notice goes and the window's own
 sentence stands. The rule is the ledger's: an operation was reserved during the call. A refusal
 before any call keeps its own code and sentence.
@@ -214,7 +218,7 @@ IPC commands granted to the approval window (from `authority_table.rs`):
 - Wallet limits hold one currency; a decision does not yet show "after this: $X of $Y today".
 - A receipt that fails to sign or store after a confirmed capture is not retried by the wallet's
   read-back (only open operations are); the deal stays captured without a receipt until a later
-  change. A void whose answer is lost shows the old "nothing was done" sentence.
+  change. (A void whose answer is lost no longer shows "nothing was done": it has `VOID_REACHED_PAYPAL`.)
 - An IPC transport failure during a decision reaches the window as UNAVAILABLE with the transport's
   text, not `REACHED_PAYPAL`, and still reads "couldn't be reached, so nothing was done".
 - After the request-id window, approving a closed rescue send is refused with a ledger conflict
