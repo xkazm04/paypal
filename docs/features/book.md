@@ -215,8 +215,12 @@ unlock):
   `crates/table-ledger/src/receipt.rs` ~:255, read by `statement_unmatched` at ~:284-296). After a later
   owner check that finds nothing, the words still say the wallet did not check (deal-to-settlement full r1
   (2026-10-10), craft-1 and robustness-5). Waits on the operator's Approval.
-- Each Book open reads every deal's evidence once, 8 at a time (`windows/main/evidence.ts`); a
-  refetch re-reads only the deals whose evidence can change. No batched evidence command exists.
+- Evidence reads (`windows/main/evidence.ts`): the first Book open after the wallet starts reads
+  every deal's evidence once, 8 at a time, most recent first. Later opens read only what changed. A
+  refetch reads only deals whose token changed, live deals, deals with an open money check, and paid
+  seller deals the wallet has not verified yet. At most 8 reads are in flight, and a superseded pass
+  starts no further read. A timed-out read is read again on the next refetch. No batched evidence
+  command exists.
 - The assistant's `sum_amount` still adds every state unless the query filters or groups by state;
   its playbook (`prompts/shop-assistant.md`) now says so.
 - On the owner path, a serde rejection quotes an unknown variant string (`dispatcher.rs` ~:406-411),
