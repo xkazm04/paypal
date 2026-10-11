@@ -775,3 +775,25 @@ async fn a_replay_of_a_watched_subscription_still_never_counts() {
     assert!(!book.cases[0].counted);
     assert!(book.recovered.is_empty());
 }
+
+/// A fix whose one send was lost reads as reached PayPal (the invoice may have gone out), and
+/// the send was made once.
+#[tokio::test]
+async fn a_fix_whose_send_is_lost_reads_as_reached_paypal() {
+    let (mut r, vault, _, _, _) = runtime(true);
+    credentials(vault.as_ref());
+    let paypal = with_invoicing(&mut r);
+    let (deal, token) = rescue_ready(&mut r).await;
+    paypal.0.lock().unwrap().lose_send = true;
+    let args = decision(&mut r, deal.id);
+    let error = r
+        .execute(
+            caller("approval", Some(&token)),
+            Action::Decision(args, Decision::Rescue),
+        )
+        .await
+        .unwrap_err();
+    assert!(matches!(error.code, ErrorCode::Unavailable), "{error:?}");
+    assert_eq!(error.message, crate::REACHED_PAYPAL);
+    assert!(r.pipeline.has_open_operation(deal.id).unwrap());
+}
