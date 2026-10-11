@@ -2210,3 +2210,22 @@ Ids are the ones on main.
 - **Tests.** Client `modules/book/walletAmount.test.ts` (the week lens over a CAPTURED, an AUTHORIZED and a VOIDED deal keeps captured 1000, held 400, stopped 900 apart in the window and shows no wallet Amount; `walletSumsApart` true and false cases) and `windows/main/evidence.test.ts` (each re-read rule, and 100 unchanged ended deals plus 1 changed give exactly 1 id). Every expectation was derived by reading `bucketOf`, the lens code and `displays.test.ts`.
 - **Gates.** Client tsc and vitest were not run by the gate (no node_modules in the worktree).
 - **Residue.** Each Book open still reads every deal's evidence once, 8 at a time; no batched command is built. Settled buyer deals (RECEIPTED, RECONCILED) are read on every refetch because the client cannot tell a house deal. `bindings/playbooks.ts` embeds the playbook and a test pins it, so it is regenerated and committed with the playbook change.
+
+## Book evidence reads bounded (ops-ledger-query full r2 must-address 1 and 2)
+
+Ids are the ones on main.
+
+- **Commits:** d4b28c1 (`readEach` takes an AbortSignal), 3656abf (evidence cache and passes), and the docs commit that carries this section.
+- **Defects.** Every Book open still read every deal's evidence and every refetch re-read most paid deals (economics-1); a superseded pass kept reading, because `dead` only dropped its results (economics-6).
+- **Shape and why.** Client only: a cache at module scope that outlives the Book, a narrower re-read set, and one pass at a time. No IPC command and no Rust, so no authority-table row and no `PINNED_MANIFEST` change (theme T11). The council named a cache that outlives the Book as one way to close economics-1.
+- **Change.**
+  - `readEach(ids, read, { signal })`: once aborted, no worker starts a read; reads already out settle as before; ids never started settle rejected with a reason `isAborted` recognises. With no signal nothing changes (`displays.ts` untouched).
+  - `evidence.ts`: one pass at a time at module scope, an AbortController per pass, each answer written to the cache as it lands under the token of the deal object it was issued for. A newer list or the Book closing aborts the pass; the next one starts after its in-flight reads settle, on the latest list only (lists in between are coalesced). The first fill reads the most recently updated deals first. `useEvidence` seeds from the cache; `resetEvidence()` is for tests. `useAllEvidence` and `book.tsx` are unchanged.
+  - The World keeps the deal list across a lock and a mode switch (`useQuery` only replaces its data), so nothing clears the cache there; `world.tsx` is unchanged.
+- **Dropped re-read rules**, each confirmed in the Rust:
+  - pending_reporting: its exits write `updated_at` (`receipt.rs:425`, and the ReportingMatched apply at `receipt.rs:427` through `apply_decided`, `repositories.rs:253`).
+  - the buyer side of not_applicable: a buyer's receipt write (`receipt.rs:191`) is followed by a transition (`receipt.rs:192`) that sets `updated_at`. The seller write with no timestamp (`repositories.rs:1842`) is kept as a rule.
+  - house_record and the settled-buyer rule: the Book never reads `house_record` (no match in `book.tsx` or `modules/book/`; only `deal/Evidence.tsx` and `DealView.tsx`, which read `deal_evidence` themselves). A consumer that shows it in the Book must read it itself.
+- **Tests.** `lib/readEach.test.ts` (an abort mid-pass starts no further read and keeps finished values; aborted ids are told apart from failures). `windows/main/evidence.test.ts`: each kept and dropped rule; a 10,000-deal ended ledger (settled buyer, pending seller, house record, stopped) names no read and makes 0 calls on a remount and on a same-list refetch; the same ledger plus a changed token, a live deal and an open money check reads exactly those 3; 50 deals with 5 new lists during the first pass keep at most 8 in flight, issue 51 calls (50 plus the one changed deal) and keep the 8 finished reads; an unmount stops reads and keeps what finished; a failed read stays uncached and is retried. Every expectation was derived by reading the code.
+- **Gates.** Neither the builder nor the gate ran client tsc or vitest (no node_modules in the worktree); no Rust changed.
+- **Residue.** The first open after the wallet starts still reads N deals once, 8 at a time. `displays.ts` keeps its own uncoalesced pass (another feature's file). A late answer to a timed-out read is dropped, so that deal is read again.
