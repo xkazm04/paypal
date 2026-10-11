@@ -60,8 +60,14 @@ paused by a scam check.
 
 **After a PayPal answer that is lost or unconfirmed.** A capture, a countersign (the order or the
 hold) or a rescue send whose request was reserved or sent and then failed is not a refusal. The
-wallet answers "That reached PayPal, so the wallet won't send it again. The deal shows where it
-stands." (`REACHED_PAYPAL`, code UNAVAILABLE), the window heads it "Payment not confirmed yet"
+wallet answers "That may have reached PayPal. The wallet won't send it again on its own. The deal
+shows where it stands." (`REACHED_PAYPAL`, code UNAVAILABLE; a reserved operation is a local row,
+so it says "may have", which is true whether the request never arrived, its answer was lost or did
+not verify, or PayPal confirmed and the receipt then failed). An owner's void whose answer is lost
+gets its own sentence, "The release may have reached PayPal, and its outcome isn't known yet. The
+deal shows where it stands." (`VOID_REACHED_PAYPAL`), headed "Release not confirmed yet"; it does
+not say the release won't be sent again, because at the deadline the wallet sends the void once
+more under its own request id. The window heads it "Payment not confirmed yet"
 ("Collection not confirmed yet" for a seller, "Order" or "Hold not confirmed yet" for a countersign,
 "Sending the fix isn't confirmed yet" for a rescue) and never says "Not paid", "nothing was done"
 or "try again". The notice shows only while the refetched deal is still in the state the decision

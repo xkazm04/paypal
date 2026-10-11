@@ -2250,3 +2250,31 @@ Ids are the ones on main.
   - An IPC transport failure during a decision is UNAVAILABLE with the transport's text; the window still reads "couldn't be reached, so nothing was done".
   - The unlock cause is unknown: the wallet reports a cancel and a failed scan as the same PERMISSION, so the heading names none. `PairingConfirm.tsx` and `ui.tsx` still show the unlock error raw.
   - The window has no render test for the footer; the wording and the show/hide rule are tested as pure helpers in `model.ts`.
+
+### Second pass: the sentence claims only what the wallet knows (G1), and the void (G2)
+
+- **G1, closed.** `REACHED_PAYPAL` was "That reached PayPal, so the wallet won't send it again."
+  but a reservation is a local row; `fail_capture` and `fail_authorize` model a request PayPal never
+  saw. Now: "That may have reached PayPal. The wallet won't send it again on its own. The deal shows
+  where it stands." Same const, code and detection rule; mirrored byte for byte in `words.ts`.
+- **G2, closed.** The Void arm of `decide()` takes the same before/after rule with its own
+  sentence, `VOID_REACHED_PAYPAL` ("The release may have reached PayPal, and its outcome isn't
+  known yet. ..."), because `may_resend` lets the deadline resolver send the void again under its
+  own request id (resolve.rs, `void`/`CREATED`). Pre-call void refusals keep code and message. The
+  client heads it "Release not confirmed yet"; the notice goes once the deal reads Voided.
+- Pinned by `reached_paypal_tests.rs` (void lost, void refused before any call) and `model.test.ts`.
+  The client tests were not run by this pass (no node_modules in the worktree).
+
+| Case | Window shows | Wallet next |
+| --- | --- | --- |
+| (a) capture answer lost | REACHED_PAYPAL, "Payment/Collection not confirmed yet" | read-back; owner ticket not reused, an uncommitted step is parked |
+| (b) capture answer unverified | same | same |
+| (c) receipt fails after CaptureConfirmed | same (deal reads Captured, so the notice goes) | nothing retries the receipt |
+| authorize lost | REACHED_PAYPAL, "Hold not confirmed yet" | read-back, parked, as (a) |
+| create lost | REACHED_PAYPAL, "Order not confirmed yet" | read-back, parked, as (a) |
+| rescue send lost | REACHED_PAYPAL, "Sending the fix isn't confirmed yet" | read-back; only a fresh owner decision may send a send PayPal shows not done; an ended send is refused |
+| void lost | VOID_REACHED_PAYPAL, "Release not confirmed yet" | at the deadline the resolver sends the void once more |
+
+Residues: "The deal shows where it stands" is read from the refetched deal; an unreadable ledger
+also returns the sentence. The IPC-transport failure, the unretried receipt and the second-hold
+refusal on Capture are unchanged.
