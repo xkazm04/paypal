@@ -1,7 +1,7 @@
 // readEach: the per-deal reads come back in order, a few at a time, and a read that never answers
 // counts as failed after its time limit instead of holding the surface open.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { READ_CONCURRENCY, READ_TIMEOUT_MS, readEach } from './readEach';
+import { READ_CONCURRENCY, READ_TIMEOUT_MS, isAborted, readEach } from './readEach';
 
 describe('readEach', () => {
   afterEach(() => { vi.useRealTimers(); });
@@ -63,5 +63,42 @@ describe('readEach', () => {
     const read = vi.fn(async (id: string) => id);
     expect(await readEach([], read)).toEqual([]);
     expect(read).not.toHaveBeenCalled();
+  });
+
+  it('starts no further read once the signal is aborted, and keeps the reads that finished', async () => {
+    const ctl = new AbortController();
+    const started: string[] = [];
+    let out = 0;
+    let most = 0;
+    const read = async (id: string) => {
+      started.push(id);
+      out += 1;
+      most = Math.max(most, out);
+      await new Promise((r) => setTimeout(r, 1));
+      out -= 1;
+      if (id === 'd3') ctl.abort();
+      return id.toUpperCase();
+    };
+    const ids = Array.from({ length: 20 }, (_, i) => `d${i}`);
+    const rs = await readEach(ids, read, { concurrency: 2, signal: ctl.signal });
+    expect(most).toBeLessThanOrEqual(2);
+    expect(started.length).toBeLessThan(ids.length);
+    // Every id that started settled with its value; every other one is rejected as aborted.
+    ids.forEach((id, i) => {
+      const r = rs[i];
+      if (started.includes(id)) expect(r).toEqual({ status: 'fulfilled', value: id.toUpperCase() });
+      else expect(r?.status === 'rejected' && isAborted(r.reason)).toBe(true);
+    });
+    expect(started).toContain('d3');
+  });
+
+  it('tells an aborted id apart from a failed read', async () => {
+    const ctl = new AbortController();
+    ctl.abort();
+    const read = vi.fn(async (id: string) => id);
+    const rs = await readEach(['a', 'b'], read, { signal: ctl.signal });
+    expect(read).not.toHaveBeenCalled();
+    expect(rs.every((r) => r.status === 'rejected' && isAborted(r.reason))).toBe(true);
+    expect(isAborted(new Error('unreadable'))).toBe(false);
   });
 });
