@@ -2234,7 +2234,7 @@ Ids are the ones on main.
 
 - **Commits:** the runtime commit (`REACHED_PAYPAL`, `after_paypal`, tests), the client wording commit, the footer-notice commit, and the docs commit carrying this section.
 - **Defects.** After a capture or authorize reached PayPal and then failed, the window said "Not paid ... nothing was done" (untrue about money); three footer notices (first read, token, unlock) showed the wallet's raw text, and the unlock heading claimed a cancel for any non-availability error.
-- **Rule.** `decide()` (service.rs) counts the deal's reserved operations (`Ledger::operation_count`) before the PayPal call of the Countersign, Capture and Rescue arms; if the call fails and the count grew, the error becomes UNAVAILABLE with `REACHED_PAYPAL`. Exact because a reservation is the first ledger write of a request and every guard, mandate/shield step, deadline and countersign check runs before it. If the ledger cannot be read afterwards, the sentence is returned (the call may have been made). No ErrorCode, field, binding, command or authority-table row was added; `PINNED_MANIFEST` is unchanged.
+- **Rule.** (Superseded by the third pass: the sentence's last clause and the second-hold case changed.) `decide()` (service.rs) counts the deal's reserved operations (`Ledger::operation_count`) before the PayPal call of the Countersign, Capture and Rescue arms; if the call fails and the count grew, the error becomes UNAVAILABLE with `REACHED_PAYPAL`. Exact because a reservation is the first ledger write of a request and every guard, mandate/shield step, deadline and countersign check runs before it. If the ledger cannot be read afterwards, the sentence is returned (the call may have been made). No ErrorCode, field, binding, command or authority-table row was added; `PINNED_MANIFEST` is unchanged.
 - **Per case, what the wallet does next.**
   - (a) lost capture answer: operation left `unknown` (open); the tick reads the authorization back, confirms or, at the deadline, voids; nothing is re-sent under a new id.
   - (b) answer that does not verify: operation closed `unknown` with no event (open); the same read-back.
@@ -2246,9 +2246,9 @@ Ids are the ones on main.
 - **Residue.**
   - (c) is driven on the ledger shape (a confirmed operation with the deal moved), not through `execute`: the receipt is signed and stored inside the pipeline, and a fault there needs a non-test change or a dependency.
   - The receipt after a confirmed capture is never retried (table-app, not changed here).
-  - A void whose answer is lost has the same defect (the Void arm is not covered): "nothing was done" after a lost void.
+  - (Superseded: closed in the second pass.) A void whose answer is lost has the same defect (the Void arm is not covered): "nothing was done" after a lost void.
   - An IPC transport failure during a decision is UNAVAILABLE with the transport's text; the window still reads "couldn't be reached, so nothing was done".
-  - The unlock cause is unknown: the wallet reports a cancel and a failed scan as the same PERMISSION, so the heading names none. `PairingConfirm.tsx` and `ui.tsx` still show the unlock error raw.
+  - (Superseded by the third pass: `PairingConfirm.tsx` and `ui.tsx` now use the plain words.) The unlock cause is unknown: the wallet reports a cancel and a failed scan as the same PERMISSION, so the heading names none. `PairingConfirm.tsx` and `ui.tsx` still show the unlock error raw.
   - The window has no render test for the footer; the wording and the show/hide rule are tested as pure helpers in `model.ts`.
 
 ### Second pass: the sentence claims only what the wallet knows (G1), and the void (G2)
@@ -2278,3 +2278,54 @@ Ids are the ones on main.
 Residues: "The deal shows where it stands" is read from the refetched deal; an unreadable ledger
 also returns the sentence. The IPC-transport failure, the unretried receipt and the second-hold
 refusal on Capture are unchanged.
+
+### Third pass: a second hold on an open step, true last clauses, unlock and pairing notices (full r2 must-address)
+
+- **Feature:** owner-approval-decision. Base 4f9141a. Client tsc and vitest were not run, by the
+  builder or by the merge gate (no node_modules in the worktree); the Director runs them on main.
+- **Lines 1 and 2 (one defect), closed in the smaller form.** A second Capture, Countersign or
+  owner Void while the first step's operation is open reached a table-app guard
+  (`has_open_operation`, pipeline.rs create, authorize, capture and void) that returns PERMISSION
+  before reserving anything, so the window read "Not paid ... nothing was done". `after_paypal_with`
+  (service.rs) now returns UNAVAILABLE with `STEP_NOT_CONFIRMED` when the pipeline said PERMISSION,
+  no operation was reserved and `Pipeline::has_open_operation` is true. No table-app change. The
+  client recognises it (`reachedPaypal`) and heads it "Not sent: an earlier step isn't confirmed
+  yet" (`unconfirmedHeading`, now given the error), true whichever step is open.
+- **Line 3, closed.** `LockCard` and `PairingConfirm` use `UNLOCK_HEADING` and
+  `footerNoticeText('unlock', ...)`; the "Not connected" notice uses the new `'pairing'` kind. Codes
+  `pairing_confirm` can return: INVALID (no such waiting connection, words differ, lapsed, bad key or
+  unusable name), PERMISSION (a known key whose stored binding differs), NOT_FOUND and LEDGER_TRUST
+  (ledger errors via `From<table_app::Error>`), plus LOCKED and UNAVAILABLE from the gate. No
+  heading says "cancelled".
+- **craft-16 and the lag.** The ends of `REACHED_PAYPAL` ("Where PayPal's answer is unclear, the
+  wallet asks PayPal what happened.") and `VOID_REACHED_PAYPAL` ("The wallet asks PayPal what
+  happened, and asks again at the deadline.") no longer say the deal shows where it stands, which
+  the window does not do. The first is conditional so that it stays true when a receipt failed after
+  a confirmed capture. approval-window.md no longer says a lost void shows "nothing was done".
+- **Truth table.** Each sentence's clauses and the code that makes them true:
+  - REACHED_PAYPAL: lost create, lost authorize, lost capture (a), unverified capture (b), receipt
+    failure (c), lost rescue send (the Countersign, Capture and Rescue arms of `decide()` via
+    `after_paypal`). "May have reached": the reservation is a local row (ledger `reserve_operation`).
+    "Won't send it again on its own": resolve.rs `may_resend` returns false for a Human-decided
+    operation (`DecidedBy::Human` arm) and for `op.resent`. "Where PayPal's answer is unclear, asks":
+    `resolve_deal` reads open operations back each tick (resolve.rs ~:104-135); (c) has none, hence
+    the conditional.
+  - VOID_REACHED_PAYPAL: lost void (the Void arm). "Asks again at the deadline": `resolve_deal`
+    includes `void` in the parked reads at the deadline (resolve.rs :113); `may_resend` lets the
+    void go again (resolve.rs ~:262), so no "won't send" claim.
+  - STEP_NOT_CONFIRMED: the second hold on each guard, create (pipeline.rs:775), authorize (:1052),
+    capture (:1140) and the owner's void (:230). Nothing sent, nothing reserved: each guard returns
+    before the reservation; the tests assert the operation count and the fake PayPal's request count.
+    "Asks PayPal what happened first": the open operation is read back by `resolve_deal`.
+    A Rescue send with an open operation resolves instead of refusing (rescue.rs :393), so it does
+    not reach this arm.
+- **Tests.** `reached_paypal_tests.rs`: second capture after a lost capture, second countersign
+  after a lost authorize, void after a lost capture (each asserts UNAVAILABLE, the sentence, an
+  unchanged operation count and no further request), PERMISSION with no open operation stays
+  PERMISSION, and one test that the five wallet sentences appear byte for byte in `words.ts`
+  (craft-18). Client `model.test.ts`: the headings, the pass-through, and the three notices free of
+  the wallet's message and "cancel".
+- **Still open.** After a remount the approval window shows no open money step and Collect stays
+  live (the larger option: it needs `ApprovalSummary`, bindings, gating and the mock backend; not
+  built this round). robustness-4 (errors raised after the money step, and an IPC transport
+  failure) and craft-12 are not part of this rework.
