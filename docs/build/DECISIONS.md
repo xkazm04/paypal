@@ -1314,8 +1314,8 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
      the council did not re-judge.
 - **Checked on main (cb965ed).** `resolve_create` is in `crates/table-app/src/pipeline/resolve.rs` (:307; the lost-create park
   at :331-336), not in table-engine. r3 cites `after_paypal_with` at `service.rs:722-735`; main has the function at :715-735,
-  with the open-operation arm at :725-731. `can_release` is at `service.rs:436-441`; the gates read it at `gating.ts:139` and
-  :173 (r3 says :171). The rest of what this section cites matches r3.
+  with the open-operation arm at :725-731. `can_release` is at `service.rs:436-441`; the gates read it at `gating.ts:139` (the
+  money gate) and :173 (void); the capture gate is :171, as r3 says. The rest of what this section cites matches r3.
 - **Lost:**
   - option (A), the open step visible in `approval_summary` with the money buttons disabled across a remount;
   - a dedicated error code or a `reached` field instead of text matching (craft's lead craft-22 in r3's Leads): the Rust
