@@ -13,7 +13,7 @@ import type { MarketRef } from '@bindings/MarketRef';
 import type { Money } from '@bindings/Money';
 import type { OpenMandate } from '@bindings/OpenMandate';
 import { exponent, formatMinor, formatMoney, lineTotal } from '../../lib/format';
-import { ruleSentence, stateWord as plainState } from '../../lib/words';
+import { CHECK_FAILED, ruleSentence, stateWord as plainState, SUMMARY_CHANGED } from '../../lib/words';
 import { isTerminal } from './gating';
 
 // ---------------------------------------------------------------------------------------------
@@ -179,6 +179,35 @@ export function isMandateActive(m: OpenMandate, now: number): boolean {
 
 // ---------------------------------------------------------------------------------------------
 // what the window says right after the owner decides
+
+/** A refusal of a decision (decide, open PayPal, withdraw) in plain words. Every one says nothing moved.
+ *  The wallet's two plain sentences pass through; the rest are replaced (the code chip still shows). */
+/** The message DealReview gives its own INVALID when the counter has not arrived. */
+export const OFFER_NOT_HERE = 'their latest offer hasn’t arrived yet';
+
+export function refusalText(error: { code: string; message: string }): string {
+  if (error.message === SUMMARY_CHANGED || error.message === CHECK_FAILED) return error.message;
+  switch (error.code) {
+    case 'LOCKED':
+      return 'The wallet is locked, so nothing was done. Unlock it with Windows Hello, then try again.';
+    case 'PERMISSION':
+      return 'This window isn’t allowed to do that right now, so nothing was done.';
+    case 'UNSUPPORTED':
+      return 'Windows Hello isn’t set up on this computer, so nothing was done.';
+    case 'UNAVAILABLE':
+      return 'The wallet couldn’t be reached, so nothing was done. Try again in a moment.';
+    case 'NOT_FOUND':
+      return 'The wallet can’t find this deal any more, so nothing was done.';
+    case 'LEDGER_TRUST':
+      return 'The wallet’s records failed a safety check, so nothing was done.';
+    case 'INVALID':
+      return error.message === OFFER_NOT_HERE
+        ? 'Their latest offer hasn’t arrived yet, so nothing was done.'
+        : 'This request is out of date, so nothing was done. Look at the deal again.';
+    default:
+      return 'The wallet refused this, so nothing was done.';
+  }
+}
 
 export type DecisionCmd = 'deal_owner_accept' | 'deal_countersign' | 'deal_capture' | 'deal_void' | 'shield_release' | 'rescue_approve';
 
