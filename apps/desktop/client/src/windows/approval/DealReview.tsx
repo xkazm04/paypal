@@ -27,7 +27,7 @@ import { AnswerBar, Btn, Field, HoldButton, Popover, Sheet, layerCount, useFocus
 import { MarkIcon } from './review/Parts';
 import { BandAdjust } from './BandAdjust';
 import { decisionArgs, deriveGates, isLocked, isTerminal, namesMatch, ownerAcceptArgs, type Gate, type Gates } from './gating';
-import { buildStrip, dealTotal, derivePhase, OFFER_NOT_HERE, outcomeText, refusalText, stateWord, type DecisionCmd, type Phase } from './model';
+import { buildStrip, dealTotal, derivePhase, OFFER_NOT_HERE, failureShown, outcomeText, reachedPaypal, refusalText, stateWord, unconfirmedHeading, type DecisionCmd, type Phase } from './model';
 import { buildDiff, buildEvidence, lastAmount, type DiffRow } from './review/diff';
 import { WalletChecks, checksLine } from './review/Checks';
 import { DetailsSheet, RowDetail } from './review/Details';
@@ -64,7 +64,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const [lastRead, setLastRead] = useState<number | null>(null);
   const [inBrowser, setInBrowser] = useState(false);
   const [typed, setTyped] = useState('');
-  const [failure, setFailure] = useState<{ what: string; error: WalletError } | null>(null);
+  const [failure, setFailure] = useState<{ what: string; error: WalletError; from: string | null } | null>(null);
   const [outcome, setOutcome] = useState<string | null>(null);
   const [confirmWithdraw, setConfirmWithdraw] = useState(false);
   const [details, setDetails] = useState(false);
@@ -225,12 +225,13 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
     // Owner ACCEPT binds the exact counter Rust reported; every other decision the terms only.
     const args = cmd === 'deal_owner_accept' ? ownerAcceptArgs(summary) : decisionArgs(summary);
     if (!args) {
-      setFailure({ what, error: new WalletError({ code: 'INVALID', message: OFFER_NOT_HERE }) });
+      setFailure({ what, error: new WalletError({ code: 'INVALID', message: OFFER_NOT_HERE }), from: null });
       return;
     }
     const r = await s.call<DecisionCmd>(cmd, args, true);
     if (r.ok) setOutcome(outcomeText(cmd, r.value, cpName));
-    else setFailure({ what: stale(r.error) ? 'Nothing was done' : what, error: r.error });
+    else if (reachedPaypal(r.error)) setFailure({ what: unconfirmedHeading(cmd, summary.deal), error: r.error, from: summary.deal.state });
+    else setFailure({ what: stale(r.error) ? 'Nothing was done' : what, error: r.error, from: null });
     if (cmd === 'shield_release' && r.ok) setTyped('');
     await refetch();
   };
@@ -242,7 +243,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
     if (r.ok) {
       setInBrowser(true);
       toast('PayPal opened in your browser', 'gold');
-    } else setFailure({ what: stale(r.error) ? 'Nothing was done' : 'PayPal was not opened', error: r.error });
+    } else setFailure({ what: stale(r.error) ? 'Nothing was done' : 'PayPal was not opened', error: r.error, from: null });
     await refetch();
   };
   // The wallet refused because the checklist changed since it was shown: show the new one (the
@@ -272,7 +273,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
     setConfirmWithdraw(false);
     // Withdraw needs no unlock and no capability: it only moves toward the default.
     const r = await s.call('deal_withdraw', { deal_id: dealId });
-    if (!r.ok) setFailure({ what: 'Not withdrawn', error: r.error });
+    if (!r.ok) setFailure({ what: 'Not withdrawn', error: r.error, from: null });
     else toast('Withdrawn. No money moved.', 'ok');
     await refetch();
   };
@@ -491,7 +492,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
           </label>
         ) : null}
 
-        {failure ? <WalletNotice error={failure.error} what={failure.what} message={refusalText(failure.error)} /> : null}
+        {failure && failureShown(failure, d.state) ? <WalletNotice error={failure.error} what={failure.what} message={refusalText(failure.error)} /> : null}
         {!s.tokenReady && s.tokenError ? <WalletNotice error={s.tokenError} what="This window can’t approve right now" /> : null}
         {s.unlockError ? <WalletNotice error={s.unlockError} what={s.unlockError.isAvailabilityState ? 'Still locked' : 'Still locked · Windows Hello was cancelled'} /> : null}
 

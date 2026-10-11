@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
 import type { H256 } from '@bindings/H256';
-import { CHECK_FAILED, SUMMARY_CHANGED } from '../../lib/words';
-import { OFFER_NOT_HERE, outcomeText, refusalText } from './model';
+import { CHECK_FAILED, REACHED_PAYPAL, SUMMARY_CHANGED } from '../../lib/words';
+import { failureShown, OFFER_NOT_HERE, outcomeText, reachedPaypal, refusalText, unconfirmedHeading } from './model';
 
 const HASH = Array.from({ length: 32 }, (_, i) => i) as H256;
 const deal = (p: Partial<Deal> = {}): Deal => ({
@@ -62,5 +62,50 @@ describe('what the window says when a decision is refused', () => {
   });
   it('every error code has an answer that says nothing moved', () => {
     for (const code of codes) expect(refusalText({ code, message: 'x' })).toMatch(/nothing was done/);
+  });
+});
+
+describe('what the window says when a step reached PayPal and is not confirmed', () => {
+  const codes = ['LOCKED', 'PERMISSION', 'REFUSED', 'INVALID', 'NOT_FOUND', 'UNAVAILABLE', 'LEDGER_TRUST', 'UNSUPPORTED'] as const;
+  it('passes the wallet’s sentence through under every code, and never says nothing was done or try again', () => {
+    for (const code of codes) {
+      const t = refusalText({ code, message: REACHED_PAYPAL });
+      expect(t).toBe(REACHED_PAYPAL);
+      expect(t).not.toMatch(/nothing was done|try again|not paid/i);
+    }
+  });
+  it('is the same bytes as the wallet’s sentence (service.rs REACHED_PAYPAL)', () => {
+    expect(REACHED_PAYPAL).toBe('That reached PayPal, so the wallet won’t send it again. The deal shows where it stands.');
+  });
+  it('recognises it only by its exact text', () => {
+    expect(reachedPaypal({ message: REACHED_PAYPAL })).toBe(true);
+    expect(reachedPaypal({ message: 'ipc failure' })).toBe(false);
+  });
+  it('heads each decision with a heading true for it, never “Not paid”', () => {
+    const heads = [
+      unconfirmedHeading('deal_capture', { side: 'buyer', state: 'AUTHORIZED' }),
+      unconfirmedHeading('deal_capture', { side: 'seller', state: 'AUTHORIZED' }),
+      unconfirmedHeading('deal_countersign', { side: 'seller', state: 'AGREED' }),
+      unconfirmedHeading('deal_countersign', { side: 'seller', state: 'APPROVED' }),
+      unconfirmedHeading('rescue_approve', { side: 'seller', state: 'SETTLING' }),
+    ];
+    expect(heads).toEqual([
+      'Payment not confirmed yet',
+      'Collection not confirmed yet',
+      'Order not confirmed yet',
+      'Hold not confirmed yet',
+      'Sending the fix isn’t confirmed yet',
+    ]);
+    for (const h of heads) expect(h).not.toMatch(/Not paid|nothing was done/i);
+  });
+  it('the notice shows while the deal is where the decision started, and goes once it moved', () => {
+    const lost = { error: { message: REACHED_PAYPAL }, from: 'AUTHORIZED' };
+    expect(failureShown(lost, 'AUTHORIZED')).toBe(true);
+    expect(failureShown(lost, 'CAPTURED')).toBe(false);
+    expect(failureShown(lost, 'RECEIPTED')).toBe(false);
+    expect(failureShown({ error: { message: REACHED_PAYPAL }, from: 'APPROVED' }, 'AUTHORIZED')).toBe(false);
+  });
+  it('any other failure keeps showing', () => {
+    expect(failureShown({ error: { message: 'x' }, from: null }, 'CAPTURED')).toBe(true);
   });
 });
