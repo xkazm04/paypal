@@ -2348,3 +2348,5 @@ refusal on Capture are unchanged.
 - **Still open for the operator:** craft-25 (the "asks PayPal" clauses are untrue for a lost owner create
   and a parked step), craft-26 (after a remount, Collect stays live), craft-27 (pairing INVALID for an
   unusable name), robustness-3 (no render test), robustness-4 and craft-12.
+- **Typecheck fix.** On main at 24a17ca the Director's client vitest was green (1070) and tsc failed on
+  `notices.test.ts`:38-39 (indexed access, `found[0]`); this commit fixes those two lines with `found[0]!`.
