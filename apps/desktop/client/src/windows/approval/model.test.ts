@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
 import type { H256 } from '@bindings/H256';
-import { CHECK_FAILED, REACHED_PAYPAL, SUMMARY_CHANGED } from '../../lib/words';
+import { CHECK_FAILED, REACHED_PAYPAL, SUMMARY_CHANGED, VOID_REACHED_PAYPAL } from '../../lib/words';
 import { failureShown, footerNoticeText, OFFER_NOT_HERE, outcomeText, reachedPaypal, refusalText, unconfirmedHeading, UNLOCK_HEADING } from './model';
 
 const HASH = Array.from({ length: 32 }, (_, i) => i) as H256;
@@ -69,16 +69,23 @@ describe('what the window says when a step reached PayPal and is not confirmed',
   const codes = ['LOCKED', 'PERMISSION', 'REFUSED', 'INVALID', 'NOT_FOUND', 'UNAVAILABLE', 'LEDGER_TRUST', 'UNSUPPORTED'] as const;
   it('passes the wallet’s sentence through under every code, and never says nothing was done or try again', () => {
     for (const code of codes) {
-      const t = refusalText({ code, message: REACHED_PAYPAL });
-      expect(t).toBe(REACHED_PAYPAL);
-      expect(t).not.toMatch(/nothing was done|try again|not paid/i);
+      for (const sentence of [REACHED_PAYPAL, VOID_REACHED_PAYPAL]) {
+        const t = refusalText({ code, message: sentence });
+        expect(t).toBe(sentence);
+        expect(t).not.toMatch(/nothing was done|try again|not paid|that reached paypal/i);
+      }
     }
   });
   it('is the same bytes as the wallet’s sentence (service.rs REACHED_PAYPAL)', () => {
-    expect(REACHED_PAYPAL).toBe('That reached PayPal, so the wallet won’t send it again. The deal shows where it stands.');
+    expect(REACHED_PAYPAL).toBe('That may have reached PayPal. The wallet won’t send it again on its own. The deal shows where it stands.');
+    expect(VOID_REACHED_PAYPAL).toBe('The release may have reached PayPal, and its outcome isn’t known yet. The deal shows where it stands.');
+  });
+  it('the void sentence makes no claim that the release will not be sent again', () => {
+    expect(VOID_REACHED_PAYPAL).not.toMatch(/won’t send/);
   });
   it('recognises it only by its exact text', () => {
     expect(reachedPaypal({ message: REACHED_PAYPAL })).toBe(true);
+    expect(reachedPaypal({ message: VOID_REACHED_PAYPAL })).toBe(true);
     expect(reachedPaypal({ message: 'ipc failure' })).toBe(false);
   });
   it('heads each decision with a heading true for it, never “Not paid”', () => {
@@ -88,6 +95,7 @@ describe('what the window says when a step reached PayPal and is not confirmed',
       unconfirmedHeading('deal_countersign', { side: 'seller', state: 'AGREED' }),
       unconfirmedHeading('deal_countersign', { side: 'seller', state: 'APPROVED' }),
       unconfirmedHeading('rescue_approve', { side: 'seller', state: 'SETTLING' }),
+      unconfirmedHeading('deal_void', { side: 'seller', state: 'AUTHORIZED' }),
     ];
     expect(heads).toEqual([
       'Payment not confirmed yet',
@@ -95,6 +103,7 @@ describe('what the window says when a step reached PayPal and is not confirmed',
       'Order not confirmed yet',
       'Hold not confirmed yet',
       'Sending the fix isn’t confirmed yet',
+      'Release not confirmed yet',
     ]);
     for (const h of heads) expect(h).not.toMatch(/Not paid|nothing was done/i);
   });
@@ -104,6 +113,11 @@ describe('what the window says when a step reached PayPal and is not confirmed',
     expect(failureShown(lost, 'CAPTURED')).toBe(false);
     expect(failureShown(lost, 'RECEIPTED')).toBe(false);
     expect(failureShown({ error: { message: REACHED_PAYPAL }, from: 'APPROVED' }, 'AUTHORIZED')).toBe(false);
+  });
+  it('a void’s notice shows while the deal is still held, and goes once it reads VOIDED', () => {
+    const lost = { error: { message: VOID_REACHED_PAYPAL }, from: 'AUTHORIZED' };
+    expect(failureShown(lost, 'AUTHORIZED')).toBe(true);
+    expect(failureShown(lost, 'VOIDED')).toBe(false);
   });
   it('any other failure keeps showing', () => {
     expect(failureShown({ error: { message: 'x' }, from: null }, 'CAPTURED')).toBe(true);
