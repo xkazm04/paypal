@@ -45,6 +45,10 @@ impl Decision {
 pub const SUMMARY_CHANGED: &str = "The summary changed. Review it again.";
 /// The plain-words refusal of a money decision while a check on the deal fails.
 pub const CHECK_FAILED: &str = "A check on this deal failed, so nothing was done.";
+/// The plain-words answer when a PayPal step failed after its request was reserved at PayPal:
+/// the money may have moved or may be held, so it never reads as "nothing was done".
+pub const REACHED_PAYPAL: &str =
+    "That reached PayPal, so the wallet won’t send it again. The deal shows where it stands.";
 fn summary_changed() -> CommandError {
     CommandError {
         code: ErrorCode::Invalid,
@@ -596,7 +600,9 @@ impl Runtime {
                 }
                 self.select_signer(deal.id)?;
                 self.record(deal.id, decision, &args, checks, now)?;
-                self.pipeline.rescue_approve(deal.id, ticket, now).await?;
+                let before = self.operations_reserved(deal.id)?;
+                let sent = self.pipeline.rescue_approve(deal.id, ticket, now).await;
+                sent.map_err(|e| self.after_paypal(deal.id, before, e.into()))?;
             }
             Decision::OpenBrowser => {
                 self.select_signer(deal.id)?;
@@ -619,10 +625,12 @@ impl Runtime {
                 if !self.settings()?.payment_executor_configured {
                     return Err(unavailable("Enter PayPal sandbox credentials"));
                 }
+                let before = self.operations_reserved(deal.id)?;
                 match (decision, deal.state) {
                     (Decision::Countersign, DealState::Agreed) => {
                         self.record(deal.id, decision, &args, checks, now)?;
-                        self.pipeline
+                        let sent = self
+                            .pipeline
                             .create(
                                 deal.id,
                                 args.attempt,
@@ -630,11 +638,13 @@ impl Runtime {
                                 Authority::Owner(ticket),
                                 now,
                             )
-                            .await?;
+                            .await;
+                        sent.map_err(|e| self.after_paypal(deal.id, before, e.into()))?;
                     }
                     (Decision::Countersign, DealState::Approved) => {
                         self.record(deal.id, decision, &args, checks, now)?;
-                        self.pipeline
+                        let sent = self
+                            .pipeline
                             .authorize(
                                 deal.id,
                                 args.attempt,
@@ -642,11 +652,13 @@ impl Runtime {
                                 Authority::Owner(ticket),
                                 now,
                             )
-                            .await?
+                            .await;
+                        sent.map_err(|e| self.after_paypal(deal.id, before, e.into()))?
                     }
                     (Decision::Capture, DealState::Authorized) => {
                         self.record(deal.id, decision, &args, checks, now)?;
-                        self.pipeline
+                        let sent = self
+                            .pipeline
                             .capture(
                                 deal.id,
                                 args.attempt,
@@ -654,7 +666,8 @@ impl Runtime {
                                 Authority::Owner(ticket),
                                 now,
                             )
-                            .await?;
+                            .await;
+                        sent.map_err(|e| self.after_paypal(deal.id, before, e.into()))?;
                     }
                     _ => return Err(invalid()),
                 }
@@ -662,6 +675,27 @@ impl Runtime {
         }
         serde_json::to_value(app(self.pipeline.wallet.ledger.get_deal(deal.id))?)
             .map_err(|_| invalid())
+    }
+    /// How many money operations the ledger ever reserved for the deal (one per PayPal request id).
+    fn operations_reserved(&self, id: DealId) -> Result<u64, CommandError> {
+        app(self.pipeline.wallet.ledger.operation_count(id))
+    }
+    /// A decision's pipeline error, told apart by what the ledger shows: an operation reserved
+    /// during the call means its PayPal request was reserved or sent, so the owner is told so
+    /// (`REACHED_PAYPAL`); otherwise a guard, the mandate, the shield or a missing countersign
+    /// refused before any call, and the pipeline's own error stands.
+    pub(crate) fn after_paypal(
+        &self,
+        id: DealId,
+        before: u64,
+        refusal: CommandError,
+    ) -> CommandError {
+        match self.operations_reserved(id) {
+            Ok(now) if now > before => unavailable(REACHED_PAYPAL),
+            Ok(_) => refusal,
+            // The ledger cannot be read: the call may have been made, so never say it was not.
+            Err(_) => unavailable(REACHED_PAYPAL),
+        }
     }
     pub(crate) fn create_deal(&mut self, args: DealCreateArgs) -> Result<Deal, CommandError> {
         self.create_deal_id(args, DealId(ulid::Ulid::new()))

@@ -27,6 +27,8 @@ pub(crate) mod policy_tests;
 mod proof_tests;
 #[path = "quit_tests.rs"]
 mod quit_tests;
+#[path = "reached_paypal_tests.rs"]
+mod reached_paypal_tests;
 #[path = "relay_tests.rs"]
 mod relay_tests;
 #[path = "rescue_tests.rs"]
@@ -88,6 +90,10 @@ struct ApiState {
     fail_void: bool,
     /// The capture request is lost before PayPal sees it.
     fail_capture: bool,
+    /// The authorize request is lost before PayPal sees it.
+    fail_authorize: bool,
+    /// PayPal answers the capture, but not with a COMPLETED payment the wallet can verify.
+    unverified_capture: bool,
     /// What PayPal holds after each money step, so an order read reflects it (T10 read-back).
     authorization: Option<&'static str>,
     captured: bool,
@@ -460,6 +466,9 @@ impl Transport for OfflineHttp {
             });
         }
         if url.ends_with("/orders/ORDER1/authorize") {
+            if s.fail_authorize {
+                return Err(TransportError);
+            }
             s.authorization = Some("CREATED");
             let mut units = s.units.clone().unwrap();
             units[0]["payments"] = json!({"authorizations":[{"id":"AUTH1","status":"CREATED","amount":units[0]["amount"]}]});
@@ -471,6 +480,12 @@ impl Transport for OfflineHttp {
         if url.ends_with("/authorizations/AUTH1/capture") {
             if s.fail_capture {
                 return Err(TransportError);
+            }
+            if s.unverified_capture {
+                return Ok(Response {
+                    status: 201,
+                    body: json!({"id":"CAPTURE1","status":"PENDING","amount":s.units.as_ref().unwrap()[0]["amount"]}),
+                });
             }
             s.authorization = Some("CAPTURED");
             s.captured = true;
