@@ -17,6 +17,7 @@ import { useNow, useQuery } from '../../lib/hooks';
 import { WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Chip, Hourglass, Kv, Popover, Sheet } from '../../shared/ui';
 import { houseWords } from '../../lib/words';
+import { footerNoticeText, UNLOCK_HEADING } from './model';
 import { useSession } from './session';
 
 /** Rust stores the label as ShortText<32>: at most 32 UTF-8 bytes, no control characters. */
@@ -202,8 +203,8 @@ export function PairingConfirm({ pending, readError, onSettled }: Props) {
           {unsupported ? 'Windows Hello isn’t set up on this computer, so connecting can’t unlock here. Stopping still works.' : 'Locked · connecting asks for Windows Hello; stopping doesn’t.'} <Info k="lock" open={pop} setOpen={setPop} />
         </p>
       ) : null}
-      {s.unlockError ? <WalletNotice error={s.unlockError} what="Still locked" /> : null}
-      {error ? <WalletNotice error={error} what="Not connected" /> : null}
+      {s.unlockError ? <WalletNotice error={s.unlockError} what={UNLOCK_HEADING} message={footerNoticeText('unlock', s.unlockError)} /> : null}
+      {error ? <WalletNotice error={error} what="Not connected" message={footerNoticeText('pairing', error)} /> : null}
       <p className="ui-silence">
         <Hourglass /><span className="if">If you do nothing: </span><b>it waits, then lapses</b> · nothing is connected, nobody is paid
       </p>

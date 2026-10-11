@@ -230,7 +230,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
     }
     const r = await s.call<DecisionCmd>(cmd, args, true);
     if (r.ok) setOutcome(outcomeText(cmd, r.value, cpName));
-    else if (reachedPaypal(r.error)) setFailure({ what: unconfirmedHeading(cmd, summary.deal), error: r.error, from: summary.deal.state });
+    else if (reachedPaypal(r.error)) setFailure({ what: unconfirmedHeading(cmd, summary.deal, r.error), error: r.error, from: summary.deal.state });
     else setFailure({ what: stale(r.error) ? 'Nothing was done' : what, error: r.error, from: null });
     if (cmd === 'shield_release' && r.ok) setTyped('');
     await refetch();

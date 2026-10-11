@@ -13,7 +13,7 @@ import type { MarketRef } from '@bindings/MarketRef';
 import type { Money } from '@bindings/Money';
 import type { OpenMandate } from '@bindings/OpenMandate';
 import { exponent, formatMinor, formatMoney, lineTotal } from '../../lib/format';
-import { CHECK_FAILED, REACHED_PAYPAL, ruleSentence, stateWord as plainState, SUMMARY_CHANGED, VOID_REACHED_PAYPAL } from '../../lib/words';
+import { CHECK_FAILED, REACHED_PAYPAL, ruleSentence, stateWord as plainState, STEP_NOT_CONFIRMED, SUMMARY_CHANGED, VOID_REACHED_PAYPAL } from '../../lib/words';
 import { isTerminal } from './gating';
 
 // ---------------------------------------------------------------------------------------------
@@ -180,12 +180,14 @@ export function isMandateActive(m: OpenMandate, now: number): boolean {
 // ---------------------------------------------------------------------------------------------
 // what the window says right after the owner decides
 
-/** A refusal of a decision (decide, open PayPal, withdraw) in plain words. Every one says nothing moved,
- *  except REACHED_PAYPAL and VOID_REACHED_PAYPAL: a step that reached PayPal is not a refusal and never says nothing was done.
- *  The wallet's three plain sentences pass through; the rest are replaced (the code chip still shows). */
 /** The message DealReview gives its own INVALID when the counter has not arrived. */
 export const OFFER_NOT_HERE = 'their latest offer hasn’t arrived yet';
 
+/** A refusal of a decision (decide, open PayPal, withdraw) in plain words. Every one says nothing moved,
+ *  except the three wallet sentences about a PayPal step that is not confirmed (REACHED_PAYPAL,
+ *  VOID_REACHED_PAYPAL, STEP_NOT_CONFIRMED): they never say nothing was done.
+ *  Five wallet sentences pass through unchanged (those three, SUMMARY_CHANGED and CHECK_FAILED);
+ *  the rest are replaced (the code chip still shows). */
 export function refusalText(error: { code: string; message: string }): string {
   if (error.message === SUMMARY_CHANGED || error.message === CHECK_FAILED || reachedPaypal(error)) return error.message;
   switch (error.code) {
@@ -212,7 +214,7 @@ export function refusalText(error: { code: string; message: string }): string {
 
 /** The wallet's own text never reaches the footer notices: per code, plain words and a remedy that is true.
  *  Reading a deal, getting this window's permission to approve, and unlocking each fail in their own way. */
-export type FooterNotice = 'read' | 'token' | 'unlock';
+export type FooterNotice = 'read' | 'token' | 'unlock' | 'pairing';
 
 export function footerNoticeText(kind: FooterNotice, error: { code: string }): string {
   switch (kind) {
@@ -238,6 +240,26 @@ export function footerNoticeText(kind: FooterNotice, error: { code: string }): s
         default:
           return 'This window can’t approve anything right now. Money stays where it is. Close this window and open it again.';
       }
+    case 'pairing':
+      // The codes pairing_confirm returns (table-runtime pairing.rs): INVALID (no such waiting connection,
+      // the words differ, it lapsed, or the name is unusable), PERMISSION (this key is already known and
+      // does not match), NOT_FOUND and LEDGER_TRUST (the wallet's records), and the gate's LOCKED and UNAVAILABLE.
+      switch (error.code) {
+        case 'INVALID':
+          return 'This connection can’t be made any more: it lapsed or no longer matches. Nothing is connected. Start again in The Table.';
+        case 'NOT_FOUND':
+          return 'The wallet can’t find this waiting connection any more. Nothing is connected.';
+        case 'PERMISSION':
+          return 'This agent doesn’t match the one the wallet already knows, so nothing is connected.';
+        case 'LOCKED':
+          return 'The wallet is locked, so nothing is connected. Unlock it with Windows Hello, then confirm again.';
+        case 'UNAVAILABLE':
+          return 'The wallet couldn’t be reached, so nothing is connected. Try again in a moment.';
+        case 'LEDGER_TRUST':
+          return 'The wallet’s records failed a safety check, so nothing is connected.';
+        default:
+          return 'The wallet refused this, so nothing is connected.';
+      }
     case 'unlock':
       switch (error.code) {
         case 'UNSUPPORTED':
@@ -256,11 +278,15 @@ export function footerNoticeText(kind: FooterNotice, error: { code: string }): s
  *  (PERMISSION "did not verify"), so nothing tells a cancel apart. */
 export const UNLOCK_HEADING = 'Still locked';
 
-/** Whether a decision's failure is the wallet's "that reached PayPal" answer. */
-export const reachedPaypal = (error: { message: string }): boolean => error.message === REACHED_PAYPAL || error.message === VOID_REACHED_PAYPAL;
+/** Whether a decision's failure is one of the wallet's "a PayPal step is not confirmed" answers:
+ *  that this step may have reached PayPal, or that an earlier step is still open and this one was not sent. */
+export const reachedPaypal = (error: { message: string }): boolean =>
+  error.message === REACHED_PAYPAL || error.message === VOID_REACHED_PAYPAL || error.message === STEP_NOT_CONFIRMED;
 
-/** The heading of a decision that reached PayPal and is not confirmed: true for the step, never "Not paid". */
-export function unconfirmedHeading(cmd: DecisionCmd, deal: Pick<Deal, 'side' | 'state'>): string {
+/** The heading of a decision that reached PayPal and is not confirmed: true for the step, never "Not paid".
+ *  When the answer is that an earlier step is open, the heading names no step: whatever is open, this one was not sent. */
+export function unconfirmedHeading(cmd: DecisionCmd, deal: Pick<Deal, 'side' | 'state'>, error?: { message: string }): string {
+  if (error?.message === STEP_NOT_CONFIRMED) return 'Not sent: an earlier step isn’t confirmed yet';
   switch (cmd) {
     case 'deal_capture':
       return deal.side === 'seller' ? 'Collection not confirmed yet' : 'Payment not confirmed yet';

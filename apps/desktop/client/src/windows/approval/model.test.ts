@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
 import type { H256 } from '@bindings/H256';
-import { CHECK_FAILED, REACHED_PAYPAL, SUMMARY_CHANGED, VOID_REACHED_PAYPAL } from '../../lib/words';
+import { CHECK_FAILED, REACHED_PAYPAL, STEP_NOT_CONFIRMED, SUMMARY_CHANGED, VOID_REACHED_PAYPAL } from '../../lib/words';
 import { failureShown, footerNoticeText, OFFER_NOT_HERE, outcomeText, reachedPaypal, refusalText, unconfirmedHeading, UNLOCK_HEADING } from './model';
 
 const HASH = Array.from({ length: 32 }, (_, i) => i) as H256;
@@ -69,7 +69,7 @@ describe('what the window says when a step reached PayPal and is not confirmed',
   const codes = ['LOCKED', 'PERMISSION', 'REFUSED', 'INVALID', 'NOT_FOUND', 'UNAVAILABLE', 'LEDGER_TRUST', 'UNSUPPORTED'] as const;
   it('passes the wallet’s sentence through under every code, and never says nothing was done or try again', () => {
     for (const code of codes) {
-      for (const sentence of [REACHED_PAYPAL, VOID_REACHED_PAYPAL]) {
+      for (const sentence of [REACHED_PAYPAL, VOID_REACHED_PAYPAL, STEP_NOT_CONFIRMED]) {
         const t = refusalText({ code, message: sentence });
         expect(t).toBe(sentence);
         expect(t).not.toMatch(/nothing was done|try again|not paid|that reached paypal/i);
@@ -77,8 +77,10 @@ describe('what the window says when a step reached PayPal and is not confirmed',
     }
   });
   it('is the same bytes as the wallet’s sentence (service.rs REACHED_PAYPAL)', () => {
-    expect(REACHED_PAYPAL).toBe('That may have reached PayPal. The wallet won’t send it again on its own. The deal shows where it stands.');
-    expect(VOID_REACHED_PAYPAL).toBe('The release may have reached PayPal, and its outcome isn’t known yet. The deal shows where it stands.');
+    expect(REACHED_PAYPAL).toBe('That may have reached PayPal. The wallet won’t send it again on its own. Where PayPal’s answer is unclear, the wallet asks PayPal what happened.');
+    expect(VOID_REACHED_PAYPAL).toBe('The release may have reached PayPal, and its outcome isn’t known yet. The wallet asks PayPal what happened, and asks again at the deadline.');
+    expect(STEP_NOT_CONFIRMED).toBe('An earlier PayPal step on this deal isn’t confirmed yet, so this one wasn’t sent. The wallet asks PayPal what happened first.');
+    for (const sentence of [REACHED_PAYPAL, VOID_REACHED_PAYPAL]) expect(sentence).not.toMatch(/the deal shows/i);
   });
   it('the void sentence makes no claim that the release will not be sent again', () => {
     expect(VOID_REACHED_PAYPAL).not.toMatch(/won’t send/);
@@ -86,6 +88,7 @@ describe('what the window says when a step reached PayPal and is not confirmed',
   it('recognises it only by its exact text', () => {
     expect(reachedPaypal({ message: REACHED_PAYPAL })).toBe(true);
     expect(reachedPaypal({ message: VOID_REACHED_PAYPAL })).toBe(true);
+    expect(reachedPaypal({ message: STEP_NOT_CONFIRMED })).toBe(true);
     expect(reachedPaypal({ message: 'ipc failure' })).toBe(false);
   });
   it('heads each decision with a heading true for it, never “Not paid”', () => {
@@ -107,6 +110,21 @@ describe('what the window says when a step reached PayPal and is not confirmed',
     ]);
     for (const h of heads) expect(h).not.toMatch(/Not paid|nothing was done/i);
   });
+  it('the second answer on capture, countersign and void is headed for the open step, not “Not paid”', () => {
+    const error = { code: 'UNAVAILABLE', message: STEP_NOT_CONFIRMED };
+    for (const [cmd, deal] of [
+      ['deal_capture', { side: 'seller', state: 'AUTHORIZED' }],
+      ['deal_countersign', { side: 'seller', state: 'APPROVED' }],
+      ['deal_void', { side: 'seller', state: 'AUTHORIZED' }],
+    ] as const) {
+      const heading = unconfirmedHeading(cmd, deal, error);
+      expect(heading).toBe('Not sent: an earlier step isn’t confirmed yet');
+      expect(heading).not.toMatch(/Not paid|Not approved|Hold not released|Release not confirmed/i);
+      const text = refusalText(error);
+      expect(text).toBe(STEP_NOT_CONFIRMED);
+      expect(text).not.toMatch(/nothing was done|try again/i);
+    }
+  });
   it('the notice shows while the deal is where the decision started, and goes once it moved', () => {
     const lost = { error: { message: REACHED_PAYPAL }, from: 'AUTHORIZED' };
     expect(failureShown(lost, 'AUTHORIZED')).toBe(true);
@@ -127,7 +145,7 @@ describe('what the window says when a step reached PayPal and is not confirmed',
 describe('the footer notices say plain words, never the wallet’s own text', () => {
   const codes = ['LOCKED', 'PERMISSION', 'REFUSED', 'INVALID', 'NOT_FOUND', 'UNAVAILABLE', 'LEDGER_TRUST', 'UNSUPPORTED'] as const;
   const raw = ['Wallet actor stopped', 'permission denied', 'Invalid or stale wallet command', 'the approval capability is not available in this window'];
-  for (const kind of ['read', 'token', 'unlock'] as const) {
+  for (const kind of ['read', 'token', 'unlock', 'pairing'] as const) {
     it(`${kind}: no code’s notice contains the wallet’s message`, () => {
       for (const code of codes) {
         const t = footerNoticeText(kind, { code });
@@ -141,6 +159,18 @@ describe('the footer notices say plain words, never the wallet’s own text', ()
     expect(UNLOCK_HEADING).toBe('Still locked');
     expect(UNLOCK_HEADING).not.toMatch(/cancel/i);
     for (const code of codes) expect(footerNoticeText('unlock', { code })).not.toMatch(/cancel/i);
+  });
+  it('the lock card, the pairing unlock notice and the pairing refusal never carry the wallet’s message or the word cancel', () => {
+    const walletText = 'Windows Hello did not verify the owner';
+    const heading = `Still locked`;
+    for (const code of codes) {
+      for (const t of [footerNoticeText('unlock', { code }), footerNoticeText('pairing', { code })]) {
+        expect(t).not.toContain(walletText);
+        expect(t).not.toMatch(/cancel|did not verify/i);
+      }
+    }
+    expect(heading).toBe(UNLOCK_HEADING);
+    expect(footerNoticeText('pairing', { code: 'INVALID' })).toMatch(/nothing is connected/i);
   });
   it('a token failure says money stays where it is', () => {
     for (const code of ['UNAVAILABLE', 'PERMISSION', 'INVALID']) expect(footerNoticeText('token', { code })).toContain('Money stays where it is');

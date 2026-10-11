@@ -6,7 +6,7 @@
 import type { ReactNode } from 'react';
 import type { Mode } from '@bindings/Mode';
 import { MockBadge, ModeBadge, WalletNotice } from '../../shared/honesty';
-import { STEP, type Step } from './model';
+import { footerNoticeText, STEP, UNLOCK_HEADING, type Step } from './model';
 import { useSession } from './session';
 
 /** The Dial's emblem: a steel dial with the gold settlement ring. Static, trusted SVG. */
@@ -92,13 +92,7 @@ export function LockCard({ compact }: { compact?: boolean }) {
           Unlock with Windows Hello
         </button>
       )}
-      {s.unlockError ? (
-        s.unlockError.isAvailabilityState ? (
-          <WalletNotice error={s.unlockError} what="Still locked" />
-        ) : (
-          <WalletNotice error={s.unlockError} what="Still locked · Windows Hello was cancelled" />
-        )
-      ) : null}
+      {s.unlockError ? <WalletNotice error={s.unlockError} what={UNLOCK_HEADING} message={footerNoticeText('unlock', s.unlockError)} /> : null}
     </div>
   );
 }
