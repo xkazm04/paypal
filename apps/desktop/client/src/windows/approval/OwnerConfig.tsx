@@ -18,7 +18,7 @@ import { TakeTour, Tour } from '../../shared/tour';
 import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
 import { OwnerKey } from '../../shared/ownerKey';
 import { AnswerBar, Btn, Chip, Group, Hint, Popover, Row, Section, type ChipTone } from '../../shared/ui';
-import { clauseText, isMandateActive } from './model';
+import { clauseText, footerNoticeText, isMandateActive } from './model';
 import { PairingConfirm } from './PairingConfirm';
 import { WalletLimits } from './owner/WalletLimits';
 import { rescueRules } from './owner/replay';
@@ -166,7 +166,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
             <span>Connect a wallet{pendingPairing?.house ? ' · house seller' : ''}</span>
             <Btn kind="plain" sm onClick={() => setFocusPairing(false)}>Wallet setup ›</Btn>
           </div>
-          {!s.tokenReady && s.tokenError ? <WalletNotice error={s.tokenError} what="This window can’t approve right now" /> : null}
+          {!s.tokenReady && s.tokenError ? <WalletNotice error={s.tokenError} what="This window can’t approve right now" message={footerNoticeText('token', s.tokenError)} /> : null}
           {pairingView}
         </main>
       </div>
@@ -245,7 +245,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
         {hint ? <Hint>{hint}</Hint> : null}
         {(handoff?.target === 'credentials' && !first) || handoff?.target === 'unlock' ? <Hint>The Table opened this window to {TARGET_TEXT[handoff.target]}.</Hint> : null}
         {s.settingsError ? <WalletNotice error={s.settingsError} what="Settings can’t be read" /> : null}
-        {!s.tokenReady && s.tokenError ? <WalletNotice error={s.tokenError} what="This window can’t approve right now" /> : null}
+        {!s.tokenReady && s.tokenError ? <WalletNotice error={s.tokenError} what="This window can’t approve right now" message={footerNoticeText('token', s.tokenError)} /> : null}
 
         <Section title="Wallet" end={i('unlock')} tour="owner-config">
           <Group>

@@ -214,7 +214,7 @@ export function refusalText(error: { code: string; message: string }): string {
 
 /** The wallet's own text never reaches the footer notices: per code, plain words and a remedy that is true.
  *  Reading a deal, getting this window's permission to approve, and unlocking each fail in their own way. */
-export type FooterNotice = 'read' | 'token' | 'unlock' | 'pairing';
+export type FooterNotice = 'read' | 'token' | 'unlock' | 'pairing' | 'pairing_read';
 
 export function footerNoticeText(kind: FooterNotice, error: { code: string }): string {
   switch (kind) {
@@ -259,6 +259,17 @@ export function footerNoticeText(kind: FooterNotice, error: { code: string }): s
           return 'The wallet’s records failed a safety check, so nothing is connected.';
         default:
           return 'The wallet refused this, so nothing is connected.';
+      }
+    case 'pairing_read':
+      // The codes approval_pairing can return (dispatcher.rs allowed(): PERMISSION; actor.rs execute_local:
+      // UNAVAILABLE when the wallet has stopped, INVALID when its answer can't be read). It needs no unlock.
+      switch (error.code) {
+        case 'PERMISSION':
+          return 'This window isn’t allowed to look for a waiting connection right now. Nothing is connected. Close it and open the connection again from The Table.';
+        case 'UNAVAILABLE':
+          return 'The wallet couldn’t be reached, so a waiting connection can’t be shown yet. Nothing is connected. Close this window and open it again.';
+        default:
+          return 'A waiting connection couldn’t be read yet. Nothing is connected. Close this window and open the connection again from The Table.';
       }
     case 'unlock':
       switch (error.code) {
