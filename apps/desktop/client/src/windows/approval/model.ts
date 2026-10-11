@@ -197,8 +197,8 @@ export function outcomeText(cmd: DecisionCmd, deal: Deal, cp: string): string {
     case 'deal_capture':
       // A buyer pays out; a seller collects money that comes in.
       return deal.side === 'seller'
-        ? `Payment collected · ${st.toLowerCase()}${pp.capture ? ' · confirmed by PayPal' : ''}.`
-        : `Payment sent · ${st.toLowerCase()}${pp.capture ? ' · confirmed by PayPal' : ''}.`;
+        ? `Collected ${formatMoney(dealTotal(deal))} · ${st.toLowerCase()}${pp.capture ? ' · confirmed by PayPal' : ''}.`
+        : `Paid ${formatMoney(dealTotal(deal))} to ${cp} · ${st.toLowerCase()}${pp.capture ? ' · confirmed by PayPal' : ''}.`;
     case 'deal_void':
       return deal.state === 'VOIDED' ? 'Hold released. Nothing was paid.' : `Release requested (${st.toLowerCase()}).`;
     case 'shield_release':
