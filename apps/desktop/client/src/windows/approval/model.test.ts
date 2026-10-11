@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
 import type { H256 } from '@bindings/H256';
 import { CHECK_FAILED, REACHED_PAYPAL, SUMMARY_CHANGED } from '../../lib/words';
-import { failureShown, OFFER_NOT_HERE, outcomeText, reachedPaypal, refusalText, unconfirmedHeading } from './model';
+import { failureShown, footerNoticeText, OFFER_NOT_HERE, outcomeText, reachedPaypal, refusalText, unconfirmedHeading, UNLOCK_HEADING } from './model';
 
 const HASH = Array.from({ length: 32 }, (_, i) => i) as H256;
 const deal = (p: Partial<Deal> = {}): Deal => ({
@@ -107,5 +107,28 @@ describe('what the window says when a step reached PayPal and is not confirmed',
   });
   it('any other failure keeps showing', () => {
     expect(failureShown({ error: { message: 'x' }, from: null }, 'CAPTURED')).toBe(true);
+  });
+});
+
+describe('the footer notices say plain words, never the wallet’s own text', () => {
+  const codes = ['LOCKED', 'PERMISSION', 'REFUSED', 'INVALID', 'NOT_FOUND', 'UNAVAILABLE', 'LEDGER_TRUST', 'UNSUPPORTED'] as const;
+  const raw = ['Wallet actor stopped', 'permission denied', 'Invalid or stale wallet command', 'the approval capability is not available in this window'];
+  for (const kind of ['read', 'token', 'unlock'] as const) {
+    it(`${kind}: no code’s notice contains the wallet’s message`, () => {
+      for (const code of codes) {
+        const t = footerNoticeText(kind, { code });
+        expect(t.length).toBeGreaterThan(20);
+        for (const m of raw) expect(t.toLowerCase()).not.toContain(m.toLowerCase());
+        expect(t).not.toMatch(/[A-Z]+_[A-Z_]+/);
+      }
+    });
+  }
+  it('the unlock heading names no cause: nothing tells a cancel apart from a failed scan', () => {
+    expect(UNLOCK_HEADING).toBe('Still locked');
+    expect(UNLOCK_HEADING).not.toMatch(/cancel/i);
+    for (const code of codes) expect(footerNoticeText('unlock', { code })).not.toMatch(/cancel/i);
+  });
+  it('a token failure says money stays where it is', () => {
+    for (const code of ['UNAVAILABLE', 'PERMISSION', 'INVALID']) expect(footerNoticeText('token', { code })).toContain('Money stays where it is');
   });
 });

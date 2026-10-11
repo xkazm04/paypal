@@ -210,6 +210,52 @@ export function refusalText(error: { code: string; message: string }): string {
   }
 }
 
+/** The wallet's own text never reaches the footer notices: per code, plain words and a remedy that is true.
+ *  Reading a deal, getting this window's permission to approve, and unlocking each fail in their own way. */
+export type FooterNotice = 'read' | 'token' | 'unlock';
+
+export function footerNoticeText(kind: FooterNotice, error: { code: string }): string {
+  switch (kind) {
+    case 'read':
+      switch (error.code) {
+        case 'LOCKED':
+          return 'The wallet is locked, so this deal can’t be shown yet. Unlock it with Windows Hello.';
+        case 'NOT_FOUND':
+          return 'The wallet can’t find this deal any more.';
+        case 'LEDGER_TRUST':
+          return 'The wallet’s records failed a safety check, so this deal isn’t shown.';
+        case 'PERMISSION':
+          return 'This window isn’t allowed to read this deal right now. Close it and open the deal again.';
+        default:
+          return 'The wallet couldn’t read this deal yet. Close this window and open the deal again.';
+      }
+    case 'token':
+      switch (error.code) {
+        case 'UNAVAILABLE':
+          return 'The wallet couldn’t be reached, so this window can’t approve anything yet. Money stays where it is. Close this window and open it again.';
+        case 'PERMISSION':
+          return 'This window isn’t allowed to approve right now. Money stays where it is.';
+        default:
+          return 'This window can’t approve anything right now. Money stays where it is. Close this window and open it again.';
+      }
+    case 'unlock':
+      switch (error.code) {
+        case 'UNSUPPORTED':
+          return 'Windows Hello isn’t set up on this computer, so the wallet stays locked.';
+        case 'UNAVAILABLE':
+          return 'Windows Hello isn’t ready right now, so the wallet stays locked. Unlock again in a moment.';
+        case 'PERMISSION':
+          return 'Windows Hello didn’t confirm it was you, so the wallet stays locked. Unlock again when you’re ready.';
+        default:
+          return 'The wallet stays locked. Unlock it again with Windows Hello.';
+      }
+  }
+}
+
+/** The unlock heading names no cause: the wallet reports a cancel, a failed scan and a timeout alike
+ *  (PERMISSION "did not verify"), so nothing tells a cancel apart. */
+export const UNLOCK_HEADING = 'Still locked';
+
 /** Whether a decision's failure is the wallet's "that reached PayPal" answer. */
 export const reachedPaypal = (error: { message: string }): boolean => error.message === REACHED_PAYPAL;
 

@@ -27,7 +27,7 @@ import { AnswerBar, Btn, Field, HoldButton, Popover, Sheet, layerCount, useFocus
 import { MarkIcon } from './review/Parts';
 import { BandAdjust } from './BandAdjust';
 import { decisionArgs, deriveGates, isLocked, isTerminal, namesMatch, ownerAcceptArgs, type Gate, type Gates } from './gating';
-import { buildStrip, dealTotal, derivePhase, OFFER_NOT_HERE, failureShown, outcomeText, reachedPaypal, refusalText, stateWord, unconfirmedHeading, type DecisionCmd, type Phase } from './model';
+import { buildStrip, dealTotal, derivePhase, OFFER_NOT_HERE, failureShown, footerNoticeText, outcomeText, reachedPaypal, refusalText, stateWord, UNLOCK_HEADING, unconfirmedHeading, type DecisionCmd, type Phase } from './model';
 import { buildDiff, buildEvidence, lastAmount, type DiffRow } from './review/diff';
 import { WalletChecks, checksLine } from './review/Checks';
 import { DetailsSheet, RowDetail } from './review/Details';
@@ -303,7 +303,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
             <div className="tw-op wait" aria-hidden="true"><MarkIcon mark="…" className="big" /><span className="w">checking</span></div>
             <div className="tw r"><span className="twk">Being asked</span><span className="tw-amt skeleton">$ ———</span></div>
           </div>
-          {loadError ? <WalletNotice error={loadError} what="This deal couldn’t be read" /> : <p className="dr-line dim">Reading the deal from your wallet…</p>}
+          {loadError ? <WalletNotice error={loadError} what="This deal couldn’t be read" message={footerNoticeText('read', loadError)} /> : <p className="dr-line dim">Reading the deal from your wallet…</p>}
         </main>
       </div>
     );
@@ -493,8 +493,8 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
         ) : null}
 
         {failure && failureShown(failure, d.state) ? <WalletNotice error={failure.error} what={failure.what} message={refusalText(failure.error)} /> : null}
-        {!s.tokenReady && s.tokenError ? <WalletNotice error={s.tokenError} what="This window can’t approve right now" /> : null}
-        {s.unlockError ? <WalletNotice error={s.unlockError} what={s.unlockError.isAvailabilityState ? 'Still locked' : 'Still locked · Windows Hello was cancelled'} /> : null}
+        {!s.tokenReady && s.tokenError ? <WalletNotice error={s.tokenError} what="This window can’t approve right now" message={footerNoticeText('token', s.tokenError)} /> : null}
+        {s.unlockError ? <WalletNotice error={s.unlockError} what={UNLOCK_HEADING} message={footerNoticeText('unlock', s.unlockError)} /> : null}
 
         <Actions
           phase={phase}
