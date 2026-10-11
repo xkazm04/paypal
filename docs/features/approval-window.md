@@ -24,11 +24,16 @@ paused by a scam check.
   or approve the order), "Pay Dan $64.00" / "Collect $212.00" (an authorized hold), "Approve the
   discount · $9.60" (a rescue fix), "Unpause" (release a scam-check pause, after typing the other
   side's exact name). "Open PayPal in your browser ↗" is a click, because the approval itself
-  happens on PayPal's own page. Quiet actions: Withdraw, "Cancel and release hold", Close.
+  happens on PayPal's own page. After a capture the window says "Collected $212.00 · paid to you" (a
+  seller) or "Paid $64.00 to Dan · paid" (a buyer), plus "confirmed by PayPal" once PayPal answered.
+  Quiet actions: Withdraw, "Cancel and release hold", Close.
 - **Enter never releases money.** The window focuses its heading; a money button ignores Enter and a
   toast says to press and hold (or hold Space on the focused button).
 - A failed line disables the money buttons. A MISMATCH or a scam-check BLOCK shows no pay action at
   all. "The summary changed. Review it again." reloads the review when Rust refuses a stale list.
+  Every other refusal (locked, not allowed, Windows Hello unsupported, a stale or unknown request,
+  an unreachable wallet) is shown as one plain sentence that says nothing was done, with the code
+  chip kept (`refusalText` in `model.ts`; never the wallet's raw text).
 - "What happens next" and a "Why?" note explain the step in plain words; Details lists every check
   plus a "Checklist" hash reference (Layer 2).
 
@@ -108,7 +113,8 @@ available (it is the safe direction).
 - **Owner authority is evidence.** The `owner.decision` row precedes the money step; proof bundle v2
   checks it (`owner_saw`, see [Proof and verification](./proof-and-verification.md)).
 - **No click, no Enter.** Money actions are `HoldButton` (`src/shared/ui/hold.tsx`, 1.2 s, pointer or
-  held Space); Enter never fires them.
+  held Space); Enter, a click and a short press never fire them, a full hold fires once. Tested in
+  `hold.test.tsx`; `approval/actions.test.tsx` checks that every money action in `HOLD_KEYS` is a hold button.
 - **The token never leaves memory.** `session.tsx` keeps it in a ref; it is not an API credential or
   a signing key.
 - **Locked means nothing moves.** A locked session refuses every privileged call (`LOCKED`); deadline
