@@ -297,3 +297,141 @@ async fn a_void_refused_before_any_call_keeps_its_own_error() {
             .all(|p| !p.ends_with("/void"))
     );
 }
+
+fn not_confirmed(error: &CommandError) {
+    assert!(matches!(error.code, ErrorCode::Unavailable), "{error:?}");
+    assert_eq!(error.message, crate::STEP_NOT_CONFIRMED);
+    for banned in [
+        "nothing was done",
+        "Not paid",
+        "try again",
+        "may have reached",
+    ] {
+        assert!(!error.message.contains(banned), "{}", error.message);
+    }
+}
+async fn second(r: &mut Runtime, id: DealId, token: &str, which: Decision) -> CommandError {
+    let args = decision(r, id);
+    r.execute(
+        caller("approval", Some(token)),
+        Action::Decision(args, which),
+    )
+    .await
+    .unwrap_err()
+}
+
+/// A second hold while the first capture's operation is still open sends nothing, reserves
+/// nothing and says the earlier step is not confirmed (never "nothing was done").
+#[tokio::test]
+async fn a_second_capture_while_the_first_is_open_is_not_confirmed_yet() {
+    let (mut r, vault, http, _, _) = runtime(true);
+    credentials(vault.as_ref());
+    let (deal, token) = authorized(&mut r).await;
+    http.0.lock().unwrap().fail_capture = true;
+    reached(&capture(&mut r, deal.id, &token).await);
+    let operations = r.pipeline.wallet.ledger.operation_count(deal.id).unwrap();
+    let sent = captures(&http);
+    let error = capture(&mut r, deal.id, &token).await;
+    not_confirmed(&error);
+    assert_eq!(
+        r.pipeline.wallet.ledger.operation_count(deal.id).unwrap(),
+        operations
+    );
+    assert_eq!(captures(&http), sent);
+    assert_eq!(capture_requests(&r, deal.id), 1);
+}
+
+/// The owner's void while the capture is open: the open operation is the capture's.
+#[tokio::test]
+async fn a_void_while_the_capture_is_open_is_not_confirmed_yet() {
+    let (mut r, vault, http, _, _) = runtime(true);
+    credentials(vault.as_ref());
+    let (deal, token) = authorized(&mut r).await;
+    http.0.lock().unwrap().fail_capture = true;
+    reached(&capture(&mut r, deal.id, &token).await);
+    let operations = r.pipeline.wallet.ledger.operation_count(deal.id).unwrap();
+    let sent = captures(&http);
+    let error = second(&mut r, deal.id, &token, Decision::Void).await;
+    not_confirmed(&error);
+    assert_eq!(
+        r.pipeline.wallet.ledger.operation_count(deal.id).unwrap(),
+        operations
+    );
+    assert_eq!(voids(&r, deal.id), 0);
+    assert_eq!(captures(&http), sent);
+}
+
+/// A second countersign while the authorize is open.
+#[tokio::test]
+async fn a_second_countersign_while_the_authorize_is_open_is_not_confirmed_yet() {
+    let (mut r, vault, http, _, _) = runtime(true);
+    credentials(vault.as_ref());
+    let (deal, peer) = setup_delivery(&mut r, Side::Seller, Delivery::ShipThenCapture { days: 1 });
+    agree(&mut r, &deal, &peer);
+    let token = unlock_runtime(&mut r);
+    r.selected = Some(deal.id);
+    http.0.lock().unwrap().awaiting_payer = true;
+    let args = decision(&mut r, deal.id);
+    r.execute(
+        caller("approval", Some(&token)),
+        Action::Decision(args, Decision::Countersign),
+    )
+    .await
+    .unwrap();
+    r.pipeline
+        .wallet
+        .ledger
+        .apply_event(deal.id, table_core::DealEvent::OrderApproved, r.clock.now())
+        .unwrap();
+    http.0.lock().unwrap().fail_authorize = true;
+    reached(&second(&mut r, deal.id, &token, Decision::Countersign).await);
+    assert!(r.pipeline.has_open_operation(deal.id).unwrap());
+    let operations = r.pipeline.wallet.ledger.operation_count(deal.id).unwrap();
+    let authorizes = |http: &OfflineHttp| {
+        http.0
+            .lock()
+            .unwrap()
+            .paths
+            .iter()
+            .filter(|p| p.ends_with("/authorize"))
+            .count()
+    };
+    let sent = authorizes(&http);
+    let error = second(&mut r, deal.id, &token, Decision::Countersign).await;
+    not_confirmed(&error);
+    assert_eq!(
+        r.pipeline.wallet.ledger.operation_count(deal.id).unwrap(),
+        operations
+    );
+    assert_eq!(authorizes(&http), sent);
+}
+
+/// A PERMISSION refusal with no open operation keeps its code: only an open operation turns it
+/// into the not-confirmed answer.
+#[tokio::test]
+async fn a_permission_refusal_with_no_open_operation_stays_permission() {
+    let (mut r, vault, _, _, _) = runtime(true);
+    credentials(vault.as_ref());
+    let (deal, _) = authorized(&mut r).await;
+    assert!(!r.pipeline.has_open_operation(deal.id).unwrap());
+    let now = r.pipeline.wallet.ledger.operation_count(deal.id).unwrap();
+    let refusal = r.after_paypal(deal.id, now, permission());
+    assert!(matches!(refusal.code, ErrorCode::Permission), "{refusal:?}");
+    assert_ne!(refusal.message, crate::STEP_NOT_CONFIRMED);
+}
+
+/// The Rust sentences the window shows are hand-copied into lib/words.ts; this is the only check
+/// before a merge that the two agree byte for byte.
+#[test]
+fn the_wallet_sentences_match_the_client_words_byte_for_byte() {
+    let words = include_str!("../../../apps/desktop/client/src/lib/words.ts");
+    for sentence in [
+        crate::REACHED_PAYPAL,
+        crate::VOID_REACHED_PAYPAL,
+        crate::STEP_NOT_CONFIRMED,
+        crate::SUMMARY_CHANGED,
+        crate::CHECK_FAILED,
+    ] {
+        assert!(words.contains(&format!("'{sentence}'")), "{sentence}");
+    }
+}

@@ -50,11 +50,19 @@ pub const CHECK_FAILED: &str = "A check on this deal failed, so nothing was done
 /// operation is a local row, not proof that PayPal got the request, so it says "may have", and it
 /// is true when the request never arrived, when its answer was lost or did not verify, and when
 /// PayPal confirmed and the receipt then failed. An owner ticket is never reused and nothing
-/// resends a step by itself, so "on its own" holds in every case.
-pub const REACHED_PAYPAL: &str = "That may have reached PayPal. The wallet won’t send it again on its own. The deal shows where it stands.";
-/// The same for the owner's void. At the deadline the resolver sends the void once more under its
-/// own request id, so this makes no claim that it won't be sent again.
-pub const VOID_REACHED_PAYPAL: &str = "The release may have reached PayPal, and its outcome isn’t known yet. The deal shows where it stands.";
+/// resends an owner's step by itself (resolve.rs `may_resend`: a Human-decided operation is never
+/// sent again), so "on its own" holds in every case. The last sentence is conditional: a
+/// confirmed step whose receipt failed has nothing to ask about.
+pub const REACHED_PAYPAL: &str = "That may have reached PayPal. The wallet won’t send it again on its own. Where PayPal’s answer is unclear, the wallet asks PayPal what happened.";
+/// The same for the owner's void, the one exception: at the deadline the resolver sends the void
+/// once more under its own request id (resolve.rs `may_resend`), so this makes no claim that it
+/// won't be sent again. A parked void is read back at the deadline, so it says the wallet asks again then.
+pub const VOID_REACHED_PAYPAL: &str = "The release may have reached PayPal, and its outcome isn’t known yet. The wallet asks PayPal what happened, and asks again at the deadline.";
+/// A decision refused by an open-operation guard (create, authorize, capture, the owner's void in
+/// table-app pipeline.rs): an earlier step on the deal has no settled answer, and this one sent
+/// nothing and reserved nothing. Not `REACHED_PAYPAL` (this decision sent nothing), and never
+/// "nothing was done" (the earlier step may have moved money).
+pub const STEP_NOT_CONFIRMED: &str = "An earlier PayPal step on this deal isn’t confirmed yet, so this one wasn’t sent. The wallet asks PayPal what happened first.";
 fn summary_changed() -> CommandError {
     CommandError {
         code: ErrorCode::Invalid,
@@ -713,6 +721,15 @@ impl Runtime {
     ) -> CommandError {
         match self.operations_reserved(id) {
             Ok(now) if now > before => unavailable(reached),
+            // Nothing reserved and the pipeline said PERMISSION: if an earlier step is still open
+            // the guard that refused is the open-operation one, and "nothing was done" would hide
+            // that money may be in flight.
+            Ok(_)
+                if matches!(refusal.code, ErrorCode::Permission)
+                    && matches!(self.pipeline.has_open_operation(id), Ok(true)) =>
+            {
+                unavailable(STEP_NOT_CONFIRMED)
+            }
             Ok(_) => refusal,
             // The ledger cannot be read: the call may have been made, so never say it was not.
             Err(_) => unavailable(reached),
