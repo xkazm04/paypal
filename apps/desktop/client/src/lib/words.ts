@@ -508,7 +508,9 @@ export const SUMMARY_CHANGED = 'The summary changed. Review it again.';
 /** The wallet's exact refusal of a money decision while one of its checks fails. */
 export const CHECK_FAILED = 'A check on this deal failed, so nothing was done.';
 /** The wallet's exact answer when a PayPal step failed after its request reached or was reserved at PayPal. */
-export const REACHED_PAYPAL = 'That reached PayPal, so the wallet won’t send it again. The deal shows where it stands.';
+export const REACHED_PAYPAL = 'That may have reached PayPal. The wallet won’t send it again on its own. The deal shows where it stands.';
+/** The same for the owner's release of a hold (makes no claim that it won't be sent again). */
+export const VOID_REACHED_PAYPAL = 'The release may have reached PayPal, and its outcome isn’t known yet. The deal shows where it stands.';
 /** A check's reading in a word or two, for its mark. */
 export const CHECK_STATUS_WORD = { pass: 'passed', fail: 'failed', wait: 'checked later', not_applicable: 'not needed' } as const;
 

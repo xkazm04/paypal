@@ -13,7 +13,7 @@ import type { MarketRef } from '@bindings/MarketRef';
 import type { Money } from '@bindings/Money';
 import type { OpenMandate } from '@bindings/OpenMandate';
 import { exponent, formatMinor, formatMoney, lineTotal } from '../../lib/format';
-import { CHECK_FAILED, REACHED_PAYPAL, ruleSentence, stateWord as plainState, SUMMARY_CHANGED } from '../../lib/words';
+import { CHECK_FAILED, REACHED_PAYPAL, ruleSentence, stateWord as plainState, SUMMARY_CHANGED, VOID_REACHED_PAYPAL } from '../../lib/words';
 import { isTerminal } from './gating';
 
 // ---------------------------------------------------------------------------------------------
@@ -181,13 +181,13 @@ export function isMandateActive(m: OpenMandate, now: number): boolean {
 // what the window says right after the owner decides
 
 /** A refusal of a decision (decide, open PayPal, withdraw) in plain words. Every one says nothing moved,
- *  except REACHED_PAYPAL: a step that reached PayPal is not a refusal and never says nothing was done.
+ *  except REACHED_PAYPAL and VOID_REACHED_PAYPAL: a step that reached PayPal is not a refusal and never says nothing was done.
  *  The wallet's three plain sentences pass through; the rest are replaced (the code chip still shows). */
 /** The message DealReview gives its own INVALID when the counter has not arrived. */
 export const OFFER_NOT_HERE = 'their latest offer hasn’t arrived yet';
 
 export function refusalText(error: { code: string; message: string }): string {
-  if (error.message === SUMMARY_CHANGED || error.message === CHECK_FAILED || error.message === REACHED_PAYPAL) return error.message;
+  if (error.message === SUMMARY_CHANGED || error.message === CHECK_FAILED || reachedPaypal(error)) return error.message;
   switch (error.code) {
     case 'LOCKED':
       return 'The wallet is locked, so nothing was done. Unlock it with Windows Hello, then try again.';
@@ -257,7 +257,7 @@ export function footerNoticeText(kind: FooterNotice, error: { code: string }): s
 export const UNLOCK_HEADING = 'Still locked';
 
 /** Whether a decision's failure is the wallet's "that reached PayPal" answer. */
-export const reachedPaypal = (error: { message: string }): boolean => error.message === REACHED_PAYPAL;
+export const reachedPaypal = (error: { message: string }): boolean => error.message === REACHED_PAYPAL || error.message === VOID_REACHED_PAYPAL;
 
 /** The heading of a decision that reached PayPal and is not confirmed: true for the step, never "Not paid". */
 export function unconfirmedHeading(cmd: DecisionCmd, deal: Pick<Deal, 'side' | 'state'>): string {
@@ -268,6 +268,8 @@ export function unconfirmedHeading(cmd: DecisionCmd, deal: Pick<Deal, 'side' | '
       return deal.state === 'APPROVED' ? 'Hold not confirmed yet' : 'Order not confirmed yet';
     case 'rescue_approve':
       return 'Sending the fix isn’t confirmed yet';
+    case 'deal_void':
+      return 'Release not confirmed yet';
     default:
       return 'Not confirmed yet';
   }
