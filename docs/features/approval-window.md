@@ -154,7 +154,10 @@ IPC commands granted to the approval window (from `authority_table.rs`):
 ## Tests that pin it
 
 - `crates/table-runtime/src/checks_tests.rs`: `a_decision_with_a_missing_or_stale_checks_hash_is_refused_before_any_paypal_call_or_write`,
-  `a_decision_while_a_check_fails_is_refused_and_a_release_may_fail_only_the_shield_line`.
+  `a_decision_while_a_check_fails_is_refused_and_a_release_may_fail_only_the_shield_line`,
+  `every_money_decision_is_refused_while_any_reachable_line_fails_with_no_call_and_no_write` (shield, mandate
+  expired or revoked, payee, amount and invoice; the host line needs a stored PayPal link, so only the
+  mock covers it) and `a_ledger_change_after_the_summary_makes_its_real_hash_stale_for_every_money_decision`.
 - `crates/table-app/src/checks_tests.rs`: `a_ready_deal_composes_six_lines_in_order_all_passing_in_plain_words`,
   `payee_is_the_paired_keys_declared_payee_or_the_owners_own_and_on_the_approved_list`.
 - `crates/table-core/src/checks.rs`: `the_checks_hash_is_domain_separated_and_commits_every_field_and_the_order`.
