@@ -507,6 +507,8 @@ export const runBadge = (run: { mode: Mode }): string | null => (run.mode === 's
 export const SUMMARY_CHANGED = 'The summary changed. Review it again.';
 /** The wallet's exact refusal of a money decision while one of its checks fails. */
 export const CHECK_FAILED = 'A check on this deal failed, so nothing was done.';
+/** The wallet's exact answer when a PayPal step failed after its request reached or was reserved at PayPal. */
+export const REACHED_PAYPAL = 'That reached PayPal, so the wallet won’t send it again. The deal shows where it stands.';
 /** A check's reading in a word or two, for its mark. */
 export const CHECK_STATUS_WORD = { pass: 'passed', fail: 'failed', wait: 'checked later', not_applicable: 'not needed' } as const;
 
