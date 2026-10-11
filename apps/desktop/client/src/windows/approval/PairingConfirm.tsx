@@ -118,7 +118,7 @@ export function PairingConfirm({ pending, readError, onSettled }: Props) {
     );
   }
 
-  if (readError) return <WalletNotice error={readError} what="Nothing to confirm" />;
+  if (readError) return <WalletNotice error={readError} what="Nothing to confirm" message={footerNoticeText('pairing_read', readError)} />;
   if (pending === undefined) return <p className="ui-hint">Looking for a waiting connection…</p>;
   if (pending === null) {
     return (

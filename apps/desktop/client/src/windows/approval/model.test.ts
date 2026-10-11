@@ -145,7 +145,7 @@ describe('what the window says when a step reached PayPal and is not confirmed',
 describe('the footer notices say plain words, never the wallet’s own text', () => {
   const codes = ['LOCKED', 'PERMISSION', 'REFUSED', 'INVALID', 'NOT_FOUND', 'UNAVAILABLE', 'LEDGER_TRUST', 'UNSUPPORTED'] as const;
   const raw = ['Wallet actor stopped', 'permission denied', 'Invalid or stale wallet command', 'the approval capability is not available in this window'];
-  for (const kind of ['read', 'token', 'unlock', 'pairing'] as const) {
+  for (const kind of ['read', 'token', 'unlock', 'pairing', 'pairing_read'] as const) {
     it(`${kind}: no code’s notice contains the wallet’s message`, () => {
       for (const code of codes) {
         const t = footerNoticeText(kind, { code });
@@ -162,15 +162,20 @@ describe('the footer notices say plain words, never the wallet’s own text', ()
   });
   it('the lock card, the pairing unlock notice and the pairing refusal never carry the wallet’s message or the word cancel', () => {
     const walletText = 'Windows Hello did not verify the owner';
-    const heading = `Still locked`;
     for (const code of codes) {
       for (const t of [footerNoticeText('unlock', { code }), footerNoticeText('pairing', { code })]) {
         expect(t).not.toContain(walletText);
         expect(t).not.toMatch(/cancel|did not verify/i);
       }
     }
-    expect(heading).toBe(UNLOCK_HEADING);
+    expect(UNLOCK_HEADING).toBe('Still locked');
     expect(footerNoticeText('pairing', { code: 'INVALID' })).toMatch(/nothing is connected/i);
+  });
+  it('a token error whose message is the wallet’s own text shows plain words instead', () => {
+    const err = { code: 'UNAVAILABLE', message: 'Wallet actor stopped' };
+    expect(footerNoticeText('token', err)).not.toContain('Wallet actor stopped');
+    const read = { code: 'UNAVAILABLE', message: 'Wallet actor stopped' };
+    expect(footerNoticeText('pairing_read', read)).not.toContain('Wallet actor stopped');
   });
   it('a token failure says money stays where it is', () => {
     for (const code of ['UNAVAILABLE', 'PERMISSION', 'INVALID']) expect(footerNoticeText('token', { code })).toContain('Money stays where it is');
