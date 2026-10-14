@@ -1,0 +1,4 @@
+/* Area: rescue (rebuild WP3). Owned by the WP3 builder of this area; imported only by
+   console/layers/rescue.ts, so no other area's styles live here. Scope every rule under the area's
+   own root class (e.g. `.ar-rescue`), tokens only (src/design/tokens.css), text never below
+   --fs-small, motion only through the --dur-* / --ease-* tokens. */

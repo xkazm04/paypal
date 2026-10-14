@@ -1,66 +1,65 @@
-// The Main window as the Calibre console (rebuild WP2): one front sheet on a stack of layers.
+// The Main window as the Calibre console (rebuild WP2, layers WP2.5): one front sheet on a stack of
+// layers.
 //   1  the decision centre (or, on a brand-new wallet, the Charter)
-//   2  the six modules (the tabs on the sheet's top edge), everything waiting, the Rewind, Set up
-//   3  a module's detail view, a deal
+//   2  the six modules (the tabs on the sheet's top edge), everything waiting, the Rewind, Set up,
+//      and the owner's places: agent rules, connections, settings, the safety record
+//   3  a module's detail view, a deal; the wallet limits (under rules), the pairing desk (under
+//      connections); a place opened from a module page or from Settings
 //   4  a deal opened from a module's detail view
-// The route lives in the hash (logic.ts parseHash/formatHash; every older link still parses) and
-// the chain of layers is derived from it (route.ts), never from a click history. Esc goes one layer
-// up (Find and any sheet or popover close first: they are layers of their own), and the Back button,
-// the crumbs and the browser's Back/forward walk the same chain. Going deeper focuses the new layer's
-// heading; coming back gives focus and scroll back to where they were left.
-// Money: the main window only ever opens the approval window (approval_open). Module and deal views
-// are the existing pages, mounted inside this frame until WP3 rebuilds them.
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+// Every layer is a registered LayerDef (console/layers.tsx, layers.registry.ts): this frame only
+// looks the route's layer up and hosts it. The route lives in the hash (logic.ts parseHash /
+// formatHash; every older link still parses, the old sheet links included) and the chain of layers
+// is derived from it (route.ts), never from a click history. Esc goes one layer up (Find and any
+// confirm or popover close first: they are layers of their own), and the Back button, the crumbs
+// and the browser's Back/forward walk the same chain. Going deeper focuses the new layer's heading;
+// coming back gives focus and scroll back to where they were left.
+// Money: the main window only ever opens the approval window (approval_open).
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { Module } from '@bindings/Module';
 import type { TumblerStatus } from '@bindings/TumblerStatus';
 import { useEvent, useMutation, useNow } from '../../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../../lib/lazy';
 import {
-  BACK_TITLE, BRAND_NAME, CHARTER_TITLE, METERS, BRAND_TITLE, CALM, CENTRE_TITLE, CRUMBS_LABEL, DEAL_CRUMB, DEAL_GONE, DEAL_UNREAD, DETAIL_BACK, LOCK, MINI_WINDOW, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, PLACE, PLACE_TITLE, PLACES_LABEL,
-  REWIND_TITLE, SAFE_DEFAULT_LINE, SEAL_RING, sealLabel, SETUP_PAGE_TITLE, SHORTCUTS_LABEL, silenceWords, tabTitle, tabWaiting, TABS_LABEL, WAITING_TITLE,
+  BACK_TITLE, BRAND_NAME, CHARTER_TITLE, METERS, BRAND_TITLE, CALM, CRUMBS_LABEL, DETAIL_BACK, LOCK, MINI_WINDOW, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, PLACE, PLACE_TITLE, PLACES_LABEL,
+  SAFE_DEFAULT_LINE, SEAL_RING, sealLabel, SHORTCUTS_LABEL, silenceWords, tabTitle, tabWaiting, TABS_LABEL,
 } from '../../../lib/words';
 import { formatCount } from '../../../lib/data/counts';
 import { readLimits } from '../../../lib/limits';
-import { ErrorBoundary } from '../../../shared/boundary';
 import { Mark, Seal } from '../../../shared/brand';
 import { MockBadge, ModeBadge } from '../../../shared/honesty';
 import { Glyph, MODULE, MODULES } from '../../../shared/modules';
 import { Btn, Crumbs, InspectorHostProvider, layerCount, ModuleTab, Stack, TabStrip, ThemeSwitch, TOAST_MS, useInspectorHost, useToast } from '../../../shared/ui';
-import { DEAL_PARTS, DealView } from '../DealView';
 import { shortTitle } from '../home/model';
-import { formatHash, parseHash, receiptToast, resolveDealRef, spendToday, type Route, type SetupStep, type SheetTab } from '../logic';
-import { MODULE_PAGES, ModuleView } from '../Modules';
-import { safetyInHash, withSafety } from '../safety/model';
-import { SHEET_TABS, Sheet } from '../Sheet';
-import { Charter } from '../setup/Charter';
+import { formatHash, parseHash, receiptToast, resolveDealRef, spendToday, type Place, type Route, type SetupStep } from '../logic';
 import type { PairMode } from '../setup/pairing';
 import { useSetupIntent, useStart } from '../setup/start';
 import { Shortcuts } from '../Shortcuts';
 import { StatusChips } from '../Status';
-import { LockGlyph, Loading } from '../ui';
-import { useViewLabel, viewLabel, type ModuleRoute } from '../viewNav';
-import { useAttention, useDealLabels, useDeals, useDisplayOf, useLocked, useNeeds, useSettings, useWorldSelector, type World } from '../world';
+import { LockGlyph } from '../ui';
+import { useViewLabel, viewLabel } from '../viewNav';
+import { useAttention, useDealLabels, useDeals, useLocked, useNeeds, useSettings, useWorldSelector, type World } from '../world';
 import { calmToggled, writeCalm } from './calm';
-import { Centre } from './Centre';
+import type { CentreProps } from './Centre';
 import { currentIndex, cycle, orderQueue, presenceOf, putOff } from './centreModel';
 import { Find } from './Find';
 import type { FindTarget } from './findIndex';
+import { CentreHost, type CentreHostValue } from './layers/core';
+import { LayerHost, layerIdOf, placeFromRoute, type LayerNav, type LayerState } from './layers';
+import { LAYER_PARTS, layerOf } from './layers.registry';
 import { useWatching } from './ledger';
 import { focusKeyOf, restoreLayer, type LayerMemory } from './memory';
-import { REWIND_PARTS, RewindLayer } from './RewindLayer';
 import { chainOf, isAncestor, moduleOfRoute, parentOf, routeKey, sameLayer, type ChainCtx } from './route';
 import { StaleBanner } from './StaleBanner';
-import { Waiting } from './Waiting';
 import './console.css';
 import './find.css';
+import './framework.css';
 import '../quit.css';
 
 const QuitSheet = lazyPart(() => import('../QuitSheet').then((m) => m.QuitSheet));
-const SafetySheet = lazyPart(() => import('../safety/SafetySheet').then((m) => m.SafetySheet));
-const LATER_PARTS = [...MODULE_PAGES, ...DEAL_PARTS, ...SHEET_TABS, ...REWIND_PARTS, QuitSheet, SafetySheet];
+const LATER_PARTS = [...LAYER_PARTS, QuitSheet];
 
 type Dir = 'into' | 'out' | 'swap';
-type Nav = { route: Route; sheet: SheetTab | null; safety: boolean; dir: Dir; restore: boolean; n: number };
+type Nav = { route: Route; dir: Dir; restore: boolean; n: number };
 /** What the console keeps in each history entry it writes: its place in the console's own stack. */
 type HistState = { tc: number };
 
@@ -68,13 +67,18 @@ const selModuleOf = (w: World) => w.moduleOfDeal;
 const urlOf = (h: string) => `${location.pathname}${location.search}${h}`;
 const histIndex = (s: unknown): number | null => (s && typeof s === 'object' && typeof (s as HistState).tc === 'number' ? (s as HistState).tc : null);
 
-/** The console's colour per layer (a module's colour on its own layers). */
+/** The console's colour per layer (a module's colour on its own layers, else the layer's own). */
 function toneOf(r: Route, m: Module | null): string {
   if (m) return MODULE[m].cssVar;
-  if (r.level === 'home' || r.level === 'waiting') return 'var(--gold)';
-  if (r.level === 'rewind') return 'var(--teal)';
-  return 'var(--steel)';
+  return layerOf(r).tone ?? 'var(--steel)';
 }
+
+/** The places the top bar opens, and which place keeps a button lit. */
+const BAR_PLACES: ReadonlyArray<{ place: Place; label: string; title: string; lit: readonly Place[] }> = [
+  { place: 'rules', label: PLACE.rules, title: PLACE_TITLE.rules, lit: ['rules', 'limits'] },
+  { place: 'connections', label: PLACE.connections, title: PLACE_TITLE.connections, lit: ['connections', 'pairing'] },
+  { place: 'settings', label: PLACE.settings, title: PLACE_TITLE.settings, lit: ['settings'] },
+];
 
 export function Console() {
   const toast = useToast();
@@ -99,10 +103,7 @@ export function Console() {
   const topDeal = top && deals ? deals.find((d) => d.id === top.deal_id) : undefined;
 
   // ---- the route -------------------------------------------------------------------------------
-  const [nav, setNav] = useState<Nav>(() => {
-    const p = parseHash(location.hash);
-    return { route: p.route, sheet: p.sheet, safety: safetyInHash(location.hash), dir: 'swap', restore: false, n: 0 };
-  });
+  const [nav, setNav] = useState<Nav>(() => ({ route: parseHash(location.hash).route, dir: 'swap', restore: false, n: 0 }));
   const navRef = useRef(nav);
   navRef.current = nav;
   const route = nav.route;
@@ -120,24 +121,24 @@ export function Console() {
   const stageRef = useRef<HTMLDivElement>(null);
   const scroller = () => stageRef.current?.querySelector<HTMLElement>('.ui-stack-inner') ?? null;
   // The console's own history stack: which entry we are on, and the hash of each entry we wrote.
-  const hist = useRef<{ i: number; hashes: string[] }>({ i: 0, hashes: [formatHash(nav.route, null)] });
+  const hist = useRef<{ i: number; hashes: string[] }>({ i: 0, hashes: [formatHash(nav.route)] });
 
   const remember = (focus?: string | null) => {
     const r = navRef.current.route;
     memory.current.set(routeKey(r), { scroll: scroller()?.scrollTop ?? 0, focus: focus !== undefined ? focus : focusKeyOf(document.activeElement) });
   };
-  const settle = useCallback((to: Route, sheet: SheetTab | null, safety: boolean) => {
+  const settle = useCallback((to: Route) => {
     const from = navRef.current.route;
     const c = ctxRef.current;
     const up = !sameLayer(from, to) && isAncestor(to, from, c);
     const dir: Dir = sameLayer(from, to) ? 'swap' : up ? 'out' : chainOf(to, c).length > chainOf(from, c).length ? 'into' : 'swap';
-    setNav((n) => ({ route: to, sheet, safety, dir, restore: up, n: sameLayer(from, to) ? n.n : n.n + 1 }));
+    setNav((n) => ({ route: to, dir, restore: up, n: sameLayer(from, to) ? n.n : n.n + 1 }));
   }, []);
 
-  /** Go to a layer: a new history entry (or the same one with `replace`). Closes any sheet. */
+  /** Go to a layer: a new history entry (or the same one with `replace`). */
   const go = useCallback((to: Route, o: { replace?: boolean; focus?: string | null } = {}) => {
     remember(o.focus);
-    const h = formatHash(to, null);
+    const h = formatHash(to);
     const H = hist.current;
     if (o.replace) { history.replaceState({ tc: H.i } satisfies HistState, '', urlOf(h)); H.hashes[H.i] = h; }
     else if (location.hash !== h || h === '') {
@@ -145,47 +146,42 @@ export function Console() {
       H.i += 1;
       history.pushState({ tc: H.i } satisfies HistState, '', urlOf(h));
     }
-    settle(to, null, false);
+    settle(to);
   }, [settle]);
 
   /** One layer up the chain. When the entry before this one is that layer, the browser steps back
    *  to it, so Back and forward keep walking the same chain. Never leaves the console. */
   const back = useCallback(() => {
     const n = navRef.current;
-    if (n.sheet || n.safety) { setNav((x) => ({ ...x, sheet: null, safety: false })); return; }
     const p = parentOf(n.route, ctxRef.current);
     if (!p) return;
     const H = hist.current;
-    if (H.i > 0 && H.hashes[H.i - 1] === formatHash(p, null)) { remember(); history.back(); return; }
+    if (H.i > 0 && H.hashes[H.i - 1] === formatHash(p)) { remember(); history.back(); return; }
     go(p);
   }, [go]);
 
-  // The first entry carries the console's index, so the browser's Back to it is recognised.
-  useEffect(() => { history.replaceState({ tc: 0 } satisfies HistState, '', location.href); }, []);
-  // Browser Back / forward, and links that set the hash (the Set up note, a sheet's own link).
+  // The first entry carries the console's index, so the browser's Back to it is recognised. An old
+  // link (a sheet's `#s=settings`, the safety record's `&p=safety`) is rewritten to its layer's form.
+  useEffect(() => { history.replaceState({ tc: 0 } satisfies HistState, '', urlOf(formatHash(navRef.current.route))); }, []);
+  // Browser Back / forward, and links that set the hash (the Set up note, a page's own link).
   useEffect(() => {
     const on = () => {
       const p = parseHash(location.hash);
       const i = histIndex(history.state);
       const H = hist.current;
-      const h = formatHash(p.route, null);
+      const h = formatHash(p.route);
       if (i !== null) H.i = i;
       // A link that set the hash (both popstate and hashchange report it): one new entry.
       else if (H.hashes[H.i] !== h) { H.hashes = [...H.hashes.slice(0, H.i + 1), h]; H.i += 1; history.replaceState({ tc: H.i } satisfies HistState, '', location.href); }
       const n = navRef.current;
-      if (sameLayer(n.route, p.route) && JSON.stringify(n.route) === JSON.stringify(p.route) && n.sheet === p.sheet && n.safety === safetyInHash(location.hash)) return;
+      if (JSON.stringify(n.route) === JSON.stringify(p.route)) return;
       remember();
-      settle(p.route, p.sheet, safetyInHash(location.hash));
+      settle(p.route);
     };
     window.addEventListener('popstate', on);
     window.addEventListener('hashchange', on);
     return () => { window.removeEventListener('popstate', on); window.removeEventListener('hashchange', on); };
   }, [settle]);
-  // A sheet or the safety record over the layer: the same entry, its hash updated.
-  useEffect(() => {
-    const h = withSafety(formatHash(nav.route, nav.sheet), nav.safety);
-    if (location.hash !== h && !(h === '' && location.hash === '')) history.replaceState(history.state, '', urlOf(h));
-  }, [nav.route, nav.sheet, nav.safety]);
 
   // Focus and scroll after a move (passive, so a closing Find has given its focus back first).
   const key = routeKey(route);
@@ -205,8 +201,6 @@ export function Console() {
   const [rewindAt, setRewindAt] = useState<number | null>(null);
   const [tumbler, setTumbler] = useState<TumblerStatus | null>(null);
   const [paidFlash, setPaidFlash] = useState(false);
-  const openSheet = useCallback((t: SheetTab, pair?: PairMode) => { setFind(false); setPairStart(pair); setNav((n) => ({ ...n, sheet: t })); }, []);
-  const openSafety = useCallback(() => { setFind(false); setNav((n) => ({ ...n, safety: true })); }, []);
   useEffect(() => preloadWhenIdle(LATER_PARTS), []);
   useSetupIntent(useCallback((step) => go({ level: 'setup', step }), [go]));
 
@@ -219,6 +213,20 @@ export function Console() {
   }, [go]);
   const pickNeed = useCallback((id: string) => { setPicked(id); goHome(); }, [goHome]);
   const goRewind = useCallback((at?: number) => { setRewindAt(at ?? null); go({ level: 'rewind' }); }, [go]);
+  /** A place from inside a layer: opened from a module page or Settings, Back returns there. */
+  const goPlace = useCallback((p: Place, o: { pair?: PairMode } = {}) => {
+    setFind(false);
+    if (o.pair) setPairStart(o.pair);
+    const from = placeFromRoute(navRef.current.route, p);
+    go(from ? { level: 'place', place: p, from } : { level: 'place', place: p });
+  }, [go]);
+  /** A place from the top bar: always one layer above the centre. */
+  const barPlace = useCallback((p: Place) => { setFind(false); go({ level: 'place', place: p }); }, [go]);
+
+  const layerNav = useMemo<LayerNav>(() => ({
+    go, back, home: goHome, module: goModule, deal: goDeal, need: pickNeed, place: goPlace, rewind: goRewind,
+    setup: (step) => go({ level: 'setup', step: step ?? 'keys' }), quit: () => setQuit(true),
+  }), [go, back, goHome, goModule, goDeal, pickNeed, goPlace, goRewind]);
 
   const onFind = useCallback((t: FindTarget) => {
     switch (t.kind) {
@@ -227,11 +235,9 @@ export function Console() {
       case 'deal': goDeal(t.deal); break;
       case 'route': go(t.route); break;
       case 'setup': go({ level: 'setup', step: t.step }); break;
-      case 'sheet': openSheet(t.tab); break;
-      case 'safety': openSafety(); break;
       case 'quit': setQuit(true); break;
     }
-  }, [go, goDeal, goModule, openSafety, openSheet, pickNeed]);
+  }, [go, goDeal, goModule, pickNeed]);
 
   // ---- keys -----------------------------------------------------------------------------------
   useEffect(() => {
@@ -241,7 +247,7 @@ export function Console() {
       const typing = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setFind((f) => !f); return; }
       if (e.key === 'Escape') {
-        // Find, sheets and popovers are layers: the layer stack closes them first (capture phase).
+        // Find, confirms and popovers are layers: the layer stack closes them first (capture phase).
         if (layerCount() > 0) return;
         if (typing && (t as HTMLInputElement).value) return;
         e.preventDefault();
@@ -265,7 +271,6 @@ export function Console() {
   useEffect(() => () => clearTimeout(flashTimer.current), []);
   useEvent('main:route', (r) => {
     setFind(false);
-    setNav((n) => ({ ...n, sheet: null, safety: false }));
     if (r.deal_id) go({ level: 'deal', deal: r.deal_id });
     else goHome();
   });
@@ -292,57 +297,34 @@ export function Console() {
   const chain = chainOf(route, ctx);
   const depth = chain.length;
   const lit = moduleOfRoute(route, ctx);
-  const presence = presenceOf({ firstRun, top, deal: topDeal, heldAtPayPal: watching.held, moving: watching.moving.length, paidFlash });
+  const said = presenceOf({ firstRun, top, deal: topDeal, heldAtPayPal: watching.held, moving: watching.moving.length, paidFlash });
+  // One object while the seal says the same, so the layers reading it do not redraw for nothing.
+  const presence = useMemo(() => ({ state: said.state, word: said.word, line: said.line }), [said.state, said.word, said.line]);
   const centreRoute = route.level === 'home';
   const pile = centreRoute ? Math.min(3, Math.max(0, queue.length - 1)) : depth - 1;
-  const moduleRoute = useMemo<ModuleRoute>(() => ({
-    view: route.level === 'module' ? route.view ?? null : null,
-    open: (view, cardId) => {
-      const r = navRef.current.route;
-      if (r.level !== 'module') return;
-      if (view) go({ level: 'module', module: r.module, view }, { focus: cardId ? `card:${cardId}` : undefined });
-      else back();
-    },
-  }), [route, go, back]);
-  const moduleNav = useMemo(() => ({ onDeal: goDeal, onSheet: openSheet, onSafety: openSafety }), [goDeal, openSheet, openSafety]);
+  const def = layerOf(route);
 
-  let content: ReactNode;
-  switch (route.level) {
-    case 'home':
-      content = firstRun
-        ? <Charter root step={charterStep} onStep={setCharterStep} onDone={() => setCharterStep(null)} />
-        : <Centre queue={queue} cur={cur} presence={presence} onPick={setPicked} onDeal={goDeal}
-          onCycle={(d) => { const i = cycle(cur, d, queue.length); const n = queue[i]; if (n) setPicked(n.deal_id); }}
-          onLater={() => {
-            if (!top) return;
-            if (queue.length < 2) { toast(LATER_ALONE, 'info'); return; }
-            const next = queue[cycle(cur, 1, queue.length)];
-            setLater((l) => putOff(l, top.deal_id));
-            if (next) setPicked(next.deal_id);
-            toast(LATER_TOAST, 'info');
-          }}
-          onWaiting={() => go({ level: 'waiting' })} onRewind={() => goRewind()} onBook={() => goModule('book')} />;
-      break;
-    case 'module':
-      content = <ModuleView module={route.module} route={moduleRoute} nav={moduleNav} />;
-      break;
-    case 'deal':
-      content = <DealLayer dealRef={route.deal} onHome={goHome} onModule={goModule} />;
-      break;
-    case 'setup':
-      content = <Charter step={route.step ?? null} onStep={(s) => go({ level: 'setup', step: s }, { replace: true })} onDone={goHome} />;
-      break;
-    case 'waiting':
-      content = <Waiting queue={queue} module={route.module} onPick={pickNeed} onFilter={(m) => go(m ? { level: 'waiting', module: m } : { level: 'waiting' }, { replace: true })} />;
-      break;
-    case 'rewind':
-      content = <RewindLayer at={rewindAt} onDeal={goDeal} onExit={back} />;
-      break;
-  }
+  const centre = useMemo<CentreProps>(() => ({
+    queue, cur, presence, onPick: setPicked, onDeal: goDeal,
+    onCycle: (d) => { const i = cycle(cur, d, queue.length); const n = queue[i]; if (n) setPicked(n.deal_id); },
+    onLater: () => {
+      const t = queue[cur];
+      if (!t) return;
+      if (queue.length < 2) { toast(LATER_ALONE, 'info'); return; }
+      const next = queue[cycle(cur, 1, queue.length)];
+      setLater((l) => putOff(l, t.deal_id));
+      if (next) setPicked(next.deal_id);
+      toast(LATER_TOAST, 'info');
+    },
+    onWaiting: () => go({ level: 'waiting' }), onRewind: () => goRewind(), onBook: () => goModule('book'),
+  }), [queue, cur, presence, goDeal, toast, go, goRewind, goModule]);
+  const host = useMemo<CentreHostValue>(() => ({ centre, charterStep, setCharterStep }), [centre, charterStep]);
+  const layerState = useMemo<LayerState>(() => ({ rewindAt, pairMode: pairStart, firstRun, presence }), [rewindAt, pairStart, firstRun, presence]);
 
   const insp = useInspectorHost();
   // A crumb goes to that layer; the one just above is the same as Back.
   const crumbs = chain.map((r, i) => ({ label: <CrumbLabel r={r} firstRun={firstRun} />, onClick: i === chain.length - 2 ? back : i < chain.length - 2 ? () => go(r) : undefined }));
+  const placeLit = route.level === 'place' ? route.place : null;
 
   return (
     <div className={`cs-app${depth > 1 ? ' deep' : ''}`} inert={find || undefined} style={{ '--seal': `var(--${SEAL_TONE[presence.state]})` } as CSSProperties}>
@@ -356,9 +338,10 @@ export function Console() {
           <button type="button" id="cs-needpill" className={`cs-needpill${queue.length ? '' : ' zero'}`} aria-label={needPillLabel(queue.length)}
             onClick={() => (queue.length ? go({ level: 'waiting' }) : goHome())}>{needPill(queue.length)}</button>
           <button type="button" id="cs-place-rewind" className={`cs-place${route.level === 'rewind' ? ' on' : ''}`} onClick={() => goRewind()} title={PLACE_TITLE.rewind}>{PLACE.rewind}</button>
-          <button type="button" className={`cs-place${nav.sheet === 'mandates' ? ' on' : ''}`} onClick={() => openSheet('mandates')} title={PLACE_TITLE.rules}>{PLACE.rules}</button>
-          <button type="button" className={`cs-place${nav.sheet === 'pairing' ? ' on' : ''}`} onClick={() => openSheet('pairing')} title={PLACE_TITLE.connections}>{PLACE.connections}</button>
-          <button type="button" className={`cs-place${nav.sheet === 'settings' ? ' on' : ''}`} onClick={() => openSheet('settings')} title={PLACE_TITLE.settings}>{PLACE.settings}</button>
+          {BAR_PLACES.map((b) => (
+            <button key={b.place} type="button" id={`cs-place-${b.place}`} className={`cs-place${placeLit && b.lit.includes(placeLit) ? ' on' : ''}`}
+              aria-current={placeLit && b.lit.includes(placeLit) ? 'page' : undefined} onClick={() => barPlace(b.place)} title={b.title}>{b.label}</button>
+          ))}
           <button type="button" className="cs-place" onClick={() => setFind(true)} title={PLACE_TITLE.find}>{PLACE.find} <kbd>/</kbd></button>
           <LockButton />
         </nav>
@@ -366,8 +349,8 @@ export function Console() {
       <StaleBanner />
       <InspectorHostProvider value={insp.value}>
         <main className={`cs-stage${insp.open ? ' has-insp' : ''}`} ref={stageRef}>
-          <Stack label={route.level === 'home' && firstRun ? CHARTER_TITLE : layerName(route)} depth={pile} tone={toneOf(route, lit)} gold={centreRoute && queue.length > 1}
-            corner={depth > 1 ? <Seal size="corner" state={presence.state} label={sealLabel(presence.word, presence.line)} ring={SEAL_RING} /> : undefined}
+          <Stack label={route.level === 'home' && firstRun ? CHARTER_TITLE : def.title(route)} depth={pile} tone={toneOf(route, lit)} gold={centreRoute && queue.length > 1}
+            corner={depth > 1 && !def.ownSeal ? <Seal size="corner" state={presence.state} label={sealLabel(presence.word, presence.line)} ring={SEAL_RING} /> : undefined}
             tabs={(
               <div className="cs-tabrow">
                 <TabStrip label={TABS_LABEL}>
@@ -385,8 +368,10 @@ export function Console() {
                 <p className="cs-presence" aria-live="polite"><b>{presence.word}</b> · {presence.line}</p>
               </div>
             )}>
-            <div ref={layerRef} key={key} className="cs-layer" data-dir={nav.dir} data-level={route.level}>
-              <ErrorBoundary layer="view" resetKeys={[key]}>{content}</ErrorBoundary>
+            <div ref={layerRef} key={key} className="cs-layer" data-dir={nav.dir} data-level={route.level} data-layer={layerIdOf(route)} data-fit={def.fit ? '' : undefined}>
+              <CentreHost.Provider value={host}>
+                <LayerHost def={def} route={route} nav={layerNav} state={layerState} resetKey={key} />
+              </CentreHost.Provider>
             </div>
           </Stack>
           <aside className="ui-inspector cs-insp" ref={insp.ref} hidden={!insp.open} aria-label="Details" />
@@ -395,7 +380,7 @@ export function Console() {
       <footer className="cs-foot">
         {settings ? <ModeBadge mode={settings.mode} /> : null}
         <MockBadge />
-        <StatusChips onSettings={() => openSheet('settings')} />
+        <StatusChips onSettings={() => barPlace('settings')} />
         <TodayMeters />
         <span className="ui-spacer" />
         <span className="cs-promise"><Hourglass />{SAFE_DEFAULT_LINE}</span>
@@ -406,8 +391,6 @@ export function Console() {
         <button type="button" className="cs-help" onClick={() => setHelp(true)} aria-label={SHORTCUTS_LABEL} title={`${SHORTCUTS_LABEL} (?)`}>?</button>
         <Clock />
       </footer>
-      {nav.sheet ? <Sheet tab={nav.sheet} pair={pairStart} onTab={(t) => setNav((n) => ({ ...n, sheet: t }))} onClose={() => setNav((n) => ({ ...n, sheet: null }))} /> : null}
-      {nav.safety ? <Suspense fallback={null}><SafetySheet onClose={() => setNav((n) => ({ ...n, safety: false }))} onDeal={(id) => goDeal(id)} /></Suspense> : null}
       {find ? <Find onClose={() => setFind(false)} onPick={onFind} /> : null}
       {help ? <Shortcuts onClose={() => setHelp(false)} /> : null}
       {quit ? <Suspense fallback={null}><QuitSheet onClose={() => setQuit(false)} /></Suspense> : null}
@@ -420,47 +403,13 @@ export const PAID_FLASH_MS = TOAST_MS;
 const selDisplay = (w: World) => w.display;
 const SEAL_TONE = { quiet: 'steel', watching: 'teal', needs: 'gold', holding: 'coral', paid: 'ok', stopped: 'red' } as const;
 
-/** The layer's name for assistive tech (the sheet is a region). */
-function layerName(r: Route): string {
-  switch (r.level) {
-    case 'home': return CENTRE_TITLE;
-    case 'module': return MODULE[r.module].name;
-    case 'deal': return DEAL_CRUMB;
-    case 'setup': return SETUP_PAGE_TITLE;
-    case 'waiting': return WAITING_TITLE;
-    case 'rewind': return REWIND_TITLE;
-  }
-}
-
+/** A crumb: the layer's own Crumb (a deal's name, a module view's label), else its title. */
 function CrumbLabel({ r, firstRun }: { r: Route; firstRun: boolean }) {
-  const deals = useDeals().data;
-  const labels = useDealLabels();
-  const id = r.level === 'deal' && deals ? resolveDealRef(r.deal, deals, labels)?.id : undefined;
-  const disp = useDisplayOf(id);
-  const view = useViewLabel(r.level === 'module' ? r.module : 'book', r.level === 'module' ? r.view : undefined);
-  switch (r.level) {
-    case 'home': return <>{firstRun ? CHARTER_TITLE : CENTRE_TITLE}</>;
-    case 'module': return <>{view ?? MODULE[r.module].name}</>;
-    case 'deal': return <>{disp ? shortTitle(disp.title) : DEAL_CRUMB}</>;
-    case 'setup': return <>{SETUP_PAGE_TITLE}</>;
-    case 'waiting': return <>{WAITING_TITLE}</>;
-    case 'rewind': return <>{REWIND_TITLE}</>;
-  }
+  if (r.level === 'home' && firstRun) return <>{CHARTER_TITLE}</>;
+  const def = layerOf(r);
+  const C = def.Crumb;
+  return C ? <C route={r} /> : <>{def.title(r)}</>;
 }
-
-/** A deal page (the existing view), or why it cannot show. */
-function DealLayer({ dealRef, onHome }: { dealRef: string; onHome: () => void; onModule: (m: Module) => void }) {
-  const q = useDeals();
-  const labels = useDealLabels();
-  const ready = useWorldSelector(selDisplaysReady);
-  const deals = q.data;
-  const deal = deals ? resolveDealRef(dealRef, deals, labels) : undefined;
-  if (deal) return <DealView deal={deal} />;
-  if (q.error) return <div className="empty">{DEAL_UNREAD}</div>;
-  if (!deals || (!ready && !deals.some((d) => d.id === dealRef))) return <Loading what="the deal" />;
-  return <div className="empty">{DEAL_GONE.text} <button type="button" className="linkbtn" onClick={onHome}>{DEAL_GONE.back}</button></div>;
-}
-const selDisplaysReady = (w: World) => w.displaysReady;
 
 /** Idle-lock state. Locked: a click opens the approval window, where Windows Hello unlocks. */
 function LockButton() {

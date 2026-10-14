@@ -66,7 +66,7 @@ body.w-main { --cs-bar: 3.25rem; --sheet-top: var(--cs-bar); }
 /* layers: a layer moves in from its direction; calm motion and reduced motion only crossfade */
 .cs-layer { position: relative; display: flex; flex-direction: column; flex: 1 0 auto; min-width: 0; }
 .cs-layer[data-level="home"], .cs-layer[data-level="waiting"] { flex: 1 1 0; min-height: 0; }
-.cs-layer > .cs-charter { margin-block: auto; flex: 0 0 auto; }
+.cs-layer > .cs-charter { flex: 1 0 auto; }
 .cs-layer[data-level="home"]:has(> .cs-charter) { flex: 1 0 auto; min-height: 100%; }
 .cs-layer[data-dir="into"] { animation: cs-into var(--dur-sheet) var(--ease-out) both; }
 .cs-layer[data-dir="out"] { animation: cs-out var(--dur-slow) var(--ease-out) both; }
@@ -100,6 +100,12 @@ body.w-main { --cs-bar: 3.25rem; --sheet-top: var(--cs-bar); }
 .cs-centre.empty .cs-cgrid { flex: 0 1 auto; }
 .cs-cmain { display: flex; flex-direction: column; justify-content: safe center; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; padding-right: var(--sp-2); }
 .cs-cmain > * { flex: none; }
+/* The decision fills its column instead of floating in the middle of it: its head at the top, the
+   silence line and the action in the middle, the facts strip on the bottom edge (WP2.5). On a short
+   window the gaps close to --sp-5 and the column scrolls. */
+.cs-decision { justify-content: space-between; gap: var(--sp-5); }
+.cs-dhead, .cs-dmid { display: flex; flex-direction: column; min-width: 0; }
+.cs-centre .cs-dhead .cs-title { font-size: var(--fs-hero); max-width: 54rem; }
 .cs-toprow { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); margin-bottom: var(--sp-3); color: var(--dim); font-size: var(--fs-small); }
 .cs-idx { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--muted); font: var(--fw-medium) var(--fs-body)/1 var(--num); font-variant-numeric: tabular-nums; }
 .cs-idx .tk { display: inline-flex; flex-direction: column; gap: 2px; }
@@ -113,12 +119,15 @@ body.w-main { --cs-bar: 3.25rem; --sheet-top: var(--cs-bar); }
 .cs-centre .kicker { margin: 0 0 var(--sp-2); }
 .cs-who { margin: 0 0 var(--sp-3); color: var(--muted); font-size: var(--fs-title3); overflow-wrap: anywhere; }
 .cs-who > span:not(.dim) { color: var(--text); }
-.cs-silence { display: flex; gap: var(--sp-2); align-items: baseline; margin: 0 0 var(--sp-4); padding: var(--sp-2) var(--sp-3); max-width: 50rem;
+.cs-silence { display: flex; gap: var(--sp-2) var(--sp-3); align-items: baseline; flex-wrap: wrap; margin: 0 0 var(--sp-4); padding: var(--sp-2) var(--sp-3); max-width: 54rem;
   border-left: 2px solid var(--steel); border-radius: 0 var(--r-card) var(--r-card) 0; background: linear-gradient(90deg, color-mix(in srgb, var(--steel) 8%, transparent), transparent 80%);
   color: var(--muted); font-size: var(--fs-title3); }
 .cs-silence svg { width: 1rem; height: 1.15rem; flex: none; color: var(--steel); transform: translateY(.15rem); }
 .cs-silence b { color: var(--text); font-weight: var(--fw-medium); }
-.cs-silence [role="timer"] { color: var(--gold-l); font-family: var(--num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cs-silence .txt { flex: 1 1 18rem; min-width: 0; }
+.cs-sil-cd { flex: none; display: inline-flex; align-items: center; align-self: center; height: var(--ctl-sm); padding: 0 var(--sp-2); border-radius: var(--r-tight); white-space: nowrap;
+  border: 1px solid color-mix(in srgb, var(--gold) 40%, var(--line2)); background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.cs-sil-cd [role="timer"] { color: var(--gold-l); font: var(--fw-medium) var(--fs-body)/1 var(--num); font-variant-numeric: tabular-nums lining-nums; white-space: nowrap; }
 .cs-silence.ended { border-left-color: var(--coral); }
 .cs-centre .cs-acts { margin-bottom: var(--sp-4); }
 .cs-why { position: relative; }
@@ -132,14 +141,20 @@ body.w-main { --cs-bar: 3.25rem; --sheet-top: var(--cs-bar); }
 .cs-facts { max-width: 52rem; }
 .cs-facts dd:not(.note) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: var(--fs-title3); }
 .cs-facts dd.note { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-.cs-cseal { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2); min-height: 0; min-width: 0; container-type: size; }
-.cs-cseal .br-seal { width: min(100cqw, calc(100cqh - 7.5rem), 26rem); flex: none; }
+/* the seal takes the room the word and the bead strip leave (the strip wraps on a narrow column) */
+.cs-cseal { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; justify-items: center; align-content: center; gap: var(--sp-2); min-height: 0; min-width: 0; }
+.cs-cseal .br-seal { height: 100%; width: auto; max-width: min(100%, 26rem); max-height: 26rem; aspect-ratio: 1; min-height: 0; justify-self: center; }
 .cs-sealword { text-align: center; }
 .cs-sealword b { display: block; font: var(--fw-display) var(--fs-title1)/1.2 var(--display); color: color-mix(in srgb, var(--seal, var(--steel)) 70%, var(--text)); }
 .cs-sealword span { display: block; color: var(--muted); font-size: var(--fs-small); }
 .cs-strip { justify-content: center; }
-.cs-strip .bead { padding: 0; border: 0; cursor: pointer; }
-.cs-strip .bead:hover { transform: scale(1.5); }
+.cs-strip { gap: 0 var(--sp-2); }
+.cs-strip .seg { gap: 0; padding: 0 2px 0 6px; }
+.cs-bead { display: grid; place-items: center; width: var(--target); height: var(--target); padding: 0; margin: 0; border: 0; border-radius: var(--r-tight); background: none; cursor: pointer; }
+.cs-bead .bead { transition: transform var(--dur-fast) var(--ease); }
+.cs-bead:hover .bead, .cs-bead:focus-visible .bead { transform: scale(1.5); }
+.cs-bead:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) { .cs-bead .bead { transition: none; } }
 :root[data-theme="light"] .cs-sealword b { color: var(--text); }
 
 /* the stack row: the next decisions, then while you were away and what the wallet watches */
@@ -170,6 +185,7 @@ body.w-main { --cs-bar: 3.25rem; --sheet-top: var(--cs-bar); }
 @media (max-height: 860px) {
   .cs-stage .ui-stack-inner { padding-top: var(--sp-4); padding-bottom: var(--sp-3); }
   .cs-title { font-size: clamp(1.6rem, 2.1vw, 2.2rem); margin-bottom: var(--sp-2); }
+  .cs-centre .cs-dhead .cs-title { font-size: clamp(1.75rem, 2.4vw, var(--fs-hero)); }
   .cs-who { margin-bottom: var(--sp-2); font-size: var(--fs-body); }
   .cs-silence { margin-bottom: var(--sp-3); font-size: var(--fs-body); }
   .cs-centre .cs-acts { margin-bottom: var(--sp-3); }
@@ -177,22 +193,39 @@ body.w-main { --cs-bar: 3.25rem; --sheet-top: var(--cs-bar); }
 }
 /* tall, wide windows: the decision grows with the room, so the sheet never stands half empty */
 @media (min-height: 960px) and (min-width: 1500px) {
-  .cs-centre .cs-title { font-size: 3.4rem; margin-bottom: var(--sp-4); max-width: 54rem; }
+  .cs-centre .cs-dhead .cs-title { font-size: var(--fs-hero-l); margin-bottom: var(--sp-4); max-width: 60rem; }
   .cs-centre .kicker, .cs-toprow { font-size: var(--fs-body); }
   .cs-centre .cs-who { font-size: var(--fs-title2); margin-bottom: var(--sp-5); }
-  .cs-centre .cs-silence { font-size: var(--fs-title2); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-6); }
+  .cs-centre .cs-silence { font-size: var(--fs-title2); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-6); max-width: 62rem; }
+  .cs-centre .cs-sil-cd { height: var(--ctl); padding: 0 var(--sp-3); }
+  .cs-centre .cs-sil-cd [role="timer"] { font-size: var(--fs-title3); }
+  .cs-centre .cs-facts { max-width: 64rem; }
   .cs-centre .cs-acts { margin-bottom: var(--sp-6); }
   .cs-centre .cs-acts .ui-btn.gold { min-height: 3rem; font-size: var(--fs-title2); }
   .cs-centre .cs-facts dd:not(.note) { font-size: var(--fs-title1); }
   .cs-centre .cs-facts dd.note { font-size: var(--fs-body); }
-  .cs-cseal .br-seal { width: min(100cqw, calc(100cqh - 8rem), 36rem); }
+  .cs-cseal .br-seal { max-width: min(100%, 36rem); max-height: 36rem; }
   .cs-sealword b { font-size: var(--fs-display); }
   .cs-card { padding: var(--sp-3) var(--sp-4); }
 }
+@media (min-height: 1000px) and (min-width: 1700px) {
+  .cs-centre .cs-dhead .cs-title { font-size: var(--fs-hero-xl); margin-bottom: var(--sp-5); }
+  .cs-centre .kicker, .cs-toprow { margin-bottom: var(--sp-3); }
+  .cs-centre .cs-who { font-size: var(--fs-title1); }
+  .cs-centre .cs-silence { font-size: var(--fs-title1); padding: var(--sp-4) var(--sp-5); }
+  .cs-centre .cs-acts .ui-btn.gold { min-height: 3.4rem; padding-inline: var(--sp-8); font-size: var(--fs-title1); }
+  .cs-centre .cs-acts .ui-btn:not(.gold) { min-height: 2.6rem; font-size: var(--fs-title3); }
+  .cs-centre .cs-facts dd:not(.note) { font-size: var(--fs-display); }
+  .cs-centre .cs-facts dt { font-size: var(--fs-body); }
+  .cs-centre .cs-facts { padding-top: var(--sp-3); }
+  .cs-centre .cs-dmid .cs-silence { margin-bottom: var(--sp-8); }
+  .cs-card { min-height: 5.75rem; padding: var(--sp-4) var(--sp-5); }
+  .cs-card > b { font-size: var(--fs-title3); }
+}
 @media (max-width: 900px) {
   .cs-cgrid { grid-template-columns: minmax(0, 1fr); }
-  .cs-cseal { container-type: normal; }
-  .cs-cseal .br-seal { width: 10rem; }
+  .cs-cseal { grid-template-rows: auto auto auto; }
+  .cs-cseal .br-seal { height: 10rem; }
 }
 
 /* ---- everything waiting -------------------------------------------------------------------------- */

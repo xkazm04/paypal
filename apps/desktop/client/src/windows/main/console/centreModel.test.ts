@@ -6,7 +6,7 @@ import type { Deal } from '@bindings/Deal';
 import { buildMockState } from '../../../mock/fixtures';
 import { buildScaleState, SCALE_NOW } from '../../../mock/scale';
 import { MONEY_CHECK_ENDED_SILENCE, SEAL_LINE } from '../../../lib/words';
-import { centreFacts, currentIndex, cycle, deadlineProgress, orderQueue, presenceOf, putOff, stackSlots } from './centreModel';
+import { centreFacts, currentIndex, cycle, deadlineProgress, orderQueue, presenceOf, putOff, stackRows, stackSlots } from './centreModel';
 
 const NOW = 1_790_000_000;
 const state = buildMockState(NOW);
@@ -85,5 +85,8 @@ describe('the stack row', () => {
     expect(stackSlots(390)).toBe(2);
     expect(stackSlots(1280)).toBe(4);
     expect(stackSlots(1920)).toBe(6);
+    expect(stackRows(1280, 800)).toBe(1);
+    expect(stackRows(1920, 1080)).toBe(2);
+    expect(stackRows(1920, 900)).toBe(1);
   });
 });

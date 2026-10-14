@@ -332,12 +332,21 @@ export function splitHeadline(headline: string, amount: string): [string, string
 
 // ---- routing ----------------------------------------------------------------------------------
 
+/** The three tabs of the old owner configuration sheet. They are layers now (`Place`); modules
+ *  still name them this way (`Nav.onSheet`), and `placeOfSheet` maps each to its layer. */
 export type SheetTab = 'settings' | 'pairing' | 'mandates';
 /** The five in-app setup steps (#s=setup&step=...), in order. The first is the fallback. */
 export const SETUP_STEPS = ['keys', 'rules', 'practice', 'agent', 'unlock'] as const;
 export type SetupStep = (typeof SETUP_STEPS)[number];
 /** Where a deal page was opened from (its parent in the stack): a module, or one of its detail views. */
 export type DealFrom = { module: Module; view?: string };
+/** The owner's places, each a layer of the console (rebuild WP2.5; they were sheets before):
+ *  agent rules and the wallet limits under them, connections and the pairing desk, settings, and
+ *  the safety record. */
+export const PLACES = ['rules', 'limits', 'connections', 'pairing', 'settings', 'safety'] as const;
+export type Place = (typeof PLACES)[number];
+/** Where a place was opened from, when that is not its usual parent: a module page, or Settings. */
+export type PlaceFrom = Module | 'settings';
 export type Route =
   /** The decision centre (the console's first layer). */
   | { level: 'home' }
@@ -350,71 +359,96 @@ export type Route =
   /** Everything that waits on the owner; `module` narrows it to one module. */
   | { level: 'waiting'; module?: Module }
   /** The week replayed from the wallet's record. */
-  | { level: 'rewind' };
+  | { level: 'rewind' }
+  /** One of the owner's places; `from` is where it was opened (Back returns there). */
+  | { level: 'place'; place: Place; from?: PlaceFrom };
 
 const isSetupStep = (v: string | null): v is SetupStep => !!v && (SETUP_STEPS as readonly string[]).includes(v);
 const isModule = (v: string | null): v is Module => !!v && (MODULE_KEYS as readonly string[]).includes(v);
+const isPlace = (v: string | null): v is Place => !!v && (PLACES as readonly string[]).includes(v);
 /** A view key is a short slug; anything else is dropped so the hash can never carry free text. */
 const VIEW_KEY = /^[a-z][a-z0-9-]{0,39}$/;
 
+/** The layer an old sheet tab opens. */
+export const placeOfSheet = (t: SheetTab): Place => (t === 'mandates' ? 'rules' : t);
+
 /**
  * The hash forms (every older link still parses): `#m=<module>[&v=<view>]`, `#d=<deal>[&m=..&v=..]`
- * (the deal and the module page it was opened from), `#s=settings|pairing|mandates` (a sheet over
- * the route), `#s=setup&step=<step>`, `#w=waiting[&f=<module>]`, `#r=rewind`, `#c=centre` (= no hash).
+ * (the deal and the module page it was opened from), `#p=<place>[&m=<module>|&m=settings]` (an owner
+ * place and where it was opened from), `#s=setup&step=<step>`, `#w=waiting[&f=<module>]`, `#r=rewind`,
+ * `#c=centre` (= no hash). Older forms: `#s=settings|pairing|mandates` (the old sheet, drawn over any
+ * route) opens that place; `#m=<module>&p=safety` (the old safety sheet over a module) opens the safety
+ * record from that module.
  */
-export function parseHash(hash: string): { route: Route; sheet: SheetTab | null } {
+export function parseHash(hash: string): { route: Route } {
   const params = new URLSearchParams(hash.replace(/^#/, ''));
   const m = params.get('m');
   const d = params.get('d');
   const s = params.get('s');
   const v = params.get('v');
-  const sheet: SheetTab | null = s === 'settings' || s === 'pairing' || s === 'mandates' ? s : null;
+  const p = params.get('p');
+  // An old sheet or the safety sheet was drawn over the route: the place is what was in front.
+  if (s === 'settings' || s === 'pairing' || s === 'mandates') return { route: { level: 'place', place: placeOfSheet(s) } };
+  if (isPlace(p)) {
+    const from: PlaceFrom | null = !d && (isModule(m) || m === 'settings') && m !== p ? m : null;
+    return { route: from ? { level: 'place', place: p, from } : { level: 'place', place: p } };
+  }
   if (d) {
     const from: DealFrom | null = isModule(m) ? (v && VIEW_KEY.test(v) ? { module: m, view: v } : { module: m }) : null;
-    return { route: from ? { level: 'deal', deal: d, from } : { level: 'deal', deal: d }, sheet };
+    return { route: from ? { level: 'deal', deal: d, from } : { level: 'deal', deal: d } };
   }
   if (s === 'setup') {
     const step = params.get('step');
-    return { route: { level: 'setup', step: isSetupStep(step) ? step : 'keys' }, sheet: null };
+    return { route: { level: 'setup', step: isSetupStep(step) ? step : 'keys' } };
   }
-  if (params.get('r') === 'rewind') return { route: { level: 'rewind' }, sheet };
+  if (params.get('r') === 'rewind') return { route: { level: 'rewind' } };
   if (params.get('w') === 'waiting') {
     const f = params.get('f');
-    return { route: isModule(f) ? { level: 'waiting', module: f } : { level: 'waiting' }, sheet };
+    return { route: isModule(f) ? { level: 'waiting', module: f } : { level: 'waiting' } };
   }
   if (isModule(m)) {
-    return { route: v && VIEW_KEY.test(v) ? { level: 'module', module: m, view: v } : { level: 'module', module: m }, sheet };
+    return { route: v && VIEW_KEY.test(v) ? { level: 'module', module: m, view: v } : { level: 'module', module: m } };
   }
-  return { route: { level: 'home' }, sheet };
+  return { route: { level: 'home' } };
 }
 
-export function formatHash(route: Route, sheet: SheetTab | null): string {
+export function formatHash(route: Route): string {
   const parts: string[] = [];
-  if (route.level === 'setup') return `#s=setup&step=${route.step ?? 'keys'}`;
-  if (route.level === 'module') {
-    parts.push(`m=${route.module}`);
-    if (route.view) parts.push(`v=${encodeURIComponent(route.view)}`);
+  switch (route.level) {
+    case 'home': break;
+    case 'setup': return `#s=setup&step=${route.step ?? 'keys'}`;
+    case 'module':
+      parts.push(`m=${route.module}`);
+      if (route.view) parts.push(`v=${encodeURIComponent(route.view)}`);
+      break;
+    case 'deal':
+      parts.push(`d=${encodeURIComponent(route.deal)}`);
+      if (route.from) {
+        parts.push(`m=${route.from.module}`);
+        if (route.from.view) parts.push(`v=${encodeURIComponent(route.from.view)}`);
+      }
+      break;
+    case 'waiting':
+      parts.push('w=waiting');
+      if (route.module) parts.push(`f=${route.module}`);
+      break;
+    case 'rewind': parts.push('r=rewind'); break;
+    case 'place':
+      parts.push(`p=${route.place}`);
+      if (route.from) parts.push(`m=${route.from}`);
+      break;
   }
-  if (route.level === 'deal') {
-    parts.push(`d=${encodeURIComponent(route.deal)}`);
-    if (route.from) {
-      parts.push(`m=${route.from.module}`);
-      if (route.from.view) parts.push(`v=${encodeURIComponent(route.from.view)}`);
-    }
-  }
-  if (route.level === 'waiting') {
-    parts.push('w=waiting');
-    if (route.module) parts.push(`f=${route.module}`);
-  }
-  if (route.level === 'rewind') parts.push('r=rewind');
-  if (sheet) parts.push(`s=${sheet}`);
   return parts.length ? `#${parts.join('&')}` : '';
 }
+
+/** A place's usual parent when it was not opened from anywhere in particular (null = the centre). */
+export const PLACE_PARENT: Readonly<Record<Place, Place | null>> = { rules: null, limits: 'rules', connections: null, pairing: 'connections', settings: null, safety: null };
 
 /**
  * Where Esc / the back button goes from `route` (overlays are handled before this): a module's
  * detail page -> its summary, a module, setup, the waiting list or the Rewind -> home, a deal -> the
- * page it was opened from, else its module (or home).
+ * page it was opened from, else its module (or home); a place -> where it was opened from, else its
+ * usual parent (the wallet limits -> agent rules, the pairing desk -> connections), else home.
  * `knownView` says whether the route's view is a real page (an unknown one already shows the
  * summary, so it steps straight on). Null at home.
  */
@@ -426,6 +460,12 @@ export function stepBack(route: Route, dealModule: Module | null, knownView = tr
       if (route.from) return route.from.view && knownView ? { level: 'module', module: route.from.module, view: route.from.view } : { level: 'module', module: route.from.module };
       return dealModule ? { level: 'module', module: dealModule } : { level: 'home' };
     case 'module': return route.view && knownView ? { level: 'module', module: route.module } : { level: 'home' };
+    case 'place': {
+      if (route.from === 'settings') return { level: 'place', place: 'settings' };
+      if (route.from) return { level: 'module', module: route.from };
+      const up = PLACE_PARENT[route.place];
+      return up ? { level: 'place', place: up } : { level: 'home' };
+    }
   }
 }
 

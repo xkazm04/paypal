@@ -12,22 +12,27 @@ const ctx: ChainCtx = {
 };
 
 describe('older links still land where they did', () => {
-  it.each<[string, Route, string | null]>([
-    ['', { level: 'home' }, null],
-    ['#m=spend', { level: 'module', module: 'spend' }, null],
-    ['#m=book&v=ledger', { level: 'module', module: 'book', view: 'ledger' }, null],
-    ['#d=D-0193', { level: 'deal', deal: 'D-0193' }, null],
-    ['#d=01JDEAL&s=settings', { level: 'deal', deal: '01JDEAL' }, 'settings'],
-    ['#s=pairing', { level: 'home' }, 'pairing'],
-    ['#s=mandates', { level: 'home' }, 'mandates'],
-    ['#s=setup&step=rules', { level: 'setup', step: 'rules' }, null],
-    ['#s=setup', { level: 'setup', step: 'keys' }, null],
-    ['#m=nope', { level: 'home' }, null],
-  ])('%s', (hash, route, sheet) => {
-    expect(parseHash(hash)).toEqual({ route, sheet });
+  // WP2.5: the old sheets (#s=settings|pairing|mandates, drawn over any route) and the safety
+  // sheet (&p=safety) are layers now; their links open the layer that was in front.
+  it.each<[string, Route]>([
+    ['', { level: 'home' }],
+    ['#m=spend', { level: 'module', module: 'spend' }],
+    ['#m=book&v=ledger', { level: 'module', module: 'book', view: 'ledger' }],
+    ['#d=D-0193', { level: 'deal', deal: 'D-0193' }],
+    ['#d=01JDEAL&s=settings', { level: 'place', place: 'settings' }],
+    ['#s=settings', { level: 'place', place: 'settings' }],
+    ['#s=pairing', { level: 'place', place: 'pairing' }],
+    ['#s=mandates', { level: 'place', place: 'rules' }],
+    ['#s=setup&step=rules', { level: 'setup', step: 'rules' }],
+    ['#s=setup', { level: 'setup', step: 'keys' }],
+    ['#m=nope', { level: 'home' }],
+  ])('%s', (hash, route) => {
+    expect(parseHash(hash)).toEqual({ route });
   });
-  it('the safety record link (#p=safety) leaves the route as it was', () => {
-    expect(parseHash('#m=book&p=safety').route).toEqual({ level: 'module', module: 'book' });
+  it('the safety record link (#m=book&p=safety) opens the record a layer below Book', () => {
+    expect(parseHash('#m=book&p=safety').route).toEqual({ level: 'place', place: 'safety', from: 'book' });
+    expect(parseHash('#p=safety').route).toEqual({ level: 'place', place: 'safety' });
+    expect(parseHash('#d=X&p=safety').route).toEqual({ level: 'place', place: 'safety' });
   });
 });
 
@@ -38,14 +43,23 @@ describe('the new layers round-trip through the hash', () => {
     [{ level: 'rewind' }, '#r=rewind'],
     [{ level: 'deal', deal: '01JDEAL', from: { module: 'book', view: 'ledger' } }, '#d=01JDEAL&m=book&v=ledger'],
     [{ level: 'deal', deal: '01JDEAL', from: { module: 'spend' } }, '#d=01JDEAL&m=spend'],
+    [{ level: 'place', place: 'rules' }, '#p=rules'],
+    [{ level: 'place', place: 'limits' }, '#p=limits'],
+    [{ level: 'place', place: 'connections' }, '#p=connections'],
+    [{ level: 'place', place: 'pairing', from: 'settings' }, '#p=pairing&m=settings'],
+    [{ level: 'place', place: 'settings' }, '#p=settings'],
+    [{ level: 'place', place: 'safety', from: 'book' }, '#p=safety&m=book'],
   ])('%j', (route, hash) => {
-    expect(formatHash(route, null)).toBe(hash);
+    expect(formatHash(route)).toBe(hash);
     expect(parseHash(hash).route).toEqual(route);
   });
   it('#c=centre is the centre, and a filter that is not a module is dropped', () => {
     expect(parseHash('#c=centre').route).toEqual({ level: 'home' });
     expect(parseHash('#w=waiting&f=nope').route).toEqual({ level: 'waiting' });
     expect(parseHash('#d=X&m=book&v=Bad%20View!').route).toEqual({ level: 'deal', deal: 'X', from: { module: 'book' } });
+    // a place is never its own origin, and an unknown place is no place
+    expect(parseHash('#p=settings&m=settings').route).toEqual({ level: 'place', place: 'settings' });
+    expect(parseHash('#p=nope').route).toEqual({ level: 'home' });
   });
 });
 
@@ -65,6 +79,15 @@ describe('the chain of layers', () => {
     expect(parentOf({ level: 'waiting', module: 'spend' }, ctx)).toEqual({ level: 'home' });
     expect(parentOf({ level: 'home' }, ctx)).toBeNull();
     expect(chainOf({ level: 'deal', deal: '01JDEAL', from: { module: 'book', view: 'ledger' } }, ctx).map(routeKey)).toEqual(['centre', 'm:book', 'm:book:ledger', 'd:01JDEAL']);
+  });
+  it('places: depth 2 above the centre, 3 under their parent or the page they were opened from', () => {
+    for (const p of ['rules', 'connections', 'settings', 'safety'] as const) expect(depthOf({ level: 'place', place: p }, ctx)).toBe(2);
+    expect(chainOf({ level: 'place', place: 'limits' }, ctx).map(routeKey)).toEqual(['centre', 'p:rules', 'p:limits']);
+    expect(chainOf({ level: 'place', place: 'pairing' }, ctx).map(routeKey)).toEqual(['centre', 'p:connections', 'p:pairing']);
+    expect(chainOf({ level: 'place', place: 'pairing', from: 'settings' }, ctx).map(routeKey)).toEqual(['centre', 'p:settings', 'p:pairing:settings']);
+    expect(chainOf({ level: 'place', place: 'safety', from: 'book' }, ctx).map(routeKey)).toEqual(['centre', 'm:book', 'p:safety:book']);
+    expect(moduleOfRoute({ level: 'place', place: 'safety', from: 'book' }, ctx)).toBeNull();
+    expect(isAncestor({ level: 'place', place: 'rules' }, { level: 'place', place: 'limits' }, ctx)).toBe(true);
   });
   it('names the direction of a move and the module tab it lights', () => {
     expect(directionOf({ level: 'home' }, { level: 'module', module: 'spend' }, ctx)).toBe('into');

@@ -5,7 +5,7 @@
 // shown: ids stay off the first layers.
 import type { Module } from '@bindings/Module';
 import type { SetupStepKey } from '../../../lib/words';
-import type { Route, SheetTab } from '../logic';
+import type { Route } from '../logic';
 
 export type FindGroup = 'needs' | 'modules' | 'deals' | 'places';
 export const FIND_ORDER: readonly FindGroup[] = ['needs', 'modules', 'deals', 'places'];
@@ -16,8 +16,6 @@ export type FindTarget =
   | { kind: 'deal'; deal: string }
   | { kind: 'route'; route: Route }
   | { kind: 'setup'; step: SetupStepKey }
-  | { kind: 'sheet'; tab: SheetTab }
-  | { kind: 'safety' }
   | { kind: 'quit' };
 
 export type FindItem = {
