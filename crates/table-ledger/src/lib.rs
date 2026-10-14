@@ -5,8 +5,10 @@ pub mod audit;
 mod audit_detail;
 mod bundle;
 pub use bundle::LedgerExport;
+mod pin;
 pub mod redaction;
 pub mod repositories;
+pub use pin::PinState;
 mod snapshot;
 pub use attention::{RUNG_ACTION, RungRow, SilenceEvidence, rung_chain_hash};
 pub use audit::{AuditEntry, AuditRecord};
@@ -38,8 +40,14 @@ pub enum LedgerError {
     /// one outstanding ACCEPT. A refusal of the intent, not a fault.
     #[error("another table in this group already agreed")]
     GroupClosed,
+    /// The counterparty pin was revoked by the owner.
+    #[error("counterparty pin revoked")]
+    PinRevoked,
+    /// The counterparty pin has expired.
+    #[error("counterparty pin expired")]
+    PinExpired,
 }
-const SCHEMA_VERSION: i64 = 15;
+const SCHEMA_VERSION: i64 = 16;
 /// Deliberately no public raw-SQL/connection API. Only typed repositories cross this edge.
 #[derive(Debug)]
 pub struct Ledger {
@@ -116,7 +124,16 @@ impl Ledger {
         if version < 15 && !has_reset_column {
             tx.execute_batch(include_str!("../migrations/0015_relay_reset.sql"))?;
         }
-        tx.execute_batch("PRAGMA user_version=15;")?;
+        // The older-schema tests step user_version back without dropping these columns.
+        let has_pin_columns: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('counterparties') WHERE name='revoked_at')",
+            [],
+            |r| r.get(0),
+        )?;
+        if version < 16 && !has_pin_columns {
+            tx.execute_batch(include_str!("../migrations/0016_pin_expiry.sql"))?;
+        }
+        tx.execute_batch("PRAGMA user_version=16;")?;
         tx.commit()?;
         if migrating {
             snapshot::prune(&conn);

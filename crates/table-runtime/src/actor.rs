@@ -96,6 +96,7 @@ pub enum Action {
     RescueWatchAdd(RescueWatchArgs),
     RescueWatchStop(RescueWatchStopArgs),
     SafetyRecord,
+    CounterpartyRevoke(CounterpartyRevokeArgs),
 }
 impl Action {
     /// The IPC command this action serves, whose row in the authority table
@@ -163,6 +164,7 @@ impl Action {
             Action::RescueWatchAdd(_) => "rescue_watch_add",
             Action::RescueWatchStop(_) => "rescue_watch_stop",
             Action::SafetyRecord => "safety_record",
+            Action::CounterpartyRevoke(_) => "counterparty_revoke",
             Action::Select(_)
             | Action::SelectPairing(_)
             | Action::ClaimNotification { .. }

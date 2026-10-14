@@ -29,6 +29,8 @@ mod proof_tests;
 mod quit_tests;
 #[path = "reached_paypal_tests.rs"]
 mod reached_paypal_tests;
+#[path = "refusal_audit_tests.rs"]
+mod refusal_audit_tests;
 #[path = "relay_tests.rs"]
 mod relay_tests;
 #[path = "rescue_tests.rs"]

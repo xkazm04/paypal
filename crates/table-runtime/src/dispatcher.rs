@@ -13,7 +13,61 @@ fn allowed(label: &str, labels: &[&str]) -> Result<(), CommandError> {
         Err(permission())
     }
 }
+/// Most refusal rows written per [`REFUSAL_WINDOW`] seconds. A probe loop beyond it is counted in
+/// `unrecorded`, not appended: the chain is append-only, so its growth has to be bounded.
+const REFUSAL_ROWS_PER_WINDOW: u32 = 60;
+const REFUSAL_WINDOW: i64 = 60;
+/// Bookkeeping for the refused-command audit rows (standard authorization-audit).
+#[derive(Debug, Default)]
+pub struct RefusalLog {
+    window_start: i64,
+    in_window: u32,
+    /// Refusals over the rate cap: counted, not recorded.
+    pub unrecorded: u64,
+    /// Refusals whose audit write failed: the trail's known gaps.
+    pub write_failures: u64,
+}
 impl Runtime {
+    /// One audit row for a refused privileged command: command, window label and tier only,
+    /// never arguments or the token. The write is best-effort: it can neither turn the refusal
+    /// into success nor into another error; a failure is counted in `refusals.write_failures`.
+    fn record_refusal(&mut self, command: &str, label: &str) {
+        let Some(row) = table_client::authority::authority(command) else {
+            return; // Not a command: nothing privileged was probed, and nothing is recorded.
+        };
+        if !(row.token || row.unlock || row.release()) {
+            return;
+        }
+        let now = self.clock.now();
+        let log = &mut self.refusals;
+        if now < log.window_start || now - log.window_start >= REFUSAL_WINDOW {
+            log.window_start = now;
+            log.in_window = 0;
+        }
+        if log.in_window >= REFUSAL_ROWS_PER_WINDOW {
+            log.unrecorded = log.unrecorded.saturating_add(1);
+            return;
+        }
+        log.in_window += 1;
+        let written = self
+            .pipeline
+            .wallet
+            .ledger
+            .append_audit(&table_ledger::AuditEntry {
+                at: now,
+                actor: "gate".into(),
+                action: "command.refused".into(),
+                deal_id: None,
+                detail: serde_json::json!({
+                    "command": row.name,
+                    "window": label,
+                    "tier": row.tier.as_str(),
+                }),
+            });
+        if written.is_err() {
+            self.refusals.write_failures = self.refusals.write_failures.saturating_add(1);
+        }
+    }
     /// The authority table's row for `command`: the window label, then the approval token and
     /// the unlock, then the selected deal. Refusals are PERMISSION, or LOCKED for an idle lock.
     pub(crate) fn admit(
@@ -233,8 +287,11 @@ impl Runtime {
         let token = caller.token.as_deref();
         allowed(label, &["main", "tumbler", "approval"])?;
         // The authority table's gate for every IPC command (T11), before anything else runs.
-        if let Some(command) = action.command() {
-            self.admit(command, label, token, action.deal())?;
+        if let Some(command) = action.command()
+            && let Err(refusal) = self.admit(command, label, token, action.deal())
+        {
+            self.record_refusal(command, label);
+            return Err(refusal);
         }
         match action {
             Action::HouseOffer(args) => {
@@ -507,6 +564,14 @@ impl Runtime {
                     .wallet
                     .ledger
                     .revoke_mandate(args.id, self.clock.now()))?;
+                json(())
+            }
+            Action::CounterpartyRevoke(args) => {
+                app(self
+                    .pipeline
+                    .wallet
+                    .ledger
+                    .revoke_counterparty(&args.key_id, self.clock.now()))?;
                 json(())
             }
             Action::Band(args) => json(self.band(args)?),

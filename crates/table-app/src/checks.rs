@@ -632,7 +632,7 @@ impl Pipeline {
                     own,
                     paired: own
                         || ledger
-                            .counterparty_policy(&deal.counterparty)
+                            .counterparty_policy_at(&deal.counterparty, now)
                             .is_ok_and(|(paired, _, _)| paired),
                     approved,
                 }

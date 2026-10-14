@@ -923,6 +923,7 @@ impl Ledger {
         if confirmed.is_none() {
             return Err(LedgerError::Conflict);
         }
+        crate::pin::require_live(&self.conn, &deal.counterparty, at)?;
         let key = VerifyingKey::from_bytes(
             &key.try_into()
                 .map_err(|_| LedgerError::Integrity("peer key"))?,
@@ -1548,6 +1549,7 @@ impl Ledger {
         if confirmed.is_none() {
             return Err(ProtocolError::Binding.into());
         }
+        crate::pin::require_live(&tx, &deal.counterparty, at)?;
         let agent: [u8; 32] = agent.try_into().map_err(|_| ProtocolError::Signature)?;
         let sender = VerifyingKey::from_bytes(&agent).map_err(|_| ProtocolError::Signature)?;
         let own = key_id(
