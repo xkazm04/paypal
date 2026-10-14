@@ -1,0 +1,48 @@
+/* The Charter (setup/Charter.tsx): the current line on the left, the five lines on the right.
+   Tokens only; text never below --fs-small. */
+.cs-charter { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: var(--sp-8); align-items: start; flex: 1 0 auto; }
+.cs-charter .ch-l { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.cs-charter .ch-l .kicker, .cs-charter .ch-l .cs-title { margin-bottom: 0; }
+.cs-charter .ch-sub { margin: 0; color: var(--muted); font-size: var(--fs-title3); max-width: 44rem; line-height: 1.45; }
+.cs-charter .ch-body { display: flex; flex-direction: column; gap: var(--sp-3); }
+.cs-charter .ch-done { display: flex; align-items: center; gap: var(--sp-2); margin: 0; color: var(--ok); }
+.cs-charter .ch-wait { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-3); border-radius: var(--r-card); background: var(--bg2); border: 1px dashed var(--gold); max-width: 44rem; }
+.cs-charter .ch-wait span { color: var(--muted); }
+.cs-charter .ch-wait.notdone { border-color: var(--line2); }
+.cs-charter .ch-engines { display: flex; flex-direction: column; gap: var(--sp-3); }
+.cs-charter .ch-engine { display: flex; align-items: center; gap: var(--sp-2); min-height: 32px; }
+.cs-charter .ch-engine span { color: var(--muted); }
+.cs-charter .ch-engine.off { opacity: .75; }
+.cs-charter .ch-embed { margin-top: var(--sp-1); }
+.cs-charter .ch-note { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--line2); max-width: 44rem; }
+.cs-charter .ch-note ul { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); color: var(--muted); }
+.cs-charter .ch-note li { display: flex; gap: var(--sp-2); align-items: baseline; }
+.cs-charter .led { flex: none; width: 6px; height: 6px; border-radius: 1px; transform: translateY(-1px); background: var(--steel); }
+.cs-charter .led.gold { background: var(--gold); } .cs-charter .led.teal { background: var(--teal); } .cs-charter .led.ok { background: var(--ok); }
+.cs-charter .ch-tour { margin-top: var(--sp-3); }
+.cs-charter .ch-skip { margin: var(--sp-2) 0 0; }
+.cs-charter .ch-r { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.cs-charter .ch-fields { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line2); }
+.cs-charter .ch-fields li { border-bottom: 1px solid var(--line); }
+.cs-charter .ch-fields button { display: grid; grid-template-columns: 2.6rem minmax(0, 1fr) auto; align-items: center; gap: var(--sp-3); width: 100%; padding: var(--sp-3) var(--sp-2);
+  text-align: left; font: inherit; color: var(--text); background: none; border: 0; cursor: pointer; border-radius: var(--r-tight); }
+.cs-charter .ch-fields button:hover { background: color-mix(in srgb, var(--panel2) 60%, transparent); }
+.cs-charter .ch-fields button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.cs-charter .ch-fields .num { font: var(--fw-display) var(--fs-title1)/1 var(--display); color: var(--dim); text-align: center; letter-spacing: .04em; }
+.cs-charter .ch-fields .txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cs-charter .ch-fields .lbl { font-weight: var(--fw-semibold); }
+.cs-charter .ch-fields .priv { color: var(--gold-l); font-weight: var(--fw-regular); font-size: var(--fs-small); }
+.cs-charter .ch-fields .ex { color: var(--muted); font-size: var(--fs-small); line-height: 1.4; }
+.cs-charter .ch-fields li.cur button { box-shadow: inset 2px 0 0 var(--gold); background: color-mix(in srgb, var(--gold) 7%, transparent); }
+.cs-charter .ch-fields li.cur .num { color: var(--gold-l); }
+.cs-charter .ch-fields li.done .num { color: var(--teal-l); }
+@media (max-width: 1000px) { .cs-charter { grid-template-columns: minmax(0, 1fr); } }
+/* tall, wide windows: the charter grows with the room */
+@media (min-height: 960px) and (min-width: 1500px) {
+  .cs-charter .cs-title { font-size: 3.2rem; }
+  .cs-charter .ch-sub { font-size: var(--fs-title2); }
+  .cs-charter .ch-fields button { padding: var(--sp-5) var(--sp-3); }
+  .cs-charter .ch-fields .lbl { font-size: var(--fs-title3); }
+  .cs-charter .ch-fields .ex { font-size: var(--fs-body); }
+  .cs-charter .ch-note ul { font-size: var(--fs-title3); }
+}

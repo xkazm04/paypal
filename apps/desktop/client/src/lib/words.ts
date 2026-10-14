@@ -928,3 +928,141 @@ export const STALE_PART: Record<'settings' | 'deals' | 'attention' | 'runs' | 'l
   runs: 'your agents',
   labels: 'some deal names',
 };
+
+// console-rebuild WP2 (the console shell, the decision centre, Find, the Charter) -----------------
+/** The layers' names, as the crumbs and the Find list say them. */
+export const CENTRE_TITLE = 'What needs you';
+export const WAITING_TITLE = 'Everything waiting';
+export const REWIND_TITLE = 'Rewind';
+/** The places in the top bar. */
+export const PLACE = { rewind: 'Rewind', rules: 'Rules', connections: 'Connections', settings: 'Settings', find: 'Find' } as const;
+export const PLACE_TITLE = {
+  rewind: 'Replay the week: who decided each payment',
+  rules: 'What your agents may do, and the limits you signed',
+  connections: 'Connect with another wallet, or open the house seller',
+  settings: 'Agent app, safety checks and PayPal',
+  find: 'Find a deal, a person or a place (/ or Ctrl K)',
+} as const;
+/** The brand button: back to the decision centre. */
+export const BRAND_NAME = 'The Table';
+export const BRAND_TITLE = 'The Table: back to what needs you';
+export const BACK_TITLE = 'Back one level (Esc)';
+export const CRUMBS_LABEL = 'Where you are';
+export const PLACES_LABEL = 'Places';
+export const TABS_LABEL = 'Modules';
+/** The gold pill in the top bar. */
+export const needPill = (n: number): string => (n ? `${n > 99 ? '99+' : n} need you` : 'Nothing needs you');
+export const needPillLabel = (n: number): string => (n ? `${n} ${n === 1 ? 'decision needs' : 'decisions need'} you. Opens everything waiting.` : 'Nothing needs you. Opens the decision centre.');
+/** The footer's safe default, said once on every layer. */
+export const SAFE_DEFAULT_LINE = 'Waiting never pays · nothing moves without you';
+/** A module tab's badge, for screen readers. */
+export const tabWaiting = (n: number): string => `${n} ${n === 1 ? 'needs' : 'need'} you`;
+export const tabTitle = (name: string, long: string, key: number): string => `${name}: ${long} (${key})`;
+
+/** The decision centre. */
+export const DECISION_OF = (i: number, n: number): string => `${i} of ${n}`;
+export const decisionOfLabel = (i: number, n: number): string => `Decision ${i} of ${n}`;
+export const PREV_DECISION = 'Previous decision (Left arrow)';
+export const NEXT_DECISION = 'Next decision (Right arrow)';
+export const NO_DEADLINE = 'no deadline';
+export const NO_COUNTERPARTY = 'no counterparty name yet';
+export const IF_NOTHING = 'If you do nothing';
+export const LATER = 'Later';
+export const LATER_TITLE = 'Move this decision to the back of the stack. Nothing moves while it waits.';
+export const LATER_TOAST = 'Moved to the back of the stack · nothing moves while it waits';
+export const LATER_ALONE = 'Nothing else is waiting · nothing moves while it waits';
+export const OPEN_THE_DEAL = 'Open the deal';
+export const WHY = 'Why?';
+/** The gold action's titles: it only opens the approval window. */
+export const APPROVAL_OPEN_TITLE = 'Opens the approval window, the only place money can be released';
+export const APPROVAL_LOCKED_TITLE = 'Locked after 15 quiet minutes: you unlock with Windows Hello first';
+/** The facts strip under a decision. */
+export const FACT = { amount: 'Amount', held: 'On hold at PayPal', now: 'Money now', why: 'Why it asks you', time: 'Time left', noRule: 'No rule named' } as const;
+export const factWith = (who: string): string => `with ${who}`;
+export const yourRule = (name: string): string => `Your rule “${name}”`;
+/** The row under the decision. */
+export const NEXT_IN_STACK = 'Next in the stack';
+export const NOTHING_ELSE_WAITS = 'Nothing else waits';
+export const allWaiting = (n: number): string => `All ${n} waiting ›`;
+export const AWAY_KICKER = 'While you were away';
+export const watchingKicker = (module: string): string => `Watching · ${module}`;
+export const SEE_REWIND = 'Rewind ›';
+/** The centre when nothing needs the owner: one calm line, and what the wallet is watching. */
+export const CENTRE_EMPTY = { kicker: 'Nothing needs you', title: 'Nothing needs you. If you do nothing, no money moves.' } as const;
+export const watchingLine = (moving: number, held: string): string =>
+  `Watching ${moving} ${moving === 1 ? 'deal' : 'deals'} in progress · ${held} on hold at PayPal`;
+export const OPEN_BOOK = 'Open the Book';
+export const CENTRE_READING = 'Reading what needs you…';
+/** The seal's state in words (it is never decoration only). */
+export const SEAL_WORD: Record<'quiet' | 'watching' | 'needs' | 'holding' | 'paid' | 'stopped', string> = {
+  quiet: 'Quiet', watching: 'Watching', needs: 'A deal needs you', holding: 'Holding', paid: 'Paid', stopped: 'Stopped',
+};
+export const SEAL_LINE = {
+  quiet: 'Nothing needs you · no money moves',
+  watching: 'Your agents work inside your rules',
+  checking: 'Checking with PayPal · nothing more is sent',
+  needs: 'Nothing moves until you decide',
+  paused: 'Paused before any PayPal call',
+  holding: 'On hold at PayPal · not paid',
+  stopped: 'It will not be paid',
+  paid: 'A payment went through',
+  setup: 'Nothing can pay until your charter is signed',
+} as const;
+export const sealLabel = (word: string, line: string): string => `Your wallet: ${word}. ${line}.`;
+export const SEAL_RING = 'nothing moves without you';
+/** The presence strip beside the seal. */
+export const stripLabel = (deals: number, needs: number): string => `Your deals: ${deals} in all, ${needs} ${needs === 1 ? 'needs' : 'need'} you`;
+
+/** The waiting layer. */
+export const WAITING_KICKER = 'What needs you · soonest first';
+export const waitingTitle = (n: number): string => (n === 1 ? 'One thing waits for you. It moves no money while it waits.' : `${n} things wait for you. None of them moves money while it waits.`);
+export const WAITING_EMPTY = 'Nothing waits for you. If you do nothing, no money moves.';
+export const WAITING_FILTER = 'Show';
+export const EVERY_MODULE = 'Every module';
+/** "48 waiting", "12 of 48"; `n` formats a count (a tally reads 1.2k above 999). */
+export const waitingShown = (shown: number, all: number, n: (x: number) => string = String): string => (shown === all ? `${n(all)} waiting` : `${n(shown)} of ${n(all)}`);
+
+/** Find. */
+export const FIND_PLACEHOLDER = 'Find a deal, a person or a place…';
+export const FIND_LABEL = 'Find';
+export const FIND_RESULTS = 'Results';
+export const FIND_GROUP = { needs: 'Needs you', modules: 'Go to', deals: 'Deals', places: 'Places' } as const;
+export const findShown = (n: number): string => `${n} shown`;
+export const FIND_KEYS = { move: 'move', open: 'open', close: 'close' } as const;
+
+/** A deal layer's crumb before its name is read, and why a deal cannot show. */
+export const DEAL_CRUMB = 'Deal';
+export const DEAL_UNREAD = 'Your deals couldn’t be loaded right now. Nothing has changed with your money.';
+export const DEAL_GONE = { text: 'This deal isn’t here any more.', back: 'Back to The Table' } as const;
+/** The idle-lock button in the top bar (it only opens the approval window, where Windows Hello unlocks). */
+export const LOCK = {
+  locked: 'Locked', unlocked: 'Unlocked',
+  lockedTitle: 'Locked after 15 quiet minutes. You can still look around; approving money asks for Windows Hello. Click to unlock.',
+  unlockedTitle: 'Approvals lock after 15 quiet minutes, then ask for Windows Hello.',
+} as const;
+/** The Tumbler's state in the footer. */
+export const MINI_WINDOW = { name: 'Mini window', title: 'The small always-on-top window', shown: 'shown', hidden: 'hidden', waiting: 'waiting' } as const;
+/** Today's meters in the footer (wallet money and the agent app's estimate are never one figure). */
+export const METERS = {
+  paidOut: 'paid out today', spent: 'spent today', spentTitle: 'What your agents committed today', ai: 'AI usage, estimate',
+  aiTitle: 'What your agent app estimates its AI usage cost today. An estimate, not a bill, and never used for money decisions.',
+  none: 'spend not counted yet', noneTitle: 'Today’s spend and AI usage appear here once the wallet can count them.',
+} as const;
+/** Calm motion and the footer's small controls. */
+export const CALM = { label: 'Calm motion', title: 'Stops the seal turning and the sheets moving; pages only crossfade' } as const;
+export const SHORTCUTS_LABEL = 'Keyboard shortcuts';
+
+/** The Charter (the Set up layer): five numbered lines the owner signs. */
+export const CHARTER_TITLE = 'Your wallet’s charter';
+export const CHARTER_NUMERAL = ['I', 'II', 'III', 'IV', 'V'] as const;
+export const charterLine = (n: string): string => `Line ${n} of V`;
+export const CHARTER_IN_APPROVAL = 'in the approval window';
+export const CHARTER_SEALED = { kicker: 'Your wallet’s charter · signed', title: 'Your charter is signed. Nothing pays without you or a rule you signed.' } as const;
+export const CHARTER_MEANS_TITLE = 'What signing the charter means';
+export const charterDone = (n: number, of: number): string => `${n} of ${of} lines signed. Each line takes a minute or two.`;
+export const CHARTER_MEANS_APPROVAL = 'Lines marked “in the approval window” open the separate approval window, where only you can sign.';
+export const CHARTER_SKIP = 'Skip: open the sample wallet';
+export const CHARTER_SKIP_TITLE = 'Preview only: the sample wallet is already set up';
+/** Settings' way back to the Charter once the wallet is set up. */
+export const CHARTER_OPEN = { act: 'Your wallet’s charter', title: 'See the five setup lines again: keys, rules, practice deal, agent app, unlock' } as const;
+export const CHARTER_STATE = { done: 'signed', waiting: 'waiting', todo: 'to do', unknown: 'not read yet' } as const;

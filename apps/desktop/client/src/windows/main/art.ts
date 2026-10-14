@@ -1,6 +1,7 @@
-// Static, trusted SVG markup for the Dial: the engraved module medallions (ported from the
-// winning prototype's art()), the machined bezel, rotor ticks, bead groove, hub plate and the
-// gold index. No data ever reaches these strings, so dangerouslySetInnerHTML is safe here.
+// Static, trusted SVG markup: the engraved module medallions (ported from the winning prototype's
+// art()) for the module headers, and the lock glyph. The Dial home's bezel, rotor, groove and hub
+// went with it (console rebuild WP2). No data ever reaches these strings, so
+// dangerouslySetInnerHTML is safe here.
 //
 // Colour only from tokens (v2): every paint is a presentation attribute holding var(--…) or a
 // color-mix() of tokens. The CSP (style-src 'self') blocks `style=""` in injected markup, but
@@ -9,16 +10,7 @@
 // the light theme); markup that can render outside Home (headerArt, the medallions) falls back
 // to global tokens when `--d-*` is not in scope.
 import type { Module } from '@bindings/Module';
-import { MODULE, MODULES } from '../../shared/modules';
-import { C, R, STEP, pol, wedgePath } from './logic';
-
-/** Gradient / pattern ids, prefixed so the always-mounted Dial never collides with page SVGs. */
-export const DID = {
-  shadow: 'dl-shadow', soft: 'dl-soft', noise: 'dl-noise', metal: 'dl-metal', rimlight: 'dl-rimlight', rimdark: 'dl-rimdark',
-  ringbase: 'dl-ringbase', hubg: 'dl-hubg', medal: 'dl-medal', tealg: 'dl-tealg', okg: 'dl-okg', spec: 'dl-spec', goldg: 'dl-goldg',
-  hatch: 'dl-hatch', wedge: (m: Module) => `dl-wg-${m}`,
-} as const;
-export const url = (id: string) => `url(#${id})`;
+import { MODULE } from '../../shared/modules';
 
 /** Paints (tokens only). The `--d-*` fallbacks keep the art right outside the Home scope. */
 export const P = {
@@ -33,7 +25,6 @@ export const P = {
 } as const;
 
 const colorOf = (key: Module): string => MODULE[key]?.cssVar ?? 'var(--text)';
-const f1 = (n: number) => n.toFixed(1);
 const stop = (o: number, c: string, a?: number) => `<stop offset="${o}" stop-color="${c}"${a === undefined ? '' : ` stop-opacity="${a}"`}/>`;
 
 /** One pass of a module's engraving; `shadow` paints every stroke and fill in the engrave ink. */
@@ -101,94 +92,5 @@ export function headerArt(key: Module): string {
     <path d="M8 114h184" stroke="${c}" stroke-opacity=".3"/>`;
 }
 
-// ---- the Dial's static layers -------------------------------------------------------------------
-
-export function dialDefs(): string {
-  let defs = `<defs>
-    <filter id="${DID.shadow}" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="var(--d-shadow)"/></filter>
-    <filter id="${DID.soft}" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="var(--d-shadow)"/></filter>
-    <filter id="${DID.noise}" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="2.2 .02" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 .6  0 0 0 0 .62  0 0 0 0 .66  0 0 0 .22 0"/><feComposite in2="SourceGraphic" operator="in"/></filter>
-    <linearGradient id="${DID.metal}" x1="0" y1="0" x2="1" y2="1">${stop(0, 'var(--d-m1)')}${stop(0.22, 'var(--d-m2)')}${stop(0.48, 'var(--d-m3)')}${stop(0.74, 'var(--d-m4)')}${stop(1, 'var(--d-m5)')}</linearGradient>
-    <linearGradient id="${DID.rimlight}" x1="0" y1="0" x2="0" y2="1">${stop(0, P.hi, 0.38)}${stop(0.5, P.hi, 0.02)}${stop(1, P.deep, 0.5)}</linearGradient>
-    <linearGradient id="${DID.rimdark}" x1="0" y1="0" x2="0" y2="1">${stop(0, P.deep, 0.5)}${stop(1, P.hi, 0.16)}</linearGradient>
-    <radialGradient id="${DID.ringbase}" cx="500" cy="500" r="460" gradientUnits="userSpaceOnUse">${stop(0.74, 'var(--d-ring1)')}${stop(0.88, 'var(--d-ring2)')}${stop(1, 'var(--d-ring3)')}</radialGradient>
-    <radialGradient id="${DID.hubg}" cx="44%" cy="36%" r="70%">${stop(0, 'var(--d-hub1)')}${stop(0.6, 'var(--d-hub2)')}${stop(1, 'var(--d-hub3)')}</radialGradient>
-    <radialGradient id="${DID.medal}" cx="45%" cy="38%" r="65%">${stop(0, 'var(--d-medal1)')}${stop(1, 'var(--d-medal2)')}</radialGradient>
-    <radialGradient id="${DID.tealg}" cx="38%" cy="32%" r="70%">${stop(0, `color-mix(in srgb, var(--teal) 40%, ${P.hi})`)}${stop(0.45, 'var(--teal)')}${stop(1, `color-mix(in srgb, var(--teal) 55%, ${P.deep})`)}</radialGradient>
-    <radialGradient id="${DID.okg}" cx="38%" cy="32%" r="70%">${stop(0, `color-mix(in srgb, var(--ok) 40%, ${P.hi})`)}${stop(0.5, 'var(--ok)')}${stop(1, `color-mix(in srgb, var(--ok) 55%, ${P.deep})`)}</radialGradient>
-    <radialGradient id="${DID.spec}" cx="30%" cy="18%" r="80%">${stop(0, P.hi, 0.1)}${stop(0.45, P.hi, 0.02)}${stop(1, P.deep, 0.18)}</radialGradient>
-    <linearGradient id="${DID.goldg}" x1="0" y1="0" x2="0" y2="1">${stop(0, `color-mix(in srgb, var(--gold) 45%, ${P.hi})`)}${stop(0.6, P.gold)}${stop(1, P.goldDeep)}</linearGradient>
-    <pattern id="${DID.hatch}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="color-mix(in srgb, var(--gold) 22%, var(--d-ring1))"/><line x1="0" y1="0" x2="0" y2="5" stroke="${P.gold}" stroke-width="2.4"/></pattern>`;
-  for (const m of MODULES) {
-    defs += `<radialGradient id="${DID.wedge(m.key)}" cx="500" cy="500" r="${R.secO}" gradientUnits="userSpaceOnUse">${stop(0.75, m.cssVar, 0.05)}${stop(0.9, m.cssVar, 0.16)}${stop(1, m.cssVar, 0.34)}</radialGradient>`;
-  }
-  return defs + `</defs>`;
-}
-
-export function dialBezel(): string {
-  let knurl = '';
-  for (let k = 0; k < 180; k++) {
-    const a = k * 2;
-    const [x0, y0] = pol(R.bez + 5, a);
-    const [x1, y1] = pol(R.bez + 9, a);
-    knurl += `M${f1(x0)} ${f1(y0)}L${f1(x1)} ${f1(y1)}`;
-  }
-  return `<circle cx="${C}" cy="${C}" r="496" fill="var(--d-groove-edge)" filter="${url(DID.shadow)}"/>
-    <circle cx="${C}" cy="${C}" r="${R.bez}" fill="none" stroke="${url(DID.metal)}" stroke-width="${R.bezW}"/>
-    <circle cx="${C}" cy="${C}" r="${R.bez}" fill="none" stroke="${P.deep}" stroke-width="${R.bezW}" filter="${url(DID.noise)}" opacity=".9"/>
-    <path d="${knurl}" stroke="${P.ink}" stroke-width="1.6"/>
-    <circle cx="${C}" cy="${C}" r="${R.bez + R.bezW / 2}" fill="none" stroke="${url(DID.rimlight)}" stroke-width="1.6"/>
-    <circle cx="${C}" cy="${C}" r="${R.bez - R.bezW / 2}" fill="none" stroke="${url(DID.rimdark)}" stroke-width="1.6"/>`;
-}
-
-/** Rotor base: the rim band with its 120 ticks and the sector bed. */
-export function rotorBase(): string {
-  let ticks = '';
-  for (let k = 0; k < 120; k++) {
-    const a = k * 3;
-    const major = k % 20 === 0;
-    const mid = k % 5 === 0;
-    const [x0, y0] = pol(R.rimO - 2, a);
-    const [x1, y1] = pol(major ? R.rimI - 2 : mid ? R.rimI + 3 : R.rimI + 7, a);
-    ticks += `<line x1="${f1(x0)}" y1="${f1(y0)}" x2="${f1(x1)}" y2="${f1(y1)}" stroke="${major ? 'var(--text)' : 'var(--muted)'}" stroke-opacity="${major ? 0.85 : mid ? 0.55 : 0.3}" stroke-width="${major ? 2.4 : 1.4}"/>`;
-  }
-  return `<circle cx="${C}" cy="${C}" r="${(R.rimI + R.rimO) / 2}" fill="none" stroke="var(--d-rim)" stroke-width="${R.rimO - R.rimI}"/>
-    ${ticks}
-    <circle cx="${C}" cy="${C}" r="${(R.secI + R.secO) / 2}" fill="none" stroke="var(--d-groove-edge)" stroke-width="${R.secO - R.secI + 4}"/>`;
-}
-
-export function rotorDividers(): string {
-  let out = '';
-  for (let i = 0; i < MODULES.length; i++) {
-    const a = i * STEP + STEP / 2;
-    const [x0, y0] = pol(R.secI, a);
-    const [x1, y1] = pol(R.secO, a);
-    out += `<line x1="${f1(x0)}" y1="${f1(y0)}" x2="${f1(x1)}" y2="${f1(y1)}" stroke="var(--d-groove-edge)" stroke-width="3.5"/><line x1="${f1(x0 + 0.9)}" y1="${f1(y0 + 0.9)}" x2="${f1(x1 + 0.9)}" y2="${f1(y1 + 0.9)}" stroke="${P.hi}" stroke-opacity=".08" stroke-width="1"/>`;
-  }
-  return out + `<circle cx="${C}" cy="${C}" r="${R.secO + 1}" fill="none" stroke="${P.ink}" stroke-width="2"/>`;
-}
-
-export function groove(): string {
-  return `<circle cx="${C}" cy="${C}" r="${R.track}" fill="none" stroke="var(--d-groove-edge)" stroke-width="${R.trackW + 6}"/>
-    <circle cx="${C}" cy="${C}" r="${R.track}" fill="none" stroke="var(--d-groove)" stroke-width="${R.trackW}"/>
-    <circle cx="${C}" cy="${C}" r="${R.track + R.trackW / 2}" fill="none" stroke="${url(DID.rimlight)}" stroke-width="1.2" transform="rotate(180 500 500)"/>
-    <circle cx="${C}" cy="${C}" r="${R.track - R.trackW / 2}" fill="none" stroke="${url(DID.rimlight)}" stroke-width="1.2"/>`;
-}
-
-export function hubPlate(): string {
-  let grooves = '';
-  for (let r = 22; r < R.hub - 4; r += 7) grooves += `<circle cx="${C}" cy="${C}" r="${r}" fill="none" stroke="var(--text)" stroke-opacity="${r % 14 ? 0.02 : 0.035}" stroke-width="1"/>`;
-  return `<circle cx="${C}" cy="${C}" r="${R.hub}" fill="${url(DID.hubg)}" filter="${url(DID.soft)}"/>
-    ${grooves}
-    <circle cx="${C}" cy="${C}" r="${R.hub}" fill="none" stroke="${url(DID.rimlight)}" stroke-width="2.2"/>
-    <circle cx="${C}" cy="${C}" r="${R.hub - 9}" fill="none" stroke="${url(DID.rimdark)}" stroke-width="1.2"/>`;
-}
-
-export const SPEC = `<circle cx="${C}" cy="${C}" r="496" fill="${url(DID.spec)}" pointer-events="none"/>`;
-export const INDEX = `<path d="M500 32L484 4H516Z" fill="${url(DID.goldg)}" stroke="${P.goldEdge}" stroke-width="1"/><path d="M500 32V${C - R.secO - 4}" stroke="${P.gold}" stroke-width="2.4"/>`;
-export const WINDOW_PATH = wedgePath(-STEP / 2 + 1.5, STEP / 2 - 1.5, R.secI - 2, R.secO + 2);
-export const RING_HIT = `M500 4a496 496 0 1 0 .01 0ZM500 ${C - R.hub - 4}a${R.hub + 4} ${R.hub + 4} 0 1 1 -.01 0Z`;
-
-/** Small lock glyph used on buttons and the lock indicator (16 x 16). */
 export const LOCK_CLOSED = `<rect x="3" y="7" width="10" height="7.5" rx="1.6" fill="currentColor"/><path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/>`;
 export const LOCK_OPEN = `<rect x="3" y="7" width="10" height="7.5" rx="1.6" fill="currentColor"/><path d="M5 7V5a3 3 0 0 1 5.8-1.1" fill="none" stroke="currentColor" stroke-width="1.6"/>`;

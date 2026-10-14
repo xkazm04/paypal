@@ -1,12 +1,14 @@
-// The Set up page in the first-run mock world: one step at a time, the hand-off wait state, and the
-// page moving on by itself when a step's own state turns done.
+// The Charter in the first-run mock world: five lines with their state, the privileged lines hand off
+// to the approval window with the Set up page's targets, a line waits and says "not finished" when
+// the window gives the focus back unfinished, and a line moves on by itself when its state turns done.
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Backend } from '../../../lib/contract';
-import { KEEP_PRACTICE_AGENT, SETUP_NEXT, SETUP_NOT_DONE, SETUP_STEP_COPY, SETUP_WAITING } from '../../../lib/words';
+import { CHARTER_IN_APPROVAL, CHARTER_TITLE, KEEP_PRACTICE_AGENT, SETUP_FINISH, SETUP_NEXT, SETUP_NOT_DONE, SETUP_STEP_COPY, SETUP_STEP_LABEL, SETUP_WAITING } from '../../../lib/words';
 import { mockBackend, resetMockState } from '../../../mock/backend';
 import { WorldProvider } from '../world';
-import { SetupPage } from './SetupPage';
+import { ToastProvider } from '../ui';
+import { Charter, HANDOFF } from './Charter';
 import type { SetupStep } from '../logic';
 
 const hoisted = vi.hoisted(() => ({ current: null as Backend | null, opened: [] as unknown[] }));
@@ -26,34 +28,45 @@ function stubbed(): Backend {
   };
 }
 
-function view(step: SetupStep, onStep = vi.fn(), onDone = vi.fn()) {
-  render(<WorldProvider><SetupPage step={step} onStep={onStep} onDone={onDone} /></WorldProvider>);
+function view(step: SetupStep | null, onStep = vi.fn(), onDone = vi.fn()) {
+  render(<ToastProvider><WorldProvider><Charter step={step} onStep={onStep} onDone={onDone} /></WorldProvider></ToastProvider>);
   return { onStep, onDone };
 }
 
-describe('the Set up page', () => {
+describe('the Charter', () => {
   beforeEach(() => { localStorage.clear(); sessionStorage.clear(); history.replaceState(null, '', '/index.html?first_run=1'); resetMockState(); hoisted.opened = []; hoisted.current = stubbed(); });
   afterEach(() => { cleanup(); hoisted.current = null; });
 
-  it('shows the step bar and the keys step with its one button', async () => {
-    view('keys');
+  it('lists the five lines, marks the ones signed in the approval window, and opens on the first one not signed', async () => {
+    view(null);
     expect(await screen.findByRole('heading', { name: SETUP_STEP_COPY.keys.lead })).toBeTruthy();
-    expect(screen.getByRole('list', { name: /steps/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: new RegExp(SETUP_STEP_COPY.keys.act) })).toBeTruthy();
+    const lines = screen.getByRole('list', { name: CHARTER_TITLE }).querySelectorAll('li');
+    expect(lines).toHaveLength(5);
+    for (const [i, k] of (['keys', 'rules', 'practice', 'agent', 'unlock'] as const).entries()) {
+      expect(lines[i]?.textContent).toContain(SETUP_STEP_LABEL[k]);
+      expect(lines[i]?.textContent?.includes(CHARTER_IN_APPROVAL)).toBe(!!HANDOFF[k]);
+    }
+    expect(screen.getAllByRole('button', { name: new RegExp(SETUP_STEP_COPY.keys.act) })).toHaveLength(1);
   });
 
-  it('hands off to the approval step, waits, and says so when the window comes back unfinished', async () => {
+  it('hands a privileged line to the approval window with its target, waits, and says when it came back unfinished', async () => {
     view('rules');
     fireEvent.click(await screen.findByRole('button', { name: new RegExp(SETUP_STEP_COPY.rules.act) }));
     expect(await screen.findByText(SETUP_WAITING.title)).toBeTruthy();
     expect(hoisted.opened).toEqual([{ deal_id: null, target: 'mandate' }]);
-    expect(screen.getByRole('button', { name: new RegExp(SETUP_WAITING.reopen) })).toBeTruthy();
     act(() => { window.dispatchEvent(new Event('focus')); });
     expect(await screen.findByText(SETUP_NOT_DONE.title, undefined, { timeout: 2000 })).toBeTruthy();
-    expect(screen.getByRole('button', { name: new RegExp(SETUP_WAITING.reopen) })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(SETUP_WAITING.reopen) }));
+    await waitFor(() => expect(hoisted.opened).toHaveLength(2));
   });
 
-  it('moves on by itself when the agent step turns done', async () => {
+  it('the keys and unlock lines open the approval window on their own pages', async () => {
+    view('keys');
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(SETUP_STEP_COPY.keys.act) }));
+    await waitFor(() => expect(hoisted.opened).toEqual([{ deal_id: null, target: 'credentials' }]));
+  });
+
+  it('moves on by itself when the agent line turns done', async () => {
     const { onStep } = view('agent');
     const keep = await screen.findByRole('button', { name: KEEP_PRACTICE_AGENT.act });
     await waitFor(() => expect((keep as HTMLButtonElement).disabled).toBe(false));
@@ -61,12 +74,11 @@ describe('the Set up page', () => {
     await waitFor(() => expect(onStep).toHaveBeenCalledWith('unlock'));
   });
 
-  it('a step that was done on arrival offers Next instead of jumping ahead', async () => {
-    resetMockState();
+  it('a line signed on arrival offers Next or Done instead of jumping ahead', async () => {
     const { onStep } = view('unlock');
-    // unlocked in the mock: the last step is done and offers Done
     await waitFor(() => expect(screen.queryByText(SETUP_STEP_COPY.unlock.done)).not.toBeNull());
     expect(onStep).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: SETUP_NEXT })).toBeNull();
+    expect(screen.getByRole('button', { name: SETUP_FINISH })).toBeTruthy();
   });
 });
