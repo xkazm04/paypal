@@ -1,0 +1,82 @@
+{
+  "schema": "rkb-run-result/1",
+  "run_id": "conform-2026-10-14-2",
+  "skill": "conform",
+  "skill_version": "1.8.3",
+  "mode": "unknown",
+  "domain": null,
+  "started_at": "2026-10-14T11:47:00Z",
+  "ended_at": "2026-10-14T11:51:02Z",
+  "exit": 0,
+  "counts": {
+    "dispatched": 0,
+    "landed": 6,
+    "declined": 1,
+    "idled": 0,
+    "contended": 0
+  },
+  "subjects": [
+    {
+      "id": "ipc-contract",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    },
+    {
+      "id": "migrations",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    },
+    {
+      "id": "test-harness",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    },
+    {
+      "id": "cost-metering",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    },
+    {
+      "id": "hitl-approval",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    },
+    {
+      "id": "supply-chain",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    }
+  ],
+  "verdicts": [],
+  "files": [
+    ".ai/registry-map.json"
+  ],
+  "commits": [],
+  "pr": null,
+  "declined": [
+    {
+      "subject": "hitl-approval",
+      "reason": "orphan approval-window/hitl-approval left: its conformant anchors span four contexts after the 11:08 rebuild, no single context to adopt it into"
+    }
+  ],
+  "failure_signature": null,
+  "notes": "lens-scan r-20261014114518-b1bf step 1; 6 judged (4 deviation, 2 not-applicable), 5 orphans adopted with unchanged digests and re-read anchors; map edit uncommitted (repo forbids commits unless asked)"
+}
