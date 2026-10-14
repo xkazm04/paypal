@@ -110,6 +110,65 @@ pub enum DealState {
     /// moves it to RECONCILED.
     Unconfirmed,
 }
+impl DealState {
+    /// Every state, in declaration order (a test pins it to the enum's own serialised names).
+    pub const ALL: [Self; 21] = [
+        Self::Pairing,
+        Self::Listed,
+        Self::Negotiating,
+        Self::Agreed,
+        Self::Settling,
+        Self::AwaitingApproval,
+        Self::Approved,
+        Self::Authorized,
+        Self::Captured,
+        Self::Receipted,
+        Self::Reconciled,
+        Self::Withdrawn,
+        Self::Expired,
+        Self::Refused,
+        Self::Mismatch,
+        Self::Failed,
+        Self::Voided,
+        Self::AutoVoided,
+        Self::Refunded,
+        Self::Disputed,
+        Self::Unconfirmed,
+    ];
+    /// The states a deal frees its budget in: it never agreed, or was given back unpaid. One
+    /// list for the exposure fold and for the ledger's SQL filter.
+    pub const RELEASED: [Self; 5] = [
+        Self::Refused,
+        Self::Withdrawn,
+        Self::Expired,
+        Self::Voided,
+        Self::AutoVoided,
+    ];
+    pub const fn is_released(self) -> bool {
+        matches!(
+            self,
+            Self::Refused | Self::Withdrawn | Self::Expired | Self::Voided | Self::AutoVoided
+        )
+    }
+    /// States in the forward chain from AGREED on, every one reached through AGREED. The one
+    /// definition behind the exposure fold and the ledger's per-mandate usage count.
+    pub const fn is_agreed_or_later(self) -> bool {
+        matches!(
+            self,
+            Self::Agreed
+                | Self::Settling
+                | Self::AwaitingApproval
+                | Self::Approved
+                | Self::Authorized
+                | Self::Captured
+                | Self::Receipted
+                | Self::Reconciled
+                | Self::Refunded
+                | Self::Disputed
+                | Self::Unconfirmed
+        )
+    }
+}
 /// How long a buyer's deal that only the seller says is paid waits for PayPal's statement to
 /// show the payment before it ends UNCONFIRMED: 72 hours. Reporting lags up to 3 hours
 /// (.research/paypal-platform.md:36 and :490 [S-spec]); 72 hours is 24 times that lag and gives

@@ -9,7 +9,7 @@
 //! earlier that day count against it; open tables never do; a deal past agreement whose
 //! agreement row cannot be read counts against every other deal of its creation day.
 use crate::{
-    Currency, DealId, DealState, DomainError, H256, Money, Refusal, Side, Timestamp,
+    Currency, DealId, DealState, DomainError, H256, Money, Refusal, RefusalCause, Side, Timestamp,
     canonical_bytes,
 };
 use serde::{Deserialize, Serialize};
@@ -67,31 +67,7 @@ impl CurrencyExposure {
 }
 
 const fn released(state: DealState) -> bool {
-    matches!(
-        state,
-        DealState::Refused
-            | DealState::Withdrawn
-            | DealState::Expired
-            | DealState::Voided
-            | DealState::AutoVoided
-    )
-}
-/// The same set the ledger's usage_for counts when the agreement row is unreadable.
-const fn agreed_or_later(state: DealState) -> bool {
-    matches!(
-        state,
-        DealState::Agreed
-            | DealState::Settling
-            | DealState::AwaitingApproval
-            | DealState::Approved
-            | DealState::Authorized
-            | DealState::Captured
-            | DealState::Receipted
-            | DealState::Reconciled
-            | DealState::Refunded
-            | DealState::Disputed
-            | DealState::Unconfirmed
-    )
+    state.is_released()
 }
 const fn committed_state(state: DealState) -> bool {
     matches!(
@@ -113,7 +89,8 @@ const fn paid_state(state: DealState) -> bool {
     )
 }
 
-/// The UTC day number of a moment.
+/// The UTC day number of a moment: the one day rule for the exposure fold and the ledger's
+/// per-mandate usage window.
 pub const fn utc_day(at: Timestamp) -> Timestamp {
     at.div_euclid(DAY)
 }
@@ -123,7 +100,7 @@ pub const fn utc_day(at: Timestamp) -> Timestamp {
 fn counts_today(other: &ExposureDeal, day: Timestamp, own_seq: Option<i64>) -> bool {
     match other.agreed {
         Some((seq, at)) => utc_day(at) == day && own_seq.is_none_or(|own| seq < own),
-        None => agreed_or_later(other.state) && utc_day(other.created_at) == day,
+        None => other.state.is_agreed_or_later() && utc_day(other.created_at) == day,
     }
 }
 
@@ -276,10 +253,11 @@ impl EnvelopeDecision {
     pub fn into_result(self) -> Result<(), Refusal> {
         match self {
             Self::Allow => Ok(()),
-            Self::Refuse { limit, reason } => Err(Refusal {
-                clause: ENVELOPE_CLAUSE,
-                reason: format!("{}: {reason}", limit.name()),
-            }),
+            Self::Refuse { limit, reason } => Err(Refusal::new(
+                ENVELOPE_CLAUSE,
+                format!("{}: {reason}", limit.name()),
+            )
+            .caused_by(RefusalCause::Envelope(limit))),
         }
     }
 }
@@ -293,12 +271,7 @@ pub struct EnvelopeIntent {
 impl WalletEnvelope {
     /// A limit set check() could never use is refused at signing.
     pub fn validate(&self) -> Result<(), Refusal> {
-        let bad = |reason: &str| {
-            Err(Refusal {
-                clause: ENVELOPE_CLAUSE,
-                reason: reason.into(),
-            })
-        };
+        let bad = |reason: &str| Err(Refusal::new(ENVELOPE_CLAUSE, reason));
         if self.version == 0 {
             return bad("invalid wallet limits version");
         }

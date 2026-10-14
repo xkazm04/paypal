@@ -344,3 +344,46 @@ fn no_sequence_of_deals_across_mandates_exceeds_the_envelope() {
         }
     }
 }
+
+/// The one list of states: `ALL` holds every variant once, and the agreed-or-later and released
+/// sets are disjoint, with `RELEASED` the same set `is_released` answers for.
+#[test]
+fn deal_state_sets_are_one_definition() {
+    // Exhaustive on purpose: a new variant does not compile until it has a place in `ALL`.
+    let ordinal = |s: DealState| match s {
+        DealState::Pairing => 0,
+        DealState::Listed => 1,
+        DealState::Negotiating => 2,
+        DealState::Agreed => 3,
+        DealState::Settling => 4,
+        DealState::AwaitingApproval => 5,
+        DealState::Approved => 6,
+        DealState::Authorized => 7,
+        DealState::Captured => 8,
+        DealState::Receipted => 9,
+        DealState::Reconciled => 10,
+        DealState::Withdrawn => 11,
+        DealState::Expired => 12,
+        DealState::Refused => 13,
+        DealState::Mismatch => 14,
+        DealState::Failed => 15,
+        DealState::Voided => 16,
+        DealState::AutoVoided => 17,
+        DealState::Refunded => 18,
+        DealState::Disputed => 19,
+        DealState::Unconfirmed => 20,
+    };
+    assert_eq!(DealState::ALL.len(), 21);
+    for (i, state) in DealState::ALL.into_iter().enumerate() {
+        assert_eq!(ordinal(state), i, "{state:?}");
+        assert_eq!(
+            state.is_released(),
+            DealState::RELEASED.contains(&state),
+            "{state:?}"
+        );
+        assert!(
+            !(state.is_released() && state.is_agreed_or_later()),
+            "{state:?}"
+        );
+    }
+}

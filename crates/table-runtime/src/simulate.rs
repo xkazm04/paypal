@@ -78,10 +78,10 @@ fn verdict(
         .and_then(|decision| {
             // A rescue also runs its fix against the fixes clause, as the pipeline does.
             if deal.kind == DealKind::Rescue {
-                let offer = facts.offer.as_ref().ok_or_else(|| Refusal {
-                    clause: 8,
-                    reason: "fix not on record".into(),
-                })?;
+                let offer = facts
+                    .offer
+                    .as_ref()
+                    .ok_or_else(|| Refusal::new(8, "fix not on record"))?;
                 check_offer(payload, offer, &deal.terms)?;
             }
             Ok(decision)

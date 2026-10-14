@@ -139,11 +139,9 @@ fn wire_numbers_tags_and_closed_decisions_match_the_client_contract() {
         serde_json::to_value(table_client::ErrorCode::Locked).unwrap(),
         "LOCKED"
     );
-    let refused =
-        table_client::CommandError::from(table_app::Error::Refused(table_core::Refusal {
-            clause: 3,
-            reason: "amount above max_amount".into(),
-        }));
+    let refused = table_client::CommandError::from(table_app::Error::Refused(
+        table_core::Refusal::new(3, "amount above max_amount"),
+    ));
     assert_eq!(serde_json::to_value(refused.code).unwrap(), "REFUSED");
     let malformed = table_client::CommandError::from(table_app::Error::Invalid);
     assert_eq!(serde_json::to_value(malformed.code).unwrap(), "INVALID");
