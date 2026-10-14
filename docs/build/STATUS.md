@@ -25,6 +25,7 @@ live PayPal call, deployment, GUI launch, native keyring write or git state chan
 | B2 Protocol | Complete: closed signed envelopes, pairing, replay/binding checks, transcript commitments and safe projections. |
 | B3 Ledger | Complete: report DDL, repositories, migrations, append-only hash chain, redacted evidence and offline verification. |
 | Ledger migration safety | `Ledger::open` of a file database below the latest `user_version` (and at least 1) first writes `<db stem>.pre-v<N>.sqlite` with `VACUUM INTO` beside the file; a snapshot failure refuses the migration; the two newest snapshots are kept. In-memory and brand-new empty files take none. |
+| Audit write door | `table-ledger/src/audit_detail.rs`: every audit detail passes a per-action key allowlist (`ACTION_KEYS`; unknown keys dropped and named in `dropped`, an unlisted action drops all keys), a credential-shaped scrub (`[redacted]`) and a 64 KiB cap before hashing; a test fails when the workspace writes an action missing from the table. Older rows are untouched and still verify. |
 | B4 PayPal + market | Core complete; P3 adds offline-tested secondary clients and native market refresh. Rescue execution/live API conformance remain deferred. |
 | B5 Engines | P2 adds native process lifecycle, version probes and actor integration. Native availability still requires live isolation conformance. |
 | B6 MCP | Seven implemented tools with role/session/run/mandate checks; catalog tools deferred. |
