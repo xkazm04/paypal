@@ -6,6 +6,7 @@ mod bundle;
 pub use bundle::LedgerExport;
 pub mod redaction;
 pub mod repositories;
+mod snapshot;
 pub use attention::{RUNG_ACTION, RungRow, SilenceEvidence, rung_chain_hash};
 pub use audit::{AuditEntry, AuditRecord};
 pub use redaction::*;
@@ -37,6 +38,7 @@ pub enum LedgerError {
     #[error("another table in this group already agreed")]
     GroupClosed,
 }
+const SCHEMA_VERSION: i64 = 15;
 /// Deliberately no public raw-SQL/connection API. Only typed repositories cross this edge.
 #[derive(Debug)]
 pub struct Ledger {
@@ -53,8 +55,13 @@ impl Ledger {
         conn.execute_batch("PRAGMA foreign_keys=ON; PRAGMA recursive_triggers=ON;")?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version > 15 {
+        if version > SCHEMA_VERSION {
             return Err(LedgerError::Integrity("newer schema"));
+        }
+        let migrating = version < SCHEMA_VERSION;
+        if migrating {
+            // No restore point, no migration: a failure here refuses the open.
+            snapshot::take(&conn, version)?;
         }
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
         if version < 1 {
@@ -110,6 +117,9 @@ impl Ledger {
         }
         tx.execute_batch("PRAGMA user_version=15;")?;
         tx.commit()?;
+        if migrating {
+            snapshot::prune(&conn);
+        }
         let ledger = Self { conn };
         ledger.verify_audit()?;
         Ok(ledger)
