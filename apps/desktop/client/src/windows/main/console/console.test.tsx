@@ -12,7 +12,7 @@ import { WalletError } from '../../../lib/contract';
 import { readBudget, resetReadBudget } from '../../../lib/data/invoke';
 import { READ_CONCURRENCY } from '../../../lib/readEach';
 import {
-  APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, CHARTER_TITLE, CENTRE_TITLE, FIND_LABEL, IF_NOTHING, MONEY_CHECK_ENDED_SILENCE, SETUP_STEP_COPY, STALE_TITLE, UNREAD_TITLE, WAITING_TITLE,
+  APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, CHARTER_TITLE, CENTRE_TITLE, FIND_LABEL, IF_NOTHING, MONEY_CHECK_ENDED_SILENCE, PLACE, PLACE_NAME, SETUP_STEP_COPY, STALE_TITLE, UNREAD_TITLE, WAITING_TITLE,
 } from '../../../lib/words';
 import { mockBackend, resetMockState } from '../../../mock/backend';
 
@@ -323,5 +323,65 @@ describe('old links and the Tumbler', () => {
     await waitFor(() => expect(screen.getByRole('region', { name: CHARTER_TITLE })).toBeTruthy(), { timeout: 8000 });
     expect(layer()?.querySelector('.cs-centre')).toBeNull();
     expect(await screen.findByRole('heading', { name: SETUP_STEP_COPY.keys.lead })).toBeTruthy();
+  }, 30_000);
+});
+
+describe('the owner places are layers (WP2.5)', () => {
+  it('Rules from the top bar is a layer; the wallet limits are one below; Escape walks back with focus', async () => {
+    await open('/index.html');
+    await heading();
+    const rules = screen.getByRole('button', { name: PLACE.rules });
+    rules.focus();
+    fireEvent.click(rules);
+    await waitFor(() => expect(layer()?.dataset.layer).toBe('rules'));
+    expect(location.hash).toBe('#p=rules');
+    expect(document.querySelector('.ui-sheet')).toBeNull();
+    await waitFor(() => expect(document.activeElement?.textContent).toBe(PLACE_NAME.rules));
+    const toLimits = await waitFor(() => { const b = layer()?.querySelector<HTMLButtonElement>('[data-fk="to-limits"]'); if (!b) throw new Error('no limits link'); return b; });
+    toLimits.focus();
+    fireEvent.click(toLimits);
+    await waitFor(() => expect(layer()?.dataset.layer).toBe('limits'));
+    expect(location.hash).toBe('#p=limits');
+    expect(screen.getByRole('navigation', { name: 'Where you are' }).textContent).toContain(PLACE_NAME.rules);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(layer()?.dataset.layer).toBe('rules'));
+    await waitFor(() => expect((document.activeElement as HTMLElement | null)?.dataset.fk).toBe('to-limits'));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(layer()?.dataset.level).toBe('home'));
+    await waitFor(() => expect(document.activeElement?.id).toBe('cs-place-rules'));
+  }, 30_000);
+
+  it('old sheet and safety links open their layer, and Back goes where the old sheet sat', async () => {
+    await open('/index.html#s=settings');
+    await waitFor(() => expect(layer()?.dataset.layer).toBe('settings'));
+    expect(location.hash).toBe('#p=settings');
+    expect(document.querySelector('.ui-sheet')).toBeNull();
+    cleanup();
+    await open('/index.html#m=book&p=safety');
+    await waitFor(() => expect(layer()?.dataset.layer).toBe('safety'));
+    expect(location.hash).toBe('#p=safety&m=book');
+    fireEvent.click(screen.getByRole('button', { name: /^Back$/ }));
+    await waitFor(() => expect(layer()?.dataset.layer).toBe('book'));
+    cleanup();
+    await open('/index.html#s=pairing');
+    await waitFor(() => expect(layer()?.dataset.layer).toBe('pairing'));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(layer()?.dataset.layer).toBe('connections'));
+  }, 30_000);
+
+  it('the beads are buttons named by their deal, one tab stop; the arrows move along them, Enter opens', async () => {
+    await open('/index.html');
+    await heading();
+    const beads = await waitFor(() => { const b = [...document.querySelectorAll<HTMLButtonElement>('.cs-bead')]; if (b.length < 2) throw new Error('no beads'); return b; });
+    expect(beads.filter((b) => b.tabIndex === 0)).toHaveLength(1);
+    for (const b of beads) expect(b.getAttribute('aria-label') ?? '').not.toBe('');
+    const idx = layer()?.querySelector('.cs-idx')?.getAttribute('aria-label');
+    act(() => { beads[0]?.focus(); });
+    fireEvent.keyDown(beads[0] as HTMLElement, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(beads[1]);
+    // the centre's own Left / Right (walk the queue) did not run
+    expect(layer()?.querySelector('.cs-idx')?.getAttribute('aria-label')).toBe(idx);
+    fireEvent.click(beads[1] as HTMLElement);
+    await waitFor(() => expect(layer()?.dataset.layer).toBe('deal'));
   }, 30_000);
 });

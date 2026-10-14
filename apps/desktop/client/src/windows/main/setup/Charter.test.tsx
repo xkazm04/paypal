@@ -76,9 +76,10 @@ describe('the Charter', () => {
 
   it('a line signed on arrival offers Next or Done instead of jumping ahead', async () => {
     const { onStep } = view('unlock');
-    await waitFor(() => expect(screen.queryByText(SETUP_STEP_COPY.unlock.done)).not.toBeNull());
+    // (the done words also show in the "line V reads" preview, so wait for the line's own Done)
+    expect(await screen.findByRole('button', { name: SETUP_FINISH })).toBeTruthy();
+    expect(document.querySelector('.ch-done')?.textContent).toContain(SETUP_STEP_COPY.unlock.done);
     expect(onStep).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: SETUP_NEXT })).toBeNull();
-    expect(screen.getByRole('button', { name: SETUP_FINISH })).toBeTruthy();
   });
 });

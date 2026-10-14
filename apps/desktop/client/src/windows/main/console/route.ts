@@ -1,6 +1,9 @@
 // The console's stack of layers, derived from the route alone (never from a history of clicks):
 // the decision centre is layer 1; the waiting list, the Rewind, Set up and the six modules are
 // layer 2; a module's detail view or a deal is layer 3; a deal opened from a detail view is layer 4.
+// The owner's places (rules, connections, settings, the safety record) are layer 2, or one below
+// the page they were opened from; the wallet limits and the pairing desk sit under rules and
+// connections.
 // Esc, the Back button and the crumbs all walk this one chain. Pure: no React, no IO.
 import type { Module } from '@bindings/Module';
 import { stepBack, type Route } from '../logic';
@@ -47,6 +50,7 @@ export function routeKey(r: Route): string {
     case 'setup': return 'setup';
     case 'waiting': return 'waiting';
     case 'rewind': return 'rewind';
+    case 'place': return r.from ? `p:${r.place}:${r.from}` : `p:${r.place}`;
   }
 }
 

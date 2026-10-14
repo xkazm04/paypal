@@ -27,7 +27,7 @@ import { isTerminal, moneyNow, reviewVerb, splitHeadline, stateLabel } from '../
 import { mc } from '../ui';
 import { useDeals, useDisplayOf, useLocked, useWorldHealth, useWorldReady, useWorldSelector, type Display, type World } from '../world';
 import { BeadStrip } from './BeadStrip';
-import { centreFacts, deadlineProgress, stackSlots, type Presence } from './centreModel';
+import { centreFacts, deadlineProgress, stackRows, stackSlots, type Presence } from './centreModel';
 import { useWatching } from './ledger';
 
 export type CentreProps = {
@@ -153,33 +153,37 @@ function Decision({ item, index, count, onLater, onDeal }: { item: AttentionItem
   const facts = useMemo(() => centreFacts(item, deal, now), [item, deal, now]);
   const ticks = Math.min(count, 6);
   return (
-    <div className="cs-cmain">
-      <div className="cs-toprow">
-        <span className="cs-idx" aria-label={decisionOfLabel(index + 1, count)}>
-          <span className="tk" aria-hidden="true">{Array.from({ length: ticks }, (_, i) => <i key={i} className={i === Math.min(index, ticks - 1) ? 'on' : undefined} />)}</span>
-          <span aria-hidden="true">{DECISION_OF(index + 1, count)}</span>
-        </span>
-        <span className="cs-mod" style={mc(item.module)}><i aria-hidden="true" />{MODULE[item.module].name}</span>
-        {left ? <span className={`cs-left ${left.urgent || item.urgency === 'now' ? 'now' : ''}`}>{left.text}</span> : <span className="cs-left dim">{NO_DEADLINE}</span>}
+    <div className="cs-cmain cs-decision">
+      <div className="cs-dhead">
+        <div className="cs-toprow">
+          <span className="cs-idx" aria-label={decisionOfLabel(index + 1, count)}>
+            <span className="tk" aria-hidden="true">{Array.from({ length: ticks }, (_, i) => <i key={i} className={i === Math.min(index, ticks - 1) ? 'on' : undefined} />)}</span>
+            <span aria-hidden="true">{DECISION_OF(index + 1, count)}</span>
+          </span>
+          <span className="cs-mod" style={mc(item.module)}><i aria-hidden="true" />{MODULE[item.module].name}</span>
+          {left ? <span className={`cs-left ${left.urgent || item.urgency === 'now' ? 'now' : ''}`}>{left.text}</span> : <span className="cs-left dim">{NO_DEADLINE}</span>}
+        </div>
+        <p className="kicker">{MODULE[item.module].long}</p>
+        <h1 className="display cs-title" tabIndex={-1} data-layer-title="">{verb}{gold ? <> <em className="amt">{gold}</em></> : null}</h1>
+        <p className="cs-who">{who || title ? <>{who ? <span>{who}</span> : null}{who && title ? ' · ' : null}{title}</> : <span className="dim">{NO_COUNTERPARTY}</span>}</p>
       </div>
-      <p className="kicker">{MODULE[item.module].long}</p>
-      <h1 className="display cs-title" tabIndex={-1} data-layer-title="">{verb}{gold ? <> <em className="amt">{gold}</em></> : null}</h1>
-      <p className="cs-who">{who || title ? <>{who ? <span>{who}</span> : null}{who && title ? ' · ' : null}{title}</> : <span className="dim">{NO_COUNTERPARTY}</span>}</p>
-      <SilenceLine item={item} />
-      <div className="cs-acts">
-        {canReview ? (
-          <Btn kind="gold" className="cs-gold" locked={locked} disabled={open.pending} onClick={() => void open.run({ deal_id: item.deal_id })}
-            title={locked ? APPROVAL_LOCKED_TITLE : APPROVAL_OPEN_TITLE}>
-            {reviewVerb(item, deal)} <span aria-hidden="true">↗</span>
-          </Btn>
-        ) : (
-          <Btn kind="gold" className="cs-gold" onClick={() => onDeal(item.deal_id)} data-fk="open-deal">{OPEN_THE_DEAL}</Btn>
-        )}
-        <Btn kind="plain" onClick={onLater} title={LATER_TITLE} data-fk="later">{LATER}</Btn>
-        {canReview ? <Btn kind="plain" onClick={() => onDeal(item.deal_id)} data-fk="open-deal">{OPEN_THE_DEAL}</Btn> : null}
-        <WhyDisclosure item={item} deal={deal} disp={disp} />
+      <div className="cs-dmid">
+        <SilenceLine item={item} />
+        <div className="cs-acts">
+          {canReview ? (
+            <Btn kind="gold" className="cs-gold" locked={locked} disabled={open.pending} onClick={() => void open.run({ deal_id: item.deal_id })}
+              title={locked ? APPROVAL_LOCKED_TITLE : APPROVAL_OPEN_TITLE}>
+              {reviewVerb(item, deal)} <span aria-hidden="true">↗</span>
+            </Btn>
+          ) : (
+            <Btn kind="gold" className="cs-gold" onClick={() => onDeal(item.deal_id)} data-fk="open-deal">{OPEN_THE_DEAL}</Btn>
+          )}
+          <Btn kind="plain" onClick={onLater} title={LATER_TITLE} data-fk="later">{LATER}</Btn>
+          {canReview ? <Btn kind="plain" onClick={() => onDeal(item.deal_id)} data-fk="open-deal">{OPEN_THE_DEAL}</Btn> : null}
+          <WhyDisclosure item={item} deal={deal} disp={disp} />
+        </div>
+        {open.error ? <WalletNotice error={open.error} what="Approval window" /> : null}
       </div>
-      {open.error ? <WalletNotice error={open.error} what="Approval window" /> : null}
       <Facts items={facts} className="cs-facts" />
     </div>
   );
@@ -191,9 +195,11 @@ function Decision({ item, index, count, onLater, onDeal }: { item: AttentionItem
 function SilenceLine({ item }: { item: AttentionItem }) {
   const { head, rest } = silenceParts(item.on_silence);
   if (moneyCheckEnded(item)) return <p className="cs-silence ended"><span><b>{head}</b>{rest ? <> · {rest}</> : null}</span></p>;
+  // The countdown is its own chip after the sentence (it never wraps inside the words).
   return (
     <p className="cs-silence" title={`${IF_NOTHING}: ${item.on_silence}`}>
-      <Hourglass /><span>{IF_NOTHING}: <b>{head}</b>{rest ? <> · {rest}</> : null}{item.deadline ? <> · <Countdown deadline={item.deadline} /></> : null}</span>
+      <Hourglass /><span className="txt">{IF_NOTHING}: <b>{head}</b>{rest ? <> · {rest}</> : null}</span>
+      {item.deadline ? <span className="cs-sil-cd"><Countdown deadline={item.deadline} /></span> : null}
     </p>
   );
 }
@@ -226,11 +232,18 @@ function WhyDisclosure({ item, deal, disp }: { item: AttentionItem; deal: Deal |
 
 // ---- the stack row --------------------------------------------------------------------------------
 
-/** How many cards fit: 2 / 4 / 6 by the window's width, following resizes. */
-function useSlots(): number {
-  const [n, setN] = useState(() => stackSlots(typeof window === 'undefined' ? 1280 : window.innerWidth));
+/** How many cards fit: 2 / 4 / 6 a row by the window's width, and a second row on a tall, wide
+ *  window (more of the queue in view instead of an empty band), following resizes. */
+function readSlots(): { cols: number; cap: number } {
+  const w = typeof window === 'undefined' ? 1280 : window.innerWidth;
+  const h = typeof window === 'undefined' ? 800 : window.innerHeight;
+  const cols = stackSlots(w);
+  return { cols, cap: cols * stackRows(w, h) };
+}
+function useSlots(): { cols: number; cap: number } {
+  const [n, setN] = useState(readSlots);
   useEffect(() => {
-    const on = () => setN(stackSlots(window.innerWidth));
+    const on = () => setN((was) => { const x = readSlots(); return x.cols === was.cols && x.cap === was.cap ? was : x; });
     window.addEventListener('resize', on);
     return () => window.removeEventListener('resize', on);
   }, []);
@@ -243,7 +256,7 @@ function StackRow({ queue, cur, away, moving, onPick, onDeal, onWaiting, onRewin
   queue: readonly AttentionItem[]; cur: number; away: ReturnType<typeof useAway>['summary']; moving: readonly Deal[];
   onPick: (id: string) => void; onDeal: (id: string) => void; onWaiting: () => void; onRewind: () => void;
 }) {
-  const slots = useSlots();
+  const { cols, cap: slots } = useSlots();
   const now = useNow();
   const moduleOfDeal = useWorldSelector(selModuleOf);
   const next = queue.length > 1 ? Math.min(slots, queue.length - 1) : 0;
@@ -284,7 +297,7 @@ function StackRow({ queue, cur, away, moving, onPick, onDeal, onWaiting, onRewin
         <span className="ui-spacer" />
         {queue.length > 1 ? <Btn sm onClick={onWaiting} data-fk="all-waiting">{allWaiting(queue.length)}</Btn> : <Btn sm onClick={onRewind} data-fk="see-rewind">{SEE_REWIND}</Btn>}
       </div>
-      <div className="cs-cards" style={{ '--slots': slots } as CSSProperties}>
+      <div className="cs-cards" style={{ '--slots': cols } as CSSProperties}>
         {cards.map((c) => (
           <button key={c.key} type="button" data-fk={`card-${c.key}`} className={`cs-card${c.fill ? ' fill' : ''}`} style={{ '--c': c.color } as CSSProperties} onClick={c.go} title={c.title}>
             <span className="wk">{c.kicker}</span>

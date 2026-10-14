@@ -1066,3 +1066,23 @@ export const CHARTER_SKIP_TITLE = 'Preview only: the sample wallet is already se
 /** Settings' way back to the Charter once the wallet is set up. */
 export const CHARTER_OPEN = { act: 'Your wallet’s charter', title: 'See the five setup lines again: keys, rules, practice deal, agent app, unlock' } as const;
 export const CHARTER_STATE = { done: 'signed', waiting: 'waiting', todo: 'to do', unknown: 'not read yet' } as const;
+/** The Charter's preview of the current line once it is signed (rebuild WP2.5). */
+export const charterPreview = (n: string): string => `When you sign it, line ${n} reads`;
+export const charterReads = (n: string): string => `Signed: line ${n} reads`;
+
+// console-rebuild WP2.5: one words file per area of the console, so parallel builders never edit
+// the same file. Each re-exports here; importers keep `from '../lib/words'`.
+export * from './words/framework';
+export * from './words/tables';
+export * from './words/spend';
+export * from './words/counter';
+export * from './words/book';
+export * from './words/shield';
+export * from './words/rescue';
+export * from './words/deal';
+export * from './words/rewind';
+export * from './words/rules';
+export * from './words/connections';
+export * from './words/settings';
+export * from './words/safety';
+export * from './words/setup';

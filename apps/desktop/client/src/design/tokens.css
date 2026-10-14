@@ -79,6 +79,11 @@
   --fs-small: 12px;    /* secondary, captions, chips: the floor */
   --fs-mono: 12.5px;   /* ids in rows */
   --fs-micro: 7px;     /* microprint: decoration only, always aria-hidden */
+  /* The console's display steps (rebuild WP2.5): the one decision sentence and a layer's heading
+     step up with the window instead of leaving the sheet half empty. Never for body text. */
+  --fs-hero: 34px;     /* 1280 x 800 */
+  --fs-hero-l: 44px;   /* tall, wide windows (>= 1500 x 960) */
+  --fs-hero-xl: 54px;  /* very tall windows (>= 1700 x 1000) */
   --lh: 1.45; --lh-tight: 1.2;
   --fw-light: 330; --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700;
   --fw-display: 350;   /* the display voice: light, tracked slightly tight */

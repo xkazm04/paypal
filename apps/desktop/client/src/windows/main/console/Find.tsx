@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 import { MODULES } from '../../../shared/modules';
 import { Dot, Field, trapTab, useLayer, useModalFocus, useReturnFocus } from '../../../shared/ui';
 import {
-  CENTRE_TITLE, FIND_GROUP, FIND_KEYS, FIND_LABEL, FIND_PLACEHOLDER, FIND_RESULTS, findShown, PLACE, PLACE_TITLE, REWIND_TITLE, SETUP_PAGE_TITLE, WAITING_TITLE,
+  CENTRE_TITLE, FIND_GROUP, FIND_KEYS, FIND_LABEL, FIND_PLACEHOLDER, FIND_RESULTS, findShown, PLACE_FIND_SUB, PLACE_NAME, PLACE_TITLE, REWIND_TITLE, SETUP_PAGE_TITLE, WAITING_TITLE,
 } from '../../../lib/words';
 import { stateLabel } from '../logic';
 import { noMatch } from '../paletteCopy';
@@ -24,11 +24,13 @@ const PLACES: readonly FindItem[] = [
   { key: 'p-centre', group: 'places', title: CENTRE_TITLE, sub: 'the decision centre', target: { kind: 'route', route: { level: 'home' } } },
   { key: 'p-waiting', group: 'places', title: WAITING_TITLE, sub: 'every decision that waits for you', target: { kind: 'route', route: { level: 'waiting' } } },
   { key: 'p-rewind', group: 'places', title: REWIND_TITLE, sub: PLACE_TITLE.rewind.toLowerCase(), target: { kind: 'route', route: { level: 'rewind' } } },
-  { key: 's-settings', group: 'places', title: PLACE.settings, sub: 'agent app, pause agents, PayPal key, lock', target: { kind: 'sheet', tab: 'settings' } },
-  { key: 's-pairing', group: 'places', title: PLACE.connections, sub: 'connect with another wallet or the house seller', target: { kind: 'sheet', tab: 'pairing' } },
-  { key: 's-mandates', group: 'places', title: 'Agent rules', sub: 'what your agents may do · change in the approval window', target: { kind: 'sheet', tab: 'mandates' } },
+  { key: 's-settings', group: 'places', title: PLACE_NAME.settings, sub: PLACE_FIND_SUB.settings, target: { kind: 'route', route: { level: 'place', place: 'settings' } } },
+  { key: 's-connections', group: 'places', title: PLACE_NAME.connections, sub: PLACE_FIND_SUB.connections, target: { kind: 'route', route: { level: 'place', place: 'connections' } } },
+  { key: 's-pairing', group: 'places', title: PLACE_NAME.pairing, sub: PLACE_FIND_SUB.pairing, target: { kind: 'route', route: { level: 'place', place: 'pairing' } } },
+  { key: 's-mandates', group: 'places', title: PLACE_NAME.rules, sub: PLACE_FIND_SUB.rules, target: { kind: 'route', route: { level: 'place', place: 'rules' } } },
+  { key: 's-limits', group: 'places', title: PLACE_NAME.limits, sub: PLACE_FIND_SUB.limits, target: { kind: 'route', route: { level: 'place', place: 'limits' } } },
   { key: 'p-setup', group: 'places', title: SETUP_PAGE_TITLE, sub: 'your keys, your rules and a practice deal, one step at a time', target: { kind: 'setup', step: 'keys' } },
-  { key: 's-safety', group: 'places', title: 'Your safety record', sub: 'every money step and who decided it · check again', target: { kind: 'safety' } },
+  { key: 's-safety', group: 'places', title: PLACE_NAME.safety, sub: PLACE_FIND_SUB.safety, target: { kind: 'route', route: { level: 'place', place: 'safety' } } },
   { key: 's-quit', group: 'places', title: 'Quit The Table', sub: 'stops the wallet · see what waits first', target: { kind: 'quit' } },
 ];
 

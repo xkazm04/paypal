@@ -104,3 +104,8 @@ export function stackSlots(width: number): number {
   if (width >= 1700) return 6;
   return 4;
 }
+
+/** Rows of stack cards: a second row on a tall, wide window (>= 1500 x 1000), else one. */
+export function stackRows(width: number, height: number): number {
+  return width >= 1500 && height >= 1000 ? 2 : 1;
+}

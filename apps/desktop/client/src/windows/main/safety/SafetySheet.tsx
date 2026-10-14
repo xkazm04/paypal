@@ -1,40 +1,14 @@
 // "Your safety record": the wallet checks its whole record the way the hostile-agent tests do and
 // says what it found. Read-only; every number is the wallet's own (safety_record). A finding is
 // red and names its deals, never softened. Details (Layer 2) holds the chain head, the counts per
-// kind of refusal and the precise findings.
+// kind of refusal and the precise findings. Since rebuild WP2.5 it is a layer of the console
+// (console/legacy.tsx hosts it until WP3's safety area replaces it), no longer a sheet.
 import type { SafetyRecord } from '@bindings/SafetyRecord';
 import { clockLabel } from '../../../lib/format';
-import { useQuery } from '../../../lib/hooks';
 import { AUDIT_BROKEN } from '../../../lib/words';
-import { WalletNotice } from '../../../shared/honesty';
-import { Btn, DetailToggle, Kv, Sheet, useDetail } from '../../../shared/ui';
-import { Loading } from '../ui';
-import { useWorld } from '../world';
+import { Btn, Kv } from '../../../shared/ui';
 import { authorityParts, count, FAMILY_WORDS, headGroups, moneySteps, plural, safetyWords, scopeWords, VIOLATION_WORDS } from './model';
 import './safety.css';
-
-export function SafetySheet({ onClose, onDeal }: { onClose: () => void; onDeal: (id: string) => void }) {
-  const q = useQuery('safety_record', null);
-  const [detail, setDetail] = useDetail('safety');
-  const w = useWorld();
-  const name = (id: string): DealName | null => {
-    const d = w.deals.data?.find((x) => x.id === id);
-    return d ? w.display(d) : null;
-  };
-  const r = q.data;
-  return (
-    <Sheet title="Your safety record" onClose={onClose} className={`sf-sheet det-${detail}`}
-      head={<DetailToggle value={detail} onChange={setDetail} />}
-      footer={<>
-        <Btn className="left" disabled={q.loading} onClick={() => void q.refetch()}
-          title="Check every entry and every deal again, now">Check again</Btn>
-        <Btn kind="primary" onClick={onClose}>Done</Btn>
-      </>}>
-      {q.error ? <WalletNotice error={q.error} what="Safety record" /> : null}
-      {r ? <SafetyView record={r} detailed={detail === 'detailed'} dealName={name} onDeal={onDeal} /> : !q.error ? <Loading what="your safety record" /> : null}
-    </Sheet>
-  );
-}
 
 type DealName = { label: string; title: string };
 

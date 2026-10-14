@@ -5,7 +5,7 @@ import { buildIndex, FIND_CAP, searchIndex, type FindItem } from './findIndex';
 
 const deal = (i: number): FindItem => ({ key: `d-${i}`, group: 'deals', title: `Monitor ${i}`, sub: `Shop ${i % 7}`, also: `D-${String(i).padStart(4, '0')}`, target: { kind: 'deal', deal: `id${i}` } });
 const items: FindItem[] = [
-  { key: 'p-x', group: 'places', title: 'Settings', sub: 'agent app', target: { kind: 'sheet', tab: 'settings' } },
+  { key: 'p-x', group: 'places', title: 'Settings', sub: 'agent app', target: { kind: 'route', route: { level: 'place', place: 'settings' } } },
   ...Array.from({ length: 500 }, (_, i) => deal(i)),
   { key: 'm-spend', group: 'modules', title: 'Spend', sub: 'Agent purchases', target: { kind: 'module', module: 'spend' } },
   { key: 'n-1', group: 'needs', title: 'Approve $329.00', sub: 'Monitor 3', target: { kind: 'need', deal: 'id3' } },

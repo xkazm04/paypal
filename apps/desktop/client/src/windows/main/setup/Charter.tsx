@@ -17,7 +17,7 @@ import { backend } from '../../../lib/runtime';
 import { FIRST_RUN_PARAM } from '../../../lib/preview';
 import {
   CHARTER_IN_APPROVAL, CHARTER_MEANS_APPROVAL, CHARTER_MEANS_TITLE, CHARTER_NUMERAL, CHARTER_SEALED, CHARTER_SKIP, CHARTER_SKIP_TITLE, CHARTER_STATE, CHARTER_TITLE,
-  charterDone, charterLine, KEEP_PRACTICE_AGENT, reasonWords, SAFETY_PROMISE, SETUP_ALL_DONE, SETUP_FINISH, SETUP_NEXT, SETUP_NOT_DONE, SETUP_STEP_COPY, SETUP_STEP_LABEL, SETUP_WAITING, START_STEP,
+  charterDone, charterLine, charterPreview, charterReads, KEEP_PRACTICE_AGENT, reasonWords, SAFETY_PROMISE, SETUP_ALL_DONE, SETUP_FINISH, SETUP_NEXT, SETUP_NOT_DONE, SETUP_STEP_COPY, SETUP_STEP_LABEL, SETUP_WAITING, START_STEP,
 } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
 import { TakeTour, Tour } from '../../../shared/tour';
@@ -56,13 +56,15 @@ export const firstOpenLine = (done: Done): SetupStep => SETUP_STEPS.find((k) => 
 /** The line's one-line explanation: the first sentence of its copy. */
 const firstSentence = (t: string): string => { const i = t.indexOf('. '); return i < 0 ? t : t.slice(0, i + 1); };
 
-export function Charter({ step: asked, onStep, onDone, root }: {
+export function Charter({ step: asked, onStep, onDone, root, seal }: {
   /** The line to show; null = the first one not signed yet. */
   step: SetupStep | null;
   onStep: (s: SetupStep) => void;
   onDone: () => void;
   /** The Charter is the console's first layer (a brand-new wallet): the tour and, in a preview, Skip. */
   root?: boolean;
+  /** The wallet's seal, shown beside the current line when the Charter stands in for the centre. */
+  seal?: ReactNode;
 }) {
   const locked = useLocked();
   const done = useSetupDone();
@@ -149,10 +151,23 @@ export function Charter({ step: asked, onStep, onDone, root }: {
           </>
         ) : (
           <>
-            <p className="kicker">{CHARTER_TITLE} · {charterLine(numeral)}</p>
-            <h1 className="display cs-title" tabIndex={-1} data-layer-title="">{copy.lead}</h1>
-            <p className="ch-sub">{copy.text}</p>
-            <section className={`ch-body ${isDone ? 'done' : waiting ? 'waiting' : ''}`} aria-label={copy.lead} data-tour={`setup-${step}`}>{body}</section>
+            <div className={`ch-now${seal ? ' has-seal' : ''}`}>
+              <div className="ch-text">
+                <p className="kicker">{CHARTER_TITLE} · {charterLine(numeral)}</p>
+                <h1 className="display cs-title" tabIndex={-1} data-layer-title="">{copy.lead}</h1>
+                <div className="ch-say">
+                  <p className="ch-sub">{copy.text}</p>
+                  <section className={`ch-body ${isDone ? 'done' : waiting ? 'waiting' : ''}`} aria-label={copy.lead} data-tour={`setup-${step}`}>{body}</section>
+                </div>
+              </div>
+              {seal ? <div className="ch-seal">{seal}</div> : null}
+            </div>
+            {step !== 'practice' ? (
+              <section className={`ch-preview${isDone ? ' done' : ''}`} aria-label={isDone ? charterReads(numeral) : charterPreview(numeral)}>
+                <h2 className="cs-h3">{isDone ? charterReads(numeral) : charterPreview(numeral)}</h2>
+                <p><span className="num" aria-hidden="true">{numeral}</span><span className="lbl">{SETUP_STEP_LABEL[step]}</span><span className="val">{copy.done}</span></p>
+              </section>
+            ) : null}
           </>
         )}
         <section className="ch-note" aria-label={CHARTER_MEANS_TITLE}>
@@ -163,8 +178,8 @@ export function Charter({ step: asked, onStep, onDone, root }: {
             <li data-tour="safety-promise"><i className="led ok" aria-hidden="true" />{SAFETY_PROMISE}</li>
           </ul>
           {root ? <TakeTour win="main" gs={gs} className="ch-tour" /> : null}
+          {root && preview ? <p className="ch-skip"><button type="button" className="linkbtn" title={CHARTER_SKIP_TITLE} onClick={skipToSample}>{CHARTER_SKIP}</button></p> : null}
         </section>
-        {root && preview ? <p className="ch-skip"><button type="button" className="linkbtn" title={CHARTER_SKIP_TITLE} onClick={skipToSample}>{CHARTER_SKIP}</button></p> : null}
       </div>
       <div className="ch-r">
         <h2 className="cs-h3">{CHARTER_TITLE}</h2>
