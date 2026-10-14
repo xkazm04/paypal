@@ -1,8 +1,9 @@
-// Theme for the main window: 'dark' (the Dial, default) or 'light' (PayPal palette).
+// Theme of The Table: 'dark' (the Calibre night, default) or 'light' (the Calibre day).
 // Stored per browser origin in localStorage under `table-theme`; storage can be missing or throw
 // (private mode, blocked site data, previews), so every access is guarded and dark is the fallback.
-// The main window and the Tumbler follow the stored theme (initTheme, followStoredTheme); the
-// approval window is always dark. Tokens: src/design/tokens.css `[data-theme="light"]`.
+// All three windows follow the stored theme (initTheme, followStoredTheme): main, the Tumbler and,
+// since the console rebuild (2026-10-14), the approval window (before, it was always dark).
+// Tokens: src/design/tokens.css `[data-theme="light"]`.
 
 export type Theme = 'dark' | 'light';
 export const THEME_KEY = 'table-theme';

@@ -159,3 +159,42 @@ What was built (spec `ROUND-2.md`, kit `shared/ui/{hold,why,experiments}`):
 
 All of it is behind 8 switches in the main window's `?` sheet; off means round 1. The frozen files were
 verified byte-identical to the round-1 snapshot. Client tests 370 → 452, typecheck clean, gating untouched.
+
+## The console rebuild (2026-10-14)
+
+Owner pick from contest `table-console-r2-r3`: variant B/2 "Calibre" (the "Seal" console with a
+cool instrument theme). The main window was rebuilt, not ported (DECISIONS section 40, STATUS
+"Console rebuild", builder notes in `docs/build/rebuild/`). Design record:
+`prototype/console-calibre/`. The approval window and the Tumbler were restyled only.
+
+What the console changes for Maya:
+
+- **The home is the decision centre**, not the Dial: one decision at a time with its "If you do
+  nothing" line and one gold action, the seal saying the wallet's state in a word, the small Dial as
+  a bead strip, the next decisions in a row below. The Round 1 anatomy (answer, decision, three or
+  four cards, detail one level down) is now the shape of every module and place.
+- **One window, one theme**: Rules, Wallet limits, Connections, pairing, Settings, the safety record,
+  Rewind and the charter are layers of the main window (the Sheet and the Settings circuit picture
+  are gone). The approval window reads as the console's front sheet ("Approvals · the one place
+  money is approved", "Back to The Table") and follows the stored theme (it was always dark).
+- **No dead bands**: module summaries and short places end in a quiet Latest strip (the first rows
+  of the area's list, See all) or "As it stands now" facts.
+- **Words fixed on the way**: "This week" lists that held 90 days are "Recent purchases" / "Closed
+  orders"; the footer's "Paid out today" no longer counts holds ("Budget used today" says the day's
+  budget in Wallet limits); the Outlook's amounts are the totals of exactly what each line counts;
+  deal labels (`D-0193`), buyer keys, "Deal id", "Rule numbers" and the deal's "Rules id" left the
+  screen; read errors in the console show a plain sentence, never the wallet's text.
+- **Scale**: every long list is windowed with counts that read 99+; the large sample (500 deals,
+  195 wallets, 5,000 record steps) has no page over 600 DOM nodes. `docs/build/SCALE-FINDINGS.md`
+  records where each scale finding ended.
+
+Checks that guard it: per-area words guards (PayPal is the only vendor; no internals, raw states or
+deal labels), `console/a11y.test.tsx` (names, labels, one h1 per layer, one tab stop in the module
+tabs), the scale smoke over every layer, `lib/contrast.test.ts` (AA in both themes), the director's
+`takes --check` (every beat of both stories shows its end state on the console).
+
+Leftovers: the deal's Details shows the agent app id beside the run badge (an allowed engine
+reference, but Layer 2 material); PayPal order / hold / payment ids sit behind a closed "PayPal
+references" disclosure in the panes; a degraded deal falls back to its raw item reference; the
+`wallet:error` toast still shows the event's own message; the Rewind's ticks are pointer targets
+only (the tape is the keyboard path). No screen-reader session has been run.

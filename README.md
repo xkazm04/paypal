@@ -13,7 +13,7 @@ for browser preview. On top of that, these moonshot themes are built:
 
 - **Provable:** signed offline proof bundles checked by `table-verify` (T1); an approval checklist
   composed in Rust and bound to every owner decision by its hash (T5); "who decided" for every money
-  step, with a Rewind of the week on the Dial (T6); one authority table for every IPC command, with a
+  step, with a Rewind of the week (T6); one authority table for every IPC command, with a
   permissions fingerprint (T11); a glass-box house seller that publishes a signed record and a public
   scoreboard (T9).
 - **Safe by default:** the walk-away forecast in the Tumbler and an honest quit confirm (T4); a
@@ -24,8 +24,9 @@ for browser preview. On top of that, these moonshot themes are built:
   signing (T12); market prices kept fresh under a signed rule (T15); subscription rescue with one
   owner-approved discount invoice, counted only when PayPal confirms it paid; plain-language questions
   to the Book, answered by the wallet's own reading (no AI).
-- **For Maya and for judges:** a first-run path to a first safe deal, two design polish passes, a WCAG
-  2.2 AA keyboard and screen-reader pass, and a no-install director that plays "Maya's week" across
+- **For Maya and for judges:** a first-run path to a first safe deal (the wallet's charter), two design
+  polish passes, a WCAG 2.2 AA keyboard and screen-reader pass, the console main window (one decision
+  centre with nested layers, below), and a no-install director that plays "Maya's week" across
   all three windows (below), with a rig for repeatable video takes.
 
 Not yet verified: an interactive run inside the native Windows shell (several shell edits are
@@ -54,7 +55,8 @@ no PayPal page is shown and nothing it does can approve or move money. A static 
 |---|---|
 | [`docs/design/the-table.html`](docs/design/the-table.html) | **The design** - business situation (Maya's week), spine (Deal + Mandate), money mechanics for all six capabilities, architecture, data models, trust model, haggle protocol, product surfaces, video, prize strategy, dated build plan, acceptance criteria, risks. Open in a browser. |
 | [`docs/design/window-duality.md`](docs/design/window-duality.md) · [`.html`](docs/design/window-duality.html) | **Addendum: The Table and the Tumbler** - three windows (`main`, `tumbler`, `approval`), close-to-tray, the small operative window for gating and alerts, attention ladder, capability split, contracts, acceptance W1-W11. Adapted from athena-portable ADR 0026. |
-| [`prototype/main/index.html`](prototype/main/index.html) | **Main window prototype - The Dial**: Layer 0 vault dial routing into the six modules, deal detail, approval moment. Deep links: `#m=spend`, `#d=D-0193`, `#a=D-0193`. Sandbox sample data. |
+| [`prototype/console-calibre/index.html`](prototype/console-calibre/index.html) | **Main window design record - the Calibre console** (contest `table-console-r2-r3`, variant B/2, the owner's pick of 2026-10-14): the decision centre with a small Dial presence (a bead strip beside the seal), the six modules as nested layers, the deal, Rewind, rules, connections, settings and the charter; `NOTES.md` explains it. A static reference page, not the app's code. |
+| [`prototype/main/index.html`](prototype/main/index.html) | **Earlier main window prototype - The Dial** (superseded as the home by the console; the Dial lives on as the console's bead strip): Layer 0 vault dial routing into the six modules, deal detail, approval moment. Deep links: `#m=spend`, `#d=D-0193`, `#a=D-0193`. Sandbox sample data. |
 | [`prototype/tumbler/index.html`](prototype/tumbler/index.html) | **Tumbler prototype**: a stylised desktop with The Table closed and the Tumbler in the corner - forms, attention ladder, approval hand-off. |
 | [`.research/`](.research/) | Sourced research the design stands on: PayPal platform facts and gotchas, agent-payments landscape and stack (CLIs, Tauri 2, sponsors), patterns from the owner's Personas Desktop. `[S]` sourced / `[R]` recalled. |
 
@@ -68,7 +70,10 @@ A blind `/contest` (arena in `.contest/`, git-ignored): six design reports from 
 grounding-audited against the research; the owner shortlisted *Checkpoint* and *The Table*; a
 reveal round let both read the whole field and close their audit defects; a UI round produced six
 Layer 0 home scenes, and the owner chose **The Dial** (The Table concept). The window duality was
-added on the owner's request after the UI round.
+added on the owner's request after the UI round. A later console contest (`table-console-r2-r3`)
+replaced the Dial home with the Calibre "Seal" console: the home is now the decision centre, one
+decision at a time, with a small Dial kept as its presence ([`prototype/console-calibre/`](prototype/console-calibre/),
+`docs/build/DECISIONS.md` section 40).
 
 ## License
 

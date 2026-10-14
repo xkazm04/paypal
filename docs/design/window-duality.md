@@ -39,6 +39,17 @@ yes.** (A)
 | `tumbler` | **The Tumbler** - the small operative window: attention, gating, alerts, routing | Off taskbar, tray-owned, always-on-top by default with a pin toggle, transparent, rectangle hugs the drawing (S·athena) | **Puts it away** (`hide()`, never destroy) (S·athena) | `tumbler.json` - read attention, safe-direction actions, open other windows |
 | `approval` | **The approval window** - the only place money is released (S·report §10.3) | Transient: created on demand, destroyed after the decision; anchored beside whichever window opened it (A) | Withdraws nothing; just closes - the deal stays AWAITING | `approval.json` - release, countersign, capture, unlock |
 
+> **Visual note (2026-10-14, the console rebuild; DECISIONS.md section 40).** Skin only: labels,
+> capabilities, gates, forms, the attention ladder and W1-W11 are unchanged. `main` is now the
+> Calibre console: its home is the decision centre (one decision at a time) with a small Dial kept
+> as a bead strip, not the Dial home described in this addendum; the six modules, the deal and the
+> owner places are nested layers of that one window. The `approval` window keeps its own label,
+> capability and token gate and is drawn as the console's **front sheet**: the same graticule
+> ground and top bar ("The Table › Approvals"), a calibrated plate with one sheet of the pile beneath,
+> and a "Back to The Table" button that only closes it. All three windows follow the stored theme
+> and the calm-motion choice (the approval window was always dark before; the Tumbler has followed
+> the theme since 2026-10-08, so the "does not change with the theme" line in section 2 is history).
+
 **The process is the wallet; windows are views.** The gate, the deal state machine, the
 scheduler (auto-void timers, deadline defaults), the PayPal poller and the mailbox all live in the
 Rust core (S·report §7). This is the main structural difference from Athena, whose run loop lives
