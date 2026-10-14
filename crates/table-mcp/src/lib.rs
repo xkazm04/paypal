@@ -291,16 +291,16 @@ impl Tool {
     pub const fn description(self) -> &'static str {
         match self {
             Self::TableView => {
-                "Read the table: your side, the signed band (floor, ceiling, rounds left, deadline), the                  market, the price history, whose turn it is and which tools can succeed now. Read only."
+                "Read the table: your side, the signed band (floor, ceiling, rounds left, deadline), the market, the price history, whose turn it is and which tools can succeed now. Read only."
             }
             Self::MarketReference => {
                 "Read the cached market prices (p25, median, p75) for this table's item. Read only."
             }
             Self::SendOffer => {
-                "Sign and send a price for this deal. Refused, with a code, outside the signed band,                  out of turn, after the deadline or with no rounds left. Moves no money."
+                "Sign and send a price for this deal. Refused, with a code, outside the signed band, out of turn, after the deadline or with no rounds left. Moves no money."
             }
             Self::AcceptOffer => {
-                "Sign an ACCEPT of the other side's latest price (offer_seq from the table). Refused,                  with a code, when the price needs the owner in person. Moves no money."
+                "Sign an ACCEPT of the other side's latest price (offer_seq from the table). Refused, with a code, when the price needs the owner in person. Moves no money."
             }
             Self::WithdrawOffer => "Sign a WITHDRAW and leave the table. Moves no money.",
             Self::ProposePurchase => {
