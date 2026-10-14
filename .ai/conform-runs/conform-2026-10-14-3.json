@@ -1,0 +1,69 @@
+{
+  "schema": "rkb-run-result/1",
+  "run_id": "conform-2026-10-14-3",
+  "skill": "conform",
+  "skill_version": "1.8.3",
+  "mode": "named",
+  "domain": null,
+  "started_at": "2026-10-14T15:57:00Z",
+  "ended_at": "2026-10-14T15:59:24Z",
+  "exit": 0,
+  "counts": {
+    "dispatched": 0,
+    "landed": 6,
+    "declined": 0,
+    "idled": 0,
+    "contended": 0
+  },
+  "subjects": [
+    {
+      "id": "test-harness",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    },
+    {
+      "id": "agent-runtime-assembly",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    },
+    {
+      "id": "mcp-tools",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    },
+    {
+      "id": "device-pairing",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    },
+    {
+      "id": "module-design",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    }
+  ],
+  "verdicts": [],
+  "files": [
+    ".ai/registry-map.json"
+  ],
+  "commits": [],
+  "pr": null,
+  "declined": [],
+  "failure_signature": null,
+  "notes": "lens-scan r-20261014155540-7cff conform step: one named pair per scoped feature (5) + spend-firewall-and-agent-policy/module-design; uncommitted per AGENTS.md (no commits unless asked); module-design judged at index revision 18 while the map pair read 17"
+}

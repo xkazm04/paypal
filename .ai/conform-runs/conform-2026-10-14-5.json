@@ -1,0 +1,77 @@
+{
+  "schema": "rkb-run-result/1",
+  "run_id": "conform-2026-10-14-5",
+  "skill": "conform",
+  "skill_version": "1.8.3",
+  "mode": "named",
+  "domain": null,
+  "started_at": "2026-10-14T16:20:00Z",
+  "ended_at": "2026-10-14T16:40:30Z",
+  "exit": 0,
+  "counts": {
+    "dispatched": 0,
+    "landed": 10,
+    "declined": 0,
+    "idled": 0,
+    "contended": 0
+  },
+  "subjects": [
+    {
+      "id": "prompt-assembly",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    },
+    {
+      "id": "voice-io",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    },
+    {
+      "id": "quality-gates",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    },
+    {
+      "id": "native-shell-integration",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    },
+    {
+      "id": "terminal-multiplexing",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    },
+    {
+      "id": "eval-harness",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    }
+  ],
+  "verdicts": [],
+  "files": [
+    ".ai/registry-map.json"
+  ],
+  "commits": [],
+  "pr": null,
+  "declined": [],
+  "failure_signature": null,
+  "notes": "lens-scan p-6fdf23: 10 strong unknown pairs on table-main-window, all not-applicable (client UI owns no prompt assembler, voice, PTY, eval or CI gate); uncommitted per AGENTS.md; quality-gates r54, native-shell-integration r4 from index vs map 53/3, same digests"
+}
