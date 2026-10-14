@@ -271,6 +271,8 @@ pub const AUTHORITY: &[CommandAuthority] = &[
     row("rescue_watch_stop",      APPROVAL, Owner,    PRIVILEGED, ANY,         R),
     // "Your safety record": counts and findings from the verified ledger; reads only.
     row("safety_record",          MAIN,     Read,     OPEN,       ANY,         R),
+    // Revoking a pin is owner authority like making one (pairing_confirm): approval, privileged.
+    row("counterparty_revoke",    APPROVAL, Owner,    PRIVILEGED, ANY,         R),
 ];
 
 const fn release_count() -> usize {

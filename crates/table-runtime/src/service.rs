@@ -775,7 +775,7 @@ impl Runtime {
             .pipeline
             .wallet
             .ledger
-            .counterparty_policy(&deal.counterparty))?;
+            .counterparty_policy_at(&deal.counterparty, self.clock.now()))?;
         let house_table = if house {
             let table: table_proto::HouseTable = app(self
                 .pipeline

@@ -238,3 +238,55 @@ fn pairing_offers_are_bounded_expire_and_are_consumed_on_confirmation() {
     assert!(seller.pairing_create(args()).is_ok());
     assert!(http.0.lock().unwrap().paths.is_empty());
 }
+
+#[tokio::test]
+async fn counterparty_revoke_is_owner_only_revokes_the_pin_and_audits_once() {
+    let (mut r, ..) = runtime(true);
+    let (deal, _) = setup(&mut r, Side::Buyer);
+    let key = deal.counterparty.clone();
+    let revoke = |key: &KeyId| {
+        Action::CounterpartyRevoke(CounterpartyRevokeArgs {
+            key_id: key.clone(),
+        })
+    };
+    // The wrong window and a missing token cannot revoke.
+    let token = r.pipeline.approval.token("approval").unwrap().to_owned();
+    assert!(
+        r.execute(caller("main", Some(&token)), revoke(&key))
+            .await
+            .is_err()
+    );
+    assert!(
+        r.execute(caller("approval", None), revoke(&key))
+            .await
+            .is_err()
+    );
+    let now = r.clock.now();
+    assert!(
+        r.pipeline
+            .wallet
+            .ledger
+            .pin_state(&key, now)
+            .unwrap()
+            .live()
+    );
+    // Unlocked, in the approval window, with the token: the pin is revoked, and stays so.
+    unlock_runtime(&mut r);
+    r.execute(caller("approval", Some(&token)), revoke(&key))
+        .await
+        .unwrap();
+    r.execute(caller("approval", Some(&token)), revoke(&key))
+        .await
+        .unwrap();
+    assert_eq!(
+        r.pipeline.wallet.ledger.pin_state(&key, now).unwrap(),
+        table_ledger::PinState::Revoked
+    );
+    let (rows, _) = r.pipeline.wallet.ledger.audit_page(None, 500).unwrap();
+    assert_eq!(
+        rows.iter()
+            .filter(|row| row.action == "counterparty.revoked")
+            .count(),
+        1
+    );
+}
