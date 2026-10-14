@@ -7,7 +7,7 @@ import type { HistoryKind } from '@bindings/HistoryKind';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import { mockBackend, resetMockState } from '../../mock/backend';
 import { buildMockState, fakeUlid } from '../../mock/fixtures';
-import { decidedLine, decisionSteps } from './deal/WhoDecided';
+import { decidedLine, decisionSteps } from './console/areas/deal/decided';
 import { ENDING_UNREAD_NOW, ENDING_UNREAD_PILL, endingUnreadSentence, MONEY_CHECK_ENDED_NOW, MONEY_CHECK_ENDED_PILL, MONEY_CHECK_NOW } from '../../lib/words';
 import { checkOpenThrough, endedBeforePayPalShowed, endingCtx, historyAt, isMoneyCall, isRefusal, laneSteps, narrate, rewindCheckTip, stepSentence, stepTime, stepUnder, tickTone, weekFraction } from './logic';
 

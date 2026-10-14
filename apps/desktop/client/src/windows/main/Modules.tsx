@@ -5,56 +5,32 @@
 //
 // Each module page is its own chunk (lib/lazy.ts): Home is the first paint, so the six pages load
 // after it, while the window is idle. Their stylesheets stay eager, imported here in page order.
-import { Suspense, useMemo, type ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import type { Module } from '@bindings/Module';
 import { WalletNotice } from '../../shared/honesty';
 import { Glyph, MODULE } from '../../shared/modules';
 import { PageHead } from '../../shared/ui';
-import { lazyPart } from '../../lib/lazy';
-import './modules/book.css';
-import { ModuleHead, useSorted, type Nav } from './modules/common';
-import './modules/counter.css';
-import './modules/rescue.css';
-import './modules/shield.css';
-import './modules/spend.css';
-import './modules/tables.css';
+import { ModuleHead, type Nav } from './modules/common';
 import { Loading, mc } from './ui';
 import { ModuleRouteContext, viewLabel, type ModuleRoute } from './viewNav';
 import { useWorld } from './world';
 
-const Book = lazyPart(() => import('./modules/book').then((m) => m.Book));
-const Counter = lazyPart(() => import('./modules/counter').then((m) => m.Counter));
-const Rescue = lazyPart(() => import('./modules/rescue').then((m) => m.Rescue));
-const Shield = lazyPart(() => import('./modules/shield').then((m) => m.Shield));
-const Spend = lazyPart(() => import('./modules/spend').then((m) => m.Spend));
-const Tables = lazyPart(() => import('./modules/tables').then((m) => m.Tables));
-
-/** The module pages, for the window's idle preload (App.tsx). */
-export const MODULE_PAGES = [Tables, Spend, Counter, Book, Shield, Rescue] as const;
+/** The module pages, for the window's idle preload (App.tsx). Every module is a console layer now
+ *  (console/layers/<area>.ts); none is left here (rebuild WP3). */
+export const MODULE_PAGES = [] as const;
 
 // DealView imports BandCard from here; keep the path working.
 export { BandCard } from './modules/common';
 export type { Nav } from './modules/common';
 
 /** `route` carries the open detail view and how to change it (read by modules through useModuleRoute). */
-export function ModuleView({ module, nav, route }: { module: Module; nav: Nav; route?: ModuleRoute }) {
+export function ModuleView({ module, route }: { module: Module; nav: Nav; route?: ModuleRoute }) {
   const w = useWorld();
   const all = w.deals.data;
-  const mine = useMemo(() => (all ?? []).filter((d) => w.moduleOfDeal(d) === module), [all, w, module]);
-  const sorted = useSorted(mine);
   let body: ReactNode;
   if (w.deals.error && !all) body = <><ModuleHead module={module} /><WalletNotice error={w.deals.error} what="Ledger" /></>;
   else if (!all) body = <><ModuleHead module={module} /><Loading what="the ledger" /></>;
-  else {
-    switch (module) {
-      case 'tables': body = <Tables deals={sorted} nav={nav} />; break;
-      case 'spend': body = <Spend deals={sorted} nav={nav} />; break;
-      case 'counter': body = <Counter deals={sorted} nav={nav} />; break;
-      case 'book': body = <Book nav={nav} />; break;
-      case 'shield': body = <Shield deals={sorted} nav={nav} />; break;
-      case 'rescue': body = <Rescue deals={sorted} nav={nav} />; break;
-    }
-  }
+  else body = <ModuleHead module={module} />;
   // While a page's chunk loads (only if it is opened before the idle preload finished), the page
   // shows its title where the page will put it and a calm loading line.
   const waiting = <><PageHead title={MODULE[module].name} icon={<Glyph module={module} />} /><Loading what="this page" /></>;

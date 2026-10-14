@@ -1,15 +1,14 @@
-// Area: rules (rebuild WP3). TODO(WP3 rules): the builder who owns this area replaces the interim
-// body below (the old Agent rules list and an interim wallet-limits page) with the new page, built on the framework (console/ModuleLayer.tsx,
-// console/ListEngine.tsx, console/rows.tsx; guide: docs/build/rebuild/wp25.md). This file, the
-// area's stylesheet (console/areas/rules.css), its words (lib/words/rules.ts) and anything new under
-// console/areas/rules/ belong to that builder alone; the registry (console/layers.registry.ts)
-// already imports this file.
+// Area: rules (rebuild WP3c). Agent rules (the signed rule sets, scale finding #15) and the wallet limits.
+// Built on the framework (console/layers.tsx, console/ListEngine.tsx, console/rows.tsx) and the
+// owner places' shared frame (console/areas/settings/frame.tsx); guide: docs/build/rebuild/wp3c.md.
+// This file, console/areas/rules.css, lib/words/rules.ts and console/areas/rules/ are the area's.
 import { lazyPart } from '../../../../lib/lazy';
 import { PLACE_NAME } from '../../../../lib/words';
 import { defineLayer, type LayerProps } from '../layers';
 import '../areas/rules.css';
 
+const page = lazyPart<LayerProps>(() => import('../areas/rules/RulesLayer').then((m) => m.RulesLayer));
 export const layers = [
-  defineLayer({ id: 'rules', title: () => PLACE_NAME.rules, tone: 'var(--gold)', component: lazyPart<LayerProps>(() => import('../legacy').then((m) => m.LegacyRulesLayer)) }),
-  defineLayer({ id: 'limits', title: () => PLACE_NAME.limits, tone: 'var(--gold)', component: lazyPart<LayerProps>(() => import('../legacy').then((m) => m.LegacyLimitsLayer)) }),
+  defineLayer({ id: 'rules', title: () => PLACE_NAME.rules, tone: 'var(--gold)', component: page }),
+  defineLayer({ id: 'limits', title: () => PLACE_NAME.limits, tone: 'var(--gold)', component: page }),
 ];

@@ -1,14 +1,12 @@
-// Area: rewind (rebuild WP3). TODO(WP3 rewind): the builder who owns this area replaces the interim
-// body below (the WP2 RewindLayer) with the new page, built on the framework (console/ModuleLayer.tsx,
-// console/ListEngine.tsx, console/rows.tsx; guide: docs/build/rebuild/wp25.md). This file, the
-// area's stylesheet (console/areas/rewind.css), its words (lib/words/rewind.ts) and anything new under
-// console/areas/rewind/ belong to that builder alone; the registry (console/layers.registry.ts)
-// already imports this file.
+// Area: rewind (rebuild WP3c). The week replayed from the wallet's own record: the answer, the
+// figures by who decided, the scrubber and hub, and the windowed tape of every step (actor filters,
+// day anchors). Guide: docs/build/rebuild/wp3c.md. This file, console/areas/rewind.css,
+// lib/words/rewind.ts and console/areas/rewind/ are the area's.
 import { lazyPart } from '../../../../lib/lazy';
 import { REWIND_TITLE } from '../../../../lib/words';
 import { defineLayer, type LayerProps } from '../layers';
 import '../areas/rewind.css';
 
 export const layers = [
-  defineLayer({ id: 'rewind', title: () => REWIND_TITLE, tone: 'var(--teal)', component: lazyPart<LayerProps>(() => import('../legacy').then((m) => m.LegacyRewindLayer)) }),
+  defineLayer({ id: 'rewind', title: () => REWIND_TITLE, tone: 'var(--teal)', component: lazyPart<LayerProps>(() => import('../areas/rewind/RewindLayer').then((m) => m.RewindLayer)) }),
 ];

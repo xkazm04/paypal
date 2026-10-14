@@ -1,4 +1,245 @@
-/* Area: deal (rebuild WP3). Owned by the WP3 builder of this area; imported only by
-   console/layers/deal.ts, so no other area's styles live here. Scope every rule under the area's
-   own root class (e.g. `.ar-deal`), tokens only (src/design/tokens.css), text never below
-   --fs-small, motion only through the --dur-* / --ease-* tokens. */
+/* Area: deal (rebuild WP3c). Imported only by console/layers/deal.ts. Roots: `.ar-deal` (the deal
+   page, inside the shared frame `.pf`) and `.ar-deal-sheet` (its sheets and popovers, which portal to
+   <body>). The `dv-*` rules moved from deal.css and deal/whatYouWereShown.css, re-scoped under the
+   two roots (`:where` keeps their old weight). Tokens only; text never below --fs-small; motion only
+   through the --dur-* / --ease-* tokens. */
+
+/* ---- the page in the console frame (WP3c) ------------------------------------------------------ */
+.ar-deal .pf-head.has-aside { grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+.ar-deal .pf-say .cs-title { font-size: var(--fs-hero); }
+.ar-deal .dv-kwho { text-transform: none; letter-spacing: 0; }
+.ar-deal .dv-answer { display: block; color: var(--muted); }
+.ar-deal .dv-answer b { color: var(--text); font-weight: var(--fw-semibold); }
+.ar-deal .dv-answer.tone-need b { color: var(--gold-l); }
+.ar-deal .dv-answer.tone-alert b { color: var(--red-l); }
+.ar-deal .pf-aside .dv-figs { flex-direction: column; align-items: flex-end; gap: var(--sp-2); margin: 0; text-align: right; }
+.ar-deal .pf-aside .dv-hero { flex-direction: column; align-items: flex-end; }
+.ar-deal .pf-aside .dv-pills { align-items: flex-end; }
+.ar-deal .pf-aside .dv-amt { font: var(--fw-light, 300) var(--fs-hero-l)/1 var(--num); letter-spacing: var(--track-money); }
+.ar-deal .pf-aside .dv-f { align-items: flex-end; max-width: 22rem; }
+.ar-deal .dv-lead { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.ar-deal .dv-lead .dv-ms { margin: 0; }
+.ar-deal .dv-lead .dv-shown { margin: 0; }
+.ar-deal .dv-consequence, .ar-deal .dv-quiet, .ar-deal .dv-need-sil { margin: 0; }
+.ar-deal .dv-consequence .ui-silence, .ar-deal .dv-need-sil .ui-silence { white-space: normal; }
+.ar-deal .dv-need-k { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--gold-l); font-weight: var(--fw-semibold); }
+.ar-deal .dv-decision { margin: 0; max-width: 72rem; }
+.ar-deal .pf-view .dv-panel { max-width: 60rem; }
+.ar-deal .dv-rows { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.ar-deal .dv-row { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--target); padding: var(--sp-2) var(--sp-1); border-bottom: 1px solid var(--line); }
+.ar-deal .dv-readings { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.ar-deal .dv-reading { display: flex; align-items: flex-start; gap: var(--sp-3); padding: var(--sp-2) var(--sp-1); border-bottom: 1px solid var(--line); }
+.ar-deal .dv-reading .main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ar-deal .dv-reading .t2 { color: var(--muted); font-size: var(--fs-small); }
+.ar-deal .dv-who-decided { margin-top: var(--sp-5); }
+.ar-deal .dv-chat { max-height: max(18rem, calc(100vh - 34rem)); }
+@media (max-width: 1100px) {
+  .ar-deal .pf-head.has-aside { grid-template-columns: minmax(0, 1fr); }
+  .ar-deal .pf-aside, .ar-deal .pf-aside .dv-figs, .ar-deal .pf-aside .dv-hero, .ar-deal .pf-aside .dv-f { align-items: flex-start; text-align: left; }
+}
+
+/* ---- moved: the milestones, the conversation, rules, who, proof, sheets ------------------------ */
+.ar-deal { max-width: 1360px; }
+.ar-deal .ui-pagehead { margin-bottom: var(--sp-2); }
+.ar-deal > .notice { margin-top: var(--sp-2); }
+
+/* figures: the amount is the one big number */
+:where(.ar-deal, .ar-deal-sheet) .dv-figs { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-6); margin-bottom: var(--sp-3); min-width: 0; }
+:where(.ar-deal, .ar-deal-sheet) .dv-hero { display: flex; align-items: center; gap: var(--sp-3); }
+:where(.ar-deal, .ar-deal-sheet) .dv-pills { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+:where(.ar-deal, .ar-deal-sheet) .dv-amt { font: var(--fw-bold) 30px/1 var(--num); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+:where(.ar-deal, .ar-deal-sheet) .dv-amt .money { font-weight: inherit; }
+:where(.ar-deal, .ar-deal-sheet) .dv-amt.held { color: var(--gold-l); }
+:where(.ar-deal, .ar-deal-sheet) .dv-amt.proposed { color: var(--text); }
+:where(.ar-deal, .ar-deal-sheet) .dv-amt.struck { color: var(--dim); text-decoration: line-through; }
+:where(.ar-deal, .ar-deal-sheet) .dv-f { display: flex; flex-direction: column; gap: 2px; min-width: 0; max-width: 360px; }
+:where(.ar-deal, .ar-deal-sheet) .dv-f .k { font-size: var(--fs-small); color: var(--dim); white-space: nowrap; }
+:where(.ar-deal, .ar-deal-sheet) .dv-f .v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+:where(.ar-deal, .ar-deal-sheet) .dv-f.push { margin-left: auto; text-align: right; }
+:where(.ar-deal, .ar-deal-sheet) .dv-cd { font: var(--fw-bold) var(--fs-title2) var(--num); font-variant-numeric: tabular-nums; color: var(--gold-l); }
+
+/* five milestones: Talk · Agree · Approve · Pay · Proof, one progress bar (title = exact steps) */
+:where(.ar-deal, .ar-deal-sheet) .dv-ms { list-style: none; display: flex; align-items: center; gap: 0; margin: 0 0 var(--sp-3); padding: 0 var(--sp-1); min-width: 0; }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms { display: flex; align-items: center; gap: var(--sp-2); flex: none; color: var(--dim); cursor: default; }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms .dot { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border-radius: 50%; font: var(--fw-bold) 12px/1 var(--font);
+  box-shadow: inset 0 0 0 2px var(--line2); background: var(--bg); color: transparent; }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms .lb { font-weight: var(--fw-semibold); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms .now { font-size: var(--fs-small); padding: 2px 8px; border-radius: 10px; background: var(--panel3); color: var(--muted); white-space: nowrap; }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms.done { color: var(--muted); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms.done .dot { background: var(--teal); box-shadow: none; color: var(--on-teal); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms.cur { color: var(--text); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms.cur .dot { box-shadow: inset 0 0 0 2px var(--teal), 0 0 0 4px color-mix(in srgb, var(--teal) 22%, transparent); background: var(--teal); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms.cur.need .dot, :where(.ar-deal, .ar-deal-sheet) .dv-ms .ms.cur.held .dot { background: var(--gold); box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 25%, transparent); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms.cur.need .now, :where(.ar-deal, .ar-deal-sheet) .dv-ms .ms.cur.held .now { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold-l); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms.cur.ok .dot { background: var(--ok); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 22%, transparent); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms.cur.ok .now { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms.cur.bad .dot { background: var(--refuse); box-shadow: none; }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms.cur.live .now { background: color-mix(in srgb, var(--teal) 15%, transparent); color: var(--teal-l); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms.skipped { opacity: .45; }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .bar { flex: 1 1 24px; min-width: 16px; max-width: 120px; height: 2px; margin: 0 var(--sp-2); border-radius: 1px; background: var(--line2); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .bar.done { background: var(--teal); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .bar.cut { flex: 0 0 18px; background: repeating-linear-gradient(90deg, var(--line2) 0 3px, transparent 3px 6px); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms-end { display: flex; align-items: center; gap: var(--sp-2); flex: none; padding: 3px 10px 3px 4px; border-radius: 14px; margin-right: var(--sp-3);
+  background: var(--panel3); color: var(--muted); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms-end .stop { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: var(--dim); color: var(--bg); font: var(--fw-bold) 14px/1 var(--font); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms-end b { color: var(--text); font-weight: var(--fw-semibold); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms-end.bad { background: color-mix(in srgb, var(--refuse) 14%, transparent); color: var(--red-l); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms-end.bad .stop { background: var(--refuse); color: var(--on-refuse); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms .ms-end.bad b { color: var(--red-l); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ms.ended .ms-end ~ .ms, :where(.ar-deal, .ar-deal-sheet) .dv-ms.ended .ms-end ~ .bar { opacity: .35; }
+
+/* answer + decision */
+.ar-deal .ui-answer { margin-bottom: var(--sp-3); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ans-sil { display: block; margin-top: 4px; }
+:where(.ar-deal, .ar-deal-sheet) .dv-ans-sil .ui-silence { white-space: normal; }
+.ar-deal .dv-decision { margin-bottom: var(--sp-3); }
+
+/* tabs: the four sections after the decision */
+:where(.ar-deal, .ar-deal-sheet) .dv-tabs { display: flex; gap: var(--sp-1); border-bottom: 1px solid var(--line); margin-top: var(--sp-4); }
+:where(.ar-deal, .ar-deal-sheet) .dv-tab { display: inline-flex; align-items: center; gap: var(--sp-2); padding: 8px 14px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: none;
+  color: var(--muted); font: var(--fw-semibold) var(--fs-body) var(--font); cursor: pointer; border-radius: var(--r-sm) var(--r-sm) 0 0; }
+:where(.ar-deal, .ar-deal-sheet) .dv-tab:hover { color: var(--text); background: var(--hover); }
+:where(.ar-deal, .ar-deal-sheet) .dv-tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--teal); }
+:where(.ar-deal, .ar-deal-sheet) .dv-tab:focus-visible { outline-offset: -2px; }
+:where(.ar-deal, .ar-deal-sheet) .dv-tabpanel { margin-top: var(--sp-4); padding-bottom: var(--sp-6); }
+
+/* what happened: a chat, theirs on the left, yours on the right, newest at the bottom */
+/* the thread takes the width the header and tabs span, so both columns end on the page's right edge */
+:where(.ar-deal, .ar-deal-sheet) .dv-happen { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); align-items: start; }
+:where(.ar-deal, .ar-deal-sheet) .dv-happen.has-facts { grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); }
+:where(.ar-deal, .ar-deal-sheet) .dv-thread { min-width: 0; }
+:where(.ar-deal, .ar-deal-sheet) .dv-thead { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: var(--sp-3); padding: 0 var(--sp-2) var(--sp-2); font-size: var(--fs-small); }
+:where(.ar-deal, .ar-deal-sheet) .dv-thead .okc { color: var(--ok); }
+:where(.ar-deal, .ar-deal-sheet) .dv-thead .red { color: var(--red-l); }
+:where(.ar-deal, .ar-deal-sheet) .dv-thead .dv-who-l, :where(.ar-deal, .ar-deal-sheet) .dv-thead .dv-who-r { display: inline-flex; align-items: center; gap: 6px; font-weight: var(--fw-semibold); }
+:where(.ar-deal, .ar-deal-sheet) .dv-thead .dv-who-r { justify-self: end; }
+:where(.ar-deal, .ar-deal-sheet) .dv-thead i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat { list-style: none; margin: 0; padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r-lg); max-height: max(300px, calc(100vh - 600px)); overflow: auto; }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat.more-above { -webkit-mask-image: linear-gradient(to bottom, transparent, currentColor 56px); mask-image: linear-gradient(to bottom, transparent, currentColor 56px); }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .msg { display: flex; }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .msg.you { justify-content: flex-end; }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .bub { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: var(--sp-4); text-align: left; min-width: 240px; max-width: 70%; padding: 7px 12px 6px; border: 1px solid var(--line2); border-radius: 12px; font: inherit; color: var(--text); cursor: pointer; }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .them .bub { background: color-mix(in srgb, var(--coral) 9%, var(--panel)); border-color: color-mix(in srgb, var(--coral) 30%, var(--line)); border-bottom-left-radius: 4px; }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .you .bub { background: color-mix(in srgb, var(--teal) 10%, var(--panel)); border-color: color-mix(in srgb, var(--teal) 32%, var(--line)); border-bottom-right-radius: 4px; }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .bub:hover { filter: brightness(1.08); }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .bub.on, :where(.ar-deal, .ar-deal-sheet) .dv-chat .bub.newest { border-width: 1.5px; }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .them .bub.newest, :where(.ar-deal, .ar-deal-sheet) .dv-chat .them .bub.on { border-color: var(--coral); }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .you .bub.newest, :where(.ar-deal, .ar-deal-sheet) .dv-chat .you .bub.on { border-color: var(--teal); }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .bub:focus-visible { outline-offset: 2px; }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .vb { grid-column: 1; grid-row: 1; color: var(--muted); font-size: var(--fs-small); }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .bub:not(.np) .tm { grid-column: 1; }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .bub.np .vb { grid-column: 1 / -1; color: var(--text); font-size: var(--fs-body); }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .px { grid-column: 2; grid-row: 1 / span 2; text-align: right; font: var(--fw-bold) 20px/1.15 var(--num); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .tm { grid-column: 1 / -1; grid-row: 2; font: var(--fs-small) var(--num); font-variant-numeric: tabular-nums; color: var(--dim); }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .tm .red { color: var(--red-l); }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .sys { display: flex; justify-content: center; gap: var(--sp-2); padding: 2px 0; color: var(--dim); font-size: var(--fs-small); }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .sys > span { padding: 1px 10px; border-radius: 10px; background: var(--panel3); }
+:where(.ar-deal, .ar-deal-sheet) .dv-chat .sys time { align-self: center; font-variant-numeric: tabular-nums; }
+:where(.ar-deal, .ar-deal-sheet) .dv-thread > .ui-empty, :where(.ar-deal, .ar-deal-sheet) .dv-thread > .ui-loading { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); }
+
+/* where it stands: the few numbers that matter */
+:where(.ar-deal, .ar-deal-sheet) .dv-stand { padding: var(--sp-3) var(--sp-4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); }
+:where(.ar-deal, .ar-deal-sheet) .dv-stand h3 { margin: 0 0 var(--sp-2); font: var(--fw-semibold) var(--fs-body) var(--font); color: var(--muted); }
+:where(.ar-deal, .ar-deal-sheet) .dv-stand dl { margin: 0; }
+:where(.ar-deal, .ar-deal-sheet) .dv-stand dl > div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); padding: 6px 0; }
+:where(.ar-deal, .ar-deal-sheet) .dv-stand dl > div + div { border-top: 1px solid var(--line); }
+:where(.ar-deal, .ar-deal-sheet) .dv-stand dt { color: var(--dim); font-size: var(--fs-small); }
+:where(.ar-deal, .ar-deal-sheet) .dv-stand dd { margin: 0; font: var(--fw-semibold) var(--fs-body) var(--num); font-variant-numeric: tabular-nums; text-align: right; }
+:where(.ar-deal, .ar-deal-sheet) .dv-stand .ok dd { color: var(--ok); }
+:where(.ar-deal, .ar-deal-sheet) .dv-stand .gold dd { color: var(--gold-l); }
+:where(.ar-deal, .ar-deal-sheet) .dv-stand .red dd { color: var(--red-l); }
+
+/* your rules / who you're dealing with */
+:where(.ar-deal, .ar-deal-sheet) .dv-panel { max-width: 720px; display: flex; flex-direction: column; gap: var(--sp-3); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ph { display: flex; align-items: baseline; gap: var(--sp-3); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ph h3 { margin: 0; font: var(--fw-semibold) var(--fs-title3) var(--display); }
+:where(.ar-deal, .ar-deal-sheet) .dv-ph .end { margin-left: auto; }
+:where(.ar-deal, .ar-deal-sheet) .dv-ph .dim { font-size: var(--fs-small); }
+:where(.ar-deal, .ar-deal-sheet) .dv-panel h3.coral { color: var(--coral-l); }
+:where(.ar-deal, .ar-deal-sheet) .dv-fold { display: flex; align-items: center; gap: 6px; width: 100%; min-height: var(--row); padding: 0 var(--sp-3); background: none; border: 1px dashed var(--line2); border-radius: var(--r);
+  color: var(--dim); font: inherit; text-align: left; cursor: pointer; }
+:where(.ar-deal, .ar-deal-sheet) .dv-fold span { margin-left: auto; color: var(--teal-l); }
+:where(.ar-deal, .ar-deal-sheet) .dv-fold:hover { background: var(--hover); }
+:where(.ar-deal, .ar-deal-sheet) .dv-k { width: 110px; flex: none; color: var(--dim); font-size: var(--fs-small); }
+:where(.ar-deal, .ar-deal-sheet) .dv-v { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+:where(.ar-deal, .ar-deal-sheet) .dv-vg { width: 18px; height: 18px; flex: none; display: grid; place-items: center; border-radius: 50%; font: var(--fw-bold) var(--fs-small)/1 var(--font); }
+:where(.ar-deal, .ar-deal-sheet) .dv-vg.okc { background: color-mix(in srgb, var(--ok) 16%, transparent); }
+:where(.ar-deal, .ar-deal-sheet) .dv-vg.red { background: color-mix(in srgb, var(--refuse) 16%, transparent); }
+:where(.ar-deal, .ar-deal-sheet) .dv-vg.gold { background: var(--gold); color: var(--on-gold); }
+:where(.ar-deal, .ar-deal-sheet) .dv-vg.dim { box-shadow: inset 0 0 0 1px var(--line2); }
+
+/* proof from PayPal: four cards */
+:where(.ar-deal, .ar-deal-sheet) .dv-proof { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); max-width: 920px; }
+:where(.ar-deal, .ar-deal-sheet) .dv-pc { display: flex; flex-direction: column; gap: 6px; align-items: stretch; min-width: 0; padding: var(--sp-3) var(--sp-4); background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r-lg); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+:where(.ar-deal, .ar-deal-sheet) .dv-pc:hover { background: var(--panel2); border-color: var(--line2); }
+/* the house seller's signed record (T9): full width, a red edge only when it warns */
+:where(.ar-deal, .ar-deal-sheet) .dv-pc-wide { grid-column: 1 / -1; }
+:where(.ar-deal, .ar-deal-sheet) .dv-pc.warn { border-color: color-mix(in srgb, var(--refuse) 55%, transparent); }
+:where(.ar-deal, .ar-deal-sheet) .dv-pc.warn.coral { border-color: color-mix(in srgb, var(--coral) 55%, transparent); }
+:where(.ar-deal, .ar-deal-sheet) .dv-pc .k { display: flex; font-size: var(--fs-small); color: var(--dim); }
+:where(.ar-deal, .ar-deal-sheet) .dv-pc .k::after { content: "›"; margin-left: auto; }
+:where(.ar-deal, .ar-deal-sheet) .dv-pc .v { display: flex; gap: var(--sp-2); align-items: center; min-height: 24px; min-width: 0; }
+:where(.ar-deal, .ar-deal-sheet) .dv-pc .why { color: var(--muted); font-size: var(--fs-small); }
+:where(.ar-deal, .ar-deal-sheet) .dv-refs { display: flex; align-items: center; gap: var(--sp-4); }
+:where(.ar-deal, .ar-deal-sheet) .dv-refs .ref { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); }
+:where(.ar-deal, .ar-deal-sheet) .dv-refs .ref i { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--line2); }
+:where(.ar-deal, .ar-deal-sheet) .dv-refs .ref.has { color: var(--text); }
+:where(.ar-deal, .ar-deal-sheet) .dv-refs .ref.has i { background: var(--ok); box-shadow: none; }
+:where(.ar-deal, .ar-deal-sheet) .dv-none { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); }
+:where(.ar-deal, .ar-deal-sheet) .dv-none i { width: 14px; height: 0; border-top: 1.5px dashed var(--line2); }
+
+/* layer 2 (portalled) */
+:where(.ar-deal, .ar-deal-sheet) .dv-pop p { margin: 0 0 var(--sp-2); }
+:where(.ar-deal, .ar-deal-sheet) .dv-pop .ui-kv { font-size: var(--fs-small); }
+:where(.ar-deal, .ar-deal-sheet) .dv-p { margin: 0 0 var(--sp-2); }
+:where(.ar-deal, .ar-deal-sheet) .dv-list { margin: 0 0 var(--sp-3); padding-left: 1.3em; display: flex; flex-direction: column; gap: 4px; }
+:where(.ar-deal, .ar-deal-sheet) .dv-gap { margin-top: var(--sp-3); }
+:where(.ar-deal, .ar-deal-sheet) .dv-sh { margin-top: var(--sp-4); }
+:where(.ar-deal, .ar-deal-sheet) .dv-table .lane-you { box-shadow: inset 2px 0 0 var(--teal); }
+:where(.ar-deal, .ar-deal-sheet) .dv-table .lane-them { box-shadow: inset 2px 0 0 var(--coral); }
+
+@media (max-width: 1180px) {
+  :where(.ar-deal, .ar-deal-sheet) .dv-happen.has-facts { grid-template-columns: minmax(0, 1fr); }
+  :where(.ar-deal, .ar-deal-sheet) .dv-chat .bub { max-width: 85%; }
+  :where(.ar-deal, .ar-deal-sheet) .dv-proof { grid-template-columns: minmax(0, 1fr); }
+  :where(.ar-deal, .ar-deal-sheet) .dv-tab { padding: 8px 10px; }
+}
+
+/* who decided: the deal's decisions from the record, one line each (deal/WhoDecided.tsx) */
+:where(.ar-deal, .ar-deal-sheet) .dv-who-decided { max-width: 780px; margin-top: var(--sp-5); }
+:where(.ar-deal, .ar-deal-sheet) .dv-who-decided header { display: flex; align-items: baseline; gap: var(--sp-3); padding: 0 var(--sp-2) var(--sp-2); }
+:where(.ar-deal, .ar-deal-sheet) .dv-who-decided h3 { margin: 0; font: var(--fw-semibold) var(--fs-body) var(--font); color: var(--muted); }
+:where(.ar-deal, .ar-deal-sheet) .dv-who-decided header .dim { font-size: var(--fs-small); }
+:where(.ar-deal, .ar-deal-sheet) .dv-who-decided ol { list-style: none; margin: 0; padding: var(--sp-1) 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); }
+:where(.ar-deal, .ar-deal-sheet) .dv-who-decided li { display: grid; grid-template-columns: 14px 78px minmax(0, 1fr) auto; align-items: center; gap: var(--sp-3); padding: 6px var(--sp-3); }
+:where(.ar-deal, .ar-deal-sheet) .dv-who-decided li + li { border-top: 1px solid var(--line); }
+:where(.ar-deal, .ar-deal-sheet) .dv-who-decided li > .rw-mark { justify-self: center; }
+:where(.ar-deal, .ar-deal-sheet) .dv-who-decided .dv-wd-dot { justify-self: center; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--dim); }
+:where(.ar-deal, .ar-deal-sheet) .dv-who-decided time { font: var(--fs-small) var(--num); font-variant-numeric: tabular-nums; color: var(--dim); white-space: nowrap; }
+:where(.ar-deal, .ar-deal-sheet) .dv-who-decided .say { min-width: 0; }
+:where(.ar-deal, .ar-deal-sheet) .dv-who-decided .by { font-size: var(--fs-small); color: var(--dim); white-space: nowrap; }
+:where(.ar-deal, .ar-deal-sheet) .dv-who-decided li.t-owner .by { color: var(--gold-l); }
+:where(.ar-deal, .ar-deal-sheet) .dv-who-decided li.t-rule .by { color: var(--teal-l); }
+:where(.ar-deal, .ar-deal-sheet) .dv-who-decided li.t-buyer .by { color: var(--ok); }
+:where(.ar-deal, .ar-deal-sheet) .dv-who-decided li.t-refused .by { color: var(--red-l); }
+:where(.ar-deal, .ar-deal-sheet) .dv-who-decided .dv-wd-none { margin: 0; padding: var(--sp-3); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); color: var(--dim); }
+/* Keep prices fresh (T15): the typical-price card says when a signed rule keeps it fresh. */
+:where(.ar-deal, .ar-deal-sheet) .dv-pc .why .dv-fresh { color: var(--teal); }
+:where(.ar-deal, .ar-deal-sheet) .dv-pc .why .dv-fresh.used { color: var(--gold-l); }
+:where(.ar-deal, .ar-deal-sheet) .dv-pc .why .dv-fair { display: block; margin-top: 2px; color: var(--ok); }
+:where(.ar-deal, .ar-deal-sheet) .dv-pc .why .dv-fair.line { color: inherit; }
+:where(.ar-deal, .ar-deal-sheet) .dv-pc .why .dv-fair.red { color: var(--red-l); }
+/* Agent instructions (agent-tool-surface-1): the run's playbook, word for word, in a sheet. */
+:where(.ar-deal, .ar-deal-sheet) .dv-instr-v { display: inline-flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; }
+:where(.ar-deal, .ar-deal-sheet) .dv-instr-h { margin: var(--sp-3) 0 var(--sp-1); font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); }
+:where(.ar-deal, .ar-deal-sheet) .dv-instr { margin: 0; padding: var(--sp-3); background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-sm);
+  font: var(--fs-small)/1.55 var(--mono); color: var(--muted); white-space: pre-wrap; word-break: break-word; }
+
+:where(.ar-deal, .ar-deal-sheet) .dv-shown { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; row-gap: 2px; margin: var(--sp-2) 0 var(--sp-3); font-size: var(--fs-small); color: var(--dim); font-variant-numeric: tabular-nums; }
+:where(.ar-deal, .ar-deal-sheet) .dv-shown .hg { display: inline-block; width: 10px; height: 12px; align-self: center; color: var(--dim); }
+:where(.ar-deal, .ar-deal-sheet) .dv-shown .lbl { color: var(--muted); font-weight: var(--fw-semibold); }
+:where(.ar-deal, .ar-deal-sheet) .dv-shown .lbl::after { content: ':'; }
+:where(.ar-deal, .ar-deal-sheet) .dv-shown .end { color: var(--muted); }
+:where(.ar-deal, .ar-deal-sheet) .dv-shown .rung::before, :where(.ar-deal, .ar-deal-sheet) .dv-shown .money::before { content: '·'; margin-right: 8px; color: var(--dim); }

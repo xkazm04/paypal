@@ -25,7 +25,7 @@ import { Btn, Chip, Icon, useToast } from '../../../shared/ui';
 import { SETUP_STEPS, type SetupStep } from '../logic';
 import { useLocked, useSettings } from '../world';
 import { Handoff } from './common';
-import { PairingDesk } from './PairingDesk';
+import { PairingDesk } from '../console/areas/connections/PairingDesk';
 import type { PairMode } from './pairing';
 import { useStart } from './start';
 import './charter.css';

@@ -1,4 +1,40 @@
-/* Area: safety (rebuild WP3). Owned by the WP3 builder of this area; imported only by
-   console/layers/safety.ts, so no other area's styles live here. Scope every rule under the area's
-   own root class (e.g. `.ar-safety`), tokens only (src/design/tokens.css), text never below
-   --fs-small, motion only through the --dur-* / --ease-* tokens. */
+/* Area: safety (rebuild WP3c). Imported only by console/layers/safety.ts. Root `.ar-safety` (inside
+   the shared frame `.pf`). Moved from safety/safety.css. Who-decided colours are the Rewind's: you
+   gold, a rule you signed teal, the buyer's approval under your shop rules green, a safe default
+   grey. Tokens only; text never below --fs-small. */
+.ar-safety.bad .pf-say .cs-title { color: var(--red-l); }
+.ar-safety p { margin: 0; }
+.ar-safety .sf-found { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border-radius: var(--r-card);
+  border: 2px solid var(--refuse); background: color-mix(in srgb, var(--refuse) 10%, transparent); max-width: 64rem; }
+.ar-safety .sf-v { font: var(--fw-semibold) var(--fs-title3)/1.3 var(--font); color: var(--red-l); }
+.ar-safety .sf-found h3 { margin: 0; font-size: var(--fs-body); font-weight: var(--fw-semibold); color: var(--red-l); }
+.ar-safety .sf-found ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
+.ar-safety .sf-found li { display: grid; grid-template-columns: auto 1fr auto; gap: var(--sp-3); align-items: center; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-tight);
+  border: 1px solid color-mix(in srgb, var(--refuse) 55%, var(--line)); background: color-mix(in srgb, var(--refuse) 7%, var(--panel)); }
+.ar-safety .sf-x { color: var(--red-l); font-weight: var(--fw-semibold); font-size: var(--fs-title3); }
+.ar-safety .sf-what { display: grid; gap: 2px; min-width: 0; }
+.ar-safety .sf-deal { color: var(--muted); }
+.ar-safety .sf-detail { color: var(--muted); font-size: var(--fs-small); overflow-wrap: anywhere; }
+.ar-safety .sf-found ul.sf-todo { list-style: disc; padding-left: 1.3em; gap: 2px; }
+.ar-safety .sf-found ul.sf-todo li { display: list-item; border: 0; background: none; padding: 0; }
+.ar-safety .sf-who { display: flex; flex-direction: column; gap: var(--sp-3); max-width: 60rem; }
+.ar-safety .sf-bar { display: flex; gap: 2px; height: 1.1rem; border-radius: var(--r-tight); overflow: hidden; background: var(--panel3); }
+.ar-safety .sf-seg { display: block; min-width: 6px; background: var(--sf-c, var(--dim)); }
+.ar-safety .sf-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); color: var(--muted); }
+.ar-safety .sf-legend li { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.ar-safety .sf-key { width: 4px; height: 12px; border-radius: 1px; background: var(--sf-c, var(--dim)); }
+.ar-safety .sf-n { color: var(--text); font-family: var(--num); font-variant-numeric: tabular-nums lining-nums; font-weight: var(--fw-semibold); }
+.ar-safety .t-owner { --sf-c: var(--gold); }
+.ar-safety .t-rule { --sf-c: var(--teal); }
+.ar-safety .t-buyer { --sf-c: var(--ok); }
+.ar-safety .t-default { --sf-c: var(--dim); }
+.ar-safety .sf-scope { margin: 0; }
+.ar-safety .sf-details { display: grid; gap: var(--sp-3); max-width: 60rem; }
+.ar-safety .sf-details h3 { margin: 0; }
+.ar-safety .sf-head { font-size: var(--fs-small); overflow-wrap: anywhere; }
+.ar-safety .sf-details .ui-kv { grid-template-columns: minmax(150px, 34%) minmax(0, 1fr); }
+.ar-safety .sf-fam { max-width: 40rem; }
+.ar-safety .sf-sum { display: flex; flex-direction: column; gap: var(--sp-2); max-width: 64rem; padding: var(--sp-4) var(--sp-5); border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--line); }
+.ar-safety .sf-sum .cs-h3 { margin: 0; }
+.ar-safety .sf-sub { color: var(--muted); }
+.ar-safety .sf-sum .sf-bar { height: 1.6rem; }

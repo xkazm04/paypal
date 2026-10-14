@@ -1,20 +1,22 @@
-// Area: rescue (rebuild WP3). TODO(WP3 rescue): the builder who owns this area replaces the interim
-// body below (the old modules/rescue.tsx page) with the new page, built on the framework (console/ModuleLayer.tsx,
-// console/ListEngine.tsx, console/rows.tsx; guide: docs/build/rebuild/wp25.md). This file, the
-// area's stylesheet (console/areas/rescue.css), its words (lib/words/rescue.ts) and anything new under
-// console/areas/rescue/ belong to that builder alone; the registry (console/layers.registry.ts)
-// already imports this file.
+// Area: rescue (rebuild WP3b). The Rescue layer: failed renewals, one fix for one subscriber, or
+// nothing (console/areas/rescue/RescueLayer.tsx). Its views are registered here, so the crumbs and
+// Escape know them before the layer's chunk loads. Styles: console/areas/rescue.css; words:
+// lib/words/rescue.ts.
 import { lazyPart } from '../../../../lib/lazy';
+import { RESCUE_VIEWS_TITLE } from '../../../../lib/words';
 import { MODULE } from '../../../../shared/modules';
 import { ModuleCrumb } from '../crumbs';
 import { defineLayer, type LayerProps } from '../layers';
+import { defineModuleViews } from '../ModuleSummary';
 import '../areas/rescue.css';
+
+export const RESCUE_VIEWS = defineModuleViews('rescue', RESCUE_VIEWS_TITLE);
 
 export const layers = [
   defineLayer({
     id: 'rescue',
     title: () => MODULE.rescue.name,
     Crumb: ModuleCrumb,
-    component: lazyPart<LayerProps>(() => import('../legacy').then((m) => m.LegacyModuleLayer)),
+    component: lazyPart<LayerProps>(() => import('../areas/rescue/RescueLayer').then((m) => m.RescueLayer)),
   }),
 ];

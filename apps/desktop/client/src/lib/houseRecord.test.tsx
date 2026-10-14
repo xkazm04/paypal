@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { HouseRecord } from '@bindings/HouseRecord';
 import type { HouseRecordState } from '@bindings/HouseRecordState';
 import { buildMockState } from '../mock/fixtures';
-import { ProofPanel } from '../windows/main/deal/Evidence';
+import { ProofPanel } from '../windows/main/console/areas/deal/Evidence';
 import { HOUSE_RECORD_NAME, HOUSE_RECORD_SHORTER, houseRecordWord } from './words';
 
 const NOW = 1_800_000_000;

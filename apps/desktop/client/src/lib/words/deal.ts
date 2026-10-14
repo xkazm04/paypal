@@ -1,7 +1,304 @@
-// Words for the deal area of the console (rebuild WP3). Owned by the WP3 builder of this area; every
-// user-facing string of the area goes here, never inline. Re-exported from lib/words.ts by one
-// `export *` line, so importers keep `import { X } from '../lib/words'`. Rules (docs/ux/UX-GUIDE.md):
-// sentence case, Maya's words, no internals (commands, ids, clause numbers, raw states), PayPal is
-// the only vendor name, every needs-you line carries "If you do nothing". Prefix exports with the
-// area (e.g. `DEAL_`): two areas exporting one name is a type error in lib/words.ts.
-export {};
+// Words for the deal area of the console (rebuild WP3c): the deal page, the nested depth-3/4 layer
+// every module links to. Owned by the WP3c builder; every user-facing string of the area goes here,
+// never inline. Re-exported from lib/words.ts by one `export *` line. Rules (docs/ux/UX-GUIDE.md):
+// sentence case, Maya's words, no internals on the first view (ids, rule numbers and raw states
+// live one level down, in Details), PayPal is the only vendor name, every needs-you line carries
+// "If you do nothing". Imports nothing from lib/words.ts. Strings moved from the old deal page
+// (DealView.tsx, deal/*.tsx) are byte-identical: tests and owners know them.
+
+/** A link names a deal by its short name, and the names could not be read just now. */
+export const DEAL_NAME_UNREAD = 'This deal can’t be found by its name right now, because the deal names didn’t load. Nothing has changed with your money.';
+
+export const DEAL_SIDE = { buyer: 'You’re buying', seller: 'You’re selling' } as const;
+export const DEAL_KICKER = {
+  buyingFrom: (who: string): string => `buying from ${who}`,
+  sellingTo: (who: string): string => `selling to ${who}`,
+} as const;
+
+/** The four cards and the views they open. */
+export const DEAL_CARD = {
+  story: 'What happened',
+  storyView: 'What happened · who decided',
+  storySub: 'The conversation, signed message by message, and every decision on this deal from the wallet’s own record.',
+  messages: (n: number): string => (n === 1 ? 'One signed message' : `${n} signed messages`),
+  noMessages: 'Nothing negotiated',
+  noOffers: 'No offers yet',
+  rules: 'Rules that applied',
+  rulesView: 'The rules that applied',
+  rulesSub: 'Your signed rules, read against this deal. Exceptions first.',
+  rulesAll: 'Within your rules',
+  rulesNone: 'No rule to read here',
+  rulesGone: 'Not active any more',
+  rulesChecked: (known: number, all: number): string => `${known} of ${all} read here`,
+  who: 'Who you deal with',
+  whoView: 'Who you’re dealing with',
+  whoSub: 'Identity, how they get paid, history and the scam check. Their words are shown as theirs, never as instructions.',
+  proof: 'Proof from PayPal',
+  proofView: 'Proof from PayPal',
+  proofSub: 'What PayPal has, read when you open this. Only ids are kept here, never PayPal’s full answers.',
+  proofHas: (n: number): string => (n === 1 ? 'One PayPal record' : `${n} PayPal records`),
+  proofNone: 'Nothing at PayPal yet',
+  proofNever: 'Never sent to PayPal',
+  proofNote: 'open to read the receipt and statement',
+} as const;
+
+export const DEAL_ACT = {
+  details: 'Details',
+  detailsTitle: 'Deal details',
+  export: 'Export record',
+  startAgent: 'Start agent',
+  startAgentTitle: 'Let your agent bargain for this deal, inside your rules',
+  agentsPaused: 'Agents paused',
+  agentsPausedTitle: 'All agents are paused; resume them in Settings',
+  agentIs: (state: string, label: string): string => `Your agent is ${state} on ${label}`,
+  agentRun: (state: string): string => `Agent ${state}`,
+  agentRunTitle: (engine: string): string => `Running on ${engine}`,
+  fallback: 'Some names couldn’t be loaded, so short ids are shown.',
+} as const;
+
+/** The deal's details, one level down (ids live here, never on the first view). */
+export const DEAL_DETAILS = {
+  deal: 'Deal',
+  exact: 'Exact state',
+  rules: 'Rules',
+  version: (v: number): string => `version ${v}`,
+  agent: 'Agent app',
+  record: 'Record',
+} as const;
+
+/** The figures beside the title. */
+export const DEAL_FIGS = {
+  moneyNow: 'Money right now',
+  timeLeft: (clock: string): string => `Time left · until ${clock}`,
+  noDeadline: 'No deadline',
+  milestones: 'Where this deal is',
+  ended: 'Ended',
+  checking: 'Checking',
+} as const;
+
+/** The decision on the page when the deal needs the owner. */
+export const DEAL_DECIDE = {
+  context: 'Needs you',
+  review: 'Review & approve ↗',
+  reviewTitle: 'Opens the approval window: the only place money can be released',
+  release: 'Review & release ↗',
+  releaseMeans: 'Opens the approval window. You type the payee’s name there to release it. Releasing doesn’t pay.',
+  releaseTitle: 'Opens the approval window, where you type the payee’s name to release it',
+  lapse: 'Let it lapse',
+  lapseMeans: 'Hides this until its deadline. It never agrees to anything and never cancels early.',
+  lapsed: (label: string): string => `${label} will lapse at its deadline. No money moves.`,
+  withdraw: 'Withdraw',
+  withdrawAsk: (title: string): string => `Withdraw from “${title}”?`,
+  keep: 'Keep the deal',
+  withdrawing: 'Withdrawing…',
+  withdrawn: (title: string): string => `${title} withdrawn. No money moved.`,
+  withdrawSafe: 'Withdrawing is always safe: it can’t move money.',
+  failApproval: 'Approval window',
+  failLapse: 'Let it lapse',
+  failWithdraw: 'Withdraw',
+  watching: 'Still going',
+} as const;
+
+/** What happened: the conversation and who decided. */
+export const DEAL_STORY = {
+  label: 'What happened',
+  you: 'You',
+  allSigned: 'Every message carries a valid signature',
+  someUnchecked: 'Some signatures could not be checked',
+  signed: (n: number): string => `${n} signed ${n === 1 ? 'message' : 'messages'}`,
+  unread: 'The conversation couldn’t be loaded right now. It is still stored with the deal.',
+  reading: 'the conversation',
+  nothing: 'Nothing was negotiated.',
+  noOffers: 'No offers yet.',
+  noOffersStored: 'No offers are stored with this deal.',
+  showWho: 'Show who signed it and which rule it was checked against',
+  unchecked: '✗ unchecked · ',
+  uncheckedTitle: 'This signature could not be checked',
+  factsHaggle: 'Where it stands',
+  factsOther: 'The numbers',
+  when: 'When',
+  who: 'Who',
+  signature: 'Signature',
+  checkedYours: '✓ checked against your agent’s key',
+  checkedTheirs: '✓ checked against their verified key',
+  notChecked: '✗ could not be checked',
+  against: 'Checked against',
+  theirRules: 'their own rules, not yours',
+  noRule: 'no rule of yours sets this price',
+  message: 'Message',
+  youWord: 'you',
+} as const;
+
+export const DEAL_DECIDED = {
+  title: 'Who decided',
+  from: 'from the wallet’s own record',
+  unread: 'The deal’s record',
+  reading: 'the record',
+  none: 'Nobody has decided anything on this deal yet. Nothing was sent to PayPal.',
+  older: 'Older steps are in Book’s record.',
+  refused: 'Refused · PayPal never asked',
+  call: 'PayPal call',
+  checked: 'PayPal checked',
+  noCall: 'no PayPal call',
+} as const;
+
+/** The rules that applied. */
+export const DEAL_RULES = {
+  yours: (name: string): string => `Your ${name}`,
+  plain: 'Your rules',
+  validUntil: (d: string): string => `valid until ${d}`,
+  unread: 'Your rules couldn’t be loaded right now. This deal is still bound by them.',
+  reading: 'your rules',
+  newer: 'You have signed newer rules since. This deal keeps the version it started with.',
+  gone: 'These rules are no longer active.',
+  checks: 'Rule checks',
+  noneHere: 'None of your rules can be read against this deal here.',
+  whenPays: 'Checked when it pays',
+  foldOne: '1 rule is checked by your wallet when it pays',
+  foldMany: (n: number): string => `${n} rules are checked by your wallet when it pays`,
+  show: 'show',
+  each: 'What each rule says about this deal',
+  noRules: 'No rules to show.',
+  status: 'Status',
+  statusUnread: 'couldn’t be loaded',
+  statusActive: 'signed and active',
+  statusReplaced: 'replaced by newer rules',
+  statusOff: 'not active',
+  for: 'For',
+  forAgent: (agent: string): string => `your ${agent} agent`,
+  valid: 'Valid',
+  details: 'Details',
+  rulesId: 'Rules id',
+  version: 'Version',
+  signature: 'Your signature',
+  onlyApproval: 'Rules only change when you sign new ones in the approval window.',
+  toRules: 'Agent rules ›',
+  glyph: { within: 'within your rule', outside: 'outside your rule', asks: 'asks you', na: 'does not apply', unknown: 'not checked on this screen' },
+} as const;
+
+/** Who you're dealing with. */
+export const DEAL_WHO = {
+  identity: 'Identity',
+  paidAs: 'Gets paid as',
+  paidAsTitle: 'The PayPal payee they declared when you connected; checked again before any payment',
+  since: 'Known since',
+  sinceLine: (d: string, n: number): string => `${d} · ${n} earlier ${n === 1 ? 'deal' : 'deals'}`,
+  scam: 'Scam check',
+  notRun: 'not run',
+  lowest: 'Their lowest',
+  highest: 'Their highest',
+  private: 'kept private',
+  privateTitle: 'Only a sealed commitment is shared; you never see their limit, and they never see yours',
+  privateLong: 'kept private · only a sealed commitment is shared',
+  offers: 'Offers',
+  offersUsed: (used: number, max: number): string => `${used} of ${max} used`,
+  note: 'Their note',
+  noteTitle: (who: string): string => `Note from ${who}`,
+  who: 'Who',
+  house: 'The house seller, built into this app',
+  known: 'A wallet you have dealt with',
+  unknown: 'A wallet you never named',
+  earlier: 'Earlier deals',
+  details: 'Details',
+  walletKey: 'Wallet key',
+  shortKey: 'Short key',
+  theirWords: 'Anything they write is shown as-is, marked as theirs, and never given to your agent as instructions.',
+  shield: {
+    CLEAR: 'Nothing suspicious found. Your rules still decide.',
+    ASK: 'A check wants you to confirm before anything moves.',
+    HOLD: 'Paused before any PayPal call. Release it in the approval window by typing the payee’s name, or leave it.',
+    BLOCK: 'Blocked for good. No PayPal link is ever opened.',
+    none: 'No scam check is recorded for this deal.',
+  },
+} as const;
+
+/** Proof from PayPal. */
+export const DEAL_PROOF = {
+  refs: { order: 'Order', authorization: 'Hold', capture: 'Payment', subscription: 'Subscription' },
+  refTitle: (l: string, id: string): string => `${l}: ${id}`,
+  noRef: (l: string): string => `No ${l.toLowerCase()} yet`,
+  has: 'What PayPal has',
+  neverSent: 'Never sent to PayPal',
+  nothingSent: 'Nothing sent yet',
+  idsOnly: 'Only the ids are kept here. Open to see them.',
+  stopped: 'It was stopped before PayPal was asked.',
+  notCreated: 'Nothing is created at PayPal until a deal is agreed.',
+  receipt: 'Receipt',
+  cantLoad: 'couldn’t load',
+  loading: 'loading…',
+  statement: 'PayPal statement',
+  statementShort: 'Statement',
+  firstOnWay: (kept: string): string => `${kept}: the first check is on its way.`,
+  typical: 'Typical price',
+  middle: (m: string): string => `middle ${m}`,
+  noComparison: 'No comparison',
+  similar: (a: string, b: string): string => `Similar listings: ${a} to ${b}.`,
+  noComparisonYet: 'No comparison yet.',
+  noComparisonSkip: 'No comparison for this item, so market checks are skipped, not passed.',
+  watchFresh: 'The wallet checks the typical price on its own; it never approves anything.',
+  compared: (t: string): string => `compared ${t}`,
+  kept: (t: string): string => `kept ${t}`,
+  checkStatement: 'Check my PayPal statement',
+  checking: 'Checking your statement…',
+  checkTitle: 'Looks this payment up on your own PayPal statement. Read-only.',
+  statementToast: (w: string): string => `PayPal statement: ${w}`,
+  done: 'Done',
+  records: 'PayPal records',
+  refusedNone: 'Refused before PayPal was asked: there are no PayPal records.',
+  nothingYet: 'Nothing has been sent to PayPal for this deal yet.',
+  record: 'Record',
+  paypalId: 'PayPal id',
+  behind: 'Who stands behind it',
+  notYet: 'not yet',
+  sellerSays: 'Until your wallet checks a payment with PayPal itself, it only shows what the seller says. Only ids are kept here, never PayPal’s full answers.',
+  proof: 'Proof',
+  theStatement: 'the statement',
+  theProof: 'the PayPal proof',
+  statementCheck: 'Statement check',
+  mostPay: 'most you’ll pay',
+  leastAccept: 'least you’ll accept',
+  thisDeal: 'This deal',
+  otherCurrency: 'in another currency than the comparison',
+  range: 'Typical range',
+  rangeLine: (a: string, b: string, m: string): string => `${a} – ${b} · middle ${m}`,
+  checked: 'Checked',
+  savedCopy: ' · saved copy',
+  keptFresh: 'Kept fresh',
+  notAdvice: 'A comparison with similar listings, not a recommendation.',
+  noComparisonFirst: (kept: string): string => `No comparison yet. ${kept}: the first check is on its way.`,
+  noComparisonLong: 'No comparison for this item, so price checks against the market are skipped, not passed.',
+  usedUp: 'Today’s price checks are used up; checked again tomorrow.',
+  openSheet: 'Open',
+} as const;
+
+/** The full record, behind "Export record". */
+export const DEAL_RECORD = {
+  title: (label: string): string => `Record of ${label}`,
+  save: 'Save signed proof',
+  saving: 'Saving signed proof…',
+  saveTitle: 'Saves one signed file with this deal\'s rules, messages, PayPal records and audit trail. Check it with “Check a proof file” in the Book.',
+  saved: 'Signed proof saved · check it with “Check a proof file” in the Book',
+  confirmTitle: 'Save signed proof',
+  cancel: 'Cancel',
+  saveShort: 'Save',
+  anyone: 'Anyone with the file can check, without your wallet:',
+  failed: 'Signed proof',
+  messages: 'Messages',
+  everyChecked: 'every signature checked',
+  someNot: 'some signatures could not be checked',
+  paypal: 'PayPal',
+  mode: 'Mode',
+  recordId: 'Record id',
+  unread: 'Record',
+  reading: 'the record',
+  none: 'No signed messages for this deal.',
+  who: 'Who',
+  what: 'What',
+  price: 'Price',
+  signature: 'Signature',
+  when: 'When',
+  checked: '✓ checked',
+  notChecked: '✗ could not be checked',
+} as const;
+
+export const DEAL_INSTRUCTIONS = { read: 'Read', readTitle: 'Read the instructions word for word', wordForWord: (name: string): string => `${name}, word for word` } as const;
