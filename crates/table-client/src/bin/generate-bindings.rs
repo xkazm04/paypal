@@ -5,6 +5,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ts_rs::Config::new()
         .with_out_dir(&root)
         .with_large_int("number");
+    // Clean set: every bindings/*.ts is generated, so remove them all first and let this run
+    // re-emit what still exists. A type removed from Rust then leaves no importable stale file.
+    for entry in std::fs::read_dir(&root)? {
+        let path = entry?.path();
+        if path.extension().is_some_and(|e| e == "ts") {
+            std::fs::remove_file(path)?;
+        }
+    }
     table_client::CommandContract::export_all(&config)?;
     table_client::EventContract::export_all(&config)?;
     table_client::CommandError::export_all(&config)?;
