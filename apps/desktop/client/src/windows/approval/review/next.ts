@@ -8,6 +8,7 @@ import type { Deal } from '@bindings/Deal';
 import type { Phase } from '../model';
 import type { DiffKind } from './diff';
 import type { Intent } from './says';
+import { PAID_CANNOT_BE_UNDONE } from '../../../lib/words';
 
 /** Who does the step: you (teal), the other side (coral), PayPal or your wallet (neutral), or a stop (red). */
 export type NextBy = 'you' | 'them' | 'paypal' | 'wallet' | 'stop';
@@ -68,7 +69,7 @@ export function nextSteps(i: NextInput): NextStep[] | null {
       case 'capture':
         return d.side === 'seller'
           ? [you(`You collect ${total} here`, true), paypal(`PayPal pays you ${total}`), wallet('Receipt saved')]
-          : [you('You pay here', true), them(`${who} gets ${total}`), wallet('Receipt saved')];
+          : [you('You pay here', true), them(`${who} gets ${total}. ${PAID_CANNOT_BE_UNDONE}`), wallet('Receipt saved')];
       case 'countersign':
         if (d.state === 'APPROVED') {
           return [you('You approve here', true), paypal(`The ${total} goes on hold at PayPal`), you(d.side === 'seller' ? 'You collect it, as its own step' : 'You pay, or release the hold')];

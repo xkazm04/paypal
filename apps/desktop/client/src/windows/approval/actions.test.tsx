@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Actions, HOLD_KEYS } from './DealReview';
+import { PAYMENT_CANNOT_BE_UNDONE } from '../../lib/words';
 import type { Gate, Gates } from './gating';
 
 const on: Gate = { visible: true, enabled: true, reason: null };
@@ -50,6 +51,17 @@ describe('the approval actions', () => {
     const { holds } = setup(gates({ capture: on }), true);
     expect(holds()).toHaveLength(1);
     expect(holds()[0]).toContain('Hold to collect $64.00');
+  });
+
+  it('says the payment cannot be undone only on the buyer’s pay step, not on other approvals or a seller’s collect', () => {
+    const pay = setup(gates({ capture: on }));
+    expect(pay.container.textContent).toContain(PAYMENT_CANNOT_BE_UNDONE);
+    pay.unmount();
+    const collect = setup(gates({ capture: on }), true);
+    expect(collect.container.textContent).not.toContain(PAYMENT_CANNOT_BE_UNDONE);
+    collect.unmount();
+    const others = setup(gates({ ownerAccept: on, countersign: on, rescue: on, releaseHold: on, openPaypal: on, void: on }));
+    expect(others.container.textContent).not.toContain(PAYMENT_CANNOT_BE_UNDONE);
   });
 
   it('a gate that is not visible renders no button', () => {
