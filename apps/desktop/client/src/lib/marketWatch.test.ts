@@ -7,7 +7,7 @@ import type { MarketWatchFact } from '@bindings/MarketWatchFact';
 import { mockBackend, resetMockState } from '../mock/backend';
 import { fakeUlid } from '../mock/fixtures';
 import { mockValidate } from '../mock/simulate';
-import { watchWhy } from '../windows/main/deal/Evidence';
+import { watchWhy } from '../windows/main/console/areas/deal/Evidence';
 import { buildClause, CLAUSE_NUMBER, draftFrom, emptyClause, refusalWords, ruleProblems } from '../windows/approval/mandateDraft';
 import { dealWatch, MAX_MARKET_CHECKS_DAY, MAX_WATCHED_ITEMS, marketWatchRefusal, productValid, watchLine } from './marketWatch';
 import { ruleSentence, RULE_NUMBER } from './words';

@@ -336,7 +336,8 @@ describe('the owner places are layers (WP2.5)', () => {
     await waitFor(() => expect(layer()?.dataset.layer).toBe('rules'));
     expect(location.hash).toBe('#p=rules');
     expect(document.querySelector('.ui-sheet')).toBeNull();
-    await waitFor(() => expect(document.activeElement?.textContent).toBe(PLACE_NAME.rules));
+    // Going in, focus lands on the layer's heading (since WP3c the place's one answer line).
+    await waitFor(() => expect((document.activeElement as HTMLElement | null)?.closest('.cs-layer')?.getAttribute('data-layer') === 'rules' && document.activeElement?.hasAttribute('data-layer-title')).toBe(true));
     const toLimits = await waitFor(() => { const b = layer()?.querySelector<HTMLButtonElement>('[data-fk="to-limits"]'); if (!b) throw new Error('no limits link'); return b; });
     toLimits.focus();
     fireEvent.click(toLimits);

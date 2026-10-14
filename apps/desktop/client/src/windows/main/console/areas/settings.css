@@ -1,4 +1,113 @@
-/* Area: settings (rebuild WP3). Owned by the WP3 builder of this area; imported only by
-   console/layers/settings.ts, so no other area's styles live here. Scope every rule under the area's
-   own root class (e.g. `.ar-settings`), tokens only (src/design/tokens.css), text never below
-   --fs-small, motion only through the --dur-* / --ease-* tokens. */
+/* Area: settings (rebuild WP3c). Imported only by console/layers/settings.ts. Two roots: `.pf`, the
+   frame every owner place of WP3c shares (console/areas/settings/frame.tsx: answer, Your call,
+   cards opening a nested view on the same sheet) and `.ar-settings`, Settings itself. The `st-*`
+   row parts are the frame's too (other WP3c places use them inside `.pf`). Tokens only; text never
+   below --fs-small; motion only through the --dur-* / --ease-* tokens. */
+
+/* ---- the frame -------------------------------------------------------------------------------- */
+.pf { --pf-tone: var(--steel); display: flex; flex-direction: column; gap: var(--sp-5); min-width: 0; flex: 1 0 auto; }
+.pf-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-5); align-items: end; padding-right: var(--sp-12); }
+.pf-head.has-aside { grid-template-columns: minmax(0, 1fr) auto; }
+.pf-say { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.pf-say .kicker { margin: 0; color: color-mix(in srgb, var(--pf-tone) 70%, var(--dim)); }
+.pf-say .cs-title { margin: 0; max-width: 60rem; overflow-wrap: anywhere; }
+.pf-sub { margin: 0; color: var(--muted); font-size: var(--fs-title3); line-height: 1.45; max-width: 56rem; }
+.pf-aside { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2); min-width: 0; }
+.pf-call { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); margin-top: var(--sp-2); padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-card); border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 10%, transparent), transparent); max-width: 64rem; }
+.pf-call.quiet { padding: 0; border: 0; background: none; }
+.pf-chip { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--gold-l); font: var(--fw-semibold) var(--fs-body)/1 var(--font); }
+.pf-chip .led { width: .5rem; height: .5rem; border-radius: 1px; background: var(--gold); box-shadow: var(--glow-gold); }
+.pf-sil { color: var(--muted); flex: 1 1 18rem; min-width: 0; }
+.pf-sil b { color: var(--text); font-weight: var(--fw-medium); }
+.pf-act { display: inline-flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.pf-act .notice { margin: 0; }
+
+.pf-cards { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); gap: var(--sp-3); }
+.pf-cards .pf-card { min-height: 7rem; box-shadow: inset 2px 0 0 var(--pf-tone); text-align: left; }
+.pf-cards .pf-card.needs { box-shadow: inset 2px 0 0 var(--gold); }
+.pf-cards .pf-card.on { background: var(--sel); box-shadow: inset 2px 0 0 var(--signal), 0 0 0 1px var(--sel-line); }
+.pf-cards .pf-card.static { cursor: default; }
+.pf-cards .pf-card.static:hover { background: inherit; }
+.pf-cards .pf-card .sc-value { font-size: var(--fs-title2); min-width: 0; overflow-wrap: anywhere; }
+.pf-cards .pf-card .sc-value.unknown { color: var(--dim); }
+.pf-cards .pf-card .sc-value small { font-size: var(--fs-small); color: var(--muted); font-weight: var(--fw-regular, 400); }
+.pf-ifnothing { color: var(--muted); }
+
+.pf-view { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4) var(--sp-5); border-radius: var(--r-card);
+  background: color-mix(in srgb, var(--bg) 40%, transparent); box-shadow: 0 0 0 1px var(--line2), inset 0 2px 0 var(--signal);
+  animation: pf-in var(--dur-med) var(--ease-out) both; min-width: 0; }
+@keyframes pf-in { from { opacity: 0; transform: translateY(var(--sp-1)); } }
+@media (prefers-reduced-motion: reduce) { .pf-view { animation: none; } }
+:root.calm .pf-view { animation: none; }
+.pf-vhead { display: flex; flex-direction: column; gap: var(--sp-1); }
+.pf-vtitle { margin: 0; font: var(--fw-display) var(--fs-title1)/1.2 var(--display); letter-spacing: var(--track-display); color: var(--text); outline: none; }
+.pf-vtitle:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pf-vsub { margin: 0; color: var(--muted); max-width: 56rem; }
+.pf-vbody { min-width: 0; }
+.pf-explain { max-width: 56rem; }
+.pf-explain p { margin: 0 0 var(--sp-2); color: var(--muted); }
+
+/* ---- shared row parts of the WP3c places (inside .pf) ----------------------------------------- */
+.pf .st-view { display: flex; flex-direction: column; gap: var(--sp-3); max-width: 60rem; }
+.pf .st-note { margin: 0; color: var(--muted); max-width: 56rem; }
+.pf .st-foot { margin: 0; }
+.pf .st-foot .ui-silence { white-space: normal; }
+.pf .st-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-width: 60rem; }
+.pf .st-list > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; padding: var(--sp-2) var(--sp-1); border-bottom: 1px solid var(--line); min-height: var(--target); }
+.pf .st-list > li.dim { display: block; color: var(--dim); }
+.pf .st-rt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pf .st-rt b { font-weight: var(--fw-semibold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf .st-rt small { color: var(--muted); font-size: var(--fs-small); }
+.pf .st-rt small.okc { color: var(--ok); }
+.pf .st-rt small.red { color: var(--red-l); }
+.pf .st-chips { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.pf .st-small { font-size: var(--fs-small); color: var(--muted); }
+.pf .st-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-4); align-items: center; padding: var(--sp-3) var(--sp-1); border-bottom: 1px solid var(--line); max-width: 52rem; }
+
+/* an on/off switch: the word says the state */
+.pf .st-switch { display: inline-flex; align-items: center; gap: var(--sp-2); height: var(--ctl); padding: 0 var(--sp-3) 0 var(--sp-1); cursor: pointer;
+  border: 1px solid var(--line2); border-radius: var(--r-pill); background: var(--bg2); color: var(--muted); font: var(--fw-medium) var(--fs-small)/1 var(--font); }
+.pf .st-switch .knob { width: 1.1rem; height: 1.1rem; border-radius: 50%; background: var(--line2); transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease); }
+.pf .st-switch.on { border-color: color-mix(in srgb, var(--teal) 60%, var(--line2)); color: var(--teal-l); }
+.pf .st-switch.on .knob { background: var(--teal); }
+.pf .st-switch:disabled { opacity: .55; cursor: not-allowed; }
+.pf .st-switch:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---- Settings ---------------------------------------------------------------------------------- */
+.ar-settings .st-more { display: flex; flex-direction: column; gap: var(--sp-2); }
+.ar-settings .st-more .cs-h3 { margin: 0; }
+.ar-settings .st-rows { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr)); gap: var(--sp-2) var(--sp-4); }
+.ar-settings .st-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; width: 100%; min-height: 3.4rem; padding: var(--sp-2) var(--sp-3);
+  text-align: left; font: inherit; color: var(--text); cursor: pointer; border: 0; border-bottom: 1px solid var(--line); background: none; border-radius: var(--r-tight); }
+.ar-settings .st-row:hover { background: var(--hover); }
+.ar-settings .st-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.ar-settings .st-row .st-rt b { white-space: normal; }
+.ar-settings .st-go { color: var(--dim); font-size: var(--fs-small); white-space: nowrap; }
+.ar-settings .st-row:hover .st-go { color: var(--teal-l); }
+.ar-settings .st-protect { display: flex; flex-direction: column; gap: var(--sp-4); margin-top: var(--sp-2); }
+.ar-settings .st-chain { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); }
+.ar-settings .st-chain li { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-3); border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--line); }
+.ar-settings .st-chain li:nth-child(3) { box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 45%, var(--line)); }
+.ar-settings .st-chain span { color: var(--muted); font-size: var(--fs-small); }
+.ar-settings .st-who { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-4) var(--sp-6); }
+.ar-settings .st-who .cs-h3 { margin: 0 0 var(--sp-1); }
+.ar-settings .st-moves { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: var(--sp-1); color: var(--muted); }
+.ar-settings .st-moves .red { color: var(--red-l); }
+.ar-settings .st-agents .coral { color: var(--coral-l); }
+
+@media (max-width: 1100px) {
+  .pf-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pf-head { padding-right: var(--sp-8); }
+  .ar-settings .st-chain, .ar-settings .st-who { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-height: 960px) and (min-width: 1500px) {
+  /* a tall, wide window: the place breathes instead of leaving one band empty below it */
+  .pf { gap: var(--sp-8); }
+  .pf-say .cs-title { font-size: var(--fs-hero-l); }
+  .pf-sub { font-size: var(--fs-title2); }
+  .pf-cards .pf-card { min-height: 10rem; padding: var(--sp-5) var(--sp-6); }
+  .pf-cards .pf-card .sc-value { font-size: var(--fs-title1); }
+  .ar-settings .st-row { min-height: 4.5rem; }
+}

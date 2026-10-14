@@ -1,14 +1,12 @@
-// Area: settings (rebuild WP3). TODO(WP3 settings): the builder who owns this area replaces the interim
-// body below (the old Settings checklist (the Circuit)) with the new page, built on the framework (console/ModuleLayer.tsx,
-// console/ListEngine.tsx, console/rows.tsx; guide: docs/build/rebuild/wp25.md). This file, the
-// area's stylesheet (console/areas/settings.css), its words (lib/words/settings.ts) and anything new under
-// console/areas/settings/ belong to that builder alone; the registry (console/layers.registry.ts)
-// already imports this file.
+// Area: settings (rebuild WP3c). Settings: the lock, your agents, appearance, notifications, the charter, quit.
+// Built on the framework (console/layers.tsx, console/ListEngine.tsx, console/rows.tsx) and the
+// owner places' shared frame (console/areas/settings/frame.tsx); guide: docs/build/rebuild/wp3c.md.
+// This file, console/areas/settings.css, lib/words/settings.ts and console/areas/settings/ are the area's.
 import { lazyPart } from '../../../../lib/lazy';
 import { PLACE_NAME } from '../../../../lib/words';
 import { defineLayer, type LayerProps } from '../layers';
 import '../areas/settings.css';
 
 export const layers = [
-  defineLayer({ id: 'settings', title: () => PLACE_NAME.settings, component: lazyPart<LayerProps>(() => import('../legacy').then((m) => m.LegacySettingsLayer)) }),
+  defineLayer({ id: 'settings', title: () => PLACE_NAME.settings, component: lazyPart<LayerProps>(() => import('../areas/settings/SettingsLayer').then((m) => m.SettingsLayer)) }),
 ];

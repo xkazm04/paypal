@@ -1,4 +1,158 @@
-/* Area: connections (rebuild WP3). Owned by the WP3 builder of this area; imported only by
-   console/layers/connections.ts, so no other area's styles live here. Scope every rule under the area's
-   own root class (e.g. `.ar-connections`), tokens only (src/design/tokens.css), text never below
-   --fs-small, motion only through the --dur-* / --ease-* tokens. */
+/* Area: connections (rebuild WP3c). Imported only by console/layers/connections.ts. Roots:
+   `.ar-connections` (Connections, its views) and `.pair-desk` (the pairing desk, which the
+   Charter's practice line also embeds, so it is scoped under its own root, not the layer's). The
+   desk's rules moved from setup/setup.css (re-scoped from `.setup-sheet`); `.setup-pop` is the
+   desk's info popovers (setup/common.tsx Info). Tokens only; text never below --fs-small; motion
+   only through the --dur-* / --ease-* tokens. */
+
+/* ---- Connections ------------------------------------------------------------------------------- */
+.ar-connections .cn-view { display: flex; flex-direction: column; gap: var(--sp-3); max-width: 60rem; }
+.ar-connections .cn-engines { display: flex; flex-direction: column; max-width: 52rem; }
+.ar-connections .cn-engine { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; padding: var(--sp-2) var(--sp-2);
+  border-bottom: 1px solid var(--line); cursor: pointer; border-radius: var(--r-tight); min-height: var(--target); }
+.ar-connections .cn-engine:hover { background: var(--hover); }
+.ar-connections .cn-engine.on { box-shadow: inset 2px 0 0 var(--signal); }
+.ar-connections .cn-engine.off { cursor: default; }
+.ar-connections .cn-engine.off:hover { background: none; }
+.ar-connections .cn-engine.off .st-rt b { color: var(--muted); }
+.ar-connections .cn-engine input { margin: 0; }
+.ar-connections .cn-watch { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; color: var(--muted); font-size: var(--fs-small); }
+.ar-connections .cn-watch b { color: var(--text); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+.ar-connections .cn-watch .used b { color: var(--gold-l); }
+.ar-connections .cn-people-sec { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.ar-connections .cn-ph { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); }
+.ar-connections .cn-ph .cs-h3 { margin: 0; }
+.ar-connections .cn-ph .dim { font-size: var(--fs-small); }
+.ar-connections .cn-people { display: flex; flex-direction: column; min-height: 0; }
+.ar-connections .cn-people .le-main { min-height: 0; }
+.ar-connections .cn-person { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; }
+.ar-connections .cn-person .cs-who-chip { max-width: 100%; font-weight: var(--fw-semibold); }
+.ar-connections .cn-person small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- the pairing desk as its own layer ------------------------------------------------------- */
+.pd-layer .pair-desk.as-layer { max-width: none; margin: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+.pd-layer .pd-head { padding-right: var(--sp-12); }
+.pd-layer .pd-head .pf-sub { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+
+/* ---- the desk's info popovers (portalled) ------------------------------------------------------ */
+/* ---- popovers (Layer 2) ------------------------------------------------------------------- */
+.ui-popover.setup-pop p { margin: 0 0 var(--sp-2); }
+.ui-popover.setup-pop p:last-child { margin-bottom: 0; }
+.ui-popover.setup-pop .ui-group { margin: var(--sp-1) 0 var(--sp-2); }
+.ui-popover.setup-pop .ui-row { padding: 0 var(--sp-2); }
+.ui-popover.setup-pop.wide { width: 520px; }
+.ui-popover.setup-pop .who .ui-row .lbl { width: 160px; }
+.ui-popover.setup-pop .cl .lbl { width: 140px; }
+.ui-popover.setup-pop details.ui-disclosure { margin: var(--sp-1) 0 var(--sp-2); }
+.ui-popover.setup-pop details.ui-disclosure .ui-kv { padding: 0 var(--sp-2) var(--sp-1); font-size: var(--fs-small); }
+
+/* ---- the pairing desk: a three-step wizard ---------------------------------------------------- */
+.pair-desk { max-width: 1160px; margin: 0 auto; }
+.pair-desk .wz-modes { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-4); }
+.pair-desk .wz-modes-l { color: var(--muted); font-weight: var(--fw-medium); }
+.pair-desk .wz-modes .ui-seg button:disabled { opacity: .45; cursor: not-allowed; }
+.pair-desk .wz-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.pair-desk .wz-panel { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); padding: var(--sp-3) var(--sp-4); }
+.pair-desk .wz-panel.st-on { background: var(--panel2); border-color: color-mix(in srgb, var(--teal) 55%, var(--line)); box-shadow: var(--shadow-1), inset 3px 0 0 var(--teal); padding: var(--sp-4) var(--sp-5) var(--sp-5); }
+/* a step still to come reads quieter, but its words stay readable (no opacity on text, WCAG 1.4.3) */
+.pair-desk .wz-panel.st-todo { border-style: dashed; background: transparent; }
+.pair-desk .wz-panel.st-todo .wz-h h3 { color: var(--muted); }
+.pair-desk .wz-h { display: flex; align-items: center; gap: var(--sp-3); }
+.pair-desk .wz-h h3 { margin: 0; font: var(--fw-semibold) var(--fs-title2)/1.2 var(--display); flex: 1; min-width: 0; }
+.pair-desk .wz-panel:not(.st-on) .wz-h h3 { font-size: var(--fs-title3); }
+.pair-desk .wz-n { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; flex: none; font: var(--fw-semibold) var(--fs-title3)/1 var(--num);
+  color: var(--dim); box-shadow: inset 0 0 0 1.5px var(--line2); }
+.pair-desk .st-on .wz-n { background: var(--teal); color: var(--on-teal); box-shadow: none; }
+.pair-desk .st-done .wz-n { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); box-shadow: none; }
+.pair-desk .wz-st { font-size: var(--fs-small); color: var(--dim); }
+.pair-desk .st-on .wz-st { color: var(--teal-l); font-weight: var(--fw-semibold); }
+.pair-desk .st-done .wz-st { color: var(--ok); }
+.pair-desk .wz-fold { margin: 2px 0 0 calc(30px + var(--sp-3)); color: var(--muted); }
+.pair-desk .wz-fold.dim { color: var(--dim); font-size: var(--fs-small); }
+.pair-desk .wz-fold b { color: var(--text); font-weight: var(--fw-semibold); }
+.pair-desk .wz-body { margin: var(--sp-3) 0 0 calc(30px + var(--sp-3)); display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.pair-desk .wz-say { margin: 0; display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; color: var(--muted); font-size: var(--fs-title3); line-height: 1.35; }
+.pair-desk .wz-say .mono { margin-left: auto; }
+.pair-desk .wz-acts { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.pair-desk .wz-acts .ui-btn.big { height: 36px; padding: 0 var(--sp-5); font-size: var(--fs-title3); }
+.pair-desk .wz-sil { margin-left: auto; white-space: normal; }
+.pair-desk .wz-fields { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-4); align-items: end; }
+.pair-desk .wz-f { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pair-desk .wz-f.wide { max-width: 520px; }
+.pair-desk .wz-f > span:first-child { color: var(--muted); font-size: var(--fs-small); font-weight: var(--fw-medium); }
+.pair-desk .wz-f .ui-field, .pair-desk .wz-f .ui-seg { align-self: stretch; }
+.pair-desk .wz-f .ui-field { height: 34px; font-size: var(--fs-body); }
+.pair-desk .wz-f .ui-seg { align-self: flex-start; }
+.pair-desk .wz-f .ui-seg button { height: 30px; padding: 0 var(--sp-4); font-size: var(--fs-body); }
+.pair-desk .wz-fixed { display: flex; align-items: center; gap: var(--sp-2); height: 34px; }
+.pair-desk .code-field { font-family: var(--mono); letter-spacing: .06em; }
+.pair-desk .wz-code { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; padding: var(--sp-3) var(--sp-4); border-radius: var(--r); background: var(--bg2); box-shadow: inset 0 0 0 1px var(--line2); }
+.pair-desk .wz-code .code { font: var(--fw-semibold) 40px/1.1 var(--mono); letter-spacing: .1em; color: var(--teal-l); user-select: all; }
+.pair-desk .wz-code-acts { display: flex; gap: var(--sp-2); }
+.pair-desk .wz-wait { display: flex; align-items: center; gap: var(--sp-2); color: var(--muted); font-size: var(--fs-title3); flex-wrap: wrap; }
+.pair-desk .wz-note { display: flex; align-items: center; gap: var(--sp-3); }
+.pair-desk .wz-note .notice { margin: 0; flex: 1; }
+.pair-desk .wz-house { display: flex; align-items: center; gap: var(--sp-3); }
+.pair-desk .wz-house-t { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.pair-desk .wz-house-t b { font-size: var(--fs-title3); font-weight: var(--fw-semibold); }
+.pair-desk .wz-house-t span { color: var(--dim); }
+.pair-desk .wz-house-t .ui-spin { display: inline-block; vertical-align: -2px; }
+.pair-desk .wz-done { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; font-size: var(--fs-title3); color: var(--muted); }
+.pair-desk .wz-table { padding: var(--sp-2) var(--sp-3); border-radius: var(--r); background: var(--bg2); }
+.pair-desk .wz-table .ui-hint { margin: var(--sp-1) 0 0; }
+.pair-desk .words { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); }
+.pair-desk .words li { display: flex; align-items: baseline; gap: var(--sp-2); min-width: 0; padding: 8px var(--sp-3); border-radius: var(--r); background: var(--bg2); box-shadow: inset 0 0 0 1px var(--line2); font: var(--fw-semibold) var(--fs-title2)/1.2 var(--display); }
+.pair-desk .words li small { font: var(--fw-semibold) var(--fs-small) var(--num); color: var(--dim); }
+.pair-desk .words li span { overflow: hidden; text-overflow: ellipsis; }
+.pair-desk .words.big { gap: var(--sp-3); }
+.pair-desk .words.big li { flex-direction: column; align-items: center; gap: 2px; padding: var(--sp-4) var(--sp-2); font-size: 30px; line-height: 1.15; letter-spacing: -.01em; text-align: center; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teal) 40%, var(--line2)); }
+.pair-desk .words.big li small { font-size: var(--fs-body); }
+/* round 2: connections ------------------------------------------------------------
+   The mirror of the other person's screen beside the wizard, and the four words as tiles to tick.
+   The wizard's max width (above) is wide enough for the grid. */
+.pair-desk .cn-grid { display: grid; grid-template-columns: minmax(0, 1fr) 256px; gap: var(--sp-4); align-items: start; }
+.pair-desk .cn-grid > .wz-steps { min-width: 0; }
+@media (max-width: 1000px) { .pair-desk .cn-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* the four words as tiles: one tick each */
+.pair-desk .words.tiles li { display: block; padding: 0; transition: background var(--t-fast), box-shadow var(--t-fast); }
+.pair-desk .words.tiles li button { position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--sp-3) var(--sp-2) var(--sp-3);
+  border: 0; border-radius: var(--r); background: none; color: inherit; font: inherit; text-align: center; cursor: pointer; }
+.pair-desk .words.tiles li button:hover { background: var(--hover); }
+.pair-desk .words.tiles li button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.pair-desk .words.tiles li small { font: var(--fw-semibold) var(--fs-small) var(--num); color: var(--dim); }
+.pair-desk .words.tiles li .w { max-width: 100%; }
+.pair-desk .words.tiles li .tk { display: inline-flex; align-items: center; gap: 6px; margin-top: var(--sp-2); font: var(--fw-medium) var(--fs-small)/1 var(--font); letter-spacing: 0; color: var(--muted); max-width: 100%; }
+.pair-desk .words.tiles li .tk i { width: 16px; height: 16px; flex: none; border-radius: 50%; display: grid; place-items: center; box-shadow: inset 0 0 0 1.5px var(--line2); color: var(--bg); }
+.pair-desk .words.tiles li.seen { background: color-mix(in srgb, var(--ok) 9%, var(--bg2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ok) 60%, var(--line2)); }
+.pair-desk .words.tiles li.seen .tk { color: var(--ok); }
+.pair-desk .words.tiles li.seen .tk i { background: var(--ok); box-shadow: none; }
+.pair-desk .cn-say { font-size: var(--fs-body); }
+.pair-desk .cn-count { color: var(--dim); font-size: var(--fs-small); min-width: 0; }
+.pair-desk .cn-count.full { color: var(--ok); font-weight: var(--fw-semibold); }
+
+/* the mirror: what they should see, as a quiet picture of their window */
+.pair-desk .cn-mirror { position: sticky; top: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-3); border-radius: var(--r-lg);
+  border: 1px dashed var(--line2); background: color-mix(in srgb, var(--panel) 70%, transparent); min-width: 0; }
+.pair-desk .cn-m-h { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--sp-2); color: var(--coral-l); min-width: 0; }
+.pair-desk .cn-m-h b { font-weight: var(--fw-semibold); color: var(--text); white-space: nowrap; }
+/* the caption sits under the title, in line with it: the 256px column has no room beside it */
+.pair-desk .cn-m-h span { flex-basis: 100%; margin-left: 22px; color: var(--dim); font-size: var(--fs-small); }
+.pair-desk .cn-win { border-radius: var(--r); background: var(--bg2); box-shadow: inset 0 0 0 1px var(--line2); overflow: hidden; }
+.pair-desk .cn-bar { display: flex; gap: 4px; padding: 7px 9px; background: var(--panel3); }
+.pair-desk .cn-bar i { width: 7px; height: 7px; border-radius: 50%; background: var(--line2); }
+.pair-desk .cn-body { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-3); min-height: 112px; justify-content: center; }
+.pair-desk .cn-mw { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pair-desk .cn-mw span { padding: 6px 4px; border-radius: var(--r-sm); text-align: center; font: var(--fw-semibold) var(--fs-body)/1.1 var(--display); color: var(--dim);
+  background: var(--panel); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; text-overflow: ellipsis; transition: color var(--t-fast), box-shadow var(--t-fast); }
+.pair-desk .cn-mw span.on { color: var(--text); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ok) 65%, var(--line2)); }
+.pair-desk .cn-in { height: 28px; padding: 0 var(--sp-2); display: flex; align-items: center; gap: 2px; border-radius: var(--r-sm); background: var(--panel); box-shadow: inset 0 0 0 1px var(--line2); color: var(--dim); font-size: var(--fs-small); }
+.pair-desk .cn-in em { width: 1px; height: 14px; background: var(--teal-l); animation: cn-caret 1.1s steps(1) infinite; }
+.pair-desk .cn-in.off { background: none; box-shadow: none; border: 1px dashed var(--line2); }
+@keyframes cn-caret { 50% { opacity: 0; } }
+/* the picture of their window never uses gold: the one gold button on this sheet is yours */
+.pair-desk .cn-btn { height: 26px; display: grid; place-items: center; border-radius: 13px; font: var(--fw-semibold) var(--fs-small)/1 var(--font); background: color-mix(in srgb, var(--teal) 24%, var(--panel)); color: var(--teal-l); }
+.pair-desk .cn-btn.off { background: var(--panel3); color: var(--dim); }
+.pair-desk .cn-m-t { margin: 0; display: flex; flex-direction: column; gap: 2px; color: var(--muted); line-height: 1.35; }
+.pair-desk .cn-m-t b { color: var(--text); font-weight: var(--fw-semibold); font-size: var(--fs-title3); }
+@media (prefers-reduced-motion: reduce) { .pair-desk .cn-in em { animation: none; } }

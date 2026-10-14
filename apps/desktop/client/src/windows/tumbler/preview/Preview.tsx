@@ -10,7 +10,7 @@ import { backend } from '../../../lib/runtime';
 import { MockBadge } from '../../../shared/honesty';
 import { mockInject, resetMockState, type MockBackend } from '../../../mock/backend';
 import { runActions, type Action, type Stage } from '../../../director/actions';
-import { helpers as pv } from '../../../director/helpers';
+import { HAGGLE, helpers as pv, MISMATCH } from '../../../director/helpers';
 import { FORM_SIZE } from '../logic';
 import { Tumbler } from '../Tumbler';
 import './preview.css';
@@ -34,6 +34,14 @@ export default function Preview() {
   // The controls are the director's beat helpers (director/helpers.ts) run on this window's mock.
   const stage = useMemo<Stage>(() => ({ world: (backend() as MockBackend).world, form: setForm, main: () => {}, approval: () => {} }), []);
   const run = (actions: Action[]) => runActions(stage, actions);
+  // A sized sample (`?scale=`) has none of Maya's deals: the controls act on that world's first
+  // decision waiting for review instead, and the mismatch control is left out (scale finding #21).
+  const target = useMemo(() => {
+    if (stage.world.deal(HAGGLE)) return HAGGLE;
+    const items = stage.world.attention().items;
+    return items.find((i) => i.actions.includes('review'))?.label ?? items[0]?.label ?? HAGGLE;
+  }, [stage]);
+  const mismatch = useMemo(() => (stage.world.deal(MISMATCH) ? MISMATCH : null), [stage]);
   // every tumbler:form re-sends this stage's orientation (the mock's own placement is a stub)
   const [formSeq, setFormSeq] = useState(0);
   const deskRef = useRef<HTMLDivElement>(null);
@@ -123,10 +131,10 @@ export default function Preview() {
               {ctl('The Table closed (first time)', 'the wallet shows the welcome form', () => run(pv.tableClosedFirstTime()))}
               {ctl('Dock to screen edge', 'as a snap to the edge would: tab form', () => run(pv.dock()))}
               {ctl('Undock', 'as a drag back into free space: rest', () => run(pv.undock()))}
-              {ctl('PayPal opened in browser', 'tumbler:handoff for D-0193 (approve window) + hand-off form', () => run(pv.paypalOpened()))}
-              {ctl('…with ≤ 15 min to approve', 'tumbler:handoff, approve_until in 12 min', () => run(pv.paypalOpenedLate()))}
+              {ctl('PayPal opened in browser', `tumbler:handoff for ${target} (approve window) + hand-off form`, () => run(pv.paypalOpened(target)))}
+              {ctl('…with ≤ 15 min to approve', 'tumbler:handoff, approve_until in 12 min', () => run(pv.paypalOpenedLate(target)))}
               {ctl('Hand-off form only', 'older shell: no tumbler:handoff, stays generic', () => run(pv.handoffOnly()))}
-              {ctl('Simulate: PayPal APPROVED (polled)', 'receipt for D-0193', () => run(pv.paypalApproved()))}
+              {ctl('Simulate: PayPal APPROVED (polled)', `receipt for ${target}`, () => run(pv.paypalApproved(target)))}
               <div className="seg" role="group" aria-label="Puck corner">
                 <span>Puck corner</span>
                 <button aria-pressed={corner === 'br'} onClick={() => setCorner('br')}>bottom-right</button>
@@ -134,12 +142,12 @@ export default function Preview() {
               </div>
             </div>
             <div className="grp">
-              <h4>Attention · D-0193 · simulated clock</h4>
-              {ctl('Deadline ≤ 2 h', 'the clock runs ahead; the ring breathes (unless reduced motion)', () => run(pv.deadlineSoon()))}
-              {ctl('Deadline ≤ 15 min', 'the clock runs ahead; urgency now', () => run(pv.deadlineNow()))}
-              {ctl('Deadline passes', 'the safe default runs: withdrawn, no money moves', () => run(pv.deadlinePasses()))}
-              {ctl('Notification clicked', 'the wallet opens the card: tumbler:selected', () => run(pv.notificationClicked()))}
-              {ctl('Amount mismatch arrives', 'D-0199: the payment request differs from the signed deal: held', () => run(pv.mismatchArrives()))}
+              <h4>Attention · {target} · simulated clock</h4>
+              {ctl('Deadline ≤ 2 h', 'the clock runs ahead; the ring breathes (unless reduced motion)', () => run(pv.deadlineSoon(target)))}
+              {ctl('Deadline ≤ 15 min', 'the clock runs ahead; urgency now', () => run(pv.deadlineNow(target)))}
+              {ctl('Deadline passes', 'the safe default runs: withdrawn, no money moves', () => run(pv.deadlinePasses(target)))}
+              {ctl('Notification clicked', 'the wallet opens the card: tumbler:selected', () => run(pv.notificationClicked(target)))}
+              {mismatch ? ctl('Amount mismatch arrives', `${mismatch}: the payment request differs from the signed deal: held`, () => run(pv.mismatchArrives(mismatch))) : null}
             </div>
             <div className="grp">
               <h4>Other events</h4>

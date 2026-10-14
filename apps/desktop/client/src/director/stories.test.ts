@@ -50,6 +50,10 @@ describe('choosing a story', () => {
 
   it('puts First run’s own page in the first-run world, and leaves Maya’s address alone', () => {
     expect(directorSearchFor(STORIES.maya, '?beat=2')).toBeNull();
+    // Maya's beats name her deals: a sized sample has none of them, so her page leaves it (#20)
+    expect(directorSearchFor(STORIES.maya, '?scale=large&beat=2')).toBe('?beat=2');
+    expect(directorSearchFor(STORIES.maya, '?scale=small')).toBe('');
+    expect(frameUrls(STORIES.maya, 'large').main('#d=D-0193')).toBe('index.html#d=D-0193');
     expect(directorSearchFor(STORIES['first-run'], '?story=first-run&beat=2')).toBe('?story=first-run&beat=2&first_run=1');
     expect(directorSearchFor(STORIES['first-run'], '?story=first-run&first_run=1')).toBeNull();
   });

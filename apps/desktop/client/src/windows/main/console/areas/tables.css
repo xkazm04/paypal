@@ -1,4 +1,144 @@
-/* Area: tables (rebuild WP3). Owned by the WP3 builder of this area; imported only by
-   console/layers/tables.ts, so no other area's styles live here. Scope every rule under the area's
-   own root class (e.g. `.ar-tables`), tokens only (src/design/tokens.css), text never below
-   --fs-small, motion only through the --dur-* / --ease-* tokens. */
+/* Area: tables (rebuild WP3a). Imported by console/layers/tables.ts, and by spend.ts and counter.ts
+   for the parts the three trade areas share (the .tr-* rules: the split view, list rows, the pane head,
+   their words). Tokens only (src/design/tokens.css), text never below --fs-small, motion only through
+   the --dur-* / --ease-* tokens. Table rules are scoped under .mod-tables (the module layer's root). */
+
+/* ---- shared by tables, spend and counter -------------------------------------------------------- */
+.tr-split { display: grid; grid-template-columns: minmax(18rem, 2fr) minmax(0, 3fr); gap: var(--sp-4); flex: 1 1 0; min-height: 26rem; }
+.tr-list { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.tr-pane { min-height: 0; min-width: 0; overflow: auto; padding: var(--sp-4); border-radius: var(--r-card); scrollbar-width: thin;
+  background: color-mix(in srgb, var(--bg) 35%, transparent); box-shadow: 0 0 0 1px var(--line); display: flex; flex-direction: column; gap: var(--sp-4); }
+.tr-pane > * { flex: none; }
+@media (min-width: 1500px) { .tr-split { grid-template-columns: minmax(22rem, 2fr) minmax(0, 3fr); } }
+
+.tr-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--sp-3); min-width: 0; }
+.tr-row .dot { width: 6px; height: 6px; border-radius: 1px; background: var(--mc, var(--steel)); }
+.tr-row.needs .dot { background: var(--gold); box-shadow: var(--glow-gold); }
+.tr-row .t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tr-row .t > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tr-row .t b { font-weight: var(--fw-semibold); }
+.tr-row .sub { color: var(--muted); font-size: var(--fs-small); }
+.tr-row .sub .cs-who-chip { max-width: 11rem; color: var(--muted); }
+.tr-row .sil { color: var(--dim); font-size: var(--fs-small); }
+.tr-row .num, .tr-pane .num { font-family: var(--num); font-variant-numeric: tabular-nums lining-nums; }
+.tr-row:not(:has(.dot)) { grid-template-columns: minmax(0, 1fr) auto auto; }
+.le-row:has(.tr-row.picked) { background: var(--sel); box-shadow: inset 2px 0 0 var(--signal), 0 0 0 1px var(--sel-line); }
+
+.tr-phead { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); min-width: 0; }
+.tr-phead h2 { margin: 0; flex: 0 1 auto; min-width: 0; max-width: 100%; font: var(--fw-medium) var(--fs-title2)/1.2 var(--display);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.tr-with { color: var(--coral-l); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 18rem; }
+.tr-words { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
+.tr-steps { margin: 0; padding-left: 1.2rem; display: grid; gap: var(--sp-1); color: var(--muted); }
+.tr-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: var(--sp-3); }
+
+/* ---- tables: the pane -------------------------------------------------------------------------- */
+.mod-tables .tb-pane { display: flex; flex-direction: column; gap: var(--sp-4); }
+.mod-tables .tb-detail { display: flex; flex-direction: column; gap: var(--sp-3); }
+.mod-tables .tb-standline { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); color: var(--text); }
+.mod-tables .tb-left { color: var(--muted); font-size: var(--fs-small); }
+.mod-tables .tb-more { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); }
+.mod-tables .tb-need { margin: 0; }
+.mod-tables .tb-gap { margin: var(--sp-2) 0 0; }
+
+/* the price ladder: the limit is a line she drags (keyboard: arrow keys) */
+.mod-tables .tb-ladder { position: relative; height: 22rem; margin: 22px var(--sp-2) 6px 58px; touch-action: none; }
+.mod-tables .tb-ladder-empty { display: grid; place-items: center; margin-left: var(--sp-2); height: auto; min-height: 10rem; }
+.mod-tables .tb-lcol { position: absolute; top: -20px; font-size: var(--fs-small); font-weight: var(--fw-semibold); white-space: nowrap; }
+.mod-tables .tb-lcol.you { left: 0; color: var(--teal-l); }
+.mod-tables .tb-lcol.mid { left: 50%; transform: translateX(-50%); color: var(--dim); }
+.mod-tables .tb-lcol.them { right: 0; color: var(--coral-l); max-width: 30%; overflow: hidden; text-overflow: ellipsis; }
+.mod-tables .tb-gl { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid var(--line); }
+.mod-tables .tb-gl span { position: absolute; left: -56px; width: 50px; text-align: right; transform: translateY(-50%); font: var(--fs-small) var(--num); font-variant-numeric: tabular-nums; color: var(--dim); }
+.mod-tables .tb-band { position: absolute; left: 0; right: 0;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--teal) 7%, transparent), color-mix(in srgb, var(--teal) 18%, transparent) 50%, color-mix(in srgb, var(--teal) 7%, transparent)); }
+.mod-tables .tb-band.draft { background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 6%, transparent), color-mix(in srgb, var(--gold) 15%, transparent) 50%, color-mix(in srgb, var(--gold) 6%, transparent)); }
+.mod-tables .tb-mk { position: absolute; left: 34%; right: 34%; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--market) 16%, transparent) 0 3px, transparent 3px 8px);
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--market) 30%, transparent), inset -1px 0 0 color-mix(in srgb, var(--market) 30%, transparent); }
+.mod-tables .tb-mk span { position: absolute; bottom: 2px; left: 0; right: 0; text-align: center; font-size: var(--fs-small); color: var(--market); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mod-tables .tb-med { position: absolute; left: 34%; right: 34%; height: 0; border-top: 1px dashed color-mix(in srgb, var(--market) 60%, transparent); }
+/* offer chips: a column each side, never cut (scale finding #14: no chip is truncated) */
+.mod-tables .tb-chip { position: absolute; transform: translateY(-50%); display: inline-flex; gap: 5px; align-items: center; height: 20px; padding: 0 8px; border-radius: var(--r-tight);
+  font: var(--fw-semibold) var(--fs-small)/1 var(--num); font-variant-numeric: tabular-nums; white-space: nowrap; z-index: 2; cursor: default; }
+.mod-tables .tb-chip.you { right: 70%; color: var(--teal-l); background: color-mix(in srgb, var(--teal) 14%, var(--panel)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teal) 40%, transparent); }
+.mod-tables .tb-chip.them { left: 70%; color: var(--coral-l); background: color-mix(in srgb, var(--coral) 12%, var(--panel)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--coral) 40%, transparent); }
+.mod-tables .tb-chip.house { left: 70%; color: var(--muted); background: var(--panel); box-shadow: inset 0 0 0 1px var(--line2); }
+.mod-tables .tb-chip.old { opacity: .6; }
+.mod-tables .tb-chip.over { box-shadow: inset 0 0 0 1px var(--refuse); }
+.mod-tables .tb-chip.unverified { box-shadow: none; outline: 1px dashed currentColor; outline-offset: -1px; }
+.mod-tables .tb-chip .s { color: var(--dim); font-weight: var(--fw-regular); }
+.mod-tables .tb-meet { position: absolute; left: 50%; transform: translate(-50%, -50%); z-index: 4; display: flex; align-items: baseline; gap: var(--sp-2); height: 26px; padding: 0 var(--sp-2);
+  max-width: 44%; border-radius: var(--r-tight); border: 2px solid var(--gold); background: color-mix(in srgb, var(--gold) 14%, var(--panel)); font-size: var(--fs-small); line-height: 22px; white-space: nowrap; }
+.mod-tables .tb-meet b { font: var(--fw-bold) var(--fs-title3) var(--num); font-variant-numeric: tabular-nums; color: var(--gold-l); flex: none; }
+.mod-tables .tb-meet .w { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+.mod-tables .tb-meet.no { border-color: var(--dim); background: var(--panel2); }
+.mod-tables .tb-meet.no b { color: var(--dim); text-decoration: line-through; }
+.mod-tables .tb-meet .stamp { font-weight: var(--fw-semibold); color: var(--red-l); flex: none; }
+.mod-tables .tb-fence { position: absolute; left: -58px; right: calc(-1 * var(--sp-2)); height: 0; border-top: 3px solid var(--teal-l); z-index: 5; }
+.mod-tables .tb-fence.draft { border-top: 3px dashed var(--gold-l); }
+.mod-tables .tb-fence.ghost { border-top: 2px dotted var(--teal); z-index: 3; opacity: .9; }
+.mod-tables .tb-fence.ghost span { position: absolute; right: var(--sp-2); top: -18px; padding: 0 4px; background: var(--panel); font: var(--fs-small) var(--num); color: var(--teal-l); }
+.mod-tables .tb-grip { position: absolute; left: 0; top: 0; transform: translateY(-50%); display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px 0 8px; border-radius: var(--r-tight);
+  border: 1px solid var(--teal); background: color-mix(in srgb, var(--teal) 24%, var(--panel)); color: var(--teal-l); font: var(--fw-bold) var(--fs-body) var(--num); font-variant-numeric: tabular-nums;
+  cursor: ns-resize; white-space: nowrap; touch-action: none; box-shadow: var(--shadow-1); }
+.mod-tables .tb-grip:hover { background: color-mix(in srgb, var(--teal) 34%, var(--panel)); }
+.mod-tables .tb-grip .grip { width: 8px; height: 12px; flex: none; opacity: .8; background: radial-gradient(circle, currentColor 1.1px, transparent 1.4px) 0 0 / 4px 4px; }
+.mod-tables .tb-grip .chg { padding: 1px 6px; border-radius: var(--r-tight); background: color-mix(in srgb, var(--gold) 22%, transparent); color: var(--gold-l); }
+.mod-tables .tb-grip.fixed { cursor: default; padding-left: 12px; }
+.mod-tables .tb-grip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mod-tables .tb-fence.draft .tb-grip { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 24%, var(--panel)); color: var(--gold-l); }
+.mod-tables .tb-grip small { font: var(--fw-medium) var(--fs-small) var(--font); color: var(--muted); }
+.mod-tables .tb-nofence { position: absolute; left: 18%; right: 18%; top: 30%; display: grid; gap: var(--sp-2); justify-items: center; text-align: center; padding: var(--sp-3); z-index: 6;
+  border-radius: var(--r-card); border: 1px dashed var(--line2); background: color-mix(in srgb, var(--panel) 92%, transparent); }
+.mod-tables .tb-ladder-empty .tb-nofence { position: static; }
+.mod-tables .tb-ladder.dragging, .mod-tables .tb-ladder.dragging * { cursor: grabbing; user-select: none; }
+
+/* the three steps */
+.mod-tables .tb-steps { display: flex; flex-direction: column; gap: var(--sp-2); }
+.mod-tables .tb-stp { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-body); font-weight: var(--fw-semibold); color: var(--text); }
+.mod-tables .tb-stp .n { width: 20px; height: 20px; flex: none; display: grid; place-items: center; border-radius: var(--r-tight); font: var(--fw-bold) var(--fs-small)/1 var(--num);
+  box-shadow: inset 0 0 0 1px var(--line2); color: var(--dim); }
+.mod-tables .tb-stp.on .n { box-shadow: inset 0 0 0 1.5px var(--gold); color: var(--gold-l); }
+.mod-tables .tb-stp.done .n { background: var(--teal); box-shadow: none; color: var(--on-teal); }
+.mod-tables .tb-stp.off { color: var(--dim); }
+.mod-tables .tb-flds { display: grid; gap: var(--sp-2); }
+.mod-tables .tb-fld { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.mod-tables .tb-fld > .k { width: 9rem; flex: none; color: var(--muted); }
+.mod-tables .tb-fld .ui-field { height: var(--ctl-sm); width: 6rem; text-align: right; }
+.mod-tables .tb-fld .ui-field[aria-invalid="true"] { border-color: var(--refuse); }
+.mod-tables .tb-fld .was { flex: 0 1 auto; min-width: 0; margin-left: auto; font: var(--fs-small) var(--num); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mod-tables .tb-tokens { display: flex; flex-wrap: wrap; gap: 3px; max-width: 16rem; }
+.mod-tables .tb-tokens i { width: 9px; height: 9px; border-radius: 1px; box-shadow: inset 0 0 0 1px var(--teal); }
+.mod-tables .tb-tokens i.u { background: var(--teal); }
+.mod-tables .tb-norange { margin: 0; }
+.mod-tables .tb-check { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); }
+.mod-tables .tb-signrow { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+.mod-tables .tb-signrow .ui-hint { margin: 0; }
+.mod-tables .tb-waitsign { display: grid; gap: var(--sp-2); padding-left: var(--sp-3); box-shadow: inset 2px 0 0 var(--gold); }
+.mod-tables .tb-waitsign p { margin: 0; }
+.ar-tables .tb-edits, .ar-tables .tb-ckl { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
+.ar-tables .tb-edits li { font-weight: var(--fw-semibold); }
+.ar-tables .tb-ckl li { display: flex; gap: var(--sp-2); align-items: baseline; }
+.ar-tables .tb-ckl .mk { width: 12px; flex: none; font-weight: var(--fw-bold); color: var(--ok); }
+.ar-tables .tb-ckl .x .mk { color: var(--red-l); }
+.ar-tables .tb-ckl .i .mk { color: var(--dim); }
+
+/* shop around */
+.tb-sellers { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
+.tb-sellers li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--line); }
+.tb-sellers .t { display: flex; flex-direction: column; min-width: 0; }
+.tb-sellers .sub { color: var(--muted); font-size: var(--fs-small); }
+.mod-tables .tb-group { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+/* the three trade summaries fill the sheet: the cards grow (up to a point), so a small world leaves no dead band */
+.ml.mod-tables:not(.ml-view) > .ml-cards, .ml.mod-spend:not(.ml-view) > .ml-cards, .ml.mod-counter:not(.ml-view) > .ml-cards { flex: 1 1 auto; max-height: 14rem; align-items: stretch; }
+.ml.mod-tables:not(.ml-view) > .ml-cards .ui-sumcard, .ml.mod-spend:not(.ml-view) > .ml-cards .ui-sumcard, .ml.mod-counter:not(.ml-view) > .ml-cards .ui-sumcard { height: auto; }
+.ml.mod-tables:not(.ml-view) > .ml-cards .sc-value, .ml.mod-spend:not(.ml-view) > .ml-cards .sc-value, .ml.mod-counter:not(.ml-view) > .ml-cards .sc-value { font-size: var(--fs-title1); }
+.tr-end { display: inline-flex; align-items: center; gap: var(--sp-2); flex: none; }
+.tr-row .sub .cs-cd { height: auto; padding: 0 var(--sp-1); }
+.tr-split.empty { display: block; min-height: 0; flex: none; }
+.tr-split.fit { flex: none; min-height: 0; align-items: start; }
+.tr-split.fit .le-main { flex: none; min-height: 0; }
+.tr-split.fit .tr-pane { max-height: none; }
+.tr-split.empty .le-main { min-height: 0; }

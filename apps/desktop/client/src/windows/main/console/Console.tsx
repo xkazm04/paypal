@@ -20,11 +20,11 @@ import type { TumblerStatus } from '@bindings/TumblerStatus';
 import { useEvent, useMutation, useNow } from '../../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../../lib/lazy';
 import {
-  BACK_TITLE, BRAND_NAME, CHARTER_TITLE, METERS, BRAND_TITLE, CALM, CRUMBS_LABEL, DETAIL_BACK, LOCK, MINI_WINDOW, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, PLACE, PLACE_TITLE, PLACES_LABEL,
+  BACK_TITLE, BOOK_TODAY, BRAND_NAME, CHARTER_TITLE, METERS, BRAND_TITLE, CALM, CRUMBS_LABEL, DETAIL_BACK, LOCK, MINI_WINDOW, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, PLACE, PLACE_TITLE, PLACES_LABEL,
   SAFE_DEFAULT_LINE, SEAL_RING, sealLabel, SHORTCUTS_LABEL, silenceWords, tabTitle, tabWaiting, TABS_LABEL,
 } from '../../../lib/words';
 import { formatCount } from '../../../lib/data/counts';
-import { readLimits } from '../../../lib/limits';
+import { formatMinor } from '../../../lib/format';
 import { Mark, Seal } from '../../../shared/brand';
 import { MockBadge, ModeBadge } from '../../../shared/honesty';
 import { Glyph, MODULE, MODULES } from '../../../shared/modules';
@@ -50,6 +50,7 @@ import { useWatching } from './ledger';
 import { focusKeyOf, restoreLayer, type LayerMemory } from './memory';
 import { chainOf, isAncestor, moduleOfRoute, parentOf, routeKey, sameLayer, type ChainCtx } from './route';
 import { StaleBanner } from './StaleBanner';
+import { paidTodayText, usePaidToday } from './areas/book/today';
 import './console.css';
 import './find.css';
 import './framework.css';
@@ -428,14 +429,21 @@ function LockButton() {
 function TodayMeters() {
   const settings = useSettings().data;
   const att = useAttention().data;
+  const deals = useDeals().data;
+  const needs = useNeeds();
+  const pt = usePaidToday(att?.exposure, deals, needs);
   if (!settings) return null;
   if (!(settings.meters_available || att?.exposure) || !att) return <span className="cs-chip dashed" title={METERS.noneTitle}>{METERS.none}</span>;
-  const out = readLimits(att.exposure)?.meters.find((m) => m.key === 'out');
+  // Paid out today is money PayPal collected today, never a hold or an agreed payment (scale
+  // finding #9): the same set the Book's "paid out today" counts (console/areas/book/today.ts).
   const sp = spendToday(att.wallet_spend_today_minor, att.wallet_spend_today_currency);
   return (
     <>
-      {out ? (
-        <span className={`tb-meter${out.near ? ' near' : ''}`} title={out.why}><b>{out.value}</b><span>{METERS.paidOut}{out.of ? ` · ${out.of}` : ''}</span></span>
+      {pt ? (
+        <span className={`tb-meter${pt.near ? ' near' : ''}`} data-meter="paid-today"
+          title={BOOK_TODAY.title(pt.held ? formatMinor(pt.held.minor, pt.held.currency) : null, pt.committed ? formatMinor(pt.committed.minor, pt.committed.currency) : null, pt.budget ? formatMinor(pt.budget.minor, pt.budget.currency) : null, pt.limit ? formatMinor(pt.limit.minor, pt.limit.currency) : null)}>
+          <b>{paidTodayText(pt, BOOK_TODAY.nothing)}</b><span>{METERS.paidOut}</span>
+        </span>
       ) : (
         <span className={`tb-meter ${sp.exact ? '' : 'unknown'}`} title={sp.why ?? METERS.spentTitle}><b>{sp.text}</b><span>{METERS.spent}</span></span>
       )}

@@ -1,4 +1,58 @@
-/* Area: spend (rebuild WP3). Owned by the WP3 builder of this area; imported only by
-   console/layers/spend.ts, so no other area's styles live here. Scope every rule under the area's
-   own root class (e.g. `.ar-spend`), tokens only (src/design/tokens.css), text never below
-   --fs-small, motion only through the --dur-* / --ease-* tokens. */
+/* Area: spend (rebuild WP3a). Imported by console/layers/spend.ts (the shared .tr-* parts are in
+   tables.css). Scoped under .mod-spend (the module layer's root) or .ar-spend (its sheets). Tokens only
+   (src/design/tokens.css), text never below --fs-small, motion only through the --dur-* / --ease-* tokens. */
+.mod-spend .sp-pane { display: flex; flex-direction: column; gap: var(--sp-3); }
+.mod-spend .sp-pane .ui-decision { margin: 0; }
+.mod-spend .sp-bigamt { display: flex; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; }
+.mod-spend .sp-bigamt .cs-amt { font-size: var(--fs-title1); }
+.mod-spend .sp-chips { display: inline-flex; flex-wrap: wrap; gap: var(--sp-2); }
+.mod-spend .sp-end { display: inline-flex; align-items: center; gap: var(--sp-3); }
+.mod-spend .sp-rl.fail { color: var(--red-l); }
+.mod-spend .sp-rl.ask { color: var(--gold-l); }
+.mod-spend .sp-rl.pass { color: var(--ok); }
+
+/* the trace: one line per rule */
+.mod-spend .sp-trace { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.mod-spend .sp-trace li { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr) auto; gap: var(--sp-1) var(--sp-2); align-items: baseline; padding: var(--sp-1) 0; border-bottom: 1px solid var(--line); }
+.mod-spend .sp-trace .g { font-weight: var(--fw-bold); color: var(--ok); text-align: center; }
+.mod-spend .sp-trace .fail .g, .mod-spend .sp-trace .fail .why { color: var(--red-l); }
+.mod-spend .sp-trace .you .g { color: var(--gold-l); }
+.mod-spend .sp-trace .unknown .g, .mod-spend .sp-trace .skip .g, .mod-spend .sp-trace .na .g { color: var(--dim); }
+.mod-spend .sp-trace .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.mod-spend .sp-trace .v { color: var(--muted); font-size: var(--fs-small); white-space: nowrap; }
+.mod-spend .sp-trace .why { grid-column: 2 / -1; font-size: var(--fs-small); }
+.mod-spend .linkish { padding: 0; border: 0; background: none; color: var(--teal-l); font: inherit; cursor: pointer; }
+.mod-spend .linkish:hover { text-decoration: underline; }
+.mod-spend .linkish:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mod-spend .sp-clist { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
+.mod-spend .sp-clist li { display: grid; grid-template-columns: 1.2rem minmax(0, 1fr); gap: var(--sp-2); align-items: baseline; }
+.mod-spend .sp-clist .g.fail { color: var(--red-l); } .mod-spend .sp-clist .g.you { color: var(--gold-l); }
+.mod-spend .sp-clist .hit { display: block; font-size: var(--fs-small); }
+.mod-spend .sp-rules { display: flex; flex-direction: column; gap: var(--sp-3); max-width: 60rem; }
+.mod-spend .tr-mono { margin: 0; font-family: var(--mono); font-size: var(--fs-small); color: var(--muted); overflow-wrap: anywhere; }
+
+/* the rule check */
+.mod-spend .sp-gate { display: flex; flex-direction: column; gap: var(--sp-3); flex: 1 1 auto; min-height: 0; }
+.mod-spend .sp-cols { display: grid; grid-template-columns: repeat(var(--sp-n, 6), minmax(0, 1fr)); gap: var(--sp-2); }
+.mod-spend .sp-col { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; min-width: 0; padding: var(--sp-2) var(--sp-3); text-align: left; cursor: pointer;
+  border: 0; border-radius: var(--r-card); background: color-mix(in srgb, var(--bg) 45%, transparent); box-shadow: 0 0 0 1px var(--line); color: var(--text); font: inherit; }
+.mod-spend .sp-col > * { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mod-spend .sp-col small { font-size: var(--fs-small); color: var(--muted); }
+.mod-spend .sp-col .ui-meter { width: 100%; }
+.mod-spend .sp-col:hover { background: var(--sel); }
+.mod-spend .sp-col.on { background: var(--sel); box-shadow: inset 0 2px 0 var(--signal), 0 0 0 1px var(--sel-line); }
+.mod-spend .sp-col:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mod-spend .sp-marks { display: inline-flex; gap: 2px; }
+.mod-spend .sp-marks i { width: 1.1rem; text-align: center; font-style: normal; font-weight: var(--fw-bold); font-size: var(--fs-small); color: var(--ok); }
+.mod-spend .sp-marks i.fail { color: var(--red-l); } .mod-spend .sp-marks i.you { color: var(--gold-l); }
+.mod-spend .sp-marks i.unknown, .mod-spend .sp-marks i.skip, .mod-spend .sp-marks i.na { color: var(--dim); }
+.mod-spend .sp-out { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.mod-spend .sp-rule { margin: 0; color: var(--text); }
+.mod-spend .sp-hits { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
+.mod-spend .sp-hits li { display: grid; gap: 2px; }
+.mod-spend .sp-acts { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+@media (max-width: 1400px) { .mod-spend .sp-marks { display: none; } }
+.mod-spend .sp-gatefoot { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); }
+.mod-spend .sp-gatefoot .ui-hint { margin: 0; }
+.mod-spend .sp-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-1); color: var(--muted); }
+.mod-spend .sp-legend .g { display: inline-block; width: 1.4rem; text-align: center; font-weight: var(--fw-bold); color: var(--text); }
