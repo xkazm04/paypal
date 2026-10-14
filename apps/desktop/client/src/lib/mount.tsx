@@ -2,6 +2,8 @@ import { lazy, StrictMode, Suspense, type ComponentType } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { WindowLabel } from './contract';
 import { initBackend } from './runtime';
+import { DataProvider } from './data/provider';
+import { WindowBoundary } from '../shared/boundary/ErrorBoundary';
 import '../design/base.css';
 import '../design/ui.css';
 
@@ -19,7 +21,12 @@ export async function mount(label: WindowLabel, App: ComponentType): Promise<voi
   if (!el) throw new Error('#root missing');
   createRoot(el).render(
     <StrictMode>
-      <App />
+      {/* The window's read layer (lib/data) and its last-resort boundary (shared/boundary). */}
+      <DataProvider scope={label === 'main' ? 'main' : 'plain'}>
+        <WindowBoundary>
+          <App />
+        </WindowBoundary>
+      </DataProvider>
       {DevInspector && (
         <Suspense fallback={null}>
           <DevInspector />

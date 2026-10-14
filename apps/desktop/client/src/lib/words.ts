@@ -903,3 +903,28 @@ export const SHIELD_WEEK_SUB = 'What the shield checked, and every check side by
 export const SHIELD_SAFE_SUB = 'Payments where the shield found nothing';
 export const SHIELD_COMPARE = 'Compare every check side by side';
 export const SETUP_OPENS_IN_TABLE = 'Opens The Table on its Set up page';
+
+// console-rebuild WP1b (data layer and resilience): the words of a part that could not be shown, a
+// read that is not answering, and a list that may be out of date. Never a code, a command or a stack.
+/** A part of the window failed to draw. The wallet itself is untouched. */
+export const BOUNDARY_TITLE = 'This part could not be shown';
+export const BOUNDARY_TEXT = 'Nothing in your wallet changed. If you do nothing, no money moves.';
+/** The whole window failed to draw. */
+export const BOUNDARY_WINDOW_TITLE = 'This window could not be shown';
+export const BOUNDARY_RETRY = 'Try again';
+/** A part that is still being read. */
+export const LAYER_LOADING = 'Loading…';
+/** The stale banner: the window shows the last answers it had, because a read just failed. */
+export const STALE_TITLE = 'Some of what you see may be out of date';
+export const STALE_TEXT = 'The wallet did not answer just now, so this shows what it said last. If you do nothing, no money moves.';
+/** A list the wallet has not answered for at all yet: nothing is shown rather than a guess. */
+export const UNREAD_TITLE = 'Not available yet';
+export const UNREAD_TEXT = 'The wallet has not answered yet. Nothing is shown rather than a guess. If you do nothing, no money moves.';
+/** Which part is out of date, in the owner's words. */
+export const STALE_PART: Record<'settings' | 'deals' | 'attention' | 'runs' | 'labels', string> = {
+  settings: 'your settings',
+  deals: 'your deals',
+  attention: 'what needs you',
+  runs: 'your agents',
+  labels: 'some deal names',
+};
