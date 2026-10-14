@@ -91,10 +91,7 @@ pub struct RescueOffer {
 }
 
 fn lever_refusal(reason: &str) -> Refusal {
-    Refusal {
-        clause: 8,
-        reason: reason.into(),
-    }
+    Refusal::new(8, reason)
 }
 
 /// The signed fixes clause of a mandate: its levers, max basis points and max discount.

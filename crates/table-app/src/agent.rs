@@ -56,15 +56,12 @@ pub fn refusal_detail(error: &Error) -> Option<String> {
 /// A table-side refusal as an error. Clause 4's rounds and deadline stay mandate refusals (the
 /// same `Refused` the mandate check returns), so every caller sees one shape for them.
 fn refused(code: RefusalCode) -> Error {
-    let clause4 = |reason: &str| {
-        Error::Refused(Refusal {
-            clause: 4,
-            reason: reason.into(),
-        })
+    let clause4 = |reason: &str, cause: RefusalCause| {
+        Error::Refused(Refusal::new(4, reason).caused_by(cause))
     };
     match code {
-        RefusalCode::RoundsExhausted => clause4(MAX_ROUNDS_REACHED),
-        RefusalCode::DeadlinePassed => clause4(DEADLINE_REACHED),
+        RefusalCode::RoundsExhausted => clause4(MAX_ROUNDS_REACHED, RefusalCause::Rounds),
+        RefusalCode::DeadlinePassed => clause4(DEADLINE_REACHED, RefusalCause::Deadline),
         other => Error::Agent(other),
     }
 }
