@@ -7,7 +7,7 @@ html { font-size: var(--fs-body); -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text); font: var(--fw-regular) var(--fs-body)/var(--lh) var(--font);
   -webkit-font-smoothing: antialiased; }
 button, input, select, textarea { font: inherit; color: inherit; }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-radius: var(--r-sm); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }   /* no border-radius here: it would reshape a focused pill or round button */
 /* Headings take programmatic focus (screen readers land on them); that is not a keyboard target. */
 h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus, h3[tabindex="-1"]:focus, [tabindex="-1"]:focus:not(:focus-visible) { outline: none; }
 /* Scrollbars: 2px, in the theme's colours, vertical and horizontal alike (all three windows).

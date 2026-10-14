@@ -57,8 +57,8 @@ export function Shortcuts({ onClose }: { onClose: () => void }) {
         </section>
       ))}
       <section className="sc-group sc-exp">
-        <h3>Experiment (round 2)</h3>
-        <p className="sc-note">A new layout on trial. Switch it off to see that screen as it was in round 1.</p>
+        <h3>New layouts on trial</h3>
+        <p className="sc-note">A new layout on trial. Switch one off to see that screen as it was before.</p>
         <ul>{EXPERIMENTS.map((x) => <ExperimentRow key={x.key} k={x.key} name={x.name} where={x.where} what={x.what} />)}</ul>
       </section>
     </Sheet>

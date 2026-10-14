@@ -1,15 +1,15 @@
 // Book (payments ops cockpit) module page - the "Ledger Lens" (prototype/pages/book/variant-1).
 // Owner: the book agent. Styles: ./book.css, scoped under .mod-book. Pure logic: ./book/model.ts.
 //
-// Simple (default): the answer ("where is my money this week?"), four plain totals (paid out, paid in,
-// on hold, stopped; each currency on its own line, never added together), what needs attention, the
-// Ask box with its quick views, and the recent payments as one simple row each (when, who, what,
-// amount, status, PayPal statement). Detailed: the week's ledger grid whose four money columns carry
-// their own totals, with the statement filter, audit trail and CSV export. A lens (a fixed BookQuery)
-// is drafted, read, then run read-only over the same rows and dims the rows it did not return in the
-// grid. A typed question is read by the wallet itself (./book/understand.ts: a fixed word list, no
-// AI) into the same closed query, shown back as chips the owner can remove or change, and answered
-// the same way; a question it cannot read says which words it did not get. Book only reads.
+// Summary: the answer ("where is my money this week?") and four cards, each opening a detail page
+// (viewNav): 'ledger' (four plain totals, where it went, the week's grid whose money columns carry
+// their own totals, statement filter, audit trail, proof check, CSV), 'outlook' (what waits on a
+// deadline), 'ask' (the Ask box and quick views) and 'recent' (the newest payments). Each currency
+// keeps its own line, never added together. A lens (a fixed BookQuery) is drafted, read, then run
+// read-only over the same rows and dims the rows it did not return in the ledger. A typed question is
+// read by the wallet itself (./book/understand.ts: a fixed word list, no AI) into the same closed
+// query, shown back as chips the owner can remove or change; a question it cannot read says which
+// words it did not get. Book only reads.
 import { Suspense, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { AuditRow } from '@bindings/AuditRow';
@@ -24,15 +24,16 @@ import { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMinor, shortId } from '../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../../lib/lazy';
-import { AUDIT_BROKEN, FAIR_PRICE_NAME, fairPriceWords, heldWords, marketWords, modeWord, moneyCheckNow, moneyCheckPill, receiptWord, stateWord, timeLeftWords } from '../../../lib/words';
+import { AUDIT_BROKEN, BOOK_VIEW, bookMoneyCard, FAIR_PRICE_NAME, fairPriceWords, heldWords, marketWords, modeWord, moneyCheckNow, moneyCheckPill, receiptWord, stateWord, timeLeftWords } from '../../../lib/words';
 import { Glyph } from '../../../shared/modules';
 import { Countdown, ModeBadge, WalletNotice } from '../../../shared/honesty';
 import {
-  AnswerBar, Btn, Chip, DetailToggle, Explainer, Field, Group, Icon, Kv, Loading, PageHead, Popover, Row, Section, Seg, Sheet, Silence, useDetail, useExperiment, useLayer, useLayerCount, useToast, Why,
+  AnswerBar, Btn, Chip, DetailPage, Field, Group, Icon, Kv, Loading, PageHead, Popover, Row, Section, Seg, Sheet, Silence, SummaryCard, useExperiment, useLayer, useLayerCount, useToast, Why,
   type ChipTone, type ExplainerStep, type IconName,
 } from '../../../shared/ui';
 import { amountTone, chipClass, dealTotal, decidedBy, isTerminal, ledgerScope, marketPosition, moneyNow, type ChipClass } from '../logic';
 import { useCpLookup } from '../ui';
+import { registerViewLabels, useModuleRoute } from '../viewNav';
 import { useAllEvidence, useWorld } from '../world';
 import { atRiskOf } from './rescue/model';
 import type { ModuleProps } from './common';
@@ -47,6 +48,8 @@ import { compose, isUnsure, knownParties, lensAsRun, lensQuery, MAX_ASK, underst
 import { MoneyWent } from './book/MoneyWent';
 import { totalWhy, type TotalKey } from './book/where';
 import './book.css';
+
+registerViewLabels('book', { ledger: BOOK_VIEW.ledger, outlook: BOOK_VIEW.outlook, ask: BOOK_VIEW.ask, recent: BOOK_VIEW.recent });
 
 // The proof check sheet is its own chunk, preloaded once the Book page is idle (lib/lazy.ts).
 const ProofCheckSheet = lazyPart(() => import('./book/ProofCheck').then((m) => m.ProofCheckSheet));
@@ -125,8 +128,7 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
   const poll = facts.data?.last_reporting_poll ?? null;
   const ask = useRef<HTMLInputElement>(null);
   const layers = useLayerCount();
-  const [detail, setDetail] = useDetail('book');
-  const detailed = detail === 'detailed';
+  const { view, open } = useModuleRoute();
   const [showAll, setShowAll] = useState(false);
   // Round 2 (docs/ux/ROUND-2.md): bars, the PayPal-agrees meter, question chips and a Why? on each total. Off = round 1.
   const r2 = useExperiment('r2-book');
@@ -219,116 +221,158 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
     toast(<><b>{file}</b> saved · {rows.length} rows, each marked {modes}. Nothing was uploaded.</>, 'ok');
   };
 
-  return (
-    <>
-      <PageHead title="Book" icon={<Glyph module="book" />} focusKey="book"
-        sub={<>All payments · {scope.scope === 'week' ? 'this week' : 'everything on record'} · as of {clockLabel(now)}</>}
-        actions={<>{nav.onSafety ? <Btn sm onClick={nav.onSafety} title="Check every entry on record: who decided each money step, and what your agents were refused">Your safety record</Btn> : null}<DetailToggle value={detail} onChange={setDetail} /></>} />
+  const back = () => open(null);
+  const askBox = (
+    <section className="ui-section ask" aria-label="Ask the book">
+      <form className="askrow" onSubmit={onAsk}>
+        <Field ref={ask} search className="askf" autoComplete="off" aria-label="Ask the book" maxLength={MAX_ASK} placeholder="Ask about your agents’ money, in your own words"
+          title="For example: how much was paid this week, by shop? Enter asks, Esc clears."
+          onKeyDown={(e) => { if (e.key === 'Escape' && phase === 'IDLE' && e.currentTarget.value) { e.preventDefault(); e.stopPropagation(); e.currentTarget.value = ''; } }} />
+        <Btn type="submit" kind="primary">Ask</Btn>
+      </form>
+      {r2 ? <AskChips activeId={lens?.id ?? null} onPick={(id) => { const l = LENSES.find((x) => x.id === id); if (l) pickLens(l); }} /> : (
+      <div className="lenses" role="group" aria-label="Quick views">
+        <span className="ui-hint">Quick views</span>
+        {LENSES.map((l) => (
+          <button key={l.id} type="button" className={`lens ${lens?.id === l.id ? 'on' : ''} ${l.unavailable ? 'unk' : ''}`} aria-pressed={lens?.id === l.id}
+            title={l.unavailable ? `${l.question} · ${l.unavailable}` : l.question} onClick={() => pickLens(l)}>
+            {l.short}
+          </button>
+        ))}
+      </div>
+      )}
+      {phase !== 'IDLE' ? (
+        <Slip phase={phase} asked={asked} lens={lens} res={res} answer={answer} answerError={bq.error} answering={bq.pending} detailed={false} outside={res ? outsideGrid(res.rows, ledger) : 0} onRead={() => setReading(true)} onRun={run} onDiscard={discard}
+          onCsv={() => res && exportRows(res.rows, queryText(res.query), `book-lens-${res.seq}`)} cpName={(k) => cp(k).name}
+          reading={chips ? <ReadingChips reading={chips} ctx={askCtx} onChange={onChips} /> : null}
+          unsure={unsure ? <UnsureLine unsure={unsure} onTry={onTry} /> : null} />
+      ) : null}
+    </section>
+  );
+  const paying = ledger.filter((d) => !checking(d));
+  const moneyOut = moneyList(totals.captured.out);
+  const moneyIn = moneyList(totals.captured.in);
+  const attn = attentionCount(ledger, checking);
+  const newest = [...ledger].sort((a, b) => (b.updated_at ?? b.created_at ?? 0) - (a.updated_at ?? a.created_at ?? 0))[0];
 
-      <WeekAnswer deals={ledger} week={scope.scope === 'week'} checking={checking} />
-      <Explainer id="book" title="How your book works" steps={HOW_BOOK} />
-      {!detailed ? <Totals deals={ledger} why={r2} checking={checking} /> : null}
-
-      <Outlook deals={ledger} label={label} onOpen={(id) => setSel(id)} simple={!detailed} checking={checking} />
-
-      {r2 && !detailed ? <MoneyWent deals={ledger} stmt={evLoading ? () => null : stmt} checkedAt={poll && poll.status === 200 ? clockLabel(poll.at) : null}
-        titleOf={(d) => w.display(d).title} onOpen={(id) => setSel(id)} /> : null}
-
-      <section className="ui-section ask" aria-label="Ask the book">
-        <form className="askrow" onSubmit={onAsk}>
-          <Field ref={ask} search className="askf" autoComplete="off" aria-label="Ask the book" maxLength={MAX_ASK} placeholder="Ask about your agents’ money, in your own words"
-            title="For example: how much was paid this week, by shop? Enter asks, Esc clears."
-            onKeyDown={(e) => { if (e.key === 'Escape' && phase === 'IDLE' && e.currentTarget.value) { e.preventDefault(); e.stopPropagation(); e.currentTarget.value = ''; } }} />
-          <Btn type="submit">Ask</Btn>
-        </form>
-        {r2 ? <AskChips activeId={lens?.id ?? null} onPick={(id) => { const l = LENSES.find((x) => x.id === id); if (l) pickLens(l); }} /> : (
-        <div className="lenses" role="group" aria-label="Quick views">
-          <span className="ui-hint">Quick views</span>
-          {LENSES.map((l) => (
-            <button key={l.id} type="button" className={`lens ${lens?.id === l.id ? 'on' : ''} ${l.unavailable ? 'unk' : ''}`} aria-pressed={lens?.id === l.id}
-              title={l.unavailable ? `${l.question} · ${l.unavailable}` : l.question} onClick={() => pickLens(l)}>
-              {l.short}
-            </button>
-          ))}
-        </div>
-        )}
-        {phase !== 'IDLE' ? (
-          <Slip phase={phase} asked={asked} lens={lens} res={res} answer={answer} answerError={bq.error} answering={bq.pending} detailed={detailed} outside={res ? outsideGrid(res.rows, ledger) : 0} onRead={() => setReading(true)} onRun={run} onDiscard={discard}
-            onCsv={() => res && exportRows(res.rows, queryText(res.query), `book-lens-${res.seq}`)} cpName={(k) => cp(k).name}
-            reading={chips ? <ReadingChips reading={chips} ctx={askCtx} onChange={onChips} /> : null}
-            unsure={unsure ? <UnsureLine unsure={unsure} onTry={onTry} /> : null} />
-        ) : null}
-      </section>
-
-      {!detailed ? (
+  let body: ReactNode;
+  if (view === 'ledger') {
+    body = (
+      <DetailPage title={BOOK_VIEW.ledger} onBack={back} backLabel="Book" icon={<Glyph module="book" />}
+        sub={<>{scope.scope === 'week' ? 'This week' : 'Everything on record'} · as of {clockLabel(now)}</>} info={<HowBook />}>
+        <Totals deals={ledger} why={r2} checking={checking} />
+        {r2 ? <MoneyWent deals={ledger} stmt={evLoading ? () => null : stmt} checkedAt={poll && poll.status === 200 ? clockLabel(poll.at) : null}
+          titleOf={(d) => w.display(d).title} onOpen={(id) => setSel(id)} /> : null}
+        <section className="ui-section" aria-label="The ledger">
+          <div className="gridbox">
+            <div className="ui-toolbar">
+              <span className="gt-title">{scope.scope === 'week' ? 'The week’s ledger' : 'The ledger'}</span>
+              <span className="ui-hint">{visible.length} of {ledger.length} deals{bucketF ? ` · ${BUCKET_LABEL[bucketF].toLowerCase()}` : ''}</span>
+              {lit && res ? <><Chip tone="gold" title="Deals outside the answer are dimmed">{visible.filter((d) => lit.has(d.id)).length} in the answer</Chip>
+                <Btn sm kind="plain" onClick={discard} title="Show every deal again (Esc)">Show all</Btn></> : null}
+              <span className="ui-spacer" />
+              <span className="ui-hint">PayPal statement</span>
+              <Seg label="Filter by PayPal statement" value={stmtF} onChange={setStmtF} options={[
+                { value: 'all', label: <>All <span className="cnt">{ledger.length}</span></> },
+                { value: 'matched', label: <>On statement <span className="cnt">{counts.matched}</span></>, title: STATEMENT_TIP.matched },
+                { value: 'pending_reporting', label: <>Not yet <span className="cnt">{counts.pending_reporting}</span></>, title: STATEMENT_TIP.pending_reporting },
+                ...(counts.unconfirmed && !evLoading ? [{ value: 'unconfirmed' as const, label: <>{UNCONFIRMED_LABEL} <span className="cnt">{counts.unconfirmed}</span></>, title: UNCONFIRMED_TIP }] : []),
+                { value: 'mismatch', label: <>Differs <span className="cnt">{counts.mismatch}</span></>, title: STATEMENT_TIP.mismatch },
+                { value: 'not_applicable', label: <>No payment <span className="cnt">{counts.not_applicable}</span></>, title: STATEMENT_TIP.not_applicable },
+                ...(counts.unknown && !evLoading ? [{ value: 'unknown' as const, label: <>Unknown <span className="cnt">{counts.unknown}</span></>, title: STATEMENT_TIP.unknown }] : []),
+              ]} />
+              <GridHelp />
+              <Btn sm onClick={() => setAuditOpen(true)} title="Everything that happened, newest first. Each entry is linked to the one before it, so a change to an earlier one shows.">Audit trail</Btn>
+              <Btn sm onClick={() => setProofOpen(true)} title="Check a signed proof file someone sent you, or one you saved">Check a proof file</Btn>
+              <Btn sm onClick={() => exportRows(visible, '', 'book-ledger')} title="Save the deals you see as a spreadsheet file">Export CSV</Btn>
+            </div>
+            {ev.error && !ev.map.size ? <WalletNotice error={ev.error} what="PayPal statement" /> : null}
+            <table className="ui-table ledger">
+              <thead>
+                <tr>
+                  <th>Deal</th><th>Status</th>
+                  {BUCKETS.map((b) => <th key={b} className="num" title={BUCKET_SUB[b]}>{BUCKET_LABEL[b]}</th>)}
+                  <th className="c-mkt" title="Where the price sits against similar listings">vs market</th><th title="Does PayPal’s own statement show it?">Statement</th>
+                </tr>
+                <tr className="tots">
+                  <th colSpan={2}><span className="ui-hint" title="Each column has its own total. A hold is not a payment, so they are never added together.">Totals, kept apart</span></th>
+                  {BUCKETS.map((b) => (
+                    <th key={b} className="num">
+                      <button type="button" className="tot" aria-pressed={bucketF === b} onClick={() => setBucketF((x) => (x === b ? null : b))}
+                        title={`${BUCKET_LABEL[b]}: ${BUCKET_SUB[b]} · ${ledger.filter((d) => bucketOf(d) === b && !checking(d)).length} deals. Click to filter.`}>
+                        <MoneyLines out={totals[b].out} inn={totals[b].in} bucket={b} />
+                      </button>
+                    </th>
+                  ))}
+                  <th className="c-mkt" />
+                  <th><span className="ui-hint" title={poll ? `Your PayPal statement was last checked ${clockLabel(poll.at)}${poll.status === 200 ? '' : ` and did not answer (HTTP ${poll.status || 'none'})`}. It can lag up to 3 hours.` : facts.error ? 'When the statement was last checked is not readable here' : 'The statement has not been checked yet'}>
+                    {evLoading ? 'reading…' : poll ? <>checked {clockLabel(poll.at)}{poll.status === 200 ? '' : ' · no answer'}</> : facts.data ? 'not checked yet' : 'can lag 3 h'}</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {!all.length ? <tr><td colSpan={8}><div className="ui-empty">No deals yet. They appear here as soon as an agent proposes one.</div></td></tr>
+                  : !visible.length ? <tr><td colSpan={8}><div className="ui-empty">No deals match this filter. All {ledger.length} are still here.</div></td></tr>
+                  : KIND_ORDER.map((k) => {
+                    const rs = visible.filter((d) => d.kind === k).sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0) || label(a).localeCompare(label(b)));
+                    if (!rs.length) return null;
+                    return [
+                      <tr key={`g-${k}`} className="grp"><td colSpan={8}>{GROUP_NAME[k] ?? kindLabel(k)} · {rs.length}</td></tr>,
+                      ...rs.map((d) => (
+                        <GridRow key={d.id} deal={d} check={ev.map.get(d.id)?.money_check ?? w.needOf(d.id)?.money_check ?? null} label={label(d)} title={w.display(d).title} cpName={cp(d.counterparty).name} statement={evLoading ? null : stmt(d)}
+                          fair={ev.map.get(d.id)?.fair_price ?? null} off={!!lit && !lit.has(d.id)} selected={sel === d.id} onOpen={() => setSel(d.id)} />
+                      )),
+                    ];
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </DetailPage>
+    );
+  } else if (view === 'outlook') {
+    body = (
+      <DetailPage title={BOOK_VIEW.outlook} onBack={back} backLabel="Book" icon={<Glyph module="book" />} sub="What is waiting on a deadline. Counted from your deals, not a forecast.">
+        <Outlook deals={ledger} label={label} onOpen={(id) => setSel(id)} simple={false} checking={checking} />
+      </DetailPage>
+    );
+  } else if (view === 'ask') {
+    body = (
+      <DetailPage title={BOOK_VIEW.ask} onBack={back} backLabel="Book" icon={<Glyph module="book" />} sub="Only reads your deals. Nothing can change.">
+        {askBox}
+      </DetailPage>
+    );
+  } else if (view === 'recent') {
+    body = (
+      <DetailPage title={BOOK_VIEW.recent} onBack={back} backLabel="Book" icon={<Glyph module="book" />}>
         <RecentPayments deals={ledger} all={showAll} onAll={setShowAll} stmt={evLoading ? () => null : stmt} onOpen={(id) => setSel(id)}
           whoOf={(d) => cp(d.counterparty).name} titleOf={(d) => w.display(d).title} checkOf={(d) => ev.map.get(d.id)?.money_check ?? w.needOf(d.id)?.money_check ?? null} />
-      ) : (
-      <section className="ui-section" aria-label="The ledger">
-        <div className="gridbox">
-          <div className="ui-toolbar">
-            <span className="gt-title">{scope.scope === 'week' ? 'The week’s ledger' : 'The ledger'}</span>
-            <span className="ui-hint">{visible.length} of {ledger.length} deals{bucketF ? ` · ${BUCKET_LABEL[bucketF].toLowerCase()}` : ''}</span>
-            {lit && res ? <><Chip tone="gold" title="Deals outside the answer are dimmed">{visible.filter((d) => lit.has(d.id)).length} in the answer</Chip>
-              <Btn sm kind="plain" onClick={discard} title="Show every deal again (Esc)">Show all</Btn></> : null}
-            <span className="ui-spacer" />
-            <span className="ui-hint">PayPal statement</span>
-            <Seg label="Filter by PayPal statement" value={stmtF} onChange={setStmtF} options={[
-              { value: 'all', label: <>All <span className="cnt">{ledger.length}</span></> },
-              { value: 'matched', label: <>On statement <span className="cnt">{counts.matched}</span></>, title: STATEMENT_TIP.matched },
-              { value: 'pending_reporting', label: <>Not yet <span className="cnt">{counts.pending_reporting}</span></>, title: STATEMENT_TIP.pending_reporting },
-              ...(counts.unconfirmed && !evLoading ? [{ value: 'unconfirmed' as const, label: <>{UNCONFIRMED_LABEL} <span className="cnt">{counts.unconfirmed}</span></>, title: UNCONFIRMED_TIP }] : []),
-              { value: 'mismatch', label: <>Differs <span className="cnt">{counts.mismatch}</span></>, title: STATEMENT_TIP.mismatch },
-              { value: 'not_applicable', label: <>No payment <span className="cnt">{counts.not_applicable}</span></>, title: STATEMENT_TIP.not_applicable },
-              ...(counts.unknown && !evLoading ? [{ value: 'unknown' as const, label: <>Unknown <span className="cnt">{counts.unknown}</span></>, title: STATEMENT_TIP.unknown }] : []),
-            ]} />
-            <GridHelp />
-            <Btn sm onClick={() => setAuditOpen(true)} title="Everything that happened, newest first. Each entry is linked to the one before it, so a change to an earlier one shows.">Audit trail</Btn>
-            <Btn sm onClick={() => setProofOpen(true)} title="Check a signed proof file someone sent you, or one you saved">Check a proof file</Btn>
-            <Btn sm onClick={() => exportRows(visible, '', 'book-ledger')} title="Save the deals you see as a spreadsheet file">Export CSV</Btn>
-          </div>
-          {ev.error && !ev.map.size ? <WalletNotice error={ev.error} what="PayPal statement" /> : null}
-          <table className="ui-table ledger">
-            <thead>
-              <tr>
-                <th>Deal</th><th>Status</th>
-                {BUCKETS.map((b) => <th key={b} className="num" title={BUCKET_SUB[b]}>{BUCKET_LABEL[b]}</th>)}
-                <th className="c-mkt" title="Where the price sits against similar listings">vs market</th><th title="Does PayPal’s own statement show it?">Statement</th>
-              </tr>
-              <tr className="tots">
-                <th colSpan={2}><span className="ui-hint" title="Each column has its own total. A hold is not a payment, so they are never added together.">Totals, kept apart</span></th>
-                {BUCKETS.map((b) => (
-                  <th key={b} className="num">
-                    <button type="button" className="tot" aria-pressed={bucketF === b} onClick={() => setBucketF((x) => (x === b ? null : b))}
-                      title={`${BUCKET_LABEL[b]}: ${BUCKET_SUB[b]} · ${ledger.filter((d) => bucketOf(d) === b && !checking(d)).length} deals. Click to filter.`}>
-                      <MoneyLines out={totals[b].out} inn={totals[b].in} bucket={b} />
-                    </button>
-                  </th>
-                ))}
-                <th className="c-mkt" />
-                <th><span className="ui-hint" title={poll ? `Your PayPal statement was last checked ${clockLabel(poll.at)}${poll.status === 200 ? '' : ` and did not answer (HTTP ${poll.status || 'none'})`}. It can lag up to 3 hours.` : facts.error ? 'When the statement was last checked is not readable here' : 'The statement has not been checked yet'}>
-                  {evLoading ? 'reading…' : poll ? <>checked {clockLabel(poll.at)}{poll.status === 200 ? '' : ' · no answer'}</> : facts.data ? 'not checked yet' : 'can lag 3 h'}</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {!all.length ? <tr><td colSpan={8}><div className="ui-empty">No deals yet. They appear here as soon as an agent proposes one.</div></td></tr>
-                : !visible.length ? <tr><td colSpan={8}><div className="ui-empty">No deals match this filter. All {ledger.length} are still here.</div></td></tr>
-                : KIND_ORDER.map((k) => {
-                  const rs = visible.filter((d) => d.kind === k).sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0) || label(a).localeCompare(label(b)));
-                  if (!rs.length) return null;
-                  return [
-                    <tr key={`g-${k}`} className="grp"><td colSpan={8}>{GROUP_NAME[k] ?? kindLabel(k)} · {rs.length}</td></tr>,
-                    ...rs.map((d) => (
-                      <GridRow key={d.id} deal={d} check={ev.map.get(d.id)?.money_check ?? w.needOf(d.id)?.money_check ?? null} label={label(d)} title={w.display(d).title} cpName={cp(d.counterparty).name} statement={evLoading ? null : stmt(d)}
-                        fair={ev.map.get(d.id)?.fair_price ?? null} off={!!lit && !lit.has(d.id)} selected={sel === d.id} onOpen={() => setSel(d.id)} />
-                    )),
-                  ];
-                })}
-            </tbody>
-          </table>
+      </DetailPage>
+    );
+  } else {
+    body = (
+      <>
+        <PageHead title="Book" icon={<Glyph module="book" />} focusKey="book" info={<HowBook />}
+          sub={<>{scope.scope === 'week' ? 'This week' : 'Everything on record'} · as of {clockLabel(now)}</>}
+          actions={nav.onSafety ? <Btn sm onClick={nav.onSafety} title="Check every entry on record: who decided each money step, and what your agents were refused">Your safety record</Btn> : null} />
+        <WeekAnswer deals={ledger} week={scope.scope === 'week'} checking={checking} />
+        <div className="ui-sumcards">
+          <SummaryCard id="ledger" label={bookMoneyCard(scope.scope === 'week')} onOpen={() => open('ledger', 'ledger')}
+            value={moneyOut ? `${moneyOut} paid out` : moneyIn ? `${moneyIn} paid in` : 'No money has moved'}
+            note={moneyOut && moneyIn ? `${moneyIn} paid in` : plural(paying.length, 'payment', 'payments')} />
+          <SummaryCard id="outlook" label={BOOK_VIEW.outlook} onOpen={() => open('outlook', 'outlook')}
+            value={attn ? plural(attn, 'thing waits', 'things wait') : 'Nothing waiting'} chip={attn ? 'Check' : undefined} chipTone="gold"
+            note={attn ? 'holds, links and renewals' : 'No holds, links or renewals'} />
+          <SummaryCard id="ask" label={BOOK_VIEW.ask} onOpen={() => open('ask', 'ask')} value="Ask in your own words" note="Quick views of your week" />
+          <SummaryCard id="recent" label={BOOK_VIEW.recent} onOpen={() => open('recent', 'recent')}
+            value={plural(ledger.length, 'payment', 'payments')} note={newest ? `Latest: ${w.display(newest).title}` : 'None yet'} />
         </div>
-      </section>
-      )}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {body}
 
       {reading && lens ? (
         <Sheet title={phase === 'DRAFTED' || phase === 'BLOCKED' ? 'What this view asks' : 'How this answer was asked'} size="wide" onClose={() => setReading(false)}
@@ -351,6 +395,20 @@ export function Book({ nav }: Pick<ModuleProps, 'nav'>) {
       ) : null}
     </>
   );
+}
+
+/** How the book works, as an info popover (it used to be a block of text on the page). */
+function HowBook() {
+  return (
+    <Why question="How your book works" label="ⓘ" className="bk-info">
+      <ul className="bk-how">{HOW_BOOK.map((x) => <li key={x.title}><b>{x.title}.</b> {x.text}</li>)}</ul>
+    </Why>
+  );
+}
+
+/** Holds to decide, open payment links, failing renewals and payments being checked: the Outlook count. */
+function attentionCount(deals: Deal[], checking: (d: Deal) => boolean): number {
+  return deals.filter((d) => checking(d) || d.state === 'AUTHORIZED' || d.state === 'AWAITING_APPROVAL' || (d.kind === 'rescue' && d.state === 'AGREED')).length;
 }
 
 // ---- Layer 1 pieces --------------------------------------------------------------------------------
@@ -505,7 +563,7 @@ function GridRow({ deal, check, label, title, cpName, statement, fair, off, sele
   return (
     <tr className={`r ${off ? 'off' : ''}`} tabIndex={0} aria-selected={selected} onClick={onOpen} onKeyDown={onKey}
       aria-label={`${title} · ${cpName} · ${wd.text} · ${formatMinor(t.minor, t.currency)}`}>
-      <td className="clip">
+      <td className="clip" title={`${label} · ${title} · ${cpName}`}>
         <span className="mono">{label}</span><span className="day">{day ? dayLabel(day).split(' ')[0] : ''}</span>{title} <span className="cp">· {cpName}</span>
         {deal.mode !== 'sandbox' ? <> <ModeBadge mode={deal.mode} /></> : null}
       </td>
@@ -883,7 +941,8 @@ function AuditSheet({ label, sideOf, onClose }: { label: (id: string) => string;
   const [next, setNext] = useState<number | null | undefined>(undefined);
   const more = async (before: number | null) => {
     const r = await read.run({ before, limit: 50 });
-    if (r) { setRows((x) => [...x, ...r.rows]); setNext(r.next_before); }
+    // A page read twice (the sheet's first read can run twice) must not list a row twice.
+    if (r) { setRows((x) => [...x, ...r.rows.filter((n) => !x.some((o) => o.seq === n.seq))]); setNext(r.next_before); }
   };
   // The whole chain is checked before every page, so a failed check shows no rows at all: say
   // what that means and what to do, and let the owner check again (not a dead end).

@@ -166,3 +166,6 @@
 /* the draft's effect, in a popover from the bar */
 .ctr-pop .imp { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: var(--fs-small); max-width: 360px; }
 .ctr-pop .imp li { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--sp-2); align-items: baseline; color: var(--muted); }
+
+/* calm-nested-ui WP1: the how-it-works popover */
+.mod-counter .ctr-how { margin: 0; padding-left: var(--sp-4, 16px); display: grid; gap: var(--sp-2, 8px); }

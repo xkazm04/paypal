@@ -299,9 +299,9 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
             <h1 className="dr-h">Checking <span className="q">· reading the agreed deal</span></h1>
           </div>
           <div className="dr-twin">
-            <div className="tw l"><span className="twk">You agreed</span><span className="tw-amt skeleton">$ ———</span></div>
+            <div className="tw l"><span className="twk">You agreed</span><span className="tw-amt skeleton" aria-hidden="true">$ ———</span></div>
             <div className="tw-op wait" aria-hidden="true"><MarkIcon mark="…" className="big" /><span className="w">checking</span></div>
-            <div className="tw r"><span className="twk">Being asked</span><span className="tw-amt skeleton">$ ———</span></div>
+            <div className="tw r"><span className="twk">Being asked</span><span className="tw-amt skeleton" aria-hidden="true">$ ———</span></div>
           </div>
           {loadError ? <WalletNotice error={loadError} what="This deal couldn’t be read" message={footerNoticeText('read', loadError)} /> : <p className="dr-line dim">Reading the deal from your wallet…</p>}
         </main>
@@ -391,6 +391,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
             className="dr-h"
             ref={headRef}
             tabIndex={-1}
+            title={`${heading} · ${title}`}
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown') {
                 const first = document.querySelector<HTMLButtonElement>(ROW_SELECTOR);
@@ -488,7 +489,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
               placeholder={expectedName ?? ''}
               aria-describedby="typeNote"
             />
-            <span id="typeNote" className={`st ${namesMatch(typed, expectedName) ? 'ok' : ''}`}>{namesMatch(typed, expectedName) ? <><MarkIcon mark="✓" /> Matches</> : 'exactly as shown'}</span>
+            <span id="typeNote" aria-live="polite" className={`st ${namesMatch(typed, expectedName) ? 'ok' : ''}`}>{namesMatch(typed, expectedName) ? <><MarkIcon mark="✓" /> Matches</> : 'exactly as shown'}</span>
           </label>
         ) : null}
 

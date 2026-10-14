@@ -19,7 +19,8 @@ import './shell.css';
 export type Crumb = { label: string; onClick?: () => void };
 
 export function Shell({ module, crumbs, onHome, onModule, onSheet, onFind, tumbler, children }: {
-  module: Module; crumbs: Crumb[]; onHome: () => void; onModule: (m: Module) => void; onSheet: (t: SheetTab) => void; onFind: () => void;
+  /** The module whose colour and sidebar row show; null on pages that belong to none (Set up). */
+  module: Module | null; crumbs: Crumb[]; onHome: () => void; onModule: (m: Module) => void; onSheet: (t: SheetTab) => void; onFind: () => void;
   tumbler: TumblerStatus | null; children: ReactNode;
 }) {
   const w = useWorld();
@@ -29,7 +30,7 @@ export function Shell({ module, crumbs, onHome, onModule, onSheet, onFind, tumbl
   const insp = useInspectorHost();
   const engine = settings?.selected_engine;
   return (
-    <div className="ui-app shell-app" style={mc(module)}>
+    <div className="ui-app shell-app" style={module ? mc(module) : undefined}>
       <TitleBar>
         <Btn sm onClick={onHome} title="Back to The Table (Esc)">‹ The Table</Btn>
         {/* The back button already says "The Table"; the crumbs start at the module. */}

@@ -25,7 +25,8 @@
 .mod-tables .tb-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--sp-3) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2); }
 .mod-tables .tb-card-h { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
 .mod-tables .tb-card-h h3 { margin: 0; font: var(--fw-semibold) var(--fs-title3)/1.25 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.mod-tables .tb-card-h .with { color: var(--coral-l); white-space: nowrap; }
+.mod-tables .tb-card-h .with { color: var(--coral-l); white-space: nowrap; min-width: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; }
+.mod-tables .tb-card-h .tb-left { flex: none; white-space: nowrap; }
 .mod-tables .tb-left { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: var(--fs-small); white-space: nowrap; }
 
 /* where it stands: your offers, their offers, your limit on one line */
@@ -49,6 +50,9 @@
 .mod-tables .tb-sb-track .mark.draft { background: var(--gold-l); }
 .mod-tables .tb-sb-lab { position: absolute; left: clamp(70px, var(--x, 50%), calc(100% - 70px)); transform: translateX(-50%); white-space: nowrap; font-size: var(--fs-small); color: var(--muted); }
 .mod-tables .tb-sb-lab b { font: var(--fw-bold) var(--fs-body) var(--num); font-variant-numeric: tabular-nums; }
+/* A long name never pushes its label out of the card: the name gives way, the price stays. */
+.mod-tables .tb-sb-lab.them, .mod-tables .tb-sb-lab.you { display: inline-flex; gap: .3em; max-width: 46%; }
+.mod-tables .tb-sb-lab .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .mod-tables .tb-sb-lab.lim { top: 0; color: var(--teal-l); }
 .mod-tables .tb-sb-lab.lim.draft { color: var(--gold-l); }
 .mod-tables .tb-sb-lab.past { top: 2px; left: auto; transform: none; color: var(--red-l); opacity: .75; }
@@ -94,7 +98,7 @@
 .mod-tables .tb-lcol { position: absolute; top: -20px; font-size: var(--fs-small); font-weight: var(--fw-semibold); }
 .mod-tables .tb-lcol.you { left: 0; color: var(--teal-l); }
 .mod-tables .tb-lcol.mid { left: 50%; transform: translateX(-50%); color: var(--dim); }
-.mod-tables .tb-lcol.them { right: 0; color: var(--coral-l); }
+.mod-tables .tb-lcol.them { right: 0; color: var(--coral-l); max-width: 34%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mod-tables .tb-gl { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid var(--line); }
 .mod-tables .tb-gl span { position: absolute; left: -54px; width: 46px; text-align: right; transform: translateY(-50%); font: var(--fs-small) var(--num); font-variant-numeric: tabular-nums; color: var(--dim); }
 .mod-tables .tb-band { position: absolute; left: 0; right: 0;
@@ -183,3 +187,7 @@
 .mod-tables .tb-groups { display: flex; flex-direction: column; gap: var(--sp-3); }
 .mod-tables .tb-group .ui-group { margin: 0; }
 .mod-tables .tb-group-foot { margin: 0; color: var(--muted); font-size: var(--fs-small); }
+
+/* calm-nested-ui WP3 */
+.mod-tables .tb-steps { margin: 0; padding-left: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2); }
+.mod-tables .tb-page > .ui-detail { display: flex; flex-direction: column; gap: var(--sp-3); }

@@ -1,7 +1,7 @@
 // The Main window of The Table: Layer 0 (the Dial), Layer 1 (six modules), Layer 2 (deal detail),
 // plus the owner configuration sheet and Ctrl K find. Routing follows both the `main:route` event
 // and location.hash (#m=<module>, #d=<deal id or label>, #s=<sheet>).
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Module } from '@bindings/Module';
 import type { TumblerStatus } from '@bindings/TumblerStatus';
 import { useEvent } from '../../lib/hooks';
@@ -11,7 +11,7 @@ import { layerCount, useLayerCount } from '../../shared/ui/layers';
 import { DEAL_PARTS, DealView } from './DealView';
 import { HOME_PARTS, Home } from './Home';
 import { shortTitle } from './home/model';
-import { formatHash, parseHash, receiptToast, resolveDealRef, type Route, type SheetTab } from './logic';
+import { formatHash, parseHash, receiptToast, resolveDealRef, stepBack, type Route, type SetupStep, type SheetTab } from './logic';
 import { MODULE_PAGES, ModuleView } from './Modules';
 import { Palette } from './Palette';
 import { safetyInHash, withSafety } from './safety/model';
@@ -19,10 +19,12 @@ import './quit.css';
 import { Shell, type Crumb } from './Shell';
 import { SHEET_TABS, Sheet } from './Sheet';
 import type { PairMode } from './setup/pairing';
+import { SetupPage } from './setup/SetupPage';
 import { Shortcuts } from './Shortcuts';
 import { CounterpartyProvider, Loading, ToastProvider, useToast } from './ui';
+import { useViewLabel, viewLabel, type ModuleRoute } from './viewNav';
 import { useWorld, WorldProvider } from './world';
-import { silenceWords } from '../../lib/words';
+import { SETUP_PAGE_TITLE, silenceWords } from '../../lib/words';
 
 // Not on the first paint (Home, or a deal opened from a link): loaded as their own chunks and
 // preloaded once the window is idle, so opening them later is instant (lib/lazy.ts).
@@ -60,6 +62,9 @@ function Main() {
   const [tumbler, setTumbler] = useState<TumblerStatus | null>(null);
   const routeRef = useRef(route);
   routeRef.current = route;
+  // Entering a detail page remembers the card that opened it and the column's scroll; coming back
+  // to the summary gives both back (focus on the card, then scroll).
+  const restore = useRef<{ card: string | null; scroll: number; pending: boolean }>({ card: null, scroll: 0, pending: false });
   // Open Layer-2 surfaces (src/shared/ui Sheet / Popover / Inspector with a close / Confirm). The
   // layer stack consumes Esc first (window capture phase), so the Esc handler below only runs when
   // none is open; page keys (1-6 here, arrows/Enter/1-6 on Home) pause while one is open.
@@ -89,7 +94,21 @@ function Main() {
     setReturned((x) => ({ module: m, n: (x?.n ?? 0) + 1 }));
     setRoute({ level: 'home' });
   }, [currentModule]);
-  const goModule = useCallback((m: Module) => { setRoute({ level: 'module', module: m }); }, []);
+  const goModule = useCallback((m: Module) => { restore.current.pending = false; setRoute({ level: 'module', module: m }); }, []);
+  const goSetup = useCallback((step?: SetupStep) => { setRoute({ level: 'setup', step: step ?? 'keys' }); }, []);
+  const setView = useCallback((view: string | null, cardId?: string) => {
+    const r = routeRef.current;
+    if (r.level !== 'module') return;
+    const col = document.querySelector<HTMLElement>('main.ui-main');
+    const rs = restore.current;
+    if (view) {
+      const active = document.activeElement instanceof HTMLElement ? document.activeElement.closest<HTMLElement>('[data-card]') : null;
+      rs.card = cardId ?? active?.dataset.card ?? null;
+      rs.scroll = col?.scrollTop ?? 0;
+      rs.pending = false;
+    } else rs.pending = true;
+    setRoute({ level: 'module', module: r.module, ...(view ? { view } : {}) });
+  }, []);
   const goDeal = useCallback((id: string) => { setRoute({ level: 'deal', deal: id }); }, []);
   const openSheet = useCallback((t: SheetTab, pair?: PairMode) => { setPalette(false); setPairStart(pair); setSheet(t); }, []);
   const openSafety = useCallback(() => { setPalette(false); setSafety(true); }, []);
@@ -98,9 +117,37 @@ function Main() {
     if (palette) { setPalette(false); return; }
     if (sheet) { setSheet(null); return; }
     const r = routeRef.current;
-    if (r.level === 'deal') { setRoute(currentModule ? { level: 'module', module: currentModule } : { level: 'home' }); return; }
-    if (r.level === 'module') goHome();
-  }, [palette, sheet, currentModule, goHome]);
+    const to = stepBack(r, currentModule, r.level === 'module' && !!viewLabel(r.module, r.view));
+    if (!to) return;
+    if (to.level === 'home') goHome();
+    else if (to.level === 'module' && r.level === 'module') setView(null);
+    else setRoute(to);
+  }, [palette, sheet, currentModule, goHome, setView]);
+
+  // Back on the summary: focus the opening card and restore the column's scroll once it is there.
+  const viewKey = route.level === 'module' ? `${route.module}/${route.view ?? ''}` : route.level;
+  useLayoutEffect(() => {
+    const col = document.querySelector<HTMLElement>('main.ui-main');
+    const rs = restore.current;
+    if (route.level !== 'module') return;
+    if (route.view) { if (col) col.scrollTop = 0; return; }
+    if (!rs.pending) return;
+    let tries = 0;
+    let raf = 0;
+    const run = () => {
+      const el = rs.card ? document.querySelector<HTMLElement>(`[data-card="${CSS.escape(rs.card)}"]`) : null;
+      if (el || tries++ > 20) {
+        rs.pending = false;
+        if (col) col.scrollTop = rs.scroll;
+        el?.focus({ preventScroll: true });
+        return;
+      }
+      raf = requestAnimationFrame(run);
+    };
+    run();
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewKey]);
 
   // Global keys: Ctrl K find, Esc back one level, 1-6 jump between modules inside the app.
   useEffect(() => {
@@ -141,12 +188,25 @@ function Main() {
     toast(<>{label} · <b>{said.text}</b> · {silenceWords(r.on_silence)}</>, said.tone);
   });
 
+  const openView = route.level === 'module' ? route.view : undefined;
+  const openLabel = useViewLabel(route.level === 'module' ? route.module : 'book', openView);
+  const moduleCrumbs: Crumb[] = route.level === 'module'
+    ? openLabel ? [{ label: MODULE[route.module].name, onClick: () => setView(null) }, { label: openLabel }] : [{ label: MODULE[route.module].name }]
+    : [];
+  const moduleRoute = useMemo<ModuleRoute>(() => ({ view: openLabel ? (openView ?? null) : null, open: setView }), [openLabel, openView, setView]);
+
   // ---- layers ----------------------------------------------------------------------------------
   let layer = null;
   if (route.level === 'module') {
     layer = (
-      <Shell module={route.module} crumbs={[{ label: MODULE[route.module].name }]} onHome={goHome} onModule={goModule} onSheet={openSheet} onFind={() => setPalette(true)} tumbler={tumbler}>
-        <ModuleView module={route.module} nav={{ onDeal: goDeal, onSheet: openSheet, onSafety: openSafety }} />
+      <Shell module={route.module} crumbs={moduleCrumbs} onHome={goHome} onModule={goModule} onSheet={openSheet} onFind={() => setPalette(true)} tumbler={tumbler}>
+        <ModuleView module={route.module} route={moduleRoute} nav={{ onDeal: goDeal, onSheet: openSheet, onSafety: openSafety }} />
+      </Shell>
+    );
+  } else if (route.level === 'setup') {
+    layer = (
+      <Shell module={null} crumbs={[{ label: SETUP_PAGE_TITLE }]} onHome={goHome} onModule={goModule} onSheet={openSheet} onFind={() => setPalette(true)} tumbler={tumbler}>
+        <SetupPage step={route.step ?? 'keys'} onStep={goSetup} onDone={goHome} />
       </Shell>
     );
   } else if (route.level === 'deal') {
@@ -158,8 +218,8 @@ function Main() {
       <Shell module={m} crumbs={crumbs} onHome={goHome} onModule={goModule} onSheet={openSheet} onFind={() => setPalette(true)} tumbler={tumbler}>
         {deal ? <DealView deal={deal} onModule={() => goModule(m)} />
           : w.deals.error ? <div className="empty">Your deals couldn’t be loaded right now. Nothing has changed with your money.</div>
-            : !deals ? <Loading what="the deal" />
-              : <div className="empty">This deal isn’t here (<span className="mono">{route.deal}</span>). <button className="linkbtn" onClick={goHome}>Back to The Table</button></div>}
+            : !deals || (!deal && !w.displaysReady && !deals.some((d) => d.id === route.deal)) ? <Loading what="the deal" />
+              : <div className="empty">This deal isn’t here any more. <button type="button" className="linkbtn" onClick={goHome}>Back to The Table</button></div>}
       </Shell>
     );
   }

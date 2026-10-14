@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Clause } from '@bindings/Clause';
-import { bandMissingSide, refusalWords, ruleProblems } from './mandateDraft';
+import { bandInputProblem, bandMissingSide, refusalWords, ruleProblems } from './mandateDraft';
 
 const T = 1_800_000_000;
 const usd = (major: number) => ({ minor: Math.round(major * 100), currency: 'USD' as const });
@@ -50,5 +50,16 @@ describe('a band change that clears the side the deal uses', () => {
   it('is quiet when the side has its bound', () => {
     expect(bandMissingSide('buyer', null, usd(340))).toBeNull();
     expect(bandMissingSide('seller', usd(58), null)).toBeNull();
+  });
+});
+
+describe('why Sign new range is switched off', () => {
+  it('says which amount cannot be read, or that the range is upside down, or that it is empty', () => {
+    expect(bandInputProblem(undefined, null)).toContain('least');
+    expect(bandInputProblem(null, undefined)).toContain('most');
+    expect(bandInputProblem(null, null)).toContain('at least one');
+    expect(bandInputProblem(usd(300), usd(200))).toContain('can’t be higher');
+    expect(bandInputProblem(usd(100), usd(200))).toBeNull();
+    expect(bandInputProblem(null, usd(200))).toBeNull();
   });
 });

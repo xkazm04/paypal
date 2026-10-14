@@ -44,7 +44,7 @@ export function QuitSheet({ onClose }: { onClose: () => void }) {
       )}>
       {view ? <p className="q-lead">{view.note}</p> : null}
       {summary.error && !s ? <WalletNotice error={summary.error} what="What happens when you quit" /> : null}
-      {!s && !summary.error ? <p className="ui-hint">Checking your open deals…</p> : null}
+      {!s && !summary.error ? <p className="ui-hint" role="status">Checking your open deals…</p> : null}
       {state === 'changed' && confirm.error?.code === 'INVALID' ? <p className="q-changed" role="status">Something changed since this opened. Check the list again before you quit.</p>
         : confirm.error ? <WalletNotice error={confirm.error} what="Quit" /> : null}
       {view ? (

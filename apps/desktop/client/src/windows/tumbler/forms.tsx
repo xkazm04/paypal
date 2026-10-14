@@ -13,19 +13,18 @@ import type { DealDisplay } from '../../lib/pending';
 import type { WalletError } from '../../lib/contract';
 import { clockLabel, formatMinor, shortId } from '../../lib/format';
 import { readLimits } from '../../lib/limits';
-import { FIRST_RUN_TITLE, houseWords, SAFETY_PROMISE, START_STEP, shieldRuleWord, timeLeftWords, type StartStepKey } from '../../lib/words';
+import { FIRST_RUN_TITLE, houseWords, SAFETY_PROMISE, SETUP_OPENS_IN_TABLE, START_STEP, shieldRuleWord, timeLeftWords, type StartStepKey } from '../../lib/words';
 import type { GettingStarted } from '../../lib/firstRun';
 import { useQuery } from '../../lib/hooks';
 import { ModeBadge } from '../../shared/honesty';
 import { MODULE } from '../../shared/modules';
 import { Btn, Chip, Hint, Hourglass, Kv, Meter, Popover } from '../../shared/ui';
 import {
-  MODE_SHORT, approveWindow, cardActions, cardClock, cardQuestion, cardWhy, hhmm, moneyCheckEnded, ladderCaption, ladderFill, ringFill, rung, spendMeter, splitHeadline,
+  MODE_SHORT, MODE_TEXT, approveWindow, cardActions, cardClock, cardQuestion, cardWhy, hhmm, moneyCheckEnded, ladderCaption, ladderFill, ringFill, rung, spendMeter, splitHeadline,
   type CardAction, type Handoff, type Ticker,
 } from './logic';
 import { WALK_AWAY_HOURS, walkAway, type WalkAway } from './logic';
 
-const MODE_TEXT: Record<Mode, string> = { sandbox: 'Sandbox', replay: 'Replay', scripted_engine: 'Practice agent' };
 
 // ------------------------------------------------------------------------------- small parts
 
@@ -81,7 +80,7 @@ export function Notice({ failure }: { failure: { what: string; error: WalletErro
   const avail = failure.error.isAvailabilityState;
   return (
     <div className={`t-fail${avail ? ' avail' : ''}`} role={avail ? 'status' : 'alert'}>
-      <span className="code" title={failure.error.code}>{failure.error.isAvailabilityState ? 'Not available' : 'Problem'}</span>
+      <span className="code">{failure.error.isAvailabilityState ? 'Not available' : 'Problem'}</span>
       <span className="msg"><b>{failure.what}:</b> {failure.error.message}</span>
     </div>
   );
@@ -95,7 +94,7 @@ function ladderLine(deadline: number | null, now: number, hold: boolean, checkin
   return `${cap} · until ${deadline - now > 20 * 3600 ? clockLabel(deadline) : hhmm(deadline)}`;
 }
 
-const LADDER_HELP = 'The ring starts breathing 2 hours before the deadline, the card comes back by 15 minutes, then the safe default runs';
+const LADDER_HELP = 'The ring glows softly from 2 hours before the deadline and the card comes back at 15 minutes. At the deadline the safe default runs.';
 
 /** The attention ladder for one deadline as a 2 px rule with the 15-minute and 2-hour rungs
  *  ticked. No clock is drawn dashed (unknown), never empty. */
@@ -210,7 +209,7 @@ function CardDetails({ item, now, anchor, actions, pending, onAction, onClose }:
           {lapse ? <Btn sm kind="plain" onClick={act('let_lapse')} title={ACTION_TITLE.let_lapse}>{lapse.label}</Btn> : null}
         </div>
       ) : null}
-      <Hint className="t-pop-hint">{hold ? 'No pay button exists for a hold. ' : ''}Counterparty notes stay quarantined in The Table and the approval window.</Hint>
+      <Hint className="t-pop-hint">{hold ? 'No pay button exists for a hold. ' : ''}Anything the other side wrote is kept out of this window. You can read it in The Table, marked as unchecked.</Hint>
     </Popover>
   );
 }
@@ -260,7 +259,7 @@ export const CardForm = forwardRef(function CardForm(p: CardProps, ref: Ref<HTML
     line3 = <p className="c-ask" id={askId}>Walk away from this deal{item.counterparty ? ` with ${houseWords(item.counterparty)}` : ''}? Your wallet tells them you are out · no money moves.</p>;
     line4 = (
       <div className="c-acts" role="group" aria-label="Confirm withdraw" aria-describedby={askId}>
-        <Btn kind="danger" sm data-autofocus onClick={() => p.onConfirm(true)} disabled={p.busy}>Withdraw</Btn>
+        <Btn kind="danger" sm data-autofocus onClick={() => p.onConfirm(true)} disabled={p.busy}>{p.busy ? 'Withdrawing…' : 'Withdraw'}</Btn>
         <Btn sm onClick={() => p.onConfirm(false)}>Keep</Btn>
       </div>
     );
@@ -362,7 +361,7 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
             </Btn>
           ) : null}
           <Btn kind="plain" sm className={`t-ico${p.dnd ? ' on' : ''}`} onClick={p.onDnd} aria-pressed={p.dnd}
-            aria-label="Do not disturb" title={p.dnd ? 'Do not disturb is on · no notification, no breathing; the ring and count stay' : 'Do not disturb'}>
+            aria-label="Do not disturb" title={p.dnd ? 'Do not disturb is on · click to turn it off' : 'Do not disturb · no notifications and no glowing; the ring and count stay'}>
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 9.6A5.4 5.4 0 0 1 6.4 3a5.4 5.4 0 1 0 6.6 6.6z" fill="currentColor" /></svg>
           </Btn>
         </span>
@@ -386,6 +385,8 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
               </button>
             );
           })
+        ) : !s ? (
+          <div className="ui-empty s-empty" role="status">Reading what is open…</div>
         ) : (
           <div className="ui-empty s-empty">Nothing needs you. Your agents keep working inside your rules.</div>
         )}
@@ -454,7 +455,7 @@ export const StackForm = forwardRef(function StackForm(p: StackProps, ref: Ref<H
           <WalkDetails walk={walk} />
         </Popover>
       ) : pop ? (
-        <Popover anchor={pop.el} onClose={() => setPop(null)} className="t-pop" title={pop.which === 'stopped' ? 'Stopped today · 0 PayPal calls' : 'In motion · no decision needed'}>
+        <Popover anchor={pop.el} onClose={() => setPop(null)} className="t-pop" title={pop.which === 'stopped' ? 'Stopped today · nothing was paid' : 'In motion · no decision needed'}>
           {pop.which === 'stopped' ? (
             <p className="t-pop-p">
               {s && s.stopped_today > 0
@@ -655,7 +656,7 @@ const FirstRunWelcome = forwardRef(function FirstRunWelcome(p: {
           return (
             <li key={s.key} className={`s-${s.state}`} data-tour={`step-${s.key}`}>
               <button type="button" className="fr-step" disabled={done} onClick={() => p.onStep?.(s.key)}
-                title={done ? START_STEP[s.key].done : START_STEP[s.key].where}>
+                title={done ? START_STEP[s.key].done : SETUP_OPENS_IN_TABLE}>
                 <span className="fr-n" aria-hidden="true">{done ? '✓' : s.n}</span>
                 <span className="fr-t">{done ? START_STEP[s.key].done : START_STEP[s.key].title}</span>
               </button>
@@ -668,7 +669,7 @@ const FirstRunWelcome = forwardRef(function FirstRunWelcome(p: {
         <div className="w-ok">
           <span className="ui-hint" aria-hidden="true" />
           <Btn kind="plain" sm onClick={p.onOk} title="Ctrl Shift Space summons or hides me. I never take your keyboard.">Later</Btn>
-          {next ? <Btn kind="gold" sm onClick={() => p.onStep?.(next)} title={START_STEP[next].where}>{START_STEP[next].act}{next === 'practice' || next === 'engine' ? '' : ' ↗'}</Btn> : null}
+          {next ? <Btn kind="gold" sm onClick={() => p.onStep?.(next)} title={SETUP_OPENS_IN_TABLE}>{START_STEP[next].act}</Btn> : null}
         </div>
       </div>
     </div>

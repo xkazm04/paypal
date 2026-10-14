@@ -8,6 +8,7 @@ import { MODULES } from '../../shared/modules';
 import { Dot, Field, trapTab, useLayer, useModalFocus, useReturnFocus } from '../../shared/ui';
 import { stateLabel, type SheetTab } from './logic';
 import { useCpLookup } from './ui';
+import { noMatch } from './paletteCopy';
 import { useWorld } from './world';
 import './palette.css';
 
@@ -68,7 +69,7 @@ export function Palette({ onClose, onModule, onDeal, onSheet, onSafety, onQuit }
         </div>
         <div id="pal-list" role="listbox" aria-label="Results" className="pal-list" ref={list}>
           {items.map((i, k) => (
-            <div key={i.key} data-k={i.key}>
+            <div key={i.key} data-k={i.key} role="presentation">
               {k === 0 || items[k - 1]?.group !== i.group ? <div className="pal-g" role="presentation">{GROUP_TEXT[i.group]}</div> : null}
               <div id={`pal-${i.key}`} role="option" aria-selected={k === cur} className={`ui-row pal-row ${k === cur ? 'on' : ''}`}
                 onMouseMove={() => { if (k !== cur) setSel(k); }} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(i)}>
@@ -79,7 +80,7 @@ export function Palette({ onClose, onModule, onDeal, onSheet, onSafety, onQuit }
               </div>
             </div>
           ))}
-          {!items.length ? <div className="ui-empty">Nothing matches.</div> : null}
+          {!items.length ? <div className="ui-empty" role="status">{noMatch(q)}</div> : null}
         </div>
         <div className="pal-f ui-hint"><span><span className="kbd">↑</span> <span className="kbd">↓</span> move</span><span><span className="kbd">Enter</span> open</span><span><span className="kbd">Esc</span> close</span><span className="ui-spacer" /><span>{items.length} shown</span></div>
       </div>

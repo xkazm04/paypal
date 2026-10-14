@@ -333,28 +333,65 @@ export function splitHeadline(headline: string, amount: string): [string, string
 // ---- routing ----------------------------------------------------------------------------------
 
 export type SheetTab = 'settings' | 'pairing' | 'mandates';
+/** The five in-app setup steps (#s=setup&step=...), in order. The first is the fallback. */
+export const SETUP_STEPS = ['keys', 'rules', 'practice', 'agent', 'unlock'] as const;
+export type SetupStep = (typeof SETUP_STEPS)[number];
 export type Route =
   | { level: 'home' }
-  | { level: 'module'; module: Module }
-  | { level: 'deal'; deal: string };
+  /** `view` is a nested detail page of the module (absent = the summary page). */
+  | { level: 'module'; module: Module; view?: string }
+  | { level: 'deal'; deal: string }
+  /** The in-app Set up page; `step` absent = the first step. */
+  | { level: 'setup'; step?: SetupStep };
+
+const isSetupStep = (v: string | null): v is SetupStep => !!v && (SETUP_STEPS as readonly string[]).includes(v);
+/** A view key is a short slug; anything else is dropped so the hash can never carry free text. */
+const VIEW_KEY = /^[a-z][a-z0-9-]{0,39}$/;
 
 export function parseHash(hash: string): { route: Route; sheet: SheetTab | null } {
   const params = new URLSearchParams(hash.replace(/^#/, ''));
   const m = params.get('m');
   const d = params.get('d');
   const s = params.get('s');
+  const v = params.get('v');
   const sheet: SheetTab | null = s === 'settings' || s === 'pairing' || s === 'mandates' ? s : null;
   if (d) return { route: { level: 'deal', deal: d }, sheet };
-  if (m && (MODULE_KEYS as readonly string[]).includes(m)) return { route: { level: 'module', module: m as Module }, sheet };
+  if (s === 'setup') {
+    const step = params.get('step');
+    return { route: { level: 'setup', step: isSetupStep(step) ? step : 'keys' }, sheet: null };
+  }
+  if (m && (MODULE_KEYS as readonly string[]).includes(m)) {
+    const module = m as Module;
+    return { route: v && VIEW_KEY.test(v) ? { level: 'module', module, view: v } : { level: 'module', module }, sheet };
+  }
   return { route: { level: 'home' }, sheet };
 }
 
 export function formatHash(route: Route, sheet: SheetTab | null): string {
   const parts: string[] = [];
-  if (route.level === 'module') parts.push(`m=${route.module}`);
+  if (route.level === 'setup') return `#s=setup&step=${route.step ?? 'keys'}`;
+  if (route.level === 'module') {
+    parts.push(`m=${route.module}`);
+    if (route.view) parts.push(`v=${encodeURIComponent(route.view)}`);
+  }
   if (route.level === 'deal') parts.push(`d=${encodeURIComponent(route.deal)}`);
   if (sheet) parts.push(`s=${sheet}`);
   return parts.length ? `#${parts.join('&')}` : '';
+}
+
+/**
+ * Where Esc / the back button goes from `route` (overlays are handled before this): a module's
+ * detail page -> its summary, a module or setup -> home, a deal -> its module (or home).
+ * `knownView` says whether the route's view is a real page (an unknown one already shows the
+ * summary, so it steps straight on). Null at home.
+ */
+export function stepBack(route: Route, dealModule: Module | null, knownView = true): Route | null {
+  switch (route.level) {
+    case 'home': return null;
+    case 'setup': return { level: 'home' };
+    case 'deal': return dealModule ? { level: 'module', module: dealModule } : { level: 'home' };
+    case 'module': return route.view && knownView ? { level: 'module', module: route.module } : { level: 'home' };
+  }
 }
 
 /** Resolve a deal reference from the hash: a ULID, or a display label like "D-0193". */

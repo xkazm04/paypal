@@ -89,7 +89,7 @@ pub struct Placement {
     pub side: Side,
     pub valign: VAlign,
 }
-#[derive(Debug, Error)]
+#[derive(Debug, PartialEq, Eq, Error)]
 #[error("invalid window rectangle or scale factor")]
 pub struct PlacementError;
 
@@ -131,6 +131,22 @@ pub fn approval_rect(opener: Rect, work: Rect) -> Result<Rect, PlacementError> {
     Ok(Rect {
         x,
         y: opener.y.clamp(work.y, work.y + work.height - height),
+        width,
+        height,
+    })
+}
+
+/// The approval window docked over its opener (the main window): centred on it, then clamped to the
+/// opener's monitor. Used when the opener is on screen, so the review reads as part of the app.
+pub fn approval_docked_rect(opener: Rect, work: Rect) -> Result<Rect, PlacementError> {
+    if !opener.valid() || !work.valid() {
+        return Err(PlacementError);
+    }
+    let width = APPROVAL_SIZE.0.min(work.width);
+    let height = APPROVAL_SIZE.1.min(work.height);
+    Ok(Rect {
+        x: (opener.x + (opener.width - width) / 2.0).clamp(work.x, work.x + work.width - width),
+        y: (opener.y + (opener.height - height) / 2.0).clamp(work.y, work.y + work.height - height),
         width,
         height,
     })
@@ -265,6 +281,40 @@ mod tests {
             width: w,
             height: h,
         }
+    }
+    #[test]
+    fn docked_approval_centres_on_main_and_stays_on_the_monitor() {
+        let work = rect(0.0, 0.0, 1920.0, 1040.0);
+        assert_eq!(
+            approval_docked_rect(rect(200.0, 100.0, 1200.0, 800.0), work),
+            Ok(rect(428.0, 170.0, 744.0, 660.0))
+        );
+        assert_eq!(
+            approval_docked_rect(rect(1500.0, 800.0, 800.0, 400.0), work),
+            Ok(rect(1920.0 - 744.0, 1040.0 - 660.0, 744.0, 660.0))
+        );
+        assert_eq!(
+            approval_docked_rect(rect(-300.0, -200.0, 600.0, 400.0), work),
+            Ok(rect(0.0, 0.0, 744.0, 660.0))
+        );
+    }
+    #[test]
+    fn docked_approval_follows_a_second_monitor_and_shrinks_to_a_small_one() {
+        let second = rect(1920.0, 0.0, 1280.0, 700.0);
+        let placed = approval_docked_rect(rect(2000.0, 20.0, 1100.0, 640.0), second);
+        assert_eq!(
+            placed.map(|r| (r.x >= 1920.0, r.x + r.width <= 3200.0)),
+            Ok((true, true))
+        );
+        let small = rect(0.0, 0.0, 600.0, 500.0);
+        assert_eq!(
+            approval_docked_rect(rect(0.0, 0.0, 500.0, 400.0), small),
+            Ok(rect(0.0, 0.0, 600.0, 500.0))
+        );
+        assert_eq!(
+            approval_docked_rect(rect(f64::NAN, 0.0, 500.0, 400.0), small),
+            Err(PlacementError)
+        );
     }
     #[test]
     fn main_start_size_is_capped_and_centered_on_each_scale() {

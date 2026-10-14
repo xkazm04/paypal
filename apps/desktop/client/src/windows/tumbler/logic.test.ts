@@ -5,7 +5,7 @@ import type { AttentionSnapshot } from '@bindings/AttentionSnapshot';
 import {
   FORM_SIZE, NO_HANDOFF, SECONDS, approveWindow, arrivals, cardActions, cardClock, cardQuestion, canReview, handoffEnded, nextFocus, puckLook, puckTarget,
   ackTicker, arrivalTicker, arrivalsTicker, snoozeTicker, plainItems,
-  cardWhy, dndPreferences, ladderCaption, ladderFill, ringFill, receiptTicker, restForm, rung, rungNotice, snoozeEligible, sortItems, spendMeter, splitHeadline, stateChip, tickerMayShow,
+  cardWhy, puckName, dndPreferences, ladderCaption, ladderFill, ringFill, receiptTicker, restForm, rung, rungNotice, snoozeEligible, sortItems, spendMeter, splitHeadline, stateChip, tickerMayShow,
 } from './logic';
 
 const NOW = 1_800_000_000;
@@ -401,5 +401,17 @@ describe('shield slice 2: a paused card says which check paused it', () => {
     expect(why).toBe('A scam check paused it: the price is more than 1.4 × the usual price. It can’t be paid until you decide.');
     expect(cardWhy(item({ deal_id: 'g', shield_rule: 'price_over_market' }))[0]).toBe('It needs your decision before it can go ahead.');
     expect(cardWhy(item({ deal_id: 'n', kind: 'hold', clause: null }))[0]).toBe('It is paused, so it can’t be paid until you decide.');
+  });
+});
+
+describe('puckName', () => {
+  it('says the mode in words, never the raw key', () => {
+    const n = puckName({ needs: 1, headline: 'Countersign $329.00', inMotion: 2, mode: 'scripted_engine', locked: true });
+    expect(n).toBe('The Tumbler · 1 needs you · Countersign $329.00 · Practice agent · locked');
+    expect(n).not.toContain('scripted_engine');
+  });
+  it('is calm when nothing needs you', () => {
+    expect(puckName({ needs: 0, headline: null, inMotion: 3, mode: null, locked: false })).toBe('The Tumbler · nothing needs you · 3 in motion');
+    expect(puckName({ needs: 2, headline: null, inMotion: 0, mode: 'sandbox', locked: false })).toBe('The Tumbler · 2 need you · Sandbox');
   });
 });

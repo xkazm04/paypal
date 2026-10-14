@@ -8,7 +8,9 @@
 import { Suspense, useState } from 'react';
 import { ModeBadge } from '../../shared/honesty';
 import { lazyPart } from '../../lib/lazy';
-import { Chip, Sheet as UiSheet, useDetail } from '../../shared/ui';
+import { SETUP_SETTINGS_LINK } from '../../lib/words';
+import { Btn, Chip, Sheet as UiSheet, useDetail } from '../../shared/ui';
+import { setupHash } from './home/Start';
 import type { SheetTab } from './logic';
 import '../../shared/ownerKey.css';
 import './setup/setup.css';
@@ -36,7 +38,7 @@ export function Sheet({ tab, pair, onTab, onClose }: { tab: SheetTab; /** Connec
   const [pairMode, setPairMode] = useState<PairMode>(pair ?? 'create');
   // Settings opens on the checklist; the circuit diagram is behind Detailed (the sheet is wider then).
   const [detail, setDetail] = useDetail('settings');
-  const title = tab === 'settings' ? (s?.first_run ? 'Getting started' : 'Settings') : tab === 'pairing' ? 'Connect a wallet' : 'Agent rules';
+  const title = tab === 'settings' ? ('Settings') : tab === 'pairing' ? 'Connect a wallet' : 'Agent rules';
   const head = (
     <div className="setup-head">
       <div className="ui-seg" role="tablist" aria-label="Settings sections">
@@ -52,7 +54,12 @@ export function Sheet({ tab, pair, onTab, onClose }: { tab: SheetTab; /** Connec
     // A stray click on the scrim must not drop a pairing code that is being polled.
     <UiSheet title={title} onClose={onClose} head={head} dismissOnScrim={tab !== 'pairing'} className={`setup-sheet tab-${tab}${tab === 'settings' ? ` det-${detail}` : ''}`}>
       <Suspense fallback={<Loading what={tab === 'settings' ? 'settings' : tab === 'pairing' ? 'connections' : 'agent rules'} />}>
-        {tab === 'settings' ? <SetupCircuit onPair={(m) => { setPairMode(m); onTab('pairing'); }} onMandates={() => onTab('mandates')} detail={detail} setDetail={setDetail} />
+        {tab === 'settings' && s?.first_run ? (
+          <div className="setup-link">
+            <p>{SETUP_SETTINGS_LINK.text}</p>
+            <Btn kind="gold" onClick={() => { location.hash = setupHash(); }}>{SETUP_SETTINGS_LINK.act}</Btn>
+          </div>
+        ) : tab === 'settings' ? <SetupCircuit onPair={(m) => { setPairMode(m); onTab('pairing'); }} onMandates={() => onTab('mandates')} detail={detail} setDetail={setDetail} />
           : tab === 'pairing' ? <PairingDesk mode={pairMode} setMode={setPairMode} />
             : <MandatesList />}
       </Suspense>

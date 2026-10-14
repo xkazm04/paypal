@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { connectionFacts, engineChosen, gettingStarted, rulesInForce, settingsFacts, START_ORDER, type StartFacts } from './firstRun';
+import { connectionFacts, engineChosen, gettingStarted, leaveSetupIntent, rulesInForce, settingsFacts, SETUP_STEP_OF, START_ORDER, takeSetupIntent, type StartFacts } from './firstRun';
 import { FIRST_RUN_TITLE, KEEP_PRACTICE_AGENT, SAFETY_PROMISE, START_STEP } from './words';
 import type { SettingsSnapshot } from '@bindings/SettingsSnapshot';
 import { buildFirstRunState } from '../mock/firstRun';
@@ -176,5 +176,30 @@ describe('first-run steps from settings, signed rules, connections and the agent
         expect(owner.steps[3]).toEqual(home.steps[3]);
       }
     });
+  });
+});
+
+describe('the Set up page hand-off note', () => {
+  const mem = () => {
+    const m = new Map<string, string>();
+    return { setItem: (k: string, v: string) => void m.set(k, v), getItem: (k: string) => m.get(k) ?? null, removeItem: (k: string) => void m.delete(k) };
+  };
+  it('maps each getting-started step to a Set up step', () => {
+    expect(START_ORDER.map((k) => SETUP_STEP_OF[k])).toEqual(['keys', 'rules', 'practice', 'agent']);
+  });
+  it('is taken once, and only while fresh', () => {
+    const s = mem();
+    leaveSetupIntent('rules', 1000, s);
+    expect(takeSetupIntent(2000, s)).toBe('rules');
+    expect(takeSetupIntent(2000, s)).toBeNull();
+    leaveSetupIntent('keys', 1000, s);
+    expect(takeSetupIntent(1000 + 60_000, s)).toBeNull();
+  });
+  it('ignores a note it cannot read', () => {
+    const s = mem();
+    s.setItem('table.setup-intent', '{"step":"nope","at":1}');
+    expect(takeSetupIntent(2, s)).toBeNull();
+    s.setItem('table.setup-intent', 'not json');
+    expect(takeSetupIntent(2, s)).toBeNull();
   });
 });

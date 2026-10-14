@@ -40,35 +40,54 @@ export function displaysToRead(deals: readonly Deal[], cache: ReadonlyMap<string
 
 type Entry = { token: string | null; display: DealDisplay };
 
+/** How many reads go out before the answers so far are shown. A ledger of hundreds of deals used to
+ *  show every deal's fallback display until the last read landed; now each batch lands on screen. */
+export const DISPLAY_BATCH = 100;
+
+/** Live deals first (they are the ones on screen: waiting, in progress), then the ended ones. */
+export function displayReadOrder(deals: readonly Deal[], ids: readonly string[]): string[] {
+  const live = new Set(deals.filter((d) => !isTerminal(d)).map((d) => d.id));
+  return [...ids.filter((id) => live.has(id)), ...ids.filter((id) => !live.has(id))];
+}
+
 /** deal_display per listed deal, keeping the earlier answer for a deal not read again and dropping
  *  deals no longer listed. A failed read leaves that deal out of the map (it gets the fallback
- *  display) and sets `error`; the deal is read again on the next refetch. */
-export function useDisplays(deals: Deal[] | undefined): { map: Map<string, DealDisplay>; error: WalletError | null } {
+ *  display) and sets `error`; the deal is read again on the next refetch. The reads go out in
+ *  batches, live deals first, and every batch is shown when it lands; `ready` turns true once a
+ *  whole pass has been read (until then a label that is not in the map yet may still arrive). A
+ *  pass cut short by a newer list keeps what its batches already put in the cache. */
+export function useDisplays(deals: Deal[] | undefined): { map: Map<string, DealDisplay>; error: WalletError | null; ready: boolean } {
   const cache = useRef<ReadonlyMap<string, Entry>>(new Map());
-  const [state, setState] = useState<{ map: Map<string, DealDisplay>; error: WalletError | null }>({ map: new Map(), error: null });
+  const [state, setState] = useState<{ map: Map<string, DealDisplay>; error: WalletError | null; ready: boolean }>({ map: new Map(), error: null, ready: false });
   useEffect(() => {
     if (!deals) return;
     let dead = false;
-    const ids = displaysToRead(deals, cache.current);
-    void readEach(ids, (id) => backend().invoke('deal_display', { deal_id: id }), { concurrency: READ_CONCURRENCY }).then((rs) => {
-      if (dead) return;
-      const next = new Map<string, Entry>();
-      for (const d of deals) {
-        const had = cache.current.get(d.id);
-        if (had) next.set(d.id, had);
-      }
-      const byId = new Map(deals.map((d) => [d.id, d]));
+    const ids = displayReadOrder(deals, displaysToRead(deals, cache.current));
+    const byId = new Map(deals.map((d) => [d.id, d]));
+    void (async () => {
       let error: WalletError | null = null;
-      rs.forEach((r, i) => {
-        const id = ids[i];
-        const d = id === undefined ? undefined : byId.get(id);
-        if (!id || !d) return;
-        if (r.status === 'fulfilled') next.set(id, { token: displayToken(d), display: r.value });
-        else { next.delete(id); error = toWalletError(r.reason); }
-      });
-      cache.current = next;
-      setState({ map: new Map([...next].map(([id, e]): [string, DealDisplay] => [id, e.display])), error });
-    });
+      for (let at = 0; at === 0 || at < ids.length; at += DISPLAY_BATCH) {
+        const part = ids.slice(at, at + DISPLAY_BATCH);
+        const rs = await readEach(part, (id) => backend().invoke('deal_display', { deal_id: id }), { concurrency: READ_CONCURRENCY });
+        if (dead) return;
+        const next = new Map<string, Entry>();
+        for (const d of deals) {
+          const had = cache.current.get(d.id);
+          if (had) next.set(d.id, had);
+        }
+        rs.forEach((r, i) => {
+          const id = part[i];
+          const d = id === undefined ? undefined : byId.get(id);
+          if (!id || !d) return;
+          if (r.status === 'fulfilled') next.set(id, { token: displayToken(d), display: r.value });
+          else { next.delete(id); error = toWalletError(r.reason); }
+        });
+        cache.current = next;
+        const last = at + DISPLAY_BATCH >= ids.length;
+        const seen = error;
+        setState((s) => ({ map: new Map([...next].map(([id, e]): [string, DealDisplay] => [id, e.display])), error: seen, ready: s.ready || last }));
+      }
+    })();
     return () => { dead = true; };
   }, [deals]);
   return state;

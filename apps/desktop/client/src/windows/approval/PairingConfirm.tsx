@@ -91,7 +91,7 @@ export function PairingConfirm({ pending, readError, onSettled }: Props) {
   // A finished ceremony stays on screen even after approval_pairing turns null.
   if (pinned) {
     return (
-      <div className="ow-pair done">
+      <div className="ow-pair done" role="status">
         <h2><span className="okc">✓</span> Connected · {pinned.name}</h2>
         <div className="ow-ctx">
           <span className="mono">{shortId(pinned.key, 6, 4)}</span>
@@ -119,7 +119,7 @@ export function PairingConfirm({ pending, readError, onSettled }: Props) {
   }
 
   if (readError) return <WalletNotice error={readError} what="Nothing to confirm" message={footerNoticeText('pairing_read', readError)} />;
-  if (pending === undefined) return <p className="ui-hint">Looking for a waiting connection…</p>;
+  if (pending === undefined) return <p className="ui-hint" role="status">Looking for a waiting connection…</p>;
   if (pending === null) {
     return (
       <p className="ow-p">
@@ -192,7 +192,7 @@ export function PairingConfirm({ pending, readError, onSettled }: Props) {
             {s.unlocking ? 'Waiting for Windows Hello…' : 'Unlock with Windows Hello'}
           </Btn>
         ) : (
-          <Btn kind="gold" disabled={problem !== null || !s.tokenReady || s.pending !== null} title={problem ? 'Give them a name first' : undefined} onClick={() => void confirm()}>
+          <Btn kind="gold" disabled={problem !== null || !s.tokenReady || s.pending !== null} title={problem ? `${problem.charAt(0).toUpperCase()}${problem.slice(1)}` : undefined} onClick={() => void confirm()}>
             {s.pending === 'pairing_confirm' ? 'Connecting…' : 'All four match: connect'}
           </Btn>
         )}

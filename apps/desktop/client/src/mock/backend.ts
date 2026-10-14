@@ -44,7 +44,8 @@ import type { RescueWatchView } from '@bindings/RescueWatchView';
 import { invoiceText, leverOf, maskEmail, proposeDiscount, RESCUE_WATCH_MAX, RESCUE_WATCH_READS_DAY, validEmail, validSubscriptionId } from './rescue';
 import { AUTHORITY, AUTHORITY_MANIFEST, type CommandAuthority } from '@bindings/authority';
 import { LADDER } from '@bindings/ladder';
-import { buildFirstRunState, firstRunPreview, PRACTICE_TERMS, withFirstRun, worldKeys } from './firstRun';
+import { buildFirstRunState, firstRunPreview, PRACTICE_TERMS, scalePreview, withFirstRun, worldKeys } from './firstRun';
+import { buildScaleState } from './scale';
 
 type Envelope =
   | { kind: 'event'; event: EventName; targets: WindowLabel[]; payload: unknown }
@@ -158,13 +159,15 @@ function fail(code: WalletError['code'], message: string): never {
 export function mockBackend(label: WindowLabel): MockBackend {
   // ?first_run=1: a brand-new wallet in a world of its own (src/mock/firstRun.ts).
   const firstRun = firstRunPreview();
-  const keys = worldKeys(STORE_KEY, CHANNEL, firstRun);
+  // ?scale=small|large: the same wallet at a realistic size, also a world of its own (src/mock/scale.ts).
+  const scale = scalePreview();
+  const keys = worldKeys(STORE_KEY, CHANNEL, firstRun, scale);
   const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(keys.channel) : null;
   const listeners = new Map<EventName, Set<(p: unknown) => void>>();
   // The preview clock: every mock window reads the same offset (storage on load, the channel after).
   simulateClock();
   setClockOffset(storedOffset());
-  const fresh = () => (firstRun ? buildFirstRunState(nowUnix()) : buildMockState(nowUnix()));
+  const fresh = () => (firstRun ? buildFirstRunState(nowUnix()) : scale ? buildScaleState(scale, nowUnix()) : buildMockState(nowUnix()));
   let state: MockState = load() ?? fresh();
   let lastPrivileged = nowUnix();
   let form: Form = state.settings.preferences.form;
@@ -503,7 +506,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
     save();
   }
   function openWindow(page: string, name: string, features?: string): void {
-    window.open(withFirstRun(page, firstRun), name, features);
+    window.open(withFirstRun(page, firstRun, scale), name, features);
   }
 
   const handlers: { [K in CommandName]: (args: ArgsOf<K>, opts?: InvokeOptions) => ResultOf<K> } = {
@@ -1343,13 +1346,13 @@ export function mockBackend(label: WindowLabel): MockBackend {
 /** Inject a Rust-shaped event into every open mock window (preview controls only). */
 export function mockInject<E extends EventName>(event: E, payload: EventContract[E]): void {
   const env: Envelope = { kind: 'event', event, targets: TARGETS[event], payload };
-  new BroadcastChannel(worldKeys(STORE_KEY, CHANNEL, firstRunPreview()).channel).postMessage(env);
+  new BroadcastChannel(worldKeys(STORE_KEY, CHANNEL, firstRunPreview(), scalePreview()).channel).postMessage(env);
 }
 
 /** Reset the shared mock world (used by the preview's "reset sample data" control). */
 export function resetMockState(): void {
   try {
-    localStorage.removeItem(worldKeys(STORE_KEY, CHANNEL, firstRunPreview()).store);
+    localStorage.removeItem(worldKeys(STORE_KEY, CHANNEL, firstRunPreview(), scalePreview()).store);
     localStorage.removeItem(CLOCK_KEY);
   } catch {
     /* storage blocked: nothing was stored either */

@@ -1,13 +1,15 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
+import { sourceLocPlugin } from './scripts/babel/source-loc-vite-plugin.mjs';
 
 const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 // Three Tauri windows, three pages. The CSP is `script-src 'self'; style-src 'self'`,
 // so everything must ship as bundled files: no inline scripts, no inline <style>.
 export default defineConfig({
-  plugins: [react()],
+  // sourceLocPlugin is inert unless THE_TABLE_INSPECTOR=1 (npm run tauri:dev:test).
+  plugins: [sourceLocPlugin(), react()],
   base: './',
   resolve: {
     alias: {

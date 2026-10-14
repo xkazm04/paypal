@@ -86,6 +86,21 @@ export function countdown(deadline: number, now: number): string {
   return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
+/** The same remaining time in words for a screen reader, which would read "3:57:56" as digits:
+ *  "3 hours 57 minutes left", "2 days 19 hours left", "less than a minute left". */
+export function countdownWords(deadline: number, now: number): string {
+  const s = Math.max(0, Math.floor(deadline - now));
+  if (s === 0) return 'no time left';
+  const unit = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d) return `${unit(d, 'day')}${h ? ` ${unit(h, 'hour')}` : ''} left`;
+  if (h) return `${unit(h, 'hour')}${m ? ` ${unit(m, 'minute')}` : ''} left`;
+  if (m) return `${unit(m, 'minute')} left`;
+  return 'less than a minute left';
+}
+
 /** "Thu 18:00" in local time from Unix seconds, within six days of `now`; further away a weekday
  *  would read as this week, so it says the date: "3 Nov 18:00". */
 export function clockLabel(unix: number, now: number = nowUnix()): string {

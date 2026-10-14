@@ -247,7 +247,7 @@ export function Stat({ k, v, big, hint, children, className }: { k: ReactNode; v
 /** A thin bar. value in 0..1; null = unknown (drawn dashed, never as zero). */
 export function Meter({ value, tone, label }: { value: number | null; tone?: 'gold' | 'coral' | 'red'; label: string }) {
   if (value === null || !Number.isFinite(value)) {
-    return <div className="ui-meter unknown" role="img" aria-label={`${label}: unknown`} />;
+    return <div className="ui-meter unknown" role="img" aria-label={`${label}: not available yet`} />;
   }
   const v = Math.min(1, Math.max(0, value));
   return (
@@ -270,7 +270,7 @@ export function Hourglass({ className }: { className?: string }) {
 /** The default on silence, one line: "⧗ If you do nothing: <b>text</b> · countdown". Every needs-you item carries one. */
 export function Silence({ text, deadline, children, className }: { text?: ReactNode; deadline?: number | null; children?: ReactNode; className?: string }) {
   return (
-    <span className={cx('ui-silence', className)}>
+    <span className={cx('ui-silence', className)} title={typeof text === 'string' ? `If you do nothing: ${text}` : undefined}>
       <Hourglass /><span className="if">If you do nothing: </span>{text ? <b>{text}</b> : null}{children}
       {deadline ? <> · <Countdown deadline={deadline} /></> : null}
     </span>

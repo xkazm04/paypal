@@ -132,3 +132,8 @@ export function ShopAroundButton({ groups, deals, onGrouped }: { groups: readonl
     </>
   );
 }
+
+/** How many groups still earn a card (the Tables summary card's figure). */
+export function liveGroupCount(groups: readonly DealGroupView[], deals: readonly Deal[]): number {
+  return showing(groups, deals).length;
+}
