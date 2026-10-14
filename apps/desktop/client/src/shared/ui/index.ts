@@ -15,3 +15,8 @@ export { SummaryCard, type SummaryCardProps } from './SummaryCard';
 export { Disclosure } from './Disclosure';
 export { DetailPage, type DetailPageProps } from './DetailPage';
 export { Stepper, type StepperStep } from './Stepper';
+// Calibre console kit (rebuild WP1a; styles in design/kit.css)
+export { Stack, pileCount, TabStrip, ModuleTab, nextTab, FilterChips, toggleFilter, Facts, ListShell, Depth, shownCount, UNKNOWN,
+  type StackProps, type ModuleTabProps, type FilterOption, type Fact, type FactTone, type ListShellProps } from './console';
+export { HoldGesture, holdPhaseWord, shownProgress, type HoldGestureProps, type HoldPhase } from './HoldGesture';
+export { Presence, type PresenceProps } from './Presence';

@@ -1,7 +1,8 @@
 # src/shared/ui - the v2 baseline in React
 
 Thin wrappers over the `ui-*` classes in `src/design/ui.css` (port of `prototype/shared/ui.css`).
-Tokens: `src/design/tokens.css` (dark default, light under `[data-theme="light"]`). `1rem = 13px`.
+Tokens: `src/design/tokens.css` (Calibre v3: dark "night" default, light "day" under `[data-theme="light"]`).
+`1rem = 14px` (the Tumbler keeps 13px; see tokens.css). Motion names: `src/design/motion.ts`.
 Import from `../../shared/ui` (barrel `index.ts`). No component adds colours or sizes of its own.
 
 ## Rules
@@ -80,6 +81,26 @@ closes the **topmost** layer on Esc and stops the event. So:
 Honesty components (`src/shared/honesty.tsx`, APIs unchanged, compact styles in `design/base.css`):
 `ModeBadge`, `MockBadge`, `Quarantine` (the only way to show counterparty text), `WalletNotice`,
 `Money`, `MinorMoney`, `Countdown`.
+
+## Calibre console kit (rebuild WP1a)
+
+Styles in `src/design/kit.css`. Every user-facing string is a prop (take it from `lib/words.ts`).
+Unknown numbers render as `UNKNOWN` (a dash), never 0.
+
+| Component | Props | Notes |
+|---|---|---|
+| `Stack` | `label, depth?, tone?, gold?, tabs?, corner?, children` | The front sheet (a region) with the pile beneath (0..3 drawn), registration corners, ruled edges. `tabs` sits on the top edge, `corner` holds a small `Seal`. |
+| `TabStrip` | `label, children` | `role="tablist"`; Arrow/Home/End move focus between tabs. |
+| `ModuleTab` | `label, active, onSelect, color?, icon?, count?: number\|null, waiting?, waitingLabel?, controls?, id?` | `role="tab"`, roving tabindex. `count: null` shows a dash; `waiting` the gold badge with `waitingLabel` for screen readers. |
+| `FilterChips<T>` | `label, options: {value,label,count?}[], value: T[], onChange, multi? = true` | `aria-pressed` toggles; single mode picks one or clears. |
+| `Facts` | `items: {key,k,v,tone?,note?,num?}[], label?` | `dl` strip under a decision; `v: null` is dashed. |
+| `ListShell` | `label, search?, filters?, sort?, summary?, actions?, renderRows?, children?, empty?, isEmpty?, footer?, bodyRef?` | Sticky toolbar slots. **`renderRows`** is the windowing slot (WP1b): the shell's `.ui-list-body` stays the scroll container (`bodyRef`). |
+| `Depth` | `value, max? = 4, label?` | Rising bars; `Crumbs` takes `depth?` to show them. |
+| `HoldGesture` | `label, sub?, onComplete, ms? = 1200, disabled?, hint, progressLabel, holdingText, doneText` | **Approval window only.** Press the seal: pointer hold or held Space; Enter, click, short press, leave, blur, disabled never complete. Calls `onComplete` once and nothing else. Gauge is `role="progressbar"` with `aria-valuenow`; calm motion fills in quarter steps (the hold time is unchanged). |
+| `Presence` | `show, children, exitMs? = 200, motion?: 'rise'\|'drop'\|'fade'` | Keeps children mounted through the exit; calm unmounts at once. |
+
+Decoration lives in `src/shared/brand` (`Seal`, `Mark`, `Rosette`, `Graticule`, `KeyArt`, `DialStrip`):
+presentational SVG/CSS only, `role="img"` with a caller-given plain label, ornaments `aria-hidden`.
 
 ## Files and ownership (main window)
 
