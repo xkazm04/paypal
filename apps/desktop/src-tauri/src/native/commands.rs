@@ -576,6 +576,21 @@ pub(super) async fn rescue_watch_add(
     .await
 }
 #[tauri::command]
+pub(super) async fn counterparty_revoke(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    request: tauri::ipc::Request<'_>,
+    args: CounterpartyRevokeArgs,
+) -> Result<(), CommandError> {
+    ask(
+        &window,
+        &state,
+        Some(&request),
+        Action::CounterpartyRevoke(args),
+    )
+    .await
+}
+#[tauri::command]
 pub(super) async fn rescue_watch_stop(
     window: WebviewWindow,
     state: State<'_, DesktopState>,

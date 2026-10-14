@@ -41,6 +41,10 @@ impl From<table_app::Error> for CommandError {
             table_app::Error::Ledger(table_ledger::LedgerError::NotFound) => ErrorCode::NotFound,
             // Shop around: another table of the group already agreed. A refusal, not a fault.
             table_app::Error::Ledger(table_ledger::LedgerError::GroupClosed) => ErrorCode::Refused,
+            // A revoked or expired pin is the owner's own decision or a lapse: a refusal, not a fault.
+            table_app::Error::Ledger(
+                table_ledger::LedgerError::PinRevoked | table_ledger::LedgerError::PinExpired,
+            ) => ErrorCode::Refused,
             table_app::Error::Ledger(_) => ErrorCode::LedgerTrust,
         };
         Self {
@@ -644,6 +648,12 @@ pub struct RescueWatchArgs {
     /// The plan, as your own item name.
     pub plan: table_core::ItemRef,
 }
+/// Revoke the pin of one counterparty (approval, privileged).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct CounterpartyRevokeArgs {
+    pub key_id: table_core::KeyId,
+}
 /// Stop watching one subscription (approval, privileged). A fix it already opened is unchanged.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -1035,6 +1045,8 @@ pub struct CommandContract {
     pub rescue_watch_stop: Command<RescueWatchStopArgs, Vec<RescueWatchView>>,
     /// "Your safety record": the whole-ledger money-authority check on the owner's ledger (main).
     pub safety_record: Command<(), SafetyRecord>,
+    /// Revokes a counterparty pin: the key is refused from then on (approval, privileged).
+    pub counterparty_revoke: Command<CounterpartyRevokeArgs, ()>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]

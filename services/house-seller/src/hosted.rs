@@ -65,6 +65,8 @@ impl Error {
                 LedgerError::NotFound => "ledger.not_found",
                 LedgerError::Conflict => "ledger.conflict",
                 LedgerError::GroupClosed => "ledger.group_closed",
+                LedgerError::PinRevoked => "ledger.pin_revoked",
+                LedgerError::PinExpired => "ledger.pin_expired",
             },
             Self::App(e) => match e {
                 table_app::Error::Refused(_) => "app.refused",

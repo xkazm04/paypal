@@ -193,7 +193,8 @@ pub fn run() -> Result<(), tauri::Error> {
             deal_groups,
             rescue_watch_add,
             rescue_watch_stop,
-            safety_record
+            safety_record,
+            counterparty_revoke
         ])
         .setup(|app| {
             let data = app.path().app_data_dir()?;

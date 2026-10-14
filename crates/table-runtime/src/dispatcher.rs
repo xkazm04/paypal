@@ -566,6 +566,14 @@ impl Runtime {
                     .revoke_mandate(args.id, self.clock.now()))?;
                 json(())
             }
+            Action::CounterpartyRevoke(args) => {
+                app(self
+                    .pipeline
+                    .wallet
+                    .ledger
+                    .revoke_counterparty(&args.key_id, self.clock.now()))?;
+                json(())
+            }
             Action::Band(args) => json(self.band(args)?),
             Action::PairCreate(args) => json(self.pairing_create(args)?),
             Action::PairJoin(args) => json(self.pairing_join(args)?),

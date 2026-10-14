@@ -150,7 +150,7 @@ fn migrations_are_transactional_idempotent_and_foreign_keys_enabled() {
         .conn
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 15);
+    assert_eq!(version, 16);
     let connection = ledger.conn;
     let ledger = Ledger::from_connection(connection).unwrap();
     assert_eq!(ledger.audit_count().unwrap(), 0);
@@ -2517,6 +2517,8 @@ mod limits_tests;
 mod market_tests;
 #[path = "market_watch_tests.rs"]
 mod market_watch_tests;
+#[path = "pin_tests.rs"]
+mod pin_tests;
 /// robustness-1 (c): the lapse is time-only and records whether a statement read came back
 /// unmatched before it; with no read it never claims one.
 #[test]

@@ -1220,6 +1220,14 @@ export function mockBackend(label: WindowLabel): MockBackend {
       save();
       return state.rescueWatches;
     },
+    // As Runtime::counterparty_revoke: approval only, privileged; the pin is marked, never deleted.
+    counterparty_revoke: ({ key_id }, opts) => {
+      privileged(opts);
+      if (!state.counterparties.some((c) => c.key_id === key_id)) fail('NOT_FOUND', 'no pinned counterparty with this key');
+      state.revokedCounterparties = [...new Set([...(state.revokedCounterparties ?? []), key_id])];
+      save();
+      return null;
+    },
     // As Runtime::safety_record: main only, a read; counted from the same week deal_history serves.
     safety_record: () => safetyRecordOf(state, state.history ?? buildMockState(nowUnix()).history ?? [], nowUnix(), {
       broken: params.get('records') === 'broken', violation: params.get('safety') === 'violation',
