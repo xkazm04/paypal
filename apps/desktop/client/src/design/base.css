@@ -1,16 +1,17 @@
 @import './tokens.css';
+@import './fonts.css';
 
-/* Base for all three windows (v2). 1rem = 13px (--fs-body); 12px (--fs-small) is the floor for
-   anything a person must read. No viewport-scaled root size any more. */
-html { font-size: var(--fs-body); -webkit-text-size-adjust: 100%; }
+/* Base for all windows (v3 Calibre). 1rem = 14px (--fs-body); 12px (--fs-small) is the floor for
+   anything a person must read. No viewport-scaled root size. */
+html { font-size: var(--fs-body); -webkit-text-size-adjust: 100%; background: var(--bg); }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: var(--fw-regular) var(--fs-body)/var(--lh) var(--font);
-  -webkit-font-smoothing: antialiased; }
-button, input, select, textarea { font: inherit; color: inherit; }
+  letter-spacing: .003em; font-variant-numeric: lining-nums; -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; letter-spacing: inherit; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }   /* no border-radius here: it would reshape a focused pill or round button */
 /* Headings take programmatic focus (screen readers land on them); that is not a keyboard target. */
 h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus, h3[tabindex="-1"]:focus, [tabindex="-1"]:focus:not(:focus-visible) { outline: none; }
-/* Scrollbars: 2px, in the theme's colours, vertical and horizontal alike (all three windows).
+/* Scrollbars: 2px, in the theme's colours, vertical and horizontal alike (all windows).
    Chromium ignores ::-webkit-scrollbar once scrollbar-width/-color is set, so those are only the
    fallback for engines without the pseudo-elements. A list that hides its bar sets display: none. */
 ::-webkit-scrollbar { width: 2px; height: 2px; }
@@ -23,35 +24,51 @@ h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus, h3[tabindex="-1"]:focus, [tabi
 [hidden] { display: none !important; }
 ::selection { background: var(--sel); }
 
+/* --- type voices ------------------------------------------------------------------------------ */
 .mono { font-family: var(--mono); font-size: var(--fs-mono); font-variant-numeric: tabular-nums; }
-.money { font-family: var(--num); font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); letter-spacing: -.005em; }
-.num { font-family: var(--num); font-variant-numeric: tabular-nums; }
+/* Money: one numeral face, tabular and lining, slightly tracked so a sum reads as a reading. */
+.money { font-family: var(--num); font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum" 1, "lnum" 1;
+  font-weight: var(--fw-semibold); letter-spacing: var(--track-money); }
+.num { font-family: var(--num); font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum" 1, "lnum" 1; }
+.display { font-family: var(--display); font-weight: var(--fw-display); letter-spacing: var(--track-display); line-height: 1.12; }
+.kicker { font-family: var(--label); font-stretch: var(--label-stretch); font-weight: var(--fw-medium); font-size: var(--fs-small);
+  letter-spacing: var(--track-label); text-transform: uppercase; color: var(--dim); }
 .dim { color: var(--dim); } .muted { color: var(--muted); }
 .teal { color: var(--teal-l); } .coral { color: var(--coral-l); } .gold { color: var(--gold-l); }
 .okc { color: var(--ok); } .red { color: var(--red-l); }
-.kbd { font: var(--fs-small) var(--mono); padding: 0 .35em; border: 1px solid var(--line2); border-bottom-width: 2px; border-radius: 4px; color: var(--dim); }
+.kbd { font: var(--fs-small) var(--mono); padding: 0 .35em; border: 1px solid var(--line2); border-bottom-width: 2px; border-radius: var(--r-tight); color: var(--dim); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* --- shared honesty components (compact; src/shared/honesty.tsx) ----------------------------- */
-.badge { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-radius: 10px;
-  font: var(--fw-semibold) var(--fs-small)/1 var(--font); white-space: nowrap; }
-.badge.sandbox::before, .badge.replay::before, .badge.scripted_engine::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .7; }
-.badge.sandbox { color: var(--on-gold); background: var(--gold); }
+.badge { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: var(--r-pill);
+  font: var(--fw-semibold) var(--fs-small)/1 var(--font); letter-spacing: .015em; white-space: nowrap; }
+/* indicators are square LEDs, not dots */
+.badge.sandbox::before, .badge.replay::before, .badge.scripted_engine::before { content: ""; width: 6px; height: 6px; border-radius: 1px; background: currentColor; opacity: .8; }
+.badge.sandbox { color: var(--on-gold); background: var(--gold); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold-l) 50%, transparent); }
 .badge.replay { color: var(--on-replay); background: var(--replay); }
 .badge.scripted_engine { color: var(--on-teal); background: var(--teal-l); }
 .badge.mock { color: var(--dim); background: transparent; border: 1px dashed var(--line2); font-weight: var(--fw-medium); }
 
-.quarantine { border: 1px dashed var(--coral); border-radius: var(--r-sm); padding: 6px 8px; background: color-mix(in srgb, var(--coral) 6%, transparent); }
+/* counterparty words: fenced as untrusted input, a coral rail on a hatched ground, quoted text only */
+.quarantine { border: 1px solid color-mix(in srgb, var(--coral) 55%, var(--line2)); border-radius: 0; padding: 6px 8px 6px 11px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--coral) 70%, transparent) 0 3px, transparent 3px),
+    repeating-linear-gradient(-45deg, color-mix(in srgb, var(--coral) 4%, transparent) 0 .4rem, transparent .4rem .8rem), var(--quar); }
 .quarantine .q-label { display: flex; align-items: center; gap: 6px; font: var(--fw-semibold) var(--fs-small) var(--font); color: var(--coral-l); margin-bottom: 2px; }
 .quarantine .q-label::before { content: "\201C"; font: var(--fw-bold) 16px/1 var(--display); }
 .quarantine .q-text { white-space: pre-wrap; word-break: break-word; color: var(--muted); font-family: var(--mono); font-size: var(--fs-small); }
 
 .notice { display: flex; gap: var(--sp-2); align-items: flex-start; padding: 6px 10px; border-radius: var(--r); border: 1px solid var(--line2); background: var(--panel); font-size: var(--fs-body); }
-.notice .n-code { font: var(--fw-semibold) var(--fs-small)/20px var(--font); padding: 0 8px; border-radius: 10px; flex: none; }
+.notice .n-code { font: var(--fw-semibold) var(--fs-small)/22px var(--font); padding: 0 8px; border-radius: var(--r-pill); flex: none; }
 .notice.unavailable .n-code, .notice.unsupported .n-code { background: var(--panel3); color: var(--muted); }
 .notice.locked .n-code { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold-l); }
 .notice.error .n-code { background: color-mix(in srgb, var(--refuse) 18%, transparent); color: var(--red-l); }
 
+/* --- calm motion -------------------------------------------------------------------------------
+   The OS setting (prefers-reduced-motion) and the in-app calm class (`calm` on <html> or <body>,
+   see src/design/motion.ts) both stop decorative motion: the seal's sweep, readout flashes, sheet
+   slides. State changes still show, instantly. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+:root.calm *, :root.calm *::before, :root.calm *::after, body.calm *, body.calm *::before, body.calm *::after {
+  animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }

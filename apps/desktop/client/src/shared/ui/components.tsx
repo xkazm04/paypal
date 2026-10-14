@@ -3,6 +3,7 @@
 // a page CSS file scoped under the page's root class.
 import { useEffect, useRef, type ButtonHTMLAttributes, type CSSProperties, type InputHTMLAttributes, type KeyboardEvent, type MouseEvent, type ReactNode, type Ref } from 'react';
 import { Countdown } from '../honesty';
+import { Depth } from './console';
 
 const cx = (...c: Array<string | false | null | undefined>) => c.filter(Boolean).join(' ');
 
@@ -17,8 +18,8 @@ export function Spacer() {
 }
 
 export type CrumbItem = { label: ReactNode; onClick?: () => void; title?: string };
-/** Breadcrumb; the last item is the current page (not clickable). */
-export function Crumbs({ items, label = 'Breadcrumb' }: { items: CrumbItem[]; label?: string }) {
+/** Breadcrumb; the last item is the current page (not clickable). `depth` adds the stack-depth bars (Calibre). */
+export function Crumbs({ items, label = 'Breadcrumb', depth }: { items: CrumbItem[]; label?: string; depth?: number }) {
   return (
     <nav className="ui-crumbs" aria-label={label}>
       {items.map((c, i) => {
@@ -31,6 +32,7 @@ export function Crumbs({ items, label = 'Breadcrumb' }: { items: CrumbItem[]; la
           </span>
         );
       })}
+      {depth !== undefined ? <Depth value={depth} /> : null}
     </nav>
   );
 }
