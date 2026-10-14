@@ -6,6 +6,7 @@
 // Beside it the seal (the wallet's state, from the facts) and the small Dial strip; under it the
 // next decisions, and in any free slot what happened while the owner was away and what the wallet
 // is watching, so the row never stands empty.
+import { NOTICE_WHAT } from '../../../lib/words';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
@@ -182,7 +183,7 @@ function Decision({ item, index, count, onLater, onDeal }: { item: AttentionItem
           {canReview ? <Btn kind="plain" onClick={() => onDeal(item.deal_id)} data-fk="open-deal">{OPEN_THE_DEAL}</Btn> : null}
           <WhyDisclosure item={item} deal={deal} disp={disp} />
         </div>
-        {open.error ? <WalletNotice error={open.error} what="Approval window" /> : null}
+        {open.error ? <WalletNotice error={open.error} what={NOTICE_WHAT.approval} /> : null}
       </div>
       <Facts items={facts} className="cs-facts" />
     </div>

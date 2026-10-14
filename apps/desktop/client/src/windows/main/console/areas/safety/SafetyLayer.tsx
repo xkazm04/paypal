@@ -9,7 +9,7 @@ import type { SafetyRecord } from '@bindings/SafetyRecord';
 import { clockLabel } from '../../../../../lib/format';
 import { useQuery } from '../../../../../lib/hooks';
 import {
-  AUDIT_BROKEN, SAFETY_CARD, SAFETY_FOUND, SAFETY_KICKER, SAFETY_LAYER, SAFETY_READING, SAFETY_READING_SUB, SAFETY_UNREAD, SAFETY_UNREAD_SUB, SAFETY_VIEW,
+  AUDIT_BROKEN, NOTICE_WHAT, SAFETY_CARD, SAFETY_FOUND, SAFETY_KICKER, SAFETY_LAYER, SAFETY_READING, SAFETY_READING_SUB, SAFETY_UNREAD, SAFETY_UNREAD_SUB, SAFETY_VIEW,
 } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Kv, Silence } from '../../../../../shared/ui';
@@ -39,7 +39,7 @@ export function SafetyLayer({ nav }: LayerProps) {
     return (
       <PlaceFrame root="ar-safety" place="safety" tone="var(--teal)" kicker={SAFETY_KICKER('…')} answer={q.error ? SAFETY_UNREAD : SAFETY_READING}
         sub={q.error ? SAFETY_UNREAD_SUB : SAFETY_READING_SUB} action={again}>
-        {q.error ? <WalletNotice error={q.error} what="Safety record" /> : null}
+        {q.error ? <WalletNotice error={q.error} what={NOTICE_WHAT.safety} /> : null}
       </PlaceFrame>
     );
   }
@@ -64,9 +64,21 @@ export function SafetyLayer({ nav }: LayerProps) {
   return (
     <PlaceFrame root="ar-safety" place="safety" tone="var(--teal)" kicker={SAFETY_KICKER(clockLabel(r.checked_at))} answer={words.verdict}
       sub={words.lines.join(' ')} action={again} cards={cards}
+      latest={{
+        title: SAFETY_VIEW.details,
+        // The record at a glance (the same figures as "Your record", read-only; a broken chain says so).
+        facts: [
+          [SAFETY_VIEW.records, count(r.records)],
+          [SAFETY_VIEW.chain, r.intact ? SAFETY_VIEW.chainOk : SAFETY_VIEW.chainBroken],
+          [SAFETY_VIEW.dealsChecked, SAFETY_VIEW.of(count(r.deals_checked), count(r.deals_total))],
+          [SAFETY_VIEW.histories, SAFETY_VIEW.of(count(r.transcripts_verified), count(r.deals_checked))],
+          [SAFETY_VIEW.refusedDeals, SAFETY_VIEW.refusedDealsLine(count(r.refused_deals), count(r.refused_deal_calls))],
+          [SAFETY_VIEW.moneySteps, count(steps)],
+        ],
+      }}
       lead={r.violations_total > 0 ? <SafetyFindings record={r} detailed={false} dealName={name} onDeal={nav.deal} /> : null}
       className={words.tone === 'bad' ? 'bad' : 'ok'}>
-      {q.error ? <WalletNotice error={q.error} what="Safety record" /> : null}
+      {q.error ? <WalletNotice error={q.error} what={NOTICE_WHAT.safety} /> : null}
       {r.intact && steps > 0 ? (
         <section className="sf-sum" aria-label={SAFETY_VIEW.who}>
           <h2 className="cs-h3">{SAFETY_VIEW.who}</h2>

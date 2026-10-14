@@ -3,6 +3,7 @@
 // again. Closing the window is different: the wallet keeps running in the tray. Every sentence
 // is Rust's (quit_summary, worded from the walk-away forecast); quit_confirm binds what is shown,
 // so a change in between is refused and the sheet reloads the current lines.
+import { NOTICE_WHAT, QUIT_SHEET } from '../../lib/words';
 import { useState } from 'react';
 import { useMutation, useQuery } from '../../lib/hooks';
 import { WalletNotice } from '../../shared/honesty';
@@ -35,18 +36,18 @@ export function QuitSheet({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Sheet title="Quit The Table?" size="narrow" onClose={onClose} className="quit-sheet"
+    <Sheet title={QUIT_SHEET.title} size="narrow" onClose={onClose} className="quit-sheet"
       footer={state === 'quitting' ? <span className="ui-hint left">The Table is closing. The wallet stops now.</span> : (
         <>
-          <Btn onClick={onClose}>Keep it running</Btn>
+          <Btn onClick={onClose}>{QUIT_SHEET.keep}</Btn>
           <Btn kind="danger" disabled={!s || confirm.pending} onClick={() => void quit()}>Quit The Table</Btn>
         </>
       )}>
       {view ? <p className="q-lead">{view.note}</p> : null}
-      {summary.error && !s ? <WalletNotice error={summary.error} what="What happens when you quit" /> : null}
+      {summary.error && !s ? <WalletNotice error={summary.error} what={NOTICE_WHAT.quitSummary} /> : null}
       {!s && !summary.error ? <p className="ui-hint" role="status">Checking your open deals…</p> : null}
       {state === 'changed' && confirm.error?.code === 'INVALID' ? <p className="q-changed" role="status">Something changed since this opened. Check the list again before you quit.</p>
-        : confirm.error ? <WalletNotice error={confirm.error} what="Quit" /> : null}
+        : confirm.error ? <WalletNotice error={confirm.error} what={NOTICE_WHAT.quit} /> : null}
       {view ? (
         <>
           <p className="q-count">{view.lead}</p>

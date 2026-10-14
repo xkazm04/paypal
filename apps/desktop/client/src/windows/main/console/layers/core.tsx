@@ -40,7 +40,7 @@ function WaitingLayer({ route, nav }: LayerProps) {
   const h = useCentreHost();
   const module: Module | undefined = route.level === 'waiting' ? route.module : undefined;
   return (
-    <Waiting queue={h.centre.queue as readonly AttentionItem[]} module={module} onPick={nav.need}
+    <Waiting queue={h.centre.queue as readonly AttentionItem[]} module={module} onPick={nav.need} onDeal={nav.deal}
       onFilter={(m) => nav.go(m ? { level: 'waiting', module: m } : { level: 'waiting' }, { replace: true })} />
   );
 }

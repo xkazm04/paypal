@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react';
 import type { Deal } from '@bindings/Deal';
 import { formatMinor } from '../../../../../lib/format';
 import { useMutation, useQuery } from '../../../../../lib/hooks';
-import { RESCUE, RESCUE_REPLAY_ABOUT, RESCUE_VIEWS_TITLE, RESCUE_WATCH_ABOUT, ruleSentence, watchingWords } from '../../../../../lib/words';
+import { LATEST_OF, OPEN_THE_DEAL, RESCUE, RESCUE_REPLAY_ABOUT, RESCUE_WATCH_STATE, RESCUE_VIEWS_TITLE, RESCUE_WATCH_ABOUT, ruleSentence, watchingWords } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, Kv } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
@@ -21,6 +21,7 @@ import { useModuleRoute } from '../../../viewNav';
 import { useLayerNav, type LayerProps } from '../../layers';
 import { ListEngine, type ListFilter } from '../../ListEngine';
 import { Countdown } from '../../rows';
+import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { ModuleLayer } from '../../ModuleLayer';
 import { cap, CompareCells, fewRows, CountChip, DeskDetail, deskLine, FixPanel, HandOff, RescueState, useRescueWorld, type RescueWorld } from './parts';
 
@@ -190,7 +191,24 @@ function ReplayButton() {
   );
 }
 
-export function RescueLayer(_: LayerProps) {
+/** Latest: the renewals that need a fix (asking ones first), else the fixes on their way. */
+function latestOf(r: RescueWorld, open: (v: string) => void, deal: (id: string) => void): LatestProps {
+  const failing = new Set(r.rows.failing.map((d) => d.id));
+  const asking = [...r.rows.failing].sort((a, b) => (r.need(b) ? 1 : 0) - (r.need(a) ? 1 : 0));
+  const rows = [...asking, ...r.rows.inflight, ...r.rows.settled];
+  return {
+    title: LATEST_OF.rescue, total: rows.length,
+    rows: rows.slice(0, MAX_ROWS).map((d) => ({
+      key: d.id, label: `${cap(r.name(d))}, ${r.title(d)}, ${OPEN_THE_DEAL}`, onOpen: () => deal(d.id),
+      node: failing.has(d.id) ? <FailedRow deal={d} r={r} /> : <ProgressRow deal={d} r={r} />,
+    })),
+    seeAll: { onOpen: () => open(failing.size ? 'failed' : r.rows.inflight.length ? 'progress' : 'recovered') },
+    // The subscriptions the wallet watches for a failed renewal, at a glance (the Watching view has more).
+    facts: (r.book?.watching ?? []).slice(0, MAX_ROWS).map((w) => [`${w.plan} · ${w.recipient}`, RESCUE_WATCH_STATE[w.state].text] as const),
+  };
+}
+
+export function RescueLayer({ nav }: LayerProps) {
   const r = useRescueWorld();
   const route = useModuleRoute();
   const [picked, setPicked] = useState<Record<string, Col>>({});
@@ -212,7 +230,7 @@ export function RescueLayer(_: LayerProps) {
   const watching = r.book?.watching.length ?? 0;
   return (
     <div className="ar-rescue">
-      <ModuleLayer module="rescue" answer={answer} sub={sub}
+      <ModuleLayer module="rescue" answer={answer} sub={sub} latest={latestOf(r, (v) => route.open(v), nav.deal)}
         yourCall={first && firstNeed ? { count: asking.length, ifNothing: silenceParts(firstNeed.on_silence).head, onOpen: () => route.open('failed', 'your-call') } : null}
         action={first && firstNeed ? <HandOff deal={first} /> : undefined}
         cards={[

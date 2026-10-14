@@ -1,4 +1,4 @@
-// The engraved puck: a miniature of The Dial's machined vault. Six module ticks on the rim,
+// The engraved puck: a miniature of The Dial's machined vault, with the brand mark in its well. Six module ticks on the rim,
 // one bead per open item beside its module's tick, a gold ring when anything needs Maya (coral
 // when only holds wait), the count in the centre and the mode engraved below it.
 // Geometry is numbers only; every colour is a token, set by class in tumbler.css (gradient stops
@@ -6,6 +6,7 @@
 // stored theme like The Table, so the puck's tokens resolve to the dark or the light set.
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Mode } from '@bindings/Mode';
+import { MARK_D } from '../../shared/brand/geometry';
 import { MODULES } from '../../shared/modules';
 import { MODE_SHORT, type PuckLook } from './logic';
 
@@ -84,6 +85,12 @@ export function PuckArt({ look, items, newIds, inMotion, mode, locked, handoff }
         <circle key={r} className="p-groove" cx={C} cy={C} r={r} fill="none" strokeOpacity={r % 7 < 3.5 ? 0.05 : 0.025} strokeWidth=".7" />
       ))}
       <circle cx={C} cy={C} r="30" fill="none" stroke="url(#tb-prl)" strokeWidth="1.1" />
+      {/* The brand mark (shared/brand Mark: a reticle in a ticked bezel), engraved faintly in the well
+          under the count, so the puck reads as the console's seal at 88 x 88. */}
+      <g className="p-mark" transform={`translate(${C} ${C}) scale(2.55)`} fill="none" strokeWidth=".35">
+        <circle r="10.5" />
+        <path d={MARK_D} />
+      </g>
       {handoff ? (
         <g className="sweep">
           <path d="M44 44L44 16" strokeOpacity=".5" strokeWidth="1.2" strokeLinecap="round" />

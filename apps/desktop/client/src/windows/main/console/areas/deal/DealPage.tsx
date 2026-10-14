@@ -16,22 +16,23 @@ import type { Deal } from '@bindings/Deal';
 import type { DealEvidence } from '@bindings/DealEvidence';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import type { WalletError } from '../../../../../lib/contract';
-import { shortHash, shortId } from '../../../../../lib/format';
+import { clockLabel, formatMoney, shortHash, shortId } from '../../../../../lib/format';
 import { useMutation, useQuery } from '../../../../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../../../../lib/lazy';
 import {
-  DEAL_ACT, DEAL_CARD, DEAL_DETAILS, DEAL_FIGS, DEAL_KICKER, DEAL_SIDE, DEAL_STORY, DEAL_WHO, houseRecordWord, houseWords, INSTRUCTIONS, kindWord, rulesName, silenceWords,
+  DEAL_ACT, DEAL_CARD, DEAL_DETAILS, DEAL_FIGS, DEAL_KICKER, DEAL_SIDE, DEAL_STORY, DEAL_WHO, houseRecordWord, houseWords, INSTRUCTIONS, kindWord, LATEST_OF, NOTICE_WHAT, OPEN_THE_DEAL, rulesName, silenceWords,
 } from '../../../../../lib/words';
 import { RunBadge, WalletNotice } from '../../../../../shared/honesty';
 import { MODULE } from '../../../../../shared/modules';
 import { Btn, Chip, Hint, Kv, Popover, Silence } from '../../../../../shared/ui';
-import { latestText, mayWithdraw, mirrorStrip, readClauses } from '../../../deal/model';
+import { latestText, mayWithdraw, mirrorStrip, readClauses, stepWords, timelineRows } from '../../../deal/model';
 import { dealAnswer, ruleChecks, rulesBadge, standingFacts } from '../../../deal/story';
 import { canStartAgent, isLive, isTerminal, pairingFact } from '../../../logic';
 import { useCpLookup, useToast } from '../../../ui';
-import { useNeedOf, useRuns, useSettings, useWorldSelector, type World } from '../../../world';
-import type { LayerNav } from '../../layers';
-import { WhoChip } from '../../rows';
+import { useDeals, useNeedOf, useRuns, useSettings, useWorldSelector, type World } from '../../../world';
+import { useSheetView, type LayerNav } from '../../layers';
+import { MAX_ROWS, type LatestProps } from '../../Latest';
+import { DealRow, WhoChip } from '../../rows';
 import { PlaceFrame, type LensCard } from '../settings/frame';
 import { DealDecision, StateStrip, Summary } from './Decision';
 import { InstructionsValue } from './InstructionsValue';
@@ -128,6 +129,31 @@ export function DealPage({ deal, nav }: { deal: Deal; nav: LayerNav }) {
     },
   ];
 
+  // Latest on this deal, while no view is open: its last signed messages and ledger moments, newest
+  // first, from the conversation the page already read (no read of its own). A row opens the story.
+  const sheetView = useSheetView();
+  const toStory = () => sheetView?.open('story', 'story');
+  const moments = tr.data ? timelineRows(tr.data, deal) : [];
+  const onDeal: LatestProps | undefined = tr.data ? {
+    title: LATEST_OF.deal, total: moments.length,
+    rows: moments.slice(0, MAX_ROWS).map((r) => {
+      const said = r.kind === 'env' ? (() => { const w = stepWords(r.step, them); return `${w.who} ${w.verb}${r.step.price ? ` ${formatMoney(r.step.price)}` : ''}`; })() : r.text;
+      return { key: r.key, label: `${clockLabel(r.at)} · ${said}`, onOpen: toStory, node: <span className="lt-line"><span className="lt-when num">{clockLabel(r.at)}</span><span className="lt-said">{said}</span></span> };
+    }),
+    seeAll: sheetView ? { onOpen: toStory } : undefined,
+    // Where it stands, in numbers from the signed terms (the story view's own facts, no read).
+    facts: standingFacts(deal, disp.band, latest, them, null).map((f) => [f.k, f.v] as const),
+  } : undefined;
+  // And the other deals with the same counterparty, newest first (from the ledger the window holds).
+  const allDeals = useDeals().data;
+  const others = useMemo(() => (allDeals ?? []).filter((d) => d.counterparty === deal.counterparty && d.id !== deal.id)
+    .sort((a, b) => (b.updated_at ?? b.created_at ?? 0) - (a.updated_at ?? a.created_at ?? 0)), [allDeals, deal.counterparty, deal.id]);
+  const withThem: LatestProps | null = others.length ? {
+    title: LATEST_OF.withThem(houseWords(them)), total: others.length,
+    rows: others.slice(0, MAX_ROWS).map((d) => ({ key: d.id, label: `${display(d).title}, ${OPEN_THE_DEAL}`, onOpen: () => nav.deal(d.id), node: <DealRow deal={d} who={cp.name} /> })),
+  } : null;
+  const strips = [onDeal, withThem].filter((x): x is LatestProps => !!x);
+
   const consequence = !need && !ended && isLive(deal) && disp.on_silence
     ? <p className="dv-consequence"><Silence text={silenceWords(disp.on_silence)} deadline={deadline} /></p> : null;
 
@@ -147,7 +173,7 @@ export function DealPage({ deal, nav }: { deal: Deal; nav: LayerNav }) {
           <DealDecision deal={deal} need={need} canWithdraw={withdrawable} theirName={them} them={them} readings={readings} deadline={deadline} />
         </div>
       )}
-      cards={cards}>
+      cards={cards} latest={strips}>
       {sheet === 'transcript' ? (
         <TranscriptSheet deal={deal} label={disp.label} steps={tr.data} error={tr.error} band={disp.band} theirName={cp.name} onClose={() => setSheet(null)} />
       ) : null}
@@ -218,7 +244,7 @@ function AgentAction({ deal, label, needs }: { deal: Deal; label: string; needs:
         onClick={async () => { const r = await start.run({ deal_id: deal.id }); if (r) toast(DEAL_ACT.agentIs(r.state, label), 'ok'); }}>
         {paused ? DEAL_ACT.agentsPaused : DEAL_ACT.startAgent}
       </Btn>
-      {start.error ? <WalletNotice error={start.error} what="Agent" /> : null}
+      {start.error ? <WalletNotice error={start.error} what={NOTICE_WHAT.agent} /> : null}
     </>
   );
 }

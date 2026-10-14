@@ -2,8 +2,10 @@
    prototype/console-calibre/theme.css + the token block of style.css).
    Motif: the calibrated scale. Hairline strokes, ticks at a fixed pitch, a reticle, one soft signal
    sweep. Blue-black slate surfaces and cool steel inks at night, chart paper by day.
-     dark  (default)  - "night". The approval window is always dark.
+     dark  (default)  - "night".
      light            - "day" (chart paper); opt-in with <html data-theme="light"> (src/lib/theme.ts).
+   Every window follows the stored theme: The Table sets it, the Tumbler and the approval window
+   follow it live (followStoredTheme; the approval window since rebuild WP4b, one app, one theme).
    Colour meaning is fixed in both themes:
      teal  = your side / moving / the signal   coral = counterparty / alerts / holds
      gold  = PayPal settlement / needs you      ok (green) = settled / receipt     refuse (red) = refused
@@ -12,8 +14,26 @@
    This is the ONLY file in the client allowed to hold colour literals. Everything else uses
    var(--…) or color-mix() of tokens, so the light theme works everywhere (SVG included).
    Text inks are hex on purpose: src/lib/contrast.test.ts and src/design/tokens.test.ts read them.
-   Type: 14px body (1rem = 14px), 12px is the floor for anything a person must read.
-   Every v2 token name is kept (see docs/build/rebuild/wp1a.md, "Aliases"). */
+
+   THE SCALE (what to reach for; the values are below)
+     type     micro 7 (decoration, aria-hidden) · small 12 (the floor for anything read) · mono 12.5 ·
+              body 14 (1rem) · title3 16 · title2 18 · title1 22 · display 30 · hero 34/44/54 (the
+              console's one decision sentence, by window size). Weights: light 330, display 350,
+              regular 400, medium 500, semibold 600, bold 700. Faces: --font/--display (Archivo),
+              --label (Archivo semi-condensed via --label-stretch, tracked --track-label, uppercase
+              kickers), --num (Sofia Sans, tabular lining figures for money, counts, times), --mono.
+     space    a 4px grid: sp-0 2 · sp-1 4 · sp-2 8 · sp-3 12 · sp-4 16 · sp-5 20 · sp-6 24 · sp-8 32 ·
+              sp-10 40 · sp-12 48 · sp-16 64.
+     sizes    controls ctl 28 / ctl-sm 24 (the 24px --target floor) · rows 30 / 46 · bar 40 ·
+              graticule pitch 1.5rem.
+     radii    machined, not rounded: tight .15rem · card .25rem (--r) · pill .3rem · sheet .35rem (--r-lg).
+     motion   easings ease / ease-out (arriving) / ease-in (leaving) / linear (gauges);
+              instant 80 · fast 120 · med 200 · slow 380 · sheet 460 ms; hold 1200 ms; calm and
+              reduced motion crossfade at med (design/motion.ts holds the same numbers).
+     layers   content < app frame (z-app) < scrim < sheets < popovers < tips < toasts.
+   The Tumbler keeps the v2 type and control sizes (the block at the end of this file).
+   v2 names that now alias a Calibre value are listed in docs/build/rebuild/wp1a.md ("Aliases");
+   aliases nothing reads any more were removed in WP4b (--on-accent, --sans). */
 
 :root {
   /* --- colour: night ------------------------------------------------------------------------ */
@@ -28,7 +48,7 @@
   --on-gold: #1c1404; --on-teal: #06201d; --on-refuse: #2a0b0b; --on-ok: #0b2414;
   --replay: #8a4fd0; --on-replay: #ffffff;
   --red: var(--refuse);
-  --accent: var(--teal); --on-accent: var(--on-teal);
+  --accent: var(--teal);
   --signal: var(--teal);
   /* sheets: the calibrated plate and the pile under it */
   --sheet: #111922; --sheet-hi: #16212c; --sheet-lo: #0e151d; --pile-hi: #131b25; --pile-edge: #243243;
@@ -68,7 +88,6 @@
   --label-stretch: 87.5%;        /* Archivo's semi-condensed cut */
   --num: "Sofia Sans", "Bahnschrift", "DIN Alternate", "Segoe UI Variable Display", system-ui, sans-serif;
   --mono: "Cascadia Mono", "Cascadia Code", ui-monospace, "SF Mono", Consolas, Menlo, monospace;
-  --sans: var(--font);
   /* Numbers people read (money, counts, times) use --num with tabular, lining figures
      (class .num / .money, or font-variant-numeric: tabular-nums lining-nums). */
   --fs-display: 30px;  /* the one key figure on a screen */

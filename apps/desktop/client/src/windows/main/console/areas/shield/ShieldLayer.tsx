@@ -5,13 +5,14 @@
 // block has no release anywhere). Four cards open the stopped payments, the ones the owner let go
 // on, every check side by side (the old matrix, as rows) and the ones that looked safe. One level
 // down: each paused payment as a decision, the lists, and how the shield decides.
-import { SHIELD, SHIELD_VIEWS_TITLE } from '../../../../../lib/words';
+import { LATEST_OF, OPEN_THE_DEAL, SHIELD, SHIELD_VIEWS_TITLE } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { silenceParts } from '../../../home/model';
 import { Loading } from '../../../ui';
 import { useModuleRoute } from '../../../viewNav';
 import { useLayerNav, type LayerProps } from '../../layers';
 import { ListEngine } from '../../ListEngine';
+import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { ModuleLayer } from '../../ModuleLayer';
 import { dealTotal } from '../../../logic';
 import { formatMinor } from '../../../../../lib/format';
@@ -55,7 +56,19 @@ function answerOf(s: ShieldWorld): { answer: string; sub: string } {
   return { answer: SHIELD.answer.quiet, sub: s.checked.length ? safe || SHIELD.answer.quietSub : SHIELD.answer.notYet };
 }
 
-export function ShieldLayer(_: LayerProps) {
+/** Latest: what the checks paused, stopped or let go on (paused first), else every deal checked. */
+function latestOf(s: ShieldWorld, open: (v: string) => void, deal: (id: string) => void): LatestProps {
+  const seen = new Set<string>();
+  const flagged = [...s.paused, ...s.stopped, ...s.released].filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true)));
+  const rows = [...flagged, ...s.checked.filter((d) => !seen.has(d.id))];
+  return {
+    title: LATEST_OF.shield, total: rows.length,
+    rows: rows.slice(0, MAX_ROWS).map((d) => ({ key: d.id, label: `${s.who(d)}, ${s.title(d)}, ${OPEN_THE_DEAL}`, onOpen: () => deal(d.id), node: <ShieldRow deal={d} s={s} /> })),
+    seeAll: { onOpen: () => open(s.paused.length ? 'paused' : s.stopped.length ? 'stopped' : flagged.length ? 'through' : 'week') },
+  };
+}
+
+export function ShieldLayer({ nav }: LayerProps) {
   const s = useShieldWorld();
   const route = useModuleRoute();
   if (!s.loaded) {
@@ -72,7 +85,7 @@ export function ShieldLayer(_: LayerProps) {
   const firstNeed = first ? s.need(first) : undefined;
   return (
     <div className="ar-shield">
-      <ModuleLayer module="shield" answer={answer} sub={sub}
+      <ModuleLayer module="shield" answer={answer} sub={sub} latest={latestOf(s, (v) => route.open(v), nav.deal)}
         yourCall={first && firstNeed ? { count: s.paused.length, ifNothing: silenceParts(firstNeed.on_silence).head, onOpen: () => route.open('paused', 'your-call') } : null}
         action={first && firstNeed ? <ReleaseHandoff deal={first} need={firstNeed} /> : undefined}
         cards={[

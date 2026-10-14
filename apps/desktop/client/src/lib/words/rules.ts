@@ -34,6 +34,8 @@ export const RULES_CARD = {
   askNone: 'No rule asks you',
   limits: 'Wallet limits',
   limitsNote: 'one cap above every rule',
+  /** The Wallet limits card's note: its figure is the day's budget, not the footer's "Paid out today". */
+  limitsBudgetNote: 'budget used today · not the same as “Paid out today”',
   limitsNone: 'None signed',
 } as const;
 
@@ -102,4 +104,13 @@ export const LIMITS_PLACE = {
   none: 'No wallet limit is signed. Each rule set still limits its own agent.',
   mixed: 'Money went out in more than one currency today, so nothing is added up.',
   ifNothing: 'your limits stay as signed',
+  /** The daily meter is the day's budget (every payment agreed today), never the footer's figure. */
+  budget: 'Budget used today',
+  budgetNote: 'Every payment your agents agreed to today counts here, paid or not. “Paid out today” at the bottom of the window counts only money PayPal collected.',
+  factPaid: 'Paid out today (collected by PayPal)',
+  factBudget: 'Budget used today (agreed, paid or not)',
+  factLimits: 'Your signed limits',
+  factIn: 'Money coming in',
+  factInValue: 'Never limited',
+  nothingYet: 'Nothing yet',
 } as const;

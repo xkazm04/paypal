@@ -70,6 +70,8 @@ body.w-tumbler #root { position: fixed; inset: 0; }
 .puck-art .p-lock rect { fill: var(--gold-l); }
 .puck-art .p-lock path { stroke: var(--gold-l); }
 .puck-art .cnt { font: var(--fw-semibold) 23px var(--display); letter-spacing: -.03em; fill: var(--gold-l); }
+.puck-art .p-mark { stroke: var(--steel); opacity: .26; }
+.ring-gold .puck-art .p-mark { stroke: var(--gold); opacity: .3; }
 .ring-coral .puck-art .cnt { fill: var(--coral-l); }
 .puck-art .cnt.calm { fill: var(--teal-l); font-size: 19px; }
 .puck-art .mode { font: var(--fw-semibold) var(--fs-small) var(--mono); fill: var(--gold-l); }

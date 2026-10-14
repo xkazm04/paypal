@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import { useQuery } from '../../../../../lib/hooks';
-import { headlineWords, OPEN_THE_DEAL, TABLES, TABLES_TRADE, TABLES_VIEWS, tablesClip, tablesItem, tablesShortWho } from '../../../../../lib/words';
+import { headlineWords, LATEST_OF, OPEN_THE_DEAL, TABLES, TABLES_TRADE, TABLES_VIEWS, tablesClip, tablesItem, tablesShortWho } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, useLayer, useToast } from '../../../../../shared/ui';
 import { silenceParts, shortTitle } from '../../../home/model';
@@ -20,6 +20,7 @@ import { useModuleRoute } from '../../../viewNav';
 import { useDeals, useNeeds, useWorldSelector, type World } from '../../../world';
 import type { LayerProps } from '../../layers';
 import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
+import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { ModuleLayer, type YourCall } from '../../ModuleLayer';
 import type { ModuleCard } from '../../ModuleSummary';
 import { Amount, Countdown, DealRow, StateChip, WhoChip } from '../../rows';
@@ -205,15 +206,26 @@ export function TablesLayer({ nav }: LayerProps) {
     <ListEngine<Deal> label={label} rows={rows} getKey={(d) => d.id} filters={rows.length > 8 ? filters : undefined} sorts={sorts} estimateSize={60} measure
       searchText={(d) => `${display(d).title} ${cp(d.counterparty).name}`}
       renderRow={(d) => <TableRow deal={d} c={c} picked={picked?.id === d.id} />}
-      rowLabel={(d) => `${display(d).title}, ${c.who(d).full}`} onOpen={(d) => pick(d.id)} empty={empty} />
+      rowLabel={(d) => `${display(d).title}, ${c.who(d).full}`} onPick={(d) => pick(d.id)} onOpen={open} empty={empty} />
   );
   const tablesView = (title: string, subLine: string) => ({
     title, sub: subLine,
     render: () => <SplitView label={TABLES.openList} count={openDeals.length} list={tableList(openDeals, TABLES.openList, pickedTable, pickTable, TABLES.openEmpty)} pane={tablePane(pickedTable, true)} />,
   });
 
+  // Latest: the open tables (waiting ones first), then the ones that ended; each opens its deal.
+  const latestRows = [...openDeals, ...closed];
+  const latest: LatestProps = {
+    title: LATEST_OF.tables, total: latestRows.length,
+    rows: latestRows.slice(0, MAX_ROWS).map((d) => ({
+      key: d.id, label: `${display(d).title}, ${OPEN_THE_DEAL}`, onOpen: () => open(d),
+      node: isLive(d) ? <TableRow deal={d} c={c} picked={false} /> : <DealRow deal={d} who={c.who(d).full} />,
+    })),
+    seeAll: { onOpen: () => route.open(openDeals.length ? 'tables' : 'closed') },
+  };
+
   return (
-    <ModuleLayer module="tables" kicker={TABLES.kicker} answer={answer} sub={sub} yourCall={yourCall}
+    <ModuleLayer module="tables" kicker={TABLES.kicker} answer={answer} sub={sub} yourCall={yourCall} latest={latest}
       action={<Btn onClick={() => nav.place('pairing')} title={TABLES.openTableTitle}>{TABLES.openTable}</Btn>}
       cards={cards}
       explain={{ summary: TABLES.whyTitle, body: <ol className="tr-steps">{TABLES.why.map((s) => <li key={s}>{s}</li>)}</ol> }}

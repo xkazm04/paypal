@@ -1,6 +1,7 @@
 // Keyboard shortcuts, one sheet for the whole Main window (press ? anywhere, or the footer's ?). Pages keep their keys
 // but no longer print a permanent shortcut footer (docs/ux/UX-GUIDE.md: shortcuts are a bonus,
 // not a lesson). Keep this list in step with the page key handlers.
+import { SHORTCUTS_LABEL, SHORTCUTS_TRIAL } from '../../lib/words';
 import { Fragment } from 'react';
 import { EXPERIMENTS, Sheet, setExperiment, useExperiment, type ExperimentKey } from '../../shared/ui';
 import './console/console.css';
@@ -44,7 +45,7 @@ const GROUPS: readonly { title: string; keys: Keys }[] = [
 
 export function Shortcuts({ onClose }: { onClose: () => void }) {
   return (
-    <Sheet title="Keyboard shortcuts" onClose={onClose} size="narrow" className="shortcuts">
+    <Sheet title={SHORTCUTS_LABEL} onClose={onClose} size="narrow" className="shortcuts">
       {GROUPS.map((g) => (
         <section key={g.title} className="sc-group">
           <h3>{g.title}</h3>
@@ -59,7 +60,7 @@ export function Shortcuts({ onClose }: { onClose: () => void }) {
         </section>
       ))}
       <section className="sc-group sc-exp">
-        <h3>New layouts on trial</h3>
+        <h3>{SHORTCUTS_TRIAL}</h3>
         <p className="sc-note">A new layout on trial. Switch one off to see that screen as it was before.</p>
         <ul>{EXPERIMENTS.map((x) => <ExperimentRow key={x.key} k={x.key} name={x.name} where={x.where} what={x.what} />)}</ul>
       </section>

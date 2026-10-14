@@ -9,7 +9,7 @@ import { shortId } from '../../../../../lib/format';
 import { DEAL_WHO, houseWords, shieldWord } from '../../../../../lib/words';
 import { Chip, Disclosure, Kv } from '../../../../../shared/ui';
 import { pairingFact } from '../../../logic';
-import { NoteChip } from '../../../modules/shield/NoteChip';
+import { NoteChip } from '../shared/NoteChip';
 
 export type Cp = { name: string; house: boolean; known: boolean; entry?: CounterpartyDisplay };
 

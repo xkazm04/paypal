@@ -15,10 +15,11 @@
 // DOM, the read budget, and every command called (so a test can assert that nothing but reads and
 // `approval_open` was sent). jsdom has no layout: the harness gives every element a size so windowed
 // lists draw a window of rows (see lib/data/useWindowedRows.ts).
+import { Profiler } from 'react';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { expect } from 'vitest';
 import { AUTHORITY } from '@bindings/authority';
-import type { Backend, CommandName } from '../../../../lib/contract';
+import type { Backend, CommandName, EventName, PayloadOf } from '../../../../lib/contract';
 import { readBudget, resetReadBudget } from '../../../../lib/data/invoke';
 import { mockBackend, resetMockState } from '../../../../mock/backend';
 import { App } from '../../App';
@@ -41,6 +42,10 @@ export type LayerRun = {
   /** Milliseconds from render to the layer's heading. */
   ms: number;
   budget: typeof readBudget;
+  /** React commits of the whole window since render (a Profiler around App; perf counters). */
+  commits: () => number;
+  /** Sends a wallet event to every listener of the window, as the shell would (in act). */
+  fire: <E extends EventName>(e: E, payload: PayloadOf<E>) => Promise<void>;
 };
 
 /** Raw enum names, display labels (ids), command names and error codes never belong on screen. */
@@ -107,6 +112,8 @@ export async function renderLayerAtScale(route: LayerTarget, scale: Scale, o: { 
   resetReadBudget();
   const errors: string[] = [];
   const calls: { cmd: string; args: unknown }[] = [];
+  const handlers = new Map<string, Set<(p: unknown) => void>>();
+  let commits = 0;
   const wrapped: Backend = {
     kind: real.kind,
     label: real.label,
@@ -116,14 +123,20 @@ export async function renderLayerAtScale(route: LayerTarget, scale: Scale, o: { 
       if (cmd === 'approval_open') return null as never;
       return real.invoke(cmd, args, opts);
     },
-    listen: real.listen,
+    listen: async (e, cb) => {
+      const set = handlers.get(e) ?? new Set();
+      set.add(cb as (p: unknown) => void);
+      handlers.set(e, set);
+      const off = await real.listen(e, cb);
+      return () => { set.delete(cb as (p: unknown) => void); off(); };
+    },
   };
   setHarnessBackend(wrapped);
   const origError = console.error;
   console.error = (...a: unknown[]) => { errors.push(a.map(String).join(' ')); };
   const t0 = performance.now();
   try {
-    render(<App />);
+    render(<Profiler id="main" onRender={() => { commits += 1; }}><App /></Profiler>);
     const layer = await waitFor(() => {
       const el = document.querySelector<HTMLElement>('.cs-layer');
       const h = el?.querySelector('[data-layer-title], h1');
@@ -134,6 +147,8 @@ export async function renderLayerAtScale(route: LayerTarget, scale: Scale, o: { 
     await settle();
     return {
       layer, errors, calls, ms, budget: readBudget,
+      commits: () => commits,
+      fire: async (e, payload) => { await act(async () => { for (const cb of handlers.get(e) ?? []) cb(payload); }); },
       texts: () => visibleTexts(document.body),
       rows: () => document.querySelectorAll(ROW_SELECTOR).length,
     };

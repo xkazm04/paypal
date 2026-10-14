@@ -125,3 +125,6 @@
 /* a short list is drawn at its own height, the picked row's pane beside it at its content's */
 .ar-rescue .le.few, .ar-rescue .le.few .le-main { flex: 0 1 auto; min-height: 0; }
 .ar-rescue .le.few .le-detail { align-self: start; }
+
+/* the silence line's hourglass keeps its size wherever the panel sits (beside or under the list, WP4a) */
+.ar-rescue .rs-sil .hg { width: 10px; height: 12px; flex: none; color: var(--dim); }

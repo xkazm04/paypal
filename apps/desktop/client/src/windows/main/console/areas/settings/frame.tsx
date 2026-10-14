@@ -5,12 +5,15 @@
 // a nested view one level down on this same sheet, an explanation behind a disclosure, and the
 // place's own content. A nested view opens under the cards (the card says Close, Escape closes it
 // and gives focus back to its card); it never draws a Back of its own: Back, Escape with nothing
-// open and the crumbs are the console's. Places have no `v=` in their route (route.ts), so an open
-// view is this sheet's own state, not a layer of its own.
+// open and the crumbs are the console's. The open view is in the route (rebuild WP4a: `#d=..&dv=`,
+// `#p=..&v=`; the keys and crumb labels are the layer's `views`), so it is one step of the chain:
+// Back, the crumbs and the browser's Back close it, and a reload opens it again.
 import { Suspense, useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { isCalm } from '../../../../../design/motion';
 import { IF_NOTHING, LAYER_LOADING, PLACE_FRAME, YOUR_CALL } from '../../../../../lib/words';
 import { Chip, Disclosure, UNKNOWN, type ChipTone } from '../../../../../shared/ui';
+import { useSheetView } from '../../layers';
+import { Latest, type LatestProps } from '../../Latest';
 
 /** One card of a place: a figure or status that opens a nested view (or moves to another layer). */
 export type LensCard = {
@@ -64,40 +67,55 @@ export type PlaceFrameProps = {
   children?: ReactNode;
   /** Data attribute for tests and the director (`data-place`). */
   place?: string;
+  /** The quiet "Latest" strip under the cards (rows of the place's list, or its state at a glance);
+   *  drawn only while no card view is open. */
+  latest?: LatestProps | readonly LatestProps[];
 };
 
 export const MAX_LENS_CARDS = 4;
+
+const backToCard = (id: string) => {
+  requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-lens="${CSS.escape(id)}"]`)?.focus());
+};
 
 /** A windowed list's box on a place: as tall as its rows (plus the toolbar the list draws above
  *  eight rows), never past `max`, so a small shop's short list leaves no dead band. */
 export const fitHeight = (rows: number, rowPx: number, max = '60vh'): string => `min(${Math.max(1, rows) * rowPx + (rows > 8 ? 72 : 16)}px, ${max})`;
 
 export function PlaceFrame(p: PlaceFrameProps) {
-  const [open, setOpen] = useState<string | null>(p.initialView ?? null);
+  // Inside a deal or a place layer the open view is the route's (`&dv=` / `&v=`): Back, Escape, the
+  // crumbs and the browser's Back close it, and a reload opens it again. Elsewhere (a test, a frame
+  // drawn outside the console) it is this sheet's own state.
+  const sheet = useSheetView();
+  const [own, setOwn] = useState<string | null>(p.initialView ?? null);
+  const open = sheet ? sheet.view : own;
+  const setOpen = (id: string | null) => { if (sheet) sheet.open(id, id ?? undefined); else setOwn(id); };
   const baseId = useId();
   const cards = (p.cards ?? []).slice(0, MAX_LENS_CARDS);
   const current = cards.find((c) => c.id === open && c.view);
   const viewRef = useRef<HTMLElement>(null);
-  const focusView = useRef(false);
   const style = (p.tone ? { '--pf-tone': p.tone } : {}) as CSSProperties;
 
+  // A view that opens (a card, a reload, the browser's Forward) comes into sight under the cards and
+  // its heading takes the focus; a view that closes (its card, Escape, Back, a crumb) gives the focus
+  // back to the card that opened it.
+  const shown = current?.id ?? null;
+  const was = useRef<string | null>(null);
   useEffect(() => {
-    if (!focusView.current || !current) return;
-    focusView.current = false;
-    // The view opens under the cards: bring its top into sight, then give its heading the focus.
-    viewRef.current?.scrollIntoView?.({ block: 'start', behavior: isCalm() ? 'auto' : 'smooth' });
-    viewRef.current?.querySelector<HTMLElement>('[data-view-title]')?.focus({ preventScroll: true });
-  }, [current]);
+    const before = was.current;
+    was.current = shown;
+    if (shown && shown !== before) {
+      viewRef.current?.scrollIntoView?.({ block: 'start', behavior: isCalm() ? 'auto' : 'smooth' });
+      viewRef.current?.querySelector<HTMLElement>('[data-view-title]')?.focus({ preventScroll: true });
+    } else if (!shown && before) {
+      backToCard(before);
+    }
+  }, [shown]);
 
-  const backToCard = (id: string) => {
-    requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-lens="${CSS.escape(id)}"]`)?.focus());
-  };
   const toggle = (c: LensCard) => {
     if (c.go) { c.go(); return; }
     if (!c.view) return;
-    if (open === c.id) { setOpen(null); return; }
-    focusView.current = true;
-    setOpen(c.id);
+    setOpen(open === c.id ? null : c.id);
   };
   // Escape inside an open view closes it (and keeps the console's Escape from going a layer up).
   const onViewKey = (e: KeyboardEvent<HTMLElement>) => {
@@ -105,9 +123,7 @@ export function PlaceFrame(p: PlaceFrameProps) {
     const t = e.target instanceof HTMLElement ? e.target : null;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') && (t as HTMLInputElement).value) return;
     e.preventDefault();
-    const id = current.id;
     setOpen(null);
-    backToCard(id);
   };
 
   return (
@@ -168,6 +184,7 @@ export function PlaceFrame(p: PlaceFrameProps) {
         </section>
       ) : null}
       {p.children}
+      {p.latest && !current ? (Array.isArray(p.latest) ? p.latest : [p.latest]).map((l: LatestProps) => <Latest key={l.title} {...l} />) : null}
       {p.explain ? <Disclosure summary={p.explain.summary} className="pf-explain">{p.explain.body}</Disclosure> : null}
     </div>
   );

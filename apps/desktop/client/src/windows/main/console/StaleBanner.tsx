@@ -14,18 +14,22 @@ export function StaleBanner() {
   const attention = useAttention();
   const runs = useRuns();
   const client = useDataClient();
-  if (!banner) return null;
+  // The live region is always there (an empty one takes no room), so the banner's words are announced
+  // when a read fails, not only drawn.
+  if (!banner) return <div className="cs-stale-live" role="status" aria-live="polite" />;
   const retry = () => {
     for (const q of [settings, deals, attention, runs]) if (q.error) void q.refetch();
     // The deal names (deal_display) that failed are read again too; nothing else.
     void client.refetchQueries({ predicate: (q) => q.state.status === 'error' });
   };
   return (
-    <div className={`cs-stale ${banner.kind}`} role="status">
-      <b>{banner.title}</b>
-      {banner.parts.length ? <span className="parts">{joinWords(banner.parts)}</span> : null}
-      <span>{banner.text}</span>
-      <Btn sm onClick={retry}>{BOUNDARY_RETRY}</Btn>
+    <div className="cs-stale-live" role="status" aria-live="polite">
+      <div className={`cs-stale ${banner.kind}`}>
+        <b>{banner.title}</b>
+        {banner.parts.length ? <span className="parts">{joinWords(banner.parts)}</span> : null}
+        <span>{banner.text}</span>
+        <Btn sm onClick={retry}>{BOUNDARY_RETRY}</Btn>
+      </div>
     </div>
   );
 }

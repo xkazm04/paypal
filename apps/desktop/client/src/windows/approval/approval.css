@@ -4,21 +4,20 @@
    the owner screens keep frame.css / owner.css. Tokens only: no hex, sizes from the scale. */
 
 /* ---- frame ---------------------------------------------------------------------------------- */
-.aw.dr { background: var(--panel); grid-template-rows: auto minmax(0, 1fr) auto; }
-.dr > .ui-titlebar { gap: var(--sp-2); padding-right: var(--sp-2); }
-.dr .ui-crumbs { font-size: var(--fs-small); min-width: 0; overflow: hidden; white-space: nowrap; }
-.dr .aw-emblem { width: 16px; height: 16px; }
 .dr-body { min-height: 0; min-width: 0; overflow: auto; padding: var(--sp-3) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); outline: none; }
 .dr-body > * { flex-shrink: 0; }
 .dr-foot { padding: var(--sp-2) var(--sp-4) var(--sp-3); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
 .dr-foot .notice { margin: 0; }
 .dr-line { margin: 0; font-size: var(--fs-small); }
 
-/* ---- heading -------------------------------------------------------------------------------- */
-.dr-head { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+/* ---- heading: the seal, a kicker and the display title (the console's type scale) --------------- */
+.dr-head { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+.dr-head .dr-seal { width: 2.6rem; flex: none; }
+.dr-ht { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dr-kick { margin: 0; color: var(--dim); }
 .dr-h { flex: 1 1 auto; min-width: 0; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; outline: none;
-  font: var(--fw-semibold) var(--fs-title3)/1.3 var(--display); color: var(--text); }
-.dr-h .q { color: var(--muted); font-weight: var(--fw-regular); }
+  font: var(--fw-regular) var(--fs-title2)/1.25 var(--display); letter-spacing: var(--track-display); color: var(--text); }
+.dr-h .q { color: var(--muted); font-weight: var(--fw-light); }
 /* The heading takes programmatic focus (Enter must never land on a money button); it is not a
    keyboard target, so it never draws a ring. */
 .dr-h:focus, .dr-h:focus-visible { outline: none; box-shadow: none; }
@@ -42,27 +41,29 @@
 .dr-mark.m-unk { color: var(--dim); background: none; outline: 1px dashed var(--line2); outline-offset: -1px; }
 .dr-mark.big { width: 26px; height: 26px; font-size: 14px; }
 
-/* ---- twin header: your side · relation · the asked side --------------------------------------- */
-.dr-twin { display: grid; grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr); border-radius: var(--r); overflow: hidden; box-shadow: inset 0 0 0 1px var(--line); }
-.dr-twin .tw { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-2) var(--sp-3); min-width: 0; }
-.dr-twin .tw.l { background: color-mix(in srgb, var(--teal) 9%, var(--panel)); }
-.dr-twin .tw.r { background: color-mix(in srgb, var(--gold) 8%, var(--panel)); text-align: right; align-items: flex-end; }
-.dr-twin.t-bad .tw.r { background: color-mix(in srgb, var(--refuse) 12%, var(--panel)); }
-.dr-twin .twk { font-size: var(--fs-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+/* ---- twin header: your side · relation · the asked side, drawn as the console's facts strip ---- */
+.dr-twin { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr); border-top: 1px solid var(--line2); }
+.dr-twin::before { content: ''; position: absolute; left: 0; right: 0; top: -1px; height: .35rem; pointer-events: none;
+  background: repeating-linear-gradient(90deg, var(--line2) 0 1px, transparent 1px 1.5rem); }
+.dr-twin .tw { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-3) var(--sp-3) var(--sp-1); min-width: 0; }
+.dr-twin .tw.l { padding-left: 0; }
+.dr-twin .tw.r { text-align: right; align-items: flex-end; padding-right: 0; }
+.dr-twin .twk { font: var(--fw-medium) var(--fs-small)/1.3 var(--label); font-stretch: var(--label-stretch); letter-spacing: var(--track-label); text-transform: uppercase;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .dr-twin .tw.l .twk { color: var(--teal-l); }
 .dr-twin .tw.r .twk { color: var(--gold-l); }
-.dr-twin .tw-amt { font: var(--fw-semibold) var(--fs-display)/1.1 var(--num); font-variant-numeric: tabular-nums; letter-spacing: -.015em; color: var(--text); }
+.dr-twin .tw-amt { font: var(--fw-regular) var(--fs-display)/1.1 var(--num); font-variant-numeric: tabular-nums lining-nums; letter-spacing: var(--track-money); color: var(--text); }
 .dr-twin .tw-amt.unk { font: var(--fw-medium) var(--fs-body)/var(--fs-display) var(--font); color: var(--dim); }
 .dr-twin .tw-amt.unk::before { content: ""; display: inline-block; width: 72px; height: 14px; margin-right: var(--sp-2); vertical-align: middle;
   border: 1px dashed var(--line2); border-radius: var(--r-sm); }
 .dr-twin .tw-amt.skeleton { color: var(--line2); }
 .dr-twin.t-bad .tw.r .tw-amt.unk, .dr-twin.t-bad .tw.r .tw-amt { color: var(--red-l); }
-.dr-twin .tw-op { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--ok); background: var(--panel2);
+.dr-twin .tw-op { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; margin-top: var(--sp-2); color: var(--ok);
   border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
 .dr-twin .tw-op .w { font-size: var(--fs-small); font-weight: var(--fw-semibold); white-space: nowrap; }
-.dr-twin .tw-op.bad { color: var(--red-l); background: color-mix(in srgb, var(--refuse) 16%, var(--panel)); }
+.dr-twin .tw-op.bad { color: var(--red-l); }
 .dr-twin .tw-op.hold { color: var(--coral-l); }
-.dr-twin.t-hold .tw.r { background: color-mix(in srgb, var(--coral) 9%, var(--panel)); }
+.dr-twin.t-hold .tw.r .tw-amt { color: var(--coral-l); }
 .dr-twin .tw-op.wait, .dr-twin .tw-op.info { color: var(--dim); }
 
 /* ---- the answer: one plain sentence under the title (story kit AnswerBar, tuned for 744 px) -- */
@@ -244,13 +245,9 @@
    Next: "What happens next", a three-step path under the answer.
    Why?: on the answer and on each exception row. */
 .dr-hold { display: contents; }
-.dr .ui-hold { min-width: 244px; height: 34px; justify-content: flex-start; gap: var(--sp-2); padding: 0 var(--sp-4) 0 var(--sp-2);
-  font-weight: var(--fw-semibold); border-radius: var(--r); transition: box-shadow var(--t-fast), background var(--t-fast); }
-.dr .ui-hold .lbl { position: relative; z-index: 1; }
-.dr .ui-hold .ring { position: relative; z-index: 1; }
-.dr .ui-hold.gold::after { background: color-mix(in srgb, var(--on-gold) 24%, transparent); }
-.dr .ui-hold.holding { box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 34%, transparent), var(--shadow-1); }
-.dr .ui-hold.done { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 40%, transparent); }
+/* The window's one gold action: the hold, sized for the footer (shared HoldButton = HoldGesture). */
+.dr .ui-hold { min-width: 244px; min-height: 40px; padding: 3px var(--sp-4) 3px 3px; gap: var(--sp-2); border-radius: var(--r-pill); }
+.dr .ui-hold .ui-hgest-ros { width: 32px; height: 32px; }
 .dr .ui-hold:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 .dr-next { display: flex; flex-direction: column; gap: var(--sp-1); }

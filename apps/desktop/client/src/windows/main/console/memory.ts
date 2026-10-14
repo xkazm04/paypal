@@ -40,6 +40,10 @@ export function restoreLayer(root: HTMLElement, scroller: HTMLElement | null, me
     const el = mem?.focus ? findByFocusKey(root, mem.focus) ?? findByFocusKey(document, mem.focus) : null;
     const heading = layerHeading(root);
     if (!el && tries++ < RESTORE_FRAMES && (mem?.focus || !heading)) { raf = requestAnimationFrame(run); return; }
+    // Going deeper, a layer that already put the focus inside itself (a card view opened by the
+    // link, the view's heading) keeps it, with its own scroll.
+    const settled = !mem && document.activeElement instanceof HTMLElement && document.activeElement !== root && root.contains(document.activeElement);
+    if (settled) return;
     if (scroller) scroller.scrollTop = mem?.scroll ?? 0;
     const target = el ?? heading;
     if (target && !target.contains(document.activeElement)) {

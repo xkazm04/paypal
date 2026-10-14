@@ -14,7 +14,7 @@ import { clockLabel } from '../../../../../lib/format';
 import { useMutation, useQuery } from '../../../../../lib/hooks';
 import { watchLine } from '../../../../../lib/marketWatch';
 import {
-  CONNECTIONS_ANSWER, CONNECTIONS_CARD, CONNECTIONS_ENGINE, CONNECTIONS_HOUSE, CONNECTIONS_KICKER, CONNECTIONS_PAIR, CONNECTIONS_PAYPAL, CONNECTIONS_PEOPLE, houseWords, KEEP_PRACTICE_AGENT, modeWord, PRICE_CHECKS_USED_UP, reasonWords,
+  CONNECTIONS_ANSWER, CONNECTIONS_CARD, CONNECTIONS_ENGINE, CONNECTIONS_HOUSE, CONNECTIONS_KICKER, CONNECTIONS_PAIR, CONNECTIONS_PAYPAL, CONNECTIONS_PEOPLE, houseWords, KEEP_PRACTICE_AGENT, LATEST_OF, modeWord, NOTICE_WHAT, PRICE_CHECKS_USED_UP, reasonWords,
 } from '../../../../../lib/words';
 import { ModeBadge, WalletNotice } from '../../../../../shared/honesty';
 import { OwnerKey } from '../../../../../shared/ownerKey';
@@ -23,6 +23,7 @@ import { pairingFact } from '../../../logic';
 import type { PairMode } from '../../../setup/pairing';
 import { useSettings } from '../../../world';
 import type { LayerProps } from '../../layers';
+import { Latest, MAX_ROWS } from '../../Latest';
 import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
 import { WhoChip } from '../../rows';
 import { fitHeight, PlaceFrame, type CallLine, type LensCard } from '../settings/frame';
@@ -34,13 +35,26 @@ const dateLabel = (unix: number) => new Date(unix * 1000).toLocaleDateString('en
 const engineName = (id: EngineId): string => (id === 'scripted' ? CONNECTIONS_ENGINE.practiceShort : id);
 
 export function ConnectionsLayer({ route, nav, state }: LayerProps) {
-  if (route.level === 'place' && route.place === 'pairing') return <PairingLayer start={state.pairMode} />;
+  if (route.level === 'place' && route.place === 'pairing') return <PairingLayer start={state.pairMode} nav={nav} />;
   return <Connections nav={nav} />;
 }
 
-function PairingLayer({ start }: { start: PairMode | undefined }) {
+function PairingLayer({ start, nav }: { start: PairMode | undefined; nav: LayerProps['nav'] }) {
   const [mode, setMode] = useState<PairMode>(start ?? 'create');
-  return <div className="pf ar-connections pd-layer" data-place="pairing"><PairingDesk mode={mode} setMode={setMode} asLayer /></div>;
+  // Under the desk, quietly: the wallets already connected (newest first), each a way to the full list.
+  const cps = useQuery('counterparty_list', null, { refreshOn: ['pairing:pinned', 'settings:changed'] });
+  const people = useMemo(() => [...(cps.data ?? [])].sort((a, b) => b.first_seen - a.first_seen), [cps.data]);
+  const toAll = () => nav.place('connections');
+  return (
+    <div className="pf ar-connections pd-layer" data-place="pairing">
+      <PairingDesk mode={mode} setMode={setMode} asLayer />
+      {cps.data ? (
+        <Latest title={LATEST_OF.people} total={people.length} empty={CONNECTIONS_PEOPLE.empty}
+          rows={people.slice(0, MAX_ROWS).map((c) => ({ key: c.key_id, label: houseWords(c.display_name), onOpen: toAll, node: <PersonRow c={c} /> }))}
+          seeAll={{ onOpen: toAll, fk: 'to-connections' }} />
+      ) : null}
+    </div>
+  );
 }
 
 function Connections({ nav }: { nav: LayerProps['nav'] }) {
@@ -95,7 +109,7 @@ function Connections({ nav }: { nav: LayerProps['nav'] }) {
   return (
     <PlaceFrame root="ar-connections" place="connections" kicker={CONNECTIONS_KICKER} answer={answer.title} sub={answer.sub} call={call} cards={cards}
       action={<Btn kind={call ? 'default' : 'primary'} data-fk="to-pairing" title={CONNECTIONS_PAIR.title} onClick={() => nav.place('pairing')}>{CONNECTIONS_PAIR.act} ›</Btn>}>
-      {settings.error && !s ? <WalletNotice error={settings.error} what="Settings" /> : null}
+      {settings.error && !s ? <WalletNotice error={settings.error} what={NOTICE_WHAT.settings} /> : null}
       <section className="cn-people-sec" aria-label={CONNECTIONS_PEOPLE.view}>
         <header className="cn-ph"><h2 className="cs-h3">{CONNECTIONS_PEOPLE.view}</h2><span className="dim">{CONNECTIONS_PEOPLE.sub}</span></header>
         <PeopleView rows={list} error={!!cps.error} />

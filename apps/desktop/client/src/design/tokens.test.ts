@@ -22,15 +22,19 @@ const rgb = (t: Record<string, string>, k: string): Rgb => {
 const decl = (name: string): string | undefined => new RegExp(`--${name}\\s*:\\s*([^;]+);`).exec(css.slice(0, split))?.[1]?.trim();
 
 describe('tokens keep every v2 name', () => {
-  // Names the approval, tumbler, main and director CSS read (v2 tokens.css, 2026-10-06).
+  // Names the approval, tumbler, main and director CSS read (v2 tokens.css, 2026-10-06). WP4b removed
+  // the two aliases nothing read any more (--on-accent, --sans); the second test keeps them gone.
   const V2 = ('accent bar bg bg2 coral coral-l ctl ctl-sm dim display ease focus font fs-body fs-display fs-mono fs-small fs-title1 fs-title2 fs-title3 ' +
     'fw-bold fw-medium fw-regular fw-semibold gold gold-l hover inspector lh lh-tight line line2 m-book m-counter m-rescue m-shield m-spend m-tables ' +
-    'market material mono muted num ok on-accent on-gold on-ok on-refuse on-replay on-teal panel panel2 panel3 pp-blue pp-gold pp-navy pp-sky press ' +
+    'market material mono muted num ok on-gold on-ok on-refuse on-replay on-teal panel panel2 panel3 pp-blue pp-gold pp-navy pp-sky press ' +
     'r r-lg r-sm red-l refuse replay row row-2 scrim sel sel-line shadow-1 shadow-2 shadow-3 sheet-top sidebar sp-0 sp-1 sp-2 sp-3 sp-4 sp-5 sp-6 ' +
     'sp-8 steel t-fast t-med teal teal-l text z-app z-popover z-scrim z-sheet z-tip z-toast').split(' ');
   it('defines all of them', () => {
     const missing = V2.filter((n) => !new RegExp(`--${n}\\s*:`).test(css));
     expect(missing).toEqual([]);
+  });
+  it('the removed aliases stay removed', () => {
+    for (const n of ['on-accent', 'sans']) expect(css, n).not.toMatch(new RegExp(`--${n}\\s*:`));
   });
 });
 

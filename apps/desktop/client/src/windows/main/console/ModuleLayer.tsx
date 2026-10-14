@@ -17,6 +17,7 @@ import { silenceParts } from '../home/model';
 import { useModuleRoute } from '../viewNav';
 import { useNeeds } from '../world';
 import { useLayerNav } from './layers';
+import { Latest, type LatestProps } from './Latest';
 import { ModuleSummary, type ModuleCard } from './ModuleSummary';
 
 /** A nested detail view of a module. */
@@ -53,6 +54,9 @@ export type ModuleLayerProps = {
   views?: Readonly<Record<string, ModuleViewDef>>;
   /** More of the summary under the cards (a ListEngine, a chart). */
   children?: ReactNode;
+  /** The quiet "Latest" strip under the cards: the first rows of the module's most relevant list,
+   *  sized to the room left on the sheet (Latest.tsx). */
+  latest?: LatestProps;
 };
 
 /** The module's open decisions as the "Your call" chip: how many, and the first one's default. */
@@ -109,6 +113,7 @@ export function ModuleLayer(p: ModuleLayerProps) {
         <KeyArt module={p.module} label={MODULE_ART_LABEL[p.module]} className="ml-art" />
       </header>
       {p.cards?.length ? <ModuleSummary cards={p.cards} /> : null}
+      {p.latest ? <Latest {...p.latest} /> : null}
       {p.children ? <div className="ml-body">{p.children}</div> : null}
       {nothing ? <p className="ml-empty">{p.empty ?? MODULE_EMPTY}</p> : null}
       {p.explain ? <Disclosure summary={p.explain.summary} className="ml-explain">{p.explain.body}</Disclosure> : null}

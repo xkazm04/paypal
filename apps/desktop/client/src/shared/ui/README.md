@@ -97,6 +97,7 @@ Unknown numbers render as `UNKNOWN` (a dash), never 0.
 | `ListShell` | `label, search?, filters?, sort?, summary?, actions?, renderRows?, children?, empty?, isEmpty?, footer?, bodyRef?` | Sticky toolbar slots. **`renderRows`** is the windowing slot (WP1b): the shell's `.ui-list-body` stays the scroll container (`bodyRef`). |
 | `Depth` | `value, max? = 4, label?` | Rising bars; `Crumbs` takes `depth?` to show them. |
 | `HoldGesture` | `label, sub?, onComplete, ms? = 1200, disabled?, hint, progressLabel, holdingText, doneText` | **Approval window only.** Press the seal: pointer hold or held Space; Enter, click, short press, leave, blur, disabled never complete. Calls `onComplete` once and nothing else. Gauge is `role="progressbar"` with `aria-valuenow`; calm motion fills in quarter steps (the hold time is unchanged). |
+| `HoldButton` | `children, onConfirm, ms? = 1200, disabled?, kind?, title?, className?, hint?` | The v2 hold API, kept for its callers (the approval window's money actions). Since WP4b a thin face over `HoldGesture` (class `ui-hold`, words from `HOLD_WORDS`): the same rule, the rosette gauge. |
 | `Presence` | `show, children, exitMs? = 200, motion?: 'rise'\|'drop'\|'fade'` | Keeps children mounted through the exit; calm unmounts at once. |
 
 Decoration lives in `src/shared/brand` (`Seal`, `Mark`, `Rosette`, `Graticule`, `KeyArt`, `DialStrip`):

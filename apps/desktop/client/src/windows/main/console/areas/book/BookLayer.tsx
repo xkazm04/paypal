@@ -6,17 +6,18 @@
 // record, the questions and the proof check. Book only reads: nothing here can move money.
 import { useMemo, useState, type ReactNode } from 'react';
 import { useAttention, useNeeds } from '../../../world';
-import { BOOK, BOOK_VIEWS_TITLE } from '../../../../../lib/words';
+import { BOOK, BOOK_VIEWS_TITLE, LATEST_OF, OPEN_THE_DEAL } from '../../../../../lib/words';
 import { Btn } from '../../../../../shared/ui';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { silenceParts } from '../../../home/model';
 import { Loading } from '../../../ui';
 import { useModuleRoute } from '../../../viewNav';
 import type { LayerProps } from '../../layers';
+import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { ModuleLayer, type ModuleViewDef } from '../../ModuleLayer';
 import { Ask } from './Ask';
-import { Ledger, LedgerActions, type LedgerScope } from './Ledger';
-import { dealsIn, figures, outlookCount } from './model';
+import { Ledger, LedgerActions, LedgerRow, type LedgerScope } from './Ledger';
+import { dealsIn, figures, outlookCount, stampOf } from './model';
 import { Outlook, useOutlook } from './Outlook';
 import { moneyList, useBookWorld, type BookWorld } from './parts';
 import { Proof } from './Proof';
@@ -61,9 +62,17 @@ export function BookLayer({ nav }: LayerProps) {
   const { answer, sub } = answerOf(b);
   const out = moneyList(f.paidOut);
   const todayLine = today ? BOOK.cards.today(paidTodayText(today, BOOK.cards.nothingToday)) : null;
+  // Latest: the week's payments, newest first (the ledger's own row, without its statement read).
+  const pool = b.weekDeals.length ? b.weekDeals : b.all;
+  const newest = [...pool].sort((x, y) => (stampOf(y) ?? 0) - (stampOf(x) ?? 0)).slice(0, MAX_ROWS);
+  const latest: LatestProps = {
+    title: LATEST_OF.book, total: pool.length,
+    rows: newest.map((d) => ({ key: d.id, label: `${b.title(d)}, ${OPEN_THE_DEAL}`, onOpen: () => nav.deal(d.id), node: <LedgerRow deal={d} b={b} statement={false} /> })),
+    seeAll: { onOpen: () => route.open('recent') },
+  };
   return (
     <div className="ar-book">
-      <ModuleLayer module="book" answer={answer} sub={sub}
+      <ModuleLayer module="book" answer={answer} sub={sub} latest={latest}
         action={<Btn sm onClick={() => nav.place('safety')} title={BOOK.safetyTitle} data-fk="safety">{BOOK.safety}</Btn>}
         cards={[
           { id: 'ledger', view: 'ledger', label: BOOK.cards.money, value: out ? BOOK.cards.paidOut(out) : BOOK.cards.noOut,

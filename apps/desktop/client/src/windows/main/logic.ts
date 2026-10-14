@@ -352,16 +352,18 @@ export type Route =
   | { level: 'home' }
   /** `view` is a nested detail page of the module (absent = the summary page). */
   | { level: 'module'; module: Module; view?: string }
-  /** `from` is the module page the deal was opened from; absent = the deal's own module. */
-  | { level: 'deal'; deal: string; from?: DealFrom }
+  /** `from` is the module page the deal was opened from; absent = the deal's own module. `view` is
+   *  one of the page's nested views (a card's view on the same sheet; absent = none open). */
+  | { level: 'deal'; deal: string; from?: DealFrom; view?: string }
   /** The in-app Set up page (the Charter); `step` absent = the first step. */
   | { level: 'setup'; step?: SetupStep }
   /** Everything that waits on the owner; `module` narrows it to one module. */
   | { level: 'waiting'; module?: Module }
   /** The week replayed from the wallet's record. */
   | { level: 'rewind' }
-  /** One of the owner's places; `from` is where it was opened (Back returns there). */
-  | { level: 'place'; place: Place; from?: PlaceFrom };
+  /** One of the owner's places; `from` is where it was opened (Back returns there); `view` is one
+   *  of its cards' nested views on the same sheet (absent = none open). */
+  | { level: 'place'; place: Place; from?: PlaceFrom; view?: string };
 
 const isSetupStep = (v: string | null): v is SetupStep => !!v && (SETUP_STEPS as readonly string[]).includes(v);
 const isModule = (v: string | null): v is Module => !!v && (MODULE_KEYS as readonly string[]).includes(v);
@@ -373,9 +375,10 @@ const VIEW_KEY = /^[a-z][a-z0-9-]{0,39}$/;
 export const placeOfSheet = (t: SheetTab): Place => (t === 'mandates' ? 'rules' : t);
 
 /**
- * The hash forms (every older link still parses): `#m=<module>[&v=<view>]`, `#d=<deal>[&m=..&v=..]`
- * (the deal and the module page it was opened from), `#p=<place>[&m=<module>|&m=settings]` (an owner
- * place and where it was opened from), `#s=setup&step=<step>`, `#w=waiting[&f=<module>]`, `#r=rewind`,
+ * The hash forms (every older link still parses): `#m=<module>[&v=<view>]`, `#d=<deal>[&m=..&v=..][&dv=<view>]`
+ * (the deal, the module page it was opened from, and the deal's own open view; `#d=<deal>&v=<view>`
+ * with no `&m=` is read as the deal's view too), `#p=<place>[&m=<module>|&m=settings][&v=<view>]` (an
+ * owner place, where it was opened from, and its open view),`#s=setup&step=<step>`, `#w=waiting[&f=<module>]`, `#r=rewind`,
  * `#c=centre` (= no hash). Older forms: `#s=settings|pairing|mandates` (the old sheet, drawn over any
  * route) opens that place; `#m=<module>&p=safety` (the old safety sheet over a module) opens the safety
  * record from that module.
@@ -391,11 +394,16 @@ export function parseHash(hash: string): { route: Route } {
   if (s === 'settings' || s === 'pairing' || s === 'mandates') return { route: { level: 'place', place: placeOfSheet(s) } };
   if (isPlace(p)) {
     const from: PlaceFrom | null = !d && (isModule(m) || m === 'settings') && m !== p ? m : null;
-    return { route: from ? { level: 'place', place: p, from } : { level: 'place', place: p } };
+    const route: Route = from ? { level: 'place', place: p, from } : { level: 'place', place: p };
+    return { route: !d && v && VIEW_KEY.test(v) ? { ...route, view: v } : route };
   }
   if (d) {
     const from: DealFrom | null = isModule(m) ? (v && VIEW_KEY.test(v) ? { module: m, view: v } : { module: m }) : null;
-    return { route: from ? { level: 'deal', deal: d, from } : { level: 'deal', deal: d } };
+    const route: Route = from ? { level: 'deal', deal: d, from } : { level: 'deal', deal: d };
+    // The deal's own view is `dv` (`v` after `&m=` is the module view it was opened from); with no
+    // `&m=`, `v` is taken as the deal's view too.
+    const dv = params.get('dv') ?? (isModule(m) ? null : v);
+    return { route: dv && VIEW_KEY.test(dv) ? { ...route, view: dv } : route };
   }
   if (s === 'setup') {
     const step = params.get('step');
@@ -427,6 +435,7 @@ export function formatHash(route: Route): string {
         parts.push(`m=${route.from.module}`);
         if (route.from.view) parts.push(`v=${encodeURIComponent(route.from.view)}`);
       }
+      if (route.view) parts.push(`dv=${encodeURIComponent(route.view)}`);
       break;
     case 'waiting':
       parts.push('w=waiting');
@@ -436,9 +445,21 @@ export function formatHash(route: Route): string {
     case 'place':
       parts.push(`p=${route.place}`);
       if (route.from) parts.push(`m=${route.from}`);
+      if (route.view) parts.push(`v=${encodeURIComponent(route.view)}`);
       break;
   }
   return parts.length ? `#${parts.join('&')}` : '';
+}
+
+/** The nested view open on a deal's or a place's sheet (null: none, or another kind of layer). */
+export const sheetViewOf = (r: Route): string | null => ((r.level === 'deal' || r.level === 'place') && r.view ? r.view : null);
+
+/** The same deal or place with no nested view open (any other route unchanged). */
+export function withoutView(r: Route): Route {
+  if (r.level !== 'deal' && r.level !== 'place') return r;
+  if (!r.view) return r;
+  const { view: _view, ...rest } = r;
+  return rest;
 }
 
 /** A place's usual parent when it was not opened from anywhere in particular (null = the centre). */
@@ -453,6 +474,8 @@ export const PLACE_PARENT: Readonly<Record<Place, Place | null>> = { rules: null
  * summary, so it steps straight on). Null at home.
  */
 export function stepBack(route: Route, dealModule: Module | null, knownView = true): Route | null {
+  // A deal's or a place's open view closes first: the same sheet with nothing open.
+  if ((route.level === 'deal' || route.level === 'place') && route.view) return withoutView(route);
   switch (route.level) {
     case 'home': return null;
     case 'setup': case 'waiting': case 'rewind': return { level: 'home' };

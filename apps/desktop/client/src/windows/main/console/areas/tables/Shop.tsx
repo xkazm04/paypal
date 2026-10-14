@@ -71,7 +71,7 @@ export function ShopView({ groups, deals, display }: { groups: readonly DealGrou
               </span>
             );
           }}
-          rowLabel={(g) => shoppingFor(itemOf(g))} onOpen={(g) => pick(g.group_id)}
+          rowLabel={(g) => shoppingFor(itemOf(g))} onPick={(g) => pick(g.group_id)}
           empty={TABLES.shopEmpty} />
       )}
       pane={picked ? <GroupDetail group={picked} item={itemOf(picked)} byId={byId} who={who} /> : null} />
