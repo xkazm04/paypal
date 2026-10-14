@@ -29,6 +29,7 @@ const HEAD_BYTES: usize = 2048;
 /// Adding an action is one entry here.
 pub(crate) const ACTION_KEYS: &[(&str, &[&str])] = &[
     ("attention.rung", &["deadline", "rung", "reason"]),
+    ("command.refused", &["command", "window", "tier"]),
     ("counterparty.pinned", &["key_id", "paired_via"]),
     ("deadline.set", &["due_at", "authorization_at"]),
     ("deal.countersigned", &["attempt", "hash", "decided_by"]),

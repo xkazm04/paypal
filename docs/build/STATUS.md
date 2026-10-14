@@ -1314,6 +1314,7 @@ unchanged (no generated type changed; `TranscriptBy`/`TranscriptType` only gaine
 
 ## Security fixes
 
+- **Approval token compared in constant time; refused privileged commands audited (p-4889cb).** `ApprovalSession` compares via `subtle::ConstantTimeEq` on fixed-width padded buffers (`subtle` 2.6, BSD-3-Clause, already in the lock tree and allowed by deny.toml; new direct dependency because plain `==` short-circuits on content). `Runtime::execute` writes one `command.refused` row (keys command, window, tier; no arguments, no token) for each refused command whose authority row needs the token, the unlock or is in the release set; at most 60 rows per 60 s, the overflow counted in `Runtime.refusals.unrecorded`, failed writes in `write_failures`; the write is best-effort and never alters the refusal.
 - **C-1 (High, scan 2026-10-07) fixed** in `services/rendezvous/src/lib.rs`. The store holds `Inner { boxes,
   total_bytes }`; `send` returns `Error::Full` (429) past `MAX_MAILBOX_BYTES` (256 KiB) or `MAX_TOTAL_BYTES`
   (64 MiB); expired or removed boxes release their bytes; the expiry sweep runs in `send` as well as `create`.

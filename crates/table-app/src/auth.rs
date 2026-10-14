@@ -1,4 +1,5 @@
 use crate::Error;
+use subtle::{Choice, ConstantTimeEq};
 use table_core::{DealId, H256, Timestamp};
 pub trait NativeReauth {
     fn authenticate(&self) -> Result<(), Error>;
@@ -33,9 +34,25 @@ pub struct OwnerTicket {
     pub(crate) at: Timestamp,
 }
 impl ApprovalSession {
+    /// Constant-time token comparison. Both sides are padded to a fixed width, so neither the
+    /// content nor the length of a guess decides how long the comparison runs.
+    fn token_matches(&self, presented: &str) -> bool {
+        const WIDTH: usize = 128;
+        let (mut a, mut b) = ([0u8; WIDTH], [0u8; WIDTH]);
+        for (slot, byte) in a.iter_mut().zip(self.token.as_bytes()) {
+            *slot = *byte;
+        }
+        for (slot, byte) in b.iter_mut().zip(presented.as_bytes()) {
+            *slot = *byte;
+        }
+        let same_len = Choice::from(u8::from(
+            self.token.len() == presented.len() && presented.len() <= WIDTH,
+        ));
+        bool::from(a.ct_eq(&b) & same_len)
+    }
     /// Check a re-auth request before invoking the OS. A pending prompt grants no authority.
     pub fn begin_unlock(&self, label: &str, token: &str) -> Result<u64, Error> {
-        if label != "approval" || token != self.token {
+        if label != "approval" || !self.token_matches(token) {
             return Err(Error::Permission);
         }
         Ok(self.generation)
@@ -85,7 +102,7 @@ impl ApprovalSession {
         Some(900_i64.saturating_sub(now.saturating_sub(self.last_activity)))
     }
     pub fn check(&mut self, label: &str, token: &str, now: Timestamp) -> Result<(), Error> {
-        if label != "approval" || token != self.token {
+        if label != "approval" || !self.token_matches(token) {
             return Err(Error::Permission);
         }
         if self.locked(now) {
@@ -101,7 +118,7 @@ impl ApprovalSession {
         native: &dyn NativeReauth,
         now: Timestamp,
     ) -> Result<(), Error> {
-        if label != "approval" || token != self.token {
+        if label != "approval" || !self.token_matches(token) {
             return Err(Error::Permission);
         }
         native.authenticate()?;
@@ -164,6 +181,30 @@ mod tests {
         fn authenticate(&self) -> Result<(), Error> {
             Ok(())
         }
+    }
+    #[test]
+    fn token_comparison_accepts_only_the_exact_token() {
+        let session = ApprovalSession::new(100).unwrap();
+        let token = session.token("approval").unwrap().to_owned();
+        assert!(session.begin_unlock("approval", &token).is_ok());
+        assert!(session.begin_unlock("approval", "").is_err());
+        assert!(session.begin_unlock("approval", &token[1..]).is_err());
+        assert!(
+            session
+                .begin_unlock("approval", &format!("{token}0"))
+                .is_err()
+        );
+        assert!(
+            session
+                .begin_unlock("approval", &token.replace(&token[..1], "z"))
+                .is_err()
+        );
+        assert!(
+            session
+                .begin_unlock("approval", &format!("{token}{}", "0".repeat(400)))
+                .is_err()
+        );
+        assert!(session.begin_unlock("main", &token).is_err());
     }
     #[test]
     fn owner_tickets_bind_terms_deal_attempt_expiry_and_session_generation() {
