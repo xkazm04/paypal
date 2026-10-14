@@ -26,7 +26,7 @@ live PayPal call, deployment, GUI launch, native keyring write or git state chan
 | B3 Ledger | Complete: report DDL, repositories, migrations, append-only hash chain, redacted evidence and offline verification. |
 | B4 PayPal + market | Core complete; P3 adds offline-tested secondary clients and native market refresh. Rescue execution/live API conformance remain deferred. |
 | B5 Engines | P2 adds native process lifecycle, version probes and actor integration. Native availability still requires live isolation conformance. |
-| B6 MCP | Seven implemented tools with role/session/run/mandate checks; catalog tools deferred. |
+| B6 MCP | Seven implemented tools with role/session/run/mandate checks; catalog tools deferred. | Tools are a closed `Tool` enum (own schema, description, readOnly/destructive annotations); each call has a 30 s deadline and a 64 KiB result cap, refused as `unavailable` with a readable detail.
 | B7 App + services | Core, relay pairing/delivery, buyer evidence and hosted HOUSE implemented. Financial crash-gap recovery remains deferred. |
 | B8 Desktop + bindings | Complete committed shell baseline: Windows Tauri compile, three windows/capabilities, read/routing commands, targeted events, tray/hotkey/single-instance, generated TypeScript and handoff. P1 supersedes its guarded unavailable payment handlers; native behavior still needs interactive verification. |
 | P1 Native activation | Core, relay/receipt and hosted HOUSE implemented and offline-tested; P3 rescue and native UAT remain. |

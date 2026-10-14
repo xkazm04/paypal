@@ -11,6 +11,7 @@ use serde_json::{Value, json};
 use std::{
     collections::BTreeMap,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 use table_app::{AgentRequest, AgentRole, AgentScope, AgentService, refusal_code, refusal_detail};
 use table_core::{Clock, H256, Playbook, RefusalCode, RunId};
@@ -72,7 +73,13 @@ pub struct Server {
     secret: String,
     host: String,
     clock: Arc<dyn Clock>,
+    deadline: Duration,
+    max_result: usize,
 }
+/// A tool call that has not answered by now is abandoned; a model must not wait on it forever.
+pub const DISPATCH_DEADLINE: Duration = Duration::from_secs(30);
+/// The largest tool result text the model is handed, in bytes.
+pub const MAX_RESULT_BYTES: usize = 64 * 1024;
 impl std::fmt::Debug for Server {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("McpServer { [REDACTED] }")
@@ -96,6 +103,16 @@ impl Server {
         port: u16,
         clock: Arc<dyn Clock>,
     ) -> Result<Arc<Self>, table_app::Error> {
+        Self::with_limits(service, port, clock, DISPATCH_DEADLINE, MAX_RESULT_BYTES)
+    }
+    /// As `with_async`, with an explicit per-call deadline and result-size cap.
+    pub fn with_limits(
+        service: Arc<dyn AsyncAgentService>,
+        port: u16,
+        clock: Arc<dyn Clock>,
+        deadline: Duration,
+        max_result: usize,
+    ) -> Result<Arc<Self>, table_app::Error> {
         if port == 0 {
             return Err(table_app::Error::Invalid);
         }
@@ -105,6 +122,8 @@ impl Server {
             secret: random()?,
             host: format!("127.0.0.1:{port}"),
             clock,
+            deadline,
+            max_result,
         }))
     }
     pub fn grant(&self, scope: AgentScope) -> Result<Grant, table_app::Error> {
@@ -218,28 +237,118 @@ pub const fn catalog(role: AgentRole) -> &'static [&'static str] {
 }
 /// What each tool does, in one fixed sentence the agent reads in `tools/list`.
 pub const fn description(tool: &str) -> &'static str {
-    match tool.as_bytes() {
-        b"table_view" => {
-            "Read the table: your side, the signed band (floor, ceiling, rounds left, deadline), the \
-             market, the price history, whose turn it is and which tools can succeed now. Read only."
+    match Tool::parse(tool) {
+        Some(tool) => tool.description(),
+        None => "",
+    }
+}
+/// Every tool the server can serve. The schema, description and annotations are exhaustive matches
+/// on this enum, so a tool added here without them does not compile, and none can fall back to
+/// another tool's schema.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tool {
+    TableView,
+    MarketReference,
+    SendOffer,
+    AcceptOffer,
+    WithdrawOffer,
+    ProposePurchase,
+    BookQuery,
+}
+impl Tool {
+    pub const ALL: [Self; 7] = [
+        Self::TableView,
+        Self::MarketReference,
+        Self::SendOffer,
+        Self::AcceptOffer,
+        Self::WithdrawOffer,
+        Self::ProposePurchase,
+        Self::BookQuery,
+    ];
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::TableView => "table_view",
+            Self::MarketReference => "market_reference",
+            Self::SendOffer => "send_offer",
+            Self::AcceptOffer => "accept_offer",
+            Self::WithdrawOffer => "withdraw_offer",
+            Self::ProposePurchase => "propose_purchase",
+            Self::BookQuery => "book_query",
         }
-        b"market_reference" => {
-            "Read the cached market prices (p25, median, p75) for this table's item. Read only."
+    }
+    pub const fn parse(name: &str) -> Option<Self> {
+        match name.as_bytes() {
+            b"table_view" => Some(Self::TableView),
+            b"market_reference" => Some(Self::MarketReference),
+            b"send_offer" => Some(Self::SendOffer),
+            b"accept_offer" => Some(Self::AcceptOffer),
+            b"withdraw_offer" => Some(Self::WithdrawOffer),
+            b"propose_purchase" => Some(Self::ProposePurchase),
+            b"book_query" => Some(Self::BookQuery),
+            _ => None,
         }
-        b"send_offer" => {
-            "Sign and send a price for this deal. Refused, with a code, outside the signed band, \
-             out of turn, after the deadline or with no rounds left. Moves no money."
+    }
+    pub const fn description(self) -> &'static str {
+        match self {
+            Self::TableView => {
+                "Read the table: your side, the signed band (floor, ceiling, rounds left, deadline), the                  market, the price history, whose turn it is and which tools can succeed now. Read only."
+            }
+            Self::MarketReference => {
+                "Read the cached market prices (p25, median, p75) for this table's item. Read only."
+            }
+            Self::SendOffer => {
+                "Sign and send a price for this deal. Refused, with a code, outside the signed band,                  out of turn, after the deadline or with no rounds left. Moves no money."
+            }
+            Self::AcceptOffer => {
+                "Sign an ACCEPT of the other side's latest price (offer_seq from the table). Refused,                  with a code, when the price needs the owner in person. Moves no money."
+            }
+            Self::WithdrawOffer => "Sign a WITHDRAW and leave the table. Moves no money.",
+            Self::ProposePurchase => {
+                "Propose one purchase from an approved shop. It waits for the owner; it pays nothing."
+            }
+            Self::BookQuery => "Read grouped numbers from the owner's own records. Read only.",
         }
-        b"accept_offer" => {
-            "Sign an ACCEPT of the other side's latest price (offer_seq from the table). Refused, \
-             with a code, when the price needs the owner in person. Moves no money."
+    }
+    /// MCP `annotations`. `destructiveHint` is read as "irreversibly ends or overwrites something
+    /// of the owner's", never as money: no tool moves money. Accepting and withdrawing close the
+    /// table for good; a sent offer or a proposal only adds a record the other side or the owner
+    /// can still answer.
+    pub const fn annotations(self) -> (bool, bool) {
+        match self {
+            Self::TableView | Self::MarketReference | Self::BookQuery => (true, false),
+            Self::SendOffer | Self::ProposePurchase => (false, false),
+            Self::AcceptOffer | Self::WithdrawOffer => (false, true),
         }
-        b"withdraw_offer" => "Sign a WITHDRAW and leave the table. Moves no money.",
-        b"propose_purchase" => {
-            "Propose one purchase from an approved shop. It waits for the owner; it pays nothing."
+    }
+    pub fn input_schema(self) -> Value {
+        match self {
+            Self::MarketReference => {
+                json!({"type":"object","additionalProperties":false,"required":["item_ref"],"properties":{"item_ref":{"type":"string","maxLength":128}}})
+            }
+            Self::BookQuery => {
+                json!({"type":"object","additionalProperties":false,"required":["view","metrics"],"properties":{"view":{"enum":["deals","paypal_calls","receipts","subscriptions","reconciliation"]},"metrics":{"type":"array","minItems":1,"maxItems":4,"items":{"enum":["count","sum_amount","avg_vs_market_pct","recovered_sum"]}},"filters":{"type":"array","maxItems":6,"items":{"type":"object","additionalProperties":false,"required":["field","op","value"],"properties":{"field":{"enum":["kind","state","counterparty","amount","created_at","vs_market_pct","decided_by"]},"op":{"enum":["eq","ne","gt","lt","between","in"]},"value":{}}}},"group_by":{"type":"array","maxItems":2,"items":{"enum":["kind","counterparty","state","day","decided_by"]}},"range":{"type":"object","additionalProperties":false,"required":["from","to"],"properties":{"from":{"type":"string"},"to":{"type":"string"}}},"limit":{"type":"integer","minimum":1,"maximum":500}}})
+            }
+            Self::AcceptOffer => {
+                json!({"type":"object","additionalProperties":false,"required":["deal_id","offer_seq"],"properties":{"deal_id":{"type":"string"},"offer_seq":{"type":"integer","minimum":1}}})
+            }
+            Self::TableView => {
+                json!({"type":"object","additionalProperties":false,"properties":{"deal_id":{"type":"string"}}})
+            }
+            Self::SendOffer => {
+                json!({"type":"object","additionalProperties":false,"required":["deal_id","price","delivery"],"properties":{"deal_id":{"type":"string"},"price":{"type":"string","pattern":"^[0-9]+\\.[0-9]{2}$"},"delivery":delivery_schema()}})
+            }
+            Self::WithdrawOffer => {
+                json!({"type":"object","additionalProperties":false,"required":["deal_id","reason"],"properties":{"deal_id":{"type":"string"},"reason":{"enum":["PRICE","TIMING","OTHER"]}}})
+            }
+            Self::ProposePurchase => {
+                json!({"type":"object","additionalProperties":false,"required":["payee_ref","items","amount","category"],"properties":{"payee_ref":{"type":"string"},"items":{"type":"array","minItems":1,"maxItems":1,"items":{"type":"object","additionalProperties":false,"required":["ref","qty"],"properties":{"ref":{"type":"string"},"qty":{"type":"integer","minimum":1}}}},"amount":{"type":"string"},"category":{"enum":["office","parts","compute","service","other"]}}})
+            }
         }
-        b"book_query" => "Read grouped numbers from the owner's own records. Read only.",
-        _ => "",
+    }
+    fn listing(self) -> Value {
+        let (read_only, destructive) = self.annotations();
+        json!({"name":self.name(),"description":self.description(),"inputSchema":self.input_schema(),
+            "annotations":{"readOnlyHint":read_only,"destructiveHint":destructive}})
     }
 }
 /// The fixed playbook a native engine in `role` on a `side` deal starts from.
@@ -280,17 +389,10 @@ fn delivery_schema() -> Value {
     ]})
 }
 fn tools(role: AgentRole) -> Vec<Value> {
-    catalog(role).iter().map(|name| {
-        let schema=match *name {
-            "market_reference"=>json!({"type":"object","additionalProperties":false,"required":["item_ref"],"properties":{"item_ref":{"type":"string","maxLength":128}}}),
-            "book_query"=>json!({"type":"object","additionalProperties":false,"required":["view","metrics"],"properties":{"view":{"enum":["deals","paypal_calls","receipts","subscriptions","reconciliation"]},"metrics":{"type":"array","minItems":1,"maxItems":4,"items":{"enum":["count","sum_amount","avg_vs_market_pct","recovered_sum"]}},"filters":{"type":"array","maxItems":6,"items":{"type":"object","additionalProperties":false,"required":["field","op","value"],"properties":{"field":{"enum":["kind","state","counterparty","amount","created_at","vs_market_pct","decided_by"]},"op":{"enum":["eq","ne","gt","lt","between","in"]},"value":{}}}},"group_by":{"type":"array","maxItems":2,"items":{"enum":["kind","counterparty","state","day","decided_by"]}},"range":{"type":"object","additionalProperties":false,"required":["from","to"],"properties":{"from":{"type":"string"},"to":{"type":"string"}}},"limit":{"type":"integer","minimum":1,"maximum":500}}}),
-            "accept_offer"=>json!({"type":"object","additionalProperties":false,"required":["deal_id","offer_seq"],"properties":{"deal_id":{"type":"string"},"offer_seq":{"type":"integer","minimum":1}}}),
-            "table_view"=>json!({"type":"object","additionalProperties":false,"properties":{"deal_id":{"type":"string"}}}),
-            "send_offer"=>json!({"type":"object","additionalProperties":false,"required":["deal_id","price","delivery"],"properties":{"deal_id":{"type":"string"},"price":{"type":"string","pattern":"^[0-9]+\\.[0-9]{2}$"},"delivery":delivery_schema()}}),
-            "withdraw_offer"=>json!({"type":"object","additionalProperties":false,"required":["deal_id","reason"],"properties":{"deal_id":{"type":"string"},"reason":{"enum":["PRICE","TIMING","OTHER"]}}}),
-            _=>json!({"type":"object","additionalProperties":false,"required":["payee_ref","items","amount","category"],"properties":{"payee_ref":{"type":"string"},"items":{"type":"array","minItems":1,"maxItems":1,"items":{"type":"object","additionalProperties":false,"required":["ref","qty"],"properties":{"ref":{"type":"string"},"qty":{"type":"integer","minimum":1}}}},"amount":{"type":"string"},"category":{"enum":["office","parts","compute","service","other"]}}}),
-        };json!({"name":name,"description":description(name),"inputSchema":schema})
-    }).collect()
+    catalog(role)
+        .iter()
+        .filter_map(|name| Tool::parse(name).map(Tool::listing))
+        .collect()
 }
 async fn handle(
     State(s): State<Arc<Server>>,
@@ -372,11 +474,23 @@ async fn handle(
                         .map_err(|_| RefusalCode::MalformedCall)
                 });
                 match request {
-                    Ok(request) => s
-                        .service
-                        .invoke(&scope, request, now, session.run)
-                        .await
-                        .map_err(|error| (refusal_code(&error), refusal_detail(&error))),
+                    Ok(request) => match tokio::time::timeout(
+                        s.deadline,
+                        s.service.invoke(&scope, request, now, session.run),
+                    )
+                    .await
+                    {
+                        Ok(done) => done
+                            .map_err(|error| (refusal_code(&error), refusal_detail(&error))),
+                        // The call may have been cut off mid-flight; the model must look, not retry.
+                        Err(_) => Err((
+                            RefusalCode::Unavailable,
+                            Some(
+                                "The call took too long and was abandoned. Its outcome is unknown: read the table before acting again."
+                                    .into(),
+                            ),
+                        )),
+                    },
                     Err(code) => {
                         s.service
                             .record_refusal(&scope, &named, code, now)
@@ -390,7 +504,16 @@ async fn handle(
             match result {
                 Ok(value) => {
                     let text = value.to_string();
-                    if value.is_object() {
+                    if text.len() > s.max_result {
+                        refusal_result(
+                            RefusalCode::Unavailable,
+                            Some(format!(
+                                "The result is {} bytes, over the {} byte limit, and was withheld. Ask for less (a narrower view, a smaller limit).",
+                                text.len(),
+                                s.max_result
+                            )),
+                        )
+                    } else if value.is_object() {
                         json!({"isError":false,"content":[{"type":"text","text":text}],"structuredContent":value})
                     } else {
                         json!({"isError":false,"content":[{"type":"text","text":text}]})
