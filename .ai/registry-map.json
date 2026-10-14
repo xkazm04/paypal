@@ -801,7 +801,11 @@
           "revision": 31,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/session.tsx:86 Context searches found no MCP discovery or invocation vocabulary, while repository searches located MCP in Rust crates; this provider calls typed window commands.",
+          "evaluatedAt": "2026-10-14",
+          "evaluatedAgainst": "sha256-b2:bf4c5f0af065bc12",
+          "evaluatedRevision": 32
         },
         {
           "subject": "prompt-assembly",
@@ -6010,7 +6014,11 @@
           "revision": 31,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-runtime/src/actor.rs:433 The desktop runtime serves its local wallet tools through an HTTP listener, contrary to the standard's prescribed standard-stream transport for a single-machine application.",
+          "evaluatedAt": "2026-10-14",
+          "evaluatedAgainst": "sha256-b2:bf4c5f0af065bc12",
+          "evaluatedRevision": 32
         },
         {
           "subject": "quality-gates",
@@ -7746,7 +7754,11 @@
           "revision": 31,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-app/src/agent.rs:563 Persisted refusal records identify tools by their addressable names without a separate stable identifier, so renaming a tool splits its recorded history.",
+          "evaluatedAt": "2026-10-14",
+          "evaluatedAgainst": "sha256-b2:bf4c5f0af065bc12",
+          "evaluatedRevision": 32
         },
         {
           "subject": "agent-memory",
