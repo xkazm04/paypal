@@ -32,6 +32,10 @@ export type Word = { text: string; tone: WordTone; /** One sentence for a toolti
  *  null / undefined = not known here, so only what is true either way may be said. */
 export type StatementRead = boolean | null | undefined;
 
+/** Said beside the hold-to-pay step, the one place money leaves: the hold sends the payment (it captures the money PayPal is holding), and a refund is a separate later act. */
+export const PAID_CANNOT_BE_UNDONE = 'It can’t be taken back here.';
+export const PAYMENT_CANNOT_BE_UNDONE = 'Once you hold, the payment is sent. It can’t be taken back here.';
+
 /** In place of "Check my PayPal statement" when the wallet has no PayPal keys: what the check needs. */
 export const STATEMENT_CHECK_NEEDS_KEYS = 'Checking your PayPal statement needs your PayPal keys. Add them in your wallet setup first. The check only reads; it never pays.';
 
