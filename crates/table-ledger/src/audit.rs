@@ -169,17 +169,19 @@ pub(crate) fn append(conn: &Connection, entry: &AuditEntry) -> Result<H256, Ledg
     if entry.at < 0 || entry.actor.is_empty() || entry.action.is_empty() {
         return Err(LedgerError::Integrity("invalid audit metadata"));
     }
+    // The append door: allowlist, scrub, cap. The sanitized detail is what is hashed and stored.
+    let clean = crate::audit_detail::sanitize(&entry.action, &entry.detail)?;
     let row = AuditPreimage {
         seq,
         at: entry.at,
         actor: &entry.actor,
         action: &entry.action,
         deal_id: entry.deal_id,
-        detail_json: &entry.detail,
+        detail_json: &clean,
     };
     let hash = H256::chain(previous, &canonical_bytes(&row)?);
-    let detail = String::from_utf8(canonical_bytes(&entry.detail)?)
-        .map_err(|_| LedgerError::Integrity("UTF-8"))?;
+    let detail =
+        String::from_utf8(canonical_bytes(&clean)?).map_err(|_| LedgerError::Integrity("UTF-8"))?;
     conn.execute("INSERT INTO audit_log(seq,at,actor,action,deal_id,detail_json,prev_hash,hash) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",params![seq,entry.at.to_string(),entry.actor,entry.action,entry.deal_id.map(|id|id.to_string()),detail,&previous.0[..],&hash.0[..]])?;
     Ok(hash)
 }
@@ -335,5 +337,53 @@ impl Ledger {
             self.conn
                 .query_row("SELECT COUNT(*) FROM audit_log", [], |r| r.get::<_, i64>(0))?,
         )
+    }
+}
+
+#[cfg(test)]
+mod legacy_tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn rows_written_before_the_door_existed_stay_as_they_are_and_still_verify() {
+        let mut ledger = Ledger::in_memory().unwrap();
+        // A row exactly as the old append wrote it: unsanitized detail, hashed and stored verbatim.
+        let old = json!({"reason": "Bearer abc.def", "secret_note": "jo@example.com"});
+        let row = AuditPreimage {
+            seq: 1,
+            at: 50,
+            actor: "owner",
+            action: "mandate.revoked",
+            deal_id: None,
+            detail_json: &old,
+        };
+        let hash = H256::chain(H256::ZERO, &canonical_bytes(&row).unwrap());
+        let stored = String::from_utf8(canonical_bytes(&old).unwrap()).unwrap();
+        ledger
+            .conn
+            .execute(
+                "INSERT INTO audit_log(seq,at,actor,action,deal_id,detail_json,prev_hash,hash) VALUES (1,'50','owner','mandate.revoked',NULL,?1,?2,?3)",
+                params![stored, &H256::ZERO.0[..], &hash.0[..]],
+            )
+            .unwrap();
+        ledger.verify_audit().unwrap();
+        // New appends chain onto it through the door, and the whole chain still verifies.
+        ledger
+            .append_audit(&AuditEntry {
+                at: 60,
+                actor: "owner".into(),
+                action: "mandate.revoked".into(),
+                deal_id: None,
+                detail: json!({"id": "m1", "note": "x"}),
+            })
+            .unwrap();
+        ledger.verify_audit().unwrap();
+        let kept: String = ledger
+            .conn
+            .query_row("SELECT detail_json FROM audit_log WHERE seq=1", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(kept, stored);
     }
 }
