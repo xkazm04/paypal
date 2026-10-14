@@ -1125,3 +1125,174 @@ async fn a_shield_hold_stops_an_offer_naming_its_rule() {
         0
     );
 }
+fn minimal_call(tool: Tool, deal: DealId) -> Value {
+    let id = deal.to_string();
+    match tool {
+        Tool::TableView => json!({}),
+        Tool::MarketReference => json!({"item_ref":"monitor"}),
+        Tool::SendOffer => {
+            json!({"deal_id":id,"price":"10.00","delivery":{"type":"digital_now"}})
+        }
+        Tool::AcceptOffer => json!({"deal_id":id,"offer_seq":1}),
+        Tool::WithdrawOffer => json!({"deal_id":id,"reason":"PRICE"}),
+        Tool::ProposePurchase => json!({"payee_ref":"merchant","items":[{"ref":"monitor","qty":1}],
+            "amount":"10.00","category":"parts"}),
+        Tool::BookQuery => json!({"view":"deals","metrics":["count"]}),
+    }
+}
+#[tokio::test]
+async fn every_tool_has_its_own_schema_and_a_minimal_call_decodes_through_the_wallets_types() {
+    let (_, deal, _, _) = support::setup(Side::Buyer, DealKind::Haggle);
+    let mut schemas = std::collections::BTreeSet::new();
+    for tool in Tool::ALL {
+        let schema = tool.input_schema();
+        assert!(
+            schemas.insert(schema.to_string()),
+            "{tool:?} shares a schema"
+        );
+        assert_eq!(Tool::parse(tool.name()), Some(tool));
+        let call = minimal_call(tool, deal.id);
+        let request = AgentRequest::decode(tool.name(), call.clone()).unwrap();
+        assert_eq!(request.tool(), tool.name());
+        // The advertised schema names every key of the call and every required key is in it.
+        let properties = schema["properties"].as_object().unwrap();
+        for key in call.as_object().unwrap().keys() {
+            assert!(
+                properties.contains_key(key),
+                "{tool:?}: {key} not advertised"
+            );
+        }
+        for key in schema["required"].as_array().into_iter().flatten() {
+            assert!(call.get(key.as_str().unwrap()).is_some(), "{tool:?}: {key}");
+        }
+        assert!(!tool.description().is_empty());
+    }
+    for role in [
+        AgentRole::Negotiator,
+        AgentRole::Shopper,
+        AgentRole::Assistant,
+    ] {
+        for name in catalog(role) {
+            assert!(
+                Tool::parse(name).is_some(),
+                "{name} in a catalog has no Tool"
+            );
+        }
+    }
+}
+#[tokio::test]
+async fn listing_carries_honest_annotations_and_never_the_purchase_schema_for_another_tool() {
+    let (wallet, deal, _, _) = support::setup(Side::Buyer, DealKind::Haggle);
+    let server = Server::new(Box::new(wallet), 8765, Arc::new(FixedClock(100))).unwrap();
+    let grant = server
+        .grant(AgentScope {
+            deal_id: deal.id,
+            role: AgentRole::Negotiator,
+            category: Category::Parts,
+        })
+        .unwrap();
+    let (_, list) = call(&server, &grant, "tools/list", json!({}), "127.0.0.1:8765").await;
+    for t in list["result"]["tools"].as_array().unwrap() {
+        let tool = Tool::parse(t["name"].as_str().unwrap()).unwrap();
+        let (read_only, destructive) = tool.annotations();
+        assert_eq!(t["annotations"]["readOnlyHint"], read_only);
+        assert_eq!(t["annotations"]["destructiveHint"], destructive);
+        assert_eq!(t["inputSchema"], tool.input_schema());
+        assert!(t["inputSchema"]["properties"].get("payee_ref").is_none());
+    }
+    for tool in [Tool::TableView, Tool::MarketReference, Tool::BookQuery] {
+        assert_eq!(tool.annotations(), (true, false));
+    }
+}
+struct Slow(std::time::Duration, Value);
+#[async_trait::async_trait]
+impl AsyncAgentService for Slow {
+    async fn invoke(
+        &self,
+        _: &AgentScope,
+        _: AgentRequest,
+        _: i64,
+        _: Option<RunId>,
+    ) -> Result<Value, Error> {
+        tokio::time::sleep(self.0).await;
+        Ok(self.1.clone())
+    }
+    async fn record_refusal(
+        &self,
+        _: &AgentScope,
+        _: &str,
+        _: RefusalCode,
+        _: i64,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+}
+async fn bounded(service: Slow, deadline: std::time::Duration, cap: usize) -> Value {
+    let (_, deal, _, _) = support::setup(Side::Buyer, DealKind::Haggle);
+    let server = Server::with_limits(
+        Arc::new(service),
+        8765,
+        Arc::new(FixedClock(100)),
+        deadline,
+        cap,
+    )
+    .unwrap();
+    let grant = server
+        .grant(AgentScope {
+            deal_id: deal.id,
+            role: AgentRole::Negotiator,
+            category: Category::Parts,
+        })
+        .unwrap();
+    let params = json!({"name":"table_view","arguments":{}});
+    call(&server, &grant, "tools/call", params, "127.0.0.1:8765")
+        .await
+        .1["result"]
+        .clone()
+}
+#[tokio::test]
+async fn a_slow_call_is_abandoned_with_a_refusal_the_model_can_read() {
+    use std::time::Duration;
+    let r = bounded(
+        Slow(Duration::from_secs(5), json!({"ok":true})),
+        Duration::from_millis(50),
+        1024,
+    )
+    .await;
+    assert_eq!(r["isError"], true);
+    assert_eq!(r["structuredContent"]["code"], "unavailable");
+    assert!(
+        r["structuredContent"]["detail"]
+            .as_str()
+            .unwrap()
+            .contains("too long")
+    );
+    let ok = bounded(
+        Slow(Duration::ZERO, json!({"ok":true})),
+        Duration::from_millis(500),
+        1024,
+    )
+    .await;
+    assert_eq!(ok["isError"], false);
+}
+#[tokio::test]
+async fn an_oversized_result_is_withheld_with_a_refusal_not_truncated() {
+    use std::time::Duration;
+    let big = json!({"rows":"x".repeat(2000)});
+    let r = bounded(
+        Slow(Duration::ZERO, big.clone()),
+        Duration::from_secs(5),
+        1000,
+    )
+    .await;
+    assert_eq!(r["isError"], true);
+    assert!(
+        r["structuredContent"]["detail"]
+            .as_str()
+            .unwrap()
+            .contains("withheld")
+    );
+    assert!(!r.to_string().contains("xxxxxxxx"));
+    let ok = bounded(Slow(Duration::ZERO, big), Duration::from_secs(5), 4000).await;
+    assert_eq!(ok["isError"], false);
+}
