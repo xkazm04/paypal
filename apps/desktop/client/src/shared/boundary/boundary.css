@@ -1,0 +1,8 @@
+/* The fallback of a part that could not be shown (ErrorBoundary.tsx) and of a part still loading
+   (LayerSuspense.tsx). Calm on purpose: the panel surface and the body ink, never the alarm red. The
+   tokens are the design's (src/design/tokens.css); WP2 may restyle. */
+.boundary { display: grid; gap: 8px; justify-items: start; padding: 16px; border: 1px solid var(--line); border-radius: var(--r-sm, 6px); background: var(--panel); color: var(--text); max-width: 56ch; }
+.boundary-window { margin: 48px auto; }
+.boundary-title { margin: 0; font-weight: 600; }
+.boundary-text { margin: 0; }
+.layer-loading { padding: 16px; color: var(--text); }
