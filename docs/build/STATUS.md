@@ -2385,3 +2385,111 @@ arrow glyphs read aloud. Not looked at on screen yet.
 - Deviations: the large world is USD only (mandates, wallet limits and the exposure fold are per currency; one currency keeps every total comparable). The small world has 3 signed rules (shop, rescue, purchases), not 2, so Spend is not empty by accident.
 - UNVERIFIED: the real shell's cost per `deal_display` / `deal_evidence` read (the mock adds 40 ms a call), the native window at scale, anything past 500 deals, 99+ badge treatment (no count in the large world passes 44).
 - No dependency added. Offline, no network, no native run.
+
+## Console rebuild (2026-10-14; client only; DECISIONS.md section 40)
+
+The main window is rebuilt as the Calibre "Seal" console (spark `table-console-rebuild`, design
+record `prototype/console-calibre/`), on branch `worktree-spark-table-console-rebuild` forked from
+`baseline/pre-rebuild` (859fa04). Nothing is on `main` yet. Builder notes, with file lists and
+parity tables: `docs/build/rebuild/{wp1a,wp1b,wp2,wp25,wp3a,wp3b,wp3c,wp4a,wp4b,wp4c}.md`.
+
+**What was built, per package**
+- **WP0** (b30ed72): `@tanstack/react-query` and `@tanstack/react-virtual` added, the unused
+  `zustand` removed.
+- **WP1a** (3382e59): Calibre tokens v3 (night default, day), motion tokens in CSS and
+  `design/motion.ts`, two bundled OFL fonts, the console kit in `shared/ui` (Stack, TabStrip,
+  ModuleTab, FilterChips, Facts, ListShell, HoldGesture, Presence), the brand layer `shared/brand`
+  (Seal, Mark, Rosette, Graticule, KeyArt, DialStrip) as React elements, no innerHTML.
+- **WP1b** (761faa2): the query layer `lib/data/*` (one key per read, NAMED/FRESH policies, a 10 s
+  time limit, a read budget, ONE event-to-invalidation map, coalescing with one trailing read),
+  narrow World selectors (a consumer re-renders only on its slice), `useWindowedRows`,
+  `formatCount` (99+) / `formatTally`, error boundaries per window, layer and panel, the stale
+  banner. `useQuery` keeps its signature. A 10-event burst at 500 deals: 339 reads before, 4 after.
+- **WP2** (069d31d): the console frame (top bar, crumbs, Find, keyboard map, Escape chain, focus
+  and scroll restore, calm motion, footer), the decision centre (one decision at a time in Rust's
+  order, the "If you do nothing" line, ONE gold action that calls only `approval_open`, facts strip,
+  seal presence, the small Dial as a bead strip, the stack row), the waiting list, the Charter (Set
+  up as five lines; privileged steps hand off). Every older hash deep link still parses.
+- **WP2.5** (2363ce0): the layer registry (`console/layers*.ts`), `ModuleLayer`, `ListEngine`
+  (search, filter counts in one pass, sort, windowed rows), row parts, the scale smoke harness.
+  Rules, Connections, Settings, pairing and the safety record became layers (the Sheet is gone).
+- **WP3a/b/c** (2bad28a): the six modules (summary plus nested views), the deal page, Rewind, Agent
+  rules and Wallet limits, Connections and pairing, Settings, the safety record, each with a parity
+  table in its note (every old feature within three moves, or a recorded cut).
+- **WP4a** (0fe967c): the Latest strip on every module and short place (no dead band), nested views
+  in the URL (`&v=` on places, `&dv=` on a deal), two-step lists (click picks, Enter opens), dead
+  code removed (`legacy.tsx`, `Modules.tsx`, `modules/common.tsx`, `evidence.ts`, `art.ts`), a11y,
+  perf and resilience tests.
+- **WP4b** (0fe967c): the approval window as a front sheet of the console (graticule ground, bar
+  with "Back to The Table", calibrated plate, corner seal, facts strip) and the Tumbler in the
+  Calibre tokens. `HoldButton` keeps its API with `HoldGesture` inside. The approval window now
+  follows the stored theme and calm choice (before: always dark).
+- **WP4c**: the director (Maya's week, First run) brought onto the console (`takes --check`: 22 of
+  22 and 15 of 15 beats show their end state; stories, beat times and actions unchanged), and the
+  docs (this section, DECISIONS 40, UX-GUIDE / UX-AUDIT, README, window-duality,
+  preview-and-director, SCALE-FINDINGS).
+
+**Gates.** No Rust, `bindings/`, authority table, capability or `PINNED_MANIFEST` change:
+`git diff --stat 859fa04 -- crates bindings apps/desktop/src-tauri` is empty. Client at the WP4a /
+WP4b hand-off: `pnpm typecheck` clean, `pnpm exec vitest run` 143 files / 1488 tests passed,
+`pnpm build` passes; WP4c's own runs and `takes --check` are in `docs/build/rebuild/wp4c.md`.
+Guards that bite: `console/guard.test.ts` (no release command named under `windows/main`; the
+centre's only mutation is `approval_open`), the scale smoke over every layer at 500 deals,
+`lib/contrast.test.ts` and `design/tokens.test.ts` (AA in both themes), the words guards per area
+(PayPal is the only vendor, no internals). Perf (browser mock, 40 ms a call, 1280 x 800): the centre
+in 533 / 600 ms (small / large), a cold module summary in 633 to 706 ms, a module from the centre in
+37 to 70 ms; DOM per layer under 600 nodes at 500 deals.
+
+**Scale findings fixed** (`docs/build/SCALE-FINDINGS.md`, rebuild column): 7, 8, 9, 10, 11, 12,
+13, 14, 15, 16, 18, 19, 20, 21; 1 to 6 stay fixed; 17 is fixed in the client (visible-only reads
+through the shared cache) and stays open as a batched read, which needs IPC.
+
+**Dependencies.** Added `@tanstack/react-query` 5.104.2 and `@tanstack/react-virtual` 3.14.18 (MIT,
+mainstream): they replace the hand-built `useQuery` cache (dedupe, coalescing, stale data kept on
+a failed refetch) and give windowed lists without a home-grown virtualiser. Removed `zustand` (no
+importer). Fonts, committed as files (no package): Archivo 2.001 (Omnibus-Type) and Sofia Sans
+4.101 (Lettersoup), SIL OFL 1.1, woff2 latin + latin-ext, 235,184 B in all (Archivo 176,344 B,
+Sofia Sans 58,840 B), licences at `apps/desktop/client/src/assets/fonts/{archivo,sofia-sans}/OFL.txt`;
+`tnum` checked, no `zero` (no slashed zero). Served from the bundle, no runtime network.
+
+**Deviations from the plan or the prototype**
+- Hold is Space only, as the shipped rule; the WP1a brief said Space or Enter.
+- Wallet limits' "Change limits" opens the approval window's owner page (`approval_open` with no
+  target): `ApprovalTarget` has no limits target and bindings are frozen.
+- The Book's statement filter is dropped (it needs every row's evidence, the #17 cost); each row
+  carries its statement chip and the "PayPal agrees" card lists what is not on the statement.
+- The Circuit picture (wires, inspector, breaker) is removed: each part's facts live in Settings and
+  Connections, the breaker is the Pause button. "Rule numbers" and the deal's "Rules id" are not
+  shown (no clause numbers on screen).
+- The approval window's strip says "the one place money is approved" (not "authorised").
+- A deal's own view is `&dv=` (`&v=` after `&m=` already meant the module view it came from).
+- Footer "Paid out today" counts only money PayPal collected; Wallet limits' meter is "Budget used
+  today" (the day's budget, `out_today`), and both are shown side by side there.
+
+**Open items** (from the package notes, still open)
+- About 300 displays are re-read after any ledger change at 500 deals (needs a row timestamp or a
+  batch read in Rust); `counterparty_note` still refreshes on every `deal:changed`, coalesced
+  (WP1b 1, 2).
+- A degraded deal shows its raw `item_ref` as the fallback title; the `wallet:error` toast shows the
+  event's own message (WP2 6, 7).
+- The bead strip wraps to five rows on the large world at 1280 px (WP2.5 5).
+- PayPal references (order / hold / payment ids) sit behind a closed disclosure in the panes: keep
+  or cut (WP3a 2); the order pane shows the payee as the mock gives it (WP3a 5).
+- Settings writes notifications from Main through `settings_write` from a fresh read (WP3c 3); the
+  tour cannot be replayed on a set-up wallet (WP3c 6); "Check a proof file" is only in the Book
+  (WP3c 5); the Rewind's ticks are pointer targets only, the tape is their keyboard path (WP3c 4).
+- The Latest strip's minimum of three rows makes modules scroll a little at 1280 x 800; small Rescue
+  leaves 96 px at 1920 (WP4a 2, 3). `ModuleTab` has no `tabbable` prop (WP4a 4). The deal's Details
+  shows the engine id next to the run badge (WP4a 5). A narrow-window pick is lost on reload (WP4a 6).
+- The Tumbler stack form shows a sliver of its fourth row; `frame.css` keeps v2 rem atoms (WP4b 3, 4).
+- `windows/main/legacy.css` is still loaded by the main window; `lib/lazy.ts` has a stale doc comment.
+
+**UNVERIFIED** (nothing new beyond these): whether the approval window should land on its limits
+section (no target exists); the real shell's cost per `deal_display` / `deal_evidence` read; the
+`--pp-*` brand constants (as before).
+
+**Known gaps.** Not run in the native shell (Tauri) with the new UI: docking, focus return and
+window geometry are as built in calm-nested-ui WP4 and not re-checked. The demo video is not
+re-recorded (the takes rig passes its check; record after the merge). No screen-reader session.
+The merge back to `main` is the Director's (merge-ready by 2026-11-03, abandon on 2026-10-30 if at
+risk).

@@ -1,19 +1,22 @@
 // The rehearsal rig's pure side: still names, chapter takes, the story date, and the per-beat
 // end-state check that makes a broken beat fail before a take.
 import { describe, expect, it } from 'vitest';
-import { FIRST_RUN_TITLE, SAFETY_PROMISE } from '../lib/words';
+import { CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, IF_NOTHING, SAFE_DEFAULT_LINE, SAFETY_PROMISE } from '../lib/words';
+import { SETUP_STEPS } from '../windows/main/logic';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat } from './beats';
 import { FIRST_RUN_BEATS, FIRST_RUN_CHAPTERS, FIRST_RUN_LENGTH } from './firstRunStory';
 import { HAGGLE, HOLD, MISMATCH } from './helpers';
 import { STORIES } from './stories';
-import { BANNER, EXPECT, FIRST_RUN_EXPECT, MOCK_BADGE, checkBeat, expectedDeals, selectChapter, slug, stillName, storyStartOn, takePlan, wholeTake, type Seen } from './takes';
+import { BANNER, CHARTER_LINES, EXPECT, FIRST_RUN_EXPECT, MOCK_BADGE, charterSteps, checkBeat, expectedDeals, selectChapter, slug, stillName, storyStartOn, takePlan, wholeTake, type Seen } from './takes';
 
 const beat = (id: string, chapter: Beat['chapter']): Pick<Beat, 'id' | 'chapter'> => ({ id, chapter });
+/** The Table on its decision centre, as its text reads. */
+const CENTRE = `${CENTRE_TITLE} ${IF_NOTHING}: the request lapses ${SAFE_DEFAULT_LINE}`;
 
 function seen(over: Partial<Seen> = {}): Seen {
   return {
     banner: BANNER,
-    text: { main: `This week ${MOCK_BADGE}`, tumbler: MOCK_BADGE, approval: '' },
+    text: { main: `${CENTRE} ${MOCK_BADGE}`, tumbler: MOCK_BADGE, approval: '' },
     buttons: { main: [], tumbler: [], approval: [] },
     open: { main: true, approval: false },
     states: { [HAGGLE]: 'NEGOTIATING', [MISMATCH]: 'NEGOTIATING', [HOLD]: 'AUTHORIZED' },
@@ -96,8 +99,9 @@ describe('each beat’s end state', () => {
 
   it('passes when the stage shows it and names what is missing when it does not', () => {
     expect(checkBeat('intro', seen())).toEqual([]);
-    expect(checkBeat('intro', seen({ text: { main: MOCK_BADGE, tumbler: MOCK_BADGE, approval: '' } }))).toEqual(['The Table should show “This week”']);
-    expect(checkBeat('intro', seen({ open: { main: true, approval: true }, text: { main: `This week ${MOCK_BADGE}`, tumbler: MOCK_BADGE, approval: MOCK_BADGE } })))
+    expect(checkBeat('intro', seen({ text: { main: `${CENTRE_TITLE} ${MOCK_BADGE}`, tumbler: MOCK_BADGE, approval: '' } })))
+      .toEqual([`The Table should show “${IF_NOTHING}”`, `The Table should show “${SAFE_DEFAULT_LINE}”`]);
+    expect(checkBeat('intro', seen({ open: { main: true, approval: true }, text: { main: `${CENTRE} ${MOCK_BADGE}`, tumbler: MOCK_BADGE, approval: MOCK_BADGE } })))
       .toEqual(['the approval window should be closed']);
     expect(checkBeat('intro', seen({ states: { [HAGGLE]: 'WITHDRAWN', [MISMATCH]: 'NEGOTIATING' } }))).toEqual([`${HAGGLE} should be NEGOTIATING, is WITHDRAWN`]);
     expect(checkBeat('nope', seen())).toEqual(['no expected end state is written for beat “nope”']);
@@ -121,7 +125,7 @@ describe('each beat’s end state', () => {
 
   it('always wants the preview banner and a badge in every open window', () => {
     expect(checkBeat('intro', seen({ banner: '' }))).toEqual(['the preview banner is missing']);
-    expect(checkBeat('intro', seen({ text: { main: 'This week', tumbler: '', approval: '' } }))).toEqual([
+    expect(checkBeat('intro', seen({ text: { main: CENTRE, tumbler: '', approval: '' } }))).toEqual([
       `The Table shows no “${MOCK_BADGE}” badge`,
       `the Tumbler shows no “${MOCK_BADGE}” badge`,
     ]);
@@ -149,7 +153,7 @@ describe('the second story: First run', () => {
   const plan = () => takePlan(FIRST_RUN_BEATS, FIRST_RUN_CHAPTERS, FIRST_RUN_LENGTH, 'first-run');
   const steps = (engine = 'todo') => ({ paypal: 'next', rules: 'todo', practice: 'unknown', engine });
   const firstRun = (over: Partial<Seen> = {}): Seen => seen({
-    text: { main: `${FIRST_RUN_TITLE} ${MOCK_BADGE}`, tumbler: `${FIRST_RUN_TITLE} ${SAFETY_PROMISE} ${MOCK_BADGE}`, approval: '' },
+    text: { main: `${CHARTER_TITLE} ${MOCK_BADGE}`, tumbler: `${FIRST_RUN_TITLE} ${SAFETY_PROMISE} ${MOCK_BADGE}`, approval: '' },
     states: {},
     tour: { main: 'main.approval', tumbler: 'tumbler.engine', approval: null },
     steps: { main: steps(), tumbler: steps(), approval: {} },
@@ -207,10 +211,21 @@ describe('the second story: First run', () => {
     expect(check('tumbler-needs', firstRun({ tour: { main: null, tumbler: 'tumbler.needs', approval: null }, steps: { main: {}, tumbler: { ...steps(), rules: 'done' }, approval: {} } })))
       .toEqual(['the Tumbler should not show the step “rules” as done']);
     // the ending: no mark left in The Table or the Tumbler
-    const end = firstRun({ text: { main: `${FIRST_RUN_TITLE} ${MOCK_BADGE}`, tumbler: MOCK_BADGE, approval: '' }, tour: { main: null, tumbler: null, approval: null } });
+    const end = firstRun({ text: { main: `${CHARTER_TITLE} ${MOCK_BADGE}`, tumbler: MOCK_BADGE, approval: '' }, tour: { main: null, tumbler: null, approval: null } });
     expect(check('end', end)).toEqual([]);
     expect(check('end', { ...end, tour: { main: 'main.approval', tumbler: null, approval: null } })).toEqual(['The Table should show no tour mark, shows “main.approval”']);
     // a Maya beat id is not a First run beat
     expect(check('haggle-card', firstRun())).toEqual(['no expected end state is written for beat “haggle-card”']);
+    // The Table draws its steps as the charter's lines, not the four steps' list
+    expect(check('end', { ...end, text: { main: `${FIRST_RUN_TITLE} ${MOCK_BADGE}`, tumbler: MOCK_BADGE, approval: '' } })).toEqual([`The Table should show “${CHARTER_TITLE}”`]);
+  });
+
+  it('reads The Table’s charter lines as the four steps, in the charter’s order', () => {
+    expect([...CHARTER_LINES]).toEqual([...SETUP_STEPS]);
+    // a brand-new wallet: line I shown, the rest to do, unlock already signed
+    expect(charterSteps(['todo cur', 'todo', 'todo', 'todo', 'done'])).toEqual({ paypal: 'next', rules: 'todo', practice: 'todo', engine: 'todo' });
+    expect(charterSteps(['done', 'waiting', 'unknown', 'done cur'])).toEqual({ paypal: 'done', rules: 'next', practice: 'unknown', engine: 'done' });
+    expect(charterSteps([])).toEqual({});
+    expect(charterSteps(['', 'odd'])).toEqual({});
   });
 });

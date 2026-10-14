@@ -1,7 +1,8 @@
 // BROWSER PREVIEW ONLY. "First run" as data: the onboarding played across the three windows on
 // the `?first_run=1` world (a brand-new wallet, src/mock/firstRun.ts), so the sample week's stored
-// state is never touched. Home shows the four getting-started steps with the agent app still to
-// do (the practice agent is selected), and the tour's coach mark walks each window's stops.
+// state is never touched. The Table opens on its charter (the console's set-up layer: five lines,
+// the four getting-started steps plus the unlock line) with the agent app still to do (the practice
+// agent is selected), and the tour's coach mark walks each window's stops.
 //
 // Same shape as Maya's week (beats.ts): a time, a caption in plain words, the window the camera
 // follows, and actions (actions.ts). The tour moves by `{ do: 'tour' }`, which only says which stop
@@ -35,7 +36,7 @@ export const FIRST_RUN_BEATS: readonly Beat<FirstRunChapterId>[] = [
   },
   {
     id: 'table-hub', chapter: 'table', at: 8, focus: 'main',
-    caption: 'The tour starts by itself on Home. Four steps lead to a first safe deal, and the gold button always points to the next one.',
+    caption: 'The tour starts by itself on her wallet’s charter. Five short lines lead to a first safe deal, and the gold button always points to the next one.',
     do: [tour('main', 'main.hub')],
   },
   {
@@ -45,12 +46,12 @@ export const FIRST_RUN_BEATS: readonly Beat<FirstRunChapterId>[] = [
   },
   {
     id: 'table-steps', chapter: 'table', at: 22, focus: 'main',
-    caption: 'Each step opens where it happens, in any order. A tick means it is done.',
+    caption: 'Each line opens where it happens, in any order. A line marked signed is done.',
     do: [tour('main', 'main.steps')],
   },
   {
     id: 'table-engine', chapter: 'table', at: 27, focus: 'main',
-    caption: 'Step four, the agent app, is still to do. Until she picks claude-code or codex-cli, a practice agent plays for her.',
+    caption: 'Line four, the agent app, is still to do. Until she picks claude-code or codex-cli, a practice agent plays for her.',
     do: [tour('main', 'main.engine')],
   },
   {
@@ -86,7 +87,7 @@ export const FIRST_RUN_BEATS: readonly Beat<FirstRunChapterId>[] = [
   },
   {
     id: 'approval-steps', chapter: 'approval', at: 67, focus: 'approval',
-    caption: 'The same four steps. Keys and rules are one click here. The other two say where they happen.',
+    caption: 'The same steps, as a list. Keys and rules are one click here. The other two say where they happen.',
     do: [tour('approval', 'approval.steps')],
   },
   {

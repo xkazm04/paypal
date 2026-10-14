@@ -3,6 +3,10 @@
 Owner: UX/CX. Applies to every user-facing string and surface in `apps/desktop/client`.
 Read this before adding or changing UI. Companion: `UX-AUDIT.md` (what was wrong, what was fixed).
 Vocabulary in code: `apps/desktop/client/src/lib/words.ts` - use it, extend it, never re-spell a term.
+Since the console rebuild (2026-10-14, DECISIONS section 40) each console area has its own words
+file, `src/lib/words/<area>.ts` (`tables`, `spend`, `counter`, `book`, `shield`, `rescue`, `deal`,
+`rewind`, `rules`, `connections`, `settings`, `safety`, `setup`, `framework`, `approval`), re-exported
+by `words.ts`; prefix an export with its area, and never rename an existing export.
 
 ## Who we design for
 
@@ -38,6 +42,40 @@ paragraph**:
    what it is doing (held gold, paid green, struck-through when it never moved).
 7. **Shortcuts are a bonus, not a lesson.** Keyboard hints live in tooltips and the `?` sheet,
    never as a permanent footer line.
+
+## The console (main window, since 2026-10-14)
+
+The main window is one console: a **decision centre** ("What needs you") with a stack of nested
+**layers** above it. Every surface below is one of them; the approval window is the only other
+window that can approve, and the Tumbler stays on the desk.
+
+- **The centre** shows one decision at a time, in the wallet's order: kicker, the sentence with the
+  amount, who and what, the **If you do nothing** line with its countdown chip, ONE gold action
+  (it only opens the approval window), **Later**, **Open the deal**, **Why?**, and the facts strip.
+  The **seal** says the wallet's state in a word (Quiet, Watching, A deal needs you, Holding, Paid,
+  Stopped; `SEAL_WORD`); "Paid" only after PayPal confirmed it. The small Dial is the **bead strip**
+  beside it (one bead per deal, needs first; a bead opens its deal). "Next in the stack" fills the
+  row below with the next decisions, then "While you were away", then "Watching".
+- **Tabs**: the six module tabs sit on the stack's top edge, with counts (99+ above 99) and a gold
+  badge for what waits. One tab stop; arrow keys move along them; keys 1 to 6 open them.
+- **Layers** go at most five deep (centre, module, module view, deal, deal view). The top bar's
+  **Back**, **Esc** and the crumbs walk the same chain; going up puts focus back on the control
+  that opened the layer. Rules, Wallet limits, Connections, Connect a wallet, Settings, the safety
+  record, Rewind and the charter are layers too (no sheets, except the Quit confirm and the
+  shortcuts help). A card opens a **view** of its layer; the view is in the address, so Back and a
+  reload keep it.
+- **A module summary** = the one answer line, "Your call" (count + the first decision's "If you do
+  nothing"), at most one gold action, three or four cards, the explanation behind a disclosure, and
+  the **Latest strip**: a quiet "Latest: ..." heading, the first 3 to 8 rows of the area's most
+  relevant list (as many as fit), each opening its deal, and **See all · N more ›**. No gold in the
+  strip, ever. A short place ends with **As it stands now** facts instead.
+- **Lists** (`ListEngine`): search, filter chips with counts, sort, "Showing N of M". In a list with
+  a pane, a click picks a row and shows it beside the list; Enter opens it (`LIST_TWO_STEP`).
+  Escape clears the search first, then goes back.
+- **The footer** carries the mode badge, the preview badge, the agents, today's two meters, the
+  safe-default line "Waiting never pays · nothing moves without you", calm motion, theme and `?`.
+- **One theme, one app**: the main window, the approval window and the Tumbler follow the stored
+  theme and the calm choice (Settings > Appearance, or the footer).
 
 ## Vocabulary (Layer 1)
 
@@ -76,6 +114,11 @@ paragraph**:
 | walk-away forecast, UNCONFIRMED | "D-0189 ends as not confirmed by PayPal" | Tumbler, `windows/tumbler/logic.ts:557`. It no longer says "unless PayPal’s statement shows it first". |
 | first-run deals started by the path | **Under way** (section), **Open ›** ("Open this practice deal") | `START_UNDERWAY`. |
 | house seller already connected | **Open a new practice table** (sub: "The house seller is already connected. You check its four words once more. No money moves."); first time: **Connect with the house seller** | `connect` stays for first pairing only; `windows/main/setup/pairing.ts`. |
+| paid_today / out_today (the footer and Wallet limits) | footer **Paid out today** = money PayPal collected today (never a hold, an agreed payment, a payment being checked, a refund or an unconfirmed one); Wallet limits **Budget used today** = every payment the agents agreed to today, paid or not | The two sit side by side in Wallet limits with a note; never call the budget "paid out" (`LIMITS_PLACE.budget*`, `RULES_CARD.limitsBudgetNote`; DECISIONS section 40). |
+| the week's lists | **Recent purchases** (Spend), **Closed orders** (Counter), **This week** only where the list is the week | A list of every deal is never titled by the week (scale finding 10). |
+| set up / onboarding page | **Your wallet’s charter** (five lines, I to V) | `CHARTER_*`. Lines that need the approval window say so and hand off. |
+| the approval window, from the console | **Approvals · the one place money is approved**; its close button **Back to The Table** | `APPROVAL_FRAME` (`lib/words/approval.ts`). "Authorised" stays internal. |
+| a deferred decision | **Later** (moves it to the back of the centre's queue; nothing is decided) | `LATER`, `LATER_TOAST`. |
 
 Rule names (mandate clauses):
 
@@ -116,9 +159,14 @@ Deal states (`stateWord()`):
 
 ## Visual language
 
-- **Status pills** (`ui-chip`): sentence case, the UI font, a leading dot in the tone colour.
-  No monospace, no uppercase. Mono is for identifiers in Details only.
-- **Money**: `font-variant-numeric: tabular-nums` in the UI font (`--num`). Never monospace.
+- **Theme**: the Calibre tokens (`design/tokens.css`, night default, day): blue-black slate, cool
+  steel inks, hairline graticule decoration, machined radii. UI face Archivo, figures Sofia Sans
+  (both bundled, OFL). Decoration (seal, mark, graticule, module plates) is never the only carrier
+  of a meaning and stops under reduced motion and the in-app calm switch.
+- **Status pills** (`ui-chip`): sentence case, the UI font, a leading square LED in the tone colour.
+  No monospace. Uppercase only for small tracked labels (kickers, facts-strip labels), never for a
+  pill or a sentence. Mono is for identifiers in Details only.
+- **Money**: tabular lining figures in the numeric face (`--num`, Sofia Sans). Never monospace.
 - **Colour meaning is fixed** (tokens.css): teal = your side / moving, coral = the other side /
   alerts, gold = needs you / held at PayPal, green = paid, red = stopped. Always with a word.
 - **Unknown** is a dashed outline with the word "unknown" or "not available yet", never a
@@ -130,8 +178,9 @@ Deal states (`stateWord()`):
   countdown. Same look everywhere.
 - **Icons over captions**: a lock for held, a check for passed, an × for stopped, an hourglass
   for deadlines, a shield for checks. Every icon has a text label or an `aria-label`.
-- **Density**: macOS density stays (13px body, 12px floor). Two layers: one line per item, detail
-  in a sheet, popover or the inspector.
+- **Density**: 14px body in the main and approval windows, 13px in the Tumbler's fixed forms, 12px
+  floor everywhere (`design/tokens.test.ts`). Two layers: one line per item, detail one layer down
+  (a card's view, the pane beside a list, or a disclosure).
 - **Focus**: visible for keyboard users (`:focus-visible`), never a ring around a heading that
   received programmatic focus.
 
@@ -152,5 +201,10 @@ Deal states (`stateWord()`):
 - [ ] State pills come from `stateWord()` / `shieldWord()`; money uses `--num`.
 - [ ] Every needs-you item has `<Silence>`; exactly one gold action.
 - [ ] Unknowns are dashed and grouped; nothing unknown looks green or zero.
-- [ ] Works in light theme (Home switch) and at 1280 x 800.
+- [ ] Works in light theme (footer or Settings > Appearance) and at 1280 x 800 and 1920 x 1080, on
+      `?scale=small` and `?scale=large`; no dead band over about 120 px (use the Latest strip).
 - [ ] Keyboard hints only in tooltips / the `?` sheet.
+- [ ] A console layer: one h1 (the answer line), Back only from the top bar, Esc goes one layer up,
+      focus returns to the opener; a long list is a `ListEngine` (windowed, counts via `formatCount`).
+- [ ] Strings live in `lib/words.ts` or the area's `lib/words/<area>.ts`, and the area's words
+      guard passes (PayPal is the only vendor name; no ids, deal labels, clause numbers, raw states).

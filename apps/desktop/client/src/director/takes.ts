@@ -7,7 +7,7 @@
 // `checkBeat` says what is missing. A broken beat fails loudly here before a take is recorded.
 import type { DealState } from '@bindings/DealState';
 import type { StartStepState } from '../lib/firstRun';
-import { FIRST_RUN_TITLE, SAFETY_PROMISE, type StartStepKey, type TourStopId } from '../lib/words';
+import { CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, IF_NOTHING, SAFE_DEFAULT_LINE, SAFETY_PROMISE, type StartStepKey, type TourStopId } from '../lib/words';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat, type Chapter } from './beats';
 import { HAGGLE, HOLD, MISMATCH } from './helpers';
 
@@ -58,13 +58,20 @@ const NO_PAY_IN_TUMBLER: Expect = { in: 'tumbler', button: PAYS, absent: true };
 const TUMBLER_AT_REST: Expect = { in: 'tumbler', text: 'If you do nothing', absent: true };
 const LEFT_SOON = /\b1 h (3\d|4\d) min left\b/;
 const LEFT_NOW = /\b1[34] min left\b/;
+/** The Table on its decision centre (the console's home since the 2026-10-14 rebuild): its title, a
+ *  decision with its "If you do nothing" line, and the safe-default line in the footer. */
+const CENTRE: readonly Expect[] = [
+  { in: 'main', text: CENTRE_TITLE },
+  { in: 'main', text: IF_NOTHING },
+  { in: 'main', text: SAFE_DEFAULT_LINE },
+];
 
 /** Each beat's settled end state, from the story tests (story.test.ts) as it shows on screen. */
 export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   intro: [
     { window: 'main', open: true },
     { window: 'approval', open: false },
-    { in: 'main', text: 'This week' },
+    ...CENTRE,
     TUMBLER_AT_REST,
     { deal: HAGGLE, state: 'NEGOTIATING' },
     { deal: MISMATCH, state: 'NEGOTIATING' },
@@ -76,7 +83,10 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   ],
   'haggle-trade': [
     { in: 'main', text: 'Refurbished 27-inch 4K monitor' },
-    { in: 'main', text: '$290.00' },
+    // halfway: her latest offer and the price range it stays inside (the deal page's facts)
+    { in: 'main', text: '$314.00' },
+    { in: 'main', text: 'Most you’ll pay $340.00' },
+    { in: 'main', text: 'Offers used 3 of 6' },
     { in: 'main', text: '$327.00', absent: true },
   ],
   'haggle-close': [
@@ -185,7 +195,7 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   ],
   end: [
     { window: 'main', open: true },
-    { in: 'main', text: 'This week' },
+    ...CENTRE,
     { deal: HAGGLE, state: 'WITHDRAWN' },
     { deal: HOLD, state: 'AUTO_VOIDED' },
     { deal: MISMATCH, state: 'MISMATCH' },
@@ -193,9 +203,11 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
 };
 
 /** The four getting-started steps on a brand-new wallet, as a window draws them: PayPal next, the
- *  agent app still to do on the practice agent, nothing done. */
+ *  agent app still to do on the practice agent, nothing done. The Table draws them as lines of its
+ *  charter, under the charter's title (`charterSteps`); the Tumbler and the approval window as a
+ *  list titled by the four steps. */
 const FOUR_STEPS = (f: FrameName): Expect[] => [
-  { in: f, text: FIRST_RUN_TITLE },
+  { in: f, text: f === 'main' ? CHARTER_TITLE : FIRST_RUN_TITLE },
   { in: f, step: 'paypal', state: 'next' },
   { in: f, step: 'rules', state: 'done', absent: true },
   { in: f, step: 'practice', state: 'done', absent: true },
@@ -249,6 +261,29 @@ export function expectedDeals(expect: Readonly<Record<string, readonly Expect[]>
   const out = new Set<string>();
   for (const list of Object.values(expect)) for (const e of list) if ('deal' in e) out.add(e.deal);
   return [...out];
+}
+
+/** The lines of The Table's charter (windows/main/setup/Charter.tsx, `SETUP_STEPS`), in order. */
+export const CHARTER_LINES = ['keys', 'rules', 'practice', 'agent', 'unlock'] as const;
+/** A charter line as the getting-started step it stands for (the unlock line stands for none). */
+const CHARTER_STEP: Readonly<Record<(typeof CHARTER_LINES)[number], StartStepKey | null>> = { keys: 'paypal', rules: 'rules', practice: 'practice', agent: 'engine', unlock: null };
+
+/**
+ * The getting-started steps The Table's charter draws, from its lines' classes in order (`done`,
+ * `unknown`, `waiting`, `todo`, plus `cur` on the line it shows): a line done is done, the line it
+ * shows (or one waiting on the approval window) is next, the rest are to do.
+ */
+export function charterSteps(classes: readonly string[]): Record<string, StartStepState> {
+  const out: Record<string, StartStepState> = {};
+  classes.forEach((cls, i) => {
+    const line = CHARTER_LINES[i];
+    const key = line ? CHARTER_STEP[line] : null;
+    if (!key) return;
+    const c = cls.split(/\s+/);
+    const state: StartStepState | null = c.includes('done') ? 'done' : c.includes('unknown') ? 'unknown' : c.includes('cur') || c.includes('waiting') ? 'next' : c.includes('todo') ? 'todo' : null;
+    if (state) out[key] = state;
+  });
+  return out;
 }
 
 const show = (t: string | RegExp) => (typeof t === 'string' ? `“${t}”` : String(t));
