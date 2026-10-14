@@ -63,6 +63,8 @@ export const listShowing = (shown: number, all: number, n: (x: number) => string
 export const LIST_NO_MATCH = 'Nothing matches. Clear the search or the filter to see everything.';
 export const LIST_CLEAR = 'Clear';
 export const LIST_DETAIL_EMPTY = 'Pick a row to see it here.';
+/** A list whose rows pick for a pane and open with Enter (screen readers hear it once per list). */
+export const LIST_TWO_STEP = 'Arrow keys move through the list. A click picks a row and shows it beside the list; Enter opens it.';
 
 /** The shared row parts. */
 export const STATE_UNKNOWN = 'Not available yet';
@@ -70,16 +72,60 @@ export const STATE_UNKNOWN_TITLE = 'The wallet has not said what state this is i
 export const AMOUNT_UNKNOWN_TITLE = 'Not known yet';
 export const WHO_UNKNOWN = 'not named yet';
 
-/** The framework's worked example (browser preview only, `?framework-example`; console/examples). */
-export const EXAMPLE = {
-  answer: (deals: number, waiting: number): string => (waiting ? `${deals} deals here, ${waiting} waiting for you` : `${deals} deals here, none waiting for you`),
-  allView: 'Every deal here',
-  waitingView: 'Waiting for you',
-  live: 'Still going',
-  settled: 'Paid',
-  newest: 'Newest first',
-  largest: 'Largest first',
-  empty: 'No deals here yet. If you do nothing, no money moves.',
-  whyTitle: 'Why this page says this',
-  why: 'Counted from your deals as the wallet records them. Nothing on this page moves money: a decision opens the approval window.',
+/** The counterparty's note behind a chip (console/areas/shared/NoteChip.tsx; byte-identical to the
+ *  strings it carried inline before rebuild WP4a). */
+export const NOTE_CHIP = {
+  chip: 'note ›',
+  chipTitle: 'Their latest note, shown as plain text. Your agents never act on it.',
+  title: (who: string): string => `Their words · ${who}`,
+  what: 'Their note',
+  reading: 'their note',
+  none: (from: string): string => `${from} has sent no note on this deal.`,
+  from: (from: string): string => `From ${from}, unchecked`,
+  sent: (at: string): string => `Sent ${at}. Shown exactly as written, with no links. Your agents never act on it.`,
+} as const;
+
+/** What a calm notice says could not be read or done (WalletNotice `what`), and what is loading:
+ *  the main window's words that were inline before rebuild WP4a (byte-identical). */
+export const NOTICE_WHAT = {
+  settings: 'Settings',
+  pause: 'Pause',
+  resume: 'Resume',
+  agentRules: 'Agent rules',
+  walletLimits: 'Wallet limits',
+  safety: 'Safety record',
+  approval: 'Approval window',
+  agent: 'Agent',
+  agentApp: 'Agent app',
+  quit: 'Quit',
+  quitSummary: 'What happens when you quit',
+} as const;
+export const LOADING_WHAT = { rules: 'your rules', deal: 'the deal' } as const;
+/** The quit confirmation and the shortcuts sheet (moved from QuitSheet.tsx / Shortcuts.tsx). */
+export const QUIT_SHEET = { title: 'Quit The Table?', keep: 'Keep it running' } as const;
+export const SHORTCUTS_TRIAL = 'New layouts on trial';
+
+/** The "Latest" strip under a module's or a place's cards (rebuild WP4a): the first rows of the
+ *  area's most relevant list, each opening its deal, and a way into the full view. */
+export const LATEST = {
+  label: (what: string): string => `Latest: ${what}`,
+  seeAll: 'See all',
+  seeAllTitle: (what: string): string => `Open ${what.toLowerCase()}`,
+  more: (n: string): string => `${n} more`,
+  facts: 'As it stands now',
+} as const;
+/** What each area's "Latest" strip lists (after "Latest: "). */
+export const LATEST_OF = {
+  tables: 'your tables, waiting and open ones first',
+  spend: 'purchases, waiting ones first',
+  counter: 'orders at your counter, open ones first',
+  book: 'money in and out, newest first',
+  shield: 'deals checked, paused and stopped ones first',
+  rescue: 'renewals, the ones that need a fix first',
+  deal: 'on this deal',
+  withThem: (who: string): string => `other deals with ${who}`,
+  people: 'wallets you deal with',
+  steps: 'money steps and who decided',
+  decided: 'decided lately, and who decided',
+  settings: 'your wallet at a glance',
 } as const;

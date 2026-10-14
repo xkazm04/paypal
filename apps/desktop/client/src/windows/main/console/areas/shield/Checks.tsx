@@ -14,7 +14,7 @@ import { SHIELD, shieldReleased, shieldRuleWord, shieldWord } from '../../../../
 import { MinorMoney } from '../../../../../shared/honesty';
 import { Btn, Chip, Hint, Kv, Seg } from '../../../../../shared/ui';
 import { dealTotal, ledgerScope, moneyNow, stateLabel } from '../../../logic';
-import { NoteText } from '../../../modules/shield/NoteChip';
+import { NoteText } from '../shared/NoteChip';
 import { WeekTiles } from '../../../modules/shield/Panels';
 import { weekStrip } from '../../../modules/shield/normal';
 import { bandGeometry, checkCell, CHECKS, overMedian, paypalLine, releasable, STAGES } from '../../../modules/shield/matrix';

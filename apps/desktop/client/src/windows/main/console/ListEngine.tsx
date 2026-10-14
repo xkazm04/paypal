@@ -5,16 +5,21 @@
 // are in the DOM, lib/data/useWindowedRows), with variable row heights when asked.
 //
 // Keyboard: the rows are one tab stop; Arrow Up/Down, Page Up/Down, Home, End move; Enter opens the
-// focused row. Escape clears the search (or the filter) first; with nothing to clear it goes on to
-// the console, which goes one layer up. On a wide window (>= 1500 px, `wideAt`) a list with a
-// `detail` shows the picked row beside the list instead of opening it.
+// focused row (its deal). Escape clears the search (or the filter) first; with nothing to clear it
+// goes on to the console, which goes one layer up.
+//
+// Two steps where a list has a pane (rebuild WP4a, Director decision 3): a click (or Space) PICKS the
+// row - the area's own pane (`onPick`) or the list's `detail` - and Enter OPENS it (`onOpen`,
+// usually the deal). A list without a pane opens on a click too. A `detail` sits beside the list on
+// a wide window (>= 1500 px, `wideAt`) and under it on a narrower one, so the pick is never lost to
+// the window's width (decision 6).
 //
 // Rows are buttons: a row opens or picks, nothing else. Actions belong to the row's detail (the
 // pane, or the layer it opens), so a row never holds a second control.
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from 'react';
 import { formatCount, formatTally } from '../../../lib/data/counts';
 import { useWindowedRows } from '../../../lib/data/useWindowedRows';
-import { LIST_ALL, LIST_CLEAR, LIST_DETAIL_EMPTY, LIST_FILTER, LIST_NO_MATCH, LIST_SEARCH, LIST_SEARCH_PLACEHOLDER, LIST_SORT, listShowing } from '../../../lib/words';
+import { LIST_ALL, LIST_CLEAR, LIST_DETAIL_EMPTY, LIST_FILTER, LIST_NO_MATCH, LIST_SEARCH, LIST_SEARCH_PLACEHOLDER, LIST_SORT, LIST_TWO_STEP, listShowing } from '../../../lib/words';
 import { Btn, Field } from '../../../shared/ui';
 
 /** How long the search waits after the last keystroke. */
@@ -50,9 +55,13 @@ export type ListEngineProps<T> = {
   renderRow: (row: T, s: RowState) => ReactNode;
   /** The row's accessible name, when its content says too much or too little. */
   rowLabel?: (row: T) => string;
-  /** Opening a row (Enter or a click): usually `nav.deal(id)` or a detail view. */
+  /** Opening a row: Enter, and a click too when the list has no pane (`onPick` / `detail`).
+   *  Usually `nav.deal(id)`. */
   onOpen?: (row: T) => void;
-  /** The picked row beside the list on a wide window (it then picks instead of opening). */
+  /** Picking a row for the area's own pane (a click or Space); Enter then opens it (`onOpen`). */
+  onPick?: (row: T) => void;
+  /** The picked row's detail: beside the list on a wide window, under it on a narrower one. A click
+   *  picks, Enter opens. */
   detail?: (row: T) => ReactNode;
   /** Shown when there are no rows at all (one calm line). */
   empty: ReactNode;
@@ -111,7 +120,7 @@ export function shownRows<T>(rows: readonly T[], hay: readonly string[] | null, 
 }
 
 export function ListEngine<T>(p: ListEngineProps<T>) {
-  const { rows, getKey, filters, sorts, onOpen } = p;
+  const { rows, getKey, filters, sorts, onOpen, onPick } = p;
   const searchRef = useRef(p.searchText);
   searchRef.current = p.searchText;
   const hasSearch = !!p.searchText;
@@ -127,17 +136,30 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
   const shown = useMemo(() => shownRows(rows, hay, q, filter, sort), [rows, hay, q, filter, sort]);
 
   const wide = useWide(p.wideAt ?? WIDE_AT);
-  const side = wide && !!p.detail;
+  const hasDetail = !!p.detail;
+  const side = wide && hasDetail;
   const [picked, setPicked] = useState<string | null>(null);
-  const pickedRow = side && picked !== null ? shown.find((r) => getKey(r) === picked) : undefined;
+  const pickedRow = hasDetail && picked !== null ? shown.find((r) => getKey(r) === picked) : undefined;
+  const detailRef = useRef<HTMLElement>(null);
 
   const list = useWindowedRows({ rows: shown, getKey, estimateSize: p.estimateSize, measure: p.measure });
   const toolbar = rows.length > (p.toolbarMin ?? TOOLBAR_MIN);
 
+  /** A click or Space: pick when there is a pane, else open. */
   const activate = useCallback((row: T) => {
-    if (side) setPicked(getKey(row));
+    if (hasDetail) {
+      setPicked(getKey(row));
+      // Under the list (a narrow window) the picked row's detail is brought into sight.
+      if (!side) requestAnimationFrame(() => detailRef.current?.scrollIntoView?.({ block: 'nearest' }));
+    } else if (onPick) onPick(row);
     else onOpen?.(row);
-  }, [side, getKey, onOpen]);
+  }, [hasDetail, side, getKey, onPick, onOpen]);
+  /** Enter: open (the deal); a list that only picks picks. */
+  const enter = useCallback((row: T) => {
+    if (onOpen) onOpen(row);
+    else activate(row);
+  }, [onOpen, activate]);
+  const twoStep = !!onOpen && (hasDetail || !!onPick);
 
   const clear = () => { setQuery(''); setFilterValue(null); };
   // Escape clears first; with nothing to clear it goes on to the console (one layer up).
@@ -147,8 +169,10 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
   };
 
   const summary = listShowing(shown.length, rows.length, formatTally);
+  const hintId = useId();
   return (
-    <section className={`le${side ? ' side' : ''}${p.className ? ` ${p.className}` : ''}`} aria-label={p.label} onKeyDown={onKeyDown}>
+    <section className={`le${side ? ' side' : hasDetail ? ' stack' : ''}${p.className ? ` ${p.className}` : ''}`} aria-label={p.label} onKeyDown={onKeyDown}>
+      {twoStep ? <p className="sr-only" id={hintId}>{LIST_TWO_STEP}</p> : null}
       {toolbar ? (
         <div className="le-tools">
           {hasSearch ? (
@@ -185,15 +209,16 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
         {rows.length === 0 ? <p className="le-empty">{p.empty}</p>
           : shown.length === 0 ? <p className="le-empty">{p.noMatch ?? LIST_NO_MATCH} <Btn sm kind="plain" onClick={clear}>{LIST_CLEAR}</Btn></p>
             : (
-              <div ref={list.scrollRef} onKeyDown={list.onKeyDown} className="le-scroll" role="list" aria-label={p.label}>
+              <div ref={list.scrollRef} onKeyDown={list.onKeyDown} className="le-scroll" role="list" aria-label={p.label} aria-describedby={twoStep ? hintId : undefined}>
                 <div className="le-space" style={{ height: list.totalSize }}>
                   {list.items.map((it) => {
                     const rp = list.rowProps(it);
-                    const st: RowState = { focused: list.focusedKey === it.key, selected: side && picked === it.key };
+                    const st: RowState = { focused: list.focusedKey === it.key, selected: hasDetail && picked === it.key };
                     return (
                       <div key={it.key} role="listitem" className="le-item" style={{ transform: `translateY(${it.start}px)`, height: p.measure ? undefined : it.size }}>
                         <button type="button" {...rp} className={`le-row${st.selected ? ' on' : ''}`} data-fk={`le-${it.key}`} aria-label={p.rowLabel?.(it.row)}
-                          aria-current={st.selected || undefined} onClick={() => activate(it.row)}>
+                          aria-current={st.selected || undefined} onClick={() => activate(it.row)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' && !e.defaultPrevented && !e.repeat) { e.preventDefault(); enter(it.row); } }}>
                           {p.renderRow(it.row, st)}
                         </button>
                       </div>
@@ -202,8 +227,8 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
                 </div>
               </div>
             )}
-        {side ? (
-          <aside className="le-detail" aria-live="polite">
+        {hasDetail ? (
+          <aside className="le-detail" aria-live="polite" ref={detailRef}>
             {pickedRow !== undefined && p.detail ? p.detail(pickedRow) : <p className="le-empty">{LIST_DETAIL_EMPTY}</p>}
           </aside>
         ) : null}

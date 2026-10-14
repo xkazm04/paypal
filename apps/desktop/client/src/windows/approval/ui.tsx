@@ -3,9 +3,19 @@
 // Shared by DealReview (The Diff) and the owner screens (OwnerConfig, MandateEditor,
 // PairingConfirm): add exports here, never change the ones they import. SVG colours come from
 // tokens through classes in frame.css (no hex in TSX).
-import type { ReactNode } from 'react';
+//
+// Rebuild WP4b: the window reads as a front sheet of the console. WindowBar is the console's top
+// bar (mark, crumbs "The Table > Approvals", mode badge, the way back) plus the Approvals strip,
+// the sheet's index tab. "Back to The Table" only closes this window (the same close path the
+// review's "Close this window" uses): it decides nothing and withdraws nothing.
+import type { MouseEvent, ReactNode } from 'react';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { Mode } from '@bindings/Mode';
+import { backend } from '../../lib/runtime';
+import { APPROVAL_FRAME, BRAND_NAME } from '../../lib/words';
+import { Mark } from '../../shared/brand';
 import { MockBadge, ModeBadge, WalletNotice } from '../../shared/honesty';
+import { Btn, Crumbs, Spacer, useToast } from '../../shared/ui';
 import { footerNoticeText, STEP, UNLOCK_HEADING, type Step } from './model';
 import { useSession } from './session';
 
@@ -19,17 +29,65 @@ export function Emblem() {
   );
 }
 
-export function Header({ mode }: { mode: Mode | undefined }) {
+/**
+ * Close this window (the docked approval window; Rust returns focus to The Table). Resolves to
+ * null when it closed, or the note to show when it could not: the browser preview has no window to
+ * close, and a refused close leaves it open. Nothing about any deal changes either way.
+ */
+export async function closeThisWindow(): Promise<string | null> {
+  if (backend().kind !== 'tauri') return APPROVAL_FRAME.closePreview;
+  try {
+    await getCurrentWindow().close();
+    return null;
+  } catch {
+    return APPROVAL_FRAME.closeFailed;
+  }
+}
+
+/** The calm way back: closes this window; a note it could not say comes as a toast. */
+export function BackToTable() {
+  const toast = useToast();
   return (
-    <header className="aw-head">
-      <Emblem />
-      <span className="aw-title">
-        Approvals <span>· only this window can approve money</span>
-      </span>
-      {mode ? <ModeBadge mode={mode} /> : null}
-      <MockBadge />
-    </header>
+    <Btn kind="plain" sm className="aw-back" title={APPROVAL_FRAME.backTitle}
+      onClick={() => void closeThisWindow().then((note) => { if (note) toast(note); })}>
+      <span className="aw-back-ar" aria-hidden="true">‹</span>
+      {APPROVAL_FRAME.back}
+    </Btn>
   );
+}
+
+/**
+ * The window's top bar and its Approvals strip (two grid rows of `.aw`). `module` adds the deal's
+ * module to the crumbs; `onDetails` shows the Details button (deal review only).
+ */
+export function WindowBar({ mode, module, onDetails }: { mode: Mode | undefined; module?: string | null; onDetails?: (e: MouseEvent<HTMLButtonElement>) => void }) {
+  return (
+    <>
+      <header className="aw-head">
+        <Mark className="aw-mark" />
+        <Crumbs label={APPROVAL_FRAME.crumbs} items={[{ label: BRAND_NAME }, { label: APPROVAL_FRAME.name }, ...(module ? [{ label: module }] : [])]} />
+        <Spacer />
+        {mode ? <ModeBadge mode={mode} /> : null}
+        <MockBadge />
+        {onDetails ? (
+          <Btn kind="plain" sm onClick={onDetails} title={APPROVAL_FRAME.detailsTitle}>
+            {APPROVAL_FRAME.details}
+          </Btn>
+        ) : null}
+        <BackToTable />
+      </header>
+      <p className="aw-tab" title={APPROVAL_FRAME.stripLabel}>
+        <span className="aw-tab-k">{APPROVAL_FRAME.name}</span>
+        <span className="sr-only">: </span>
+        <span className="aw-tab-l">{APPROVAL_FRAME.strip}</span>
+      </p>
+    </>
+  );
+}
+
+/** The owner screens' bar (configuration, rules, pairing): the WindowBar without a module. */
+export function Header({ mode }: { mode: Mode | undefined }) {
+  return <WindowBar mode={mode} />;
 }
 
 export function Strip({ steps, countdown }: { steps: Step[]; countdown?: ReactNode }) {

@@ -17,7 +17,7 @@ import type { LazyPart } from '../../../lib/lazy';
 import { LAYER_LOADING } from '../../../lib/words';
 import { LayerSuspense } from '../../../shared/boundary';
 import { ChromeBackContext } from '../../../shared/ui';
-import type { Place, PlaceFrom, Route, SetupStep } from '../logic';
+import { sheetViewOf, withoutView, type Place, type PlaceFrom, type Route, type SetupStep } from '../logic';
 import type { PairMode } from '../setup/pairing';
 import type { Presence } from './centreModel';
 import { ModuleRouteContext, useViewLabel, type ModuleRoute } from '../viewNav';
@@ -81,6 +81,9 @@ export type LayerDef = {
   fit?: boolean;
   /** The layer draws the wallet's seal itself, so the sheet's corner seal is left out. */
   ownSeal?: boolean;
+  /** A deal's or a place's nested card views (`&dv=` / `&v=` in the hash): key -> crumb label.
+   *  A key not listed here is no view (the chain steps over it and the sheet opens none). */
+  views?: Readonly<Record<string, string>>;
 };
 
 /** Identity, typed: an area file writes `defineLayer({ ... })`. */
@@ -105,6 +108,14 @@ export function placeFromRoute(here: Route, p: Place): PlaceFrom | undefined {
   if (here.level === 'place' && here.place === 'settings' && p !== 'settings') return 'settings';
   return undefined;
 }
+
+/** The open card view of a deal's or a place's sheet, as the route says (`&dv=` / `&v=`), and how
+ *  to change it: opening pushes a history entry (or replaces the open one), closing is one step up
+ *  the chain, so Escape, Back, the crumbs and the browser's Back all close it. Null outside such a
+ *  layer: the sheet then keeps its open view as its own state. */
+export type SheetView = { view: string | null; open: (view: string | null, cardId?: string) => void };
+const SheetViewContext = createContext<SheetView | null>(null);
+export const useSheetView = (): SheetView | null => useContext(SheetViewContext);
 
 const NavContext = createContext<LayerNav | null>(null);
 const StateContext = createContext<LayerState>({ rewindAt: null, pairMode: undefined, firstRun: false, presence: { state: 'quiet', word: '', line: '' } });
@@ -145,8 +156,21 @@ export function LayerHost({ def, route, nav, state, resetKey }: { def: LayerDef;
       },
     };
   }, [route, nav, known]);
+  const sheet = useMemo<SheetView | null>(() => {
+    if (route.level !== 'deal' && route.level !== 'place') return null;
+    const v = sheetViewOf(route);
+    return {
+      view: v && def.views?.[v] ? v : null,
+      open: (next, cardId) => {
+        if (next === null) { if (v) nav.back(); return; }
+        if (next === v) return;
+        nav.go({ ...withoutView(route), view: next } as Route, { replace: !!v, focus: cardId ? `card:${cardId}` : undefined });
+      },
+    };
+  }, [route, nav, def.views]);
   let body: ReactNode = <C route={route} nav={nav} state={state} />;
   if (moduleRoute) body = <ModuleRouteContext.Provider value={moduleRoute}>{body}</ModuleRouteContext.Provider>;
+  if (sheet) body = <SheetViewContext.Provider value={sheet}>{body}</SheetViewContext.Provider>;
   return (
     <NavContext.Provider value={nav}>
       <StateContext.Provider value={state}>

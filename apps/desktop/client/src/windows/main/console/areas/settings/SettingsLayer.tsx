@@ -16,16 +16,17 @@ import { FIRST_RUN_PARAM } from '../../../../../lib/preview';
 import { backend } from '../../../../../lib/runtime';
 import { currentTheme, onThemeChange, setTheme, type Theme } from '../../../../../lib/theme';
 import {
-  fingerprintGroups, PERMISSIONS_FINGERPRINT, PERMISSIONS_FINGERPRINT_MEANS, rulesName, SETTINGS_AGENTS, SETTINGS_CARD, SETTINGS_IF, SETTINGS_KICKER, SETTINGS_LOCK, SETTINGS_LOOK, SETTINGS_MORE,
+  CONNECTIONS_ENGINE, CONNECTIONS_HOUSE, CONNECTIONS_PAYPAL, fingerprintGroups, LATEST_OF, modeWord, NOTICE_WHAT, PERMISSIONS_FINGERPRINT, SETTINGS_FACTS, PERMISSIONS_FINGERPRINT_MEANS, rulesName, SETTINGS_AGENTS, SETTINGS_CARD, SETTINGS_IF, SETTINGS_KICKER, SETTINGS_LOCK, SETTINGS_LOOK, SETTINGS_MORE,
   SETTINGS_ACT, SETTINGS_NOTIFY, SETTINGS_OPEN_CHARTER, SETTINGS_PROTECT, SETTINGS_TO_CONNECTIONS,
 } from '../../../../../lib/words';
 import { RunBadge, WalletNotice } from '../../../../../shared/honesty';
-import { Btn, Chip, Kv, layerCount, Seg, Silence, useToast } from '../../../../../shared/ui';
+import { Btn, Chip, Kv, layerCount, Seg, Silence, UNKNOWN, useToast } from '../../../../../shared/ui';
 import { deriveCircuit, settingsAnswer, type Circuit } from '../../../setup/circuit';
 import { shortTitle } from '../../../home/model';
 import { useDisplayOf, useLocked, useRuns, useSettings } from '../../../world';
 import { writeCalm } from '../../calm';
 import type { LayerProps } from '../../layers';
+import type { LatestProps } from '../../Latest';
 import { PlaceFrame, type CallLine, type LensCard } from './frame';
 import { ToApproval } from './handoff';
 
@@ -90,12 +91,26 @@ export function SettingsLayer({ nav }: LayerProps) {
     },
   ];
 
+  // Settings at a glance: what the other places hold, read-only (each is changed where it lives).
+  const engine = engines.data?.find((e) => e.id === s?.selected_engine);
+  const latest: LatestProps | undefined = s ? {
+    title: LATEST_OF.settings,
+    facts: [
+      [SETTINGS_FACTS.mode, modeWord(s.mode)],
+      [SETTINGS_FACTS.paypal, s.payment_executor_configured ? CONNECTIONS_PAYPAL.saved : CONNECTIONS_PAYPAL.notSaved],
+      [SETTINGS_FACTS.engine, !engines.data ? UNKNOWN : engine?.available ? CONNECTIONS_ENGINE.valueReady(s.selected_engine === 'scripted' ? CONNECTIONS_ENGINE.practiceShort : s.selected_engine) : CONNECTIONS_ENGINE.valueOff],
+      [SETTINGS_FACTS.house, CONNECTIONS_HOUSE.value[s.house]],
+      [SETTINGS_FACTS.rules, mandates.data ? String(mandates.data.length) : UNKNOWN],
+      [SETTINGS_FACTS.working, nWorking === null ? UNKNOWN : String(nWorking)],
+    ],
+  } : undefined;
+
   return (
-    <PlaceFrame root="ar-settings" place="settings" kicker={SETTINGS_KICKER} answer={answer.title} sub={answer.sub} call={call} cards={cards}
+    <PlaceFrame root="ar-settings" place="settings" kicker={SETTINGS_KICKER} answer={answer.title} sub={answer.sub} call={call} cards={cards} latest={latest}
       explain={{ summary: SETTINGS_PROTECT.summary, body: <Protect locked={locked} /> }}>
-      {settings.error && !s ? <WalletNotice error={settings.error} what="Settings" /> : null}
-      {pause.error ? <WalletNotice error={pause.error} what="Pause" /> : null}
-      {resume.error ? <WalletNotice error={resume.error} what="Resume" /> : null}
+      {settings.error && !s ? <WalletNotice error={settings.error} what={NOTICE_WHAT.settings} /> : null}
+      {pause.error ? <WalletNotice error={pause.error} what={NOTICE_WHAT.pause} /> : null}
+      {resume.error ? <WalletNotice error={resume.error} what={NOTICE_WHAT.resume} /> : null}
       <section className="st-more" aria-label={SETTINGS_MORE.title}>
         <h2 className="cs-h3">{SETTINGS_MORE.title}</h2>
         <ul className="st-rows">

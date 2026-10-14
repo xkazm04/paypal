@@ -10,6 +10,7 @@
 //   practice              the pairing wizard (PairingDesk) stays here in Main; only its final
 //                         confirm hands off. Done on pairing:pinned (counterparty_list).
 //   agent                 the agent app picker here in Main (engine_status, engine_select).
+import { NOTICE_WHAT } from '../../../lib/words';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { EngineId } from '@bindings/EngineId';
 import { useMutation, useQuery } from '../../../lib/hooks';
@@ -229,8 +230,8 @@ function AgentStep() {
   const pick = async (id: EngineId) => { if ((await select.run({ engine: id })) === null) toast(<>Agent app set to <b>{id === 'scripted' ? 'practice agent' : id}</b>.</>, 'ok'); };
   return (
     <div className="ch-engines">
-      {engines.error ? <WalletNotice error={engines.error} what="Agent app" /> : null}
-      {select.error ? <WalletNotice error={select.error} what="Agent app" /> : null}
+      {engines.error ? <WalletNotice error={engines.error} what={NOTICE_WHAT.agentApp} /> : null}
+      {select.error ? <WalletNotice error={select.error} what={NOTICE_WHAT.agentApp} /> : null}
       <div role="radiogroup" aria-label={START_STEP.engine.title}>
         {(engines.data ?? []).filter((e) => e.id !== 'scripted').map((e) => (
           <label key={e.id} className={`ch-engine${e.available ? '' : ' off'}`}>

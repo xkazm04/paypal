@@ -335,34 +335,21 @@ button.ui-chip:hover { filter: brightness(1.12); }
 .ui-checks li.ask .cs-name { font-weight: var(--fw-semibold); }
 
 /* --- round 2 (docs/ux/ROUND-2.md): hold to confirm, Why? ----------------------------------- */
-.ui-hold { position: relative; gap: 8px; padding-left: 8px; user-select: none; -webkit-user-select: none; touch-action: none; overflow: hidden; }
-.ui-hold .ring { flex: none; }
-.ui-hold::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, currentColor 10%, transparent); transform: scaleX(0); transform-origin: left; pointer-events: none; }
-.ui-hold.holding::after { transform: scaleX(1); transition: transform var(--hold-ms) var(--ease-linear); }
-.ui-hold.done { cursor: default; }
-.ui-hold:disabled .ring { opacity: .5; }
+/* HoldButton is HoldGesture's compact face (rebuild WP4b): the kit's .ui-hgest plate at control size. */
+.ui-hgest.ui-hold { height: auto; min-height: var(--ctl); padding: 2px var(--sp-3) 2px 2px; gap: var(--sp-2); justify-content: flex-start; border-radius: var(--r-pill); }
+.ui-hold .ui-hgest-ros { width: 24px; height: 24px; padding: 1px; }
+.ui-hold .ui-hgest-l b { font: var(--fw-semibold) var(--fs-body)/1.2 var(--font); letter-spacing: .02em; }
+.ui-hold[data-phase="sealed"] { cursor: default; }
+.ui-hold:disabled { opacity: .55; }
 .ui-why { background: none; border: 0; padding: 0 2px; margin-left: 4px; color: var(--teal-l); font: var(--fw-medium) var(--fs-small)/1 var(--font); cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
 .ui-why:hover { color: var(--text); }
 .ui-why-pop .ui-why-a { color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
 .ui-why-pop .ui-why-a p { margin: 0; }
 
-/* --- high contrast (Windows contrast themes): fills and shadows are dropped, so state needs an edge ---- */
-@media (forced-colors: active) {
-  .ui-chip, .badge { border: 1px solid CanvasText; }
-  .ui-chip.dashed, .badge.mock { border-style: dashed; }
-  .ui-seg button[aria-pressed="true"], .ui-seg button.on, .ui-seg button[role="tab"][aria-selected="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
-  .ui-row.on, .ui-sb-item.on, .ui-sb-item[aria-current] { outline: 2px solid Highlight; outline-offset: -2px; }
-  .ui-row.need { outline: 1px solid CanvasText; outline-offset: -1px; }
-  .ui-field:focus { outline: 2px solid Highlight; }
-  .ui-btn.primary, .ui-btn.gold, .ui-decision .dc-opt.gold { border: 2px solid ButtonText; }
-  .ui-meter { border: 1px solid CanvasText; }
-  .ui-meter > i { background: Highlight; forced-color-adjust: none; }
-  .ui-decision, .ui-answer { border-color: CanvasText; }
-}
-
-
 /* --- calm nested pages (summary cards, detail pages, steps, hierarchy) ------------------------ */
-/* One primary button per surface: it carries the colour and weight; the rest stay quiet. */
+/* One primary button per surface: it carries the colour and weight; the rest stay quiet. These
+   overrides stay here, not folded into the controls above: their :not() chain outranks many
+   contextual button rules in the windows, and folding them would change those (WP4b checked). */
 .ui-btn:not(.primary):not(.gold):not(.danger):not(.plain) { box-shadow: none; background: var(--panel); }
 .ui-btn:not(.primary):not(.gold):not(.danger):not(.plain):hover { background: var(--panel2); }
 .ui-btn.primary, .ui-btn.gold { box-shadow: var(--shadow-1); }
@@ -404,4 +391,20 @@ details.ui-disclosure > summary { min-height: 24px; border-radius: var(--r-sm); 
 .ui-stepper .st.current .st-btn { color: var(--text); font-weight: var(--fw-semibold); }
 .ui-stepper .st.current .st-dot { border-color: var(--teal); color: var(--teal-l); box-shadow: 0 0 0 2px var(--sel); }
 @media (prefers-reduced-motion: reduce) { .ui-sumcard, .ui-sumcard .chev { transition: none; } .ui-sumcard:active { transform: none; } }
-@media (forced-colors: active) { .ui-sumcard { border: 1px solid ButtonText; } .ui-stepper .st.current .st-dot { border: 2px solid Highlight; } }
+
+/* --- high contrast (Windows contrast themes): fills and shadows are dropped, so state needs an edge ----
+   Last in the file, so it wins over every rule above at equal specificity. */
+@media (forced-colors: active) {
+  .ui-chip, .badge { border: 1px solid CanvasText; }
+  .ui-chip.dashed, .badge.mock { border-style: dashed; }
+  .ui-seg button[aria-pressed="true"], .ui-seg button.on, .ui-seg button[role="tab"][aria-selected="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
+  .ui-row.on, .ui-sb-item.on, .ui-sb-item[aria-current] { outline: 2px solid Highlight; outline-offset: -2px; }
+  .ui-row.need { outline: 1px solid CanvasText; outline-offset: -1px; }
+  .ui-field:focus { outline: 2px solid Highlight; }
+  .ui-btn.primary, .ui-btn.gold, .ui-decision .dc-opt.gold { border: 2px solid ButtonText; }
+  .ui-meter { border: 1px solid CanvasText; }
+  .ui-meter > i { background: Highlight; forced-color-adjust: none; }
+  .ui-decision, .ui-answer { border-color: CanvasText; }
+  .ui-sumcard { border: 1px solid ButtonText; }
+  .ui-stepper .st.current .st-dot { border: 2px solid Highlight; }
+}

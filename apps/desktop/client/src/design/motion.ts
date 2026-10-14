@@ -60,3 +60,20 @@ export function useCalm(): boolean {
 export function motionMs(name: DurName, calm: boolean = isCalm()): number {
   return calm ? 0 : DUR[name];
 }
+
+/** Where The Table remembers the calm choice (windows/main/console/calm.ts CALM_KEY; a test keeps
+ *  the two equal). The other windows only read it: the switch lives in The Table. */
+export const CALM_STORE_KEY = 'table-calm';
+
+/** For a window without the switch (the approval window): applies the stored calm choice now and
+ *  follows a change made in The Table (the `storage` event). Storage may be blocked: then motion
+ *  follows the OS setting only. */
+export function followStoredCalm(): void {
+  const read = (): boolean => {
+    try { return typeof localStorage !== 'undefined' && localStorage.getItem(CALM_STORE_KEY) === '1'; } catch { return false; }
+  };
+  setCalm(read());
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', (e) => { if (e.key === null || e.key === CALM_STORE_KEY) setCalm(read()); });
+  }
+}

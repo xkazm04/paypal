@@ -39,6 +39,7 @@ export function GateView({ lanes, cols, m, sets, display, who, needOf }: {
 }) {
   const att = useAttention().data;
   const settings = useSettings().data;
+  const gateNav = useLayerNav();
   const [pick, setPick] = useState<Pick | null>(null);
   const grid = { '--sp-n': cols.length } as CSSProperties;
   const counts = useMemo(() => new Map(cols.map((c) => {
@@ -95,7 +96,7 @@ export function GateView({ lanes, cols, m, sets, display, who, needOf }: {
                 </span>
               );
             }}
-            rowLabel={(l) => `${display(l.deal).title}, ${outcomeOf(l.deal).label}`} onOpen={(l) => setPick({ kind: 'lane', id: l.deal.id })}
+            rowLabel={(l) => `${display(l.deal).title}, ${outcomeOf(l.deal).label}`} onPick={(l) => setPick({ kind: 'lane', id: l.deal.id })} onOpen={(l) => gateNav.deal(l.deal.id)}
             empty={SPEND.allEmpty} />
         )}
         pane={pick?.kind === 'rule'

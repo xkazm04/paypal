@@ -13,7 +13,7 @@ import { MinorMoney, WalletNotice } from '../../../../../shared/honesty';
 import { MODULE } from '../../../../../shared/modules';
 import { Btn, Chip, DecisionCard, Icon, Kv, Sheet, useToast, type DecisionOption } from '../../../../../shared/ui';
 import { canWithdraw, dealTotal, stateLabel } from '../../../logic';
-import { NoteChip } from '../../../modules/shield/NoteChip';
+import { NoteChip } from '../shared/NoteChip';
 import { CheckLights, ComparePanel, ReasonWhy } from '../../../modules/shield/Panels';
 import { knownPayees } from '../../../modules/shield/normal';
 import { paypalLine, reasonsFor, releasable } from '../../../modules/shield/matrix';

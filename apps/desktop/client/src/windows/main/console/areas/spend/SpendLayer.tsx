@@ -9,7 +9,7 @@ import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import { clockLabel, formatMinor } from '../../../../../lib/format';
 import { useQuery } from '../../../../../lib/hooks';
-import { joinWords, SPEND, SPEND_VIEWS, TABLES_TRADE, tablesClip } from '../../../../../lib/words';
+import { joinWords, LATEST_OF, OPEN_THE_DEAL, SPEND, SPEND_VIEWS, TABLES_TRADE, tablesClip } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, Hint, Loading, useToast } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
@@ -20,6 +20,7 @@ import { useModuleRoute } from '../../../viewNav';
 import { useDeals, useNeeds, useWorldSelector, type World } from '../../../world';
 import type { LayerProps } from '../../layers';
 import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
+import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { ModuleLayer, type YourCall } from '../../ModuleLayer';
 import type { ModuleCard } from '../../ModuleSummary';
 import { Amount, Countdown } from '../../rows';
@@ -170,7 +171,7 @@ export function SpendLayer({ nav }: LayerProps) {
     <ListEngine<Lane> label={label} rows={rows} getKey={(l) => l.deal.id} filters={filters} sorts={filters ? ALL_SORTS : undefined} estimateSize={68} measure
       searchText={(l) => `${display(l.deal).title} ${whoOf(l)} ${l.slot ?? ''}`}
       renderRow={(l) => row(l, picked?.deal.id === l.deal.id)}
-      rowLabel={(l) => `${display(l.deal).title}, ${outcomeOf(l.deal).label}`} onOpen={(l) => pick(l.deal.id)} empty={empty} />
+      rowLabel={(l) => `${display(l.deal).title}, ${outcomeOf(l.deal).label}`} onPick={(l) => pick(l.deal.id)} onOpen={(l) => nav.deal(l.deal.id)} empty={empty} />
   );
   const pane = (l: Lane | undefined) => {
     if (!l) return null;
@@ -184,8 +185,19 @@ export function SpendLayer({ nav }: LayerProps) {
     );
   };
 
+  // Latest: the purchases waiting for the owner first, then the newest; each opens its deal.
+  const waitingIds = new Set(needLanes.map((l) => l.deal.id));
+  const latestLanes = [...needLanes, ...lanes.filter((l) => !waitingIds.has(l.deal.id))];
+  const latest: LatestProps = {
+    title: LATEST_OF.spend, total: latestLanes.length,
+    rows: latestLanes.slice(0, MAX_ROWS).map((l) => ({
+      key: l.deal.id, label: `${display(l.deal).title}, ${OPEN_THE_DEAL}`, onOpen: () => nav.deal(l.deal.id), node: row(l, false),
+    })),
+    seeAll: { onOpen: () => route.open(needLanes.length ? 'need' : 'week') },
+  };
+
   return (
-    <ModuleLayer module="spend" kicker={SPEND.kicker} answer={answer} sub={sub} yourCall={yourCall}
+    <ModuleLayer module="spend" kicker={SPEND.kicker} answer={answer} sub={sub} yourCall={yourCall} latest={latest}
       cards={cards}
       explain={{ summary: SPEND.whyTitle, body: <ol className="tr-steps">{SPEND.why.map((s) => <li key={s}>{s}</li>)}</ol> }}
       views={{

@@ -14,18 +14,20 @@ import { shortHash, shortId } from '../../../../../lib/format';
 import { useNow, useQuery } from '../../../../../lib/hooks';
 import { readLimits } from '../../../../../lib/limits';
 import {
-  kindWord, LIMIT_WORDS, LIMITS_LAYER, LIMITS_PLACE, RULE_NAME, RULES_ACT, RULES_CARD, RULES_CATEGORY, RULES_DOC, RULES_EXPLAIN, RULES_IF, RULES_KICKER, RULES_LIST, RULES_STATE,
-  ruleSentence, WALLET_LIMITS_ABOUT,
+  kindWord, LIMIT_WORDS, LOADING_WHAT, NOTICE_WHAT, LIMITS_LAYER, LIMITS_PLACE, RULE_NAME, RULES_ACT, RULES_CARD, RULES_CATEGORY, RULES_DOC, RULES_EXPLAIN, RULES_IF, RULES_KICKER, RULES_LIST, RULES_STATE,
+  NO_WALLET_LIMIT, ruleSentence, WALLET_LIMITS_ABOUT,
 } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
-import { Chip, Disclosure, Kv, Loading, Meter, Silence, type ChipTone } from '../../../../../shared/ui';
+import { Chip, Disclosure, Kv, Loading, Meter, Silence, UNKNOWN, type ChipTone } from '../../../../../shared/ui';
 import { agentTitle, limitLines, rulesAnswer, ruleState } from '../../../setup/limits';
-import { useAttention, useSettings } from '../../../world';
+import { useAttention, useDeals, useNeeds, useSettings } from '../../../world';
 import type { LayerProps } from '../../layers';
+import type { LatestProps } from '../../Latest';
 import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
 import { Amount } from '../../rows';
 import { fitHeight, PlaceFrame, type CallLine, type LensCard } from '../settings/frame';
 import { ToApproval } from '../settings/handoff';
+import { paidTodayText, usePaidToday } from '../book/today';
 
 const shortDate = (unix: number) => new Date(unix * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 const dateLabel = (unix: number) => new Date(unix * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -109,7 +111,7 @@ function Rules({ nav }: { nav: LayerProps['nav'] }) {
     { id: 'ask', label: RULES_CARD.ask, value: q.data ? (ask ? <Amount money={ask} /> : RULES_CARD.askNone) : null, note: RULES_CARD.askNote },
     {
       id: 'limits', label: RULES_CARD.limits, value: out ? <>{out.value}{out.of ? <small className="rl-of"> {out.of}</small> : null}</> : reading ? RULES_CARD.limitsNone : null,
-      note: RULES_CARD.limitsNote, go: () => nav.place('limits'), fk: 'to-limits',
+      note: out ? RULES_CARD.limitsBudgetNote : RULES_CARD.limitsNote, go: () => nav.place('limits'), fk: 'to-limits',
     },
   ];
 
@@ -117,15 +119,15 @@ function Rules({ nav }: { nav: LayerProps['nav'] }) {
     <PlaceFrame root="ar-rules" place="rules" tone="var(--gold)" kicker={RULES_KICKER} answer={answer?.title ?? RULES_LIST.label} sub={answer?.sub} call={call} cards={cards}
       action={!call && q.data && list.length ? <ToApproval label={RULES_ACT.change} kind="default" target="mandate" title={RULES_ACT.title} /> : null}
       explain={{ summary: RULES_EXPLAIN.summary, body: <>{RULES_EXPLAIN.body.map((p) => <p key={p}>{p}</p>)}</> }}>
-      {q.error ? <WalletNotice error={q.error} what="Agent rules" /> : null}
-      {!q.data && !q.error ? <Loading what="your rules" /> : null}
+      {q.error ? <WalletNotice error={q.error} what={NOTICE_WHAT.agentRules} /> : null}
+      {!q.data && !q.error ? <Loading what={LOADING_WHAT.rules} /> : null}
       {q.data ? (
         <div className="rl-grid">
           <div className="rl-list" style={{ height: fitHeight(rows.length, 76, '36rem') }}>
             <ListEngine<Row> label={RULES_LIST.label} rows={rows} getKey={keyOf} filters={FILTERS} sorts={SORTS}
               searchText={(m) => `${agentTitle(m.agent)} ${purposeOf(m.payload.clauses)}`}
               estimateSize={72} renderRow={(m) => <RuleRow m={m} now={now} on={current ? keyOf(current) === keyOf(m) : false} />}
-              rowLabel={(m) => `${agentTitle(m.agent)}: ${purposeOf(m.payload.clauses)}`} onOpen={(m) => setPicked(keyOf(m))}
+              rowLabel={(m) => `${agentTitle(m.agent)}: ${purposeOf(m.payload.clauses)}`} onPick={(m) => setPicked(keyOf(m))}
               empty={RULES_LIST.empty} noMatch={RULES_LIST.noMatch} />
           </div>
           {current ? <RuleDoc m={current} now={now} /> : <p className="dim rl-pick">{RULES_LIST.pick}</p>}
@@ -207,12 +209,29 @@ function RuleDoc({ m, now }: { m: MandateListEntry; now: number }) {
  *  the bindings are frozen). */
 function LimitsPlace() {
   const att = useAttention();
+  const deals = useDeals().data;
+  const needs = useNeeds();
   const reading = readLimits(att.data?.exposure);
+  // The footer's "Paid out today" (money PayPal collected, the Book's set) beside the day's budget
+  // the meters count (every payment agreed today): two figures, named so they are never confused.
+  const pt = usePaidToday(att.data?.exposure, deals, needs);
   const answer = !att.data ? (att.error ? LIMITS_PLACE.unread : LIMITS_PLACE.reading) : !reading ? LIMITS_PLACE.unread : reading.line;
+  const budget = reading?.meters.find((m) => m.key === 'out');
+  // "of $1,000 a day" -> "$1,000 a day": the signed caps on their own.
+  const signed = pt?.limit ? reading?.meters.map((m) => m.of?.replace(/^of /, '')).filter((x): x is string => !!x).join(' · ') : null;
+  const latest: LatestProps | undefined = att.data ? {
+    title: LIMITS_PLACE.meters,
+    facts: [
+      [LIMITS_PLACE.factPaid, pt ? paidTodayText(pt, LIMITS_PLACE.nothingYet) : UNKNOWN],
+      [LIMITS_PLACE.factBudget, budget ? budget.value : UNKNOWN],
+      [LIMITS_PLACE.factLimits, signed || NO_WALLET_LIMIT],
+      [LIMITS_PLACE.factIn, LIMITS_PLACE.factInValue],
+    ],
+  } : undefined;
   return (
-    <PlaceFrame root="ar-rules" place="limits" tone="var(--gold)" kicker={LIMITS_PLACE.kicker} answer={answer} sub={WALLET_LIMITS_ABOUT}
+    <PlaceFrame root="ar-rules" place="limits" tone="var(--gold)" kicker={LIMITS_PLACE.kicker} answer={answer} sub={WALLET_LIMITS_ABOUT} latest={latest}
       action={<ToApproval label={LIMITS_LAYER.change} kind="default" title={LIMITS_LAYER.changeTitle} />}>
-      {att.error ? <WalletNotice error={att.error} what="Wallet limits" /> : null}
+      {att.error ? <WalletNotice error={att.error} what={NOTICE_WHAT.walletLimits} /> : null}
       {reading ? (
         <section className="rl-meters" aria-label={LIMITS_PLACE.meters}>
           <h2 className="cs-h3">{LIMITS_PLACE.meters}</h2>
@@ -222,7 +241,8 @@ function LimitsPlace() {
               <li key={m.key} title={m.why} className={m.near ? 'near' : undefined}>
                 <span className="k">{LIMIT_WORDS[m.key].name}</span>
                 <span className="v"><b className="num">{m.value}</b>{m.of ? <span> {m.of}</span> : null}</span>
-                <Meter value={m.fill} tone={m.near ? 'gold' : undefined} label={`${m.label}${m.of ? ` ${m.of}` : ''}`} />
+                <Meter value={m.fill} tone={m.near ? 'gold' : undefined} label={`${m.key === 'out' ? LIMITS_PLACE.budget : m.label}${m.of ? ` ${m.of}` : ''}`} />
+                {m.key === 'out' ? <span className="rl-budget"><b>{LIMITS_PLACE.budget}.</b> {LIMITS_PLACE.budgetNote}</span> : null}
               </li>
             ))}
           </ul>

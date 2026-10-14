@@ -199,3 +199,14 @@ export const SETTINGS_ACT = {
   rules: 'Sign rules',
   rulesTitle: 'Opens the approval window, where you sign your agents’ rules',
 } as const;
+
+/** Settings at a glance (the Latest strip's read-only facts, rebuild WP4a): what the other places hold. */
+export const SETTINGS_FACTS = {
+  mode: 'Money mode',
+  paypal: 'PayPal key',
+  engine: 'Agent app',
+  house: 'House seller',
+  rules: 'Rule sets signed',
+  working: 'Agents at work now',
+  lockIn: 'Approving locks',
+} as const;

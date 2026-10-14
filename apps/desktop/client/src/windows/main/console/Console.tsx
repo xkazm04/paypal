@@ -14,7 +14,7 @@
 // and the browser's Back/forward walk the same chain. Going deeper focuses the new layer's heading;
 // coming back gives focus and scroll back to where they were left.
 // Money: the main window only ever opens the approval window (approval_open).
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import type { Module } from '@bindings/Module';
 import type { TumblerStatus } from '@bindings/TumblerStatus';
 import { useEvent, useMutation, useNow } from '../../../lib/hooks';
@@ -30,7 +30,7 @@ import { MockBadge, ModeBadge } from '../../../shared/honesty';
 import { Glyph, MODULE, MODULES } from '../../../shared/modules';
 import { Btn, Crumbs, InspectorHostProvider, layerCount, ModuleTab, Stack, TabStrip, ThemeSwitch, TOAST_MS, useInspectorHost, useToast } from '../../../shared/ui';
 import { shortTitle } from '../home/model';
-import { formatHash, parseHash, receiptToast, resolveDealRef, spendToday, type Place, type Route, type SetupStep } from '../logic';
+import { formatHash, parseHash, receiptToast, resolveDealRef, sheetViewOf, spendToday, type Place, type Route, type SetupStep } from '../logic';
 import type { PairMode } from '../setup/pairing';
 import { useSetupIntent, useStart } from '../setup/start';
 import { Shortcuts } from '../Shortcuts';
@@ -48,7 +48,7 @@ import { LayerHost, layerIdOf, placeFromRoute, type LayerNav, type LayerState } 
 import { LAYER_PARTS, layerOf } from './layers.registry';
 import { useWatching } from './ledger';
 import { focusKeyOf, restoreLayer, type LayerMemory } from './memory';
-import { chainOf, isAncestor, moduleOfRoute, parentOf, routeKey, sameLayer, type ChainCtx } from './route';
+import { chainOf, isAncestor, moduleOfRoute, mountKey, parentOf, routeKey, sameLayer, type ChainCtx } from './route';
 import { StaleBanner } from './StaleBanner';
 import { paidTodayText, usePaidToday } from './areas/book/today';
 import './console.css';
@@ -113,6 +113,7 @@ export function Console() {
   const ctx = useMemo<ChainCtx>(() => ({
     dealModule: (ref) => { const d = deals ? resolveDealRef(ref, deals, labels) : undefined; return d ? moduleOfDeal(d) : null; },
     knownView: (m, v) => viewLabel(m, v) !== null,
+    knownSheetView: (r) => { const v = sheetViewOf(r); return !v || !!layerOf(r).views?.[v]; },
   }), [deals, labels, moduleOfDeal]);
   const ctxRef = useRef(ctx);
   ctxRef.current = ctx;
@@ -133,7 +134,9 @@ export function Console() {
     const c = ctxRef.current;
     const up = !sameLayer(from, to) && isAncestor(to, from, c);
     const dir: Dir = sameLayer(from, to) ? 'swap' : up ? 'out' : chainOf(to, c).length > chainOf(from, c).length ? 'into' : 'swap';
-    setNav((n) => ({ route: to, dir, restore: up, n: sameLayer(from, to) ? n.n : n.n + 1 }));
+    // Opening or closing a card view keeps the sheet (and its entrance) as it is.
+    const sameSheet = mountKey(from) === mountKey(to);
+    setNav((n) => ({ route: to, dir: sameSheet ? n.dir : dir, restore: up, n: sameLayer(from, to) ? n.n : n.n + 1 }));
   }, []);
 
   /** Go to a layer: a new history entry (or the same one with `replace`). */
@@ -184,15 +187,22 @@ export function Console() {
     return () => { window.removeEventListener('popstate', on); window.removeEventListener('hashchange', on); };
   }, [settle]);
 
-  // Focus and scroll after a move (passive, so a closing Find has given its focus back first).
+  // Focus and scroll after a move (passive, so a closing Find has given its focus back first). A card
+  // view opening or closing on the same sheet is the sheet's to focus (frame.tsx): the card that
+  // opened it, or the view's heading.
   const key = routeKey(route);
+  const sheetKey = mountKey(route);
+  const lastSheet = useRef(sheetKey);
   const first = useRef(true);
   useEffect(() => {
     if (first.current) { first.current = false; return; }
+    const sameSheet = lastSheet.current === sheetKey;
+    lastSheet.current = sheetKey;
+    if (sameSheet) return;
     const root = layerRef.current;
     if (!root) return;
     return restoreLayer(root, scroller(), navRef.current.restore ? memory.current.get(key) ?? null : null);
-  }, [key, nav.n]);
+  }, [key, sheetKey, nav.n]);
 
   // ---- overlays -------------------------------------------------------------------------------
   const [pairStart, setPairStart] = useState<PairMode | undefined>(undefined);
@@ -298,6 +308,8 @@ export function Console() {
   const chain = chainOf(route, ctx);
   const depth = chain.length;
   const lit = moduleOfRoute(route, ctx);
+  const tabRow = useRef<HTMLDivElement>(null);
+  useTabStop(tabRow, lit);
   const said = presenceOf({ firstRun, top, deal: topDeal, heldAtPayPal: watching.held, moving: watching.moving.length, paidFlash });
   // One object while the seal says the same, so the layers reading it do not redraw for nothing.
   const presence = useMemo(() => ({ state: said.state, word: said.word, line: said.line }), [said.state, said.word, said.line]);
@@ -353,13 +365,13 @@ export function Console() {
           <Stack label={route.level === 'home' && firstRun ? CHARTER_TITLE : def.title(route)} depth={pile} tone={toneOf(route, lit)} gold={centreRoute && queue.length > 1}
             corner={depth > 1 && !def.ownSeal ? <Seal size="corner" state={presence.state} label={sealLabel(presence.word, presence.line)} ring={SEAL_RING} /> : undefined}
             tabs={(
-              <div className="cs-tabrow">
+              <div className="cs-tabrow" ref={tabRow}>
                 <TabStrip label={TABS_LABEL}>
                   {MODULES.map((m, i) => {
                     const waiting = queue.filter((n) => n.module === m.key).length;
                     const count = !deals ? null : m.key === 'book' ? deals.length : deals.filter((d) => moduleOfDeal(d) === m.key).length;
                     return (
-                      <ModuleTab key={m.key} id={`cs-tab-${m.key}`} active={lit === m.key} onSelect={() => goModule(m.key)} color={m.cssVar} icon={<Glyph module={m.key} />}
+                      <ModuleTab key={m.key} id={`cs-tab-${m.key}`} active={lit === m.key} onSelect={() => goModule(m.key)} color={m.cssVar} icon={<Glyph module={m.key} />} controls={PANEL_ID}
                         title={tabTitle(m.name, m.long, i + 1)}
                         label={<>{m.name}<span className={`tt${count === null ? ' unknown' : ''}`}>{formatCount(count)}</span>
                           {waiting ? <span className="cnt"><span aria-hidden="true">{formatCount(waiting)}</span><span className="sr-only">{tabWaiting(waiting)}</span></span> : null}</>} />
@@ -369,9 +381,9 @@ export function Console() {
                 <p className="cs-presence" aria-live="polite"><b>{presence.word}</b> · {presence.line}</p>
               </div>
             )}>
-            <div ref={layerRef} key={key} className="cs-layer" data-dir={nav.dir} data-level={route.level} data-layer={layerIdOf(route)} data-fit={def.fit ? '' : undefined}>
+            <div ref={layerRef} key={sheetKey} id={PANEL_ID} role={lit ? 'tabpanel' : undefined} aria-labelledby={lit ? `cs-tab-${lit}` : undefined} className="cs-layer" data-dir={nav.dir} data-level={route.level} data-layer={layerIdOf(route)} data-fit={def.fit ? '' : undefined}>
               <CentreHost.Provider value={host}>
-                <LayerHost def={def} route={route} nav={layerNav} state={layerState} resetKey={key} />
+                <LayerHost def={def} route={route} nav={layerNav} state={layerState} resetKey={sheetKey} />
               </CentreHost.Provider>
             </div>
           </Stack>
@@ -399,6 +411,19 @@ export function Console() {
   );
 }
 
+/** The sheet's layer: the module tabs' panel (role tabpanel while a module's tab is lit). */
+const PANEL_ID = 'cs-panel';
+
+/** The module tabs are one tab stop (a roving tablist): the lit tab, or the first when none is lit
+ *  (the centre, a place), so Tab always reaches them; arrows move between them (TabStrip). */
+function useTabStop(row: RefObject<HTMLDivElement | null>, lit: Module | null): void {
+  useEffect(() => {
+    const tabs = Array.from(row.current?.querySelectorAll<HTMLElement>('[role="tab"]') ?? []);
+    const stop = (lit ? tabs.find((t) => t.id === `cs-tab-${lit}`) : undefined) ?? tabs[0];
+    for (const t of tabs) t.tabIndex = t === stop ? 0 : -1;
+  });
+}
+
 /** How long the seal reads "Paid" after the wallet reports a payment that went through (as long as its toast). */
 export const PAID_FLASH_MS = TOAST_MS;
 const selDisplay = (w: World) => w.display;
@@ -408,6 +433,9 @@ const SEAL_TONE = { quiet: 'steel', watching: 'teal', needs: 'gold', holding: 'c
 function CrumbLabel({ r, firstRun }: { r: Route; firstRun: boolean }) {
   if (r.level === 'home' && firstRun) return <>{CHARTER_TITLE}</>;
   const def = layerOf(r);
+  const v = sheetViewOf(r);
+  const view = v ? def.views?.[v] : undefined;
+  if (view) return <>{view}</>;
   const C = def.Crumb;
   return C ? <C route={r} /> : <>{def.title(r)}</>;
 }

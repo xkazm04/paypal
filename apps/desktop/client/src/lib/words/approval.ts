@@ -1,0 +1,43 @@
+// Words for the approval window's frame as a layer of the console (rebuild WP4b). Owned by the WP4b
+// builder; re-exported from lib/words.ts by one `export *` line. Rules (docs/ux/UX-GUIDE.md):
+// sentence case, Maya's words, no internals, PayPal the only vendor name. Prefix: `APPROVAL_` /
+// `HOLD_`. This file imports nothing from lib/words.ts (a cycle would read consts before they exist).
+// The two close notes are byte-identical to the ones DealReview showed before (its close path).
+
+/** The approval window's own frame: its crumbs, the Approvals strip and the way back to The Table. */
+export const APPROVAL_FRAME = {
+  /** The window's name in the crumbs and on the strip. */
+  name: 'Approvals',
+  /** The strip's line beside the name. ("approved", not "authorised": UX-GUIDE keeps authorization internal.) */
+  strip: 'the one place money is approved',
+  /** The strip's tooltip, in full. */
+  stripLabel: 'Approvals: the one place money is approved, your PayPal keys are saved and your rules are signed',
+  /** Accessible name of the crumbs. */
+  crumbs: 'Where this window sits',
+  /** The calm way back: closes this window, decides and withdraws nothing. */
+  back: 'Back to The Table',
+  backTitle: 'Close this window and go back to The Table. Nothing is decided or withdrawn.',
+  /** The browser preview has no window to close. */
+  closePreview: 'Preview only. In the app this closes the window; the mini window keeps watching PayPal for you.',
+  closeFailed: 'This window stayed open. Close it from its title bar; nothing changes for the deal.',
+  details: 'Details',
+  detailsTitle: 'Where every check came from, the full history and the proof',
+} as const;
+
+/** The small seal beside a deal's title: what it shows, in plain words (role="img"). */
+export const APPROVAL_SEAL = {
+  needs: 'Your wallet: this decision waits for you. Nothing moves until you decide.',
+  holding: 'Your wallet: this payment is paused for you. Nothing is paid.',
+  stopped: 'Your wallet: this deal stopped. Nothing more moves.',
+  quiet: 'Your wallet: nothing here waits for you.',
+  watching: 'Your wallet is reading this deal.',
+  locked: 'Your wallet is locked. Money stays where it is until you unlock.',
+} as const;
+
+/** What a screen reader hears on a hold-to-confirm button (HoldButton, HoldGesture). */
+export const HOLD_WORDS = {
+  hint: 'Press and hold to confirm',
+  progress: 'Hold progress',
+  holding: 'Keep holding',
+  done: 'Confirmed',
+} as const;

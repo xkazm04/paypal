@@ -63,7 +63,9 @@ export function useExport(b: BookWorld) {
   };
 }
 
-function LedgerRow({ deal, b }: { deal: Deal; b: BookWorld }) {
+/** A ledger row. `statement` false leaves the PayPal statement cell empty, so drawing the row reads
+ *  nothing (the summary's Latest strip; the statement is one click away in the ledger). */
+export function LedgerRow({ deal, b, statement = true }: { deal: Deal; b: BookWorld; statement?: boolean }) {
   const need = b.needOf.get(deal.id);
   const at = stampOf(deal);
   return (
@@ -74,7 +76,7 @@ function LedgerRow({ deal, b }: { deal: Deal; b: BookWorld }) {
         <span className="bk-sub"><span className="bk-who" title={b.who(deal)}>{b.who(deal)}</span>{deal.mode !== 'sandbox' ? <> <ModeBadge mode={deal.mode} /></> : null}</span>
       </span>
       <span className="bk-st"><StatusChip deal={deal} check={need?.money_check} /></span>
-      <span className="bk-stm"><RowStatement deal={deal} /></span>
+      <span className="bk-stm">{statement ? <RowStatement deal={deal} /> : null}</span>
       <span className="bk-amt"><Amount money={dealTotal(deal)} tone={amountTone(deal)} />{dirOf(deal) === 'in' ? <span className="bk-in">{BOOK.in}</span> : null}</span>
     </span>
   );

@@ -47,3 +47,7 @@
   .ar-rules .rl-meters li { padding: var(--sp-6); }
   .ar-rules .rl-meters .ui-meter { height: .8rem; }
 }
+
+/* the daily meter is the day's budget, named apart from the footer's "Paid out today" (WP4a) */
+.ar-rules .rl-budget { grid-column: 1 / -1; color: var(--muted); font-size: var(--fs-small); line-height: 1.4; }
+.ar-rules .rl-budget b { color: var(--text); font-weight: var(--fw-semibold); }

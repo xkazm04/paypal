@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Module } from '@bindings/Module';
 import { formatHash, parseHash, type Route } from '../logic';
-import { chainOf, depthOf, directionOf, isAncestor, moduleOfRoute, parentOf, routeKey, type ChainCtx } from './route';
+import { chainOf, depthOf, directionOf, isAncestor, moduleOfRoute, mountKey, parentOf, routeKey, type ChainCtx } from './route';
 
 const ctx: ChainCtx = {
   dealModule: (d) => (d === 'D-0193' || d === '01JDEAL' ? 'tables' : null),
@@ -53,6 +53,25 @@ describe('the new layers round-trip through the hash', () => {
     expect(formatHash(route)).toBe(hash);
     expect(parseHash(hash).route).toEqual(route);
   });
+  it.each<[Route, string]>([
+    [{ level: 'deal', deal: '01JDEAL', view: 'who' }, '#d=01JDEAL&dv=who'],
+    [{ level: 'deal', deal: '01JDEAL', from: { module: 'book', view: 'ledger' }, view: 'proof' }, '#d=01JDEAL&m=book&v=ledger&dv=proof'],
+    [{ level: 'deal', deal: '01JDEAL', from: { module: 'spend' }, view: 'story' }, '#d=01JDEAL&m=spend&dv=story'],
+    [{ level: 'place', place: 'settings', view: 'agents' }, '#p=settings&v=agents'],
+    [{ level: 'place', place: 'connections', from: 'settings', view: 'paypal' }, '#p=connections&m=settings&v=paypal'],
+  ])('a card view: %j', (route, hash) => {
+    expect(formatHash(route)).toBe(hash);
+    expect(parseHash(hash).route).toEqual(route);
+  });
+  it('a card view keeps every older deal link meaning what it did', () => {
+    // `v` after `&m=` is still the module view the deal was opened from
+    expect(parseHash('#d=X&m=book&v=ledger').route).toEqual({ level: 'deal', deal: 'X', from: { module: 'book', view: 'ledger' } });
+    // with no `&m=`, `v` is the deal's own view (the Director's short form)
+    expect(parseHash('#d=X&v=who').route).toEqual({ level: 'deal', deal: 'X', view: 'who' });
+    // free text never reaches a view key
+    expect(parseHash('#p=settings&v=Bad%20View!').route).toEqual({ level: 'place', place: 'settings' });
+    expect(parseHash('#d=X&dv=%3Cscript%3E').route).toEqual({ level: 'deal', deal: 'X' });
+  });
   it('#c=centre is the centre, and a filter that is not a module is dropped', () => {
     expect(parseHash('#c=centre').route).toEqual({ level: 'home' });
     expect(parseHash('#w=waiting&f=nope').route).toEqual({ level: 'waiting' });
@@ -88,6 +107,22 @@ describe('the chain of layers', () => {
     expect(chainOf({ level: 'place', place: 'safety', from: 'book' }, ctx).map(routeKey)).toEqual(['centre', 'm:book', 'p:safety:book']);
     expect(moduleOfRoute({ level: 'place', place: 'safety', from: 'book' }, ctx)).toBeNull();
     expect(isAncestor({ level: 'place', place: 'rules' }, { level: 'place', place: 'limits' }, ctx)).toBe(true);
+  });
+  it('a deal or a place card view is one more layer (depth up to 5); an unknown view is stepped over', () => {
+    const sheet: ChainCtx = { ...ctx, knownSheetView: (r) => (r.level === 'deal' ? r.view === 'who' : r.level === 'place' ? r.view === 'agents' : true) };
+    const deep: Route = { level: 'deal', deal: '01JDEAL', from: { module: 'book', view: 'ledger' }, view: 'who' };
+    expect(chainOf(deep, sheet).map(routeKey)).toEqual(['centre', 'm:book', 'm:book:ledger', 'd:01JDEAL', 'd:01JDEAL/who']);
+    expect(depthOf(deep, sheet)).toBe(5);
+    expect(parentOf(deep, sheet)).toEqual({ level: 'deal', deal: '01JDEAL', from: { module: 'book', view: 'ledger' } });
+    expect(parentOf({ level: 'place', place: 'settings', view: 'agents' }, sheet)).toEqual({ level: 'place', place: 'settings' });
+    expect(chainOf({ level: 'place', place: 'pairing', from: 'settings', view: 'agents' }, sheet).map(routeKey)).toEqual(['centre', 'p:settings', 'p:pairing:settings', 'p:pairing:settings/agents']);
+    // unknown: the chain is the sheet's own, and Back leaves the sheet
+    expect(chainOf({ level: 'place', place: 'settings', view: 'ghost' }, sheet).map(routeKey)).toEqual(['centre', 'p:settings']);
+    expect(parentOf({ level: 'place', place: 'settings', view: 'ghost' }, sheet)).toEqual({ level: 'home' });
+    expect(directionOf({ level: 'place', place: 'settings' }, { level: 'place', place: 'settings', view: 'agents' }, sheet)).toBe('into');
+    expect(isAncestor({ level: 'deal', deal: 'D-0193' }, { level: 'deal', deal: 'D-0193', view: 'who' }, sheet)).toBe(true);
+    expect(mountKey({ level: 'deal', deal: 'D-0193', view: 'who' })).toBe(mountKey({ level: 'deal', deal: 'D-0193' }));
+    expect(routeKey({ level: 'deal', deal: 'D-0193', view: 'who' })).not.toBe(routeKey({ level: 'deal', deal: 'D-0193' }));
   });
   it('names the direction of a move and the module tab it lights', () => {
     expect(directionOf({ level: 'home' }, { level: 'module', module: 'spend' }, ctx)).toBe('into');

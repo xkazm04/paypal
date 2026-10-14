@@ -9,7 +9,7 @@ import type { Deal } from '@bindings/Deal';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import { clockLabel, formatMinor, formatMoney } from '../../../../../lib/format';
 import { useNow, useQuery } from '../../../../../lib/hooks';
-import { COUNTER, COUNTER_VIEWS, TABLES_TRADE, timeLeftWords } from '../../../../../lib/words';
+import { COUNTER, COUNTER_VIEWS, LATEST_OF, OPEN_THE_DEAL, TABLES_TRADE, timeLeftWords } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, Kv, Loading, useLayer, useLayerCount, useToast } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
@@ -22,6 +22,7 @@ import { useModuleRoute } from '../../../viewNav';
 import { useDeals, useNeeds, useWorldSelector, type World } from '../../../world';
 import type { LayerProps } from '../../layers';
 import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
+import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { ModuleLayer, type YourCall } from '../../ModuleLayer';
 import type { ModuleCard } from '../../ModuleSummary';
 import { Amount, Countdown, StateChip, WhoChip } from '../../rows';
@@ -187,15 +188,21 @@ export function CounterLayer({ nav }: LayerProps) {
     <ListEngine<Deal> label={label} rows={rowsOf} getKey={(d) => d.id} filters={filters} sorts={sorts} estimateSize={64} measure
       searchText={(d) => `${display(d).title} ${cp(d.counterparty).name}`}
       renderRow={(d) => orderRow(d, picked?.id === d.id)}
-      rowLabel={(d) => `${display(d).title}, ${cp(d.counterparty).name}`} onOpen={(d) => pick(d.id)} empty={empty} />
+      rowLabel={(d) => `${display(d).title}, ${cp(d.counterparty).name}`} onPick={(d) => pick(d.id)} onOpen={(d) => nav.deal(d.id)} empty={empty} />
   );
+  // Latest: the live orders (waiting ones first, as the orders view lists them), else the earlier ones.
+  const latestOrders = (list: readonly Deal[], open: boolean): LatestProps => ({
+    title: LATEST_OF.counter, total: list.length,
+    rows: list.slice(0, MAX_ROWS).map((d) => ({ key: d.id, label: `${display(d).title}, ${OPEN_THE_DEAL}`, onOpen: () => nav.deal(d.id), node: orderRow(d, false) })),
+    seeAll: { onOpen: () => route.open(open ? 'orders' : 'earlier') },
+  });
   const orderPane = (d: Deal | undefined) => (d ? <OrderPane key={d.id} deal={d} disp={display(d)} row={rowOf.get(d.terms.item_ref)} draft={draft} /> : null);
   const catPending = !!PENDING_BACKEND.counter;
   const tray = <DraftBar mandate={mandate} diff={diff} errors={errors} impact={impact} title={display}
     onDiscard={() => { setDraft({}); toast(COUNTER.discarded(!!mandate)); }} onFixFirst={fixFirst} onOpened={opened} />;
 
   return (
-    <ModuleLayer module="counter" kicker={COUNTER.kicker} answer={answer} sub={sub} yourCall={yourCall}
+    <ModuleLayer module="counter" kicker={COUNTER.kicker} answer={answer} sub={sub} yourCall={yourCall} latest={latestOrders([...live, ...past], live.length > 0)}
       cards={cards}
       explain={{ summary: COUNTER.whyTitle, body: <ul className="tr-steps">{COUNTER.why.map(([t, x]) => <li key={t}><b>{t}.</b> {x}</li>)}</ul> }}
       views={{
@@ -230,7 +237,7 @@ export function CounterLayer({ nav }: LayerProps) {
                           </span>
                         );
                       }}
-                      rowLabel={(r) => itemName(r)} onOpen={(r) => pickItem(r.itemRef)} empty={COUNTER.itemsEmpty} />
+                      rowLabel={(r) => itemName(r)} onPick={(r) => pickItem(r.itemRef)} empty={COUNTER.itemsEmpty} />
                   )}
                   pane={pickedItem ? <ItemPane key={pickedItem.itemRef} row={pickedItem} draft={draft} mandate={mandate} catPending={catPending}
                     onText={(t) => setFloor(pickedItem.itemRef, t)} onOrder={(d) => nav.deal(d.id)} /> : null} />

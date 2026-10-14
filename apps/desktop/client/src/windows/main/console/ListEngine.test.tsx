@@ -6,7 +6,7 @@
 import type { ReactNode } from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { LIST_SEARCH, listShowing } from '../../../lib/words';
+import { LIST_SEARCH, LIST_TWO_STEP, listShowing } from '../../../lib/words';
 import { formatTally } from '../../../lib/data/counts';
 import { countFilters, ListEngine, SEARCH_DEBOUNCE_MS, shownRows, type ListFilter, type ListSort } from './ListEngine';
 
@@ -155,6 +155,53 @@ describe('the list engine at 5,000 rows', () => {
     expect(onOpen).not.toHaveBeenCalled();
     expect(screen.getByText('Detail of Monitor 2')).toBeTruthy();
     expect(row?.getAttribute('aria-current')).toBe('true');
+    // Enter opens the picked row (the two steps: click picks, Enter opens)
+    fireEvent.keyDown(row as HTMLElement, { key: 'Enter' });
+    expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: 'r2' }));
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: was });
+  });
+
+  it('a narrow window keeps the pick: the detail sits under the list, a click still picks', () => {
+    const was = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1100 });
+    const onOpen = vi.fn();
+    render(<Harness rows={rowsOf(30)} onOpen={onOpen} detail={(r) => <p>Detail of {r.title}</p>} />);
+    expect(document.querySelector('.le')?.classList.contains('stack')).toBe(true);
+    const row = document.querySelectorAll<HTMLButtonElement>('.le-row')[4];
+    fireEvent.click(row as HTMLElement);
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(screen.getByText('Detail of Monitor 4')).toBeTruthy();
+    fireEvent.keyDown(row as HTMLElement, { key: 'Enter' });
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: was });
+  });
+});
+
+describe('two steps: a click picks for the pane, Enter opens', () => {
+  function Picking({ onPick, onOpen }: { onPick: (r: Row) => void; onOpen?: (r: Row) => void }) {
+    return <ListEngine<Row> label="Tables" rows={rowsOf(12)} getKey={(r) => r.id} estimateSize={ROW} renderRow={(r) => <span>{r.title}</span>} onPick={onPick} onOpen={onOpen} empty="None." />;
+  }
+  it('with onPick and onOpen: a click (and Space) picks, Enter opens, and the list says so once', () => {
+    const onPick = vi.fn();
+    const onOpen = vi.fn();
+    render(<Picking onPick={onPick} onOpen={onOpen} />);
+    const row = document.querySelectorAll<HTMLButtonElement>('.le-row')[3] as HTMLElement;
+    fireEvent.click(row);
+    expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ id: 'r3' }));
+    expect(onOpen).not.toHaveBeenCalled();
+    fireEvent.keyDown(row, { key: 'Enter' });
+    expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: 'r3' }));
+    expect(onPick).toHaveBeenCalledTimes(1);
+    const list = screen.getByRole('list', { name: 'Tables' });
+    const hint = document.getElementById(list.getAttribute('aria-describedby') ?? '');
+    expect(hint?.textContent).toBe(LIST_TWO_STEP);
+  });
+  it('with only onPick: Enter picks too, and no two-step hint is read', () => {
+    const onPick = vi.fn();
+    render(<Picking onPick={onPick} />);
+    const row = document.querySelectorAll<HTMLButtonElement>('.le-row')[1] as HTMLElement;
+    fireEvent.keyDown(row, { key: 'Enter' });
+    expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ id: 'r1' }));
+    expect(screen.getByRole('list', { name: 'Tables' }).hasAttribute('aria-describedby')).toBe(false);
   });
 });

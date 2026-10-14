@@ -14,7 +14,6 @@ import { createContext, useContext, useLayoutEffect, useMemo, useRef, useState, 
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { AttentionSnapshot } from '@bindings/AttentionSnapshot';
 import type { Deal } from '@bindings/Deal';
-import type { DealEvidence } from '@bindings/DealEvidence';
 import type { Module } from '@bindings/Module';
 import type { RunSnapshot } from '@bindings/RunSnapshot';
 import type { SettingsSnapshot } from '@bindings/SettingsSnapshot';
@@ -26,7 +25,6 @@ import { useQuery, type Query } from '../../lib/hooks';
 import type { DealDisplay } from '@bindings/DealDisplay';
 import { headlineWords, silenceWords } from '../../lib/words';
 import { useDisplays } from './displays';
-import { useEvidence } from './evidence';
 import { moduleOf } from './logic';
 
 export type Display = DealDisplay & { fallback: boolean };
@@ -175,12 +173,6 @@ const sameBanner = (a: StaleBanner | null, b: StaleBanner | null): boolean =>
   a === b || (!!a && !!b && a.kind === b.kind && a.parts.join('|') === b.parts.join('|'));
 /** What the stale banner says now, or null: re-renders only when that changes. */
 export const useStaleBanner = (): StaleBanner | null => useWorldSelector(selBanner, sameBanner);
-
-/** Evidence for every deal (Book). Read once per open and again only for the deals whose evidence
- *  can have changed (evidence.ts); `bump` is unused. */
-export function useAllEvidence(deals: Deal[] | undefined, _bump: number): { map: Map<string, DealEvidence>; error: WalletError | null } {
-  return useEvidence(deals);
-}
 
 // ---- the provider -------------------------------------------------------------------------------
 

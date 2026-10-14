@@ -5,7 +5,6 @@
    the scale. The window is 744 px wide. */
 
 /* ---- page roots ------------------------------------------------------------------------- */
-.ow.ow-ed { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
 .ow .ow-body { padding: var(--sp-3) var(--sp-4) var(--sp-4); }
 .ow-p { margin: 0 0 var(--sp-2); color: var(--muted); line-height: var(--lh); }
 .ow-p:last-child { margin-bottom: 0; }

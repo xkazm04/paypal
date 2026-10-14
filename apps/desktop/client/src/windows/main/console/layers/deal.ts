@@ -4,11 +4,11 @@
 // reading its own record when it opens (scale finding #17). Guide: docs/build/rebuild/wp3c.md.
 // This file, console/areas/deal.css, lib/words/deal.ts and console/areas/deal/ are the area's.
 import { lazyPart } from '../../../../lib/lazy';
-import { DEAL_CRUMB } from '../../../../lib/words';
+import { DEAL_CARD, DEAL_CRUMB } from '../../../../lib/words';
 import { DealCrumb } from '../crumbs';
 import { defineLayer, type LayerProps } from '../layers';
 import '../areas/deal.css';
 
 export const layers = [
-  defineLayer({ id: 'deal', title: () => DEAL_CRUMB, Crumb: DealCrumb, component: lazyPart<LayerProps>(() => import('../areas/deal/DealLayer').then((m) => m.DealLayer)) }),
+  defineLayer({ id: 'deal', title: () => DEAL_CRUMB, Crumb: DealCrumb, views: { story: DEAL_CARD.story, rules: DEAL_CARD.rules, who: DEAL_CARD.who, proof: DEAL_CARD.proof }, component: lazyPart<LayerProps>(() => import('../areas/deal/DealLayer').then((m) => m.DealLayer)) }),
 ];
