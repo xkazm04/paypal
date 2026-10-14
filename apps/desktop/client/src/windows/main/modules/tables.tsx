@@ -1,32 +1,33 @@
-// Tables (haggle) module page. UX round 1 (docs/ux/ROUND-1.md): the page opens on an answer
-// ("Is a deal waiting for me, and is it inside my limit?"), then a decision card per table that needs
-// the owner, then one card per live table with a one-line "where it stands" bar (your offers, their
-// offers, your limit). Detailed view keeps the specialist instrument: the table tabs and the vertical
-// price ladder (prototype/pages/tables/variant-3) where the limit is dragged. Moving the limit
-// drafts a band change that goes through three steps in the Inspector: draft → what changes (a
-// sheet) → sign in the approval window. Main never signs: band_set and every countersign / accept
-// run only in the approval window (approval_open hands off).
-// Owner: the tables agent. Styles: ./tables.css, scoped under .mod-tables. Pure logic: ./tables/ladder.ts.
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
+// Tables (haggle) module. The summary is an answer ("Is a deal waiting for me, and is it inside my limit?"),
+// a compact decision card per table that needs the owner, and up to four cards that open nested pages:
+// Needs you (decisions with where-it-stands and the price range steps), Your tables (a bar per table,
+// typed price range, and the Price ladder page where the limit is dragged), Shop around, Closed.
+// Moving the limit drafts a band change in three steps: draft, what changes (a sheet), sign in the
+// approval window. Main never signs: band_set and every countersign / accept run only in the approval
+// window (approval_open hands off). Owner: the tables agent. Styles: ./tables.css, scoped under
+// .mod-tables. Pure logic: ./tables/ladder.ts.
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Currency } from '@bindings/Currency';
 import type { Deal } from '@bindings/Deal';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { clockLabel } from '../../../lib/format';
-import { headlineWords, marketWords, ruleNameOf, sellerSaysOnly, silenceWords, stateWord } from '../../../lib/words';
+import { headlineWords, marketWords, ruleNameOf, sellerSaysOnly, SHOP_AROUND_MEANS, silenceWords, stateWord, TABLES_VIEW } from '../../../lib/words';
 import { useMutation, useQuery } from '../../../lib/hooks';
 import { Countdown, MinorMoney, WalletNotice } from '../../../shared/honesty';
 import { Glyph } from '../../../shared/modules';
 import {
-  AnswerBar, Btn, Chip, DecisionCard, DetailToggle, Explainer, Field, Group, Hint, Icon, Inspector, Kv, Loading, PageHead, Popover, Row, Section, Sheet, Silence,
-  useDetail, useLayer, type ChipTone, type DecisionOption, type ExplainerStep,
+  AnswerBar, Btn, Chip, DecisionCard, DetailPage, Empty, Field, Group, Hint, Icon, Inspector, Kv, Loading, PageHead, Popover, Row, Section, Sheet, Silence, SummaryCard,
+  useLayer, type ChipTone, type DecisionOption,
 } from '../../../shared/ui';
 import { canWithdraw, dealTotal, isLive, isOwnerAccept, stateLabel } from '../logic';
+import { registerViewLabels, useModuleRoute } from '../viewNav';
 import { useCpLookup, useToast } from '../ui';
 import { useWorld } from '../world';
 import type { ModuleProps } from './common';
 import { NoteChip } from './shield/NoteChip';
-import { ShopAroundButton, ShopAroundCards } from './tables/ShopAround';
+import { liveGroupCount, ShopAroundButton, ShopAroundCards } from './tables/ShopAround';
+import { shopAroundSets } from './tables/groups';
 import {
   bandOf, consequences, diffLines, draftValid, fenceKey, fits, ladderScale, lastPriced, moveFence, parseAmount, posPct, priceAt,
   LIMIT_WORD, sameBand, short, standLine, standing, stepStates, tabLine, toInput, topPct, unitOf, type BandDraft, type Consequence, type Priced, type Scale,
@@ -39,11 +40,13 @@ const BAND_MOVABLE = new Set<Deal['state']>(['PAIRING', 'LISTED', 'NEGOTIATING']
 type TableState = { draft: BandDraft | null; read: boolean; handoff: { version: number; draft: BandDraft } | null };
 const EMPTY: TableState = { draft: null, read: false, handoff: null };
 
-const EXPLAIN: readonly ExplainerStep[] = [
-  { icon: 'agent', title: 'Your agent haggles', text: 'It trades offers with the other wallet’s agent for you.' },
-  { icon: 'shield', title: 'Never past your limit', text: 'It can’t offer or accept anything outside the price range you signed.' },
-  { icon: 'you', title: 'You approve the price', text: 'Nothing is accepted until you confirm in the approval window.' },
+const EXPLAIN: readonly string[] = [
+  'Your agent trades offers with the other wallet’s agent for you.',
+  'It can’t offer or accept anything outside the price range you signed.',
+  'Nothing is accepted until you confirm in the approval window.',
 ];
+
+registerViewLabels('tables', { need: TABLES_VIEW.need, tables: TABLES_VIEW.tables, ladder: TABLES_VIEW.ladder, shop: TABLES_VIEW.shop, closed: TABLES_VIEW.closed });
 
 /** The wallet's default-on-silence sentence in plain words (no protocol verbs on this surface). */
 const plainSilence = (s: string): string => silenceWords(s).replace(/SETTLE/g, 'payment request');
@@ -55,8 +58,7 @@ const asItem = (title: string): string => `the ${/^[A-Z][a-z]/.test(title) ? tit
 export function Tables({ deals, nav }: ModuleProps) {
   const w = useWorld();
   const toast = useToast();
-  const [detail, setDetail] = useDetail('tables');
-  const detailed = detail === 'detailed';
+  const { view, open } = useModuleRoute();
   // The strip: live tables plus anything that still needs you (a MISMATCH carries a needs-you item).
   const strip = useMemo(() => deals.filter((d) => isLive(d) || !!w.needOf(d.id)), [deals, w]);
   const closed = useMemo(() => deals.filter((d) => !strip.includes(d)), [deals, strip]);
@@ -65,10 +67,11 @@ export function Tables({ deals, nav }: ModuleProps) {
   const others = strip.filter((d) => isLive(d) && !w.needOf(d.id));
   const [sel, setSel] = useState<string | null>(null);
   const cur = strip.find((d) => d.id === sel) ?? strip[0] ?? null;
-  // Simple view: the table whose price range is open in the Inspector (nothing is open by default).
+  // The table whose price range is open in the Inspector (nothing is open by default).
   const [edit, setEdit] = useState<string | null>(null);
-  const editDeal = !detailed ? strip.find((d) => d.id === edit) ?? null : null;
-  const act = detailed ? cur : editDeal;
+  const editDeal = strip.find((d) => d.id === edit) ?? null;
+  const ladderPage = view === 'ladder';
+  const act = ladderPage ? cur : editDeal;
 
   const [ts, setTs] = useState<Record<string, TableState>>({});
   const stateOf = (id: string): TableState => ts[id] ?? EMPTY;
@@ -107,78 +110,116 @@ export function Tables({ deals, nav }: ModuleProps) {
     onHandoff: (version: number, draft: BandDraft) => patch(d.id, { handoff: { version, draft } }),
   });
 
-  const [closedA, setClosedA] = useState<HTMLElement | null>(null);
   // Shop around (T8): the groups of sellers for one item, each seller's latest signed price.
   const groups = useQuery('deal_groups', null, { refreshOn: ['deal:changed'] });
-  const actions = (
-    <>
-      <DetailToggle value={detail} onChange={setDetail} />
-      <Btn aria-haspopup="dialog" onClick={(e) => { const t = e.currentTarget; setClosedA((x) => (x ? null : t)); }}>Closed · {closed.length} ▾</Btn>
-      <ShopAroundButton groups={groups.data ?? []} deals={deals} onGrouped={() => void groups.refetch()} />
-      <Btn kind="primary" onClick={() => nav.onSheet('pairing')} title="Start haggling with another wallet over an item, join with a code, or try the house seller">Open a table</Btn>
-    </>
-  );
+  const liveGroups = liveGroupCount(groups.data ?? [], deals);
+  const canShop = shopAroundSets(deals, groups.data ?? []).length > 0;
 
+  const back = () => open(null);
+  /** The price-range steps of the table being edited, when it is one of `from`. */
+  const rangeEditor = (from: readonly Deal[]) => (editDeal && from.includes(editDeal) ? (
+    <RangeEditor key={editDeal.id} deal={editDeal} st={stateOf(editDeal.id)} {...handlers(editDeal)}
+      onClose={() => { const s = stateOf(editDeal.id); if (s.draft && !s.handoff) discard(editDeal.id, true); setEdit(null); }} />
+  ) : null);
+  const startSheet = () => nav.onSheet('pairing');
+  const icon = <Glyph module="tables" />;
+
+  let body: ReactNode;
+  if (view === 'need' && needDeals.length) {
+    body = (
+      <DetailPage title={TABLES_VIEW.need} onBack={back} icon={icon} sub={`${needDeals.length} ${needDeals.length === 1 ? 'table waits' : 'tables wait'} for you`}>
+        <section className="tb-decisions" aria-label="Waiting for you">
+          {needDeals.map((d) => <NeedCard key={d.id} deal={d} need={w.needOf(d.id)} st={stateOf(d.id)} nav={nav} onRange={() => { setEdit(d.id); setSel(d.id); }} />)}
+        </section>
+        {rangeEditor(needDeals)}
+      </DetailPage>
+    );
+  } else if (view === 'tables') {
+    body = (
+      <DetailPage title={TABLES_VIEW.tables} onBack={back} icon={icon} sub={others.length ? `${others.length} open` : undefined}>
+        {others.length ? (
+          <section className="tb-tables" aria-label="Your tables">
+            {others.map((d) => <TableCard key={d.id} deal={d} st={stateOf(d.id)} nav={nav} onRange={() => setEdit(d.id)}
+              onLadder={() => { setSel(d.id); open('ladder'); }} />)}
+          </section>
+        ) : <Empty>{needDeals.length ? 'Your other tables are under “Needs you”.' : 'No tables open right now.'}</Empty>}
+        {rangeEditor(others)}
+      </DetailPage>
+    );
+  } else if (ladderPage) {
+    body = (
+      <DetailPage title={TABLES_VIEW.ladder} onBack={() => open('tables')} backLabel={TABLES_VIEW.tables} icon={icon} sub="Drag your limit, or type it. You sign it in the approval window.">
+        {!strip.length || !cur ? <Empty>Open a table to set a price range.</Empty> : (
+          <>
+            <div className="tb-strip" role="tablist" aria-label="Live tables">
+              {strip.map((d, i) => (
+                <TableTab key={d.id} deal={d} on={d.id === cur.id} draft={stateOf(d.id).draft}
+                  onPick={() => setSel(d.id)}
+                  onKey={(e) => {
+                    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+                    e.preventDefault();
+                    const n = strip[(i + (e.key === 'ArrowRight' ? 1 : strip.length - 1)) % strip.length];
+                    if (n) { setSel(n.id); (document.querySelector(`[data-tab="${n.id}"]`) as HTMLElement | null)?.focus(); }
+                  }} />
+              ))}
+            </div>
+            <TableBody key={cur.id} deal={cur} st={stateOf(cur.id)} nav={nav} {...handlers(cur)} />
+          </>
+        )}
+      </DetailPage>
+    );
+  } else if (view === 'shop') {
+    body = (
+      <DetailPage title={TABLES_VIEW.shop} onBack={back} icon={icon} sub={SHOP_AROUND_MEANS}
+        actions={<ShopAroundButton groups={groups.data ?? []} deals={deals} onGrouped={() => void groups.refetch()} />}>
+        {liveGroups ? <ShopAroundCards groups={groups.data ?? []} deals={deals} nav={nav} /> : <Empty>Nothing to compare yet. Two sellers with a table for the same item can compete here.</Empty>}
+      </DetailPage>
+    );
+  } else if (view === 'closed') {
+    body = (
+      <DetailPage title={TABLES_VIEW.closed} onBack={back} icon={icon} sub={closed.length ? `${closed.length} closed` : undefined}>
+        <Group empty="Nothing closed yet.">
+          {closed.map((d) => <ClosedRow key={d.id} deal={d} onOpen={() => nav.onDeal(d.id)} />)}
+        </Group>
+      </DetailPage>
+    );
+  } else {
+    body = (
+      <>
+        <PageHead title="Tables" icon={icon} focusKey="tables"
+          info={<TablesInfo />}
+          actions={<Btn kind="primary" onClick={startSheet} title="Start haggling with another wallet over an item, join with a code, or try the house seller">Open a table</Btn>} />
+        <TablesAnswer needDeals={needDeals} live={live} />
+        {needDeals.length ? (
+          <section className="tb-decisions" aria-label="Waiting for you">
+            {needDeals.map((d) => <NeedCard key={d.id} deal={d} need={w.needOf(d.id)} st={stateOf(d.id)} nav={nav} compact onRange={() => { setEdit(d.id); setSel(d.id); }} />)}
+          </section>
+        ) : null}
+        <div className="ui-sumcards">
+          {needDeals.length ? <SummaryCard id="need" label={TABLES_VIEW.need} value={`${needDeals.length} waiting`} chip="Your call" chipTone="gold" onOpen={() => open('need', 'need')} /> : null}
+          <SummaryCard id="tables" label={TABLES_VIEW.tables} value={live ? `${live} open` : 'None open'} note={live ? 'Where each one stands' : undefined} onOpen={() => open('tables', 'tables')} />
+          {liveGroups || canShop ? <SummaryCard id="shop" label={TABLES_VIEW.shop} value={liveGroups ? `${liveGroups} comparing` : 'Ready'} onOpen={() => open('shop', 'shop')} /> : null}
+          <SummaryCard id="closed" label={TABLES_VIEW.closed} value={closed.length ? `${closed.length} closed` : 'Nothing yet'} onOpen={() => open('closed', 'closed')} />
+        </div>
+      </>
+    );
+  }
+
+  return <div className="tb-page">{body}</div>;
+}
+
+/** The old always-visible explainer, now one ⓘ away. */
+function TablesInfo() {
+  const [a, setA] = useState<HTMLElement | null>(null);
   return (
-    <div className="tb-page">
-      <PageHead title="Tables" icon={<Glyph module="tables" />} focusKey="tables" sub="Your agent haggles inside the price range you signed" actions={actions} />
-      {closedA ? (
-        <Popover anchor={closedA} onClose={() => setClosedA(null)} title={`Closed · ${closed.length}`} className="mod-tables">
-          <Group empty="Nothing closed yet.">
-            {closed.map((d) => <ClosedRow key={d.id} deal={d} onOpen={() => { setClosedA(null); nav.onDeal(d.id); }} />)}
-          </Group>
+    <>
+      <Btn kind="plain" sm aria-label="How tables work" title="How tables work" aria-expanded={!!a} onClick={(e) => { const t = e.currentTarget; setA((x) => (x ? null : t)); }}>ⓘ</Btn>
+      {a ? (
+        <Popover anchor={a} onClose={() => setA(null)} title="How tables work" className="mod-tables">
+          <ol className="tb-steps">{EXPLAIN.map((s) => <li key={s}>{s}</li>)}</ol>
         </Popover>
       ) : null}
-
-      <TablesAnswer needDeals={needDeals} live={live} />
-      <Explainer id="tables" title="How tables work" steps={EXPLAIN} />
-
-      {needDeals.length ? (
-        <section className="tb-decisions" aria-label="Waiting for you">
-          {needDeals.map((d) => (
-            <NeedCard key={d.id} deal={d} need={w.needOf(d.id)} st={stateOf(d.id)} nav={nav} compact={detailed} onRange={() => { setEdit(d.id); setSel(d.id); }} />
-          ))}
-        </section>
-      ) : null}
-
-      <ShopAroundCards groups={groups.data ?? []} deals={deals} nav={nav} />
-
-      {!strip.length || !cur ? (
-        <>
-          <Group><div className="ui-empty">No tables open right now.<div className="tb-empty-act"><Btn kind="primary" onClick={() => nav.onSheet('pairing')}>Try the house seller</Btn></div></div></Group>
-          {detailed ? <Inspector title="Price range"><Hint>Open a table to set a price range.</Hint></Inspector> : null}
-        </>
-      ) : detailed ? (
-        <>
-          <div className="tb-strip" role="tablist" aria-label="Live tables">
-            {strip.map((d, i) => (
-              <TableTab key={d.id} deal={d} on={d.id === cur.id} draft={stateOf(d.id).draft}
-                onPick={() => setSel(d.id)}
-                onKey={(e) => {
-                  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-                  e.preventDefault();
-                  const n = strip[(i + (e.key === 'ArrowRight' ? 1 : strip.length - 1)) % strip.length];
-                  if (n) { setSel(n.id); (document.querySelector(`[data-tab="${n.id}"]`) as HTMLElement | null)?.focus(); }
-                }} />
-            ))}
-          </div>
-          <TableBody key={cur.id} deal={cur} st={stateOf(cur.id)} nav={nav} {...handlers(cur)} />
-        </>
-      ) : (
-        <>
-          {others.length ? (
-            <section className="tb-tables" aria-label="Your tables">
-              <h2 className="tb-h2">Your tables <span>{others.length} open</span></h2>
-              {others.map((d) => <TableCard key={d.id} deal={d} st={stateOf(d.id)} nav={nav} onRange={() => setEdit(d.id)} />)}
-            </section>
-          ) : null}
-          {editDeal ? (
-            <RangeEditor key={editDeal.id} deal={editDeal} st={stateOf(editDeal.id)} {...handlers(editDeal)}
-              onClose={() => { const s = stateOf(editDeal.id); if (s.draft && !s.handoff) discard(editDeal.id, true); setEdit(null); }} />
-          ) : null}
-        </>
-      )}
-    </div>
+    </>
   );
 }
 
@@ -340,14 +381,14 @@ function StandBar({ deal, steps, scale, band, drafting, who }: {
           {lp !== null ? <i className={`mark ${drafting ? 'draft' : ''}`} style={{ left: `${lp}%` }} /> : null}
         </div>
         {yours ? <span className={`tb-sb-lab you ${both ? (yourSideLeft ? 'sl' : 'sr') : ''}`} style={x(posPct(yours.price, scale))}>You <b>{short(yours.price, cur)}</b></span> : null}
-        {theirs ? <span className={`tb-sb-lab them ${out ? 'over' : ''} ${both ? (yourSideLeft ? 'sr' : 'sl') : ''}`} style={x(posPct(theirs.price, scale))}>{who} <b>{short(theirs.price, cur)}</b></span> : null}
+        {theirs ? <span className={`tb-sb-lab them ${out ? 'over' : ''} ${both ? (yourSideLeft ? 'sr' : 'sl') : ''}`} style={x(posPct(theirs.price, scale))} title={who}><span className="nm">{who}</span> <b>{short(theirs.price, cur)}</b></span> : null}
       </div>
     </div>
   );
 }
 
 /** The bar, its one-line meaning, and what the owner can do with this table's limit. */
-function StandBlock({ deal, st, who, onRange, onDeal }: { deal: Deal; st: TableState; who: string; onRange: () => void; onDeal?: () => void }) {
+function StandBlock({ deal, st, who, onRange, onDeal, onLadder }: { deal: Deal; st: TableState; who: string; onRange: () => void; onDeal?: () => void; onLadder?: () => void }) {
   const t = useStand(deal, st);
   const left = t.disp.band ? Math.max(0, t.disp.band.max_rounds - t.disp.band.rounds_used) : null;
   const ready = !!t.tr.data;
@@ -365,6 +406,7 @@ function StandBlock({ deal, st, who, onRange, onDeal }: { deal: Deal; st: TableS
           {st.handoff ? <Chip tone="gold" title="Your new price range is waiting for your signature in the approval window. Nothing changes until you sign.">Waiting for your signature</Chip>
             : st.draft ? <Chip tone="gold" title="A new limit you have not sent for signing yet. Your signed range still applies.">New limit not sent yet</Chip> : null}
           {onDeal ? <Btn kind="plain" sm onClick={onDeal}>Open deal ›</Btn> : null}
+          {onLadder ? <Btn kind="plain" sm onClick={onLadder}>Price ladder ›</Btn> : null}
           {t.movable ? <Btn sm onClick={onRange} title="Opens the three steps to set a new limit. You sign it in the approval window.">{st.handoff || st.draft ? 'Continue price range' : 'Change price range'}</Btn> : null}
         </span>
       </div>
@@ -372,7 +414,7 @@ function StandBlock({ deal, st, who, onRange, onDeal }: { deal: Deal; st: TableS
   );
 }
 
-function TableCard({ deal, st, nav, onRange }: { deal: Deal; st: TableState; nav: ModuleProps['nav']; onRange: () => void }) {
+function TableCard({ deal, st, nav, onRange, onLadder }: { deal: Deal; st: TableState; nav: ModuleProps['nav']; onRange: () => void; onLadder: () => void }) {
   const w = useWorld();
   const disp = w.display(deal);
   const n = useShortName(deal);
@@ -386,7 +428,7 @@ function TableCard({ deal, st, nav, onRange }: { deal: Deal; st: TableState; nav
         <span className="ui-spacer" />
         {disp.deadline && isLive(deal) ? <span className="tb-left"><Icon name="clock" size={13} />{<Countdown deadline={disp.deadline} />} left</span> : null}
       </header>
-      <StandBlock deal={deal} st={st} who={n.short} onRange={onRange} onDeal={() => nav.onDeal(deal.id)} />
+      <StandBlock deal={deal} st={st} who={n.short} onRange={onRange} onLadder={onLadder} onDeal={() => nav.onDeal(deal.id)} />
     </article>
   );
 }
@@ -630,7 +672,7 @@ function Ladder({ deal, steps, scale, signed, draft, theirs, need, who, movable,
     <div className="tb-ladder" ref={ref} role="group" aria-label={`Price ladder for ${deal.terms.item_ref}`}>
       <span className="tb-lcol you">Your offers</span>
       <span className="tb-lcol mid">Typical price</span>
-      <span className="tb-lcol them">{who}&apos;s offers</span>
+      <span className="tb-lcol them" title={`${who}’s offers`}>{who}&apos;s offers</span>
       {scale.ticks.map((p) => <div key={p} className="tb-gl" style={{ top: t(p) }}><span>{short(p, cur)}</span></div>)}
       {fill ? <div className={`tb-band ${draft ? 'draft' : ''}`} style={fill} /> : null}
       {m ? (

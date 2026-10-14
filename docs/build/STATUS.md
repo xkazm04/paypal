@@ -2350,3 +2350,38 @@ refusal on Capture are unchanged.
   unusable name), robustness-3 (no render test), robustness-4 and craft-12.
 - **Typecheck fix.** On main at 24a17ca the Director's client vitest was green (1070) and tsc failed on
   `notices.test.ts`:38-39 (indexed access, `found[0]`); this commit fixes those two lines with `found[0]!`.
+
+## Inspector (`npm run tauri:dev:test`)
+
+Test-only source inspector, modelled on the Personas DevInspector. `npm run tauri:dev:test` (repo
+root) builds the client with `THE_TABLE_INSPECTOR=1`/`VITE_INSPECTOR=1` (a Babel pass stamps host JSX
+with `data-loc`, `apps/desktop/client/scripts/babel/`), then `cargo run -p table-desktop`. In any
+window press **Ctrl+Shift+L** to arm: hover highlights, right-click copies `src/...File.tsx:LINE`
+(Alt+right-click the innermost element), Esc exits. Nothing is stamped or bundled in any other build
+(the overlay is behind a build-time flag in `src/lib/mount.tsx`). No dev server: the shell embeds
+`client/dist` and the CSP is `script-src 'self'`. New dev dependency: `@babel/core` (client).
+
+## UI sweep (2026-10-13, scan-sweep UI lenses over the four client contexts)
+
+35 findings built across client-foundation, main, tumbler and approval windows (copy that named internals,
+unannounced states, cut-off hints, pressed/disabled/forced-colors states, `useQuery` no longer shows a
+previous deal's answer after the arguments change). Uncommitted in the working tree. Not built, needs a
+coordinated change: `clockLabel` saying "today/tomorrow", controls under 24px (`--ctl-sm`, `.ui-chip`),
+keyboard access to the Dial beads, `.ui-hint.gold` tint, `HoldButton` on-screen Space hint, `StepAction`
+arrow glyphs read aloud. Not looked at on screen yet.
+
+## calm-nested-ui WP4: Set up page and docked approval
+
+- Main has a Set up page (`#s=setup&step=keys|rules|practice|agent|unlock`, `windows/main/setup/SetupPage.tsx`). Keys, rules and unlock hand off with `approval_open`; practice reuses the pairing wizard; the agent step is the engine picker. The page advances on the step's own state (settings:changed, pairing:pinned, idle-lock), never on a click.
+- The Tumbler welcome opens Main with `main_open` and leaves a short-lived note in same-origin storage (`table.setup-intent`, `lib/firstRun.ts`); Home's `useStartActions` follows it to the Set up page. No new IPC command.
+- Docking (`native/routing.rs`, `surface.rs`): when Main is visible and not minimised, the approval window is created as Main's child (`WebviewWindowBuilder::parent`, an owned window on Windows) and centred over it (`docked_approval_rect`, unit-tested). Otherwise it opens beside its opener as before.
+- UNVERIFIED without the native window: the owned-window z-order and focus return, and that the approval window handing the focus back is seen as "closed without finishing" (the page listens for Main's `focus`). `cargo fmt` and `clippy` are not installed for the aarch64 toolchain here; the Rust was formatted by hand.
+
+## Scale fixtures and the current app at scale (2026-10-13; client only)
+
+- `?scale=small` and `?scale=large` open the browser preview on one of two sized sample worlds (`apps/desktop/client/src/mock/scale.ts`, parsed in `src/lib/preview.ts` next to `first_run`; `first_run=1` wins when both are given; own storage key and channel per scale; every window the mock opens, the director's frames and the preview badge ("Preview · sample data · large sample") carry it). Pure and seeded (no clock, no `Math.random`): the header of `scale.ts` states the numbers, `scale.test.ts` pins them (small: 12 deals, 2 waiting, Tables empty; large: 500 deals, 44 waiting, 195 counterparties, 5,000 ledger rows, 8 rules in force, a $48,000.00 hold, a 40-round haggle, a nine-clause rule).
+- `node scripts/export-scale-fixtures.mjs --out <dir>` writes `small.json`, `large.json`, `small.js` / `large.js` (`window.TABLE_SCALE_SMALL` / `_LARGE`) and `SCALE.md`, built at 2026-10-13T14:30:00Z and byte-identical on every run (also under another `TZ`). It loads the TypeScript through Vite (the `@bindings` alias), not Node's type stripping.
+- `docs/build/SCALE-FINDINGS.md`: what the current app does at both sizes. Fixed in `windows/main`: displays read in batches (live deals first) instead of all-or-nothing, a label deep link waits for its labels, the audit trail lists no row twice, long counterparty names stay inside their Tables card. Left, with severity: the Outlook and "paid out today" figures, "This week" pages that list 90 days, Home dial crowding, 9,800 px Rescue pages, the Shield matrix width, the per-deal `deal_evidence` fan-out.
+- Deviations: the large world is USD only (mandates, wallet limits and the exposure fold are per currency; one currency keeps every total comparable). The small world has 3 signed rules (shop, rescue, purchases), not 2, so Spend is not empty by accident.
+- UNVERIFIED: the real shell's cost per `deal_display` / `deal_evidence` read (the mock adds 40 ms a call), the native window at scale, anything past 500 deals, 99+ badge treatment (no count in the large world passes 44).
+- No dependency added. Offline, no network, no native run.

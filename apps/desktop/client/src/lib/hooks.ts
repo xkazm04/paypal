@@ -38,23 +38,26 @@ export function useQuery<K extends CommandName>(
   args: ArgsOf<K>,
   opts: { refreshOn?: EventName[]; enabled?: boolean; token?: string } = {},
 ): Query<ResultOf<K>> {
-  const [data, setData] = useState<ResultOf<K>>();
-  const [error, setError] = useState<WalletError | null>(null);
-  const [loading, setLoading] = useState(true);
+  // The answer is stored with the request it belongs to: after the arguments change (a deal
+  // switch) the old answer is not shown under the new ones, and a slow old reply cannot
+  // overwrite a newer one. A refetch of the same request keeps what it has until it answers.
+  type Snap = { id: string; data?: ResultOf<K>; error: WalletError | null };
+  const [snap, setSnap] = useState<Snap | null>(null);
   const key = JSON.stringify(args);
   const enabled = opts.enabled ?? true;
   const token = opts.token;
+  const id = `${cmd}|${key}`;
+  const latest = useRef(id);
+  latest.current = id;
 
   const refetch = useCallback(async () => {
     if (!enabled) return;
+    const mine = `${cmd}|${key}`;
     try {
       const r = await backend().invoke(cmd, JSON.parse(key) as ArgsOf<K>, token ? { token } : undefined);
-      setData(r);
-      setError(null);
+      if (latest.current === mine) setSnap({ id: mine, data: r, error: null });
     } catch (e) {
-      setError(toWalletError(e));
-    } finally {
-      setLoading(false);
+      if (latest.current === mine) setSnap((s) => ({ id: mine, data: s?.id === mine ? s.data : undefined, error: toWalletError(e) }));
     }
   }, [cmd, key, enabled, token]);
 
@@ -74,7 +77,8 @@ export function useQuery<K extends CommandName>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refetch, (opts.refreshOn ?? []).join('|')]);
 
-  return { data, error, loading, refetch };
+  const cur = snap?.id === id ? snap : null;
+  return { data: cur?.data, error: cur?.error ?? null, loading: !cur, refetch };
 }
 
 export type Mutation<K extends CommandName> = {

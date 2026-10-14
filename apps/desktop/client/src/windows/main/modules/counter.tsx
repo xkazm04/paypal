@@ -1,12 +1,11 @@
 // Counter (shop) module page - the "Counter board" (prototype/pages/counter/variant-1).
 // Owner: the counter agent. Styles: ./counter.css, scoped under .mod-counter. Pure logic: ./counter/model.ts.
 //
-// Simple (default): the answer ("is anyone buying?"), live orders as cards (who, what, amount, state,
-// time left, the default on silence), and the catalog as a plain price list: item, lowest price
-// (editable), orders now. Detailed: one dense line per order, the catalog ledger with filters and the
-// vs-market column. Both keep the one sticky draft bar whose only exit is the approval window.
-// Layer 2: the Inspector shows the selected order or item. Main never signs: floors are a seller
-// mandate, signed only in approval.
+// Summary: the answer ("is anyone buying?") and three cards, each opening a detail page (viewNav):
+// 'orders' (live orders as cards: who, what, amount, state, time left, the default on silence),
+// 'prices' (the catalog with editable lowest prices, filters, vs-market, and the one sticky draft bar
+// whose only exit is the approval window) and 'earlier' (closed orders). Layer 2: the Inspector shows
+// the selected order or item. Main never signs: floors are a seller mandate, signed only in approval.
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 import type { Deal } from '@bindings/Deal';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
@@ -15,14 +14,15 @@ import { clockLabel, exponent, formatMinor, formatMoney, shortId } from '../../.
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import { Countdown, ModeBadge, WalletNotice } from '../../../shared/honesty';
 import {
-  AnswerBar, Btn, Chip, DetailToggle, Explainer, Field, Group, Icon, Inspector, Kv, Loading, PageHead, Popover, Row, Section, Seg, Silence, useDetail, useLayer, useLayerCount, useToast,
+  AnswerBar, Btn, Chip, DetailPage, Field, Group, Icon, Inspector, Kv, Loading, PageHead, Popover, Row, Section, Seg, Silence, SummaryCard, useLayer, useLayerCount, useToast, Why,
   type ChipTone, type ExplainerStep,
 } from '../../../shared/ui';
 import { chipClass, dealTotal, isLive, isTerminal, moneyNow, pairingFact, PENDING_BACKEND, stripFor, sumByCurrency, type ChipClass } from '../logic';
-import { houseWords, moneyCheckNow, silenceWords, stateWord, timeLeftWords } from '../../../lib/words';
+import { COUNTER_VIEW, houseWords, moneyCheckNow, silenceWords, stateWord, timeLeftWords } from '../../../lib/words';
 import { Glyph } from '../../../shared/modules';
 import { useCpLookup } from '../ui';
 import { useWorld } from '../world';
+import { registerViewLabels, useModuleRoute } from '../viewNav';
 import type { ModuleProps } from './common';
 import { NoteText } from './shield/NoteChip';
 import {
@@ -30,6 +30,8 @@ import {
   sellerMandates, stepFloor, underDraft, vsMarket, type CatalogFilter, type CatalogRow, type FloorDraft, type Impact,
 } from './counter/model';
 import './counter.css';
+
+registerViewLabels('counter', { orders: COUNTER_VIEW.orders, prices: COUNTER_VIEW.prices, earlier: COUNTER_VIEW.earlier });
 
 type Sel = { kind: 'deal' | 'item'; id: string } | null;
 
@@ -39,6 +41,15 @@ const stateText = (d: Deal) => stateWord(d.state, { side: d.side, kind: d.kind }
 const mandateTip = (m: MandateListEntry) => `Shop rules, version ${m.payload.version} · ${shortId(m.payload.id)}`;
 const UNK_CATALOG = 'Your shop’s catalog is not connected yet, so list price, stock and listing details are not known here. Nothing is guessed.';
 const CODE_ONLY = 'Named from the item code in your shop rules. Its own name shows once an order names it or your catalog is connected.';
+
+/** How the shop works, as an info popover. */
+function HowCounter() {
+  return (
+    <Why question="How your shop works" label="ⓘ" className="ctr-info">
+      <ul className="ctr-how">{HOW_COUNTER.map((x) => <li key={x.title}><b>{x.title}.</b> {x.text}</li>)}</ul>
+    </Why>
+  );
+}
 
 const HOW_COUNTER: readonly ExplainerStep[] = [
   { icon: 'store', title: 'Agents shop here', text: 'Other people’s agents place orders at your shop.' },
@@ -52,8 +63,7 @@ export function Counter({ deals, nav }: ModuleProps) {
   const cp = useCpLookup();
   const toast = useToast();
   const now = useNow();
-  const [detail, setDetail] = useDetail('counter');
-  const detailed = detail === 'detailed';
+  const { view, open: openView } = useModuleRoute();
   const mq = useQuery('mandate_list', null, { refreshOn: ['settings:changed'] });
   const seller = useMemo(() => sellerMandates(mq.data ?? []), [mq.data]);
   const mandate = seller[0] ?? null;
@@ -84,6 +94,7 @@ export function Counter({ deals, nav }: ModuleProps) {
   }, 'other', hasDraft && !armed);
   useEffect(() => { if (!hasDraft) setArmed(false); }, [hasDraft]);
 
+  useEffect(() => { setSel(null); }, [view]);
   const open = useMutation('approval_open');
   const review = async () => {
     const e = errors[0];
@@ -121,74 +132,74 @@ export function Counter({ deals, nav }: ModuleProps) {
     return n;
   });
 
-  const shown = detailed ? rows.filter((r) => matchesFilter(r, filter, draft) && matchesQuery(r, q)) : rows;
+  const shown = rows.filter((r) => matchesFilter(r, filter, draft) && matchesQuery(r, q));
   const FILTERS: Array<[CatalogFilter, string]> = [['all', 'All'], ['live', 'With orders'], ['over', 'Above market'], ['draft', 'Changed']];
   const catPending = !!PENDING_BACKEND.counter;
 
-  return (
-    <>
-      <PageHead title="Counter" icon={<Glyph module="counter" />} focusKey="counter" sub="Your shop · other people’s agents buy here, never below your lowest prices"
-        actions={<><DetailToggle value={detail} onChange={setDetail} /><MandateButton mandate={mandate} count={seller.length} floors={rows.filter((r) => r.signed).length} nav={nav} /></>} />
-      <ShopAnswer live={live} past={past} nameOf={(d) => cp(d.counterparty).name} needs={(d) => !!w.needOf(d.id)} now={now} deadlineOf={(d) => w.needOf(d.id)?.deadline ?? w.display(d).deadline} />
-      <Explainer id="counter" title="How your shop works" steps={HOW_COUNTER} />
+  const back = () => openView(null);
+  const ordersList = live.length ? (
+    <div className="orders">
+      {live.map((d) => (
+        <OrderCard key={d.id} deal={d} cpName={cp(d.counterparty).name} now={now} selected={sel?.kind === 'deal' && sel.id === d.id}
+          withdraws={underDraft(d, rowOf.get(d.terms.item_ref), draft)} onOpen={() => select('deal', d.id)} />
+      ))}
+    </div>
+  ) : <Group empty="Nobody is at your counter. Orders appear here the moment another wallet’s agent checks out." />;
+  const asks = live.filter((d) => !!w.needOf(d.id)).length;
+  const liveSum = sumByCurrency(live.map(dealTotal)).map((m) => formatMinor(m.minor, m.currency)).join(' · ');
+  const lowest = rows.filter((r) => r.signed).length;
 
-      <Section title={<>Orders at your counter <span className="n">{live.length} open</span></>} end={detailed ? 'buyers pay on PayPal · collected for you automatically' : undefined}>
-        {detailed ? (
-          <Group empty="Nobody is at your counter. Orders appear here the moment another wallet’s agent checks out.">
-            {live.length ? live.map((d) => (
-              <SeatRow key={d.id} deal={d} cpName={cp(d.counterparty).name} selected={sel?.kind === 'deal' && sel.id === d.id}
-                withdraws={underDraft(d, rowOf.get(d.terms.item_ref), draft)} onOpen={() => select('deal', d.id)} />
-            )) : null}
-          </Group>
-        ) : live.length ? (
-          <div className="orders">
-            {live.map((d) => (
-              <OrderCard key={d.id} deal={d} cpName={cp(d.counterparty).name} now={now} selected={sel?.kind === 'deal' && sel.id === d.id}
-                withdraws={underDraft(d, rowOf.get(d.terms.item_ref), draft)} onOpen={() => select('deal', d.id)} />
-            ))}
-          </div>
-        ) : <Group empty="Nobody is at your counter. Orders appear here the moment another wallet’s agent checks out." />}
-      </Section>
-
-      <Section className="catsec" title={detailed ? <>Catalog <span className="n">{rows.length} item{rows.length === 1 ? '' : 's'}</span></> : <>Your lowest prices <span className="n">{rows.length} item{rows.length === 1 ? '' : 's'}</span></>}
-        end={catPending ? <Chip tone="dashed" title={UNK_CATALOG}>catalog not connected yet</Chip> : undefined}>
+  let body: ReactNode;
+  if (view === 'orders') {
+    body = (
+      <DetailPage title={COUNTER_VIEW.orders} onBack={back} backLabel="Counter" icon={<Glyph module="counter" />} info={<HowCounter />}
+        sub={`${live.length} open · buyers pay on PayPal`}>
+        {ordersList}
+      </DetailPage>
+    );
+  } else if (view === 'prices') {
+    body = (
+      <DetailPage title={COUNTER_VIEW.prices} onBack={back} backLabel="Counter" icon={<Glyph module="counter" />}
+        sub={`${rows.length} item${rows.length === 1 ? '' : 's'} · never quoted below these`}
+        actions={<MandateButton mandate={mandate} count={seller.length} floors={lowest} nav={nav} />}>
+        {catPending ? <Chip tone="dashed" title={UNK_CATALOG}>catalog not connected yet</Chip> : null}
         {mq.error ? <WalletNotice error={mq.error} what="Your shop rules" /> : null}
-        {detailed ? (
-          <div className="cat-tools">
-            <Seg label="Catalog filters" value={filter} onChange={setFilter}
-              options={FILTERS.map(([v, l]) => ({ value: v, label: <>{l}<span className="cnt">{rows.filter((r) => matchesFilter(r, v, draft)).length}</span></> }))} />
-            <Field ref={search} search type="search" className="catq" placeholder="Filter items  /" value={q} onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Escape' && q) { e.stopPropagation(); setQ(''); } }} aria-label="Filter catalog items" />
-          </div>
-        ) : null}
+        <div className="cat-tools">
+          <Seg label="Catalog filters" value={filter} onChange={setFilter}
+            options={FILTERS.map(([v, l]) => ({ value: v, label: <>{l}<span className="cnt">{rows.filter((r) => matchesFilter(r, v, draft)).length}</span></> }))} />
+          <Field ref={search} search type="search" className="catq" placeholder="Filter items  /" value={q} onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape' && q) { e.stopPropagation(); setQ(''); } }} aria-label="Filter catalog items" />
+        </div>
         {!mq.data && !mq.error ? <Loading what="your shop rules" /> : (
           <Group>
-            <table className={`ui-table cat ${detailed ? '' : 'plain'}`}>
+            <table className="ui-table cat">
               <thead><tr>
                 <th>Item</th>{catPending ? null : <th className="num">List price</th>}<th title="Your agent never quotes below this price. It is part of your signed shop rules.">Lowest price</th>
-                {detailed ? <th className="hide-s">vs market</th> : null}<th>Orders now</th>{catPending ? null : <th>Listing</th>}
+                <th className="hide-s">vs market</th><th>Orders now</th>{catPending ? null : <th>Listing</th>}
               </tr></thead>
               <tbody>
                 {shown.length ? shown.map((r) => (
-                  <CatalogLine key={r.itemRef} row={r} draft={draft} selected={sel?.kind === 'item' && sel.id === r.itemRef} detailed={detailed}
+                  <CatalogLine key={r.itemRef} row={r} draft={draft} selected={sel?.kind === 'item' && sel.id === r.itemRef} detailed
                     onSelect={() => select('item', r.itemRef)} onDeal={(id) => select('deal', id)} labelOf={(d) => w.display(d).label}
                     onText={(t) => setFloor(r.itemRef, t)} catPending={catPending} />
                 )) : (
-                  <tr><td colSpan={(catPending ? 3 : 5) + (detailed ? 1 : 0)}><div className="ui-empty">{rows.length ? <>No item matches. <Btn sm kind="plain" onClick={() => { setFilter('all'); setQ(''); }}>Show all</Btn></> : 'No items yet. They appear once your shop rules name one or an order arrives.'}</div></td></tr>
+                  <tr><td colSpan={(catPending ? 3 : 5) + 1}><div className="ui-empty">{rows.length ? <>No item matches. <Btn sm kind="plain" onClick={() => { setFilter('all'); setQ(''); }}>Show all</Btn></> : 'No items yet. They appear once your shop rules name one or an order arrives.'}</div></td></tr>
                 )}
               </tbody>
             </table>
           </Group>
         )}
-      </Section>
-
-      <Section title="Earlier this week" end={`${past.length} closed`}>
+      </DetailPage>
+    );
+  } else if (view === 'earlier') {
+    body = (
+      <DetailPage title={COUNTER_VIEW.earlier} onBack={back} backLabel="Counter" icon={<Glyph module="counter" />} sub={`${past.length} closed`}>
         <Group empty="Nothing closed yet this week.">
           {past.length ? past.map((d) => {
             const disp = w.display(d);
             const t = dealTotal(d);
             return (
-              <Row key={d.id} className="past" id={detailed ? disp.label : undefined} selected={sel?.kind === 'deal' && sel.id === d.id} onOpen={() => select('deal', d.id)}
+              <Row key={d.id} className="past" selected={sel?.kind === 'deal' && sel.id === d.id} onOpen={() => select('deal', d.id)}
                 title={<>{disp.title} · <span className="cp">{cp(d.counterparty).name}</span>{d.updated_at ? <span className="dim"> · {clockLabel(d.updated_at)}</span> : null}</>}>
                 {d.mode !== 'sandbox' ? <ModeBadge mode={d.mode} /> : null}
                 <Chip tone={TONE[chipClass(d)]}>{stateText(d)}</Chip>
@@ -197,11 +208,37 @@ export function Counter({ deals, nav }: ModuleProps) {
             );
           }) : null}
         </Group>
-      </Section>
+      </DetailPage>
+    );
+  } else {
+    body = (
+      <>
+        <PageHead title="Counter" icon={<Glyph module="counter" />} focusKey="counter" sub="Your shop · other people’s agents buy here" info={<HowCounter />}
+          actions={<MandateButton mandate={mandate} count={seller.length} floors={lowest} nav={nav} />} />
+        <ShopAnswer live={live} past={past} nameOf={(d) => cp(d.counterparty).name} needs={(d) => !!w.needOf(d.id)} now={now} deadlineOf={(d) => w.needOf(d.id)?.deadline ?? w.display(d).deadline} />
+        <div className="ui-sumcards">
+          <SummaryCard id="orders" label={COUNTER_VIEW.orders} onOpen={() => openView('orders', 'orders')}
+            value={live.length ? `${live.length} open` : 'Nobody here now'} note={live.length ? liveSum : 'Orders appear as they come'}
+            chip={asks ? 'needs you' : undefined} chipTone="gold" />
+          <SummaryCard id="prices" label={COUNTER_VIEW.prices} onOpen={() => openView('prices', 'prices')}
+            value={`${rows.length} item${rows.length === 1 ? '' : 's'}`} note={mandate ? `${lowest} with a lowest price` : 'No shop rules signed yet'}
+            chip={hasDraft ? 'unsigned change' : undefined} chipTone="gold" />
+          <SummaryCard id="earlier" label={COUNTER_VIEW.earlier} onOpen={() => openView('earlier', 'earlier')}
+            value={`${past.length} closed`} note={past.length ? 'Paid, stopped and lapsed orders' : 'Nothing closed yet'} />
+        </div>
+      </>
+    );
+  }
 
-      <DraftBar mandate={mandate} diff={diff} errors={errors} impact={impact} locked={w.locked} pending={open.pending}
-        onDiscard={() => { setDraft({}); toast(<>Change discarded. {mandate ? 'Your shop rules stay as they are.' : 'Nothing was signed.'}</>); }}
-        onReview={() => void review()} labelOf={(d) => w.display(d).label} />
+  return (
+    <>
+      {body}
+
+      {view === 'prices' || hasDraft ? (
+        <DraftBar mandate={mandate} diff={diff} errors={errors} impact={impact} locked={w.locked} pending={open.pending}
+          onDiscard={() => { setDraft({}); toast(<>Change discarded. {mandate ? 'Your shop rules stay as they are.' : 'Nothing was signed.'}</>); }}
+          onReview={() => void review()} labelOf={(d) => w.display(d).label} />
+      ) : null}
       {open.error ? <WalletNotice error={open.error} what="Approval window" /> : null}
 
       {selDeal ? (
@@ -230,28 +267,6 @@ function MiniBar({ deal }: { deal: Deal }) {
     <span className="qdots" role="img" aria-label={`step ${steps.findIndex((s) => s.status === 'cur') + 1} of ${steps.length}: ${stateText(deal)}`}>
       {steps.map((s) => <i key={s.state} className={s.status === 'done' ? 'd' : s.status === 'cur' ? `c ${s.tone ?? ''}` : ''} />)}
     </span>
-  );
-}
-
-function SeatRow({ deal, cpName, selected, withdraws, onOpen }: { deal: Deal; cpName: string; selected: boolean; withdraws: boolean; onOpen: () => void }) {
-  const w = useWorld();
-  const disp = w.display(deal);
-  const need = w.needOf(deal.id);
-  const t = dealTotal(deal);
-  const silence = need?.on_silence ?? disp.on_silence ?? 'no money moves';
-  const deadline = need?.deadline ?? disp.deadline;
-  return (
-    <Row className="seat" id={disp.label} selected={selected} need={!!need} onOpen={onOpen}
-      title={<><span className="cp">{cpName}</span> · {disp.title}</>} sub={<Silence text={silence} />}>
-      <span className="flags">
-        {withdraws ? <Chip tone="coral" title="Your new lowest price is above this quote. Signing the change withdraws it; no money moves.">would be withdrawn</Chip> : null}
-        {deal.mode !== 'sandbox' ? <ModeBadge mode={deal.mode} /> : null}
-      </span>
-      <MiniBar deal={deal} />
-      <span className="c-chip"><StateChip deal={deal} /></span>
-      <span className="cd">{deadline ? <Countdown deadline={deadline} /> : null}</span>
-      <span className="amt">{formatMinor(t.minor, t.currency)}</span>
-    </Row>
   );
 }
 

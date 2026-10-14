@@ -2,8 +2,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { gettingStarted } from '../../../lib/firstRun';
-import { START_UNDERWAY } from '../../../lib/words';
-import { StartSide, type StartActions } from './Start';
+import { SETUP_CONTINUE, START_UNDERWAY } from '../../../lib/words';
+import { setupHash, StartHub, StartSide, type StartActions } from './Start';
 
 const gs = gettingStarted({ firstRun: true, paypal: true, rulesInForce: 1, houseConnected: true, otherConnections: 0, engine: 'scripted' });
 const act: StartActions = { go: () => {}, busy: null, error: null };
@@ -26,5 +26,17 @@ describe('the getting-started column while a practice deal is under way', () => 
   it('shows no such row when nothing is under way', () => {
     render(<StartSide gs={gs} act={act} underway={[]} onDeal={() => {}} />);
     expect(screen.queryByText(START_UNDERWAY.title)).toBeNull();
+  });
+});
+
+describe('the start card points to the Set up page', () => {
+  afterEach(cleanup);
+  it('has one Continue setup button that goes to the next step', () => {
+    const fresh = gettingStarted({ firstRun: true, paypal: true, rulesInForce: 0, houseConnected: false, otherConnections: 0, engine: 'scripted' });
+    const go = vi.fn();
+    render(<StartHub gs={fresh} act={{ ...act, go }} />);
+    fireEvent.click(screen.getByRole('button', { name: SETUP_CONTINUE }));
+    expect(go).toHaveBeenCalledWith('rules');
+    expect(setupHash('rules')).toBe('#s=setup&step=rules');
   });
 });

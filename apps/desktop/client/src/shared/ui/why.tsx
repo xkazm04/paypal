@@ -19,8 +19,7 @@ export function Why({ question, children, label = 'Why?', className }: { questio
     <>
       <button type="button" className={cx('ui-why', className)} aria-expanded={!!a} aria-label={whyName(label, question)} onClick={(e) => { e.stopPropagation(); setA((x) => (x ? null : e.currentTarget)); }}>{label}</button>
       {a ? (
-        <Popover anchor={a} onClose={() => setA(null)} title={typeof question === 'string' ? question : undefined} className="ui-why-pop">
-          {typeof question === 'string' ? null : <h3>{question}</h3>}
+        <Popover anchor={a} onClose={() => setA(null)} title={question} className="ui-why-pop">
           <div className="ui-why-a">{children}</div>
         </Popover>
       ) : null}

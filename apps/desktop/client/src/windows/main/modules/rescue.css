@@ -167,3 +167,7 @@
 .mod-rescue .mx col.c-who { width: 160px; }
 .mod-rescue .mx col.c-act { width: 86px; }
 .mod-rescue .mx .who .l2 .ui-chip { max-width: 100%; white-space: normal; height: auto; }
+
+/* calm-nested-ui WP2 */
+.mod-rescue .rs-compare { margin: var(--sp-3) 0; }
+.mod-rescue .rsc-how { margin: 0; padding-left: var(--sp-4); display: grid; gap: var(--sp-2); }

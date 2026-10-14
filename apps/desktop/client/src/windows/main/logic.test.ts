@@ -4,8 +4,8 @@ import type { DealState } from '@bindings/DealState';
 import { buildMockState, usd } from '../../mock/fixtures';
 import {
   amountNote, amountTone, beadAngles, beadKind, isSettled, isTerminal, receiptToast, stateLabel, beadSummary, C, canStartAgent, canWithdraw, chipClass, clauseText, formatHash, introEase, isOwnerAccept, ledgerScope, mandatesGoverning,
-  marketPosition, moduleOf, moneyNow, niceTicks, parseHash, pol, R, resolveDealRef, reviewVerb, rotationFor, sectorAt, shortestTarget,
-  spendToday, splitHeadline, STEP, stripFor, sumByCurrency, summarize, toPolar, wedgePath, weekBounds,
+  marketPosition, moduleOf, stepBack, moneyNow, niceTicks, parseHash, pol, R, resolveDealRef, reviewVerb, rotationFor, sectorAt, shortestTarget,
+  type Route, type SheetTab, spendToday, splitHeadline, STEP, stripFor, sumByCurrency, summarize, toPolar, wedgePath, weekBounds,
 } from './logic';
 
 const NOW = 1_800_000_000;
@@ -351,5 +351,42 @@ describe('a seller’s receipt is the seller’s word, and a deal PayPal never c
     expect(strip[strip.length - 1]).toMatchObject({ state: 'UNCONFIRMED', status: 'cur', tone: 'bad' });
     expect(strip.find((s) => s.state === 'AWAITING_APPROVAL')?.status).toBe('done');
     expect(strip.find((s) => s.state === 'CAPTURED')?.status).toBe('todo');
+  });
+});
+
+describe('nested routes', () => {
+  const round = (r: Route, sheet: SheetTab | null = null) => parseHash(formatHash(r, sheet));
+  it('round-trips every hash form', () => {
+    const forms: Array<[Route, SheetTab | null, string]> = [
+      [{ level: 'home' }, null, ''],
+      [{ level: 'home' }, 'settings', '#s=settings'],
+      [{ level: 'module', module: 'book' }, null, '#m=book'],
+      [{ level: 'module', module: 'book', view: 'ledger' }, null, '#m=book&v=ledger'],
+      [{ level: 'module', module: 'rescue', view: 'in-progress' }, 'mandates', '#m=rescue&v=in-progress&s=mandates'],
+      [{ level: 'deal', deal: 'D-0193' }, 'pairing', '#d=D-0193&s=pairing'],
+      [{ level: 'setup', step: 'rules' }, null, '#s=setup&step=rules'],
+      [{ level: 'setup', step: 'unlock' }, null, '#s=setup&step=unlock'],
+    ];
+    for (const [route, sheet, hash] of forms) {
+      expect(formatHash(route, sheet)).toBe(hash);
+      expect(round(route, sheet)).toEqual({ route, sheet });
+    }
+  });
+  it('keeps the older grammars and falls back for unknown views and steps', () => {
+    expect(parseHash('#m=spend&s=settings')).toEqual({ route: { level: 'module', module: 'spend' }, sheet: 'settings' });
+    expect(parseHash('#m=book&v=Bad%20View!')).toEqual({ route: { level: 'module', module: 'book' }, sheet: null });
+    expect(parseHash('#v=ledger')).toEqual({ route: { level: 'home' }, sheet: null });
+    expect(parseHash('#s=setup')).toEqual({ route: { level: 'setup', step: 'keys' }, sheet: null });
+    expect(parseHash('#s=setup&step=nope')).toEqual({ route: { level: 'setup', step: 'keys' }, sheet: null });
+    expect(formatHash({ level: 'setup' }, 'settings')).toBe('#s=setup&step=keys');
+  });
+  it('steps back one level: view, module, deal, setup', () => {
+    expect(stepBack({ level: 'module', module: 'book', view: 'ledger' }, null)).toEqual({ level: 'module', module: 'book' });
+    expect(stepBack({ level: 'module', module: 'book', view: 'ghost' }, null, false)).toEqual({ level: 'home' });
+    expect(stepBack({ level: 'module', module: 'book' }, null)).toEqual({ level: 'home' });
+    expect(stepBack({ level: 'deal', deal: 'x' }, 'spend')).toEqual({ level: 'module', module: 'spend' });
+    expect(stepBack({ level: 'deal', deal: 'x' }, null)).toEqual({ level: 'home' });
+    expect(stepBack({ level: 'setup', step: 'rules' }, null)).toEqual({ level: 'home' });
+    expect(stepBack({ level: 'home' }, null)).toBeNull();
   });
 });

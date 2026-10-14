@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Table · The Seal</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="theme.css">
+<script>/* Calibre follows the system's light or dark setting; ?theme=light|dark pins one for comparison. */
+(function () { var de = document.documentElement, q = null, mq = window.matchMedia ? matchMedia('(prefers-color-scheme: light)') : null;
+  try { q = new URLSearchParams(location.search).get('theme'); } catch (e) { q = null; }
+  function set() { var t = q === 'light' || q === 'dark' ? q : (mq && mq.matches ? 'light' : 'dark'); if (de.dataset.theme === t) return; de.dataset.theme = t; try { document.dispatchEvent(new Event('themechange')); } catch (e) { /* old browsers */ } }
+  set(); if (mq && mq.addEventListener) mq.addEventListener('change', set); })();
+</script>
+<script>window.__errs = []; window.onerror = function (m, s, l) { window.__errs.push(m + ' @' + l); var e = document.getElementById('errs'); if (e) e.textContent = window.__errs.join(' | '); };</script>
+</head>
+<body class="booting">
+<div id="ground" aria-hidden="true"></div>
+
+<header id="bar">
+  <div class="barl">
+    <button class="brand" data-go="centre" aria-label="The Table: back to what needs you">
+      <svg viewBox="-12 -12 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width=".8"><circle r="10.5"/><circle r="8.6"/><path id="brandrose"/></g></svg>
+      The Table
+    </button>
+    <button class="back" data-act="back" title="Back one level (Esc)"><span aria-hidden="true">‹</span> Back</button>
+    <nav class="crumbs" id="crumbs" aria-label="Where you are"></nav>
+    <span class="depth" id="depth" aria-hidden="true"></span>
+  </div>
+  <nav class="places" aria-label="Places">
+    <button class="needpill" id="needpill" data-go="centre"></button>
+    <button class="cbtn" data-go="rewind" data-place="rewind">Rewind</button>
+    <button class="cbtn" data-go="rules" data-place="rules">Rules</button>
+    <button class="cbtn" data-go="connections" data-place="connections">Connections</button>
+    <button class="cbtn" data-go="settings" data-place="settings">Settings</button>
+    <button class="cbtn" data-act="find" title="Find (/ or Ctrl+K)">Find <kbd>/</kbd></button>
+  </nav>
+</header>
+
+<main id="stage">
+  <div id="tabrow"><div id="tabs" role="navigation" aria-label="Layers"></div><p id="presence" aria-live="polite"></p></div>
+  <div id="wrap">
+    <div id="pile" aria-hidden="true"></div>
+    <section id="front" class="sheet" aria-labelledby="front-title">
+      <div class="mp t" aria-hidden="true"></div><div class="mp b" aria-hidden="true"></div><div class="mp l" aria-hidden="true"></div><div class="mp r" aria-hidden="true"></div>
+      <div class="seal" id="seal" data-s="quiet">
+        <div class="disc"><div class="glow"></div><div class="core" id="sealcore"></div></div>
+        <div class="seal-word"><b id="sealw">Quiet</b><span id="seald"></span></div>
+      </div>
+      <div id="frontbody" class="inner"></div>
+      <div id="pagers"></div>
+    </section>
+  </div>
+  <div id="under"></div>
+  <div id="marquee" aria-hidden="true"></div>
+</main>
+
+<footer id="foot">
+  <span class="badge sandbox">Sandbox</span>
+  <span class="badge sample">Preview · sample data · nothing is paid</span>
+  <div class="scaleswitch" role="group" aria-label="Sample world">
+    <button data-scale="small" title="One person, a handful of deals">Small shop</button>
+    <button data-scale="large" title="Hundreds of deals, dozens of agents and people">Busy merchant</button>
+  </div>
+  <span class="sp"></span>
+  <span class="promise"><svg viewBox="0 0 12 14" aria-hidden="true"><path d="M2 1h8M2 13h8M3 1c0 4 6 4 6 6s-6 2-6 6M9 1c0 4-6 4-6 6s6 2 6 6" fill="none" stroke="currentColor" stroke-width="1.1"/></svg><span id="promise"></span></span>
+  <span class="styl">Seal and sheets: stylised illustration</span>
+</footer>
+
+<div id="scrim" data-act="closepress"></div>
+<section id="press" role="dialog" aria-modal="true" aria-labelledby="press-title">
+  <div class="foil" aria-hidden="true"></div>
+  <div class="phead">
+    <svg class="mini-seal" viewBox="-12 -12 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width=".8"><circle r="10.5"/><circle r="8.6"/><path class="minirose"/></g></svg>
+    <h2 id="press-title">Approvals <span>· the only place money is authorised</span></h2>
+    <span class="sp"></span>
+    <span class="lockchip" id="lockchip"></span>
+    <button class="btn sm" data-act="lock" id="lockbtn">Lock</button>
+    <button class="btn sm quiet" data-act="closepress" title="Close (Esc)">Close ✕</button>
+  </div>
+  <div class="pbody" id="pbody"></div>
+  <div class="pfoot" id="pfoot"></div>
+</section>
+
+<div id="find" role="dialog" aria-modal="true" aria-label="Find">
+  <div class="box">
+    <input id="findq" type="text" placeholder="Find a deal, a layer, a rule…" autocomplete="off" aria-label="Find">
+    <ul id="findl" role="listbox"></ul>
+  </div>
+</div>
+<div id="toasts" aria-live="polite"></div>
+<div id="errs" hidden></div>
+
+<script>
+/* The sample world comes from the product's own scale fixtures, chosen by ?scale=small|large. */
+(function () { var s = 'small'; try { s = new URLSearchParams(location.search).get('scale') === 'large' ? 'large' : 'small'; } catch (e) { s = 'small'; }
+  document.write('<script src="../data/scale/' + s + '.js"><\/script>'); })();
+</script>
+<script src="data.js"></script>
+<script src="world.js"></script>
+<script src="deco.js"></script>
+<script>(function () { var m = new Array(30).join('SAMPLE DATA · NOTHING IS PAID · '); [].forEach.call(document.querySelectorAll('#front .mp'), function (e) { e.textContent = m; }); })();</script>
+<script src="app.js"></script>
+</body>
+</html>

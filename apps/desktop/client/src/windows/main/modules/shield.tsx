@@ -1,4 +1,7 @@
-// Shield module page, told as a story (docs/ux/ROUND-1.md): one sentence answers "did anything
+// calm-nested-ui: the summary is the answer, any paused payment as a decision card, and four cards (Stopped,
+// Let through, This week, Looked safe) that open pages (views stopped, through, week, safe). The evidence
+// matrix, its keys and the Inspector moved to the This week page. Releasing/refusing is unchanged.
+// Before that: Shield module page, told as a story (docs/ux/ROUND-1.md): one sentence answers "did anything
 // suspicious happen?", a first-visit explainer shows the three steps, a decision card stands for
 // every paused payment (the reasons as plain lines with icons), then stopped payments as one line
 // each and the cleared ones folded into a count. The evidence matrix (each payee a column; the
@@ -18,22 +21,25 @@ import type { Deal } from '@bindings/Deal';
 import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import { formatMinor, shortId } from '../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
-import { joinWords, shieldReleased, shieldRuleWord, shieldWord } from '../../../lib/words';
+import { joinWords, shieldReleased, shieldRuleWord, SHIELD_SAFE_SUB, SHIELD_STOPPED_SUB, SHIELD_SUB, SHIELD_THROUGH_SUB, SHIELD_VIEW_LABEL, SHIELD_WEEK_SUB, shieldWord } from '../../../lib/words';
 import { MinorMoney, WalletNotice } from '../../../shared/honesty';
 import { Glyph, MODULE } from '../../../shared/modules';
 import {
-  AnswerBar, Btn, Chip, DecisionCard, DetailToggle, Explainer, Group, Hint, Icon, Inspector, Kv, PageHead, Popover, Row, Section, Seg, Sheet, Silence, useDetail, useLayerCount,
+  AnswerBar, Btn, Chip, DecisionCard, DetailPage, Empty, Group, Hint, Icon, Inspector, Kv, PageHead, Popover, Row, Section, Seg, Sheet, Silence, SummaryCard, useLayerCount, Why,
   type DecisionOption,
 } from '../../../shared/ui';
 import { canWithdraw, dealTotal, moneyNow, stateLabel } from '../logic';
 import { useCpLookup, useToast } from '../ui';
 import { useWorld } from '../world';
+import { registerViewLabels, useModuleRoute } from '../viewNav';
 import type { ModuleProps } from './common';
 import { NoteChip, NoteText } from './shield/NoteChip';
 import { CheckLights, ComparePanel, ReasonWhy, WeekTiles } from './shield/Panels';
 import { knownPayees, weekStrip } from './shield/normal';
 import { bandGeometry, CHECKS, checkCell, moveCursor, overMedian, paypalLine, reasonsFor, releasable, ROWS, shieldNeed, STAGES, UNSHOWN, type CheckKey, type RowKey } from './shield/matrix';
 import './shield.css';
+
+registerViewLabels('shield', SHIELD_VIEW_LABEL);
 
 const VerdictChip = ({ v }: { v: ShieldVerdict | null }) => {
   if (!v) return <Chip tone="dashed" title="The shield has not recorded a verdict for this deal">no verdict</Chip>;
@@ -52,8 +58,9 @@ export function Shield({ deals, nav }: ModuleProps) {
   const toast = useToast();
   const layers = useLayerCount();
   const cpOf = useCpLookup();
-  const [mode, setMode] = useDetail('shield');
-  const detailed = mode === 'detailed';
+  const { view: routed, open: openView } = useModuleRoute();
+  const view = routed && Object.hasOwn(SHIELD_VIEW_LABEL, routed) ? routed : null;
+  const detailed = view === 'week'; // the evidence matrix and its keys live on This week
   const cpList = useQuery('counterparty_list', null, { refreshOn: ['deal:changed'] });
   const known = useMemo(() => knownPayees(cpList.data), [cpList.data]);
   // Columns: this module's pauses and blocks, then every other deal the shield checked.
@@ -67,7 +74,6 @@ export function Shield({ deals, nav }: ModuleProps) {
   const [legendA, setLegendA] = useState<HTMLElement | null>(null);
   const [how, setHow] = useState(false);
   const [refuse, setRefuse] = useState<Deal | null>(null);
-  const [showCleared, setShowCleared] = useState(false);
   const grid = useRef<HTMLTableElement>(null);
   const open = useMutation('approval_open');
   const withdraw = useMutation('deal_withdraw');
@@ -186,55 +192,44 @@ export function Shield({ deals, nav }: ModuleProps) {
     answer = <AnswerBar tone="calm" title="All quiet. Nothing suspicious happened." sub={cols.length ? clearedLine : 'The shield hasn’t had to check anyone yet.'} />;
   }
 
-  return (
-    <div className="sh-page">
-      <PageHead title="Shield" icon={<Glyph module="shield" />} focusKey="shield"
-        sub="Checks every payment for scam signs before PayPal is asked"
+  const strip = weekStrip(cols, now, (d) => !!needOf(d));
+  const back = () => openView(null);
+  const list = (items: Deal[], empty: string) => (items.length
+    ? <Group className="sh-list">{items.map((d) => <ShieldRow key={d.id} deal={d} onOpen={() => nav.onDeal(d.id)} />)}</Group>
+    : <Empty>{empty}</Empty>);
+  const errors = [open.error, withdraw.error].map((e, i) => (e ? <WalletNotice key={i} error={e} what={i ? 'Refuse' : 'Approval window'} /> : null));
+  const icon = <Glyph module="shield" />;
+
+  let page: ReactNode;
+  if (view === 'stopped') {
+    page = <DetailPage title={SHIELD_VIEW_LABEL.stopped} icon={icon} onBack={back} backLabel="Shield" sub={SHIELD_STOPPED_SUB}>{list(stopped, 'Nothing was stopped.')}</DetailPage>;
+  } else if (view === 'through') {
+    page = <DetailPage title={SHIELD_VIEW_LABEL.through} icon={icon} onBack={back} backLabel="Shield" sub={SHIELD_THROUGH_SUB}>{list(released, 'You haven’t let a paused payment go on.')}</DetailPage>;
+  } else if (view === 'safe') {
+    page = <DetailPage title={SHIELD_VIEW_LABEL.safe} icon={icon} onBack={back} backLabel="Shield" sub={SHIELD_SAFE_SUB}>{list(cleared, 'No payment has been checked and found safe yet.')}</DetailPage>;
+  } else if (view === 'week') {
+    page = (
+      <DetailPage title={SHIELD_VIEW_LABEL.week} icon={icon} onBack={back} backLabel="Shield" sub={SHIELD_WEEK_SUB}
         actions={<>
-          {detailed ? (
-            <>
-              <Seg label="Show" value={passes ? 'all' : 'decided'} onChange={(v) => setPasses(v === 'all')}
-                options={[{ value: 'all', label: 'Everything' }, { value: 'decided', label: 'Outcome only', title: 'Fade the checks (P)' }]} />
-              <Btn kind="plain" sm aria-label="How the shield works" onClick={(e) => { const t = e.currentTarget; setLegendA((x) => (x ? null : t)); }}>How it works ⓘ</Btn>
-            </>
-          ) : null}
-          <DetailToggle value={mode} onChange={setMode} />
-        </>} />
-      {legendA && detailed ? (
-        <Popover anchor={legendA} onClose={() => setLegendA(null)} title="How the shield works" className="mod-shield">
-          <p className="sh-pop-lede">Before any money moves to a payee, the shield runs a few checks. A check can stop a payment, never approve one.</p>
-          <div className="sh-legend">
-            <span><VerdictChip v="CLEAR" /> nothing found</span>
-            <span><VerdictChip v="HOLD" /> only you can release it</span>
-            <span><VerdictChip v="BLOCK" /> stopped for good</span>
-            <span><span className="sh-hatch" aria-hidden="true" /> no typical price to compare, so it asks you</span>
-            <span><Chip tone="dashed">note ›</Chip> their own words, shown as plain text</span>
-          </div>
-          <Btn kind="plain" sm className="sh-gap" onClick={() => { setLegendA(null); setHow(true); }}>All the checks ›</Btn>
-        </Popover>
-      ) : null}
-
-      {answer}
-
-      {!detailed ? <WeekTiles strip={weekStrip(cols, now, (d) => !!needOf(d))} /> : null}
-
-      <div className="sh-explain">
-        <Explainer id="shield" title="How the shield works" steps={[
-          { icon: 'eye', title: 'New payees get checked', text: 'Every payee is looked at before any PayPal call.' },
-          { icon: 'tag', title: 'Odd prices pause it', text: 'A price far above typical stops the payment.' },
-          { icon: 'you', title: 'Only you can unpause', text: 'Releasing happens in the approval window.' },
-        ]} />
-      </div>
-
-      {paused.length ? (
-        <section className="sh-decisions" aria-label="Needs you">
-          {paused.map((d) => <PausedDecision key={d.id} deal={d} need={needOf(d)!} now={now} known={known} onRelease={() => void release(d)} onRefuse={() => setRefuse(d)} onDeal={() => nav.onDeal(d.id)} />)}
-        </section>
-      ) : null}
-      {[open.error, withdraw.error].map((e, i) => (e ? <WalletNotice key={i} error={e} what={i ? 'Refuse' : 'Approval window'} /> : null))}
-
-      {detailed ? (
-        !cols.length ? <div className="ui-group"><div className="ui-empty">Nothing paused, nothing blocked. The shield hasn’t had to check anyone yet.</div></div> : (
+          <Seg label="Show" value={passes ? 'all' : 'decided'} onChange={(v) => setPasses(v === 'all')}
+            options={[{ value: 'all', label: 'Everything' }, { value: 'decided', label: 'Outcome only', title: 'Fade the checks (P)' }]} />
+          <Btn kind="plain" sm aria-label="How the shield works" onClick={(e) => { const t = e.currentTarget; setLegendA((x) => (x ? null : t)); }}>How it works ⓘ</Btn>
+        </>}>
+        {legendA ? (
+          <Popover anchor={legendA} onClose={() => setLegendA(null)} title="How the shield works" className="mod-shield">
+            <p className="sh-pop-lede">Before any money moves to a payee, the shield runs a few checks. A check can stop a payment, never approve one.</p>
+            <div className="sh-legend">
+              <span><VerdictChip v="CLEAR" /> nothing found</span>
+              <span><VerdictChip v="HOLD" /> only you can release it</span>
+              <span><VerdictChip v="BLOCK" /> stopped for good</span>
+              <span><span className="sh-hatch" aria-hidden="true" /> no typical price to compare, so it asks you</span>
+              <span><Chip tone="dashed">note ›</Chip> their own words, shown as plain text</span>
+            </div>
+            <Btn kind="plain" sm className="sh-gap" onClick={() => { setLegendA(null); setHow(true); }}>All the checks ›</Btn>
+          </Popover>
+        ) : null}
+        <WeekTiles strip={strip} />
+        {!cols.length ? <div className="ui-group"><div className="ui-empty">Nothing paused, nothing blocked. The shield hasn’t had to check anyone yet.</div></div> : (
           <div className="sh-mxwrap">
             <table className="sh-mx" style={{ minWidth: 148 + cols.length * 150 }} role="grid" aria-label="Shield checks for each payee" aria-readonly="true" ref={grid}>
               <colgroup><col className="lab" />{cols.map((d) => <col key={d.id} />)}</colgroup>
@@ -247,38 +242,53 @@ export function Shield({ deals, nav }: ModuleProps) {
               <tbody>{body}</tbody>
             </table>
           </div>
-        )
-      ) : (
-        <>
-          {stopped.length ? (
-            <Section title="Stopped" end={count(stopped.length, 'payment')}>
-              <Group className="sh-list">{stopped.map((d) => <ShieldRow key={d.id} deal={d} onOpen={() => nav.onDeal(d.id)} />)}</Group>
-            </Section>
-          ) : null}
-          {released.length ? (
-            <Section title="You let these go on" end={count(released.length, 'payment')}>
-              <Group className="sh-list">{released.map((d) => <ShieldRow key={d.id} deal={d} onOpen={() => nav.onDeal(d.id)} />)}</Group>
-            </Section>
-          ) : null}
-          {cleared.length ? (
-            <div className="sh-cleared">
-              <button type="button" className="sh-cleared-b" aria-expanded={showCleared} onClick={() => setShowCleared((x) => !x)}>
-                <Icon name="check" size={14} />{count(cleared.length, 'payment')} looked safe<span className="more">{showCleared ? 'Hide' : 'Show'}</span>
-              </button>
-              {showCleared ? <Group className="sh-list">{cleared.map((d) => <ShieldRow key={d.id} deal={d} onOpen={() => nav.onDeal(d.id)} />)}</Group> : null}
+        )}
+        {sel ? (
+          <Inspector label="Shield details">
+            <div className="mod-shield sh-insp" aria-live="polite">
+              <CellStory rk={rowKey} deal={sel} need={needOf(sel)} now={now} onRelease={() => void release(sel)} onRefuse={() => setRefuse(sel)} onDeal={() => nav.onDeal(sel.id)} onHow={() => setHow(true)} />
             </div>
-          ) : null}
-        </>
-      )}
+          </Inspector>
+        ) : null}
+      </DetailPage>
+    );
+  } else {
+    page = (
+      <>
+        <PageHead title="Shield" icon={icon} focusKey="shield" sub={SHIELD_SUB}
+          info={<Why question="How the shield works" label="ⓘ" className="sh-info">
+            <ul className="sh-how">
+              <li><b>New payees get checked.</b> Every payee is looked at before any PayPal call.</li>
+              <li><b>Odd prices pause it.</b> A price far above typical stops the payment.</li>
+              <li><b>Only you can unpause.</b> Releasing happens in the approval window.</li>
+            </ul>
+            <Btn kind="plain" sm onClick={() => setHow(true)}>All the checks ›</Btn>
+          </Why>} />
+        {answer}
+        {paused.length ? (
+          <section className="sh-decisions" aria-label="Needs you">
+            {paused.map((d) => <PausedDecision key={d.id} deal={d} need={needOf(d)!} now={now} known={known} onRelease={() => void release(d)} onRefuse={() => setRefuse(d)} onDeal={() => nav.onDeal(d.id)} />)}
+          </section>
+        ) : null}
+        {errors}
+        <div className="ui-sumcards">
+          <SummaryCard id="stopped" label={SHIELD_VIEW_LABEL.stopped} value={stopped.length ? count(stopped.length, 'payment') : 'None'}
+            note={stopped.length ? (blocked.length ? `${blocked.length} blocked for good` : 'Nothing was sent to PayPal') : 'Nothing stopped'} onOpen={() => openView('stopped', 'stopped')} />
+          <SummaryCard id="through" label={SHIELD_VIEW_LABEL.through} value={released.length ? count(released.length, 'payment') : 'None'}
+            note={released.length ? 'You let these go on' : 'No paused payment released'} onOpen={() => openView('through', 'through')} />
+          <SummaryCard id="week" label={SHIELD_VIEW_LABEL.week} value={`${strip.checked} checked`}
+            note={`${strip.paused} paused · ${strip.blocked} blocked`} onOpen={() => openView('week', 'week')} />
+          <SummaryCard id="safe" label={SHIELD_VIEW_LABEL.safe} value={cleared.length ? count(cleared.length, 'payment') : 'None'}
+            note={cleared.length ? 'Nothing suspicious found' : 'Nothing checked yet'} onOpen={() => openView('safe', 'safe')} />
+        </div>
+      </>
+    );
+  }
 
-      {detailed && sel ? (
-        <Inspector label="Shield details">
-          <div className="mod-shield sh-insp" aria-live="polite">
-            <CellStory rk={rowKey} deal={sel} need={needOf(sel)} now={now} onRelease={() => void release(sel)} onRefuse={() => setRefuse(sel)} onDeal={() => nav.onDeal(sel.id)} onHow={() => setHow(true)} />
-          </div>
-        </Inspector>
-      ) : null}
-
+  return (
+    <div className="sh-page">
+      {view ? errors : null}
+      {page}
       {how ? <HowSheet onClose={() => setHow(false)} /> : null}
       {refuse ? (
         <Sheet title={`Refuse “${w.display(refuse).title}”?`} size="narrow" onClose={() => setRefuse(null)} className="mod-shield"

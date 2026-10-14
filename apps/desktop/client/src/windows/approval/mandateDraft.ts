@@ -388,6 +388,15 @@ export function bandMissingSide(side: 'buyer' | 'seller', floor: unknown, ceilin
   return null;
 }
 
+/** Why the range form cannot be signed yet, in plain words (undefined = not a valid amount, null = left empty). */
+export function bandInputProblem(floor: { minor: number } | null | undefined, ceiling: { minor: number } | null | undefined): string | null {
+  if (floor === undefined) return 'The least you’ll accept isn’t an amount. Type it like 120 or 120.50.';
+  if (ceiling === undefined) return 'The most you’ll pay isn’t an amount. Type it like 120 or 120.50.';
+  if (floor === null && ceiling === null) return 'Fill in at least one amount.';
+  if (floor && ceiling && floor.minor > ceiling.minor) return 'The least you’ll accept can’t be higher than the most you’ll pay.';
+  return null;
+}
+
 /** Mirror of Rust's role/side/kind pairing table: whether a role can act on a deal kind. */
 const roleActs = (role: Role, kind: DealKind): boolean => {
   switch (role) {

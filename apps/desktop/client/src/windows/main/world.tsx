@@ -28,6 +28,8 @@ export type World = {
   /** deal_display per deal, or the honest fallback (short ULID, item_ref) if that read fails. */
   display: (d: Deal) => Display;
   displayUnavailable: WalletError | null;
+  /** True once every deal's display has been read at least once: before it, a label may still arrive. */
+  displaysReady: boolean;
   labels: ReadonlyMap<string, string>;
   needs: AttentionItem[];
   needOf: (dealId: string) => AttentionItem | undefined;
@@ -71,6 +73,7 @@ export function WorldProvider({ children }: { children: ReactNode }) {
       settings, deals, attention, runs,
       display,
       displayUnavailable: disp.error,
+      displaysReady: disp.ready,
       labels,
       needs,
       needOf: (id) => needMap.get(id),

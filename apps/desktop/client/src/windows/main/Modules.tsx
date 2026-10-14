@@ -19,6 +19,7 @@ import './modules/shield.css';
 import './modules/spend.css';
 import './modules/tables.css';
 import { Loading, mc } from './ui';
+import { ModuleRouteContext, viewLabel, type ModuleRoute } from './viewNav';
 import { useWorld } from './world';
 
 const Book = lazyPart(() => import('./modules/book').then((m) => m.Book));
@@ -35,7 +36,8 @@ export const MODULE_PAGES = [Tables, Spend, Counter, Book, Shield, Rescue] as co
 export { BandCard } from './modules/common';
 export type { Nav } from './modules/common';
 
-export function ModuleView({ module, nav }: { module: Module; nav: Nav }) {
+/** `route` carries the open detail view and how to change it (read by modules through useModuleRoute). */
+export function ModuleView({ module, nav, route }: { module: Module; nav: Nav; route?: ModuleRoute }) {
   const w = useWorld();
   const all = w.deals.data;
   const mine = useMemo(() => (all ?? []).filter((d) => w.moduleOfDeal(d) === module), [all, w, module]);
@@ -58,7 +60,9 @@ export function ModuleView({ module, nav }: { module: Module; nav: Nav }) {
   const waiting = <><PageHead title={MODULE[module].name} icon={<Glyph module={module} />} /><Loading what="this page" /></>;
   return (
     <div className={`module mod-${module}`} style={mc(module)}>
-      <Suspense fallback={waiting}>{body}</Suspense>
+      <ModuleRouteContext.Provider value={route ? { ...route, view: viewLabel(module, route.view) ? route.view : null } : { view: null, open: () => {} }}>
+        <Suspense fallback={waiting}>{body}</Suspense>
+      </ModuleRouteContext.Provider>
     </div>
   );
 }

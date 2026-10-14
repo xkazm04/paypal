@@ -243,7 +243,7 @@ export function Home(p: Props) {
         </div>
         <Spacer />
         {settings ? <ModeBadge mode={settings.mode} />
-          : <Chip tone="dashed" title={w.settings.error ? `get_settings failed: ${w.settings.error.message}` : 'Reading settings'}>mode unknown</Chip>}
+          : <Chip tone="dashed" title={w.settings.error ? 'Your wallet’s settings couldn’t be read just now. Nothing has changed with your money.' : 'Reading your settings'}>mode unknown</Chip>}
         <MockBadge />
         <Btn sm onClick={p.onFind} title="Find a deal, counterparty or module">Find <span className="kbd">Ctrl K</span></Btn>
         <LockIndicator />
@@ -359,8 +359,8 @@ function Hub({ start, mode, sel, item, index, count, summary, week, away, onRewi
         <div className="hm-long">{m.long}</div>
         <div className="hm-head">{head}</div>
         <div className="hm-counts">{counts}</div>
-        <button type="button" className="hm-open" onClick={(e) => { stop(e); onOpen(sel); }} title="Enter">Open {m.name}</button>
-        {count ? <button type="button" className="hm-back" onClick={(e) => { stop(e); onBack(); }} title="Esc">‹ Back to what needs you ({count})</button> : null}
+        <button type="button" className="hm-open" onClick={(e) => { stop(e); onOpen(sel); }} title={`Open ${m.name} (Enter)`}>Open {m.name}</button>
+        {count ? <button type="button" className="hm-back" onClick={(e) => { stop(e); onBack(); }} title="Show the decisions waiting for you (Esc)">‹ Back to what needs you ({count})</button> : null}
       </div>
     );
   }
@@ -376,7 +376,7 @@ function Hub({ start, mode, sel, item, index, count, summary, week, away, onRewi
         {count > 1 ? (
           <div className="pager">
             <button type="button" onClick={(e) => { stop(e); onPage(-1); }} aria-label="Previous decision">‹</button>
-            <span>{index + 1} / {count}</span>
+            <span role="status" aria-live="polite">{index + 1} of {count}</span>
             <button type="button" onClick={(e) => { stop(e); onPage(1); }} aria-label="Next decision">›</button>
           </div>
         ) : null}
@@ -429,7 +429,7 @@ function NeedPlate({ item, onDeal }: { item: AttentionItem; onDeal: (id: string)
         {canReview ? (
           <button type="button" className="gbtn" onClick={(e) => { stop(e); void open.run({ deal_id: item.deal_id }); }} disabled={open.pending}
             title={w.locked ? 'Locked after 15 quiet minutes: you unlock with Windows Hello first' : 'Opens the approval window, the only place money can be released'}>
-            {w.locked ? <LockGlyph locked /> : null}{reviewVerb(item, deal)} ↗
+            {w.locked ? <LockGlyph locked /> : null}{reviewVerb(item, deal)} <span aria-hidden="true">↗</span>
           </button>
         ) : (
           <button type="button" className="gbtn" onClick={(e) => { stop(e); onDeal(item.deal_id); }}>Open deal</button>

@@ -2,7 +2,8 @@
 // (the default, beats.ts) and First run (firstRunStory.ts). A story says which mock world its frames
 // open in, so First run plays on the `?first_run=1` world and the sample week's storage stays as it
 // was. Pure: the page's search string goes in, the story and the frames' addresses come out.
-import { FIRST_RUN_PARAM, withFirstRun } from '../mock/firstRun';
+import { FIRST_RUN_PARAM, scalePreview, withFirstRun } from '../mock/firstRun';
+import type { ScaleName } from '../lib/preview';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat, type Chapter } from './beats';
 import { FIRST_RUN_BEATS, FIRST_RUN_CHAPTERS, FIRST_RUN_LENGTH } from './firstRunStory';
 import { EXPECT, FIRST_RUN_EXPECT, type Expect } from './takes';
@@ -42,8 +43,9 @@ export function storyFor(search: string = typeof location === 'undefined' ? '' :
 }
 
 /** The framed windows' addresses for a story: in the first-run world they all carry `first_run=1`. */
-export function frameUrls(story: Pick<Story, 'firstRun'>) {
-  const w = (page: string) => withFirstRun(page, story.firstRun);
+export function frameUrls(story: Pick<Story, 'firstRun'>, scale: ScaleName | null = scalePreview()) {
+  // A sized preview (`?scale=`) opens its three windows in the same sized world.
+  const w = (page: string) => withFirstRun(page, story.firstRun, scale);
   return {
     main: (route: string | null) => w(`index.html${route ?? ''}`),
     tumbler: w('tumbler.html?frame=director'),

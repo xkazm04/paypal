@@ -4,7 +4,10 @@
 // subscriber would get plus a Why? (./rescue/Panels.tsx, facts in ./rescue/preview.ts).
 // Owner: the rescue agent. Styles: ./rescue.css, scoped under .mod-rescue. Pure logic: ./rescue/model.ts.
 //
-// Simple (default): the answer, then one decision card per failed renewal. The options are cards,
+// calm-nested-ui: the summary is the answer and four cards (Needs a fix, Fixes in progress, Recovered money,
+// Watching); each opens a page (views failed, progress, recovered, watch). The decision cards, the lever
+// matrix (behind "Compare every fix") and the lists live on those pages; nothing about approval changed.
+// Before that, the page was: the answer, then one decision card per failed renewal. The options are cards,
 // "Do nothing" is picked at the start (silence never moves money) and the closed list of fixes sits
 // beside it; the one gold button hands the choice to the approval window (approval_open), the only
 // place the discount is approved (hold to approve). The discount, its invoice wording and every
@@ -21,22 +24,26 @@ import type { RescueView } from '@bindings/RescueView';
 import { clockLabel, formatMinor, formatMoney, shortId } from '../../../lib/format';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import {
-  notOfferedLine, percentWords, RESCUE_APPROVE_DOES, RESCUE_COUNTED, RESCUE_REPLAY_ABOUT as RESCUE_REPLAY_ABOUT_TEXT, RESCUE_REPLAY_NOT_COUNTED, RESCUE_SENT_NOT_COUNTED, RESCUE_WATCH_ABOUT, rescueSourceWord, ruleSentence, silenceWords, stateWord, subscriberName, timeLeftWords, watchingWords,
+  notOfferedLine, percentWords, RESCUE_APPROVE_DOES, RESCUE_COUNTED, RESCUE_REPLAY_ABOUT as RESCUE_REPLAY_ABOUT_TEXT, RESCUE_COMPARE, RESCUE_COMPARE_HIDE, RESCUE_FAILED_SUB, RESCUE_PROGRESS_SUB, RESCUE_RECOVERED_SUB, RESCUE_REPLAY_NOT_COUNTED, RESCUE_SENT_NOT_COUNTED, RESCUE_SUB, RESCUE_VIEW_LABEL, RESCUE_WATCH_ABOUT, RESCUE_WATCH_SUB, rescueSourceWord, ruleSentence, silenceWords, stateWord, subscriberName, timeLeftWords, watchingWords,
 } from '../../../lib/words';
 import { ModeBadge, WalletNotice } from '../../../shared/honesty';
 import { Glyph } from '../../../shared/modules';
 import {
-  AnswerBar, Btn, Chip, DecisionCard, DetailToggle, Dot, Explainer, Group, Hourglass, Icon, Inspector, Kv, PageHead, Popover, Row, Section, Silence, useDetail, Why,
+  AnswerBar, Btn, Chip, DecisionCard, DetailPage, Dot, Empty, Group, Hourglass, Icon, Inspector, Kv, PageHead, Popover, Row, Section, Silence, SummaryCard, Why,
   type ChipTone, type DecisionOption, type ExplainerStep,
 } from '../../../shared/ui';
 import { chipClass, dealTotal, moneyNow, sumByCurrency, type ChipClass } from '../logic';
 import { useCpLookup } from '../ui';
 import { useWorld } from '../world';
+import { registerViewLabels, useModuleRoute } from '../viewNav';
 import type { ModuleProps } from './common';
 import { atRiskOf, cellState, COLS, LEVERS, leverOf, moveCell, pickable, recovered, rulesFor, splitFixes, splitRows, viewFor, type Col, type LeverKey, type NotCountedWhy } from './rescue/model';
-import { FixGet, FixGetOff, FixWhy, RescueMoney } from './rescue/Panels';
-import { fixQuestion, fixWhy, previewFor, rescueStrip } from './rescue/preview';
+import { FixGet, FixGetOff, FixWhy } from './rescue/Panels';
+import { fixQuestion, fixWhy, moneyList, previewFor, rescueStrip } from './rescue/preview';
 import './rescue.css';
+
+registerViewLabels('rescue', RESCUE_VIEW_LABEL);
+const countOf = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 type Peek = { id: string; col: Col | null };
 const TONE: Record<ChipClass, ChipTone | undefined> = { live: 'teal', wait: 'coral', held: 'coral', done: 'ok', bad: 'red', off: undefined };
@@ -96,9 +103,10 @@ export function Rescue({ deals, nav }: ModuleProps) {
   const w = useWorld();
   const now = useNow();
   const cp = useCpLookup();
-  const [detail, setDetail] = useDetail('rescue');
-  const detailed = detail === 'detailed';
+  const { view: routed, open: openView } = useModuleRoute();
+  const view = routed && Object.hasOwn(RESCUE_VIEW_LABEL, routed) ? routed : null;
   const [picked, setPicked] = useState<Record<string, Col>>({});
+  const [matrix, setMatrix] = useState(false);
   const deadlineOf = (d: Deal) => w.needOf(d.id)?.deadline ?? w.display(d).deadline;
   const rows = useMemo(() => splitRows(deals, (d) => w.needOf(d.id)?.deadline ?? w.display(d).deadline), [deals, w]);
   const all = [...rows.failing, ...rows.inflight, ...rows.settled];
@@ -130,89 +138,131 @@ export function Rescue({ deals, nav }: ModuleProps) {
   const colName = (col: Col | null) => (!col || col === 'NONE' ? 'Do nothing' : leverOf(col).name);
   const pick = (id: string, col: Col) => setPicked((p) => ({ ...p, [id]: col }));
   const ans = answerFor(rows, w.deals.data ?? [], book, nameOf, (d) => !!w.needOf(d.id));
+  const strip = rescueStrip(rows, w.deals.data ?? [], book);
+  const asks = rows.failing.some((d) => !!w.needOf(d.id));
+  const back = () => openView(null);
+  const progressRows = (list: Deal[]) => (
+    <Group>{list.map((d) => <ProgressRow key={d.id} deal={d} view={viewFor(book, d.id)} name={nameOf(d)} onOpen={() => nav.onDeal(d.id)} />)}</Group>
+  );
+  const notice = bookError ? <WalletNotice error={bookError} what="Fixes and recovered money can’t be read" /> : null;
 
+  if (view === 'failed') {
+    return (
+      <DetailPage title={RESCUE_VIEW_LABEL.failed} icon={<Glyph module="rescue" />} onBack={back} backLabel="Rescue" sub={RESCUE_FAILED_SUB}
+        actions={<ReplayButton />}>
+        {notice}
+        {rows.failing.length ? rows.failing.map((d) => (
+          <FailedCard key={d.id} deal={d} view={viewFor(book, d.id)} name={nameOf(d)} deadline={deadlineOf(d)} now={now}
+            col={picked[d.id] ?? 'NONE'} onPick={(c) => pick(d.id, c)} onOpen={() => nav.onDeal(d.id)} />
+        )) : <Empty>No failed renewals. Nothing to rescue.</Empty>}
+        {all.length ? (
+          <div className="rs-compare">
+            <Btn kind="plain" sm aria-expanded={matrix} onClick={() => setMatrix((x) => !x)}>{matrix ? RESCUE_COMPARE_HIDE : RESCUE_COMPARE}</Btn>
+          </div>
+        ) : null}
+        {matrix ? (
+          <>
+            <Group className="mwrap">
+              <table className="ui-table mx" ref={table}>
+                <colgroup><col className="c-who" />{COLS.map((c) => <col key={c} />)}<col className="c-never" /><col className="c-act" /></colgroup>
+                <thead>
+                  <tr>
+                    <th>Subscriber</th>
+                    <th className="def" title="The default: nothing is sent, PayPal retries on its own"><span className="th">{MARK.NONE}Do nothing</span></th>
+                    {LEVERS.map((l) => <th key={l.key} title={`${l.name}: ${l.effect}`}><span className="th">{MARK[l.key]}{HEAD[l.key]}</span></th>)}
+                    <th className="never" title="A price change for everyone on the plan is never offered here">Price</th>
+                    <th aria-label="Decision" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.failing.length ? rows.failing.map((d, ri) => {
+                    const dl = deadlineOf(d);
+                    const need = w.needOf(d.id);
+                    return (
+                      <tr key={d.id} className={cur?.id === d.id ? 'on' : ''} role="radiogroup" aria-label={`Fix for ${nameOf(d)}`}>
+                        <Who deal={d} name={nameOf(d)} need={!!need} silence={need ? 'nothing is sent' : undefined} />
+                        {COLS.map((col) => (
+                          <td key={col}>
+                            <Cell deal={d} view={viewFor(book, d.id)} col={col} deadline={dl} now={now} peek={cur?.id === d.id && cur.col === col}
+                              onFocus={() => setPeek({ id: d.id, col })} onKey={(e) => onCellKey(e, d.id, col)} />
+                          </td>
+                        ))}
+                        {ri === 0 ? <NeverCell rows={rows.failing.length} /> : null}
+                        <td className="act">{need ? <HandOff dealId={d.id} label="Review ↗" sm quiet title={need.headline} /> : <span className="dim">—</span>}</td>
+                      </tr>
+                    );
+                  }) : <tr><td colSpan={nc}><div className="ui-empty">No failed renewals. Nothing to rescue.</div></td></tr>}
+                  {rows.inflight.length ? <tr className="gs"><td colSpan={nc}>Fix sent · waiting for the subscriber</td></tr> : null}
+                  {rows.inflight.map((d) => <SpanRow key={d.id} deal={d} view={viewFor(book, d.id)} name={nameOf(d)} on={cur?.id === d.id} onPeek={() => setPeek({ id: d.id, col: null })} />)}
+                  {rows.settled.length ? <tr className="gs"><td colSpan={nc}>Done</td></tr> : null}
+                  {rows.settled.map((d) => <SpanRow key={d.id} deal={d} view={viewFor(book, d.id)} name={nameOf(d)} on={cur?.id === d.id} onPeek={() => setPeek({ id: d.id, col: null })} />)}
+                </tbody>
+              </table>
+            </Group>
+            {curDeal && cur ? (
+              <Inspector title={<>{nameOf(curDeal)} · {failingNow(curDeal) ? colName(cur.col) : wordOf(curDeal).text}</>}
+                sub={<>{w.display(curDeal).title} · <span className="mono">{label(curDeal)}</span> · <Btn sm kind="plain" onClick={() => nav.onDeal(curDeal.id)}>Open deal →</Btn></>}>
+                <div className="rsc-l2">
+                  {failingNow(curDeal) ? <CellDetail deal={curDeal} view={viewFor(book, curDeal.id)} col={cur.col ?? 'NONE'} deadline={deadlineOf(curDeal)} now={now} />
+                    : <DeskDetail deal={curDeal} view={viewFor(book, curDeal.id)} deadline={deadlineOf(curDeal)} />}
+                </div>
+              </Inspector>
+            ) : null}
+          </>
+        ) : null}
+      </DetailPage>
+    );
+  }
+
+  if (view === 'progress') {
+    return (
+      <DetailPage title={RESCUE_VIEW_LABEL.progress} icon={<Glyph module="rescue" />} onBack={back} backLabel="Rescue" sub={RESCUE_PROGRESS_SUB}>
+        {notice}
+        {rows.inflight.length ? progressRows(rows.inflight) : <Empty>No fix is waiting for a subscriber.</Empty>}
+      </DetailPage>
+    );
+  }
+
+  if (view === 'recovered') {
+    return (
+      <DetailPage title={RESCUE_VIEW_LABEL.recovered} icon={<Glyph module="rescue" />} onBack={back} backLabel="Rescue" sub={RESCUE_RECOVERED_SUB}>
+        {notice}
+        <RecoveredDetail deals={w.deals.data ?? []} book={book} label={label} />
+        {rows.settled.length ? <Section title="Closed rescues">{progressRows(rows.settled)}</Section> : null}
+      </DetailPage>
+    );
+  }
+
+  if (view === 'watch') {
+    return (
+      <DetailPage title={RESCUE_VIEW_LABEL.watch} icon={<Glyph module="rescue" />} onBack={back} backLabel="Rescue" sub={RESCUE_WATCH_SUB}
+        actions={<MandateInfo nav={nav} />}>
+        {notice}
+        <WatchRow book={book} failed={!!bookError} />
+      </DetailPage>
+    );
+  }
+
+  const watching = book?.watching.length ?? 0;
   return (
     <>
-      <PageHead title="Rescue" icon={<Glyph module="rescue" />} focusKey="rescue" sub="Failed renewals · pick one fix for one subscriber, or do nothing"
-        actions={<><DetailToggle value={detail} onChange={setDetail} /><ReplayButton /><MandateInfo nav={nav} /><RecoveredButton deals={w.deals.data ?? []} book={book} label={label} /></>} />
+      <PageHead title="Rescue" icon={<Glyph module="rescue" />} focusKey="rescue" sub={RESCUE_SUB}
+        info={<Why question="How rescue works" label="ⓘ" className="rs-info">
+          <ul className="rsc-how">{HOW_RESCUE.map((s) => <li key={s.title}><b>{s.title}.</b> {s.text}</li>)}</ul>
+        </Why>} />
       <AnswerBar tone={ans.tone} title={ans.title} sub={ans.sub} icon={ans.tone === 'calm' ? 'renew' : undefined} />
-      {bookError ? <WalletNotice error={bookError} what="Fixes and recovered money can’t be read" /> : null}
-      {!detailed ? <RescueMoney strip={rescueStrip(rows, w.deals.data ?? [], book)} /> : null}
-      <Explainer id="rescue" title="How rescue works" steps={HOW_RESCUE} />
-      <WatchRow book={book} failed={!!bookError} />
-
-      {!detailed ? (
-        <>
-          {rows.failing.map((d) => (
-            <FailedCard key={d.id} deal={d} view={viewFor(book, d.id)} name={nameOf(d)} deadline={deadlineOf(d)} now={now}
-              col={picked[d.id] ?? 'NONE'} onPick={(c) => pick(d.id, c)} onOpen={() => nav.onDeal(d.id)} />
-          ))}
-          {rows.inflight.length ? (
-            <Section title="Fixes in progress" end={<>{rows.inflight.length} waiting for the subscriber</>}>
-              <Group>
-                {rows.inflight.map((d) => <ProgressRow key={d.id} deal={d} view={viewFor(book, d.id)} name={nameOf(d)} onOpen={() => nav.onDeal(d.id)} />)}
-              </Group>
-            </Section>
-          ) : null}
-          {rows.settled.length ? (
-            <Section title="Recovered money" end="a rescue counts once PayPal shows it paid">
-              <Group>
-                {rows.settled.map((d) => <ProgressRow key={d.id} deal={d} view={viewFor(book, d.id)} name={nameOf(d)} onOpen={() => nav.onDeal(d.id)} />)}
-              </Group>
-            </Section>
-          ) : null}
-        </>
-      ) : (
-        <>
-          <Group className="mwrap">
-            <table className="ui-table mx" ref={table}>
-              <colgroup><col className="c-who" />{COLS.map((c) => <col key={c} />)}<col className="c-never" /><col className="c-act" /></colgroup>
-              <thead>
-                <tr>
-                  <th>Subscriber</th>
-                  <th className="def" title="The default: nothing is sent, PayPal retries on its own"><span className="th">{MARK.NONE}Do nothing</span></th>
-                  {LEVERS.map((l) => <th key={l.key} title={`${l.name}: ${l.effect}`}><span className="th">{MARK[l.key]}{HEAD[l.key]}</span></th>)}
-                  <th className="never" title="A price change for everyone on the plan is never offered here">Price</th>
-                  <th aria-label="Decision" />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.failing.length ? rows.failing.map((d, ri) => {
-                  const dl = deadlineOf(d);
-                  const need = w.needOf(d.id);
-                  return (
-                    <tr key={d.id} className={cur?.id === d.id ? 'on' : ''} role="radiogroup" aria-label={`Fix for ${nameOf(d)}`}>
-                      <Who deal={d} name={nameOf(d)} need={!!need} silence={need ? 'nothing is sent' : undefined} />
-                      {COLS.map((col) => (
-                        <td key={col}>
-                          <Cell deal={d} view={viewFor(book, d.id)} col={col} deadline={dl} now={now} peek={cur?.id === d.id && cur.col === col}
-                            onFocus={() => setPeek({ id: d.id, col })} onKey={(e) => onCellKey(e, d.id, col)} />
-                        </td>
-                      ))}
-                      {ri === 0 ? <NeverCell rows={rows.failing.length} /> : null}
-                      <td className="act">{need ? <HandOff dealId={d.id} label="Review ↗" sm quiet title={need.headline} /> : <span className="dim">—</span>}</td>
-                    </tr>
-                  );
-                }) : <tr><td colSpan={nc}><div className="ui-empty">No failed renewals. Nothing to rescue.</div></td></tr>}
-                {rows.inflight.length ? <tr className="gs"><td colSpan={nc}>Fix sent · waiting for the subscriber</td></tr> : null}
-                {rows.inflight.map((d) => <SpanRow key={d.id} deal={d} view={viewFor(book, d.id)} name={nameOf(d)} on={cur?.id === d.id} onPeek={() => setPeek({ id: d.id, col: null })} />)}
-                {rows.settled.length ? <tr className="gs"><td colSpan={nc}>Done</td></tr> : null}
-                {rows.settled.map((d) => <SpanRow key={d.id} deal={d} view={viewFor(book, d.id)} name={nameOf(d)} on={cur?.id === d.id} onPeek={() => setPeek({ id: d.id, col: null })} />)}
-              </tbody>
-            </table>
-          </Group>
-
-          {curDeal && cur ? (
-            <Inspector title={<>{nameOf(curDeal)} · {failingNow(curDeal) ? colName(cur.col) : wordOf(curDeal).text}</>}
-              sub={<>{w.display(curDeal).title} · <span className="mono">{label(curDeal)}</span> · <Btn sm kind="plain" onClick={() => nav.onDeal(curDeal.id)}>Open deal →</Btn></>}>
-              <div className="rsc-l2">
-                {failingNow(curDeal) ? <CellDetail deal={curDeal} view={viewFor(book, curDeal.id)} col={cur.col ?? 'NONE'} deadline={deadlineOf(curDeal)} now={now} />
-                  : <DeskDetail deal={curDeal} view={viewFor(book, curDeal.id)} deadline={deadlineOf(curDeal)} />}
-              </div>
-            </Inspector>
-          ) : null}
-        </>
-      )}
+      {notice}
+      <div className="ui-sumcards">
+        <SummaryCard id="failed" label={RESCUE_VIEW_LABEL.failed} value={rows.failing.length ? countOf(rows.failing.length, 'renewal') : 'None'}
+          note={rows.failing.length ? `${moneyList(strip.atRisk) ?? 'Nothing'} at risk` : 'Nothing to fix'}
+          chip={asks ? 'Your call' : undefined} chipTone="gold" onOpen={() => openView('failed', 'failed')} />
+        <SummaryCard id="progress" label={RESCUE_VIEW_LABEL.progress} value={rows.inflight.length ? countOf(rows.inflight.length, 'fix', 'fixes') : 'None'}
+          note={rows.inflight.length ? `${moneyList(strip.inProgress) ?? ''} waiting for the subscriber` : 'Nothing waiting'} onOpen={() => openView('progress', 'progress')} />
+        <SummaryCard id="recovered" label={RESCUE_VIEW_LABEL.recovered} value={moneyList(strip.recovered) ?? 'None yet'}
+          note="Counted once PayPal shows it paid" onOpen={() => openView('recovered', 'recovered')} />
+        <SummaryCard id="watch" label={RESCUE_VIEW_LABEL.watch} value={book ? watchingWords(watching) : bookError ? 'Can’t be read' : 'Reading…'}
+          note={book && watching ? `${book.watch_reads_today} of ${book.watch_reads_max} checks today` : 'Rules and watched subscriptions'} onOpen={() => openView('watch', 'watch')} />
+      </div>
     </>
   );
 }
@@ -497,28 +547,21 @@ const WHY_NOT: Record<NotCountedWhy, string> = {
   closed: 'closed · nothing recovered',
 };
 
-function RecoveredButton({ deals, book, label }: { deals: Deal[]; book: RescueBook | null; label: (d: Deal) => string }) {
-  const [a, setA] = useState<HTMLElement | null>(null);
+/** What counts as recovered and what does not, in the Recovered money page. */
+function RecoveredDetail({ deals, book, label }: { deals: Deal[]; book: RescueBook | null; label: (d: Deal) => string }) {
   const r = useMemo(() => recovered(deals, book), [deals, book]);
   const total = r.totals.length ? r.totals.map((t) => formatMinor(t.minor, t.currency)).join(' · ') : 'none yet';
   return (
-    <>
-      <button type="button" className="recov" onClick={(e) => { const t = e.currentTarget; setA((x) => (x ? null : t)); }} aria-haspopup="dialog">
-        <span className="k">Recovered</span><span className={`money ${r.totals.length ? 'okc' : ''}`}>{total}</span>
-      </button>
-      {a ? (
-        <Popover anchor={a} onClose={() => setA(null)} title={`Recovered · ${total}`}>
-          <div className="rsc-pop">
-            <h4>Counts</h4>
-            <ul className="rules">{r.counted.length ? r.counted.map((d) => { const t = dealTotal(d); return <li key={d.id} className="ok">{label(d)} · {wordOf(d).text.toLowerCase()} · <span className="money">{formatMinor(t.minor, t.currency)}</span></li>; })
-              : <li className="unk">no rescued payment yet</li>}</ul>
-            <h4>Doesn’t count</h4>
-            <ul className="rules">{r.notCounted.length ? r.notCounted.map(({ deal, why }) => <li key={deal.id} className="x">{label(deal)} · {WHY_NOT[why as NotCountedWhy] ?? why}</li>) : <li className="unk">nothing</li>}</ul>
-            <p className="ui-hint">Only an invoice PayPal shows paid, with its receipt saved, counts, and only for a renewal PayPal reported failed. Replays never do, and sent is not paid. Each currency is added up on its own.</p>
-          </div>
-        </Popover>
-      ) : null}
-    </>
+    <Section title={<>Recovered · <span className={`money ${r.totals.length ? 'okc' : ''}`}>{total}</span></>}>
+      <div className="rsc-pop">
+        <h4>Counts</h4>
+        <ul className="rules">{r.counted.length ? r.counted.map((d) => { const t = dealTotal(d); return <li key={d.id} className="ok">{label(d)} · {wordOf(d).text.toLowerCase()} · <span className="money">{formatMinor(t.minor, t.currency)}</span></li>; })
+          : <li className="unk">no rescued payment yet</li>}</ul>
+        <h4>Doesn’t count</h4>
+        <ul className="rules">{r.notCounted.length ? r.notCounted.map(({ deal, why }) => <li key={deal.id} className="x">{label(deal)} · {WHY_NOT[why as NotCountedWhy] ?? why}</li>) : <li className="unk">nothing</li>}</ul>
+        <p className="ui-hint">Only an invoice PayPal shows paid, with its receipt saved, counts, and only for a renewal PayPal reported failed. Replays never do, and sent is not paid. Each currency is added up on its own.</p>
+      </div>
+    </Section>
   );
 }
 

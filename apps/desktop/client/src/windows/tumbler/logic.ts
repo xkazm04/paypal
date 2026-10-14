@@ -497,6 +497,18 @@ export function spendMeter(s: Pick<AttentionSnapshot, 'wallet_spend_today_minor'
 
 export const MODE_SHORT: Record<Mode, string> = { sandbox: 'SANDBOX', replay: 'REPLAY', scripted_engine: 'PRACTICE' };
 
+/** The mode in plain words (spoken names and details; the puck's engraving stays MODE_SHORT). */
+export const MODE_TEXT: Record<Mode, string> = { sandbox: 'Sandbox', replay: 'Replay', scripted_engine: 'Practice agent' };
+
+/** The puck's spoken name: how many need you (or what is in motion), the first headline, the mode in
+ *  words (never the raw key) and the lock. */
+export function puckName(o: { needs: number; headline: string | null; inMotion: number; mode: Mode | null; locked: boolean }): string {
+  const lead = o.needs
+    ? `${o.needs} ${o.needs === 1 ? 'needs' : 'need'} you${o.headline ? ` · ${o.headline}` : ''}`
+    : `nothing needs you · ${o.inMotion} in motion`;
+  return `The Tumbler · ${lead}${o.mode ? ` · ${MODE_TEXT[o.mode]}` : ''}${o.locked ? ' · locked' : ''}`;
+}
+
 /** The core's attention items in plain words (lib/words.ts); ids, amounts and actions untouched. */
 export function plainItems(items: readonly AttentionItem[]): AttentionItem[] {
   return items.map((i) => ({ ...i, headline: headlineWords(i.headline), on_silence: silenceWords(i.on_silence) }));

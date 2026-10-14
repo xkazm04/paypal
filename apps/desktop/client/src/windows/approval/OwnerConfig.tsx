@@ -56,6 +56,17 @@ const INFO = {
 } as const;
 type InfoKey = keyof typeof INFO;
 
+/** What a screen reader says for each ⓘ: plain words, never the internal key. */
+const INFO_LABEL: Record<InfoKey, string> = {
+  unlock: 'About unlocking',
+  creds: 'About your PayPal keys',
+  engine: 'About the agent app',
+  house: 'About the house seller',
+  mandates: 'About agent rules',
+  pairing: 'About connections',
+  key: 'About your owner key',
+};
+
 const TARGET_TEXT = { credentials: 'save a key', mandate: 'sign rules', unlock: 'unlock with Windows Hello' } as const;
 
 export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A replayed renewal opened its fix: review it here. */ onReplayed?: (deal: Deal) => void }) {
@@ -201,7 +212,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
   // What is still missing, in the order the checklist below shows it.
   const left = (['Unlock', 'PayPal connection', 'Market prices', 'Signed rules'] as const).filter((_, n) => !steps[n]);
   const i = (k: InfoKey) => (
-    <Btn kind="plain" sm icon aria-label={`About ${k}`} aria-haspopup="dialog" onClick={(e) => { const el = e.currentTarget; setInfo((x) => (x?.k === k ? null : { k, el })); }}>ⓘ</Btn>
+    <Btn kind="plain" sm icon aria-label={INFO_LABEL[k]} aria-haspopup="dialog" onClick={(e) => { const el = e.currentTarget; setInfo((x) => (x?.k === k ? null : { k, el })); }}>ⓘ</Btn>
   );
 
   return (
@@ -260,7 +271,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
               {i('engine')}
             </Row>
             <Row title="House seller" sub={st ? `${HOUSE_TEXT[st.house]}${st.relay_available ? '' : ' · can’t be reached'}` : 'Reading settings…'}>
-              <Chip tone={st ? HOUSE_TONE[st.house] : 'dashed'}>{st ? HOUSE_WORD[st.house] : 'unknown'}</Chip>
+              <Chip tone={st ? HOUSE_TONE[st.house] : 'dashed'}>{st ? HOUSE_WORD[st.house] : 'reading'}</Chip>
               {i('house')}
             </Row>
           </Group>

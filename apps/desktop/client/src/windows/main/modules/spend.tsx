@@ -1,11 +1,9 @@
-// Spend module page, told as a story (docs/ux/ROUND-1.md): one sentence answers "did my agents buy
-// anything I need to look at?", a first-visit explainer shows the three steps, a decision card
-// stands for every held purchase, and the week's other purchases are one plain line each with the
-// rules verdict ("Passed your rules" / "Over the per-deal limit"). The specialist instrument, the
-// gate (a lane per purchase running left to right through the rules you signed toward PayPal), and
-// the Inspector sit behind Simple / Detailed. Simple is the default and needs neither.
-// Main never moves money: paying and releasing a hold are approval-window commands (deal_capture /
-// deal_void are privileged), so both options hand off with approval_open. Pure logic: ./spend/gate.ts.
+// Spend module. The summary is the story in brief: one sentence answers "did my agents buy anything I
+// need to look at?", a decision card stands for every held purchase, and three cards open the nested
+// pages (docs/ux/UX-GUIDE.md, calm-nested-ui): This week (one line per purchase), Rule check (the gate:
+// a lane per purchase running left to right through the rules you signed toward PayPal, with the
+// Inspector) and Rules in force. Main never moves money: paying and releasing a hold are approval-window
+// commands, so both options hand off with approval_open. Pure logic: ./spend/gate.ts.
 // Owner: the spend agent. Styles: ./spend.css, scoped under .mod-spend.
 import { useMemo, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
@@ -13,14 +11,15 @@ import type { Deal } from '@bindings/Deal';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import { clockLabel, formatMinor, shortId } from '../../../lib/format';
 import { useMutation, useQuery } from '../../../lib/hooks';
-import { joinWords, receiptWord, reconWord, RULE_NAME, rulesName, ruleSentence } from '../../../lib/words';
+import { joinWords, receiptWord, reconWord, RULE_NAME, rulesName, ruleSentence, SPEND_VIEW } from '../../../lib/words';
 import { Countdown, MinorMoney, WalletNotice } from '../../../shared/honesty';
 import { Glyph } from '../../../shared/modules';
 import {
-  AnswerBar, Btn, Chip, DecisionCard, DetailToggle, Explainer, Group, Hint, Icon, Inspector, Kv, Loading, Meter, PageHead, Popover, Row, Section, Sheet, useDetail,
+  AnswerBar, Btn, Chip, DecisionCard, DetailPage, Empty, Group, Hint, Icon, Inspector, Kv, Loading, Meter, PageHead, Popover, Row, Section, Sheet, SummaryCard,
   type DecisionOption, type IconName,
 } from '../../../shared/ui';
 import { amountNote, amountTone, canWithdraw, dealTotal, decidedBy, mandatesGoverning } from '../logic';
+import { registerViewLabels, useModuleRoute } from '../viewNav';
 import { useCpLookup, useToast } from '../ui';
 import { useWorld } from '../world';
 import type { ModuleProps } from './common';
@@ -35,11 +34,29 @@ type Lane = { deal: Deal; cells: Cell[]; slot: string | null; own: boolean };
 const cap = (s: string) => `${s.charAt(0).toUpperCase()}${s.slice(1)}`;
 const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
+const SPEND_STEPS = [
+  'Your agent finds something and asks to pay for it.',
+  'Your rules check it first: limits and approved payees, before PayPal hears of it.',
+  'PayPal holds the money until you pay or let it go.',
+];
+
+registerViewLabels('spend', { week: SPEND_VIEW.week, gate: SPEND_VIEW.gate, rules: SPEND_VIEW.rules });
+
+/** A small ⓘ button that opens a popover (the old always-visible explainer lives here now). */
+function InfoPop({ label, title, children }: { label: string; title: string; children: ReactNode }) {
+  const [a, setA] = useState<HTMLElement | null>(null);
+  return (
+    <>
+      <Btn kind="plain" sm aria-label={label} title={label} aria-expanded={!!a} onClick={(e) => { const t = e.currentTarget; setA((x) => (x ? null : t)); }}>ⓘ</Btn>
+      {a ? <Popover anchor={a} onClose={() => setA(null)} title={title} className="mod-spend">{children}</Popover> : null}
+    </>
+  );
+}
+
 /** The Spend page. The root (.module.mod-spend, --mc) comes from ModuleView. */
 export function Spend({ deals, nav }: ModuleProps) {
   const w = useWorld();
-  const [mode, setMode] = useDetail('spend');
-  const detailed = mode === 'detailed';
+  const { view, open } = useModuleRoute();
   const mq = useQuery('mandate_list', null, { refreshOn: ['settings:changed', 'deal:changed'] });
   const purchase = useMemo(() => mandatesGoverning(mq.data ?? [], 'purchase'), [mq.data]);
   const m = purchase[0] ?? null;
@@ -62,23 +79,31 @@ export function Spend({ deals, nav }: ModuleProps) {
   const first = needs[0]?.d.id ?? lanes[0]?.deal.id ?? null;
   const [sel, setSel] = useState<Sel | null>(null);
   const cur: Sel | null = sel && (sel.kind === 'clause' || lanes.some((l) => l.deal.id === sel.id)) ? sel : first ? { kind: 'lane', id: first } : null;
-  const [legendA, setLegendA] = useState<HTMLElement | null>(null);
   const [sheet, setSheet] = useState<{ kind: 'details' | 'clauses'; id: string | null } | null>(null);
 
-  // Simple view: everything that is not a decision card, newest first.
-  const needIds = new Set(needs.map((x) => x.d.id));
-  const rest = lanes.filter((l) => !needIds.has(l.deal.id)).sort((a, b) => (b.deal.created_at ?? 0) - (a.deal.created_at ?? 0));
+  // The week's purchases, newest first.
+  const recent = [...lanes].sort((a, b) => (b.deal.created_at ?? 0) - (a.deal.created_at ?? 0));
+  const refused = deals.filter((d) => outcomeOf(d).kind === 'refused').length;
+  const paid = deals.filter((d) => outcomeOf(d).kind === 'paid').length;
+  const back = () => open(null);
+  const ruleCount = m?.payload.clauses.length ?? 0;
+  const notice = mq.error ? <WalletNotice error={mq.error} what="Your rules" /> : null;
 
-  return (
-    <div className="sp-page">
-      <PageHead title="Spend" icon={<Glyph module="spend" />} focusKey="spend"
-        sub={m ? <>Purchases your agents ask for, checked against your {rulesName(m.agent)} before PayPal hears of it</> : 'No signed rules cover purchases, so every agent purchase is refused'}
-        actions={<>
-          {detailed ? <Btn kind="plain" sm aria-label="How to read the gate" onClick={(e) => { const t = e.currentTarget; setLegendA((x) => (x ? null : t)); }}>How to read this ⓘ</Btn> : null}
-          <DetailToggle value={mode} onChange={setMode} />
-        </>} />
-      {legendA && detailed ? (
-        <Popover anchor={legendA} onClose={() => setLegendA(null)} title="How to read the gate" className="mod-spend">
+  let body: ReactNode;
+  if (view === 'week') {
+    body = (
+      <DetailPage title={SPEND_VIEW.week} onBack={back} icon={<Glyph module="spend" />} sub={count(deals.length, 'purchase')}>
+        {notice ?? (!mq.data ? <Loading what="your rules" /> : (
+          <Group className="sp-list" empty="Your agents haven’t asked to buy anything yet. Their first purchase will show up here.">
+            {recent.map((l) => <PurchaseRow key={l.deal.id} lane={l} cols={cols} onOpen={() => setSheet({ kind: 'details', id: l.deal.id })} />)}
+          </Group>
+        ))}
+      </DetailPage>
+    );
+  } else if (view === 'gate') {
+    body = (
+      <DetailPage title={SPEND_VIEW.gate} onBack={back} icon={<Glyph module="spend" />} sub="Each purchase, rule by rule"
+        info={<InfoPop label="How to read this" title="How to read the rule check">
           <p className="sp-pop-lede">Each line is one purchase, travelling left to right through your rules toward PayPal.</p>
           <div className="sp-legend">
             <span className="sw"><i className="ln" /><span className="sp-dot" /></span><span>passed this rule</span>
@@ -87,54 +112,61 @@ export function Spend({ deals, nav }: ModuleProps) {
             <span className="sw"><i className="ln d" /></span><span>never got further</span>
             <span className="sw"><span className="sp-unk" /></span><span>not known from here</span>
           </div>
-        </Popover>
-      ) : null}
+        </InfoPop>}>
+        {notice ?? (!mq.data ? <Loading what="your rules" /> : <Matrix lanes={lanes} cols={cols} sel={cur} onSel={setSel} />)}
+        {purchase.length > 1 ? <Hint className="sp-gap">{purchase.length} sets of rules cover purchases. This shows the first; purchases under the others open in their deal.</Hint> : null}
+        {cur ? (
+          <Inspector label="Purchase details">
+            <div className="mod-spend sp-insp">
+              {cur.kind === 'lane' ? (() => { const l = laneOf(cur.id); return l ? <LaneStory lane={l} cols={cols} m={m} nav={nav} onSheet={(k) => setSheet({ kind: k, id: l.deal.id })} /> : null; })()
+                : <ClauseStory n={cur.n} cellOf={cur.kind === 'cell' ? laneOf(cur.id) : null} lanes={lanes} cols={cols} m={m} nav={nav}
+                  onAll={(id) => setSheet({ kind: 'clauses', id })} />}
+            </div>
+          </Inspector>
+        ) : null}
+      </DetailPage>
+    );
+  } else if (view === 'rules') {
+    body = (
+      <DetailPage title={SPEND_VIEW.rules} onBack={back} icon={<Glyph module="spend" />}
+        sub={m ? 'Signed by you. Every purchase is checked against these before PayPal is asked.' : undefined}
+        actions={<Btn kind="primary" onClick={() => nav.onSheet('mandates')}>Change rules</Btn>}>
+        {notice ?? (!mq.data ? <Loading what="your rules" /> : m ? (
+          <>
+            <ClauseList m={m} lane={null} />
+            <Hint className="sp-gap">Changing a rule means signing an update in the approval window. An agent can never change its own rules.</Hint>
+          </>
+        ) : <Empty>No signed rules cover purchases, so every agent purchase is refused before PayPal is asked.</Empty>)}
+      </DetailPage>
+    );
+  } else {
+    body = (
+      <>
+        <PageHead title="Spend" icon={<Glyph module="spend" />} focusKey="spend"
+          info={<InfoPop label="How buying works" title="How buying works"><ol className="sp-steps">{SPEND_STEPS.map((s) => <li key={s}>{s}</li>)}</ol></InfoPop>} />
+        <Answer deals={deals} needs={needs} hasRules={!!m} />
+        {needs.length ? (
+          <section className="sp-decisions" aria-label="Needs you">
+            {needs.map(({ d, need }) => <PurchaseDecision key={d.id} deal={d} need={need} m={m} slot={laneOf(d.id)?.slot ?? null} onDetails={() => setSheet({ kind: 'details', id: d.id })} />)}
+          </section>
+        ) : null}
+        <div className="ui-sumcards">
+          <SummaryCard id="week" label={SPEND_VIEW.week} value={count(deals.length, 'purchase')}
+            note={deals.length ? (paid ? `${paid} paid` : 'Nothing paid yet') : 'Nothing asked yet'} onOpen={() => open('week', 'week')} />
+          <SummaryCard id="gate" label={SPEND_VIEW.gate} value={refused ? `${refused} refused` : 'Nothing refused'}
+            note={refused ? 'PayPal was never asked' : undefined} onOpen={() => open('gate', 'gate')} />
+          <SummaryCard id="rules" label={SPEND_VIEW.rules} value={m ? count(ruleCount, 'rule') : 'None signed'}
+            chip={m ? undefined : 'Purchases refused'} chipTone="red" onOpen={() => open('rules', 'rules')} />
+        </div>
+      </>
+    );
+  }
 
-      <Answer deals={deals} needs={needs} hasRules={!!m} />
-
-      <div className="sp-explain">
-        <Explainer id="spend" title="How buying works" steps={[
-          { icon: 'agent', title: 'Agents ask to buy', text: 'Your agent finds something and asks to pay for it.' },
-          { icon: 'rules', title: 'Your rules check it', text: 'Limits and approved payees, before PayPal hears of it.' },
-          { icon: 'hold', title: 'You pay or release', text: 'PayPal holds the money until you pay or let it go.' },
-        ]} />
-      </div>
-
-      {needs.length ? (
-        <section className="sp-decisions" aria-label="Needs you">
-          {needs.map(({ d, need }) => <PurchaseDecision key={d.id} deal={d} need={need} m={m} slot={laneOf(d.id)?.slot ?? null} onDetails={() => setSheet({ kind: 'details', id: d.id })} />)}
-        </section>
-      ) : null}
-
-      {detailed ? (
-        <Section title="This week" end={count(deals.length, 'purchase')}>
-          {mq.error ? <WalletNotice error={mq.error} what="Your rules" /> : !mq.data ? <Loading what="your rules" /> : (
-            <Matrix lanes={lanes} cols={cols} sel={cur} onSel={setSel} />
-          )}
-          {purchase.length > 1 ? <Hint className="sp-gap">{purchase.length} sets of rules cover purchases. The gate shows the first; purchases under the others open in their deal.</Hint> : null}
-        </Section>
-      ) : (
-        <Section title={needs.length ? 'Also this week' : 'This week'} end={count(rest.length, 'purchase')}>
-          {mq.error ? <WalletNotice error={mq.error} what="Your rules" /> : !mq.data ? <Loading what="your rules" /> : (
-            <Group className="sp-list" empty={deals.length ? 'Nothing else this week.' : 'Your agents haven’t asked to buy anything yet. Their first purchase will show up here.'}>
-              {rest.map((l) => <PurchaseRow key={l.deal.id} lane={l} cols={cols} onOpen={() => setSheet({ kind: 'details', id: l.deal.id })} />)}
-            </Group>
-          )}
-        </Section>
-      )}
-
-      {detailed && cur ? (
-        <Inspector label="Purchase details">
-          <div className="mod-spend sp-insp">
-            {cur.kind === 'lane' ? (() => { const l = lanes.find((x) => x.deal.id === cur.id); return l ? <LaneStory lane={l} cols={cols} m={m} nav={nav} onSheet={(k) => setSheet({ kind: k, id: l.deal.id })} /> : null; })()
-              : <ClauseStory n={cur.n} cellOf={cur.kind === 'cell' ? lanes.find((x) => x.deal.id === cur.id) ?? null : null} lanes={lanes} cols={cols} m={m} nav={nav}
-                onAll={(id) => setSheet({ kind: 'clauses', id })} />}
-          </div>
-        </Inspector>
-      ) : null}
-
-      {sheet?.kind === 'details' ? (() => { const l = lanes.find((x) => x.deal.id === sheet.id); return l ? <DetailsSheet lane={l} cols={cols} onClose={() => setSheet(null)} onDeal={() => { setSheet(null); nav.onDeal(l.deal.id); }} onWhy={() => setSheet({ kind: 'clauses', id: l.deal.id })} /> : null; })() : null}
-      {sheet?.kind === 'clauses' && m ? <ClausesSheet m={m} lane={lanes.find((x) => x.deal.id === sheet.id) ?? null} onClose={() => setSheet(null)} onMandates={() => { setSheet(null); nav.onSheet('mandates'); }} /> : null}
+  return (
+    <div className="sp-page">
+      {body}
+      {sheet?.kind === 'details' ? (() => { const l = laneOf(sheet.id ?? ''); return l ? <DetailsSheet lane={l} cols={cols} onClose={() => setSheet(null)} onDeal={() => { setSheet(null); nav.onDeal(l.deal.id); }} onWhy={() => setSheet({ kind: 'clauses', id: l.deal.id })} /> : null; })() : null}
+      {sheet?.kind === 'clauses' && m ? <ClausesSheet m={m} lane={laneOf(sheet.id ?? '')} onClose={() => setSheet(null)} onMandates={() => { setSheet(null); nav.onSheet('mandates'); }} /> : null}
     </div>
   );
 }
@@ -552,6 +584,21 @@ function DetailsSheet({ lane, cols, onClose, onDeal, onWhy }: { lane: Lane; cols
   );
 }
 
+function ClauseList({ m, lane }: { m: MandateListEntry; lane: Lane | null }) {
+  return (
+        <Group className="sp-clist">
+          {m.payload.clauses.map((c, i) => {
+            const cell = lane?.cells.find((x) => x.n === i + 1);
+            const hit = cell && (cell.kind === 'fail' || cell.kind === 'you') ? cell : null;
+            return (
+              <Row key={i} className={hit ? `hit-${hit.kind}` : ''} lead={<span className={`sp-cg ${hit ? hit.kind : ''}`} aria-hidden="true">{hit ? (hit.kind === 'fail' ? '✕' : '◆') : '•'}</span>}
+                title={<><b>{RULE_NAME[c.type]}</b> <span className="tx-dim">· {ruleSentence(c)}</span></>}
+                sub={hit ? <span className={hit.kind === 'fail' ? 'tx-red' : 'tx-gold'}>{cap(hit.text)}</span> : undefined} />
+            );
+          })}
+        </Group>  );
+}
+
 function ClausesSheet({ m, lane, onClose, onMandates }: { m: MandateListEntry; lane: Lane | null; onClose: () => void; onMandates: () => void }) {
   const w = useWorld();
   const refused = lane?.deal.state === 'REFUSED';
@@ -560,17 +607,7 @@ function ClausesSheet({ m, lane, onClose, onMandates }: { m: MandateListEntry; l
     <Sheet title={refused && title ? `Why “${title}” was refused` : `Your ${rulesName(m.agent)}`} size="wide" onClose={onClose} className="mod-spend"
       footer={<><Btn className="left" onClick={onMandates}>Change rules ›</Btn><Btn kind="primary" onClick={onClose}>Done</Btn></>}>
       <Hint className="sp-lede">Signed by you. Every purchase is checked against these before PayPal is asked.{refused ? ' This one never reached PayPal, so there is nothing to undo.' : ''}</Hint>
-      <Group className="sp-clist">
-        {m.payload.clauses.map((c, i) => {
-          const cell = lane?.cells.find((x) => x.n === i + 1);
-          const hit = cell && (cell.kind === 'fail' || cell.kind === 'you') ? cell : null;
-          return (
-            <Row key={i} className={hit ? `hit-${hit.kind}` : ''} lead={<span className={`sp-cg ${hit ? hit.kind : ''}`} aria-hidden="true">{hit ? (hit.kind === 'fail' ? '✕' : '◆') : '•'}</span>}
-              title={<><b>{RULE_NAME[c.type]}</b> <span className="tx-dim">· {ruleSentence(c)}</span></>}
-              sub={hit ? <span className={hit.kind === 'fail' ? 'tx-red' : 'tx-gold'}>{cap(hit.text)}</span> : undefined} />
-          );
-        })}
-      </Group>
+      <ClauseList m={m} lane={lane} />
       <Hint className="sp-gap">Changing a rule means signing an update in the approval window. An agent can never change its own rules.</Hint>
     </Sheet>
   );

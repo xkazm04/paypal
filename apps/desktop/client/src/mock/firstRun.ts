@@ -4,20 +4,22 @@
 // sample week stays untouched and the windows a first-run preview opens stay in the same world.
 // Nothing here moves money; it only chooses which sample world the mock serves.
 import type { Terms } from '@bindings/Terms';
-import { FIRST_RUN_PARAM } from '../lib/preview';
+import { FIRST_RUN_PARAM, SCALE_PARAM, type ScaleName } from '../lib/preview';
 import { buildMockState, type MockState } from './fixtures';
 
 // The param and the world keys live in lib/preview.ts, so a window (the tour) can use them without
 // loading the mock.
-export { FIRST_RUN_PARAM, firstRunPreview, worldKeys } from '../lib/preview';
+export { FIRST_RUN_PARAM, SCALE_PARAM, firstRunPreview, scalePreview, worldKeys } from '../lib/preview';
 
 /** A window the preview opens stays in the first-run world: `approval.html?deal=x` gains `&first_run=1`. */
-export function withFirstRun(page: string, firstRun: boolean): string {
-  if (!firstRun) return page;
+export function withFirstRun(page: string, firstRun: boolean, scale: ScaleName | null = null): string {
+  // A first-run wallet has nothing to scale; otherwise a sized world is carried the same way.
+  const param = firstRun ? ([FIRST_RUN_PARAM, '1'] as const) : scale ? ([SCALE_PARAM, scale] as const) : null;
+  if (!param) return page;
   const hash = page.indexOf('#');
   const [path, frag] = hash < 0 ? [page, ''] : [page.slice(0, hash), page.slice(hash)];
-  if (new URLSearchParams(path.split('?')[1] ?? '').get(FIRST_RUN_PARAM) === '1') return page;
-  return `${path}${path.includes('?') ? '&' : '?'}${FIRST_RUN_PARAM}=1${frag}`;
+  if (new URLSearchParams(path.split('?')[1] ?? '').get(param[0]) === param[1]) return page;
+  return `${path}${path.includes('?') ? '&' : '?'}${param[0]}=${param[1]}${frag}`;
 }
 
 /** The house seller's practice table when the ledger has no sample deal to borrow terms from.

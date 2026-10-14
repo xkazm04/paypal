@@ -63,7 +63,10 @@ pub(super) async fn approval_open(
         previous.close().map_err(|_| invalid())?;
     }
     *state.selected.lock().map_err(|_| invalid())? = args.deal_id;
-    let approval = tauri::WebviewWindowBuilder::new(
+    // Docked: with The Table on screen, the approval window is its child (owned: always above it,
+    // gone with it) and opens centred over it. Otherwise it opens beside its opener, as before.
+    let dock = dock_target(&app);
+    let mut builder = tauri::WebviewWindowBuilder::new(
         &app,
         "approval",
         WebviewUrl::App(PathBuf::from("approval.html")),
@@ -75,10 +78,14 @@ pub(super) async fn approval_open(
     .min_inner_size(744.0, 560.0)
     .resizable(false)
     .minimizable(false)
-    .visible(false)
-    .build()
-    .map_err(|_| invalid())?;
-    if let Err(error) = position_approval(&approval, &window) {
+    .visible(false);
+    if let Some(main) = dock.as_ref() {
+        builder = builder.parent(main).map_err(|_| invalid())?;
+    }
+    let approval = builder.build().map_err(|_| invalid())?;
+    if let Err(error) =
+        position_approval(&approval, dock.as_ref().unwrap_or(&window), dock.is_some())
+    {
         let _ = approval.close();
         return Err(error);
     }

@@ -265,3 +265,7 @@
 .au-broken { display: flex; flex-direction: column; gap: var(--sp-2); }
 .au-broken h3 { margin: var(--sp-2) 0 0; font-size: var(--fs-body); font-weight: var(--fw-semibold); }
 .au-broken ol { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 4px; }
+
+/* calm-nested-ui WP1: the how-it-works popover and spacing inside nested pages */
+.mod-book .bk-how { margin: 0; padding-left: var(--sp-4, 16px); display: grid; gap: var(--sp-2, 8px); }
+.mod-book .ui-detail-body > .totals { margin-bottom: var(--sp-4, 16px); }

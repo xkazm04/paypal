@@ -196,3 +196,6 @@
 /* polish 3: with the inspector open the payee columns keep a readable width and the grid scrolls sideways; the row labels stay put */
 .mod-shield .sh-mxwrap { overflow-x: auto; }
 .mod-shield .sh-mx tbody th[scope="row"], .mod-shield .sh-mx thead .corner, .mod-shield .sh-mx tr.grp th { position: sticky; left: 0; z-index: 1; }
+
+/* calm-nested-ui WP2 */
+.mod-shield .sh-how { margin: 0 0 var(--sp-2); padding-left: var(--sp-4); display: grid; gap: var(--sp-2); }

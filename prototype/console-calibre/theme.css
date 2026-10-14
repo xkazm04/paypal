@@ -1,0 +1,252 @@
+/* The Table · Calibre — the instrument skin over the control (style.css).
+   Everything here is a token or a decoration rule: no layout, no order, no string changes.
+   Remove this file and deco.js and the page is the control again.
+   Motif: the calibrated scale. Hairline 0.5–1 px strokes, ticks at a fixed pitch, a reticle, one
+   soft signal sweep. Type: a DIN-style grotesque for display and money, a humanist UI face for
+   reading, a monospace for scales and microprint. Colour: blue-black slate, cool steel inks,
+   the app's fixed meanings (teal yours, coral theirs, gold needs you / PayPal, green settled,
+   red refused), the six layer colours re-derived at one calibrated lightness. */
+
+/* ---------------------------------------------------------------- tokens: night (default) */
+:root {
+  color-scheme: dark;
+  --bg: #0a0e13; --bg2: #0d1218; --bg-deep: #070a0e; --panel: #111821; --panel2: #17202b; --panel3: #1e2936;
+  --line: #1f2b38; --line2: #2e3d4f; --text: #e4ecf3; --muted: #a9b7c5; --dim: #8796a7; --steel: #b7c6d4; --micro: #6f8396; --market: #cdd8e2;
+  --teal: #3cc4b6; --teal-l: #82e6db; --coral: #ff8f6b; --coral-l: #ffb59d;
+  --gold: #e4b95b; --gold-l: #f2d48f; --gold-d: #b98d32; --foil-d: #6e5420; --red: #f2676b; --red-l: #ff9598; --ok: #72dc96;
+  --on-gold: #1c1404;
+  /* six layers at one lightness (OKLCH L .80, C .105; the ledger kept near-neutral) */
+  --m-tables: #f4a1c1; --m-spend: #79c8fa; --m-counter: #aacb81; --m-book: #c7bda1; --m-shield: #bfb2fc; --m-rescue: #f1ad79;
+  --sheet: #111922; --sheet-hi: #16212c; --sheet-lo: #0e151d; --pile-hi: #131b25; --pile-edge: #243243;
+  --tab: #111922; --tab-mix: #15202b; --tab-lo: #101821; --tab-on: #172330; --strip-lo: #0f161e; --strip-edge: #233142;
+  --disc: #0b1117; --well: #0a0f15; --toolbar: #121a23; --quar: #0d1218; --rdoc-hi: #131c26; --rdoc-lo: #0f161e; --press-lo: #0b1016;
+  --ink-0: #06090d; --scrim-ink: #03060a; --shadow: #000; --hi: #fff; --ink-max: #f4f8fb;
+  --seal: #b7c6d4;
+  /* the brand's own: the graticule ink, the signal, the vignette */
+  --grat: color-mix(in srgb, var(--steel) 7%, transparent);
+  --grat-major: color-mix(in srgb, var(--steel) 12%, transparent);
+  --signal: var(--teal);
+  --vignette: color-mix(in srgb, var(--shadow) 55%, transparent);
+  /* radii: machined, not rounded */
+  --r-pill: .3rem; --r-sheet: .35rem; --r-card: .25rem; --r-tight: .15rem;
+  /* type: display and money in an engineered grotesque, reading in the UI face, scales in mono */
+  --display: "Bahnschrift", "DIN Alternate", "DIN Next LT Pro", "D-DIN", "Barlow", "Segoe UI Variable Display", "SF Pro Display", system-ui, sans-serif;
+  --label: "Bahnschrift SemiCondensed", "Bahnschrift", "DIN Condensed", "DIN Alternate", "Roboto Condensed", "Segoe UI Variable Small", system-ui, sans-serif;
+  --num: "Bahnschrift", "DIN Alternate", "D-DIN", "SF Pro Display", "Segoe UI Variable Display", system-ui, sans-serif;
+  --sans: "Segoe UI Variable Text", "Segoe UI", "SF Pro Text", -apple-system, system-ui, "Helvetica Neue", Arial, sans-serif;
+  --mono: "Cascadia Mono", "Cascadia Code", "SF Mono", ui-monospace, Consolas, Menlo, monospace;
+}
+
+/* ---------------------------------------------------------------- tokens: day (chart paper) */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #e6ebf0; --bg2: #dce3e9; --bg-deep: #d2dae2; --panel: #f4f7f9; --panel2: #e8edf1; --panel3: #d9e1e8;
+  --line: #c9d3dc; --line2: #a7b5c3; --text: #0e1923; --muted: #3c4b5a; --dim: #4f5e6e; --steel: #44566a; --micro: #7d8d9d; --market: #2f4153;
+  --teal: #0a7169; --teal-l: #075f58; --coral: #ad4422; --coral-l: #9b3a1b;
+  --gold: #80600f; --gold-l: #6e520a; --gold-d: #5c4508; --foil-d: #b58a2c; --red: #b83236; --red-l: #a12a2e; --ok: #1a7740;
+  --on-gold: #ffffff;
+  --m-tables: #903c61; --m-spend: #006599; --m-counter: #4a690c; --m-book: #665d44; --m-shield: #604e9b; --m-rescue: #8e4900;
+  --sheet: #f7f9fb; --sheet-hi: #ffffff; --sheet-lo: #eef2f5; --pile-hi: #eef2f5; --pile-edge: #b8c4cf;
+  --tab: #eef2f5; --tab-mix: #e8edf2; --tab-lo: #edf1f4; --tab-on: #f7f9fb; --strip-lo: #edf1f5; --strip-edge: #c2ccd6;
+  --disc: #f3f6f8; --well: #ffffff; --toolbar: #f6f8fa; --quar: #fbf4f0; --rdoc-hi: #ffffff; --rdoc-lo: #f2f5f8; --press-lo: #eaeff3;
+  --ink-0: #dfe5eb; --scrim-ink: #1a2531; --shadow: #2a3a4c; --hi: #fff; --ink-max: #050d16;
+  --seal: #44566a;
+  --grat: color-mix(in srgb, var(--steel) 9%, transparent);
+  --grat-major: color-mix(in srgb, var(--steel) 15%, transparent);
+  --vignette: color-mix(in srgb, var(--shadow) 14%, transparent);
+}
+
+/* ---------------------------------------------------------------- type */
+body { font-family: var(--sans); font-feature-settings: "tnum" 1, "lnum" 1; letter-spacing: .003em; }
+.display, .rdt, .peek .ptitle, .answer, .door b, .stackidx b, .seal-word b, #marquee .n, #marquee .a, .phead h2, .code, .words span {
+  font-family: var(--display); font-weight: 350; letter-spacing: -.012em; }
+.display { font-weight: 330; line-height: 1.12; }
+.brand { font-family: var(--display); font-weight: 400; letter-spacing: .04em; text-transform: uppercase; font-size: 1.12rem; }
+#marquee .n { font-weight: 260; letter-spacing: -.035em; }
+#marquee .k, .kicker, .fl, .h3, .fields .lbl, .quarantine header, .pstamp b, .stamp small, .fstamp, .mstat span, .tab .tt {
+  font-family: var(--label); font-weight: 500; }
+.kicker, .fl, .h3 { letter-spacing: .16em; }
+.tab, .cbtn, .btn, .needpill, .badge, .seg button, .scaleswitch button, .back, .chip { letter-spacing: .015em; }
+.tab { font-family: var(--label); font-weight: 500; font-size: .98rem; letter-spacing: .05em; }
+/* money: one engineered numeral, tabular and lining, slightly tracked, so a sum reads as a reading */
+em.amt, .amt, .pamt, .cert-amt .big, .fv, .fig .v, .mstat b, .adjust .most, .tab .cnt, .srow .when, .rrow .tm, .tape .tm, .story .tm, .left, .daytbl, .code {
+  font-family: var(--num); font-variant-numeric: tabular-nums lining-nums slashed-zero; font-feature-settings: "tnum" 1, "lnum" 1, "zero" 1; }
+em.amt { font-weight: 500; letter-spacing: .01em; }
+.display em.amt { font-weight: 400; letter-spacing: 0; }
+.pamt, .cert-amt .big { font-weight: 300; letter-spacing: -.01em; }
+.srow .amt { font-weight: 500; letter-spacing: .02em; }
+.fv { font-weight: 400; letter-spacing: 0; }
+.fv b { font-family: var(--label); font-weight: 500; letter-spacing: .04em; }
+.mstat b, .fig .v { font-weight: 350; }
+.cbtn kbd, .tab .cnt { font-family: var(--mono); }
+.seal text { font-family: var(--mono); font-weight: 500; letter-spacing: .5px; font-size: 1.85px; }
+.seal text.deg { font-size: 1.9px; letter-spacing: .15px; opacity: .8; }
+.quarantine blockquote { font-family: var(--mono); }
+.field input { font-family: var(--mono); }
+
+/* ---------------------------------------------------------------- the ground: a polar graticule centred on the dial */
+#ground {
+  background:
+    radial-gradient(56rem 40rem at 72% 50%, color-mix(in srgb, var(--seal) 8%, transparent), transparent 70%),
+    radial-gradient(60rem 44rem at 8% -6%, color-mix(in srgb, var(--signal) 7%, transparent), transparent 62%),
+    radial-gradient(50rem 30rem at 50% 118%, color-mix(in srgb, var(--gold) 4%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--bg2) 0%, var(--bg) 55%, var(--bg-deep) 100%);
+}
+#ground::before { opacity: 1;
+  background:
+    repeating-radial-gradient(circle at 72% 50%, transparent 0 calc(3rem - 1px), var(--grat-major) calc(3rem - 1px) 3rem),
+    repeating-conic-gradient(from 0deg at 72% 50%, var(--grat) 0 .1deg, transparent .1deg 7.5deg),
+    linear-gradient(90deg, var(--grat) 1px, transparent 1px) 0 0 / 1.5rem 1.5rem,
+    linear-gradient(0deg, var(--grat) 1px, transparent 1px) 0 0 / 1.5rem 1.5rem;
+  mask: radial-gradient(68rem 46rem at 72% 50%, #000 15%, transparent 78%);
+}
+#ground::after { background: radial-gradient(ellipse at 50% 50%, transparent 55%, var(--vignette) 100%); }
+
+/* ---------------------------------------------------------------- sheets: a calibrated plate, ruled edges, registration corners */
+.sheet { background-image: var(--tex, none), linear-gradient(170deg, var(--sheet-hi) 0%, var(--sheet) 46%, var(--sheet-lo) 100%);
+  box-shadow: 0 2.4rem 5rem color-mix(in srgb, var(--shadow) 55%, transparent), 0 0 0 1px var(--line2), inset 0 1px 0 color-mix(in srgb, var(--hi) 4%, transparent); }
+#front::before { border-color: color-mix(in srgb, var(--c) 30%, transparent);
+  --k: color-mix(in srgb, var(--c) 85%, transparent);
+  --t: color-mix(in srgb, var(--c) 32%, transparent);
+  background:
+    linear-gradient(var(--k), var(--k)) 0 0 / 1.1rem 1.5px no-repeat, linear-gradient(var(--k), var(--k)) 0 0 / 1.5px 1.1rem no-repeat,
+    linear-gradient(var(--k), var(--k)) 100% 0 / 1.1rem 1.5px no-repeat, linear-gradient(var(--k), var(--k)) 100% 0 / 1.5px 1.1rem no-repeat,
+    linear-gradient(var(--k), var(--k)) 0 100% / 1.1rem 1.5px no-repeat, linear-gradient(var(--k), var(--k)) 0 100% / 1.5px 1.1rem no-repeat,
+    linear-gradient(var(--k), var(--k)) 100% 100% / 1.1rem 1.5px no-repeat, linear-gradient(var(--k), var(--k)) 100% 100% / 1.5px 1.1rem no-repeat,
+    repeating-linear-gradient(90deg, var(--t) 0 1px, transparent 1px 3rem) 1.5rem 0 / calc(100% - 3rem) .45rem no-repeat,
+    repeating-linear-gradient(90deg, var(--t) 0 1px, transparent 1px .6rem) 1.5rem 0 / calc(100% - 3rem) .22rem no-repeat,
+    repeating-linear-gradient(90deg, var(--t) 0 1px, transparent 1px 3rem) 1.5rem 100% / calc(100% - 3rem) .45rem no-repeat,
+    repeating-linear-gradient(90deg, var(--t) 0 1px, transparent 1px .6rem) 1.5rem 100% / calc(100% - 3rem) .22rem no-repeat;
+}
+#front::after { height: 1px; background: linear-gradient(90deg, transparent 4%, var(--c) 30%, var(--c) 70%, transparent 96%); box-shadow: 0 0 .8rem color-mix(in srgb, var(--c) 60%, transparent); }
+.mp { font-family: var(--mono); font-size: 7px; letter-spacing: .32em; font-weight: 500; opacity: .62; color: color-mix(in srgb, var(--c, var(--micro)) 45%, var(--micro)); }
+#pile .psheet { background: linear-gradient(170deg, var(--pile-hi), var(--sheet-lo)); box-shadow: 0 0 0 1px var(--pile-edge), 0 1rem 2rem color-mix(in srgb, var(--shadow) 40%, transparent); }
+#pile .psheet::before { content: ''; position: absolute; left: 1.5rem; right: 1.5rem; bottom: 0; height: .3rem;
+  background: repeating-linear-gradient(90deg, color-mix(in srgb, var(--steel) 22%, transparent) 0 1px, transparent 1px .6rem); }
+
+/* the tabs: machined index tabs with a lit top edge */
+.tab { background-image: var(--tex, none), linear-gradient(180deg, color-mix(in srgb, var(--c) 10%, var(--tab-mix)), var(--tab-lo));
+  box-shadow: inset 0 1px 0 var(--c), 0 0 0 1px var(--line2); }
+.tab:hover, .tab:focus-visible { color: var(--ink-max); box-shadow: inset 0 1.5px 0 var(--c), 0 0 0 1px var(--c), 0 0 1.2rem color-mix(in srgb, var(--c) 28%, transparent); }
+.tab.active { color: var(--ink-max); background-image: var(--tex, none), linear-gradient(180deg, color-mix(in srgb, var(--c) 16%, var(--tab-on)), var(--tab-mix));
+  box-shadow: inset 0 2px 0 var(--c), 1px 0 0 var(--line2), -1px 0 0 var(--line2), 0 -.5rem 1.4rem color-mix(in srgb, var(--c) 22%, transparent); }
+.tab .cnt { border-radius: var(--r-tight); box-shadow: 0 0 .6rem color-mix(in srgb, var(--gold) 55%, transparent); }
+
+/* ---------------------------------------------------------------- the dial (deco.js draws it) */
+.seal .disc { background: radial-gradient(circle, var(--disc) 0 62%, color-mix(in srgb, var(--disc) 40%, transparent) 70%, transparent 72%); }
+.seal .bA path { stroke-width: .6px; opacity: .62; }
+.seal .bB path { stroke-width: .6px; opacity: .5; }
+.seal .bC path { stroke-width: .7px; opacity: .72; }
+.seal circle { stroke-width: .6px; opacity: .5; }
+.seal .bS { color: var(--seal); animation: spin 18s linear infinite; }
+.seal .bS .edge { stroke: currentColor; stroke-width: 1px; opacity: .8; filter: drop-shadow(0 0 3px currentColor); }
+.seal[data-s="quiet"] .bS { animation-duration: 54s; }
+.seal[data-s="needs"] .bS { animation-duration: 9s; }
+.seal[data-s="holding"] .bS { color: var(--coral); }
+.seal[data-s="stopped"] .bS { opacity: .25; }
+.seal .glow { background: radial-gradient(circle, color-mix(in srgb, var(--seal) 16%, transparent) 0%, color-mix(in srgb, var(--seal) 5%, transparent) 44%, transparent 66%); }
+.seal[data-s="holding"] .glow { background: radial-gradient(circle, transparent 38%, color-mix(in srgb, var(--coral) 14%, transparent) 52%, transparent 66%); }
+.seal .arc .trk { stroke: color-mix(in srgb, var(--gold) 12%, transparent); stroke-width: 1px; stroke-dasharray: .004 .0045; }
+.seal .arc .lft { stroke-width: 2px; stroke-linecap: butt; }
+.seal-word { margin-top: .6rem; }
+.seal-word b { font-size: 1.75rem; font-weight: 330; letter-spacing: .005em; line-height: 1.2; }
+.seal-word span { font-family: var(--label); letter-spacing: .06em; }
+#front:not(.mode-centre) .seal .disc { background: radial-gradient(circle, var(--tab-on) 0 64%, var(--panel) 70%); box-shadow: 0 .6rem 1.6rem color-mix(in srgb, var(--shadow) 55%, transparent), 0 0 0 1px var(--line2); }
+.brand svg { color: var(--signal); filter: drop-shadow(0 0 .35rem color-mix(in srgb, var(--signal) 45%, transparent)); }
+.phead svg.mini-seal { color: var(--gold); }
+
+/* ---------------------------------------------------------------- indicators: square LEDs, not dots */
+.chip::before, .word::before, .srow .dot, .rpick .dot, .needpill::before, .badge.sandbox::before, .rset > summary::before, .tape li button::before { border-radius: 1px; }
+.needpill::before { box-shadow: 0 0 .5rem var(--gold), 0 0 0 2px color-mix(in srgb, var(--gold) 25%, transparent); }
+.word.tone-teal::before, .word.tone-gold::before, .word.tone-coral::before { box-shadow: 0 0 .45rem currentColor; }
+.chip { border-radius: var(--r-tight); }
+.depth i { border-radius: 0; width: .22rem; }
+.depth i.on { background: var(--signal); box-shadow: 0 0 .4rem color-mix(in srgb, var(--signal) 70%, transparent); }
+.stackidx .tk i { border-radius: 0; height: 1px; }
+.stackidx .tk i.on { background: var(--signal); height: 2px; box-shadow: 0 0 .4rem var(--signal); }
+
+/* ---------------------------------------------------------------- controls */
+.btn.gold { background: linear-gradient(180deg, color-mix(in srgb, var(--gold-l) 70%, var(--gold)), var(--gold)); border-color: var(--gold-l);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 30%, transparent), 0 .5rem 1.6rem color-mix(in srgb, var(--gold) 24%, transparent), inset 0 1px 0 color-mix(in srgb, var(--hi) 40%, transparent); font-weight: 600; letter-spacing: .03em; }
+.btn.gold:hover { box-shadow: 0 0 0 1px var(--gold-l), 0 .6rem 2rem color-mix(in srgb, var(--gold) 36%, transparent), inset 0 1px 0 color-mix(in srgb, var(--hi) 40%, transparent); }
+.hold { background: linear-gradient(180deg, color-mix(in srgb, var(--gold-l) 70%, var(--gold)), var(--gold)); }
+.hold .ros { border-radius: 50%; background: var(--disc); }
+.hold .ros path { stroke-width: 1.1; }
+.hold .ros circle { stroke: color-mix(in srgb, var(--gold) 22%, transparent); stroke-width: .4; }
+.pager { border-radius: 50%; }
+.why > summary::before { font-family: var(--mono); font-style: normal; border-radius: var(--r-tight); }
+.search:focus-within { border-color: var(--signal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal) 14%, transparent); }
+.meter .bar { height: .45rem; border-radius: 0; background: var(--bg2) repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), color-mix(in srgb, var(--steel) 30%, transparent) calc(10% - 1px) 10%); }
+.meter .bar i { border-radius: 0; box-shadow: 0 0 .6rem color-mix(in srgb, var(--teal) 50%, transparent); }
+.meter.hot .bar i { box-shadow: 0 0 .6rem color-mix(in srgb, var(--gold) 50%, transparent); }
+.adjust input[type=range] { accent-color: var(--teal); }
+
+/* ---------------------------------------------------------------- dividers: hairlines with a tick */
+.facts { border-top: 1px solid var(--line2); position: relative; }
+.facts::before { content: ''; position: absolute; left: 0; right: 0; top: -1px; height: .35rem; pointer-events: none;
+  background: repeating-linear-gradient(90deg, var(--line2) 0 1px, transparent 1px 1.5rem); }
+.fact + .fact { border-left: 1px solid var(--line); }
+.story li, .rlines li, .away li, .chpreview .fields li { border-bottom-style: solid; }
+.story li { border-bottom-color: var(--line); }
+.h3::before { content: ''; display: inline-block; width: .9rem; height: .5rem; margin-right: .55rem; vertical-align: .05em;
+  border-left: 1px solid currentColor; border-bottom: 1px solid currentColor; opacity: .7; }
+.silence.big { border-left: 2px solid var(--steel); background: linear-gradient(90deg, color-mix(in srgb, var(--steel) 7%, transparent), transparent 80%); }
+.also { border-top-color: var(--line2); }
+.wcard { box-shadow: inset 2px 0 0 var(--c), 0 0 0 1px var(--line); }
+.wcard:hover { box-shadow: inset 2px 0 0 var(--c), 0 0 0 1px var(--line2), 0 0 1rem color-mix(in srgb, var(--c) 10%, transparent); }
+.ustrip { box-shadow: inset 0 1px 0 var(--c, var(--line2)), 0 0 0 1px var(--strip-edge); }
+.toolbar { background: linear-gradient(180deg, var(--toolbar) 80%, color-mix(in srgb, var(--toolbar) 0%, transparent)); }
+.inner, .cmain, .pbody { scrollbar-color: var(--line2) transparent; }
+.tape::before { background: repeating-linear-gradient(180deg, var(--line2) 0 .5rem, transparent .5rem .75rem); }
+
+/* ---------------------------------------------------------------- readouts after a decision (were rubber stamps) */
+.stamp { transform: none; border: 1px solid var(--sc, var(--gold)); border-radius: var(--r-tight); font-family: var(--display); font-weight: 350; letter-spacing: .04em;
+  background: color-mix(in srgb, var(--bg) 88%, transparent) linear-gradient(var(--sc, var(--gold)), var(--sc, var(--gold))) 0 0 / .8rem 2px no-repeat;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--bg) 70%, transparent), 0 0 0 5px color-mix(in srgb, var(--sc, var(--gold)) 40%, transparent), 0 0 2.4rem color-mix(in srgb, var(--sc, var(--gold)) 22%, transparent);
+  text-shadow: 0 0 1.2rem color-mix(in srgb, var(--sc, var(--gold)) 45%, transparent); animation-name: readin; animation-timing-function: var(--ease); }
+@keyframes readin { 0% { opacity: 0; transform: scale(1.06); filter: blur(3px); } 40% { opacity: 1; filter: none; } 55% { opacity: .55; } 100% { opacity: 1; transform: none; } }
+.pstamp, .pstamp:nth-child(2n) { transform: none; border-radius: var(--r-tight); border-width: 1px; box-shadow: inset 2px 0 0 var(--gold); padding-left: 1rem; }
+.pstamp b { font-family: var(--label); }
+.fstamp { transform: none; border-width: 1px; border-radius: var(--r-tight); animation-name: readin; }
+
+/* counterparty words: fenced as untrusted input, a hazard rail and a cut corner */
+.quarantine { transform: none; border-width: 1px; border-radius: 0;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--coral) 70%, transparent) 0 3px, transparent 3px), repeating-linear-gradient(-45deg, color-mix(in srgb, var(--coral) 4%, transparent) 0 .4rem, transparent .4rem .8rem), var(--quar); }
+
+/* ---------------------------------------------------------------- the approval layer: a gold scale across the top */
+#press { box-shadow: 0 -2rem 6rem color-mix(in srgb, var(--shadow) 70%, transparent), 0 0 0 1px color-mix(in srgb, var(--gold) 50%, transparent), 0 -1px 2rem color-mix(in srgb, var(--gold) 12%, transparent); }
+#press .foil { height: 1.2rem; background: var(--gtex, none) 0 0 / 40px 100% repeat-x, linear-gradient(90deg, var(--foil-d), var(--gold-l) 22%, var(--gold) 50%, var(--gold-l) 78%, var(--foil-d)); }
+.pamt { text-shadow: 0 0 2rem color-mix(in srgb, var(--gold) 28%, transparent); }
+.phead h2 { letter-spacing: .01em; }
+.phead h2 span { font-family: var(--sans); letter-spacing: 0; }
+#find .box { box-shadow: 0 2rem 5rem color-mix(in srgb, var(--shadow) 60%, transparent), 0 0 0 1px color-mix(in srgb, var(--signal) 25%, transparent); }
+
+/* ---------------------------------------------------------------- the day theme: lighter shadows, ink-weight art */
+:root[data-theme="light"] #ground::before { mask: radial-gradient(70rem 48rem at 72% 50%, #000 25%, transparent 85%); }
+:root[data-theme="light"] .sheet { box-shadow: 0 1.6rem 3.6rem color-mix(in srgb, var(--shadow) 16%, transparent), 0 0 0 1px var(--line2), inset 0 1px 0 var(--hi); }
+:root[data-theme="light"] #pile .psheet { box-shadow: 0 0 0 1px var(--pile-edge), 0 .8rem 1.6rem color-mix(in srgb, var(--shadow) 10%, transparent); }
+:root[data-theme="light"] .tab:hover, :root[data-theme="light"] .tab:focus-visible, :root[data-theme="light"] .tab.active { color: var(--c); }
+:root[data-theme="light"] .tab { color: color-mix(in srgb, var(--c) 80%, var(--text)); }
+:root[data-theme="light"] .btn.gold, :root[data-theme="light"] .hold { background: linear-gradient(180deg, #8d6b16, var(--gold)); border-color: var(--gold-d); }
+:root[data-theme="light"] .hold .ros { background: #fffaf0; }
+:root[data-theme="light"] .display em.amt, :root[data-theme="light"] .pamt { text-shadow: none; }
+:root[data-theme="light"] .stamp { background-color: color-mix(in srgb, var(--sheet) 94%, transparent); text-shadow: none; }
+:root[data-theme="light"] #front:not(.mode-centre) .seal .disc { box-shadow: 0 .4rem 1rem color-mix(in srgb, var(--shadow) 16%, transparent), 0 0 0 1px var(--line2); }
+:root[data-theme="light"] .seal .bA path, :root[data-theme="light"] .seal .bC path { opacity: .8; }
+:root[data-theme="light"] .seal .bB path, :root[data-theme="light"] .seal circle { opacity: .66; }
+:root[data-theme="light"] .seal .bS .edge { filter: none; }
+:root[data-theme="light"] #marquee .n { text-shadow: none; }
+:root[data-theme="light"] .scrim, :root[data-theme="light"] #scrim { background: color-mix(in srgb, var(--scrim-ink) 32%, transparent); }
+:root[data-theme="light"] .tab.active .tt, :root[data-theme="light"] .tab .tt { color: var(--dim); }
+:root[data-theme="light"] #press .foil { opacity: 1; }
+:root[data-theme="light"] .badge.sandbox { color: var(--gold-l); }
+@media (max-width: 760px) {
+  :root[data-theme="light"] #bar, :root[data-theme="light"] #foot { background: color-mix(in srgb, var(--bg) 95%, transparent); }
+}
+
+/* ---------------------------------------------------------------- calm motion: the sweep stands still */
+body.calm .seal .bS { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .seal .bS { animation: none !important; }
+  .stamp, .fstamp { animation-name: fadein !important; }
+}
