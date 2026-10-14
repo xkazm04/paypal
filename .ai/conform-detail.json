@@ -1,0 +1,78 @@
+{
+  "schema": "conform-detail/1",
+  "pairs": {
+    "6ad8f933-5c5e-4ed6-8ace-f642dffc558f/test-harness": {
+      "context": "table-engine-agent-process",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-14",
+      "evaluatedTs": "2026-10-14T23:18:09.459Z",
+      "worker": "a0c1a5ea-74bf-43ad-ba3e-7af40cca4f16",
+      "techniques": [
+        {
+          "technique": "isolation-lanes",
+          "verdict": "deviation",
+          "evidence": "crates/table-engine/tests/native.rs:9 The root helper creates a ULID directory and returns a plain PathBuf; no teardown or wrapper reaps these roots. Production RunDirectory cleanup removes only run subdirectories."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/tests/native.rs:147 The test observes the prompt received through the actual child's stdin, rather than merely checking a pre-spawn derivation; this certifies the fixture crossing, not real CLI compatibility."
+        }
+      ]
+    },
+    "2388265b-2923-4e49-b59f-7f4453fa4f88/test-harness": {
+      "context": "runtime-money-controls",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-14",
+      "evaluatedTs": "2026-10-14T23:18:09.459Z",
+      "worker": "a0c1a5ea-74bf-43ad-ba3e-7af40cca4f16",
+      "techniques": [
+        {
+          "technique": "gate-scope-is-not-report-scope",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/checks_tests.rs:371 The test named a_ledger_change_after_the_summary_makes_its_real_hash_stale_for_every_money_decision manually lists six non-void variants; completeness is not mechanically tied to the Decision definition."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/tests.rs:395 The shared runtime fixture constructs a fresh ledger, MemoryVault, OfflineHttp and TestClock for each caller, keeping these tests independent of machine credentials and prior-test wallet state."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/tests.rs:359 The forgery helper re-signs changed bundles, requires the evidence signature to pass, and asserts that the named target check is applicable, executed and failed; an outer signature rejection cannot substitute for that target."
+        }
+      ]
+    },
+    "60b8c7a9-421c-43fa-aff2-d1ede8cf38d9/test-harness": {
+      "context": "approval-window-shell",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-14",
+      "evaluatedTs": "2026-10-14T23:18:09.459Z",
+      "worker": "a0c1a5ea-74bf-43ad-ba3e-7af40cca4f16",
+      "techniques": [
+        {
+          "technique": "gate-scope-is-not-report-scope",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/gating.test.ts:26 Tests claiming every combination iterate manually listed union members. DealState[] permits an incomplete list, and the numerical case floor does not detect a newly omitted state."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/actions.test.tsx:28 The rendered Actions tests explicitly unmount their React trees after each case; their callback mocks and gate fixtures are created per setup."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/notices.test.ts:19 The unparsed matcher accepts commented JSX, and discovery includes .test.tsx files. An in-memory comment-only probe matched both its token-error selector and required footerNoticeText call needle."
+        }
+      ]
+    }
+  }
+}
