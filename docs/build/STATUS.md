@@ -29,6 +29,7 @@ live PayPal call, deployment, GUI launch, native keyring write or git state chan
 | B6 MCP | Seven implemented tools with role/session/run/mandate checks; catalog tools deferred. |
 | B7 App + services | Core, relay pairing/delivery, buyer evidence and hosted HOUSE implemented. Financial crash-gap recovery remains deferred. |
 | B8 Desktop + bindings | Complete committed shell baseline: Windows Tauri compile, three windows/capabilities, read/routing commands, targeted events, tray/hotkey/single-instance, generated TypeScript and handoff. P1 supersedes its guarded unavailable payment handlers; native behavior still needs interactive verification. |
+| Bindings orphan gate | `generate-bindings` clears bindings/*.ts before emitting; tests/bindings.rs fails on any bindings/*.ts no type produces (a removed Rust type). |
 | P1 Native activation | Core, relay/receipt and hosted HOUSE implemented and offline-tested; P3 rescue and native UAT remain. |
 | P2 Native engines | Process/actor/MCP lifecycle implemented; 134 offline tests pass. Native availability remains gated by unproven pre-input inventory ordering. |
 | P3 Tools/endpoints/rescue | Partial: cached market/Book tools, privileged native market refresh and typed secondary endpoint clients. Catalog tools and durable rescue execution remain deferred. |
