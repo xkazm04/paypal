@@ -1,5 +1,5 @@
-/* Main window · Ctrl K find palette (Palette.tsx), v2 look. Owner: the setup agent.
-   Sits on the shared scrim (z-scrim) at sheet height (z-sheet); popovers and toasts stay above. */
+/* Find (console/Find.tsx), the old Ctrl K palette's look kept. Sits on the shared scrim (z-scrim) at sheet
+   height (z-sheet); popovers and toasts stay above. */
 .pal { position: fixed; z-index: var(--z-sheet); left: 50%; top: 12vh; transform: translateX(-50%);
   width: min(600px, calc(100vw - 32px)); max-height: min(560px, 76vh); display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
   background: var(--panel); border-radius: var(--r-lg); box-shadow: var(--shadow-3); overflow: hidden; animation: pal-in var(--t-med) var(--ease); }

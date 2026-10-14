@@ -11,7 +11,7 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import { clockLabel, nowUnix } from '../../../lib/format';
 import { watchLine } from '../../../lib/marketWatch';
 import { fingerprintGroups, PERMISSIONS_FINGERPRINT, PERMISSIONS_FINGERPRINT_MEANS, KEEP_PRACTICE_AGENT, PRICE_CHECKS_USED_UP, rulesName, START_STEP } from '../../../lib/words';
-import { useStart } from '../home/Start';
+import { useStart } from './start';
 import { useMutation, useNow, useQuery } from '../../../lib/hooks';
 import { ModeBadge, RunBadge, WalletNotice } from '../../../shared/honesty';
 import { OwnerKey } from '../../../shared/ownerKey';

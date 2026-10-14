@@ -336,18 +336,32 @@ export type SheetTab = 'settings' | 'pairing' | 'mandates';
 /** The five in-app setup steps (#s=setup&step=...), in order. The first is the fallback. */
 export const SETUP_STEPS = ['keys', 'rules', 'practice', 'agent', 'unlock'] as const;
 export type SetupStep = (typeof SETUP_STEPS)[number];
+/** Where a deal page was opened from (its parent in the stack): a module, or one of its detail views. */
+export type DealFrom = { module: Module; view?: string };
 export type Route =
+  /** The decision centre (the console's first layer). */
   | { level: 'home' }
   /** `view` is a nested detail page of the module (absent = the summary page). */
   | { level: 'module'; module: Module; view?: string }
-  | { level: 'deal'; deal: string }
-  /** The in-app Set up page; `step` absent = the first step. */
-  | { level: 'setup'; step?: SetupStep };
+  /** `from` is the module page the deal was opened from; absent = the deal's own module. */
+  | { level: 'deal'; deal: string; from?: DealFrom }
+  /** The in-app Set up page (the Charter); `step` absent = the first step. */
+  | { level: 'setup'; step?: SetupStep }
+  /** Everything that waits on the owner; `module` narrows it to one module. */
+  | { level: 'waiting'; module?: Module }
+  /** The week replayed from the wallet's record. */
+  | { level: 'rewind' };
 
 const isSetupStep = (v: string | null): v is SetupStep => !!v && (SETUP_STEPS as readonly string[]).includes(v);
+const isModule = (v: string | null): v is Module => !!v && (MODULE_KEYS as readonly string[]).includes(v);
 /** A view key is a short slug; anything else is dropped so the hash can never carry free text. */
 const VIEW_KEY = /^[a-z][a-z0-9-]{0,39}$/;
 
+/**
+ * The hash forms (every older link still parses): `#m=<module>[&v=<view>]`, `#d=<deal>[&m=..&v=..]`
+ * (the deal and the module page it was opened from), `#s=settings|pairing|mandates` (a sheet over
+ * the route), `#s=setup&step=<step>`, `#w=waiting[&f=<module>]`, `#r=rewind`, `#c=centre` (= no hash).
+ */
 export function parseHash(hash: string): { route: Route; sheet: SheetTab | null } {
   const params = new URLSearchParams(hash.replace(/^#/, ''));
   const m = params.get('m');
@@ -355,14 +369,21 @@ export function parseHash(hash: string): { route: Route; sheet: SheetTab | null 
   const s = params.get('s');
   const v = params.get('v');
   const sheet: SheetTab | null = s === 'settings' || s === 'pairing' || s === 'mandates' ? s : null;
-  if (d) return { route: { level: 'deal', deal: d }, sheet };
+  if (d) {
+    const from: DealFrom | null = isModule(m) ? (v && VIEW_KEY.test(v) ? { module: m, view: v } : { module: m }) : null;
+    return { route: from ? { level: 'deal', deal: d, from } : { level: 'deal', deal: d }, sheet };
+  }
   if (s === 'setup') {
     const step = params.get('step');
     return { route: { level: 'setup', step: isSetupStep(step) ? step : 'keys' }, sheet: null };
   }
-  if (m && (MODULE_KEYS as readonly string[]).includes(m)) {
-    const module = m as Module;
-    return { route: v && VIEW_KEY.test(v) ? { level: 'module', module, view: v } : { level: 'module', module }, sheet };
+  if (params.get('r') === 'rewind') return { route: { level: 'rewind' }, sheet };
+  if (params.get('w') === 'waiting') {
+    const f = params.get('f');
+    return { route: isModule(f) ? { level: 'waiting', module: f } : { level: 'waiting' }, sheet };
+  }
+  if (isModule(m)) {
+    return { route: v && VIEW_KEY.test(v) ? { level: 'module', module: m, view: v } : { level: 'module', module: m }, sheet };
   }
   return { route: { level: 'home' }, sheet };
 }
@@ -374,22 +395,36 @@ export function formatHash(route: Route, sheet: SheetTab | null): string {
     parts.push(`m=${route.module}`);
     if (route.view) parts.push(`v=${encodeURIComponent(route.view)}`);
   }
-  if (route.level === 'deal') parts.push(`d=${encodeURIComponent(route.deal)}`);
+  if (route.level === 'deal') {
+    parts.push(`d=${encodeURIComponent(route.deal)}`);
+    if (route.from) {
+      parts.push(`m=${route.from.module}`);
+      if (route.from.view) parts.push(`v=${encodeURIComponent(route.from.view)}`);
+    }
+  }
+  if (route.level === 'waiting') {
+    parts.push('w=waiting');
+    if (route.module) parts.push(`f=${route.module}`);
+  }
+  if (route.level === 'rewind') parts.push('r=rewind');
   if (sheet) parts.push(`s=${sheet}`);
   return parts.length ? `#${parts.join('&')}` : '';
 }
 
 /**
  * Where Esc / the back button goes from `route` (overlays are handled before this): a module's
- * detail page -> its summary, a module or setup -> home, a deal -> its module (or home).
+ * detail page -> its summary, a module, setup, the waiting list or the Rewind -> home, a deal -> the
+ * page it was opened from, else its module (or home).
  * `knownView` says whether the route's view is a real page (an unknown one already shows the
  * summary, so it steps straight on). Null at home.
  */
 export function stepBack(route: Route, dealModule: Module | null, knownView = true): Route | null {
   switch (route.level) {
     case 'home': return null;
-    case 'setup': return { level: 'home' };
-    case 'deal': return dealModule ? { level: 'module', module: dealModule } : { level: 'home' };
+    case 'setup': case 'waiting': case 'rewind': return { level: 'home' };
+    case 'deal':
+      if (route.from) return route.from.view && knownView ? { level: 'module', module: route.from.module, view: route.from.view } : { level: 'module', module: route.from.module };
+      return dealModule ? { level: 'module', module: dealModule } : { level: 'home' };
     case 'module': return route.view && knownView ? { level: 'module', module: route.module } : { level: 'home' };
   }
 }

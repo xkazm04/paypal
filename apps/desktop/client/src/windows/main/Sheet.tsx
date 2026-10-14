@@ -8,9 +8,9 @@
 import { Suspense, useState } from 'react';
 import { ModeBadge } from '../../shared/honesty';
 import { lazyPart } from '../../lib/lazy';
-import { SETUP_SETTINGS_LINK } from '../../lib/words';
+import { CHARTER_OPEN, SETUP_SETTINGS_LINK } from '../../lib/words';
 import { Btn, Chip, Sheet as UiSheet, useDetail } from '../../shared/ui';
-import { setupHash } from './home/Start';
+import { setupHash } from './setup/start';
 import type { SheetTab } from './logic';
 import '../../shared/ownerKey.css';
 import './setup/setup.css';
@@ -46,6 +46,7 @@ export function Sheet({ tab, pair, onTab, onClose }: { tab: SheetTab; /** Connec
           <button key={t.value} type="button" role="tab" aria-selected={tab === t.value} onClick={() => onTab(t.value)}>{t.label}</button>
         ))}
       </div>
+      {tab === 'settings' && !s?.first_run ? <Btn sm kind="plain" title={CHARTER_OPEN.title} onClick={() => { location.hash = setupHash(); }}>{CHARTER_OPEN.act}</Btn> : null}
       {w.locked ? <Chip tone="gold" title="Locked after 15 quiet minutes: approving asks for Windows Hello">locked</Chip> : null}
       {s ? <ModeBadge mode={s.mode} /> : null}
     </div>
