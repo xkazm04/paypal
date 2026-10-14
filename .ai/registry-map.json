@@ -834,7 +834,11 @@
           "revision": 26,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/notices.test.ts:19 The notice wiring test scans raw text from every .tsx file, allowing commented JSX and test-fixture markup to count as rendered-notice evidence.",
+          "evaluatedAt": "2026-10-14",
+          "evaluatedAgainst": "sha256-b2:5521806124d93882",
+          "evaluatedRevision": 26
         },
         {
           "subject": "agent-runtime-assembly",
@@ -6296,7 +6300,11 @@
           "revision": 26,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-runtime/src/checks_tests.rs:371 The stale-checklist test claims every money decision but enumerates a manual array, allowing a new decision to escape the claimed coverage without failing this test.",
+          "evaluatedAt": "2026-10-14",
+          "evaluatedAgainst": "sha256-b2:5521806124d93882",
+          "evaluatedRevision": 26
         },
         {
           "subject": "quality-gates",
@@ -7195,7 +7203,11 @@
           "revision": 26,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-engine/tests/native.rs:11 Native tests create per-test scratch roots without a teardown or startup reaper, leaving their input and evidence directories behind.",
+          "evaluatedAt": "2026-10-14",
+          "evaluatedAgainst": "sha256-b2:5521806124d93882",
+          "evaluatedRevision": 26
         },
         {
           "subject": "agent-runtime-assembly",
