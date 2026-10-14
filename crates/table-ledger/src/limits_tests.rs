@@ -164,3 +164,39 @@ fn the_exposure_window_equals_the_velocity_window_under_one_mandate() {
     assert_eq!(now[0].deals_today, 2);
     assert_eq!(now[0].committed.minor(), 4 * 32900);
 }
+
+/// The ledger's per-mandate usage count and table-core's `is_agreed_or_later` are one set: for
+/// every deal state, a deal with no readable agreement row counts against another deal exactly
+/// when the core predicate says so (and a released state never counts).
+#[test]
+fn usage_for_counts_exactly_the_states_the_core_predicate_names() {
+    let (mut ledger, base, ..) = setup();
+    let probe = budget_deal(&mut ledger, &base, 1);
+    for (i, state) in DealState::ALL.into_iter().enumerate() {
+        let ghost = budget_deal(&mut ledger, &base, 2 + i as u32);
+        ledger
+            .conn
+            .execute(
+                "UPDATE deals SET state=?2 WHERE id=?1",
+                params![
+                    ghost.id.to_string(),
+                    repositories::enum_text(&state).unwrap()
+                ],
+            )
+            .unwrap();
+        let counted = ledger.usage_for(&probe, 200).unwrap().deals_today;
+        assert_eq!(
+            counted,
+            u16::from(state.is_agreed_or_later() && !state.is_released()),
+            "{state:?}"
+        );
+        // Release it, so the next state is measured alone.
+        ledger
+            .conn
+            .execute(
+                "UPDATE deals SET state='REFUSED' WHERE id=?1",
+                [ghost.id.to_string()],
+            )
+            .unwrap();
+    }
+}

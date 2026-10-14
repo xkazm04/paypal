@@ -339,3 +339,21 @@ fn every_playbook_is_fixed_text_naming_every_refusal_code() {
         }
     }
 }
+
+/// The code comes from the refusal's typed cause, not from its text: the same words with no cause
+/// are an ordinary clause refusal.
+#[test]
+fn a_refusal_code_is_read_from_the_cause_not_the_text() {
+    use crate::{DEADLINE_REACHED, Refusal, RefusalCause};
+    let typed = Refusal::new(4, DEADLINE_REACHED).caused_by(RefusalCause::Deadline);
+    assert_eq!(
+        RefusalCode::from_refusal(&typed),
+        RefusalCode::DeadlinePassed
+    );
+    let untyped = Refusal::new(4, DEADLINE_REACHED);
+    assert_eq!(
+        RefusalCode::from_refusal(&untyped),
+        RefusalCode::MandateClause { clause: 4 }
+    );
+    assert_eq!(typed.to_string(), untyped.to_string());
+}
