@@ -104,6 +104,8 @@ export type MockState = {
   mandateSlots?: Record<string, AgentSlot>;
   /** `${id}:${version}` rows the owner revoked. Signed history stays in `mandates`, as in the ledger. */
   revokedMandates?: string[];
+  /** Counterparty keys whose pin the owner revoked (counterparty_revoke); the row stays listed. */
+  revokedCounterparties?: string[];
   pendingPairings?: Array<PendingPairing & { expires: number }>;
   pairingResults?: Record<string, PairingWords>;
   snoozed?: Record<string, number>;

@@ -378,7 +378,9 @@ impl Wallet {
         if m.payload.agent_key != self.signer.public_key().to_bytes() {
             return Err(Error::Permission);
         }
-        let (paired, house, _) = self.ledger.counterparty_policy(&deal.counterparty)?;
+        let (paired, house, _) = self
+            .ledger
+            .counterparty_policy_at(&deal.counterparty, now)?;
         let payee = self.settlement_payee(deal)?;
         let usage = self.ledger.usage_for(deal, now)?;
         let role = match (deal.side, deal.kind) {
@@ -499,7 +501,9 @@ impl Wallet {
             }),
             _ => None,
         });
-        let (paired, house, _) = self.ledger.counterparty_policy(&deal.counterparty)?;
+        let (paired, house, _) = self
+            .ledger
+            .counterparty_policy_at(&deal.counterparty, now)?;
         let steps = self.ledger.deal_transcript(deal.id)?;
         let status = self.ledger.negotiation_status(deal.id)?;
         Ok(AgentProjection::build(ProjectionInput {

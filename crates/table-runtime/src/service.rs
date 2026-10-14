@@ -126,6 +126,8 @@ pub struct Runtime {
     pub(crate) armed: BTreeMap<DealId, H256>,
     /// The house's signed record kept beside HOUSE receipts (T9).
     pub(crate) witness: crate::witness::Witness,
+    /// Refused privileged commands: the rate window and the counts the trail could not carry.
+    pub(crate) refusals: crate::dispatcher::RefusalLog,
     /// Deals whose market-watch price check is in flight (T15): never two at once for a deal.
     pub(crate) market_watch_busy: std::collections::BTreeSet<DealId>,
     /// When a deal whose price check failed may be checked again.
@@ -262,6 +264,7 @@ impl Runtime {
             engine_probed_at: Vec::new(),
             armed: BTreeMap::new(),
             witness: crate::witness::Witness::default(),
+            refusals: crate::dispatcher::RefusalLog::default(),
             market_watch_busy: std::collections::BTreeSet::new(),
             market_watch_retry: BTreeMap::new(),
             market_watch_used_up: BTreeMap::new(),
@@ -772,7 +775,7 @@ impl Runtime {
             .pipeline
             .wallet
             .ledger
-            .counterparty_policy(&deal.counterparty))?;
+            .counterparty_policy_at(&deal.counterparty, self.clock.now()))?;
         let house_table = if house {
             let table: table_proto::HouseTable = app(self
                 .pipeline
