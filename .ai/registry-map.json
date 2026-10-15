@@ -633,8 +633,12 @@
           "revision": 43,
           "changedAt": "2026-10-02",
           "confidence": "probable",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "deviation",
+          "priorNotApplicable": 3,
+          "evidence": "prompts/shopper.md:20 The shopper requires the owner's requested quantity, but its opening input omits that quantity and its role grants no tool that can retrieve it.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "agent-instruction-files",
@@ -821,8 +825,12 @@
           "revision": 43,
           "changedAt": "2026-10-02",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "not-applicable",
+          "priorNotApplicable": 3,
+          "evidence": "apps/desktop/client/src/windows/approval/App.tsx:60 Context and repository searches found no system_prompt, compaction, or context_window references in the approval directory, whose shell renders owner views and dispatches typed wallet commands.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "test-harness",
@@ -2730,8 +2738,12 @@
           "revision": 43,
           "changedAt": "2026-10-02",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "not-applicable",
+          "priorNotApplicable": 3,
+          "evidence": "apps/desktop/client/src/director/Director.tsx:167 Context and repository searches found no prompt, mcp, or compaction references in the director directory, whose scripts drive the browser mock and framed UI.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "voice-io",
@@ -7399,8 +7411,12 @@
           "revision": 43,
           "changedAt": "2026-10-02",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "not-applicable",
+          "priorNotApplicable": 3,
+          "evidence": "crates/table-proto/src/envelope.rs:345 Context and repository searches located prompt assembly elsewhere and found no prompt, mcp, or compaction references in this context, whose serialization produces signed protocol payloads.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:ad13b2ee69c25e8d",
+          "evaluatedRevision": 44
         },
         {
           "subject": "decentralized-artifact-distribution",
