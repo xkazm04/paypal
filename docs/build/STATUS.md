@@ -2078,7 +2078,7 @@ Ids are the ones on main.
 - **f870297:** `Ledger::reject_inbox` rejects a batch of one deal and one generation in one transaction and appends one `envelope.rejected` row holding the generation, the count, the raw-message digests and the reason; `finish_inbox(false)` is a batch of one.
 - **6f7beb3:** `consume_inbox` collects a pass's refused messages and rejects them one batch per deal and generation.
 - **Gates.** The merge gate's cargo test passed (run 43982be1). The App Master measured `cargo fmt --all --check` exit 0 on main at 6f7beb3. The builder reported clippy clean.
-- **Open:** C-9c. The HOUSE (`services/house-seller/src/hosted.rs`) still writes one row per message; it needs an inbox test harness.
+- **Open:** none. C-9c is closed by the HOUSE inbox entry at the end of this file (challenge-2026-10-15).
 
 ## Deal-to-settlement rework C, parts 1 and 2 (2026-10-10; DECISIONS.md sections 34 and 35)
 
@@ -2505,3 +2505,6 @@ The tray icon is now the Calibre logo at 32 px (`apps/desktop/src-tauri/icons/tr
 
 ### Scoreboard as witness (challenge-2026-10-15, house-seller-service B)
 The public scoreboard now proves extension, not just non-shrinkage: its head check asks `GET /v1/house/prefix` at this browser's newest shorter look and verifies the house's signature (a rewritten-then-longer record reads "Rewritten"); "Check a head you kept" compares a wallet proof file's heads (or a saved look) with the live record in the browser; "Save this look" downloads the signed head the page checked for `table-verify --head`. Rules in `services/house-seller/src/scoreboard/witness.js` (served at `/house/witness.js`), tested with `node --test services/house-seller/src/scoreboard/witness.test.mjs` (helpers and the page's own load path). Closes the T9 deviation "scoreboard head consistency covers only this browser's earlier looks". UNVERIFIED: not opened in a real browser this pass (node WebCrypto Ed25519 only).
+
+### One relay inbox pass (challenge-2026-10-15, house-seller-service A)
+The wallet runtime and the HOUSE now run one inbox pass, `table_app::drain_inbox`; each supplies only its per-message policy. Closes C-9c: a hostile buyer's junk costs the public HOUSE record one `envelope.rejected` row per deal and mailbox generation, not one per message, and a HOUSE ledger fault no longer ends the tick before negotiation and reporting. Tests: `cargo test -p table-app --test inbox` (5), `house_tests` junk-batch and two-deal cases plus an off-schedule OFFER still declined through the relay; the C-9b wallet tests pass unchanged. UNVERIFIED: the HOUSE tick continuing after a real SQL fault has no fault-injection seam; it is covered by the shared pass's test only.
