@@ -197,6 +197,14 @@ tr.detail td { padding: 0; white-space: normal; background: var(--panel2); }
 .cmd { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 10px 12px; overflow-x: auto; margin: 0 0 12px; }
 .cmd code { font-family: var(--mono); font-size: 12.5px; color: var(--text); }
 .small { font-size: 12.5px; color: var(--dim); }
+.link { font: inherit; padding: 0; border: 0; background: none; color: var(--teal-l); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.link:disabled { color: var(--dim); text-decoration: none; cursor: default; }
+.kept { border-top: 1px solid var(--line); margin: 14px 0; padding-top: 14px; }
+.kept h3 { font-size: 14px; font-weight: 600; color: var(--text); margin: 0 0 6px; }
+.file { display: inline-block; position: relative; }
+.file:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.kept-list { padding: 8px 0 0; grid-template-columns: 1fr; }
+.kept-list:empty { display: none; }
 .keys { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; font-size: 12.5px; margin: 8px 0 0; }
 .keys dt { color: var(--dim); }
 .keys dd { margin: 0; font-family: var(--mono); overflow-wrap: anywhere; color: var(--muted); }

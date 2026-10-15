@@ -332,18 +332,34 @@ async fn house_read_routes_move_no_money_write_nothing_and_page_the_ledger() {
     ] {
         assert!(get(bad).await.0.is_client_error(), "{bad}");
     }
-    let (status, headers, body) = get("/house").await;
+    let (status, page_headers, body) = get("/house").await;
     assert!(status.is_success());
     assert!(
-        headers["content-security-policy"]
+        page_headers["content-security-policy"]
             .to_str()
             .unwrap()
             .contains("script-src 'self'")
     );
     assert!(String::from_utf8_lossy(&body).contains("scoreboard.js"));
-    for asset in ["/house/scoreboard.js", "/house/scoreboard.css"] {
+    assert!(String::from_utf8_lossy(&body).contains("/house/witness.js"));
+    for asset in [
+        "/house/scoreboard.js",
+        "/house/scoreboard.css",
+        "/house/witness.js",
+    ] {
         assert!(get(asset).await.0.is_success(), "{asset}");
     }
+    let (status, headers, body) = get("/house/witness.js").await;
+    assert!(status.is_success());
+    assert_eq!(
+        headers["content-type"], "text/javascript; charset=utf-8",
+        "the witness helpers load as a script under the page's CSP"
+    );
+    assert_eq!(
+        headers["content-security-policy"],
+        page_headers["content-security-policy"]
+    );
+    assert!(String::from_utf8_lossy(&body).contains("TableWitness"));
     house.drain().await;
     let ledger = table_ledger::Ledger::open(&path).unwrap();
     assert_eq!(

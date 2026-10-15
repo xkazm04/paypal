@@ -143,3 +143,142 @@ test('lookToSave exports a signed head the offline checker reads; legacy looks l
   assert.equal(W.compareHeads(looks[0], looks[1], null), 'longer');
 });
 
+// ---- the page: scoreboard.js's real load path against a stubbed fetch -------------------------
+
+class FakeNode {}
+class FakeText extends FakeNode {
+  constructor(s) { super(); this.textContent = s; }
+}
+class FakeElement extends FakeNode {
+  constructor(tag) {
+    super();
+    Object.assign(this, { tag, children: [], attrs: {}, listeners: {}, className: '', hidden: false, value: '', disabled: false, parentElement: null });
+  }
+  append(...items) {
+    for (const x of items) {
+      const n = x instanceof FakeNode ? x : new FakeText(String(x));
+      n.parentElement = this;
+      this.children.push(n);
+    }
+  }
+  replaceChildren(...items) { this.children = []; this.append(...items); }
+  set textContent(v) { this.children = [new FakeText(String(v))]; }
+  get textContent() { return this.children.map((c) => c.textContent).join(''); }
+  setAttribute(k, v) { this.attrs[k] = v; }
+  removeAttribute(k) { delete this.attrs[k]; }
+  getAttribute(k) { return this.attrs[k] ?? null; }
+  addEventListener(type, f) { (this.listeners[type] ||= []).push(f); }
+  click() {}
+  querySelectorAll() { return []; }
+}
+
+/** Runs witness.js then scoreboard.js as the page does, and fires DOMContentLoaded. */
+function openPage({ routes, stored }) {
+  const ids = new Map();
+  const byId = (id) => {
+    if (!ids.has(id)) { const el = new FakeElement('div'); el.id = id; el.parentElement = new FakeElement('div'); ids.set(id, el); }
+    return ids.get(id);
+  };
+  const docListeners = {};
+  const document = {
+    documentElement: new FakeElement('html'),
+    hidden: false,
+    getElementById: byId,
+    createElement: (tag) => new FakeElement(tag),
+    createElementNS: (_ns, tag) => new FakeElement(tag),
+    addEventListener: (type, f) => { (docListeners[type] ||= []).push(f); },
+  };
+  const store = new Map(stored ? [['table-house-heads', JSON.stringify(stored)]] : []);
+  const localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => { store.set(k, String(v)); } };
+  const fetched = [];
+  const fetch = async (url) => {
+    fetched.push(url);
+    for (const [prefix, answer] of routes) {
+      if (url.startsWith(prefix)) {
+        const a = typeof answer === 'function' ? await answer(url) : answer;
+        return { ok: a.status === 200, status: a.status, json: async () => JSON.parse(JSON.stringify(a.body)) };
+      }
+    }
+    return { ok: false, status: 404, json: async () => ({}) };
+  };
+  const context = vm.createContext({
+    document, localStorage, fetch, crypto, TextEncoder, Node: FakeNode,
+    navigator: {}, URL, Blob,
+    setInterval: () => 0, setTimeout, clearTimeout, getComputedStyle: () => ({ colorScheme: 'light' }),
+  });
+  context.globalThis = context;
+  // The page loads whatever scripts index.html names, in order.
+  for (const [, name] of source('index.html').matchAll(/<script src="\/house\/([\w.]+)"/g)) {
+    vm.runInContext(source(name), context, { filename: name });
+  }
+  for (const f of docListeners.DOMContentLoaded || []) f();
+  return { byId, fetched, store };
+}
+const text = (n) => n.textContent;
+/** The rendered check whose title names removal or rewriting, once the checks have rendered. */
+async function headsCheck(page) {
+  for (let i = 0; i < 400; i += 1) {
+    const items = page.byId('checks').children;
+    if (items.length > 1) {
+      const li = items.find((c) => /shorter|rewritten/i.test(text(c.children[1] || c)));
+      assert.ok(li, 'the record-history check is rendered');
+      return { state: li.className.replace('check ', ''), title: text(li.children[1]), detail: text(li.children[2]) };
+    }
+    await new Promise((r) => setTimeout(r, 5));
+  }
+  assert.fail(`the checks never rendered: ${text(page.byId('checks'))}`);
+}
+async function ledgerWith(head) {
+  return {
+    format: 'table.house.ledger.v1', deals: [], more: false, total: 0, head,
+    release, mandate: { payload: { agent_key: agentKey, clauses: [] }, owner_sig: filled(4) },
+    refusals: { daily_limit: 0, full: 0, other: 0, since: T0 },
+  };
+}
+const earlierLook = { epoch: toHex(E), rows: 10, hash: toHex(H10), at: T0 + 600, started: T0 };
+
+test('page: a record rewritten and then grown longer than this browser’s look reads Rewritten', async () => {
+  const view = await ledgerWith(await signedHead(14, H14));
+  const page = openPage({
+    stored: [earlierLook],
+    routes: [['/v1/house/ledger', { status: 200, body: view }], ['/v1/house/prefix?rows=10', { status: 200, body: await signedPrefix(10, NOT_H10, 14) }]],
+  });
+  const check = await headsCheck(page);
+  assert.ok(page.fetched.some((u) => u.startsWith('/v1/house/prefix?rows=10')), `the page asked the house to sign its hash at the earlier look: ${page.fetched}`);
+  assert.equal(check.state, 'bad', `${check.title}: ${check.detail}`);
+  assert.match(check.detail, /Rewritten/);
+});
+
+test('page: a record that extends this browser’s look reads Extends, signed by the house', async () => {
+  const view = await ledgerWith(await signedHead(14, H14));
+  const page = openPage({
+    stored: [earlierLook],
+    routes: [['/v1/house/ledger', { status: 200, body: view }], ['/v1/house/prefix?rows=10', { status: 200, body: await signedPrefix(10, H10, 14) }]],
+  });
+  const check = await headsCheck(page);
+  assert.equal(check.state, 'ok', `${check.title}: ${check.detail}`);
+  assert.match(check.detail, /Extends/);
+  const saved = JSON.parse(page.store.get('table-house-heads'));
+  assert.equal(saved.length, 2, 'the new look is kept');
+  assert.ok(typeof saved[1].sig === 'string' && saved[1].sig.length === 128, 'with its signature');
+});
+
+test('page: a prefix the house key did not sign is a failure, not a pass', async () => {
+  const view = await ledgerWith(await signedHead(14, H14));
+  const page = openPage({
+    stored: [earlierLook],
+    routes: [['/v1/house/ledger', { status: 200, body: view }], ['/v1/house/prefix?rows=10', { status: 200, body: await signedPrefix(10, H10, 14, { key: stranger.privateKey }) }]],
+  });
+  const check = await headsCheck(page);
+  assert.equal(check.state, 'bad', `${check.title}: ${check.detail}`);
+});
+
+test('page: a busy house (429 on the prefix) leaves the check unconfirmed, never failed', async () => {
+  const view = await ledgerWith(await signedHead(14, H14));
+  const page = openPage({
+    stored: [earlierLook],
+    routes: [['/v1/house/ledger', { status: 200, body: view }], ['/v1/house/prefix', { status: 429, body: {} }]],
+  });
+  const check = await headsCheck(page);
+  assert.equal(check.state, 'unknown', `${check.title}: ${check.detail}`);
+});
