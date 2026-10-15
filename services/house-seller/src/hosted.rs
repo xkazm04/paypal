@@ -1080,6 +1080,7 @@ pub fn router(relay: Arc<rendezvous::MemoryStore>, house: HouseHandle) -> Router
             .route("/house", get(crate::routes::scoreboard))
             .route("/house/scoreboard.css", get(crate::routes::scoreboard_css))
             .route("/house/scoreboard.js", get(crate::routes::scoreboard_js))
+            .route("/house/witness.js", get(crate::routes::witness_js))
             .layer(DefaultBodyLimit::max(16384))
             .with_state(house),
     )
