@@ -1,0 +1,173 @@
+{
+ "schema": "conform-run/1",
+ "worker": "dc7723cc-c4b4-4aa5-9006-f57a859f625b",
+ "subject": "quality-gates",
+ "evaluatedAt": "2026-10-15T23:51:05.619810+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "offline-proof-verifier",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-verify/src/acceptance.rs:260 The acceptance drift check reads the text extract rather than the authoritative HTML, so an HTML-only change can escape this check.",
+   "techniques": [
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "crates/table-verify/src/acceptance_main.rs:14 An empty parsed test population produces a diagnostic and exit 2, rather than a clean acceptance result."
+    },
+    {
+     "technique": "instrument-answers-only-its-own-question",
+     "verdict": "conformant",
+     "evidence": "crates/table-verify/src/lib.rs:564 The CLI prints this explicit limit instead of representing bundle verification as proof of ledger completeness."
+    },
+    {
+     "technique": "match-the-resolved-artifact",
+     "verdict": "deviation",
+     "evidence": "crates/table-verify/src/acceptance.rs:260 AGENTS.md makes the HTML authoritative; the drift test consumes an intermediate extract, and the inspected scripts and CI do not reconcile that extract with the HTML."
+    },
+    {
+     "technique": "policy-projection",
+     "verdict": "conformant",
+     "evidence": "crates/table-verify/src/acceptance.rs:171 The Markdown summary obtains its missing obligations from the same evaluator the CLI uses to decide failure."
+    },
+    {
+     "technique": "severity-by-construction",
+     "verdict": "conformant",
+     "evidence": "crates/table-verify/src/main.rs:95 The report's verification result reaches verdict(), which returns exit 1 for an unverified bundle."
+    },
+    {
+     "technique": "unmeasurable-criteria",
+     "verdict": "conformant",
+     "evidence": "crates/table-verify/src/lib.rs:53 Inapplicable checks do not block, while applicable checks lacking comparison evidence remain unsuccessful and prevent verification."
+    }
+   ]
+  },
+  {
+   "context": "owner-mandate-config",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/approval/templates.test.ts:26 The template test claims acceptance by every native pre-signing rule while checking a browser-side mirror, so native validator drift can leave that claim green.",
+   "techniques": [
+    {
+     "technique": "instrument-answers-only-its-own-question",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/approval/templates.test.ts:26 The test title claims every wallet pre-signing rule; this assertion runs mockValidate, not MandatePayload::validate(), and no template-to-native parity test was found by the targeted search."
+    }
+   ]
+  },
+  {
+   "context": "spend-firewall-and-agent-policy",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-core/src/agent_tests.rs:325 The playbook vendor-name guard recognizes six literal tokens, allowing unlisted names or alternative spellings without identifying its result as a token-only floor.",
+   "techniques": [
+    {
+     "technique": "renameable-detector-keys",
+     "verdict": "deviation",
+     "evidence": "crates/table-core/src/agent_tests.rs:325 The adjacent rule says no vendor or product names, but the detector matches an author-changeable token list and neither declares that limited predicate nor names complementary review."
+    }
+   ]
+  },
+  {
+   "context": "runtime-actor-and-engines",
+   "subject": "quality-gates",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-runtime/src/authority_tests.rs:610 The check claiming every action names a registered command examines five manually selected actions, so an additional action outside that sample can escape the reverse mapping check.",
+   "techniques": [
+    {
+     "technique": "gate-liveness",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/authority_tests.rs:599 The authority matrix asserts a substantial evaluated population, alongside mismatches and forbidden-token/window cases, preventing an empty matrix from passing."
+    },
+    {
+     "technique": "instrument-answers-only-its-own-question",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/authority_tests.rs:55 The matrix deliberately classifies authority admission separately from subsequent business-operation success, matching its stated question."
+    },
+    {
+     "technique": "self-reported-gate-inputs",
+     "verdict": "deviation",
+     "evidence": "crates/table-runtime/src/authority_tests.rs:610 This purported every-action check uses a handwritten five-action population; the separate AUTHORITY-driven matrix cannot discover an action whose command is absent from AUTHORITY."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "quality-gates",
+   "context": "deal-review",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-15T23:51:05.619810+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "gate-liveness",
+    "instrument-answers-only-its-own-question",
+    "match-the-resolved-artifact",
+    "policy-projection",
+    "severity-by-construction",
+    "unmeasurable-criteria"
+   ],
+   "deviations": 1,
+   "context": "offline-proof-verifier",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-15T23:51:05.619810+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "instrument-answers-only-its-own-question"
+   ],
+   "deviations": 1,
+   "context": "owner-mandate-config",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-15T23:51:05.619810+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "renameable-detector-keys"
+   ],
+   "deviations": 1,
+   "context": "spend-firewall-and-agent-policy",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-15T23:51:05.619810+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "quality-gates"
+   ],
+   "techniques": [
+    "gate-liveness",
+    "instrument-answers-only-its-own-question",
+    "self-reported-gate-inputs"
+   ],
+   "deviations": 1,
+   "context": "runtime-actor-and-engines",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
