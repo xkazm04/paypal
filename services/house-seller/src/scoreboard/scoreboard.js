@@ -1,12 +1,15 @@
 // The house seller's public record, read from this origin's public routes and checked here.
-// Read-only: it fetches GET /v1/house/ledger and nothing else, sends nothing, and builds every
-// line with textContent (the record holds no free text, and none could run here anyway).
+// Read-only: it fetches GET /v1/house/ledger and, to prove the record only grew since an earlier
+// look, GET /v1/house/prefix (the house's signed hash at that look's length). It sends nothing,
+// and builds every line with textContent (the record holds no free text, and none could run here
+// anyway). The head rules live in witness.js (TableWitness), loaded first.
 // The signature checks use the browser's own Ed25519 and SHA-256; a browser without Ed25519
 // says so instead of passing them. The same checks run offline in the project's checker.
 (() => {
   'use strict';
 
-  const HEAD_DOMAIN = 'table.house.head.v1';
+  const W = globalThis.TableWitness;
+  const { HEAD_DOMAIN, canonical, verify } = W;
   const PAGE = 100;
   const REFRESH_MS = 60_000;
   const HEADS_KEY = 'table-house-heads';
@@ -92,14 +95,6 @@
 
   // ---- canonical bytes and signatures ---------------------------------------------------------
 
-  /** RFC 8785 canonical JSON for the record's values (integers, strings, arrays, objects). */
-  function canonical(v) {
-    if (Array.isArray(v)) return `[${v.map(canonical).join(',')}]`;
-    if (v && typeof v === 'object') {
-      return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonical(v[k])}`).join(',')}}`;
-    }
-    return JSON.stringify(v);
-  }
   const utf8 = (s) => new TextEncoder().encode(s);
   const bytes = (a) => new Uint8Array(a);
   async function sha256(data) {
@@ -117,14 +112,6 @@
       ed25519 = false;
     }
     return ed25519;
-  }
-  async function verify(key, signature, data) {
-    try {
-      const k = await crypto.subtle.importKey('raw', bytes(key), { name: 'Ed25519' }, false, ['verify']);
-      return await crypto.subtle.verify({ name: 'Ed25519' }, k, bytes(signature), data);
-    } catch {
-      return false;
-    }
   }
 
   // ---- the checks (the same rules as the offline checker) -------------------------------------
@@ -237,29 +224,59 @@
     return leak ? bad(t, `Deal ${shortId(leak.deal_id)} shows more than a key prefix.`) : ok(t, 'No names, no messages, no PayPal account details.');
   }
 
-  /** Heads this browser has seen: never shorter within one record, one hash per length. */
-  function checkHeads(view, signedOk) {
-    const t = 'The record never got shorter';
-    const head = view.head.head;
-    const seen = loadHeads();
-    const cur = { epoch: hex(head.epoch), rows: head.row_count, hash: hex(head.audit_head), at: head.at, started: head.epoch_started };
-    for (const s of seen) {
-      if (s.epoch !== cur.epoch) continue;
-      if (cur.rows < s.rows && cur.at > s.at) return bad(t, `It had ${s.rows} entries at ${when(s.at)}, now ${cur.rows}.`);
-      if (cur.rows === s.rows && cur.hash !== s.hash) return bad(t, `Two different records were signed at ${cur.rows} entries.`);
+  /** The house's signed hash at an earlier length, or null when it did not answer. */
+  async function fetchPrefix(rows) {
+    try {
+      const r = await fetch(`/v1/house/prefix?rows=${rows}`, { cache: 'no-store', credentials: 'omit' });
+      return r.ok ? await r.json() : null;
+    } catch {
+      return null;
     }
-    if (signedOk) saveHeads(seen, cur);
-    const earlier = seen.filter((s) => s.epoch !== cur.epoch);
-    if (earlier.length) {
+  }
+
+  /**
+   * Looks this browser kept: never fewer entries within one record, one hash per length, and the
+   * newest shorter look proven a prefix of today's record by the house's own signature.
+   */
+  async function checkHeads(view, signedOk, crypto) {
+    const t = 'Nothing in the record was removed or rewritten';
+    const cur = W.lookOf(view.head);
+    const seen = loadHeads();
+    const same = seen.filter((s) => s.epoch === cur.epoch);
+    for (const s of same) {
+      if (cur.rows < s.rows && cur.at > s.at) return bad(t, `It had ${s.rows} entries at ${when(s.at)}, now ${cur.rows}.`);
+      if (cur.rows === s.rows && cur.hash !== s.hash) return bad(t, `Rewritten: two different records were signed at ${cur.rows} entries.`);
+    }
+    // The newest shorter look: the house signs its hash at that length in today's record.
+    const rows = W.prefixToAsk(same, cur);
+    const look = rows === null ? null : same.filter((s) => s.rows === rows).reduce((a, b) => (b.at > a.at ? b : a));
+    let verdict = null;
+    if (look && crypto) {
+      const signed = await fetchPrefix(rows);
+      if (signed && !(await W.prefixSigned(signed, view.release.agent_key))) {
+        return bad(t, 'The house’s answer about an earlier look is not signed by its key.');
+      }
+      verdict = W.compareHeads(look, cur, signed ? signed.prefix : null);
+      if (verdict === 'rewritten') {
+        return bad(t, `Rewritten: at ${look.rows} entries the house now signs a different record than this browser saw ${when(look.at)}.`);
+      }
+    }
+    // A look is kept once proven, or always where signatures can't be checked (a shorter record
+    // is still caught there).
+    if (signedOk && verdict !== 'longer') saveHeads(seen, cur);
+    if (look && !crypto) return unknown(t, `Longer than this browser’s look ${when(look.at)}. ${NO_ED25519}`);
+    if (verdict === 'longer') {
+      return unknown(t, `Longer than this browser’s look ${when(look.at)}; the house didn’t confirm the earlier part this time. Asked again on the next refresh.`);
+    }
+    if (seen.some((s) => s.epoch !== cur.epoch)) {
       return note(t, `The house started a new record on ${day(cur.started)}, for example after its storage was replaced. Deals before then are not in this one.`);
     }
-    const looks = seen.filter((s) => s.epoch === cur.epoch).length;
-    return ok(t, looks ? `Checked against ${looks} earlier look${looks === 1 ? '' : 's'} from this browser.` : `Record started ${day(cur.started)}. This browser keeps each look to compare.`);
+    if (verdict === 'extends') return ok(t, `Extends what this browser saw ${when(look.at)}, signed by the house.`);
+    return ok(t, same.length ? `The same record this browser saw ${when(same[same.length - 1].at)}.` : `Record started ${day(cur.started)}. This browser keeps each look to compare.`);
   }
   function loadHeads() {
     try {
-      const v = JSON.parse(localStorage.getItem(HEADS_KEY) || '[]');
-      return Array.isArray(v) ? v.filter((s) => s && typeof s.epoch === 'string' && Number.isInteger(s.rows)) : [];
+      return W.looksFrom(localStorage.getItem(HEADS_KEY));
     } catch {
       return [];
     }
@@ -271,6 +288,63 @@
     } catch {
       /* private mode: compare within this visit only */
     }
+  }
+
+  // ---- a head the visitor kept (their proof file, or a look saved here) -----------------------
+
+  const KEPT_MAX = 5;
+  const KEPT_WORDS = {
+    same: (k) => ok('The same record as your head', `${k.head.head.row_count} entries, as signed ${when(k.head.head.at)}.`),
+    extends: (k) => ok('The record extends your head', `Its first ${k.head.head.row_count} entries are the ones in your head, signed by the house.`),
+    longer: () => unknown('Longer than your head', 'The house didn’t confirm the earlier part this time. Try again in a minute.'),
+    new_epoch: () => note('A new record since your head', `The house started a new record on ${day(view.head.head.epoch_started)}. Deals in your head are not in this one.`),
+    shorter: (k) => bad('Shorter than your head', `It had ${k.head.head.row_count} entries, now ${view.head.head.row_count}.`),
+    rewritten: (k) => bad('Rewritten since your head', `At ${k.head.head.row_count} entries the house now signs a different record than your head.`),
+    bad_signature: () => bad('Not signed by this house', 'This head was not signed by the house key shown below.'),
+    bad_prefix: () => bad('The house’s answer is not signed', 'Its answer about your head is not signed by its key.'),
+  };
+  function checkLine(c) {
+    return h('li', { class: `check ${c.state}` },
+      h('span', { class: 'ck-i', 'aria-label': { ok: 'Passed', bad: 'Failed', note: 'Note', unknown: 'Not checked here' }[c.state] }, c.state === 'unknown' ? null : svg(ICON[c.state])),
+      h('span', { class: 'ck-t' }, c.title),
+      h('span', { class: 'ck-d' }, c.detail));
+  }
+  async function checkKept(file) {
+    const out = $('kept-results');
+    if (!view) return;
+    const found = W.keptHeadsFrom(file.size > 2 * 1024 * 1024 ? '' : await file.text());
+    if (!found.heads.length) {
+      out.replaceChildren(checkLine(bad('No signed head in this file', 'Choose the deal’s proof file from your wallet, or a look saved on this page.')));
+      return;
+    }
+    if (!(await canVerify())) {
+      out.replaceChildren(checkLine(unknown('Not checked here', NO_ED25519)));
+      return;
+    }
+    const n = found.heads.length;
+    out.replaceChildren(checkLine(unknown('Checking…', `${n} head${n === 1 ? '' : 's'} in this file.`)));
+    const lines = [];
+    for (const k of found.heads.slice(0, KEPT_MAX)) {
+      const c = KEPT_WORDS[await W.witnessVerdict(k, view, { fetchPrefix })](k);
+      const which = k.receipt === true ? 'kept with your receipt' : k.receipt === false ? 'kept by a later check' : 'saved';
+      lines.push(checkLine({ ...c, title: `${c.title} · ${which}` }));
+    }
+    if (n > KEPT_MAX) {
+      lines.push(checkLine(note(`${n - KEPT_MAX} more heads not checked here`, 'The receipt head and the newest are checked here. The offline checker reads them all.')));
+    }
+    out.replaceChildren(...lines);
+  }
+
+  /** Downloads the signed head this page checked: the file the checker and this page read. */
+  function saveLook() {
+    const signed = view && W.lookToSave(view.head);
+    if (!signed) return;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(signed)], { type: 'application/json' }));
+    const a = h('a', { href: url, download: 'house-head.json', hidden: true });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   const refusals = (view) => {
@@ -326,7 +400,7 @@
     const checks = [
       rules.result,
       headCheck,
-      checkHeads(view, headCheck.state !== 'bad'),
+      await checkHeads(view, headCheck.state !== 'bad', crypto),
       checkFloor(view),
       checkOrder(),
       checkAuthority(view, rules.mandateHash),
@@ -494,6 +568,7 @@
       renderTiles();
       renderRows();
       renderKeys();
+      $('save-look').disabled = false;
       await renderChecks();
     } catch (e) {
       if (!view) {
@@ -549,6 +624,12 @@
     });
     $('find').addEventListener('input', () => { if (view) renderRows(); });
     $('older').addEventListener('click', () => { void older(); });
+    $('save-look').addEventListener('click', saveLook);
+    $('kept-file').addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (file) void checkKept(file);
+    });
     void load();
     setInterval(() => { if (!document.hidden) void load(); }, REFRESH_MS);
     document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - lastOk > REFRESH_MS) void load(); });
