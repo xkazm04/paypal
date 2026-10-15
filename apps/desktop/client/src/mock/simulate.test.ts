@@ -74,6 +74,24 @@ describe('mandate_simulate (browser mock)', () => {
     expect(localStorage.getItem('the-table-mock-state-v6')).toBe(before);
   });
 
+  it('signing refuses what the wallet refuses, with its reason, and stores nothing', async () => {
+    const a = approval();
+    const token = await a.invoke('approval_token', null);
+    const before = (await a.invoke('mandate_list', null)).length;
+    const usd = (minor: number) => ({ minor, currency: 'USD' as const });
+    const clauses: Clause[] = [
+      { type: 'roles', roles: ['rescue'] },
+      { type: 'counterparties', rule: { type: 'subscribers' } },
+      { type: 'per_deal', kind: 'rescue', max_amount: usd(3000), categories: ['service'] },
+      { type: 'velocity', max_deals_day: 40, max_total_day: usd(60000) },
+      { type: 'human_present_over', amount: usd(5000) },
+      { type: 'payees', payees: ['hana-print-shop'] },
+    ];
+    await expect(a.invoke('mandate_sign', { id: null, agent: 'assistant', clauses, not_before: NOW, expires: NOW + 30 * 86400 }, { token }))
+      .rejects.toMatchObject({ code: 'REFUSED', message: 'mandate clause 8: the rescue role and the fixes clause go together' });
+    expect((await a.invoke('mandate_list', null)).length).toBe(before);
+  });
+
   it('a new mandate replays the deals of the agent it is for', async () => {
     const a = approval();
     const m = (await a.invoke('mandate_list', null)).find((e) => e.payload.id === M12)!;
