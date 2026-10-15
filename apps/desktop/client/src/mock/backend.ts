@@ -942,6 +942,9 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       const id = args.id ?? fakeUlid(`M-${Date.now()}`);
       const prev = state.mandates.filter((m) => m.payload.id === id).reduce((v, m) => Math.max(v, m.payload.version), 0);
       const m = { payload: { id, version: prev + 1, agent_key: fakeHash(`agent:${args.agent}`) as unknown as (typeof state.mandates)[number]['payload']['agent_key'], clauses: args.clauses, not_before: args.not_before, expires: args.expires }, owner_sig: Array.from(fakeHash(`sig:${id}:${prev + 1}`)) };
+      // As Runtime::sign_mandate: the wallet signs only rules its own validate() accepts.
+      const bad = mockValidate(m.payload);
+      if (bad) fail('REFUSED', `mandate clause ${bad.clause}: ${bad.reason}`);
       state.mandates = [...state.mandates, m];
       state.mandateSlots = { ...state.mandateSlots, [id]: args.agent };
       state.settings = { ...state.settings, first_run: false };
