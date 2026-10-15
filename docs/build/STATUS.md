@@ -2499,3 +2499,6 @@ window geometry are as built in calm-nested-ui WP4 and not re-checked. The demo 
 re-recorded (the takes rig passes its check; record after the merge). No screen-reader session.
 The merge back to `main` is the Director's (merge-ready by 2026-11-03, abandon on 2026-10-30 if at
 risk).
+
+### Tray icon (2026-10-15)
+The tray icon is now the Calibre logo at 32 px (`apps/desktop/src-tauri/icons/tray.rgba`), with a gold dot variant when a deal needs the owner (`tray-attention.rgba`), embedded with `include_bytes!` in `native.rs` (length checked at compile time; no new dependency). Regenerate with `python branding/build-tray.py`. Masters, concepts and the icon build script are in `branding/` (see `branding/README.md`). Verified: `cargo fmt`, `cargo clippy -p table-desktop`; the tray was not checked on macOS or Linux (Windows shell only).

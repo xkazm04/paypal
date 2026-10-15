@@ -81,23 +81,16 @@ fn summon(app: &AppHandle, stack: bool) -> Result<(), tauri::Error> {
     }
     Ok(())
 }
+/// The Table logo at 32 px as raw RGBA (branding/build-tray.py): one image, and one with the gold
+/// "a deal needs you" dot. The length is checked at compile time.
+const TRAY_RGBA: &[u8] = include_bytes!("../icons/tray.rgba");
+const TRAY_ATTENTION_RGBA: &[u8] = include_bytes!("../icons/tray-attention.rgba");
+const TRAY_SIDE: u32 = 32;
+const _: () = assert!(TRAY_RGBA.len() == (TRAY_SIDE * TRAY_SIDE * 4) as usize);
+const _: () = assert!(TRAY_ATTENTION_RGBA.len() == (TRAY_SIDE * TRAY_SIDE * 4) as usize);
 fn tray_icon(dot: bool) -> tauri::image::Image<'static> {
-    let mut rgba = vec![0u8; 16 * 16 * 4];
-    for y in 2..14 {
-        for x in 2..14 {
-            let i = (y * 16 + x) * 4;
-            rgba[i..i + 4].copy_from_slice(&[190, 155, 85, 255]);
-        }
-    }
-    if dot {
-        for y in 1..5 {
-            for x in 11..15 {
-                let i = (y * 16 + x) * 4;
-                rgba[i..i + 4].copy_from_slice(&[255, 200, 40, 255]);
-            }
-        }
-    }
-    tauri::image::Image::new_owned(rgba, 16, 16)
+    let rgba = if dot { TRAY_ATTENTION_RGBA } else { TRAY_RGBA };
+    tauri::image::Image::new(rgba, TRAY_SIDE, TRAY_SIDE)
 }
 pub fn run() -> Result<(), tauri::Error> {
     tauri::Builder::default()
