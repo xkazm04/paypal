@@ -1,829 +1,2765 @@
 {
-  "generated_at": "2026-10-05T21:07:58.306Z",
-  "generator": "scan-sweep context map (hand-partitioned by coordinator, no Personas bridge)",
-  "groups": [
+  "contexts": [
     {
-      "name": "Money Domain",
-      "contexts": [
-        {
-          "name": "core-domain",
-          "description": "Pure domain crate: integer minor-unit Money + ISO currency, signed Mandate clauses (bands, velocity, rounds, deadlines, human-present threshold), the Deal state machine, Book, market refs, rescue guards, canonical bytes for signing, typed ids and safe display projections. No IO; carries the spine every other crate checks against.",
-          "keywords": [
-            "money",
-            "mandate",
-            "deal",
-            "state-machine",
-            "clause",
-            "rescue",
-            "canonical",
-            "signing"
-          ],
-          "tech_stack": [
-            "Rust 2024 (stable)"
-          ],
-          "cross_refs": [
-            "money-pipeline",
-            "protocol",
-            "ledger"
-          ],
-          "file_paths": [
-            "crates/table-core/Cargo.toml",
-            "crates/table-core/src/book.rs",
-            "crates/table-core/src/canonical.rs",
-            "crates/table-core/src/deal.rs",
-            "crates/table-core/src/display.rs",
-            "crates/table-core/src/ids.rs",
-            "crates/table-core/src/lib.rs",
-            "crates/table-core/src/mandate.rs",
-            "crates/table-core/src/market.rs",
-            "crates/table-core/src/money.rs",
-            "crates/table-core/src/rescue.rs"
-          ]
-        },
-        {
-          "name": "attention-ladder",
-          "description": "Pure attention model: urgency rungs, forms (puck/strip/card), snooze/pierce rules and window placement math that decide how the Tumbler escalates a deal toward the owner as its deadline nears.",
-          "keywords": [
-            "attention",
-            "urgency",
-            "placement",
-            "snooze",
-            "tumbler",
-            "forms"
-          ],
-          "tech_stack": [
-            "Rust 2024 (stable)"
-          ],
-          "cross_refs": [
-            "tumbler-window",
-            "native-shell"
-          ],
-          "file_paths": [
-            "crates/table-attention/Cargo.toml",
-            "crates/table-attention/src/lib.rs",
-            "crates/table-attention/src/placement.rs"
-          ]
-        }
+      "api_surface": null,
+      "business_feature": null,
+      "category": null,
+      "cross_refs": [
+        "engine-adapters",
+        "money-pipeline"
+      ],
+      "db_tables": [],
+      "description": "Everything the LLM can touch: the MCP server with seven role/session/run/mandate-checked tools (no money-moving tool exists), the shield that screens untrusted counterparty/merchant text, and the shopper/negotiator/shield prompts.",
+      "entry_points": [],
+      "file_paths": [
+        "crates/table-mcp/src/lib.rs",
+        "crates/table-mcp/tests/server.rs",
+        "crates/table-shield/src/lib.rs"
+      ],
+      "group": "Agent Runtime",
+      "group_id": "a4e21325-811f-45be-a378-863946c9064d",
+      "id": "4a906b90-6f4d-4f72-92fb-1091ca69ebff",
+      "keywords": [
+        "mcp",
+        "tools",
+        "shield",
+        "prompt-injection",
+        "untrusted-text",
+        "prompts",
+        "negotiator"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.555733300+00:00",
+      "name": "agent-tool-surface",
+      "pinned": false,
+      "tech_stack": [
+        "Rust 2024 (stable)",
+        "MCP"
       ]
     },
     {
-      "name": "Money Pipeline & Persistence",
-      "contexts": [
-        {
-          "name": "money-pipeline",
-          "description": "The only code that moves money: intent -> mandate check -> countersign/owner decision -> PayPal call, with decided_by authority (owner in approval window, signed mandate rule, safe default void/expire). Also agent-intent intake, IPC auth, reconciliation and relay hookup. Refused intents must leave zero paypal_calls rows.",
-          "keywords": [
-            "pipeline",
-            "authorize",
-            "capture",
-            "void",
-            "decided_by",
-            "reconciliation",
-            "auth"
-          ],
-          "tech_stack": [
-            "Rust 2024 (stable)",
-            "tokio"
-          ],
-          "cross_refs": [
-            "core-domain",
-            "ledger",
-            "paypal-gateway",
-            "runtime-core"
-          ],
-          "file_paths": [
-            "crates/table-app/Cargo.toml",
-            "crates/table-app/src/agent.rs",
-            "crates/table-app/src/auth.rs",
-            "crates/table-app/src/lib.rs",
-            "crates/table-app/src/pipeline.rs",
-            "crates/table-app/src/reconciliation.rs",
-            "crates/table-app/src/relay.rs",
-            "crates/table-app/tests/pipeline.rs",
-            "crates/table-app/tests/support/mod.rs"
-          ]
-        },
-        {
-          "name": "ledger",
-          "description": "SQLite ledger: migrations 0001-0006, repositories for deals/mandates/paypal_calls/receipts/relay/house, append-only hash-chained audit_log, redacted evidence, receipts and offline chain verification.",
-          "keywords": [
-            "sqlite",
-            "migrations",
-            "audit-log",
-            "hash-chain",
-            "receipt",
-            "redaction",
-            "repositories"
-          ],
-          "tech_stack": [
-            "Rust 2024 (stable)",
-            "SQLite"
-          ],
-          "cross_refs": [
-            "money-pipeline",
-            "runtime-core"
-          ],
-          "file_paths": [
-            "crates/table-ledger/Cargo.toml",
-            "crates/table-ledger/migrations/0001_table.sql",
-            "crates/table-ledger/migrations/0002_integrity.sql",
-            "crates/table-ledger/migrations/0003_execution.sql",
-            "crates/table-ledger/migrations/0004_native.sql",
-            "crates/table-ledger/migrations/0005_relay.sql",
-            "crates/table-ledger/migrations/0006_client.sql",
-            "crates/table-ledger/src/audit.rs",
-            "crates/table-ledger/src/book.rs",
-            "crates/table-ledger/src/display.rs",
-            "crates/table-ledger/src/house.rs",
-            "crates/table-ledger/src/lib.rs",
-            "crates/table-ledger/src/receipt.rs",
-            "crates/table-ledger/src/redaction.rs",
-            "crates/table-ledger/src/relay.rs",
-            "crates/table-ledger/src/repositories.rs",
-            "crates/table-ledger/src/tests.rs"
-          ]
-        },
-        {
-          "name": "paypal-gateway",
-          "description": "Typed PayPal REST client behind a trait: OAuth, Orders v2 create/authorize/capture/void, secondary endpoints (invoicing, tracking, payouts-like clients), HTTP layer and env-gated live sandbox spikes. Unverified endpoint facts are marked UNVERIFIED.",
-          "keywords": [
-            "paypal",
-            "orders-v2",
-            "oauth",
-            "authorize",
-            "capture",
-            "invoicing",
-            "sandbox"
-          ],
-          "tech_stack": [
-            "Rust 2024 (stable)",
-            "reqwest"
-          ],
-          "cross_refs": [
-            "money-pipeline"
-          ],
-          "file_paths": [
-            "crates/table-paypal/Cargo.toml",
-            "crates/table-paypal/src/client.rs",
-            "crates/table-paypal/src/http.rs",
-            "crates/table-paypal/src/lib.rs",
-            "crates/table-paypal/src/secondary.rs",
-            "crates/table-paypal/src/types.rs",
-            "crates/table-paypal/tests/client.rs",
-            "crates/table-paypal/tests/spikes.rs"
-          ]
-        }
+      "api_surface": "Consumes Tauri IPC commands gated by the authority table (approval label + IPC token + unlocked)",
+      "business_feature": "Approval Window Shell",
+      "category": "ui",
+      "cross_refs": [
+        "deal-review",
+        "owner-mandate-config"
+      ],
+      "db_tables": [],
+      "description": "Entry, frame and session plumbing of the privileged approval window, the only surface that can countersign or release money. It holds the window model, selection, command gating (token, label, idle lock) and notices, and mounts the deal review and owner configuration views. Depends on the generated authority bindings and the Tauri IPC layer.",
+      "entry_points": [
+        "apps/desktop/client/src/windows/approval/entry.tsx",
+        "apps/desktop/client/src/windows/approval/App.tsx",
+        "apps/desktop/client/src/windows/approval/gating.ts"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/windows/approval/App.tsx",
+        "apps/desktop/client/src/windows/approval/entry.tsx",
+        "apps/desktop/client/src/windows/approval/session.tsx",
+        "apps/desktop/client/src/windows/approval/model.ts",
+        "apps/desktop/client/src/windows/approval/model.test.ts",
+        "apps/desktop/client/src/windows/approval/gating.ts",
+        "apps/desktop/client/src/windows/approval/gating.test.ts",
+        "apps/desktop/client/src/windows/approval/selection.ts",
+        "apps/desktop/client/src/windows/approval/notices.test.ts",
+        "apps/desktop/client/src/windows/approval/actions.test.tsx",
+        "apps/desktop/client/src/windows/approval/PairingConfirm.tsx",
+        "apps/desktop/client/src/windows/approval/approval.css",
+        "apps/desktop/client/src/windows/approval/frame.css"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "60b8c7a9-421c-43fa-aff2-d1ede8cf38d9",
+      "keywords": [
+        "approval window",
+        "gating",
+        "idle lock",
+        "countersign",
+        "session",
+        "pairing",
+        "notices",
+        "authority"
+      ],
+      "last_written_at": "2026-10-14T10:51:47.285725800+00:00",
+      "name": "approval-window-shell",
+      "pinned": false,
+      "tech_stack": [
+        "React 19.3",
+        "TypeScript 7.0",
+        "Vite 8.3",
+        "Vitest 5.0",
+        "Tauri 2 (@tauri-apps/api 2.12)"
       ]
     },
     {
-      "name": "Agent Runtime",
-      "contexts": [
-        {
-          "name": "runtime-core",
-          "description": "The wallet runtime: per-deal agent actors, command dispatcher behind the IPC contract, service wiring, deadline scheduler (silence never moves money), configuration, keychain credentials, vault unlock/idle-lock, re-auth and engine selection.",
-          "keywords": [
-            "actor",
-            "dispatcher",
-            "scheduler",
-            "deadline",
-            "vault",
-            "keyring",
-            "idle-lock",
-            "service"
-          ],
-          "tech_stack": [
-            "Rust 2024 (stable)",
-            "tokio",
-            "keyring"
-          ],
-          "cross_refs": [
-            "money-pipeline",
-            "ipc-contract",
-            "engine-adapters"
-          ],
-          "file_paths": [
-            "crates/table-runtime/Cargo.toml",
-            "crates/table-runtime/src/actor.rs",
-            "crates/table-runtime/src/client_tests.rs",
-            "crates/table-runtime/src/configuration.rs",
-            "crates/table-runtime/src/credentials.rs",
-            "crates/table-runtime/src/dispatcher.rs",
-            "crates/table-runtime/src/engines.rs",
-            "crates/table-runtime/src/lib.rs",
-            "crates/table-runtime/src/reauth.rs",
-            "crates/table-runtime/src/scheduler.rs",
-            "crates/table-runtime/src/service.rs",
-            "crates/table-runtime/src/tests.rs",
-            "crates/table-runtime/src/vault.rs"
-          ]
-        },
-        {
-          "name": "pairing-and-relay-runtime",
-          "description": "Runtime side of two-wallet deals: four-word pairing create/join/confirm, signed envelope delivery over the relay, HOUSE seller pairing, and the end-to-end two-wallet / house settlement tests.",
-          "keywords": [
-            "pairing",
-            "relay",
-            "two-wallet",
-            "house",
-            "settlement",
-            "delivery"
-          ],
-          "tech_stack": [
-            "Rust 2024 (stable)",
-            "tokio"
-          ],
-          "cross_refs": [
-            "protocol",
-            "relay-and-rendezvous",
-            "house-seller"
-          ],
-          "file_paths": [
-            "crates/table-runtime/src/house_tests.rs",
-            "crates/table-runtime/src/pairing.rs",
-            "crates/table-runtime/src/relay.rs",
-            "crates/table-runtime/src/relay_tests.rs"
-          ]
-        },
-        {
-          "name": "engine-adapters",
-          "description": "Adapters for the owner's own LLM engines (claude-code, codex-cli): argv construction, binary resolution, stream-json parsing, native process lifecycle, Windows job objects for isolation, a fixture engine and spikes. Native availability is gated on proven pre-input isolation.",
-          "keywords": [
-            "engine",
-            "claude-code",
-            "codex-cli",
-            "process",
-            "isolation",
-            "job-object",
-            "parser"
-          ],
-          "tech_stack": [
-            "Rust 2024 (stable)",
-            "tokio"
-          ],
-          "cross_refs": [
-            "agent-tool-surface",
-            "runtime-core"
-          ],
-          "file_paths": [
-            "crates/table-engine/Cargo.toml",
-            "crates/table-engine/src/argv.rs",
-            "crates/table-engine/src/bin/engine-fixture.rs",
-            "crates/table-engine/src/lib.rs",
-            "crates/table-engine/src/native.rs",
-            "crates/table-engine/src/parser.rs",
-            "crates/table-engine/src/resolve.rs",
-            "crates/table-engine/src/windows_job.rs",
-            "crates/table-engine/tests/engine.rs",
-            "crates/table-engine/tests/fixtures/README.md",
-            "crates/table-engine/tests/fixtures/claude-agent.jsonl",
-            "crates/table-engine/tests/fixtures/codex-agent.jsonl",
-            "crates/table-engine/tests/native.rs",
-            "crates/table-engine/tests/spikes.rs"
-          ]
-        },
-        {
-          "name": "agent-tool-surface",
-          "description": "Everything the LLM can touch: the MCP server with seven role/session/run/mandate-checked tools (no money-moving tool exists), the shield that screens untrusted counterparty/merchant text, and the shopper/negotiator/shield prompts.",
-          "keywords": [
-            "mcp",
-            "tools",
-            "shield",
-            "prompt-injection",
-            "untrusted-text",
-            "prompts",
-            "negotiator"
-          ],
-          "tech_stack": [
-            "Rust 2024 (stable)",
-            "MCP"
-          ],
-          "cross_refs": [
-            "engine-adapters",
-            "money-pipeline"
-          ],
-          "file_paths": [
-            "crates/table-mcp/Cargo.toml",
-            "crates/table-mcp/src/lib.rs",
-            "crates/table-mcp/tests/server.rs",
-            "crates/table-shield/Cargo.toml",
-            "crates/table-shield/src/lib.rs",
-            "prompts/buyer-haggler.md",
-            "prompts/seller-counter.md",
-            "prompts/shop-assistant.md",
-            "prompts/shield.md",
-            "prompts/shopper.md"
-          ]
-        },
-        {
-          "name": "market-data",
-          "description": "Market reference data for haggling: cached market/Book lookups the agent may read, privileged native refresh, and live spikes against the external price source.",
-          "keywords": [
-            "market",
-            "price",
-            "book",
-            "cache",
-            "refresh"
-          ],
-          "tech_stack": [
-            "Rust 2024 (stable)"
-          ],
-          "cross_refs": [
-            "agent-tool-surface",
-            "core-domain"
-          ],
-          "file_paths": [
-            "crates/table-market/Cargo.toml",
-            "crates/table-market/src/lib.rs",
-            "crates/table-market/tests/market.rs",
-            "crates/table-market/tests/spikes.rs",
-            "crates/table-runtime/src/market.rs"
-          ]
-        }
+      "api_surface": "Rust library: forecast projections, LadderSchedule/LADDER, word_silence, quit_lines/quit_message, window FORMS and placement; ts-rs generated TypeScript bindings consumed by the client UI (e.g. bindings/ladder.ts)",
+      "business_feature": "Owner Attention Forecast & Deadline Ladder",
+      "category": "lib",
+      "cross_refs": [],
+      "db_tables": [],
+      "description": "Pure, read-only projections that tell the owner what the wallet will do to each open deal if they do nothing (walk-away forecast), and the wording for the card's 'if you do nothing' silence line and the quit-confirm lines. It also holds the attention deadline ladder (when a ring breathes, when the one notification is due, snooze rules, when the puck goes quiet) and the logical-pixel window-form arithmetic (rest, tab, ticker, card, stack, handoff, welcome). Everything is computed from table-core deal state and the clock, with ts-rs generating the TypeScript bindings the client reads, and no function here moves money or carries owner authority.",
+      "entry_points": [
+        "crates/table-attention/src/lib.rs",
+        "crates/table-attention/src/forecast.rs"
+      ],
+      "file_paths": [
+        "crates/table-attention/src/lib.rs",
+        "crates/table-attention/src/forecast.rs",
+        "crates/table-attention/src/placement.rs",
+        "crates/table-attention/src/quit.rs",
+        "crates/table-attention/src/schedule.rs",
+        "crates/table-attention/src/silence.rs"
+      ],
+      "group": "Money Pipeline & Persistence",
+      "group_id": "f6e35872-df4c-433b-9070-2b41ff2ed4c7",
+      "id": "b093c233-9d42-4fdb-8b3c-b9b5460ac5ad",
+      "keywords": [
+        "attention",
+        "forecast",
+        "walk-away",
+        "deadline-ladder",
+        "snooze",
+        "silence",
+        "quit-confirm",
+        "window-placement",
+        "notification"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.556163200+00:00",
+      "name": "attention-forecast-and-window-placement",
+      "pinned": false,
+      "tech_stack": [
+        "Rust (edition 2024)",
+        "serde 1",
+        "thiserror",
+        "ts-rs 12"
       ]
     },
     {
-      "name": "Network & Counterparties",
-      "contexts": [
-        {
-          "name": "protocol",
-          "description": "The haggle wire protocol: closed signed JWS envelopes (HELLO/OFFER/COUNTER/ACCEPT/NOTE...), replay and binding checks, transcript commitments, pairing words/identity, house tables and settlement messages.",
-          "keywords": [
-            "envelope",
-            "jws",
-            "protocol",
-            "haggle",
-            "transcript",
-            "pairing",
-            "settlement"
-          ],
-          "tech_stack": [
-            "Rust 2024 (stable)"
-          ],
-          "cross_refs": [
-            "pairing-and-relay-runtime",
-            "core-domain"
-          ],
-          "file_paths": [
-            "crates/table-proto/Cargo.toml",
-            "crates/table-proto/src/envelope.rs",
-            "crates/table-proto/src/house.rs",
-            "crates/table-proto/src/lib.rs",
-            "crates/table-proto/src/pairing.rs",
-            "crates/table-proto/src/settlement.rs",
-            "crates/table-proto/tests/protocol.rs"
-          ]
-        },
-        {
-          "name": "relay-and-rendezvous",
-          "description": "Store-and-forward relay client and the hosted rendezvous service (axum-style HTTP) that lets two wallets on different machines exchange signed envelopes; Render deployment config.",
-          "keywords": [
-            "relay",
-            "rendezvous",
-            "http",
-            "render",
-            "mailbox"
-          ],
-          "tech_stack": [
-            "Rust 2024 (stable)",
-            "Docker",
-            "Render"
-          ],
-          "cross_refs": [
-            "protocol",
-            "pairing-and-relay-runtime"
-          ],
-          "file_paths": [
-            "crates/table-relay/Cargo.toml",
-            "crates/table-relay/src/lib.rs",
-            "services/rendezvous/Cargo.toml",
-            "services/rendezvous/Dockerfile",
-            "services/rendezvous/render.yaml",
-            "services/rendezvous/src/lib.rs",
-            "services/rendezvous/src/main.rs",
-            "services/rendezvous/tests/relay.rs"
-          ]
-        },
-        {
-          "name": "house-seller",
-          "description": "The hosted deterministic HOUSE seller: a release-pinned mandate as its owner's signature, one-install haggle path for judges, env-only configuration, signing/public-key/release bins and container entrypoint.",
-          "keywords": [
-            "house",
-            "seller",
-            "hosted",
-            "demo",
-            "release-pin",
-            "docker"
-          ],
-          "tech_stack": [
-            "Rust 2024 (stable)",
-            "Docker",
-            "Render"
-          ],
-          "cross_refs": [
-            "protocol",
-            "money-pipeline",
-            "relay-and-rendezvous"
-          ],
-          "file_paths": [
-            ".dockerignore",
-            "Dockerfile",
-            "render.yaml",
-            "services/house-seller/Cargo.toml",
-            "services/house-seller/entrypoint.sh",
-            "services/house-seller/src/bin/house-public-key.rs",
-            "services/house-seller/src/bin/house-release.rs",
-            "services/house-seller/src/bin/house-sign.rs",
-            "services/house-seller/src/environment.rs",
-            "services/house-seller/src/hosted.rs",
-            "services/house-seller/src/lib.rs",
-            "services/house-seller/src/main.rs"
-          ]
-        }
+      "api_surface": "Reads ledger and statement data via typed IPC bindings",
+      "business_feature": "Book and Proof",
+      "category": "ui",
+      "cross_refs": [
+        "main-window-shell",
+        "deal-detail"
+      ],
+      "db_tables": [],
+      "description": "The Book capability: the merchant's ledger of where money went, with ask chips, plain-language readings, proof checks and statements. The model, rules and understanding helpers are tested view-model code; the module also carries shared module chrome.",
+      "entry_points": [
+        "apps/desktop/client/src/windows/main/modules/book.tsx",
+        "apps/desktop/client/src/windows/main/modules/book/model.ts"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/windows/main/modules/common.tsx",
+        "apps/desktop/client/src/windows/main/modules/book.css",
+        "apps/desktop/client/src/windows/main/modules/book.tsx",
+        "apps/desktop/client/src/windows/main/modules/book/AskChips.tsx",
+        "apps/desktop/client/src/windows/main/modules/book/AskReading.tsx",
+        "apps/desktop/client/src/windows/main/modules/book/AskReading.test.tsx",
+        "apps/desktop/client/src/windows/main/modules/book/MoneyWent.tsx",
+        "apps/desktop/client/src/windows/main/modules/book/ProofCheck.tsx",
+        "apps/desktop/client/src/windows/main/modules/book/direction.test.ts",
+        "apps/desktop/client/src/windows/main/modules/book/lensRange.test.ts",
+        "apps/desktop/client/src/windows/main/modules/book/model.ts",
+        "apps/desktop/client/src/windows/main/modules/book/model.test.ts",
+        "apps/desktop/client/src/windows/main/modules/book/proofMarket.test.tsx",
+        "apps/desktop/client/src/windows/main/modules/book/proofV2.test.tsx",
+        "apps/desktop/client/src/windows/main/modules/book/rules.ts",
+        "apps/desktop/client/src/windows/main/modules/book/statement.test.ts",
+        "apps/desktop/client/src/windows/main/modules/book/understand.ts",
+        "apps/desktop/client/src/windows/main/modules/book/understand.test.ts",
+        "apps/desktop/client/src/windows/main/modules/book/walletAmount.test.ts",
+        "apps/desktop/client/src/windows/main/modules/book/where.ts",
+        "apps/desktop/client/src/windows/main/modules/book/where.test.ts"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "44983015-e31a-41fb-92ee-ab6637c0cc3e",
+      "keywords": [
+        "book",
+        "ledger",
+        "ask",
+        "proof",
+        "statement",
+        "money went",
+        "wallet amount"
+      ],
+      "last_written_at": "2026-10-14T10:52:08.689033700+00:00",
+      "name": "book-module",
+      "pinned": false,
+      "tech_stack": [
+        "React",
+        "TypeScript",
+        "Vitest"
       ]
     },
     {
-      "name": "Desktop Shell",
-      "contexts": [
-        {
-          "name": "ipc-contract",
-          "description": "The typed IPC contract between Rust and the webview: command/event contracts, errors, safe display types, ts-rs generated TypeScript bindings and the drift test that keeps them in sync.",
-          "keywords": [
-            "ipc",
-            "contract",
-            "bindings",
-            "ts-rs",
-            "commands",
-            "events"
-          ],
-          "tech_stack": [
-            "Rust 2024 (stable)",
-            "ts-rs",
-            "TypeScript"
-          ],
-          "cross_refs": [
-            "native-shell",
-            "client-foundation"
-          ],
-          "file_paths": [
-            "bindings/AgentSlot.ts",
-            "bindings/AgentStartArgs.ts",
-            "bindings/ApprovalOpenArgs.ts",
-            "bindings/ApprovalSummary.ts",
-            "bindings/AttentionItem.ts",
-            "bindings/AttentionSnapshot.ts",
-            "bindings/AttnKind.ts",
-            "bindings/BandArgs.ts",
-            "bindings/Category.ts",
-            "bindings/Clause.ts",
-            "bindings/ClauseRef.ts",
-            "bindings/Command.ts",
-            "bindings/CommandContract.ts",
-            "bindings/CommandError.ts",
-            "bindings/CounterpartyDisplay.ts",
-            "bindings/CpRule.ts",
-            "bindings/CredentialArgs.ts",
-            "bindings/Currency.ts",
-            "bindings/Deal.ts",
-            "bindings/DealArgs.ts",
-            "bindings/DealChanged.ts",
-            "bindings/DealCreateArgs.ts",
-            "bindings/DealDisplay.ts",
-            "bindings/DealEvidence.ts",
-            "bindings/DealId.ts",
-            "bindings/DealJoinArgs.ts",
-            "bindings/DealKind.ts",
-            "bindings/DealState.ts",
-            "bindings/DecisionArgs.ts",
-            "bindings/Delivery.ts",
-            "bindings/DisplayBand.ts",
-            "bindings/EngineId.ts",
-            "bindings/EngineInfo.ts",
-            "bindings/EngineSelectArgs.ts",
-            "bindings/ErrorCode.ts",
-            "bindings/EventContract.ts",
-            "bindings/Form.ts",
-            "bindings/FormArgs.ts",
-            "bindings/H256.ts",
-            "bindings/HouseState.ts",
-            "bindings/HouseTable.ts",
-            "bindings/IpcHeaders.ts",
-            "bindings/ItemRef.ts",
-            "bindings/KeyId.ts",
-            "bindings/MainRoute.ts",
-            "bindings/MandateId.ts",
-            "bindings/MandateListEntry.ts",
-            "bindings/MandatePayload.ts",
-            "bindings/MandateRevokeArgs.ts",
-            "bindings/MandateSignArgs.ts",
-            "bindings/MarketRef.ts",
-            "bindings/MarketRefreshArgs.ts",
-            "bindings/Mode.ts",
-            "bindings/Module.ts",
-            "bindings/Money.ts",
-            "bindings/OpenMandate.ts",
-            "bindings/OrientationEvent.ts",
-            "bindings/PairingConfirmArgs.ts",
-            "bindings/PairingCreateArgs.ts",
-            "bindings/PairingIdentity.ts",
-            "bindings/PairingJoinArgs.ts",
-            "bindings/PairingOffer.ts",
-            "bindings/PairingPollArgs.ts",
-            "bindings/PairingWords.ts",
-            "bindings/PayeeRef.ts",
-            "bindings/PaypalRefs.ts",
-            "bindings/PendingPairing.ts",
-            "bindings/PinArgs.ts",
-            "bindings/Placement.ts",
-            "bindings/PuckPosition.ts",
-            "bindings/QuitArgs.ts",
-            "bindings/QuitSummary.ts",
-            "bindings/ReceiptEvent.ts",
-            "bindings/ReceiptEvidence.ts",
-            "bindings/ReconcileArgs.ts",
-            "bindings/Reconciliation.ts",
-            "bindings/Rect.ts",
-            "bindings/Role.ts",
-            "bindings/RunId.ts",
-            "bindings/RunSnapshot.ts",
-            "bindings/RunState.ts",
-            "bindings/SettingsSnapshot.ts",
-            "bindings/ShieldVerdict.ts",
-            "bindings/Side.ts",
-            "bindings/SignedPairingIdentity.ts",
-            "bindings/Snap.ts",
-            "bindings/Terms.ts",
-            "bindings/TranscriptBy.ts",
-            "bindings/TranscriptStep.ts",
-            "bindings/TranscriptType.ts",
-            "bindings/TumblerAction.ts",
-            "bindings/TumblerHandoff.ts",
-            "bindings/TumblerPreferences.ts",
-            "bindings/TumblerStatus.ts",
-            "bindings/UnlockArgs.ts",
-            "bindings/Urgency.ts",
-            "bindings/VAlign.ts",
-            "bindings/VisualState.ts",
-            "bindings/WindowSide.ts",
-            "crates/table-client/Cargo.toml",
-            "crates/table-client/src/bin/generate-bindings.rs",
-            "crates/table-client/src/lib.rs",
-            "crates/table-client/tests/bindings.rs"
-          ]
-        },
-        {
-          "name": "native-shell",
-          "description": "Tauri 2 host: three windows (main, tumbler, approval) with per-label capabilities, privileged-command routing (IPC token + approval label + not idle-locked), targeted events, tray/hotkey/single-instance, surface placement, and OS credential prompt / Windows native helpers.",
-          "keywords": [
-            "tauri",
-            "capabilities",
-            "windows",
-            "tray",
-            "hotkey",
-            "routing",
-            "credential-prompt"
-          ],
-          "tech_stack": [
-            "Rust 2024 (stable)",
-            "Tauri 2"
-          ],
-          "cross_refs": [
-            "ipc-contract",
-            "runtime-core",
-            "attention-ladder"
-          ],
-          "file_paths": [
-            "apps/desktop/src-tauri/Cargo.toml",
-            "apps/desktop/src-tauri/build.rs",
-            "apps/desktop/src-tauri/capabilities/approval.json",
-            "apps/desktop/src-tauri/capabilities/main.json",
-            "apps/desktop/src-tauri/capabilities/tumbler.json",
-            "apps/desktop/src-tauri/icons/icon.ico",
-            "apps/desktop/src-tauri/src/lib.rs",
-            "apps/desktop/src-tauri/src/main.rs",
-            "apps/desktop/src-tauri/src/native.rs",
-            "apps/desktop/src-tauri/src/native/commands.rs",
-            "apps/desktop/src-tauri/src/native/events.rs",
-            "apps/desktop/src-tauri/src/native/routing.rs",
-            "apps/desktop/src-tauri/src/native/surface.rs",
-            "apps/desktop/src-tauri/tauri.conf.json",
-            "apps/desktop/src-tauri/tests/capabilities.rs",
-            "crates/table-os/Cargo.toml",
-            "crates/table-os/src/credential_prompt.rs",
-            "crates/table-os/src/lib.rs",
-            "crates/table-os/src/windows_native.rs"
-          ]
-        }
+      "api_surface": "Mirrors the Tauri command surface (book, attention, approval, mandate_simulate, deal_history, safety_record) in-browser, backed by local storage and a broadcast channel. It is not a real network API.",
+      "business_feature": "Browser Preview Mock Backend",
+      "category": "lib",
+      "cross_refs": [],
+      "db_tables": [],
+      "description": "Browser-only stand-in for the Rust Tauri shell, so the client UI can be designed and tested (Playwright) without the native backend. It serves sandbox sample data (Maya's week) in the exact Rust binding shapes and mirrors the shell's gates (approval label, token, unlocked, selected deal). It also reimplements the wallet's approval checklist, exposure and limits, walk-away forecast, rescue offer arithmetic, safety record and mandate what-if simulation, and a first-run world selected by `?first_run=1`. Tests pin each mirror to the Rust behaviour.",
+      "entry_points": [
+        "apps/desktop/client/src/mock/backend.ts",
+        "apps/desktop/client/src/mock/fixtures.ts"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/mock/backend.ts",
+        "apps/desktop/client/src/mock/fixtures.ts",
+        "apps/desktop/client/src/mock/firstRun.ts",
+        "apps/desktop/client/src/mock/firstRun.test.ts",
+        "apps/desktop/client/src/mock/checks.ts",
+        "apps/desktop/client/src/mock/checks.test.ts",
+        "apps/desktop/client/src/mock/exposure.ts",
+        "apps/desktop/client/src/mock/exposure.test.ts",
+        "apps/desktop/client/src/mock/forecast.ts",
+        "apps/desktop/client/src/mock/forecast.test.ts",
+        "apps/desktop/client/src/mock/rescue.ts",
+        "apps/desktop/client/src/mock/safety.ts",
+        "apps/desktop/client/src/mock/simulate.ts",
+        "apps/desktop/client/src/mock/simulate.test.ts",
+        "apps/desktop/client/src/mock/authority.test.ts",
+        "apps/desktop/client/src/mock/fairPrice.test.ts",
+        "apps/desktop/client/src/mock/groups.test.ts"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "97ce9cef-2512-4583-a3a5-6ee0b27f287d",
+      "keywords": [
+        "mock backend",
+        "sandbox",
+        "fixtures",
+        "approval checklist",
+        "exposure",
+        "forecast",
+        "rescue",
+        "safety record",
+        "mandate simulation",
+        "first run",
+        "browser preview"
+      ],
+      "last_written_at": "2026-10-14T10:55:40.139650200+00:00",
+      "name": "browser-mock-backend",
+      "pinned": false,
+      "tech_stack": [
+        "React 19.3",
+        "TypeScript 7.0",
+        "Vite 8.3",
+        "Zustand 5.0",
+        "Tauri API 2.12"
       ]
     },
     {
-      "name": "Client UI",
-      "contexts": [
-        {
-          "name": "client-foundation",
-          "description": "Shared React client plumbing: Tauri invoke/listen wrappers, contract helpers, hooks, formatting, honesty/module shared components, design tokens, and the mock backend + fixtures that let every window run without the native host.",
-          "keywords": [
-            "react",
-            "vite",
-            "hooks",
-            "mock-backend",
-            "fixtures",
-            "tokens"
-          ],
-          "tech_stack": [
-            "React",
-            "TypeScript",
-            "Vite",
-            "Vitest"
-          ],
-          "cross_refs": [
-            "ipc-contract",
-            "main-window",
-            "tumbler-window",
-            "approval-window"
-          ],
-          "file_paths": [
-            "apps/desktop/client/approval.html",
-            "apps/desktop/client/index.html",
-            "apps/desktop/client/package.json",
-            "apps/desktop/client/src/design/base.css",
-            "apps/desktop/client/src/design/tokens.css",
-            "apps/desktop/client/src/lib/clientRequests.test.ts",
-            "apps/desktop/client/src/lib/contract.ts",
-            "apps/desktop/client/src/lib/display.ts",
-            "apps/desktop/client/src/lib/format.ts",
-            "apps/desktop/client/src/lib/foundation.test.ts",
-            "apps/desktop/client/src/lib/hooks.ts",
-            "apps/desktop/client/src/lib/mount.tsx",
-            "apps/desktop/client/src/lib/pending.ts",
-            "apps/desktop/client/src/lib/runtime.ts",
-            "apps/desktop/client/src/lib/tauri.ts",
-            "apps/desktop/client/src/mock/backend.ts",
-            "apps/desktop/client/src/mock/fixtures.ts",
-            "apps/desktop/client/src/shared/honesty.tsx",
-            "apps/desktop/client/src/shared/modules.tsx",
-            "apps/desktop/client/tsconfig.json",
-            "apps/desktop/client/tumbler.html",
-            "apps/desktop/client/vite.config.ts"
-          ]
-        },
-        {
-          "name": "main-window",
-          "description": "The Table main window: The Dial (Layer 0 vault dial) routing into six modules, Home, deal view with charts, command palette, sheets, status and world scene.",
-          "keywords": [
-            "dial",
-            "modules",
-            "deal-view",
-            "palette",
-            "home",
-            "charts"
-          ],
-          "tech_stack": [
-            "React",
-            "TypeScript"
-          ],
-          "cross_refs": [
-            "client-foundation",
-            "approval-window"
-          ],
-          "file_paths": [
-            "apps/desktop/client/src/windows/main/App.tsx",
-            "apps/desktop/client/src/windows/main/DealView.tsx",
-            "apps/desktop/client/src/windows/main/Dial.tsx",
-            "apps/desktop/client/src/windows/main/Home.tsx",
-            "apps/desktop/client/src/windows/main/Modules.tsx",
-            "apps/desktop/client/src/windows/main/Palette.tsx",
-            "apps/desktop/client/src/windows/main/Sheet.tsx",
-            "apps/desktop/client/src/windows/main/Shell.tsx",
-            "apps/desktop/client/src/windows/main/Status.tsx",
-            "apps/desktop/client/src/windows/main/art.ts",
-            "apps/desktop/client/src/windows/main/charts.tsx",
-            "apps/desktop/client/src/windows/main/entry.tsx",
-            "apps/desktop/client/src/windows/main/logic.test.ts",
-            "apps/desktop/client/src/windows/main/logic.ts",
-            "apps/desktop/client/src/windows/main/main.css",
-            "apps/desktop/client/src/windows/main/ui.tsx",
-            "apps/desktop/client/src/windows/main/world.tsx"
-          ]
-        },
-        {
-          "name": "tumbler-window",
-          "description": "The Tumbler: the small always-available operative window - puck, forms, attention ladder rendering, snooze, approval hand-off and a stylised desktop preview.",
-          "keywords": [
-            "tumbler",
-            "puck",
-            "forms",
-            "attention",
-            "handoff",
-            "snooze"
-          ],
-          "tech_stack": [
-            "React",
-            "TypeScript"
-          ],
-          "cross_refs": [
-            "attention-ladder",
-            "client-foundation"
-          ],
-          "file_paths": [
-            "apps/desktop/client/src/windows/tumbler/App.tsx",
-            "apps/desktop/client/src/windows/tumbler/Puck.tsx",
-            "apps/desktop/client/src/windows/tumbler/Tumbler.tsx",
-            "apps/desktop/client/src/windows/tumbler/entry.tsx",
-            "apps/desktop/client/src/windows/tumbler/forms.tsx",
-            "apps/desktop/client/src/windows/tumbler/logic.test.ts",
-            "apps/desktop/client/src/windows/tumbler/logic.ts",
-            "apps/desktop/client/src/windows/tumbler/preview/Preview.tsx",
-            "apps/desktop/client/src/windows/tumbler/preview/preview.css",
-            "apps/desktop/client/src/windows/tumbler/tumbler.css"
-          ]
-        },
-        {
-          "name": "approval-window",
-          "description": "The approval window - the only privileged UI: deal review and owner accept, band adjust, mandate editor/drafting, owner configuration, pairing confirmation, gating rules and unlock session.",
-          "keywords": [
-            "approval",
-            "owner-accept",
-            "mandate-editor",
-            "gating",
-            "pairing-confirm",
-            "unlock"
-          ],
-          "tech_stack": [
-            "React",
-            "TypeScript"
-          ],
-          "cross_refs": [
-            "native-shell",
-            "money-pipeline",
-            "client-foundation"
-          ],
-          "file_paths": [
-            "apps/desktop/client/src/windows/approval/App.tsx",
-            "apps/desktop/client/src/windows/approval/BandAdjust.tsx",
-            "apps/desktop/client/src/windows/approval/DealReview.tsx",
-            "apps/desktop/client/src/windows/approval/MandateEditor.tsx",
-            "apps/desktop/client/src/windows/approval/OwnerConfig.tsx",
-            "apps/desktop/client/src/windows/approval/PairingConfirm.tsx",
-            "apps/desktop/client/src/windows/approval/approval.css",
-            "apps/desktop/client/src/windows/approval/entry.tsx",
-            "apps/desktop/client/src/windows/approval/gating.test.ts",
-            "apps/desktop/client/src/windows/approval/gating.ts",
-            "apps/desktop/client/src/windows/approval/mandateDraft.ts",
-            "apps/desktop/client/src/windows/approval/model.ts",
-            "apps/desktop/client/src/windows/approval/selection.ts",
-            "apps/desktop/client/src/windows/approval/session.tsx",
-            "apps/desktop/client/src/windows/approval/ui.tsx"
-          ]
-        }
+      "api_surface": null,
+      "business_feature": null,
+      "category": null,
+      "cross_refs": [
+        "ipc-contract",
+        "main-window",
+        "tumbler-window",
+        "approval-window"
+      ],
+      "db_tables": [],
+      "description": "Shared React client plumbing: Tauri invoke/listen wrappers, contract helpers, hooks, formatting, honesty/module shared components, design tokens, and the mock backend + fixtures that let every window run without the native host.",
+      "entry_points": [],
+      "file_paths": [
+        "apps/desktop/client/src/design/base.css",
+        "apps/desktop/client/src/design/tokens.css",
+        "apps/desktop/client/src/lib/clientRequests.test.ts",
+        "apps/desktop/client/src/lib/contract.ts",
+        "apps/desktop/client/src/lib/display.ts",
+        "apps/desktop/client/src/lib/format.ts",
+        "apps/desktop/client/src/lib/foundation.test.ts",
+        "apps/desktop/client/src/lib/hooks.ts",
+        "apps/desktop/client/src/lib/mount.tsx",
+        "apps/desktop/client/src/lib/pending.ts",
+        "apps/desktop/client/src/lib/runtime.ts",
+        "apps/desktop/client/src/lib/tauri.ts",
+        "apps/desktop/client/src/mock/backend.ts",
+        "apps/desktop/client/src/mock/fixtures.ts",
+        "apps/desktop/client/src/shared/honesty.tsx",
+        "apps/desktop/client/src/shared/modules.tsx",
+        "apps/desktop/client/vite.config.ts"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "92cbc0b8-5203-4da1-a2ac-4bf381ab1569",
+      "keywords": [
+        "react",
+        "vite",
+        "hooks",
+        "mock-backend",
+        "fixtures",
+        "tokens"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.556543300+00:00",
+      "name": "client-foundation",
+      "pinned": false,
+      "tech_stack": [
+        "React",
+        "TypeScript",
+        "Vite",
+        "Vitest"
       ]
     },
     {
-      "name": "Delivery",
-      "contexts": [
-        {
-          "name": "ops-and-delivery",
-          "description": "Build, CI and delivery for a hackathon entry: workspace manifest, lints, cargo-deny, CI workflow, Windows check/spike scripts, deploy runbook and build briefs/status, README and submission readiness.",
-          "keywords": [
-            "ci",
-            "cargo-deny",
-            "scripts",
-            "deploy",
-            "spikes",
-            "status",
-            "submission"
-          ],
-          "tech_stack": [
-            "Rust 2024 (stable)",
-            "GitHub Actions",
-            "PowerShell"
-          ],
-          "cross_refs": [
-            "house-seller",
-            "relay-and-rendezvous"
-          ],
-          "file_paths": [
-            ".cargo/config.toml",
-            ".github/workflows/ci.yml",
-            "Cargo.toml",
-            "README.md",
-            "clippy.toml",
-            "deny.toml",
-            "docs/build/BACKEND-BRIEF.md",
-            "docs/build/CLIENT-BRIEF.md",
-            "docs/build/CLIENT-STATUS.md",
-            "docs/build/DEPLOY.md",
-            "docs/build/PLUMBING-BRIEF.md",
-            "docs/build/SPIKE-RESULTS.md",
-            "docs/build/SPIKES.md",
-            "docs/build/STATUS.md",
-            "rust-toolchain.toml",
-            "rustfmt.toml",
-            "scripts/cargo.ps1",
-            "scripts/check.ps1",
-            "scripts/spike.ps1"
-          ]
-        }
+      "api_surface": "Wraps Tauri invoke calls to the desktop shell; defines the client-side request/response contract types",
+      "business_feature": "Client Runtime Foundation",
+      "category": "lib",
+      "cross_refs": [
+        "design-theme-and-copy",
+        "money-guidance-and-onboarding"
+      ],
+      "db_tables": [],
+      "description": "Core plumbing for the desktop client: Tauri bridge and runtime detection, the API contract types, clock, formatting and display helpers, shared hooks, lazy loading, mount and pending-state utilities. Also holds the foundation, client-request, port-gap and casing tests that pin these behaviours. Everything else in the client UI builds on it.",
+      "entry_points": [
+        "apps/desktop/client/src/lib/tauri.ts",
+        "apps/desktop/client/src/lib/contract.ts",
+        "apps/desktop/client/src/lib/hooks.ts"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/lib/clock.ts",
+        "apps/desktop/client/src/lib/clock.test.ts",
+        "apps/desktop/client/src/lib/contract.ts",
+        "apps/desktop/client/src/lib/display.ts",
+        "apps/desktop/client/src/lib/format.ts",
+        "apps/desktop/client/src/lib/hooks.ts",
+        "apps/desktop/client/src/lib/lazy.ts",
+        "apps/desktop/client/src/lib/lazy.test.tsx",
+        "apps/desktop/client/src/lib/mount.tsx",
+        "apps/desktop/client/src/lib/pending.ts",
+        "apps/desktop/client/src/lib/preview.ts",
+        "apps/desktop/client/src/lib/runtime.ts",
+        "apps/desktop/client/src/lib/tauri.ts",
+        "apps/desktop/client/src/lib/casing.test.ts",
+        "apps/desktop/client/src/lib/foundation.test.ts",
+        "apps/desktop/client/src/lib/clientRequests.test.ts",
+        "apps/desktop/client/src/lib/portGaps.test.ts"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "9a4f1dcb-2f71-4b8d-835c-a38862a5c22a",
+      "keywords": [
+        "tauri",
+        "ipc",
+        "contract",
+        "clock",
+        "format",
+        "hooks",
+        "lazy",
+        "runtime",
+        "pending"
+      ],
+      "last_written_at": "2026-10-14T10:52:50.737987+00:00",
+      "name": "client-runtime-foundation",
+      "pinned": false,
+      "tech_stack": [
+        "React 19.3",
+        "Tauri API 2.12",
+        "Zustand 5.0",
+        "TypeScript 7.0",
+        "Vite 8.3",
+        "Vitest 5.0"
+      ]
+    },
+    {
+      "api_surface": "Reads and acts on deals via typed IPC bindings",
+      "business_feature": "Counter and Tables",
+      "category": "ui",
+      "cross_refs": [
+        "main-window-shell",
+        "deal-detail",
+        "book-module"
+      ],
+      "db_tables": [],
+      "description": "The Counter and Tables capabilities: negotiating counteroffers and comparing counterparties around the table. Group and ladder models order the options, and ShopAround presents alternatives to the owner.",
+      "entry_points": [
+        "apps/desktop/client/src/windows/main/modules/tables.tsx",
+        "apps/desktop/client/src/windows/main/modules/counter.tsx"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/windows/main/modules/counter.css",
+        "apps/desktop/client/src/windows/main/modules/counter.tsx",
+        "apps/desktop/client/src/windows/main/modules/counter/model.ts",
+        "apps/desktop/client/src/windows/main/modules/counter/model.test.ts",
+        "apps/desktop/client/src/windows/main/modules/tables.css",
+        "apps/desktop/client/src/windows/main/modules/tables.tsx",
+        "apps/desktop/client/src/windows/main/modules/tables/ShopAround.tsx",
+        "apps/desktop/client/src/windows/main/modules/tables/groups.ts",
+        "apps/desktop/client/src/windows/main/modules/tables/groups.test.ts",
+        "apps/desktop/client/src/windows/main/modules/tables/ladder.ts",
+        "apps/desktop/client/src/windows/main/modules/tables/ladder.test.ts"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "d477836b-8d3f-42dd-93ce-bf0a9f5bbf53",
+      "keywords": [
+        "counter",
+        "counteroffer",
+        "tables",
+        "ladder",
+        "groups",
+        "shop around",
+        "negotiation"
+      ],
+      "last_written_at": "2026-10-14T10:52:08.689429500+00:00",
+      "name": "counter-and-tables-modules",
+      "pinned": false,
+      "tech_stack": [
+        "React",
+        "TypeScript",
+        "Vitest"
+      ]
+    },
+    {
+      "api_surface": "Reads deal state via typed IPC bindings",
+      "business_feature": "Deal Detail",
+      "category": "ui",
+      "cross_refs": [
+        "main-window-shell",
+        "rewind-and-displays",
+        "home-overview"
+      ],
+      "db_tables": [],
+      "description": "The deal view where an owner sees a deal's story, who decided, the instructions given, the evidence and what they were shown before deciding. Models and story builders turn deal data into plain-language columns and decision panels.",
+      "entry_points": [
+        "apps/desktop/client/src/windows/main/DealView.tsx",
+        "apps/desktop/client/src/windows/main/deal/model.ts"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/windows/main/DealView.tsx",
+        "apps/desktop/client/src/windows/main/deal.css",
+        "apps/desktop/client/src/windows/main/deal/Columns.tsx",
+        "apps/desktop/client/src/windows/main/deal/Decision.tsx",
+        "apps/desktop/client/src/windows/main/deal/Decision.test.tsx",
+        "apps/desktop/client/src/windows/main/deal/Evidence.tsx",
+        "apps/desktop/client/src/windows/main/deal/evidence.test.tsx",
+        "apps/desktop/client/src/windows/main/deal/Instructions.tsx",
+        "apps/desktop/client/src/windows/main/deal/InstructionsValue.tsx",
+        "apps/desktop/client/src/windows/main/deal/instructions.test.tsx",
+        "apps/desktop/client/src/windows/main/deal/ShownStrip.tsx",
+        "apps/desktop/client/src/windows/main/deal/WhoDecided.tsx",
+        "apps/desktop/client/src/windows/main/deal/model.ts",
+        "apps/desktop/client/src/windows/main/deal/model.test.ts",
+        "apps/desktop/client/src/windows/main/deal/shown.ts",
+        "apps/desktop/client/src/windows/main/deal/shown.test.ts",
+        "apps/desktop/client/src/windows/main/deal/story.ts",
+        "apps/desktop/client/src/windows/main/deal/story.test.ts",
+        "apps/desktop/client/src/windows/main/deal/whatYouWereShown.css"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "f4937131-9b2b-4830-92bf-e739e6fbaab4",
+      "keywords": [
+        "deal",
+        "decision",
+        "story",
+        "who decided",
+        "instructions",
+        "evidence",
+        "shown"
+      ],
+      "last_written_at": "2026-10-14T10:52:08.688756900+00:00",
+      "name": "deal-detail",
+      "pinned": false,
+      "tech_stack": [
+        "React",
+        "TypeScript",
+        "Vitest"
+      ]
+    },
+    {
+      "api_surface": "Consumes approve/decline/band-set IPC commands in the approval window",
+      "business_feature": "Deal Review and Decision",
+      "category": "ui",
+      "cross_refs": [
+        "approval-window-shell",
+        "owner-mandate-config"
+      ],
+      "db_tables": [
+        "deals"
+      ],
+      "description": "Lets the owner review a pending deal in plain words and decide: what it says, why, the checks, the next step and the second round, plus adjusting the price band. Pure view-model modules (says, why, next, diff) derive text from deal data, and the decision buttons call gated commands.",
+      "entry_points": [
+        "apps/desktop/client/src/windows/approval/DealReview.tsx",
+        "apps/desktop/client/src/windows/approval/review/says.ts"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/windows/approval/DealReview.tsx",
+        "apps/desktop/client/src/windows/approval/BandAdjust.tsx",
+        "apps/desktop/client/src/windows/approval/review/Checks.tsx",
+        "apps/desktop/client/src/windows/approval/review/Details.tsx",
+        "apps/desktop/client/src/windows/approval/review/Parts.tsx",
+        "apps/desktop/client/src/windows/approval/review/Round2.tsx",
+        "apps/desktop/client/src/windows/approval/review/checks.test.tsx",
+        "apps/desktop/client/src/windows/approval/review/diff.ts",
+        "apps/desktop/client/src/windows/approval/review/next.ts",
+        "apps/desktop/client/src/windows/approval/review/next.test.ts",
+        "apps/desktop/client/src/windows/approval/review/says.ts",
+        "apps/desktop/client/src/windows/approval/review/says.test.ts",
+        "apps/desktop/client/src/windows/approval/review/why.ts",
+        "apps/desktop/client/src/windows/approval/review/why.test.ts"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "1b4ef14a-5a8a-438c-988d-365c439b153d",
+      "keywords": [
+        "deal",
+        "review",
+        "countersign",
+        "band",
+        "checks",
+        "round two",
+        "approve",
+        "decline"
+      ],
+      "last_written_at": "2026-10-14T10:51:47.286581400+00:00",
+      "name": "deal-review",
+      "pinned": false,
+      "tech_stack": [
+        "React 19.3",
+        "TypeScript 7.0",
+        "Vitest 5.0"
+      ]
+    },
+    {
+      "api_surface": "",
+      "business_feature": "Design System & Theming",
+      "category": "ui",
+      "cross_refs": [],
+      "db_tables": [],
+      "description": "Defines the visual language shared by all three desktop windows (main, Tumbler, approval). The file tokens.css holds the only colour literals in two themes, dark (default) and light (PayPal palette), with fixed colour meanings: teal is your side, coral is the counterparty, gold needs you, green is settled, red is refused. base.css sets the 13px root, box-sizing and body defaults. ui.css is the `ui-` prefixed component baseline for indicative rows, tiles and chips and for detail layers, and is loaded once from src/lib/mount.tsx. The React wrappers live in src/shared/ui.",
+      "entry_points": [
+        "apps/desktop/client/src/design/tokens.css",
+        "apps/desktop/client/src/design/ui.css"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/design/tokens.css",
+        "apps/desktop/client/src/design/base.css",
+        "apps/desktop/client/src/design/ui.css"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "dfb10fbf-b52a-4c2d-a63f-c8203148b8fa",
+      "keywords": [
+        "design-tokens",
+        "theme",
+        "dark-mode",
+        "light-mode",
+        "css-variables",
+        "typography",
+        "ui-baseline",
+        "palette"
+      ],
+      "last_written_at": "2026-10-14T11:07:22.440866800+00:00",
+      "name": "design-system-styles",
+      "pinned": false,
+      "tech_stack": [
+        "CSS custom properties",
+        "React 19.3",
+        "Vite 8.3",
+        "Tauri 2"
+      ]
+    },
+    {
+      "api_surface": "",
+      "business_feature": "Theme, Accessibility and Copy",
+      "category": "ui",
+      "cross_refs": [
+        "client-runtime-foundation",
+        "money-guidance-and-onboarding"
+      ],
+      "db_tables": [],
+      "description": "Visual theme tokens, WCAG contrast checking, and the plain-language copy dictionary (`words.ts`, the largest file in the directory) used across the client UI. Tests cover contrast ratios, theme values, wording, and the house-record and run-words rendering. The `polish3` test is also here, on the assumption that it covers UI polish.",
+      "entry_points": [
+        "apps/desktop/client/src/lib/words.ts",
+        "apps/desktop/client/src/lib/theme.ts"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/lib/theme.ts",
+        "apps/desktop/client/src/lib/theme.test.ts",
+        "apps/desktop/client/src/lib/contrast.ts",
+        "apps/desktop/client/src/lib/contrast.test.ts",
+        "apps/desktop/client/src/lib/words.ts",
+        "apps/desktop/client/src/lib/words.test.ts",
+        "apps/desktop/client/src/lib/runWords.test.tsx",
+        "apps/desktop/client/src/lib/houseRecord.test.tsx",
+        "apps/desktop/client/src/lib/polish3.test.ts"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "04d7429b-17dd-4b81-8210-ee2f93b5fa49",
+      "keywords": [
+        "theme",
+        "contrast",
+        "accessibility",
+        "copy",
+        "words",
+        "wording",
+        "design tokens"
+      ],
+      "last_written_at": "2026-10-14T10:52:50.738531900+00:00",
+      "name": "design-theme-and-copy",
+      "pinned": false,
+      "tech_stack": [
+        "React 19.3",
+        "TypeScript 7.0",
+        "Vitest 5.0"
+      ]
+    },
+    {
+      "api_surface": "Browser page /director.html with URL params ?story=, ?beat=, ?play=, ?camera=, ?date=, ?take=; read-only window.__takes hook consumed by scripts/takes.mjs",
+      "business_feature": "Demo Director Preview",
+      "category": "ui",
+      "cross_refs": [],
+      "db_tables": [],
+      "description": "Browser-only 'director' rehearsal rig that plays scripted stories (Maya's week and the First-run onboarding) across the three framed desktop windows (The Table, the Tumbler, the approval window) on the mock world, for judges who won't install the binary and as the video rehearsal rig. Story beat files define timed captions, camera focus and mock-world actions (no beat can approve, pay or release money); Director.tsx renders the stage, camera and caption rail and exposes a read-only window.__takes hook. takes.ts checks each beat's expected on-screen end state and still names, and retime.ts maps lagging screen recordings back onto the beat clock for scripts/takes.mjs.",
+      "entry_points": [
+        "apps/desktop/client/src/director/README.md",
+        "apps/desktop/client/src/director/Director.tsx",
+        "apps/desktop/client/src/director/beats.ts"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/director/Director.tsx",
+        "apps/desktop/client/src/director/actions.ts",
+        "apps/desktop/client/src/director/beats.test.ts",
+        "apps/desktop/client/src/director/beats.ts",
+        "apps/desktop/client/src/director/director.css",
+        "apps/desktop/client/src/director/entry.tsx",
+        "apps/desktop/client/src/director/firstRunStory.test.ts",
+        "apps/desktop/client/src/director/firstRunStory.ts",
+        "apps/desktop/client/src/director/helpers.ts",
+        "apps/desktop/client/src/director/retime.test.ts",
+        "apps/desktop/client/src/director/retime.ts",
+        "apps/desktop/client/src/director/stories.test.ts",
+        "apps/desktop/client/src/director/stories.ts",
+        "apps/desktop/client/src/director/story.test.ts",
+        "apps/desktop/client/src/director/takes.test.ts",
+        "apps/desktop/client/src/director/takes.ts"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "301e09f0-979a-4861-b442-b4efe22b7bd2",
+      "keywords": [
+        "director",
+        "demo",
+        "beats",
+        "story",
+        "mayas-week",
+        "first-run",
+        "takes",
+        "retime",
+        "captions",
+        "rehearsal",
+        "mock-world"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.557236700+00:00",
+      "name": "director-preview-stories",
+      "pinned": false,
+      "tech_stack": [
+        "React 19.3",
+        "Vite 8.3",
+        "TypeScript 7.0",
+        "Zustand 5.0"
+      ]
+    },
+    {
+      "api_surface": "CLI: node scripts/takes.mjs --check | --stills <dir> | --video <file.webm> [--story, --chapter, --theme, --url, --port, --date, --tz, --headed]",
+      "business_feature": "Director Demo Takes",
+      "category": "test",
+      "cross_refs": [],
+      "db_tables": [],
+      "description": "Repeatable capture rig for the director demo (director.html). It drives the director on the browser mock through Playwright and produces stills of every beat, a video of the whole story or one chapter, and a rehearsal check that fails loudly on a broken beat. It never clicks inside a framed window, never approves or pays, and never opens a PayPal page. It optionally retimes video with ffmpeg using the plan in src/director/retime.ts.",
+      "entry_points": [
+        "apps/desktop/client/scripts/takes.mjs"
+      ],
+      "file_paths": [
+        "apps/desktop/client/scripts/takes.mjs"
+      ],
+      "group": "Delivery",
+      "group_id": "198d3fe9-5aa7-45af-b340-1138cd855184",
+      "id": "a1a41cac-6c94-418e-8740-5d1188336cb0",
+      "keywords": [
+        "director",
+        "takes",
+        "stills",
+        "video",
+        "rehearsal",
+        "playwright",
+        "ffmpeg",
+        "demo",
+        "retime"
+      ],
+      "last_written_at": "2026-10-14T11:07:21.391531200+00:00",
+      "name": "director-takes-rig",
+      "pinned": false,
+      "tech_stack": [
+        "Node.js ESM",
+        "Playwright",
+        "Vite 8.3",
+        "ffmpeg"
+      ]
+    },
+    {
+      "api_surface": "",
+      "business_feature": "Home Overview",
+      "category": "ui",
+      "cross_refs": [
+        "main-window-shell",
+        "deal-detail"
+      ],
+      "db_tables": [],
+      "description": "The Home screen a merchant lands on: what happened while they were away, and how to start something new. Away summaries and the home view model are pure, tested modules that feed the cards.",
+      "entry_points": [
+        "apps/desktop/client/src/windows/main/Home.tsx",
+        "apps/desktop/client/src/windows/main/home/model.ts"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/windows/main/Home.tsx",
+        "apps/desktop/client/src/windows/main/home.css",
+        "apps/desktop/client/src/windows/main/home/AwayCard.tsx",
+        "apps/desktop/client/src/windows/main/home/AwayCard.test.tsx",
+        "apps/desktop/client/src/windows/main/home/Start.tsx",
+        "apps/desktop/client/src/windows/main/home/Start.test.tsx",
+        "apps/desktop/client/src/windows/main/home/away.ts",
+        "apps/desktop/client/src/windows/main/home/away.test.ts",
+        "apps/desktop/client/src/windows/main/home/model.ts",
+        "apps/desktop/client/src/windows/main/home/model.test.ts"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "e48f3567-2c9c-4ab3-9c0b-fe0c962e55bd",
+      "keywords": [
+        "home",
+        "away",
+        "start",
+        "summary",
+        "landing"
+      ],
+      "last_written_at": "2026-10-14T10:52:08.688437100+00:00",
+      "name": "home-overview",
+      "pinned": false,
+      "tech_stack": [
+        "React",
+        "TypeScript",
+        "Vitest"
+      ]
+    },
+    {
+      "api_surface": "axum HTTP routes (routes.rs) serving the seller API and scoreboard page; CLI bins house-public-key, house-sign, house-release",
+      "business_feature": "Hosted House Seller",
+      "category": "api",
+      "cross_refs": [
+        "rendezvous-relay"
+      ],
+      "db_tables": [],
+      "description": "A deterministic hosted counterparty that sells to buyers and negotiates against a signed price floor and ask, so the house never counters below its floor. It exposes axum routes, a public scoreboard page, and CLI binaries for key publication, signing and release. Payment authority stays in the durable Rust pipeline (table-paypal, table-ledger). It reaches buyers through the rendezvous relay.",
+      "entry_points": [
+        "services/house-seller/src/lib.rs",
+        "services/house-seller/src/main.rs",
+        "services/house-seller/src/hosted.rs"
+      ],
+      "file_paths": [
+        "services/house-seller/src/lib.rs",
+        "services/house-seller/src/main.rs",
+        "services/house-seller/src/environment.rs",
+        "services/house-seller/src/glass.rs",
+        "services/house-seller/src/hosted.rs",
+        "services/house-seller/src/routes.rs",
+        "services/house-seller/src/bin/house-public-key.rs",
+        "services/house-seller/src/bin/house-release.rs",
+        "services/house-seller/src/bin/house-sign.rs",
+        "services/house-seller/src/scoreboard/scoreboard.css",
+        "services/house-seller/src/scoreboard/scoreboard.js"
+      ],
+      "group": "Network & Counterparties",
+      "group_id": "513d0915-170a-4dbe-b8c6-7092a4e0e9c0",
+      "id": "eec42666-8620-4b0d-8d2e-bc418a280b71",
+      "keywords": [
+        "house",
+        "seller",
+        "negotiation",
+        "floor",
+        "ask",
+        "policy",
+        "ed25519",
+        "signing",
+        "scoreboard",
+        "hosted"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.557806200+00:00",
+      "name": "house-seller-service",
+      "pinned": false,
+      "tech_stack": [
+        "Rust",
+        "axum",
+        "tokio",
+        "ed25519-dalek",
+        "serde",
+        "ulid"
+      ]
+    },
+    {
+      "api_surface": "CommandContract, EventContract, CommandError/ErrorCode and IpcHeaders types exported as TypeScript; generated bindings/authority.ts, ladder.ts, playbooks.ts and Tauri capability files",
+      "business_feature": "IPC Contract & Command Authority",
+      "category": "api",
+      "cross_refs": [],
+      "db_tables": [],
+      "description": "Defines the versioned IPC contract (commands, events, error codes, headers) between the Rust runtime and the desktop shell and browser UI. It also holds the authority table, a single source of truth for which window may call which command. A generate-bindings binary derives the TypeScript bindings, Tauri capability files, manifest fingerprint, attention-ladder schedule and role playbooks from it. A bindings test fails when a committed generated copy drifts. It depends on the table-core, table-proto, table-attention, table-engine, table-app, table-ledger and table-verify crates.",
+      "entry_points": [
+        "crates/table-client/src/lib.rs",
+        "crates/table-client/src/authority_table.rs",
+        "crates/table-client/src/bin/generate-bindings.rs"
+      ],
+      "file_paths": [
+        "crates/table-client/src/lib.rs",
+        "crates/table-client/src/authority.rs",
+        "crates/table-client/src/authority_table.rs",
+        "crates/table-client/src/ladder.rs",
+        "crates/table-client/src/playbooks.rs",
+        "crates/table-client/src/bin/generate-bindings.rs",
+        "crates/table-client/tests/bindings.rs"
+      ],
+      "group": "Desktop Shell",
+      "group_id": "ec360d7b-3d32-4e7b-8e36-1a705f6a281a",
+      "id": "b122a56d-4e5f-4259-959c-b90ba9e1c58e",
+      "keywords": [
+        "ipc",
+        "contract",
+        "authority-table",
+        "capabilities",
+        "tauri",
+        "ts-rs",
+        "bindings",
+        "manifest-fingerprint",
+        "playbooks",
+        "attention-ladder"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.558387+00:00",
+      "name": "ipc-contract-and-authority-table",
+      "pinned": false,
+      "tech_stack": [
+        "Rust",
+        "serde 1",
+        "serde_json",
+        "ts-rs 12",
+        "Tauri (consumer)"
+      ]
+    },
+    {
+      "api_surface": "Rust crate API consumed by table-runtime and table-app",
+      "business_feature": "Deal Safeguards & Rescue",
+      "category": "data",
+      "cross_refs": [
+        "ledger-repositories-audit-evidence",
+        "ledger-schema-migrations"
+      ],
+      "db_tables": [
+        "deal_groups"
+      ],
+      "description": "Stores and evaluates the safeguards around deals: wallet spending limits, deal groups, market watching, rescue levers and rescue watch, resolution of disputes, and shield records. Each module persists its state in the ledger and is covered by neighbouring test files, enforcing that silence never moves money.",
+      "entry_points": [
+        "crates/table-ledger/src/limits.rs",
+        "crates/table-ledger/src/rescue.rs",
+        "crates/table-ledger/src/shield.rs"
+      ],
+      "file_paths": [
+        "crates/table-ledger/src/limits.rs",
+        "crates/table-ledger/src/limits_tests.rs",
+        "crates/table-ledger/src/groups.rs",
+        "crates/table-ledger/src/groups_tests.rs",
+        "crates/table-ledger/src/market_watch.rs",
+        "crates/table-ledger/src/market_watch_tests.rs",
+        "crates/table-ledger/src/market_tests.rs",
+        "crates/table-ledger/src/rescue.rs",
+        "crates/table-ledger/src/rescue_tests.rs",
+        "crates/table-ledger/src/rescue_watch.rs",
+        "crates/table-ledger/src/resolution.rs",
+        "crates/table-ledger/src/shield.rs",
+        "crates/table-ledger/src/shield_tests.rs"
+      ],
+      "group": "Money Pipeline & Persistence",
+      "group_id": "f6e35872-df4c-433b-9070-2b41ff2ed4c7",
+      "id": "0d91f152-a990-40ae-9b71-c0a8f7c20407",
+      "keywords": [
+        "wallet limits",
+        "deal groups",
+        "market watch",
+        "rescue",
+        "resolution",
+        "shield",
+        "dispute"
+      ],
+      "last_written_at": "2026-10-14T10:51:41.285022900+00:00",
+      "name": "ledger-deal-safeguards",
+      "pinned": false,
+      "tech_stack": [
+        "Rust",
+        "rusqlite",
+        "serde_json",
+        "thiserror"
+      ]
+    },
+    {
+      "api_surface": "Rust crate API consumed by table-app, table-runtime and table-client",
+      "business_feature": "Audit Ledger & Evidence",
+      "category": "data",
+      "cross_refs": [
+        "ledger-schema-migrations",
+        "ledger-deal-safeguards"
+      ],
+      "db_tables": [
+        "audit_log",
+        "paypal_calls",
+        "deals",
+        "mandates",
+        "receipts"
+      ],
+      "description": "Persistence layer for deals and mandates plus the hash-chained append-only audit log, receipts, witness signatures, evidence bundles and redaction. Also holds attention, display and glass projections of ledger state, relay and house-seller heads, using ed25519-dalek and rusqlite to give tamper-evident records of every money decision.",
+      "entry_points": [
+        "crates/table-ledger/src/lib.rs",
+        "crates/table-ledger/src/repositories.rs",
+        "crates/table-ledger/src/audit.rs"
+      ],
+      "file_paths": [
+        "crates/table-ledger/src/lib.rs",
+        "crates/table-ledger/src/audit.rs",
+        "crates/table-ledger/src/book.rs",
+        "crates/table-ledger/src/repositories.rs",
+        "crates/table-ledger/src/redaction.rs",
+        "crates/table-ledger/src/receipt.rs",
+        "crates/table-ledger/src/witness.rs",
+        "crates/table-ledger/src/bundle.rs",
+        "crates/table-ledger/src/display.rs",
+        "crates/table-ledger/src/glass.rs",
+        "crates/table-ledger/src/attention.rs",
+        "crates/table-ledger/src/relay.rs",
+        "crates/table-ledger/src/house.rs",
+        "crates/table-ledger/src/tests.rs"
+      ],
+      "group": "Money Pipeline & Persistence",
+      "group_id": "f6e35872-df4c-433b-9070-2b41ff2ed4c7",
+      "id": "dfab992a-8315-4db9-b496-6aa38639cf8c",
+      "keywords": [
+        "audit log",
+        "hash chain",
+        "receipt",
+        "witness",
+        "ed25519",
+        "evidence bundle",
+        "redaction",
+        "repository"
+      ],
+      "last_written_at": "2026-10-14T10:51:39.760218100+00:00",
+      "name": "ledger-repositories-audit-evidence",
+      "pinned": false,
+      "tech_stack": [
+        "Rust",
+        "rusqlite",
+        "ed25519-dalek",
+        "serde_json",
+        "time 0.3",
+        "thiserror",
+        "base64"
+      ]
+    },
+    {
+      "api_surface": "",
+      "business_feature": "Ledger Schema",
+      "category": "data",
+      "cross_refs": [
+        "ledger-repositories-audit-evidence",
+        "ledger-deal-safeguards"
+      ],
+      "db_tables": [
+        "deals",
+        "mandates",
+        "audit_log",
+        "paypal_calls",
+        "deal_groups"
+      ],
+      "description": "The SQLite schema history for the wallet ledger: deals, mandates, integrity/hash-chain tables, execution, relay, client, rescue, wallet limits, deal groups and shield records. Migrations are applied in order by the ledger crate and define the append-only audit_log and paypal_calls tables that the money pipeline depends on.",
+      "entry_points": [
+        "crates/table-ledger/migrations/0001_table.sql",
+        "crates/table-ledger/migrations/0002_integrity.sql"
+      ],
+      "file_paths": [
+        "crates/table-ledger/migrations/0001_table.sql",
+        "crates/table-ledger/migrations/0002_integrity.sql",
+        "crates/table-ledger/migrations/0003_execution.sql",
+        "crates/table-ledger/migrations/0004_native.sql",
+        "crates/table-ledger/migrations/0005_relay.sql",
+        "crates/table-ledger/migrations/0006_client.sql",
+        "crates/table-ledger/migrations/0007_binding.sql",
+        "crates/table-ledger/migrations/0008_resolution.sql",
+        "crates/table-ledger/migrations/0009_wallet_limits.sql",
+        "crates/table-ledger/migrations/0010_house_heads.sql",
+        "crates/table-ledger/migrations/0011_rescue.sql",
+        "crates/table-ledger/migrations/0012_deal_groups.sql",
+        "crates/table-ledger/migrations/0013_shield_record.sql",
+        "crates/table-ledger/migrations/0014_rescue_watch.sql",
+        "crates/table-ledger/migrations/0015_relay_reset.sql"
+      ],
+      "group": "Money Pipeline & Persistence",
+      "group_id": "f6e35872-df4c-433b-9070-2b41ff2ed4c7",
+      "id": "c466e7a3-3699-46dc-9cf2-f95dab9a7dd8",
+      "keywords": [
+        "sqlite",
+        "migrations",
+        "ddl",
+        "audit_log",
+        "paypal_calls",
+        "deals",
+        "mandates",
+        "schema"
+      ],
+      "last_written_at": "2026-10-14T10:51:41.285676+00:00",
+      "name": "ledger-schema-migrations",
+      "pinned": false,
+      "tech_stack": [
+        "SQLite",
+        "rusqlite",
+        "Rust"
+      ]
+    },
+    {
+      "api_surface": "Consumes Tauri IPC commands via the typed client bindings",
+      "business_feature": "Main Window Shell",
+      "category": "ui",
+      "cross_refs": [
+        "home-overview",
+        "deal-detail",
+        "rewind-and-displays",
+        "safety-and-setup"
+      ],
+      "db_tables": [],
+      "description": "The frame of the merchant's main wallet window: entry point, app root, shell layout, command palette, keyboard shortcuts, status line, sheets and the quit confirmation. It routes between Home, Deal and the capability modules and holds the shared UI primitives, world state and logic helpers every screen uses.",
+      "entry_points": [
+        "apps/desktop/client/src/windows/main/entry.tsx",
+        "apps/desktop/client/src/windows/main/App.tsx",
+        "apps/desktop/client/src/windows/main/Shell.tsx"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/windows/main/App.tsx",
+        "apps/desktop/client/src/windows/main/entry.tsx",
+        "apps/desktop/client/src/windows/main/Shell.tsx",
+        "apps/desktop/client/src/windows/main/Palette.tsx",
+        "apps/desktop/client/src/windows/main/Shortcuts.tsx",
+        "apps/desktop/client/src/windows/main/Status.tsx",
+        "apps/desktop/client/src/windows/main/Sheet.tsx",
+        "apps/desktop/client/src/windows/main/Modules.tsx",
+        "apps/desktop/client/src/windows/main/QuitSheet.tsx",
+        "apps/desktop/client/src/windows/main/quit.ts",
+        "apps/desktop/client/src/windows/main/quit.test.ts",
+        "apps/desktop/client/src/windows/main/quit.css",
+        "apps/desktop/client/src/windows/main/palette.css",
+        "apps/desktop/client/src/windows/main/sheet.css",
+        "apps/desktop/client/src/windows/main/shell.css",
+        "apps/desktop/client/src/windows/main/main.css",
+        "apps/desktop/client/src/windows/main/legacy.css",
+        "apps/desktop/client/src/windows/main/ui.tsx",
+        "apps/desktop/client/src/windows/main/world.tsx",
+        "apps/desktop/client/src/windows/main/logic.ts",
+        "apps/desktop/client/src/windows/main/logic.test.ts"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "defa1695-a720-4e76-9d97-b09ece4d4394",
+      "keywords": [
+        "shell",
+        "navigation",
+        "palette",
+        "shortcuts",
+        "quit",
+        "sheet",
+        "status",
+        "main window",
+        "world"
+      ],
+      "last_written_at": "2026-10-14T10:52:08.687703400+00:00",
+      "name": "main-window-shell",
+      "pinned": false,
+      "tech_stack": [
+        "Tauri 2",
+        "React",
+        "TypeScript",
+        "Vitest"
+      ]
+    },
+    {
+      "api_surface": null,
+      "business_feature": null,
+      "category": null,
+      "cross_refs": [
+        "agent-tool-surface",
+        "core-domain"
+      ],
+      "db_tables": [],
+      "description": "Market reference data for haggling: cached market/Book lookups the agent may read, privileged native refresh, and live spikes against the external price source.",
+      "entry_points": [],
+      "file_paths": [
+        "crates/table-market/src/lib.rs",
+        "crates/table-market/tests/market.rs",
+        "crates/table-market/tests/spikes.rs",
+        "crates/table-runtime/src/market.rs"
+      ],
+      "group": "Agent Runtime",
+      "group_id": "a4e21325-811f-45be-a378-863946c9064d",
+      "id": "9c2b67dc-8b1f-43ca-af72-23ddf95baf03",
+      "keywords": [
+        "market",
+        "price",
+        "book",
+        "cache",
+        "refresh"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.558613500+00:00",
+      "name": "market-data",
+      "pinned": false,
+      "tech_stack": [
+        "Rust 2024 (stable)"
+      ]
+    },
+    {
+      "api_surface": "Consumes the desktop shell's money and approval commands through the Tauri bridge",
+      "business_feature": "Money Guidance and Onboarding",
+      "category": "lib",
+      "cross_refs": [
+        "client-runtime-foundation",
+        "design-theme-and-copy"
+      ],
+      "db_tables": [],
+      "description": "Client-side money guidance and first-run experience: fair-price estimates, spending limits, market watch, per-item money checks, the read-each review helper, the first-run flow and the guided tour. Tests cover each of these. It works on data from the money pipeline and supplies the user-facing explanations.",
+      "entry_points": [
+        "apps/desktop/client/src/lib/firstRun.ts",
+        "apps/desktop/client/src/lib/limits.ts",
+        "apps/desktop/client/src/lib/fairPrice.ts"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/lib/fairPrice.ts",
+        "apps/desktop/client/src/lib/fairPrice.test.ts",
+        "apps/desktop/client/src/lib/firstRun.ts",
+        "apps/desktop/client/src/lib/firstRun.test.ts",
+        "apps/desktop/client/src/lib/limits.ts",
+        "apps/desktop/client/src/lib/limits.test.ts",
+        "apps/desktop/client/src/lib/marketWatch.ts",
+        "apps/desktop/client/src/lib/marketWatch.test.ts",
+        "apps/desktop/client/src/lib/moneyCheck.test.ts",
+        "apps/desktop/client/src/lib/readEach.ts",
+        "apps/desktop/client/src/lib/readEach.test.ts",
+        "apps/desktop/client/src/lib/tour.ts",
+        "apps/desktop/client/src/lib/tour.test.ts"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "82440528-c2ad-4c04-b22b-0874f0723589",
+      "keywords": [
+        "fair price",
+        "limits",
+        "market watch",
+        "first run",
+        "onboarding",
+        "tour",
+        "money check",
+        "approval"
+      ],
+      "last_written_at": "2026-10-14T10:52:50.738986700+00:00",
+      "name": "money-guidance-and-onboarding",
+      "pinned": false,
+      "tech_stack": [
+        "React 19.3",
+        "Zustand 5.0",
+        "TypeScript 7.0",
+        "Vitest 5.0"
+      ]
+    },
+    {
+      "api_surface": null,
+      "business_feature": null,
+      "category": null,
+      "cross_refs": [
+        "ipc-contract",
+        "runtime-core",
+        "attention-ladder"
+      ],
+      "db_tables": [],
+      "description": "Tauri 2 host: three windows (main, tumbler, approval) with per-label capabilities, privileged-command routing (IPC token + approval label + not idle-locked), targeted events, tray/hotkey/single-instance, surface placement, and OS credential prompt / Windows native helpers.",
+      "entry_points": [],
+      "file_paths": [
+        "apps/desktop/src-tauri/build.rs",
+        "apps/desktop/src-tauri/src/lib.rs",
+        "apps/desktop/src-tauri/src/main.rs",
+        "apps/desktop/src-tauri/src/native.rs",
+        "apps/desktop/src-tauri/src/native/commands.rs",
+        "apps/desktop/src-tauri/src/native/events.rs",
+        "apps/desktop/src-tauri/src/native/routing.rs",
+        "apps/desktop/src-tauri/src/native/surface.rs",
+        "apps/desktop/src-tauri/tests/capabilities.rs",
+        "crates/table-os/src/credential_prompt.rs",
+        "crates/table-os/src/lib.rs",
+        "crates/table-os/src/windows_native.rs"
+      ],
+      "group": "Desktop Shell",
+      "group_id": "ec360d7b-3d32-4e7b-8e36-1a705f6a281a",
+      "id": "bd6a5a80-3506-4c9d-bd06-06e18f3dd015",
+      "keywords": [
+        "tauri",
+        "capabilities",
+        "windows",
+        "tray",
+        "hotkey",
+        "routing",
+        "credential-prompt"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.558853300+00:00",
+      "name": "native-shell",
+      "pinned": false,
+      "tech_stack": [
+        "Rust 2024 (stable)",
+        "Tauri 2"
+      ]
+    },
+    {
+      "api_surface": "CLI: table-verify <bundle.tableproof> (exit 0 verified, 1 failed, 2 unreadable); table-verify --house <ledger.json> [--head <head.json>]... [--pin <release.json>] reads saved output of GET /v1/house/ledger and GET /v1/house/head; acceptance-matrix reads `cargo test --workspace -- --list` on stdin and prints markdown; library: ledger_violations(ProofBundle slices)",
+      "business_feature": "Offline Deal Proof Verification",
+      "category": "lib",
+      "cross_refs": [],
+      "db_tables": [],
+      "description": "Lets an owner or third party independently check The Table's deal proof bundles (v1 and v2 formats) and the glass-box house ledger, without network, ledger or wallet keys. Every check runs even after an earlier failure, and a check with no supporting facts reads 'not checked' rather than passing. It also provides the whole-ledger money-authority safety predicate used by the hostile-agent gauntlet and the wallet's 'Your safety record', plus the acceptance-matrix CLI that maps tests to acceptance IDs for CI. It depends on table-core and table-proto, and uses ed25519 signature verification.",
+      "entry_points": [
+        "crates/table-verify/src/lib.rs",
+        "crates/table-verify/src/main.rs",
+        "crates/table-verify/src/safety.rs"
+      ],
+      "file_paths": [
+        "crates/table-verify/src/lib.rs",
+        "crates/table-verify/src/main.rs",
+        "crates/table-verify/src/v2.rs",
+        "crates/table-verify/src/house.rs",
+        "crates/table-verify/src/safety.rs",
+        "crates/table-verify/src/acceptance.rs",
+        "crates/table-verify/src/acceptance_main.rs"
+      ],
+      "group": "Money Pipeline & Persistence",
+      "group_id": "f6e35872-df4c-433b-9070-2b41ff2ed4c7",
+      "id": "3be5eb78-fe5d-4f61-ae53-ffceafebc9a6",
+      "keywords": [
+        "proof-bundle",
+        "verifier",
+        "tableproof",
+        "house-ledger",
+        "ed25519",
+        "audit-chain",
+        "money-authority",
+        "acceptance-matrix",
+        "never-cut",
+        "release-pin"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.559099900+00:00",
+      "name": "offline-proof-verifier",
+      "pinned": false,
+      "tech_stack": [
+        "Rust (edition 2021 workspace)",
+        "serde",
+        "serde_json",
+        "ed25519-dalek"
+      ]
+    },
+    {
+      "api_surface": "",
+      "business_feature": "Overnight Build Report",
+      "category": "ui",
+      "cross_refs": [],
+      "db_tables": [],
+      "description": "A static HTML report that tells stakeholders what the ten overnight build waves delivered: the safety rule every wave kept, wave-by-wave progress, what a merchant gets, growth of the test safety net, merge gates, and open edges. It governs how progress is communicated and audited, and links out to the module documentation. It is self-contained, a single page plus its stylesheet, with no build step.",
+      "entry_points": [
+        "docs/report/index.html"
+      ],
+      "file_paths": [
+        "docs/report/report.css"
+      ],
+      "group": "Delivery",
+      "group_id": "198d3fe9-5aa7-45af-b340-1138cd855184",
+      "id": "d56b5605-88e1-456c-9b76-8c604a502ecc",
+      "keywords": [
+        "report",
+        "overnight-build",
+        "waves",
+        "progress",
+        "gates",
+        "safety-net",
+        "merchant",
+        "open-edges"
+      ],
+      "last_written_at": "2026-10-14T11:07:19.554372300+00:00",
+      "name": "overnight-build-report",
+      "pinned": false,
+      "tech_stack": [
+        "HTML",
+        "CSS"
+      ]
+    },
+    {
+      "api_surface": "Consumes mandate sign/draft, simulation and rescue-lever IPC commands (approval window only)",
+      "business_feature": "Owner Mandate Configuration",
+      "category": "ui",
+      "cross_refs": [
+        "approval-window-shell",
+        "deal-review"
+      ],
+      "db_tables": [
+        "mandates"
+      ],
+      "description": "Owner-only configuration in the approval window: editing and signing the mandate, wallet limits, templates, who/what rules, what-if simulation, and rescue levers with replay and watch. Draft and diff logic are pure modules with tests; signing goes through the gated sign sheet.",
+      "entry_points": [
+        "apps/desktop/client/src/windows/approval/OwnerConfig.tsx",
+        "apps/desktop/client/src/windows/approval/MandateEditor.tsx",
+        "apps/desktop/client/src/windows/approval/owner/SignSheet.tsx"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/windows/approval/OwnerConfig.tsx",
+        "apps/desktop/client/src/windows/approval/MandateEditor.tsx",
+        "apps/desktop/client/src/windows/approval/mandateDraft.ts",
+        "apps/desktop/client/src/windows/approval/mandateDraft.test.ts",
+        "apps/desktop/client/src/windows/approval/templates.ts",
+        "apps/desktop/client/src/windows/approval/templates.test.ts",
+        "apps/desktop/client/src/windows/approval/owner.css",
+        "apps/desktop/client/src/windows/approval/ui.tsx",
+        "apps/desktop/client/src/windows/approval/owner/Lever.tsx",
+        "apps/desktop/client/src/windows/approval/owner/RescueReplay.tsx",
+        "apps/desktop/client/src/windows/approval/owner/RescueWatch.tsx",
+        "apps/desktop/client/src/windows/approval/owner/SignSheet.tsx",
+        "apps/desktop/client/src/windows/approval/owner/Templates.tsx",
+        "apps/desktop/client/src/windows/approval/owner/WalletLimits.tsx",
+        "apps/desktop/client/src/windows/approval/owner/WhatIf.tsx",
+        "apps/desktop/client/src/windows/approval/owner/WhoWhat.tsx",
+        "apps/desktop/client/src/windows/approval/owner/data.ts",
+        "apps/desktop/client/src/windows/approval/owner/diff.ts",
+        "apps/desktop/client/src/windows/approval/owner/diff.test.ts",
+        "apps/desktop/client/src/windows/approval/owner/levers.ts",
+        "apps/desktop/client/src/windows/approval/owner/replay.ts",
+        "apps/desktop/client/src/windows/approval/owner/replay.test.ts",
+        "apps/desktop/client/src/windows/approval/owner/simulation.ts",
+        "apps/desktop/client/src/windows/approval/owner/watch.ts",
+        "apps/desktop/client/src/windows/approval/owner/watch.test.ts",
+        "apps/desktop/client/src/windows/approval/owner/whatif.test.tsx"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "7fde48d9-00af-4ebc-868e-cb93d7cdedfd",
+      "keywords": [
+        "mandate",
+        "sign",
+        "wallet limits",
+        "templates",
+        "what-if",
+        "rescue lever",
+        "replay",
+        "diff"
+      ],
+      "last_written_at": "2026-10-14T10:51:47.288817100+00:00",
+      "name": "owner-mandate-config",
+      "pinned": false,
+      "tech_stack": [
+        "React 19.3",
+        "TypeScript 7.0",
+        "Vitest 5.0"
+      ]
+    },
+    {
+      "api_surface": null,
+      "business_feature": null,
+      "category": null,
+      "cross_refs": [
+        "money-pipeline"
+      ],
+      "db_tables": [],
+      "description": "Typed PayPal REST client behind a trait: OAuth, Orders v2 create/authorize/capture/void, secondary endpoints (invoicing, tracking, payouts-like clients), HTTP layer and env-gated live sandbox spikes. Unverified endpoint facts are marked UNVERIFIED.",
+      "entry_points": [],
+      "file_paths": [
+        "crates/table-paypal/src/client.rs",
+        "crates/table-paypal/src/http.rs",
+        "crates/table-paypal/src/lib.rs",
+        "crates/table-paypal/src/secondary.rs",
+        "crates/table-paypal/src/types.rs",
+        "crates/table-paypal/tests/client.rs",
+        "crates/table-paypal/tests/spikes.rs"
+      ],
+      "group": "Money Pipeline & Persistence",
+      "group_id": "f6e35872-df4c-433b-9070-2b41ff2ed4c7",
+      "id": "81984412-77be-4d48-b4c0-47185e4ea27b",
+      "keywords": [
+        "paypal",
+        "orders-v2",
+        "oauth",
+        "authorize",
+        "capture",
+        "invoicing",
+        "sandbox"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.560026800+00:00",
+      "name": "paypal-gateway",
+      "pinned": false,
+      "tech_stack": [
+        "Rust 2024 (stable)",
+        "reqwest"
+      ]
+    },
+    {
+      "api_surface": "Deep links: #m=<module>, #d=<deal>, #a=<deal> (approval window), #s=settings|mandates|audit|pair|house",
+      "business_feature": "Dial Home & Design System",
+      "category": "ui",
+      "cross_refs": [
+        "prototype-trust-and-authorization-pages",
+        "prototype-negotiation-and-market-pages",
+        "prototype-onboarding-spend-and-rescue-pages",
+        "prototype-tumbler-experience"
+      ],
+      "db_tables": [],
+      "description": "The 'Dial' home prototype (vault-dial hub with six module medallions, deal beads and a 'Needs you' decision queue) plus the shared design tokens, UI kit and shell script every prototype page reuses. The index and build-index.mjs assemble the gallery of page variants, and pages/BRIEF.md sets the brief each variant answers. Dark/Light theming flows from shared/tokens.css into all prototypes.",
+      "entry_points": [
+        "prototype/main/index.html",
+        "prototype/main/NOTES.md",
+        "prototype/shared/tokens.css"
+      ],
+      "file_paths": [
+        "prototype/build-index.mjs",
+        "prototype/main/fixtures.js",
+        "prototype/main/modules.css",
+        "prototype/main/modules.js",
+        "prototype/shared/shell.js",
+        "prototype/shared/tokens.css",
+        "prototype/shared/ui.css",
+        "prototype/shared/ui.js"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "ed618215-bf0a-4dfc-8c2c-3c3a805321b1",
+      "keywords": [
+        "dial",
+        "design-tokens",
+        "theme",
+        "hub",
+        "modules",
+        "fixtures",
+        "gallery",
+        "needs-you"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.560596900+00:00",
+      "name": "prototype-dial-shell-and-design-system",
+      "pinned": false,
+      "tech_stack": [
+        "HTML",
+        "CSS custom properties",
+        "Vanilla JavaScript",
+        "Node.js (ESM build script)"
+      ]
+    },
+    {
+      "api_surface": "",
+      "business_feature": "Tumbler",
+      "category": "ui",
+      "cross_refs": [
+        "prototype-dial-shell-and-design-system"
+      ],
+      "db_tables": [],
+      "description": "The tumbler prototype (main page, styles and script) together with its alternative page variants 2 and 3. Explores the tumbler interaction for moving and settling money, with notes documenting the design choices.",
+      "entry_points": [
+        "prototype/tumbler/index.html",
+        "prototype/tumbler/tumbler.js"
+      ],
+      "file_paths": [
+        "prototype/tumbler/tumbler.css",
+        "prototype/tumbler/tumbler.js"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "86856568-bd45-4e21-972a-a4a9ff2babfc",
+      "keywords": [
+        "tumbler",
+        "interaction",
+        "prototype",
+        "variants",
+        "animation"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.561464700+00:00",
+      "name": "prototype-tumbler-experience",
+      "pinned": false,
+      "tech_stack": [
+        "HTML",
+        "CSS",
+        "Vanilla JavaScript"
+      ]
+    },
+    {
+      "api_surface": null,
+      "business_feature": null,
+      "category": null,
+      "cross_refs": [
+        "protocol",
+        "pairing-and-relay-runtime"
+      ],
+      "db_tables": [],
+      "description": "Store-and-forward relay client and the hosted rendezvous service (axum-style HTTP) that lets two wallets on different machines exchange signed envelopes; Render deployment config.",
+      "entry_points": [],
+      "file_paths": [
+        "crates/table-relay/src/lib.rs",
+        "services/rendezvous/src/lib.rs",
+        "services/rendezvous/src/main.rs",
+        "services/rendezvous/tests/relay.rs"
+      ],
+      "group": "Network & Counterparties",
+      "group_id": "513d0915-170a-4dbe-b8c6-7092a4e0e9c0",
+      "id": "400f63f7-55e7-4ba6-8d88-d1002af0b73a",
+      "keywords": [
+        "relay",
+        "rendezvous",
+        "http",
+        "render",
+        "mailbox"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.561677200+00:00",
+      "name": "relay-and-rendezvous",
+      "pinned": false,
+      "tech_stack": [
+        "Rust 2024 (stable)",
+        "Docker",
+        "Render"
+      ]
+    },
+    {
+      "api_surface": "HTTP mailbox endpoints (GET/POST/PUT) with body limits and a bounded in-memory store",
+      "business_feature": "Rendezvous Relay",
+      "category": "api",
+      "cross_refs": [
+        "house-seller-service"
+      ],
+      "db_tables": [],
+      "description": "A bounded store-and-forward mailbox relay that lets counterparties exchange messages without a direct connection. It holds no signing keys or PayPal credentials. It enforces limits, timeouts and expiry, and an axum server layer handles connections. Integration tests cover relay behaviour and the serve layer.",
+      "entry_points": [
+        "services/rendezvous/src/lib.rs",
+        "services/rendezvous/src/serve.rs"
+      ],
+      "file_paths": [
+        "services/rendezvous/src/lib.rs",
+        "services/rendezvous/src/main.rs",
+        "services/rendezvous/src/serve.rs",
+        "services/rendezvous/tests/relay.rs",
+        "services/rendezvous/tests/serve.rs"
+      ],
+      "group": "Network & Counterparties",
+      "group_id": "513d0915-170a-4dbe-b8c6-7092a4e0e9c0",
+      "id": "e2d9b89f-2eb9-4157-b0fd-b7560f70a75c",
+      "keywords": [
+        "relay",
+        "mailbox",
+        "store-and-forward",
+        "rendezvous",
+        "limits",
+        "timeouts",
+        "semaphore"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.561884+00:00",
+      "name": "rendezvous-relay",
+      "pinned": false,
+      "tech_stack": [
+        "Rust",
+        "axum",
+        "hyper",
+        "tower-http",
+        "tokio"
+      ]
+    },
+    {
+      "api_surface": "Previews and requests actions via typed IPC bindings; money-moving approval stays in the approval window",
+      "business_feature": "Rescue, Spend and Shield",
+      "category": "ui",
+      "cross_refs": [
+        "main-window-shell",
+        "deal-detail",
+        "safety-and-setup"
+      ],
+      "db_tables": [],
+      "description": "The Rescue, Spend and Shield capabilities: rescue levers for stuck money, a spend gate that checks outgoing payments, and shield rules and matrices that protect the owner. Models and previews compute what each action would do, with notes and panels explaining it plainly.",
+      "entry_points": [
+        "apps/desktop/client/src/windows/main/modules/rescue.tsx",
+        "apps/desktop/client/src/windows/main/modules/spend.tsx",
+        "apps/desktop/client/src/windows/main/modules/shield.tsx"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/windows/main/modules/rescue.css",
+        "apps/desktop/client/src/windows/main/modules/rescue.tsx",
+        "apps/desktop/client/src/windows/main/modules/rescue/Panels.tsx",
+        "apps/desktop/client/src/windows/main/modules/rescue/model.ts",
+        "apps/desktop/client/src/windows/main/modules/rescue/model.test.ts",
+        "apps/desktop/client/src/windows/main/modules/rescue/preview.ts",
+        "apps/desktop/client/src/windows/main/modules/rescue/preview.test.ts",
+        "apps/desktop/client/src/windows/main/modules/spend.css",
+        "apps/desktop/client/src/windows/main/modules/spend.tsx",
+        "apps/desktop/client/src/windows/main/modules/spend/gate.ts",
+        "apps/desktop/client/src/windows/main/modules/spend/gate.test.ts",
+        "apps/desktop/client/src/windows/main/modules/shield.css",
+        "apps/desktop/client/src/windows/main/modules/shield.tsx",
+        "apps/desktop/client/src/windows/main/modules/shield/NoteChip.tsx",
+        "apps/desktop/client/src/windows/main/modules/shield/Panels.tsx",
+        "apps/desktop/client/src/windows/main/modules/shield/matrix.ts",
+        "apps/desktop/client/src/windows/main/modules/shield/matrix.test.ts",
+        "apps/desktop/client/src/windows/main/modules/shield/normal.ts",
+        "apps/desktop/client/src/windows/main/modules/shield/normal.test.ts",
+        "apps/desktop/client/src/windows/main/modules/shield/rule.test.ts"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "bd217e93-0597-4295-bb91-2bc80cc91ab4",
+      "keywords": [
+        "rescue",
+        "lever",
+        "spend",
+        "gate",
+        "shield",
+        "matrix",
+        "rule",
+        "preview"
+      ],
+      "last_written_at": "2026-10-14T10:52:08.689777+00:00",
+      "name": "rescue-spend-shield-modules",
+      "pinned": false,
+      "tech_stack": [
+        "React",
+        "TypeScript",
+        "Vitest"
+      ]
+    },
+    {
+      "api_surface": "",
+      "business_feature": "Rewind and Displays",
+      "category": "ui",
+      "cross_refs": [
+        "main-window-shell",
+        "deal-detail"
+      ],
+      "db_tables": [],
+      "description": "Visual presentation helpers that show the owner what happened: the rewind timeline, the dial, charts, bead looks and artwork. It also covers evidence and the 'what you were not shown' computations. Pure view-model modules with tests feed the components.",
+      "entry_points": [
+        "apps/desktop/client/src/windows/main/Rewind.tsx",
+        "apps/desktop/client/src/windows/main/displays.ts"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/windows/main/Rewind.tsx",
+        "apps/desktop/client/src/windows/main/RewindParts.tsx",
+        "apps/desktop/client/src/windows/main/rewind.css",
+        "apps/desktop/client/src/windows/main/rewind.test.ts",
+        "apps/desktop/client/src/windows/main/Dial.tsx",
+        "apps/desktop/client/src/windows/main/art.ts",
+        "apps/desktop/client/src/windows/main/beadLook.ts",
+        "apps/desktop/client/src/windows/main/beadLook.test.ts",
+        "apps/desktop/client/src/windows/main/charts.tsx",
+        "apps/desktop/client/src/windows/main/charts.css",
+        "apps/desktop/client/src/windows/main/displays.ts",
+        "apps/desktop/client/src/windows/main/displays.test.ts",
+        "apps/desktop/client/src/windows/main/evidence.ts",
+        "apps/desktop/client/src/windows/main/evidence.test.ts",
+        "apps/desktop/client/src/windows/main/unshown.ts",
+        "apps/desktop/client/src/windows/main/unshown.test.ts"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "78d8302d-ee50-474d-a0aa-494dc519c1af",
+      "keywords": [
+        "rewind",
+        "timeline",
+        "chart",
+        "dial",
+        "bead",
+        "evidence",
+        "unshown",
+        "display"
+      ],
+      "last_written_at": "2026-10-14T10:52:08.688168200+00:00",
+      "name": "rewind-and-displays",
+      "pinned": false,
+      "tech_stack": [
+        "React",
+        "TypeScript",
+        "Vitest"
+      ]
+    },
+    {
+      "api_surface": "Runtime Action/command surface consumed by the desktop shell; IPC authority enforcement",
+      "business_feature": "Agent Runtime Actor",
+      "category": "lib",
+      "cross_refs": [
+        "runtime-money-controls",
+        "runtime-market-and-pairing"
+      ],
+      "db_tables": [],
+      "description": "The runtime actor that serializes every command and agent intent, dispatches it through the authority table and mandate check, and schedules deadlines. It also hosts engine wiring (claude-code / codex-cli), credentials in the OS keychain, the vault, re-authorization, and the attention ladder. Depends on table-app, table-client, table-engine and table-attention, and its tests cover IPC authority, unlock, quit and deadline behavior.",
+      "entry_points": [
+        "crates/table-runtime/src/lib.rs",
+        "crates/table-runtime/src/actor.rs",
+        "crates/table-runtime/src/dispatcher.rs"
+      ],
+      "file_paths": [
+        "crates/table-runtime/src/lib.rs",
+        "crates/table-runtime/src/actor.rs",
+        "crates/table-runtime/src/dispatcher.rs",
+        "crates/table-runtime/src/scheduler.rs",
+        "crates/table-runtime/src/service.rs",
+        "crates/table-runtime/src/configuration.rs",
+        "crates/table-runtime/src/engines.rs",
+        "crates/table-runtime/src/credentials.rs",
+        "crates/table-runtime/src/vault.rs",
+        "crates/table-runtime/src/reauth.rs",
+        "crates/table-runtime/src/ladder.rs",
+        "crates/table-runtime/src/actor_runtime_tests.rs",
+        "crates/table-runtime/src/authority_tests.rs",
+        "crates/table-runtime/src/tests.rs",
+        "crates/table-runtime/src/client_tests.rs",
+        "crates/table-runtime/src/keys_and_unlock_tests.rs",
+        "crates/table-runtime/src/credentials_tests.rs",
+        "crates/table-runtime/src/ladder_tests.rs",
+        "crates/table-runtime/src/deadline_and_attention_tests.rs",
+        "crates/table-runtime/src/quit_tests.rs",
+        "crates/table-runtime/src/agent_surface_tests.rs"
+      ],
+      "group": "Agent Runtime",
+      "group_id": "a4e21325-811f-45be-a378-863946c9064d",
+      "id": "065d4555-d9ad-478c-b637-3d8eb494f76c",
+      "keywords": [
+        "actor",
+        "dispatcher",
+        "scheduler",
+        "authority",
+        "engines",
+        "keychain",
+        "vault",
+        "unlock",
+        "attention-ladder",
+        "deadline"
+      ],
+      "last_written_at": "2026-10-14T10:52:08.118560100+00:00",
+      "name": "runtime-actor-and-engines",
+      "pinned": false,
+      "tech_stack": [
+        "Rust",
+        "Tokio",
+        "async-trait",
+        "ed25519-dalek",
+        "zeroize",
+        "Axum"
+      ]
+    },
+    {
+      "api_surface": "Relay/rendezvous client calls; market refresh and watch; house seller interactions",
+      "business_feature": "Market and Pairing",
+      "category": "lib",
+      "cross_refs": [
+        "runtime-actor-and-engines",
+        "runtime-money-controls"
+      ],
+      "db_tables": [],
+      "description": "Runtime glue to the outside world: market listing and watching, pairing with counterparties, and relay transport to the rendezvous service. Counterparty free text is treated as untrusted. It uses table-market, table-relay and table-mcp, and its tests exercise the house seller, relay and rendezvous services.",
+      "entry_points": [
+        "crates/table-runtime/src/market.rs",
+        "crates/table-runtime/src/pairing.rs",
+        "crates/table-runtime/src/relay.rs"
+      ],
+      "file_paths": [
+        "crates/table-runtime/src/market.rs",
+        "crates/table-runtime/src/market_watch.rs",
+        "crates/table-runtime/src/pairing.rs",
+        "crates/table-runtime/src/relay.rs",
+        "crates/table-runtime/src/market_refresh_tests.rs",
+        "crates/table-runtime/src/market_watch_tests.rs",
+        "crates/table-runtime/src/pairing_runtime_tests.rs",
+        "crates/table-runtime/src/relay_tests.rs",
+        "crates/table-runtime/src/house_tests.rs",
+        "crates/table-runtime/src/resolve_tests.rs"
+      ],
+      "group": "Network & Counterparties",
+      "group_id": "513d0915-170a-4dbe-b8c6-7092a4e0e9c0",
+      "id": "baff2cf1-655d-4108-aecb-a00eb06bc18b",
+      "keywords": [
+        "market",
+        "pairing",
+        "relay",
+        "rendezvous",
+        "house-seller",
+        "counterparty",
+        "watch",
+        "resolve"
+      ],
+      "last_written_at": "2026-10-14T10:52:08.119367800+00:00",
+      "name": "runtime-market-and-pairing",
+      "pinned": false,
+      "tech_stack": [
+        "Rust",
+        "Tokio",
+        "reqwest",
+        "Axum",
+        "tower 0.5"
+      ]
+    },
+    {
+      "api_surface": "Runtime actions for limits, policy, rescue levers, history, forecast and simulation",
+      "business_feature": "Money Controls and Safety",
+      "category": "lib",
+      "cross_refs": [
+        "runtime-actor-and-engines",
+        "runtime-market-and-pairing"
+      ],
+      "db_tables": [
+        "audit_log",
+        "paypal_calls"
+      ],
+      "description": "Owner-facing money controls in the runtime: spending limits, policy countersign, rescue levers, safety records, proofs, witnessing, history, forecasts, simulation and groups. It makes sure money moves only on an owner decision, a signed mandate rule, or a safe default. It builds on table-app, table-ledger and table-paypal, and its tests cover payment, H5 and glass flows, and the whole-ledger safety record via table-verify.",
+      "entry_points": [
+        "crates/table-runtime/src/policy.rs",
+        "crates/table-runtime/src/limits.rs",
+        "crates/table-runtime/src/safety.rs"
+      ],
+      "file_paths": [
+        "crates/table-runtime/src/limits.rs",
+        "crates/table-runtime/src/policy.rs",
+        "crates/table-runtime/src/rescue.rs",
+        "crates/table-runtime/src/safety.rs",
+        "crates/table-runtime/src/proof.rs",
+        "crates/table-runtime/src/witness.rs",
+        "crates/table-runtime/src/history.rs",
+        "crates/table-runtime/src/forecast.rs",
+        "crates/table-runtime/src/simulate.rs",
+        "crates/table-runtime/src/groups.rs",
+        "crates/table-runtime/src/limits_tests.rs",
+        "crates/table-runtime/src/policy_tests.rs",
+        "crates/table-runtime/src/rescue_tests.rs",
+        "crates/table-runtime/src/safety_tests.rs",
+        "crates/table-runtime/src/proof_tests.rs",
+        "crates/table-runtime/src/history_tests.rs",
+        "crates/table-runtime/src/forecast_tests.rs",
+        "crates/table-runtime/src/simulate_tests.rs",
+        "crates/table-runtime/src/groups_tests.rs",
+        "crates/table-runtime/src/payment_tests.rs",
+        "crates/table-runtime/src/h5_tests.rs",
+        "crates/table-runtime/src/reached_paypal_tests.rs",
+        "crates/table-runtime/src/glass_tests.rs",
+        "crates/table-runtime/src/mandate_runtime_tests.rs",
+        "crates/table-runtime/src/checks_tests.rs"
+      ],
+      "group": "Money Pipeline & Persistence",
+      "group_id": "f6e35872-df4c-433b-9070-2b41ff2ed4c7",
+      "id": "2388265b-2923-4e49-b59f-7f4453fa4f88",
+      "keywords": [
+        "mandate",
+        "limits",
+        "countersign",
+        "rescue",
+        "safety",
+        "proof",
+        "witness",
+        "forecast",
+        "simulate",
+        "audit"
+      ],
+      "last_written_at": "2026-10-14T10:52:08.119178+00:00",
+      "name": "runtime-money-controls",
+      "pinned": false,
+      "tech_stack": [
+        "Rust",
+        "Tokio",
+        "serde_json",
+        "ed25519-dalek",
+        "reqwest"
+      ]
+    },
+    {
+      "api_surface": "Pairing, mandate and limit commands via typed IPC bindings",
+      "business_feature": "Safety and Setup",
+      "category": "ui",
+      "cross_refs": [
+        "main-window-shell",
+        "rescue-spend-shield-modules"
+      ],
+      "db_tables": [],
+      "description": "Safety sheet and first-run setup: the owner reviews safety status, pairs an engine at the pairing desk, signs mandates and sets spending limits. Circuit, pairing and limits models are pure and tested, and the views present them in plain words.",
+      "entry_points": [
+        "apps/desktop/client/src/windows/main/safety/SafetySheet.tsx",
+        "apps/desktop/client/src/windows/main/setup/PairingDesk.tsx",
+        "apps/desktop/client/src/windows/main/setup/Mandates.tsx"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/windows/main/safety/SafetySheet.tsx",
+        "apps/desktop/client/src/windows/main/safety/model.ts",
+        "apps/desktop/client/src/windows/main/safety/model.test.ts",
+        "apps/desktop/client/src/windows/main/safety/safety.css",
+        "apps/desktop/client/src/windows/main/safety/view.test.tsx",
+        "apps/desktop/client/src/windows/main/setup/CircuitView.tsx",
+        "apps/desktop/client/src/windows/main/setup/CircuitView.test.tsx",
+        "apps/desktop/client/src/windows/main/setup/Mandates.tsx",
+        "apps/desktop/client/src/windows/main/setup/PairingDesk.tsx",
+        "apps/desktop/client/src/windows/main/setup/circuit.ts",
+        "apps/desktop/client/src/windows/main/setup/circuit.test.ts",
+        "apps/desktop/client/src/windows/main/setup/common.tsx",
+        "apps/desktop/client/src/windows/main/setup/limits.ts",
+        "apps/desktop/client/src/windows/main/setup/limits.test.ts",
+        "apps/desktop/client/src/windows/main/setup/pairing.ts",
+        "apps/desktop/client/src/windows/main/setup/pairing.test.ts",
+        "apps/desktop/client/src/windows/main/setup/setup.css"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "68496392-9930-4018-bc06-41c2f3e3c286",
+      "keywords": [
+        "safety",
+        "setup",
+        "pairing",
+        "mandate",
+        "limits",
+        "circuit",
+        "engine"
+      ],
+      "last_written_at": "2026-10-14T10:52:08.690151800+00:00",
+      "name": "safety-and-setup",
+      "pinned": false,
+      "tech_stack": [
+        "React",
+        "TypeScript",
+        "Vitest"
+      ]
+    },
+    {
+      "api_surface": "",
+      "business_feature": "Honest Surfaces and Onboarding",
+      "category": "ui",
+      "cross_refs": [
+        "shared-ui-primitives"
+      ],
+      "db_tables": [],
+      "description": "Cross-window surfaces that carry the product's honesty rules: mode badges, exact-minor-unit money, live countdowns, quarantined untrusted text and typed wallet errors. It also holds the six module definitions, the first-run start steps, the onboarding coach-mark tour and the owner-key display. They read the lib/ helpers (format, words, tour, firstRun, contract) and the Tauri bindings, so the Table and the approval window render them identically.",
+      "entry_points": [
+        "apps/desktop/client/src/shared/honesty.tsx",
+        "apps/desktop/client/src/shared/tour.tsx",
+        "apps/desktop/client/src/shared/start.tsx"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/shared/honesty.tsx",
+        "apps/desktop/client/src/shared/modules.tsx",
+        "apps/desktop/client/src/shared/ownerKey.css",
+        "apps/desktop/client/src/shared/ownerKey.test.tsx",
+        "apps/desktop/client/src/shared/ownerKey.tsx",
+        "apps/desktop/client/src/shared/start.css",
+        "apps/desktop/client/src/shared/start.test.tsx",
+        "apps/desktop/client/src/shared/start.tsx",
+        "apps/desktop/client/src/shared/tour.css",
+        "apps/desktop/client/src/shared/tour.test.tsx",
+        "apps/desktop/client/src/shared/tour.tsx"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "877e3281-ae38-485a-a404-4476986454a5",
+      "keywords": [
+        "honesty",
+        "mode-badge",
+        "money",
+        "countdown",
+        "onboarding",
+        "tour",
+        "first-run",
+        "owner-key",
+        "modules"
+      ],
+      "last_written_at": "2026-10-14T10:52:50.681528800+00:00",
+      "name": "shared-surfaces-onboarding-honesty",
+      "pinned": false,
+      "tech_stack": [
+        "React 19.3",
+        "TypeScript 7.0",
+        "Vite 8.3",
+        "Tauri 2 API (@tauri-apps/api 2.12)"
+      ]
+    },
+    {
+      "api_surface": "",
+      "business_feature": "Shared UI Primitives",
+      "category": "ui",
+      "cross_refs": [
+        "shared-surfaces-onboarding-honesty"
+      ],
+      "db_tables": [],
+      "description": "Reusable UI primitives for every desktop window: sheets, popovers, inspector, toasts, hold-to-confirm, theme switch, shared components, and the 'why' and 'story' explainers. Focus management, layer counting and experiment flags are in small TS modules that the components share, with tests for focus, hold and layers. Used by The Table, the Tumbler and the approval window so behaviour and look stay uniform.",
+      "entry_points": [
+        "apps/desktop/client/src/shared/ui/index.ts",
+        "apps/desktop/client/src/shared/ui/README.md"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/shared/ui/Inspector.tsx",
+        "apps/desktop/client/src/shared/ui/Popover.tsx",
+        "apps/desktop/client/src/shared/ui/Sheet.tsx",
+        "apps/desktop/client/src/shared/ui/ThemeSwitch.tsx",
+        "apps/desktop/client/src/shared/ui/components.tsx",
+        "apps/desktop/client/src/shared/ui/experiments.ts",
+        "apps/desktop/client/src/shared/ui/focus.test.tsx",
+        "apps/desktop/client/src/shared/ui/focus.ts",
+        "apps/desktop/client/src/shared/ui/hold.test.tsx",
+        "apps/desktop/client/src/shared/ui/hold.tsx",
+        "apps/desktop/client/src/shared/ui/index.ts",
+        "apps/desktop/client/src/shared/ui/layers.test.tsx",
+        "apps/desktop/client/src/shared/ui/layers.ts",
+        "apps/desktop/client/src/shared/ui/story.tsx",
+        "apps/desktop/client/src/shared/ui/toast.tsx",
+        "apps/desktop/client/src/shared/ui/why.tsx"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "9a477925-2fcc-4133-982d-849ca52dbe7f",
+      "keywords": [
+        "sheet",
+        "popover",
+        "toast",
+        "focus",
+        "layers",
+        "hold-to-confirm",
+        "theme",
+        "inspector",
+        "primitives"
+      ],
+      "last_written_at": "2026-10-14T10:52:50.680907500+00:00",
+      "name": "shared-ui-primitives",
+      "pinned": false,
+      "tech_stack": [
+        "React 19.3",
+        "TypeScript 7.0",
+        "Vite 8.3",
+        "Zustand 5.0"
+      ]
+    },
+    {
+      "api_surface": "Rust library API only; pure functions fed by the ledger and by caller-supplied time.",
+      "business_feature": "Spend Firewall & Agent Policy",
+      "category": "lib",
+      "cross_refs": [
+        "wallet-domain-primitives"
+      ],
+      "db_tables": [],
+      "description": "Pure policy logic that bounds what agents can do with the owner's money. It covers wallet-wide exposure limits signed by the owner, market-watch price-check allowances, deterministic integer concession policies for negotiation, the approval-window checklist, the attention ladder evidence, rescue logic, and the closed views and role playbooks agents see. It takes inputs from the ledger and a caller-supplied clock. No free-text counterparty words can reach an agent through these types.",
+      "entry_points": [
+        "crates/table-core/src/agent.rs",
+        "crates/table-core/src/exposure.rs",
+        "crates/table-core/src/negotiation.rs"
+      ],
+      "file_paths": [
+        "crates/table-core/src/agent.rs",
+        "crates/table-core/src/agent_tests.rs",
+        "crates/table-core/src/checks.rs",
+        "crates/table-core/src/exposure.rs",
+        "crates/table-core/src/exposure_tests.rs",
+        "crates/table-core/src/ladder.rs",
+        "crates/table-core/src/market_watch.rs",
+        "crates/table-core/src/negotiation.rs",
+        "crates/table-core/src/rescue.rs"
+      ],
+      "group": "Agent Runtime",
+      "group_id": "a4e21325-811f-45be-a378-863946c9064d",
+      "id": "93ab9629-27c8-4024-bd9e-06c9761ea24d",
+      "keywords": [
+        "exposure",
+        "spend-firewall",
+        "wallet-limits",
+        "negotiation",
+        "concession",
+        "approval",
+        "attention-ladder",
+        "market-watch",
+        "rescue",
+        "agent-playbook"
+      ],
+      "last_written_at": "2026-10-14T10:54:54.824512+00:00",
+      "name": "spend-firewall-and-agent-policy",
+      "pinned": false,
+      "tech_stack": [
+        "Rust (edition 2024)",
+        "serde 1",
+        "ts-rs 12",
+        "thiserror"
+      ]
+    },
+    {
+      "api_surface": "Rust library crate exposing an agent engine trait and a native process engine; the engine-fixture binary is a test stand-in agent.",
+      "business_feature": "Agent Process Engine",
+      "category": "lib",
+      "cross_refs": [],
+      "db_tables": [],
+      "description": "Launches and supervises external coding-agent CLIs (Claude, Codex) as child processes for the table. It builds argv, resolves binaries, and enforces a spawn policy. It runs the native process (with a Windows job object to kill the whole process tree) and parses the agents' JSONL output streams into events. It depends on table-core types, and its tests use table-app, table-ledger, table-proto and table-mcp with recorded agent fixtures.",
+      "entry_points": [
+        "crates/table-engine/src/lib.rs",
+        "crates/table-engine/src/native.rs",
+        "crates/table-engine/src/parser.rs"
+      ],
+      "file_paths": [
+        "crates/table-engine/src/lib.rs",
+        "crates/table-engine/src/argv.rs",
+        "crates/table-engine/src/bin/engine-fixture.rs",
+        "crates/table-engine/src/native.rs",
+        "crates/table-engine/src/parser.rs",
+        "crates/table-engine/src/policy.rs",
+        "crates/table-engine/src/resolve.rs",
+        "crates/table-engine/src/windows_job.rs",
+        "crates/table-engine/tests/engine.rs",
+        "crates/table-engine/tests/native.rs",
+        "crates/table-engine/tests/spikes.rs"
+      ],
+      "group": "Agent Runtime",
+      "group_id": "a4e21325-811f-45be-a378-863946c9064d",
+      "id": "6ad8f933-5c5e-4ed6-8ace-f642dffc558f",
+      "keywords": [
+        "agent",
+        "engine",
+        "subprocess",
+        "argv",
+        "jsonl",
+        "parser",
+        "job-object",
+        "policy",
+        "claude",
+        "codex"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.562483500+00:00",
+      "name": "table-engine-agent-process",
+      "pinned": false,
+      "tech_stack": [
+        "Rust",
+        "Tokio",
+        "serde_json",
+        "ts-rs",
+        "windows 0.62.2",
+        "async-trait",
+        "ulid"
+      ]
+    },
+    {
+      "api_surface": "Rust library: signed envelope sign/verify, pairing code and identity handling, settlement/approval-link checks, proof bundle export/verify, HOUSE release pin and signed ledger head. Exports TypeScript types via ts-rs.",
+      "business_feature": "Signed Deal Protocol & Proofs",
+      "category": "lib",
+      "cross_refs": [],
+      "db_tables": [],
+      "description": "Defines Protocol v1, the closed, canonical wire messages that two parties (wallet, HOUSE agent, guests) exchange to negotiate and settle a deal. Messages are wrapped in Ed25519-signed compact JWS envelopes with size limits and replay checks. Pairing codes and identities, settlement/approval-link validation against the signed terms, offline-verifiable proof bundles (v1/v2), the release-pinned HOUSE trust anchor, and the public glass-box house ledger with a signed head all live here. It builds on table-core's canonical bytes, money and mandate types.",
+      "entry_points": [
+        "crates/table-proto/src/lib.rs",
+        "crates/table-proto/src/envelope.rs"
+      ],
+      "file_paths": [
+        "crates/table-proto/src/lib.rs",
+        "crates/table-proto/src/envelope.rs",
+        "crates/table-proto/src/pairing.rs",
+        "crates/table-proto/src/settlement.rs",
+        "crates/table-proto/src/proof.rs",
+        "crates/table-proto/src/house.rs",
+        "crates/table-proto/src/house_ledger.rs",
+        "crates/table-proto/tests/protocol.rs"
+      ],
+      "group": "Network & Counterparties",
+      "group_id": "513d0915-170a-4dbe-b8c6-7092a4e0e9c0",
+      "id": "7d8f5eca-7fb1-49f4-9000-ed9926d9ad5f",
+      "keywords": [
+        "protocol",
+        "jws",
+        "ed25519",
+        "envelope",
+        "replay",
+        "pairing",
+        "settlement",
+        "proof-bundle",
+        "house-ledger",
+        "trust-anchor"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.562822100+00:00",
+      "name": "table-wire-protocol",
+      "pinned": false,
+      "tech_stack": [
+        "Rust",
+        "serde 1",
+        "serde_json",
+        "ed25519-dalek 2",
+        "base64",
+        "url 2",
+        "thiserror",
+        "ts-rs 12"
+      ]
+    },
+    {
+      "api_surface": "Tauri IPC: tumbler_set_form, deal_snooze; events tumbler:form, tumbler:orient; opens the approval and main windows. Consumes the AttentionSnapshot, ReceiptEvent, VisualState and SettingsSnapshot bindings.",
+      "business_feature": "Tumbler Attention Window",
+      "category": "ui",
+      "cross_refs": [],
+      "db_tables": [],
+      "description": "The Tumbler is the small always-on-top operative window that shows the user's pending deals and attention items as a puck, tab, ticker, card or stack. The page asks Rust for a form by name and draws whatever form Rust reports. The pure logic in logic.ts chooses forms, ladder rungs and buttons from the attention snapshot, receipt events and visual state. The window can always say no (withdraw, let it lapse, snooze) and can open the approval or main windows, but it has no approve action, so it cannot release money. A browser-only preview harness hosts the real component in a frame sized to the current form. It depends on the generated Rust bindings (@bindings), lib/format, lib/words, lib/clock and lib/hooks.",
+      "entry_points": [
+        "apps/desktop/client/src/windows/tumbler/Tumbler.tsx",
+        "apps/desktop/client/src/windows/tumbler/logic.ts",
+        "apps/desktop/client/src/windows/tumbler/entry.tsx"
+      ],
+      "file_paths": [
+        "apps/desktop/client/src/windows/tumbler/App.tsx",
+        "apps/desktop/client/src/windows/tumbler/entry.tsx",
+        "apps/desktop/client/src/windows/tumbler/forms.tsx",
+        "apps/desktop/client/src/windows/tumbler/ladder.test.ts",
+        "apps/desktop/client/src/windows/tumbler/logic.test.ts",
+        "apps/desktop/client/src/windows/tumbler/logic.ts",
+        "apps/desktop/client/src/windows/tumbler/walkaway.test.ts",
+        "apps/desktop/client/src/windows/tumbler/Puck.tsx",
+        "apps/desktop/client/src/windows/tumbler/tumbler.css",
+        "apps/desktop/client/src/windows/tumbler/Tumbler.tsx",
+        "apps/desktop/client/src/windows/tumbler/preview/Framed.tsx",
+        "apps/desktop/client/src/windows/tumbler/preview/preview.css",
+        "apps/desktop/client/src/windows/tumbler/preview/Preview.tsx"
+      ],
+      "group": "Client UI",
+      "group_id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "id": "78691638-b912-45fd-98f8-083cec08e3a9",
+      "keywords": [
+        "tumbler",
+        "puck",
+        "attention",
+        "ladder",
+        "form",
+        "snooze",
+        "withdraw",
+        "walkaway",
+        "receipt",
+        "overlay"
+      ],
+      "last_written_at": "2026-10-14T10:54:51.705881500+00:00",
+      "name": "tumbler-window",
+      "pinned": false,
+      "tech_stack": [
+        "React 19.3",
+        "TypeScript 7.0",
+        "Vite 8.3",
+        "Tauri 2.12",
+        "Zustand 5.0"
+      ]
+    },
+    {
+      "api_surface": "Rust library: Wallet, Pipeline, ApprovalSession, OwnerTicket and NativeReauth. Calls the PayPal Orders, Invoicing and Reporting APIs through table-paypal.",
+      "business_feature": "Wallet Money Pipeline & Approval",
+      "category": "lib",
+      "cross_refs": [
+        "wallet-app-tests"
+      ],
+      "db_tables": [],
+      "description": "Trusted application layer of the wallet. It keeps agent intents separate from money execution. It runs the PayPal money pipeline (reserved operations, one request id each), composes the six-line approval checklist, and handles owner re-authentication. It also verifies inbound relay evidence in Rust, reconciles against PayPal reporting, and runs subscription rescue (DISCOUNT_THIS_CYCLE) after the owner approves. It depends on table-core, table-proto, table-ledger, table-paypal, table-shield, table-attention and table-engine.",
+      "entry_points": [
+        "crates/table-app/src/lib.rs",
+        "crates/table-app/src/pipeline.rs",
+        "crates/table-app/src/agent.rs"
+      ],
+      "file_paths": [
+        "crates/table-app/src/lib.rs",
+        "crates/table-app/src/agent.rs",
+        "crates/table-app/src/auth.rs",
+        "crates/table-app/src/checks.rs",
+        "crates/table-app/src/checks_tests.rs",
+        "crates/table-app/src/pipeline.rs",
+        "crates/table-app/src/pipeline/resolve.rs",
+        "crates/table-app/src/reconciliation.rs",
+        "crates/table-app/src/relay.rs",
+        "crates/table-app/src/rescue.rs"
+      ],
+      "group": "Money Pipeline & Persistence",
+      "group_id": "f6e35872-df4c-433b-9070-2b41ff2ed4c7",
+      "id": "30af9627-32b0-465d-97de-4949dd83af41",
+      "keywords": [
+        "pipeline",
+        "approval",
+        "checklist",
+        "reconciliation",
+        "relay",
+        "rescue",
+        "subscription",
+        "wallet",
+        "paypal",
+        "mandate"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.563078700+00:00",
+      "name": "wallet-app-services",
+      "pinned": false,
+      "tech_stack": [
+        "Rust",
+        "Tokio",
+        "ed25519-dalek",
+        "serde",
+        "async-trait"
+      ]
+    },
+    {
+      "api_surface": "",
+      "business_feature": "Wallet Pipeline Verification",
+      "category": "test",
+      "cross_refs": [
+        "wallet-app-services"
+      ],
+      "db_tables": [],
+      "description": "Offline integration tests that exercise the app layer end to end. They cover the money pipeline, subscription rescue (including lost-response and lost-request failures) and a seeded hostile-agent gauntlet. The gauntlet runs through the loopback MCP server and is checked with the offline verifier. Shared fixtures live in support/mod.rs. No sockets are opened.",
+      "entry_points": [
+        "crates/table-app/tests/gauntlet.rs",
+        "crates/table-app/tests/support/mod.rs"
+      ],
+      "file_paths": [
+        "crates/table-app/tests/gauntlet.rs",
+        "crates/table-app/tests/pipeline.rs",
+        "crates/table-app/tests/rescue.rs",
+        "crates/table-app/tests/support/mod.rs"
+      ],
+      "group": "Money Pipeline & Persistence",
+      "group_id": "f6e35872-df4c-433b-9070-2b41ff2ed4c7",
+      "id": "dca763f0-8645-4f2a-a617-a0be91dfdff7",
+      "keywords": [
+        "gauntlet",
+        "hostile-agent",
+        "test",
+        "rescue",
+        "pipeline",
+        "replay",
+        "injection"
+      ],
+      "last_written_at": "2026-10-14T10:56:37.670981600+00:00",
+      "name": "wallet-app-tests",
+      "pinned": false,
+      "tech_stack": [
+        "Rust",
+        "Tokio",
+        "axum 0.x",
+        "tower 0.5"
+      ]
+    },
+    {
+      "api_surface": "Rust library crate consumed by the wallet, ledger and desktop shell. It also generates TypeScript types through ts-rs.",
+      "business_feature": "Wallet Domain Model",
+      "category": "lib",
+      "cross_refs": [
+        "spend-firewall-and-agent-policy"
+      ],
+      "db_tables": [],
+      "description": "The pure wallet domain model: currency-checked money in minor units, restricted identifiers, canonical (JCS plus SHA-256) serialization that is part of protocol v1, deals, mandates, market references and closed analytical queries. Everything is side-effect free, with time and id generation supplied by callers. Closed display shapes keep raw envelopes and peer prose from crossing IPC, and ts-rs exports the types to the client.",
+      "entry_points": [
+        "crates/table-core/src/lib.rs",
+        "crates/table-core/src/money.rs",
+        "crates/table-core/src/deal.rs"
+      ],
+      "file_paths": [
+        "crates/table-core/src/lib.rs",
+        "crates/table-core/src/money.rs",
+        "crates/table-core/src/ids.rs",
+        "crates/table-core/src/canonical.rs",
+        "crates/table-core/src/deal.rs",
+        "crates/table-core/src/mandate.rs",
+        "crates/table-core/src/market.rs",
+        "crates/table-core/src/book.rs",
+        "crates/table-core/src/display.rs"
+      ],
+      "group": "Money Domain",
+      "group_id": "dbf0fd77-fb74-4ad2-b2a6-999b2123553d",
+      "id": "e89814cc-f4e5-4bd4-bc27-9f356e7de9d4",
+      "keywords": [
+        "money",
+        "minor-units",
+        "currency",
+        "deal",
+        "mandate",
+        "canonical",
+        "jcs",
+        "digest",
+        "market-reference",
+        "display"
+      ],
+      "last_written_at": "2026-10-14T11:07:31.563334800+00:00",
+      "name": "wallet-domain-primitives",
+      "pinned": false,
+      "tech_stack": [
+        "Rust (edition 2024)",
+        "serde 1",
+        "serde_json 1",
+        "serde_jcs 0.2",
+        "sha2 0.10",
+        "ulid 1",
+        "ts-rs 12",
+        "thiserror"
       ]
     }
-  ]
+  ],
+  "generated_at": "2026-10-14T11:08:00.423189100+00:00",
+  "generator": "personas-context-scan",
+  "groups": [
+    {
+      "color": "#6366f1",
+      "context_count": 1,
+      "domain": null,
+      "id": "dbf0fd77-fb74-4ad2-b2a6-999b2123553d",
+      "name": "Money Domain"
+    },
+    {
+      "color": "#6366f1",
+      "context_count": 9,
+      "domain": null,
+      "id": "f6e35872-df4c-433b-9070-2b41ff2ed4c7",
+      "name": "Money Pipeline & Persistence"
+    },
+    {
+      "color": "#6366f1",
+      "context_count": 5,
+      "domain": null,
+      "id": "a4e21325-811f-45be-a378-863946c9064d",
+      "name": "Agent Runtime"
+    },
+    {
+      "color": "#6366f1",
+      "context_count": 5,
+      "domain": null,
+      "id": "513d0915-170a-4dbe-b8c6-7092a4e0e9c0",
+      "name": "Network & Counterparties"
+    },
+    {
+      "color": "#6366f1",
+      "context_count": 2,
+      "domain": null,
+      "id": "ec360d7b-3d32-4e7b-8e36-1a705f6a281a",
+      "name": "Desktop Shell"
+    },
+    {
+      "color": "#6366f1",
+      "context_count": 23,
+      "domain": null,
+      "id": "b8932ec8-58fb-4c06-87be-0ffaeb584d52",
+      "name": "Client UI"
+    },
+    {
+      "color": "#6366f1",
+      "context_count": 2,
+      "domain": null,
+      "id": "198d3fe9-5aa7-45af-b340-1138cd855184",
+      "name": "Delivery"
+    }
+  ],
+  "project": {
+    "id": "7ddc4c18-29e5-4656-a88e-f14074551dfe",
+    "name": "paypal",
+    "root": "C:\\Users\\kazda\\kiro\\paypal"
+  },
+  "provenance": {
+    "git_commit": "4d24c408c2361fc47c88228b4e23b07a33dfe2ac",
+    "git_commit_count": 406
+  },
+  "stats": {
+    "contexts": 47,
+    "files": 547,
+    "groups": 7,
+    "use_cases": 21
+  },
+  "taxonomy": {
+    "context_categories": [
+      "ui",
+      "api",
+      "lib",
+      "data",
+      "test",
+      "config"
+    ],
+    "group_domains": [
+      "feature",
+      "infrastructure",
+      "shared",
+      "integration",
+      "data"
+    ]
+  },
+  "use_cases": [
+    {
+      "contexts": [
+        "agent-tool-surface",
+        "market-data"
+      ],
+      "description": "A per-deal agent actor runs the owner's own engine (claude-code or codex-cli) against an MCP tool surface to haggle within the mandate bands, rounds and velocity limits. It has no money-moving tool.",
+      "id": "302a1971-f3ab-46d9-9942-b7bc516b226c",
+      "kind": "capability",
+      "name": "Agent Negotiation Run",
+      "pinned": false,
+      "primary_context": null,
+      "slug": "agent-negotiation-run",
+      "tier": "major"
+    },
+    {
+      "contexts": [
+        "agent-tool-surface",
+        "tumbler-window",
+        "paypal-gateway",
+        "native-shell"
+      ],
+      "description": "An AI agent proposes a purchase intent via the local MCP server; the wallet mandate-checks every clause, runs shield screening, then either countersigns automatically (below the human-present threshold) or presents a GATE card for owner approval before making the PayPal AUTHORIZE call and capturing on confirmed delivery.",
+      "id": "0a02f2a0-c39b-4bc9-a1ea-4fb112cb3b47",
+      "kind": "user_flow",
+      "name": "Agent-Gated Spend",
+      "pinned": false,
+      "primary_context": null,
+      "slug": "agent-gated-spend",
+      "tier": "major"
+    },
+    {
+      "contexts": [
+        "tumbler-window",
+        "native-shell"
+      ],
+      "description": "The Tumbler puck surfaces GATE/HOLD/STOP/MOTION/RECEIPT events on the attention ladder — gold ring then breathing ring then OS notification — without stealing focus or granting any money-moving capability, escalating deadlines toward the approval window while respecting the owner's snooze preferences.",
+      "id": "8c771c42-ae4d-43ad-b5b6-2c37777a2f05",
+      "kind": "user_flow",
+      "name": "Attention Escalation",
+      "pinned": false,
+      "primary_context": "tumbler-window",
+      "slug": "attention-escalation",
+      "tier": "major"
+    },
+    {
+      "contexts": [],
+      "description": "Every PayPal call and deal decision is appended as a hash-chained audit log entry; the owner can export a signed `.tableproof` bundle containing redacted evidence and the full chain hash, which a standalone verifier validates offline without trusting or running the wallet.",
+      "id": "ffd4a2b2-4573-4597-aa97-eca1b5e5c5cd",
+      "kind": "capability",
+      "name": "Audit Trail Export",
+      "pinned": false,
+      "primary_context": null,
+      "slug": "audit-trail-export",
+      "tier": "major"
+    },
+    {
+      "contexts": [
+        "agent-tool-surface",
+        "paypal-gateway"
+      ],
+      "description": "Maya's wallet runs as an always-on, agent-answered shop; incoming buyer-agent inquiries are handled by her quoting engine within the per-SKU floor prices she set once in her Counter mandate; PayPal orders are issued and captured without per-sale intervention from Maya.",
+      "id": "0cc260f2-c65d-432d-be90-d5fb285e76f9",
+      "kind": "capability",
+      "name": "Counter Agent Shop",
+      "pinned": false,
+      "primary_context": null,
+      "slug": "counter-agent-shop",
+      "tier": "major"
+    },
+    {
+      "contexts": [
+        "paypal-gateway"
+      ],
+      "description": "The scheduler enforces every deadline. When the owner is silent, the deal is voided or expires and nothing is captured.",
+      "id": "5522c0b6-6695-4ea3-bff8-705b797bb9d4",
+      "kind": "capability",
+      "name": "Deadline Safe Default",
+      "pinned": false,
+      "primary_context": null,
+      "slug": "deadline-safe-default",
+      "tier": "standard"
+    },
+    {
+      "contexts": [
+        "paypal-gateway"
+      ],
+      "description": "An accepted deal runs through the Deal state machine to a PayPal order that is created, authorized and captured, or voided on deadline. Each step records its decided_by authority and a receipt.",
+      "id": "05ba4c96-9b7a-493b-897c-e8455bcaa2e7",
+      "kind": "user_flow",
+      "name": "Deal to Settlement",
+      "pinned": false,
+      "primary_context": null,
+      "slug": "deal-to-settlement",
+      "tier": "major"
+    },
+    {
+      "contexts": [
+        "client-foundation",
+        "native-shell"
+      ],
+      "description": "A new owner is guided through setup: tour, engine and PayPal credential configuration with secrets in the keychain, and the first mandate. The director demo plays the same flow.",
+      "id": "18134214-55ad-43ca-bf05-ac0e96576d25",
+      "kind": "user_flow",
+      "name": "First Run Onboarding",
+      "pinned": false,
+      "primary_context": null,
+      "slug": "first-run-onboarding",
+      "tier": "major"
+    },
+    {
+      "contexts": [
+        "relay-and-rendezvous"
+      ],
+      "description": "The hosted rendezvous and relay stores and forwards signed envelopes. It deploys to Render with health checks and env-only configuration.",
+      "id": "65eade48-c1b0-4630-8ecf-72ffd743b1d5",
+      "kind": "ops",
+      "name": "Hosted Relay Service",
+      "pinned": false,
+      "primary_context": "relay-and-rendezvous",
+      "slug": "hosted-relay-service",
+      "tier": "major"
+    },
+    {
+      "contexts": [
+        "relay-and-rendezvous",
+        "paypal-gateway"
+      ],
+      "description": "A hosted deterministic HOUSE seller — deployed on Render with a release-pinned mandate as its owner signature — completes end-to-end haggle and PayPal settlement tests without requiring a second human-owned wallet, enabling one-install demos for hackathon judges and CI integration tests against a live counterparty.",
+      "id": "fdfa6c18-e26f-4dab-a7bc-4dc00432ded3",
+      "kind": "ops",
+      "name": "House Seller Demo",
+      "pinned": false,
+      "primary_context": null,
+      "slug": "house-seller-demo",
+      "tier": "major"
+    },
+    {
+      "contexts": [
+        "client-foundation",
+        "native-shell"
+      ],
+      "description": "The owner drafts and Ed25519-signs a mandate in the approval window — naming the agent key, setting spending clauses (amount bands, velocity, human-present threshold, payee allowlist) — and the wallet commits it to the append-only ledger as the root of trust that all subsequent agent authorization references.",
+      "id": "0bc09996-0bba-4341-9365-8f72dc0fe2d9",
+      "kind": "user_flow",
+      "name": "Mandate Authoring",
+      "pinned": false,
+      "primary_context": null,
+      "slug": "mandate-authoring",
+      "tier": "major"
+    },
+    {
+      "contexts": [
+        "agent-tool-surface",
+        "market-data"
+      ],
+      "description": "Before and during a haggle or shield check, the wallet fetches cached Channel3 market and comparable-product prices to provide the agent a per-SKU reference band, enabling mandate-bounded price negotiation and over-market anomaly detection without live price data reaching the LLM directly.",
+      "id": "7d10e3f2-692d-4ea6-845d-d14c11af292f",
+      "kind": "integration",
+      "name": "Market Price Lookup",
+      "pinned": false,
+      "primary_context": "market-data",
+      "slug": "market-price-lookup",
+      "tier": "standard"
+    },
+    {
+      "contexts": [
+        "agent-tool-surface",
+        "paypal-gateway",
+        "client-foundation"
+      ],
+      "description": "Maya poses a plain-English reconciliation question ('how did my agents do vs market this week?'); the wallet translates it into a read-only BookQuery with no SQL and no credentials reaching the engine, queries the local SQLite ledger and optionally the PayPal Transaction Search API, and returns a reconciliation grid in plain English.",
+      "id": "151ab543-e808-4a4f-bd0c-924fbdc2a32c",
+      "kind": "capability",
+      "name": "Ops Ledger Query",
+      "pinned": false,
+      "primary_context": null,
+      "slug": "ops-ledger-query",
+      "tier": "major"
+    },
+    {
+      "contexts": [
+        "native-shell"
+      ],
+      "description": "The owner reviews a deal in the privileged approval window and accepts, adjusts bands, or declines. This is the only path that countersigns or releases money, and it requires the IPC token, the approval window label and an unlocked session.",
+      "id": "491247e4-8d27-48b7-bfe5-b39349ca44b6",
+      "kind": "user_flow",
+      "name": "Owner Approval Decision",
+      "pinned": false,
+      "primary_context": null,
+      "slug": "owner-approval-decision",
+      "tier": "major"
+    },
+    {
+      "contexts": [
+        "native-shell"
+      ],
+      "description": "CI runs fmt, clippy, offline tests, cargo-deny and the IPC authority drift check. Ignored live sandbox spikes run behind env vars.",
+      "id": "d2510b21-3d7a-4fd1-b528-aa3a050f3cd9",
+      "kind": "ops",
+      "name": "Release Quality Gates",
+      "pinned": false,
+      "primary_context": null,
+      "slug": "release-quality-gates",
+      "tier": "standard"
+    },
+    {
+      "contexts": [
+        "agent-tool-surface",
+        "tumbler-window",
+        "market-data"
+      ],
+      "description": "Before every countersignature, deterministic payee/pattern rules run synchronously, followed by market-data anomaly checks, and finally a quarantined LLM with no tools and a validated verdict schema evaluates counterparty free text; the combined result is an irrevocable BLOCK, a clearable HOLD, or an owner-decision ASK — applied on every deal regardless of module.",
+      "id": "b85dc69b-e153-4be1-93b7-a6720c3dfd78",
+      "kind": "capability",
+      "name": "Shield Screening",
+      "pinned": false,
+      "primary_context": "agent-tool-surface",
+      "slug": "shield-screening",
+      "tier": "standard"
+    },
+    {
+      "contexts": [
+        "relay-and-rendezvous",
+        "agent-tool-surface",
+        "paypal-gateway"
+      ],
+      "description": "Two wallets pair via a four-word verification code, exchange cryptographically signed offer envelopes over the relay within both owners' mandate bands, and at agreement create a PayPal AUTHORIZE order that the buyer approves in the system browser; both wallets store the same transcript-hash receipt as proof of agreement.",
+      "id": "d7416e4a-209f-4af6-b8b7-cc4d17f32f31",
+      "kind": "user_flow",
+      "name": "Signed Haggle",
+      "pinned": false,
+      "primary_context": null,
+      "slug": "signed-haggle",
+      "tier": "major"
+    },
+    {
+      "contexts": [
+        "agent-tool-surface",
+        "paypal-gateway"
+      ],
+      "description": "When a care-plan subscriber's payment fails, Maya's agent evaluates individual-subscriber rescue levers (discount this cycle, pause, retry, downgrade) within the rescue mandate, issues a discounted PayPal invoice for that single subscriber, and surfaces a send-now prompt to Maya — without plan-wide repricing and without the agent touching money directly.",
+      "id": "eac930b2-a170-4086-9322-f4a46ec5f94d",
+      "kind": "capability",
+      "name": "Subscription Rescue",
+      "pinned": false,
+      "primary_context": "paypal-gateway",
+      "slug": "subscription-rescue",
+      "tier": "major"
+    },
+    {
+      "contexts": [
+        "tumbler-window",
+        "native-shell"
+      ],
+      "description": "The always-on Tumbler window shows a puck, strip or card by urgency. The owner can snooze it and open the approval hand-off.",
+      "id": "60eee8a9-ce13-4985-94a7-a3abeb12168d",
+      "kind": "user_flow",
+      "name": "Tumbler Glance and Snooze",
+      "pinned": false,
+      "primary_context": "tumbler-window",
+      "slug": "tumbler-glance-and-snooze",
+      "tier": "standard"
+    },
+    {
+      "contexts": [
+        "relay-and-rendezvous"
+      ],
+      "description": "Two wallets on different machines pair with four words (create, join, confirm). They then exchange signed envelopes over the relay, with the HOUSE seller as a pairing target.",
+      "id": "22e1768f-ad83-448d-9d77-589875163f02",
+      "kind": "user_flow",
+      "name": "Two-Wallet Pairing",
+      "pinned": false,
+      "primary_context": null,
+      "slug": "two-wallet-pairing",
+      "tier": "major"
+    },
+    {
+      "contexts": [
+        "client-foundation"
+      ],
+      "description": "The main window shows the Dial, Home, and the deal view with charts and status. It uses safe display types and the shared words, and it never shows untrusted counterparty text.",
+      "id": "8a391bae-b0f9-4d7b-8632-863e3f28f9c6",
+      "kind": "user_flow",
+      "name": "Wallet Deal Dashboard",
+      "pinned": false,
+      "primary_context": null,
+      "slug": "wallet-deal-dashboard",
+      "tier": "major"
+    }
+  ],
+  "version": 2
 }

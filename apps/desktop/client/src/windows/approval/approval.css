@@ -286,3 +286,4 @@
 .dr-checks .wc li.na .cs-i { color: var(--dim); }
 .dr-checks .wc li.reading .cs-i { color: var(--dim); outline: 1px dashed var(--line2); outline-offset: -1px; }
 .wc-detail { overflow-wrap: anywhere; }
+.dr-irreversible { font-size: var(--fs-small); color: var(--muted); }

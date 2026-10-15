@@ -484,6 +484,15 @@ impl Fixture {
                 )
                 .await
             }
+            "counterparty_revoke" => {
+                self.exec(
+                    &c,
+                    Action::CounterpartyRevoke(CounterpartyRevokeArgs {
+                        key_id: self.other.counterparty.clone(),
+                    }),
+                )
+                .await
+            }
             other => panic!("no conformance call for {other}: add it here when adding the row"),
         };
         value.map(|_| ())

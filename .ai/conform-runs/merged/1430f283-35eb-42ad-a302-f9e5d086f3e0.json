@@ -1,0 +1,153 @@
+{
+  "schema": "conform-run/1",
+  "worker": "1430f283-35eb-42ad-a302-f9e5d086f3e0",
+  "subject": "mcp-tools",
+  "evaluatedAt": "2026-10-14T23:49:43.516044+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [
+    {
+      "context": "approval-window-shell",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "apps/desktop/client/src/windows/approval/session.tsx:86 Context searches found no MCP discovery or invocation vocabulary, while repository searches located MCP in Rust crates; this provider calls typed window commands.",
+      "techniques": [],
+      "absenceTerms": [
+        "mcp",
+        "tools/list",
+        "tools/call"
+      ]
+    },
+    {
+      "context": "wallet-app-services",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "crates/table-app/src/agent.rs:563 Persisted refusal records identify tools by their addressable names without a separate stable identifier, so renaming a tool splits its recorded history.",
+      "techniques": [
+        {
+          "technique": "first-party-agent-is-a-principal",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/src/agent.rs:648 AgentService uses one scoped dispatcher whose branches enforce role and deal binding."
+        },
+        {
+          "technique": "tool-identity-vs-tool-name",
+          "verdict": "deviation",
+          "evidence": "crates/table-app/src/agent.rs:563 The persisted tool reference is its name; no distinct stable tool identity accompanies it."
+        },
+        {
+          "technique": "tool-schema-design",
+          "verdict": "deviation",
+          "evidence": "crates/table-app/src/agent.rs:745 The separate decoder accepts USD prices such as \"10\" and \"10.0\", whereas the published send_offer schema requires exactly two fractional digits."
+        },
+        {
+          "technique": "untrusted-result-handling",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/src/agent.rs:717 table_view serializes the closed projection instead of counterparty notes or raw upstream records; application checks still govern subsequent intents."
+        }
+      ]
+    },
+    {
+      "context": "runtime-actor-and-engines",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "crates/table-runtime/src/actor.rs:433 The desktop runtime serves its local wallet tools through an HTTP listener, contrary to the standard's prescribed standard-stream transport for a single-machine application.",
+      "techniques": [
+        {
+          "technique": "authentication-and-scoping",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:230 Each run receives a scope-bound grant; ActiveRun revokes it on drop, and admission rechecks the live run, scope and mandate."
+        },
+        {
+          "technique": "first-party-agent-is-a-principal",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:106 The first-party policy engine is wired to HttpMcp and receives an ordinary run grant, exercising the same MCP admission path as native engines."
+        },
+        {
+          "technique": "transport-selection",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/actor.rs:433 A local desktop tool server uses TCP HTTP rather than standard streams; its authentication and Origin guards do not satisfy the standard's transport-choice rule."
+        },
+        {
+          "technique": "untrusted-result-handling",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:204 Negotiator input is built from the closed projection, excluding remote prose, with subsequent intents checked independently of model persuasion."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "mcp-tools",
+      "context": "table-engine-agent-process",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "mcp-tools",
+      "context": "browser-mock-backend",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor backend.ts:1336 is only the mock's generic invoke dispatcher, which does not itself show that no MCP discovery or invocation is present, so the not-applicable rests on an incidental line."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-14T23:49:43.516044+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "approval-window-shell",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-14T23:49:43.516044+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "browser-mock-backend",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-14T23:49:43.516044+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [
+        "first-party-agent-is-a-principal",
+        "tool-identity-vs-tool-name",
+        "tool-schema-design",
+        "untrusted-result-handling"
+      ],
+      "deviations": 1,
+      "context": "wallet-app-services",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-14T23:49:43.516044+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "mcp-tools"
+      ],
+      "techniques": [
+        "authentication-and-scoping",
+        "first-party-agent-is-a-principal",
+        "transport-selection",
+        "untrusted-result-handling"
+      ],
+      "deviations": 1,
+      "context": "runtime-actor-and-engines",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

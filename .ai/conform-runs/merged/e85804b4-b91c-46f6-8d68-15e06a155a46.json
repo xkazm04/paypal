@@ -1,0 +1,37 @@
+{
+ "schema": "conform-run/1",
+ "worker": "e85804b4-b91c-46f6-8d68-15e06a155a46",
+ "subject": "supply-chain",
+ "evaluatedAt": "2026-10-15T01:49:36.287724+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "supply-chain",
+   "context": "ledger-repositories-audit-evidence",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "supply-chain",
+   "context": "table-engine-agent-process",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "supply-chain",
+   "context": "deal-review",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "supply-chain",
+   "context": "runtime-money-controls",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "supply-chain",
+   "context": "book-module",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": []
+}

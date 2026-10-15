@@ -6,6 +6,7 @@ struct Verify {
     root: PathBuf,
     config: Config,
     visited: HashSet<TypeId>,
+    produced: std::collections::BTreeSet<String>,
 }
 impl TypeVisitor for Verify {
     fn visit<T: TS + 'static + ?Sized>(&mut self) {
@@ -13,6 +14,9 @@ impl TypeVisitor for Verify {
             return;
         }
         if let Some(path) = T::output_path() {
+            if let Some(name) = path.file_name() {
+                self.produced.insert(name.to_string_lossy().into_owned());
+            }
             let expected = T::export_to_string(&self.config).unwrap();
             let actual = std::fs::read_to_string(self.root.join(&path)).unwrap();
             assert_eq!(
@@ -32,12 +36,25 @@ fn checked_in_bindings_match_every_rust_command_event_and_dependency() {
         config: Config::new().with_out_dir(&root).with_large_int("number"),
         root,
         visited: HashSet::new(),
+        produced: ["authority.ts", "playbooks.ts", "ladder.ts"]
+            .map(String::from)
+            .into(),
     };
     verify.visit::<table_client::CommandContract>();
     verify.visit::<table_client::EventContract>();
     verify.visit::<table_client::CommandError>();
     verify.visit::<table_client::IpcHeaders>();
     verify.visit::<table_attention::LadderSchedule>();
+    // An orphan is a bindings/*.ts no root reaches: a removed Rust type's stale, importable file.
+    let orphans: Vec<String> = std::fs::read_dir(&verify.root)
+        .unwrap()
+        .filter_map(|e| e.ok()?.file_name().into_string().ok())
+        .filter(|n| n.ends_with(".ts") && !verify.produced.contains(n))
+        .collect();
+    assert!(
+        orphans.is_empty(),
+        "orphan bindings {orphans:?} are produced by no type; run `cargo run -p table-client --bin generate-bindings`"
+    );
     // Both directions: a contract field missing from COMMANDS would escape every grant test.
     let decl = table_client::CommandContract::decl(&verify.config);
     let contract: std::collections::BTreeSet<&str> = decl
@@ -122,11 +139,9 @@ fn wire_numbers_tags_and_closed_decisions_match_the_client_contract() {
         serde_json::to_value(table_client::ErrorCode::Locked).unwrap(),
         "LOCKED"
     );
-    let refused =
-        table_client::CommandError::from(table_app::Error::Refused(table_core::Refusal {
-            clause: 3,
-            reason: "amount above max_amount".into(),
-        }));
+    let refused = table_client::CommandError::from(table_app::Error::Refused(
+        table_core::Refusal::new(3, "amount above max_amount"),
+    ));
     assert_eq!(serde_json::to_value(refused.code).unwrap(), "REFUSED");
     let malformed = table_client::CommandError::from(table_app::Error::Invalid);
     assert_eq!(serde_json::to_value(malformed.code).unwrap(), "INVALID");

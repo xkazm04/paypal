@@ -8,7 +8,7 @@ export type AuthorityEnforcer = "runtime" | "shell";
 export type CommandAuthority = { labels: Array<AuthorityLabel>, token: boolean, unlock: boolean, selection: AuthoritySelection, tier: AuthorityTier, release: boolean, enforcer: AuthorityEnforcer, };
 
 /** Lowercase hex SHA-256 of the canonical table; get_settings reports the same value. */
-export const AUTHORITY_MANIFEST = "04084ce7f1ca2d1ade42300485213a22e47fbde30454bd90ff42782699077c15";
+export const AUTHORITY_MANIFEST = "ed57f9ce4f6c8e5d102c0fe219eb1ad8cccf70320eccaee44667dc51c1accfb8";
 
 export const AUTHORITY = {
   deal_snooze: { labels: ["tumbler"], token: false, unlock: false, selection: "none", tier: "act", release: false, enforcer: "runtime" },
@@ -82,4 +82,5 @@ export const AUTHORITY = {
   rescue_watch_add: { labels: ["approval"], token: true, unlock: true, selection: "none", tier: "owner", release: true, enforcer: "runtime" },
   rescue_watch_stop: { labels: ["approval"], token: true, unlock: true, selection: "none", tier: "owner", release: true, enforcer: "runtime" },
   safety_record: { labels: ["main"], token: false, unlock: false, selection: "none", tier: "read", release: false, enforcer: "runtime" },
+  counterparty_revoke: { labels: ["approval"], token: true, unlock: true, selection: "none", tier: "owner", release: true, enforcer: "runtime" },
 } satisfies Record<string, CommandAuthority>;

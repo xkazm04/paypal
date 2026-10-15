@@ -2,10 +2,14 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 pub mod attention;
 pub mod audit;
+mod audit_detail;
 mod bundle;
 pub use bundle::LedgerExport;
+mod pin;
 pub mod redaction;
 pub mod repositories;
+pub use pin::PinState;
+mod snapshot;
 pub use attention::{RUNG_ACTION, RungRow, SilenceEvidence, rung_chain_hash};
 pub use audit::{AuditEntry, AuditRecord};
 pub use redaction::*;
@@ -36,7 +40,14 @@ pub enum LedgerError {
     /// one outstanding ACCEPT. A refusal of the intent, not a fault.
     #[error("another table in this group already agreed")]
     GroupClosed,
+    /// The counterparty pin was revoked by the owner.
+    #[error("counterparty pin revoked")]
+    PinRevoked,
+    /// The counterparty pin has expired.
+    #[error("counterparty pin expired")]
+    PinExpired,
 }
+const SCHEMA_VERSION: i64 = 16;
 /// Deliberately no public raw-SQL/connection API. Only typed repositories cross this edge.
 #[derive(Debug)]
 pub struct Ledger {
@@ -53,8 +64,13 @@ impl Ledger {
         conn.execute_batch("PRAGMA foreign_keys=ON; PRAGMA recursive_triggers=ON;")?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version > 15 {
+        if version > SCHEMA_VERSION {
             return Err(LedgerError::Integrity("newer schema"));
+        }
+        let migrating = version < SCHEMA_VERSION;
+        if migrating {
+            // No restore point, no migration: a failure here refuses the open.
+            snapshot::take(&conn, version)?;
         }
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
         if version < 1 {
@@ -108,8 +124,20 @@ impl Ledger {
         if version < 15 && !has_reset_column {
             tx.execute_batch(include_str!("../migrations/0015_relay_reset.sql"))?;
         }
-        tx.execute_batch("PRAGMA user_version=15;")?;
+        // The older-schema tests step user_version back without dropping these columns.
+        let has_pin_columns: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('counterparties') WHERE name='revoked_at')",
+            [],
+            |r| r.get(0),
+        )?;
+        if version < 16 && !has_pin_columns {
+            tx.execute_batch(include_str!("../migrations/0016_pin_expiry.sql"))?;
+        }
+        tx.execute_batch("PRAGMA user_version=16;")?;
         tx.commit()?;
+        if migrating {
+            snapshot::prune(&conn);
+        }
         let ledger = Self { conn };
         ledger.verify_audit()?;
         Ok(ledger)

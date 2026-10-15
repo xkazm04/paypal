@@ -17,7 +17,7 @@ import type { RescueLever } from '@bindings/RescueLever';
 import { WalletError, toWalletError } from '../../lib/contract';
 import { useCounterparties, useDealDisplay } from '../../lib/display';
 import { formatMoney, nowUnix, shortId } from '../../lib/format';
-import { APPROVAL_SEAL, houseWords, RESCUE_APPROVE_DOES, RESCUE_REPLAY_NOT_COUNTED, SUMMARY_CHANGED, reasonWords, subscriberName, reconWord, receiptWord, shieldRuleWord, silenceWords, sellerSaysOnly } from '../../lib/words';
+import { APPROVAL_SEAL, houseWords, PAYMENT_CANNOT_BE_UNDONE, RESCUE_APPROVE_DOES, RESCUE_REPLAY_NOT_COUNTED, SUMMARY_CHANGED, reasonWords, subscriberName, reconWord, receiptWord, shieldRuleWord, silenceWords, sellerSaysOnly } from '../../lib/words';
 import { useEvent, useNow, usePrefersReducedMotion, useQuery } from '../../lib/hooks';
 import { backend } from '../../lib/runtime';
 import { MODULES } from '../../shared/modules';
@@ -661,6 +661,7 @@ export function Actions(p: {
           <HoldButton kind="gold" disabled={disabled} onConfirm={a.run} title={a.gate.reason ?? undefined} hint="Hold the button down for a moment">
             {a.label}
           </HoldButton>
+          {a.key === 'cap' && !p.seller ? <span className="dr-irreversible" data-testid="irreversible">{PAYMENT_CANNOT_BE_UNDONE}</span> : null}
         </span>
       );
     }

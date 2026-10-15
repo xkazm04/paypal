@@ -1,0 +1,1121 @@
+{
+  "schema": "conform-detail/1",
+  "pairs": {
+    "6ad8f933-5c5e-4ed6-8ace-f642dffc558f/test-harness": {
+      "context": "table-engine-agent-process",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-14",
+      "evaluatedTs": "2026-10-14T23:18:09.459Z",
+      "worker": "a0c1a5ea-74bf-43ad-ba3e-7af40cca4f16",
+      "techniques": [
+        {
+          "technique": "isolation-lanes",
+          "verdict": "deviation",
+          "evidence": "crates/table-engine/tests/native.rs:9 The root helper creates a ULID directory and returns a plain PathBuf; no teardown or wrapper reaps these roots. Production RunDirectory cleanup removes only run subdirectories."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/tests/native.rs:147 The test observes the prompt received through the actual child's stdin, rather than merely checking a pre-spawn derivation; this certifies the fixture crossing, not real CLI compatibility."
+        }
+      ]
+    },
+    "2388265b-2923-4e49-b59f-7f4453fa4f88/test-harness": {
+      "context": "runtime-money-controls",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-14",
+      "evaluatedTs": "2026-10-14T23:18:09.459Z",
+      "worker": "a0c1a5ea-74bf-43ad-ba3e-7af40cca4f16",
+      "techniques": [
+        {
+          "technique": "gate-scope-is-not-report-scope",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/checks_tests.rs:371 The test named a_ledger_change_after_the_summary_makes_its_real_hash_stale_for_every_money_decision manually lists six non-void variants; completeness is not mechanically tied to the Decision definition."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/tests.rs:395 The shared runtime fixture constructs a fresh ledger, MemoryVault, OfflineHttp and TestClock for each caller, keeping these tests independent of machine credentials and prior-test wallet state."
+        },
+        {
+          "technique": "unreached-decisions-pin-nothing",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/tests.rs:359 The forgery helper re-signs changed bundles, requires the evidence signature to pass, and asserts that the named target check is applicable, executed and failed; an outer signature rejection cannot substitute for that target."
+        }
+      ]
+    },
+    "60b8c7a9-421c-43fa-aff2-d1ede8cf38d9/test-harness": {
+      "context": "approval-window-shell",
+      "subject": "test-harness",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-14",
+      "evaluatedTs": "2026-10-14T23:18:09.459Z",
+      "worker": "a0c1a5ea-74bf-43ad-ba3e-7af40cca4f16",
+      "techniques": [
+        {
+          "technique": "gate-scope-is-not-report-scope",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/gating.test.ts:26 Tests claiming every combination iterate manually listed union members. DealState[] permits an incomplete list, and the numerical case floor does not detect a newly omitted state."
+        },
+        {
+          "technique": "isolation-lanes",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/actions.test.tsx:28 The rendered Actions tests explicitly unmount their React trees after each case; their callback mocks and gate fixtures are created per setup."
+        },
+        {
+          "technique": "pin-the-call-not-the-name",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/notices.test.ts:19 The unparsed matcher accepts commented JSX, and discovery includes .test.tsx files. An in-memory comment-only probe matched both its token-error selector and required footerNoticeText call needle."
+        }
+      ]
+    },
+    "60b8c7a9-421c-43fa-aff2-d1ede8cf38d9/mcp-tools": {
+      "context": "approval-window-shell",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-14",
+      "evaluatedTs": "2026-10-14T23:49:43.516Z",
+      "worker": "1430f283-35eb-42ad-a302-f9e5d086f3e0",
+      "techniques": []
+    },
+    "97ce9cef-2512-4583-a3a5-6ee0b27f287d/mcp-tools": {
+      "context": "browser-mock-backend",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-14",
+      "evaluatedTs": "2026-10-14T23:49:43.516Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "1430f283-35eb-42ad-a302-f9e5d086f3e0",
+        "state": "not-applicable",
+        "at": "2026-10-14T23:50:14.572383+00:00",
+        "reason": "reviewer (sonnet): The anchor backend.ts:1336 is only the mock's generic invoke dispatcher, which does not itself show that no MCP discovery or invocation is present, so the not-applicable rests on an incidental line."
+      }
+    },
+    "30af9627-32b0-465d-97de-4949dd83af41/mcp-tools": {
+      "context": "wallet-app-services",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-14",
+      "evaluatedTs": "2026-10-14T23:49:43.516Z",
+      "worker": "1430f283-35eb-42ad-a302-f9e5d086f3e0",
+      "techniques": [
+        {
+          "technique": "first-party-agent-is-a-principal",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/src/agent.rs:648 AgentService uses one scoped dispatcher whose branches enforce role and deal binding."
+        },
+        {
+          "technique": "tool-identity-vs-tool-name",
+          "verdict": "deviation",
+          "evidence": "crates/table-app/src/agent.rs:563 The persisted tool reference is its name; no distinct stable tool identity accompanies it."
+        },
+        {
+          "technique": "tool-schema-design",
+          "verdict": "deviation",
+          "evidence": "crates/table-app/src/agent.rs:745 The separate decoder accepts USD prices such as \"10\" and \"10.0\", whereas the published send_offer schema requires exactly two fractional digits."
+        },
+        {
+          "technique": "untrusted-result-handling",
+          "verdict": "conformant",
+          "evidence": "crates/table-app/src/agent.rs:717 table_view serializes the closed projection instead of counterparty notes or raw upstream records; application checks still govern subsequent intents."
+        }
+      ]
+    },
+    "065d4555-d9ad-478c-b637-3d8eb494f76c/mcp-tools": {
+      "context": "runtime-actor-and-engines",
+      "subject": "mcp-tools",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-14",
+      "evaluatedTs": "2026-10-14T23:49:43.516Z",
+      "worker": "1430f283-35eb-42ad-a302-f9e5d086f3e0",
+      "techniques": [
+        {
+          "technique": "authentication-and-scoping",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:230 Each run receives a scope-bound grant; ActiveRun revokes it on drop, and admission rechecks the live run, scope and mandate."
+        },
+        {
+          "technique": "first-party-agent-is-a-principal",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:106 The first-party policy engine is wired to HttpMcp and receives an ordinary run grant, exercising the same MCP admission path as native engines."
+        },
+        {
+          "technique": "transport-selection",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/actor.rs:433 A local desktop tool server uses TCP HTTP rather than standard streams; its authentication and Origin guards do not satisfy the standard's transport-choice rule."
+        },
+        {
+          "technique": "untrusted-result-handling",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:204 Negotiator input is built from the closed projection, excluding remote prose, with subsequent intents checked independently of model persuasion."
+        }
+      ]
+    },
+    "301e09f0-979a-4861-b442-b4efe22b7bd2/agent-runtime-assembly": {
+      "context": "director-preview-stories",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T00:23:16.419Z",
+      "worker": "57adfa7e-09aa-4855-9632-331060a959ee",
+      "techniques": [
+        {
+          "technique": "honest-hook-registry",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:147 Rehearsal window handle, not a contributed callback on a conversation loop."
+        }
+      ]
+    },
+    "eec42666-8620-4b0d-8d2e-bc418a280b71/agent-runtime-assembly": {
+      "context": "house-seller-service",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T00:23:16.419Z",
+      "techniques": [
+        {
+          "technique": "host-routes-win",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/hosted.rs:1073 The process merges its own relay router with its own routes; no contributed router is mounted."
+        },
+        {
+          "technique": "indeterminate-closure-on-interruption",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/hosted.rs:225 Owner park of an unsettled PayPal call, not a tool-call status in an agent transcript."
+        }
+      ],
+      "withdrawn": {
+        "worker": "57adfa7e-09aa-4855-9632-331060a959ee",
+        "state": "not-applicable",
+        "at": "2026-10-15T00:23:50.370557+00:00",
+        "reason": "reviewer (sonnet): The anchor hosted.rs:218 is the PendingOperation doc comment and does not show that agent-runtime pieces are absent; hosted.rs imports AgentService/AgentRole/AgentScope/Authority, which the evidence never examines, and its 'agent is an ed25519 key plus an offer call' claim is not confirmed."
+      }
+    },
+    "9a4f1dcb-2f71-4b8d-835c-a38862a5c22a/agent-runtime-assembly": {
+      "context": "client-runtime-foundation",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T00:23:16.419Z",
+      "worker": "57adfa7e-09aa-4855-9632-331060a959ee",
+      "techniques": [
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/hooks.ts:33 UI query comment: events are not retained. No remote job handle or model poll."
+        },
+        {
+          "technique": "honest-hook-registry",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/hooks.ts:9 React subscription to a typed IPC event, not a contributed agent-event registry."
+        },
+        {
+          "technique": "operator-tier-code-loading",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/contract.ts:57 extension here is an IPC command the shell does not implement yet, mapped to UNAVAILABLE, not a code entry point."
+        }
+      ]
+    },
+    "93ab9629-27c8-4024-bd9e-06c9761ea24d/agent-runtime-assembly": {
+      "context": "spend-firewall-and-agent-policy",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T00:23:16.419Z",
+      "techniques": [
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:158 Caps transcript steps in the deal view. No remote handle, lease, or poll from a model loop."
+        },
+        {
+          "technique": "guard-input-custody",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/exposure.rs:300 Pure check of a caller-supplied owner ceiling. These files do not read a policy file from an agent working tree, and they do not verify owner_sig."
+        },
+        {
+          "technique": "operator-tier-code-loading",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:563 Compiles role prompt text. The standard assigns that text to prompt assembly, and this is not a code entry point."
+        },
+        {
+          "technique": "session-scoped-capability",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:318 Deal-table roster and refusal are one function. Nothing here is a client-surface capability or a process environment slot. MCP names are the wire vocabulary the standard excludes."
+        }
+      ],
+      "withdrawn": {
+        "worker": "57adfa7e-09aa-4855-9632-331060a959ee",
+        "state": "not-applicable",
+        "at": "2026-10-15T00:23:50.393225+00:00",
+        "reason": "reviewer (sonnet): The anchor agent.rs:2 is a module doc header that does not show the precondition is absent, and the context contains an AgentTool roster filtered by refusal (agent.rs:136, ~318) plus compiled Playbook prompts, which the evidence concedes are present."
+      }
+    },
+    "877e3281-ae38-485a-a404-4476986454a5/agent-runtime-assembly": {
+      "context": "shared-surfaces-onboarding-honesty",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T00:23:16.419Z",
+      "techniques": [
+        {
+          "technique": "session-scoped-capability",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/honesty.tsx:25 Chooses a preview badge from the UI backend kind. Not a tool roster resolved from a session source."
+        }
+      ],
+      "withdrawn": {
+        "worker": "57adfa7e-09aa-4855-9632-331060a959ee",
+        "state": "not-applicable",
+        "at": "2026-10-15T00:23:50.417433+00:00",
+        "reason": "reviewer (sonnet): The anchor honesty.tsx:16 is only a mode tooltip string and does not itself show runtime assembly is absent; the context also has an 'agent app' engine-choice step in start.tsx that the evidence does not address."
+      }
+    },
+    "78691638-b912-45fd-98f8-083cec08e3a9/agent-memory": {
+      "context": "tumbler-window",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T00:48:08.531Z",
+      "techniques": [
+        {
+          "technique": "addresses-before-compression",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:212 Reads attention items; no memory-merging pass."
+        },
+        {
+          "technique": "addresses-not-atoms",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:212 Attention items are wallet projections, not memory units."
+        },
+        {
+          "technique": "baseline-ladder",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:212 No memory pipeline or memory-quality score."
+        },
+        {
+          "technique": "consolidation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:169 Updates UI state without deriving durable beliefs."
+        },
+        {
+          "technique": "container-carries-decision-status",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:169 No extraction of decisions from source documents."
+        },
+        {
+          "technique": "coverage-instrumentation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:212 Displayed attention population is not memory coverage."
+        },
+        {
+          "technique": "cross-context-promotion",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:169 No local or shared knowledge stores."
+        },
+        {
+          "technique": "decay-and-forgetting",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:169 Replacing a UI snapshot is not belief retirement."
+        },
+        {
+          "technique": "diagnosis-withheld-from-the-executor",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:212 No executor/reviser memory-access loop."
+        },
+        {
+          "technique": "durable-store-failure-posture",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:212 Wallet query, not a durable agent-memory artifact."
+        },
+        {
+          "technique": "episodic-capture",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:169 No task-episode capture."
+        },
+        {
+          "technique": "filter-at-the-id-door",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:212 No model-selected memory IDs or loader."
+        },
+        {
+          "technique": "gap-directed-elicitation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:212 No memory-gap instrument or elicitation session."
+        },
+        {
+          "technique": "lane-reconciliation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:212 No memory record/search-index fan-out."
+        },
+        {
+          "technique": "loss-site-inventory",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:169 Snapshot feeds a human-facing UI, not agent recall."
+        },
+        {
+          "technique": "memory-governance",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:169 No agent-authored durable belief writes."
+        },
+        {
+          "technique": "memory-value-model",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:212 No recall/retirement value function."
+        },
+        {
+          "technique": "observation-clock",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:169 No conversation-to-claim temporal grounding."
+        },
+        {
+          "technique": "owner-and-counterpart-scope",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:212 No memory ownership namespace."
+        },
+        {
+          "technique": "pending-beliefs-live-apart",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:169 Pending deals are not proposed beliefs."
+        },
+        {
+          "technique": "probe-without-write-back",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:212 No recall-health probe or usage feedback."
+        },
+        {
+          "technique": "procedure-promotion",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:212 No learned workflow promotion."
+        },
+        {
+          "technique": "read-set-bounded-links",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:169 No model-authored links between memories."
+        },
+        {
+          "technique": "recall-injection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:212 Attention query does not inject model context."
+        },
+        {
+          "technique": "rejected-revision-leaves-its-evidence",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:169 No learned-procedure revision gate."
+        },
+        {
+          "technique": "rollup-compaction",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:169 No redundant-memory rollup."
+        },
+        {
+          "technique": "scope-before-similarity",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:212 No similarity-based memory maintenance."
+        },
+        {
+          "technique": "self-trained-capture-filter",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:169 No learned screen before a distiller."
+        },
+        {
+          "technique": "stale-served-versus-stale-answered",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:212 No superseded-belief retrieval or model answer."
+        },
+        {
+          "technique": "working-memory",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:169 Human-facing React state, not an agent's operative task store."
+        }
+      ],
+      "withdrawn": {
+        "worker": "82872bcb-a2f5-4efd-9286-36bd53ac76da",
+        "state": "not-applicable",
+        "at": "2026-10-15T00:48:39.981089+00:00",
+        "reason": "reviewer (sonnet): Each not-applicable anchor is an incidental UI line (an attention_list fetch at Tumbler.tsx:212, an approval_summary fetch at DealReview.tsx:85, runActions at Director.tsx:252, tourView at tour.tsx:99) that shows what the line does but not that no agent-memory/knowledge-store precondition exists; th"
+      }
+    },
+    "1b4ef14a-5a8a-438c-988d-365c439b153d/agent-memory": {
+      "context": "deal-review",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T00:48:08.531Z",
+      "techniques": [
+        {
+          "technique": "addresses-before-compression",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:85 No memory-merging pass."
+        },
+        {
+          "technique": "addresses-not-atoms",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:85 Review rows are not agent-memory items."
+        },
+        {
+          "technique": "baseline-ladder",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:85 No memory pipeline or benchmark claim."
+        },
+        {
+          "technique": "consolidation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:86 Stores the returned UI summary, not inferred beliefs."
+        },
+        {
+          "technique": "container-carries-decision-status",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:86 No consolidation of planning text into state."
+        },
+        {
+          "technique": "coverage-instrumentation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:85 Approval checks do not measure memory coverage."
+        },
+        {
+          "technique": "cross-context-promotion",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:86 No context-local knowledge stores to promote between."
+        },
+        {
+          "technique": "decay-and-forgetting",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:86 UI refresh is not durable-belief retirement."
+        },
+        {
+          "technique": "diagnosis-withheld-from-the-executor",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:85 No self-revising procedure executor."
+        },
+        {
+          "technique": "durable-store-failure-posture",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:85 Financial summary query, not agent-memory parsing."
+        },
+        {
+          "technique": "episodic-capture",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/Details.tsx:134 Renders existing signed steps; does not capture memory episodes."
+        },
+        {
+          "technique": "filter-at-the-id-door",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:85 Deal lookup is not model-selected memory loading."
+        },
+        {
+          "technique": "gap-directed-elicitation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:85 Owner approval is not memory-gap elicitation."
+        },
+        {
+          "technique": "lane-reconciliation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:85 No memory retrieval indexes."
+        },
+        {
+          "technique": "loss-site-inventory",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/Details.tsx:134 This history reader is the owner-facing display, not agent recall."
+        },
+        {
+          "technique": "memory-governance",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:86 Money decisions do not commit agent beliefs."
+        },
+        {
+          "technique": "memory-value-model",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:85 No memory-value scoring."
+        },
+        {
+          "technique": "observation-clock",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/Details.tsx:134 Displays recorded events without distilling relative dates."
+        },
+        {
+          "technique": "owner-and-counterpart-scope",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:85 Deal-scoped UI data is not a personal-memory namespace."
+        },
+        {
+          "technique": "pending-beliefs-live-apart",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:86 Pending financial decisions are not unconfirmed beliefs."
+        },
+        {
+          "technique": "probe-without-write-back",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:85 No scheduled recall probe or ranking feedback."
+        },
+        {
+          "technique": "procedure-promotion",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:85 No observed workflow becomes a learned capability."
+        },
+        {
+          "technique": "read-set-bounded-links",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/Details.tsx:134 No model-authored memory references."
+        },
+        {
+          "technique": "recall-injection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:85 Summary feeds the owner-facing review, not a model invocation."
+        },
+        {
+          "technique": "rejected-revision-leaves-its-evidence",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:86 Rejecting a deal is not rejecting a learned-procedure revision."
+        },
+        {
+          "technique": "rollup-compaction",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:86 No redundant-memory compaction."
+        },
+        {
+          "technique": "scope-before-similarity",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:85 No similarity-based consolidation or clustering."
+        },
+        {
+          "technique": "self-trained-capture-filter",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:86 No adaptive capture screen."
+        },
+        {
+          "technique": "stale-served-versus-stale-answered",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/Details.tsx:134 Signed history is displayed as history, not recalled as competing beliefs."
+        },
+        {
+          "technique": "working-memory",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:86 Review component state is not an agent task-memory board."
+        }
+      ],
+      "withdrawn": {
+        "worker": "82872bcb-a2f5-4efd-9286-36bd53ac76da",
+        "state": "not-applicable",
+        "at": "2026-10-15T00:48:39.981089+00:00",
+        "reason": "reviewer (sonnet): Each not-applicable anchor is an incidental UI line (an attention_list fetch at Tumbler.tsx:212, an approval_summary fetch at DealReview.tsx:85, runActions at Director.tsx:252, tourView at tour.tsx:99) that shows what the line does but not that no agent-memory/knowledge-store precondition exists; th"
+      }
+    },
+    "93ab9629-27c8-4024-bd9e-06c9761ea24d/agent-memory": {
+      "context": "spend-firewall-and-agent-policy",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T00:48:08.531Z",
+      "worker": "82872bcb-a2f5-4efd-9286-36bd53ac76da",
+      "techniques": [
+        {
+          "technique": "addresses-before-compression",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:212 Projects signed steps rather than merging memory items."
+        },
+        {
+          "technique": "addresses-not-atoms",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:215 Step granularity follows signed protocol events, not a knowledge-store design."
+        },
+        {
+          "technique": "baseline-ladder",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:563 Fixed role behavior; no memory-pipeline score or cost claim found."
+        },
+        {
+          "technique": "consolidation",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:215 Typed event projection performs no episode-to-belief judgment."
+        },
+        {
+          "technique": "container-carries-decision-status",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:218 Copies typed signed actions; does not extract decisions from planning documents."
+        },
+        {
+          "technique": "coverage-instrumentation",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:318 Measures current tool eligibility, not knowledge coverage."
+        },
+        {
+          "technique": "cross-context-promotion",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:563 Compiled playbook, not lessons promoted between stores."
+        },
+        {
+          "technique": "decay-and-forgetting",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:223 This is a read-window cut, not governed retirement of stored beliefs."
+        },
+        {
+          "technique": "diagnosis-withheld-from-the-executor",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:563 No experience-driven playbook revision loop found."
+        },
+        {
+          "technique": "durable-store-failure-posture",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:215 Projection accepts typed inputs; it does not parse or overwrite a memory artifact."
+        },
+        {
+          "technique": "episodic-capture",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:218 Signed financial steps remain source records, not distilled memory episodes."
+        },
+        {
+          "technique": "filter-at-the-id-door",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:215 No model-selected shortlist of memory IDs."
+        },
+        {
+          "technique": "gap-directed-elicitation",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:563 No memory-coverage gap triggers questioning."
+        },
+        {
+          "technique": "lane-reconciliation",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:215 No memory record/index fan-out in these policy modules."
+        },
+        {
+          "technique": "loss-site-inventory",
+          "verdict": "deviation",
+          "evidence": "crates/table-core/src/agent.rs:223 Drops older stored steps without omission metadata; the 100-step test exercises the cut, and role prompts describe history as every signed step."
+        },
+        {
+          "technique": "memory-governance",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:563 Role instructions are compiled in; no experience-derived belief-write lane found."
+        },
+        {
+          "technique": "memory-value-model",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:223 Selects a chronological window, with no recall/retirement value model."
+        },
+        {
+          "technique": "observation-clock",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:220 Copies event timestamps without distilling relative temporal claims."
+        },
+        {
+          "technique": "owner-and-counterpart-scope",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:279 Counterparty is a typed deal label, not a memory-owner/counterpart namespace."
+        },
+        {
+          "technique": "pending-beliefs-live-apart",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:308 Pending signed offers are protocol state, not proposed beliefs."
+        },
+        {
+          "technique": "probe-without-write-back",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:223 No recall-usage feedback or scheduled memory probe found."
+        },
+        {
+          "technique": "procedure-promotion",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:564 Hand-authored compiled procedure, not promotion from observed recurrence."
+        },
+        {
+          "technique": "read-set-bounded-links",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:215 No model-authored links between memories."
+        },
+        {
+          "technique": "rejected-revision-leaves-its-evidence",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:564 No learned-procedure proposal, rollback or diagnostic-memory loop found."
+        },
+        {
+          "technique": "rollup-compaction",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:223 Drops a read prefix without generating a superseding rollup."
+        },
+        {
+          "technique": "scope-before-similarity",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:215 No similarity-based memory grouping or distillation."
+        },
+        {
+          "technique": "self-trained-capture-filter",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:215 No learned pre-distillation screen."
+        },
+        {
+          "technique": "stale-served-versus-stale-answered",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:218 Historical signed actions are not superseded belief versions."
+        }
+      ]
+    },
+    "301e09f0-979a-4861-b442-b4efe22b7bd2/agent-memory": {
+      "context": "director-preview-stories",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T00:48:08.531Z",
+      "techniques": [
+        {
+          "technique": "addresses-before-compression",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:252 Script execution contains no memory-merging pass."
+        },
+        {
+          "technique": "addresses-not-atoms",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:252 Beats are authored presentation units, not memory items."
+        },
+        {
+          "technique": "baseline-ladder",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:252 Rehearsal checks are not memory-pipeline benchmarks."
+        },
+        {
+          "technique": "consolidation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:266 Folds scripted scene state without deriving beliefs."
+        },
+        {
+          "technique": "container-carries-decision-status",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:252 Does not ingest planning documents into current knowledge."
+        },
+        {
+          "technique": "coverage-instrumentation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:252 Story expectations concern screens, not memory coverage."
+        },
+        {
+          "technique": "cross-context-promotion",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:266 Scene replay is not sharing learned knowledge between contexts."
+        },
+        {
+          "technique": "decay-and-forgetting",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:263 Resetting sample data is not memory retirement."
+        },
+        {
+          "technique": "diagnosis-withheld-from-the-executor",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:252 No agent revises procedures from execution traces."
+        },
+        {
+          "technique": "durable-store-failure-posture",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/actions.ts:170 Persists tour position, not durable agent knowledge."
+        },
+        {
+          "technique": "episodic-capture",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:252 Authored story beats are not captured task episodes."
+        },
+        {
+          "technique": "filter-at-the-id-door",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:252 No model-selected memory IDs."
+        },
+        {
+          "technique": "gap-directed-elicitation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:252 First-run presentation is not memory-gap elicitation."
+        },
+        {
+          "technique": "lane-reconciliation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:263 No memory record/search-index lanes."
+        },
+        {
+          "technique": "loss-site-inventory",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:266 Scene replay feeds framed UI, not agent recall."
+        },
+        {
+          "technique": "memory-governance",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/actions.ts:170 Tour-progress writes do not change agent beliefs or standing rules."
+        },
+        {
+          "technique": "memory-value-model",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:252 No recall/retention ranking."
+        },
+        {
+          "technique": "observation-clock",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:263 Story clock controls fixtures, not conversation-to-belief grounding."
+        },
+        {
+          "technique": "owner-and-counterpart-scope",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/actions.ts:170 Window/preview progress keys are not memory identity axes."
+        },
+        {
+          "technique": "pending-beliefs-live-apart",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:252 No proposed-belief review queue."
+        },
+        {
+          "technique": "probe-without-write-back",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:252 Rehearsal checks do not call a usage-writing memory retriever."
+        },
+        {
+          "technique": "procedure-promotion",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:252 Scripts are authored directly, not promoted from remembered recurrence."
+        },
+        {
+          "technique": "read-set-bounded-links",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:252 No model-authored memory links."
+        },
+        {
+          "technique": "recall-injection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:266 Reconstructs a scene rather than injecting recalled knowledge."
+        },
+        {
+          "technique": "rejected-revision-leaves-its-evidence",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:263 Replay reset is not rollback of a proposed learned procedure."
+        },
+        {
+          "technique": "rollup-compaction",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:266 Deterministic scene folding produces no memory rollup."
+        },
+        {
+          "technique": "scope-before-similarity",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:252 No similarity-based memory maintenance."
+        },
+        {
+          "technique": "self-trained-capture-filter",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:252 No learned capture filter or distiller."
+        },
+        {
+          "technique": "stale-served-versus-stale-answered",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:263 No versioned beliefs or model answers to measure."
+        },
+        {
+          "technique": "working-memory",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:266 Reconstructed UI scene is not an executing agent's task state."
+        }
+      ],
+      "withdrawn": {
+        "worker": "82872bcb-a2f5-4efd-9286-36bd53ac76da",
+        "state": "not-applicable",
+        "at": "2026-10-15T00:48:39.981089+00:00",
+        "reason": "reviewer (sonnet): Each not-applicable anchor is an incidental UI line (an attention_list fetch at Tumbler.tsx:212, an approval_summary fetch at DealReview.tsx:85, runActions at Director.tsx:252, tourView at tour.tsx:99) that shows what the line does but not that no agent-memory/knowledge-store precondition exists; th"
+      }
+    },
+    "877e3281-ae38-485a-a404-4476986454a5/agent-memory": {
+      "context": "shared-surfaces-onboarding-honesty",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T00:48:08.531Z",
+      "techniques": [
+        {
+          "technique": "addresses-before-compression",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:99 No memory-merging pass."
+        },
+        {
+          "technique": "addresses-not-atoms",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:99 Tour stops are presentation data, not knowledge-store units."
+        },
+        {
+          "technique": "baseline-ladder",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:99 No memory pipeline or memory benchmark."
+        },
+        {
+          "technique": "consolidation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:101 Saves explicit tour progress without inferring beliefs."
+        },
+        {
+          "technique": "container-carries-decision-status",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:99 No document extraction or decision consolidation."
+        },
+        {
+          "technique": "coverage-instrumentation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:99 Visible tour anchors do not measure knowledge coverage."
+        },
+        {
+          "technique": "cross-context-promotion",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:101 Window-specific progress is not context-local learned knowledge."
+        },
+        {
+          "technique": "decay-and-forgetting",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:101 Tour completion and skipping are not belief decay."
+        },
+        {
+          "technique": "diagnosis-withheld-from-the-executor",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:99 No procedure executor/reviser memory roles."
+        },
+        {
+          "technique": "durable-store-failure-posture",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:101 Persistence concerns UI progress; the traced store is not agent memory."
+        },
+        {
+          "technique": "episodic-capture",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:101 No capture of task episodes."
+        },
+        {
+          "technique": "filter-at-the-id-door",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:99 No model-selected memory IDs or belief loader."
+        },
+        {
+          "technique": "gap-directed-elicitation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:99 Onboarding guidance does not elicit missing knowledge into episodes."
+        },
+        {
+          "technique": "lane-reconciliation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:101 Progress persistence has no memory-search lanes."
+        },
+        {
+          "technique": "loss-site-inventory",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:99 Selects a human-facing coach mark, not content for agent recall."
+        },
+        {
+          "technique": "memory-governance",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:101 User navigation writes progress, not agent beliefs or rules."
+        },
+        {
+          "technique": "memory-value-model",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:99 No memory recall/retirement value function."
+        },
+        {
+          "technique": "observation-clock",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/honesty.tsx:44 Formats an absolute deadline without distilling relative temporal claims."
+        },
+        {
+          "technique": "owner-and-counterpart-scope",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:101 Tour window/key scope is not ownership of personal memories."
+        },
+        {
+          "technique": "pending-beliefs-live-apart",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:101 No proposed-belief queue or adoption operation."
+        },
+        {
+          "technique": "probe-without-write-back",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:99 No scheduled recall probe or retrieval feedback."
+        },
+        {
+          "technique": "procedure-promotion",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:99 Authored onboarding steps are not learned callable procedures."
+        },
+        {
+          "technique": "read-set-bounded-links",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:99 DOM tour anchors are not model-authored memory links."
+        },
+        {
+          "technique": "recall-injection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:99 No model-context assembly or memory injection."
+        },
+        {
+          "technique": "rejected-revision-leaves-its-evidence",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:101 Skipping a tour is not rejecting a learned-procedure revision."
+        },
+        {
+          "technique": "rollup-compaction",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:101 No redundant-memory rollup."
+        },
+        {
+          "technique": "scope-before-similarity",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:99 No similarity-based memory grouping."
+        },
+        {
+          "technique": "self-trained-capture-filter",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:99 No learned screen before episode distillation."
+        },
+        {
+          "technique": "stale-served-versus-stale-answered",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:99 No superseded belief versions or model answers."
+        },
+        {
+          "technique": "working-memory",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:101 Saved coach-mark position is UI progress, not an agent's operative task state."
+        }
+      ],
+      "withdrawn": {
+        "worker": "82872bcb-a2f5-4efd-9286-36bd53ac76da",
+        "state": "not-applicable",
+        "at": "2026-10-15T00:48:39.981089+00:00",
+        "reason": "reviewer (sonnet): Each not-applicable anchor is an incidental UI line (an attention_list fetch at Tumbler.tsx:212, an approval_summary fetch at DealReview.tsx:85, runActions at Director.tsx:252, tourView at tour.tsx:99) that shows what the line does but not that no agent-memory/knowledge-store precondition exists; th"
+      }
+    },
+    "065d4555-d9ad-478c-b637-3d8eb494f76c/agent-instruction-files": {
+      "context": "runtime-actor-and-engines",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T01:14:31.534Z",
+      "worker": "c008627b-a2e2-4529-8612-13108bf5e9d0",
+      "techniques": [
+        {
+          "technique": "workspace-ancestry-isolation",
+          "verdict": "deviation",
+          "evidence": "crates/table-engine/src/native.rs:153 Following the runtime's NativeEngine constructor reaches this generated cwd; the inspected initialization parser checks tools and MCP servers but neither captures nor asserts resolved instruction files, as the technique requires."
+        }
+      ]
+    }
+  }
+}

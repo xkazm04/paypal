@@ -45,6 +45,7 @@
     "allow-rescue-replay",
     "allow-rescue-book",
     "allow-rescue-watch-add",
-    "allow-rescue-watch-stop"
+    "allow-rescue-watch-stop",
+    "allow-counterparty-revoke"
   ]
 }

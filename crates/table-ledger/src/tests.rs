@@ -150,7 +150,7 @@ fn migrations_are_transactional_idempotent_and_foreign_keys_enabled() {
         .conn
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 15);
+    assert_eq!(version, 16);
     let connection = ledger.conn;
     let ledger = Ledger::from_connection(connection).unwrap();
     assert_eq!(ledger.audit_count().unwrap(), 0);
@@ -2517,6 +2517,8 @@ mod limits_tests;
 mod market_tests;
 #[path = "market_watch_tests.rs"]
 mod market_watch_tests;
+#[path = "pin_tests.rs"]
+mod pin_tests;
 /// robustness-1 (c): the lapse is time-only and records whether a statement read came back
 /// unmatched before it; with no read it never claims one.
 #[test]
@@ -2820,4 +2822,103 @@ fn c9a_a_version_14_ledger_migrates_and_reads_generation_at_zero() {
     .unwrap();
     let ledger = Ledger::from_connection(conn).unwrap();
     assert_eq!(route_state(&ledger, deal.id), (String::new(), 0, 0));
+}
+
+fn snapshot_dir(tag: &str) -> std::path::PathBuf {
+    let mut name = [0; 8];
+    getrandom::fill(&mut name).unwrap();
+    let dir = std::env::temp_dir().join(format!(
+        "table-snap-{tag}-{}",
+        name.iter().map(|b| format!("{b:02x}")).collect::<String>()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+fn user_version(conn: &rusqlite::Connection) -> i64 {
+    conn.query_row("PRAGMA user_version", [], |r| r.get(0))
+        .unwrap()
+}
+#[test]
+fn a_failing_migration_leaves_a_readable_snapshot_at_the_old_version() {
+    let dir = snapshot_dir("fail");
+    let db = dir.join("wallet.sqlite");
+    drop(Ledger::open(&db).unwrap());
+    // Break the v15 step (its ALTER needs relay_routes) and step the version back to 14.
+    let raw = rusqlite::Connection::open(&db).unwrap();
+    raw.execute_batch("PRAGMA foreign_keys=OFF; DROP TABLE relay_routes; PRAGMA user_version=14;")
+        .unwrap();
+    drop(raw);
+    assert!(Ledger::open(&db).is_err());
+    let snap = dir.join("wallet.pre-v14.sqlite");
+    let copy = rusqlite::Connection::open(&snap).unwrap();
+    assert_eq!(user_version(&copy), 14);
+    let tables: i64 = copy
+        .query_row(
+            "SELECT count(*) FROM sqlite_master WHERE name='relay_routes'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(tables, 0);
+    let deals: i64 = copy
+        .query_row("SELECT count(*) FROM deals", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(deals, 0);
+    drop(copy);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+#[test]
+fn a_snapshot_failure_refuses_the_migration() {
+    let dir = snapshot_dir("refuse");
+    let db = dir.join("wallet.sqlite");
+    drop(Ledger::open(&db).unwrap());
+    let raw = rusqlite::Connection::open(&db).unwrap();
+    raw.execute_batch(
+        "ALTER TABLE relay_routes DROP COLUMN generation_at; PRAGMA user_version=14;",
+    )
+    .unwrap();
+    drop(raw);
+    // A directory squats on the snapshot name, so the restore point cannot be written.
+    std::fs::create_dir(dir.join("wallet.pre-v14.sqlite")).unwrap();
+    assert!(Ledger::open(&db).is_err());
+    let raw = rusqlite::Connection::open(&db).unwrap();
+    assert_eq!(user_version(&raw), 14);
+    drop(raw);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+#[test]
+fn a_current_empty_or_in_memory_ledger_takes_no_snapshot_and_pruning_keeps_two() {
+    let dir = snapshot_dir("prune");
+    let db = dir.join("wallet.sqlite");
+    drop(Ledger::open(&db).unwrap());
+    let count = |dir: &std::path::Path| {
+        std::fs::read_dir(dir)
+            .unwrap()
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().contains(".pre-v"))
+            .count()
+    };
+    // A brand-new file and a reopen at the current version leave no snapshot.
+    drop(Ledger::open(&db).unwrap());
+    assert_eq!(count(&dir), 0);
+    // Two older restore points already sit beside the file; one real migration adds a third.
+    for old in [3, 9] {
+        std::fs::write(dir.join(format!("wallet.pre-v{old}.sqlite")), b"old").unwrap();
+    }
+    let raw = rusqlite::Connection::open(&db).unwrap();
+    raw.execute_batch(
+        "ALTER TABLE relay_routes DROP COLUMN generation_at; PRAGMA user_version=14;",
+    )
+    .unwrap();
+    drop(raw);
+    drop(Ledger::open(&db).unwrap());
+    let mut left: Vec<String> = std::fs::read_dir(&dir)
+        .unwrap()
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| n.contains(".pre-v"))
+        .collect();
+    left.sort();
+    assert_eq!(left, ["wallet.pre-v14.sqlite", "wallet.pre-v9.sqlite"]);
+    let _ = std::fs::remove_dir_all(&dir);
 }

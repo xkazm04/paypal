@@ -319,24 +319,6 @@ pub(crate) fn insert_deal(
     )?;
     Ok(())
 }
-/// States in the forward chain from AGREED on, every one reached through AGREED.
-fn agreed_or_later(state: DealState) -> bool {
-    use DealState as S;
-    matches!(
-        state,
-        S::Agreed
-            | S::Settling
-            | S::AwaitingApproval
-            | S::Approved
-            | S::Authorized
-            | S::Captured
-            | S::Receipted
-            | S::Reconciled
-            | S::Refunded
-            | S::Disputed
-            | S::Unconfirmed
-    )
-}
 struct DbNonces<'a>(&'a Connection);
 impl NonceLookup for DbNonces<'_> {
     fn contains(&self, key: &KeyId, nonce: &[u8; 16]) -> Result<bool, ProtocolError> {
@@ -807,9 +789,15 @@ impl Ledger {
             )
             .optional()?;
         // The day of the window: this deal's agreement day, else today.
-        let day = own.map_or(now, |(_, at)| at).div_euclid(86400);
+        let day = table_core::utc_day(own.map_or(now, |(_, at)| at));
+        // The released states come from table-core's one list, not a literal here.
+        let released = DealState::RELEASED
+            .iter()
+            .map(|state| enum_text(state).map(|text| format!("'{text}'")))
+            .collect::<Result<Vec<_>, _>>()?
+            .join(",");
         let sql = format!(
-            "SELECT qty,unit_price_minor,currency,state,CAST(created_at AS INTEGER),({}),({}) FROM deals d WHERE mandate_id=?1 AND id!=?2 AND state NOT IN ('REFUSED','WITHDRAWN','EXPIRED','VOIDED','AUTO_VOIDED')",
+            "SELECT qty,unit_price_minor,currency,state,CAST(created_at AS INTEGER),({}),({}) FROM deals d WHERE mandate_id=?1 AND id!=?2 AND state NOT IN ({released})",
             agreed("seq", "d.id"),
             agreed("CAST(at AS INTEGER)", "d.id"),
         );
@@ -837,7 +825,7 @@ impl Ledger {
             let (qty, minor, currency, state, created, seq, at) = row?;
             let counts = match (seq, at) {
                 (Some(seq), Some(at)) => {
-                    at.div_euclid(86400) == day
+                    table_core::utc_day(at) == day
                         && match own {
                             Some((own_seq, _)) => seq < own_seq,
                             // Unreadable own moment or not agreed yet: everyone agreed so far.
@@ -847,7 +835,7 @@ impl Ledger {
                 // Agreed, but the moment is unreadable: counts against every other deal.
                 _ => {
                     let state: DealState = parse_enum(state)?;
-                    agreed_or_later(state) && created.div_euclid(86400) == day
+                    state.is_agreed_or_later() && table_core::utc_day(created) == day
                 }
             };
             if !counts {
@@ -935,6 +923,7 @@ impl Ledger {
         if confirmed.is_none() {
             return Err(LedgerError::Conflict);
         }
+        crate::pin::require_live(&self.conn, &deal.counterparty, at)?;
         let key = VerifyingKey::from_bytes(
             &key.try_into()
                 .map_err(|_| LedgerError::Integrity("peer key"))?,
@@ -1560,6 +1549,7 @@ impl Ledger {
         if confirmed.is_none() {
             return Err(ProtocolError::Binding.into());
         }
+        crate::pin::require_live(&tx, &deal.counterparty, at)?;
         let agent: [u8; 32] = agent.try_into().map_err(|_| ProtocolError::Signature)?;
         let sender = VerifyingKey::from_bytes(&agent).map_err(|_| ProtocolError::Signature)?;
         let own = key_id(

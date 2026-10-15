@@ -18,6 +18,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 ed25519-dalek.workspace = true
 getrandom.workspace = true
+subtle.workspace = true
 async-trait.workspace = true
 tokio.workspace = true
 table-paypal.workspace = true

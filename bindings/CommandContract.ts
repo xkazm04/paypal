@@ -12,6 +12,7 @@ import type { BookQueryArgs } from "./BookQueryArgs";
 import type { Command } from "./Command";
 import type { CounterpartyDisplay } from "./CounterpartyDisplay";
 import type { CounterpartyNote } from "./CounterpartyNote";
+import type { CounterpartyRevokeArgs } from "./CounterpartyRevokeArgs";
 import type { CredentialArgs } from "./CredentialArgs";
 import type { Deal } from "./Deal";
 import type { DealArgs } from "./DealArgs";
@@ -121,4 +122,8 @@ rescue_watch_stop: Command<RescueWatchStopArgs, Array<RescueWatchView>>,
 /**
  * "Your safety record": the whole-ledger money-authority check on the owner's ledger (main).
  */
-safety_record: Command<null, SafetyRecord>, };
+safety_record: Command<null, SafetyRecord>, 
+/**
+ * Revokes a counterparty pin: the key is refused from then on (approval, privileged).
+ */
+counterparty_revoke: Command<CounterpartyRevokeArgs, null>, };

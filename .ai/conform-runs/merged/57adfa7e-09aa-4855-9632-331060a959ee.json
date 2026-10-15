@@ -1,0 +1,157 @@
+{
+  "schema": "conform-run/1",
+  "worker": "57adfa7e-09aa-4855-9632-331060a959ee",
+  "subject": "agent-runtime-assembly",
+  "evaluatedAt": "2026-10-15T00:23:16.419985+00:00",
+  "provider": "grok",
+  "model": "grok-4.7",
+  "pairs": [
+    {
+      "context": "director-preview-stories",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "apps/desktop/client/src/director/entry.tsx:17 Searched apps/desktop/client/src/director for mcp, checkpoint, subagent, plugin, and prompt and found none; the page is a browser story player that refuses the desktop shell, and the only hook is the rehearsal TakesHook.",
+      "techniques": [
+        {
+          "technique": "honest-hook-registry",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:147 Rehearsal window handle, not a contributed callback on a conversation loop."
+        }
+      ],
+      "absenceTerms": [
+        "mcp",
+        "checkpoint",
+        "subagent",
+        "plugin",
+        "prompt"
+      ]
+    },
+    {
+      "context": "client-runtime-foundation",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "apps/desktop/client/src/lib/runtime.ts:7 Searched apps/desktop/client/src/lib for mcp, checkpoint, subagent, plugin, and prompt and found none; runtime here selects Tauri IPC or the browser mock, and hook hits are React hooks plus IPC listeners.",
+      "techniques": [
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/hooks.ts:33 UI query comment: events are not retained. No remote job handle or model poll."
+        },
+        {
+          "technique": "honest-hook-registry",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/hooks.ts:9 React subscription to a typed IPC event, not a contributed agent-event registry."
+        },
+        {
+          "technique": "operator-tier-code-loading",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/contract.ts:57 extension here is an IPC command the shell does not implement yet, mapped to UNAVAILABLE, not a code entry point."
+        }
+      ],
+      "absenceTerms": [
+        "mcp",
+        "checkpoint",
+        "subagent",
+        "plugin",
+        "prompt"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "agent-runtime-assembly",
+      "context": "house-seller-service",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor hosted.rs:218 is the PendingOperation doc comment and does not show that agent-runtime pieces are absent; hosted.rs imports AgentService/AgentRole/AgentScope/Authority, which the evidence never examines, and its 'agent is an ed25519 key plus an offer call' claim is not confirmed."
+    },
+    {
+      "subject": "agent-runtime-assembly",
+      "context": "spend-firewall-and-agent-policy",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor agent.rs:2 is a module doc header that does not show the precondition is absent, and the context contains an AgentTool roster filtered by refusal (agent.rs:136, ~318) plus compiled Playbook prompts, which the evidence concedes are present."
+    },
+    {
+      "subject": "agent-runtime-assembly",
+      "context": "shared-surfaces-onboarding-honesty",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor honesty.tsx:16 is only a mode tooltip string and does not itself show runtime assembly is absent; the context also has an 'agent app' engine-choice step in start.tsx that the evidence does not address."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-15T00:23:16.419985+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-runtime-assembly"
+      ],
+      "techniques": [
+        "honest-hook-registry"
+      ],
+      "deviations": 0,
+      "context": "director-preview-stories",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    },
+    {
+      "ts": "2026-10-15T00:23:16.419985+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-runtime-assembly"
+      ],
+      "techniques": [
+        "host-routes-win",
+        "indeterminate-closure-on-interruption"
+      ],
+      "deviations": 0,
+      "context": "house-seller-service",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    },
+    {
+      "ts": "2026-10-15T00:23:16.419985+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-runtime-assembly"
+      ],
+      "techniques": [
+        "bounded-projection-of-external-work",
+        "honest-hook-registry",
+        "operator-tier-code-loading"
+      ],
+      "deviations": 0,
+      "context": "client-runtime-foundation",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    },
+    {
+      "ts": "2026-10-15T00:23:16.419985+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-runtime-assembly"
+      ],
+      "techniques": [
+        "bounded-projection-of-external-work",
+        "guard-input-custody",
+        "operator-tier-code-loading",
+        "session-scoped-capability"
+      ],
+      "deviations": 0,
+      "context": "spend-firewall-and-agent-policy",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    },
+    {
+      "ts": "2026-10-15T00:23:16.419985+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-runtime-assembly"
+      ],
+      "techniques": [
+        "session-scoped-capability"
+      ],
+      "deviations": 0,
+      "context": "shared-surfaces-onboarding-honesty",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    }
+  ]
+}
