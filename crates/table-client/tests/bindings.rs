@@ -98,6 +98,9 @@ fn checked_in_authority_files_match_the_authority_table() {
         table_client::ladder::typescript().unwrap(),
         "stale bindings/ladder.ts; run generate-bindings"
     );
+    // Who is told each event, for the mock's event delivery (generated, never a hand list).
+    assert!(ts.contains("\nexport const EVENT_AUDIENCE = {\n"));
+    assert!(ts.contains("\n  \"settings:changed\": [\"main\", \"tumbler\", \"approval\"],\n"));
     let capabilities = manifest.join("../../apps/desktop/src-tauri/capabilities");
     for (file, contents) in table_client::authority::capability_files().unwrap() {
         assert_eq!(
@@ -153,4 +156,43 @@ fn wire_numbers_tags_and_closed_decisions_match_the_client_contract() {
         serde_json::to_value(table_attention::Form::Handoff).unwrap(),
         "handoff"
     );
+}
+#[test]
+fn every_event_has_one_audience_row_and_one_typed_emit() {
+    // `EventContract`'s serde names and payload types, read from its own declaration.
+    let config = Config::new().with_large_int("number");
+    let decl = table_client::EventContract::decl(&config);
+    let parts: Vec<&str> = decl.split('"').collect();
+    let contract: std::collections::BTreeSet<(String, String)> = parts
+        .iter()
+        .skip(1)
+        .step_by(2)
+        .zip(parts.iter().skip(2).step_by(2))
+        .map(|(name, rest)| {
+            let ty = rest
+                .trim_start_matches(':')
+                .split(',')
+                .next()
+                .unwrap()
+                .trim();
+            ((*name).to_owned(), ty.to_owned())
+        })
+        .collect();
+    assert_eq!(contract.len(), 15, "{decl}");
+    // Both directions: an event without an audience row would reach no window; a row without
+    // an event would grant nothing and hide a typo.
+    let names: std::collections::BTreeSet<&str> =
+        contract.iter().map(|(name, _)| name.as_str()).collect();
+    let rows: std::collections::BTreeSet<&str> = table_client::authority::EVENTS
+        .iter()
+        .map(|e| e.name)
+        .collect();
+    assert_eq!(names, rows);
+    // The shell's typed emit carries each event's own payload type under its own name.
+    let typed: std::collections::BTreeSet<(String, String)> =
+        table_client::WindowEvent::contract(&config)
+            .into_iter()
+            .map(|(name, ty)| (name.to_owned(), ty))
+            .collect();
+    assert_eq!(typed, contract);
 }
