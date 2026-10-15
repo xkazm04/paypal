@@ -1116,6 +1116,85 @@
           "evidence": "crates/table-engine/src/native.rs:153 Following the runtime's NativeEngine constructor reaches this generated cwd; the inspected initialization parser checks tools and MCP servers but neither captures nor asserts resolved instruction files, as the technique requires."
         }
       ]
+    },
+    "7d8f5eca-7fb1-49f4-9000-ed9926d9ad5f/prompt-assembly": {
+      "context": "table-wire-protocol",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T21:31:28.201Z",
+      "worker": "9f27df22-3195-4abf-9adc-5f15b36c4a7f",
+      "techniques": [
+        {
+          "technique": "layered-composition",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-proto/src/envelope.rs:456 The inspected composition and parsing boundary handles closed wire envelopes; searches found no model-prompt assembler or published model-tool catalog here."
+        }
+      ]
+    },
+    "60b8c7a9-421c-43fa-aff2-d1ede8cf38d9/prompt-assembly": {
+      "context": "approval-window-shell",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T21:31:28.201Z",
+      "worker": "9f27df22-3195-4abf-9adc-5f15b36c4a7f",
+      "techniques": [
+        {
+          "technique": "layered-composition",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/session.tsx:86 This session boundary sends typed IPC arguments and an optional capability token; it does not assemble model instructions."
+        }
+      ]
+    },
+    "301e09f0-979a-4861-b442-b4efe22b7bd2/prompt-assembly": {
+      "context": "director-preview-stories",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T21:31:28.201Z",
+      "worker": "9f27df22-3195-4abf-9adc-5f15b36c4a7f",
+      "techniques": [
+        {
+          "technique": "layered-composition",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/actions.ts:104 Story actions are interpreted against MockWorld and presentation callbacks; searches found no model-prompt composition boundary."
+        }
+      ]
+    },
+    "4a906b90-6f4d-4f72-92fb-1091ca69ebff/prompt-assembly": {
+      "context": "agent-tool-surface",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T21:31:28.201Z",
+      "worker": "9f27df22-3195-4abf-9adc-5f15b36c4a7f",
+      "techniques": [
+        {
+          "technique": "capability-documentation",
+          "verdict": "conformant",
+          "evidence": "crates/table-mcp/src/lib.rs:350 MCP entries derive names, descriptions and schemas from Tool; listing and dispatch use the role catalog, and server.rs:1019 checks authored playbook tool mentions against that catalog."
+        },
+        {
+          "technique": "context-reachability",
+          "verdict": "deviation",
+          "evidence": "prompts/shopper.md:20 The startup payload at crates/table-runtime/src/engines.rs:208 contains only deal_id, kind and item_ref; the shopper catalog at crates/table-mcp/src/lib.rs:234 grants only market_reference and propose_purchase, whose inspected handlers do not retrieve the requested quantity."
+        },
+        {
+          "technique": "fold-only-acknowledged-evidence",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-mcp/src/lib.rs:511 The observed shortening boundary refuses a newly produced oversized result before delivery; this is producer-side admission, which the technique explicitly excludes from acknowledgement-gated history folding."
+        },
+        {
+          "technique": "house-vocabulary-layer",
+          "verdict": "deviation",
+          "evidence": "prompts/buyer-haggler.md:21 This definition is independently repeated at prompts/seller-counter.md:22 and restated at prompts/shopper.md:11-12; role prompts embed separate definitions instead of rendering one shared vocabulary authority."
+        }
+      ]
     }
   }
 }
