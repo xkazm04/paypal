@@ -1235,6 +1235,124 @@
         "at": "2026-10-15T22:10:10.845179+00:00",
         "reason": "reviewer (sonnet): modules.js:65 is only the S state object and deal copying; the context's fixtures.js defines a roster of six named agents with engine claude-code and the prototype renders it, so the line doesn't show the precondition is absent."
       }
+    },
+    "60b8c7a9-421c-43fa-aff2-d1ede8cf38d9/hitl-approval": {
+      "context": "approval-window-shell",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T22:40:49.822Z",
+      "worker": "c92683a2-255a-4246-be53-1095be7d3f76",
+      "techniques": [
+        {
+          "technique": "consent-gates",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/gating.ts:210 Binds the latest counterparty counter-offer digest into decision args so parameter changes void consent and force re-asking."
+        },
+        {
+          "technique": "decision-records",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/gating.ts:203 Pins deal id, attempt version, terms hash, and checklist disclosure digest in the atomic decision record."
+        },
+        {
+          "technique": "gate-state-machines",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/gating.ts:56 State machine defines an explicit closed set of terminal states that cannot be transitioned except by authorized owner paths."
+        },
+        {
+          "technique": "handoff-is-a-declared-door",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/session.tsx:82 Requires the isolated in-memory capability token for privileged decision calls, blocking undeclared callers."
+        },
+        {
+          "technique": "human-performed-steps",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/PairingConfirm.tsx:2 Key-pinning peer authentication is structured as an out-of-band, deterministic human-performed 4-word comparison ceremony."
+        },
+        {
+          "technique": "oracle-before-gate",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/model.ts:58 Discloses independent market distributions to reviewers and explicitly labels absent references as skipped, not passed."
+        },
+        {
+          "technique": "resume-after-decision",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/model.ts:318 Tracks whether external PayPal execution completed and ensures idempotent resumption without blind re-execution."
+        },
+        {
+          "technique": "truncated-verdict-space",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/gating.ts:171 Deletes the positive capture/release action completely when a scam-shield BLOCK verdict is present."
+        }
+      ]
+    },
+    "93ab9629-27c8-4024-bd9e-06c9761ea24d/hitl-approval": {
+      "context": "spend-firewall-and-agent-policy",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T22:40:49.822Z",
+      "worker": "c92683a2-255a-4246-be53-1095be7d3f76",
+      "techniques": [
+        {
+          "technique": "severity-sla-ladder",
+          "verdict": "deviation",
+          "evidence": "crates/table-core/src/ladder.rs:12 Rungs track UI attention telemetry rather than an explicit severity SLA ladder mapping severity classes to deterministic deadlines and terminal fallback actions."
+        },
+        {
+          "technique": "cosmetic-vs-enforced-threshold-invariant",
+          "verdict": "deviation",
+          "evidence": "crates/table-core/src/ladder.rs:15 Urgency breathing is documented loosely without load-time invariant assertions comparing cosmetic vs enforcing thresholds."
+        },
+        {
+          "technique": "decision-records",
+          "verdict": "conformant",
+          "evidence": "crates/table-core/src/checks.rs:2 Checklist digest commits all disclosure fields and line order."
+        },
+        {
+          "technique": "fail-closed-profile-for-headless",
+          "verdict": "conformant",
+          "evidence": "crates/table-core/src/exposure.rs:222 Stored limits failing verification or in unhandled currencies fail closed."
+        },
+        {
+          "technique": "gate-state-machines",
+          "verdict": "conformant",
+          "evidence": "crates/table-core/src/exposure_tests.rs:376 Explicit 21-state machine with disjoint agreed and released partitions."
+        }
+      ]
+    },
+    "bd217e93-0597-4295-bb91-2bc80cc91ab4/hitl-approval": {
+      "context": "rescue-spend-shield-modules",
+      "subject": "hitl-approval",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T22:40:49.822Z",
+      "worker": "c92683a2-255a-4246-be53-1095be7d3f76",
+      "techniques": [
+        {
+          "technique": "review-queues",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/modules/shield.tsx:231 Pending items require individual card decisions with no homogeneous batch actions or bulk resolution supported."
+        },
+        {
+          "technique": "fail-loud-classification-default",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/modules/shield/matrix.ts:96 Missing reference defaults loudly to an ask/hold rather than passing."
+        },
+        {
+          "technique": "oracle-before-gate",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/modules/shield/matrix.ts:35 Compares against 1.4x market median oracle before gating."
+        },
+        {
+          "technique": "truncated-verdict-space",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/modules/shield.tsx:9 BLOCK adverse verdict cannot be released anywhere."
+        }
+      ]
     }
   }
 }

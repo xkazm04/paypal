@@ -914,7 +914,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/App.tsx:1 The approval window shell is the dedicated HITL approval surface enforcing isolated tokens, parameter-fingerprinted decision records, and deterministic human-performed verification.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:52d7f3cfb87a79d9",
+          "evaluatedRevision": 22
         },
         {
           "subject": "agent-cli-transport",
@@ -5777,7 +5781,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/modules/shield.tsx:231 The review surface renders paused decisions solely as individual cards without supporting batch decisions or select-all-of-a-kind over homogeneous paused items.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:52d7f3cfb87a79d9",
+          "evaluatedRevision": 22
         },
         {
           "subject": "prompt-assembly",
@@ -7125,7 +7133,11 @@
           "revision": 22,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-core/src/ladder.rs:12 crates/table-core/src/ladder.rs defines UI notification event markers rather than a severity SLA ladder table mapping severity to deadlines and auto-approve/escalate/hold terminal actions.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:52d7f3cfb87a79d9",
+          "evaluatedRevision": 22
         },
         {
           "subject": "agent-runtime-assembly",
