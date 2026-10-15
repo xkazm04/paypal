@@ -7,6 +7,8 @@
 pub mod acceptance;
 // The money-authority rule of AGENTS.md, once: the verifier and the safety predicate both judge here.
 pub mod authority;
+#[cfg(test)]
+mod authority_tests;
 mod house;
 mod v2;
 // The whole-ledger money-authority predicate (ops-and-delivery-1): the gauntlet and the app share it.
