@@ -160,6 +160,131 @@
           "evidence": "crates/table-runtime/src/engines.rs:204 Negotiator input is built from the closed projection, excluding remote prose, with subsequent intents checked independently of model persuasion."
         }
       ]
+    },
+    "301e09f0-979a-4861-b442-b4efe22b7bd2/agent-runtime-assembly": {
+      "context": "director-preview-stories",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T00:23:16.419Z",
+      "worker": "57adfa7e-09aa-4855-9632-331060a959ee",
+      "techniques": [
+        {
+          "technique": "honest-hook-registry",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:147 Rehearsal window handle, not a contributed callback on a conversation loop."
+        }
+      ]
+    },
+    "eec42666-8620-4b0d-8d2e-bc418a280b71/agent-runtime-assembly": {
+      "context": "house-seller-service",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T00:23:16.419Z",
+      "techniques": [
+        {
+          "technique": "host-routes-win",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/hosted.rs:1073 The process merges its own relay router with its own routes; no contributed router is mounted."
+        },
+        {
+          "technique": "indeterminate-closure-on-interruption",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/hosted.rs:225 Owner park of an unsettled PayPal call, not a tool-call status in an agent transcript."
+        }
+      ],
+      "withdrawn": {
+        "worker": "57adfa7e-09aa-4855-9632-331060a959ee",
+        "state": "not-applicable",
+        "at": "2026-10-15T00:23:50.370557+00:00",
+        "reason": "reviewer (sonnet): The anchor hosted.rs:218 is the PendingOperation doc comment and does not show that agent-runtime pieces are absent; hosted.rs imports AgentService/AgentRole/AgentScope/Authority, which the evidence never examines, and its 'agent is an ed25519 key plus an offer call' claim is not confirmed."
+      }
+    },
+    "9a4f1dcb-2f71-4b8d-835c-a38862a5c22a/agent-runtime-assembly": {
+      "context": "client-runtime-foundation",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T00:23:16.419Z",
+      "worker": "57adfa7e-09aa-4855-9632-331060a959ee",
+      "techniques": [
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/hooks.ts:33 UI query comment: events are not retained. No remote job handle or model poll."
+        },
+        {
+          "technique": "honest-hook-registry",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/hooks.ts:9 React subscription to a typed IPC event, not a contributed agent-event registry."
+        },
+        {
+          "technique": "operator-tier-code-loading",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/contract.ts:57 extension here is an IPC command the shell does not implement yet, mapped to UNAVAILABLE, not a code entry point."
+        }
+      ]
+    },
+    "93ab9629-27c8-4024-bd9e-06c9761ea24d/agent-runtime-assembly": {
+      "context": "spend-firewall-and-agent-policy",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T00:23:16.419Z",
+      "techniques": [
+        {
+          "technique": "bounded-projection-of-external-work",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:158 Caps transcript steps in the deal view. No remote handle, lease, or poll from a model loop."
+        },
+        {
+          "technique": "guard-input-custody",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/exposure.rs:300 Pure check of a caller-supplied owner ceiling. These files do not read a policy file from an agent working tree, and they do not verify owner_sig."
+        },
+        {
+          "technique": "operator-tier-code-loading",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:563 Compiles role prompt text. The standard assigns that text to prompt assembly, and this is not a code entry point."
+        },
+        {
+          "technique": "session-scoped-capability",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:318 Deal-table roster and refusal are one function. Nothing here is a client-surface capability or a process environment slot. MCP names are the wire vocabulary the standard excludes."
+        }
+      ],
+      "withdrawn": {
+        "worker": "57adfa7e-09aa-4855-9632-331060a959ee",
+        "state": "not-applicable",
+        "at": "2026-10-15T00:23:50.393225+00:00",
+        "reason": "reviewer (sonnet): The anchor agent.rs:2 is a module doc header that does not show the precondition is absent, and the context contains an AgentTool roster filtered by refusal (agent.rs:136, ~318) plus compiled Playbook prompts, which the evidence concedes are present."
+      }
+    },
+    "877e3281-ae38-485a-a404-4476986454a5/agent-runtime-assembly": {
+      "context": "shared-surfaces-onboarding-honesty",
+      "subject": "agent-runtime-assembly",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T00:23:16.419Z",
+      "techniques": [
+        {
+          "technique": "session-scoped-capability",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/honesty.tsx:25 Chooses a preview badge from the UI backend kind. Not a tool roster resolved from a session source."
+        }
+      ],
+      "withdrawn": {
+        "worker": "57adfa7e-09aa-4855-9632-331060a959ee",
+        "state": "not-applicable",
+        "at": "2026-10-15T00:23:50.417433+00:00",
+        "reason": "reviewer (sonnet): The anchor honesty.tsx:16 is only a mode tooltip string and does not itself show runtime assembly is absent; the context also has an 'agent app' engine-choice step in start.tsx that the evidence does not address."
+      }
     }
   }
 }

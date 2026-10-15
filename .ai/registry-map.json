@@ -1725,7 +1725,11 @@
           "revision": 27,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/runtime.ts:7 Searched apps/desktop/client/src/lib for mcp, checkpoint, subagent, plugin, and prompt and found none; runtime here selects Tauri IPC or the browser mock, and hook hits are React hooks plus IPC listeners.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:45b3f952560a4cbc",
+          "evaluatedRevision": 28
         },
         {
           "subject": "prompt-assembly",
@@ -2813,7 +2817,11 @@
           "revision": 27,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/entry.tsx:17 Searched apps/desktop/client/src/director for mcp, checkpoint, subagent, plugin, and prompt and found none; the page is a browser story player that refuses the desktop shell, and the only hook is the rehearsal TakesHook.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:45b3f952560a4cbc",
+          "evaluatedRevision": 28
         },
         {
           "subject": "test-harness",
