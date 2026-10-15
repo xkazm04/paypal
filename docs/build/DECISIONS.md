@@ -925,8 +925,15 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - `consume_inbox` (`crates/table-runtime/src/relay.rs`) collects a pass's refused messages and rejects them one
     batch per deal and generation. A pass that returns early leaves its collected rows pending, and the next pass
     writes their row then.
-  - **Open: C-9c.** The HOUSE (`services/house-seller/src/hosted.rs`, which calls `finish_inbox` per message) still writes one row per message. Fixing it
-    needs an inbox test harness.
+  - **Closed: C-9c (2026-10-15, challenge-2026-10-15).** The wallet and the HOUSE run one inbox pass,
+    `table_app::drain_inbox` (`crates/table-app/src/relay.rs`). It applies an exact duplicate without the caller's
+    policy, leaves a message whose policy returns `InboxOutcome::Retry` (a ledger SQL or integrity fault) pending and
+    continues, and rejects the refused messages one batch per deal and generation after the loop, also when a
+    message was retried. The caller supplies only its per-message policy: the wallet's `classify_inbound`
+    (`crates/table-runtime/src/relay.rs`), the HOUSE's `Seller::receive`. A HOUSE ledger fault is now the tick's
+    recorded failure, not an early return, so negotiation and reporting still run. Evidence:
+    `crates/table-app/tests/inbox.rs`; `house_junk_batch_is_one_audit_row_per_deal_and_generation` and
+    `house_five_junk_messages_are_five_rejected_rows_and_one_audit_row` in `crates/table-runtime/src/house_tests.rs`.
   - Evidence: in `crates/table-ledger/src/tests.rs` `c9b_a_rejected_batch_writes_one_audit_row`,
     `c9b_a_batch_that_is_not_one_deal_one_generation_all_pending_writes_nothing` and
     `c9b_finish_inbox_rejection_is_a_batch_of_one`; in `crates/table-runtime/src/groups_tests.rs`
