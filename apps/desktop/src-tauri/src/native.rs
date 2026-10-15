@@ -52,6 +52,25 @@ fn label(window: &WebviewWindow, command: &str) -> Result<(), CommandError> {
         Err(table_app::Error::Permission.into())
     }
 }
+/// Tells windows something: sends `event` to every window its row in the authority table names
+/// (`table_client::authority::EVENTS`) and to no other. This is the shell's only way to emit a
+/// window event; `tests/capabilities.rs` fails on any hand-written window label passed to Tauri's
+/// `emit_to` (or any broadcast `emit`).
+///
+/// Build the event with its payload borrowed, e.g. `emit(&app, WindowEvent::DealChanged(&data))`;
+/// the variant fixes both the wire name and the payload type. Plain and synchronous, so it works
+/// from the event loop, a command handler or a `run_on_main_thread` closure alike. A window that
+/// is not open is simply not reached. Every window in the audience is tried; if any send fails,
+/// the result is `invalid()` (callers on a best-effort path discard it with `let _ =`).
+fn emit(app: &AppHandle, event: WindowEvent<'_>) -> Result<(), CommandError> {
+    let mut sent = Ok(());
+    for label in event.audience() {
+        if app.emit_to(label.as_str(), event.name(), event).is_err() {
+            sent = Err(invalid());
+        }
+    }
+    sent
+}
 fn caller(window: &WebviewWindow, request: Option<&tauri::ipc::Request<'_>>) -> Caller {
     Caller {
         label: window.label().into(),

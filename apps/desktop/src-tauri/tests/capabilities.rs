@@ -137,3 +137,40 @@ fn shell_answered_commands_check_their_own_row_of_the_authority_table() {
     }
     assert!(!sources.contains("label(&window, &["));
 }
+#[test]
+fn every_window_event_goes_through_the_table_driven_emit() {
+    // Who is told each event is a row in the authority table (`EVENTS`); the shell sends through
+    // one helper that reads it, never a hand-written (window, event) pair.
+    let events = include_str!("../src/native/events.rs");
+    let sources = [
+        include_str!("../src/native.rs"),
+        include_str!("../src/native/commands.rs"),
+        include_str!("../src/native/routing.rs"),
+        include_str!("../src/native/surface.rs"),
+        events,
+    ]
+    .concat();
+    assert!(
+        !sources.contains("emit_to(\""),
+        "a literal emit_to(\"<window>\", ...) bypasses the authority table"
+    );
+    assert!(
+        !sources.contains(".emit(\""),
+        "a broadcast reaches every window"
+    );
+    // The helper's own emit_to, over the row's labels, is the only one left.
+    assert_eq!(sources.matches("emit_to(").count(), 1);
+    assert!(sources.contains("emit_to(label.as_str(), event.name(), event)"));
+    // Lag recovery re-sends settings through the helper, so it reaches the event's full
+    // audience (main, tumbler and approval), as the normal path does.
+    let lag = events
+        .split("RecvError::Lagged")
+        .nth(1)
+        .and_then(|rest| rest.split("interval.tick()").next())
+        .unwrap();
+    assert!(lag.contains("WindowEvent::SettingsChanged(&settings)"));
+    assert_eq!(
+        table_client::authority::event_audience("settings:changed").map(<[_]>::len),
+        Some(3)
+    );
+}

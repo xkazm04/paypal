@@ -100,9 +100,9 @@ pub(super) async fn produce(
             Err(tokio::sync::broadcast::error::RecvError::Closed)=>break,
             Err(tokio::sync::broadcast::error::RecvError::Lagged(_))=>{
                 let actor=app.state::<DesktopState>().actor.clone();
-                if let Ok(deals)=actor.execute::<Vec<Deal>>(Caller{label:"main".into(),token:None},Action::ListDeals).await{for deal in deals{let _=app.emit_to("main","deal:changed",DealChanged{mode:deal.mode,deal});}}
-                if let Ok(runs)=actor.execute::<Vec<RunSnapshot>>(Caller{label:"main".into(),token:None},Action::Runs).await{for run in runs{let _=app.emit_to("main","agent:changed",run);}}
-                if let Ok(settings)=actor.execute::<SettingsSnapshot>(Caller{label:"main".into(),token:None},Action::Settings).await{let _=app.emit_to("main","settings:changed",&settings);let _=app.emit_to("tumbler","settings:changed",settings);}
+                if let Ok(deals)=actor.execute::<Vec<Deal>>(Caller{label:"main".into(),token:None},Action::ListDeals).await{for deal in deals{let _=emit(&app,WindowEvent::DealChanged(&DealChanged{mode:deal.mode,deal}));}}
+                if let Ok(runs)=actor.execute::<Vec<RunSnapshot>>(Caller{label:"main".into(),token:None},Action::Runs).await{for run in runs{let _=emit(&app,WindowEvent::AgentChanged(&run));}}
+                if let Ok(settings)=actor.execute::<SettingsSnapshot>(Caller{label:"main".into(),token:None},Action::Settings).await{let _=emit(&app,WindowEvent::SettingsChanged(&settings));}
                 match actor.execute::<AttentionSnapshot>(Caller{label:"main".into(),token:None},Action::Attention).await{Ok(snapshot)=>WalletEvent::Attention(snapshot),Err(error)=>WalletEvent::Fault(error)}
             }
         },_=interval.tick()=>{
@@ -117,31 +117,29 @@ pub(super) async fn produce(
                 let now=table_core::Clock::now(&table_runtime::SystemClock);
                 let visual=VisualState{opacity_percent:if preferences.quiet{table_attention::quiet_opacity_percent(&data.items,last,now)}else{100},
                     breathe:!preferences.dnd && !table_os::notifications_suppressed() && data.items.iter().any(|i|i.kind==table_attention::AttnKind::Gate && table_attention::LADDER.breathes(i.deadline,now))};
-                if let Ok(encoded)=serde_json::to_string(&visual) && visual_previous.as_ref()!=Some(&encoded){visual_previous=Some(encoded);let _=app.emit_to("tumbler","tumbler:visual",visual);}
+                if let Ok(encoded)=serde_json::to_string(&visual) && visual_previous.as_ref()!=Some(&encoded){visual_previous=Some(encoded);let _=emit(&app,WindowEvent::TumblerVisual(&visual));}
             }
             continue;
         }};
         let state = app.state::<DesktopState>();
         match event {
             WalletEvent::Agent(data) => {
-                let _ = app.emit_to("main", "agent:changed", data);
+                let _ = emit(&app, WindowEvent::AgentChanged(&data));
             }
             WalletEvent::Deal(data) => {
-                let _ = app.emit_to("main", "deal:changed", data);
+                let _ = emit(&app, WindowEvent::DealChanged(&data));
             }
             WalletEvent::Pinned(data) => {
-                let _ = app.emit_to("main", "pairing:pinned", data);
+                let _ = emit(&app, WindowEvent::PairingPinned(&data));
             }
             WalletEvent::Receipt(data) => {
-                let _ = app.emit_to("main", "receipt:created", &data);
-                let _ = app.emit_to("tumbler", "receipt:created", data);
+                let _ = emit(&app, WindowEvent::ReceiptCreated(&data));
             }
             WalletEvent::Fault(error) => {
                 if let Ok(encoded) = serde_json::to_string(&error)
                     && fault_previous.is_new(encoded)
                 {
-                    let _ = app.emit_to("main", "wallet:error", &error);
-                    let _ = app.emit_to("tumbler", "wallet:error", error);
+                    let _ = emit(&app, WindowEvent::WalletError(&error));
                 }
             }
             WalletEvent::Settings(settings) => {
@@ -167,9 +165,7 @@ pub(super) async fn produce(
                     }
                 }
                 first_run_previous = Some(settings.first_run);
-                let _ = app.emit_to("main", "settings:changed", &settings);
-                let _ = app.emit_to("tumbler", "settings:changed", &settings);
-                let _ = app.emit_to("approval", "settings:changed", settings);
+                let _ = emit(&app, WindowEvent::SettingsChanged(&settings));
             }
             WalletEvent::Attention(data) => {
                 // A good read ends the failure streak: the next one is shown again.
@@ -203,8 +199,7 @@ pub(super) async fn produce(
                 if let Ok(mut snapshot) = state.attention.lock() {
                     *snapshot = Some(data.clone());
                 }
-                let _ = app.emit_to("main", "attention:changed", &data);
-                let _ = app.emit_to("tumbler", "attention:changed", &data);
+                let _ = emit(&app, WindowEvent::AttentionChanged(&data));
                 if let Some(tray) = app.tray_by_id("wallet") {
                     let _ = tray.set_icon(Some(tray_icon(!data.items.is_empty())));
                 }
@@ -223,7 +218,7 @@ pub(super) async fn produce(
                         )
                         .await
                 {
-                    let _ = app.emit_to("approval", "approval:summary", summary);
+                    let _ = emit(&app, WindowEvent::ApprovalSummary(&summary));
                 }
             }
         }
@@ -367,7 +362,10 @@ fn show_toast(app: &AppHandle, item: &table_attention::AttentionItem) -> Result<
             let _ = app.run_on_main_thread(move || {
                 let _ = set_form(&main_app, Form::Card);
                 let _ = summon(&main_app, false);
-                let _ = main_app.emit_to("tumbler", "tumbler:selected", DealArgs { deal_id: id });
+                let _ = emit(
+                    &main_app,
+                    WindowEvent::TumblerSelected(&DealArgs { deal_id: id }),
+                );
             });
             Ok(())
         })

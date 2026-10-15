@@ -38,14 +38,10 @@ pub(super) async fn main_open(
     let main = app.get_webview_window("main").ok_or_else(invalid)?;
     main.show().map_err(|_| invalid())?;
     main.set_focus().map_err(|_| invalid())?;
-    app.emit_to(
-        "main",
-        "main:route",
-        MainRoute {
-            deal_id: *state.route.lock().map_err(|_| invalid())?,
-        },
-    )
-    .map_err(|_| invalid())
+    let route = MainRoute {
+        deal_id: *state.route.lock().map_err(|_| invalid())?,
+    };
+    emit(&app, WindowEvent::MainRoute(&route))
 }
 #[tauri::command]
 pub(super) async fn approval_open(
@@ -102,8 +98,7 @@ pub(super) async fn approval_open(
                 Action::Summary(id),
             )
             .await?;
-        app.emit_to("approval", "approval:summary", data)
-            .map_err(|_| invalid())?;
+        emit(&app, WindowEvent::ApprovalSummary(&data))?;
     }
     Ok(())
 }
@@ -142,8 +137,7 @@ pub(super) async fn open_paypal_in_browser(
         .open_url(url, None::<&str>)
         .map_err(|_| invalid())?;
     let handoff: TumblerHandoff = ask(&window, &state, None, Action::Handoff(id)).await?;
-    app.emit_to("tumbler", "tumbler:handoff", handoff)
-        .map_err(|_| invalid())?;
+    emit(&app, WindowEvent::TumblerHandoff(&handoff))?;
     set_form(&app, Form::Handoff)?;
     Ok(())
 }
