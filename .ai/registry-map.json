@@ -1517,7 +1517,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:388 The browser mock encapsulates multi-factor shell security enforcement to mirror native backend gating in browser tests.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         }
       ],
       "governance": "governed"
@@ -1555,7 +1559,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "apps/desktop/client/src/lib/contract.ts:25 A unified Backend interface provides a single testable seam for all desktop IPC commands across Tauri and mock runtimes.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "agent-runtime-assembly",
@@ -7496,7 +7504,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "crates/table-proto/src/envelope.rs:434 Pure message verification validates compact JWS envelopes and checks replay nonces without network I/O or state mutation.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "supply-chain",
@@ -7750,7 +7762,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:1 The Tumbler isolates pure visual and attention logic from UI rendering and native IPC side effects.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "agent-runtime-assembly",
@@ -8153,7 +8169,11 @@
           "revision": 18,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "crates/table-core/src/lib.rs:1 The domain model is designed as an I/O-free core where all state transitions, money math, and query filters are pure.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:7c8008f2207b1946",
+          "evaluatedRevision": 18
         },
         {
           "subject": "invariant-placement",

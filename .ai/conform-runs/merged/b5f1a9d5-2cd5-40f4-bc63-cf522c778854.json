@@ -1,0 +1,363 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b5f1a9d5-2cd5-40f4-bc63-cf522c778854",
+ "subject": "module-design",
+ "evaluatedAt": "2026-10-15T23:11:42.888044+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "table-wire-protocol",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "crates/table-proto/src/envelope.rs:434 Pure message verification validates compact JWS envelopes and checks replay nonces without network I/O or state mutation.",
+   "techniques": [
+    {
+     "technique": "io-free-core",
+     "verdict": "conformant",
+     "evidence": "crates/table-proto/src/envelope.rs:434 Pure validation function taking input values and a context timestamp with zero network I/O or mutation."
+    },
+    {
+     "technique": "borrowed-surface",
+     "verdict": "conformant",
+     "evidence": "crates/table-proto/src/settlement.rs:19 Newtype wrapper over Url prevents unchecked mutation and only exposes an explicit read-only as_str accessor."
+    },
+    {
+     "technique": "module-depth",
+     "verdict": "conformant",
+     "evidence": "crates/table-proto/src/envelope.rs:59 Closed enum hides complex protocol variants behind simple discriminated message types."
+    },
+    {
+     "technique": "declarative-or-sequential",
+     "verdict": "conformant",
+     "evidence": "crates/table-proto/src/house_ledger.rs:139 Sequential multi-step comparison between ledger heads over epochs and hashes without hidden side-effects."
+    },
+    {
+     "technique": "concurrency-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "crates/table-proto/src/lib.rs:1 The wire protocol crate is purely synchronous with no async runtime, threads, or scheduling primitives."
+    },
+    {
+     "technique": "seams-and-adapters",
+     "verdict": "conformant",
+     "evidence": "crates/table-proto/src/envelope.rs:383 Trait seam abstracting nonce lookup to allow in-memory test doubles alongside SQLite storage."
+    },
+    {
+     "technique": "mirror-type-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "crates/table-proto/src/envelope.rs:530 Narrow mirror projection of offer data that strips out unverified free-text fields before handing history to an LLM."
+    },
+    {
+     "technique": "locality-and-leverage",
+     "verdict": "conformant",
+     "evidence": "crates/table-proto/src/pairing.rs:153 Collocates digest derivation, byte truncation, and wordlist lookup into a single robust pairing SAS function."
+    }
+   ]
+  },
+  {
+   "context": "wallet-domain-primitives",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "crates/table-core/src/lib.rs:1 The domain model is designed as an I/O-free core where all state transitions, money math, and query filters are pure.",
+   "techniques": [
+    {
+     "technique": "io-free-core",
+     "verdict": "conformant",
+     "evidence": "crates/table-core/src/lib.rs:1 Pure functional domain where all I/O, timers, and ID generators are provided by callers."
+    },
+    {
+     "technique": "borrowed-surface",
+     "verdict": "conformant",
+     "evidence": "crates/table-core/src/money.rs:60 Encapsulates integer minor units and currency without implementing Deref or exposing mutable fields."
+    },
+    {
+     "technique": "module-depth",
+     "verdict": "conformant",
+     "evidence": "crates/table-core/src/book.rs:65 Replaces arbitrary string query clauses with closed typed analytical query parameters."
+    },
+    {
+     "technique": "declarative-or-sequential",
+     "verdict": "conformant",
+     "evidence": "crates/table-core/src/deal.rs:264 Pure state machine transition function matching exhaustively on (state, event) pairs."
+    },
+    {
+     "technique": "concurrency-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "crates/table-core/src/lib.rs:32 Minimal thread-safe Clock trait keeps concurrency runtimes and scheduling completely out of core."
+    },
+    {
+     "technique": "locality-and-leverage",
+     "verdict": "conformant",
+     "evidence": "crates/table-core/src/money.rs:101 Collocates string validation, decimal parsing, and scale factor arithmetic in a single method."
+    },
+    {
+     "technique": "seams-and-adapters",
+     "verdict": "conformant",
+     "evidence": "crates/table-core/src/lib.rs:37 In-memory test double adapter for Clock seam enabling reproducible deterministic tests."
+    },
+    {
+     "technique": "mirror-type-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "crates/table-core/src/display.rs:8 Mirror projection for IPC that strips raw envelopes and free-form peer prose before reaching UI."
+    }
+   ]
+  },
+  {
+   "context": "client-foundation",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "apps/desktop/client/src/lib/contract.ts:25 A unified Backend interface provides a single testable seam for all desktop IPC commands across Tauri and mock runtimes.",
+   "techniques": [
+    {
+     "technique": "seams-and-adapters",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/contract.ts:25 Interface seam abstracting IPC backend with tauriBackend and mockBackend implementations."
+    },
+    {
+     "technique": "borrowed-surface",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/contract.ts:33 Subclasses Error while pinning error codes to a closed enum without exposing mutable properties."
+    },
+    {
+     "technique": "module-depth",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/contract.ts:49 Normalizes arbitrary exception shapes into a typed WalletError across all callers."
+    },
+    {
+     "technique": "mirror-type-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/contract.ts:3 Uses code-generated mirror types from Rust structs to enforce compile-time IPC contract symmetry."
+    },
+    {
+     "technique": "io-free-core",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/format.ts:24 Pure integer string arithmetic for currency formatting without floating point rounding or I/O."
+    },
+    {
+     "technique": "locality-and-leverage",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/format.ts:75 Combines duration math and human-readable formatting in a single pure utility function."
+    },
+    {
+     "technique": "concurrency-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/hooks.ts:134 Confines interval timers and clock subscription state to the React hook edge using useSyncExternalStore."
+    },
+    {
+     "technique": "declarative-or-sequential",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/runtime.ts:22 Enforces sequential single-door access to initialized backend with clear precondition failure."
+    }
+   ]
+  },
+  {
+   "context": "tumbler-window",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:1 The Tumbler isolates pure visual and attention logic from UI rendering and native IPC side effects.",
+   "techniques": [
+    {
+     "technique": "io-free-core",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:1 All UI state projections, ladder rungs, and card actions are written as pure functions without React or IPC."
+    },
+    {
+     "technique": "module-depth",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:47 Collapses continuous countdown deadlines into five discrete attention ladder rungs."
+    },
+    {
+     "technique": "declarative-or-sequential",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:49 Sequential decision ladder evaluating remaining duration against threshold boundaries."
+    },
+    {
+     "technique": "mirror-type-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:81 PuckLook provides a pure UI mirror shape derived from Rust snapshot projections for the floating puck."
+    },
+    {
+     "technique": "borrowed-surface",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:140 Preserves existing form and pinned fields while explicitly updating only the dnd preference field."
+    },
+    {
+     "technique": "locality-and-leverage",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:188 Centralizes attention item action determination, filtering out prohibited actions like payment approvals."
+    },
+    {
+     "technique": "concurrency-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:277 Deterministic explanation generator relying solely on passed snapshot values without external network queries."
+    },
+    {
+     "technique": "seams-and-adapters",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/App.tsx:13 Switches seamlessly between mock browser preview environment and native Tauri desktop window."
+    }
+   ]
+  },
+  {
+   "context": "browser-mock-backend",
+   "subject": "module-design",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "apps/desktop/client/src/mock/backend.ts:388 The browser mock encapsulates multi-factor shell security enforcement to mirror native backend gating in browser tests.",
+   "techniques": [
+    {
+     "technique": "seams-and-adapters",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/mock/authority.test.ts:32 Test double adapter contract test verifying mock backend gates match real authority table."
+    },
+    {
+     "technique": "module-depth",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/mock/backend.ts:388 Encapsulates multi-factor permission checks (window label, capability token, idle lock) behind a single internal guard."
+    },
+    {
+     "technique": "declarative-or-sequential",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/mock/backend.ts:238 Explicit sequential structure validation replicating serde deserialization and query rejections."
+    },
+    {
+     "technique": "io-free-core",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/mock/exposure.ts:25 Pure mathematical aggregation over deals returning exposure rows by currency without external I/O."
+    },
+    {
+     "technique": "borrowed-surface",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/mock/checks.ts:20 Explicitly maps each variant of the generated ShieldRule enum to its exact Layer-1 description string."
+    },
+    {
+     "technique": "mirror-type-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/mock/fixtures.ts:4 Adopts generated TypeScript mirror authority definitions to guarantee test double fidelity with Rust."
+    },
+    {
+     "technique": "concurrency-at-the-edge",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/mock/exposure.ts:1 Mock computations run synchronously on the client thread without independent background thread pools."
+    },
+    {
+     "technique": "locality-and-leverage",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/mock/fixtures.ts:1 Centralizes sandbox test scenario fixtures matching the design specification across all mock interactions."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-15T23:11:42.888044+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "borrowed-surface",
+    "concurrency-at-the-edge",
+    "declarative-or-sequential",
+    "io-free-core",
+    "locality-and-leverage",
+    "mirror-type-at-the-edge",
+    "module-depth",
+    "seams-and-adapters"
+   ],
+   "deviations": 0,
+   "context": "table-wire-protocol",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T23:11:42.888044+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "borrowed-surface",
+    "concurrency-at-the-edge",
+    "declarative-or-sequential",
+    "io-free-core",
+    "locality-and-leverage",
+    "mirror-type-at-the-edge",
+    "module-depth",
+    "seams-and-adapters"
+   ],
+   "deviations": 0,
+   "context": "wallet-domain-primitives",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T23:11:42.888044+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "borrowed-surface",
+    "concurrency-at-the-edge",
+    "declarative-or-sequential",
+    "io-free-core",
+    "locality-and-leverage",
+    "mirror-type-at-the-edge",
+    "module-depth",
+    "seams-and-adapters"
+   ],
+   "deviations": 0,
+   "context": "client-foundation",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T23:11:42.888044+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "borrowed-surface",
+    "concurrency-at-the-edge",
+    "declarative-or-sequential",
+    "io-free-core",
+    "locality-and-leverage",
+    "mirror-type-at-the-edge",
+    "module-depth",
+    "seams-and-adapters"
+   ],
+   "deviations": 0,
+   "context": "tumbler-window",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T23:11:42.888044+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "module-design"
+   ],
+   "techniques": [
+    "borrowed-surface",
+    "concurrency-at-the-edge",
+    "declarative-or-sequential",
+    "io-free-core",
+    "locality-and-leverage",
+    "mirror-type-at-the-edge",
+    "module-depth",
+    "seams-and-adapters"
+   ],
+   "deviations": 0,
+   "context": "browser-mock-backend",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}
