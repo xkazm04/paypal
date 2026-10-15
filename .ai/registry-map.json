@@ -7068,7 +7068,11 @@
           "revision": 48,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-core/src/agent.rs:223 The agent-facing projection silently drops signed history beyond the newest 64 steps without an in-band notice naming the omitted content, count and cause.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
+          "evaluatedRevision": 51
         },
         {
           "subject": "prompt-assembly",
