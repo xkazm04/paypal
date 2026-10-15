@@ -1082,6 +1082,65 @@ pub struct EventContract {
     #[serde(rename = "pairing:pinned")]
     pub pairing_pinned: PairingPinned,
 }
+/// Declares [`WindowEvent`]: one variant per `EventContract` field, borrowing its payload, with
+/// the field's serde name. `tests/bindings.rs` checks every (name, payload type) pair against
+/// `EventContract` and every name against the authority table's `EVENTS`, in both directions.
+macro_rules! window_events {
+    ($($variant:ident($payload:ty) = $name:literal,)*) => {
+        /// One window event, typed: its name and payload travel together, so a misspelt name or a
+        /// payload of the wrong shape does not compile. Who is told it is the event's row in the
+        /// authority table ([`WindowEvent::audience`]); the desktop shell sends every event
+        /// through one helper that reads that row, never to a hand-written window label.
+        #[derive(Debug, Clone, Copy)]
+        pub enum WindowEvent<'a> {
+            $($variant(&'a $payload),)*
+        }
+        impl WindowEvent<'_> {
+            /// The event's wire name (its `EventContract` serde name).
+            pub const fn name(&self) -> &'static str {
+                match self {
+                    $(Self::$variant(_) => $name,)*
+                }
+            }
+            /// `(event name, TypeScript payload type)` for every variant, for the bindings test.
+            pub fn contract(config: &ts_rs::Config) -> Vec<(&'static str, String)> {
+                vec![$(($name, <$payload as TS>::name(config)),)*]
+            }
+        }
+        impl Serialize for WindowEvent<'_> {
+            /// The payload alone, exactly as the `EventContract` field serializes.
+            fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+                match self {
+                    $(Self::$variant(payload) => payload.serialize(serializer),)*
+                }
+            }
+        }
+    };
+}
+window_events! {
+    TumblerHandoff(TumblerHandoff) = "tumbler:handoff",
+    AgentChanged(RunSnapshot) = "agent:changed",
+    SettingsChanged(SettingsSnapshot) = "settings:changed",
+    WalletError(CommandError) = "wallet:error",
+    TumblerVisual(VisualState) = "tumbler:visual",
+    TumblerSelected(DealArgs) = "tumbler:selected",
+    AttentionChanged(AttentionSnapshot) = "attention:changed",
+    DealChanged(DealChanged) = "deal:changed",
+    ReceiptCreated(ReceiptEvent) = "receipt:created",
+    TumblerOrient(OrientationEvent) = "tumbler:orient",
+    TumblerForm(Form) = "tumbler:form",
+    TumblerStatus(TumblerStatus) = "tumbler:status",
+    ApprovalSummary(ApprovalSummary) = "approval:summary",
+    MainRoute(MainRoute) = "main:route",
+    PairingPinned(PairingPinned) = "pairing:pinned",
+}
+impl WindowEvent<'_> {
+    /// Every window this event is sent to: its row in the authority table (`authority::EVENTS`).
+    /// An event without a row reaches no window; the bindings test keeps every event's row.
+    pub fn audience(&self) -> &'static [authority::WindowLabel] {
+        authority::event_audience(self.name()).unwrap_or(&[])
+    }
+}
 /// Every IPC command and the release set, derived from the authority table (`authority_table.rs`).
 pub use authority::{COMMANDS, RELEASE_COMMANDS};
 /// The Rewind read: one deal or every deal, optionally within `[from, to)` (Unix seconds, as every
