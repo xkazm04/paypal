@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="The Table">
+  <!-- The Table: a round table seen from above. Your seat (teal), the other side's seat (coral), the
+       agreed deal between them (gold), inside a graduated bezel (the guard). App tile, night ground.
+       Use from 64 px up; logo-small.svg is the same mark simplified for 16-48 px. -->
+  <defs>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a222d"/>
+      <stop offset="1" stop-color="#0a0e13"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#ground)"/>
+  <rect x=".5" y=".5" width="63" height="63" rx="13.5" fill="none" stroke="#ffffff" stroke-opacity=".08"/>
+  <g fill="none" stroke="#b7c6d4">
+    <circle cx="32" cy="32" r="26.6" stroke-opacity=".6"/>
+    <circle cx="32" cy="32" r="25.5" stroke-width="2.2" stroke-opacity=".6" pathLength="48" stroke-dasharray=".24 .76" stroke-dashoffset=".12"/>
+    <path d="M32 9V5.4M55 32H58.6M32 55V58.6M9 32H5.4" stroke-width="1.4"/>
+  </g>
+  <g fill="none" stroke-width="7">
+    <path d="M23.78 47.45A17.5 17.5 0 0 1 23.78 16.55" stroke="#3cc4b6"/>
+    <path d="M40.22 16.55A17.5 17.5 0 0 1 40.22 47.45" stroke="#ff8f6b"/>
+  </g>
+  <path d="M32 25.5L38.5 32L32 38.5L25.5 32Z" fill="#e4b95b"/>
+</svg>

@@ -4,6 +4,7 @@
 // items in each group in their own order), capped. A deal's label ("D-0193") is searched but not
 // shown: ids stay off the first layers.
 import type { Module } from '@bindings/Module';
+import type { DemoState } from '../../../lib/preview';
 import type { SetupStepKey } from '../../../lib/words';
 import type { Route } from '../logic';
 
@@ -16,7 +17,9 @@ export type FindTarget =
   | { kind: 'deal'; deal: string }
   | { kind: 'route'; route: Route }
   | { kind: 'setup'; step: SetupStepKey }
-  | { kind: 'quit' };
+  | { kind: 'quit' }
+  /** Demo mode's switcher (DemoSwitch.tsx): a sample world, or null for the live wallet. */
+  | { kind: 'demo'; state: DemoState | null };
 
 export type FindItem = {
   key: string;

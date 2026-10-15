@@ -1,7 +1,9 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { arcDash, DialStrip, KeyArt, KEY_ART_MODULES, Mark, Rosette, Seal, SEAL_STATES, stripBeads, Graticule } from './index';
-import { degreeMarks, ringFill, ROSETTE_RINGS, ticks } from './geometry';
+import { degreeMarks, LOGO, ringFill, ROSETTE_RINGS, ticks } from './geometry';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 afterEach(cleanup);
 
@@ -71,6 +73,19 @@ describe('Rosette, Mark, Graticule', () => {
     expect(container.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
     rerender(<Mark label="The Table" />);
     expect(screen.getByRole('img', { name: 'The Table' })).toBeTruthy();
+  });
+  it('the mark draws the logo master: two seats and the deal, as branding/logo-small.svg', () => {
+    // Run from apps/desktop/client, as the other file-reading tests (lib/contrast.test.ts).
+    const master = readFileSync(resolve(process.cwd(), '../../../branding/logo-small.svg'), 'utf8');
+    const { container } = render(<Mark />);
+    const svg = container.querySelector('svg');
+    expect(svg?.getAttribute('viewBox')).toBe(LOGO.viewBox);
+    expect(master).toContain(`viewBox="${LOGO.viewBox}"`);
+    expect(master).toContain(`stroke-width="${LOGO.seatWidth}"`);
+    for (const part of ['yours', 'theirs', 'deal'] as const) {
+      expect(svg?.querySelector(`.${part}`)?.getAttribute('d')).toBe(LOGO[part]);
+      expect(master).toContain(`d="${LOGO[part]}"`);
+    }
   });
   it('the ground is ornamental', () => {
     const { container } = render(<Graticule variant="grid" fixed />);

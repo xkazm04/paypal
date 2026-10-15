@@ -3,6 +3,7 @@
 // that decision in the centre, where its one gold action is; nothing here acts on money.
 import { useMemo, type CSSProperties } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
+import type { Deal } from '@bindings/Deal';
 import type { Module } from '@bindings/Module';
 import { formatTally } from '../../../lib/data/counts';
 import { useWindowedRows, type RowProps } from '../../../lib/data/useWindowedRows';
@@ -15,8 +16,9 @@ import { shortTitle, silenceParts, timeLeft } from '../home/model';
 import { decidedBy, splitHeadline } from '../logic';
 import { useCpLookup } from '../ui';
 import { useDeals, useDisplayOf, useWorldSelector, type World } from '../world';
-import { Latest, MAX_ROWS } from './Latest';
+import { Latest, LatestSkeleton, MAX_ROWS, type LatestProps } from './Latest';
 import { DealRow } from './rows';
+import { Reveal } from './stagger';
 
 const selModuleOf = (w: World) => w.moduleOfDeal;
 /** At or under this many waiting rows the list takes its own height (and the decided strip shows). */
@@ -69,8 +71,8 @@ export function Waiting({ queue, module, onFilter, onPick, onDeal }: {
           </div>
         )} />
       {short && onDeal && decided.length ? (
-        <Latest title={LATEST_OF.decided} total={decided.length}
-          rows={decided.slice(0, MAX_ROWS).map((d) => ({ key: d.id, label: `${decidedBy(d).text}, ${OPEN_THE_DEAL}`, onOpen: () => onDeal(d.id), node: <DealRow deal={d} who={cp(d.counterparty).name} extra={decidedBy(d).text} /> }))} />
+        // The waiting list is the decisions themselves (wave 0); what was decided lately takes its turn.
+        <DecidedLately decided={decided} onDeal={onDeal} who={(d) => cp(d.counterparty).name} />
       ) : null}
     </div>
   );
@@ -99,4 +101,12 @@ function WaitingRow({ item, props, top, onPick }: { item: AttentionItem; props: 
       </button>
     </div>
   );
+}
+
+function DecidedLately({ decided, onDeal, who }: { decided: readonly Deal[]; onDeal: (id: string) => void; who: (d: Deal) => string }) {
+  const strip: LatestProps = {
+    title: LATEST_OF.decided, total: decided.length,
+    rows: decided.slice(0, MAX_ROWS).map((d) => ({ key: d.id, label: `${decidedBy(d).text}, ${OPEN_THE_DEAL}`, onOpen: () => onDeal(d.id), node: <DealRow deal={d} who={who(d)} extra={decidedBy(d).text} /> })),
+  };
+  return <Reveal wave={2} sizeKey="waiting:decided" skeleton={<LatestSkeleton {...strip} />}><Latest {...strip} /></Reveal>;
 }

@@ -21,6 +21,7 @@ import { formatCount, formatTally } from '../../../lib/data/counts';
 import { useWindowedRows } from '../../../lib/data/useWindowedRows';
 import { LIST_ALL, LIST_CLEAR, LIST_DETAIL_EMPTY, LIST_FILTER, LIST_NO_MATCH, LIST_SEARCH, LIST_SEARCH_PLACEHOLDER, LIST_SORT, LIST_TWO_STEP, listShowing } from '../../../lib/words';
 import { Btn, Field } from '../../../shared/ui';
+import { Reveal, Skeleton } from './stagger';
 
 /** How long the search waits after the last keystroke. */
 export const SEARCH_DEBOUNCE_MS = 120;
@@ -229,7 +230,8 @@ export function ListEngine<T>(p: ListEngineProps<T>) {
             )}
         {hasDetail ? (
           <aside className="le-detail" aria-live="polite" ref={detailRef}>
-            {pickedRow !== undefined && p.detail ? p.detail(pickedRow) : <p className="le-empty">{LIST_DETAIL_EMPTY}</p>}
+            {/* The picked row's pane takes its turn after the list (stagger.tsx; a pane is often evidence-backed). */}
+            <Reveal wave={2} sizeKey={`list:${p.label}:detail`} skeleton={<Skeleton h="3rem" />}>{pickedRow !== undefined && p.detail ? p.detail(pickedRow) : <p className="le-empty">{LIST_DETAIL_EMPTY}</p>}</Reveal>
           </aside>
         ) : null}
       </div>

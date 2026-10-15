@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="The Table">
+  <!-- The Table for light backgrounds (white, paper, the day theme): transparent, day-theme inks.
+       Each ink holds at least 3:1 against white (non-text contrast). -->
+  <g fill="none" stroke="#44566a">
+    <circle cx="32" cy="32" r="26.6" stroke-opacity=".7"/>
+    <circle cx="32" cy="32" r="25.5" stroke-width="2.2" stroke-opacity=".7" pathLength="48" stroke-dasharray=".24 .76" stroke-dashoffset=".12"/>
+    <path d="M32 9V5.4M55 32H58.6M32 55V58.6M9 32H5.4" stroke-width="1.4"/>
+  </g>
+  <g fill="none" stroke-width="7">
+    <path d="M23.78 47.45A17.5 17.5 0 0 1 23.78 16.55" stroke="#0a7169"/>
+    <path d="M40.22 16.55A17.5 17.5 0 0 1 40.22 47.45" stroke="#c4532d"/>
+  </g>
+  <path d="M32 25.5L38.5 32L32 38.5L25.5 32Z" fill="#a87b22"/>
+</svg>

@@ -46,6 +46,7 @@ import { AUTHORITY, AUTHORITY_MANIFEST, type CommandAuthority } from '@bindings/
 import { LADDER } from '@bindings/ladder';
 import { buildFirstRunState, firstRunPreview, PRACTICE_TERMS, scalePreview, withFirstRun, worldKeys } from './firstRun';
 import { buildScaleState } from './scale';
+import { previewSearch } from '../lib/preview';
 
 type Envelope =
   | { kind: 'event'; event: EventName; targets: WindowLabel[]; payload: unknown }
@@ -131,7 +132,7 @@ const FORM_SIZE: Record<Form, [number, number]> = { rest: [88, 88], tab: [28, 96
 /** Optional compatibility preview for an older shell without the safe projections. */
 function degraded(): boolean {
   try {
-    return new URLSearchParams(location.search).get('degrade') === '1' || localStorage.getItem(DEGRADE_KEY) === '1';
+    return new URLSearchParams(previewSearch()).get('degrade') === '1' || localStorage.getItem(DEGRADE_KEY) === '1';
   } catch {
     return false;
   }
@@ -156,7 +157,11 @@ function fail(code: WalletError['code'], message: string): never {
   throw new WalletError({ code, message });
 }
 
-export function mockBackend(label: WindowLabel): MockBackend {
+/** How a mock window opens another page (lib/runtime.ts passes one in demo mode, so the sample
+ *  approval opens in the main window's demo sheet instead of a window). Default: window.open. */
+export type MockOptions = { open?: (page: string, name: string, features?: string) => void };
+
+export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBackend {
   // ?first_run=1: a brand-new wallet in a world of its own (src/mock/firstRun.ts).
   const firstRun = firstRunPreview();
   // ?scale=small|large: the same wallet at a realistic size, also a world of its own (src/mock/scale.ts).
@@ -171,7 +176,7 @@ export function mockBackend(label: WindowLabel): MockBackend {
   let state: MockState = load() ?? fresh();
   let lastPrivileged = nowUnix();
   let form: Form = state.settings.preferences.form;
-  const params = new URLSearchParams(location.search);
+  const params = new URLSearchParams(previewSearch());
   // The deal this approval window is bound to; a replayed renewal rebinds it (Rust rescue_replay).
   let selected: string | null = label === 'approval' ? params.get('deal') : null;
   const selectedPairing = label === 'approval' ? params.get('pairing') : null;
@@ -506,7 +511,9 @@ export function mockBackend(label: WindowLabel): MockBackend {
     save();
   }
   function openWindow(page: string, name: string, features?: string): void {
-    window.open(withFirstRun(page, firstRun, scale), name, features);
+    const url = withFirstRun(page, firstRun, scale);
+    if (opts.open) opts.open(url, name, features);
+    else window.open(url, name, features);
   }
 
   const handlers: { [K in CommandName]: (args: ArgsOf<K>, opts?: InvokeOptions) => ResultOf<K> } = {
@@ -1357,4 +1364,12 @@ export function resetMockState(): void {
   } catch {
     /* storage blocked: nothing was stored either */
   }
+}
+
+/** Start the current sample world over: forgets only this world's stored state (the other worlds,
+ *  the shared preview clock, the theme and the calm setting stay). The page reloads after. */
+export function resetMockWorld(): void {
+  const key = worldKeys(STORE_KEY, CHANNEL, firstRunPreview(), scalePreview()).store;
+  try { localStorage.removeItem(key); } catch { /* storage blocked: nothing was stored either */ }
+  try { sessionStorage.removeItem(key); } catch { /* as above */ }
 }

@@ -21,6 +21,7 @@ import { sheetViewOf, withoutView, type Place, type PlaceFrom, type Route, type 
 import type { PairMode } from '../setup/pairing';
 import type { Presence } from './centreModel';
 import { ModuleRouteContext, useViewLabel, type ModuleRoute } from '../viewNav';
+import { Stagger } from './stagger';
 
 /** Every layer the console can show. A module's layer id is the module's own key. */
 export type LayerId = 'centre' | 'waiting' | 'rewind' | 'setup' | 'deal' | Module | Place;
@@ -140,7 +141,8 @@ export function LayerSkeleton() {
 
 /** Draws the registered layer for a route inside its boundary: an error shows the layer's calm
  *  fallback (never a blank window), a loading chunk the skeleton. Inside it the console's chrome
- *  owns Back (`ChromeBackContext`), and a module layer gets its detail-view route. */
+ *  owns Back (`ChromeBackContext`), a module layer gets its detail-view route, and the layer's parts
+ *  take their turns in one reveal sequence (`Stagger`, stagger.tsx). */
 export function LayerHost({ def, route, nav, state, resetKey }: { def: LayerDef; route: Route; nav: LayerNav; state: LayerState; resetKey: string }) {
   const C = def.component;
   // Re-render once a module registers its view labels (a lazy page may register them as it loads).
@@ -175,7 +177,7 @@ export function LayerHost({ def, route, nav, state, resetKey }: { def: LayerDef;
     <NavContext.Provider value={nav}>
       <StateContext.Provider value={state}>
         <ChromeBackContext.Provider value={true}>
-          <LayerSuspense layer="view" resetKeys={[resetKey]} fallback={<LayerSkeleton />}>{body}</LayerSuspense>
+          <LayerSuspense layer="view" resetKeys={[resetKey]} fallback={<LayerSkeleton />}><Stagger>{body}</Stagger></LayerSuspense>
         </ChromeBackContext.Provider>
       </StateContext.Provider>
     </NavContext.Provider>

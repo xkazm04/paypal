@@ -4,11 +4,6 @@
    the --dur-* / --ease-* tokens. The fix cards' rules are the old modules/rescue.css ones, moved. */
 
 .ar-rescue { display: flex; flex-direction: column; flex: 1 0 auto; min-width: 0; min-height: 0; }
-/* the summary's cards take the room the sheet gives them (as the other module layers do), up to a
-   comfortable height, so a small world leaves no long empty band under them */
-.ar-rescue .ml:not(.ml-view) > .ml-cards { flex: 1 1 auto; max-height: 14rem; align-items: stretch; }
-.ar-rescue .ml:not(.ml-view) > .ml-cards .ui-sumcard { height: auto; }
-.ar-rescue .ml:not(.ml-view) > .ml-cards .sc-value { font-size: var(--fs-title1); }
 .ar-rescue .rs-dim { color: var(--dim); }
 .ar-rescue .rs-how { margin: 0; padding-left: var(--sp-4); display: grid; gap: var(--sp-2); }
 .ar-rescue .rs-h2 { margin: 0; font-size: var(--fs-title2); font-weight: var(--fw-semibold); overflow-wrap: anywhere; }

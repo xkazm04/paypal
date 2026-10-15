@@ -41,3 +41,13 @@ export const HOLD_WORDS = {
   holding: 'Keep holding',
   done: 'Confirmed',
 } as const;
+
+/** The owner page's first-run heading (polish A). It names The Table's charter instead of counting
+ *  steps: the charter has five lines (keys, rules, practice deal, agent app, unlock) and this page
+ *  shows them as its lock card and four steps, so a count here never matched. Starts with the
+ *  charter's own title (`CHARTER_TITLE`, words.ts; approval.test pins the two equal). */
+export const APPROVAL_FIRST_RUN = {
+  title: 'Your wallet’s charter: the lines to your first safe deal',
+  /** The page's hidden heading for screen readers. */
+  welcome: 'Welcome: your wallet’s charter, the lines to your first safe deal',
+} as const;

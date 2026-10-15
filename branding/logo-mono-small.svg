@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" color="#101317" role="img" aria-label="The Table">
+  <!-- The Table in one colour at 16-48 px (tray, single-colour favicons). currentColor, transparent. -->
+  <path d="M23.08 48.78A19 19 0 0 1 23.08 15.22M40.92 15.22A19 19 0 0 1 40.92 48.78" fill="none" stroke="currentColor" stroke-width="9"/>
+  <path d="M32 23.5L40.5 32L32 40.5L23.5 32Z" fill="currentColor"/>
+</svg>

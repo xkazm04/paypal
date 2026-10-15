@@ -129,3 +129,14 @@ export const LATEST_OF = {
   decided: 'decided lately, and who decided',
   settings: 'your wallet at a glance',
 } as const;
+
+/** The crumbs on a narrow bar (polish A): the layers between the first and the last two fold into
+ *  one "…" that opens them as a short menu. */
+export const CRUMBS_MORE = {
+  /** The "…" button's accessible name. */
+  label: (n: number): string => `${n === 1 ? 'One more layer' : `${n} more layers`} above this one`,
+  /** Its tooltip: the whole way here. */
+  title: (path: string): string => `Where you are: ${path}`,
+  /** The menu's heading. */
+  menu: 'Go back up to',
+} as const;

@@ -102,9 +102,14 @@ describe('the First run beat file', () => {
     expect(JSON.stringify(FIRST_RUN_BEATS)).not.toMatch(/countersign|capture|owner_accept|shield_release|rescue_approve|open_paypal|mandate_sign|unlock|deal_void|"lock"/i);
   });
 
-  it('leaves Maya’s week as it was: 22 beats, the last caption ending at 182 s', () => {
-    expect(BEATS).toHaveLength(22);
+  // Re-pinned deliberately (polish A): two beats were added inside the same 182 s - a module summary
+  // (silence-tables, at 78 s) and the Rewind (end-rewind, at 155 s) - in gaps the reading-time rule
+  // already allowed; no other beat, time or action changed.
+  it('keeps Maya’s week at 182 s: 24 beats, with a module summary and the Rewind among them', () => {
+    expect(BEATS).toHaveLength(24);
     expect(SCRIPT_LENGTH).toBe(182);
+    expect(BEATS.find((b) => b.id === 'silence-tables')?.do).toContainEqual({ do: 'main', open: true, route: '#m=tables' });
+    expect(BEATS.find((b) => b.id === 'end-rewind')?.do).toContainEqual({ do: 'main', open: true, route: '#r=rewind' });
   });
 });
 

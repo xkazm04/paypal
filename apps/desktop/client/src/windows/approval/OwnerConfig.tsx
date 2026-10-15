@@ -11,7 +11,7 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { WalletError } from '../../lib/contract';
 import { useNow, useQuery } from '../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../lib/lazy';
-import { FIRST_RUN_TITLE, OWNER_KEY, rulesName, SAFETY_PROMISE, START_STEP, timeLeftWords, watchingWords, type StartStepKey } from '../../lib/words';
+import { APPROVAL_FIRST_RUN, OWNER_KEY, rulesName, SAFETY_PROMISE, START_STEP, timeLeftWords, watchingWords, type StartStepKey } from '../../lib/words';
 import { connectionFacts, gettingStarted, rulesInForce, settingsFacts } from '../../lib/firstRun';
 import { StartProgress, StartSteps, type StepAction } from '../../shared/start';
 import { TakeTour, Tour } from '../../shared/tour';
@@ -219,11 +219,11 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
     <div className="aw ow ow-cfg">
       <Header mode={st?.mode} />
       <main className="aw-body ow-body">
-        <h1 className="sr-only">{first ? `Welcome: ${FIRST_RUN_TITLE.toLowerCase()}` : 'Wallet setup'}</h1>
+        <h1 className="sr-only">{first ? APPROVAL_FIRST_RUN.welcome : 'Wallet setup'}</h1>
         {first ? (
           <>
             <div className="ow-answer" data-tour="approval-answer">
-              <AnswerBar tone="need" icon="shield" title={FIRST_RUN_TITLE} sub={SAFETY_PROMISE}
+              <AnswerBar tone="need" icon="shield" title={APPROVAL_FIRST_RUN.title} sub={SAFETY_PROMISE}
                 // Locked: the lock card below holds the one gold button (Unlock with Windows Hello).
                 actions={nextStep && !locked ? (
                   <Btn kind="gold" disabled={!s.tokenReady || s.pending !== null} onClick={() => runStep(nextStep)} title={stepAction(nextStep)?.title}>
