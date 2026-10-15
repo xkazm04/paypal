@@ -11,6 +11,7 @@
 import type { MouseEvent, ReactNode } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { Mode } from '@bindings/Mode';
+import { leaveDemoApproval } from '../../lib/preview';
 import { backend } from '../../lib/runtime';
 import { APPROVAL_FRAME, BRAND_NAME } from '../../lib/words';
 import { Mark } from '../../shared/brand';
@@ -32,10 +33,11 @@ export function Emblem() {
 /**
  * Close this window (the docked approval window; Rust returns focus to The Table). Resolves to
  * null when it closed, or the note to show when it could not: the browser preview has no window to
- * close, and a refused close leaves it open. Nothing about any deal changes either way.
+ * close, and a refused close leaves it open. Nothing about any deal changes either way. The sample
+ * approval demo mode opens in the main window's own webview goes back to The Table instead.
  */
 export async function closeThisWindow(): Promise<string | null> {
-  if (backend().kind !== 'tauri') return APPROVAL_FRAME.closePreview;
+  if (backend().kind !== 'tauri') return leaveDemoApproval() ? null : APPROVAL_FRAME.closePreview;
   try {
     await getCurrentWindow().close();
     return null;

@@ -20,6 +20,7 @@ import { useWorldSelector, type World } from '../../../world';
 import type { LayerProps } from '../../layers';
 import { ListEngine, type ListFilter, type ListSort } from '../../ListEngine';
 import { fitHeight, PlaceFrame, type LensCard } from '../settings/frame';
+import { Reveal, Skeleton } from '../../stagger';
 import { useRewind, type RewindState } from './clock';
 import type { Labeller } from './Scrubber';
 import { TickMark } from './TickMark';
@@ -88,12 +89,16 @@ export function RewindLayer({ nav, state }: LayerProps) {
     <PlaceFrame root="ar-rewind" place="rewind" tone="var(--teal)" kicker={REWIND_KICKER(r.weekBack === 0 ? REWIND_THIS_WEEK : weekLabel(r.start, r.end))}
       answer={answer} sub={REWIND_ANSWER.sub} cards={cards}
       lead={(
-        <div className="rw-host">
-          <Suspense fallback={<p className="layer-loading" role="status">{LAYER_LOADING}</p>}>
-            <div className="rw-stage"><RewindHub r={r} labelOf={labelOf} onOpenDeal={nav.deal} /></div>
-            <RewindBar r={r} labelOf={labelOf} onOpenDeal={nav.deal} onExit={nav.back} />
-          </Suspense>
-        </div>
+        // The hub and the scrubber are the page's picture (its heaviest part): they take the last turn,
+        // the tape (the list) comes before them (stagger.tsx).
+        <Reveal wave={3} sizeKey="rewind:hub" skeleton={<Skeleton className="rw-host" h="23rem" />}>
+          <div className="rw-host">
+            <Suspense fallback={<p className="layer-loading" role="status">{LAYER_LOADING}</p>}>
+              <div className="rw-stage"><RewindHub r={r} labelOf={labelOf} onOpenDeal={nav.deal} /></div>
+              <RewindBar r={r} labelOf={labelOf} onOpenDeal={nav.deal} onExit={nav.back} />
+            </Suspense>
+          </div>
+        </Reveal>
       )}>
       <section className="rw-tape" aria-label={REWIND_TAPE.title} style={{ height: `calc(${fitHeight(tape.length, 62, '70vh')} + 2rem)` }}>
         <h2 className="cs-h3">{REWIND_TAPE.title}</h2>

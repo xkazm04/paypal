@@ -14,6 +14,7 @@ import { stateLabel } from '../logic';
 import { noMatch } from '../paletteCopy';
 import { useCpLookup } from '../ui';
 import { useWorldSelector, type World } from '../world';
+import { demoFindItems } from './DemoSwitch';
 import { buildIndex, searchIndex, type FindIndex, type FindItem, type FindTarget } from './findIndex';
 
 const selFind = (w: World) => ({ needs: w.needs, deals: w.deals.data, display: w.display });
@@ -51,6 +52,7 @@ export function useFindIndex(): FindIndex {
         return { key: `d-${d.id}`, group: 'deals', title: disp.title, also: disp.label, sub: `${cp(d.counterparty).name} · ${stateLabel(d.state, d)}`, target: { kind: 'deal', deal: d.id } };
       }),
       ...PLACES,
+      ...demoFindItems(),
     ];
     return buildIndex(items);
   }, [needs, deals, display, cp]);

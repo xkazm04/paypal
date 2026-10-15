@@ -49,9 +49,18 @@
 :root[data-theme="light"] .br-seal .bS .edge, :root[data-theme="light"] .br-seal .arc .lft { filter: none; }
 
 /* ---- the mark ------------------------------------------------------------------------------- */
-.br-mark { display: inline-block; width: 1.4rem; height: 1.4rem; flex: none; color: var(--signal); vertical-align: middle;
-  filter: drop-shadow(0 0 .35rem color-mix(in srgb, var(--signal) 45%, transparent)); }
+.br-mark { display: inline-block; width: 1.4rem; height: 1.4rem; flex: none; vertical-align: middle;
+  filter: drop-shadow(0 0 .3rem color-mix(in srgb, var(--seal) 22%, transparent)); }
+.br-mark .yours { stroke: var(--teal); }
+.br-mark .theirs { stroke: var(--coral); }
+.br-mark .deal { fill: var(--gold); }
 :root[data-theme="light"] .br-mark { filter: none; }
+/* Forced colours (high contrast): one system ink, as logo-mono-small.svg. */
+@media (forced-colors: active) {
+  .br-mark { filter: none; }
+  .br-mark .yours, .br-mark .theirs { stroke: CanvasText; }
+  .br-mark .deal { fill: CanvasText; }
+}
 
 /* ---- the rosette ------------------------------------------------------------------------------ */
 .br-rosette { display: block; width: 100%; height: 100%; overflow: visible; color: var(--gold); }

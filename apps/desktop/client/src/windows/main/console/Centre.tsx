@@ -30,6 +30,7 @@ import { useDeals, useDisplayOf, useLocked, useWorldHealth, useWorldReady, useWo
 import { BeadStrip } from './BeadStrip';
 import { centreFacts, deadlineProgress, stackRows, stackSlots, type Presence } from './centreModel';
 import { useWatching } from './ledger';
+import { Reveal, Skeleton } from './stagger';
 
 export type CentreProps = {
   /** The queue in the centre's order (centre.ts orderQueue). */
@@ -83,7 +84,12 @@ export function Centre(p: CentreProps) {
     );
   }
 
-  const fill = <StackRow queue={p.queue} cur={p.cur} away={away.summary} moving={watching.moving} onPick={p.onPick} onDeal={p.onDeal} onWaiting={p.onWaiting} onRewind={p.onRewind} />;
+  // The decision (and the seal beside it) is wave 0; the stack row under it takes its turn (stagger.tsx).
+  const fill = (
+    <Reveal wave={1} sizeKey="centre:stack" skeleton={<Skeleton className="cs-also" h="7rem" />}>
+      <StackRow queue={p.queue} cur={p.cur} away={away.summary} moving={watching.moving} onPick={p.onPick} onDeal={p.onDeal} onWaiting={p.onWaiting} onRewind={p.onRewind} />
+    </Reveal>
+  );
 
   if (!top) {
     return (
@@ -133,7 +139,7 @@ function SealSide({ presence, progress, onDeal }: { presence: Presence; progress
     <div className="cs-cseal">
       <Seal state={presence.state} progress={progress} label={sealLabel(presence.word, presence.line)} ring={SEAL_RING} />
       <div className="cs-sealword" aria-hidden="true"><b>{presence.word}</b><span>{presence.line}</span></div>
-      <BeadStrip onDeal={onDeal} />
+      <Reveal wave={2} sizeKey="centre:beads" skeleton={<Skeleton className="cs-strip" h="2rem" />}><BeadStrip onDeal={onDeal} /></Reveal>
     </div>
   );
 }

@@ -17,8 +17,9 @@ import { silenceParts } from '../home/model';
 import { useModuleRoute } from '../viewNav';
 import { useNeeds } from '../world';
 import { useLayerNav } from './layers';
-import { Latest, type LatestProps } from './Latest';
-import { ModuleSummary, type ModuleCard } from './ModuleSummary';
+import { Latest, LatestSkeleton, type LatestProps } from './Latest';
+import { MAX_CARDS, ModuleSummary, type ModuleCard } from './ModuleSummary';
+import { Reveal, Skeleton } from './stagger';
 
 /** A nested detail view of a module. */
 export type ModuleViewDef = {
@@ -85,7 +86,9 @@ export function ModuleLayer(p: ModuleLayerProps) {
           {view.sub ? <p className="ml-sub">{view.sub}</p> : null}
           {view.actions ? <div className="cs-acts">{view.actions}</div> : null}
         </header>
-        <div className="ml-vbody">{view.render()}</div>
+        <Reveal wave={1} sizeKey={`${p.module}:view:${route.view}`} skeleton={<Skeleton className="ml-vbody" h="16rem" />}>
+          <div className="ml-vbody">{view.render()}</div>
+        </Reveal>
       </div>
     );
   }
@@ -110,13 +113,20 @@ export function ModuleLayer(p: ModuleLayerProps) {
             </div>
           ) : null}
         </div>
-        <KeyArt module={p.module} label={MODULE_ART_LABEL[p.module]} className="ml-art" />
+        <Reveal wave={3} sizeKey="ml:art" skeleton={<Skeleton className="ml-art br-art" />}>
+          <KeyArt module={p.module} label={MODULE_ART_LABEL[p.module]} className="ml-art" />
+        </Reveal>
       </header>
-      {p.cards?.length ? <ModuleSummary cards={p.cards} /> : null}
-      {p.latest ? <Latest {...p.latest} /> : null}
-      {p.children ? <div className="ml-body">{p.children}</div> : null}
+      {/* The answer, Your call and the action above are wave 0 (stagger.tsx); the rest takes its turn. */}
+      {p.cards?.length ? (
+        <Reveal wave={1} sizeKey={`${p.module}:cards`} skeleton={<Skeleton className="ml-cards" blocks={Math.min(p.cards.length, MAX_CARDS)} block="ui-sumcard" style={{ '--n': Math.min(p.cards.length, MAX_CARDS) } as CSSProperties} />}>
+          <ModuleSummary cards={p.cards} />
+        </Reveal>
+      ) : null}
+      {p.latest ? <Reveal wave={2} sizeKey={`${p.module}:latest`} skeleton={<LatestSkeleton {...p.latest} />}><Latest {...p.latest} /></Reveal> : null}
+      {p.children ? <Reveal wave={2} sizeKey={`${p.module}:body`} skeleton={<Skeleton className="ml-body" h="8rem" />}><div className="ml-body">{p.children}</div></Reveal> : null}
       {nothing ? <p className="ml-empty">{p.empty ?? MODULE_EMPTY}</p> : null}
-      {p.explain ? <Disclosure summary={p.explain.summary} className="ml-explain">{p.explain.body}</Disclosure> : null}
+      {p.explain ? <Reveal wave={3} skeleton={<Skeleton className="ml-explain" blocks={1} />}><Disclosure summary={p.explain.summary} className="ml-explain">{p.explain.body}</Disclosure></Reveal> : null}
     </div>
   );
 }

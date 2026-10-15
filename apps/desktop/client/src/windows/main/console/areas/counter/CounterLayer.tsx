@@ -192,7 +192,7 @@ export function CounterLayer({ nav }: LayerProps) {
   );
   // Latest: the live orders (waiting ones first, as the orders view lists them), else the earlier ones.
   const latestOrders = (list: readonly Deal[], open: boolean): LatestProps => ({
-    title: LATEST_OF.counter, total: list.length,
+    title: LATEST_OF.counter, total: list.length, rowGuess: 78,
     rows: list.slice(0, MAX_ROWS).map((d) => ({ key: d.id, label: `${display(d).title}, ${OPEN_THE_DEAL}`, onOpen: () => nav.deal(d.id), node: orderRow(d, false) })),
     seeAll: { onOpen: () => route.open(open ? 'orders' : 'earlier') },
   });

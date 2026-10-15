@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { clockOffset } from '../lib/clock';
 import { clockLabel } from '../lib/format';
 import { useNow, usePrefersReducedMotion } from '../lib/hooks';
+import { APPROVAL_FRAME } from '../lib/words';
 import { applyTheme, getTheme, setTheme, type Theme } from '../lib/theme';
 import { mockBackend } from '../mock/backend';
 import { applyWorld, foldScene, INITIAL_SCENE, placeTours, runActions, WORLD_ACTIONS, type Scene, type Stage } from './actions';
@@ -487,7 +488,7 @@ export function Director({ story }: { story: Story }) {
           </div>
 
           <section className={`dir-win w-approval${approvalOpen ? '' : ' closed'}`} style={win(WIN.approval)} aria-label="The approval window" aria-hidden={!approvalOpen}>
-            <WinBar title="Approval" note="only here can money be agreed" />
+            <WinBar title="Approval" note={APPROVAL_FRAME.strip} />
             <iframe key={`a${frames.epoch}:${frames.approvalKey}`} ref={approvalRef} name="the-table-approval" title="Approval" src={frames.approvalSrc}
               width={WIN.approval.w} height={WIN.approval.h} onLoad={(e) => { watchInput(e.currentTarget); onApprovalLoad(frames.epoch); }} />
           </section>

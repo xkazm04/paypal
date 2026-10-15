@@ -34,6 +34,7 @@ import { useSheetView, type LayerNav } from '../../layers';
 import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { DealRow, WhoChip } from '../../rows';
 import { PlaceFrame, type LensCard } from '../settings/frame';
+import { Reveal } from '../../stagger';
 import { DealDecision, StateStrip, Summary } from './Decision';
 import { InstructionsValue } from './InstructionsValue';
 import { ShownStrip } from './ShownStrip';
@@ -168,12 +169,13 @@ export function DealPage({ deal, nav }: { deal: Deal; nav: LayerNav }) {
         <div className="dv-lead">
           {disp.fallback ? <Hint>{DEAL_ACT.fallback}</Hint> : null}
           <StateStrip strip={strip} />
-          {ended ? <ShownStrip deal={deal} /> : null}
+          {/* What the owner was shown (its own read of the record) takes the last turn (stagger.tsx). */}
+          {ended ? <Reveal wave={3}><ShownStrip deal={deal} /></Reveal> : null}
           {consequence}
           <DealDecision deal={deal} need={need} canWithdraw={withdrawable} theirName={them} them={them} readings={readings} deadline={deadline} />
         </div>
       )}
-      cards={cards} latest={strips}>
+      cards={cards} latest={strips} childrenWave={0}>
       {sheet === 'transcript' ? (
         <TranscriptSheet deal={deal} label={disp.label} steps={tr.data} error={tr.error} band={disp.band} theirName={cp.name} onClose={() => setSheet(null)} />
       ) : null}

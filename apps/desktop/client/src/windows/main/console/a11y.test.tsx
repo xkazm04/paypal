@@ -5,11 +5,15 @@
 // Contrast is the token test's (src/lib/contrast.test.ts: 4.5:1 for every text ink on every surface,
 // both themes).
 import { act, cleanup, fireEvent, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Route } from '../logic';
 import { renderLayerAtScale } from './testing/scaleSmoke';
+import { staggerOff } from './stagger';
 
 vi.mock('../../../lib/runtime', async () => (await import('./testing/runtime')).runtimeMock);
+
+// Every wave in the first frame, as before the staggered reveal (stagger.tsx; its own tests turn it on).
+beforeAll(() => staggerOff());
 
 afterEach(() => { cleanup(); history.replaceState(null, '', '/'); });
 

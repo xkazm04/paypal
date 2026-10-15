@@ -31,7 +31,19 @@ export function dashes(r: number, n: number, fill = 0.5): string {
   return d;
 }
 
-/** The brand mark: a reticle inside a bezel of 24 ticks (viewBox -12 -12 24 24). */
+/** The app logo at small sizes, as drawn by `branding/logo-small.svg` (viewBox 0 0 64 64): a round table
+ *  seen from above, your seat (left arc), the other side's seat (right arc), the agreed deal between them
+ *  (a diamond). `brand.test.tsx` keeps these equal to the master file. Seats are 9-unit strokes. */
+export const LOGO = {
+  viewBox: '0 0 64 64',
+  seatWidth: 9,
+  yours: 'M23.08 48.78A19 19 0 0 1 23.08 15.22',
+  theirs: 'M40.92 15.22A19 19 0 0 1 40.92 48.78',
+  deal: 'M32 23.5L40.5 32L32 40.5L23.5 32Z',
+} as const;
+
+/** The reticle-in-a-bezel line mark of 24 ticks (viewBox -12 -12 24 24). The app mark is now `LOGO`;
+ *  this stays for the Tumbler's puck. */
 export const MARK_D = `M0 -7.4V-3M0 7.4V3M-7.4 0H-3M7.4 0H3${ticks(8.6, 10.5, 24)}M-.9 0H.9M0 -.9V.9`;
 
 /** The rosette: four tick rings (inner first) in viewBox -24 -24 48 48. */

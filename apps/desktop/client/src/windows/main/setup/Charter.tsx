@@ -15,7 +15,6 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { EngineId } from '@bindings/EngineId';
 import { useMutation, useQuery } from '../../../lib/hooks';
 import { backend } from '../../../lib/runtime';
-import { FIRST_RUN_PARAM } from '../../../lib/preview';
 import {
   CHARTER_IN_APPROVAL, CHARTER_MEANS_APPROVAL, CHARTER_MEANS_TITLE, CHARTER_NUMERAL, CHARTER_SEALED, CHARTER_SKIP, CHARTER_SKIP_TITLE, CHARTER_STATE, CHARTER_TITLE,
   charterDone, charterLine, charterPreview, charterReads, KEEP_PRACTICE_AGENT, reasonWords, SAFETY_PROMISE, SETUP_ALL_DONE, SETUP_FINISH, SETUP_NEXT, SETUP_NOT_DONE, SETUP_STEP_COPY, SETUP_STEP_LABEL, SETUP_WAITING, START_STEP,
@@ -27,6 +26,7 @@ import { SETUP_STEPS, type SetupStep } from '../logic';
 import { useLocked, useSettings } from '../world';
 import { Handoff } from './common';
 import { PairingDesk } from '../console/areas/connections/PairingDesk';
+import { switchDemo } from '../console/DemoSwitch';
 import type { PairMode } from './pairing';
 import { useStart } from './start';
 import './charter.css';
@@ -207,12 +207,10 @@ export function Charter({ step: asked, onStep, onDone, root, seal }: {
   );
 }
 
-/** Preview only: leave the brand-new wallet for the sample wallet, which is already set up. */
+/** Preview and demo only: leave the brand-new wallet for the sample wallet, which is already set
+ *  up (the demo switcher's own way, so the browser's address and a desktop demo both follow). */
 function skipToSample(): void {
-  const q = new URLSearchParams(location.search);
-  q.delete(FIRST_RUN_PARAM);
-  const s = q.toString();
-  location.assign(`${location.pathname}${s ? `?${s}` : ''}`);
+  switchDemo({ world: 'sample', degrade: false, locked: false });
 }
 
 /** Line III stays in Main: the house seller's pairing wizard. Only its confirm opens the approval window. */

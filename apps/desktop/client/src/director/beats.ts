@@ -103,6 +103,12 @@ export const BEATS: readonly Beat[] = [
     do: [...h.deadlinePasses(HAGGLE), { do: 'main', open: true, route: '#d=D-0193' }],
   },
   {
+    // a module summary: the Tables tab, where the haggle now counts among the ended deals
+    id: 'silence-tables', chapter: 'silence', at: 78, focus: 'main',
+    caption: 'The Tables summary: what is open and what has ended.',
+    do: [{ do: 'main', open: true, route: '#m=tables' }],
+  },
+  {
     id: 'mismatch-agreed', chapter: 'mismatch', at: 81, focus: 'main',
     caption: 'Another deal: Maya and Dan agreed on $329 for a QHD monitor. Now Dan’s side sends its payment request.',
     // the Tumbler goes back to its puck: the lapsed haggle's card is done, and the held request
@@ -157,6 +163,12 @@ export const BEATS: readonly Beat[] = [
     id: 'end-table', chapter: 'end', at: 148, focus: 'main',
     caption: 'When she opens The Table again, the deal says what happened and who decided: the deadline, not an agent.',
     do: [{ do: 'main', open: true, route: '#d=D-0190' }, ...h.undock()],
+  },
+  {
+    // the Rewind: the week's money steps from the wallet's own record, by who decided
+    id: 'end-rewind', chapter: 'end', at: 155, focus: 'main',
+    caption: 'Her Rewind replays the week: each money step, and who decided it.',
+    do: [{ do: 'main', open: true, route: '#r=rewind' }],
   },
   {
     id: 'end-safety', chapter: 'end', at: 159, focus: 'main',

@@ -131,10 +131,6 @@
 .tb-sellers .sub { color: var(--muted); font-size: var(--fs-small); }
 .mod-tables .tb-group { display: flex; flex-direction: column; gap: var(--sp-3); }
 
-/* the three trade summaries fill the sheet: the cards grow (up to a point), so a small world leaves no dead band */
-.ml.mod-tables:not(.ml-view) > .ml-cards, .ml.mod-spend:not(.ml-view) > .ml-cards, .ml.mod-counter:not(.ml-view) > .ml-cards { flex: 1 1 auto; max-height: 14rem; align-items: stretch; }
-.ml.mod-tables:not(.ml-view) > .ml-cards .ui-sumcard, .ml.mod-spend:not(.ml-view) > .ml-cards .ui-sumcard, .ml.mod-counter:not(.ml-view) > .ml-cards .ui-sumcard { height: auto; }
-.ml.mod-tables:not(.ml-view) > .ml-cards .sc-value, .ml.mod-spend:not(.ml-view) > .ml-cards .sc-value, .ml.mod-counter:not(.ml-view) > .ml-cards .sc-value { font-size: var(--fs-title1); }
 .tr-end { display: inline-flex; align-items: center; gap: var(--sp-2); flex: none; }
 .tr-row .sub .cs-cd { height: auto; padding: 0 var(--sp-1); }
 .tr-split.empty { display: block; min-height: 0; flex: none; }

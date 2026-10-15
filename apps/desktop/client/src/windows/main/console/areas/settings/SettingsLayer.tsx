@@ -12,7 +12,7 @@ import type { SettingsSnapshot } from '@bindings/SettingsSnapshot';
 import { useCalm } from '../../../../../design/motion';
 import { readCommand } from '../../../../../lib/data/invoke';
 import { useMutation, useNow, useQuery } from '../../../../../lib/hooks';
-import { FIRST_RUN_PARAM } from '../../../../../lib/preview';
+import { switchDemo } from '../../DemoSwitch';
 import { backend } from '../../../../../lib/runtime';
 import { currentTheme, onThemeChange, setTheme, type Theme } from '../../../../../lib/theme';
 import {
@@ -163,10 +163,9 @@ function usePauseKey(off: boolean, pause: () => Promise<void>) {
   }, [off]);
 }
 
+/** Preview and demo only: the brand-new wallet, through the demo switcher (address or stored choice). */
 function showFirstRun(): void {
-  const q = new URLSearchParams(location.search);
-  q.set(FIRST_RUN_PARAM, '1');
-  location.assign(`${location.pathname}?${q.toString()}`);
+  switchDemo({ world: 'first_run', degrade: false, locked: false });
 }
 
 function MoreRow({ name, line, fk, onOpen }: { name: string; line: string; fk: string; onOpen: () => void }) {

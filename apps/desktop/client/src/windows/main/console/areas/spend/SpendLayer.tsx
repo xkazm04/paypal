@@ -189,7 +189,7 @@ export function SpendLayer({ nav }: LayerProps) {
   const waitingIds = new Set(needLanes.map((l) => l.deal.id));
   const latestLanes = [...needLanes, ...lanes.filter((l) => !waitingIds.has(l.deal.id))];
   const latest: LatestProps = {
-    title: LATEST_OF.spend, total: latestLanes.length,
+    title: LATEST_OF.spend, total: latestLanes.length, rowGuess: 80,
     rows: latestLanes.slice(0, MAX_ROWS).map((l) => ({
       key: l.deal.id, label: `${display(l.deal).title}, ${OPEN_THE_DEAL}`, onOpen: () => nav.deal(l.deal.id), node: row(l, false),
     })),

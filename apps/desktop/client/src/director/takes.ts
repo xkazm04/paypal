@@ -7,7 +7,7 @@
 // `checkBeat` says what is missing. A broken beat fails loudly here before a take is recorded.
 import type { DealState } from '@bindings/DealState';
 import type { StartStepState } from '../lib/firstRun';
-import { CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, IF_NOTHING, SAFE_DEFAULT_LINE, SAFETY_PROMISE, type StartStepKey, type TourStopId } from '../lib/words';
+import { APPROVAL_FIRST_RUN, CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, IF_NOTHING, REWIND_CARD, SAFE_DEFAULT_LINE, SAFETY_PROMISE, TABLES_VIEWS, type StartStepKey, type TourStopId } from '../lib/words';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat, type Chapter } from './beats';
 import { HAGGLE, HOLD, MISMATCH } from './helpers';
 
@@ -129,6 +129,14 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
     { in: 'main', text: 'Refurbished 27-inch 4K monitor' },
     { deal: HAGGLE, state: 'WITHDRAWN' },
   ],
+  // a module summary (polish A): the Tables tab with its answer, cards and Latest strip
+  'silence-tables': [
+    { window: 'main', open: true },
+    // the cards (labels are drawn as written; the kicker is upper-cased on screen)
+    { in: 'main', text: TABLES_VIEWS.tables },
+    { in: 'main', text: TABLES_VIEWS.closed },
+    { deal: HAGGLE, state: 'WITHDRAWN' },
+  ],
   'mismatch-agreed': [
     { in: 'main', text: 'Refurbished 27-inch QHD monitor' },
     { in: 'main', text: '$329.00' },
@@ -186,6 +194,13 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
     { in: 'main', text: 'USB-C dock for the test bench' },
     { deal: HOLD, state: 'AUTO_VOIDED' },
   ],
+  // the Rewind (polish A): the week by who decided, and the tape of every step
+  'end-rewind': [
+    { window: 'main', open: true },
+    { in: 'main', text: REWIND_CARD.owner },
+    { in: 'main', text: REWIND_CARD.default },
+    { deal: HOLD, state: 'AUTO_VOIDED' },
+  ],
   'end-safety': [
     { window: 'main', open: true },
     { in: 'main', text: 'Your safety record' },
@@ -204,10 +219,10 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
 
 /** The four getting-started steps on a brand-new wallet, as a window draws them: PayPal next, the
  *  agent app still to do on the practice agent, nothing done. The Table draws them as lines of its
- *  charter, under the charter's title (`charterSteps`); the Tumbler and the approval window as a
- *  list titled by the four steps. */
+ *  charter, under the charter's title (`charterSteps`); the Tumbler as a list titled by the four
+ *  steps, the approval window as a list under the charter's name (it counts no steps: polish A). */
 const FOUR_STEPS = (f: FrameName): Expect[] => [
-  { in: f, text: f === 'main' ? CHARTER_TITLE : FIRST_RUN_TITLE },
+  { in: f, text: f === 'main' ? CHARTER_TITLE : f === 'approval' ? APPROVAL_FIRST_RUN.title : FIRST_RUN_TITLE },
   { in: f, step: 'paypal', state: 'next' },
   { in: f, step: 'rules', state: 'done', absent: true },
   { in: f, step: 'practice', state: 'done', absent: true },

@@ -3,10 +3,14 @@
 // previews (?degrade=1, ?records=broken, ?forecast=off, ?groups=none, ?limits=none) are swept in the
 // browser on every layer (docs/build/rebuild/wp4a.md).
 import { act, cleanup, fireEvent, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { renderLayerAtScale } from './testing/scaleSmoke';
+import { staggerOff } from './stagger';
 
 vi.mock('../../../lib/runtime', async () => (await import('./testing/runtime')).runtimeMock);
+
+// Every wave in the first frame, as before the staggered reveal (stagger.tsx; its own tests turn it on).
+beforeAll(() => staggerOff());
 vi.mock('./areas/safety/SafetyLayer', () => ({
   SafetyLayer: () => { throw new Error('the safety layer broke'); },
 }));

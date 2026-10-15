@@ -16,33 +16,31 @@
 // Money: the main window only ever opens the approval window (approval_open).
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import type { Module } from '@bindings/Module';
-import type { TumblerStatus } from '@bindings/TumblerStatus';
-import { useEvent, useMutation, useNow } from '../../../lib/hooks';
+import { useEvent, useMutation } from '../../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../../lib/lazy';
 import {
-  BACK_TITLE, BOOK_TODAY, BRAND_NAME, CHARTER_TITLE, METERS, BRAND_TITLE, CALM, CRUMBS_LABEL, DETAIL_BACK, LOCK, MINI_WINDOW, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, PLACE, PLACE_TITLE, PLACES_LABEL,
-  SAFE_DEFAULT_LINE, SEAL_RING, sealLabel, SHORTCUTS_LABEL, silenceWords, tabTitle, tabWaiting, TABS_LABEL,
+  BACK_TITLE, BRAND_NAME, CHARTER_TITLE, BRAND_TITLE, CRUMBS_LABEL, DETAIL_BACK, LOCK, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, PLACE, PLACE_TITLE, PLACES_LABEL,
+  SEAL_RING, sealLabel, silenceWords, tabTitle, tabWaiting, TABS_LABEL,
 } from '../../../lib/words';
 import { formatCount } from '../../../lib/data/counts';
-import { formatMinor } from '../../../lib/format';
 import { Mark, Seal } from '../../../shared/brand';
-import { MockBadge, ModeBadge } from '../../../shared/honesty';
 import { Glyph, MODULE, MODULES } from '../../../shared/modules';
-import { Btn, Crumbs, InspectorHostProvider, layerCount, ModuleTab, Stack, TabStrip, ThemeSwitch, TOAST_MS, useInspectorHost, useToast } from '../../../shared/ui';
+import { Btn, InspectorHostProvider, layerCount, ModuleTab, Stack, TabStrip, TOAST_MS, useInspectorHost, useToast } from '../../../shared/ui';
 import { shortTitle } from '../home/model';
-import { formatHash, parseHash, receiptToast, resolveDealRef, sheetViewOf, spendToday, type Place, type Route, type SetupStep } from '../logic';
+import { formatHash, parseHash, receiptToast, resolveDealRef, sheetViewOf, type Place, type Route, type SetupStep } from '../logic';
 import type { PairMode } from '../setup/pairing';
 import { useSetupIntent, useStart } from '../setup/start';
 import { Shortcuts } from '../Shortcuts';
-import { StatusChips } from '../Status';
 import { LockGlyph } from '../ui';
 import { useViewLabel, viewLabel } from '../viewNav';
-import { useAttention, useDealLabels, useDeals, useLocked, useNeeds, useSettings, useWorldSelector, type World } from '../world';
-import { calmToggled, writeCalm } from './calm';
+import { useDealLabels, useDeals, useLocked, useNeeds, useWorldSelector, type World } from '../world';
 import type { CentreProps } from './Centre';
 import { currentIndex, cycle, orderQueue, presenceOf, putOff } from './centreModel';
 import { Find } from './Find';
+import { switchDemo } from './DemoSwitch';
+import { Footer } from './Footer';
 import type { FindTarget } from './findIndex';
+import { CrumbTrail } from './CrumbTrail';
 import { CentreHost, type CentreHostValue } from './layers/core';
 import { LayerHost, layerIdOf, placeFromRoute, type LayerNav, type LayerState } from './layers';
 import { LAYER_PARTS, layerOf } from './layers.registry';
@@ -50,7 +48,7 @@ import { useWatching } from './ledger';
 import { focusKeyOf, restoreLayer, type LayerMemory } from './memory';
 import { chainOf, isAncestor, moduleOfRoute, mountKey, parentOf, routeKey, sameLayer, type ChainCtx } from './route';
 import { StaleBanner } from './StaleBanner';
-import { paidTodayText, usePaidToday } from './areas/book/today';
+import { StaggerProvider } from './stagger';
 import './console.css';
 import './find.css';
 import './framework.css';
@@ -88,7 +86,6 @@ export function Console() {
   const deals = dealsQ.data;
   const labels = useDealLabels();
   const moduleOfDeal = useWorldSelector(selModuleOf);
-  const settings = useSettings().data;
   const start = useStart();
   const firstRun = start.show;
   const watching = useWatching();
@@ -210,7 +207,6 @@ export function Console() {
   const [help, setHelp] = useState(false);
   const [quit, setQuit] = useState(false);
   const [rewindAt, setRewindAt] = useState<number | null>(null);
-  const [tumbler, setTumbler] = useState<TumblerStatus | null>(null);
   const [paidFlash, setPaidFlash] = useState(false);
   useEffect(() => preloadWhenIdle(LATER_PARTS), []);
   useSetupIntent(useCallback((step) => go({ level: 'setup', step }), [go]));
@@ -247,6 +243,7 @@ export function Console() {
       case 'route': go(t.route); break;
       case 'setup': go({ level: 'setup', step: t.step }); break;
       case 'quit': setQuit(true); break;
+      case 'demo': switchDemo(t.state); break;
     }
   }, [go, goDeal, goModule, pickNeed]);
 
@@ -285,7 +282,6 @@ export function Console() {
     if (r.deal_id) go({ level: 'deal', deal: r.deal_id });
     else goHome();
   });
-  useEvent('tumbler:status', (s) => setTumbler(s));
   useEvent('wallet:error', (e) => toast(<>{e.message}</>, 'bad'));
   useEvent('receipt:created', (r) => {
     // Name the deal by what it is (ids belong in Details, UX-GUIDE).
@@ -345,7 +341,7 @@ export function Console() {
         <div className="cs-barl">
           <button type="button" className="cs-brand" onClick={goHome} title={BRAND_TITLE} aria-label={BRAND_TITLE}><Mark /><span>{BRAND_NAME}</span></button>
           {depth > 1 ? <button type="button" className="cs-back" onClick={back} title={BACK_TITLE}><span aria-hidden="true">‹</span> {DETAIL_BACK}</button> : null}
-          <Crumbs items={crumbs} label={CRUMBS_LABEL} depth={depth} />
+          <CrumbTrail items={crumbs} label={CRUMBS_LABEL} depth={depth} chainKey={chain.map(routeKey).join('>')} />
         </div>
         <nav className="cs-places" aria-label={PLACES_LABEL}>
           <button type="button" id="cs-needpill" className={`cs-needpill${queue.length ? '' : ' zero'}`} aria-label={needPillLabel(queue.length)}
@@ -361,49 +357,38 @@ export function Console() {
       </header>
       <StaleBanner />
       <InspectorHostProvider value={insp.value}>
-        <main className={`cs-stage${insp.open ? ' has-insp' : ''}`} ref={stageRef}>
-          <Stack label={route.level === 'home' && firstRun ? CHARTER_TITLE : def.title(route)} depth={pile} tone={toneOf(route, lit)} gold={centreRoute && queue.length > 1}
-            corner={depth > 1 && !def.ownSeal ? <Seal size="corner" state={presence.state} label={sealLabel(presence.word, presence.line)} ring={SEAL_RING} /> : undefined}
-            tabs={(
-              <div className="cs-tabrow" ref={tabRow}>
-                <TabStrip label={TABS_LABEL}>
-                  {MODULES.map((m, i) => {
-                    const waiting = queue.filter((n) => n.module === m.key).length;
-                    const count = !deals ? null : m.key === 'book' ? deals.length : deals.filter((d) => moduleOfDeal(d) === m.key).length;
-                    return (
-                      <ModuleTab key={m.key} id={`cs-tab-${m.key}`} active={lit === m.key} onSelect={() => goModule(m.key)} color={m.cssVar} icon={<Glyph module={m.key} />} controls={PANEL_ID}
-                        title={tabTitle(m.name, m.long, i + 1)}
-                        label={<>{m.name}<span className={`tt${count === null ? ' unknown' : ''}`}>{formatCount(count)}</span>
-                          {waiting ? <span className="cnt"><span aria-hidden="true">{formatCount(waiting)}</span><span className="sr-only">{tabWaiting(waiting)}</span></span> : null}</>} />
-                    );
-                  })}
-                </TabStrip>
-                <p className="cs-presence" aria-live="polite"><b>{presence.word}</b> · {presence.line}</p>
+        <StaggerProvider>
+          <main className={`cs-stage${insp.open ? ' has-insp' : ''}`} ref={stageRef}>
+            <Stack label={route.level === 'home' && firstRun ? CHARTER_TITLE : def.title(route)} depth={pile} tone={toneOf(route, lit)} gold={centreRoute && queue.length > 1}
+              corner={depth > 1 && !def.ownSeal ? <Seal size="corner" state={presence.state} label={sealLabel(presence.word, presence.line)} ring={SEAL_RING} /> : undefined}
+              tabs={(
+                <div className="cs-tabrow" ref={tabRow}>
+                  <TabStrip label={TABS_LABEL}>
+                    {MODULES.map((m, i) => {
+                      const waiting = queue.filter((n) => n.module === m.key).length;
+                      const count = !deals ? null : m.key === 'book' ? deals.length : deals.filter((d) => moduleOfDeal(d) === m.key).length;
+                      return (
+                        <ModuleTab key={m.key} id={`cs-tab-${m.key}`} active={lit === m.key} onSelect={() => goModule(m.key)} color={m.cssVar} icon={<Glyph module={m.key} />} controls={PANEL_ID}
+                          title={tabTitle(m.name, m.long, i + 1)}
+                          label={<>{m.name}<span className={`tt${count === null ? ' unknown' : ''}`}>{formatCount(count)}</span>
+                            {waiting ? <span className="cnt"><span aria-hidden="true">{formatCount(waiting)}</span><span className="sr-only">{tabWaiting(waiting)}</span></span> : null}</>} />
+                      );
+                    })}
+                  </TabStrip>
+                  <p className="cs-presence" aria-live="polite"><b>{presence.word}</b> · {presence.line}</p>
+                </div>
+              )}>
+              <div ref={layerRef} key={sheetKey} id={PANEL_ID} role={lit ? 'tabpanel' : undefined} aria-labelledby={lit ? `cs-tab-${lit}` : undefined} className="cs-layer" data-dir={nav.dir} data-level={route.level} data-layer={layerIdOf(route)} data-fit={def.fit ? '' : undefined}>
+                <CentreHost.Provider value={host}>
+                  <LayerHost def={def} route={route} nav={layerNav} state={layerState} resetKey={sheetKey} />
+                </CentreHost.Provider>
               </div>
-            )}>
-            <div ref={layerRef} key={sheetKey} id={PANEL_ID} role={lit ? 'tabpanel' : undefined} aria-labelledby={lit ? `cs-tab-${lit}` : undefined} className="cs-layer" data-dir={nav.dir} data-level={route.level} data-layer={layerIdOf(route)} data-fit={def.fit ? '' : undefined}>
-              <CentreHost.Provider value={host}>
-                <LayerHost def={def} route={route} nav={layerNav} state={layerState} resetKey={sheetKey} />
-              </CentreHost.Provider>
-            </div>
-          </Stack>
-          <aside className="ui-inspector cs-insp" ref={insp.ref} hidden={!insp.open} aria-label="Details" />
-        </main>
+            </Stack>
+            <aside className="ui-inspector cs-insp" ref={insp.ref} hidden={!insp.open} aria-label="Details" />
+          </main>
+        </StaggerProvider>
       </InspectorHostProvider>
-      <footer className="cs-foot">
-        {settings ? <ModeBadge mode={settings.mode} /> : null}
-        <MockBadge />
-        <StatusChips onSettings={() => barPlace('settings')} />
-        <TodayMeters />
-        <span className="ui-spacer" />
-        <span className="cs-promise"><Hourglass />{SAFE_DEFAULT_LINE}</span>
-        <span className="ui-spacer" />
-        <TumblerPill status={tumbler} />
-        <CalmToggle />
-        <ThemeSwitch className="cs-theme" />
-        <button type="button" className="cs-help" onClick={() => setHelp(true)} aria-label={SHORTCUTS_LABEL} title={`${SHORTCUTS_LABEL} (?)`}>?</button>
-        <Clock />
-      </footer>
+      <Footer onSettings={() => barPlace('settings')} onHelp={() => setHelp(true)} />
       {find ? <Find onClose={() => setFind(false)} onPick={onFind} /> : null}
       {help ? <Shortcuts onClose={() => setHelp(false)} /> : null}
       {quit ? <Suspense fallback={null}><QuitSheet onClose={() => setQuit(false)} /></Suspense> : null}
@@ -452,60 +437,3 @@ function LockButton() {
   );
 }
 
-/** Today's two meters, never one axis: money your agents paid out against the signed wallet limit
- *  (or what they committed), and the agent app's own estimate of its AI usage (never a bill). */
-function TodayMeters() {
-  const settings = useSettings().data;
-  const att = useAttention().data;
-  const deals = useDeals().data;
-  const needs = useNeeds();
-  const pt = usePaidToday(att?.exposure, deals, needs);
-  if (!settings) return null;
-  if (!(settings.meters_available || att?.exposure) || !att) return <span className="cs-chip dashed" title={METERS.noneTitle}>{METERS.none}</span>;
-  // Paid out today is money PayPal collected today, never a hold or an agreed payment (scale
-  // finding #9): the same set the Book's "paid out today" counts (console/areas/book/today.ts).
-  const sp = spendToday(att.wallet_spend_today_minor, att.wallet_spend_today_currency);
-  return (
-    <>
-      {pt ? (
-        <span className={`tb-meter${pt.near ? ' near' : ''}`} data-meter="paid-today"
-          title={BOOK_TODAY.title(pt.held ? formatMinor(pt.held.minor, pt.held.currency) : null, pt.committed ? formatMinor(pt.committed.minor, pt.committed.currency) : null, pt.budget ? formatMinor(pt.budget.minor, pt.budget.currency) : null, pt.limit ? formatMinor(pt.limit.minor, pt.limit.currency) : null)}>
-          <b>{paidTodayText(pt, BOOK_TODAY.nothing)}</b><span>{METERS.paidOut}</span>
-        </span>
-      ) : (
-        <span className={`tb-meter ${sp.exact ? '' : 'unknown'}`} title={sp.why ?? METERS.spentTitle}><b>{sp.text}</b><span>{METERS.spent}</span></span>
-      )}
-      {settings.meters_available ? (
-        <span className="tb-meter eng" title={METERS.aiTitle}><b>~${att.engine_estimate_today_usd.toFixed(2)}</b><span>{METERS.ai}</span></span>
-      ) : null}
-    </>
-  );
-}
-
-function TumblerPill({ status }: { status: TumblerStatus | null }) {
-  if (!status) return null;
-  return (
-    <span className={`cs-chip ${status.visible ? '' : 'dashed'}`} title={MINI_WINDOW.title}>
-      {MINI_WINDOW.name} · {status.visible ? MINI_WINDOW.shown : MINI_WINDOW.hidden}{status.count ? <> · <b>{status.count}</b> {MINI_WINDOW.waiting}</> : null}
-    </span>
-  );
-}
-
-function CalmToggle() {
-  const [on, setOn] = useState(calmToggled);
-  return (
-    <button type="button" className="cs-chip cs-calm" aria-pressed={on} title={CALM.title} onClick={() => { writeCalm(!on); setOn(!on); }}>
-      {CALM.label}
-    </button>
-  );
-}
-
-function Clock() {
-  const now = useNow();
-  const d = new Date(now * 1000);
-  return <span className="cs-clk">{d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} · {d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>;
-}
-
-function Hourglass() {
-  return <svg viewBox="0 0 12 14" aria-hidden="true" focusable="false"><path d="M2 1h8M2 13h8M3 1c0 4 6 4 6 6s-6 2-6 6M9 1c0 4-6 4-6 6s6 2 6 6" fill="none" stroke="currentColor" strokeWidth="1.1" /></svg>;
-}

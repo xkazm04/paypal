@@ -1087,3 +1087,4 @@ export * from './words/settings';
 export * from './words/safety';
 export * from './words/setup';
 export * from './words/approval';
+export * from './words/demo';
