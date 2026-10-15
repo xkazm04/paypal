@@ -7,7 +7,9 @@ import type { Currency } from '@bindings/Currency';
 import type { DealKind } from '@bindings/DealKind';
 import type { OpenMandate } from '@bindings/OpenMandate';
 import type { Role } from '@bindings/Role';
-import { MAX_MARKET_CHECKS_DAY, MAX_WATCHED_ITEMS, marketWatchRefusal, productValid } from '../../lib/marketWatch';
+import { CLAUSE_NUMBER, REASON_WORDS, ruleRefusals, type IncompleteClause } from '../../lib/mandateRules';
+import { MAX_MARKET_CHECKS_DAY, productValid } from '../../lib/marketWatch';
+import { RULE_NAME } from '../../lib/words';
 import { minorToInput, parseMoneyInput } from './model';
 
 export type ClauseDraft =
@@ -28,19 +30,19 @@ export type WatchDraft = { item: string; product: string };
 export type ClauseType = ClauseDraft['type'];
 
 export const CLAUSE_KINDS: ReadonlyArray<{ type: ClauseType; name: string; hint: string }> = [
-  { type: 'roles', name: 'What agents may do', hint: 'buy, sell, run your shop, rescue renewals' },
-  { type: 'counterparties', name: 'Who they deal with', hint: 'which wallets they may talk to' },
-  { type: 'per_deal', name: 'Limit per deal', hint: 'the most for any single deal' },
-  { type: 'band', name: 'Price range', hint: 'most you’ll pay, least you’ll accept (buyers need the first, sellers the second), and how many offers' },
-  { type: 'velocity', name: 'Daily limit', hint: 'deals and money per day' },
-  { type: 'human_present_over', name: 'Ask me above', hint: 'above this amount, you decide' },
-  { type: 'payees', name: 'Approved payees', hint: 'who agents may pay on their own' },
-  { type: 'lever', name: 'Fixes for failed renewals', hint: 'rescue only: the most a one-time discount on a missed cycle may take off' },
-  { type: 'market_watch', name: 'Keep prices fresh', hint: 'check typical prices for your items on its own, a set number of times a day; it never approves anything' },
+  { type: 'roles', name: RULE_NAME.roles, hint: 'buy, sell, run your shop, rescue renewals' },
+  { type: 'counterparties', name: RULE_NAME.counterparties, hint: 'which wallets they may talk to' },
+  { type: 'per_deal', name: RULE_NAME.per_deal, hint: 'the most for any single deal' },
+  { type: 'band', name: RULE_NAME.band, hint: 'most you’ll pay, least you’ll accept (buyers need the first, sellers the second), and how many offers' },
+  { type: 'velocity', name: RULE_NAME.velocity, hint: 'deals and money per day' },
+  { type: 'human_present_over', name: RULE_NAME.human_present_over, hint: 'above this amount, you decide' },
+  { type: 'payees', name: RULE_NAME.payees, hint: 'who agents may pay on their own' },
+  { type: 'lever', name: RULE_NAME.lever, hint: 'rescue only: the most a one-time discount on a missed cycle may take off' },
+  { type: 'market_watch', name: RULE_NAME.market_watch, hint: 'check typical prices for your items on its own, a set number of times a day; it never approves anything' },
 ];
 
-/** Rust's clause numbers (table-core Clause::number). */
-export const CLAUSE_NUMBER: Record<ClauseType, number> = { roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7, lever: 8, market_watch: 9 };
+/** Rust's clause numbers (table-core Clause::number), from the one mirror in lib/mandateRules. */
+export { CLAUSE_NUMBER };
 
 /** "20" or "12.5" → basis points (2000, 1250); null when it is not a percent above 0 and below 100. */
 export function percentToBp(s: string): number | null {
@@ -152,7 +154,7 @@ export type Built = { ok: true; clauses: Clause[]; notBefore: number; expires: n
 
 /** A draft clause that cannot be converted yet (an empty or malformed field). The preview shows
  *  its check as unknown; signing stays blocked until it converts. */
-export type Incomplete = { type: ClauseType; incomplete: true };
+export type Incomplete = IncompleteClause;
 export type DraftClause = Clause | Incomplete;
 export const isIncomplete = (c: DraftClause): c is Incomplete => 'incomplete' in c;
 
@@ -268,116 +270,18 @@ export function previewClauses(d: MandateDraft): DraftClause[] {
 export type RuleProblem = { clause: number; why: string };
 
 /**
- * A mirror of Rust's MandatePayload::validate (table-core mandate.rs) over the draft's clauses.
- * When any of these hold, Rust refuses to sign and check() refuses every intent. Incomplete
- * clauses are skipped (their field errors already block signing). Rust re-checks on sign.
+ * Why Rust's MandatePayload::validate would refuse the draft's clauses, in the editor's words
+ * (lib/mandateRules, the client's one mirror). When any hold, Rust refuses to sign and check()
+ * refuses every intent. Incomplete clauses are skipped (their field errors already block
+ * signing). Rust re-checks on sign.
  */
 export function ruleProblems(clauses: readonly DraftClause[], notBefore: number | null, expires: number | null): RuleProblem[] {
-  const out: RuleProblem[] = [];
-  const seen = new Set<number>();
-  const sorted = [...clauses].sort((a, b) => CLAUSE_NUMBER[a.type] - CLAUSE_NUMBER[b.type]);
-  for (const c of sorted) {
-    const n = CLAUSE_NUMBER[c.type];
-    if (seen.has(n)) out.push({ clause: n, why: 'it appears twice; there can be only one of each kind' });
-    seen.add(n);
-    if (isIncomplete(c)) continue;
-    switch (c.type) {
-      case 'roles':
-        if (!c.roles.length) out.push({ clause: 1, why: 'nothing is allowed' });
-        break;
-      case 'counterparties':
-        if (c.rule.type === 'pinned' && !c.rule.keys.length) out.push({ clause: 2, why: 'no wallets listed' });
-        break;
-      case 'per_deal':
-        if (!c.categories.length) out.push({ clause: 3, why: 'no categories' });
-        break;
-      case 'band':
-        if (!c.item_refs.length) out.push({ clause: 4, why: 'it names no item' });
-        if (c.max_rounds === 0) out.push({ clause: 4, why: 'it allows 0 offers' });
-        if (!c.floor && !c.ceiling) out.push({ clause: 4, why: 'it has no most-you’ll-pay and no least-you’ll-accept' });
-        if (expires !== null && c.deadline > expires) out.push({ clause: 4, why: 'it ends after the rules themselves end' });
-        if (notBefore !== null && c.deadline <= notBefore) out.push({ clause: 4, why: 'it ends before the rules start' });
-        break;
-      case 'velocity':
-        if (c.max_deals_day === 0) out.push({ clause: 5, why: 'it allows 0 deals a day' });
-        break;
-      case 'payees':
-        if (!c.payees.length) out.push({ clause: 7, why: 'no payees' });
-        break;
-      case 'lever':
-        if (c.max_discount_bp <= 0 || c.max_discount_bp >= 10000) out.push({ clause: 8, why: 'the discount must be above 0% and below 100%' });
-        if (c.max_discount.minor <= 0) out.push({ clause: 8, why: 'it allows no discount' });
-        break;
-      case 'market_watch': {
-        const why = marketWatchRefusal(c);
-        if (why) out.push({ clause: 9, why: REFUSAL_WORDS[why] ?? why });
-        break;
-      }
-      default:
-        break;
-    }
-  }
-  // Rescue is a set of rules of its own: the rescue job, "your own subscribers" and the fixes
-  // rule come together (Rust validate()).
-  const rolesClause = clauses.find((c): c is Extract<Clause, { type: 'roles' }> => c.type === 'roles' && !isIncomplete(c));
-  const rescue = !!rolesClause?.roles.includes('rescue');
-  const subscribers = clauses.some((c) => c.type === 'counterparties' && !isIncomplete(c) && c.rule.type === 'subscribers');
-  if (rescue !== seen.has(8)) out.push({ clause: 8, why: rescue ? 'rescuing renewals needs “Fixes for failed renewals”' : '“Fixes for failed renewals” is only for rescuing renewals' });
-  if (subscribers !== rescue || (rescue && (rolesClause?.roles.length ?? 0) !== 1)) {
-    out.push({ clause: 2, why: 'rescuing renewals deals only with your own subscribers, in rules of its own' });
-  }
-  for (const n of [1, 2, 3, 5, 6, 7]) {
-    if (seen.has(n)) continue;
-    const kind = CLAUSE_KINDS.find((k) => CLAUSE_NUMBER[k.type] === n);
-    out.push({ clause: n, why: `“${kind?.name ?? `rule ${n}`}” is required` });
-  }
-  const banded = clauses.some((c) => c.type === 'per_deal' && !isIncomplete(c) && (c.kind === 'haggle' || c.kind === 'shop_order'));
-  if (banded && !seen.has(4)) out.push({ clause: 4, why: 'haggles and shop orders need a price range' });
-  const roles = clauses.find((c): c is Extract<Clause, { type: 'roles' }> => c.type === 'roles' && !isIncomplete(c));
-  const perDeal = clauses.find((c): c is Extract<Clause, { type: 'per_deal' }> => c.type === 'per_deal' && !isIncomplete(c));
-  const band = clauses.find((c): c is Extract<Clause, { type: 'band' }> => c.type === 'band' && !isIncomplete(c));
-  if (roles && roles.roles.length && perDeal) {
-    const acting = roles.roles.filter((r) => roleActs(r, perDeal.kind));
-    if (!acting.length) {
-      out.push({ clause: 1, why: 'none of what you allowed agents to do fits this kind of deal, so nothing would ever be allowed' });
-    } else if (band && (band.floor || band.ceiling) && !acting.some((r) => (r === 'buy' ? band.ceiling : band.floor))) {
-      out.push({ clause: 4, why: acting.includes('buy') ? 'agents that buy need a most-you’ll-pay' : 'agents that sell need a least-you’ll-accept' });
-    }
-  }
-  return out;
+  return ruleRefusals(clauses, notBefore, expires).map(({ clause, why }) => ({ clause, why }));
 }
-
-/** Rust's validate() reasons in the editor's words, so no rule number or internal term shows. */
-const REFUSAL_WORDS: Record<string, string> = {
-  'invalid mandate version or validity': 'the end must be after the start',
-  'duplicate clause': 'a rule appears twice; there can be only one of each kind',
-  'empty roles': 'nothing is allowed',
-  'empty pinned keys': 'no wallets listed',
-  'empty categories': 'no categories',
-  'invalid band': 'the price range is incomplete or ends at the wrong time',
-  'invalid floor/ceiling': 'the least you’ll accept is above the most you’ll pay',
-  'empty velocity allowance': 'it allows 0 deals a day',
-  'empty payee allowance': 'no payees',
-  'required clause missing': 'a required rule is missing',
-  'currency differs across clauses': 'the amounts are in different currencies',
-  'band required for haggle and shop orders': 'haggles and shop orders need a price range',
-  'no role in the roles clause can act on the per-deal kind': 'none of what you allowed agents to do fits this kind of deal, so nothing would ever be allowed',
-  'band lacks the side the allowed roles use': 'agents that buy need a most-you’ll-pay, and agents that sell need a least-you’ll-accept',
-  'empty or repeated fix list': 'the fixes rule names no fix',
-  'only the discount this cycle is available': 'only a discount on one cycle can be offered for now',
-  'discount must be above 0% and below 100%': 'the discount must be above 0% and below 100%',
-  'empty discount allowance': 'it allows no discount',
-  'the rescue role and the fixes clause go together': 'rescuing renewals and “Fixes for failed renewals” go together',
-  'rescue deals only with your own subscribers, in a mandate of its own': 'rescuing renewals deals only with your own subscribers, in rules of its own',
-  'invalid market watch': `it names no item, or more than ${MAX_WATCHED_ITEMS}`,
-  'invalid price check allowance': `checks a day must be 1–${MAX_MARKET_CHECKS_DAY}`,
-  'invalid market product': 'a product code can only use letters, digits, - or _',
-  'item watched twice': 'an item is listed twice',
-};
 
 /** A REFUSED from mandate_sign or band_set ("mandate clause 4: …"), as one plain sentence. */
 export function refusalWords(message: string): string {
-  const why = REFUSAL_WORDS[message.replace(/^mandate clause \d+: /, '')];
+  const why = (REASON_WORDS as Record<string, string | undefined>)[message.replace(/^mandate clause \d+: /, '')];
   return why ? `These rules can’t be signed: ${why}.` : 'These rules can’t be signed: they don’t fit what the wallet accepts.';
 }
 
@@ -396,16 +300,6 @@ export function bandInputProblem(floor: { minor: number } | null | undefined, ce
   if (floor && ceiling && floor.minor > ceiling.minor) return 'The least you’ll accept can’t be higher than the most you’ll pay.';
   return null;
 }
-
-/** Mirror of Rust's role/side/kind pairing table: whether a role can act on a deal kind. */
-const roleActs = (role: Role, kind: DealKind): boolean => {
-  switch (role) {
-    case 'buy': return kind === 'purchase' || kind === 'haggle' || kind === 'invoice';
-    case 'sell': return kind === 'haggle' || kind === 'invoice';
-    case 'shop': return kind === 'shop_order';
-    case 'rescue': return kind === 'rescue';
-  }
-};
 
 /** Clause kinds the draft does not have yet (Rust allows one of each). */
 export function missingKinds(d: MandateDraft): ClauseType[] {

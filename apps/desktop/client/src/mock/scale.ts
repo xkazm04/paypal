@@ -36,7 +36,7 @@
 //   rescue: 150 failed renewals (20 need a fix, 6 invoices out, 124 closed), 20 watched subscriptions,
 //   1 shop-around group of 3 tables, 38 untrusted counterparty notes, 3 pending pairings
 //   money from $0.99 (a $0.80 invoice) to $48,000.00 · edge cases: a haggle with 40 rounds (80 transcript steps),
-//   one mandate with all nine clauses set, 8 counterparty names over the 32 characters a pairing
+//   one mandate with every clause but the rescue-only fixes, 8 counterparty names over the 32 characters a pairing
 //   allows, 60+ character item titles, notes of 300+ characters, markup and instructions in notes.
 //
 // Nothing here moves money: these are rows the mock serves, the same shapes Rust returns.
@@ -268,6 +268,7 @@ type MandateDef = {
   retired?: boolean;
   /** haggle band: most rounds the owner allowed. */
   maxRounds?: number;
+  /** The richest shop rule: every clause kind but the rescue-only fixes rule. */
   every?: boolean;
 };
 
@@ -792,7 +793,9 @@ export function buildScaleState(scale: Scale, now: number): MockState {
       clauses.push({ type: 'velocity', max_deals_day: large ? 40 : 12, max_total_day: usdM(shrink(large ? 6_000_000 : 90000)) });
       clauses.push({ type: 'human_present_over', amount: usdM(d.key === 'M2' ? 100000 : 25000) });
       clauses.push({ type: 'payees', payees: d.role === 'buy' && payeeList.length ? payeeList : [cfg.ownPayee] });
-      if (d.kind === 'rescue' || d.every) clauses.push({ type: 'lever', levers: d.every ? ['DISCOUNT_THIS_CYCLE', 'PAUSE', 'RETRY_AFTER_FIX', 'DOWNGRADE'] : ['DISCOUNT_THIS_CYCLE'], max_discount_bp: 2000, max_discount: usdM(500) });
+      // The fixes rule is the rescue mandate's own (the wallet refuses it on any other): the 'every'
+      // shop rule carries every other kind of rule.
+      if (d.kind === 'rescue') clauses.push({ type: 'lever', levers: ['DISCOUNT_THIS_CYCLE'], max_discount_bp: 2000, max_discount: usdM(500) });
       if (d.kind === 'haggle' || d.every) {
         const watched = items.slice(0, d.every ? 6 : 3).map((item_ref) => ({ item_ref, product_id: `mkt-${item_ref}` }));
         if (watched.length) clauses.push({ type: 'market_watch', items: watched, max_refreshes_day: d.every ? 24 : 12 });

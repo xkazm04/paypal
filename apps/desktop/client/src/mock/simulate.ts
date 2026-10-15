@@ -4,17 +4,13 @@
 // deal (crates/table-runtime/src/simulate.rs): kept minimal, and simulate.test.ts pins it to the
 // card's cases. A fact the mock does not hold (a category) makes the line not simulated.
 import type { Category } from '@bindings/Category';
-import type { Clause } from '@bindings/Clause';
 import type { Currency } from '@bindings/Currency';
 import type { Deal } from '@bindings/Deal';
-import type { DealKind } from '@bindings/DealKind';
 import type { MandatePayload } from '@bindings/MandatePayload';
-import type { Money } from '@bindings/Money';
 import type { Role } from '@bindings/Role';
-import type { Side } from '@bindings/Side';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import { exponent } from '../lib/format';
-import { marketWatchRefusal } from '../lib/marketWatch';
+import { CLAUSE_NUMBER as NUMBER, roleActs, validateRules } from '../lib/mandateRules';
 
 export type Refusal = { clause: number; reason: string };
 export type MockIntent = {
@@ -28,9 +24,6 @@ export type MockIntent = {
 };
 export type MockUsage = { dealsToday: number; totalToday: number };
 
-const NUMBER: Record<Clause['type'], number> = { roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7, lever: 8, market_watch: 9 };
-const MAX_SAFE = Number.MAX_SAFE_INTEGER;
-
 /** Money::decimal(): "11960.00". */
 function decimal(minor: number, currency: Currency): string {
   const exp = exponent(currency);
@@ -39,16 +32,6 @@ function decimal(minor: number, currency: Currency): string {
   return `${minor < 0 ? '-' : ''}${s.slice(0, -exp)}.${s.slice(-exp)}`;
 }
 
-/** role_acts in mandate.rs: the one table of which (role, side, kind) may act. */
-function roleActs(role: Role, side: Side, kind: DealKind): boolean {
-  switch (role) {
-    case 'buy': return side === 'buyer' && (kind === 'purchase' || kind === 'haggle' || kind === 'invoice');
-    case 'sell': return side === 'seller' && (kind === 'haggle' || kind === 'invoice');
-    case 'shop': return side === 'seller' && kind === 'shop_order';
-    case 'rescue': return side === 'seller' && kind === 'rescue';
-  }
-}
-const roleSide = (role: Role): Side => (role === 'buy' ? 'buyer' : 'seller');
 /** The role the wallet claims for a deal (table-app mandate_check_rounds). */
 export function roleOf(d: Deal): Role {
   if (d.side === 'buyer') return 'buy';
@@ -57,51 +40,11 @@ export function roleOf(d: Deal): Role {
   return 'sell';
 }
 
-/** MandatePayload::validate(), with Rust's own reasons. */
+/** MandatePayload::validate(), with Rust's own reasons: the first refusal of the client's one
+ *  mirror (lib/mandateRules), as Rust returns it. */
 export function mockValidate(p: MandatePayload): Refusal | null {
-  if (p.version === 0 || p.expires <= p.not_before || p.not_before < 0 || p.expires > MAX_SAFE) return { clause: 1, reason: 'invalid mandate version or validity' };
-  const seen = new Set<number>();
-  for (const c of [...p.clauses].sort((a, b) => NUMBER[a.type] - NUMBER[b.type])) {
-    const n = NUMBER[c.type];
-    if (seen.has(n)) return { clause: n, reason: 'duplicate clause' };
-    seen.add(n);
-    if (c.type === 'roles' && !c.roles.length) return { clause: 1, reason: 'empty roles' };
-    if (c.type === 'counterparties' && c.rule.type === 'pinned' && !c.rule.keys.length) return { clause: 2, reason: 'empty pinned keys' };
-    if (c.type === 'per_deal' && !c.categories.length) return { clause: 3, reason: 'empty categories' };
-    if (c.type === 'band') {
-      if (!c.item_refs.length || c.max_rounds === 0 || c.deadline > p.expires || c.deadline <= p.not_before || (!c.floor && !c.ceiling)) return { clause: 4, reason: 'invalid band' };
-      if (c.floor && c.ceiling && (c.floor.currency !== c.ceiling.currency || c.floor.minor > c.ceiling.minor)) return { clause: 4, reason: 'invalid floor/ceiling' };
-    }
-    if (c.type === 'velocity' && c.max_deals_day === 0) return { clause: 5, reason: 'empty velocity allowance' };
-    if (c.type === 'payees' && !c.payees.length) return { clause: 7, reason: 'empty payee allowance' };
-    if (c.type === 'market_watch') {
-      const why = marketWatchRefusal(c);
-      if (why) return { clause: 9, reason: why };
-    }
-  }
-  for (const n of [1, 2, 3, 5, 6, 7]) if (!seen.has(n)) return { clause: n, reason: 'required clause missing' };
-  let currency: Currency | null = null;
-  for (const c of p.clauses) {
-    const amounts: Money[] =
-      c.type === 'per_deal' ? [c.max_amount]
-        : c.type === 'band' ? [c.floor, c.ceiling].filter((m): m is Money => !!m)
-          : c.type === 'velocity' ? [c.max_total_day]
-            : c.type === 'human_present_over' ? [c.amount] : [];
-    for (const m of amounts) {
-      currency ??= m.currency;
-      if (m.currency !== currency) return { clause: NUMBER[c.type], reason: 'currency differs across clauses' };
-    }
-  }
-  const perDeal = p.clauses.find((c) => c.type === 'per_deal');
-  if (perDeal && (perDeal.kind === 'haggle' || perDeal.kind === 'shop_order') && !seen.has(4)) return { clause: 4, reason: 'band required for haggle and shop orders' };
-  const roles = p.clauses.find((c) => c.type === 'roles');
-  if (perDeal && roles) {
-    const acting = roles.roles.filter((r) => roleActs(r, roleSide(r), perDeal.kind));
-    if (!acting.length) return { clause: 1, reason: 'no role in the roles clause can act on the per-deal kind' };
-    const band = p.clauses.find((c) => c.type === 'band');
-    if (band && !acting.some((r) => (roleSide(r) === 'buyer' ? !!band.ceiling : !!band.floor))) return { clause: 4, reason: 'band lacks the side the allowed roles use' };
-  }
-  return null;
+  const bad = validateRules(p)[0];
+  return bad ? { clause: bad.clause, reason: bad.reason } : null;
 }
 
 /** MandatePayload::check() on one rebuilt intent, at the moment the payload is (or comes) in force. */

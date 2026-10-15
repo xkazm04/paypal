@@ -192,8 +192,10 @@ describe.each(SCALES)('%s world: invariants', (scale) => {
       expect(Math.max(...s.deals.map((d) => d.display.title.length))).toBeGreaterThanOrEqual(60);
       expect(s.deals.filter((d) => d.transcript.length >= 80).length).toBe(1);
       expect(Math.max(...s.deals.map((d) => d.transcript.filter((t) => t.by === 'you' && (t.typ === 'OFFER' || t.typ === 'COUNTER')).length))).toBe(40);
-      const every = s.mandates.find((m) => m.payload.clauses.length === 9);
-      expect(every && new Set(every.payload.clauses.map((c: Clause) => c.type)).size).toBe(9);
+      // The richest rule: every kind but the fixes rule, which belongs to rescue rules only.
+      const every = s.mandates.find((m) => m.payload.clauses.length === 8);
+      expect(every && new Set(every.payload.clauses.map((c: Clause) => c.type)).size).toBe(8);
+      expect(every?.payload.clauses.some((c: Clause) => c.type === 'lever')).toBe(false);
       expect(Math.max(...Object.values(s.notes ?? {}).map((n) => n.text.length))).toBeGreaterThan(300);
       const span = (s.audit ?? []).at(-1)!.at - (s.audit ?? [])[0]!.at;
       expect(span).toBeGreaterThan(85 * DAY);
