@@ -16,6 +16,8 @@ const PAGE_DEFAULT: usize = 50;
 const SCOREBOARD_HTML: &str = include_str!("scoreboard/index.html");
 const SCOREBOARD_CSS: &str = include_str!("scoreboard/scoreboard.css");
 const SCOREBOARD_JS: &str = include_str!("scoreboard/scoreboard.js");
+/// The head witness rules the page loads before its script (`TableWitness`).
+const WITNESS_JS: &str = include_str!("scoreboard/witness.js");
 /// The scoreboard loads only its own stylesheet and script and reads only this origin.
 const SCOREBOARD_CSP: &str = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 
@@ -107,4 +109,7 @@ pub(crate) async fn scoreboard_css() -> Response {
 }
 pub(crate) async fn scoreboard_js() -> Response {
     asset(SCOREBOARD_JS, "text/javascript; charset=utf-8")
+}
+pub(crate) async fn witness_js() -> Response {
+    asset(WITNESS_JS, "text/javascript; charset=utf-8")
 }
