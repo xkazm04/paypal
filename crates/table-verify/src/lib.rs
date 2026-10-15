@@ -5,6 +5,8 @@
 //! the owner key id so a checker can compare it with the one the owner shows them.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 pub mod acceptance;
+// The money-authority rule of AGENTS.md, once: the verifier and the safety predicate both judge here.
+pub mod authority;
 mod house;
 mod v2;
 // The whole-ledger money-authority predicate (ops-and-delivery-1): the gauntlet and the app share it.
@@ -12,9 +14,7 @@ pub mod safety;
 use ed25519_dalek::{Signature, VerifyingKey};
 pub use house::*;
 use serde_json::Value;
-use table_core::{
-    Clause, DealId, DealKind, DecidedBy, H256, KeyId, Mode, Side, canonical_bytes, invoice_id,
-};
+use table_core::{Clause, DealId, H256, KeyId, Mode, canonical_bytes, invoice_id};
 use table_proto::{
     Body, MemoryNonces, PROOF_FORMAT, PROOF_FORMAT_V1, ProofAuditRow, ProofBundle, VerifyContext,
     key_id, verify, verify_mandate_signature,
@@ -248,7 +248,7 @@ fn closed(bundle: &ProofBundle) -> Outcome {
                 record.attempt
             ));
         }
-        lawful(bundle, "create", &c.decided_by)
+        authority::rule(bundle, "create", &c.decided_by, None, false)
             .map_err(|e| format!("attempt {}: {e}", record.attempt))?;
     }
     let payee = if payees.is_some() {
@@ -264,95 +264,15 @@ fn closed(bundle: &ProofBundle) -> Outcome {
     ))
 }
 
-/// The three authorities AGENTS.md allows, judged from what the bundle can show.
-fn lawful(bundle: &ProofBundle, operation: &str, decided_by: &DecidedBy) -> Result<String, String> {
-    let deal = &bundle.deal;
-    let payload = &bundle.mandate.payload;
-    let open = || {
-        payload
-            .hash()
-            .map_err(|_| "mandate payload does not validate".to_owned())
-    };
-    match decided_by {
-        DecidedBy::SafeDefault { .. } if operation == "void" => Ok("safe default (void)".into()),
-        DecidedBy::SafeDefault { .. } => Err(format!("a safe default cannot {operation}")),
-        DecidedBy::Policy { clause: 6 } => {
-            let amount = deal.terms.amount().map_err(|e| e.to_string())?;
-            let under = payload.clauses.iter().any(|c| {
-                matches!(c, Clause::HumanPresentOver { amount: limit }
-                    if limit.currency() == amount.currency() && amount.minor() <= limit.minor())
-            });
-            if under {
-                Ok("owner-signed rule: clause 6, under the human-present threshold".into())
-            } else {
-                Err("clause 6 policy used above the human-present threshold".into())
-            }
-        }
-        DecidedBy::Policy { clause } => Err(format!("clause {clause} cannot authorise money")),
-        DecidedBy::Human { at } => {
-            if *at >= payload.not_before && *at <= bundle.exported_at {
-                Ok("owner decision in the approval window (recorded by the wallet)".into())
-            } else {
-                Err("owner decision time is outside the mandate's validity".into())
-            }
-        }
-        DecidedBy::SellerMandate { mandate_hash } => {
-            if deal.side == Side::Seller && *mandate_hash == open()? {
-                Ok("owner-signed seller mandate (buyer approved on PayPal)".into())
-            } else {
-                Err("seller-mandate authority does not match this seller's mandate".into())
-            }
-        }
-        DecidedBy::HouseMandate { mandate_hash } => {
-            if deal.side == Side::Seller
-                && deal.kind == DealKind::Haggle
-                && *mandate_hash == open()?
-            {
-                Ok("release-pinned house mandate (pin itself not in the bundle)".into())
-            } else {
-                Err("house authority does not match this deal's mandate".into())
-            }
-        }
-    }
-}
-
-fn operation_of(method: &str, path: &str) -> Option<&'static str> {
-    if method != "POST" {
-        return None;
-    }
-    let segments: Vec<&str> = path.trim_matches('/').split('/').collect();
-    match segments.as_slice() {
-        ["v2", "checkout", "orders"] => Some("create"),
-        ["v2", "checkout", "orders", _, "authorize"] => Some("authorize"),
-        ["v2", "payments", "authorizations", _, "capture"] => Some("capture"),
-        ["v2", "payments", "authorizations", _, "void"] => Some("void"),
-        // Subscription rescue: the owner's discount invoice (create, then send). A search is a read.
-        ["v2", "invoicing", "invoices"] => Some("invoice-create"),
-        ["v2", "invoicing", "invoices", _, "send"] => Some("invoice-send"),
-        ["v2", "invoicing", "search-invoices"] => None,
-        _ => Some("unclassified"),
-    }
-}
-
 fn authority(bundle: &ProofBundle) -> Outcome {
     let mut verdicts = Vec::new();
     for op in &bundle.operations {
-        // An invoice is a rescue fix only, and only the owner can send one (DECISIONS §13).
-        if op.operation.starts_with("invoice-")
-            && (bundle.deal.kind != DealKind::Rescue
-                || !matches!(op.decided_by, DecidedBy::Human { .. }))
-        {
-            return Err(format!(
-                "{} (attempt {}): an invoice needs the owner's decision on a rescue deal",
-                op.operation, op.attempt
-            ));
-        }
-        let why = lawful(bundle, &op.operation, &op.decided_by)
+        let why = authority::judge(bundle, op, authority::Reader::Verifier)
             .map_err(|e| format!("{} (attempt {}): {e}", op.operation, op.attempt))?;
         verdicts.push(format!("{}: {why}", op.operation));
     }
     for call in &bundle.paypal_calls {
-        let Some(kind) = operation_of(&call.method, &call.path) else {
+        let Some(kind) = authority::money_kind(&call.method, &call.path) else {
             continue;
         };
         if kind == "unclassified" {
@@ -648,32 +568,5 @@ pub fn verify_bundle(bundle: &ProofBundle) -> Report {
                 }
             })
             .collect(),
-    }
-}
-
-#[cfg(test)]
-mod operation_tests {
-    use super::operation_of;
-
-    #[test]
-    fn rescue_invoices_are_money_steps_and_the_search_is_a_read() {
-        assert_eq!(
-            operation_of("POST", "/v2/invoicing/invoices"),
-            Some("invoice-create")
-        );
-        assert_eq!(
-            operation_of("POST", "/v2/invoicing/invoices/INV2-ABCD/send"),
-            Some("invoice-send")
-        );
-        assert_eq!(operation_of("POST", "/v2/invoicing/search-invoices"), None);
-        assert_eq!(
-            operation_of("GET", "/v2/invoicing/invoices/INV2-ABCD"),
-            None
-        );
-        assert_eq!(
-            operation_of("POST", "/v2/invoicing/invoices/INV2-ABCD/cancel"),
-            Some("unclassified")
-        );
-        assert_eq!(operation_of("POST", "/v2/checkout/orders"), Some("create"));
     }
 }
