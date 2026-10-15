@@ -1,11 +1,12 @@
-//! The authority table: who may call each IPC command, written once (theme T11).
+//! The authority table: who may call each IPC command, written once (theme T11), and who is told
+//! each window event (`EVENTS`).
 //!
 //! This file is plain `const` data with no dependencies so the desktop shell's `build.rs` can
 //! include it by path for the Tauri command list. Everything else is derived from it: `COMMANDS`,
-//! `RELEASE_COMMANDS`, the three capability files, the browser mock's gate table
-//! (`bindings/authority.ts`), the runtime dispatcher's label / token / unlock / selected-deal gate
-//! and the manifest fingerprint in `get_settings`. Adding a command is one row here, then
-//! `cargo run -p table-client --bin generate-bindings`.
+//! `RELEASE_COMMANDS`, the three capability files, the browser mock's gate table and event
+//! delivery (`bindings/authority.ts`), the shell's one event emit, the runtime dispatcher's label /
+//! token / unlock / selected-deal gate and the manifest fingerprint in `get_settings`. Adding a
+//! command (or an event) is one row here, then `cargo run -p table-client --bin generate-bindings`.
 //!
 //! Never widen a row to make a test pass: a generator bug or a careless row widens a grant
 //! everywhere at once, which is why `table-client/src/authority.rs` also pins invariants that do
@@ -320,4 +321,48 @@ pub fn authority(command: &str) -> Option<&'static CommandAuthority> {
 /// Whether the command is granted to this window label. Unknown commands and labels: no.
 pub fn admits(command: &str, label: &str) -> bool {
     authority(command).is_some_and(|a| a.admits(label))
+}
+
+/// Who is told one window event: the event's name (its `EventContract` serde name) and every
+/// window it is sent to. Commands decide what a window may ASK; these rows decide what it is TOLD.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EventAudience {
+    pub name: &'static str,
+    pub labels: &'static [WindowLabel],
+}
+const fn event(name: &'static str, labels: &'static [WindowLabel]) -> EventAudience {
+    EventAudience { name, labels }
+}
+/// Main, the Tumbler and the approval window.
+const EVERYONE: &[WindowLabel] = &WindowLabel::ALL;
+
+/// Every window event and its audience: one row per `EventContract` field (the bindings test
+/// compares both directions). The shell sends each event to exactly these windows through one
+/// helper, the browser mock delivers by the generated `EVENT_AUDIENCE`, and the rows are part of
+/// the manifest fingerprint. Append new rows at the end; never reorder.
+#[rustfmt::skip]
+pub const EVENTS: &[EventAudience] = &[
+    event("tumbler:handoff",   TUMBLER),
+    // Agent runs, deals and pinned counterparties carry deal and counterparty detail: main only.
+    event("agent:changed",     MAIN),
+    event("settings:changed",  EVERYONE),
+    event("wallet:error",      ROUTE),
+    event("tumbler:visual",    TUMBLER),
+    event("tumbler:selected",  TUMBLER),
+    event("attention:changed", ROUTE),
+    event("deal:changed",      MAIN),
+    event("receipt:created",   ROUTE),
+    event("tumbler:orient",    TUMBLER),
+    event("tumbler:form",      TUMBLER),
+    // The Tumbler's state, reported to main's status line.
+    event("tumbler:status",    MAIN),
+    // The owner-review summary: the approval window only.
+    event("approval:summary",  APPROVAL),
+    event("main:route",        MAIN),
+    event("pairing:pinned",    MAIN),
+];
+
+/// The windows told this event, if it is one.
+pub fn event_audience(name: &str) -> Option<&'static [WindowLabel]> {
+    EVENTS.iter().find(|e| e.name == name).map(|e| e.labels)
 }
