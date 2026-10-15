@@ -1,0 +1,82 @@
+{
+  "schema": "conform-run/1",
+  "worker": "88deba77-7515-4568-af9e-0da0c4950a89",
+  "subject": "fleet-orchestration",
+  "evaluatedAt": "2026-10-15T22:09:13.430578+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [
+    {
+      "context": "offline-proof-verifier",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "crates/table-verify/src/main.rs:87 Context and repository searches found no fleet, hibernation or session_registry references, and the inspected entry points verify supplied proof files rather than orchestrating agent sessions.",
+      "techniques": [],
+      "absenceTerms": [
+        "fleet",
+        "hibernation"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "fleet-orchestration",
+      "context": "deal-detail",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "fleet-orchestration",
+      "context": "runtime-actor-and-engines",
+      "reason": "evidence leans on run.start/run.finish, which is not a tracked file"
+    },
+    {
+      "subject": "fleet-orchestration",
+      "context": "home-overview",
+      "reason": "withdrawn after review: reviewer (sonnet): AwayCard.tsx:32 is a useAway hook that reads 'last seen', and it doesn't show that no session roster is managed; Home.tsx and Start.tsx also have agent-app and engine_status UI that the evidence doesn't address."
+    },
+    {
+      "subject": "fleet-orchestration",
+      "context": "prototype-dial-shell-and-design-system",
+      "reason": "withdrawn after review: reviewer (sonnet): modules.js:65 is only the S state object and deal copying; the context's fixtures.js defines a roster of six named agents with engine claude-code and the prototype renders it, so the line doesn't show the precondition is absent."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-15T22:09:13.430578+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "fleet-orchestration"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "offline-proof-verifier",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-15T22:09:13.430578+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "fleet-orchestration"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "home-overview",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-15T22:09:13.430578+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "fleet-orchestration"
+      ],
+      "techniques": [],
+      "deviations": 0,
+      "context": "prototype-dial-shell-and-design-system",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}

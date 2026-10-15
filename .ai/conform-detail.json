@@ -1195,6 +1195,46 @@
           "evidence": "prompts/buyer-haggler.md:21 This definition is independently repeated at prompts/seller-counter.md:22 and restated at prompts/shopper.md:11-12; role prompts embed separate definitions instead of rendering one shared vocabulary authority."
         }
       ]
+    },
+    "3be5eb78-fe5d-4f61-ae53-ffceafebc9a6/fleet-orchestration": {
+      "context": "offline-proof-verifier",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T22:09:13.430Z",
+      "worker": "88deba77-7515-4568-af9e-0da0c4950a89",
+      "techniques": []
+    },
+    "e48f3567-2c9c-4ab3-9c0b-fe0c962e55bd/fleet-orchestration": {
+      "context": "home-overview",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T22:09:13.430Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "88deba77-7515-4568-af9e-0da0c4950a89",
+        "state": "not-applicable",
+        "at": "2026-10-15T22:10:10.819638+00:00",
+        "reason": "reviewer (sonnet): AwayCard.tsx:32 is a useAway hook that reads 'last seen', and it doesn't show that no session roster is managed; Home.tsx and Start.tsx also have agent-app and engine_status UI that the evidence doesn't address."
+      }
+    },
+    "ed618215-bf0a-4dfc-8c2c-3c3a805321b1/fleet-orchestration": {
+      "context": "prototype-dial-shell-and-design-system",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T22:09:13.430Z",
+      "techniques": [],
+      "withdrawn": {
+        "worker": "88deba77-7515-4568-af9e-0da0c4950a89",
+        "state": "not-applicable",
+        "at": "2026-10-15T22:10:10.845179+00:00",
+        "reason": "reviewer (sonnet): modules.js:65 is only the S state object and deal copying; the context's fixtures.js defines a roster of six named agents with engine claude-code and the prototype renders it, so the line doesn't show the precondition is absent."
+      }
     }
   }
 }

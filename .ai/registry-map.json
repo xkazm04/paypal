@@ -4882,7 +4882,11 @@
           "revision": 26,
           "changedAt": "2026-10-13",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-verify/src/main.rs:87 Context and repository searches found no fleet, hibernation or session_registry references, and the inspected entry points verify supplied proof files rather than orchestrating agent sessions.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:93bd71853ab468b1",
+          "evaluatedRevision": 28
         },
         {
           "subject": "audit-logging",
