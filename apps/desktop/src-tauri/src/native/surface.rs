@@ -253,14 +253,11 @@ pub(super) fn set_form(app: &AppHandle, form: Form) -> Result<(), CommandError> 
         placement.rect.y,
     ))
     .map_err(|_| invalid())?;
-    app.emit_to("tumbler", "tumbler:form", form)
-        .map_err(|_| invalid())?;
-    app.emit_to(
-        "tumbler",
-        "tumbler:orient",
-        OrientationEvent { form, placement },
-    )
-    .map_err(|_| invalid())?;
+    emit(app, WindowEvent::TumblerForm(&form))?;
+    emit(
+        app,
+        WindowEvent::TumblerOrient(&OrientationEvent { form, placement }),
+    )?;
     persist_surface(app)?;
     emit_status(app)?;
     Ok(())
@@ -269,10 +266,9 @@ pub(super) fn emit_status(app: &AppHandle) -> Result<(), CommandError> {
     let t = app.get_webview_window("tumbler").ok_or_else(invalid)?;
     let state = app.state::<DesktopState>();
     let form = state.surface.lock().map_err(|_| invalid())?.form;
-    app.emit_to(
-        "main",
-        "tumbler:status",
-        TumblerStatus {
+    emit(
+        app,
+        WindowEvent::TumblerStatus(&TumblerStatus {
             visible: t.is_visible().map_err(|_| invalid())?,
             form,
             count: state
@@ -281,9 +277,8 @@ pub(super) fn emit_status(app: &AppHandle) -> Result<(), CommandError> {
                 .map_err(|_| invalid())?
                 .as_ref()
                 .map_or(0, |s| u32::try_from(s.items.len()).unwrap_or(u32::MAX)),
-        },
+        }),
     )
-    .map_err(|_| invalid())
 }
 #[tauri::command]
 pub(super) fn tumbler_set_form(
