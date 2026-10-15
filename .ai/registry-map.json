@@ -4791,8 +4791,12 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "deviation",
+          "priorNotApplicable": 3,
+          "evidence": "crates/table-verify/src/acceptance.rs:260 The acceptance drift check reads the text extract rather than the authoritative HTML, so an HTML-only change can escape this check.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "supply-chain",
@@ -5064,8 +5068,12 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "deviation",
+          "priorNotApplicable": 3,
+          "evidence": "apps/desktop/client/src/windows/approval/templates.test.ts:26 The template test claims acceptance by every native pre-signing rule while checking a browser-side mirror, so native validator drift can leave that claim green.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "test-harness",
@@ -6074,8 +6082,12 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "deviation",
+          "priorNotApplicable": 3,
+          "evidence": "crates/table-runtime/src/authority_tests.rs:610 The check claiming every action names a registered command examines five manually selected actions, so an additional action outside that sample can escape the reverse mapping check.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "voice-io",
@@ -7087,8 +7099,12 @@
           "revision": 54,
           "changedAt": "2026-10-14",
           "confidence": "strong",
-          "state": "unknown",
-          "priorNotApplicable": 3
+          "state": "deviation",
+          "priorNotApplicable": 3,
+          "evidence": "crates/table-core/src/agent_tests.rs:325 The playbook vendor-name guard recognizes six literal tokens, allowing unlisted names or alternative spellings without identifying its result as a token-only floor.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:0d8378dd13155e59",
+          "evaluatedRevision": 54
         },
         {
           "subject": "agent-memory",

@@ -1608,6 +1608,105 @@
           "evidence": "apps/desktop/client/src/mock/fixtures.ts:1 Centralizes sandbox test scenario fixtures matching the design specification across all mock interactions."
         }
       ]
+    },
+    "3be5eb78-fe5d-4f61-ae53-ffceafebc9a6/quality-gates": {
+      "context": "offline-proof-verifier",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T23:51:05.619Z",
+      "worker": "dc7723cc-c4b4-4aa5-9006-f57a859f625b",
+      "techniques": [
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "crates/table-verify/src/acceptance_main.rs:14 An empty parsed test population produces a diagnostic and exit 2, rather than a clean acceptance result."
+        },
+        {
+          "technique": "instrument-answers-only-its-own-question",
+          "verdict": "conformant",
+          "evidence": "crates/table-verify/src/lib.rs:564 The CLI prints this explicit limit instead of representing bundle verification as proof of ledger completeness."
+        },
+        {
+          "technique": "match-the-resolved-artifact",
+          "verdict": "deviation",
+          "evidence": "crates/table-verify/src/acceptance.rs:260 AGENTS.md makes the HTML authoritative; the drift test consumes an intermediate extract, and the inspected scripts and CI do not reconcile that extract with the HTML."
+        },
+        {
+          "technique": "policy-projection",
+          "verdict": "conformant",
+          "evidence": "crates/table-verify/src/acceptance.rs:171 The Markdown summary obtains its missing obligations from the same evaluator the CLI uses to decide failure."
+        },
+        {
+          "technique": "severity-by-construction",
+          "verdict": "conformant",
+          "evidence": "crates/table-verify/src/main.rs:95 The report's verification result reaches verdict(), which returns exit 1 for an unverified bundle."
+        },
+        {
+          "technique": "unmeasurable-criteria",
+          "verdict": "conformant",
+          "evidence": "crates/table-verify/src/lib.rs:53 Inapplicable checks do not block, while applicable checks lacking comparison evidence remain unsuccessful and prevent verification."
+        }
+      ]
+    },
+    "7fde48d9-00af-4ebc-868e-cb93d7cdedfd/quality-gates": {
+      "context": "owner-mandate-config",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T23:51:05.619Z",
+      "worker": "dc7723cc-c4b4-4aa5-9006-f57a859f625b",
+      "techniques": [
+        {
+          "technique": "instrument-answers-only-its-own-question",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/templates.test.ts:26 The test title claims every wallet pre-signing rule; this assertion runs mockValidate, not MandatePayload::validate(), and no template-to-native parity test was found by the targeted search."
+        }
+      ]
+    },
+    "93ab9629-27c8-4024-bd9e-06c9761ea24d/quality-gates": {
+      "context": "spend-firewall-and-agent-policy",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T23:51:05.619Z",
+      "worker": "dc7723cc-c4b4-4aa5-9006-f57a859f625b",
+      "techniques": [
+        {
+          "technique": "renameable-detector-keys",
+          "verdict": "deviation",
+          "evidence": "crates/table-core/src/agent_tests.rs:325 The adjacent rule says no vendor or product names, but the detector matches an author-changeable token list and neither declares that limited predicate nor names complementary review."
+        }
+      ]
+    },
+    "065d4555-d9ad-478c-b637-3d8eb494f76c/quality-gates": {
+      "context": "runtime-actor-and-engines",
+      "subject": "quality-gates",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T23:51:05.619Z",
+      "worker": "dc7723cc-c4b4-4aa5-9006-f57a859f625b",
+      "techniques": [
+        {
+          "technique": "gate-liveness",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/authority_tests.rs:599 The authority matrix asserts a substantial evaluated population, alongside mismatches and forbidden-token/window cases, preventing an empty matrix from passing."
+        },
+        {
+          "technique": "instrument-answers-only-its-own-question",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/authority_tests.rs:55 The matrix deliberately classifies authority admission separately from subsequent business-operation success, matching its stated question."
+        },
+        {
+          "technique": "self-reported-gate-inputs",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/authority_tests.rs:610 This purported every-action check uses a handwritten five-action population; the separate AUTHORITY-driven matrix cannot discover an action whose command is absent from AUTHORITY."
+        }
+      ]
     }
   }
 }
