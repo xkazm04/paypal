@@ -1,0 +1,396 @@
+{
+  "schema": "conform-run/1",
+  "worker": "82872bcb-a2f5-4efd-9286-36bd53ac76da",
+  "subject": "agent-memory",
+  "evaluatedAt": "2026-10-15T00:48:08.531441+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [
+    {
+      "context": "spend-firewall-and-agent-policy",
+      "subject": "agent-memory",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "crates/table-core/src/agent.rs:223 The agent-facing projection silently drops signed history beyond the newest 64 steps without an in-band notice naming the omitted content, count and cause.",
+      "techniques": [
+        {
+          "technique": "addresses-before-compression",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:212 Projects signed steps rather than merging memory items."
+        },
+        {
+          "technique": "addresses-not-atoms",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:215 Step granularity follows signed protocol events, not a knowledge-store design."
+        },
+        {
+          "technique": "baseline-ladder",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:563 Fixed role behavior; no memory-pipeline score or cost claim found."
+        },
+        {
+          "technique": "consolidation",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:215 Typed event projection performs no episode-to-belief judgment."
+        },
+        {
+          "technique": "container-carries-decision-status",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:218 Copies typed signed actions; does not extract decisions from planning documents."
+        },
+        {
+          "technique": "coverage-instrumentation",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:318 Measures current tool eligibility, not knowledge coverage."
+        },
+        {
+          "technique": "cross-context-promotion",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:563 Compiled playbook, not lessons promoted between stores."
+        },
+        {
+          "technique": "decay-and-forgetting",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:223 This is a read-window cut, not governed retirement of stored beliefs."
+        },
+        {
+          "technique": "diagnosis-withheld-from-the-executor",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:563 No experience-driven playbook revision loop found."
+        },
+        {
+          "technique": "durable-store-failure-posture",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:215 Projection accepts typed inputs; it does not parse or overwrite a memory artifact."
+        },
+        {
+          "technique": "episodic-capture",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:218 Signed financial steps remain source records, not distilled memory episodes."
+        },
+        {
+          "technique": "filter-at-the-id-door",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:215 No model-selected shortlist of memory IDs."
+        },
+        {
+          "technique": "gap-directed-elicitation",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:563 No memory-coverage gap triggers questioning."
+        },
+        {
+          "technique": "lane-reconciliation",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:215 No memory record/index fan-out in these policy modules."
+        },
+        {
+          "technique": "loss-site-inventory",
+          "verdict": "deviation",
+          "evidence": "crates/table-core/src/agent.rs:223 Drops older stored steps without omission metadata; the 100-step test exercises the cut, and role prompts describe history as every signed step."
+        },
+        {
+          "technique": "memory-governance",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:563 Role instructions are compiled in; no experience-derived belief-write lane found."
+        },
+        {
+          "technique": "memory-value-model",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:223 Selects a chronological window, with no recall/retirement value model."
+        },
+        {
+          "technique": "observation-clock",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:220 Copies event timestamps without distilling relative temporal claims."
+        },
+        {
+          "technique": "owner-and-counterpart-scope",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:279 Counterparty is a typed deal label, not a memory-owner/counterpart namespace."
+        },
+        {
+          "technique": "pending-beliefs-live-apart",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:308 Pending signed offers are protocol state, not proposed beliefs."
+        },
+        {
+          "technique": "probe-without-write-back",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:223 No recall-usage feedback or scheduled memory probe found."
+        },
+        {
+          "technique": "procedure-promotion",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:564 Hand-authored compiled procedure, not promotion from observed recurrence."
+        },
+        {
+          "technique": "read-set-bounded-links",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:215 No model-authored links between memories."
+        },
+        {
+          "technique": "rejected-revision-leaves-its-evidence",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:564 No learned-procedure proposal, rollback or diagnostic-memory loop found."
+        },
+        {
+          "technique": "rollup-compaction",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:223 Drops a read prefix without generating a superseding rollup."
+        },
+        {
+          "technique": "scope-before-similarity",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:215 No similarity-based memory grouping or distillation."
+        },
+        {
+          "technique": "self-trained-capture-filter",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:215 No learned pre-distillation screen."
+        },
+        {
+          "technique": "stale-served-versus-stale-answered",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/agent.rs:218 Historical signed actions are not superseded belief versions."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "agent-memory",
+      "context": "tumbler-window",
+      "reason": "withdrawn after review: reviewer (sonnet): Each not-applicable anchor is an incidental UI line (an attention_list fetch at Tumbler.tsx:212, an approval_summary fetch at DealReview.tsx:85, runActions at Director.tsx:252, tourView at tour.tsx:99) that shows what the line does but not that no agent-memory/knowledge-store precondition exists; th"
+    },
+    {
+      "subject": "agent-memory",
+      "context": "deal-review",
+      "reason": "withdrawn after review: reviewer (sonnet): Each not-applicable anchor is an incidental UI line (an attention_list fetch at Tumbler.tsx:212, an approval_summary fetch at DealReview.tsx:85, runActions at Director.tsx:252, tourView at tour.tsx:99) that shows what the line does but not that no agent-memory/knowledge-store precondition exists; th"
+    },
+    {
+      "subject": "agent-memory",
+      "context": "director-preview-stories",
+      "reason": "withdrawn after review: reviewer (sonnet): Each not-applicable anchor is an incidental UI line (an attention_list fetch at Tumbler.tsx:212, an approval_summary fetch at DealReview.tsx:85, runActions at Director.tsx:252, tourView at tour.tsx:99) that shows what the line does but not that no agent-memory/knowledge-store precondition exists; th"
+    },
+    {
+      "subject": "agent-memory",
+      "context": "shared-surfaces-onboarding-honesty",
+      "reason": "withdrawn after review: reviewer (sonnet): Each not-applicable anchor is an incidental UI line (an attention_list fetch at Tumbler.tsx:212, an approval_summary fetch at DealReview.tsx:85, runActions at Director.tsx:252, tourView at tour.tsx:99) that shows what the line does but not that no agent-memory/knowledge-store precondition exists; th"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-15T00:48:08.531441+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-memory"
+      ],
+      "techniques": [
+        "addresses-before-compression",
+        "addresses-not-atoms",
+        "baseline-ladder",
+        "consolidation",
+        "container-carries-decision-status",
+        "coverage-instrumentation",
+        "cross-context-promotion",
+        "decay-and-forgetting",
+        "diagnosis-withheld-from-the-executor",
+        "durable-store-failure-posture",
+        "episodic-capture",
+        "filter-at-the-id-door",
+        "gap-directed-elicitation",
+        "lane-reconciliation",
+        "loss-site-inventory",
+        "memory-governance",
+        "memory-value-model",
+        "observation-clock",
+        "owner-and-counterpart-scope",
+        "pending-beliefs-live-apart",
+        "probe-without-write-back",
+        "procedure-promotion",
+        "read-set-bounded-links",
+        "recall-injection",
+        "rejected-revision-leaves-its-evidence",
+        "rollup-compaction",
+        "scope-before-similarity",
+        "self-trained-capture-filter",
+        "stale-served-versus-stale-answered",
+        "working-memory"
+      ],
+      "deviations": 0,
+      "context": "tumbler-window",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-15T00:48:08.531441+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-memory"
+      ],
+      "techniques": [
+        "addresses-before-compression",
+        "addresses-not-atoms",
+        "baseline-ladder",
+        "consolidation",
+        "container-carries-decision-status",
+        "coverage-instrumentation",
+        "cross-context-promotion",
+        "decay-and-forgetting",
+        "diagnosis-withheld-from-the-executor",
+        "durable-store-failure-posture",
+        "episodic-capture",
+        "filter-at-the-id-door",
+        "gap-directed-elicitation",
+        "lane-reconciliation",
+        "loss-site-inventory",
+        "memory-governance",
+        "memory-value-model",
+        "observation-clock",
+        "owner-and-counterpart-scope",
+        "pending-beliefs-live-apart",
+        "probe-without-write-back",
+        "procedure-promotion",
+        "read-set-bounded-links",
+        "recall-injection",
+        "rejected-revision-leaves-its-evidence",
+        "rollup-compaction",
+        "scope-before-similarity",
+        "self-trained-capture-filter",
+        "stale-served-versus-stale-answered",
+        "working-memory"
+      ],
+      "deviations": 0,
+      "context": "deal-review",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-15T00:48:08.531441+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-memory"
+      ],
+      "techniques": [
+        "addresses-before-compression",
+        "addresses-not-atoms",
+        "baseline-ladder",
+        "consolidation",
+        "container-carries-decision-status",
+        "coverage-instrumentation",
+        "cross-context-promotion",
+        "decay-and-forgetting",
+        "diagnosis-withheld-from-the-executor",
+        "durable-store-failure-posture",
+        "episodic-capture",
+        "filter-at-the-id-door",
+        "gap-directed-elicitation",
+        "lane-reconciliation",
+        "loss-site-inventory",
+        "memory-governance",
+        "memory-value-model",
+        "observation-clock",
+        "owner-and-counterpart-scope",
+        "pending-beliefs-live-apart",
+        "probe-without-write-back",
+        "procedure-promotion",
+        "read-set-bounded-links",
+        "rejected-revision-leaves-its-evidence",
+        "rollup-compaction",
+        "scope-before-similarity",
+        "self-trained-capture-filter",
+        "stale-served-versus-stale-answered"
+      ],
+      "deviations": 1,
+      "context": "spend-firewall-and-agent-policy",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-15T00:48:08.531441+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-memory"
+      ],
+      "techniques": [
+        "addresses-before-compression",
+        "addresses-not-atoms",
+        "baseline-ladder",
+        "consolidation",
+        "container-carries-decision-status",
+        "coverage-instrumentation",
+        "cross-context-promotion",
+        "decay-and-forgetting",
+        "diagnosis-withheld-from-the-executor",
+        "durable-store-failure-posture",
+        "episodic-capture",
+        "filter-at-the-id-door",
+        "gap-directed-elicitation",
+        "lane-reconciliation",
+        "loss-site-inventory",
+        "memory-governance",
+        "memory-value-model",
+        "observation-clock",
+        "owner-and-counterpart-scope",
+        "pending-beliefs-live-apart",
+        "probe-without-write-back",
+        "procedure-promotion",
+        "read-set-bounded-links",
+        "recall-injection",
+        "rejected-revision-leaves-its-evidence",
+        "rollup-compaction",
+        "scope-before-similarity",
+        "self-trained-capture-filter",
+        "stale-served-versus-stale-answered",
+        "working-memory"
+      ],
+      "deviations": 0,
+      "context": "director-preview-stories",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-15T00:48:08.531441+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-memory"
+      ],
+      "techniques": [
+        "addresses-before-compression",
+        "addresses-not-atoms",
+        "baseline-ladder",
+        "consolidation",
+        "container-carries-decision-status",
+        "coverage-instrumentation",
+        "cross-context-promotion",
+        "decay-and-forgetting",
+        "diagnosis-withheld-from-the-executor",
+        "durable-store-failure-posture",
+        "episodic-capture",
+        "filter-at-the-id-door",
+        "gap-directed-elicitation",
+        "lane-reconciliation",
+        "loss-site-inventory",
+        "memory-governance",
+        "memory-value-model",
+        "observation-clock",
+        "owner-and-counterpart-scope",
+        "pending-beliefs-live-apart",
+        "probe-without-write-back",
+        "procedure-promotion",
+        "read-set-bounded-links",
+        "recall-injection",
+        "rejected-revision-leaves-its-evidence",
+        "rollup-compaction",
+        "scope-before-similarity",
+        "self-trained-capture-filter",
+        "stale-served-versus-stale-answered",
+        "working-memory"
+      ],
+      "deviations": 0,
+      "context": "shared-surfaces-onboarding-honesty",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}
