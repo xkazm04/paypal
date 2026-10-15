@@ -179,6 +179,95 @@ impl Action {
             | Action::Handoff(_) => return None,
         })
     }
+    /// True for an action that changes nothing the publish pass shows except through a ledger
+    /// write, which the actor sees in `Ledger::write_count`: a read, or a read that also writes
+    /// rows (the attention read records its rungs). The actor runs no publish pass after one
+    /// unless the ledger moved. Everything else (a keychain write, the house state, the
+    /// engine, pause and resume, every money step) publishes before the next reply, as it
+    /// always did. The match is exhaustive, so a new action is classified when it is added,
+    /// and `false` is the safe answer.
+    pub(crate) fn reads_only(&self) -> bool {
+        match self {
+            Action::Settings
+            | Action::ListDeals
+            | Action::Deal(_)
+            | Action::Evidence(_)
+            | Action::Attention
+            | Action::Summary(_)
+            | Action::ApprovalSelection
+            | Action::Display(_)
+            | Action::Transcript(_)
+            | Action::Counterparties
+            | Action::CounterpartyNote(_)
+            | Action::ApprovalHandoff
+            | Action::AuditPage(_)
+            | Action::OwnerFacts
+            | Action::BookQuery(_)
+            | Action::ApprovalPairing
+            | Action::Runs
+            | Action::Mandates
+            | Action::QuitSummary
+            | Action::ExportProof(_)
+            | Action::DealHistory(_)
+            | Action::Simulate(_)
+            | Action::EnvelopeGet
+            | Action::RescueBook
+            | Action::Groups
+            | Action::SafetyRecord => true,
+            // Tier Read, but it writes PayPal's statement match and can move the deal to
+            // RECONCILED: kept out on principle, though the write count would catch it.
+            Action::Reconcile(_)
+            // The OS keychain, with no ledger row the actor could count on.
+            | Action::Credentials(_)
+            | Action::CheckPrivilege
+            | Action::Token
+            | Action::Select(_)
+            | Action::SelectPairing(_)
+            | Action::OpenApproval(_)
+            | Action::ClaimNotification { .. }
+            | Action::ReleaseNotification { .. }
+            | Action::NotificationShown { .. }
+            | Action::NotificationSuppressed { .. }
+            | Action::CardOpened(_)
+            | Action::Engine(_)
+            | Action::Engines
+            | Action::Start(_)
+            | Action::MarketPrepare(_)
+            | Action::MarketStore(..)
+            | Action::Resume
+            | Action::Sign(_)
+            | Action::Revoke(_)
+            | Action::Band(_)
+            | Action::PairCreate(_)
+            | Action::HouseOffer(_)
+            | Action::HousePair(_)
+            // In-memory house state, no ledger write.
+            | Action::HouseStatus(_)
+            | Action::PairJoin(_)
+            | Action::PairPoll(_)
+            | Action::PairOffer(_)
+            | Action::PairWire(_)
+            | Action::PairConfirm(_)
+            | Action::PairAbort(_)
+            | Action::HouseWake
+            | Action::Preferences(_)
+            | Action::Withdraw(_)
+            | Action::LetLapse(_)
+            | Action::Snooze(_)
+            | Action::Decision(..)
+            | Action::Create(_)
+            | Action::Join(_)
+            | Action::Pause
+            | Action::QuitConfirm(_)
+            | Action::Handoff(_)
+            | Action::EnvelopeSign(_)
+            | Action::RescueReplay(_)
+            | Action::GroupOpen(_)
+            | Action::RescueWatchAdd(_)
+            | Action::RescueWatchStop(_)
+            | Action::CounterpartyRevoke(_) => false,
+        }
+    }
     /// The deal an action names, for the table's selected-deal column.
     pub(crate) fn deal(&self) -> Option<DealId> {
         match self {
@@ -253,6 +342,26 @@ pub(crate) enum Message {
         Box<crate::market_watch::WatchJob>,
         Result<MarketRef, table_market::Error>,
     ),
+}
+impl Message {
+    /// True for a message whose only effect on what the publish pass shows is a ledger write
+    /// (caught by `Ledger::write_count`) or a run's in-memory state (diffed after every
+    /// message): a read-only action, an agent's tool call, a refused tool call, a streamed
+    /// engine event. Every other message (the unlock, the MCP attachment, a run's end, relay,
+    /// witness and market answers) runs the pass as before.
+    pub(crate) fn quiet(&self) -> bool {
+        match self {
+            Message::Execute(_, action, _) => action.reads_only(),
+            Message::Agent(..) | Message::AgentRefused(..) | Message::Engine(..) => true,
+            Message::RelayFinished(_)
+            | Message::WitnessFinished(_)
+            | Message::EngineFinished(..)
+            | Message::AttachMcp(..)
+            | Message::BeginUnlock(..)
+            | Message::FinishUnlock(..)
+            | Message::MarketWatched(..) => false,
+        }
+    }
 }
 /// Created only after the injected OS verifier succeeds, and never deserializable.
 pub(crate) struct VerifiedReauth;
@@ -448,16 +557,21 @@ async fn run(
     mut receiver: mpsc::Receiver<Message>,
     events: broadcast::Sender<WalletEvent>,
 ) {
-    let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
+    #[cfg(not(test))]
+    let tick = std::time::Duration::from_secs(1);
+    #[cfg(test)]
+    let tick = runtime.publish_tick;
+    let mut interval = tokio::time::interval(tick);
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-    let mut previous = Vec::<Deal>::new();
-    let mut attention = None;
-    let mut attention_faulted = false;
-    let mut settings_previous = None;
+    let mut published = Published::default();
     let mut runs_previous = Vec::<RunSnapshot>::new();
+    // The ledger's write count when the last pass ended; None until the first pass.
+    let mut published_at = None;
     loop {
+        // Every message publishes unless it is quiet; a quiet one only when the ledger moved.
+        let mut quiet = false;
         tokio::select! {
-            message=receiver.recv()=>match message{
+            message=receiver.recv()=>{quiet=message.as_ref().is_some_and(Message::quiet); match message{
                 Some(Message::Execute(caller,action,reply))=>{let _=reply.send(runtime.execute(caller,*action).await); for event in runtime.emitted.drain(..){let _=events.send(event);}},
                 Some(Message::BeginUnlock(caller,reply))=>{let _=reply.send(if table_client::authority::admits("unlock",&caller.label){runtime.pipeline.approval.begin_unlock(&caller.label,caller.token.as_deref().unwrap_or("")).map_err(Into::into)}else{Err(crate::permission())});},
                 Some(Message::FinishUnlock(caller,generation,proof,reply))=>{let _=reply.send(runtime.pipeline.approval.finish_unlock(&caller.label,caller.token.as_deref().unwrap_or(""),generation,&proof,runtime.clock.now()).map_err(Into::into));},
@@ -466,81 +580,23 @@ async fn run(
                 Some(Message::WitnessFinished(fetch))=>{if let Err(error)=runtime.witness_finished(*fetch){let _=events.send(WalletEvent::Fault(error));}},
                 Some(Message::Agent(run,scope,request,reply))=>{let _=reply.send(runtime.agent_intent(run,&scope,request));},
                 Some(Message::AgentRefused(scope,tool,code,reply))=>{let now=runtime.clock.now(); let _=reply.send(table_app::AgentService::record_refusal(&mut runtime.pipeline.wallet,&scope,&tool,code,now));},
-                Some(Message::Engine(run,event))=>{match runtime.engine_event(run,event){Ok(Some(snapshot))=>{let _=events.send(WalletEvent::Agent(snapshot));},Ok(None)=>{},Err(error)=>{let _=runtime.finish_run(run,RunState::Failed); let _=events.send(WalletEvent::Fault(error));}}},
+                Some(Message::Engine(run,event))=>{match runtime.engine_event(run,event){Ok(Some(snapshot))=>{let _=events.send(WalletEvent::Agent(snapshot));},Ok(None)=>{},Err(error)=>{quiet=false; let _=runtime.finish_run(run,RunState::Failed); let _=events.send(WalletEvent::Fault(error));}}},
                 Some(Message::EngineFinished(run,result))=>{let state=if matches!(result,Ok(table_engine::TerminalVerdict::Clean)){RunState::Clean}else{RunState::Failed}; match runtime.finish_run(run,state){Ok(Some(snapshot))=>{let _=events.send(WalletEvent::Agent(snapshot));},Ok(None)=>{},Err(error)=>{let _=events.send(WalletEvent::Fault(error));}}},
                 Some(Message::MarketWatched(job,result))=>{if let Err(error)=runtime.market_watched(*job,result){let _=events.send(WalletEvent::Fault(error));}},
                 None=>break,
-            },
+            }},
             _=interval.tick()=>{
                 if let Err(error)=runtime.start_relay(){let _=events.send(WalletEvent::Fault(error));}
                 if let Err(error)=runtime.start_witness(){let _=events.send(WalletEvent::Fault(error));}
                 if let Err(error)=runtime.tick().await{let _=events.send(WalletEvent::Fault(error));}
             },
         }
-        if let Ok(deals) = runtime.pipeline.wallet.ledger.list_deals() {
-            for deal in &deals {
-                let old = previous.iter().find(|d| d.id == deal.id);
-                if old.and_then(|d| serde_json::to_string(d).ok())
-                    != serde_json::to_string(deal).ok()
-                {
-                    let _ = events.send(WalletEvent::Deal(Box::new(DealChanged {
-                        deal: deal.clone(),
-                        mode: deal.mode,
-                    })));
-                    if old.is_some_and(|d| d.state != deal.state)
-                        && (deal.state.terminal() || deal.state == DealState::Receipted)
-                    {
-                        let _ = events.send(WalletEvent::Receipt(ReceiptEvent {
-                            deal_id: deal.id,
-                            evidence: match runtime.pipeline.wallet.ledger.deal_evidence(deal.id) {
-                                Ok(e) => e,
-                                Err(_) => continue,
-                            },
-                            mode: deal.mode,
-                            state: deal.state,
-                            on_silence: match deal.state {
-                                DealState::Receipted
-                                    if deal.side == Side::Buyer
-                                        && deal.kind != DealKind::Purchase =>
-                                {
-                                    "Seller attested payment; PayPal reporting is pending"
-                                }
-                                DealState::Receipted => "Payment captured and receipt verified",
-                                DealState::Unconfirmed => unconfirmed_reason(
-                                    runtime
-                                        .pipeline
-                                        .wallet
-                                        .ledger
-                                        .statement_unmatched(deal.id)
-                                        .ok()
-                                        .flatten(),
-                                ),
-                                DealState::Withdrawn
-                                | DealState::Expired
-                                | DealState::Voided
-                                | DealState::AutoVoided => {
-                                    "Deadline or safe decision completed; no capture was made"
-                                }
-                                _ => "Verified ledger status updated",
-                            }
-                            .into(),
-                        }));
-                    }
-                }
-            }
-            previous = deals;
-        }
-        if let Some(event) =
-            attention_event(runtime.attention(), &mut attention, &mut attention_faulted)
-        {
-            let _ = events.send(event);
-        }
-        if let Ok(settings) = runtime.settings()
-            && let Ok(encoded) = serde_json::to_string(&settings)
-            && settings_previous.as_ref() != Some(&encoded)
-        {
-            settings_previous = Some(encoded);
-            let _ = events.send(WalletEvent::Settings(settings));
+        // The tick always publishes (deadlines, the idle lock and the clock move without a
+        // message). The count is read after the pass, so the pass's own rung writes do not
+        // trigger the next one.
+        if !quiet || published_at != Some(runtime.pipeline.wallet.ledger.write_count()) {
+            publish(&mut runtime, &events, &mut published);
+            published_at = Some(runtime.pipeline.wallet.ledger.write_count());
         }
         let snapshots = runtime.run_snapshots();
         for snapshot in &snapshots {
@@ -554,6 +610,91 @@ async fn run(
         runs_previous = snapshots;
     }
     let _ = runtime.cancel_runs();
+}
+
+/// What the last publish pass sent, so the next one sends only what changed.
+#[derive(Default)]
+struct Published {
+    deals: Vec<Deal>,
+    attention: Option<String>,
+    attention_faulted: bool,
+    settings: Option<String>,
+}
+/// The whole-wallet pass: every deal that changed (and its receipt), the attention stack and the
+/// settings, each sent only when it differs from what the last pass sent.
+fn publish(
+    runtime: &mut Runtime,
+    events: &broadcast::Sender<WalletEvent>,
+    published: &mut Published,
+) {
+    #[cfg(test)]
+    runtime
+        .publish_passes
+        .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    if let Ok(deals) = runtime.pipeline.wallet.ledger.list_deals() {
+        for deal in &deals {
+            let old = published.deals.iter().find(|d| d.id == deal.id);
+            if old.and_then(|d| serde_json::to_string(d).ok()) != serde_json::to_string(deal).ok() {
+                let _ = events.send(WalletEvent::Deal(Box::new(DealChanged {
+                    deal: deal.clone(),
+                    mode: deal.mode,
+                })));
+                if old.is_some_and(|d| d.state != deal.state)
+                    && (deal.state.terminal() || deal.state == DealState::Receipted)
+                {
+                    let _ = events.send(WalletEvent::Receipt(ReceiptEvent {
+                        deal_id: deal.id,
+                        evidence: match runtime.pipeline.wallet.ledger.deal_evidence(deal.id) {
+                            Ok(e) => e,
+                            Err(_) => continue,
+                        },
+                        mode: deal.mode,
+                        state: deal.state,
+                        on_silence: match deal.state {
+                            DealState::Receipted
+                                if deal.side == Side::Buyer && deal.kind != DealKind::Purchase =>
+                            {
+                                "Seller attested payment; PayPal reporting is pending"
+                            }
+                            DealState::Receipted => "Payment captured and receipt verified",
+                            DealState::Unconfirmed => unconfirmed_reason(
+                                runtime
+                                    .pipeline
+                                    .wallet
+                                    .ledger
+                                    .statement_unmatched(deal.id)
+                                    .ok()
+                                    .flatten(),
+                            ),
+                            DealState::Withdrawn
+                            | DealState::Expired
+                            | DealState::Voided
+                            | DealState::AutoVoided => {
+                                "Deadline or safe decision completed; no capture was made"
+                            }
+                            _ => "Verified ledger status updated",
+                        }
+                        .into(),
+                    }));
+                }
+            }
+        }
+        published.deals = deals;
+    }
+    if let Some(event) = attention_event(
+        runtime.attention(),
+        &mut published.attention,
+        &mut published.attention_faulted,
+    ) {
+        let _ = events.send(event);
+    }
+    if let Ok(settings) = runtime.settings()
+        && let Ok(encoded) = serde_json::to_string(&settings)
+        && published.settings.as_ref() != Some(&encoded)
+    {
+        published.settings = Some(encoded);
+        let _ = events.send(WalletEvent::Settings(settings));
+    }
 }
 
 /// What the 1 s tick publishes for one `attention()` read. A failed read is a visible `Fault`

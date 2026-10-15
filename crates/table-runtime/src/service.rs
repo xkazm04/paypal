@@ -149,6 +149,12 @@ pub struct Runtime {
     /// Test-only: makes the walk-away forecast read fail, to prove attention still answers.
     #[cfg(test)]
     pub(crate) fail_forecast: bool,
+    /// Test-only: the actor's publish tick (1 s in the app), so a test can hold it.
+    #[cfg(test)]
+    pub(crate) publish_tick: std::time::Duration,
+    /// Test-only: how many publish passes the actor ran, to prove a read runs none.
+    #[cfg(test)]
+    pub(crate) publish_passes: Arc<std::sync::atomic::AtomicUsize>,
 }
 impl std::fmt::Debug for Runtime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -277,6 +283,10 @@ impl Runtime {
             fail_attention: Arc::default(),
             #[cfg(test)]
             fail_forecast: false,
+            #[cfg(test)]
+            publish_tick: std::time::Duration::from_secs(1),
+            #[cfg(test)]
+            publish_passes: Arc::default(),
         })
     }
     pub(crate) fn owner(&self) -> Result<ed25519_dalek::SigningKey, CommandError> {
