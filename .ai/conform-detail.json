@@ -1100,6 +1100,22 @@
         "at": "2026-10-15T00:48:39.981089+00:00",
         "reason": "reviewer (sonnet): Each not-applicable anchor is an incidental UI line (an attention_list fetch at Tumbler.tsx:212, an approval_summary fetch at DealReview.tsx:85, runActions at Director.tsx:252, tourView at tour.tsx:99) that shows what the line does but not that no agent-memory/knowledge-store precondition exists; th"
       }
+    },
+    "065d4555-d9ad-478c-b637-3d8eb494f76c/agent-instruction-files": {
+      "context": "runtime-actor-and-engines",
+      "subject": "agent-instruction-files",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-15",
+      "evaluatedTs": "2026-10-15T01:14:31.534Z",
+      "worker": "c008627b-a2e2-4529-8612-13108bf5e9d0",
+      "techniques": [
+        {
+          "technique": "workspace-ancestry-isolation",
+          "verdict": "deviation",
+          "evidence": "crates/table-engine/src/native.rs:153 Following the runtime's NativeEngine constructor reaches this generated cwd; the inspected initialization parser checks tools and MCP servers but neither captures nor asserts resolved instruction files, as the technique requires."
+        }
+      ]
     }
   }
 }

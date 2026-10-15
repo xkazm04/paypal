@@ -6108,7 +6108,11 @@
           "revision": 31,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-runtime/src/engines.rs:310 The runtime enables a native grant after tool-inventory initialization without verifying the resolved instruction-file set, leaving generated-workspace ancestry unverified.",
+          "evaluatedAt": "2026-10-15",
+          "evaluatedAgainst": "sha256-b2:25b61236a62604b0",
+          "evaluatedRevision": 31
         },
         {
           "subject": "prompt-assembly",
