@@ -650,40 +650,29 @@ impl Seller {
                 failure.get_or_insert(e);
             }
         }
-        let inbox = self
-            .pipeline
-            .wallet
-            .ledger
-            .pending_inbox()
-            .map_err(Error::from);
-        for message in self.noted("inbox", None, inbox)? {
-            let id = message.deal_id;
-            let duplicate = self
-                .pipeline
-                .wallet
-                .ledger
-                .has_envelope_hash(id, H256::digest(message.raw.as_bytes()))
-                .map_err(Error::from);
-            let accepted = if self.noted("inbox", Some(id), duplicate)? {
-                true
-            } else {
-                let result = self.receive(id, &message.raw, now);
-                // A rejected message is logged and dropped; a broken ledger stops the tick.
-                match self.noted("inbox", Some(id), result) {
-                    Ok(()) => true,
-                    Err(Error::Ledger(LedgerError::Sql(_) | LedgerError::Integrity(_))) => {
-                        return Err(Error::Unavailable);
-                    }
-                    Err(_) => false,
+        // The wallet's own inbox pass (table-app): duplicates apply, junk costs one audit row per
+        // deal and generation, and a ledger fault leaves its message pending without ending the
+        // tick, so negotiation and reporting still run (scan C-9c).
+        let drained = table_app::drain_inbox(
+            self,
+            |s: &mut Self| &mut s.pipeline.wallet,
+            now,
+            |s: &mut Self, message| {
+                let result = s.receive(message.deal_id, &message.raw, now);
+                match s.noted("inbox", Some(message.deal_id), result) {
+                    Ok(()) => table_app::InboxOutcome::Apply,
+                    Err(
+                        e @ (Error::Ledger(LedgerError::Sql(_) | LedgerError::Integrity(_))
+                        | Error::App(table_app::Error::Ledger(
+                            LedgerError::Sql(_) | LedgerError::Integrity(_),
+                        ))),
+                    ) => table_app::InboxOutcome::Retry(e),
+                    Err(_) => table_app::InboxOutcome::Reject,
                 }
-            };
-            let finished = self
-                .pipeline
-                .wallet
-                .ledger
-                .finish_inbox(&message, accepted, now)
-                .map_err(Error::from);
-            self.noted("inbox", Some(id), finished)?;
+            },
+        );
+        if let Err(e) = self.noted("inbox", None, drained) {
+            failure.get_or_insert(e);
         }
         let deals = self.listed("negotiate")?;
         for deal in deals {

@@ -1549,3 +1549,148 @@ async fn house_counters_a_floor_bid_and_its_record_still_shows_nothing_below_the
     assert!(published.view.deals[0].closed.is_empty());
     assert!(http.0.lock().unwrap().paths.is_empty());
 }
+
+// Scan C-9c: the HOUSE runs the wallet's one inbox pass (table_app::drain_inbox), so a hostile
+// buyer's junk costs one public audit row per deal and mailbox generation, not one per message.
+async fn house_junk(
+    seller: &mut house_seller::Seller,
+    store: &rendezvous::MemoryStore,
+    id: DealId,
+    count: usize,
+) {
+    let work = seller
+        .pipeline
+        .wallet
+        .ledger
+        .relay_work()
+        .unwrap()
+        .into_iter()
+        .find(|w| w.deal_id == id)
+        .unwrap();
+    for i in 0..count {
+        RelayApi::send(store, work.mailbox, &format!("junk{i}.{id}.z"))
+            .await
+            .unwrap();
+    }
+}
+fn inbox_statuses(seller: &house_seller::Seller, id: DealId) -> usize {
+    seller
+        .pipeline
+        .wallet
+        .ledger
+        .pending_inbox()
+        .unwrap()
+        .iter()
+        .filter(|m| m.deal_id == id)
+        .count()
+}
+#[tokio::test]
+async fn house_junk_batch_is_one_audit_row_per_deal_and_generation() {
+    let (mut seller, release, _, _, store) = hosted_fixture();
+    let (_, _, a) = house_buyer(&mut seller, release.clone());
+    let (_, _, b) = house_buyer(&mut seller, release);
+    let (a, b) = (a.table.deal_id, b.table.deal_id);
+    // The first tick opens both mailboxes.
+    let _ = seller.tick().await;
+    house_junk(&mut seller, &store, a, 3).await;
+    house_junk(&mut seller, &store, b, 2).await;
+    let _ = seller.tick().await;
+    for (id, count) in [(a, 3), (b, 2)] {
+        assert_eq!(inbox_statuses(&seller, id), 0);
+        let rows = audit_rows(&seller, id, "envelope.rejected");
+        assert_eq!(rows.len(), 1, "one row for the deal's generation");
+        assert_eq!(rows[0]["count"], count);
+        let digests: Vec<H256> = (0..count)
+            .map(|i| H256::digest(format!("junk{i}.{id}.z").as_bytes()))
+            .collect();
+        assert_eq!(rows[0]["raw_hashes"], serde_json::json!(digests));
+    }
+}
+#[tokio::test]
+async fn house_five_junk_messages_are_five_rejected_rows_and_one_audit_row() {
+    let (mut seller, release, _, _, store) = hosted_fixture();
+    let (_, _, response) = house_buyer(&mut seller, release);
+    let id = response.table.deal_id;
+    let _ = seller.tick().await;
+    let before = seller.pipeline.wallet.ledger.audit_count().unwrap();
+    house_junk(&mut seller, &store, id, 5).await;
+    let _ = seller.tick().await;
+    assert_eq!(inbox_statuses(&seller, id), 0);
+    let rows = audit_rows(&seller, id, "envelope.rejected");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["count"], 5);
+    assert!(seller.pipeline.wallet.ledger.audit_count().unwrap() > before);
+}
+#[tokio::test]
+async fn house_off_schedule_offer_from_the_relay_is_declined_not_rejected() {
+    use table_app::{AgentRequest, AgentRole, AgentScope, AgentService};
+    let (mut seller, release, _, _, store) = hosted_fixture();
+    let (mut buyer, _, response) = house_buyer(&mut seller, release);
+    let words = buyer.house_pair(response.clone()).unwrap();
+    let key = buyer
+        .pairing_confirm(PairingConfirmArgs {
+            pairing_id: words.pairing_id,
+            words: words.words,
+            display_name: "HOUSE".into(),
+        })
+        .unwrap();
+    let mandate = buyer
+        .sign_mandate(MandateSignArgs {
+            id: None,
+            agent: AgentSlot::Negotiator,
+            clauses: clauses(Side::Buyer, DealKind::Haggle),
+            not_before: 0,
+            expires: 1000000,
+        })
+        .unwrap();
+    let id = response.table.deal_id;
+    buyer
+        .create_deal_id(
+            DealCreateArgs {
+                kind: DealKind::Haggle,
+                side: Side::Buyer,
+                counterparty: key,
+                mandate_id: mandate.payload.id,
+                mandate_version: 1,
+                terms: response.table.terms,
+                category: Category::Parts,
+            },
+            id,
+        )
+        .unwrap();
+    let listing = seller.pipeline.wallet.ledger.relay_work().unwrap()[0].outgoing[0]
+        .1
+        .clone();
+    buyer
+        .pipeline
+        .wallet
+        .receive_relay(id, &listing, Category::Parts, 100)
+        .unwrap();
+    // The floor in round one: below the house's schedule price for that round.
+    let offer = buyer
+        .pipeline
+        .wallet
+        .invoke(
+            &AgentScope {
+                deal_id: id,
+                role: AgentRole::Negotiator,
+                category: Category::Parts,
+            },
+            AgentRequest::decode(
+                "send_offer",
+                serde_json::json!({"deal_id":id,"price":"10.00","delivery":{"type":"digital_now"}}),
+            )
+            .unwrap(),
+            100,
+        )
+        .unwrap();
+    let _ = seller.tick().await;
+    let work = seller.pipeline.wallet.ledger.relay_work().unwrap()[0].clone();
+    RelayApi::send(store.as_ref(), work.mailbox, offer["jws"].as_str().unwrap())
+        .await
+        .unwrap();
+    let _ = seller.tick().await;
+    assert_eq!(inbox_statuses(&seller, id), 0);
+    assert_eq!(audit_rows(&seller, id, "offer.declined").len(), 1);
+    assert!(audit_rows(&seller, id, "envelope.rejected").is_empty());
+}
