@@ -142,6 +142,12 @@ impl Ledger {
         ledger.verify_audit()?;
         Ok(ledger)
     }
+    /// How many rows this ledger's connection has inserted, updated or deleted since it opened
+    /// (SQLite `total_changes`). It only ever grows, so a caller that saw a value can tell
+    /// whether anything was written since. A count, never SQL: no statement crosses this edge.
+    pub fn write_count(&self) -> u64 {
+        self.conn.total_changes()
+    }
 }
 pub(crate) fn hash_blob(blob: Vec<u8>) -> Result<H256, LedgerError> {
     Ok(H256(
