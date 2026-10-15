@@ -42,7 +42,7 @@ import type { Playbook } from '@bindings/Playbook';
 import { RESCUE_NO_RULES, RESCUE_SENT_SILENCE, RESCUE_SILENCE, RESCUE_WATCH_FULL } from '../lib/words';
 import type { RescueWatchView } from '@bindings/RescueWatchView';
 import { invoiceText, leverOf, maskEmail, proposeDiscount, RESCUE_WATCH_MAX, RESCUE_WATCH_READS_DAY, validEmail, validSubscriptionId } from './rescue';
-import { AUTHORITY, AUTHORITY_MANIFEST, type CommandAuthority } from '@bindings/authority';
+import { AUTHORITY, AUTHORITY_MANIFEST, EVENT_AUDIENCE, type CommandAuthority } from '@bindings/authority';
 import { LADDER } from '@bindings/ladder';
 import { buildFirstRunState, firstRunPreview, PRACTICE_TERMS, scalePreview, withFirstRun, worldKeys } from './firstRun';
 import { buildScaleState } from './scale';
@@ -53,23 +53,8 @@ type Envelope =
   | { kind: 'state'; state: MockState }
   | { kind: 'clock'; offset: number };
 
-const TARGETS: Record<EventName, WindowLabel[]> = {
-  'tumbler:handoff': ['tumbler'],
-  'agent:changed': ['main'],
-  'attention:changed': ['main', 'tumbler'],
-  'deal:changed': ['main'],
-  'receipt:created': ['main', 'tumbler'],
-  'settings:changed': ['main', 'tumbler', 'approval'],
-  'wallet:error': ['main', 'tumbler'],
-  'approval:summary': ['approval'],
-  'main:route': ['main'],
-  'tumbler:form': ['tumbler'],
-  'tumbler:orient': ['tumbler'],
-  'tumbler:status': ['main'],
-  'tumbler:selected': ['tumbler'],
-  'tumbler:visual': ['tumbler'],
-  'pairing:pinned': ['main'],
-};
+/** Who is told each event: the Rust authority table's rows (`EVENTS`), generated, never a hand list. */
+const TARGETS: Record<EventName, WindowLabel[]> = EVENT_AUDIENCE;
 
 export const STORE_KEY = 'the-table-mock-state-v18'; // v18: fair-price certificates on the sample market records (market-data-2); v17: agents' refused requests in Maya's week (safety record); v16: the attention ladder's recorded rungs and D-0184's lapse that cites them (attention-ladder-1); v15: D-0190's attention names no rule, as Rust does (polish 3); v14: the owner's watched subscriptions (rescue detection); v13: the shield's rule on each deal and a release bound to its terms (shield slice 2); v12: shop-around groups and the house seller's D-0204 (T8); v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
 const DEGRADE_KEY = 'the-table-mock-degrade';
