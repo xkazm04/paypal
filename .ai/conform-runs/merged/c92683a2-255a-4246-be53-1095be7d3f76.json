@@ -1,0 +1,192 @@
+{
+ "schema": "conform-run/1",
+ "worker": "c92683a2-255a-4246-be53-1095be7d3f76",
+ "subject": "hitl-approval",
+ "evaluatedAt": "2026-10-15T22:40:49.822553+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "approval-window-shell",
+   "subject": "hitl-approval",
+   "bundle": "software-engineering",
+   "state": "conformant",
+   "evidence": "apps/desktop/client/src/windows/approval/App.tsx:1 The approval window shell is the dedicated HITL approval surface enforcing isolated tokens, parameter-fingerprinted decision records, and deterministic human-performed verification.",
+   "techniques": [
+    {
+     "technique": "consent-gates",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/gating.ts:210 Binds the latest counterparty counter-offer digest into decision args so parameter changes void consent and force re-asking."
+    },
+    {
+     "technique": "decision-records",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/gating.ts:203 Pins deal id, attempt version, terms hash, and checklist disclosure digest in the atomic decision record."
+    },
+    {
+     "technique": "gate-state-machines",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/gating.ts:56 State machine defines an explicit closed set of terminal states that cannot be transitioned except by authorized owner paths."
+    },
+    {
+     "technique": "handoff-is-a-declared-door",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/session.tsx:82 Requires the isolated in-memory capability token for privileged decision calls, blocking undeclared callers."
+    },
+    {
+     "technique": "human-performed-steps",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/PairingConfirm.tsx:2 Key-pinning peer authentication is structured as an out-of-band, deterministic human-performed 4-word comparison ceremony."
+    },
+    {
+     "technique": "oracle-before-gate",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/model.ts:58 Discloses independent market distributions to reviewers and explicitly labels absent references as skipped, not passed."
+    },
+    {
+     "technique": "resume-after-decision",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/model.ts:318 Tracks whether external PayPal execution completed and ensures idempotent resumption without blind re-execution."
+    },
+    {
+     "technique": "truncated-verdict-space",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/gating.ts:171 Deletes the positive capture/release action completely when a scam-shield BLOCK verdict is present."
+    }
+   ]
+  },
+  {
+   "context": "spend-firewall-and-agent-policy",
+   "subject": "hitl-approval",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-core/src/ladder.rs:12 crates/table-core/src/ladder.rs defines UI notification event markers rather than a severity SLA ladder table mapping severity to deadlines and auto-approve/escalate/hold terminal actions.",
+   "techniques": [
+    {
+     "technique": "severity-sla-ladder",
+     "verdict": "deviation",
+     "evidence": "crates/table-core/src/ladder.rs:12 Rungs track UI attention telemetry rather than an explicit severity SLA ladder mapping severity classes to deterministic deadlines and terminal fallback actions."
+    },
+    {
+     "technique": "cosmetic-vs-enforced-threshold-invariant",
+     "verdict": "deviation",
+     "evidence": "crates/table-core/src/ladder.rs:15 Urgency breathing is documented loosely without load-time invariant assertions comparing cosmetic vs enforcing thresholds."
+    },
+    {
+     "technique": "decision-records",
+     "verdict": "conformant",
+     "evidence": "crates/table-core/src/checks.rs:2 Checklist digest commits all disclosure fields and line order."
+    },
+    {
+     "technique": "fail-closed-profile-for-headless",
+     "verdict": "conformant",
+     "evidence": "crates/table-core/src/exposure.rs:222 Stored limits failing verification or in unhandled currencies fail closed."
+    },
+    {
+     "technique": "gate-state-machines",
+     "verdict": "conformant",
+     "evidence": "crates/table-core/src/exposure_tests.rs:376 Explicit 21-state machine with disjoint agreed and released partitions."
+    }
+   ]
+  },
+  {
+   "context": "rescue-spend-shield-modules",
+   "subject": "hitl-approval",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/main/modules/shield.tsx:231 The review surface renders paused decisions solely as individual cards without supporting batch decisions or select-all-of-a-kind over homogeneous paused items.",
+   "techniques": [
+    {
+     "technique": "review-queues",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/main/modules/shield.tsx:231 Pending items require individual card decisions with no homogeneous batch actions or bulk resolution supported."
+    },
+    {
+     "technique": "fail-loud-classification-default",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/modules/shield/matrix.ts:96 Missing reference defaults loudly to an ask/hold rather than passing."
+    },
+    {
+     "technique": "oracle-before-gate",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/modules/shield/matrix.ts:35 Compares against 1.4x market median oracle before gating."
+    },
+    {
+     "technique": "truncated-verdict-space",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/main/modules/shield.tsx:9 BLOCK adverse verdict cannot be released anywhere."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "hitl-approval",
+   "context": "counter-and-tables-modules",
+   "reason": "The Counter and Tables modules manage haggling price ladders, shop catalogs, and counterparty group comparisons; they do not implement HITL approval gates, decision records, or review queues."
+  },
+  {
+   "subject": "hitl-approval",
+   "context": "prototype-dial-shell-and-design-system",
+   "reason": "The prototype dial shell and design system is an early exploratory UI mockup with simulated fixtures and does not implement the production HITL approval enforcement architecture."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-15T22:40:49.822553+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "hitl-approval"
+   ],
+   "techniques": [
+    "consent-gates",
+    "decision-records",
+    "gate-state-machines",
+    "handoff-is-a-declared-door",
+    "human-performed-steps",
+    "oracle-before-gate",
+    "resume-after-decision",
+    "truncated-verdict-space"
+   ],
+   "deviations": 0,
+   "context": "approval-window-shell",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T22:40:49.822553+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "hitl-approval"
+   ],
+   "techniques": [
+    "cosmetic-vs-enforced-threshold-invariant",
+    "decision-records",
+    "fail-closed-profile-for-headless",
+    "gate-state-machines",
+    "severity-sla-ladder"
+   ],
+   "deviations": 1,
+   "context": "spend-firewall-and-agent-policy",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-15T22:40:49.822553+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "hitl-approval"
+   ],
+   "techniques": [
+    "fail-loud-classification-default",
+    "oracle-before-gate",
+    "review-queues",
+    "truncated-verdict-space"
+   ],
+   "deviations": 1,
+   "context": "rescue-spend-shield-modules",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}
