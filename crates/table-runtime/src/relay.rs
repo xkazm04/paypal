@@ -122,87 +122,53 @@ impl Runtime {
         Ok(())
     }
     fn consume_inbox(&mut self) -> Result<(), CommandError> {
-        let mut failure = None;
-        let mut rejected = Vec::new();
-        for message in app(self.pipeline.wallet.ledger.pending_inbox())? {
-            let duplicate = app(self
-                .pipeline
-                .wallet
-                .ledger
-                .has_envelope_hash(message.deal_id, H256::digest(message.raw.as_bytes())))?;
-            let receipt = self
-                .pipeline
-                .wallet
-                .ledger
-                .preview_inbound(message.deal_id, &message.raw, self.clock.now())
-                .is_ok_and(|e| matches!(e.envelope().body, table_proto::Body::Receipt { .. }));
-            if !duplicate
-                && !receipt
-                && let Err(error) = self.select_signer(message.deal_id)
-            {
-                // Under a retired mandate the message can never apply: reject it once rather
-                // than retrying it, and faulting, on every tick.
-                let deal = app(self.pipeline.wallet.ledger.get_deal(message.deal_id))?;
-                if self.mandate_retired(&deal)? {
-                    rejected.push(message);
-                } else {
-                    failure.get_or_insert(error);
-                }
-                continue;
-            }
-            let category = app(self.pipeline.wallet.ledger.deal_category(message.deal_id))?;
-            let accepted = match self.pipeline.wallet.receive_relay(
-                message.deal_id,
-                &message.raw,
-                category,
-                self.clock.now(),
-            ) {
-                Ok(()) => true,
-                Err(table_app::Error::Ledger(e))
-                    if matches!(
-                        e,
-                        table_ledger::LedgerError::Sql(_) | table_ledger::LedgerError::Integrity(_)
-                    ) =>
-                {
-                    failure.get_or_insert(table_app::Error::from(e).into());
-                    continue;
-                }
-                Err(_) => false,
-            };
-            if accepted {
-                app(self
-                    .pipeline
-                    .wallet
-                    .ledger
-                    .finish_inbox(&message, true, self.clock.now()))?;
-            } else {
-                rejected.push(message);
-            }
-        }
-        // One audit row per deal and generation, not per message. A pass that returns before the
-        // loop ends leaves its collected rows pending: the next pass rejects them again and
-        // writes their row then. That moves no money and applies nothing.
-        let mut groups: Vec<Vec<table_ledger::InboxMessage>> = Vec::new();
-        for message in rejected {
-            match groups
-                .iter_mut()
-                .find(|g| g[0].deal_id == message.deal_id && g[0].generation == message.generation)
-            {
-                Some(group) => group.push(message),
-                None => groups.push(vec![message]),
-            }
-        }
-        for group in &groups {
-            app(self
-                .pipeline
-                .wallet
-                .ledger
-                .reject_inbox(group, self.clock.now()))?;
-        }
+        // The one inbox pass every party runs (table-app): duplicates apply, a ledger fault
+        // retries next pass, rejections cost one audit row per deal and generation (C-9b).
+        let now = self.clock.now();
+        let drained = table_app::drain_inbox(
+            self,
+            |r: &mut Self| &mut r.pipeline.wallet,
+            now,
+            Self::classify_inbound,
+        );
         // An inbound ACCEPT may have agreed a grouped table: withdraw its siblings now. A failure
         // here is retried and reported by the next tick.
         let _ = self.close_groups();
-        failure.map_or(Ok(()), Err)
+        drained
+    }
+    /// The wallet's policy for one staged inbound message that is not an exact duplicate.
+    fn classify_inbound(
+        &mut self,
+        message: &table_ledger::InboxMessage,
+    ) -> table_app::InboxOutcome<CommandError> {
+        use table_app::InboxOutcome;
+        let receipt = self
+            .pipeline
+            .wallet
+            .ledger
+            .preview_inbound(message.deal_id, &message.raw, self.clock.now())
+            .is_ok_and(|e| matches!(e.envelope().body, table_proto::Body::Receipt { .. }));
+        if !receipt && let Err(error) = self.select_signer(message.deal_id) {
+            // Under a retired mandate the message can never apply: reject it once rather than
+            // retrying it, and faulting, on every tick.
+            let retired = app(self.pipeline.wallet.ledger.get_deal(message.deal_id))
+                .and_then(|deal| self.mandate_retired(&deal));
+            return match retired {
+                Ok(true) => InboxOutcome::Reject,
+                Ok(false) => InboxOutcome::Retry(error),
+                Err(e) => InboxOutcome::Retry(e),
+            };
+        }
+        let category = match app(self.pipeline.wallet.ledger.deal_category(message.deal_id)) {
+            Ok(category) => category,
+            Err(e) => return InboxOutcome::Retry(e),
+        };
+        InboxOutcome::of(self.pipeline.wallet.receive_relay(
+            message.deal_id,
+            &message.raw,
+            category,
+            self.clock.now(),
+        ))
     }
 }
 async fn deliver(api: Arc<dyn table_relay::RelayApi>, work: table_ledger::RelayWork) -> Delivery {
