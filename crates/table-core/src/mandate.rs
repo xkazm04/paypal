@@ -128,11 +128,11 @@ pub struct OpenMandate {
     pub owner_sig: Vec<u8>,
 }
 
-/// Clause 4's reasons that an agent refusal names by code (`RefusalCode::from_refusal`): one
-/// spelling, here, for both the check that writes them and the code that reads them.
+/// Clause 4's reasons, as the text a refusal shows. An agent refusal's code is read from the
+/// typed [`RefusalCause`] the check attaches, never parsed back out of this text.
 pub const DEADLINE_REACHED: &str = "deadline reached";
 pub const MAX_ROUNDS_REACHED: &str = "max_rounds reached";
-/// The start of clause 4's "price X above ceiling Y" / "price X below floor Y".
+/// The start of clause 4's "price X above ceiling Y" / "price X below floor Y" text.
 pub const BAND_PRICE: &str = "price ";
 #[derive(ts_rs::TS, Debug, Error, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[error("{}", refusal_text(*.clause, .reason))]
@@ -140,6 +140,24 @@ pub const BAND_PRICE: &str = "price ";
 pub struct Refusal {
     pub clause: u8,
     pub reason: String,
+    /// What kind of refusal this is, for the code an agent receives. In-process only: it is not
+    /// part of the wire form, and the text above is what a person reads.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub cause: Option<RefusalCause>,
+}
+/// The refusals an agent is told apart by code (`RefusalCode::from_refusal`). The check that
+/// refuses names the cause itself; nothing reads it back out of the reason's text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RefusalCause {
+    /// A wallet-wide limit (clause 0).
+    Envelope(crate::EnvelopeLimit),
+    /// Clause 4: the deal's deadline passed.
+    Deadline,
+    /// Clause 4: the rounds allowed are used.
+    Rounds,
+    /// Clause 4: the price is outside the signed band.
+    Band,
 }
 /// A mandate clause names itself; clause 0 is the wallet-wide limits (`ENVELOPE_CLAUSE`).
 fn refusal_text(clause: u8, reason: &str) -> String {
@@ -150,11 +168,16 @@ fn refusal_text(clause: u8, reason: &str) -> String {
     }
 }
 impl Refusal {
-    fn new(clause: u8, reason: impl Into<String>) -> Self {
+    pub fn new(clause: u8, reason: impl Into<String>) -> Self {
         Self {
             clause,
             reason: reason.into(),
+            cause: None,
         }
+    }
+    pub fn caused_by(mut self, cause: RefusalCause) -> Self {
+        self.cause = Some(cause);
+        self
     }
 }
 
@@ -534,10 +557,14 @@ impl MandatePayload {
                         return Err(Refusal::new(4, "item outside band"));
                     }
                     if now >= *deadline {
-                        return Err(Refusal::new(4, DEADLINE_REACHED));
+                        return Err(
+                            Refusal::new(4, DEADLINE_REACHED).caused_by(RefusalCause::Deadline)
+                        );
                     }
                     if intent.rounds_used >= *max_rounds {
-                        return Err(Refusal::new(4, MAX_ROUNDS_REACHED));
+                        return Err(
+                            Refusal::new(4, MAX_ROUNDS_REACHED).caused_by(RefusalCause::Rounds)
+                        );
                     }
                     // Band refers to the signed unit price, per-deal/velocity to the full total.
                     let price = intent.terms.unit_price;
@@ -559,7 +586,8 @@ impl MandatePayload {
                                     price.decimal(),
                                     bound.decimal()
                                 ),
-                            ));
+                            )
+                            .caused_by(RefusalCause::Band));
                         }
                         Side::Seller if price.minor() < bound.minor() => {
                             return Err(Refusal::new(
@@ -569,7 +597,8 @@ impl MandatePayload {
                                     price.decimal(),
                                     bound.decimal()
                                 ),
-                            ));
+                            )
+                            .caused_by(RefusalCause::Band));
                         }
                         _ => {}
                     }

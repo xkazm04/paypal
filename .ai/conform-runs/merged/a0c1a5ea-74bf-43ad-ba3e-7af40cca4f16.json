@@ -1,0 +1,138 @@
+{
+ "schema": "conform-run/1",
+ "worker": "a0c1a5ea-74bf-43ad-ba3e-7af40cca4f16",
+ "subject": "test-harness",
+ "evaluatedAt": "2026-10-14T23:18:09.459515+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "table-engine-agent-process",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-engine/tests/native.rs:11 Native tests create per-test scratch roots without a teardown or startup reaper, leaving their input and evidence directories behind.",
+   "techniques": [
+    {
+     "technique": "isolation-lanes",
+     "verdict": "deviation",
+     "evidence": "crates/table-engine/tests/native.rs:9 The root helper creates a ULID directory and returns a plain PathBuf; no teardown or wrapper reaps these roots. Production RunDirectory cleanup removes only run subdirectories."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "crates/table-engine/tests/native.rs:147 The test observes the prompt received through the actual child's stdin, rather than merely checking a pre-spawn derivation; this certifies the fixture crossing, not real CLI compatibility."
+    }
+   ]
+  },
+  {
+   "context": "runtime-money-controls",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-runtime/src/checks_tests.rs:371 The stale-checklist test claims every money decision but enumerates a manual array, allowing a new decision to escape the claimed coverage without failing this test.",
+   "techniques": [
+    {
+     "technique": "gate-scope-is-not-report-scope",
+     "verdict": "deviation",
+     "evidence": "crates/table-runtime/src/checks_tests.rs:371 The test named a_ledger_change_after_the_summary_makes_its_real_hash_stale_for_every_money_decision manually lists six non-void variants; completeness is not mechanically tied to the Decision definition."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/tests.rs:395 The shared runtime fixture constructs a fresh ledger, MemoryVault, OfflineHttp and TestClock for each caller, keeping these tests independent of machine credentials and prior-test wallet state."
+    },
+    {
+     "technique": "unreached-decisions-pin-nothing",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/tests.rs:359 The forgery helper re-signs changed bundles, requires the evidence signature to pass, and asserts that the named target check is applicable, executed and failed; an outer signature rejection cannot substitute for that target."
+    }
+   ]
+  },
+  {
+   "context": "approval-window-shell",
+   "subject": "test-harness",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/approval/notices.test.ts:19 The notice wiring test scans raw text from every .tsx file, allowing commented JSX and test-fixture markup to count as rendered-notice evidence.",
+   "techniques": [
+    {
+     "technique": "gate-scope-is-not-report-scope",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/approval/gating.test.ts:26 Tests claiming every combination iterate manually listed union members. DealState[] permits an incomplete list, and the numerical case floor does not detect a newly omitted state."
+    },
+    {
+     "technique": "isolation-lanes",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/actions.test.tsx:28 The rendered Actions tests explicitly unmount their React trees after each case; their callback mocks and gate fixtures are created per setup."
+    },
+    {
+     "technique": "pin-the-call-not-the-name",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/approval/notices.test.ts:19 The unparsed matcher accepts commented JSX, and discovery includes .test.tsx files. An in-memory comment-only probe matched both its token-error selector and required footerNoticeText call needle."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "test-harness",
+   "context": "offline-proof-verifier",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "test-harness",
+   "context": "ipc-contract-and-authority-table",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-14T23:18:09.459515+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "isolation-lanes",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "table-engine-agent-process",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-14T23:18:09.459515+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "gate-scope-is-not-report-scope",
+    "isolation-lanes",
+    "unreached-decisions-pin-nothing"
+   ],
+   "deviations": 1,
+   "context": "runtime-money-controls",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-14T23:18:09.459515+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "test-harness"
+   ],
+   "techniques": [
+    "gate-scope-is-not-report-scope",
+    "isolation-lanes",
+    "pin-the-call-not-the-name"
+   ],
+   "deviations": 1,
+   "context": "approval-window-shell",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

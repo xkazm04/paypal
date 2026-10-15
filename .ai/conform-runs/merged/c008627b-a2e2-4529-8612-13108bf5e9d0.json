@@ -1,0 +1,62 @@
+{
+ "schema": "conform-run/1",
+ "worker": "c008627b-a2e2-4529-8612-13108bf5e9d0",
+ "subject": "agent-instruction-files",
+ "evaluatedAt": "2026-10-15T01:14:31.534573+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "runtime-actor-and-engines",
+   "subject": "agent-instruction-files",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-runtime/src/engines.rs:310 The runtime enables a native grant after tool-inventory initialization without verifying the resolved instruction-file set, leaving generated-workspace ancestry unverified.",
+   "techniques": [
+    {
+     "technique": "workspace-ancestry-isolation",
+     "verdict": "deviation",
+     "evidence": "crates/table-engine/src/native.rs:153 Following the runtime's NativeEngine constructor reaches this generated cwd; the inspected initialization parser checks tools and MCP servers but neither captures nor asserts resolved instruction files, as the technique requires."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "agent-instruction-files",
+   "context": "ipc-contract-and-authority-table",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-instruction-files",
+   "context": "agent-tool-surface",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "agent-instruction-files",
+   "context": "offline-proof-verifier",
+   "reason": "The inspected verifier files and searches exposed proof-authority checks and acceptance reporting, but no context-local instruction asset or instruction-delivery contract I could judge; references to AGENTS.md describe money authority, and repository-wide instruction findings cannot substitute for local evidence."
+  },
+  {
+   "subject": "agent-instruction-files",
+   "context": "tumbler-window",
+   "reason": "The inspected UI files and searches exposed rendering, attention logic and hostile-text fixtures, but no context-local instruction asset or loader sufficient for this subject; I cannot prove subject absence from a rendering line or transfer repository-wide instruction findings to this window."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-15T01:14:31.534573+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "agent-instruction-files"
+   ],
+   "techniques": [
+    "workspace-ancestry-isolation"
+   ],
+   "deviations": 1,
+   "context": "runtime-actor-and-engines",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

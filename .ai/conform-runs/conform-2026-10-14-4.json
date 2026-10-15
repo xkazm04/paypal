@@ -1,0 +1,61 @@
+{
+  "schema": "rkb-run-result/1",
+  "run_id": "conform-2026-10-14-4",
+  "skill": "conform",
+  "skill_version": "1.8.3",
+  "mode": "named",
+  "domain": null,
+  "started_at": "2026-10-14T16:01:00Z",
+  "ended_at": "2026-10-14T16:04:47Z",
+  "exit": 0,
+  "counts": {
+    "dispatched": 0,
+    "landed": 6,
+    "declined": 0,
+    "idled": 0,
+    "contended": 0
+  },
+  "subjects": [
+    {
+      "id": "app-shell",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    },
+    {
+      "id": "test-harness",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    },
+    {
+      "id": "quality-gates",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    },
+    {
+      "id": "design-tokens",
+      "at": "2026-10-14",
+      "engine": "conform",
+      "outcome": "landed",
+      "points_before": null,
+      "points_after": null
+    }
+  ],
+  "verdicts": [],
+  "files": [
+    ".ai/registry-map.json"
+  ],
+  "commits": [],
+  "pr": null,
+  "declined": [],
+  "failure_signature": null,
+  "notes": "lens-scan r-20261014160044-e266 conform step: one named pair per scoped feature (5) + browser-mock-backend/test-harness; uncommitted per AGENTS.md (no commits unless asked); quality-gates judged at index revision 54 while the map pairs read 53 (same digest)"
+}

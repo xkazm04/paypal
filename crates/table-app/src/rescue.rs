@@ -75,10 +75,7 @@ pub enum WatchRead {
 }
 
 fn refusal(reason: &str) -> Error {
-    Error::Refused(Refusal {
-        clause: 8,
-        reason: reason.into(),
-    })
+    Error::Refused(Refusal::new(8, reason))
 }
 
 impl Pipeline {

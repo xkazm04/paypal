@@ -1,0 +1,37 @@
+{
+ "schema": "conform-run/1",
+ "worker": "44179386-2214-4cb0-a748-6dcaec733fca",
+ "subject": "eval-harness",
+ "evaluatedAt": "2026-10-15T02:19:46.395161+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "eval-harness",
+   "context": "offline-proof-verifier",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "eval-harness",
+   "context": "deal-review",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "eval-harness",
+   "context": "browser-mock-backend",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "eval-harness",
+   "context": "prototype-dial-shell-and-design-system",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "eval-harness",
+   "context": "design-system-styles",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": []
+}

@@ -23,10 +23,13 @@ impl Runtime {
         };
         payload.validate().map_err(table_app::Error::from)?;
         if payload.expires <= now {
-            return Err(table_app::Error::from(Refusal {
-                clause: ENVELOPE_CLAUSE,
-                reason: "expires: the wallet limits would already have run out".into(),
-            })
+            return Err(table_app::Error::from(
+                Refusal::new(
+                    ENVELOPE_CLAUSE,
+                    "expires: the wallet limits would already have run out",
+                )
+                .caused_by(RefusalCause::Envelope(EnvelopeLimit::Expired)),
+            )
             .into());
         }
         let signer = AgentSigner::from_key(self.owner()?);

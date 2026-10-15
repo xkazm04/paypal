@@ -7,8 +7,8 @@
 //! type, not by the caller happening to leave them out.
 use crate::{
     Currency, Deal, DealId, DealKind, DealState, Delivery, ENVELOPE_CLAUSE, EnvelopeLimit, ItemRef,
-    Money, Refusal, ShieldRule, Side, Timestamp, TranscriptBy, TranscriptStep, TranscriptType,
-    market_fresh,
+    Money, Refusal, RefusalCause, ShieldRule, Side, Timestamp, TranscriptBy, TranscriptStep,
+    TranscriptType, market_fresh,
 };
 use serde::{Deserialize, Serialize};
 
@@ -508,33 +508,17 @@ impl RefusalCode {
     /// codes; every other clause is named by number.
     pub fn from_refusal(refusal: &Refusal) -> Self {
         if refusal.clause == ENVELOPE_CLAUSE {
-            let limit = [
-                EnvelopeLimit::OutDay,
-                EnvelopeLimit::Held,
-                EnvelopeLimit::DealsDay,
-                EnvelopeLimit::Currency,
-                EnvelopeLimit::Expired,
-                EnvelopeLimit::Unverified,
-            ]
-            .into_iter()
-            .find(|l| {
-                refusal
-                    .reason
-                    .strip_prefix(l.name())
-                    .is_some_and(|rest| rest.starts_with(':'))
-            });
+            let limit = match refusal.cause {
+                Some(RefusalCause::Envelope(limit)) => Some(limit),
+                _ => None,
+            };
             return Self::WalletLimit { limit };
         }
-        if refusal.clause == 4 {
-            if refusal.reason == crate::DEADLINE_REACHED {
-                return Self::DeadlinePassed;
-            }
-            if refusal.reason == crate::MAX_ROUNDS_REACHED {
-                return Self::RoundsExhausted;
-            }
-            if refusal.reason.starts_with(crate::BAND_PRICE) {
-                return Self::OutsideBand;
-            }
+        match refusal.cause {
+            Some(RefusalCause::Deadline) => return Self::DeadlinePassed,
+            Some(RefusalCause::Rounds) => return Self::RoundsExhausted,
+            Some(RefusalCause::Band) => return Self::OutsideBand,
+            _ => {}
         }
         Self::MandateClause {
             clause: refusal.clause,

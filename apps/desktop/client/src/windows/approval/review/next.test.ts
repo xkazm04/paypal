@@ -40,7 +40,7 @@ describe('what happens next is built from the deal and the decision, and says no
   });
   it('paying from a hold: you pay here, they get the money, a receipt is saved', () => {
     const r = next({ kind: 'capture', act: 'capture', who: 'partsco', total: '$64.00', d: { kind: 'purchase', state: 'AUTHORIZED' } });
-    expect(texts(r)).toEqual(['You pay here', 'partsco gets $64.00', 'Receipt saved']);
+    expect(texts(r)).toEqual(['You pay here', 'partsco gets $64.00. It can’t be taken back here.', 'Receipt saved']);
   });
   it('collecting is not paying', () => {
     const r = next({ kind: 'capture', act: 'capture', d: { side: 'seller', state: 'AUTHORIZED' } });
