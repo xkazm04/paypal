@@ -1701,3 +1701,71 @@ async fn house_off_schedule_offer_from_the_relay_is_declined_not_rejected() {
     assert_eq!(audit_rows(&seller, id, "offer.declined").len(), 1);
     assert!(audit_rows(&seller, id, "envelope.rejected").is_empty());
 }
+
+#[test]
+fn house_table_draft_carries_only_the_table_rust_kept_at_pairing() {
+    let (mut seller, release, http, _, _) = hosted_fixture();
+    let (mut buyer, _, response) = house_buyer(&mut seller, release);
+    let words = buyer.house_pair(response.clone()).unwrap();
+    let key = buyer
+        .pairing_confirm(PairingConfirmArgs {
+            pairing_id: words.pairing_id,
+            words: words.words,
+            display_name: "HOUSE".into(),
+        })
+        .unwrap();
+    let t = &response.table;
+    let table = HouseTableDraft {
+        negotiation_deadline: t.negotiation_deadline,
+        deal_id: t.deal_id,
+        terms: t.terms.clone(),
+        category: t.category,
+    };
+    let open = |target, draft| ApprovalOpenArgs {
+        deal_id: None,
+        pairing: None,
+        target,
+        draft: Some(draft),
+    };
+    let join = |house| ApprovalDraft::Table {
+        counterparty: key.clone(),
+        house,
+    };
+    // Main hands the kept table to the approval window: it is kept as the draft, nothing else.
+    buyer
+        .open_approval("main", open(None, join(Some(table.clone()))))
+        .unwrap();
+    assert_eq!(buyer.approval_draft, Some(join(Some(table.clone()))));
+    assert_eq!(buyer.approval_target, None);
+    let mut cheaper = table.clone();
+    cheaper.terms.unit_price = Money::new(1, cheaper.terms.currency).unwrap();
+    let mut elsewhere = table.clone();
+    elsewhere.deal_id = DealId(ulid::Ulid::new());
+    let mut later = table.clone();
+    later.negotiation_deadline += 60;
+    for bad in [
+        // a table that is not the one Rust kept
+        open(None, join(Some(cheaper))),
+        open(None, join(Some(elsewhere))),
+        open(None, join(Some(later))),
+        // the house always comes with its table
+        open(None, join(None)),
+        // only owner configuration takes a table
+        open(Some(ApprovalTarget::Mandate), join(Some(table.clone()))),
+    ] {
+        assert!(buyer.open_approval("main", bad).is_err());
+    }
+    // A key that was never paired.
+    let stranger = ApprovalDraft::Table {
+        counterparty: KeyId::new("kp_stranger").unwrap(),
+        house: None,
+    };
+    assert!(buyer.open_approval("main", open(None, stranger)).is_err());
+    // The Tumbler routes but never carries a draft.
+    assert!(
+        buyer
+            .open_approval("tumbler", open(None, join(Some(table))))
+            .is_err()
+    );
+    assert!(http.0.lock().unwrap().paths.is_empty());
+}

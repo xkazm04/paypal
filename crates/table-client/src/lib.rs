@@ -196,6 +196,24 @@ pub enum ApprovalDraft {
     },
     /// The rescue lever the owner picked in Main: target deal (a rescue).
     Lever { lever: table_core::RescueLever },
+    /// A table with a connected counterparty: target none (owner configuration). With `house`,
+    /// the house's practice table to join as the buyer (open_approval checks it against the table
+    /// Rust kept at pairing_confirm, and deal_join checks it again); without, a table to open as
+    /// the seller. The owner still picks the rules and confirms in the approval window.
+    Table {
+        counterparty: table_core::KeyId,
+        house: Option<HouseTableDraft>,
+    },
+}
+/// The house's practice table as pairing_join returned it (`PairingWords.house_table`), carried in
+/// a draft. The same fields as the signed table; never trusted, re-checked by Rust.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct HouseTableDraft {
+    pub negotiation_deadline: i64,
+    pub deal_id: DealId,
+    pub terms: table_core::Terms,
+    pub category: table_core::Category,
 }
 /// What the approval window was opened for, read by that window only. `target` null means owner
 /// configuration (the legacy `deal_id: null` open).
