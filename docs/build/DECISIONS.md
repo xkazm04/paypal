@@ -1547,3 +1547,20 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   the next; a read stuck in an aborted pass stays counted in the next pass and the pass ends once it
   settles; a pass whose every slot is held ends once they settle; a slot wait stops on abort. Client
   `vitest` and `tsc` were not run (§42 item 4).
+
+## 44. The live sandbox spikes are approved for the owner to run; the loop and builders prepare only
+
+- **Constraint:** the no-live-call-without-operator boundary. No builder or loop run may call PayPal
+  (or Channel3 or a model) or handle a credential without an operator ask, and spikes 1-5, 7 and 8
+  are live calls under the owner's own sandbox accounts, keys and browser sessions.
+- **Decision (operator, 2026-10-16):** spikes 1, 2, 3, 4, 5, 7 and 8 of `SPIKES.md` are approved to run,
+  but only by the owner, with his own sandbox credentials, when he chooses. The loop and builders
+  prepare only: they never call PayPal and never touch credentials. A later run records
+  `SPIKE-RESULTS.md` and STATUS.md from the owner's output. Spike 6 (version only) already ran. The
+  prepared script is `docs/build/SPIKE-RUNBOOK.md`; `scripts/spike.ps1` and `SPIKES.md` are unchanged.
+- **Lost:** the loop running the spikes itself. It would put sandbox keys, the buyer's browser
+  approval and the Channel3 key inside an unattended run, which the boundary forbids, and some
+  steps (a second buyer account approving in a browser, reading an inbox) a loop cannot do.
+- **Evidence:** docs only. No spike ran, no PayPal, Channel3 or model call was made, and no
+  credential or `.env` file was read. The invariants are unchanged: a spike is a standalone
+  conformance test that creates no wallet receipt and grants no UI authority (`SPIKES.md`).
