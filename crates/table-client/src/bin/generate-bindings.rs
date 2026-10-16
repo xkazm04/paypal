@@ -30,6 +30,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // The attention ladder's schedule, as a value the Tumbler reads (attention-ladder-1).
     table_attention::LadderSchedule::export_all(&config)?;
     std::fs::write(root.join("ladder.ts"), table_client::ladder::typescript()?)?;
+    // The deal-state sets the windows and the mock read, from table-core's predicates.
+    std::fs::write(
+        root.join("dealStates.ts"),
+        table_client::deal_states::typescript()?,
+    )?;
     let capabilities = manifest.join("../../apps/desktop/src-tauri/capabilities");
     for (file, contents) in table_client::authority::capability_files()? {
         std::fs::write(capabilities.join(file), contents)?;
