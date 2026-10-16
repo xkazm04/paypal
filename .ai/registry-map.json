@@ -4601,7 +4601,11 @@
           "revision": 14,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/lib/fairPrice.test.ts:1 The test claims the ports match Rust's vectors while the expected numbers are handwritten literals, so the copy can leave the authority it names without a same-change check.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:fd96220db75846a1",
+          "evaluatedRevision": 14
         },
         {
           "subject": "agent-memory",
@@ -5030,7 +5034,11 @@
           "revision": 14,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "docs/report/index.html:194 The page says it was generated from an in-repo log and a range ending at HEAD, but it is static HTML, so those sources can move without a coupled edit and the upper bound is not a revision a later check can re-run.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:fd96220db75846a1",
+          "evaluatedRevision": 14
         },
         {
           "subject": "test-harness",
@@ -6727,7 +6735,11 @@
           "revision": 14,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/setup/limits.ts:1 The rules cards cite docs/ux/ROUND-1.md as their spec in a comment, while this file now allows several rule sets per agent and that doc still says one card per agent, with no coupling record and no dated correction.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:fd96220db75846a1",
+          "evaluatedRevision": 14
         }
       ],
       "governance": "governed"
