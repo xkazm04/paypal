@@ -590,3 +590,16 @@ describe('shield slice 2: the approval window names the rule the wallet recorded
     expect(row(unnamed.rows, 'rule').note).toBe('which rule paused it isn’t recorded for this deal');
   });
 });
+
+describe('deal-state sets come from table-core, never a hand copy', () => {
+  it('TERMINAL and WITHDRAWABLE are the generated bindings, behaviour unchanged', async () => {
+    const generated = await import('@bindings/dealStates');
+    const gating = await import('./gating');
+    expect(gating.TERMINAL).toBe(generated.TERMINAL);
+    expect(gating.WITHDRAWABLE).toBe(generated.WITHDRAWABLE);
+    expect(gating.isTerminal('UNCONFIRMED')).toBe(true);
+    expect(gating.isTerminal('CAPTURED')).toBe(false);
+    expect(gating.WITHDRAWABLE.has('AUTHORIZED')).toBe(false);
+    expect(gating.WITHDRAWABLE.has('APPROVED')).toBe(true);
+  });
+});
