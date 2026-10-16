@@ -153,6 +153,39 @@ impl Runtime {
                     return Err(invalid());
                 }
             }
+            ApprovalDraft::Table {
+                counterparty,
+                house,
+            } => {
+                if target.is_some() || deal_id.is_some() {
+                    return Err(invalid());
+                }
+                let (paired, is_house, _) = app(self
+                    .pipeline
+                    .wallet
+                    .ledger
+                    .counterparty_policy_at(counterparty, self.clock.now()))?;
+                if !paired || is_house != house.is_some() {
+                    return Err(invalid());
+                }
+                // The house's table must be the one Rust kept when the owner confirmed its words.
+                if let Some(draft) = house {
+                    let kept: table_proto::HouseTable = app(self
+                        .pipeline
+                        .wallet
+                        .ledger
+                        .preference(&format!("house.table.{}", draft.deal_id)))?
+                    .ok_or_else(invalid)?;
+                    if kept.deal_id != draft.deal_id
+                        || kept.terms != draft.terms
+                        || kept.category != draft.category
+                        || kept.negotiation_deadline != draft.negotiation_deadline
+                        || kept.negotiation_deadline <= self.clock.now()
+                    {
+                        return Err(invalid());
+                    }
+                }
+            }
         }
         Ok(())
     }
