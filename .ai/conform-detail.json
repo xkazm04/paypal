@@ -1840,6 +1840,46 @@
           "evidence": "crates/table-runtime/src/forecast_tests.rs:588 Runtime tests use fresh real SQLite ledgers through the production migration path; inspected fixtures use repository operations while external HTTP is replaced."
         }
       ]
+    },
+    "2388265b-2923-4e49-b59f-7f4453fa4f88/table": {
+      "context": "runtime-money-controls",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T00:59:29.270Z",
+      "worker": "7e09b02d-1cbd-4e92-a5f8-d20e332805b4",
+      "techniques": []
+    },
+    "301e09f0-979a-4861-b442-b4efe22b7bd2/table": {
+      "context": "director-preview-stories",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T00:59:29.270Z",
+      "worker": "7e09b02d-1cbd-4e92-a5f8-d20e332805b4",
+      "techniques": []
+    },
+    "7d8f5eca-7fb1-49f4-9000-ed9926d9ad5f/table": {
+      "context": "table-wire-protocol",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T00:59:29.270Z",
+      "worker": "7e09b02d-1cbd-4e92-a5f8-d20e332805b4",
+      "techniques": []
+    },
+    "b093c233-9d42-4fdb-8b3c-b9b5460ac5ad/table": {
+      "context": "attention-forecast-and-window-placement",
+      "subject": "table",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T00:59:29.270Z",
+      "worker": "7e09b02d-1cbd-4e92-a5f8-d20e332805b4",
+      "techniques": []
     }
   }
 }

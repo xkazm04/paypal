@@ -1,0 +1,127 @@
+{
+ "schema": "conform-run/1",
+ "worker": "7e09b02d-1cbd-4e92-a5f8-d20e332805b4",
+ "subject": "table",
+ "evaluatedAt": "2026-10-16T00:59:29.270002+00:00",
+ "provider": "grok",
+ "model": "grok-4.7",
+ "pairs": [
+  {
+   "context": "runtime-money-controls",
+   "subject": "table",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-runtime/src/lib.rs:1 This crate is a wallet actor with no webview, and a search for aria-sort, clipboard, text/csv, skeleton, and virtualiz found nothing; the only page_size is a PayPal ReportingWindow and history steps are ordered by audit seq, so there is no comparison-table surface.",
+   "techniques": [],
+   "absenceTerms": [
+    "aria-sort",
+    "clipboard",
+    "text/csv",
+    "skeleton",
+    "virtualiz"
+   ]
+  },
+  {
+   "context": "director-preview-stories",
+   "subject": "table",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/director/Director.tsx:477 The director frames The Table as an iframe, and a search of its directory found CSS layout grids and story beats but no aria-sort, clipboard, text/csv, skeleton, virtualiz, or table element, so it does not implement a data-display table.",
+   "techniques": [],
+   "absenceTerms": [
+    "aria-sort",
+    "clipboard",
+    "text/csv",
+    "skeleton",
+    "virtualiz"
+   ]
+  },
+  {
+   "context": "table-wire-protocol",
+   "subject": "table",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-proto/src/lib.rs:1 Protocol v1 defines signed deal messages, and the only Table type is a HouseTable payload of one deal's deadline, id, terms, and category; a search found no aria-sort, clipboard, text/csv, skeleton, or virtualiz.",
+   "techniques": [],
+   "absenceTerms": [
+    "aria-sort",
+    "clipboard",
+    "text/csv",
+    "skeleton",
+    "virtualiz"
+   ]
+  },
+  {
+   "context": "attention-forecast-and-window-placement",
+   "subject": "table",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-attention/src/placement.rs:111 Window here is the approval window's size in logical pixels, forecast lines are ordered by time then deal id, and a search found no aria-sort, clipboard, text/csv, skeleton, or virtualiz, so this is not a data-display table.",
+   "techniques": [],
+   "absenceTerms": [
+    "aria-sort",
+    "clipboard",
+    "text/csv",
+    "skeleton",
+    "virtualiz"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "table",
+   "context": "ledger-repositories-audit-evidence",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-16T00:59:29.270002+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "table"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "runtime-money-controls",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-16T00:59:29.270002+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "table"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "director-preview-stories",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-16T00:59:29.270002+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "table"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "table-wire-protocol",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-16T00:59:29.270002+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "table"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "attention-forecast-and-window-placement",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  }
+ ]
+}

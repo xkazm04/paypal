@@ -1097,7 +1097,11 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-attention/src/placement.rs:111 Window here is the approval window's size in logical pixels, forecast lines are ordered by time then deal id, and a search found no aria-sort, clipboard, text/csv, skeleton, or virtualiz, so this is not a data-display table.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "data-access",
@@ -2881,7 +2885,11 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:477 The director frames The Table as an iframe, and a search of its directory found CSS layout grids and story beats but no aria-sort, clipboard, text/csv, skeleton, virtualiz, or table element, so it does not implement a data-display table.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "terminal-multiplexing",
@@ -6474,7 +6482,11 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-runtime/src/lib.rs:1 This crate is a wallet actor with no webview, and a search for aria-sort, clipboard, text/csv, skeleton, and virtualiz found nothing; the only page_size is a PayPal ReportingWindow and history steps are ordered by audit seq, so there is no comparison-table surface.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         },
         {
           "subject": "settings",
@@ -7616,7 +7628,11 @@
           "revision": 14,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-proto/src/lib.rs:1 Protocol v1 defines signed deal messages, and the only Table type is a HouseTable payload of one deal's deadline, id, terms, and category; a search found no aria-sort, clipboard, text/csv, skeleton, or virtualiz.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:c587a204413d5373",
+          "evaluatedRevision": 14
         }
       ],
       "governance": "governed"
