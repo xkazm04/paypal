@@ -28,6 +28,7 @@ import { ListEngine } from '../../ListEngine';
 import { DealRow } from '../../rows';
 import { useEvidenceOf } from './evidence';
 import { useExport } from './Ledger';
+import { outsideSpan } from './model';
 import { fewRows, type BookWorld } from './parts';
 
 type Phase = 'IDLE' | 'UNSURE' | 'BLOCKED' | 'DRAFTED' | 'RESULT' | 'EMPTY';
@@ -133,7 +134,7 @@ export function Ask({ b }: { b: BookWorld }) {
         <section className="bk-slip" aria-label={BOOK.ask.slip}>
           <div className="bk-sliphead">
             <SlipChip phase={phase} />
-            <span className="bk-sliptext"><b>“{asked}”</b><span className="bk-dim" title={q}>{slipLine(phase, lens, res)}</span></span>
+            <span className="bk-sliptext"><b>“{asked}”</b><span className="bk-dim" title={q}>{slipLine(phase, lens, res, b)}</span></span>
             <span className="cs-acts">
               {phase === 'DRAFTED' ? <Btn sm kind="primary" onClick={run} title={BOOK.ask.runKey}>{BOOK.ask.show}</Btn> : null}
               {phase === 'RESULT' && res ? <Btn sm onClick={() => save(res.rows, queryText(res.query), `book-lens-${res.seq}`)}>{BOOK.csv}</Btn> : null}
@@ -174,11 +175,15 @@ function SlipChip({ phase }: { phase: Phase }) {
   return <Chip tone={phase === 'RESULT' ? 'ok' : undefined}>{phase === 'RESULT' ? BOOK.ask.chip.answer : BOOK.ask.chip.none}</Chip>;
 }
 
-function slipLine(phase: Phase, lens: Lens | null, res: Result | null): ReactNode {
+function slipLine(phase: Phase, lens: Lens | null, res: Result | null, b: BookWorld): ReactNode {
   if (phase === 'UNSURE') return BOOK.ask.line.unsure;
   if (phase === 'BLOCKED') return lens?.unavailable ?? BOOK.ask.line.blocked;
   if (phase === 'DRAFTED') return BOOK.ask.line.drafted;
-  return res ? BOOK.ask.line.result(res.rows.length) : null;
+  if (!res) return null;
+  // An answer reaches the whole ledger, not the week list the summary shows: say so.
+  const older = outsideSpan(res.rows, b.week);
+  const reach = !older ? null : res.rows.length === b.all.length ? BOOK.ask.line.everything : BOOK.ask.line.older(older);
+  return reach ? `${BOOK.ask.line.result(res.rows.length)} · ${reach}` : BOOK.ask.line.result(res.rows.length);
 }
 
 /** A query line in the owner's words: a status the wallet names in capitals is said as its label. */

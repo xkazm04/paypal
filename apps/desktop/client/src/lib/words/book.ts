@@ -225,6 +225,9 @@ export const BOOK = {
       blocked: 'this view can’t run yet',
       drafted: 'only reads your deals · changes nothing',
       result: (n: number) => `${plural(n, 'deal', 'deals')} in the answer`,
+      // The Simple view's week is a window on the ledger, an answer is not: say how far it reaches.
+      older: (n: number) => `${plural(n, 'older deal', 'older deals')} from before this week`,
+      everything: 'everything on record, not only this week',
     },
     thisView: 'This view',
     onlyReads: (n: number) => `It only reads your ${n} deals: no PayPal call, and nothing can change. Your wallet checks the question before it answers.`,
