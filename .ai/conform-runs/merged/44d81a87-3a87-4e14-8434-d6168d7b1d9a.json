@@ -1,0 +1,360 @@
+{
+  "schema": "conform-run/1",
+  "worker": "44d81a87-3a87-4e14-8434-d6168d7b1d9a",
+  "subject": "agent-cli-transport",
+  "evaluatedAt": "2026-10-16T01:24:42.741060+00:00",
+  "provider": "grok",
+  "model": "grok-4.7",
+  "pairs": [
+    {
+      "context": "table-engine-agent-process",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "crates/table-engine/src/argv.rs:84 The live Codex argv passes an MCP approval mode that the same function marks unverified, so an undated capability is treated as true.",
+      "techniques": [
+        {
+          "technique": "availability-probe",
+          "verdict": "deviation",
+          "evidence": "crates/table-engine/src/native.rs:454 probe() runs only --version through command() and always returns available false for inventory; there is no auth-status result, so a stale login and a live seat are the same EngineInfo."
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/src/native.rs:81 command() env_clears then allowlists PATH, home, and CODEX_HOME; wallet secrets are added by name; native.rs test plants API-key and CLAUDECODE canaries and asserts the child env file is empty."
+        },
+        {
+          "technique": "output-normalization",
+          "verdict": "deviation",
+          "evidence": "crates/table-engine/src/parser.rs:46 Both JSONL dialects are folded, stderr is drained apart from stdout, and error subtype is kept, but an unparseable line becomes generic Invalid with no raw prefix."
+        },
+        {
+          "technique": "dated-capability-matrix",
+          "verdict": "deviation",
+          "evidence": "crates/table-engine/src/argv.rs:46 Flags are hardcoded. One comment cites Codex 0.160.0 help with no date; unverified approval-mode and env_http_headers flags are still emitted, and the probed version is not checked against a matrix."
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "conformant",
+          "evidence": "crates/table-engine/src/policy.rs:192 PolicyEngine is a real no-model adapter whose probe says so and whose Init id is Scripted; zero RunLimits are Invalid. Which engine is selected is outside this crate."
+        },
+        {
+          "technique": "child-observed-posture",
+          "verdict": "deviation",
+          "evidence": "crates/table-engine/src/native.rs:512 Tool inventory is taken from the child init and a mismatch is Isolation, and resolution avoids cmd shims, but billing is not read from the child and the injected playbook has no echo token."
+        },
+        {
+          "technique": "host-routed-approval-round-trip",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/argv.rs:103 Claude is dontAsk with prompts none and Codex pre-approves wallet MCP tools; the run is unattended print/exec, so there is no mid-turn human answer channel."
+        },
+        {
+          "technique": "thread-custody-across-resume",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/native.rs:162 Each run mints a new session id, Claude disables persistence, Codex passes --ephemeral, and thread.started is discarded; the id is never resumed."
+        }
+      ]
+    },
+    {
+      "context": "wallet-app-services",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "crates/table-app/src/agent.rs:76 This crate names a playbook and executes signed wallet intents; a search of crates/table-app found no claude, codex, stream-json, jsonl, or ANTHROPIC_API_KEY.",
+      "techniques": [
+        {
+          "technique": "availability-probe",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-app/src/lib.rs:1 No agent binary is resolved or version-probed."
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-app/src/pipeline.rs:13 Authority is policy, mandate, or owner ticket for money steps, not CLI billing."
+        },
+        {
+          "technique": "output-normalization",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-app/src/agent.rs:33 Refusals are wallet codes, not an agent CLI envelope."
+        },
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-app/src/agent.rs:23 Permission denied is a wallet error, not a scan/edit mode on a child CLI."
+        },
+        {
+          "technique": "dated-capability-matrix",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-app/src/agent.rs:76 The playbook is static role text; no CLI flag matrix is stored."
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-app/src/pipeline.rs:19 The pipeline checks money steps; it does not descend an agent-CLI ladder."
+        },
+        {
+          "technique": "child-observed-posture",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-app/src/agent.rs:77 No child process is launched whose argv or auth report could be read."
+        },
+        {
+          "technique": "host-routed-approval-round-trip",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-app/src/lib.rs:1 Intents are separated from money execution inside the wallet, not routed as CLI permission prompts."
+        },
+        {
+          "technique": "thread-custody-across-resume",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-app/src/agent.rs:70 Roles are negotiator, shopper, and assistant; no child thread id is stored."
+        }
+      ],
+      "absenceTerms": [
+        "claude",
+        "codex",
+        "stream-json",
+        "jsonl",
+        "ANTHROPIC_API_KEY"
+      ]
+    },
+    {
+      "context": "deal-review",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:3 Review copy is derived from the deal and the wallet summary; the approval directory has no stream-json, jsonl, permission-mode, dontAsk, or ANTHROPIC_API_KEY.",
+      "techniques": [
+        {
+          "technique": "availability-probe",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:3 No agent binary is consulted to write the review."
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/says.ts:3 Display text only; no child environment is built."
+        },
+        {
+          "technique": "output-normalization",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:8 Input is the Rust deal summary, not a CLI envelope."
+        },
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/says.ts:15 Controls are owner money decisions, not an agent read-only or edit mode."
+        },
+        {
+          "technique": "dated-capability-matrix",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:2 No tool flags or versions are encoded."
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:4 Missing facts are said as missing; there is no model rung to fall from."
+        },
+        {
+          "technique": "child-observed-posture",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:7 No spawned child is observed."
+        },
+        {
+          "technique": "host-routed-approval-round-trip",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/DealReview.tsx:1 The owner reviews a deal, not a coding agent's mid-turn tool prompt."
+        },
+        {
+          "technique": "thread-custody-across-resume",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/says.ts:16 Intent is a money action, not a resumed agent thread."
+        }
+      ],
+      "absenceTerms": [
+        "stream-json",
+        "ANTHROPIC_API_KEY",
+        "permission-mode",
+        "dontAsk",
+        "jsonl"
+      ]
+    },
+    {
+      "context": "house-seller-service",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "services/house-seller/src/hosted.rs:796 The house counters from a signed price schedule; services/house-seller has no claude, codex, stream-json, jsonl, or ANTHROPIC_API_KEY.",
+      "techniques": [
+        {
+          "technique": "availability-probe",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/lib.rs:1 No local agent CLI is probed."
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/hosted.rs:331 The seller is configured with a floor, ask, and round cap, not a billed model seat."
+        },
+        {
+          "technique": "output-normalization",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/hosted.rs:803 The result is a Policy Decision, not a parsed CLI envelope."
+        },
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/lib.rs:16 The floor is a signed price rule, not a filesystem stance on an agent child."
+        },
+        {
+          "technique": "dated-capability-matrix",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/hosted.rs:332 No agent CLI flags or versions are recorded."
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/hosted.rs:795 Negotiation always uses the policy; there is no model transport above it."
+        },
+        {
+          "technique": "child-observed-posture",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/hosted.rs:796 No child process is spawned."
+        },
+        {
+          "technique": "host-routed-approval-round-trip",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/hosted.rs:811 Counters are wallet invokes under the mandate, not answers to a coding agent's permission prompts."
+        },
+        {
+          "technique": "thread-custody-across-resume",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/hosted.rs:793 Round count comes from the ledger, not a stored agent thread id."
+        }
+      ],
+      "absenceTerms": [
+        "claude",
+        "codex",
+        "stream-json",
+        "jsonl",
+        "ANTHROPIC_API_KEY"
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "agent-cli-transport",
+      "context": "approval-window-shell",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor OwnerConfig.tsx:51 is a comment about the window's handoff target and doesn't show that no agent binary is probed; the file's own engine-name mapping at line 36 is the closest relevant code, so the anchor is incidental."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-16T01:24:42.741060+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-cli-transport"
+      ],
+      "techniques": [
+        "availability-probe",
+        "child-observed-posture",
+        "dated-capability-matrix",
+        "fallback-ladder",
+        "host-routed-approval-round-trip",
+        "output-normalization",
+        "subscription-auth-selection",
+        "thread-custody-across-resume"
+      ],
+      "deviations": 1,
+      "context": "table-engine-agent-process",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    },
+    {
+      "ts": "2026-10-16T01:24:42.741060+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-cli-transport"
+      ],
+      "techniques": [
+        "availability-probe",
+        "child-observed-posture",
+        "dated-capability-matrix",
+        "fallback-ladder",
+        "host-routed-approval-round-trip",
+        "output-normalization",
+        "permission-stance-enforcement",
+        "subscription-auth-selection",
+        "thread-custody-across-resume"
+      ],
+      "deviations": 0,
+      "context": "approval-window-shell",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    },
+    {
+      "ts": "2026-10-16T01:24:42.741060+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-cli-transport"
+      ],
+      "techniques": [
+        "availability-probe",
+        "child-observed-posture",
+        "dated-capability-matrix",
+        "fallback-ladder",
+        "host-routed-approval-round-trip",
+        "output-normalization",
+        "permission-stance-enforcement",
+        "subscription-auth-selection",
+        "thread-custody-across-resume"
+      ],
+      "deviations": 0,
+      "context": "wallet-app-services",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    },
+    {
+      "ts": "2026-10-16T01:24:42.741060+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-cli-transport"
+      ],
+      "techniques": [
+        "availability-probe",
+        "child-observed-posture",
+        "dated-capability-matrix",
+        "fallback-ladder",
+        "host-routed-approval-round-trip",
+        "output-normalization",
+        "permission-stance-enforcement",
+        "subscription-auth-selection",
+        "thread-custody-across-resume"
+      ],
+      "deviations": 0,
+      "context": "deal-review",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    },
+    {
+      "ts": "2026-10-16T01:24:42.741060+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "agent-cli-transport"
+      ],
+      "techniques": [
+        "availability-probe",
+        "child-observed-posture",
+        "dated-capability-matrix",
+        "fallback-ladder",
+        "host-routed-approval-round-trip",
+        "output-normalization",
+        "permission-stance-enforcement",
+        "subscription-auth-selection",
+        "thread-custody-across-resume"
+      ],
+      "deviations": 0,
+      "context": "house-seller-service",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    }
+  ]
+}
