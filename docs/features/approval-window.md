@@ -102,6 +102,9 @@ available (it is the safe direction).
    practice table: `open_approval` refuses it unless the key is a live pin and the table equals the
    one Rust kept at `pairing_confirm`; the window then opens its table sheet, and `deal_join` checks
    the table again.
+   The same sheet also joins another owner's table: the seller's sheet shows a listing code, the buyer pastes it
+   (`listingCode.ts`), and `deal_join` carries the seller's deal id and the decoded terms; Rust re-checks the
+   seller's signed listing against them before any offer (STATUS.md, "Open or join a table after pairing").
 2. **The capability.** The window asks `approval_token` once and keeps it in a ref inside
    `SessionProvider` (`session.tsx`): never React state, storage or a request body. Privileged calls
    send it as the `X-Wallet-Ipc` header. `main` and the Tumbler cannot obtain it.

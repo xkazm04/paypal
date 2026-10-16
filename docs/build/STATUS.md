@@ -2580,12 +2580,24 @@ no PayPal call: money still moves only through the existing AUTHORIZE approval.
   id is now unique per join.
 - **Words.** `APPROVAL_TABLE` (`lib/words/approval.ts`), `PAIR.joinTable`/`openTable`/… and
   `CONNECTIONS_PEOPLE.openTable` (`lib/words/connections.ts`).
-- **Gap: a buyer joining another owner's desktop listing.** Not built. No existing command returns
-  a received listing's deal ULID and terms to the buyer: relay mailboxes are polled per deal that
-  already exists locally (`relay.rs` `consume_inbox`, `select_signer(message.deal_id)`), and
-  `relay_tests.rs` passes the seller's `deal.id` to the buyer out of band. Closing it needs a read
-  that surfaces a paired seller's signed LISTING (deal ULID, terms, category) before the buyer's deal
-  exists, which is a new command or event.
+- **Buyer joins another owner's table with a listing code (2026-10-17).** Reachable now, with the existing
+  `deal_create` / `deal_join` and no new command or authority row. The seller's table sheet shows a copyable
+  code once `deal_create` returns (`windows/approval/listingCode.ts`: `TBL1/<deal id>/<item>/<qty>/<minor>/<CUR>/now/<category>/<crc32>`,
+  versioned and checksummed; delivery is digital-now only). The owner passes it to the buyer out of band. In the buyer's
+  table sheet (mode "Join with a code") the owner picks the paired seller and their buyer rules, pastes the code, sees the
+  decoded terms and joins: `deal_join` with that deal id and those terms (`tableDraft.ts` `codeJoinArgs`). A malformed,
+  cut-off, other-version or bad-checksum code is refused in the sheet in plain words (`APPROVAL_TABLE.codeBad*`).
+  The code is not authority: for a non-house counterparty Rust (`service.rs` `join_deal`) now also refuses a deal id
+  that already exists locally and a counterparty that is not paired with a live pin (house checks unchanged). The
+  buyer deal waits at Pairing; `receive_haggle` accepts the seller's signed LISTING only if item, ask and delivery equal
+  the deal's terms, so a wrong deal id (the listing never arrives; the deal lapses on silence) or altered terms (the
+  listing is refused) never reach Listed, AUTHORIZE or PayPal. Rust tests (`listing_code_tests.rs`): matching code
+  closes through the relay; wrong ULID stays Pairing and withdraws on the deadline; altered ask / item / delivery are
+  refused with zero buyer PayPal calls; unpaired, revoked, expired pin and a known deal id are refused by `deal_join`.
+  Mock: a join of a code whose seller table is on the same device gets its own id and hears the listing only when item,
+  price and delivery match. **Post-submission:** pair-mailbox ingest (surfacing a received LISTING to the buyer without a
+  code) is not built. Client tsc and vitest were not run (worktree has no node_modules); `listingCode.test.ts` was
+  checked only by running the encode/decode logic under node.
 - **Tests.** Rust: `house_table_draft_carries_only_the_table_rust_kept_at_pairing`
   (`house_tests.rs`). Client (added, not run): `windows/approval/tableDraft.test.ts` (rules filter,
   join args from `house_table` + a mandate, listing args), `mock/tables.test.ts` (deal_create and
