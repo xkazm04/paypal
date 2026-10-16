@@ -10,6 +10,54 @@ pub struct RelayWork {
     pub generation: String,
     pub cursor: u64,
     pub outgoing: Vec<(H256, String)>,
+    /// When the deal was receipted, for a route that is polled only to notice a relay restart
+    /// (RECEIPTED, nothing owed); `None` for every other route. DECISIONS section 46.
+    pub settled_at: Option<Timestamp>,
+}
+/// How long after settlement a RECEIPTED deal with nothing owed is still polled so that a relay
+/// restart is noticed and the signed history resent: 72 hours, the same span as the buyer's
+/// corroboration window (DECISIONS section 28). After it the route is retired from the relay scan.
+/// DECISIONS section 46 amends section 6.
+pub const RECOVERY_WINDOW_SECS: i64 = 72 * 3600;
+/// The first interval between polls of a settled route; the interval then grows with the time
+/// since settlement (see [`recovery_interval`]).
+pub const RECOVERY_POLL_BASE_SECS: i64 = 5;
+/// The longest interval between polls of a settled route inside the window.
+pub const RECOVERY_POLL_CEILING_SECS: i64 = 3600;
+/// The wait after a poll made `age` seconds after settlement: the age itself, so each wait doubles
+/// the age, clamped between the base and the ceiling (polls at 0, 5, 10, 20, 40 s ... then hourly).
+pub fn recovery_interval(age: i64) -> i64 {
+    age.clamp(RECOVERY_POLL_BASE_SECS, RECOVERY_POLL_CEILING_SECS)
+}
+/// Remembers, in memory only, when each settled route was last polled and thins them to the
+/// decaying cadence. A restart forgets it, so the first poll after a restart is at once, which
+/// is also when a relay restart is most likely to need noticing.
+#[derive(Debug, Default)]
+pub struct SettledPollClock {
+    last: std::collections::BTreeMap<DealId, Timestamp>,
+}
+impl SettledPollClock {
+    /// Keeps the work due at `now`: every route that owes something or is not settled, and a
+    /// settled route only when its interval since the last poll has passed. The routes kept are
+    /// marked polled at `now`; routes that left the scan are forgotten.
+    pub fn due(&mut self, work: Vec<RelayWork>, now: Timestamp) -> Vec<RelayWork> {
+        self.last
+            .retain(|id, _| work.iter().any(|w| w.deal_id == *id));
+        work.into_iter()
+            .filter(|w| {
+                let Some(settled) = w.settled_at else {
+                    return true;
+                };
+                let due = self.last.get(&w.deal_id).is_none_or(|last| {
+                    now.saturating_sub(*last) >= recovery_interval(last.saturating_sub(settled))
+                });
+                if due {
+                    self.last.insert(w.deal_id, now);
+                }
+                due
+            })
+            .collect()
+    }
 }
 #[derive(Debug)]
 pub struct InboxMessage {
@@ -119,7 +167,18 @@ impl Ledger {
         tx.commit()?;
         Ok(())
     }
+    /// [`Self::relay_work_at`] at the system clock, for callers that keep no injected clock.
     pub fn relay_work(&self) -> Result<Vec<RelayWork>, LedgerError> {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs() as i64);
+        self.relay_work_at(now)
+    }
+    /// The routes to deliver and poll at `now`. A route that owes envelopes is always returned. A
+    /// finished route with nothing owed is dropped. A RECEIPTED route with nothing owed is returned
+    /// (with `settled_at`) only until [`RECOVERY_WINDOW_SECS`] after settlement, then retired
+    /// (DECISIONS section 46); a deal with no settlement row is retired too, since it cannot be aged.
+    pub fn relay_work_at(&self, now: Timestamp) -> Result<Vec<RelayWork>, LedgerError> {
         let mut q = self.conn.prepare(
             "SELECT deal_id,mailbox,generation,cursor FROM relay_routes ORDER BY deal_id",
         )?;
@@ -146,14 +205,21 @@ impl Ledger {
                 .collect::<Result<Vec<_>, LedgerError>>()?;
             let deal_id = id.parse().map_err(|_| LedgerError::Integrity("deal id"))?;
             // A finished deal still delivers what it owes (a WITHDRAW, a RECEIPT), then goes quiet.
-            // A Receipted deal stays polled: a relay restart is only noticed by polling, and both
-            // wallets must then resend the signed history.
-            if outgoing.is_empty()
-                && crate::repositories::read_deal(&self.conn, deal_id)?
-                    .state
-                    .terminal()
-            {
-                continue;
+            // A Receipted deal is also polled for the recovery window after settlement, because a
+            // relay restart is only noticed by polling and both wallets must then resend the signed
+            // history; after the window it is retired (section 46, amending section 6).
+            let state = crate::repositories::read_deal(&self.conn, deal_id)?.state;
+            let mut settled_at = None;
+            if outgoing.is_empty() {
+                if state == table_core::DealState::Receipted {
+                    let at = self.receipted_at(deal_id)?.unwrap_or(0);
+                    if now.saturating_sub(at) >= RECOVERY_WINDOW_SECS {
+                        continue;
+                    }
+                    settled_at = Some(at);
+                } else if state.terminal() {
+                    continue;
+                }
             }
             work.push(RelayWork {
                 deal_id,
@@ -161,9 +227,22 @@ impl Ledger {
                 generation,
                 cursor,
                 outgoing,
+                settled_at,
             });
         }
         Ok(work)
+    }
+    /// When the deal first moved to RECEIPTED, from its `deal.transition` audit row.
+    fn receipted_at(&self, id: DealId) -> Result<Option<Timestamp>, LedgerError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT MIN(CAST(at AS INTEGER)) FROM audit_log WHERE deal_id=?1 AND action='deal.transition' AND json_extract(detail_json,'$.to')=?2",
+                params![id.to_string(), "RECEIPTED"],
+                |r| r.get(0),
+            )
+            .optional()?
+            .flatten())
     }
     /// Cursor and raw inbox are committed together; network completion never advances deal state.
     pub fn stage_relay_batch(

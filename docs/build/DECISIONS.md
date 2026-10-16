@@ -123,7 +123,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Decision:** only pre-capture routes count toward the 64-route cap; Captured and Receipted
   routes release theirs. A route with nothing owed stops being polled once its deal is finished,
   but a Receipted route stays polled: a relay restart is noticed only by polling, and both wallets
-  must then resend the signed history. HOUSE `Seller::table` sets the silence deadline right
+  must then resend the signed history (bounded to a recovery window by section 46). HOUSE `Seller::table` sets the silence deadline right
   after `create_deal`, binds the relay and lists, and reserves the request slot last.
 - **Lost:** not stated in the commit (alternatives not confirmed). The commit's own text names the
   reason Receipted routes stay polled rather than going quiet.
@@ -1593,3 +1593,40 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   `crates/table-core/src/rescue.rs`, which only has the `RESCUE_WATCH_*` constants; none of them are
   `RESCUE_READ_ATTEMPTS`. Run 135d9078 was not found in the repo, so the 0.10 is cited from the brief.
   Docs only: no code, test or gate run changed.
+
+## 46. A settled deal is polled for a 72-hour recovery window on a decaying cadence, then retired from the relay scan
+
+- **Date:** 2026-10-16 (signed-haggle full council r1, economics 0.10)
+- **Decided by:** Athena as operator delegate 2026-10-16
+- **Constraint:** section 6 kept a Receipted route polled so a relay restart is noticed and both
+  wallets resend the signed history. With nothing owed it was polled at about 1 Hz and its mailbox
+  re-created on every 24-hour expiry, for ever: an unbounded leak per settled deal. Section 6's
+  recovery on a restart must stay for as long as it can matter.
+- **Decision:** this AMENDS section 6; it does not void it. A Receipted deal with nothing owed stays in
+  the relay scan for `RECOVERY_WINDOW_SECS` (72 h) after settlement. Inside the window it is polled
+  on a decaying cadence: after a poll made `a` seconds after settlement the wait is
+  `clamp(a, RECOVERY_POLL_BASE_SECS = 5, RECOVERY_POLL_CEILING_SECS = 3600)`, so polls fall at 0, 5, 10,
+  20, 40 s and so on, doubling to one an hour (about 80 polls in the window instead of about 259,000).
+  After the window `relay_work_at` no longer returns the route, so the runtime never creates,
+  re-creates or polls its mailbox again. A generation reset inside the window still re-lists the
+  signed history as owed, and an owed envelope bypasses the cadence, so the resend is exactly as
+  before. A route that owes an envelope (a WITHDRAW, a RECEIPT) is delivered whatever the window.
+  Settlement time is the `at` of the deal's first `deal.transition` audit row to RECEIPTED; no
+  migration. A Receipted deal with no such row cannot be aged and is retired.
+- **Why 72 h:** it is the buyer's corroboration window (section 28), the span in which a Receipted deal
+  can still change state and a counterparty can still ask for the history; the 24-hour mailbox expiry
+  is inside it three times over, so a restart or an expiry is noticed at least twice. The 1-hour
+  ceiling is far below the 24-hour expiry.
+- **Lost:** polling for ever (the leak), and retiring at settlement (a restart right after a receipt
+  could never be recovered). After the window recovery is lost by design.
+- **Consequences:** `Ledger::relay_work_at(now)` takes the time; `relay_work()` is kept and reads the
+  system clock (the hosted HOUSE in `services/` still calls it, so it gets the window but not the
+  decaying cadence until that service adopts `SettledPollClock`). The last-poll time per settled route is
+  in memory (`SettledPollClock`), so a restart polls each settled route once at once. The 64-route
+  cap, pre-capture routes and the pairing mailbox are unchanged.
+- **Evidence:** `crates/table-ledger/src/relay.rs` and tests in `crates/table-ledger/src/tests.rs`
+  (`settled_route_is_polled_on_a_decaying_cadence_then_retired`,
+  `relay_generation_reset_inside_the_window_resends_the_history`,
+  `receipted_route_that_owes_envelopes_is_delivered_after_the_window`,
+  `receipted_route_is_polled_in_the_recovery_window_and_delivers_what_it_owes`); the runtime uses it
+  in `crates/table-runtime/src/relay.rs`. Fake-clock tests, no network, no PayPal call.
