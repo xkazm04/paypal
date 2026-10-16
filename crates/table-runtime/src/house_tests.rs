@@ -1842,3 +1842,116 @@ fn a_refused_house_confirm_keeps_no_table_to_join() {
     );
     assert!(http.0.lock().unwrap().paths.is_empty());
 }
+/// The table draft's other claims: refused from the approval window, for a pin revoked or
+/// expired after pairing, once the house's table has ended, and as a house table on a key that
+/// is not the house.
+#[test]
+fn table_draft_is_refused_for_a_lapsed_pin_an_ended_table_or_a_non_house_key() {
+    use crate::tests::TestClock;
+    use crate::vault::{MemoryVault, signing_key};
+    use std::sync::atomic::AtomicI64;
+    use table_ledger::{Counterparty, PairedVia};
+    use table_proto::{AgentSigner, ShortText};
+    let (mut seller, release, http, _, _) = hosted_fixture();
+    let (mut buyer, _, response) = house_buyer(&mut seller, release);
+    let words = buyer.house_pair(response.clone()).unwrap();
+    let key = buyer
+        .pairing_confirm(PairingConfirmArgs {
+            pairing_id: words.pairing_id,
+            words: words.words,
+            display_name: "HOUSE".into(),
+        })
+        .unwrap();
+    let t = &response.table;
+    let table = HouseTableDraft {
+        negotiation_deadline: t.negotiation_deadline,
+        deal_id: t.deal_id,
+        terms: t.terms.clone(),
+        category: t.category,
+    };
+    let open = |counterparty: &KeyId, house: Option<HouseTableDraft>| ApprovalOpenArgs {
+        deal_id: None,
+        pairing: None,
+        target: None,
+        draft: Some(ApprovalDraft::Table {
+            counterparty: counterparty.clone(),
+            house,
+        }),
+    };
+    // Only Main carries a draft, not the approval window itself.
+    assert!(
+        buyer
+            .open_approval("approval", open(&key, Some(table.clone())))
+            .is_err()
+    );
+    // A paired key that is not the house cannot carry the house's table.
+    let peer = AgentSigner::from_key(signing_key(&MemoryVault::default(), "code-peer").unwrap());
+    let code_key = peer.key_id().unwrap();
+    buyer
+        .pipeline
+        .wallet
+        .ledger
+        .insert_counterparty(&Counterparty {
+            key_id: code_key.clone(),
+            owner_key: peer.public_key().to_bytes(),
+            agent_key: peer.public_key().to_bytes(),
+            display_name: ShortText::new("Peer".into()).unwrap(),
+            paired_via: PairedVia::Code,
+            words_confirmed_at: Some(100),
+            declared_payee: PayeeRef::new("merchant").unwrap(),
+            first_seen: 0,
+        })
+        .unwrap();
+    buyer.open_approval("main", open(&code_key, None)).unwrap();
+    assert!(
+        buyer
+            .open_approval("main", open(&code_key, Some(table.clone())))
+            .is_err()
+    );
+    // A house table whose deadline has passed.
+    let live = buyer.clock.clone();
+    buyer.clock = Arc::new(TestClock(AtomicI64::new(t.negotiation_deadline)));
+    assert!(
+        buyer
+            .open_approval("main", open(&key, Some(table.clone())))
+            .is_err()
+    );
+    buyer.clock = live;
+    buyer
+        .open_approval("main", open(&key, Some(table.clone())))
+        .unwrap();
+    // A pin that expired, then one revoked, no longer passes.
+    let now = buyer.clock.now();
+    buyer
+        .pipeline
+        .wallet
+        .ledger
+        .set_counterparty_expiry(&key, Some(now), now)
+        .unwrap();
+    assert!(
+        buyer
+            .open_approval("main", open(&key, Some(table.clone())))
+            .is_err()
+    );
+    buyer
+        .pipeline
+        .wallet
+        .ledger
+        .set_counterparty_expiry(&key, None, now)
+        .unwrap();
+    buyer
+        .open_approval("main", open(&key, Some(table.clone())))
+        .unwrap();
+    buyer
+        .pipeline
+        .wallet
+        .ledger
+        .revoke_counterparty(&key, now)
+        .unwrap();
+    assert!(
+        buyer
+            .open_approval("main", open(&key, Some(table)))
+            .is_err()
+    );
+    assert!(http.0.lock().unwrap().paths.is_empty());
+}
