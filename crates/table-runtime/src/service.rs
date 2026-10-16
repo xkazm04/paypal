@@ -781,28 +781,26 @@ impl Runtime {
     pub(crate) fn create_deal(&mut self, args: DealCreateArgs) -> Result<Deal, CommandError> {
         self.create_deal_id(args, DealId(ulid::Ulid::new()))
     }
-    /// The buyer's side of a table the seller opened, joined under the seller's deal id. A house
-    /// table is re-checked against the table Rust kept; for any other counterparty there is no
-    /// kept table, so the deal id must be new here and the counterparty paired with a live pin.
-    /// The seller's signed listing is still checked against these terms before any offer.
+    /// The buyer's side of a table the seller opened, joined under the seller's deal id. Any
+    /// counterparty, the house included, must be paired with a live pin (not revoked or expired),
+    /// and the deal id must be new here. A house table is then re-checked against the table Rust
+    /// kept; the seller's signed listing is still checked against these terms before any offer.
     pub(crate) fn join_deal(
         &mut self,
         args: DealCreateArgs,
         id: DealId,
     ) -> Result<Deal, CommandError> {
-        let (paired, house, _) = app(self
+        let (paired, _, _) = app(self
             .pipeline
             .wallet
             .ledger
             .counterparty_policy_at(&args.counterparty, self.clock.now()))?;
-        if !house {
-            if !paired {
-                return Err(invalid());
-            }
-            match self.pipeline.wallet.ledger.get_deal(id) {
-                Err(table_ledger::LedgerError::NotFound) => {}
-                _ => return Err(invalid()),
-            }
+        if !paired {
+            return Err(invalid());
+        }
+        match self.pipeline.wallet.ledger.get_deal(id) {
+            Err(table_ledger::LedgerError::NotFound) => {}
+            _ => return Err(invalid()),
         }
         self.create_deal_id(args, id)
     }
