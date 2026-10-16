@@ -1769,3 +1769,76 @@ fn house_table_draft_carries_only_the_table_rust_kept_at_pairing() {
     );
     assert!(http.0.lock().unwrap().paths.is_empty());
 }
+/// A refused house confirm keeps no table: the house.table preference is written only once the
+/// pin is accepted, so a pairing whose binding does not match leaves nothing to join.
+#[test]
+fn a_refused_house_confirm_keeps_no_table_to_join() {
+    use table_ledger::{Counterparty, PairedVia};
+    use table_proto::ShortText;
+    let (mut seller, release, http, _, _) = hosted_fixture();
+    let (mut buyer, _, response) = house_buyer(&mut seller, release);
+    let words = buyer.house_pair(response.clone()).unwrap();
+    let peer = &response.seller.identity;
+    let key =
+        table_proto::key_id(&ed25519_dalek::VerifyingKey::from_bytes(&peer.agent_key).unwrap())
+            .unwrap();
+    // The same house key is already pinned under another code: this confirm must be refused.
+    buyer
+        .pipeline
+        .wallet
+        .ledger
+        .insert_paired_counterparty(
+            &Counterparty {
+                key_id: key.clone(),
+                owner_key: peer.owner_key,
+                agent_key: peer.agent_key,
+                display_name: ShortText::new("HOUSE".into()).unwrap(),
+                paired_via: PairedVia::House,
+                words_confirmed_at: Some(100),
+                declared_payee: peer.payee.clone(),
+                first_seen: 0,
+            },
+            H256::digest(b"another code"),
+        )
+        .unwrap();
+    assert!(
+        buyer
+            .pairing_confirm(PairingConfirmArgs {
+                pairing_id: words.pairing_id,
+                words: words.words,
+                display_name: "HOUSE".into(),
+            })
+            .is_err()
+    );
+    let t = &response.table;
+    let kept: Option<table_proto::HouseTable> = buyer
+        .pipeline
+        .wallet
+        .ledger
+        .preference(&format!("house.table.{}", t.deal_id))
+        .unwrap();
+    assert!(kept.is_none());
+    let draft = ApprovalDraft::Table {
+        counterparty: key,
+        house: Some(HouseTableDraft {
+            negotiation_deadline: t.negotiation_deadline,
+            deal_id: t.deal_id,
+            terms: t.terms.clone(),
+            category: t.category,
+        }),
+    };
+    assert!(
+        buyer
+            .open_approval(
+                "main",
+                ApprovalOpenArgs {
+                    deal_id: None,
+                    pairing: None,
+                    target: None,
+                    draft: Some(draft),
+                },
+            )
+            .is_err()
+    );
+    assert!(http.0.lock().unwrap().paths.is_empty());
+}

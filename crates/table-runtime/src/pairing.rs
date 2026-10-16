@@ -731,13 +731,6 @@ impl Runtime {
             declared_payee: peer.payee.clone(),
             first_seen: self.clock.now(),
         };
-        if let Some(table) = &pending.words.house_table {
-            app(self
-                .pipeline
-                .wallet
-                .ledger
-                .set_preference(&format!("house.table.{}", table.deal_id), table))?;
-        }
         if let Some((hash, owner, payee)) =
             app(self.pipeline.wallet.ledger.counterparty_binding(&key_id))?
         {
@@ -757,6 +750,14 @@ impl Runtime {
                 .wallet
                 .ledger
                 .insert_paired_counterparty(&cp, peer.code_hash))?;
+        }
+        // Kept only once the pin is accepted: a refused confirm leaves no table to join.
+        if let Some(table) = &pending.words.house_table {
+            app(self
+                .pipeline
+                .wallet
+                .ledger
+                .set_preference(&format!("house.table.{}", table.deal_id), table))?;
         }
         let code_hash = peer.code_hash;
         self.pending.remove(&args.pairing_id);
