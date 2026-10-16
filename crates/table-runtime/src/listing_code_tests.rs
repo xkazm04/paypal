@@ -448,3 +448,82 @@ async fn deal_join_refuses_an_unpaired_revoked_or_expired_counterparty_and_a_kno
         DealState::Pairing
     );
 }
+/// Scan J-1 (docs/security/scan-2026-10-17-join.md): join_deal itself refuses a house pin that was
+/// revoked or has expired (before, only the rules' counterparty clause did), and a house table
+/// joins once: the second join is refused as invalid before any write, not by the deals table's
+/// unique key surfacing as a ledger-trust error.
+#[tokio::test]
+async fn deal_join_refuses_a_lapsed_house_pin_and_a_house_deal_id_already_joined() {
+    for lapse in [Some(true), Some(false), None] {
+        let (mut seller, release, http, _, _) = hosted_fixture();
+        let (mut buyer, _, response) = house_buyer(&mut seller, release);
+        let words = buyer.house_pair(response.clone()).unwrap();
+        let key = buyer
+            .pairing_confirm(PairingConfirmArgs {
+                pairing_id: words.pairing_id,
+                words: words.words,
+                display_name: "HOUSE".into(),
+            })
+            .unwrap();
+        let rules = clauses(Side::Buyer, DealKind::Haggle);
+        let mandate = buyer
+            .sign_mandate(MandateSignArgs {
+                id: None,
+                agent: AgentSlot::Negotiator,
+                clauses: rules,
+                not_before: 0,
+                expires: 1000000,
+            })
+            .unwrap();
+        let now = buyer.clock.now();
+        match lapse {
+            Some(true) => buyer
+                .pipeline
+                .wallet
+                .ledger
+                .revoke_counterparty(&key, now)
+                .unwrap(),
+            Some(false) => buyer
+                .pipeline
+                .wallet
+                .ledger
+                .set_counterparty_expiry(&key, Some(now), now)
+                .unwrap(),
+            None => {}
+        }
+        let token = crate::tests::unlock_runtime(&mut buyer);
+        let id = response.table.deal_id;
+        let join = || {
+            Action::Join(DealJoinArgs {
+                create: DealCreateArgs {
+                    kind: DealKind::Haggle,
+                    side: Side::Buyer,
+                    counterparty: key.clone(),
+                    mandate_id: mandate.payload.id,
+                    mandate_version: 1,
+                    terms: response.table.terms.clone(),
+                    category: Category::Parts,
+                },
+                deal_id: id,
+            })
+        };
+        let first = buyer
+            .execute(caller("approval", Some(&token)), join())
+            .await;
+        if lapse.is_some() {
+            assert!(matches!(first.unwrap_err().code, ErrorCode::Invalid));
+            assert!(matches!(
+                buyer.pipeline.wallet.ledger.get_deal(id),
+                Err(table_ledger::LedgerError::NotFound)
+            ));
+        } else {
+            first.unwrap();
+            let again = buyer
+                .execute(caller("approval", Some(&token)), join())
+                .await
+                .unwrap_err();
+            assert!(matches!(again.code, ErrorCode::Invalid));
+        }
+        assert!(http.0.lock().unwrap().paths.is_empty());
+    }
+}
