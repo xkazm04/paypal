@@ -11,7 +11,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import type { PairingOffer } from '@bindings/PairingOffer';
 import type { PairingWords } from '@bindings/PairingWords';
 import type { Side } from '@bindings/Side';
-import type { WalletError } from '../../../../../lib/contract';
+import type { ArgsOf, WalletError } from '../../../../../lib/contract';
 import { clockLabel, formatMoney, shortHash } from '../../../../../lib/format';
 import { useEvent, useMutation, useQuery } from '../../../../../lib/hooks';
 import { PAIR } from '../../../../../lib/words';
@@ -23,6 +23,7 @@ import {
   type MirrorStage, type PairMode, type Ticks, type WizardKey, type WizardState,
 } from '../../../setup/pairing';
 import { useLocked, useSettings } from '../../../world';
+import { JOIN_RETRY_MS, shouldRetryJoin } from './joinRetry';
 
 const DEFAULT_SIDE: Record<PairMode, Side> = { create: 'seller', join: 'buyer', house: 'buyer' };
 
@@ -60,8 +61,11 @@ export function PairingDesk({ mode, setMode, asLayer = false }: {
   const [matched, setMatched] = useState(false);
   const [ticks, setTicks] = useState<Ticks>(() => newTicks());
   const phase = pairPhase(!!offer, !!words);
+  // The join in flight, kept so a "not available yet" answer can be retried (joinRetry.ts); null once reset.
+  const joinArgs = useRef<ArgsOf<'pairing_join'> | null>(null);
+  const joinCalls = useRef(0);
 
-  const reset = () => { setStartedAs(null); setOffer(null); setWords(null); setPinned(false); setMatched(false); setTicks(newTicks()); setPollErr(null); setPolls(0); create.reset(); join.reset(); abort.reset(); };
+  const reset = () => { joinArgs.current = null; setStartedAs(null); setOffer(null); setWords(null); setPinned(false); setMatched(false); setTicks(newTicks()); setPollErr(null); setPolls(0); create.reset(); join.reset(); abort.reset(); };
   /** Ends the pairing in Rust (by our code while waiting, by its id once words are out), then here. */
   const end = async () => {
     const r = words ? await abort.run({ pairing_id: words.pairing_id, code: null }) : offer ? await abort.run({ pairing_id: null, code: offer.code }) : null;
@@ -120,6 +124,9 @@ export function PairingDesk({ mode, setMode, asLayer = false }: {
     void approvalRun.current({ deal_id: null, pairing: words.pairing_id });
   }, [words, wordsKey]);
 
+  const joinRun = useRef(join.run);
+  joinRun.current = join.run;
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!canSubmit(mode, { payee, code }, house)) return;
@@ -133,9 +140,27 @@ export function PairingDesk({ mode, setMode, asLayer = false }: {
     }
     const c = mode === 'house' ? 'HOUSE' : joinCode(code);
     if (!c) return;
-    const r = await join.run({ code: c, side: mode === 'house' ? 'buyer' : side, payee: payee.trim(), peer: null });
+    const args = { code: c, side: mode === 'house' ? 'buyer' : side, payee: payee.trim(), peer: null } as const;
+    joinArgs.current = args;
+    joinCalls.current = 1;
+    const r = await join.run(args);
     if (r) setWords(r);
   };
+  // Join mode only: "not available yet" is retried about every 3 s, up to JOIN_ATTEMPTS calls, while
+  // the joining state stays up and the error stays hidden. Reset, a mode change or unmount ends it.
+  const retrying = !!joinArgs.current && shouldRetryJoin(mode, join.error, joinCalls.current);
+  useEffect(() => {
+    const args = joinArgs.current;
+    if (!args || !shouldRetryJoin(mode, join.error, joinCalls.current)) return;
+    const t = setTimeout(() => {
+      if (joinArgs.current !== args) return;
+      joinCalls.current += 1;
+      void joinRun.current(args).then((r) => {
+        if (r && joinArgs.current === args) setWords(r);
+      });
+    }, JOIN_RETRY_MS);
+    return () => clearTimeout(t);
+  }, [join.error, mode]);
 
   const copy = async (c: string) => {
     try {
@@ -147,7 +172,7 @@ export function PairingDesk({ mode, setMode, asLayer = false }: {
   };
 
   const steps = wizardSteps(phase, matched, pinned);
-  const busy = create.pending || join.pending;
+  const busy = create.pending || join.pending || retrying;
   const houseWaking = mode === 'house' && (join.pending || house === 'waking');
   const answer = pairAnswer(mode, phase, matched, pinned, houseConnected);
   const table = words?.house_table ?? null;
@@ -206,7 +231,7 @@ export function PairingDesk({ mode, setMode, asLayer = false }: {
         </label>
         <Fields side={side} setSide={setSide} payee={payee} setPayee={setPayee} />
         <div className="wz-acts">
-          <Btn kind="primary" className="big" type="submit" disabled={busy || !canSubmit('join', { payee, code }, house)}>{join.pending ? PAIR.joining : PAIR.join}</Btn>
+          <Btn kind="primary" className="big" type="submit" disabled={busy || !canSubmit('join', { payee, code }, house)}>{join.pending || retrying ? PAIR.joining : PAIR.join}</Btn>
           <Silence className="wz-sil" text={PAIR.nothingHappens}>{PAIR.noMoney}</Silence>
         </div>
       </>
@@ -337,7 +362,7 @@ export function PairingDesk({ mode, setMode, asLayer = false }: {
       {create.error ? <WalletNotice error={create.error} what={PAIR.failMake} /> : null}
       {abort.error ? <WalletNotice error={abort.error} what={PAIR.failStop} /> : null}
       {wake.error ? <WalletNotice error={wake.error} what={PAIR.failWake} /> : null}
-      {join.error ? (
+      {join.error && !retrying ? (
         <>
           <WalletNotice error={join.error} what={mode === 'house' ? PAIR.failHouse : PAIR.failJoin} />
           {mode === 'house' && join.error.code === 'UNAVAILABLE' ? <p className="ui-hint">{s && !s.relay_available ? PAIR.noRelayHint : PAIR.mayWake}</p> : null}
