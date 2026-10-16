@@ -6,9 +6,14 @@
 // disturb). Below: the charter, the other places, the first visit (preview only) and Quit. PayPal
 // keys, the agent app and the house seller live in Connections now; agent rules in Rules.
 // Commands: reads, engine-free pause_all_agents / resume_all_agents (one click, no confirmation),
-// settings_write (notices only) and approval_open (unlock, keys, rules). Nothing here moves money.
+// agent_start (only from the owner's Restart click, one per table Resume reported waiting, within
+// the run limit: resume.ts), settings_write (notices only) and approval_open (unlock, keys, rules).
+// Nothing here moves money.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { SettingsSnapshot } from '@bindings/SettingsSnapshot';
+import type { WaitingTable } from '@bindings/WaitingTable';
+import { toWalletError, type WalletError } from '../../../../../lib/contract';
+import { countdownWords } from '../../../../../lib/format';
 import { useCalm } from '../../../../../design/motion';
 import { readCommand } from '../../../../../lib/data/invoke';
 import { useMutation, useNow, useQuery } from '../../../../../lib/hooks';
@@ -29,6 +34,7 @@ import type { LayerProps } from '../../layers';
 import type { LatestProps } from '../../Latest';
 import { PlaceFrame, type CallLine, type LensCard } from './frame';
 import { ToApproval } from './handoff';
+import { restartPlan, restartTables } from './resume';
 
 export function SettingsLayer({ nav }: LayerProps) {
   const settings = useSettings();
@@ -54,8 +60,32 @@ export function SettingsLayer({ nav }: LayerProps) {
   const answer = settingsAnswer(c, { firstRun: !!s?.first_run, settingsKnown: !!s, locked });
   const paused = !!s?.agents_paused;
 
-  const doPause = async () => { if ((await pause.run(null)) === null) toast(SETTINGS_AGENTS.pausedToast, 'gold'); };
-  const doResume = async () => { if (await resume.run(null)) toast(SETTINGS_AGENTS.resumedToast, 'ok'); };
+  // What the last Resume found waiting on your agent, and the tables a Restart could not start.
+  const [waiting, setWaiting] = useState<WaitingTable[]>([]);
+  const [refused, setRefused] = useState<{ deal_id: string; error: WalletError }[]>([]);
+  const [restarting, setRestarting] = useState(false);
+  const doPause = async () => { if ((await pause.run(null)) === null) { setWaiting([]); setRefused([]); toast(SETTINGS_AGENTS.pausedToast, 'gold'); } };
+  const doResume = async () => {
+    const report = await resume.run(null);
+    if (!report) return;
+    setWaiting(report.waiting);
+    setRefused([]);
+    toast(report.waiting.length ? SETTINGS_AGENTS.resumedWaiting(report.waiting.length) : SETTINGS_AGENTS.resumedToast, 'ok');
+  };
+  // The owner's one click: an agent_start per table that fits the free run slots, in deadline
+  // order. A refused start stays listed with its reason; nothing is retried by itself.
+  const doRestart = async () => {
+    if (restarting) return;
+    const plan = restartPlan(waiting.map((w) => w.deal_id), running ? running.length : 0);
+    setRestarting(true);
+    try {
+      const out = await restartTables(plan.start, (deal_id) => backend().invoke('agent_start', { deal_id }));
+      setWaiting((w) => w.filter((x) => !out.started.includes(x.deal_id)));
+      setRefused(out.refused.map((r) => ({ deal_id: r.deal_id, error: toWalletError(r.error) })));
+    } finally {
+      setRestarting(false);
+    }
+  };
   usePauseKey(paused || !s, doPause);
 
   const call = callOf(c, s, locked, paused, nav, doResume, resume.pending);
@@ -76,7 +106,10 @@ export function SettingsLayer({ nav }: LayerProps) {
       note: paused ? SETTINGS_AGENTS.pausedNote : SETTINGS_AGENTS.readyNote,
       view: {
         title: SETTINGS_AGENTS.view, sub: SETTINGS_AGENTS.sub,
-        render: () => <AgentsView paused={paused} known={!!s} running={running} facts={facts.data} factsError={!!facts.error} busy={pause.pending || resume.pending} onPause={doPause} onResume={doResume} />,
+        render: () => (
+          <AgentsView paused={paused} known={!!s} running={running} facts={facts.data} factsError={!!facts.error} busy={pause.pending || resume.pending} onPause={doPause} onResume={doResume}
+            waiting={paused ? [] : waiting} refused={refused} restarting={restarting} onRestart={doRestart} now={now} />
+        ),
       },
     },
     {
@@ -198,10 +231,11 @@ function LockView({ s, locked, lockIn, factsError }: { s: SettingsSnapshot | und
   );
 }
 
-function AgentsView({ paused, known, running, facts, factsError, busy, onPause, onResume }: {
+function AgentsView({ paused, known, running, facts, factsError, busy, onPause, onResume, waiting, refused, restarting, onRestart, now }: {
   paused: boolean; known: boolean; running: { run: string; deal_id: string; engine: string; state: string; mode: SettingsSnapshot['mode'] }[] | null;
   facts: { agents: { slot: string; engine: string; does: string; mandates: string[]; running: number }[] } | undefined; factsError: boolean;
   busy: boolean; onPause: () => void; onResume: () => void;
+  waiting: WaitingTable[]; refused: { deal_id: string; error: WalletError }[]; restarting: boolean; onRestart: () => void; now: number;
 }) {
   const shown = (running ?? []).slice(0, 6);
   return (
@@ -212,6 +246,7 @@ function AgentsView({ paused, known, running, facts, factsError, busy, onPause, 
         <span className="ui-hint">{SETTINGS_AGENTS.alsoIn}</span>
       </div>
       <p className="st-note">{SETTINGS_AGENTS.stillRuns}</p>
+      {waiting.length ? <WaitingList waiting={waiting} refused={refused} running={running ? running.length : 0} restarting={restarting} onRestart={onRestart} now={now} /> : null}
       <h3 className="cs-h3">{SETTINGS_AGENTS.roster}</h3>
       {facts?.agents.length ? (
         <ul className="st-list">
@@ -239,6 +274,40 @@ function AgentsView({ paused, known, running, facts, factsError, busy, onPause, 
 }
 
 const cap = (t: string): string => `${t.charAt(0).toUpperCase()}${t.slice(1)}`;
+
+/** What Resume found waiting on your agent, soonest deadline first, and the one Restart click.
+ *  The click starts only the tables that fit the free run slots; the rest say they wait. */
+function WaitingList({ waiting, refused, running, restarting, onRestart, now }: {
+  waiting: WaitingTable[]; refused: { deal_id: string; error: WalletError }[]; running: number; restarting: boolean; onRestart: () => void; now: number;
+}) {
+  const plan = restartPlan(waiting.map((w) => w.deal_id), running);
+  const title = SETTINGS_AGENTS.waitingTitle(waiting.length);
+  const firstRefused = refused[0];
+  return (
+    <section className="st-waiting">
+      <h3 className="cs-h3">{title}</h3>
+      <p className="st-note">{SETTINGS_AGENTS.waitingWhy}</p>
+      <ul className="st-list" aria-label={title}>
+        {waiting.map((w) => <WaitingRow key={w.deal_id} w={w} now={now} refused={refused.some((r) => r.deal_id === w.deal_id)} />)}
+      </ul>
+      {firstRefused ? <WalletNotice error={firstRefused.error} what={SETTINGS_AGENTS.restartFailed(refused.length)} /> : null}
+      <div className="cs-acts">
+        <Btn kind="primary" disabled={restarting || !plan.start.length} onClick={onRestart} title={SETTINGS_AGENTS.restartTitle}>{SETTINGS_AGENTS.restart(plan.start.length)}</Btn>
+        {plan.later.length ? <span className="ui-hint">{SETTINGS_AGENTS.later(plan.later.length)}</span> : null}
+      </div>
+    </section>
+  );
+}
+
+function WaitingRow({ w, now, refused }: { w: WaitingTable; now: number; refused: boolean }) {
+  const d = useDisplayOf(w.deal_id);
+  return (
+    <li>
+      <span className="st-rt"><b>{d ? shortTitle(d.title) : SETTINGS_AGENTS.aDeal}</b><small>{countdownWords(w.deadline, now)}</small></span>
+      {refused ? <Chip tone="coral">{SETTINGS_AGENTS.notStarted}</Chip> : null}
+    </li>
+  );
+}
 
 /** One agent at work: the deal it works on, by its title (never its label). */
 function RunRow({ r, paused }: { r: { run: string; deal_id: string; engine: string; state: string; mode: SettingsSnapshot['mode'] }; paused: boolean }) {
