@@ -1690,3 +1690,57 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   `a_relay_holding_the_code_must_fix_its_key_before_it_sees_the_joiners`) and the relay round trip in
   `crates/table-runtime/src/relay_tests.rs`. `house_tests.rs` passes unchanged. No network, no PayPal
   call.
+
+## 48. Main hands a confirmed pairing to the approval window as a typed `ApprovalDraft::Table`; no new command
+
+- **Date:** 2026-10-16 (signed-haggle full council value line "no screen opens or joins a table after
+  pairing"; merged at 46fb45b, commits bdea82f and 6fa9ae7)
+- **Decided by:** Athena as operator delegate 2026-10-16
+- **Constraint:** after `pairing_confirm`, nothing carried the paired counterparty (and, for the house,
+  its practice table) from Main to the approval window's table sheet, so no screen called `deal_create`
+  or `deal_join`. Both are APPROVAL / Owner / PRIVILEGED rows (`authority_table.rs`), so only the
+  approval window, with its token, may call them. The signed wire format in `table-proto` had to stay
+  untouched, and no authority row could loosen: the LLM never moves money, and a draft moves nothing.
+- **Decision:** one new variant `ApprovalDraft::Table { counterparty, house: Option<HouseTableDraft> }`
+  (`crates/table-client/src/lib.rs`). `open_approval` takes it only from `main` (any draft from another
+  window is a permission error) and, in `check_draft` (`crates/table-runtime/src/configuration.rs`),
+  only when all of these hold; any other case is `invalid`:
+  1. The open is owner configuration: no `target` (an explicit target, or a `pairing` argument that
+     implies one, is refused) and no `deal_id`.
+  2. `counterparty` is a paired key whose pairing is live now (`counterparty_policy_at(key, now)`
+     returns paired and live).
+  3. `house` is present exactly when that key is the house (`is_house == house.is_some()`).
+  4. For a house draft, the `house.table.<deal_id>` preference Rust kept at `pairing_confirm` exists,
+     its `deal_id`, `terms`, `category` and `negotiation_deadline` equal the draft's, and the deadline
+     is still in the future.
+  `HouseTableDraft` (deal id, terms, category, negotiation deadline) mirrors `table_proto::HouseTable`
+  in the client crate instead of reusing it, so `table-proto` is untouched. The draft is never trusted:
+  the approval window shows it, the owner picks their own haggle rules, and `deal_join` (buyer, haggle
+  only) re-checks the table, terms, category and deadline against the same kept preference
+  (`service.rs` `create_deal_id`). Without `house`, the sheet opens a seller table through
+  `deal_create`.
+- **No new command, no authority-row change:** `deal_create` and `deal_join` keep
+  APPROVAL / Owner / PRIVILEGED. The draft only selects what the approval window opens on; nothing is
+  signed, sent or paid by opening it.
+- **Lost:**
+  - *A new open-table command:* it would add an authority row and a second path to the same deal
+    creation, and it would need its own copy of the checks `deal_join` and `deal_create` already make.
+    STATUS.md ("Open or join a table after pairing") records that the existing two commands suffice.
+  - *Reusing `table_proto::HouseTable` in the client crate:* it would couple the client bindings (TS
+    types generated from `table-client`) to the signed wire crate, so a client convenience could
+    change what is signed. A mirror costs four fields and is re-checked against the kept preference.
+  - *Main calling `deal_join` directly:* the row is PRIVILEGED and approval-window only. Letting Main
+    call it would move owner-confirmed creation out of the window where the owner picks the rules and
+    confirms, and would need an authority row change.
+- **Consequences:** the owner-to-owner buyer join stays open. A buyer has no way to learn a paired
+  seller's listing (deal ULID, terms, category) before its own deal exists, because relay routes are
+  per local deal (`crates/table-ledger/src/relay.rs` `relay_work_at`; the runtime polls only mailboxes
+  of deals that already exist), and `relay_tests.rs` passes the seller's deal id to the buyer out of
+  band. Closing it needs a read that surfaces a received signed LISTING, which is a new command or
+  event and so a new authority row. That gap is with the operator. Only the house join and the seller
+  table are reachable from the screens.
+- **Evidence:** `crates/table-client/src/lib.rs` (`ApprovalDraft::Table`, `HouseTableDraft`),
+  `crates/table-runtime/src/configuration.rs` (`check_draft`), test
+  `house_table_draft_carries_only_the_table_rust_kept_at_pairing` in
+  `crates/table-runtime/src/house_tests.rs`, `docs/build/STATUS.md` "Open or join a table after
+  pairing". Docs only here: no code changed.
