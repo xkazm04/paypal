@@ -6180,7 +6180,11 @@
           "revision": 6,
           "changedAt": "2026-09-18",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-runtime/src/dispatcher.rs:290 The runtime's dispatch chokepoint gate is conditionally bypassed for actions mapping to None in Action::command(), allowing unmonitored execution of imperative in-handler guards.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:57d60a438fa36d05",
+          "evaluatedRevision": 6
         },
         {
           "subject": "agent-instruction-files",

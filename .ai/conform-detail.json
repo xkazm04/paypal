@@ -2448,6 +2448,134 @@
           "evidence": "crates/table-market/src/lib.rs:104 MarketRef lookups are individual product queries that do not have parent listings or sibling collection entries from which summary warmth can be borrowed."
         }
       ]
+    },
+    "065d4555-d9ad-478c-b637-3d8eb494f76c/authorization": {
+      "context": "runtime-actor-and-engines",
+      "subject": "authorization",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T21:27:55.909Z",
+      "worker": "f400e884-0838-431e-805d-a3135b584aa1",
+      "techniques": [
+        {
+          "technique": "declarative-requirements",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/actor.rs:190 Internal actions return None from Action::command() and bypass declarative requirements, falling back to ad-hoc in-handler checks."
+        },
+        {
+          "technique": "dispatch-chokepoint-gating",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/dispatcher.rs:291 The chokepoint gate is only consulted when an action resolves to a named command, leaving unmapped actions to execute without chokepoint admission."
+        },
+        {
+          "technique": "authorization-audit",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/dispatcher.rs:38 Refused commands lacking token, unlock, or release flags return early without logging, leaving non-privileged denial probes unrecorded."
+        },
+        {
+          "technique": "privilege-tiers",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/dispatcher.rs:81 Admission checks window label set membership rather than comparing a monotone numeric or ordered privilege tier."
+        },
+        {
+          "technique": "one-accessor-per-fold-direction",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/service.rs:599 Multi-valued check statuses are folded into permission by testing only for Fail, rather than exposing distinct accessors per fold direction."
+        },
+        {
+          "technique": "delegated-authority",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:381 Delegated agent tool execution re-validates the originating authority at execute time against the live signed mandate."
+        },
+        {
+          "technique": "failure-direction",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/vault.rs:103 Loading an existing signing key fails closed on absence instead of minting a replacement, preventing unreviewed identity substitution."
+        },
+        {
+          "technique": "machine-credential-consumption",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/vault.rs:71 Machine credentials are stored in the OS keyring as plain records without keyed-hash addressing, accessors, or use-exhaustion deletion."
+        },
+        {
+          "technique": "identity-bearing-keys",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/dispatcher.rs:323 Storage keys are formatted ad-hoc at individual call sites rather than routed through a single canonical composer function."
+        },
+        {
+          "technique": "unregistered-is-stronger-than-refused",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/actor.rs:111 Process-constant modes are evaluated dynamically at request time instead of removing restricted operations from the dispatch table."
+        },
+        {
+          "technique": "ceiling-before-consent",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/configuration.rs:395 Caller-supplied mandate arguments are validated against structural bounds prior to signing and insertion."
+        },
+        {
+          "technique": "scope-design",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:370 Agent capability checking performs exact equality comparison on canonical scope fields rather than soft or substring matching."
+        },
+        {
+          "technique": "read-write-predicate-symmetry",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/dispatcher.rs:443 State selection writes verify existence via the read path get_deal, ensuring point writes borrow read-side visibility semantics."
+        }
+      ],
+      "registryProposal": "In multi-window desktop applications, privilege tiers are often non-monotone because security demands strict capability partitioning between specialized windows rather than monotonic inheritance where the highest tier can invoke all operations."
+    },
+    "60b8c7a9-421c-43fa-aff2-d1ede8cf38d9/authorization": {
+      "context": "approval-window-shell",
+      "subject": "authorization",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T21:27:55.909Z",
+      "techniques": [
+        {
+          "technique": "one-accessor-per-fold-direction",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/gating.ts:97 Checklist status folding checks c.status !== 'fail', collapsing uncertain Wait or NotApplicable statuses into permission rather than exposing dedicated accessors."
+        },
+        {
+          "technique": "declarative-requirements",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/session.tsx:80 Client invocation accepts an imperative privileged flag defaulting to false instead of deriving token attachment requirements mechanically from declared command contracts."
+        },
+        {
+          "technique": "dispatch-chokepoint-gating",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/session.tsx:86 Privileged calls through the session provider inject the in-memory channel token proof into the invocation options."
+        },
+        {
+          "technique": "failure-direction",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/session.tsx:82 Privileged commands fail closed with a permission error immediately if the capability token has not been loaded into memory."
+        },
+        {
+          "technique": "authorization-audit",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/session.tsx:81 Client-side token gating refusal returns an in-memory error directly to the caller without recording an audit entry or signal for the denial."
+        },
+        {
+          "technique": "privilege-tiers",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/gating.ts:75 UI gating partitions operations by resource ownership rules rather than ordered monotone channel tiers."
+        },
+        {
+          "technique": "ceiling-before-consent",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/PairingConfirm.tsx:136 Human pairing confirmation submits server-established identity words rather than user-authored capability scope sets."
+        }
+      ],
+      "withdrawn": {
+        "worker": "f400e884-0838-431e-805d-a3135b584aa1",
+        "state": "deviation",
+        "at": "2026-10-16T21:28:14.029614+00:00",
+        "reason": "reviewer (sonnet): gating.ts:97 is a deliberate, documented UI gate (the comment at lines 88-94 says wait lines never block because Rust checks them before money moves, and an empty checklist allows nothing), so 'implicitly treating non-definitive checks as permitted' is contradicted; Rust's `admit` is the authoritati"
+      }
     }
   }
 }
