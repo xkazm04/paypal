@@ -1960,7 +1960,11 @@
           "revision": 15,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:96 Searches found no embedded-database terms in the context directories; these modules transform supplied records using local maps, arrays and arithmetic.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:0722fec97cff5b66",
+          "evaluatedRevision": 15
         },
         {
           "subject": "cost-metering",
@@ -3749,7 +3753,11 @@
           "revision": 15,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-ledger/src/limits.rs:25 Safeguard queries execute directly on SQLite without the standard's bounded per-operation latency instrumentation, leaving database performance and contention unmeasured.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:0722fec97cff5b66",
+          "evaluatedRevision": 15
         }
       ],
       "governance": "governed"
@@ -5769,7 +5777,11 @@
           "revision": 15,
           "changedAt": "2026-09-23",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "services/rendezvous/src/lib.rs:107 Searches found no embedded-database terms in this context; the relay initializes a mutex-protected memory store rather than a database engine.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:0722fec97cff5b66",
+          "evaluatedRevision": 15
         }
       ],
       "governance": "governed"

@@ -3112,6 +3112,184 @@
           "evidence": "apps/desktop/client/src/shared/modules.tsx:48 The glyph strings use the hue-named roles. cssVar itself is a theme variable, which is the right indirection."
         }
       ]
+    },
+    "e2d9b89f-2eb9-4157-b0fd-b7560f70a75c/embedded-db": {
+      "context": "rendezvous-relay",
+      "subject": "embedded-db",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T23:24:29.584Z",
+      "worker": "c4309c78-58b5-43be-92cd-c7205a5c99a1",
+      "techniques": [
+        {
+          "technique": "analytical-reads-off-the-serving-store",
+          "verdict": "not-applicable",
+          "evidence": "services/rendezvous/src/lib.rs:244 Reads page an in-memory message collection, without analytical database queries."
+        },
+        {
+          "technique": "connection-pooling",
+          "verdict": "not-applicable",
+          "evidence": "services/rendezvous/src/lib.rs:155 Mailbox access acquires an application mutex, not a database connection."
+        },
+        {
+          "technique": "corruption-class-response",
+          "verdict": "not-applicable",
+          "evidence": "services/rendezvous/src/lib.rs:202 The write path validates message inputs; it has no persistent database structures to classify as damaged."
+        },
+        {
+          "technique": "db-self-instrumentation",
+          "verdict": "not-applicable",
+          "evidence": "services/rendezvous/src/lib.rs:221 Message insertion mutates a vector rather than invoking an embedded engine."
+        },
+        {
+          "technique": "derived-capacity-limits",
+          "verdict": "not-applicable",
+          "evidence": "services/rendezvous/src/lib.rs:217 This bounds application message memory, without an embedded engine's entry, transaction or cache limits."
+        },
+        {
+          "technique": "extension-lifecycle",
+          "verdict": "not-applicable",
+          "evidence": "services/rendezvous/src/lib.rs:285 The router receives the memory store; no database extension registration is involved."
+        },
+        {
+          "technique": "journal-and-durability-modes",
+          "verdict": "not-applicable",
+          "evidence": "services/rendezvous/src/lib.rs:186 Mailbox contents begin as a fresh vector, with no persistent journal contract."
+        },
+        {
+          "technique": "quiet-window-maintenance",
+          "verdict": "not-applicable",
+          "evidence": "services/rendezvous/src/lib.rs:156 The sweep expires memory-resident mailboxes; it is not database checkpointing or compaction."
+        },
+        {
+          "technique": "single-writer-holder-discipline",
+          "verdict": "not-applicable",
+          "evidence": "services/rendezvous/src/main.rs:26 The executable constructs a process-local store without opening a database directory."
+        },
+        {
+          "technique": "storage-accounting-and-pruning",
+          "verdict": "not-applicable",
+          "evidence": "services/rendezvous/src/lib.rs:84 Expiry releases accounted message memory; there are no database tables or allocated disk pages."
+        }
+      ]
+    },
+    "d477836b-8d3f-42dd-93ce-bf0a9f5bbf53/embedded-db": {
+      "context": "counter-and-tables-modules",
+      "subject": "embedded-db",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T23:24:29.584Z",
+      "worker": "c4309c78-58b5-43be-92cd-c7205a5c99a1",
+      "techniques": [
+        {
+          "technique": "analytical-reads-off-the-serving-store",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/tables/groups.ts:47 Comparison reduces supplied group members in memory rather than scanning a serving database."
+        },
+        {
+          "technique": "connection-pooling",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/tables/groups.ts:22 The operation sorts an input-array copy and acquires no connection."
+        },
+        {
+          "technique": "corruption-class-response",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:118 Failure here concerns amount parsing, without a database handle or damaged storage."
+        },
+        {
+          "technique": "db-self-instrumentation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:125 Catalog construction returns sorted local values, not database operations requiring engine metrics."
+        },
+        {
+          "technique": "derived-capacity-limits",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/tables/groups.ts:8 This is a product limit on comparison-group membership, not a database capacity limit."
+        },
+        {
+          "technique": "extension-lifecycle",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:41 The ladder computes display geometry without database functions or extension dependencies."
+        },
+        {
+          "technique": "journal-and-durability-modes",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:179 Draft evaluation returns transient results and performs no durable commit."
+        },
+        {
+          "technique": "quiet-window-maintenance",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:78 Fence movement computes a new draft object; there is no database maintenance pass."
+        },
+        {
+          "technique": "single-writer-holder-discipline",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:77 Mandate selection uses a function-local map without opening shared storage."
+        },
+        {
+          "technique": "storage-accounting-and-pruning",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/tables/groups.ts:20 Membership is derived from supplied records; these modules own no persistent tables to account for or prune."
+        }
+      ]
+    },
+    "0d91f152-a990-40ae-9b71-c0a8f7c20407/embedded-db": {
+      "context": "ledger-deal-safeguards",
+      "subject": "embedded-db",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T23:24:29.584Z",
+      "worker": "c4309c78-58b5-43be-92cd-c7205a5c99a1",
+      "techniques": [
+        {
+          "technique": "connection-pooling",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/src/lib.rs:61 The shared Ledger constructor opens one connection directly; no connection pool or checkout lifecycle was found."
+        },
+        {
+          "technique": "corruption-class-response",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/src/shield.rs:91 Writes propagate SQL errors without poisoning the shared Ledger; no canonical-corruption quarantine prevents subsequent calls from attempting another transaction."
+        },
+        {
+          "technique": "db-self-instrumentation",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/src/limits.rs:110 Exposure reads directly prepare and execute statements without latency rings, operation-family thresholds or busy-wait measurements; searches found no shared instrumentation implementing them."
+        },
+        {
+          "technique": "derived-capacity-limits",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/src/groups.rs:20 The inspected limits govern product membership and spending/read allowances, without configurable engine entry, transaction or cache capacity relationships."
+        },
+        {
+          "technique": "extension-lifecycle",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/src/market_watch.rs:26 Queries use built-in SQLite functionality; searches found no custom function, collation, module or loadable-extension registration dependency."
+        },
+        {
+          "technique": "journal-and-durability-modes",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/src/lib.rs:64 Connection initialization configures integrity pragmas but neither chooses nor verifies journal mode and synchronous level; repository searches found no implementation of that contract."
+        },
+        {
+          "technique": "quiet-window-maintenance",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/src/snapshot.rs:21 The discovered vacuum operation creates a mandatory pre-migration restore point, which the standard excludes from quiet-window deferral; no periodic database maintenance pass was found."
+        },
+        {
+          "technique": "single-writer-holder-discipline",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/src/groups_tests.rs:595 SQLite arbitrates concurrent connections through transactions, and this test exercises that mechanism; the store is not an exclusively held single-connection directory."
+        },
+        {
+          "technique": "storage-accounting-and-pruning",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/src/rescue_watch.rs:120 The allowance counts active watches while stopped rows remain stored; no per-table rows/bytes/share report accounts for accumulated history, even where retention is intentionally permanent."
+        }
+      ]
     }
   }
 }
