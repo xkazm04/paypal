@@ -36,7 +36,7 @@ fn checked_in_bindings_match_every_rust_command_event_and_dependency() {
         config: Config::new().with_out_dir(&root).with_large_int("number"),
         root,
         visited: HashSet::new(),
-        produced: ["authority.ts", "playbooks.ts", "ladder.ts"]
+        produced: ["authority.ts", "playbooks.ts", "ladder.ts", "dealStates.ts"]
             .map(String::from)
             .into(),
     };
@@ -97,6 +97,12 @@ fn checked_in_authority_files_match_the_authority_table() {
         read(manifest.join("../../bindings/ladder.ts")),
         table_client::ladder::typescript().unwrap(),
         "stale bindings/ladder.ts; run generate-bindings"
+    );
+    // The deal-state sets the windows and the mock read, from table-core's predicates.
+    assert_eq!(
+        read(manifest.join("../../bindings/dealStates.ts")),
+        table_client::deal_states::typescript().unwrap(),
+        "stale bindings/dealStates.ts; run generate-bindings"
     );
     // Who is told each event, for the mock's event delivery (generated, never a hand list).
     assert!(ts.contains("\nexport const EVENT_AUDIENCE = {\n"));
