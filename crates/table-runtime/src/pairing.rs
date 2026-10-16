@@ -757,7 +757,7 @@ impl Runtime {
                 .pipeline
                 .wallet
                 .ledger
-                .set_preference(&format!("house.table.{}", table.deal_id), table))?;
+                .set_preference(&house_table_key(&key_id, table.deal_id), table))?;
         }
         let code_hash = peer.code_hash;
         self.pending.remove(&args.pairing_id);
@@ -896,4 +896,11 @@ impl Runtime {
         pending.words = words.clone();
         Ok(words)
     }
+}
+
+/// The preference that keeps a house's table: bound to the house key that served it as well as
+/// the deal id, so a table kept from one house is never read back against another. An older
+/// `house.table.<deal_id>` preference is under a different key and is never read.
+pub(crate) fn house_table_key(key_id: &KeyId, deal_id: DealId) -> String {
+    format!("house.table.{key_id}.{deal_id}")
 }

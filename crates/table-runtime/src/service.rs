@@ -821,7 +821,10 @@ impl Runtime {
                 .pipeline
                 .wallet
                 .ledger
-                .preference(&format!("house.table.{}", id)))?
+                .preference(&crate::pairing::house_table_key(
+                    &deal.counterparty,
+                    id,
+                )))?
             .ok_or_else(invalid)?;
             if table.deal_id != id
                 || table.terms != deal.terms
