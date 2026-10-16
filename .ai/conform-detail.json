@@ -3290,6 +3290,144 @@
           "evidence": "crates/table-ledger/src/rescue_watch.rs:120 The allowance counts active watches while stopped rows remain stored; no per-table rows/bytes/share report accounts for accumulated history, even where retention is intentionally permanent."
         }
       ]
+    },
+    "b093c233-9d42-4fdb-8b3c-b9b5460ac5ad/invariant-placement": {
+      "context": "attention-forecast-and-window-placement",
+      "subject": "invariant-placement",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T23:50:56.839Z",
+      "worker": "da321142-41d2-4b0f-ad29-04258c5a3947",
+      "techniques": [
+        {
+          "technique": "build-time-evaluation-of-cross-value-invariants",
+          "verdict": "deviation",
+          "evidence": "crates/table-attention/src/schedule.rs:83 This assertion relates build-known constants but runs under #[cfg(test)], rather than unconditional constant evaluation; searches found no corresponding build-time assertion."
+        },
+        {
+          "technique": "consumption-bounds-at-most-once",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-attention/src/lib.rs:380 Notification deduplication is per deal/deadline identity, which the technique explicitly distinguishes from consuming a single-use process-local value."
+        },
+        {
+          "technique": "derived-properties-cannot-be-forged",
+          "verdict": "conformant",
+          "evidence": "crates/table-attention/src/lib.rs:249 Withdraw and lapse availability is computed from the domain transition function instead of an independently maintained permission declaration."
+        },
+        {
+          "technique": "initialization-proof-tokens",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-attention/src/forecast.rs:126 The projection receives its data and clock context directly; it has no subsystem bring-up prerequisite to encode."
+        },
+        {
+          "technique": "placement-precedes-gate",
+          "verdict": "conformant",
+          "evidence": "crates/table-attention/src/schedule.rs:50 Deadline eligibility is recomputed using the current time at use, rather than carried as a permanent readiness proof."
+        },
+        {
+          "technique": "repairing-check-erases-its-evidence",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-attention/src/placement.rs:155 Window clamping is specified placement behavior; invalid input geometry is separately refused, so these clamps do not conceal a violation of the geometry contract."
+        },
+        {
+          "technique": "shape-with-a-not-applicable-member",
+          "verdict": "conformant",
+          "evidence": "crates/table-attention/src/silence.rs:24 Failure to resolve forecast wording is represented by an optional result rather than an absence member added to ForecastAction."
+        }
+      ]
+    },
+    "44983015-e31a-41fb-92ee-ab6637c0cc3e/invariant-placement": {
+      "context": "book-module",
+      "subject": "invariant-placement",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T23:50:56.839Z",
+      "worker": "da321142-41d2-4b0f-ad29-04258c5a3947",
+      "techniques": [
+        {
+          "technique": "completeness-at-emission",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/understand.ts:382 The assembled query passes one validation door before compose returns a successful query/reading result; this establishes shape validation, independently of the truncation defect."
+        },
+        {
+          "technique": "consumption-bounds-at-most-once",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:249 Analytical queries and their input deals are reusable values, with no one-shot authorization or single-use obligation."
+        },
+        {
+          "technique": "derived-properties-cannot-be-forged",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/where.ts:246 The one-chip-per-view relationship is derived directly from LENSES rather than maintained as a second independent chip list."
+        },
+        {
+          "technique": "initialization-proof-tokens",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/rules.ts:25 The pure query validator operates on supplied values without an initialization-dependent capability."
+        },
+        {
+          "technique": "placement-precedes-gate",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/understand.ts:401 The current-week range is derived from the execution context when the lens runs rather than frozen into the preset declaration."
+        },
+        {
+          "technique": "repairing-check-erases-its-evidence",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/understand.ts:376 Slicing repairs an oversized filter before bookRejection can refuse it and publishes no truncation signal; an in-memory probe with 33 matching parties returned 33 party chips, 32 filter values, no unsure result and no rejection."
+        },
+        {
+          "technique": "shape-with-a-not-applicable-member",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/understand.ts:45 An unsuccessful reading is a distinct result shape without a query, rather than an unsupported member inserted into the query's real view set."
+        }
+      ]
+    },
+    "e89814cc-f4e5-4bd4-bc27-9f356e7de9d4/invariant-placement": {
+      "context": "wallet-domain-primitives",
+      "subject": "invariant-placement",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T23:50:56.839Z",
+      "worker": "da321142-41d2-4b0f-ad29-04258c5a3947",
+      "techniques": [
+        {
+          "technique": "build-time-evaluation-of-cross-value-invariants",
+          "verdict": "conformant",
+          "evidence": "crates/table-core/src/deal.rs:151 The assertion executes during unconditional constant initialization of RELEASED and prevents its declared size from drifting from the derived membership count."
+        },
+        {
+          "technique": "completeness-at-emission",
+          "verdict": "conformant",
+          "evidence": "crates/table-core/src/mandate.rs:258 MandatePayload::hash validates the assembled payload, including required clauses, before emitting its commitment."
+        },
+        {
+          "technique": "constraint-deletion-is-silent",
+          "verdict": "deviation",
+          "evidence": "crates/table-core/src/money.rs:61 Searches found no compile-failure fixture or equivalent rejection artifact for external direct Money construction; constructor/deserialization rejection tests would still pass if these fields became public."
+        },
+        {
+          "technique": "derived-properties-cannot-be-forged",
+          "verdict": "conformant",
+          "evidence": "crates/table-core/src/market.rs:424 MarketRef::validate recomputes certified quartiles from their constituent comparables and rejects disagreement instead of trusting the stored band."
+        },
+        {
+          "technique": "placement-precedes-gate",
+          "verdict": "conformant",
+          "evidence": "crates/table-core/src/money.rs:74 Deserialization enters through Money's validating constructor, so downstream Money values carry the range validation without repeated caller checks."
+        },
+        {
+          "technique": "repairing-check-erases-its-evidence",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/market.rs:386 The observed quartile rounding is specified arithmetic behavior, while invalid money precision is refused rather than defensively repaired."
+        },
+        {
+          "technique": "shape-with-a-not-applicable-member",
+          "verdict": "conformant",
+          "evidence": "crates/table-core/src/deal.rs:460 Unrecognized operations resolve to outer None, preserving MoneyCheckStep as a set containing only actual payment steps."
+        }
+      ]
     }
   }
 }
