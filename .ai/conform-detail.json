@@ -2728,6 +2728,266 @@
           "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:48 This clamped ratio is chart geometry, not a prompt-cache fraction."
         }
       ]
+    },
+    "d56b5605-88e1-456c-9b76-8c604a502ecc/docs-sync": {
+      "context": "overnight-build-report",
+      "subject": "docs-sync",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T22:52:29.356Z",
+      "worker": "c97a6e3b-37ab-4342-b6fd-a190225bc2c6",
+      "techniques": [
+        {
+          "technique": "source-doc-mapping",
+          "verdict": "deviation",
+          "evidence": "docs/report/index.html:44 A source document is named in a sentence. There is no coupling entry with source matchers and target types, in this page or its stylesheet."
+        },
+        {
+          "technique": "same-change-enforcement",
+          "verdict": "deviation",
+          "evidence": "docs/report/index.html:89 \"Checked against the code\" is a past-tense sentence. The page is not a derived artifact with a byte-equality check, and nothing here reads a diff."
+        },
+        {
+          "technique": "coupled-surface-inventory",
+          "verdict": "deviation",
+          "evidence": "docs/report/index.html:169 The following hand-written links are treated as what each module is today. Nothing checks those pages independently against the live tree, so two prose artifacts can agree and both be stale."
+        },
+        {
+          "technique": "doc-rot-detection",
+          "verdict": "deviation",
+          "evidence": "docs/report/index.html:124 Counts are claimed as of now, with a predicate a scan could re-run, and the page has no broken, stale, unverifiable, or fresh verdict."
+        },
+        {
+          "technique": "catch-up-markers",
+          "verdict": "deviation",
+          "evidence": "docs/report/index.html:14 The only range mark is a branch name and a two-day label. There is no commit anchor, no list of what was rewritten, and no skip list."
+        },
+        {
+          "technique": "cross-repo-drift-detection",
+          "verdict": "not-applicable",
+          "evidence": "docs/report/index.html:182 Feature docs are relative paths in this repository. The technique says not to build cross-repo detection when both sides are in one tree."
+        },
+        {
+          "technique": "source-as-data-without-the-app",
+          "verdict": "not-applicable",
+          "evidence": "docs/report/index.html:8 The page links only its stylesheet. I read it through the closing html tag and found no checker loading an application registry."
+        },
+        {
+          "technique": "checked-vs-skipped-denominators",
+          "verdict": "not-applicable",
+          "evidence": "docs/report/index.html:142 This zero is a cargo result with ignored tests named. Searched docs/report for drift, unverifiable, and review date: no documentation-drift report."
+        },
+        {
+          "technique": "earned-verification-state",
+          "verdict": "deviation",
+          "evidence": "docs/report/index.html:194 The evidence window ends at HEAD, not a pinned revision, and the date is prose rather than a stamp from a completed recheck over a non-empty claim set."
+        },
+        {
+          "technique": "repair-rides-the-open-page",
+          "verdict": "not-applicable",
+          "evidence": "docs/report/index.html:7 This is a stakeholder snapshot. I read the whole file and found no script, claim store, or worker that resolves staleness when a page is open."
+        },
+        {
+          "technique": "rendered-surface-coupling",
+          "verdict": "not-applicable",
+          "evidence": "docs/report/report.css:133 The charts are CSS boxes. Searched docs/report for img, url(, and background-image and found none, so there is no raster regeneration diff to gate."
+        },
+        {
+          "technique": "negative-claims-are-pinned",
+          "verdict": "deviation",
+          "evidence": "docs/report/index.html:39 That exact sentence occurs only in this file. No test asserts the substring, and the page records no dated review that established it."
+        },
+        {
+          "technique": "prose-as-an-execution-surface",
+          "verdict": "not-applicable",
+          "evidence": "docs/report/index.html:141 These are names of gates already run, shown with results. Searched the report for npm, npx, pip, curl, password, and secret: no install line and no positional credential."
+        },
+        {
+          "technique": "translations-drift-against-the-product",
+          "verdict": "not-applicable",
+          "evidence": "docs/report/index.html:2 docs/report contains only index.html and report.css. One language and one page, so no translation can drift against the product."
+        },
+        {
+          "technique": "named-duplication-points",
+          "verdict": "deviation",
+          "evidence": "docs/report/index.html:127 57.8% is the rounded form of 323/559 beside the exact counts, and 540 passed is copied between the hero and the gate table, with no named authority and no literal diff."
+        }
+      ],
+      "registryProposal": "The subject does not say how to score a page that is dated as a snapshot (gate runs of 8 Oct 2026) and also says now, so a historical freeze and a freshness failure get the same techniques."
+    },
+    "82440528-c2ad-4c04-b22b-0874f0723589/docs-sync": {
+      "context": "money-guidance-and-onboarding",
+      "subject": "docs-sync",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T22:52:29.356Z",
+      "worker": "c97a6e3b-37ab-4342-b6fd-a190225bc2c6",
+      "techniques": [
+        {
+          "technique": "source-doc-mapping",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/fairPrice.ts:16 The Rust function is named in a comment. There is no coupling entry with a source matcher and a prose or test target."
+        },
+        {
+          "technique": "same-change-enforcement",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/fairPrice.ts:4 The header says this file mirrors those Rust functions exactly. A change to them does not owe an edit here, and the test does not regenerate the vectors from Rust."
+        },
+        {
+          "technique": "coupled-surface-inventory",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/firstRun.ts:1 The comment names Home, Settings, the Tumbler, and the approval window. tour.ts keeps a separate stop list, and nothing checks each surface on its own."
+        },
+        {
+          "technique": "dated-corrections",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/marketWatch.ts:9 I opened mandate.rs:94 and :96; those consts are still 200 and 20, so this citation is not a claim shown false, and these files have no correction block."
+        },
+        {
+          "technique": "catch-up-markers",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/tour.ts:50 skipped is the owner closing the tour. Searched these files for catch-up, missingCoverage, and topicsFlagged: no documentation-pass ledger."
+        },
+        {
+          "technique": "cross-repo-drift-detection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/marketWatch.ts:2 The authority named is table-core in this repository, so a cross-repo history query is the case the technique says not to build."
+        },
+        {
+          "technique": "source-as-data-without-the-app",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/fairPrice.ts:6 This module is the application, importing generated bindings. It is not a documentation gate that must read a registry without the app build."
+        },
+        {
+          "technique": "checked-vs-skipped-denominators",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/firstRun.ts:58 unknown here means a setup fact this window could not read. Searched these files for a drift report, unverifiable, and review date: none."
+        },
+        {
+          "technique": "earned-verification-state",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/tour.ts:10 That key stores the owner's place in the tour. Searched these files for reviewDate, lastVerified, and checked-against: no document freshness stamp."
+        },
+        {
+          "technique": "repair-rides-the-open-page",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/firstRun.ts:16 These are pure functions. There is no worker that receives a document's outstanding claims because the page is open."
+        },
+        {
+          "technique": "rendered-surface-coupling",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/limits.ts:21 The bar is a fill computed by meterFill. I read the listed files and found no image, svg asset, or render digest."
+        },
+        {
+          "technique": "negative-claims-are-pinned",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/moneyCheck.test.ts:78 The parked-words promise is pinned with a case-insensitive fragment, so a weaker sentence still passes. The technique wants the exact commitment, and tour.ts:3's never clicks, signs, saves or pays is not pinned at all."
+        },
+        {
+          "technique": "prose-as-an-execution-surface",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/moneyCheck.test.ts:1 The prose here is UI wording. Searched these files for npm, npx, curl, and cargo: no install line and no positional credential."
+        },
+        {
+          "technique": "translations-drift-against-the-product",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/limits.ts:58 en-GB is a hardcoded date format. Searched these files for i18n, translation, and locale catalogs: no second-language page."
+        },
+        {
+          "technique": "named-duplication-points",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/fairPrice.test.ts:1 1515 and the quartile triples are literal copies of Rust vectors, and marketWatch.ts hardcodes 200 and 20 beside a comment naming the table-core consts. The tests assert the local constants, not the Rust ones."
+        }
+      ],
+      "registryProposal": "named-duplication-points treats a source comment that restates another module as a copy, while the golden path excludes generated reference docs and never says whether a hand-written client port of a Rust constant is in scope."
+    },
+    "68496392-9930-4018-bc06-41c2f3e3c286/docs-sync": {
+      "context": "safety-and-setup",
+      "subject": "docs-sync",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T22:52:29.356Z",
+      "worker": "c97a6e3b-37ab-4342-b6fd-a190225bc2c6",
+      "techniques": [
+        {
+          "technique": "source-doc-mapping",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/setup/limits.ts:1 The doc path is a comment. There is no coupling entry with source matchers, and nothing checks that the path still describes these cards."
+        },
+        {
+          "technique": "same-change-enforcement",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/setup/limits.ts:58 Several rule sets per agent is implemented here. I opened docs/ux/ROUND-1.md:66, which still says one card per agent, so the doc did not move with the code."
+        },
+        {
+          "technique": "coupled-surface-inventory",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/setup/pairing.ts:50 pairing.ts and limits.ts each name that doc in a comment. There is no inventory that checks the wizard and the rules cards independently against the page."
+        },
+        {
+          "technique": "dated-corrections",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/setup/limits.ts:59 One set per agent is now the case that hides the extra line. The cited spec still says one card per agent, and neither side keeps the old sentence, a date, or a measurement."
+        },
+        {
+          "technique": "catch-up-markers",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/setup/circuit.ts:214 This is a live settings-answer rule. Searched safety and setup for catch-up, missingCoverage, and topicsFlagged: no documentation-pass marker."
+        },
+        {
+          "technique": "cross-repo-drift-detection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/safety/model.ts:2 The count it describes is Rust in this repository, so the cross-repo watch is the case the technique says not to build."
+        },
+        {
+          "technique": "source-as-data-without-the-app",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/safety/model.ts:7 This file is the app module that formats SafetyRecord. It is not a documentation gate reading a registry outside the build."
+        },
+        {
+          "technique": "checked-vs-skipped-denominators",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/safety/model.ts:107 This separates a broken chain from a zero deal count for the safety record. Searched safety and setup for drift, unverifiable, and review date: no documentation-drift report."
+        },
+        {
+          "technique": "earned-verification-state",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/safety/model.test.ts:12 checked_at is a fixture field on the wallet safety record, not a document review date. Nothing here advances a freshness stamp."
+        },
+        {
+          "technique": "repair-rides-the-open-page",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/setup/pairing.ts:3 Pairing state is computed from flags. There is no open-document worker and no claim payload beside a page."
+        },
+        {
+          "technique": "rendered-surface-coupling",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/setup/circuit.ts:1 The picture is described as drawn from this model. I read the listed files and found no committed image, svg asset, or input digest."
+        },
+        {
+          "technique": "negative-claims-are-pinned",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/setup/circuit.test.ts:38 The exact words never called are locked for this break state, and the ready answer forbids paypal, but no dated review records that PayPal is never called, so the green test only preserves the sentence."
+        },
+        {
+          "technique": "prose-as-an-execution-surface",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/setup/common.tsx:22 The toast is an on-screen instruction. Searched setup and safety for npm, npx, curl, and cargo: no install line and no positional credential."
+        },
+        {
+          "technique": "translations-drift-against-the-product",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/safety/model.ts:12 en-US is a number-grouping locale. Searched safety and setup for i18n and translation: no second-language page."
+        },
+        {
+          "technique": "named-duplication-points",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/setup/limits.ts:47 That question is also the Agent rules row in docs/ux/ROUND-1.md:66. The copy is hand-written in both places and nothing diffs it."
+        }
+      ]
     }
   }
 }
