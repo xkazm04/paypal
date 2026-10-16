@@ -2191,7 +2191,11 @@
           "revision": 15,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/DealView.tsx:58 DealView queries remote evidence and transcripts through component-scoped hooks that discard responses on unmount and reload cold on remount without cache reuse or request deduplication.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:20824426732ffb6a",
+          "evaluatedRevision": 15
         },
         {
           "subject": "hitl-approval",
@@ -4344,7 +4348,11 @@
           "revision": 15,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-market/src/lib.rs:136 The market data client implements an unbounded in-memory cache without eviction, in-flight deduplication, or stale-while-revalidate fallback upon fetch errors.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:20824426732ffb6a",
+          "evaluatedRevision": 15
         },
         {
           "subject": "test-harness",
