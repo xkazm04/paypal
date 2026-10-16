@@ -52,14 +52,13 @@ async fn paired_owners() -> Tables {
                 agent: AgentSlot::Negotiator,
                 clauses: {
                     let mut c = clauses(side, DealKind::Haggle);
-                    if side == Side::Buyer {
-                        if let Clause::Band {
+                    if side == Side::Buyer
+                        && let Clause::Band {
                             floor, item_refs, ..
                         } = &mut c[3]
-                        {
-                            *floor = Some(Money::new(1200, Currency::USD).unwrap());
-                            item_refs.push(ItemRef::new("keyboard").unwrap());
-                        }
+                    {
+                        *floor = Some(Money::new(1200, Currency::USD).unwrap());
+                        item_refs.push(ItemRef::new("keyboard").unwrap());
                     }
                     c
                 },
