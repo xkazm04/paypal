@@ -2544,7 +2544,7 @@ M4). The brief said 20 goals; its list names 19, and all 19 are here.
 15. Acceptance rows verified: **partly**. The "Acceptance map" above names offline tests for the rows; the UI, sandbox and native parts of most rows are pending.
 
 **M5**
-16. Public repo, no blockers: **partly**. P-1 is cut at the tip (38d4b8d, 15f5d08) but git history still holds the original and a rewrite is the operator's call; the connection words fix (§42 item 2) is open; whether the repo is public is not shown by git.
+16. Public repo, no blockers: **partly**. P-1 is cut at the tip (38d4b8d, 15f5d08) but git history still holds the original and a rewrite is the operator's call; the connection words fix (§42 item 2) is done (dd6f363); whether the repo is public is not shown by git.
 17. README setup: **partly**. `README.md` has the check commands and the no-install director steps; it has no steps for running the wallet with an engine or a relay address.
 18. Video: **open**. The takes rig exists (e28211d) and its check passes, but no video is in the repo; recording is planned for Nov 6-9.
 19. Submitted: **open**. Nothing shows a Devpost submission (closes 2026-11-12 14:00 PT).
