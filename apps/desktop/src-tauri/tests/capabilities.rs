@@ -174,3 +174,38 @@ fn every_window_event_goes_through_the_table_driven_emit() {
         Some(3)
     );
 }
+#[test]
+fn the_tray_menu_is_built_from_and_answered_by_the_tray_model() {
+    // Every tray click goes through `TrayModel::command`, so a menu that changed since it was
+    // shown (Pause became Resume, a deal settled) cannot run what it no longer shows.
+    let native = include_str!("../src/native.rs");
+    let events = include_str!("../src/native/events.rs");
+    let menu = native
+        .split(".on_menu_event(")
+        .nth(1)
+        .and_then(|rest| rest.split(".build(app)").next())
+        .unwrap();
+    assert!(menu.contains(".command(event.id.as_ref())"));
+    for id in ["main", "tumbler", "pause", "resume", "quit"] {
+        assert!(!native.contains(&format!("\"{id}\" =>")), "{id}");
+        assert!(!native.contains(&format!("with_id(app, \"{id}\"")), "{id}");
+    }
+    // Resume runs as the tray's Pause does: as main, with no token.
+    assert!(menu.contains("Some(TrayCommand::Pause) => tray_action(app, Action::Pause)"));
+    assert!(menu.contains("Some(TrayCommand::Resume) => tray_action(app, Action::Resume)"));
+    // A deal entry opens its card through the same route as the decision toast.
+    assert!(menu.contains("Some(TrayCommand::OpenCard(id)) => events::open_card(app, id)"));
+    let toast = events.split("fn show_toast(").nth(1).unwrap();
+    assert!(toast.contains("open_card(&main_app, id)"));
+    assert_eq!(
+        [native, events]
+            .concat()
+            .matches("WindowEvent::TumblerSelected(")
+            .count(),
+        1,
+        "one route to a card"
+    );
+    // The tray follows the attention snapshot and the paused state.
+    assert!(events.contains("WalletEvent::Settings(settings)"));
+    assert_eq!(events.matches("refresh_tray(&app)").count(), 3);
+}

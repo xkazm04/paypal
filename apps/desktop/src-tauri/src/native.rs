@@ -12,6 +12,7 @@ use std::{
 };
 use surface::*;
 use table_attention::{AttentionSnapshot, Form, Rect, Snap};
+use table_client::tray::TrayCommand;
 use table_client::*;
 use table_core::{Deal, DealId};
 use table_runtime::{Action, ActorHandle, Caller, Decision, WalletEvent};
@@ -26,6 +27,10 @@ struct DesktopState {
     attention: Mutex<Option<AttentionSnapshot>>,
     /// Bumped by every surface change; only the last one in a quiet window is persisted.
     persisted: std::sync::atomic::AtomicU64,
+    /// The last settings' `agents_paused`: the tray offers Resume while it holds.
+    agents_paused: std::sync::atomic::AtomicBool,
+    /// The tray menu as shown; every tray click is answered from it.
+    tray: Mutex<table_client::tray::TrayModel>,
 }
 #[derive(Debug)]
 struct Surface {
@@ -110,6 +115,42 @@ const _: () = assert!(TRAY_ATTENTION_RGBA.len() == (TRAY_SIDE * TRAY_SIDE * 4) a
 fn tray_icon(dot: bool) -> tauri::image::Image<'static> {
     let rgba = if dot { TRAY_ATTENTION_RGBA } else { TRAY_RGBA };
     tauri::image::Image::new(rgba, TRAY_SIDE, TRAY_SIDE)
+}
+/// The native tray menu for `model`, entry for entry.
+fn tray_menu(
+    app: &AppHandle,
+    model: &table_client::tray::TrayModel,
+) -> Result<tauri::menu::Menu<tauri::Wry>, tauri::Error> {
+    let menu = tauri::menu::Menu::new(app)?;
+    for entry in &model.entries {
+        if entry.separator_before {
+            menu.append(&tauri::menu::PredefinedMenuItem::separator(app)?)?;
+        }
+        menu.append(&tauri::menu::MenuItem::with_id(
+            app,
+            entry.id.as_str(),
+            &entry.text,
+            entry.enabled,
+            None::<&str>,
+        )?)?;
+    }
+    Ok(menu)
+}
+/// Runs a tray action as the main window, with no token, as the tray's Pause always has. The
+/// result is not read: the settings event that follows redraws the tray.
+fn tray_action(app: &AppHandle, action: Action) {
+    let actor = app.state::<DesktopState>().actor.clone();
+    tauri::async_runtime::spawn(async move {
+        let _ = actor
+            .execute::<serde_json::Value>(
+                Caller {
+                    label: "main".into(),
+                    token: None,
+                },
+                action,
+            )
+            .await;
+    });
 }
 pub fn run() -> Result<(), tauri::Error> {
     tauri::Builder::default()
@@ -246,6 +287,7 @@ pub fn run() -> Result<(), tauri::Error> {
             let settings = runtime
                 .settings()
                 .map_err(|_| std::io::Error::other("Wallet settings failed"))?;
+            let agents_paused = settings.agents_paused;
             let preferences = settings.preferences;
             let (actor, events) =
                 tauri::async_runtime::block_on(table_runtime::spawn_networked(runtime))
@@ -267,6 +309,12 @@ pub fn run() -> Result<(), tauri::Error> {
                 }),
                 attention: Mutex::new(None),
                 persisted: std::sync::atomic::AtomicU64::new(0),
+                agents_paused: std::sync::atomic::AtomicBool::new(agents_paused),
+                tray: Mutex::new(table_client::tray::tray_model(
+                    &[],
+                    agents_paused,
+                    table_core::Clock::now(&table_runtime::SystemClock),
+                )),
             });
             tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("The Table")
@@ -298,35 +346,16 @@ pub fn run() -> Result<(), tauri::Error> {
             .visible(false)
             .build()?;
             let _ = set_form(app.handle(), preferences.form);
-            let menu = tauri::menu::Menu::with_items(
-                app,
-                &[
-                    &tauri::menu::MenuItem::with_id(
-                        app,
-                        "main",
-                        "Open The Table",
-                        true,
-                        None::<&str>,
-                    )?,
-                    &tauri::menu::MenuItem::with_id(
-                        app,
-                        "tumbler",
-                        "Show / put away the Tumbler",
-                        true,
-                        None::<&str>,
-                    )?,
-                    &tauri::menu::MenuItem::with_id(
-                        app,
-                        "pause",
-                        "Pause all agents",
-                        true,
-                        None::<&str>,
-                    )?,
-                    &tauri::menu::MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?,
-                ],
-            )?;
+            let model = app
+                .state::<DesktopState>()
+                .tray
+                .lock()
+                .map_err(|_| std::io::Error::other("Tray lock failed"))?
+                .clone();
+            let menu = tray_menu(app.handle(), &model)?;
             tauri::tray::TrayIconBuilder::with_id("wallet")
-                .icon(tray_icon(false))
+                .icon(tray_icon(model.dot))
+                .tooltip(&model.tooltip)
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_tray_icon_event(|tray, event| {
@@ -341,38 +370,36 @@ pub fn run() -> Result<(), tauri::Error> {
                         let _ = summon(tray.app_handle(), false);
                     }
                 })
-                .on_menu_event(|app, event| match event.id.as_ref() {
-                    "main" => {
-                        if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.show();
-                            let _ = w.set_focus();
-                        }
-                    }
-                    "tumbler" => {
-                        if let Some(t) = app.get_webview_window("tumbler") {
-                            if t.is_visible().unwrap_or(false) {
-                                let _ = t.hide();
-                            } else {
-                                let _ = summon(app, false);
+                .on_menu_event(|app, event| {
+                    let command = app
+                        .state::<DesktopState>()
+                        .tray
+                        .lock()
+                        .ok()
+                        .and_then(|model| model.command(event.id.as_ref()));
+                    match command {
+                        Some(TrayCommand::Main) => {
+                            if let Some(w) = app.get_webview_window("main") {
+                                let _ = w.show();
+                                let _ = w.set_focus();
                             }
                         }
+                        Some(TrayCommand::Tumbler) => {
+                            if let Some(t) = app.get_webview_window("tumbler") {
+                                if t.is_visible().unwrap_or(false) {
+                                    let _ = t.hide();
+                                } else {
+                                    let _ = summon(app, false);
+                                }
+                            }
+                        }
+                        Some(TrayCommand::Pause) => tray_action(app, Action::Pause),
+                        Some(TrayCommand::Resume) => tray_action(app, Action::Resume),
+                        Some(TrayCommand::Quit) => events::request_quit(app),
+                        Some(TrayCommand::OpenCard(id)) => events::open_card(app, id),
+                        // A menu that changed since it was shown: do nothing.
+                        None => {}
                     }
-                    "pause" => {
-                        let actor = app.state::<DesktopState>().actor.clone();
-                        tauri::async_runtime::spawn(async move {
-                            let _ = actor
-                                .execute::<()>(
-                                    Caller {
-                                        label: "main".into(),
-                                        token: None,
-                                    },
-                                    Action::Pause,
-                                )
-                                .await;
-                        });
-                    }
-                    "quit" => events::request_quit(app),
-                    _ => {}
                 })
                 .build(app)?;
             app.global_shortcut().register("Ctrl+Shift+Space")?;
