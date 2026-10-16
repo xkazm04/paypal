@@ -689,7 +689,7 @@ impl Runtime {
                 if args.create.side != Side::Buyer || args.create.kind != DealKind::Haggle {
                     return Err(invalid());
                 }
-                json(self.create_deal_id(args.create, args.deal_id)?)
+                json(self.join_deal(args.create, args.deal_id)?)
             }
             Action::Pause => {
                 app(self

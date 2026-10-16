@@ -170,15 +170,11 @@ impl Runtime {
                 }
                 // The house's table must be the one Rust kept when the owner confirmed its words.
                 if let Some(draft) = house {
-                    let kept: table_proto::HouseTable = app(self
-                        .pipeline
-                        .wallet
-                        .ledger
-                        .preference(&crate::pairing::house_table_key(
-                            counterparty,
-                            draft.deal_id,
-                        )))?
-                    .ok_or_else(invalid)?;
+                    let kept: table_proto::HouseTable =
+                        app(self.pipeline.wallet.ledger.preference(
+                            &crate::pairing::house_table_key(counterparty, draft.deal_id),
+                        ))?
+                        .ok_or_else(invalid)?;
                     if kept.deal_id != draft.deal_id
                         || kept.terms != draft.terms
                         || kept.category != draft.category
