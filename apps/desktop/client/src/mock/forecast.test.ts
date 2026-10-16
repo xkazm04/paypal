@@ -42,6 +42,12 @@ describe('mock walk-away forecast mirrors the Rust rules', () => {
     expect(mockForecast([{ ...fd({ state: 'RECEIPTED', side: 'seller' }, null), receiptAt: NOW - H }], ctx)).toEqual([]);
   });
 
+  it('a terminal deal forecasts nothing (Rust skips terminal()), nor does a captured or receipted one with no lapse ahead', () => {
+    for (const state of ['MISMATCH', 'FAILED', 'WITHDRAWN', 'CAPTURED', 'RECEIPTED'] as const) {
+      expect(mockForecast([fd({ state, side: 'seller' }, NOW + 5 * H)], ctx), state).toEqual([]);
+    }
+  });
+
   it('a refused deal is never pending, whatever its verdict; a mismatch is', () => {
     expect(quitPending(fd({ state: 'REFUSED', side: 'buyer', shield: 'BLOCK' }).deal)).toBe(false);
     expect(quitPending(fd({ state: 'MISMATCH', side: 'buyer', shield: 'HOLD' }).deal)).toBe(true);

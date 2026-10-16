@@ -11,6 +11,7 @@ import type { ApprovalCheckId } from '@bindings/ApprovalCheckId';
 import type { ApprovalSummary } from '@bindings/ApprovalSummary';
 import type { Deal } from '@bindings/Deal';
 import type { DealState } from '@bindings/DealState';
+import { TERMINAL, WITHDRAWABLE } from '@bindings/dealStates';
 import type { DecisionArgs } from '@bindings/DecisionArgs';
 
 export type Gate = {
@@ -51,15 +52,8 @@ export type Gates = {
 
 const HIDDEN: Gate = { visible: false, enabled: false, reason: null };
 
-/** Rust `DealState::terminal()`. */
-export const TERMINAL: ReadonlySet<DealState> = new Set<DealState>([
-  'WITHDRAWN', 'EXPIRED', 'REFUSED', 'MISMATCH', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'RECONCILED', 'UNCONFIRMED',
-]);
-
-/** Rust `transition(s, Withdraw)`: pre-capture and not an authorization (that one is voided). */
-export const WITHDRAWABLE: ReadonlySet<DealState> = new Set<DealState>([
-  'PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED',
-]);
+/** Generated from table-core's predicates (bindings/dealStates.ts), never a hand copy. */
+export { TERMINAL, WITHDRAWABLE };
 
 /** States before settlement, where band_set may still rebind the mandate version. */
 const BAND_MOVABLE: ReadonlySet<DealState> = new Set<DealState>(['PAIRING', 'LISTED', 'NEGOTIATING']);
