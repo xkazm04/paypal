@@ -429,7 +429,7 @@ pub(super) async fn agent_runs(
 pub(super) async fn resume_all_agents(
     window: WebviewWindow,
     state: State<'_, DesktopState>,
-) -> Result<(), CommandError> {
+) -> Result<ResumeReport, CommandError> {
     ask(&window, &state, None, Action::Resume).await
 }
 #[tauri::command]
