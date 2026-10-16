@@ -1699,7 +1699,11 @@
           "revision": 7,
           "changedAt": "2026-09-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/shared/modules.tsx:48 Shared glyphs paint your side and the counterparty with var(--teal) and var(--coral), so the foundation consumes hue names.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:165125b7a54d0de3",
+          "evaluatedRevision": 7
         },
         {
           "subject": "render-mount-pipeline",
@@ -2486,7 +2490,11 @@
           "revision": 7,
           "changedAt": "2026-09-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/design/tokens.css:45 The shared colour roles are named as hues, so a theme can change the paint but the name still says teal or coral.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:165125b7a54d0de3",
+          "evaluatedRevision": 7
         },
         {
           "subject": "agent-memory",
@@ -2634,7 +2642,11 @@
           "revision": 7,
           "changedAt": "2026-09-24",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/lib/theme.ts:8 Theme preference is only explicit dark or light, and an empty store falls back to dark, so the platform preference is not a state.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:165125b7a54d0de3",
+          "evaluatedRevision": 7
         },
         {
           "subject": "test-harness",

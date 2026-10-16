@@ -1,0 +1,188 @@
+{
+ "schema": "conform-run/1",
+ "worker": "1b68759f-6a3c-4e55-8d06-a7087e182604",
+ "subject": "design-tokens",
+ "evaluatedAt": "2026-10-16T23:12:06.649519+00:00",
+ "provider": "grok",
+ "model": "grok-4.7",
+ "pairs": [
+  {
+   "context": "design-system-styles",
+   "subject": "design-tokens",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/design/tokens.css:45 The shared colour roles are named as hues, so a theme can change the paint but the name still says teal or coral.",
+   "techniques": [
+    {
+     "technique": "cross-language-token-parity",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/design/tokens.css:32 The stylesheet records a second copy kept by matching numbers. motion.ts hand-writes DUR and HOLD_MS; HOLD_DRAIN_MS is 280 with no CSS token, and tokens.test.ts only compares DUR and HOLD_MS."
+    },
+    {
+     "technique": "density-and-scale-axes",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/design/tokens.css:190 The Tumbler scope rebinds type sizes and control heights together, and --ctl-sm falls to 22px under the 24px --target in the same file."
+    },
+    {
+     "technique": "motion-tokens",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/design/ui.css:393 Reduced motion is an enumerated list set to none. Easings are named --ease-out and --ease-in, and base.css zeroes every transition to .01ms without rebinding --dur-*."
+    },
+    {
+     "technique": "theme-architecture",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/design/tokens.css:6 Dark is the unstamped root and light is an attribute opt-in. Searched the design CSS for prefers-color-scheme and found no rebind."
+    },
+    {
+     "technique": "token-enforcement",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/design/ui.css:93 A 16px size sits beside --fs-title3. The colour-literal rule is a comment in tokens.css; no stylelint, eslint, or biome gate showed up in the repo."
+    },
+    {
+     "technique": "token-taxonomy",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/design/tokens.css:45 Your-side and counterparty roles carry hue names. ui.css also consumes the numbered --sp-* scale and raw gaps."
+    }
+   ],
+   "registryProposal": "The motion technique says reduced motion may keep opacity fades and must not list animations, but the duration ladder has no fade step that stays while travel durations collapse."
+  },
+  {
+   "context": "design-theme-and-copy",
+   "subject": "design-tokens",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/lib/theme.ts:8 Theme preference is only explicit dark or light, and an empty store falls back to dark, so the platform preference is not a state.",
+   "techniques": [
+    {
+     "technique": "cross-language-token-parity",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/contrast.test.ts:65 Hex roles are parsed from tokens.css, but the selected-row mix ratios are hand-written literals, not read from --sel."
+    },
+    {
+     "technique": "density-and-scale-axes",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/lib/theme.ts:34 This module only stamps data-theme. Searched density, text-scale, textScale, fontScale, prefers-contrast, and --fs- in the context files and found no hits."
+    },
+    {
+     "technique": "motion-tokens",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/lib/words.ts:1056 Searched duration, easing, transition, --dur-, and cubic-bezier in this context. The only motion hit is this settings label."
+    },
+    {
+     "technique": "theme-architecture",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/theme.ts:8 getTheme falls back to dark. The file never reads prefers-color-scheme, so there is no follow-platform state."
+    },
+    {
+     "technique": "token-enforcement",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/contrast.test.ts:51 The vitest gate recomputes ratios from tokens.css and fails under 4.5, but only for this fixed ink list. A new text role is unchecked until someone adds it."
+    },
+    {
+     "technique": "token-taxonomy",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/words.ts:26 Status tones the copy layer hands to chips are hue names, matching the colour-named roles."
+    }
+   ]
+  },
+  {
+   "context": "client-foundation",
+   "subject": "design-tokens",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/shared/modules.tsx:48 Shared glyphs paint your side and the counterparty with var(--teal) and var(--coral), so the foundation consumes hue names.",
+   "techniques": [
+    {
+     "technique": "cross-language-token-parity",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/design/tokens.css:32 Module glyphs correctly use var(). The token file still points at a hand-kept motion.ts mirror; the parity test does not cover HOLD_DRAIN_MS or the CSS-only waits."
+    },
+    {
+     "technique": "density-and-scale-axes",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/design/tokens.css:189 One Tumbler scope rebinds the type scale in px and, on the next line, the row and control heights. base.css also sets -webkit-text-size-adjust: 100% on a px root."
+    },
+    {
+     "technique": "motion-tokens",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/hooks.ts:110 The foundation exposes a boolean so each caller can branch. base.css collapses every transition to .01ms and does not rebind --dur-*."
+    },
+    {
+     "technique": "theme-architecture",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/design/tokens.css:141 The unstamped root is dark. Searched the design CSS for prefers-color-scheme and found no platform rebind. mount.tsx does not stamp the theme."
+    },
+    {
+     "technique": "token-enforcement",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/design/base.css:43 A 5px gap and 22px height sit beside the spacing and control tokens. Nothing in this context fails the build on them."
+    },
+    {
+     "technique": "token-taxonomy",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/shared/modules.tsx:48 The glyph strings use the hue-named roles. cssVar itself is a theme variable, which is the right indirection."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-16T23:12:06.649519+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "design-tokens"
+   ],
+   "techniques": [
+    "cross-language-token-parity",
+    "density-and-scale-axes",
+    "motion-tokens",
+    "theme-architecture",
+    "token-enforcement",
+    "token-taxonomy"
+   ],
+   "deviations": 1,
+   "context": "design-system-styles",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-16T23:12:06.649519+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "design-tokens"
+   ],
+   "techniques": [
+    "cross-language-token-parity",
+    "density-and-scale-axes",
+    "motion-tokens",
+    "theme-architecture",
+    "token-enforcement",
+    "token-taxonomy"
+   ],
+   "deviations": 1,
+   "context": "design-theme-and-copy",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  },
+  {
+   "ts": "2026-10-16T23:12:06.649519+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "design-tokens"
+   ],
+   "techniques": [
+    "cross-language-token-parity",
+    "density-and-scale-axes",
+    "motion-tokens",
+    "theme-architecture",
+    "token-enforcement",
+    "token-taxonomy"
+   ],
+   "deviations": 1,
+   "context": "client-foundation",
+   "via": "curator-multi:grok",
+   "model": "grok-4.7"
+  }
+ ]
+}
