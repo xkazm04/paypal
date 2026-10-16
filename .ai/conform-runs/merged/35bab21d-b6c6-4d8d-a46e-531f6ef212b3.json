@@ -1,0 +1,231 @@
+{
+ "schema": "conform-run/1",
+ "worker": "35bab21d-b6c6-4d8d-a46e-531f6ef212b3",
+ "subject": "cost-metering",
+ "evaluatedAt": "2026-10-16T22:13:16.628163+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "rescue-spend-shield-modules",
+   "subject": "cost-metering",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/modules/spend/gate.ts:16 These modules derive and render wallet payment facts without initiating metered calls, and searches found no input_tokens, output_tokens, usage_ledger or price_table matches in their directories.",
+   "techniques": [
+    {
+     "technique": "budget-enforcement",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/spend/gate.ts:29 The displayed gate concerns purchase authorization, not metered-service consumption."
+    },
+    {
+     "technique": "engagement-paced-cadence",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/rescue/model.ts:132 This orders existing renewal records; it does not schedule spontaneous agent wakes."
+    },
+    {
+     "technique": "housekeeping-calls-obey-the-ceiling",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/rescue/preview.ts:89 Explanation text is deterministic rather than a summarization or housekeeping model call."
+    },
+    {
+     "technique": "one-pot-across-delegation",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/rescue/model.ts:93 Lever enumeration calls a local state calculator, not delegated agent loops."
+    },
+    {
+     "technique": "preflight-estimation",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/rescue/preview.ts:60 The preview formats a supplied payment amount rather than estimating provider consumption."
+    },
+    {
+     "technique": "price-tables",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/spend/gate.ts:53 This amount is a permitted renewal discount, not a service-unit rate."
+    },
+    {
+     "technique": "reversible-debit-and-settle",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/rescue/preview.ts:96 The helper returns preview text and performs no prepaid debit."
+    },
+    {
+     "technique": "spend-attribution",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/rescue/model.ts:162 These totals describe recovered merchant revenue, not attributed provider charges."
+    },
+    {
+     "technique": "spend-observability",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/rescue/preview.ts:129 The displayed financial metric concerns rescued payments rather than metered-service spend."
+    },
+    {
+     "technique": "time-ceilings-count-working-time",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/rescue/model.ts:72 The time condition concerns a payment retry deadline, not an interactive agent working-time ceiling."
+    },
+    {
+     "technique": "unit-classes-are-open",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/shield/normal.ts:83 These numbers are merchandise price statistics, not provider usage classes."
+    },
+    {
+     "technique": "usage-ledgers",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/shield/normal.ts:36 The strip counts supplied deals with shield verdicts rather than recording metered calls."
+    },
+    {
+     "technique": "whole-prompt-denominator",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/shield/matrix.ts:55 The ratio compares a merchandise price with its market median; no prompt usage arithmetic occurs."
+    }
+   ],
+   "absenceTerms": [
+    "input_tokens",
+    "output_tokens",
+    "usage_ledger",
+    "price_table"
+   ]
+  },
+  {
+   "context": "counter-and-tables-modules",
+   "subject": "cost-metering",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:3 These modules compute catalog, grouping and price-ladder views without initiating metered calls, and searches found no input_tokens, output_tokens, usage_ledger or price_table matches in their directories.",
+   "techniques": [
+    {
+     "technique": "budget-enforcement",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:95 The band bounds negotiated payment prices and is only drawn here."
+    },
+    {
+     "technique": "engagement-paced-cadence",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/tables/groups.ts:44 Grouping inspects existing tables without running an autonomous wake loop."
+    },
+    {
+     "technique": "housekeeping-calls-obey-the-ceiling",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:91 Item labels come from supplied titles or a local formatter, not model housekeeping."
+    },
+    {
+     "technique": "one-pot-across-delegation",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/tables/groups.ts:27 Fan-out here is grouping merchant records, not launching delegated agent runs."
+    },
+    {
+     "technique": "preflight-estimation",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:219 The preview compares quote totals with a proposed seller floor, not estimated service costs."
+    },
+    {
+     "technique": "price-tables",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:109 The stored price is an owner's signed merchandise floor, not a provider rate."
+    },
+    {
+     "technique": "reversible-debit-and-settle",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:212 Draft-impact calculations preview existing orders and do not debit callers."
+    },
+    {
+     "technique": "spend-attribution",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/tables/groups.ts:25 This key groups negotiations by mandate and item; it does not attribute metered-service spend."
+    },
+    {
+     "technique": "spend-observability",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/tables/groups.ts:47 The comparison selects the lowest merchant offer rather than reporting provider spending."
+    },
+    {
+     "technique": "time-ceilings-count-working-time",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:87 Deal timestamps order catalog records; no agent working-time ceiling is implemented here."
+    },
+    {
+     "technique": "unit-classes-are-open",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:17 Units denote currency denominations for price editing, not provider consumption classes."
+    },
+    {
+     "technique": "usage-ledgers",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:105 Transcript inspection extracts signed offer prices rather than metered-call usage."
+    },
+    {
+     "technique": "whole-prompt-denominator",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:48 This clamped ratio is chart geometry, not a prompt-cache fraction."
+    }
+   ],
+   "absenceTerms": [
+    "input_tokens",
+    "output_tokens",
+    "usage_ledger",
+    "price_table"
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "cost-metering",
+   "context": "market-data",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-16T22:13:16.628163+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "cost-metering"
+   ],
+   "techniques": [
+    "budget-enforcement",
+    "engagement-paced-cadence",
+    "housekeeping-calls-obey-the-ceiling",
+    "one-pot-across-delegation",
+    "preflight-estimation",
+    "price-tables",
+    "reversible-debit-and-settle",
+    "spend-attribution",
+    "spend-observability",
+    "time-ceilings-count-working-time",
+    "unit-classes-are-open",
+    "usage-ledgers",
+    "whole-prompt-denominator"
+   ],
+   "deviations": 0,
+   "context": "rescue-spend-shield-modules",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-16T22:13:16.628163+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "cost-metering"
+   ],
+   "techniques": [
+    "budget-enforcement",
+    "engagement-paced-cadence",
+    "housekeeping-calls-obey-the-ceiling",
+    "one-pot-across-delegation",
+    "preflight-estimation",
+    "price-tables",
+    "reversible-debit-and-settle",
+    "spend-attribution",
+    "spend-observability",
+    "time-ceilings-count-working-time",
+    "unit-classes-are-open",
+    "usage-ledgers",
+    "whole-prompt-denominator"
+   ],
+   "deviations": 0,
+   "context": "counter-and-tables-modules",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

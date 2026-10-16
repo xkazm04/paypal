@@ -1972,7 +1972,11 @@
           "revision": 15,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:3 These modules compute catalog, grouping and price-ladder views without initiating metered calls, and searches found no input_tokens, output_tokens, usage_ledger or price_table matches in their directories.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:7247db31eb8f3dce",
+          "evaluatedRevision": 15
         },
         {
           "subject": "agent-memory",
@@ -5825,7 +5829,11 @@
           "revision": 15,
           "changedAt": "2026-10-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/spend/gate.ts:16 These modules derive and render wallet payment facts without initiating metered calls, and searches found no input_tokens, output_tokens, usage_ledger or price_table matches in their directories.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:7247db31eb8f3dce",
+          "evaluatedRevision": 15
         },
         {
           "subject": "hitl-approval",
