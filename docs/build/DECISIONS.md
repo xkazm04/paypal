@@ -1630,3 +1630,63 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   `receipted_route_that_owes_envelopes_is_delivered_after_the_window`,
   `receipted_route_is_polled_in_the_recovery_window_and_delivers_what_it_owes`); the runtime uses it
   in `crates/table-runtime/src/relay.rs`. Fake-clock tests, no network, no PayPal call.
+
+## 47. Owner-to-owner pairing commits the initiator's identity before the joiner's key is seen
+
+- **Date:** 2026-10-16 (signed-haggle council must-address; relay scan finding S-1)
+- **Decided by:** Athena as operator delegate 2026-10-16
+- **Constraint:** the council line, verbatim: "craft: The four-word check has no commitment step and
+  only 24 bits, so it stops a relay that lacks the code but not one that has it". The words were
+  the first 24 bits of SHA-256(buyer key || seller key || code), and the initiator published its full
+  signed bundle first. A relay that also held the code could answer each owner with its own key and,
+  once the joiner's reply fixed one side's words, grind the other key (about 2^24 tries, minutes on
+  one core) until both owners read the same four words. The shape of `PairingIdentity` and
+  `SignedPairingIdentity` could not change (the hosted HOUSE builds one as a struct literal), and
+  HOUSE pairing, pinned by release identity, had to behave exactly as before.
+- **Decision:** commit-then-reveal for the initiator, as in ZRTP and Bluetooth numeric comparison:
+  1. The initiator publishes only a `PairingCommit`: `commit = SHA-256("table-pairing-commit-v1" ||
+     canonical signed bundle || 32-byte nonce)`, with the code hash, side and expiry in the clear so
+     the joiner can answer. The nonce comes from the CSPRNG and stays in the runtime.
+  2. The joiner answers with its full signed bundle, `in_reply_to = commit`, and holds it as a join
+     awaiting a reveal. It has no words.
+  3. The initiator takes the reply (words for it as before), then publishes a `PairingReveal`
+     (bundle and nonce). The runtime gives the reveal out only once a reply to that code is held.
+  4. The joiner computes and shows the words only when the reveal opens the commit: the same hash,
+     a bundle whose signatures verify, and the code hash, side and expiry the commit showed. A reveal
+     that does not open it (another bundle, another nonce, or one beside the honest reveal) ends the
+     pairing with the existing permission error; nothing is held, so nothing can be confirmed or
+     pinned. With no reveal yet, the join answers "Pairing offer is not available yet" (it waits up
+     to 8 s for the initiator's 3 s poll first) and a retry picks the reveal up.
+  `PairingCommit` and `PairingReveal` are new types beside the unchanged identity types, on a
+  `header.payload.tag` wire (the tag is a SHA-256 checksum, the three-part shape the relay already
+  carries; the header's `typ` keeps them from parsing as a bundle or an envelope). A HOUSE offer has
+  no commit and pairs by release identity exactly as before.
+- **Why:** the relay must now fix the key it shows the joiner (M1) before it sees the joiner's key,
+  and the key it shows the initiator (M2) before the initiator's key is revealed. Each attempt then
+  matches with probability 2^-24, and a failed one shows up as differing words the owners abort on,
+  instead of being searched for offline. It changes the "has the code" case in kind, for one extra
+  relay round trip.
+- **Lost:** six words at 36 bits: only raises the grind to about 2^36 (hours on a small cluster); it is
+  still a search after the fact, not a commitment, and costs every owner two more words to read.
+  No change: honest in the threat model, but the UI presents the four words as the check against a
+  relay in the middle, and with a leaked code they would add nothing. A joiner taking a bare
+  initiator bundle handed over offline (the `peer` field of `pairing_join`) is gone for the joiner;
+  only the initiator still takes a reply that way.
+- **Consequences:** the joiner's words arrive one initiator poll later (about 3 s). The client's join
+  is one-shot, so a joiner whose initiator does not poll within the 8 s wait sees "not available yet"
+  and joins again; no client change was made. The 64-pairing cap now also counts joins awaiting a
+  reveal; expiry, the `in_reply_to` binding and the redacting `Debug` on `PendingPair` are kept, and
+  the new held state redacts too. A relay can still drop the reveal (it can always deny service);
+  that ends in expiry, never in a pin.
+- **Evidence:** `crates/table-proto/src/pairing.rs` (`PairingCommit`, `PairingReveal`; tests
+  `a_reveal_opens_its_commit_only_with_the_committed_bundle_and_nonce`,
+  `a_relay_holding_the_code_cannot_pick_its_key_after_the_joiners_key`) and
+  `crates/table-runtime/src/pairing.rs` (`pairing_answer`, `pairing_reveal_of`, `pairing_revealed`,
+  `relay_pairing_join`, `relay_pairing_poll`); tests in
+  `crates/table-runtime/src/pairing_runtime_tests.rs`
+  (`both_pairing_sides_compute_identical_words_and_exchange_signed_replies`,
+  `the_joiner_has_no_words_before_a_reveal_that_opens_the_commit`,
+  `a_reveal_that_does_not_open_the_commit_ends_the_pairing_and_pins_nothing`,
+  `a_relay_holding_the_code_must_fix_its_key_before_it_sees_the_joiners`) and the relay round trip in
+  `crates/table-runtime/src/relay_tests.rs`. `house_tests.rs` passes unchanged. No network, no PayPal
+  call.
