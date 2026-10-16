@@ -43,7 +43,7 @@ public HOUSE + relay service on Render.
 | R-5 | Low | HOUSE does not use the cadence (outside scope) | `services/house-seller/src/hosted.rs:639-650` | open | Hold a `SettledPollClock` in the HOUSE `Seller`; call `relay_work_at(now)`, `due`, `polled` |
 | R-6 | Info | data persisted (relay address) | `crates/table-ledger/src/relay.rs:161-170` | open | None needed; note that the mailbox is a read/post capability on the relay, not a money credential |
 | R-7 | Info | arithmetic hygiene | `crates/table-runtime/src/service.rs:885` | open | `saturating_add` for the purchase deadline |
-| S-1 | Low | pairing SAS (signed-haggle must-address line) | `crates/table-proto/src/pairing.rs:151-166`; `crates/table-runtime/src/pairing.rs:381-407` | open (outside scope) | Commit-then-reveal for the initiator's identity (section 4) |
+| S-1 | Low | pairing SAS (signed-haggle must-address line) | `crates/table-proto/src/pairing.rs:151-166`; `crates/table-runtime/src/pairing.rs:381-407` (before the fix) | **fixed** `77edf63` | Commit-then-reveal for the initiator's identity (section 4; DECISIONS section 47) |
 
 ## 1. Risky code patterns on the relay
 
