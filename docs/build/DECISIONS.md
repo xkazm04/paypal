@@ -1807,3 +1807,44 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   arm), `listing_code_tests.rs`; `apps/desktop/client/src/windows/approval/listingCode.ts`,
   `tableDraft.ts`, `mock/backend.ts` (`deal_join`); `docs/build/STATUS.md` "Open or join a table
   after pairing"; `docs/features/approval-window.md`. Docs only here: no code changed.
+
+## 50. Join scan 2026-10-17: what was fixed and what stays known
+
+- **Date:** 2026-10-17 (scan report `docs/security/scan-2026-10-17-join.md`; fixes 9ddb6ec and 1fd19f4)
+- **Decided by:** Athena as operator delegate 2026-10-17
+- **Constraint:** the scan of the §49 join path found two things worth fixing now and five to leave.
+  The two that touch the signed LISTING wire format, J-3 and J-4, cannot be fixed without changing a
+  format the council has already reviewed, and that is not worth doing before the Devpost submission.
+  The LLM never moves money and silence never moves money; none of the open items loosens that.
+- **Decision:**
+  1. **Fixed.** J-1: `join_deal` now applies the live-pin and new-deal-id checks to the house too
+     (9ddb6ec), so a revoked or expired house pin and a second join of a house deal id are ordinary
+     `Invalid` refusals. J-2: a `deal_join` refused past the authority gate leaves the same bounded
+     `command.refused` audit row a gate refusal leaves (1fd19f4). Each has a Rust test that fails on
+     the base.
+  2. **J-3, the `qty` missing from `Body::Listing`: open, known, accepted for the submission.** The
+     code's quantity is protected only by its CRC. Revisit after submission.
+  3. **J-4, the category not in the LISTING: accepted as is.** It only picks among the categories the
+     buyer's own per-deal clause allows, and the owner is shown it before joining. Revisited together
+     with J-3.
+  4. **J-5 and J-7 are Info and post-submission.** J-5: an unknown key is a `LedgerTrust` error, not
+     `NotFound`; it is still refused and, since J-2, recorded. J-7: a Rust join refusal shares
+     `command.refused` with a gate refusal; a distinct action in `audit_detail.rs` if the trail must
+     tell them apart.
+  5. **J-6, a pasted code with no length cap.** The fix is one line at the top of `decodeListingCode`:
+     refuse a text over 512 characters as `malformed`. It rides with the next client delivery and is
+     not built on its own.
+- **Lost:** *adding `qty` to `Body::Listing`, setting it in `list()` and comparing it in
+  `receive_haggle`.* It closes J-3 and is the recommended fix, but it changes the signed LISTING wire
+  format in `table-proto` and `table-app` after the council reviewed it. Recorded as post-submission;
+  it is not built.
+- **Why J-3 is safe to leave:** a mismatched quantity cannot close. ACCEPT carries the terms hash and
+  both sides require it to equal the pending offer and their own terms
+  (`table-ledger/src/repositories.rs:1156-1159`). So no money moves, and the deal lapses on silence at
+  its Band deadline.
+- **Caveat:** until J-3 is closed, the buyer's per-deal, velocity and human-present checks run on the
+  code's quantity, not the seller's, so the buyer's owner and agent may negotiate a quantity the
+  seller never offered.
+- **Evidence:** `docs/security/scan-2026-10-17-join.md`; `crates/table-runtime/src/service.rs`
+  (`join_deal`), `dispatcher.rs` (`deal_join` arm), `listing_code_tests.rs`; `crates/table-proto/src/envelope.rs:152-156`;
+  `crates/table-app/src/agent.rs:285-295`. Docs only here: no code changed.
