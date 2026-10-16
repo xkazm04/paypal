@@ -38,8 +38,9 @@ pub struct SettledPollClock {
 }
 impl SettledPollClock {
     /// Keeps the work due at `now`: every route that owes something or is not settled, and a
-    /// settled route only when its interval since the last poll has passed. The routes kept are
-    /// marked polled at `now`; routes that left the scan are forgotten.
+    /// settled route only when its interval since the last poll has passed. Routes that left the
+    /// scan are forgotten. Nothing is marked polled here: the caller sends only part of the due
+    /// work in one pass and marks what it sent with [`Self::polled`] (scan 2026-10-16 R-1).
     pub fn due(&mut self, work: Vec<RelayWork>, now: Timestamp) -> Vec<RelayWork> {
         self.last
             .retain(|id, _| work.iter().any(|w| w.deal_id == *id));
@@ -48,15 +49,18 @@ impl SettledPollClock {
                 let Some(settled) = w.settled_at else {
                     return true;
                 };
-                let due = self.last.get(&w.deal_id).is_none_or(|last| {
+                self.last.get(&w.deal_id).is_none_or(|last| {
                     now.saturating_sub(*last) >= recovery_interval(last.saturating_sub(settled))
-                });
-                if due {
-                    self.last.insert(w.deal_id, now);
-                }
-                due
+                })
             })
             .collect()
+    }
+    /// Marks the settled routes of `sent` as polled at `now`; the next poll of each waits its
+    /// interval.
+    pub fn polled(&mut self, sent: &[RelayWork], now: Timestamp) {
+        for work in sent.iter().filter(|w| w.settled_at.is_some()) {
+            self.last.insert(work.deal_id, now);
+        }
     }
 }
 #[derive(Debug)]
