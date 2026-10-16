@@ -1564,3 +1564,32 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Evidence:** docs only. No spike ran, no PayPal, Channel3 or model call was made, and no
   credential or `.env` file was read. The invariants are unchanged: a spike is a standalone
   conformance test that creates no wallet receipt and grants no UI authority (`SPIKES.md`).
+
+## 45. The rescue read-back failure count stays in memory; the cap holds after a restart
+
+- **Constraint:** the count of failed read-backs of a lost invoice step is kept in memory per request id
+  (`rescue_read_backoff`, a `BTreeMap<String, (u32, Timestamp)>` on the pipeline), so it resets to zero
+  when the app restarts.
+- **Decision (operator's delegate, 2026-10-16 18:50Z):** accept this as a known limit for the submission.
+  The cap still holds after a restart: at most `RESCUE_READ_ATTEMPTS` (8) failed reads happen per process
+  lifetime before the step is parked, and the parking itself is persisted. `park` records an
+  `Outcome::NeedsOwner` audit row in the ledger, and `rescue_resolve` skips an `op.needs_owner` step
+  unless an owner ticket is given. So the ledger schema does not change now.
+- **Lost:** persisting the attempt count in the ledger, which needs a schema change. Deferred until after
+  submission.
+- **Existing behaviour that stays:** a parked lost SEND (`invoice-send`) is read once an hour
+  (`PARKED_READ_SECS`, 3600 s) after its window ends, that is, once the fix's deadline has passed or
+  `REQUEST_ID_KEPT_SECS` (6 h) has passed since the step started, so a draft closes not done. The throttle
+  (`parked_read`) is also in memory, so a restart reads once at once. This is not changed here.
+- **Why the rework:** the full council run 135d9078 gave economics 0.10. Commit 0b704bf answered it: a
+  failed read-back waits a capped exponential backoff (`RESCUE_READ_BACKOFF_SECS` 5 s doubling to
+  `RESCUE_READ_BACKOFF_CAP_SECS` 15 min, with jitter), and a sent invoice is polled on the decaying
+  `RESCUE_POLL_STEPS` cadence instead of every `RESCUE_POLL_SECS` (60 s) for 30 days.
+- **Evidence:** read-only check on 2026-10-16 of the constants and functions above. They are in
+  `crates/table-app/src/rescue.rs` (`RESCUE_READ_ATTEMPTS`, `RESCUE_READ_BACKOFF_SECS`,
+  `RESCUE_READ_BACKOFF_CAP_SECS`, `RESCUE_POLL_STEPS`, `RESCUE_POLL_SECS`, `read_failed`,
+  `rescue_resolve`), `crates/table-app/src/pipeline.rs` (`rescue_read_backoff`, `parked_read`) and
+  `crates/table-app/src/pipeline/resolve.rs` (`park`, `PARKED_READ_SECS`, `REQUEST_ID_KEPT_SECS`). Not
+  `crates/table-core/src/rescue.rs`, which only has the `RESCUE_WATCH_*` constants; none of them are
+  `RESCUE_READ_ATTEMPTS`. Run 135d9078 was not found in the repo, so the 0.10 is cited from the brief.
+  Docs only: no code, test or gate run changed.
