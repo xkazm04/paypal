@@ -1,0 +1,144 @@
+{
+ "schema": "conform-run/1",
+ "worker": "2e2ef0f0-5731-4bcf-8cb1-d3de307e4419",
+ "subject": "settings",
+ "evaluatedAt": "2026-10-16T01:41:58.858506+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "tumbler-window",
+   "subject": "settings",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:444 The Tumbler window writes preferences by replacing the entire record on each toggle change and must re-fetch before writing to compensate for native position updates omitting change events.",
+   "techniques": [
+    {
+     "technique": "in-place-document-patch",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:446 Toggling a single preference writes the entire preferences document rather than patching the changed member in place."
+    },
+    {
+     "technique": "read-batching",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:255 The cross-window change event broadcasts the full SettingsSnapshot value object instead of a key-only invalidation signal, and native window drag/snap writers omit the event entirely."
+    },
+    {
+     "technique": "save-experience",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:449 Preference writes fail loudly by reporting errors without optimistically flipping or faking stored state."
+    }
+   ]
+  },
+  {
+   "context": "runtime-money-controls",
+   "subject": "settings",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-runtime/src/limits.rs:57 When wallet limits are unconfigured the runtime reports EnvelopeStatus::None allowing spending without an envelope ceiling rather than failing closed to zero spending authority as required for safety ceilings.",
+   "techniques": [
+    {
+     "technique": "typed-accessors",
+     "verdict": "deviation",
+     "evidence": "crates/table-runtime/src/limits.rs:57 Absent safety ceilings evaluate to EnvelopeStatus::None rather than enforcing zero spending authority."
+    },
+    {
+     "technique": "setting-kinds",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/limits.rs:70 Wallet limits are treated as safety ceilings that require owner signing and fail closed upon signature verification failure or expiration."
+    },
+    {
+     "technique": "settings-audit-and-history",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/safety.rs:23 The runtime verifies the append-only hash-chained audit log before generating safety records and tallying authority actions."
+    }
+   ]
+  },
+  {
+   "context": "ledger-schema-migrations",
+   "subject": "settings",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-ledger/migrations/0004_native.sql:2 The SQLite schema defines an open string primary key without an allowlist or CHECK constraint, allowing arbitrary formatted keys to be stored as preferences without a closed vocabulary.",
+   "techniques": [
+    {
+     "technique": "key-registry",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/migrations/0004_native.sql:2 The schema defines an unrestricted string key column without an allowlist constraint enforcing a closed vocabulary."
+    },
+    {
+     "technique": "settings-audit-and-history",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/migrations/0004_native.sql:1 The preferences table lacks history triggers or change tracking columns, permitting in-place overwrites without an audit trail."
+    },
+    {
+     "technique": "setting-kinds",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/migrations/0009_wallet_limits.sql:3 Safety ceilings are stored in a dedicated versioned table with append-only triggers rather than mixed into unverified local preferences."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "settings",
+   "context": "shared-surfaces-onboarding-honesty",
+   "reason": "This context provides shared onboarding and honesty presentation components (mode badges, exact-minor-unit money formatting, tour coach-marks, and owner key display) and client-side view state; it does not implement or manage an application settings store."
+  },
+  {
+   "subject": "settings",
+   "context": "prototype-dial-shell-and-design-system",
+   "reason": "This context consists of prototype demonstration markup, gallery assembly scripts, and shared CSS design tokens; it contains no application settings store."
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-16T01:41:58.858506+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "settings"
+   ],
+   "techniques": [
+    "in-place-document-patch",
+    "read-batching",
+    "save-experience"
+   ],
+   "deviations": 1,
+   "context": "tumbler-window",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-16T01:41:58.858506+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "settings"
+   ],
+   "techniques": [
+    "setting-kinds",
+    "settings-audit-and-history",
+    "typed-accessors"
+   ],
+   "deviations": 1,
+   "context": "runtime-money-controls",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  },
+  {
+   "ts": "2026-10-16T01:41:58.858506+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "settings"
+   ],
+   "techniques": [
+    "key-registry",
+    "setting-kinds",
+    "settings-audit-and-history"
+   ],
+   "deviations": 1,
+   "context": "ledger-schema-migrations",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}

@@ -4034,7 +4034,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-ledger/migrations/0004_native.sql:2 The SQLite schema defines an open string primary key without an allowlist or CHECK constraint, allowing arbitrary formatted keys to be stored as preferences without a closed vocabulary.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "supply-chain",
@@ -6510,7 +6514,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-runtime/src/limits.rs:57 When wallet limits are unconfigured the runtime reports EnvelopeStatus::None allowing spending without an envelope ceiling rather than failing closed to zero spending authority as required for safety ceilings.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "data-access",
@@ -7769,7 +7777,11 @@
           "revision": 13,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:444 The Tumbler window writes preferences by replacing the entire record on each toggle change and must re-fetch before writing to compensate for native position updates omitting change events.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:85c48ec5bdb5581f",
+          "evaluatedRevision": 13
         },
         {
           "subject": "agent-instruction-files",

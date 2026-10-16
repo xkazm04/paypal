@@ -2160,6 +2160,84 @@
           "evidence": "services/house-seller/src/hosted.rs:793 Round count comes from the ledger, not a stored agent thread id."
         }
       ]
+    },
+    "78691638-b912-45fd-98f8-083cec08e3a9/settings": {
+      "context": "tumbler-window",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T01:41:58.858Z",
+      "worker": "2e2ef0f0-5731-4bcf-8cb1-d3de307e4419",
+      "techniques": [
+        {
+          "technique": "in-place-document-patch",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:446 Toggling a single preference writes the entire preferences document rather than patching the changed member in place."
+        },
+        {
+          "technique": "read-batching",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:255 The cross-window change event broadcasts the full SettingsSnapshot value object instead of a key-only invalidation signal, and native window drag/snap writers omit the event entirely."
+        },
+        {
+          "technique": "save-experience",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/tumbler/Tumbler.tsx:449 Preference writes fail loudly by reporting errors without optimistically flipping or faking stored state."
+        }
+      ]
+    },
+    "2388265b-2923-4e49-b59f-7f4453fa4f88/settings": {
+      "context": "runtime-money-controls",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T01:41:58.858Z",
+      "worker": "2e2ef0f0-5731-4bcf-8cb1-d3de307e4419",
+      "techniques": [
+        {
+          "technique": "typed-accessors",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/limits.rs:57 Absent safety ceilings evaluate to EnvelopeStatus::None rather than enforcing zero spending authority."
+        },
+        {
+          "technique": "setting-kinds",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/limits.rs:70 Wallet limits are treated as safety ceilings that require owner signing and fail closed upon signature verification failure or expiration."
+        },
+        {
+          "technique": "settings-audit-and-history",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/safety.rs:23 The runtime verifies the append-only hash-chained audit log before generating safety records and tallying authority actions."
+        }
+      ]
+    },
+    "c466e7a3-3699-46dc-9cf2-f95dab9a7dd8/settings": {
+      "context": "ledger-schema-migrations",
+      "subject": "settings",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T01:41:58.858Z",
+      "worker": "2e2ef0f0-5731-4bcf-8cb1-d3de307e4419",
+      "techniques": [
+        {
+          "technique": "key-registry",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/migrations/0004_native.sql:2 The schema defines an unrestricted string key column without an allowlist constraint enforcing a closed vocabulary."
+        },
+        {
+          "technique": "settings-audit-and-history",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/migrations/0004_native.sql:1 The preferences table lacks history triggers or change tracking columns, permitting in-place overwrites without an audit trail."
+        },
+        {
+          "technique": "setting-kinds",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/migrations/0009_wallet_limits.sql:3 Safety ceilings are stored in a dedicated versioned table with append-only triggers rather than mixed into unverified local preferences."
+        }
+      ]
     }
   }
 }
