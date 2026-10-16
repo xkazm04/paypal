@@ -1815,7 +1815,7 @@ fn a_refused_house_confirm_keeps_no_table_to_join() {
         .pipeline
         .wallet
         .ledger
-        .preference(&format!("house.table.{}", t.deal_id))
+        .preference(&crate::pairing::house_table_key(&key, t.deal_id))
         .unwrap();
     assert!(kept.is_none());
     let draft = ApprovalDraft::Table {
@@ -1954,4 +1954,148 @@ fn table_draft_is_refused_for_a_lapsed_pin_an_ended_table_or_a_non_house_key() {
             .is_err()
     );
     assert!(http.0.lock().unwrap().paths.is_empty());
+}
+
+/// Pins `key` as a second house, so the only thing that differs from the paired one is the key.
+fn pin_other_house(buyer: &mut Runtime, name: &str) -> KeyId {
+    use table_ledger::{Counterparty, PairedVia};
+    use table_proto::ShortText;
+    let agent = ed25519_dalek::SigningKey::from_bytes(&[8; 32]).verifying_key();
+    let owner = ed25519_dalek::SigningKey::from_bytes(&[7; 32]).verifying_key();
+    let key = table_proto::key_id(&agent).unwrap();
+    buyer
+        .pipeline
+        .wallet
+        .ledger
+        .insert_paired_counterparty(
+            &Counterparty {
+                key_id: key.clone(),
+                owner_key: owner.to_bytes(),
+                agent_key: agent.to_bytes(),
+                display_name: ShortText::new("OTHER".into()).unwrap(),
+                paired_via: PairedVia::House,
+                words_confirmed_at: Some(100),
+                declared_payee: PayeeRef::new("payee@example.com").unwrap(),
+                first_seen: 0,
+            },
+            H256::digest(name.as_bytes()),
+        )
+        .unwrap();
+    key
+}
+
+/// A table kept for house key A is not accepted against house key B naming the same deal id, by
+/// the approval draft or by deal_join; and a legacy table kept by deal id alone is never read.
+#[test]
+fn a_kept_table_is_bound_to_the_house_key_that_served_it() {
+    let (mut seller, release, _, _, _) = hosted_fixture();
+    let (mut buyer, _, response) = house_buyer(&mut seller, release);
+    let words = buyer.house_pair(response.clone()).unwrap();
+    let key_a = buyer
+        .pairing_confirm(PairingConfirmArgs {
+            pairing_id: words.pairing_id,
+            words: words.words,
+            display_name: "HOUSE".into(),
+        })
+        .unwrap();
+    let key_b = pin_other_house(&mut buyer, "kp_other_house");
+    let t = &response.table;
+    let draft = |key: &KeyId| ApprovalDraft::Table {
+        counterparty: key.clone(),
+        house: Some(HouseTableDraft {
+            negotiation_deadline: t.negotiation_deadline,
+            deal_id: t.deal_id,
+            terms: t.terms.clone(),
+            category: t.category,
+        }),
+    };
+    let open = |draft| ApprovalOpenArgs {
+        deal_id: None,
+        pairing: None,
+        target: None,
+        draft: Some(draft),
+    };
+    buyer.open_approval("main", open(draft(&key_a))).unwrap();
+    assert!(buyer.open_approval("main", open(draft(&key_b))).is_err());
+    let mandate = buyer
+        .sign_mandate(MandateSignArgs {
+            id: None,
+            agent: AgentSlot::Negotiator,
+            clauses: clauses(Side::Buyer, DealKind::Haggle),
+            not_before: 0,
+            expires: 1000000,
+        })
+        .unwrap();
+    let create = |key: &KeyId| DealCreateArgs {
+        kind: DealKind::Haggle,
+        side: Side::Buyer,
+        counterparty: key.clone(),
+        mandate_id: mandate.payload.id,
+        mandate_version: 1,
+        terms: t.terms.clone(),
+        category: Category::Parts,
+    };
+    assert!(buyer.create_deal_id(create(&key_b), t.deal_id).is_err());
+    buyer.create_deal_id(create(&key_a), t.deal_id).unwrap();
+}
+
+#[test]
+fn a_legacy_table_kept_by_deal_id_alone_is_refused() {
+    let (mut seller, release, _, _, _) = hosted_fixture();
+    let (mut buyer, _, response) = house_buyer(&mut seller, release);
+    let key = pin_other_house(&mut buyer, "kp_legacy_house");
+    let t = &response.table;
+    buyer
+        .pipeline
+        .wallet
+        .ledger
+        .set_preference(&format!("house.table.{}", t.deal_id), t)
+        .unwrap();
+    let draft = ApprovalDraft::Table {
+        counterparty: key.clone(),
+        house: Some(HouseTableDraft {
+            negotiation_deadline: t.negotiation_deadline,
+            deal_id: t.deal_id,
+            terms: t.terms.clone(),
+            category: t.category,
+        }),
+    };
+    assert!(
+        buyer
+            .open_approval(
+                "main",
+                ApprovalOpenArgs {
+                    deal_id: None,
+                    pairing: None,
+                    target: None,
+                    draft: Some(draft),
+                },
+            )
+            .is_err()
+    );
+    let mandate = buyer
+        .sign_mandate(MandateSignArgs {
+            id: None,
+            agent: AgentSlot::Negotiator,
+            clauses: clauses(Side::Buyer, DealKind::Haggle),
+            not_before: 0,
+            expires: 1000000,
+        })
+        .unwrap();
+    assert!(
+        buyer
+            .create_deal_id(
+                DealCreateArgs {
+                    kind: DealKind::Haggle,
+                    side: Side::Buyer,
+                    counterparty: key,
+                    mandate_id: mandate.payload.id,
+                    mandate_version: 1,
+                    terms: t.terms.clone(),
+                    category: Category::Parts,
+                },
+                t.deal_id,
+            )
+            .is_err()
+    );
 }
