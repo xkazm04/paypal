@@ -47,6 +47,34 @@ describe('readEach', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it('keeps the slot of a timed-out read until its call settles: never more than `concurrency` unsettled', async () => {
+    vi.useFakeTimers();
+    const invoke = vi.fn((_id: string) => new Promise<string>(() => {}));
+    const ids = Array.from({ length: 50 }, (_, i) => `d${i}`);
+    const p = readEach(ids, invoke);
+    // Several timeouts pass; the 8 stuck calls time out but still hold their slots.
+    await vi.advanceTimersByTimeAsync(READ_TIMEOUT_MS * 5);
+    expect(invoke).toHaveBeenCalledTimes(READ_CONCURRENCY);
+    const rs = await p;
+    // The pass still settles: the 8 that started timed out, the rest never started.
+    expect(rs.filter((r) => r.status === 'rejected' && /timed out/.test(String((r.reason as Error).message)))).toHaveLength(READ_CONCURRENCY);
+    expect(rs).toHaveLength(50);
+  });
+
+  it('frees the slot of a timed-out read once its late answer arrives, and drops that answer', async () => {
+    vi.useFakeTimers();
+    let late!: (v: string) => void;
+    const invoke = vi.fn((id: string) => (id === 'slow' ? new Promise<string>((r) => { late = r; }) : Promise.resolve(id)));
+    const p = readEach(['slow', 'b', 'c'], invoke, { concurrency: 1 });
+    await vi.advanceTimersByTimeAsync(READ_TIMEOUT_MS * 2);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    late('late');
+    const rs = await p;
+    expect(rs[0]?.status).toBe('rejected');
+    expect(rs[1]).toEqual({ status: 'fulfilled', value: 'b' });
+    expect(rs[2]).toEqual({ status: 'fulfilled', value: 'c' });
+  });
+
   it('keeps a rejected read rejected, with its own reason', async () => {
     const boom = new Error('unreadable');
     const rs = await readEach(['x', 'y'], (id) => (id === 'x' ? Promise.reject(boom) : Promise.resolve(id)), { timeoutMs: 50 });
