@@ -11,7 +11,7 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { WalletError } from '../../lib/contract';
 import { useNow, useQuery } from '../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../lib/lazy';
-import { APPROVAL_FIRST_RUN, OWNER_KEY, rulesName, SAFETY_PROMISE, START_STEP, timeLeftWords, watchingWords, type StartStepKey } from '../../lib/words';
+import { APPROVAL_FIRST_RUN, APPROVAL_TABLE, OWNER_KEY, rulesName, SAFETY_PROMISE, START_STEP, timeLeftWords, watchingWords, type StartStepKey } from '../../lib/words';
 import { connectionFacts, gettingStarted, rulesInForce, settingsFacts } from '../../lib/firstRun';
 import { StartProgress, StartSteps, type StepAction } from '../../shared/start';
 import { TakeTour, Tour } from '../../shared/tour';
@@ -22,6 +22,8 @@ import { clauseText, footerNoticeText, isMandateActive } from './model';
 import { PairingConfirm } from './PairingConfirm';
 import { WalletLimits } from './owner/WalletLimits';
 import { rescueRules } from './owner/replay';
+import { TableSheet, type TableSeed } from './owner/TableSheet';
+import { tableCounterparties } from './tableDraft';
 import { useHandoff } from './selection';
 import { useSession } from './session';
 import { Header, LockCard } from './ui';
@@ -109,6 +111,8 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
   useEffect(() => preloadWhenIdle([MandateEditor, RescueReplay]), []);
   /** The "Watch subscriptions" sheet (the Rescue page opens this window for it too). */
   const [watchingOpen, setWatchingOpen] = useState(false);
+  /** The "Open a table" / "Join the house seller's table" sheet, with The Table's draft if one came along. */
+  const [table, setTable] = useState<{ seed: TableSeed } | null>(null);
   // The owner's watch list (rescue_book), read here for its count and rows.
   const rescueBook = useQuery('rescue_book', null, { refreshOn: ['deal:changed', 'settings:changed'] });
   const watching = rescueBook.data?.watching ?? [];
@@ -118,6 +122,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
     if (handoff.target === 'mandate') setEditing({ sel: floorSeed?.mandate_id ?? null });
     if (handoff.target === 'rescue') setReplaying(true);
     if (handoff.target === 'rescue_watch') setWatchingOpen(true);
+    if (handoff.draft?.type === 'table') setTable({ seed: { counterparty: handoff.draft.counterparty, house: handoff.draft.house } });
   }, [handoff, routed, floorSeed]);
   const [info, setInfo] = useState<{ k: InfoKey; el: HTMLElement } | null>(null);
   const [startError, setStartError] = useState<WalletError | null>(null);
@@ -303,6 +308,15 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
           currency={active.flatMap((m) => m.payload.clauses).find((c) => c.type === 'per_deal')?.max_amount.currency ?? 'USD'}
           onSigned={() => void limits.refetch()} />
 
+        <Section title={APPROVAL_TABLE.section}>
+          <Group>
+            <Row title={APPROVAL_TABLE.openRow} sub={tableCounterparties(connections.data ?? []).length ? APPROVAL_TABLE.openRowSub : APPROVAL_TABLE.noneToSell}>
+              <Chip tone="line">{APPROVAL_TABLE.chip}</Chip>
+              <Btn sm onClick={() => setTable({ seed: null })}>{APPROVAL_TABLE.openAct}</Btn>
+            </Row>
+          </Group>
+        </Section>
+
         <Section title="Connections" end={i('pairing')}>
           <Group>
             {pairing.error ? (
@@ -329,6 +343,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
         </Section>
       </main>
       {watchingOpen ? <Suspense fallback={null}><RescueWatch entries={list} watching={watching} locked={locked} onClose={() => setWatchingOpen(false)} onChanged={() => void rescueBook.refetch()} /></Suspense> : null}
+      {table ? <TableSheet seed={table.seed} entries={list} counterparties={connections.data ?? []} locked={locked} onClose={() => setTable(null)} /> : null}
       {replaying ? <Suspense fallback={null}><RescueReplay entries={list} locked={locked} onClose={() => setReplaying(false)} onReplayed={(deal) => { setReplaying(false); onReplayed?.(deal); }} /></Suspense> : null}
       {info ? (
         <Popover anchor={info.el} onClose={() => setInfo(null)} className="ow-pop">
