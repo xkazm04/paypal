@@ -2,8 +2,11 @@
 // (bindings/authority.ts), and answers the same label x lock x token x selected-deal matrix the
 // runtime's conformance test checks (crates/table-runtime/src/authority_tests.rs).
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AUTHORITY, AUTHORITY_MANIFEST, type CommandAuthority } from '@bindings/authority';
-import type { CommandName, WindowLabel } from '../lib/contract';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { AUTHORITY, AUTHORITY_MANIFEST, EVENT_AUDIENCE, type CommandAuthority } from '@bindings/authority';
+import type { CommandName, EventName, WindowLabel } from '../lib/contract';
 import { WalletError } from '../lib/contract';
 import { GateError, mockBackend, resetMockState } from './backend';
 import { buildMockState } from './fixtures';
@@ -99,5 +102,19 @@ describe('authority table (browser mock)', () => {
     history.replaceState(null, '', '/tumbler.html');
     const s = await mockBackend('tumbler').invoke('get_settings', null);
     expect(s.authority_manifest).toBe(AUTHORITY_MANIFEST);
+  });
+
+  it('tells each window what the Rust table says, from the generated audiences', () => {
+    // Who hears each event is a row in the Rust authority table; the mock delivers by it.
+    const audience: Record<EventName, WindowLabel[]> = EVENT_AUDIENCE;
+    expect(audience['settings:changed']).toEqual(['main', 'tumbler', 'approval']);
+    expect(audience['approval:summary']).toEqual(['approval']);
+    for (const event of ['deal:changed', 'agent:changed', 'pairing:pinned'] as EventName[]) {
+      expect(audience[event], event).toEqual(['main']);
+    }
+    const source = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), 'backend.ts'), 'utf8');
+    expect(source).toContain('const TARGETS: Record<EventName, WindowLabel[]> = EVENT_AUDIENCE;');
+    // No hand-kept audience list is left beside it.
+    expect(source).not.toMatch(/'[a-z]+:[a-z]+': \[/);
   });
 });

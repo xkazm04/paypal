@@ -18,7 +18,7 @@
 // settingsFacts, so none can drop one (engine_chosen included) and the steps agree everywhere.
 import type { EngineId } from '@bindings/EngineId';
 import type { SettingsSnapshot } from '@bindings/SettingsSnapshot';
-import type { StartStepKey } from './words';
+import type { SetupStepKey, StartStepKey } from './words';
 
 export type StartFacts = {
   /** settings.first_run; null = settings not read. */
@@ -96,4 +96,32 @@ export function connectionFacts(list: ReadonlyArray<{ house: boolean }> | null |
 export function rulesInForce(list: ReadonlyArray<{ payload: { not_before: number; expires: number }; refusal?: unknown }> | null | undefined, now: number): number | null {
   if (!list) return null;
   return list.filter((m) => m.payload.not_before <= now && now < m.payload.expires && !m.refusal).length;
+}
+
+// ---- the Set up page (calm-nested-ui) --------------------------------------------------------------
+/** The Set up page's step for a getting-started step (the page adds a fifth, unlock, after them). */
+export const SETUP_STEP_OF: Record<StartStepKey, SetupStepKey> = { paypal: 'keys', rules: 'rules', practice: 'practice', engine: 'agent' };
+
+/** A window that cannot navigate Main (the Tumbler) leaves this note for Main, which takes it once
+ *  when it opens: "go to the Set up page at this step". Same-origin storage, no IPC command. */
+export const SETUP_INTENT_KEY = 'table.setup-intent';
+const SETUP_INTENT_TTL_MS = 15_000;
+
+export function leaveSetupIntent(step: SetupStepKey, at: number, store: Pick<Storage, 'setItem'> = localStorage): void {
+  try { store.setItem(SETUP_INTENT_KEY, JSON.stringify({ step, at })); } catch { /* no storage: Main opens on Home, whose Continue setup button leads here */ }
+}
+
+/** Reads and clears the note; a note older than a few seconds is stale and ignored. */
+export function takeSetupIntent(now: number, store: Pick<Storage, 'getItem' | 'removeItem'> = localStorage): SetupStepKey | null {
+  try {
+    const raw = store.getItem(SETUP_INTENT_KEY);
+    if (raw === null) return null;
+    store.removeItem(SETUP_INTENT_KEY);
+    const v = JSON.parse(raw) as { step?: unknown; at?: unknown };
+    const steps: readonly unknown[] = ['keys', 'rules', 'practice', 'agent', 'unlock'];
+    if (typeof v.at !== 'number' || now - v.at > SETUP_INTENT_TTL_MS || !steps.includes(v.step)) return null;
+    return v.step as SetupStepKey;
+  } catch {
+    return null;
+  }
 }

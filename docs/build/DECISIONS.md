@@ -925,8 +925,15 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   - `consume_inbox` (`crates/table-runtime/src/relay.rs`) collects a pass's refused messages and rejects them one
     batch per deal and generation. A pass that returns early leaves its collected rows pending, and the next pass
     writes their row then.
-  - **Open: C-9c.** The HOUSE (`services/house-seller/src/hosted.rs`, which calls `finish_inbox` per message) still writes one row per message. Fixing it
-    needs an inbox test harness.
+  - **Closed: C-9c (2026-10-15, challenge-2026-10-15).** The wallet and the HOUSE run one inbox pass,
+    `table_app::drain_inbox` (`crates/table-app/src/relay.rs`). It applies an exact duplicate without the caller's
+    policy, leaves a message whose policy returns `InboxOutcome::Retry` (a ledger SQL or integrity fault) pending and
+    continues, and rejects the refused messages one batch per deal and generation after the loop, also when a
+    message was retried. The caller supplies only its per-message policy: the wallet's `classify_inbound`
+    (`crates/table-runtime/src/relay.rs`), the HOUSE's `Seller::receive`. A HOUSE ledger fault is now the tick's
+    recorded failure, not an early return, so negotiation and reporting still run. Evidence:
+    `crates/table-app/tests/inbox.rs`; `house_junk_batch_is_one_audit_row_per_deal_and_generation` and
+    `house_five_junk_messages_are_five_rejected_rows_and_one_audit_row` in `crates/table-runtime/src/house_tests.rs`.
   - Evidence: in `crates/table-ledger/src/tests.rs` `c9b_a_rejected_batch_writes_one_audit_row`,
     `c9b_a_batch_that_is_not_one_deal_one_generation_all_pending_writes_nothing` and
     `c9b_finish_inbox_rejection_is_a_batch_of_one`; in `crates/table-runtime/src/groups_tests.rs`
@@ -1357,3 +1364,103 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
     a message').
   - Not run for this entry (docs only). The gate results are the reports': r3 records fmt, clippy and `cargo test --workspace`
     at 90887b5 and client tsc plus vitest 1065 of 1065 from the dispatcher's run.
+
+## 40. The console rebuild: one window, one theme, the approval window stays separate
+
+- **Date:** 2026-10-14 (the calm-nested-ui decisions: 2026-10-13, recorded here for the first time)
+- **Decided by:** the owner, through two spark rounds (`.spark/Spark/ideas/calm-nested-ui.md`,
+  `.spark/Spark/ideas/table-console-rebuild.md`, waves 1 and 2, eight questions), and the Director on
+  convention points the owner was not asked (marked below). Built in packages WP0 to WP4c on branch
+  `worktree-spark-table-console-rebuild` (commits b30ed72 to 0fe967c and the WP4c working tree; notes
+  in `docs/build/rebuild/`).
+- **Constraint.** The owner picked contest variant B/2 "Calibre" (the "Seal" console refined with a
+  cool instrument theme) as the next main window: "not a simple port, rather rebuilding the app into
+  upgraded format in terms of design, code quality, feature performance and resilience" (2026-10-14).
+  The round-2 review asked that the UI hold a small and a large business, the centre get most of the
+  space, and no dead space. AGENTS.md is unchanged: the LLM never moves money, the `approval` window
+  is the only surface that can approve, silence never moves money. Submissions close 2026-11-12.
+- **Decision.**
+  1. **Set up is an in-app page, and onboarding is hosted by the docked approval window over Main**
+     (calm-nested-ui, owner). The Set up page (`#s=setup&step=...`) replaces the Start card and
+     Settings' "Getting started"; it shows one step at a time and moves on by the step's own state,
+     never by a click. Privileged steps (keys, rules, unlock) hand off with `approval_open`; the
+     approval window opens as Main's child, centred over it, when Main is visible. Rejected: an
+     embedded webview (authority is keyed on the window label), a final-click-only flow. In the
+     rebuild the Set up page is the **Charter** (five lines, I to V) with the same targets.
+  2. **Modules are a summary plus nested detail views** (calm-nested-ui, owner): the first view is the
+     answer line, the decision and three or four cards; the rest is one level down. Rejected: more
+     sheets, tabs.
+  3. **Baseline branch.** The uncommitted tree was committed as `baseline/pre-rebuild` (859fa04)
+     after its gates passed; the rebuild forks from it and nothing lands on `main` until the merge.
+     The owner's answer authorised that one commit only. Rejected: build in the main checkout; the
+     owner commits first.
+  4. **Replace in place, on a branch.** `windows/main` is rewritten directly inside the rebuild
+     branch; the old window stays shippable on `main`. The safety net is branch isolation and the
+     2026-11-03 merge-ready date (abandon on 2026-10-30 if at risk), not a runtime flag. Rejected: a
+     parallel `windows/console` tree behind a flag; a big bang on `main`.
+  5. **Scope.** Main plus the shared kit are rebuilt; the approval window and the Tumbler are
+     restyled only (tokens, type, decoration; no layout, authority or copy change).
+  6. **IPC is frozen.** No Rust, authority-table, bindings or `PINNED_MANIFEST` change; performance
+     comes from the client data layer. Rejected: batched read commands. Known limit: per-deal reads
+     at 500+ deals stay many small reads, bounded by visible-only reads, a read budget and coalescing.
+  7. **TanStack Query and TanStack Virtual** for the query cache and windowed lists (owner chose "add
+     a query library and a virtual-list library"; the Director picked these MIT packages); the unused
+     `zustand` is dropped. `Backend` / `CommandContract` and event-driven invalidation stay: events
+     only mark reads stale, through one map (`lib/data/invalidation.ts`).
+  8. **Bundled fonts.** One open-licensed UI face and one numeric face are bundled with their
+     licences (Archivo 2.001 and Sofia Sans 4.101, SIL OFL 1.1, 235 KB), system stacks as fallback.
+  9. **The small Dial is kept** as the presence (owner, wave 2): a bead strip beside the seal whose
+     beads open their deal. The home is the decision centre, not the Dial. Rejected: retire the Dial.
+  10. **One window, one theme, and the approval window stays separate** (Director, convention). Every
+      owner place (Rules, Wallet limits, Connections, pairing, Settings, the safety record, Rewind,
+      Set up) is a layer of the one main window; the Quit confirm and the shortcuts help stay sheets.
+      The approval window stays the separate docked `approval` window (capability, token and label
+      gates unchanged); it now reads as a front sheet of the console and follows the stored theme and
+      calm choice, live (before: always dark). The console's gold action only calls `approval_open`;
+      nothing renders "Approved" without a Rust event.
+  11. **Hold is Space only** (Director, keeping the shipped rule): a held Space or pointer for
+      1200 ms; Enter never releases money. The WP1a brief's "Space or Enter" was not adopted.
+  12. **Latest strips instead of dead bands** (Director): a module summary and a short place end in a
+      quiet "Latest" strip, the first rows of the area's most relevant list (3 to 8, as many as fit),
+      no gold, plus "See all".
+  13. **Nested views are in the URL** (Director, after WP3c asked): places take `&v=<view>`, a deal
+      takes **`&dv=<view>`**, because `&v=` after `&m=` already means the module view the deal was
+      opened from (every older link). `#d=<id>&v=<view>` with no `&m=` is read as the deal's view.
+  14. **A stricter footer figure** (Director, after WP3b asked): the footer's "Paid out today" counts
+      only money PayPal collected (no hold, agreed payment, payment being checked, refund or
+      unconfirmed one), the same set as the Book's "Today". The day's budget against the limit is
+      "Budget used today" in Wallet limits, shown beside it. Rust's `paid_today` / `out_today` are
+      unchanged.
+- **Consequences.** Every older hash deep link still parses (`#m=`, `#v=`, `#d=`, `#s=`,
+  `#p=safety`, tested). Cuts recorded in the package notes: the Circuit picture, the Book's
+  statement filter, "Rule numbers" and the deal's "Rules id", the Rewind ticks as keyboard stops.
+  The Wallet limits hand-off opens the owner page (no limits target exists). The director's rig
+  follows the console (WP4c).
+- **Tests that hold it.** `windows/main/console/guard.test.ts` (no release command named under
+  `windows/main`; the centre's only mutation is `approval_open`), `console/console.test.tsx`,
+  `console/route.test.ts` and `logic.test.ts` (old links, `&v=`, `&dv=`), `console/sheetViews.test.tsx`,
+  `console/latest.test.tsx` (strip after the cards, 1 to 8 rows, no gold), `console/areas/book/model.test.ts`
+  and `book.test.tsx` (paid today = the Book's set, not `out_today`), `shared/ui/holdGesture.test.tsx`
+  and `hold.test.tsx` (Space only, 1200 ms, Enter never completes), `windows/approval/frame.test.tsx`
+  (Back to The Table calls no command), `design/tokens.test.ts` and `lib/contrast.test.ts` (fonts,
+  licences, AA in both themes), the authority matrices and `windows/approval/notices.test.ts`
+  (unchanged).
+
+## 41. The IPC freeze of §40 item 6 is lifted (challenge run challenge-2026-10-15)
+
+- **Date:** 2026-10-15
+- **Decided by:** the owner, on the challenge deck of scan-sweep run `challenge-2026-10-15`, answering
+  "Lifted - rebuild merged": the console rebuild has merged to `main`, so the freeze that kept it
+  shippable no longer has a reason.
+- **Decision.** §40 item 6 ("IPC is frozen") no longer binds. Rust, authority-table, bindings and
+  `PINNED_MANIFEST` changes are allowed again where a change needs them, through the usual gates
+  (the authority matrices, the capabilities pin test, the bindings freshness test). AGENTS.md is
+  unchanged: the LLM never moves money, only the `approval` window approves, silence never moves money.
+- **What used it (on `main`, 9205cec..97fa04c):** event audiences are rows of the authority table and
+  every window event goes through one table-driven emit (9ec70de, 29f0428, d68c536); the tray menu
+  (41d4a61); generated `bindings/dealStates.ts` (e94bafd); the `envelope_simulate` command
+  (e439605); `resume_all_agents` reports the tables waiting on the agent (fe3f67b).
+  `PINNED_MANIFEST` moved twice, ed57f9ce to 83ffaf42 (event audiences) and 83ffaf42 to b2f04fe9
+  (`envelope_simulate`).
+- **Consequences.** §40's "Rejected: batched read commands" stands as a rebuild-time choice, not a
+  rule; a batched read may be proposed again on its merits.

@@ -1,0 +1,88 @@
+/* The Charter (setup/Charter.tsx): the current line on the left, the five lines on the right.
+   Tokens only; text never below --fs-small. */
+.cs-charter { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: var(--sp-8); align-items: start; flex: 1 0 auto; }
+.cs-charter .ch-l { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.cs-charter .ch-l .kicker, .cs-charter .ch-l .cs-title { margin-bottom: 0; }
+.cs-charter .ch-sub { margin: 0; color: var(--muted); font-size: var(--fs-title3); max-width: 44rem; line-height: 1.45; }
+.cs-charter .ch-body { display: flex; flex-direction: column; gap: var(--sp-3); }
+.cs-charter .ch-done { display: flex; align-items: center; gap: var(--sp-2); margin: 0; color: var(--ok); }
+.cs-charter .ch-wait { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-3); border-radius: var(--r-card); background: var(--bg2); border: 1px dashed var(--gold); max-width: 44rem; }
+.cs-charter .ch-wait span { color: var(--muted); }
+.cs-charter .ch-wait.notdone { border-color: var(--line2); }
+.cs-charter .ch-engines { display: flex; flex-direction: column; gap: var(--sp-3); }
+.cs-charter .ch-engine { display: flex; align-items: center; gap: var(--sp-2); min-height: 32px; }
+.cs-charter .ch-engine span { color: var(--muted); }
+.cs-charter .ch-engine.off { opacity: .75; }
+.cs-charter .ch-embed { margin-top: var(--sp-1); }
+.cs-charter .ch-note { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--line2); max-width: 44rem; }
+.cs-charter .ch-note ul { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); color: var(--muted); }
+.cs-charter .ch-note li { display: flex; gap: var(--sp-2); align-items: baseline; }
+.cs-charter .led { flex: none; width: 6px; height: 6px; border-radius: 1px; transform: translateY(-1px); background: var(--steel); }
+.cs-charter .led.gold { background: var(--gold); } .cs-charter .led.teal { background: var(--teal); } .cs-charter .led.ok { background: var(--ok); }
+.cs-charter .ch-tour { margin-top: var(--sp-3); }
+.cs-charter .ch-skip { margin: var(--sp-2) 0 0; }
+.cs-charter .ch-r { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.cs-charter .ch-fields { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line2); }
+.cs-charter .ch-fields li { border-bottom: 1px solid var(--line); }
+.cs-charter .ch-fields button { display: grid; grid-template-columns: 2.6rem minmax(0, 1fr) auto; align-items: center; gap: var(--sp-3); width: 100%; padding: var(--sp-3) var(--sp-2);
+  text-align: left; font: inherit; color: var(--text); background: none; border: 0; cursor: pointer; border-radius: var(--r-tight); }
+.cs-charter .ch-fields button:hover { background: color-mix(in srgb, var(--panel2) 60%, transparent); }
+.cs-charter .ch-fields button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.cs-charter .ch-fields .num { font: var(--fw-display) var(--fs-title1)/1 var(--display); color: var(--dim); text-align: center; letter-spacing: .04em; }
+.cs-charter .ch-fields .txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cs-charter .ch-fields .lbl { font-weight: var(--fw-semibold); }
+.cs-charter .ch-fields .priv { color: var(--gold-l); font-weight: var(--fw-regular); font-size: var(--fs-small); }
+.cs-charter .ch-fields .ex { color: var(--muted); font-size: var(--fs-small); line-height: 1.4; }
+.cs-charter .ch-fields li.cur button { box-shadow: inset 2px 0 0 var(--gold); background: color-mix(in srgb, var(--gold) 7%, transparent); }
+.cs-charter .ch-fields li.cur .num { color: var(--gold-l); }
+.cs-charter .ch-fields li.done .num { color: var(--teal-l); }
+@media (max-width: 1000px) { .cs-charter { grid-template-columns: minmax(0, 1fr); } }
+/* The charter fills the sheet (WP2.5): both columns run its full height. On the left the current
+   line (its explanation beside its one action on a wide window), then what the line will read once
+   signed, then the note on the bottom edge; on the right the five lines share the column's height. */
+.cs-charter { align-items: stretch; }
+.cs-charter .ch-l { justify-content: space-between; }
+.cs-charter .ch-now { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-6); align-items: start; min-width: 0; }
+.cs-charter .ch-text { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.cs-charter .ch-seal { display: none; }
+/* the wallet's seal beside the current line (the Charter draws it in place of the sheet's corner seal) */
+.cs-charter .ch-now.has-seal { grid-template-columns: minmax(0, 1fr) minmax(8rem, 11rem); align-items: center; }
+.cs-charter .ch-now.has-seal .ch-seal { display: block; }
+.cs-charter .ch-seal .br-seal { width: 100%; }
+@media (max-width: 1000px) { .cs-charter .ch-now.has-seal { grid-template-columns: minmax(0, 1fr); } .cs-charter .ch-now.has-seal .ch-seal { display: none; } }
+.cs-charter .ch-now .kicker, .cs-charter .ch-now .cs-title { margin: 0; }
+.cs-charter .ch-say { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.cs-charter .ch-preview { max-width: 44rem; }
+.cs-charter .ch-preview p { display: grid; grid-template-columns: 2.6rem auto minmax(0, 1fr); align-items: baseline; gap: var(--sp-3); margin: var(--sp-2) 0 0; padding: var(--sp-3) var(--sp-2);
+  border-top: 1px dashed var(--line2); border-bottom: 1px dashed var(--line2); color: var(--muted); }
+.cs-charter .ch-preview .num { font: var(--fw-display) var(--fs-title1)/1 var(--display); color: var(--teal-l); text-align: center; }
+.cs-charter .ch-preview .lbl { font-weight: var(--fw-semibold); color: var(--text); }
+.cs-charter .ch-preview.done p { border-style: solid; border-color: color-mix(in srgb, var(--teal) 40%, var(--line2)); }
+.cs-charter .ch-l > .ch-note { margin-top: 0; }
+.cs-charter .ch-r { min-height: 0; }
+.cs-charter .ch-fields { flex: 1 0 auto; }
+.cs-charter .ch-fields li { flex: 1 0 auto; display: flex; }
+.cs-charter .ch-fields li > button { flex: 1 1 auto; }
+/* tall, wide windows: bigger lines, and the explanation beside the line's one action */
+@media (min-height: 960px) and (min-width: 1500px) {
+  .cs-charter { gap: var(--sp-12); }
+  .cs-charter .cs-title { font-size: var(--fs-hero-l); }
+  .cs-charter .ch-text { gap: var(--sp-5); }
+  .cs-charter .ch-now.has-seal { grid-template-columns: minmax(0, 1fr) minmax(14rem, 28rem); }
+  .cs-charter .ch-say { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: var(--sp-4) var(--sp-8); align-items: start; }
+  .cs-charter .ch-say > .ch-sub { font-size: var(--fs-title2); }
+  .cs-charter .ch-say > .ch-body { padding: var(--sp-4) var(--sp-5); border-radius: var(--r-card); background: color-mix(in srgb, var(--bg) 40%, transparent); box-shadow: inset 2px 0 0 var(--gold), 0 0 0 1px var(--line); }
+  /* a line whose body is a whole desk (the practice deal, the agent app) keeps it under the explanation */
+  .cs-charter .ch-say:has(.ch-embed, .ch-engines) { display: flex; }
+  .cs-charter .ch-say > .ch-body:has(.ch-embed) { padding: 0; background: none; box-shadow: none; }
+  .cs-charter .ch-preview p { font-size: var(--fs-title3); padding: var(--sp-4) var(--sp-3); }
+  .cs-charter .ch-preview .num { font-size: var(--fs-display); }
+  .cs-charter .ch-fields .num { font-size: var(--fs-display); }
+  .cs-charter .ch-fields button { padding: var(--sp-5) var(--sp-4); grid-template-columns: 3.4rem minmax(0, 1fr) auto; }
+  .cs-charter .ch-fields .lbl { font-size: var(--fs-title2); }
+  .cs-charter .ch-fields .ex { font-size: var(--fs-title3); }
+  .cs-charter .ch-note ul { font-size: var(--fs-title3); }
+}
+@media (min-height: 1000px) and (min-width: 1700px) {
+  .cs-charter .cs-title { font-size: var(--fs-hero-xl); }
+}

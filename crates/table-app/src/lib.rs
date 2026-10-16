@@ -11,5 +11,6 @@ mod reconciliation;
 mod relay;
 pub use auth::*;
 pub use pipeline::*;
+pub use relay::{InboxOutcome, drain_inbox};
 mod rescue;
 pub use rescue::*;

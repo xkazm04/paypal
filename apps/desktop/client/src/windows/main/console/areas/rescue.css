@@ -1,0 +1,125 @@
+/* Area: rescue (rebuild WP3b). Imported only by console/layers/rescue.ts; every rule is scoped under
+   the area's root, .ar-rescue (the "Why aren't these offered?" popover renders outside it and is
+   scoped by its own popover class). Tokens only, text never below --fs-small, motion only through
+   the --dur-* / --ease-* tokens. The fix cards' rules are the old modules/rescue.css ones, moved. */
+
+.ar-rescue { display: flex; flex-direction: column; flex: 1 0 auto; min-width: 0; min-height: 0; }
+.ar-rescue .rs-dim { color: var(--dim); }
+.ar-rescue .rs-how { margin: 0; padding-left: var(--sp-4); display: grid; gap: var(--sp-2); }
+.ar-rescue .rs-h2 { margin: 0; font-size: var(--fs-title2); font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
+.ar-rescue .rs-h { margin: var(--sp-2) 0 0; font-weight: var(--fw-semibold); color: var(--muted); }
+.ar-rescue .okc { color: var(--ok); }
+
+/* ---- the lists ------------------------------------------------------------------------------------- */
+.ar-rescue .rs-list { display: flex; flex-direction: column; gap: var(--sp-3); flex: 1 1 auto; min-height: 0; min-width: 0; }
+.ar-rescue .rs-list > .ui-hint { margin: 0; }
+.ar-rescue .rs-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: var(--sp-3); min-width: 0; }
+.ar-rescue .rs-who { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ar-rescue .rs-who > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ar-rescue .rs-who b { font-weight: var(--fw-semibold); }
+.ar-rescue .rs-sub { color: var(--muted); font-size: var(--fs-small); }
+.ar-rescue .rs-amt { font-family: var(--num); font-variant-numeric: tabular-nums lining-nums; letter-spacing: var(--track-money); white-space: nowrap; text-align: right; }
+.ar-rescue .rs-row.needs .rs-amt { color: var(--gold-l); }
+.ar-rescue .rs-total { margin: 0; font-size: var(--fs-title3); }
+.ar-rescue .rs-total b { font-family: var(--num); font-weight: var(--fw-medium); }
+.ar-rescue .rs-never { margin: 0; max-width: 60rem; }
+
+/* the comparison: one row per renewal, the five fixes as short cells (labels in each cell) */
+.ar-rescue .rs-compare .le-row { container-type: inline-size; }
+.ar-rescue .rs-crow { display: grid; grid-template-columns: minmax(8rem, 1.2fr) repeat(5, minmax(0, 1fr)); align-items: center; gap: var(--sp-3); min-width: 0; }
+.ar-rescue .rs-cell { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ar-rescue .rs-cell > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ar-rescue .rs-cell small { color: var(--dim); font-size: var(--fs-small); }
+.ar-rescue .rs-cell small.h { font: var(--fw-semibold) var(--fs-small)/1.1 var(--font); text-transform: uppercase; letter-spacing: var(--track-label); font-stretch: var(--label-stretch); }
+.ar-rescue .rs-cell b { font-weight: var(--fw-medium); font-size: var(--fs-small); }
+.ar-rescue .rs-cell.k-default b { color: var(--ok); }
+.ar-rescue .rs-cell.k-offer b { color: var(--teal-l); font-family: var(--num); }
+.ar-rescue .rs-cell.k-off b, .ar-rescue .rs-cell.k-unknown b { color: var(--dim); }
+@container (max-width: 46rem) { .ar-rescue .rs-crow { grid-template-columns: minmax(7rem, 1.2fr) repeat(3, minmax(0, 1fr)); } .ar-rescue .rs-cell:nth-child(n + 5) { display: none; } }
+
+/* ---- one failed renewal, beside the list ------------------------------------------------------------- */
+.ar-rescue .rs-panel { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.ar-rescue .rs-panel > .kicker { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); margin: 0; }
+.ar-rescue .rs-ctx { max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ar-rescue .rs-q { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); }
+.ar-rescue .rs-q .rs-amt { font: var(--fw-light) var(--fs-title1)/1.1 var(--num); }
+.ar-rescue .rs-why-l { margin: 0; color: var(--muted); }
+.ar-rescue .rs-acts { align-items: center; }
+.ar-rescue .rs-panel > .ui-hint { margin: 0; }
+.ar-rescue .rs-sil { display: flex; align-items: center; gap: var(--sp-2); margin: 0; color: var(--muted); }
+.ar-rescue .rs-sil b { color: var(--text); font-weight: var(--fw-medium); }
+.ar-rescue .rs-chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.ar-rescue .rs-fixdetail { display: flex; flex-direction: column; gap: var(--sp-2); }
+.ar-rescue .rs-fixdetail p { margin: 0; }
+.ar-rescue .rs-rules, .ar-rescue .rs-calls { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: var(--fs-small); color: var(--muted); }
+.ar-rescue .rs-calls { font-family: var(--mono); color: var(--dim); }
+.ar-rescue .rs-calls li::before { content: "→ "; color: var(--gold-l); }
+.ar-rescue .rs-rules li::before { content: "✓ "; color: var(--ok); }
+.ar-rescue .rs-rules li.x { color: var(--red-l); }
+.ar-rescue .rs-rules li.x::before { content: "✕ "; color: var(--red-l); }
+.ar-rescue .rs-rules li.unk { color: var(--dim); }
+.ar-rescue .rs-rules li.unk::before { content: "? "; color: var(--dim); }
+
+/* ---- watching ----------------------------------------------------------------------------------------- */
+.ar-rescue .rs-watch { display: grid; grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr)); gap: var(--sp-4); align-items: start; max-width: 80rem; }
+.ar-rescue .rs-wbox { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-4); border-radius: var(--r-card); background: color-mix(in srgb, var(--bg) 45%, transparent); box-shadow: 0 0 0 1px var(--line); }
+.ar-rescue .rs-wbox p { margin: 0; }
+.ui-why-pop .rs-notoff-list { margin: 0 0 var(--sp-2); padding-left: 1.2em; }
+.ui-why-pop .rs-notoff-list li + li { margin-top: var(--sp-1); }
+
+/* ---- moved from modules/rescue.css --------------------------------------------------------------------- */
+.ar-rescue .rs-picks { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); align-items: stretch; gap: var(--sp-2); }
+.ar-rescue .rs-pick { position: relative; display: grid; grid-template-columns: 26px minmax(0, 1fr); column-gap: var(--sp-2); row-gap: 1px; align-content: start; text-align: left;
+  padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-2); min-height: 62px; border: 1px solid var(--line2); border-radius: var(--r); background: var(--panel2); color: var(--text); font: inherit; cursor: pointer; }
+.ar-rescue .rs-pick:hover:not(:disabled) { background: var(--panel3); }
+.ar-rescue .rs-pick .mk { grid-row: span 2; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--panel3); color: var(--muted); font: var(--fw-bold) 12px/1 var(--font); }
+.ar-rescue .rs-pick .mk .hg { width: 11px; height: 13px; margin: 0; color: var(--steel); }
+.ar-rescue .rs-pick .l { font-weight: var(--fw-semibold); padding-right: 16px; }
+.ar-rescue .rs-pick .m { font-size: var(--fs-small); color: var(--dim); }
+.ar-rescue .rs-pick .tick { position: absolute; top: 7px; right: 8px; display: grid; place-items: center; color: var(--teal-l); }
+.ar-rescue .rs-pick.on { border-color: var(--sel-line); background: var(--sel); }
+.ar-rescue .rs-pick.on .mk { background: color-mix(in srgb, var(--teal) 22%, transparent); color: var(--teal-l); }
+.ar-rescue .rs-pick.on .mk .hg { color: var(--teal-l); }
+.ar-rescue .rs-pick.on .m { color: var(--muted); }
+.ar-rescue .rs-pick:not(.def):not(.off) { border-style: dashed; }
+.ar-rescue .rs-pick:not(.def):not(.off).on { border-style: solid; }
+.ar-rescue .rs-pick.off { cursor: not-allowed; background: none; border-style: dashed; border-color: var(--line); }
+.ar-rescue .rs-pick.off .l { color: var(--dim); font-weight: var(--fw-regular); }
+.ar-rescue .rs-pick.off .m { color: var(--muted); }
+.ar-rescue .rs-pick:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ar-rescue .rs-fix { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--line2); border-radius: var(--r); background: var(--panel2); }
+.ar-rescue .rs-fix.on { border-color: var(--sel-line); background: var(--sel); }
+.ar-rescue .rs-fix:not(.def):not(.off) { border-style: dashed; }
+.ar-rescue .rs-fix:not(.def):not(.off).on { border-style: solid; }
+.ar-rescue .rs-fix.off { background: none; border-style: dashed; border-color: var(--line); }
+.ar-rescue .rs-picks .rs-pick, .ar-rescue .rs-picks .rs-pick.on, .ar-rescue .rs-picks .rs-pick.off, .ar-rescue .rs-picks .rs-pick:not(.def):not(.off) { border: 0; background: none; }
+.ar-rescue .rs-picks .rs-pick { flex: none; min-height: 58px; }
+.ar-rescue .rs-picks .rs-pick:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 5%, transparent); border-radius: var(--r) var(--r) 0 0; }
+.ar-rescue .rs-picks .rs-pick:focus-visible { outline-offset: -2px; border-radius: var(--r); }
+.ar-rescue .rs-get { display: flex; flex-direction: column; gap: 3px; padding: 0 var(--sp-3); flex: 1; }
+.ar-rescue .rs-get .amw { display: flex; flex-direction: column; gap: 1px; }
+.ar-rescue .rs-get .al { font-size: var(--fs-small); color: var(--dim); }
+.ar-rescue .rs-get .mock { display: flex; flex-direction: column; gap: 2px; flex: 1; padding: 6px 9px; background: var(--bg2); border: 1px solid var(--line); border-left: 3px solid var(--steel); border-radius: var(--r-sm); min-width: 0; }
+.ar-rescue .rs-get.invoice .mock { border-left-color: var(--gold); }
+.ar-rescue .rs-get.email .mock { border-left-color: var(--teal); }
+.ar-rescue .rs-get .ch { display: flex; align-items: center; gap: 4px; font-size: var(--fs-small); color: var(--dim); }
+.ar-rescue .rs-get .ln { font-weight: var(--fw-medium); line-height: 1.3; overflow-wrap: anywhere; }
+.ar-rescue .rs-get .am { font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+.ar-rescue .rs-get .am.unk { align-self: flex-start; padding: 0 6px; border: 1px dashed var(--gold); border-radius: var(--r-sm); color: var(--gold-l); font-size: var(--fs-small); font-weight: var(--fw-regular); line-height: 1.5; }
+.ar-rescue .rs-get .nt { font-size: var(--fs-small); color: var(--dim); line-height: 1.3; }
+.ar-rescue .rs-get.off .mock { background: none; border: 1px dashed var(--line2); }
+.ar-rescue .rs-get.off .ln { color: var(--dim); font-weight: var(--fw-regular); }
+.ar-rescue .rs-why { padding: 5px var(--sp-3) 8px; }
+.ar-rescue .rs-why .ui-why { margin-left: 0; padding: 0; }
+.ar-rescue .rs-inv { padding: var(--sp-2) var(--sp-3); border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg2); }
+.ar-rescue .rs-inv .it { margin: 0 0 var(--sp-1); font-weight: var(--fw-semibold); }
+.ar-rescue .rs-inv .nt { margin: 0 0 var(--sp-2); color: var(--muted); }
+.ar-rescue .rs-notoff { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--sp-2); margin: var(--sp-2) 0 0; font-size: var(--fs-small); color: var(--dim); }
+.ar-rescue .rs-notoff .ui-why { margin-left: 0; }
+
+/* a short list is drawn at its own height, the picked row's pane beside it at its content's */
+.ar-rescue .le.few, .ar-rescue .le.few .le-main { flex: 0 1 auto; min-height: 0; }
+.ar-rescue .le.few .le-detail { align-self: start; }
+
+/* the silence line's hourglass keeps its size wherever the panel sits (beside or under the list, WP4a) */
+.ar-rescue .rs-sil .hg { width: 10px; height: 12px; flex: none; color: var(--dim); }

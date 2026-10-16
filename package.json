@@ -1,0 +1,8 @@
+{
+  "name": "the-table",
+  "private": true,
+  "license": "Apache-2.0",
+  "scripts": {
+    "tauri:dev:test": "node scripts/dev/tauri-dev-test.mjs"
+  }
+}

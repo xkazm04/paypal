@@ -5,7 +5,6 @@
    the scale. The window is 744 px wide. */
 
 /* ---- page roots ------------------------------------------------------------------------- */
-.ow.ow-ed { grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
 .ow .ow-body { padding: var(--sp-3) var(--sp-4) var(--sp-4); }
 .ow-p { margin: 0 0 var(--sp-2); color: var(--muted); line-height: var(--lh); }
 .ow-p:last-child { margin-bottom: 0; }
@@ -151,6 +150,10 @@
 /* footer */
 .ow-foot { display: flex; align-items: center; gap: var(--sp-2); min-height: 44px; padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--line); background: var(--material); }
 .ow-foot .status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: var(--fs-small); }
+/* the can't-sign line with its fix: the words give way, the buttons keep their size */
+.ow-fix { display: inline-flex; align-items: center; gap: var(--sp-2); max-width: 100%; vertical-align: middle; }
+.ow-fix .why { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ow-fix .ui-btn { flex: none; }
 
 /* ---- popovers and sheets (portalled to body) ---------------------------------------------- */
 .ow-pop { max-width: 360px; }
@@ -168,8 +171,6 @@
 .ow-conseq li.widens { box-shadow: inset 2px 0 0 var(--gold); }
 .ow-conseq li.restricts { box-shadow: inset 2px 0 0 var(--teal); }
 .ow-conseq li.live { box-shadow: inset 2px 0 0 var(--coral); }
-.ow-warns { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: grid; gap: 2px; font-size: var(--fs-small); color: var(--gold-l); }
-.ow-warns li::before { content: "! "; font-weight: var(--fw-bold); }
 .ow-sign .ui-section { margin-top: var(--sp-4); }
 .ow-sign .ui-hint { margin: var(--sp-2) 0 0; }
 .ow-bytes { margin-top: var(--sp-2); }

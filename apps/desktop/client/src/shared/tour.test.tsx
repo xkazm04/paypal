@@ -9,7 +9,7 @@ import { contrast, hexTokens, parseHex, type Rgb } from '../lib/contrast';
 import { gettingStarted, type StartFacts } from '../lib/firstRun';
 import { loadTour, resetTourMemory, TOUR_KEY } from '../lib/tour';
 import { TOUR, TOUR_STOP } from '../lib/words';
-import { placeMark, TakeTour, Tour } from './tour';
+import { keepClearBoxes, placeMark, TakeTour, Tour, type Box2 } from './tour';
 
 const facts: StartFacts = { firstRun: true, paypal: false, rulesInForce: 0, houseConnected: false, otherConnections: 0, engine: 'scripted' };
 const gs = gettingStarted(facts);
@@ -248,4 +248,46 @@ describe('the coach mark is readable in both themes', () => {
       for (const s of ['panel2', 'bg', 'bg2', 'panel']) expect(contrast(rgb(t, focus), rgb(t, s)), s).toBeGreaterThanOrEqual(3);
     });
   }
+});
+
+describe('the coach mark keeps the mode badge and the primary action clear (polish A)', () => {
+  // Measured in the browser preview at 1280 x 800 on the brand-new wallet's charter (`?first_run=1`):
+  // the hub (the charter's left column) is the first stop's anchor; the mark is 300 x 176.
+  const hub = { left: 52, top: 96, width: 710 - 52, bottom: 740 };
+  const keys: Box2 = { left: 52, top: 226, right: 239, bottom: 262 }; // the gold "Add PayPal keys"
+  const sandbox: Box2 = { left: 20, top: 767, right: 98, bottom: 789 }; // the mode badge
+  const preview: Box2 = { left: 110, top: 767, right: 249, bottom: 789 }; // "Preview · sample data"
+  const clear = [keys, sandbox, preview];
+  const covers = (m: { left: number; top: number }, b: Box2) => m.left < b.right && m.left + 300 > b.left && m.top < b.bottom && m.top + 176 > b.top;
+
+  it('without the boxes, the old place (the bottom of the window) covered the preview badge', () => {
+    const old = placeMark(hub, 300, 176, 1280, 800);
+    expect(covers(old, preview)).toBe(true);
+  });
+  it('with them, it covers none and stays inside the window', () => {
+    const m = placeMark(hub, 300, 176, 1280, 800, clear);
+    for (const b of clear) expect(covers(m, b)).toBe(false);
+    expect(m.left).toBeGreaterThanOrEqual(8);
+    expect(m.left + 300).toBeLessThanOrEqual(1280 - 8);
+    expect(m.top).toBeGreaterThanOrEqual(8);
+    expect(m.top + 176).toBeLessThanOrEqual(800 - 8);
+    // beside the hub, not on it
+    expect(m.left).toBeGreaterThanOrEqual(hub.left + hub.width);
+  });
+  it('below the anchor stays the first choice when it is clear', () => {
+    expect(placeMark({ left: 100, top: 100, width: 200, bottom: 140 }, 300, 150, 1280, 800, [sandbox])).toEqual(placeMark({ left: 100, top: 100, width: 200, bottom: 140 }, 300, 150, 1280, 800));
+  });
+  it('when every place covers something, the one that covers least', () => {
+    const all: Box2 = { left: 0, top: 0, right: 1280, bottom: 400 };
+    const m = placeMark({ left: 500, top: 380, width: 100, bottom: 420 }, 300, 150, 1280, 800, [all]);
+    expect(m.top).toBeGreaterThanOrEqual(400);
+  });
+  it('reads the boxes to keep clear from the page, never from the mark itself', () => {
+    document.body.innerHTML = '<span class="badge">Sandbox</span><button class="ui-btn gold">Review</button><div id="m"><button class="ui-btn primary">Next</button></div>';
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>('*'))) {
+      el.getBoundingClientRect = () => ({ left: 1, top: 1, right: 11, bottom: 11, width: 10, height: 10, x: 1, y: 1, toJSON: () => ({}) });
+    }
+    expect(keepClearBoxes(document.getElementById('m'))).toHaveLength(2);
+    document.body.innerHTML = '';
+  });
 });

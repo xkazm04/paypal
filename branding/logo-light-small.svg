@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="The Table">
+  <!-- The Table for light backgrounds at 16-48 px: transparent, day-theme inks, no bezel. -->
+  <g fill="none" stroke-width="9">
+    <path d="M23.08 48.78A19 19 0 0 1 23.08 15.22" stroke="#0a7169"/>
+    <path d="M40.92 15.22A19 19 0 0 1 40.92 48.78" stroke="#c4532d"/>
+  </g>
+  <path d="M32 23.5L40.5 32L32 40.5L23.5 32Z" fill="#a87b22"/>
+</svg>

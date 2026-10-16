@@ -4,13 +4,16 @@
 // event made the work grow with the lifetime ledger. Here the width per ledger event is the live
 // deals plus the deals whose row changed, not the lifetime ledger. Read-only: nothing here can
 // move money.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { QueryClient } from '@tanstack/react-query';
 import type { Deal } from '@bindings/Deal';
 import type { DealDisplay } from '@bindings/DealDisplay';
 import type { DealState } from '@bindings/DealState';
 import { toWalletError, type WalletError } from '../../lib/contract';
-import { READ_CONCURRENCY, readEach } from '../../lib/readEach';
-import { backend } from '../../lib/runtime';
+import { readCommand } from '../../lib/data/invoke';
+import { NAMED_POLICY, dealKey } from '../../lib/data/keys';
+import { useDataClient } from '../../lib/data/provider';
+import { READ_CONCURRENCY, isAborted, readEach } from '../../lib/readEach';
 import { isTerminal } from './logic';
 
 /** What a display was read for: the deal's state and the moment its row last changed, or null when
@@ -38,38 +41,162 @@ export function displaysToRead(deals: readonly Deal[], cache: ReadonlyMap<string
   }).map((d) => d.id);
 }
 
-type Entry = { token: string | null; display: DealDisplay };
+/** How many reads go out before the answers so far are shown. A ledger of hundreds of deals used to
+ *  show every deal's fallback display until the last read landed; now each batch lands on screen. */
+export const DISPLAY_BATCH = 100;
 
-/** deal_display per listed deal, keeping the earlier answer for a deal not read again and dropping
- *  deals no longer listed. A failed read leaves that deal out of the map (it gets the fallback
- *  display) and sets `error`; the deal is read again on the next refetch. */
-export function useDisplays(deals: Deal[] | undefined): { map: Map<string, DealDisplay>; error: WalletError | null } {
-  const cache = useRef<ReadonlyMap<string, Entry>>(new Map());
-  const [state, setState] = useState<{ map: Map<string, DealDisplay>; error: WalletError | null }>({ map: new Map(), error: null });
+/** Live deals first (they are the ones on screen: waiting, in progress), then the ended ones. */
+export function displayReadOrder(deals: readonly Deal[], ids: readonly string[]): string[] {
+  const live = new Set(deals.filter((d) => !isTerminal(d)).map((d) => d.id));
+  return [...ids.filter((id) => live.has(id)), ...ids.filter((id) => !live.has(id))];
+}
+
+/** What the main window shows of the displays: one map per pass result, stable while nothing in it
+ *  changed, so a selector over it does not re-render on a pass that read the same answers. */
+export type DisplaysState = { map: Map<string, DealDisplay>; error: WalletError | null; ready: boolean };
+
+// The pass runner of one client (one window). The answers live in the query cache, one
+// ['deal_display', id] entry per deal, shared with every component that reads a deal's display
+// (lib/display.ts useDealDisplay, the tumbler's forms); the runner keeps only the token each answer
+// was read for. One pass runs at a time: a newer deal list aborts the running pass (it starts no
+// further read; reads already out settle and are kept), and the next pass runs on the latest list
+// once they have settled. So at most READ_CONCURRENCY deal_display reads of the passes are ever in
+// flight, whatever the event rate.
+type Runner = {
+  request(deals: readonly Deal[]): void;
+  subscribe(cb: (s: DisplaysState) => void): () => void;
+  get(): DisplaysState;
+};
+
+const runners = new WeakMap<QueryClient, Runner>();
+
+function runnerOf(client: QueryClient): Runner {
+  let r = runners.get(client);
+  if (!r) {
+    r = createRunner(client);
+    runners.set(client, r);
+  }
+  return r;
+}
+
+function createRunner(client: QueryClient): Runner {
+  const tokens = new Map<string, string | null>();
+  const subs = new Set<(s: DisplaysState) => void>();
+  let state: DisplaysState = { map: new Map(), error: null, ready: false };
+  let listed: readonly Deal[] = [];
+  let latest: readonly Deal[] | null = null;
+  let running: AbortController | null = null;
+
+  const answer = (id: string): DealDisplay | undefined => client.getQueryData<DealDisplay>(dealKey('deal_display', id));
+
+  const publish = (patch: Partial<DisplaysState>): void => {
+    const map = new Map<string, DealDisplay>();
+    for (const d of listed) {
+      const x = answer(d.id);
+      if (x) map.set(d.id, x);
+    }
+    const same = map.size === state.map.size && [...map].every(([id, x]) => state.map.get(id) === x);
+    const next: DisplaysState = { map: same ? state.map : map, error: patch.error === undefined ? state.error : patch.error, ready: state.ready || !!patch.ready };
+    if (next.map === state.map && next.error === state.error && next.ready === state.ready) return;
+    state = next;
+    subs.forEach((f) => f(state));
+  };
+
+  const read = (id: string, d: Deal): Promise<DealDisplay> =>
+    client
+      .fetchQuery({
+        queryKey: dealKey('deal_display', id),
+        queryFn: () => readCommand('deal_display', { deal_id: id }),
+        staleTime: 0,
+        gcTime: NAMED_POLICY.gcTime,
+        retry: false,
+        meta: { dealId: id },
+      })
+      .then((v) => {
+        tokens.set(id, displayToken(d));
+        return v;
+      });
+
+  const pump = (): void => {
+    if (running || !latest || subs.size === 0) return;
+    const deals = latest;
+    latest = null;
+    listed = deals;
+    const byId = new Map(deals.map((d) => [d.id, d]));
+    for (const id of [...tokens.keys()]) if (!byId.has(id)) tokens.delete(id);
+    const known = new Map<string, { token: string | null }>();
+    for (const [id, token] of tokens) if (answer(id) !== undefined) known.set(id, { token });
+    const ids = displayReadOrder(deals, displaysToRead(deals, known));
+    const ctl = new AbortController();
+    running = ctl;
+    void (async () => {
+      let error: WalletError | null = null;
+      for (let at = 0; at === 0 || at < ids.length; at += DISPLAY_BATCH) {
+        const part = ids.slice(at, at + DISPLAY_BATCH);
+        const rs = await readEach(part, (id) => {
+          const d = byId.get(id);
+          return d ? read(id, d) : Promise.reject(new Error('deal is not listed'));
+        }, { concurrency: READ_CONCURRENCY, signal: ctl.signal });
+        rs.forEach((r, i) => {
+          const id = part[i];
+          if (id === undefined || r.status === 'fulfilled' || isAborted(r.reason)) return;
+          tokens.delete(id);
+          error = toWalletError(r.reason);
+        });
+        const last = at + DISPLAY_BATCH >= ids.length;
+        publish({ error, ready: last && !ctl.signal.aborted });
+        if (ctl.signal.aborted) break;
+      }
+      running = null;
+      pump();
+    })();
+  };
+
+  // A display read elsewhere (a deal page, a card) lands in the same entry: show it here too.
+  let queued = false;
+  client.getQueryCache().subscribe((e) => {
+    // A running pass shows its own answers batch by batch (and any other that landed meanwhile).
+    if (running || e.type !== 'updated' || e.action.type !== 'success' || e.query.queryKey[0] !== 'deal_display' || queued) return;
+    queued = true;
+    queueMicrotask(() => {
+      queued = false;
+      publish({});
+    });
+  });
+
+  return {
+    request(deals) {
+      latest = deals;
+      if (running) running.abort();
+      else pump();
+    },
+    subscribe(cb) {
+      subs.add(cb);
+      return () => {
+        subs.delete(cb);
+        if (subs.size === 0) running?.abort();
+      };
+    },
+    get: () => state,
+  };
+}
+
+/** deal_display per listed deal, from the query cache, reading again only what displaysToRead names.
+ *  A failed read keeps that deal's last good answer if it had one (else it gets the fallback
+ *  display), sets `error`, and is read again on the next pass. The reads go out in batches, live
+ *  deals first, and every batch is shown when it lands; `ready` turns true once a whole pass has
+ *  been read (until then a label that is not in the map yet may still arrive). One list per window:
+ *  the World is the only caller. */
+export function useDisplays(deals: Deal[] | undefined): DisplaysState {
+  const client = useDataClient();
+  const runner = runnerOf(client);
+  const [state, setState] = useState<DisplaysState>(runner.get);
   useEffect(() => {
     if (!deals) return;
-    let dead = false;
-    const ids = displaysToRead(deals, cache.current);
-    void readEach(ids, (id) => backend().invoke('deal_display', { deal_id: id }), { concurrency: READ_CONCURRENCY }).then((rs) => {
-      if (dead) return;
-      const next = new Map<string, Entry>();
-      for (const d of deals) {
-        const had = cache.current.get(d.id);
-        if (had) next.set(d.id, had);
-      }
-      const byId = new Map(deals.map((d) => [d.id, d]));
-      let error: WalletError | null = null;
-      rs.forEach((r, i) => {
-        const id = ids[i];
-        const d = id === undefined ? undefined : byId.get(id);
-        if (!id || !d) return;
-        if (r.status === 'fulfilled') next.set(id, { token: displayToken(d), display: r.value });
-        else { next.delete(id); error = toWalletError(r.reason); }
-      });
-      cache.current = next;
-      setState({ map: new Map([...next].map(([id, e]): [string, DealDisplay] => [id, e.display])), error });
-    });
-    return () => { dead = true; };
-  }, [deals]);
+    const off = runner.subscribe(setState);
+    setState(runner.get());
+    runner.request(deals);
+    return off;
+  }, [deals, runner]);
   return state;
 }

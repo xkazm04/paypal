@@ -136,22 +136,30 @@ impl DealState {
         Self::Unconfirmed,
     ];
     /// The states a deal frees its budget in: it never agreed, or was given back unpaid. One
-    /// list for the exposure fold and for the ledger's SQL filter.
-    pub const RELEASED: [Self; 5] = [
-        Self::Refused,
-        Self::Withdrawn,
-        Self::Expired,
-        Self::Voided,
-        Self::AutoVoided,
-    ];
+    /// list for the exposure fold and for the ledger's SQL filter: [`Self::ALL`] filtered by
+    /// [`Self::is_released`], so the two cannot disagree.
+    pub const RELEASED: [Self; 5] = {
+        let mut out = [Self::Pairing; 5];
+        let (mut i, mut n) = (0, 0);
+        while i < Self::ALL.len() {
+            if Self::ALL[i].is_released() {
+                out[n] = Self::ALL[i];
+                n += 1;
+            }
+            i += 1;
+        }
+        assert!(n == out.len(), "RELEASED's length is is_released's count");
+        out
+    };
     pub const fn is_released(self) -> bool {
         matches!(
             self,
             Self::Refused | Self::Withdrawn | Self::Expired | Self::Voided | Self::AutoVoided
         )
     }
-    /// States in the forward chain from AGREED on, every one reached through AGREED. The one
-    /// definition behind the exposure fold and the ledger's per-mandate usage count.
+    /// States in the forward chain from AGREED on: [`Self::through_agreed`] minus the released
+    /// ones (a test walks `transition()` to pin it). The one definition behind the exposure fold
+    /// and the ledger's per-mandate usage count.
     pub const fn is_agreed_or_later(self) -> bool {
         matches!(
             self,
@@ -167,6 +175,13 @@ impl DealState {
                 | Self::Disputed
                 | Self::Unconfirmed
         )
+    }
+    /// The states `transition()` reaches only through AGREED, released ones included (EXPIRED,
+    /// VOIDED, AUTO_VOIDED): a deal in one has a recorded agreement. A test walks the graph to
+    /// pin it. The client's fair price counts as committed in these, as Rust's `fair_price` does
+    /// once the agreement row exists.
+    pub const fn through_agreed(self) -> bool {
+        self.is_agreed_or_later() || matches!(self, Self::Expired | Self::Voided | Self::AutoVoided)
     }
 }
 /// How long a buyer's deal that only the seller says is paid waits for PayPal's statement to
@@ -221,6 +236,11 @@ impl DealState {
                 | Self::Unconfirmed
         )
     }
+    /// Where `transition(self, Withdraw)` is accepted, and where a mismatch or a failure can still
+    /// end the deal: before capture, and not a held authorization (that one needs a void).
+    pub const fn withdrawable(self) -> bool {
+        self.pre_capture() && !matches!(self, Self::Authorized)
+    }
 }
 
 /// Events supplied only after protocol or PayPal evidence has been verified at the IO edge.
@@ -260,6 +280,36 @@ pub enum DealEvent {
     /// sent. Nobody has been asked to pay yet.
     InvoiceDrafted,
 }
+impl DealEvent {
+    /// Every event, in declaration order (a test pins it to the enum), so a walk over
+    /// `transition()` can derive the state sets.
+    pub const ALL: [Self; 24] = [
+        Self::ListingVerified,
+        Self::OfferVerified,
+        Self::TwoAcceptsVerified,
+        Self::PurchaseCleared,
+        Self::BeginSettlement,
+        Self::SettleVerified,
+        Self::OrderApproved,
+        Self::AuthorizationConfirmed,
+        Self::CaptureConfirmed,
+        Self::ReceiptVerified,
+        Self::SellerReceiptVerified,
+        Self::ReportingMatched,
+        Self::CorroborationLapsed,
+        Self::Withdraw,
+        Self::Deadline,
+        Self::Refuse,
+        Self::Mismatch,
+        Self::Fail,
+        Self::Void,
+        Self::AutoVoid,
+        Self::Refund,
+        Self::Dispute,
+        Self::RescueOpened,
+        Self::InvoiceDrafted,
+    ];
+}
 
 pub fn transition(state: DealState, event: DealEvent) -> Result<DealState, DomainError> {
     use DealEvent as E;
@@ -287,12 +337,12 @@ pub fn transition(state: DealState, event: DealEvent) -> Result<DealState, Domai
         (S::Authorized, E::Void) => S::Voided,
         (S::Authorized, E::AutoVoid) => S::AutoVoided,
         // A held authorization needs a confirmed void, not a fictitious withdrawal.
-        (s, E::Withdraw) if s.pre_capture() && s != S::Authorized => S::Withdrawn,
+        (s, E::Withdraw) if s.withdrawable() => S::Withdrawn,
         (S::Pairing | S::Listed | S::Negotiating | S::Agreed, E::Deadline) => S::Withdrawn,
         (S::Settling | S::AwaitingApproval | S::Approved, E::Deadline) => S::Expired,
         (S::Pairing | S::Listed | S::Negotiating, E::Refuse) => S::Refused,
-        (s, E::Mismatch) if s.pre_capture() && s != S::Authorized => S::Mismatch,
-        (s, E::Fail) if s.pre_capture() && s != S::Authorized => S::Failed,
+        (s, E::Mismatch) if s.withdrawable() => S::Mismatch,
+        (s, E::Fail) if s.withdrawable() => S::Failed,
         _ => return Err(DomainError::InvalidTransition { state, event }),
     };
     Ok(next)
@@ -778,5 +828,92 @@ mod tests {
         assert_ne!(invoice_id(a, 1).unwrap(), invoice_id(b, 1).unwrap());
         assert!(invoice_id(a, 0).is_err());
         assert!(invoice_id(a, 4).is_err());
+    }
+    /// Every state `transition()` reaches from `from` without entering `avoid`.
+    fn reachable(from: DealState, avoid: Option<DealState>) -> Vec<DealState> {
+        let mut seen = vec![from];
+        let mut queue = vec![from];
+        while let Some(state) = queue.pop() {
+            for event in DealEvent::ALL {
+                if let Ok(next) = transition(state, event)
+                    && Some(next) != avoid
+                    && !seen.contains(&next)
+                {
+                    seen.push(next);
+                    queue.push(next);
+                }
+            }
+        }
+        seen
+    }
+    #[test]
+    fn every_deal_event_is_listed_once() {
+        // Exhaustive: a new event fails to compile here until it is added to ALL.
+        let position = |e: DealEvent| match e {
+            DealEvent::ListingVerified => 0,
+            DealEvent::OfferVerified => 1,
+            DealEvent::TwoAcceptsVerified => 2,
+            DealEvent::PurchaseCleared => 3,
+            DealEvent::BeginSettlement => 4,
+            DealEvent::SettleVerified => 5,
+            DealEvent::OrderApproved => 6,
+            DealEvent::AuthorizationConfirmed => 7,
+            DealEvent::CaptureConfirmed => 8,
+            DealEvent::ReceiptVerified => 9,
+            DealEvent::SellerReceiptVerified => 10,
+            DealEvent::ReportingMatched => 11,
+            DealEvent::CorroborationLapsed => 12,
+            DealEvent::Withdraw => 13,
+            DealEvent::Deadline => 14,
+            DealEvent::Refuse => 15,
+            DealEvent::Mismatch => 16,
+            DealEvent::Fail => 17,
+            DealEvent::Void => 18,
+            DealEvent::AutoVoid => 19,
+            DealEvent::Refund => 20,
+            DealEvent::Dispute => 21,
+            DealEvent::RescueOpened => 22,
+            DealEvent::InvoiceDrafted => 23,
+        };
+        for (i, event) in DealEvent::ALL.into_iter().enumerate() {
+            assert_eq!(position(event), i, "{event:?}");
+        }
+    }
+    #[test]
+    fn withdrawable_is_exactly_where_transition_accepts_withdraw() {
+        for state in DealState::ALL {
+            assert_eq!(
+                state.withdrawable(),
+                transition(state, DealEvent::Withdraw).is_ok(),
+                "{state:?}"
+            );
+        }
+        assert!(!DealState::Authorized.withdrawable());
+        assert!(DealState::Approved.withdrawable());
+    }
+    #[test]
+    fn agreement_sets_are_the_transition_graph_through_agreed() {
+        // Through AGREED: reachable from PAIRING, but not once AGREED is walled off.
+        let all = reachable(DealState::Pairing, None);
+        let around = reachable(DealState::Pairing, Some(DealState::Agreed));
+        for state in DealState::ALL {
+            assert!(all.contains(&state), "{state:?} is unreachable");
+            let through = !around.contains(&state);
+            assert_eq!(state.through_agreed(), through, "{state:?}");
+            assert_eq!(
+                state.is_agreed_or_later(),
+                through && !state.is_released(),
+                "{state:?}"
+            );
+        }
+        for state in [DealState::Expired, DealState::Voided, DealState::AutoVoided] {
+            assert!(state.through_agreed() && state.is_released(), "{state:?}");
+        }
+        assert!(!DealState::Mismatch.through_agreed());
+        let released: Vec<DealState> = DealState::ALL
+            .into_iter()
+            .filter(|s| s.is_released())
+            .collect();
+        assert_eq!(released, DealState::RELEASED);
     }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest';
-import { clockLabel, countdown, formatMinor, shortHash, shortId } from './format';
+import { clockLabel, countdown, countdownWords, formatMinor, shortHash, shortId } from './format';
 import { WalletError, toWalletError } from './contract';
 import { mockBackend, resetMockState } from '../mock/backend';
 import { fakeHash, fakeUlid } from '../mock/fixtures';
@@ -161,5 +161,17 @@ describe('mock backend mirrors the shell gates', () => {
     const deadlines = snap.items.map((i) => i.deadline ?? Infinity);
     expect([...deadlines].sort((a, b) => a - b)).toEqual(deadlines);
     snap.items.forEach((i) => expect(i.on_silence.length).toBeGreaterThan(0));
+  });
+});
+
+describe('countdownWords (what a screen reader hears for a ticking clock)', () => {
+  it('spells the time in words, rounding down to the largest two units', () => {
+    expect(countdownWords(1000 + 3 * 3600 + 57 * 60 + 56, 1000)).toBe('3 hours 57 minutes left');
+    expect(countdownWords(1000 + 86400 + 3 * 3600, 1000)).toBe('1 day 3 hours left');
+    expect(countdownWords(1000 + 3 * 86400, 1000)).toBe('3 days left');
+    expect(countdownWords(1000 + 3600, 1000)).toBe('1 hour left');
+    expect(countdownWords(1000 + 5 * 60 + 9, 1000)).toBe('5 minutes left');
+    expect(countdownWords(1000 + 40, 1000)).toBe('less than a minute left');
+    expect(countdownWords(900, 1000)).toBe('no time left');
   });
 });

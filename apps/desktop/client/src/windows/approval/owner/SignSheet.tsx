@@ -8,7 +8,7 @@ import type { MandateSignArgs } from '@bindings/MandateSignArgs';
 import type { OpenMandate } from '@bindings/OpenMandate';
 import type { WalletError } from '../../../lib/contract';
 import { shortHash } from '../../../lib/format';
-import { ruleNameOf, rulesName } from '../../../lib/words';
+import { rulesName } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
 import { Btn, Hourglass, Kv, Section, Sheet } from '../../../shared/ui';
 import { refusalWords, type RuleProblem } from '../mandateDraft';
@@ -32,6 +32,7 @@ type Props = {
   changes: Change[];
   /** The wallet's what-if for this draft (mandate_simulate): the one-line summary and what moved. */
   whatIf: { summary: string; hits: string } | null;
+  /** The editor opens the sheet only when there are none; Sign stays disabled if any appear. */
   problems: RuleProblem[];
   onClose: () => void;
   onSigned: (m: OpenMandate) => void;
@@ -113,11 +114,6 @@ export function SignSheet({ base, args, changes, whatIf, problems, onClose, onSi
           <li className="live">New rules apply to new requests only. Anything already on hold, invoiced or approved stays as it is.</li>
           {base ? <li className="live">Haggles still open stay tied to the version they started under, so once you sign they need starting again.</li> : null}
         </ul>
-        {problems.length ? (
-          <ul className="ow-warns" aria-label="Why this can’t be signed yet">
-            {problems.map((p, i) => <li key={i}>{ruleNameOf(p.clause)}: {p.why}</li>)}
-          </ul>
-        ) : null}
         <p className="ui-hint">This week’s deals were tried with the wallet’s own check. Signing checks everything again, and every new request is checked too.</p>
       </Section>
 

@@ -1,7 +1,7 @@
 // Layer 2 · Popover: a small anchored panel (ui.css .ui-popover). Closes on an outside click or
 // Esc (topmost layer only). Positioned below the anchor, flipped above when there is no room;
 // left/top are set through CSSOM (React style), which the CSP allows.
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLayer } from './layers';
 
@@ -24,6 +24,7 @@ export function place(anchor: DOMRect, w: number, h: number, vw: number, vh: num
 export function Popover({ anchor, onClose, title, className, children }: PopoverProps) {
   const el = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const hid = useId();
   useLayer(onClose, 'popover');
 
   useLayoutEffect(() => {
@@ -62,9 +63,9 @@ export function Popover({ anchor, onClose, title, className, children }: Popover
   }, [anchor]);
 
   return createPortal(
-    <div ref={el} className={`ui-popover ${className ?? ''}`} role="dialog" aria-label={typeof title === 'string' ? title : undefined} tabIndex={-1} data-layer-free=""
+    <div ref={el} className={`ui-popover ${className ?? ''}`} role="dialog" aria-label={typeof title === 'string' ? title : undefined} aria-labelledby={title && typeof title !== 'string' ? hid : undefined} tabIndex={-1} data-layer-free=""
       style={pos ? { left: pos.left, top: pos.top } : { left: 0, top: 0, visibility: 'hidden' }}>
-      {title ? <h3>{title}</h3> : null}
+      {title ? <h3 id={hid}>{title}</h3> : null}
       {children}
     </div>,
     document.body,

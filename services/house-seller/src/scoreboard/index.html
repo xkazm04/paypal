@@ -8,6 +8,7 @@
 <title>House seller · public record</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="/house/scoreboard.css">
+<script src="/house/witness.js" defer></script>
 <script src="/house/scoreboard.js" defer></script>
 </head>
 <body>
@@ -83,9 +84,15 @@
     <summary><h2>Check it yourself</h2><span class="sum-s">Download the record and check it on your own computer</span></summary>
     <div class="proof-body">
       <p>The record and its signed head are public. Save both and run the offline checker from the project; it reads the files only and never goes online.</p>
-      <p class="links"><a href="/v1/house/ledger?limit=100" download="house-ledger.json">Download the record</a><a href="/v1/house/head" download="house-head.json">Download the signed head</a></p>
+      <p class="links"><a href="/v1/house/ledger?limit=100" download="house-ledger.json">Download the record</a><button type="button" class="link" id="save-look" disabled>Save this look</button></p>
       <pre class="cmd"><code>table-verify --house house-ledger.json --head house-head.json</code></pre>
-      <p class="small">Your wallet keeps the house's signed head with every receipt from the house seller. If the house ever shows a shorter or different record later, your wallet says so on that deal.</p>
+      <p class="small">“Save this look” keeps the signed head this page just checked. Bring it back here later, or give it to the checker, to see that the record only grew since.</p>
+      <div class="kept">
+        <h3>Check a head you kept</h3>
+        <p class="small">Your wallet keeps the house's signed head with every receipt from the house seller, and puts it in the deal's proof file. Choose that file, or a look you saved here: it is read in this browser and never uploaded.</p>
+        <label class="btn file">Choose a file<input type="file" id="kept-file" class="sr" accept=".json,application/json"></label>
+        <ul class="check-list kept-list" id="kept-results" aria-live="polite"></ul>
+      </div>
       <dl class="keys" id="keys"></dl>
     </div>
   </details>

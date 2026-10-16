@@ -5,7 +5,8 @@
 //! (no owner decision, no second look at PayPal, no group, no shield hold, no house record) the
 //! line reads "not checked" and says why; it neither passes nor fails. A v1 file carries none of
 //! these records, so on a v1 file every one of them reads "not checked".
-use crate::{Miss, operation_of, row_detail};
+use crate::authority::{decision_fits, money_kind};
+use crate::{Miss, row_detail};
 use serde_json::Value;
 use table_core::{DealState, DecidedBy, H256, MarketCommitment, ShieldRule, ShieldVerdict};
 use table_proto::{
@@ -37,16 +38,6 @@ fn rows<'a>(
         .audit
         .iter()
         .filter(move |r| actions.contains(&r.action.as_str()))
-}
-
-/// The owner decision that may start each owner-decided money step (service.rs `Decision::name`).
-fn decision_fits(decision: &str, operation: &str) -> bool {
-    match operation {
-        "create" | "authorize" => decision == "deal_countersign",
-        "capture" => decision == "deal_capture",
-        "invoice-create" | "invoice-send" => decision == "rescue_approve",
-        _ => ["deal_countersign", "deal_capture", "rescue_approve"].contains(&decision),
-    }
 }
 
 /// T5: every money step the owner decided has an `owner.decision` row before it, at the same
@@ -161,7 +152,7 @@ pub(crate) fn one_request(bundle: &ProofBundle) -> Result<String, Miss> {
     };
     let mut calls = 0;
     for call in &bundle.paypal_calls {
-        let Some(kind) = operation_of(&call.method, &call.path) else {
+        let Some(kind) = money_kind(&call.method, &call.path) else {
             continue;
         };
         if !kinds.iter().any(|k| k == kind) {

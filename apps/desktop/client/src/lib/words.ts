@@ -801,3 +801,294 @@ export const NEVER_SHOWN = 'not shown to you before the deadline';
 /** A buyer haggle or shop order is RECEIPTED only on the seller's signed receipt (ledger accept_seller_receipt, evidence seller_attested); PayPal has not confirmed it until RECONCILED. */
 export const sellerSaysOnly = (d: { state: DealState; side?: Side; kind?: DealKind }): boolean =>
   d.state === 'RECEIPTED' && d.side === 'buyer' && (d.kind === undefined || d.kind === 'haggle' || d.kind === 'shop_order');
+
+// ---- nested pages and the Set up page (calm-nested-ui) -------------------------------------------
+
+/** The affordance on a summary card that opens its detail page. */
+export const SUMMARY_OPEN = 'Open';
+/** The back button on a detail page, when the page names no destination. */
+export const DETAIL_BACK = 'Back';
+/** Heard (not seen) after a finished step in the step bar. */
+export const STEPPER_DONE = 'done';
+/** The step bar's name for assistive tech. */
+export const STEPPER_LABEL = 'Steps';
+/** The Set up page's title and crumb. */
+export const SETUP_PAGE_TITLE = 'Set up';
+/** The five steps of the Set up page, in order (keys match SetupStep in windows/main/logic.ts). */
+export const SETUP_STEP_LABEL: Record<'keys' | 'rules' | 'practice' | 'agent' | 'unlock', string> = {
+  keys: 'PayPal keys',
+  rules: 'Your rules',
+  practice: 'Practice deal',
+  agent: 'Your agent',
+  unlock: 'Unlock',
+};
+
+// calm-nested-ui WP1 (Book and Counter summary cards and detail pages) ----------------------------
+/** Book: summary card labels and detail page titles (crumbs). */
+export const BOOK_VIEW = {
+  ledger: 'Ledger',
+  outlook: 'Outlook',
+  ask: 'Ask your book',
+  recent: 'Recent payments',
+} as const;
+/** Book: the card that opens the ledger, by the span the book covers. */
+export const bookMoneyCard = (week: boolean): string => (week ? 'This week’s money' : 'Money on record');
+/** Counter: summary card labels and detail page titles (crumbs). */
+export const COUNTER_VIEW = {
+  orders: 'Orders at your counter',
+  prices: 'Your lowest prices',
+  earlier: 'Earlier this week',
+} as const;
+
+// calm-nested-ui WP4 (the Set up page and the docked approval step) -------------------------------
+export type SetupStepKey = 'keys' | 'rules' | 'practice' | 'agent' | 'unlock';
+/** Each Set up step: two short lines, the one button, and what a finished step says. */
+export const SETUP_STEP_COPY: Record<SetupStepKey, { lead: string; text: string; act: string; done: string }> = {
+  keys: {
+    lead: 'Add your PayPal sandbox keys', text: 'They let The Table work with PayPal test money. They are saved securely on this computer and never shown again.',
+    act: 'Add PayPal keys', done: 'PayPal sandbox keys saved',
+  },
+  rules: {
+    lead: 'Sign your agents’ rules', text: 'How much your agents may spend, with whom, and when they must ask you first. Start from a ready-made set and check it.',
+    act: 'Sign rules', done: 'Rules signed. Your agents act only inside them.',
+  },
+  practice: {
+    lead: 'Connect the house seller', text: 'A practice shop that is always open, on test money. Share a code, match four words, then confirm.',
+    act: 'Connect the house seller', done: 'House seller connected. Its practice table is ready.',
+  },
+  agent: {
+    lead: 'Choose your agent app', text: 'The app your agents run in. Until you add one, the practice agent plays your deals.',
+    act: 'Choose agent app', done: 'Agent app chosen. Your agents run in it.',
+  },
+  unlock: {
+    lead: 'Unlock approving', text: 'Approving asks for Windows Hello. Unlock once now so your first approval is quick.',
+    act: 'Unlock with Windows Hello', done: 'Unlocked. You are ready for your first safe deal.',
+  },
+};
+export const SETUP_WAITING = { title: 'Waiting for you in the approval step', text: 'Finish it there. This page moves on by itself, and nothing is sent until you do.', reopen: 'Reopen' };
+export const SETUP_NOT_DONE = { title: 'Not finished yet', text: 'The approval step was closed before it was done. Nothing has changed.' };
+export const SETUP_NEXT = 'Next step';
+export const SETUP_FINISH = 'Done';
+export const SETUP_ALL_DONE = 'Everything is set up. Your first safe deal is one click away.';
+export const SETUP_CONTINUE = 'Continue setup';
+export const SETUP_CONTINUE_LINE = 'Set up your keys, your rules and a practice deal, one step at a time.';
+export const SETUP_SETTINGS_LINK = { text: 'Getting started now lives on its own page.', act: 'Open Set up' };
+
+// calm-nested-ui WP3 (Spend and Tables): card and crumb labels of the nested pages.
+export const SPEND_VIEW = { week: 'This week', gate: 'Rule check', rules: 'Rules in force' } as const;
+export const TABLES_VIEW = { need: 'Needs you', tables: 'Your tables', ladder: 'Price ladder', shop: 'Shop around', closed: 'Closed' } as const;
+
+// calm-nested-ui WP2 (Rescue and Shield nested pages)
+/** Rescue: the detail pages' names (also the crumbs and the card labels); keys are the `v=` in the hash. */
+export const RESCUE_VIEW_LABEL: Record<'failed' | 'progress' | 'recovered' | 'watch', string> = {
+  failed: 'Needs a fix',
+  progress: 'Fixes in progress',
+  recovered: 'Recovered money',
+  watch: 'Watching',
+};
+export const RESCUE_SUB = 'Failed renewals: one fix for one subscriber, or nothing';
+export const RESCUE_FAILED_SUB = 'Pick one fix for one subscriber, or do nothing';
+export const RESCUE_PROGRESS_SUB = 'Invoices sent, waiting for the subscriber to pay';
+export const RESCUE_RECOVERED_SUB = 'Only what PayPal shows paid counts';
+export const RESCUE_WATCH_SUB = 'Subscriptions your wallet checks, and the fixes you allow';
+export const RESCUE_COMPARE = 'Compare every fix side by side';
+export const RESCUE_COMPARE_HIDE = 'Hide the comparison';
+/** Shield: the detail pages' names (also the crumbs and the card labels). */
+export const SHIELD_VIEW_LABEL: Record<'stopped' | 'through' | 'week' | 'safe', string> = {
+  stopped: 'Stopped',
+  through: 'Let through',
+  week: 'This week',
+  safe: 'Looked safe',
+};
+export const SHIELD_SUB = 'Checks every payment for scam signs before PayPal is asked';
+export const SHIELD_STOPPED_SUB = 'Payments the shield stopped, and why';
+export const SHIELD_THROUGH_SUB = 'Paused payments you let go on';
+export const SHIELD_WEEK_SUB = 'What the shield checked, and every check side by side';
+export const SHIELD_SAFE_SUB = 'Payments where the shield found nothing';
+export const SHIELD_COMPARE = 'Compare every check side by side';
+export const SETUP_OPENS_IN_TABLE = 'Opens The Table on its Set up page';
+
+// console-rebuild WP1b (data layer and resilience): the words of a part that could not be shown, a
+// read that is not answering, and a list that may be out of date. Never a code, a command or a stack.
+/** A part of the window failed to draw. The wallet itself is untouched. */
+export const BOUNDARY_TITLE = 'This part could not be shown';
+export const BOUNDARY_TEXT = 'Nothing in your wallet changed. If you do nothing, no money moves.';
+/** The whole window failed to draw. */
+export const BOUNDARY_WINDOW_TITLE = 'This window could not be shown';
+export const BOUNDARY_RETRY = 'Try again';
+/** A part that is still being read. */
+export const LAYER_LOADING = 'Loading…';
+/** The stale banner: the window shows the last answers it had, because a read just failed. */
+export const STALE_TITLE = 'Some of what you see may be out of date';
+export const STALE_TEXT = 'The wallet did not answer just now, so this shows what it said last. If you do nothing, no money moves.';
+/** A list the wallet has not answered for at all yet: nothing is shown rather than a guess. */
+export const UNREAD_TITLE = 'Not available yet';
+export const UNREAD_TEXT = 'The wallet has not answered yet. Nothing is shown rather than a guess. If you do nothing, no money moves.';
+/** Which part is out of date, in the owner's words. */
+export const STALE_PART: Record<'settings' | 'deals' | 'attention' | 'runs' | 'labels', string> = {
+  settings: 'your settings',
+  deals: 'your deals',
+  attention: 'what needs you',
+  runs: 'your agents',
+  labels: 'some deal names',
+};
+
+// console-rebuild WP2 (the console shell, the decision centre, Find, the Charter) -----------------
+/** The layers' names, as the crumbs and the Find list say them. */
+export const CENTRE_TITLE = 'What needs you';
+export const WAITING_TITLE = 'Everything waiting';
+export const REWIND_TITLE = 'Rewind';
+/** The places in the top bar. */
+export const PLACE = { rewind: 'Rewind', rules: 'Rules', connections: 'Connections', settings: 'Settings', find: 'Find' } as const;
+export const PLACE_TITLE = {
+  rewind: 'Replay the week: who decided each payment',
+  rules: 'What your agents may do, and the limits you signed',
+  connections: 'Connect with another wallet, or open the house seller',
+  settings: 'Agent app, safety checks and PayPal',
+  find: 'Find a deal, a person or a place (/ or Ctrl K)',
+} as const;
+/** The brand button: back to the decision centre. */
+export const BRAND_NAME = 'The Table';
+export const BRAND_TITLE = 'The Table: back to what needs you';
+export const BACK_TITLE = 'Back one level (Esc)';
+export const CRUMBS_LABEL = 'Where you are';
+export const PLACES_LABEL = 'Places';
+export const TABS_LABEL = 'Modules';
+/** The gold pill in the top bar. */
+export const needPill = (n: number): string => (n ? `${n > 99 ? '99+' : n} need you` : 'Nothing needs you');
+export const needPillLabel = (n: number): string => (n ? `${n} ${n === 1 ? 'decision needs' : 'decisions need'} you. Opens everything waiting.` : 'Nothing needs you. Opens the decision centre.');
+/** The footer's safe default, said once on every layer. */
+export const SAFE_DEFAULT_LINE = 'Waiting never pays · nothing moves without you';
+/** A module tab's badge, for screen readers. */
+export const tabWaiting = (n: number): string => `${n} ${n === 1 ? 'needs' : 'need'} you`;
+export const tabTitle = (name: string, long: string, key: number): string => `${name}: ${long} (${key})`;
+
+/** The decision centre. */
+export const DECISION_OF = (i: number, n: number): string => `${i} of ${n}`;
+export const decisionOfLabel = (i: number, n: number): string => `Decision ${i} of ${n}`;
+export const PREV_DECISION = 'Previous decision (Left arrow)';
+export const NEXT_DECISION = 'Next decision (Right arrow)';
+export const NO_DEADLINE = 'no deadline';
+export const NO_COUNTERPARTY = 'no counterparty name yet';
+export const IF_NOTHING = 'If you do nothing';
+export const LATER = 'Later';
+export const LATER_TITLE = 'Move this decision to the back of the stack. Nothing moves while it waits.';
+export const LATER_TOAST = 'Moved to the back of the stack · nothing moves while it waits';
+export const LATER_ALONE = 'Nothing else is waiting · nothing moves while it waits';
+export const OPEN_THE_DEAL = 'Open the deal';
+export const WHY = 'Why?';
+/** The gold action's titles: it only opens the approval window. */
+export const APPROVAL_OPEN_TITLE = 'Opens the approval window, the only place money can be released';
+export const APPROVAL_LOCKED_TITLE = 'Locked after 15 quiet minutes: you unlock with Windows Hello first';
+/** The facts strip under a decision. */
+export const FACT = { amount: 'Amount', held: 'On hold at PayPal', now: 'Money now', why: 'Why it asks you', time: 'Time left', noRule: 'No rule named' } as const;
+export const factWith = (who: string): string => `with ${who}`;
+export const yourRule = (name: string): string => `Your rule “${name}”`;
+/** The row under the decision. */
+export const NEXT_IN_STACK = 'Next in the stack';
+export const NOTHING_ELSE_WAITS = 'Nothing else waits';
+export const allWaiting = (n: number): string => `All ${n} waiting ›`;
+export const AWAY_KICKER = 'While you were away';
+export const watchingKicker = (module: string): string => `Watching · ${module}`;
+export const SEE_REWIND = 'Rewind ›';
+/** The centre when nothing needs the owner: one calm line, and what the wallet is watching. */
+export const CENTRE_EMPTY = { kicker: 'Nothing needs you', title: 'Nothing needs you. If you do nothing, no money moves.' } as const;
+export const watchingLine = (moving: number, held: string): string =>
+  `Watching ${moving} ${moving === 1 ? 'deal' : 'deals'} in progress · ${held} on hold at PayPal`;
+export const OPEN_BOOK = 'Open the Book';
+export const CENTRE_READING = 'Reading what needs you…';
+/** The seal's state in words (it is never decoration only). */
+export const SEAL_WORD: Record<'quiet' | 'watching' | 'needs' | 'holding' | 'paid' | 'stopped', string> = {
+  quiet: 'Quiet', watching: 'Watching', needs: 'A deal needs you', holding: 'Holding', paid: 'Paid', stopped: 'Stopped',
+};
+export const SEAL_LINE = {
+  quiet: 'Nothing needs you · no money moves',
+  watching: 'Your agents work inside your rules',
+  checking: 'Checking with PayPal · nothing more is sent',
+  needs: 'Nothing moves until you decide',
+  paused: 'Paused before any PayPal call',
+  holding: 'On hold at PayPal · not paid',
+  stopped: 'It will not be paid',
+  paid: 'A payment went through',
+  setup: 'Nothing can pay until your charter is signed',
+} as const;
+export const sealLabel = (word: string, line: string): string => `Your wallet: ${word}. ${line}.`;
+export const SEAL_RING = 'nothing moves without you';
+/** The presence strip beside the seal. */
+export const stripLabel = (deals: number, needs: number): string => `Your deals: ${deals} in all, ${needs} ${needs === 1 ? 'needs' : 'need'} you`;
+
+/** The waiting layer. */
+export const WAITING_KICKER = 'What needs you · soonest first';
+export const waitingTitle = (n: number): string => (n === 1 ? 'One thing waits for you. It moves no money while it waits.' : `${n} things wait for you. None of them moves money while it waits.`);
+export const WAITING_EMPTY = 'Nothing waits for you. If you do nothing, no money moves.';
+export const WAITING_FILTER = 'Show';
+export const EVERY_MODULE = 'Every module';
+/** "48 waiting", "12 of 48"; `n` formats a count (a tally reads 1.2k above 999). */
+export const waitingShown = (shown: number, all: number, n: (x: number) => string = String): string => (shown === all ? `${n(all)} waiting` : `${n(shown)} of ${n(all)}`);
+
+/** Find. */
+export const FIND_PLACEHOLDER = 'Find a deal, a person or a place…';
+export const FIND_LABEL = 'Find';
+export const FIND_RESULTS = 'Results';
+export const FIND_GROUP = { needs: 'Needs you', modules: 'Go to', deals: 'Deals', places: 'Places' } as const;
+export const findShown = (n: number): string => `${n} shown`;
+export const FIND_KEYS = { move: 'move', open: 'open', close: 'close' } as const;
+
+/** A deal layer's crumb before its name is read, and why a deal cannot show. */
+export const DEAL_CRUMB = 'Deal';
+export const DEAL_UNREAD = 'Your deals couldn’t be loaded right now. Nothing has changed with your money.';
+export const DEAL_GONE = { text: 'This deal isn’t here any more.', back: 'Back to The Table' } as const;
+/** The idle-lock button in the top bar (it only opens the approval window, where Windows Hello unlocks). */
+export const LOCK = {
+  locked: 'Locked', unlocked: 'Unlocked',
+  lockedTitle: 'Locked after 15 quiet minutes. You can still look around; approving money asks for Windows Hello. Click to unlock.',
+  unlockedTitle: 'Approvals lock after 15 quiet minutes, then ask for Windows Hello.',
+} as const;
+/** The Tumbler's state in the footer. */
+export const MINI_WINDOW = { name: 'Mini window', title: 'The small always-on-top window', shown: 'shown', hidden: 'hidden', waiting: 'waiting' } as const;
+/** Today's meters in the footer (wallet money and the agent app's estimate are never one figure). */
+export const METERS = {
+  paidOut: 'paid out today', spent: 'spent today', spentTitle: 'What your agents committed today', ai: 'AI usage, estimate',
+  aiTitle: 'What your agent app estimates its AI usage cost today. An estimate, not a bill, and never used for money decisions.',
+  none: 'spend not counted yet', noneTitle: 'Today’s spend and AI usage appear here once the wallet can count them.',
+} as const;
+/** Calm motion and the footer's small controls. */
+export const CALM = { label: 'Calm motion', title: 'Stops the seal turning and the sheets moving; pages only crossfade' } as const;
+export const SHORTCUTS_LABEL = 'Keyboard shortcuts';
+
+/** The Charter (the Set up layer): five numbered lines the owner signs. */
+export const CHARTER_TITLE = 'Your wallet’s charter';
+export const CHARTER_NUMERAL = ['I', 'II', 'III', 'IV', 'V'] as const;
+export const charterLine = (n: string): string => `Line ${n} of V`;
+export const CHARTER_IN_APPROVAL = 'in the approval window';
+export const CHARTER_SEALED = { kicker: 'Your wallet’s charter · signed', title: 'Your charter is signed. Nothing pays without you or a rule you signed.' } as const;
+export const CHARTER_MEANS_TITLE = 'What signing the charter means';
+export const charterDone = (n: number, of: number): string => `${n} of ${of} lines signed. Each line takes a minute or two.`;
+export const CHARTER_MEANS_APPROVAL = 'Lines marked “in the approval window” open the separate approval window, where only you can sign.';
+export const CHARTER_SKIP = 'Skip: open the sample wallet';
+export const CHARTER_SKIP_TITLE = 'Preview only: the sample wallet is already set up';
+/** Settings' way back to the Charter once the wallet is set up. */
+export const CHARTER_OPEN = { act: 'Your wallet’s charter', title: 'See the five setup lines again: keys, rules, practice deal, agent app, unlock' } as const;
+export const CHARTER_STATE = { done: 'signed', waiting: 'waiting', todo: 'to do', unknown: 'not read yet' } as const;
+/** The Charter's preview of the current line once it is signed (rebuild WP2.5). */
+export const charterPreview = (n: string): string => `When you sign it, line ${n} reads`;
+export const charterReads = (n: string): string => `Signed: line ${n} reads`;
+
+// console-rebuild WP2.5: one words file per area of the console, so parallel builders never edit
+// the same file. Each re-exports here; importers keep `from '../lib/words'`.
+export * from './words/framework';
+export * from './words/tables';
+export * from './words/spend';
+export * from './words/counter';
+export * from './words/book';
+export * from './words/shield';
+export * from './words/rescue';
+export * from './words/deal';
+export * from './words/rewind';
+export * from './words/rules';
+export * from './words/connections';
+export * from './words/settings';
+export * from './words/safety';
+export * from './words/setup';
+export * from './words/approval';
+export * from './words/demo';

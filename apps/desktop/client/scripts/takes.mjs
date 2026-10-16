@@ -174,8 +174,8 @@ async function newContext(browser, o, theme, recordDir) {
     timezoneId: o.tz,
     ...(recordDir ? { recordVideo: { dir: recordDir, size: SIZE } } : {}),
   });
-  // The Table and the stage follow the stored theme (lib/theme.ts THEME_KEY); the Tumbler and the
-  // approval window are always dark.
+  // The Table, the Tumbler, the approval window and the stage all follow the stored theme
+  // (lib/theme.ts THEME_KEY).
   await ctx.addInitScript((t) => {
     try {
       localStorage.setItem('table-theme', t);
@@ -221,16 +221,16 @@ async function fontsReady(page) {
 }
 
 /**
- * Wait (at most `cap` ms) until nothing is mid-move: The Table's opening animation on Home has
- * finished and no finite animation or transition runs in the page or a frame (the Tumbler's
- * breathing ring and other endless ones do not count).
+ * Wait (at most `cap` ms) until nothing is mid-move: no finite animation or transition runs in the
+ * page or a frame (a console layer's entrance, the camera's glide; the Tumbler's breathing ring, the
+ * seal's sweep and other endless ones do not count).
  */
 async function quiet(page, cap = 9000) {
   const start = Date.now();
   while (Date.now() - start < cap) {
     const busy = await page.evaluate(() => {
       const docs = [document, ...[...document.querySelectorAll('iframe')].map((f) => { try { return f.contentDocument; } catch { return null; } })].filter(Boolean);
-      return docs.some((d) => !!d.querySelector('.home.intro') || d.getAnimations().some((a) => a.playState === 'running' && a.effect?.getComputedTiming().iterations !== Infinity));
+      return docs.some((d) => d.getAnimations().some((a) => a.playState === 'running' && a.effect?.getComputedTiming().iterations !== Infinity));
     });
     if (!busy) return;
     await page.waitForTimeout(200);

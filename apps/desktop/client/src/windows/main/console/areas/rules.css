@@ -1,0 +1,53 @@
+/* Area: rules (rebuild WP3c). Imported only by console/layers/rules.ts. Root `.ar-rules` (Agent
+   rules and the wallet limits, inside the shared frame `.pf`). Each rule set is drawn in its agent's
+   colour (`--c`). Tokens only; text never below --fs-small; motion only through the tokens. */
+.ar-rules .rl-grid { display: grid; grid-template-columns: minmax(20rem, .9fr) minmax(0, 1.3fr); gap: var(--sp-6); align-items: start; min-height: 0; }
+.ar-rules .rl-list { display: flex; flex-direction: column; min-width: 0; }
+.ar-rules .rl-list .le-main { min-height: 0; }
+.ar-rules .rl-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; }
+.ar-rules .rl-row .dot { width: .5rem; height: .5rem; border-radius: 50%; background: var(--c); }
+.ar-rules .rl-row .t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ar-rules .rl-row .t > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ar-rules .rl-row b { font-weight: var(--fw-semibold); }
+.ar-rules .rl-row .rl-for { color: var(--muted); font-weight: var(--fw-medium); }
+.ar-rules .rl-row small { color: var(--muted); font-size: var(--fs-small); }
+.ar-rules .rl-row.off b { color: var(--muted); }
+.ar-rules .le-row:has(.rl-row.on) { background: var(--sel); box-shadow: inset 3px 0 0 var(--signal), 0 0 0 1px var(--sel-line); }
+.ar-rules .rl-doc { position: sticky; top: 0; display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-5) var(--sp-6); min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--c) 40%, var(--line2)); border-radius: var(--r-card);
+  background: linear-gradient(170deg, color-mix(in srgb, var(--c) 6%, var(--sheet-hi)), var(--sheet-lo)); }
+.ar-rules .rl-doc .kicker { margin: 0; }
+.ar-rules .rl-dt { margin: 0; font: var(--fw-display) var(--fs-title1)/1.2 var(--display); letter-spacing: var(--track-display); overflow-wrap: anywhere; }
+.ar-rules .rl-sub { margin: 0; color: var(--muted); }
+.ar-rules .rl-doc .cs-h3 { margin: var(--sp-3) 0 0; }
+.ar-rules .rl-lim { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: var(--sp-3); }
+.ar-rules .rl-lim li { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-tight); box-shadow: 0 0 0 1px var(--line); }
+.ar-rules .rl-lim b { font: var(--fw-medium) var(--fs-title2)/1.1 var(--num); font-variant-numeric: tabular-nums lining-nums; letter-spacing: var(--track-money); }
+.ar-rules .rl-lim span { color: var(--muted); font-size: var(--fs-small); }
+.ar-rules .rl-lines { list-style: none; margin: 0; padding: 0; }
+.ar-rules .rl-lines li { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: var(--sp-3); padding: var(--sp-2) 0; border-bottom: 1px dotted var(--line2); }
+.ar-rules .rl-lines li > span:first-child { color: var(--muted); }
+.ar-rules .rl-lines li > span:last-child { overflow-wrap: anywhere; }
+.ar-rules .rl-proof { margin-top: var(--sp-2); }
+.ar-rules .rl-pick { margin: 0; }
+.ar-rules .rl-of { font-size: var(--fs-small); color: var(--muted); }
+.ar-rules .rl-meters { display: flex; flex-direction: column; gap: var(--sp-3); }
+.ar-rules .rl-meters .cs-h3 { margin: 0; }
+.ar-rules .rl-meters ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); max-width: 72rem; }
+.ar-rules .rl-meters li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-3) var(--sp-6); align-items: baseline; padding: var(--sp-4) var(--sp-5); border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--line); }
+.ar-rules .rl-meters .k { font-size: var(--fs-title3); }
+.ar-rules .rl-meters .ui-meter { height: .6rem; }
+.ar-rules .rl-meters li.near { box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 55%, var(--line)); }
+.ar-rules .rl-meters .k { color: var(--muted); }
+.ar-rules .rl-meters .v b { font: var(--fw-medium) var(--fs-title1)/1.1 var(--num); font-variant-numeric: tabular-nums lining-nums; letter-spacing: var(--track-money); color: var(--text); }
+.ar-rules .rl-meters .v span { color: var(--dim); }
+.ar-rules .rl-meters .ui-meter { grid-column: 1 / -1; }
+@media (max-width: 1100px) { .ar-rules .rl-grid { grid-template-columns: minmax(0, 1fr); } .ar-rules .rl-doc { position: static; } }
+@media (min-height: 960px) and (min-width: 1500px) {
+  .ar-rules .rl-meters li { padding: var(--sp-6); }
+  .ar-rules .rl-meters .ui-meter { height: .8rem; }
+}
+
+/* the daily meter is the day's budget, named apart from the footer's "Paid out today" (WP4a) */
+.ar-rules .rl-budget { grid-column: 1 / -1; color: var(--muted); font-size: var(--fs-small); line-height: 1.4; }
+.ar-rules .rl-budget b { color: var(--text); font-weight: var(--fw-semibold); }

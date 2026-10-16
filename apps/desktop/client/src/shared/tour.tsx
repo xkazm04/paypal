@@ -5,7 +5,7 @@
 // where it was afterwards; Esc skips, the arrow keys move between stops. No gold button: the view's
 // one gold action stays the view's. The tour only points: it never clicks, signs, saves or pays.
 // Placement is CSSOM (React style), which the CSP allows; re-placed on resize and scroll and kept
-// inside the viewport at any width.
+// inside the viewport at any width, never over the window's mode badge or the view's primary action.
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { GettingStarted } from '../lib/firstRun';
@@ -26,15 +26,65 @@ export function findAnchor(anchor: string, root: ParentNode = document): HTMLEle
   return null;
 }
 
+/** A box on screen (a DOMRect's edges). */
+export type Box2 = { left: number; top: number; right: number; bottom: number };
+
+/** What a coach mark must never cover: the window's mode badge ("Sandbox", "Preview · sample data")
+ *  and the view's primary action (its one gold button, or the primary one), wherever they are. */
+export const KEEP_CLEAR = '.badge, .ui-btn.gold, .ui-btn.primary, [data-tour-clear]';
+
+const overlap = (a: Box2, b: Box2): number => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+
 /** Where the coach mark goes: below the anchor, else above, else at the bottom of the viewport;
- *  always inside it (8 px from each edge). */
-export function placeMark(a: { top: number; bottom: number; left: number; width: number }, w: number, h: number, vw: number, vh: number): { left: number; top: number } {
-  const left = Math.min(Math.max(EDGE, a.left + a.width / 2 - w / 2), Math.max(EDGE, vw - w - EDGE));
-  let top: number;
-  if (a.bottom + GAP + h <= vh - EDGE) top = a.bottom + GAP;
-  else if (a.top - GAP - h >= EDGE) top = a.top - GAP - h;
-  else top = vh - h - EDGE;
-  return { left, top: Math.max(EDGE, top) };
+ *  always inside it (8 px from each edge). With boxes to keep clear (`KEEP_CLEAR`: the mode badge,
+ *  the primary action), the first of below / above / right / left / the viewport's corners that
+ *  covers none of them and fits, else the one that covers the least. */
+export function placeMark(a: { top: number; bottom: number; left: number; width: number }, w: number, h: number, vw: number, vh: number, avoid: readonly Box2[] = []): { left: number; top: number } {
+  const clampX = (x: number) => Math.min(Math.max(EDGE, x), Math.max(EDGE, vw - w - EDGE));
+  const clampY = (y: number) => Math.min(Math.max(EDGE, y), Math.max(EDGE, vh - h - EDGE));
+  const left = clampX(a.left + a.width / 2 - w / 2);
+  const below = a.bottom + GAP + h <= vh - EDGE;
+  const above = a.top - GAP - h >= EDGE;
+  if (!avoid.length) {
+    let top: number;
+    if (below) top = a.bottom + GAP;
+    else if (above) top = a.top - GAP - h;
+    else top = vh - h - EDGE;
+    return { left, top: Math.max(EDGE, top) };
+  }
+  const right = a.left + a.width;
+  const midY = clampY((a.top + a.bottom) / 2 - h / 2);
+  const cands: Array<{ left: number; top: number; fits: boolean }> = [
+    { left, top: a.bottom + GAP, fits: below },
+    { left, top: a.top - GAP - h, fits: above },
+    { left: right + GAP, top: midY, fits: right + GAP + w <= vw - EDGE },
+    { left: a.left - GAP - w, top: midY, fits: a.left - GAP - w >= EDGE },
+    { left: clampX(vw - w - EDGE), top: clampY(vh - h - EDGE), fits: true },
+    { left: EDGE, top: clampY(vh - h - EDGE), fits: true },
+    { left: clampX(vw - w - EDGE), top: EDGE, fits: true },
+    { left: EDGE, top: EDGE, fits: true },
+  ];
+  let best: { left: number; top: number } | null = null;
+  let bestCost = Infinity;
+  for (const c of cands) {
+    if (!c.fits) continue;
+    const box = { left: c.left, top: Math.max(EDGE, c.top), right: c.left + w, bottom: Math.max(EDGE, c.top) + h };
+    const cost = avoid.reduce((n, b) => n + overlap(box, b), 0);
+    if (cost === 0) return { left: box.left, top: box.top };
+    if (cost < bestCost) { bestCost = cost; best = { left: box.left, top: box.top }; }
+  }
+  return best ?? { left, top: Math.max(EDGE, vh - h - EDGE) };
+}
+
+/** The boxes of what the mark must keep clear (`KEEP_CLEAR`) on screen, outside the mark itself. */
+export function keepClearBoxes(mark: Element | null, root: ParentNode = document): Box2[] {
+  const out: Box2[] = [];
+  for (const el of root.querySelectorAll<HTMLElement>(KEEP_CLEAR)) {
+    if (mark?.contains(el) || el.closest('[aria-hidden="true"], [hidden], [inert]')) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) out.push({ left: r.left - 4, top: r.top - 4, right: r.right + 4, bottom: r.bottom + 4 });
+  }
+  return out;
 }
 
 // "Take the tour" anywhere in a window reopens that window's tour.
@@ -126,7 +176,7 @@ export function Tour({ win, gs, firstRun, paused = false, storageKey }: {
         width: Math.max(0, Math.min(vw - 2, r.right + pad) - Math.max(2, r.left - pad)),
         height: Math.max(0, Math.min(vh - 2, r.bottom + pad) - Math.max(2, r.top - pad)),
       };
-      setBox({ ring, mark: placeMark(r, m.offsetWidth, m.offsetHeight, vw, vh) });
+      setBox({ ring, mark: placeMark(r, m.offsetWidth, m.offsetHeight, vw, vh, keepClearBoxes(m)) });
     };
     measure();
     window.addEventListener('resize', measure);

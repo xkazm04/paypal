@@ -47,6 +47,16 @@ describe('fair-price arithmetic (parity with Rust)', () => {
     expect(fairPriceOf('RECEIPTED', { ...m, p25: usd(1) }, usd(329))?.state).toBe('broken');
     expect(fairPriceOf('RECEIPTED', null, usd(329))).toBeNull();
   });
+
+  it('committed means an agreement was recorded: a deal released after AGREED keeps it, one that never agreed has none (Rust fair_price)', () => {
+    const m = certifiedMarket('X', 'monitor-27-4k', [301, 318, 336], 100);
+    for (const state of ['EXPIRED', 'VOIDED', 'AUTO_VOIDED', 'AGREED', 'UNCONFIRMED'] as const) {
+      expect(fairPriceOf(state, m, usd(329))?.committed, state).toBe(true);
+    }
+    for (const state of ['MISMATCH', 'WITHDRAWN', 'REFUSED', 'FAILED', 'LISTED'] as const) {
+      expect(fairPriceOf(state, m, usd(329))?.committed, state).toBe(false);
+    }
+  });
 });
 
 describe('fair-price words', () => {

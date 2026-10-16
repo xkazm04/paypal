@@ -1,0 +1,113 @@
+/* Calibre decoration (rebuild WP1a): the seal, the mark, the rosette, the ground, the key art and
+   the presence strip. Tokens only (src/design/tokens.css). Hairline strokes; all motion stops under
+   prefers-reduced-motion and the in-app calm class (base.css), so every piece is static there. */
+
+/* ---- the seal ------------------------------------------------------------------------------- */
+.br-seal { --seal-c: var(--seal); position: relative; color: var(--seal-c); width: 100%; aspect-ratio: 1; pointer-events: none; }
+.br-seal[data-size="corner"] { width: 4.5rem; }
+.br-seal[data-s="quiet"] { --seal-c: var(--steel); --sweep-d: var(--sweep-quiet); }
+.br-seal[data-s="watching"] { --seal-c: var(--teal); --sweep-d: var(--sweep); }
+.br-seal[data-s="needs"] { --seal-c: var(--gold); --sweep-d: var(--sweep-needs); }
+.br-seal[data-s="holding"] { --seal-c: var(--steel); --sweep-d: var(--sweep); }
+.br-seal[data-s="paid"] { --seal-c: var(--ok); --sweep-d: var(--sweep-quiet); }
+.br-seal[data-s="stopped"] { --seal-c: var(--red); --sweep-d: var(--sweep-quiet); }
+.br-seal-disc { position: absolute; inset: 5.5%; border-radius: 50%;   /* room for the deadline arc (r 52.5 of 50) inside the box */
+  background: radial-gradient(circle, var(--disc) 0 62%, color-mix(in srgb, var(--disc) 40%, transparent) 70%, transparent 72%); }
+.br-seal[data-size="corner"] .br-seal-disc { background: radial-gradient(circle, var(--tab-on) 0 64%, var(--panel) 70%);
+  box-shadow: 0 .6rem 1.6rem color-mix(in srgb, var(--shadow-ink) 45%, transparent), 0 0 0 1px var(--line2); }
+.br-seal-glow { position: absolute; inset: -5%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--seal-c) 16%, transparent) 0%, color-mix(in srgb, var(--seal-c) 5%, transparent) 44%, transparent 66%); }
+.br-seal[data-s="holding"] .br-seal-glow { background: radial-gradient(circle, transparent 38%, color-mix(in srgb, var(--coral) 14%, transparent) 52%, transparent 66%); }
+.br-seal-core { position: absolute; inset: 0; }
+.br-seal svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.br-seal svg path, .br-seal svg circle { fill: none; stroke: currentColor; vector-effect: non-scaling-stroke; }
+.br-seal .bA { animation: br-spin 320s linear infinite; }
+.br-seal .bB { animation: br-spin 240s linear infinite reverse; }
+.br-seal .bC { animation: br-spin 150s linear infinite; }
+.br-seal[data-s="holding"] .bA { color: var(--coral); }
+.br-seal .bA path { stroke-width: .6px; opacity: .62; }
+.br-seal .bB path { stroke-width: .6px; opacity: .5; }
+.br-seal .bC path { stroke-width: .7px; opacity: .72; }
+.br-seal .lines circle { stroke-width: .6px; opacity: .5; }
+.br-seal text { fill: currentColor; stroke: none; font-family: var(--mono); font-weight: 500; letter-spacing: .5px; font-size: 1.85px; opacity: .7; }
+.br-seal text.deg { font-size: 1.9px; letter-spacing: .15px; opacity: .8; }
+.br-seal[data-size="corner"] text { display: none; }   /* unreadable at stamp size: texture only */
+.br-seal .bS { color: var(--seal-c); animation: br-spin var(--sweep-d, var(--sweep)) linear infinite; }
+.br-seal[data-s="holding"] .bS { color: var(--coral); }
+.br-seal[data-s="stopped"] .bS { opacity: .25; animation-play-state: paused; }
+.br-seal .bS .wedge { fill: currentColor; stroke: none; }
+.br-seal .bS .edge { stroke-width: 1px; opacity: .8; filter: drop-shadow(0 0 3px currentColor); }
+.br-seal .arc .trk { stroke: color-mix(in srgb, var(--gold) 12%, transparent); stroke-width: 1px; stroke-dasharray: .004 .0045; opacity: 1; }
+.br-seal .arc .lft { stroke: var(--gold); stroke-width: 2px; stroke-linecap: butt; opacity: .95; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--gold) 60%, transparent));
+  transition: stroke-dasharray var(--dur-slow) var(--ease-linear); }
+.br-seal[data-size="corner"] .arc { display: none; }
+.br-seal[data-s="needs"] .br-seal-core { animation: br-breathe 4.2s ease-in-out infinite; }
+@keyframes br-spin { to { transform: rotate(360deg); } }
+@keyframes br-breathe { 50% { transform: scale(1.025); } }
+:root[data-theme="light"] .br-seal .bA path, :root[data-theme="light"] .br-seal .bC path { opacity: .8; }
+:root[data-theme="light"] .br-seal .bB path, :root[data-theme="light"] .br-seal .lines circle { opacity: .66; }
+:root[data-theme="light"] .br-seal .bS .edge, :root[data-theme="light"] .br-seal .arc .lft { filter: none; }
+
+/* ---- the mark ------------------------------------------------------------------------------- */
+.br-mark { display: inline-block; width: 1.4rem; height: 1.4rem; flex: none; vertical-align: middle;
+  filter: drop-shadow(0 0 .3rem color-mix(in srgb, var(--seal) 22%, transparent)); }
+.br-mark .yours { stroke: var(--teal); }
+.br-mark .theirs { stroke: var(--coral); }
+.br-mark .deal { fill: var(--gold); }
+:root[data-theme="light"] .br-mark { filter: none; }
+/* Forced colours (high contrast): one system ink, as logo-mono-small.svg. */
+@media (forced-colors: active) {
+  .br-mark { filter: none; }
+  .br-mark .yours, .br-mark .theirs { stroke: CanvasText; }
+  .br-mark .deal { fill: CanvasText; }
+}
+
+/* ---- the rosette ------------------------------------------------------------------------------ */
+.br-rosette { display: block; width: 100%; height: 100%; overflow: visible; color: var(--gold); }
+.br-rosette circle { fill: none; stroke: color-mix(in srgb, currentColor 32%, transparent); stroke-width: .4; }
+.br-rosette path { fill: none; stroke: currentColor; stroke-width: 1.1; }
+
+/* ---- the ground: a polar graticule centred on the seal ------------------------------------------ */
+.br-ground { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+  background:
+    radial-gradient(56rem 40rem at var(--gx) var(--gy), color-mix(in srgb, var(--seal) 8%, transparent), transparent 70%),
+    radial-gradient(60rem 44rem at 8% -6%, color-mix(in srgb, var(--signal) 7%, transparent), transparent 62%),
+    radial-gradient(50rem 30rem at 50% 118%, color-mix(in srgb, var(--gold) 4%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--bg2) 0%, var(--bg) 55%, var(--bg-deep) 100%); }
+.br-ground.fixed { position: fixed; }
+.br-ground::before { content: ''; position: absolute; inset: 0;
+  background:
+    linear-gradient(90deg, var(--grat) 1px, transparent 1px) 0 0 / var(--grat-pitch) var(--grat-pitch),
+    linear-gradient(0deg, var(--grat) 1px, transparent 1px) 0 0 / var(--grat-pitch) var(--grat-pitch);
+  mask: radial-gradient(68rem 46rem at var(--gx) var(--gy), #000 15%, transparent 78%); }
+.br-ground[data-variant="polar"]::before {
+  background:
+    repeating-radial-gradient(circle at var(--gx) var(--gy), transparent 0 calc(3rem - 1px), var(--grat-major) calc(3rem - 1px) 3rem),
+    repeating-conic-gradient(from 0deg at var(--gx) var(--gy), var(--grat) 0 .1deg, transparent .1deg 7.5deg),
+    linear-gradient(90deg, var(--grat) 1px, transparent 1px) 0 0 / var(--grat-pitch) var(--grat-pitch),
+    linear-gradient(0deg, var(--grat) 1px, transparent 1px) 0 0 / var(--grat-pitch) var(--grat-pitch); }
+.br-ground::after { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 50%, transparent 55%, var(--vignette) 100%); }
+:root[data-theme="light"] .br-ground::before { mask: radial-gradient(70rem 48rem at var(--gx) var(--gy), #000 25%, transparent 85%); }
+
+/* ---- key art: calibration plates ---------------------------------------------------------------- */
+.br-art { display: block; width: 100%; height: auto; color: var(--mc, var(--steel)); }
+.br-art[data-m="tables"] { color: var(--m-tables); } .br-art[data-m="spend"] { color: var(--m-spend); }
+.br-art[data-m="counter"] { color: var(--m-counter); } .br-art[data-m="book"] { color: var(--m-book); }
+.br-art[data-m="shield"] { color: var(--m-shield); } .br-art[data-m="rescue"] { color: var(--m-rescue); }
+.br-art .ground { fill: var(--disc); }
+
+/* ---- the presence strip (the small Dial) -------------------------------------------------------- */
+.br-strip { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); max-width: 100%; min-height: var(--target); }
+.br-strip .seg { position: relative; display: inline-flex; align-items: center; gap: 3px; min-height: 16px; padding: 0 6px 0 8px;
+  border-left: 2px solid var(--mc); }
+.br-strip .seg[data-waiting]::before { content: ''; position: absolute; left: -2px; top: -4px; width: 6px; height: 2px; background: var(--gold); box-shadow: var(--glow-gold); }
+.br-strip .bead { display: block; width: 6px; height: 6px; border-radius: 1px; background: var(--steel); }
+.br-strip .bead.teal { background: var(--teal); } .br-strip .bead.coral { background: var(--coral); }
+.br-strip .bead.gold { background: var(--gold); box-shadow: var(--glow-gold); } .br-strip .bead.ok { background: var(--ok); }
+.br-strip .bead.red { background: var(--refuse); } .br-strip .bead.line { background: none; box-shadow: inset 0 0 0 1px var(--line2); }
+.br-strip .bead.dashed { background: none; outline: 1px dashed var(--dim); outline-offset: -1px; }
+.br-strip .more { font: var(--fw-medium) var(--fs-small)/1 var(--num); font-variant-numeric: tabular-nums; color: var(--dim); margin-left: 2px; }
+
+@media (forced-colors: active) {
+  .br-strip .bead { forced-color-adjust: none; outline: 1px solid CanvasText; }
+}

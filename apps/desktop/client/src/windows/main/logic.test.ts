@@ -4,8 +4,8 @@ import type { DealState } from '@bindings/DealState';
 import { buildMockState, usd } from '../../mock/fixtures';
 import {
   amountNote, amountTone, beadAngles, beadKind, isSettled, isTerminal, receiptToast, stateLabel, beadSummary, C, canStartAgent, canWithdraw, chipClass, clauseText, formatHash, introEase, isOwnerAccept, ledgerScope, mandatesGoverning,
-  marketPosition, moduleOf, moneyNow, niceTicks, parseHash, pol, R, resolveDealRef, reviewVerb, rotationFor, sectorAt, shortestTarget,
-  spendToday, splitHeadline, STEP, stripFor, sumByCurrency, summarize, toPolar, wedgePath, weekBounds,
+  marketPosition, moduleOf, stepBack, moneyNow, niceTicks, parseHash, pol, R, resolveDealRef, reviewVerb, rotationFor, sectorAt, shortestTarget,
+  type Route, spendToday, splitHeadline, STEP, stripFor, sumByCurrency, summarize, toPolar, wedgePath, weekBounds,
 } from './logic';
 
 const NOW = 1_800_000_000;
@@ -221,13 +221,15 @@ describe('hub words', () => {
 
 describe('routing', () => {
   it('parses and formats the hash both ways', () => {
-    expect(parseHash('#m=spend')).toEqual({ route: { level: 'module', module: 'spend' }, sheet: null });
-    expect(parseHash('#d=D-0193')).toEqual({ route: { level: 'deal', deal: 'D-0193' }, sheet: null });
-    expect(parseHash('#m=nope')).toEqual({ route: { level: 'home' }, sheet: null });
-    expect(parseHash('#s=pairing')).toEqual({ route: { level: 'home' }, sheet: 'pairing' });
-    expect(formatHash({ level: 'module', module: 'rescue' }, 'mandates')).toBe('#m=rescue&s=mandates');
-    expect(formatHash({ level: 'home' }, null)).toBe('');
-    const r = formatHash({ level: 'deal', deal: '01JDABC' }, null);
+    expect(parseHash('#m=spend')).toEqual({ route: { level: 'module', module: 'spend' } });
+    expect(parseHash('#d=D-0193')).toEqual({ route: { level: 'deal', deal: 'D-0193' } });
+    expect(parseHash('#m=nope')).toEqual({ route: { level: 'home' } });
+    // The old sheet links open their place (WP2.5: the sheets are layers now).
+    expect(parseHash('#s=pairing')).toEqual({ route: { level: 'place', place: 'pairing' } });
+    expect(parseHash('#m=rescue&s=mandates')).toEqual({ route: { level: 'place', place: 'rules' } });
+    expect(formatHash({ level: 'place', place: 'rules', from: 'rescue' })).toBe('#p=rules&m=rescue');
+    expect(formatHash({ level: 'home' })).toBe('');
+    const r = formatHash({ level: 'deal', deal: '01JDABC' });
     expect(parseHash(r).route).toEqual({ level: 'deal', deal: '01JDABC' });
   });
   it('resolves a deal by ULID or by display label', () => {
@@ -351,5 +353,52 @@ describe('a seller’s receipt is the seller’s word, and a deal PayPal never c
     expect(strip[strip.length - 1]).toMatchObject({ state: 'UNCONFIRMED', status: 'cur', tone: 'bad' });
     expect(strip.find((s) => s.state === 'AWAITING_APPROVAL')?.status).toBe('done');
     expect(strip.find((s) => s.state === 'CAPTURED')?.status).toBe('todo');
+  });
+});
+
+describe('nested routes', () => {
+  const round = (r: Route) => parseHash(formatHash(r));
+  it('round-trips every hash form', () => {
+    const forms: Array<[Route, string]> = [
+      [{ level: 'home' }, ''],
+      [{ level: 'place', place: 'settings' }, '#p=settings'],
+      [{ level: 'module', module: 'book' }, '#m=book'],
+      [{ level: 'module', module: 'book', view: 'ledger' }, '#m=book&v=ledger'],
+      [{ level: 'module', module: 'rescue', view: 'in-progress' }, '#m=rescue&v=in-progress'],
+      [{ level: 'place', place: 'pairing', from: 'settings' }, '#p=pairing&m=settings'],
+      [{ level: 'place', place: 'safety', from: 'book' }, '#p=safety&m=book'],
+      [{ level: 'setup', step: 'rules' }, '#s=setup&step=rules'],
+      [{ level: 'setup', step: 'unlock' }, '#s=setup&step=unlock'],
+    ];
+    for (const [route, hash] of forms) {
+      expect(formatHash(route)).toBe(hash);
+      expect(round(route)).toEqual({ route });
+    }
+  });
+  it('keeps the older grammars and falls back for unknown views and steps', () => {
+    // An old sheet over a route opens the place that was in front.
+    expect(parseHash('#m=spend&s=settings')).toEqual({ route: { level: 'place', place: 'settings' } });
+    expect(parseHash('#d=D-0193&s=pairing')).toEqual({ route: { level: 'place', place: 'pairing' } });
+    expect(parseHash('#m=book&v=Bad%20View!')).toEqual({ route: { level: 'module', module: 'book' } });
+    expect(parseHash('#v=ledger')).toEqual({ route: { level: 'home' } });
+    expect(parseHash('#s=setup')).toEqual({ route: { level: 'setup', step: 'keys' } });
+    expect(parseHash('#s=setup&step=nope')).toEqual({ route: { level: 'setup', step: 'keys' } });
+    expect(formatHash({ level: 'setup' })).toBe('#s=setup&step=keys');
+  });
+  it('steps back one level: view, module, deal, setup', () => {
+    expect(stepBack({ level: 'module', module: 'book', view: 'ledger' }, null)).toEqual({ level: 'module', module: 'book' });
+    expect(stepBack({ level: 'module', module: 'book', view: 'ghost' }, null, false)).toEqual({ level: 'home' });
+    expect(stepBack({ level: 'module', module: 'book' }, null)).toEqual({ level: 'home' });
+    expect(stepBack({ level: 'deal', deal: 'x' }, 'spend')).toEqual({ level: 'module', module: 'spend' });
+    expect(stepBack({ level: 'deal', deal: 'x' }, null)).toEqual({ level: 'home' });
+    expect(stepBack({ level: 'setup', step: 'rules' }, null)).toEqual({ level: 'home' });
+    expect(stepBack({ level: 'home' }, null)).toBeNull();
+  });
+  it('steps back from a place: to where it was opened, else its usual parent, else the centre', () => {
+    expect(stepBack({ level: 'place', place: 'rules' }, null)).toEqual({ level: 'home' });
+    expect(stepBack({ level: 'place', place: 'limits' }, null)).toEqual({ level: 'place', place: 'rules' });
+    expect(stepBack({ level: 'place', place: 'pairing' }, null)).toEqual({ level: 'place', place: 'connections' });
+    expect(stepBack({ level: 'place', place: 'pairing', from: 'settings' }, null)).toEqual({ level: 'place', place: 'settings' });
+    expect(stepBack({ level: 'place', place: 'safety', from: 'book' }, null)).toEqual({ level: 'module', module: 'book' });
   });
 });

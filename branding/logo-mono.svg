@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" color="#101317" role="img" aria-label="The Table">
+  <!-- The Table in one colour on a transparent ground (currentColor; set `color` on this element to
+       recolour it, e.g. #e4ecf3 on dark). From 64 px up; logo-mono-small.svg below that. -->
+  <g fill="none" stroke="currentColor">
+    <circle cx="32" cy="32" r="26.6" stroke-opacity=".6"/>
+    <circle cx="32" cy="32" r="25.5" stroke-width="2.2" stroke-opacity=".6" pathLength="48" stroke-dasharray=".24 .76" stroke-dashoffset=".12"/>
+    <path d="M32 9V5.4M55 32H58.6M32 55V58.6M9 32H5.4" stroke-width="1.4"/>
+    <path d="M23.78 47.45A17.5 17.5 0 0 1 23.78 16.55M40.22 16.55A17.5 17.5 0 0 1 40.22 47.45" stroke-width="7"/>
+  </g>
+  <path d="M32 25.5L38.5 32L32 38.5L25.5 32Z" fill="currentColor"/>
+</svg>

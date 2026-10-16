@@ -11,6 +11,8 @@ const ToastCtx = createContext<PushToast>(() => {});
 export const useToast = (): PushToast => useContext(ToastCtx);
 
 export const TOAST_MS = 5200;
+/** A refusal or a failure stays longer: it is the one toast a person must be able to finish reading. */
+export const TOAST_BAD_MS = 9000;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -18,7 +20,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const push = useCallback<PushToast>((node, tone = 'info') => {
     const id = ++seq.current;
     setToasts((t) => [...t.slice(-3), { id, node, tone }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), TOAST_MS);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), tone === 'bad' ? TOAST_BAD_MS : TOAST_MS);
   }, []);
   return (
     <ToastCtx.Provider value={push}>
