@@ -35,7 +35,9 @@ import type { MandatePayload } from '@bindings/MandatePayload';
 import type { SimulatedLine } from '@bindings/SimulatedLine';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import { mockCheck, mockValidate, type MockIntent } from './simulate';
-import { mockEnvelopeRefusal, mockExposureView } from './exposure';
+import { mockEnvelopeRefusal, mockExposureView, type MockEnvelope } from './exposure';
+import { AGREED_OR_LATER } from '@bindings/dealStates';
+import type { EnvelopeSignArgs } from '@bindings/EnvelopeSignArgs';
 import type { RescueView } from '@bindings/RescueView';
 import type { Money } from '@bindings/Money';
 import type { Playbook } from '@bindings/Playbook';
@@ -310,6 +312,15 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
   const limitsNone = params.get('limits') === 'none';
   const envelope = () => (limitsNone ? null : state.envelope ?? null);
   const exposureView = () => mockExposureView(state.deals.map((d) => d.deal), envelope(), nowUnix());
+  // As Runtime::draft_envelope: the limits envelope_sign would sign, or REFUSED with its reason.
+  const draftLimits = (args: EnvelopeSignArgs, now: number) => {
+    const bad = args.max_out_day.currency !== args.currency || args.max_held.currency !== args.currency ? 'currency differs across wallet limits'
+      : args.max_out_day.minor <= 0 || args.max_held.minor <= 0 || args.max_deals_day <= 0 ? 'a wallet limit of zero allows nothing'
+        : args.expires <= now ? 'expires: the wallet limits would already have run out' : null;
+    if (bad) fail('REFUSED', `wallet limit ${bad}`);
+    const version = (state.envelope?.payload.version ?? 0) + 1;
+    return { version, currency: args.currency, max_out_day: args.max_out_day, max_held: args.max_held, max_deals_day: args.max_deals_day, expires: args.expires };
+  };
   // As Runtime::record_rung (attention-ladder-1): a card's rung for its live deadline, once each.
   // Recorded in memory; the next save carries it, and the deadline's sweep cites it.
   function recordRung(a: AttentionItem, rung: LadderRung, reason?: NotifySuppression): void {
@@ -1107,12 +1118,8 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     envelope_sign: (args, opts) => {
       privileged(opts);
       const now = nowUnix();
-      const bad = args.max_out_day.currency !== args.currency || args.max_held.currency !== args.currency ? 'currency differs across wallet limits'
-        : args.max_out_day.minor <= 0 || args.max_held.minor <= 0 || args.max_deals_day <= 0 ? 'a wallet limit of zero allows nothing'
-          : args.expires <= now ? 'expires: the wallet limits would already have run out' : null;
-      if (bad) fail('REFUSED', `wallet limit ${bad}`);
-      const version = (state.envelope?.payload.version ?? 0) + 1;
-      const payload = { version, currency: args.currency, max_out_day: args.max_out_day, max_held: args.max_held, max_deals_day: args.max_deals_day, expires: args.expires };
+      const payload = draftLimits(args, now);
+      const version = payload.version;
       state.envelope = { payload, signedAt: now };
       save();
       emit('attention:changed', attention());
@@ -1120,6 +1127,40 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     },
     // As Runtime::envelope_view: limits and numbers only, every window.
     envelope_get: () => exposureView(),
+    // As Runtime::envelope_simulate: read-only, approval only, no token or unlock (it moves
+    // nothing). The draft is refused as envelope_sign refuses it; each purchase agreed in the
+    // window is judged at its place in its day (the mock keeps no agreement order: deals of the
+    // same day created earlier stand in), by the limits in force and by the draft.
+    envelope_simulate: ({ draft, from, to }) => {
+      const now = nowUnix();
+      const end = to ?? now;
+      const start = from ?? end - 7 * 86400;
+      if (start > end || end - start > 31 * 86400) fail('INVALID', 'Invalid or stale wallet command');
+      const proposed: MockEnvelope = { payload: draftLimits(draft, now), signedAt: now };
+      const deals = state.deals.filter((d) => d.deal.side === 'buyer' && AGREED_OR_LATER.has(d.deal.state));
+      const dayOf = (t: number) => Math.floor(t / 86400);
+      const lines: SimulatedLine[] = [];
+      for (const d of deals) {
+        const deal = d.deal;
+        const at = deal.created_at ?? 0;
+        if (at < start || at > end) continue;
+        // The fold counts "today" by the day a deal last changed: seen from this deal, only the
+        // same day's earlier deals are today; every other deal still counts as held or waiting.
+        const seen = state.deals.map((o) => {
+          const oAt = o.deal.created_at ?? 0;
+          const earlier = o.deal.id !== deal.id && dayOf(oAt) === dayOf(at) && (oAt < at || (oAt === at && o.display.label < d.display.label));
+          return { ...o.deal, updated_at: earlier ? now : now - 2 * 86400 };
+        });
+        const verdict = (env: MockEnvelope | null): SimulatedVerdict => {
+          const why = mockEnvelopeRefusal(seen, deal, env, now);
+          return why ? { type: 'refuse', clause: 0, reason: why } : { type: 'allow' };
+        };
+        const t = deal.terms;
+        lines.push({ deal_id: deal.id, label: d.display.label, title: d.display.title, item_ref: t.item_ref, kind: deal.kind, side: deal.side, at, amount: { minor: t.unit_price.minor * t.qty, currency: t.currency }, unit_price: t.unit_price, before: verdict(envelope()), after: verdict(proposed) });
+      }
+      lines.sort((a, b) => a.at - b.at || a.label.localeCompare(b.label));
+      return { from: start, to: end, lines, not_simulated: 0 };
+    },
     // As Runtime::rescue_replay: approval only, privileged; a labelled REPLAY failure under the
     // latest signed fixes rule. Its one fix is computed here, never typed; the window is rebound to it.
     rescue_replay: (args, opts) => {

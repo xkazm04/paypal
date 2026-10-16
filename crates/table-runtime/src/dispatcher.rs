@@ -716,6 +716,11 @@ impl Runtime {
                 // Privileged like mandate_sign: the approval label, its token, and unlocked.
                 json(self.sign_envelope(args)?)
             }
+            Action::EnvelopeSimulate(args) => {
+                // Like mandate_simulate: the approval window's what-if, read-only, so no token or
+                // unlock is asked for.
+                json(self.envelope_simulate(args)?)
+            }
             Action::EnvelopeGet => {
                 // Limits and numbers only; every window shows the meters.
                 json(self.envelope_view()?)

@@ -247,7 +247,8 @@ pub fn run() -> Result<(), tauri::Error> {
             rescue_watch_add,
             rescue_watch_stop,
             safety_record,
-            counterparty_revoke
+            counterparty_revoke,
+            envelope_simulate
         ])
         .setup(|app| {
             let data = app.path().app_data_dir()?;

@@ -29,6 +29,7 @@ import type { DecisionArgs } from "./DecisionArgs";
 import type { EngineInfo } from "./EngineInfo";
 import type { EngineSelectArgs } from "./EngineSelectArgs";
 import type { EnvelopeSignArgs } from "./EnvelopeSignArgs";
+import type { EnvelopeSimulateArgs } from "./EnvelopeSimulateArgs";
 import type { ExposureView } from "./ExposureView";
 import type { FormArgs } from "./FormArgs";
 import type { HouseState } from "./HouseState";
@@ -126,4 +127,8 @@ safety_record: Command<null, SafetyRecord>,
 /**
  * Revokes a counterparty pin: the key is refused from then on (approval, privileged).
  */
-counterparty_revoke: Command<CounterpartyRevokeArgs, null>, };
+counterparty_revoke: Command<CounterpartyRevokeArgs, null>, 
+/**
+ * Wallet-limits what-if: draft limits replayed over recorded purchases. Read-only, approval.
+ */
+envelope_simulate: Command<EnvelopeSimulateArgs, MandateSimulation>, };

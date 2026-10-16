@@ -85,6 +85,31 @@ describe('wallet limits (browser mock)', () => {
     expect(att.wallet_spend_today_currency).toBe('USD');
   });
 
+  it('envelope_simulate replays draft limits over the week, approval only, no token, writing nothing', async () => {
+    const args = (deals: number) => ({ draft: { currency: 'USD' as const, max_out_day: { minor: 9_000_000, currency: 'USD' as const }, max_held: { minor: 9_000_000, currency: 'USD' as const }, max_deals_day: deals, expires: NOW + 7 * 86400 } });
+    for (const label of ['main', 'tumbler'] as const) {
+      await expect(mockBackend(label).invoke('envelope_simulate', args(1))).rejects.toMatchObject({ code: 'PERMISSION' });
+    }
+    history.replaceState(null, '', '/approval.html?locked=1');
+    const approval = mockBackend('approval');
+    const before = await approval.invoke('envelope_get', null);
+    const wide = await approval.invoke('envelope_simulate', args(1000));
+    expect(wide.lines.length).toBeGreaterThan(1);
+    // Money in is never limited: purchases only, every one allowed by wide limits.
+    expect(wide.lines.every((l) => l.side === 'buyer' && l.after.type === 'allow')).toBe(true);
+    const tight = await approval.invoke('envelope_simulate', args(1));
+    const stopped = tight.lines.filter((l) => l.after.type === 'refuse');
+    expect(stopped.length).toBeGreaterThan(0);
+    expect(stopped.every((l) => l.after.type === 'refuse' && l.after.clause === 0 && /^max_deals_day/.test(l.after.reason))).toBe(true);
+    // The first purchase of each day is never stopped by a one-a-day limit.
+    const firsts = new Map<number, string>();
+    for (const l of tight.lines) if (!firsts.has(Math.floor(l.at / 86400))) firsts.set(Math.floor(l.at / 86400), l.deal_id);
+    expect(tight.lines.filter((l) => [...firsts.values()].includes(l.deal_id)).every((l) => l.after.type === 'allow')).toBe(true);
+    // An unsignable draft is refused as signing refuses it; nothing was signed.
+    await expect(approval.invoke('envelope_simulate', args(0))).rejects.toMatchObject({ code: 'REFUSED', message: 'wallet limit a wallet limit of zero allows nothing' });
+    expect(await approval.invoke('envelope_get', null)).toEqual(before);
+  });
+
   it('?limits=none previews a wallet with no limits signed', async () => {
     history.replaceState(null, '', '/tumbler.html?limits=none');
     const v = await mockBackend('tumbler').invoke('envelope_get', null);

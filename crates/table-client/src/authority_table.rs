@@ -274,6 +274,8 @@ pub const AUTHORITY: &[CommandAuthority] = &[
     row("safety_record",          MAIN,     Read,     OPEN,       ANY,         R),
     // Revoking a pin is owner authority like making one (pairing_confirm): approval, privileged.
     row("counterparty_revoke",    APPROVAL, Owner,    PRIVILEGED, ANY,         R),
+    // The wallet-limits what-if, like mandate_simulate: it replays, never signs or writes.
+    row("envelope_simulate",      APPROVAL, Read,     OPEN,       ANY,         R),
 ];
 
 const fn release_count() -> usize {

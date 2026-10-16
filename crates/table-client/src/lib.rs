@@ -294,6 +294,21 @@ pub struct EnvelopeSignArgs {
     pub max_deals_day: u16,
     pub expires: i64,
 }
+/// Wallet-limits what-if before signing: the draft exactly as `envelope_sign` takes it, replayed
+/// over the purchases agreed in a window. Read-only: nothing is signed, written or sent to PayPal.
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct EnvelopeSimulateArgs {
+    pub draft: EnvelopeSignArgs,
+    /// Window start, Unix seconds. Default: seven days before `to`.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub from: Option<i64>,
+    /// Window end, Unix seconds. Default: now.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub to: Option<i64>,
+}
 /// What-if before signing: the draft exactly as `mandate_sign` takes it, replayed over the deals
 /// recorded in a window. Read-only: nothing is signed, written or sent to PayPal.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -1049,6 +1064,8 @@ pub struct CommandContract {
     pub safety_record: Command<(), SafetyRecord>,
     /// Revokes a counterparty pin: the key is refused from then on (approval, privileged).
     pub counterparty_revoke: Command<CounterpartyRevokeArgs, ()>,
+    /// Wallet-limits what-if: draft limits replayed over recorded purchases. Read-only, approval.
+    pub envelope_simulate: Command<EnvelopeSimulateArgs, MandateSimulation>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]

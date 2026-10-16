@@ -6,13 +6,15 @@ use table_core::*;
 use table_proto::AgentSigner;
 
 impl Runtime {
-    /// Signs and stores the next version of the wallet limits. A limit set that could never be
-    /// used (zero, mixed currency, already expired) is REFUSED with its reason, before signing.
-    pub(crate) fn sign_envelope(
-        &mut self,
-        args: EnvelopeSignArgs,
-    ) -> Result<SignedEnvelope, CommandError> {
-        let now = self.clock.now();
+    /// The unsigned limits `envelope_sign` would sign for these args, refused exactly as signing
+    /// refuses them: a limit set that could never be used (zero, mixed currency, already
+    /// expired). Reads the next version only; it never signs or writes, so `envelope_simulate`
+    /// replays the very payload signing would store.
+    pub(crate) fn draft_envelope(
+        &self,
+        args: &EnvelopeSignArgs,
+        now: Timestamp,
+    ) -> Result<WalletEnvelope, CommandError> {
         let payload = WalletEnvelope {
             version: app(self.pipeline.wallet.ledger.next_envelope_version())?,
             currency: args.currency,
@@ -32,6 +34,16 @@ impl Runtime {
             )
             .into());
         }
+        Ok(payload)
+    }
+    /// Signs and stores the next version of the wallet limits. A limit set that could never be
+    /// used is REFUSED with its reason, before signing ([`Runtime::draft_envelope`]).
+    pub(crate) fn sign_envelope(
+        &mut self,
+        args: EnvelopeSignArgs,
+    ) -> Result<SignedEnvelope, CommandError> {
+        let now = self.clock.now();
+        let payload = self.draft_envelope(&args, now)?;
         let signer = AgentSigner::from_key(self.owner()?);
         let envelope = SignedEnvelope {
             owner_sig: signer

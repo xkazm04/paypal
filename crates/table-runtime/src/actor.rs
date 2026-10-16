@@ -97,6 +97,7 @@ pub enum Action {
     RescueWatchStop(RescueWatchStopArgs),
     SafetyRecord,
     CounterpartyRevoke(CounterpartyRevokeArgs),
+    EnvelopeSimulate(EnvelopeSimulateArgs),
 }
 impl Action {
     /// The IPC command this action serves, whose row in the authority table
@@ -165,6 +166,7 @@ impl Action {
             Action::RescueWatchStop(_) => "rescue_watch_stop",
             Action::SafetyRecord => "safety_record",
             Action::CounterpartyRevoke(_) => "counterparty_revoke",
+            Action::EnvelopeSimulate(_) => "envelope_simulate",
             Action::Select(_)
             | Action::SelectPairing(_)
             | Action::ClaimNotification { .. }
@@ -213,7 +215,9 @@ impl Action {
             | Action::EnvelopeGet
             | Action::RescueBook
             | Action::Groups
-            | Action::SafetyRecord => true,
+            | Action::SafetyRecord
+            // A replay of draft limits: it reads the ledger, never signs or writes.
+            | Action::EnvelopeSimulate(_) => true,
             // Tier Read, but it writes PayPal's statement match and can move the deal to
             // RECONCILED: kept out on principle, though the write count would catch it.
             Action::Reconcile(_)
