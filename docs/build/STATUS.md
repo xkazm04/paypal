@@ -2598,3 +2598,4 @@ no PayPal call: money still moves only through the existing AUTHORIZE approval.
   or a draft, Main only routes `approval_open`, the mock keeps `privileged()`. Fixed: `pairing_confirm`
   kept the house table before its binding check could refuse (`a_refused_house_confirm_keeps_no_table_to_join`).
   Open (low): the kept table is keyed by deal id, not bound to the house key that served it.
+  F2 fixed in dc14027: the kept table is stored as `house.table.<key_id>.<deal_id>` and read back by the exact counterparty key at `pairing_confirm`, `check_draft` and `deal_create`/`deal_join`; an older unbound `house.table.<deal_id>` preference is refused (owner re-pairs). Tests: `a_kept_table_is_bound_to_the_house_key_that_served_it`, `a_legacy_table_kept_by_deal_id_alone_is_refused`.
