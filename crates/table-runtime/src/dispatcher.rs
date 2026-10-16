@@ -586,6 +586,22 @@ impl Runtime {
                 allowed(label, &["main"])?;
                 json(self.pairing_wire(bundle)?)
             }
+            Action::PairCommit(args) => {
+                allowed(label, &["main"])?;
+                json(self.pairing_commit(&args)?)
+            }
+            Action::PairAnswer(args, commit) => {
+                allowed(label, &["main"])?;
+                json(self.pairing_answer(args, commit)?)
+            }
+            Action::PairRevealed(args, reveals) => {
+                allowed(label, &["main"])?;
+                json(self.pairing_revealed(&args, reveals)?)
+            }
+            Action::PairRevealOf(args) => {
+                allowed(label, &["main"])?;
+                json(self.pairing_reveal_of(&args)?)
+            }
             Action::PairConfirm(args) => {
                 let pairing_id = args.pairing_id;
                 let house = self.pending.get(&pairing_id).is_some_and(|p| p.house);
