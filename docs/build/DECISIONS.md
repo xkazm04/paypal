@@ -1445,3 +1445,22 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   (Back to The Table calls no command), `design/tokens.test.ts` and `lib/contrast.test.ts` (fonts,
   licences, AA in both themes), the authority matrices and `windows/approval/notices.test.ts`
   (unchanged).
+
+## 41. The IPC freeze of §40 item 6 is lifted (challenge run challenge-2026-10-15)
+
+- **Date:** 2026-10-15
+- **Decided by:** the owner, on the challenge deck of scan-sweep run `challenge-2026-10-15`, answering
+  "Lifted - rebuild merged": the console rebuild has merged to `main`, so the freeze that kept it
+  shippable no longer has a reason.
+- **Decision.** §40 item 6 ("IPC is frozen") no longer binds. Rust, authority-table, bindings and
+  `PINNED_MANIFEST` changes are allowed again where a change needs them, through the usual gates
+  (the authority matrices, the capabilities pin test, the bindings freshness test). AGENTS.md is
+  unchanged: the LLM never moves money, only the `approval` window approves, silence never moves money.
+- **What used it (on `main`, 9205cec..97fa04c):** event audiences are rows of the authority table and
+  every window event goes through one table-driven emit (9ec70de, 29f0428, d68c536); the tray menu
+  (41d4a61); generated `bindings/dealStates.ts` (e94bafd); the `envelope_simulate` command
+  (e439605); `resume_all_agents` reports the tables waiting on the agent (fe3f67b).
+  `PINNED_MANIFEST` moved twice, ed57f9ce to 83ffaf42 (event audiences) and 83ffaf42 to b2f04fe9
+  (`envelope_simulate`).
+- **Consequences.** §40's "Rejected: batched read commands" stands as a rebuild-time choice, not a
+  rule; a batched read may be proposed again on its merits.
