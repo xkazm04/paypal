@@ -8,35 +8,22 @@ import type { MarketRef } from '@bindings/MarketRef';
 import type { Mode } from '@bindings/Mode';
 import { clockLabel, formatMoney } from '../../../lib/format';
 import { marketWords, NOT_REPORTED } from '../../../lib/words';
-import { Countdown, MockBadge, ModeBadge } from '../../../shared/honesty';
-import { Btn, Crumbs, Hourglass, Spacer, TitleBar, type ChipTone } from '../../../shared/ui';
+import { Countdown } from '../../../shared/honesty';
+import { Btn, Hourglass, type ChipTone } from '../../../shared/ui';
 import { marketPercentile, STEP } from '../model';
 import type { Step } from '../model';
-import { Emblem } from '../ui';
+import { WindowBar } from '../ui';
 import { relMark, rowWord, type DiffRow, type Mark, type RowTone, type Twin } from './diff';
 
 const cx = (...c: Array<string | false | null | undefined>) => c.filter(Boolean).join(' ');
 
 // ---- chrome ---------------------------------------------------------------------------------
 
-/** The approval window's own title bar. Sheets drop from its bottom edge (--sheet-top). The deal
- *  review passes no `label`: its heading names the deal and its id lives in Details (UX-GUIDE). */
+/** The approval window's own title bar (WindowBar: the console's bar and the Approvals strip).
+ *  Sheets drop from its bottom edge (--sheet-top). The deal review passes no `label`: its heading
+ *  names the deal and its id lives in Details (UX-GUIDE). */
 export function ReviewBar({ module, label, mode, onDetails }: { module: string | null; label: string | null; mode: Mode | undefined; onDetails?: (e: MouseEvent<HTMLButtonElement>) => void }) {
-  return (
-    <TitleBar className="dr-bar">
-      <Emblem />
-      <span className="ui-title" id="awTitle">Approval</span>
-      <Crumbs label="Where this comes from" items={[{ label: 'The Table' }, ...(module ? [{ label: module }] : []), ...(label ? [{ label }] : [])]} />
-      <Spacer />
-      {mode ? <ModeBadge mode={mode} /> : null}
-      <MockBadge />
-      {onDetails ? (
-        <Btn kind="plain" sm onClick={onDetails} title="Where every check came from, the full history and the proof">
-          Details
-        </Btn>
-      ) : null}
-    </TitleBar>
-  );
+  return <WindowBar mode={mode} module={label ? [module, label].filter(Boolean).join(' · ') : module} onDetails={onDetails} />;
 }
 
 // ---- marks ----------------------------------------------------------------------------------

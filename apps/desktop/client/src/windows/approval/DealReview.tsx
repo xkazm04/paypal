@@ -9,8 +9,7 @@
 // narrows Rust's flags. The checklist is Rust's (ApprovalSummary.checks), rendered verbatim; a
 // failed line disables the money buttons and every decision carries its checks_hash. Enter never releases money: the window
 // focuses its heading and money buttons ignore Enter.
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import type { ApprovalSummary } from '@bindings/ApprovalSummary';
 import type { Deal } from '@bindings/Deal';
 import type { Module } from '@bindings/Module';
@@ -18,10 +17,11 @@ import type { RescueLever } from '@bindings/RescueLever';
 import { WalletError, toWalletError } from '../../lib/contract';
 import { useCounterparties, useDealDisplay } from '../../lib/display';
 import { formatMoney, nowUnix, shortId } from '../../lib/format';
-import { houseWords, PAYMENT_CANNOT_BE_UNDONE, RESCUE_APPROVE_DOES, RESCUE_REPLAY_NOT_COUNTED, SUMMARY_CHANGED, reasonWords, subscriberName, reconWord, receiptWord, shieldRuleWord, silenceWords, sellerSaysOnly } from '../../lib/words';
+import { APPROVAL_SEAL, houseWords, PAYMENT_CANNOT_BE_UNDONE, RESCUE_APPROVE_DOES, RESCUE_REPLAY_NOT_COUNTED, SUMMARY_CHANGED, reasonWords, subscriberName, reconWord, receiptWord, shieldRuleWord, silenceWords, sellerSaysOnly } from '../../lib/words';
 import { useEvent, useNow, usePrefersReducedMotion, useQuery } from '../../lib/hooks';
 import { backend } from '../../lib/runtime';
 import { MODULES } from '../../shared/modules';
+import { Seal, type SealState } from '../../shared/brand';
 import { Countdown, WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Field, HoldButton, Popover, Sheet, layerCount, useFocusRescue, useToast } from '../../shared/ui';
 import { MarkIcon } from './review/Parts';
@@ -38,7 +38,7 @@ import { stoppedText, summarySentence, waitingText, type Intent } from './review
 import { answerWhy, askAboveOf, highPriceWord, type WhyFacts } from './review/why';
 import { useHandoff } from './selection';
 import { useSession } from './session';
-import { HelloGlyph, LockGlyph } from './ui';
+import { closeThisWindow, HelloGlyph, LockGlyph } from './ui';
 import './approval.css';
 
 
@@ -46,6 +46,12 @@ const POLL_IN_BROWSER_MS = 3000;
 const POLL_IDLE_MS = 10000;
 const LOCK_TEXT =
   'Like PayPal, the wallet asks again after 15 quiet minutes before it approves, opens PayPal, pays, releases or signs anything. You can still read everything here, and money stays where it is until you unlock.';
+
+/** The seal beside the deal's title: what the phase asks of the owner (never "paid": a seal is no receipt). */
+const SEAL_OF: Record<Phase, Exclude<SealState, 'paid'>> = {
+  checking: 'watching', ready: 'needs', locked: 'needs', in_browser: 'needs', hold: 'holding',
+  waiting: 'quiet', done: 'quiet', block: 'stopped', mismatch: 'stopped', stopped: 'stopped',
+};
 
 const KIND_MODULE: Record<Deal['kind'], Module> = { haggle: 'tables', purchase: 'spend', shop_order: 'counter', rescue: 'rescue', invoice: 'book' };
 
@@ -257,15 +263,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   // real shell has a window to close (the browser preview just keeps showing IN BROWSER).
   const closeWindow = async () => {
     setCloseNote(null);
-    if (backend().kind !== 'tauri') {
-      setCloseNote('Preview only. In the app this closes the window; the mini window keeps watching PayPal for you.');
-      return;
-    }
-    try {
-      await getCurrentWindow().close();
-    } catch {
-      setCloseNote('This window stayed open. Close it from its title bar; nothing changes for the deal.');
-    }
+    setCloseNote(await closeThisWindow());
   };
   const withdraw = async () => {
     setFailure(null);
@@ -299,9 +297,9 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
             <h1 className="dr-h">Checking <span className="q">· reading the agreed deal</span></h1>
           </div>
           <div className="dr-twin">
-            <div className="tw l"><span className="twk">You agreed</span><span className="tw-amt skeleton">$ ———</span></div>
+            <div className="tw l"><span className="twk">You agreed</span><span className="tw-amt skeleton" aria-hidden="true">$ ———</span></div>
             <div className="tw-op wait" aria-hidden="true"><MarkIcon mark="…" className="big" /><span className="w">checking</span></div>
-            <div className="tw r"><span className="twk">Being asked</span><span className="tw-amt skeleton">$ ———</span></div>
+            <div className="tw r"><span className="twk">Being asked</span><span className="tw-amt skeleton" aria-hidden="true">$ ———</span></div>
           </div>
           {loadError ? <WalletNotice error={loadError} what="This deal couldn’t be read" message={footerNoticeText('read', loadError)} /> : <p className="dr-line dim">Reading the deal from your wallet…</p>}
         </main>
@@ -317,7 +315,8 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const title = display?.title ?? d.terms.item_ref;
   const label = display?.label ?? shortId(d.id);
   const moduleKey = attn?.module ?? KIND_MODULE[d.kind];
-  const moduleName = MODULES.find((m) => m.key === moduleKey)?.name ?? null;
+  const moduleMeta = MODULES.find((m) => m.key === moduleKey);
+  const moduleName = moduleMeta?.name ?? null;
   const deadline = display?.deadline ?? attn?.deadline ?? null;
   const rawSilence = attn?.on_silence ?? display?.on_silence ?? null;
   const silence = rawSilence ? silenceWords(rawSilence) : null;
@@ -381,16 +380,20 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   const tone = phase === 'mismatch' || phase === 'block' ? 'bad' : phase === 'hold' ? 'hold' : phase === 'done' ? 'ok' : showLock ? 'lock' : 'gold';
 
   return (
-    <div className={`aw dr phase-${phase} t-${tone}`}>
+    <div className={`aw dr phase-${phase} t-${tone}`} style={moduleMeta ? ({ '--c': moduleMeta.cssVar } as CSSProperties) : undefined}>
       <ReviewBar module={moduleName} label={null} mode={d.mode} onDetails={() => { setPop(null); setDetails(true); }} />
 
       <main className="dr-body" ref={bodyRef} aria-labelledby="dr-h">
         <div className="dr-head">
+          <Seal size="corner" className="dr-seal" state={SEAL_OF[phase]} label={showLock ? APPROVAL_SEAL.locked : APPROVAL_SEAL[SEAL_OF[phase]]} />
+          <div className="dr-ht">
+          {moduleName ? <p className="kicker dr-kick">{moduleName}</p> : null}
           <h1
             id="dr-h"
             className="dr-h"
             ref={headRef}
             tabIndex={-1}
+            title={`${heading} · ${title}`}
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown') {
                 const first = document.querySelector<HTMLButtonElement>(ROW_SELECTOR);
@@ -403,6 +406,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
           >
             {heading} <span className="q">· {title}</span>
           </h1>
+          </div>
           <StateChip steps={steps} onOpen={(el) => openPop('states', el)} />
         </div>
 
@@ -488,7 +492,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
               placeholder={expectedName ?? ''}
               aria-describedby="typeNote"
             />
-            <span id="typeNote" className={`st ${namesMatch(typed, expectedName) ? 'ok' : ''}`}>{namesMatch(typed, expectedName) ? <><MarkIcon mark="✓" /> Matches</> : 'exactly as shown'}</span>
+            <span id="typeNote" aria-live="polite" className={`st ${namesMatch(typed, expectedName) ? 'ok' : ''}`}>{namesMatch(typed, expectedName) ? <><MarkIcon mark="✓" /> Matches</> : 'exactly as shown'}</span>
           </label>
         ) : null}
 

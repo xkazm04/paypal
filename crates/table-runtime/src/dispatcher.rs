@@ -548,13 +548,16 @@ impl Runtime {
             Action::Start(id) => json(self.start_agent(id)?),
             Action::Runs => json(self.run_snapshots()),
             Action::Resume => {
+                // Read before the write: a report that cannot be read leaves the pause in place.
+                // Resume starts nothing; each restart stays the owner's own agent_start.
+                let waiting = self.waiting_on_agent(self.clock.now())?;
                 app(self
                     .pipeline
                     .wallet
                     .ledger
                     .set_preference("agents_paused", &false))?;
                 self.paused = false;
-                json(())
+                json(ResumeReport { waiting })
             }
             Action::Mandates => json(self.mandate_list()?),
             Action::Sign(args) => json(self.sign_mandate(args)?),
@@ -715,6 +718,11 @@ impl Runtime {
             Action::EnvelopeSign(args) => {
                 // Privileged like mandate_sign: the approval label, its token, and unlocked.
                 json(self.sign_envelope(args)?)
+            }
+            Action::EnvelopeSimulate(args) => {
+                // Like mandate_simulate: the approval window's what-if, read-only, so no token or
+                // unlock is asked for.
+                json(self.envelope_simulate(args)?)
             }
             Action::EnvelopeGet => {
                 // Limits and numbers only; every window shows the meters.

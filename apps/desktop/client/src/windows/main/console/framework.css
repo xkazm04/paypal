@@ -1,0 +1,158 @@
+/* The console's layer framework (rebuild WP2.5): the loading skeleton,
+   the module layer chrome (ModuleLayer, ModuleSummary), the list engine (ListEngine) and the shared
+   row parts (rows.tsx). Tokens only; text never below --fs-small; motion only through the tokens.
+   An area's own styles live in console/areas/<area>.css, never here. */
+
+/* ---- a layer loading its code: three quiet bars that appear only after a beat ------------------- */
+.cs-skel { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-2) 0; animation: cs-skel-in var(--dur-med) var(--ease) var(--dur-slow) both; }
+.cs-skel span { display: block; height: var(--sp-3); border-radius: var(--r-tight); background: color-mix(in srgb, var(--line2) 60%, transparent); }
+.cs-skel .b1 { width: 18%; } .cs-skel .b2 { width: 52%; height: var(--sp-8); } .cs-skel .b3 { width: 38%; }
+@keyframes cs-skel-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cs-skel { animation: none; } }
+:root.calm .cs-skel { animation: none; }
+
+/* ---- the staggered reveal (console/stagger.tsx) ------------------------------------------------
+   A Reveal's wrapper is no box of its own (display: contents), so the frame's flex gaps and grids are
+   the same with or without it. A part that waited for its turn fades in a little; a skeleton takes
+   the part's own layout class, so it holds the same room. Calm: no fade, no shimmer. */
+.stg { display: contents; }
+.stg[data-stg="in"] > * { animation: stg-in var(--dur-med) var(--ease-out) both; }
+@keyframes stg-in { from { opacity: 0; transform: translateY(4px); } }
+.stg-room { overflow: hidden; flex: none; }
+.stg-room > .stg-skel { height: 100%; }
+.stg-skel { pointer-events: none; }
+.stg-skel .stg-b { display: block; border-radius: var(--r-card); background: color-mix(in srgb, var(--line2) 55%, transparent); }
+.stg-skel.ui-sumcard, .stg-skel .ui-sumcard { box-shadow: inset 2px 0 0 color-mix(in srgb, var(--mc, var(--steel)) 40%, transparent); }
+.stg-skel .stg-b.ui-sumcard { background: color-mix(in srgb, var(--panel) 70%, transparent); }
+.stg-skel .stg-b.bar { height: var(--row); }
+.stg-skel.ml-explain, .stg-skel.pf-explain { height: var(--row); }
+.stg-skel.ml-explain .stg-b, .stg-skel.pf-explain .stg-b { width: 14rem; height: 100%; }
+.stg-skel.ml-art { aspect-ratio: 4 / 3; }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not(.calm) .stg-skel .stg-b { background-image: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--text) 5%, transparent) 50%, transparent 100%);
+    background-size: 200% 100%; background-repeat: no-repeat; animation: stg-shimmer calc(var(--dur-sheet) * 3) var(--ease-linear) infinite; }
+}
+@keyframes stg-shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+@media (prefers-reduced-motion: reduce) { .stg[data-stg="in"] > * { animation: none; } }
+:root.calm .stg[data-stg="in"] > * { animation: none; }
+
+/* ---- a layer that fits the sheet (it scrolls its own list) -------------------------------------- */
+.cs-layer[data-fit] { flex: 1 1 0; min-height: 0; }
+.cs-layer[data-fit]:has(> .cs-charter) { flex: 1 0 auto; min-height: 100%; }
+
+/* ---- the module layer chrome -------------------------------------------------------------------- */
+.ml { display: flex; flex-direction: column; gap: var(--sp-5); min-width: 0; flex: 1 0 auto; }
+.ml-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(10rem, 17rem); gap: var(--sp-6); align-items: start; }
+.ml-say { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.ml-say .kicker, .ml-vhead .kicker { margin: 0; }
+.ml-say .cs-title, .ml-vhead .cs-title { margin: 0; }
+.ml-sub { margin: 0; color: var(--muted); font-size: var(--fs-title3); max-width: 48rem; line-height: 1.45; }
+.ml-art { max-width: 17rem; opacity: .9; }
+.ml-calls { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); margin-top: var(--sp-2); }
+.ml-call { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: var(--target); height: var(--ctl); padding: 0 var(--sp-3); cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent); border-radius: var(--r-pill); background: color-mix(in srgb, var(--gold) 10%, transparent);
+  color: var(--gold-l); font: var(--fw-semibold) var(--fs-body)/1 var(--font); }
+.ml-call .led { width: .5rem; height: .5rem; border-radius: 1px; background: var(--gold); box-shadow: var(--glow-gold); }
+.ml-call b { font-family: var(--num); font-variant-numeric: tabular-nums lining-nums; }
+.ml-call:hover { background: color-mix(in srgb, var(--gold) 18%, transparent); }
+.ml-call:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ml-silence { color: var(--muted); }
+.ml-silence b { color: var(--text); font-weight: var(--fw-medium); }
+.ml-cards { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); gap: var(--sp-3); }
+.ml-cards .ui-sumcard { min-height: 7.5rem; box-shadow: inset 2px 0 0 var(--mc, var(--steel)); }
+.ml-cards .ui-sumcard.needs { box-shadow: inset 2px 0 0 var(--gold); }
+.ml-cards .ui-sumcard .sc-value { font-size: var(--fs-title2); }
+/* on a module's summary the cards share the room left under the answer (up to 14rem tall): one rule
+   for all six modules (it was a copy in each area's stylesheet; wp3a open item 3) */
+.ml:not(.ml-view) .ml-cards { flex: 1 1 auto; max-height: 14rem; align-items: stretch; }
+.ml:not(.ml-view) .ml-cards .ui-sumcard { height: auto; }
+.ml:not(.ml-view) .ml-cards .sc-value { font-size: var(--fs-title1); }
+.ml-ifnothing { color: var(--muted); }
+.ml-body { display: flex; flex-direction: column; min-height: 0; flex: 1 0 auto; }
+.ml-empty { margin: 0; color: var(--muted); font-size: var(--fs-title3); }
+.ml-explain { max-width: 52rem; }
+.ml-vhead { display: flex; flex-direction: column; gap: var(--sp-2); }
+.ml-vbody { display: flex; flex-direction: column; min-height: 0; flex: 1 0 auto; }
+@media (max-width: 1100px) { .ml-head { grid-template-columns: minmax(0, 1fr); } .ml-art { display: none; } .ml-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-height: 960px) and (min-width: 1500px) {
+  .ml-say .cs-title, .ml-vhead .cs-title { font-size: 3rem; }
+  .ml-sub { font-size: var(--fs-title2); }
+  .ml-head { grid-template-columns: minmax(0, 1fr) minmax(12rem, 22rem); }
+  .ml-art { max-width: 22rem; }
+  .ml-cards .ui-sumcard { min-height: 9rem; padding: var(--sp-4) var(--sp-5); }
+  .ml-cards .ui-sumcard .sc-value { font-size: var(--fs-title1); }
+}
+
+/* ---- the list engine ---------------------------------------------------------------------------- */
+.le { display: flex; flex-direction: column; gap: var(--sp-2); min-height: 0; min-width: 0; flex: 1 1 auto; }
+.le-tools { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); }
+.le-search .ui-searchbox { min-width: 14rem; }
+.le-summary { color: var(--dim); font-size: var(--fs-small); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.le-sort { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--dim); font-size: var(--fs-small); }
+.le-sort select { height: var(--ctl-sm); }
+.le-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); flex: 1 1 0; min-height: 12rem; }
+.le.side .le-main { grid-template-columns: minmax(0, 1fr) minmax(20rem, 34%); }
+/* a narrower window: the picked row's detail under the list (the pick is never lost to the width) */
+.le.stack .le-main { grid-template-rows: auto auto; flex: none; min-height: 0; }
+.le.stack .le-scroll { max-height: 50vh; }
+.le.stack .le-detail { overflow: visible; }
+.le-scroll { position: relative; min-height: 0; overflow: auto; outline: none; scrollbar-width: thin; }
+.le-space { position: relative; width: 100%; }
+.le-item { position: absolute; top: 0; left: 0; right: 0; padding: 2px 0; }
+.le-row { display: block; width: 100%; height: 100%; padding: var(--sp-2) var(--sp-3); text-align: left; font: inherit; color: var(--text); cursor: pointer;
+  border: 0; border-radius: var(--r-card); background: color-mix(in srgb, var(--bg) 45%, transparent); box-shadow: 0 0 0 1px var(--line); }
+.le-row:hover, .le-row[data-focused] { background: var(--sel); }
+.le-row.on { background: var(--sel); box-shadow: inset 2px 0 0 var(--signal), 0 0 0 1px var(--sel-line); }
+.le-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.le-empty { margin: 0; padding: var(--sp-3) 0; color: var(--muted); }
+.le-detail { min-height: 0; overflow: auto; padding: var(--sp-4); border-radius: var(--r-card); background: color-mix(in srgb, var(--bg) 35%, transparent); box-shadow: 0 0 0 1px var(--line); }
+
+/* ---- the shared row parts ----------------------------------------------------------------------- */
+.cs-amt { font-family: var(--num); font-variant-numeric: tabular-nums lining-nums; letter-spacing: var(--track-money); white-space: nowrap; color: var(--text); }
+.cs-amt.moved { color: var(--ok); } .cs-amt.held { color: var(--gold-l); } .cs-amt.proposed { color: var(--muted); }
+.cs-amt.struck { color: var(--dim); text-decoration: line-through; }
+.cs-amt.unknown { color: var(--dim); }
+.cs-state { display: inline-flex; align-items: center; height: var(--ctl-sm); padding: 0 var(--sp-2); border-radius: var(--r-tight); white-space: nowrap;
+  border: 1px solid var(--line2); color: var(--muted); font: var(--fw-medium) var(--fs-small)/1 var(--font); }
+.cs-state.t-teal { color: var(--teal-l); border-color: color-mix(in srgb, var(--teal) 45%, var(--line2)); }
+.cs-state.t-gold { color: var(--gold-l); border-color: color-mix(in srgb, var(--gold) 45%, var(--line2)); }
+.cs-state.t-ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--line2)); }
+.cs-state.t-red { color: var(--red-l); border-color: color-mix(in srgb, var(--red) 45%, var(--line2)); }
+.cs-state.t-coral { color: var(--coral-l); border-color: color-mix(in srgb, var(--coral) 45%, var(--line2)); }
+.cs-state.dashed { border-style: dashed; color: var(--dim); }
+.cs-cd { display: inline-flex; align-items: center; height: var(--ctl-sm); padding: 0 var(--sp-2); border-radius: var(--r-tight); white-space: nowrap; flex: none;
+  border: 1px solid color-mix(in srgb, var(--gold) 40%, var(--line2)); color: var(--gold-l); font: var(--fw-medium) var(--fs-small)/1 var(--num); font-variant-numeric: tabular-nums lining-nums; }
+.cs-cd.urgent { color: var(--red-l); border-color: color-mix(in srgb, var(--red) 45%, var(--line2)); }
+.cs-cd.none { color: var(--dim); border-color: var(--line2); border-style: dashed; font-family: var(--font); }
+.cs-who-chip { display: inline-block; max-width: 16rem; vertical-align: bottom; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.cs-who-chip.unknown { color: var(--dim); }
+.cs-dealrow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: var(--sp-3); }
+.cs-dealrow .dot { width: 6px; height: 6px; border-radius: 1px; background: var(--c, var(--steel)); }
+.cs-dealrow .t { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.cs-dealrow .t > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-dealrow .t b { font-weight: var(--fw-semibold); }
+.cs-dealrow .sub { color: var(--muted); font-size: var(--fs-small); }
+.cs-dealrow .sil { color: var(--dim); font-size: var(--fs-small); }
+.cs-dealrow.needs .dot { background: var(--gold); box-shadow: var(--glow-gold); }
+
+/* ---- the "Latest" strip under a summary's cards (Latest.tsx): quiet, subordinate to the cards ---- */
+.lt { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.lt-head { display: flex; align-items: baseline; gap: var(--sp-3); min-width: 0; }
+.lt-title { margin: 0; font: var(--fw-semibold) var(--fs-small)/1.3 var(--font); color: var(--muted); }
+.lt-all { margin-left: auto; padding: 0 var(--sp-1); min-height: var(--target); border: 0; background: none; cursor: pointer; color: var(--teal-l); font: var(--fw-medium) var(--fs-small)/1 var(--font); white-space: nowrap; }
+.lt-all:hover { text-decoration: underline; text-underline-offset: 3px; }
+.lt-all:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--r-tight); }
+.lt-more { color: var(--dim); }
+.lt-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-1); }
+.lt-item { min-width: 0; }
+.lt-row { height: auto; }
+.lt-empty { margin: 0; color: var(--muted); }
+.lt-facts { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: var(--sp-2); }
+.lt-fact { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-card); box-shadow: 0 0 0 1px var(--line); background: color-mix(in srgb, var(--bg) 35%, transparent); min-width: 0; }
+.lt-fact dt { color: var(--dim); font-size: var(--fs-small); }
+.lt-fact dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+.lt-line { display: flex; align-items: baseline; gap: var(--sp-3); min-width: 0; }
+.lt-when { flex: none; color: var(--dim); font-size: var(--fs-small); font-variant-numeric: tabular-nums; }
+.lt-said { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* a tall window: the facts one per line, so the strip fills the room the sheet has */
+@media (min-height: 960px) { .lt-facts { grid-template-columns: minmax(0, 1fr); max-width: 56rem; } .lt-fact { flex-direction: row; justify-content: space-between; align-items: baseline; gap: var(--sp-4); padding: var(--sp-3) var(--sp-4); } .lt-fact dd { text-align: right; } }

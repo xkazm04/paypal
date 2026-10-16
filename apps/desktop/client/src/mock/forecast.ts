@@ -5,6 +5,7 @@
 // treated as allowed, which is what the sample data shows.
 import type { Deal } from '@bindings/Deal';
 import type { DealState } from '@bindings/DealState';
+import { PRE_CAPTURE, TERMINAL } from '@bindings/dealStates';
 import type { ForecastLine } from '@bindings/ForecastLine';
 import type { QuitLine } from '@bindings/QuitLine';
 
@@ -12,8 +13,9 @@ const ORDER_CREATED_DEADLINE_SECS = 6 * 3600;
 const AUTHORIZED_DEADLINE_SECS = 72 * 3600;
 export const FORECAST_HORIZON_SECS = 72 * 3600;
 
-const TERMINAL: ReadonlySet<DealState> = new Set(['CAPTURED', 'RECEIPTED', 'RECONCILED', 'WITHDRAWN', 'EXPIRED', 'REFUSED', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'UNCONFIRMED']);
-const PRE_CAPTURE: ReadonlySet<DealState> = new Set(['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED']);
+/** Rust `terminal()` (forecast.rs skips it), plus the mock's own named extra: CAPTURED and
+ *  RECEIPTED have no scheduler step left (a buyer's lapse to UNCONFIRMED is drawn above). */
+const NOTHING_TO_SCHEDULE: ReadonlySet<DealState> = new Set<DealState>([...TERMINAL, 'CAPTURED', 'RECEIPTED']);
 
 /** `receiptAt`: when a buyer's seller-attested receipt was accepted (RECEIPTED only), else null / absent. */
 export type ForecastDeal = { deal: Deal; label: string; deadline: number | null; receiptAt?: number | null };
@@ -44,7 +46,7 @@ export function mockForecast(deals: readonly ForecastDeal[], ctx: ForecastCtx): 
       }
       continue;
     }
-    if (TERMINAL.has(deal.state)) continue;
+    if (NOTHING_TO_SCHEDULE.has(deal.state)) continue;
     const before = dealDeadline;
     const line = (o: Pick<ForecastLine, 'trigger' | 'at' | 'action' | 'authority' | 'direction' | 'end_state'>): ForecastLine => ({
       deal_id: deal.id, label, amount_minor: amountOf(deal), currency: deal.terms.currency,
@@ -103,12 +105,10 @@ const T = {
   seller_may_collect: 'You approved this payment on PayPal, so the seller can still collect it while The Table is off.',
 } as const;
 
-/** `DealState::terminal()` in table-core. */
-const ENDED: ReadonlySet<DealState> = new Set(['WITHDRAWN', 'EXPIRED', 'REFUSED', 'MISMATCH', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'RECONCILED', 'UNCONFIRMED']);
 /** A deal the quit confirm lists (dispatcher.rs `quit_summary`). */
 export function quitPending(deal: Deal): boolean {
   return ['AGREED', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'MISMATCH'].includes(deal.state)
-    || ((deal.shield === 'HOLD' || deal.shield === 'BLOCK') && !ENDED.has(deal.state));
+    || ((deal.shield === 'HOLD' || deal.shield === 'BLOCK') && !TERMINAL.has(deal.state));
 }
 
 /** quit.rs `quit_lines`: what will not happen while off, and what PayPal still does itself. */

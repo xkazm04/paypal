@@ -20,17 +20,19 @@ import type { OpenMandate } from '@bindings/OpenMandate';
 import type { WalletError } from '../../lib/contract';
 import { shortHash, shortId } from '../../lib/format';
 import { useNow, useQuery } from '../../lib/hooks';
-import { ruleNameOf, rulesName, timeLeftWords } from '../../lib/words';
+import { rulesName, timeLeftWords } from '../../lib/words';
 import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Chip, Hourglass, Kv, Popover, Seg, Spacer, type IconName } from '../../shared/ui';
 import { buildMandate, CLAUSE_NUMBER, draftFrom, fromLocalInput, newDraft, previewClauses, refusalWords, ruleProblems, withClause, type ClauseDraft, type ClauseType, type MandateDraft } from './mandateDraft';
 import { minorToInput } from './model';
 import { useSimulation } from './owner/data';
 import { diffPolicy, type Change, type DiffSide } from './owner/diff';
+import { FixLine } from './owner/FixLine';
 import { Lever } from './owner/Lever';
 import { amountTicks, priceTicks } from './owner/levers';
 import { Scoreboard, WhatIfTable } from './owner/WhatIf';
 import { SignSheet } from './owner/SignSheet';
+import { repairs } from './owner/repair';
 import { changed, hitPhrase, ifWithdrawn, summaryWords } from './owner/simulation';
 import { WhoWhat } from './owner/WhoWhat';
 import { TemplatePicker, type BlankField } from './owner/Templates';
@@ -231,6 +233,10 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
   };
 
   const errs = built.ok ? [] : built.errors;
+  // One-click fixes for the problems, each verified against the same check before it is offered.
+  // A rule that is missing or in the wrong shape comes before an empty amount: once it is fixed,
+  // its amounts are the owner's to fill in.
+  const fixes = problems.length ? repairs(d, t0) : [];
   // Rules that could never allow anything are not offered for signing; the footer says why.
   const canReview = !!args && problems.length === 0 && (changes.length > 0 || !base);
   // The answer on top: where these rules stand, in one sentence (display only; signing is unchanged).
@@ -354,8 +360,8 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
           </Btn>
         ) : null}
         <span className="status" aria-live="polite">
-          {errs.length ? <span className="red">Fix {errs.length} field{errs.length > 1 ? 's' : ''} before signing: {errs[0]}</span>
-            : problems.length ? <span className="gold">This can’t be signed yet: {ruleNameOf(problems[0]!.clause).toLowerCase()} · {problems[0]!.why}</span>
+          {fixes.length || (problems.length && !errs.length) ? <FixLine draft={d} now={t0} problems={problems} repairs={fixes} onApply={setD} />
+            : errs.length ? <span className="red">Fix {errs.length} field{errs.length > 1 ? 's' : ''} before signing: {errs[0]}</span>
             : changes.length ? <><b>{changes.length} change{changes.length > 1 ? 's' : ''}</b> · not signed yet · no money moves</>
             : base ? 'No changes · your agents follow these rules' : 'Fill in the rules, then sign'}
         </span>

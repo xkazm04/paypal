@@ -422,3 +422,295 @@ fn a_deal_under_the_rules_in_force_gets_the_verdict_the_live_pipeline_gives_it()
     assert_eq!(stand.before, SimulatedVerdict::Allow);
     assert_eq!(stand.after, SimulatedVerdict::Ask { clause: 6 });
 }
+
+// ---- Wallet-limits what-if (envelope_simulate) and the limits in the rules what-if ----------
+
+fn limits_args(out: i64, held: i64, deals: u16) -> EnvelopeSignArgs {
+    EnvelopeSignArgs {
+        currency: Currency::USD,
+        max_out_day: usd(out),
+        max_held: usd(held),
+        max_deals_day: deals,
+        expires: 1_000_000,
+    }
+}
+fn limits_draft(out: i64, held: i64, deals: u16) -> EnvelopeSimulateArgs {
+    EnvelopeSimulateArgs {
+        draft: limits_args(out, held, deals),
+        from: None,
+        to: None,
+    }
+}
+/// Purchases under one shopper mandate, proposed (and so agreed) in this order on the test
+/// clock's one UTC day, exactly as the agent's propose_purchase does it.
+fn agreed_purchases(r: &mut Runtime, prices: &[i64]) -> (MandateId, Vec<Deal>) {
+    use table_app::{
+        AgentRequest, AgentRole, AgentScope, AgentService, PurchaseInput, PurchaseLine,
+    };
+    let mandate = r
+        .sign_mandate(MandateSignArgs {
+            id: None,
+            agent: AgentSlot::Shopper,
+            clauses: clauses(Side::Buyer, DealKind::Purchase),
+            not_before: 0,
+            expires: 1_000_000,
+        })
+        .unwrap();
+    let shop = AgentSigner::from_key(signing_key(&MemoryVault::default(), "shop").unwrap());
+    r.pipeline
+        .wallet
+        .ledger
+        .insert_counterparty(&Counterparty {
+            key_id: shop.key_id().unwrap(),
+            owner_key: shop.public_key().to_bytes(),
+            agent_key: shop.public_key().to_bytes(),
+            display_name: ShortText::new("Shop".into()).unwrap(),
+            paired_via: PairedVia::Code,
+            words_confirmed_at: Some(100),
+            declared_payee: PayeeRef::new("merchant").unwrap(),
+            first_seen: 0,
+        })
+        .unwrap();
+    let mut deals = Vec::new();
+    for price in prices {
+        let deal = r
+            .create_deal(DealCreateArgs {
+                kind: DealKind::Purchase,
+                side: Side::Buyer,
+                counterparty: shop.key_id().unwrap(),
+                mandate_id: mandate.payload.id,
+                mandate_version: 1,
+                category: Category::Parts,
+                terms: Terms {
+                    item_ref: ItemRef::new("monitor").unwrap(),
+                    qty: 1,
+                    unit_price: usd(*price),
+                    currency: Currency::USD,
+                    delivery: Delivery::DigitalNow,
+                },
+            })
+            .unwrap();
+        r.select_signer(deal.id).unwrap();
+        r.pipeline
+            .wallet
+            .invoke(
+                &AgentScope {
+                    deal_id: deal.id,
+                    role: AgentRole::Shopper,
+                    category: Category::Parts,
+                },
+                AgentRequest::Purchase(PurchaseInput {
+                    payee_ref: PayeeRef::new("merchant").unwrap(),
+                    items: vec![PurchaseLine {
+                        item_ref: deal.terms.item_ref.clone(),
+                        qty: 1,
+                    }],
+                    amount: deal.terms.unit_price.decimal(),
+                    category: Category::Parts,
+                }),
+                r.clock.now(),
+            )
+            .unwrap();
+        let deal = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap();
+        assert_eq!(deal.state, DealState::Agreed);
+        deals.push(deal);
+    }
+    (mandate.payload.id, deals)
+}
+fn ids(s: &MandateSimulation) -> Vec<DealId> {
+    s.lines.iter().map(|l| l.deal_id).collect()
+}
+
+#[test]
+fn a_two_a_day_draft_would_have_stopped_the_third_purchase_of_the_day() {
+    let (mut r, ..) = runtime(true);
+    let (_, deals) = agreed_purchases(&mut r, &[1000, 1200, 1400]);
+    let s = r
+        .envelope_simulate(limits_draft(100_000, 100_000, 2))
+        .unwrap();
+    assert_eq!(ids(&s), deals.iter().map(|d| d.id).collect::<Vec<_>>());
+    assert_eq!((s.from, s.to, s.not_simulated), (100 - 7 * 86_400, 100, 0));
+    for l in &s.lines {
+        assert_eq!(l.before, SimulatedVerdict::Allow, "{}", l.label);
+        assert_eq!(l.side, Side::Buyer);
+    }
+    assert_eq!(s.lines[0].after, SimulatedVerdict::Allow);
+    assert_eq!(s.lines[1].after, SimulatedVerdict::Allow);
+    let (clause, reason) = refused(&s.lines[2].after);
+    assert_eq!(clause, ENVELOPE_CLAUSE);
+    assert!(reason.contains("deals agreed today"), "{reason}");
+    assert_eq!(s.lines[2].amount, Some(usd(1400)));
+}
+
+#[test]
+fn a_day_budget_draft_judges_each_purchase_at_its_own_place_in_the_day() {
+    let (mut r, ..) = runtime(true);
+    let (_, deals) = agreed_purchases(&mut r, &[1000, 1200, 1400]);
+    let s = r
+        .envelope_simulate(limits_draft(2000, 100_000, 50))
+        .unwrap();
+    assert_eq!(ids(&s), deals.iter().map(|d| d.id).collect::<Vec<_>>());
+    assert_eq!(s.lines[0].after, SimulatedVerdict::Allow);
+    for l in &s.lines[1..] {
+        let (clause, reason) = refused(&l.after);
+        assert_eq!(clause, ENVELOPE_CLAUSE);
+        assert!(reason.contains("paid out today"), "{reason}");
+    }
+    // The second is judged after the first only: $10.00 + $12.00 above $20.00.
+    let (_, reason) = refused(&s.lines[1].after);
+    assert!(reason.contains("10.00 + 12.00"), "{reason}");
+}
+
+#[test]
+fn money_in_is_never_replayed_by_the_wallet_limits() {
+    let (mut r, ..) = runtime(true);
+    let (seller, peer) = setup(&mut r, Side::Seller);
+    agree(&mut r, &seller, &peer);
+    assert_eq!(
+        r.pipeline.wallet.ledger.get_deal(seller.id).unwrap().state,
+        DealState::Agreed
+    );
+    let (_, deals) = agreed_purchases(&mut r, &[1000]);
+    let s = r.envelope_simulate(limits_draft(1, 1, 1)).unwrap();
+    assert_eq!(ids(&s), vec![deals[0].id]);
+}
+
+#[test]
+fn an_unsignable_draft_is_refused_as_signing_refuses_it_and_nothing_is_replayed() {
+    let (mut r, ..) = runtime(true);
+    agreed_purchases(&mut r, &[1000]);
+    let zero = limits_args(100_000, 100_000, 0);
+    let mut euro = limits_args(100_000, 100_000, 5);
+    euro.max_held = Money::new(100_000, Currency::EUR).unwrap();
+    let mut past = limits_args(100_000, 100_000, 5);
+    past.expires = 50;
+    for args in [zero, euro, past] {
+        let simulated = r
+            .envelope_simulate(EnvelopeSimulateArgs {
+                draft: args.clone(),
+                from: None,
+                to: None,
+            })
+            .unwrap_err();
+        let signed = r.sign_envelope(args).unwrap_err();
+        assert!(
+            matches!(simulated.code, ErrorCode::Refused),
+            "{simulated:?}"
+        );
+        assert_eq!(simulated.message, signed.message);
+    }
+    // A window that is backwards or longer than a month is malformed input, as for rules.
+    for (from, to) in [(200, 100), (0, 32 * 86_400)] {
+        let error = r
+            .envelope_simulate(EnvelopeSimulateArgs {
+                draft: limits_args(100_000, 100_000, 5),
+                from: Some(from),
+                to: Some(to),
+            })
+            .unwrap_err();
+        assert!(matches!(error.code, ErrorCode::Invalid), "{error:?}");
+    }
+    assert_eq!(r.pipeline.wallet.ledger.next_envelope_version().unwrap(), 1);
+}
+
+#[test]
+fn the_rules_what_if_says_what_the_limits_in_force_say_as_the_live_check_does() {
+    let (mut r, ..) = runtime(true);
+    let (mandate, deals) = agreed_purchases(&mut r, &[1000, 1200]);
+    // Signed after both agreed: one deal a day.
+    r.sign_envelope(limits_args(100_000, 100_000, 1)).unwrap();
+    let s = r
+        .mandate_simulate(MandateSimulateArgs {
+            draft: MandateSignArgs {
+                id: Some(mandate),
+                agent: AgentSlot::Shopper,
+                clauses: clauses(Side::Buyer, DealKind::Purchase),
+                not_before: 0,
+                expires: 1_000_000,
+            },
+            from: None,
+            to: None,
+        })
+        .unwrap();
+    assert_eq!(line(&s, deals[0].id).before, SimulatedVerdict::Allow);
+    let second = line(&s, deals[1].id);
+    let (clause, reason) = refused(&second.before);
+    assert_eq!(clause, ENVELOPE_CLAUSE);
+    assert!(reason.contains("deals agreed today"), "{reason}");
+    assert_eq!(second.after, second.before);
+    // The live check on each deal answers exactly that.
+    for deal in &deals {
+        r.select_signer(deal.id).unwrap();
+        let live = match r
+            .pipeline
+            .wallet
+            .check_mandate(deal.id, Category::Parts, r.clock.now())
+        {
+            Ok(MandateDecision::Allow) => SimulatedVerdict::Allow,
+            Ok(MandateDecision::Ask { clause }) => SimulatedVerdict::Ask { clause },
+            Err(table_app::Error::Refused(refusal)) => SimulatedVerdict::Refuse {
+                clause: refusal.clause,
+                reason: refusal.reason,
+            },
+            Err(other) => panic!("{other:?}"),
+        };
+        assert_eq!(line(&s, deal.id).before, live);
+    }
+}
+
+#[test]
+fn the_limits_what_if_writes_nothing_signs_nothing_and_calls_no_paypal() {
+    let (mut r, _, http, ..) = runtime(true);
+    let (_, deals) = agreed_purchases(&mut r, &[1000, 1200]);
+    r.sign_envelope(limits_args(100_000, 100_000, 10)).unwrap();
+    let snapshot = |r: &Runtime| {
+        let ledger = &r.pipeline.wallet.ledger;
+        (
+            ledger.next_envelope_version().unwrap(),
+            ledger.audit_count().unwrap(),
+            deals
+                .iter()
+                .map(|d| ledger.paypal_call_count(d.id).unwrap())
+                .collect::<Vec<_>>(),
+            serde_json::to_value(ledger.list_deals().unwrap()).unwrap(),
+        )
+    };
+    let before = snapshot(&r);
+    let s = r.envelope_simulate(limits_draft(1500, 100_000, 1)).unwrap();
+    assert_eq!(s.lines.len(), 2);
+    r.envelope_simulate(limits_draft(100_000, 100_000, 0))
+        .unwrap_err();
+    assert_eq!(snapshot(&r), before);
+    assert_eq!(before.0, 2);
+    assert!(http.0.lock().unwrap().paths.is_empty());
+}
+
+#[tokio::test]
+async fn only_the_approval_window_tries_limits_and_it_needs_no_token_or_unlock() {
+    let (mut r, ..) = runtime(true);
+    agreed_purchases(&mut r, &[1000, 1200]);
+    let (actor, _) = spawn(r);
+    for label in ["main", "tumbler", "elsewhere"] {
+        let error = actor
+            .execute::<MandateSimulation>(
+                caller(label, None),
+                Action::EnvelopeSimulate(limits_draft(100_000, 100_000, 1)),
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(error.code, ErrorCode::Permission), "{label}");
+    }
+    // Idle-locked, no capability token: it moves nothing, so the limits sheet gets its answer.
+    let s: MandateSimulation = actor
+        .execute(
+            caller("approval", None),
+            Action::EnvelopeSimulate(limits_draft(100_000, 100_000, 1)),
+        )
+        .await
+        .unwrap();
+    assert_eq!(s.lines.len(), 2);
+    assert!(matches!(
+        s.lines[1].after,
+        SimulatedVerdict::Refuse { clause: 0, .. }
+    ));
+}

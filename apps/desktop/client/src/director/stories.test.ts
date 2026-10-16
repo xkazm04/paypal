@@ -50,6 +50,10 @@ describe('choosing a story', () => {
 
   it('puts First run’s own page in the first-run world, and leaves Maya’s address alone', () => {
     expect(directorSearchFor(STORIES.maya, '?beat=2')).toBeNull();
+    // Maya's beats name her deals: a sized sample has none of them, so her page leaves it (#20)
+    expect(directorSearchFor(STORIES.maya, '?scale=large&beat=2')).toBe('?beat=2');
+    expect(directorSearchFor(STORIES.maya, '?scale=small')).toBe('');
+    expect(frameUrls(STORIES.maya, 'large').main('#d=D-0193')).toBe('index.html#d=D-0193');
     expect(directorSearchFor(STORIES['first-run'], '?story=first-run&beat=2')).toBe('?story=first-run&beat=2&first_run=1');
     expect(directorSearchFor(STORIES['first-run'], '?story=first-run&first_run=1')).toBeNull();
   });
@@ -98,9 +102,14 @@ describe('the First run beat file', () => {
     expect(JSON.stringify(FIRST_RUN_BEATS)).not.toMatch(/countersign|capture|owner_accept|shield_release|rescue_approve|open_paypal|mandate_sign|unlock|deal_void|"lock"/i);
   });
 
-  it('leaves Maya’s week as it was: 22 beats, the last caption ending at 182 s', () => {
-    expect(BEATS).toHaveLength(22);
+  // Re-pinned deliberately (polish A): two beats were added inside the same 182 s - a module summary
+  // (silence-tables, at 78 s) and the Rewind (end-rewind, at 155 s) - in gaps the reading-time rule
+  // already allowed; no other beat, time or action changed.
+  it('keeps Maya’s week at 182 s: 24 beats, with a module summary and the Rewind among them', () => {
+    expect(BEATS).toHaveLength(24);
     expect(SCRIPT_LENGTH).toBe(182);
+    expect(BEATS.find((b) => b.id === 'silence-tables')?.do).toContainEqual({ do: 'main', open: true, route: '#m=tables' });
+    expect(BEATS.find((b) => b.id === 'end-rewind')?.do).toContainEqual({ do: 'main', open: true, route: '#r=rewind' });
   });
 });
 

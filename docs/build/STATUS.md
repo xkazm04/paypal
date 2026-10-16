@@ -1065,7 +1065,7 @@ which is never returned as a private key. `first_run` is true until a mandate ex
 | engine_select | config: main | EngineSelectArgs -> null | Scripted selection persists; native selection returns UNAVAILABLE. |
 | agent_start | main | AgentStartArgs -> RunSnapshot | Mandate-bound run; scripted checked read available, native conformance gated. Four runs maximum, one per deal. |
 | agent_runs | read: main | null -> RunSnapshot[] | Active runs and up to 64 completed summaries; no raw model text. |
-| resume_all_agents | main | null -> null | Clears sticky pause; requires an explicit later start. |
+| resume_all_agents | main | null -> ResumeReport | Clears sticky pause and lists the tables waiting on our agent (projection allows send/accept, no run, not let lapse), soonest deadline first; starts none: each restart is an explicit agent_start. |
 | market_refresh | approval + token + unlocked + selected | MarketRefreshArgs -> MarketRef | Real Channel3 client using keyring key; rechecks terms/mandate/currency after IO. Live fetch unverified. |
 | attention_list | read: all | null -> AttentionSnapshot | Real sorted gate/hold projection; approval sees selected deal only. Above-threshold buyer counters become GATE; stable labels and optional wallet_spend_today_currency included. |
 | main_open | route: main/tumbler | MainRoute -> null | Shows Main and restores/emits route. |
@@ -2078,7 +2078,7 @@ Ids are the ones on main.
 - **f870297:** `Ledger::reject_inbox` rejects a batch of one deal and one generation in one transaction and appends one `envelope.rejected` row holding the generation, the count, the raw-message digests and the reason; `finish_inbox(false)` is a batch of one.
 - **6f7beb3:** `consume_inbox` collects a pass's refused messages and rejects them one batch per deal and generation.
 - **Gates.** The merge gate's cargo test passed (run 43982be1). The App Master measured `cargo fmt --all --check` exit 0 on main at 6f7beb3. The builder reported clippy clean.
-- **Open:** C-9c. The HOUSE (`services/house-seller/src/hosted.rs`) still writes one row per message; it needs an inbox test harness.
+- **Open:** none. C-9c is closed by the HOUSE inbox entry at the end of this file (challenge-2026-10-15).
 
 ## Deal-to-settlement rework C, parts 1 and 2 (2026-10-10; DECISIONS.md sections 34 and 35)
 
@@ -2356,3 +2356,155 @@ refusal on Capture are unchanged.
   unusable name), robustness-3 (no render test), robustness-4 and craft-12.
 - **Typecheck fix.** On main at 24a17ca the Director's client vitest was green (1070) and tsc failed on
   `notices.test.ts`:38-39 (indexed access, `found[0]`); this commit fixes those two lines with `found[0]!`.
+
+## Inspector (`npm run tauri:dev:test`)
+
+Test-only source inspector, modelled on the Personas DevInspector. `npm run tauri:dev:test` (repo
+root) builds the client with `THE_TABLE_INSPECTOR=1`/`VITE_INSPECTOR=1` (a Babel pass stamps host JSX
+with `data-loc`, `apps/desktop/client/scripts/babel/`), then `cargo run -p table-desktop`. In any
+window press **Ctrl+Shift+L** to arm: hover highlights, right-click copies `src/...File.tsx:LINE`
+(Alt+right-click the innermost element), Esc exits. Nothing is stamped or bundled in any other build
+(the overlay is behind a build-time flag in `src/lib/mount.tsx`). No dev server: the shell embeds
+`client/dist` and the CSP is `script-src 'self'`. New dev dependency: `@babel/core` (client).
+
+## UI sweep (2026-10-13, scan-sweep UI lenses over the four client contexts)
+
+35 findings built across client-foundation, main, tumbler and approval windows (copy that named internals,
+unannounced states, cut-off hints, pressed/disabled/forced-colors states, `useQuery` no longer shows a
+previous deal's answer after the arguments change). Uncommitted in the working tree. Not built, needs a
+coordinated change: `clockLabel` saying "today/tomorrow", controls under 24px (`--ctl-sm`, `.ui-chip`),
+keyboard access to the Dial beads, `.ui-hint.gold` tint, `HoldButton` on-screen Space hint, `StepAction`
+arrow glyphs read aloud. Not looked at on screen yet.
+
+## calm-nested-ui WP4: Set up page and docked approval
+
+- Main has a Set up page (`#s=setup&step=keys|rules|practice|agent|unlock`, `windows/main/setup/SetupPage.tsx`). Keys, rules and unlock hand off with `approval_open`; practice reuses the pairing wizard; the agent step is the engine picker. The page advances on the step's own state (settings:changed, pairing:pinned, idle-lock), never on a click.
+- The Tumbler welcome opens Main with `main_open` and leaves a short-lived note in same-origin storage (`table.setup-intent`, `lib/firstRun.ts`); Home's `useStartActions` follows it to the Set up page. No new IPC command.
+- Docking (`native/routing.rs`, `surface.rs`): when Main is visible and not minimised, the approval window is created as Main's child (`WebviewWindowBuilder::parent`, an owned window on Windows) and centred over it (`docked_approval_rect`, unit-tested). Otherwise it opens beside its opener as before.
+- UNVERIFIED without the native window: the owned-window z-order and focus return, and that the approval window handing the focus back is seen as "closed without finishing" (the page listens for Main's `focus`). `cargo fmt` and `clippy` are not installed for the aarch64 toolchain here; the Rust was formatted by hand.
+
+## Scale fixtures and the current app at scale (2026-10-13; client only)
+
+- `?scale=small` and `?scale=large` open the browser preview on one of two sized sample worlds (`apps/desktop/client/src/mock/scale.ts`, parsed in `src/lib/preview.ts` next to `first_run`; `first_run=1` wins when both are given; own storage key and channel per scale; every window the mock opens, the director's frames and the preview badge ("Preview · sample data · large sample") carry it). Pure and seeded (no clock, no `Math.random`): the header of `scale.ts` states the numbers, `scale.test.ts` pins them (small: 12 deals, 2 waiting, Tables empty; large: 500 deals, 44 waiting, 195 counterparties, 5,000 ledger rows, 8 rules in force, a $48,000.00 hold, a 40-round haggle, a nine-clause rule).
+- `node scripts/export-scale-fixtures.mjs --out <dir>` writes `small.json`, `large.json`, `small.js` / `large.js` (`window.TABLE_SCALE_SMALL` / `_LARGE`) and `SCALE.md`, built at 2026-10-13T14:30:00Z and byte-identical on every run (also under another `TZ`). It loads the TypeScript through Vite (the `@bindings` alias), not Node's type stripping.
+- `docs/build/SCALE-FINDINGS.md`: what the current app does at both sizes. Fixed in `windows/main`: displays read in batches (live deals first) instead of all-or-nothing, a label deep link waits for its labels, the audit trail lists no row twice, long counterparty names stay inside their Tables card. Left, with severity: the Outlook and "paid out today" figures, "This week" pages that list 90 days, Home dial crowding, 9,800 px Rescue pages, the Shield matrix width, the per-deal `deal_evidence` fan-out.
+- Deviations: the large world is USD only (mandates, wallet limits and the exposure fold are per currency; one currency keeps every total comparable). The small world has 3 signed rules (shop, rescue, purchases), not 2, so Spend is not empty by accident.
+- UNVERIFIED: the real shell's cost per `deal_display` / `deal_evidence` read (the mock adds 40 ms a call), the native window at scale, anything past 500 deals, 99+ badge treatment (no count in the large world passes 44).
+- No dependency added. Offline, no network, no native run.
+
+## Console rebuild (2026-10-14; client only; DECISIONS.md section 40)
+
+The main window is rebuilt as the Calibre "Seal" console (spark `table-console-rebuild`, design
+record `prototype/console-calibre/`), on branch `worktree-spark-table-console-rebuild` forked from
+`baseline/pre-rebuild` (859fa04). Nothing is on `main` yet. Builder notes, with file lists and
+parity tables: `docs/build/rebuild/{wp1a,wp1b,wp2,wp25,wp3a,wp3b,wp3c,wp4a,wp4b,wp4c}.md`.
+
+**What was built, per package**
+- **WP0** (b30ed72): `@tanstack/react-query` and `@tanstack/react-virtual` added, the unused
+  `zustand` removed.
+- **WP1a** (3382e59): Calibre tokens v3 (night default, day), motion tokens in CSS and
+  `design/motion.ts`, two bundled OFL fonts, the console kit in `shared/ui` (Stack, TabStrip,
+  ModuleTab, FilterChips, Facts, ListShell, HoldGesture, Presence), the brand layer `shared/brand`
+  (Seal, Mark, Rosette, Graticule, KeyArt, DialStrip) as React elements, no innerHTML.
+- **WP1b** (761faa2): the query layer `lib/data/*` (one key per read, NAMED/FRESH policies, a 10 s
+  time limit, a read budget, ONE event-to-invalidation map, coalescing with one trailing read),
+  narrow World selectors (a consumer re-renders only on its slice), `useWindowedRows`,
+  `formatCount` (99+) / `formatTally`, error boundaries per window, layer and panel, the stale
+  banner. `useQuery` keeps its signature. A 10-event burst at 500 deals: 339 reads before, 4 after.
+- **WP2** (069d31d): the console frame (top bar, crumbs, Find, keyboard map, Escape chain, focus
+  and scroll restore, calm motion, footer), the decision centre (one decision at a time in Rust's
+  order, the "If you do nothing" line, ONE gold action that calls only `approval_open`, facts strip,
+  seal presence, the small Dial as a bead strip, the stack row), the waiting list, the Charter (Set
+  up as five lines; privileged steps hand off). Every older hash deep link still parses.
+- **WP2.5** (2363ce0): the layer registry (`console/layers*.ts`), `ModuleLayer`, `ListEngine`
+  (search, filter counts in one pass, sort, windowed rows), row parts, the scale smoke harness.
+  Rules, Connections, Settings, pairing and the safety record became layers (the Sheet is gone).
+- **WP3a/b/c** (2bad28a): the six modules (summary plus nested views), the deal page, Rewind, Agent
+  rules and Wallet limits, Connections and pairing, Settings, the safety record, each with a parity
+  table in its note (every old feature within three moves, or a recorded cut).
+- **WP4a** (0fe967c): the Latest strip on every module and short place (no dead band), nested views
+  in the URL (`&v=` on places, `&dv=` on a deal), two-step lists (click picks, Enter opens), dead
+  code removed (`legacy.tsx`, `Modules.tsx`, `modules/common.tsx`, `evidence.ts`, `art.ts`), a11y,
+  perf and resilience tests.
+- **WP4b** (0fe967c): the approval window as a front sheet of the console (graticule ground, bar
+  with "Back to The Table", calibrated plate, corner seal, facts strip) and the Tumbler in the
+  Calibre tokens. `HoldButton` keeps its API with `HoldGesture` inside. The approval window now
+  follows the stored theme and calm choice (before: always dark).
+- **WP4c**: the director (Maya's week, First run) brought onto the console (`takes --check`: 22 of
+  22 and 15 of 15 beats show their end state; stories, beat times and actions unchanged), and the
+  docs (this section, DECISIONS 40, UX-GUIDE / UX-AUDIT, README, window-duality,
+  preview-and-director, SCALE-FINDINGS).
+
+**Gates.** No Rust, `bindings/`, authority table, capability or `PINNED_MANIFEST` change:
+`git diff --stat 859fa04 -- crates bindings apps/desktop/src-tauri` is empty. Client at the WP4a /
+WP4b hand-off: `pnpm typecheck` clean, `pnpm exec vitest run` 143 files / 1488 tests passed,
+`pnpm build` passes; WP4c's own runs and `takes --check` are in `docs/build/rebuild/wp4c.md`.
+Guards that bite: `console/guard.test.ts` (no release command named under `windows/main`; the
+centre's only mutation is `approval_open`), the scale smoke over every layer at 500 deals,
+`lib/contrast.test.ts` and `design/tokens.test.ts` (AA in both themes), the words guards per area
+(PayPal is the only vendor, no internals). Perf (browser mock, 40 ms a call, 1280 x 800): the centre
+in 533 / 600 ms (small / large), a cold module summary in 633 to 706 ms, a module from the centre in
+37 to 70 ms; DOM per layer under 600 nodes at 500 deals.
+
+**Scale findings fixed** (`docs/build/SCALE-FINDINGS.md`, rebuild column): 7, 8, 9, 10, 11, 12,
+13, 14, 15, 16, 18, 19, 20, 21; 1 to 6 stay fixed; 17 is fixed in the client (visible-only reads
+through the shared cache) and stays open as a batched read, which needs IPC.
+
+**Dependencies.** Added `@tanstack/react-query` 5.104.2 and `@tanstack/react-virtual` 3.14.18 (MIT,
+mainstream): they replace the hand-built `useQuery` cache (dedupe, coalescing, stale data kept on
+a failed refetch) and give windowed lists without a home-grown virtualiser. Removed `zustand` (no
+importer). Fonts, committed as files (no package): Archivo 2.001 (Omnibus-Type) and Sofia Sans
+4.101 (Lettersoup), SIL OFL 1.1, woff2 latin + latin-ext, 235,184 B in all (Archivo 176,344 B,
+Sofia Sans 58,840 B), licences at `apps/desktop/client/src/assets/fonts/{archivo,sofia-sans}/OFL.txt`;
+`tnum` checked, no `zero` (no slashed zero). Served from the bundle, no runtime network.
+
+**Deviations from the plan or the prototype**
+- Hold is Space only, as the shipped rule; the WP1a brief said Space or Enter.
+- Wallet limits' "Change limits" opens the approval window's owner page (`approval_open` with no
+  target): `ApprovalTarget` has no limits target and bindings are frozen.
+- The Book's statement filter is dropped (it needs every row's evidence, the #17 cost); each row
+  carries its statement chip and the "PayPal agrees" card lists what is not on the statement.
+- The Circuit picture (wires, inspector, breaker) is removed: each part's facts live in Settings and
+  Connections, the breaker is the Pause button. "Rule numbers" and the deal's "Rules id" are not
+  shown (no clause numbers on screen).
+- The approval window's strip says "the one place money is approved" (not "authorised").
+- A deal's own view is `&dv=` (`&v=` after `&m=` already meant the module view it came from).
+- Footer "Paid out today" counts only money PayPal collected; Wallet limits' meter is "Budget used
+  today" (the day's budget, `out_today`), and both are shown side by side there.
+
+**Open items** (from the package notes, still open)
+- About 300 displays are re-read after any ledger change at 500 deals (needs a row timestamp or a
+  batch read in Rust); `counterparty_note` still refreshes on every `deal:changed`, coalesced
+  (WP1b 1, 2).
+- A degraded deal shows its raw `item_ref` as the fallback title; the `wallet:error` toast shows the
+  event's own message (WP2 6, 7).
+- The bead strip wraps to five rows on the large world at 1280 px (WP2.5 5).
+- PayPal references (order / hold / payment ids) sit behind a closed disclosure in the panes: keep
+  or cut (WP3a 2); the order pane shows the payee as the mock gives it (WP3a 5).
+- Settings writes notifications from Main through `settings_write` from a fresh read (WP3c 3); the
+  tour cannot be replayed on a set-up wallet (WP3c 6); "Check a proof file" is only in the Book
+  (WP3c 5); the Rewind's ticks are pointer targets only, the tape is their keyboard path (WP3c 4).
+- The Latest strip's minimum of three rows makes modules scroll a little at 1280 x 800; small Rescue
+  leaves 96 px at 1920 (WP4a 2, 3). `ModuleTab` has no `tabbable` prop (WP4a 4). The deal's Details
+  shows the engine id next to the run badge (WP4a 5). A narrow-window pick is lost on reload (WP4a 6).
+- The Tumbler stack form shows a sliver of its fourth row; `frame.css` keeps v2 rem atoms (WP4b 3, 4).
+- `windows/main/legacy.css` is still loaded by the main window; `lib/lazy.ts` has a stale doc comment.
+
+**UNVERIFIED** (nothing new beyond these): whether the approval window should land on its limits
+section (no target exists); the real shell's cost per `deal_display` / `deal_evidence` read; the
+`--pp-*` brand constants (as before).
+
+**Known gaps.** Not run in the native shell (Tauri) with the new UI: docking, focus return and
+window geometry are as built in calm-nested-ui WP4 and not re-checked. The demo video is not
+re-recorded (the takes rig passes its check; record after the merge). No screen-reader session.
+The merge back to `main` is the Director's (merge-ready by 2026-11-03, abandon on 2026-10-30 if at
+risk).
+
+### Tray icon (2026-10-15)
+The tray icon is now the Calibre logo at 32 px (`apps/desktop/src-tauri/icons/tray.rgba`), with a gold dot variant when a deal needs the owner (`tray-attention.rgba`), embedded with `include_bytes!` in `native.rs` (length checked at compile time; no new dependency). Regenerate with `python branding/build-tray.py`. Masters, concepts and the icon build script are in `branding/` (see `branding/README.md`). Verified: `cargo fmt`, `cargo clippy -p table-desktop`; the tray was not checked on macOS or Linux (Windows shell only).
+
+### Scoreboard as witness (challenge-2026-10-15, house-seller-service B)
+The public scoreboard now proves extension, not just non-shrinkage: its head check asks `GET /v1/house/prefix` at this browser's newest shorter look and verifies the house's signature (a rewritten-then-longer record reads "Rewritten"); "Check a head you kept" compares a wallet proof file's heads (or a saved look) with the live record in the browser; "Save this look" downloads the signed head the page checked for `table-verify --head`. Rules in `services/house-seller/src/scoreboard/witness.js` (served at `/house/witness.js`), tested with `node --test services/house-seller/src/scoreboard/witness.test.mjs` (helpers and the page's own load path). Closes the T9 deviation "scoreboard head consistency covers only this browser's earlier looks". UNVERIFIED: not opened in a real browser this pass (node WebCrypto Ed25519 only).
+
+### One relay inbox pass (challenge-2026-10-15, house-seller-service A)
+The wallet runtime and the HOUSE now run one inbox pass, `table_app::drain_inbox`; each supplies only its per-message policy. Closes C-9c: a hostile buyer's junk costs the public HOUSE record one `envelope.rejected` row per deal and mailbox generation, not one per message, and a HOUSE ledger fault no longer ends the tick before negotiation and reporting. Tests: `cargo test -p table-app --test inbox` (5), `house_tests` junk-batch and two-deal cases plus an off-schedule OFFER still declined through the relay; the C-9b wallet tests pass unchanged. UNVERIFIED: the HOUSE tick continuing after a real SQL fault has no fault-injection seam; it is covered by the shared pass's test only.

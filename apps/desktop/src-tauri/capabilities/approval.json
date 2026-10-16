@@ -46,6 +46,7 @@
     "allow-rescue-book",
     "allow-rescue-watch-add",
     "allow-rescue-watch-stop",
-    "allow-counterparty-revoke"
+    "allow-counterparty-revoke",
+    "allow-envelope-simulate"
   ]
 }

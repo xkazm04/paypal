@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { ArgsOf, CommandName, EventName, InvokeOptions, PayloadOf, ResultOf } from './contract';
 import { WalletError, toWalletError } from './contract';
+import { useCommand } from './data/query';
+
+export { useCommand, type CommandRead, type ReadOptions } from './data/query';
 import { backend } from './runtime';
 import { onClockChange } from './clock';
 import { nowUnix } from './format';
@@ -30,51 +33,18 @@ export type Query<T> = {
 };
 
 /**
- * Read command with refetch. Events are projections, not retained state: subscribe first,
- * then fetch (STATUS handoff), and refetch whenever one of `refreshOn` fires.
+ * Read command with refetch, on the query layer (lib/data): one cache entry per read shared by every
+ * component that asks for it, events turned into coalesced invalidations (lib/data/invalidation.ts
+ * plus `refreshOn`), a 10 s time limit per read, and the last good answer kept when a refetch fails.
+ * An answer is never shown under other arguments (a deal switch), and a slow old answer cannot
+ * overwrite a newer one. The return shape and the call signature are the ones the views were built on.
  */
 export function useQuery<K extends CommandName>(
   cmd: K,
   args: ArgsOf<K>,
   opts: { refreshOn?: EventName[]; enabled?: boolean; token?: string } = {},
 ): Query<ResultOf<K>> {
-  const [data, setData] = useState<ResultOf<K>>();
-  const [error, setError] = useState<WalletError | null>(null);
-  const [loading, setLoading] = useState(true);
-  const key = JSON.stringify(args);
-  const enabled = opts.enabled ?? true;
-  const token = opts.token;
-
-  const refetch = useCallback(async () => {
-    if (!enabled) return;
-    try {
-      const r = await backend().invoke(cmd, JSON.parse(key) as ArgsOf<K>, token ? { token } : undefined);
-      setData(r);
-      setError(null);
-    } catch (e) {
-      setError(toWalletError(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [cmd, key, enabled, token]);
-
-  useEffect(() => {
-    const offs: Array<() => void> = [];
-    let dead = false;
-    for (const ev of opts.refreshOn ?? []) {
-      void backend()
-        .listen(ev, () => void refetch())
-        .then((u) => (dead ? u() : offs.push(u)));
-    }
-    void refetch();
-    return () => {
-      dead = true;
-      offs.forEach((u) => u());
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refetch, (opts.refreshOn ?? []).join('|')]);
-
-  return { data, error, loading, refetch };
+  return useCommand(cmd, args, opts);
 }
 
 export type Mutation<K extends CommandName> = {
@@ -103,7 +73,8 @@ export function useMutation<K extends CommandName>(cmd: K): Mutation<K> {
     },
     [cmd],
   );
-  return { run, pending, error, reset: () => setError(null) };
+  const reset = useCallback(() => setError(null), []);
+  return useMemo(() => ({ run, pending, error, reset }), [run, pending, error, reset]);
 }
 
 /** A ticking Unix-seconds clock for countdowns. Countdowns are computed from absolute

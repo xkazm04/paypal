@@ -1,5 +1,6 @@
 // Small pieces shared by the setup sheet's three tabs: the hand-off to the approval window, the
 // "who may set this" chip, an ⓘ button that opens a Popover, and chips from the pure Circuit tones.
+import { NOTICE_WHAT } from '../../../lib/words';
 import { useState, type ReactNode } from 'react';
 import type { H256 } from '@bindings/H256';
 import { WalletNotice } from '../../../shared/honesty';
@@ -28,7 +29,7 @@ export function Handoff({ label, kind = 'gold', sm = true, locked, pairing, targ
         title={title ?? (locked ? 'Idle-locked: the approval window asks for Windows Hello first' : 'Opens the approval window')}>
         {label} ↗
       </Btn>
-      {open.error ? <WalletNotice error={open.error} what="Approval window" /> : null}
+      {open.error ? <WalletNotice error={open.error} what={NOTICE_WHAT.approval} /> : null}
     </>
   );
 }

@@ -404,6 +404,41 @@ impl Runtime {
         }
         Ok(Some(snapshot))
     }
+    /// The tables waiting on our agent at `now`, soonest deadline first: an open haggle with no
+    /// run on it and no "let it lapse", under an active mandate, where the agent may send or
+    /// accept an offer now. That is the projection's `allowed`, the predicate the wallet runs
+    /// before every intent, so the list is ground truth whatever stopped the last run (pause,
+    /// quit, a failed or expired run). It is read only: nothing here starts a run.
+    pub(crate) fn waiting_on_agent(&self, now: i64) -> Result<Vec<WaitingTable>, CommandError> {
+        let ledger = &self.pipeline.wallet.ledger;
+        let mut waiting = Vec::new();
+        for deal in app(ledger.list_deals())? {
+            if deal.kind != DealKind::Haggle
+                || deal.mode == Mode::Replay
+                || deal.state.terminal()
+                || self.runs.values().any(|r| r.scope.deal_id == deal.id)
+                || app(ledger.preference::<bool>(&format!("lapse.{}", deal.id)))?.unwrap_or(false)
+            {
+                continue;
+            }
+            // A retired mandate (or one that cannot be read) projects nothing: not restartable.
+            let Ok(view) = self.pipeline.wallet.projection(&deal, now) else {
+                continue;
+            };
+            if view
+                .allowed
+                .iter()
+                .any(|t| matches!(t, AgentTool::SendOffer | AgentTool::AcceptOffer))
+            {
+                waiting.push(WaitingTable {
+                    deal_id: deal.id,
+                    deadline: view.deadline,
+                });
+            }
+        }
+        waiting.sort_by_key(|w| (w.deadline, w.deal_id));
+        Ok(waiting)
+    }
     pub(crate) fn cancel_runs(&mut self) -> Result<(), CommandError> {
         let mut failure = None;
         for run in self.runs.keys().copied().collect::<Vec<_>>() {

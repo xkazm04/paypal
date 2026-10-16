@@ -69,7 +69,11 @@ ladder, and [approval-window.md](./approval-window.md) and
    (`deal_id`, `attempt`, `terms_hash`, `checks_hash`, `counter_hash?`). Rust compares these with
    the current deal and checklist before minting a 60-second `OwnerTicket`. The client never
    supplies a URL, a secret, or a decision Rust did not check.
-7. **Events are targeted.** `EventContract` names each event and its windows. Examples:
+7. **Events are targeted.** `EventContract` names each event; its row in the authority table's
+   `EVENTS` names the windows told it. The shell sends every event through one helper,
+   `emit(app, WindowEvent::..)`, which reads that row (a source scan in
+   `src-tauri/tests/capabilities.rs` fails on a hand-written `emit_to` label), and the mock
+   delivers by the generated `EVENT_AUDIENCE`. Examples:
    - `attention:changed` → main and tumbler;
    - `approval:summary` → approval only;
    - `deal:changed` and `pairing:pinned` → main only;
@@ -78,12 +82,13 @@ ladder, and [approval-window.md](./approval-window.md) and
    Events carry projections, never retained UI state. After a lag, the shell refreshes from
    snapshots.
 8. **Generated, then pinned.** `cargo run -p table-client --bin generate-bindings` writes
-   `bindings/*.ts`, `bindings/authority.ts` (`AUTHORITY`, `AUTHORITY_MANIFEST`) and
+   `bindings/*.ts`, `bindings/authority.ts` (`AUTHORITY`, `AUTHORITY_MANIFEST`, `EVENT_AUDIENCE`) and
    `apps/desktop/src-tauri/capabilities/{main,tumbler,approval}.json`. `build.rs` includes the
    table by `#[path]` and passes `COMMANDS` to Tauri's app manifest. `generate_handler!` stays
    hand-written and is tested against `COMMANDS`. The manifest fingerprint `manifest()` is
-   SHA-256 over `b"table.authority-manifest.v1\0"` plus the JCS of the rows sorted by name. Any
-   change to who may call what changes it. `PINNED_MANIFEST` in `authority.rs` must be updated
+   SHA-256 over `b"table.authority-manifest.v1\0"` plus the JCS of
+   `{"commands": [...], "events": [...]}`, each sorted by name. Any change to who may call what,
+   or who is told what, changes it. `PINNED_MANIFEST` in `authority.rs` must be updated
    in the same change, deliberately. `get_settings` carries it as
    `SettingsSnapshot.authority_manifest`.
 9. **Mock parity.** The browser preview's mock (`apps/desktop/client/src/mock/backend.ts`) gates

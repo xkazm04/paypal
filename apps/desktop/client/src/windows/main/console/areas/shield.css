@@ -1,0 +1,166 @@
+/* Area: shield (rebuild WP3b). Imported only by console/layers/shield.ts; every rule is scoped under
+   the area's root, .ar-shield (the refuse confirm, a sheet, carries the class itself). Tokens only,
+   text never below --fs-small, motion only through the --dur-* / --ease-* tokens. The check marks,
+   price bars, week tiles, comparison and check lights are the old modules/shield.css rules, moved. */
+
+.ar-shield { display: flex; flex-direction: column; flex: 1 0 auto; min-width: 0; min-height: 0; }
+.ar-shield .sh-h { margin: 0; font-size: var(--fs-title2); font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
+.ar-shield .sh-h3 { margin: var(--sp-2) 0 0; font-size: var(--fs-body); font-weight: var(--fw-semibold); color: var(--muted); }
+.ar-shield .sh-howlist { margin: 0; padding-left: var(--sp-4); display: grid; gap: var(--sp-2); }
+.ar-shield .sh-refuse { color: var(--red-l); }
+
+/* ---- one line per checked payment ----------------------------------------------------------------- */
+.ar-shield .sh-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: var(--sp-3); min-width: 0; }
+.ar-shield .sh-lead { display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: var(--r-tight); color: var(--muted); background: color-mix(in srgb, var(--text) 6%, transparent); }
+.ar-shield .sh-row.k-block .sh-lead { color: var(--red-l); }
+.ar-shield .sh-row.k-paused .sh-lead { color: var(--gold-l); }
+.ar-shield .sh-row.k-clear .sh-lead { color: var(--ok); }
+.ar-shield .sh-what { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ar-shield .sh-what > *, .ar-shield .c-who > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ar-shield .sh-sub { color: var(--muted); font-size: var(--fs-small); }
+
+/* ---- a paused payment, beside the list ------------------------------------------------------------- */
+.ar-shield .sh-paused { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.ar-shield .sh-paused .ui-decision { margin: 0; }
+.ar-shield .sh-ctx { display: inline-block; max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.ar-shield .sh-acts { align-items: center; }
+.ar-shield .sh-paused > .ui-hint { margin: 0; }
+
+/* ---- the checks, side by side: one row per payment, a fixed set of columns -------------------------- */
+.ar-shield .sh-checks { display: flex; flex-direction: column; gap: var(--sp-3); flex: 1 1 auto; min-height: 0; min-width: 0; }
+.ar-shield .sh-ctools { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); }
+.ar-shield .sh-unshown { margin: 0; }
+/* each row is its own container: the columns fold by the row's width, not the window's (with the
+   story beside the list a row is narrower), so nothing is ever cut and the page never scrolls sideways */
+.ar-shield .sh-checks .le-row { container-type: inline-size; }
+.ar-shield .sh-crow { display: grid; align-items: center; gap: var(--sp-3); min-width: 0;
+  grid-template-columns: minmax(8rem, 1.5fr) 6.5rem 9rem minmax(6rem, .9fr) minmax(8rem, 1fr) minmax(7rem, .9fr) minmax(8rem, 1fr); }
+.ar-shield .sh-crow > * { min-width: 0; }
+.ar-shield .c-who { display: flex; flex-direction: column; gap: 1px; }
+.ar-shield .c-amt { text-align: right; white-space: nowrap; }
+.ar-shield .c-chk, .ar-shield .c-pp, .ar-shield .c-move { display: flex; flex-direction: column; gap: 1px; font-size: var(--fs-small); }
+.ar-shield .c-chk > *, .ar-shield .c-pp > *, .ar-shield .c-move > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ar-shield .sh-crow small { color: var(--dim); font: var(--fw-semibold) var(--fs-small)/1.1 var(--font); text-transform: uppercase; letter-spacing: var(--track-label); font-stretch: var(--label-stretch); }
+.ar-shield .c-mkt > span { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.ar-shield .c-move > span { color: var(--muted); }
+.ar-shield .c-move.tx-gold > span { color: var(--gold-l); }
+.ar-shield .sh-crow.outcome .c-chk { opacity: .35; }
+@container (max-width: 72rem) { .ar-shield .sh-crow { grid-template-columns: minmax(8rem, 1.5fr) 6.5rem 9rem minmax(6rem, .9fr) minmax(8rem, 1fr) minmax(8rem, 1fr); } .ar-shield .c-pp { display: none; } }
+@container (max-width: 56rem) { .ar-shield .sh-crow { grid-template-columns: minmax(7rem, 1.4fr) 6rem 9rem minmax(6rem, 1fr) minmax(7rem, 1fr); } .ar-shield .c-new { display: none; } }
+@container (max-width: 44rem) { .ar-shield .sh-crow { grid-template-columns: minmax(7rem, 1.4fr) 6rem 9rem minmax(7rem, 1fr); } .ar-shield .c-chk { display: none; } }
+
+/* the picked row's story */
+.ar-shield .sh-story { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.ar-shield .sh-story .kicker { margin: 0; }
+.ar-shield .sh-story .cs-acts { margin-top: var(--sp-2); }
+.ar-shield .sh-how { display: flex; flex-direction: column; gap: var(--sp-3); max-width: 60rem; }
+
+/* ---- moved from modules/shield.css ------------------------------------------------------------------ */
+.ar-shield .tx-gold { color: var(--gold-l); }
+.ar-shield .tx-red { color: var(--red-l); }
+.ar-shield .tx-ok { color: var(--ok); }
+.ar-shield .tx-muted { color: var(--muted); }
+.ar-shield .tx-coral { color: var(--coral-l); }
+.ar-shield .tx-dim { color: var(--dim); }
+.ar-shield .ui-btn.plain.tx-red { color: var(--red-l); }
+.ar-shield .notechip { flex: none; }
+.ar-shield .r-fact { color: var(--text); }
+.ar-shield .r-skip { color: var(--gold-l); }
+.ar-shield .r-na { color: var(--dim); }
+.ar-shield .sh-mark { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.ar-shield .sh-mark.r-fact { background: var(--teal); }
+.ar-shield .sh-mark.r-skip { background: repeating-linear-gradient(135deg, var(--gold) 0 2px, transparent 2px 4px); box-shadow: inset 0 0 0 1px var(--gold); }
+.ar-shield .sh-mark.r-na, .ar-shield .sh-unk { outline: 1px dashed var(--dim); outline-offset: -1px; }
+.ar-shield .sh-unk { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.ar-shield .sh-hatch { display: inline-block; width: 22px; height: 14px; border-radius: 3px; flex: none;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--gold) 30%, transparent) 0 3px, transparent 3px 6px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 50%, transparent); }
+.ar-shield .sh-pmini { position: relative; width: 46px; height: 10px; flex: none; }
+.ar-shield .sh-pmini::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 2px; border-radius: 1px; background: var(--line2); }
+.ar-shield .sh-pmini i { position: absolute; top: 0; }
+.ar-shield .sh-pmini .typ { width: 2px; height: 10px; margin-left: -1px; background: var(--market); opacity: .8; }
+.ar-shield .sh-pmini .flag { height: 10px; border-left: 2px dotted var(--refuse); margin-left: -1px; }
+.ar-shield .sh-pmini .px { top: 1px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 2px var(--panel); }
+.ar-shield .sh-pmini.over .px { background: var(--coral); }
+.ar-shield .sh-legend { display: grid; gap: 6px; }
+.ar-shield .sh-legend > span { display: flex; align-items: center; gap: var(--sp-2); }
+.ar-shield .sh-say { margin: var(--sp-2) 0 0; font: var(--fw-semibold) var(--fs-title3)/1.3 var(--font); }
+.ar-shield .sh-det { margin: var(--sp-2) 0; color: var(--muted); }
+.ar-shield .sh-cklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ar-shield .sh-cklist li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 2px var(--sp-2); align-items: center; }
+.ar-shield .sh-cklist li .res { font-size: var(--fs-small); white-space: nowrap; }
+.ar-shield .sh-cklist .stg { display: block; margin-top: var(--sp-2); font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); }
+.ar-shield .sh-mband { position: relative; height: 46px; margin: 22px 6px 4px; }
+.ar-shield .sh-mband .axis { position: absolute; left: 0; right: 0; top: 14px; height: 2px; background: var(--line2); }
+.ar-shield .sh-mband .iqr { position: absolute; top: 9px; height: 12px; border-radius: 3px; background: color-mix(in srgb, var(--market) 20%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--market) 40%, transparent); }
+.ar-shield .sh-mband .med { position: absolute; top: 5px; width: 2px; height: 20px; background: var(--market); }
+.ar-shield .sh-mband .flag { position: absolute; top: 0; height: 30px; border-left: 2px dashed var(--refuse); }
+.ar-shield .sh-mband .px { position: absolute; top: 9px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--coral); box-shadow: 0 0 0 2px var(--bg2); }
+.ar-shield .sh-mband .lab { position: absolute; top: 30px; font-size: var(--fs-small); font-variant-numeric: tabular-nums; color: var(--dim); white-space: nowrap; }
+.ar-shield .sh-mband .lab.top { top: -20px; color: var(--coral-l); }
+.ar-shield .sh-nomarket { border: 1px dashed var(--gold); border-radius: var(--r-sm); padding: 4px 8px; color: var(--gold-l); font-size: var(--fs-small); }
+.ar-shield .sh-l2 { display: grid; gap: var(--sp-3); }
+.ar-shield .sh-l2 h3 { margin: 0 0 var(--sp-1); font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); }
+.ar-shield .sh-steps { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--muted); }
+.ar-shield .sh-steps .ui-chip { vertical-align: 1px; }
+.ar-shield .sh-steps b { color: var(--text); font-weight: var(--fw-semibold); }
+.ar-shield .ui-decision .dc-h .notechip { margin-left: var(--sp-2); }
+.ar-shield .sh-reasons { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px var(--sp-5); }
+.ar-shield .sh-reasons li { display: flex; align-items: center; gap: var(--sp-2); }
+.ar-shield .sh-reasons .ico { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex: none; color: var(--gold-l); background: color-mix(in srgb, var(--gold) 16%, transparent); }
+.ar-shield .sh-row .t1 .tx-dim { font-weight: var(--fw-regular); }
+.ar-shield .sh-wk { list-style: none; margin: 0 0 var(--sp-4); padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3); }
+.ar-shield .sh-tile { --t: var(--teal); --tl: var(--teal-l); display: grid; grid-template-columns: 34px auto minmax(0, 1fr); align-items: center; gap: var(--sp-3); padding: 10px var(--sp-4);
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); }
+.ar-shield .sh-tile.gold { --t: var(--gold); --tl: var(--gold-l); }
+.ar-shield .sh-tile.red { --t: var(--refuse); --tl: var(--red-l); }
+.ar-shield .sh-tile .ico { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: var(--tl); background: color-mix(in srgb, var(--t) 16%, transparent); }
+.ar-shield .sh-tile .n { font: var(--fw-semibold) 34px/1 var(--num); font-variant-numeric: tabular-nums; letter-spacing: -.02em; color: var(--tl); min-width: 22px; }
+.ar-shield .sh-tile.zero .n { color: var(--dim); }
+.ar-shield .sh-tile.zero .ico { color: var(--dim); background: color-mix(in srgb, var(--dim) 14%, transparent); }
+.ar-shield .sh-tile.has.gold, .ar-shield .sh-tile.has.red { border-color: color-mix(in srgb, var(--t) 38%, var(--line)); background: color-mix(in srgb, var(--t) 6%, var(--panel)); }
+.ar-shield .sh-tile .tx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ar-shield .sh-tile .tx b { font-weight: var(--fw-semibold); }
+.ar-shield .sh-tile .tx small { color: var(--dim); font-size: var(--fs-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ar-shield .sh-evid { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: stretch; margin-top: var(--sp-1); }
+.ar-shield .sh-cmp, .ar-shield .sh-lights { background: var(--bg2); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; min-width: 0; }
+.ar-shield .sh-cmp { flex: 1 1 540px; }
+.ar-shield .sh-lights { flex: 1 1 250px; display: flex; flex-direction: column; }
+.ar-shield .sh-cmp table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.ar-shield .sh-cmp col.lab { width: 104px; }
+.ar-shield .sh-cmp th, .ar-shield .sh-cmp td { padding: 6px var(--sp-3); text-align: left; vertical-align: top; font-weight: var(--fw-regular); }
+.ar-shield .sh-cmp thead th, .ar-shield .sh-lights .hd { height: 32px; padding-top: 0; padding-bottom: 0; vertical-align: middle; font-size: var(--fs-small); font-weight: var(--fw-semibold); color: var(--dim); background: var(--panel2); }
+.ar-shield .sh-cmp thead th.here { color: var(--gold-l); background: color-mix(in srgb, var(--gold) 12%, var(--panel2)); }
+.ar-shield .sh-cmp thead .cnt { margin-left: var(--sp-2); padding: 1px 7px; border-radius: 999px; font-weight: var(--fw-medium); color: var(--gold-l); background: color-mix(in srgb, var(--gold) 18%, transparent); }
+.ar-shield .sh-cmp tbody tr + tr > * { border-top: 1px solid var(--line); }
+.ar-shield .sh-cmp tbody th.lab { color: var(--muted); }
+.ar-shield .sh-cmp td .v { display: block; font-variant-numeric: tabular-nums; }
+.ar-shield .sh-cmp td .s { display: block; font-size: var(--fs-small); color: var(--dim); font-variant-numeric: tabular-nums; }
+.ar-shield .sh-cmp td.norm .v { color: var(--muted); }
+.ar-shield .sh-cmp td.here .v { color: var(--text); font-weight: var(--fw-semibold); }
+.ar-shield .sh-cmp td.here.diff { background: color-mix(in srgb, var(--coral) 11%, transparent); box-shadow: inset 3px 0 0 var(--coral); }
+.ar-shield .sh-cmp td.here.diff .v { color: var(--coral-l); }
+.ar-shield .sh-cmp td.here.diff .s { color: var(--coral-l); }
+.ar-shield .sh-cmp td.unk .v { font-weight: var(--fw-regular); color: var(--dim); font-style: italic; }
+.ar-shield .sh-cmp td.unk { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--dim) 7%, transparent) 0 6px, transparent 6px 12px); }
+.ar-shield .sh-cmp .sr, .ar-shield .sh-lights .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ar-shield .sh-lights .hd { display: flex; align-items: center; padding: 0 var(--sp-3); }
+.ar-shield .sh-lights ul { list-style: none; margin: 0; padding: var(--sp-2) var(--sp-3); display: flex; flex-direction: column; justify-content: space-around; gap: var(--sp-2); flex: 1; }
+.ar-shield .sh-lamp { display: flex; align-items: center; gap: var(--sp-3); }
+.ar-shield .sh-lamp .bulb { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; flex: none; color: var(--dim); box-sizing: border-box; }
+.ar-shield .sh-lamp .tx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ar-shield .sh-lamp .tx b { font-weight: var(--fw-semibold); }
+.ar-shield .sh-lamp .tx small { font-size: var(--fs-small); color: var(--dim); }
+.ar-shield .sh-lamp.tripped .bulb { color: var(--coral-l); background: color-mix(in srgb, var(--coral) 20%, transparent); box-shadow: 0 0 0 1.5px var(--coral), 0 0 10px color-mix(in srgb, var(--coral) 40%, transparent); }
+.ar-shield .sh-lamp.tripped .tx small { color: var(--coral-l); font-weight: var(--fw-medium); }
+.ar-shield .sh-lamp.passed .bulb { color: var(--ok); background: color-mix(in srgb, var(--ok) 16%, transparent); box-shadow: 0 0 0 1.5px var(--ok); }
+.ar-shield .sh-lamp.passed .tx small { color: var(--ok); }
+.ar-shield .sh-lamp.skipped .bulb { color: var(--gold-l); background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--gold) 32%, transparent) 0 3px, transparent 3px 6px); box-shadow: inset 0 0 0 1.5px var(--gold); }
+.ar-shield .sh-lamp.skipped .tx small { color: var(--gold-l); }
+.ar-shield .sh-lamp.unknown .bulb { outline: 1.5px dashed var(--dim); outline-offset: -1.5px; }
+.ar-shield .sh-lamp.unknown .tx b { color: var(--muted); font-weight: var(--fw-medium); }
+.ar-shield .sh-reasons .ui-why { margin-left: var(--sp-1); }
+@media (max-width: 1180px) { .ar-shield .sh-wk { gap: var(--sp-2); } .ar-shield .sh-tile { padding: var(--sp-2) var(--sp-3); gap: var(--sp-2); } }@media (max-width: 1180px) { .ar-shield .sh-wk { gap: var(--sp-2); } .ar-shield .sh-tile { padding: var(--sp-2) var(--sp-3); gap: var(--sp-2); } }
+
+/* a short list is drawn at its own height, the picked row's pane beside it at its content's */
+.ar-shield .le.few, .ar-shield .le.few .le-main { flex: 0 1 auto; min-height: 0; }
+.ar-shield .le.few .le-detail { align-self: start; }

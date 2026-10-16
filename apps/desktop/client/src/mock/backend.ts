@@ -35,39 +35,28 @@ import type { MandatePayload } from '@bindings/MandatePayload';
 import type { SimulatedLine } from '@bindings/SimulatedLine';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import { mockCheck, mockValidate, type MockIntent } from './simulate';
-import { mockEnvelopeRefusal, mockExposureView } from './exposure';
+import { mockEnvelopeRefusal, mockExposureView, type MockEnvelope } from './exposure';
+import { AGREED_OR_LATER } from '@bindings/dealStates';
+import type { EnvelopeSignArgs } from '@bindings/EnvelopeSignArgs';
 import type { RescueView } from '@bindings/RescueView';
 import type { Money } from '@bindings/Money';
 import type { Playbook } from '@bindings/Playbook';
 import { RESCUE_NO_RULES, RESCUE_SENT_SILENCE, RESCUE_SILENCE, RESCUE_WATCH_FULL } from '../lib/words';
 import type { RescueWatchView } from '@bindings/RescueWatchView';
 import { invoiceText, leverOf, maskEmail, proposeDiscount, RESCUE_WATCH_MAX, RESCUE_WATCH_READS_DAY, validEmail, validSubscriptionId } from './rescue';
-import { AUTHORITY, AUTHORITY_MANIFEST, type CommandAuthority } from '@bindings/authority';
+import { AUTHORITY, AUTHORITY_MANIFEST, EVENT_AUDIENCE, type CommandAuthority } from '@bindings/authority';
 import { LADDER } from '@bindings/ladder';
-import { buildFirstRunState, firstRunPreview, PRACTICE_TERMS, withFirstRun, worldKeys } from './firstRun';
+import { buildFirstRunState, firstRunPreview, PRACTICE_TERMS, scalePreview, withFirstRun, worldKeys } from './firstRun';
+import { buildScaleState } from './scale';
+import { previewSearch } from '../lib/preview';
 
 type Envelope =
   | { kind: 'event'; event: EventName; targets: WindowLabel[]; payload: unknown }
   | { kind: 'state'; state: MockState }
   | { kind: 'clock'; offset: number };
 
-const TARGETS: Record<EventName, WindowLabel[]> = {
-  'tumbler:handoff': ['tumbler'],
-  'agent:changed': ['main'],
-  'attention:changed': ['main', 'tumbler'],
-  'deal:changed': ['main'],
-  'receipt:created': ['main', 'tumbler'],
-  'settings:changed': ['main', 'tumbler', 'approval'],
-  'wallet:error': ['main', 'tumbler'],
-  'approval:summary': ['approval'],
-  'main:route': ['main'],
-  'tumbler:form': ['tumbler'],
-  'tumbler:orient': ['tumbler'],
-  'tumbler:status': ['main'],
-  'tumbler:selected': ['tumbler'],
-  'tumbler:visual': ['tumbler'],
-  'pairing:pinned': ['main'],
-};
+/** Who is told each event: the Rust authority table's rows (`EVENTS`), generated, never a hand list. */
+const TARGETS: Record<EventName, WindowLabel[]> = EVENT_AUDIENCE;
 
 export const STORE_KEY = 'the-table-mock-state-v18'; // v18: fair-price certificates on the sample market records (market-data-2); v17: agents' refused requests in Maya's week (safety record); v16: the attention ladder's recorded rungs and D-0184's lapse that cites them (attention-ladder-1); v15: D-0190's attention names no rule, as Rust does (polish 3); v14: the owner's watched subscriptions (rescue detection); v13: the shield's rule on each deal and a release bound to its terms (shield slice 2); v12: shop-around groups and the house seller's D-0204 (T8); v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
 const DEGRADE_KEY = 'the-table-mock-degrade';
@@ -130,7 +119,7 @@ const FORM_SIZE: Record<Form, [number, number]> = { rest: [88, 88], tab: [28, 96
 /** Optional compatibility preview for an older shell without the safe projections. */
 function degraded(): boolean {
   try {
-    return new URLSearchParams(location.search).get('degrade') === '1' || localStorage.getItem(DEGRADE_KEY) === '1';
+    return new URLSearchParams(previewSearch()).get('degrade') === '1' || localStorage.getItem(DEGRADE_KEY) === '1';
   } catch {
     return false;
   }
@@ -155,20 +144,26 @@ function fail(code: WalletError['code'], message: string): never {
   throw new WalletError({ code, message });
 }
 
-export function mockBackend(label: WindowLabel): MockBackend {
+/** How a mock window opens another page (lib/runtime.ts passes one in demo mode, so the sample
+ *  approval opens in the main window's demo sheet instead of a window). Default: window.open. */
+export type MockOptions = { open?: (page: string, name: string, features?: string) => void };
+
+export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBackend {
   // ?first_run=1: a brand-new wallet in a world of its own (src/mock/firstRun.ts).
   const firstRun = firstRunPreview();
-  const keys = worldKeys(STORE_KEY, CHANNEL, firstRun);
+  // ?scale=small|large: the same wallet at a realistic size, also a world of its own (src/mock/scale.ts).
+  const scale = scalePreview();
+  const keys = worldKeys(STORE_KEY, CHANNEL, firstRun, scale);
   const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(keys.channel) : null;
   const listeners = new Map<EventName, Set<(p: unknown) => void>>();
   // The preview clock: every mock window reads the same offset (storage on load, the channel after).
   simulateClock();
   setClockOffset(storedOffset());
-  const fresh = () => (firstRun ? buildFirstRunState(nowUnix()) : buildMockState(nowUnix()));
+  const fresh = () => (firstRun ? buildFirstRunState(nowUnix()) : scale ? buildScaleState(scale, nowUnix()) : buildMockState(nowUnix()));
   let state: MockState = load() ?? fresh();
   let lastPrivileged = nowUnix();
   let form: Form = state.settings.preferences.form;
-  const params = new URLSearchParams(location.search);
+  const params = new URLSearchParams(previewSearch());
   // The deal this approval window is bound to; a replayed renewal rebinds it (Rust rescue_replay).
   let selected: string | null = label === 'approval' ? params.get('deal') : null;
   const selectedPairing = label === 'approval' ? params.get('pairing') : null;
@@ -317,6 +312,15 @@ export function mockBackend(label: WindowLabel): MockBackend {
   const limitsNone = params.get('limits') === 'none';
   const envelope = () => (limitsNone ? null : state.envelope ?? null);
   const exposureView = () => mockExposureView(state.deals.map((d) => d.deal), envelope(), nowUnix());
+  // As Runtime::draft_envelope: the limits envelope_sign would sign, or REFUSED with its reason.
+  const draftLimits = (args: EnvelopeSignArgs, now: number) => {
+    const bad = args.max_out_day.currency !== args.currency || args.max_held.currency !== args.currency ? 'currency differs across wallet limits'
+      : args.max_out_day.minor <= 0 || args.max_held.minor <= 0 || args.max_deals_day <= 0 ? 'a wallet limit of zero allows nothing'
+        : args.expires <= now ? 'expires: the wallet limits would already have run out' : null;
+    if (bad) fail('REFUSED', `wallet limit ${bad}`);
+    const version = (state.envelope?.payload.version ?? 0) + 1;
+    return { version, currency: args.currency, max_out_day: args.max_out_day, max_held: args.max_held, max_deals_day: args.max_deals_day, expires: args.expires };
+  };
   // As Runtime::record_rung (attention-ladder-1): a card's rung for its live deadline, once each.
   // Recorded in memory; the next save carries it, and the deadline's sweep cites it.
   function recordRung(a: AttentionItem, rung: LadderRung, reason?: NotifySuppression): void {
@@ -503,7 +507,9 @@ export function mockBackend(label: WindowLabel): MockBackend {
     save();
   }
   function openWindow(page: string, name: string, features?: string): void {
-    window.open(withFirstRun(page, firstRun), name, features);
+    const url = withFirstRun(page, firstRun, scale);
+    if (opts.open) opts.open(url, name, features);
+    else window.open(url, name, features);
   }
 
   const handlers: { [K in CommandName]: (args: ArgsOf<K>, opts?: InvokeOptions) => ResultOf<K> } = {
@@ -549,10 +555,24 @@ export function mockBackend(label: WindowLabel): MockBackend {
     },
     agent_runs: () => state.runs,
     resume_all_agents: () => {
+      // As Runtime::waiting_on_agent: open haggles before their deadline, no live run, whose last
+      // step is not ours (an unanswered offer, or a band with rounds left). Starts nothing.
+      const now = nowUnix();
+      const waiting = state.deals.flatMap((d) => {
+        const deadline = d.display.deadline;
+        if (d.deal.kind !== 'haggle' || d.deal.mode === 'replay' || (d.deal.state !== 'LISTED' && d.deal.state !== 'NEGOTIATING')) return [];
+        if (deadline === null || deadline <= now) return [];
+        if (state.runs.some((r) => r.deal_id === d.deal.id && (r.state === 'running' || r.state === 'starting'))) return [];
+        const latest = [...d.transcript].reverse().find((t) => t.typ !== 'SETTLE' && t.typ !== 'RECEIPT');
+        if (latest?.by === 'you' || latest?.typ === 'WITHDRAW') return [];
+        const offerWaits = latest?.by === 'them' && (latest.typ === 'OFFER' || latest.typ === 'COUNTER');
+        const band = d.display.band;
+        return offerWaits || (band && band.rounds_used < band.max_rounds) ? [{ deal_id: d.deal.id, deadline }] : [];
+      }).sort((a, b) => a.deadline - b.deadline || (a.deal_id < b.deal_id ? -1 : 1));
       state.settings = { ...state.settings, agents_paused: false };
       save();
       emit('settings:changed', state.settings);
-      return null;
+      return { waiting };
     },
     pause_all_agents: () => {
       state.settings = { ...state.settings, agents_paused: true };
@@ -932,6 +952,9 @@ export function mockBackend(label: WindowLabel): MockBackend {
       const id = args.id ?? fakeUlid(`M-${Date.now()}`);
       const prev = state.mandates.filter((m) => m.payload.id === id).reduce((v, m) => Math.max(v, m.payload.version), 0);
       const m = { payload: { id, version: prev + 1, agent_key: fakeHash(`agent:${args.agent}`) as unknown as (typeof state.mandates)[number]['payload']['agent_key'], clauses: args.clauses, not_before: args.not_before, expires: args.expires }, owner_sig: Array.from(fakeHash(`sig:${id}:${prev + 1}`)) };
+      // As Runtime::sign_mandate: the wallet signs only rules its own validate() accepts.
+      const bad = mockValidate(m.payload);
+      if (bad) fail('REFUSED', `mandate clause ${bad.clause}: ${bad.reason}`);
       state.mandates = [...state.mandates, m];
       state.mandateSlots = { ...state.mandateSlots, [id]: args.agent };
       state.settings = { ...state.settings, first_run: false };
@@ -1109,12 +1132,8 @@ export function mockBackend(label: WindowLabel): MockBackend {
     envelope_sign: (args, opts) => {
       privileged(opts);
       const now = nowUnix();
-      const bad = args.max_out_day.currency !== args.currency || args.max_held.currency !== args.currency ? 'currency differs across wallet limits'
-        : args.max_out_day.minor <= 0 || args.max_held.minor <= 0 || args.max_deals_day <= 0 ? 'a wallet limit of zero allows nothing'
-          : args.expires <= now ? 'expires: the wallet limits would already have run out' : null;
-      if (bad) fail('REFUSED', `wallet limit ${bad}`);
-      const version = (state.envelope?.payload.version ?? 0) + 1;
-      const payload = { version, currency: args.currency, max_out_day: args.max_out_day, max_held: args.max_held, max_deals_day: args.max_deals_day, expires: args.expires };
+      const payload = draftLimits(args, now);
+      const version = payload.version;
       state.envelope = { payload, signedAt: now };
       save();
       emit('attention:changed', attention());
@@ -1122,6 +1141,40 @@ export function mockBackend(label: WindowLabel): MockBackend {
     },
     // As Runtime::envelope_view: limits and numbers only, every window.
     envelope_get: () => exposureView(),
+    // As Runtime::envelope_simulate: read-only, approval only, no token or unlock (it moves
+    // nothing). The draft is refused as envelope_sign refuses it; each purchase agreed in the
+    // window is judged at its place in its day (the mock keeps no agreement order: deals of the
+    // same day created earlier stand in), by the limits in force and by the draft.
+    envelope_simulate: ({ draft, from, to }) => {
+      const now = nowUnix();
+      const end = to ?? now;
+      const start = from ?? end - 7 * 86400;
+      if (start > end || end - start > 31 * 86400) fail('INVALID', 'Invalid or stale wallet command');
+      const proposed: MockEnvelope = { payload: draftLimits(draft, now), signedAt: now };
+      const deals = state.deals.filter((d) => d.deal.side === 'buyer' && AGREED_OR_LATER.has(d.deal.state));
+      const dayOf = (t: number) => Math.floor(t / 86400);
+      const lines: SimulatedLine[] = [];
+      for (const d of deals) {
+        const deal = d.deal;
+        const at = deal.created_at ?? 0;
+        if (at < start || at > end) continue;
+        // The fold counts "today" by the day a deal last changed: seen from this deal, only the
+        // same day's earlier deals are today; every other deal still counts as held or waiting.
+        const seen = state.deals.map((o) => {
+          const oAt = o.deal.created_at ?? 0;
+          const earlier = o.deal.id !== deal.id && dayOf(oAt) === dayOf(at) && (oAt < at || (oAt === at && o.display.label < d.display.label));
+          return { ...o.deal, updated_at: earlier ? now : now - 2 * 86400 };
+        });
+        const verdict = (env: MockEnvelope | null): SimulatedVerdict => {
+          const why = mockEnvelopeRefusal(seen, deal, env, now);
+          return why ? { type: 'refuse', clause: 0, reason: why } : { type: 'allow' };
+        };
+        const t = deal.terms;
+        lines.push({ deal_id: deal.id, label: d.display.label, title: d.display.title, item_ref: t.item_ref, kind: deal.kind, side: deal.side, at, amount: { minor: t.unit_price.minor * t.qty, currency: t.currency }, unit_price: t.unit_price, before: verdict(envelope()), after: verdict(proposed) });
+      }
+      lines.sort((a, b) => a.at - b.at || a.label.localeCompare(b.label));
+      return { from: start, to: end, lines, not_simulated: 0 };
+    },
     // As Runtime::rescue_replay: approval only, privileged; a labelled REPLAY failure under the
     // latest signed fixes rule. Its one fix is computed here, never typed; the window is rebound to it.
     rescue_replay: (args, opts) => {
@@ -1351,15 +1404,23 @@ export function mockBackend(label: WindowLabel): MockBackend {
 /** Inject a Rust-shaped event into every open mock window (preview controls only). */
 export function mockInject<E extends EventName>(event: E, payload: EventContract[E]): void {
   const env: Envelope = { kind: 'event', event, targets: TARGETS[event], payload };
-  new BroadcastChannel(worldKeys(STORE_KEY, CHANNEL, firstRunPreview()).channel).postMessage(env);
+  new BroadcastChannel(worldKeys(STORE_KEY, CHANNEL, firstRunPreview(), scalePreview()).channel).postMessage(env);
 }
 
 /** Reset the shared mock world (used by the preview's "reset sample data" control). */
 export function resetMockState(): void {
   try {
-    localStorage.removeItem(worldKeys(STORE_KEY, CHANNEL, firstRunPreview()).store);
+    localStorage.removeItem(worldKeys(STORE_KEY, CHANNEL, firstRunPreview(), scalePreview()).store);
     localStorage.removeItem(CLOCK_KEY);
   } catch {
     /* storage blocked: nothing was stored either */
   }
+}
+
+/** Start the current sample world over: forgets only this world's stored state (the other worlds,
+ *  the shared preview clock, the theme and the calm setting stay). The page reloads after. */
+export function resetMockWorld(): void {
+  const key = worldKeys(STORE_KEY, CHANNEL, firstRunPreview(), scalePreview()).store;
+  try { localStorage.removeItem(key); } catch { /* storage blocked: nothing was stored either */ }
+  try { sessionStorage.removeItem(key); } catch { /* as above */ }
 }

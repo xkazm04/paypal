@@ -18,8 +18,10 @@ desktop with the puck in a corner and controls that simulate what the wallet cor
 
 **The director** (`/director.html`, or a static `dist` build served from anywhere):
 - A stage with the three windows framed at their native sizes (The Table 1280 × 800, the approval
-  window 744 × 660, the Tumbler in a corner), dark or light following the theme switch (The Table and the Tumbler
-  follow it, live across windows; the approval window stays dark).
+  window 744 × 660, the Tumbler in a corner), dark or light following the theme switch (all three windows follow
+  it, live across windows; the approval window was always dark before the console rebuild of
+  2026-10-14). The Table is the console: its decision centre, module layers, deal page, Rewind and
+  places; the approval window is drawn as the console's front sheet.
 - A camera that follows each beat, a caption rail with the simulated time, play / pause /
   previous / next / restart (Space, ←, →, Home) and a per-chapter scrubber.
 - The banner: "Browser preview with sample data — not the wallet. No PayPal page is ever shown."
@@ -107,10 +109,10 @@ desktop with the puck in a corner and controls that simulate what the wallet cor
    undefined (reading 'labels')".
 8. **Code splitting.** `src/lib/lazy.ts` `lazyPart(load)` behaves like `React.lazy` until its chunk
    arrives, then renders directly (later navigation never suspends); `.preload()` loads once and
-   retries after a failure; `preloadWhenIdle(parts)` loads parts after first paint. In `main` the six
-   module pages, the Settings / Connections / Agent rules tabs, the quit sheet, the deal page's proof
-   tab and sheets, the Rewind scrubber and hub and the Book's proof check are lazy; Home, the Dial and
-   the deal page's "What happened" stay in the entry chunk. In `approval` the owner configuration,
+   retries after a failure; `preloadWhenIdle(parts)` loads parts after first paint. In `main` (the
+   console) every layer is its own lazy part (`console/layers.registry.ts`, `LAYER_PARTS`, preloaded
+   when the window is idle with the quit sheet), and the deal page's views and sheets are their own
+   chunks; the console frame, the decision centre and the waiting list stay in the entry chunk. In `approval` the owner configuration,
    the rules editor with its what-if and the replay sheet are lazy; a deal review stays in the
    entry chunk. Stylesheets stay eager.
 9. **Build.** `vite.config.ts` has four inputs (`main`, `tumbler`, `approval`, `director`); no shell
@@ -142,7 +144,7 @@ desktop with the puck in a corner and controls that simulate what the wallet cor
 | Tumbler stage | `src/windows/tumbler/App.tsx`, `preview/Preview.tsx`, `preview/Framed.tsx` | the mock-only stage and the director's bare frame |
 | Director | `src/director/Director.tsx`, `entry.tsx`, `beats.ts`, `actions.ts`, `helpers.ts`, `takes.ts`, `retime.ts`, `README.md`, `director.html` | `BEATS`, `CHAPTERS`, `runActions`, `EXPECT`, `checkBeat`, `BANNER`, `MOCK_BADGE`, `retimePlan` |
 | Takes rig | `apps/desktop/client/scripts/takes.mjs`, `package.json` (`takes` script) | `--check`, `--stills`, `--video` |
-| Code splitting | `src/lib/lazy.ts`, `windows/main/App.tsx`, `windows/main/Home.tsx`, `windows/approval/App.tsx` | `lazyPart`, `preloadWhenIdle`, `HOME_PARTS` |
+| Code splitting | `src/lib/lazy.ts`, `windows/main/console/Console.tsx`, `windows/main/console/layers.registry.ts`, `windows/approval/App.tsx` | `lazyPart`, `preloadWhenIdle`, `LAYER_PARTS` |
 | Build | `apps/desktop/client/vite.config.ts`, `apps/desktop/src-tauri/tauri.conf.json` (CSP) | four Vite inputs |
 
 IPC: none of its own. The mock answers every command in the authority table with the gates of
@@ -179,7 +181,8 @@ IPC: none of its own. The mock answers every command in the authority table with
   than Rust and the page (`windows/tumbler/logic.ts`); the preview stage draws from the page's table.
 - The mock's idle lock follows the simulated clock, so the Tumbler shows its lock after a jump over
   15 minutes (accurate, but it surprises first-time viewers).
-- No error boundary for a chunk that fails to load (assets are local in the shell).
+- A chunk that fails to load shows its layer's calm fallback ("Try again"): every window, layer
+  and panel has an error boundary since the console rebuild (`src/shared/boundary/`).
 - Not yet done: measuring time-to-first-gate on cold viewers (target under 30 s), hosting the static
   build at a public link, recording the final takes (planned for Nov 6-9). The director's own time
   words still read "N d N h later".

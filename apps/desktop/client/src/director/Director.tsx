@@ -10,12 +10,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { clockOffset } from '../lib/clock';
 import { clockLabel } from '../lib/format';
 import { useNow, usePrefersReducedMotion } from '../lib/hooks';
+import { APPROVAL_FRAME } from '../lib/words';
 import { applyTheme, getTheme, setTheme, type Theme } from '../lib/theme';
 import { mockBackend } from '../mock/backend';
 import { applyWorld, foldScene, INITIAL_SCENE, placeTours, runActions, WORLD_ACTIONS, type Scene, type Stage } from './actions';
 import type { Beat, Focus } from './beats';
 import { frameUrls, type Story } from './stories';
-import { checkBeat, expectedDeals, selectChapter, storyStartOn, takePlan, wholeTake, type ChapterTake, type Seen, type TakePlan } from './takes';
+import { charterSteps, checkBeat, expectedDeals, selectChapter, storyStartOn, takePlan, wholeTake, type ChapterTake, type Seen, type TakePlan } from './takes';
 
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -137,6 +138,11 @@ function frameSteps(f: HTMLIFrameElement | null | undefined): Record<string, str
       const state = /\bs-(done|next|todo|unknown)\b/.exec(el.className)?.[1];
       const key = el.dataset.tour?.slice('step-'.length);
       if (state && key) out[key] = state;
+    }
+    // The Table draws them as the lines of its charter, in the charter's order (takes.ts charterSteps).
+    const lines = [...(f?.contentDocument?.querySelectorAll<HTMLElement>('ol.ch-fields > li') ?? [])];
+    if (lines.length && lines.every((el) => el.getClientRects().length > 0 && !el.closest('[aria-hidden="true"], [hidden], [inert]'))) {
+      Object.assign(out, charterSteps(lines.map((el) => el.className)));
     }
     return out;
   } catch {
@@ -417,7 +423,7 @@ export function Director({ story }: { story: Story }) {
   const shot = (focus === 'approval' && !approvalOpen) || (focus === 'main' && !mainOpen) ? 'desk' : focus;
   const deskStyle = camera(CAMERA[shot], box);
 
-  // The Table follows the stored theme; the approval window is always dark.
+  // The Table follows the stored theme (so do the approval window and the Tumbler, on their own).
   const applyFrameTheme = useCallback((th: Theme) => {
     try {
       applyTheme(th, mainRef.current?.contentDocument?.documentElement ?? null);
@@ -482,7 +488,7 @@ export function Director({ story }: { story: Story }) {
           </div>
 
           <section className={`dir-win w-approval${approvalOpen ? '' : ' closed'}`} style={win(WIN.approval)} aria-label="The approval window" aria-hidden={!approvalOpen}>
-            <WinBar title="Approval" note="only here can money be agreed" />
+            <WinBar title="Approval" note={APPROVAL_FRAME.strip} />
             <iframe key={`a${frames.epoch}:${frames.approvalKey}`} ref={approvalRef} name="the-table-approval" title="Approval" src={frames.approvalSrc}
               width={WIN.approval.w} height={WIN.approval.h} onLoad={(e) => { watchInput(e.currentTarget); onApprovalLoad(frames.epoch); }} />
           </section>

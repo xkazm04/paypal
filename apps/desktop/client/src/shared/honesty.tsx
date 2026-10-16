@@ -4,8 +4,9 @@
 import type { Mode } from '@bindings/Mode';
 import type { Money as MoneyT } from '@bindings/Money';
 import type { WalletError } from '../lib/contract';
-import { countdown, formatMinor, formatMoney } from '../lib/format';
+import { countdown, countdownWords, formatMinor, formatMoney } from '../lib/format';
 import { useNow } from '../lib/hooks';
+import { scalePreview } from '../lib/preview';
 import { backend } from '../lib/runtime';
 import { modeWord, runBadge } from '../lib/words';
 
@@ -23,7 +24,9 @@ export function ModeBadge({ mode }: { mode: Mode }) {
 /** Shown only in a plain browser: this is a design preview on sample data, not the wallet. */
 export function MockBadge() {
   if (backend().kind !== 'mock') return null;
-  return <span className="badge mock" title="A design preview in a browser, on sample data. The wallet itself is not running.">Preview · sample data</span>;
+  // `?scale=small|large` opens a bigger or smaller sample wallet; say which, in the same badge.
+  const scale = scalePreview();
+  return <span className="badge mock" title="A design preview in a browser, on sample data. The wallet itself is not running.">Preview · sample data{scale ? ` · ${scale} sample` : ''}</span>;
 }
 
 export function Money({ value, className }: { value: MoneyT | null | undefined; className?: string }) {
@@ -41,7 +44,7 @@ export function MinorMoney({ minor, currency, className }: { minor: number; curr
  */
 export function Countdown({ deadline, className }: { deadline: number; className?: string }) {
   const now = useNow();
-  return <span className={`money ${className ?? ''}`} role="timer" aria-live="off">{countdown(deadline, now)}</span>;
+  return <span className={`money ${className ?? ''}`} role="timer" aria-live="off" aria-label={countdownWords(deadline, now)}>{countdown(deadline, now)}</span>;
 }
 
 /** Counterparty / merchant text: plain text only, never markdown, never links. */
@@ -75,7 +78,7 @@ const CODE_WORD: Record<WalletError['code'], string> = {
 export function WalletNotice({ error, what, message }: { error: WalletError; what?: string; message?: string }) {
   return (
     <div className={`notice ${CODE_CLASS[error.code]}`} role={error.isAvailabilityState ? 'status' : 'alert'}>
-      <span className="n-code" title={error.code}>{CODE_WORD[error.code]}</span>
+      <span className="n-code">{CODE_WORD[error.code]}</span>
       <span>
         {what ? <b>{what}: </b> : null}
         {message ?? error.message}

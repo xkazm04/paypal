@@ -1,0 +1,10 @@
+.dev-inspector { position: fixed; inset: 0; z-index: 2147483000; pointer-events: none; font: 12px/1.4 ui-monospace, Consolas, monospace; }
+.dev-inspector__box { position: fixed; border: 2px solid #ff4d94; background: rgba(255, 77, 148, 0.12); border-radius: 2px; }
+.dev-inspector__box--pointer { border-style: dashed; border-color: #5bc0ff; background: transparent; }
+.dev-inspector__label { position: fixed; background: #111; color: #fff; padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
+.dev-inspector__hud { position: fixed; left: 12px; bottom: 12px; max-width: min(560px, calc(100vw - 24px)); background: #111; color: #eee; border: 1px solid #444; border-radius: 6px; padding: 8px 10px; pointer-events: auto; }
+.dev-inspector__hud b { color: #ff4d94; }
+.dev-inspector__row { display: block; width: 100%; text-align: left; background: none; border: 0; color: inherit; font: inherit; padding: 1px 0; cursor: pointer; }
+.dev-inspector__row:hover { color: #5bc0ff; }
+.dev-inspector__ok { color: #6fdc8c; }
+.dev-inspector__warn { color: #ffb454; }

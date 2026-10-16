@@ -137,3 +137,75 @@ fn shell_answered_commands_check_their_own_row_of_the_authority_table() {
     }
     assert!(!sources.contains("label(&window, &["));
 }
+#[test]
+fn every_window_event_goes_through_the_table_driven_emit() {
+    // Who is told each event is a row in the authority table (`EVENTS`); the shell sends through
+    // one helper that reads it, never a hand-written (window, event) pair.
+    let events = include_str!("../src/native/events.rs");
+    let sources = [
+        include_str!("../src/native.rs"),
+        include_str!("../src/native/commands.rs"),
+        include_str!("../src/native/routing.rs"),
+        include_str!("../src/native/surface.rs"),
+        events,
+    ]
+    .concat();
+    assert!(
+        !sources.contains("emit_to(\""),
+        "a literal emit_to(\"<window>\", ...) bypasses the authority table"
+    );
+    assert!(
+        !sources.contains(".emit(\""),
+        "a broadcast reaches every window"
+    );
+    // The helper's own emit_to, over the row's labels, is the only one left.
+    assert_eq!(sources.matches("emit_to(").count(), 1);
+    assert!(sources.contains("emit_to(label.as_str(), event.name(), event)"));
+    // Lag recovery re-sends settings through the helper, so it reaches the event's full
+    // audience (main, tumbler and approval), as the normal path does.
+    let lag = events
+        .split("RecvError::Lagged")
+        .nth(1)
+        .and_then(|rest| rest.split("interval.tick()").next())
+        .unwrap();
+    assert!(lag.contains("WindowEvent::SettingsChanged(&settings)"));
+    assert_eq!(
+        table_client::authority::event_audience("settings:changed").map(<[_]>::len),
+        Some(3)
+    );
+}
+#[test]
+fn the_tray_menu_is_built_from_and_answered_by_the_tray_model() {
+    // Every tray click goes through `TrayModel::command`, so a menu that changed since it was
+    // shown (Pause became Resume, a deal settled) cannot run what it no longer shows.
+    let native = include_str!("../src/native.rs");
+    let events = include_str!("../src/native/events.rs");
+    let menu = native
+        .split(".on_menu_event(")
+        .nth(1)
+        .and_then(|rest| rest.split(".build(app)").next())
+        .unwrap();
+    assert!(menu.contains(".command(event.id.as_ref())"));
+    for id in ["main", "tumbler", "pause", "resume", "quit"] {
+        assert!(!native.contains(&format!("\"{id}\" =>")), "{id}");
+        assert!(!native.contains(&format!("with_id(app, \"{id}\"")), "{id}");
+    }
+    // Resume runs as the tray's Pause does: as main, with no token.
+    assert!(menu.contains("Some(TrayCommand::Pause) => tray_action(app, Action::Pause)"));
+    assert!(menu.contains("Some(TrayCommand::Resume) => tray_action(app, Action::Resume)"));
+    // A deal entry opens its card through the same route as the decision toast.
+    assert!(menu.contains("Some(TrayCommand::OpenCard(id)) => events::open_card(app, id)"));
+    let toast = events.split("fn show_toast(").nth(1).unwrap();
+    assert!(toast.contains("open_card(&main_app, id)"));
+    assert_eq!(
+        [native, events]
+            .concat()
+            .matches("WindowEvent::TumblerSelected(")
+            .count(),
+        1,
+        "one route to a card"
+    );
+    // The tray follows the attention snapshot and the paused state.
+    assert!(events.contains("WalletEvent::Settings(settings)"));
+    assert_eq!(events.matches("refresh_tray(&app)").count(), 3);
+}

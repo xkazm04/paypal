@@ -429,7 +429,7 @@ pub(super) async fn agent_runs(
 pub(super) async fn resume_all_agents(
     window: WebviewWindow,
     state: State<'_, DesktopState>,
-) -> Result<(), CommandError> {
+) -> Result<ResumeReport, CommandError> {
     ask(&window, &state, None, Action::Resume).await
 }
 #[tauri::command]
@@ -509,6 +509,14 @@ pub(super) async fn mandate_simulate(
     args: MandateSimulateArgs,
 ) -> Result<MandateSimulation, CommandError> {
     ask(&window, &state, None, Action::Simulate(args)).await
+}
+#[tauri::command]
+pub(super) async fn envelope_simulate(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    args: EnvelopeSimulateArgs,
+) -> Result<MandateSimulation, CommandError> {
+    ask(&window, &state, None, Action::EnvelopeSimulate(args)).await
 }
 #[tauri::command]
 pub(super) async fn envelope_sign(

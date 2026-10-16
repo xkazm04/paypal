@@ -1,0 +1,47 @@
+/* The console's footer (Footer.tsx). The chips it shares with Status are in console.css. */
+.cs-foot { display: flex; align-items: center; gap: var(--sp-2) var(--sp-3); min-width: 0; padding: var(--sp-1) var(--sp-5) var(--sp-2); color: var(--dim); font-size: var(--fs-small); flex-wrap: nowrap; overflow: hidden; }
+.cs-foot > * { flex: none; }
+.cs-foot .ui-spacer { flex: 1 1 0; }
+.cs-promise { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); white-space: nowrap; }
+.cs-promise svg { width: .9rem; height: 1rem; color: var(--steel); }
+.cs-calm[aria-pressed="true"] { color: var(--text); border-color: var(--sel-line); background: var(--sel); }
+.cs-help { width: var(--ctl-sm); height: var(--ctl-sm); border-radius: 50%; border: 1px solid var(--line2); background: none; color: var(--muted); cursor: pointer; font: var(--fw-semibold) var(--fs-small)/1 var(--font); }
+.cs-help:hover { color: var(--text); border-color: var(--steel); }
+.cs-clk { font-family: var(--num); font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.cs-theme button { height: var(--ctl-sm); font-size: var(--fs-small); }
+.tb-meter { display: grid; line-height: 1.2; padding-left: var(--sp-2); border-left: 2px solid var(--teal); white-space: nowrap; }
+.tb-meter b { font: var(--fw-semibold) var(--fs-small)/1.2 var(--num); font-variant-numeric: tabular-nums; color: var(--text); }
+.tb-meter span { font-size: var(--fs-small); color: var(--dim); }
+.tb-meter.eng { border-left-color: var(--line2); }
+.tb-meter.unknown { border-left-style: dashed; border-left-color: var(--line2); }
+.tb-meter.unknown b { font-family: var(--font); color: var(--muted); }
+.tb-meter.near { border-left-color: var(--gold); }
+@media (max-width: 1500px) { .cs-foot .tb-meter, .cs-foot .chipsrow .hs-chip + .hs-chip { display: none; } }
+@media (max-width: 1320px) { .cs-foot .cs-clk, .cs-foot .cs-calm { display: none; } }
+
+/* ---- demo mode (DemoSwitch.tsx) ------------------------------------------------- */
+.cs-demo { display: inline-flex; align-items: center; gap: var(--sp-1); min-width: 0; }
+.cs-demo-badge { color: var(--gold-l); background: color-mix(in srgb, var(--gold) 14%, var(--bg)); border: 1px solid var(--gold); font-weight: var(--fw-semibold); white-space: nowrap; }
+.cs-demo-chip.on { border-color: var(--gold); color: var(--text); }
+.cs-demo-caret { font-size: .7em; color: var(--dim); }
+.cs-demo-exit { white-space: nowrap; }
+.ui-popover.cs-demo-pop { width: 340px; max-height: min(70vh, 560px); }
+.cs-demo-body { display: grid; gap: var(--sp-2); }
+.cs-demo-sub, .cs-demo-note { margin: 0; font-size: var(--fs-small); color: var(--muted); }
+.cs-demo-note[role="status"] { color: var(--text); }
+.cs-demo-list, .cs-demo-worlds { display: grid; gap: 4px; }
+.cs-demo-opt { display: grid; grid-template-columns: 1fr auto; column-gap: var(--sp-2); text-align: left; width: 100%; padding: 6px var(--sp-2);
+  border-radius: var(--r-card); border: 1px solid var(--line2); background: none; color: var(--text); font: inherit; cursor: pointer; }
+.cs-demo-opt b { font-weight: var(--fw-semibold); font-size: var(--fs-small); }
+.cs-demo-opt span { grid-column: 1; font-size: var(--fs-small); color: var(--muted); }
+.cs-demo-opt i { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-style: normal; font-size: var(--fs-small); color: var(--gold-l); }
+.cs-demo-opt:hover:not(:disabled) { border-color: var(--steel); }
+.cs-demo-opt[aria-pressed="true"] { border-color: var(--sel-line); background: var(--sel); cursor: default; }
+.cs-demo-opt:disabled { cursor: not-allowed; opacity: .55; }
+.cs-demo-more summary { font-size: var(--fs-small); color: var(--muted); }
+.cs-demo-ask { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); }
+.cs-demo-ask p { flex: 1 0 100%; margin: 0; font-size: var(--fs-small); color: var(--text); }
+.cs-demo-switching { position: fixed; inset: 0; z-index: var(--z-popover); display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 82%, transparent); }
+.cs-demo-switching > div { display: grid; gap: 6px; text-align: center; padding: var(--sp-4) var(--sp-5); border-radius: var(--r-pill); }
+.cs-demo-switching b { font-size: var(--fs-body); color: var(--text); }
+.cs-demo-switching span { font-size: var(--fs-small); color: var(--muted); }

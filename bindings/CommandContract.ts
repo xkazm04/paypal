@@ -29,6 +29,7 @@ import type { DecisionArgs } from "./DecisionArgs";
 import type { EngineInfo } from "./EngineInfo";
 import type { EngineSelectArgs } from "./EngineSelectArgs";
 import type { EnvelopeSignArgs } from "./EnvelopeSignArgs";
+import type { EnvelopeSimulateArgs } from "./EnvelopeSimulateArgs";
 import type { ExposureView } from "./ExposureView";
 import type { FormArgs } from "./FormArgs";
 import type { HouseState } from "./HouseState";
@@ -61,6 +62,7 @@ import type { RescueReplayArgs } from "./RescueReplayArgs";
 import type { RescueWatchArgs } from "./RescueWatchArgs";
 import type { RescueWatchStopArgs } from "./RescueWatchStopArgs";
 import type { RescueWatchView } from "./RescueWatchView";
+import type { ResumeReport } from "./ResumeReport";
 import type { RunSnapshot } from "./RunSnapshot";
 import type { SafetyRecord } from "./SafetyRecord";
 import type { SettingsSnapshot } from "./SettingsSnapshot";
@@ -70,7 +72,11 @@ import type { TranscriptStep } from "./TranscriptStep";
 import type { TumblerPreferences } from "./TumblerPreferences";
 import type { UnlockArgs } from "./UnlockArgs";
 
-export type CommandContract = { approval_selection: Command<null, DealId | null>, deal_display: Command<DealArgs, DealDisplay>, deal_transcript: Command<DealArgs, Array<TranscriptStep>>, counterparty_list: Command<null, Array<CounterpartyDisplay>>, get_settings: Command<null, SettingsSnapshot>, list_deals: Command<null, Array<Deal>>, get_deal: Command<DealArgs, Deal>, deal_evidence: Command<DealArgs, DealEvidence>, deal_reconcile: Command<ReconcileArgs, DealEvidence>, engine_status: Command<null, Array<EngineInfo>>, attention_list: Command<null, AttentionSnapshot>, main_open: Command<MainRoute, null>, approval_open: Command<ApprovalOpenArgs, null>, approval_summary: Command<DealArgs, ApprovalSummary>, approval_pairing: Command<null, PendingPairing | null>, approval_token: Command<null, string>, tumbler_set_form: Command<FormArgs, null>, tumbler_pin: Command<PinArgs, null>, deal_withdraw: Command<DealArgs, null>, deal_let_lapse: Command<DealArgs, null>, deal_snooze: Command<DealArgs, null>, unlock: Command<UnlockArgs, null>, deal_countersign: Command<DecisionArgs, Deal>, deal_owner_accept: Command<DecisionArgs, Deal>, deal_capture: Command<DecisionArgs, Deal>, deal_void: Command<DecisionArgs, Deal>, shield_release: Command<DecisionArgs, Deal>, rescue_approve: Command<DecisionArgs, Deal>, open_paypal_in_browser: Command<DecisionArgs, null>, set_credentials: Command<CredentialArgs, null>, engine_select: Command<EngineSelectArgs, null>, mandate_list: Command<null, Array<MandateListEntry>>, mandate_sign: Command<MandateSignArgs, OpenMandate>, mandate_revoke: Command<MandateRevokeArgs, null>, band_set: Command<BandArgs, OpenMandate>, pairing_create: Command<PairingCreateArgs, PairingOffer>, pairing_join: Command<PairingJoinArgs, PairingWords>, pairing_poll: Command<PairingPollArgs, PairingWords | null>, pairing_confirm: Command<PairingConfirmArgs, KeyId>, settings_write: Command<TumblerPreferences, null>, deal_create: Command<DealCreateArgs, Deal>, deal_join: Command<DealJoinArgs, Deal>, pause_all_agents: Command<null, null>, resume_all_agents: Command<null, null>, agent_start: Command<AgentStartArgs, RunSnapshot>, agent_runs: Command<null, Array<RunSnapshot>>, market_refresh: Command<MarketRefreshArgs, MarketRef>, quit_summary: Command<null, QuitSummary>, quit_confirm: Command<QuitArgs, null>, tumbler_drag: Command<null, null>, tumbler_snap: Command<null, Snap>, counterparty_note: Command<DealArgs, CounterpartyNote | null>, pairing_abort: Command<PairingAbortArgs, null>, house_wake: Command<null, HouseState>, approval_handoff: Command<null, ApprovalHandoff>, audit_page: Command<AuditPageArgs, AuditPage>, owner_facts: Command<null, OwnerFacts>, book_query: Command<BookQueryArgs, BookAnswer>, 
+export type CommandContract = { approval_selection: Command<null, DealId | null>, deal_display: Command<DealArgs, DealDisplay>, deal_transcript: Command<DealArgs, Array<TranscriptStep>>, counterparty_list: Command<null, Array<CounterpartyDisplay>>, get_settings: Command<null, SettingsSnapshot>, list_deals: Command<null, Array<Deal>>, get_deal: Command<DealArgs, Deal>, deal_evidence: Command<DealArgs, DealEvidence>, deal_reconcile: Command<ReconcileArgs, DealEvidence>, engine_status: Command<null, Array<EngineInfo>>, attention_list: Command<null, AttentionSnapshot>, main_open: Command<MainRoute, null>, approval_open: Command<ApprovalOpenArgs, null>, approval_summary: Command<DealArgs, ApprovalSummary>, approval_pairing: Command<null, PendingPairing | null>, approval_token: Command<null, string>, tumbler_set_form: Command<FormArgs, null>, tumbler_pin: Command<PinArgs, null>, deal_withdraw: Command<DealArgs, null>, deal_let_lapse: Command<DealArgs, null>, deal_snooze: Command<DealArgs, null>, unlock: Command<UnlockArgs, null>, deal_countersign: Command<DecisionArgs, Deal>, deal_owner_accept: Command<DecisionArgs, Deal>, deal_capture: Command<DecisionArgs, Deal>, deal_void: Command<DecisionArgs, Deal>, shield_release: Command<DecisionArgs, Deal>, rescue_approve: Command<DecisionArgs, Deal>, open_paypal_in_browser: Command<DecisionArgs, null>, set_credentials: Command<CredentialArgs, null>, engine_select: Command<EngineSelectArgs, null>, mandate_list: Command<null, Array<MandateListEntry>>, mandate_sign: Command<MandateSignArgs, OpenMandate>, mandate_revoke: Command<MandateRevokeArgs, null>, band_set: Command<BandArgs, OpenMandate>, pairing_create: Command<PairingCreateArgs, PairingOffer>, pairing_join: Command<PairingJoinArgs, PairingWords>, pairing_poll: Command<PairingPollArgs, PairingWords | null>, pairing_confirm: Command<PairingConfirmArgs, KeyId>, settings_write: Command<TumblerPreferences, null>, deal_create: Command<DealCreateArgs, Deal>, deal_join: Command<DealJoinArgs, Deal>, pause_all_agents: Command<null, null>, 
+/**
+ * Clears the sticky pause and lists the tables waiting on our agent; it starts none of them.
+ */
+resume_all_agents: Command<null, ResumeReport>, agent_start: Command<AgentStartArgs, RunSnapshot>, agent_runs: Command<null, Array<RunSnapshot>>, market_refresh: Command<MarketRefreshArgs, MarketRef>, quit_summary: Command<null, QuitSummary>, quit_confirm: Command<QuitArgs, null>, tumbler_drag: Command<null, null>, tumbler_snap: Command<null, Snap>, counterparty_note: Command<DealArgs, CounterpartyNote | null>, pairing_abort: Command<PairingAbortArgs, null>, house_wake: Command<null, HouseState>, approval_handoff: Command<null, ApprovalHandoff>, audit_page: Command<AuditPageArgs, AuditPage>, owner_facts: Command<null, OwnerFacts>, book_query: Command<BookQueryArgs, BookAnswer>, 
 /**
  * Saves the deal's signed proof bundle through a native save dialog; false if cancelled.
  */
@@ -126,4 +132,8 @@ safety_record: Command<null, SafetyRecord>,
 /**
  * Revokes a counterparty pin: the key is refused from then on (approval, privileged).
  */
-counterparty_revoke: Command<CounterpartyRevokeArgs, null>, };
+counterparty_revoke: Command<CounterpartyRevokeArgs, null>, 
+/**
+ * Wallet-limits what-if: draft limits replayed over recorded purchases. Read-only, approval.
+ */
+envelope_simulate: Command<EnvelopeSimulateArgs, MandateSimulation>, };

@@ -25,6 +25,8 @@ mod market_watch_tests;
 pub(crate) mod policy_tests;
 #[path = "proof_tests.rs"]
 mod proof_tests;
+#[path = "publish_tests.rs"]
+mod publish_tests;
 #[path = "quit_tests.rs"]
 mod quit_tests;
 #[path = "reached_paypal_tests.rs"]
@@ -35,6 +37,8 @@ mod refusal_audit_tests;
 mod relay_tests;
 #[path = "rescue_tests.rs"]
 mod rescue_tests;
+#[path = "resume_tests.rs"]
+mod resume_tests;
 #[path = "safety_tests.rs"]
 mod safety_tests;
 #[path = "simulate_tests.rs"]

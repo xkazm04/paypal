@@ -18,14 +18,14 @@ import { toWalletError, type WalletError } from '../../lib/contract';
 import { useEvent, useNow, usePrefersReducedMotion, useQuery } from '../../lib/hooks';
 import { backend } from '../../lib/runtime';
 import { nowUnix } from '../../lib/format';
-import { gettingStarted, settingsFacts } from '../../lib/firstRun';
+import { gettingStarted, leaveSetupIntent, SETUP_STEP_OF, settingsFacts } from '../../lib/firstRun';
 import { START_STEP, type StartStepKey } from '../../lib/words';
 import { Tour } from '../../shared/tour';
 import { PuckArt } from './Puck';
 import { CardForm, HandoffForm, StackForm, TabForm, TickerForm, WelcomeForm } from './forms';
 import {
   plainItems,
-  NO_HANDOFF, SECONDS, ackTicker, arrivals, arrivalsTicker, canReview, dndPreferences, handoffEnded, nextFocus, puckLook, puckTarget, receiptTicker,
+  NO_HANDOFF, SECONDS, ackTicker, arrivals, arrivalsTicker, canReview, dndPreferences, handoffEnded, nextFocus, puckLook, puckName, puckTarget, receiptTicker,
   restForm, rung, rungNotice, snoozeEligible, snoozeTicker, sortItems, stopTicker, tickerMayShow, type CardAction, type Handoff, type Rung, type Ticker,
 } from './logic';
 
@@ -398,15 +398,15 @@ export function Tumbler() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pushTicker, refetchAttention]);
 
-  // First run: the welcome shows the steps; each opens where it happens (the approval window for
-  // keys and rules, The Table for the house seller and the agent app). Settings are all the Tumbler reads.
+  // First run: the welcome shows the steps; each opens The Table on its Set up page. Settings are all the Tumbler reads.
   const start = settings?.first_run ? gettingStarted({
     ...settingsFacts(settings), firstRun: true, rulesInForce: null, houseConnected: settings.house_connected ?? null, otherConnections: null,
   }) : null;
   const startStep = useCallback(async (k: StartStepKey) => {
     try {
-      if (k === 'practice' || k === 'engine') await backend().invoke('main_open', { deal_id: null });
-      else await backend().invoke('approval_open', { deal_id: null, target: k === 'paypal' ? 'credentials' : 'mandate' });
+      // Every step now happens on The Table's Set up page; the note tells Main which one to show.
+      leaveSetupIntent(SETUP_STEP_OF[k], Date.now());
+      await backend().invoke('main_open', { deal_id: null });
     } catch (e) {
       fail(null, START_STEP[k].act, e);
     }
@@ -522,7 +522,7 @@ export function Tumbler() {
   const handoffItem = handoff.dealId ? items.find((i) => i.deal_id === handoff.dealId) ?? known.current.get(handoff.dealId) ?? null : null;
   const display = handoffDisplay.data && handoffDisplay.data.deal_id === handoff.dealId ? handoffDisplay.data : null;
   const count = look.needs;
-  const puckLabel = `The Tumbler · ${count ? `${count} need${count === 1 ? 's' : ''} you · ${items[0]?.headline ?? ''}` : `nothing needs you · ${snapshot?.in_motion ?? 0} in motion`}${mode ? ` · ${mode}` : ''}${locked ? ' · locked' : ''}`;
+  const puckLabel = puckName({ needs: count, headline: items[0]?.headline ?? null, inMotion: snapshot?.in_motion ?? 0, mode, locked });
 
   let body: ReactNode = null;
   if (form === 'ticker') body = <TickerForm ticker={ticker} onOpen={openFromTicker} />;

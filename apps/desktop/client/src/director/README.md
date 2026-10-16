@@ -10,9 +10,9 @@ Two stories, chosen with `?story=` (`stories.ts`):
 - **Maya's week** (no `story`, the default; `beats.ts`): the sample week, about three minutes.
 - **First run** (`?story=first-run`; `firstRunStory.ts`): the onboarding on a brand-new wallet,
   94 s. Every frame and the page's own mock core open in the `?first_run=1` world (the page adds
-  `first_run=1` to its own address), so the sample week's stored state is never touched. Home
-  shows the four getting-started steps with the agent app to do on the practice agent, and the
-  tour's coach mark walks each window's stops: The Table's five, then the Tumbler's four on its
+  `first_run=1` to its own address), so the sample week's stored state is never touched. The
+  Table opens on its charter (five lines: the four getting-started steps plus unlock) with the
+  agent app to do on the practice agent, and the tour's coach mark walks each window's stops: The Table's five, then the Tumbler's four on its
   first-run welcome, then the approval window's four on the owner's setup. The tour moves by
   `{ do: 'tour', win, at }`, which writes that window's saved tour progress under the first-run
   key; the framed window follows the write (its `storage` event). Nothing presses Next, Back or
@@ -32,6 +32,12 @@ Two stories, chosen with `?story=` (`stories.ts`):
 Run it: `pnpm --dir apps/desktop/client dev`, then open `/director.html` (Maya's week) or
 `/director.html?story=first-run`.
 
+The Table is the console (the 2026-10-14 rebuild): its home is the decision centre, the deal,
+module and safety-record beats are its layers, and every frame (The Table, the Tumbler, the
+approval window) follows the stored theme. The approval window opens from a beat (`{ do:
+'approval' }`), the director's stand-in for the hand-off the console's gold action makes with
+`approval_open`; nothing in a beat presses that action.
+
 URL parameters: `?beat=<index or id>` starts at a beat, `?play=0` starts paused,
 `?camera=desk` keeps the whole desk in view, `?date=YYYY-MM-DD` starts the story at 14:02:04
 on that day instead of today, and `?take=1` hides the transport controls for a recording. The
@@ -43,7 +49,9 @@ preview banner and the captions stay in every mode.
 hook (plan, where the story is, what the stage shows, play and pause). Playwright is not a
 dependency of this package: install it globally (`npm i -g playwright`) or set
 `PLAYWRIGHT=/path/to/playwright/index.mjs`. Set `PW_CHROMIUM` to a Chromium binary, or let
-Playwright use its own download. Node 22.18 or later (the script loads `retime.ts` directly).
+Playwright use its own download. Playwright for Python also works: its driver ships the Node
+package, so `PLAYWRIGHT=<site-packages>/playwright/driver/package/index.mjs` (with its own
+downloaded Chromium) runs the rig. Node 22.18 or later (the script loads `retime.ts` directly).
 
 `ffmpeg` on the `PATH` (or `FFMPEG`) finishes a video: Chromium's recorder falls behind real time
 on a busy machine (up to 7 s by the end of the story on a loaded 4-core host), so the script finds
@@ -55,7 +63,7 @@ and lag, and the cue sheet gives wall-clock times.
 Without `--url` the script uses a server already on `--port` (default 1444) or starts `vite` there
 and stops it at the end. Every run uses 1920x1080, the en-US locale, the America/Los_Angeles time
 zone, reduced motion off, and the story day 2026-11-05 (`--date`, `--tz` to change), and waits for
-fonts and for the camera and Home's opening animation to settle before a still.
+fonts and for the camera and every finite animation (a layer's entrance) to settle before a still.
 
 From the repository root:
 
@@ -96,4 +104,10 @@ the next beat starts. Write takes outside the repository. The expected end state
 entry there, and `takes.test.ts` fails until it has one. First run's live beside them in
 `FIRST_RUN_EXPECT` (never in `EXPECT`'s keys), mirrored by `firstRunStory.test.ts`: the four steps
 (PayPal next, the agent app to do) and the stop each window's mark shows, read from the mark's
-`data-tour-stop` and the steps' `s-<state>` class.
+`data-tour-stop` and the steps' `s-<state>` class; in The Table, from the charter's lines in order
+(`ol.ch-fields > li`, their `done` / `waiting` / `todo` / `cur` classes, `charterSteps`).
+
+Maya's week on the console: the opening and the ending expect the decision centre ("What needs
+you", an "If you do nothing" line, the footer's "Waiting never pays"); the haggle halfway expects
+her latest offer and the deal page's facts ("Most you'll pay $340.00", "Offers used 3 of 6"),
+because the deal page shows the latest moments first and her opening $290 offer is one view down.

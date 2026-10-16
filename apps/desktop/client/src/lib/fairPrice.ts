@@ -4,6 +4,7 @@
 // mirror table_core::market (`from_comparables`, `MarketCertificate::percentile`) exactly, in
 // integer minor units.
 import type { DealState } from '@bindings/DealState';
+import { THROUGH_AGREED } from '@bindings/dealStates';
 import type { FairPrice } from '@bindings/FairPrice';
 import type { MarketComparable } from '@bindings/MarketComparable';
 import type { MarketRef } from '@bindings/MarketRef';
@@ -50,13 +51,12 @@ export function ordinal(n: number): string {
   return `${n}${suffix}`;
 }
 
-const AGREED_OR_LATER: ReadonlySet<DealState> = new Set<DealState>([
-  'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECEIPTED', 'RECONCILED', 'MISMATCH', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'UNCONFIRMED',
-]);
-/** The mock's fair price for a deal whose market record it holds (Rust reads it from its rows). */
+/** The mock's fair price for a deal whose market record it holds (Rust reads it from its rows).
+ *  Committed once an agreement was recorded (Rust: the agreement row's commitment), which the
+ *  state alone shows as THROUGH_AGREED: a deal voided or expired after AGREED stays committed. */
 export function fairPriceOf(state: DealState, market: MarketRef | null | undefined, price: Money): FairPrice | null {
   if (!market) return null;
-  const committed = AGREED_OR_LATER.has(state);
+  const committed = THROUGH_AGREED.has(state);
   const c = market.certificate;
   if (!c) return { state: 'not_recheckable', committed, percentile: null, prices: 0, retrieved_at: market.retrieved_at };
   if (!rechecks(market) || c.currency !== price.currency) {

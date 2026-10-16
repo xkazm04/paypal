@@ -8,7 +8,7 @@ export type AuthorityEnforcer = "runtime" | "shell";
 export type CommandAuthority = { labels: Array<AuthorityLabel>, token: boolean, unlock: boolean, selection: AuthoritySelection, tier: AuthorityTier, release: boolean, enforcer: AuthorityEnforcer, };
 
 /** Lowercase hex SHA-256 of the canonical table; get_settings reports the same value. */
-export const AUTHORITY_MANIFEST = "ed57f9ce4f6c8e5d102c0fe219eb1ad8cccf70320eccaee44667dc51c1accfb8";
+export const AUTHORITY_MANIFEST = "b2f04fe9561ade53614a195e09f37555a76106c00e3750525add74b1ab854ac4";
 
 export const AUTHORITY = {
   deal_snooze: { labels: ["tumbler"], token: false, unlock: false, selection: "none", tier: "act", release: false, enforcer: "runtime" },
@@ -83,4 +83,24 @@ export const AUTHORITY = {
   rescue_watch_stop: { labels: ["approval"], token: true, unlock: true, selection: "none", tier: "owner", release: true, enforcer: "runtime" },
   safety_record: { labels: ["main"], token: false, unlock: false, selection: "none", tier: "read", release: false, enforcer: "runtime" },
   counterparty_revoke: { labels: ["approval"], token: true, unlock: true, selection: "none", tier: "owner", release: true, enforcer: "runtime" },
+  envelope_simulate: { labels: ["approval"], token: false, unlock: false, selection: "none", tier: "read", release: false, enforcer: "runtime" },
 } satisfies Record<string, CommandAuthority>;
+
+/** Who is told each window event, keyed by event name: the shell sends to exactly these. */
+export const EVENT_AUDIENCE = {
+  "tumbler:handoff": ["tumbler"],
+  "agent:changed": ["main"],
+  "settings:changed": ["main", "tumbler", "approval"],
+  "wallet:error": ["main", "tumbler"],
+  "tumbler:visual": ["tumbler"],
+  "tumbler:selected": ["tumbler"],
+  "attention:changed": ["main", "tumbler"],
+  "deal:changed": ["main"],
+  "receipt:created": ["main", "tumbler"],
+  "tumbler:orient": ["tumbler"],
+  "tumbler:form": ["tumbler"],
+  "tumbler:status": ["main"],
+  "approval:summary": ["approval"],
+  "main:route": ["main"],
+  "pairing:pinned": ["main"],
+} satisfies Record<string, Array<AuthorityLabel>>;

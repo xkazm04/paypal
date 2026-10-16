@@ -1,45 +1,18 @@
-// "Check a proof file": the owner picks a saved proof file in the wallet's own file dialog and the
-// wallet checks it with the same checks as the offline checker. Only the report crosses; every
-// value in it comes from the file, so it is shown as plain text and never interpreted. The owner
-// key is shown whole (it is the anchor a person compares), next to whether it is this wallet's own.
-import { useState } from 'react';
+// "Check a proof file": the report of one checked file (the Book's proof view,
+// console/areas/book/Proof.tsx, runs the check). Every value in it comes from the file, so it is
+// shown as plain text and never interpreted. The owner key is shown whole (it is the anchor a
+// person compares), next to whether it is this wallet's own.
 import type { ProofCheckLine } from '@bindings/ProofCheckLine';
 import type { ProofReport } from '@bindings/ProofReport';
 import { keyMatch } from '../../../../lib/format';
-import { useMutation, useQuery } from '../../../../lib/hooks';
 import {
   fingerprintGroups, modeWord, PERMISSIONS_FINGERPRINT, PERMISSIONS_FINGERPRINT_MEANS, PROOF_ALL_THAT_APPLY, PROOF_CHECKS, PROOF_KEY_ANCHOR,
-  PROOF_KEY_MATCH, PROOF_LIMIT, PROOF_NOT_APPLICABLE, PROOF_NOT_CHECKED, PROOF_OLDER_FILE, PROOF_SOME_UNCHECKED, PROOF_VERSION_MATCH, proofMarketNotChecked,
+  PROOF_KEY_MATCH, PROOF_NOT_APPLICABLE, PROOF_NOT_CHECKED, PROOF_OLDER_FILE, PROOF_SOME_UNCHECKED, PROOF_VERSION_MATCH, proofMarketNotChecked,
 } from '../../../../lib/words';
-import { WalletNotice } from '../../../../shared/honesty';
 import { KeyId } from '../../../../shared/ownerKey';
-import { Btn, Chip, Kv, Sheet } from '../../../../shared/ui';
+import { Chip, Kv } from '../../../../shared/ui';
 
 const clip = (s: string, n = 160): string => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
-
-export function ProofCheckSheet({ onClose }: { onClose: () => void }) {
-  const check = useMutation('proof_check');
-  // This wallet's own owner key, to say whether the file names it (a public id, never a secret).
-  const own = useQuery('owner_facts', null).data?.owner_key_id ?? null;
-  const [report, setReport] = useState<ProofReport | null>(null);
-  const pick = async () => {
-    const r = await check.run(null);
-    if (r) setReport(r);
-  };
-  return (
-    <Sheet title="Check a proof file" onClose={onClose}
-      footer={<>
-        <Btn className="left" disabled={check.pending} onClick={() => void pick()}>{check.pending ? 'Checking…' : report ? 'Check another file' : 'Choose a proof file'}</Btn>
-        <Btn kind="primary" onClick={onClose}>Done</Btn>
-      </>}>
-      {check.error ? <WalletNotice error={check.error} what="Proof file" /> : null}
-      {report ? <ProofReportView report={report} own={own} /> : (
-        <ul>{Object.entries(PROOF_CHECKS).map(([id, text]) => <li key={id}>{text}</li>)}</ul>
-      )}
-      <p className="ui-hint">{PROOF_LIMIT}</p>
-    </Sheet>
-  );
-}
 
 /** Why a line reads "not checked": the file lacks a record it should have (an order record), the
  *  file is an older kind, or the deal had nothing of that kind. */

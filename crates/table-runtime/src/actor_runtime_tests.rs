@@ -151,14 +151,26 @@ async fn actor_runs_recheck_scope_pause_cancels_revoke_stops_old_intents_and_res
     assert!(rx.await.unwrap().is_err());
     assert!(
         actor
-            .execute::<()>(caller("tumbler", None), Action::Resume)
+            .execute::<ResumeReport>(caller("tumbler", None), Action::Resume)
             .await
             .is_err()
     );
-    actor
-        .execute::<()>(caller("main", None), Action::Resume)
+    // Resume restarts nothing and reports the tables waiting on our agent: this deal was never
+    // listed, so no offer can go out on it yet and the report is empty (resume_tests.rs pins a
+    // non-empty one).
+    let report: ResumeReport = actor
+        .execute(caller("main", None), Action::Resume)
         .await
         .unwrap();
+    assert_eq!(report, ResumeReport { waiting: vec![] });
+    assert!(
+        actor
+            .execute::<Vec<RunSnapshot>>(caller("main", None), Action::Runs)
+            .await
+            .unwrap()
+            .iter()
+            .all(|r| r.state != RunState::Running && r.state != RunState::Starting)
+    );
     let resumed: RunSnapshot = actor
         .execute(caller("main", None), Action::Start(deal.id))
         .await

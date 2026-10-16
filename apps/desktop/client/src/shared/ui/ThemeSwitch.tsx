@@ -1,5 +1,5 @@
 // Dark / Light switch for the main window (only Home places it). Applies and stores the theme via
-// src/lib/theme.ts; the Tumbler and the approval window never apply a theme and stay dark.
+// src/lib/theme.ts; the Tumbler and the approval window follow the stored theme live (followStoredTheme).
 import { useEffect, useState } from 'react';
 import { currentTheme, onThemeChange, setTheme, type Theme } from '../../lib/theme';
 import { Seg } from './components';

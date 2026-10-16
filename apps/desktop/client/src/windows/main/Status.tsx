@@ -1,6 +1,7 @@
 // Engine and agent status for the Dial's 28px footer: two compact chips that open Settings.
 // No engine selected, an unavailable engine and a failed engine_status read all say so.
 import { useQuery } from '../../lib/hooks';
+import { reasonWords } from '../../lib/words';
 import { useWorld } from './world';
 
 export function EngineChip({ onClick }: { onClick: () => void }) {
@@ -11,9 +12,9 @@ export function EngineChip({ onClick }: { onClick: () => void }) {
   const ok = !!info?.available;
   const label = !sel ? 'No agent app' : engines.error ? 'Agent app status unknown' : !info ? 'Checking agent app…' : ok ? (sel === 'scripted' ? 'Practice agent ready' : 'Agent app ready') : 'Agent app not connected';
   const title = engines.error
-    ? `Could not check the agent app: ${engines.error.message}`
+    ? 'The agent app couldn’t be checked just now. Opens Settings.'
     : info
-      ? ok ? `${info.id}${info.version ? ` ${info.version}` : ''} is ready. Opens Settings.` : `${info.id} is not connected${info.reason ? `: ${info.reason}` : ''}. Opens Settings.`
+      ? ok ? `${info.id}${info.version ? ` ${info.version}` : ''} is ready. Opens Settings.` : `${info.id} is not connected${info.reason ? `: ${reasonWords(info.reason)}` : ''}. Opens Settings.`
       : sel ? 'Checking the agent app' : 'No agent app chosen: open Settings to pick one';
   return (
     <button type="button" className={`hs-chip ${ok ? 'ok' : 'warn'}`} onClick={onClick} title={title}>
@@ -31,7 +32,7 @@ export function AgentsChip({ onClick }: { onClick: () => void }) {
   return (
     <button type="button" className={`hs-chip ${paused ? 'warn' : running ? 'ok' : ''}`} onClick={onClick}
       title={paused ? 'All agents are paused. Deadlines and their safe defaults still run; nothing new starts.'
-        : w.runs.error && !runs ? `Could not read agent activity: ${w.runs.error.message}` : 'Agents working on deals right now (at most four, one per deal)'}>
+        : w.runs.error && !runs ? 'What your agents are doing couldn’t be read just now. Opens Settings.' : 'Agents working on deals right now (at most four, one per deal)'}>
       {text}
     </button>
   );

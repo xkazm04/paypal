@@ -2,7 +2,8 @@
 // (the default, beats.ts) and First run (firstRunStory.ts). A story says which mock world its frames
 // open in, so First run plays on the `?first_run=1` world and the sample week's storage stays as it
 // was. Pure: the page's search string goes in, the story and the frames' addresses come out.
-import { FIRST_RUN_PARAM, withFirstRun } from '../mock/firstRun';
+import { FIRST_RUN_PARAM, SCALE_PARAM, scalePreview, withFirstRun } from '../mock/firstRun';
+import type { ScaleName } from '../lib/preview';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat, type Chapter } from './beats';
 import { FIRST_RUN_BEATS, FIRST_RUN_CHAPTERS, FIRST_RUN_LENGTH } from './firstRunStory';
 import { EXPECT, FIRST_RUN_EXPECT, type Expect } from './takes';
@@ -41,9 +42,11 @@ export function storyFor(search: string = typeof location === 'undefined' ? '' :
   return isStoryId(id) ? STORIES[id] : STORIES.maya;
 }
 
-/** The framed windows' addresses for a story: in the first-run world they all carry `first_run=1`. */
-export function frameUrls(story: Pick<Story, 'firstRun'>) {
-  const w = (page: string) => withFirstRun(page, story.firstRun);
+/** The framed windows' addresses for a story: in the first-run world they all carry `first_run=1`.
+ *  Maya's week plays on her own sample week: its beats name her deals ("D-0193"), which a sized
+ *  sample (`?scale=`) does not have, so its frames never open in one (scale finding #20). */
+export function frameUrls(story: Pick<Story, 'firstRun'>, scale: ScaleName | null = scalePreview()) {
+  const w = (page: string) => withFirstRun(page, story.firstRun, story.firstRun ? scale : null);
   return {
     main: (route: string | null) => w(`index.html${route ?? ''}`),
     tumbler: w('tumbler.html?frame=director'),
@@ -58,8 +61,15 @@ export function frameUrls(story: Pick<Story, 'firstRun'>) {
  * page's search, so a first-run story's page carries `first_run=1` too. Null when it already does.
  */
 export function directorSearchFor(story: Pick<Story, 'firstRun'>, search: string): string | null {
-  if (!story.firstRun) return null;
   const q = new URLSearchParams(search);
+  if (!story.firstRun) {
+    // Maya's week names her deals: the page's own mock core plays it on her week, never on a
+    // sized sample (scale finding #20: "no deal D-0193").
+    if (!q.has(SCALE_PARAM)) return null;
+    q.delete(SCALE_PARAM);
+    const rest = q.toString();
+    return rest ? `?${rest}` : '';
+  }
   if (q.get(FIRST_RUN_PARAM) === '1') return null;
   q.set(FIRST_RUN_PARAM, '1');
   return `?${q}`;

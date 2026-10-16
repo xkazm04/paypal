@@ -3,6 +3,7 @@
 // a page CSS file scoped under the page's root class.
 import { useEffect, useRef, type ButtonHTMLAttributes, type CSSProperties, type InputHTMLAttributes, type KeyboardEvent, type MouseEvent, type ReactNode, type Ref } from 'react';
 import { Countdown } from '../honesty';
+import { Depth } from './console';
 
 const cx = (...c: Array<string | false | null | undefined>) => c.filter(Boolean).join(' ');
 
@@ -17,8 +18,8 @@ export function Spacer() {
 }
 
 export type CrumbItem = { label: ReactNode; onClick?: () => void; title?: string };
-/** Breadcrumb; the last item is the current page (not clickable). */
-export function Crumbs({ items, label = 'Breadcrumb' }: { items: CrumbItem[]; label?: string }) {
+/** Breadcrumb; the last item is the current page (not clickable). `depth` adds the stack-depth bars (Calibre). */
+export function Crumbs({ items, label = 'Breadcrumb', depth }: { items: CrumbItem[]; label?: string; depth?: number }) {
   return (
     <nav className="ui-crumbs" aria-label={label}>
       {items.map((c, i) => {
@@ -31,6 +32,7 @@ export function Crumbs({ items, label = 'Breadcrumb' }: { items: CrumbItem[]; la
           </span>
         );
       })}
+      {depth !== undefined ? <Depth value={depth} /> : null}
     </nav>
   );
 }
@@ -247,7 +249,7 @@ export function Stat({ k, v, big, hint, children, className }: { k: ReactNode; v
 /** A thin bar. value in 0..1; null = unknown (drawn dashed, never as zero). */
 export function Meter({ value, tone, label }: { value: number | null; tone?: 'gold' | 'coral' | 'red'; label: string }) {
   if (value === null || !Number.isFinite(value)) {
-    return <div className="ui-meter unknown" role="img" aria-label={`${label}: unknown`} />;
+    return <div className="ui-meter unknown" role="img" aria-label={`${label}: not available yet`} />;
   }
   const v = Math.min(1, Math.max(0, value));
   return (
@@ -270,7 +272,7 @@ export function Hourglass({ className }: { className?: string }) {
 /** The default on silence, one line: "⧗ If you do nothing: <b>text</b> · countdown". Every needs-you item carries one. */
 export function Silence({ text, deadline, children, className }: { text?: ReactNode; deadline?: number | null; children?: ReactNode; className?: string }) {
   return (
-    <span className={cx('ui-silence', className)}>
+    <span className={cx('ui-silence', className)} title={typeof text === 'string' ? `If you do nothing: ${text}` : undefined}>
       <Hourglass /><span className="if">If you do nothing: </span>{text ? <b>{text}</b> : null}{children}
       {deadline ? <> · <Countdown deadline={deadline} /></> : null}
     </span>

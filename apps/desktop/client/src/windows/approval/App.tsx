@@ -11,6 +11,7 @@
 // (lib/lazy.ts), preloaded while the selection resolves, so it is ready when no deal is selected.
 import { Suspense, useEffect, useState } from 'react';
 import { lazyPart, preloadWhenIdle } from '../../lib/lazy';
+import { Graticule } from '../../shared/brand';
 import { ToastProvider } from '../../shared/ui';
 import { DealReview } from './DealReview';
 import '../../shared/start.css';
@@ -28,6 +29,8 @@ export function App() {
   return (
     <SessionProvider>
       <ToastProvider>
+        {/* The console's ground under the sheet (decoration only, CSS gradients). */}
+        <Graticule variant="grid" fixed x="50%" y="40%" />
         <Approval />
       </ToastProvider>
     </SessionProvider>
