@@ -1382,7 +1382,11 @@
           "revision": 18,
           "changedAt": "2026-10-06",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:180 Stored preview state is accepted without shape validation, while parsing failures become absence and silently trigger fresh fixtures.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:2dba94be6400dea1",
+          "evaluatedRevision": 19
         },
         {
           "subject": "test-harness",
@@ -3798,7 +3802,11 @@
           "revision": 18,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-ledger/src/repositories.rs:1075 The deal list selects IDs and invokes a separate record query for every ID, making query count grow with the list.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:2dba94be6400dea1",
+          "evaluatedRevision": 19
         },
         {
           "subject": "fleet-orchestration",
@@ -6498,7 +6506,11 @@
           "revision": 18,
           "changedAt": "2026-10-06",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-runtime/src/groups.rs:47 Group display construction fetches each deal and transcript separately, increasing database calls with group size.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:2dba94be6400dea1",
+          "evaluatedRevision": 19
         },
         {
           "subject": "mcp-tools",
