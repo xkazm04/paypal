@@ -1049,7 +1049,11 @@
           "revision": 9,
           "changedAt": "2026-09-21",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-attention/src/schedule.rs:83 The relationship between fixed snooze and notification constants is checked only inside a unit test, so violating it does not itself prevent an ordinary build.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:c6563834f502429c",
+          "evaluatedRevision": 9
         },
         {
           "subject": "supply-chain",
@@ -1219,7 +1223,11 @@
           "revision": 9,
           "changedAt": "2026-09-21",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/understand.ts:376 Composition silently truncates counterparty filters before validation while retaining all reading chips, allowing a successful reading to describe a broader query than it emits.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:c6563834f502429c",
+          "evaluatedRevision": 9
         },
         {
           "subject": "supply-chain",
@@ -8329,7 +8337,11 @@
           "revision": 9,
           "changedAt": "2026-09-21",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-core/src/money.rs:61 Money relies on private fields to prevent bypassing its validating constructor, but no negative compilation artifact protects that restriction against being removed.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:c6563834f502429c",
+          "evaluatedRevision": 9
         },
         {
           "subject": "agent-instruction-files",
