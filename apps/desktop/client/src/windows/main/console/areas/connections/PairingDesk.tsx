@@ -58,6 +58,9 @@ export function PairingDesk({ mode, setMode, asLayer = false }: {
   const [pollErr, setPollErr] = useState<WalletError | null>(null);
   const [polls, setPolls] = useState(0);
   const [pinned, setPinned] = useState(false);
+  // The key Rust pinned for this pairing (pairing:pinned): the table hand-off names it.
+  const [pinnedKey, setPinnedKey] = useState<string | null>(null);
+  const tableOpen = useMutation('approval_open');
   const [matched, setMatched] = useState(false);
   const [ticks, setTicks] = useState<Ticks>(() => newTicks());
   const phase = pairPhase(!!offer, !!words);
@@ -65,7 +68,7 @@ export function PairingDesk({ mode, setMode, asLayer = false }: {
   const joinArgs = useRef<ArgsOf<'pairing_join'> | null>(null);
   const joinCalls = useRef(0);
 
-  const reset = () => { joinArgs.current = null; setStartedAs(null); setOffer(null); setWords(null); setPinned(false); setMatched(false); setTicks(newTicks()); setPollErr(null); setPolls(0); create.reset(); join.reset(); abort.reset(); };
+  const reset = () => { joinArgs.current = null; setStartedAs(null); setOffer(null); setWords(null); setPinned(false); setPinnedKey(null); tableOpen.reset(); setMatched(false); setTicks(newTicks()); setPollErr(null); setPolls(0); create.reset(); join.reset(); abort.reset(); };
   /** Ends the pairing in Rust (by our code while waiting, by its id once words are out), then here. */
   const end = async () => {
     const r = words ? await abort.run({ pairing_id: words.pairing_id, code: null }) : offer ? await abort.run({ pairing_id: null, code: offer.code }) : null;
@@ -75,6 +78,7 @@ export function PairingDesk({ mode, setMode, asLayer = false }: {
   useEvent('pairing:pinned', (p) => {
     if (words && p.pairing_id.join(',') === words.pairing_id.join(',')) {
       setPinned(true);
+      setPinnedKey(p.key_id);
       toast(p.house ? PAIR.connectedHouse : PAIR.connected, 'ok');
     }
   });
@@ -176,6 +180,14 @@ export function PairingDesk({ mode, setMode, asLayer = false }: {
   const houseWaking = mode === 'house' && (join.pending || house === 'waking');
   const answer = pairAnswer(mode, phase, matched, pinned, houseConnected);
   const table = words?.house_table ?? null;
+  // After the words are confirmed: join the house's table, or open one as the seller, in the
+  // approval window. The draft is a suggestion; Rust re-checks it there and nothing is paid.
+  const tableAct = !pinned || !pinnedKey ? null : table ? 'join' : mode !== 'house' && side === 'seller' ? 'open' : null;
+  const toTable = async () => {
+    if (!pinnedKey || !tableAct) return;
+    const r = await tableOpen.run({ deal_id: null, target: null, draft: { type: 'table', counterparty: pinnedKey, house: tableAct === 'join' ? table : null } });
+    if (r === null) toast(locked ? PAIR.tableOpenedLocked : PAIR.tableOpened, 'gold');
+  };
 
   // ---- panel 1: the code ---------------------------------------------------------------------
   let first: ReactNode;
@@ -285,7 +297,14 @@ export function PairingDesk({ mode, setMode, asLayer = false }: {
     pinned ? (
       <div className="wz-done">
         <Chip tone="ok">{PAIR.connectedChip}</Chip><span>{PAIR.payeeSaved}</span>
-        <Btn kind="primary" onClick={reset}>{PAIR.another}</Btn>
+        {tableAct ? (
+          <Btn kind="gold" locked={locked} disabled={tableOpen.pending} data-fk="table-handoff" onClick={() => void toTable()}
+            title={tableAct === 'join' ? PAIR.joinTableTitle : PAIR.openTableTitle}>
+            {tableAct === 'join' ? PAIR.joinTable : PAIR.openTable} ↗
+          </Btn>
+        ) : null}
+        <Btn kind={tableAct ? 'default' : 'primary'} onClick={reset}>{PAIR.another}</Btn>
+        {tableOpen.error ? <WalletNotice error={tableOpen.error} what={PAIR.approvalWindow} /> : null}
       </div>
     ) : (
       <>

@@ -111,7 +111,10 @@ function Connections({ nav }: { nav: LayerProps['nav'] }) {
       action={<Btn kind={call ? 'default' : 'primary'} data-fk="to-pairing" title={CONNECTIONS_PAIR.title} onClick={() => nav.place('pairing')}>{CONNECTIONS_PAIR.act} ›</Btn>}>
       {settings.error && !s ? <WalletNotice error={settings.error} what={NOTICE_WHAT.settings} /> : null}
       <section className="cn-people-sec" aria-label={CONNECTIONS_PEOPLE.view}>
-        <header className="cn-ph"><h2 className="cs-h3">{CONNECTIONS_PEOPLE.view}</h2><span className="dim">{CONNECTIONS_PEOPLE.sub}</span></header>
+        <header className="cn-ph"><h2 className="cs-h3">{CONNECTIONS_PEOPLE.view}</h2><span className="dim">{CONNECTIONS_PEOPLE.sub}</span>
+          {/* A seller opens a table in the approval window (owner configuration › Tables); nothing is paid. */}
+          {list?.some((c) => !c.house && c.pairing === 'words_confirmed') ? <ToApproval label={CONNECTIONS_PEOPLE.openTable} kind="default" sm title={CONNECTIONS_PEOPLE.openTableTitle} /> : null}
+        </header>
         <PeopleView rows={list} error={!!cps.error} />
       </section>
     </PlaceFrame>

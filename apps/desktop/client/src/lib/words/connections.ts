@@ -130,6 +130,8 @@ export const CONNECTIONS_PEOPLE = {
   since: (d: string): string => `since ${d}`,
   deals: (n: number): string => (n === 1 ? '1 deal closed' : `${n} deals closed`),
   noPayee: 'no payee declared',
+  openTable: 'Open a table',
+  openTableTitle: 'Opens the approval window: pick who to sell to, your rules and an asking price. Opening pays nothing.',
 } as const;
 
 /** The pairing desk (Connect a wallet), moved from setup/PairingDesk.tsx. */
@@ -218,6 +220,12 @@ export const PAIR = {
   offerLine: (qty: number, item: string, price: string): string => `${qty} × ${item} at ${price}`,
   haggleUntil: 'Haggle until',
   afterConfirm: 'After confirming, you join this table in the approval window. Your own rules still apply.',
+  joinTable: 'Join the table',
+  joinTableTitle: 'Opens the approval window: pick the rules your agent haggles under, then join. Joining pays nothing.',
+  openTable: 'Open a table',
+  openTableTitle: 'Opens the approval window: pick your rules and an asking price, then open the table. Opening pays nothing.',
+  tableOpened: 'Approval window opened · pick your rules there',
+  tableOpenedLocked: 'Approval window opened · unlock with Windows Hello there first',
   confirm: 'Confirm in the approval window',
   confirmLocked: 'Locked: the approval window asks for Windows Hello first',
   confirmTitle: 'Confirm the words there, or stop',
