@@ -2592,3 +2592,9 @@ no PayPal call: money still moves only through the existing AUTHORIZE approval.
   deal_join refused outside the approval window, without the token and while locked; HOUSE join
   reaches a haggle; seller listing). UNVERIFIED: client tsc and vitest were not run (the worktree
   has no client node_modules; the gate is cargo only). Not checked by eye in a browser.
+- **Authority scan (2026-10-16): holds, one low fix.** Every claim above proved in `house_tests.rs`
+  (approval window, expired/revoked pin, ended table, house table on a non-house key now pinned);
+  `deal_create`/`deal_join` stay APPROVAL/Owner/PRIVILEGED, no MCP tool or Tumbler path reaches them
+  or a draft, Main only routes `approval_open`, the mock keeps `privileged()`. Fixed: `pairing_confirm`
+  kept the house table before its binding check could refuse (`a_refused_house_confirm_keeps_no_table_to_join`).
+  Open (low): the kept table is keyed by deal id, not bound to the house key that served it.
