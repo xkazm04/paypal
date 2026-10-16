@@ -1,0 +1,144 @@
+{
+ "schema": "conform-run/1",
+ "worker": "e25941b0-a992-4d50-a6e3-1484f3348a55",
+ "subject": "audit-logging",
+ "evaluatedAt": "2026-10-16T02:07:33.792775+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "ledger-schema-migrations",
+   "subject": "audit-logging",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-ledger/migrations/0001_table.sql:45 The audit schema lacks a structured outcome column and indexes for actor, action and time, preventing the indexed query axes required by audit-querying.",
+   "techniques": [
+    {
+     "technique": "append-only-design",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/migrations/0001_table.sql:47 UPDATE and DELETE are rejected, and migration 0002 additionally blocks replacement of an existing audit sequence."
+    },
+    {
+     "technique": "audit-querying",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/migrations/0002_integrity.sql:6 The inspected migrations provide the deal/sequence index but no actor, action or time indexes; audit_log also has no structured outcome column."
+    },
+    {
+     "technique": "retention-and-partitioning",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/migrations/0001_table.sql:48 Deletion is unconditionally forbidden; searches and inspection of the migrations and audit append implementation found no enforced audit horizon or checkpoint retirement path."
+    }
+   ]
+  },
+  {
+   "context": "runtime-money-controls",
+   "subject": "audit-logging",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-runtime/src/history_tests.rs:321 History reads deliberately leave the audit count unchanged, so access to sensitive money-history records is not itself recorded as audit-querying requires.",
+   "techniques": [
+    {
+     "technique": "audit-querying",
+     "verdict": "deviation",
+     "evidence": "crates/table-runtime/src/history_tests.rs:321 The test explicitly requires history access to write no audit record; window access control does not satisfy the separate sensitive-read auditing requirement."
+    },
+    {
+     "technique": "tamper-evidence",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/safety.rs:23 The safety reader verifies the chain before counting and surfaces integrity failures; proof export separately signs the recomputed evidence commitment."
+    }
+   ]
+  },
+  {
+   "context": "ledger-deal-safeguards",
+   "subject": "audit-logging",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-ledger/src/shield.rs:135 Safeguard mutations propagate audit-append failures before committing, allowing an observer write to fail the recorded action contrary to best-effort-with-accounting.",
+   "techniques": [
+    {
+     "technique": "append-only-design",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/resolution.rs:222 Resolution findings append entries referencing the original request instead of rewriting the original operation; signed-limit versions also reject mutation in the inspected tests."
+    },
+    {
+     "technique": "best-effort-with-accounting",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/src/shield.rs:135 The audit error propagates before tx.commit; stop_watching similarly places its observer audit append before committing the watch UPDATE, although that audit row is not its duplicate guard."
+    },
+    {
+     "technique": "tamper-evidence",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/limits.rs:98 Reading signed limits recomputes canonical content and its commitment, then verifies the owner's signature; invalid stored limits return an error rather than absence."
+    },
+    {
+     "technique": "write-path-sanitization",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/shield.rs:130 Shield detail uses closed typed fields, resolution observations are bounded codes, and domain appends pass through the shared pre-insert sanitizer; rescue tests verify subscriber email stays out of audit details."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "audit-logging",
+   "context": "offline-proof-verifier",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "audit-logging",
+   "context": "rewind-and-displays",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-16T02:07:33.792775+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "audit-logging"
+   ],
+   "techniques": [
+    "append-only-design",
+    "audit-querying",
+    "retention-and-partitioning"
+   ],
+   "deviations": 1,
+   "context": "ledger-schema-migrations",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-16T02:07:33.792775+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "audit-logging"
+   ],
+   "techniques": [
+    "audit-querying",
+    "tamper-evidence"
+   ],
+   "deviations": 1,
+   "context": "runtime-money-controls",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-16T02:07:33.792775+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "audit-logging"
+   ],
+   "techniques": [
+    "append-only-design",
+    "best-effort-with-accounting",
+    "tamper-evidence",
+    "write-path-sanitization"
+   ],
+   "deviations": 1,
+   "context": "ledger-deal-safeguards",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

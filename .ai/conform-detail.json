@@ -2238,6 +2238,84 @@
           "evidence": "crates/table-ledger/migrations/0009_wallet_limits.sql:3 Safety ceilings are stored in a dedicated versioned table with append-only triggers rather than mixed into unverified local preferences."
         }
       ]
+    },
+    "c466e7a3-3699-46dc-9cf2-f95dab9a7dd8/audit-logging": {
+      "context": "ledger-schema-migrations",
+      "subject": "audit-logging",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T02:07:33.792Z",
+      "worker": "e25941b0-a992-4d50-a6e3-1484f3348a55",
+      "techniques": [
+        {
+          "technique": "append-only-design",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/migrations/0001_table.sql:47 UPDATE and DELETE are rejected, and migration 0002 additionally blocks replacement of an existing audit sequence."
+        },
+        {
+          "technique": "audit-querying",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/migrations/0002_integrity.sql:6 The inspected migrations provide the deal/sequence index but no actor, action or time indexes; audit_log also has no structured outcome column."
+        },
+        {
+          "technique": "retention-and-partitioning",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/migrations/0001_table.sql:48 Deletion is unconditionally forbidden; searches and inspection of the migrations and audit append implementation found no enforced audit horizon or checkpoint retirement path."
+        }
+      ]
+    },
+    "2388265b-2923-4e49-b59f-7f4453fa4f88/audit-logging": {
+      "context": "runtime-money-controls",
+      "subject": "audit-logging",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T02:07:33.792Z",
+      "worker": "e25941b0-a992-4d50-a6e3-1484f3348a55",
+      "techniques": [
+        {
+          "technique": "audit-querying",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/history_tests.rs:321 The test explicitly requires history access to write no audit record; window access control does not satisfy the separate sensitive-read auditing requirement."
+        },
+        {
+          "technique": "tamper-evidence",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/safety.rs:23 The safety reader verifies the chain before counting and surfaces integrity failures; proof export separately signs the recomputed evidence commitment."
+        }
+      ]
+    },
+    "0d91f152-a990-40ae-9b71-c0a8f7c20407/audit-logging": {
+      "context": "ledger-deal-safeguards",
+      "subject": "audit-logging",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T02:07:33.792Z",
+      "worker": "e25941b0-a992-4d50-a6e3-1484f3348a55",
+      "techniques": [
+        {
+          "technique": "append-only-design",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/src/resolution.rs:222 Resolution findings append entries referencing the original request instead of rewriting the original operation; signed-limit versions also reject mutation in the inspected tests."
+        },
+        {
+          "technique": "best-effort-with-accounting",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/src/shield.rs:135 The audit error propagates before tx.commit; stop_watching similarly places its observer audit append before committing the watch UPDATE, although that audit row is not its duplicate guard."
+        },
+        {
+          "technique": "tamper-evidence",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/src/limits.rs:98 Reading signed limits recomputes canonical content and its commitment, then verifies the owner's signature; invalid stored limits return an error rather than absence."
+        },
+        {
+          "technique": "write-path-sanitization",
+          "verdict": "conformant",
+          "evidence": "crates/table-ledger/src/shield.rs:130 Shield detail uses closed typed fields, resolution observations are bounded codes, and domain appends pass through the shared pre-insert sanitizer; rescue tests verify subscriber email stays out of audit details."
+        }
+      ]
     }
   }
 }
