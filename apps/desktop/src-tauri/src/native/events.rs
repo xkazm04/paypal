@@ -102,7 +102,7 @@ pub(super) async fn produce(
                 let actor=app.state::<DesktopState>().actor.clone();
                 if let Ok(deals)=actor.execute::<Vec<Deal>>(Caller{label:"main".into(),token:None},Action::ListDeals).await{for deal in deals{let _=emit(&app,WindowEvent::DealChanged(&DealChanged{mode:deal.mode,deal}));}}
                 if let Ok(runs)=actor.execute::<Vec<RunSnapshot>>(Caller{label:"main".into(),token:None},Action::Runs).await{for run in runs{let _=emit(&app,WindowEvent::AgentChanged(&run));}}
-                if let Ok(settings)=actor.execute::<SettingsSnapshot>(Caller{label:"main".into(),token:None},Action::Settings).await{let _=emit(&app,WindowEvent::SettingsChanged(&settings));}
+                if let Ok(settings)=actor.execute::<SettingsSnapshot>(Caller{label:"main".into(),token:None},Action::Settings).await{app.state::<DesktopState>().agents_paused.store(settings.agents_paused,std::sync::atomic::Ordering::Relaxed);let _=emit(&app,WindowEvent::SettingsChanged(&settings));}
                 match actor.execute::<AttentionSnapshot>(Caller{label:"main".into(),token:None},Action::Attention).await{Ok(snapshot)=>WalletEvent::Attention(snapshot),Err(error)=>WalletEvent::Fault(error)}
             }
         },_=interval.tick()=>{
@@ -110,6 +110,8 @@ pub(super) async fn produce(
             if state.surface.lock().ok().is_some_and(|s|s.dragging) && !table_os::left_mouse_pressed() && let Some(t)=app.get_webview_window("tumbler"){
                 let _=tumbler_snap(t,app.clone(),app.state::<DesktopState>());
             }
+            // The time left on each tray entry moves with the clock.
+            refresh_tray(&app);
             let data=state.attention.lock().ok().and_then(|s|s.clone());
             let surface=state.surface.lock().ok().map(|s|(s.preferences.clone(),s.last_interaction));
             if let (Some(data),Some((preferences,last)))=(data,surface){
@@ -165,6 +167,10 @@ pub(super) async fn produce(
                     }
                 }
                 first_run_previous = Some(settings.first_run);
+                state
+                    .agents_paused
+                    .store(settings.agents_paused, std::sync::atomic::Ordering::Relaxed);
+                refresh_tray(&app);
                 let _ = emit(&app, WindowEvent::SettingsChanged(&settings));
             }
             WalletEvent::Attention(data) => {
@@ -203,6 +209,7 @@ pub(super) async fn produce(
                 if let Some(tray) = app.tray_by_id("wallet") {
                     let _ = tray.set_icon(Some(tray_icon(!data.items.is_empty())));
                 }
+                refresh_tray(&app);
                 let _ = emit_status(&app);
                 let selected = state.selected.lock().ok().and_then(|id| *id);
                 if let Some(id) = selected
@@ -344,6 +351,48 @@ async fn notify_once(
     }
 }
 
+/// Opens one deal's card in the Tumbler: the decision toast's click and the tray's deal entry.
+/// Call it on the main thread.
+pub(super) fn open_card(app: &AppHandle, id: DealId) {
+    let _ = set_form(app, Form::Card);
+    let _ = summon(app, false);
+    let _ = emit(app, WindowEvent::TumblerSelected(&DealArgs { deal_id: id }));
+}
+
+/// Rebuilds the tray menu and tooltip from the attention snapshot and the paused state, only
+/// when what they show changed (the dot is set with the snapshot itself).
+pub(super) fn refresh_tray(app: &AppHandle) {
+    let state = app.state::<DesktopState>();
+    let now = table_core::Clock::now(&table_runtime::SystemClock);
+    let paused = state
+        .agents_paused
+        .load(std::sync::atomic::Ordering::Relaxed);
+    let Some(model) = state.attention.lock().ok().map(|snapshot| {
+        let items = snapshot.as_ref().map_or(&[][..], |s| s.items.as_slice());
+        table_client::tray::tray_model(items, paused, now)
+    }) else {
+        return;
+    };
+    {
+        let Ok(mut shown) = state.tray.lock() else {
+            return;
+        };
+        if *shown == model {
+            return;
+        }
+        shown.clone_from(&model);
+    }
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        if let Some(tray) = handle.tray_by_id("wallet")
+            && let Ok(menu) = tray_menu(&handle, &model)
+        {
+            let _ = tray.set_menu(Some(menu));
+            let _ = tray.set_tooltip(Some(&model.tooltip));
+        }
+    });
+}
+
 fn show_toast(app: &AppHandle, item: &table_attention::AttentionItem) -> Result<(), String> {
     // The plugin's desktop builder discards action callbacks. Use its
     // underlying WinRT wrapper so clicks only route to the matching card.
@@ -359,14 +408,7 @@ fn show_toast(app: &AppHandle, item: &table_attention::AttentionItem) -> Result<
         .on_activated(move |_| {
             let app = click_app.clone();
             let main_app = app.clone();
-            let _ = app.run_on_main_thread(move || {
-                let _ = set_form(&main_app, Form::Card);
-                let _ = summon(&main_app, false);
-                let _ = emit(
-                    &main_app,
-                    WindowEvent::TumblerSelected(&DealArgs { deal_id: id }),
-                );
-            });
+            let _ = app.run_on_main_thread(move || open_card(&main_app, id));
             Ok(())
         })
         .show()
