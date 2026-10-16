@@ -9,6 +9,7 @@ pub mod authority;
 mod authority_table;
 pub mod ladder;
 pub mod playbooks;
+pub mod tray;
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
