@@ -686,10 +686,22 @@ impl Runtime {
             Action::Decision(args, decision) => self.decide(label, token, args, decision).await,
             Action::Create(args) => json(self.create_deal(args)?),
             Action::Join(args) => {
-                if args.create.side != Side::Buyer || args.create.kind != DealKind::Haggle {
-                    return Err(invalid());
+                let joined =
+                    if args.create.side != Side::Buyer || args.create.kind != DealKind::Haggle {
+                        Err(invalid())
+                    } else {
+                        self.join_deal(args.create, args.deal_id)
+                    };
+                // A join refused past the gate (unknown, unpaired or lapsed pin, known deal id,
+                // the rules) leaves the same row a gate refusal does. A key never seen here comes
+                // back from the ledger as LedgerTrust, so only Unavailable is left out: nothing
+                // was refused, the wallet could not answer.
+                if let Err(refusal) = &joined
+                    && !matches!(refusal.code, ErrorCode::Unavailable)
+                {
+                    self.record_refusal("deal_join", label);
                 }
-                json(self.join_deal(args.create, args.deal_id)?)
+                json(joined?)
             }
             Action::Pause => {
                 app(self
