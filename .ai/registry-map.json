@@ -2412,7 +2412,11 @@
           "revision": 9,
           "changedAt": "2026-10-02",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:3 Review copy is derived from the deal and the wallet summary; the approval directory has no stream-json, jsonl, permission-mode, dontAsk, or ANTHROPIC_API_KEY.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
+          "evaluatedRevision": 9
         }
       ],
       "governance": "governed"
@@ -3234,7 +3238,11 @@
           "revision": 9,
           "changedAt": "2026-10-02",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "services/house-seller/src/hosted.rs:796 The house counters from a signed price schedule; services/house-seller has no claude, codex, stream-json, jsonl, or ANTHROPIC_API_KEY.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
+          "evaluatedRevision": 9
         },
         {
           "subject": "mcp-tools",
@@ -7409,7 +7417,11 @@
           "revision": 9,
           "changedAt": "2026-10-02",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-engine/src/argv.rs:84 The live Codex argv passes an MCP approval mode that the same function marks unverified, so an undated capability is treated as true.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
+          "evaluatedRevision": 9
         },
         {
           "subject": "serving-process-topology",
@@ -7981,7 +7993,11 @@
           "revision": 9,
           "changedAt": "2026-10-02",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-app/src/agent.rs:76 This crate names a playbook and executes signed wallet intents; a search of crates/table-app found no claude, codex, stream-json, jsonl, or ANTHROPIC_API_KEY.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:5791230ffb7d9fad",
+          "evaluatedRevision": 9
         },
         {
           "subject": "eval-harness",
