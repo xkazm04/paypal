@@ -1744,3 +1744,66 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   `house_table_draft_carries_only_the_table_rust_kept_at_pairing` in
   `crates/table-runtime/src/house_tests.rs`, `docs/build/STATUS.md` "Open or join a table after
   pairing". Docs only here: no code changed.
+
+## 49. Owner-to-owner join goes through a pasted listing code; no new path
+
+- **Date:** 2026-10-17 (merged at f9f55e4; commits bda8749 Rust, c5b99d5 client, f9f55e4 docs)
+- **Decided by:** Athena as operator delegate 2026-10-17
+- **Constraint:** a buyer who is another owner has to join the seller's table before the Devpost
+  submission, with no new transport path. §48 left this open: a buyer cannot learn a paired seller's
+  listing (deal ULID, terms, category) before its own deal exists, because relay mailboxes are polled
+  only for deals that already exist locally. A read that surfaces a received LISTING would be a new
+  command or event and so a new authority row. The LLM never moves money and silence never moves
+  money; nothing here may loosen that.
+- **Decision:** a listing code passed out of band, and the existing `deal_join`.
+  1. The seller's table sheet shows, once `deal_create` returns, a `TBL1` code:
+     `TBL1/<deal id>/<item>/<qty>/<minor>/<CUR>/now/<category>/<crc32>`
+     (`windows/approval/listingCode.ts`). The CRC-32 (IEEE, 8 hex digits) covers every field before
+     it, so the terms, quantity included. It catches a mistyped or cut-off code; it is not
+     authentication and the code is not a secret. Delivery is digital-now only; any other delivery
+     does not encode. A malformed, other-version, bad-checksum or unsupported code is refused in the
+     buyer's sheet in plain words.
+  2. The buyer's sheet decodes it locally, shows the terms, and calls `deal_join` with the seller's
+     deal id and those terms (`tableDraft.ts` `codeJoinArgs`). No command and no authority row changed.
+  3. For a non-house counterparty the code is not trusted. `Runtime::join_deal` (`service.rs`, called
+     from the `deal_join` arm of `dispatcher.rs`) refuses, with the generic invalid error, when:
+     - the counterparty is not paired with a live pin (`counterparty_policy_at(key, now)`): never
+       seen, seen but words not confirmed, revoked, or expired; and
+     - the deal id already exists locally (`get_deal` returns anything but `NotFound`).
+     House joins keep the check against the table Rust kept, unchanged.
+  4. The buyer deal then waits at `Pairing`. It leaves it only when the seller's signed LISTING
+     arrives on the mailbox of that deal id and its item, ask and delivery equal the deal's terms
+     (`receive_haggle`, as STATUS.md records). So a wrong ULID means the listing never arrives and
+     the deal withdraws at its deadline on silence; altered terms mean the listing is refused. Neither
+     reaches `Listed`, AUTHORIZE or PayPal. Money still moves only through the existing AUTHORIZE
+     approval.
+- **Tests** (`crates/table-runtime/src/listing_code_tests.rs`):
+  - `a_matching_listing_code_lists_the_buyer_deal_and_the_haggle_closes`: both transcripts reach
+    `Receipted` with the same head; the buyer made no PayPal call.
+  - `a_listing_code_with_the_wrong_deal_id_never_hears_the_listing_and_lapses_on_silence`: the
+    buyer deal stays `Pairing`, then `Withdrawn` at the deadline; no PayPal call.
+  - `a_listing_code_with_altered_terms_is_refused_and_never_reaches_authorize`: an altered ask, item
+    and delivery each leave the buyer at `Pairing`; no PayPal call.
+  - `deal_join_refuses_an_unpaired_revoked_or_expired_counterparty_and_a_known_deal_id`: a stranger,
+    an unconfirmed pin, a revoked pin and an expired pin are refused; a live pin joins once and the
+    same deal id then joins no more; a refusal creates nothing.
+  The altered-terms test changes ask, item and delivery. Quantity is covered by the code's checksum
+  but is not one of the terms that test alters.
+- **Lost:** *pair-mailbox ingest* (surfacing a received signed LISTING from a paired seller to the
+  buyer with no code). It needs a new read command or event, so a new authority row and a new
+  transport path, which this decision rules out before the submission, and it is more than the
+  remaining time allows. Recorded as post-submission; it is not built.
+- **Known limitation, accepted for the submission:** the mock beat of this join in the browser
+  (no-install) path plays only with fixture wallets that have a declared payee, because the mock
+  refuses an opening intent whose payee it cannot name. The delegate accepted this; a wallet without
+  a declared payee does not get that beat. The real Rust path is not affected.
+- **Verification state:** the four Rust tests above ran green in the merge gate (`cargo check` and
+  `cargo test`, table-desktop excluded). The client tests, `listingCode.test.ts` and
+  `mock/tables.test.ts`, have **not** been run: the worktree had no `node_modules`, so neither `tsc`
+  nor `vitest` ran. Treat them as **unverified** until the operator's `npm install` and a run. The
+  commit message of c5b99d5 and STATUS.md say the same; STATUS.md notes the encode/decode logic was
+  only exercised under node.
+- **Evidence:** `crates/table-runtime/src/service.rs` (`join_deal`), `dispatcher.rs` (`deal_join`
+  arm), `listing_code_tests.rs`; `apps/desktop/client/src/windows/approval/listingCode.ts`,
+  `tableDraft.ts`, `mock/backend.ts` (`deal_join`); `docs/build/STATUS.md` "Open or join a table
+  after pairing"; `docs/features/approval-window.md`. Docs only here: no code changed.
