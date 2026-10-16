@@ -1299,22 +1299,31 @@ fn sixty_four_live_pre_capture_routes_still_fill_the_relay() {
     ));
 }
 
-#[test]
-fn receipted_route_stays_polled_and_delivers_what_it_owes() {
-    let (mut ledger, deal, _, own, peer) = setup();
-    ledger
-        .bind_relay(deal.id, H256::digest(b"mailbox"), 100)
-        .unwrap();
+/// Puts a deal in RECEIPTED at `at`, with the `deal.transition` row a real settlement leaves.
+fn receipt_at(ledger: &mut Ledger, id: DealId, at: Timestamp) {
     ledger
         .conn
         .execute(
             "UPDATE deals SET state='RECEIPTED' WHERE id=?1",
-            [deal.id.to_string()],
+            [id.to_string()],
         )
         .unwrap();
-    // Nothing owed: still polled, so a relay restart is noticed and history can be resent.
-    assert!(ledger.relay_work().unwrap()[0].outgoing.is_empty());
-    let mut e = inbound(&deal, &peer, &own);
+    audit::append(
+        &ledger.conn,
+        &AuditEntry {
+            at,
+            actor: "policy".into(),
+            action: "deal.transition".into(),
+            deal_id: Some(id),
+            detail: serde_json::json!({"from":DealState::Captured,"to":DealState::Receipted}),
+        },
+    )
+    .unwrap();
+}
+
+/// Signs and records one outbound note, so the route owes it to the relay.
+fn owe_note(ledger: &mut Ledger, deal: &Deal, own: &AgentSigner, peer: &AgentSigner) -> H256 {
+    let mut e = inbound(deal, peer, own);
     e.body = Body::Note {
         text: ShortText::new("Owed".into()).unwrap(),
     };
@@ -1329,19 +1338,129 @@ fn receipted_route_stays_polled_and_delivers_what_it_owes() {
             next_sender_seq: 1,
             previous: H256::ZERO,
             now: 100,
-            nonces: &ledger,
+            nonces: &*ledger,
         },
     )
     .unwrap();
     ledger.record_outbound(&verified, 100).unwrap();
-    let work = ledger.relay_work().unwrap();
+    verified.hash()
+}
+
+// §46 amends §6: a Receipted route is polled for the recovery window, then retired. It still
+// delivers what it owes, in or out of the window.
+#[test]
+fn receipted_route_is_polled_in_the_recovery_window_and_delivers_what_it_owes() {
+    let (mut ledger, deal, _, own, peer) = setup();
+    ledger
+        .bind_relay(deal.id, H256::digest(b"mailbox"), 100)
+        .unwrap();
+    receipt_at(&mut ledger, deal.id, 1000);
+    // Nothing owed, inside the window: still polled, so a relay restart is noticed.
+    let work = ledger.relay_work_at(1000 + 60).unwrap();
+    assert!(work[0].outgoing.is_empty());
+    assert_eq!(work[0].settled_at, Some(1000));
+    let hash = owe_note(&mut ledger, &deal, &own, &peer);
+    let work = ledger.relay_work_at(1000 + 60).unwrap();
     assert_eq!(work.len(), 1);
     assert_eq!(work[0].outgoing.len(), 1);
     let generation = work[0].generation.clone();
     ledger
-        .acknowledge_relay(deal.id, &generation, verified.hash())
+        .acknowledge_relay(deal.id, &generation, hash)
         .unwrap();
-    assert!(ledger.relay_work().unwrap()[0].outgoing.is_empty());
+    assert!(
+        ledger.relay_work_at(1000 + 60).unwrap()[0]
+            .outgoing
+            .is_empty()
+    );
+}
+
+// §46 (3): a WITHDRAW or RECEIPT still owed is delivered long after the window has closed.
+#[test]
+fn receipted_route_that_owes_envelopes_is_delivered_after_the_window() {
+    let (mut ledger, deal, _, own, peer) = setup();
+    ledger
+        .bind_relay(deal.id, H256::digest(b"mailbox"), 100)
+        .unwrap();
+    receipt_at(&mut ledger, deal.id, 1000);
+    let hash = owe_note(&mut ledger, &deal, &own, &peer);
+    let late = 1000 + RECOVERY_WINDOW_SECS + 10 * 86_400;
+    let work = ledger.relay_work_at(late).unwrap();
+    assert_eq!(work.len(), 1);
+    assert_eq!(work[0].outgoing.len(), 1);
+    assert_eq!(work[0].settled_at, None);
+    ledger
+        .acknowledge_relay(deal.id, &work[0].generation, hash)
+        .unwrap();
+    assert!(ledger.relay_work_at(late).unwrap().is_empty());
+}
+
+// §46 (1): a fake clock walks a settled, quiet route through the window and several days past it.
+#[test]
+fn settled_route_is_polled_on_a_decaying_cadence_then_retired() {
+    let (mut ledger, deal, _, _, _) = setup();
+    ledger
+        .bind_relay(deal.id, H256::digest(b"mailbox"), 100)
+        .unwrap();
+    let settled = 1_000_000;
+    receipt_at(&mut ledger, deal.id, settled);
+    let mut clock = SettledPollClock::default();
+    let mut polls = vec![];
+    // The runtime ticks about once a second; the simulation does too for the first two hours, then
+    // every 5 seconds (a multiple of the base interval, so the schedule is unchanged).
+    let ticks = (settled..settled + 7200)
+        .chain((settled + 7200..settled + RECOVERY_WINDOW_SECS).step_by(5));
+    for now in ticks {
+        if !clock
+            .due(ledger.relay_work_at(now).unwrap(), now)
+            .is_empty()
+        {
+            polls.push(now - settled);
+        }
+    }
+    // Doubling from the base interval to the ceiling, then hourly.
+    assert_eq!(&polls[..4], &[0, 5, 10, 20]);
+    assert_eq!(polls[4] - polls[3], 20);
+    let gaps: Vec<i64> = polls.windows(2).map(|w| w[1] - w[0]).collect();
+    assert!(gaps.windows(2).all(|g| g[1] >= g[0]));
+    assert_eq!(*gaps.last().unwrap(), RECOVERY_POLL_CEILING_SECS);
+    assert!(polls.len() < 100, "{} polls in 72 h", polls.len());
+    assert!(polls.len() > 60);
+    // After the window: no work entry at all, over four further days.
+    let mut entries = 0;
+    for now in
+        (settled + RECOVERY_WINDOW_SECS..settled + RECOVERY_WINDOW_SECS + 4 * 86_400).step_by(30)
+    {
+        entries += clock.due(ledger.relay_work_at(now).unwrap(), now).len();
+    }
+    assert_eq!(entries, 0);
+}
+
+// §46 (2): a relay restart inside the window makes the wallet resend its signed history.
+#[test]
+fn relay_generation_reset_inside_the_window_resends_the_history() {
+    let (mut ledger, deal, _, own, peer) = setup();
+    ledger
+        .bind_relay(deal.id, H256::digest(b"mailbox"), 100)
+        .unwrap();
+    let hash = owe_note(&mut ledger, &deal, &own, &peer);
+    receipt_at(&mut ledger, deal.id, 1000);
+    let first = "a".repeat(32);
+    ledger
+        .stage_relay_batch(deal.id, &first, 0, &[], 1000)
+        .unwrap();
+    ledger.acknowledge_relay(deal.id, &first, hash).unwrap();
+    assert!(ledger.relay_work_at(2000).unwrap()[0].outgoing.is_empty());
+    // The relay restarted: a new generation appears on a poll, inside the window.
+    let now = 1000 + 3600;
+    ledger
+        .stage_relay_batch(deal.id, &"b".repeat(32), 0, &[], now)
+        .unwrap();
+    let work = ledger.relay_work_at(now).unwrap();
+    assert_eq!(work[0].outgoing.len(), 1);
+    // And the cadence does not hold the resend back.
+    let mut clock = SettledPollClock::default();
+    assert_eq!(clock.due(work.clone(), now).len(), 1);
+    assert_eq!(clock.due(work, now + 1).len(), 1);
 }
 
 #[test]

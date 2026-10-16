@@ -117,6 +117,7 @@ pub struct Runtime {
     pub(crate) relay_retry_at: i64,
     pub(crate) relay_failures: u8,
     pub(crate) relay_offset: usize,
+    pub(crate) settled_polls: table_ledger::SettledPollClock,
     pub(crate) secondary: Option<Arc<dyn table_paypal::SecondaryApi>>,
     /// Targeted events a command produced, sent by the actor loop after the command returns.
     pub(crate) emitted: Vec<crate::WalletEvent>,
@@ -265,6 +266,7 @@ impl Runtime {
             relay_retry_at: 0,
             relay_failures: 0,
             relay_offset: 0,
+            settled_polls: Default::default(),
             secondary: None,
             emitted: Vec::new(),
             engine_probed_at: Vec::new(),

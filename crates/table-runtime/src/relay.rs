@@ -45,7 +45,10 @@ impl Runtime {
         let Some(sender) = self.actor_sender.clone() else {
             return Ok(());
         };
-        let mut work = app(self.pipeline.wallet.ledger.relay_work())?;
+        let now = self.clock.now();
+        let work = app(self.pipeline.wallet.ledger.relay_work_at(now))?;
+        // A settled route is polled on the decaying recovery cadence (DECISIONS section 46).
+        let mut work = self.settled_polls.due(work, now);
         if work.is_empty() {
             return Ok(());
         }

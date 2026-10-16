@@ -1459,7 +1459,14 @@ async fn house_approval_in_its_last_minute_ends_receipted_on_both_sides() {
         buyer.pipeline.wallet.ledger.get_deal(id).unwrap().state,
         DealState::AwaitingApproval
     );
-    let work = &seller.pipeline.wallet.ledger.relay_work().unwrap()[0];
+    // The test clock, not the system clock: a Receipted route is polled only inside the 72-hour
+    // recovery window after settlement (DECISIONS section 46).
+    let work = &seller
+        .pipeline
+        .wallet
+        .ledger
+        .relay_work_at(clock.0.load(SeqCst))
+        .unwrap()[0];
     let batch = store
         .poll(work.mailbox, &work.generation, 0, 0)
         .await
