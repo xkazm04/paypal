@@ -2512,3 +2512,39 @@ The wallet runtime and the HOUSE now run one inbox pass, `table_app::drain_inbox
 ## Book: economics-9 and value-6 closed (ops-ledger-query full r3, 2026-10-16)
 
 The operator's 'Fix both now' (2026-10-13) on DECISIONS §38's two open highs is carried out on the rebuilt Book. economics-9: `lib/readEach.ts` now keeps a timed-out read's slot until its invoke settles (fix commit fe9df3f); the Book's evidence gate (`console/areas/book/evidence.ts`) had no timeout, so its bound already held per call, and a test now pins it. Tests: `readEach.test.ts` 'keeps the slot of a timed-out read until its call settles…' and 'frees the slot of a timed-out read once its late answer arrives…'; `evidence.test.ts` 'never starts more than READ_CONCURRENCY calls while the calls never settle…'. value-6: the Ask slip adds the count of older deals, or 'everything on record' (commits 2513e5d and 1198990); test `book.test.tsx` 'Ask your book reaches past the week (value-6)'. The '8 reads in flight' wording in `evidence.ts` and book.md Known gaps is corrected. UNVERIFIED: client tsc and vitest were not run (the worktree has no client node_modules; the gate is cargo only). Not changed: `displays.ts` (deal_display passes) still bounds per pass, so a stuck call from an aborted pass does not count against the next pass.
+
+## Goal-evidence map of the App Master plan (2026-10-16)
+
+Each line is judged only from git and the docs at this commit: **met** names the commit or file that
+proves it, **partly** names what is missing, **open** means nothing shows it done. "Met" does not mean
+run in the native shell or on the PayPal sandbox unless the line says so; neither has been done (see
+M4). The brief said 20 goals; its list names 19, and all 19 are here.
+
+**M1**
+1. T2 deterministic negotiator: **met**. 45db28d (policy in `table_core::negotiation`), 54fa425 (policy engine over MCP), section "T2 deterministic negotiator" above, "Practice agent" badge in 93e93f3.
+2. T4 walk-away forecast: **met** offline. 83174f3 (quit confirm worded from the forecast), 93e93f3 (Tumbler "If you walk away" row, quit sheet), 359493c (forecast tested against the scheduler). The native tray quit dialog is not compiled or checked on Windows.
+3. T5 READY checklist in Rust: **met**. 97cb9eb (checks composed in `table-app`, bound to every owner decision by `checks_hash`), tests listed in its section.
+4. T10 unknown outcomes resolve once: **met** offline. 5e62cc2 (read-back resolver, one request id), 2b9b247 (client). Not run against the live sandbox (spike 3 not run).
+5. Submission cut decided: **met**. DECISIONS §1 (waves 1-3 before the video, wave 4 after).
+
+**M2**
+6. Feature scan: **partly**. `docs/features/` holds 17 module pages and `context-map.json` lists 47 contexts; no feature-scan report that ranks or lists every feature is in the repo.
+7. Every feature lite-ready: **partly**. Lite council rounds are recorded for many features in this file (deal-to-settlement, onboarding, hosted relay, Tumbler, rescue, Book and others), but no list shows every feature has one.
+8. Major features full council + operator: **partly**. Full councils with operator answers are recorded for house-seller-demo, attention-escalation, first-run onboarding, deal-to-settlement, wallet-deal-dashboard, owner-approval-decision and ops-ledger-query (DECISIONS §23-§42); which features count as major is not written down, so completeness is not shown.
+
+**M3**
+9. Wave 2 first slices T6/T11/T12: **met**. T6 3e75215, T11 cdf60f2, T12 d496eb1 (merged as 5f70b0a); T7 is goal 10.
+10. T7 no-install path: **met** under the narrower measure of DECISIONS §42 item 1 (README `pnpm dev` and static `dist`). aaec457, deceb2b, e28211d. No public link, by choice.
+11. Themes outside the cut marked post-submission: **met**. `docs/concepts/moonshot-backlog.md` marks T13, T16, T17, T18, T19 post-submission; DECISIONS §1.
+
+**M4**
+12. Native UAT: **open**. Every phase row and acceptance row still lists native UAT as pending; no UAT record exists.
+13. Live sandbox spikes: **open**. Only spike 6 (version only) ran (`SPIKE-RESULTS.md`); spikes 2, 3 and 8 and the live PayPal ones are unrun.
+14. HOUSE deployed: **open**. Deploy files are fixed (4909d48) and the mailbox allowance is in (ad2ef32), but no deployment is recorded; deploy approval is the next step (DECISIONS §42 item 2).
+15. Acceptance rows verified: **partly**. The "Acceptance map" above names offline tests for the rows; the UI, sandbox and native parts of most rows are pending.
+
+**M5**
+16. Public repo, no blockers: **partly**. P-1 is cut at the tip (38d4b8d, 15f5d08) but git history still holds the original and a rewrite is the operator's call; the connection words fix (§42 item 2) is open; whether the repo is public is not shown by git.
+17. README setup: **partly**. `README.md` has the check commands and the no-install director steps; it has no steps for running the wallet with an engine or a relay address.
+18. Video: **open**. The takes rig exists (e28211d) and its check passes, but no video is in the repo; recording is planned for Nov 6-9.
+19. Submitted: **open**. Nothing shows a Devpost submission (closes 2026-11-12 14:00 PT).
