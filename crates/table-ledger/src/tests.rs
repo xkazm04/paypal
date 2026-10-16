@@ -1410,10 +1410,9 @@ fn settled_route_is_polled_on_a_decaying_cadence_then_retired() {
     let ticks = (settled..settled + 7200)
         .chain((settled + 7200..settled + RECOVERY_WINDOW_SECS).step_by(5));
     for now in ticks {
-        if !clock
-            .due(ledger.relay_work_at(now).unwrap(), now)
-            .is_empty()
-        {
+        let due = clock.due(ledger.relay_work_at(now).unwrap(), now);
+        clock.polled(&due, now);
+        if !due.is_empty() {
             polls.push(now - settled);
         }
     }
@@ -1433,6 +1432,32 @@ fn settled_route_is_polled_on_a_decaying_cadence_then_retired() {
         entries += clock.due(ledger.relay_work_at(now).unwrap(), now).len();
     }
     assert_eq!(entries, 0);
+}
+
+// Scan 2026-10-16 R-1: the runtime sends at most four routes a pass, so a settled route that
+// `due` returned but the pass cut off was never polled, yet it waited out its interval (up to an
+// hour) as if it had been. Only the routes actually sent are marked polled.
+#[test]
+fn settled_route_left_out_of_a_pass_stays_due_until_it_is_sent() {
+    let (mut ledger, deal, _, _, _) = setup();
+    ledger
+        .bind_relay(deal.id, H256::digest(b"mailbox"), 100)
+        .unwrap();
+    let settled = 1_000_000;
+    receipt_at(&mut ledger, deal.id, settled);
+    let now = settled + 7200;
+    let mut clock = SettledPollClock::default();
+    // Two passes that both leave the route out (four other routes filled them).
+    assert_eq!(clock.due(ledger.relay_work_at(now).unwrap(), now).len(), 1);
+    let due = clock.due(ledger.relay_work_at(now + 1).unwrap(), now + 1);
+    assert_eq!(due.len(), 1);
+    // The pass that sends it starts its wait.
+    clock.polled(&due, now + 1);
+    assert!(
+        clock
+            .due(ledger.relay_work_at(now + 2).unwrap(), now + 2)
+            .is_empty()
+    );
 }
 
 // §46 (2): a relay restart inside the window makes the wallet resend its signed history.

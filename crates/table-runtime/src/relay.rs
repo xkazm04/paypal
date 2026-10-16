@@ -55,6 +55,8 @@ impl Runtime {
         let offset = self.relay_offset % work.len();
         work.rotate_left(offset);
         work.truncate(4);
+        // Only the routes sent this pass start their wait; the rest stay due (scan R-1).
+        self.settled_polls.polled(&work, now);
         self.relay_offset = self.relay_offset.saturating_add(work.len());
         self.relay_busy = true;
         tokio::spawn(async move {
