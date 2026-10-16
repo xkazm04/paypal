@@ -1839,7 +1839,7 @@ Wording and consistency pass over Book, Rescue, Shield, Counter, Spend, Home, th
   - `engines.rs` still answers "Scripted fixture supports table-view only" for practice shopper / assistant runs (pre-T2 wording that can reach the UI).
   - `shield.tsx` explains the "AI second opinion" as reading a payee's message, but it has no production caller and `prompts/shield.md` is a stub.
   - The Shield's "more than 100.00" wording (`words.ts`) assumes a two-decimal currency; the rule is 10000 minor units of the deal's currency.
-  - No screen calls `deal_create` / `deal_join` or `market_refresh`; the house practice table is never joined from the UI.
+  - No screen calls `market_refresh`. (`deal_create` / `deal_join` now have a caller: see "Open or join a table after pairing" below.)
   - The mock's `FORM_SIZE` for Tumbler forms (`mock/backend.ts`) disagrees with Rust `table-attention/src/placement.rs` (only the mock's `tumbler:orient` payload).
   - `Home.tsx`'s header comment says money only moves from the approval window; signed rules and safe defaults also move money (AGENTS.md).
 
@@ -2549,3 +2549,46 @@ M4). The brief said 20 goals; its list names 19, and all 19 are here.
 17. README setup: **partly**. `README.md` has the check commands and the no-install director steps; it has no steps for running the wallet with an engine or a relay address.
 18. Video: **open**. The takes rig exists (e28211d) and its check passes, but no video is in the repo; recording is planned for Nov 6-9.
 19. Submitted: **open**. Nothing shows a Devpost submission (closes 2026-11-12 14:00 PT).
+
+## Open or join a table after pairing (signed-haggle value line, 2026-10-16)
+
+Closes the signed-haggle full-council value line ("no screen opens or joins a table after pairing").
+Client work over the existing `deal_create` / `deal_join`. No new command, no authority row changed,
+no PayPal call: money still moves only through the existing AUTHORIZE approval.
+
+- **Carrier.** One new `ApprovalDraft::Table { counterparty, house: Option<HouseTableDraft> }`
+  (`crates/table-client/src/lib.rs`, bindings `ApprovalDraft.ts`, `HouseTableDraft.ts`).
+  `open_approval` accepts it only from `main`, for owner configuration (no target, no deal), for a
+  live paired key, house exactly when the key is the house, and only if the house table equals the
+  `house.table.<deal_id>` preference kept at `pairing_confirm` and has not ended
+  (`configuration.rs` `check_draft`). `deal_join` still re-checks the table, terms, category and
+  deadline. `HouseTableDraft` mirrors `table_proto::HouseTable` so `table-proto` is untouched.
+- **Buyer joins the house table.** After the house's words are confirmed, Main's pairing desk shows
+  "Join the table" (`PairingDesk.tsx`), which opens the approval window with the table draft. The
+  approval window's table sheet (`windows/approval/owner/TableSheet.tsx`) shows the table, lets the
+  owner pick one of their own buyer haggle rules (`mandate_list`), and calls `deal_join` with the
+  table's deal id, category and terms (`tableDraft.ts` `houseJoinArgs`). The resulting deal is shown
+  with "Follow it in The Table" (`main_open`); the existing deal flow takes over.
+- **Seller opens a table.** Owner configuration › Tables › "Open a table…" (also reached from Main's
+  pairing desk after a seller pairing, and from Connections › Who you deal with): the owner picks a
+  wallet confirmed by four words, seller haggle rules, a category and an item those rules allow, a
+  quantity and an asking price; `deal_create` runs and Rust queues the signed LISTING.
+- **Mock.** `mock/backend.ts` `deal_create` / `deal_join` keep `privileged()` and simulate both: the
+  house join is accepted only for the table kept at the mock's `pairing_confirm`
+  (`MockState.houseTables`) and lands NEGOTIATING with the house's LISTING; a seller table lands
+  LISTED. Both pass the mock's `mockCheck` mirror of `MandatePayload::check`. The mock's HOUSE table
+  id is now unique per join.
+- **Words.** `APPROVAL_TABLE` (`lib/words/approval.ts`), `PAIR.joinTable`/`openTable`/… and
+  `CONNECTIONS_PEOPLE.openTable` (`lib/words/connections.ts`).
+- **Gap: a buyer joining another owner's desktop listing.** Not built. No existing command returns
+  a received listing's deal ULID and terms to the buyer: relay mailboxes are polled per deal that
+  already exists locally (`relay.rs` `consume_inbox`, `select_signer(message.deal_id)`), and
+  `relay_tests.rs` passes the seller's `deal.id` to the buyer out of band. Closing it needs a read
+  that surfaces a paired seller's signed LISTING (deal ULID, terms, category) before the buyer's deal
+  exists, which is a new command or event.
+- **Tests.** Rust: `house_table_draft_carries_only_the_table_rust_kept_at_pairing`
+  (`house_tests.rs`). Client (added, not run): `windows/approval/tableDraft.test.ts` (rules filter,
+  join args from `house_table` + a mandate, listing args), `mock/tables.test.ts` (deal_create and
+  deal_join refused outside the approval window, without the token and while locked; HOUSE join
+  reaches a haggle; seller listing). UNVERIFIED: client tsc and vitest were not run (the worktree
+  has no client node_modules; the gate is cargo only). Not checked by eye in a browser.
