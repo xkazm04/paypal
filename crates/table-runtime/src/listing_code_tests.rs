@@ -527,3 +527,120 @@ async fn deal_join_refuses_a_lapsed_house_pin_and_a_house_deal_id_already_joined
         assert!(http.0.lock().unwrap().paths.is_empty());
     }
 }
+/// Scan J-2: every join Rust refuses past the gate leaves one `command.refused` row (command,
+/// window, tier; never the deal id, the terms or the token), and an accepted join leaves
+/// `deal.created` and no refusal row.
+#[tokio::test]
+async fn every_refused_join_is_in_the_audit_log_and_an_accepted_one_is_created() {
+    use table_ledger::{Counterparty, PairedVia};
+    let (mut buyer, _, http, _, _) = runtime(true);
+    let mandate = buyer
+        .sign_mandate(MandateSignArgs {
+            id: None,
+            agent: AgentSlot::Negotiator,
+            clauses: clauses(Side::Buyer, DealKind::Haggle),
+            not_before: 0,
+            expires: 1000000,
+        })
+        .unwrap();
+    let token = crate::tests::unlock_runtime(&mut buyer);
+    let pin = |buyer: &mut Runtime, n: u8, confirmed: Option<i64>| {
+        let agent = ed25519_dalek::SigningKey::from_bytes(&[n; 32]).verifying_key();
+        let key = table_proto::key_id(&agent).unwrap();
+        buyer
+            .pipeline
+            .wallet
+            .ledger
+            .insert_paired_counterparty(
+                &Counterparty {
+                    key_id: key.clone(),
+                    owner_key: ed25519_dalek::SigningKey::from_bytes(&[n + 100; 32])
+                        .verifying_key()
+                        .to_bytes(),
+                    agent_key: agent.to_bytes(),
+                    display_name: table_proto::ShortText::new("PEER".into()).unwrap(),
+                    paired_via: PairedVia::Code,
+                    words_confirmed_at: confirmed,
+                    declared_payee: PayeeRef::new("merchant").unwrap(),
+                    first_seen: 0,
+                },
+                H256::digest(&[n]),
+            )
+            .unwrap();
+        key
+    };
+    let join = |key: &KeyId, id: DealId, side: Side| {
+        Action::Join(DealJoinArgs {
+            create: DealCreateArgs {
+                kind: DealKind::Haggle,
+                side,
+                counterparty: key.clone(),
+                mandate_id: mandate.payload.id,
+                mandate_version: 1,
+                terms: terms(),
+                category: Category::Parts,
+            },
+            deal_id: id,
+        })
+    };
+    let rows = |buyer: &Runtime, action: &str| {
+        let (rows, _) = buyer.pipeline.wallet.ledger.audit_page(None, 500).unwrap();
+        rows.into_iter()
+            .filter(|row| row.action == action)
+            .collect::<Vec<_>>()
+    };
+    let stranger =
+        table_proto::key_id(&ed25519_dalek::SigningKey::from_bytes(&[50; 32]).verifying_key())
+            .unwrap();
+    let unconfirmed = pin(&mut buyer, 1, None);
+    let live = pin(&mut buyer, 2, Some(100));
+    let id = DealId(ulid::Ulid::new());
+    let refused = [
+        join(&stranger, DealId(ulid::Ulid::new()), Side::Buyer),
+        join(&unconfirmed, DealId(ulid::Ulid::new()), Side::Buyer),
+        join(&live, DealId(ulid::Ulid::new()), Side::Seller),
+    ];
+    for (n, action) in refused.into_iter().enumerate() {
+        assert!(
+            buyer
+                .execute(caller("approval", Some(&token)), action)
+                .await
+                .is_err()
+        );
+        assert_eq!(rows(&buyer, "command.refused").len(), n + 1);
+    }
+    buyer
+        .execute(
+            caller("approval", Some(&token)),
+            join(&live, id, Side::Buyer),
+        )
+        .await
+        .unwrap();
+    assert_eq!(rows(&buyer, "command.refused").len(), 3);
+    assert!(
+        rows(&buyer, "deal.created")
+            .iter()
+            .any(|row| row.deal_id == Some(id))
+    );
+    // The same deal id again: refused, and recorded.
+    assert!(
+        buyer
+            .execute(
+                caller("approval", Some(&token)),
+                join(&live, id, Side::Buyer)
+            )
+            .await
+            .is_err()
+    );
+    let refusals = rows(&buyer, "command.refused");
+    assert_eq!(refusals.len(), 4);
+    for row in &refusals {
+        assert_eq!(row.deal_id, None);
+        assert_eq!(row.detail["command"], "deal_join");
+        assert_eq!(row.detail["window"], "approval");
+        let text = row.detail.to_string();
+        assert!(!text.contains(&id.to_string()) && !text.contains("monitor"));
+        assert!(!text.contains(&token));
+    }
+    assert!(http.0.lock().unwrap().paths.is_empty());
+}
