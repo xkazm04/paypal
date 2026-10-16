@@ -10,7 +10,7 @@ import { BOOK, BOOK_VIEWS_TITLE, IF_NOTHING } from '../../../../../lib/words';
 import { mockBackend } from '../../../../../mock/backend';
 import { sumByCurrency } from '../../../logic';
 import { expectLayerHealthy, renderLayerAtScale, settle } from '../../testing/scaleSmoke';
-import { paidOutIn, walletDay } from './model';
+import { outsideSpan, paidOutIn, walletDay } from './model';
 
 vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/runtime')).runtimeMock);
 
@@ -118,5 +118,26 @@ describe('Ask your book', () => {
     expect(r.calls.some((c) => c.cmd === 'book_query')).toBe(true);
     expect(r.layer.textContent).toMatch(/I read this as:|I didn’t understand/);
     expectLayerHealthy(r);
+  }, 60_000);
+});
+
+describe('Ask your book reaches past the week (value-6)', () => {
+  it('counts the deals of an answer that fall outside the week list', () => {
+    const week = { start: 1_000_000, end: 1_000_000 + 7 * 86_400 };
+    const ledger = [{ created_at: 1_000_100, updated_at: 1_000_200 }, { created_at: 10, updated_at: 20 }, { created_at: 30, updated_at: null }];
+    expect(outsideSpan(ledger, week)).toBe(2);
+    expect(outsideSpan(ledger.slice(0, 1), week)).toBe(0);
+    expect(BOOK.ask.line.older(2)).toBe('2 older deals from before this week');
+    expect(BOOK.ask.line.older(1)).toBe('1 older deal from before this week');
+  });
+
+  it('says on the slip that an answer over the whole ledger is everything on record', async () => {
+    const r = await renderLayerAtScale('#m=book&v=ask', 'large');
+    fireEvent.click(within(r.layer).getByRole('button', { name: /My rules vs me/ }));
+    await act(async () => { fireEvent.click(within(r.layer).getByRole('button', { name: BOOK.ask.show })); });
+    await settle();
+    const slip = r.layer.querySelector('.bk-slip .bk-sliptext');
+    // The question names no time, so it reaches every deal; the large world holds deals older than the week.
+    expect(slip?.textContent).toContain(BOOK.ask.line.everything);
   }, 60_000);
 });

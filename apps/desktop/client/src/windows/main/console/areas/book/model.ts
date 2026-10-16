@@ -28,6 +28,9 @@ export function inSpan(d: Pick<Deal, 'updated_at' | 'created_at'>, s: Span): boo
   return [d.created_at, d.updated_at].some((t) => t !== undefined && t !== null && t >= s.start && t < s.end);
 }
 
+/** How many of these deals fall outside the span (older than the week, or with no time on record). */
+export const outsideSpan = (deals: readonly Pick<Deal, 'updated_at' | 'created_at'>[], s: Span): number => deals.filter((d) => !inSpan(d, s)).length;
+
 /** The deals of a span, nothing older (scale finding #10: the week is the week). */
 export function dealsIn(deals: readonly Deal[], s: Span): Deal[] {
   return deals.filter((d) => inSpan(d, s));
