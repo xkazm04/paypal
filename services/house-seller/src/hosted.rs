@@ -188,6 +188,19 @@ impl<K: Hash + Eq + Copy, S: PartialEq + Copy> PollSchedule<K, S> {
     }
 }
 
+/// The routes to deliver at `now`: every route that owes envelopes, and a settled one only on the
+/// decaying cadence of DECISIONS section 46. The HOUSE sends everything it gets back, so each
+/// settled route returned starts its wait here (scan R-5).
+fn due_relay_work(
+    clock: &mut table_ledger::SettledPollClock,
+    work: Vec<table_ledger::RelayWork>,
+    now: Timestamp,
+) -> Vec<table_ledger::RelayWork> {
+    let due = clock.due(work, now);
+    clock.polled(&due, now);
+    due
+}
+
 pub struct Seller {
     pub pipeline: Pipeline,
     owner: SigningKey,
@@ -199,6 +212,9 @@ pub struct Seller {
     category: Category,
     pub(crate) clock: Arc<dyn Clock>,
     relay: Arc<dyn table_relay::RelayApi>,
+    /// When each settled route was last polled, to thin them to the decaying recovery cadence
+    /// (DECISIONS section 46, scan R-5). In memory only: a restart polls every route at once.
+    settled_polls: table_ledger::SettledPollClock,
     polls: PollSchedule<DealId, DealState>,
     log: Arc<dyn Log>,
     /// The last failure logged per (deal, step), so a step failing the same way every second
@@ -344,6 +360,7 @@ impl Seller {
             published_at: None,
             clock,
             relay,
+            settled_polls: table_ledger::SettledPollClock::default(),
             polls: PollSchedule::new(),
             log: Arc::new(Stderr),
             failing: HashMap::new(),
@@ -640,9 +657,10 @@ impl Seller {
             .pipeline
             .wallet
             .ledger
-            .relay_work()
+            .relay_work_at(now)
             .map_err(Error::from);
-        for work in self.noted("deliver", None, work)? {
+        let work = self.noted("deliver", None, work)?;
+        for work in due_relay_work(&mut self.settled_polls, work, now) {
             let id = work.deal_id;
             let result = self.deliver(work, now).await;
             self.beat();
@@ -1152,7 +1170,66 @@ mod tests {
     }
 
     use axum::{body::Body as HttpBody, http::Request};
+    use table_ledger::{RECOVERY_WINDOW_SECS, RelayWork, SettledPollClock};
     use tower::ServiceExt;
+
+    fn route(settled_at: Option<i64>, owed: bool) -> RelayWork {
+        RelayWork {
+            deal_id: deal(),
+            mailbox: H256::digest(b"mailbox"),
+            generation: "g".repeat(32),
+            cursor: 0,
+            outgoing: if owed {
+                vec![(H256::digest(b"owed"), "raw".into())]
+            } else {
+                vec![]
+            },
+            settled_at,
+        }
+    }
+    /// What `relay_work_at` returns for one receipted route: it is in the scan for the window only.
+    fn scan(settled: i64, now: i64) -> Vec<RelayWork> {
+        if now < settled + RECOVERY_WINDOW_SECS {
+            vec![route(Some(settled), false)]
+        } else {
+            vec![]
+        }
+    }
+    #[test]
+    fn settled_route_is_polled_on_the_decaying_cadence_not_every_tick() {
+        let mut clock = SettledPollClock::default();
+        let settled = 1_000_000;
+        let polls: Vec<i64> = (0..600)
+            .filter(|t| {
+                !due_relay_work(&mut clock, scan(settled, settled + t), settled + t).is_empty()
+            })
+            .collect();
+        assert_eq!(&polls[..5], &[0, 5, 10, 20, 40]);
+        assert!(polls.len() < 15, "{} polls in 600 ticks", polls.len());
+    }
+    #[test]
+    fn settled_route_is_retired_after_72_hours() {
+        let mut clock = SettledPollClock::default();
+        let settled = 1_000_000;
+        let mut last = 0;
+        for now in (settled..settled + RECOVERY_WINDOW_SECS + 86_400).step_by(5) {
+            if !due_relay_work(&mut clock, scan(settled, now), now).is_empty() {
+                last = now - settled;
+            }
+        }
+        assert!(last > 0 && last < RECOVERY_WINDOW_SECS, "last poll {last}");
+    }
+    #[test]
+    fn route_that_owes_envelopes_is_delivered_every_tick_after_the_window() {
+        let mut clock = SettledPollClock::default();
+        let late = 1_000_000 + RECOVERY_WINDOW_SECS + 10 * 86_400;
+        for now in late..late + 5 {
+            // Owing routes come back from the ledger with no `settled_at`.
+            let due = due_relay_work(&mut clock, vec![route(None, true)], now);
+            assert_eq!(due.len(), 1);
+            assert_eq!(due[0].outgoing.len(), 1);
+        }
+    }
 
     #[derive(Debug)]
     struct Fixed(i64);
