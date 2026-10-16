@@ -1,0 +1,150 @@
+{
+  "schema": "conform-run/1",
+  "worker": "f400e884-0838-431e-805d-a3135b584aa1",
+  "subject": "authorization",
+  "evaluatedAt": "2026-10-16T21:27:55.909930+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [
+    {
+      "context": "runtime-actor-and-engines",
+      "subject": "authorization",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "crates/table-runtime/src/dispatcher.rs:290 The runtime's dispatch chokepoint gate is conditionally bypassed for actions mapping to None in Action::command(), allowing unmonitored execution of imperative in-handler guards.",
+      "techniques": [
+        {
+          "technique": "declarative-requirements",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/actor.rs:190 Internal actions return None from Action::command() and bypass declarative requirements, falling back to ad-hoc in-handler checks."
+        },
+        {
+          "technique": "dispatch-chokepoint-gating",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/dispatcher.rs:291 The chokepoint gate is only consulted when an action resolves to a named command, leaving unmapped actions to execute without chokepoint admission."
+        },
+        {
+          "technique": "authorization-audit",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/dispatcher.rs:38 Refused commands lacking token, unlock, or release flags return early without logging, leaving non-privileged denial probes unrecorded."
+        },
+        {
+          "technique": "privilege-tiers",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/dispatcher.rs:81 Admission checks window label set membership rather than comparing a monotone numeric or ordered privilege tier."
+        },
+        {
+          "technique": "one-accessor-per-fold-direction",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/service.rs:599 Multi-valued check statuses are folded into permission by testing only for Fail, rather than exposing distinct accessors per fold direction."
+        },
+        {
+          "technique": "delegated-authority",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:381 Delegated agent tool execution re-validates the originating authority at execute time against the live signed mandate."
+        },
+        {
+          "technique": "failure-direction",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/vault.rs:103 Loading an existing signing key fails closed on absence instead of minting a replacement, preventing unreviewed identity substitution."
+        },
+        {
+          "technique": "machine-credential-consumption",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/vault.rs:71 Machine credentials are stored in the OS keyring as plain records without keyed-hash addressing, accessors, or use-exhaustion deletion."
+        },
+        {
+          "technique": "identity-bearing-keys",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/dispatcher.rs:323 Storage keys are formatted ad-hoc at individual call sites rather than routed through a single canonical composer function."
+        },
+        {
+          "technique": "unregistered-is-stronger-than-refused",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/actor.rs:111 Process-constant modes are evaluated dynamically at request time instead of removing restricted operations from the dispatch table."
+        },
+        {
+          "technique": "ceiling-before-consent",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/configuration.rs:395 Caller-supplied mandate arguments are validated against structural bounds prior to signing and insertion."
+        },
+        {
+          "technique": "scope-design",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/engines.rs:370 Agent capability checking performs exact equality comparison on canonical scope fields rather than soft or substring matching."
+        },
+        {
+          "technique": "read-write-predicate-symmetry",
+          "verdict": "conformant",
+          "evidence": "crates/table-runtime/src/dispatcher.rs:443 State selection writes verify existence via the read path get_deal, ensuring point writes borrow read-side visibility semantics."
+        }
+      ],
+      "registryProposal": "In multi-window desktop applications, privilege tiers are often non-monotone because security demands strict capability partitioning between specialized windows rather than monotonic inheritance where the highest tier can invoke all operations."
+    }
+  ],
+  "declined": [
+    {
+      "subject": "authorization",
+      "context": "offline-proof-verifier",
+      "reason": "The offline proof verifier is a post-hoc verification tool that evaluates deal proof bundles and ledger signatures offline without network, ledger, or wallet keys; it does not implement a live authorization subsystem, credential issuer, or dispatch chokepoint."
+    },
+    {
+      "subject": "authorization",
+      "context": "design-system-styles",
+      "reason": "The context consists exclusively of CSS stylesheets (tokens.css, base.css, ui.css) defining visual design tokens and UI styles, without executable authorization logic, dispatch chokepoints, or capability gates."
+    },
+    {
+      "subject": "authorization",
+      "context": "approval-window-shell",
+      "reason": "withdrawn after review: reviewer (sonnet): gating.ts:97 is a deliberate, documented UI gate (the comment at lines 88-94 says wait lines never block because Rust checks them before money moves, and an empty checklist allows nothing), so 'implicitly treating non-definitive checks as permitted' is contradicted; Rust's `admit` is the authoritati"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-16T21:27:55.909930+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "authorization"
+      ],
+      "techniques": [
+        "authorization-audit",
+        "ceiling-before-consent",
+        "declarative-requirements",
+        "delegated-authority",
+        "dispatch-chokepoint-gating",
+        "failure-direction",
+        "identity-bearing-keys",
+        "machine-credential-consumption",
+        "one-accessor-per-fold-direction",
+        "privilege-tiers",
+        "read-write-predicate-symmetry",
+        "scope-design",
+        "unregistered-is-stronger-than-refused"
+      ],
+      "deviations": 1,
+      "context": "runtime-actor-and-engines",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    },
+    {
+      "ts": "2026-10-16T21:27:55.909930+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "authorization"
+      ],
+      "techniques": [
+        "authorization-audit",
+        "ceiling-before-consent",
+        "declarative-requirements",
+        "dispatch-chokepoint-gating",
+        "failure-direction",
+        "one-accessor-per-fold-direction",
+        "privilege-tiers"
+      ],
+      "deviations": 1,
+      "context": "approval-window-shell",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}
