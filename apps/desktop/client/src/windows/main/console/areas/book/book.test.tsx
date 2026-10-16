@@ -9,6 +9,7 @@ import { formatMinor } from '../../../../../lib/format';
 import { BOOK, BOOK_VIEWS_TITLE, IF_NOTHING } from '../../../../../lib/words';
 import { mockBackend } from '../../../../../mock/backend';
 import { sumByCurrency } from '../../../logic';
+import { QUESTION_WORDS } from '../../../modules/book/where';
 import { expectLayerHealthy, renderLayerAtScale, settle } from '../../testing/scaleSmoke';
 import { outsideSpan, paidOutIn, walletDay } from './model';
 
@@ -133,7 +134,7 @@ describe('Ask your book reaches past the week (value-6)', () => {
 
   it('says on the slip that an answer over the whole ledger is everything on record', async () => {
     const r = await renderLayerAtScale('#m=book&v=ask', 'large');
-    fireEvent.click(within(r.layer).getByRole('button', { name: /My rules vs me/ }));
+    fireEvent.click(within(r.layer).getByRole('button', { name: QUESTION_WORDS.decided as string }));
     await act(async () => { fireEvent.click(within(r.layer).getByRole('button', { name: BOOK.ask.show })); });
     await settle();
     const slip = r.layer.querySelector('.bk-slip .bk-sliptext');
