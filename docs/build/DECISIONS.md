@@ -1464,3 +1464,68 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   (`envelope_simulate`).
 - **Consequences.** §40's "Rejected: batched read commands" stands as a rebuild-time choice, not a
   rule; a batched read may be proposed again on its merits.
+
+## 42. Operator answers of 2026-10-13
+
+- **Date:** 2026-10-13 (recorded 2026-10-16)
+- **Decided by:** the operator, on four approval asks. The commits below were checked with `git show`
+  and are ancestors of this branch. Where the answer is carried out, the item names the commits;
+  where it is not, it says so.
+
+### 1. T7 no-install judge path: "Local preview is enough" (ask cebdf5dd)
+
+- **Constraint:** the plan's T7 goal is a judge path that needs no install. The director
+  (`director.html`, "Maya's week") runs on the browser mock, but a judge still has to run `pnpm`
+  to see it; a public link would remove that and needs hosting and a decision about the relay.
+- **Decision:** T7 counts as met by the README's instructions, `pnpm --dir apps/desktop/client install
+  && ... dev` and the static `dist` build served from any folder ("Watch it work without installing
+  anything"). That is the narrower measure: no install of the wallet, not no install at all.
+- **Lost:** hosting the static build on GitHub Pages; deciding T7 together with the relay ask (ask
+  1e8569bf, item 2), which would have tied a hosted preview to the relay deploy.
+- **Evidence:** deceb2b (one shared clock and a `MockWorld` on the mock) and e28211d (repeatable
+  takes, stills and a rehearsal check of Maya's week); the director itself is aaec457. The
+  README section is in `README.md`. STATUS's T7 "Left" line (host the static build at a public
+  link) is therefore not a T7 requirement.
+
+### 2. Hosted relay scope: "Built in once deployed" (ask 1e8569bf)
+
+- **Constraint:** the HOUSE and the relay are not deployed (milestone 4). Today's build has no relay
+  address, so it cannot meet another wallet or the House.
+- **Decision:** today's build stays relay-less. After the HOUSE deploy is approved in milestone 4,
+  the release build carries the relay address, checked at build time. A bad override starts the
+  wallet without a relay. The owner gets a yes/no switch in the approval window. Nothing contacts
+  the relay until a pairing or a house deal. craft-5 stays post-submission with T19 (sealed relay).
+  Until then the words must say that this copy is not set up to meet other wallets and that the House
+  is not available in this copy.
+- **Lost:** "Setup only" and "craft-5 first".
+- **Done:** the mailbox exhaustion fix, a per-caller create allowance and a HOUSE reserve (ad2ef32),
+  and removal of the relay-named deploy files that would have deployed a second HOUSE (4909d48).
+- **OPEN:** the word fix. `apps/desktop/client/src/lib/words/connections.ts` still says
+  `offline: 'Offline'` with "The online meeting point is not available", which does not say that this
+  copy is not set up for other wallets or that the House is not available. Also open: the build-time
+  relay address, the yes/no switch and the no-contact-until-needed rule; they wait for the deploy
+  approval.
+
+### 3. Security P-1: "Cut it to generic patterns" (ask 9e986aef)
+
+- **Constraint:** scan-2026-10-07 finding P-1: a research document (owner-assets) carried Personas
+  internals that do not belong in a public repository.
+- **Decision:** cut the document to generic patterns.
+- **Done at the tip:** 38d4b8d (cut owner-assets to generic patterns, no Personas internals) and
+  15f5d08 (the scan finding marked fixed).
+- **Not done, on purpose:** git history still holds the original. A history rewrite stays with the
+  operator; no builder does it.
+
+### 4. ops-ledger-query economics-9 and value-6: "Fix both now" (ask d8ee6135)
+
+- **Constraint:** the two open highs of §38: an unbounded read slot after a timeout (economics-9) and
+  an Ask answer that reaches past the week without saying so (value-6).
+- **Decision:** fix both now, not after the submission.
+- **Done:** 2ed6900 (a timed-out read keeps its slot until its invoke settles), 9dad4cf (an answer
+  that reaches past the week says so on its slip), 1dcb586 (the test picks the Ask question by its
+  on-screen words) and fbf37e2 (STATUS). STATUS's entry names fe9df3f, 2513e5d and 1198990; those
+  are earlier copies of the same three changes and are not ancestors of this branch.
+- **Known problems:** one test from 2ed6900, the `readEach.test.ts` slot test, was found not to
+  terminate; it is being fixed in a separate run. Client `vitest` and `tsc` on `main` still wait on
+  the owner installing client dependencies (`@tanstack/react-query` and `@tanstack/react-virtual`
+  are missing from `node_modules`), so neither has run against these changes.
