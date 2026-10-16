@@ -96,6 +96,14 @@ export const SETTINGS_AGENTS = {
   more: (n: number): string => `and ${n} more`,
   ifPaused: 'they stay paused · no money moves',
   ifWorking: 'they keep working inside your rules · anything outside is refused',
+  resumedWaiting: (n: number): string => `Agents can work again. ${n === 1 ? '1 table is' : `${n} tables are`} waiting on your agent; nothing restarts until you say so.`,
+  waitingTitle: (n: number): string => `${n === 1 ? '1 table is' : `${n} tables are`} waiting on your agent`,
+  waitingWhy: 'Their next move is yours. Nothing restarts by itself: until you restart them, their deadlines run and the safe defaults apply.',
+  restart: (n: number): string => `Restart ${n === 1 ? '1 table' : `${n} tables`}`,
+  restartTitle: 'One agent per table, inside your rules. Four work at once.',
+  later: (n: number): string => `${n === 1 ? '1 waits' : `${n} wait`} for a free agent (four work at once)`,
+  notStarted: 'did not start',
+  restartFailed: (n: number): string => `${n === 1 ? '1 table' : `${n} tables`} did not restart`,
 } as const;
 
 export const SETTINGS_LOOK = {
