@@ -41,13 +41,58 @@ repository. On Linux the equivalent checks are `cargo fmt --all --check`,
 
 ### Watch it work without installing anything
 
-`pnpm --dir apps/desktop/client install && pnpm --dir apps/desktop/client dev`, then open
-`http://localhost:1430/director.html`. "Maya's week" plays all three windows (The Table, the
-Tumbler and the approval window) side by side on sample data with a simulated clock: a haggle that
-needs her, a deadline that passes with no money moved, a payment request that does not match, and
-a hold that releases itself while The Table is closed. It is a browser preview, never the wallet:
-no PayPal page is shown and nothing it does can approve or move money. A static build
-(`pnpm --dir apps/desktop/client build`, then serve `apps/desktop/client/dist`) works the same.
+1. Install the client dependencies: `pnpm --dir apps/desktop/client install`
+2. Start the preview server: `pnpm --dir apps/desktop/client dev`
+3. Open `http://localhost:1430/director.html` in a browser.
+
+"Maya's week" plays all three windows (The Table, the Tumbler and the approval window) side by side
+on sample data with a simulated clock: a haggle that needs her, a deadline that passes with no money
+moved, a payment request that does not match, and a hold that releases itself while The Table is
+closed. A static build also works: run `pnpm --dir apps/desktop/client build`, then serve
+`apps/desktop/client/dist` and open `director.html` from it.
+
+This needs Node and pnpm and nothing else. The repo pins neither version.
+
+### What is real and what is mocked
+
+The browser preview runs on a mock backend with sample data. It is never the wallet: no PayPal page
+is shown, no real money moves, and nothing it does can approve or move money. The Rust backend
+(money pipeline, ledger, PayPal clients, relay pairing, hosted house seller) is built and tested
+offline only. The live PayPal sandbox spikes have not run. They are approved for the owner to run
+with their own sandbox credentials, and builders only prepare them (`docs/build/DECISIONS.md`
+section 44; script in [`docs/build/SPIKE-RUNBOOK.md`](docs/build/SPIKE-RUNBOOK.md)). The hosted
+HOUSE seller is not deployed ([`docs/build/DEPLOY.md`](docs/build/DEPLOY.md): no deployment was
+performed).
+
+### Run The Table on Windows
+
+The native shell is Windows-only (`docs/build/STATUS.md`, "Native Tauri is Windows-only"). It has
+not been run interactively yet (`docs/build/STATUS.md`, B8 row: "native behavior still needs
+interactive verification"), so expect rough edges. There is no signed installer: the Tauri bundle is
+switched off (`"bundle": {"active": false}` in `apps/desktop/src-tauri/tauri.conf.json`), so you run
+it from source.
+
+Prerequisites:
+
+- Rust, installed through rustup. `rust-toolchain.toml` pins channel 1.97 and rustup fetches it on
+  the first cargo command.
+- Node and pnpm, for the client.
+- Whatever Tauri 2 needs on Windows (a C++ build toolchain and WebView2). This repo does not list
+  them, so check Tauri's own prerequisites page. Not verified here.
+
+Steps, from the repository root:
+
+1. `pnpm --dir apps/desktop/client install`
+2. `pnpm --dir apps/desktop/client build`. The shell embeds `apps/desktop/client/dist` at compile
+   time, so build the client first.
+3. `cargo run -p table-desktop`
+
+Or run `npm run tauri:dev:test`, which does the same with a source inspector turned on
+(`scripts/dev/tauri-dev-test.mjs`; press Ctrl+Shift+L in the app).
+
+Without a deployed HOUSE and sandbox credentials you cannot complete a real payment. To check the
+code without the app, run `./scripts/check.ps1` (formatting, Clippy with warnings denied and the
+offline test suite).
 
 ## Implementation documentation
 
