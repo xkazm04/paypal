@@ -49,16 +49,41 @@ describe('readEach', () => {
 
   it('keeps the slot of a timed-out read until its call settles: never more than `concurrency` unsettled', async () => {
     vi.useFakeTimers();
-    const invoke = vi.fn((_id: string) => new Promise<string>(() => {}));
+    // The first calls are held on deferred promises; once `release` is set, later calls answer at once.
+    const held: Array<(v: string) => void> = [];
+    let release = false;
+    let outstanding = 0;
+    let most = 0;
+    const invoke = vi.fn((id: string) => {
+      outstanding += 1;
+      most = Math.max(most, outstanding);
+      const answer = release
+        ? Promise.resolve(id)
+        : new Promise<string>((r) => { held.push(r); });
+      return answer.finally(() => { outstanding -= 1; });
+    });
     const ids = Array.from({ length: 50 }, (_, i) => `d${i}`);
     const p = readEach(ids, invoke);
     // Several timeouts pass; the 8 stuck calls time out but still hold their slots.
     await vi.advanceTimersByTimeAsync(READ_TIMEOUT_MS * 5);
     expect(invoke).toHaveBeenCalledTimes(READ_CONCURRENCY);
+    expect(held).toHaveLength(READ_CONCURRENCY);
+    expect(most).toBe(READ_CONCURRENCY);
+    // Let the pass finish: the late answers arrive (and are dropped), the other reads answer at once.
+    release = true;
+    held.forEach((r) => r('late'));
+    await vi.advanceTimersByTimeAsync(0);
     const rs = await p;
-    // The pass still settles: the 8 that started timed out, the rest never started.
-    expect(rs.filter((r) => r.status === 'rejected' && /timed out/.test(String((r.reason as Error).message)))).toHaveLength(READ_CONCURRENCY);
     expect(rs).toHaveLength(50);
+    expect(most).toBeLessThanOrEqual(READ_CONCURRENCY);
+    rs.slice(0, READ_CONCURRENCY).forEach((r) => {
+      expect(r.status).toBe('rejected');
+      expect(r.status === 'rejected' ? String((r.reason as Error).message) : '').toMatch(/timed out/);
+    });
+    rs.slice(READ_CONCURRENCY).forEach((r, i) => {
+      expect(r).toEqual({ status: 'fulfilled', value: `d${i + READ_CONCURRENCY}` });
+    });
+    expect(invoke).toHaveBeenCalledTimes(50);
   });
 
   it('frees the slot of a timed-out read once its late answer arrives, and drops that answer', async () => {
