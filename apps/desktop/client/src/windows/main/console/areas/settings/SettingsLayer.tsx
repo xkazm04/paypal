@@ -55,7 +55,7 @@ export function SettingsLayer({ nav }: LayerProps) {
   const paused = !!s?.agents_paused;
 
   const doPause = async () => { if ((await pause.run(null)) === null) toast(SETTINGS_AGENTS.pausedToast, 'gold'); };
-  const doResume = async () => { if ((await resume.run(null)) === null) toast(SETTINGS_AGENTS.resumedToast, 'ok'); };
+  const doResume = async () => { if (await resume.run(null)) toast(SETTINGS_AGENTS.resumedToast, 'ok'); };
   usePauseKey(paused || !s, doPause);
 
   const call = callOf(c, s, locked, paused, nav, doResume, resume.pending);

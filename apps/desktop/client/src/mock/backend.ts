@@ -555,10 +555,24 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     },
     agent_runs: () => state.runs,
     resume_all_agents: () => {
+      // As Runtime::waiting_on_agent: open haggles before their deadline, no live run, whose last
+      // step is not ours (an unanswered offer, or a band with rounds left). Starts nothing.
+      const now = nowUnix();
+      const waiting = state.deals.flatMap((d) => {
+        const deadline = d.display.deadline;
+        if (d.deal.kind !== 'haggle' || d.deal.mode === 'replay' || (d.deal.state !== 'LISTED' && d.deal.state !== 'NEGOTIATING')) return [];
+        if (deadline === null || deadline <= now) return [];
+        if (state.runs.some((r) => r.deal_id === d.deal.id && (r.state === 'running' || r.state === 'starting'))) return [];
+        const latest = [...d.transcript].reverse().find((t) => t.typ !== 'SETTLE' && t.typ !== 'RECEIPT');
+        if (latest?.by === 'you' || latest?.typ === 'WITHDRAW') return [];
+        const offerWaits = latest?.by === 'them' && (latest.typ === 'OFFER' || latest.typ === 'COUNTER');
+        const band = d.display.band;
+        return offerWaits || (band && band.rounds_used < band.max_rounds) ? [{ deal_id: d.deal.id, deadline }] : [];
+      }).sort((a, b) => a.deadline - b.deadline || (a.deal_id < b.deal_id ? -1 : 1));
       state.settings = { ...state.settings, agents_paused: false };
       save();
       emit('settings:changed', state.settings);
-      return null;
+      return { waiting };
     },
     pause_all_agents: () => {
       state.settings = { ...state.settings, agents_paused: true };

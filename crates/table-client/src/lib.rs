@@ -427,6 +427,21 @@ pub struct MarketRefreshArgs {
     pub deal_id: DealId,
     pub product_id: String,
 }
+/// What `resume_all_agents` found once the pause was cleared: the tables waiting on our agent,
+/// soonest deadline first. Resume starts none of them; each restart is the owner's `agent_start`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct ResumeReport {
+    pub waiting: Vec<WaitingTable>,
+}
+/// A table whose next move is ours (the agent may send or accept an offer now), with no run on it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct WaitingTable {
+    pub deal_id: DealId,
+    /// When the table lapses if nobody answers (the earlier of the band's and the deal's own).
+    pub deadline: i64,
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum RunState {
@@ -1021,7 +1036,8 @@ pub struct CommandContract {
     pub deal_create: Command<DealCreateArgs, Deal>,
     pub deal_join: Command<DealJoinArgs, Deal>,
     pub pause_all_agents: Command<(), ()>,
-    pub resume_all_agents: Command<(), ()>,
+    /// Clears the sticky pause and lists the tables waiting on our agent; it starts none of them.
+    pub resume_all_agents: Command<(), ResumeReport>,
     pub agent_start: Command<AgentStartArgs, RunSnapshot>,
     pub agent_runs: Command<(), Vec<RunSnapshot>>,
     pub market_refresh: Command<MarketRefreshArgs, table_core::MarketRef>,

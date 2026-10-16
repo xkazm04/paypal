@@ -1065,7 +1065,7 @@ which is never returned as a private key. `first_run` is true until a mandate ex
 | engine_select | config: main | EngineSelectArgs -> null | Scripted selection persists; native selection returns UNAVAILABLE. |
 | agent_start | main | AgentStartArgs -> RunSnapshot | Mandate-bound run; scripted checked read available, native conformance gated. Four runs maximum, one per deal. |
 | agent_runs | read: main | null -> RunSnapshot[] | Active runs and up to 64 completed summaries; no raw model text. |
-| resume_all_agents | main | null -> null | Clears sticky pause; requires an explicit later start. |
+| resume_all_agents | main | null -> ResumeReport | Clears sticky pause and lists the tables waiting on our agent (projection allows send/accept, no run, not let lapse), soonest deadline first; starts none: each restart is an explicit agent_start. |
 | market_refresh | approval + token + unlocked + selected | MarketRefreshArgs -> MarketRef | Real Channel3 client using keyring key; rechecks terms/mandate/currency after IO. Live fetch unverified. |
 | attention_list | read: all | null -> AttentionSnapshot | Real sorted gate/hold projection; approval sees selected deal only. Above-threshold buyer counters become GATE; stable labels and optional wallet_spend_today_currency included. |
 | main_open | route: main/tumbler | MainRoute -> null | Shows Main and restores/emits route. |
