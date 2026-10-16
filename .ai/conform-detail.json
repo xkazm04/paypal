@@ -2316,6 +2316,138 @@
           "evidence": "crates/table-ledger/src/shield.rs:130 Shield detail uses closed typed fields, resolution observations are bounded codes, and domain appends pass through the shared pre-insert sanitizer; rescue tests verify subscriber email stays out of audit details."
         }
       ]
+    },
+    "f4937131-9b2b-4830-92bf-e739e6fbaab4/client-fetch-cache": {
+      "context": "deal-detail",
+      "subject": "client-fetch-cache",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T02:31:45.382Z",
+      "worker": "5cfdf3a8-f7b3-4afb-8245-f0b8176a0bcb",
+      "techniques": [
+        {
+          "technique": "warm-remount-caches",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/DealView.tsx:58 Evidence and transcript queries are held in component-scoped state via useQuery with no module-scoped cache, resetting to empty on unmount and forcing cold remounts."
+        },
+        {
+          "technique": "swr-design",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/DealView.tsx:57 Queries lack fresh/stale window thresholds and background revalidation, setting loading: true and clearing data on every mount instead of painting stale while refreshing."
+        },
+        {
+          "technique": "sibling-entry-warmth",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/deal/Evidence.tsx:63 ProofPanel renders a loading placeholder despite evidence already being loaded in the parent Book list cache (evidence.ts), failing to borrow warmth from sibling summary entries."
+        },
+        {
+          "technique": "portable-read-definitions",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/DealView.tsx:64 Read operations bind commands and parameters directly to component hooks rather than declaring reusable plain-value triples (key, fetcher, policy) callable by prefetchers or loaders."
+        },
+        {
+          "technique": "in-flight-dedup",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/DealView.tsx:59 Identical read requests across concurrently mounting surfaces execute separate backend invokes without an in-flight join registry."
+        },
+        {
+          "technique": "prefetch-and-defer",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/DealView.tsx:40 While secondary tab chunks are deferred to idle, their underlying data fetches (like deal_evidence) are dispatched eagerly at mount rather than deferred to idle or tab visibility."
+        },
+        {
+          "technique": "parse-and-derive-caches",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/DealView.tsx:77 Derivations over clauses and deal rules rely on component-scoped React useMemo tied to the component mount cycle rather than a content-identity keyed derivation cache."
+        },
+        {
+          "technique": "cache-key-discipline",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/DealView.tsx:61 Query arguments are passed as ad-hoc objects/literals without a dedicated key builder or versioning discipline."
+        },
+        {
+          "technique": "admission-hypothesis",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/DealView.tsx:66 Fresh updates are pushed into an isolated single-entry React state hook rather than governed by an explicit admission hypothesis or cache retention policy."
+        },
+        {
+          "technique": "plural-policy-claims",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/DealView.tsx:51 DealView subscribes to the shared world context while issuing separate local queries with independent refresh policies without cross-claimant quantifier reconciliation."
+        },
+        {
+          "technique": "similarity-keyed-admission",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/deal/Evidence.tsx:79 Market comparables are retrieved by exact item reference and certified server-side; client UI renders market comparison bands without client-side resemblance or paraphrase admission caches."
+        }
+      ]
+    },
+    "9c2b67dc-8b1f-43ca-af72-23ddf95baf03/client-fetch-cache": {
+      "context": "market-data",
+      "subject": "client-fetch-cache",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-16",
+      "evaluatedTs": "2026-10-16T02:31:45.382Z",
+      "worker": "5cfdf3a8-f7b3-4afb-8245-f0b8176a0bcb",
+      "techniques": [
+        {
+          "technique": "in-flight-dedup",
+          "verdict": "deviation",
+          "evidence": "crates/table-market/src/lib.rs:142 Concurrent calls to comparables for the same product and currency issue duplicate network requests because the client lacks an in-flight join registry."
+        },
+        {
+          "technique": "swr-design",
+          "verdict": "deviation",
+          "evidence": "crates/table-market/src/lib.rs:137 When a cached entry is due for refresh, the client blocks synchronously and fails completely if the network call errors instead of serving the stale cached band with background revalidation."
+        },
+        {
+          "technique": "admission-hypothesis",
+          "verdict": "deviation",
+          "evidence": "crates/table-market/src/lib.rs:41 The cache stores every fetched comparables result in an unbounded BTreeMap without an explicit admission hypothesis, size cap, or eviction reaper."
+        },
+        {
+          "technique": "cache-key-discipline",
+          "verdict": "deviation",
+          "evidence": "crates/table-market/src/lib.rs:108 Cache keys are assembled ad-hoc as string tuples at lookup and insertion points rather than through a single key builder with canonical serialization or versioning."
+        },
+        {
+          "technique": "parse-and-derive-caches",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/src/lib.rs:150 Raw response hashing is used for cryptographic integrity checks rather than as an acceleration derive cache for recomputed layouts or aggregations."
+        },
+        {
+          "technique": "similarity-keyed-admission",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/src/lib.rs:116 Although Channel3 provides similar product comparables, the client's local cache is keyed strictly by exact product identity and currency rather than resemblance metrics."
+        },
+        {
+          "technique": "prefetch-and-defer",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/market.rs:105 Market data refreshes occur on explicit actor command calls without speculative intent prefetching or idle-time deferral."
+        },
+        {
+          "technique": "plural-policy-claims",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/src/lib.rs:50 The market client has a single global freshness policy evaluated at read time, with no plural claimants specifying distinct cache lifetimes or options."
+        },
+        {
+          "technique": "warm-remount-caches",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/src/lib.rs:37 Client is a long-lived backend service component that does not participate in view mounting or unmounting lifecycles."
+        },
+        {
+          "technique": "portable-read-definitions",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/src/lib.rs:32 MarketApi defines an asynchronous Rust trait interface rather than a client-side portable read definition bound to UI reactive primitives."
+        },
+        {
+          "technique": "sibling-entry-warmth",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/src/lib.rs:104 MarketRef lookups are individual product queries that do not have parent listings or sibling collection entries from which summary warmth can be borrowed."
+        }
+      ]
     }
   }
 }
