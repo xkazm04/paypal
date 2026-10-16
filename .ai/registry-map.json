@@ -3596,7 +3596,11 @@
           "revision": 9,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-ledger/src/shield.rs:135 Safeguard mutations propagate audit-append failures before committing, allowing an observer write to fail the recorded action contrary to best-effort-with-accounting.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:154304c5d9578971",
+          "evaluatedRevision": 10
         },
         {
           "subject": "test-harness",
@@ -3986,7 +3990,11 @@
           "revision": 9,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-ledger/migrations/0001_table.sql:45 The audit schema lacks a structured outcome column and indexes for actor, action and time, preventing the indexed query axes required by audit-querying.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:154304c5d9578971",
+          "evaluatedRevision": 10
         },
         {
           "subject": "mcp-tools",
@@ -6462,7 +6470,11 @@
           "revision": 9,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-runtime/src/history_tests.rs:321 History reads deliberately leave the audit count unchanged, so access to sensitive money-history records is not itself recorded as audit-querying requires.",
+          "evaluatedAt": "2026-10-16",
+          "evaluatedAgainst": "sha256-b2:154304c5d9578971",
+          "evaluatedRevision": 10
         },
         {
           "subject": "agent-runtime-assembly",
