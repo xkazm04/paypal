@@ -4,8 +4,10 @@
 //! `transition()` graph.
 use table_core::DealState;
 
-/// Name, doc line and predicate of every exported set, in output order.
-const SETS: [(&str, &str, fn(DealState) -> bool); 6] = [
+/// One exported set: its name, its doc line and the predicate that keeps its states.
+type Set = (&'static str, &'static str, fn(DealState) -> bool);
+/// Every exported set, in output order.
+const SETS: [Set; 6] = [
     (
         "TERMINAL",
         "`DealState::terminal()`: the deal has ended; nothing moves it again but a statement match, a refund or a dispute.",
