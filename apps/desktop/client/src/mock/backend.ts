@@ -328,7 +328,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
   /** As Runtime::create_deal_id: the owner's active rules allow this table (roles, per-deal limit,
    *  category, a seller's item in the band); the house's table must be the one kept at pairing.
    *  The deal is stored; nothing is sent to PayPal. */
-  function openTable(args: DealCreateArgs, id: string): Deal {
+  function openTable(args: DealCreateArgs, id: string, heard = false): Deal {
     if (state.deals.some((d) => d.deal.id === id)) fail('INVALID', 'Invalid or stale wallet command');
     const now = nowUnix();
     const m = activeMandate(args.mandate_id);
@@ -339,10 +339,10 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     if (cp.house && (!kept || JSON.stringify(kept.terms) !== JSON.stringify(args.terms) || kept.category !== args.category || kept.negotiation_deadline <= now)) fail('INVALID', 'Invalid or stale wallet command');
     // A seller's listing is signed and queued; a buyer at the house's table reads its signed
     // listing and the haggle starts. A buyer at another owner's table waits for their listing.
-    const listed = args.side === 'seller' || !!kept;
+    const listed = args.side === 'seller' || !!kept || heard;
     const deal: Deal = {
       id, created_at: now, updated_at: now, kind: args.kind, side: args.side, counterparty: args.counterparty, terms: args.terms,
-      state: args.side === 'seller' ? 'LISTED' : kept ? 'NEGOTIATING' : 'PAIRING', mandate_id: m.payload.id, mandate_version: m.payload.version,
+      state: args.side === 'seller' ? 'LISTED' : kept || heard ? 'NEGOTIATING' : 'PAIRING', mandate_id: m.payload.id, mandate_version: m.payload.version,
       transcript_head: fakeHash(`${id}:head`), paypal: { order: null, authorization: null, capture: null, subscription: null }, mode: 'sandbox', market: null, shield: null,
     };
     // MandatePayload::check on the opening intent (a payee the mock cannot name is refused).
@@ -1125,7 +1125,16 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     deal_join: ({ deal_id, create }, opts) => {
       privileged(opts);
       if (!create || create.side !== 'buyer' || create.kind !== 'haggle') fail('INVALID', 'Invalid or stale wallet command');
-      return openTable(create, deal_id);
+      // Another owner's table, joined from the seller's listing code. Rust refuses a deal id this
+      // device already knows; here the seller's table may be on this same device (the no-install
+      // path), so that table stands in for the remote seller: the buyer's deal gets its own id, hears
+      // the seller's listing only if the code's item, price and delivery match it, and otherwise
+      // stays at PAIRING and lapses.
+      const remote = state.deals.find((d) => d.deal.id === deal_id && d.deal.side === 'seller');
+      if (!remote) return openTable(create, deal_id);
+      const t = remote.deal.terms;
+      const match = t.item_ref === create.terms.item_ref && JSON.stringify(t.unit_price) === JSON.stringify(create.terms.unit_price) && JSON.stringify(t.delivery) === JSON.stringify(create.terms.delivery);
+      return openTable(create, fakeUlid(`join:${deal_id}`), match);
     },
     quit_summary: () => {
       const pending = forecastDeals().filter((d) => quitPending(d.deal));

@@ -121,4 +121,15 @@ describe('deal_create and deal_join in the browser mock', () => {
     expect(deal).toMatchObject({ kind: 'haggle', side: 'seller', state: 'LISTED', counterparty: key });
     expect(await b.invoke('deal_transcript', { deal_id: deal.id })).toEqual([expect.objectContaining({ by: 'you', typ: 'LISTING' })]);
   });
+
+  it('refuses a join from a listing code for a wallet that is not connected, and creates nothing', async () => {
+    const { mandate } = await paired('buy', 'otter-basil-1234');
+    const { b, token } = await approvalWindow();
+    const join = {
+      deal_id: '01JD0000000000000000000ABC',
+      create: { kind: 'haggle' as const, side: 'buyer' as const, counterparty: 'kp_nobody', mandate_id: mandate.payload.id, mandate_version: mandate.payload.version, terms: PRACTICE_TERMS, category: 'office' as const },
+    };
+    await expect(b.invoke('deal_join', join, { token })).rejects.toMatchObject({ code: 'REFUSED' });
+    expect(await b.invoke('list_deals', null)).toEqual([]);
+  });
 });
