@@ -1096,3 +1096,117 @@ async fn a_failed_read_at_the_deadline_waits_and_retries_on_the_poll_cadence() {
     assert!(r.p.rescue_tick(id, due + RESCUE_POLL_SECS).await.unwrap());
     assert_eq!(r.state(id), DealState::Expired);
 }
+
+/// Ticks the deal once a second from `from` to `to` and returns the second of every read of the
+/// invoice that PayPal saw (a fake clock: only the timestamps passed to the tick exist).
+async fn read_times(
+    r: &mut Rig,
+    id: DealId,
+    from: Timestamp,
+    to: Timestamp,
+    step: i64,
+) -> Vec<Timestamp> {
+    let mut times = Vec::new();
+    let mut at = from;
+    while at <= to {
+        let before = r.pp.get(|w| w.reads);
+        r.p.rescue_tick(id, at).await.unwrap();
+        if r.pp.get(|w| w.reads) > before {
+            times.push(at);
+        }
+        at += step;
+    }
+    times
+}
+
+/// A lost send whose read-back keeps failing is read with growing, jittered gaps, at most
+/// RESCUE_READ_ATTEMPTS times, then needs the owner and is read no more; nothing is created or
+/// sent meanwhile.
+#[tokio::test]
+async fn a_lost_step_whose_read_keeps_failing_backs_off_and_then_needs_attention() {
+    let mut r = rig();
+    r.p.set_rescue_jitter_seed(7);
+    let id = r.lost_send(1, 4 * 86400).await;
+    let posts = r.posts();
+    r.pp.set(|w| w.reads_fail = true);
+    let start = T0 + SETTLE_SECS;
+    let times = read_times(&mut r, id, start, start + 5 * 3600, 1).await;
+    assert_eq!(times.len(), RESCUE_READ_ATTEMPTS as usize, "{times:?}");
+    assert_eq!(times[0], start);
+    for (i, pair) in times.windows(2).enumerate() {
+        let full = (RESCUE_READ_BACKOFF_SECS << i).min(RESCUE_READ_BACKOFF_CAP_SECS);
+        let gap = pair[1] - pair[0];
+        assert!(
+            (full / 2..=full).contains(&gap),
+            "gap {i} was {gap}, wanted {}..={full}",
+            full / 2
+        );
+    }
+    assert!(times.last().unwrap() - times[0] > times[1] - times[0]);
+    // Terminal: parked for the owner, still open, no further read until the request id's window ends.
+    let open = r.p.open_operations(Some(id), start + 5 * 3600).unwrap();
+    assert!(open.len() == 1 && open[0].needs_owner);
+    let reads = r.pp.get(|w| w.reads);
+    r.p.rescue_tick(id, T0 + 5 * 3600 + 600).await.unwrap();
+    r.p.rescue_tick(id, T0 + 5 * 3600 + 1200).await.unwrap();
+    assert_eq!(r.pp.get(|w| w.reads), reads);
+    assert_eq!(r.posts(), posts);
+    assert_eq!(r.state(id), DealState::Settling);
+}
+
+/// A sent invoice awaiting payment is read on a decaying cadence over its 30 days.
+#[tokio::test]
+async fn a_sent_invoice_is_polled_on_a_decaying_cadence_for_thirty_days() {
+    let mut r = rig();
+    let id = r.open(1, RescueSource::Paypal).id;
+    r.approve(id, T0).await.unwrap();
+    let end = T0 + RESCUE_INVOICE_OPEN_SECS - 60;
+    let times = read_times(&mut r, id, T0, end, 60).await;
+    // 60 reads in the first hour, then 5 min, 15 min, hourly and 3-hourly steps: far under the
+    // 43_200 a fixed minute would cost.
+    assert!((450..=550).contains(&times.len()), "{} reads", times.len());
+    assert_eq!(times[1] - times[0], RESCUE_POLL_SECS);
+    let gaps: Vec<i64> = times.windows(2).map(|w| w[1] - w[0]).collect();
+    assert!(
+        gaps.windows(2).all(|g| g[0] <= g[1]),
+        "the cadence only grows"
+    );
+    assert_eq!(*gaps.last().unwrap(), 3 * 3600);
+    // Still read on the decayed cadence after day 7, and still open until its deadline.
+    assert!(times.iter().any(|t| *t > T0 + 8 * 86400));
+    assert_eq!(r.state(id), DealState::AwaitingApproval);
+    // Paid late in the window: the read at the deadline sees it and the state transition is unchanged.
+    r.pp.pay("PAID");
+    assert!(
+        r.p.rescue_tick(id, T0 + RESCUE_INVOICE_OPEN_SECS)
+            .await
+            .unwrap()
+    );
+    assert_eq!(r.state(id), DealState::Receipted);
+}
+
+/// A read that works after some failures resolves the step once and starts no new send.
+#[tokio::test]
+async fn a_read_that_succeeds_after_failures_resolves_once_and_resets() {
+    let mut r = rig();
+    r.p.set_rescue_jitter_seed(11);
+    let id = r.open(1, RescueSource::Paypal).id;
+    r.pp.set(|w| w.cut.push("send"));
+    assert!(r.approve(id, T0).await.is_err());
+    let sends = r.sends();
+    r.pp.set(|w| w.reads_fail = true);
+    let start = T0 + SETTLE_SECS;
+    let failed = read_times(&mut r, id, start, start + 40, 1).await;
+    assert!(failed.len() >= 3 && failed.len() < RESCUE_READ_ATTEMPTS as usize);
+    assert!(r.p.has_open_operation(id).unwrap());
+    r.pp.set(|w| w.reads_fail = false);
+    let next = start + 40 + RESCUE_READ_BACKOFF_CAP_SECS;
+    assert!(r.p.rescue_tick(id, next).await.unwrap());
+    assert_eq!(r.state(id), DealState::AwaitingApproval);
+    assert!(!r.p.has_open_operation(id).unwrap());
+    assert_eq!(r.sends(), sends);
+    assert_eq!(r.writes().iter().filter(|(s, _)| *s == "send").count(), 1);
+    // Resolved exactly once: nothing is open to be resolved again.
+    assert!(!r.p.rescue_tick(id, next + 1).await.unwrap());
+    assert_eq!(r.sends(), sends);
+}

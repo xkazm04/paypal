@@ -120,6 +120,12 @@ pub struct Pipeline {
     /// When each parked capture or void was last read back at its deadline, by request id, so the
     /// read is hourly (`PARKED_READ_SECS`). In memory only: a restart reads at once.
     pub(crate) parked_read: std::collections::BTreeMap<String, Timestamp>,
+    /// Failed read-backs of a lost invoice step, by request id: how many in a row and when the
+    /// next try is due. In memory only: a restart reads at once and counts from zero (the
+    /// terminal needs-attention state itself is the parked resolution row, which is kept).
+    pub(crate) rescue_read_backoff: std::collections::BTreeMap<String, (u32, Timestamp)>,
+    /// Seed of the backoff jitter (see `set_rescue_jitter_seed`).
+    pub(crate) rescue_jitter_seed: u64,
 }
 impl std::fmt::Debug for Pipeline {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -354,6 +360,10 @@ impl Pipeline {
             secondary: None,
             rescue_polled: std::collections::BTreeMap::new(),
             parked_read: std::collections::BTreeMap::new(),
+            rescue_read_backoff: std::collections::BTreeMap::new(),
+            rescue_jitter_seed: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0x5eed, |d| d.as_nanos() as u64),
         })
     }
     /// Trusted shell setup only: the Invoicing client the rescue invoice goes through.

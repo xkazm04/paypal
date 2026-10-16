@@ -35,8 +35,53 @@ pub const RESCUE_RETRY_DEFAULT_SECS: i64 = 5 * 86400;
 /// How long a sent rescue invoice is read for PAID before the deal expires (a wallet choice; the
 /// invoice stays open at PayPal, but a later payment is not counted).
 pub const RESCUE_INVOICE_OPEN_SECS: i64 = 30 * 86400;
-/// The cadence of the PAID read while an invoice is open.
+/// The cadence of the PAID read while an invoice is new, and of the one read at its deadline.
 pub const RESCUE_POLL_SECS: i64 = 60;
+/// The PAID read decays with the invoice's age: (older than this many seconds, read every this
+/// many seconds), the last matching row wins. A fresh invoice is read every minute for an hour,
+/// then the cadence grows to a ceiling of three hours, so 30 days cost a few hundred reads.
+pub const RESCUE_POLL_STEPS: &[(i64, i64)] = &[
+    (3600, 300),
+    (6 * 3600, 900),
+    (24 * 3600, 3600),
+    (7 * 86400, 3 * 3600),
+];
+/// Failed read-backs of one lost invoice step before it needs attention and is read no more.
+pub const RESCUE_READ_ATTEMPTS: u32 = 8;
+/// The first wait after a failed read-back, doubling per failure.
+pub const RESCUE_READ_BACKOFF_SECS: i64 = 5;
+/// The longest wait between two read-backs of one lost step.
+pub const RESCUE_READ_BACKOFF_CAP_SECS: i64 = 15 * 60;
+
+/// Seconds between PAID reads of a sent invoice that is `age` seconds old.
+pub fn rescue_poll_interval(age: i64) -> i64 {
+    RESCUE_POLL_STEPS
+        .iter()
+        .rev()
+        .find(|(from, _)| age >= *from)
+        .map_or(RESCUE_POLL_SECS, |(_, every)| *every)
+}
+
+/// The wait after the `fails`-th failed read-back: doubling from the base to the cap (the
+/// ceiling), then it falls anywhere in its upper half, chosen by `jitter`.
+pub fn rescue_read_backoff(fails: u32, jitter: u64) -> i64 {
+    let full = RESCUE_READ_BACKOFF_SECS
+        .saturating_mul(1i64 << fails.saturating_sub(1).min(20))
+        .min(RESCUE_READ_BACKOFF_CAP_SECS);
+    let half = full / 2;
+    half + (jitter % (full - half + 1) as u64) as i64
+}
+
+/// splitmix64-style mix of (seed, request id, failure count): deterministic for a given seed.
+fn jitter_of(seed: u64, request_id: &str, fails: u32) -> u64 {
+    let mut z = seed ^ u64::from(fails).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    for b in request_id.bytes() {
+        z = (z ^ u64::from(b)).wrapping_mul(0x0100_0000_01B3);
+    }
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
+}
 /// Invoice statuses that prove the send went through. From the research's list (DRAFT, SENT,
 /// SCHEDULED, PAID, PARTIALLY_PAID, REFUNDED, PARTIALLY_REFUNDED, CANCELLED, [S-spec, approximate]);
 /// anything else leaves a lost send parked.
@@ -632,6 +677,17 @@ impl Pipeline {
         }
     }
 
+    /// Seconds between reads of this deal's sent invoice now: decays with the invoice's age,
+    /// which is the time since the open horizon began (the deadline minus the horizon).
+    fn rescue_poll_every(&self, id: DealId, now: Timestamp) -> Result<i64, Error> {
+        Ok(match self.wallet.ledger.deadline(id)? {
+            Some((due, _)) => rescue_poll_interval(
+                now.saturating_sub(due.saturating_sub(RESCUE_INVOICE_OPEN_SECS)),
+            ),
+            None => RESCUE_POLL_SECS,
+        })
+    }
+
     /// One scheduler pass over a rescue deal: read back a lost step, apply a due deadline, or
     /// read a sent invoice on its cadence. Never starts a create or a send.
     pub async fn rescue_tick(&mut self, id: DealId, now: Timestamp) -> Result<bool, Error> {
@@ -658,10 +714,11 @@ impl Pipeline {
         {
             return self.rescue_deadline(id, now).await;
         }
+        let every = self.rescue_poll_every(id, now)?;
         let due_poll = self
             .rescue_polled
             .get(&id)
-            .is_none_or(|at| now.saturating_sub(*at) >= RESCUE_POLL_SECS);
+            .is_none_or(|at| now.saturating_sub(*at) >= every);
         if deal.state == DealState::AwaitingApproval && due_poll && self.secondary.is_some() {
             return self.rescue_poll(id, now).await;
         }
@@ -779,6 +836,15 @@ impl Pipeline {
             if !op.pending && ticket.is_none() && now < op.started_at.saturating_add(SETTLE_SECS) {
                 break;
             }
+            // A step whose last read failed waits out its backoff; an owner ticket does not.
+            if ticket.is_none()
+                && self
+                    .rescue_read_backoff
+                    .get(&op.request_id)
+                    .is_some_and(|(_, next)| now < *next)
+            {
+                break;
+            }
             let deal = self.wallet.ledger.get_deal(id)?;
             self.resolve_invoice(&deal, &op, ticket.take(), now).await?;
         }
@@ -832,8 +898,9 @@ impl Pipeline {
             Err(e) => (e.observations().to_vec(), None),
         };
         let Some(items) = found else {
-            return self.wait(deal, op, &observations, now);
+            return self.read_failed(deal, op, &observations, now);
         };
+        self.rescue_read_backoff.remove(&op.request_id);
         let ours: Vec<&Invoice> = items
             .iter()
             .filter(|i| {
@@ -894,8 +961,9 @@ impl Pipeline {
             Err(e) => (e.observations().to_vec(), None),
         };
         let Some(read) = read else {
-            return self.wait(deal, op, &observations, now);
+            return self.read_failed(deal, op, &observations, now);
         };
+        self.rescue_read_backoff.remove(&op.request_id);
         if read.id != invoice.as_str() || !self.invoice_matches(deal, &read) {
             return self.park(deal, op, "other", &observations, now);
         }
@@ -998,6 +1066,42 @@ impl Pipeline {
             now,
         )?;
         Ok(())
+    }
+
+    /// A read-back of a lost step failed: the next try waits (capped exponential backoff with
+    /// jitter, per request id). After [`RESCUE_READ_ATTEMPTS`] failures the step is parked for
+    /// the owner, the one terminal needs-attention state: it is not read on the backoff again,
+    /// and nothing is created, sent, captured or voided; only a fresh owner ticket moves it.
+    fn read_failed(
+        &mut self,
+        deal: &Deal,
+        op: &OpenOperation,
+        observations: &[Observation],
+        now: Timestamp,
+    ) -> Result<(), Error> {
+        let fails = self
+            .rescue_read_backoff
+            .get(&op.request_id)
+            .map_or(0, |(n, _)| *n)
+            + 1;
+        if fails >= RESCUE_READ_ATTEMPTS {
+            self.rescue_read_backoff.remove(&op.request_id);
+            return self.park(deal, op, "none", observations, now);
+        }
+        let jitter = jitter_of(self.rescue_jitter_seed, &op.request_id, fails);
+        self.rescue_read_backoff.insert(
+            op.request_id.clone(),
+            (
+                fails,
+                now.saturating_add(rescue_read_backoff(fails, jitter)),
+            ),
+        );
+        self.wait(deal, op, observations, now)
+    }
+
+    /// Seeds the backoff jitter, so a test drives it deterministically.
+    pub fn set_rescue_jitter_seed(&mut self, seed: u64) {
+        self.rescue_jitter_seed = seed;
     }
 
     /// The read-back itself failed: its evidence is kept (one row for a run of failures) and the
