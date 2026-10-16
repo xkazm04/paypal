@@ -3,6 +3,8 @@
 mod glass_tests;
 #[path = "house_tests.rs"]
 mod house_tests;
+#[path = "listing_code_tests.rs"]
+mod listing_code_tests;
 use crate::tests::policy_tests::{attach, install, runs, settled};
 use crate::tests::{caller, clauses, credentials, runtime};
 use crate::*;
