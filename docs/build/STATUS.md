@@ -2539,7 +2539,7 @@ M4). The brief said 20 goals; its list names 19, and all 19 are here.
 
 **M4**
 12. Native UAT: **open**. Every phase row and acceptance row still lists native UAT as pending; no UAT record exists.
-13. Live sandbox spikes: **open**. Only spike 6 (version only) ran (`SPIKE-RESULTS.md`); spikes 2, 3 and 8 and the live PayPal ones are unrun.
+13. Live sandbox spikes: **prepared, awaiting owner run**. The owner runs spikes 1-5, 7 and 8 from `docs/build/SPIKE-RUNBOOK.md` (DECISIONS §44); only spike 6 (version only) has run (`SPIKE-RESULTS.md`). No live result is recorded yet.
 14. HOUSE deployed: **open**. Deploy files are fixed (4909d48) and the mailbox allowance is in (ad2ef32), but no deployment is recorded; deploy approval is the next step (DECISIONS §42 item 2).
 15. Acceptance rows verified: **partly**. The "Acceptance map" above names offline tests for the rows; the UI, sandbox and native parts of most rows are pending.
 
