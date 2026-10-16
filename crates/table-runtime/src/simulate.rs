@@ -4,6 +4,12 @@
 //! `MandatePayload::check` itself, for the rules in force and for the draft, over intents rebuilt
 //! from the ledger the same way the pipeline builds them (table-app `mandate_check_rounds`). A
 //! fact the intent needs that is not on record makes the line "not simulated"; nothing is guessed.
+//! The wallet limits in force sit above every mandate (table-app `envelope_check`), so a verdict
+//! the mandate allows or asks is then judged by them, as the pipeline judges it.
+//!
+//! The wallet-limits what-if (`envelope_simulate`) replays draft limits the same way: each
+//! purchase agreed in the window, judged by `WalletEnvelope::check` at its own place in its day
+//! (`exposure_for_deal`), for the limits in force and for the draft.
 use crate::{Runtime, app, invalid};
 use std::collections::BTreeMap;
 use table_client::*;
@@ -13,6 +19,32 @@ use table_core::*;
 pub(crate) const SIMULATE_DEFAULT_WINDOW: i64 = 7 * 86_400;
 /// The longest window one call replays.
 pub(crate) const SIMULATE_MAX_WINDOW: i64 = 31 * 86_400;
+
+/// The replay window `[from, to]`: by default the last seven days; backwards or longer than a
+/// month is malformed input.
+fn window(
+    from: Option<Timestamp>,
+    to: Option<Timestamp>,
+    now: Timestamp,
+) -> Result<(Timestamp, Timestamp), CommandError> {
+    let to = to.unwrap_or(now);
+    let from = from.unwrap_or_else(|| to.saturating_sub(SIMULATE_DEFAULT_WINDOW));
+    if from > to || to.saturating_sub(from) > SIMULATE_MAX_WINDOW {
+        return Err(invalid());
+    }
+    Ok((from, to))
+}
+
+/// A wallet-limits answer as a what-if verdict: the refusal under its clause (0, the wallet).
+fn limits_verdict(decision: EnvelopeDecision) -> SimulatedVerdict {
+    match decision.into_result() {
+        Ok(()) => SimulatedVerdict::Allow,
+        Err(refusal) => SimulatedVerdict::Refuse {
+            clause: refusal.clause,
+            reason: refusal.reason,
+        },
+    }
+}
 
 /// What the pipeline reads besides the deal row to check an intent.
 struct Facts {
@@ -130,18 +162,37 @@ impl Runtime {
         })
     }
 
+    /// A mandate's verdict under the wallet limits in force: what the mandate allows or asks is
+    /// then checked by them, exactly as table-app `mandate_check_rounds` runs `envelope_check`
+    /// (none signed: no extra limit; expired or unverified: money out refused, fail closed).
+    fn under_limits(
+        &self,
+        verdict: SimulatedVerdict,
+        deal: &Deal,
+        now: Timestamp,
+    ) -> Result<SimulatedVerdict, CommandError> {
+        if !matches!(
+            verdict,
+            SimulatedVerdict::Allow | SimulatedVerdict::Ask { .. }
+        ) {
+            return Ok(verdict);
+        }
+        match self.pipeline.wallet.envelope_check(deal, now) {
+            Ok(()) => Ok(verdict),
+            Err(table_app::Error::Refused(refusal)) => Ok(SimulatedVerdict::Refuse {
+                clause: refusal.clause,
+                reason: refusal.reason,
+            }),
+            Err(error) => Err(error.into()),
+        }
+    }
+
     pub(crate) fn mandate_simulate(
         &self,
         args: MandateSimulateArgs,
     ) -> Result<MandateSimulation, CommandError> {
         let now = self.clock.now();
-        let to = args.to.unwrap_or(now);
-        let from = args
-            .from
-            .unwrap_or_else(|| to.saturating_sub(SIMULATE_DEFAULT_WINDOW));
-        if from > to || to.saturating_sub(from) > SIMULATE_MAX_WINDOW {
-            return Err(invalid());
-        }
+        let (from, to) = window(args.from, args.to, now)?;
         let scope = args.draft.id;
         let draft = self.draft_payload(args.draft)?;
         // An unsignable draft is answered like mandate_sign answers it: REFUSED with its reason.
@@ -180,14 +231,16 @@ impl Runtime {
             let (before, after) = match self.intent_facts(&deal) {
                 Some(facts) => (
                     match in_force.get(&deal.mandate_id) {
-                        Some(payload) => verdict(payload, &deal, &facts, now),
+                        Some(payload) => {
+                            self.under_limits(verdict(payload, &deal, &facts, now), &deal, now)?
+                        }
                         // Revoked or never active: today the intent is refused as inactive.
                         None => SimulatedVerdict::Refuse {
                             clause: 1,
                             reason: "mandate is not active".into(),
                         },
                     },
-                    verdict(&draft, &deal, &facts, now),
+                    self.under_limits(verdict(&draft, &deal, &facts, now), &deal, now)?,
                 ),
                 None => {
                     not_simulated = not_simulated.saturating_add(1);
@@ -218,6 +271,71 @@ impl Runtime {
             to,
             lines,
             not_simulated,
+        })
+    }
+
+    /// Wallet-limits what-if before signing: the draft limits, refused exactly as
+    /// `envelope_sign` refuses them, replayed over every purchase agreed in the window and still
+    /// counted by the limits (money in is never limited, so a seller deal has no line). Each is
+    /// judged at its own place in its day, as `envelope_check` judges it: `before` is the live
+    /// check under the limits in force, `after` the draft's. Read-only: nothing is signed or
+    /// written and PayPal is never called.
+    pub(crate) fn envelope_simulate(
+        &self,
+        args: EnvelopeSimulateArgs,
+    ) -> Result<MandateSimulation, CommandError> {
+        let now = self.clock.now();
+        let (from, to) = window(args.from, args.to, now)?;
+        let draft = self.draft_envelope(&args.draft, now)?;
+        let ledger = &self.pipeline.wallet.ledger;
+        let exposure = app(ledger.exposure_deals())?;
+        let mut lines = Vec::new();
+        for deal in app(ledger.list_deals())? {
+            // The limits count buyer deals past agreement that were not released; nothing else.
+            let Some(counted) = exposure.iter().find(|d| d.id == deal.id) else {
+                continue;
+            };
+            if !deal.state.is_agreed_or_later() {
+                continue;
+            }
+            let (seq, at) = counted.agreed.unwrap_or((i64::MAX, deal.created_at));
+            if !(from..=to).contains(&at) {
+                continue;
+            }
+            let amount = counted.amount;
+            let place = exposure_for_deal(&exposure, deal.id, amount.currency(), now)
+                .map_err(table_app::Error::from)?;
+            let before = self.under_limits(SimulatedVerdict::Allow, &deal, now)?;
+            let after = limits_verdict(draft.check(
+                &place,
+                EnvelopeIntent {
+                    side: deal.side,
+                    amount,
+                },
+                now,
+            ));
+            let line = SimulatedLine {
+                deal_id: deal.id,
+                label: format!("D-{:04}", app(ledger.display_number(deal.id))?),
+                title: deal.terms.item_ref.to_string(),
+                item_ref: deal.terms.item_ref.clone(),
+                kind: deal.kind,
+                side: deal.side,
+                at,
+                amount: Some(amount),
+                unit_price: deal.terms.unit_price,
+                before,
+                after,
+            };
+            lines.push(((at, seq), line));
+        }
+        // In agreement order, as the day's budget counts them.
+        lines.sort_by(|(a, x), (b, y)| (a, &x.label).cmp(&(b, &y.label)));
+        Ok(MandateSimulation {
+            from,
+            to,
+            lines: lines.into_iter().map(|(_, line)| line).collect(),
+            not_simulated: 0,
         })
     }
 }

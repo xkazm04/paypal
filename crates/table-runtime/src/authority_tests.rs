@@ -440,6 +440,23 @@ impl Fixture {
                 .await
             }
             "envelope_get" => self.exec(&c, Action::EnvelopeGet).await,
+            "envelope_simulate" => {
+                self.exec(
+                    &c,
+                    Action::EnvelopeSimulate(EnvelopeSimulateArgs {
+                        draft: EnvelopeSignArgs {
+                            currency: Currency::USD,
+                            max_out_day: money(50_000),
+                            max_held: money(30_000),
+                            max_deals_day: 4,
+                            expires: 500_000,
+                        },
+                        from: None,
+                        to: None,
+                    }),
+                )
+                .await
+            }
             "rescue_replay" => {
                 self.exec(
                     &c,

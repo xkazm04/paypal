@@ -511,6 +511,14 @@ pub(super) async fn mandate_simulate(
     ask(&window, &state, None, Action::Simulate(args)).await
 }
 #[tauri::command]
+pub(super) async fn envelope_simulate(
+    window: WebviewWindow,
+    state: State<'_, DesktopState>,
+    args: EnvelopeSimulateArgs,
+) -> Result<MandateSimulation, CommandError> {
+    ask(&window, &state, None, Action::EnvelopeSimulate(args)).await
+}
+#[tauri::command]
 pub(super) async fn envelope_sign(
     window: WebviewWindow,
     state: State<'_, DesktopState>,
