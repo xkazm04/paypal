@@ -7,6 +7,7 @@ pub use table_proto::{PairingIdentity, SignedPairingIdentity};
 use ts_rs::TS;
 pub mod authority;
 mod authority_table;
+pub mod deal_states;
 pub mod ladder;
 pub mod playbooks;
 pub mod tray;
