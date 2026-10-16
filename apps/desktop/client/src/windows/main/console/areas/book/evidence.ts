@@ -4,7 +4,9 @@
 // (lib/data/invalidation.ts) marks an entry stale when its deal changes. Only what is drawn is
 // read: a ledger row asks for its own deal's evidence when it is in view (the list is windowed),
 // and the "PayPal agrees" figure asks only for the week's paid deals. At most READ_CONCURRENCY
-// evidence reads are out at once, however many rows ask. Read-only: nothing here moves money.
+// evidence calls are unsettled at once, however many rows ask: the gate has no timeout, so a call
+// that never answers keeps its place and the rest wait behind it (nothing is abandoned while its
+// invoke is still out). Read-only: nothing here moves money.
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { useMemo, useRef } from 'react';
 import type { DealEvidence } from '@bindings/DealEvidence';
@@ -15,7 +17,7 @@ import { FRESH_POLICY, keyOf, type ReadMeta } from '../../../../../lib/data/keys
 import { useDataClient } from '../../../../../lib/data/provider';
 import { READ_CONCURRENCY } from '../../../../../lib/readEach';
 
-/** A small gate: at most `n` reads run at once; the rest wait their turn in order. */
+/** A small gate: at most `n` reads are unsettled at once, until each one settles; the rest wait their turn in order. */
 export function gate(n: number): <T>(run: () => Promise<T>) => Promise<T> {
   let busy = 0;
   const queue: Array<() => void> = [];

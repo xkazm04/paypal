@@ -9,16 +9,21 @@ export const READ_TIMEOUT_MS = 10_000;
 /** How many reads are waited on at once. */
 export const READ_CONCURRENCY = 8;
 
-/** `read`, rejected with a timeout error if it has not settled after `ms`. */
-function timed<T>(read: (id: string) => Promise<T>, id: string, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
+/** `read`, with two views of it: `result` is rejected with a timeout error if the read has not
+ *  settled after `ms`; `ended` settles only when the underlying read itself has settled (or
+ *  threw), which is when its slot is free again. */
+function timed<T>(read: (id: string) => Promise<T>, id: string, ms: number): { result: Promise<T>; ended: Promise<void> } {
+  let end!: () => void;
+  const ended = new Promise<void>((r) => { end = r; });
+  const result = new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`read of ${id} timed out after ${ms} ms`)), ms);
     // A read that throws before it returns a promise is a rejected read, not a crash.
     Promise.resolve().then(() => read(id)).then(
-      (v) => { clearTimeout(timer); resolve(v); },
-      (e: unknown) => { clearTimeout(timer); reject(e); },
+      (v) => { clearTimeout(timer); resolve(v); end(); },
+      (e: unknown) => { clearTimeout(timer); reject(e); end(); },
     );
   });
+  return { result, ended };
 }
 
 /** The reason an id settles with when the pass was aborted before its read started. */
@@ -36,10 +41,13 @@ export function isAborted(reason: unknown): boolean {
 }
 
 /** Reads every id, at most `concurrency` at once, and settles each read as Promise.allSettled
- *  would, in the order of `ids`. A read still out after `timeoutMs` counts as rejected. Once
- *  `signal` is aborted no further read starts (reads already out run to their end); each id that
- *  never started settles rejected with a reason for which isAborted is true. */
-export async function readEach<T>(
+ *  would, in the order of `ids`. A read still out after `timeoutMs` counts as rejected, but it
+ *  keeps its slot until the underlying call settles (a Tauri invoke cannot be cancelled), so the
+ *  number of unsettled reads never exceeds `concurrency`, timeouts included. The returned promise
+ *  settles once every id has an outcome, not when stuck calls finally end. Once `signal` is
+ *  aborted no further read starts (reads already out run to their end); each id that never
+ *  started settles rejected with a reason for which isAborted is true. */
+export function readEach<T>(
   ids: readonly string[],
   read: (id: string) => Promise<T>,
   o: { concurrency?: number; timeoutMs?: number; signal?: AbortSignal } = {},
@@ -47,22 +55,33 @@ export async function readEach<T>(
   const width = Math.max(1, Math.floor(o.concurrency ?? READ_CONCURRENCY));
   const ms = o.timeoutMs ?? READ_TIMEOUT_MS;
   const out = new Array<PromiseSettledResult<T>>(ids.length);
-  let next = 0;
-  const worker = async (): Promise<void> => {
-    while (next < ids.length) {
-      const i = next;
-      next += 1;
-      const id = ids[i] as string;
-      if (o.signal?.aborted) {
-        out[i] = { status: 'rejected', reason: new ReadAborted(id) };
-        continue;
+  return new Promise((resolve) => {
+    let next = 0;
+    let have = 0;
+    if (ids.length === 0) { resolve(out); return; }
+    const settle = (i: number, r: PromiseSettledResult<T>) => {
+      out[i] = r;
+      have += 1;
+      if (have === ids.length) resolve(out);
+    };
+    const worker = async (): Promise<void> => {
+      while (next < ids.length) {
+        const i = next;
+        next += 1;
+        const id = ids[i] as string;
+        if (o.signal?.aborted) {
+          settle(i, { status: 'rejected', reason: new ReadAborted(id) });
+          continue;
+        }
+        const { result, ended } = timed(read, id, ms);
+        result.then(
+          (value) => settle(i, { status: 'fulfilled', value }),
+          (reason: unknown) => settle(i, { status: 'rejected', reason }),
+        );
+        // The slot is held until the call itself has settled, not until it timed out.
+        await ended;
       }
-      out[i] = await timed(read, id, ms).then(
-        (value): PromiseSettledResult<T> => ({ status: 'fulfilled', value }),
-        (reason: unknown): PromiseSettledResult<T> => ({ status: 'rejected', reason }),
-      );
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(width, ids.length) }, worker));
-  return out;
+    };
+    for (let k = 0; k < Math.min(width, ids.length); k += 1) void worker();
+  });
 }

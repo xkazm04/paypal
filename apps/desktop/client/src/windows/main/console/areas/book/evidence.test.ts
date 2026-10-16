@@ -2,7 +2,7 @@
 // rebuild WP4a: that file guarded the pre-query-cache reader; the behaviour still owed is that at
 // most READ_CONCURRENCY deal_evidence reads are out at once, in the order they were asked, and a
 // failed read frees its place). The per-row "only what is drawn is read" bound is book.test.tsx's.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { READ_CONCURRENCY } from '../../../../../lib/readEach';
 import { gate } from './evidence';
 
@@ -28,6 +28,19 @@ describe('the evidence gate', () => {
     expect(await Promise.all(all)).toEqual(Array.from({ length: 50 }, (_, i) => i));
     expect(most).toBe(READ_CONCURRENCY);
     expect(started).toEqual(Array.from({ length: 50 }, (_, i) => i));
+  });
+
+  it('never starts more than READ_CONCURRENCY calls while the calls never settle, however often it is asked again', async () => {
+    const g = gate(READ_CONCURRENCY);
+    const invoke = vi.fn(() => new Promise<never>(() => {}));
+    const ids = Array.from({ length: 10_000 }, (_, i) => i);
+    // The first ask, then 5 refetches of every id: the gate has no timeout, so a stuck call keeps
+    // its place and the rest wait behind it.
+    for (let round = 0; round < 6; round += 1) {
+      ids.forEach(() => { void g(invoke); });
+      await tick();
+    }
+    expect(invoke).toHaveBeenCalledTimes(READ_CONCURRENCY);
   });
 
   it('frees the place of a failed read and passes the failure on', async () => {
