@@ -11,6 +11,7 @@ import type { HouseTableDraft } from '@bindings/HouseTableDraft';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { Side } from '@bindings/Side';
 import { APPROVAL_TABLE } from '../../lib/words';
+import { type DecodeFailure, type ListingTable } from './listingCode';
 import { isMandateActive } from './model';
 
 type Clauses = MandateListEntry['payload']['clauses'];
@@ -92,4 +93,30 @@ export function buildListing(d: ListingDraft, rules: readonly MandateListEntry[]
       category: d.category,
     },
   };
+}
+
+/** deal_join for another owner's table, from a decoded listing code: the seller's own deal id and
+ *  terms under the owner's chosen buyer rules. Rust refuses an unpaired seller or a deal id it
+ *  already knows, and the seller's signed listing must match these terms before any offer. */
+export function codeJoinArgs(table: ListingTable, counterparty: string, m: MandateListEntry): DealJoinArgs {
+  return {
+    deal_id: table.dealId,
+    create: {
+      kind: 'haggle',
+      side: 'buyer',
+      counterparty,
+      mandate_id: m.payload.id,
+      mandate_version: m.payload.version,
+      terms: table.terms,
+      category: table.category,
+    },
+  };
+}
+
+/** The plain message for a code the sheet cannot use. */
+export function codeProblem(why: DecodeFailure): string {
+  return why === 'checksum' ? APPROVAL_TABLE.codeBadSum
+    : why === 'version' ? APPROVAL_TABLE.codeBadVersion
+    : why === 'unsupported' ? APPROVAL_TABLE.codeBadDelivery
+    : APPROVAL_TABLE.codeBadFormat;
 }
