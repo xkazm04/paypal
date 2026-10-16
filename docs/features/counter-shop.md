@@ -165,8 +165,10 @@ IPC commands (rows in `crates/table-client/src/authority_table.rs`):
 - **No catalog.** List price, stock, listing details and quotes before checkout are not connected
   (shop/catalog/feed/CSV deferred, STATUS B7/P4). Items are known only from the shop rules and
   orders.
-- No screen opens a listing or joins the house practice table: `deal_create` and `deal_join` have
-  no client caller.
+- The approval window's table sheet (`windows/approval/owner/TableSheet.tsx`) joins the house
+  practice table (`deal_join`) and opens a seller table (`deal_create`). A buyer joining another
+  owner's desktop listing has no screen: no command returns the seller's deal ULID and terms to the
+  buyer, so that ULID only travels out of band today.
 - One floor per hand-off: a draft that changes several prices goes to the approval window one at a
   time.
 - A wallet seller refuses below-floor offers rather than countering them (only the house counters).

@@ -96,8 +96,12 @@ available (it is the safe direction).
 1. **Opening.** `main` or the Tumbler calls `approval_open({ deal_id, pairing?, target?, draft? })`.
    Rust selects the deal (or pairing, or configuration) and builds the window beside the window that
    asked (`approval_rect`, flips left, clamps to the work area). `target` is one of deal, pairing,
-   credentials, mandate, unlock, rescue, rescue_watch. A `draft` from `main` (band, floor or rescue
-   lever) is a pre-fill only: Rust checks it binds to the selection and never signs it.
+   credentials, mandate, unlock, rescue, rescue_watch. A `draft` from `main` (band, floor, rescue
+   lever or table) is a pre-fill only: Rust checks it binds to the selection and never signs it. A
+   `table` draft (owner configuration only) names a connected counterparty and, for the house, the
+   practice table: `open_approval` refuses it unless the key is a live pin and the table equals the
+   one Rust kept at `pairing_confirm`; the window then opens its table sheet, and `deal_join` checks
+   the table again.
 2. **The capability.** The window asks `approval_token` once and keeps it in a ref inside
    `SessionProvider` (`session.tsx`): never React state, storage or a request body. Privileged calls
    send it as the `X-Wallet-Ipc` header. `main` and the Tumbler cannot obtain it.
