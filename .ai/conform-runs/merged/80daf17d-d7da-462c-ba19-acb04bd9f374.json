@@ -1,0 +1,210 @@
+{
+ "schema": "conform-run/1",
+ "worker": "80daf17d-d7da-462c-ba19-acb04bd9f374",
+ "subject": "data-access",
+ "evaluatedAt": "2026-10-16T00:24:36.563158+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "browser-mock-backend",
+   "subject": "data-access",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/mock/backend.ts:180 Stored preview state is accepted without shape validation, while parsing failures become absence and silently trigger fresh fixtures.",
+   "techniques": [
+    {
+     "technique": "batching-and-n-plus-one",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/mock/backend.ts:511 The list operates on already-loaded memory rather than issuing per-record storage queries."
+    },
+    {
+     "technique": "existence-authority-written-last",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/mock/backend.ts:190 Preview records are persisted together in one state value; this path does not create a payload and registry entry in separate stores."
+    },
+    {
+     "technique": "query-construction",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/mock/backend.ts:640 The mock evaluates filters directly against memory rather than constructing database statements."
+    },
+    {
+     "technique": "read-models-and-projections",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/mock/exposure.ts:46 The exposure read computes a distinct consumer-shaped result from readonly deal inputs."
+    },
+    {
+     "technique": "row-mapping",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/mock/backend.ts:180 A type assertion replaces stored-record validation, and load's catch returns null for malformed JSON, conflating unreadable state with absence."
+    }
+   ]
+  },
+  {
+   "context": "ledger-repositories-audit-evidence",
+   "subject": "data-access",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-ledger/src/repositories.rs:1075 The deal list selects IDs and invokes a separate record query for every ID, making query count grow with the list.",
+   "techniques": [
+    {
+     "technique": "batching-and-n-plus-one",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/src/repositories.rs:1075 list_deals maps its selected IDs through read_deal, producing one initial query plus one query per deal."
+    },
+    {
+     "technique": "cross-driver-invariant-parity",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-ledger/src/lib.rs:58 The in-memory path uses the same SQLite implementation as the file-backed path; implementation searches found Ledger implementing the store traits."
+    },
+    {
+     "technique": "layering-rules",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/lib.rs:54 The connection is confined to the ledger crate, whose public operations return values and whose dependency manifest points toward domain/protocol crates."
+    },
+    {
+     "technique": "operator-defined-tables",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-ledger/src/lib.rs:77 The ledger installs developer-owned, compiled migrations rather than operator-supplied record definitions."
+    },
+    {
+     "technique": "query-construction",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/src/repositories.rs:796 Released-state values are quoted and interpolated into SQL instead of bound; the standard explicitly disallows exceptions for internal values."
+    },
+    {
+     "technique": "read-models-and-projections",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/display.rs:14 A dedicated ledger projection selects display fields and a predicate-defined closed-deal count without loading whole deal aggregates."
+    },
+    {
+     "technique": "repo-testing",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/src/book.rs:343 An ordinary range-query test seeds reduced, non-domain-valid deal rows through raw SQL rather than the repository front door; it is not a corruption or legacy-shape drill."
+    },
+    {
+     "technique": "row-mapping",
+     "verdict": "deviation",
+     "evidence": "crates/table-ledger/src/repositories.rs:78 The SELECT list is manually synchronized with numbered r.get calls, a separate insert column list, and the domain type instead of deriving them from one shape declaration."
+    },
+    {
+     "technique": "sequence-token-write-ordering",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-ledger/src/audit.rs:107 The audit stream is ordered by its native SQLite sequence within one transactional store."
+    },
+    {
+     "technique": "transactions-and-units-of-work",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/repositories.rs:1457 create_deal owns an immediate transaction, passes its scope to the compound insert helper, propagates failure, and commits once."
+    }
+   ]
+  },
+  {
+   "context": "runtime-money-controls",
+   "subject": "data-access",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-runtime/src/groups.rs:47 Group display construction fetches each deal and transcript separately, increasing database calls with group size.",
+   "techniques": [
+    {
+     "technique": "batching-and-n-plus-one",
+     "verdict": "deviation",
+     "evidence": "crates/table-runtime/src/groups.rs:47 group_view loops over group.tables and performs singular deal and transcript reads instead of a set-shaped read."
+    },
+    {
+     "technique": "layering-rules",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/limits.rs:42 The inspected control modules call named ledger operations; searches found no SQL or raw connection construction in those production files."
+    },
+    {
+     "technique": "query-construction",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-runtime/src/history.rs:24 These controls pass typed arguments to ledger operations rather than assembling database statements."
+    },
+    {
+     "technique": "read-models-and-projections",
+     "verdict": "deviation",
+     "evidence": "crates/table-runtime/src/groups.rs:49 The runtime loads full deals and transcripts, extracts display prices, and stitches GroupTable results outside the data layer instead of using its consumer-shaped projection surface."
+    },
+    {
+     "technique": "repo-testing",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/forecast_tests.rs:588 Runtime tests use fresh real SQLite ledgers through the production migration path; inspected fixtures use repository operations while external HTTP is replaced."
+    }
+   ]
+  }
+ ],
+ "declined": [
+  {
+   "subject": "data-access",
+   "context": "ledger-schema-migrations",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "data-access",
+   "context": "wallet-domain-primitives",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": [
+  {
+   "ts": "2026-10-16T00:24:36.563158+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "data-access"
+   ],
+   "techniques": [
+    "batching-and-n-plus-one",
+    "existence-authority-written-last",
+    "query-construction",
+    "read-models-and-projections",
+    "row-mapping"
+   ],
+   "deviations": 1,
+   "context": "browser-mock-backend",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-16T00:24:36.563158+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "data-access"
+   ],
+   "techniques": [
+    "batching-and-n-plus-one",
+    "cross-driver-invariant-parity",
+    "layering-rules",
+    "operator-defined-tables",
+    "query-construction",
+    "read-models-and-projections",
+    "repo-testing",
+    "row-mapping",
+    "sequence-token-write-ordering",
+    "transactions-and-units-of-work"
+   ],
+   "deviations": 1,
+   "context": "ledger-repositories-audit-evidence",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-16T00:24:36.563158+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "data-access"
+   ],
+   "techniques": [
+    "batching-and-n-plus-one",
+    "layering-rules",
+    "query-construction",
+    "read-models-and-projections",
+    "repo-testing"
+   ],
+   "deviations": 1,
+   "context": "runtime-money-controls",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
