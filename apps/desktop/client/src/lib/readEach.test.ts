@@ -1,7 +1,7 @@
 // readEach: the per-deal reads come back in order, a few at a time, and a read that never answers
 // counts as failed after its time limit instead of holding the surface open.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { READ_CONCURRENCY, READ_TIMEOUT_MS, isAborted, readEach } from './readEach';
+import { READ_CONCURRENCY, READ_TIMEOUT_MS, createReadPool, isAborted, readEach } from './readEach';
 
 describe('readEach', () => {
   afterEach(() => { vi.useRealTimers(); });
@@ -153,5 +153,102 @@ describe('readEach', () => {
     expect(read).not.toHaveBeenCalled();
     expect(rs.every((r) => r.status === 'rejected' && isAborted(r.reason))).toBe(true);
     expect(isAborted(new Error('unreadable'))).toBe(false);
+  });
+
+  describe('with a shared pool', () => {
+    // Reads of ids starting with "stuck" wait for `free()`; the others answer at once. `most` is the
+    // highest number of reads out (started, not yet settled) over all the calls together.
+    const rig = () => {
+      let out = 0;
+      let most = 0;
+      let free!: () => void;
+      const gate = new Promise<void>((r) => { free = r; });
+      const read = async (id: string) => {
+        out += 1;
+        most = Math.max(most, out);
+        try {
+          if (id.startsWith('stuck')) await gate;
+          else await new Promise((r) => setTimeout(r, 1));
+        } finally { out -= 1; }
+        return id;
+      };
+      return { read, free, most: () => most, out: () => out };
+    };
+    const names = (p: string, n: number) => Array.from({ length: n }, (_, i) => `${p}${i}`);
+
+    it('keeps a read stuck in one batch counted in the next batch', async () => {
+      vi.useFakeTimers();
+      const { read, free, most, out } = rig();
+      const pool = createReadPool(READ_CONCURRENCY);
+      const first = readEach(['stuck0', 'stuck1', ...names('a', 6)], read, { pool });
+      await vi.advanceTimersByTimeAsync(READ_TIMEOUT_MS + 1);
+      // The batch ended (the stuck ones timed out) while their calls are still out.
+      const rs = await first;
+      expect(rs.filter((r) => r.status === 'rejected')).toHaveLength(2);
+      expect(out()).toBe(2);
+      const second = readEach(names('b', 30), read, { pool });
+      await vi.advanceTimersByTimeAsync(100);
+      await second;
+      expect(most()).toBeLessThanOrEqual(READ_CONCURRENCY);
+      // Once the stuck reads settle the slots are free again, and a later call runs full width.
+      free();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(out()).toBe(0);
+    });
+
+    it('keeps a read stuck in an aborted pass counted in the next pass, and the pass ends once it settles', async () => {
+      vi.useFakeTimers();
+      const { read, free, most, out } = rig();
+      const pool = createReadPool(READ_CONCURRENCY);
+      const ctl = new AbortController();
+      const held = READ_CONCURRENCY / 2;
+      const aborted = readEach([...names('stuck', held), ...names('a', 100)], read, { pool, signal: ctl.signal });
+      await vi.advanceTimersByTimeAsync(3);
+      ctl.abort();
+      await vi.advanceTimersByTimeAsync(READ_TIMEOUT_MS + 1);
+      const ra = await aborted;
+      expect(ra.slice(held).some((r) => r.status === 'rejected' && isAborted(r.reason))).toBe(true);
+      // The aborted pass is over, but its stuck reads are still out and still hold their slots.
+      expect(out()).toBe(held);
+      const next = readEach(names('b', 30), read, { pool });
+      await vi.advanceTimersByTimeAsync(100);
+      const rb = await next;
+      expect(rb.every((r) => r.status === 'fulfilled')).toBe(true);
+      expect(most()).toBeLessThanOrEqual(READ_CONCURRENCY);
+      free();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(out()).toBe(0);
+    });
+
+    it('lets a pass whose every slot is held by stuck reads end once they settle', async () => {
+      vi.useFakeTimers();
+      const { read, free, most, out } = rig();
+      const pool = createReadPool(READ_CONCURRENCY);
+      const first = readEach(names('stuck', READ_CONCURRENCY), read, { pool });
+      await vi.advanceTimersByTimeAsync(READ_TIMEOUT_MS + 1);
+      await first;
+      let ended = false;
+      const next = readEach(names('b', 10), read, { pool }).then((r) => { ended = true; return r; });
+      await vi.advanceTimersByTimeAsync(100);
+      expect(out()).toBe(READ_CONCURRENCY);
+      expect(ended).toBe(false);
+      free();
+      await vi.advanceTimersByTimeAsync(100);
+      expect((await next).every((r) => r.status === 'fulfilled')).toBe(true);
+      expect(most()).toBeLessThanOrEqual(READ_CONCURRENCY);
+      expect(out()).toBe(0);
+    });
+
+    it('stops waiting for a slot once the signal is aborted', async () => {
+      const pool = createReadPool(1);
+      const hold = await pool.acquire();
+      const ctl = new AbortController();
+      const waiting = pool.acquire(ctl.signal);
+      ctl.abort();
+      expect(await waiting).toBeNull();
+      hold?.();
+      const again = await pool.acquire();
+      expect(again).not.toBeNull();
+    });
   });
 });

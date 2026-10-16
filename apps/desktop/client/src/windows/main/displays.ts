@@ -13,7 +13,7 @@ import { toWalletError, type WalletError } from '../../lib/contract';
 import { readCommand } from '../../lib/data/invoke';
 import { NAMED_POLICY, dealKey } from '../../lib/data/keys';
 import { useDataClient } from '../../lib/data/provider';
-import { READ_CONCURRENCY, isAborted, readEach } from '../../lib/readEach';
+import { READ_CONCURRENCY, createReadPool, isAborted, readEach } from '../../lib/readEach';
 import { isTerminal } from './logic';
 
 /** What a display was read for: the deal's state and the moment its row last changed, or null when
@@ -60,8 +60,10 @@ export type DisplaysState = { map: Map<string, DealDisplay>; error: WalletError 
 // (lib/display.ts useDealDisplay, the tumbler's forms); the runner keeps only the token each answer
 // was read for. One pass runs at a time: a newer deal list aborts the running pass (it starts no
 // further read; reads already out settle and are kept), and the next pass runs on the latest list
-// once they have settled. So at most READ_CONCURRENCY deal_display reads of the passes are ever in
-// flight, whatever the event rate.
+// once they have settled. The runner owns one pool of READ_CONCURRENCY slots that every batch and
+// every pass reads through, and a read keeps its slot until it has settled, so at most
+// READ_CONCURRENCY deal_display reads of the passes are ever in flight, a stuck read of an earlier
+// batch or an aborted pass included, whatever the event rate.
 type Runner = {
   request(deals: readonly Deal[]): void;
   subscribe(cb: (s: DisplaysState) => void): () => void;
@@ -86,6 +88,7 @@ function createRunner(client: QueryClient): Runner {
   let listed: readonly Deal[] = [];
   let latest: readonly Deal[] | null = null;
   let running: AbortController | null = null;
+  const pool = createReadPool(READ_CONCURRENCY);
 
   const answer = (id: string): DealDisplay | undefined => client.getQueryData<DealDisplay>(dealKey('deal_display', id));
 
@@ -136,7 +139,7 @@ function createRunner(client: QueryClient): Runner {
         const rs = await readEach(part, (id) => {
           const d = byId.get(id);
           return d ? read(id, d) : Promise.reject(new Error('deal is not listed'));
-        }, { concurrency: READ_CONCURRENCY, signal: ctl.signal });
+        }, { concurrency: READ_CONCURRENCY, signal: ctl.signal, pool });
         rs.forEach((r, i) => {
           const id = part[i];
           if (id === undefined || r.status === 'fulfilled' || isAborted(r.reason)) return;
