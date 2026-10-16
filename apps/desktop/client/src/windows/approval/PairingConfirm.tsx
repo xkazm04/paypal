@@ -95,7 +95,7 @@ export function PairingConfirm({ pending, readError, onSettled }: Props) {
         <h2><span className="okc">✓</span> Connected · {pinned.name}</h2>
         <div className="ow-ctx">
           <span className="mono">{shortId(pinned.key, 6, 4)}</span>
-          <span>· their wallet and payee are now verified{pinned.house ? ' · house seller' : ''}</span>
+          <span>· their wallet key is pinned; payments go only to the payee they declared{pinned.house ? ' · house seller' : ''}</span>
         </div>
         <p className="ui-hint">Nothing touched PayPal. Nobody was paid and no deal started.</p>
         <div className="ow-acts">
