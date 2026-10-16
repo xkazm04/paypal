@@ -1500,11 +1500,12 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Lost:** "Setup only" and "craft-5 first".
 - **Done:** the mailbox exhaustion fix, a per-caller create allowance and a HOUSE reserve (ad2ef32),
   and removal of the relay-named deploy files that would have deployed a second HOUSE (4909d48).
-- **OPEN:** the word fix. `apps/desktop/client/src/lib/words/connections.ts` still says
-  `offline: 'Offline'` with "The online meeting point is not available", which does not say that this
-  copy is not set up for other wallets or that the House is not available. Also open: the build-time
-  relay address, the yes/no switch and the no-contact-until-needed rule; they wait for the deploy
-  approval.
+- **Done (words):** dd6f363 (a copy with no relay says it is not set up, not Offline).
+  `apps/desktop/client/src/lib/words/connections.ts` now says "This copy is not set up to meet other
+  wallets, and the House is not available in it", and the retry hint is replaced when the client
+  already knows the relay is absent.
+- **OPEN:** the build-time relay address, the yes/no switch and the no-contact-until-needed rule;
+  they wait for the deploy approval.
 
 ### 3. Security P-1: "Cut it to generic patterns" (ask 9e986aef)
 
@@ -1526,6 +1527,23 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   on-screen words) and fbf37e2 (STATUS). STATUS's entry names fe9df3f, 2513e5d and 1198990; those
   are earlier copies of the same three changes and are not ancestors of this branch.
 - **Known problems:** one test from 2ed6900, the `readEach.test.ts` slot test, was found not to
-  terminate; it is being fixed in a separate run. Client `vitest` and `tsc` on `main` still wait on
+  terminate; da4a03f fixed it (the held reads now sit on deferred promises that are settled after the
+  bound is asserted). Client `vitest` and `tsc` on `main` still wait on
   the owner installing client dependencies (`@tanstack/react-query` and `@tanstack/react-virtual`
   are missing from `node_modules`), so neither has run against these changes.
+
+## 43. The displays runner keeps one read-slot pool, so a stuck read counts across batches and passes
+
+- **Constraint:** §42 item 4 and 2ed6900 keep a timed-out read's slot until its invoke settles. The
+  slots belonged to one `readEach` call, so a `deal_display` read stuck past its batch, or in an
+  aborted pass, was not counted by the next call, and in-flight invokes could pass `READ_CONCURRENCY`.
+- **Decision:** `readEach` takes an optional shared `ReadPool`. The displays runner makes one pool and
+  passes it to every batch, so `displays.ts` keeps at most `READ_CONCURRENCY` reads in flight across
+  batches and passes, and a stuck read counts across them. A pass whose slots are all held ends once
+  they settle; a wait for a slot stops when the signal is aborted.
+- **Lost:** the per-batch limit, where each call counted only its own reads.
+- **Evidence:** eeca1b9 (`readEach.ts`, `displays.ts`, `readEach.test.ts`), an ancestor of `main`
+  (checked with `git merge-base --is-ancestor`). Its tests: a read stuck in one batch stays counted in
+  the next; a read stuck in an aborted pass stays counted in the next pass and the pass ends once it
+  settles; a pass whose every slot is held ends once they settle; a slot wait stops on abort. Client
+  `vitest` and `tsc` were not run (§42 item 4).
