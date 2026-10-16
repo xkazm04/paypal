@@ -101,6 +101,140 @@ impl SignedPairingIdentity {
         Ok(bundle)
     }
 }
+const COMMIT_HEADER: &[u8] = br#"{"typ":"table-pairing-commit","v":1}"#;
+const REVEAL_HEADER: &[u8] = br#"{"typ":"table-pairing-reveal","v":1}"#;
+const COMMIT_TAG: &[u8] = b"table-pairing-commit-v1";
+/// The initiator's first publication in owner-to-owner pairing (DECISIONS section 47): its signed
+/// bundle stays hidden behind `commit` until the joiner's bundle is fixed, so a relay that holds
+/// the code must choose its key before it can see the key the words will be computed with.
+/// `code_hash`, `side` and `expires` travel in the clear so the joiner can answer; the reveal
+/// must repeat them exactly.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PairingCommit {
+    pub code_hash: H256,
+    pub side: Side,
+    pub expires: i64,
+    pub commit: H256,
+}
+/// The initiator's bundle and the 32-byte nonce, published only after the joiner's reply.
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PairingReveal {
+    pub bundle: SignedPairingIdentity,
+    pub nonce: [u8; 32],
+}
+impl fmt::Debug for PairingReveal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("PairingReveal([REDACTED])")
+    }
+}
+fn commitment(bundle: &SignedPairingIdentity, nonce: &[u8; 32]) -> Result<H256, PairingError> {
+    let mut bytes = COMMIT_TAG.to_vec();
+    bytes.extend_from_slice(&canonical_bytes(bundle).map_err(|_| PairingError)?);
+    bytes.extend_from_slice(nonce);
+    Ok(H256::digest(&bytes))
+}
+/// `header.payload.tag`, the three-part shape the relay carries. The header's `typ` keeps either
+/// form from parsing as a signed pairing bundle or a deal envelope, and the reverse. The tag is
+/// SHA-256 of `header.payload`, a checksum and not a signature: a commit is authenticated by the
+/// reveal that opens it, and a reveal by that commit and its bundle's own signatures.
+fn to_wire<T: Serialize>(header: &[u8], value: &T) -> Result<String, PairingError> {
+    let input = format!(
+        "{}.{}",
+        URL_SAFE_NO_PAD.encode(header),
+        URL_SAFE_NO_PAD.encode(canonical_bytes(value).map_err(|_| PairingError)?)
+    );
+    let raw = format!(
+        "{input}.{}",
+        URL_SAFE_NO_PAD.encode(H256::digest(input.as_bytes()).0)
+    );
+    if raw.len() > crate::MAX_JWS_BYTES {
+        return Err(PairingError);
+    }
+    Ok(raw)
+}
+fn from_wire<T: Serialize + serde::de::DeserializeOwned>(
+    header: &[u8],
+    raw: &str,
+) -> Result<T, PairingError> {
+    if raw.len() > crate::MAX_JWS_BYTES || !raw.is_ascii() {
+        return Err(PairingError);
+    }
+    let parts = raw.split('.').collect::<Vec<_>>();
+    let [head, payload, tag] = parts.as_slice() else {
+        return Err(PairingError);
+    };
+    if URL_SAFE_NO_PAD.decode(head).map_err(|_| PairingError)? != header
+        || URL_SAFE_NO_PAD.decode(tag).map_err(|_| PairingError)?
+            != H256::digest(format!("{head}.{payload}").as_bytes()).0
+    {
+        return Err(PairingError);
+    }
+    let bytes = URL_SAFE_NO_PAD.decode(payload).map_err(|_| PairingError)?;
+    let value: T = serde_json::from_slice(&bytes).map_err(|_| PairingError)?;
+    if canonical_bytes(&value).map_err(|_| PairingError)? != bytes {
+        return Err(PairingError);
+    }
+    Ok(value)
+}
+impl PairingCommit {
+    /// Commits to a verified initiating bundle with a fresh nonce from the application CSPRNG.
+    pub fn seal(
+        bundle: &SignedPairingIdentity,
+        nonce: [u8; 32],
+    ) -> Result<(Self, PairingReveal), PairingError> {
+        bundle.verify()?;
+        if bundle.identity.in_reply_to.is_some() {
+            return Err(PairingError);
+        }
+        let commit = Self {
+            code_hash: bundle.identity.code_hash,
+            side: bundle.identity.side,
+            expires: bundle.identity.expires,
+            commit: commitment(bundle, &nonce)?,
+        };
+        Ok((
+            commit,
+            PairingReveal {
+                bundle: bundle.clone(),
+                nonce,
+            },
+        ))
+    }
+    pub fn to_wire(&self) -> Result<String, PairingError> {
+        to_wire(COMMIT_HEADER, self)
+    }
+    pub fn from_wire(raw: &str) -> Result<Self, PairingError> {
+        from_wire(COMMIT_HEADER, raw)
+    }
+}
+impl PairingReveal {
+    /// The reveal opens `commit` only with the exact bundle and nonce committed to, a bundle whose
+    /// signatures verify and whose code, side and expiry are the ones the commit showed.
+    pub fn opens(&self, commit: &PairingCommit) -> Result<(), PairingError> {
+        self.bundle.verify()?;
+        let identity = &self.bundle.identity;
+        if identity.code_hash != commit.code_hash
+            || identity.side != commit.side
+            || identity.expires != commit.expires
+            || identity.in_reply_to.is_some()
+            || commitment(&self.bundle, &self.nonce)? != commit.commit
+        {
+            return Err(PairingError);
+        }
+        Ok(())
+    }
+    pub fn to_wire(&self) -> Result<String, PairingError> {
+        self.bundle.verify()?;
+        to_wire(REVEAL_HEADER, self)
+    }
+    pub fn from_wire(raw: &str) -> Result<Self, PairingError> {
+        let reveal: Self = from_wire(REVEAL_HEADER, raw)?;
+        reveal.bundle.verify()?;
+        Ok(reveal)
+    }
+}
 /// One-time 128-bit entropy supplied by the application CSPRNG.
 #[derive(Clone)]
 pub struct PairingCode(String);
@@ -149,7 +283,9 @@ const WORDS: [&str; 64] = [
     "vale", "willow",
 ];
 /// Buyer key then seller key; role order makes both wallets calculate identical SAS.
-/// Four words from a 64-word list commit to 24 bits; compare all words out of band.
+/// Four words from a 64-word list commit to 24 bits; compare all words out of band. In owner-to-owner
+/// pairing the joiner computes them only after the initiator's reveal opens its commit
+/// ([`PairingCommit`]), so neither side's key can be chosen after the other's is seen.
 pub fn pairing_words(buyer: [u8; 32], seller: [u8; 32], code: &PairingCode) -> [&'static str; 4] {
     let mut bytes = Vec::with_capacity(100);
     bytes.extend_from_slice(&buyer);
@@ -172,6 +308,106 @@ mod tests {
         let mut bytes = [0; 32];
         getrandom::fill(&mut bytes).unwrap();
         SigningKey::from_bytes(&bytes)
+    }
+    fn bundle(code_hash: H256, side: Side, expires: i64) -> SignedPairingIdentity {
+        let owner = key();
+        let agent = key();
+        let identity = PairingIdentity {
+            code_hash,
+            owner_key: owner.verifying_key().to_bytes(),
+            agent_key: agent.verifying_key().to_bytes(),
+            side,
+            payee: PayeeRef::new("merchant").unwrap(),
+            expires,
+            in_reply_to: None,
+        };
+        let bytes = canonical_bytes(&identity).unwrap();
+        SignedPairingIdentity {
+            identity,
+            owner_signature: owner.sign(&bytes).to_bytes().to_vec(),
+            agent_signature: agent.sign(&bytes).to_bytes().to_vec(),
+        }
+    }
+    #[test]
+    fn a_reveal_opens_its_commit_only_with_the_committed_bundle_and_nonce() {
+        let code = PairingCode::from_entropy([7; 16]);
+        let honest = bundle(code.mailbox_hash(), Side::Seller, 100);
+        let (commit, reveal) = PairingCommit::seal(&honest, [1; 32]).unwrap();
+        assert!(reveal.opens(&commit).is_ok());
+        // The commit shows no key: only the code hash, side, expiry and the digest travel.
+        let wire = commit.to_wire().unwrap();
+        let shown: serde_json::Value = serde_json::from_slice(
+            &URL_SAFE_NO_PAD
+                .decode(wire.split('.').nth(1).unwrap())
+                .unwrap(),
+        )
+        .unwrap();
+        let mut fields = shown.as_object().unwrap().keys().collect::<Vec<_>>();
+        fields.sort();
+        assert_eq!(fields, ["code_hash", "commit", "expires", "side"]);
+        assert_eq!(PairingCommit::from_wire(&wire).unwrap(), commit);
+        let raw = reveal.to_wire().unwrap();
+        assert!(
+            PairingReveal::from_wire(&raw)
+                .unwrap()
+                .opens(&commit)
+                .is_ok()
+        );
+        // Wire forms do not cross: a commit or reveal is never a bundle, and the reverse.
+        assert!(SignedPairingIdentity::from_jws(&wire).is_err());
+        assert!(SignedPairingIdentity::from_jws(&raw).is_err());
+        assert!(PairingCommit::from_wire(&raw).is_err());
+        assert!(PairingReveal::from_wire(&wire).is_err());
+        let (input, _) = raw.rsplit_once('.').unwrap();
+        let bad_tag = format!("{input}.{}", URL_SAFE_NO_PAD.encode([0; 32]));
+        assert!(PairingReveal::from_wire(&bad_tag).is_err());
+        assert!(PairingCommit::from_wire(&format!("{wire}.x")).is_err());
+        // Another nonce, another bundle, or a bundle with a different expiry opens nothing.
+        let mut wrong_nonce = reveal.clone();
+        wrong_nonce.nonce = [2; 32];
+        assert!(wrong_nonce.opens(&commit).is_err());
+        let other = PairingReveal {
+            bundle: bundle(code.mailbox_hash(), Side::Seller, 100),
+            nonce: [1; 32],
+        };
+        assert!(other.opens(&commit).is_err());
+        let mut shown_expiry = commit.clone();
+        shown_expiry.expires = 101;
+        assert!(reveal.opens(&shown_expiry).is_err());
+        let mut shown_side = commit.clone();
+        shown_side.side = Side::Buyer;
+        assert!(reveal.opens(&shown_side).is_err());
+        // An altered bundle fails its own signatures before the commit is even checked.
+        let mut altered = reveal.clone();
+        altered.bundle.identity.payee = PayeeRef::new("other").unwrap();
+        assert!(altered.opens(&commit).is_err());
+        assert!(altered.to_wire().is_err());
+        assert!(!format!("{reveal:?}").contains("nonce"));
+    }
+    #[test]
+    fn a_relay_holding_the_code_cannot_pick_its_key_after_the_joiners_key() {
+        // The relay commits to its own key M first: that is all the joiner sees before it answers.
+        let code = PairingCode::from_entropy([9; 16]);
+        let m = bundle(code.mailbox_hash(), Side::Seller, 100);
+        let (commit, committed) = PairingCommit::seal(&m, [3; 32]).unwrap();
+        // Now the joiner's key is public. The relay tries other keys for its reveal, as many as it
+        // likes, so the words would match the honest initiator's: none opens the commit.
+        let joiner = key().verifying_key().to_bytes();
+        for n in 0..64_u8 {
+            let ground = PairingReveal {
+                bundle: bundle(code.mailbox_hash(), Side::Seller, 100),
+                nonce: [n; 32],
+            };
+            assert!(ground.opens(&commit).is_err());
+        }
+        // Only M opens it, and M was fixed before the joiner's key existed: whether its words match
+        // the target is the 2^-24 chance of one guess, not the result of a search.
+        assert!(committed.opens(&commit).is_ok());
+        assert_eq!(committed.bundle.identity.agent_key, m.identity.agent_key);
+        assert_eq!(
+            pairing_words(joiner, m.identity.agent_key, &code),
+            pairing_words(joiner, committed.bundle.identity.agent_key, &code)
+        );
     }
     #[test]
     fn pairing_jws_binds_both_keys_payee_expiry_reply_and_wire_type() {

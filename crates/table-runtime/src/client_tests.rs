@@ -10,14 +10,7 @@ async fn pairing_handoff_is_approval_only_expiring_and_confirmation_stays_privil
             payee: PayeeRef::new("merchant").unwrap(),
         })
         .unwrap();
-    let words = a
-        .pairing_join(PairingJoinArgs {
-            code: offer.code,
-            peer: Some(offer.bundle),
-            side: Side::Buyer,
-            payee: PayeeRef::new("buyer").unwrap(),
-        })
-        .unwrap();
+    let (words, _) = pair_by_code(&mut a, &mut b, &offer, Side::Buyer, "buyer").unwrap();
     let (actor, _) = spawn(a);
     assert!(
         actor
@@ -664,14 +657,8 @@ async fn pairing_abort_is_unprivileged_and_scoped_and_confirm_tells_main_it_pinn
         })
         .unwrap()
     };
-    let join = |a: &mut Runtime, o: PairingOffer| {
-        a.pairing_join(PairingJoinArgs {
-            code: o.code,
-            peer: Some(o.bundle),
-            side: Side::Buyer,
-            payee: PayeeRef::new("buyer").unwrap(),
-        })
-        .unwrap()
+    let join = |a: &mut Runtime, b: &mut Runtime, o: PairingOffer| {
+        pair_by_code(a, b, &o, Side::Buyer, "buyer").unwrap().0
     };
     // The creator can end its own offer by code before anyone joins.
     let own = offer(&mut b);
@@ -681,8 +668,10 @@ async fn pairing_abort_is_unprivileged_and_scoped_and_confirm_tells_main_it_pinn
     })
     .unwrap();
     assert!(b.pairing_offer(PairingPollArgs { code: own.code }).is_err());
-    let first = join(&mut a, offer(&mut b));
-    let second = join(&mut a, offer(&mut b));
+    let o = offer(&mut b);
+    let first = join(&mut a, &mut b, o);
+    let o = offer(&mut b);
+    let second = join(&mut a, &mut b, o);
     let (actor, mut events) = spawn(a);
     actor
         .execute::<()>(

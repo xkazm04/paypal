@@ -66,6 +66,39 @@ async fn relay_pairing_retries_loss_and_conflicting_replies_fail_closed() {
     // Malformed/unverifiable messages have no effect on identity discovery.
     let h = offer.bundle.identity.code_hash.hex();
     store.send(&h, "a.b.c".into()).await.unwrap();
+    // The mailbox holds the seller's commit, never its bundle (DECISIONS section 47).
+    for raw in store.read(&h, 0).await.unwrap() {
+        assert!(table_proto::SignedPairingIdentity::from_jws(&raw).is_err());
+    }
+    // The buyer answers the commit, but has no words until the seller reveals; asking again
+    // re-sends the same reply.
+    for _ in 0..2 {
+        let waiting = a
+            .execute::<PairingWords>(caller("main", None), Action::PairJoin(join()))
+            .await
+            .unwrap_err();
+        assert!(matches!(waiting.code, ErrorCode::Unavailable));
+    }
+    assert_eq!(store.read(&h, 0).await.unwrap().len(), 3);
+    store.remove(&h).await.unwrap();
+    assert!(
+        b.execute::<Option<PairingWords>>(caller("main", None), Action::PairPoll(poll()))
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        a.execute::<PairingWords>(caller("main", None), Action::PairJoin(join()))
+            .await
+            .is_err()
+    );
+    assert_eq!(store.read(&h, 0).await.unwrap().len(), 2);
+    let seller_words = b
+        .execute::<Option<PairingWords>>(caller("main", None), Action::PairPoll(poll()))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(store.read(&h, 0).await.unwrap().len(), 3);
     let first: PairingWords = a
         .execute(caller("main", None), Action::PairJoin(join()))
         .await
@@ -75,25 +108,6 @@ async fn relay_pairing_retries_loss_and_conflicting_replies_fail_closed() {
         .await
         .unwrap();
     assert_eq!(first.pairing_id, retry.pairing_id);
-    assert_eq!(store.read(&h, 0).await.unwrap().len(), 3);
-    store.remove(&h).await.unwrap();
-    assert!(
-        b.execute::<Option<PairingWords>>(caller("main", None), Action::PairPoll(poll()))
-            .await
-            .unwrap()
-            .is_none()
-    );
-    let retry: PairingWords = a
-        .execute(caller("main", None), Action::PairJoin(join()))
-        .await
-        .unwrap();
-    assert_eq!(retry.pairing_id, first.pairing_id);
-    assert_eq!(store.read(&h, 0).await.unwrap().len(), 2);
-    let seller_words = b
-        .execute::<Option<PairingWords>>(caller("main", None), Action::PairPoll(poll()))
-        .await
-        .unwrap()
-        .unwrap();
     assert_eq!(seller_words.words, first.words);
     assert!(
         b.execute::<KeyId>(
@@ -1102,24 +1116,27 @@ async fn two_wallet_actors_negotiate_and_settle_through_in_process_relay_without
             .unwrap()
             .is_none()
     );
-    // The only information passed between desktops is the owner-entered code.
-    let buyer_words: PairingWords = a
-        .execute(
-            caller("main", None),
-            Action::PairJoin(PairingJoinArgs {
-                code: offer.code.clone(),
-                peer: None,
-                side: Side::Buyer,
-                payee: PayeeRef::new("buyer_merchant").unwrap(),
-            }),
-        )
-        .await
-        .unwrap();
+    // The only information passed between desktops is the owner-entered code. The buyer answers
+    // the seller's commit, the seller's poll reveals, and the buyer's retry shows the words.
+    let join = || {
+        Action::PairJoin(PairingJoinArgs {
+            code: offer.code.clone(),
+            peer: None,
+            side: Side::Buyer,
+            payee: PayeeRef::new("buyer_merchant").unwrap(),
+        })
+    };
+    assert!(
+        a.execute::<PairingWords>(caller("main", None), join())
+            .await
+            .is_err()
+    );
     let seller_words = b
         .execute::<Option<PairingWords>>(caller("main", None), Action::PairPoll(poll()))
         .await
         .unwrap()
         .unwrap();
+    let buyer_words: PairingWords = a.execute(caller("main", None), join()).await.unwrap();
     assert_eq!(seller_words.words, buyer_words.words);
     let a_token: String = a
         .execute(caller("approval", None), Action::Token)
@@ -1639,18 +1656,19 @@ async fn a_shop_around_group_with_house_and_a_desktop_seller_closes_through_the_
         )
         .await
         .unwrap();
-    let buyer_words: PairingWords = a
-        .execute(
-            caller("main", None),
-            Action::PairJoin(PairingJoinArgs {
-                code: offer.code.clone(),
-                peer: None,
-                side: Side::Buyer,
-                payee: PayeeRef::new("buyer").unwrap(),
-            }),
-        )
-        .await
-        .unwrap();
+    let join = || {
+        Action::PairJoin(PairingJoinArgs {
+            code: offer.code.clone(),
+            peer: None,
+            side: Side::Buyer,
+            payee: PayeeRef::new("buyer").unwrap(),
+        })
+    };
+    assert!(
+        a.execute::<PairingWords>(caller("main", None), join())
+            .await
+            .is_err()
+    );
     let dan_words = d
         .execute::<Option<PairingWords>>(
             caller("main", None),
@@ -1661,6 +1679,7 @@ async fn a_shop_around_group_with_house_and_a_desktop_seller_closes_through_the_
         .await
         .unwrap()
         .unwrap();
+    let buyer_words: PairingWords = a.execute(caller("main", None), join()).await.unwrap();
     let dan_key: KeyId = a
         .execute(
             caller("approval", Some(&a_token)),

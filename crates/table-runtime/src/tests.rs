@@ -409,6 +409,39 @@ fn runtime(
         hello,
     )
 }
+/// Owner-to-owner pairing without a relay, in the order the relay carries it (DECISIONS section
+/// 47): the initiator's commit, the joiner's signed reply, the initiator's words, then its reveal
+/// and the joiner's words. Returns (joiner words, initiator words).
+fn pair_by_code(
+    joiner: &mut Runtime,
+    initiator: &mut Runtime,
+    offer: &PairingOffer,
+    side: Side,
+    payee: &str,
+) -> Result<(PairingWords, PairingWords), CommandError> {
+    let poll = PairingPollArgs {
+        code: offer.code.clone(),
+    };
+    let commit = initiator.pairing_commit(&poll)?;
+    let reply = joiner.pairing_answer(
+        PairingJoinArgs {
+            code: offer.code.clone(),
+            peer: None,
+            side,
+            payee: PayeeRef::new(payee).unwrap(),
+        },
+        commit,
+    )?;
+    let initiator_words = initiator.pairing_join(PairingJoinArgs {
+        code: offer.code.clone(),
+        peer: Some(reply),
+        side: offer.bundle.identity.side,
+        payee: offer.bundle.identity.payee.clone(),
+    })?;
+    let reveal = initiator.pairing_reveal_of(&poll)?;
+    let joiner_words = joiner.pairing_revealed(&poll, vec![reveal])?;
+    Ok((joiner_words, initiator_words))
+}
 fn clauses(side: Side, kind: DealKind) -> Vec<Clause> {
     let money = |n| Money::new(n, Currency::USD).unwrap();
     vec![

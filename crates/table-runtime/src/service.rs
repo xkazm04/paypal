@@ -85,6 +85,28 @@ impl std::fmt::Debug for PendingPair {
         f.write_str("PendingPair")
     }
 }
+/// An owner-to-owner offer's commit and the reveal it hides (DECISIONS section 47). The reveal is
+/// published only once a joiner's reply is held as a pending pair.
+pub(crate) struct OfferCommit {
+    pub(crate) commit: table_proto::PairingCommit,
+    pub(crate) reveal: table_proto::PairingReveal,
+}
+impl std::fmt::Debug for OfferCommit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("OfferCommit")
+    }
+}
+/// A joiner that answered a commit with its signed reply. It has no words until a reveal opens
+/// the commit.
+pub(crate) struct AwaitingReveal {
+    pub(crate) commit: table_proto::PairingCommit,
+    pub(crate) reply: SignedPairingIdentity,
+}
+impl std::fmt::Debug for AwaitingReveal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("AwaitingReveal")
+    }
+}
 pub struct Runtime {
     pub(crate) house_release: Option<table_proto::HouseRelease>,
     pub(crate) house_state: HouseState,
@@ -102,6 +124,10 @@ pub struct Runtime {
     pub(crate) engine: table_engine::EngineId,
     pub(crate) pending: HashMap<H256, PendingPair>,
     pub(crate) pairing_offers: HashMap<H256, PairingOffer>,
+    /// Keyed by code hash: the commit of each owner-to-owner offer (HOUSE offers have none).
+    pub(crate) pairing_commits: HashMap<H256, OfferCommit>,
+    /// Keyed by code hash: joins that answered a commit and wait for its reveal.
+    pub(crate) awaiting_reveal: HashMap<H256, AwaitingReveal>,
     pub(crate) last_poll: BTreeMap<DealId, i64>,
     pub(crate) engines: Vec<(
         Arc<dyn table_engine::EngineAdapter>,
@@ -254,6 +280,8 @@ impl Runtime {
             engine,
             pending: HashMap::new(),
             pairing_offers: HashMap::new(),
+            pairing_commits: HashMap::new(),
+            awaiting_reveal: HashMap::new(),
             last_poll: BTreeMap::new(),
             engines: vec![],
             runs: BTreeMap::new(),

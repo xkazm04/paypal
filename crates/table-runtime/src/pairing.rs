@@ -1,14 +1,25 @@
 //! Signed identity exchange with an owner-confirmed short authentication string.
 use crate::{Action, ActorHandle, Caller};
 use crate::{
-    Runtime, app, invalid, permission, service::PendingPair, unavailable,
+    Runtime, app, invalid, permission,
+    service::{AwaitingReveal, OfferCommit, PendingPair},
+    unavailable,
     vault::existing_signing_key,
 };
 use ed25519_dalek::{Signer, VerifyingKey};
 use table_client::*;
 use table_core::*;
 use table_ledger::{Counterparty, PairedVia};
-use table_proto::{PairingCode, ShortText, pairing_words};
+use table_proto::{PairingCode, PairingCommit, PairingReveal, ShortText, pairing_words};
+
+/// How long one join waits for the initiator's reveal before it asks the owner to try again. The
+/// initiator's desk polls every 3 s and reveals in the poll that finds the reply.
+const REVEAL_WAIT: std::time::Duration = if cfg!(test) {
+    std::time::Duration::ZERO
+} else {
+    std::time::Duration::from_secs(8)
+};
+const REVEAL_POLL: std::time::Duration = std::time::Duration::from_secs(1);
 
 fn main_caller() -> Caller {
     Caller {
@@ -85,14 +96,14 @@ impl ActorHandle {
             .map_err(|_| unavailable("Too many pairing requests"))?;
         let offer: PairingOffer = self.execute_local(caller, Action::PairCreate(args)).await?;
         if let Some(api) = &self.relay {
-            self.publish_pairing(api.as_ref(), &offer.bundle).await?;
+            self.publish_commit(api.as_ref(), &offer.code).await?;
         }
         Ok(offer)
     }
     pub(crate) async fn relay_pairing_join(
         &self,
         caller: Caller,
-        mut args: PairingJoinArgs,
+        args: PairingJoinArgs,
     ) -> Result<PairingWords, CommandError> {
         check_pairing_caller(&caller, "pairing_join")?;
         let _permit = self
@@ -147,23 +158,36 @@ impl ActorHandle {
             wake.active = false;
             return result;
         }
-        if args.peer.is_none() {
-            let api = self
-                .relay
-                .as_ref()
-                .ok_or_else(|| unavailable("Relay is not configured"))?;
-            args.peer = self
-                .discover_pairing(api.as_ref(), &code, args.side, None)
-                .await?;
-            if args.peer.is_none() {
-                return Err(unavailable("Pairing offer is not available yet"));
+        if args.peer.is_some() {
+            // A reply handed over offline: only the initiator of this code can take one.
+            return self.execute_local(caller, Action::PairJoin(args)).await;
+        }
+        let api = self
+            .relay
+            .as_ref()
+            .ok_or_else(|| unavailable("Relay is not configured"))?;
+        // Commit-then-reveal (DECISIONS section 47): answer the commit with our signed reply, and
+        // compute words only once the initiator's reveal opens that commit.
+        let Some(commit) = self.discover_commit(api.as_ref(), &code, args.side).await? else {
+            return Err(unavailable("Pairing offer is not available yet"));
+        };
+        let poll = PairingPollArgs {
+            code: args.code.clone(),
+        };
+        let reply: SignedPairingIdentity = self
+            .execute_local(main_caller(), Action::PairAnswer(args, commit))
+            .await?;
+        self.publish_pairing(api.as_ref(), &reply).await?;
+        let deadline = tokio::time::Instant::now() + REVEAL_WAIT;
+        loop {
+            let reveals = self.discover_reveals(api.as_ref(), &code).await?;
+            if !reveals.is_empty() || tokio::time::Instant::now() >= deadline {
+                return self
+                    .execute_local(main_caller(), Action::PairRevealed(poll, reveals))
+                    .await;
             }
+            tokio::time::sleep(REVEAL_POLL).await;
         }
-        let words: PairingWords = self.execute_local(caller, Action::PairJoin(args)).await?;
-        if let Some(api) = &self.relay {
-            self.publish_pairing(api.as_ref(), &words.reply).await?;
-        }
-        Ok(words)
     }
     /// Wakes the hosted HOUSE seller with a plain request to its co-hosted service, through the
     /// same house state the HOUSE pairing uses (idle -> waking -> ready). No money, no pairing,
@@ -218,30 +242,44 @@ impl ActorHandle {
             .as_ref()
             .ok_or_else(|| unavailable("Relay is not configured"))?;
         let code = PairingCode::parse(&offer.code).map_err(|_| invalid())?;
-        // Re-publishing the identical offer also repairs volatile relay mailbox loss.
-        self.publish_pairing(api.as_ref(), &offer.bundle).await?;
+        // Re-publishing the identical commit also repairs volatile relay mailbox loss.
+        let commit = self.publish_commit(api.as_ref(), &offer.code).await?;
         let peer = self
             .discover_pairing(
                 api.as_ref(),
                 &code,
                 offer.bundle.identity.side,
-                Some(offer.bundle.identity_hash().map_err(|_| invalid())?),
+                Some(commit.commit),
             )
             .await?;
         let Some(peer) = peer else {
             return Ok(None);
         };
-        self.execute_local(
-            main_caller(),
-            Action::PairJoin(PairingJoinArgs {
-                code: offer.code,
-                peer: Some(peer),
-                side: offer.bundle.identity.side,
-                payee: offer.bundle.identity.payee,
-            }),
+        let words: PairingWords = self
+            .execute_local(
+                main_caller(),
+                Action::PairJoin(PairingJoinArgs {
+                    code: offer.code.clone(),
+                    peer: Some(peer),
+                    side: offer.bundle.identity.side,
+                    payee: offer.bundle.identity.payee,
+                }),
+            )
+            .await?;
+        // The joiner's key is now fixed in a held reply, so our bundle can be shown.
+        let reveal: PairingReveal = self
+            .execute_local(
+                main_caller(),
+                Action::PairRevealOf(PairingPollArgs { code: offer.code }),
+            )
+            .await?;
+        self.publish_raw(
+            api.as_ref(),
+            commit.code_hash,
+            &reveal.to_wire().map_err(|_| invalid())?,
         )
-        .await
-        .map(Some)
+        .await?;
+        Ok(Some(words))
     }
     async fn publish_pairing(
         &self,
@@ -251,12 +289,90 @@ impl ActorHandle {
         let raw: String = self
             .execute_local(main_caller(), Action::PairWire(bundle.clone()))
             .await?;
-        api.create(bundle.identity.code_hash)
+        self.publish_raw(api, bundle.identity.code_hash, &raw).await
+    }
+    async fn publish_commit(
+        &self,
+        api: &dyn table_relay::RelayApi,
+        code: &str,
+    ) -> Result<PairingCommit, CommandError> {
+        let commit: PairingCommit = self
+            .execute_local(
+                main_caller(),
+                Action::PairCommit(PairingPollArgs { code: code.into() }),
+            )
+            .await?;
+        self.publish_raw(
+            api,
+            commit.code_hash,
+            &commit.to_wire().map_err(|_| invalid())?,
+        )
+        .await?;
+        Ok(commit)
+    }
+    async fn publish_raw(
+        &self,
+        api: &dyn table_relay::RelayApi,
+        code_hash: H256,
+        raw: &str,
+    ) -> Result<(), CommandError> {
+        api.create(code_hash)
             .await
             .map_err(|_| unavailable("Pairing relay unavailable"))?;
-        api.send(bundle.identity.code_hash, &raw)
+        api.send(code_hash, raw)
             .await
             .map_err(|_| unavailable("Pairing relay unavailable"))
+    }
+    async fn mailbox(
+        &self,
+        api: &dyn table_relay::RelayApi,
+        code: &PairingCode,
+    ) -> Result<Vec<String>, CommandError> {
+        let batch = api
+            .poll(code.mailbox_hash(), "", 0, 0)
+            .await
+            .map_err(|_| unavailable("Pairing relay unavailable"))?;
+        batch.validate().map_err(|_| invalid())?;
+        Ok(batch.messages)
+    }
+    /// The one commit for this code from the other side; conflicting commits fail closed.
+    async fn discover_commit(
+        &self,
+        api: &dyn table_relay::RelayApi,
+        code: &PairingCode,
+        own_side: Side,
+    ) -> Result<Option<PairingCommit>, CommandError> {
+        let mut candidate: Option<PairingCommit> = None;
+        for raw in self.mailbox(api, code).await? {
+            let Ok(commit) = PairingCommit::from_wire(&raw) else {
+                continue;
+            };
+            if commit.code_hash != code.mailbox_hash() || commit.side == own_side {
+                continue;
+            }
+            if candidate
+                .as_ref()
+                .is_some_and(|previous| *previous != commit)
+            {
+                return Err(permission());
+            }
+            candidate = Some(commit);
+        }
+        Ok(candidate)
+    }
+    /// Every well-formed reveal for this code; the runtime aborts on any that does not open.
+    async fn discover_reveals(
+        &self,
+        api: &dyn table_relay::RelayApi,
+        code: &PairingCode,
+    ) -> Result<Vec<PairingReveal>, CommandError> {
+        Ok(self
+            .mailbox(api, code)
+            .await?
+            .iter()
+            .filter_map(|raw| PairingReveal::from_wire(raw).ok())
+            .filter(|reveal| reveal.bundle.identity.code_hash == code.mailbox_hash())
+            .collect())
     }
     async fn discover_pairing(
         &self,
@@ -265,13 +381,8 @@ impl ActorHandle {
         own_side: Side,
         reply_to: Option<H256>,
     ) -> Result<Option<SignedPairingIdentity>, CommandError> {
-        let batch = api
-            .poll(code.mailbox_hash(), "", 0, 0)
-            .await
-            .map_err(|_| unavailable("Pairing relay unavailable"))?;
-        batch.validate().map_err(|_| invalid())?;
         let mut candidate: Option<SignedPairingIdentity> = None;
-        for raw in batch.messages {
+        for raw in self.mailbox(api, code).await? {
             let Ok(bundle) = SignedPairingIdentity::from_jws(&raw) else {
                 continue;
             };
@@ -304,7 +415,13 @@ impl Runtime {
         let mut entropy = [0; 16];
         getrandom::fill(&mut entropy).map_err(|_| unavailable("Randomness unavailable"))?;
         let code = PairingCode::from_entropy(entropy);
-        self.make_offer(args, code)
+        let mut nonce = [0; 32];
+        getrandom::fill(&mut nonce).map_err(|_| unavailable("Randomness unavailable"))?;
+        let offer = self.make_offer(args, code)?;
+        let (commit, reveal) = PairingCommit::seal(&offer.bundle, nonce).map_err(|_| invalid())?;
+        self.pairing_commits
+            .insert(commit.code_hash, OfferCommit { commit, reveal });
+        Ok(offer)
     }
     fn make_offer(
         &mut self,
@@ -378,66 +495,214 @@ impl Runtime {
         {
             return Err(permission());
         }
-        let initiating = self.pairing_offers.get(&code.mailbox_hash());
-        match initiating {
-            Some(offer)
-                if offer.bundle.identity.side == args.side
-                    && offer.bundle.identity.payee == args.payee
-                    && peer.expires == offer.bundle.identity.expires
-                    && peer.in_reply_to
-                        == Some(offer.bundle.identity_hash().map_err(|_| invalid())?) => {}
-            None if peer.in_reply_to.is_none() => {}
-            _ => return Err(invalid()),
+        // Only the initiator of this code takes a bare reply: its own offer must be held, and the
+        // reply must answer the commit it published (the bundle hash for a HOUSE offer, which has
+        // no commit and is pinned by release identity instead). A joiner gets words only from a
+        // reveal that opens a commit (`pairing_revealed`).
+        let offer = self
+            .pairing_offers
+            .get(&code.mailbox_hash())
+            .ok_or_else(invalid)?;
+        let answers = match self.pairing_commits.get(&code.mailbox_hash()) {
+            Some(sealed) => sealed.commit.commit,
+            None => offer.bundle.identity_hash().map_err(|_| invalid())?,
+        };
+        if offer.bundle.identity.side != args.side
+            || offer.bundle.identity.payee != args.payee
+            || peer.expires != offer.bundle.identity.expires
+            || peer.in_reply_to != Some(answers)
+        {
+            return Err(invalid());
         }
+        let reply = offer.bundle.clone();
+        let peer = args.peer.ok_or_else(invalid)?;
+        self.seat_pair(&code, pairing_id, peer, reply)
+    }
+    /// Computes the words for a verified peer bundle and holds the pair until the owner confirms.
+    fn seat_pair(
+        &mut self,
+        code: &PairingCode,
+        pairing_id: H256,
+        peer: SignedPairingIdentity,
+        reply: SignedPairingIdentity,
+    ) -> Result<PairingWords, CommandError> {
         let own = existing_signing_key(self.vault.as_ref(), AgentSlot::Negotiator.key_name())
             .map_err(|_| unavailable("Agent key unavailable"))?
             .verifying_key()
             .to_bytes();
-        if peer.agent_key == own {
+        if peer.identity.agent_key == own || reply.identity.agent_key != own {
             return Err(invalid());
         }
-        let (buyer, seller) = if args.side == Side::Buyer {
-            (own, peer.agent_key)
+        let (buyer, seller) = if reply.identity.side == Side::Buyer {
+            (own, peer.identity.agent_key)
         } else {
-            (peer.agent_key, own)
+            (peer.identity.agent_key, own)
         };
         let words = PairingWords {
             house_table: None,
             pairing_id,
-            words: pairing_words(buyer, seller, &code).map(String::from),
-            reply: if let Some(offer) = initiating {
-                offer.bundle.clone()
-            } else {
-                let owner = self.owner()?;
-                let agent =
-                    existing_signing_key(self.vault.as_ref(), AgentSlot::Negotiator.key_name())
-                        .map_err(|_| unavailable("Agent key unavailable"))?;
-                let identity = PairingIdentity {
-                    code_hash: code.mailbox_hash(),
-                    owner_key: owner.verifying_key().to_bytes(),
-                    agent_key: own,
-                    side: args.side,
-                    payee: args.payee,
-                    expires: peer.expires,
-                    in_reply_to: Some(pairing_id),
-                };
-                let bytes = canonical_bytes(&identity).map_err(|_| invalid())?;
-                SignedPairingIdentity {
-                    identity,
-                    owner_signature: owner.sign(&bytes).to_bytes().to_vec(),
-                    agent_signature: agent.sign(&bytes).to_bytes().to_vec(),
-                }
-            },
+            words: pairing_words(buyer, seller, code).map(String::from),
+            reply,
         };
         self.pending.insert(
             words.pairing_id,
             PendingPair {
                 house: false,
-                peer: args.peer.ok_or_else(invalid)?,
+                peer,
                 words: words.clone(),
             },
         );
         Ok(words)
+    }
+    /// The initiator's commit for its own offer, to publish in place of the bundle.
+    pub(crate) fn pairing_commit(
+        &mut self,
+        args: &PairingPollArgs,
+    ) -> Result<PairingCommit, CommandError> {
+        self.prune_pairings();
+        let code = PairingCode::parse(&args.code).map_err(|_| invalid())?;
+        self.pairing_commits
+            .get(&code.mailbox_hash())
+            .map(|sealed| sealed.commit.clone())
+            .ok_or_else(invalid)
+    }
+    /// The initiator's reveal, given only once a joiner's reply to this code is held as a pending
+    /// pair: by then the joiner's key is fixed, so the reveal cannot help anyone choose it.
+    pub(crate) fn pairing_reveal_of(
+        &mut self,
+        args: &PairingPollArgs,
+    ) -> Result<PairingReveal, CommandError> {
+        self.prune_pairings();
+        let hash = PairingCode::parse(&args.code)
+            .map_err(|_| invalid())?
+            .mailbox_hash();
+        let sealed = self.pairing_commits.get(&hash).ok_or_else(invalid)?;
+        if !self
+            .pending
+            .values()
+            .any(|p| !p.house && p.peer.identity.code_hash == hash)
+        {
+            return Err(invalid());
+        }
+        Ok(sealed.reveal.clone())
+    }
+    /// The joiner's signed reply to a commit. No words yet: they wait for the reveal.
+    pub(crate) fn pairing_answer(
+        &mut self,
+        args: PairingJoinArgs,
+        commit: PairingCommit,
+    ) -> Result<SignedPairingIdentity, CommandError> {
+        let now = self.clock.now();
+        self.prune_pairings();
+        let code = PairingCode::parse(&args.code).map_err(|_| invalid())?;
+        let hash = code.mailbox_hash();
+        if code.expose_for_pairing() == "HOUSE"
+            || args.peer.is_some()
+            || commit.side == args.side
+            || commit.code_hash != hash
+            || commit.expires <= now
+            || commit.expires > now.saturating_add(86400)
+            || self.pairing_offers.contains_key(&hash)
+        {
+            return Err(invalid());
+        }
+        let held = match self.awaiting_reveal.get(&hash) {
+            Some(waiting) => Some((&waiting.commit.commit, &waiting.reply)),
+            None => self
+                .pending
+                .values()
+                .find(|p| !p.house && p.peer.identity.code_hash == hash)
+                .and_then(|p| {
+                    p.words
+                        .reply
+                        .identity
+                        .in_reply_to
+                        .as_ref()
+                        .map(|answered| (answered, &p.words.reply))
+                }),
+        };
+        if let Some((answered, reply)) = held {
+            if *answered != commit.commit {
+                return Err(permission());
+            }
+            if reply.identity.side != args.side || reply.identity.payee != args.payee {
+                return Err(invalid());
+            }
+            return Ok(reply.clone());
+        }
+        if self.pairing_count() >= 64 {
+            return Err(unavailable("Too many pending pairings"));
+        }
+        let owner = self.owner()?;
+        let agent = existing_signing_key(self.vault.as_ref(), AgentSlot::Negotiator.key_name())
+            .map_err(|_| unavailable("Agent key unavailable"))?;
+        let identity = PairingIdentity {
+            code_hash: hash,
+            owner_key: owner.verifying_key().to_bytes(),
+            agent_key: agent.verifying_key().to_bytes(),
+            side: args.side,
+            payee: args.payee,
+            expires: commit.expires,
+            in_reply_to: Some(commit.commit),
+        };
+        let bytes = canonical_bytes(&identity).map_err(|_| invalid())?;
+        let reply = SignedPairingIdentity {
+            identity,
+            owner_signature: owner.sign(&bytes).to_bytes().to_vec(),
+            agent_signature: agent.sign(&bytes).to_bytes().to_vec(),
+        };
+        self.awaiting_reveal.insert(
+            hash,
+            AwaitingReveal {
+                commit,
+                reply: reply.clone(),
+            },
+        );
+        Ok(reply)
+    }
+    /// Opens the answered commit with the reveals the relay holds. No reveal yet: no words. Any
+    /// reveal that does not open the commit (another bundle or nonce) ends the pairing: nothing is
+    /// held, so nothing can be confirmed or pinned.
+    pub(crate) fn pairing_revealed(
+        &mut self,
+        args: &PairingPollArgs,
+        reveals: Vec<PairingReveal>,
+    ) -> Result<PairingWords, CommandError> {
+        self.prune_pairings();
+        let code = PairingCode::parse(&args.code).map_err(|_| invalid())?;
+        let hash = code.mailbox_hash();
+        if let Some((id, pair)) = self
+            .pending
+            .iter()
+            .find(|(_, p)| !p.house && p.peer.identity.code_hash == hash)
+            && !self.pairing_offers.contains_key(&hash)
+        {
+            let id = *id;
+            let peer = pair.peer.identity_hash().map_err(|_| invalid())?;
+            let words = pair.words.clone();
+            if reveals
+                .iter()
+                .all(|r| r.bundle.identity_hash().ok() == Some(peer))
+            {
+                return Ok(words);
+            }
+            self.pending.remove(&id);
+            return Err(permission());
+        }
+        let waiting = self.awaiting_reveal.get(&hash).ok_or_else(invalid)?;
+        let Some(first) = reveals.first() else {
+            return Err(unavailable("Pairing offer is not available yet"));
+        };
+        let first_hash = first.bundle.identity_hash().map_err(|_| invalid())?;
+        if reveals.iter().any(|r| {
+            r.opens(&waiting.commit).is_err() || r.bundle.identity_hash().ok() != Some(first_hash)
+        }) {
+            self.awaiting_reveal.remove(&hash);
+            return Err(permission());
+        }
+        let waiting = self.awaiting_reveal.remove(&hash).ok_or_else(invalid)?;
+        let peer = first.bundle.clone();
+        self.seat_pair(&code, first_hash, peer, waiting.reply)
     }
 
     pub(crate) fn pairing_confirm(
@@ -496,6 +761,7 @@ impl Runtime {
         let code_hash = peer.code_hash;
         self.pending.remove(&args.pairing_id);
         self.pairing_offers.remove(&code_hash);
+        self.pairing_commits.remove(&code_hash);
         Ok(key_id)
     }
     /// Forgets a pending pairing before anything is pinned: by id (and the creator's offer for the
@@ -516,6 +782,8 @@ impl Runtime {
         }
         if let Some(hash) = code_hash {
             self.pairing_offers.remove(&hash);
+            self.pairing_commits.remove(&hash);
+            self.awaiting_reveal.remove(&hash);
             self.pending
                 .retain(|_, p| p.peer.identity.code_hash != hash);
         }
@@ -532,9 +800,12 @@ impl Runtime {
         self.pending.retain(|_, p| p.peer.identity.expires > now);
         self.pairing_offers
             .retain(|_, p| p.bundle.identity.expires > now);
+        self.pairing_commits.retain(|_, c| c.commit.expires > now);
+        self.awaiting_reveal.retain(|_, w| w.commit.expires > now);
     }
     fn pairing_count(&self) -> usize {
         self.pairing_offers.len()
+            + self.awaiting_reveal.len()
             + self
                 .pending
                 .values()

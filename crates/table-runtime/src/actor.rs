@@ -70,6 +70,11 @@ pub enum Action {
     PairPoll(PairingPollArgs),
     PairOffer(PairingPollArgs),
     PairWire(SignedPairingIdentity),
+    /// Commit-then-reveal steps (DECISIONS section 47), run only by the pairing IO in this crate.
+    PairCommit(PairingPollArgs),
+    PairAnswer(PairingJoinArgs, table_proto::PairingCommit),
+    PairRevealed(PairingPollArgs, Vec<table_proto::PairingReveal>),
+    PairRevealOf(PairingPollArgs),
     PairConfirm(PairingConfirmArgs),
     PairAbort(PairingAbortArgs),
     HouseWake,
@@ -178,6 +183,10 @@ impl Action {
             | Action::HousePair(_)
             | Action::HouseStatus(_)
             | Action::PairWire(_)
+            | Action::PairCommit(_)
+            | Action::PairAnswer(..)
+            | Action::PairRevealed(..)
+            | Action::PairRevealOf(_)
             | Action::Handoff(_) => return None,
         })
     }
@@ -251,6 +260,10 @@ impl Action {
             | Action::PairPoll(_)
             | Action::PairOffer(_)
             | Action::PairWire(_)
+            | Action::PairCommit(_)
+            | Action::PairAnswer(..)
+            | Action::PairRevealed(..)
+            | Action::PairRevealOf(_)
             | Action::PairConfirm(_)
             | Action::PairAbort(_)
             | Action::HouseWake
