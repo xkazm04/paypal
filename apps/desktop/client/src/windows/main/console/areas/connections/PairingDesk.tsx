@@ -340,7 +340,7 @@ export function PairingDesk({ mode, setMode, asLayer = false }: {
       {join.error ? (
         <>
           <WalletNotice error={join.error} what={mode === 'house' ? PAIR.failHouse : PAIR.failJoin} />
-          {mode === 'house' && join.error.code === 'UNAVAILABLE' ? <p className="ui-hint">{PAIR.mayWake}</p> : null}
+          {mode === 'house' && join.error.code === 'UNAVAILABLE' ? <p className="ui-hint">{s && !s.relay_available ? PAIR.noRelayHint : PAIR.mayWake}</p> : null}
         </>
       ) : null}
     </form>
