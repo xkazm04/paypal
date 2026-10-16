@@ -19,6 +19,7 @@ import type { OpenMandate } from '@bindings/OpenMandate';
 import type { AgentSlot } from '@bindings/AgentSlot';
 import type { PendingPairing } from '@bindings/PendingPairing';
 import type { PairingWords } from '@bindings/PairingWords';
+import type { HouseTableDraft } from '@bindings/HouseTableDraft';
 import type { RunSnapshot } from '@bindings/RunSnapshot';
 import type { SettingsSnapshot } from '@bindings/SettingsSnapshot';
 import type { ShieldRule } from '@bindings/ShieldRule';
@@ -108,6 +109,8 @@ export type MockState = {
   revokedCounterparties?: string[];
   pendingPairings?: Array<PendingPairing & { expires: number }>;
   pairingResults?: Record<string, PairingWords>;
+  /** The house's practice table per deal id, kept when its words were confirmed (Rust: preference `house.table.<id>`). */
+  houseTables?: Record<string, HouseTableDraft>;
   snoozed?: Record<string, number>;
   counterparties: CounterpartyDisplay[];
   /** Latest signed NOTE per deal id (counterparty_note): untrusted words, main window only. */

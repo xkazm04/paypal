@@ -13,6 +13,7 @@ import type { AttentionSnapshot } from '@bindings/AttentionSnapshot';
 import type { LadderRung } from '@bindings/LadderRung';
 import type { NotifySuppression } from '@bindings/NotifySuppression';
 import type { Deal } from '@bindings/Deal';
+import type { DealCreateArgs } from '@bindings/DealCreateArgs';
 import type { DealState } from '@bindings/DealState';
 import type { EventContract } from '@bindings/EventContract';
 import type { Form } from '@bindings/Form';
@@ -60,6 +61,8 @@ const TARGETS: Record<EventName, WindowLabel[]> = EVENT_AUDIENCE;
 
 export const STORE_KEY = 'the-table-mock-state-v18'; // v18: fair-price certificates on the sample market records (market-data-2); v17: agents' refused requests in Maya's week (safety record); v16: the attention ladder's recorded rungs and D-0184's lapse that cites them (attention-ladder-1); v15: D-0190's attention names no rule, as Rust does (polish 3); v14: the owner's watched subscriptions (rescue detection); v13: the shield's rule on each deal and a release bound to its terms (shield slice 2); v12: shop-around groups and the house seller's D-0204 (T8); v11: keep-prices-fresh rules and today's price checks (T15); v10: rescue cases and the fixes rule (rescue); v9: signed wallet limits (T14); v8: D-0194 checking with PayPal (T10); v7: D-0181 and the Rewind history (T6); v6: purchase payees match the Rust payees rule (T5)
 const DEGRADE_KEY = 'the-table-mock-degrade';
+/** What a newly opened or joined table does on silence (Rust composes this line). */
+const TABLE_SILENCE = 'the offer lapses at the deadline, no money moves';
 /** The preview clock's offset from wall time, shared by every mock window of this origin. */
 export const CLOCK_KEY = 'the-table-mock-clock';
 const CHANNEL = 'the-table-mock';
@@ -306,7 +309,60 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       }
       case 'lever':
         if (t !== 'deal' || !dealId || find(dealId).deal.kind !== 'rescue') fail('INVALID', 'a lever draft needs a rescue deal');
+        return;
+      case 'table': {
+        // As check_draft: owner configuration only, a live paired key, and for the house exactly
+        // the table kept when its words were confirmed.
+        const cp = pairedCounterparty(draft.counterparty);
+        const kept = draft.house ? state.houseTables?.[draft.house.deal_id] : undefined;
+        if (t !== null || dealId || !cp || cp.house !== !!draft.house
+          || (draft.house && (!kept || JSON.stringify(kept) !== JSON.stringify(draft.house) || kept.negotiation_deadline <= nowUnix()))) fail('INVALID', 'the table draft does not fit a connected wallet');
+      }
     }
+  }
+  /** A counterparty whose pin is live (counterparty_policy_at's `paired`). */
+  function pairedCounterparty(key: string) {
+    const cp = state.counterparties.find((c) => c.key_id === key);
+    return cp && cp.pairing !== 'unpaired' && !state.revokedCounterparties?.includes(key) ? cp : undefined;
+  }
+  /** As Runtime::create_deal_id: the owner's active rules allow this table (roles, per-deal limit,
+   *  category, a seller's item in the band); the house's table must be the one kept at pairing.
+   *  The deal is stored; nothing is sent to PayPal. */
+  function openTable(args: DealCreateArgs, id: string): Deal {
+    if (state.deals.some((d) => d.deal.id === id)) fail('INVALID', 'Invalid or stale wallet command');
+    const now = nowUnix();
+    const m = activeMandate(args.mandate_id);
+    if (!m || m.payload.version !== args.mandate_version || m.payload.not_before > now || m.payload.expires <= now) fail('INVALID', 'mandate is not active');
+    const cp = pairedCounterparty(args.counterparty);
+    if (!cp) fail('REFUSED', 'mandate clause 2: counterparty is not paired');
+    const kept = cp.house ? state.houseTables?.[id] : undefined;
+    if (cp.house && (!kept || JSON.stringify(kept.terms) !== JSON.stringify(args.terms) || kept.category !== args.category || kept.negotiation_deadline <= now)) fail('INVALID', 'Invalid or stale wallet command');
+    // A seller's listing is signed and queued; a buyer at the house's table reads its signed
+    // listing and the haggle starts. A buyer at another owner's table waits for their listing.
+    const listed = args.side === 'seller' || !!kept;
+    const deal: Deal = {
+      id, created_at: now, updated_at: now, kind: args.kind, side: args.side, counterparty: args.counterparty, terms: args.terms,
+      state: args.side === 'seller' ? 'LISTED' : kept ? 'NEGOTIATING' : 'PAIRING', mandate_id: m.payload.id, mandate_version: m.payload.version,
+      transcript_head: fakeHash(`${id}:head`), paypal: { order: null, authorization: null, capture: null, subscription: null }, mode: 'sandbox', market: null, shield: null,
+    };
+    // MandatePayload::check on the opening intent (a payee the mock cannot name is refused).
+    const verdict = mockCheck(m.payload, { deal, category: args.category, paired: true, house: cp.house, declaredPayee: cp.declared_payee, roundsUsed: 0 }, { dealsToday: 0, totalToday: 0 }, now);
+    if (verdict.type === 'refuse') fail('REFUSED', `mandate clause ${verdict.clause}: ${verdict.reason}`);
+    if (verdict.type === 'not_simulated') fail('REFUSED', 'mandate clause 7: payee not allowed');
+    const band = m.payload.clauses.find((c): c is Extract<typeof c, { type: 'band' }> => c.type === 'band' && c.item_refs.includes(args.terms.item_ref));
+    const label = `D-${String(300 + state.deals.length).padStart(4, '0')}`;
+    const deadline = band ? Math.min(band.deadline, kept?.negotiation_deadline ?? band.deadline) : null;
+    state.deals.push({
+      deal,
+      display: { deal_id: id, label, title: args.terms.item_ref, deadline, on_silence: TABLE_SILENCE, band: band ? { floor: band.floor, ceiling: band.ceiling, max_rounds: band.max_rounds, rounds_used: 0 } : null },
+      evidence: { deal_id: id, receipt: 'NONE', reconciliation: 'not_applicable', money_check: null, house_record: null, fair_price: fairPriceOf(deal.state, null, args.terms.unit_price) },
+      transcript: listed ? [{ seq: 1, by: args.side === 'seller' ? 'you' : 'them', typ: 'LISTING', price: args.terms.unit_price, at: now, verified: true }] : [],
+      attention: null,
+    });
+    state.categories = { ...state.categories, [id]: args.category };
+    save();
+    emit('deal:changed', { deal, mode: deal.mode });
+    return deal;
   }
   // ?limits=none previews a wallet with no limits signed (the fixtures sign Maya's).
   const limitsNone = params.get('limits') === 'none';
@@ -999,7 +1055,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     pairing_join: ({ code, side, payee }) => {
       if (code === 'HOUSE' && state.settings.house === 'unavailable') fail('UNAVAILABLE', 'this build has no HOUSE release pin');
       const result: ResultOf<'pairing_join'> = {
-        house_table: code === 'HOUSE' ? { negotiation_deadline: nowUnix() + 3600, deal_id: fakeUlid('house-table'), terms: state.deals.find((d) => d.deal.id === fakeUlid('D-0201'))?.deal.terms ?? PRACTICE_TERMS, category: 'office' } : null,
+        house_table: code === 'HOUSE' ? { negotiation_deadline: nowUnix() + 3600, deal_id: fakeUlid(`house-table:${nowUnix()}`), terms: state.deals.find((d) => d.deal.id === fakeUlid('D-0201'))?.deal.terms ?? PRACTICE_TERMS, category: 'office' } : null,
         pairing_id: fakeHash(`pair:${code}`),
         words: ['otter', 'basil', 'quartz', 'meadow'],
         reply: { identity: { code_hash: fakeHash(code), owner_key: fakeHash('o2') as never, agent_key: fakeHash('a2') as never, side, payee, expires: nowUnix() + 3600, in_reply_to: fakeHash('code') }, owner_signature: [], agent_signature: [] },
@@ -1044,6 +1100,9 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       state.counterparties = [...state.counterparties, { key_id: key, display_name: /[:/@\\]/.test(display_name) ? 'Paired counterparty' : display_name, house: pending.house, first_seen: nowUnix(), deals_closed: 0,
         pairing: pending.house ? 'house_pinned' : 'words_confirmed', declared_payee: pending.house ? 'HOUSE' : null }];
       state.pendingPairings = state.pendingPairings?.filter((p) => p !== pending);
+      // As pairing_confirm: the house's table is kept for deal_join to check.
+      const table = Object.values(state.pairingResults ?? {}).find((r) => JSON.stringify(r.pairing_id) === JSON.stringify(pairing_id))?.house_table;
+      if (table) state.houseTables = { ...state.houseTables, [table.deal_id]: table };
       if (pending.house) state.settings = { ...state.settings, house_connected: true };
       save();
       if (pending.house) emit('settings:changed', state.settings);
@@ -1056,13 +1115,17 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       emit('settings:changed', state.settings);
       return null;
     },
-    deal_create: (_args, opts) => {
+    // As Runtime::create_deal: approval only, privileged; mandate-checked; a seller's LISTING is
+    // queued. No PayPal call.
+    deal_create: (args, opts) => {
       privileged(opts);
-      return fail('UNAVAILABLE', 'deal creation is wired in the mock only through the scripted demo');
+      return openTable(args, fakeUlid(`table:${args.counterparty}:${nowUnix()}:${state.deals.length}`));
     },
-    deal_join: (_args, opts) => {
+    // As the Join action: a buyer haggle on the seller's own deal id; for the house, its kept table.
+    deal_join: ({ deal_id, create }, opts) => {
       privileged(opts);
-      return fail('UNAVAILABLE', 'deal_join is not simulated in the browser mock');
+      if (!create || create.side !== 'buyer' || create.kind !== 'haggle') fail('INVALID', 'Invalid or stale wallet command');
+      return openTable(create, deal_id);
     },
     quit_summary: () => {
       const pending = forecastDeals().filter((d) => quitPending(d.deal));
