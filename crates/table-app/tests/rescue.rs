@@ -1210,3 +1210,28 @@ async fn a_read_that_succeeds_after_failures_resolves_once_and_resets() {
     assert!(!r.p.rescue_tick(id, next + 1).await.unwrap());
     assert_eq!(r.sends(), sends);
 }
+
+/// Every failed hourly read of a parked send leaves its PayPal call on record. The backoff's
+/// attempt cap must not swallow the eighth one: the step is already waiting for the owner, so
+/// parking it again writes nothing, and the read's evidence went with it.
+#[tokio::test]
+async fn every_failed_read_of_a_parked_send_is_recorded() {
+    let mut r = rig();
+    r.p.set_rescue_jitter_seed(3);
+    let id = r.lost_send(1, 4 * 86400).await;
+    r.p.rescue_tick(id, T0 + SETTLE_SECS).await.unwrap();
+    let open = r.p.open_operations(Some(id), T0 + SETTLE_SECS).unwrap();
+    assert!(open.len() == 1 && open[0].needs_owner);
+    let posts = r.posts();
+    r.pp.set(|w| w.reads_fail = true);
+    let due = T0 + 4 * 86400;
+    let (reads, calls) = (r.pp.get(|w| w.reads), r.calls(id));
+    let hours = 2 * RESCUE_READ_ATTEMPTS as i64;
+    for h in 0..hours {
+        r.p.rescue_tick(id, due + h * 3600).await.unwrap();
+    }
+    assert_eq!(r.pp.get(|w| w.reads), reads + hours as u32);
+    assert_eq!(r.calls(id), calls + hours as u64);
+    assert!(r.p.has_open_operation(id).unwrap());
+    assert_eq!(r.posts(), posts);
+}

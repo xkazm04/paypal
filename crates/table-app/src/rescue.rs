@@ -1079,6 +1079,13 @@ impl Pipeline {
         observations: &[Observation],
         now: Timestamp,
     ) -> Result<(), Error> {
+        // Already parked (the hourly read past its window, or an owner's ticket): nothing to
+        // count toward, and parking again would write nothing, so the failed read's PayPal call
+        // would be lost. It is kept like any other failure.
+        if op.needs_owner {
+            self.rescue_read_backoff.remove(&op.request_id);
+            return self.wait(deal, op, observations, now);
+        }
         let fails = self
             .rescue_read_backoff
             .get(&op.request_id)
