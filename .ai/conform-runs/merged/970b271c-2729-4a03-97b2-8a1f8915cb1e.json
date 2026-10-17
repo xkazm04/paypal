@@ -1,0 +1,125 @@
+{
+ "schema": "conform-run/1",
+ "worker": "970b271c-2729-4a03-97b2-8a1f8915cb1e",
+ "subject": "signed-artifacts",
+ "evaluatedAt": "2026-10-17T22:42:30.583713+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "table-wire-protocol",
+   "subject": "signed-artifacts",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-proto/src/envelope.rs:436 The public verifier accepts a caller-selected key instead of structurally requiring trusted-key resolution, leaving the standard's strongest verification door optional.",
+   "techniques": [
+    {
+     "technique": "bypass-is-a-versioned-policy",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/src/envelope.rs:443 This message verifier requires a nonempty signature segment; no unsigned-install exemption operates here."
+    },
+    {
+     "technique": "canonical-hashing",
+     "verdict": "conformant",
+     "evidence": "crates/table-proto/src/envelope.rs:466 Verification covers the original encoded header.payload segments; canonical reserialization is checked separately rather than substituted for the signed input."
+    },
+    {
+     "technique": "detached-signatures-and-key-identity",
+     "verdict": "deviation",
+     "evidence": "crates/table-proto/src/envelope.rs:436 Issuer-to-key binding is checked, but the raw key-parameter verifier remains public instead of internal behind a trust-store verifier, contrary to the technique's structural requirement."
+    },
+    {
+     "technique": "import-verification-flow",
+     "verdict": "conformant",
+     "evidence": "crates/table-ledger/src/repositories.rs:1578 The wire-message admission path verifies within the transaction and appends only the successful VerifiedEnvelope before committing."
+    },
+    {
+     "technique": "key-custody",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/src/envelope.rs:311 The protocol signer consumes an already-provisioned key; this crate does not mint or persist the signing identity."
+    }
+   ],
+   "registryProposal": "Clarify whether public cryptographic primitives in pure protocol crates are permitted when trusted-key wrappers exist in persistence crates; the current technique explicitly requires internal visibility for the primitive."
+  },
+  {
+   "context": "house-seller-service",
+   "subject": "signed-artifacts",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "services/house-seller/src/scoreboard/scoreboard.js:130 The scoreboard authenticates the supplied release using that release's own owner key, so its signature checks establish internal consistency without independently establishing HOUSE provenance.",
+   "techniques": [
+    {
+     "technique": "bypass-is-a-versioned-policy",
+     "verdict": "not-applicable",
+     "evidence": "services/house-seller/src/environment.rs:67 Configuration verification is unconditional; this service has no unsigned-install exemption requiring a bypass policy."
+    },
+    {
+     "technique": "canonical-hashing",
+     "verdict": "conformant",
+     "evidence": "services/house-seller/src/bin/house-sign.rs:28 Mandate signing uses the shared RFC 8785 canonicalization authority also used by mandate verification."
+    },
+    {
+     "technique": "detached-signatures-and-key-identity",
+     "verdict": "deviation",
+     "evidence": "services/house-seller/src/scoreboard/scoreboard.js:130 The release and verification key arrive together in view; the browser does not resolve the signer through an independently held pin or trust store."
+    },
+    {
+     "technique": "import-verification-flow",
+     "verdict": "deviation",
+     "evidence": "services/house-seller/src/hosted.rs:554 Seating a previously unknown buyer persists its self-signed identity as words-confirmed without an explicit adoption ceremony, making trust adoption a side effect of receiving the artifact."
+    },
+    {
+     "technique": "key-custody",
+     "verdict": "deviation",
+     "evidence": "services/house-seller/src/environment.rs:63 The owner signing seed is provisioned through a host environment variable rather than the OS protected secret store required by the standard."
+    },
+    {
+     "technique": "verification-ux",
+     "verdict": "deviation",
+     "evidence": "services/house-seller/src/scoreboard/scoreboard.js:146 A sound signature under the response-supplied agent key receives a passing verdict without a separate trusted-signer outcome; unknown signers are not represented."
+    }
+   ],
+   "registryProposal": "Add explicit custody guidance for hosted signing identities; the current OS-secret-store requirement assumes a device-local deployment."
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-17T22:42:30.583713+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "signed-artifacts"
+   ],
+   "techniques": [
+    "bypass-is-a-versioned-policy",
+    "canonical-hashing",
+    "detached-signatures-and-key-identity",
+    "import-verification-flow",
+    "key-custody"
+   ],
+   "deviations": 1,
+   "context": "table-wire-protocol",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T22:42:30.583713+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "signed-artifacts"
+   ],
+   "techniques": [
+    "bypass-is-a-versioned-policy",
+    "canonical-hashing",
+    "detached-signatures-and-key-identity",
+    "import-verification-flow",
+    "key-custody",
+    "verification-ux"
+   ],
+   "deviations": 1,
+   "context": "house-seller-service",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
