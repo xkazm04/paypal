@@ -3151,3 +3151,366 @@ async fn a_read_that_succeeds_after_failures_clears_the_count_and_settles_as_bef
         p.wallet.ledger.verify_audit().unwrap();
     }
 }
+
+/// The owner unlocks the approval window at `at` (it idle-locks after 15 minutes) and decides on
+/// the deal: a fresh ticket.
+fn owner_ticket_at(p: &mut Pipeline, deal: &Deal, at: Timestamp) -> OwnerTicket {
+    let token = p.approval.token("approval").unwrap().to_owned();
+    p.approval
+        .unlock("approval", &token, &TestReauth, at)
+        .unwrap();
+    same_ticket(p, deal, at)
+}
+
+/// Another ticket from the same unlock at the same second: the one the owner's window holds.
+fn same_ticket(p: &mut Pipeline, deal: &Deal, at: Timestamp) -> OwnerTicket {
+    let token = p.approval.token("approval").unwrap().to_owned();
+    let hash = deal.terms.hash().unwrap();
+    p.approval
+        .ticket("approval", &token, deal.id, hash, 1, at)
+        .unwrap()
+}
+
+/// The owner's decision on the open authorize (the countersign's own path): one read of the order.
+async fn owner_read(
+    p: &mut Pipeline,
+    deal: &Deal,
+    ticket: OwnerTicket,
+    at: Timestamp,
+) -> Result<(), table_app::Error> {
+    p.authorize(deal.id, 1, Category::Parts, Authority::Owner(ticket), at)
+        .await
+}
+
+/// PayPal answers the order again: `hold` is the authorization it shows on it, if any.
+fn paypal_answers(api: &LossyApi, hold: Option<&'static str>) {
+    let mut truth = api.truth.lock().unwrap();
+    truth.created = true;
+    truth.authorization = hold;
+}
+
+/// Agent-gated-spend r3 (DECISIONS 52a): past the window the wallet no longer reads a lost
+/// authorize, and the owner's ticket reads it once. PayPal shows the hold, which is confirmed as
+/// the wallet's own read would: the deal is AUTHORIZED with its 72 h honor period, and nothing
+/// was sent.
+#[tokio::test]
+async fn an_owner_ticket_reads_a_lost_authorize_past_the_window_and_confirms_the_hold() {
+    for parked in [true, false] {
+        let case = format!("parked before the deadline: {parked}");
+        let (api, mut p, deal, due) = unreadable_authorize(parked).await;
+        let sent = writes(&api, &p, deal.id);
+        let at = due + READ_WINDOW + 7 * 86400;
+        paypal_answers(&api, Some("CREATED"));
+        assert!(!tick_unread(&mut p, &api, deal.id, at).await, "{case}");
+        let reads = order_reads(&api);
+        let t = owner_ticket_at(&mut p, &deal, at);
+        owner_read(&mut p, &deal, t, at).await.unwrap();
+        assert_eq!(order_reads(&api), reads + 1, "{case}: one GET");
+        let d = p.wallet.ledger.get_deal(deal.id).unwrap();
+        assert_eq!(d.state, DealState::Authorized, "{case}");
+        assert_eq!(d.paypal.authorization.as_deref(), Some("AUTH1"), "{case}");
+        let started = if parked { 100 } else { 110 };
+        assert_eq!(
+            p.wallet.ledger.deadline(deal.id).unwrap().unwrap().0,
+            started + 72 * 3600,
+            "{case}"
+        );
+        assert_eq!(
+            outcomes_of(&p, deal.id, "authorize")
+                .last()
+                .map(String::as_str),
+            Some("confirmed"),
+            "{case}"
+        );
+        assert!(!p.has_open_operation(deal.id).unwrap(), "{case}");
+        assert_eq!(writes(&api, &p, deal.id), sent, "{case}: nothing sent");
+        assert_eq!(api.calls("/authorize"), 0, "{case}");
+        assert_eq!(api.calls("/void"), 0, "{case}");
+        assert_eq!(api.calls("/capture"), 0, "{case}");
+        p.wallet.ledger.verify_audit().unwrap();
+    }
+}
+
+/// DECISIONS 52a: an owner read where PayPal shows no hold records what the wallet's read at the
+/// deadline records. The order untouched: `absent`, and the read itself expires nothing (the
+/// deadline's default follows on the wallet's own tick, as before). A record no check accepts:
+/// the step is parked, and although the authorize is far past `UNREAD_AUTHORIZE_SECS`, the owner's
+/// read never ends the deal unread. Nothing is sent, voided or captured.
+#[tokio::test]
+async fn an_owner_read_that_finds_no_hold_records_what_the_wallet_would_and_ends_nothing() {
+    for parked in [true, false] {
+        for (hold, recorded) in [(None, "absent"), (Some("PENDING"), "needs_owner")] {
+            let case = format!("parked before the deadline: {parked}, PayPal shows {hold:?}");
+            let (api, mut p, deal, due) = unreadable_authorize(parked).await;
+            let sent = writes(&api, &p, deal.id);
+            let at = due + READ_WINDOW + 7 * 86400;
+            paypal_answers(&api, hold);
+            let reads = order_reads(&api);
+            let t = owner_ticket_at(&mut p, &deal, at);
+            owner_read(&mut p, &deal, t, at).await.unwrap();
+            assert_eq!(order_reads(&api), reads + 1, "{case}: one GET");
+            assert_eq!(
+                outcomes_of(&p, deal.id, "authorize")
+                    .last()
+                    .map(String::as_str),
+                Some(recorded),
+                "{case}"
+            );
+            let d = p.wallet.ledger.get_deal(deal.id).unwrap();
+            assert_eq!(d.state, DealState::Approved, "{case}: not expired");
+            assert_eq!(d.paypal.authorization, None, "{case}");
+            assert_eq!(
+                p.has_open_operation(deal.id).unwrap(),
+                hold.is_some(),
+                "{case}: only a step PayPal shows never committed is closed"
+            );
+            assert_eq!(writes(&api, &p, deal.id), sent, "{case}: nothing sent");
+            assert_eq!(api.calls("/authorize"), 0, "{case}");
+            assert_eq!(api.calls("/void"), 0, "{case}");
+            assert_eq!(api.calls("/capture"), 0, "{case}");
+            p.wallet.ledger.verify_audit().unwrap();
+        }
+    }
+}
+
+/// DECISIONS 52a: an owner read that fails is `Unavailable`. It keeps its call record (the
+/// `deferred` resolution) and leaves the deal APPROVED with its step open; nothing is sent and the
+/// wallet still reads nothing past the window.
+#[tokio::test]
+async fn an_owner_read_of_an_authorize_that_fails_is_unavailable_and_leaves_the_deal_open() {
+    for parked in [true, false] {
+        let case = format!("parked before the deadline: {parked}");
+        let (api, mut p, deal, due) = unreadable_authorize(parked).await;
+        let sent = writes(&api, &p, deal.id);
+        let at = due + READ_WINDOW + 7 * 86400;
+        let (reads, rows) = (order_reads(&api), resolved_rows(&p, deal.id).len());
+        let t = owner_ticket_at(&mut p, &deal, at);
+        assert!(
+            matches!(
+                owner_read(&mut p, &deal, t, at).await,
+                Err(table_app::Error::Unavailable)
+            ),
+            "{case}"
+        );
+        assert_eq!(order_reads(&api), reads + 1, "{case}: one GET");
+        assert_eq!(resolved_rows(&p, deal.id).len(), rows + 1, "{case}");
+        assert_eq!(
+            outcomes_of(&p, deal.id, "authorize")
+                .last()
+                .map(String::as_str),
+            Some("deferred"),
+            "{case}"
+        );
+        assert_eq!(
+            p.wallet.ledger.get_deal(deal.id).unwrap().state,
+            DealState::Approved,
+            "{case}"
+        );
+        assert!(p.has_open_operation(deal.id).unwrap(), "{case}");
+        // The wallet's own reads still ended at the window.
+        paypal_answers(&api, Some("CREATED"));
+        for later in [at + 1, at + PARKED_READ, at + 86400] {
+            assert!(
+                !tick_unread(&mut p, &api, deal.id, later).await,
+                "{case} at {later}"
+            );
+        }
+        assert_eq!(writes(&api, &p, deal.id), sent, "{case}: nothing sent");
+        assert_eq!(api.calls("/void"), 0, "{case}");
+        assert_eq!(api.calls("/capture"), 0, "{case}");
+        p.wallet.ledger.verify_audit().unwrap();
+    }
+}
+
+/// DECISIONS 52a: the owner's read ignores the wallet's backoff but does not move it. Inside the
+/// window the wallet's first failed read waits RESCUE_POLL_SECS; an owner read that fails in
+/// between is not counted as one of the wallet's failures, so the next automatic read is still
+/// due then, not a step later.
+#[tokio::test]
+async fn a_failed_owner_read_leaves_the_wallets_own_read_schedule_as_it_was() {
+    for parked in [true, false] {
+        let case = format!("parked before the deadline: {parked}");
+        let (api, mut p, deal, due) = unreadable_authorize(parked).await;
+        let sent = writes(&api, &p, deal.id);
+        assert!(tick_unread(&mut p, &api, deal.id, due).await, "{case}");
+        // Inside the backoff the wallet would not read; the owner's ticket does.
+        let reads = order_reads(&api);
+        let t = owner_ticket_at(&mut p, &deal, due + 1);
+        assert!(
+            matches!(
+                owner_read(&mut p, &deal, t, due + 1).await,
+                Err(table_app::Error::Unavailable)
+            ),
+            "{case}"
+        );
+        assert_eq!(order_reads(&api), reads + 1, "{case}");
+        for at in due + 2..due + RESCUE_POLL_SECS {
+            assert!(
+                !tick_unread(&mut p, &api, deal.id, at).await,
+                "{case} at {at}"
+            );
+        }
+        assert!(
+            tick_unread(&mut p, &api, deal.id, due + RESCUE_POLL_SECS).await,
+            "{case}: the wallet's next read is where it was"
+        );
+        assert_eq!(writes(&api, &p, deal.id), sent, "{case}: nothing sent");
+        assert_eq!(api.calls("/void"), 0, "{case}");
+        assert_eq!(api.calls("/capture"), 0, "{case}");
+    }
+}
+
+/// DECISIONS 52a: one ticket gives one read, spent even when the read fails. The same ticket
+/// again is refused and reads nothing; a fresh one reads once more.
+#[tokio::test]
+async fn one_owner_ticket_gives_one_read_of_a_lost_authorize() {
+    for parked in [true, false] {
+        let case = format!("parked before the deadline: {parked}");
+        let (api, mut p, deal, due) = unreadable_authorize(parked).await;
+        let sent = writes(&api, &p, deal.id);
+        let at = due + READ_WINDOW + 86400;
+        let first = owner_ticket_at(&mut p, &deal, at);
+        let again = same_ticket(&mut p, &deal, at);
+        let reads = order_reads(&api);
+        assert!(
+            matches!(
+                owner_read(&mut p, &deal, first, at).await,
+                Err(table_app::Error::Unavailable)
+            ),
+            "{case}"
+        );
+        assert_eq!(order_reads(&api), reads + 1, "{case}");
+        paypal_answers(&api, Some("CREATED"));
+        assert!(
+            matches!(
+                owner_read(&mut p, &deal, again, at).await,
+                Err(table_app::Error::Permission)
+            ),
+            "{case}"
+        );
+        assert_eq!(order_reads(&api), reads + 1, "{case}: no GET");
+        assert_eq!(
+            p.wallet.ledger.get_deal(deal.id).unwrap().state,
+            DealState::Approved,
+            "{case}"
+        );
+        let fresh = owner_ticket_at(&mut p, &deal, at + 1);
+        owner_read(&mut p, &deal, fresh, at + 1).await.unwrap();
+        assert_eq!(order_reads(&api), reads + 2, "{case}");
+        assert_eq!(
+            p.wallet.ledger.get_deal(deal.id).unwrap().state,
+            DealState::Authorized,
+            "{case}"
+        );
+        assert_eq!(writes(&api, &p, deal.id), sent, "{case}: nothing sent");
+        assert_eq!(api.calls("/void"), 0, "{case}");
+        assert_eq!(api.calls("/capture"), 0, "{case}");
+    }
+}
+
+/// DECISIONS 52a: without a valid ticket for this deal now, nothing is read: another deal's
+/// ticket, other terms, an expired one, one from a locked window, one from before a re-unlock, and
+/// no ticket at all (the wallet's own authorities). None of them is spent: a good ticket then
+/// reads.
+#[tokio::test]
+async fn a_bad_owner_ticket_reads_no_lost_authorize() {
+    for parked in [true, false] {
+        let case = format!("parked before the deadline: {parked}");
+        let (api, mut p, deal, due) = unreadable_authorize(parked).await;
+        let sent = writes(&api, &p, deal.id);
+        let mut other = deal.clone();
+        other.id = DealId("01ARZ3NDEKTSV4RRFFQ69G5FAV".parse().unwrap());
+        assert_ne!(other.id, deal.id);
+        paypal_answers(&api, Some("CREATED"));
+        let reads = order_reads(&api);
+        let at = due + READ_WINDOW + 86400;
+        let token = p.approval.token("approval").unwrap().to_owned();
+        let wrong_deal = owner_ticket_at(&mut p, &other, at);
+        assert!(owner_read(&mut p, &deal, wrong_deal, at).await.is_err());
+        let wrong_terms = p
+            .approval
+            .ticket("approval", &token, deal.id, H256([7; 32]), 1, at)
+            .unwrap();
+        assert!(owner_read(&mut p, &deal, wrong_terms, at).await.is_err());
+        let expired = owner_ticket_at(&mut p, &deal, at);
+        assert!(owner_read(&mut p, &deal, expired, at + 60).await.is_err());
+        let locked = owner_ticket_at(&mut p, &deal, at);
+        assert!(
+            matches!(
+                owner_read(&mut p, &deal, locked, at + 900).await,
+                Err(table_app::Error::Locked)
+            ),
+            "{case}"
+        );
+        let stale = owner_ticket_at(&mut p, &deal, at + 1000);
+        p.approval
+            .unlock("approval", &token, &TestReauth, at + 1000)
+            .unwrap();
+        assert!(owner_read(&mut p, &deal, stale, at + 1000).await.is_err());
+        for authority in [Authority::SellerMandate, Authority::Policy] {
+            assert!(
+                p.authorize(deal.id, 1, Category::Parts, authority, at + 1000)
+                    .await
+                    .is_err(),
+                "{case}"
+            );
+        }
+        assert_eq!(order_reads(&api), reads, "{case}: no GET");
+        assert_eq!(
+            p.wallet.ledger.get_deal(deal.id).unwrap().state,
+            DealState::Approved,
+            "{case}"
+        );
+        assert!(p.has_open_operation(deal.id).unwrap(), "{case}");
+        let good = same_ticket(&mut p, &deal, at + 1000);
+        owner_read(&mut p, &deal, good, at + 1000).await.unwrap();
+        assert_eq!(order_reads(&api), reads + 1, "{case}");
+        assert_eq!(writes(&api, &p, deal.id), sent, "{case}: nothing sent");
+        assert_eq!(api.calls("/void"), 0, "{case}");
+        assert_eq!(api.calls("/capture"), 0, "{case}");
+    }
+}
+
+/// DECISIONS 52a: before the deadline the owner's ticket reads only a step parked for the owner;
+/// one the wallet still reads itself is refused before any GET. Either way the owner's ticket
+/// never sends the authorize again.
+#[tokio::test]
+async fn before_the_deadline_the_owner_reads_only_a_parked_authorize() {
+    for parked in [true, false] {
+        let case = format!("parked before the deadline: {parked}");
+        let (api, mut p, deal, due) = unreadable_authorize(parked).await;
+        let sent = writes(&api, &p, deal.id);
+        let at = due - 3600;
+        let reads = order_reads(&api);
+        let t = owner_ticket_at(&mut p, &deal, at);
+        let read = owner_read(&mut p, &deal, t, at).await;
+        if parked {
+            assert!(matches!(read, Err(table_app::Error::Unavailable)), "{case}");
+            assert_eq!(order_reads(&api), reads + 1, "{case}");
+            // PayPal now shows the authorize never committed: the step stays parked for the
+            // deadline's read, and nothing is sent again.
+            paypal_answers(&api, None);
+            let t = owner_ticket_at(&mut p, &deal, at + 1);
+            owner_read(&mut p, &deal, t, at + 1).await.unwrap();
+            assert_eq!(order_reads(&api), reads + 2, "{case}");
+            assert_eq!(
+                outcomes_of(&p, deal.id, "authorize")
+                    .last()
+                    .map(String::as_str),
+                Some("deferred"),
+                "{case}: already parked, no second row"
+            );
+        } else {
+            assert!(matches!(read, Err(table_app::Error::Permission)), "{case}");
+            assert_eq!(order_reads(&api), reads, "{case}: no GET");
+        }
+        assert_eq!(
+            p.wallet.ledger.get_deal(deal.id).unwrap().state,
+            DealState::Approved,
+            "{case}"
+        );
+        assert!(p.has_open_operation(deal.id).unwrap(), "{case}");
+        assert_eq!(writes(&api, &p, deal.id), sent, "{case}: nothing sent");
+        assert_eq!(api.calls("/authorize"), 0, "{case}");
+    }
+}

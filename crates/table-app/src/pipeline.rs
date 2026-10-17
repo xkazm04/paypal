@@ -131,6 +131,9 @@ pub struct Pipeline {
     /// (deal, minted at, session generation): one ticket gives one read. In memory only; a ticket
     /// lives 60 seconds and dies with the session generation.
     pub(crate) rescue_owner_read: std::collections::BTreeSet<(DealId, Timestamp, u64)>,
+    /// Owner tickets already spent on the one read of an open authorize (deal, minted at, session
+    /// generation): one ticket gives one read. In memory only, as `rescue_owner_read`.
+    pub(crate) authorize_owner_read: std::collections::BTreeSet<(DealId, Timestamp, u64)>,
 }
 impl std::fmt::Debug for Pipeline {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -367,6 +370,7 @@ impl Pipeline {
             parked_read: std::collections::BTreeMap::new(),
             rescue_read_backoff: std::collections::BTreeMap::new(),
             rescue_owner_read: std::collections::BTreeSet::new(),
+            authorize_owner_read: std::collections::BTreeSet::new(),
             rescue_jitter_seed: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_or(0x5eed, |d| d.as_nanos() as u64),
@@ -1065,9 +1069,19 @@ impl Pipeline {
         if deal.state != DealState::Approved
             || deal.mode == Mode::Replay
             || attempt != self.wallet.ledger.settled_attempt(id)?
-            || self.has_open_operation(id)?
         {
             return Err(Error::Permission);
+        }
+        if self.has_open_operation(id)? {
+            // The owner's decision on a deal whose authorize is still open asks PayPal what
+            // happened, once per ticket, and sends nothing (DECISIONS 52a).
+            return match authority {
+                Authority::Owner(ticket) => {
+                    self.owner_read_authorize(&deal, attempt, category, ticket, now)
+                        .await
+                }
+                _ => Err(Error::Permission),
+            };
         }
         let decision = self.authority(&deal, category, authority, attempt, now)?;
         self.shield_step(&deal, &decision, MoneyStep::Authorize, attempt, now)?;
