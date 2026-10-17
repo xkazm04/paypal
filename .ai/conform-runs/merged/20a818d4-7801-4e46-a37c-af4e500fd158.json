@@ -1,0 +1,38 @@
+{
+  "schema": "conform-run/1",
+  "worker": "20a818d4-7801-4e46-a37c-af4e500fd158",
+  "subject": "optional-dependency-degradation",
+  "evaluatedAt": "2026-10-17T02:14:52.077331+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "optional-dependency-degradation",
+      "context": "safety-and-setup",
+      "reason": "the seat returned unknown"
+    },
+    {
+      "subject": "optional-dependency-degradation",
+      "context": "browser-mock-backend",
+      "reason": "withdrawn after review: reviewer (sonnet): Lines 1088–1089 do reuse UNAVAILABLE, but the third technique anchor (backend.ts:567, opener exception propagation) has nothing to do with the claim. The mock mirrors a closed Rust ErrorCode set (contract.ts:46) that has no separate temporary code, so the deviation belongs to the contract rather tha"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-17T02:14:52.077331+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "optional-dependency-degradation"
+      ],
+      "techniques": [
+        "capability-honest-refusal",
+        "refusal-is-not-failure"
+      ],
+      "deviations": 1,
+      "context": "browser-mock-backend",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}
