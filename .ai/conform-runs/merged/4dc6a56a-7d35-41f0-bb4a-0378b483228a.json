@@ -1,0 +1,69 @@
+{
+  "schema": "conform-run/1",
+  "worker": "4dc6a56a-7d35-41f0-bb4a-0378b483228a",
+  "subject": "plan-entitlements",
+  "evaluatedAt": "2026-10-17T02:31:22.881029+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "plan-entitlements",
+      "context": "book-module",
+      "reason": "withdrawn after review: reviewer (sonnet): Each not-applicable rests on an incidental anchor and a three-term grep. In book-module, where.ts:246 is the `questionChips` mapper and the technique anchors (model.ts:84, 205, 213, 250) are statement labels, `isRecovered`, `aggregate` and `runQuery`; none shows plan or tier gating is absent. In mar"
+    },
+    {
+      "subject": "plan-entitlements",
+      "context": "market-data",
+      "reason": "withdrawn after review: reviewer (sonnet): Each not-applicable rests on an incidental anchor and a three-term grep. In book-module, where.ts:246 is the `questionChips` mapper and the technique anchors (model.ts:84, 205, 213, 250) are statement labels, `isRecovered`, `aggregate` and `runQuery`; none shows plan or tier gating is absent. In mar"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-17T02:31:22.881029+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "plan-entitlements"
+      ],
+      "techniques": [
+        "capability-gate-predicates",
+        "deployment-mode-short-circuit",
+        "entitlement-lifecycle-revocation",
+        "id-vs-label-split",
+        "inherited-tier-not-cloned-tier",
+        "live-catalog-edit-is-a-lifecycle-event",
+        "price-book-authority",
+        "provider-publishes-state-not-decision",
+        "subtractive-entitlement",
+        "tier-model-single-source"
+      ],
+      "deviations": 0,
+      "context": "book-module",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-17T02:31:22.881029+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "plan-entitlements"
+      ],
+      "techniques": [
+        "capability-gate-predicates",
+        "deployment-mode-short-circuit",
+        "entitlement-lifecycle-revocation",
+        "id-vs-label-split",
+        "inherited-tier-not-cloned-tier",
+        "live-catalog-edit-is-a-lifecycle-event",
+        "price-book-authority",
+        "provider-publishes-state-not-decision",
+        "subtractive-entitlement",
+        "tier-model-single-source"
+      ],
+      "deviations": 0,
+      "context": "market-data",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}
