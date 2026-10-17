@@ -1961,3 +1961,96 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   `one_ticket_gives_one_owner_read`, `a_bad_ticket_reads_nothing_past_the_deadline_or_the_window`; the
   window test `a_sent_invoice_is_read_only_inside_the_window_and_a_restart_does_not_reopen_it` now ends
   with the owner's read.
+
+## 52. A lost authorize whose read-back fails backs off, is then read hourly, and is not read by the wallet after a fixed window
+
+- **Date:** 2026-10-17 (`crates/table-app/src/pipeline/resolve.rs`, `resolve_deal` and
+  `resolve_authorize`)
+- **Decided by:** Athena as operator delegate 2026-10-17, ruling on the agent-gated-spend full council
+  round 2 (run 2c1c2615) must-address "economics: a purchase AUTHORIZE whose read-back keeps failing is
+  polled on every 1 s tick, with no total ceiling, past its deadline".
+- **Constraint:** an authorize whose answer was lost may have placed a hold at PayPal. Until a read
+  shows what PayPal holds, the deal cannot be expired (silence never moves money, and an EXPIRED deal
+  would forget a hold). The old `resolve_authorize` sent a failed `get_order` to `defer`, which kept the
+  failure and answered `Unavailable`, and the next 1 s tick read again, with no limit. The existing
+  bound, `UNREAD_AUTHORIZE_SECS` (72 h, `crates/table-ledger/src/resolution.rs`) with
+  `end_unread_authorize`, applies only after a read that succeeded and showed no record a check
+  accepts. A read that keeps failing never reaches it, so a PayPal outage cost one failed call a second
+  for as long as it lasted.
+- **Decision:** the authorize read-back mirrors the rescue path of section 51 and 51a. No second
+  schedule is introduced, and every constant is reused:
+  1. **A failed read backs off.** `resolve_authorize` passes a failed `get_order` to the rescue path's
+     `deadline_read_failed` (now `pub(crate)` in `crates/table-app/src/rescue.rs`), keyed by the
+     authorize's request id in the same in-memory `rescue_read_backoff` map. The wait is
+     `rescue_read_backoff(fails, jitter_of(seed, request id, fails))`: it doubles from
+     `RESCUE_READ_BACKOFF_SECS` (5 s) toward `RESCUE_READ_BACKOFF_CAP_SECS` (15 min) and falls in the
+     upper half of that value. It is never shorter than `RESCUE_POLL_SECS` (60 s), the floor. The gaps
+     never shrink. `resolve_deal` passes over an authorize whose next read is not yet due, so
+     `deadline_default` answers `Unavailable`, as it does for any open authorize. The count applies to
+     every automatic read of the authorize, so a failing read before the deadline backs off too.
+  2. **After `RESCUE_READ_ATTEMPTS` (8) failures in a row the authorize is parked for reads.** It is
+     read once per `PARKED_READ_SECS` (3600 s) from then on. A read that succeeds clears the count. The
+     existing logic then runs unchanged: `confirm_authorization`, the untouched/`Absent` deadline
+     default, the park, and `end_unread_authorize` past `UNREAD_AUTHORIZE_SECS`. As in section 51, the
+     park is in memory only. No resolution row is written for it.
+  3. **The wallet's own reads end `PARKED_READ_WINDOW_SECS` (30 days) after the deal's deadline.** The
+     window is measured from the deadline's due time in the ledger (`Ledger::deadline`), which is
+     durable, and never from in-memory park state, so a restart does not reopen it. Past the window
+     `resolve_deal` reads no authorize under `Resolve::Deadline`. The deal stays APPROVED with its step
+     open (or parked), it needs the owner, and `deadline_default` keeps answering `Unavailable` without
+     calling PayPal. The value is the window of 51a. It allows at most 8 + 720 failed reads per lost
+     authorize, against 2.6 million at one a second. A separate value would only be a second limit to
+     keep in step.
+- **Invariant:** an authorize that was never read is never treated as captured, voided, failed or
+  expired. A failed read sends nothing, ends nothing, voids nothing and counts nothing. It keeps only
+  its PayPal call record (the `Deferred` resolution `defer` writes). The deal stays APPROVED. Only a read
+  that succeeds can move it, and then only through the checks that already existed.
+- **Owner read:** **no owner path reaches this case.** `Pipeline::authorize` and `owner_void` refuse a
+  deal with an open operation (`has_open_operation`). The money-check card (`Ledger::money_check`,
+  shown through `table-runtime/src/dispatcher.rs`) only displays the parked step and tells the owner to
+  look in PayPal. No command asks the wallet to read an open authorize. As the brief ruled, none was
+  built: no new owner command and no IPC surface.
+- **Lost:**
+  - *Reading on every tick (the old behaviour).* It hammered a PayPal that was already failing, one
+    call a second, with no bound.
+  - *Ending the deal after N failed reads (expire, or `end_unread_authorize`).* That turns "could not
+    read" into "no hold". If PayPal did place the hold, the deal is closed while money is held, which
+    is the case AGENTS.md rules out.
+  - *Voiding after N failures.* No authorization id was ever verified, so there is nothing to void,
+    and the void would write at PayPal on a state nobody saw.
+  - *A durable failure count.* It would need a ledger column or table for a counter that section 45
+    already decided to keep in memory. A restart costs at most 8 quick reads again, while the window
+    stays durable.
+- **Open:**
+  - **No owner path reads a lost authorize.** Past the window the deal waits, open and unread, until
+    something outside the wallet's own reads settles it. An owner "read it again" action, like 51b's for
+    the rescue invoice, would need a new command row and is left for the operator to decide.
+  - **The park is not surfaced.** As in section 51, the failure count lives only in
+    `rescue_read_backoff`. The money-check card shows a parked authorize only when the step was parked
+    by a resolution row (a lost owner authorize, or one that read back a record no check accepts), not
+    when the seller's own authorize simply fails to read.
+  - **A read that succeeds but shows a record no check accepts is still made on every tick** until
+    `UNREAD_AUTHORIZE_SECS` (72 h) after the first attempt, when `end_unread_authorize` ends the deal.
+    That case is bounded and unchanged here. The test
+    `a_parked_authorize_paypal_never_shows_readably_ends_at_its_bound_and_sends_nothing` pins it.
+- **Tests:** `crates/table-app/tests/pipeline.rs`, each run for an authorize parked before the deadline
+  and for the seller's own unparked one, against the offline `LossyApi` (no network) on a fake clock:
+  - `past_the_deadline_a_failing_authorize_read_backs_off_then_is_read_hourly`: the first read is at the
+    deadline. Gaps are at least `RESCUE_POLL_SECS` and never shrink. There are exactly
+    `RESCUE_READ_ATTEMPTS` reads, then none for an hour less a second, then one, hourly.
+  - `a_failing_authorize_is_read_only_inside_the_window_and_a_restart_does_not_reopen_it`: a restart
+    inside the window reads at once (the control). The window's last second reads. Past it there is no
+    read even though PayPal would answer, also after a restart, and the step stays open.
+  - `a_read_that_succeeds_after_failures_clears_the_count_and_settles_as_before`: after 8 failures and
+    the hourly read, a successful read clears the count, a new failure backs off from 60 s rather than
+    an hour, and the authorization PayPal holds is confirmed. The deal is AUTHORIZED with the 72 h honor
+    period.
+
+  Throughout, every tick leaves the deal APPROVED with only `needs_owner`/`deferred` outcomes, and no
+  POST, capture or void is sent or recorded. `deadline_waits_for_an_unsettled_authorize_before_expiring`
+  now retries at `due + RESCUE_POLL_SECS` instead of `due + 2`.
+- **Evidence:** `crates/table-app/src/pipeline/resolve.rs` (`resolve_deal`: the `window_closed` and
+  backoff skip; `resolve_authorize`: the `get_order` branches; doc comments of `resolve_deal`,
+  `PARKED_READ_SECS` and `PARKED_READ_WINDOW_SECS`), `crates/table-app/src/rescue.rs`
+  (`deadline_read_failed`), and `crates/table-app/src/pipeline.rs` (doc comments of `deadline_default`
+  and `rescue_read_backoff`).
