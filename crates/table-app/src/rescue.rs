@@ -773,21 +773,36 @@ impl Pipeline {
         }
         if deal.state == DealState::AwaitingApproval {
             // A sent invoice is never expired unread: without the client, or while PayPal
-            // cannot be read, it waits. The read keeps the poll cadence.
+            // cannot be read, it waits. A read that fails backs off (never under the poll
+            // cadence) and, after RESCUE_READ_ATTEMPTS in a row, is parked and
+            // read once an hour; it is still never expired unread.
             if self.secondary.is_none() {
                 return Ok(false);
             }
+            let key = format!("deadline-read:{id}");
+            let waits = self
+                .rescue_read_backoff
+                .get(&key)
+                .is_some_and(|(_, next)| now < *next);
             let due_poll = self
                 .rescue_polled
                 .get(&id)
                 .is_none_or(|at| now.saturating_sub(*at) >= RESCUE_POLL_SECS);
-            if !due_poll {
+            if waits || !due_poll {
                 return Ok(false);
             }
             match self.rescue_poll(id, now).await {
-                Ok(true) => return Ok(true),
-                Ok(false) => {}
-                Err(Error::Unavailable) => return Ok(false),
+                Ok(true) => {
+                    self.rescue_read_backoff.remove(&key);
+                    return Ok(true);
+                }
+                Ok(false) => {
+                    self.rescue_read_backoff.remove(&key);
+                }
+                Err(Error::Unavailable) => {
+                    self.deadline_read_failed(&key, now);
+                    return Ok(false);
+                }
                 Err(e) => return Err(e),
             }
         }
@@ -797,6 +812,23 @@ impl Pipeline {
             return Ok(true);
         }
         Ok(false)
+    }
+
+    /// A read of a sent invoice past its deadline failed (its PayPal call is already kept). The
+    /// next read waits out a capped exponential backoff with jitter, never shorter than the poll
+    /// cadence. At [`RESCUE_READ_ATTEMPTS`] failures in a row the deal is parked and read once
+    /// per [`PARKED_READ_SECS`] from then on. Nothing is expired, cancelled, sent or counted.
+    fn deadline_read_failed(&mut self, key: &str, now: Timestamp) {
+        let before = self.rescue_read_backoff.get(key).map_or(0, |(n, _)| *n);
+        let fails = (before + 1).min(RESCUE_READ_ATTEMPTS);
+        let wait = if fails >= RESCUE_READ_ATTEMPTS {
+            PARKED_READ_SECS
+        } else {
+            let jitter = jitter_of(self.rescue_jitter_seed, key, fails);
+            rescue_read_backoff(fails, jitter).max(RESCUE_POLL_SECS)
+        };
+        self.rescue_read_backoff
+            .insert(key.to_owned(), (fails, now.saturating_add(wait)));
     }
 
     /// Reads back every open invoice step of a rescue deal, oldest first, and stops at the first

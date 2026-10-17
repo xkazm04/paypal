@@ -1235,3 +1235,87 @@ async fn every_failed_read_of_a_parked_send_is_recorded() {
     assert!(r.p.has_open_operation(id).unwrap());
     assert_eq!(r.posts(), posts);
 }
+
+const MONTH: i64 = 30 * 86400;
+/// The hourly read of a parked step (`PARKED_READ_SECS`, crate-private).
+const PARKED_READ_SECS: i64 = 3600;
+
+/// Past the deadline a sent invoice whose read keeps failing is never expired unread, and its
+/// reads are bounded: the gaps only grow, and after the attempts the deal is read once an hour.
+#[tokio::test]
+async fn past_the_deadline_a_failing_read_is_bounded_and_the_gaps_grow() {
+    let mut r = rig();
+    r.p.set_rescue_jitter_seed(5);
+    let id = r.open(1, RescueSource::Paypal).id;
+    r.approve(id, T0).await.unwrap();
+    let due = T0 + RESCUE_INVOICE_OPEN_SECS;
+    let (writes, posts) = (r.writes(), r.posts());
+    r.pp.set(|w| w.reads_fail = true);
+    let (reads, calls) = (r.pp.get(|w| w.reads), r.calls(id));
+    let times = read_times(&mut r, id, due, due + MONTH, 60).await;
+    let read = r.pp.get(|w| w.reads) - reads;
+    assert_eq!(read as usize, times.len());
+    // The attempts, then one read an hour: far under the 43_200 a flat minute costs.
+    let hourly = (MONTH / PARKED_READ_SECS) as usize;
+    assert!(
+        times.len() <= RESCUE_READ_ATTEMPTS as usize + hourly + 1,
+        "{} reads",
+        times.len()
+    );
+    assert!(times.len() > RESCUE_READ_ATTEMPTS as usize);
+    assert_eq!(times[0], due);
+    let gaps: Vec<i64> = times.windows(2).map(|w| w[1] - w[0]).collect();
+    assert!(gaps.iter().all(|g| *g >= RESCUE_POLL_SECS));
+    assert!(gaps.windows(2).all(|g| g[0] <= g[1]), "{gaps:?}");
+    assert!(gaps.last().unwrap() > gaps.first().unwrap());
+    // Every failed read keeps its PayPal call; nothing ended, was sent or was counted.
+    assert_eq!(r.calls(id), calls + u64::from(read));
+    assert_eq!(r.state(id), DealState::AwaitingApproval);
+    assert_eq!((r.writes(), r.posts()), (writes, posts));
+}
+
+/// After RESCUE_READ_ATTEMPTS failed reads past the deadline the deal is parked for the owner
+/// and only the hourly read goes on; nothing is sent, cancelled or recovered.
+#[tokio::test]
+async fn after_the_bound_the_deal_is_parked_for_the_owner_and_read_only_hourly() {
+    let mut r = rig();
+    r.p.set_rescue_jitter_seed(9);
+    let id = r.open(1, RescueSource::Paypal).id;
+    r.approve(id, T0).await.unwrap();
+    let due = T0 + RESCUE_INVOICE_OPEN_SECS;
+    let (writes, posts) = (r.writes(), r.posts());
+    r.pp.set(|w| w.reads_fail = true);
+    let first = read_times(&mut r, id, due, due + 1800, 1).await;
+    assert_eq!(first.len(), RESCUE_READ_ATTEMPTS as usize, "{first:?}");
+    let parked_at = *first.last().unwrap();
+    // Parked: nothing for an hour less a second, then exactly one read, then another hour.
+    let reads = r.pp.get(|w| w.reads);
+    let quiet = read_times(
+        &mut r,
+        id,
+        parked_at + 1,
+        parked_at + PARKED_READ_SECS - 1,
+        7,
+    )
+    .await;
+    assert!(quiet.is_empty(), "{quiet:?}");
+    assert_eq!(r.pp.get(|w| w.reads), reads);
+    let later = read_times(
+        &mut r,
+        id,
+        parked_at + PARKED_READ_SECS,
+        parked_at + 3 * PARKED_READ_SECS - 1,
+        1,
+    )
+    .await;
+    assert_eq!(
+        later,
+        [
+            parked_at + PARKED_READ_SECS,
+            parked_at + 2 * PARKED_READ_SECS
+        ]
+    );
+    // Still open: not expired, cancelled, sent or counted.
+    assert_eq!(r.state(id), DealState::AwaitingApproval);
+    assert_eq!((r.writes(), r.posts()), (writes, posts));
+}
