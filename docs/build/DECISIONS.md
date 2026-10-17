@@ -2022,6 +2022,9 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Open:**
   - ~~**No owner path reads a lost authorize.**~~ Closed by 52a: past the window the owner's ticket
     reads it once, through the existing `deal_countersign` command; no new command row was needed.
+  - ~~**A lost capture or void was still read on every tick, and a parked one hourly for ever.**~~
+    Closed by 52b: the same backoff, hourly park and window apply to them, and the read maps are
+    bounded.
   - **The park is not surfaced.** As in section 51, the failure count lives only in
     `rescue_read_backoff`. The money-check card shows a parked authorize only when the step was parked
     by a resolution row (a lost owner authorize, or one that read back a record no check accepts), not
@@ -2120,3 +2123,131 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   token, then one read past the window with the mandate expired. The existing
   `a_second_countersign_while_the_authorize_is_open_is_not_confirmed_yet` is unchanged: a click
   within `SETTLE_SECS` reads nothing.
+
+### 52b. Amendment (2026-10-17): a lost capture or void is read back on the same bounded schedule, and the read maps are bounded
+
+- **Decided by:** the operator's delegate after agent-gated-spend full r3 (run 4ff3c2b0), which was
+  full-ready at 0.56 with economics at 0.10. The delegate directed one rework with no further council
+  round, on three must-address items: (1) a lost capture or void whose read-back keeps failing is
+  re-read every 1 s, with no backoff and no ceiling past the deadline; (2) a parked capture or void
+  past its deadline is read hourly with no total ceiling; (3) the in-memory maps never evict.
+- **Constraint:** a capture or void whose answer was lost may have moved money at PayPal. Until a read
+  shows the authorization, the wallet cannot tell a captured hold from a voided or untouched one, so
+  silence cannot settle it (AGENTS.md: silence never moves money, and a safe default only voids). Before
+  this change `resolve_payment` sent a failed `get_authorization` to `defer`, which kept the failure and
+  answered `Unavailable`, and the next 1 s tick read again with no limit, before and after the deadline.
+  A parked capture or void past its deadline was throttled to once per `PARKED_READ_SECS`, but with no
+  end. `rescue_polled`, `parked_read` and `rescue_read_backoff` gained an entry per deal or request id
+  and lost none.
+- **Decision:**
+  1. **The section 52 pattern, applied to capture and void, with the same helpers and constants.** No
+     second schedule and no new timing constant. `resolve_payment` passes a failed `get_authorization`
+     to `deadline_read_failed`, keyed by the op's request id in the same `rescue_read_backoff` map. The
+     wait is `rescue_read_backoff(fails, jitter_of(seed, request id, fails))`, never shorter than
+     `RESCUE_POLL_SECS` (60 s), and once per `PARKED_READ_SECS` (3600 s) after `RESCUE_READ_ATTEMPTS` (8)
+     failures in a row. A read that succeeds clears the count. A capture PayPal shows CAPTURED is read
+     once more through the order (`confirm_capture`). That read's failure is counted the same way and
+     its success clears the count, so a failing order read cannot reset the backoff on every tick. The
+     count applies to every automatic read, so a failing read before the deadline (`Resolve::Advance`)
+     backs off too.
+  2. **One gate in `resolve_deal` for authorize, capture and void** (`money_read_due`). A step whose
+     backoff is not yet due is passed over, as an authorize was under section 52. A parked capture or
+     void is also still held to `parked_read`'s hourly read.
+  3. **The wallet's own reads end `PARKED_READ_WINDOW_SECS` (30 days) after the deal's deadline**,
+     measured from `Ledger::deadline`, which is durable, and never from in-memory state, so a restart
+     does not reopen the window. This closes item (2): a parked capture or void past its deadline is not
+     read once the window has passed. The window check no longer also requires `Resolve::Deadline`. Past
+     the window no automatic read is made in either mode. The scheduler only resolves in `Advance` before
+     the deadline, so this changes nothing an authorize did under section 52.
+  4. **Bounded maps** (`crates/table-app/src/pipeline/read_state.rs`). `prune_read_state` runs after
+     `resolve_deal`, `deadline_default` and `rescue_tick`. All of a deal's entries are dropped once the
+     deal is terminal. A step's entry is dropped once the step is no longer open. A sent invoice's
+     `deadline-read:{deal id}` entry and its `rescue_polled` entry are dropped once the deal no longer
+     awaits payment. An authorize, capture or void entry, and the deadline-read entry, are dropped once
+     the deal is past its read window. Each map also has a hard cap, `READ_STATE_CAP` (4096 entries),
+     enforced on insert (`note_parked_read`, `note_rescue_polled`, `note_read_backoff`), which drops the
+     entry with the oldest time. The spent owner-ticket sets (`rescue_owner_read`,
+     `authorize_owner_read`) drop an entry once its ticket can no longer validate (`TICKET_SECS`, 60 s,
+     the lifetime `ApprovalSession::ticket` already gave) and drop a terminal deal's entries. Those sets
+     therefore hold only the tickets minted in the last minute.
+  5. **Eviction never brings a read forward.** The first three drops above remove entries that no
+     longer govern any automatic read: the deal is terminal, the step is closed, or the durable window is
+     shut. After a drop by the cap, every read whose schedule entry is missing waits until
+     `RESCUE_POLL_SECS` after the drop (`read_floor_until`). The durable window still applies, and a new
+     failure counts again from one, with the floor under it. A step whose entry was evicted while its
+     deal is still open therefore falls back to the window and the 60 s floor, never to a 1 s tick. This
+     is stated in the doc comments of `rescue_read_backoff` and of `read_state.rs`.
+- **Invariant:** a capture or void that was never read is never treated as settled, captured, voided,
+  failed or expired. A failed read sends nothing, voids nothing, captures nothing, ends nothing and
+  counts nothing beyond its existing `Deferred` call record. Past the window the deal keeps its state
+  (AUTHORIZED) with its step open or parked, and it needs the owner. The deadline default answers
+  `Unavailable` (or `Ok(false)` when only a parked capture or void is open, as before) without calling
+  PayPal. The safe-default void at the deadline of a step that was read and shows CREATED is unchanged.
+  So is the once-more send of a lost void PayPal shows still held.
+- **Lost:**
+  - *Reading on every tick (the old behaviour).* It cost one failed call a second per lost capture or
+    void for as long as PayPal failed, and one an hour for ever once parked.
+  - *Voiding or ending the deal after N failed reads.* A capture that went through would then be voided
+    blind or forgotten behind an end state. That is the case AGENTS.md rules out.
+  - *A durable failure count or eviction log.* Either would need a ledger column or table, which section
+    45 and this brief rule out. A restart costs at most 8 quick reads again, and the window stays durable.
+  - *A per-key floor after a cap drop.* Without a durable per-key time, the floor is one timestamp for
+    all keys. While the cap keeps dropping entries, reads with no entry are delayed, never hastened.
+- **Open:**
+  - **Over the cap, reads are fair only coarsely.** With more failing deals than `READ_STATE_CAP`, a deal
+    whose entry keeps being dropped can wait behind the floor for long stretches. It is never read
+    sooner, and since a read moves no money, the cost is only a later answer. 4096 open failing steps is
+    far above what one wallet holds.
+  - **A read that succeeds but cannot settle is still made on every tick**: a capture PayPal shows
+    CAPTURED while the deal has no agent key (`signer_missing`), or one PayPal shows CREATED while a
+    clause-6 re-send is held (`holds_resend`). These reads succeed, so they are not counted. They are
+    bounded by the key coming back or the pause lifting, and they are unchanged here, as section 52 left
+    the authorize case.
+  - **No owner read of a lost capture or void.** `owner_void` still refuses a deal with an open
+    operation. Past the window such a deal waits AUTHORIZED for the owner, who looks at the payment in
+    PayPal; the money-check card shows a parked step. Adding an owner read like 52a's is not built.
+  - **The runtime scheduler's `last_poll` map** (`crates/table-runtime/src/scheduler.rs`, one entry per
+    polled deal) is outside this change's paths and is not bounded here.
+  - Section 52's Open list is unchanged. The park is still not surfaced, and a capture or void parked
+    only by the in-memory count has no resolution row either.
+- **Tests:** offline against `LossyApi` (no network) on a fake clock. Each pins on the fake's call log
+  that no POST, capture or void is sent or recorded on a failed read, and that the deal stays AUTHORIZED.
+  Each runs for the seller's own capture, an owner capture parked before the deadline, the deadline's
+  safe-default void, and an owner void parked before the deadline. In `crates/table-app/tests/pipeline.rs`:
+  - `past_the_deadline_a_failing_capture_or_void_read_backs_off_then_is_read_hourly`: gaps are at least
+    `RESCUE_POLL_SECS` and never shrink. An unparked step gets exactly `RESCUE_READ_ATTEMPTS` reads, then
+    none for an hour less a second, then one, hourly. A parked one is read hourly from the deadline.
+  - `before_the_deadline_a_failing_capture_read_backs_off_too`: under `Resolve::Advance`, exactly
+    `RESCUE_READ_ATTEMPTS` reads in the first hour, and the capture is not sent again.
+  - `a_failing_capture_or_void_is_read_only_inside_the_window_and_a_restart_does_not_reopen_it`: a
+    restart inside the window reads at once (the control), and the window's last second reads. Past it
+    there is no read even though PayPal would answer, also after a restart. The step stays open, and its
+    schedule entries are gone.
+  - `a_capture_or_void_read_that_succeeds_after_failures_clears_the_count_and_settles_as_before`: after
+    the failures, a successful read clears the count, and a new failure backs off from 60 s, not an hour.
+    The seller's capture is then confirmed RECEIPTED with no void. A parked capture still held is
+    recorded absent and AUTO_VOIDED on the safe default. The lost safe-default void goes once more and
+    the deal is AUTO_VOIDED. The parked owner void goes once more and the deal is VOIDED. One request id
+    per operation throughout.
+  - `a_settled_capture_or_void_leaves_no_read_state`: a deal that ends, or whose step closes, holds no
+    entry.
+
+  In `crates/table-app/tests/rescue.rs`:
+  - `the_read_schedule_holds_its_cap_and_a_dropped_deal_is_not_read_sooner`: six sent invoices failing
+    past their deadline with the cap at three. Every map stays at most three, and every deal's reads stay
+    at least `RESCUE_POLL_SECS` apart. With the floor disabled, a dropped deal was read every second and
+    this test failed. Nothing is expired, sent or written.
+  - `a_rescue_deal_that_settles_leaves_no_read_state`: RECEIPTED and EXPIRED deals hold no entry.
+
+  `failed_read_back_at_the_deadline_skips_the_void_and_retries_next_tick` now retries at
+  `due + RESCUE_POLL_SECS` instead of `due + 2`, as section 52 did for the authorize test. Every other
+  section 51, 52 and rescue test is unchanged. Before the commit, removing the `deadline_read_failed`
+  call and the window check made four of the new pipeline tests fail.
+- **Evidence:** `crates/table-app/src/pipeline/resolve.rs` (`resolve_deal`, `money_read_due`,
+  `resolve_payment`, `confirm_capture`, doc comments of `PARKED_READ_SECS` and
+  `PARKED_READ_WINDOW_SECS`), `crates/table-app/src/pipeline/read_state.rs` (`READ_STATE_CAP`,
+  `prune_read_state`, `note_*`, `read_floor_holds`), `crates/table-app/src/pipeline.rs` (the map fields'
+  doc comments, `deadline_default`), `crates/table-app/src/rescue.rs` (`rescue_tick`,
+  `deadline_read_failed`, the floor in `rescue_deadline` and `rescue_resolve`) and
+  `crates/table-app/src/auth.rs` (`TICKET_SECS`). Gates: `cargo fmt --all --check`,
+  `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace` were green.
