@@ -1,0 +1,22 @@
+{
+ "schema": "conform-run/1",
+ "worker": "334ce29e-d04b-4569-9dc4-629f034245b6",
+ "subject": "serving-process-topology",
+ "evaluatedAt": "2026-10-17T21:58:10.131230+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "serving-process-topology",
+   "context": "table-engine-agent-process",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "serving-process-topology",
+   "context": "runtime-actor-and-engines",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": []
+}
