@@ -1,0 +1,22 @@
+{
+ "schema": "conform-run/1",
+ "worker": "24706310-0ea2-4eb9-8135-db47caf4b485",
+ "subject": "browser-credential-boundary",
+ "evaluatedAt": "2026-10-17T01:12:58.592838+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "browser-credential-boundary",
+   "context": "ipc-contract-and-authority-table",
+   "reason": "the seat returned unknown"
+  },
+  {
+   "subject": "browser-credential-boundary",
+   "context": "ledger-repositories-audit-evidence",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": []
+}
