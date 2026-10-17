@@ -3948,6 +3948,138 @@
         "at": "2026-10-17T02:15:06.502958+00:00",
         "reason": "reviewer (sonnet): Lines 1088–1089 do reuse UNAVAILABLE, but the third technique anchor (backend.ts:567, opener exception propagation) has nothing to do with the claim. The mock mirrors a closed Rust ErrorCode set (contract.ts:46) that has no separate temporary code, so the deviation belongs to the contract rather tha"
       }
+    },
+    "44983015-e31a-41fb-92ee-ab6637c0cc3e/plan-entitlements": {
+      "context": "book-module",
+      "subject": "plan-entitlements",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T02:31:22.881Z",
+      "techniques": [
+        {
+          "technique": "capability-gate-predicates",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:250 Selection concerns ledger views and captures; no plan-based feature gate was found."
+        },
+        {
+          "technique": "deployment-mode-short-circuit",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:205 The mode check distinguishes actual recovery from replay, not commercial deployment entitlements."
+        },
+        {
+          "technique": "entitlement-lifecycle-revocation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:213 Book aggregates recovered payments; it does not grant or revoke subscription access."
+        },
+        {
+          "technique": "id-vs-label-split",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:84 These displayed labels describe statement outcomes, not persisted commercial tiers."
+        },
+        {
+          "technique": "inherited-tier-not-cloned-tier",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:299 CSV export reads transaction totals; no bespoke plan agreement or capability inheritance was found."
+        },
+        {
+          "technique": "live-catalog-edit-is-a-lifecycle-event",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:143 The configured entries are ledger queries, not sold tiers with subscribers."
+        },
+        {
+          "technique": "price-book-authority",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:107 This compares an agreed transaction price with a market median; it does not mirror a subscription price book."
+        },
+        {
+          "technique": "provider-publishes-state-not-decision",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:271 The result contains ledger rows and aggregates, not entitlement answers for another product."
+        },
+        {
+          "technique": "subtractive-entitlement",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/understand.ts:376 Counterparty selection narrows a query; it is not a per-subscription capability removal."
+        },
+        {
+          "technique": "tier-model-single-source",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:139 The model declares analytical lenses, with no commercial tier vocabulary found."
+        }
+      ],
+      "withdrawn": {
+        "worker": "4dc6a56a-7d35-41f0-bb4a-0378b483228a",
+        "state": "not-applicable",
+        "at": "2026-10-17T02:31:35.533389+00:00",
+        "reason": "reviewer (sonnet): Each not-applicable rests on an incidental anchor and a three-term grep. In book-module, where.ts:246 is the `questionChips` mapper and the technique anchors (model.ts:84, 205, 213, 250) are statement labels, `isRecovered`, `aggregate` and `runQuery`; none shows plan or tier gating is absent. In mar"
+      }
+    },
+    "9c2b67dc-8b1f-43ca-af72-23ddf95baf03/plan-entitlements": {
+      "context": "market-data",
+      "subject": "plan-entitlements",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T02:31:22.881Z",
+      "techniques": [
+        {
+          "technique": "capability-gate-predicates",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/market.rs:60 The refresh checks signed spending authority, not inclusion in a purchased plan."
+        },
+        {
+          "technique": "deployment-mode-short-circuit",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/market.rs:54 Replay and terminal-state refusals protect execution correctness; no commercial deployment gate was found."
+        },
+        {
+          "technique": "entitlement-lifecycle-revocation",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/src/lib.rs:220 This validates the response to starting product-price tracking, not a customer subscription's entitlement lifecycle."
+        },
+        {
+          "technique": "id-vs-label-split",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/src/lib.rs:242 The identifier binds returned history to a market product, not a commercial tier."
+        },
+        {
+          "technique": "inherited-tier-not-cloned-tier",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/market.rs:69 This resolves an item's market product through its mandate, not capabilities through a negotiated plan."
+        },
+        {
+          "technique": "live-catalog-edit-is-a-lifecycle-event",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/src/lib.rs:207 The mutable entries cache market bands by product and currency; they are not subscribed tier definitions."
+        },
+        {
+          "technique": "price-book-authority",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/src/lib.rs:145 The request obtains market comparables, not the authoritative price charged for a wallet plan."
+        },
+        {
+          "technique": "provider-publishes-state-not-decision",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/market.rs:138 The provider supplies comparable market prices, not operator-authored entitlement values."
+        },
+        {
+          "technique": "subtractive-entitlement",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/src/lib.rs:232 History requires explicit product-tracking opt-in, not an inherited tier with subscription-level removals."
+        },
+        {
+          "technique": "tier-model-single-source",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/src/lib.rs:108 Cached reference lookup uses product and currency; no commercial tier model was found."
+        }
+      ],
+      "withdrawn": {
+        "worker": "4dc6a56a-7d35-41f0-bb4a-0378b483228a",
+        "state": "not-applicable",
+        "at": "2026-10-17T02:31:35.533389+00:00",
+        "reason": "reviewer (sonnet): Each not-applicable rests on an incidental anchor and a three-term grep. In book-module, where.ts:246 is the `questionChips` mapper and the technique anchors (model.ts:84, 205, 213, 250) are statement labels, `isRecovered`, `aggregate` and `runQuery`; none shows plan or tier gating is absent. In mar"
+      }
     }
   }
 }
