@@ -31,6 +31,13 @@ pub const SETTLE_SECS: i64 = 5;
 /// read-back from asking PayPal every second. The time is kept in memory (`Pipeline`), so a
 /// restart reads at once.
 pub const PARKED_READ_SECS: i64 = 3600;
+/// The total time the wallet itself keeps reading a parked step on its own, counted from a durable
+/// timestamp (the deal's deadline, or the request id's window ending, whichever starts those
+/// reads), never from in-memory park state. 30 days is the open horizon of a sent rescue invoice
+/// (`RESCUE_INVOICE_OPEN_SECS`): an invoice PayPal could not be read about for that long past its
+/// deadline is an outage or a lost cause, and 720 hourly reads are all it costs. After it the
+/// deal stays parked and needs the owner, who can still ask for a read; nothing is expired.
+pub const PARKED_READ_WINDOW_SECS: i64 = 30 * 86400;
 
 /// Why the resolver runs, which decides what it may send again.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
