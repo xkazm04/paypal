@@ -3700,7 +3700,11 @@
           "revision": 10,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-ledger/migrations/0013_shield_record.sql:18 The shield migration backfills existing deals in the same step that adds their columns, violating the standard's required separation of schema changes and data rewrites.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:b7d5afcb859dfff9",
+          "evaluatedRevision": 10
         },
         {
           "subject": "table",

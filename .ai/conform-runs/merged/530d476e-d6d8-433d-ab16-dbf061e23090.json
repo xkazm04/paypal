@@ -1,0 +1,111 @@
+{
+  "schema": "conform-run/1",
+  "worker": "530d476e-d6d8-433d-ab16-dbf061e23090",
+  "subject": "migrations",
+  "evaluatedAt": "2026-10-17T01:53:11.463900+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [
+    {
+      "context": "ledger-deal-safeguards",
+      "subject": "migrations",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "crates/table-ledger/migrations/0013_shield_record.sql:18 The shield migration backfills existing deals in the same step that adds their columns, violating the standard's required separation of schema changes and data rewrites.",
+      "techniques": [
+        {
+          "technique": "data-migrations",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/migrations/0013_shield_record.sql:12 This step adds three columns and then backfills shield_rule at lines 18–19; the standard requires separate steps even when the rewrite fits one transaction."
+        },
+        {
+          "technique": "dynamic-table-set-migrations",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/src/groups.rs:178 Owner-defined groups are rows in fixed tables, not operator-defined physical tables requiring migration-time enumeration."
+        },
+        {
+          "technique": "error-propagation",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/src/lib.rs:68 The runner refuses a future schema, but its error omits both the observed and supported versions required by the standard."
+        },
+        {
+          "technique": "idempotent-steps",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/migrations/0008_resolution.sql:9 The guard accepts an existing table by name without asserting its columns and constraints; the step contains no post-condition verification."
+        },
+        {
+          "technique": "migrate-from-data-shape",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/src/lib.rs:136 SQLite provides an atomic home for the version marker inside the transaction containing the schema changes; no independent external shape-writing mechanism was found."
+        },
+        {
+          "technique": "pre-migration-snapshots",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/src/snapshot.rs:38 The snapshot helper returns success immediately after VACUUM INTO without reopening or checking the created copy before migrations proceed."
+        },
+        {
+          "technique": "schema-drift-detection",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/src/shield_tests.rs:408 The shield upgrade test manufactures an old schema from today's setup and checks the loaded verdict; the standard requires historical fixtures and mechanical schema convergence checks."
+        },
+        {
+          "technique": "transactional-ddl",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/src/lib.rs:75 One transaction surrounds every pending migration, followed by one final version bump and commit; the standard requires a transaction and ledger advance per step."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "migrations",
+      "context": "counter-and-tables-modules",
+      "reason": "withdrawn after review: reviewer (sonnet): The not-applicable anchor, groups.ts:30, is a line inside an array-grouping loop. It does not show that the context has no persistent schema or migration. The cited counter/model.ts and tables/ladder.ts lines are pure draft or derived-data transforms, and my grep for migrat/user_version/backfill/sch"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-17T01:53:11.463900+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "migrations"
+      ],
+      "techniques": [
+        "data-migrations",
+        "dynamic-table-set-migrations",
+        "error-propagation",
+        "idempotent-steps",
+        "migrate-from-data-shape",
+        "pre-migration-snapshots",
+        "schema-drift-detection",
+        "transactional-ddl"
+      ],
+      "deviations": 1,
+      "context": "ledger-deal-safeguards",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-17T01:53:11.463900+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "migrations"
+      ],
+      "techniques": [
+        "data-migrations",
+        "dynamic-table-set-migrations",
+        "error-propagation",
+        "expand-deploy-contract",
+        "idempotent-steps",
+        "migrate-from-data-shape",
+        "pre-migration-snapshots",
+        "schema-drift-detection",
+        "transactional-ddl"
+      ],
+      "deviations": 0,
+      "context": "counter-and-tables-modules",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}
