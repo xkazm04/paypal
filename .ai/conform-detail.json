@@ -3581,6 +3581,78 @@
           "evidence": "crates/table-attention/src/lib.rs:339 Controls UI dimming after inactivity; no tapered prediction weights or normalization."
         }
       ]
+    },
+    "97ce9cef-2512-4583-a3a5-6ee0b27f287d/agent-browser-control": {
+      "context": "browser-mock-backend",
+      "subject": "agent-browser-control",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T00:52:41.291Z",
+      "worker": "d69bc19c-29ec-474d-9356-b1715314b3d2",
+      "techniques": [
+        {
+          "technique": "agent-actionable-errors",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:147 These are simulated wallet IPC failures for the client UI, rather than browser-driver failures returned to an agent."
+        },
+        {
+          "technique": "effect-classed-commands",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:137 The generated table governs wallet command authority; this context does not publish browser commands whose effects determine browser retry safety."
+        },
+        {
+          "technique": "persistent-browser-daemon",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:165 Initialization builds a simulated wallet world inside the page, rather than starting or discovering a browser process."
+        },
+        {
+          "technique": "references-over-selectors",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:573 The read surface returns wallet domain records, rather than page elements that an agent must identify and act on."
+        },
+        {
+          "technique": "socket-scoped-surface",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:160 Mock pages exchange state through BroadcastChannel; this context exposes no browser daemon listener or remote-agent tunnel."
+        }
+      ]
+    },
+    "b122a56d-4e5f-4259-959c-b90ba9e1c58e/agent-browser-control": {
+      "context": "ipc-contract-and-authority-table",
+      "subject": "agent-browser-control",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T00:52:41.291Z",
+      "worker": "d69bc19c-29ec-474d-9356-b1715314b3d2",
+      "techniques": [
+        {
+          "technique": "agent-actionable-errors",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-client/src/lib.rs:38 The error conversion handles wallet application failures for IPC, rather than browser action failures delivered to a controlling agent."
+        },
+        {
+          "technique": "effect-classed-commands",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-client/src/authority_table.rs:49 The tiers classify wallet authority; the standard's browser read/write/meta dispatch and retry precondition does not hold."
+        },
+        {
+          "technique": "persistent-browser-daemon",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-client/src/bin/generate-bindings.rs:16 The binary exports contract bindings, rather than managing browser startup, session persistence or liveness."
+        },
+        {
+          "technique": "references-over-selectors",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-client/src/lib.rs:1016 Commands address wallet deals and their transcripts, rather than live browser elements."
+        },
+        {
+          "technique": "socket-scoped-surface",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-client/src/authority_table.rs:217 Token access is assigned to a Tauri window label; this is not token bootstrap on a remotely exposed browser daemon socket."
+        }
+      ]
     }
   }
 }
