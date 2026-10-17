@@ -1153,7 +1153,11 @@
           "revision": 3,
           "changedAt": "2026-09-22",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-attention/src/forecast.rs:132 The crate projects deal actions and desktop geometry, and context and repository searches found no tensor, sliding_window or sw_device constructs indicating oversized model inference.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:be767e8151f6602a",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
@@ -2179,7 +2183,11 @@
           "revision": 3,
           "changedAt": "2026-09-22",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/deal/model.ts:257 Deal detail constructs display rows from recorded messages, and context and repository searches found no tensor, sliding_window or sw_device constructs indicating windowed model inference.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:be767e8151f6602a",
+          "evaluatedRevision": 3
         },
         {
           "subject": "mcp-tools",
@@ -4247,7 +4255,11 @@
           "revision": 3,
           "changedAt": "2026-09-22",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/world.tsx:209 This shell reads and presents wallet state, and context and repository searches found no tensor, sliding_window or sw_device constructs indicating oversized model inference.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:be767e8151f6602a",
+          "evaluatedRevision": 3
         },
         {
           "subject": "module-design",
