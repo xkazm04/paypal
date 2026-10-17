@@ -3415,7 +3415,11 @@
           "revision": 2,
           "changedAt": "2026-09-04",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "services/house-seller/src/scoreboard/scoreboard.js:130 The scoreboard authenticates the supplied release using that release's own owner key, so its signature checks establish internal consistency without independently establishing HOUSE provenance.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:387437132971999b",
+          "evaluatedRevision": 2
         }
       ],
       "governance": "governed"
@@ -7732,7 +7736,11 @@
           "revision": 2,
           "changedAt": "2026-09-04",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-proto/src/envelope.rs:436 The public verifier accepts a caller-selected key instead of structurally requiring trusted-key resolution, leaving the standard's strongest verification door optional.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:387437132971999b",
+          "evaluatedRevision": 2
         },
         {
           "subject": "test-harness",
