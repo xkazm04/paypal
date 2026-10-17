@@ -2005,11 +2005,9 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   expired. A failed read sends nothing, ends nothing, voids nothing and counts nothing. It keeps only
   its PayPal call record (the `Deferred` resolution `defer` writes). The deal stays APPROVED. Only a read
   that succeeds can move it, and then only through the checks that already existed.
-- **Owner read:** **no owner path reaches this case.** `Pipeline::authorize` and `owner_void` refuse a
-  deal with an open operation (`has_open_operation`). The money-check card (`Ledger::money_check`,
-  shown through `table-runtime/src/dispatcher.rs`) only displays the parked step and tells the owner to
-  look in PayPal. No command asks the wallet to read an open authorize. As the brief ruled, none was
-  built: no new owner command and no IPC surface.
+- **Owner read:** when this section was written, **no owner path reached this case**:
+  `Pipeline::authorize` and `owner_void` refused a deal with an open operation (`has_open_operation`).
+  Amendment 52a adds one: the owner's countersign on such a deal reads the order once per ticket.
 - **Lost:**
   - *Reading on every tick (the old behaviour).* It hammered a PayPal that was already failing, one
     call a second, with no bound.
@@ -2022,9 +2020,8 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
     already decided to keep in memory. A restart costs at most 8 quick reads again, while the window
     stays durable.
 - **Open:**
-  - **No owner path reads a lost authorize.** Past the window the deal waits, open and unread, until
-    something outside the wallet's own reads settles it. An owner "read it again" action, like 51b's for
-    the rescue invoice, would need a new command row and is left for the operator to decide.
+  - ~~**No owner path reads a lost authorize.**~~ Closed by 52a: past the window the owner's ticket
+    reads it once, through the existing `deal_countersign` command; no new command row was needed.
   - **The park is not surfaced.** As in section 51, the failure count lives only in
     `rescue_read_backoff`. The money-check card shows a parked authorize only when the step was parked
     by a resolution row (a lost owner authorize, or one that read back a record no check accepts), not
@@ -2054,3 +2051,72 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   `PARKED_READ_SECS` and `PARKED_READ_WINDOW_SECS`), `crates/table-app/src/rescue.rs`
   (`deadline_read_failed`), and `crates/table-app/src/pipeline.rs` (doc comments of `deadline_default`
   and `rescue_read_backoff`).
+
+### 52a. Amendment (2026-10-17): the owner's countersign drives one read of a lost authorize
+
+- **Decided by:** the operator delegate's answer YES to the builder's question after 52 (52 left a
+  lost authorize past the window open and unread, with no owner path), before agent-gated-spend full
+  round 3.
+- **Authority:** the existing `deal_countersign` row (`APPROVAL`, `Decision`, privileged, selected
+  deal), as 51b reused `rescue_approve`. No new IPC command or authority row, so the permissions
+  fingerprint, the bindings and `docs/features/ipc-and-authority.md` are unchanged. That command's
+  pipeline method, `Pipeline::authorize`, was the one refusing on `has_open_operation`. It now turns
+  `Authority::Owner(ticket)` on an APPROVED deal whose authorize is open into
+  `owner_read_authorize` (`crates/table-app/src/pipeline/resolve.rs`). Every other authority is
+  still refused there, as before.
+- **Ticket rule:** the ticket is checked by `ApprovalSession::validate` (deal, terms hash, attempt,
+  expiry, session generation; a locked session is refused). It is spent before the read, whether
+  the read succeeds or fails, in an in-memory set of deal, minted-at and session generation
+  (`Pipeline::authorize_owner_read`), so one ticket gives one read. A refusal before the read spends
+  nothing.
+- **Which step:** the open authorize of the deal's settled attempt, not a live call (a `pending`
+  reservation that is not yet stale is not listed), and not within `SETTLE_SECS` of its start. It
+  must also be a step the wallet no longer reads on its own initiative: one parked for the owner, or
+  any once the deal's deadline has passed. Before the deadline the wallet still reads an unparked
+  authorize itself, so the click is refused with "not confirmed yet", as before.
+- **What it records:** one `get_order` GET, then `resolve_authorize`'s existing handling. A hold
+  that PayPal shows and the checks accept is confirmed (`confirm_authorization`): the deal is
+  AUTHORIZED, with the 72 h honor period counted from the first attempt. An untouched order (APPROVED,
+  no authorization) past the deadline is recorded `absent`, as the wallet's read at the deadline
+  records it; the deadline's safe default then follows on the wallet's own tick. A record that no
+  check accepts is parked (one `needs_owner` row, none if the step is already parked). A failed read
+  returns `Unavailable` and keeps only the `deferred` row that `defer` writes. The deal stays
+  APPROVED with its step open. A read that succeeds clears the wallet's failure count, exactly as
+  its own successful read would. A failed owner read is not counted toward the backoff, so the
+  wallet's own schedule (backoff, hourly park, `PARKED_READ_WINDOW_SECS`) is neither reset nor
+  extended. Past the window the wallet still reads nothing without a ticket.
+- **What it never does:** no POST. It never re-sends the authorize, even where the wallet's own
+  `Resolve::Advance` read would (an untouched order before the deadline is parked for the
+  deadline's read instead). It never captures, voids, expires, countersigns or ends anything, and it
+  never calls `end_unread_authorize`, even past `UNREAD_AUTHORIZE_SECS`. No mandate check or shield
+  verdict is run, since nothing is decided and nothing moves.
+- **Runtime:** `Runtime::decide` treats a countersign on an APPROVED deal with an open operation as
+  this read. It is still bound to the checklist hash the owner saw, and it is recorded as the
+  `deal_countersign` decision row. A failing line does not refuse it, though. The likely case is a
+  mandate that expired during the 30-day window, which would otherwise block the read for good.
+  The read also selects no agent key, since it signs nothing. Whatever the runtime lets through,
+  `Pipeline::authorize` cannot send on a deal with an open operation.
+- **Open:** a deal whose shield verdict is BLOCK, or which is in MISMATCH, is refused by
+  `decide` before the pipeline, as for every decision. A lost authorize on such a deal still has no
+  owner read. **No client change was made** (out of this change's scope). The approval window's
+  countersign button (`apps/desktop/client/src/windows/approval/gating.ts`, `deriveGates`) is labelled
+  as a money approval and is disabled when a checklist line fails or `can_release` is false. Rust
+  accepts the click on such a deal, but the shipped window may not offer it. A plain "ask PayPal
+  again" control, and its own sentence for a failed read (today the generic unavailable answer),
+  are a client change left for the operator.
+- **Tests:** `crates/table-app/tests/pipeline.rs`, each for an authorize parked before the deadline
+  and for the seller's own unparked one, offline (`LossyApi`) on a fake clock, asserting on the
+  fake's call log that no POST, capture or void is sent and none is recorded:
+  `an_owner_ticket_reads_a_lost_authorize_past_the_window_and_confirms_the_hold`,
+  `an_owner_read_that_finds_no_hold_records_what_the_wallet_would_and_ends_nothing`,
+  `an_owner_read_of_an_authorize_that_fails_is_unavailable_and_leaves_the_deal_open`,
+  `a_failed_owner_read_leaves_the_wallets_own_read_schedule_as_it_was`,
+  `one_owner_ticket_gives_one_read_of_a_lost_authorize`,
+  `a_bad_owner_ticket_reads_no_lost_authorize` and
+  `before_the_deadline_the_owner_reads_only_a_parked_authorize`. In
+  `crates/table-runtime/src/reached_paypal_tests.rs`,
+  `a_countersign_on_a_lost_authorize_is_the_owners_one_read_and_only_in_the_window` tests the
+  gate end to end through `execute`: refused locked, outside the approval window and without the
+  token, then one read past the window with the mandate expired. The existing
+  `a_second_countersign_while_the_authorize_is_open_is_not_confirmed_yet` is unchanged: a click
+  within `SETTLE_SECS` reads nothing.
