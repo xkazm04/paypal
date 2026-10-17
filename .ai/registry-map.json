@@ -2965,7 +2965,11 @@
           "revision": 7,
           "changedAt": "2026-09-04",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:483 Context searches found no terminal-multiplexing constructs; the director presents HTML pages in browser frames, so terminal session management does not apply.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:c3ef11aba4a471f5",
+          "evaluatedRevision": 7
         },
         {
           "subject": "module-design",

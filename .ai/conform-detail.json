@@ -4266,6 +4266,153 @@
         }
       ],
       "registryProposal": "Add explicit custody guidance for hosted signing identities; the current OS-secret-store requirement assumes a device-local deployment."
+    },
+    "301e09f0-979a-4861-b442-b4efe22b7bd2/terminal-multiplexing": {
+      "context": "director-preview-stories",
+      "subject": "terminal-multiplexing",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T23:11:21.372Z",
+      "worker": "d46016b9-2fe9-4f91-be2b-2e44b5dbbfd0",
+      "techniques": [
+        {
+          "technique": "attach-detach-lifecycle",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:280 Seeking reloads browser frames on a reconstructed scene; no terminal attachment exists."
+        },
+        {
+          "technique": "bounded-replay-buffers",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:271 Replay reapplies scripted mock-world actions rather than terminal output bytes."
+        },
+        {
+          "technique": "capability-revalidation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:173 The story runs against a mock wallet backend, without an injected shell protocol to revalidate."
+        },
+        {
+          "technique": "completion-authority-arbitration",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:342 This ends timed story playback; it does not infer completion of terminal commands."
+        },
+        {
+          "technique": "injected-hook-reconvergence",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/actions.ts:170 Tour actions update saved onboarding progress; no shell integration is installed."
+        },
+        {
+          "technique": "keystroke-injection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:258 Automation dispatches typed story actions, without writing keystrokes into an interactive terminal."
+        },
+        {
+          "technique": "multi-client-fan-out",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:218 The framed windows receive wallet presentation events, not views of a shared terminal session."
+        },
+        {
+          "technique": "multiplexer-state",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/stories.ts:51 Routing selects an HTML wallet page, without a session-to-terminal machinery registry."
+        },
+        {
+          "technique": "occupant-state-detection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:102 Rehearsal observations read browser DOM text; there is no terminal occupant to classify."
+        },
+        {
+          "technique": "pty-management",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:484 Dimensions and load handling belong to an iframe, without a pseudo-terminal resize chain."
+        },
+        {
+          "technique": "readiness-edge-detection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:296 Readiness observes rendered browser content, without shell command-ready markers."
+        },
+        {
+          "technique": "renderer-economics",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/Director.tsx:80 The camera transforms a browser stage; no accelerated terminal renderer is allocated."
+        }
+      ]
+    },
+    "92cbc0b8-5203-4da1-a2ac-4bf381ab1569/terminal-multiplexing": {
+      "context": "client-foundation",
+      "subject": "terminal-multiplexing",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T23:11:21.372Z",
+      "techniques": [
+        {
+          "technique": "attach-detach-lifecycle",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1471 Listener cleanup removes a wallet-event callback, without detaching terminal machinery."
+        },
+        {
+          "technique": "bounded-replay-buffers",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1416 Mock rewind selects signed deal steps, rather than replaying a terminal byte ring."
+        },
+        {
+          "technique": "capability-revalidation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:451 This capability is wallet command authorization, without an injected terminal protocol whose presence can drift."
+        },
+        {
+          "technique": "completion-authority-arbitration",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/hooks.ts:66 Mutations await wallet request promises; they do not arbitrate terminal markers against output silence."
+        },
+        {
+          "technique": "injected-hook-reconvergence",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/runtime.ts:42 The native path selects a Tauri transport, without installing shell startup hooks."
+        },
+        {
+          "technique": "keystroke-injection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/runtime.ts:149 The keyboard handler consumes a browser navigation shortcut; it does not inject terminal input."
+        },
+        {
+          "technique": "multi-client-fan-out",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:200 BroadcastChannel carries targeted wallet events, without shared terminal screens or byte subscribers."
+        },
+        {
+          "technique": "multiplexer-state",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/runtime.ts:37 The retained object is a page's wallet backend, without a terminal session manager."
+        },
+        {
+          "technique": "occupant-state-detection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:606 Mock agent runs are constructed as structured records, without classifying a hosted program's terminal screen."
+        },
+        {
+          "technique": "pty-management",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/tauri.ts:21 The native adapter forwards typed wallet IPC, without creating or resizing pseudo-terminals."
+        },
+        {
+          "technique": "readiness-edge-detection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/mount.tsx:19 Window startup awaits backend initialization, without detecting a shell input-readiness edge."
+        },
+        {
+          "technique": "renderer-economics",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/modules.tsx:60 Shared module glyphs use SVG markup, without terminal emulator renderers or GPU-context budgets."
+        }
+      ],
+      "withdrawn": {
+        "worker": "d46016b9-2fe9-4f91-be2b-2e44b5dbbfd0",
+        "state": "not-applicable",
+        "at": "2026-10-17T23:11:41.176962+00:00",
+        "reason": "reviewer (sonnet): The not-applicable anchor runtime.ts:55 only shows the mock backend being chosen, so it is incidental and does not show that terminal hosting is absent; most technique anchors are in mock/backend.ts, which is not among the listed context files, so they may be outside this context."
+      }
     }
   }
 }
