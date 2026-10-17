@@ -1848,3 +1848,52 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Evidence:** `docs/security/scan-2026-10-17-join.md`; `crates/table-runtime/src/service.rs`
   (`join_deal`), `dispatcher.rs` (`deal_join` arm), `listing_code_tests.rs`; `crates/table-proto/src/envelope.rs:152-156`;
   `crates/table-app/src/agent.rs:285-295`. Docs only here: no code changed.
+
+
+## 51. A sent invoice past its deadline is never expired unread; a failing read backs off and is then read hourly
+
+- **Date:** 2026-10-17 (fd47716, `crates/table-app/src/rescue.rs`, `rescue_deadline`, the `AwaitingApproval` branch)
+- **Decided by:** Athena as operator delegate 2026-10-17
+- **Constraint:** once an invoice is sent, its real state at PayPal is unknown until it is read: it may
+  already be paid. AGENTS.md forbids silence moving money, so a deadline passing with no answer cannot
+  be taken as "unpaid, expire it". An invoice that cannot be read therefore stays open. The old branch
+  honoured that but re-read every `RESCUE_POLL_SECS` (60 s) with no limit, so a PayPal outage cost one
+  failed call a minute for as long as it lasted (43 200 over the 30-day window).
+- **Decision:**
+  1. **A failed read backs off.** `deadline_read_failed` records the failure count and the next
+     allowed read per `deadline-read:{deal id}`. The wait is `rescue_read_backoff(fails, jitter)`: it
+     doubles from `RESCUE_READ_BACKOFF_SECS` (5 s) up to `RESCUE_READ_BACKOFF_CAP_SECS` (15 min), then
+     falls anywhere in the upper half of that value, chosen by a jitter seeded per request id. It is
+     never shorter than `RESCUE_POLL_SECS` (60 s).
+  2. **After `RESCUE_READ_ATTEMPTS` (8) failures in a row the invoice is parked.** It is read once per
+     `PARKED_READ_SECS` (3600 s, `pipeline/resolve.rs`) from then on. A read that succeeds clears the
+     count, and the invoice resolves as paid or expires as before.
+  3. **Nothing else changes.** A failed read never expires, cancels, sends or counts anything; each
+     failed read still keeps its PayPal call. With no client the invoice waits, as before.
+- **Lost:**
+  - *A fixed 60 s re-read with no cap (the old behaviour).* It hammered a PayPal that was already
+    failing, one kept failed call a minute with no bound.
+  - *Expiring after N failed reads.* It turns "could not read" into "unpaid" and lets silence end the
+    deal. If the invoice was in fact paid, the money is taken and the deal is closed as expired. That
+    is the case AGENTS.md rules out.
+  - *Cancelling the invoice after N failures.* It writes at PayPal on the strength of a state we never
+    saw, so a paid invoice could be acted on blind and the deal and PayPal could disagree. It is also
+    an action nobody approved.
+- **Open:**
+  - **No operator-facing signal that an invoice is parked.** The failure count lives only in
+    `rescue_read_backoff`, an in-memory map; nothing is audited or shown when the count reaches
+    `RESCUE_READ_ATTEMPTS`. The only trace is the kept PayPal call of each failed read. A restart
+    forgets the count, and the first read after it is immediate. Surfacing "parked, still unread" to
+    the owner is not built.
+- **Tests:** `crates/table-app/tests/rescue.rs`:
+  `a_failed_read_at_the_deadline_waits_and_retries_on_the_poll_cadence` (the retry never comes
+  before `RESCUE_POLL_SECS`; the invoice is not expired),
+  `past_the_deadline_a_failing_read_is_bounded_and_the_gaps_grow` (gaps are at least the poll
+  cadence and non-decreasing, reads are bounded by `RESCUE_READ_ATTEMPTS` plus one an hour, nothing
+  is sent or counted), and
+  `after_the_bound_the_deal_is_parked_for_the_owner_and_read_only_hourly` (exactly
+  `RESCUE_READ_ATTEMPTS` reads, then none for an hour less a second, then one per hour; still
+  `AwaitingApproval`).
+- **Evidence:** `crates/table-app/src/rescue.rs` (`RESCUE_READ_*` constants, `rescue_read_backoff`,
+  `deadline_read_failed`), `crates/table-app/src/pipeline/resolve.rs:33`. Docs only here: no code
+  changed.
