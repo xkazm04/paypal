@@ -41,6 +41,12 @@ export type Gates = {
   /** Owner ACCEPT of the counterparty's latest COUNTER on a buyer haggle (deal_owner_accept). */
   ownerAccept: Gate;
   countersign: Gate;
+  /**
+   * The countersign gate is the owner's one read of a lost authorize, not a money approval: the
+   * deal is APPROVED and an authorize is open with PayPal. Rust answers that click with one
+   * read-only call that moves no money. Absent means false.
+   */
+  countersignIsRead?: boolean;
   openPaypal: Gate;
   capture: Gate;
   void: Gate;
@@ -98,6 +104,14 @@ export function checksAllow(summary: Pick<ApprovalSummary, 'checks'>, exempt?: A
 }
 const CHECK_BLOCK = 'A check above failed, so this can’t go ahead.';
 
+/**
+ * An APPROVED deal whose authorize is open (sent, and the wallet could not confirm it). The
+ * countersign on it is a read of PayPal, not an approval (Rust `owner_read_authorize`).
+ */
+export function readsLostAuthorize(summary: Pick<ApprovalSummary, 'deal' | 'evidence'>): boolean {
+  return summary.deal.state === 'APPROVED' && summary.evidence.money_check?.step === 'authorize';
+}
+
 export function isLocked(ctx: Pick<GateContext, 'summary' | 'settingsLocked' | 'lockedByError'>): boolean {
   return ctx.summary.locked || ctx.settingsLocked || ctx.lockedByError;
 }
@@ -145,9 +159,12 @@ export function deriveGates(ctx: GateContext): Gates {
 
   // Countersign: AGREED → create the order, APPROVED → authorize. Owned resources only; a held
   // or blocked shield is released (or not) first; never on a mismatch.
+  // A lost authorize is read, not approved: Rust accepts that countersign with a failing checklist
+  // line or can_release=false (it moves no money), so only the capability and unlock gate it.
+  const countersignIsRead = readsLostAuthorize(summary);
   const countersign = gate(
     owns && !mismatch && !held && (state === 'AGREED' || state === 'APPROVED'),
-    moneyBlock(),
+    countersignIsRead ? privilegedBlock() : moneyBlock(),
   );
 
   // Browser approval: the buyer approves the core-verified order in the system browser. Gated
@@ -183,7 +200,7 @@ export function deriveGates(ctx: GateContext): Gates {
 
   const bandSet = gate(deal.kind === 'haggle' && BAND_MOVABLE.has(state), privilegedBlock());
 
-  return { ownerAccept, countersign, openPaypal, capture, void: voidGate, releaseHold, rescue, withdraw, bandSet };
+  return { ownerAccept, countersign, countersignIsRead, openPaypal, capture, void: voidGate, releaseHold, rescue, withdraw, bandSet };
 }
 
 /** True when any control that can move money (or advance toward it) is clickable. */

@@ -10,7 +10,7 @@ import type { H256 } from '@bindings/H256';
 import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import type { Side } from '@bindings/Side';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
-import { anyMoneyEnabled, checksAllow, decisionArgs, deriveGates, namesMatch, offersOwnerAccept, ownerAcceptArgs, ownsPaypalResource, type GateContext } from './gating';
+import { anyMoneyEnabled, checksAllow, decisionArgs, deriveGates, namesMatch, offersOwnerAccept, ownerAcceptArgs, ownsPaypalResource, readsLostAuthorize, type GateContext } from './gating';
 import { buildStrip, checksTally, derivePhase, marketPercentile, parseMoneyInput } from './model';
 import { buildMandate, draftFrom, newDraft } from './mandateDraft';
 import { nameProblem } from './PairingConfirm';
@@ -601,5 +601,47 @@ describe('deal-state sets come from table-core, never a hand copy', () => {
     expect(gating.isTerminal('CAPTURED')).toBe(false);
     expect(gating.WITHDRAWABLE.has('AUTHORIZED')).toBe(false);
     expect(gating.WITHDRAWABLE.has('APPROVED')).toBe(true);
+  });
+});
+
+describe('countersign on an APPROVED deal with an open authorize is a read, not a money approval', () => {
+  const open = (o: Partial<ApprovalSummary> = {}): ApprovalSummary =>
+    summary({ state: 'APPROVED', side: 'seller' }, {
+      evidence: { deal_id: 'x', receipt: 'NONE', reconciliation: 'not_applicable', money_check: { step: 'authorize', state: 'checking' as const, since: 1, next_check: null } },
+      ...o,
+    });
+  it('is a read gate, enabled with can_release=false', () => {
+    const g = deriveGates(ctx(open({ can_release: false, unavailable_reason: 'nope' })));
+    expect(g.countersignIsRead).toBe(true);
+    expect(g.countersign).toMatchObject({ visible: true, enabled: true, reason: null });
+  });
+  it('is enabled with a failed checklist line', () => {
+    const g = deriveGates(ctx(open({ checks: checks({ fail: ['mandate'] }) })));
+    expect(g.countersignIsRead).toBe(true);
+    expect(g.countersign).toMatchObject({ visible: true, enabled: true });
+  });
+  it('is disabled when locked or without the capability', () => {
+    expect(deriveGates(ctx(open(), { settingsLocked: true })).countersign).toMatchObject({ visible: true, enabled: false });
+    expect(deriveGates(ctx(open({ locked: true }))).countersign.enabled).toBe(false);
+    expect(deriveGates(ctx(open(), { lockedByError: true })).countersign.enabled).toBe(false);
+    expect(deriveGates(ctx(open(), { tokenReady: false })).countersign.enabled).toBe(false);
+  });
+  it('is hidden on a mismatch', () => {
+    const s = open();
+    expect(deriveGates(ctx({ ...s, deal: { ...s.deal, state: 'MISMATCH' } })).countersign.visible).toBe(false);
+  });
+  it('keeps the money gate with no open authorize', () => {
+    const none = summary({ state: 'APPROVED', side: 'seller' });
+    expect(readsLostAuthorize(none)).toBe(false);
+    expect(deriveGates(ctx(none)).countersignIsRead).toBe(false);
+    expect(deriveGates(ctx(none)).countersign).toMatchObject({ visible: true, enabled: true });
+    expect(deriveGates(ctx({ ...none, can_release: false })).countersign.enabled).toBe(false);
+    expect(deriveGates(ctx({ ...none, checks: checks({ fail: ['amount'] }) })).countersign.enabled).toBe(false);
+  });
+  it('a different open step, or another state, is not a read', () => {
+    const cap = open();
+    const create = { ...cap, evidence: { ...cap.evidence, money_check: { step: 'create' as const, state: 'checking' as const, since: 1, next_check: null } } };
+    expect(deriveGates(ctx(create)).countersignIsRead).toBe(false);
+    expect(deriveGates(ctx({ ...cap, deal: { ...cap.deal, state: 'AGREED' } })).countersignIsRead).toBe(false);
   });
 });

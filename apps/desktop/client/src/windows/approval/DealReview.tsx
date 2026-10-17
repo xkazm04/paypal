@@ -26,7 +26,7 @@ import { Countdown, WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Field, HoldButton, Popover, Sheet, layerCount, useFocusRescue, useToast } from '../../shared/ui';
 import { MarkIcon } from './review/Parts';
 import { BandAdjust } from './BandAdjust';
-import { decisionArgs, deriveGates, isLocked, isTerminal, namesMatch, ownerAcceptArgs, type Gate, type Gates } from './gating';
+import { decisionArgs, deriveGates, isLocked, isTerminal, namesMatch, ownerAcceptArgs, readsLostAuthorize, type Gate, type Gates } from './gating';
 import { buildStrip, dealTotal, derivePhase, OFFER_NOT_HERE, failureShown, footerNoticeText, outcomeText, reachedPaypal, refusalText, stateWord, UNLOCK_HEADING, unconfirmedHeading, type DecisionCmd, type Phase } from './model';
 import { buildDiff, buildEvidence, lastAmount, type DiffRow } from './review/diff';
 import { WalletChecks, checksLine } from './review/Checks';
@@ -236,6 +236,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
     }
     const r = await s.call<DecisionCmd>(cmd, args, true);
     if (r.ok) setOutcome(outcomeText(cmd, r.value, cpName));
+    else if (cmd === 'deal_countersign' && reachedPaypal(r.error) && readsLostAuthorize(summary)) setFailure({ what: READ_FAILED, error: r.error, from: summary.deal.state });
     else if (reachedPaypal(r.error)) setFailure({ what: unconfirmedHeading(cmd, summary.deal, r.error), error: r.error, from: summary.deal.state });
     else setFailure({ what: stale(r.error) ? 'Nothing was done' : what, error: r.error, from: null });
     if (cmd === 'shield_release' && r.ok) setTyped('');
@@ -597,6 +598,9 @@ function blockedReason(g: Gates, locked: boolean): string | null {
 }
 
 /** The money actions that are hold-to-confirm (never Open PayPal, Withdraw, Cancel or Close). */
+/** The heading of an owner read of a lost authorize that failed, in place of "Not approved". */
+const READ_FAILED = 'PayPal didn’t answer yet';
+
 export const HOLD_KEYS: ReadonlySet<string> = new Set(['oa', 'cs', 'cap', 'res', 'rel']);
 
 type Act = { key: string; gate: Gate; label: string; kind: 'gold' | 'default' | 'danger' | 'plain'; money: boolean; run: () => void };
@@ -641,7 +645,9 @@ export function Actions(p: {
     // Void moves toward the safe default, but Rust still treats it as a privileged decision.
     if (g.void.visible) safe.push({ key: 'void', gate: g.void, label: wait('deal_void', 'Cancel and release hold'), kind: 'danger', money: false, run: () => p.onDecide('deal_void', 'Hold not released') });
     if (g.ownerAccept.visible) money.push({ key: 'oa', gate: g.ownerAccept, label: wait('deal_owner_accept', word(`Approve ${p.total}`)), kind: 'gold', money: true, run: () => p.onDecide('deal_owner_accept', 'Not approved') });
-    if (g.countersign.visible) money.push({ key: 'cs', gate: g.countersign, label: wait('deal_countersign', word(`Approve ${p.total}`)), kind: 'gold', money: true, run: () => p.onDecide('deal_countersign', 'Not approved') });
+    // A lost authorize is read, not approved: a plain click (not held, not gold), no money moves.
+    if (g.countersign.visible && g.countersignIsRead) quiet.push({ key: 'csr', gate: g.countersign, label: wait('deal_countersign', 'Check with PayPal again'), kind: 'default', money: false, run: () => p.onDecide('deal_countersign', READ_FAILED) });
+    else if (g.countersign.visible) money.push({ key: 'cs', gate: g.countersign, label: wait('deal_countersign', word(`Approve ${p.total}`)), kind: 'gold', money: true, run: () => p.onDecide('deal_countersign', 'Not approved') });
     if (g.openPaypal.visible)
       money.push({ key: 'pp', gate: g.openPaypal, label: wait('open_paypal_in_browser', phase === 'in_browser' ? 'Open PayPal again ↗' : 'Open PayPal in your browser ↗'), kind: phase === 'in_browser' ? 'default' : 'gold', money: true, run: p.onOpen });
     if (g.capture.visible) money.push({ key: 'cap', gate: g.capture, label: wait('deal_capture', p.seller ? word(`Collect ${p.total}`) : word(`Pay ${p.who} ${p.total}`)), kind: 'gold', money: true, run: () => p.onDecide('deal_capture', 'Not paid') });
@@ -835,6 +841,7 @@ function noteFor(phase: Phase, g: Gates, d: Deal, total: string, cp: string): { 
   if (g.openPaypal.visible && phase !== 'in_browser') return { short: 'Opens PayPal’s own page in your browser. You approve there.', full: <p className="pop-p">Only possible when no check above failed. PayPal’s page opens in your own browser, never inside this app. The wallet then checks with PayPal itself that you approved, and never trusts the page you are sent back to.</p> };
   if (g.releaseHold.visible) return { short: 'Unpausing lets the request go on. It doesn’t pay anything.', full: <p className="pop-p">Unpausing turns “Paused for you” into “Check with you”. It doesn’t pay: you still approve the payment itself afterwards.</p> };
   if (g.capture.visible) return { short: d.side === 'seller' ? `Collecting takes the ${total} on hold. Releasing cancels it.` : `Paying sends the ${total} on hold to ${cp}. Releasing cancels it, nothing is paid.`, full: <p className="pop-p">{d.side === 'seller' ? `Collecting takes the ${total} PayPal is holding for you.` : `Paying sends the ${total} PayPal is holding to ${cp}.`} Releasing cancels the hold and nothing is paid. If nobody decides, the hold releases by itself after 3 days.</p> };
+  if (g.countersign.visible && g.countersignIsRead) return { short: 'Asks PayPal once whether the hold went through. No money moves.', full: <p className="pop-p">PayPal’s answer to the hold was lost. This asks PayPal once whether the hold went through. It sends nothing, and no money moves. If PayPal still doesn’t answer, the wallet keeps asking on its own.</p> };
   if (g.countersign.visible) return { short: d.state === 'APPROVED' ? 'Approving puts the money on hold. Paying is a separate step.' : 'Approving creates the PayPal order. No money moves yet.', full: <p className="pop-p">{d.state === 'APPROVED' ? 'Approving puts the money the buyer approved on hold at PayPal. Collecting it comes back to this window as its own decision.' : 'Approving creates the PayPal order from what you agreed. No money moves until the buyer approves on PayPal’s page.'}</p> };
   if (g.rescue.visible) return { short: d.mode === 'replay' ? 'Sends one real invoice. A replayed failure is never counted.' : 'Sends one PayPal invoice to this one subscriber. Nothing is charged.', full: <><p className="pop-p">{RESCUE_APPROVE_DOES}</p>{d.mode === 'replay' ? <p className="pop-p">{RESCUE_REPLAY_NOT_COUNTED}</p> : null}</> };
   return null;
