@@ -120,7 +120,8 @@ pub struct Pipeline {
     /// When each parked capture or void was last read back at its deadline, by request id, so the
     /// read is hourly (`PARKED_READ_SECS`). In memory only: a restart reads at once.
     pub(crate) parked_read: std::collections::BTreeMap<String, Timestamp>,
-    /// Failed read-backs of a lost invoice step, by request id: how many in a row and when the
+    /// Failed read-backs of a lost invoice step or a lost authorize, by request id (and of a sent
+    /// invoice past its deadline, by `deadline-read:{deal id}`): how many in a row and when the
     /// next try is due. In memory only: a restart reads at once and counts from zero (the
     /// terminal needs-attention state itself is the parked resolution row, which is kept).
     pub(crate) rescue_read_backoff: std::collections::BTreeMap<String, (u32, Timestamp)>,
@@ -1333,8 +1334,13 @@ impl Pipeline {
     /// parked one included; while it stays unknown nothing is sent (no void after a capture that
     /// may have gone through), and only an order creation whose payment link never left the
     /// wallet lapses with its deal. An authorize still open (too young to read back, unreadable,
-    /// or showing what no check accepts) keeps the deal from expiring: `Unavailable`, and the
-    /// next tick reads it again. One showing what no check accepts
+    /// or showing what no check accepts) keeps the deal from expiring: `Unavailable`. A read that
+    /// shows something is made again on the next tick; a read that fails is not: the next waits
+    /// out a capped exponential backoff with jitter (never under `RESCUE_POLL_SECS`), then comes
+    /// once per `PARKED_READ_SECS` after `RESCUE_READ_ATTEMPTS` failures in a row, and none comes
+    /// on the wallet's own initiative `PARKED_READ_WINDOW_SECS` past the deadline (the deal stays
+    /// APPROVED and needs the owner; DECISIONS 52). A failed read ends, voids and sends nothing.
+    /// One showing what no check accepts
     /// [`table_ledger::UNREAD_AUTHORIZE_SECS`] after its first attempt ends the deal in the
     /// read-back itself, and nothing is sent. An AUTHORIZED deal whose only open operations are
     /// a parked capture or void that the read-back could not settle (PayPal shows a status no

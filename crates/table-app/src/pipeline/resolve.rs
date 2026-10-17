@@ -26,14 +26,16 @@ pub(crate) const REQUEST_ID_KEPT_SECS: i64 = 6 * 3600;
 /// started: PayPal may still be committing it, and a read that races the commit sees the old
 /// state. A reservation left `pending` by a stopped call has no such wait.
 pub const SETTLE_SECS: i64 = 5;
-/// The least time between two deadline read-backs of one parked capture or void. A parked
-/// step's outcome can change only on PayPal's side, and one read an hour keeps the deadline's
-/// read-back from asking PayPal every second. The time is kept in memory (`Pipeline`), so a
-/// restart reads at once.
+/// The least time between two deadline read-backs of one parked capture or void, and of a lost
+/// authorize whose read failed `RESCUE_READ_ATTEMPTS` times in a row. A parked step's outcome can
+/// change only on PayPal's side, and one read an hour keeps the deadline's read-back from asking
+/// PayPal every second. The time is kept in memory (`Pipeline`), so a restart reads at once.
 pub const PARKED_READ_SECS: i64 = 3600;
 /// The total time the wallet itself keeps reading a parked step on its own, counted from a durable
 /// timestamp (the deal's deadline, or the request id's window ending, whichever starts those
-/// reads), never from in-memory park state. 30 days is the open horizon of a sent rescue invoice
+/// reads), never from in-memory park state. A lost authorize is read past its deal's deadline for
+/// this long too, counted from that deadline; after it the deal stays APPROVED with the step open
+/// and needs the owner (DECISIONS 52). 30 days is the open horizon of a sent rescue invoice
 /// (`RESCUE_INVOICE_OPEN_SECS`): an invoice PayPal could not be read about for that long past its
 /// deadline is an outage or a lost cause, and 720 hourly reads are all it costs. After it the
 /// deal stays parked and needs the owner, who can still ask for a read; nothing is expired.
@@ -105,9 +107,13 @@ impl Pipeline {
     /// capture or void once the deal's deadline passed: it is read back under
     /// [`Resolve::Deadline`], which grants nothing, so the safe default can settle it by what
     /// PayPal shows. A parked capture or void is read back at most once per
-    /// [`PARKED_READ_SECS`] (a parked authorize on every tick); one skipped for that is passed
-    /// over like any parked step. `Ok(true)` when nothing is left open, so the deal's next step
-    /// may run.
+    /// [`PARKED_READ_SECS`]. An authorize whose read failed waits out the rescue path's backoff
+    /// (`deadline_read_failed`: capped exponential with per-request-id jitter, never under
+    /// `RESCUE_POLL_SECS`, and once per [`PARKED_READ_SECS`] after `RESCUE_READ_ATTEMPTS`
+    /// failures in a row); a read that succeeds clears it. Past the deal's deadline the wallet's
+    /// own reads of an authorize end [`PARKED_READ_WINDOW_SECS`] after that deadline (a durable
+    /// time, so a restart does not reopen it). One skipped for any of these is passed over like
+    /// any parked step. `Ok(true)` when nothing is left open, so the deal's next step may run.
     pub async fn resolve_deal(
         &mut self,
         id: DealId,
@@ -115,6 +121,12 @@ impl Pipeline {
         now: Timestamp,
     ) -> Result<bool, Error> {
         let at_deadline = self.deadline_passed(id, mode, now)?;
+        let window_closed = at_deadline
+            && self
+                .wallet
+                .ledger
+                .deadline(id)?
+                .is_some_and(|(due, _)| now.saturating_sub(due) >= PARKED_READ_WINDOW_SECS);
         for op in self.open_operations(Some(id), now)? {
             if op.needs_owner
                 && !(at_deadline && matches!(op.operation, "authorize" | "capture" | "void"))
@@ -134,6 +146,17 @@ impl Pipeline {
                 }
                 // Recorded before the read, so a read that fails is throttled too.
                 self.parked_read.insert(op.request_id.clone(), now);
+            }
+            // A lost authorize whose read failed waits out its backoff (hourly once parked), and
+            // past the window only the owner can have it read: it stays open, never ended unread.
+            if op.operation == "authorize"
+                && (window_closed
+                    || self
+                        .rescue_read_backoff
+                        .get(&op.request_id)
+                        .is_some_and(|(_, next)| now < *next))
+            {
+                continue;
             }
             self.resolve_one(&op, mode, now).await?;
         }
@@ -397,9 +420,18 @@ impl Pipeline {
             return self.park(deal, op, "none", &[], now);
         };
         let resource = ResourceId::new(order_id.as_str()).map_err(|_| Error::Invalid)?;
+        // A failed read is never taken as an answer: it keeps its PayPal call (`defer`) and only
+        // pushes the next read out (the rescue path's backoff, then hourly). It ends, voids,
+        // sends and counts nothing; the deal stays APPROVED with the step open.
         let r = match self.api.get_order(&resource).await {
-            Ok(r) => r,
-            Err(e) => return self.defer(deal, op, &e, now),
+            Ok(r) => {
+                self.rescue_read_backoff.remove(&op.request_id);
+                r
+            }
+            Err(e) => {
+                self.deadline_read_failed(&op.request_id, now);
+                return self.defer(deal, op, &e, now);
+            }
         };
         if let Some(authorization) =
             self.verified_authorization(deal, op.attempt, &order_id, &r.value)?
