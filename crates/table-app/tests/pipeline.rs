@@ -2681,7 +2681,8 @@ async fn deadline_waits_for_an_unsettled_authorize_before_expiring() {
     }
 
     // A parked authorize PayPal cannot be read for at the deadline: the hold stays in question,
-    // so the deal waits; the next readable tick settles it.
+    // so the deal waits; the next read, once its backoff (at least RESCUE_POLL_SECS) has passed,
+    // settles it.
     let api = LossyApi::losing("authorize", Loss::Before);
     let (mut p, deal, token) = owner_approved_on(&api).await;
     let t = owner_ticket(&mut p, &deal, &token);
@@ -2697,6 +2698,7 @@ async fn deadline_waits_for_an_unsettled_authorize_before_expiring() {
     );
     api.truth.lock().unwrap().created = false;
     let due = 100 + ORDER_APPROVAL_SECS;
+    let gets = api.calls("GET /v2/checkout/orders/ORDER1");
     for at in [due, due + 1] {
         assert!(matches!(
             p.tick(at).await,
@@ -2708,7 +2710,12 @@ async fn deadline_waits_for_an_unsettled_authorize_before_expiring() {
         );
     }
     api.truth.lock().unwrap().created = true;
-    assert_eq!(p.tick(due + 2).await.unwrap(), vec![deal.id]);
+    assert_eq!(
+        api.calls("GET /v2/checkout/orders/ORDER1"),
+        gets + 1,
+        "a failed read backs off"
+    );
+    assert_eq!(p.tick(due + RESCUE_POLL_SECS).await.unwrap(), vec![deal.id]);
     assert_eq!(
         p.wallet.ledger.get_deal(deal.id).unwrap().state,
         DealState::Expired
@@ -2863,6 +2870,284 @@ async fn a_parked_authorize_paypal_never_shows_readably_ends_at_its_bound_and_se
         assert_eq!(api.calls("/void"), 0, "{case}");
         assert_eq!(money_rows(&p), 0, "{case}: no money call recorded");
         assert!(api.commits().keys().all(|r| r != authorize.as_str()));
+        p.wallet.ledger.verify_audit().unwrap();
+    }
+}
+
+/// The hourly read of a parked step (`PARKED_READ_SECS`, crate-private).
+const PARKED_READ: i64 = 3600;
+/// The total time the wallet reads a parked step on its own (`PARKED_READ_WINDOW_SECS`,
+/// crate-private).
+const READ_WINDOW: i64 = 30 * 86400;
+
+/// A lost authorize (its answer never came, PayPal never committed it) whose order PayPal now
+/// answers with a 404 on every read, and the order's deadline. `parked`: the owner's authorize,
+/// parked before the deadline; otherwise the seller's own, never read before it.
+async fn unreadable_authorize(parked: bool) -> (Arc<LossyApi>, Pipeline, Deal, Timestamp) {
+    let api = LossyApi::losing("authorize", Loss::Before);
+    let (mut p, deal) = if parked {
+        let (mut p, deal, token) = owner_approved_on(&api).await;
+        let t = owner_ticket(&mut p, &deal, &token);
+        assert!(
+            p.authorize(deal.id, 1, Category::Parts, Authority::Owner(t), 100)
+                .await
+                .is_err()
+        );
+        assert!(
+            !p.resolve_deal(deal.id, Resolve::Advance(Category::Parts), 110)
+                .await
+                .unwrap()
+        );
+        assert_eq!(outcomes_of(&p, deal.id, "authorize"), ["needs_owner"]);
+        (p, deal)
+    } else {
+        let (_, seller, deal) = agreed();
+        let mut p = Pipeline::new(seller, api.clone(), 100).unwrap();
+        p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+            .await
+            .unwrap();
+        api.approve();
+        assert!(p.poll_approval(deal.id, 1, 100).await.unwrap());
+        assert!(
+            p.authorize(deal.id, 1, Category::Parts, Authority::SellerMandate, 110)
+                .await
+                .is_err()
+        );
+        assert!(outcomes_of(&p, deal.id, "authorize").is_empty());
+        (p, deal)
+    };
+    api.truth.lock().unwrap().created = false;
+    p.set_rescue_jitter_seed(7);
+    (api, p, deal, 100 + ORDER_APPROVAL_SECS)
+}
+
+fn order_reads(api: &LossyApi) -> usize {
+    api.calls("GET /v2/checkout/orders/ORDER1")
+}
+
+/// Every PayPal write that reached PayPal, and every money call the ledger recorded.
+fn writes(api: &LossyApi, p: &Pipeline, id: DealId) -> (usize, usize) {
+    let posts = {
+        let truth = api.truth.lock().unwrap();
+        truth.calls.iter().filter(|c| c.starts_with("POST")).count()
+    };
+    let money = p
+        .wallet
+        .ledger
+        .paypal_call_requests(id)
+        .unwrap()
+        .into_iter()
+        .filter(|(_, path, _)| {
+            path.ends_with("/authorize") || path.ends_with("/capture") || path.ends_with("/void")
+        })
+        .count();
+    (posts, money)
+}
+
+/// One tick while the authorize is unread: the deal waits (`Unavailable`), still APPROVED, and
+/// its step was never taken as captured, voided, expired or failed. `true` when it read PayPal.
+async fn tick_unread(p: &mut Pipeline, api: &LossyApi, id: DealId, at: Timestamp) -> bool {
+    let before = order_reads(api);
+    assert!(
+        matches!(p.tick(at).await, Err(table_app::Error::Unavailable)),
+        "at {at}"
+    );
+    assert_eq!(
+        p.wallet.ledger.get_deal(id).unwrap().state,
+        DealState::Approved,
+        "at {at}"
+    );
+    assert!(
+        outcomes_of(p, id, "authorize")
+            .iter()
+            .all(|o| o == "needs_owner" || o == "deferred"),
+        "at {at}"
+    );
+    order_reads(api) > before
+}
+
+/// Agent-gated-spend round-3 economics: past the deadline a lost authorize whose read keeps
+/// failing is not read on every tick. The reads back off (gaps at least RESCUE_POLL_SECS and
+/// never shrinking), and after RESCUE_READ_ATTEMPTS failures in a row it is read once an hour:
+/// exactly that many reads, then none for an hour less a second, then one. The deal stays
+/// APPROVED and nothing is sent or recorded as money.
+#[tokio::test]
+async fn past_the_deadline_a_failing_authorize_read_backs_off_then_is_read_hourly() {
+    for parked in [true, false] {
+        let case = format!("parked before the deadline: {parked}");
+        let (api, mut p, deal, due) = unreadable_authorize(parked).await;
+        let sent = writes(&api, &p, deal.id);
+        let n = RESCUE_READ_ATTEMPTS as usize;
+        // Every second through the backoff; a read falls on the first tick after it is due, so
+        // past it a tick every 59 s plus the hour's last two seconds misses none.
+        let mut reads = Vec::new();
+        let mut at = due;
+        while reads.len() < n && at < due + PARKED_READ {
+            if tick_unread(&mut p, &api, deal.id, at).await {
+                reads.push(at);
+            }
+            at += 1;
+        }
+        assert_eq!(reads.len(), n, "{case}: {reads:?}");
+        for _ in 0..2 {
+            let last = reads[reads.len() - 1];
+            let hour = (last + 1..last + PARKED_READ - 1)
+                .step_by(59)
+                .chain([last + PARKED_READ - 1, last + PARKED_READ]);
+            for at in hour {
+                if tick_unread(&mut p, &api, deal.id, at).await {
+                    reads.push(at);
+                }
+            }
+        }
+        assert_eq!(reads[0], due, "{case}: read at the deadline");
+        assert_eq!(reads.len(), n + 2, "{case}: {reads:?}");
+        let gaps: Vec<i64> = reads.windows(2).map(|w| w[1] - w[0]).collect();
+        assert!(
+            gaps.iter().all(|g| *g >= RESCUE_POLL_SECS),
+            "{case}: never under the floor {gaps:?}"
+        );
+        assert!(
+            gaps.windows(2).all(|w| w[1] >= w[0]),
+            "{case}: gaps never shrink {gaps:?}"
+        );
+        // After the Nth failure: none for an hour less a second, then one, hourly.
+        assert_eq!(gaps[n - 1], PARKED_READ, "{case}: {gaps:?}");
+        assert_eq!(gaps[n], PARKED_READ, "{case}: {gaps:?}");
+        assert_eq!(writes(&api, &p, deal.id), sent, "{case}: nothing sent");
+        assert_eq!(api.calls("/void"), 0, "{case}");
+        assert_eq!(api.calls("/capture"), 0, "{case}");
+        p.wallet.ledger.verify_audit().unwrap();
+    }
+}
+
+/// Agent-gated-spend round-3 economics: the wallet's own reads of a lost authorize end
+/// PARKED_READ_WINDOW_SECS after the deal's deadline, a durable time, so a restart past it does
+/// not read either (one inside it reads at once: the backoff is in memory). Past the window PayPal
+/// would answer, but nothing reads it: the deal stays APPROVED with its step open, nothing is
+/// sent, and it never expires unread.
+#[tokio::test]
+async fn a_failing_authorize_is_read_only_inside_the_window_and_a_restart_does_not_reopen_it() {
+    for parked in [true, false] {
+        let case = format!("parked before the deadline: {parked}");
+        let (api, mut p, deal, due) = unreadable_authorize(parked).await;
+        let sent = writes(&api, &p, deal.id);
+        assert!(tick_unread(&mut p, &api, deal.id, due).await, "{case}");
+        assert!(!tick_unread(&mut p, &api, deal.id, due + 1).await, "{case}");
+        // A restart inside the window reads at once (the control).
+        let mut p = Pipeline::new(p.wallet, api.clone(), due + 2).unwrap();
+        p.set_rescue_jitter_seed(7);
+        assert!(tick_unread(&mut p, &api, deal.id, due + 3).await, "{case}");
+        // The last second of the window still reads; from its end on, nothing does.
+        assert!(
+            tick_unread(&mut p, &api, deal.id, due + READ_WINDOW - 1).await,
+            "{case}"
+        );
+        api.truth.lock().unwrap().created = true;
+        for at in [
+            due + READ_WINDOW,
+            due + READ_WINDOW + PARKED_READ,
+            due + READ_WINDOW + 7 * 86400,
+        ] {
+            assert!(
+                !tick_unread(&mut p, &api, deal.id, at).await,
+                "{case} at {at}"
+            );
+        }
+        // A restart past the window does not reopen it.
+        let after = due + READ_WINDOW + 8 * 86400;
+        let mut p = Pipeline::new(p.wallet, api.clone(), after).unwrap();
+        for at in [after + 1, after + 2, after + PARKED_READ + 1] {
+            assert!(
+                !tick_unread(&mut p, &api, deal.id, at).await,
+                "{case} at {at}"
+            );
+        }
+        assert!(p.has_open_operation(deal.id).unwrap(), "{case}");
+        assert_eq!(writes(&api, &p, deal.id), sent, "{case}: nothing sent");
+        assert_eq!(api.calls("/void"), 0, "{case}");
+        p.wallet.ledger.verify_audit().unwrap();
+    }
+}
+
+/// Agent-gated-spend round-3 economics: a read that succeeds after failures clears the count,
+/// and what it shows is applied as before. Here: RESCUE_READ_ATTEMPTS failures (hourly from then
+/// on), then a read showing a record no check accepts (parked, read again on the next tick), then
+/// one more failure that backs off from the start (RESCUE_POLL_SECS, not an hour), then the
+/// authorization PayPal holds, which is confirmed: the deal is AUTHORIZED with its honor period,
+/// and nothing was sent.
+#[tokio::test]
+async fn a_read_that_succeeds_after_failures_clears_the_count_and_settles_as_before() {
+    for parked in [true, false] {
+        let case = format!("parked before the deadline: {parked}");
+        let (api, mut p, deal, due) = unreadable_authorize(parked).await;
+        let sent = writes(&api, &p, deal.id);
+        let mut reads = Vec::new();
+        let mut at = due;
+        while reads.len() < RESCUE_READ_ATTEMPTS as usize {
+            if tick_unread(&mut p, &api, deal.id, at).await {
+                reads.push(at);
+            }
+            at += 1;
+        }
+        let nth = reads[reads.len() - 1];
+        // Parked hourly: PayPal answers again, with a record no check accepts.
+        {
+            let mut truth = api.truth.lock().unwrap();
+            truth.created = true;
+            truth.authorization = Some("PENDING");
+        }
+        assert!(
+            !tick_unread(&mut p, &api, deal.id, nth + PARKED_READ - 1).await,
+            "{case}"
+        );
+        assert!(
+            tick_unread(&mut p, &api, deal.id, nth + PARKED_READ).await,
+            "{case}"
+        );
+        // The count is cleared: a read that shows something is made on every tick, as before.
+        let back = nth + PARKED_READ;
+        assert!(tick_unread(&mut p, &api, deal.id, back + 1).await, "{case}");
+        // A new failure backs off from the first step, not hourly.
+        api.truth.lock().unwrap().created = false;
+        assert!(tick_unread(&mut p, &api, deal.id, back + 2).await, "{case}");
+        assert!(
+            !tick_unread(&mut p, &api, deal.id, back + 3).await,
+            "{case}"
+        );
+        {
+            let mut truth = api.truth.lock().unwrap();
+            truth.created = true;
+            truth.authorization = Some("CREATED");
+        }
+        assert!(
+            !tick_unread(&mut p, &api, deal.id, back + 1 + RESCUE_POLL_SECS).await,
+            "{case}"
+        );
+        let settle = back + 2 + RESCUE_POLL_SECS;
+        let reads_before = order_reads(&api);
+        assert_eq!(p.tick(settle).await.unwrap(), vec![deal.id], "{case}");
+        assert_eq!(order_reads(&api), reads_before + 1, "{case}");
+        let d = p.wallet.ledger.get_deal(deal.id).unwrap();
+        assert_eq!(d.state, DealState::Authorized, "{case}");
+        assert_eq!(d.paypal.authorization.as_deref(), Some("AUTH1"), "{case}");
+        let started = if parked { 100 } else { 110 };
+        assert_eq!(
+            p.wallet.ledger.deadline(deal.id).unwrap().unwrap().0,
+            started + 72 * 3600,
+            "{case}"
+        );
+        assert_eq!(
+            outcomes_of(&p, deal.id, "authorize")
+                .last()
+                .map(String::as_str),
+            Some("confirmed"),
+            "{case}"
+        );
+        assert!(!p.has_open_operation(deal.id).unwrap(), "{case}");
+        assert_eq!(writes(&api, &p, deal.id), sent, "{case}: nothing sent");
+        assert_eq!(api.calls("/void"), 0, "{case}");
+        assert_eq!(api.calls("/capture"), 0, "{case}");
         p.wallet.ledger.verify_audit().unwrap();
     }
 }

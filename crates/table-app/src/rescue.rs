@@ -846,11 +846,13 @@ impl Pipeline {
         Ok(false)
     }
 
-    /// A read of a sent invoice past its deadline failed (its PayPal call is already kept). The
-    /// next read waits out a capped exponential backoff with jitter, never shorter than the poll
-    /// cadence. At [`RESCUE_READ_ATTEMPTS`] failures in a row the deal is parked and read once
-    /// per [`PARKED_READ_SECS`] from then on. Nothing is expired, cancelled, sent or counted.
-    fn deadline_read_failed(&mut self, key: &str, now: Timestamp) {
+    /// A read past a deadline failed (its PayPal call is already kept): a sent invoice's, keyed
+    /// `deadline-read:{deal id}`, or a lost authorize's order, keyed by its request id
+    /// (`resolve_authorize`, which counts its failed reads before the deadline too). The next read waits out a capped exponential backoff with jitter,
+    /// never shorter than the poll cadence ([`RESCUE_POLL_SECS`]). At [`RESCUE_READ_ATTEMPTS`]
+    /// failures in a row it is parked and read once per [`PARKED_READ_SECS`] from then on.
+    /// Nothing is expired, cancelled, sent, voided or counted.
+    pub(crate) fn deadline_read_failed(&mut self, key: &str, now: Timestamp) {
         let before = self.rescue_read_backoff.get(key).map_or(0, |(n, _)| *n);
         let fails = (before + 1).min(RESCUE_READ_ATTEMPTS);
         let wait = if fails >= RESCUE_READ_ATTEMPTS {
