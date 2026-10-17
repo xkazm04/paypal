@@ -107,7 +107,7 @@ describe('joining while the initiator has not revealed yet', () => {
       await settle(JOIN_RETRY_MS);
     }
     expect(calls.n).toBe(JOIN_ATTEMPTS);
-    expect(await screen.findByText(/not available yet/i)).toBeTruthy();
+    expect(await screen.findByText(/pairing offer is not available yet/i)).toBeTruthy();
     await settle(JOIN_RETRY_MS * 3);
     expect(calls.n).toBe(JOIN_ATTEMPTS);
   });
