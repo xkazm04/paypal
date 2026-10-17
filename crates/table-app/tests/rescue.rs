@@ -1537,3 +1537,86 @@ async fn a_bad_ticket_reads_nothing_past_the_deadline_or_the_window() {
     assert_eq!(r.pp.get(|w| w.reads), reads);
     assert_eq!(r.state(id), DealState::AwaitingApproval);
 }
+
+/// DECISIONS 52b eviction: with the read schedule capped at three entries per map, six sent
+/// invoices whose reads fail past their deadline keep every map at the cap, and a deal whose entry
+/// the cap dropped is never read sooner for it: every deal's reads stay at least RESCUE_POLL_SECS
+/// apart (the floor), never on the next 1 s tick. Nothing is expired, sent or written meanwhile.
+#[tokio::test]
+async fn the_read_schedule_holds_its_cap_and_a_dropped_deal_is_not_read_sooner() {
+    let mut r = rig();
+    r.p.set_rescue_jitter_seed(5);
+    r.p.set_read_state_cap(3);
+    let ids: Vec<DealId> = (1..=6)
+        .map(|n| r.open(n, RescueSource::Paypal).id)
+        .collect();
+    for id in &ids {
+        r.approve(*id, T0).await.unwrap();
+    }
+    let due = T0 + RESCUE_INVOICE_OPEN_SECS;
+    let (writes, posts) = (r.writes(), r.posts());
+    r.pp.set(|w| w.reads_fail = true);
+    let mut reads: BTreeMap<DealId, Vec<Timestamp>> = BTreeMap::new();
+    let mut full = false;
+    for at in due..due + 1800 {
+        for id in &ids {
+            let before = r.calls(*id);
+            assert!(!r.p.rescue_tick(*id, at).await.unwrap());
+            if r.calls(*id) > before {
+                reads.entry(*id).or_default().push(at);
+            }
+            let (polled, parked, backoff) = r.p.read_state_len();
+            assert!(
+                polled <= 3 && parked <= 3 && backoff <= 3,
+                "at {at}: {polled} {parked} {backoff}"
+            );
+            full |= backoff == 3;
+        }
+    }
+    assert!(full, "the cap was reached, so entries were dropped");
+    assert!(reads.len() > 3, "more deals were read than the cap holds");
+    for (id, times) in &reads {
+        let gaps: Vec<i64> = times.windows(2).map(|w| w[1] - w[0]).collect();
+        assert!(
+            gaps.iter().all(|g| *g >= RESCUE_POLL_SECS),
+            "{id}: never under the floor {gaps:?}"
+        );
+    }
+    for id in &ids {
+        assert_eq!(r.state(*id), DealState::AwaitingApproval);
+    }
+    assert_eq!((r.writes(), r.posts()), (writes, posts));
+}
+
+/// DECISIONS 52b eviction: a rescue deal that ends, or stops awaiting payment, leaves nothing in
+/// the read schedule: a paid invoice (RECEIPTED), and one past its deadline whose failed read was
+/// counted, then read unpaid (EXPIRED).
+#[tokio::test]
+async fn a_rescue_deal_that_settles_leaves_no_read_state() {
+    let mut r = rig();
+    let id = r.open(1, RescueSource::Paypal).id;
+    r.approve(id, T0).await.unwrap();
+    r.p.rescue_tick(id, T0 + 1).await.unwrap();
+    assert!(r.p.read_state_of(id) > 0, "polled on its cadence");
+    r.pp.pay("PAID");
+    assert!(r.p.rescue_tick(id, T0 + 3600).await.unwrap());
+    assert_eq!(r.state(id), DealState::Receipted);
+    assert_eq!(r.p.read_state_of(id), 0);
+    assert_eq!(r.p.read_state_len(), (0, 0, 0));
+
+    let mut r = rig();
+    let id = r.open(1, RescueSource::Paypal).id;
+    r.approve(id, T0).await.unwrap();
+    let due = T0 + RESCUE_INVOICE_OPEN_SECS;
+    r.pp.set(|w| w.reads_fail = true);
+    assert!(!r.p.rescue_tick(id, due).await.unwrap());
+    assert!(
+        r.p.read_state_of(id) >= 2,
+        "the poll and the failed deadline read"
+    );
+    r.pp.set(|w| w.reads_fail = false);
+    assert!(r.p.rescue_tick(id, due + 3600).await.unwrap());
+    assert_eq!(r.state(id), DealState::Expired);
+    assert_eq!(r.p.read_state_of(id), 0);
+    assert_eq!(r.p.read_state_len(), (0, 0, 0));
+}

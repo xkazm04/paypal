@@ -653,7 +653,7 @@ impl Pipeline {
         let api = self.invoicing()?;
         let invoice = ResourceId::new(deal.paypal.order.clone().ok_or(Error::Invalid)?)
             .map_err(|_| Error::Invalid)?;
-        self.rescue_polled.insert(id, now);
+        self.note_rescue_polled(id, now);
         let r = match api.get_invoice(&invoice).await {
             Ok(r) => r,
             Err(e) => {
@@ -715,7 +715,15 @@ impl Pipeline {
 
     /// One scheduler pass over a rescue deal: read back a lost step, apply a due deadline, or
     /// read a sent invoice on its cadence. Never starts a create or a send.
+    /// The deal's read-schedule entries that no longer govern a read are dropped after it
+    /// (`prune_read_state`).
     pub async fn rescue_tick(&mut self, id: DealId, now: Timestamp) -> Result<bool, Error> {
+        let result = self.rescue_tick_once(id, now).await;
+        self.prune_read_state(id, now)?;
+        result
+    }
+
+    async fn rescue_tick_once(&mut self, id: DealId, now: Timestamp) -> Result<bool, Error> {
         let deal = self.wallet.ledger.get_deal(id)?;
         if deal.kind != DealKind::Rescue
             || deal.state.terminal()
@@ -740,10 +748,10 @@ impl Pipeline {
             return self.rescue_deadline(id, now).await;
         }
         let every = self.rescue_poll_every(id, now)?;
-        let due_poll = self
-            .rescue_polled
-            .get(&id)
-            .is_none_or(|at| now.saturating_sub(*at) >= every);
+        let due_poll = self.rescue_polled.get(&id).map_or_else(
+            || !self.read_floor_holds(now),
+            |at| now.saturating_sub(*at) >= every,
+        );
         if deal.state == DealState::AwaitingApproval && due_poll && self.secondary.is_some() {
             return self.rescue_poll(id, now).await;
         }
@@ -816,10 +824,10 @@ impl Pipeline {
                 .rescue_read_backoff
                 .get(&key)
                 .is_some_and(|(_, next)| now < *next);
-            let due_poll = self
-                .rescue_polled
-                .get(&id)
-                .is_none_or(|at| now.saturating_sub(*at) >= RESCUE_POLL_SECS);
+            let due_poll = self.rescue_polled.get(&id).map_or_else(
+                || !self.read_floor_holds(now),
+                |at| now.saturating_sub(*at) >= RESCUE_POLL_SECS,
+            );
             if waits || !due_poll {
                 return Ok(false);
             }
@@ -847,11 +855,13 @@ impl Pipeline {
     }
 
     /// A read past a deadline failed (its PayPal call is already kept): a sent invoice's, keyed
-    /// `deadline-read:{deal id}`, or a lost authorize's order, keyed by its request id
-    /// (`resolve_authorize`, which counts its failed reads before the deadline too). The next read waits out a capped exponential backoff with jitter,
-    /// never shorter than the poll cadence ([`RESCUE_POLL_SECS`]). At [`RESCUE_READ_ATTEMPTS`]
-    /// failures in a row it is parked and read once per [`PARKED_READ_SECS`] from then on.
-    /// Nothing is expired, cancelled, sent, voided or counted.
+    /// `deadline-read:{deal id}`, or a lost authorize's order or a lost capture or void's
+    /// authorization, keyed by its request id (`resolve_authorize`, `resolve_payment`, which count
+    /// their failed reads before the deadline too). The next read waits out a capped exponential
+    /// backoff with jitter, never shorter than the poll cadence ([`RESCUE_POLL_SECS`]). At
+    /// [`RESCUE_READ_ATTEMPTS`] failures in a row it is parked and read once per
+    /// [`PARKED_READ_SECS`] from then on. Nothing is expired, cancelled, sent, voided or counted.
+    /// The entry is bounded (`note_read_backoff`, DECISIONS 52b).
     pub(crate) fn deadline_read_failed(&mut self, key: &str, now: Timestamp) {
         let before = self.rescue_read_backoff.get(key).map_or(0, |(n, _)| *n);
         let fails = (before + 1).min(RESCUE_READ_ATTEMPTS);
@@ -861,8 +871,7 @@ impl Pipeline {
             let jitter = jitter_of(self.rescue_jitter_seed, key, fails);
             rescue_read_backoff(fails, jitter).max(RESCUE_POLL_SECS)
         };
-        self.rescue_read_backoff
-            .insert(key.to_owned(), (fails, now.saturating_add(wait)));
+        self.note_read_backoff(key, (fails, now.saturating_add(wait)), now);
     }
 
     /// Reads back every open invoice step of a rescue deal, oldest first, and stops at the first
@@ -898,25 +907,26 @@ impl Pipeline {
                 if now.saturating_sub(began) >= PARKED_READ_WINDOW_SECS {
                     continue;
                 }
-                let recent = self
-                    .parked_read
-                    .get(&op.request_id)
-                    .is_some_and(|last| now < last.saturating_add(PARKED_READ_SECS));
+                let recent = self.parked_read.get(&op.request_id).map_or_else(
+                    || self.read_floor_holds(now),
+                    |last| now < last.saturating_add(PARKED_READ_SECS),
+                );
                 if recent {
                     continue;
                 }
                 // Recorded before the read, so a read that fails is throttled too.
-                self.parked_read.insert(op.request_id.clone(), now);
+                self.note_parked_read(&op.request_id, now);
             }
             if !op.pending && ticket.is_none() && now < op.started_at.saturating_add(SETTLE_SECS) {
                 break;
             }
-            // A step whose last read failed waits out its backoff; an owner ticket does not.
+            // A step whose last read failed waits out its backoff; an owner ticket does not. With
+            // no entry it waits only for the floor after the cap dropped one.
             if ticket.is_none()
                 && self
                     .rescue_read_backoff
                     .get(&op.request_id)
-                    .is_some_and(|(_, next)| now < *next)
+                    .map_or_else(|| self.read_floor_holds(now), |(_, next)| now < *next)
             {
                 break;
             }
@@ -1171,12 +1181,13 @@ impl Pipeline {
             return self.park(deal, op, "none", observations, now);
         }
         let jitter = jitter_of(self.rescue_jitter_seed, &op.request_id, fails);
-        self.rescue_read_backoff.insert(
-            op.request_id.clone(),
+        self.note_read_backoff(
+            &op.request_id,
             (
                 fails,
                 now.saturating_add(rescue_read_backoff(fails, jitter)),
             ),
+            now,
         );
         self.wait(deal, op, observations, now)
     }
