@@ -1377,14 +1377,15 @@ async fn a_sent_invoice_is_read_only_inside_the_window_and_a_restart_does_not_re
     r.p.rescue_tick(id, due + 10 * 86400).await.unwrap();
     assert_eq!(r.pp.get(|w| w.reads), reads + 1);
     assert_eq!(r.state(id), DealState::AwaitingApproval);
-    assert_eq!((r.writes(), r.posts()), (writes, posts));
-    // The owner has no door to this read: a sent invoice past its deadline refuses an approval.
+    assert_eq!((r.writes(), r.posts()), (writes.clone(), posts.clone()));
+    // The owner's ticket is the one door to a read past the window (see the owner-read tests).
     let at = due + READ_WINDOW + 86400;
     r.p.approval
         .unlock("approval", &r.token, &Reauth, at)
         .unwrap();
     assert!(r.approve(id, at).await.is_err());
-    assert_eq!(r.pp.get(|w| w.reads), reads + 1);
+    assert_eq!(r.pp.get(|w| w.reads), reads + 2);
+    assert_eq!((r.writes(), r.posts()), (writes, posts));
 }
 
 /// A parked lost send is read hourly inside the window and never after it; it stays parked and
@@ -1430,4 +1431,119 @@ async fn a_parked_lost_send_is_read_only_inside_the_window_and_the_owner_can_sti
     assert_eq!(r.state(id), DealState::Settling);
     assert!(r.p.has_open_operation(id).unwrap());
     assert_eq!((r.writes(), r.posts()), (writes, posts));
+}
+
+impl Rig {
+    /// A sent invoice, its deadline, and the clock `days` past it with the owner unlocked.
+    async fn sent_past_deadline(&mut self, days: i64) -> (DealId, Timestamp) {
+        let id = self.open(1, RescueSource::Paypal).id;
+        self.approve(id, T0).await.unwrap();
+        let at = T0 + RESCUE_INVOICE_OPEN_SECS + days * 86400;
+        self.p
+            .approval
+            .unlock("approval", &self.token, &Reauth, at)
+            .unwrap();
+        (id, at)
+    }
+}
+
+/// The owner's ticket reads a sent invoice 31 days past its deadline, where the wallet reads
+/// nothing, and the ledger records what PayPal reports (PAID: the receipt).
+#[tokio::test]
+async fn an_owner_ticket_reads_a_sent_invoice_past_the_window_and_records_paid() {
+    let mut r = rig();
+    let (id, at) = r.sent_past_deadline(31).await;
+    let (writes, posts, reads) = (r.writes(), r.posts(), r.pp.get(|w| w.reads));
+    assert!(!r.p.rescue_tick(id, at).await.unwrap());
+    assert_eq!(r.pp.get(|w| w.reads), reads);
+    r.pp.pay("PAID");
+    r.approve(id, at).await.unwrap();
+    assert_eq!(r.pp.get(|w| w.reads), reads + 1);
+    assert_eq!(r.state(id), DealState::Receipted);
+    assert_eq!((r.writes(), r.posts()), (writes, posts));
+}
+
+/// An unpaid (SENT) answer is recorded, nothing is cancelled or expired, and only a GET reached
+/// the wire.
+#[tokio::test]
+async fn an_owner_read_that_finds_the_invoice_unpaid_changes_nothing_and_only_reads() {
+    let mut r = rig();
+    let (id, at) = r.sent_past_deadline(31).await;
+    let (writes, posts, reads, calls) = (
+        r.writes(),
+        r.posts(),
+        r.pp.get(|w| w.reads),
+        r.calls(id),
+    );
+    r.approve(id, at).await.unwrap();
+    assert_eq!(r.pp.get(|w| w.reads), reads + 1);
+    assert_eq!(r.calls(id), calls + 1);
+    assert_eq!(r.state(id), DealState::AwaitingApproval);
+    assert_eq!((r.writes(), r.posts()), (writes, posts));
+    assert_eq!(r.pp.get(|w| w.searches), 0);
+}
+
+/// A read that fails is `Unavailable`, its call is kept, and the deal is neither parked nor
+/// expired; the next ticket may read again.
+#[tokio::test]
+async fn an_owner_read_that_fails_is_unavailable_keeps_its_call_and_leaves_the_deal_open() {
+    let mut r = rig();
+    let (id, at) = r.sent_past_deadline(31).await;
+    let (writes, posts, reads, calls) = (
+        r.writes(),
+        r.posts(),
+        r.pp.get(|w| w.reads),
+        r.calls(id),
+    );
+    r.pp.set(|w| w.reads_fail = true);
+    assert!(matches!(
+        r.approve(id, at).await,
+        Err(table_app::Error::Unavailable)
+    ));
+    assert_eq!(r.pp.get(|w| w.reads), reads + 1);
+    assert_eq!(r.calls(id), calls + 1);
+    assert_eq!(r.state(id), DealState::AwaitingApproval);
+    assert_eq!((r.writes(), r.posts()), (writes, posts));
+    r.pp.set(|w| w.reads_fail = false);
+    r.pp.pay("PAID");
+    r.approve(id, at + 1).await.unwrap();
+    assert_eq!(r.state(id), DealState::Receipted);
+}
+
+/// One ticket gives one read: the same ticket, minted again, is refused and reads nothing.
+#[tokio::test]
+async fn one_ticket_gives_one_owner_read() {
+    let mut r = rig();
+    let (id, at) = r.sent_past_deadline(31).await;
+    let (first, again) = (r.ticket(id, at), r.ticket(id, at));
+    let reads = r.pp.get(|w| w.reads);
+    r.p.rescue_approve(id, first, at).await.unwrap();
+    assert_eq!(r.pp.get(|w| w.reads), reads + 1);
+    assert!(matches!(
+        r.p.rescue_approve(id, again, at).await,
+        Err(table_app::Error::Permission)
+    ));
+    assert_eq!(r.pp.get(|w| w.reads), reads + 1);
+}
+
+/// Without a valid ticket for this deal now, neither the past-deadline nor the past-window case
+/// reads.
+#[tokio::test]
+async fn a_bad_ticket_reads_nothing_past_the_deadline_or_the_window() {
+    let mut r = rig();
+    let (id, at) = r.sent_past_deadline(0).await;
+    let other = r.open(2, RescueSource::Paypal).id;
+    let reads = r.pp.get(|w| w.reads);
+    for at in [at, at + 31 * 86400] {
+        r.p.approval
+            .unlock("approval", &r.token, &Reauth, at)
+            .unwrap();
+        // Another deal's ticket, and an expired one.
+        let wrong = r.ticket(other, at);
+        assert!(r.p.rescue_approve(id, wrong, at).await.is_err());
+        let stale = r.ticket(id, at);
+        assert!(r.p.rescue_approve(id, stale, at + 60).await.is_err());
+    }
+    assert_eq!(r.pp.get(|w| w.reads), reads);
+    assert_eq!(r.state(id), DealState::AwaitingApproval);
 }

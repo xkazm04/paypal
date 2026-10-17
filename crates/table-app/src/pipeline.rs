@@ -126,6 +126,10 @@ pub struct Pipeline {
     pub(crate) rescue_read_backoff: std::collections::BTreeMap<String, (u32, Timestamp)>,
     /// Seed of the backoff jitter (see `set_rescue_jitter_seed`).
     pub(crate) rescue_jitter_seed: u64,
+    /// Owner tickets already spent on the one read of a sent rescue invoice past its deadline
+    /// (deal, minted at, session generation): one ticket gives one read. In memory only; a ticket
+    /// lives 60 seconds and dies with the session generation.
+    pub(crate) rescue_owner_read: std::collections::BTreeSet<(DealId, Timestamp, u64)>,
 }
 impl std::fmt::Debug for Pipeline {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -361,6 +365,7 @@ impl Pipeline {
             rescue_polled: std::collections::BTreeMap::new(),
             parked_read: std::collections::BTreeMap::new(),
             rescue_read_backoff: std::collections::BTreeMap::new(),
+            rescue_owner_read: std::collections::BTreeSet::new(),
             rescue_jitter_seed: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_or(0x5eed, |d| d.as_nanos() as u64),

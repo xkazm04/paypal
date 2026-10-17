@@ -1922,7 +1922,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   initiative.
 - **What the owner loses:** nothing that was reachable before. For a lost send the owner can still ask
   and get a read. For a sent invoice past its deadline there is no owner path today
-  (`rescue_approve` refuses a deal whose deadline has passed and which has no open step); none was
+  (`rescue_approve` refused a deal whose deadline has passed and which has no open step); none was
   added. That deal waits open and unread past the window.
 - **The invariant holds:** a sent invoice is never expired unread. Past the window it is not read and
   not expired either; silence still moves no money.
@@ -1931,3 +1931,33 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   `a_parked_lost_send_is_read_only_inside_the_window_and_the_owner_can_still_ask` (fake clock; reads
   hourly inside the window and none after; still non-terminal with no write; a restart past the
   window reads nothing; an owner ticket reads exactly once).
+
+### 51b. Amendment (2026-10-17): the owner's ticket drives one read of a sent invoice past its deadline
+
+- **Decided by:** the operator delegate's answer YES to the builder's question from run a139b7ba (51a
+  left such a deal open and unread for good, with no owner path).
+- **Decision:** `Pipeline::rescue_approve` (the existing authority row, no new IPC command) no longer
+  refuses a Rescue/Seller deal in AWAITING_APPROVAL whose deadline has passed. With a valid
+  `OwnerTicket` for that deal it makes exactly one read of the invoice through `rescue_poll`
+  (`rescue_owner_read`). That read ignores the wallet's own limits (`PARKED_READ_WINDOW_SECS`, the
+  hourly parked cadence, the deadline-read backoff) and records what PayPal reports as an in-window
+  read does: the same ledger transition for SENT, PAID or CANCELLED, the same kept call record when it
+  fails. A failed read returns `Unavailable`; nothing is parked or expired. The ticket is spent whether
+  or not the read succeeds (an in-memory set of deal, minted-at, session generation), so one ticket
+  gives one read.
+- **Authority:** the ticket is checked by `ApprovalSession::validate` (deal, terms hash, attempt, expiry,
+  session generation). That check never looked at the deadline or the window, so `auth.rs` is
+  unchanged. This path skips the mandate check and the shield verdict, since nothing is decided and
+  nothing moves; create, send, countersign and every money step are unchanged and still refuse past
+  the deadline.
+- **Moves no money:** the only PayPal call is the GET of the invoice. It never creates, sends, cancels,
+  captures, voids or countersigns, and it never expires the deal; the post-read handling is only
+  `rescue_poll`'s ledger writes (receipt on PAID, fail on CANCELLED, mismatch on a foreign invoice).
+  Without a ticket nothing changed: the wallet's automatic reads still end at the window.
+- **Tests:** `crates/table-app/tests/rescue.rs`:
+  `an_owner_ticket_reads_a_sent_invoice_past_the_window_and_records_paid`,
+  `an_owner_read_that_finds_the_invoice_unpaid_changes_nothing_and_only_reads`,
+  `an_owner_read_that_fails_is_unavailable_keeps_its_call_and_leaves_the_deal_open`,
+  `one_ticket_gives_one_owner_read`, `a_bad_ticket_reads_nothing_past_the_deadline_or_the_window`; the
+  window test `a_sent_invoice_is_read_only_inside_the_window_and_a_restart_does_not_reopen_it` now ends
+  with the owner's read.

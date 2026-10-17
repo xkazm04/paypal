@@ -438,13 +438,11 @@ impl Pipeline {
             self.rescue_resolve(id, Some(ticket), now).await?;
             return Ok(());
         }
-        if self.rescue_send_ended(id)?
-            || self
-                .wallet
-                .ledger
-                .deadline(id)?
-                .is_none_or(|(due, _)| due <= now)
-        {
+        let due = self.wallet.ledger.deadline(id)?.map(|(due, _)| due);
+        if due.is_some_and(|due| due <= now) && deal.state == DealState::AwaitingApproval {
+            return self.rescue_owner_read(&deal, ticket, now).await;
+        }
+        if self.rescue_send_ended(id)? || due.is_none_or(|due| due <= now) {
             return Err(Error::Permission);
         }
         let api = self.invoicing()?;
@@ -487,6 +485,31 @@ impl Pipeline {
             }
             _ => Err(Error::Permission),
         }
+    }
+
+    /// The owner's one read of a sent invoice whose deadline has passed (its own ticket, through
+    /// `rescue_approve`). It ignores the wallet's own limits (the read window, the parked cadence,
+    /// the deadline-read backoff) and records what PayPal reports exactly as `rescue_poll` does.
+    /// The only PayPal call is the GET of the invoice: nothing is created, sent, cancelled,
+    /// captured or voided, nothing is expired or parked, and a read that fails is `Unavailable`.
+    /// The ticket is spent whether or not the read succeeds.
+    async fn rescue_owner_read(
+        &mut self,
+        deal: &Deal,
+        ticket: OwnerTicket,
+        now: Timestamp,
+    ) -> Result<(), Error> {
+        // The ticket is checked as for any owner decision on this deal; unlike a money step it
+        // needs no mandate or shield verdict, as nothing is decided and nothing moves.
+        self.approval
+            .validate(&ticket, deal.id, deal.terms.hash()?, 1, now)?;
+        if !self
+            .rescue_owner_read
+            .insert((deal.id, ticket.at, ticket.generation))
+        {
+            return Err(Error::Permission);
+        }
+        self.rescue_poll(deal.id, now).await.map(|_| ())
     }
 
     /// Create the invoice reserved under `request` and finish its operation with PayPal's answer:
@@ -783,7 +806,8 @@ impl Pipeline {
             }
             // The wallet's own reads end PARKED_READ_WINDOW_SECS after the deadline (a durable
             // time, so a restart does not reopen it). The deal then stays open and unread, never
-            // expired; no owner path reaches a read of it.
+            // expired. Only the owner's ticket reaches a read of it, once per ticket
+            // (`rescue_owner_read`, through `rescue_approve`).
             if now.saturating_sub(due) >= PARKED_READ_WINDOW_SECS {
                 return Ok(false);
             }
