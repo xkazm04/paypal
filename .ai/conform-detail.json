@@ -3810,6 +3810,118 @@
           "evidence": "apps/desktop/client/src/windows/main/modules/rescue/preview.ts:89 Explanations are deterministic; no consumed artifact from a model-driven codebase generator was found."
         }
       ]
+    },
+    "0d91f152-a990-40ae-9b71-c0a8f7c20407/migrations": {
+      "context": "ledger-deal-safeguards",
+      "subject": "migrations",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T01:53:11.463Z",
+      "worker": "530d476e-d6d8-433d-ab16-dbf061e23090",
+      "techniques": [
+        {
+          "technique": "data-migrations",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/migrations/0013_shield_record.sql:12 This step adds three columns and then backfills shield_rule at lines 18–19; the standard requires separate steps even when the rewrite fits one transaction."
+        },
+        {
+          "technique": "dynamic-table-set-migrations",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/src/groups.rs:178 Owner-defined groups are rows in fixed tables, not operator-defined physical tables requiring migration-time enumeration."
+        },
+        {
+          "technique": "error-propagation",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/src/lib.rs:68 The runner refuses a future schema, but its error omits both the observed and supported versions required by the standard."
+        },
+        {
+          "technique": "idempotent-steps",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/migrations/0008_resolution.sql:9 The guard accepts an existing table by name without asserting its columns and constraints; the step contains no post-condition verification."
+        },
+        {
+          "technique": "migrate-from-data-shape",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/src/lib.rs:136 SQLite provides an atomic home for the version marker inside the transaction containing the schema changes; no independent external shape-writing mechanism was found."
+        },
+        {
+          "technique": "pre-migration-snapshots",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/src/snapshot.rs:38 The snapshot helper returns success immediately after VACUUM INTO without reopening or checking the created copy before migrations proceed."
+        },
+        {
+          "technique": "schema-drift-detection",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/src/shield_tests.rs:408 The shield upgrade test manufactures an old schema from today's setup and checks the loaded verdict; the standard requires historical fixtures and mechanical schema convergence checks."
+        },
+        {
+          "technique": "transactional-ddl",
+          "verdict": "deviation",
+          "evidence": "crates/table-ledger/src/lib.rs:75 One transaction surrounds every pending migration, followed by one final version bump and commit; the standard requires a transaction and ledger advance per step."
+        }
+      ]
+    },
+    "d477836b-8d3f-42dd-93ce-bf0a9f5bbf53/migrations": {
+      "context": "counter-and-tables-modules",
+      "subject": "migrations",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T01:53:11.463Z",
+      "techniques": [
+        {
+          "technique": "data-migrations",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:125 Catalog construction returns derived rows without rewriting persistent records."
+        },
+        {
+          "technique": "dynamic-table-set-migrations",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/tables/groups.ts:27 Tables here are deals collected into arrays, not dynamically created database tables."
+        },
+        {
+          "technique": "error-propagation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:175 This collects price-draft validation errors; there is no migration chain or version-ledger read."
+        },
+        {
+          "technique": "expand-deploy-contract",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:78 Moving a price fence returns a draft value and performs no persistent schema change."
+        },
+        {
+          "technique": "idempotent-steps",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/tables/groups.ts:20 The set tracks supplied deal membership in memory, not completed migration steps."
+        },
+        {
+          "technique": "migrate-from-data-shape",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:82 This projects a typed display band into a draft; it does not classify or convert stored historical formats."
+        },
+        {
+          "technique": "pre-migration-snapshots",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/counter/model.ts:179 Draft evaluation returns proposed differences and errors without opening or migrating a store."
+        },
+        {
+          "technique": "schema-drift-detection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/tables/groups.ts:48 Group standing is a display projection over supplied records, with no fresh-install or upgraded-schema path."
+        },
+        {
+          "technique": "transactional-ddl",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/modules/tables/ladder.ts:242 These steps describe interface progress, not database mutations or atomic version advances."
+        }
+      ],
+      "withdrawn": {
+        "worker": "530d476e-d6d8-433d-ab16-dbf061e23090",
+        "state": "not-applicable",
+        "at": "2026-10-17T01:53:24.550977+00:00",
+        "reason": "reviewer (sonnet): The not-applicable anchor, groups.ts:30, is a line inside an array-grouping loop. It does not show that the context has no persistent schema or migration. The cited counter/model.ts and tables/ladder.ts lines are pure draft or derived-data transforms, and my grep for migrat/user_version/backfill/sch"
+      }
     }
   }
 }
