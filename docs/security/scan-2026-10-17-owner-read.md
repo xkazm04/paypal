@@ -38,7 +38,7 @@ Severity is judged for this app: a hackathon desktop wallet against the PayPal *
 
 | ID | Severity | Category | File:line | Status | Action |
 |---|---|---|---|---|---|
-| O-1 | Info | doc vs behaviour (read cadence) | `crates/table-app/src/pipeline/read_state.rs:6-9`, `:22-44`, `:61-68`; `crates/table-app/src/pipeline/resolve.rs:174-182` | open | A drop by the cap can bring a backed-off or hourly read forward to the 60 s floor and resets its count; the comments say "never sooner" |
+| O-1 | Info | doc vs behaviour (read cadence) | `crates/table-app/src/pipeline/read_state.rs:6-9`, `:22-44`, `:61-68`; `crates/table-app/src/pipeline/resolve.rs:174-182` | closed (comments corrected) | A drop by the cap can bring a backed-off or hourly read forward to the 60 s floor and resets its count; the comments say "never sooner" |
 | O-2 | Info | fairness under cap churn | `crates/table-app/src/pipeline/read_state.rs:61-68`; `resolve.rs:178-181` | open | While the cap keeps dropping, the global floor also delays the first read of a brand-new lost step, not only of a dropped one |
 | O-3 | Info | schedule reset by owner | `crates/table-app/src/pipeline/resolve.rs:506-516` | open | An owner read that succeeds clears the wallet's backoff; a failed one does not count. By design (§52a); bounded by clicks |
 | O-4 | Info | error masking | `crates/table-app/src/pipeline/resolve.rs:168`; `crates/table-app/src/pipeline.rs:1396` | open | A ledger error in `prune_read_state` replaces the step's own result; fails safe |

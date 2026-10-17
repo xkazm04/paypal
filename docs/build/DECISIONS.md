@@ -2251,3 +2251,4 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   `deadline_read_failed`, the floor in `rescue_deadline` and `rescue_resolve`) and
   `crates/table-app/src/auth.rs` (`TICKET_SECS`). Gates: `cargo fmt --all --check`,
   `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace` were green.
+- **Erratum (2026-10-17):** decision 5's "never sooner than its schedule" is, precisely, "never sooner than `RESCUE_POLL_SECS` after the drop, never past the window" (scan O-1, `docs/security/scan-2026-10-17-owner-read.md`).
