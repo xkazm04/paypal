@@ -6,7 +6,9 @@ use table_paypal::{
     CreateOrder, Observation, Order, OrderStatus, PayPalApi, Payment, RequestId, ResourceId,
 };
 use table_proto::{Body, ShortText};
+mod read_state;
 mod resolve;
+pub use read_state::READ_STATE_CAP;
 pub(crate) use resolve::{PARKED_READ_SECS, PARKED_READ_WINDOW_SECS, REQUEST_ID_KEPT_SECS};
 pub use resolve::{PENDING_STALE_SECS, Resolve, SETTLE_SECS};
 #[derive(Debug)]
@@ -115,21 +117,41 @@ pub struct Pipeline {
     pub shield_refused: Option<DealId>,
     /// Invoicing, for the rescue invoice (set by the trusted shell; `None` sends no invoice).
     pub(crate) secondary: Option<Arc<dyn table_paypal::SecondaryApi>>,
-    /// When each rescue invoice was last read, so PAID is polled on a cadence.
+    /// When each rescue invoice was last read, so PAID is polled on a cadence. Bounded like
+    /// `rescue_read_backoff`.
     pub(crate) rescue_polled: std::collections::BTreeMap<DealId, Timestamp>,
-    /// When each parked capture or void was last read back at its deadline, by request id, so the
-    /// read is hourly (`PARKED_READ_SECS`). In memory only: a restart reads at once.
+    /// When each parked capture, void or lost send was last read back on its own, by request
+    /// id, so the read is hourly (`PARKED_READ_SECS`). In memory only: a restart reads at once.
+    /// Bounded like `rescue_read_backoff`.
     pub(crate) parked_read: std::collections::BTreeMap<String, Timestamp>,
-    /// Failed read-backs of a lost invoice step or a lost authorize, by request id (and of a sent
-    /// invoice past its deadline, by `deadline-read:{deal id}`): how many in a row and when the
-    /// next try is due. In memory only: a restart reads at once and counts from zero (the
-    /// terminal needs-attention state itself is the parked resolution row, which is kept).
+    /// Failed read-backs of a lost invoice step, a lost authorize, capture or void, by request id
+    /// (and of a sent invoice past its deadline, by `deadline-read:{deal id}`): how many in a row
+    /// and when the next try is due. In memory only: a restart reads at once and counts from zero
+    /// (the terminal needs-attention state itself is the parked resolution row, which is kept).
+    ///
+    /// These three maps are bounded (DECISIONS 52b). A deal's entries are dropped when the deal
+    /// is terminal, an entry when its step is no longer open, and a money read's entry once the
+    /// deal is `PARKED_READ_WINDOW_SECS` past its deadline (the window is durable, so nothing
+    /// reads it then); see [`Pipeline::prune_read_state`]. Each map holds at most
+    /// `read_state_cap` entries, and past it the entry with the oldest time is dropped. An entry
+    /// dropped by the cap whose step is still open must never be read sooner for it: every read
+    /// with no entry then waits `RESCUE_POLL_SECS` from the drop (`read_floor_until`), the
+    /// durable window still applies, and a failure counts again from one with the floor under
+    /// it. Nothing is read on a 1 s tick for want of an entry.
     pub(crate) rescue_read_backoff: std::collections::BTreeMap<String, (u32, Timestamp)>,
+    /// The most entries each of `rescue_polled`, `parked_read` and `rescue_read_backoff` holds
+    /// ([`READ_STATE_CAP`]; a test lowers it).
+    pub(crate) read_state_cap: usize,
+    /// Until this time no read whose schedule entry is missing is made: the cap dropped an entry
+    /// at most `RESCUE_POLL_SECS` ago, and the missing one may be it.
+    pub(crate) read_floor_until: Timestamp,
     /// Seed of the backoff jitter (see `set_rescue_jitter_seed`).
     pub(crate) rescue_jitter_seed: u64,
     /// Owner tickets already spent on the one read of a sent rescue invoice past its deadline
     /// (deal, minted at, session generation): one ticket gives one read. In memory only; a ticket
-    /// lives 60 seconds and dies with the session generation.
+    /// lives 60 seconds and dies with the session generation, so an entry older than that is
+    /// dropped (its ticket no longer validates), as is every entry of a terminal deal: the set
+    /// holds only the tickets minted in the last minute.
     pub(crate) rescue_owner_read: std::collections::BTreeSet<(DealId, Timestamp, u64)>,
     /// Owner tickets already spent on the one read of an open authorize (deal, minted at, session
     /// generation): one ticket gives one read. In memory only, as `rescue_owner_read`.
@@ -369,6 +391,8 @@ impl Pipeline {
             rescue_polled: std::collections::BTreeMap::new(),
             parked_read: std::collections::BTreeMap::new(),
             rescue_read_backoff: std::collections::BTreeMap::new(),
+            read_state_cap: READ_STATE_CAP,
+            read_floor_until: Timestamp::MIN,
             rescue_owner_read: std::collections::BTreeSet::new(),
             authorize_owner_read: std::collections::BTreeSet::new(),
             rescue_jitter_seed: std::time::SystemTime::now()
@@ -1360,8 +1384,19 @@ impl Pipeline {
     /// a parked capture or void that the read-back could not settle (PayPal shows a status no
     /// check accepts, a different id or amount, or the read failed) answers `Ok(false)`: no end
     /// state is true, so the deal stays AUTHORIZED, nothing is sent, and the owner's money-check
-    /// card already says to look in PayPal. Any other open operation keeps `Unavailable`.
+    /// card already says to look in PayPal. Any other open operation keeps `Unavailable`. A lost
+    /// capture or void whose read fails backs off and is read hourly the same way, and is not
+    /// read on the wallet's own initiative `PARKED_READ_WINDOW_SECS` past the deadline
+    /// (DECISIONS 52b): the default then answers as above without calling PayPal, nothing is
+    /// voided or captured, and the deal keeps its state.
+    /// After it the deal's read-schedule entries that no longer govern a read are dropped, all
+    /// of them once it is terminal (`prune_read_state`).
     pub async fn deadline_default(&mut self, id: DealId, now: Timestamp) -> Result<bool, Error> {
+        let result = self.deadline_default_once(id, now).await;
+        self.prune_read_state(id, now)?;
+        result
+    }
+    async fn deadline_default_once(&mut self, id: DealId, now: Timestamp) -> Result<bool, Error> {
         let deal = self.wallet.ledger.get_deal(id)?;
         if deal.kind == DealKind::Rescue {
             return self.rescue_deadline(id, now).await;

@@ -1,6 +1,9 @@
 use crate::Error;
 use subtle::{Choice, ConstantTimeEq};
 use table_core::{DealId, H256, Timestamp};
+/// How long an owner ticket is valid after it was minted. A spent-ticket entry older than this
+/// names a ticket `validate` already refuses, so it may be forgotten.
+pub(crate) const TICKET_SECS: i64 = 60;
 pub trait NativeReauth {
     fn authenticate(&self) -> Result<(), Error>;
 }
@@ -145,7 +148,7 @@ impl ApprovalSession {
             deal,
             hash,
             generation: self.generation,
-            expires: now.saturating_add(60),
+            expires: now.saturating_add(TICKET_SECS),
             at: now,
         })
     }
