@@ -3,10 +3,10 @@
 //! `rescue_polled`, `parked_read` and `rescue_read_backoff` grow with deals. A deal's entries are
 //! dropped once they can no longer govern a read: the deal is terminal, the step is no longer
 //! open, or the deal is past the wallet's own read window (`PARKED_READ_WINDOW_SECS`, counted from
-//! the durable deadline). A hard cap per map is the backstop. Dropping an entry never makes a read
-//! come sooner than its schedule allows: the first three cases read nothing more on their own, and
-//! after a drop by the cap every read with no entry waits `RESCUE_POLL_SECS` (the floor), with the
-//! durable window still in force, never a 1 s tick.
+//! the durable deadline). A hard cap per map is the backstop. The first three cases read nothing
+//! more on their own. After a drop by the cap, a step with no entry may be read sooner than its
+//! dropped backed-off or hourly schedule, but never sooner than `RESCUE_POLL_SECS` (the floor)
+//! after the drop and never past the durable window, and never on a 1 s tick.
 use super::{PARKED_READ_WINDOW_SECS, Pipeline};
 use crate::{Error, RESCUE_POLL_SECS, auth::TICKET_SECS};
 use std::collections::BTreeMap;

@@ -134,10 +134,10 @@ pub struct Pipeline {
     /// deal is `PARKED_READ_WINDOW_SECS` past its deadline (the window is durable, so nothing
     /// reads it then); see [`Pipeline::prune_read_state`]. Each map holds at most
     /// `read_state_cap` entries, and past it the entry with the oldest time is dropped. An entry
-    /// dropped by the cap whose step is still open must never be read sooner for it: every read
-    /// with no entry then waits `RESCUE_POLL_SECS` from the drop (`read_floor_until`), the
-    /// durable window still applies, and a failure counts again from one with the floor under
-    /// it. Nothing is read on a 1 s tick for want of an entry.
+    /// dropped by the cap whose step is still open may be read sooner than its dropped schedule,
+    /// but never sooner than `RESCUE_POLL_SECS` after the drop (`read_floor_until`) and never
+    /// past the durable window; a failure counts again from one with the floor under it. Nothing
+    /// is read on a 1 s tick for want of an entry.
     pub(crate) rescue_read_backoff: std::collections::BTreeMap<String, (u32, Timestamp)>,
     /// The most entries each of `rescue_polled`, `parked_read` and `rescue_read_backoff` holds
     /// ([`READ_STATE_CAP`]; a test lowers it).
