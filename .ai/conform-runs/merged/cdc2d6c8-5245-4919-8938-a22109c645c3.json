@@ -1,0 +1,165 @@
+{
+ "schema": "conform-run/1",
+ "worker": "cdc2d6c8-5245-4919-8938-a22109c645c3",
+ "subject": "retry-backoff",
+ "evaluatedAt": "2026-10-17T21:12:04.811002+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "design-system-styles",
+   "subject": "retry-backoff",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/design/ui.css:246 Searches for retry, backoff, jitter and circuit found no matches in the design directory; these styles define presentation and animation rather than failed-call recovery.",
+   "techniques": [
+    {
+     "technique": "backoff-design",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/design/tokens.css:132 These durations control visual motion, not retry delays."
+    },
+    {
+     "technique": "circuit-breakers",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/design/ui.css:112 Disabled controls receive styling; this context makes no dependency-health admission decisions."
+    },
+    {
+     "technique": "client-retry-and-redirect-conventions",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/design/ui.css:139 The context styles field state and contains no transport or redirect handling."
+    },
+    {
+     "technique": "durable-retries",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/design/ui.css:80 Rows here are CSS layout rules, not persisted retry work."
+    },
+    {
+     "technique": "error-classification-for-retry",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/design/base.css:64 This renders an existing error state without deciding retryability."
+    },
+    {
+     "technique": "jittered-revocation-with-irrevocable-terminal",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/design/base.css:58 These presentation rules neither issue credentials nor perform remote revocation."
+    },
+    {
+     "technique": "retry-observability",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/design/ui.css:245 Loading appearance is defined here; retry records and outcomes are not."
+    },
+    {
+     "technique": "storm-control",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/design/ui.css:247 Repeated animation issues no dependency calls and creates no retry amplification."
+    },
+    {
+     "technique": "suspension-is-not-failure",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/design/base.css:71 Reduced-motion behavior changes animation, not suspended work or attempt budgets."
+    }
+   ],
+   "absenceTerms": [
+    "retry",
+    "backoff",
+    "jitter",
+    "circuit"
+   ]
+  },
+  {
+   "context": "client-foundation",
+   "subject": "retry-backoff",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/lib/data/client.ts:39 Shared read hooks retry unavailable reads after a fixed 750 ms without jitter, preserving synchronization among reads that fail together.",
+   "techniques": [
+    {
+     "technique": "backoff-design",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/data/client.ts:9 The retry delay is deterministic; the standard requires jitter on scheduled recovery attempts."
+    },
+    {
+     "technique": "client-retry-and-redirect-conventions",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/lib/tauri.ts:21 This boundary invokes the local Tauri shell rather than a replicated HTTP server with redirects and consistency indexes."
+    },
+    {
+     "technique": "durable-retries",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/data/provider.tsx:17 Foreground read retries live in the window's in-memory QueryClient, an appropriate durability class for session-scoped interactive reads."
+    },
+    {
+     "technique": "error-classification-for-retry",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/contract.ts:60 Unrecognized errors become UNAVAILABLE and enter its retry policy; there is no distinct unknown class or separately counted unknown lane."
+    },
+    {
+     "technique": "jittered-revocation-with-irrevocable-terminal",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/mock/backend.ts:1352 Mock revocation marks local pin state; it does not revoke issued credentials held by an unavailable remote."
+    },
+    {
+     "technique": "retry-observability",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/data/query.ts:77 The public read result omits attempt counts and retry terminal reasons, making recovery after retry indistinguishable from first-attempt success."
+    },
+    {
+     "technique": "storm-control",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/data/client.ts:12 The limit applies independently to each query; coalescing identical reads does not supply an aggregate retry budget across failing keys."
+    },
+    {
+     "technique": "suspension-is-not-failure",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/lib/data/client.ts:40 The layer explicitly uses local IPC, so browser network availability is not a precondition for issuing its reads."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-17T21:12:04.811002+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "retry-backoff"
+   ],
+   "techniques": [
+    "backoff-design",
+    "circuit-breakers",
+    "client-retry-and-redirect-conventions",
+    "durable-retries",
+    "error-classification-for-retry",
+    "jittered-revocation-with-irrevocable-terminal",
+    "retry-observability",
+    "storm-control",
+    "suspension-is-not-failure"
+   ],
+   "deviations": 0,
+   "context": "design-system-styles",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T21:12:04.811002+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "retry-backoff"
+   ],
+   "techniques": [
+    "backoff-design",
+    "client-retry-and-redirect-conventions",
+    "durable-retries",
+    "error-classification-for-retry",
+    "jittered-revocation-with-irrevocable-terminal",
+    "retry-observability",
+    "storm-control",
+    "suspension-is-not-failure"
+   ],
+   "deviations": 1,
+   "context": "client-foundation",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
