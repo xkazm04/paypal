@@ -3428,6 +3428,159 @@
           "evidence": "crates/table-core/src/deal.rs:460 Unrecognized operations resolve to outer None, preserving MoneyCheckStep as a set containing only actual payment steps."
         }
       ]
+    },
+    "defa1695-a720-4e76-9d97-b09ece4d4394/windowed-inference-over-oversized-inputs": {
+      "context": "main-window-shell",
+      "subject": "windowed-inference-over-oversized-inputs",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T00:19:34.887Z",
+      "worker": "6cc93318-c358-49b0-a2e7-a47c9eeca897",
+      "techniques": [
+        {
+          "technique": "axis-buffered-writeback",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/world.tsx:213 Reads deal display projections; no accelerator prediction transfers to buffer."
+        },
+        {
+          "technique": "failure-driven-memory-degradation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/QuitSheet.tsx:32 Refreshes a changed quit summary; no inference allocation or memory strategy ladder."
+        },
+        {
+          "technique": "overlap-weighted-stitching",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/quit.ts:22 Maps summary lines to display rows without spatial predictions or blending."
+        },
+        {
+          "technique": "resolution-decoupled-window-mapping",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/logic.ts:542 Converts pointer coordinates into SVG coordinates; no model input/output resolution mapping."
+        },
+        {
+          "technique": "schedule-parity-by-realized-cut",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/logic.ts:387 Parses navigation routes; no training and serving segmentation paths."
+        },
+        {
+          "technique": "split-device-inference-and-stitching",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/entry.tsx:11 Mounts a desktop UI window; no inference or accumulator devices."
+        },
+        {
+          "technique": "step-synchronous-windows",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/logic.ts:633 Orders recorded wallet history, rather than advancing model windows through sampling steps."
+        },
+        {
+          "technique": "strictly-positive-blend-weights",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/ui.tsx:12 Selects a UI color token; no prediction weight map or normalizer."
+        }
+      ]
+    },
+    "f4937131-9b2b-4830-92bf-e739e6fbaab4/windowed-inference-over-oversized-inputs": {
+      "context": "deal-detail",
+      "subject": "windowed-inference-over-oversized-inputs",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T00:19:34.887Z",
+      "worker": "6cc93318-c358-49b0-a2e7-a47c9eeca897",
+      "techniques": [
+        {
+          "technique": "axis-buffered-writeback",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/deal/story.ts:175 Combines story rows, with no accelerator-to-host prediction transfers."
+        },
+        {
+          "technique": "failure-driven-memory-degradation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/deal/model.ts:6 The model here is a deterministic display projection, not accelerator inference subject to OOM retries."
+        },
+        {
+          "technique": "overlap-weighted-stitching",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/deal/model.ts:261 Sorts timeline rows; no overlapping spatial predictions to normalize."
+        },
+        {
+          "technique": "resolution-decoupled-window-mapping",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/deal/model.ts:61 Maps deal states to presentation milestones; no spatial model heads."
+        },
+        {
+          "technique": "schedule-parity-by-realized-cut",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/deal/shown.ts:24 Selects recorded attention-ladder evidence, not training or serving window boundaries."
+        },
+        {
+          "technique": "split-device-inference-and-stitching",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/deal/story.ts:45 Formats the deal amount locally; no model execution or canvas allocation devices."
+        },
+        {
+          "technique": "step-synchronous-windows",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/deal/model.ts:357 Finds the latest recorded message; no iterative inference over shared windows."
+        },
+        {
+          "technique": "strictly-positive-blend-weights",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/deal/shown.ts:67 Produces presentation strings without numerical blend weights."
+        }
+      ]
+    },
+    "b093c233-9d42-4fdb-8b3c-b9b5460ac5ad/windowed-inference-over-oversized-inputs": {
+      "context": "attention-forecast-and-window-placement",
+      "subject": "windowed-inference-over-oversized-inputs",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T00:19:34.887Z",
+      "worker": "6cc93318-c358-49b0-a2e7-a47c9eeca897",
+      "techniques": [
+        {
+          "technique": "axis-buffered-writeback",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-attention/src/quit.rs:141 Accumulates quit-summary records; no accelerator bands or device transfers."
+        },
+        {
+          "technique": "failure-driven-memory-degradation",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-attention/src/placement.rs:58 Validates desktop geometry and display scale; no inference memory failures."
+        },
+        {
+          "technique": "overlap-weighted-stitching",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-attention/src/forecast.rs:134 Orders forecast records rather than blending predictions into a canvas."
+        },
+        {
+          "technique": "resolution-decoupled-window-mapping",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-attention/src/placement.rs:64 Converts screen geometry to logical pixels; no model output resolution."
+        },
+        {
+          "technique": "schedule-parity-by-realized-cut",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-attention/src/schedule.rs:46 Schedules attention against wall-clock deadlines, not cuts shared by training and serving."
+        },
+        {
+          "technique": "split-device-inference-and-stitching",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-attention/src/silence.rs:76 Filters forecast records in ordinary collections; no inference or stitching device placement."
+        },
+        {
+          "technique": "step-synchronous-windows",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-attention/src/lib.rs:356 Projects each attention source at the current time; no iterative model state shared across windows."
+        },
+        {
+          "technique": "strictly-positive-blend-weights",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-attention/src/lib.rs:339 Controls UI dimming after inactivity; no tapered prediction weights or normalization."
+        }
+      ]
     }
   }
 }
