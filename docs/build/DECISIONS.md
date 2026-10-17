@@ -1897,3 +1897,37 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
 - **Evidence:** `crates/table-app/src/rescue.rs` (`RESCUE_READ_*` constants, `rescue_read_backoff`,
   `deadline_read_failed`), `crates/table-app/src/pipeline/resolve.rs:33`. Docs only here: no code
   changed.
+
+### 51a. Amendment (2026-10-17): the automatic reads stop after a fixed total window
+
+- **Decided by:** Athena as operator delegate 2026-10-17, ruling on the full council round 2
+  must-address "past-deadline reads of a sent invoice, and of a parked lost send, repeat hourly with
+  no ceiling on total duration".
+- **Constant:** `PARKED_READ_WINDOW_SECS` = 30 days (`crates/table-app/src/pipeline/resolve.rs`, next
+  to `PARKED_READ_SECS`).
+- **Decision:** both automatic paths stop once the window has passed: the read of a sent invoice past
+  its deadline (`rescue_deadline`), measured from the deal's deadline due time, and the hourly read of
+  a parked lost send (`rescue_resolve`), measured from the earlier of the deadline and the request
+  id's window ending (`op.started_at` + `REQUEST_ID_KEPT_SECS`), which is what starts those reads. Both
+  start times are durable ledger values, never the in-memory park state, so a restart does not reopen
+  the window. After it the deal stays parked and needs the owner: nothing is expired, cancelled, sent
+  or counted. A lost send is still read when the owner asks, through the existing `OwnerTicket` path
+  (`rescue_approve` into `rescue_resolve` and `resolve_invoice`), once per ticket.
+- **Why a total window:** one read an hour is cheap, but with no end a deal that is never resolved
+  costs 24 PayPal calls a day for ever, and each failed one keeps a call on record. **Why 30 days:** it
+  equals `RESCUE_INVOICE_OPEN_SECS`, the span a sent invoice is awaited for payment, so the wallet reads
+  past the deadline for as long again as it waited before it; that is 720 hourly reads at most. The
+  invoice itself stays readable at PayPal for as long as it exists, and a request id for 6 hours
+  (`REQUEST_ID_KEPT_SECS`), so a read after the window loses no evidence, only the wallet's own
+  initiative.
+- **What the owner loses:** nothing that was reachable before. For a lost send the owner can still ask
+  and get a read. For a sent invoice past its deadline there is no owner path today
+  (`rescue_approve` refuses a deal whose deadline has passed and which has no open step); none was
+  added. That deal waits open and unread past the window.
+- **The invariant holds:** a sent invoice is never expired unread. Past the window it is not read and
+  not expired either; silence still moves no money.
+- **Tests:** `crates/table-app/tests/rescue.rs`:
+  `a_sent_invoice_is_read_only_inside_the_window_and_a_restart_does_not_reopen_it` and
+  `a_parked_lost_send_is_read_only_inside_the_window_and_the_owner_can_still_ask` (fake clock; reads
+  hourly inside the window and none after; still non-terminal with no write; a restart past the
+  window reads nothing; an owner ticket reads exactly once).

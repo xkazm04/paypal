@@ -16,7 +16,9 @@
 //! a sandbox renewal) leads to a real sandbox invoice on the owner's decision, as the design says,
 //! but its deal keeps the REPLAY mode and never counts as recovered.
 use crate::pipeline::shield_allows;
-use crate::pipeline::{PARKED_READ_SECS, REQUEST_ID_KEPT_SECS, SETTLE_SECS};
+use crate::pipeline::{
+    PARKED_READ_SECS, PARKED_READ_WINDOW_SECS, REQUEST_ID_KEPT_SECS, SETTLE_SECS,
+};
 use crate::{Authority, Error, MoneyStep, OwnerTicket, Pipeline};
 use table_core::*;
 use table_ledger::{
@@ -779,6 +781,12 @@ impl Pipeline {
             if self.secondary.is_none() {
                 return Ok(false);
             }
+            // The wallet's own reads end PARKED_READ_WINDOW_SECS after the deadline (a durable
+            // time, so a restart does not reopen it). The deal then stays open and unread, never
+            // expired; no owner path reaches a read of it.
+            if now.saturating_sub(due) >= PARKED_READ_WINDOW_SECS {
+                return Ok(false);
+            }
             let key = format!("deadline-read:{id}");
             let waits = self
                 .rescue_read_backoff
@@ -845,14 +853,23 @@ impl Pipeline {
             if op.needs_owner && ticket.is_none() {
                 // A parked send waits for the owner until the fix's deadline or the request id's
                 // window ends; then it is read (once an hour), so a draft closes not done.
+                let due = self
+                    .wallet
+                    .ledger
+                    .deadline(id)?
+                    .map(|(due, _)| due)
+                    .filter(|due| *due <= now);
                 let ends = op.operation == "invoice-send"
-                    && (self
-                        .wallet
-                        .ledger
-                        .deadline(id)?
-                        .is_some_and(|(due, _)| due <= now)
-                        || now.saturating_sub(op.started_at) >= REQUEST_ID_KEPT_SECS);
+                    && (due.is_some() || now.saturating_sub(op.started_at) >= REQUEST_ID_KEPT_SECS);
                 if !ends {
+                    continue;
+                }
+                // The hourly reads began at the earlier of the two ends and stop a window later,
+                // measured from those durable times; after it only an owner ticket reads.
+                let began = due
+                    .unwrap_or(Timestamp::MAX)
+                    .min(op.started_at.saturating_add(REQUEST_ID_KEPT_SECS));
+                if now.saturating_sub(began) >= PARKED_READ_WINDOW_SECS {
                     continue;
                 }
                 let recent = self

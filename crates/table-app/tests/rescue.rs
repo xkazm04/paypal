@@ -1319,3 +1319,115 @@ async fn after_the_bound_the_deal_is_parked_for_the_owner_and_read_only_hourly()
     assert_eq!(r.state(id), DealState::AwaitingApproval);
     assert_eq!((r.writes(), r.posts()), (writes, posts));
 }
+
+/// The total time the wallet reads a parked step on its own (`PARKED_READ_WINDOW_SECS`,
+/// crate-private).
+const READ_WINDOW: i64 = 30 * 86400;
+
+impl Rig {
+    /// A restart: a new pipeline over the same ledger, with every in-memory throttle gone.
+    fn restart(&mut self, now: Timestamp) {
+        let spare = Wallet::new(
+            Ledger::in_memory().unwrap(),
+            signer(),
+            self.owner.public_key(),
+        );
+        let wallet = std::mem::replace(&mut self.p.wallet, spare);
+        let mut p = Pipeline::new(wallet, Arc::new(NoOrders), now).unwrap();
+        p.set_secondary(Some(self.pp.clone()));
+        self.token = p.approval.token("approval").unwrap().to_owned();
+        self.p = p;
+    }
+}
+
+/// A sent invoice past its deadline whose reads keep failing is read inside the window and never
+/// after it; the deal stays open, and a restart past the window does not read it again.
+#[tokio::test]
+async fn a_sent_invoice_is_read_only_inside_the_window_and_a_restart_does_not_reopen_it() {
+    let mut r = rig();
+    r.p.set_rescue_jitter_seed(4);
+    let id = r.open(1, RescueSource::Paypal).id;
+    r.approve(id, T0).await.unwrap();
+    let due = T0 + RESCUE_INVOICE_OPEN_SECS;
+    let (writes, posts) = (r.writes(), r.posts());
+    r.pp.set(|w| w.reads_fail = true);
+    let times = read_times(&mut r, id, due, due + READ_WINDOW + 2 * 86400, 60).await;
+    assert_eq!(times[0], due);
+    assert!(times.iter().all(|t| *t < due + READ_WINDOW), "{times:?}");
+    // Still read hourly right up to the window's end, so the window cut it, not a stall.
+    assert!(*times.last().unwrap() >= due + READ_WINDOW - 2 * 3600);
+    assert!(times.len() > 600, "{} reads", times.len());
+    // After the window: no read, whatever the clock, and the deal is open and unchanged.
+    let reads = r.pp.get(|w| w.reads);
+    for at in [due + READ_WINDOW, due + READ_WINDOW + 400 * 86400] {
+        assert!(!r.p.rescue_tick(id, at).await.unwrap());
+    }
+    assert_eq!(r.pp.get(|w| w.reads), reads);
+    assert_eq!(r.state(id), DealState::AwaitingApproval);
+    assert_eq!((r.writes(), r.posts()), (writes.clone(), posts.clone()));
+    // A restart past the window reads nothing; one inside it reads at once (the control).
+    r.restart(due + READ_WINDOW + 86400);
+    assert!(
+        !r.p.rescue_tick(id, due + READ_WINDOW + 86400)
+            .await
+            .unwrap()
+    );
+    assert_eq!(r.pp.get(|w| w.reads), reads);
+    r.restart(due + 10 * 86400);
+    r.p.rescue_tick(id, due + 10 * 86400).await.unwrap();
+    assert_eq!(r.pp.get(|w| w.reads), reads + 1);
+    assert_eq!(r.state(id), DealState::AwaitingApproval);
+    assert_eq!((r.writes(), r.posts()), (writes, posts));
+    // The owner has no door to this read: a sent invoice past its deadline refuses an approval.
+    let at = due + READ_WINDOW + 86400;
+    r.p.approval
+        .unlock("approval", &r.token, &Reauth, at)
+        .unwrap();
+    assert!(r.approve(id, at).await.is_err());
+    assert_eq!(r.pp.get(|w| w.reads), reads + 1);
+}
+
+/// A parked lost send is read hourly inside the window and never after it; it stays parked and
+/// needs the owner (nothing expired, sent or counted); an owner ticket then reads it exactly once;
+/// a restart past the window does not resume the automatic reads.
+#[tokio::test]
+async fn a_parked_lost_send_is_read_only_inside_the_window_and_the_owner_can_still_ask() {
+    let mut r = rig();
+    r.p.set_rescue_jitter_seed(3);
+    let id = r.lost_send(1, 4 * 86400).await;
+    r.p.rescue_tick(id, T0 + SETTLE_SECS).await.unwrap();
+    let open = r.p.open_operations(Some(id), T0 + SETTLE_SECS).unwrap();
+    assert!(open.len() == 1 && open[0].needs_owner);
+    let (writes, posts) = (r.writes(), r.posts());
+    r.pp.set(|w| w.reads_fail = true);
+    // The hourly reads begin when the request id's window ends, before the fix's deadline.
+    let began = T0 + 6 * 3600; // REQUEST_ID_KEPT_SECS, crate-private
+    let reads = r.pp.get(|w| w.reads);
+    let hours = READ_WINDOW / 3600;
+    for h in 0..hours + 72 {
+        r.p.rescue_tick(id, began + h * 3600).await.unwrap();
+    }
+    assert_eq!(r.pp.get(|w| w.reads), reads + hours as u32);
+    let after = began + READ_WINDOW + 40 * 86400;
+    r.p.rescue_tick(id, after).await.unwrap();
+    assert_eq!(r.pp.get(|w| w.reads), reads + hours as u32);
+    // Parked, needs the owner, and nothing ended.
+    let open = r.p.open_operations(Some(id), after).unwrap();
+    assert!(open.len() == 1 && open[0].needs_owner);
+    assert_eq!(r.state(id), DealState::Settling);
+    assert_eq!((r.writes(), r.posts()), (writes.clone(), posts.clone()));
+    // A restart past the window does not resume the automatic reads.
+    r.restart(after);
+    r.p.rescue_tick(id, after + 3600).await.unwrap();
+    r.p.rescue_tick(id, after + 7200).await.unwrap();
+    assert_eq!(r.pp.get(|w| w.reads), reads + hours as u32);
+    // The owner asks: exactly one read, and still nothing sent or counted.
+    r.p.approval
+        .unlock("approval", &r.token, &Reauth, after + 7200)
+        .unwrap();
+    r.approve(id, after + 7200).await.unwrap();
+    assert_eq!(r.pp.get(|w| w.reads), reads + hours as u32 + 1);
+    assert_eq!(r.state(id), DealState::Settling);
+    assert!(r.p.has_open_operation(id).unwrap());
+    assert_eq!((r.writes(), r.posts()), (writes, posts));
+}
