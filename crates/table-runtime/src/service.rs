@@ -582,6 +582,12 @@ impl Runtime {
         {
             return Err(invalid());
         }
+        // A countersign while the deal's authorize is still open is the owner's one read of it
+        // (DECISIONS 52a): nothing is decided and nothing moves, so a failing line (a mandate
+        // that expired while the step waited) does not stop it, and no agent key is needed.
+        let reading = matches!(decision, Decision::Countersign)
+            && deal.state == DealState::Approved
+            && self.pipeline.has_open_operation(deal.id)?;
         // Every money decision is bound to the checklist the owner saw: recomputed now, before
         // the ticket, any PayPal call or any write. Void is the safe direction and needs none.
         let checks = if matches!(decision, Decision::Void) {
@@ -594,9 +600,10 @@ impl Runtime {
             // Releasing a hold is the decision about the shield line, so only that line may fail.
             let exempt =
                 matches!(decision, Decision::ReleaseHold).then_some(ApprovalCheckId::Shield);
-            if checks
-                .iter()
-                .any(|c| c.status == ApprovalCheckStatus::Fail && Some(c.id) != exempt)
+            if !reading
+                && checks
+                    .iter()
+                    .any(|c| c.status == ApprovalCheckStatus::Fail && Some(c.id) != exempt)
             {
                 return Err(check_failed());
             }
@@ -682,7 +689,9 @@ impl Runtime {
                 if deal.side == Side::Buyer && deal.kind != DealKind::Purchase {
                     return Err(permission());
                 }
-                self.select_signer(deal.id)?;
+                if !reading {
+                    self.select_signer(deal.id)?;
+                }
                 let category = app(self.pipeline.wallet.ledger.deal_category(deal.id))?;
                 if !self.settings()?.payment_executor_configured {
                     return Err(unavailable("Enter PayPal sandbox credentials"));

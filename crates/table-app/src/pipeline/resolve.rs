@@ -183,7 +183,10 @@ impl Pipeline {
             // Confirming a create signs the SETTLE: without the agent key it waits.
             "create" if self.signer_missing => Ok(()),
             "create" => self.resolve_create(&deal, op, &request, mode, now).await,
-            "authorize" => self.resolve_authorize(&deal, op, &request, mode, now).await,
+            "authorize" => {
+                self.resolve_authorize(&deal, op, &request, mode, false, now)
+                    .await
+            }
             _ => self.resolve_payment(&deal, op, &request, mode, now).await,
         }
     }
@@ -404,13 +407,72 @@ impl Pipeline {
         )?;
         Ok(())
     }
-    /// authorize: read the authorization back through the order.
+    /// The owner's one read of an open authorize (their own ticket, through
+    /// [`Pipeline::authorize`]; DECISIONS 52a). It is for a step the wallet no longer reads on its
+    /// own initiative: one parked for the owner, or any once the deal's deadline passed. It
+    /// ignores the wallet's own limits (the read backoff, the hourly park,
+    /// [`PARKED_READ_WINDOW_SECS`]) and records what PayPal shows through `resolve_authorize`, as
+    /// the wallet's read at that time would, except that it never sends the authorize again and
+    /// never ends the deal unread. The only PayPal call is the GET of the order. A read that fails
+    /// is `Unavailable`, keeps its call (`defer`) and leaves the wallet's schedule as it was. The
+    /// ticket is spent whether or not the read succeeds; a refusal before the read spends nothing.
+    pub(super) async fn owner_read_authorize(
+        &mut self,
+        deal: &Deal,
+        attempt: u8,
+        category: Category,
+        ticket: crate::OwnerTicket,
+        now: Timestamp,
+    ) -> Result<(), Error> {
+        // Checked as for any owner decision on this deal; unlike a money step it needs no mandate
+        // or shield verdict, as nothing is decided and nothing moves.
+        self.approval
+            .validate(&ticket, deal.id, deal.terms.hash()?, attempt, now)?;
+        let at_deadline = self.deadline_passed(deal.id, Resolve::Deadline, now)?;
+        // A live call (a `pending` reservation not yet stale) is not listed, so it is never read
+        // under the owner's ticket; nor is a step still settling at PayPal, nor one the wallet
+        // still reads itself before the deadline.
+        let Some(op) = self
+            .open_operations(Some(deal.id), now)?
+            .into_iter()
+            .find(|op| op.operation == "authorize" && op.attempt == attempt)
+        else {
+            return Err(Error::Permission);
+        };
+        if (!op.pending && now < op.started_at.saturating_add(SETTLE_SECS))
+            || !(at_deadline || op.needs_owner)
+        {
+            return Err(Error::Permission);
+        }
+        if !self
+            .authorize_owner_read
+            .insert((deal.id, ticket.at, ticket.generation))
+        {
+            return Err(Error::Permission);
+        }
+        let request =
+            RequestId::for_operation(deal.id, attempt, "authorize").map_err(|_| Error::Invalid)?;
+        if request.as_str() != op.request_id {
+            return Err(LedgerError::Integrity("operation request id").into());
+        }
+        let mode = if at_deadline {
+            Resolve::Deadline
+        } else {
+            Resolve::Advance(category)
+        };
+        self.resolve_authorize(deal, &op, &request, mode, true, now)
+            .await
+    }
+    /// authorize: read the authorization back through the order. `owner`: the owner's one read
+    /// (`owner_read_authorize`), which sends nothing again, ends nothing unread and leaves the
+    /// failed-read backoff as it was.
     async fn resolve_authorize(
         &mut self,
         deal: &Deal,
         op: &OpenOperation,
         request: &RequestId,
         mode: Resolve,
+        owner: bool,
         now: Timestamp,
     ) -> Result<(), Error> {
         if deal.state != DealState::Approved {
@@ -429,7 +491,9 @@ impl Pipeline {
                 r
             }
             Err(e) => {
-                self.deadline_read_failed(&op.request_id, now);
+                if !owner {
+                    self.deadline_read_failed(&op.request_id, now);
+                }
                 return self.defer(deal, op, &e, now);
             }
         };
@@ -452,7 +516,8 @@ impl Pipeline {
             // record a check accepts: the deal ends on its deadline's safe default and nothing is
             // sent (no authorization id was verified to void). The step stays parked for the
             // owner, who looks at the payment in PayPal.
-            if self.deadline_passed(deal.id, mode, now)?
+            if !owner
+                && self.deadline_passed(deal.id, mode, now)?
                 && now >= op.started_at.saturating_add(UNREAD_AUTHORIZE_SECS)
             {
                 // A first park keeps this read with its row; a step parked earlier keeps it here.
@@ -480,6 +545,11 @@ impl Pipeline {
                 None,
                 now,
             );
+        }
+        // The owner's ticket is not an authority to send: what the wallet would send again
+        // waits, parked, for the deadline's read.
+        if owner {
+            return self.park(deal, op, status, &r.observations, now);
         }
         if self.holds_resend(op) {
             return Ok(());

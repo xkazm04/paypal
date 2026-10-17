@@ -406,6 +406,116 @@ async fn a_second_countersign_while_the_authorize_is_open_is_not_confirmed_yet()
     assert_eq!(authorizes(&http), sent);
 }
 
+/// DECISIONS 52a: the countersign on a deal whose authorize was lost is the owner's one read of
+/// it, through the same gate as every decision: the approval window, its token and an unlocked
+/// session. Past the wallet's own read window, with the mandate expired meanwhile (a failing line
+/// that would stop a money step), it reads the order once and confirms the hold PayPal shows. It
+/// sends nothing.
+#[tokio::test]
+async fn a_countersign_on_a_lost_authorize_is_the_owners_one_read_and_only_in_the_window() {
+    let (mut r, vault, http, clock, _) = runtime(true);
+    credentials(vault.as_ref());
+    let (deal, peer) = setup_delivery(&mut r, Side::Seller, Delivery::ShipThenCapture { days: 1 });
+    agree(&mut r, &deal, &peer);
+    let token = unlock_runtime(&mut r);
+    r.selected = Some(deal.id);
+    http.0.lock().unwrap().awaiting_payer = true;
+    let args = decision(&mut r, deal.id);
+    r.execute(
+        caller("approval", Some(&token)),
+        Action::Decision(args, Decision::Countersign),
+    )
+    .await
+    .unwrap();
+    r.pipeline
+        .wallet
+        .ledger
+        .apply_event(deal.id, table_core::DealEvent::OrderApproved, r.clock.now())
+        .unwrap();
+    http.0.lock().unwrap().fail_authorize = true;
+    reached(&second(&mut r, deal.id, &token, Decision::Countersign).await);
+    assert!(r.pipeline.has_open_operation(deal.id).unwrap());
+    // PayPal placed the hold after all; nobody has read it since.
+    http.0.lock().unwrap().authorization = Some("CREATED");
+    let due = r
+        .pipeline
+        .wallet
+        .ledger
+        .deadline(deal.id)
+        .unwrap()
+        .unwrap()
+        .0;
+    let at = due + 31 * 86400;
+    assert!(at > 1_000_000, "the test mandate has expired");
+    clock.0.store(at, Ordering::SeqCst);
+    // Every write at PayPal but the sign-in token (refreshed after the clock's jump).
+    let posts = |http: &OfflineHttp| {
+        http.0
+            .lock()
+            .unwrap()
+            .paths
+            .iter()
+            .filter(|p| p.starts_with("POST") && !p.ends_with("/oauth2/token"))
+            .count()
+    };
+    let reads = |http: &OfflineHttp| {
+        http.0
+            .lock()
+            .unwrap()
+            .paths
+            .iter()
+            .filter(|p| p.starts_with("GET") && p.ends_with("/orders/ORDER1"))
+            .count()
+    };
+    let (gets, sent) = (reads(&http), posts(&http));
+    // Locked (idle past 15 minutes), outside the approval window, and without the token.
+    let args = decision(&mut r, deal.id);
+    for (label, token) in [
+        ("approval", Some(token.as_str())),
+        ("main", Some(token.as_str())),
+        ("approval", None),
+    ] {
+        assert!(
+            r.execute(
+                caller(label, token),
+                Action::Decision(args.clone(), Decision::Countersign)
+            )
+            .await
+            .is_err(),
+            "{label}"
+        );
+    }
+    let token = unlock_runtime(&mut r);
+    for (label, token) in [("main", Some(token.as_str())), ("approval", None)] {
+        assert!(
+            r.execute(
+                caller(label, token),
+                Action::Decision(args.clone(), Decision::Countersign)
+            )
+            .await
+            .is_err(),
+            "{label}"
+        );
+    }
+    assert_eq!(reads(&http), gets, "no read without the gate");
+    assert_eq!(
+        r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Approved
+    );
+    r.execute(
+        caller("approval", Some(&token)),
+        Action::Decision(args, Decision::Countersign),
+    )
+    .await
+    .unwrap();
+    assert_eq!(reads(&http), gets + 1, "one read");
+    let after = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap();
+    assert_eq!(after.state, DealState::Authorized);
+    assert_eq!(after.paypal.authorization.as_deref(), Some("AUTH1"));
+    assert!(!r.pipeline.has_open_operation(deal.id).unwrap());
+    assert_eq!(posts(&http), sent, "nothing sent");
+}
+
 /// A PERMISSION refusal with no open operation keeps its code: only an open operation turns it
 /// into the not-confirmed answer.
 #[tokio::test]
