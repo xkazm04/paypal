@@ -1,0 +1,229 @@
+{
+ "schema": "conform-run/1",
+ "worker": "d6198deb-fbf9-4379-b26e-bf29a375d8e3",
+ "subject": "codebase-scanning",
+ "evaluatedAt": "2026-10-17T01:34:35.755366+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "book-module",
+   "subject": "codebase-scanning",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:250 Searches for scanner, sensor and ruleset found no context hits and only unrelated material elsewhere; the inspected Book implementation queries payment records rather than discovering code defects.",
+   "techniques": [
+    {
+     "technique": "causes-beside-the-finding-count",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:210 Counts deal rows, not scan findings or remediation causes."
+    },
+    {
+     "technique": "dead-code-detection",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/where.ts:26 Classifies payment kinds; no code-reference or reachability analysis was found."
+    },
+    {
+     "technique": "evidence-scoping",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/rules.ts:9 The permitted evidence sources are wallet records, not foreign repository zones."
+    },
+    {
+     "technique": "finding-lifecycle",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:271 Returns a ledger query result, not a persisted candidate-finding lifecycle."
+    },
+    {
+     "technique": "incremental-scanning",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:255 Date filtering selects transactions; it does not select code changed since a scan."
+    },
+    {
+     "technique": "ingestion-budget",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:248 Uses locally supplied ledger rows rather than fetching a metered repository corpus."
+    },
+    {
+     "technique": "llm-assisted-scanning",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/understand.ts:2 Question understanding explicitly uses no model; no model code-scanning sensor was found."
+    },
+    {
+     "technique": "precision-trades-have-a-direction",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:180 This deterministic query description has no static-analysis backend trade to assess."
+    },
+    {
+     "technique": "rule-precision-discipline",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/rules.ts:26 Enforces the closed query vocabulary rather than detecting code defects."
+    },
+    {
+     "technique": "sensor-pipeline",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:214 Aggregates payment-statement statuses, not code-scanning sensor emissions."
+    },
+    {
+     "technique": "the-broad-root-is-the-unaudited-one",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:141 The preset selects a ledger view; it declares no scan roots or file inclusion patterns."
+    },
+    {
+     "technique": "the-narrowest-view-owns-the-number",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/model.ts:245 Measures deals omitted from a grid, not evidence coverage licensing a code assessment."
+    },
+    {
+     "technique": "the-tree-is-not-the-population",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/where.ts:60 Filters payment chart categories; no source-tree traversal or inherited file exclusions were found."
+    },
+    {
+     "technique": "verify-after-generate",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/book/understand.ts:382 Checks a deterministically composed wallet query, not an artifact produced by a model generator."
+    }
+   ],
+   "absenceTerms": [
+    "scanner",
+    "sensor",
+    "ruleset"
+   ]
+  },
+  {
+   "context": "rescue-spend-shield-modules",
+   "subject": "codebase-scanning",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/modules/shield/matrix.ts:36 Searches for scanner, sensor and ruleset found no context hits and only unrelated material elsewhere; these modules explain renewal recovery and payment protection, including message analysis rather than codebase scanning.",
+   "techniques": [
+    {
+     "technique": "causes-beside-the-finding-count",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/shield/normal.ts:40 Counts deals with shield verdicts, not emitted code findings."
+    },
+    {
+     "technique": "dead-code-detection",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/rescue/model.ts:129 Selects rescue transactions rather than identifying unreachable source code."
+    },
+    {
+     "technique": "finding-lifecycle",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/shield/matrix.ts:129 Produces a displayed payment explanation, not a durable code-finding record."
+    },
+    {
+     "technique": "incremental-scanning",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/shield/normal.ts:35 Scopes ledger transactions in time; there is no code-change scan ledger."
+    },
+    {
+     "technique": "ingestion-budget",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/rescue/model.ts:151 Indexes supplied rescue cases rather than selecting files over a metered interface."
+    },
+    {
+     "technique": "llm-assisted-scanning",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/shield/matrix.ts:86 The model concerns scam messages, not source-code defect candidates."
+    },
+    {
+     "technique": "precision-trades-have-a-direction",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/spend/gate.ts:65 Infers a payment's progress from wallet facts; no analysis-backend replacement was found."
+    },
+    {
+     "technique": "rule-precision-discipline",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/spend/gate.ts:103 Explains an outgoing-payment limit, not an advisory code-defect detection rule."
+    },
+    {
+     "technique": "sensor-pipeline",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/shield/normal.ts:149 Builds a payment-check indicator, not a collector-to-findings scanning pipeline."
+    },
+    {
+     "technique": "the-broad-root-is-the-unaudited-one",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/spend/gate.ts:32 Selects mandate columns for display, not source roots for a scanner."
+    },
+    {
+     "technique": "the-narrowest-view-owns-the-number",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/rescue/model.ts:162 Reports recovered-money totals, not coverage weighting a repository judgment."
+    },
+    {
+     "technique": "the-tree-is-not-the-population",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/rescue/model.ts:132 Filters failed renewals; no filesystem enumeration or automatic file exclusions were found."
+    },
+    {
+     "technique": "verify-after-generate",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/modules/rescue/preview.ts:89 Explanations are deterministic; no consumed artifact from a model-driven codebase generator was found."
+    }
+   ],
+   "absenceTerms": [
+    "scanner",
+    "sensor",
+    "ruleset"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-17T01:34:35.755366+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "codebase-scanning"
+   ],
+   "techniques": [
+    "causes-beside-the-finding-count",
+    "dead-code-detection",
+    "evidence-scoping",
+    "finding-lifecycle",
+    "incremental-scanning",
+    "ingestion-budget",
+    "llm-assisted-scanning",
+    "precision-trades-have-a-direction",
+    "rule-precision-discipline",
+    "sensor-pipeline",
+    "the-broad-root-is-the-unaudited-one",
+    "the-narrowest-view-owns-the-number",
+    "the-tree-is-not-the-population",
+    "verify-after-generate"
+   ],
+   "deviations": 0,
+   "context": "book-module",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-17T01:34:35.755366+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "codebase-scanning"
+   ],
+   "techniques": [
+    "causes-beside-the-finding-count",
+    "dead-code-detection",
+    "finding-lifecycle",
+    "incremental-scanning",
+    "ingestion-budget",
+    "llm-assisted-scanning",
+    "precision-trades-have-a-direction",
+    "rule-precision-discipline",
+    "sensor-pipeline",
+    "the-broad-root-is-the-unaudited-one",
+    "the-narrowest-view-owns-the-number",
+    "the-tree-is-not-the-population",
+    "verify-after-generate"
+   ],
+   "deviations": 0,
+   "context": "rescue-spend-shield-modules",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
