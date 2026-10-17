@@ -4413,6 +4413,52 @@
         "at": "2026-10-17T23:11:41.176962+00:00",
         "reason": "reviewer (sonnet): The not-applicable anchor runtime.ts:55 only shows the mock backend being chosen, so it is incidental and does not show that terminal hosting is absent; most technique anchors are in mock/backend.ts, which is not among the listed context files, so they may be outside this context."
       }
+    },
+    "9c2b67dc-8b1f-43ca-af72-23ddf95baf03/agent-addressable-ui": {
+      "context": "market-data",
+      "subject": "agent-addressable-ui",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-17",
+      "evaluatedTs": "2026-10-17T23:32:37.586Z",
+      "techniques": [
+        {
+          "technique": "agent-pasteable-reference-format",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-mcp/src/lib.rs:309 The agent receives record aggregates, with no operator-copied UI source reference."
+        },
+        {
+          "technique": "build-time-source-stamping",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/src/lib.rs:203 This constructs certified market data; the context produces no rendered host elements to stamp."
+        },
+        {
+          "technique": "call-site-vs-implementation-resolution",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/market.rs:138 Resolution here selects product comparables, with no clicked element or stamped ancestry."
+        },
+        {
+          "technique": "framework-internals-independence",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/src/lib.rs:70 The implementation reads external market data over HTTP, with no rendering-framework source resolver."
+        },
+        {
+          "technique": "opt-in-instrumentation-gate",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/tests/spikes.rs:29 The contextual flag gates a live market probe; this context owns no UI instrumentation transform or overlay."
+        },
+        {
+          "technique": "uninstrumented-degradation",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/src/lib.rs:192 The empty result concerns unavailable market comparables, not absent UI source stamps."
+        }
+      ],
+      "withdrawn": {
+        "worker": "20a12df7-af3b-4181-a7ae-0d7de8294ab7",
+        "state": "not-applicable",
+        "at": "2026-10-17T23:34:26.774544+00:00",
+        "reason": "reviewer (sonnet): The anchor crates/table-mcp/src/lib.rs:297 is a tool-description string (\"Read the cached market prices…\") in a crate that is not among the market-data context files, and it does not itself show that no UI elements are rendered; the other technique anchors only show that the Rust crates call an HTTP"
+      }
     }
   }
 }
