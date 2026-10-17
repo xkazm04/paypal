@@ -38,15 +38,17 @@ export function encodeListingCode(t: ListingTable): string | null {
 }
 
 export function decodeListingCode(text: string): Decoded {
-  const code = text.replace(/\s+/g, '');
+  // Pasting may add whitespace at the ends or around a "/", never inside a field.
+  const code = text.trim().replace(/\s*\/\s*/g, '/');
   const parts = code.split('/');
-  if (parts.length < 2 || !/^TBL\d+$/i.test(parts[0])) return { ok: false, why: 'malformed' };
-  if (parts[0].toUpperCase() !== PREFIX) return { ok: false, why: 'version' };
+  const [prefix = '', dealId = '', item = '', qty = '', minor = '', currency = '', delivery = '', category = '', sum = ''] = parts;
+  if (parts.length < 2 || !/^TBL\d+$/i.test(prefix)) return { ok: false, why: 'malformed' };
+  if (prefix.toUpperCase() !== PREFIX) return { ok: false, why: 'version' };
   if (parts.length !== 9) return { ok: false, why: 'malformed' };
-  const body = parts.slice(0, 8).join('/');
-  if (!/^[0-9a-f]{8}$/i.test(parts[8])) return { ok: false, why: 'malformed' };
-  if (parts[8].toLowerCase() !== checksum(body)) return { ok: false, why: 'checksum' };
-  const [, dealId, item, qty, minor, currency, delivery, category] = parts;
+  // The prefix is case-insensitive, so the checksum covers it in its canonical form.
+  const body = [PREFIX, ...parts.slice(1, 8)].join('/');
+  if (!/^[0-9a-f]{8}$/i.test(sum)) return { ok: false, why: 'malformed' };
+  if (sum.toLowerCase() !== checksum(body)) return { ok: false, why: 'checksum' };
   const q = Number(qty);
   const m = Number(minor);
   if (!ULID.test(dealId) || !ITEM.test(item) || !/^\d{1,4}$/.test(qty) || !/^\d{1,15}$/.test(minor)

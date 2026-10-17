@@ -79,7 +79,7 @@ export function buildListing(d: ListingDraft, rules: readonly MandateListEntry[]
     m && !tableItems(m).includes(d.item) ? APPROVAL_TABLE.needItem : null,
     !(qty >= 1 && qty <= 1000) ? APPROVAL_TABLE.needQty : null,
     minor === null || minor <= 0 ? APPROVAL_TABLE.needPrice : null,
-  ].filter((p): p is string => !!p);
+  ].filter((p) => p !== null);
   if (problems.length || !m || !currency || minor === null || !d.category) return { ok: false, problems };
   return {
     ok: true,
