@@ -1671,7 +1671,11 @@
           "revision": 13,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/lib/data/client.ts:39 Shared read hooks retry unavailable reads after a fixed 750 ms without jitter, preserving synchronization among reads that fail together.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:4ca1a8af506f44d9",
+          "evaluatedRevision": 13
         },
         {
           "subject": "terminal-multiplexing",
@@ -2635,7 +2639,11 @@
           "revision": 13,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/design/ui.css:246 Searches for retry, backoff, jitter and circuit found no matches in the design directory; these styles define presentation and animation rather than failed-call recovery.",
+          "evaluatedAt": "2026-10-17",
+          "evaluatedAgainst": "sha256-b2:4ca1a8af506f44d9",
+          "evaluatedRevision": 13
         }
       ],
       "governance": "governed"
