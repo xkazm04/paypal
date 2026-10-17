@@ -1469,12 +1469,7 @@ async fn an_owner_ticket_reads_a_sent_invoice_past_the_window_and_records_paid()
 async fn an_owner_read_that_finds_the_invoice_unpaid_changes_nothing_and_only_reads() {
     let mut r = rig();
     let (id, at) = r.sent_past_deadline(31).await;
-    let (writes, posts, reads, calls) = (
-        r.writes(),
-        r.posts(),
-        r.pp.get(|w| w.reads),
-        r.calls(id),
-    );
+    let (writes, posts, reads, calls) = (r.writes(), r.posts(), r.pp.get(|w| w.reads), r.calls(id));
     r.approve(id, at).await.unwrap();
     assert_eq!(r.pp.get(|w| w.reads), reads + 1);
     assert_eq!(r.calls(id), calls + 1);
@@ -1489,12 +1484,7 @@ async fn an_owner_read_that_finds_the_invoice_unpaid_changes_nothing_and_only_re
 async fn an_owner_read_that_fails_is_unavailable_keeps_its_call_and_leaves_the_deal_open() {
     let mut r = rig();
     let (id, at) = r.sent_past_deadline(31).await;
-    let (writes, posts, reads, calls) = (
-        r.writes(),
-        r.posts(),
-        r.pp.get(|w| w.reads),
-        r.calls(id),
-    );
+    let (writes, posts, reads, calls) = (r.writes(), r.posts(), r.pp.get(|w| w.reads), r.calls(id));
     r.pp.set(|w| w.reads_fail = true);
     assert!(matches!(
         r.approve(id, at).await,
