@@ -29,8 +29,10 @@ export default defineConfig({
         main: here('./index.html'),
         tumbler: here('./tumbler.html'),
         approval: here('./approval.html'),
-        // Browser preview only: the scenario director (src/director). The shell never opens it.
-        director: here('./director.html'),
+        // Dev-only: the scenario director (src/director), served by `vite` dev and absent from the
+        // release bundle (Tauri ships dist/). Built statically only by `pnpm build:director`
+        // (THE_TABLE_DIRECTOR_BUILD=1) for the no-install judge path.
+        ...(process.env.THE_TABLE_DIRECTOR_BUILD === '1' ? { director: here('./director.html') } : {}),
       },
     },
   },
