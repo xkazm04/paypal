@@ -187,9 +187,8 @@ Event `agent:changed` (main) carries `RunSnapshot` with no model text.
   - `crates/table-mcp/src/lib.rs`: whether either engine shows MCP `structuredContent` to the
     model with protocolVersion 2024-11-05. The first text block carries the same JSON.
 - The practice agent supports only the negotiator role. A practice run for a shopper or
-  assistant key is refused with "Scripted fixture supports table-view only"
-  (`engines.rs`). The message predates the policy negotiator and the run no longer just reads
-  the table.
+  assistant key is refused with "The built-in negotiator only haggles at a table; shopping and assistant runs need Claude Code or Codex CLI."
+  (`engines.rs`).
 - A wallet seller refuses inbound offers below its own floor, so only the house seller produces
   real counters. Withdrawing on exhausted rounds is not tested end to end.
 - Catalog tools (`shop_search`, quote, checkout) are not built. `propose_purchase` supports one
