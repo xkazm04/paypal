@@ -19,22 +19,15 @@
 // Options: --url <base> (a running dev or preview server; default: start `vite` on --port),
 // --port <n> (default 1444), --date YYYY-MM-DD (the story's day; default 2026-11-05),
 // --tz <IANA zone> (default America/Los_Angeles), --headed.
-import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // Pure and erasable TypeScript, loaded straight from the source (Node 22.18+ strips the types).
 import { retimePlan, setptsExpr } from '../src/director/retime.ts';
-
-const HERE = dirname(fileURLToPath(import.meta.url));
-const CLIENT = resolve(HERE, '..');
-const SIZE = { width: 1920, height: 1080 };
-/** The director's camera glides for 1.1 s; a beat is never captured before that. */
-const CAMERA_MS = 1300;
-/** How long a beat may take to show its end state before the rig calls it broken. */
-const SETTLE_TIMEOUT_MS = 12_000;
+// Playwright, the server, the context and the beat wait, shared with scripts/film-capture.mjs.
+import { CAMERA_MS, SIZE, ensureServer, ffmpegPath, hook, log, loadPlaywright, newContext, openBrowser, pad, plan, quiet, rawLength, settle, watchErrors } from './lib/rig.mjs';
 
 // ---- arguments ------------------------------------------------------------------------------------
 
@@ -91,179 +84,13 @@ const USAGE = `takes: stills, video and a rehearsal check of the director (brows
 
   env PW_CHROMIUM=<chromium binary>, PLAYWRIGHT=<path to playwright's index.mjs>`;
 
-// ---- Playwright, without a dependency ---------------------------------------------------------------
-
-async function loadPlaywright() {
-  const tries = [];
-  if (process.env.PLAYWRIGHT) tries.push(pathToFileURL(resolve(process.env.PLAYWRIGHT)).href);
-  tries.push('playwright');
-  // the global root beside this Node (Unix layout: <prefix>/bin/node, <prefix>/lib/node_modules)
-  const roots = [join(dirname(dirname(process.execPath)), 'lib', 'node_modules')];
-  try {
-    // under `pnpm takes` the npm_config_* variables pnpm sets would point npm at this package
-    const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.toLowerCase().startsWith('npm_')));
-    const root = execFileSync('npm', ['root', '-g'], { encoding: 'utf8', env, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-    if (root) roots.push(root);
-  } catch {
-    /* no npm on PATH */
-  }
-  for (const r of new Set(roots)) tries.push(pathToFileURL(join(r, 'playwright', 'index.mjs')).href);
-  const missed = [];
-  for (const t of tries) {
-    try {
-      const m = await import(t);
-      if (m.chromium) return m;
-      missed.push(`${t}: no chromium export`);
-    } catch (e) {
-      missed.push(`${t}: ${e instanceof Error ? e.message.split('\n')[0] : String(e)}`);
-    }
-  }
-  throw new Error(`Playwright not found: install it globally (npm i -g playwright) or set PLAYWRIGHT=<.../playwright/index.mjs>\n  tried ${missed.join('\n  tried ')}`);
-}
-
-// ---- the server -------------------------------------------------------------------------------------
-
-async function reachable(url) {
-  try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(1500) });
-    return r.ok;
-  } catch {
-    return false;
-  }
-}
-
-async function ensureServer(o) {
-  if (o.url) {
-    const base = o.url.endsWith('/') ? o.url : `${o.url}/`;
-    if (!(await reachable(new URL('director.html', base)))) throw new Error(`no director at ${base}director.html`);
-    return { base, stop: () => {} };
-  }
-  const base = `http://localhost:${o.port}/`;
-  if (await reachable(new URL('director.html', base))) return { base, stop: () => {} };
-  const vite = join(CLIENT, 'node_modules', 'vite', 'bin', 'vite.js');
-  if (!existsSync(vite)) throw new Error('vite is not installed: run pnpm install in apps/desktop/client, or pass --url');
-  const child = spawn(process.execPath, [vite, '--port', String(o.port), '--strictPort'], { cwd: CLIENT, stdio: 'ignore' });
-  const stop = () => {
-    if (child.exitCode === null) child.kill('SIGTERM');
-  };
-  process.on('exit', stop);
-  for (let i = 0; i < 60; i++) {
-    if (await reachable(new URL('director.html', base))) return { base, stop };
-    if (child.exitCode !== null) break;
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  stop();
-  throw new Error(`the dev server did not start on port ${o.port}`);
-}
-
-// ---- the browser --------------------------------------------------------------------------------------
-
-async function openBrowser(pw, o) {
-  const executablePath = process.env.PW_CHROMIUM || undefined;
-  return pw.chromium.launch({ executablePath, headless: !o.headed });
-}
-
-async function newContext(browser, o, theme, recordDir) {
-  const ctx = await browser.newContext({
-    viewport: SIZE,
-    screen: SIZE,
-    deviceScaleFactor: 1,
-    reducedMotion: 'no-preference',
-    colorScheme: theme,
-    locale: 'en-US',
-    timezoneId: o.tz,
-    ...(recordDir ? { recordVideo: { dir: recordDir, size: SIZE } } : {}),
-  });
-  // The Table, the Tumbler, the approval window and the stage all follow the stored theme
-  // (lib/theme.ts THEME_KEY).
-  await ctx.addInitScript((t) => {
-    try {
-      localStorage.setItem('table-theme', t);
-    } catch {
-      /* storage blocked: dark */
-    }
-  }, theme);
-  return ctx;
-}
-
-/** Page errors and console errors, from the page and every frame in it. */
-function watchErrors(page) {
-  const errors = [];
-  page.on('pageerror', (e) => errors.push(`page error: ${e.message}`));
-  page.on('console', (m) => {
-    if (m.type() === 'error') errors.push(`console error: ${m.text()}`);
-  });
-  page.on('crash', () => errors.push('the page crashed'));
-  return errors;
-}
 
 function directorUrl(base, o, index, play) {
   const q = new URLSearchParams({ ...(o.story ? { story: o.story } : {}), beat: String(index), play: play ? '1' : '0', take: '1', date: o.date });
   return new URL(`director.html?${q}`, base).href;
 }
 
-const hook = (page, fn, arg) => page.evaluate(fn, arg);
 
-async function plan(page, o) {
-  await page.waitForFunction(() => !!window.__takes, null, { timeout: 30_000 });
-  const p = await hook(page, () => window.__takes.plan);
-  // an unknown --story would quietly play Maya's week: refuse instead
-  const want = o.story ?? 'maya';
-  if (p.story !== want) throw new Error(`the director plays "${p.story}", not "${want}"`);
-  return p;
-}
-
-async function fontsReady(page) {
-  await page.evaluate(async () => {
-    const docs = [document, ...[...document.querySelectorAll('iframe')].map((f) => { try { return f.contentDocument; } catch { return null; } })];
-    await Promise.all(docs.filter(Boolean).map((d) => d.fonts?.ready));
-  });
-}
-
-/**
- * Wait (at most `cap` ms) until nothing is mid-move: no finite animation or transition runs in the
- * page or a frame (a console layer's entrance, the camera's glide; the Tumbler's breathing ring, the
- * seal's sweep and other endless ones do not count).
- */
-async function quiet(page, cap = 9000) {
-  const start = Date.now();
-  while (Date.now() - start < cap) {
-    const busy = await page.evaluate(() => {
-      const docs = [document, ...[...document.querySelectorAll('iframe')].map((f) => { try { return f.contentDocument; } catch { return null; } })].filter(Boolean);
-      return docs.some((d) => d.getAnimations().some((a) => a.playState === 'running' && a.effect?.getComputedTiming().iterations !== Infinity));
-    });
-    if (!busy) return;
-    await page.waitForTimeout(200);
-  }
-}
-
-/** Wait for beat `index` to play and show its end state; the failures if it never does. */
-async function settle(page, index, { timeout = SETTLE_TIMEOUT_MS, until = null, still = false, playTimeout = 30_000 } = {}) {
-  try {
-    await page.waitForFunction((i) => {
-      const n = window.__takes?.now();
-      return !!n && n.ready && n.index === i;
-    }, index, { timeout: playTimeout });
-  } catch {
-    return [`beat ${index} never played`];
-  }
-  const start = Date.now();
-  await page.waitForTimeout(CAMERA_MS);
-  let fail = [];
-  for (;;) {
-    fail = await hook(page, () => window.__takes.verify());
-    if (fail.length === 0) break;
-    if (Date.now() - start > timeout) break;
-    if (until && (await until())) break;
-    await page.waitForTimeout(250);
-  }
-  await fontsReady(page);
-  if (still) await quiet(page);
-  return fail;
-}
-
-const pad = (n) => String(n).padStart(2, '0');
-const log = (s) => process.stdout.write(`${s}\n`);
 
 // ---- --check -------------------------------------------------------------------------------------------
 
@@ -327,19 +154,6 @@ async function runStills(browser, base, o) {
 
 // ---- --video -------------------------------------------------------------------------------------------
 
-function ffmpegPath() {
-  const candidates = [process.env.FFMPEG, 'ffmpeg'].filter(Boolean);
-  for (const c of candidates) {
-    try {
-      execFileSync(c, ['-version'], { stdio: 'ignore' });
-      return c;
-    } catch {
-      /* next */
-    }
-  }
-  return null;
-}
-
 /** Seconds of the first beat, settled, before the story runs (kept at the head of a take). */
 const LEAD_S = 0.4;
 /** Where the caption text sits at 1920x1080 (director.css .dir-text): the rig watches it change. */
@@ -351,19 +165,6 @@ function captionChanges(ff, file) {
   return [...(r.stderr ?? '').matchAll(/pts_time:([0-9.]+)/g)].map((m) => Number(m[1]));
 }
 
-function rawLength(ff, file) {
-  const beside = join(dirname(ff), 'ffprobe');
-  try {
-    const out = execFileSync(existsSync(beside) ? beside : 'ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file], { encoding: 'utf8' });
-    const n = Number(out.trim());
-    if (Number.isFinite(n) && n > 0) return n;
-  } catch {
-    /* no ffprobe: decode the length instead */
-  }
-  const r = spawnSync(ff, ['-hide_banner', '-i', file, '-f', 'null', '-'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  const m = [...(r.stderr ?? '').matchAll(/time=(\d+):(\d+):([0-9.]+)/g)].pop();
-  return m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) : Number.POSITIVE_INFINITY;
-}
 
 async function runVideo(browser, base, o) {
   const out = resolve(o.video);

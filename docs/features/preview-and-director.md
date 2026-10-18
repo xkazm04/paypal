@@ -32,9 +32,10 @@ desktop with the puck in a corner and controls that simulate what the wallet cor
   payment request does not match the $329 deal: a pause and a review with no pay button; (b) The
   Table closes with a payment on hold, days pass, and the hold releases itself. The ending opens
   "Your safety record" (beat `end-safety`, route `#m=book&p=safety`): who decided each money step,
-  and that PayPal never heard of a request her rules refused. 22 beats in all.
+  and that PayPal never heard of a request her rules refused. 24 beats in all, 182 s (3:02).
 - URL parameters: `?beat=<index or id>`, `?play=0`, `?camera=desk`, `?date=YYYY-MM-DD` (the story
-  starts at 14:02:04 that day), `?take=1` (hides the transport for recordings).
+  starts at 14:02:04 that day), `?take=1` (hides the transport for recordings), `?take=film` (the
+  demo film's capture, below).
 
 **Preview switches** on any window URL (sample data only):
 
@@ -107,7 +108,37 @@ desktop with the puck in a corner and controls that simulate what the wallet cor
    generate-bindings`) restart the dev server before `pnpm takes --check`; otherwise the new
    `authority.ts` is not seen and pages fail with errors such as "Cannot read properties of
    undefined (reading 'labels')".
-8. **Code splitting.** `src/lib/lazy.ts` `lazyPart(load)` behaves like `React.lazy` until its chunk
+8. **Film capture.** `apps/desktop/client/scripts/film-capture.mjs` is the capture step of the
+   demo-film kit (ai-registry `skills/demo-film`): `node scripts/film-capture.mjs <film-dir>
+   [--story maya] [--base-url <url>] [--keep-server]`. It reads `<film-dir>/film.json` (the kit's
+   `FilmScript`) and `<film-dir>/audio/manifest.json` (measured clip lengths; without it every line's
+   length is estimated), and plays each film beat that has `capture` on `director.html?take=film`:
+   - **Film mode** (`?take=film`, implies `take=1`): no caption rail and no transport, the camera
+     fixed on the whole desk with no glide, no pointer, and the clock stopped: the director never
+     advances on a beat's `at`, the rig plays each beat (`__takes.film.go(n)`: in place when it is the
+     next beat, otherwise the same rebuild as `?beat=`). The banner and every window's "Preview ·
+     sample data" badge stay.
+   - **The hook** (`window.__takes.film`, film mode only): `rects(selectors)` measures page pixels of
+     the recorded 1920 × 1080 viewport, a `main|`, `tumbler|` or `approval|` prefix picking a framed
+     window (its rectangle mapped through the frame's place on the desk and the desk's transform,
+     `stageRect` in `takes.ts`); `record()` reduces the mock world for the current beat (the haggle:
+     her offers, Dan's, the ceiling and the ask-me threshold from the signed mandate version the deal
+     runs on, and the gate's amount once it is up; `haggleRecord`); `shown(record)` says where The
+     Table does not draw those figures; `clicks()` gives the centre of what the beat's action stood in
+     for pressing (`FILM_PRESS`: the Tumbler's notification, its "Review and decide"), measured before
+     the action runs. Nothing is clicked.
+   - **The take**: one recorded context (1920 × 1080, the same locale, time zone and story day as
+     `takes.mjs`, which shares its Playwright, server and beat-wait code through `scripts/lib/rig.mjs`).
+     For each beat: `startMs` when the beat's actions ran (from context creation), the director's
+     `EXPECT` check (a broken beat is recorded in `error` and the take carries on), rects for every
+     target, clicks, the record (checked against what The Table draws), then a hold of
+     `max(clip or estimate, settleMs) + breathMs` from `startMs`. Beats without `capture` are not
+     filmed. It writes `take/take.webm`, an h264 copy `take/take.mp4` (30 fps, no audio, same clock)
+     and `take/take.json` (the kit's `Take`, `offsetUncertaintyMs` 300), and exits 1 at the end
+     naming every broken beat. It starts its own Vite on port 1531 (`--strictPort`) unless
+     `--base-url` names a server, and stops it on exit. The kit's `contract.ts` comes from
+     `$DEMO_FILM_KIT` (default `<repo>/.claude/skills/demo-film`).
+9. **Code splitting.** `src/lib/lazy.ts` `lazyPart(load)` behaves like `React.lazy` until its chunk
    arrives, then renders directly (later navigation never suspends); `.preload()` loads once and
    retries after a failure; `preloadWhenIdle(parts)` loads parts after first paint. In `main` (the
    console) every layer is its own lazy part (`console/layers.registry.ts`, `LAYER_PARTS`, preloaded
@@ -115,7 +146,7 @@ desktop with the puck in a corner and controls that simulate what the wallet cor
    chunks; the console frame, the decision centre and the waiting list stay in the entry chunk. In `approval` the owner configuration,
    the rules editor with its what-if and the replay sheet are lazy; a deal review stays in the
    entry chunk. Stylesheets stay eager.
-9. **Build.** `vite.config.ts` has four inputs (`main`, `tumbler`, `approval`, `director`); no shell
+10. **Build.** `vite.config.ts` has four inputs (`main`, `tumbler`, `approval`, `director`); no shell
    window points at `director`. The shell's CSP allows only `'self'` scripts and styles and no
    frames, so every page ships as bundled files.
 
@@ -143,7 +174,8 @@ desktop with the puck in a corner and controls that simulate what the wallet cor
 | Badges | `src/shared/honesty.tsx` | `MockBadge`, `ModeBadge`, `RunBadge` |
 | Tumbler stage | `src/windows/tumbler/App.tsx`, `preview/Preview.tsx`, `preview/Framed.tsx` | the mock-only stage and the director's bare frame |
 | Director | `src/director/Director.tsx`, `entry.tsx`, `beats.ts`, `actions.ts`, `helpers.ts`, `takes.ts`, `retime.ts`, `README.md`, `director.html` | `BEATS`, `CHAPTERS`, `runActions`, `EXPECT`, `checkBeat`, `BANNER`, `MOCK_BADGE`, `retimePlan` |
-| Takes rig | `apps/desktop/client/scripts/takes.mjs`, `package.json` (`takes` script) | `--check`, `--stills`, `--video` |
+| Takes rig | `apps/desktop/client/scripts/takes.mjs`, `scripts/lib/rig.mjs`, `package.json` (`takes` script) | `--check`, `--stills`, `--video` |
+| Film capture | `apps/desktop/client/scripts/film-capture.mjs`, `src/director/takes.ts`, `Director.tsx` | `?take=film`, `__takes.film`, `stageRect`, `haggleRecord`, `recordShown`, `FILM_PRESS` |
 | Code splitting | `src/lib/lazy.ts`, `windows/main/console/Console.tsx`, `windows/main/console/layers.registry.ts`, `windows/approval/App.tsx` | `lazyPart`, `preloadWhenIdle`, `LAYER_PARTS` |
 | Build | `apps/desktop/client/vite.config.ts`, `apps/desktop/src-tauri/tauri.conf.json` (CSP) | four Vite inputs |
 
@@ -160,6 +192,9 @@ IPC: none of its own. The mock answers every command in the authority table with
   simulated clock".
 - `src/director/takes.test.ts`: "always wants the preview banner and a badge in every open window",
   "wants the haggle's review to be a live decision and the mismatch's to have no way to pay".
+- `src/director/film.test.ts`: "maps an iframe-local rectangle through a scaled desk", "reads the
+  ceiling and the ask-me threshold from the signed mandate", "changes with the fixtures, not with a
+  typed constant: a re-signed rule moves the record".
 - `src/director/retime.test.ts`: "puts every caption change back on its beat and cuts the lead-in".
 - `src/lib/clock.test.ts`: "is a passthrough inside the desktop shell: simulation refuses there".
 - `src/mock/authority.test.ts`: "gates every command exactly as the authority table says, for every

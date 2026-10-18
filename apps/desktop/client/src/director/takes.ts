@@ -5,8 +5,10 @@
 //
 // Everything here is pure: the director gathers what its three frames show into a `Seen` and
 // `checkBeat` says what is missing. A broken beat fails loudly here before a take is recorded.
+import type { Clause } from '@bindings/Clause';
 import type { DealState } from '@bindings/DealState';
 import type { StartStepState } from '../lib/firstRun';
+import type { MockDeal } from '../mock/fixtures';
 import { APPROVAL_FIRST_RUN, CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, IF_NOTHING, REWIND_CARD, SAFE_DEFAULT_LINE, SAFETY_PROMISE, TABLES_VIEWS, type StartStepKey, type TourStopId } from '../lib/words';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat, type Chapter } from './beats';
 import { HAGGLE, HOLD, MISMATCH } from './helpers';
@@ -436,4 +438,117 @@ export function takePlan(beats: readonly Beat<string>[] = BEATS, chapters: reado
     chapters: chapters.map((c) => ({ id: c.id, title: c.title })),
     beats: beats.map((b, index) => ({ index, id: b.id, chapter: b.chapter, at: b.at, focus: b.focus, still: stillName(index, b) })),
   };
+}
+
+// ---- film capture (?take=film, scripts/film-capture.mjs) -----------------------------------------
+//
+// The demo film's capture adapter: the director films the desk wide and the rig logs where things
+// are (video pixels), what was pressed and the figures a motion plate may show. Pure arithmetic and
+// reductions here; the director measures and reads the mock world. Watch-only: a press is a
+// beat's own action (the director's stand-in for a click), never a click the rig makes.
+
+export type PxRect = { x: number; y: number; w: number; h: number };
+/** The desk's CSS transform (translate, then uniform scale from the top-left corner). */
+export type DeskTransform = { tx: number; ty: number; s: number };
+
+const FRAMES: readonly FrameName[] = ['main', 'tumbler', 'approval'];
+
+/**
+ * A film target: `main|.sel`, `tumbler|.sel` or `approval|.sel` is a selector inside that framed
+ * window; anything else is a selector in the director page itself.
+ */
+export function filmTarget(sel: string): { frame: FrameName | null; css: string } {
+  const m = /^(\w+)\|(.*)$/s.exec(sel);
+  if (m && (FRAMES as readonly string[]).includes(m[1] ?? '')) return { frame: m[1] as FrameName, css: (m[2] ?? '').trim() };
+  return { frame: null, css: sel.trim() };
+}
+
+/** The desk transform from its computed matrix (no rotation or skew on the desk: `a` is the scale). */
+export function deskTransform(m: { a: number; e: number; f: number } | null): DeskTransform {
+  return m ? { tx: m.e, ty: m.f, s: m.a } : { tx: 0, ty: 0, s: 1 };
+}
+
+/**
+ * A rectangle inside a framed window (its own viewport pixels) in page pixels of the recorded
+ * viewport: through the frame's place on the desk (`frame`, desk pixels, untransformed), the desk's
+ * transform, and where the desk's box starts on the page (`origin`, the stage's top-left).
+ */
+export function stageRect(local: PxRect, frame: { x: number; y: number }, desk: DeskTransform, origin: { x: number; y: number }): PxRect {
+  const r = (n: number) => Math.round(n * 100) / 100;
+  return {
+    x: r(origin.x + desk.tx + desk.s * (frame.x + local.x)),
+    y: r(origin.y + desk.ty + desk.s * (frame.y + local.y)),
+    w: r(desk.s * local.w),
+    h: r(desk.s * local.h),
+  };
+}
+
+/** The centre of a rectangle, as a click point. */
+export function centre(r: PxRect): { x: number; y: number } {
+  return { x: Math.round(r.x + r.w / 2), y: Math.round(r.y + r.h / 2) };
+}
+
+/**
+ * What a beat's action stands in for pressing, by beat id: the director logs the target's centre as
+ * a click at the beat's start (before the action changes the window). A film draws a ripple there;
+ * nothing is clicked. The notification is the Tumbler's ticker, or its puck when it rests.
+ */
+export const FILM_PRESS: Readonly<Record<string, string>> = {
+  'haggle-card': 'tumbler|.f.ticker, .puck-art',
+  'haggle-review': 'tumbler|.ui-btn.gold',
+  'mismatch-card': 'tumbler|.f.ticker, .puck-art',
+  'closed-hold': 'tumbler|.f.ticker, .puck-art',
+};
+
+/** The haggle's figures for a film plate, from the mock world (never typed constants). */
+export type HaggleRecord = {
+  /** Her signed price ceiling for the item (dollars). */
+  ceiling?: number;
+  /** Her signed "ask me above" threshold (dollars). */
+  askAbove?: number;
+  /** Her agent's offers so far, in order (dollars). */
+  offersMaya: number[];
+  /** Dan's asks so far, his listing first (dollars). */
+  offersDan: number[];
+  /** The amount that stopped the agent and waits for her (dollars), once the gate is up. */
+  gateAt?: number;
+};
+
+const dollars = (m: { minor: number } | null | undefined) => (m ? m.minor / 100 : undefined);
+
+/**
+ * Reduce a haggle deal, as the mock world shows it now (rewound part-way or whole), and the signed
+ * mandate version it runs under, to the figures a plate may show. The ceiling is the mandate's band
+ * for the deal's item (else the deal's own band); the threshold is its human-present clause; the
+ * gate is the deal's open decision. Absent figures are omitted keys.
+ */
+export function haggleRecord(d: Pick<MockDeal, 'deal' | 'display' | 'transcript' | 'attention'>, clauses: readonly Clause[] = []): HaggleRecord {
+  const band = clauses.find((c): c is Extract<Clause, { type: 'band' }> => c.type === 'band' && c.item_refs.includes(d.deal.terms.item_ref));
+  const ask = clauses.find((c): c is Extract<Clause, { type: 'human_present_over' }> => c.type === 'human_present_over');
+  const ceiling = dollars(band?.ceiling ?? d.display.band?.ceiling);
+  const askAbove = dollars(ask?.amount);
+  const priced = d.transcript.filter((t) => t.price);
+  const out: HaggleRecord = {
+    offersMaya: priced.filter((t) => t.by === 'you' && (t.typ === 'OFFER' || t.typ === 'COUNTER')).map((t) => dollars(t.price) as number),
+    offersDan: priced.filter((t) => t.by === 'them' && (t.typ === 'LISTING' || t.typ === 'COUNTER')).map((t) => dollars(t.price) as number),
+  };
+  if (ceiling !== undefined) out.ceiling = ceiling;
+  if (askAbove !== undefined) out.askAbove = askAbove;
+  if (d.attention?.kind === 'gate') out.gateAt = d.attention.amount_minor / 100;
+  return out;
+}
+
+/** "$1,234.00" as the windows draw a dollar amount. */
+export function usdText(n: number): string {
+  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * Does the rendered window show the record's latest figures? (the latest offer each side made, and
+ * the gate's amount). The words that are missing; empty when the record and the screen agree.
+ */
+export function recordShown(rec: Partial<HaggleRecord> | Record<string, unknown>, text: string): string[] {
+  const last = (v: unknown) => (Array.isArray(v) ? v.at(-1) : undefined);
+  const want = [last(rec.offersMaya), last(rec.offersDan), rec.gateAt].filter((n): n is number => typeof n === 'number');
+  return [...new Set(want.map(usdText))].filter((t) => !text.includes(t)).map((t) => `the record says ${t}, The Table does not show it`);
 }

@@ -27,7 +27,8 @@ Two stories, chosen with `?story=` (`stories.ts`):
 | `helpers.ts` | every Tumbler preview control as a beat helper |
 | `takes.ts` | per-beat expected end state on screen (`EXPECT`, `FIRST_RUN_EXPECT`), still names, chapter takes, story date |
 | `retime.ts` | puts a lagging screen recording back on the beat file's clock |
-| `Director.tsx` | the stage, the camera, the caption rail, and the `window.__takes` hook |
+| `Director.tsx` | the stage, the camera, the caption rail, and the `window.__takes` hook (`.film` under `?take=film`) |
+| `film.test.ts` | the film capture's rectangle mapping and the haggle's record |
 
 Run it: `pnpm --dir apps/desktop/client dev`, then open `/director.html` (Maya's week) or
 `/director.html?story=first-run`.
@@ -41,7 +42,16 @@ approval window) follows the stored theme. The approval window opens from a beat
 URL parameters: `?beat=<index or id>` starts at a beat, `?play=0` starts paused,
 `?camera=desk` keeps the whole desk in view, `?date=YYYY-MM-DD` starts the story at 14:02:04
 on that day instead of today, and `?take=1` hides the transport controls for a recording. The
-preview banner and the captions stay in every mode.
+preview banner stays in every mode, and the captions in every mode but `?take=film` (below).
+
+## Film capture (`?take=film`)
+
+`scripts/film-capture.mjs <film-dir>` is the demo-film kit's capture step: the desk wide and still,
+no caption rail, no transport, the clock stopped while the rig plays each film beat through
+`window.__takes.film` (`go`, `rects`, `record`, `shown`, `clicks`, `playedAt`), then
+`take/take.webm`, `take/take.mp4` and `take/take.json`. It starts Vite on port 1531 unless
+`--base-url` names a server. See [preview-and-director.md](../../../../../docs/features/preview-and-director.md)
+("Film capture"). The banner and the badges stay; nothing is clicked.
 
 ## Takes: stills, video and the rehearsal check
 
@@ -75,7 +85,7 @@ pnpm --dir apps/desktop/client takes --check
 # Stills: one 1920x1080 PNG per beat, <dir>/<theme>/NN-chapter-beat.png (NN is the ?beat= index).
 pnpm --dir apps/desktop/client takes --stills /tmp/takes/stills --theme both
 
-# The whole story in real time (about 2:51), one webm, plus /tmp/takes/maya.webm.cues.json with
+# The whole story in real time (about 3:02), one webm, plus /tmp/takes/maya.webm.cues.json with
 # the time each beat starts in the video.
 pnpm --dir apps/desktop/client takes --video /tmp/takes/maya.webm
 

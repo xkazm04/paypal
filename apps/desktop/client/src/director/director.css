@@ -135,3 +135,8 @@ body.w-director { margin: 0; overflow: hidden; background: var(--stage); }
 .dir-ctl[hidden] { display: none; }
 .dir.take { cursor: none; }
 .dir.take .dir-tick { pointer-events: none; }
+
+/* the demo film's capture (?take=film, scripts/film-capture.mjs): the desk wide and still, no caption
+   rail (the film's voice carries the story), no pointer; the banner and every badge stay */
+.dir.film { cursor: none; }
+.dir.film .dir-desk { transition: none; }
