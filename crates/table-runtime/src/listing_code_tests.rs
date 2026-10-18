@@ -386,12 +386,15 @@ async fn deal_join_refuses_an_unpaired_revoked_or_expired_counterparty_and_a_kno
     let stranger =
         table_proto::key_id(&ed25519_dalek::SigningKey::from_bytes(&[50; 32]).verifying_key())
             .unwrap();
-    assert!(
+    // A key never seen here is a plain "not found" to the owner, not a ledger-trust fault (J-5).
+    assert!(matches!(
         buyer
             .execute(caller("approval", Some(&token)), join(&stranger, fresh()))
             .await
-            .is_err()
-    );
+            .unwrap_err()
+            .code,
+        ErrorCode::NotFound
+    ));
     let unconfirmed = pin(&mut buyer, 1, None);
     assert!(
         buyer
