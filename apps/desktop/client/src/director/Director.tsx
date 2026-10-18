@@ -6,6 +6,10 @@
 // shared clock and sends the core's events, and the framed windows hear them over the mock's
 // BroadcastChannel exactly as separate windows do. It never clicks inside a window: approving
 // stays the viewer's own click, and in the mock that click moves no real money.
+//
+// `?take=film` is the demo film's capture (scripts/film-capture.mjs): the desk wide and still (no
+// caption rail, no transport, no camera move), the clock stopped (the rig plays each beat itself),
+// and the hook also says where things are on screen, what a beat pressed and the haggle's figures.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { clockOffset } from '../lib/clock';
 import { clockLabel } from '../lib/format';
@@ -13,10 +17,11 @@ import { useNow, usePrefersReducedMotion } from '../lib/hooks';
 import { APPROVAL_FRAME } from '../lib/words';
 import { applyTheme, getTheme, setTheme, type Theme } from '../lib/theme';
 import { mockBackend } from '../mock/backend';
+import { HAGGLE } from './helpers';
 import { applyWorld, foldScene, INITIAL_SCENE, placeTours, runActions, WORLD_ACTIONS, type Scene, type Stage } from './actions';
 import type { Beat, Focus } from './beats';
 import { frameUrls, type Story } from './stories';
-import { charterSteps, checkBeat, expectedDeals, selectChapter, storyStartOn, takePlan, wholeTake, type ChapterTake, type Seen, type TakePlan } from './takes';
+import { centre, charterSteps, checkBeat, deskTransform, expectedDeals, FILM_PRESS, filmTarget, haggleRecord, recordShown, selectChapter, stageRect, storyStartOn, takePlan, wholeTake, type ChapterTake, type FrameName, type PxRect, type Seen, type TakePlan } from './takes';
 
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -150,6 +155,23 @@ function frameSteps(f: HTMLIFrameElement | null | undefined): Record<string, str
   }
 }
 
+/** A film capture's view of the stage (`?take=film` only): measuring and reading, never acting in a window. */
+export type FilmHook = {
+  /** Page-pixel rectangles of the recorded viewport, by selector (`main|`, `tumbler|`, `approval|`
+   *  pick a framed window; unprefixed is the director page). A selector with nothing drawn is left out. */
+  rects(selectors: string[]): Record<string, PxRect>;
+  /** The figures a plate may show for the current beat, from the mock world ({} when it has none). */
+  record(): Promise<Record<string, unknown>>;
+  /** Where The Table does not draw a record's figures (empty: the record and the screen agree). */
+  shown(record: Record<string, unknown>): string[];
+  /** What the current beat's action stood in for pressing: centre points, ms after the beat started. */
+  clicks(): Array<{ x: number; y: number; atMs: number }>;
+  /** Play beat `n`: in place when it is the next beat, else rebuild the world up to it (`?beat=`). */
+  go(n: number): void;
+  /** `Date.now()` when the current beat's actions ran. */
+  playedAt(): number;
+};
+
 /** The read-only hook the rehearsal rig (scripts/takes.mjs) drives the director through. */
 export type TakesHook = {
   plan: TakePlan;
@@ -163,6 +185,8 @@ export type TakesHook = {
   verify(): string[];
   play(): void;
   pause(): void;
+  /** Present under `?take=film`. */
+  film?: FilmHook;
 };
 
 /** `story`: Maya's week, or First run on the brand-new wallet's world (stories.ts, `?story=`). */
@@ -175,8 +199,10 @@ export function Director({ story }: { story: Story }) {
   const now = useNow();
   const reduced = usePrefersReducedMotion();
 
+  // the demo film's capture: the rig plays each beat; nothing moves on its own clock
+  const film = param('take') === 'film';
   const [index, setIndex] = useState(-1);
-  const [playing, setPlaying] = useState(param('play') !== '0');
+  const [playing, setPlaying] = useState(!film && param('play') !== '0');
   const [ready, setReady] = useState(false);
   const [t, setT] = useState(0);
   const [mainOpen, setMainOpen] = useState(true);
@@ -186,9 +212,10 @@ export function Director({ story }: { story: Story }) {
   const approvalOpenRef = useRef(false);
   approvalOpenRef.current = approvalOpen;
   const [frames, setFrames] = useState<Frames>({ epoch: 0, mainSrc: 'about:blank', approvalSrc: 'about:blank', approvalKey: 0 });
-  const [follow, setFollow] = useState(param('camera') !== 'desk');
-  // a recorded take: no transport controls on screen (the banner and the captions stay)
-  const take = param('take') === '1';
+  const [follow, setFollow] = useState(!film && param('camera') !== 'desk');
+  // a recorded take: no transport controls on screen (the banner and the captions stay; a film
+  // capture hides the caption rail too)
+  const take = film || param('take') === '1';
   const [theme, setThemeState] = useState<Theme>(getTheme());
   const [box, setBox] = useState({ w: 0, h: 0 });
 
@@ -202,6 +229,12 @@ export function Director({ story }: { story: Story }) {
   const tumblerRef = useRef<HTMLIFrameElement>(null);
   const approvalRef = useRef<HTMLIFrameElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const deskRef = useRef<HTMLDivElement>(null);
+  /** Film capture: when the current beat played, and what its action stood in for pressing. */
+  const playedAtRef = useRef(0);
+  const pressRef = useRef<Array<{ x: number; y: number; atMs: number }>>([]);
+  /** Which windows are open, for measuring (kept current below). */
+  const openRef = useRef({ main: true, approval: false });
 
   // ---- the stage the beats act on ------------------------------------------------------------
   const navigateMain = useCallback((route: string) => {
@@ -252,15 +285,57 @@ export function Director({ story }: { story: Story }) {
     }, 700);
   }, []);
 
+  /** Film capture: a rectangle on the recorded page (null when nothing is drawn there). */
+  const measure = useCallback((sel: string): PxRect | null => {
+    try {
+      const { frame, css } = filmTarget(sel);
+      const box = (el: Element | null | undefined) => {
+        const r = el?.getBoundingClientRect();
+        return r && r.width > 0 && r.height > 0 ? { x: r.left, y: r.top, w: r.width, h: r.height } : null;
+      };
+      if (!frame) {
+        const r = box(document.querySelector(css));
+        return r ? stageRect(r, { x: 0, y: 0 }, { tx: 0, ty: 0, s: 1 }, { x: 0, y: 0 }) : null;
+      }
+      const open = frame === 'tumbler' || openRef.current[frame];
+      const f = ({ main: mainRef, tumbler: tumblerRef, approval: approvalRef } satisfies Record<FrameName, unknown>)[frame].current;
+      const desk = deskRef.current;
+      const stageEl = stageRef.current;
+      if (!open || !f || !desk || !stageEl) return null;
+      const local = box(f.contentDocument?.querySelector(css));
+      if (!local) return null;
+      // the frame's place on the desk, untransformed (offsets ignore CSS transforms)
+      let x = f.clientLeft;
+      let y = f.clientTop;
+      for (let el: HTMLElement | null = f; el && el !== desk; el = el.offsetParent as HTMLElement | null) {
+        x += el.offsetLeft;
+        y += el.offsetTop;
+      }
+      const t = getComputedStyle(desk).transform;
+      const m = t && t !== 'none' ? new DOMMatrixReadOnly(t) : null;
+      const st = stageEl.getBoundingClientRect();
+      return stageRect(local, { x, y }, deskTransform(m), { x: st.left + desk.offsetLeft, y: st.top + desk.offsetTop });
+    } catch {
+      return null;
+    }
+  }, []);
+
   const play = useCallback((i: number) => {
     const b = BEATS[i];
     if (!b) return;
+    if (film) {
+      // what this beat's action stands in for pressing, measured before the action changes it
+      const press = FILM_PRESS[b.id];
+      const r = press ? measure(press) : null;
+      pressRef.current = r ? [{ ...centre(r), atMs: 0 }] : [];
+      playedAtRef.current = Date.now();
+    }
     runActions(stage, b.do);
     keepKeyboard();
     setViewerFocus(null);
     indexRef.current = i;
     setIndex(i);
-  }, [stage, keepKeyboard, BEATS]);
+  }, [stage, keepKeyboard, BEATS, film, measure]);
 
   /** Rebuild the world up to beat `n`, reload the frames on that scene, then play beat `n`. */
   const seek = useCallback((n: number) => {
@@ -329,7 +404,7 @@ export function Director({ story }: { story: Story }) {
 
   // ---- the scenario clock ----------------------------------------------------------------------
   useEffect(() => {
-    if (!playing || !ready) return;
+    if (!playing || !ready || film) return;
     let last = performance.now();
     const id = setInterval(() => {
       const at = performance.now();
@@ -342,7 +417,7 @@ export function Director({ story }: { story: Story }) {
       if (tRef.current >= SCRIPT_LENGTH) setPlaying(false);
     }, 200);
     return () => clearInterval(id);
-  }, [playing, ready, play, BEATS, SCRIPT_LENGTH]);
+  }, [playing, ready, play, BEATS, SCRIPT_LENGTH, film]);
 
   const atEnd = index >= BEATS.length - 1 && t >= SCRIPT_LENGTH - 0.01;
   const onPlay = useCallback(() => {
@@ -378,6 +453,7 @@ export function Director({ story }: { story: Story }) {
   // ---- the rehearsal rig's hook (read-only: it can watch, play and pause, never act in a window) -
   const live = useRef({ ready, index, t, playing, mainOpen, approvalOpen });
   live.current = { ready, index, t, playing, mainOpen, approvalOpen };
+  openRef.current = { main: mainOpen, approval: approvalOpen };
   useEffect(() => {
     const deals = expectedDeals(story.expect);
     const seen = (): Seen => ({
@@ -402,11 +478,51 @@ export function Director({ story }: { story: Story }) {
       play: () => setPlaying(true),
       pause: () => setPlaying(false),
     };
+    if (film) {
+      hook.film = {
+        rects: (selectors) => {
+          const out: Record<string, PxRect> = {};
+          for (const sel of selectors) {
+            const r = measure(sel);
+            if (r) out[sel] = r;
+          }
+          return out;
+        },
+        record: async () => {
+          // Maya's week's haggle: the deal as the world shows it now, under the signed mandate
+          // version it runs on (a read: mandate_list needs no unlock and changes nothing)
+          const b = BEATS[live.current.index];
+          const d = b?.chapter === 'haggle' ? world.deal(HAGGLE) : undefined;
+          if (!d) return {};
+          let clauses: Parameters<typeof haggleRecord>[1] = [];
+          try {
+            const list = await core.invoke('mandate_list', null);
+            clauses = list.find((m) => m.payload.id === d.deal.mandate_id && m.payload.version === d.deal.mandate_version)?.payload.clauses ?? [];
+          } catch {
+            /* the deal's own band still gives the ceiling */
+          }
+          return haggleRecord(d, clauses);
+        },
+        shown: (rec) => recordShown(rec, frameText(mainRef.current)),
+        clicks: () => pressRef.current.map((c) => ({ ...c })),
+        go: (n) => {
+          if (n < 0 || n >= BEATS.length) return;
+          if (live.current.ready && n === indexRef.current + 1) {
+            tRef.current = BEATS[n]?.at ?? tRef.current;
+            setT(tRef.current);
+            play(n);
+          } else {
+            seek(n);
+          }
+        },
+        playedAt: () => playedAtRef.current,
+      };
+    }
     (window as unknown as { __takes?: TakesHook }).__takes = hook;
     return () => {
       delete (window as unknown as { __takes?: TakesHook }).__takes;
     };
-  }, [world, story, BEATS, CHAPTERS, SCRIPT_LENGTH]);
+  }, [world, story, BEATS, CHAPTERS, SCRIPT_LENGTH, film, measure, core, play, seek]);
 
   // ---- layout ----------------------------------------------------------------------------------
   useEffect(() => {
@@ -470,14 +586,14 @@ export function Director({ story }: { story: Story }) {
   const win = (r: Rect): CSSProperties => ({ left: r.x, top: r.y - BAR, width: r.w, height: r.h + BAR });
 
   return (
-    <div className={`dir${reduced ? ' reduced' : ''}${take ? ' take' : ''}`} data-beat={beat?.id ?? ''} data-ready={ready ? 'true' : 'false'}>
+    <div className={`dir${reduced ? ' reduced' : ''}${take ? ' take' : ''}${film ? ' film' : ''}`} data-beat={beat?.id ?? ''} data-ready={ready ? 'true' : 'false'}>
       <header className="dir-banner" role="note">
         <span className="dir-dot" aria-hidden="true" />
         <span>Browser preview with sample data — not the wallet. No PayPal page is ever shown.</span>
       </header>
 
       <main className="dir-stage" ref={stageRef} aria-label="The three windows of The Table, on sample data">
-        <div className="dir-desk" style={{ width: DESK.w, height: DESK.h, ...deskStyle }}>
+        <div className="dir-desk" ref={deskRef} style={{ width: DESK.w, height: DESK.h, ...deskStyle }}>
           <section className={`dir-win w-main${mainOpen ? '' : ' closed'}`} style={win(WIN.main)} aria-label="The Table (main window)" aria-hidden={!mainOpen}>
             <WinBar title="The Table" />
             <iframe key={`m${frames.epoch}`} ref={mainRef} name="the-table-main" title="The Table" src={frames.mainSrc}
@@ -501,7 +617,7 @@ export function Director({ story }: { story: Story }) {
         {!ready ? <div className="dir-loading" role="status"><span />Setting the table…</div> : null}
       </main>
 
-      <footer className="dir-rail" aria-label="Story">
+      {film ? null : <footer className="dir-rail" aria-label="Story">
         <div className="dir-cap" aria-live="polite">
           <div className="dir-kicker">
             <span className="dir-chap">{chapterNo > 0 && chapterNo < CHAPTERS.length - 1 ? `${chapterNo} · ` : ''}{chapter?.title}</span>
@@ -551,7 +667,7 @@ export function Director({ story }: { story: Story }) {
             );
           })}
         </nav>
-      </footer>
+      </footer>}
     </div>
   );
 }
