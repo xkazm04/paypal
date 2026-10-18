@@ -9,19 +9,21 @@
 //
 // `?take=film` is the demo film's capture (scripts/film-capture.mjs): the desk wide and still (no
 // caption rail, no transport, no camera move), the clock stopped (the rig plays each beat itself),
-// and the hook also says where things are on screen, what a beat pressed and the haggle's figures.
+// and the hook also says where things are on screen, what a beat pressed and each chapter's record
+// (the haggle's figures, the shop-around group, the week's deadlines, who decided each money step).
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { clockOffset } from '../lib/clock';
-import { clockLabel } from '../lib/format';
+import { clockLabel, nowUnix } from '../lib/format';
 import { useNow, usePrefersReducedMotion } from '../lib/hooks';
-import { APPROVAL_FRAME } from '../lib/words';
+import { APPROVAL_FRAME, tablesShortWho } from '../lib/words';
+import { weekBounds } from '../windows/main/logic';
 import { applyTheme, getTheme, setTheme, type Theme } from '../lib/theme';
 import { mockBackend } from '../mock/backend';
 import { HAGGLE } from './helpers';
 import { applyWorld, foldScene, INITIAL_SCENE, placeTours, runActions, WORLD_ACTIONS, type Scene, type Stage } from './actions';
 import type { Beat, Focus } from './beats';
 import { frameUrls, type Story } from './stories';
-import { centre, charterSteps, checkBeat, deskTransform, expectedDeals, FILM_PRESS, filmTarget, haggleRecord, recordShown, selectChapter, stageRect, storyStartOn, takePlan, wholeTake, type ChapterTake, type FrameName, type PxRect, type Seen, type TakePlan } from './takes';
+import { centre, charterSteps, checkBeat, deadlinesRecord, decisionsRecord, deskTransform, expectedDeals, FILM_PRESS, filmTarget, haggleRecord, recordShownOnStage, selectChapter, shopRecord, stageRect, storyStartOn, takePlan, wholeTake, type ChapterTake, type FrameName, type PxRect, type Seen, type TakePlan } from './takes';
 
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -489,10 +491,39 @@ export function Director({ story }: { story: Story }) {
           return out;
         },
         record: async () => {
+          const b = BEATS[live.current.index];
+          if (story.id !== 'maya' || !b) return {};
+          // the chapter records (takes.ts reducers), from reads of the mock world: none signs,
+          // unlocks or changes anything
+          if (b.chapter === 'shop' || b.chapter === 'silence' || b.chapter === 'closed' || b.chapter === 'end') {
+            try {
+              const ids = await core.invoke('list_deals', null);
+              const deals = await Promise.all(ids.map(async (deal) => ({ deal, display: await core.invoke('deal_display', { deal_id: deal.id }) })));
+              if (b.chapter === 'shop') {
+                const [groups, cps] = await Promise.all([core.invoke('deal_groups', null), core.invoke('counterparty_list', null)]);
+                const haggleId = world.deal(HAGGLE)?.deal.id;
+                const g = groups.find((x) => x.tables.some((t) => t.deal_id === haggleId)) ?? groups[0];
+                if (!g) return {};
+                const byId = new Map(deals.map((d) => [d.deal.id, d.display] as const));
+                const cpBy = new Map(cps.map((c) => [c.key_id, c] as const));
+                return {
+                  shop: shopRecord(g, {
+                    deal: (id) => byId.get(id),
+                    seller: (key) => { const c = cpBy.get(key); return c ? tablesShortWho({ house: c.house, name: c.display_name }) : key; },
+                  }),
+                };
+              }
+              // Maya's week as the Rewind reads it: this week's verified steps, Monday to Monday
+              const week = weekBounds(nowUnix());
+              const { steps } = await core.invoke('deal_history', { deal_id: null, from: week.start, to: week.end });
+              return b.chapter === 'end' ? { decisions: decisionsRecord(steps, deals) } : { deadlines: deadlinesRecord(deals, steps, week, nowUnix()) };
+            } catch {
+              return {};
+            }
+          }
           // Maya's week's haggle: the deal as the world shows it now, under the signed mandate
           // version it runs on (a read: mandate_list needs no unlock and changes nothing)
-          const b = BEATS[live.current.index];
-          const d = b?.chapter === 'haggle' ? world.deal(HAGGLE) : undefined;
+          const d = b.chapter === 'haggle' ? world.deal(HAGGLE) : undefined;
           if (!d) return {};
           let clauses: Parameters<typeof haggleRecord>[1] = [];
           try {
@@ -503,7 +534,11 @@ export function Director({ story }: { story: Story }) {
           }
           return haggleRecord(d, clauses);
         },
-        shown: (rec) => recordShown(rec, frameText(mainRef.current)),
+        shown: (rec) => recordShownOnStage(rec, {
+          main: live.current.mainOpen ? frameText(mainRef.current) : '',
+          tumbler: frameText(tumblerRef.current),
+          approval: live.current.approvalOpen ? frameText(approvalRef.current) : '',
+        }),
         clicks: () => pressRef.current.map((c) => ({ ...c })),
         go: (n) => {
           if (n < 0 || n >= BEATS.length) return;

@@ -7,7 +7,7 @@ import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat } from './beats';
 import { FIRST_RUN_BEATS, FIRST_RUN_CHAPTERS, FIRST_RUN_LENGTH } from './firstRunStory';
 import { HAGGLE, HOLD, MISMATCH } from './helpers';
 import { STORIES } from './stories';
-import { BANNER, CHARTER_LINES, EXPECT, FIRST_RUN_EXPECT, MOCK_BADGE, charterSteps, checkBeat, expectedDeals, selectChapter, slug, stillName, storyStartOn, takePlan, wholeTake, type Seen } from './takes';
+import { BANNER, CHARTER_LINES, EXPECT, HOUSE_TABLE, FIRST_RUN_EXPECT, MOCK_BADGE, charterSteps, checkBeat, expectedDeals, selectChapter, slug, stillName, storyStartOn, takePlan, wholeTake, type Seen } from './takes';
 
 const beat = (id: string, chapter: Beat['chapter']): Pick<Beat, 'id' | 'chapter'> => ({ id, chapter });
 /** The Table on its decision centre, as its text reads. */
@@ -46,9 +46,11 @@ describe('still names', () => {
 
 describe('chapter takes', () => {
   it('count chapters as the caption rail does, by number or id', () => {
-    const haggle = selectChapter(1);
+    // shopping around opens the week (1), so the haggle is chapter 2
+    expect(selectChapter(1)?.chapter.id).toBe('shop');
+    const haggle = selectChapter(2);
     expect(haggle?.chapter.id).toBe('haggle');
-    expect(selectChapter('1')).toEqual(haggle);
+    expect(selectChapter('2')).toEqual(haggle);
     expect(selectChapter('haggle')).toEqual(haggle);
     expect(selectChapter(' haggle ')).toEqual(haggle);
     expect(selectChapter(0)?.chapter.id).toBe('intro');
@@ -94,7 +96,7 @@ describe('each beat’s end state', () => {
   it('is written for every beat, and names only deals of the story', () => {
     for (const b of BEATS) expect(EXPECT[b.id]?.length, b.id).toBeGreaterThan(0);
     expect(Object.keys(EXPECT).sort()).toEqual(BEATS.map((b) => b.id).sort());
-    expect(expectedDeals().sort()).toEqual([HOLD, HAGGLE, MISMATCH].sort());
+    expect(expectedDeals().sort()).toEqual([HOLD, HAGGLE, MISMATCH, HOUSE_TABLE].sort());
   });
 
   it('passes when the stage shows it and names what is missing when it does not', () => {

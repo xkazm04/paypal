@@ -25,14 +25,21 @@ desktop with the puck in a corner and controls that simulate what the wallet cor
 - A camera that follows each beat, a caption rail with the simulated time, play / pause /
   previous / next / restart (Space, ←, →, Home) and a per-chapter scrubber.
 - The banner: "Browser preview with sample data — not the wallet. No PayPal page is ever shown."
-- The story, in six chapters (opening, the haggle, silence, the mismatch, The Table closed, the
-  ending), about three minutes: (a) a haggle reaches Dan's $329 counter, the "ask me above" rule
+- The story, in seven chapters (opening, shopping around, the haggle, silence, the mismatch, The
+  Table closed, the ending), about three and a half minutes. Shopping around (beats `shop-ask`,
+  `shop-prices`, `shop-rule`, route `#m=tables&v=shop`): her agent bargains for the same monitor at
+  two sellers' tables at once, Dan at his $389 listing and the house seller at $334, the lowest so
+  far, under the rule that the first seller to agree wins and the others are told no; at the
+  story's start the group is still bargaining, so the captions state the rule, not a winner. Then
+  (a) a haggle reaches Dan's $329 counter, the "ask me above" rule
   sends it to Maya, the Tumbler card appears and the approval window opens, but is never approved;
   (d) the clock runs past the deadline and the haggle is withdrawn by the safe default; (c) a $339
   payment request does not match the $329 deal: a pause and a review with no pay button; (b) The
   Table closes with a payment on hold, days pass, and the hold releases itself. The ending opens
   "Your safety record" (beat `end-safety`, route `#m=book&p=safety`): who decided each money step,
-  and that PayPal never heard of a request her rules refused. 24 beats in all, 182 s (3:02).
+  and that PayPal never heard of a request her rules refused. Before it, `end-proof` (route
+  `#d=D-0190&dv=proof`) opens the dock's proof from PayPal: an order and a hold, no payment, no
+  receipt, nothing on the statement, "decided by the deadline". 28 beats in all, 214 s (3:34).
 - URL parameters: `?beat=<index or id>`, `?play=0`, `?camera=desk`, `?date=YYYY-MM-DD` (the story
   starts at 14:02:04 that day), `?take=1` (hides the transport for recordings), `?take=film` (the
   demo film's capture, below).
@@ -123,8 +130,13 @@ desktop with the puck in a corner and controls that simulate what the wallet cor
      window (its rectangle mapped through the frame's place on the desk and the desk's transform,
      `stageRect` in `takes.ts`); `record()` reduces the mock world for the current beat (the haggle:
      her offers, Dan's, the ceiling and the ask-me threshold from the signed mandate version the deal
-     runs on, and the gate's amount once it is up; `haggleRecord`); `shown(record)` says where The
-     Table does not draw those figures; `clicks()` gives the centre of what the beat's action stood in
+     runs on, and the gate's amount once it is up; `haggleRecord`; shopping around: `shop`, the group
+     as the Shop around view draws it, `shopRecord`; silence and The Table closed: `deadlines`, every
+     deadline of this week still open or decided by its deadline, with the dollars the history shows
+     moved, `deadlinesRecord`; the ending: `decisions`, the Rewind's money steps of the week with who
+     decided each (`agent`, `deadline`, `owner`, `refused`) and whether it paid, `decisionsRecord`;
+     shapes in `src/director/README.md`); `shown(record)` (`recordShownOnStage`) says where The Table
+     does not draw the haggle's figures, or where no figure of another kind is drawn on the stage; `clicks()` gives the centre of what the beat's action stood in
      for pressing (`FILM_PRESS`: the Tumbler's notification, its "Review and decide"), measured before
      the action runs. Nothing is clicked.
    - **The take**: one recorded context (1920 × 1080, the same locale, time zone and story day as
@@ -175,7 +187,7 @@ desktop with the puck in a corner and controls that simulate what the wallet cor
 | Tumbler stage | `src/windows/tumbler/App.tsx`, `preview/Preview.tsx`, `preview/Framed.tsx` | the mock-only stage and the director's bare frame |
 | Director | `src/director/Director.tsx`, `entry.tsx`, `beats.ts`, `actions.ts`, `helpers.ts`, `takes.ts`, `retime.ts`, `README.md`, `director.html` | `BEATS`, `CHAPTERS`, `runActions`, `EXPECT`, `checkBeat`, `BANNER`, `MOCK_BADGE`, `retimePlan` |
 | Takes rig | `apps/desktop/client/scripts/takes.mjs`, `scripts/lib/rig.mjs`, `package.json` (`takes` script) | `--check`, `--stills`, `--video` |
-| Film capture | `apps/desktop/client/scripts/film-capture.mjs`, `src/director/takes.ts`, `Director.tsx` | `?take=film`, `__takes.film`, `stageRect`, `haggleRecord`, `recordShown`, `FILM_PRESS` |
+| Film capture | `apps/desktop/client/scripts/film-capture.mjs`, `src/director/takes.ts`, `Director.tsx` | `?take=film`, `__takes.film`, `stageRect`, `haggleRecord`, `shopRecord`, `deadlinesRecord`, `decisionsRecord`, `recordShownOnStage`, `FILM_PRESS` |
 | Code splitting | `src/lib/lazy.ts`, `windows/main/console/Console.tsx`, `windows/main/console/layers.registry.ts`, `windows/approval/App.tsx` | `lazyPart`, `preloadWhenIdle`, `LAYER_PARTS` |
 | Build | `apps/desktop/client/vite.config.ts`, `apps/desktop/src-tauri/tauri.conf.json` (CSP) | four Vite inputs |
 
@@ -194,7 +206,10 @@ IPC: none of its own. The mock answers every command in the authority table with
   "wants the haggle's review to be a live decision and the mismatch's to have no way to pay".
 - `src/director/film.test.ts`: "maps an iframe-local rectangle through a scaled desk", "reads the
   ceiling and the ask-me threshold from the signed mandate", "changes with the fixtures, not with a
-  typed constant: a re-signed rule moves the record".
+  typed constant: a re-signed rule moves the record", "reads the sample group as the Shop around view
+  draws it at the story's start", "when the dock's hold runs out: released, and no deadline of the
+  week moved money", "reads amounts and money moved from the world: a capture on the record would
+  show", "lists the Rewind's money steps of the week, with who decided and whether money moved".
 - `src/director/retime.test.ts`: "puts every caption change back on its beat and cuts the lead-in".
 - `src/lib/clock.test.ts`: "is a passthrough inside the desktop shell: simulation refuses there".
 - `src/mock/authority.test.ts`: "gates every command exactly as the authority table says, for every

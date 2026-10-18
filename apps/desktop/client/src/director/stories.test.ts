@@ -103,11 +103,16 @@ describe('the First run beat file', () => {
   });
 
   // Re-pinned deliberately (polish A): two beats were added inside the same 182 s - a module summary
-  // (silence-tables, at 78 s) and the Rewind (end-rewind, at 155 s) - in gaps the reading-time rule
-  // already allowed; no other beat, time or action changed.
-  it('keeps Maya’s week at 182 s: 24 beats, with a module summary and the Rewind among them', () => {
-    expect(BEATS).toHaveLength(24);
-    expect(SCRIPT_LENGTH).toBe(182);
+  // (silence-tables) and the Rewind (end-rewind) - in gaps the reading-time rule already allowed.
+  // Re-pinned again (demo-film hero): a Shopping around chapter of three beats after the opening
+  // (+23 s for every later beat) and the dock's proof after end-table (+9 s more from end-rewind on).
+  it('keeps Maya’s week at 214 s: 28 beats, with shopping around, a module summary, the proof and the Rewind among them', () => {
+    expect(BEATS).toHaveLength(28);
+    expect(SCRIPT_LENGTH).toBe(214);
+    expect(BEATS.filter((b) => b.chapter === 'shop').map((b) => [b.id, b.at])).toEqual([['shop-ask', 9], ['shop-prices', 18], ['shop-rule', 24]]);
+    expect(BEATS.find((b) => b.id === 'shop-ask')?.do).toContainEqual({ do: 'main', open: true, route: '#m=tables&v=shop' });
+    expect(BEATS.find((b) => b.id === 'end-proof')?.do).toContainEqual({ do: 'main', open: true, route: '#d=D-0190&dv=proof' });
+    expect(BEATS.findIndex((b) => b.id === 'end-proof')).toBe(BEATS.findIndex((b) => b.id === 'end-table') + 1);
     expect(BEATS.find((b) => b.id === 'silence-tables')?.do).toContainEqual({ do: 'main', open: true, route: '#m=tables' });
     expect(BEATS.find((b) => b.id === 'end-rewind')?.do).toContainEqual({ do: 'main', open: true, route: '#r=rewind' });
   });
