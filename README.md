@@ -6,6 +6,12 @@ they touch money: every payment is a deal with a counterparty, bounded by a mand
 signed, countersigned by the wallet only if it fits, settled by PayPal with one human approval,
 and provable by both sides. The LLM engine is the user's own `claude-code` or `codex-cli`.
 
+[![ci](https://github.com/xkazm04/paypal/actions/workflows/ci.yml/badge.svg)](https://github.com/xkazm04/paypal/actions/workflows/ci.yml)
+**CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push and pull request. Client: `pnpm typecheck`,
+`pnpm test` and `pnpm build`. Rust, on Windows and Ubuntu: `cargo fmt --all --check`, `cargo clippy --workspace
+--all-targets -- -D warnings` and `cargo test --workspace`, plus `cargo-deny` (licences, bans, RustSec advisories),
+the acceptance matrix and an offline `table-verify` check of the safety dossier.
+
 Status (2026-10-08): **backend B0–B8 and plumbing P1, P2, P4, P5 are built and offline-tested**
 (money pipeline, ledger, PayPal clients, MCP tools, two-wallet relay pairing, the hosted house seller)
 and the **React client** (main, Tumbler, approval) runs on the real IPC contract, with a mock backend
