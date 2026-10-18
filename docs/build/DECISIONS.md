@@ -2252,3 +2252,15 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   `crates/table-app/src/auth.rs` (`TICKET_SECS`). Gates: `cargo fmt --all --check`,
   `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace` were green.
 - **Erratum (2026-10-17):** decision 5's "never sooner than its schedule" is, precisely, "never sooner than `RESCUE_POLL_SECS` after the drop, never past the window" (scan O-1, `docs/security/scan-2026-10-17-owner-read.md`).
+
+
+## 53. Join scan items J-3, J-5 and J-6 closed after the submission freeze was lifted for them
+
+- **Date:** 2026-10-18 (a scan-sweep round; commits `155d63c` J-6, `cdaa9ce` J-5, `a590b9a` J-3)
+- **Decided by:** the round's brief (the operator's orchestrator), which asked for the open join-scan items to be closed where a test could prove each. Section 50 had deferred J-3 and J-6 past the submission; this supersedes it for those two and for J-5. Revert `a590b9a` alone to restore section 50's decision on J-3.
+- **Decision:**
+  1. **J-6.** `decodeListingCode` refuses a trimmed paste over 512 characters as `malformed` before any pattern runs. The longest real code is about 210 characters. It was also a freeze, not only an input-size nit: the separator pattern `\s*\/\s*` backtracks once per character of a whitespace run, and 20,000 spaces took 8.3 s in the approval window (50,000 took 49 s).
+  2. **J-5.** `counterparty_policy`, `counterparty_first_seen`, `settled_attempt` and `pending_offer` answer `NotFound` for an absent row, as every sibling read already did. An unknown key in a join is `NOT_FOUND` to the owner; an accept with no offer is an `InvalidRequest` to an agent, not `Unavailable`.
+  3. **J-3.** `Body::Listing` gains `qty: Option<u32>`, omitted from the wire when `None`. `list()` signs `Some(qty)`; `receive_haggle` refuses a listing whose `qty` differs from the buyer's deal. The wire change is one-way compatible: a new buyer accepts an old LISTING (no `qty` key, nothing bound, as before); an old buyer rejects a new one (`deny_unknown_fields`). Deploy the hosted house and the wallets from the same build: a new wallet joins an old house, an old wallet cannot join a new house.
+- **Still open:** J-4 (category not in the LISTING, accepted) and J-7 (a distinct `join.refused` audit action; a product call, and the only caller of the shared 60-a-minute cap is the owner's own window).
+- **Evidence:** `crates/table-runtime/src/listing_code_tests.rs` (`a_listing_code_with_altered_terms_is_refused_and_never_reaches_authorize` now has a quantity case; red with the compare removed), `crates/table-proto/tests/protocol.rs` (`a_signed_listing_carries_its_quantity_and_one_from_before_the_field_still_verifies`), `crates/table-ledger/src/tests.rs` (`reads_of_an_absent_counterparty_deal_or_offer_say_not_found`), `apps/desktop/client/src/windows/approval/listingCode.test.ts`.
