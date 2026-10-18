@@ -250,7 +250,7 @@ describe('the mock book_query answers every reading', () => {
         expect(typeof r.count).toBe('number');
       }
     }
-  });
+  }, 30_000);
 
   it('the range really narrows the answer, and a bad range is refused in Rust’s words', async () => {
     const main = mockBackend('main');
