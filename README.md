@@ -94,6 +94,43 @@ Without a deployed HOUSE and sandbox credentials you cannot complete a real paym
 code without the app, run `./scripts/check.ps1` (formatting, Clippy with warnings denied and the
 offline test suite).
 
+#### Connect an agent engine and a relay address
+
+Both are optional for a first look. Read what each step can and cannot do before you rely on it.
+
+Agent engine. In the app, open Connections and choose the "Agent app" card
+(`docs/features/agents-and-engines.md`). It lists `claude-code`, `codex-cli` and the "Practice
+agent", and "Look for agent apps" probes for the first two.
+
+- The practice agent is the one engine that works today. It is a scripted negotiator with no AI
+  model, and it only haggles inside the price range the owner signed. Pick it with "Use practice
+  agent". On a deal page, "Start agent" then runs it.
+- `claude-code` and `codex-cli` are installed and probed, but they cannot be used yet. The probe
+  always reports them unavailable ("Pre-input tool inventory is not established; run isolation
+  spike"), and starting one is refused with "Engine isolation conformance not established". The
+  isolation spikes that would lift this have not run (`docs/build/SPIKES.md`). There is no setting
+  that overrides it, so connecting a real engine is not yet available.
+
+Relay address. A copy with no relay says "This copy is not set up to meet other wallets, and the
+House is not available in it" (`apps/desktop/client/src/lib/words/connections.ts`). To attach a
+relay, set the environment variable `TABLE_RELAY_URL` before `cargo run -p table-desktop`, for
+example in PowerShell: `$env:TABLE_RELAY_URL = "https://<your relay>"`. It is read once at launch
+(`apps/desktop/src-tauri/src/native.rs`), must be an HTTPS origin with no path, credentials, query
+or fragment (`docs/build/DEPLOY.md`, environment names), and cannot be set from inside the app. If
+the value is not a valid origin the shell fails to start with "Invalid relay deployment origin".
+There is no public relay to point it at: nothing is deployed. To pair with another wallet you
+would need a second desktop copy and your own rendezvous service (`services/rendezvous`), and
+native two-desktop pairing has not been tried (`docs/features/pairing-relay-house.md`, "Known gaps").
+
+The HOUSE seller. The word `HOUSE` is not a setting you type in yourself: in Connections, "Connect a
+wallet", choose "House seller" and the app sends it for you. It cannot work yet, for two reasons.
+The HOUSE is not deployed (`docs/build/DEPLOY.md`; `docs/build/DECISIONS.md` section 42 item 2: the
+build carries no relay address until the deploy is approved). And a build made without the public
+pin `TABLE_HOUSE_RELEASE_JSON` reports the house as unavailable (`crates/table-proto/src/house.rs`);
+a plain `cargo run` is such a build. Without the HOUSE, no real payment can complete, and none can
+without the owner's PayPal sandbox credentials either; the spikes that would use them are the
+owner's to run (`docs/build/SPIKE-RUNBOOK.md`).
+
 ## Implementation documentation
 
 | Document | What it is |
