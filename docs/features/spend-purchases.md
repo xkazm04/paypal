@@ -158,8 +158,9 @@ IPC commands (rows in `crates/table-client/src/authority_table.rs`):
   the owner's decisions. The preview's Rewind and "Who decided" therefore overstate what a rule can
   do for a purchase.~~ **Resolved (STORE_KEY v20):** D-0183, D-0186 and D-0190 carry
   `decided: human` and their create, authorize and capture steps in the Rewind are the owner's;
-  `POLICY6` stays only on the haggle D-0187 and the shop order D-0189. D-0180 and D-0181 still
-  use the rule on their history steps.
+  `POLICY6` stays only on the haggle D-0187 and the shop order D-0189. D-0180 and D-0181's history
+  steps are the owner's too (STORE_KEY v21); D-0181 stays `decided: safe_default`, as its hold was
+  auto-voided after 72 h.
 - No screen opens a purchase deal: `deal_create` has no caller in the client.
 - One pre-existing item line per purchase; catalog search, quotes and multi-line checkout are
   deferred (STATUS, B6/P3).
