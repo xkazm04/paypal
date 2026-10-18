@@ -1841,7 +1841,7 @@ Wording and consistency pass over Book, Rescue, Shield, Counter, Spend, Home, th
   - `engines.rs` still answers "Scripted fixture supports table-view only" for practice shopper / assistant runs (pre-T2 wording that can reach the UI).
   - `shield.tsx` explains the "AI second opinion" as reading a payee's message, but it has no production caller and `prompts/shield.md` is a stub.
   - The Shield's "more than 100.00" wording (`words.ts`) assumes a two-decimal currency; the rule is 10000 minor units of the deal's currency.
-  - No screen calls `market_refresh`. (`deal_create` / `deal_join` now have a caller: see "Open or join a table after pairing" below.)
+  - `market_refresh` now has a caller: "Check the price now" in the approval window's deal review (`windows/approval/PriceCheck.tsx`, words in `PRICE_CHECK`, `lib/words.ts`). It binds the product like `market_product_for` and shows the refusal words instead of a button when none is bound; it only reads and offers no payment. Tests: `windows/approval/priceCheck.test.tsx` (6 tests pass under vitest, client tsc clean; the cargo gate does not run them). (`deal_create` / `deal_join` now have a caller: see "Open or join a table after pairing" below.)
   - The mock's `FORM_SIZE` for Tumbler forms (`mock/backend.ts`) disagrees with Rust `table-attention/src/placement.rs` (only the mock's `tumbler:orient` payload).
   - `Home.tsx`'s header comment says money only moves from the approval window; signed rules and safe defaults also move money (AGENTS.md).
 

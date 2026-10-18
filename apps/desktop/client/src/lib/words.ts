@@ -257,6 +257,20 @@ export function marketWords(v: number, p25: number, median: number, p75: number)
   return { text: 'well above typical', tone: 'red', means: 'Far above the usual range of comparable listings.' };
 }
 
+/** The owner's "check the price now" (market_refresh) in the approval window. It only reads. */
+export const PRICE_CHECK = {
+  label: 'Check the price now',
+  busy: 'Checking…',
+  key: 'Typical price',
+  note: 'A check only reads the market. It never pays or signs anything.',
+  unbound: 'This item has no market product tied to it in your rules, so there is nothing to check. Add one to your market-watch rule first.',
+  needsUnlock: 'This window can’t check right now. Unlock it from The Table first.',
+  failed: 'Price not checked',
+} as const;
+/** The result of a check: "$329.00 · usually $300.00–$360.00". */
+export const priceCheckWords = (median: Money, p25: Money, p75: Money): string =>
+  `${formatMoney(median)} · usually ${formatMoney(p25)}–${formatMoney(p75)}`;
+
 /** The name of the fair-price line on a deal's proof (market-data-2). */
 export const FAIR_PRICE_NAME = 'Price vs market';
 /** The deal's price against the market prices it was agreed on (DealEvidence.fair_price), worked
