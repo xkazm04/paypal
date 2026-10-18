@@ -17,4 +17,7 @@ knowledge:
   domains: [software-engineering]
 
 # Shared skills this project uses, from the registry's skills/ lane. Empty until one is linked.
-skills: [scan-sweep]
+skills:
+  - scan-sweep
+  - spark
+  - demo-film
