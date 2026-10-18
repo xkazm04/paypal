@@ -894,18 +894,25 @@ impl Ledger {
         Ok(())
     }
     pub fn settled_attempt(&self, id: DealId) -> Result<u8, LedgerError> {
-        Ok(self.conn.query_row(
-            "SELECT attempt FROM deals WHERE id=?1",
-            [id.to_string()],
-            |r| r.get(0),
-        )?)
+        self.conn
+            .query_row(
+                "SELECT attempt FROM deals WHERE id=?1",
+                [id.to_string()],
+                |r| r.get(0),
+            )
+            .optional()?
+            .ok_or(LedgerError::NotFound)
     }
     pub fn pending_offer(&self, id: DealId) -> Result<(u32, H256), LedgerError> {
-        let (seq, hash): (u32, Vec<u8>) = self.conn.query_row(
-            "SELECT offer_seq,terms_hash FROM negotiation WHERE deal_id=?1",
-            [id.to_string()],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )?;
+        let (seq, hash): (u32, Vec<u8>) = self
+            .conn
+            .query_row(
+                "SELECT offer_seq,terms_hash FROM negotiation WHERE deal_id=?1",
+                [id.to_string()],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?
+            .ok_or(LedgerError::NotFound)?;
         Ok((seq, hash_blob(hash)?))
     }
     pub fn preview_inbound(
@@ -1080,7 +1087,8 @@ impl Ledger {
             .collect()
     }
     pub fn counterparty_policy(&self, key: &KeyId) -> Result<(bool, bool, PayeeRef), LedgerError> {
-        let (confirmed,via,payee):(Option<String>,String,String)=self.conn.query_row("SELECT words_confirmed_at,paired_via,declared_payee FROM counterparties WHERE key_id=?1",[key.as_str()],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?)))?;
+        // An unknown key is `NotFound`, not a ledger fault (scan J-5).
+        let (confirmed,via,payee):(Option<String>,String,String)=self.conn.query_row("SELECT words_confirmed_at,paired_via,declared_payee FROM counterparties WHERE key_id=?1",[key.as_str()],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?.ok_or(LedgerError::NotFound)?;
         Ok((
             confirmed.is_some(),
             via == "house",
@@ -1088,11 +1096,15 @@ impl Ledger {
         ))
     }
     pub fn counterparty_first_seen(&self, key: &KeyId) -> Result<Timestamp, LedgerError> {
-        let at: String = self.conn.query_row(
-            "SELECT first_seen FROM counterparties WHERE key_id=?1",
-            [key.as_str()],
-            |r| r.get(0),
-        )?;
+        let at: String = self
+            .conn
+            .query_row(
+                "SELECT first_seen FROM counterparties WHERE key_id=?1",
+                [key.as_str()],
+                |r| r.get(0),
+            )
+            .optional()?
+            .ok_or(LedgerError::NotFound)?;
         at.parse()
             .map_err(|_| LedgerError::Integrity("counterparty timestamp"))
     }
