@@ -298,6 +298,8 @@ describe('the decisions record on the Rewind and the safety record', () => {
   it('is shown by the count of money steps where a page draws counts, not amounts', () => {
     expect(recordShownOnStage(rec, stage('2 PayPal money steps this week, one refused before PayPal was asked.'))).toEqual([]);
     expect(recordShownOnStage(rec, stage('Your safety record · 2 money steps'))).toEqual([]);
+    expect(recordShownOnStage(rec, stage('Your safety record\nMoney steps\n2\nRefused\n1'))).toEqual([]);
+    expect(recordShownOnStage(rec, stage('Money steps 21'))).toHaveLength(1);
   });
 
   it('is not shown by a wrong count or a page that is still reading the week', () => {

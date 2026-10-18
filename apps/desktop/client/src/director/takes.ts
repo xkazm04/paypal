@@ -257,6 +257,8 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   'end-safety': [
     { window: 'main', open: true },
     { in: 'main', text: 'Your safety record' },
+    // drawn once the record is read (the page shows a skeleton for about a second first)
+    { in: 'main', text: /PayPal was asked to move money \d+ times/ },
     { in: 'main', text: 'Nothing moved without your say-so.' },
     { in: 'main', text: 'PayPal was never asked for any of them' },
     { deal: HOLD, state: 'AUTO_VOIDED' },
@@ -735,7 +737,8 @@ export function recordShownOnStage(rec: Record<string, unknown>, text: Record<Fr
     // money steps instead ("26 PayPal money steps"), so either one shows the record
     const decisions = rec.decisions as DecisionRecord[];
     const steps = decisions.filter((d) => d.decidedBy !== 'refused').length;
-    const counted = new RegExp(`(^|\\D)${steps}\\s+(paypal\\s+)?money steps`, 'i').test(stage);
+    // either order: "26 PayPal money steps" (the Rewind) or a "Money steps / 26" card (the safety record)
+    const counted = new RegExp(`(^|\\D)${steps}\\s+(paypal\\s+)?money steps|money steps\\s*${steps}(\\D|$)`, 'i').test(stage);
     if (!counted) kind('decisions', `decision’s amount (or the count of ${steps} money steps)`, decisions.map((d) => d.amount));
   }
   return out;
