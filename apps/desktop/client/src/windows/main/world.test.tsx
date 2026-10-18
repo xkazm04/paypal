@@ -46,8 +46,13 @@ const fire = (e: string, p: unknown) => { for (const cb of h.cbs.get(e) ?? []) c
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** Waits until no read has been out for a while. */
 async function quiet(): Promise<void> {
+  // Two quiet windows in a row: one 150ms window can pass in the gap between two
+  // passes when the machine is busy, and the test would then read half a load.
+  // inFlight can dip below zero: reads the previous test left out settle after resetReadBudget().
   let last = -1;
-  while (readBudget.total !== last || readBudget.inFlight > 0) {
+  let still = 0;
+  while (still < 2) {
+    still = readBudget.total === last && readBudget.inFlight <= 0 ? still + 1 : 0;
     last = readBudget.total;
     await act(async () => { await sleep(150); });
   }
@@ -111,7 +116,7 @@ describe('narrow selectors', () => {
     expect(runsRenders).toBeGreaterThan(before.runs);
     expect(needsRenders).toBe(before.needs);
     expect(dealsRenders).toBe(before.deals);
-  });
+  }, 30_000);
 });
 
 describe('the read budget on ?scale=large (500 deals)', () => {
