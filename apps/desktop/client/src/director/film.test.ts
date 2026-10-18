@@ -284,3 +284,24 @@ describe('film record: shown on stage', () => {
     expect(recordShownOnStage({ offersMaya: [327] }, { ...none, tumbler: '$327.00' })).toEqual(['the record says $327.00, The Table does not show it']);
   });
 });
+
+describe('the decisions record on the Rewind and the safety record', () => {
+  const rec = {
+    decisions: [
+      { deal: 'D-1', step: 'captured', amount: 38, decidedBy: 'agent', paid: true, at: '2026-11-02T16:20:04.000Z' },
+      { deal: 'D-2', step: 'authorized', amount: 64, decidedBy: 'agent', paid: false, at: '2026-11-03T16:20:04.000Z' },
+      { deal: 'D-3', step: 'refused', amount: 11960, decidedBy: 'refused', paid: false, at: '2026-11-04T16:20:04.000Z' },
+    ],
+  };
+  const stage = (main: string) => ({ main, tumbler: '', approval: '' });
+
+  it('is shown by the count of money steps where a page draws counts, not amounts', () => {
+    expect(recordShownOnStage(rec, stage('2 PayPal money steps this week, one refused before PayPal was asked.'))).toEqual([]);
+    expect(recordShownOnStage(rec, stage('Your safety record · 2 money steps'))).toEqual([]);
+  });
+
+  it('is not shown by a wrong count or a page that is still reading the week', () => {
+    expect(recordShownOnStage(rec, stage('12 PayPal money steps this week'))).toHaveLength(1);
+    expect(recordShownOnStage(rec, stage('Reading the week…'))).toHaveLength(1);
+  });
+});
