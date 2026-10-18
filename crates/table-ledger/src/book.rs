@@ -31,6 +31,11 @@ const MARKET: &str = "(d.unit_price_minor-json_extract(d.market_json,'$.median.m
 const STATE: &str = "CASE WHEN d.state='RECEIPTED' AND d.receipt_evidence='seller_attested' THEN 'RECEIPTED:buyer' ELSE d.state END";
 /// Money out (the buyer side) and money in (the seller side) are never one line: direction is an
 /// always-on split like currency and mode, the client's `Dir` values.
+/// Who decided, as a Book key: the recorded authority without the instant, deadline or mandate
+/// hash it carries. Raw, `{"at":1790000123,"type":"human"}` is its own group for every deal the
+/// owner decided, so "one line per decision: you, a rule, the safe default" would be one line per
+/// deal. What stays is `type` (and a rule's `clause`), still the JSON the client already reads.
+const DECIDED_BY: &str = "CASE WHEN json_valid(d.decided_by) THEN json_remove(d.decided_by,'$.at','$.deadline','$.mandate_hash') ELSE d.decided_by END";
 const DIRECTION: &str = "CASE d.side WHEN 'buyer' THEN 'out' ELSE 'in' END";
 fn field(field: BookField) -> &'static str {
     match field {
@@ -40,7 +45,7 @@ fn field(field: BookField) -> &'static str {
         BookField::Amount => AMOUNT,
         BookField::CreatedAt => "CAST(d.created_at AS INTEGER)",
         BookField::VsMarketPct => MARKET,
-        BookField::DecidedBy => "d.decided_by",
+        BookField::DecidedBy => DECIDED_BY,
     }
 }
 fn group(group: BookGroup) -> (&'static str, &'static str) {
@@ -49,7 +54,7 @@ fn group(group: BookGroup) -> (&'static str, &'static str) {
         BookGroup::Counterparty => ("counterparty", "d.counterparty"),
         BookGroup::State => ("state", STATE),
         BookGroup::Day => ("day", "date(CAST(d.created_at AS INTEGER),'unixepoch')"),
-        BookGroup::DecidedBy => ("decided_by", "d.decided_by"),
+        BookGroup::DecidedBy => ("decided_by", DECIDED_BY),
     }
 }
 fn timestamp(text: &str) -> Result<i64, LedgerError> {
@@ -408,6 +413,73 @@ mod tests {
         };
         assert_eq!(line("out"), Some((2, 1500)));
         assert_eq!(line("in"), Some((2, 1000)));
+    }
+    // The Book's "by who decided" is one line per authority, not one per deal: the instant a
+    // human decided and the deadline a safe default fired at are not part of who decided.
+    #[test]
+    fn who_decided_groups_and_filters_by_authority_not_by_instant() {
+        let ledger = Ledger::in_memory().unwrap();
+        for (id, decided) in [
+            ("h1", Some(r#"{"at":1790000100,"type":"human"}"#)),
+            ("h2", Some(r#"{"at":1790000200,"type":"human"}"#)),
+            (
+                "s1",
+                Some(r#"{"deadline":1790000300,"type":"safe_default"}"#),
+            ),
+            (
+                "s2",
+                Some(r#"{"deadline":1790000400,"type":"safe_default"}"#),
+            ),
+            ("p6", Some(r#"{"clause":6,"type":"policy"}"#)),
+            (
+                "m1",
+                Some(r#"{"mandate_hash":"aa","type":"seller_mandate"}"#),
+            ),
+            (
+                "m2",
+                Some(r#"{"mandate_hash":"bb","type":"seller_mandate"}"#),
+            ),
+            ("n", None),
+        ] {
+            ledger.conn.execute("INSERT INTO deals(id,kind,side,mandate_id,mandate_version,qty,unit_price_minor,currency,state,created_at,updated_at,mode,decided_by) VALUES (?1,'purchase','buyer','fixture',1,1,500,'USD','CAPTURED','100','100','sandbox',?2)",rusqlite::params![id,decided]).unwrap();
+        }
+        let ask = |value: Json| {
+            let q: BookQuery = serde_json::from_value(value).unwrap();
+            let result = ledger.book_query(&q).unwrap();
+            let mut lines: Vec<(Option<String>, i64)> = result["rows"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|r| {
+                    (
+                        r.get("decided_by")
+                            .and_then(Json::as_str)
+                            .map(str::to_owned),
+                        r["count"].as_i64().unwrap(),
+                    )
+                })
+                .collect();
+            lines.sort();
+            lines
+        };
+        let line = |text: &str, count: i64| (Some(text.to_owned()), count);
+        assert_eq!(
+            ask(json!({"view":"deals","metrics":["count"],"group_by":["decided_by"]})),
+            vec![
+                (None, 1),
+                line(r#"{"clause":6,"type":"policy"}"#, 1),
+                line(r#"{"type":"human"}"#, 2),
+                line(r#"{"type":"safe_default"}"#, 2),
+                line(r#"{"type":"seller_mandate"}"#, 2),
+            ]
+        );
+        // The same key filters: both human decisions, whatever the instant.
+        assert_eq!(
+            ask(
+                json!({"view":"deals","metrics":["count"],"filters":[{"field":"decided_by","op":"eq","value":r#"{"type":"human"}"#}],"group_by":["decided_by"]})
+            ),
+            vec![line(r#"{"type":"human"}"#, 2)]
+        );
     }
     #[test]
     fn query_bounds_and_recovered_metric_exclude_replay() {
