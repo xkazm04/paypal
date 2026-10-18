@@ -46,7 +46,9 @@ None declared.
 
 ## Skill improvement log
 
-- 2026-10-18 demo-film-hybrid: `pnpm --dir apps/desktop/client test` has a date-boundary flake (book.test.tsx "paid today") red between 00:00 and 02:00 local (UTC day roll); re-run after 02:00 before blaming a change.
+- 2026-10-18 demo-film-hybrid (corrected by demo-film-hero): `pnpm --dir apps/desktop/client test` has a wall-clock-dependent failure in book.test.tsx "the footer shows money paid today" - red at 00:06 and all of Sunday 2026-10-18 (mock world relative to real now). It imports no director code; compare against main before blaming a change.
 - 2026-10-18 demo-film-hybrid: a worktree cut from origin/<base> while local <base> has diverged lands with `git rebase --onto <base> origin/<base>`, never plain `git rebase <base>`.
 - 2026-10-18 demo-film-hybrid: Windows long paths (node_modules under film/) block `git worktree remove`; delete with `cmd /c rmdir /s /q "\\?\<abs path>"` then `git worktree prune`.
+- 2026-10-18 demo-film-hero: a builder left `vite --port 1532` running from its worktree, which blocked the worktree's removal; before removing a worktree, check its ports (1531-1534) and stop the owning node process.
+- 2026-10-18 demo-film-hero: a film record's "shown on screen" check must match how each page draws the figure (amount vs count, label-first vs number-first) and wait for the page's loaded state; the Rewind and the safety record each needed both.
 - 2026-10-18 demo-film-hybrid: the contract must name the reference frame of every time field (beat-relative vs take-relative); the click atMs mismatch was the one contract gap.
