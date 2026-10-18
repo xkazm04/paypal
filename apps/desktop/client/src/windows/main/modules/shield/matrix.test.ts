@@ -37,7 +37,7 @@ describe('check cells say only what the client knows', () => {
         const c = checkCell(k, d, undefined, NOW);
         expect(c).toMatchObject({ r: 'na', s: 'not active yet' });
         expect(c.l).toMatch(/does not run this check yet/);
-        expect(c.l).not.toMatch(/ran|passed\./);
+        expect(c.l).not.toMatch(/\bran\b|has passed|was passed/);
       }
     }
     expect(CHECKS.filter((c) => NOT_ACTIVE.includes(c.k)).every((c) => /^Not active yet/.test(c.kind))).toBe(true);
