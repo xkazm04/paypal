@@ -151,12 +151,15 @@ IPC commands (rows in `crates/table-client/src/authority_table.rs`):
 
 ## Known gaps and UNVERIFIED
 
-- **The browser preview contradicts the code on who paid.** The mock's purchase history
+- ~~**The browser preview contradicts the code on who paid.** The mock's purchase history
   (`apps/desktop/client/src/mock/fixtures.ts`, the `purchase` helper and `decided: POLICY6` on
   D-0183, D-0186, D-0190) shows purchase orders, holds and captures decided by "your signed rule"
   (clause 6). Rust refuses Policy authority for every purchase step; in the real wallet these are
   the owner's decisions. The preview's Rewind and "Who decided" therefore overstate what a rule can
-  do for a purchase.
+  do for a purchase.~~ **Resolved (STORE_KEY v20):** D-0183, D-0186 and D-0190 carry
+  `decided: human` and their create, authorize and capture steps in the Rewind are the owner's;
+  `POLICY6` stays only on the haggle D-0187 and the shop order D-0189. D-0180 and D-0181 still
+  use the rule on their history steps.
 - No screen opens a purchase deal: `deal_create` has no caller in the client.
 - One pre-existing item line per purchase; catalog search, quotes and multi-line checkout are
   deferred (STATUS, B6/P3).

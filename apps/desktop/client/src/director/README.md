@@ -68,7 +68,7 @@ typed) and reduced by pure functions in `takes.ts`; amounts are dollars, absent 
 | `haggle-*` | (top level) | `haggleRecord`: `ceiling`, `askAbove`, `offersMaya[]`, `offersDan[]`, `gateAt` |
 | `shop-*` | `shop` | `shopRecord`: `{ group, sellers: [{ deal, seller, price, state }], winner? }` from `deal_groups`, as the Shop around view draws it (`group` is its heading, `state` the chip word) |
 | `silence-*`, `closed-*` | `deadlines` | `deadlinesRecord`: `[{ deal, label, amount, kind: offer\|hold, deadlineAt, outcome: open\|lapsed\|released, moved }]`, every deadline in this week (Monday to Monday, as the Rewind) still open or decided by its deadline; `moved` is what the history shows captured |
-| `end-*`, `end` | `decisions` | `decisionsRecord`: `[{ deal, step, amount, decidedBy: agent\|deadline\|owner\|refused, paid, at }]`, the Rewind's money steps of the week (`laneSteps`), who decided from its `tickTone` (a rule she signed or her shop rules read as `agent`) |
+| `end-*`, `end` | `decisions` | `decisionsRecord`: `[{ deal, step, amount, decidedBy: agent\|deadline\|owner\|refused, paid, at }]`, the Rewind's money steps of the week (`laneSteps`), who decided from its `tickTone` (a rule she signed or her shop rules read as `agent`; the dock and the cables and packing captures are `owner`, as Rust refuses a rule for any purchase step) |
 
 `shown(record)` (`recordShownOnStage`) checks the haggle's latest figures on The Table, and for
 each other kind that at least one of its figures is drawn somewhere on the stage.

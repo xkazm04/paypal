@@ -178,9 +178,9 @@ describe('the mock serves Maya’s week like deal_history', () => {
     const gpu = await of('D-0192');
     expect(gpu.find(isRefusal)).toMatchObject({ kind: 'refused', state_after: 'REFUSED', authority: { type: 'signed_rule', clause: 3 }, paypal: { type: 'none' } });
     expect(gpu.some((s) => s.paypal.type === 'call')).toBe(false);
-    // The dock: order created and put on hold under the "ask me above" rule.
+    // The dock: order created and put on hold, both Maya's own decisions (Rust refuses a rule for a purchase step).
     const dock = laneSteps(await of('D-0190'));
-    expect(dock.map((s) => [s.kind, tickTone(s)])).toEqual([['order_created', 'rule'], ['authorized', 'rule']]);
+    expect(dock.map((s) => [s.kind, tickTone(s)])).toEqual([['order_created', 'owner'], ['authorized', 'owner']]);
     // A shop sale collected under the shop rules after the buyer approved.
     expect(laneSteps(await of('D-0185')).map((s) => [s.kind, tickTone(s)]).slice(-2)).toEqual([['authorized', 'buyer'], ['captured', 'buyer']]);
     // A hold the safe default released; the owner released the duplicate.
