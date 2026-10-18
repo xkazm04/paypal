@@ -326,14 +326,14 @@ export function buildMockState(now: number): MockState {
   add({ label: 'D-0192', title: '40 × GPU (cloud rental, 1 month)', kind: 'purchase', side: 'buyer', cp: KEY.gpu, item: 'gpu-rental', qty: 40, price: 299, state: 'REFUSED', decided: { type: 'policy', clause: 3 }, at: [back(0.55), back(0.55) + 1] });
   add({
     label: 'D-0190', title: 'USB-C dock for the test bench', kind: 'purchase', side: 'buyer', cp: KEY.partsco, item: 'usb-c-dock', price: 64, state: 'AUTHORIZED',
-    market: [60, 66, 71], paypal: { order: '9LM442C', authorization: '0RW7K' }, deadline: now + 2 * 86400 + 19 * H, decided: POLICY6,
+    market: [60, 66, 71], paypal: { order: '9LM442C', authorization: '0RW7K' }, deadline: now + 2 * 86400 + 19 * H, decided: { type: 'human', at: now - 5 * H - 20 * 60 },
     silence: 'the hold is released at the deadline, nothing is paid', at: [now - 5 * H - 25 * 60, now - 5 * H],
     // As Rust (dispatcher human_present_clause): an attention item names clause 6 only when the amount is over
     // the ask-me threshold; a $64.00 hold names none, and the counterparty is the pairing's display name.
     attention: { kind: 'gate', module: 'spend', headline: 'Capture or void $64.00', counterparty: 'partsco', clause: null, urgency: 'calm', actions: ['review', 'snooze30', 'open_in_table'] },
   });
-  add({ label: 'D-0186', title: 'Packing foam + boxes (20)', kind: 'purchase', side: 'buyer', cp: KEY.packrite, item: 'packing', price: 45, state: 'CAPTURED', reconciliation: 'pending_reporting', receipt: 'PAYPAL_VERIFIED', paypal: { order: '1QE097D', authorization: '4YB2', capture: '6CC1' }, decided: POLICY6, at: [back(0.2), back(0.17)] });
-  add({ label: 'D-0183', title: 'DP + HDMI cable set (10)', kind: 'purchase', side: 'buyer', cp: KEY.cablehaus, item: 'cables', price: 38, state: 'CAPTURED', reconciliation: 'matched', receipt: 'PAYPAL_VERIFIED', paypal: { order: '7JR510P', authorization: '2KD8', capture: '9PL3' }, decided: POLICY6, at: [back(0.74), back(0.7)] });
+  add({ label: 'D-0186', title: 'Packing foam + boxes (20)', kind: 'purchase', side: 'buyer', cp: KEY.packrite, item: 'packing', price: 45, state: 'CAPTURED', reconciliation: 'pending_reporting', receipt: 'PAYPAL_VERIFIED', paypal: { order: '1QE097D', authorization: '4YB2', capture: '6CC1' }, decided: { type: 'human', at: back(0.19) }, at: [back(0.2), back(0.17)] });
+  add({ label: 'D-0183', title: 'DP + HDMI cable set (10)', kind: 'purchase', side: 'buyer', cp: KEY.cablehaus, item: 'cables', price: 38, state: 'CAPTURED', reconciliation: 'matched', receipt: 'PAYPAL_VERIFIED', paypal: { order: '7JR510P', authorization: '2KD8', capture: '9PL3' }, decided: { type: 'human', at: back(0.73) }, at: [back(0.74), back(0.7)] });
   add({ label: 'D-0180', title: 'Thermal pads (duplicate order)', kind: 'purchase', side: 'buyer', cp: KEY.cablehaus, item: 'pads', price: 42, state: 'VOIDED', paypal: { order: '4ZT109Q', authorization: '5GV6' }, decided: { type: 'human', at: back(0.36) }, at: [back(0.4), back(0.36)] });
   // Left on hold past its 72 h: the safe default released it (the Rewind's grey tick).
   add({ label: 'D-0181', title: 'Spare 65 W power supply', kind: 'purchase', side: 'buyer', cp: KEY.partsco, item: 'psu-65w', price: 29, state: 'AUTO_VOIDED', paypal: { order: '2HV751M', authorization: '8QX3' }, decided: { type: 'safe_default', deadline: now - 2 * 86400 } });
@@ -626,21 +626,21 @@ export function buildHistory(now: number): HistoryStep[] {
   const ago = (deal: string, secs: number, kind: HistoryStep['kind'], to: HistoryStep['state_after'] = null, by: Auth = NOBODY, pp: HistoryStep['paypal'] = NO_CALL) =>
     raw.push({ deal, at: { ago: secs }, kind, to, by, pp });
   /** A purchase the agent proposed and your rule approved: order, buyer approval, hold. */
-  const purchase = (deal: string, day: number, h: number, m: number) => {
+  const purchase = (deal: string, day: number, h: number, m: number, by: Auth = RULE6) => {
     const t = (dm: number) => `${String(h + Math.floor((m + dm) / 60)).padStart(2, '0')}:${String((m + dm) % 60).padStart(2, '0')}`;
     on(deal, day, t(0), 'created');
     on(deal, day, t(1), 'proposed', 'AGREED', AGENT);
-    on(deal, day, t(1), 'countersigned', null, RULE6);
-    on(deal, day, t(1), 'order_created', 'AWAITING_APPROVAL', RULE6, call('create_order'));
+    on(deal, day, t(1), 'countersigned', null, by);
+    on(deal, day, t(1), 'order_created', 'AWAITING_APPROVAL', by, call('create_order'));
     on(deal, day, t(7), 'approved_by_buyer', 'APPROVED', NOBODY, call('read_order'));
-    on(deal, day, t(8), 'authorized', 'AUTHORIZED', RULE6, call('authorize'));
+    on(deal, day, t(8), 'authorized', 'AUTHORIZED', by, call('authorize'));
   };
 
   const D = (label: string) => fakeUlid(label);
   // Monday: cables paid on your rule; the dock order put on hold; a spare power supply held.
-  purchase(D('D-0183'), 0, 9, 5);
-  on(D('D-0183'), 0, '09:14', 'captured', 'CAPTURED', RULE6, call('capture'));
-  purchase(D('D-0190'), 0, 10, 12);
+  purchase(D('D-0183'), 0, 9, 5, OWNER);
+  on(D('D-0183'), 0, '09:14', 'captured', 'CAPTURED', OWNER, call('capture'));
+  purchase(D('D-0190'), 0, 10, 12, OWNER);
   purchase(D('D-0181'), 0, 11, 40);
   on(D('D-0187'), 0, '15:00', 'created');
   on(D('D-0187'), 0, '15:02', 'offer_sent', 'NEGOTIATING', AGENT);
@@ -697,8 +697,8 @@ export function buildHistory(now: number): HistoryStep[] {
     { day: 3, hm: '11:38', rung: 'notify_suppressed', reason: 'do_not_disturb' },
   ]);
   on(D('D-0180'), 3, '16:40', 'voided', 'VOIDED', OWNER, call('void'));
-  purchase(D('D-0186'), 3, 10, 2);
-  on(D('D-0186'), 3, '10:11', 'captured', 'CAPTURED', RULE6, call('capture'));
+  purchase(D('D-0186'), 3, 10, 2, OWNER);
+  on(D('D-0186'), 3, '10:11', 'captured', 'CAPTURED', OWNER, call('capture'));
   // Renewals: a failed one waiting for a fix, an invoice sent, and one the subscriber paid.
   on(D('D-0178'), 0, '13:00', 'renewal_failed', 'AGREED');
   on(D('D-0178'), 0, '13:20', 'countersigned', null, OWNER);

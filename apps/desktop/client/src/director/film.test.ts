@@ -241,18 +241,18 @@ describe('film record: who decided each money step', () => {
     const { steps, deals } = await weekOf(core);
     const rec = decisionsRecord(steps, deals);
     expect(rec).toHaveLength(laneSteps(steps).length);
-    // the dock: its order and hold on her signed rule, released by the deadline, never paid
+    // the dock: its order and hold Maya approved (Rust refuses a rule for a purchase step), released by the deadline, never paid
     expect(rec.filter((d) => d.deal === HOLD).map((d) => [d.step, d.decidedBy, d.paid, d.amount])).toEqual([
-      ['order_created', 'agent', false, 64],
-      ['authorized', 'agent', false, 64],
+      ['order_created', 'owner', false, 64],
+      ['authorized', 'owner', false, 64],
       ['auto_voided', 'deadline', false, 64],
     ]);
     // the 40 x GPU request refused before PayPal was asked; the duplicate hold she released herself
     expect(rec.find((d) => d.deal === 'D-0192')).toMatchObject({ step: 'refused', decidedBy: 'refused', paid: false });
     expect(rec.find((d) => d.deal === 'D-0180' && d.step === 'voided')).toMatchObject({ decidedBy: 'owner', paid: false });
-    // captures are the only paid steps, and every one was on a rule she signed
+    // captures are the only paid steps, and every one was Maya's own decision: Rust refuses a rule for any purchase step
     expect(rec.some((d) => d.paid)).toBe(true);
-    expect(rec.filter((d) => d.paid).every((d) => d.step === 'captured' && d.decidedBy === 'agent')).toBe(true);
+    expect(rec.filter((d) => d.paid).every((d) => d.step === 'captured' && d.decidedBy === 'owner')).toBe(true);
     expect(rec.filter((d) => d.decidedBy === 'deadline').every((d) => !d.paid)).toBe(true);
     const at = rec.map((d) => Date.parse(d.at));
     expect(at).toEqual([...at].sort((a, b) => a - b));

@@ -161,7 +161,7 @@ export const BEATS: readonly Beat[] = [
   },
   {
     id: 'closed-hold', chapter: 'closed', at: 143, focus: 'tumbler',
-    caption: 'A $64 dock for the test bench is on hold at PayPal: allowed by her rules, not yet paid.',
+    caption: 'A $64 dock for the test bench is on hold at PayPal: Maya approved it, not yet paid.',
     do: h.notificationClicked(HOLD),
   },
   {
