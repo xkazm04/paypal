@@ -293,6 +293,7 @@ pub(super) fn counter(r: &mut Runtime, deal: &Deal, peer: &AgentSigner, price: i
         Body::Listing {
             item_ref: deal.terms.item_ref.clone(),
             ask: deal.terms.unit_price,
+            qty: Some(deal.terms.qty),
             delivery: deal.terms.delivery.clone(),
         }
     } else {

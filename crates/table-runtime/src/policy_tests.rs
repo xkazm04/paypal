@@ -279,6 +279,7 @@ async fn buyer_policy_above_the_signed_ceiling_is_refused_and_leaves_no_paypal_r
         Body::Listing {
             item_ref: deal.terms.item_ref.clone(),
             ask: deal.terms.unit_price,
+            qty: Some(deal.terms.qty),
             delivery: deal.terms.delivery.clone(),
         },
         table_proto::MsgType::Listing,

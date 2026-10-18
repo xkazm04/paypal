@@ -151,7 +151,13 @@ pub enum Body {
     },
     Listing {
         item_ref: ItemRef,
+        /// The asking price of one unit.
         ask: Money,
+        /// How many units the table is for (scan J-3). The buyer's own quantity must equal it,
+        /// so a pasted code with another quantity never reaches LISTED. Absent only in a LISTING
+        /// signed by a build from before this field: that one binds no quantity, as before.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        qty: Option<u32>,
         delivery: Delivery,
     },
     Offer {

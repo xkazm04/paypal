@@ -593,6 +593,7 @@ fn listing(deal: &Deal) -> table_proto::Body {
     table_proto::Body::Listing {
         item_ref: deal.terms.item_ref.clone(),
         ask: deal.terms.unit_price,
+        qty: Some(deal.terms.qty),
         delivery: deal.terms.delivery.clone(),
     }
 }
