@@ -625,8 +625,8 @@ export function buildHistory(now: number): HistoryStep[] {
     raw.push({ deal, at: { day, hm }, kind, to, by, pp, ...(rungs ? { rungs } : {}) });
   const ago = (deal: string, secs: number, kind: HistoryStep['kind'], to: HistoryStep['state_after'] = null, by: Auth = NOBODY, pp: HistoryStep['paypal'] = NO_CALL) =>
     raw.push({ deal, at: { ago: secs }, kind, to, by, pp });
-  /** A purchase the agent proposed and your rule approved: order, buyer approval, hold. */
-  const purchase = (deal: string, day: number, h: number, m: number, by: Auth = RULE6) => {
+  /** A purchase the agent proposed and the owner approved (Rust refuses a rule for any purchase step): order, buyer approval, hold. */
+  const purchase = (deal: string, day: number, h: number, m: number, by: Auth = OWNER) => {
     const t = (dm: number) => `${String(h + Math.floor((m + dm) / 60)).padStart(2, '0')}:${String((m + dm) % 60).padStart(2, '0')}`;
     on(deal, day, t(0), 'created');
     on(deal, day, t(1), 'proposed', 'AGREED', AGENT);
@@ -637,11 +637,11 @@ export function buildHistory(now: number): HistoryStep[] {
   };
 
   const D = (label: string) => fakeUlid(label);
-  // Monday: cables paid on your rule; the dock order put on hold; a spare power supply held.
+  // Monday: cables paid on the owner's approval; the dock order put on hold; a spare power supply held.
   purchase(D('D-0183'), 0, 9, 5, OWNER);
   on(D('D-0183'), 0, '09:14', 'captured', 'CAPTURED', OWNER, call('capture'));
   purchase(D('D-0190'), 0, 10, 12, OWNER);
-  purchase(D('D-0181'), 0, 11, 40);
+  purchase(D('D-0181'), 0, 11, 40, OWNER);
   on(D('D-0187'), 0, '15:00', 'created');
   on(D('D-0187'), 0, '15:02', 'offer_sent', 'NEGOTIATING', AGENT);
   on(D('D-0187'), 0, '15:20', 'offer_received');
@@ -688,7 +688,7 @@ export function buildHistory(now: number): HistoryStep[] {
   on(D('D-0185'), 2, '11:05', 'approved_by_buyer', 'APPROVED', NOBODY, call('read_order'));
   on(D('D-0185'), 2, '11:05', 'authorized', 'AUTHORIZED', SHOP, call('authorize'));
   on(D('D-0185'), 2, '11:06', 'captured', 'CAPTURED', SHOP, call('capture'));
-  purchase(D('D-0180'), 2, 15, 10);
+  purchase(D('D-0180'), 2, 15, 10, OWNER);
   // Thursday: the power supply's hold runs out at 72 h and releases itself; you release the
   // duplicate thermal-pads hold yourself; packing supplies are paid on your rule.
   // Do Not Disturb was on when its one reminder was due, and the record says so.
