@@ -302,10 +302,12 @@ async fn a_listing_code_with_the_wrong_deal_id_never_hears_the_listing_and_lapse
 #[tokio::test]
 async fn a_listing_code_with_altered_terms_is_refused_and_never_reaches_authorize() {
     let t = paired_owners().await;
-    let altered: [fn(&mut Terms); 3] = [
+    let altered: [fn(&mut Terms); 4] = [
         |t| t.unit_price = Money::new(1300, Currency::USD).unwrap(),
         |t| t.item_ref = ItemRef::new("keyboard").unwrap(),
         |t| t.delivery = Delivery::PickupLocal,
+        // The seller's signed listing carries the quantity too (scan J-3).
+        |t| t.qty += 1,
     ];
     let mut ids = Vec::new();
     for change in altered {

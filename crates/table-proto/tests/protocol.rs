@@ -380,6 +380,46 @@ fn owner_accept_signature_binds_deal_round_terms_counter_and_owner() {
     }
 }
 #[test]
+fn a_signed_listing_carries_its_quantity_and_one_from_before_the_field_still_verifies() {
+    let (a, b) = (signer(), signer());
+    let listing = |qty: Option<u32>| {
+        let mut e = envelope(&a, &b);
+        e.typ = MsgType::Listing;
+        e.body = Body::Listing {
+            item_ref: ItemRef::new("monitor").unwrap(),
+            ask: Money::parse("329.00", Currency::USD).unwrap(),
+            qty,
+            delivery: Delivery::DigitalNow,
+        };
+        e
+    };
+    let receiver = b.key_id().unwrap();
+    let check = |e: &Envelope| {
+        let raw = a.sign(e).unwrap();
+        let nonces = MemoryNonces::default();
+        let verified = verify(&raw, &a.public_key(), &context(e, &receiver, &nonces)).unwrap();
+        (raw, verified)
+    };
+    // The quantity is in the signed bytes: another quantity is another signature (scan J-3).
+    let (with_two, verified) = check(&listing(Some(2)));
+    assert!(matches!(
+        verified.envelope().body,
+        Body::Listing { qty: Some(2), .. }
+    ));
+    let (with_three, _) = check(&listing(Some(3)));
+    assert_ne!(with_two, with_three);
+    // A listing from a build before the field has no `qty` key, reads as None and verifies.
+    let (legacy, verified) = check(&listing(None));
+    let payload = URL_SAFE_NO_PAD
+        .decode(legacy.split('.').nth(1).unwrap())
+        .unwrap();
+    assert!(!String::from_utf8(payload).unwrap().contains("qty"));
+    assert!(matches!(
+        verified.envelope().body,
+        Body::Listing { qty: None, .. }
+    ));
+}
+#[test]
 fn pairing_words_and_mailbox_bind_both_public_keys_and_code() {
     let a = signer().public_key().to_bytes();
     let b = signer().public_key().to_bytes();
