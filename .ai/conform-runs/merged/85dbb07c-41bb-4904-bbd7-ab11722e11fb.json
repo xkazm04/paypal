@@ -1,0 +1,17 @@
+{
+ "schema": "conform-run/1",
+ "worker": "85dbb07c-41bb-4904-bbd7-ab11722e11fb",
+ "subject": "conditional-service-composition",
+ "evaluatedAt": "2026-10-18T21:21:49.584109+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "conditional-service-composition",
+   "context": "house-seller-service",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": []
+}
