@@ -1,0 +1,301 @@
+{
+  "title": "The Table - the haggle",
+  "fps": 30,
+  "size": {
+    "w": 1920,
+    "h": 1080
+  },
+  "voice": {
+    "role": "narrator",
+    "model": "eleven_multilingual_v2",
+    "settings": {
+      "stability": 0.55,
+      "similarity": 0.78,
+      "style": 0.12
+    }
+  },
+  "breathMs": 350,
+  "maxMs": 40000,
+  "music": {
+    "cues": [
+      {
+        "id": "pulse",
+        "from": {
+          "beat": "open",
+          "edge": "start"
+        },
+        "to": {
+          "beat": "end",
+          "edge": "end"
+        },
+        "prompt": "Minimal modern product-film score, warm analog synth pulse at 112 bpm, soft kick enters on the second phrase, restrained and confident, lifts at the final card, instrumental, no vocals",
+        "gainDb": -18
+      }
+    ]
+  },
+  "style": {
+    "palette": {
+      "bg": "#0a0e13",
+      "fg": "#e4ecf3",
+      "accent": "#3cc4b6",
+      "accent2": "#e4b95b",
+      "muted": "#8796a7"
+    },
+    "fonts": {
+      "display": "Archivo",
+      "body": "Archivo",
+      "mono": "Cascadia Mono"
+    },
+    "logo": "../branding/logo.svg",
+    "radius": 14,
+    "easing": [
+      0.65,
+      0,
+      0.35,
+      1
+    ]
+  },
+  "beats": [
+    {
+      "id": "open",
+      "chapter": "open",
+      "settleMs": 2200,
+      "line": "Your AI agents can haggle for you. So who decides when money moves?",
+      "moments": [
+        {
+          "id": "open-title",
+          "tier": 1,
+          "kind": "plate",
+          "component": "TitleSlam",
+          "durMs": 2100,
+          "props": {
+            "title": "The Table",
+            "kicker": "Agents haggle",
+            "meta": "Browser preview · sample data"
+          }
+        },
+        {
+          "id": "open-claim",
+          "tier": 2,
+          "kind": "plate",
+          "component": "KineticClaim",
+          "at": 2100,
+          "props": {
+            "text": "Agents haggle. You decide.",
+            "emphasis": "decide"
+          }
+        }
+      ]
+    },
+    {
+      "id": "haggle-open",
+      "chapter": "haggle",
+      "settleMs": 3000,
+      "line": "Maya's agent wants a refurbished monitor. Her signed rules: three hundred forty, tops. Dan asks three eighty-nine.",
+      "capture": {
+        "beat": "haggle-open",
+        "targets": [
+          "main|.dv-amt",
+          "main|.dv-figs"
+        ]
+      },
+      "moments": [
+        {
+          "id": "ho-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "props": {
+            "selector": "main|.dv-figs"
+          }
+        },
+        {
+          "id": "ho-frame",
+          "tier": 2,
+          "kind": "treatment",
+          "component": "DeviceFrame",
+          "props": {
+            "tilt": true
+          }
+        },
+        {
+          "id": "ho-ceiling",
+          "tier": 2,
+          "kind": "plate",
+          "component": "StatCounter",
+          "durMs": 2900,
+          "props": {
+            "record": "ceiling",
+            "prefix": "$",
+            "label": "Her ceiling, signed"
+          },
+          "claim": "Her rules cap the price",
+          "at": 2400
+        },
+        {
+          "id": "ho-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "haggle-trade",
+      "chapter": "haggle",
+      "settleMs": 6500,
+      "line": "They trade offers. Every number is signed, and every one of hers stays inside her range.",
+      "capture": {
+        "beat": "haggle-trade",
+        "targets": [
+          "main|.dv-amt",
+          "main|.dv-figs",
+          "tumbler|.puck-art"
+        ]
+      },
+      "moments": [
+        {
+          "id": "ht-frame",
+          "tier": 2,
+          "kind": "treatment",
+          "component": "DeviceFrame",
+          "props": {
+            "tilt": false
+          }
+        },
+        {
+          "id": "ht-corridor",
+          "tier": 2,
+          "kind": "hero",
+          "component": "PriceCorridor",
+          "props": {
+            "mode": "inset"
+          },
+          "claim": "Offers stay inside her range"
+        },
+        {
+          "id": "ht-corridor-full",
+          "tier": 3,
+          "kind": "hero",
+          "component": "PriceCorridor",
+          "props": {
+            "mode": "full"
+          },
+          "claim": "Offers stay inside her range",
+          "durMs": 5700
+        },
+        {
+          "id": "ht-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "haggle-gate",
+      "chapter": "haggle",
+      "settleMs": 3500,
+      "line": "Dan counters at three twenty-nine. Above two fifty, her rule says: ask me. So the agent stops, and the Tumbler lights up gold.",
+      "capture": {
+        "beat": "haggle-gate",
+        "targets": [
+          "main|.dv-amt",
+          "main|.dv-decision",
+          "tumbler|.puck-art"
+        ]
+      },
+      "moments": [
+        {
+          "id": "hg-zoom-rule",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "at": 2300,
+          "durMs": 3600,
+          "props": {
+            "selector": "main|.dv-decision"
+          }
+        },
+        {
+          "id": "hg-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "at": 5900,
+          "props": {
+            "selector": "tumbler|.puck-art"
+          }
+        },
+        {
+          "id": "hg-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "haggle-review",
+      "chapter": "haggle",
+      "settleMs": 4800,
+      "line": "One window can agree to money, and only she can use it.",
+      "capture": {
+        "beat": "haggle-review",
+        "targets": [
+          "approval|body"
+        ]
+      },
+      "moments": [
+        {
+          "id": "hr-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "durMs": 3450,
+          "props": {
+            "selector": "approval|body",
+            "scale": 1.3
+          }
+        },
+        {
+          "id": "hr-claim",
+          "tier": 3,
+          "kind": "plate",
+          "component": "KineticClaim",
+          "at": "end",
+          "durMs": 1700,
+          "props": {
+            "text": "Only she decides.",
+            "emphasis": "she"
+          },
+          "claim": "Only the approval window can agree to money"
+        },
+        {
+          "id": "hr-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "end",
+      "chapter": "end",
+      "settleMs": 3200,
+      "line": "The Table. Agents work. You decide.",
+      "moments": [
+        {
+          "id": "end-card",
+          "tier": 1,
+          "kind": "plate",
+          "component": "EndCard",
+          "props": {
+            "line": "Agents work. You decide.",
+            "cta": "Watch Maya's week"
+          }
+        }
+      ]
+    }
+  ]
+}
