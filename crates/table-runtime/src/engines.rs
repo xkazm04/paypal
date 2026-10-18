@@ -189,7 +189,9 @@ impl Runtime {
             category,
         };
         if self.engine == EngineId::Scripted && scope.role != AgentRole::Negotiator {
-            return Err(unavailable("Scripted fixture supports table-view only"));
+            return Err(unavailable(
+                "The built-in negotiator only haggles at a table; shopping and assistant runs need Claude Code or Codex CLI.",
+            ));
         }
         // A native engine starts from the closed table projection (no NOTE, invoice memo or remote
         // prose can be represented in it) and its role's compiled-in playbook. The policy
