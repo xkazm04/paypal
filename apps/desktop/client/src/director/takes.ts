@@ -12,7 +12,7 @@ import type { HistoryStep } from '@bindings/HistoryStep';
 import type { KeyId } from '@bindings/KeyId';
 import type { StartStepState } from '../lib/firstRun';
 import type { MockDeal } from '../mock/fixtures';
-import { APPROVAL_FIRST_RUN, CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, GROUP_CLOSED, GROUP_WINNER, IF_NOTHING, REWIND_CARD, SAFE_DEFAULT_LINE, SAFETY_PROMISE, shoppingFor, stateWord, TABLES, TABLES_VIEWS, tablesItem, type StartStepKey, type TourStopId } from '../lib/words';
+import { APPROVAL_FIRST_RUN, CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, GROUP_CLOSED, GROUP_WINNER, IF_NOTHING, REWIND_ANSWER, REWIND_CARD, SAFE_DEFAULT_LINE, SAFETY_PROMISE, shoppingFor, stateWord, TABLES, TABLES_VIEWS, tablesItem, type StartStepKey, type TourStopId } from '../lib/words';
 import { laneSteps, tickTone } from '../windows/main/logic';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat, type Chapter } from './beats';
 import { HAGGLE, HOLD, MISMATCH } from './helpers';
@@ -248,6 +248,8 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   // the Rewind (polish A): the week by who decided, and the tape of every step
   'end-rewind': [
     { window: 'main', open: true },
+    // the Rewind reads the week for a few seconds; its figures are only there once it has
+    { in: 'main', text: REWIND_ANSWER.reading, absent: true },
     { in: 'main', text: REWIND_CARD.owner },
     { in: 'main', text: REWIND_CARD.default },
     { deal: HOLD, state: 'AUTO_VOIDED' },
@@ -728,6 +730,13 @@ export function recordShownOnStage(rec: Record<string, unknown>, text: Record<Fr
   const shop = rec.shop as Partial<ShopRecord> | undefined;
   if (shop && Array.isArray(shop.sellers)) kind('shop', 'seller’s price', shop.sellers.map((s) => s.price));
   if (Array.isArray(rec.deadlines)) kind('deadlines', 'deadline’s amount', (rec.deadlines as DeadlineRecord[]).map((d) => d.amount));
-  if (Array.isArray(rec.decisions)) kind('decisions', 'decision’s amount', (rec.decisions as DecisionRecord[]).map((d) => d.amount));
+  if (Array.isArray(rec.decisions)) {
+    // a deal page draws a step's amount; the Rewind and the safety record draw the week's count of
+    // money steps instead ("26 PayPal money steps"), so either one shows the record
+    const decisions = rec.decisions as DecisionRecord[];
+    const steps = decisions.filter((d) => d.decidedBy !== 'refused').length;
+    const counted = new RegExp(`(^|\\D)${steps}\\s+(paypal\\s+)?money steps`, 'i').test(stage);
+    if (!counted) kind('decisions', `decision’s amount (or the count of ${steps} money steps)`, decisions.map((d) => d.amount));
+  }
   return out;
 }
