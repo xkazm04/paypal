@@ -16,6 +16,9 @@ const ULID = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
 // The characters Rust accepts in an item reference, without the "/" this code splits on.
 const ITEM = /^[A-Za-z0-9\-_.:@+]{1,128}$/;
 
+/** Room for a real code (about 210 characters) and some pasted spacing; anything longer is not one. */
+const MAX_CODE_LENGTH = 512;
+
 export type ListingTable = { dealId: string; terms: Terms; category: Category };
 export type DecodeFailure = 'malformed' | 'version' | 'checksum' | 'unsupported';
 export type Decoded = { ok: true; table: ListingTable } | { ok: false; why: DecodeFailure };
@@ -39,7 +42,12 @@ export function encodeListingCode(t: ListingTable): string | null {
 
 export function decodeListingCode(text: string): Decoded {
   // Pasting may add whitespace at the ends or around a "/", never inside a field.
-  const code = text.trim().replace(/\s*\/\s*/g, '/');
+  const trimmed = text.trim();
+  // The longest real code is about 210 characters. Refuse a longer paste before any pattern runs
+  // over it: the separator pattern backtracks once per character of a whitespace run (20,000
+  // spaces froze the window for 8 s), and the checksum reads every byte (scan J-6).
+  if (trimmed.length > MAX_CODE_LENGTH) return { ok: false, why: 'malformed' };
+  const code = trimmed.replace(/\s*\/\s*/g, '/');
   const parts = code.split('/');
   const [prefix = '', dealId = '', item = '', qty = '', minor = '', currency = '', delivery = '', category = '', sum = ''] = parts;
   if (parts.length < 2 || !/^TBL\d+$/i.test(prefix)) return { ok: false, why: 'malformed' };
