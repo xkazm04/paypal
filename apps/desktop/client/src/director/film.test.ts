@@ -250,9 +250,20 @@ describe('film record: who decided each money step', () => {
     // the 40 x GPU request refused before PayPal was asked; the duplicate hold she released herself
     expect(rec.find((d) => d.deal === 'D-0192')).toMatchObject({ step: 'refused', decidedBy: 'refused', paid: false });
     expect(rec.find((d) => d.deal === 'D-0180' && d.step === 'voided')).toMatchObject({ decidedBy: 'owner', paid: false });
-    // captures are the only paid steps, and every one was Maya's own decision: Rust refuses a rule for any purchase step
+    // captures are the only paid steps. A purchase capture is Maya's own decision (Rust refuses a rule for any purchase step);
+    // the one shop sale, D-0185, is collected under her shop rules after the buyer approved, so it reads as the agent's
     expect(rec.some((d) => d.paid)).toBe(true);
-    expect(rec.filter((d) => d.paid).every((d) => d.step === 'captured' && d.decidedBy === 'owner')).toBe(true);
+    expect(rec.filter((d) => d.paid).every((d) => d.step === 'captured')).toBe(true);
+    expect(
+      rec
+        .filter((d) => d.paid)
+        .map((d): [string, string] => [d.deal, d.decidedBy])
+        .sort(([x], [y]) => x.localeCompare(y)),
+    ).toEqual([
+      ['D-0183', 'owner'],
+      ['D-0185', 'agent'],
+      ['D-0186', 'owner'],
+    ]);
     expect(rec.filter((d) => d.decidedBy === 'deadline').every((d) => !d.paid)).toBe(true);
     const at = rec.map((d) => Date.parse(d.at));
     expect(at).toEqual([...at].sort((a, b) => a - b));
