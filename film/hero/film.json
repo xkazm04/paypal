@@ -563,7 +563,7 @@
       "id": "closed-hold",
       "chapter": "silence",
       "settleMs": 4400,
-      "line": "Money on hold works the same way: a sixty-four dollar dock, allowed by her rules, not yet paid.",
+      "line": "Money on hold works the same way: a sixty-four dollar dock Maya approved, not yet paid.",
       "capture": {
         "beat": "closed-hold",
         "targets": [
