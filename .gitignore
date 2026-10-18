@@ -38,3 +38,4 @@ dist/
 
 # spark vault (local, not version-controlled)
 .spark/
+/demo-film-latest.mp4
