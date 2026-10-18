@@ -535,7 +535,7 @@ export function buildScaleState(scale: Scale, now: number): MockState {
     // headlines carry the amount: fixed up in phase 2 from the final price (the capex items are fixed-price)
     for (let k = 0; k < 7; k++) {
       add(buy({ state: 'AGREED', endAgo: r.int(10, 300) * MIN, steps: [[0, 'created'], [60, 'proposed', 'AGREED', AGENT], [10, 'shield_held']], shield: 'HOLD',
-        rule: r.pick(['price_over_market', 'new_counterparty_over_threshold', 'friends_and_family', 'no_market_reference', 'model_caution'] as const), due: nextSoft(),
+        rule: r.pick(['price_over_market', 'new_counterparty_over_threshold', 'no_market_reference'] as const), due: nextSoft(),
         silence: 'the request lapses at the deadline · nothing is paid', note: note() }));
     }
     for (let k = 0; k < 12; k++) {
@@ -544,7 +544,7 @@ export function buildScaleState(scale: Scale, now: number): MockState {
         pool: clause === 2 ? 'unpaired' : 'suppliers', ...(k === 0 ? { m: 'M8', qty: 40 } : {}) }, k === 0 ? GPU_ITEM : undefined));
     }
     for (let k = 0; k < 10; k++) {
-      add(buy({ state: 'REFUSED', endAgo: r.int(1, 120) * H, shield: 'BLOCK', rule: r.pick(['payee_mismatch', 'payee_mismatch', 'friends_and_family', 'no_market_reference'] as const), priced: true,
+      add(buy({ state: 'REFUSED', endAgo: r.int(1, 120) * H, shield: 'BLOCK', rule: r.pick(['payee_mismatch', 'payee_mismatch', 'no_market_reference'] as const), priced: true,
         steps: [[0, 'created'], [60, 'shield_held'], [10, 'refused', 'REFUSED']], note: note() }));
     }
     add(buy({ state: 'FAILED', endAgo: 9 * H, steps: [...purchasePath(), [H, 'failed', 'FAILED']], paypal: { order: 'ORD', authorization: 'AUTH' }, decided: 'rule6' }));

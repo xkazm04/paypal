@@ -331,6 +331,9 @@ export const CHECK_QUIET = {
   unsaid: { text: 'Not reported', means: 'Its own result isn’t reported to this screen, so it isn’t marked as passed.' },
 } as const;
 
+/** A check the wallet does not run yet (friends & family, the AI second opinion): never a pass. */
+export const CHECK_NOT_ACTIVE = { text: 'Not active yet', means: 'The wallet does not run this check yet, so it does not count in the verdict and is not marked as passed.' } as const;
+
 /** A value the wallet did not give this window (a comparison's other side). */
 export const NOT_REPORTED = { text: 'not reported', means: 'Your wallet didn’t give this window this value, so the row is never counted as a pass.' } as const;
 

@@ -74,9 +74,9 @@ describe('what is normal vs this payment', () => {
 });
 
 describe('check lights', () => {
-  it('trips the fixed and price lights from facts and never shows the AI opinion as anything but not shown', () => {
+  it('trips the fixed and price lights from facts and marks the message check as not active yet', () => {
     const l = checkLights(deal({ market }), cp(), NOW);
-    expect(l.map((x) => x.name)).toEqual(['Fixed checks', 'Price check', 'AI second opinion']);
+    expect(l.map((x) => x.name)).toEqual(['Fixed checks', 'Price check', 'Message check (not active yet)']);
     expect(l.map((x) => x.state)).toEqual(['tripped', 'tripped', 'unknown']);
   });
   it('passes the price only when the client can derive it, and never passes a fixed or AI check', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
-import { ago, bandGeometry, checkCell, CHECKS, moveCursor, overMedian, paypalLine, reasonsFor, releasable, ROWS, shieldNeed, UNSHOWN } from './matrix';
+import { ago, bandGeometry, checkCell, CHECKS, moveCursor, overMedian, paypalLine, NOT_ACTIVE, reasonsFor, releasable, ROWS, shieldNeed, UNSHOWN } from './matrix';
 
 const usd = (d: number) => ({ minor: d * 100, currency: 'USD' as const });
 const NONE = { order: null, authorization: null, capture: null, subscription: null };
@@ -16,8 +16,9 @@ describe('grid shape', () => {
   it('puts the conclusion first, then the checks it can show, then their words; the rest is one line', () => {
     expect(ROWS).toEqual(['head', 'verdict', 'paypal', 'move', 'newcp', 'market', 'words']);
     expect(CHECKS.map((c) => c.k)).toEqual(['payee', 'ff', 'newcp', 'market', 'typology']);
-    expect(UNSHOWN).toEqual(['payee', 'ff', 'typology']);
-    for (const k of UNSHOWN) expect(checkCell(k, deal(), undefined, NOW).r).toBe('na');
+    expect(UNSHOWN).toEqual(['payee']);
+    expect(NOT_ACTIVE).toEqual(['ff', 'typology']);
+    for (const k of [...UNSHOWN, ...NOT_ACTIVE]) expect(checkCell(k, deal(), undefined, NOW).r).toBe('na');
   });
   it('clamps the cursor to the grid', () => {
     expect(moveCursor({ r: 0, c: 0 }, -1, -1, 10, 3)).toEqual({ r: 0, c: 0 });
@@ -29,6 +30,17 @@ describe('grid shape', () => {
 describe('check cells say only what the client knows', () => {
   it('never claims a pass for checks whose result is not exposed', () => {
     for (const k of ['payee', 'ff', 'typology'] as const) expect(checkCell(k, deal(), undefined, NOW).r).toBe('na');
+  });
+  it('says plainly that friends & family and the message check are not active yet, never that they ran', () => {
+    for (const k of NOT_ACTIVE) {
+      for (const d of [deal(), deal({ shield: 'CLEAR' }), deal({ shield: 'HOLD', shield_rule: 'price_over_market' })]) {
+        const c = checkCell(k, d, undefined, NOW);
+        expect(c).toMatchObject({ r: 'na', s: 'not active yet' });
+        expect(c.l).toMatch(/does not run this check yet/);
+        expect(c.l).not.toMatch(/ran|passed\./);
+      }
+    }
+    expect(CHECKS.filter((c) => NOT_ACTIVE.includes(c.k)).every((c) => /^Not active yet/.test(c.kind))).toBe(true);
   });
   it('reads new-counterparty facts from counterparty_list', () => {
     const cp = { key_id: 'K', display_name: 'pixel-bay', house: false, first_seen: NOW - 3600, deals_closed: 0, pairing: 'words_confirmed' as const, declared_payee: 'pixel-bay' };

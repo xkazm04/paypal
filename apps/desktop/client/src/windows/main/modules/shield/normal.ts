@@ -8,7 +8,7 @@
 import type { CounterpartyDisplay } from '@bindings/CounterpartyDisplay';
 import type { Deal } from '@bindings/Deal';
 import { formatMinor } from '../../../../lib/format';
-import { shieldRuleWord } from '../../../../lib/words';
+import { CHECK_NOT_ACTIVE, shieldRuleWord } from '../../../../lib/words';
 import { ledgerScope } from '../../logic';
 import { ago, checkCell, overMedian, quietCheck, STAGES, type ReasonKind, type Stage } from './matrix';
 
@@ -125,7 +125,7 @@ export function checkLights(d: PayeeDeal & Pick<Deal, 'shield_rule'> & Partial<P
     const fixedRule = rule === 'payee_mismatch' || rule === 'friends_and_family' || rule === 'new_counterparty_over_threshold';
     const fixed: Light = fixedRule
       ? { stage: 'rules', name: STAGES.rules, state: 'tripped', word: w.text, detail: rule === 'new_counterparty_over_threshold' ? checkCell('newcp', d, cp, now).l : w.means }
-      : { stage: 'rules', name: STAGES.rules, state: 'unknown', word: quiet.text, detail: 'The fixed checks (payee match, friends & family, new payee) didn’t stop this payment. Their own results aren’t reported to this screen, so they aren’t marked as passed.' };
+      : { stage: 'rules', name: STAGES.rules, state: 'unknown', word: quiet.text, detail: 'The fixed checks that run (payee match, new payee) didn’t stop this payment. Their own results aren’t reported to this screen, so they aren’t marked as passed.' };
     const price: Light = rule === 'price_over_market'
       ? { stage: 'market', name: STAGES.market, state: 'tripped', word: 'Too high', detail: checkCell('market', d, cp, now).l }
       : rule === 'no_market_reference'
@@ -135,7 +135,7 @@ export function checkLights(d: PayeeDeal & Pick<Deal, 'shield_rule'> & Partial<P
           : { stage: 'market', name: STAGES.market, state: p >= PAUSE_PCT ? 'tripped' : 'passed', word: p >= PAUSE_PCT ? 'Too high' : 'Fine', detail: checkCell('market', d, cp, now).l };
     const ai: Light = rule === 'model_caution'
       ? { stage: 'engine', name: STAGES.engine, state: 'tripped', word: w.text, detail: w.means }
-      : { stage: 'engine', name: STAGES.engine, state: 'unknown', word: quiet.text, detail: checkCell('typology', d, cp, now).l };
+      : { stage: 'engine', name: STAGES.engine, state: 'unknown', word: CHECK_NOT_ACTIVE.text, detail: checkCell('typology', d, cp, now).l };
     return [fixed, price, ai];
   }
   const fixed: Light = fresh
@@ -146,7 +146,7 @@ export function checkLights(d: PayeeDeal & Pick<Deal, 'shield_rule'> & Partial<P
     : p >= PAUSE_PCT
       ? { stage: 'market', name: STAGES.market, state: 'tripped', word: 'Too high', detail: checkCell('market', d, cp, now).l }
       : { stage: 'market', name: STAGES.market, state: 'passed', word: 'Fine', detail: checkCell('market', d, cp, now).l };
-  const ai: Light = { stage: 'engine', name: STAGES.engine, state: 'unknown', word: quiet.text, detail: checkCell('typology', d, cp, now).l };
+  const ai: Light = { stage: 'engine', name: STAGES.engine, state: 'unknown', word: CHECK_NOT_ACTIVE.text, detail: checkCell('typology', d, cp, now).l };
   return [fixed, price, ai];
 }
 

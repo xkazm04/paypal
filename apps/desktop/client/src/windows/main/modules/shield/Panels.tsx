@@ -96,7 +96,7 @@ function Lamp({ l }: { l: Light }) {
   );
 }
 
-/** Fixed checks · Price check · AI second opinion: which tripped, which passed, which did not stop it (dashed). */
+/** Fixed checks · Price check · Message check (not active yet): which tripped, which passed, which did not stop it (dashed). */
 export function CheckLights({ deal, cp, now }: { deal: Deal; cp: CounterpartyDisplay | undefined; now: number }) {
   const lights = checkLights(deal, cp, now);
   return (
