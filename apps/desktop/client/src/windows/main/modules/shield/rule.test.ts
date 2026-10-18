@@ -68,22 +68,25 @@ describe('the Shield page shows the recorded rule, not a guess', () => {
 describe('a check with no result here reads calmly, never as a pass (polish 3)', () => {
   it('another recorded rule: the other groups "Didn’t stop it", dashed, with the reason it is not a pass', () => {
     const lights = checkLights(deal({ market, shield: 'HOLD', shield_rule: 'price_over_market' }), fresh, NOW);
-    expect(lights.map((l) => [l.state, l.word])).toEqual([['unknown', 'Didn’t stop it'], ['tripped', 'Too high'], ['unknown', 'Didn’t stop it']]);
+    expect(lights.map((l) => [l.state, l.word])).toEqual([['unknown', 'Didn’t stop it'], ['tripped', 'Too high'], ['unknown', 'Not active yet']]);
     for (const l of lights) expect(`${l.word} ${l.detail}`).not.toMatch(/shown here|this window/i);
     expect(lights[0]!.detail).toMatch(/aren’t marked as passed/);
   });
   it('a cleared payment: "No alert"; no recorded rule on a pause: "Not reported"; never "passed"', () => {
     const old = { ...fresh, first_seen: NOW - 9 * 86400 };
     const clear = checkLights(deal({ market: { ...market, median: usd(66) }, shield: 'CLEAR' }), old, NOW);
-    expect(clear.map((l) => l.word)).toEqual(['No alert', 'Fine', 'No alert']);
+    expect(clear.map((l) => l.word)).toEqual(['No alert', 'Fine', 'Not active yet']);
     const legacy = checkLights(deal({ market: { ...market, median: usd(66) }, shield: 'HOLD' }), old, NOW);
-    expect(legacy.map((l) => [l.state, l.word])).toEqual([['unknown', 'Not reported'], ['passed', 'Fine'], ['unknown', 'Not reported']]);
+    expect(legacy.map((l) => [l.state, l.word])).toEqual([['unknown', 'Not reported'], ['passed', 'Fine'], ['unknown', 'Not active yet']]);
   });
   it('the matrix cell of the check that decided is a fact; the others stay dashed with the same words', () => {
     const d = deal({ market, shield: 'BLOCK', shield_rule: 'payee_mismatch' });
     expect(checkCell('payee', d, fresh, NOW)).toMatchObject({ r: 'fact', s: 'different payee' });
-    expect(checkCell('ff', d, fresh, NOW)).toMatchObject({ r: 'na', s: 'didn’t stop it' });
-    expect(checkCell('typology', deal({ shield: 'CLEAR' }), fresh, NOW)).toMatchObject({ r: 'na', s: 'no alert' });
-    expect(checkCell('typology', deal(), fresh, NOW)).toMatchObject({ r: 'na', s: 'not reported' });
+    expect(checkCell('ff', d, fresh, NOW)).toMatchObject({ r: 'na', s: 'not active yet' });
+    expect(checkCell('typology', deal({ shield: 'CLEAR' }), fresh, NOW)).toMatchObject({ r: 'na', s: 'not active yet' });
+    expect(checkCell('typology', deal(), fresh, NOW)).toMatchObject({ r: 'na', s: 'not active yet' });
+    // a recorded rule (test-only or future path) still shows that fact
+    expect(checkCell('ff', deal({ shield: 'BLOCK', shield_rule: 'friends_and_family' }), fresh, NOW)).toMatchObject({ r: 'fact' });
+    expect(checkCell('typology', deal({ shield: 'HOLD', shield_rule: 'model_caution' }), fresh, NOW)).toMatchObject({ r: 'fact' });
   });
 });

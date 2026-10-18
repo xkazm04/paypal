@@ -9,15 +9,19 @@
 //   - "skip": the market rule had no reference to compare with (no Deal.market) — not passed;
 //   - "na":   its own result is not reported to this window (drawn dashed, never as passed), said as
 //     what the deal does record: "no alert" (CLEAR), "didn't stop it" (another rule decided) or
-//     "not reported". The three checks without their own result (UNSHOWN) are not grid rows: one
-//     quiet line says they ran and count in the verdict. A check that decided the verdict is a fact.
+//     "not reported". The payee check (UNSHOWN) is not a grid row: one quiet line says it runs and
+//     counts in the verdict. A check that decided the verdict is a fact.
+// Two checks are NOT ACTIVE yet (NOT_ACTIVE): friends & family (the wallet has no typed source for
+// it, pipeline.rs passes false) and the AI second opinion (nothing calls it in production). They are
+// not in the "ran and count in the verdict" line, and their cell says "not active yet", never a pass.
+// A deal whose recorded shield_rule is theirs (a test-only or future path) still shows that fact.
 // No React, no IPC; unit-tested in matrix.test.ts.
 import type { CounterpartyDisplay } from '@bindings/CounterpartyDisplay';
 import type { Deal } from '@bindings/Deal';
 import type { ShieldRule } from '@bindings/ShieldRule';
 import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import { formatMinor } from '../../../../lib/format';
-import { CHECK_QUIET, shieldRuleWord } from '../../../../lib/words';
+import { CHECK_NOT_ACTIVE, CHECK_QUIET, shieldRuleWord } from '../../../../lib/words';
 import { isTerminal, moneyNow } from '../../logic';
 
 export type CheckKey = 'payee' | 'ff' | 'newcp' | 'market' | 'typology';
@@ -30,14 +34,16 @@ export const ROWS: readonly RowKey[] = ['head', 'verdict', 'paypal', 'move', 'ne
 /** The checks the shield runs, in pipeline order (report §7): rules, market band, quarantined engine. */
 export const CHECKS: ReadonlyArray<{ k: CheckKey; name: string; short: string; stage: Stage; kind: string; effect: ShieldVerdict }> = [
   { k: 'payee', name: 'Payee matches the agreed deal', short: 'Payee match', stage: 'rules', kind: 'A fixed check', effect: 'BLOCK' },
-  { k: 'ff', name: 'Asks to be paid as “friends & family”', short: 'Friends & family', stage: 'rules', kind: 'A fixed check on their note or invoice text', effect: 'BLOCK' },
+  { k: 'ff', name: 'Asks to be paid as “friends & family”', short: 'Friends & family', stage: 'rules', kind: 'Not active yet: the wallet does not run this check', effect: 'BLOCK' },
   { k: 'newcp', name: 'New payee', short: 'New payee', stage: 'rules', kind: 'A fixed check: first seen in the last 24 hours, and a large amount', effect: 'ASK' },
   { k: 'market', name: 'Price far above typical', short: 'Price', stage: 'market', kind: 'A price check: more than 1.4 × the typical price', effect: 'HOLD' },
-  { k: 'typology', name: 'Scam patterns in their message', short: 'Message check', stage: 'engine', kind: 'An AI second opinion that reads their message as data only', effect: 'HOLD' },
+  { k: 'typology', name: 'Scam patterns in their message', short: 'Message check', stage: 'engine', kind: 'Not active yet: the wallet does not run this check', effect: 'HOLD' },
 ];
-export const STAGES: Record<Stage, string> = { rules: 'Fixed checks', market: 'Price check', engine: 'AI second opinion' };
-/** Checks whose result never reaches this window: shown once, as a line, not as a row of unknowns. */
-export const UNSHOWN: readonly CheckKey[] = ['payee', 'ff', 'typology'];
+export const STAGES: Record<Stage, string> = { rules: 'Fixed checks', market: 'Price check', engine: 'Message check (not active yet)' };
+/** Checks that run but whose result never reaches this window: shown once, as a line, not as a row of unknowns. */
+export const UNSHOWN: readonly CheckKey[] = ['payee'];
+/** Checks the wallet does not run yet. They never count in the verdict and are never shown as passed. */
+export const NOT_ACTIVE: readonly CheckKey[] = ['ff', 'typology'];
 
 export type CheckCell = { r: 'fact' | 'skip' | 'na'; s: string; l: string };
 
@@ -73,6 +79,7 @@ function unshown(k: CheckKey, d: ShieldFacts, does: string): CheckCell {
     const w = shieldRuleWord(own);
     return { r: 'fact', s: w.text.toLowerCase(), l: `${does} ${w.means}` };
   }
+  if (NOT_ACTIVE.includes(k)) return { r: 'na', s: CHECK_NOT_ACTIVE.text.toLowerCase(), l: `${does} ${CHECK_NOT_ACTIVE.means}` };
   const q = quietCheck(d);
   return { r: 'na', s: q.text.toLowerCase(), l: `${does} ${q.means}` };
 }
@@ -81,9 +88,9 @@ export function checkCell(k: CheckKey, d: Pick<Deal, 'terms' | 'market'> & Shiel
     case 'payee':
       return unshown(k, d, 'The shield checks that the money goes to the payee you agreed with.');
     case 'ff':
-      return unshown(k, d, 'The shield looks for a request to be paid as “friends & family”, which removes buyer protection.');
+      return unshown(k, d, 'Friends & family: a request to be paid that way removes buyer protection.');
     case 'typology':
-      return unshown(k, d, 'An AI second opinion reads their message for known scam patterns. It can only make things safer.');
+      return unshown(k, d, 'The AI second opinion on their message:');
     case 'newcp': {
       if (!cp) return { r: 'na', s: 'unknown payee', l: 'The wallet has no record of this payee, so when you first met them is unknown.' };
       const fresh = now - cp.first_seen < DAY;

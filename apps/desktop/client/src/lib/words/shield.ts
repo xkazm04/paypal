@@ -114,7 +114,7 @@ export const SHIELD = {
 
   scope: { label: 'Which payments', week: 'This week', all: 'Everything checked' },
   show: { label: 'Show', all: 'Everything', outcome: 'Outcome only', outcomeTitle: 'Fade the checks and keep what the shield said and what you decided' },
-  unshown: 'Payee match, friends & family and the message check report only through “Shield says”.',
+  unshown: 'Payee match reports only through “Shield says”. Friends & family and the message check are not active yet.',
   checksLabel: 'Every payment the shield checked',
   checksEmpty: 'Nothing paused, nothing blocked. The shield hasn’t had to check anyone yet.',
   checksEmptyWeek: 'The shield checked nothing this week. Everything older is under “Everything checked”.',
@@ -163,7 +163,7 @@ export const SHIELD = {
     noPrice: 'With no typical price to compare, the price check never waves a payment through: it asks you.',
     results: 'What each result means',
     messages: 'Their messages',
-    messagesText: 'The AI second opinion reads a payee’s message as plain data, once, with no tools. It can add caution; it can never remove it, and your agents never act on what the payee wrote.',
+    messagesText: 'The wallet does not read a payee’s message for scam signs yet, and it does not check for friends & family requests yet. Neither counts in the verdict today. Your agents never act on what the payee wrote.',
     hatch: 'no typical price to compare, so it asks you',
     noteChip: 'note ›',
     noteText: 'their own words, shown as plain text',
