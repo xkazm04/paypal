@@ -151,7 +151,8 @@
         "beat": "shop-ask",
         "targets": [
           "main|body"
-        ]
+        ],
+        "from": "ready"
       },
       "moments": [
         {
@@ -422,7 +423,8 @@
         "beat": "haggle-review",
         "targets": [
           "approval|body"
-        ]
+        ],
+        "from": "ready"
       },
       "moments": [
         {
@@ -577,7 +579,9 @@
           "component": "ZoomToRect",
           "props": {
             "selector": "tumbler|body",
-            "scale": 1.6
+            "scale": 1.6,
+            "isolate": true,
+            "release": false
           }
         },
         {
@@ -608,9 +612,10 @@
           "component": "ZoomToRect",
           "props": {
             "selector": "tumbler|body",
-            "scale": 1.6
-          },
-          "durMs": 2600
+            "scale": 1.6,
+            "isolate": true,
+            "release": false
+          }
         },
         {
           "id": "cr-clock",
@@ -760,7 +765,8 @@
         "beat": "mismatch-review",
         "targets": [
           "approval|body"
-        ]
+        ],
+        "from": "ready"
       },
       "moments": [
         {
@@ -790,7 +796,8 @@
         "beat": "end-rewind",
         "targets": [
           "main|.rw-stage"
-        ]
+        ],
+        "from": "ready"
       },
       "moments": [
         {
@@ -831,7 +838,8 @@
         "beat": "end-safety",
         "targets": [
           "main|.sf-sum"
-        ]
+        ],
+        "from": "ready"
       },
       "moments": [
         {
@@ -862,7 +870,8 @@
         "beat": "end-proof",
         "targets": [
           "main|.dv-proof"
-        ]
+        ],
+        "from": "ready"
       },
       "moments": [
         {

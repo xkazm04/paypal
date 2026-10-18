@@ -23,7 +23,7 @@ import { HAGGLE } from './helpers';
 import { applyWorld, foldScene, INITIAL_SCENE, placeTours, runActions, WORLD_ACTIONS, type Scene, type Stage } from './actions';
 import type { Beat, Focus } from './beats';
 import { frameUrls, type Story } from './stories';
-import { centre, charterSteps, checkBeat, deadlinesRecord, decisionsRecord, deskTransform, expectedDeals, FILM_PRESS, filmTarget, haggleRecord, recordShownOnStage, selectChapter, shopRecord, stageRect, storyStartOn, takePlan, wholeTake, type ChapterTake, type FrameName, type PxRect, type Seen, type TakePlan } from './takes';
+import { centre, charterSteps, checkBeat, deadlinesRecord, decisionsRecord, deskTransform, expectedDeals, FILM_PRESS, filmTarget, haggleRecord, recordShownOnStage, selectChapter, shopRecord, stageRect, storyStartOn, syncShade, takePlan, wholeTake, type ChapterTake, type FrameName, type PxRect, type Seen, type TakePlan } from './takes';
 
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -172,6 +172,8 @@ export type FilmHook = {
   go(n: number): void;
   /** `Date.now()` when the current beat's actions ran. */
   playedAt(): number;
+  /** The grey level the corner sync mark shows for the current beat (takes.ts syncShade). */
+  shade(): number;
 };
 
 /** The read-only hook the rehearsal rig (scripts/takes.mjs) drives the director through. */
@@ -551,6 +553,7 @@ export function Director({ story }: { story: Story }) {
           }
         },
         playedAt: () => playedAtRef.current,
+        shade: () => syncShade(live.current.index),
       };
     }
     (window as unknown as { __takes?: TakesHook }).__takes = hook;
@@ -622,6 +625,7 @@ export function Director({ story }: { story: Story }) {
 
   return (
     <div className={`dir${reduced ? ' reduced' : ''}${take ? ' take' : ''}${film ? ' film' : ''}`} data-beat={beat?.id ?? ''} data-ready={ready ? 'true' : 'false'}>
+      {film && <i className="dir-sync" aria-hidden="true" style={{ background: `rgb(${syncShade(index)}, ${syncShade(index)}, ${syncShade(index)})` }} />}
       <header className="dir-banner" role="note">
         <span className="dir-dot" aria-hidden="true" />
         <span>Browser preview with sample data — not the wallet. No PayPal page is ever shown.</span>

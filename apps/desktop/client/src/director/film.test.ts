@@ -14,7 +14,7 @@ import { laneSteps, weekBounds } from '../windows/main/logic';
 import { runActions, type Stage } from './actions';
 import { BEATS } from './beats';
 import { HAGGLE, HOLD } from './helpers';
-import { centre, deadlinesRecord, decisionsRecord, deskTransform, FILM_PRESS, filmTarget, haggleRecord, HOUSE_TABLE, recordShown, recordShownOnStage, shopRecord, stageRect, storyStartOn, usdText } from './takes';
+import { centre, deadlinesRecord, decisionsRecord, deskTransform, FILM_PRESS, filmTarget, haggleRecord, HOUSE_TABLE, recordShown, recordShownOnStage, shopRecord, stageRect, storyStartOn, syncShade, usdText } from './takes';
 
 describe('film rectangles', () => {
   it('splits a frame prefix from the selector, and leaves page selectors alone', () => {
@@ -305,5 +305,14 @@ describe('the decisions record on the Rewind and the safety record', () => {
   it('is not shown by a wrong count or a page that is still reading the week', () => {
     expect(recordShownOnStage(rec, stage('12 PayPal money steps this week'))).toHaveLength(1);
     expect(recordShownOnStage(rec, stage('Reading the week…'))).toHaveLength(1);
+  });
+});
+
+describe('the film capture sync mark', () => {
+  it('gives neighbouring beats distinct greys, all clear of video black', () => {
+    const levels = Array.from({ length: 28 }, (_, i) => syncShade(i));
+    for (let i = 1; i < levels.length; i += 1) expect(Math.abs(syncShade(i) - syncShade(i - 1))).toBeGreaterThanOrEqual(9);
+    expect(Math.min(...levels)).toBeGreaterThanOrEqual(48);
+    expect(Math.max(...levels)).toBeLessThanOrEqual(235);
   });
 });
