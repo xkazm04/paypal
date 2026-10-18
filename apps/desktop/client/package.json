@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "build:director": "tsc --noEmit -p tsconfig.json && node -e \"process.env.THE_TABLE_DIRECTOR_BUILD='1';require('child_process').execSync('vite build',{stdio:'inherit',env:process.env})\"",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
