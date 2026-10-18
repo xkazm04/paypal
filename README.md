@@ -48,7 +48,8 @@ repository. On Linux the equivalent checks are `cargo fmt --all --check`,
 "Maya's week" plays all three windows (The Table, the Tumbler and the approval window) side by side
 on sample data with a simulated clock: a haggle that needs her, a deadline that passes with no money
 moved, a payment request that does not match, and a hold that releases itself while The Table is
-closed. A static build also works: run `pnpm --dir apps/desktop/client build`, then serve
+closed. A static build also works: run `pnpm --dir apps/desktop/client build:director` (a plain
+`build`, and so the release build, does not include the director), then serve
 `apps/desktop/client/dist` and open `director.html` from it.
 
 This needs Node and pnpm and nothing else. The repo pins neither version.
