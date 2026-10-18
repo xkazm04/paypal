@@ -526,6 +526,15 @@ export function deskTransform(m: { a: number; e: number; f: number } | null): De
  * viewport: through the frame's place on the desk (`frame`, desk pixels, untransformed), the desk's
  * transform, and where the desk's box starts on the page (`origin`, the stage's top-left).
  */
+/** The grey level of the film capture's corner sync mark for beat `index`. The recorder's video
+ *  drifts behind the wall clock (seconds over a long take), so film-capture.mjs reads this mark off
+ *  the video to find where each beat really starts. 20 levels 9 apart from 48 up survive h264 and
+ *  stay clear of video black (16), which a loading page shows; beats a full cycle apart share a
+ *  level, which is safe because the reader searches forward in beat order. */
+export function syncShade(index: number): number {
+  return 48 + (((index % 20) + 20) % 20) * 9;
+}
+
 export function stageRect(local: PxRect, frame: { x: number; y: number }, desk: DeskTransform, origin: { x: number; y: number }): PxRect {
   const r = (n: number) => Math.round(n * 100) / 100;
   return {

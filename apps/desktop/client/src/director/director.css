@@ -140,3 +140,6 @@ body.w-director { margin: 0; overflow: hidden; background: var(--stage); }
    rail (the film's voice carries the story), no pointer; the banner and every badge stay */
 .dir.film { cursor: none; }
 .dir.film .dir-desk { transition: none; }
+
+/* film capture: the beat sync mark (takes.ts syncShade), read off the video by film-capture.mjs */
+.dir-sync { position: fixed; right: 0; bottom: 0; width: 12px; height: 12px; z-index: 2147483647; pointer-events: none; }

@@ -23,7 +23,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { CLIENT, SIZE, ffmpegPath, hook, log, loadPlaywright, newContext, openBrowser, pad, plan, rawLength, reachable, settle, watchErrors } from './lib/rig.mjs';
+import { CLIENT, SIZE, ffmpegPath, hook, log, loadPlaywright, newContext, openBrowser, pad, plan, quiet, rawLength, reachable, settle, watchErrors } from './lib/rig.mjs';
 
 const REPO = resolve(CLIENT, '..', '..', '..');
 const PORT = 1531;
@@ -121,6 +121,64 @@ function filmUrl(base, o, index) {
   return new URL(`director.html?${q}`, base).href;
 }
 
+/** The corner sync mark's grey level in every frame of the take (12 px square, bottom right). */
+function markLevels(ff, video) {
+  const out = execFileSync(ff, ['-loglevel', 'error', '-i', video, '-vf', `fps=${FPS},crop=8:8:${SIZE.width - 10}:${SIZE.height - 10},scale=1:1:flags=area,format=gray`, '-f', 'rawvideo', '-'], { maxBuffer: 64 * 1024 * 1024 });
+  return [...out];
+}
+
+/** Resolves once the text of every window has not changed for `stillMs` (or after `cap`). */
+async function textStable(page, stillMs = 600, cap = 8000) {
+  const read = () => page.evaluate(() => [document, ...[...document.querySelectorAll('iframe')].map((f) => { try { return f.contentDocument; } catch { return null; } })]
+    .filter(Boolean).map((d) => d.body?.innerText ?? '').join('\u0000'));
+  const start = Date.now();
+  let last = await read();
+  let since = Date.now();
+  while (Date.now() - start < cap) {
+    await page.waitForTimeout(150);
+    const now = await read();
+    if (now !== last) { last = now; since = Date.now(); } else if (Date.now() - since >= stillMs) return;
+  }
+}
+
+/** The stage ground just left of the mark, as an ffmpeg colour, to paint the mark out with. Read
+ *  from a frame mid-take: the first frames are the page still loading (white). */
+function groundBeside(ff, video) {
+  const mid = Math.max(1, rawLength(ff, video) / 2);
+  const px = execFileSync(ff, ['-loglevel', 'error', '-ss', String(mid), '-i', video, '-frames:v', '1', '-vf', `crop=8:8:${SIZE.width - 30}:${SIZE.height - 12},scale=1:1:flags=area,format=rgb24`, '-f', 'rawvideo', '-']);
+  return `0x${[...px.subarray(0, 3)].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/** Moves each row's startMs/endMs from the wall clock to the video's, by where its sync mark first
+ *  shows (searching forward in beat order). A beat whose mark is not found keeps its wall offsets,
+ *  and the log says so. */
+function alignToVideo(ff, video, rows, sync) {
+  const levels = markLevels(ff, video);
+  const frameMs = 1000 / FPS;
+  let from = 0;
+  const shifts = [];
+  rows.forEach((row, i) => {
+    const want = sync[i].shade;
+    const near = (f) => f < levels.length && Math.abs(levels[f] - want) <= 4;
+    let f = from;
+    while (f < levels.length && !(near(f) && near(f + 1) && near(f + 2))) f += 1;
+    if (f >= levels.length) {
+      log(`sync: ${row.id}: mark ${want} not found in the video; wall-clock offsets kept`);
+      return;
+    }
+    const shift = Math.round(f * frameMs) - sync[i].playedMs;
+    // the drift keeps growing inside a beat, so its end is also bounded by the last frame that
+    // still shows its own mark: the next jump's reload (a white page) never leaks into its tail
+    let last = f;
+    while (near(last + 1)) last += 1;
+    row.startMs = Math.max(0, row.startMs + shift);
+    row.endMs = Math.max(row.startMs + 1, Math.min(row.endMs + shift, Math.round((last + 1) * frameMs) - 1));
+    shifts.push(shift);
+    from = f + 1;
+  });
+  if (shifts.length) log(`sync: ${shifts.length}/${rows.length} beats aligned to the video; shift ${Math.min(...shifts)}..${Math.max(...shifts)} ms`);
+}
+
 function readJson(file) {
   return JSON.parse(readFileSync(file, 'utf8'));
 }
@@ -148,6 +206,7 @@ async function main() {
   rmSync(rawDir, { recursive: true, force: true });
   mkdirSync(rawDir, { recursive: true });
   const rows = [];
+  const sync = [];
   const failed = [];
   let contextAt = 0;
   let closedAt = 0;
@@ -170,15 +229,33 @@ async function main() {
     await page.goto(filmUrl(server.base, o, indexOf.get(captured[0].capture.beat)));
     await page.waitForFunction(() => !!window.__takes?.film, null, { timeout: 30_000 });
     let first = true;
+    let at = indexOf.get(captured[0].capture.beat);
     for (const fb of captured) {
       const index = indexOf.get(fb.capture.beat);
+      if (!first && index !== at + 1 && index > 0) {
+        // not the next beat: jump to the beat before it first, so the reload a jump costs (a white
+        // page, a loading pill) lands outside every logged window, then play this beat in place
+        await hook(page, (n) => window.__takes.film.go(n), index - 1);
+        await settle(page, index - 1);
+      }
       errors.length = 0;
       if (!first) await hook(page, (n) => window.__takes.film.go(n), index);
       first = false;
+      at = index;
       // the beat plays, then must show its end state (EXPECT); a broken beat is recorded, not fatal
       const fail = await settle(page, index);
       const playedAt = await hook(page, () => window.__takes.film.playedAt());
-      const startMs = Math.max(0, Math.round(playedAt - contextAt));
+      // from "ready": the footage begins once the end state is on screen (settle has returned), for
+      // a beat whose action is only a page change or a load; otherwise when the action starts
+      const playedMs = Math.max(0, Math.round(playedAt - contextAt));
+      // a "ready" beat's end-state checks can pass on the page it is leaving (the same text is on
+      // both), so it is ready only once its windows are still: no animation, text unchanged 600 ms
+      if (fb.capture.from === 'ready') {
+        await quiet(page);
+        await textStable(page);
+      }
+      const startMs = fb.capture.from === 'ready' ? Math.round(Date.now() - contextAt) : playedMs;
+      const shade = await hook(page, () => window.__takes.film.shade());
       const targets = fb.capture.targets ?? [];
       const rects = await hook(page, (t) => window.__takes.film.rects(t), targets);
       const clicks = await hook(page, () => window.__takes.film.clicks());
@@ -199,6 +276,7 @@ async function main() {
         failed.push({ id: fb.id, problems });
       }
       rows.push(row);
+      sync.push({ shade, playedMs });
       const banner = seen.banner.includes('Browser preview with sample data') ? 'banner' : 'NO BANNER';
       log(`${problems.length ? 'FAIL' : 'ok  '} ${fb.id} (${pad(index)} ${fb.capture.beat}) ${startMs}-${endMs} ms, hold ${hold} ms, ${Object.keys(rects).length}/${targets.length} rects, ${clicks.length} clicks, ${banner}${row.record ? `, record ${JSON.stringify(row.record)}` : ''}`);
       for (const f of problems) log(`       - ${f}`);
@@ -217,7 +295,14 @@ async function main() {
   // an h264 copy on the same clock for the film's renderer (Remotion's OffthreadVideo)
   const ff = ffmpegPath();
   if (!ff) throw new Error('ffmpeg is needed for take.mp4 (put it on the PATH or set FFMPEG)');
-  execFileSync(ff, ['-y', '-loglevel', 'error', '-i', webm, '-an', '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p',
+  // The recorder's video drifts behind the wall clock it ran on (seconds over a long take), so the
+  // logged windows are moved onto the video's own clock: each beat's corner sync mark is found in
+  // the frames, and the beat's offsets shift by where it really appeared. The mark is then painted
+  // over with the ground beside it, so no film ever shows it.
+  alignToVideo(ff, webm, rows, sync);
+  const ground = groundBeside(ff, webm);
+  execFileSync(ff, ['-y', '-loglevel', 'error', '-i', webm, '-an', '-vf', `drawbox=x=${SIZE.width - 16}:y=${SIZE.height - 16}:w=16:h=16:color=${ground}:t=fill`,
+    '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p',
     '-fps_mode', 'cfr', '-r', String(FPS), '-movflags', '+faststart', mp4], { stdio: 'inherit' });
   // The recorder's length against the wall clock it ran on, for the log: Chromium pads the tail when
   // the context closes, so the difference is not the offsets' error (their head is context creation).
