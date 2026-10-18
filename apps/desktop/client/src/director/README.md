@@ -7,7 +7,14 @@ shell, and it never clicks inside a window: no beat can approve, pay, capture or
 
 Two stories, chosen with `?story=` (`stories.ts`):
 
-- **Maya's week** (no `story`, the default; `beats.ts`): the sample week, about three minutes.
+- **Maya's week** (no `story`, the default; `beats.ts`): the sample week, 28 beats in 214 s
+  (3:34): the opening, shopping around (three beats on the Tables layer's Shop around view,
+  `#m=tables&v=shop`: Dan and the house seller bargaining for the same monitor, Dan at his $389
+  listing, the house seller at $334, the lowest so far, and the rule that the first seller to agree
+  wins and the others are told no; nobody has agreed when the story opens, so no winner is shown),
+  the haggle, silence, the mismatch, The Table closed, and the ending (the dock's deal, its proof
+  from PayPal on `#d=D-0190&dv=proof`: an order and a hold, no payment, no receipt, nothing on the
+  statement, "decided by the deadline"; then the Rewind, the safety record and the decision centre).
 - **First run** (`?story=first-run`; `firstRunStory.ts`): the onboarding on a brand-new wallet,
   94 s. Every frame and the page's own mock core open in the `?first_run=1` world (the page adds
   `first_run=1` to its own address), so the sample week's stored state is never touched. The
@@ -28,7 +35,7 @@ Two stories, chosen with `?story=` (`stories.ts`):
 | `takes.ts` | per-beat expected end state on screen (`EXPECT`, `FIRST_RUN_EXPECT`), still names, chapter takes, story date |
 | `retime.ts` | puts a lagging screen recording back on the beat file's clock |
 | `Director.tsx` | the stage, the camera, the caption rail, and the `window.__takes` hook (`.film` under `?take=film`) |
-| `film.test.ts` | the film capture's rectangle mapping and the haggle's record |
+| `film.test.ts` | the film capture's rectangle mapping and the chapter records (haggle, shop, deadlines, decisions) |
 
 Run it: `pnpm --dir apps/desktop/client dev`, then open `/director.html` (Maya's week) or
 `/director.html?story=first-run`.
@@ -52,6 +59,19 @@ no caption rail, no transport, the clock stopped while the rig plays each film b
 `take/take.webm`, `take/take.mp4` and `take/take.json`. It starts Vite on port 1531 unless
 `--base-url` names a server. See [preview-and-director.md](../../../../../docs/features/preview-and-director.md)
 ("Film capture"). The banner and the badges stay; nothing is clicked.
+
+`record()` gives each Maya's week beat its chapter's figures, read from the mock world (never
+typed) and reduced by pure functions in `takes.ts`; amounts are dollars, absent keys are omitted:
+
+| Beats | Key | Shape |
+|---|---|---|
+| `haggle-*` | (top level) | `haggleRecord`: `ceiling`, `askAbove`, `offersMaya[]`, `offersDan[]`, `gateAt` |
+| `shop-*` | `shop` | `shopRecord`: `{ group, sellers: [{ deal, seller, price, state }], winner? }` from `deal_groups`, as the Shop around view draws it (`group` is its heading, `state` the chip word) |
+| `silence-*`, `closed-*` | `deadlines` | `deadlinesRecord`: `[{ deal, label, amount, kind: offer\|hold, deadlineAt, outcome: open\|lapsed\|released, moved }]`, every deadline in this week (Monday to Monday, as the Rewind) still open or decided by its deadline; `moved` is what the history shows captured |
+| `end-*`, `end` | `decisions` | `decisionsRecord`: `[{ deal, step, amount, decidedBy: agent\|deadline\|owner\|refused, paid, at }]`, the Rewind's money steps of the week (`laneSteps`), who decided from its `tickTone` (a rule she signed or her shop rules read as `agent`) |
+
+`shown(record)` (`recordShownOnStage`) checks the haggle's latest figures on The Table, and for
+each other kind that at least one of its figures is drawn somewhere on the stage.
 
 ## Takes: stills, video and the rehearsal check
 
@@ -85,13 +105,13 @@ pnpm --dir apps/desktop/client takes --check
 # Stills: one 1920x1080 PNG per beat, <dir>/<theme>/NN-chapter-beat.png (NN is the ?beat= index).
 pnpm --dir apps/desktop/client takes --stills /tmp/takes/stills --theme both
 
-# The whole story in real time (about 3:02), one webm, plus /tmp/takes/maya.webm.cues.json with
+# The whole story in real time (about 3:34), one webm, plus /tmp/takes/maya.webm.cues.json with
 # the time each beat starts in the video.
 pnpm --dir apps/desktop/client takes --video /tmp/takes/maya.webm
 
-# One chapter, counted as the caption rail counts them (0 opening, 1 the haggle, 2 silence,
-# 3 the mismatch, 4 The Table closed, 5 the ending), or by id (--chapter haggle).
-pnpm --dir apps/desktop/client takes --video /tmp/takes/haggle.webm --chapter 1
+# One chapter, counted as the caption rail counts them (0 opening, 1 shopping around, 2 the haggle,
+# 3 silence, 4 the mismatch, 5 The Table closed, 6 the ending), or by id (--chapter haggle).
+pnpm --dir apps/desktop/client takes --video /tmp/takes/haggle.webm --chapter 2
 
 # Against a server you already run (dev or `vite preview` of a build):
 pnpm --dir apps/desktop/client takes --check --url http://localhost:1444/

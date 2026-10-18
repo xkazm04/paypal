@@ -6,10 +6,14 @@
 // Everything here is pure: the director gathers what its three frames show into a `Seen` and
 // `checkBeat` says what is missing. A broken beat fails loudly here before a take is recorded.
 import type { Clause } from '@bindings/Clause';
+import type { DealGroupView } from '@bindings/DealGroupView';
 import type { DealState } from '@bindings/DealState';
+import type { HistoryStep } from '@bindings/HistoryStep';
+import type { KeyId } from '@bindings/KeyId';
 import type { StartStepState } from '../lib/firstRun';
 import type { MockDeal } from '../mock/fixtures';
-import { APPROVAL_FIRST_RUN, CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, IF_NOTHING, REWIND_CARD, SAFE_DEFAULT_LINE, SAFETY_PROMISE, TABLES_VIEWS, type StartStepKey, type TourStopId } from '../lib/words';
+import { APPROVAL_FIRST_RUN, CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, GROUP_CLOSED, GROUP_WINNER, IF_NOTHING, REWIND_CARD, SAFE_DEFAULT_LINE, SAFETY_PROMISE, shoppingFor, stateWord, TABLES, TABLES_VIEWS, tablesItem, type StartStepKey, type TourStopId } from '../lib/words';
+import { laneSteps, tickTone } from '../windows/main/logic';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat, type Chapter } from './beats';
 import { HAGGLE, HOLD, MISMATCH } from './helpers';
 
@@ -58,6 +62,10 @@ const PAYS = /^\s*(pay|approve|accept|capture|release|confirm)\b/i;
 const NO_PAY_IN_TUMBLER: Expect = { in: 'tumbler', button: PAYS, absent: true };
 /** The Tumbler at rest (its puck): no card, so no "if you do nothing" line. */
 const TUMBLER_AT_REST: Expect = { in: 'tumbler', text: 'If you do nothing', absent: true };
+/** The house seller's table for the same monitor, shopped around with Dan's (the sample group). */
+export const HOUSE_TABLE = 'D-0204';
+/** The Table offers no button that pays or approves. */
+const NO_PAY_IN_MAIN: Expect = { in: 'main', button: PAYS, absent: true };
 const LEFT_SOON = /\b1 h (3\d|4\d) min left\b/;
 const LEFT_NOW = /\b1[34] min left\b/;
 /** The Table on its decision centre (the console's home since the 2026-10-14 rebuild): its title, a
@@ -77,6 +85,36 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
     TUMBLER_AT_REST,
     { deal: HAGGLE, state: 'NEGOTIATING' },
     { deal: MISMATCH, state: 'NEGOTIATING' },
+  ],
+  // Shopping around: the sample group as the story opens, both sellers still bargaining
+  'shop-ask': [
+    { window: 'main', open: true },
+    { window: 'approval', open: false },
+    { in: 'main', text: 'Shopping around for the refurbished 27-inch 4K monitor' },
+    { in: 'main', text: 'Dan' },
+    { in: 'main', text: 'House seller' },
+    NO_PAY_IN_MAIN,
+    TUMBLER_AT_REST,
+    { deal: HAGGLE, state: 'NEGOTIATING' },
+    { deal: HOUSE_TABLE, state: 'NEGOTIATING' },
+  ],
+  'shop-prices': [
+    { in: 'main', text: '$389.00' },
+    { in: 'main', text: '$334.00' },
+    { in: 'main', text: 'lowest so far' },
+    NO_PAY_IN_MAIN,
+    { deal: HOUSE_TABLE, state: 'NEGOTIATING' },
+  ],
+  'shop-rule': [
+    { in: 'main', text: TABLES.shopMeansFirst },
+    // nobody has agreed yet: the group is still bargaining, no seller won or was told no
+    { in: 'main', text: TABLES.bargaining },
+    { in: 'main', text: GROUP_WINNER.text, absent: true },
+    { in: 'main', text: GROUP_CLOSED.text, absent: true },
+    NO_PAY_IN_MAIN,
+    NO_PAY_IN_TUMBLER,
+    { deal: HAGGLE, state: 'NEGOTIATING' },
+    { deal: HOUSE_TABLE, state: 'NEGOTIATING' },
   ],
   'haggle-open': [
     { in: 'main', text: 'Refurbished 27-inch 4K monitor' },
@@ -194,6 +232,17 @@ export const EXPECT: Readonly<Record<string, readonly Expect[]>> = {
   'end-table': [
     { window: 'main', open: true },
     { in: 'main', text: 'USB-C dock for the test bench' },
+    { deal: HOLD, state: 'AUTO_VOIDED' },
+  ],
+  // the dock's proof: what PayPal has (an order and a hold, no payment), who decided, no receipt
+  'end-proof': [
+    { window: 'main', open: true },
+    { in: 'main', text: 'USB-C dock for the test bench' },
+    { in: 'main', text: 'Proof from PayPal' },
+    { in: 'main', text: 'decided by the deadline' },
+    { in: 'main', text: 'Nothing paid yet' },
+    { in: 'main', text: 'Nothing was paid, so nothing should appear on the statement.' },
+    NO_PAY_IN_MAIN,
     { deal: HOLD, state: 'AUTO_VOIDED' },
   ],
   // the Rewind (polish A): the week by who decided, and the tape of every step
@@ -360,7 +409,7 @@ export function slug(s: string): string {
 /**
  * A still's file name: `NN-chapter-beat.png`, NN being the beat's index (the director's `?beat=`),
  * zero-padded to two digits. A beat id that already starts with its chapter is not repeated
- * (`haggle-gate` in chapter `haggle` → `04-haggle-gate.png`; `intro` → `00-intro.png`).
+ * (`haggle-gate` in chapter `haggle` → `07-haggle-gate.png`; `intro` → `00-intro.png`).
  */
 export function stillName(index: number, beat: { id: string; chapter: string }, ext = 'png'): string {
   const id = slug(beat.id);
@@ -371,7 +420,7 @@ export function stillName(index: number, beat: { id: string; chapter: string }, 
 
 export type ChapterTake = {
   chapter: Chapter<string>;
-  /** Chapter number as the caption rail counts it (0 = the opening, 1 = the haggle, ...). */
+  /** Chapter number as the caption rail counts it (0 = the opening, 1 = shopping around, 2 = the haggle, ...). */
   number: number;
   /** Index of the chapter's first and last beat. */
   first: number;
@@ -383,7 +432,7 @@ export type ChapterTake = {
 
 /**
  * The beats a single-chapter take covers. `sel` is the chapter's number as the caption rail shows
- * it ("1 · The haggle" is 1; the opening is 0) or its id ("haggle"). Null when there is no such
+ * it ("2 · The haggle" is 2; the opening is 0) or its id ("haggle"). Null when there is no such
  * chapter.
  */
 export function selectChapter(sel: string | number, beats: readonly Beat<string>[] = BEATS, chapters: readonly Chapter<string>[] = CHAPTERS, length = SCRIPT_LENGTH): ChapterTake | null {
@@ -551,4 +600,134 @@ export function recordShown(rec: Partial<HaggleRecord> | Record<string, unknown>
   const last = (v: unknown) => (Array.isArray(v) ? v.at(-1) : undefined);
   const want = [last(rec.offersMaya), last(rec.offersDan), rec.gateAt].filter((n): n is number => typeof n === 'number');
   return [...new Set(want.map(usdText))].filter((t) => !text.includes(t)).map((t) => `the record says ${t}, The Table does not show it`);
+}
+
+// ---- chapter records: shopping around, the week's deadlines and who decided each money step ----
+//
+// Pure reductions of what the mock world holds at a beat (its groups, deals and Rewind history), for
+// the film's plates. Every figure is read from the world; none is typed here. Amounts in dollars.
+
+/** One seller of a shop-around group, as the Shop around view draws it. */
+export type ShopSeller = { deal: string; seller: string; price: number; state: string };
+/** A shop-around group: its heading, each seller's latest signed price, and the winner once one agreed. */
+export type ShopRecord = { group: string; sellers: ShopSeller[]; winner?: string };
+
+/** What the shop reducer needs to name a deal and a seller (the director reads them from the world). */
+export type RecordLookup = {
+  /** A deal's label ("D-0193") and title, by deal id. */
+  deal(id: string): { label: string; title: string } | undefined;
+  /** A seller's short name as the Tables layer draws it ("Dan", "House seller"), by key id. */
+  seller(key: KeyId): string;
+};
+
+/**
+ * A shop-around group as the Shop around view (windows/main/console/areas/tables/Shop.tsx) draws it:
+ * its heading, each seller with a signed price (a table with no price yet is left out: it has no
+ * figure to show) and the chip word it carries, and the winning deal once one agreed first.
+ */
+export function shopRecord(g: DealGroupView, look: RecordLookup): ShopRecord {
+  const first = look.deal(g.tables[0]?.deal_id ?? '');
+  const sellers = g.tables.flatMap((t): ShopSeller[] => {
+    const price = dollars(t.seller_price);
+    if (price === undefined) return [];
+    const word = g.winner === t.deal_id ? GROUP_WINNER : t.closed_by_group ? GROUP_CLOSED : stateWord(t.state, { side: 'buyer', kind: 'haggle' });
+    return [{ deal: look.deal(t.deal_id)?.label ?? t.deal_id, seller: look.seller(t.counterparty), price, state: word.text }];
+  });
+  const out: ShopRecord = { group: shoppingFor(first ? tablesItem(first.title) : `the ${g.item_ref}`), sellers };
+  if (g.winner) out.winner = look.deal(g.winner)?.label ?? g.winner;
+  return out;
+}
+
+/** A deadline that falls in Maya's week, and what it did to money. */
+export type DeadlineRecord = {
+  deal: string;
+  /** The deal's title. */
+  label: string;
+  amount: number;
+  /** A PayPal hold (an authorization), or an offer or order that only lapses. */
+  kind: 'offer' | 'hold';
+  deadlineAt: string;
+  outcome: 'open' | 'lapsed' | 'released';
+  /** Dollars captured on this deal, from the Rewind history (a deadline never captures). */
+  moved: number;
+};
+
+/** States a deadline acts on (mock/backend.ts ON_DEADLINE): still open until it passes. */
+const OPEN_AT_DEADLINE: ReadonlySet<DealState> = new Set(['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED']);
+
+const iso = (unix: number) => new Date(unix * 1000).toISOString();
+const amountOf = (d: Pick<MockDeal, 'deal'>) => (d.deal.terms.unit_price.minor * d.deal.terms.qty) / 100;
+const isCapture = (s: HistoryStep) => s.paypal.type === 'call' && s.paypal.method === 'capture' && s.paypal.outcome === 'ok';
+
+/**
+ * Every deadline inside `week` as the world stands at `now`: a deal still open before its deadline
+ * (`open`), or one its deadline decided (`lapsed`; a hold is `released`). A deal someone decided
+ * before its deadline came is not a deadline that fell, and is left out. `moved` is the dollars the
+ * history shows captured on that deal. Earliest deadline first.
+ */
+export function deadlinesRecord(deals: readonly Pick<MockDeal, 'deal' | 'display'>[], steps: readonly HistoryStep[], week: { start: number; end: number }, now: number): DeadlineRecord[] {
+  const out: Array<{ due: number; rec: DeadlineRecord }> = [];
+  for (const d of deals) {
+    const by = d.deal.decided_by;
+    const due = d.display.deadline ?? (by?.type === 'safe_default' ? by.deadline : null);
+    if (due === null || due < week.start || due >= week.end) continue;
+    const outcome: DeadlineRecord['outcome'] | null = OPEN_AT_DEADLINE.has(d.deal.state) && due > now ? 'open'
+      : by?.type === 'safe_default' ? (d.deal.state === 'AUTO_VOIDED' ? 'released' : 'lapsed')
+        : null;
+    if (!outcome) continue;
+    const hold = !!d.deal.paypal.authorization || d.deal.state === 'AUTHORIZED' || d.deal.state === 'AUTO_VOIDED';
+    const amount = amountOf(d);
+    const moved = steps.filter((s) => s.deal_id === d.deal.id && isCapture(s)).length * amount;
+    out.push({ due, rec: { deal: d.display.label, label: d.display.title, amount, kind: hold ? 'hold' : 'offer', deadlineAt: iso(due), outcome, moved } });
+  }
+  return out.sort((a, b) => a.due - b.due || a.rec.deal.localeCompare(b.rec.deal)).map((x) => x.rec);
+}
+
+/** One money step of the week and who decided it. */
+export type DecisionRecord = {
+  deal: string;
+  /** The step as the history records it ("order_created", "authorized", "auto_voided", "refused"...). */
+  step: string;
+  amount: number;
+  /** The owner in the approval window; an agent acting inside a rule she signed (her rules or her
+   *  shop rules); the deadline's safe default; or a refusal before PayPal was asked. */
+  decidedBy: 'agent' | 'deadline' | 'owner' | 'refused';
+  /** Money moved (a capture PayPal answered ok). */
+  paid: boolean;
+  at: string;
+};
+
+const DECIDED_BY: Record<ReturnType<typeof tickTone>, DecisionRecord['decidedBy']> = {
+  owner: 'owner', rule: 'agent', buyer: 'agent', default: 'deadline', refused: 'refused', unknown: 'agent',
+};
+
+/**
+ * The week's money steps as the Rewind draws them (laneSteps: every money call and every refusal),
+ * oldest first, each with who decided it (the Rewind's tickTone) and whether it moved money.
+ */
+export function decisionsRecord(steps: readonly HistoryStep[], deals: readonly Pick<MockDeal, 'deal' | 'display'>[]): DecisionRecord[] {
+  const byId = new Map(deals.map((d) => [d.deal.id, d] as const));
+  return laneSteps([...steps].sort((a, b) => a.at - b.at || a.seq - b.seq)).map((s) => {
+    const d = byId.get(s.deal_id);
+    return { deal: d?.display.label ?? s.deal_id, step: s.kind, amount: d ? amountOf(d) : 0, decidedBy: DECIDED_BY[tickTone(s)], paid: isCapture(s), at: iso(s.at) };
+  });
+}
+
+/**
+ * Does the stage show the record's figures? The haggle's on The Table (recordShown); for the new
+ * kinds, at least one figure of each kind somewhere on the stage (any window): a seller's price, a
+ * deadline's amount, a decision's amount. The words that are missing; empty when they agree.
+ */
+export function recordShownOnStage(rec: Record<string, unknown>, text: Record<FrameName, string>): string[] {
+  const out = recordShown(rec, text.main);
+  const stage = fold(`${text.main}\n${text.tumbler}\n${text.approval}`);
+  const kind = (name: string, what: string, amounts: readonly unknown[]) => {
+    const want = [...new Set(amounts.filter((n): n is number => typeof n === 'number').map(usdText))];
+    if (want.length && !want.some((t) => stage.includes(t))) out.push(`the ${name} record names ${want.slice(0, 4).join(', ')}${want.length > 4 ? ', …' : ''}, but no ${what} is on screen`);
+  };
+  const shop = rec.shop as Partial<ShopRecord> | undefined;
+  if (shop && Array.isArray(shop.sellers)) kind('shop', 'seller’s price', shop.sellers.map((s) => s.price));
+  if (Array.isArray(rec.deadlines)) kind('deadlines', 'deadline’s amount', (rec.deadlines as DeadlineRecord[]).map((d) => d.amount));
+  if (Array.isArray(rec.decisions)) kind('decisions', 'decision’s amount', (rec.decisions as DecisionRecord[]).map((d) => d.amount));
+  return out;
 }

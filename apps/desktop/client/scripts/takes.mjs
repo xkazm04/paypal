@@ -74,7 +74,7 @@ const USAGE = `takes: stills, video and a rehearsal check of the director (brows
   --stills <dir>          one 1920x1080 PNG per beat: <dir>/<theme>/NN-chapter-beat.png
   --theme dark|light|both theme of The Table and the stage for --stills (default dark)
   --video <file.webm>     the whole story at 1920x1080 in real time (cue sheet: <file>.cues.json)
-  --chapter <n|id>        with --video: one chapter (1 = the haggle, as the caption rail counts)
+  --chapter <n|id>        with --video: one chapter (2 = the haggle, as the caption rail counts)
   --story <id>            the story to play (default: Maya's week); first-run is the onboarding on
                           a brand-new wallet
   --url <base>            a running dev or preview server (default: start vite on --port)
