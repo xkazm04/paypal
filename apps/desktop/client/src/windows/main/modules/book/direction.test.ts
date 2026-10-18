@@ -75,6 +75,38 @@ describe('the mock book_query answers a direction line like Rust', () => {
   });
 });
 
+describe('the mock book_query groups by who decided, like Rust, not by when', () => {
+  class LocalChannel {
+    addEventListener() {}
+    postMessage() {}
+  }
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW * 1000);
+    vi.stubGlobal('BroadcastChannel', LocalChannel);
+    localStorage.clear(); sessionStorage.clear(); resetMockState();
+    history.replaceState(null, '', '/index.html');
+  });
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+
+  // Mirrors the Rust test who_decided_groups_and_filters_by_authority_not_by_instant in
+  // crates/table-ledger/src/book.rs: a decision's instant, deadline and mandate hash are not who.
+  it('keeps one line per authority, whatever instant each decision carries', async () => {
+    const main = mockBackend('main');
+    const a = await main.invoke('book_query', { query: { view: 'deals', metrics: ['count'], group_by: ['decided_by'], filters: [], range: null, limit: 500 } as unknown as JsonValue });
+    const rows = a.rows as Array<Record<string, JsonValue>>;
+    const authorities = rows.filter((r) => r.decided_by !== null).map((r) => JSON.parse(String(r.decided_by)) as Record<string, unknown>);
+    expect(authorities.length).toBeGreaterThan(0);
+    for (const who of authorities) {
+      expect(Object.keys(who).filter((k) => !['type', 'clause'].includes(k))).toEqual([]);
+    }
+    const lines = rows.map((r) => `${r.currency}|${r.mode}|${r.direction}|${r.decided_by}`);
+    expect(new Set(lines).size).toBe(lines.length);
+    const deals = (await main.invoke('list_deals', null)) as Deal[];
+    expect(rows.reduce((n, r) => n + Number(r.count), 0)).toBe(deals.length);
+  });
+});
+
 describe('deals the answer reaches but the grid does not show', () => {
   it('counts the answer’s deals missing from the grid', () => {
     const grid = [deal('a', 'buyer', 'CAPTURED', 1), deal('b', 'buyer', 'CAPTURED', 1)];
