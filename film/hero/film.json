@@ -1,0 +1,923 @@
+{
+  "title": "The Table - Maya's week",
+  "fps": 30,
+  "size": {
+    "w": 1920,
+    "h": 1080
+  },
+  "voice": {
+    "role": "narrator",
+    "model": "eleven_multilingual_v2",
+    "settings": {
+      "stability": 0.55,
+      "similarity": 0.78,
+      "style": 0.12
+    }
+  },
+  "breathMs": 350,
+  "maxMs": 180000,
+  "music": {
+    "cues": [
+      {
+        "id": "pulse",
+        "from": {
+          "beat": "open",
+          "edge": "start"
+        },
+        "to": {
+          "beat": "haggle-review",
+          "edge": "end"
+        },
+        "prompt": "Minimal modern product-film score, warm analog synth pulse at 112 bpm, soft kick enters on the second phrase, curious and forward-leaning, restrained, instrumental, no vocals",
+        "gainDb": -18
+      },
+      {
+        "id": "tension",
+        "from": {
+          "beat": "silence-soon",
+          "edge": "start"
+        },
+        "to": {
+          "beat": "mismatch-review",
+          "edge": "end"
+        },
+        "prompt": "Held tension pad, slow evolving analog strings and a soft ticking clock-like pulse at 112 bpm, sparse, patient, never ominous, no drums, instrumental, no vocals",
+        "gainDb": -19
+      },
+      {
+        "id": "resolve",
+        "from": {
+          "beat": "proof-rewind",
+          "edge": "start"
+        },
+        "to": {
+          "beat": "end",
+          "edge": "end"
+        },
+        "prompt": "Warm resolving product-film finale, the analog synth pulse returns at 112 bpm with open major chords, confident and calm, lifts gently into a final held chord, instrumental, no vocals",
+        "gainDb": -18
+      }
+    ]
+  },
+  "style": {
+    "palette": {
+      "bg": "#0a0e13",
+      "fg": "#e4ecf3",
+      "accent": "#3cc4b6",
+      "accent2": "#e4b95b",
+      "muted": "#8796a7"
+    },
+    "fonts": {
+      "display": "Archivo",
+      "body": "Archivo",
+      "mono": "Cascadia Mono"
+    },
+    "logo": "../../branding/logo.svg",
+    "radius": 14,
+    "easing": [
+      0.65,
+      0,
+      0.35,
+      1
+    ]
+  },
+  "beats": [
+    {
+      "id": "open",
+      "chapter": "open",
+      "settleMs": 4800,
+      "line": "Maya's AI agents shop, haggle and pay for her business. One question follows every dollar: who decided?",
+      "moments": [
+        {
+          "id": "open-title",
+          "tier": 1,
+          "kind": "plate",
+          "component": "TitleSlam",
+          "durMs": 2400,
+          "props": {
+            "title": "The Table",
+            "kicker": "Maya's week",
+            "meta": "Browser preview · sample data"
+          }
+        },
+        {
+          "id": "open-claim",
+          "tier": 2,
+          "kind": "plate",
+          "component": "KineticClaim",
+          "at": 2400,
+          "props": {
+            "text": "Agents work. She decides.",
+            "emphasis": "decides"
+          }
+        }
+      ]
+    },
+    {
+      "id": "open-desk",
+      "chapter": "open",
+      "settleMs": 7600,
+      "line": "Three windows: The Table, the Tumbler on her desk, and an approval window only she can use.",
+      "capture": {
+        "beat": "intro",
+        "targets": [
+          "tumbler|.puck-art"
+        ]
+      },
+      "moments": [
+        {
+          "id": "od-frame",
+          "tier": 2,
+          "kind": "treatment",
+          "component": "DeviceFrame",
+          "props": {
+            "tilt": true
+          }
+        },
+        {
+          "id": "od-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "shop-ask",
+      "chapter": "shop",
+      "settleMs": 7400,
+      "line": "She needs a 4K monitor. Her agent asks two sellers at once, inside the same price range.",
+      "capture": {
+        "beat": "shop-ask",
+        "targets": [
+          "main|body"
+        ]
+      },
+      "moments": [
+        {
+          "id": "sa-claim",
+          "tier": 2,
+          "kind": "plate",
+          "component": "KineticClaim",
+          "durMs": 1900,
+          "props": {
+            "text": "Two sellers. One budget.",
+            "emphasis": "One"
+          },
+          "claim": "Her agent shops two sellers at once"
+        },
+        {
+          "id": "sa-frame",
+          "tier": 2,
+          "kind": "treatment",
+          "component": "DeviceFrame",
+          "props": {
+            "tilt": false
+          }
+        },
+        {
+          "id": "sa-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "shop-prices",
+      "chapter": "shop",
+      "settleMs": 6400,
+      "line": "Dan asks three eighty-nine. The house seller is already down to three thirty-four.",
+      "capture": {
+        "beat": "shop-prices",
+        "targets": [
+          "main|.tb-group",
+          "main|.tb-sellers"
+        ]
+      },
+      "moments": [
+        {
+          "id": "sp-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "props": {
+            "selector": "main|.tb-sellers",
+            "scale": 1.5
+          },
+          "at": 400
+        },
+        {
+          "id": "sp-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "shop-rule",
+      "chapter": "shop",
+      "settleMs": 6600,
+      "line": "The first seller to agree wins, and the others are told no. She pays at most once.",
+      "capture": {
+        "beat": "shop-rule",
+        "targets": [
+          "main|.tb-group"
+        ]
+      },
+      "moments": [
+        {
+          "id": "sr-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "props": {
+            "selector": "main|.tb-group",
+            "scale": 1.4
+          }
+        },
+        {
+          "id": "sr-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "haggle-open",
+      "chapter": "haggle",
+      "settleMs": 3400,
+      "line": "At Dan's table, her signed rules set the ceiling: three forty, tops.",
+      "capture": {
+        "beat": "haggle-open",
+        "targets": [
+          "main|.dv-amt",
+          "main|.dv-figs"
+        ]
+      },
+      "moments": [
+        {
+          "id": "ho-ceiling",
+          "tier": 2,
+          "kind": "plate",
+          "component": "StatCounter",
+          "durMs": 2600,
+          "props": {
+            "record": "ceiling",
+            "prefix": "$",
+            "label": "Her ceiling, signed"
+          },
+          "claim": "Her rules cap the price"
+        },
+        {
+          "id": "ho-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "props": {
+            "selector": "main|.dv-figs"
+          },
+          "at": 2600
+        },
+        {
+          "id": "ho-frame",
+          "tier": 2,
+          "kind": "treatment",
+          "component": "DeviceFrame",
+          "props": {
+            "tilt": true
+          }
+        },
+        {
+          "id": "ho-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "haggle-trade",
+      "chapter": "haggle",
+      "settleMs": 8000,
+      "line": "They trade offers. Every number is signed, and every one of hers stays inside her range.",
+      "capture": {
+        "beat": "haggle-trade",
+        "targets": [
+          "main|.dv-amt",
+          "main|.dv-figs",
+          "tumbler|.puck-art"
+        ]
+      },
+      "moments": [
+        {
+          "id": "ht-frame",
+          "tier": 2,
+          "kind": "treatment",
+          "component": "DeviceFrame",
+          "props": {
+            "tilt": false
+          }
+        },
+        {
+          "id": "ht-corridor",
+          "tier": 2,
+          "kind": "hero",
+          "component": "PriceCorridor",
+          "props": {
+            "mode": "inset"
+          },
+          "claim": "Offers stay inside her range"
+        },
+        {
+          "id": "ht-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "haggle-gate",
+      "chapter": "haggle",
+      "settleMs": 3500,
+      "line": "Dan counters at three twenty-nine. Above two fifty, her rule says: ask me. The agent stops, and the Tumbler lights up gold.",
+      "capture": {
+        "beat": "haggle-gate",
+        "targets": [
+          "main|.dv-amt",
+          "main|.dv-decision",
+          "tumbler|.puck-art"
+        ]
+      },
+      "moments": [
+        {
+          "id": "hg-zoom-rule",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "props": {
+            "selector": "main|.dv-decision"
+          },
+          "at": 2300,
+          "durMs": 3600
+        },
+        {
+          "id": "hg-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "props": {
+            "selector": "tumbler|.puck-art"
+          },
+          "at": 5900
+        },
+        {
+          "id": "hg-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "haggle-card",
+      "chapter": "haggle",
+      "settleMs": 5200,
+      "line": "One click opens the card. The Tumbler can withdraw or review, but it has no pay button.",
+      "capture": {
+        "beat": "haggle-card",
+        "targets": [
+          "tumbler|body",
+          "tumbler|.puck-art"
+        ]
+      },
+      "moments": [
+        {
+          "id": "hc-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "props": {
+            "selector": "tumbler|body",
+            "scale": 1.6
+          }
+        },
+        {
+          "id": "hc-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "haggle-review",
+      "chapter": "haggle",
+      "settleMs": 5600,
+      "line": "One window can agree to money, and only she can use it.",
+      "capture": {
+        "beat": "haggle-review",
+        "targets": [
+          "approval|body"
+        ]
+      },
+      "moments": [
+        {
+          "id": "hr-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "props": {
+            "selector": "approval|body",
+            "scale": 1.3
+          }
+        },
+        {
+          "id": "hr-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "silence-soon",
+      "chapter": "silence",
+      "settleMs": 7200,
+      "line": "She closes it and gets busy. Two hours before Dan's offer ends, the Tumbler starts to breathe.",
+      "capture": {
+        "beat": "silence-soon",
+        "targets": [
+          "tumbler|.puck-art"
+        ]
+      },
+      "moments": [
+        {
+          "id": "ss-claim",
+          "tier": 2,
+          "kind": "plate",
+          "component": "KineticClaim",
+          "durMs": 1900,
+          "props": {
+            "text": "Silence never pays.",
+            "emphasis": "never"
+          },
+          "claim": "Silence never moves money"
+        },
+        {
+          "id": "ss-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "props": {
+            "selector": "tumbler|.puck-art",
+            "scale": 1.5
+          },
+          "at": 1900
+        },
+        {
+          "id": "ss-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "silence-now",
+      "chapter": "silence",
+      "settleMs": 4600,
+      "line": "Fifteen minutes left. The ring gets insistent, but it still can't pay.",
+      "capture": {
+        "beat": "silence-now",
+        "targets": [
+          "tumbler|.puck-art"
+        ]
+      },
+      "moments": [
+        {
+          "id": "sn-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "props": {
+            "selector": "tumbler|.puck-art",
+            "scale": 1.5
+          }
+        },
+        {
+          "id": "sn-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "silence-lapsed",
+      "chapter": "silence",
+      "settleMs": 4200,
+      "line": "She never answers. At the deadline, the offer lapses by itself. No money moves.",
+      "capture": {
+        "beat": "silence-lapsed",
+        "targets": [
+          "main|.dv-amt"
+        ]
+      },
+      "moments": [
+        {
+          "id": "sl-frame",
+          "tier": 2,
+          "kind": "treatment",
+          "component": "DeviceFrame",
+          "props": {
+            "tilt": false
+          }
+        },
+        {
+          "id": "sl-callout",
+          "tier": 2,
+          "kind": "treatment",
+          "component": "Callout",
+          "at": 900,
+          "props": {
+            "selector": "main|.dv-amt",
+            "label": "Lapsed at the deadline",
+            "note": "nothing sent to PayPal"
+          }
+        },
+        {
+          "id": "sl-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "closed-hold",
+      "chapter": "silence",
+      "settleMs": 4400,
+      "line": "Money on hold works the same way: a sixty-four dollar dock, allowed by her rules, not yet paid.",
+      "capture": {
+        "beat": "closed-hold",
+        "targets": [
+          "tumbler|body",
+          "tumbler|.puck-art"
+        ]
+      },
+      "moments": [
+        {
+          "id": "ch-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "props": {
+            "selector": "tumbler|body",
+            "scale": 1.6
+          }
+        },
+        {
+          "id": "ch-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "closed-released",
+      "chapter": "silence",
+      "settleMs": 10400,
+      "line": "Nobody decides, so at the deadline the hold releases itself. Waiting never sends money.",
+      "capture": {
+        "beat": "closed-released",
+        "targets": [
+          "tumbler|body",
+          "tumbler|.puck-art"
+        ]
+      },
+      "moments": [
+        {
+          "id": "cr-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "props": {
+            "selector": "tumbler|body",
+            "scale": 1.6
+          },
+          "durMs": 2600
+        },
+        {
+          "id": "cr-clock",
+          "tier": 2,
+          "kind": "hero",
+          "component": "DeadlineClock",
+          "at": 2600,
+          "durMs": 7400,
+          "props": {
+            "mode": "full",
+            "utcOffsetMin": -480
+          },
+          "claim": "Every deadline ends with nothing paid"
+        },
+        {
+          "id": "cr-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "mismatch-agreed",
+      "chapter": "mismatch",
+      "settleMs": 4400,
+      "line": "Another deal: Maya agreed three twenty-nine with Dan for a QHD monitor.",
+      "capture": {
+        "beat": "mismatch-agreed",
+        "targets": [
+          "main|.dv-amt"
+        ]
+      },
+      "moments": [
+        {
+          "id": "ma-claim",
+          "tier": 2,
+          "kind": "plate",
+          "component": "KineticClaim",
+          "durMs": 1900,
+          "props": {
+            "text": "Wrong amount? Held.",
+            "emphasis": "Held"
+          },
+          "claim": "A mismatched request is held"
+        },
+        {
+          "id": "ma-frame",
+          "tier": 2,
+          "kind": "treatment",
+          "component": "DeviceFrame",
+          "props": {
+            "tilt": true
+          }
+        },
+        {
+          "id": "ma-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "mismatch-arrives",
+      "chapter": "mismatch",
+      "settleMs": 7600,
+      "line": "Then his payment request asks three thirty-nine. The wallet holds it before anything reaches PayPal.",
+      "capture": {
+        "beat": "mismatch-arrives",
+        "targets": [
+          "main|.dv-amt",
+          "tumbler|.puck-art"
+        ]
+      },
+      "moments": [
+        {
+          "id": "mr-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "props": {
+            "selector": "main|.dv-amt",
+            "scale": 1.4
+          },
+          "at": 600,
+          "durMs": 3800
+        },
+        {
+          "id": "mr-callout",
+          "tier": 2,
+          "kind": "treatment",
+          "component": "Callout",
+          "at": 1300,
+          "props": {
+            "selector": "main|.dv-amt",
+            "label": "The signed amount",
+            "note": "the request asked for more · held"
+          },
+          "durMs": 3100
+        },
+        {
+          "id": "mr-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "mismatch-card",
+      "chapter": "mismatch",
+      "settleMs": 4600,
+      "line": "Its card has no pay button at all. It only offers to show her why.",
+      "capture": {
+        "beat": "mismatch-card",
+        "targets": [
+          "tumbler|body",
+          "tumbler|.puck-art"
+        ]
+      },
+      "moments": [
+        {
+          "id": "mc-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "props": {
+            "selector": "tumbler|body",
+            "scale": 1.6
+          }
+        },
+        {
+          "id": "mc-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "mismatch-review",
+      "chapter": "mismatch",
+      "settleMs": 4200,
+      "line": "Even in the approval window, a request that doesn't match the deal can't be paid.",
+      "capture": {
+        "beat": "mismatch-review",
+        "targets": [
+          "approval|body"
+        ]
+      },
+      "moments": [
+        {
+          "id": "mv-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "props": {
+            "selector": "approval|body",
+            "scale": 1.3
+          }
+        },
+        {
+          "id": "mv-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "proof-rewind",
+      "chapter": "proof",
+      "settleMs": 8200,
+      "line": "Her Rewind replays the week: every money step, and who decided it.",
+      "capture": {
+        "beat": "end-rewind",
+        "targets": [
+          "main|.rw-stage"
+        ]
+      },
+      "moments": [
+        {
+          "id": "pr-claim",
+          "tier": 2,
+          "kind": "plate",
+          "component": "KineticClaim",
+          "durMs": 3800,
+          "props": {
+            "text": "Every dollar, on record.",
+            "emphasis": "record"
+          },
+          "claim": "The Rewind shows who decided each step"
+        },
+        {
+          "id": "pr-frame",
+          "tier": 2,
+          "kind": "treatment",
+          "component": "DeviceFrame",
+          "props": {
+            "tilt": false
+          }
+        },
+        {
+          "id": "pr-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "proof-safety",
+      "chapter": "proof",
+      "settleMs": 7800,
+      "line": "Her safety record checks every entry: PayPal never heard of a request her rules refused.",
+      "capture": {
+        "beat": "end-safety",
+        "targets": [
+          "main|.sf-sum"
+        ]
+      },
+      "moments": [
+        {
+          "id": "ps-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "props": {
+            "selector": "main|.sf-sum",
+            "scale": 1.35
+          },
+          "at": 700
+        },
+        {
+          "id": "ps-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "proof-receipt",
+      "chapter": "proof",
+      "settleMs": 7000,
+      "line": "The dock's proof: PayPal has an order and a hold, but no payment. The deadline decided.",
+      "capture": {
+        "beat": "end-proof",
+        "targets": [
+          "main|.dv-proof"
+        ]
+      },
+      "moments": [
+        {
+          "id": "pp-zoom",
+          "tier": 1,
+          "kind": "treatment",
+          "component": "ZoomToRect",
+          "props": {
+            "selector": "main|.dv-proof",
+            "scale": 1.45
+          },
+          "at": 500
+        },
+        {
+          "id": "pp-preview",
+          "tier": 1,
+          "kind": "hero",
+          "component": "PreviewTag"
+        }
+      ]
+    },
+    {
+      "id": "proof-who",
+      "chapter": "proof",
+      "settleMs": 9600,
+      "line": "Every dollar that moved, moved under rules she signed. Everything else waited for her, or ended unpaid.",
+      "moments": [
+        {
+          "id": "pw-graph",
+          "tier": 2,
+          "kind": "hero",
+          "component": "WhoDecided",
+          "props": {
+            "mode": "full"
+          }
+        }
+      ]
+    },
+    {
+      "id": "end",
+      "chapter": "end",
+      "settleMs": 4400,
+      "line": "The Table. Agents work. You decide.",
+      "moments": [
+        {
+          "id": "end-card",
+          "tier": 1,
+          "kind": "plate",
+          "component": "EndCard",
+          "props": {
+            "line": "Agents work. You decide.",
+            "cta": "Watch it run - no install"
+          }
+        }
+      ]
+    }
+  ]
+}

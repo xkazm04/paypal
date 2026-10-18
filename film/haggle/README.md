@@ -1,4 +1,4 @@
-# film/ - "The Table - the haggle" (demo-film pilot)
+# film/haggle/ - "The Table - the haggle" (demo-film pilot)
 
 A ~37 s voice-first demo film of Maya's haggle (browser preview, sample data), compiled by the
 demo-film kit from one script, `film.json`. The kit lives outside this repo (registry skill
@@ -6,23 +6,24 @@ demo-film kit from one script, `film.json`. The kit lives outside this repo (reg
 
 | Path | What it is |
 | --- | --- |
-| `film.json` | the FilmScript: voice, music cue, StyleLock (brand palette, Archivo, `../branding/logo.svg`), six beats |
-| `local/index.tsx` | bespoke heroes, imported by the kit as `@film/local`: `PriceCorridor`, `PreviewTag` |
-| `local/PriceCorridor.tsx` | the hero: Maya's and Dan's offers closing inside her signed range; every figure from the take record |
-| `local/fonts.ts` | registers Archivo and Sofia Sans from the app's own woff2 files (`apps/desktop/client/src/assets/fonts`) |
+| `film.json` | the FilmScript: voice, music cue, StyleLock (brand palette, Archivo, `../../branding/logo.svg`), six beats |
+| `local/index.tsx` | bespoke heroes, imported by the kit as `@film/local`: `PriceCorridor`, `PreviewTag` (both from `../shared/`) |
+| `../shared/PriceCorridor.tsx` | the hero: Maya's and Dan's offers closing inside her signed range; every figure from the take record |
+| `../shared/PreviewTag.tsx` | restates the director's preview banner when a zoom pushes it out of frame |
+| `../shared/fonts.ts` | registers Archivo and Sofia Sans from the app's own woff2 files (`apps/desktop/client/src/assets/fonts`) |
 | `audio/`, `take/`, `out/` | generated (gitignored): narration + music, the capture, the renders |
 
 ## Run
 
 ```sh
-KIT=<path to the demo-film skill>          # e.g. ai-registry/skills/demo-film (npm ci there once)
-node $KIT/tools/narrate.mjs film --dry     # plan: chars, holds vs maxMs 40000
-node $KIT/tools/narrate.mjs film           # ElevenLabs narration (spend: characters)
-node $KIT/tools/music.mjs film             # ElevenLabs music bed (one cue)
+KIT=.claude/skills/demo-film               # kit >= 0.1.3 (npm ci there once)
+node $KIT/tools/narrate.mjs film/haggle --dry     # plan: chars, holds vs maxMs 40000
+node $KIT/tools/narrate.mjs film/haggle           # ElevenLabs narration (spend: characters)
+node $KIT/tools/music.mjs film/haggle             # ElevenLabs music bed (one cue)
 # capture: the director, driven beat by beat (port 1531, never 1430)
-PLAYWRIGHT=<playwright>/index.mjs DEMO_FILM_KIT=$KIT node apps/desktop/client/scripts/film-capture.mjs film
-node $KIT/tools/check.mjs film --balance sandwich
-node $KIT/tools/render.mjs film --balance overlay|sandwich|led   # -> film/out/the-table-the-haggle-<balance>.mp4
+PLAYWRIGHT=<playwright>/index.mjs DEMO_FILM_KIT=$KIT node apps/desktop/client/scripts/film-capture.mjs film/haggle
+node $KIT/tools/check.mjs film/haggle --balance sandwich
+node $KIT/tools/render.mjs film/haggle --balance overlay|sandwich|led   # -> film/haggle/out/the-table-the-haggle-<balance>.mp4
 ```
 
 The key comes from the repo-root `.env` (`ELEVENLABS_ENV_FILE` pointer, gitignored); it is never

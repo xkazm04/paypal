@@ -46,7 +46,7 @@
       "body": "Archivo",
       "mono": "Cascadia Mono"
     },
-    "logo": "../branding/logo.svg",
+    "logo": "../../branding/logo.svg",
     "radius": 14,
     "easing": [
       0.65,

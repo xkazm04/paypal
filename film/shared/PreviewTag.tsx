@@ -1,9 +1,7 @@
-// The Table's bespoke film heroes, injected into the demo-film kit as @film/local.
-// Importing fonts.ts registers the brand faces (Archivo, Sofia Sans) before any frame renders.
+// PreviewTag: the director's preview banner restated whenever a zoom pushes the real one out of frame.
+// Shared by every film of The Table (film/haggle, film/hero).
 import { useCurrentFrame } from 'remotion';
-import { alpha, capsStyle, useStyle, type ComponentMap, type MomentProps } from '@film/kit';
-import './fonts.ts';
-import { PriceCorridor } from './PriceCorridor.tsx';
+import { alpha, capsStyle, useStyle, type MomentProps } from '@film/kit';
 
 /** Where the director's own preview banner sits in the take (video px): a strip across the top. */
 const BANNER_Y = 16;
@@ -38,5 +36,3 @@ export function PreviewTag({ ctx }: MomentProps) {
     </div>
   );
 }
-
-export const components: ComponentMap = { PriceCorridor, PreviewTag };
