@@ -62,7 +62,7 @@ export function Charter({ step: asked, onStep, onDone, root, seal }: {
   step: SetupStep | null;
   onStep: (s: SetupStep) => void;
   onDone: () => void;
-  /** The Charter is the console's first layer (a brand-new wallet): the tour and, in a preview, Skip. */
+  /** The Charter is the console's first layer (a brand-new wallet): the tour starts by itself and, in a preview, Skip shows. The tour can be taken from the Set up page too. */
   root?: boolean;
   /** The wallet's seal, shown beside the current line when the Charter stands in for the centre. */
   seal?: ReactNode;
@@ -178,7 +178,7 @@ export function Charter({ step: asked, onStep, onDone, root, seal }: {
             <li><i className="led teal" aria-hidden="true" />{CHARTER_MEANS_APPROVAL}</li>
             <li data-tour="safety-promise"><i className="led ok" aria-hidden="true" />{SAFETY_PROMISE}</li>
           </ul>
-          {root ? <TakeTour win="main" gs={gs} className="ch-tour" /> : null}
+          <TakeTour win="main" gs={gs} className="ch-tour" />
           {root && preview ? <p className="ch-skip"><button type="button" className="linkbtn" title={CHARTER_SKIP_TITLE} onClick={skipToSample}>{CHARTER_SKIP}</button></p> : null}
         </section>
       </div>
@@ -202,7 +202,7 @@ export function Charter({ step: asked, onStep, onDone, root, seal }: {
           })}
         </ol>
       </div>
-      {root ? <Tour win="main" gs={gs} firstRun={gs.show} /> : null}
+      <Tour win="main" gs={gs} firstRun={root === true && gs.show} />
     </div>
   );
 }

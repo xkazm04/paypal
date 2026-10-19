@@ -54,6 +54,14 @@ the last stop) and Skip tour. Esc skips; the arrow keys move between stops. A sk
 tour does not come back by itself; "Take the tour" (Home's hub, the approval window's progress
 line) walks it again from the first stop. The agent app stop drops out once an app is chosen.
 
+**Replaying on a wallet that is set up.** Once the four steps are done, Home shows the decision centre,
+not the hub. The Set up page (Find, `/`, "Set up your wallet") is the same Charter and carries the same quiet
+"Take the tour" in its "What this means" note. It is the nearest existing place to help and settings
+that already holds the hub, the promise and the step list the stops describe, so no stop was added and no
+anchor moved. Reopening walks Start here, Your money stays put, One click to each step and Approvals
+have their own window (the lock button in the console's bar): 1 of 4, as the agent app stop is gone.
+The tour never starts by itself on that page; only the owner's click opens it. (STATUS WP3c 6.)
+
 ## How it works
 
 - **Facts, not clicks.** `gettingStarted(facts)` (`apps/desktop/client/src/lib/firstRun.ts`)
@@ -120,7 +128,7 @@ beat's end state, including the stop each window's mark shows:
 | Tour model and words | `lib/tour.ts`, `lib/preview.ts`, `lib/words.ts` (`TOUR_STOP`, `TOUR`, `tourCount`) |
 | Steps list and progress | `shared/start.tsx`, `shared/start.css` |
 | Coach mark, "Take the tour" | `shared/tour.tsx`, `shared/tour.css` |
-| The Table | `windows/main/home/Start.tsx`, `windows/main/Home.tsx`, `windows/main/setup/CircuitView.tsx` |
+| The Table | `windows/main/setup/Charter.tsx` (first run and the Set up page), `windows/main/console/areas/setup/SetupLayer.tsx` |
 | The Tumbler | `windows/tumbler/forms.tsx` (`FirstRunWelcome`), `windows/tumbler/Tumbler.tsx` |
 | The approval window | `windows/approval/OwnerConfig.tsx` |
 | Preview world | `mock/firstRun.ts` (`?first_run=1`, `selected_engine: 'scripted'`) |

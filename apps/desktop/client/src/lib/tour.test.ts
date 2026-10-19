@@ -156,3 +156,19 @@ describe('the tour: words', () => {
     expect(tourCount(2, 5)).toBe('2 of 5');
   });
 });
+
+describe('the tour replayed on a wallet that is set up', () => {
+  const done = gettingStarted({ firstRun: false, paypal: true, rulesInForce: 1, houseConnected: true, otherConnections: 1, engine: 'codex-cli' });
+  // What the Set up page carries once everything is done: the hub, the promise and the list; the lock button is the console's.
+  const onPage = (a: string) => ['start-hub', 'safety-promise', 'start-steps', 'approval-way'].includes(a);
+
+  it('every step is done, and a reopened tour shows stop 1 of at least 2 without the agent app stop', () => {
+    expect(done.done).toBe(done.total);
+    const stops = tourStops('main', done);
+    expect(ids(stops)).not.toContain('main.engine');
+    expect(tourView(stops, TOUR_NEW, false, onPage)).toBeNull();
+    const v = tourView(stops, tourReopen(stops), false, onPage);
+    expect(v).toMatchObject({ n: 1, total: 4, back: null, next: 'main.promise' });
+    expect(v!.total).toBeGreaterThanOrEqual(2);
+  });
+});

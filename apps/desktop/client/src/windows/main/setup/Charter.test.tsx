@@ -4,12 +4,13 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Backend } from '../../../lib/contract';
-import { CHARTER_IN_APPROVAL, CHARTER_TITLE, KEEP_PRACTICE_AGENT, SETUP_FINISH, SETUP_NEXT, SETUP_NOT_DONE, SETUP_STEP_COPY, SETUP_STEP_LABEL, SETUP_WAITING } from '../../../lib/words';
+import { CHARTER_IN_APPROVAL, CHARTER_TITLE, KEEP_PRACTICE_AGENT, TOUR, tourCount, SETUP_FINISH, SETUP_NEXT, SETUP_NOT_DONE, SETUP_STEP_COPY, SETUP_STEP_LABEL, SETUP_WAITING } from '../../../lib/words';
 import { mockBackend, resetMockState } from '../../../mock/backend';
 import { WorldProvider } from '../world';
 import { ToastProvider } from '../ui';
 import { Charter, HANDOFF } from './Charter';
 import type { SetupStep } from '../logic';
+import { resetTourMemory } from '../../../lib/tour';
 
 const hoisted = vi.hoisted(() => ({ current: null as Backend | null, opened: [] as unknown[] }));
 vi.mock('../../../lib/runtime', () => ({ backend: () => hoisted.current }));
@@ -81,5 +82,24 @@ describe('the Charter', () => {
     expect(document.querySelector('.ch-done')?.textContent).toContain(SETUP_STEP_COPY.unlock.done);
     expect(onStep).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: SETUP_NEXT })).toBeNull();
+  });
+});
+
+describe('the tour on a wallet that is already set up', () => {
+  beforeEach(() => { localStorage.clear(); sessionStorage.clear(); history.replaceState(null, '', '/index.html'); resetMockState(); resetTourMemory(); hoisted.opened = []; hoisted.current = stubbed(); });
+  afterEach(() => { cleanup(); hoisted.current = null; });
+
+  it('offers "Take the tour" on the Set up page and reopening shows stop 1 of at least 2', async () => {
+    view('unlock');
+    // Nothing starts by itself here: the tour is closed until the owner asks.
+    expect(await screen.findByRole('heading', { name: SETUP_STEP_COPY.unlock.lead })).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: TOUR.take }));
+    const mark = await screen.findByRole('dialog');
+    const kick = mark.querySelector('.tour-kick')?.textContent ?? '';
+    const m = /(\d+) of (\d+)$/.exec(kick);
+    expect(m?.[1]).toBe('1');
+    expect(Number(m?.[2])).toBeGreaterThanOrEqual(2);
+    expect(kick).toBe(`${TOUR.label} · ${tourCount(1, Number(m?.[2]))}`);
   });
 });
