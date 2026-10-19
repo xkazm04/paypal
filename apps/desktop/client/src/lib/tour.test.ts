@@ -162,13 +162,23 @@ describe('the tour replayed on a wallet that is set up', () => {
   // What the Set up page carries once everything is done: the hub, the promise and the list; the lock button is the console's.
   const onPage = (a: string) => ['start-hub', 'safety-promise', 'start-steps', 'approval-way'].includes(a);
 
-  it('every step is done, and a reopened tour shows stop 1 of at least 2 without the agent app stop', () => {
+  it('every step is done, and a reopened tour shows stop 1 of the four stops the Set up page carries, without the agent app stop', () => {
     expect(done.done).toBe(done.total);
     const stops = tourStops('main', done);
     expect(ids(stops)).not.toContain('main.engine');
+    // Every stop the window keeps is on the page, so the count is the four stops themselves.
+    expect(stops.filter((s) => onPage(s.anchor))).toHaveLength(stops.length);
     expect(tourView(stops, TOUR_NEW, false, onPage)).toBeNull();
     const v = tourView(stops, tourReopen(stops), false, onPage);
     expect(v).toMatchObject({ n: 1, total: 4, back: null, next: 'main.promise' });
-    expect(v!.total).toBeGreaterThanOrEqual(2);
+  });
+
+  it.each(['tumbler', 'approval'] as const)('a reopened %s tour shows stop 1 of every non-engine stop, back nothing, next the second stop', (win) => {
+    const stops = tourStops(win, done);
+    const expected = TOUR_STOPS.filter((s) => s.window === win && !s.id.endsWith('.engine'));
+    expect(ids(stops)).toEqual(ids(expected));
+    const onScreen = new Set(stops.map((s) => s.anchor));
+    const v = tourView(stops, tourReopen(stops), false, (a) => onScreen.has(a));
+    expect(v).toMatchObject({ n: 1, total: expected.length, back: null, next: expected[1]!.id });
   });
 });
