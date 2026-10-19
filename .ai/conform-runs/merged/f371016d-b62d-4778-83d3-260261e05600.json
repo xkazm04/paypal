@@ -1,0 +1,71 @@
+{
+ "schema": "conform-run/1",
+ "worker": "f371016d-b62d-4778-83d3-260261e05600",
+ "subject": "ipc-contract",
+ "evaluatedAt": "2026-10-19T22:17:33.905469+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "client-runtime-foundation",
+   "subject": "ipc-contract",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/lib/hooks.ts:66 Mutations await IPC without a timeout ceiling, allowing a stalled handler to leave the interface pending indefinitely.",
+   "techniques": [
+    {
+     "technique": "call-wrapping",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/hooks.ts:66 The mutation path and underlying Tauri bridge have no timeout ceiling or named timeout policy; the separate read wrapper only bounds reads."
+    },
+    {
+     "technique": "casing-and-naming",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/tauri.ts:21 Responses receive an erased TypeScript type assertion and return directly, without the required generated development/test decoder for missing or unknown fields."
+    },
+    {
+     "technique": "command-registration",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/foundation.test.ts:50 This test explicitly expects a missing command to become ordinary UNAVAILABLE state; the normalizer does not distinguish registration gaps from transport denial or other unstructured failures."
+    },
+    {
+     "technique": "drift-gates",
+     "verdict": "deviation",
+     "evidence": "crates/table-client/tests/bindings.rs:49 The orphan inventory scans only the binding root, although generated artifacts include bindings/serde_json/JsonValue.ts; orphaned nested artifacts escape the inventory check."
+    },
+    {
+     "technique": "error-shape-mapping",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/contract.ts:46 Runtime error recognition manually duplicates the generated vocabulary; readonly ErrorCode[] permits omissions, so a newly generated Rust code can silently fall through to UNAVAILABLE."
+    },
+    {
+     "technique": "generated-type-contracts",
+     "verdict": "deviation",
+     "evidence": "crates/table-client/src/bin/generate-bindings.rs:10 Rust authors the generated command mappings, but regeneration removes only root-level TypeScript files; nested generated outputs can survive deletion of their source types, violating the required removal discipline."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-19T22:17:33.905469+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "ipc-contract"
+   ],
+   "techniques": [
+    "call-wrapping",
+    "casing-and-naming",
+    "command-registration",
+    "drift-gates",
+    "error-shape-mapping",
+    "generated-type-contracts"
+   ],
+   "deviations": 1,
+   "context": "client-runtime-foundation",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
