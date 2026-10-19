@@ -1,0 +1,17 @@
+{
+ "schema": "conform-run/1",
+ "worker": "4cd26798-8e6c-4b2d-8237-b9e8d1be575f",
+ "subject": "conformance-checking",
+ "evaluatedAt": "2026-10-19T07:13:59.132925+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "conformance-checking",
+   "context": "book-module",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": []
+}
