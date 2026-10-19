@@ -97,18 +97,19 @@ function visibleTexts(root: ParentNode): string[] {
 /** A route, a raw hash, or a function that picks the route from the world (e.g. its first deal). */
 export type LayerTarget = Route | string | ((world: Backend) => Promise<Route>);
 
-/** Renders the main window at `route` (or a raw hash) on the `scale` world and waits for its layer. */
-export async function renderLayerAtScale(route: LayerTarget, scale: Scale, o: { timeout?: number } = {}): Promise<LayerRun> {
+/** Renders the main window at `route` (or a raw hash) on the `scale` world (null: Maya's own preview wallet, the fixtures) and waits for its layer. */
+export async function renderLayerAtScale(route: LayerTarget, scale: Scale | null, o: { timeout?: number } = {}): Promise<LayerRun> {
   sizeElements();
   cleanup();
   localStorage.clear();
   sessionStorage.clear();
-  history.replaceState(null, '', `/index.html?scale=${scale}`);
+  const q = scale ? `?scale=${scale}` : '';
+  history.replaceState(null, '', `/index.html${q}`);
   resetMockState();
   const real = mockBackend('main');
   const to = typeof route === 'function' ? await route(real) : route;
   const hash = typeof to === 'string' ? to : formatHash(to);
-  history.replaceState(null, '', `/index.html?scale=${scale}${hash}`);
+  history.replaceState(null, '', `/index.html${q}${hash}`);
   resetReadBudget();
   const errors: string[] = [];
   const calls: { cmd: string; args: unknown }[] = [];
