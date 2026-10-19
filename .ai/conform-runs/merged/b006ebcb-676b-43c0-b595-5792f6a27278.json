@@ -1,0 +1,17 @@
+{
+ "schema": "conform-run/1",
+ "worker": "b006ebcb-676b-43c0-b595-5792f6a27278",
+ "subject": "demo-data-plane",
+ "evaluatedAt": "2026-10-19T09:03:47.686715+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "demo-data-plane",
+   "context": "director-takes-rig",
+   "reason": "evidence leans on mock/fixtures.ts, which is not a tracked file"
+  }
+ ],
+ "consults": []
+}
