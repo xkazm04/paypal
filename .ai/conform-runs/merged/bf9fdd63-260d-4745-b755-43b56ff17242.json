@@ -1,0 +1,75 @@
+{
+ "schema": "conform-run/1",
+ "worker": "bf9fdd63-260d-4745-b755-43b56ff17242",
+ "subject": "embedded-preview",
+ "evaluatedAt": "2026-10-19T21:22:29.188698+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "client-runtime-foundation",
+   "subject": "embedded-preview",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/lib/runtime.ts:55 Searches found first-party sample-wallet previews and BroadcastChannel test doubles, with no srcdoc or targetOrigin matches; this context selects a mock backend rather than hosting a separately served guest application.",
+   "techniques": [
+    {
+     "technique": "convention-discovery",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/lib/preview.ts:203 Demo navigation opens an existing wallet page with sample-world parameters; there is no guest project whose route conventions need discovery."
+    },
+    {
+     "technique": "cross-frame-protocol",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/lib/tauri.ts:21 The real backend invokes Tauri IPC, not a guest-frame request/reply bridge."
+    },
+    {
+     "technique": "dev-server-registry",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/lib/runtime.ts:45 Preview initialization imports a local mock module; it does not start a server for a guest project."
+    },
+    {
+     "technique": "injected-instrumentation-with-fallback",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/lib/mount.tsx:14 The gated inspector belongs to the wallet's own component tree, rather than instrumentation injected into a separate guest application."
+    },
+    {
+     "technique": "origin-validation",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/lib/tauri.ts:27 This listener receives targeted shell events through Tauri; it is not an inbound guest-frame message dispatcher."
+    },
+    {
+     "technique": "preview-checkpoints",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/lib/preview.ts:88 Preview selection chooses predefined sample-wallet worlds, with no guest source-editing turns requiring project checkpoints."
+    }
+   ],
+   "absenceTerms": [
+    "srcdoc",
+    "targetOrigin"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-19T21:22:29.188698+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "embedded-preview"
+   ],
+   "techniques": [
+    "convention-discovery",
+    "cross-frame-protocol",
+    "dev-server-registry",
+    "injected-instrumentation-with-fallback",
+    "origin-validation",
+    "preview-checkpoints"
+   ],
+   "deviations": 0,
+   "context": "client-runtime-foundation",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

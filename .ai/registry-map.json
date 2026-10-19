@@ -1882,7 +1882,11 @@
           "revision": 2,
           "changedAt": "2026-09-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/runtime.ts:55 Searches found first-party sample-wallet previews and BroadcastChannel test doubles, with no srcdoc or targetOrigin matches; this context selects a mock backend rather than hosting a separately served guest application.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:a6e12ae70d42efcc",
+          "evaluatedRevision": 2
         }
       ],
       "governance": "governed"

@@ -4552,6 +4552,47 @@
         }
       ],
       "registryProposal": "The draft-editing standard assumes web-style continuous background autosaving (debounced-save-groups), but high-security local client applications with cryptographic signing workflows intentionally avoid intermediate persistence of unsigned drafts to prevent unencrypted/unauthenticated state from lingering at rest."
+    },
+    "9a4f1dcb-2f71-4b8d-835c-a38862a5c22a/embedded-preview": {
+      "context": "client-runtime-foundation",
+      "subject": "embedded-preview",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T21:22:29.188Z",
+      "worker": "bf9fdd63-260d-4745-b755-43b56ff17242",
+      "techniques": [
+        {
+          "technique": "convention-discovery",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/preview.ts:203 Demo navigation opens an existing wallet page with sample-world parameters; there is no guest project whose route conventions need discovery."
+        },
+        {
+          "technique": "cross-frame-protocol",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/tauri.ts:21 The real backend invokes Tauri IPC, not a guest-frame request/reply bridge."
+        },
+        {
+          "technique": "dev-server-registry",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/runtime.ts:45 Preview initialization imports a local mock module; it does not start a server for a guest project."
+        },
+        {
+          "technique": "injected-instrumentation-with-fallback",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/mount.tsx:14 The gated inspector belongs to the wallet's own component tree, rather than instrumentation injected into a separate guest application."
+        },
+        {
+          "technique": "origin-validation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/tauri.ts:27 This listener receives targeted shell events through Tauri; it is not an inbound guest-frame message dispatcher."
+        },
+        {
+          "technique": "preview-checkpoints",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/preview.ts:88 Preview selection chooses predefined sample-wallet worlds, with no guest source-editing turns requiring project checkpoints."
+        }
+      ]
     }
   }
 }
