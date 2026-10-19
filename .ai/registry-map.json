@@ -1850,7 +1850,11 @@
           "revision": 6,
           "changedAt": "2026-08-31",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/lib/hooks.ts:66 Mutations await IPC without a timeout ceiling, allowing a stalled handler to leave the interface pending indefinitely.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:c9cce81ffdd6456a",
+          "evaluatedRevision": 6
         },
         {
           "subject": "agent-memory",
