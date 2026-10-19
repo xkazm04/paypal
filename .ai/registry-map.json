@@ -4717,7 +4717,11 @@
           "revision": 4,
           "changedAt": "2026-09-02",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/lib/tour.ts:19 TourStop definitions omit per-step degradation policy and observable action completion conditions, enforcing global skip degradation and acknowledgment-only advancement.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:6f44ad03ebd5bd19",
+          "evaluatedRevision": 4
         },
         {
           "subject": "mcp-tools",

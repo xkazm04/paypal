@@ -1,0 +1,65 @@
+{
+ "schema": "conform-run/1",
+ "worker": "353f30de-e2ec-4fbc-9c64-79d4b53c80f0",
+ "subject": "guided-tours",
+ "evaluatedAt": "2026-10-19T22:05:43.109056+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [
+  {
+   "context": "money-guidance-and-onboarding",
+   "subject": "guided-tours",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/lib/tour.ts:19 TourStop definitions omit per-step degradation policy and observable action completion conditions, enforcing global skip degradation and acknowledgment-only advancement.",
+   "techniques": [
+    {
+     "technique": "action-driven-advancement",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/tour.ts:83 Tour advancement is triggered solely by manual Next/Back clicks or arrow keys without observing product state changes or user interactions on controls."
+    },
+    {
+     "technique": "anchor-contracts",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/tourAnchors.test.tsx:75 Tour anchors use semantic data-tour attributes verified across rendered windows in a dedicated test suite."
+    },
+    {
+     "technique": "missing-anchor-degradation",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/lib/tour.ts:73 Stops with missing anchors are globally filtered out and silently skipped without per-step degradation policy options or failure telemetry."
+    },
+    {
+     "technique": "overlay-precedence",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/shared/tour.tsx:188 The tour respects the application layer stack and automatically yields display when higher-priority modals or sheets open."
+    },
+    {
+     "technique": "tour-lifecycle",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/lib/tour.ts:144 Tour progress persists per window to local storage using minted stable identifiers and respects declined/skipped state across sessions."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-19T22:05:43.109056+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "guided-tours"
+   ],
+   "techniques": [
+    "action-driven-advancement",
+    "anchor-contracts",
+    "missing-anchor-degradation",
+    "overlay-precedence",
+    "tour-lifecycle"
+   ],
+   "deviations": 1,
+   "context": "money-guidance-and-onboarding",
+   "via": "curator-multi:agy",
+   "model": "gemini-3.8-flash-high"
+  }
+ ]
+}
