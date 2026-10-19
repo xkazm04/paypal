@@ -4593,6 +4593,47 @@
           "evidence": "apps/desktop/client/src/lib/preview.ts:88 Preview selection chooses predefined sample-wallet worlds, with no guest source-editing turns requiring project checkpoints."
         }
       ]
+    },
+    "6ad8f933-5c5e-4ed6-8ace-f642dffc558f/engine-host-contract": {
+      "context": "table-engine-agent-process",
+      "subject": "engine-host-contract",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T21:38:32.619Z",
+      "worker": "b3bcb9ff-6f92-44b4-9913-4c2280340bb3",
+      "techniques": [
+        {
+          "technique": "contained-async-module-loader",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/resolve.rs:35 Resolution selects an external CLI entry point; it does not implement a guest module import hook."
+        },
+        {
+          "technique": "idle-aware-job-loop",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/native.rs:199 The supervisor awaits child-output lines, rather than draining an embedded engine's promise, timer, continuation and cleanup queues."
+        },
+        {
+          "technique": "monotonic-and-wall-clock-split",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/native.rs:197 This deadline bounds child initialization; the context supplies no guest timer/date clock interface or suspendable language contexts."
+        },
+        {
+          "technique": "null-and-blocking-executors",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/native.rs:192 Tokio runs an output-reader task; this context ships no language-engine job executor or context-builder executor default."
+        },
+        {
+          "technique": "spec-mirrored-hook-surface",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/lib.rs:126 EngineAdapter defines application operations for agent backends, not overrides of language-specification host hooks."
+        },
+        {
+          "technique": "untraceable-jobs-as-roots",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/windows_job.rs:51 The native Job is a Windows process-tree lifetime mechanism; no traced guest heap or queued promise captures are implemented here."
+        }
+      ]
     }
   }
 }

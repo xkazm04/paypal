@@ -7529,7 +7529,11 @@
           "revision": 2,
           "changedAt": "2026-09-04",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-engine/src/native.rs:170 This context launches external CLI processes rather than embedding a language engine, and searches of its files and the repository found no ModuleLoader, JobExecutor, HostHooks or NativeJob constructs.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:08d3fea13f40733a",
+          "evaluatedRevision": 2
         },
         {
           "subject": "supply-chain",
