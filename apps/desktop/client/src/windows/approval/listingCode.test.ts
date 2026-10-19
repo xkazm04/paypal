@@ -59,6 +59,16 @@ describe('refusing a code that cannot be used', () => {
     }
     expect(decodeListingCode(resealed((f) => { f[6] = 'ship'; }))).toEqual({ ok: false, why: 'unsupported' });
   });
+  it('refuses a paste too long to be a code at once, instead of scanning it (scan J-6)', () => {
+    // A pasted run of whitespace used to freeze the window: the separator pattern backtracked
+    // through the run once per character (measured: 20,000 spaces took over 8 s).
+    const started = performance.now();
+    expect(decodeListingCode(code().replace('/', '/' + ' '.repeat(20_000) + 'x'))).toEqual({ ok: false, why: 'malformed' });
+    expect(decodeListingCode('x' + ' '.repeat(20_000) + 'y')).toEqual({ ok: false, why: 'malformed' });
+    expect(performance.now() - started).toBeLessThan(1000);
+    // The longest real code is about 210 characters; room for some pasted spacing is kept.
+    expect(decodeListingCode(code().replace('/', '/' + ' '.repeat(20)))).toEqual({ ok: true, table: TABLE });
+  });
   it('says each failure in its own plain words, without internals', () => {
     const said = (['malformed', 'checksum', 'version', 'unsupported'] as const).map(codeProblem);
     expect(new Set(said).size).toBe(4);

@@ -699,7 +699,8 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
           // As book.rs STATE: a RECEIPTED deal on the seller's word alone is its own key.
           case 'state': return d.state === 'RECEIPTED' && state.deals.find((x) => x.deal.id === d.id)?.evidence.receipt === 'SELLER_ATTESTED' ? 'RECEIPTED:buyer' : d.state;
           case 'counterparty': return d.counterparty;
-          case 'decided_by': return d.decided_by ? JSON.stringify(d.decided_by) : null;
+          // As book.rs DECIDED_BY: who decided, without the instant, deadline or mandate hash.
+          case 'decided_by': { const by = d.decided_by; return by ? JSON.stringify(by.type === 'policy' ? { clause: by.clause, type: by.type } : { type: by.type }) : null; }
           case 'amount': return d.terms.unit_price.minor * d.terms.qty;
           case 'created_at': return d.created_at ?? null;
           case 'vs_market_pct': return d.market && d.market.median.minor ? Math.trunc(((d.terms.unit_price.minor - d.market.median.minor) * 10000) / d.market.median.minor) : null;
