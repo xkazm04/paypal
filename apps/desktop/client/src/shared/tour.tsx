@@ -87,6 +87,46 @@ export function keepClearBoxes(mark: Element | null, root: ParentNode = document
   return out;
 }
 
+/** The elements beside an anchor the mark must not cover: the other items of the list it is one of
+ *  (a note's lines, a step among steps). Not the columns of a layout: only a `ul` / `ol` parent. */
+export function neighbourBoxes(anchor: Element, mark: Element | null): Box2[] {
+  const list = anchor.parentElement;
+  if (!list || !/^(UL|OL)$/.test(list.tagName)) return [];
+  const out: Box2[] = [];
+  for (const el of Array.from(list.children)) {
+    if (el === anchor || el.contains(anchor) || mark?.contains(el)) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) out.push({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+  }
+  return out;
+}
+
+/** The previous and next element beside an anchor, whatever the parent: the ring keeps off them. */
+function siblingBoxes(anchor: Element): Box2[] {
+  return [anchor.previousElementSibling, anchor.nextElementSibling].flatMap((el) => {
+    if (!el) return [];
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 ? [{ left: r.left, top: r.top, right: r.right, bottom: r.bottom }] : [];
+  });
+}
+
+/** The box the ring draws: the anchor's rect grown by `pad`, kept inside the viewport and trimmed
+ *  on each side so it never reaches into a box beside the anchor (the element above, the line below). */
+export function ringBox(r: Box2, vw: number, vh: number, beside: readonly Box2[] = [], pad = 4): { left: number; top: number; width: number; height: number } {
+  let { left, top, right, bottom } = { left: r.left - pad, top: r.top - pad, right: r.right + pad, bottom: r.bottom + pad };
+  const crosses = (b: Box2) => b.left < right && b.right > left && b.top < bottom && b.bottom > top;
+  for (const b of beside) {
+    if (!crosses(b)) continue;
+    // trim the side facing the neighbour, never past the anchor's own edge
+    if (b.bottom <= r.top + 0.5) top = Math.max(top, Math.min(b.bottom, r.top));
+    else if (b.top >= r.bottom - 0.5) bottom = Math.min(bottom, Math.max(b.top, r.bottom));
+    else if (b.right <= r.left + 0.5) left = Math.max(left, Math.min(b.right, r.left));
+    else if (b.left >= r.right - 0.5) right = Math.min(right, Math.max(b.left, r.right));
+  }
+  left = Math.max(2, left); top = Math.max(2, top);
+  return { left, top, width: Math.max(0, Math.min(vw - 2, right) - left), height: Math.max(0, Math.min(vh - 2, bottom) - top) };
+}
+
 // "Take the tour" anywhere in a window reopens that window's tour.
 const reopeners = new Set<(win: TourWindow) => void>();
 
@@ -98,7 +138,7 @@ export function reopenTour(win: TourWindow, gs: GettingStarted | null, key: stri
 
 /** The quiet button the getting-started views carry to walk the tour again. */
 export function TakeTour({ win, gs, className }: { win: TourWindow; gs: GettingStarted | null; className?: string }) {
-  return <Btn kind="plain" sm className={className} title={TOUR.takeTitle} onClick={(e) => { e.stopPropagation(); reopenTour(win, gs); }}>{TOUR.take}</Btn>;
+  return <Btn kind="plain" sm className={className} title={TOUR.takeTitle} data-tour-clear="" onClick={(e) => { e.stopPropagation(); reopenTour(win, gs); }}>{TOUR.take}</Btn>;
 }
 
 type Box = { ring: { left: number; top: number; width: number; height: number }; mark: { left: number; top: number } };
@@ -170,13 +210,8 @@ export function Tour({ win, gs, firstRun, paused = false, storageKey }: {
       const r = a.getBoundingClientRect();
       const vw = window.innerWidth;
       const vh = window.innerHeight;
-      const pad = 4;
-      const ring = {
-        left: Math.max(2, r.left - pad), top: Math.max(2, r.top - pad),
-        width: Math.max(0, Math.min(vw - 2, r.right + pad) - Math.max(2, r.left - pad)),
-        height: Math.max(0, Math.min(vh - 2, r.bottom + pad) - Math.max(2, r.top - pad)),
-      };
-      setBox({ ring, mark: placeMark(r, m.offsetWidth, m.offsetHeight, vw, vh, keepClearBoxes(m)) });
+      const beside = neighbourBoxes(a, m);
+      setBox({ ring: ringBox(r, vw, vh, [...beside, ...siblingBoxes(a)]), mark: placeMark(r, m.offsetWidth, m.offsetHeight, vw, vh, [...keepClearBoxes(m), ...beside]) });
     };
     measure();
     window.addEventListener('resize', measure);

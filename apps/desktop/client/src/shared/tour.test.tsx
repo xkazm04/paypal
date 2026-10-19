@@ -9,7 +9,7 @@ import { contrast, hexTokens, parseHex, type Rgb } from '../lib/contrast';
 import { gettingStarted, type StartFacts } from '../lib/firstRun';
 import { loadTour, resetTourMemory, TOUR_KEY } from '../lib/tour';
 import { TOUR, TOUR_STOP } from '../lib/words';
-import { keepClearBoxes, placeMark, TakeTour, Tour, type Box2 } from './tour';
+import { KEEP_CLEAR, keepClearBoxes, neighbourBoxes, placeMark, ringBox, TakeTour, Tour, type Box2 } from './tour';
 
 const facts: StartFacts = { firstRun: true, paypal: false, rulesInForce: 0, houseConnected: false, otherConnections: 0, engine: 'scripted' };
 const gs = gettingStarted(facts);
@@ -289,5 +289,74 @@ describe('the coach mark keeps the mode badge and the primary action clear (poli
     }
     expect(keepClearBoxes(document.getElementById('m'))).toHaveLength(2);
     document.body.innerHTML = '';
+  });
+});
+
+describe('the mark and the ring keep off what sits beside the anchor', () => {
+  const hit = (a: Box2, b: Box2) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+  const markBox = (m: { left: number; top: number }, w = 300, h = 176): Box2 => ({ left: m.left, top: m.top, right: m.left + w, bottom: m.top + h });
+  const rect = (b: Box2) => ({ ...b, width: b.right - b.left, height: b.bottom - b.top, x: b.left, y: b.top, toJSON: () => ({}) });
+
+  // "Your money stays put" in The Table (1920 x 1080 still): the last line of the charter's note, with
+  // the two lines above it and the "Take the tour" link under it.
+  const promise: Box2 = { left: 360, top: 746, right: 990, bottom: 770 };
+  const lineOne: Box2 = { left: 360, top: 672, right: 990, bottom: 692 };
+  const lineTwo: Box2 = { left: 360, top: 700, right: 990, bottom: 742 };
+  const takeTour: Box2 = { left: 366, top: 784, right: 450, bottom: 806 };
+  const view = { vw: 1920, vh: 860 };
+
+  it('the mark for the promise covers neither note line above it nor the "Take the tour" link', () => {
+    const a = { ...promise, width: promise.right - promise.left };
+    const m = placeMark(a, 300, 176, view.vw, view.vh, [lineOne, lineTwo, takeTour]);
+    for (const b of [lineOne, lineTwo, takeTour]) expect(hit(markBox(m), b)).toBe(false);
+    expect(m.left).toBeGreaterThanOrEqual(8);
+    expect(m.left + 300).toBeLessThanOrEqual(view.vw - 8);
+    expect(m.top).toBeGreaterThanOrEqual(8);
+    expect(m.top + 176).toBeLessThanOrEqual(view.vh - 8);
+  });
+  it('without them it sat above the anchor, on the lines', () => {
+    const a = { ...promise, width: promise.right - promise.left };
+    expect(hit(markBox(placeMark(a, 300, 176, view.vw, view.vh)), lineTwo)).toBe(true);
+  });
+  it('the welcome mark (the hub) covers no "Take the tour" link under the card', () => {
+    const hub = { left: 354, top: 174, width: 684, bottom: 842 };
+    const m = placeMark(hub, 300, 176, view.vw, view.vh, [takeTour]);
+    expect(hit(markBox(m), takeTour)).toBe(false);
+    // a link inside the hub's own box, with the mark's first choice (below) off screen
+    const low = placeMark({ left: 354, top: 600, width: 684, bottom: 842 }, 300, 176, view.vw, 900, [takeTour]);
+    expect(hit(markBox(low), takeTour)).toBe(false);
+  });
+  it('the ring stays off the title above and the steps below (the Tumbler promise, a 36 px row)', () => {
+    const title: Box2 = { left: 857, top: 410, right: 1330, bottom: 436 };
+    const steps: Box2 = { left: 857, top: 478, right: 1330, bottom: 570 };
+    const r: Box2 = { left: 857, top: 436, right: 1330, bottom: 478 };
+    const ring = ringBox(r, 1920, 1000, [title, steps]);
+    const rb = { left: ring.left, top: ring.top, right: ring.left + ring.width, bottom: ring.top + ring.height };
+    expect(hit(rb, title)).toBe(false);
+    expect(hit(rb, steps)).toBe(false);
+    // it still hugs the anchor
+    expect(rb.left).toBeLessThanOrEqual(r.left);
+    expect(rb.right).toBeGreaterThanOrEqual(r.right);
+    expect(rb.top).toBeLessThanOrEqual(r.top);
+    expect(rb.bottom).toBeGreaterThanOrEqual(r.bottom);
+    // with nothing beside it, the old 4 px
+    expect(ringBox(r, 1920, 1000)).toEqual({ left: 853, top: 432, width: 481, height: 50 });
+  });
+  it('the ring stays inside the viewport', () => {
+    expect(ringBox({ left: 0, top: 0, right: 100, bottom: 40 }, 440, 228)).toEqual({ left: 2, top: 2, width: 102, height: 42 });
+    const far = ringBox({ left: 400, top: 200, right: 440, bottom: 228 }, 440, 228);
+    expect(far.left + far.width).toBeLessThanOrEqual(438);
+    expect(far.top + far.height).toBeLessThanOrEqual(226);
+  });
+  it('the neighbours are the other items of the anchor list, not the columns of a layout', () => {
+    document.body.innerHTML = '<div><ul><li id="a">promise</li><li>one</li><li>two</li></ul></div><div id="col"><p id="p">x</p></div>';
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>('*'))) el.getBoundingClientRect = () => rect({ left: 1, top: 1, right: 11, bottom: 11 }) as DOMRect;
+    expect(neighbourBoxes(document.getElementById('a')!, null)).toHaveLength(2);
+    expect(neighbourBoxes(document.getElementById('p')!, null)).toHaveLength(0);
+    document.body.innerHTML = '';
+  });
+  it('"Take the tour" is declared as something the mark keeps clear', () => {
+    const { getByText } = render(<TakeTour win="main" gs={null} />);
+    expect(getByText(TOUR.take).closest('button')!.matches(KEEP_CLEAR)).toBe(true);
   });
 });
