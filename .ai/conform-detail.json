@@ -4459,6 +4459,57 @@
         "at": "2026-10-17T23:34:26.774544+00:00",
         "reason": "reviewer (sonnet): The anchor crates/table-mcp/src/lib.rs:297 is a tool-description string (\"Read the cached market prices…\") in a crate that is not among the market-data context files, and it does not itself show that no UI elements are rendered; the other technique anchors only show that the Rust crates call an HTTP"
       }
+    },
+    "9c2b67dc-8b1f-43ca-af72-23ddf95baf03/credential-vault": {
+      "context": "market-data",
+      "subject": "credential-vault",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T07:53:37.183Z",
+      "worker": "91b3bc0b-b8c1-47d0-8b57-cc41ea428da6",
+      "techniques": [
+        {
+          "technique": "acquisition",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/configuration.rs:238 Admission checks string shape, then stores the key without an authenticated validation or baseline identity and scopes."
+        },
+        {
+          "technique": "brokered-egress",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/market.rs:41 The vault adapter returns the actual credential to the market client, which attaches it to requests; the standard requires actions to cross the custody boundary."
+        },
+        {
+          "technique": "health-probing",
+          "verdict": "deviation",
+          "evidence": "crates/table-market/src/lib.rs:101 Authenticated calls collapse authentication rejection and provider failures into the same unavailable result; no separate credential probe or timestamped verdict is implemented."
+        },
+        {
+          "technique": "renew-at-two-thirds-with-grace",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/configuration.rs:239 This context retains a static API key, without an issuer lease, renewal increment or renewable duration."
+        },
+        {
+          "technique": "revocation-interception-cache",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/src/lib.rs:41 The cache holds market references, not leased credentials served to consumers."
+        },
+        {
+          "technique": "rotation-and-remediation",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/configuration.rs:516 Replacement overwrites the incumbent credential directly, without validating the successor or retaining the incumbent until successful successor traffic."
+        },
+        {
+          "technique": "token-refresh-lifecycle",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-market/src/lib.rs:71 Requests use the stored API key directly; this context has no grant-to-access-token exchange or refresh-token lifecycle."
+        },
+        {
+          "technique": "versioned-key-window",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-runtime/src/market.rs:37 The market adapter reads a foreign provider credential; it does not mint or manage a family of sealing-key versions."
+        }
+      ]
     }
   }
 }
