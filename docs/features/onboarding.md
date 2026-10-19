@@ -150,6 +150,7 @@ beat's end state, including the stop each window's mark shows:
   reopens; an absent or hidden anchor is never shown; it waits under a layer and does not take the
   keyboard from an unfocused window; placement stays inside the viewport; contrast in both themes;
   a `storage` write to the window's own key moves the mark, any other key does not.
+- `shared/tourAnchors.test.tsx`: renders the real main (Set up page and console lock), Tumbler welcome and approval windows on first run and checks every `TOUR_STOPS` anchor resolves there through `findAnchor`; no stop names an anchor that no window renders.
 - `director/firstRunStory.test.ts`, `director/stories.test.ts`, `director/takes.test.ts`: the
   story's stops are each window's, in order, all walked; no world, money or lock action; only the
   first-run tour key is written; the beat file's timing and words; every beat's end state.
