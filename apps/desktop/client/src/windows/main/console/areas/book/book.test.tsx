@@ -15,7 +15,13 @@ import { outsideSpan, paidOutIn, walletDay } from './model';
 
 vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/runtime')).runtimeMock);
 
-afterEach(() => { cleanup(); history.replaceState(null, '', '/'); });
+const PINNED_INSTANTS = [
+  ['Monday 09:00', new Date(Date.UTC(2026, 9, 19, 9, 0))],
+  ['Wednesday 15:00', new Date(Date.UTC(2026, 9, 21, 15, 0))],
+  ['Sunday 23:30', new Date(Date.UTC(2026, 9, 25, 23, 30))],
+] as const;
+
+afterEach(() => { vi.useRealTimers(); cleanup(); history.replaceState(null, '', '/'); });
 
 const heading = (el: HTMLElement) => el.querySelector('[data-layer-title]')?.textContent ?? '';
 
@@ -29,7 +35,11 @@ describe('Book summary', () => {
     expect(r.budget.byCommand.get('deal_evidence')?.total ?? 0).toBe(0);
   }, 60_000);
 
-  it('the footer shows money paid today, never held money, and the Book says the same figure (#9)', async () => {
+  // The mock world is built from the real clock, so the day it lands on moves the figures: pin the instant
+  // (UTC: the wallet's day starts at 00:00 UTC; Date only) to a week's first morning, midweek and its last night.
+  it.each(PINNED_INSTANTS)('the footer shows money paid today, never held money, and the Book says the same figure (#9) — %s', async (_name, at) => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(at);
     const r = await renderLayerAtScale('#m=book', 'large');
     const w = mockBackend('main');
     const [deals, att] = await Promise.all([w.invoke('list_deals', null), w.invoke('attention_list', null)]);
@@ -41,8 +51,10 @@ describe('Book summary', () => {
     const text = paid.map((m) => formatMinor(m.minor, m.currency)).join(' · ');
     const meter = document.querySelector('[data-meter="paid-today"] b');
     expect(meter?.textContent).toBe(text);
-    // The large world holds money today: the meter is not the day's budget (which counts holds).
-    expect(row.out_today.minor).toBeGreaterThan(row.held.minor);
+    // The large world holds money that moved today: the meter is not the day's budget (which counts holds). How much
+    // was paid so far depends on the hour, so this asserts the holds are there, not that they are the larger part.
+    expect(row.held.minor).toBeGreaterThan(0);
+    expect(row.out_today.minor).toBeGreaterThan(paid.reduce((t, m) => t + m.minor, 0));
     expect(meter?.textContent).not.toBe(formatMinor(row.out_today.minor, row.out_today.currency));
     expect(r.layer.querySelector('[data-card="ledger"]')?.textContent).toContain(BOOK.cards.today(text));
   }, 60_000);
