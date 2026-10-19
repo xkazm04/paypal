@@ -4711,6 +4711,53 @@
           "evidence": "crates/table-client/src/bin/generate-bindings.rs:10 Rust authors the generated command mappings, but regeneration removes only root-level TypeScript files; nested generated outputs can survive deletion of their source types, violating the required removal discipline."
         }
       ]
+    },
+    "9a477925-2fcc-4133-982d-849ca52dbe7f/modal-stack": {
+      "context": "shared-ui-primitives",
+      "subject": "modal-stack",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T22:33:43.682Z",
+      "techniques": [
+        {
+          "technique": "anchored-positioning",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/shared/ui/Popover.tsx:34 Derives position from live anchor geometry, measured element size, and viewport bounds, tracking ancestor scroll in capture phase."
+        },
+        {
+          "technique": "destructive-confirmation",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/shared/ui/hold.tsx:36 Enforces hold-to-confirm with 1200ms duration for high-blast-radius financial operations and disarms Enter key activation."
+        },
+        {
+          "technique": "dismissal-semantics",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/shared/ui/layers.ts:16 All exits collapse into a void callback without distinguishing complete from cancel from dismiss, and lacks unsaved-changes guards."
+        },
+        {
+          "technique": "focus-and-scroll-containment",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/shared/ui/Sheet.tsx:37 Declares aria-modal without marking the document root inert or locking background container scroll against wheel leakage."
+        },
+        {
+          "technique": "layering-and-precedence",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/shared/ui/Popover.tsx:66 Assigns static ui-popover class with z-index 8500 outranking modal sheets at 8001 instead of deriving precedence from stack position."
+        },
+        {
+          "technique": "stack-ownership",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/shared/ui/layers.ts:95 Overlays register via an effect sidecar while open state is owned by scattered caller booleans, and out-of-order unmount splices entries without cascading."
+        }
+      ],
+      "registryProposal": "Clarify in stack-ownership how multi-window desktop applications (such as Tauri/Electron multi-webview architectures) partition overlay stacks across independent OS window roots versus a unified cross-window stack.",
+      "withdrawn": {
+        "worker": "16936b63-12c0-4d45-9e8d-c182a2826bba",
+        "state": "deviation",
+        "at": "2026-10-19T22:34:12.010318+00:00",
+        "reason": "reviewer (sonnet): layers.ts:28 is pushLayer, which pushes onto a central stack and returns a pop function, with Esc closing the topmost layer, so it is a push/pop door; I found no scattered local booleans or missing lifecycle coordination at that anchor."
+      }
     }
   }
 }

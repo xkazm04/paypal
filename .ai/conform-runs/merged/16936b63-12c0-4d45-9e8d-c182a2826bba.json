@@ -1,0 +1,37 @@
+{
+  "schema": "conform-run/1",
+  "worker": "16936b63-12c0-4d45-9e8d-c182a2826bba",
+  "subject": "modal-stack",
+  "evaluatedAt": "2026-10-19T22:33:43.682192+00:00",
+  "provider": "agy",
+  "model": "gemini-3.8-flash-high",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "modal-stack",
+      "context": "shared-ui-primitives",
+      "reason": "withdrawn after review: reviewer (sonnet): layers.ts:28 is pushLayer, which pushes onto a central stack and returns a pop function, with Esc closing the topmost layer, so it is a push/pop door; I found no scattered local booleans or missing lifecycle coordination at that anchor."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-19T22:33:43.682192+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "modal-stack"
+      ],
+      "techniques": [
+        "anchored-positioning",
+        "destructive-confirmation",
+        "dismissal-semantics",
+        "focus-and-scroll-containment",
+        "layering-and-precedence",
+        "stack-ownership"
+      ],
+      "deviations": 1,
+      "context": "shared-ui-primitives",
+      "via": "curator-multi:agy",
+      "model": "gemini-3.8-flash-high"
+    }
+  ]
+}
