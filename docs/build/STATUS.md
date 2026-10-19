@@ -1005,7 +1005,7 @@ UI or sandbox criterion. Test names refer to their owning crate's tests.
 | M1 | Single-template purchase checked offline; local/paired multi-line shop checkout, sandbox and UI pending. |
 | M2 | Catalog/feed/CSV deferred. |
 | M3 | MCP h1_m3_out_of_band_is_error_and_zero_paypal_rows; house floor test. |
-| C1 | Closed BookQuery compiler binds values; memory/file read-only mutation/injection tests pass. Needs UI INVALID rendering. |
+| C1 | Closed BookQuery compiler binds values; memory/file read-only mutation/injection tests pass; client askInvalid.test.tsx 'Ask your book refusal (C1) > shows a rejected BookQuery as text and renders no results' (the mock backend rejects the query with INVALID 'BookQuery rejected: unknown field `sql`'; the Ask surface shows it as text and draws no wallet answer). **Verified offline** (mock-backed client; no native-shell or sandbox run claimed). |
 | C2 | Reporting bounds, pagination and own_account_reporting_requires_success_exact_capture_amount_currency_direction_and_complete_pages pass; live account mapping/lag and UI pending. |
 | S1 | Shield s1_payee_blocks_without_engine_and_no_reference_never_passes; core market quartile/band tests; needs UI. |
 | S2 | Shield s2_model_can_never_lower_caution; app s2_held_authorization_voids_immediately_and_never_captures and shield_ask_and_revoked_mandates_stop_each_money_grant_before_network; needs sandbox. |
@@ -1023,7 +1023,7 @@ UI or sandbox criterion. Test names refer to their owning crate's tests.
 | W1 | Native close-to-tray/runtime route retention implemented; needs interactive close/reopen and client route restoration test. |
 | W2 | Pure ladder emits show_without_activation; native background projection does not show/focus; native no-activation/ladder wired; GetForegroundWindow interactive test pending. |
 | W3 | Desktop w3_release_set_is_approval_only_and_all_commands_are_declared; app runtime label/token/lock test; native IPC integration test still owed. |
-| W4 | Ledger w4_received_injection_note_stays_out_of_attention_at_every_form; generated AttentionSnapshot contains no merchant free text; needs UI. |
+| W4 | Ledger w4_received_injection_note_stays_out_of_attention_at_every_form; generated AttentionSnapshot contains no merchant free text; client forms.w4.test.tsx 'Tumbler card form (W4) > draws no counterparty free text, in the card or its Details' (cards and Details popovers of the mock deals whose counterparty signed a note; none of the note text reaches the DOM and the Tumbler never asks for it). **Verified offline** (mock-backed client; no native-shell or sandbox run claimed). |
 | W5 | Attention ladder_boundaries_and_w5_one_notification_dnd; native DND/notification adapter and durable rung claim wired; delivery/click UAT pending. |
 | W6 | App f3_w6_deadline_voids_once_and_lapse_never_calls_paypal; exactly one confirmed void/idempotent tick; native receipt producer attached; UI pending (audit count deviation above). |
 | W7 | MCP safe_withdraw_is_signed_and_never_calls_paypal; native signed-withdraw actor handler attached; UI confirmation pending. |
@@ -2625,3 +2625,11 @@ Rows matched against client tests that were run green (apps/desktop/client, `npx
 - **E2** UI part now cites runWords.test.tsx "renders the badge beside a practice run and nothing beside a sandbox run"; stays unverified because no test renders the agent cards.
 - **Left as they were** (no client test asserts the criterion): H1 (no client test of an out-of-band send_offer), S1 (no test of the >1.4x HOLD or the "no market reference, not passed" line; priceCheck.test.tsx only shows a mocked wallet refusal), C1 (the book_query INVALID text passes through in portGaps.test.ts, but no test renders it verbatim), U2, U3 (shield.test.tsx only proves the note is read on open, not plain-text rendering), W4 (logic.test.ts proves cardWhy drops the counterparty, no Tumbler form render), W6 (no RECEIPT ticker test), W7 (no withdraw confirmation test), F5 (no route label in the client).
 - Vitest counts: full client run 158 files / 1671 tests, 1669 passed, 2 failed (book.test.tsx "the footer shows money paid today, never held money, and the Book says the same figure (#9)" and rewind.layer.test.tsx "a day anchor moves the playhead to that day"; neither is cited, both failed on a rerun). The ten files holding the cited tests: 8 passed, 2 failed (those same two), 153 of 155 tests passed.
+
+## Acceptance map reconcile (2026-10-19, round 2)
+
+Client run after the new tests: `npx vitest run` 160 files / 1679 tests, all passed; `tsc --noEmit` clean.
+
+- 2026-10-19 **C1** verified offline: askInvalid.test.tsx "shows a rejected BookQuery as text and renders no results" (the mock's own INVALID refusal is drawn as text in the Ask slip; no wallet answer or empty-state is drawn).
+- 2026-10-19 **W4** verified offline: forms.w4.test.tsx "draws no counterparty free text, in the card or its Details" (CardForm and its Details popover over the mock deals with counterparty notes; none of that text in the DOM; no counterparty_note or counterparty_list read from the Tumbler).
+- 2026-10-19 **U3** left as it was: the approval window's review Details does not show the human note. `counterparty_note` is main-window only, and the note is drawn only by `NoteText` in windows/main/console/areas/shared/NoteChip.tsx (Shield story, deal page) through `Quarantine`. A render test belongs there, outside this round's declared paths.
