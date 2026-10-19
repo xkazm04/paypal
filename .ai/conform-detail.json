@@ -4510,6 +4510,48 @@
           "evidence": "crates/table-runtime/src/market.rs:37 The market adapter reads a foreign provider credential; it does not mint or manage a family of sealing-key versions."
         }
       ]
+    },
+    "7fde48d9-00af-4ebc-868e-cb93d7cdedfd/draft-editing": {
+      "context": "owner-mandate-config",
+      "subject": "draft-editing",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T21:09:20.302Z",
+      "worker": "dea1a022-80bb-4085-b544-739337ac1918",
+      "techniques": [
+        {
+          "technique": "dirty-tracking",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/diff.ts:93 Dirtiness is dynamically derived per-term and per-clause by comparing baseline to draft over canonical values rather than storing mutable dirty flags."
+        },
+        {
+          "technique": "draft-model",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/SignSheet.tsx:53 Applying the draft submits the full payload to mandate_sign rather than diffs, and mutations bypass a unified patch door via direct spreads."
+        },
+        {
+          "technique": "debounced-save-groups",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/data.ts:12 Debouncing is only utilized for read-only what-if simulations, with no autosaving or debounced save groups persisting draft data."
+        },
+        {
+          "technique": "navigation-guards",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/MandateEditor.tsx:268 The back button exits the surface unconditionally without a navigation guard, discard confirmation, or remount persistence."
+        },
+        {
+          "technique": "field-defaults-and-bounds",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/mandateDraft.ts:92 Magic defaults such as 6 rounds and 1-day deadlines carry no documented rationale or incident history, and bounds are not clamped at a patch door."
+        },
+        {
+          "technique": "completeness-derivation",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/MandateEditor.tsx:370 Incomplete drafts cannot be saved freely because no intermediate draft persistence exists distinct from the disabled promotion signing control."
+        }
+      ],
+      "registryProposal": "The draft-editing standard assumes web-style continuous background autosaving (debounced-save-groups), but high-security local client applications with cryptographic signing workflows intentionally avoid intermediate persistence of unsigned drafts to prevent unencrypted/unauthenticated state from lingering at rest."
     }
   }
 }

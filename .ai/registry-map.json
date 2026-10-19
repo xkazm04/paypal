@@ -5318,7 +5318,11 @@
           "revision": 3,
           "changedAt": "2026-08-29",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/approval/MandateEditor.tsx:268 Exiting the editor via the back button invokes onClose without checking dirty state or intercepting navigation, causing uncommitted in-memory draft changes to be dropped upon unmount.",
+          "evaluatedAt": "2026-10-19",
+          "evaluatedAgainst": "sha256-b2:79771a6adb7936e5",
+          "evaluatedRevision": 3
         }
       ],
       "governance": "governed"
