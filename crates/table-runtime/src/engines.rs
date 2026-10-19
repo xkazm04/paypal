@@ -8,6 +8,9 @@ use table_core::*;
 use table_engine::*;
 use table_ledger::AuditEntry;
 
+/// AGENTS.md: engines are named claude-code and codex-cli, never by vendor product.
+const SCRIPTED_ROLE_REFUSAL: &str = "The built-in negotiator only haggles at a table; shopping and assistant runs need the claude-code or codex-cli engine.";
+
 pub(crate) struct ActiveRun {
     pub(crate) scope: AgentScope,
     pub(crate) snapshot: RunSnapshot,
@@ -190,7 +193,7 @@ impl Runtime {
         };
         if self.engine == EngineId::Scripted && scope.role != AgentRole::Negotiator {
             return Err(unavailable(
-                "The built-in negotiator only haggles at a table; shopping and assistant runs need Claude Code or Codex CLI.",
+                SCRIPTED_ROLE_REFUSAL,
             ));
         }
         // A native engine starts from the closed table projection (no NOTE, invoice memo or remote
@@ -456,5 +459,17 @@ impl Runtime {
             .cloned()
             .chain(self.runs.values().map(|r| r.snapshot.clone()))
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod refusal_tests {
+    use super::SCRIPTED_ROLE_REFUSAL;
+
+    #[test]
+    fn scripted_role_refusal_names_no_vendor_product() {
+        assert!(!SCRIPTED_ROLE_REFUSAL.contains("Claude Code"));
+        assert!(!SCRIPTED_ROLE_REFUSAL.contains(concat!("Codex", " CLI")));
+        assert!(SCRIPTED_ROLE_REFUSAL.contains("claude-code or codex-cli"));
     }
 }
