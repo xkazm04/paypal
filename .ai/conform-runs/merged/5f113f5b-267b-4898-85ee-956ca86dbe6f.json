@@ -1,0 +1,17 @@
+{
+ "schema": "conform-run/1",
+ "worker": "5f113f5b-267b-4898-85ee-956ca86dbe6f",
+ "subject": "guest-execution-bounding",
+ "evaluatedAt": "2026-10-19T21:53:32.303268+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "guest-execution-bounding",
+   "context": "counter-and-tables-modules",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": []
+}
