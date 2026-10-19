@@ -4634,6 +4634,42 @@
           "evidence": "crates/table-engine/src/windows_job.rs:51 The native Job is a Windows process-tree lifetime mechanism; no traced guest heap or queued promise captures are implemented here."
         }
       ]
+    },
+    "82440528-c2ad-4c04-b22b-0874f0723589/guided-tours": {
+      "context": "money-guidance-and-onboarding",
+      "subject": "guided-tours",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-19",
+      "evaluatedTs": "2026-10-19T22:05:43.109Z",
+      "worker": "353f30de-e2ec-4fbc-9c64-79d4b53c80f0",
+      "techniques": [
+        {
+          "technique": "action-driven-advancement",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/tour.ts:83 Tour advancement is triggered solely by manual Next/Back clicks or arrow keys without observing product state changes or user interactions on controls."
+        },
+        {
+          "technique": "anchor-contracts",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/shared/tourAnchors.test.tsx:75 Tour anchors use semantic data-tour attributes verified across rendered windows in a dedicated test suite."
+        },
+        {
+          "technique": "missing-anchor-degradation",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/tour.ts:73 Stops with missing anchors are globally filtered out and silently skipped without per-step degradation policy options or failure telemetry."
+        },
+        {
+          "technique": "overlay-precedence",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/shared/tour.tsx:188 The tour respects the application layer stack and automatically yields display when higher-priority modals or sheets open."
+        },
+        {
+          "technique": "tour-lifecycle",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/lib/tour.ts:144 Tour progress persists per window to local storage using minted stable identifiers and respects declined/skipped state across sessions."
+        }
+      ]
     }
   }
 }
