@@ -3066,3 +3066,40 @@ fn a_current_empty_or_in_memory_ledger_takes_no_snapshot_and_pruning_keeps_two()
     assert_eq!(left, ["wallet.pre-v14.sqlite", "wallet.pre-v9.sqlite"]);
     let _ = std::fs::remove_dir_all(&dir);
 }
+/// Scan J-5: a read of a row that is not there says `NotFound`, not a ledger-trust fault. The
+/// owner's join of a key never seen here, and an agent's accept with no offer on the table, are
+/// refusals of the request, not a damaged ledger.
+#[test]
+fn reads_of_an_absent_counterparty_deal_or_offer_say_not_found() {
+    let (ledger, deal, _, _, _) = setup();
+    let stranger = signer().key_id().unwrap();
+    assert!(matches!(
+        ledger.counterparty_policy(&stranger),
+        Err(LedgerError::NotFound)
+    ));
+    assert!(matches!(
+        ledger.counterparty_policy_at(&stranger, 100),
+        Err(LedgerError::NotFound)
+    ));
+    assert!(matches!(
+        ledger.counterparty_first_seen(&stranger),
+        Err(LedgerError::NotFound)
+    ));
+    let absent: DealId = "00000000000000000000000009".parse().unwrap();
+    assert!(matches!(
+        ledger.settled_attempt(absent),
+        Err(LedgerError::NotFound)
+    ));
+    // A real deal with no offer made yet.
+    assert!(matches!(
+        ledger.pending_offer(deal.id),
+        Err(LedgerError::NotFound)
+    ));
+    // The present rows still read.
+    assert!(ledger.counterparty_policy(&deal.counterparty).is_ok());
+    assert_eq!(
+        ledger.counterparty_first_seen(&deal.counterparty).unwrap(),
+        100
+    );
+    assert_eq!(ledger.settled_attempt(deal.id).unwrap(), 0);
+}
