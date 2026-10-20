@@ -4758,6 +4758,88 @@
         "at": "2026-10-19T22:34:12.010318+00:00",
         "reason": "reviewer (sonnet): layers.ts:28 is pushLayer, which pushes onto a central stack and returns a pop function, with Esc closing the topmost layer, so it is a push/pop door; I found no scattered local booleans or missing lifecycle coordination at that anchor."
       }
+    },
+    "bd6a5a80-3506-4c9d-bd06-06e18f3dd015/model-routing": {
+      "context": "native-shell",
+      "subject": "model-routing",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-20",
+      "evaluatedTs": "2026-10-20T21:13:42.995Z",
+      "techniques": [
+        {
+          "technique": "admission-is-not-a-tier",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native/commands.rs:305 No client/candidate dialect, identifier, or liveness admission check."
+        },
+        {
+          "technique": "cache-continuity",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native/commands.rs:305 No conversation prefix or mid-stream tier stickiness."
+        },
+        {
+          "technique": "candidate-ranking",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native/commands.rs:305 No scored roster of model endpoints."
+        },
+        {
+          "technique": "capability-floors",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native/commands.rs:305 No measured tier floor for a model capability."
+        },
+        {
+          "technique": "consumer-overrides",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native/commands.rs:305 No routing-table override parameter or reaper."
+        },
+        {
+          "technique": "effort-calibration",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native/commands.rs:305 No reasoning-effort dial; the only effort wording is an emit comment."
+        },
+        {
+          "technique": "failover-horizon",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native/commands.rs:305 No model substitution before or after a first byte."
+        },
+        {
+          "technique": "failover-path-liveness",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native/commands.rs:305 No model failover path to inject or withhold."
+        },
+        {
+          "technique": "model-identity",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native/commands.rs:305 No model group versus endpoint identity in this shell."
+        },
+        {
+          "technique": "policy-governance",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native/commands.rs:305 No routing-policy version or per-call decision record."
+        },
+        {
+          "technique": "quality-axis-separation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native/commands.rs:305 No operational versus semantic score of model answers."
+        },
+        {
+          "technique": "routing-policy",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native/commands.rs:305 Shell admission is a window-label gate, not a provider rule table."
+        },
+        {
+          "technique": "turn-classification",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/src-tauri/src/native/commands.rs:305 No closed call-class vocabulary or class-to-tier table."
+        }
+      ],
+      "registryProposal": "State the precondition as code that selects a model tier or reasoning effort, so a shell that only forwards an engine id is outside the subject.",
+      "withdrawn": {
+        "worker": "4db2df9d-f4c4-4adf-a0b6-36269935e1fc",
+        "state": "not-applicable",
+        "at": "2026-10-20T21:14:24.977765+00:00",
+        "reason": "reviewer (sonnet): The anchor (commands.rs:305) shows the shell does select an agent engine (Action::Engine, with Action::Engines listing table_engine::EngineInfo with availability), so it doesn't show model routing is absent. Whether admission, stickiness or tier logic exists sits in table-engine, outside this contex"
+      }
     }
   }
 }
