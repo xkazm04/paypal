@@ -2,6 +2,9 @@
 version = 2
 ignore = [
   { id = "RUSTSEC-2024-0370", reason = "proc-macro-error: compile-time only, via Tauri's Linux GTK3 stack; no upgrade upstream" },
+  { id = "RUSTSEC-2026-0370", reason = "zvariant: unmaintained (merged into zbus 6); reached only via zbus 5 under Tauri notification/opener/single-instance plugins; no safe upgrade until Tauri moves" },
+  { id = "RUSTSEC-2026-0371", reason = "zbus_names: unmaintained (merged into zbus 6); same zbus 5 chain under Tauri plugins; no safe upgrade until Tauri moves" },
+  { id = "RUSTSEC-2026-0372", reason = "zvariant_derive: unmaintained (merged into zbus 6); same zbus 5 chain under Tauri plugins; no safe upgrade until Tauri moves" },
 ]
 [licenses]
 allow = ["MIT", "Apache-2.0", "BSD-3-Clause", "ISC", "Unicode-3.0", "CC0-1.0", "MPL-2.0", "Zlib", "CDLA-Permissive-2.0"]
