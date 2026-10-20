@@ -192,9 +192,7 @@ impl Runtime {
             category,
         };
         if self.engine == EngineId::Scripted && scope.role != AgentRole::Negotiator {
-            return Err(unavailable(
-                SCRIPTED_ROLE_REFUSAL,
-            ));
+            return Err(unavailable(SCRIPTED_ROLE_REFUSAL));
         }
         // A native engine starts from the closed table projection (no NOTE, invoice memo or remote
         // prose can be represented in it) and its role's compiled-in playbook. The policy
