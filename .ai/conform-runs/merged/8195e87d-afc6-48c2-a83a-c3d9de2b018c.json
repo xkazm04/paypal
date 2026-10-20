@@ -1,0 +1,17 @@
+{
+ "schema": "conform-run/1",
+ "worker": "8195e87d-afc6-48c2-a83a-c3d9de2b018c",
+ "subject": "motion",
+ "evaluatedAt": "2026-10-20T21:25:27.674834+00:00",
+ "provider": "agy",
+ "model": "gemini-3.8-flash-high",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "motion",
+   "context": "director-takes-rig",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": []
+}
