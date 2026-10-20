@@ -474,8 +474,14 @@ fn evidence(bundle: &ProofBundle) -> Outcome {
     ))
 }
 
-fn short(hash: H256) -> String {
+/// The first 12 hex characters of a hash, for human-readable detail lines.
+pub(crate) fn short(hash: H256) -> String {
     hash.hex().chars().take(12).collect()
+}
+
+/// An audit row's parsed `detail_json`; `Null` when it does not parse.
+pub(crate) fn detail(row: &ProofAuditRow) -> Value {
+    serde_json::from_str(&row.detail_json).unwrap_or(Value::Null)
 }
 
 /// The key anchor: the checks use the keys inside the file, so the owner key id must be compared
