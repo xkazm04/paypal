@@ -138,15 +138,14 @@ impl Client {
             .join(&format!("v1/mailbox/{}{suffix}", mailbox.hex()))
             .map_err(|_| Error::Invalid)
     }
-    /// A small answer (a signed head or prefix), read whole up to 4 KiB.
-    async fn bounded(mut response: reqwest::Response) -> Result<Vec<u8>, Error> {
-        const MAX: usize = 4096;
-        if response.content_length().is_some_and(|n| n > MAX as u64) {
+    /// Reads a response body whole, refusing anything over `max` bytes.
+    async fn bounded(mut response: reqwest::Response, max: usize) -> Result<Vec<u8>, Error> {
+        if response.content_length().is_some_and(|n| n > max as u64) {
             return Err(Error::Invalid);
         }
         let mut bytes = Vec::new();
         while let Some(chunk) = response.chunk().await.map_err(|_| Error::Unavailable)? {
-            if bytes.len().saturating_add(chunk.len()) > MAX {
+            if bytes.len().saturating_add(chunk.len()) > max {
                 return Err(Error::Invalid);
             }
             bytes.extend_from_slice(&chunk);
@@ -188,17 +187,7 @@ impl RelayApi for Client {
                 .json(request),
         )
         .await?;
-        if response.content_length().is_some_and(|n| n > 16384) {
-            return Err(Error::Invalid);
-        }
-        let mut response = response;
-        let mut bytes = Vec::new();
-        while let Some(chunk) = response.chunk().await.map_err(|_| Error::Unavailable)? {
-            if bytes.len().saturating_add(chunk.len()) > 16384 {
-                return Err(Error::Invalid);
-            }
-            bytes.extend_from_slice(&chunk);
-        }
+        let bytes = Self::bounded(response, 16384).await?;
         serde_json::from_slice(&bytes).map_err(|_| Error::Invalid)
     }
     async fn house_head(&self) -> Result<table_proto::SignedHouseHead, Error> {
@@ -206,8 +195,8 @@ impl RelayApi for Client {
             .origin
             .join("v1/house/head")
             .map_err(|_| Error::Invalid)?;
-        serde_json::from_slice(&Self::bounded(Self::checked(self.http.get(url)).await?).await?)
-            .map_err(|_| Error::Invalid)
+        let response = Self::checked(self.http.get(url)).await?;
+        serde_json::from_slice(&Self::bounded(response, 4096).await?).map_err(|_| Error::Invalid)
     }
     async fn house_prefix(&self, rows: u64) -> Result<table_proto::SignedHousePrefix, Error> {
         let url = self
@@ -215,8 +204,8 @@ impl RelayApi for Client {
             .join("v1/house/prefix")
             .map_err(|_| Error::Invalid)?;
         let request = self.http.get(url).query(&[("rows", rows.to_string())]);
-        serde_json::from_slice(&Self::bounded(Self::checked(request).await?).await?)
-            .map_err(|_| Error::Invalid)
+        let response = Self::checked(request).await?;
+        serde_json::from_slice(&Self::bounded(response, 4096).await?).map_err(|_| Error::Invalid)
     }
     async fn wake(&self) -> Result<(), Error> {
         // The rendezvous service's own /healthz route (services/rendezvous), not a PayPal call.
@@ -254,19 +243,13 @@ impl RelayApi for Client {
         if wait > 25 || after > 256 {
             return Err(Error::Invalid);
         }
-        let mut response = Self::checked(self.http.get(self.endpoint(mailbox, "/sync")?).query(&[
+        let response = Self::checked(self.http.get(self.endpoint(mailbox, "/sync")?).query(&[
             ("generation", generation.to_owned()),
             ("after", after.to_string()),
             ("wait", wait.to_string()),
         ]))
         .await?;
-        let mut bytes = Vec::new();
-        while let Some(chunk) = response.chunk().await.map_err(|_| Error::Unavailable)? {
-            if bytes.len().saturating_add(chunk.len()) > 256 * 16384 + 32768 {
-                return Err(Error::Invalid);
-            }
-            bytes.extend_from_slice(&chunk);
-        }
+        let bytes = Self::bounded(response, 256 * 16384 + 32768).await?;
         let batch: Batch = serde_json::from_slice(&bytes).map_err(|_| Error::Invalid)?;
         batch.validate()?;
         Ok(batch)
