@@ -1,0 +1,44 @@
+{
+  "schema": "conform-run/1",
+  "worker": "4db2df9d-f4c4-4adf-a0b6-36269935e1fc",
+  "subject": "model-routing",
+  "evaluatedAt": "2026-10-20T21:13:42.995692+00:00",
+  "provider": "grok",
+  "model": "grok-4.7",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "model-routing",
+      "context": "native-shell",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor (commands.rs:305) shows the shell does select an agent engine (Action::Engine, with Action::Engines listing table_engine::EngineInfo with availability), so it doesn't show model routing is absent. Whether admission, stickiness or tier logic exists sits in table-engine, outside this contex"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-20T21:13:42.995692+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "model-routing"
+      ],
+      "techniques": [
+        "admission-is-not-a-tier",
+        "cache-continuity",
+        "candidate-ranking",
+        "capability-floors",
+        "consumer-overrides",
+        "effort-calibration",
+        "failover-horizon",
+        "failover-path-liveness",
+        "model-identity",
+        "policy-governance",
+        "quality-axis-separation",
+        "routing-policy",
+        "turn-classification"
+      ],
+      "deviations": 0,
+      "context": "native-shell",
+      "via": "curator-multi:grok",
+      "model": "grok-4.7"
+    }
+  ]
+}
