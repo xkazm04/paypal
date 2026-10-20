@@ -3,6 +3,7 @@
 //! step here, so the verifier a judge runs is exactly as strict as the gauntlet. The independent
 //! reading that matters (this crate against table-app's pipeline) is kept; only this crate's own
 //! copies of the rule were merged.
+use crate::detail;
 use serde_json::Value;
 use table_core::{Clause, DealKind, DecidedBy, Side};
 use table_proto::{PROOF_FORMAT_V1, ProofAuditRow, ProofBundle, ProofOperation};
@@ -116,10 +117,6 @@ pub enum Reader {
     Safety,
     /// The offline verifier: a v1 file is read under its own rules, with no new demand on it.
     Verifier,
-}
-
-fn detail(row: &ProofAuditRow) -> Value {
-    serde_json::from_str(&row.detail_json).unwrap_or(Value::Null)
 }
 
 /// Whether `op` is lawful for this deal, judged only from the deal's own evidence: why it is, or

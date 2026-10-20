@@ -6,7 +6,7 @@
 //! line reads "not checked" and says why; it neither passes nor fails. A v1 file carries none of
 //! these records, so on a v1 file every one of them reads "not checked".
 use crate::authority::{decision_fits, money_kind};
-use crate::{Miss, row_detail};
+use crate::{Miss, detail, row_detail, short};
 use serde_json::Value;
 use table_core::{DealState, DecidedBy, H256, MarketCommitment, ShieldRule, ShieldVerdict};
 use table_proto::{
@@ -17,10 +17,6 @@ fn older(bundle: &ProofBundle) -> Option<Miss> {
     (bundle.format == PROOF_FORMAT_V1).then(|| {
         Miss::absent("not checked: a file in the first proof format does not carry this record")
     })
-}
-/// A row's detail; the audit check proves the rows themselves.
-fn detail(row: &ProofAuditRow) -> Value {
-    serde_json::from_str(&row.detail_json).unwrap_or(Value::Null)
 }
 fn text<'a>(value: &'a Value, field: &str) -> Option<&'a str> {
     value.get(field).and_then(Value::as_str)
@@ -620,9 +616,6 @@ pub(crate) fn market(bundle: &ProofBundle) -> Result<String, Miss> {
         short(digest),
         short(reference.response_hash),
     ))
-}
-fn short(hash: H256) -> String {
-    hash.hex().chars().take(12).collect()
 }
 /// 1st, 2nd, 3rd, 4th, 11th, 12th, 13th, 21st, ...
 fn ordinal(n: u8) -> String {

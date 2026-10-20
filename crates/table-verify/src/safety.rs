@@ -8,11 +8,11 @@
 //! holds: every `operations` row stands on an authority AGENTS.md allows for that operation,
 //! every money-shaped PayPal call has its operation, a refused deal made no call, no stored call
 //! carries a counterparty note, and the offline verifier's checks hold on every exported deal.
-use crate::authority;
+use crate::{authority, detail};
 use serde_json::Value;
 use std::fmt;
 use table_core::{DealId, DealState, DecidedBy, RefusalCode};
-use table_proto::{ProofAuditRow, ProofBundle, ProofOperation};
+use table_proto::{ProofBundle, ProofOperation};
 
 /// The offline verifier's checks every exported deal is held to. Left out: the file's format,
 /// permissions fingerprint and evidence signature, which the runtime adds when it signs an export
@@ -64,10 +64,6 @@ impl fmt::Display for Violation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.detail)
     }
-}
-
-fn detail(row: &ProofAuditRow) -> Value {
-    serde_json::from_str(&row.detail_json).unwrap_or(Value::Null)
 }
 
 /// The money step a PayPal call is, from its method and path (the offline verifier's own

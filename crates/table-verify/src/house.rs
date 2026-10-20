@@ -3,7 +3,7 @@
 //! The release pin is the trust anchor. By default it is the one the page itself carries, so the
 //! report prints the house's key ids for comparison with the pin compiled into a wallet; a caller
 //! that holds the pin passes it and a page carrying any other pin fails.
-use crate::Check;
+use crate::{Check, short};
 use table_core::{Clause, DealState, DecidedBy, H256, Money};
 use table_proto::{
     GUEST_PREFIX_CHARS, HOUSE_LEDGER_FORMAT, HouseDealView, HouseLedgerView, HouseMoneyKind,
@@ -35,9 +35,6 @@ fn key(bytes: &[u8; 32]) -> String {
             || "invalid".into(),
             |k| k.as_str().chars().take(16).collect(),
         )
-}
-fn short(hash: H256) -> String {
-    hash.hex().chars().take(12).collect()
 }
 /// The signed floor of the house's single band.
 fn floor(view: &HouseLedgerView) -> Result<Money, String> {
