@@ -8,7 +8,7 @@
 // bar (mark, crumbs "The Table > Approvals", mode badge, the way back) plus the Approvals strip,
 // the sheet's index tab. "Back to The Table" only closes this window (the same close path the
 // review's "Close this window" uses): it decides nothing and withdraws nothing.
-import type { MouseEvent, ReactNode } from 'react';
+import type { MouseEvent } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { Mode } from '@bindings/Mode';
 import { leaveDemoApproval } from '../../lib/preview';
@@ -17,18 +17,8 @@ import { APPROVAL_FRAME, BRAND_NAME } from '../../lib/words';
 import { Mark } from '../../shared/brand';
 import { MockBadge, ModeBadge, WalletNotice } from '../../shared/honesty';
 import { Btn, Crumbs, Spacer, useToast } from '../../shared/ui';
-import { footerNoticeText, STEP, UNLOCK_HEADING, type Step } from './model';
+import { footerNoticeText, UNLOCK_HEADING } from './model';
 import { useSession } from './session';
-
-/** The Dial's emblem: a steel dial with the gold settlement ring. Static, trusted SVG. */
-export function Emblem() {
-  return (
-    <svg className="aw-emblem" viewBox="0 0 24 24" aria-hidden="true">
-      <circle className="e1" cx="12" cy="12" r="9.5" strokeWidth="2" />
-      <circle className="e2" cx="12" cy="12" r="4.5" fill="none" strokeWidth="2" />
-    </svg>
-  );
-}
 
 /**
  * Close this window (the docked approval window; Rust returns focus to The Table). Resolves to
@@ -92,33 +82,6 @@ export function Header({ mode }: { mode: Mode | undefined }) {
   return <WindowBar mode={mode} />;
 }
 
-export function Strip({ steps, countdown }: { steps: Step[]; countdown?: ReactNode }) {
-  return (
-    <ol className="strip" aria-label="Approval progress">
-      {steps.map((s, i) => (
-        <li key={`${s.label}-${i}`} className={s.status} aria-current={s.status === 'cur' || s.status === 'bad' ? 'step' : undefined}>
-          {s.label}
-          {s.status === 'cur' && s.label === STEP.browser && countdown ? <> · {countdown}</> : null}
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-/** The default-on-silence line every needs-you surface carries. */
-export function Silence({ text, generic }: { text: string; generic?: boolean }) {
-  return (
-    <p className={`a-sil ${generic ? 'generic' : ''}`}>
-      <span className="a-sil-k">If you do nothing</span>
-      <span>{text}</span>
-    </p>
-  );
-}
-
-export function Verdict({ tone, children }: { tone: 'ok' | 'no' | 'draft' | 'calm'; children: ReactNode }) {
-  return <div className={`verdict ${tone}`} role={tone === 'no' ? 'alert' : 'status'}>{children}</div>;
-}
-
 /** LOCKED: idle > 15 min, a settings lock, or a LOCKED answer. Unlock is native Windows Hello. */
 export function LockCard({ compact }: { compact?: boolean }) {
   const s = useSession();
@@ -179,22 +142,3 @@ export function HelloGlyph() {
   );
 }
 
-/** Stylised hand-off to the system browser (no PayPal art, no URL from the client). */
-export function BrowserArt() {
-  return (
-    <svg className="browser-art" viewBox="0 0 120 84" role="img" aria-label="Your system browser, not this app">
-      <rect className="ba-frame" x="2" y="2" width="116" height="80" rx="7" strokeWidth="2" />
-      <rect className="ba-bar" x="2" y="2" width="116" height="15" rx="7" />
-      <circle className="ba-dot" cx="11" cy="9.5" r="2.5" />
-      <circle className="ba-dot" cx="19" cy="9.5" r="2.5" />
-      <rect className="ba-fill" x="28" y="6" width="80" height="7" rx="3.5" />
-      <rect className="ba-fill" x="30" y="30" width="60" height="7" rx="3" />
-      <rect className="ba-btn" x="38" y="44" width="44" height="12" rx="6" fill="none" strokeDasharray="3 2" />
-      <text className="ba-t" x="60" y="73" fontSize="7" textAnchor="middle">your browser · not this app</text>
-    </svg>
-  );
-}
-
-export function Pill({ tone, children }: { tone: 'ok' | 'need' | 'off' | 'wait'; children: ReactNode }) {
-  return <span className={`pill ${tone}`}>{children}</span>;
-}
