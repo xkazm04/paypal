@@ -318,6 +318,37 @@ fn a_call_under_any_method_but_get_or_post_is_unclassified_in_both_readers() {
     assert!(!crate::safety::deal_violations(&b, &[]).is_empty());
 }
 
+/// The wallet countersigns an attempt before it creates or authorizes it, and refuses a capture
+/// without one (table-app send.rs), so a create, authorize or capture with no closed mandate for
+/// its attempt is not a step the wallet took: the countersign line names it instead of reading
+/// "no countersign in this deal". A void and a rescue invoice need none.
+#[test]
+fn a_money_step_with_no_countersign_for_its_attempt_fails_the_countersign_check() {
+    let line = |b: &ProofBundle| {
+        verify_bundle(b)
+            .checks
+            .into_iter()
+            .find(|c| c.id == "countersign")
+            .unwrap()
+    };
+    let by = DecidedBy::Human { at: 150 };
+    for op in ["create", "authorize", "capture"] {
+        let mut b = bundle(Side::Buyer, DealKind::Purchase, 1000);
+        decision(&mut b, fitting(op), &by);
+        step(&mut b, op, &by);
+        let found = line(&b);
+        assert!(!found.ok, "{op}: {found:?}");
+        assert!(found.detail.contains("no countersign"), "{op}: {found:?}");
+    }
+    let mut b = bundle(Side::Buyer, DealKind::Purchase, 1000);
+    step(&mut b, "void", &DecidedBy::SafeDefault { deadline: 150 });
+    assert!(line(&b).ok, "{:?}", line(&b));
+    let mut b = bundle(Side::Buyer, DealKind::Rescue, 1000);
+    decision(&mut b, "rescue_approve", &by);
+    step(&mut b, "invoice-create", &by);
+    assert!(line(&b).ok, "{:?}", line(&b));
+}
+
 fn capture_call(request_id: Option<&str>) -> ProofCall {
     ProofCall {
         method: "POST".into(),
