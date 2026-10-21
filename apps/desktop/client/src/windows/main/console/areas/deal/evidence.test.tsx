@@ -3,11 +3,11 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Backend } from '../../../../../lib/contract';
-import { STATEMENT_CHECK_NEEDS_KEYS, unconfirmedMeans } from '../../../../../lib/words';
+import { DEAL_PROOF, STATEMENT_CHECK_NEEDS_KEYS, unconfirmedMeans } from '../../../../../lib/words';
 import { mockBackend, resetMockState } from '../../../../../mock/backend';
 import { buildMockState } from '../../../../../mock/fixtures';
 import { ToastProvider } from '../../../ui';
-import { EvidenceSheet, ProofPanel, type EvidenceKind } from './Evidence';
+import { EvidenceSheet, ProofPanel, TranscriptSheet, type EvidenceKind } from './Evidence';
 
 const hoisted = vi.hoisted(() => ({ current: null as Backend | null }));
 vi.mock('../../../../../lib/runtime', () => ({ backend: () => hoisted.current }));
@@ -111,5 +111,26 @@ describe('an ended deal is never called a delay', () => {
     render(<ProofPanel deal={deal} ev={{ data, error: null }} band={null} onOpen={() => {}} />);
     expect(screen.queryByText(DELAY)).toBeNull();
     expect(screen.getByText(unconfirmedMeans(true), { exact: false })).not.toBeNull();
+  });
+});
+
+describe('a deal PayPal knows only by its subscription', () => {
+  // A failed renewal waits at AGREED holding the subscriber's PayPal subscription id and no order.
+  const rescue = world.deals.find((d) => d.deal.kind === 'rescue' && d.deal.state === 'AGREED')!;
+  const deal = { ...rescue.deal, paypal: { order: null, authorization: null, capture: null, subscription: 'I-SUB0042' } };
+  beforeEach(() => { resetMockState(); hoisted.current = withKeys(true); });
+  afterEach(() => { cleanup(); hoisted.current = null; });
+
+  it('the proof panel shows the subscription, as the card and the records sheet do, not "nothing sent"', () => {
+    render(<ProofPanel deal={deal} ev={{ data: undefined, error: null }} band={null} onOpen={() => {}} />);
+    expect(screen.queryByText(DEAL_PROOF.nothingSent)).toBeNull();
+    expect(screen.queryByText(DEAL_PROOF.notCreated)).toBeNull();
+    expect(screen.getByText(DEAL_PROOF.refs.subscription)).not.toBeNull();
+  });
+
+  it('the record sheet lists the subscription id with the other PayPal ids', async () => {
+    render(<ToastProvider><TranscriptSheet deal={deal} label="the renewal" steps={[]} error={null} band={null} theirName="S-14" onClose={() => {}} /></ToastProvider>);
+    await screen.findByRole('button', { name: 'Done' });
+    expect(document.body.textContent).toContain('I-SUB0042');
   });
 });

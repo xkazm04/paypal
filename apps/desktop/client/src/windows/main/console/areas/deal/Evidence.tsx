@@ -22,14 +22,11 @@ import { ConvergenceChart, MarketBand, MiniBand } from '../../../charts';
 import '../../../charts.css';
 import { isLive, marketPosition } from '../../../logic';
 import { useToast } from '../../../ui';
-import { attestOf, evidenceLabel, reconciliationLabel, statementLabel, stepWords, type PaypalRefKey } from '../../../deal/model';
+import { attestOf, evidenceLabel, heldRefs, reconciliationLabel, shownRefs, statementLabel, stepWords } from '../../../deal/model';
 
 export type EvidenceKind = 'paypal' | 'books' | 'market';
 
 type EvState = { data: DealEvidence | undefined; error: WalletError | null };
-
-/** PayPal's own records, in the order money goes through them. */
-const REFS: readonly PaypalRefKey[] = ['order', 'authorization', 'capture'];
 
 /** The typical-price card's line about a signed keep-prices-fresh rule (T15); null when not watched. */
 export function watchWhy(watch: DealWatch | null | undefined, priced: boolean): string | null {
@@ -44,7 +41,7 @@ export function ProofPanel({ deal, ev, band, watch, onOpen }: { deal: Deal; ev: 
   const rec = e ? statementLabel(deal.state, e) : null;
   const mk = deal.market;
   const limit = band ? (deal.side === 'buyer' ? band.ceiling : band.floor) : null;
-  const any = REFS.some((k) => deal.paypal[k]);
+  const any = heldRefs(deal).length > 0;
   const sameCur = !!mk && deal.terms.unit_price.currency === mk.median.currency;
   const mw = mk && sameCur ? marketWords(deal.terms.unit_price.minor, mk.p25.minor, mk.median.minor, mk.p75.minor) : null;
   const loading = <span className="dim">{DEAL_PROOF.loading}</span>;
@@ -57,7 +54,7 @@ export function ProofPanel({ deal, ev, band, watch, onOpen }: { deal: Deal; ev: 
         <span className="v">
           {any ? (
             <span className="dv-refs">
-              {REFS.map((k) => {
+              {shownRefs(deal).map((k) => {
                 const l = DEAL_PROOF.refs[k];
                 const id = deal.paypal[k];
                 return <span key={k} className={`ref ${id ? 'has' : ''}`} title={id ? DEAL_PROOF.refTitle(l, id) : DEAL_PROOF.noRef(l)}><i aria-hidden="true" />{l}</span>;
@@ -133,7 +130,7 @@ export function EvidenceSheet({ kind, deal, ev, band, watch, onFresh, onClose }:
   ) : ev.error ? <WalletNotice error={ev.error} what={DEAL_PROOF.proof} /> : <Loading what={DEAL_PROOF.theProof} />;
 
   if (kind === 'paypal') {
-    const keys: PaypalRefKey[] = ['order', 'authorization', 'capture', ...(deal.paypal.subscription ? ['subscription' as const] : [])];
+    const keys = shownRefs(deal);
     const none = !deal.paypal.order && !deal.paypal.subscription;
     return (
       <Sheet title={DEAL_PROOF.records} size="wide" onClose={onClose} className="ar-deal-sheet" footer={<>{reconcile}{done}</>}>
@@ -224,7 +221,7 @@ export function TranscriptSheet({ deal, label, steps, error, band, theirName, on
       {proof.error ? <WalletNotice error={proof.error} what={DEAL_RECORD.failed} /> : null}
       <Kv items={[
         [DEAL_RECORD.messages, steps ? `${steps.length} · ${steps.every((s) => s.verified) ? DEAL_RECORD.everyChecked : DEAL_RECORD.someNot}` : '—'],
-        [DEAL_RECORD.paypal, <span className="mono">{[deal.paypal.order, deal.paypal.authorization, deal.paypal.capture].map((x) => x ?? '—').join(' · ')}</span>],
+        [DEAL_RECORD.paypal, <span className="mono">{shownRefs(deal).map((k) => deal.paypal[k] ?? '—').join(' · ')}</span>],
         [DEAL_RECORD.mode, <ModeBadge mode={deal.mode} />],
         [DEAL_RECORD.recordId, <span className="mono">{shortId(deal.id, 6, 4)} · {shortHash(deal.transcript_head)}</span>],
       ]} />

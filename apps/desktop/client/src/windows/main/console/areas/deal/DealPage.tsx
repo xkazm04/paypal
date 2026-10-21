@@ -25,7 +25,7 @@ import {
 import { RunBadge, WalletNotice } from '../../../../../shared/honesty';
 import { MODULE } from '../../../../../shared/modules';
 import { Btn, Chip, Hint, Kv, Popover, Silence } from '../../../../../shared/ui';
-import { latestText, mayWithdraw, mirrorStrip, readClauses, stepWords, timelineRows } from '../../../deal/model';
+import { heldRefs, latestText, mayWithdraw, mirrorStrip, readClauses, stepWords, timelineRows } from '../../../deal/model';
 import { dealAnswer, ruleChecks, rulesBadge, standingFacts } from '../../../deal/story';
 import { canStartAgent, isLive, isTerminal, pairingFact } from '../../../logic';
 import { useCpLookup, useToast } from '../../../ui';
@@ -52,7 +52,7 @@ const sel = (w: World) => ({ display: w.display, moduleOfDeal: w.moduleOfDeal })
 const same = (a: ReturnType<typeof sel>, b: ReturnType<typeof sel>) => a.display === b.display && a.moduleOfDeal === b.moduleOfDeal;
 
 /** PayPal has a record for this deal: only then can its proof carry a money check or a statement. */
-const atPayPal = (d: Deal) => !!(d.paypal.order || d.paypal.authorization || d.paypal.capture || d.paypal.subscription);
+const atPayPal = (d: Deal) => heldRefs(d).length > 0;
 
 /** The views' code, for the idle preload once a deal page is drawn (the records still wait for their view). */
 const VIEW_PARTS = [StoryView, RulesView, WhoView, ProofView] as const;
@@ -95,7 +95,7 @@ export function DealPage({ deal, nav }: { deal: Deal; nav: LayerNav }) {
   const answer = dealAnswer(deal, { need, them, latest, band: bandReading, mayWithdraw: withdrawable, check });
   const houseRecord = evidence?.house_record ? houseRecordWord(evidence.house_record) : null;
   const pf = pairingFact(cp.entry);
-  const refs = (['order', 'authorization', 'capture', 'subscription'] as const).filter((k) => deal.paypal[k]).length;
+  const refs = heldRefs(deal).length;
   const offersUsed = deal.kind === 'haggle' && disp.band ? DEAL_WHO.offersUsed(disp.band.rounds_used, disp.band.max_rounds) : null;
   const ended = isTerminal(deal);
 
