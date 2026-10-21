@@ -16,6 +16,7 @@ pub use redaction::*;
 pub use repositories::*;
 mod mandates;
 mod stores;
+mod transcript;
 use rusqlite::{Connection, TransactionBehavior};
 use std::path::Path;
 pub use stores::*;
