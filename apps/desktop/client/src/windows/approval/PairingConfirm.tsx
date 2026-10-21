@@ -20,14 +20,16 @@ import { houseWords } from '../../lib/words';
 import { footerNoticeText, UNLOCK_HEADING } from './model';
 import { useSession } from './session';
 
-/** Rust stores the label as ShortText<32>: at most 32 UTF-8 bytes, no control characters. */
-export const NAME_MAX_BYTES = 32;
+/** Rust stores the label as ShortText<32> (table-proto envelope.rs): at most 32 characters
+ *  (Unicode scalar values, not bytes), no control character (`char::is_control`, C0, DEL and C1)
+ *  and none of the invisible characters that reorder or hide text (`spoofing`). Joiners stay. */
+export const NAME_MAX_CHARS = 32;
+const SPOOFING = /[؜​‎‏‪-‮⁠⁦-⁩﻿]/u;
 export function nameProblem(name: string): string | null {
   const t = name.trim();
   if (!t) return 'give them a name first';
-  if (new TextEncoder().encode(t).length > NAME_MAX_BYTES) return 'that name is too long · shorten it';
-  // eslint-disable-next-line no-control-regex
-  if (/[\x00-\x1f\x7f]/.test(t)) return 'the name has a character that can’t be used';
+  if ([...t].length > NAME_MAX_CHARS) return 'that name is too long · shorten it';
+  if (/\p{Cc}/u.test(t) || SPOOFING.test(t)) return 'the name has a character that can’t be used';
   return null;
 }
 
@@ -175,7 +177,6 @@ export function PairingConfirm({ pending, readError, onSettled }: Props) {
           id="ow-pname"
           className="ui-field"
           value={name}
-          maxLength={NAME_MAX_BYTES}
           onChange={(e) => setName(e.target.value)}
           placeholder={pending.house ? 'House seller' : 'e.g. Dan · north-desk'}
           autoComplete="off"
