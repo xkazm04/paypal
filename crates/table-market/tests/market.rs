@@ -225,3 +225,106 @@ async fn a_transport_that_cannot_give_the_bytes_gives_no_market_record() {
         Err(Error::Unavailable)
     ));
 }
+/// A comparables answer with any status and body.
+#[derive(Debug)]
+struct Raw(u16, String);
+#[async_trait]
+impl Transport for Raw {
+    async fn send_raw(&self, _: Request) -> Result<RawResponse, TransportError> {
+        Ok(RawResponse {
+            status: self.0,
+            bytes: self.1.clone().into_bytes(),
+        })
+    }
+    async fn send(&self, _: Request) -> Result<Response, TransportError> {
+        unreachable!("comparables are read as raw bytes")
+    }
+}
+async fn similar(status: u16, body: String) -> Result<MarketRef, Error> {
+    Client::new(
+        Arc::new(Raw(status, body)),
+        Arc::new(Key),
+        Arc::new(FixedClock(100)),
+    )
+    .comparables("product", Currency::USD)
+    .await
+}
+fn minors(band: &MarketRef) -> Vec<i64> {
+    let certificate = band.certificate.as_ref().unwrap();
+    certificate.comparables.iter().map(|c| c.minor).collect()
+}
+#[tokio::test]
+async fn each_product_is_priced_by_its_lowest_positive_offer_in_the_asked_currency() {
+    // Product one: an EUR offer below every USD one, a zero USD offer, then 12.00 and 11.00: the
+    // comparable is 11.00. Product two has no USD offer and is left out.
+    let body = r#"{"products":[
+        {"id":"p-1","offers":[{"price":{"price":"1.00","currency":"EUR"}},{"price":{"price":"0.00","currency":"USD"}},{"price":{"price":"12.00","currency":"USD"}},{"price":{"price":11.00,"currency":"USD"}}]},
+        {"id":"p-2","offers":[{"price":{"price":"3.00","currency":"EUR"}}]},
+        {"id":"p-3","offers":[{"price":{"price":"20.00","currency":"USD"}}]}
+    ]}"#;
+    let band = similar(200, body.into()).await.unwrap();
+    assert_eq!(minors(&band), [1100, 2000]);
+    let ids: Vec<_> = band
+        .certificate
+        .as_ref()
+        .unwrap()
+        .comparables
+        .iter()
+        .map(|c| c.product_id.clone())
+        .collect();
+    assert_eq!(ids, [Some("p-1".to_owned()), Some("p-3".to_owned())]);
+}
+#[tokio::test]
+async fn no_offer_in_the_asked_currency_is_no_reference_not_a_zero_band() {
+    let body = r#"{"products":[{"offers":[{"price":{"price":"3.00","currency":"EUR"}}]}]}"#;
+    assert!(matches!(
+        similar(200, body.into()).await,
+        Err(Error::NoReference)
+    ));
+    assert!(matches!(
+        similar(200, r#"{"products":[]}"#.into()).await,
+        Err(Error::NoReference)
+    ));
+}
+#[tokio::test]
+async fn statuses_map_to_no_reference_or_unavailable_and_malformed_bodies_to_invalid() {
+    assert!(matches!(
+        similar(404, String::new()).await,
+        Err(Error::NoReference)
+    ));
+    for status in [201, 401, 429, 500] {
+        assert!(
+            matches!(
+                similar(status, SIMILAR.into()).await,
+                Err(Error::Unavailable)
+            ),
+            "{status}"
+        );
+    }
+    // A price that is no decimal (a negative one included) refuses the whole answer: the record
+    // is of the bytes as they arrived, so nothing in it is quietly dropped.
+    let negative = r#"{"products":[{"offers":[{"price":{"price":"-5.00","currency":"USD"}}]}]}"#;
+    for body in [
+        "not json",
+        r#"{"items":[]}"#,
+        r#"{"products":[{"id":"p"}]}"#,
+        negative,
+    ] {
+        assert!(
+            matches!(similar(200, body.into()).await, Err(Error::Invalid)),
+            "{body}"
+        );
+    }
+}
+#[tokio::test]
+async fn at_most_the_request_limit_of_products_is_kept_in_the_services_order() {
+    let products: Vec<String> = (1..=MAX_MARKET_COMPARABLES + 3)
+        .map(|n| format!(r#"{{"offers":[{{"price":{{"price":"{n}.00","currency":"USD"}}}}]}}"#))
+        .collect();
+    let body = format!(r#"{{"products":[{}]}}"#, products.join(","));
+    let band = similar(200, body).await.unwrap();
+    let want: Vec<i64> = (1..=MAX_MARKET_COMPARABLES)
+        .map(|n| i64::try_from(n).unwrap() * 100)
+        .collect();
+    assert_eq!(minors(&band), want);
+}
