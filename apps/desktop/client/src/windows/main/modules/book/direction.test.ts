@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Deal } from '@bindings/Deal';
 import type { JsonValue } from '@bindings/serde_json/JsonValue';
 import { mockBackend, resetMockState } from '../../../../mock/backend';
-import { dirOf, outsideGrid, runQuery, stateKey, type Ctx } from './model';
+import { dirOf, runQuery, stateKey, type Ctx } from './model';
 import { lensQuery, understand, type AskCtx, type Understanding, type Understood } from './understand';
 
 // Wednesday 7 Oct 2026, 15:30 in a UTC+2 calendar.
@@ -104,15 +104,5 @@ describe('the mock book_query groups by who decided, like Rust, not by when', ()
     expect(new Set(lines).size).toBe(lines.length);
     const deals = (await main.invoke('list_deals', null)) as Deal[];
     expect(rows.reduce((n, r) => n + Number(r.count), 0)).toBe(deals.length);
-  });
-});
-
-describe('deals the answer reaches but the grid does not show', () => {
-  it('counts the answer’s deals missing from the grid', () => {
-    const grid = [deal('a', 'buyer', 'CAPTURED', 1), deal('b', 'buyer', 'CAPTURED', 1)];
-    const answer = [...grid, deal('old', 'buyer', 'CAPTURED', 1)];
-    expect(outsideGrid(answer, grid)).toBe(1);
-    expect(outsideGrid(grid, grid)).toBe(0);
-    expect(outsideGrid([], grid)).toBe(0);
   });
 });

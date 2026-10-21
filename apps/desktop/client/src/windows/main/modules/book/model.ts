@@ -59,7 +59,6 @@ export function sums(deals: readonly Deal[], checking: (d: Deal) => boolean = ()
 // ---- the PayPal statement ------------------------------------------------------------------------
 
 export type Statement = Reconciliation | 'unknown';
-export const STATEMENTS: readonly Statement[] = ['matched', 'pending_reporting', 'mismatch', 'not_applicable', 'unknown'];
 export const STATEMENT_SHORT: Record<Statement, string> = { matched: 'matched', pending_reporting: 'pending', mismatch: 'mismatch', not_applicable: 'n/a', unknown: 'unknown' };
 export const STATEMENT_TIP: Record<Statement, string> = {
   matched: 'PayPal’s own statement shows this payment',
@@ -236,13 +235,6 @@ function groupKey(d: Deal, g: GroupBy, ctx: Ctx): [string, string] {
     case 'counterparty': return [ctx.cpName(d), ctx.cpName(d)];
     case 'decided_by': { const f = decidedBy(d); return [f.who, DECIDED_GROUP[f.who]]; }
   }
-}
-
-/** How many of the answer's deals the grid does not show (the answer reads every deal on record,
- *  the grid only the week's). */
-export function outsideGrid(answer: readonly Pick<Deal, 'id'>[], grid: readonly Pick<Deal, 'id'>[]): number {
-  const shown = new Set(grid.map((d) => d.id));
-  return answer.filter((d) => !shown.has(d.id)).length;
 }
 
 /** Run a lens over the rows the window already holds. Read-only by construction. The
