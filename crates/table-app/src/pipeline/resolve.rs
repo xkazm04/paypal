@@ -7,6 +7,7 @@
 //! the same PayPal-Request-Id and the same recorded authority, which is re-checked first. A new
 //! operation identity is never minted. What the resolver cannot settle is parked for the owner
 //! with one audit row and is not retried.
+use super::send::Settle;
 use super::{Authority, MoneyStep, Pipeline, shield_allows};
 use crate::Error;
 use table_core::*;
@@ -415,12 +416,14 @@ impl Pipeline {
         )?;
         // The approval window is counted from the first attempt: never later than PayPal's.
         self.send_settle(
-            deal.id,
-            op.attempt,
-            order.id,
-            &url,
-            &expected,
-            op.started_at,
+            Settle {
+                id: deal.id,
+                attempt: op.attempt,
+                order_id: order.id,
+                url: &url,
+                expected: &expected,
+                created: op.started_at,
+            },
             now,
         )?;
         Ok(())
