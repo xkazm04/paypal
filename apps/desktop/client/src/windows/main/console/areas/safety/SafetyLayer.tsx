@@ -61,7 +61,7 @@ export function SafetyLayer({ nav }: LayerProps) {
   const again = <Btn disabled={q.loading} onClick={() => void q.refetch()} title={SAFETY_LAYER.againTitle}>{SAFETY_LAYER.again}</Btn>;
   if (!r) {
     return (
-      <PlaceFrame root="ar-safety" place="safety" tone="var(--teal)" kicker={SAFETY_KICKER('…')} answer={q.error ? SAFETY_UNREAD : SAFETY_READING}
+      <PlaceFrame root="ar-safety" place="safety" tone="var(--teal)" kicker={SAFETY_KICKER(null)} answer={q.error ? SAFETY_UNREAD : SAFETY_READING}
         sub={q.error ? SAFETY_UNREAD_SUB : SAFETY_READING_SUB} action={again}>
         {q.error ? <WalletNotice error={q.error} what={NOTICE_WHAT.safety} /> : null}
       </PlaceFrame>

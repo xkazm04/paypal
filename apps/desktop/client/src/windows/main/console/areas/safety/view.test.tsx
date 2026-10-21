@@ -6,7 +6,7 @@ import { cleanup, fireEvent, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SafetyRecord } from '@bindings/SafetyRecord';
 import { safetyWords } from '../../../safety/model';
-import { SAFETY_CARD, SAFETY_VIEW } from '../../../../../lib/words';
+import { SAFETY_CARD, SAFETY_KICKER, SAFETY_VIEW } from '../../../../../lib/words';
 import { recordFacts, refusedCard, SafetyDetails, SafetyFindings, SafetyWho } from './SafetyLayer';
 
 const ID = '01JD0000000000000000000190';
@@ -92,6 +92,12 @@ describe('the safety record', () => {
     // An intact record keeps every count, zero included.
     expect(recordFacts(rec()).map(([k]) => k)).toEqual([SAFETY_VIEW.records, SAFETY_VIEW.chain, SAFETY_VIEW.dealsChecked, SAFETY_VIEW.histories, SAFETY_VIEW.refusedDeals, SAFETY_VIEW.moneySteps]);
     expect(refusedCard(rec({ refusals: 0 })).value).toBe(SAFETY_CARD.refusedNone);
+  });
+
+  it('the kicker claims a check only once there was one', () => {
+    expect(SAFETY_KICKER(null)).toBe('Your safety record');
+    expect(SAFETY_KICKER(null)).not.toMatch(/checked/);
+    expect(SAFETY_KICKER('14:05')).toBe('Your safety record · checked 14:05');
   });
 
   it('the cards speak in the singular for one', () => {
