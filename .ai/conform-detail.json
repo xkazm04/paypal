@@ -5094,6 +5094,83 @@
           "evidence": "apps/desktop/client/src/lib/data/useWindowedRows.ts:153 The hook returns row descriptions and offsets, leaving DOM content to React rather than managing leaf-content pools."
         }
       ]
+    },
+    "7e6e9781-1ef3-439c-ae2d-00619d2cb1d9/sql-console": {
+      "context": "console-navigation-and-lists",
+      "subject": "sql-console",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-21",
+      "evaluatedTs": "2026-10-21T23:16:03.129Z",
+      "worker": "12569479-bbd1-4b17-b14e-5b9baa1ff6fd",
+      "techniques": [
+        {
+          "technique": "dialect-capability-declaration",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/BeadStrip.tsx:46 The strip groups wallet modules; it does not select database dialects."
+        },
+        {
+          "technique": "introspection-architecture",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/Find.tsx:40 The index reads wallet state rather than a foreign database catalog."
+        },
+        {
+          "technique": "nl-assist-gating",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/findIndex.ts:52 Search performs substring matching; it does not generate SQL."
+        },
+        {
+          "technique": "result-fidelity",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/rows.tsx:101 Rows render domain-specific deal amounts rather than arbitrary SQL result values."
+        },
+        {
+          "technique": "safe-mode-guarding",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/Waiting.tsx:92 Activating a waiting row selects a wallet decision; no SQL statement reaches an executor."
+        }
+      ]
+    },
+    "c02a6103-08a3-462b-84a7-23d7c9ec8c58/sql-console": {
+      "context": "console-framework",
+      "subject": "sql-console",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-21",
+      "evaluatedTs": "2026-10-21T23:16:03.129Z",
+      "worker": "12569479-bbd1-4b17-b14e-5b9baa1ff6fd",
+      "techniques": [
+        {
+          "technique": "dialect-capability-declaration",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/ModuleLayer.tsx:77 The framework derives appearance from wallet modules, without database dialect capabilities."
+        },
+        {
+          "technique": "editor-ergonomics",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/Console.tsx:257 The shortcut opens application navigation; this framework exposes no SQL editor."
+        },
+        {
+          "technique": "introspection-architecture",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/ledger.ts:25 The ledger helper derives wallet status from deals and attention items, without catalog introspection."
+        },
+        {
+          "technique": "nl-assist-gating",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/Console.tsx:243 Find dispatches typed navigation targets; it supplies no generated SQL execution lane."
+        },
+        {
+          "technique": "result-fidelity",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/StaleBanner.tsx:21 The failure surface concerns wallet resource reads, rather than SQL execution outcomes."
+        },
+        {
+          "technique": "safe-mode-guarding",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/Centre.tsx:150 The decision action opens the wallet approval window; SQL mutation classification has no execution target here."
+        }
+      ]
     }
   }
 }

@@ -8924,7 +8924,11 @@
           "revision": 1,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/layers.registry.ts:24 The registry hosts wallet application areas, and context and repository searches found none of the listed SQL-console terms or an external-database SQL execution surface.",
+          "evaluatedAt": "2026-10-21",
+          "evaluatedAgainst": "sha256-b2:60a26f15745fd8c1",
+          "evaluatedRevision": 1
         },
         {
           "subject": "agent-runtime-assembly",
@@ -9044,7 +9048,11 @@
           "revision": 1,
           "changedAt": "2026-09-05",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:137 These surfaces filter and navigate wallet data in memory, and context and repository searches found none of the listed SQL-console terms, so the external-database SQL execution precondition does not hold.",
+          "evaluatedAt": "2026-10-21",
+          "evaluatedAgainst": "sha256-b2:60a26f15745fd8c1",
+          "evaluatedRevision": 1
         },
         {
           "subject": "prompt-assembly",
