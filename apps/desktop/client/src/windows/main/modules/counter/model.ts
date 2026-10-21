@@ -248,7 +248,8 @@ export function matchesFilter(row: CatalogRow, f: CatalogFilter, draft: FloorDra
     case 'all': return true;
     case 'live': return row.deals.some(isLive);
     case 'over': { const c = vsMarket(draftFloor(row, draft), row.market).cls; return c === 'over' || c === 'above'; }
-    case 'draft': return draft[row.itemRef] !== undefined && floorText(row, {}) !== draft[row.itemRef];
+    // The same verdict as the tray's: a change draftState lists, or a price still to fix.
+    case 'draft': { const s = draftState([row], draft); return s.diff.length > 0 || s.errors.length > 0; }
   }
 }
 

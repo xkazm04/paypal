@@ -137,6 +137,10 @@ describe('the floor draft', () => {
     expect(matchesFilter(r, 'live', {})).toBe(true);
     expect(matchesFilter(r, 'draft', {})).toBe(false);
     expect(matchesFilter(r, 'draft', { arm: '62' })).toBe(true);
+    // The Changed filter agrees with the draft: the signed price typed another way is no change.
+    expect(matchesFilter(r, 'draft', { arm: '58.00' })).toBe(false);
+    expect(matchesFilter(r, 'draft', { arm: '$58' })).toBe(false);
+    expect(matchesFilter(r, 'draft', { arm: 'x' })).toBe(true);
   });
   it('compares the floor with the unit price, as clause 4 does, never with the order total', () => {
     // Two at $40 is an $80 quote, but each unit is under a $58 floor: signing withdraws it.
