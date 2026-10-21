@@ -600,10 +600,10 @@ function blockedReason(g: Gates, locked: boolean): string | null {
   return order.find((x) => x.visible && !x.enabled)?.reason ?? null;
 }
 
-/** The money actions that are hold-to-confirm (never Open PayPal, Withdraw, Cancel or Close). */
 /** The heading of an owner read of a lost authorize that failed, in place of "Not approved". */
 const READ_FAILED = 'PayPal didn’t answer yet';
 
+/** The money actions that are hold-to-confirm (never Open PayPal, Withdraw, Cancel or Close). */
 export const HOLD_KEYS: ReadonlySet<string> = new Set(['oa', 'cs', 'cap', 'res', 'rel']);
 
 type Act = { key: string; gate: Gate; label: string; kind: 'gold' | 'default' | 'danger' | 'plain'; money: boolean; run: () => void };
