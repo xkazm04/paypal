@@ -26,33 +26,53 @@ impl std::fmt::Debug for Configuration {
         f.write_str("HouseConfiguration { [REDACTED] }")
     }
 }
+/// Why the environment was refused: fixed text naming the variable, never its value.
+const OWNER_KEY: [&str; 2] = [
+    "HOUSE_OWNER_KEY_BASE64 is missing or empty",
+    "HOUSE_OWNER_KEY_BASE64 is not 32 bytes of standard base64",
+];
+const AGENT_KEY: [&str; 2] = [
+    "HOUSE_AGENT_KEY_BASE64 is missing or empty",
+    "HOUSE_AGENT_KEY_BASE64 is not 32 bytes of standard base64",
+];
 fn required(
     read: &impl Fn(&str) -> Option<String>,
     name: &str,
+    missing: &'static str,
 ) -> Result<Zeroizing<String>, Error> {
     read(name)
         .filter(|v| !v.is_empty())
         .map(Zeroizing::new)
-        .ok_or(Error::Invalid)
+        .ok_or(Error::Config(missing))
 }
-fn key(read: &impl Fn(&str) -> Option<String>, name: &str) -> Result<SigningKey, Error> {
-    let raw = required(read, name)?;
+fn key(
+    read: &impl Fn(&str) -> Option<String>,
+    name: &str,
+    [missing, malformed]: [&'static str; 2],
+) -> Result<SigningKey, Error> {
+    let raw = required(read, name, missing)?;
     let bytes = Zeroizing::new(
         STANDARD
             .decode(raw.as_bytes())
-            .map_err(|_| Error::Invalid)?,
+            .map_err(|_| Error::Config(malformed))?,
     );
-    let seed: Zeroizing<[u8; 32]> =
-        Zeroizing::new(bytes.as_slice().try_into().map_err(|_| Error::Invalid)?);
+    let seed: Zeroizing<[u8; 32]> = Zeroizing::new(
+        bytes
+            .as_slice()
+            .try_into()
+            .map_err(|_| Error::Config(malformed))?,
+    );
     Ok(SigningKey::from_bytes(&seed))
 }
 /// Offline release preparation: expose only the public agent key for the mandate payload.
 pub fn public_agent_key() -> Result<[u8; 32], Error> {
-    Ok(
-        key(&|name| std::env::var(name).ok(), "HOUSE_AGENT_KEY_BASE64")?
-            .verifying_key()
-            .to_bytes(),
-    )
+    Ok(key(
+        &|name| std::env::var(name).ok(),
+        "HOUSE_AGENT_KEY_BASE64",
+        AGENT_KEY,
+    )?
+    .verifying_key()
+    .to_bytes())
 }
 impl Configuration {
     pub fn from_environment() -> Result<Self, Error> {
@@ -60,18 +80,25 @@ impl Configuration {
     }
     /// Injectable reader lets ordinary tests validate configuration without mutating process env.
     pub fn read(read: impl Fn(&str) -> Option<String>) -> Result<Self, Error> {
-        let owner = key(&read, "HOUSE_OWNER_KEY_BASE64")?;
-        let agent = key(&read, "HOUSE_AGENT_KEY_BASE64")?;
-        let raw = required(&read, "HOUSE_MANDATE_JSON")?;
-        let mandate: OpenMandate = serde_json::from_str(&raw).map_err(|_| Error::Invalid)?;
+        let owner = key(&read, "HOUSE_OWNER_KEY_BASE64", OWNER_KEY)?;
+        let agent = key(&read, "HOUSE_AGENT_KEY_BASE64", AGENT_KEY)?;
+        let raw = required(
+            &read,
+            "HOUSE_MANDATE_JSON",
+            "HOUSE_MANDATE_JSON is missing or empty",
+        )?;
+        let mandate: OpenMandate = serde_json::from_str(&raw)
+            .map_err(|_| Error::Config("HOUSE_MANDATE_JSON is not a signed mandate"))?;
         table_proto::verify_mandate_signature(
             &mandate.payload,
             &mandate.owner_sig,
             &owner.verifying_key(),
         )
-        .map_err(|_| Error::Invalid)?;
+        .map_err(|_| Error::Config("HOUSE_MANDATE_JSON is not signed by HOUSE_OWNER_KEY_BASE64"))?;
         if mandate.payload.agent_key != agent.verifying_key().to_bytes() {
-            return Err(Error::Invalid);
+            return Err(Error::Config(
+                "HOUSE_MANDATE_JSON names another agent key than HOUSE_AGENT_KEY_BASE64",
+            ));
         }
         Ok(Self {
             owner,
@@ -116,5 +143,75 @@ impl Credentials for EnvironmentCredentials {
             return Err(table_paypal::Error::Invalid);
         }
         Ok((Secret::new(id), Secret::new(secret)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use base64::engine::general_purpose::STANDARD;
+
+    /// A seed that must never reach an error text.
+    const SEED: [u8; 32] = [7; 32];
+    fn reader(over: &'static str, value: Option<&'static str>) -> impl Fn(&str) -> Option<String> {
+        move |name: &str| {
+            if name == over {
+                return value.map(str::to_owned);
+            }
+            match name {
+                "HOUSE_OWNER_KEY_BASE64" | "HOUSE_AGENT_KEY_BASE64" => Some(STANDARD.encode(SEED)),
+                "HOUSE_MANDATE_JSON" => Some("{}".into()),
+                _ => None,
+            }
+        }
+    }
+    fn refusal(read: impl Fn(&str) -> Option<String>) -> String {
+        match Configuration::read(read) {
+            Err(e @ Error::Config(_)) => e.to_string(),
+            Err(e) => format!("not a configuration refusal: {e}"),
+            Ok(_) => "accepted".into(),
+        }
+    }
+    #[test]
+    fn a_refused_environment_names_the_variable_and_never_its_value() {
+        let seed = STANDARD.encode(SEED);
+        for (over, value, names) in [
+            (
+                "HOUSE_OWNER_KEY_BASE64",
+                None,
+                "HOUSE_OWNER_KEY_BASE64 is missing",
+            ),
+            (
+                "HOUSE_OWNER_KEY_BASE64",
+                Some(""),
+                "HOUSE_OWNER_KEY_BASE64 is missing",
+            ),
+            (
+                "HOUSE_OWNER_KEY_BASE64",
+                Some("not base64!"),
+                "HOUSE_OWNER_KEY_BASE64 is not 32",
+            ),
+            (
+                "HOUSE_AGENT_KEY_BASE64",
+                None,
+                "HOUSE_AGENT_KEY_BASE64 is missing",
+            ),
+            (
+                "HOUSE_AGENT_KEY_BASE64",
+                Some("AAAA"),
+                "HOUSE_AGENT_KEY_BASE64 is not 32",
+            ),
+            ("HOUSE_MANDATE_JSON", None, "HOUSE_MANDATE_JSON is missing"),
+            (
+                "HOUSE_MANDATE_JSON",
+                Some("{\"x\":1}"),
+                "HOUSE_MANDATE_JSON is not a signed",
+            ),
+        ] {
+            let text = refusal(reader(over, value));
+            assert!(text.contains(names), "{over}={value:?}: {text}");
+            assert!(!text.contains(&seed), "{over}: the seed leaked into {text}");
+            assert_eq!(Error::Config("x").code(), "config");
+        }
     }
 }

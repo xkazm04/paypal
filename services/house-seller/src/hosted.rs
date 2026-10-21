@@ -29,6 +29,10 @@ use tokio::sync::{Notify, mpsc, oneshot};
 pub enum Error {
     #[error("invalid house configuration or request")]
     Invalid,
+    /// Startup refused the host environment. The text is fixed and names the variable, never
+    /// its value, so the operator's deploy log says which one to fix.
+    #[error("house configuration refused: {0}")]
+    Config(&'static str),
     #[error("house capacity reached")]
     Full,
     #[error("house temporarily unavailable")]
@@ -54,6 +58,7 @@ impl Error {
     pub fn code(&self) -> &'static str {
         match self {
             Self::Invalid => "invalid",
+            Self::Config(_) => "config",
             Self::Full => "full",
             Self::Unavailable => "unavailable",
             Self::Ledger(e) | Self::App(table_app::Error::Ledger(e)) => match e {
