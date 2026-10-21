@@ -8,7 +8,8 @@
 // (scale finding #17: the page never reads every record for every view): on open the page reads
 // only the conversation, the signed rules (shared with the Rules layer) and - only when PayPal
 // has records for this deal - its proof, which the answer and the milestones need to say a
-// payment is being checked with PayPal. Nothing here moves money: the decision hands off to the
+// payment is being checked with PayPal; and, only on an ended deal, its verified record, for the
+// "What you were shown" strip (ShownStrip.tsx). Nothing here moves money: the decision hands off to the
 // approval window; Start agent, Let it lapse and Withdraw are the existing commands.
 import { useEffect, useMemo, useState } from 'react';
 import type { Clause } from '@bindings/Clause';
