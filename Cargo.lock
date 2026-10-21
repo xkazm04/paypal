@@ -4198,6 +4198,7 @@ dependencies = [
  "table-proto",
  "tokio",
  "tower",
+ "zeroize",
 ]
 
 [[package]]
