@@ -7,7 +7,7 @@ import { COUNTER, houseWords, moneyCheckNow, stateWord, TABLES_TRADE } from '../
 import { ModeBadge, WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, Disclosure, Kv, Loading, Section, Silence, type ChipTone } from '../../../../../shared/ui';
 import { stepWords } from '../../../deal/model';
-import { isLive, isTerminal, moneyNow, pairingFact, stripFor } from '../../../logic';
+import { dealTotal, isLive, isTerminal, moneyNow, pairingFact, stripFor } from '../../../logic';
 import { underDraft, type CatalogRow, type FloorDraft } from '../../../modules/counter/model';
 import { useCpLookup } from '../../../ui';
 import { useNeedOf, type Display } from '../../../world';
@@ -51,7 +51,7 @@ export function OrderPane({ deal, disp, row, draft }: { deal: Deal; disp: Displa
       </header>
       <div className="ctr-top">
         <StateChip deal={deal} />
-        <Amount money={{ minor: deal.terms.unit_price.minor * deal.terms.qty, currency: deal.terms.currency }} className="big" />
+        <Amount money={dealTotal(deal)} className="big" />
         {live ? <Countdown deadline={deadline} /> : null}
         {deal.mode !== 'sandbox' ? <ModeBadge mode={deal.mode} /> : null}
       </div>
