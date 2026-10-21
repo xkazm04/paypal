@@ -56,6 +56,16 @@ async function mount(o: { hold?: string[]; fail?: string[] } = {}): Promise<Harn
   };
 }
 
+describe('a read of the cards that fails', () => {
+  it('says what is shown may be out of date, instead of drawing it as current', async () => {
+    const h = await mount({ fail: ['attention_list'] });
+    await waitFor(() => expect(h.calls).toContain('attention_list'));
+    h.emit('tumbler:form', 'stack');
+    await waitFor(() => expect(h.root.querySelector('.f.stack')).not.toBeNull());
+    await waitFor(() => expect(h.root.textContent).toMatch(/may be out of date/));
+  });
+});
+
 describe('Withdraw from the Tumbler', () => {
   it('sends one withdraw, however often W is pressed while the wallet answers', async () => {
     const h = await mount({ hold: ['deal_withdraw'] });

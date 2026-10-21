@@ -211,6 +211,8 @@ export function Tumbler() {
     try {
       applySnapshot(await backend().invoke('attention_list', null));
     } catch (e) {
+      // The cards on screen are the last good read (or none): say so until the next good one.
+      setStale(true);
       console.warn('attention_list', toWalletError(e).message);
     }
   }, [applySnapshot]);
