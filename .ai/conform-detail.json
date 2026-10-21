@@ -5012,6 +5012,88 @@
           "evidence": "apps/desktop/client/src/windows/main/console/Find.tsx:43 The index uses existing wallet deal identities, without discovering or identifying shared-protocol upstreams."
         }
       ]
+    },
+    "9a477925-2fcc-4133-982d-849ca52dbe7f/render-mount-pipeline": {
+      "context": "shared-ui-primitives",
+      "subject": "render-mount-pipeline",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-21",
+      "evaluatedTs": "2026-10-21T22:47:11.774Z",
+      "techniques": [
+        {
+          "technique": "blueprint-then-mount",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/ui/components.tsx:118 Primitives declare DOM elements for React and browser layout; the technique explicitly exempts platform-managed layout."
+        },
+        {
+          "technique": "edge-sorted-incremental-mount",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/ui/Popover.tsx:34 Scroll handling positions one mounted panel; it does not window a collection of render units."
+        },
+        {
+          "technique": "mount-binders-versus-attach-binders",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/ui/Popover.tsx:52 The listener uses React effect teardown; there is no separate retained-host detach/reattach binding protocol."
+        },
+        {
+          "technique": "mount-references-across-features",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/ui/Presence.tsx:28 Presence owns a timed exit retention; no visibility window competes with focus or gestures over these children."
+        },
+        {
+          "technique": "preempt-and-continue-shared-computation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/boundary/LayerSuspense.tsx:11 Loading is delegated to React Suspense, without a product-owned resumable layout computation or thread handover."
+        },
+        {
+          "technique": "recycle-by-content-type",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/ui/toast.tsx:29 React reconciles ordinary keyed DOM children; this context does not own leaf-content allocation or recycling pools."
+        }
+      ],
+      "withdrawn": {
+        "worker": "9a0d83bd-c4fe-4b7b-98bf-fcced595113f",
+        "state": "not-applicable",
+        "at": "2026-10-21T22:48:04.167489+00:00",
+        "reason": "reviewer (sonnet): The anchor Disclosure.tsx:6 is a native <details> element that sits in the context but does not itself show that a render-mount pipeline is absent. The absence rests on a four-term grep (useVirtualizer, renderUnit, mountBinder, premount) that I could not confirm covers this subject."
+      }
+    },
+    "92cbc0b8-5203-4da1-a2ac-4bf381ab1569/render-mount-pipeline": {
+      "context": "client-foundation",
+      "subject": "render-mount-pipeline",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-21",
+      "evaluatedTs": "2026-10-21T22:47:11.774Z",
+      "worker": "9a0d83bd-c4fe-4b7b-98bf-fcced595113f",
+      "techniques": [
+        {
+          "technique": "blueprint-then-mount",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/mount.tsx:22 React owns host reconciliation and the browser owns DOM layout; no second product-owned blueprint is required."
+        },
+        {
+          "technique": "mount-binders-versus-attach-binders",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/hooks.ts:23 Event subscriptions have React effect cleanup; these hooks do not implement a distinct retained-host attachment lifecycle."
+        },
+        {
+          "technique": "mount-references-across-features",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/data/useWindowedRows.ts:78 The visible-range union preserves focus by stable key, but focusedKey is never cleared when focus leaves the list, missing the technique's condition-ended release."
+        },
+        {
+          "technique": "preempt-and-continue-shared-computation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/mount.tsx:19 This await initializes the backend before rendering; it is not a frame-thread request joining resumable background layout."
+        },
+        {
+          "technique": "recycle-by-content-type",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/data/useWindowedRows.ts:153 The hook returns row descriptions and offsets, leaving DOM content to React rather than managing leaf-content pools."
+        }
+      ]
     }
   }
 }

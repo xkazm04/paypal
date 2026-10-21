@@ -1,0 +1,90 @@
+{
+  "schema": "conform-run/1",
+  "worker": "9a0d83bd-c4fe-4b7b-98bf-fcced595113f",
+  "subject": "render-mount-pipeline",
+  "evaluatedAt": "2026-10-21T22:47:11.774294+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [
+    {
+      "context": "client-foundation",
+      "subject": "render-mount-pipeline",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "apps/desktop/client/src/lib/data/useWindowedRows.ts:78 The range extractor pins the remembered focused row without a blur/release path, so moving focus outside the list leaves that off-screen row mounted after its focus claim should end.",
+      "techniques": [
+        {
+          "technique": "blueprint-then-mount",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/mount.tsx:22 React owns host reconciliation and the browser owns DOM layout; no second product-owned blueprint is required."
+        },
+        {
+          "technique": "mount-binders-versus-attach-binders",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/hooks.ts:23 Event subscriptions have React effect cleanup; these hooks do not implement a distinct retained-host attachment lifecycle."
+        },
+        {
+          "technique": "mount-references-across-features",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/data/useWindowedRows.ts:78 The visible-range union preserves focus by stable key, but focusedKey is never cleared when focus leaves the list, missing the technique's condition-ended release."
+        },
+        {
+          "technique": "preempt-and-continue-shared-computation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/mount.tsx:19 This await initializes the backend before rendering; it is not a frame-thread request joining resumable background layout."
+        },
+        {
+          "technique": "recycle-by-content-type",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/data/useWindowedRows.ts:153 The hook returns row descriptions and offsets, leaving DOM content to React rather than managing leaf-content pools."
+        }
+      ]
+    }
+  ],
+  "declined": [
+    {
+      "subject": "render-mount-pipeline",
+      "context": "shared-ui-primitives",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor Disclosure.tsx:6 is a native <details> element that sits in the context but does not itself show that a render-mount pipeline is absent. The absence rests on a four-term grep (useVirtualizer, renderUnit, mountBinder, premount) that I could not confirm covers this subject."
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-21T22:47:11.774294+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "render-mount-pipeline"
+      ],
+      "techniques": [
+        "blueprint-then-mount",
+        "edge-sorted-incremental-mount",
+        "mount-binders-versus-attach-binders",
+        "mount-references-across-features",
+        "preempt-and-continue-shared-computation",
+        "recycle-by-content-type"
+      ],
+      "deviations": 0,
+      "context": "shared-ui-primitives",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    },
+    {
+      "ts": "2026-10-21T22:47:11.774294+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "render-mount-pipeline"
+      ],
+      "techniques": [
+        "blueprint-then-mount",
+        "mount-binders-versus-attach-binders",
+        "mount-references-across-features",
+        "preempt-and-continue-shared-computation",
+        "recycle-by-content-type"
+      ],
+      "deviations": 1,
+      "context": "client-foundation",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}
