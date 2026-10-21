@@ -58,18 +58,22 @@ impl MoneyOp {
 /// What a stored PayPal call is, from its method and path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Call {
-    /// Moves no money: any method but POST, the token call, the invoice search.
+    /// Moves no money: a GET, the token call, the invoice search.
     Read,
     Op(MoneyOp),
     /// A money-shaped POST nobody named. The wallet never puts a query on a money POST, so a
-    /// query makes the call unclassified rather than the step its path would otherwise name.
+    /// query makes the call unclassified rather than the step its path would otherwise name. The
+    /// wallet sends only GET and POST, so a call under any other method (a PATCH can rewrite an
+    /// order's amount) is unclassified too, never a read.
     Unclassified,
 }
 
 /// The one path table every reader of a proof file uses.
 pub fn classify(method: &str, path: &str) -> Call {
-    if method != "POST" {
-        return Call::Read;
+    match method {
+        "GET" => return Call::Read,
+        "POST" => {}
+        _ => return Call::Unclassified,
     }
     let (path, query) = match path.split_once('?') {
         Some((path, _)) => (path, true),
@@ -93,7 +97,7 @@ pub fn classify(method: &str, path: &str) -> Call {
     }
 }
 
-/// [`classify`] as a step name: `None` for a read, `"unclassified"` for a money-shaped POST nobody
+/// [`classify`] as a step name: `None` for a read, `"unclassified"` for a money-shaped call nobody
 /// named.
 pub fn money_kind(method: &str, path: &str) -> Option<&'static str> {
     match classify(method, path) {

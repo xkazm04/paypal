@@ -292,6 +292,32 @@ fn a_money_post_with_a_query_is_unclassified_by_both_readers() {
     assert!(line.detail.contains("no known operation"), "{line:?}");
 }
 
+/// The wallet sends PayPal only GET and POST (the ledger stores no other method), so a stored call
+/// under any other method was not the wallet's: a PATCH can rewrite an order's amount before it
+/// is authorized. It is no read in either reader.
+#[test]
+fn a_call_under_any_method_but_get_or_post_is_unclassified_in_both_readers() {
+    assert_eq!(money_kind("GET", "/v2/checkout/orders/O1"), None);
+    for (method, path) in [
+        ("PATCH", "/v2/checkout/orders/O1"),
+        ("PUT", "/v2/checkout/orders/O1"),
+        ("DELETE", "/v2/invoicing/invoices/INV2-ABCD"),
+        ("post", "/v2/payments/authorizations/A1/capture"),
+        ("get", "/v2/checkout/orders/O1"),
+    ] {
+        assert_eq!(money_kind(method, path), Some("unclassified"), "{method}");
+    }
+    let mut b = bundle(Side::Buyer, DealKind::Haggle, 1000);
+    b.paypal_calls.push(ProofCall {
+        method: "PATCH".into(),
+        ..capture_call(None)
+    });
+    b.paypal_calls[0].path = "/v2/checkout/orders/O1".into();
+    let line = authority_line(&b);
+    assert!(!line.ok, "{line:?}");
+    assert!(!crate::safety::deal_violations(&b, &[]).is_empty());
+}
+
 fn capture_call(request_id: Option<&str>) -> ProofCall {
     ProofCall {
         method: "POST".into(),
