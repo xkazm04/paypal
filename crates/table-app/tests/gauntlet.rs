@@ -2138,6 +2138,14 @@ fn assert_names(found: &[String], expected: &str) {
     );
 }
 
+/// A lawful authority on a step the wallet never countersigned: the authority predicate is
+/// satisfied and the offline verifier's countersign check is the one thing named.
+fn assert_only_uncountersigned(found: &[String]) {
+    assert_eq!(found.len(), 1, "{found:#?}");
+    assert_names(found, "offline verifier check countersign failed");
+    assert_names(found, "with no countersign for its attempt");
+}
+
 /// The mutation check: a ledger holding a capture with no lawful authority (here a safe default,
 /// which may only void) is named by the predicate, and so is every other authority that does not
 /// fit its operation. A clean ledger and lawful rows pass.
@@ -2197,7 +2205,8 @@ fn the_predicate_names_an_authority_less_capture_and_every_misfit_authority() {
         "capture",
         &DecidedBy::Human { at: 150 },
     );
-    assert!(violations_of(&wallet, &[]).is_empty());
+    // It stands on its authority; with no countersign for its attempt it is still named.
+    assert_only_uncountersigned(&violations_of(&wallet, &[]));
 
     // A seller's mandate on the buyer side, and on the seller side before the buyer approved.
     let (mut wallet, deal, owner, _) = support::setup(Side::Buyer, DealKind::Haggle);
@@ -2279,7 +2288,7 @@ fn the_predicate_names_an_authority_less_capture_and_every_misfit_authority() {
         "create",
         &DecidedBy::Policy { clause: 6 },
     );
-    assert!(violations_of(&wallet, &[]).is_empty());
+    assert_only_uncountersigned(&violations_of(&wallet, &[]));
 
     // A money call at PayPal with no operation behind it.
     let (mut wallet, deal, _, _) = support::setup(Side::Buyer, DealKind::Haggle);

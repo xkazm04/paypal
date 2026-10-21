@@ -207,6 +207,20 @@ fn transcript(bundle: &ProofBundle) -> Outcome {
 
 fn closed(bundle: &ProofBundle) -> Outcome {
     let deal = &bundle.deal;
+    // The wallet countersigns an attempt before it creates or authorizes it and refuses a capture
+    // without one: a money step in with no countersign for its attempt was not the wallet's.
+    if let Some(op) = bundle.operations.iter().find(|op| {
+        matches!(op.operation.as_str(), "create" | "authorize" | "capture")
+            && !bundle
+                .closed_mandates
+                .iter()
+                .any(|c| c.attempt == op.attempt)
+    }) {
+        return Err(format!(
+            "attempt {}: a {} with no countersign for its attempt",
+            op.attempt, op.operation
+        ));
+    }
     if bundle.closed_mandates.is_empty() {
         return Ok("no countersign in this deal".into());
     }
