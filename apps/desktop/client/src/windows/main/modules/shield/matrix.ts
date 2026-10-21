@@ -22,7 +22,7 @@ import type { ShieldRule } from '@bindings/ShieldRule';
 import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import { formatMinor } from '../../../../lib/format';
 import { CHECK_NOT_ACTIVE, CHECK_QUIET, shieldRuleWord } from '../../../../lib/words';
-import { isTerminal, moneyNow } from '../../logic';
+import { dealTotal, isTerminal, moneyNow } from '../../logic';
 
 export type CheckKey = 'payee' | 'ff' | 'newcp' | 'market' | 'typology';
 export type Stage = 'rules' | 'market' | 'engine';
@@ -44,6 +44,13 @@ export const NOT_ACTIVE: readonly CheckKey[] = ['ff', 'typology'];
 export type CheckCell = { r: 'fact' | 'skip' | 'na'; s: string; l: string };
 
 const DAY = 86400;
+/** The amount over which a new payee needs the owner's OK, in the deal's own currency (Rust:
+ *  shield_gate.rs passes Money::new(10000, deal.terms.currency); normal.test.ts pins it). */
+export const NEW_PAYEE_OVER_MINOR = 10000;
+/** Rust's new-payee check: first seen in the last 24 hours AND a total over the threshold. */
+export function newPayeeAsks(d: Pick<Deal, 'terms'>, cp: CounterpartyDisplay | undefined, now: number): boolean {
+  return !!cp && now - cp.first_seen < DAY && dealTotal(d).minor > NEW_PAYEE_OVER_MINOR;
+}
 /** "today", "1 day ago", "17 days ago". */
 export function ago(unix: number, now: number): string {
   const d = Math.floor(Math.max(0, now - unix) / DAY);
@@ -150,7 +157,7 @@ export function reasonsFor(d: Pick<Deal, 'terms' | 'market' | 'shield_rule'>, cp
     out.push({ kind: 'price', icon: 'tag', text: `${p}% above the usual price`, detail: checkCell('market', d, cp, now).l });
   }
   if (!cp) out.push({ kind: 'norecord', icon: 'eye', text: 'The wallet has no record of this payee', detail: checkCell('newcp', d, cp, now).l });
-  else if (now - cp.first_seen < DAY) out.push({ kind: 'newcp', icon: 'you', text: cp.deals_closed ? 'New payee: first seen today' : 'New payee: first deal today', detail: checkCell('newcp', d, cp, now).l });
+  else if (newPayeeAsks(d, cp, now)) out.push({ kind: 'newcp', icon: 'you', text: cp.deals_closed ? 'New payee: first seen today' : 'New payee: first deal today', detail: checkCell('newcp', d, cp, now).l });
   if (!out.length) out.push({ kind: 'other', icon: 'shield', text: 'One of the shield’s other checks paused it', detail: 'Only its verdict is shown in this window, not which check found something.' });
   return out.slice(0, 3);
 }
