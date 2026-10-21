@@ -5,7 +5,7 @@ import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { unconfirmedMeans } from '../../../lib/words';
 import { buildMockState, usd } from '../../../mock/fixtures';
 import {
-  attestOf, CLAUSE_NUMBER, decisionLine, envelopeLink, evidenceLabel, latestText, mayWithdraw, milestones, mirrorStrip, readClauses, reconciliationLabel,
+  attestOf, CLAUSE_NUMBER, envelopeLink, evidenceLabel, latestText, mayWithdraw, milestones, mirrorStrip, readClauses, reconciliationLabel,
   roleFor, statementLabel, stateTone, stepLabel, timelineRows, withdrawWhat,
 } from './model';
 
@@ -171,7 +171,7 @@ describe('envelopeLink', () => {
   });
 });
 
-describe('timeline, evidence and decision', () => {
+describe('timeline, evidence and withdraw', () => {
   it('merges envelopes with the two ledger timestamps, newest first', () => {
     const steps = world.deals.find((x) => x.display.label === 'D-0193')!.transcript;
     const rows = timelineRows(steps, byLabel('D-0193'));
@@ -189,16 +189,6 @@ describe('timeline, evidence and decision', () => {
     expect(attestOf(byLabel('D-0187'), 'capture', 'SELLER_ATTESTED')).toBe('the seller says so');
     expect(attestOf(byLabel('D-0187'), 'order', 'NONE')).toContain('signed payment request');
     expect(attestOf(byLabel('D-0190'), 'authorization', 'NONE')).toContain('your wallet');
-  });
-  it('builds the decision line from the attention item, else from what may be done', () => {
-    const need = world.deals.find((x) => x.display.label === 'D-0190')!.attention!;
-    expect(decisionLine(byLabel('D-0190'), need, false)).toMatchObject({ tone: 'need', t1: 'Capture or void $64.00', t2: 'partsco' });
-    expect(decisionLine(mk({ state: 'LISTED' }), undefined, true).tone).toBe('may');
-    expect(decisionLine(byLabel('D-0196'), undefined, false).chip.text).toBe('Closed');
-    expect(decisionLine(byLabel('D-0196'), undefined, false).t2).toBeNull(); // nothing recorded: nothing claimed
-    expect(decisionLine(byLabel('D-0192'), undefined, false).t2).toBe('decided by your rule · limit per deal');
-    expect(decisionLine(byLabel('D-0180'), undefined, false).t2).toBe('decided by you');
-    expect(decisionLine(mk({ state: 'SETTLING' }), undefined, false).t1).toContain('other side');
   });
   it('offers withdraw only where Rust takes it and the item allows it', () => {
     const d0190 = world.deals.find((x) => x.display.label === 'D-0190')!;

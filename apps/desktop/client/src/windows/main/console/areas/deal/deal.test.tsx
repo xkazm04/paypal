@@ -67,6 +67,24 @@ describe('the deal page', () => {
     expectLayerHealthy(r);
   }, 60_000);
 
+  it('names the house seller as a name, never as the shout HOUSE, on the page, its story and its record', async () => {
+    const houseDeal = async (w: Backend) => {
+      const house = (await w.invoke('counterparty_list', null)).find((c) => c.house);
+      const d = (await w.invoke('list_deals', null)).find((x) => x.counterparty === house?.key_id && x.kind === 'haggle' && x.state === 'NEGOTIATING');
+      return { level: 'deal' as const, deal: d?.id ?? 'none' };
+    };
+    const r = await renderLayerAtScale(houseDeal, null);
+    const SHOUT = /\bHOUSE\b/;
+    expect(r.layer.textContent).toContain('House seller');
+    expect(r.layer.textContent ?? '').not.toMatch(SHOUT);
+    fireEvent.click(card(r.layer, DEAL_CARD.story));
+    await waitFor(() => expect(r.layer.querySelector('.dv-chat .msg')).not.toBeNull());
+    await settle();
+    const labels = [...r.layer.querySelectorAll('.dv-chat .bub')].map((b) => b.getAttribute('aria-label') ?? '');
+    expect(labels.some((l) => l.startsWith('House seller '))).toBe(true);
+    expect(`${r.layer.textContent} ${labels.join(' ')}`).not.toMatch(SHOUT);
+  }, 60_000);
+
   it('Escape closes an open view first, then goes one layer up', async () => {
     const r = await renderLayerAtScale(freshDeal, 'large');
     const c = card(r.layer, DEAL_CARD.who);
