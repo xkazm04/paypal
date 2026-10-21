@@ -115,7 +115,8 @@ pub struct AttentionSnapshot {
     // not be read; older shells omit it.
     #[serde(default)]
     #[ts(optional = nullable)]
-    pub forecast: Option<Vec<ForecastLine>>, // The wallet-wide limits and money out right now (T14): limits and numbers only. None while
+    pub forecast: Option<Vec<ForecastLine>>,
+    // The wallet-wide limits and money out right now (T14): limits and numbers only. None while
     // they could not be read; older shells omit it.
     #[serde(default)]
     #[ts(optional = nullable)]
