@@ -87,6 +87,59 @@ fn w3_release_set_is_approval_only_and_all_commands_are_declared() {
     let config: Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
     assert!(config["app"]["windows"].as_array().unwrap().is_empty());
 }
+/// The webview's security settings, written out by hand: a loosened CSP, an extra capability or a
+/// global IPC object passes every other gate, so each is pinned here and changed only on purpose.
+#[test]
+fn the_webview_security_config_is_pinned() {
+    let config: Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+    let app = config["app"].as_object().unwrap();
+    // No `withGlobalTauri` (window.__TAURI__ for any script) or other app-level switch.
+    let app_keys: Vec<&str> = app.keys().map(String::as_str).collect();
+    assert_eq!(app_keys, ["security", "windows"]);
+    // Only csp and the capability list: no devCsp, assetProtocol, headers or
+    // dangerousDisableAssetCspModification.
+    let security = app["security"].as_object().unwrap();
+    let security_keys: Vec<&str> = security.keys().map(String::as_str).collect();
+    assert_eq!(security_keys, ["capabilities", "csp"]);
+    // Exactly the three generated capabilities are enabled, one per window label...
+    let listed: Vec<&str> = security["capabilities"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect();
+    let labels = table_client::authority::WindowLabel::ALL.map(|l| l.as_str());
+    assert_eq!(listed, labels);
+    // ...and no other capability file sits beside them.
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("capabilities");
+    let mut files: Vec<String> = std::fs::read_dir(dir)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().into_string().unwrap())
+        .collect();
+    files.sort();
+    let mut expected: Vec<String> = labels.iter().map(|l| format!("{l}.json")).collect();
+    expected.sort();
+    assert_eq!(files, expected);
+    // The content security policy, directive by directive.
+    let csp = security["csp"].as_str().unwrap();
+    let directives: std::collections::BTreeMap<&str, Vec<&str>> = csp
+        .split(';')
+        .map(|d| {
+            let mut words = d.split_whitespace();
+            (words.next().unwrap(), words.collect())
+        })
+        .collect();
+    let pinned: std::collections::BTreeMap<&str, Vec<&str>> = [
+        ("default-src", vec!["'self'"]),
+        ("connect-src", vec!["ipc:", "http://ipc.localhost"]),
+        ("style-src", vec!["'self'"]),
+        ("script-src", vec!["'self'"]),
+        ("object-src", vec!["'none'"]),
+        ("frame-src", vec!["'none'"]),
+    ]
+    .into();
+    assert_eq!(directives, pinned, "{csp}");
+}
 #[test]
 fn client_reads_and_snooze_have_their_precise_label_grants() {
     let capabilities = [
