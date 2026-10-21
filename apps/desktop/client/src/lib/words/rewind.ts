@@ -11,9 +11,11 @@ export const REWIND_ANSWER = {
   reading: 'Reading the week…',
   unread: 'The week’s record couldn’t be read right now',
   quiet: 'Nothing moved this week. Waiting never sent money.',
-  steps: (calls: number, refused: number): string => {
+  /** `partial`: the week had more steps than one read returns, so the counts are a floor. */
+  steps: (calls: number, refused: number, partial = false): string => {
     const c = calls === 1 ? 'One PayPal money step' : `${calls.toLocaleString('en-US')} PayPal money steps`;
     const r = refused === 0 ? '' : refused === 1 ? ', one refused before PayPal was asked' : `, ${refused.toLocaleString('en-US')} refused before PayPal was asked`;
+    if (partial) return `At least ${calls === 1 ? 'one PayPal money step' : `${calls.toLocaleString('en-US')} PayPal money steps`} this week${r}. Waiting never sent money.`;
     return `${calls === 0 ? 'No PayPal money step' : c} this week${r}. Waiting never sent money.`;
   },
   sub: 'Replayed from the wallet’s own record. Play the week, drag the playhead, or open any step to see its deal.',
