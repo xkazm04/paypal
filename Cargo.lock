@@ -4172,13 +4172,11 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "getrandom 0.3.4",
- "serde",
  "serde_json",
  "table-core",
  "table-paypal",
  "thiserror 2.0.21",
  "tokio",
- "url",
 ]
 
 [[package]]
