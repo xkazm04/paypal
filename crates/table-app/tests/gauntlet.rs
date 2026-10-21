@@ -684,6 +684,48 @@ fn refusal_faults(calls: &[Called], who: Who, bundles: &[ProofBundle]) -> Vec<St
     out
 }
 
+/// The far side of the predicate: the predicate reads only what the wallet stored, so a money
+/// request that reached PayPal without a stored call would pass it unseen. Every money-shaped
+/// request the sandbox received (method, path, PayPal-Request-Id) must be a stored call on one of
+/// the wallet's deals, and every stored money call must be a request the sandbox received.
+/// Negative control: dropping the capture observations in `Pipeline::calls` (table-app
+/// pipeline.rs) left the 64-session gauntlet green before this check and fails it after.
+fn unrecorded_money(party: &Party, bundles: &[ProofBundle]) -> Vec<String> {
+    let money = |method: &str, path: &str| safety::money_kind(method, path).is_some();
+    let sent: BTreeSet<(String, String)> = party
+        .paypal
+        .requests()
+        .iter()
+        .filter_map(|r| {
+            let mut parts = r.splitn(4, ' ');
+            let (method, path, id) = (parts.next()?, parts.next()?, parts.next()?);
+            money(method, path).then(|| (path.to_owned(), id.to_owned()))
+        })
+        .collect();
+    let stored: BTreeSet<(String, String)> = bundles
+        .iter()
+        .flat_map(|b| b.paypal_calls.iter())
+        .filter(|c| money(&c.method, &c.path))
+        .map(|c| (c.path.clone(), c.request_id.clone().unwrap_or_default()))
+        .collect();
+    let mut out: Vec<String> = sent
+        .difference(&stored)
+        .map(|(path, id)| {
+            format!(
+                "{}: a money request reached PayPal with no stored call: POST {path} under {id}",
+                party.name
+            )
+        })
+        .collect();
+    out.extend(stored.difference(&sent).map(|(path, id)| {
+        format!(
+            "{}: a stored money call PayPal never received: POST {path} under {id}",
+            party.name
+        )
+    }));
+    out
+}
+
 /// One envelope the relay carried, kept so the counterparty can replay or tamper with it.
 #[derive(Debug, Clone)]
 struct Sent {
@@ -1896,6 +1938,7 @@ impl World {
                     ));
                 }
             }
+            out.extend(unrecorded_money(party, &bundles));
             let name = party.name;
             let mut states = Vec::new();
             let mut operations = Vec::new();
