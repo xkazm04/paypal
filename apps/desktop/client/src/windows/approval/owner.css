@@ -10,7 +10,6 @@
 .ow-p:last-child { margin-bottom: 0; }
 .ow-kick { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); font: var(--fw-semibold) var(--fs-small)/1.3 var(--font); color: var(--gold-l); }
 .ow-kick .ui-btn { text-transform: none; letter-spacing: 0; }
-.ow-h { margin: var(--sp-1) 0 var(--sp-1); font: var(--fw-semibold) var(--fs-title1)/var(--lh-tight) var(--display); letter-spacing: -.01em; color: var(--text); }
 .ow .ui-section { margin-top: var(--sp-4); }
 .ow .ui-section-h .end { display: inline-flex; align-items: center; gap: var(--sp-1); }
 .ow .ui-group + .notice, .ow .notice + .ui-group, .ow .ui-group + .lockcard { margin-top: var(--sp-2); }
@@ -72,10 +71,6 @@
 .ow-score .refused .v { color: var(--red-l); } .ow-score .asks .v { color: var(--gold-l); } .ow-score .policy .v { color: var(--teal-l); } .ow-score .unknown .v { color: var(--muted); }
 .ow-score .sc.unknown, .ow-score .sc.na { background: var(--panel); outline: 1px dashed var(--line2); outline-offset: -3px; }
 .ow-score .sc.moved { background: color-mix(in srgb, var(--gold) 10%, var(--panel2)); }
-.ow-talk { display: flex; align-items: center; gap: var(--sp-2); min-height: var(--row); margin-top: var(--sp-1); min-width: 0; }
-.ow-talk .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
-.ow-talk .ui-btn { margin-left: auto; }
-.ow-talk.rev .t { color: var(--red-l); }
 .ow-switch { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-top: var(--sp-1); }
 .ow-switch .ui-chip { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
