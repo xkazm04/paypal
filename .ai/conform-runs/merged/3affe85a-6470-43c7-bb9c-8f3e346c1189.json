@@ -1,0 +1,199 @@
+{
+ "schema": "conform-run/1",
+ "worker": "3affe85a-6470-43c7-bb9c-8f3e346c1189",
+ "subject": "multi-provider-gateway-plane",
+ "evaluatedAt": "2026-10-21T21:47:37.784179+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "paypal-gateway",
+   "subject": "multi-provider-gateway-plane",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-paypal/src/client.rs:179 Context searches for upstream, failover and normalization returned no hits, and the implementation sends requests to one fixed PayPal origin, outside the standard's multi-provider precondition.",
+   "techniques": [
+    {
+     "technique": "adapter-direction-asymmetry",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-paypal/src/types.rs:90 This constructs one provider's request; the technique explicitly excludes small upstream counts."
+    },
+    {
+     "technique": "caller-scoped-normalization-strictness",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-paypal/src/client.rs:265 PayPal responses deserialize into application types; this is not a proxy publishing compatibility modes for different caller populations."
+    },
+    {
+     "technique": "exclusive-authorship-of-a-measured-decision",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-paypal/src/client.rs:163 The execution loop repeats a PayPal operation; it does not select or evaluate competing upstreams."
+    },
+    {
+     "technique": "join-breadth-follows-the-wrong-match-cost",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-paypal/src/types.rs:181 The identity comparison verifies deal evidence by equality, rather than joining an upstream inventory to a catalog."
+    },
+    {
+     "technique": "named-members-over-a-uniform-collection",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-paypal/src/secondary.rs:249 Reporting aggregates pages from one PayPal endpoint, not heterogeneous inventory contributors."
+    },
+    {
+     "technique": "one-typed-carrier-for-echoed-state",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-paypal/src/client.rs:132 OAuth state is cached within the client; no transcriptless proxy must borrow a downstream identifier to recover it."
+    },
+    {
+     "technique": "per-provider-stream-framing",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-paypal/src/http.rs:111 The HTTP layer obtains a complete response body before JSON parsing, without proxying provider event streams."
+    },
+    {
+     "technique": "policy-verdict-in-the-status-space",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-paypal/src/client.rs:249 Failures cross a typed Rust Result boundary; there is no operator-configured integer-only policy consumer."
+    },
+    {
+     "technique": "router-versus-candidate-failure",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-paypal/src/client.rs:235 Retries concern the same PayPal request, with no next-provider candidate list to stop."
+    },
+    {
+     "technique": "strategy-tree-with-inherited-policy",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-paypal/src/client.rs:151 Execution passes one operation and a retry flag, without nested candidate selection or inherited routing scopes."
+    },
+    {
+     "technique": "upstream-identity-before-inventory",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-paypal/src/client.rs:104 The provider is explicitly fixed to PayPal, rather than discovered among implementations of a shared protocol."
+    }
+   ],
+   "absenceTerms": [
+    "upstream",
+    "failover",
+    "normalization"
+   ]
+  },
+  {
+   "context": "console-navigation-and-lists",
+   "subject": "multi-provider-gateway-plane",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/console/Find.tsx:40 Context searches for upstream, failover and normalization returned no hits, and these surfaces search and display wallet state rather than dispatch requests among interchangeable providers.",
+   "techniques": [
+    {
+     "technique": "adapter-direction-asymmetry",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:56 The extension interface renders UI rows, not upstream request and response dialects."
+    },
+    {
+     "technique": "caller-scoped-normalization-strictness",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/rows.tsx:49 Unknown states receive an application display label; no gateway compatibility contract is published to external callers."
+    },
+    {
+     "technique": "exclusive-authorship-of-a-measured-decision",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/findIndex.ts:42 Ranking orders navigation results by fixed groups, without evaluating provider selectors or attributing dispatch outcomes."
+    },
+    {
+     "technique": "join-breadth-follows-the-wrong-match-cost",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/findIndex.ts:52 Substring matching answers a user's text query; it makes no upstream inventory or installed-artifact claim."
+    },
+    {
+     "technique": "named-members-over-a-uniform-collection",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/BeadStrip.tsx:29 Collections group wallet beads by UI module, rather than combining probes with different upstream failure policies."
+    },
+    {
+     "technique": "one-typed-carrier-for-echoed-state",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:152 Selection state stays in React state; no upstream continuation token must survive a downstream SDK round trip."
+    },
+    {
+     "technique": "per-provider-stream-framing",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/stagger.tsx:17 The scheduler controls component mounting, not framing or translating upstream byte streams."
+    },
+    {
+     "technique": "policy-verdict-in-the-status-space",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/Find.tsx:112 The status is an accessibility role for empty search results, not an integer carrier for gateway policy refusals."
+    },
+    {
+     "technique": "router-versus-candidate-failure",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:210 An empty collection renders UI content; there is no candidate failover loop or router failure attribution."
+    },
+    {
+     "technique": "strategy-tree-with-inherited-policy",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/CrumbTrail.tsx:65 The navigation chain folds breadcrumbs for available space, without candidate subtrees or inherited execution policy."
+    },
+    {
+     "technique": "upstream-identity-before-inventory",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/Find.tsx:43 The index uses existing wallet deal identities, without discovering or identifying shared-protocol upstreams."
+    }
+   ],
+   "absenceTerms": [
+    "upstream",
+    "failover",
+    "normalization"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-21T21:47:37.784179+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "multi-provider-gateway-plane"
+   ],
+   "techniques": [
+    "adapter-direction-asymmetry",
+    "caller-scoped-normalization-strictness",
+    "exclusive-authorship-of-a-measured-decision",
+    "join-breadth-follows-the-wrong-match-cost",
+    "named-members-over-a-uniform-collection",
+    "one-typed-carrier-for-echoed-state",
+    "per-provider-stream-framing",
+    "policy-verdict-in-the-status-space",
+    "router-versus-candidate-failure",
+    "strategy-tree-with-inherited-policy",
+    "upstream-identity-before-inventory"
+   ],
+   "deviations": 0,
+   "context": "paypal-gateway",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-21T21:47:37.784179+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "multi-provider-gateway-plane"
+   ],
+   "techniques": [
+    "adapter-direction-asymmetry",
+    "caller-scoped-normalization-strictness",
+    "exclusive-authorship-of-a-measured-decision",
+    "join-breadth-follows-the-wrong-match-cost",
+    "named-members-over-a-uniform-collection",
+    "one-typed-carrier-for-echoed-state",
+    "per-provider-stream-framing",
+    "policy-verdict-in-the-status-space",
+    "router-versus-candidate-failure",
+    "strategy-tree-with-inherited-policy",
+    "upstream-identity-before-inventory"
+   ],
+   "deviations": 0,
+   "context": "console-navigation-and-lists",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
