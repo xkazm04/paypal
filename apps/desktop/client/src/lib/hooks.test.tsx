@@ -10,7 +10,8 @@ const fake = {
 };
 vi.mock('./runtime', () => ({ backend: () => fake }));
 
-import { useQuery } from './hooks';
+import { usePrefersReducedMotion, useQuery } from './hooks';
+import { setCalm } from '../design/motion';
 
 afterEach(() => { cleanup(); pending.clear(); });
 
@@ -36,5 +37,30 @@ describe('useQuery', () => {
     await waitFor(() => expect(h.result.current.data).toEqual({ label: 'deal B' }));
     await act(async () => { pending.get('A')?.({ label: 'deal A' }); });
     expect(h.result.current.data).toEqual({ label: 'deal B' });
+  });
+});
+
+// The in-app calm mode (design/motion.ts, set from The Table's settings and followed by the other
+// windows) must calm every JS-timed motion, not only the CSS ones: the hook reads both.
+describe('usePrefersReducedMotion', () => {
+  const adds = vi.fn();
+  const stubQuery = () => vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: adds, removeEventListener: () => undefined }));
+  afterEach(() => { setCalm(false); adds.mockClear(); vi.unstubAllGlobals(); });
+
+  it('is calm when the owner turned the in-app calm mode on, with the OS setting off', () => {
+    stubQuery();
+    const h = renderHook(() => usePrefersReducedMotion());
+    expect(h.result.current).toBe(false);
+    act(() => setCalm(true));
+    expect(h.result.current).toBe(true);
+    act(() => setCalm(false));
+    expect(h.result.current).toBe(false);
+  });
+
+  it('listens to the OS setting once, not again on every render', () => {
+    stubQuery();
+    const h = renderHook(() => usePrefersReducedMotion());
+    h.rerender(); h.rerender(); h.rerender();
+    expect(adds).toHaveBeenCalledTimes(1);
   });
 });

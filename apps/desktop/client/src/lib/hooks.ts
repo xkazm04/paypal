@@ -6,6 +6,7 @@ import { useCommand } from './data/query';
 export { useCommand, type CommandRead, type ReadOptions } from './data/query';
 import { backend } from './runtime';
 import { onClockChange } from './clock';
+import { useCalm } from '../design/motion';
 import { nowUnix } from './format';
 
 /** Subscribe to a targeted Rust event for the lifetime of the component. */
@@ -106,11 +107,8 @@ export function useNow(): number {
   return useSyncExternalStore(clock.subscribe, clock.get, clock.get);
 }
 
+/** Whether JS-timed motion should be calm: the OS asks for reduced motion OR the owner turned the
+ *  in-app calm mode on (design/motion.ts, the one rule the CSS follows too). */
 export function usePrefersReducedMotion(): boolean {
-  const q = typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
-  return useSyncExternalStore(
-    (cb) => { q?.addEventListener('change', cb); return () => q?.removeEventListener('change', cb); },
-    () => q?.matches ?? false,
-    () => false,
-  );
+  return useCalm();
 }
