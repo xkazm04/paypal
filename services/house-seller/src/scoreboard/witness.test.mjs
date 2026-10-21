@@ -317,3 +317,13 @@ test('page: every check line voices its result, not only an icon', async () => {
     assert.match(icon.attrs['aria-label'] || '', /^(Passed|Failed|Note|Not checked here)$/);
   }
 });
+
+test('page: a price agreed just above the ask reads as a premium, never as a discount', async () => {
+  const view = await ledgerWith(await signedHead(14, H14));
+  // 20.10 against 20.00 is 0.5% above the ask.
+  view.deals = [agreedDeal('01ARZ3NDEKTSV4RRFFQ69G5FAV', 2000, 2010)];
+  view.total = 1;
+  const page = openPage({ routes: [['/v1/house/ledger', { status: 200, body: view }]] });
+  const shown = await rendered(page, 't-discount', '');
+  assert.equal(shown, '−0.5%');
+});

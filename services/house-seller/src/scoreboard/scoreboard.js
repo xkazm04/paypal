@@ -84,8 +84,10 @@
     const d = new Date(seconds * 1000);
     return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
   }
-  /** Percent with one decimal from basis points (an integer). */
-  const percent = (bp) => `${Math.trunc(bp / 100)}.${Math.trunc(Math.abs(bp) % 100 / 10)}%`;
+  /** Percent with one decimal from basis points (an integer). The sign is written on its own:
+   *  truncating -50 bp toward zero gives -0, which prints as "0" and would turn a premium into a
+   *  discount. */
+  const percent = (bp) => `${bp < 0 ? '−' : ''}${Math.trunc(Math.abs(bp) / 100)}.${Math.trunc(Math.abs(bp) % 100 / 10)}%`;
   /** Discount off the ask in basis points; null when not comparable. */
   function discount(d) {
     if (d.ask.currency !== d.price.currency || d.ask.minor <= 0) return null;
