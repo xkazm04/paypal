@@ -13,6 +13,7 @@ import type { Deal } from '@bindings/Deal';
 import type { DealState } from '@bindings/DealState';
 import { TERMINAL, WITHDRAWABLE } from '@bindings/dealStates';
 import type { DecisionArgs } from '@bindings/DecisionArgs';
+import { reasonWords } from '../../lib/words';
 
 export type Gate = {
   /** Rendered at all. A hidden control is not "disabled": the contract has no such action here. */
@@ -142,9 +143,11 @@ export function deriveGates(ctx: GateContext): Gates {
   };
   // Every money decision needs the wallet's checklist to have no failed line.
   const checkBlock = checksAllow(summary) ? null : CHECK_BLOCK;
-  // Money-moving controls additionally need Rust's can_release.
+  // Money-moving controls additionally need Rust's can_release. Its reason is the wallet's note,
+  // shown in plain words (reasonWords), as every other place this window shows it.
+  const releaseBlock = summary.can_release ? null : summary.unavailable_reason ? reasonWords(summary.unavailable_reason) : 'The wallet can’t do this for this deal right now.';
   const moneyBlock = (): string | null =>
-    privilegedBlock() ?? checkBlock ?? (summary.can_release ? null : summary.unavailable_reason ?? 'The wallet can’t do this for this deal right now.');
+    privilegedBlock() ?? checkBlock ?? releaseBlock;
 
   const gate = (visible: boolean, block: string | null): Gate =>
     visible ? { visible: true, enabled: block === null, reason: block } : HIDDEN;
@@ -183,7 +186,7 @@ export function deriveGates(ctx: GateContext): Gates {
   const authorized = owns && state === 'AUTHORIZED' && !mismatch && shield !== 'BLOCK';
   const capture = gate(authorized, moneyBlock());
   // Void is the safe direction: it needs the capability and can_release, never the checklist.
-  const voidGate = gate(authorized, privilegedBlock() ?? (summary.can_release ? null : summary.unavailable_reason ?? 'The wallet can’t do this for this deal right now.'));
+  const voidGate = gate(authorized, privilegedBlock() ?? releaseBlock);
 
   // Shield HOLD → ASK only, after the owner types the name exactly. BLOCK has no release at all.
   const releaseHold = gate(
