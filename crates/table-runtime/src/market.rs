@@ -23,6 +23,9 @@ pub(crate) fn record_prices(reference: &MarketRef, product_id: &str) -> bool {
         .is_some_and(|c| c.product_id == product_id)
         && reference.validate().is_ok()
 }
+/// market_refresh's answer when the market has no comparable prices for the item.
+pub(crate) const NO_COMPARABLES: &str =
+    "The market has no comparable prices for this item, so no market price was kept.";
 pub struct VaultMarketKey(pub Arc<dyn crate::vault::Vault>);
 impl std::fmt::Debug for VaultMarketKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -132,7 +135,11 @@ impl ActorHandle {
         let reference = market
             .comparables(&args.product_id, binding.currency)
             .await
-            .map_err(|_| unavailable("Market reference unavailable"))?;
+            .map_err(|error| match error {
+                // An answer about the item, not an outage: trying again will not change it.
+                table_market::Error::NoReference => unavailable(NO_COMPARABLES),
+                _ => unavailable("Market reference unavailable"),
+            })?;
         self.execute(caller, Action::MarketStore(binding, reference))
             .await
     }

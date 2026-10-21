@@ -302,3 +302,54 @@ fn the_agent_market_tool_answers_with_the_band_and_never_the_comparables() {
     let text = answer.to_string();
     assert!(!text.contains("certificate") && !text.contains("similar-product-7"));
 }
+
+/// The market answering "no comparable prices" is told apart from the market being unreachable:
+/// one is an answer about the item, the other is worth trying again.
+#[tokio::test]
+async fn a_market_with_no_comparables_is_not_reported_as_unavailable() {
+    #[derive(Debug)]
+    struct Answers(fn() -> table_market::Error);
+    #[async_trait]
+    impl table_market::MarketApi for Answers {
+        async fn comparables(
+            &self,
+            _: &str,
+            _: Currency,
+        ) -> Result<MarketRef, table_market::Error> {
+            Err((self.0)())
+        }
+        async fn start_tracking(&self, _: &str) -> Result<(), table_market::Error> {
+            unreachable!()
+        }
+        async fn history(&self, _: &str, _: u8) -> Result<Vec<Money>, table_market::Error> {
+            unreachable!()
+        }
+    }
+    let mut messages = Vec::new();
+    for answer in [
+        (|| table_market::Error::NoReference) as fn() -> table_market::Error,
+        || table_market::Error::Unavailable,
+    ] {
+        let (mut r, _, http, _, _) = runtime(true);
+        let (deal, _) = setup(&mut r, Side::Seller);
+        r.selected = Some(deal.id);
+        let token = unlock_runtime(&mut r);
+        r.attach_market(Arc::new(Answers(answer)));
+        let (actor, _events) = spawn(r);
+        let error = actor
+            .market_refresh(
+                caller("approval", Some(&token)),
+                MarketRefreshArgs {
+                    deal_id: deal.id,
+                    product_id: "monitor".into(),
+                },
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(error.code, ErrorCode::Unavailable), "{error:?}");
+        messages.push(error.message);
+        assert!(http.0.lock().unwrap().paths.is_empty());
+    }
+    assert_eq!(messages[0], crate::market::NO_COMPARABLES);
+    assert_eq!(messages[1], "Market reference unavailable");
+}
