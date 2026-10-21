@@ -166,7 +166,7 @@ export function agreeLine(a: Agreement): string {
     a.unconfirmed ? `${a.unconfirmed} not confirmed by PayPal` : '',
     a.unknown ? `${a.unknown} couldn’t be checked` : '',
   ].filter(Boolean);
-  if (!rest.length) return 'Every one is on the statement. Nothing differs.';
+  if (!rest.length) return a.loading ? `${a.matched} read so far ${a.matched === 1 ? 'is' : 'are'} on the statement. Still reading the rest.` : 'Every one is on the statement. Nothing differs.';
   return `${rest.join(', ')}.`;
 }
 
@@ -179,7 +179,7 @@ export function agreeWhy(a: Agreement, checkedAt: string | null): [string, strin
     a.unconfirmed ? `${plural(a.unconfirmed, 'deal', 'deals')} ended not confirmed by PayPal: the seller said paid, and this wallet has no match on the statement` : '',
     a.unknown ? `${plural(a.unknown, 'payment', 'payments')} couldn’t be read, so ${a.unknown === 1 ? 'it is' : 'they are'} not counted as matched` : '',
   ].filter(Boolean);
-  const second = `${bits.length ? `Right now ${bits.join('; ')}.` : `Right now ${a.matched} of ${a.needed} are on it and nothing differs.`}${checkedAt ? ` Last checked ${checkedAt}.` : ''}`;
+  const second = `${bits.length ? `Right now ${bits.join('; ')}.` : a.loading ? `Right now ${a.matched} of the ${a.needed} read so far are on it; the rest are still being read.` : `Right now ${a.matched} of ${a.needed} are on it and nothing differs.`}${checkedAt ? ` Last checked ${checkedAt}.` : ''}`;
   return [first, second];
 }
 
