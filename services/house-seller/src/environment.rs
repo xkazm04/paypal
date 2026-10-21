@@ -7,6 +7,11 @@ use table_core::OpenMandate;
 use table_paypal::{Credentials, http::Secret};
 use zeroize::Zeroizing;
 
+/// Every variable the deployed HOUSE takes from its host: the ones it reads at start, the relay's
+/// proxy-hop setting, and `TABLE_HOUSE_RELEASE_JSON`, the public release pin compiled in at build
+/// (`table_proto::HouseRelease::compiled`). A test holds the root `render.yaml` to exactly this
+/// list (`PORT` aside, which the image sets), so a variable added on one side only is a red test,
+/// not a HOUSE that fails to start on its first deploy.
 pub const ENV_NAMES: &[&str] = &[
     "HOUSE_OWNER_KEY_BASE64",
     "HOUSE_AGENT_KEY_BASE64",
@@ -15,6 +20,8 @@ pub const ENV_NAMES: &[&str] = &[
     "HOUSE_PAYPAL_CLIENT_SECRET",
     "HOUSE_LEDGER_PATH",
     "PORT",
+    rendezvous::serve::TRUSTED_PROXY_HOPS_VAR,
+    "TABLE_HOUSE_RELEASE_JSON",
 ];
 pub struct Configuration {
     pub owner: SigningKey,
@@ -212,6 +219,43 @@ mod tests {
             assert!(text.contains(names), "{over}={value:?}: {text}");
             assert!(!text.contains(&seed), "{over}: the seed leaked into {text}");
             assert_eq!(Error::Config("x").code(), "config");
+        }
+    }
+
+    /// The keys `render.yaml` gives the deployed service.
+    fn deployed() -> Vec<&'static str> {
+        include_str!("../../../render.yaml")
+            .lines()
+            .filter_map(|l| l.trim().strip_prefix("- key:"))
+            .map(str::trim)
+            .collect()
+    }
+    #[test]
+    fn the_deploy_blueprint_declares_exactly_the_variables_the_house_reads() {
+        let mut declared = deployed();
+        declared.sort_unstable();
+        // PORT comes from the image (Dockerfile ENV) and the platform, not the blueprint.
+        let mut needed: Vec<&str> = ENV_NAMES.iter().copied().filter(|n| *n != "PORT").collect();
+        needed.sort_unstable();
+        assert_eq!(
+            declared, needed,
+            "render.yaml envVars and ENV_NAMES disagree"
+        );
+    }
+    #[test]
+    fn the_configuration_reads_only_listed_variables() {
+        let asked = std::cell::RefCell::new(Vec::new());
+        let _ = Configuration::read(|name| {
+            asked.borrow_mut().push(name.to_owned());
+            Some(STANDARD.encode(SEED))
+        });
+        let asked = asked.into_inner();
+        assert!(!asked.is_empty());
+        for name in &asked {
+            assert!(
+                ENV_NAMES.contains(&name.as_str()),
+                "{name} is read but not in ENV_NAMES"
+            );
         }
     }
 }
