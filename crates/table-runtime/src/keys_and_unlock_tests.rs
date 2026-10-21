@@ -2,6 +2,52 @@
 //! OS prompt never runs before the privileged path.
 use super::*;
 
+/// A wallet over `ledger` and `vault`, the way the desktop starts one.
+fn build(ledger: Ledger, vault: Arc<MemoryVault>) -> Result<Runtime, CommandError> {
+    let clock = Arc::new(TestClock(AtomicI64::new(100)));
+    Runtime::new(
+        ledger,
+        vault.clone(),
+        Arc::new(Hello {
+            calls: AtomicUsize::new(0),
+            verified: true,
+        }),
+        Arc::new(table_paypal::Client::sandbox(
+            Arc::new(OfflineHttp::default()),
+            Arc::new(VaultCredentials(vault)),
+            clock.clone(),
+            Arc::new(NoDelay),
+        )),
+        clock,
+    )
+}
+/// A fresh on-disk ledger path under the gitignored build directory.
+fn temporary(label: &str) -> std::path::PathBuf {
+    let mut entropy = [0; 16];
+    getrandom::fill(&mut entropy).unwrap();
+    let name: String = entropy.iter().map(|b| format!("{b:02x}")).collect();
+    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.build/tmp");
+    std::fs::create_dir_all(&directory).unwrap();
+    directory.join(format!("{label}-{name}.sqlite3"))
+}
+/// A copy of the keyring without the entry `lost`.
+fn without(original: &MemoryVault, lost: &str) -> Arc<MemoryVault> {
+    let vault = Arc::new(MemoryVault::default());
+    for key in [
+        "owner",
+        "agent.negotiator",
+        "agent.shopper",
+        "agent.assistant",
+    ] {
+        if key != lost
+            && let Some(value) = original.read(key).unwrap()
+        {
+            vault.write(key, &value).unwrap();
+        }
+    }
+    vault
+}
+
 #[test]
 fn vault_keys_persist_are_distinct_and_debug_never_exposes_them() {
     let vault = MemoryVault::default();
@@ -25,30 +71,7 @@ fn a_lost_owner_key_fails_closed_once_the_wallet_has_history() {
         Err(VaultError::Missing)
     ));
     assert!(empty.read("owner").unwrap().is_none());
-    let build = |ledger: Ledger, vault: Arc<MemoryVault>| {
-        let clock = Arc::new(TestClock(AtomicI64::new(100)));
-        Runtime::new(
-            ledger,
-            vault.clone(),
-            Arc::new(Hello {
-                calls: AtomicUsize::new(0),
-                verified: true,
-            }),
-            Arc::new(table_paypal::Client::sandbox(
-                Arc::new(OfflineHttp::default()),
-                Arc::new(VaultCredentials(vault)),
-                clock.clone(),
-                Arc::new(NoDelay),
-            )),
-            clock,
-        )
-    };
-    let mut entropy = [0; 16];
-    getrandom::fill(&mut entropy).unwrap();
-    let name: String = entropy.iter().map(|b| format!("{b:02x}")).collect();
-    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.build/tmp");
-    std::fs::create_dir_all(&directory).unwrap();
-    let path = directory.join(format!("owner-{name}.sqlite3"));
+    let path = temporary("owner");
     let original = Arc::new(MemoryVault::default());
     let mut r = build(Ledger::open(&path).unwrap(), original.clone()).unwrap();
     r.sign_mandate(MandateSignArgs {
@@ -68,35 +91,12 @@ fn a_lost_owner_key_fails_closed_once_the_wallet_has_history() {
 }
 #[test]
 fn a_lost_agent_key_fails_closed_only_for_a_slot_the_wallet_used() {
-    let build = |ledger: Ledger, vault: Arc<MemoryVault>| {
-        let clock = Arc::new(TestClock(AtomicI64::new(100)));
-        Runtime::new(
-            ledger,
-            vault.clone(),
-            Arc::new(Hello {
-                calls: AtomicUsize::new(0),
-                verified: true,
-            }),
-            Arc::new(table_paypal::Client::sandbox(
-                Arc::new(OfflineHttp::default()),
-                Arc::new(VaultCredentials(vault)),
-                clock.clone(),
-                Arc::new(NoDelay),
-            )),
-            clock,
-        )
-    };
     let slots = [
         AgentSlot::Negotiator,
         AgentSlot::Shopper,
         AgentSlot::Assistant,
     ];
-    let mut entropy = [0; 16];
-    getrandom::fill(&mut entropy).unwrap();
-    let name: String = entropy.iter().map(|b| format!("{b:02x}")).collect();
-    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.build/tmp");
-    std::fs::create_dir_all(&directory).unwrap();
-    let path = directory.join(format!("agents-{name}.sqlite3"));
+    let path = temporary("agents");
     let original = Arc::new(MemoryVault::default());
     // A fresh wallet mints every slot.
     let mut r = build(Ledger::open(&path).unwrap(), original.clone()).unwrap();
@@ -112,23 +112,6 @@ fn a_lost_agent_key_fails_closed_only_for_a_slot_the_wallet_used() {
     })
     .unwrap();
     drop(r);
-    // A copy of the keyring without one slot.
-    let without = |lost: &str| {
-        let vault = Arc::new(MemoryVault::default());
-        for key in [
-            "owner",
-            "agent.negotiator",
-            "agent.shopper",
-            "agent.assistant",
-        ] {
-            if key != lost
-                && let Some(value) = original.read(key).unwrap()
-            {
-                vault.write(key, &value).unwrap();
-            }
-        }
-        vault
-    };
     for slot in slots {
         assert!(original.read(slot.key_name()).unwrap().is_some());
     }
@@ -138,41 +121,23 @@ fn a_lost_agent_key_fails_closed_only_for_a_slot_the_wallet_used() {
         ["agent.negotiator", "agent.shopper", "agent.assistant"]
     );
     // The Shopper is bound by a mandate: losing it fails closed and mints nothing.
-    let lost = without("agent.shopper");
+    let lost = without(&original, "agent.shopper");
     let error = build(Ledger::open(&path).unwrap(), lost.clone()).unwrap_err();
     assert!(matches!(error.code, ErrorCode::Unavailable), "{error:?}");
     assert_eq!(error.message, "Agent key provisioning failed");
     assert!(lost.read("agent.shopper").unwrap().is_none());
     // The Negotiator signs for the wallet: losing it fails closed too.
-    let lost = without("agent.negotiator");
+    let lost = without(&original, "agent.negotiator");
     assert!(build(Ledger::open(&path).unwrap(), lost.clone()).is_err());
     assert!(lost.read("agent.negotiator").unwrap().is_none());
     // The Assistant was never bound: its slot is minted as before.
-    let lost = without("agent.assistant");
+    let lost = without(&original, "agent.assistant");
     assert!(build(Ledger::open(&path).unwrap(), lost.clone()).is_ok());
     assert!(lost.read("agent.assistant").unwrap().is_some());
     std::fs::remove_file(path).unwrap();
 }
 #[test]
 fn a_lost_agent_key_bound_only_by_a_mandate_no_longer_active_fails_closed() {
-    let build = |ledger: Ledger, vault: Arc<MemoryVault>| {
-        let clock = Arc::new(TestClock(AtomicI64::new(100)));
-        Runtime::new(
-            ledger,
-            vault.clone(),
-            Arc::new(Hello {
-                calls: AtomicUsize::new(0),
-                verified: true,
-            }),
-            Arc::new(table_paypal::Client::sandbox(
-                Arc::new(OfflineHttp::default()),
-                Arc::new(VaultCredentials(vault)),
-                clock.clone(),
-                Arc::new(NoDelay),
-            )),
-            clock,
-        )
-    };
     let sign = |r: &mut Runtime, id: Option<MandateId>, agent: AgentSlot| {
         r.sign_mandate(MandateSignArgs {
             id,
@@ -184,30 +149,6 @@ fn a_lost_agent_key_bound_only_by_a_mandate_no_longer_active_fails_closed() {
         .unwrap()
         .payload
         .id
-    };
-    let temporary = |label: &str| {
-        let mut entropy = [0; 16];
-        getrandom::fill(&mut entropy).unwrap();
-        let name: String = entropy.iter().map(|b| format!("{b:02x}")).collect();
-        let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.build/tmp");
-        std::fs::create_dir_all(&directory).unwrap();
-        directory.join(format!("{label}-{name}.sqlite3"))
-    };
-    let without = |original: &MemoryVault, lost: &str| {
-        let vault = Arc::new(MemoryVault::default());
-        for key in [
-            "owner",
-            "agent.negotiator",
-            "agent.shopper",
-            "agent.assistant",
-        ] {
-            if key != lost
-                && let Some(value) = original.read(key).unwrap()
-            {
-                vault.write(key, &value).unwrap();
-            }
-        }
-        vault
     };
     // (a) The Shopper's only mandate was revoked: its lost key still fails closed.
     let path = temporary("revoked");
