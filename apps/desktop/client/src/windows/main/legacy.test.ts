@@ -58,4 +58,13 @@ describe('legacy.css', () => {
     const dead = legacySelectors().filter((s) => s.classes.some((c) => !drawn.has(c))).map((s) => s.sel);
     expect(dead, 'legacy selectors nothing draws: delete them').toEqual([]);
   });
+
+  // A legacy rule on a bare word reaches any v2 element that uses the word as its own state: the
+  // Charter's waiting step and step body (setup/Charter.tsx `waiting`) took the old loading line's
+  // flex, dim colour and padding, and the list engine's stacked layout (console/ListEngine.tsx
+  // `le stack`) the old grid. Those words are not legacy's to style.
+  it('styles no v2 component state word', () => {
+    const bare = new Set(legacySelectors().filter((s) => /^\.[A-Za-z0-9_-]+$/.test(s.sel)).map((s) => s.sel.slice(1)));
+    expect(['waiting', 'stack'].filter((w) => bare.has(w))).toEqual([]);
+  });
 });
