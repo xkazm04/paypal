@@ -55,13 +55,34 @@ describe('lanes', () => {
     const per = laneCells({ ...deal({ state: 'REFUSED', qty: 40, price: 299 }), decided_by: { type: 'policy', clause: 3 } }, cols);
     expect(per[1]).toMatchObject({ kind: 'fail', computed: false, text: '$11,960.00 is over the $200.00 limit' });
   });
+  it('reads a mandate signed out of order in Rust’s check order (by clause number, not position)', () => {
+    // A repair appends a clause at the end; Rust's check() sorts by Clause::number before checking.
+    const shuffled = gateColumns([CLAUSES[0]!, CLAUSES[6]!, CLAUSES[2]!, CLAUSES[4]!, CLAUSES[5]!, CLAUSES[1]!]);
+    expect(shuffled.map((c) => c.clause.type)).toEqual(['roles', 'per_deal', 'velocity', 'human_present_over', 'payees']);
+    // n stays the clause's position in the signed list (the rules list marks hits by it).
+    expect(shuffled.map((c) => c.n)).toEqual([1, 3, 4, 5, 2]);
+    // Refused at the per-purchase limit (3): roles (1) passed, the rest were never reached.
+    const per = laneCells({ ...deal({ state: 'REFUSED', price: 50 }), decided_by: { type: 'policy', clause: 3 } }, shuffled);
+    expect(per.map((c) => c.kind)).toEqual(['pass', 'fail', 'skip', 'skip', 'skip']);
+    // Refused at the daily limit (5): everything numbered below it passed, payees (7) was not reached.
+    const vel = laneCells({ ...deal({ state: 'REFUSED', price: 50 }), decided_by: { type: 'policy', clause: 5 } }, shuffled);
+    expect(vel.map((c) => c.kind)).toEqual(['pass', 'pass', 'fail', 'skip', 'skip']);
+    // Columns kept in signed order still read by number: a refusal at payees (7) never passes past it.
+    const raw = [CLAUSES[6]!, CLAUSES[0]!, CLAUSES[2]!];
+    const cols = raw.map((clause, i) => ({ n: i + 1, clause }));
+    const pay = laneCells({ ...deal({ state: 'REFUSED', price: 50 }), decided_by: { type: 'policy', clause: 3 } }, cols);
+    expect(pay.map((c) => c.kind)).toEqual(['skip', 'pass', 'fail']);
+    // The amount computed here stops it the same way: payees (7) is after the per-purchase limit.
+    expect(laneCells(deal({ state: 'REFUSED', qty: 40, price: 299 }), cols).map((c) => c.kind)).toEqual(['skip', 'unknown', 'fail']);
+  });
   it('says unknown, never passed, when a refusal is not explained by the amount', () => {
     expect(laneCells(deal({ state: 'REFUSED', price: 50 }), cols).every((c) => c.kind === 'unknown')).toBe(true);
     expect(laneCells(deal({ state: 'AGREED' }), cols).every((c) => c.kind === 'unknown')).toBe(true);
   });
   it('marks per-deal clauses for another kind as not applicable', () => {
     const extra = gateColumns([...CLAUSES, { type: 'per_deal', kind: 'haggle', max_amount: usd(340), categories: [] }]);
-    expect(laneCells(deal({ state: 'CAPTURED' }), extra).at(-1)?.kind).toBe('na');
+    const at = extra.findIndex((c) => c.clause.type === 'per_deal' && c.clause.kind === 'haggle');
+    expect(laneCells(deal({ state: 'CAPTURED' }), extra)[at]?.kind).toBe('na');
   });
   it('knows when an ask reached PayPal', () => {
     expect(reachedPaypal(deal({ state: 'VOIDED' }))).toBe(true);

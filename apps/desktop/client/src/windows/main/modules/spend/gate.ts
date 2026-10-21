@@ -27,10 +27,13 @@ export type GateColumn = { n: number; clause: Clause };
 export type CellKind = 'pass' | 'you' | 'fail' | 'skip' | 'na' | 'unknown';
 export type Cell = { n: number; kind: CellKind; text: string; computed: boolean };
 
-/** Clauses that gate a purchase, numbered as the mandate numbers them (1-based, in order).
- *  The haggle band and the counterparty-pairing rule govern Tables, not purchases. */
+/** Clauses that gate a purchase, numbered as the mandate lists them (1-based position), drawn in the
+ *  order Rust checks them (by Clause::number: check() sorts before it checks, and a signed list
+ *  need not be sorted). The haggle band and the counterparty-pairing rule govern Tables, not purchases. */
 export function gateColumns(clauses: readonly Clause[]): GateColumn[] {
-  return clauses.map((clause, i) => ({ n: i + 1, clause })).filter((c) => c.clause.type !== 'band' && c.clause.type !== 'counterparties' && c.clause.type !== 'market_watch');
+  return clauses.map((clause, i) => ({ n: i + 1, clause }))
+    .filter((c) => c.clause.type !== 'band' && c.clause.type !== 'counterparties' && c.clause.type !== 'market_watch')
+    .sort((a, b) => CLAUSE_NUMBER[a.clause.type] - CLAUSE_NUMBER[b.clause.type]);
 }
 
 /** Short column titles for the gate (the full rule name, RULE_NAME, goes in tooltips and Layer 2). */
@@ -87,22 +90,28 @@ export function laneCells(d: Pick<Deal, 'kind' | 'terms' | 'state' | 'paypal'> &
   // The clause Rust recorded as refusing this ask, and its column (absent when it is not drawn).
   const recorded = refused && d.decided_by?.type === 'policy' ? d.decided_by.clause : null;
   const recordedCol = recorded === null ? undefined : cols.find((c) => CLAUSE_NO[c.clause.type] === recorded);
-  let stopped = false;
+  // Without a recorded clause, a refused ask over a per-deal max is stopped there (computed here).
+  const overCol = refused && !recordedCol
+    ? cols.find((c) => c.clause.type === 'per_deal' && c.clause.kind === d.kind && perDealCheck(d, c.clause)?.over)
+    : undefined;
+  // Rust checks clauses by number, whatever their position in the signed list: what stopped the ask
+  // is compared by number, so "passed" and "not checked" follow Rust's order, never the list's.
+  const stopNo = recordedCol ? CLAUSE_NO[recordedCol.clause.type] : overCol ? CLAUSE_NO[overCol.clause.type] : null;
   return cols.map(({ n, clause }): Cell => {
-    if (stopped) return { n, kind: 'skip', text: 'not checked, an earlier rule stopped it', computed: true };
+    const no = CLAUSE_NO[clause.type];
+    if (stopNo !== null && no > stopNo) return { n, kind: 'skip', text: 'not checked, an earlier rule stopped it', computed: true };
     if (clause.type === 'per_deal' && clause.kind !== d.kind) return { n, kind: 'na', text: `only for ${kindWord(clause.kind)} deals`, computed: false };
     if (recordedCol && recordedCol.n === n) {
-      stopped = true;
       // The recorded decision names the rule; for a per-purchase limit the amounts say why, in words.
       const why = clause.type === 'per_deal' ? perDealCheck(d, clause) : null;
       return { n, kind: 'fail', text: why?.over ? why.text : 'this rule refused it', computed: false };
     }
-    if (recordedCol && n < recordedCol.n) return { n, kind: 'pass', text: 'passed', computed: false };
+    if (recordedCol && stopNo !== null && no < stopNo) return { n, kind: 'pass', text: 'passed', computed: false };
     // AttentionItem.clause.number is Rust's Clause::number (by type), not the clause's position.
-    if (youAt === CLAUSE_NO[clause.type]) return { n, kind: 'you', text: 'leaves this decision to you', computed: false };
-    if (refused && clause.type === 'per_deal') {
-      const r = perDealCheck(d, clause);
-      if (r?.over) { stopped = true; return { n, kind: 'fail', text: r.text, computed: true }; }
+    if (youAt === no) return { n, kind: 'you', text: 'leaves this decision to you', computed: false };
+    if (overCol && overCol.n === n) {
+      const r = perDealCheck(d, overCol.clause as Extract<Clause, { type: 'per_deal' }>);
+      return { n, kind: 'fail', text: r?.text ?? '', computed: true };
     }
     if (reached) return { n, kind: 'pass', text: 'passed', computed: true };
     return { n, kind: 'unknown', text: refused ? 'not known: the refusal did not name a rule' : 'not checked yet', computed: false };
