@@ -1,6 +1,8 @@
 // Resume's restart (runtime-actor-and-engines B): resume_all_agents returns the tables waiting on
 // your agent; the owner restarts them in one click, never more than the run limit at once, each
 // through its own agent_start. A refused start is shown for that table and never retried.
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SETTINGS_AGENTS, SETTINGS_CARD } from '../../../../../lib/words';
@@ -34,6 +36,17 @@ vi.mock('../../../../../mock/backend', async (importOriginal) => {
 afterEach(() => { cleanup(); canned.report = null; history.replaceState(null, '', '/'); });
 
 describe('restartPlan', () => {
+  it('plans with the run limit the wallet refuses past (engines.rs start_agent)', () => {
+    const src = readFileSync(resolve(process.cwd(), '../../../crates/table-runtime/src/engines.rs'), 'utf8').replace(/\/\/[^\n]*/g, '');
+    const body = src.slice(src.indexOf('fn start_agent('), src.indexOf('RUN_LIMIT', src.indexOf('fn start_agent(')));
+    const cap = /self\.runs\.len\(\)\s*>=\s*(\d+)/.exec(body);
+    expect(cap, 'start_agent no longer refuses past a literal run count').not.toBeNull();
+    expect(RUN_CAP).toBe(Number(cap![1]));
+    // The Restart button's words say the same limit ("Four work at once").
+    const word = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'][RUN_CAP]!;
+    expect(SETTINGS_AGENTS.restartTitle.toLowerCase()).toContain(`${word} work at once`);
+    expect(SETTINGS_AGENTS.later(2)).toContain(`(${word} work at once)`);
+  });
   it('starts as many as the free run slots allow, in the order given; the rest wait', () => {
     expect(RUN_CAP).toBe(4);
     expect(restartPlan(['A', 'B', 'C', 'D', 'E'], 1, 4)).toEqual({ start: ['A', 'B', 'C'], later: ['D', 'E'] });
