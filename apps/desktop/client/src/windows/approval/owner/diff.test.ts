@@ -40,6 +40,14 @@ describe('mandate diff', () => {
     const same = swap('band', { ...band, deadline: Math.floor(band.deadline / 60) * 60 });
     expect(diffPolicy(side(signed), side(same, { expires: T + 86400 - ((T + 86400) % 60) }))).toEqual([]);
   });
+  it('a later start is a change that restricts (no rules in force until then), an earlier one widens', () => {
+    const later = diffPolicy(side(signed, { notBefore: T }), side(signed, { notBefore: T + 3 * 86400 }));
+    expect(later).toMatchObject([{ clause: 0, term: 'start', dir: 'restricts' }]);
+    expect(diffPolicy(side(signed, { notBefore: T + 86400 }), side(signed, { notBefore: T }))[0]?.dir).toBe('widens');
+    // To the minute, like the end date; a side that does not know its start reports nothing.
+    expect(diffPolicy(side(signed, { notBefore: T }), side(signed, { notBefore: T + 30 - (T % 60) }))).toEqual([]);
+    expect(diffPolicy(side(signed), side(signed, { notBefore: T }))).toEqual([]);
+  });
   it('lists removed clauses, skips incomplete ones, and notes slot changes', () => {
     const d = diffPolicy(side(signed), side([...signed.filter((c) => c.type !== 'velocity' && c.type !== 'payees'), { type: 'payees', incomplete: true }], { agent: 'shopper' }));
     expect(d.map((c) => c.term)).toEqual(['agent slot', 'daily limit']);
