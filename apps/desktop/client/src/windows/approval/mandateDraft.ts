@@ -150,6 +150,11 @@ export function draftFrom(m: OpenMandate & { agent?: AgentSlot }, now: number): 
 export const splitList = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean);
 const int = (s: string): number | null => (/^\d+$/.test(s.trim()) ? Number(s.trim()) : null);
 
+/** Rust's text ids (table-core ids.rs text_id!: ItemRef, PayeeRef, KeyId): 1-128 letters, digits
+ *  or `-_.:@+`. Rust refuses any other name when it reads the arguments, before validate(). */
+export const isTextId = (s: string): boolean => /^[A-Za-z0-9\-_.:@+]{1,128}$/.test(s);
+const ID_CHARS = 'use letters, digits and - _ . : @ + only, no spaces';
+
 export type Built = { ok: true; clauses: Clause[]; notBefore: number; expires: number } | { ok: false; errors: string[] };
 
 /** A draft clause that cannot be converted yet (an empty or malformed field). The preview shows
@@ -183,6 +188,8 @@ export function buildClause(c: ClauseDraft, cur: Currency, n: string): { clause:
     case 'counterparties': {
       const keys = splitList(c.keys);
       if (c.rule === 'pinned' && !keys.length) errors.push(`${n}: list at least one wallet`);
+      const badKey = c.rule === 'pinned' ? keys.find((k) => !isTextId(k)) : undefined;
+      if (badKey !== undefined) errors.push(`${n}: “${badKey}” isn’t a wallet key: ${ID_CHARS}`);
       clause = { type: 'counterparties', rule: c.rule === 'pinned' ? { type: 'pinned', keys } : { type: c.rule } };
       break;
     }
@@ -200,6 +207,8 @@ export function buildClause(c: ClauseDraft, cur: Currency, n: string): { clause:
       if (floor && ceiling && floor.minor > ceiling.minor) errors.push(`${n}: the least you’ll accept is above the most you’ll pay`);
       if (rounds === null || rounds < 1 || rounds > 255) errors.push(`${n}: offers must be 1–255`);
       if (deadline === null) errors.push(`${n}: choose an end date`);
+      const badItem = splitList(c.items).find((x) => !isTextId(x));
+      if (badItem !== undefined) errors.push(`${n}: “${badItem}” isn’t an item code: ${ID_CHARS}`);
       if (rounds !== null && deadline !== null) clause = { type: 'band', item_refs: splitList(c.items), floor, ceiling, max_rounds: rounds, deadline };
       break;
     }
@@ -218,6 +227,8 @@ export function buildClause(c: ClauseDraft, cur: Currency, n: string): { clause:
     case 'payees': {
       const payees = splitList(c.payees);
       if (!payees.length) errors.push(`${n}: list at least one payee`);
+      const badPayee = payees.find((p) => !isTextId(p));
+      if (badPayee !== undefined) errors.push(`${n}: “${badPayee}” isn’t a payee name: ${ID_CHARS}`);
       clause = { type: 'payees', payees };
       break;
     }
@@ -233,6 +244,8 @@ export function buildClause(c: ClauseDraft, cur: Currency, n: string): { clause:
       const checks = int(c.checks);
       if (!items.length) errors.push(`${n}: name at least one item`);
       if (items.some((i) => !i.item_ref)) errors.push(`${n}: every price-service product needs your item`);
+      const badRef = items.find((i) => i.item_ref && !isTextId(i.item_ref));
+      if (badRef) errors.push(`${n}: “${badRef.item_ref}” isn’t an item code: ${ID_CHARS}`);
       const bad = items.find((i) => i.item_ref && !productValid(i.product_id));
       if (bad) errors.push(`${n}: “${bad.product_id || bad.item_ref}” needs a product code made of letters, digits, - or _`);
       if (checks === null || checks < 1 || checks > MAX_MARKET_CHECKS_DAY) errors.push(`${n}: checks a day must be 1–${MAX_MARKET_CHECKS_DAY}`);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Clause } from '@bindings/Clause';
-import { bandInputProblem, bandMissingSide, refusalWords, ruleProblems } from './mandateDraft';
+import { bandInputProblem, bandMissingSide, buildClause, refusalWords, ruleProblems, toLocalInput } from './mandateDraft';
 
 const T = 1_800_000_000;
 const usd = (major: number) => ({ minor: Math.round(major * 100), currency: 'USD' as const });
@@ -39,6 +39,22 @@ describe('a refusal from signing, in plain words', () => {
   });
   it('never shows an unknown reason as it came', () => {
     expect(refusalWords('mandate clause 9: something new')).not.toContain('something new');
+  });
+});
+
+describe('names Rust only takes as ids (table-core text_id!: ItemRef, PayeeRef, KeyId)', () => {
+  // Rust refuses these at the IPC boundary, before validate(), so the editor must say it first:
+  // otherwise the what-if reads "couldn’t be tried just now" and Sign fails as unavailable.
+  it('refuses a payee, an item, a watched item or a wallet key with a space or a symbol in it', () => {
+    expect(buildClause({ type: 'payees', payees: 'packrite-supply, Cable Haus' }, 'USD', 'Approved payees').errors[0]).toContain('“Cable Haus”');
+    expect(buildClause({ type: 'band', items: 'monitor 27', floor: '', ceiling: '300', rounds: '6', deadline: toLocalInput(T + 3600) }, 'USD', 'Price range').errors[0]).toContain('“monitor 27”');
+    expect(buildClause({ type: 'market_watch', items: [{ item: 'desk/lamp', product: 'p-1' }], checks: '12' }, 'USD', 'Keep prices fresh').errors[0]).toContain('“desk/lamp”');
+    expect(buildClause({ type: 'counterparties', rule: 'pinned', keys: 'k1, k 2' }, 'USD', 'Who').errors[0]).toContain('“k 2”');
+  });
+  it('takes every id Rust takes', () => {
+    expect(buildClause({ type: 'payees', payees: 'packrite-supply, HOUSE, a.b:c@d+e_f' }, 'USD', 'p').errors).toEqual([]);
+    expect(buildClause({ type: 'band', items: 'monitor-27-4k', floor: '', ceiling: '300', rounds: '6', deadline: toLocalInput(T + 3600) }, 'USD', 'b').errors).toEqual([]);
+    expect(buildClause({ type: 'payees', payees: 'x'.repeat(129) }, 'USD', 'p').errors).toHaveLength(1);
   });
 });
 

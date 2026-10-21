@@ -5,6 +5,7 @@ import type { Clause } from '@bindings/Clause';
 import type { Currency } from '@bindings/Currency';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { RescueReplayArgs } from '@bindings/RescueReplayArgs';
+import { isTextId } from '../mandateDraft';
 
 export type ReplayDraft = { subscription: string; email: string; plan: string; price: string };
 export type Lever = Extract<Clause, { type: 'lever' }>;
@@ -18,8 +19,8 @@ export function isEmail(s: string): boolean {
   const [local, domain] = parts as [string, string];
   return !!local && domain.includes('.') && !domain.startsWith('.') && !domain.endsWith('.') && /^[A-Za-z0-9@.\-_+]+$/.test(s);
 }
-/** Rust ItemRef: 1-128 letters, digits or `-_.:@+`. */
-export const isPlan = (s: string): boolean => /^[A-Za-z0-9\-_.:@+]{1,128}$/.test(s);
+/** Rust ItemRef: 1-128 letters, digits or `-_.:@+` (the editor's one text-id check). */
+export const isPlan = isTextId;
 
 /** The rules a replay is recorded under: the newest active set that carries the fixes rule. */
 export function rescueRules(entries: readonly MandateListEntry[], now: number): { entry: MandateListEntry; lever: Lever; currency: Currency } | null {
