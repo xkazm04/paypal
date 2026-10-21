@@ -5,6 +5,7 @@ import type { Clause } from '@bindings/Clause';
 import type { Currency } from '@bindings/Currency';
 import type { Money } from '@bindings/Money';
 import { formatMinor, shortId } from '../../../lib/format';
+import { kindWord } from '../../../lib/words';
 import { CLAUSE_KINDS, CLAUSE_NUMBER, isIncomplete, type ClauseType, type DraftClause } from '../mandateDraft';
 
 export type Dir = 'widens' | 'restricts' | 'changes';
@@ -58,7 +59,7 @@ function clauseDiff(a: Clause, b: Clause, out: Change[]) {
       members(out, c, 'counterparties', 'pinned keys', a.rule.keys.map((k) => shortId(k)), b.rule.keys.map((k) => shortId(k)), true);
     }
   } else if (a.type === 'per_deal' && b.type === 'per_deal') {
-    if (a.kind !== b.kind) out.push({ clause: c, type: 'per_deal', term: 'deal kind', from: a.kind, to: b.kind, dir: 'changes', text: `Changing what it covers ${a.kind} → ${b.kind}` });
+    if (a.kind !== b.kind) out.push({ clause: c, type: 'per_deal', term: 'deal kind', from: kindWord(a.kind), to: kindWord(b.kind), dir: 'changes', text: `Changing what it covers ${kindWord(a.kind)} → ${kindWord(b.kind)}` });
     money(out, c, 'per_deal', 'per-deal max', a.max_amount, b.max_amount, true);
     members(out, c, 'per_deal', 'categories', a.categories, b.categories, true);
   } else if (a.type === 'band' && b.type === 'band') {

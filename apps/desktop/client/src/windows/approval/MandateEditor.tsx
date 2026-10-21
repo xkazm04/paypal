@@ -20,7 +20,7 @@ import type { OpenMandate } from '@bindings/OpenMandate';
 import type { WalletError } from '../../lib/contract';
 import { shortHash, shortId } from '../../lib/format';
 import { useNow, useQuery } from '../../lib/hooks';
-import { rulesName, timeLeftWords } from '../../lib/words';
+import { kindWord, rulesName, timeLeftWords } from '../../lib/words';
 import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Chip, Hourglass, Kv, Popover, Seg, Spacer, type IconName } from '../../shared/ui';
 import { buildMandate, CLAUSE_NUMBER, draftFrom, fromLocalInput, newDraft, previewClauses, refusalWords, ruleProblems, withClause, type ClauseDraft, type ClauseType, type MandateDraft } from './mandateDraft';
@@ -142,7 +142,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
         case 'per_deal': {
           const sp = signedOf('per_deal');
           return (
-            <Lever key={i} n={3} title={`Most per ${c.kind === 'haggle' ? 'deal' : c.kind.replace('_', ' ')}`} value={c.max} currency={cur} signed={sameCur && sp ? sp.max_amount.minor : null}
+            <Lever key={i} n={3} title={`Most per ${c.kind === 'haggle' ? 'deal' : kindWord(c.kind)}`} value={c.max} currency={cur} signed={sameCur && sp ? sp.max_amount.minor : null}
               ticks={ticksOr(() => amountTicks(lines!, (l) => l.kind === c.kind))} dir={dirOf('per_deal', 'per-deal max')}
               onChange={(max) => set(i, { ...c, max })} onRemove={() => remove(i)} />
           );
