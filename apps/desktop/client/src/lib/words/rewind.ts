@@ -22,7 +22,6 @@ export const REWIND_ANSWER = {
 export const REWIND_CARD = {
   owner: 'You decided',
   rule: 'Your rules decided',
-  buyer: 'Buyers approved',
   default: 'Safe default',
   refused: 'Refused',
   refusedNote: 'PayPal never asked',
@@ -73,7 +72,6 @@ export const REWIND_TAPE = {
   empty: 'Nothing happened this week. If you do nothing, no money moves.',
   noMatch: 'No step matches. Clear the search or the filter to see the whole week.',
   filter: 'Who decided',
-  all: 'All',
   none: 'No PayPal call',
   sorts: { newest: 'Newest first', oldest: 'Oldest first' },
   paypal: 'PayPal',

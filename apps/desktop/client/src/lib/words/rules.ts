@@ -45,8 +45,6 @@ export const RULES_LIST = {
   noMatch: 'No rule set matches. Clear the search or the filter to see them all.',
   pick: 'Pick a rule set to read every rule in it.',
   inForce: 'In force',
-  ended: 'Ended',
-  again: 'Sign again',
   agentOf: (agent: string): string => `${agent} agent`,
   sort: { agent: 'By agent', newest: 'Newest version', ending: 'Ends soonest' },
 } as const;
@@ -101,7 +99,6 @@ export const LIMITS_PLACE = {
   meters: 'Today against your limits',
   unread: 'Your wallet limits could not be read right now. Nothing has changed with your money.',
   reading: 'Reading your wallet limits…',
-  none: 'No wallet limit is signed. Each rule set still limits its own agent.',
   mixed: 'Money went out in more than one currency today, so nothing is added up.',
   ifNothing: 'your limits stay as signed',
   /** The daily meter is the day's budget (every payment agreed today), never the footer's figure. */

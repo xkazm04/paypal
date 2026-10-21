@@ -22,7 +22,6 @@ export const SETTINGS_IF = {
   firstRun: 'nothing is set up and no money moves',
   locked: 'it stays locked · no money moves',
   paused: 'they stay paused · deadlines still release holds',
-  ready: 'your settings stay as they are',
 } as const;
 
 export const SETTINGS_OPEN_CHARTER = { act: 'Open your charter', title: 'The five setup lines: keys, rules, practice deal, agent app, unlock' } as const;
@@ -173,7 +172,6 @@ export const SETTINGS_PROTECT = {
   fixed: 'Fixed',
   movesOn: 'Money moves only on',
   agentsNever: 'agents: never',
-  agentsSuggest: 'agents: only suggest',
   agentsInside: 'agents: inside a table',
   rowsOnlyYou: [
     ['PayPal key', 'typed into a Windows dialog'],
@@ -216,5 +214,4 @@ export const SETTINGS_FACTS = {
   house: 'House seller',
   rules: 'Rule sets signed',
   working: 'Agents at work now',
-  lockIn: 'Approving locks',
 } as const;
