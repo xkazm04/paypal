@@ -101,6 +101,13 @@ describe('csv', () => {
     expect(csv.split('\r\n')[1]?.startsWith('replay,a,')).toBe(true);
     expect(csv).toContain(',9.60,USD,');
   });
+  it('exports a payment being checked with PayPal as that, never as held or paid (the totals leave it out)', () => {
+    const held = deal('h', { state: 'AUTHORIZED' });
+    const csv = toCSV([held, deal('k', { state: 'AUTHORIZED' })], { ...ctx, label: (d) => d.id, checking: (d) => d.id === 'k' }, '');
+    const state = (id: string) => csv.split('\r\n').find((l) => l.split(',')[1] === id)?.split(',')[7];
+    expect(state('h')).toBe('held');
+    expect(state('k')).toBe('checking');
+  });
 });
 
 describe('a buyer’s RECEIPTED deal is not in the Paid bucket', () => {

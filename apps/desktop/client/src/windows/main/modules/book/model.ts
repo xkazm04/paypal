@@ -293,13 +293,14 @@ export function csvCell(v: string | number | null | undefined): string {
 
 export type CsvCtx = Ctx & { label: (d: Deal) => string };
 
-/** Every exported record carries its mode. */
+/** Every exported record carries its mode. A payment being checked with PayPal (ctx.checking) is
+ *  exported as `checking`: the totals count it neither paid nor held, and neither does the file. */
 export function toCSV(rows: readonly Deal[], ctx: CsvCtx, query: string): string {
   const head = ['mode', 'deal', 'day', 'kind', 'side', 'counterparty', 'item', 'money_state', 'amount', 'currency', 'state', 'paypal_statement', 'paypal_order', 'paypal_capture', 'query'];
   const lines = [head.join(',')];
   for (const d of rows) {
     const t = dealTotal(d);
-    lines.push([d.mode, ctx.label(d), dayKey(d) ?? '', d.kind, d.side, ctx.cpName(d), d.terms.item_ref, bucketOf(d), decimal(t.minor, t.currency), t.currency, d.state,
+    lines.push([d.mode, ctx.label(d), dayKey(d) ?? '', d.kind, d.side, ctx.cpName(d), d.terms.item_ref, ctx.checking?.(d) ? 'checking' : bucketOf(d), decimal(t.minor, t.currency), t.currency, d.state,
       STATEMENT_SHORT[ctx.stmt(d)], d.paypal.order ?? '', d.paypal.capture ?? '', query].map(csvCell).join(','));
   }
   return `${lines.join('\r\n')}\r\n`;
