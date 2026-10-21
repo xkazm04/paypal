@@ -1,5 +1,6 @@
 //! Wallet-wide limits (T14): owner-signed envelope versions and the deals the exposure fold
 //! reads. Append-only like mandates; every read re-verifies the owner's signature.
+use crate::repositories::enum_text;
 use crate::{AuditEntry, Ledger, LedgerError, audit, hash_blob};
 use ed25519_dalek::VerifyingKey;
 use rusqlite::{OptionalExtension, TransactionBehavior, params};
@@ -102,8 +103,14 @@ impl Ledger {
     /// exposure fold reads (money out only; released deals never count).
     pub fn exposure_deals(&self) -> Result<Vec<ExposureDeal>, LedgerError> {
         let agreed = |c: &str| AGREED_ROW.replace("{c}", c).replace("{id}", "d.id");
+        // The released states come from table-core's one list, as `usage_for` reads them.
+        let released = DealState::RELEASED
+            .iter()
+            .map(|state| enum_text(state).map(|text| format!("'{text}'")))
+            .collect::<Result<Vec<_>, _>>()?
+            .join(",");
         let sql = format!(
-            "SELECT id,side,state,qty,unit_price_minor,currency,CAST(created_at AS INTEGER),({}),({}) FROM deals d WHERE side='buyer' AND state NOT IN ('REFUSED','WITHDRAWN','EXPIRED','VOIDED','AUTO_VOIDED')",
+            "SELECT id,side,state,qty,unit_price_minor,currency,CAST(created_at AS INTEGER),({}),({}) FROM deals d WHERE side='buyer' AND state NOT IN ({released})",
             agreed("seq"),
             agreed("CAST(at AS INTEGER)"),
         );

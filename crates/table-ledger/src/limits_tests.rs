@@ -165,6 +165,32 @@ fn the_exposure_window_equals_the_velocity_window_under_one_mandate() {
     assert_eq!(now[0].committed.minor(), 4 * 32900);
 }
 
+/// The exposure fold's row set is table-core's released rule, not a list of its own: for every
+/// deal state, a buyer deal is read exactly when the state is not released.
+#[test]
+fn exposure_deals_leave_out_exactly_the_released_states() {
+    let (mut ledger, base, ..) = setup();
+    for (i, state) in DealState::ALL.into_iter().enumerate() {
+        let deal = budget_deal(&mut ledger, &base, 1 + i as u32);
+        ledger
+            .conn
+            .execute(
+                "UPDATE deals SET state=?2 WHERE id=?1",
+                params![
+                    deal.id.to_string(),
+                    repositories::enum_text(&state).unwrap()
+                ],
+            )
+            .unwrap();
+        let read = ledger
+            .exposure_deals()
+            .unwrap()
+            .iter()
+            .any(|d| d.id == deal.id);
+        assert_eq!(read, !state.is_released(), "{state:?}");
+    }
+}
+
 /// The ledger's per-mandate usage count and table-core's `is_agreed_or_later` are one set: for
 /// every deal state, a deal with no readable agreement row counts against another deal exactly
 /// when the core predicate says so (and a released state never counts).
