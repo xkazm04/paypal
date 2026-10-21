@@ -19,6 +19,7 @@ pub struct ApprovalSession {
     last_activity: Timestamp,
     locked: bool,
     generation: u64,
+    session_id: [u8; 16],
 }
 impl std::fmt::Debug for ApprovalSession {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -33,6 +34,7 @@ pub struct OwnerTicket {
     pub(crate) deal: DealId,
     pub(crate) hash: H256,
     pub(crate) generation: u64,
+    pub(crate) session_id: [u8; 16],
     pub(crate) expires: Timestamp,
     pub(crate) at: Timestamp,
 }
@@ -78,11 +80,14 @@ impl ApprovalSession {
     pub fn new(now: Timestamp) -> Result<Self, Error> {
         let mut bytes = [0; 32];
         getrandom::fill(&mut bytes).map_err(|_| Error::Unavailable)?;
+        let mut session_id = [0; 16];
+        getrandom::fill(&mut session_id).map_err(|_| Error::Unavailable)?;
         Ok(Self {
             token: H256(bytes).hex(),
             last_activity: now,
             locked: true,
             generation: 0,
+            session_id,
         })
     }
     pub fn token(&self, label: &str) -> Result<&str, Error> {
@@ -148,6 +153,7 @@ impl ApprovalSession {
             deal,
             hash,
             generation: self.generation,
+            session_id: self.session_id,
             expires: now.saturating_add(TICKET_SECS),
             at: now,
         })
@@ -167,6 +173,7 @@ impl ApprovalSession {
             || ticket.deal != deal
             || ticket.hash != hash
             || ticket.generation != self.generation
+            || ticket.session_id != self.session_id
             || ticket.expires <= now
         {
             return Err(Error::Permission);
@@ -234,5 +241,22 @@ mod tests {
         assert!(session.validate(&ticket, id, H256::ZERO, 1, 160).is_err());
         session.unlock("approval", &token, &Reauth, 150).unwrap();
         assert!(session.validate(&ticket, id, H256::ZERO, 1, 159).is_err());
+    }
+    #[test]
+    fn owner_ticket_from_another_session_is_refused() {
+        let mut minting = ApprovalSession::new(100).unwrap();
+        let mut other = ApprovalSession::new(100).unwrap();
+        let id: DealId = "01ARZ3NDEKTSV4RRFFQ69G5FAV".parse().unwrap();
+        for session in [&mut minting, &mut other] {
+            let token = session.token("approval").unwrap().to_owned();
+            session.unlock("approval", &token, &Reauth, 100).unwrap();
+        }
+        let token = minting.token("approval").unwrap().to_owned();
+        let ticket = minting
+            .ticket("approval", &token, id, H256::ZERO, 1, 100)
+            .unwrap();
+        assert_eq!(minting.generation, other.generation);
+        assert!(minting.validate(&ticket, id, H256::ZERO, 1, 120).is_ok());
+        assert!(other.validate(&ticket, id, H256::ZERO, 1, 120).is_err());
     }
 }
