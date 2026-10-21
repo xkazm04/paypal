@@ -2,12 +2,11 @@
 // only from the wallet's own verified record (deal_history steps, closed facts), the deals' own
 // terms for the amounts, and the attention count. Never from counterparty text. Pure: no React,
 // no IO; the "last seen" moment is kept per viewer in localStorage by the helpers at the bottom.
-import type { Currency } from '@bindings/Currency';
 import type { Deal } from '@bindings/Deal';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import type { Money } from '@bindings/Money';
 import { endingUnreadLine, type StatementRead } from '../../../lib/words';
-import { dealTotal, endedBeforePayPalShowed } from '../logic';
+import { dealTotal, endedBeforePayPalShowed, sumByCurrency } from '../logic';
 import { moneyList } from './model';
 
 /** What happened, as Maya would group it. */
@@ -204,12 +203,6 @@ function words(outcome: AwayOutcome, who: AwayAuthority, n: number, read?: State
     case 'disputed': return [`${plural(n, 'payment is', 'payments are')} disputed at PayPal`, ''];
   }
 }
-
-const sumByCurrency = (items: readonly Money[]): Money[] => {
-  const by = new Map<Currency, number>();
-  for (const m of items) by.set(m.currency, (by.get(m.currency) ?? 0) + m.minor);
-  return [...by.entries()].map(([currency, minor]) => ({ currency, minor }));
-};
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const hm = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
