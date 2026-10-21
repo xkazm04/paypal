@@ -285,7 +285,7 @@ export function OwnerConfig({ hint, onReplayed }: { hint: string | null; /** A r
 
         <Section title="Agent rules" end={<>{i('mandates')}<Btn kind={active.length || first ? 'default' : 'gold'} sm onClick={() => setEditing({ sel: null })}>{active.length ? 'New rules…' : 'Sign your first rules…'}</Btn></>}>
           {mandates.error ? <WalletNotice error={mandates.error} what="Agent rules" /> : null}
-          <Group empty={mandates.loading ? 'Reading your rules…' : 'No rules signed yet, so agents can’t do anything.'}>
+          <Group empty={mandates.loading ? 'Reading your rules…' : mandates.error && !mandates.data ? 'Your rules can’t be read right now.' : 'No rules signed yet, so agents can’t do anything.'}>
             {list.map((m) => <MandateRow key={`${m.payload.id}:${m.payload.version}`} m={m} now={now} onOpen={() => setEditing({ sel: m.payload.id })} />)}
           </Group>
         </Section>
