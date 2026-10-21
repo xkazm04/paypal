@@ -102,8 +102,10 @@ happen only in the [money pipeline](./money-pipeline.md).
    Input is withheld until the stream parser accepts a tool inventory equal to the wallet's
    catalogue (`parser.rs`, `TOOLS`, `wallet_tool`). A missing or decoy tool fails closed.
    `argv()` passes only the wallet MCP server and disables shell and web tools. The version probe
-   always returns `available: false` with "Pre-input tool inventory is not established; run
-   isolation spike", so `start_agent` answers "Engine isolation conformance not established".
+   always returns `available: false` because the pre-input tool inventory is not established
+   until the isolation spike passes; the owner reads "The wallet can’t yet confirm this agent app
+   reaches only the wallet’s own tools", and `start_agent` answers "Engine isolation conformance
+   not established".
 10. **Pause and end.** `pause_all_agents` persists the pause, cancels every job and revokes every
     grant. Calls queued under an old run are re-checked against that exact run and its expiry
     (`run_ended`). Deadlines, read-backs and approval polls keep running.

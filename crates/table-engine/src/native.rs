@@ -451,7 +451,12 @@ impl EngineAdapter for NativeEngine {
             id: self.id,
             available: false,
             version: Some(version),
-            reason: Some("Pre-input tool inventory is not established; run isolation spike".into()),
+            // Shown to the owner as is. The engineering reason: the pre-input tool inventory
+            // is not established until the isolation spike passes (docs/features/agents-and-engines.md).
+            reason: Some(
+                "The wallet can’t yet confirm this agent app reaches only the wallet’s own tools"
+                    .into(),
+            ),
         })
     }
     async fn run(
