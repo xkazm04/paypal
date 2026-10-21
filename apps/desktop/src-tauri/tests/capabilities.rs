@@ -210,6 +210,32 @@ fn shell_answered_commands_check_their_own_row_of_the_authority_table() {
     assert!(!sources.contains("label(&window, &["));
 }
 #[test]
+fn every_token_row_forwards_the_ipc_header_to_its_gate() {
+    // A row that needs the approval token is checked against the X-Wallet-Ipc header of the call;
+    // a handler that passes no request reaches the gate with no token, so the owner's command is
+    // refused every time. Each such handler must hand its request on.
+    let sources = shell_sources();
+    let mut checked = 0;
+    for a in table_client::authority::AUTHORITY
+        .iter()
+        .filter(|a| a.token)
+    {
+        let handler = sources
+            .split(&format!("fn {}(", a.name))
+            .nth(1)
+            .and_then(|rest| rest.split("#[tauri::command]").next())
+            .unwrap_or_else(|| panic!("no handler for {}", a.name));
+        assert!(
+            handler.contains("request: tauri::ipc::Request<'_>")
+                && handler.contains("Some(&request)"),
+            "{} needs the approval token but does not forward the request",
+            a.name
+        );
+        checked += 1;
+    }
+    assert!(checked >= 20, "{checked}");
+}
+#[test]
 fn every_window_event_goes_through_the_table_driven_emit() {
     // Who is told each event is a row in the authority table (`EVENTS`); the shell sends through
     // one helper that reads it, never a hand-written (window, event) pair.
