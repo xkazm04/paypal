@@ -264,7 +264,7 @@ export const PRICE_CHECK = {
   key: 'Typical price',
   note: 'A check only reads the market. It never pays or signs anything.',
   unbound: 'This item has no market product tied to it in your rules, so there is nothing to check. Add one to your market-watch rule first.',
-  needsUnlock: 'This window can’t check right now. Unlock it from The Table first.',
+  needsUnlock: 'This window can’t check right now. Open it again from The Table.',
   failed: 'Price not checked',
 } as const;
 /** The result of a check: "$329.00 · usually $300.00–$360.00". */

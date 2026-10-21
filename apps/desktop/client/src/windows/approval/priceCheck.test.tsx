@@ -64,6 +64,12 @@ describe('Check the price now', () => {
   it('is disabled without the approval capability', () => {
     session.tokenReady = false;
     render(<PriceCheck deal={deal('listing 7')} payload={watch} />);
-    expect((screen.getByRole('button', { name: PRICE_CHECK.label }) as HTMLButtonElement).disabled).toBe(true);
+    const button = screen.getByRole('button', { name: PRICE_CHECK.label }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    // The remedy is the one for a missing capability (gating.ts privilegedBlock): open the window
+    // again. Unlocking is not it, and it happens in this window, never in The Table.
+    expect(button.title).toBe(PRICE_CHECK.needsUnlock);
+    expect(button.title).toMatch(/open it again from The Table/i);
+    expect(button.title).not.toMatch(/unlock/i);
   });
 });
