@@ -40,7 +40,8 @@ impl McpTransport for HttpMcp {
         response.json().await.map_err(|_| EngineError::Invalid)
     }
 }
-/// Hard ceiling on how long the policy negotiator waits on the wallet.
+/// The round the brief reports once the peer's offers heard no longer fit a `u8`: saturated, so
+/// the band's own `max_rounds` refuses it, never wrapped back to an early round.
 const MAX_ROUNDS: u8 = u8::MAX;
 impl Runtime {
     /// Reads only typed state: the signed band, the transcript's shape and the deal projection.
