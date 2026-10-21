@@ -193,25 +193,6 @@ export function consequences(i: ConsequenceInput): Consequence[] {
   return L;
 }
 
-/** The second line of a table tab: where the latest price sits against the band. */
-export function tabLine(o: { band: BandDraft | null; theirs: Priced | null; side: 'buyer' | 'seller'; roundsLeft: number | null; state: string; currency: Currency }): string {
-  const f = (m: number) => short(m, o.currency);
-  if (o.state === 'PAIRING') return o.band ? 'connecting · price range set' : 'connecting · no price range yet';
-  if (!o.band || (o.band.ceiling === null && o.band.floor === null)) return `${o.theirs ? `${o.theirs.typ === 'LISTING' ? 'listed at' : 'asking'} ${f(o.theirs.price)} · ` : ''}no price range yet`;
-  const bound = o.side === 'buyer' ? o.band.ceiling : o.band.floor;
-  if (!o.theirs) return bound !== null ? `${o.side === 'buyer' ? 'up to' : 'from'} ${f(bound)} · no offer yet` : 'no offer yet';
-  const parts = [`${o.side === 'buyer' ? 'asking' : 'offering'} ${f(o.theirs.price)}`];
-  if (bound !== null) {
-    const r = o.side === 'buyer' ? bound - o.theirs.price : o.theirs.price - bound;
-    parts.push(o.side === 'buyer' ? (r >= 0 ? `${f(r)} under your max` : `${f(-r)} over your max`) : (r >= 0 ? `${f(r)} over your min` : `${f(-r)} under your min`));
-  }
-  if (o.roundsLeft !== null) parts.push(`${o.roundsLeft} ${o.roundsLeft === 1 ? 'offer' : 'offers'} left`);
-  return parts.join(' · ');
-}
-
-/** Distance from the left of a horizontal "where it stands" bar, in percent (higher price = nearer the right). */
-export const posPct = (v: number, s: Pick<Scale, 'lo' | 'hi'>): number => 100 - topPct(v, s);
-
 export type Standing = { kind: 'inside' | 'over' | 'no-limit' | 'no-offer'; /** Distance to the limit, always positive, in minor units. */ gap: number | null };
 
 /** Where their latest price sits against your limit: inside it, over it, or there is nothing to compare. */

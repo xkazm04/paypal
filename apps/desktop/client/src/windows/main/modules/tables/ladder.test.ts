@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import {
   clampCeiling, clampFloor, consequences, fenceKey, moveFence, diffLines, draftValid, fits, ladderScale, lastPriced, parseAmount, priceAt,
-  posPct, sameBand, short, standLine, standing, stepStates, tabLine, toInput, topPct, unitOf, type ConsequenceInput,
+  sameBand, short, standLine, standing, stepStates, toInput, topPct, unitOf, type ConsequenceInput,
 } from './ladder';
 
 const usd = (d: number) => d * 100;
@@ -129,21 +129,7 @@ describe('consequences of a band move', () => {
   });
 });
 
-describe('table tab line and steps', () => {
-  it('reads the gap between the latest price and the fence', () => {
-    expect(tabLine({ band: { floor: null, ceiling: usd(340) }, theirs: { seq: 11, price: usd(329), typ: 'COUNTER' }, side: 'buyer', roundsLeft: 1, state: 'NEGOTIATING', currency: 'USD' }))
-      .toBe('asking $329 · $11 under your max · 1 offer left');
-    expect(tabLine({ band: { floor: null, ceiling: usd(320) }, theirs: { seq: 11, price: usd(329), typ: 'COUNTER' }, side: 'buyer', roundsLeft: null, state: 'NEGOTIATING', currency: 'USD' }))
-      .toBe('asking $329 · $9 over your max');
-    expect(tabLine({ band: null, theirs: null, side: 'buyer', roundsLeft: null, state: 'PAIRING', currency: 'USD' })).toBe('connecting · no price range yet');
-    expect(tabLine({ band: null, theirs: { seq: 1, price: usd(236), typ: 'LISTING' }, side: 'buyer', roundsLeft: null, state: 'LISTED', currency: 'USD' })).toBe('listed at $236 · no price range yet');
-  });
-  it('places a price on the horizontal where-it-stands bar', () => {
-    const s = { lo: usd(280), hi: usd(400) };
-    expect(posPct(usd(280), s)).toBe(0);
-    expect(posPct(usd(400), s)).toBe(100);
-    expect(posPct(usd(340), s)).toBe(50);
-  });
+describe('where it stands, and the steps', () => {
   it('says where their latest price stands against your limit', () => {
     const theirs = { seq: 11, price: usd(329), typ: 'COUNTER' } as const;
     const buyer = { floor: null, ceiling: usd(340) };

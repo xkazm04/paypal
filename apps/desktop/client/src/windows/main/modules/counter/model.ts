@@ -253,11 +253,6 @@ export function matchesFilter(row: CatalogRow, f: CatalogFilter, draft: FloorDra
   }
 }
 
-export function matchesQuery(row: CatalogRow, q: string): boolean {
-  const s = q.trim().toLowerCase();
-  return !s || `${row.title ?? ''} ${row.itemRef}`.toLowerCase().includes(s);
-}
-
 // ---- the price scale (Layer 2): positions on a shared axis ---------------------------------------
 
 /** Maps amounts (one currency) to 0-100 % on an axis padded a little on both sides. */

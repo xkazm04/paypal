@@ -48,6 +48,3 @@ export function groupStanding(g: DealGroupView): GroupStanding {
   return { kind: 'bargaining', open: open.length, best };
 }
 
-/** The group a deal belongs to, if any. */
-export const groupOf = (groups: readonly DealGroupView[], dealId: string): DealGroupView | undefined =>
-  groups.find((g) => g.tables.some((t) => t.deal_id === dealId));

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
 import type { DealGroupView } from '@bindings/DealGroupView';
 import type { GroupTable } from '@bindings/GroupTable';
-import { groupOf, groupStanding, shopAroundSets } from './groups';
+import { groupStanding, shopAroundSets } from './groups';
 
 const usd = (minor: number) => ({ minor, currency: 'USD' as const });
 function deal(id: string, o: Partial<Deal> & { item?: string; cp?: string } = {}): Deal {
@@ -62,10 +62,5 @@ describe('group standing', () => {
   });
   it('has ended when every table closed with no agreement', () => {
     expect(groupStanding(group([table('A', { state: 'WITHDRAWN' }), table('B', { state: 'EXPIRED' })])).kind).toBe('ended');
-  });
-  it('finds the group of a deal', () => {
-    const g = group([table('A'), table('B')]);
-    expect(groupOf([g], 'B')).toBe(g);
-    expect(groupOf([g], 'Z')).toBeUndefined();
   });
 });
