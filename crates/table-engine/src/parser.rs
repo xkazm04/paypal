@@ -140,6 +140,15 @@ impl StreamParser {
                 }
                 Ok(events)
             }
+            // claude-code reports a retried API call (rate limit, overload) as its own system
+            // event (research 2.1). It names no tool and carries no text; every other system
+            // subtype after init stays unknown and fails closed.
+            "system"
+                if self.engine == EngineId::ClaudeCode
+                    && v.get("subtype").and_then(Value::as_str) == Some("api_retry") =>
+            {
+                Ok(Vec::new())
+            }
             "thread.started" => Ok(Vec::new()),
             "item.started" | "item.completed" => {
                 let kind = v

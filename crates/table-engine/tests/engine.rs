@@ -341,3 +341,33 @@ fn e1_both_adapters_pass_one_conformance_suite_for_both_profiles() {
         }
     }
 }
+/// claude-code's stream reports a retried API call as `system/api_retry` (research 2.1, [S]). It
+/// carries no tool and no text, so it must not poison a run; any other `system` subtype after init
+/// still fails closed, and a second init is still an isolation failure.
+#[test]
+fn a_retried_api_call_does_not_poison_a_claude_run() {
+    let init = r#"{"type":"system","subtype":"init","tools":["mcp__wallet__table_view"],"mcp_servers":[{"name":"wallet","status":"connected"}]}"#;
+    let retry = r#"{"type":"system","subtype":"api_retry","attempt":1,"retry_delay_ms":500,"error":"rate_limit"}"#;
+    let done = r#"{"type":"result","subtype":"success","is_error":false,"result":"done"}"#;
+    let mut p = StreamParser::new(EngineId::ClaudeCode, Profile::Agent);
+    p.line(init).unwrap();
+    assert_eq!(p.line(retry).unwrap(), Vec::new());
+    p.line(done).unwrap();
+    assert_eq!(p.finish(), TerminalVerdict::Clean);
+    // Before the inventory, a retry is not an inventory: fail closed.
+    let mut p = StreamParser::new(EngineId::ClaudeCode, Profile::Agent);
+    assert!(p.line(retry).is_err());
+    // Any other system subtype after init stays unknown and poisons the run.
+    let mut p = StreamParser::new(EngineId::ClaudeCode, Profile::Agent);
+    p.line(init).unwrap();
+    assert!(
+        p.line(r#"{"type":"system","subtype":"hook_response"}"#)
+            .is_err()
+    );
+    assert_ne!(p.finish(), TerminalVerdict::Clean);
+    // A second init after a retry is still an isolation failure.
+    let mut p = StreamParser::new(EngineId::ClaudeCode, Profile::Agent);
+    p.line(init).unwrap();
+    p.line(retry).unwrap();
+    assert!(matches!(p.line(init), Err(Error::Isolation)));
+}
