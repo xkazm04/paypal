@@ -433,7 +433,7 @@ function Panel({ n, state, title, hint, open, fold, children }: { n: number; sta
     <li className={`wz-panel st-${state}${show ? ' open' : ''}`} aria-current={state === 'on' ? 'step' : undefined}>
       <div className="wz-h">
         <span className="wz-n" aria-hidden="true">{state === 'done' ? <Icon name="check" size={16} /> : n}</span>
-        <h3>{title}</h3>
+        <h2>{title}</h2>
         <span className="wz-st">{state === 'done' ? PAIR.stateDone : state === 'on' ? PAIR.stateNow : PAIR.stateNext}</span>
       </div>
       {show ? <div className="wz-body">{children}</div> : folded ? <div className="wz-fold">{fold ?? children}</div> : hint ? <div className="wz-fold dim">{hint}</div> : null}
