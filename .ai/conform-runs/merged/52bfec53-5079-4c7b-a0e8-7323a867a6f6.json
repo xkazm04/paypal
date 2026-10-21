@@ -1,0 +1,151 @@
+{
+ "schema": "conform-run/1",
+ "worker": "52bfec53-5079-4c7b-a0e8-7323a867a6f6",
+ "subject": "transactions-over-a-replicated-log",
+ "evaluatedAt": "2026-10-21T23:38:25.680669+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "ledger-repositories-audit-evidence",
+   "subject": "transactions-over-a-replicated-log",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-ledger/src/audit.rs:330 The ledger writes directly through SQLite transactions, and searches of this context and repository sources found no consensus, applied_index, modified_since or replicated_log machinery requiring the subject's transaction protocol.",
+   "techniques": [
+    {
+     "technique": "capture-index-before-snapshot",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-ledger/src/lib.rs:159 The change counter measures local SQLite changes; it is not an applied log index captured when opening a transaction snapshot."
+    },
+    {
+     "technique": "compose-then-conform",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-ledger/src/stores.rs:135 The store adapter forwards domain operations; it does not expose composable transaction handles through a storage wrapper stack."
+    },
+    {
+     "technique": "list-verification-by-present-keys",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-ledger/src/repositories.rs:574 Listing reads SQLite rows directly, without reconciling buffered transaction writes or constructing a list verification for replicated apply."
+    },
+    {
+     "technique": "live-file-is-the-snapshot",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-ledger/src/snapshot.rs:38 These snapshots are pre-migration restore copies, not consensus compaction or follower catch-up snapshots."
+    },
+    {
+     "technique": "no-writes-no-log",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-ledger/src/audit.rs:338 This read executes directly against SQLite; there is no buffered transaction commit that could propose an empty consensus entry."
+    },
+    {
+     "technique": "same-value-still-conflicts",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-ledger/src/negotiation.rs:103 This checks a signed envelope's predecessor against the deal transcript, not an optimistic transaction read set at consensus apply."
+    },
+    {
+     "technique": "snapshot-read-plus-verify-log",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-ledger/src/repositories.rs:607 Deal creation uses an ordinary SQLite write transaction, with no consensus round trip or verification-carrying log entry."
+    }
+   ],
+   "absenceTerms": [
+    "consensus",
+    "applied_index",
+    "modified_since"
+   ]
+  },
+  {
+   "context": "console-navigation-and-lists",
+   "subject": "transactions-over-a-replicated-log",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:146 The console filters and virtualizes supplied UI rows, and searches of its directory and repository sources found no consensus, applied_index, modified_since or replicated_log machinery implementing replicated transactions.",
+   "techniques": [
+    {
+     "technique": "capture-index-before-snapshot",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/findIndex.ts:43 Find builds a text search index; it does not capture an applied log position or open an engine snapshot."
+    },
+    {
+     "technique": "compose-then-conform",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:128 This memoizes UI search text, without wrapping a transactional storage interface."
+    },
+    {
+     "technique": "list-verification-by-present-keys",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:137 The list is a display projection of supplied rows, without transaction write-buffer reconciliation or verification hashes."
+    },
+    {
+     "technique": "live-file-is-the-snapshot",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/calm.ts:16 Persistence here stores a browser motion preference; it is not a durable engine beneath a consensus snapshot library."
+    },
+    {
+     "technique": "no-writes-no-log",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/calm.ts:10 Reading the preference has no transaction commit or replicated entry proposal."
+    },
+    {
+     "technique": "same-value-still-conflicts",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/Find.tsx:21 Reference equality controls selector updates; it does not settle concurrent transactional writes."
+    },
+    {
+     "technique": "snapshot-read-plus-verify-log",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/Waiting.tsx:44 Waiting constructs a windowed UI list, without opening a database transaction spanning consensus."
+    }
+   ],
+   "absenceTerms": [
+    "consensus",
+    "applied_index",
+    "modified_since"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-21T23:38:25.680669+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "transactions-over-a-replicated-log"
+   ],
+   "techniques": [
+    "capture-index-before-snapshot",
+    "compose-then-conform",
+    "list-verification-by-present-keys",
+    "live-file-is-the-snapshot",
+    "no-writes-no-log",
+    "same-value-still-conflicts",
+    "snapshot-read-plus-verify-log"
+   ],
+   "deviations": 0,
+   "context": "ledger-repositories-audit-evidence",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  },
+  {
+   "ts": "2026-10-21T23:38:25.680669+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "transactions-over-a-replicated-log"
+   ],
+   "techniques": [
+    "capture-index-before-snapshot",
+    "compose-then-conform",
+    "list-verification-by-present-keys",
+    "live-file-is-the-snapshot",
+    "no-writes-no-log",
+    "same-value-still-conflicts",
+    "snapshot-read-plus-verify-log"
+   ],
+   "deviations": 0,
+   "context": "console-navigation-and-lists",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
