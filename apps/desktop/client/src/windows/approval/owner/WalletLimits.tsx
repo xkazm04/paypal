@@ -144,7 +144,8 @@ export function WalletLimits({ view, error, loading, currency, locked, onSigned 
   return (
     <Section title="Wallet limits" end={<>{chip}<Btn sm onClick={() => setEditing(true)}>{limits ? 'Change…' : 'Set limits…'}</Btn></>}>
       {error ? <WalletNotice error={error} what="Wallet limits" /> : null}
-      <Group empty={loading && !view ? 'Reading your wallet limits…' : `${NO_WALLET_LIMIT}. Only each set of rules limits your agents.`}>
+      {/* A failed read is not "none": the notice above says why, the group says it is unknown. */}
+      <Group empty={loading && !view ? 'Reading your wallet limits…' : error && !view ? 'Your wallet limits can’t be read right now.' : `${NO_WALLET_LIMIT}. Only each set of rules limits your agents.`}>
         {view && view.status !== 'active' && view.status !== 'none' ? (
           <Row title={view.status === 'expired' ? 'Your wallet limits ran out' : 'Your wallet limits couldn’t be checked'} sub="Your agents can’t pay anyone until you set them again." need>
             <Chip tone="gold">needs you</Chip>
