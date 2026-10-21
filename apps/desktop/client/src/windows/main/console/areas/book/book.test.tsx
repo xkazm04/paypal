@@ -6,12 +6,15 @@
 import { act, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { formatMinor } from '../../../../../lib/format';
-import { BOOK, BOOK_VIEWS_TITLE, IF_NOTHING } from '../../../../../lib/words';
+import type { AuditRow } from '@bindings/AuditRow';
+import type { Deal } from '@bindings/Deal';
+import { BOOK, BOOK_VIEWS_TITLE, IF_NOTHING, stateWord } from '../../../../../lib/words';
 import { mockBackend } from '../../../../../mock/backend';
 import { sumByCurrency } from '../../../logic';
 import { QUESTION_WORDS } from '../../../modules/book/where';
 import { expectLayerHealthy, renderLayerAtScale, settle } from '../../testing/scaleSmoke';
 import { dealsIn, outsideSpan, paidOutIn, walletDay, weekSpan } from './model';
+import { stepChange } from './Record';
 
 vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/runtime')).runtimeMock);
 
@@ -143,6 +146,19 @@ describe('Book record (#16)', () => {
     expect((pages()[1]?.args as { before: number }).before).toBeGreaterThan(0);
     expect(r.rows()).toBeLessThanOrEqual(250);
   }, 60_000);
+});
+
+describe('Book record step wording', () => {
+  // A step's status change is worded like the deal's own status chip (parts.tsx StatusChip passes
+  // side AND kind): a rescue's states and a purchase PayPal verified read the same in both places.
+  const row = (from: Deal['state'] | null, to: Deal['state']): AuditRow => ({ seq: 1, at: 1, actor: 'pipeline', action: 'deal.transition', deal_id: 'd', decided_by: null, from, to });
+  it('says a rescue step in the rescue words, and a purchase receipt as paid', () => {
+    expect(stepChange(row('AGREED', 'SETTLING'), { side: 'seller', kind: 'rescue' })).toBe(`${stateWord('AGREED', { side: 'seller', kind: 'rescue' }).text} → ${stateWord('SETTLING', { kind: 'rescue' }).text}`);
+    expect(stepChange(row(null, 'AWAITING_APPROVAL'), { side: 'seller', kind: 'rescue' })).toBe('Waiting for subscriber');
+    expect(stepChange(row('CAPTURED', 'RECEIPTED'), { side: 'buyer', kind: 'purchase' })).not.toContain('Seller says paid');
+    expect(stepChange(row('CAPTURED', 'RECEIPTED'), { side: 'buyer', kind: 'haggle' })).toContain('Seller says paid');
+    expect(stepChange({ ...row(null, 'AGREED'), to: null }, undefined)).toBeNull();
+  });
 });
 
 describe('Ask your book', () => {

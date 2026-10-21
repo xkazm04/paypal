@@ -50,9 +50,14 @@ const FILTERS: readonly ListFilter<AuditRow>[] = [
   { value: 'you', label: BOOK.record.filter.you, test: (r) => r.actor.startsWith('owner') },
 ];
 
+/** A step's status change in the owner's words, worded as the deal's own status chip words it. */
+export function stepChange(r: Pick<AuditRow, 'from' | 'to'>, deal: Pick<Deal, 'side' | 'kind'> | undefined): string | null {
+  const ctx = { side: deal?.side, kind: deal?.kind };
+  return r.to ? `${r.from ? `${stateWord(r.from, ctx).text} → ` : ''}${stateWord(r.to, ctx).text}` : null;
+}
+
 function StepRow({ r, deal, title }: { r: AuditRow; deal: Deal | undefined; title: string | null }) {
-  const side = deal?.side;
-  const change = r.to ? `${r.from ? `${stateWord(r.from, { side }).text} → ` : ''}${stateWord(r.to, { side }).text}` : null;
+  const change = stepChange(r, deal);
   const by = r.decided_by ? decidedBy({ decided_by: r.decided_by }).text : null;
   return (
     <span className="bk-step">
