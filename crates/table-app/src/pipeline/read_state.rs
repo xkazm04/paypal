@@ -45,9 +45,12 @@ fn insert_capped<K: Ord + Clone, V>(
 
 /// The deal a schedule key belongs to: a request id (`{deal}-{attempt}-{operation}`) or the
 /// deadline read of a sent invoice (`deadline-read:{deal}`).
-fn key_deal(key: &str) -> Option<DealId> {
+fn key_names_deal(key: &str, id: &str) -> bool {
     let rest = key.strip_prefix("deadline-read:").unwrap_or(key);
-    rest.split('-').next()?.parse().ok()
+    // A deal id is its canonical 26-character ULID and holds no '-': the key's first
+    // '-'-separated segment is the id exactly when the id is a prefix followed by '-' or the end.
+    rest.strip_prefix(id)
+        .is_some_and(|tail| tail.is_empty() || tail.starts_with('-'))
 }
 
 /// A money read the wallet makes on its own only inside the window past the deadline.
@@ -127,9 +130,10 @@ impl Pipeline {
             .deadline(id)?
             .is_some_and(|(due, _)| now.saturating_sub(due) >= PARKED_READ_WINDOW_SECS);
         let awaiting = !terminal && deal.state == DealState::AwaitingApproval;
-        let deadline_key = format!("deadline-read:{id}");
+        let id_text = id.to_string();
+        let deadline_key = format!("deadline-read:{id_text}");
         let keep = |key: &str| {
-            if key_deal(key) != Some(id) {
+            if !key_names_deal(key, &id_text) {
                 return true;
             }
             if key == deadline_key {
@@ -163,7 +167,8 @@ impl Pipeline {
     }
     /// How many read-schedule entries and spent owner tickets name this deal. A diagnostic.
     pub fn read_state_of(&self, id: DealId) -> usize {
-        let keyed = |k: &String| key_deal(k) == Some(id);
+        let id_text = id.to_string();
+        let keyed = |k: &String| key_names_deal(k, &id_text);
         usize::from(self.rescue_polled.contains_key(&id))
             + self.parked_read.keys().filter(|k| keyed(k)).count()
             + self.rescue_read_backoff.keys().filter(|k| keyed(k)).count()
