@@ -117,8 +117,9 @@ export function EvidenceSheet({ kind, deal, ev, band, watch, onFresh, onClose }:
   const settings = useQuery('get_settings', null, { refreshOn: ['settings:changed'] });
   const e = ev.data;
   // The statement check is the owner's, read-only, and works on a deal PayPal's statement has not
-  // matched yet: RECEIPTED, or UNCONFIRMED (a late match still counts). It needs the PayPal keys.
-  const checkable = deal.state === 'RECEIPTED' || deal.state === 'UNCONFIRMED';
+  // matched yet: RECEIPTED, or UNCONFIRMED (a late match still counts). It needs the PayPal keys,
+  // and the wallet reads a statement only for a sandbox deal (Pipeline::reconcile refuses the rest).
+  const checkable = deal.mode === 'sandbox' && (deal.state === 'RECEIPTED' || deal.state === 'UNCONFIRMED');
   const needsKeys = settings.data?.payment_executor_configured === false;
   const reconcile = checkable && needsKeys ? (
     <span className="ui-hint">{STATEMENT_CHECK_NEEDS_KEYS}</span>
