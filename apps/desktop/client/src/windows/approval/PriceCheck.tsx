@@ -10,6 +10,7 @@ import type { WalletError } from '../../lib/contract';
 import { PRICE_CHECK, priceCheckWords } from '../../lib/words';
 import { WalletNotice } from '../../shared/honesty';
 import { Btn } from '../../shared/ui';
+import { refusalText } from './model';
 import { useSession } from './session';
 
 const PRODUCT_ID = /^[A-Za-z0-9_-]{1,128}$/;
@@ -53,7 +54,7 @@ export function PriceCheck({ deal, payload, onDone }: { deal: Deal | null; paylo
       ) : (
         <span className="t dim" role="note">{PRICE_CHECK.unbound}</span>
       )}
-      {error ? <WalletNotice error={error} what={PRICE_CHECK.failed} /> : null}
+      {error ? <WalletNotice error={error} what={PRICE_CHECK.failed} message={refusalText(error)} /> : null}
     </div>
   );
 }

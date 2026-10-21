@@ -11,7 +11,7 @@ import { WalletNotice } from '../../shared/honesty';
 import { Btn, Field } from '../../shared/ui';
 import type { Gate } from './gating';
 import { bandInputProblem, bandMissingSide, refusalWords } from './mandateDraft';
-import { minorToInput, parseMoneyInput } from './model';
+import { minorToInput, parseMoneyInput, refusalText } from './model';
 import { useSession } from './session';
 
 export function BandAdjust({ deal, band, gate, onDone, draft }: {
@@ -88,7 +88,7 @@ export function BandAdjust({ deal, band, gate, onDone, draft }: {
         </div>
       ) : null}
       {done ? <p className="dr-hint" role="status"><span className="ui-chip ok">Signed</span><span className="t" title={done}>{done}</span></p> : null}
-      {error ? <WalletNotice error={error} what="Price range not changed" message={error.code === 'REFUSED' ? refusalWords(error.message) : undefined} /> : null}
+      {error ? <WalletNotice error={error} what="Price range not changed" message={error.code === 'REFUSED' ? refusalWords(error.message) : refusalText(error)} /> : null}
     </div>
   );
 }
