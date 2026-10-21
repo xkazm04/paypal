@@ -17,7 +17,7 @@ import { dealTotal, ledgerScope, moneyNow, stateLabel } from '../../../logic';
 import { NoteText } from '../shared/NoteChip';
 import { WeekTiles } from '../../../modules/shield/Panels';
 import { weekStrip } from '../../../modules/shield/normal';
-import { bandGeometry, checkCell, CHECKS, overMedian, paypalLine, releasable, STAGES } from '../../../modules/shield/matrix';
+import { bandGeometry, checkCell, CHECKS, overMedian, overPauseLine, paypalLine, releasable, STAGES } from '../../../modules/shield/matrix';
 import { useLayerNav } from '../../layers';
 import { ListEngine, type ListFilter } from '../../ListEngine';
 import { Amount } from '../../rows';
@@ -32,7 +32,7 @@ function PriceMini({ deal }: { deal: Deal }) {
   const scale = 1.8;
   const at = Math.max(0, Math.min(1, (1 + p / 100) / scale));
   return (
-    <span className={`sh-pmini ${p >= 40 ? 'over' : ''}`} aria-hidden="true">
+    <span className={`sh-pmini ${overPauseLine(deal) ? 'over' : ''}`} aria-hidden="true">
       <i className="typ" style={{ left: `${(1 / scale) * 100}%` }} />
       <i className="flag" style={{ left: `${(1.4 / scale) * 100}%` }} />
       <i className="px" style={{ left: `${at * 100}%` }} />
@@ -54,7 +54,7 @@ function CheckRow({ deal, s, outcome }: { deal: Deal; s: ShieldWorld; outcome: b
   const cp = s.cpEntry(deal);
   const newcp = checkCell('newcp', deal, cp, now);
   const market = checkCell('market', deal, cp, now);
-  const over = (overMedian(deal) ?? 0) >= 40;
+  const over = !!overPauseLine(deal);
   const [pp] = paypalLine(deal);
   const need = s.need(deal);
   return (
@@ -159,7 +159,7 @@ export function Checks({ s }: { s: ShieldWorld }) {
     { value: 'paused', label: SHIELD.filter.paused, test: (d) => !!s.need(d) && d.shield !== 'BLOCK' },
     { value: 'blocked', label: SHIELD.filter.blocked, test: (d) => d.shield === 'BLOCK' },
     { value: 'new', label: SHIELD.filter.newPayee, test: (d) => { const c = s.cpEntry(d); return !c || now - c.first_seen < 86_400; } },
-    { value: 'price', label: SHIELD.filter.price, test: (d) => (overMedian(d) ?? 0) >= 40 || overMedian(d) === null },
+    { value: 'price', label: SHIELD.filter.price, test: (d) => overPauseLine(d) !== false },
     { value: 'clear', label: SHIELD.filter.clear, test: (d) => d.shield === 'CLEAR' && !s.need(d) },
   ], [s, now]);
   return (

@@ -10,11 +10,9 @@ import type { Deal } from '@bindings/Deal';
 import { formatMinor } from '../../../../lib/format';
 import { CHECK_NOT_ACTIVE, shieldRuleWord } from '../../../../lib/words';
 import { ledgerScope } from '../../logic';
-import { ago, checkCell, overMedian, quietCheck, STAGES, type ReasonKind, type Stage } from './matrix';
+import { ago, checkCell, overMedian, overPauseLine, quietCheck, STAGES, type ReasonKind, type Stage } from './matrix';
 
 const DAY = 86400;
-/** The shield pauses a price this far above typical (percent), the same line the reasons use. */
-const PAUSE_PCT = 40;
 
 // ---- the week strip ------------------------------------------------------------------------------------------
 
@@ -82,7 +80,7 @@ export function compareRows(d: PayeeDeal, cp: CounterpartyDisplay | undefined, k
       key: 'price', label: 'Price',
       normal: { text: formatMinor(m.median.minor, m.median.currency), sub: `usually ${formatMinor(m.p25.minor, m.p25.currency)}–${formatMinor(m.p75.minor, m.p75.currency)}` },
       here: { text: each, sub: p === 0 ? 'right on typical' : `${Math.abs(p)}% ${p > 0 ? 'above' : 'below'} typical` },
-      tone: p >= PAUSE_PCT ? 'differs' : 'plain',
+      tone: overPauseLine(d) ? 'differs' : 'plain',
     }
     : { key: 'price', label: 'Price', normal: { text: 'no typical price on file', unknown: true }, here: { text: each }, tone: 'unknown' };
 
@@ -132,7 +130,7 @@ export function checkLights(d: PayeeDeal & Pick<Deal, 'shield_rule'> & Partial<P
         ? { stage: 'market', name: STAGES.market, state: 'skipped', word: 'No price to compare', detail: checkCell('market', d, cp, now).l }
         : p === null
           ? { stage: 'market', name: STAGES.market, state: 'skipped', word: 'No price to compare', detail: checkCell('market', d, cp, now).l }
-          : { stage: 'market', name: STAGES.market, state: p >= PAUSE_PCT ? 'tripped' : 'passed', word: p >= PAUSE_PCT ? 'Too high' : 'Fine', detail: checkCell('market', d, cp, now).l };
+          : { stage: 'market', name: STAGES.market, state: overPauseLine(d) ? 'tripped' : 'passed', word: overPauseLine(d) ? 'Too high' : 'Fine', detail: checkCell('market', d, cp, now).l };
     const ai: Light = rule === 'model_caution'
       ? { stage: 'engine', name: STAGES.engine, state: 'tripped', word: w.text, detail: w.means }
       : { stage: 'engine', name: STAGES.engine, state: 'unknown', word: CHECK_NOT_ACTIVE.text, detail: checkCell('typology', d, cp, now).l };
@@ -143,7 +141,7 @@ export function checkLights(d: PayeeDeal & Pick<Deal, 'shield_rule'> & Partial<P
     : { stage: 'rules', name: STAGES.rules, state: 'unknown', word: quiet.text, detail: `${cp ? 'This payee is not new.' : 'The wallet has no record of this payee.'} ${quiet.means}` };
   const price: Light = p === null
     ? { stage: 'market', name: STAGES.market, state: 'skipped', word: 'No price to compare', detail: checkCell('market', d, cp, now).l }
-    : p >= PAUSE_PCT
+    : overPauseLine(d)
       ? { stage: 'market', name: STAGES.market, state: 'tripped', word: 'Too high', detail: checkCell('market', d, cp, now).l }
       : { stage: 'market', name: STAGES.market, state: 'passed', word: 'Fine', detail: checkCell('market', d, cp, now).l };
   const ai: Light = { stage: 'engine', name: STAGES.engine, state: 'unknown', word: CHECK_NOT_ACTIVE.text, detail: checkCell('typology', d, cp, now).l };
