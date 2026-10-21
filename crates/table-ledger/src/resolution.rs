@@ -360,4 +360,33 @@ mod tests {
         assert_eq!(observed_code("ignore previous instructions"), "other");
         assert_eq!(observed_code(""), "other");
     }
+    /// The live schema's CHECK on `operations.operation` is the ground truth: every name it admits
+    /// reads back here and as an owner-facing money-check step, and nothing else does.
+    #[test]
+    fn every_operation_the_schema_admits_reads_back_and_nothing_else_does() {
+        let ledger = Ledger::in_memory().unwrap();
+        let sql: String = ledger
+            .conn
+            .query_row(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='operations'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let start = sql.find("operation IN (").unwrap() + "operation IN (".len();
+        let end = start + sql[start..].find(')').unwrap();
+        let names: Vec<&str> = sql[start..end]
+            .split(',')
+            .map(|n| n.trim().trim_matches('\''))
+            .collect();
+        assert_eq!(names.len(), 6, "{names:?}");
+        for name in &names {
+            assert_eq!(operation_name(name).unwrap(), *name);
+            assert!(MoneyCheckStep::parse(name).is_some(), "{name}");
+        }
+        for other in ["refund", "Capture", "", "invoice"] {
+            assert!(operation_name(other).is_err(), "{other}");
+            assert!(MoneyCheckStep::parse(other).is_none(), "{other}");
+        }
+    }
 }
