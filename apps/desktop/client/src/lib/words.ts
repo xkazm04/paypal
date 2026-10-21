@@ -417,7 +417,7 @@ const REASON_EXACT: readonly (readonly [RegExp, string])[] = [
   [/^Seller-owned order: approve on PayPal/i, 'The seller makes this payment request. You approve it on PayPal, and the seller collects.'],
   [/^buyer haggle resources belong to the seller/i, 'The seller makes this payment request. You approve it on PayPal, and the seller collects.'],
   [/^This executor is deferred or replay-only/i, 'This kind of payment can’t be sent from the wallet yet. Nothing will be sent.'],
-  [/^rescue executor not attached/i, 'Sending fixes isn’t connected yet. Nothing will be sent.'],
+  [/^Invoicing executor is unavailable/i, 'Sending fixes isn’t connected yet. Nothing will be sent.'],
   [/^Enter PayPal sandbox credentials/i, 'Connect PayPal first: add your sandbox keys in wallet setup.'],
 ];
 /** Why the wallet can't act here (ApprovalSummary.unavailable_reason), in plain words; unknown text passes through. */
