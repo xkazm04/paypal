@@ -8,7 +8,7 @@ import { marketWords } from '../../lib/words';
 import type { DealDisplay } from '@bindings/DealDisplay';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { usePrefersReducedMotion } from '../../lib/hooks';
-import { marketPosition, niceTicks } from './logic';
+import { niceTicks } from './logic';
 import './charts.css';
 
 function useWidth<T extends HTMLElement>(): [RefObject<T | null>, number] {
@@ -127,13 +127,12 @@ export function MarketBand({ market, price, limit }: { market: MarketRef; price:
   const hi = Math.max(...pts) + span * 0.18;
   const H = 74; const pad = 16;
   const x = (m: number) => pad + ((m - lo) / (hi - lo)) * (W - 2 * pad);
-  const pos = priced ? marketPosition(priced.minor, market.p25.minor, market.median.minor, market.p75.minor) : null;
   const wpos = priced ? marketWords(priced.minor, market.p25.minor, market.median.minor, market.p75.minor).text : null;
   return (
     <div className="chartbox market" ref={ref}>
       {W > 0 ? (
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img"
-          aria-label={`Typical price ${fm(market.p25.minor)} to ${fm(market.p75.minor)}, middle ${fm(market.median.minor)}${priced ? `; this deal ${fm(priced.minor)}, ${pos}` : ''}${lim ? `; ${lim.label} ${fm(lim.value.minor)}` : ''}`}>
+          aria-label={`Typical price ${fm(market.p25.minor)} to ${fm(market.p75.minor)}, middle ${fm(market.median.minor)}${priced ? `; this deal ${fm(priced.minor)}, ${wpos}` : ''}${lim ? `; ${lim.label} ${fm(lim.value.minor)}` : ''}`}>
           <line x1={pad} x2={W - pad} y1="40" y2="40" className="mb-axis" strokeWidth="2" />
           <rect x={x(market.p25.minor)} y="30" width={Math.max(2, x(market.p75.minor) - x(market.p25.minor))} height="20" rx="4" className="mb-box" />
           <line x1={x(market.median.minor)} x2={x(market.median.minor)} y1="26" y2="54" className="mb-median" strokeWidth="2" />
