@@ -37,7 +37,7 @@ public HOUSE + relay service on Render.
 | ID | Severity | Category | File:line | Status | Action |
 |---|---|---|---|---|---|
 | R-1 | Medium | liveness of recovery / unfair scheduling | `crates/table-ledger/src/relay.rs:44-64` (was `:43-60`); `crates/table-runtime/src/relay.rs:51-59` | **fixed** `fb954eb` | `due()` only filters; the runtime marks the routes it actually sent with `polled()` after the cut to four |
-| R-2 | Low | clock goes backwards / future-skewed settlement | `crates/table-ledger/src/relay.rs:53`, `:219-220` | open | Count a `last` later than `now` as due; clamp a settlement time later than `now` |
+| R-2 | Low | clock goes backwards / future-skewed settlement | `crates/table-ledger/src/relay.rs:53`, `:219-220` | **fixed** (wave-6 lane `relay-clock-skew-safe`) | A `last` later than `now` counts as due; a settlement time later than `now` is clamped to `now` |
 | R-3 | Low | clock goes backwards (reset rate limit) | `crates/table-ledger/src/relay.rs:280` | open | Treat `now < changed_at` as "window elapsed", or keep the refusal and document it |
 | R-4 | Low | local work grows with lifetime deals | `crates/table-ledger/src/relay.rs:185-236`, `:137-156` | open | Skip retired routes in SQL (join `deals`), or record retirement on the route |
 | R-5 | Low | HOUSE does not use the cadence (outside scope) | `services/house-seller/src/hosted.rs:639-650` | open | Hold a `SettledPollClock` in the HOUSE `Seller`; call `relay_work_at(now)`, `due`, `polled` |
@@ -295,3 +295,11 @@ Nothing was bumped; `Cargo.toml` and `Cargo.lock` were not touched.
 - `cargo test -p table-ledger settled_route` failed before the fix on the new test, and both tests pass
   after it.
 - `cargo test --workspace` and `cargo check --workspace` were run at the end (see the run result).
+
+## Closed 2026-10-21 (belay wave 6)
+
+R-2 was built with two tests in `crates/table-ledger/src/relay_clock_tests.rs`, both red without the
+fix: a settled route polled at a later time is due again after the clock steps back, and a settlement
+later than `now` is reported as `now`. R-3 stays open: the existing test
+`c9a_first_adoption_starts_no_window_and_a_reset_inside_it_is_refused` keeps the refusal on purpose,
+which is the scan's second option (keep the refusal).
