@@ -25,11 +25,16 @@ export function currencyMark(c: Currency): string {
   return formatMinor(0, c).replace(/[\d.,\s\u00a0\u2212-]/g, '') || c;
 }
 
+/** Digits grouped by commas in threes ("1,058", "12,345.6"): the only place a comma may stand in a typed amount. */
+const GROUPED = /^\d{1,3}(?:,\d{3})+(?:\.\d*)?$/;
+
 /** "58", "58.5", "$1,058.50" → integer minor units in `currency`; null when it is not an amount.
  *  String arithmetic only: no float ever touches the amount. */
 export function parseMoneyText(text: string, currency: Currency): number | null {
   const exp = exponent(currency);
-  const s = text.trim().replace(/^[$€£]\s*/, '').replace(/,/g, '');
+  const t = text.trim().replace(/^[$€£]\s*/, '');
+  if (t.includes(',') && !GROUPED.test(t)) return null; // "58,50" is not 5850: a comma only groups thousands
+  const s = t.replace(/,/g, '');
   const m = exp ? s.match(new RegExp(`^(\\d{1,9})(?:\\.(\\d{0,${exp}}))?$`)) : s.match(/^(\d{1,9})$/);
   if (!m) return null;
   const whole = Number.parseInt(m[1] ?? '0', 10);

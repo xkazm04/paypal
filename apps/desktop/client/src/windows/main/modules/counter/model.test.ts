@@ -50,6 +50,13 @@ describe('money text', () => {
     expect(parseMoneyText('500', 'JPY')).toBe(500);
     expect(parseMoneyText('5.5', 'JPY')).toBeNull();
   });
+  it('reads a comma only as a thousands separator, never as a decimal point', () => {
+    // "58,50" is not 5850 dollars: a comma that does not group three digits is not an amount.
+    expect(parseMoneyText('58,50', 'USD')).toBeNull();
+    expect(parseMoneyText('1,05', 'USD')).toBeNull();
+    expect(parseMoneyText('1,058', 'USD')).toBe(105800);
+    expect(parseMoneyText('12,345,678.9', 'USD')).toBe(1234567890);
+  });
   it('round-trips minor units to input text', () => {
     expect(minorToText(5800, 'USD')).toBe('58');
     expect(minorToText(5850, 'USD')).toBe('58.50');

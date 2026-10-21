@@ -63,6 +63,10 @@ describe('money text', () => {
     expect(parseAmount('340.555', 'USD')).toBeNull();
     expect(parseAmount('abc', 'USD')).toBeNull();
     expect(parseAmount('-3', 'USD')).toBeNull();
+    // A comma groups thousands; "340,50" is not 34,050 dollars.
+    expect(parseAmount('340,50', 'USD')).toBeNull();
+    expect(parseAmount('1,34', 'USD')).toBeNull();
+    expect(parseAmount('12,340', 'USD')).toBe(1234000);
     expect(toInput(34000, 'USD')).toBe('340');
     expect(toInput(34005, 'USD')).toBe('340.05');
   });
