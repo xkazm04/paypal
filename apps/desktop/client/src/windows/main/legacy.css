@@ -9,7 +9,6 @@
 .lockg { width: 1em; height: 1em; flex: none; }
 .view .notice { margin: 0 0 1.1rem; }
 
-.stack { display: grid; gap: 1rem; }
 .amt.big { font: 600 2rem var(--display); }
 .amt.big .money { font-family: var(--display); }
 
@@ -37,7 +36,7 @@
 
 .clause { display: inline-block; font: 600 max(12px, .82rem) var(--font); color: var(--teal-l); background: color-mix(in srgb, var(--teal) 14%, var(--panel)); border: 1px solid color-mix(in srgb, var(--teal) 45%, var(--line)); padding: .05rem .4rem; border-radius: 4px; white-space: nowrap; }
 .empty { padding: 1.4rem; text-align: center; color: var(--dim); border: 1px dashed var(--line2); border-radius: var(--r); }
-.loading, .waiting { display: flex; align-items: center; gap: .6rem; color: var(--dim); padding: .6rem 0; }
+.loading { display: flex; align-items: center; gap: .6rem; color: var(--dim); padding: .6rem 0; }
 .spin { width: .9rem; height: .9rem; border-radius: 50%; border: 2px solid var(--line2); border-top-color: var(--gold); animation: spin 1s linear infinite; flex: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
