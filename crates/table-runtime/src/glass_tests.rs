@@ -680,3 +680,46 @@ async fn buyer_keeps_the_house_head_with_the_receipt_and_flags_a_shrinking_recor
     assert_eq!(deal.state, DealState::Receipted);
     assert!(buyer_http.0.lock().unwrap().paths.is_empty());
 }
+
+/// A head the release pin does not verify is never kept: the wallet writes nothing, raises no
+/// fault and asks again later, backing off; a head that verifies is kept and resets the wait.
+#[tokio::test]
+async fn a_head_the_release_pin_does_not_verify_is_never_kept_and_the_wallet_backs_off() {
+    let ((mut seller, release, _, _, _), _) =
+        hosted_fixture_ledger(table_ledger::Ledger::in_memory().unwrap());
+    let served = seller.publish().unwrap().view.head.clone();
+    let (mut buyer, _, buyer_http, buyer_clock, _) = runtime(true);
+    buyer.house_release = Some(release);
+    let now = 500;
+    buyer_clock
+        .0
+        .store(now, std::sync::atomic::Ordering::SeqCst);
+    let rows = |r: &Runtime| r.pipeline.wallet.ledger.audit_count().unwrap();
+    let before = rows(&buyer);
+    let fetch = |head| crate::witness::WitnessFetch {
+        awaiting: Vec::new(),
+        head,
+        prefix: None,
+    };
+    let stranger = sign(
+        &ed25519_dalek::SigningKey::from_bytes(&[9; 32]),
+        served.head,
+    );
+    buyer.witness_finished(fetch(Some(stranger))).unwrap();
+    assert_eq!(rows(&buyer), before, "an unverified head wrote a row");
+    assert_eq!(buyer.witness.failures, 1);
+    assert_eq!(buyer.witness.retry_at, now + 60);
+    assert_eq!(buyer.witness.checked_at, 0);
+    let mut tampered = served.clone();
+    tampered.head.row_count += 1;
+    buyer.witness_finished(fetch(Some(tampered))).unwrap();
+    buyer.witness_finished(fetch(None)).unwrap();
+    assert_eq!(rows(&buyer), before);
+    assert_eq!(buyer.witness.failures, 3);
+    assert_eq!(buyer.witness.retry_at, now + 240);
+    buyer.witness_finished(fetch(Some(served))).unwrap();
+    assert_eq!(rows(&buyer), before + 1, "the verified head is kept");
+    assert_eq!((buyer.witness.failures, buyer.witness.retry_at), (0, 0));
+    assert_eq!(buyer.witness.checked_at, now);
+    assert!(buyer_http.0.lock().unwrap().paths.is_empty());
+}

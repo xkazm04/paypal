@@ -20,10 +20,10 @@ const COVER_RETRY: i64 = 20;
 
 #[derive(Debug, Default)]
 pub(crate) struct Witness {
-    busy: bool,
-    retry_at: i64,
-    failures: u8,
-    checked_at: i64,
+    pub(crate) busy: bool,
+    pub(crate) retry_at: i64,
+    pub(crate) failures: u8,
+    pub(crate) checked_at: i64,
 }
 /// What one fetch brought back, handed to the actor.
 pub(crate) struct WitnessFetch {
