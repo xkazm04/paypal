@@ -5607,7 +5607,11 @@
           "revision": 9,
           "changedAt": "2026-09-09",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-paypal/src/client.rs:179 Context searches for upstream, failover and normalization returned no hits, and the implementation sends requests to one fixed PayPal origin, outside the standard's multi-provider precondition.",
+          "evaluatedAt": "2026-10-21",
+          "evaluatedAgainst": "sha256-b2:f268193750c0a517",
+          "evaluatedRevision": 9
         }
       ],
       "governance": "governed"
@@ -9183,7 +9187,11 @@
           "revision": 9,
           "changedAt": "2026-09-09",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/Find.tsx:40 Context searches for upstream, failover and normalization returned no hits, and these surfaces search and display wallet state rather than dispatch requests among interchangeable providers.",
+          "evaluatedAt": "2026-10-21",
+          "evaluatedAgainst": "sha256-b2:f268193750c0a517",
+          "evaluatedRevision": 9
         }
       ],
       "governance": "governed"
