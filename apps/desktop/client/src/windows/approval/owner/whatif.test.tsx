@@ -6,7 +6,7 @@ import type { MandateSimulateArgs } from '@bindings/MandateSimulateArgs';
 import type { MandateSimulation } from '@bindings/MandateSimulation';
 import type { SimulatedLine } from '@bindings/SimulatedLine';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
-import { SIMULATE_DEBOUNCE_MS, useSimulation } from './data';
+import { SIMULATE_DEBOUNCE_MS, useDebouncedSimulation, useSimulation } from './data';
 import { WhatIfTable } from './WhatIf';
 import { changed, hitPhrase, ifWithdrawn, sameVerdict, summaryWords, verdictWords } from './simulation';
 
@@ -105,6 +105,21 @@ describe('useSimulation', () => {
     act(() => { vi.advanceTimersByTime(SIMULATE_DEBOUNCE_MS * 2); });
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(result.current.updating).toBe(false);
+  });
+
+  it('one debounce for both what-ifs: a key that leaves out a moving field asks once, with the latest args', async () => {
+    vi.useFakeTimers();
+    type Limits = { draft: { max: number; expires: number } };
+    const invoke = vi.fn((a: Limits) => Promise.resolve(answer(a.draft.max)));
+    const keyOf = (a: Limits) => JSON.stringify({ ...a.draft, expires: 0 });
+    const { result, rerender } = renderHook(({ a }: { a: Limits }) => useDebouncedSimulation(a, invoke, keyOf), { initialProps: { a: { draft: { max: 7, expires: 1 } } } });
+    rerender({ a: { draft: { max: 7, expires: 2 } } });
+    await act(async () => { vi.advanceTimersByTime(SIMULATE_DEBOUNCE_MS); await Promise.resolve(); });
+    rerender({ a: { draft: { max: 7, expires: 3 } } });
+    act(() => { vi.advanceTimersByTime(SIMULATE_DEBOUNCE_MS * 2); });
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(invoke.mock.calls[0]![0]).toEqual({ draft: { max: 7, expires: 2 } });
+    expect(result.current).toMatchObject({ sim: answer(7), updating: false });
   });
 
   it('keeps a refusal as typed state and clears it with the next answer', async () => {

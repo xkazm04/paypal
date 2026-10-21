@@ -2,14 +2,14 @@
 // the owner key like rules are (envelope_sign, privileged). Layer 1 is three rows with today's
 // meters; the change sheet holds the three numbers, what they would have done to this week's
 // purchases (envelope_simulate: Rust's own check, read-only), and the one gold button.
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import type { Currency } from '@bindings/Currency';
 import type { EnvelopeSignArgs } from '@bindings/EnvelopeSignArgs';
+import type { EnvelopeSimulateArgs } from '@bindings/EnvelopeSimulateArgs';
 import type { ExposureView } from '@bindings/ExposureView';
-import type { MandateSimulation } from '@bindings/MandateSimulation';
 import type { SimulatedLine } from '@bindings/SimulatedLine';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
-import { toWalletError, type WalletError } from '../../../lib/contract';
+import type { WalletError } from '../../../lib/contract';
 import { clockLabel, formatMinor, formatMoney, nowUnix } from '../../../lib/format';
 import { backend } from '../../../lib/runtime';
 import { buildLimits, readLimits, type LimitsDraft } from '../../../lib/limits';
@@ -18,7 +18,7 @@ import { WalletNotice } from '../../../shared/honesty';
 import { Btn, Chip, Field, Group, Hint, Meter, Row, Section, Sheet } from '../../../shared/ui';
 import { minorToInput, parseMoneyInput } from '../model';
 import { useSession } from '../session';
-import { SIMULATE_DEBOUNCE_MS } from './data';
+import { useDebouncedSimulation } from './data';
 import { changed } from './simulation';
 
 const LASTS = [7, 30, 90] as const;
@@ -58,29 +58,11 @@ export function limitsWhatIfWords(lines: readonly SimulatedLine[]): string {
 
 /** The wallet's own replay of draft limits over this week's purchases, asked once the draft has
  *  been still for a moment; the last answer stays on screen (marked as updating) until the next. */
+const envelopeSimulate = (args: EnvelopeSimulateArgs) => backend().invoke('envelope_simulate', args);
+// The expiry moves with the clock on every render; it never changes this week's answer.
+const limitsKey = (args: EnvelopeSimulateArgs) => JSON.stringify({ ...args.draft, expires: 0 });
 function useLimitsWhatIf(args: EnvelopeSignArgs | null) {
-  // The expiry moves with the clock on every render; it never changes this week's answer.
-  const key = args ? JSON.stringify({ ...args, expires: 0 }) : null;
-  const latest = useRef(args);
-  latest.current = args;
-  const [answer, setAnswer] = useState<{ key: string | null; sim: MandateSimulation | null; error: WalletError | null }>({ key: null, sim: null, error: null });
-  useEffect(() => {
-    if (key === null) return;
-    let live = true;
-    const timer = setTimeout(() => {
-      const draft = latest.current;
-      if (!draft) return;
-      backend().invoke('envelope_simulate', { draft }).then(
-        (sim) => live && setAnswer({ key, sim, error: null }),
-        (e: unknown) => live && setAnswer((a) => ({ key, sim: a.sim, error: toWalletError(e) })),
-      );
-    }, SIMULATE_DEBOUNCE_MS);
-    return () => {
-      live = false;
-      clearTimeout(timer);
-    };
-  }, [key]);
-  return { sim: answer.sim, error: answer.error, updating: key !== null && answer.key !== key };
+  return useDebouncedSimulation(args ? { draft: args } : null, envelopeSimulate, limitsKey);
 }
 
 function Outcome({ v }: { v: SimulatedVerdict }) {
