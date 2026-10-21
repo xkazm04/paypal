@@ -14,6 +14,7 @@ pub use attention::{RUNG_ACTION, RungRow, SilenceEvidence, rung_chain_hash};
 pub use audit::{AuditEntry, AuditRecord};
 pub use redaction::*;
 pub use repositories::*;
+mod countersign;
 mod mandates;
 mod stores;
 mod transcript;
