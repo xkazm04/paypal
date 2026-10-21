@@ -345,7 +345,8 @@ const key = (p: string) => `${p}:${++seq}`;
 
 // Tickers name a deal by who it is with (Rust's composed display name), never by its id:
 // UX-GUIDE keeps ids in Details, and a raw id ("01JD…7Q") would mean nothing to the owner.
-const withWho = (i: AttentionItem | undefined): string => (i?.counterparty ? ` · ${i.counterparty}` : '');
+// The name reads as the card reads it (houseWords: "HOUSE seller" is "House seller").
+const withWho = (i: AttentionItem | undefined): string => (i?.counterparty ? ` · ${houseWords(i.counterparty)}` : '');
 
 export function arrivalTicker(item: AttentionItem): Ticker {
   const hold = item.kind === 'hold';

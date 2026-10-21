@@ -210,6 +210,17 @@ describe('headline and receipt text', () => {
     expect(ackTicker(it1, 'withdraw').l1).toEqual(['Withdrawn', '', ' · lark’s agent']);
     expect(ackTicker({ ...it1, counterparty: null }, 'let_lapse').l1).toEqual(['Left to lapse', '', '']);
   });
+  it('every ticker names the house seller as the card does, never as a shout', () => {
+    const house = item({ deal_id: 'h', headline: 'Countersign $48.00', amount_minor: 4800, counterparty: 'HOUSE seller', deadline: NOW + 3 * H });
+    const ev = { deal_id: 'h', evidence: { deal_id: 'h', receipt: 'NONE' as const, reconciliation: 'not_applicable' as const }, mode: 'sandbox' as const, on_silence: 'no money moved', state: 'CAPTURED' as const };
+    const all = [arrivalTicker(house), arrivalsTicker([house, house]), receiptTicker(ev, house), snoozeTicker(house, NOW + 1800), ackTicker(house, 'withdraw'), ackTicker(house, 'let_lapse')];
+    expect(cardQuestion(house).tail).toBe(' with House seller?');
+    for (const t of all) {
+      const text = `${t?.l1.join('')} ${t?.l2}`;
+      expect(text).toContain('House seller');
+      expect(text).not.toMatch(/HOUSE/);
+    }
+  });
 });
 
 describe('snooze words promise only the card’s return', () => {
