@@ -59,12 +59,13 @@ async function mount(o: { hold?: string[]; fail?: string[] } = {}): Promise<Harn
 describe('a read of the cards that fails', () => {
   it('says what is shown may be out of date, instead of drawing it as current', async () => {
     const h = await mount({ fail: ['attention_list'] });
-    // the first read is done once the page asks for its resting form
-    await waitFor(() => expect(h.calls).toContain('tumbler_set_form'));
-    await waitFor(() => expect(h.root.className).toMatch(/\bform-rest\b/));
-    h.emit('tumbler:form', 'stack');
-    await waitFor(() => expect(h.root.querySelector('.f.stack')).not.toBeNull());
-    await waitFor(() => expect(h.root.textContent).toMatch(/may be out of date/));
+    await waitFor(() => expect(h.calls).toContain('attention_list'));
+    // The page's own start-up ends by asking for rest, which may land after this test's stack:
+    // keep asking for the stack until it is the form on screen.
+    await waitFor(() => {
+      if (!h.root.querySelector('.f.stack')) h.emit('tumbler:form', 'stack');
+      expect(h.root.querySelector('.f.stack')?.closest('.tum')?.textContent).toMatch(/may be out of date/);
+    }, { timeout: 5000 });
   });
 });
 
