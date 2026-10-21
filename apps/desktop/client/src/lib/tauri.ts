@@ -24,7 +24,12 @@ export function tauriBackend(): Backend {
       }
     },
     async listen<E extends EventName>(event: E, cb: (payload: PayloadOf<E>) => void) {
-      return win.listen<PayloadOf<E>>(event, (e) => cb(e.payload));
+      // Same failure shape as invoke: a refused subscription arrives as a WalletError.
+      try {
+        return await win.listen<PayloadOf<E>>(event, (e) => cb(e.payload));
+      } catch (e) {
+        throw toWalletError(e);
+      }
     },
   };
 }
