@@ -334,7 +334,7 @@ impl Runtime {
         match self.pipeline.wallet.ledger.active_mandate(
             deal.mandate_id,
             deal.mandate_version,
-            &self.owner()?.verifying_key(),
+            &self.pipeline.wallet.owner_public_key(),
         ) {
             Ok(_) => Ok(false),
             Err(table_ledger::LedgerError::NotFound) => Ok(true),
@@ -346,7 +346,7 @@ impl Runtime {
         let m = app(self.pipeline.wallet.ledger.active_mandate(
             deal.mandate_id,
             deal.mandate_version,
-            &self.owner()?.verifying_key(),
+            &self.pipeline.wallet.owner_public_key(),
         ))?;
         self.select_agent(m.payload.agent_key)
     }
@@ -394,7 +394,7 @@ impl Runtime {
                 .pipeline
                 .wallet
                 .ledger
-                .list_mandates(&self.owner()?.verifying_key()))?
+                .list_mandates(&self.pipeline.wallet.owner_public_key()))?
             .is_empty(),
             agents_paused: self.paused,
             selected_engine: self.engine,
@@ -474,7 +474,7 @@ impl Runtime {
                     .active_mandate(
                         deal.mandate_id,
                         deal.mandate_version,
-                        &self.owner()?.verifying_key(),
+                        &self.pipeline.wallet.owner_public_key(),
                     )
                     .is_ok_and(|m| m.payload.expires > self.clock.now())
                 && self
@@ -826,7 +826,7 @@ impl Runtime {
         let mandate = app(self.pipeline.wallet.ledger.active_mandate(
             args.mandate_id,
             args.mandate_version,
-            &self.owner()?.verifying_key(),
+            &self.pipeline.wallet.owner_public_key(),
         ))?;
         let deal = Deal {
             created_at: self.clock.now(),

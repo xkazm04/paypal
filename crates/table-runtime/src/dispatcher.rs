@@ -123,7 +123,7 @@ impl Runtime {
         let Ok(m) = self.pipeline.wallet.ledger.active_mandate(
             deal.mandate_id,
             deal.mandate_version,
-            &self.owner()?.verifying_key(),
+            &self.pipeline.wallet.owner_public_key(),
         ) else {
             return Ok(None);
         };
@@ -145,7 +145,7 @@ impl Runtime {
         let m = app(ledger.mandate_evidence(
             deal.mandate_id,
             deal.mandate_version,
-            &self.owner()?.verifying_key(),
+            &self.pipeline.wallet.owner_public_key(),
         ))?;
         let band = m
             .payload

@@ -61,7 +61,7 @@ impl Runtime {
         let mandate = app(self.pipeline.wallet.ledger.active_mandate(
             deal.mandate_id,
             deal.mandate_version,
-            &self.owner()?.verifying_key(),
+            &self.pipeline.wallet.owner_public_key(),
         ))?;
         // An item no rule binds to a market product has no market price to fetch.
         let product_id = mandate
