@@ -3,6 +3,16 @@ use crate::Error;
 use table_core::*;
 use table_paypal::{CreateOrder, Order, OrderStatus, Payment, RequestId, ResourceId};
 use table_proto::{Body, ShortText};
+/// What [`Pipeline::send_settle`] signs for the buyer: the created order, its approval link and
+/// the time its approval window counts from.
+pub(super) struct Settle<'a> {
+    pub(super) id: DealId,
+    pub(super) attempt: u8,
+    pub(super) order_id: String,
+    pub(super) url: &'a str,
+    pub(super) expected: &'a CreateOrder,
+    pub(super) created: Timestamp,
+}
 impl Pipeline {
     pub async fn create(
         &mut self,
@@ -100,12 +110,14 @@ impl Pipeline {
             now,
         )?;
         self.send_settle(
-            id,
-            attempt,
-            response.value.id,
-            &url,
-            expected,
-            created_from,
+            Settle {
+                id,
+                attempt,
+                order_id: response.value.id,
+                url: &url,
+                expected,
+                created: created_from,
+            },
             now,
         )
     }
@@ -130,18 +142,20 @@ impl Pipeline {
             })
             .map(|url| url.as_str().to_owned())
     }
-    /// Starts the approval window at `created` and signs and records the SETTLE to the buyer.
-    #[allow(clippy::too_many_arguments)] // Private helper shared by create and its resolver.
+    /// Starts the approval window at `settle.created` and signs and records the SETTLE to the buyer.
     pub(super) fn send_settle(
         &mut self,
-        id: DealId,
-        attempt: u8,
-        order_id: String,
-        url: &str,
-        expected: &CreateOrder,
-        created: Timestamp,
+        settle: Settle<'_>,
         now: Timestamp,
     ) -> Result<String, Error> {
+        let Settle {
+            id,
+            attempt,
+            order_id,
+            url,
+            expected,
+            created,
+        } = settle;
         // The HOUSE pipeline (its release-pinned authority is installed) lets an unapproved
         // order lapse sooner, so an abandoned table frees its slot (HOUSE_APPROVAL_SECS).
         let window = if self.house.is_some() {

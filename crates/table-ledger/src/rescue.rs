@@ -104,7 +104,6 @@ impl Ledger {
     /// filing key, the deal (PAIRING, then AGREED on `RescueOpened`), its category, the rescue row
     /// and its deadline (PayPal's next retry: silence lets it lapse and PayPal retries by itself).
     /// The caller has run the mandate check and `check_offer` on exactly this deal.
-    #[allow(clippy::too_many_arguments)] // One atomic write of every fact the deal starts with.
     pub fn open_rescue(
         &mut self,
         deal: &Deal,
