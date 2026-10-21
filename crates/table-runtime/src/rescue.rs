@@ -10,9 +10,9 @@ use table_ledger::Recipient;
 pub const NO_RESCUE_RULES: &str = "Sign rules for fixing failed renewals first.";
 /// The plain-words refusal of a decision on a fix whose one invoice send already ended.
 pub const RESCUE_ENDED: &str = "This fix already ended; nothing was sent.";
-/// The plain-words refusal of one watch too many.
+/// The plain-words refusal of one watch too many (lib/words.ts `RESCUE_WATCH_FULL`).
 pub const WATCH_FULL: &str =
-    "You're watching as many subscriptions as your wallet reads. Stop watching one first.";
+    "You’re watching as many subscriptions as your wallet checks. Stop watching one first.";
 /// The plain-words refusal of stopping a subscription that is not watched.
 pub const NOT_WATCHED: &str = "That subscription isn't being watched.";
 
