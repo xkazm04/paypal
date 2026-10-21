@@ -13,6 +13,7 @@ mod market;
 pub use market::VaultMarketKey;
 mod market_watch;
 mod pairing;
+mod pairing_relay;
 mod policy;
 mod proof;
 #[cfg(test)]
