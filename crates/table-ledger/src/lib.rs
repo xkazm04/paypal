@@ -189,6 +189,8 @@ pub use groups::*;
 #[cfg(test)]
 mod groups_tests;
 #[cfg(test)]
+mod relay_clock_tests;
+#[cfg(test)]
 mod rescue_tests;
 #[cfg(test)]
 mod shield_tests;

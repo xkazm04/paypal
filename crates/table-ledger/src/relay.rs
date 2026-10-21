@@ -49,8 +49,11 @@ impl SettledPollClock {
                 let Some(settled) = w.settled_at else {
                     return true;
                 };
+                // A last poll later than `now` means the clock stepped back: count it as due.
                 self.last.get(&w.deal_id).is_none_or(|last| {
-                    now.saturating_sub(*last) >= recovery_interval(last.saturating_sub(settled))
+                    *last > now
+                        || now.saturating_sub(*last)
+                            >= recovery_interval(last.saturating_sub(settled))
                 })
             })
             .collect()
@@ -216,7 +219,8 @@ impl Ledger {
             let mut settled_at = None;
             if outgoing.is_empty() {
                 if state == table_core::DealState::Receipted {
-                    let at = self.receipted_at(deal_id)?.unwrap_or(0);
+                    // A settlement later than `now` (clock stepped back) is clamped to `now`.
+                    let at = self.receipted_at(deal_id)?.unwrap_or(0).min(now);
                     if now.saturating_sub(at) >= RECOVERY_WINDOW_SECS {
                         continue;
                     }
