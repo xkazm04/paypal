@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { ForecastLine } from '@bindings/ForecastLine';
 import { clockLabel } from '../../lib/format';
@@ -19,8 +22,13 @@ const walk = (forecast: ForecastLine[] | null | undefined, currency: ForecastLin
   walkAway({ forecast, wallet_spend_today_currency: currency });
 
 describe('if you walk away', () => {
-  it('looks 72 hours ahead, like the Rust forecast', () => {
-    expect(WALK_AWAY_HOURS).toBe(72);
+  it('looks as far ahead as the Rust forecast does (FORECAST_HORIZON_SECS)', () => {
+    const src = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../../crates/table-runtime/src/forecast.rs'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    const expr = /const FORECAST_HORIZON_SECS:\s*i64\s*=\s*([\d_\s*]+);/.exec(src)?.[1];
+    expect(expr, 'FORECAST_HORIZON_SECS in forecast.rs').toBeTruthy();
+    const secs = expr!.split('*').map((n) => Number(n.replace(/[_\s]/g, ''))).reduce((a, b) => a * b, 1);
+    expect(WALK_AWAY_HOURS * 3600).toBe(secs);
   });
 
   it('promises nothing when the forecast is absent (older shell or a failed read)', () => {
