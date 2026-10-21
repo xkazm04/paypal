@@ -360,12 +360,22 @@ describe('display model', () => {
     expect(draftFrom({ payload, owner_sig: [], agent: 'shopper' }, 1_700_000_000).agent).toBe('shopper');
     expect(draftFrom({ payload, owner_sig: [] }, 1_700_000_000).agent).toBe('negotiator');
   });
-  it('pairing names must fit Rust’s 32-byte label', () => {
+  it('pairing names follow Rust’s ShortText<32>: 32 characters, no control or text-hiding characters', () => {
     expect(nameProblem('Dan · north-desk')).toBeNull();
     expect(nameProblem('   ')).not.toBeNull();
     expect(nameProblem('x'.repeat(33))).not.toBeNull();
-    expect(nameProblem('ž'.repeat(17))).not.toBeNull();
-    expect(nameProblem('ab')).not.toBeNull();
+    expect(nameProblem('x'.repeat(32))).toBeNull();
+    // Rust counts characters, not bytes: 17 two-byte and 12 three-byte letters are valid names.
+    expect(nameProblem('ž'.repeat(17))).toBeNull();
+    expect(nameProblem('東'.repeat(12))).toBeNull();
+    expect(nameProblem('ž'.repeat(33))).not.toBeNull();
+    expect(nameProblem('a\u0007b')).not.toBeNull();
+    // Rust refuses every control character (C1 too) and the bidi / zero-width spoofing set.
+    for (const c of ['\u0085', '\u009f', '\u200b', '\u200e', '\u202e', '\u2066', '\u2060', '\ufeff', '\u061c']) {
+      expect(nameProblem(`Da${c}n`), JSON.stringify(c)).not.toBeNull();
+    }
+    // Joiners stay: emoji and several scripts need them.
+    expect(nameProblem('Dan\u200dSue')).toBeNull();
   });
   it('mandate drafts convert into exact clause shapes or explain what is missing', () => {
     const d = newDraft(1_700_000_000);
