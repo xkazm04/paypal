@@ -14,6 +14,13 @@ impl Runtime {
             failure.get_or_insert(error);
         }
         let deals = app(self.pipeline.wallet.ledger.list_live_deals())?;
+        // Poll times are kept only for deals the tick still walks as non-terminal.
+        let walked: std::collections::BTreeSet<DealId> = deals
+            .iter()
+            .filter(|deal| !deal.state.terminal())
+            .map(|deal| deal.id)
+            .collect();
+        self.last_poll.retain(|id, _| walked.contains(id));
         for deal in deals {
             if deal.kind == DealKind::Rescue && !deal.state.terminal() {
                 // A rescue invoice is real whatever the failure's mode (table-app rescue.rs).
