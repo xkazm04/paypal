@@ -91,8 +91,10 @@ export function Ledger({ b, scope }: { b: BookWorld; scope: LedgerScope }) {
     ...BUCKET_FILTER.map(([k, label]) => ({ value: k, label, test: (d: Deal) => !checking(d) && bucketOf(d) === k })),
     { value: 'checking', label: BOOK.filter.checking, test: checking, title: BOOK.filter.checkingTitle },
   ], [checking]);
-  // "PayPal agrees" reads the week's paid and held deals' statements, nothing else (bounded).
-  const paidIds = useMemo(() => b.weekDeals.filter((d) => bucketOf(d) === 'captured').map((d) => d.id), [b.weekDeals]);
+  // "PayPal agrees" reads the statements of the week's deals that reached a PayPal capture, nothing
+  // else (bounded): only those can have a place on the statement. That includes a seller's word PayPal
+  // later matched and an ending PayPal never confirmed, which are not in the paid bucket.
+  const paidIds = useMemo(() => b.weekDeals.filter((d) => !!d.paypal.capture).map((d) => d.id), [b.weekDeals]);
   const [agreeOpen, setAgreeOpen] = useState(false);
   return (
     <div className="bk-ledger">
@@ -114,14 +116,17 @@ export function Ledger({ b, scope }: { b: BookWorld; scope: LedgerScope }) {
   );
 }
 
-/** Where the money went and "PayPal agrees": the week's paid deals' statements (bounded reads). */
+/** Where the money went and "PayPal agrees": the statements of the week's captured deals (bounded
+ *  reads). A deal that never reached a capture has no place on the statement ("no payment"), never
+ *  "couldn't be checked"; a captured one whose read failed stays unknown. */
 function Went({ b, ids }: { b: BookWorld; ids: readonly string[] }) {
   const ev = useEvidenceOf(ids);
+  const read = useMemo(() => new Set(ids), [ids]);
   const facts = useQuery('owner_facts', null, { refreshOn: ['deal:changed', 'receipt:created'] });
   const poll = facts.data?.last_reporting_poll ?? null;
   const nav = useLayerNav();
   return (
-    <MoneyWent deals={b.weekDeals} stmt={(d) => ev.map.get(d.id)?.reconciliation ?? (ev.loading ? null : 'unknown')}
+    <MoneyWent deals={b.weekDeals} stmt={(d) => (!read.has(d.id) ? 'not_applicable' : ev.map.get(d.id)?.reconciliation ?? (ev.loading ? null : 'unknown'))}
       checkedAt={poll && poll.status === 200 ? clockLabel(poll.at) : null} titleOf={b.title} onOpen={(id) => nav.deal(id)} />
   );
 }
