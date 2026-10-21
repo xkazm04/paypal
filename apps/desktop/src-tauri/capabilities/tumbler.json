@@ -7,7 +7,6 @@
   "permissions": [
     "core:event:allow-listen",
     "core:event:allow-unlisten",
-    "core:window:allow-start-dragging",
     "allow-deal-snooze",
     "allow-deal-display",
     "allow-get-settings",
