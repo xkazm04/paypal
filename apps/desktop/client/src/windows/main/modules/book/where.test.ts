@@ -101,6 +101,13 @@ describe('PayPal agrees', () => {
     expect(agreeLine(agreement([deal('a')], () => 'unknown'))).not.toContain('Every one');
     expect(agreeLine(agreement([], () => 'matched'))).toContain('No payment');
   });
+  it('never says every one is on the statement while some are still being read', () => {
+    // Reads land one by one: while one is out, the ones read so far may all be matched.
+    const a = agreement([deal('a'), deal('b')], (d) => (d.id === 'a' ? 'matched' : null));
+    expect(a).toMatchObject({ needed: 1, matched: 1, loading: true });
+    expect(agreeLine(a)).not.toContain('Every one');
+    expect(agreeWhy(a, null)[1]).not.toContain('nothing differs');
+  });
   it('explains the up-to-3-hours lag and the current counts, with the last check when known', () => {
     const a = agreement(rows, (d) => table[d.id] ?? null);
     const [one, two] = agreeWhy(a, '14:05');
