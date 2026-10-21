@@ -11,7 +11,10 @@ import { buildScaleState, SCALE_NOW } from '../mock/scale';
 import { mockValidate } from '../mock/simulate';
 import { buildMandate, fromLocalInput, previewClauses, refusalWords, ruleProblems, toLocalInput, type MandateDraft } from '../windows/approval/mandateDraft';
 import { templateDraft } from '../windows/approval/templates';
-import { CLAUSE_NUMBER, REASON_WORDS, VALIDATE_REASONS, validateRules } from './mandateRules';
+import type { DealKind } from '@bindings/DealKind';
+import type { Role } from '@bindings/Role';
+import type { Side } from '@bindings/Side';
+import { CLAUSE_NUMBER, REASON_WORDS, roleActs, roleSide, VALIDATE_REASONS, validateRules } from './mandateRules';
 
 // Resolved from this file, not from the working directory, so any runner location finds it.
 const MANDATE_RS = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../crates/table-core/src/mandate.rs');
@@ -75,6 +78,25 @@ describe('pinned to the wallet’s own validate()', () => {
     const arms = Object.fromEntries([...body.matchAll(/Self::(\w+)\s*\{\s*\.\.\s*\}\s*=>\s*(\d+)/g)].map((m) => [snake(m[1]!), Number(m[2])]));
     expect(Object.keys(arms).length).toBe(9);
     expect(CLAUSE_NUMBER).toEqual(arms);
+  });
+  it('lets a role act on exactly the sides and deal kinds role_acts does, on the side role_side gives', () => {
+    const acts = slice('fn role_acts(', '\n}');
+    const allowed = new Set<string>();
+    for (const m of acts.matchAll(/\(\s*Role::(\w+)\s*,\s*Side::(\w+)\s*,\s*([^)]*?)\s*,?\s*\)/g)) {
+      for (const kind of m[3]!.split('|').map((k) => k.trim().replace(/^DealKind::/, ''))) allowed.add(`${snake(m[1]!)} ${snake(m[2]!)} ${snake(kind)}`);
+    }
+    expect(allowed.size).toBeGreaterThan(5);
+    const ROLES: Role[] = ['buy', 'sell', 'shop', 'rescue'];
+    const SIDES: Side[] = ['buyer', 'seller'];
+    const KINDS: DealKind[] = ['purchase', 'haggle', 'shop_order', 'rescue', 'invoice'];
+    for (const role of ROLES) for (const side of SIDES) for (const kind of KINDS) {
+      expect(roleActs(role, side, kind), `${role} ${side} ${kind}`).toBe(allowed.has(`${role} ${side} ${kind}`));
+    }
+    const side: Record<string, string> = {};
+    for (const arm of slice('fn role_side(', '\n}').matchAll(/([^{,]*?)=>\s*Side::(\w+)/g)) {
+      for (const r of arm[1]!.matchAll(/Role::(\w+)/g)) side[snake(r[1]!)] = snake(arm[2]!);
+    }
+    expect(Object.fromEntries(ROLES.map((r) => [r, roleSide(r)]))).toEqual(side);
   });
 });
 
