@@ -59,7 +59,9 @@ async function mount(o: { hold?: string[]; fail?: string[] } = {}): Promise<Harn
 describe('a read of the cards that fails', () => {
   it('says what is shown may be out of date, instead of drawing it as current', async () => {
     const h = await mount({ fail: ['attention_list'] });
-    await waitFor(() => expect(h.calls).toContain('attention_list'));
+    // the first read is done once the page asks for its resting form
+    await waitFor(() => expect(h.calls).toContain('tumbler_set_form'));
+    await waitFor(() => expect(h.root.className).toMatch(/\bform-rest\b/));
     h.emit('tumbler:form', 'stack');
     await waitFor(() => expect(h.root.querySelector('.f.stack')).not.toBeNull());
     await waitFor(() => expect(h.root.textContent).toMatch(/may be out of date/));
