@@ -105,11 +105,8 @@ pub fn manifest_hex() -> Option<&'static str> {
 fn core_permissions(label: WindowLabel) -> &'static [&'static str] {
     match label {
         WindowLabel::Main => &["core:event:allow-listen", "core:event:allow-unlisten"],
-        WindowLabel::Tumbler => &[
-            "core:event:allow-listen",
-            "core:event:allow-unlisten",
-            "core:window:allow-start-dragging",
-        ],
+        // The Tumbler is dragged by `tumbler_drag` (Rust starts the move), not by the webview.
+        WindowLabel::Tumbler => &["core:event:allow-listen", "core:event:allow-unlisten"],
         WindowLabel::Approval => &[
             "core:window:allow-close",
             "core:event:allow-listen",
@@ -447,12 +444,7 @@ mod tests {
         let pinned = |label| -> BTreeSet<&str> {
             match label {
                 Main => ["core:event:allow-listen", "core:event:allow-unlisten"].into(),
-                Tumbler => [
-                    "core:event:allow-listen",
-                    "core:event:allow-unlisten",
-                    "core:window:allow-start-dragging",
-                ]
-                .into(),
+                Tumbler => ["core:event:allow-listen", "core:event:allow-unlisten"].into(),
                 Approval => [
                     "core:window:allow-close",
                     "core:event:allow-listen",
