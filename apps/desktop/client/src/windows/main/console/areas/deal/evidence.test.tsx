@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { nowUnix } from '../../../../../lib/format';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Backend } from '../../../../../lib/contract';
-import { DEAL_PROOF, STATEMENT_CHECK_NEEDS_KEYS, unconfirmedMeans } from '../../../../../lib/words';
+import { DEAL_PROOF, DEAL_RECORD, STATEMENT_CHECK_NEEDS_KEYS, unconfirmedMeans } from '../../../../../lib/words';
 import { mockBackend, resetMockState } from '../../../../../mock/backend';
 import { buildMockState } from '../../../../../mock/fixtures';
 import { ToastProvider } from '../../../ui';
@@ -133,6 +133,13 @@ describe('a deal PayPal knows only by its subscription', () => {
     render(<ToastProvider><TranscriptSheet deal={deal} label="the renewal" steps={[]} error={null} band={null} theirName="S-14" onClose={() => {}} /></ToastProvider>);
     await screen.findByRole('button', { name: 'Done' });
     expect(document.body.textContent).toContain('I-SUB0042');
+  });
+
+  it('a record with no messages does not claim every signature was checked', async () => {
+    render(<ToastProvider><TranscriptSheet deal={deal} label="the renewal" steps={[]} error={null} band={null} theirName="S-14" onClose={() => {}} /></ToastProvider>);
+    await screen.findByRole('button', { name: 'Done' });
+    expect(document.body.textContent).not.toContain(DEAL_RECORD.everyChecked);
+    expect(document.body.textContent).toContain(DEAL_RECORD.none);
   });
 });
 

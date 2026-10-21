@@ -229,7 +229,8 @@ export function TranscriptSheet({ deal, label, steps, error, band, theirName, on
       ) : null}
       {proof.error ? <WalletNotice error={proof.error} what={DEAL_RECORD.failed} /> : null}
       <Kv items={[
-        [DEAL_RECORD.messages, steps ? `${steps.length} · ${steps.every((s) => s.verified) ? DEAL_RECORD.everyChecked : DEAL_RECORD.someNot}` : '—'],
+        // No messages is not "every signature checked": nothing was there to check.
+        [DEAL_RECORD.messages, steps ? (steps.length ? `${steps.length} · ${steps.every((s) => s.verified) ? DEAL_RECORD.everyChecked : DEAL_RECORD.someNot}` : '0') : '—'],
         [DEAL_RECORD.paypal, <span className="mono">{shownRefs(deal).map((k) => deal.paypal[k] ?? '—').join(' · ')}</span>],
         [DEAL_RECORD.mode, <ModeBadge mode={deal.mode} />],
         [DEAL_RECORD.recordId, <span className="mono">{shortId(deal.id, 6, 4)} · {shortHash(deal.transcript_head)}</span>],
