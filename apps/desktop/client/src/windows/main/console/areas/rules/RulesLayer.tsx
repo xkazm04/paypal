@@ -7,6 +7,7 @@
 // of one agent can be told apart. Signing, new versions and withdrawing happen only in the approval
 // window: Change only hands off (approval_open target mandate). Read-only otherwise.
 import { useMemo, useState, type CSSProperties } from 'react';
+import type { AgentSlot } from '@bindings/AgentSlot';
 import type { Clause } from '@bindings/Clause';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { Money } from '@bindings/Money';
@@ -32,9 +33,10 @@ import { paidTodayText, usePaidToday } from '../book/today';
 const shortDate = (unix: number) => new Date(unix * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 const dateLabel = (unix: number) => new Date(unix * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 const keyOf = (m: MandateListEntry) => `${m.payload.id}:${m.payload.version}`;
-const AGENT_ORDER: readonly string[] = ['shopper', 'negotiator', 'assistant'];
-const AGENT_TONE: Record<string, string> = { shopper: 'var(--teal)', negotiator: 'var(--coral)', assistant: 'var(--gold)' };
-const rank = (a: string) => { const i = AGENT_ORDER.indexOf(a); return i < 0 ? AGENT_ORDER.length : i; };
+// One entry per agent slot: a slot the bindings gain is a type error here, not a grey, last row.
+const AGENT_RANK: Readonly<Record<AgentSlot, number>> = { shopper: 0, negotiator: 1, assistant: 2 };
+const AGENT_TONE: Readonly<Record<AgentSlot, string>> = { shopper: 'var(--teal)', negotiator: 'var(--coral)', assistant: 'var(--gold)' };
+const rank = (a: AgentSlot): number => AGENT_RANK[a] ?? 3;
 
 /** In force: signed, inside its dates, and still fitting what the wallet accepts. */
 const inForce = (m: MandateListEntry, now: number) => ruleState(m.payload, now) === 'active' && m.owner_sig.length > 0 && !m.refusal;
