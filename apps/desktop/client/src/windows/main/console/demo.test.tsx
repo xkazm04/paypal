@@ -85,6 +85,23 @@ describe('the footer switcher', () => {
     expect(apply).toHaveBeenCalledTimes(1);
   });
 
+  it('a choice that cannot be stored lifts the overlay again: the window stays usable, nothing reloads', async () => {
+    started(true, S('large'));
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('storage blocked'); });
+    const replace = vi.fn();
+    const was = window.location;
+    Object.defineProperty(window, 'location', { configurable: true, value: { ...was, pathname: was.pathname, search: was.search, replace } });
+    try {
+      render(<DemoSwitch />);
+      act(() => { switchDemo(S('small')); });
+      expect(document.querySelector('.cs-demo-switching')).toBeTruthy();
+      await waitFor(() => expect(document.querySelector('.cs-demo-switching')).toBeNull());
+      expect(replace).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(window, 'location', { configurable: true, value: was });
+    }
+  });
+
   it('Exit demo and Live wallet go back to the live wallet', async () => {
     started(true, S('first_run'));
     const apply = vi.fn();
