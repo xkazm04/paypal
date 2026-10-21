@@ -530,7 +530,7 @@ export function Tumbler() {
   const handoffItem = handoff.dealId ? items.find((i) => i.deal_id === handoff.dealId) ?? known.current.get(handoff.dealId) ?? null : null;
   const display = handoffDisplay.data && handoffDisplay.data.deal_id === handoff.dealId ? handoffDisplay.data : null;
   const count = look.needs;
-  const puckLabel = puckName({ needs: count, headline: items[0]?.headline ?? null, inMotion: snapshot?.in_motion ?? 0, mode, locked });
+  const puckLabel = puckName({ needs: count, headline: items[0]?.headline ?? null, inMotion: snapshot?.in_motion ?? 0, mode, locked, unread: !snapshot });
 
   let body: ReactNode = null;
   if (form === 'ticker') body = <TickerForm ticker={ticker} onOpen={openFromTicker} />;

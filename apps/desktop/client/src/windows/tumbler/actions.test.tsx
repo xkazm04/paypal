@@ -66,6 +66,10 @@ describe('a read of the cards that fails', () => {
       if (!h.root.querySelector('.f.stack')) h.emit('tumbler:form', 'stack');
       expect(h.root.querySelector('.f.stack')?.closest('.tum')?.textContent).toMatch(/may be out of date/);
     }, { timeout: 5000 });
+    // and the puck never says the calm thing it cannot know
+    const puck = h.root.querySelector('button.puck');
+    expect(puck?.getAttribute('aria-label')).toMatch(/cards not read yet/);
+    expect(puck?.getAttribute('aria-label')).not.toMatch(/nothing needs you/);
   });
 });
 
