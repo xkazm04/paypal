@@ -177,9 +177,11 @@ export function deriveGates(ctx: GateContext): Gates {
       (summary.can_open_paypal ? null : 'Waiting until the seller’s payment request is checked.'),
   );
 
-  // Capture / void an authorization the owner holds (the 3-day honor clock).
-  const authorized = owns && state === 'AUTHORIZED' && !mismatch;
-  const capture = gate(authorized && shield !== 'BLOCK', moneyBlock());
+  // Capture / void an authorization the owner holds (the 3-day honor clock). Rust's decide()
+  // refuses every decision under a BLOCK, void included, so neither exists then: the hold
+  // releases by itself when its clock runs out.
+  const authorized = owns && state === 'AUTHORIZED' && !mismatch && shield !== 'BLOCK';
+  const capture = gate(authorized, moneyBlock());
   // Void is the safe direction: it needs the capability and can_release, never the checklist.
   const voidGate = gate(authorized, privilegedBlock() ?? (summary.can_release ? null : summary.unavailable_reason ?? 'The wallet can’t do this for this deal right now.'));
 

@@ -123,7 +123,7 @@ describe('can_release=false disables countersign, capture, void and rescue', () 
 });
 
 describe('shield', () => {
-  it('BLOCK is never releasable and never offers PayPal or countersign', () => {
+  it('BLOCK offers no decision at all: Rust decide() refuses every one of them under a BLOCK', () => {
     for (const s of everything()) {
       if (s.deal.shield !== 'BLOCK') continue;
       const g = deriveGates(ctx(s, { typedName: 'pixel-bay' }));
@@ -131,6 +131,9 @@ describe('shield', () => {
       expect(g.openPaypal.visible).toBe(false);
       expect(g.countersign.visible).toBe(false);
       expect(g.capture.visible).toBe(false);
+      expect(g.void.visible).toBe(false);
+      expect(g.ownerAccept.visible).toBe(false);
+      expect(g.rescue.visible).toBe(false);
     }
   });
   it('HOLD releases only after the exact name is typed', () => {
