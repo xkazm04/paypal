@@ -430,6 +430,58 @@ fn migration_0011_keeps_every_operation_and_its_resolution_and_admits_the_invoic
     ledger.verify_audit().unwrap();
 }
 
+/// Only a `confirmed` step may carry a deal event: a `deferred` one that names an event is
+/// refused every time, not only when it is the first deferral of the request.
+#[test]
+fn a_deferred_step_carrying_an_event_is_refused_even_after_an_earlier_deferral() {
+    let mut w = world();
+    let deal = open(
+        &mut w,
+        1,
+        &case(RescueSource::Paypal, "I-DEFER", 86400),
+        86400,
+    )
+    .unwrap();
+    let human = DecidedBy::Human { at: 86400 };
+    let request = format!("{}-1-invoice-create", deal.id);
+    w.ledger
+        .reserve_operation(deal.id, 1, "invoice-create", &request, &human, 86400)
+        .unwrap();
+    w.ledger
+        .apply_event(deal.id, DealEvent::BeginSettlement, 86400)
+        .unwrap();
+    let step = |event| Resolution {
+        id: deal.id,
+        request_id: &request,
+        observed: "none",
+        outcome: ResolutionOutcome::Deferred,
+        calls: &[],
+        refs: None,
+        event,
+        at: 86500,
+    };
+    assert!(matches!(
+        w.ledger
+            .record_resolution(step(Some(DealEvent::InvoiceDrafted))),
+        Err(LedgerError::Conflict)
+    ));
+    w.ledger.record_resolution(step(None)).unwrap();
+    assert!(matches!(
+        w.ledger
+            .record_resolution(step(Some(DealEvent::InvoiceDrafted))),
+        Err(LedgerError::Conflict)
+    ));
+    assert_eq!(
+        w.ledger.resolutions(&request).unwrap(),
+        [("none".to_owned(), "deferred".to_owned())]
+    );
+    assert_eq!(
+        w.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Settling
+    );
+    w.ledger.verify_audit().unwrap();
+}
+
 fn email() -> Recipient {
     Recipient::new("subscriber@example.com").unwrap()
 }

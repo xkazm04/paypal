@@ -187,6 +187,11 @@ impl Ledger {
         {
             return Err(LedgerError::Conflict);
         }
+        // Checked before the repeated-deferral shortcut, so the same malformed step is refused
+        // every time instead of only on the request's first deferral.
+        if event.is_some() && outcome != ResolutionOutcome::Confirmed {
+            return Err(LedgerError::Conflict);
+        }
         if outcome == ResolutionOutcome::Deferred {
             let last: Option<String> = tx
                 .query_row(
@@ -200,9 +205,6 @@ impl Ledger {
                 tx.commit()?;
                 return Ok(());
             }
-        }
-        if event.is_some() && outcome != ResolutionOutcome::Confirmed {
-            return Err(LedgerError::Conflict);
         }
         insert_calls(&tx, id, calls, at)?;
         if let Some(refs) = refs {
