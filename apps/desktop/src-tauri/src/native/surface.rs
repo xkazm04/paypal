@@ -139,20 +139,7 @@ pub(super) fn tumbler_snap(
     state: State<'_, DesktopState>,
 ) -> Result<Snap, CommandError> {
     label(&window, "tumbler_snap")?;
-    let monitor = window
-        .current_monitor()
-        .map_err(|_| invalid())?
-        .ok_or_else(invalid)?;
-    let scale = monitor.scale_factor();
-    let area = monitor.work_area();
-    let work = Rect {
-        x: f64::from(area.position.x),
-        y: f64::from(area.position.y),
-        width: f64::from(area.size.width),
-        height: f64::from(area.size.height),
-    }
-    .logical(scale)
-    .map_err(|_| invalid())?;
+    let (work, scale) = monitor_work(&window)?;
     let origin: tauri::LogicalPosition<f64> = window
         .outer_position()
         .map_err(|_| invalid())?
@@ -195,20 +182,7 @@ pub(super) fn tumbler_snap(
 }
 pub(super) fn set_form(app: &AppHandle, form: Form) -> Result<(), CommandError> {
     let t = app.get_webview_window("tumbler").ok_or_else(invalid)?;
-    let monitor = t
-        .current_monitor()
-        .map_err(|_| invalid())?
-        .ok_or_else(invalid)?;
-    let scale = monitor.scale_factor();
-    let work = monitor.work_area();
-    let logical_work = Rect {
-        x: f64::from(work.position.x),
-        y: f64::from(work.position.y),
-        width: f64::from(work.size.width),
-        height: f64::from(work.size.height),
-    }
-    .logical(scale)
-    .map_err(|_| invalid())?;
+    let (logical_work, scale) = monitor_work(&t)?;
     let state = app.state::<DesktopState>();
     let mut surface = state.surface.lock().map_err(|_| invalid())?;
     let origin = match surface.anchor {
