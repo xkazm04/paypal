@@ -10,7 +10,7 @@ const fake = {
 };
 vi.mock('./runtime', () => ({ backend: () => fake }));
 
-import { usePrefersReducedMotion, useQuery } from './hooks';
+import { useEvent, usePrefersReducedMotion, useQuery } from './hooks';
 import { setCalm } from '../design/motion';
 
 afterEach(() => { cleanup(); pending.clear(); });
@@ -62,5 +62,18 @@ describe('usePrefersReducedMotion', () => {
     const h = renderHook(() => usePrefersReducedMotion());
     h.rerender(); h.rerender(); h.rerender();
     expect(adds).toHaveBeenCalledTimes(1);
+  });
+});
+
+// A subscription the shell refuses must leave a trace, the way lib/data/bus.ts reports its own,
+// instead of an unhandled rejection nobody sees.
+describe('useEvent', () => {
+  it('reports a refused subscription and keeps the window drawing', async () => {
+    const seen = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    fake.listen.mockRejectedValueOnce(new Error('event not allowed'));
+    renderHook(() => useEvent('deal:changed' as never, () => undefined));
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(seen).toHaveBeenCalledWith('event subscription failed', 'deal:changed', expect.any(Error));
+    seen.mockRestore();
   });
 });
