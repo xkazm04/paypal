@@ -14,6 +14,7 @@ import { anyMoneyEnabled, checksAllow, decisionArgs, deriveGates, namesMatch, of
 import { buildStrip, checksTally, derivePhase, marketPercentile, parseMoneyInput } from './model';
 import { buildMandate, draftFrom, newDraft } from './mandateDraft';
 import { nameProblem } from './PairingConfirm';
+import { reasonWords } from '../../lib/words';
 import { anyRowFailed, buildDiff, buildEvidence, diffKind, evidenceVisible, relSame, relWithin, tally, toneOf, type DiffInput, type DiffRow } from './review/diff';
 
 const HASH = Array.from({ length: 32 }, (_, i) => i) as H256;
@@ -116,9 +117,12 @@ describe('can_release=false disables countersign, capture, void and rescue', () 
       expect(g.countersign.enabled || g.capture.enabled || g.void.enabled || g.rescue.enabled).toBe(false);
     }
   });
-  it('and shows the unavailable_reason honestly', () => {
-    const g = deriveGates(ctx(summary({ state: 'AUTHORIZED' }, { can_release: false, unavailable_reason: 'Enter PayPal sandbox credentials' })));
-    expect(g.capture).toEqual({ visible: true, enabled: false, reason: 'Enter PayPal sandbox credentials' });
+  it('and shows the unavailable_reason honestly, in the wallet note’s plain words (never the wallet’s raw text)', () => {
+    const raw = 'Enter PayPal sandbox credentials';
+    const g = deriveGates(ctx(summary({ state: 'AUTHORIZED' }, { can_release: false, unavailable_reason: raw })));
+    expect(g.capture).toEqual({ visible: true, enabled: false, reason: reasonWords(raw) });
+    expect(g.void).toEqual({ visible: true, enabled: false, reason: reasonWords(raw) });
+    expect(reasonWords(raw)).not.toBe(raw);
   });
 });
 
