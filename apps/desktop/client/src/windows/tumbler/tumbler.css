@@ -1,6 +1,6 @@
 /* The Tumbler on the v2 baseline (spec: prototype/tumbler, the reworked puck).
-   Colours are tokens only (src/design/tokens.css). The Tumbler never sets data-theme, so they
-   resolve to the dark set: the puck stays a fixed physical object.
+   Colours are tokens only (src/design/tokens.css). The Tumbler follows the stored theme like The
+   Table (entry.tsx followStoredTheme), so they resolve to the dark or the light set.
    All sizes are logical pixels because Rust sizes the window to the drawing (the form table in
    crates/table-attention); the layout fills Rust's current rectangles, the puck keeps one
    88 x 88 corner and every form leaves that corner free (.px-* / .py-* from tumbler:orient).
