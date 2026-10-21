@@ -127,7 +127,7 @@ export function checkLights(d: PayeeDeal & Pick<Deal, 'shield_rule'> & Partial<P
     const price: Light = rule === 'price_over_market'
       ? { stage: 'market', name: STAGES.market, state: 'tripped', word: 'Too high', detail: checkCell('market', d, cp, now).l }
       : rule === 'no_market_reference'
-        ? { stage: 'market', name: STAGES.market, state: 'skipped', word: 'No price to compare', detail: checkCell('market', d, cp, now).l }
+        ? { stage: 'market', name: STAGES.market, state: 'skipped', word: 'No price to compare', detail: p !== null ? w.means : checkCell('market', d, cp, now).l }
         : p === null
           ? { stage: 'market', name: STAGES.market, state: 'skipped', word: 'No price to compare', detail: checkCell('market', d, cp, now).l }
           : { stage: 'market', name: STAGES.market, state: overPauseLine(d) ? 'tripped' : 'passed', word: overPauseLine(d) ? 'Too high' : 'Fine', detail: checkCell('market', d, cp, now).l };
@@ -177,7 +177,12 @@ export function whyFor(kind: ReasonKind, d: PayeeDeal, cp: CounterpartyDisplay |
       ];
     }
     case 'noprice':
-      return ['There is no typical price on file for this item, so the shield has nothing to compare it with.', 'It never waves through a price it cannot compare, so it asks you.'];
+      return [
+        overMedian(d) !== null
+          ? 'The typical price on file is too old to clear a payment, so the shield has nothing recent to compare it with.'
+          : 'There is no typical price on file for this item, so the shield has nothing to compare it with.',
+        'It never waves through a price it cannot compare, so it asks you.',
+      ];
     case 'newcp':
       return [
         'A payee first seen in the last 24 hours who wants a large amount needs your OK.',

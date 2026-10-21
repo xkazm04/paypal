@@ -141,7 +141,10 @@ export function reasonsFor(d: Pick<Deal, 'terms' | 'market' | 'shield_rule'>, cp
     const word = shieldRuleWord(d.shield_rule);
     const p = overMedian(d);
     const text = kind === 'price' && p !== null ? `${p}% above the usual price` : word.text;
-    const detail = kind === 'price' || kind === 'noprice' ? checkCell('market', d, cp, now).l : kind === 'newcp' ? checkCell('newcp', d, cp, now).l : word.means;
+    // No usual price with a typical price on file: the one on file was too old to clear the payment
+    // (Rust clears only on a fresh reference), so its figures and pause line are not the reason.
+    const stale = kind === 'noprice' && p !== null;
+    const detail = stale ? word.means : kind === 'price' || kind === 'noprice' ? checkCell('market', d, cp, now).l : kind === 'newcp' ? checkCell('newcp', d, cp, now).l : word.means;
     return [{ kind, icon, text, detail }];
   }
   const out: Reason[] = [];
