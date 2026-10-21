@@ -1,6 +1,6 @@
 // The deal page's figures tell an ended money check as it is: PayPal never showed what happened,
 // and the wallet is no longer asking. A live deal still says PayPal is being asked.
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Backend } from '../../../../../lib/contract';
 import { DEAL_FIGS, MONEY_CHECK_ENDED, MONEY_CHECK_ENDED_NOW, MONEY_CHECK_NOW } from '../../../../../lib/words';
@@ -69,5 +69,26 @@ describe('the milestones, read aloud', () => {
     const skipped = [...container.querySelectorAll('li.ms.todo')];
     expect(skipped.length).toBeGreaterThan(0);
     for (const li of skipped) expect(said(li)).toBe(DEAL_FIGS.msSkipped);
+  });
+});
+
+describe('the mode badge beside the figures', () => {
+  beforeEach(() => { localStorage.clear(); sessionStorage.clear(); resetMockState(); hoisted.current = mockBackend('main'); history.replaceState(null, '', '/index.html'); });
+  afterEach(() => { cleanup(); hoisted.current = null; });
+  const badges = (c: HTMLElement) => c.querySelectorAll('.dv-pills .badge').length;
+
+  it('does not flash on a deal in the window’s own mode while the settings load', async () => {
+    const deal = { ...parked.deal, mode: 'sandbox' as const };
+    const { container } = render(<WorldProvider><Summary deal={deal} strip={mirrorStrip(deal)} deadline={null} /></WorldProvider>);
+    expect(badges(container)).toBe(0);
+    await waitFor(() => expect(container.querySelector('.dv-amt')).not.toBeNull());
+    await new Promise((r) => setTimeout(r, 50));
+    expect(badges(container)).toBe(0);
+  });
+
+  it('shows on a deal in another mode once the settings say so', async () => {
+    const deal = { ...parked.deal, mode: 'replay' as const };
+    const { container } = render(<WorldProvider><Summary deal={deal} strip={mirrorStrip(deal)} deadline={null} /></WorldProvider>);
+    await waitFor(() => expect(badges(container)).toBe(1));
   });
 });

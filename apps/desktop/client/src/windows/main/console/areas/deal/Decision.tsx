@@ -25,8 +25,9 @@ import { useDisplayOf, useLocked, useSettings } from '../../../world';
 export function Summary({ deal, strip, deadline, check }: { deal: Deal; strip: MirrorStrip; deadline: number | null; check?: MoneyCheck | null }) {
   const settings = useSettings().data;
   const t = dealTotal(deal);
-  // The console's footer carries the window's mode badge; repeat it only when this deal differs.
-  const ownMode = settings?.mode !== deal.mode;
+  // The console's footer carries the window's mode badge; repeat it only when this deal differs
+  // (and only once the settings say so: no badge flashes on every deal while they load).
+  const ownMode = !!settings && settings.mode !== deal.mode;
   const ended = isTerminal(deal);
   const pill = check ? moneyCheckPill(check, ended) : null;
   const state = strip.term ? strip.term.label : (strip.steps.find((s) => s.status === 'cur')?.label ?? null);
