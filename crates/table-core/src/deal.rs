@@ -726,6 +726,27 @@ mod tests {
         assert!(!DealState::Authorized.withdrawable());
         assert!(DealState::Approved.withdrawable());
     }
+    /// `terminal()` and `pre_capture()` are hand-written lists; the graph is the ground truth.
+    /// Terminal: nothing moves the deal again but a statement match, a refund or a dispute.
+    /// Pre-capture: money can still be collected (CAPTURED is still reachable) and was not yet.
+    #[test]
+    fn terminal_and_pre_capture_are_the_transition_graph() {
+        let after_the_end = [
+            DealEvent::ReportingMatched,
+            DealEvent::Refund,
+            DealEvent::Dispute,
+        ];
+        for state in DealState::ALL {
+            let ended = DealEvent::ALL
+                .into_iter()
+                .filter(|event| transition(state, *event).is_ok())
+                .all(|event| after_the_end.contains(&event));
+            assert_eq!(state.terminal(), ended, "terminal {state:?}");
+            let collectable = state != DealState::Captured
+                && reachable(state, None).contains(&DealState::Captured);
+            assert_eq!(state.pre_capture(), collectable, "pre_capture {state:?}");
+        }
+    }
     #[test]
     fn agreement_sets_are_the_transition_graph_through_agreed() {
         // Through AGREED: reachable from PAIRING, but not once AGREED is walled off.
