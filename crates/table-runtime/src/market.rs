@@ -107,13 +107,8 @@ impl ActorHandle {
         caller: Caller,
         args: MarketRefreshArgs,
     ) -> Result<MarketRef, CommandError> {
-        if args.product_id.is_empty()
-            || args.product_id.len() > 128
-            || !args
-                .product_id
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
-        {
+        // The one product-id rule the market client and the mandate's binding also use.
+        if !table_core::market_product_valid(&args.product_id) {
             return Err(invalid());
         }
         let binding: MarketBinding = self
