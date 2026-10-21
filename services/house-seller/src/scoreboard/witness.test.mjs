@@ -282,3 +282,38 @@ test('page: a busy house (429 on the prefix) leaves the check unconfirmed, never
   const check = await headsCheck(page);
   assert.equal(check.state, 'unknown', `${check.title}: ${check.detail}`);
 });
+
+// ---- the page's own words: the check list and the tiles ----------------------------------------
+
+/** One agreed deal at `price` minor units against an ask of `ask`. */
+function agreedDeal(id, ask, price) {
+  const usd = (minor) => ({ minor, currency: 'USD' });
+  return {
+    deal_id: id, created_at: T0, updated_at: T0, item_ref: 'monitor', ask: usd(ask), price: usd(price), state: 'CAPTURED',
+    guest: 'abcdef012345', rounds: [], refused_intents: 0, paypal_calls: 0, money: [], transcript_head: filled(5),
+    closed: [{ attempt: 1, hash: filled(6), open_mandate_hash: filled(3), amount: usd(price), decided_by: { type: 'house_mandate', mandate_hash: filled(3) } }],
+    decided_by: null,
+  };
+}
+async function rendered(page, id, from) {
+  for (let i = 0; i < 400; i += 1) {
+    const t = text(page.byId(id));
+    if (t && t !== from) return t;
+    await new Promise((r) => setTimeout(r, 5));
+  }
+  return text(page.byId(id));
+}
+
+test('page: every check line voices its result, not only an icon', async () => {
+  const view = await ledgerWith(await signedHead(14, H14));
+  const page = openPage({ routes: [['/v1/house/ledger', { status: 200, body: view }]] });
+  await headsCheck(page);
+  const lines = page.byId('checks').children;
+  assert.ok(lines.length >= 8, `${lines.length} checks`);
+  for (const li of lines) {
+    const icon = li.children[0];
+    // aria-label on a plain span names nothing (a generic role takes no name): it must be an image.
+    assert.equal(icon.attrs.role, 'img', `${text(li.children[1])}: the result icon has a role`);
+    assert.match(icon.attrs['aria-label'] || '', /^(Passed|Failed|Note|Not checked here)$/);
+  }
+});
