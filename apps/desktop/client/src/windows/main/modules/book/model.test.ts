@@ -60,6 +60,16 @@ describe('lenses', () => {
     expect(runQuery(lens('stopped').query, rows, ctx).rows.map((d) => d.id)).toEqual(['c', 'd']);
     expect(runQuery(lens('mismatch').query, rows, ctx).rows.map((d) => d.id)).toEqual(['d']);
   });
+  it('reconciliation leaves out a capture whose statement reads no payment, as the wallet does', () => {
+    // book.rs: the reconciliation view is `reconciliation != 'n/a'`. A capture read as
+    // not_applicable is not in the wallet's answer, so it is not among the deals behind it.
+    const cap = { order: '1', authorization: null, capture: 'C', subscription: null };
+    const two = [deal('x', { paypal: cap }), deal('y', { paypal: cap, state: 'VOIDED' })];
+    const read: Ctx = { ...ctx, stmt: (d) => (d.id === 'y' ? 'not_applicable' : 'matched') };
+    expect(runQuery(lens('pending').query, two, read).rows.map((d) => d.id)).toEqual(['x']);
+    // Not read yet: kept, its statement unknown.
+    expect(runQuery(lens('pending').query, two, { ...ctx, stmt: () => 'unknown' }).rows.map((d) => d.id)).toEqual(['x', 'y']);
+  });
   it('recovered never counts REPLAY rows', () => {
     const r = runQuery(lens('rescue').query, rows, ctx);
     expect(r.rows.map((d) => d.id)).toEqual(['r1', 'r2']);

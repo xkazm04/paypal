@@ -245,9 +245,11 @@ export function outsideGrid(answer: readonly Pick<Deal, 'id'>[], grid: readonly 
   return answer.filter((d) => !shown.has(d.id)).length;
 }
 
-/** Run a lens over the rows the window already holds. Read-only by construction. */
+/** Run a lens over the rows the window already holds. Read-only by construction. The
+ *  reconciliation view is the wallet's `reconciliation != 'n/a'` (book.rs): a capture, less any
+ *  whose statement was read as no payment (one not read yet stays, its statement unknown). */
 export function runQuery(q: BookQuery, deals: readonly Deal[], ctx: Ctx): Result {
-  let rows = q.view === 'reconciliation' ? deals.filter((d) => !!d.paypal.capture) : [...deals];
+  let rows = q.view === 'reconciliation' ? deals.filter((d) => !!d.paypal.capture && ctx.stmt(d) !== 'not_applicable') : [...deals];
   rows = rows.filter((d) => (q.filters ?? []).every((f) => matches(d, f)));
   if (q.range) {
     const from = Date.parse(q.range.from) / 1000;
