@@ -10,7 +10,11 @@ import { CLAUSE_KINDS, CLAUSE_NUMBER, isIncomplete, type ClauseType, type DraftC
 export type Dir = 'widens' | 'restricts' | 'changes';
 export type Change = { clause: number; type: ClauseType | 'meta'; term: string; from: string; to: string; dir: Dir; text: string };
 
-export type DiffSide = { clauses: readonly DraftClause[]; agent: AgentSlot; currency: Currency; expires: number | null };
+export type DiffSide = {
+  clauses: readonly DraftClause[]; agent: AgentSlot; currency: Currency; expires: number | null;
+  /** When the rules start (the signed side: no earlier than now, as the draft starts); absent = not compared. */
+  notBefore?: number | null;
+};
 
 const name = (t: ClauseType) => CLAUSE_KINDS.find((k) => k.type === t)?.name ?? t;
 const m = (x: Money | null | undefined) => (x ? formatMinor(x.minor, x.currency) : 'none');
@@ -24,7 +28,7 @@ const TERM_WORD: Record<string, string> = {
   'per-deal max': 'limit per deal', 'band ceiling': 'most you’ll pay', 'band floor': 'least you’ll accept', 'max rounds': 'offer limit',
   'band deadline': 'price-range end', 'band items': 'items with a price range', 'money per day': 'daily money limit', 'deals per day': 'deals per day',
   '“you decide over” threshold': 'ask-me limit', 'the payee allowlist': 'approved payees', 'pinned keys': 'listed wallets', 'deal kind': 'what it covers',
-  'agent slot': 'agent', roles: 'what agents may do', counterparties: 'who they deal with', categories: 'categories', currency: 'currency', expiry: 'end date',
+  'agent slot': 'agent', start: 'start date', roles: 'what agents may do', counterparties: 'who they deal with', categories: 'categories', currency: 'currency', expiry: 'end date',
   'watched items': 'items kept priced', 'checks per day': 'price checks a day',
 };
 export const termWord = (term: string): string => TERM_WORD[term] ?? term;
@@ -100,6 +104,11 @@ export function diffPolicy(base: DiffSide | null, draft: DiffSide): Change[] {
   if (base && base.expires !== null && draft.expires !== null && minute(base.expires) !== minute(draft.expires)) {
     const fmt = (v: number) => new Date(v * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     out.push({ clause: 0, type: 'meta', term: 'expiry', from: fmt(base.expires), to: fmt(draft.expires), dir: draft.expires > base.expires ? 'widens' : 'restricts', text: `Moving the end date ${fmt(base.expires)} → ${fmt(draft.expires)}` });
+  }
+  // A new version replaces the one in force when it is signed: a later start leaves no rules in force until then.
+  if (base && base.notBefore != null && draft.notBefore != null && minute(base.notBefore) !== minute(draft.notBefore)) {
+    const fmt = (v: number) => new Date(v * 1000).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+    out.push({ clause: 0, type: 'meta', term: 'start', from: fmt(base.notBefore), to: fmt(draft.notBefore), dir: draft.notBefore > base.notBefore ? 'restricts' : 'widens', text: `Moving the start ${fmt(base.notBefore)} → ${fmt(draft.notBefore)}` });
   }
   for (const k of CLAUSE_KINDS) {
     const x = a.find((c) => c.type === k.type);

@@ -102,11 +102,12 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
   const pclauses = useMemo(() => previewClauses(d), [d]);
   const problems = ruleProblems(pclauses, fromLocalInput(d.notBefore), fromLocalInput(d.expires));
   const baseCur = useMemo(() => (base ? draftFrom(base, t0).currency : null), [base, t0]);
-  const baseSide: DiffSide | null = base && baseCur ? { clauses: base.payload.clauses, agent: base.agent, currency: baseCur, expires: base.payload.expires } : null;
-  const changes = diffPolicy(baseSide, { clauses: pclauses, agent: d.agent, currency: d.currency, expires: fromLocalInput(d.expires) });
+  // The signed start as the draft starts from it (draftFrom: never before the editor opened).
+  const baseSide: DiffSide | null = base && baseCur ? { clauses: base.payload.clauses, agent: base.agent, currency: baseCur, expires: base.payload.expires, notBefore: Math.max(t0, base.payload.not_before) } : null;
+  const changes = diffPolicy(baseSide, { clauses: pclauses, agent: d.agent, currency: d.currency, expires: fromLocalInput(d.expires), notBefore: fromLocalInput(d.notBefore) });
   const changedTypes = new Set(changes.map((c) => c.type));
   const changedTerm = (t: ClauseType | 'slot' | 'valid') =>
-    t === 'slot' ? changes.some((c) => c.term === 'agent slot') : t === 'valid' ? changes.some((c) => c.term === 'expiry' || c.term === 'currency') : changedTypes.has(t);
+    t === 'slot' ? changes.some((c) => c.term === 'agent slot') : t === 'valid' ? changes.some((c) => c.term === 'expiry' || c.term === 'start' || c.term === 'currency') : changedTypes.has(t);
 
   // ---- the week, tried by the wallet's own check (mandate_simulate, debounced) ---------------
   const args: MandateSignArgs | null = built.ok ? { id: d.id, agent: d.agent, clauses: built.clauses, not_before: built.notBefore, expires: built.expires } : null;
