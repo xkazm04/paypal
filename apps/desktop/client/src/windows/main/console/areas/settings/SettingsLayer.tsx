@@ -373,18 +373,23 @@ function Switch({ on, label, disabled, onChange }: { on: boolean; label: string;
 function NotifyView({ s }: { s: SettingsSnapshot | undefined }) {
   const write = useMutation('settings_write');
   const [busy, setBusy] = useState(false);
+  const [readError, setReadError] = useState<WalletError | null>(null);
   const flip = async (key: 'dnd' | 'notifications', value: boolean) => {
     setBusy(true);
+    setReadError(null);
     try {
       const fresh = await readCommand('get_settings', null);
       await write.run({ ...fresh.preferences, [key]: value });
-    } catch {
-      // The fresh read failed: nothing was written; the switch keeps showing the stored value.
+    } catch (e) {
+      // The fresh read failed: nothing was written; the switch keeps showing the stored value, and
+      // the owner is told, as when the write itself fails.
+      setReadError(toWalletError(e));
     } finally {
       setBusy(false);
     }
   };
   if (!s) return <p className="dim">{SETTINGS_NOTIFY.unread}</p>;
+  const failed = write.error ?? readError;
   return (
     <div className="st-view">
       <div className="st-line">
@@ -395,7 +400,7 @@ function NotifyView({ s }: { s: SettingsSnapshot | undefined }) {
         <span className="st-rt"><b>{SETTINGS_NOTIFY.dndLabel}</b><small>{SETTINGS_NOTIFY.dndWhat}</small></span>
         <Switch on={s.preferences.dnd} label={SETTINGS_NOTIFY.dndLabel} disabled={busy || write.pending} onChange={(v) => void flip('dnd', v)} />
       </div>
-      {write.error ? <WalletNotice error={write.error} what={SETTINGS_NOTIFY.failed} /> : null}
+      {failed ? <WalletNotice error={failed} what={SETTINGS_NOTIFY.failed} /> : null}
       <p className="st-foot"><Silence text={SETTINGS_NOTIFY.ifNothing} /></p>
     </div>
   );
