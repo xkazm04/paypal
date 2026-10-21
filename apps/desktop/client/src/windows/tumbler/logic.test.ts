@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import { MONEY_CHECK_ENDED, MONEY_CHECK_ENDED_SILENCE, MONEY_CHECK_SILENCE, SELLER_SAYS_PAID } from '../../lib/words';
@@ -26,8 +29,19 @@ const look = (s: AttentionSnapshot, o: Partial<Parameters<typeof puckLook>[1]> =
   puckLook(s, { now: NOW, visual: null, reducedMotion: false, dnd: false, ...o });
 
 describe('form sizes mirror the Rust table', () => {
-  it('has the seven forms at their exact logical size', () => {
-    expect(FORM_SIZE).toEqual({ rest: [88, 88], tab: [28, 96], ticker: [420, 88], card: [440, 152], stack: [440, 336], handoff: [440, 160], welcome: [440, 228] });
+  // Read from the table Rust places the window with (Form::size in table-attention placement.rs),
+  // comments stripped, so a size changed there turns this red instead of drifting from the preview.
+  const PLACEMENT_RS = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../../crates/table-attention/src/placement.rs');
+  const src = readFileSync(PLACEMENT_RS, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  const start = src.indexOf('fn size(self)');
+  const body = src.slice(start, src.indexOf('\n    }', start));
+  const rust = Object.fromEntries([...body.matchAll(/Self::(\w+)\s*=>\s*\(\s*([\d.]+)\s*,\s*([\d.]+)\s*\)/g)]
+    .map(([, name, w, h]) => [name!.toLowerCase(), [Number(w), Number(h)]]));
+
+  it('has every form Rust sizes, at Rust’s exact logical size', () => {
+    expect(start, 'Form::size in placement.rs').toBeGreaterThan(0);
+    expect(Object.keys(rust)).toHaveLength(7);
+    expect(FORM_SIZE).toEqual(rust);
   });
 });
 
