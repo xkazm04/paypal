@@ -6,6 +6,7 @@ import type { Deal } from '@bindings/Deal';
 import type { MandatePayload } from '@bindings/MandatePayload';
 import { WalletError } from '../../lib/contract';
 import { PRICE_CHECK } from '../../lib/words';
+import { refusalText } from './model';
 
 const call = vi.fn();
 const session = { tokenReady: true, pending: null as string | null, call };
@@ -37,12 +38,15 @@ describe('Check the price now', () => {
     expect(container.textContent).not.toMatch(/hold to|pay now|approve/i);
   });
 
-  it('shows the refusal in words when the wallet refuses', async () => {
-    call.mockResolvedValue({ ok: false, error: new WalletError({ code: 'UNAVAILABLE', message: 'no market reference for this item' }) });
+  it('shows the refusal in plain words when the wallet refuses, never the wallet’s own text', async () => {
+    // Rust market.rs: "Market executor not attached" / "Market reference unavailable".
+    const error = new WalletError({ code: 'UNAVAILABLE', message: 'Market executor not attached' });
+    call.mockResolvedValue({ ok: false, error });
     const { container } = render(<PriceCheck deal={deal('listing 7')} payload={watch} />);
     fireEvent.click(screen.getByRole('button', { name: PRICE_CHECK.label }));
-    await waitFor(() => expect(container.textContent).toContain('no market reference for this item'));
-    expect(container.textContent).toContain(PRICE_CHECK.failed);
+    await waitFor(() => expect(container.textContent).toContain(PRICE_CHECK.failed));
+    expect(container.textContent).toContain(refusalText(error));
+    expect(container.textContent).not.toContain('Market executor not attached');
   });
 
   it('shows the refusal words, and no button, when no product is bound', () => {
