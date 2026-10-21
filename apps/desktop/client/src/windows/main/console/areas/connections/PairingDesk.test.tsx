@@ -66,6 +66,21 @@ describe('a payee the wallet would refuse', () => {
   });
 });
 
+// The desk's steps sit right under the layer's (or the Charter line's) one h1: no level is skipped.
+describe('the desk’s headings', () => {
+  afterEach(() => { cleanup(); hoisted.current = null; });
+  it('the three steps are h2 under the layer’s h1', async () => {
+    resetMockState();
+    hoisted.current = mockBackend('main');
+    render(<WorldProvider><PairingDesk mode="create" setMode={() => {}} asLayer /></WorldProvider>);
+    await screen.findByPlaceholderText(PAIR.paidToPlaceholder);
+    const levels = [...document.querySelectorAll('h1, h2, h3, h4')].map((h) => Number(h.tagName[1]));
+    expect(levels[0]).toBe(1);
+    expect(levels.filter((l) => l === 2)).toHaveLength(3);
+    for (let i = 1; i < levels.length; i += 1) expect(levels[i]! - levels[i - 1]!).toBeLessThanOrEqual(1);
+  });
+});
+
 // Commit-then-reveal (DECISIONS §47): the joiner's first pairing_join answers "not available yet"
 // until the initiator has polled and revealed. Join mode retries that one answer; nothing else.
 const NOT_YET = { code: 'UNAVAILABLE', message: 'Pairing offer is not available yet' };
