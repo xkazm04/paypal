@@ -1,5 +1,4 @@
 use crate::{EngineId, Error, Profile};
-use std::path::{Path, PathBuf};
 use url::Url;
 #[derive(Debug, Clone)]
 pub struct LaunchOptions {
@@ -146,17 +145,3 @@ pub const STRIP_ENV: &[&str] = &[
     "CLAUDE_CODE_SSE_PORT",
     "CLAUDE_EFFORT",
 ];
-/// Resolve direct executables; `resolve_command` additionally follows recognized npm layouts.
-pub fn resolve_executable(candidates: &[PathBuf]) -> Option<PathBuf> {
-    candidates
-        .iter()
-        .find(|p| {
-            p.is_file()
-                && (cfg!(not(windows))
-                    || p.extension().is_some_and(|e| e.eq_ignore_ascii_case("exe")))
-        })
-        .cloned()
-}
-pub fn empty_cwd(path: &Path) -> std::io::Result<bool> {
-    Ok(std::fs::read_dir(path)?.next().is_none())
-}
