@@ -10,6 +10,7 @@ import {
   withDemoSearch, type DemoEnv,
 } from './preview';
 import { backend, DEMO_SEALED, demoEnv, initBackend, resetBackendForTests } from './runtime';
+import { WalletError } from './contract';
 import { fakeUlid } from '../mock/fixtures';
 import { resetMockState } from '../mock/backend';
 
@@ -169,6 +170,14 @@ describe('demo backend (lib/runtime.ts)', () => {
     expect(net.fetch).not.toHaveBeenCalled();
     expect(net.xhr).not.toHaveBeenCalled();
     expect(net.ws).not.toHaveBeenCalled();
+  });
+
+  it('desktop app: a refused event subscription is a typed failure, like a refused command', async () => {
+    const shell = fakeShell();
+    shell.internals.invoke = (cmd) => (cmd === 'plugin:event|listen' ? Promise.reject('event.listen not allowed on window main') : Promise.reject('command get_settings not allowed'));
+    const b = await initBackend('main', env({ stored: 'off' }));
+    await expect(b.invoke('get_settings', null)).rejects.toBeInstanceOf(WalletError);
+    await expect(b.listen('deal:changed', () => undefined)).rejects.toBeInstanceOf(WalletError);
   });
 
   it('switching demo off (a reload) gives the page the real shell again', async () => {
