@@ -378,3 +378,33 @@ fn a_refusal_code_is_read_from_the_cause_not_the_text() {
     );
     assert_eq!(typed.to_string(), untyped.to_string());
 }
+
+/// A table whose rules carry no band refuses an offer on clause 4, which is the reason, whether
+/// or not a lapse time is known; it is never reported as a passed deadline.
+#[test]
+fn an_offer_without_a_band_is_refused_on_clause_four_not_the_deadline() {
+    let negotiating = deal(Side::Buyer, DealState::Negotiating);
+    let their_counter = [
+        step(1, TranscriptBy::Them, TranscriptType::Listing, Some(35000)),
+        step(2, TranscriptBy::Them, TranscriptType::Counter, Some(34000)),
+    ];
+    for lapses_at in [None, Some(2000)] {
+        let v = AgentProjection::build(ProjectionInput {
+            deal: &negotiating,
+            band: None,
+            rounds_used: 0,
+            steps: &their_counter,
+            offer_seq: Some(2),
+            own_accept: false,
+            counterparty: TableCounterparty::PairedWallet,
+            lapses_at,
+            now: 100,
+        });
+        assert_eq!(
+            v.refusal(AgentTool::SendOffer, &negotiating),
+            Some(RefusalCode::MandateClause { clause: 4 }),
+            "{lapses_at:?}"
+        );
+        assert!(!v.allowed.contains(&AgentTool::SendOffer));
+    }
+}

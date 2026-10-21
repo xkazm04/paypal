@@ -333,16 +333,18 @@ impl AgentProjection {
                 Some(m) if m.fresh => None,
                 _ => Some(RefusalCode::MarketUnavailable),
             },
+            // No band: clause 4 refuses every offer, so it is the reason, ahead of the deadline
+            // (which, with no band and no lapse time, is only a placeholder of `now`).
             AgentTool::SendOffer => shield.or(if !self.phase.open() {
                 Some(RefusalCode::TableClosed)
+            } else if self.band.is_none() {
+                Some(RefusalCode::MandateClause { clause: 4 })
             } else if !before_deadline {
                 Some(RefusalCode::DeadlinePassed)
             } else if self.band.is_some_and(|b| b.rounds_left == 0) {
                 Some(RefusalCode::RoundsExhausted)
             } else if self.turn != TableTurn::Yours {
                 Some(RefusalCode::NotYourTurn)
-            } else if self.band.is_none() {
-                Some(RefusalCode::MandateClause { clause: 4 })
             } else {
                 None
             }),
