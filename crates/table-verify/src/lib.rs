@@ -279,8 +279,8 @@ fn authority(bundle: &ProofBundle) -> Outcome {
         };
         if kind == "unclassified" {
             return Err(format!(
-                "money-shaped POST {} has no known operation",
-                call.path
+                "money-shaped {} {} has no known operation",
+                call.method, call.path
             ));
         }
         if !authority::call_has_operation(bundle, kind, call.request_id.as_deref()) {

@@ -68,7 +68,7 @@ impl fmt::Display for Violation {
 
 /// The money step a PayPal call is, from its method and path (the offline verifier's own
 /// classifier, [`crate::authority::classify`]): `None` for a read, `"unclassified"` for a
-/// money-shaped POST nobody named (a query on a money POST included).
+/// money-shaped call nobody named (a query on a money POST, or any method but GET and POST).
 pub fn money_kind(method: &str, path: &str) -> Option<&'static str> {
     authority::money_kind(method, path)
 }
@@ -106,7 +106,10 @@ pub fn deal_violations(b: &ProofBundle, needles: &[String]) -> Vec<Violation> {
         match money_kind(&call.method, &call.path) {
             Some("unclassified") => out.push(at(
                 ViolationKind::UntrackedCall,
-                format!("money-shaped POST {} names no known step", call.path),
+                format!(
+                    "money-shaped {} {} names no known step",
+                    call.method, call.path
+                ),
             )),
             Some(kind) if !authority::call_has_operation(b, kind, call.request_id.as_deref()) => {
                 out.push(at(
