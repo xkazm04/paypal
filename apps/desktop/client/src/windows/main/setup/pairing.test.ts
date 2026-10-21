@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  allTicked, canSubmit, joinCode, mirrorStage, mirrorText, modeLocked, newTicks, houseWords, pairAnswer, pairPhase, pairSteps, tickLabel, tickProgress, ticksDone, toggleTick, wizardSteps,
+  allTicked, canSubmit, joinCode, mirrorStage, mirrorText, modeLocked, newTicks, houseWords, pairAnswer, pairPhase, pairSteps, payeeProblem, tickLabel, tickProgress, ticksDone, toggleTick, wizardSteps,
 } from './pairing';
 
 describe('pairing · Main side', () => {
@@ -39,6 +39,19 @@ describe('pairing · Main side', () => {
     expect(canSubmit('house', { payee: 'maya-shop', code: '' }, 'unavailable')).toBe(false);
     expect(canSubmit('house', { payee: 'maya-shop', code: '' }, 'waking')).toBe(false);
     expect(canSubmit('house', { payee: 'maya-shop', code: '' }, 'idle')).toBe(true);
+  });
+
+  it('the payee follows Rust’s PayeeRef (table-core ids.rs text_id!): 1-128 letters, digits or - _ . : @ +', () => {
+    for (const ok of ['maya-shop', 'maya@example.com', 'shop_7.north:desk+1', 'x'.repeat(128), '  maya@example.com  ']) {
+      expect(payeeProblem(ok), ok).toBeNull();
+      expect(canSubmit('create', { payee: ok, code: '' }, 'idle'), ok).toBe(true);
+    }
+    // Rust refuses these when it reads the arguments; the desk must not send them.
+    for (const bad of ['Maya’s Bakery', 'maya shop', 'x'.repeat(129), 'café', 'maya/shop', 'a\tb']) {
+      expect(payeeProblem(bad), bad).not.toBeNull();
+      for (const m of ['create', 'join', 'house'] as const) expect(canSubmit(m, { payee: bad, code: 'TBL-1' }, 'idle'), `${m} ${bad}`).toBe(false);
+    }
+    expect(payeeProblem('   ')).toBeNull();
   });
 });
 

@@ -271,5 +271,7 @@ export const PAIR = {
   sellOpt: 'Sell',
   paidTo: 'Paid to',
   paidToTitle: 'Where money to you is paid. The other side saves it when you connect.',
-  paidToPlaceholder: 'your PayPal email or shop name',
+  paidToPlaceholder: 'your PayPal email, or a shop name with no spaces',
+  /** The payee rule the wallet holds (letters, digits and - _ . : @ +, at most 128). */
+  payeeProblem: { chars: 'Use letters, digits and - _ . : @ + only, no spaces', long: 'Too long · 128 characters at most' },
 } as const;

@@ -47,6 +47,25 @@ describe('a copy with no relay', () => {
   });
 });
 
+// The payee goes to Rust as a PayeeRef; one it would refuse is explained at the field and never sent.
+describe('a payee the wallet would refuse', () => {
+  beforeEach(() => { localStorage.clear(); sessionStorage.clear(); resetMockState(); });
+  afterEach(() => { cleanup(); hoisted.current = null; });
+
+  it('says why at the field and keeps Make a code off; a valid payee clears it', async () => {
+    hoisted.current = mockBackend('main');
+    render(<WorldProvider><PairingDesk mode="create" setMode={() => {}} /></WorldProvider>);
+    const field = await screen.findByPlaceholderText(PAIR.paidToPlaceholder);
+    fireEvent.change(field, { target: { value: 'Maya’s Bakery' } });
+    expect(screen.getByRole('alert').textContent).toBe(PAIR.payeeProblem.chars);
+    expect(field.getAttribute('aria-invalid')).toBe('true');
+    expect((screen.getByRole('button', { name: PAIR.makeCode }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(field, { target: { value: 'maya@example.com' } });
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect((screen.getByRole('button', { name: PAIR.makeCode }) as HTMLButtonElement).disabled).toBe(false);
+  });
+});
+
 // Commit-then-reveal (DECISIONS §47): the joiner's first pairing_join answers "not available yet"
 // until the initiator has polled and revealed. Join mode retries that one answer; nothing else.
 const NOT_YET = { code: 'UNAVAILABLE', message: 'Pairing offer is not available yet' };
