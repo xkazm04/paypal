@@ -90,7 +90,8 @@ export function GateView({ lanes, cols, m, sets, display, who, needOf }: {
                 <span className={`tr-row sp-lane${pickedId === l.deal.id ? ' picked' : ''}`}>
                   <span className="t"><b>{display(l.deal).title}</b><span className="sub">{who(l)}{l.slot ? ` · ${SPEND.agent(l.slot)}` : ''}</span></span>
                   <span className="sp-marks" aria-hidden="true">
-                    {l.cells.map((c) => <i key={c.n} className={c.kind}>{l.own ? MARK[c.kind] : '?'}</i>)}
+                    {/* A lane under another rule set is not read against these columns: unknown, drawn dim. */}
+                    {l.cells.map((c) => { const k = l.own ? c.kind : 'unknown'; return <i key={c.n} className={k}>{MARK[k]}</i>; })}
                   </span>
                   <span className="sp-out"><Chip tone={out.tone}>{needOf(l.deal.id)?.money_check ? SPEND.checking : out.label}</Chip><Amount money={{ minor: l.deal.terms.unit_price.minor * l.deal.terms.qty, currency: l.deal.terms.currency }} /></span>
                 </span>
