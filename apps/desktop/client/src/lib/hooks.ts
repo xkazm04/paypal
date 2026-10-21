@@ -16,9 +16,13 @@ export function useEvent<E extends EventName>(event: E, cb: (payload: PayloadOf<
   useEffect(() => {
     let off: (() => void) | null = null;
     let dead = false;
-    void backend()
-      .listen(event, (p) => ref.current(p))
-      .then((u) => (dead ? u() : (off = u)));
+    // Like lib/data/bus.ts: a refused subscription is reported, never an unhandled rejection.
+    void Promise.resolve()
+      .then(() => backend().listen(event, (p) => ref.current(p)))
+      .then(
+        (u) => (dead ? u() : (off = u)),
+        (e: unknown) => console.error('event subscription failed', event, e),
+      );
     return () => {
       dead = true;
       off?.();
