@@ -82,6 +82,13 @@ pub struct RungMark {
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// `ALL` is a hand list; it is pinned to every rung serde knows, in declaration order.
+    #[test]
+    fn every_rung_is_in_all() {
+        let unknown = serde_json::from_value::<LadderRung>(serde_json::json!("\u{0}")).unwrap_err();
+        let names: Vec<&str> = LadderRung::ALL.iter().map(|r| r.name()).collect();
+        assert_eq!(names, crate::test_support::serde_variants(&unknown));
+    }
     #[test]
     fn every_rung_name_is_its_wire_name() {
         for rung in LadderRung::ALL {

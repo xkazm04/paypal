@@ -311,6 +311,27 @@ fn refusal_codes_are_closed_tagged_and_carry_fixed_text() {
     );
 }
 
+/// `ALL` is a hand list: a code missing from it is never checked against the playbooks or the
+/// wire, and a playbook missing from it is never generated or tested. Both are pinned to every
+/// variant serde knows, in declaration order.
+#[test]
+fn every_refusal_code_and_playbook_is_in_all() {
+    use crate::test_support::serde_variants;
+    let codes = serde_variants(
+        &serde_json::from_value::<RefusalCode>(json!({"code": "\u{0}"})).unwrap_err(),
+    );
+    let listed: Vec<&str> = RefusalCode::ALL.iter().map(|c| c.tag()).collect();
+    assert_eq!(listed, codes);
+    let playbooks =
+        serde_variants(&serde_json::from_value::<Playbook>(json!("\u{0}")).unwrap_err());
+    let listed: Vec<&str> = Playbook::ALL.iter().map(|p| p.name()).collect();
+    assert_eq!(listed, playbooks);
+    assert!(
+        codes.len() > 10 && playbooks.len() > 3,
+        "{codes:?} {playbooks:?}"
+    );
+}
+
 #[test]
 fn every_playbook_is_fixed_text_naming_every_refusal_code() {
     for playbook in Playbook::ALL {
