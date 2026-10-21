@@ -40,12 +40,14 @@ impl Runtime {
             code: ErrorCode::Invalid,
             message: "That is not an email address.".into(),
         })?;
-        if !table_ledger::valid_subscription_id(&args.subscription_id) {
+        let subscription_id = args.subscription_id.trim();
+        if !table_ledger::valid_subscription_id(subscription_id) {
             return Err(CommandError {
                 code: ErrorCode::Invalid,
                 message: "That is not a PayPal subscription id.".into(),
             });
         }
+        let subscription_id = subscription_id.to_owned();
         self.select_agent(mandate.payload.agent_key)?;
         let now = self.clock.now();
         let id = DealId(ulid::Ulid::new());
@@ -53,7 +55,7 @@ impl Runtime {
             id,
             &table_app::RenewalFailure {
                 source: RescueSource::Replay,
-                subscription_id: args.subscription_id,
+                subscription_id,
                 recipient,
                 plan: args.plan,
                 cycle: args.amount,
