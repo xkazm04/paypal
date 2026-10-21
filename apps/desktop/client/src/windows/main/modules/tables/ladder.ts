@@ -109,7 +109,10 @@ export function lastPriced(steps: readonly TranscriptStep[], by: TranscriptStep[
 
 /** Parse a typed amount exactly into minor units ("340", "$340.50"); null when it is not one. */
 export function parseAmount(text: string, currency: Currency): number | null {
-  const t = text.trim().replace(/[,\s]/g, '').replace(/^[$€£]/, '');
+  const bare = text.trim().replace(/\s/g, '').replace(/^[$€£]/, '');
+  // A comma only groups thousands: "340,50" is not 34,050.
+  if (bare.includes(',') && !/^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/.test(bare)) return null;
+  const t = bare.replace(/,/g, '');
   if (!/^\d+(\.\d+)?$/.test(t)) return null;
   const exp = exponent(currency);
   const [whole = '0', frac = ''] = t.split('.');
