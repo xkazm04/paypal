@@ -233,6 +233,24 @@ fn captures(view: &HouseLedgerView) -> Outcome {
     ))
 }
 
+/// The house's money rule, as the deal verifier reads it ([`crate::authority`]): its signed mandate
+/// creates, authorizes and captures; only a deadline's safe default voids; the buyer's approval
+/// at PayPal is seen, never decided.
+fn house_step_lawful(decided_by: Option<&DecidedBy>, step: HouseMoneyKind, mandate: H256) -> bool {
+    match (decided_by, step) {
+        (None, HouseMoneyKind::ApprovalSeen)
+        | (Some(DecidedBy::SafeDefault { .. }), HouseMoneyKind::Void) => true,
+        (Some(DecidedBy::HouseMandate { mandate_hash }), step) => {
+            *mandate_hash == mandate
+                && matches!(
+                    step,
+                    HouseMoneyKind::Create | HouseMoneyKind::Authorize | HouseMoneyKind::Capture
+                )
+        }
+        _ => false,
+    }
+}
+
 fn authority(view: &HouseLedgerView) -> Outcome {
     let mandate = view
         .mandate
@@ -241,15 +259,7 @@ fn authority(view: &HouseLedgerView) -> Outcome {
         .map_err(|_| "mandate payload does not validate".to_owned())?;
     for deal in &view.deals {
         for m in &deal.money {
-            let ok = match (&m.decided_by, m.step) {
-                (None, HouseMoneyKind::ApprovalSeen) => true,
-                (Some(DecidedBy::SafeDefault { .. }), HouseMoneyKind::Void) => true,
-                (Some(DecidedBy::HouseMandate { mandate_hash }), step) => {
-                    *mandate_hash == mandate && step != HouseMoneyKind::ApprovalSeen
-                }
-                _ => false,
-            };
-            if !ok {
+            if !house_step_lawful(m.decided_by.as_ref(), m.step, mandate) {
                 return Err(format!(
                     "deal {}: {:?} at record #{} has no lawful house authority",
                     deal.deal_id, m.step, m.seq
@@ -374,5 +384,41 @@ pub fn verify_house(
                 }
             })
             .collect(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The house page and the deal verifier read one money rule: a void stands only on a
+    /// deadline's safe default, never on the house mandate (authority.rs, and
+    /// authority_tests::a_house_mandate_void_fails_the_authority_check).
+    #[test]
+    fn the_house_mandate_moves_money_in_and_only_a_safe_default_voids() {
+        let own = H256::digest(b"house mandate");
+        let house = DecidedBy::HouseMandate { mandate_hash: own };
+        let other = DecidedBy::HouseMandate {
+            mandate_hash: H256::digest(b"another mandate"),
+        };
+        let default = DecidedBy::SafeDefault { deadline: 150 };
+        for step in [
+            HouseMoneyKind::Create,
+            HouseMoneyKind::Authorize,
+            HouseMoneyKind::Capture,
+        ] {
+            assert!(house_step_lawful(Some(&house), step, own), "{step:?}");
+            assert!(!house_step_lawful(Some(&other), step, own), "{step:?}");
+            assert!(!house_step_lawful(Some(&default), step, own), "{step:?}");
+            assert!(!house_step_lawful(None, step, own), "{step:?}");
+        }
+        assert!(house_step_lawful(Some(&default), HouseMoneyKind::Void, own));
+        assert!(!house_step_lawful(Some(&house), HouseMoneyKind::Void, own));
+        assert!(house_step_lawful(None, HouseMoneyKind::ApprovalSeen, own));
+        assert!(!house_step_lawful(
+            Some(&house),
+            HouseMoneyKind::ApprovalSeen,
+            own
+        ));
     }
 }
