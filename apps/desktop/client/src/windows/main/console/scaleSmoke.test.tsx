@@ -28,3 +28,11 @@ describe('every layer at scale', () => {
     expectLayerHealthy(r);
   }, 60_000);
 });
+
+describe('the harness', () => {
+  it('keeps counting console errors after the layer is drawn (clicks, events, waves)', async () => {
+    const r = await renderLayerAtScale({ level: 'home' }, 'small');
+    console.error('a late failure');
+    expect(r.errors).toContain('a late failure');
+  }, 60_000);
+});
