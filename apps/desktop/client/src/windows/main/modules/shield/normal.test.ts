@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CounterpartyDisplay } from '@bindings/CounterpartyDisplay';
 import type { Deal } from '@bindings/Deal';
 import { checkLights, compareRows, knownPayees, seenWords, weekStrip, whyFor } from './normal';
-import { reasonsFor } from './matrix';
+import { overPauseLine, reasonsFor } from './matrix';
 
 const usd = (d: number) => ({ minor: Math.round(d * 100), currency: 'USD' as const });
 const NONE = { order: null, authorization: null, capture: null, subscription: null };
@@ -109,5 +109,30 @@ describe('why sentences', () => {
   });
   it('does not call a payee by name (counterparty text stays out of explanations)', () => {
     for (const k of ['price', 'noprice', 'newcp', 'norecord', 'other'] as const) expect(whyFor(k, deal({ market }), cp(), NOW).join(' ')).not.toContain('pixel-bay');
+  });
+});
+
+describe('the pause line is Rust’s, not a rounded percent', () => {
+  // MarketRef::over_forty_percent (crates/table-core/src/market.rs): price * 10 > median * 14, integers.
+  const ref = { ...market, p25: usd(90), median: usd(100), p75: usd(110) };
+  const old = cp({ first_seen: NOW - 9 * 86400, deals_closed: 3 });
+  const at = (price: number) => deal({ market: ref, terms: { ...deal().terms, unit_price: usd(price) } });
+  it('a price exactly 1.4 × typical, or just under it, is not over the line anywhere', () => {
+    for (const price of [140, 139.6]) {
+      const d = at(price);
+      expect(overPauseLine(d), String(price)).toBe(false);
+      expect(reasonsFor(d, old, NOW).map((r) => r.kind), String(price)).not.toContain('price');
+      expect(compareRows(d, old, KNOWN, NOW)[0]?.tone, String(price)).toBe('plain');
+      expect(checkLights(d, old, NOW)[1]?.state, String(price)).toBe('passed');
+      expect(checkLights({ ...d, shield_rule: 'new_counterparty_over_threshold' }, old, NOW)[1]?.state, String(price)).toBe('passed');
+    }
+  });
+  it('one cent over the line is over it everywhere', () => {
+    const d = at(140.01);
+    expect(overPauseLine(d)).toBe(true);
+    expect(reasonsFor(d, old, NOW).map((r) => r.kind)).toContain('price');
+    expect(compareRows(d, old, KNOWN, NOW)[0]?.tone).toBe('differs');
+    expect(checkLights(d, old, NOW)[1]?.state).toBe('tripped');
+    expect(overPauseLine(deal())).toBeNull();
   });
 });

@@ -61,6 +61,15 @@ export function overMedian(d: Pick<Deal, 'terms' | 'market'>): number | null {
   return Math.round((d.terms.unit_price.minor / m.median.minor - 1) * 100);
 }
 
+/** Whether the unit price is over the shield's pause line, exactly as Rust decides it
+ *  (MarketRef::over_forty_percent, crates/table-core/src/market.rs: price * 10 > median * 14, in
+ *  integer minor units), never from the rounded percent shown. Null without a usable reference. */
+export function overPauseLine(d: Pick<Deal, 'terms' | 'market'>): boolean | null {
+  const m = d.market;
+  if (!m || m.median.currency !== d.terms.unit_price.currency || m.median.minor <= 0) return null;
+  return d.terms.unit_price.minor * 10 > m.median.minor * 14;
+}
+
 /** A check whose own result never reaches this window, by what the deal does record: the verdict
  *  and the one rule that decided it (Deal.shield, Deal.shield_rule). The shield runs its rules in
  *  order and the first that trips decides, so another recorded rule means this check did not stop
@@ -138,7 +147,7 @@ export function reasonsFor(d: Pick<Deal, 'terms' | 'market' | 'shield_rule'>, cp
   const out: Reason[] = [];
   const p = overMedian(d);
   if (p === null) out.push({ kind: 'noprice', icon: 'eye', text: 'No usual price to compare with, so it asks you', detail: checkCell('market', d, cp, now).l });
-  else if (p >= 40) {
+  else if (overPauseLine(d)) {
     out.push({ kind: 'price', icon: 'tag', text: `${p}% above the usual price`, detail: checkCell('market', d, cp, now).l });
   }
   if (!cp) out.push({ kind: 'norecord', icon: 'eye', text: 'The wallet has no record of this payee', detail: checkCell('newcp', d, cp, now).l });
