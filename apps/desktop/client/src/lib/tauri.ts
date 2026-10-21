@@ -2,6 +2,7 @@ import { invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import type { ArgsOf, Backend, CommandName, EventName, InvokeOptions, PayloadOf, ResultOf, WindowLabel } from './contract';
 import { toWalletError } from './contract';
+import { inDesktopApp } from './preview';
 
 /**
  * The real shell. Rust emits with `emit_to(label)`, never a broadcast, so we listen on the
@@ -34,6 +35,5 @@ export function tauriBackend(): Backend {
   };
 }
 
-export function isTauri(): boolean {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-}
+/** Inside the desktop app (the shell's IPC is present): the one test, in lib/preview.ts. */
+export const isTauri = inDesktopApp;
