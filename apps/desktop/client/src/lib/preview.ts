@@ -146,11 +146,6 @@ export function pinDemo(c: DemoChoice | null): void {
   pinned = c;
 }
 
-/** The choice this page started with; null before the entry pinned it. */
-export function pinnedDemo(): DemoChoice | null {
-  return pinned;
-}
-
 /** The address the preview readers use: the page's own, plus the stored world in a desktop demo. */
 export function previewSearch(): string {
   const own = typeof location === 'undefined' ? '' : location.search;
