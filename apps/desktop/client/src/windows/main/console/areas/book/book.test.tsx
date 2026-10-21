@@ -11,7 +11,7 @@ import { mockBackend } from '../../../../../mock/backend';
 import { sumByCurrency } from '../../../logic';
 import { QUESTION_WORDS } from '../../../modules/book/where';
 import { expectLayerHealthy, renderLayerAtScale, settle } from '../../testing/scaleSmoke';
-import { outsideSpan, paidOutIn, walletDay } from './model';
+import { dealsIn, outsideSpan, paidOutIn, walletDay, weekSpan } from './model';
 
 vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/runtime')).runtimeMock);
 
@@ -96,6 +96,30 @@ describe('Book ledger', () => {
     fireEvent.keyDown(box, { key: 'Escape' });
     await waitFor(() => expect(r.layer.querySelectorAll('.le-item').length).toBeGreaterThan(0));
     expect(location.hash).toContain('v=ledger');
+  }, 60_000);
+
+  // "PayPal agrees" counts the week's payments that need a place on the statement. A deal whose
+  // statement was never read (a hold, a deal still agreed, one that stopped) is not "couldn't be
+  // checked": before, every week deal outside the paid bucket read as unknown (small world: "2 of 9",
+  // 6 unknown, against 3 that need the statement), and a seller-attested deal PayPal matched was
+  // one of them.
+  it.each(['small', 'large'] as const)('PayPal agrees counts only payments that need the statement (%s)', async (scale) => {
+    const r = await renderLayerAtScale('#m=book&v=ledger', scale);
+    const w = mockBackend('main');
+    const week = dealsIn(await w.invoke('list_deals', null), weekSpan(Math.floor(Date.now() / 1000)));
+    let needed = 0;
+    let matched = 0;
+    for (const d of week) {
+      const ev = await w.invoke('deal_evidence', { deal_id: d.id });
+      if (ev.reconciliation !== 'not_applicable') needed += 1;
+      if (ev.reconciliation === 'matched') matched += 1;
+    }
+    const went = r.layer.querySelector<HTMLDetailsElement>('details.bk-went');
+    expect(went).not.toBeNull();
+    await act(async () => { if (went) { went.open = true; fireEvent(went, new Event('toggle')); } });
+    await settle();
+    expect(r.layer.querySelector('.ag-fig')?.textContent).toBe(`${matched} of ${needed}`);
+    expect(r.layer.querySelector('.ag-key')?.textContent).not.toContain('Unknown');
   }, 60_000);
 
   it('everything on record is one switch away, still windowed', async () => {
