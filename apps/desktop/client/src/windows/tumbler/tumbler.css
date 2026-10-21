@@ -152,10 +152,6 @@ body.w-tumbler #root { position: fixed; inset: 0; }
    Puck at the bottom (y 64-152): lines 3, 4 and the rule step aside (.nb); line 2 ends 6 px above it.
    Puck at the top (y 0-88): lines 1-3 step aside (.nt); line 4 starts 16 px below it. */
 .f.card { grid-template-rows: 22px 26px 40px 28px 11px; } /* each track holds its row's margin-top + height */
-.c-id { flex: none; font: var(--fw-semibold) var(--fs-small) var(--mono); color: var(--muted); }
-.ui-btn.c-id { padding: 0 4px; color: var(--teal-l); }
-.f-head .kick + .c-id { margin-left: -4px; }
-.f-head .kick + .ui-btn.c-id { margin-left: -8px; }
 .c-line { display: flex; align-items: center; gap: var(--sp-2); margin-top: 2px; }
 .c-h { flex: 1 1 auto; min-width: 0; display: flex; align-items: baseline; gap: .3em; margin: 0; font: var(--fw-semibold) var(--fs-title2)/24px var(--display); white-space: nowrap; }
 .c-h .tl { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-weight: var(--fw-medium); }
@@ -163,7 +159,6 @@ body.w-tumbler #root { position: fixed; inset: 0; }
 .c-h .hl { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .c-h .amt { flex: none; font-weight: var(--fw-semibold); color: var(--gold-l); }
 .k-hold .c-h .amt { color: var(--coral-l); }
-.c-line .ui-chip { flex: none; }
 .c-cd { flex: none; font: var(--fw-semibold) var(--fs-body) var(--num); font-variant-numeric: tabular-nums; color: var(--gold-l); white-space: nowrap; }
 .c-cd.r-now, .c-cd.r-past, .c-cd.hold { color: var(--coral-l); }
 .f-head .c-cd { font: var(--fw-semibold) var(--fs-small) var(--font); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -173,7 +168,6 @@ body.w-tumbler #root { position: fixed; inset: 0; }
 .c-r3 > :first-child { flex: 1 1 auto; min-width: 0; margin: 0; }
 .c-r3 .ui-btn.t-info { margin-top: -2px; }
 .c-who, .c-ask { font-size: var(--fs-body); line-height: 17px; color: var(--muted); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.c-who .w { color: var(--text); }
 .c-who .c-sil { color: var(--muted); }
 .c-who .c-sil .hg, .h-sil .hg { display: inline-block; width: 10px; height: 12px; margin-right: 5px; vertical-align: -1px; }
 .c-who .c-sil b { color: var(--text); font-weight: var(--fw-semibold); }
@@ -183,7 +177,6 @@ body.w-tumbler #root { position: fixed; inset: 0; }
 .c-acts { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; height: 22px; flex-wrap: nowrap; }
 .c-acts .ui-btn { flex: none; }
 .c-acts .nav { margin-left: auto; }
-.c-nopay { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-small); color: var(--dim); }
 .inappr { color: var(--gold-l); }
 .inappr .ui-dot { color: var(--gold); }
 /* the deadline as a 2 px rule: gold fill, coral at the last rung or on a hold, dashed when no clock */
@@ -337,7 +330,6 @@ body.w-tumbler #root { position: fixed; inset: 0; }
 .s-done .fr-n { color: var(--on-ok); background: var(--ok); border-color: var(--ok); }
 .s-done .fr-t { color: var(--muted); }
 .s-unknown .fr-n { border-style: dashed; }
-.f.welcome.fr .w-foot .notice { font-size: var(--fs-small); }
 
 /* ---------------------------------------------------------------- tab (docked to a screen edge) */
 .tabbtn { position: absolute; inset: 0; padding: 0; border: 0; background: none; cursor: pointer; touch-action: none; }
