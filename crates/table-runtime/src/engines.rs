@@ -225,7 +225,10 @@ impl Runtime {
             (table.to_string(), Some(scope.role.playbook(deal.side)))
         };
         let run = RunId(ulid::Ulid::new());
-        let expires = self.clock.now().checked_add(120).ok_or_else(invalid)?;
+        // The run's grant lasts as long as a native engine may run (the limit it is built with
+        // in attach_native_engines), so the two cannot drift apart.
+        let lasts = i64::try_from(RunLimits::default().total.as_secs()).map_err(|_| invalid())?;
+        let expires = self.clock.now().checked_add(lasts).ok_or_else(invalid)?;
         let snapshot = RunSnapshot {
             run,
             deal_id: id,
