@@ -25,16 +25,28 @@ const viaBackend: Invoke = (args) => backend().invoke('mandate_simulate', args);
 
 /** Ask Rust for the what-if of `args` once it has been still for `delay` ms. null = nothing to ask. */
 export function useSimulation(args: MandateSimulateArgs | null, opts: { delay?: number; invoke?: Invoke } = {}): Simulation {
-  const delay = opts.delay ?? SIMULATE_DEBOUNCE_MS;
-  const invoke = useRef(opts.invoke ?? viaBackend);
-  invoke.current = opts.invoke ?? viaBackend;
-  const key = args ? JSON.stringify(args) : null;
+  return useDebouncedSimulation(args, opts.invoke ?? viaBackend, JSON.stringify, opts.delay);
+}
+
+/**
+ * The one debounce behind both what-ifs (the rules' mandate_simulate, the wallet limits'
+ * envelope_simulate): ask `invoke` with the latest `args` once their key has been still for
+ * `delay` ms. `keyOf` leaves out what never changes the answer (the limits' moving expiry).
+ */
+export function useDebouncedSimulation<A>(args: A | null, invoke: (args: A) => Promise<MandateSimulation>, keyOf: (args: A) => string, delay = SIMULATE_DEBOUNCE_MS): Simulation {
+  const call = useRef(invoke);
+  call.current = invoke;
+  const latest = useRef(args);
+  latest.current = args;
+  const key = args ? keyOf(args) : null;
   const [answer, setAnswer] = useState<{ key: string | null; sim: MandateSimulation | null; error: WalletError | null }>({ key: null, sim: null, error: null });
   useEffect(() => {
     if (key === null) return;
     let live = true;
     const timer = setTimeout(() => {
-      invoke.current(JSON.parse(key) as MandateSimulateArgs).then(
+      const now = latest.current;
+      if (!now) return;
+      call.current(now).then(
         (sim) => live && setAnswer({ key, sim, error: null }),
         (e: unknown) => live && setAnswer((a) => ({ key, sim: a.sim, error: toWalletError(e) })),
       );
