@@ -11,6 +11,18 @@ use table_core::{
     DealId, DealState, DecidedBy, H256, ShieldRelease, ShieldRule, ShieldVerdict, Timestamp,
 };
 
+/// One refusal of a money step by the shield, as `record_shield_refusal` records it.
+#[derive(Debug, Clone, Copy)]
+pub struct ShieldRefusal<'a> {
+    pub id: DealId,
+    pub step: &'a str,
+    pub attempt: u8,
+    pub verdict: ShieldVerdict,
+    pub rule: Option<ShieldRule>,
+    pub refused: &'a DecidedBy,
+    pub at: Timestamp,
+}
+
 /// The raw columns, before the projection drops a verdict computed for other terms.
 struct Stored {
     verdict: Option<ShieldVerdict>,
@@ -264,17 +276,19 @@ impl Ledger {
     /// again on every tick (same step, verdict, rule and terms, nothing in the shield's record
     /// changed since) is recorded once. Nothing else is written: no operation, no PayPal call.
     /// Returns whether the row was new.
-    #[allow(clippy::too_many_arguments)] // One typed column per fact the row records.
     pub fn record_shield_refusal(
         &mut self,
-        id: DealId,
-        step: &str,
-        attempt: u8,
-        verdict: ShieldVerdict,
-        rule: Option<ShieldRule>,
-        refused: &DecidedBy,
-        at: Timestamp,
+        refusal: &ShieldRefusal<'_>,
     ) -> Result<bool, LedgerError> {
+        let ShieldRefusal {
+            id,
+            step,
+            attempt,
+            verdict,
+            rule,
+            refused,
+            at,
+        } = *refusal;
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;

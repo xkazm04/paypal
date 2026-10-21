@@ -321,15 +321,15 @@ fn a_refused_step_is_recorded_once_per_step_and_verdict() {
     };
     let refuse = |ledger: &mut Ledger, step, verdict, at| {
         ledger
-            .record_shield_refusal(
-                deal.id,
+            .record_shield_refusal(&ShieldRefusal {
+                id: deal.id,
                 step,
-                1,
+                attempt: 1,
                 verdict,
-                Some(ShieldRule::PriceOverMarket),
-                &seller,
+                rule: Some(ShieldRule::PriceOverMarket),
+                refused: &seller,
                 at,
-            )
+            })
             .unwrap()
     };
     assert!(refuse(&mut ledger, "authorize", ShieldVerdict::Hold, 101));
@@ -359,15 +359,15 @@ fn a_step_refused_again_after_a_release_and_a_new_hold_is_a_second_refusal() {
     };
     let refuse = |ledger: &mut Ledger, rule, at| {
         ledger
-            .record_shield_refusal(
-                deal.id,
-                "authorize",
-                1,
-                ShieldVerdict::Hold,
-                Some(rule),
-                &seller,
+            .record_shield_refusal(&ShieldRefusal {
+                id: deal.id,
+                step: "authorize",
+                attempt: 1,
+                verdict: ShieldVerdict::Hold,
+                rule: Some(rule),
+                refused: &seller,
                 at,
-            )
+            })
             .unwrap()
     };
     ledger

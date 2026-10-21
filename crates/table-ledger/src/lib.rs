@@ -189,6 +189,7 @@ mod groups;
 mod market_watch;
 mod shield;
 pub use groups::*;
+pub use shield::ShieldRefusal;
 #[cfg(test)]
 mod groups_tests;
 #[cfg(test)]

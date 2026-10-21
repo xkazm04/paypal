@@ -1,6 +1,7 @@
 use super::Pipeline;
 use crate::Error;
 use table_core::*;
+use table_ledger::ShieldRefusal;
 /// The money step a [`Pipeline::step_allowed`] check stands for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MoneyStep {
@@ -187,15 +188,15 @@ impl Pipeline {
         if shield_allows(gate.gating(), decision, step) {
             return Ok(());
         }
-        self.wallet.ledger.record_shield_refusal(
-            deal.id,
-            step.name(),
+        self.wallet.ledger.record_shield_refusal(&ShieldRefusal {
+            id: deal.id,
+            step: step.name(),
             attempt,
-            gate.gating(),
-            gate.rule,
-            decision,
-            now,
-        )?;
+            verdict: gate.gating(),
+            rule: gate.rule,
+            refused: decision,
+            at: now,
+        })?;
         self.shield_refused = Some(deal.id);
         Err(Error::Permission)
     }
