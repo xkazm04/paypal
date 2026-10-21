@@ -499,11 +499,13 @@ export function spendMeter(s: Pick<AttentionSnapshot, 'wallet_spend_today_minor'
 export const MODE_SHORT: Record<Mode, string> = { sandbox: 'SANDBOX', replay: 'REPLAY', scripted_engine: 'PRACTICE' };
 
 /** The puck's spoken name: how many need you (or what is in motion), the first headline, the mode in
- *  words (lib/words modeWord, as the badge says it; never the raw key) and the lock. */
-export function puckName(o: { needs: number; headline: string | null; inMotion: number; mode: Mode | null; locked: boolean }): string {
+ *  words (lib/words modeWord, as the badge says it; never the raw key) and the lock. `unread`: the
+ *  wallet has not given the page any cards yet (start-up, or every read failed), so an empty count
+ *  is not "nothing needs you". */
+export function puckName(o: { needs: number; headline: string | null; inMotion: number; mode: Mode | null; locked: boolean; unread?: boolean }): string {
   const lead = o.needs
     ? `${o.needs} ${o.needs === 1 ? 'needs' : 'need'} you${o.headline ? ` · ${o.headline}` : ''}`
-    : `nothing needs you · ${o.inMotion} in motion`;
+    : o.unread ? 'cards not read yet' : `nothing needs you · ${o.inMotion} in motion`;
   return `The Tumbler · ${lead}${o.mode ? ` · ${modeWord(o.mode)}` : ''}${o.locked ? ' · locked' : ''}`;
 }
 

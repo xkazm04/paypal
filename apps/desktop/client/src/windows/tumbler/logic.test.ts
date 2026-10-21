@@ -439,4 +439,9 @@ describe('puckName', () => {
     expect(puckName({ needs: 0, headline: null, inMotion: 3, mode: null, locked: false })).toBe('The Tumbler · nothing needs you · 3 in motion');
     expect(puckName({ needs: 2, headline: null, inMotion: 0, mode: 'sandbox', locked: false })).toBe('The Tumbler · 2 need you · Sandbox');
   });
+  it('before the wallet has given it any cards, it says so instead of "nothing needs you"', () => {
+    const n = puckName({ needs: 0, headline: null, inMotion: 0, mode: 'sandbox', locked: false, unread: true });
+    expect(n).toBe('The Tumbler · cards not read yet · Sandbox');
+    expect(n).not.toMatch(/nothing needs you|in motion/);
+  });
 });
