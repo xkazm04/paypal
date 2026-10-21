@@ -13,6 +13,17 @@ use table_core::{
 use table_paypal::http::{Request, Secret, Transport};
 use thiserror::Error;
 use tokio::sync::Mutex;
+/// The market service's one origin.
+const BASE: &str = "https://api.trychannel3.com";
+/// What a status means for every market call: 200 answered, 404 has no reference, anything
+/// else (another 2xx included) is unavailable.
+fn answered(status: u16) -> Result<(), Error> {
+    match status {
+        200 => Ok(()),
+        404 => Err(Error::NoReference),
+        _ => Err(Error::Unavailable),
+    }
+}
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("market unavailable")]
@@ -67,18 +78,14 @@ impl Client {
             .transport
             .send(Request {
                 method,
-                url: format!("https://api.trychannel3.com{path}"),
+                url: format!("{BASE}{path}"),
                 headers: vec![("x-api-key".into(), key)],
                 body,
                 form: None,
             })
             .await
             .map_err(|_| Error::Unavailable)?;
-        match r.status {
-            200 => Ok(r.body),
-            404 => Err(Error::NoReference),
-            _ => Err(Error::Unavailable),
-        }
+        answered(r.status).map(|()| r.body)
     }
     /// A POST whose answer is kept as the bytes that arrived (market-data-2): the caller hashes
     /// them before it parses anything.
@@ -88,18 +95,14 @@ impl Client {
             .transport
             .send_raw(Request {
                 method: "POST",
-                url: format!("https://api.trychannel3.com{path}"),
+                url: format!("{BASE}{path}"),
                 headers: vec![("x-api-key".into(), key)],
                 body: Some(body),
                 form: None,
             })
             .await
             .map_err(|_| Error::Unavailable)?;
-        match r.status {
-            200 => Ok(r.bytes),
-            404 => Err(Error::NoReference),
-            _ => Err(Error::Unavailable),
-        }
+        answered(r.status).map(|()| r.bytes)
     }
     pub async fn cached(&self, product: &str, currency: Currency) -> Option<MarketRef> {
         self.cache
