@@ -138,22 +138,17 @@ impl Ledger {
             return Ok(());
         }
         // Only routes of pre-capture deals hold capacity; captured and finished deals release theirs.
-        let routed = tx
-            .prepare("SELECT deal_id FROM relay_routes")?
-            .query_map([], |r| r.get::<_, String>(0))?
+        let pre_capture = table_core::DealState::ALL
+            .into_iter()
+            .filter(|s| s.pre_capture())
+            .map(|s| crate::repositories::enum_text(&s))
             .collect::<Result<Vec<_>, _>>()?;
-        let mut live = 0_u32;
-        for routed in routed {
-            let routed = routed
-                .parse()
-                .map_err(|_| LedgerError::Integrity("deal id"))?;
-            if crate::repositories::read_deal(&tx, routed)?
-                .state
-                .pre_capture()
-            {
-                live += 1;
-            }
-        }
+        let live: u32 = tx.query_row(
+            "SELECT COUNT(*) FROM relay_routes r JOIN deals d ON d.id=r.deal_id \
+             WHERE d.state IN (SELECT value FROM json_each(?1))",
+            [serde_json::to_string(&pre_capture)?],
+            |r| r.get(0),
+        )?;
         if live >= 64 {
             return Err(LedgerError::Conflict);
         }
