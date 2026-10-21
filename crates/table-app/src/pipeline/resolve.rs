@@ -200,8 +200,12 @@ impl Pipeline {
             Ok::<_, Error>(self.open_operations(Some(id), now)?.is_empty())
         }
         .await;
-        self.prune_read_state(id, now)?;
-        result
+        // The step's own error wins; a prune error only surfaces after a successful step.
+        let pruned = self.prune_read_state(id, now);
+        match result {
+            Ok(done) => pruned.map(|()| done),
+            Err(err) => Err(err),
+        }
     }
     /// Whether the wallet may read a lost authorize, capture or void on its own now: inside the
     /// window past the deal's deadline, and its failed-read backoff is due. With no backoff entry

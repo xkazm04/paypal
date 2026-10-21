@@ -182,6 +182,9 @@ impl<K: Hash + Eq + Copy, S: PartialEq + Copy> PollSchedule<K, S> {
     pub(crate) fn forget(&mut self, key: &K) {
         self.entries.remove(key);
     }
+    pub(crate) fn retain(&mut self, mut keep: impl FnMut(&K) -> bool) {
+        self.entries.retain(|key, _| keep(key));
+    }
     #[cfg(test)]
     fn len(&self) -> usize {
         self.entries.len()
@@ -727,9 +730,18 @@ impl Seller {
             .pipeline
             .wallet
             .ledger
-            .list_deals()
+            .list_live_deals()
             .map_err(Error::from);
-        self.noted(step, None, deals)
+        let deals = self.noted(step, None, deals)?;
+        // A finished deal is no longer listed, so its poll backoff and its logged `advance` and
+        // `negotiate` failures would never be cleared: keep only the ids still live. Other steps
+        // (`deliver`, `inbox`) still touch finished deals and keep their entries.
+        let live: std::collections::HashSet<DealId> = deals.iter().map(|d| d.id).collect();
+        self.failing.retain(|(deal, step), _| {
+            !matches!(*step, "advance" | "negotiate") || deal.is_none_or(|id| live.contains(&id))
+        });
+        self.polls.retain(|id| live.contains(id));
+        Ok(deals)
     }
     async fn deliver(
         &mut self,
