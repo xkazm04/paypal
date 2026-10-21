@@ -4,10 +4,10 @@
 use crate::{DealState, MarketRef, Side, Timestamp, WatchedItem, market_refresh_due};
 
 /// The UTC day `[start, end)` holding `now`; a price-check allowance counts over it, as the
-/// daily-limit rule counts its day.
+/// daily-limit rule counts its day: the one day rule, [`crate::utc_day`].
 pub fn market_watch_day(now: Timestamp) -> (Timestamp, Timestamp) {
-    let start = now.div_euclid(86_400).saturating_mul(86_400);
-    (start, start.saturating_add(86_400))
+    let start = crate::utc_day(now).saturating_mul(crate::exposure::DAY);
+    (start, start.saturating_add(crate::exposure::DAY))
 }
 
 /// What the scheduler does about one deal's market reference.
@@ -168,5 +168,12 @@ mod tests {
         assert_eq!(market_watch_day(86_400 * 3 + 5), (86_400 * 3, 86_400 * 4));
         assert_eq!(market_watch_day(86_400 * 3), (86_400 * 3, 86_400 * 4));
         assert_eq!(market_watch_day(-1), (-86_400, 0));
+        // The same day the exposure fold and the per-mandate velocity count.
+        for at in [-86_401, -1, 0, 1, 86_399, 86_400, 1_790_000_123] {
+            let (start, end) = market_watch_day(at);
+            assert_eq!(crate::utc_day(start), crate::utc_day(at), "{at}");
+            assert_eq!(crate::utc_day(end - 1), crate::utc_day(at), "{at}");
+            assert_eq!(crate::utc_day(end), crate::utc_day(at) + 1, "{at}");
+        }
     }
 }
