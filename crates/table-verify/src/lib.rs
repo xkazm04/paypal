@@ -283,7 +283,7 @@ fn authority(bundle: &ProofBundle) -> Outcome {
                 call.path
             ));
         }
-        if !bundle.operations.iter().any(|op| op.operation == kind) {
+        if !authority::call_has_operation(bundle, kind, call.request_id.as_deref()) {
             return Err(format!(
                 "POST {} ({kind}) has no recorded authority",
                 call.path

@@ -103,6 +103,15 @@ pub fn money_kind(method: &str, path: &str) -> Option<&'static str> {
     }
 }
 
+/// Whether a stored PayPal call of step `kind` has an operation behind it: one of that step under
+/// the request id the call went out with. A call with no stored request id (a first-format file)
+/// is matched by step alone. The verifier and the safety predicate both ask here.
+pub fn call_has_operation(b: &ProofBundle, kind: &str, request_id: Option<&str>) -> bool {
+    b.operations.iter().any(|op| {
+        op.operation == kind && request_id.is_none_or(|id| op.request_id.as_deref() == Some(id))
+    })
+}
+
 /// Whether the owner decision `decision` may start the step named `operation`.
 pub fn decision_fits(decision: &str, operation: &str) -> bool {
     MoneyOp::from_name(operation).is_some_and(|op| op.owner_decision() == decision)
