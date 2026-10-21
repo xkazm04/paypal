@@ -632,7 +632,7 @@ async fn run(
 /// What the last publish pass sent, so the next one sends only what changed.
 #[derive(Default)]
 struct Published {
-    deals: Vec<Deal>,
+    deals: std::collections::BTreeMap<DealId, Deal>,
     attention: Option<String>,
     attention_faulted: bool,
     settings: Option<String>,
@@ -650,7 +650,7 @@ fn publish(
         .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     if let Ok(deals) = runtime.pipeline.wallet.ledger.list_deals() {
         for deal in &deals {
-            let old = published.deals.iter().find(|d| d.id == deal.id);
+            let old = published.deals.get(&deal.id);
             if old.and_then(|d| serde_json::to_string(d).ok()) != serde_json::to_string(deal).ok() {
                 let _ = events.send(WalletEvent::Deal(Box::new(DealChanged {
                     deal: deal.clone(),
@@ -696,7 +696,7 @@ fn publish(
                 }
             }
         }
-        published.deals = deals;
+        published.deals = deals.into_iter().map(|d| (d.id, d)).collect();
     }
     if let Some(event) = attention_event(
         runtime.attention(),
