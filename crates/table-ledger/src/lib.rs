@@ -18,6 +18,8 @@ mod counterparties;
 mod countersign;
 pub use counterparties::*;
 mod mandates;
+mod operations;
+pub use operations::OperationOutcome;
 mod stores;
 mod transcript;
 use rusqlite::{Connection, TransactionBehavior};
