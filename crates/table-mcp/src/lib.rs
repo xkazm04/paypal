@@ -207,9 +207,16 @@ pub struct Grant {
     pub token: String,
     pub secret: String,
 }
+impl Drop for Grant {
+    fn drop(&mut self) {
+        use zeroize::Zeroize;
+        self.token.zeroize();
+        self.secret.zeroize();
+    }
+}
 impl std::fmt::Debug for Grant {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("McpGrant { [REDACTED] }")
+        f.write_str("Grant { [REDACTED] }")
     }
 }
 #[derive(Debug, Deserialize)]
