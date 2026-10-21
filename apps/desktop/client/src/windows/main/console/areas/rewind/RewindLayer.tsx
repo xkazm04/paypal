@@ -12,7 +12,7 @@ import { formatCount } from '../../../../../lib/data/counts';
 import { useNow, usePrefersReducedMotion } from '../../../../../lib/hooks';
 import { lazyPart } from '../../../../../lib/lazy';
 import {
-  LAYER_LOADING, REWIND_ANSWER, REWIND_BAR, REWIND_CARD, REWIND_KICKER, REWIND_TAPE, REWIND_THIS_WEEK,
+  LAYER_LOADING, REWIND_ANSWER, REWIND_BAR, REWIND_CARD, REWIND_KICKER, REWIND_TAPE, REWIND_THIS_WEEK, REWIND_TRUNCATED,
 } from '../../../../../lib/words';
 import { shortTitle, weekLabel } from '../../../home/model';
 import { endingCtx, isMoneyCall, isRefusal, laneSteps, narrate, stepTime, tickTone, type TickTone } from '../../../logic';
@@ -76,7 +76,8 @@ export function RewindLayer({ nav, state }: LayerProps) {
   const calls = lane.filter((s) => !isRefusal(s)).length;
   const refused = r.steps.filter(isRefusal).length;
   const count = (t: TickTone) => lane.filter((s) => tickTone(s) === t).length;
-  const answer = r.loading ? REWIND_ANSWER.reading : r.error && !r.steps.length ? REWIND_ANSWER.unread : !calls && !refused ? REWIND_ANSWER.quiet : REWIND_ANSWER.steps(calls, refused);
+  // A week cut to its latest steps (truncated) counts a floor and says why, never "nothing moved".
+  const answer = r.loading ? REWIND_ANSWER.reading : r.error && !r.steps.length ? REWIND_ANSWER.unread : r.truncated ? REWIND_ANSWER.steps(calls, refused, true) : !calls && !refused ? REWIND_ANSWER.quiet : REWIND_ANSWER.steps(calls, refused);
   const figure = (n: number) => (r.loading ? null : n ? REWIND_CARD.steps(formatCount(n)) : REWIND_CARD.none);
   const cards: LensCard[] = [
     { id: 'owner', label: REWIND_CARD.owner, value: figure(count('owner')), note: REWIND_CARD.ownerNote },
@@ -87,7 +88,7 @@ export function RewindLayer({ nav, state }: LayerProps) {
 
   return (
     <PlaceFrame root="ar-rewind" place="rewind" tone="var(--teal)" kicker={REWIND_KICKER(r.weekBack === 0 ? REWIND_THIS_WEEK : weekLabel(r.start, r.end))}
-      answer={answer} sub={REWIND_ANSWER.sub} cards={cards}
+      answer={answer} sub={r.truncated && !r.loading ? REWIND_TRUNCATED : REWIND_ANSWER.sub} cards={cards}
       lead={(
         // The hub and the scrubber are the page's picture (its heaviest part): they take the last turn,
         // the tape (the list) comes before them (stagger.tsx).

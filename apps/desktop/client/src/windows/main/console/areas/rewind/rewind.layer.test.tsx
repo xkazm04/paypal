@@ -3,7 +3,7 @@
 import { act, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { setClockOffset } from '../../../../../lib/clock';
-import { REWIND_BAR, REWIND_TAPE } from '../../../../../lib/words';
+import { REWIND_ANSWER, REWIND_BAR, REWIND_TAPE, REWIND_TRUNCATED } from '../../../../../lib/words';
 import { expectLayerHealthy, renderLayerAtScale } from '../../testing/scaleSmoke';
 
 vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/runtime')).runtimeMock);
@@ -31,6 +31,21 @@ describe('the Rewind', () => {
     const row = tape.querySelector<HTMLButtonElement>('.le-row');
     fireEvent.click(row as HTMLButtonElement);
     await waitFor(() => expect(document.querySelector('.cs-layer')?.getAttribute('data-layer')).toBe('deal'));
+  }, 60_000);
+
+  // The busy merchant's week holds more steps than one read returns (the oldest are left out): its
+  // counts are a floor, and the answer says so where it gives them, not only in the bar's note.
+  it('says its counts are at least, and why, when the week was cut to its latest steps', async () => {
+    const big = await renderLayerAtScale({ level: 'rewind' }, 'large');
+    const head = () => big.layer.querySelector('[data-layer-title]')?.textContent ?? '';
+    await waitFor(() => expect(head()).not.toBe(REWIND_ANSWER.reading));
+    expect(head()).toMatch(/^At least /);
+    expect(big.layer.querySelector('.pf-sub')?.textContent).toBe(REWIND_TRUNCATED);
+    cleanup();
+    const small = await renderLayerAtScale({ level: 'rewind' }, 'small');
+    await waitFor(() => expect(small.layer.querySelector('[data-layer-title]')?.textContent).not.toBe(REWIND_ANSWER.reading));
+    expect(small.layer.querySelector('[data-layer-title]')?.textContent).not.toMatch(/^At least /);
+    expect(small.layer.querySelector('.pf-sub')?.textContent).toBe(REWIND_ANSWER.sub);
   }, 60_000);
 
   // The playhead stops at now, so the Mon 12:00 anchor only lands there once Monday noon has passed:
