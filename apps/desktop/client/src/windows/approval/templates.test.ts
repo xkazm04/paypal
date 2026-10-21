@@ -43,6 +43,20 @@ describe('starting rule sets for a first signature', () => {
     expect(haggle.clauses).toContainEqual({ type: 'human_present_over', amount: { minor: 20000, currency: 'USD' } });
   });
 
+  it('every amount a card names is an amount its rules hold', () => {
+    for (const t of TEMPLATES) {
+      const built = buildMandate(templateDraft(t.key, NOW, fill));
+      if (!built.ok) throw new Error(`${t.key} must build`);
+      const held = new Set(built.clauses.flatMap((c) => [
+        ...('amount' in c ? [c.amount] : []), ...('max_amount' in c ? [c.max_amount] : []), ...('max_total_day' in c ? [c.max_total_day] : []),
+        ...('ceiling' in c && c.ceiling ? [c.ceiling] : []), ...('floor' in c && c.floor ? [c.floor] : []),
+      ].map((m) => m.minor)));
+      const named = [...`${t.name} ${t.line}`.matchAll(/\$(\d+)/g)].map((m) => Number(m[1]) * 100);
+      expect(named.length, t.key).toBeGreaterThan(0);
+      expect(named.filter((n) => !held.has(n)), t.key).toEqual([]);
+    }
+  });
+
   it('what the wallet cannot know stays a blank the owner fills, and blocks signing until then', () => {
     const careful = templateDraft('careful', NOW, { payees: [] });
     expect(templateBlanks(careful)).toEqual(['payees']);
