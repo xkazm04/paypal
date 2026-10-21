@@ -39,7 +39,7 @@ public HOUSE + relay service on Render.
 | R-1 | Medium | liveness of recovery / unfair scheduling | `crates/table-ledger/src/relay.rs:44-64` (was `:43-60`); `crates/table-runtime/src/relay.rs:51-59` | **fixed** `fb954eb` | `due()` only filters; the runtime marks the routes it actually sent with `polled()` after the cut to four |
 | R-2 | Low | clock goes backwards / future-skewed settlement | `crates/table-ledger/src/relay.rs:53`, `:219-220` | **fixed** (wave-6 lane `relay-clock-skew-safe`) | A `last` later than `now` counts as due; a settlement time later than `now` is clamped to `now` |
 | R-3 | Low | clock goes backwards (reset rate limit) | `crates/table-ledger/src/relay.rs:280` | open | Treat `now < changed_at` as "window elapsed", or keep the refusal and document it |
-| R-4 | Low | local work grows with lifetime deals | `crates/table-ledger/src/relay.rs:185-236`, `:137-156` | open | Skip retired routes in SQL (join `deals`), or record retirement on the route |
+| R-4 | Low | local work grows with lifetime deals | `crates/table-ledger/src/relay.rs:185-236`, `:137-156` | **fixed** `b100e33`, `d2bbcfb` | `bind_relay` counts live routes in one query joined on `deals.state`; `relay_work_at` reads routes with their state and every owed envelope in two queries, not a deal read per route |
 | R-5 | Low | HOUSE does not use the cadence (outside scope) | `services/house-seller/src/hosted.rs:639-650` | open | Hold a `SettledPollClock` in the HOUSE `Seller`; call `relay_work_at(now)`, `due`, `polled` |
 | R-6 | Info | data persisted (relay address) | `crates/table-ledger/src/relay.rs:161-170` | open | None needed; note that the mailbox is a read/post capability on the relay, not a money credential |
 | R-7 | Info | arithmetic hygiene | `crates/table-runtime/src/service.rs:885` | open | `saturating_add` for the purchase deadline |
@@ -303,3 +303,10 @@ fix: a settled route polled at a later time is due again after the clock steps b
 later than `now` is reported as `now`. R-3 stays open: the existing test
 `c9a_first_adoption_starts_no_window_and_a_reset_inside_it_is_refused` keeps the refusal on purpose,
 which is the scan's second option (keep the refusal).
+
+## Closed 2026-10-21 (belay waves 8 and 9)
+
+R-4 was fixed in two steps: `b100e33` (the 64-route cap in `bind_relay`) and `d2bbcfb` (`relay_work_at`).
+Both join `relay_routes` to `deals`, whose foreign key (`migrations/0005_relay.sql:3`, enforced by
+`PRAGMA foreign_keys=ON`) means no route lacks a deal row. The existing cap, slot-release and relay
+tests pass unchanged. No timing was measured.
