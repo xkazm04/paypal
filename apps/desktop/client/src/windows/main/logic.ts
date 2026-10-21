@@ -1,5 +1,5 @@
 // Pure logic for the Main window: which module a deal belongs to, how its state reads as a bead
-// and a chip, the state path for its kind, the ledger summary, routing and the Dial's geometry.
+// and a chip, the state path for its kind, the ledger summary and routing.
 // No React, no IPC - everything here is unit-tested in logic.test.ts.
 //
 // MODULE MAPPING (documented contract for the Dial and the rail):
@@ -25,10 +25,9 @@ import type { HistoryStep } from '@bindings/HistoryStep';
 import type { PaypalMethod } from '@bindings/PaypalMethod';
 import type { ReceiptEvent } from '@bindings/ReceiptEvent';
 import { formatMinor } from '../../lib/format';
-import { BEAD_UNKNOWN_LEGEND, ENDING_UNREAD_NOW, ENDING_UNREAD_PILL, endingUnreadSentence, moneyCheckNow, moneyCheckPillText, receiptRefusedSentence, refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, sellerSaysOnly, stateWord, unconfirmedSentence } from '../../lib/words';
+import { ENDING_UNREAD_NOW, ENDING_UNREAD_PILL, endingUnreadSentence, moneyCheckNow, moneyCheckPillText, receiptRefusedSentence, refusedBecause, RULE_NAME, ruleNameOf, ruleSentence, sellerSaysOnly, stateWord, unconfirmedSentence } from '../../lib/words';
 
 export const MODULE_KEYS: readonly Module[] = ['tables', 'spend', 'counter', 'book', 'shield', 'rescue'];
-export const moduleIndex = (m: Module): number => MODULE_KEYS.indexOf(m);
 
 type DealLike = Pick<Deal, 'kind' | 'shield' | 'state'> & Partial<Pick<Deal, 'side'>>;
 
@@ -110,7 +109,6 @@ export function isTerminal(d: DealLike): boolean {
 }
 export const isLive = (d: DealLike): boolean => !isTerminal(d);
 export const isSettled = (d: DealLike): boolean => paid(d);
-export const isStopped = (d: DealLike): boolean => beadKind(d) === 'stopped';
 
 /** States from which the owner may send a signed WITHDRAW (Rust re-checks; this only hides the button). */
 const WITHDRAWABLE: ReadonlySet<DealState> = new Set(['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL']);
@@ -500,75 +498,6 @@ export function resolveDealRef(ref: string, deals: Deal[], labels: ReadonlyMap<s
   return deals.find((d) => (labels.get(d.id) ?? '').toUpperCase() === want);
 }
 
-// ---- Dial geometry (1000 x 1000 viewBox, angles clockwise from 12 o'clock) ---------------------
-
-export const C = 500;
-export const STEP = 360 / MODULE_KEYS.length;
-export const R = { hub: 300, track: 326, trackW: 34, secI: 348, secO: 458, rimI: 460, rimO: 476, bez: 487, bezW: 18, up: 404 } as const;
-
-export function pol(r: number, deg: number): [number, number] {
-  const a = (deg * Math.PI) / 180;
-  return [C + r * Math.sin(a), C - r * Math.cos(a)];
-}
-
-const f1 = (n: number) => n.toFixed(1);
-
-/** Annular sector path between angles a0..a1 and radii r0..r1. */
-export function wedgePath(a0: number, a1: number, r0: number, r1: number): string {
-  const [x0, y0] = pol(r1, a0);
-  const [x1, y1] = pol(r1, a1);
-  const [x2, y2] = pol(r0, a1);
-  const [x3, y3] = pol(r0, a0);
-  return `M${f1(x0)} ${f1(y0)}A${r1} ${r1} 0 0 1 ${f1(x1)} ${f1(y1)}L${f1(x2)} ${f1(y2)}A${r0} ${r0} 0 0 0 ${f1(x3)} ${f1(y3)}Z`;
-}
-
-/** The equivalent of `desired` closest to `current` (turn the short way round). */
-export function shortestTarget(current: number, desired: number): number {
-  const d = ((((desired - current) % 360) + 540) % 360) - 180;
-  return current + d;
-}
-
-/** Rotation that brings module i under the gold index at 12 o'clock. */
-export const rotationFor = (i: number): number => -i * STEP;
-
-/** Which module sector sits at angle `theta` (screen degrees) when the rotor is at `rot`. */
-export function sectorAt(theta: number, rot: number, n = MODULE_KEYS.length): number {
-  const step = 360 / n;
-  return ((Math.round((theta - rot) / step) % n) + n) % n;
-}
-
-/** Pointer position -> polar coordinates in viewBox units. */
-export function toPolar(clientX: number, clientY: number, rect: { left: number; top: number; width: number; height: number }): { rad: number; th: number } {
-  const x = ((clientX - rect.left) / rect.width) * 1000 - C;
-  const y = ((clientY - rect.top) / rect.height) * 1000 - C;
-  return { rad: Math.hypot(x, y), th: ((Math.atan2(x, -y) * 180) / Math.PI + 360) % 360 };
-}
-
-export const angularDistance = (a: number, b: number): number => Math.abs(((((a - b) % 360) + 540) % 360) - 180);
-
-/** Bead angles (unrotated) for deals grouped by module index: spread around each sector's centre,
- *  never wider than the sector (+-23 degrees). */
-export function beadAngles(moduleIdx: number[]): number[] {
-  const groups = new Map<number, number[]>();
-  moduleIdx.forEach((m, k) => groups.set(m, [...(groups.get(m) ?? []), k]));
-  const out = new Array<number>(moduleIdx.length).fill(0);
-  for (const [m, ks] of groups) {
-    const n = ks.length;
-    const sp = n > 1 ? Math.min(8.5, 46 / (n - 1)) : 0;
-    ks.forEach((k, j) => { out[k] = m * STEP + (j - (n - 1) / 2) * sp; });
-  }
-  return out;
-}
-
-/** Intro easing: a spin-up that overshoots slightly and clicks back onto the decision. */
-export function introEase(p: number, s = 0.55): number {
-  const q = Math.min(1, Math.max(0, p)) - 1;
-  return 1 + (s + 1) * q * q * q + s * q * q;
-}
-
-export const INTRO_MS = 2400;
-export const INTRO_TURN = 400;
-
 // ---- charts -----------------------------------------------------------------------------------
 
 /** Round grid lines for a money axis (minor units): 3-7 lines on a 1/2/5 x 10^n step. */
@@ -609,17 +538,6 @@ export const clauseText = (c: Clause): string => ruleSentence(c);
  *  clause naming that kind, so a mandate without one never governs it. Order is mandate_list's. */
 export function mandatesGoverning<M extends { payload: { clauses: Clause[] } }>(list: readonly M[], kind: DealKind): M[] {
   return list.filter((m) => m.payload.clauses.some((c) => c.type === 'per_deal' && c.kind === kind));
-}
-
-const BEAD_WORD: Record<BeadKind, string> = { moving: 'moving', held: 'held', settled: 'settled', stopped: 'stopped', off: 'withdrawn or voided', unknown: BEAD_UNKNOWN_LEGEND };
-
-/** "1 held · 2 settled · 1 stopped" for a module's deals (hub headline when nothing needs you). */
-export function beadSummary(deals: DealLike[]): string {
-  if (!deals.length) return 'no deals yet';
-  const order: BeadKind[] = ['moving', 'held', 'settled', 'stopped', 'off'];
-  const n = new Map<BeadKind, number>();
-  for (const d of deals) n.set(beadKind(d), (n.get(beadKind(d)) ?? 0) + 1);
-  return order.filter((k) => n.get(k)).map((k) => `${n.get(k)} ${BEAD_WORD[k]}`).join(' · ');
 }
 
 // ---- Rewind: the week replayed from the verified record (deal_history) -----------------------------
