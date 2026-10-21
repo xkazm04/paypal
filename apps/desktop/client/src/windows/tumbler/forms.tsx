@@ -20,7 +20,7 @@ import { ModeBadge } from '../../shared/honesty';
 import { MODULE } from '../../shared/modules';
 import { Btn, Chip, Hint, Hourglass, Kv, Meter, Popover } from '../../shared/ui';
 import {
-  MODE_SHORT, approveWindow, cardActions, cardClock, cardQuestion, cardWhy, hhmm, moneyCheckEnded, ladderCaption, ladderFill, ringFill, rung, spendMeter, splitHeadline,
+  MODE_SHORT, approveWindow, cardActions, cardClock, cardKeys, cardQuestion, cardWhy, hhmm, moneyCheckEnded, ladderCaption, ladderFill, ringFill, rung, spendMeter, splitHeadline,
   type CardAction, type Handoff, type Ticker,
 } from './logic';
 import { WALK_AWAY_HOURS, walkAway, type WalkAway } from './logic';
@@ -250,7 +250,7 @@ export const CardForm = forwardRef(function CardForm(p: CardProps, ref: Ref<HTML
   const r = rung(item.deadline, now);
   const clock = cardClock(item, now);
   // Spoken names carry the plain headline, never the deal's id (UX-GUIDE: ids live in Details).
-  const label = `${moneyCheckEnded(item) ? 'Ended' : item.money_check ? 'Checking with PayPal' : hold ? 'Paused' : 'Decision'}: ${item.headline}. ${hold ? '' : 'Enter reviews, '}W withdraws, Escape returns to rest.`;
+  const label = `${moneyCheckEnded(item) ? 'Ended' : item.money_check ? 'Checking with PayPal' : hold ? 'Paused' : 'Decision'}: ${item.headline}. ${cardKeys(item)}`;
   const askId = `c-ask-${item.deal_id}`;
 
   let line3: ReactNode;
