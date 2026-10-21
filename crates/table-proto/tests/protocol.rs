@@ -457,3 +457,47 @@ fn short_text_refuses_invisible_reordering_but_keeps_joiners() {
         assert!(ShortText::<64>::new(fine.into()).is_ok(), "{fine:?}");
     }
 }
+#[test]
+fn an_owner_accept_must_be_for_the_deal_round_and_terms_its_envelope_accepts() {
+    let (a, b) = (signer(), signer());
+    let mut seed = [0; 32];
+    getrandom::fill(&mut seed).unwrap();
+    let owner = SigningKey::from_bytes(&seed);
+    seed.fill(0);
+    let receiver = b.key_id().unwrap();
+    let nonces = MemoryNonces::default();
+    let deal = envelope(&a, &b).deal_id;
+    let terms = H256::digest(b"terms");
+    let accept = |proof: OwnerAccept| {
+        let mut e = envelope(&a, &b);
+        e.typ = MsgType::Accept;
+        e.body = Body::Accept {
+            offer_seq: 2,
+            terms_hash: terms,
+            owner_accept: Some(proof),
+        };
+        let raw = a.sign(&e).unwrap();
+        verify(&raw, &a.public_key(), &context(&e, &receiver, &nonces)).map(|_| ())
+    };
+    let counter = H256::digest(b"counter");
+    // The owner's consent to exactly this round and these terms of this deal verifies.
+    accept(OwnerAccept::sign(deal, 2, terms, counter, &owner).unwrap()).unwrap();
+    // A genuine owner signature for another deal, round or terms is not consent to this one.
+    let other_deal: DealId = "00000000000000000000000002".parse().unwrap();
+    for (why, proof) in [
+        (
+            "deal",
+            OwnerAccept::sign(other_deal, 2, terms, counter, &owner),
+        ),
+        ("round", OwnerAccept::sign(deal, 1, terms, counter, &owner)),
+        (
+            "terms",
+            OwnerAccept::sign(deal, 2, H256::ZERO, counter, &owner),
+        ),
+    ] {
+        assert!(
+            matches!(accept(proof.unwrap()), Err(ProtocolError::Binding)),
+            "{why}"
+        );
+    }
+}
