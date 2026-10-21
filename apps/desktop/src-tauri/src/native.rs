@@ -3,6 +3,7 @@ mod commands;
 mod events;
 mod routing;
 mod surface;
+mod toast;
 use commands::*;
 use routing::*;
 use serde::de::DeserializeOwned;
