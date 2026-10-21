@@ -8,8 +8,7 @@
 import { cleanup } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Deal } from '@bindings/Deal';
-import type { Route } from '../logic';
-import { renderLayerAtScale, settle } from './testing/scaleSmoke';
+import { layerRoutes, renderLayerAtScale, settle, type LayerTarget } from './testing/scaleSmoke';
 import { staggerOff } from './stagger';
 
 vi.mock('../../../lib/runtime', async () => (await import('./testing/runtime')).runtimeMock);
@@ -21,22 +20,8 @@ afterEach(() => { cleanup(); history.replaceState(null, '', '/'); });
 
 export const NODE_BUDGET = 1_500;
 
-const LAYERS: Array<[string, Route]> = [
-  ['centre', { level: 'home' }],
-  ['tables', { level: 'module', module: 'tables' }],
-  ['spend', { level: 'module', module: 'spend' }],
-  ['counter', { level: 'module', module: 'counter' }],
-  ['book', { level: 'module', module: 'book' }],
-  ['shield', { level: 'module', module: 'shield' }],
-  ['rescue', { level: 'module', module: 'rescue' }],
-  ['book ledger', { level: 'module', module: 'book', view: 'ledger' }],
-  ['waiting', { level: 'waiting' }],
-  ['rewind', { level: 'rewind' }],
-  ['rules', { level: 'place', place: 'rules' }],
-  ['connections', { level: 'place', place: 'connections' }],
-  ['settings', { level: 'place', place: 'settings' }],
-  ['safety', { level: 'place', place: 'safety' }],
-];
+// Every registered layer (LAYER_ROUTES, keyed by LayerId), plus one module view.
+const LAYERS: Array<[string, LayerTarget]> = [...layerRoutes(), ['book ledger', { level: 'module', module: 'book', view: 'ledger' }]];
 
 const report: string[] = [];
 

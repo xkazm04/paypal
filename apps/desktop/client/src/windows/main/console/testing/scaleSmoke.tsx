@@ -24,6 +24,7 @@ import { readBudget, resetReadBudget } from '../../../../lib/data/invoke';
 import { mockBackend, resetMockState } from '../../../../mock/backend';
 import { App } from '../../App';
 import { formatHash, type Route } from '../../logic';
+import type { LayerId } from '../layers';
 import { setHarnessBackend } from './runtime';
 
 export type Scale = 'small' | 'large';
@@ -96,6 +97,34 @@ function visibleTexts(root: ParentNode): string[] {
 
 /** A route, a raw hash, or a function that picks the route from the world (e.g. its first deal). */
 export type LayerTarget = Route | string | ((world: Backend) => Promise<Route>);
+
+/** The world's first deal, as a deal layer's route. */
+export const firstDeal = async (w: Backend): Promise<Route> => ({ level: 'deal', deal: (await w.invoke('list_deals', null))[0]?.id ?? 'none' });
+
+/** One route per registered layer, keyed by LayerId: a new layer id does not type-check until it has
+ *  a route here, so every suite that walks this table (scale smoke, a11y, perf) covers it. */
+export const LAYER_ROUTES: Readonly<Record<LayerId, LayerTarget>> = {
+  centre: { level: 'home' },
+  waiting: { level: 'waiting' },
+  rewind: { level: 'rewind' },
+  setup: { level: 'setup', step: 'keys' },
+  deal: firstDeal,
+  tables: { level: 'module', module: 'tables' },
+  spend: { level: 'module', module: 'spend' },
+  counter: { level: 'module', module: 'counter' },
+  book: { level: 'module', module: 'book' },
+  shield: { level: 'module', module: 'shield' },
+  rescue: { level: 'module', module: 'rescue' },
+  rules: { level: 'place', place: 'rules' },
+  limits: { level: 'place', place: 'limits' },
+  connections: { level: 'place', place: 'connections' },
+  pairing: { level: 'place', place: 'pairing' },
+  settings: { level: 'place', place: 'settings' },
+  safety: { level: 'place', place: 'safety' },
+};
+
+/** LAYER_ROUTES as [layer id, target] rows, for `it.each`. */
+export const layerRoutes = (): Array<[LayerId, LayerTarget]> => Object.entries(LAYER_ROUTES) as Array<[LayerId, LayerTarget]>;
 
 /** Renders the main window at `route` (or a raw hash) on the `scale` world (null: Maya's own preview wallet, the fixtures) and waits for its layer. */
 export async function renderLayerAtScale(route: LayerTarget, scale: Scale | null, o: { timeout?: number } = {}): Promise<LayerRun> {
