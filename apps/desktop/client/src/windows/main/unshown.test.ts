@@ -1,9 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import type { Backend } from '../../lib/contract';
 import { READ_TIMEOUT_MS } from '../../lib/readEach';
-import { endingsToRead, useEndedUnshown } from './unshown';
+import { ENDING_READS_MAX, endingsToRead, useEndedUnshown } from './unshown';
 
 const hoisted = vi.hoisted(() => ({ current: null as Backend | null }));
 vi.mock('../../lib/runtime', () => ({ backend: () => hoisted.current }));
@@ -72,6 +74,18 @@ describe('useEndedUnshown', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('reads at most as many endings as one deal_history read can hold; the rest count as unread', async () => {
+    const src = readFileSync(resolve(process.cwd(), '../../../crates/table-runtime/src/history.rs'), 'utf8').replace(/\/\/[^\n]*/g, '');
+    const cap = /pub const HISTORY_STEPS:\s*usize\s*=\s*(\d+)\s*;/.exec(src);
+    expect(cap, 'history.rs no longer states HISTORY_STEPS').not.toBeNull();
+    expect(ENDING_READS_MAX).toBe(Number(cap![1]));
+    const many = Array.from({ length: ENDING_READS_MAX + 2 }, (_, i) => step(`E${String(i).padStart(4, '0')}`, i + 1, 'expired'));
+    const { result } = renderHook(() => useEndedUnshown(many, true));
+    await waitFor(() => expect(result.current.pending).toBe(false));
+    expect(invoke).toHaveBeenCalledTimes(ENDING_READS_MAX);
+    expect([...result.current.unread].sort()).toEqual([`E${String(ENDING_READS_MAX).padStart(4, '0')}`, `E${String(ENDING_READS_MAX + 1).padStart(4, '0')}`]);
   });
 
   it('reads nothing when disabled', () => {
