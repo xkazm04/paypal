@@ -1851,7 +1851,11 @@
           "revision": 1,
           "changedAt": "2026-09-14",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/lib/data/useWindowedRows.ts:78 The range extractor pins the remembered focused row without a blur/release path, so moving focus outside the list leaves that off-screen row mounted after its focus claim should end.",
+          "evaluatedAt": "2026-10-21",
+          "evaluatedAgainst": "sha256-b2:df020f172eb32893",
+          "evaluatedRevision": 1
         }
       ],
       "governance": "governed"
