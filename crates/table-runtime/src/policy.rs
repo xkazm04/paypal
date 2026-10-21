@@ -46,9 +46,7 @@ impl Runtime {
     /// Reads only typed state: the signed band, the transcript's shape and the deal projection.
     pub(crate) fn policy_brief(&self, deal: &Deal) -> Result<PolicyBrief, CommandError> {
         let ledger = &self.pipeline.wallet.ledger;
-        let owner = crate::vault::existing_signing_key(self.vault.as_ref(), "owner")
-            .map_err(|_| unavailable("Owner key unavailable"))?
-            .verifying_key();
+        let owner = self.owner()?.verifying_key();
         let mandate = app(ledger.active_mandate(deal.mandate_id, deal.mandate_version, &owner))?;
         let (floor, ceiling, band_rounds) = mandate
             .payload
