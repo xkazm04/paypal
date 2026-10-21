@@ -193,6 +193,8 @@ pub use shield::ShieldRefusal;
 #[cfg(test)]
 mod groups_tests;
 #[cfg(test)]
+mod live_deals_tests;
+#[cfg(test)]
 mod relay_clock_tests;
 #[cfg(test)]
 mod rescue_tests;

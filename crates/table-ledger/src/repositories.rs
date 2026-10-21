@@ -571,7 +571,24 @@ impl Ledger {
             .ok_or(LedgerError::NotFound)
     }
     pub fn list_deals(&self) -> Result<Vec<Deal>, LedgerError> {
-        let mut query = self.conn.prepare("SELECT id FROM deals ORDER BY id")?;
+        self.read_deals("SELECT id FROM deals ORDER BY id")
+    }
+    /// Every deal not in a terminal state, in id order. RECEIPTED is not terminal and is listed:
+    /// the tick lapses a buyer's uncorroborated receipt. The state list is `DealState::ALL`
+    /// filtered by `terminal()`, not a literal here.
+    pub fn list_live_deals(&self) -> Result<Vec<Deal>, LedgerError> {
+        let terminal = DealState::ALL
+            .iter()
+            .filter(|state| state.terminal())
+            .map(|state| enum_text(state).map(|text| format!("'{text}'")))
+            .collect::<Result<Vec<_>, _>>()?
+            .join(",");
+        self.read_deals(&format!(
+            "SELECT id FROM deals WHERE state NOT IN ({terminal}) ORDER BY id"
+        ))
+    }
+    fn read_deals(&self, id_query: &str) -> Result<Vec<Deal>, LedgerError> {
+        let mut query = self.conn.prepare(id_query)?;
         let ids = query
             .query_map([], |r| r.get::<_, String>(0))?
             .collect::<Result<Vec<_>, _>>()?;

@@ -13,7 +13,7 @@ impl Runtime {
         if let Err(error) = self.close_groups() {
             failure.get_or_insert(error);
         }
-        let deals = app(self.pipeline.wallet.ledger.list_deals())?;
+        let deals = app(self.pipeline.wallet.ledger.list_live_deals())?;
         for deal in deals {
             if deal.kind == DealKind::Rescue && !deal.state.terminal() {
                 // A rescue invoice is real whatever the failure's mode (table-app rescue.rs).
