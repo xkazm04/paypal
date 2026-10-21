@@ -12,7 +12,7 @@ import { WalletError } from '../../../lib/contract';
 import { readBudget, resetReadBudget } from '../../../lib/data/invoke';
 import { READ_CONCURRENCY } from '../../../lib/readEach';
 import {
-  APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, CHARTER_TITLE, CENTRE_TITLE, FIND_LABEL, IF_NOTHING, MONEY_CHECK_ENDED_SILENCE, PLACE, PLACE_NAME, SETUP_STEP_COPY, STALE_TITLE, UNREAD_TITLE, WAITING_TITLE,
+  APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, CHARTER_TITLE, CENTRE_TITLE, FIND_LABEL, IF_NOTHING, MONEY_CHECK_ENDED_SILENCE, NOTICE_WHAT, PLACE, PLACE_NAME, SETUP_STEP_COPY, STALE_TITLE, UNREAD_TITLE, WAITING_TITLE,
 } from '../../../lib/words';
 import { mockBackend, resetMockState } from '../../../mock/backend';
 
@@ -22,6 +22,7 @@ const h = vi.hoisted(() => ({
   calls: [] as { cmd: string; args: unknown }[],
   failSettings: false,
   holdOpen: null as null | (() => void),
+  failOpen: false,
 }));
 vi.mock('../../../lib/runtime', () => ({ backend: () => h.current }));
 
@@ -34,6 +35,7 @@ function wrap(real: Backend): Backend {
     invoke: async (cmd, args, opts) => {
       h.calls.push({ cmd, args });
       if (cmd === 'approval_open') {
+        if (h.failOpen) throw new WalletError({ code: 'UNAVAILABLE', message: 'The approval window did not open' });
         // A browser tab cannot open the approval window here; the hand-off is recorded instead.
         if (h.holdOpen === null) return null as never;
         await new Promise<void>((r) => { h.holdOpen = r; });
@@ -94,6 +96,7 @@ beforeEach(() => {
   h.calls = [];
   h.failSettings = false;
   h.holdOpen = null;
+  h.failOpen = false;
   resetReadBudget();
 });
 afterEach(() => { cleanup(); history.replaceState(null, '', '/'); });
@@ -167,6 +170,18 @@ describe('the decision centre', () => {
     await waitFor(() => expect(gold()?.disabled).toBe(true));
     await act(async () => { h.holdOpen?.(); await sleep(20); });
     await waitFor(() => expect(gold()?.disabled).toBe(false));
+  }, 30_000);
+
+  it('locked: the top bar lock opens the approval window, and says so when it could not', async () => {
+    await open('/index.html?locked=1');
+    await heading();
+    const lock = await waitFor(() => { const b = document.querySelector<HTMLButtonElement>('.cs-bar .lockbtn.is-locked'); if (!b) throw new Error('not locked yet'); return b; });
+    h.failOpen = true;
+    h.calls = [];
+    fireEvent.click(lock);
+    await waitFor(() => expect(h.calls.some((c) => c.cmd === 'approval_open')).toBe(true));
+    const said = await waitFor(() => { const t = document.querySelector('.ui-toasts .ui-toast.bad'); if (!t) throw new Error('no toast'); return t; });
+    expect(said.textContent).toContain(NOTICE_WHAT.approval);
   }, 30_000);
 
   it('a failed read shows the stale banner in plain words, and Try again reads again', async () => {
