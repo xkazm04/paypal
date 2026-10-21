@@ -10,6 +10,7 @@
 // the run limit: resume.ts), settings_write (notices only) and approval_open (unlock, keys, rules).
 // Nothing here moves money.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { SettingsSnapshot } from '@bindings/SettingsSnapshot';
 import type { WaitingTable } from '@bindings/WaitingTable';
 import { toWalletError, type WalletError } from '../../../../../lib/contract';
@@ -26,7 +27,7 @@ import {
 } from '../../../../../lib/words';
 import { RunBadge, WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, Kv, layerCount, Seg, Silence, UNKNOWN, useToast } from '../../../../../shared/ui';
-import { deriveCircuit, settingsAnswer, type Circuit } from '../../../setup/circuit';
+import { deriveCircuit, settingsAnswer, type Circuit, type MandateLite } from '../../../setup/circuit';
 import { shortTitle } from '../../../home/model';
 import { useDisplayOf, useLocked, useRuns, useSettings } from '../../../world';
 import { writeCalm } from '../../calm';
@@ -52,7 +53,7 @@ export function SettingsLayer({ nav }: LayerProps) {
   const c = useMemo(() => deriveCircuit({
     settings: s ?? null,
     engines: engines.data ?? null,
-    mandates: mandates.data ? mandates.data.map((m) => ({ id: m.payload.id, version: m.payload.version, notBefore: m.payload.not_before, expires: m.payload.expires })) : null,
+    mandates: mandates.data ? circuitMandates(mandates.data) : null,
     running: running ? running.length : null,
     locked,
     now,
@@ -157,6 +158,12 @@ export function SettingsLayer({ nav }: LayerProps) {
       </section>
     </PlaceFrame>
   );
+}
+
+/** The rule sets the Circuit may count as in force: signed and still fitting what the wallet
+ *  accepts, as Agent rules counts them (RulesLayer inForce); the Circuit adds the dates. */
+export function circuitMandates(list: readonly MandateListEntry[]): MandateLite[] {
+  return list.filter((m) => m.owner_sig.length > 0 && !m.refusal).map((m) => ({ id: m.payload.id, version: m.payload.version, notBefore: m.payload.not_before, expires: m.payload.expires }));
 }
 
 /** The "Your call" line: the first missing hand-off is the one gold action (the old checklist's
