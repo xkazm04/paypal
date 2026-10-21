@@ -424,3 +424,30 @@ fn the_shield_schema_and_prompt_name_exactly_the_verdicts_the_wallet_decodes() {
     }
     assert!(!Schema::Shield.validate(&json!({"verdict":"PAY"})));
 }
+/// `STRIP_ENV` is the documented list of what a native child must never inherit (API keys,
+/// parent-session controls); `ENV_ALLOW` is the only list the spawn actually restores after
+/// `env_clear`. The canary test seeds four names; this binds every documented one.
+#[test]
+fn no_stripped_variable_is_ever_restored_into_a_native_child() {
+    for key in STRIP_ENV {
+        assert!(
+            !ENV_ALLOW.iter().any(|a| a.eq_ignore_ascii_case(key)),
+            "{key} is restored"
+        );
+    }
+    for key in ENV_ALLOW {
+        for secretish in [
+            "KEY",
+            "TOKEN",
+            "SECRET",
+            "NODE_OPTIONS",
+            "PROXY",
+            "CLAUDE_CODE",
+        ] {
+            assert!(
+                !key.contains(secretish),
+                "{key} looks like a credential or control"
+            );
+        }
+    }
+}

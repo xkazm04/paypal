@@ -27,6 +27,21 @@ impl Default for RunLimits {
         }
     }
 }
+/// The only host variables a native child inherits (after `env_clear`): paths and lookup lists.
+/// None may be a name in `STRIP_ENV`; a test binds the two.
+pub const ENV_ALLOW: &[&str] = &[
+    "SYSTEMROOT",
+    "WINDIR",
+    "PATH",
+    "PATHEXT",
+    "TEMP",
+    "TMP",
+    "USERPROFILE",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "HOME",
+    "CODEX_HOME",
+];
 #[derive(Debug)]
 pub struct NativeEngine {
     id: EngineId,
@@ -60,19 +75,7 @@ impl NativeEngine {
             .args(&self.executable.prefix)
             .env_clear()
             .kill_on_drop(true);
-        for key in [
-            "SYSTEMROOT",
-            "WINDIR",
-            "PATH",
-            "PATHEXT",
-            "TEMP",
-            "TMP",
-            "USERPROFILE",
-            "APPDATA",
-            "LOCALAPPDATA",
-            "HOME",
-            "CODEX_HOME",
-        ] {
+        for key in ENV_ALLOW {
             if let Some(value) = std::env::var_os(key) {
                 command.env(key, value);
             }
