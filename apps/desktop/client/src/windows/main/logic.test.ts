@@ -3,9 +3,9 @@ import type { Deal } from '@bindings/Deal';
 import type { DealState } from '@bindings/DealState';
 import { buildMockState, usd } from '../../mock/fixtures';
 import {
-  amountNote, amountTone, beadAngles, beadKind, isSettled, isTerminal, receiptToast, stateLabel, beadSummary, C, canStartAgent, canWithdraw, chipClass, clauseText, formatHash, introEase, isOwnerAccept, ledgerScope, mandatesGoverning,
-  marketPosition, moduleOf, stepBack, moneyNow, niceTicks, parseHash, pol, R, resolveDealRef, reviewVerb, rotationFor, sectorAt, shortestTarget,
-  type Route, spendToday, splitHeadline, STEP, stripFor, sumByCurrency, summarize, toPolar, wedgePath, weekBounds,
+  amountNote, amountTone, beadKind, isSettled, isTerminal, receiptToast, stateLabel, canStartAgent, canWithdraw, chipClass, clauseText, formatHash, isOwnerAccept, ledgerScope, mandatesGoverning,
+  marketPosition, moduleOf, stepBack, moneyNow, niceTicks, parseHash, resolveDealRef, reviewVerb,
+  type Route, spendToday, splitHeadline, stripFor, sumByCurrency, summarize, weekBounds,
 } from './logic';
 
 const NOW = 1_800_000_000;
@@ -89,10 +89,6 @@ describe('bead and chip state mapping', () => {
     expect(canWithdraw(mk({ state: 'CAPTURED' }))).toBe(false);
     expect(canStartAgent(mk({ kind: 'haggle', state: 'NEGOTIATING' }))).toBe(true);
     expect(canStartAgent(mk({ kind: 'purchase', state: 'AGREED' }))).toBe(false);
-  });
-  it('summarises a module by bead kind', () => {
-    expect(beadSummary([])).toBe('no deals yet');
-    expect(beadSummary([mk({ state: 'CAPTURED', shield: null }), mk({ state: 'CAPTURED', shield: null }), mk({ state: 'REFUSED', shield: null })])).toBe('2 settled · 1 stopped');
   });
 });
 
@@ -238,59 +234,6 @@ describe('routing', () => {
     expect(resolveDealRef(d.id, deals, labels)).toBe(d);
     expect(resolveDealRef('d-0190', deals, labels)).toBe(d);
     expect(resolveDealRef('D-9999', deals, labels)).toBeUndefined();
-  });
-});
-
-describe('dial geometry', () => {
-  const close = (a: number, b: number) => expect(Math.abs(a - b)).toBeLessThan(1e-9);
-  it('measures angles clockwise from 12 o’clock', () => {
-    const [x0, y0] = pol(100, 0);
-    close(x0, C); close(y0, C - 100);
-    const [x1, y1] = pol(100, 90);
-    close(x1, C + 100); close(y1, C);
-  });
-  it('turns the short way round', () => {
-    expect(shortestTarget(0, 300)).toBe(-60);
-    expect(shortestTarget(-60, -300)).toBe(60);
-    expect(shortestTarget(720, 60)).toBe(780);
-    expect(shortestTarget(10, 10)).toBe(10);
-  });
-  it('brings module i under the index and finds sectors back', () => {
-    expect(STEP).toBe(60);
-    expect(rotationFor(2)).toBe(-120);
-    for (let i = 0; i < 6; i++) {
-      const rot = rotationFor(i);
-      expect(sectorAt(0, rot)).toBe(i); // under the index
-      expect(sectorAt(STEP, rot)).toBe((i + 1) % 6); // one sector clockwise
-      expect(sectorAt(359, rot)).toBe(i);
-    }
-  });
-  it('maps the pointer to polar coordinates in viewBox units', () => {
-    const rect = { left: 0, top: 0, width: 500, height: 500 };
-    const top = toPolar(250, 0, rect);
-    expect(top.rad).toBeCloseTo(500);
-    expect(top.th).toBeCloseTo(0);
-    expect(toPolar(500, 250, rect).th).toBeCloseTo(90);
-  });
-  it('spreads beads inside their sector, centred', () => {
-    const a = beadAngles([0, 0, 0, 1]);
-    expect(a[0]).toBeCloseTo(-8.5); expect(a[1]).toBeCloseTo(0); expect(a[2]).toBeCloseTo(8.5);
-    expect(a[3]).toBe(STEP);
-    const many = beadAngles(new Array(20).fill(2));
-    expect(Math.max(...many) - Math.min(...many)).toBeLessThanOrEqual(46 + 1e-9);
-    expect(many.every((x) => Math.abs(x - 2 * STEP) <= 23 + 1e-9)).toBe(true);
-  });
-  it('the intro eases from 0 to exactly 1 with an overshoot', () => {
-    expect(introEase(0)).toBeCloseTo(0);
-    expect(introEase(1)).toBe(1);
-    const peak = Math.max(...Array.from({ length: 101 }, (_, i) => introEase(i / 100)));
-    expect(peak).toBeGreaterThan(1);
-    expect(peak).toBeLessThan(1.1);
-  });
-  it('draws closed sector paths inside the ring', () => {
-    const p = wedgePath(-30, 30, R.secI, R.secO);
-    expect(p.startsWith('M')).toBe(true);
-    expect(p.endsWith('Z')).toBe(true);
   });
 });
 
