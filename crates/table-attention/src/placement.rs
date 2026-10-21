@@ -2,15 +2,19 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-pub const FORMS: [(&str, f64, f64); 7] = [
-    ("rest", 88.0, 88.0),
-    ("tab", 28.0, 96.0),
-    ("ticker", 420.0, 88.0),
-    ("card", 440.0, 152.0),
-    ("stack", 440.0, 336.0),
-    ("handoff", 440.0, 160.0),
-    ("welcome", 440.0, 228.0),
-];
+/// Every form as (serialised name, width, height) in logical pixels: derived from
+/// [`Form::size`], the one size table `place` reads, so the two cannot disagree.
+pub const FORMS: [(&str, f64, f64); 7] = {
+    let mut out = [("", 0.0, 0.0); 7];
+    let mut i = 0;
+    while i < Form::ALL.len() {
+        let form = Form::ALL[i];
+        let (width, height) = form.size();
+        out[i] = (form.name(), width, height);
+        i += 1;
+    }
+    out
+};
 #[derive(ts_rs::TS, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Form {
@@ -23,6 +27,28 @@ pub enum Form {
     Welcome,
 }
 impl Form {
+    /// Every form, in declaration order (a test pins it to the enum's serialised names).
+    pub const ALL: [Self; 7] = [
+        Self::Rest,
+        Self::Tab,
+        Self::Ticker,
+        Self::Card,
+        Self::Stack,
+        Self::Handoff,
+        Self::Welcome,
+    ];
+    /// The serialised name (a test pins it to serde's).
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Rest => "rest",
+            Self::Tab => "tab",
+            Self::Ticker => "ticker",
+            Self::Card => "card",
+            Self::Stack => "stack",
+            Self::Handoff => "handoff",
+            Self::Welcome => "welcome",
+        }
+    }
     pub const fn size(self) -> (f64, f64) {
         match self {
             Self::Rest => (88.0, 88.0),
@@ -282,6 +308,30 @@ mod tests {
             height: h,
         }
     }
+    /// Exhaustive on purpose: a new `Form` variant fails to compile here until `ALL` names it.
+    fn ordinal(form: Form) -> usize {
+        match form {
+            Form::Rest => 0,
+            Form::Tab => 1,
+            Form::Ticker => 2,
+            Form::Card => 3,
+            Form::Stack => 4,
+            Form::Handoff => 5,
+            Form::Welcome => 6,
+        }
+    }
+    #[test]
+    fn the_forms_table_is_every_form_by_its_serialised_name_and_size() {
+        for (i, form) in Form::ALL.into_iter().enumerate() {
+            assert_eq!(ordinal(form), i);
+        }
+        assert_eq!(FORMS.len(), Form::ALL.len());
+        for (row, form) in FORMS.iter().zip(Form::ALL) {
+            let name = serde_json::to_value(form).unwrap();
+            let (width, height) = form.size();
+            assert_eq!(*row, (name.as_str().unwrap(), width, height), "{form:?}");
+        }
+    }
     #[test]
     fn docked_approval_centres_on_main_and_stays_on_the_monitor() {
         let work = rect(0.0, 0.0, 1920.0, 1040.0);
@@ -373,15 +423,7 @@ mod tests {
                     let anchor = rect(x * scale, y * scale, 88.0 * scale, 88.0 * scale)
                         .logical(scale)
                         .unwrap();
-                    for form in [
-                        Form::Rest,
-                        Form::Tab,
-                        Form::Ticker,
-                        Form::Card,
-                        Form::Stack,
-                        Form::Handoff,
-                        Form::Welcome,
-                    ] {
+                    for form in Form::ALL {
                         let p = place(anchor, work, form).unwrap();
                         assert!(p.rect.x >= work.x && p.rect.y >= work.y);
                         assert!(p.rect.x + p.rect.width <= work.x + work.width);
