@@ -13,6 +13,8 @@ pub mod ids;
 mod ladder;
 pub use ladder::*;
 pub mod mandate;
+mod mandate_decision;
+pub use mandate_decision::*;
 pub mod market;
 pub mod money;
 pub mod negotiation;
