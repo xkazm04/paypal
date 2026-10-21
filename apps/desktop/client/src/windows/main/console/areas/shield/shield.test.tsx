@@ -5,6 +5,8 @@
 // (#13), windowed and filterable; the picked payment's story reads their note only when asked.
 import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { AttentionItem } from '@bindings/AttentionItem';
+import type { Deal } from '@bindings/Deal';
 import type { Backend } from '../../../../../lib/contract';
 import { APPROVAL_LOCKED_TITLE, IF_NOTHING, SHIELD, SHIELD_VIEWS_TITLE, YOUR_CALL } from '../../../../../lib/words';
 import { mockBackend, resetMockState } from '../../../../../mock/backend';
@@ -113,5 +115,26 @@ describe('Shield model', () => {
     const stopped = new Set(s.stopped.map((d) => d.id));
     expect(s.released.filter((d) => stopped.has(d.id))).toEqual([]);
     for (const d of s.paused) expect(needFor(d, byId.get(d.id))).toBeDefined();
+  });
+});
+
+describe('Shield model, a payment the shield asked about', () => {
+  const NONE: Deal['paypal'] = { order: null, authorization: null, capture: null, subscription: null };
+  const usd = { minor: 12000, currency: 'USD' as const };
+  const ask = (id: string, state: Deal['state'], paypal = NONE): Deal => ({
+    id, kind: 'purchase', side: 'buyer', counterparty: 'K', state, mandate_id: 'M', mandate_version: 1,
+    transcript_head: [] as unknown as Deal['transcript_head'], paypal, mode: 'sandbox', market: null,
+    shield: 'ASK', shield_rule: 'new_counterparty_over_threshold',
+    terms: { item_ref: 'x', qty: 1, unit_price: usd, currency: 'USD', delivery: { type: 'digital_now' } },
+  });
+  it('is stopped only when it ended unpaid; one still going or paid is not "stopped for your safety"', () => {
+    const live = ask('live', 'AWAITING_APPROVAL', { ...NONE, order: 'O' });
+    const paid = ask('paid', 'CAPTURED', { ...NONE, order: 'O', capture: 'C' });
+    const ended = ask('ended', 'EXPIRED');
+    // An ASK waits in the module that owns the purchase (Spend), not in the shield's queue.
+    const need = { module: 'spend' } as unknown as AttentionItem;
+    const s = shieldSets([live, paid, ended], () => 'spend', (id) => (id === 'live' ? need : undefined));
+    expect(s.checked.map((d) => d.id)).toEqual(['live', 'paid', 'ended']);
+    expect(s.stopped.map((d) => d.id)).toEqual(['ended']);
   });
 });

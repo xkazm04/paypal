@@ -5,6 +5,7 @@
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import type { Module } from '@bindings/Module';
+import { isSettled, isTerminal } from '../../../logic';
 import { shieldNeed } from '../../../modules/shield/matrix';
 
 export type ShieldSets = {
@@ -12,7 +13,7 @@ export type ShieldSets = {
   checked: Deal[];
   /** Paused for the owner (a decision waits). */
   paused: Deal[];
-  /** Blocked for good, paused then closed, or ended another way: stopped for safety. */
+  /** Blocked for good, paused then closed, or an ASK that ended unpaid: stopped for safety. */
   stopped: Deal[];
   blocked: Deal[];
   closed: Deal[];
@@ -39,6 +40,8 @@ export function shieldSets(deals: readonly Deal[], moduleOf: (d: Deal) => Module
   const closed = checked.filter((d) => d.shield === 'HOLD' && !need(d) && !d.shield_release);
   const cleared = checked.filter((d) => d.shield === 'CLEAR' && !need(d));
   const released = checked.filter((d) => d.shield !== 'BLOCK' && !!d.shield_release && !need(d));
-  const other = checked.filter((d) => d.shield !== 'BLOCK' && d.shield !== 'HOLD' && d.shield !== 'CLEAR' && !d.shield_release && !need(d));
+  // An ASK the owner was asked about and has not released: stopped only once it ended unpaid. One
+  // still going (its decision waits in the module that owns it) or paid is not stopped for safety.
+  const other = checked.filter((d) => d.shield !== 'BLOCK' && d.shield !== 'HOLD' && d.shield !== 'CLEAR' && !d.shield_release && !need(d) && isTerminal(d) && !isSettled(d));
   return { checked, paused, stopped: [...blocked, ...closed, ...other], blocked, closed, released, cleared };
 }
