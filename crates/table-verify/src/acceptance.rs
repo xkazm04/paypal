@@ -270,6 +270,46 @@ mod tests {
         }
     }
 
+    /// The other direction, enumerated from the documents rather than from the list: every ID §13
+    /// states after its never-cut line, and every `- **W<n>**` criterion of window-duality.md, is on
+    /// the checked-in list. A criterion added to the design otherwise never reaches the matrix,
+    /// and the matrix cannot report as missing what it was never told exists.
+    #[test]
+    fn every_id_the_design_documents_state_is_on_the_list() {
+        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/design/");
+        let report = std::fs::read_to_string(format!("{root}the-table.extract.txt")).unwrap();
+        let windows = std::fs::read_to_string(format!("{root}window-duality.md")).unwrap();
+        let section = report
+            .split_once("never cut mandate + signer")
+            .map(|(_, rest)| rest)
+            .unwrap();
+        let id_shaped = |token: &str, families: &str| {
+            let mut chars = token.chars();
+            chars.next().is_some_and(|c| families.contains(c))
+                && token.len() > 1
+                && chars.all(|c| c.is_ascii_digit())
+        };
+        let mut stated: Vec<String> = section
+            .split_whitespace()
+            .filter(|t| id_shaped(t, "HFMCSREU"))
+            .map(str::to_owned)
+            .collect();
+        stated.extend(windows.lines().filter_map(|line| {
+            let id = line.trim().strip_prefix("- **")?.split_once("**")?.0;
+            id_shaped(id, "W").then(|| id.to_owned())
+        }));
+        let listed: Vec<&str> = criteria().iter().map(|c| c.id).collect();
+        let unlisted: Vec<&String> = stated
+            .iter()
+            .filter(|id| !listed.contains(&id.as_str()))
+            .collect();
+        assert!(
+            unlisted.is_empty(),
+            "stated in the design documents but not on acceptance-ids.txt: {unlisted:?}"
+        );
+        assert!(stated.len() >= listed.len(), "{stated:?}");
+    }
+
     #[test]
     fn a_name_carries_its_leading_ids_and_those_after_and_only() {
         assert_eq!(
