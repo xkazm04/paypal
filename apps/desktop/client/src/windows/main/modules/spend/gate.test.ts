@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Clause } from '@bindings/Clause';
 import type { Deal } from '@bindings/Deal';
-import { clauseGroups, gateColumns, laneCells, outcomeOf, perDealCheck, reachedPaypal, ruleLine, velocityFill } from './gate';
+import { CLAUSE_NUMBER } from '../../../../lib/mandateRules';
+import { CLAUSE_NO, clauseGroups, gateColumns, laneCells, outcomeOf, perDealCheck, reachedPaypal, ruleLine, velocityFill } from './gate';
 
 const usd = (d: number) => ({ minor: d * 100, currency: 'USD' as const });
 const CLAUSES: Clause[] = [
@@ -22,6 +23,9 @@ const deal = (o: Partial<Deal> & { qty?: number; price?: number }): Pick<Deal, '
 describe('gate columns', () => {
   it('keeps the purchase clauses, numbered as the mandate numbers them', () => {
     expect(gateColumns(CLAUSES).map((c) => c.n)).toEqual([1, 3, 5, 6, 7]);
+  });
+  it('numbers clauses from the client’s one table, the one pinned to Rust’s Clause::number', () => {
+    expect(CLAUSE_NO).toBe(CLAUSE_NUMBER);
   });
 });
 

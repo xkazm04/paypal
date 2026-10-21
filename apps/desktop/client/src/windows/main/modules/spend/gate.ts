@@ -19,6 +19,7 @@ import type { Clause } from '@bindings/Clause';
 import type { Deal } from '@bindings/Deal';
 import type { DealState } from '@bindings/DealState';
 import { formatMinor } from '../../../../lib/format';
+import { CLAUSE_NUMBER } from '../../../../lib/mandateRules';
 import { kindWord, RULE_NAME, sellerSaysOnly, stateWord } from '../../../../lib/words';
 import { dealTotal } from '../../logic';
 
@@ -74,8 +75,9 @@ export function perDealCheck(d: Pick<Deal, 'kind' | 'terms'>, c: Extract<Clause,
   return { over, text: `${formatMinor(t.minor, t.currency)} is ${over ? 'over' : 'within'} the ${formatMinor(c.max_amount.minor, c.max_amount.currency)} limit` };
 }
 
-/** Rust's clause numbers (Clause::number): a refusal names the clause by type, not by position. */
-export const CLAUSE_NO: Record<Clause['type'], number> = { roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7, lever: 8, market_watch: 9 };
+/** Rust's clause numbers (Clause::number): a refusal names the clause by type, not by position.
+ *  The client's one table (lib/mandateRules, pinned to mandate.rs by its test), not a copy. */
+export const CLAUSE_NO: Readonly<Record<Clause['type'], number>> = CLAUSE_NUMBER;
 
 /** One lane: what the ask can be said to have met at each gate column. */
 export function laneCells(d: Pick<Deal, 'kind' | 'terms' | 'state' | 'paypal'> & Partial<Pick<Deal, 'decided_by'>>, cols: readonly GateColumn[], need?: Pick<AttentionItem, 'clause'> | null): Cell[] {
