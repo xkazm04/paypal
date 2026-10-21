@@ -136,3 +136,21 @@ describe('the pause line is Rust’s, not a rounded percent', () => {
     expect(overPauseLine(deal())).toBeNull();
   });
 });
+
+describe('a typical price too old to clear the payment (Rust: no_market_reference with a reference on file)', () => {
+  // shield_gate.rs runs the 40% rule on any reference, but only a fresh one clears: a stale one that
+  // does not hold records no_market_reference while Deal.market still carries it.
+  const d = deal({ market, shield: 'ASK', shield_rule: 'no_market_reference' });
+  const pauseLine = /pauses the payment|Above \$/;
+  it('says the price on file is too old, never that there is none, nor a pause line it did not use', () => {
+    const [r] = reasonsFor(d, cp(), NOW);
+    expect(r?.kind).toBe('noprice');
+    expect(r?.detail).not.toMatch(pauseLine);
+    expect(checkLights(d, cp(), NOW)[1]?.detail).not.toMatch(pauseLine);
+    const why = whyFor('noprice', d, cp(), NOW).join(' ');
+    expect(why).not.toMatch(/no typical price on file/);
+    expect(why).toMatch(/too old/);
+    // With no reference at all, the words stay as they were.
+    expect(whyFor('noprice', deal(), cp(), NOW)[0]).toMatch(/no typical price on file/);
+  });
+});
