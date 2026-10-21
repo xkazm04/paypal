@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
 import type { DealGroupView } from '@bindings/DealGroupView';
 import type { GroupTable } from '@bindings/GroupTable';
-import { groupStanding, shopAroundSets } from './groups';
+import { groupStanding, MAX_GROUP_TABLES, shopAroundSets } from './groups';
 
 const usd = (minor: number) => ({ minor, currency: 'USD' as const });
 function deal(id: string, o: Partial<Deal> & { item?: string; cp?: string } = {}): Deal {
@@ -41,6 +41,12 @@ describe('shop around sets', () => {
       deal('H', { mandate_id: 'OTHER' }),
     ], []);
     expect(sets.map((s) => s.map((d) => d.id))).toEqual([['A', 'B']]);
+  });
+  it('offers at most MAX_GROUP_TABLES sellers, oldest first, as table-ledger open_group accepts', () => {
+    const many = Array.from({ length: MAX_GROUP_TABLES + 3 }, (_, i) => deal(`T${String(i).padStart(2, '0')}`, { created_at: 100 + i }));
+    const sets = shopAroundSets([...many].reverse(), []);
+    expect(MAX_GROUP_TABLES).toBe(8);
+    expect(sets.map((s) => s.map((d) => d.id))).toEqual([many.slice(0, MAX_GROUP_TABLES).map((d) => d.id)]);
   });
   it('never offers a table that is already in a group', () => {
     expect(shopAroundSets([deal('A'), deal('B'), deal('C')], [group([table('A'), table('B')])])).toEqual([]);
