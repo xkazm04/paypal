@@ -34,6 +34,13 @@ pub struct RefusalBody {
 }
 /// The most of a refusal body that is read; anything longer is an unexplained refusal.
 pub const REFUSAL_BODY_MAX: usize = 1024;
+/// The largest message a mailbox carries: one compact JWS at Protocol v1's bound. The relay
+/// service (`services/rendezvous`) and this client both read the bound from here.
+pub const MAX_MESSAGE_BYTES: usize = table_proto::MAX_JWS_BYTES;
+/// Messages one mailbox holds; a read cursor never passes it.
+pub const MAX_MESSAGES: usize = 256;
+/// The longest long-poll a caller may ask for, in seconds.
+pub const MAX_WAIT_SECS: u8 = 25;
 
 /// Maps a non-2xx answer to an error. Only 429 and other 4xx mean the host answered; 5xx and
 /// anything else stay `Unavailable`. The body is read only for its fixed refusal code.
@@ -61,13 +68,13 @@ impl Batch {
     pub fn validate(&self) -> Result<(), Error> {
         if self.generation.len() != 32
             || !self.generation.bytes().all(|b| b.is_ascii_hexdigit())
-            || self.messages.len() > 256
-            || self.after > 256
-            || self.after.saturating_add(self.messages.len() as u64) > 256
+            || self.messages.len() > MAX_MESSAGES
+            || self.after > MAX_MESSAGES as u64
+            || self.after.saturating_add(self.messages.len() as u64) > MAX_MESSAGES as u64
             || self
                 .messages
                 .iter()
-                .any(|s| s.len() > 16384 || !s.is_ascii())
+                .any(|s| s.len() > MAX_MESSAGE_BYTES || !s.is_ascii())
         {
             return Err(Error::Invalid);
         }
@@ -222,7 +229,7 @@ impl RelayApi for Client {
         Ok(())
     }
     async fn send(&self, mailbox: H256, jws: &str) -> Result<(), Error> {
-        if jws.len() > 16384 || !jws.is_ascii() {
+        if jws.len() > MAX_MESSAGE_BYTES || !jws.is_ascii() {
             return Err(Error::Invalid);
         }
         Self::checked(
@@ -240,7 +247,7 @@ impl RelayApi for Client {
         after: u64,
         wait: u8,
     ) -> Result<Batch, Error> {
-        if wait > 25 || after > 256 {
+        if wait > MAX_WAIT_SECS || after > MAX_MESSAGES as u64 {
             return Err(Error::Invalid);
         }
         let response = Self::checked(self.http.get(self.endpoint(mailbox, "/sync")?).query(&[
@@ -249,7 +256,7 @@ impl RelayApi for Client {
             ("wait", wait.to_string()),
         ]))
         .await?;
-        let bytes = Self::bounded(response, 256 * 16384 + 32768).await?;
+        let bytes = Self::bounded(response, MAX_MESSAGES * MAX_MESSAGE_BYTES + 32768).await?;
         let batch: Batch = serde_json::from_slice(&bytes).map_err(|_| Error::Invalid)?;
         batch.validate()?;
         Ok(batch)
@@ -275,7 +282,13 @@ mod tests {
             messages: vec!["a.b.c".into()],
         };
         assert!(batch.validate().is_ok());
-        batch.after = 256;
+        batch.after = MAX_MESSAGES as u64;
+        assert!(batch.validate().is_err());
+        // A mailbox message is exactly one Protocol v1 JWS at most.
+        batch.after = 0;
+        batch.messages = vec!["a".repeat(table_proto::MAX_JWS_BYTES)];
+        assert!(batch.validate().is_ok());
+        batch.messages = vec!["a".repeat(table_proto::MAX_JWS_BYTES + 1)];
         assert!(batch.validate().is_err());
     }
     #[test]

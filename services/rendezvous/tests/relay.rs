@@ -29,6 +29,10 @@ async fn mailbox_ttl_cursor_size_and_no_parsing_or_keys() {
     assert!(s.read(&h, 2).await.is_err());
     assert!(s.send(&h, "bad".into()).await.is_err());
     assert!(s.send(&h, "x".repeat(16385)).await.is_err());
+    // The relay's bound is the protocol's: one JWS of exactly the largest size is carried.
+    let largest = format!("a.b.{}", "c".repeat(table_relay::MAX_MESSAGE_BYTES - 4));
+    assert_eq!(s.send(&h, largest.clone()).await.unwrap(), 2);
+    assert!(s.send(&h, format!("{largest}c")).await.is_err());
     clock.0.store(86400, Ordering::SeqCst);
     assert!(s.read(&h, 0).await.is_err());
     s.create(&h).await.unwrap();
