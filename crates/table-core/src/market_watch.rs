@@ -87,35 +87,12 @@ mod tests {
         )
         .unwrap()
     }
-    const ALL: [DealState; 21] = [
-        DealState::Pairing,
-        DealState::Listed,
-        DealState::Negotiating,
-        DealState::Agreed,
-        DealState::Settling,
-        DealState::AwaitingApproval,
-        DealState::Approved,
-        DealState::Authorized,
-        DealState::Captured,
-        DealState::Receipted,
-        DealState::Reconciled,
-        DealState::Withdrawn,
-        DealState::Expired,
-        DealState::Refused,
-        DealState::Mismatch,
-        DealState::Failed,
-        DealState::Voided,
-        DealState::AutoVoided,
-        DealState::Refunded,
-        DealState::Disputed,
-        DealState::Unconfirmed,
-    ];
 
     #[test]
     fn only_a_watched_open_deal_with_a_due_reference_and_allowance_left_is_refreshed() {
         let watched = item();
         let now = 1_000_000;
-        for state in ALL {
+        for state in DealState::ALL {
             for side in [Side::Buyer, Side::Seller] {
                 for used in [0_u32, 11, 12, 13] {
                     for market in [None, Some(band(now - MARKET_FRESH_SECS)), Some(band(now))] {
@@ -154,7 +131,7 @@ mod tests {
 
     #[test]
     fn a_seller_deal_is_watched_only_until_its_order_exists() {
-        for state in ALL {
+        for state in DealState::ALL {
             assert_eq!(
                 market_watch_open(state, Side::Seller),
                 matches!(
