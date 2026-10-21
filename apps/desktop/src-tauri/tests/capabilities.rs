@@ -87,6 +87,27 @@ fn w3_release_set_is_approval_only_and_all_commands_are_declared() {
     let config: Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
     assert!(config["app"]["windows"].as_array().unwrap().is_empty());
 }
+#[test]
+fn every_window_is_built_with_the_navigation_guard() {
+    // Windows are built in Rust (tauri.conf.json declares none), each with the app-origin-only
+    // navigation handler; a window built without it can be navigated to any site.
+    let sources = shell_sources();
+    let builders: Vec<&str> = sources
+        .split("WebviewWindowBuilder::new(")
+        .skip(1)
+        .map(|rest| rest.split(".build()").next().unwrap())
+        .collect();
+    assert_eq!(
+        builders.len(),
+        table_client::authority::WindowLabel::ALL.len()
+    );
+    for builder in builders {
+        assert!(
+            builder.contains(".on_navigation(") && builder.contains("navigation::permits)"),
+            "a window is built without the navigation guard: {builder}"
+        );
+    }
+}
 /// The webview's security settings, written out by hand: a loosened CSP, an extra capability or a
 /// global IPC object passes every other gate, so each is pinned here and changed only on purpose.
 #[test]
