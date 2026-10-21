@@ -278,6 +278,12 @@ export function ringFill(deadline: number | null, now: number): number | null {
   return deadline === null ? null : ladderFill(deadline - now);
 }
 
+/** A default ("the offer lapses · no money moves") as a clause that can end a sentence:
+ *  "the offer lapses, no money moves" (no trailing stop). Used by Why and the rung notice. */
+export function silenceClause(onSilence: string): string {
+  return onSilence.trim().replace(/\s*·\s*/g, ', ').replace(/[.,\s]+$/, '');
+}
+
 /** r2-tumbler: the two sentences behind "Why?" in the details popover. Deterministic: only the item's
  *  kind, the rule Rust named, its deadline and its own safe default. Nothing the counterparty wrote
  *  (W4), no number that is not already on the card, no prediction. */
@@ -298,7 +304,7 @@ export function cardWhy(item: Pick<AttentionItem, 'kind' | 'clause' | 'on_silenc
     ? (shield ? `A scam check paused it: ${shield.charAt(0).toLowerCase()}${shield.slice(1).replace(/\.$/, '')}. It can’t be paid until you decide.`
       : rule ? `It is paused because of ${rule}, so it can’t be paid until you decide.` : 'It is paused, so it can’t be paid until you decide.')
     : (rule ? `${rule.charAt(0).toUpperCase()}${rule.slice(1)} sends this one to you.` : 'It needs your decision before it can go ahead.');
-  const silence = item.on_silence.trim().replace(/\s*·\s*/g, ', ').replace(/[.,\s]+$/, '');
+  const silence = silenceClause(item.on_silence);
   return [ask, `If you do nothing, ${silence}.`];
 }
 
