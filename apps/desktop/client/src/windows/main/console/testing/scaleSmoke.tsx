@@ -126,6 +126,9 @@ export const LAYER_ROUTES: Readonly<Record<LayerId, LayerTarget>> = {
 /** LAYER_ROUTES as [layer id, target] rows, for `it.each`. */
 export const layerRoutes = (): Array<[LayerId, LayerTarget]> => Object.entries(LAYER_ROUTES) as Array<[LayerId, LayerTarget]>;
 
+/** The error capture of the last run, until the next run starts. */
+let releaseErrors: (() => void) | null = null;
+
 /** Renders the main window at `route` (or a raw hash) on the `scale` world (null: Maya's own preview wallet, the fixtures) and waits for its layer. */
 export async function renderLayerAtScale(route: LayerTarget, scale: Scale | null, o: { timeout?: number } = {}): Promise<LayerRun> {
   sizeElements();
@@ -162,8 +165,14 @@ export async function renderLayerAtScale(route: LayerTarget, scale: Scale | null
     },
   };
   setHarnessBackend(wrapped);
+  // Errors are counted for the whole run, not only until the layer is drawn: tests assert
+  // `r.errors` after their clicks, events and waves. Quiet while drawing (as before), then also
+  // printed, so nothing is hidden; the next run (or a failed one) gives console.error back.
+  releaseErrors?.();
   const origError = console.error;
-  console.error = (...a: unknown[]) => { errors.push(a.map(String).join(' ')); };
+  let drawn = false;
+  console.error = (...a: unknown[]) => { errors.push(a.map(String).join(' ')); if (drawn) origError(...a); };
+  releaseErrors = () => { console.error = origError; releaseErrors = null; };
   const t0 = performance.now();
   try {
     render(<Profiler id="main" onRender={() => { commits += 1; }}><App /></Profiler>);
@@ -175,6 +184,7 @@ export async function renderLayerAtScale(route: LayerTarget, scale: Scale | null
     }, { timeout: o.timeout ?? 15_000 });
     const ms = performance.now() - t0;
     await settle();
+    drawn = true;
     return {
       layer, errors, calls, ms, budget: readBudget,
       commits: () => commits,
@@ -182,8 +192,9 @@ export async function renderLayerAtScale(route: LayerTarget, scale: Scale | null
       texts: () => visibleTexts(document.body),
       rows: () => document.querySelectorAll(ROW_SELECTOR).length,
     };
-  } finally {
-    console.error = origError;
+  } catch (e) {
+    releaseErrors?.();
+    throw e;
   }
 }
 
