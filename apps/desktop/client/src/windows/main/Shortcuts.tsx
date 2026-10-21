@@ -14,6 +14,10 @@ const GROUPS: readonly { title: string; keys: Keys }[] = [
     [['1', '…', '6'], 'Jump to Tables, Spend, Counter, Book, Shield, Rescue'],
     [['?'], 'Show this list'],
   ] },
+  { title: 'Lists', keys: [
+    [['↑', '↓'], 'Move along a list (also Page Up/Down, Home, End)'],
+    [['Enter'], 'Open the deal of the row you are on'],
+  ] },
   { title: 'What needs you', keys: [
     [['←', '→'], 'Previous or next decision'],
     [['Enter'], 'On the gold button: open the approval window, where money is decided'],
@@ -24,22 +28,14 @@ const GROUPS: readonly { title: string; keys: Keys }[] = [
   ] },
   { title: 'Tables', keys: [
     [['↑', '↓'], 'Move your price limit (Shift: 5 steps, Page Up/Down: 10)'],
-    [['←', '→'], 'Previous or next table'],
   ] },
   { title: 'Counter', keys: [
     [['↑', '↓'], 'Change the lowest price by 1 (Shift: 10)'],
     [['Ctrl', 'Enter'], 'Review your changes'],
   ] },
-  { title: 'Shield', keys: [
-    [['←', '↑', '→', '↓'], 'Move between checks'],
-    [['O'], 'Open the deal'],
-    [['R'], 'Release in the approval window'],
-    [['P'], 'Show what decided'],
-  ] },
   { title: 'Rescue', keys: [
-    [['←', '→'], 'Choose a fix'],
-    [['↑', '↓'], 'Previous or next subscriber'],
-    [['0'], 'Do nothing'],
+    [['←', '→'], 'Choose a fix (↑ ↓ too)'],
+    [['0', '…', '4'], 'Choose a fix by its number (0: do nothing)'],
   ] },
 ];
 
