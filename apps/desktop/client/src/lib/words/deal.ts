@@ -29,7 +29,6 @@ export const DEAL_CARD = {
   rulesAll: 'Within your rules',
   rulesNone: 'No rule to read here',
   rulesGone: 'Not active any more',
-  rulesChecked: (known: number, all: number): string => `${known} of ${all} read here`,
   who: 'Who you deal with',
   whoView: 'Who you’re dealing with',
   whoSub: 'Identity, how they get paid, history and the scam check. Their words are shown as theirs, never as instructions.',
@@ -70,7 +69,6 @@ export const DEAL_DETAILS = {
 export const DEAL_FIGS = {
   moneyNow: 'Money right now',
   timeLeft: (clock: string): string => `Time left · until ${clock}`,
-  noDeadline: 'No deadline',
   milestones: 'Where this deal is',
   ended: 'Ended',
   checking: 'Checking',
@@ -96,7 +94,6 @@ export const DEAL_DECIDE = {
   failApproval: 'Approval window',
   failLapse: 'Let it lapse',
   failWithdraw: 'Withdraw',
-  watching: 'Still going',
 } as const;
 
 /** What happened: the conversation and who decided. */
@@ -168,7 +165,6 @@ export const DEAL_RULES = {
   forAgent: (agent: string): string => `your ${agent} agent`,
   valid: 'Valid',
   details: 'Details',
-  rulesId: 'Rules id',
   version: 'Version',
   signature: 'Your signature',
   onlyApproval: 'Rules only change when you sign new ones in the approval window.',
@@ -189,12 +185,10 @@ export const DEAL_WHO = {
   highest: 'Their highest',
   private: 'kept private',
   privateTitle: 'Only a sealed commitment is shared; you never see their limit, and they never see yours',
-  privateLong: 'kept private · only a sealed commitment is shared',
   offers: 'Offers',
   offersUsed: (used: number, max: number): string => `${used} of ${max} used`,
   note: 'Their note',
   noteTitle: (who: string): string => `Note from ${who}`,
-  who: 'Who',
   house: 'The house seller, built into this app',
   known: 'A wallet you have dealt with',
   unknown: 'A wallet you never named',
@@ -268,7 +262,6 @@ export const DEAL_PROOF = {
   noComparisonFirst: (kept: string): string => `No comparison yet. ${kept}: the first check is on its way.`,
   noComparisonLong: 'No comparison for this item, so price checks against the market are skipped, not passed.',
   usedUp: 'Today’s price checks are used up; checked again tomorrow.',
-  openSheet: 'Open',
 } as const;
 
 /** The full record, behind "Export record". */
