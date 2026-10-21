@@ -5,6 +5,8 @@
 // preview the mock turns the offset on so the scenario director can jump time ("four hours
 // later") and every mock window, every countdown and the mock's own deadlines move together.
 
+import { inDesktopApp } from './preview';
+
 type Listener = () => void;
 
 let offset = 0;
@@ -35,16 +37,12 @@ export function onClockChange(cb: Listener): () => void {
   };
 }
 
-function inShell(): boolean {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-}
-
 /**
  * Browser preview only: allow the offset to move. Returns false (and stays wall time) inside the
  * desktop shell, so a stray call there is a no-op passthrough.
  */
 export function simulateClock(): boolean {
-  if (inShell()) return false;
+  if (inDesktopApp()) return false;
   simulated = true;
   return true;
 }

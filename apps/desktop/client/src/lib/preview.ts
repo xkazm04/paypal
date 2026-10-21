@@ -162,7 +162,8 @@ export function demoPageUrl(page: string, s: DemoState): string {
   return `${base}?${q.toString()}${frag}`;
 }
 
-/** Inside the desktop app: the shell's IPC is present (lib/tauri.ts isTauri, without its imports). */
+/** Inside the desktop app: the shell's IPC is present. The one test (lib/tauri.ts isTauri and
+ *  lib/clock.ts use it); dependency-free, so a page can ask without loading the shell's API. */
 export function inDesktopApp(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 }
