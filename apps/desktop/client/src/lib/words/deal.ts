@@ -70,6 +70,10 @@ export const DEAL_FIGS = {
   moneyNow: 'Money right now',
   timeLeft: (clock: string): string => `Time left · until ${clock}`,
   milestones: 'Where this deal is',
+  /** Read after a milestone's name by a screen reader (the ✓ and the dim are only seen). */
+  msDone: 'done',
+  msTodo: 'not reached yet',
+  msSkipped: 'skipped, the deal ended',
   ended: 'Ended',
   checking: 'Checking',
 } as const;

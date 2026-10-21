@@ -68,6 +68,7 @@ export function StateStrip({ strip }: { strip: MirrorStrip }) {
           <li className={`ms ${it.status} ${it.tone ?? ''} ${ended && it.status === 'todo' ? 'skipped' : ''}`} aria-current={it.status === 'cur' ? 'step' : undefined} title={it.detail}>
             <span className="dot" aria-hidden="true">{MARK[it.status]}</span>
             <span className="lb">{it.text}</span>
+            {it.status === 'cur' ? null : <span className="sr-only">{it.status === 'done' ? DEAL_FIGS.msDone : ended ? DEAL_FIGS.msSkipped : DEAL_FIGS.msTodo}</span>}
             {it.status === 'cur' ? <span className="now">{strip.steps.find((s) => s.status === 'cur')?.label}</span> : null}
           </li>
           {m.end && m.end.after === it.key ? <EndMark end={m.end} /> : null}
