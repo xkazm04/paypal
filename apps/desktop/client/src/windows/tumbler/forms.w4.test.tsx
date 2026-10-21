@@ -9,7 +9,8 @@ import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Backend } from '../../lib/contract';
 import { mockBackend, resetMockState } from '../../mock/backend';
 import { setHarnessBackend } from '../main/console/testing/runtime';
-import { CardForm } from './forms';
+import { CardForm, HandoffForm, StackForm, TickerForm } from './forms';
+import { ackTicker, arrivalsTicker, arrivalTicker, plainItems, receiptTicker, snoozeTicker } from './logic';
 
 vi.mock('../../lib/runtime', async () => (await import('../main/console/testing/runtime')).runtimeMock);
 
@@ -49,6 +50,55 @@ describe('Tumbler card form (W4)', () => {
       unmount();
     }
     // The wallet would refuse the Tumbler the note anyway; it must not even ask.
+    expect(calls).not.toContain('counterparty_note');
+    expect(calls).not.toContain('counterparty_list');
+  }, 60_000);
+
+  // W4 says "any Tumbler form": the stack, every ticker and the hand-off draw the same items.
+  it('draws no counterparty free text in the stack, the tickers or the hand-off', async () => {
+    resetMockState();
+    const main = mockBackend('main');
+    const tumbler = mockBackend('tumbler');
+    const calls: string[] = [];
+    setHarnessBackend({ ...tumbler, invoke: (cmd, args, opts) => { calls.push(cmd); return tumbler.invoke(cmd, args, opts); } });
+
+    const att = await main.invoke('attention_list', null);
+    const items = plainItems(att.items);
+    const notes: string[] = [];
+    for (const item of att.items) {
+      const note = await main.invoke('counterparty_note', { deal_id: item.deal_id });
+      if (note) notes.push(note.text);
+    }
+    expect(notes.length, 'the mock world has attention items whose counterparty wrote a note').toBeGreaterThan(0);
+    const clean = (where: string) => {
+      const dom = document.body.innerHTML;
+      for (const text of notes) {
+        for (let i = 0; i + 20 <= text.length; i += 10) expect(dom, `${where}: note piece "${text.slice(i, i + 20)}"`).not.toContain(text.slice(i, i + 20));
+      }
+    };
+    const now = Math.floor(Date.now() / 1000);
+
+    const stack = render(<StackForm snapshot={{ ...att, items }} items={items} now={now} locked={false} mode="sandbox" metersAvailable paused={false} pinned dnd={false}
+      failure={null} onOpen={() => {}} onTable={() => {}} onPin={() => {}} onDnd={() => {}} />);
+    expect(stack.container.querySelectorAll('.s-row')).toHaveLength(items.length);
+    clean('stack');
+    stack.unmount();
+
+    const tickers = [arrivalsTicker(items), ...items.flatMap((i) => [
+      arrivalTicker(i), snoozeTicker(i, now + 1800), ackTicker(i, 'withdraw'), ackTicker(i, 'let_lapse'),
+      receiptTicker({ deal_id: i.deal_id, evidence: { deal_id: i.deal_id, receipt: 'NONE', reconciliation: 'not_applicable' }, mode: i.mode, state: 'CAPTURED', on_silence: 'no money moved' }, i),
+    ])];
+    for (const t of tickers) {
+      const r = render(<TickerForm ticker={t} onOpen={() => {}} />);
+      clean(`ticker ${t?.key}`);
+      r.unmount();
+    }
+
+    for (const item of items) {
+      const r = render(<HandoffForm handoff={{ active: true, dealId: item.deal_id, approveUntil: now + 3600 }} item={item} display={null} now={now} locked={false} mode="sandbox" onTable={() => {}} onRest={() => {}} />);
+      clean(`hand-off ${item.label}`);
+      r.unmount();
+    }
     expect(calls).not.toContain('counterparty_note');
     expect(calls).not.toContain('counterparty_list');
   }, 60_000);
