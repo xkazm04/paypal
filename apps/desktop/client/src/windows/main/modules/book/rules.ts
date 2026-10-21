@@ -3,15 +3,23 @@
 // the compile checks of `book_query_rejection` (crates/table-ledger/src/book.rs): the same rules,
 // the same fixed words, never echoing a value. Rust still checks every query again; this is a
 // guard and the test oracle for the understanding step, not the authority.
+import type { BookField } from '@bindings/BookField';
+import type { BookGroup } from '@bindings/BookGroup';
+import type { BookMetric } from '@bindings/BookMetric';
+import type { BookOp } from '@bindings/BookOp';
 import type { BookQuery } from '@bindings/BookQuery';
+import type { BookView } from '@bindings/BookView';
 import type { JsonValue } from '@bindings/serde_json/JsonValue';
 
-const VIEWS = ['deals', 'paypal_calls', 'receipts', 'subscriptions', 'reconciliation'];
-const METRICS = ['count', 'sum_amount', 'avg_vs_market_pct', 'recovered_sum'];
-const GROUPS = ['kind', 'counterparty', 'state', 'day', 'decided_by'];
-const FIELDS = ['kind', 'state', 'counterparty', 'amount', 'created_at', 'vs_market_pct', 'decided_by'];
-const OPS = ['eq', 'ne', 'gt', 'lt', 'between', 'in'];
-const INT_FIELDS = ['amount', 'created_at', 'vs_market_pct'];
+// Each closed list is the keys of a record over its generated Rust enum: a variant Rust adds or
+// drops is a type error here, never a valid query this mirror refuses (or the reverse).
+const every = <T extends string>(all: Record<T, true>): readonly string[] => Object.keys(all);
+const VIEWS = every<BookView>({ deals: true, paypal_calls: true, receipts: true, subscriptions: true, reconciliation: true });
+const METRICS = every<BookMetric>({ count: true, sum_amount: true, avg_vs_market_pct: true, recovered_sum: true });
+const GROUPS = every<BookGroup>({ kind: true, counterparty: true, state: true, day: true, decided_by: true });
+const FIELDS = every<BookField>({ kind: true, state: true, counterparty: true, amount: true, created_at: true, vs_market_pct: true, decided_by: true });
+const OPS = every<BookOp>({ eq: true, ne: true, gt: true, lt: true, between: true, in: true });
+const INT_FIELDS: readonly BookField[] = ['amount', 'created_at', 'vs_market_pct'];
 const RFC3339 = /^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$/;
 
 /** Seconds since the epoch for an RFC 3339 time, or null when it is not one. */
