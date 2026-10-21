@@ -383,3 +383,44 @@ fn the_mcp_session_outlives_the_native_run_ceiling() {
         table_mcp::SESSION_SECS
     );
 }
+/// The shield's verdict list is written three times: the `ShieldVerdict` enum `Schema::Shield`
+/// decodes, the output schema handed to the engine, and the tool-less prompt. All three must name
+/// exactly the same verdicts.
+#[test]
+fn the_shield_schema_and_prompt_name_exactly_the_verdicts_the_wallet_decodes() {
+    use std::collections::BTreeSet;
+    use table_core::ShieldVerdict as V;
+    // Adding a verdict without updating this list does not compile.
+    let all = [V::Clear, V::Ask, V::Hold, V::Block];
+    for v in all {
+        match v {
+            V::Clear | V::Ask | V::Hold | V::Block => {}
+        }
+    }
+    let wire: BTreeSet<String> = all
+        .iter()
+        .map(|v| {
+            serde_json::to_value(v)
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_owned()
+        })
+        .collect();
+    let schema: serde_json::Value = serde_json::from_str(SHIELD_OUTPUT_SCHEMA).unwrap();
+    let listed: BTreeSet<String> = schema["properties"]["verdict"]["enum"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(listed, wire);
+    assert_eq!(schema["required"], json!(["verdict"]));
+    assert_eq!(schema["additionalProperties"], json!(false));
+    let prompt = system_prompt(Profile::Toolless, None);
+    for v in &wire {
+        assert!(Schema::Shield.validate(&json!({ "verdict": v })), "{v}");
+        assert!(prompt.contains(v.as_str()), "prompt omits {v}");
+    }
+    assert!(!Schema::Shield.validate(&json!({"verdict":"PAY"})));
+}

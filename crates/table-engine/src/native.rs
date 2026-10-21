@@ -137,7 +137,7 @@ impl NativeEngine {
         };
         directory.write("mcp.json", &config.to_string())?;
         directory.write("system.md", system_prompt(profile, job.playbook))?;
-        directory.write("schema.json", r#"{"type":"object","additionalProperties":false,"required":["verdict"],"properties":{"verdict":{"enum":["CLEAR","ASK","HOLD","BLOCK"]}}}"#)?;
+        directory.write("schema.json", SHIELD_OUTPUT_SCHEMA)?;
         let options = LaunchOptions {
             profile,
             mcp_file: directory.file("mcp.json")?,
@@ -510,6 +510,9 @@ impl EngineAdapter for NativeEngine {
         }
     }
 }
+/// The JSON schema a tool-less (shield) run's answer must meet, handed to an engine that can
+/// enforce it. It must name exactly the `ShieldVerdict` wire values `Schema::Shield` accepts.
+pub const SHIELD_OUTPUT_SCHEMA: &str = r#"{"type":"object","additionalProperties":false,"required":["verdict"],"properties":{"verdict":{"enum":["CLEAR","ASK","HOLD","BLOCK"]}}}"#;
 /// A native run's system prompt: its role's compiled-in playbook, or a fixed fallback. Toolless
 /// jobs (the shield) never get a playbook: they have no tools to describe.
 pub fn system_prompt(profile: Profile, playbook: Option<table_core::Playbook>) -> &'static str {
