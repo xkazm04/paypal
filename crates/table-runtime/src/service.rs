@@ -17,6 +17,11 @@ use table_proto::AgentSigner;
 /// moved (DECISIONS section 8).
 const PURCHASE_DECISION_WINDOW_SECS: i64 = 24 * 3600;
 
+/// Saturates so a clock reading near `i64::MAX` cannot wrap into a past deadline.
+pub(crate) fn default_purchase_deadline(now: i64) -> i64 {
+    now.saturating_add(PURCHASE_DECISION_WINDOW_SECS)
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum Decision {
     OwnerAccept,
@@ -942,7 +947,7 @@ impl Runtime {
                     .map_or(due, |table| due.min(table.negotiation_deadline)),
             ),
             None if deal.kind == DealKind::Purchase => {
-                Some(self.clock.now() + PURCHASE_DECISION_WINDOW_SECS)
+                Some(default_purchase_deadline(self.clock.now()))
             }
             None => None,
         };
