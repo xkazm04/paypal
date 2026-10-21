@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Clause } from '@bindings/Clause';
-import { bandInputProblem, bandMissingSide, buildClause, refusalWords, ruleProblems, toLocalInput } from './mandateDraft';
+import { bandInputProblem, bandMissingSide, buildClause, percentDiffers, refusalWords, ruleProblems, toLocalInput } from './mandateDraft';
 
 const T = 1_800_000_000;
 const usd = (major: number) => ({ minor: Math.round(major * 100), currency: 'USD' as const });
@@ -55,6 +55,15 @@ describe('names Rust only takes as ids (table-core text_id!: ItemRef, PayeeRef, 
     expect(buildClause({ type: 'payees', payees: 'packrite-supply, HOUSE, a.b:c@d+e_f' }, 'USD', 'p').errors).toEqual([]);
     expect(buildClause({ type: 'band', items: 'monitor-27-4k', floor: '', ceiling: '300', rounds: '6', deadline: toLocalInput(T + 3600) }, 'USD', 'b').errors).toEqual([]);
     expect(buildClause({ type: 'payees', payees: 'x'.repeat(129) }, 'USD', 'p').errors).toHaveLength(1);
+  });
+});
+
+describe('the discount lever’s “was” hint', () => {
+  it('compares the percent as the wallet reads it, so retyping the same share is no change', () => {
+    for (const typed of ['20', '20%', ' 20 % ', '20.0', '20.00']) expect(percentDiffers(2000, typed)).toBe(false);
+    expect(percentDiffers(1250, '12.5')).toBe(false);
+    expect(percentDiffers(2000, '25')).toBe(true);
+    expect(percentDiffers(2000, '')).toBe(true);
   });
 });
 
