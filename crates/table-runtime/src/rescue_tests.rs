@@ -807,3 +807,49 @@ fn the_rescue_sentences_match_the_client_words_byte_for_byte() {
         assert!(words.contains(&format!("'{sentence}'")), "{sentence}");
     }
 }
+
+/// The replay reads the pasted subscription id as the watch list does: surrounding spaces are
+/// not part of PayPal's id, and the case is filed under the trimmed one.
+#[tokio::test]
+async fn a_replay_trims_the_subscription_id_as_the_watch_list_does() {
+    let (mut r, vault, ..) = runtime(true);
+    credentials(vault.as_ref());
+    r.sign_mandate(MandateSignArgs {
+        id: None,
+        agent: AgentSlot::Assistant,
+        clauses: rescue_clauses(),
+        not_before: 0,
+        expires: 10_000_000,
+    })
+    .unwrap();
+    let token = unlock_runtime(&mut r);
+    let mut padded = replay_args();
+    padded.subscription_id = "  I-S14 \n".into();
+    let deal: Deal = serde_json::from_value(
+        r.execute(
+            caller("approval", Some(&token)),
+            Action::RescueReplay(padded),
+        )
+        .await
+        .unwrap(),
+    )
+    .unwrap();
+    let case = r
+        .pipeline
+        .wallet
+        .ledger
+        .rescue_case(deal.id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(case.subscription_id, "I-S14");
+    let watched: Vec<RescueWatchView> = serde_json::from_value(
+        r.execute(
+            caller("approval", Some(&token)),
+            Action::RescueWatchAdd(watch_args("  I-S14 \n")),
+        )
+        .await
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(watched[0].subscription_id, "I-S14");
+}
