@@ -18,6 +18,7 @@ mod counterparties;
 mod countersign;
 pub use counterparties::*;
 mod mandates;
+mod negotiation;
 mod operations;
 pub use operations::OperationOutcome;
 mod stores;
