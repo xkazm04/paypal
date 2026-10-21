@@ -1,5 +1,31 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 use serde_json::Value;
+/// Every `.rs` file under `src/`, read from disk: the source guards below scan the whole shell,
+/// so a file added later (or one a hand list forgot) cannot hold an unguarded emit or handler.
+fn shell_sources() -> String {
+    fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                walk(&path, out);
+            } else if path.extension().is_some_and(|e| e == "rs") {
+                out.push(path);
+            }
+        }
+    }
+    let mut files = Vec::new();
+    walk(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
+        &mut files,
+    );
+    files.sort();
+    assert!(files.len() >= 10, "{files:?}");
+    files
+        .iter()
+        .map(|f| std::fs::read_to_string(f).unwrap())
+        .collect::<Vec<_>>()
+        .concat()
+}
 #[test]
 fn w3_release_set_is_approval_only_and_all_commands_are_declared() {
     let capabilities = [
@@ -107,14 +133,7 @@ fn client_reads_and_snooze_have_their_precise_label_grants() {
 fn shell_answered_commands_check_their_own_row_of_the_authority_table() {
     // The commands the shell answers itself never reach the runtime's gate, so each handler must
     // call the table-driven `label(&window, "<command>")` with its own name.
-    let sources = [
-        include_str!("../src/native.rs"),
-        include_str!("../src/native/commands.rs"),
-        include_str!("../src/native/routing.rs"),
-        include_str!("../src/native/surface.rs"),
-        include_str!("../src/native/events.rs"),
-    ]
-    .concat();
+    let sources = shell_sources();
     for a in table_client::authority::AUTHORITY
         .iter()
         .filter(|a| a.enforcer == table_client::authority::Enforcer::Shell)
@@ -142,14 +161,7 @@ fn every_window_event_goes_through_the_table_driven_emit() {
     // Who is told each event is a row in the authority table (`EVENTS`); the shell sends through
     // one helper that reads it, never a hand-written (window, event) pair.
     let events = include_str!("../src/native/events.rs");
-    let sources = [
-        include_str!("../src/native.rs"),
-        include_str!("../src/native/commands.rs"),
-        include_str!("../src/native/routing.rs"),
-        include_str!("../src/native/surface.rs"),
-        events,
-    ]
-    .concat();
+    let sources = shell_sources();
     assert!(
         !sources.contains("emit_to(\""),
         "a literal emit_to(\"<window>\", ...) bypasses the authority table"
