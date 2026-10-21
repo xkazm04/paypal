@@ -26,7 +26,8 @@ export type ApplyDemo = (next: DemoState | null) => void;
 export const applyDemo: ApplyDemo = (next) => {
   const { native } = demoNow();
   if (native) {
-    try { localStorage.setItem(DEMO_KEY, formatDemo(next)); } catch { return; /* nothing stored: stay as we are */ }
+    // Nothing stored: stay as we are, and lift the "Switching..." overlay (it covers the window).
+    try { localStorage.setItem(DEMO_KEY, formatDemo(next)); } catch { endSwitch(); return; }
     location.replace(`${location.pathname}${location.search}`);
     return;
   }
@@ -56,11 +57,14 @@ export function switchDemo(next: DemoState | null): void {
   notify();
 }
 
-/** Tests only. */
-export function resetDemoSwitchForTests(): void {
+/** No switch under way: the overlay goes (a switch that could not be applied). */
+function endSwitch(): void {
   switching = null;
   notify();
 }
+
+/** Tests only. */
+export const resetDemoSwitchForTests = endSwitch;
 
 function useSwitching(): Switching | null {
   return useSyncExternalStore((cb) => { subs.add(cb); return () => { subs.delete(cb); }; }, () => switching, () => null);
