@@ -10,14 +10,6 @@ import type { HouseState } from '@bindings/HouseState';
 
 export type PartId = 'agents' | 'engine' | 'lock' | 'mandate' | 'keychain' | 'paypal' | 'house';
 
-/** ←/→ order on the picture (the bracket tag sits between the engine and the mandate check). */
-export const PART_ORDER: readonly PartId[] = ['agents', 'engine', 'lock', 'mandate', 'keychain', 'paypal', 'house'];
-
-export const PART_NAME: Record<PartId, string> = {
-  agents: 'Your agents', engine: 'Agent app', lock: 'Approval lock', mandate: 'Your rules',
-  keychain: 'Saved keys', paypal: 'PayPal', house: 'House seller',
-};
-
 /** ok = closed · break = missing (red, dashed) · wait = needs a moment or the owner (gold/coral)
  *  · unknown = the contract cannot tell (dashed, never green) · off = no power reaches it · idle. */
 export type PartState = 'ok' | 'break' | 'wait' | 'unknown' | 'off' | 'idle';
@@ -226,24 +218,4 @@ export function settingsAnswer(c: Circuit, o: { firstRun: boolean; settingsKnown
   if (c.unknowns.some((u) => u.part !== 'paypal')) return { tone: 'calm', title: 'Still checking a few things', sub: 'Nothing is assumed to work until it answers.' };
   if (o.locked) return { tone: 'calm', title: 'Your wallet is ready', sub: 'Approving is locked for now. Unlock with Windows Hello when you need to.' };
   return { tone: 'done', title: 'Your wallet is ready', sub: 'Your agents may act, but only inside the rules you signed.' };
-}
-
-/** The three required steps (PayPal key, signed rules, agent app) and how many are done. */
-export function setupProgress(c: Circuit): { done: number; total: number } {
-  const need: PartId[] = ['keychain', 'mandate', 'engine'];
-  return { done: need.filter((p) => c.parts[p].state === 'ok').length, total: need.length };
-}
-
-/** Which part to select first: the first break on a first run, else PayPal (the authorities). */
-export function initialPart(c: Circuit, firstRun: boolean): PartId {
-  const b = c.breaks[0];
-  if (b) return b.part;
-  return firstRun ? 'agents' : 'paypal';
-}
-
-/** ←/→ through PART_ORDER, wrapping. */
-export function stepPart(cur: PartId, dir: 1 | -1): PartId {
-  const i = PART_ORDER.indexOf(cur);
-  const n = PART_ORDER.length;
-  return PART_ORDER[(i + dir + n) % n] ?? cur;
 }

@@ -8,23 +8,9 @@ export type PairMode = 'create' | 'join' | 'house';
 /** idle: nothing sent · code: our code is out, polling · words: the four words arrived. */
 export type PairPhase = 'idle' | 'code' | 'words';
 
-export type StepState = 'todo' | 'on' | 'done' | 'elsewhere';
-export type Step = { label: 'Code' | 'Words' | 'Pin'; state: StepState };
-
 export function pairPhase(hasOffer: boolean, hasWords: boolean): PairPhase {
   if (hasWords) return 'words';
   return hasOffer ? 'code' : 'idle';
-}
-
-/** Code › Words › Pin. For join and HOUSE the "code" is the other side's code or the release pin;
- *  it reads done once words arrive. Pin happens in the approval window ("elsewhere") and is done
- *  only once Rust's `pairing:pinned` event for these words arrived. */
-export function pairSteps(phase: PairPhase, pinned = false): Step[] {
-  return [
-    { label: 'Code', state: phase === 'words' ? 'done' : 'on' },
-    { label: 'Words', state: pinned ? 'done' : phase === 'words' ? 'on' : 'todo' },
-    { label: 'Pin', state: pinned ? 'done' : 'elsewhere' },
-  ];
 }
 
 /** While words are on screen, switching mode would drop them: other tabs are disabled. */

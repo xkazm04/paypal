@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  allTicked, canSubmit, joinCode, mirrorStage, mirrorText, modeLocked, newTicks, houseWords, pairAnswer, pairPhase, pairSteps, payeeProblem, tickLabel, tickProgress, ticksDone, toggleTick, wizardSteps,
+  allTicked, canSubmit, joinCode, mirrorStage, mirrorText, modeLocked, newTicks, houseWords, pairAnswer, pairPhase, payeeProblem, tickLabel, tickProgress, ticksDone, toggleTick, wizardSteps,
 } from './pairing';
 
 describe('pairing · Main side', () => {
@@ -9,15 +9,6 @@ describe('pairing · Main side', () => {
     expect(pairPhase(true, false)).toBe('code');
     expect(pairPhase(true, true)).toBe('words');
     expect(pairPhase(false, true)).toBe('words');
-  });
-
-  it('Pin happens in the approval window and is done in Main only after pairing:pinned', () => {
-    for (const ph of ['idle', 'code', 'words'] as const) {
-      expect(pairSteps(ph).find((s) => s.label === 'Pin')?.state).toBe('elsewhere');
-    }
-    expect(pairSteps('words').map((s) => s.state)).toEqual(['done', 'on', 'elsewhere']);
-    expect(pairSteps('code').map((s) => s.state)).toEqual(['on', 'todo', 'elsewhere']);
-    expect(pairSteps('words', true).map((s) => s.state)).toEqual(['done', 'done', 'done']);
   });
 
   it('other modes are locked while a code or words are out', () => {
