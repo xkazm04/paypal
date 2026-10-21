@@ -11,6 +11,12 @@ use table_ledger::AuditEntry;
 /// AGENTS.md: engines are named claude-code and codex-cli, never by vendor product.
 const SCRIPTED_ROLE_REFUSAL: &str = "The built-in negotiator only haggles at a table; shopping and assistant runs need the claude-code or codex-cli engine.";
 
+/// agent_start's refusals, one per reason (shown to the owner as they are).
+pub(crate) const AGENTS_PAUSED: &str = "Agents are paused. Resume them to start one.";
+pub(crate) const ALREADY_RUNNING: &str = "An agent is already working on this deal.";
+pub(crate) const RUN_LIMIT: &str =
+    "The most agents that can work at once are already running. Try again when one finishes.";
+
 pub(crate) struct ActiveRun {
     pub(crate) scope: AgentScope,
     pub(crate) snapshot: RunSnapshot,
@@ -146,9 +152,15 @@ impl Runtime {
         )
     }
     pub(crate) fn start_agent(&mut self, id: DealId) -> Result<RunSnapshot, CommandError> {
-        if self.paused || self.runs.len() >= 4 || self.runs.values().any(|r| r.scope.deal_id == id)
-        {
-            return Err(unavailable("Agents paused or run limit reached"));
+        // Three different reasons, each told as itself: the owner acts on each differently.
+        if self.paused {
+            return Err(unavailable(AGENTS_PAUSED));
+        }
+        if self.runs.values().any(|r| r.scope.deal_id == id) {
+            return Err(unavailable(ALREADY_RUNNING));
+        }
+        if self.runs.len() >= 4 {
+            return Err(unavailable(RUN_LIMIT));
         }
         self.attach_scripted()?;
         let (adapter, info) = self

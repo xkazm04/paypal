@@ -73,12 +73,12 @@ async fn actor_runs_recheck_scope_pause_cancels_revoke_stops_old_intents_and_res
     })
     .await
     .unwrap();
-    assert!(
-        actor
-            .execute::<RunSnapshot>(caller("main", None), Action::Start(deal.id))
-            .await
-            .is_err()
-    );
+    // A second start on the same deal says so, not "paused" or "limit".
+    let again = actor
+        .execute::<RunSnapshot>(caller("main", None), Action::Start(deal.id))
+        .await
+        .unwrap_err();
+    assert_eq!(again.message, crate::engines::ALREADY_RUNNING);
     let (tx, rx) = tokio::sync::oneshot::channel();
     actor
         .sender
@@ -131,12 +131,11 @@ async fn actor_runs_recheck_scope_pause_cancels_revoke_stops_old_intents_and_res
         runs.iter()
             .any(|r| r.run == run.run && r.state == RunState::Cancelled)
     );
-    assert!(
-        actor
-            .execute::<RunSnapshot>(caller("main", None), Action::Start(deal.id))
-            .await
-            .is_err()
-    );
+    let paused = actor
+        .execute::<RunSnapshot>(caller("main", None), Action::Start(deal.id))
+        .await
+        .unwrap_err();
+    assert_eq!(paused.message, crate::engines::AGENTS_PAUSED);
     let (tx, rx) = tokio::sync::oneshot::channel();
     actor
         .sender
@@ -557,4 +556,42 @@ async fn reads_verify_against_the_owner_key_in_memory_not_the_keychain() {
         "{:?}",
         vault.1.lock().unwrap()
     );
+}
+
+/// The fifth run at once is refused with its own reason, for a deal no run is on.
+#[test]
+fn a_start_past_the_run_limit_says_so() {
+    let (mut r, _, _, _, _) = runtime(true);
+    let engine = Arc::new(WaitingEngine {
+        cancellations: AtomicUsize::new(0),
+    });
+    r.engines.push((
+        engine,
+        table_engine::EngineInfo {
+            id: table_engine::EngineId::ClaudeCode,
+            available: true,
+            version: Some("offline-fixture".into()),
+            reason: None,
+        },
+    ));
+    r.engine = table_engine::EngineId::ClaudeCode;
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let _guard = rt.enter();
+    let (server_actor, _) = spawn(runtime(true).0);
+    let server = table_mcp::Server::with_async(
+        Arc::new(crate::engines::ActorBridge(server_actor.sender.downgrade())),
+        8765,
+        Arc::new(FixedClock(100)),
+    )
+    .unwrap();
+    r.mcp = Some((server, "http://127.0.0.1:8765/mcp".into()));
+    let (tx, _rx) = tokio::sync::mpsc::channel(1);
+    r.actor_sender = Some(tx.downgrade());
+    let deals: Vec<Deal> = (0..5).map(|_| setup(&mut r, Side::Seller).0).collect();
+    for deal in &deals[..4] {
+        r.start_agent(deal.id).unwrap();
+    }
+    let error = r.start_agent(deals[4].id).unwrap_err();
+    assert_eq!(error.message, crate::engines::RUN_LIMIT);
+    drop(tx);
 }
