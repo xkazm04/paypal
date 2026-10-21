@@ -345,7 +345,12 @@ export function Tumbler() {
     };
   };
 
+  // Armed in the press itself: `busy` disables the button only after a render, and the W key never
+  // looks at it, so a second press while the wallet answers would send a second withdraw.
+  const withdrawing = useRef(false);
   const withdraw = useCallback(async (it: AttentionItem) => {
+    if (withdrawing.current) return;
+    withdrawing.current = true;
     setBusy(true);
     try {
       awaitAck(it, 'withdraw');
@@ -357,6 +362,7 @@ export function Tumbler() {
       setConfirmId(null);
       fail(it.deal_id, 'Withdraw', e);
     } finally {
+      withdrawing.current = false;
       setBusy(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
