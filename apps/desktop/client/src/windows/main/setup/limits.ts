@@ -20,7 +20,7 @@ function limitOf(key: Limit['key'], clauses: readonly Clause[]): Limit | null {
       if (c.ceiling) return { key, value: formatMoney(c.ceiling), label: 'most you’ll pay' };
       if (c.floor) return { key, value: formatMoney(c.floor), label: 'least you’ll accept' };
     }
-    if (key === 'velocity' && c.type === 'velocity') return { key, value: formatMoney(c.max_total_day), label: `a day, up to ${c.max_deals_day} deals` };
+    if (key === 'velocity' && c.type === 'velocity') return { key, value: formatMoney(c.max_total_day), label: `a day, up to ${c.max_deals_day} ${c.max_deals_day === 1 ? 'deal' : 'deals'}` };
     if (key === 'ask' && c.type === 'human_present_over') return { key, value: formatMoney(c.amount), label: 'above this it asks you' };
   }
   return null;
