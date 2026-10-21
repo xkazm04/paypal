@@ -501,3 +501,38 @@ fn an_owner_accept_must_be_for_the_deal_round_and_terms_its_envelope_accepts() {
         );
     }
 }
+#[test]
+fn a_message_lives_at_most_a_day_and_never_before_the_epoch() {
+    let (a, b) = (signer(), signer());
+    let receiver = b.key_id().unwrap();
+    let nonces = MemoryNonces::default();
+    let note = |iat: i64, exp: i64| {
+        let mut e = envelope(&a, &b);
+        e.typ = MsgType::Note;
+        e.body = Body::Note {
+            text: ShortText::new("ok".into()).unwrap(),
+        };
+        e.iat = iat;
+        e.exp = exp;
+        let raw = a.sign(&e).unwrap();
+        let mut ctx = context(&e, &receiver, &nonces);
+        ctx.now = iat.max(0);
+        verify(&raw, &a.public_key(), &ctx).map(|_| ())
+    };
+    // A non-offer message may live a full day (offers and counters only ten minutes)...
+    note(100, 100 + 86_400).unwrap();
+    // ...and not a second longer, nor be dated before 1970, nor expire past the safe range.
+    for (iat, exp) in [
+        (100, 100 + 86_401),
+        (-1, 600),
+        (
+            table_core::MAX_SAFE_INTEGER - 10,
+            table_core::MAX_SAFE_INTEGER + 1,
+        ),
+    ] {
+        assert!(
+            matches!(note(iat, exp), Err(ProtocolError::Time)),
+            "iat {iat} exp {exp}"
+        );
+    }
+}
