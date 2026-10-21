@@ -93,8 +93,6 @@ export const COUNTER = {
   historyUnread: 'The order history could not be read right now. Nothing has changed with your money.',
   by: { you: 'your agent', them: 'their agent', house: 'house' } as Readonly<Record<string, string>>,
   verified: ' · verified',
-  words: 'Their words',
-  wordsEnd: 'unchecked, shown as plain text',
   // prices
   catalogPending: 'catalog not connected yet',
   catalogUnknown: 'Your shop’s catalog is not connected yet, so list price, stock and listing details are not known here. Nothing is guessed.',
@@ -151,7 +149,6 @@ export const COUNTER = {
   handedOff: (price: string, more: number): string => `The approval window is open with the new lowest price, ${price}. Check it and sign there${more ? `; ${plural(more, 'more price')} follow one at a time` : ''}.`,
   handedOffNone: 'The approval window is open on your rules. This item has no lowest price yet, so add it there.',
   escWarn: 'Your price change is not signed yet. Press Esc again to leave and discard it.',
-  impactNone: 'No open quote or order is on a changed item.',
   impact: {
     withdraw: (label: string, amt: string): string => `${label} · the ${amt} quote is under the new lowest price. Signing withdraws it · no money moves.`,
     stays: (label: string, amt: string): string => `${label} · the ${amt} quote is at or above the new lowest price and stays valid.`,
