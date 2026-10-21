@@ -20,7 +20,7 @@ import { ModeBadge } from '../../shared/honesty';
 import { MODULE } from '../../shared/modules';
 import { Btn, Chip, Hint, Hourglass, Kv, Meter, Popover } from '../../shared/ui';
 import {
-  MODE_SHORT, approveWindow, cardActions, cardClock, cardKeys, cardQuestion, cardWhy, hhmm, moneyCheckEnded, ladderCaption, ladderFill, ringFill, rung, spendMeter, splitHeadline,
+  MODE_SHORT, approveWindow, cardActions, cardClock, cardKeys, cardQuestion, cardWhy, moneyCheckEnded, ladderCaption, ladderFill, ringFill, rung, spendMeter, splitHeadline, untilLabel,
   type CardAction, type Handoff, type Ticker,
 } from './logic';
 import { WALK_AWAY_HOURS, walkAway, type WalkAway } from './logic';
@@ -91,7 +91,7 @@ export function Notice({ failure }: { failure: { what: string; error: WalletErro
 function ladderLine(deadline: number | null, now: number, hold: boolean, checking = false, ended = false): string {
   const cap = ladderCaption(rung(deadline, now), hold, checking, ended);
   if (deadline === null) return cap;
-  return `${cap} · until ${deadline - now > 20 * 3600 ? clockLabel(deadline) : hhmm(deadline)}`;
+  return `${cap} · until ${untilLabel(deadline, now)}`;
 }
 
 const LADDER_HELP = 'The ring glows softly from 2 hours before the deadline and the card comes back at 15 minutes. At the deadline the safe default runs.';

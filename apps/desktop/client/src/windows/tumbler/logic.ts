@@ -12,7 +12,7 @@ import type { ReceiptEvent } from '@bindings/ReceiptEvent';
 import type { TumblerPreferences } from '@bindings/TumblerPreferences';
 import type { VisualState } from '@bindings/VisualState';
 import { LADDER } from '@bindings/ladder';
-import { clockLabel, countdown, formatMinor } from '../../lib/format';
+import { clockLabel, countdown, formatMinor, nowUnix } from '../../lib/format';
 import { headlineWords, houseWords, MONEY_CHECK_ENDED, MONEY_CHECK_ENDED_SILENCE, modeWord, moneyCheckWord, ruleNameOf, SELLER_SAYS_PAID, shieldRuleWord, silenceWords, stateWord, timeLeftWords } from '../../lib/words';
 
 /** Rust's size table (crates/table-attention placement.rs). The page never sends pixels;
@@ -333,6 +333,11 @@ export function hhmm(unix: number): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+/** When something ends, as short as it can be said: the time alone inside 20 h, else with its day. */
+export function untilLabel(at: number, now: number): string {
+  return at - now > 20 * 3600 ? clockLabel(at, now) : hhmm(at);
+}
+
 /** "Countersign $329.00" → { lead: "Countersign", amount: "$329.00" } when the Rust headline
  *  ends with the item's own amount, so the amount can be set in the money face. */
 export function splitHeadline(headline: string, minor: number, currency: Currency): { lead: string; amount: string } | null {
@@ -355,9 +360,9 @@ const key = (p: string) => `${p}:${++seq}`;
 // The name reads as the card reads it (houseWords: "HOUSE seller" is "House seller").
 const withWho = (i: AttentionItem | undefined): string => (i?.counterparty ? ` · ${houseWords(i.counterparty)}` : '');
 
-export function arrivalTicker(item: AttentionItem): Ticker {
+export function arrivalTicker(item: AttentionItem, now: number = nowUnix()): Ticker {
   const hold = item.kind === 'hold';
-  const when = item.deadline !== null ? `until ${hhmm(item.deadline)}` : 'no clock';
+  const when = item.deadline !== null ? `until ${untilLabel(item.deadline, now)}` : 'no clock';
   const split = splitHeadline(item.headline, item.amount_minor, item.currency);
   return {
     key: key('arrive'),
@@ -487,7 +492,7 @@ export function approveWindow(approveUntil: number | null, now: number): Approve
   if (approveUntil === null) return { state: 'unknown' };
   const r = rung(approveUntil, now);
   const left = approveUntil - now;
-  const until = left > 20 * 3600 ? clockLabel(approveUntil) : hhmm(approveUntil);
+  const until = untilLabel(approveUntil, now);
   if (r === 'past' || r === 'none') return { state: 'closed', until };
   return { state: 'open', left: left >= 3600 ? countdown(approveUntil, now) : countdown(approveUntil, now).replace(/^0:/, ''), until, rung: r };
 }
