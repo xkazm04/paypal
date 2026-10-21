@@ -567,6 +567,58 @@ async fn every_refusal_comes_before_any_paypal_call() {
     assert_eq!(other.wallet.ledger.list_deals().unwrap().len(), before);
 }
 
+/// The rescue rule in `Pipeline::authority` on its own: with the owner's presence threshold above
+/// the invoice (so clause 6 would allow it), the signed rule, a seller's mandate and the house
+/// mandate still never send a rescue invoice. The test above passes on the zero threshold alone.
+/// Negative control: removing the `DealKind::Rescue` refusal in table-app pipeline.rs left every
+/// wallet-app test green before this test and fails it.
+#[tokio::test]
+async fn no_rule_sends_a_rescue_invoice_even_under_the_owners_presence_threshold() {
+    let mut r = rig();
+    let id = r.open(1, RescueSource::Paypal).id;
+    let mut loose = rescue_payload(&signer(), 2, 2000);
+    loose.agent_key = r.agent_key;
+    for clause in &mut loose.clauses {
+        if let Clause::HumanPresentOver { amount } = clause {
+            *amount = usd(5000);
+        }
+    }
+    r.p.wallet
+        .ledger
+        .insert_mandate(
+            &OpenMandate {
+                owner_sig: r.owner.sign_payload(&loose).unwrap(),
+                payload: loose,
+            },
+            &r.owner.public_key(),
+            T0,
+        )
+        .unwrap();
+    r.p.wallet.ledger.rebind_mandate(id, 2, T0).unwrap();
+    let authorities = || {
+        [
+            Authority::Policy,
+            Authority::SellerMandate,
+            Authority::HouseMandate,
+        ]
+    };
+    for step in [MoneyStep::Create, MoneyStep::Authorize, MoneyStep::Capture] {
+        for authority in authorities() {
+            assert!(
+                !r.p.step_allowed(id, step, Category::Service, authority, T0, true)
+                    .unwrap(),
+                "{step:?}"
+            );
+        }
+    }
+    let r2 =
+        r.p.create(id, 1, Category::Service, Authority::Policy, T0)
+            .await;
+    assert!(r2.is_err());
+    assert!(r.posts().is_empty());
+    assert_eq!(r.calls(id), 0);
+}
+
 #[tokio::test]
 async fn a_lost_create_is_found_by_its_number_and_never_made_twice() {
     let mut r = rig();
