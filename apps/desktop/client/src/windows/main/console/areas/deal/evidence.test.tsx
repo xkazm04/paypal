@@ -161,3 +161,17 @@ describe('the statement check looks where the payment can be', () => {
     expect(w.end - w.start).toBeLessThanOrEqual(31 * 86400);
   });
 });
+
+describe('what PayPal has, read aloud', () => {
+  afterEach(cleanup);
+
+  it('a record PayPal does not have yet says so, not only by an empty dot', () => {
+    const deal = { ...buyer.deal, paypal: { order: 'ORD-1', authorization: null, capture: null, subscription: null } };
+    const { container } = render(<ProofPanel deal={deal} ev={{ data: undefined, error: null }} band={null} onOpen={() => {}} />);
+    const refs = [...container.querySelectorAll('.dv-refs .ref')];
+    const said = (r: Element) => r.querySelector('.sr-only')?.textContent ?? '';
+    expect(refs.map((r) => r.classList.contains('has'))).toEqual([true, false, false]);
+    expect(said(refs[0]!)).toBe('');
+    for (const r of refs.slice(1)) expect(said(r)).toContain(DEAL_PROOF.notYet);
+  });
+});

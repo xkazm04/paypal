@@ -67,7 +67,7 @@ export function ProofPanel({ deal, ev, band, watch, onOpen }: { deal: Deal; ev: 
               {shownRefs(deal).map((k) => {
                 const l = DEAL_PROOF.refs[k];
                 const id = deal.paypal[k];
-                return <span key={k} className={`ref ${id ? 'has' : ''}`} title={id ? DEAL_PROOF.refTitle(l, id) : DEAL_PROOF.noRef(l)}><i aria-hidden="true" />{l}</span>;
+                return <span key={k} className={`ref ${id ? 'has' : ''}`} title={id ? DEAL_PROOF.refTitle(l, id) : DEAL_PROOF.noRef(l)}><i aria-hidden="true" />{l}{id ? null : <span className="sr-only"> · {DEAL_PROOF.notYet}</span>}</span>;
               })}
             </span>
           ) : <span className="dv-none"><i aria-hidden="true" />{deal.state === 'REFUSED' ? DEAL_PROOF.neverSent : DEAL_PROOF.nothingSent}</span>}
