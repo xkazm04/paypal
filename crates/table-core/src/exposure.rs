@@ -19,7 +19,7 @@ pub const ENVELOPE_CLAUSE: u8 = 0;
 /// Domain tag of the owner's signature over [`WalletEnvelope`], so it never verifies as a mandate
 /// (signed over its bare canonical bytes) or any other commitment.
 pub const WALLET_ENVELOPE_DOMAIN: &[u8] = b"table.wallet-envelope.v1\0";
-const DAY: Timestamp = 86_400;
+pub(crate) const DAY: Timestamp = 86_400;
 
 /// One deal as the fold needs it. `agreed` is the first AGREED transition's audit `(seq, at)`
 /// when that row can be read.
