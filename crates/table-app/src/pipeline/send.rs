@@ -1,4 +1,4 @@
-use super::{Authority, MoneyStep, Pipeline, Resolve};
+use super::{Authority, Completion, MoneyStep, Pipeline, Resolve};
 use crate::Error;
 use table_core::*;
 use table_paypal::{CreateOrder, Order, OrderStatus, Payment, RequestId, ResourceId};
@@ -60,10 +60,12 @@ impl Pipeline {
                 self.complete(
                     &deal,
                     attempt,
-                    "create",
-                    e.observations(),
-                    &deal.paypal,
-                    None,
+                    Completion {
+                        operation: "create",
+                        observations: e.observations(),
+                        refs: &deal.paypal,
+                        event: None,
+                    },
                     now,
                 )?;
                 return Err(Error::Unavailable);
@@ -76,10 +78,12 @@ impl Pipeline {
             self.complete(
                 &deal,
                 attempt,
-                "create",
-                &response.observations,
-                &refs,
-                Some(DealEvent::Mismatch),
+                Completion {
+                    operation: "create",
+                    observations: &response.observations,
+                    refs: &refs,
+                    event: Some(DealEvent::Mismatch),
+                },
                 now,
             )?;
             return Err(Error::Invalid);
@@ -87,10 +91,12 @@ impl Pipeline {
         self.complete(
             &deal,
             attempt,
-            "create",
-            &response.observations,
-            &refs,
-            Some(DealEvent::SettleVerified),
+            Completion {
+                operation: "create",
+                observations: &response.observations,
+                refs: &refs,
+                event: Some(DealEvent::SettleVerified),
+            },
             now,
         )?;
         self.send_settle(
@@ -346,10 +352,12 @@ impl Pipeline {
                 self.complete(
                     &deal,
                     attempt,
-                    "authorize",
-                    e.observations(),
-                    &deal.paypal,
-                    None,
+                    Completion {
+                        operation: "authorize",
+                        observations: e.observations(),
+                        refs: &deal.paypal,
+                        event: None,
+                    },
                     now,
                 )?;
                 return Err(Error::Unavailable);
@@ -365,13 +373,15 @@ impl Pipeline {
         self.complete(
             &deal,
             attempt,
-            "authorize",
-            &r.observations,
-            &refs,
-            if valid {
-                Some(DealEvent::AuthorizationConfirmed)
-            } else {
-                None
+            Completion {
+                operation: "authorize",
+                observations: &r.observations,
+                refs: &refs,
+                event: if valid {
+                    Some(DealEvent::AuthorizationConfirmed)
+                } else {
+                    None
+                },
             },
             now,
         )?;
@@ -445,10 +455,12 @@ impl Pipeline {
                 self.complete(
                     &deal,
                     attempt,
-                    "capture",
-                    e.observations(),
-                    &deal.paypal,
-                    None,
+                    Completion {
+                        operation: "capture",
+                        observations: e.observations(),
+                        refs: &deal.paypal,
+                        event: None,
+                    },
                     now,
                 )?;
                 return Err(Error::Unavailable);
@@ -462,13 +474,15 @@ impl Pipeline {
         self.complete(
             &deal,
             attempt,
-            "capture",
-            &r.observations,
-            &refs,
-            if valid {
-                Some(DealEvent::CaptureConfirmed)
-            } else {
-                None
+            Completion {
+                operation: "capture",
+                observations: &r.observations,
+                refs: &refs,
+                event: if valid {
+                    Some(DealEvent::CaptureConfirmed)
+                } else {
+                    None
+                },
             },
             now,
         )?;

@@ -1,6 +1,7 @@
 //! The invoice plumbing of the rescue flow: create, send and resolve the one invoice a fix makes.
 
 use super::*;
+use crate::pipeline::Completion;
 
 impl Pipeline {
     /// Create the invoice reserved under `request` and finish its operation with PayPal's answer:
@@ -21,14 +22,16 @@ impl Pipeline {
                 self.complete(
                     deal,
                     1,
-                    "invoice-create",
-                    &r.observations,
-                    &refs,
-                    Some(if valid {
-                        DealEvent::InvoiceDrafted
-                    } else {
-                        DealEvent::Mismatch
-                    }),
+                    Completion {
+                        operation: "invoice-create",
+                        observations: &r.observations,
+                        refs: &refs,
+                        event: Some(if valid {
+                            DealEvent::InvoiceDrafted
+                        } else {
+                            DealEvent::Mismatch
+                        }),
+                    },
                     now,
                 )?;
                 if valid {
@@ -41,10 +44,12 @@ impl Pipeline {
                 self.complete(
                     deal,
                     1,
-                    "invoice-create",
-                    e.observations(),
-                    &deal.paypal,
-                    None,
+                    Completion {
+                        operation: "invoice-create",
+                        observations: e.observations(),
+                        refs: &deal.paypal,
+                        event: None,
+                    },
                     now,
                 )?;
                 Err(Error::Unavailable)
@@ -84,10 +89,12 @@ impl Pipeline {
                 self.complete(
                     deal,
                     1,
-                    "invoice-send",
-                    &r.observations,
-                    &deal.paypal,
-                    Some(DealEvent::SettleVerified),
+                    Completion {
+                        operation: "invoice-send",
+                        observations: &r.observations,
+                        refs: &deal.paypal,
+                        event: Some(DealEvent::SettleVerified),
+                    },
                     now,
                 )?;
                 self.wallet.ledger.set_deadline(
@@ -102,10 +109,12 @@ impl Pipeline {
                 self.complete(
                     deal,
                     1,
-                    "invoice-send",
-                    e.observations(),
-                    &deal.paypal,
-                    None,
+                    Completion {
+                        operation: "invoice-send",
+                        observations: e.observations(),
+                        refs: &deal.paypal,
+                        event: None,
+                    },
                     now,
                 )?;
                 Err(Error::Unavailable)

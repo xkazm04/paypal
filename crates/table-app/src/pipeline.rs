@@ -4,6 +4,15 @@ use table_core::*;
 use table_ledger::{HttpMethod, OperationOutcome, PaypalCall, PaypalPath};
 use table_paypal::{CreateOrder, Observation, PayPalApi, RequestId, ResourceId};
 use table_proto::Body;
+
+/// What a finished PayPal operation produced: the calls it observed, the references it learned
+/// and the deal event it earns, recorded together by [`Pipeline::complete`].
+pub(crate) struct Completion<'a> {
+    pub(crate) operation: &'a str,
+    pub(crate) observations: &'a [Observation],
+    pub(crate) refs: &'a PaypalRefs,
+    pub(crate) event: Option<DealEvent>,
+}
 mod read_state;
 mod resolve;
 mod send;
@@ -221,20 +230,24 @@ impl Pipeline {
             Ok(r) => self.complete(
                 deal,
                 attempt,
-                "void",
-                &r.observations,
-                &deal.paypal,
-                Some(event),
+                Completion {
+                    operation: "void",
+                    observations: &r.observations,
+                    refs: &deal.paypal,
+                    event: Some(event),
+                },
                 now,
             ),
             Err(e) => {
                 self.complete(
                     deal,
                     attempt,
-                    "void",
-                    e.observations(),
-                    &deal.paypal,
-                    None,
+                    Completion {
+                        operation: "void",
+                        observations: e.observations(),
+                        refs: &deal.paypal,
+                        event: None,
+                    },
                     now,
                 )?;
                 Err(Error::Unavailable)
@@ -588,24 +601,20 @@ impl Pipeline {
             })
             .collect()
     }
-    #[allow(clippy::too_many_arguments)] // Private helper mirrors the typed ledger outcome.
     pub(crate) fn complete(
         &mut self,
         deal: &Deal,
         attempt: u8,
-        operation: &str,
-        observations: &[Observation],
-        refs: &PaypalRefs,
-        event: Option<DealEvent>,
+        completion: Completion<'_>,
         now: Timestamp,
     ) -> Result<(), Error> {
         self.wallet.ledger.finish_operation(OperationOutcome {
             id: deal.id,
             attempt,
-            operation,
-            calls: &self.calls(deal.id, observations, now)?,
-            refs,
-            event,
+            operation: completion.operation,
+            calls: &self.calls(deal.id, completion.observations, now)?,
+            refs: completion.refs,
+            event: completion.event,
             at: now,
         })?;
         Ok(())
