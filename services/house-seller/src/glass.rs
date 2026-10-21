@@ -34,19 +34,28 @@ pub struct Published {
     chain: Vec<H256>,
 }
 impl Published {
-    /// One page, newest first: deals older than `before` (when given), at most `limit`.
+    /// One page, newest first: deals older than `before` (when given), at most `limit`. Only the
+    /// page's own deals are copied: a public GET never clones the whole projection (up to
+    /// [`LEDGER_CAP`] deals) to return [`PAGE_MAX`] of them.
     pub fn page(&self, before: Option<DealId>, limit: usize) -> HouseLedgerView {
         let limit = limit.clamp(1, PAGE_MAX);
-        let mut view = self.view.clone();
-        let older: Vec<HouseDealView> = view
+        let all = &self.view;
+        let mut older = all
             .deals
-            .into_iter()
-            .filter(|d| before.is_none_or(|b| d.deal_id < b))
-            .collect();
-        let held = u32::try_from(self.view.deals.len()).unwrap_or(u32::MAX);
-        view.more = older.len() > limit || self.view.total > held;
-        view.deals = older.into_iter().take(limit).collect();
-        view
+            .iter()
+            .filter(|d| before.is_none_or(|b| d.deal_id < b));
+        let deals: Vec<HouseDealView> = older.by_ref().take(limit).cloned().collect();
+        let held = u32::try_from(all.deals.len()).unwrap_or(u32::MAX);
+        HouseLedgerView {
+            format: all.format.clone(),
+            head: all.head.clone(),
+            release: all.release.clone(),
+            mandate: all.mandate.clone(),
+            more: older.next().is_some() || all.total > held,
+            deals,
+            total: all.total,
+            refusals: all.refusals,
+        }
     }
 }
 
