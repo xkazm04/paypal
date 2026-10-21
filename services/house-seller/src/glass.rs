@@ -244,25 +244,45 @@ pub fn project_deal(facts: &HouseDealFacts, ask: Money) -> HouseDealView {
     }
 }
 
-impl Seller {
-    pub(crate) fn note_refusal(&mut self, error: &Error) {
-        let r = &mut self.refusals;
+/// Why a table request was turned away. The one classification behind both the request's HTTP
+/// answer (`POST /v1/house/tables`) and the public refusal count, so the two cannot disagree.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TurnedAway {
+    /// The signed daily limit (mandate clause 5): 400 with the `daily_limit` code.
+    DailyLimit,
+    /// The house has no room: 429.
+    Full,
+    /// Any other refusal of the request itself: 400 with the `other` code.
+    Other,
+}
+impl TurnedAway {
+    /// `None` is a fault, not a refusal (503): it is not counted.
+    pub(crate) fn of(error: &Error) -> Option<Self> {
         match error {
             Error::App(table_app::Error::Refused(refusal))
                 if refusal.clause == crate::hosted::DAILY_LIMIT_CLAUSE =>
             {
-                r.daily_limit = r.daily_limit.saturating_add(1);
+                Some(Self::DailyLimit)
             }
-            Error::Full => r.full = r.full.saturating_add(1),
+            Error::Full => Some(Self::Full),
             Error::Invalid
             | Error::App(
                 table_app::Error::Refused(_)
                 | table_app::Error::Agent(_)
                 | table_app::Error::Permission,
-            ) => {
-                r.other = r.other.saturating_add(1);
-            }
-            _ => {}
+            ) => Some(Self::Other),
+            _ => None,
+        }
+    }
+}
+impl Seller {
+    pub(crate) fn note_refusal(&mut self, error: &Error) {
+        let r = &mut self.refusals;
+        match TurnedAway::of(error) {
+            Some(TurnedAway::DailyLimit) => r.daily_limit = r.daily_limit.saturating_add(1),
+            Some(TurnedAway::Full) => r.full = r.full.saturating_add(1),
+            Some(TurnedAway::Other) => r.other = r.other.saturating_add(1),
+            None => {}
         }
     }
     /// Table requests turned away since the house started.

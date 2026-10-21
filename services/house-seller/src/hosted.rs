@@ -1136,18 +1136,12 @@ async fn table(
             )
                 .into_response()
         };
-        match e {
-            Error::App(table_app::Error::Refused(r)) if r.clause == DAILY_LIMIT_CLAUSE => {
-                refused(table_relay::Refusal::DailyLimit)
-            }
-            Error::Invalid
-            | Error::App(
-                table_app::Error::Refused(_)
-                | table_app::Error::Agent(_)
-                | table_app::Error::Permission,
-            ) => refused(table_relay::Refusal::Other),
-            Error::Full => StatusCode::TOO_MANY_REQUESTS.into_response(),
-            _ => StatusCode::SERVICE_UNAVAILABLE.into_response(),
+        // The same classification the public refusal count uses (`TurnedAway`).
+        match crate::glass::TurnedAway::of(&e) {
+            Some(crate::glass::TurnedAway::DailyLimit) => refused(table_relay::Refusal::DailyLimit),
+            Some(crate::glass::TurnedAway::Other) => refused(table_relay::Refusal::Other),
+            Some(crate::glass::TurnedAway::Full) => StatusCode::TOO_MANY_REQUESTS.into_response(),
+            None => StatusCode::SERVICE_UNAVAILABLE.into_response(),
         }
     })
 }
@@ -1343,6 +1337,33 @@ mod tests {
         let started = std::time::Instant::now();
         assert!(matches!(h.snapshot(deal()).await, Err(Error::Unavailable)));
         assert!(started.elapsed() >= Duration::from_millis(50));
+    }
+    #[test]
+    fn a_turned_away_request_is_answered_and_counted_by_one_classification() {
+        use crate::glass::TurnedAway;
+        let refused = |clause| {
+            Error::App(table_app::Error::Refused(Refusal {
+                clause,
+                reason: "words never shown".into(),
+                cause: None,
+            }))
+        };
+        for (error, want) in [
+            (refused(DAILY_LIMIT_CLAUSE), Some(TurnedAway::DailyLimit)),
+            (refused(DAILY_LIMIT_CLAUSE + 1), Some(TurnedAway::Other)),
+            (Error::Invalid, Some(TurnedAway::Other)),
+            (
+                Error::App(table_app::Error::Permission),
+                Some(TurnedAway::Other),
+            ),
+            (Error::Full, Some(TurnedAway::Full)),
+            (Error::Unavailable, None),
+            (Error::Config("x"), None),
+            (Error::Ledger(LedgerError::NotFound), None),
+            (Error::App(table_app::Error::Unavailable), None),
+        ] {
+            assert_eq!(TurnedAway::of(&error), want, "{}", error.code());
+        }
     }
     #[tokio::test]
     async fn healthz_follows_the_heartbeat() {
