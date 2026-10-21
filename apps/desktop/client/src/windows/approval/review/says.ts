@@ -1,5 +1,5 @@
-// The one plain sentence under the approval title ("what exactly am I approving, and is it safe?"),
-// and the mapping from The Diff's rows onto the checks summary. Pure and display-only: nothing
+// The one plain sentence under the approval title ("what exactly am I approving, and is it safe?").
+// Pure and display-only: nothing
 // here decides what is allowed (gating.ts) or what a row reads (diff.ts); it only chooses words
 // from facts the wallet already reported. A sentence never promises more than the facts say:
 // an amount that was not compared is said to be uncompared, never "matching".
@@ -8,9 +8,9 @@ import type { Deal } from '@bindings/Deal';
 import type { Money } from '@bindings/Money';
 import { formatMoney } from '../../../lib/format';
 import { percentWords, reconWord, receiptWord, stateWord } from '../../../lib/words';
-import type { CheckState, IconName, StoryTone } from '../../../shared/ui';
+import type { IconName, StoryTone } from '../../../shared/ui';
 import type { Phase } from '../model';
-import type { DiffKind, DiffRow, Twin } from './diff';
+import type { DiffKind, Twin } from './diff';
 
 /** What the window is asking the owner to do, from which controls exist (gating.ts decides if they work). */
 export type Intent = 'accept' | 'countersign' | 'open' | 'capture' | 'release' | 'rescue' | null;
@@ -150,22 +150,5 @@ export function summarySentence(i: SaysInput): Says {
       return { tone: 'need', icon: 'pause', text: `Unpausing lets ${who}’s ${total} request go on. It doesn’t pay anything.` };
     default:
       return { tone: 'calm', icon: 'check', text: 'Nothing needs your decision here right now.', sub: `${who} · ${total}` };
-  }
-}
-
-// ---- diff rows → checks ------------------------------------------------------------------------
-
-/** Words on a row that mean "this is your call", not a pass and not a failure. */
-const ASKS = new Set(['asks you', 'your call', 'so you’re asked', 'paused']);
-
-/** How a Diff row reads in the checks summary. Unknown stays unknown, never a pass. */
-export function checkStateOf(r: Pick<DiffRow, 'rel' | 'tone' | 'word'>): CheckState {
-  if (r.rel === '?') return 'unknown';
-  switch (r.tone) {
-    case 'ok': return 'pass';
-    case 'bad': return 'fail';
-    case 'hold': return 'ask';
-    case 'wait': return 'unknown';
-    case 'info': return r.rel === '∉' || (r.word !== undefined && ASKS.has(r.word)) ? 'ask' : 'unknown';
   }
 }

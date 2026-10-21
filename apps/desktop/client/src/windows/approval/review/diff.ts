@@ -417,18 +417,3 @@ export function buildEvidence(i: { summary: ApprovalSummary; inBrowser: boolean;
   });
   return { heads: ['You approved', `PayPal and ${who} report`], rows };
 }
-
-/** The folded one-liner: "6/6 same or within · 1 differs". */
-export function tally(rows: readonly DiffRow[]): { ok: number; total: number; bad: number; unknown: number } {
-  return {
-    ok: rows.filter((r) => r.tone === 'ok').length,
-    total: rows.length,
-    bad: rows.filter((r) => r.tone === 'bad').length,
-    unknown: rows.filter((r) => r.rel === '?').length,
-  };
-}
-
-/** A red row narrows gating (no PayPal button); unknown rows never do (the wallet decides). */
-export function anyRowFailed(rows: readonly DiffRow[]): boolean {
-  return rows.some((r) => r.tone === 'bad');
-}

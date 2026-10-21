@@ -8,7 +8,6 @@ import type { Deal } from '@bindings/Deal';
 import type { DealKind } from '@bindings/DealKind';
 import type { DealState } from '@bindings/DealState';
 import type { Side } from '@bindings/Side';
-import type { Delivery } from '@bindings/Delivery';
 import type { MarketRef } from '@bindings/MarketRef';
 import type { Money } from '@bindings/Money';
 import type { OpenMandate } from '@bindings/OpenMandate';
@@ -51,25 +50,6 @@ export function marketPercentile(price: Money, m: MarketRef): number | null {
   if (v <= b) p = b === a ? 50 : 25 + ((v - a) / (b - a)) * 25;
   else p = c === b ? 50 : 50 + ((v - b) / (c - b)) * 25;
   return Math.max(1, Math.min(99, Math.round(p)));
-}
-
-export function marketLine(deal: Deal): string {
-  const m = deal.market;
-  if (!m) return 'no market price for this item · the price check was skipped, not passed';
-  const unit = deal.terms.unit_price;
-  const pct = marketPercentile(unit, m);
-  const range = `${formatMoney(m.p25)}–${formatMoney(m.p75)}`;
-  const where = pct === null ? 'in another currency than' : `p${pct} of`;
-  return `${formatMoney(unit)} is ${where} ${range} · median ${formatMoney(m.median)}${m.cached ? ' · cached' : ''}`;
-}
-
-export function deliveryText(d: Delivery): string {
-  switch (d.type) {
-    case 'digital_now': return 'digital, now';
-    case 'ship_then_capture': return `ship then capture · ${d.days} d`;
-    case 'pickup_local': return 'local pickup';
-    case 'service_on_date': return `service on ${new Date(d.unix_day * 86400 * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
-  }
 }
 
 /** A deal state in plain words (lib/words.ts). */
