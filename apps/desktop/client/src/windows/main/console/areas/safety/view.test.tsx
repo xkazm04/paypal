@@ -93,4 +93,11 @@ describe('the safety record', () => {
     expect(recordFacts(rec()).map(([k]) => k)).toEqual([SAFETY_VIEW.records, SAFETY_VIEW.chain, SAFETY_VIEW.dealsChecked, SAFETY_VIEW.histories, SAFETY_VIEW.refusedDeals, SAFETY_VIEW.moneySteps]);
     expect(refusedCard(rec({ refusals: 0 })).value).toBe(SAFETY_CARD.refusedNone);
   });
+
+  it('the cards speak in the singular for one', () => {
+    expect(SAFETY_CARD.recordsValue('1')).toBe('1 record');
+    expect(SAFETY_CARD.recordsValue('1,284')).toBe('1,284 records');
+    expect(refusedCard(rec({ refusals: 1 })).value).toBe('1 request');
+    expect(refusedCard(rec({ refusals: 5 })).value).toBe('5 requests');
+  });
 });
