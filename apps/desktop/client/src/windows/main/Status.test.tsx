@@ -53,6 +53,18 @@ beforeEach(() => { localStorage.clear(); h.cbs = new Map(); h.bump = 0; h.engine
 afterEach(() => { cleanup(); });
 
 describe('the footer chips', () => {
+  it('say they are checking, dashed, until settings and the agent runs are read (never "none" or "idle" unread)', async () => {
+    const real = h.current as Backend;
+    h.current = { ...real, invoke: (cmd, args, opts) => (cmd === 'get_settings' || cmd === 'agent_runs' ? new Promise<never>(() => {}) : real.invoke(cmd, args, opts)) };
+    render(<WorldProvider><StatusChips onSettings={() => {}} /></WorldProvider>);
+    await act(async () => { await sleep(200); });
+    const [engine, agents] = screen.getAllByRole('button');
+    expect(engine?.textContent).not.toMatch(/No agent app/);
+    expect(agents?.textContent).not.toMatch(/idle/);
+    expect(engine?.classList.contains('dashed')).toBe(true);
+    expect(agents?.classList.contains('dashed')).toBe(true);
+  });
+
   it('do not redraw when a deal changes and the attention list is read again', async () => {
     render(<WorldProvider><StatusChips onSettings={() => {}} /></WorldProvider>);
     await quiet();
