@@ -93,7 +93,8 @@ export function ModuleLayer(p: ModuleLayerProps) {
     );
   }
 
-  const nothing = !p.cards?.length && !p.children;
+  // The calm "nothing here" line only when nothing else is drawn (cards, content or a Latest strip).
+  const nothing = !p.cards?.length && !p.children && !p.latest;
   return (
     <div className={`ml mod-${p.module}`} style={style}>
       <header className="ml-head">
