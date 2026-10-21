@@ -6,8 +6,7 @@
 // both themes).
 import { act, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { Route } from '../logic';
-import { renderLayerAtScale } from './testing/scaleSmoke';
+import { layerRoutes, renderLayerAtScale, type LayerTarget } from './testing/scaleSmoke';
 import { staggerOff } from './stagger';
 
 vi.mock('../../../lib/runtime', async () => (await import('./testing/runtime')).runtimeMock);
@@ -54,13 +53,8 @@ function audit(): string[] {
   return out;
 }
 
-const LAYERS: Array<[string, Route | string]> = [
-  ['centre', ''],
-  ['tables', '#m=tables'], ['spend', '#m=spend'], ['counter', '#m=counter'], ['book', '#m=book'], ['shield', '#m=shield'], ['rescue', '#m=rescue'],
-  ['a module view', '#m=book&v=ledger'],
-  ['waiting', '#w=waiting'], ['rewind', '#r=rewind'],
-  ['rules', '#p=rules'], ['limits', '#p=limits'], ['connections', '#p=connections'], ['pairing', '#p=pairing'], ['settings', '#p=settings'], ['settings view', '#p=settings&v=agents'], ['safety', '#p=safety'],
-];
+// Every registered layer (LAYER_ROUTES, keyed by LayerId), plus a module view and a place view.
+const LAYERS: Array<[string, LayerTarget]> = [...layerRoutes(), ['a module view', '#m=book&v=ledger'], ['settings view', '#p=settings&v=agents']];
 
 describe('the checks themselves', () => {
   it('catch a duplicate id, an unnamed button, a dangling reference and a stray list item', () => {
@@ -76,7 +70,7 @@ describe('every layer passes the structural checks', () => {
     await renderLayerAtScale(target, 'small');
     expect(audit()).toEqual([]);
   }, 60_000);
-  it('a deal and its open view', async () => {
+  it('a deal with its open view', async () => {
     await renderLayerAtScale(async (w) => ({ level: 'deal', deal: (await w.invoke('list_deals', null))[0]?.id ?? 'none', view: 'story' }), 'small');
     expect(audit()).toEqual([]);
   }, 60_000);
