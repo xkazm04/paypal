@@ -152,7 +152,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
           const items = c.items.split(',').map((x) => x.trim()).filter(Boolean);
           const rounds = Number(c.rounds) || 0;
           return (
-            <div key={i} className="ow-pair">
+            <div key={i} className="ow-band">
               <Lever n={4} title="Most you’ll pay · when your agents buy" value={c.ceiling} currency={cur} optional signed={sameCur && sb?.ceiling ? sb.ceiling.minor : null}
                 ticks={ticksOr(() => priceTicks(lines!.filter((l) => l.side === 'buyer'), items))} dir={dirOf('band', 'band ceiling')}
                 onChange={(ceiling) => set(i, { ...c, ceiling })} onRemove={() => remove(i)} />
