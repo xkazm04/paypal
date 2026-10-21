@@ -5,7 +5,8 @@
 import { act, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEAL_CARD, SETTINGS_CARD } from '../../../lib/words';
-import { renderLayerAtScale, settle } from './testing/scaleSmoke';
+import { ALL_LAYERS } from './layers.registry';
+import { LAYER_ROUTES, layerRoutes, renderLayerAtScale, settle } from './testing/scaleSmoke';
 
 vi.mock('../../../lib/runtime', async () => (await import('./testing/runtime')).runtimeMock);
 
@@ -101,5 +102,22 @@ describe('a deal card view is a step of the route', () => {
     await act(async () => { fireEvent.click(b); });
     await waitFor(() => expect(viewOpen()).toBeNull());
     expect(document.querySelector('.cs-layer')?.getAttribute('data-layer')).toBe('deal');
+  }, 60_000);
+});
+
+// A deal's and a place's `views` (LayerDef.views, the area file) are a hand-kept list of the card
+// views its page draws (PlaceFrame cards with a view). The two must agree: a card whose view is not
+// registered pushes `&v=` and opens nothing (the chain steps over it); a registered view no card
+// opens is a crumb label for nothing. Ground truth is the page as drawn, not the list.
+describe('every sheet layer registers exactly the card views its page draws', () => {
+  const SHEETS = layerRoutes().filter(([id]) => { const t = LAYER_ROUTES[id]; return id === 'deal' || (typeof t === 'object' && t.level === 'place'); });
+  it('covers the deal and the places', () => {
+    expect(SHEETS.map(([id]) => id).sort()).toEqual(['connections', 'deal', 'limits', 'pairing', 'rules', 'safety', 'settings']);
+  });
+  it.each(SHEETS)('%s', async (id, target) => {
+    await renderLayerAtScale(target, 'small');
+    const drawn = [...document.querySelectorAll<HTMLElement>('.cs-layer button.pf-card[aria-expanded]')].map((b) => b.dataset.lens ?? '').sort();
+    const def = ALL_LAYERS.find((d) => d.id === id);
+    expect(drawn).toEqual(Object.keys(def?.views ?? {}).sort());
   }, 60_000);
 });
