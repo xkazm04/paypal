@@ -63,6 +63,10 @@ const REASON: ReadonlyArray<[RegExp, string]> = [
   [/max_deals_day reached/, 'too many deals that day'],
   [/max_total_day exceeded/, 'over that day’s money limit'],
   [/role not allowed|role does not match/, 'not something agents may do'],
+  [/currency not allowed|currency outside band|threshold currency mismatch/, 'the deal is in another currency'],
+  [/invalid daily currency or total/, 'that day’s total couldn’t be added up in its currency'],
+  [/invalid terms or amount/, 'the deal’s amount couldn’t be worked out'],
+  [/fixes clause missing/, 'no “Fixes for failed renewals” rule'],
 ];
 export function reasonWords(reason: string): string | null {
   for (const [re, words] of REASON) {
