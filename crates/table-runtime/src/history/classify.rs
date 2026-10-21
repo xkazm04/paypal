@@ -89,6 +89,11 @@ const BOOKKEEPING: &[&str] = &[
     "run.start",
     "run.finish",
     "counterparty.pinned",
+    // The owner revoking a pin or setting when it lapses, and a refused privileged command:
+    // wallet-wide records with no deal of their own.
+    "counterparty.revoked",
+    "counterparty.expiry_set",
+    "command.refused",
     "envelope.rejected",
     "mandate.signed",
     "mandate.revoked",

@@ -273,40 +273,41 @@ mod tests {
             .first()
             .map(|s| (s.kind, s.authority))
     }
-    /// Every audit action the ledger, the pipeline, the agent service and the runtime write.
+    fn sources(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if path.is_dir() {
+                if !matches!(name.as_str(), "target" | "node_modules" | "tests" | ".git") {
+                    sources(&path, out);
+                }
+            } else if name.ends_with(".rs") && !name.ends_with("tests.rs") {
+                out.push(path);
+            }
+        }
+    }
+    /// Every audit action the workspace writes: each `action: "x"` / `.action = "x"` literal in
+    /// the non-test sources, walked from disk so a new writer file cannot escape the check.
     fn written_actions() -> std::collections::BTreeSet<String> {
-        let sources = [
-            include_str!("../../table-ledger/src/repositories.rs"),
-            include_str!("../../table-ledger/src/relay.rs"),
-            include_str!("../../table-ledger/src/house.rs"),
-            include_str!("../../table-ledger/src/receipt.rs"),
-            include_str!("../../table-ledger/src/resolution.rs"),
-            include_str!("../../table-app/src/agent.rs"),
-            include_str!("../../table-app/src/pipeline.rs"),
-            include_str!("../../table-app/src/reconciliation.rs"),
-            include_str!("../../table-app/src/relay.rs"),
-            include_str!("engines.rs"),
-            include_str!("service.rs"),
-            include_str!("configuration.rs"),
-            include_str!("relay.rs"),
-            include_str!("pairing.rs"),
-            include_str!("../../table-ledger/src/limits.rs"),
-            include_str!("../../table-ledger/src/rescue.rs"),
-            include_str!("../../table-app/src/rescue.rs"),
-            include_str!("rescue.rs"),
-            include_str!("../../table-ledger/src/witness.rs"),
-            include_str!("../../table-ledger/src/market_watch.rs"),
-            include_str!("../../table-ledger/src/groups.rs"),
-            include_str!("groups.rs"),
-            include_str!("../../table-ledger/src/shield.rs"),
-            include_str!("../../table-ledger/src/rescue_watch.rs"),
-            include_str!("../../table-ledger/src/attention.rs"),
-        ];
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let mut files = Vec::new();
+        for dir in ["crates", "apps/desktop/src-tauri/src", "services"] {
+            sources(&root.join(dir), &mut files);
+        }
+        assert!(files.len() > 50, "scanned only {} files", files.len());
         let mut found = std::collections::BTreeSet::new();
-        for source in sources {
-            for part in source.split("action: \"").skip(1) {
-                if let Some(name) = part.split('"').next() {
-                    found.insert(name.to_owned());
+        for file in files {
+            let text = std::fs::read_to_string(&file).unwrap();
+            // A source file's own `#[cfg(test)]` module is not production.
+            let production = text.split("#[cfg(test)]").next().unwrap_or("");
+            for marker in ["action: \"", "action = \""] {
+                for part in production.split(marker).skip(1) {
+                    if let Some(name) = part.split('"').next() {
+                        found.insert(name.to_owned());
+                    }
                 }
             }
         }
@@ -348,6 +349,17 @@ mod tests {
             ("run.start", json!({}), None),
             ("run.finish", json!({}), None),
             ("counterparty.pinned", json!({}), None),
+            ("counterparty.revoked", json!({"key_id":"K"}), None),
+            (
+                "counterparty.expiry_set",
+                json!({"key_id":"K","expires_at":200}),
+                None,
+            ),
+            (
+                "command.refused",
+                json!({"command":"mandate_revoke","window":"main","tier":"privileged"}),
+                None,
+            ),
             ("envelope.rejected", json!({"reason":"bad"}), None),
             ("mandate.signed", json!({}), None),
             ("mandate.revoked", json!({}), None),
