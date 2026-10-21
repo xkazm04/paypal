@@ -98,7 +98,7 @@ impl Runtime {
                 let m = app(self.pipeline.wallet.ledger.active_mandate(
                     deal.mandate_id,
                     deal.mandate_version,
-                    &self.owner()?.verifying_key(),
+                    &self.pipeline.wallet.owner_public_key(),
                 ))?;
                 if !movable
                     || band_covering(&m, &deal.terms.item_ref).is_none()
@@ -124,7 +124,7 @@ impl Runtime {
                     .pipeline
                     .wallet
                     .ledger
-                    .list_mandates(&self.owner()?.verifying_key()))?
+                    .list_mandates(&self.pipeline.wallet.owner_public_key()))?
                 .into_iter()
                 .find(|m| m.mandate.payload.id == *mandate_id && m.refusal.is_none())
                 .map(|m| m.mandate)
@@ -205,7 +205,7 @@ impl Runtime {
             .pipeline
             .wallet
             .ledger
-            .list_mandates(&self.owner()?.verifying_key()))?
+            .list_mandates(&self.pipeline.wallet.owner_public_key()))?
         .into_iter()
         .map(|listed| {
             let agent = keys
@@ -455,7 +455,7 @@ impl Runtime {
         let mut mandate = app(self.pipeline.wallet.ledger.active_mandate(
             deal.mandate_id,
             deal.mandate_version,
-            &self.owner()?.verifying_key(),
+            &self.pipeline.wallet.owner_public_key(),
         ))?;
         let mut changed = false;
         for clause in &mut mandate.payload.clauses {

@@ -499,3 +499,62 @@ async fn an_owner_reconcile_through_the_runtime_on_an_unconfirmed_deal_ends_reco
     assert_eq!(state(&r), DealState::Reconciled);
     r.pipeline.wallet.ledger.verify_audit().unwrap();
 }
+
+/// The owner's public key is the one the wallet was built with: the publish pass and the deal
+/// reads verify against it from memory and never ask the OS keychain for the owner's secret.
+#[tokio::test]
+async fn reads_verify_against_the_owner_key_in_memory_not_the_keychain() {
+    struct Recording(MemoryVault, Mutex<Vec<String>>);
+    impl Vault for Recording {
+        fn read(
+            &self,
+            name: &str,
+        ) -> Result<Option<zeroize::Zeroizing<Vec<u8>>>, vault::VaultError> {
+            self.1.lock().unwrap().push(name.into());
+            self.0.read(name)
+        }
+        fn write(&self, name: &str, value: &[u8]) -> Result<(), vault::VaultError> {
+            self.0.write(name, value)
+        }
+    }
+    let vault = Arc::new(Recording(MemoryVault::default(), Mutex::default()));
+    let clock = Arc::new(TestClock(AtomicI64::new(100)));
+    let api = Arc::new(table_paypal::Client::sandbox(
+        Arc::new(OfflineHttp::default()),
+        Arc::new(VaultCredentials(vault.clone())),
+        clock.clone(),
+        Arc::new(NoDelay),
+    ));
+    let hello = Arc::new(Hello {
+        calls: AtomicUsize::new(0),
+        verified: true,
+    });
+    let mut r = Runtime::new(
+        Ledger::in_memory().unwrap(),
+        vault.clone(),
+        hello,
+        api,
+        clock,
+    )
+    .unwrap();
+    let (deal, peer) = setup(&mut r, Side::Seller);
+    agree(&mut r, &deal, &peer);
+    vault.1.lock().unwrap().clear();
+    r.settings().unwrap();
+    assert_eq!(
+        *vault.1.lock().unwrap(),
+        ["paypal.sandbox", "channel3"],
+        "settings reads the two credential entries only"
+    );
+    vault.1.lock().unwrap().clear();
+    r.execute(caller("main", None), Action::Display(deal.id))
+        .await
+        .unwrap();
+    r.mandate_retired(&deal).unwrap();
+    r.summary(deal.id).unwrap();
+    assert!(
+        !vault.1.lock().unwrap().iter().any(|n| n == "owner"),
+        "{:?}",
+        vault.1.lock().unwrap()
+    );
+}
