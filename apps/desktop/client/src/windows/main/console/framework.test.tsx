@@ -109,6 +109,13 @@ describe('the module layer chrome', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Recent purchases' })).toBeTruthy();
     expect(screen.getByText('the list')).toBeTruthy();
   });
+  it('a summary that shows only its Latest strip does not also say there is nothing', () => {
+    host({ level: 'module', module: 'book' }, () => (
+      <ModuleLayer module="book" answer="Your book" yourCall={null}
+        latest={{ title: 'recent payments', total: 1, rows: [{ key: 'a', label: 'A lamp', onOpen: () => {}, node: <span>A lamp</span> }] }} />
+    ));
+    expect(screen.queryByText(MODULE_EMPTY)).toBeNull();
+  });
   it('with nothing to show: one calm line', () => {
     host({ level: 'module', module: 'book' }, () => <ModuleLayer module="book" answer="Your book" yourCall={null} />);
     expect(screen.getByText(MODULE_EMPTY)).toBeTruthy();
