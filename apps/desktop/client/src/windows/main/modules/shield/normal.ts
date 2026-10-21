@@ -10,7 +10,7 @@ import type { Deal } from '@bindings/Deal';
 import { formatMinor } from '../../../../lib/format';
 import { CHECK_NOT_ACTIVE, shieldRuleWord } from '../../../../lib/words';
 import { ledgerScope } from '../../logic';
-import { ago, checkCell, overMedian, overPauseLine, quietCheck, STAGES, type ReasonKind, type Stage } from './matrix';
+import { ago, checkCell, newPayeeAsks, overMedian, overPauseLine, quietCheck, STAGES, type ReasonKind, type Stage } from './matrix';
 
 const DAY = 86400;
 
@@ -136,9 +136,10 @@ export function checkLights(d: PayeeDeal & Pick<Deal, 'shield_rule'> & Partial<P
       : { stage: 'engine', name: STAGES.engine, state: 'unknown', word: CHECK_NOT_ACTIVE.text, detail: checkCell('typology', d, cp, now).l };
     return [fixed, price, ai];
   }
-  const fixed: Light = fresh
+  // Rust's new-payee check needs both: first seen in the last 24 hours and a large amount.
+  const fixed: Light = newPayeeAsks(d, cp, now)
     ? { stage: 'rules', name: STAGES.rules, state: 'tripped', word: 'New payee', detail: checkCell('newcp', d, cp, now).l }
-    : { stage: 'rules', name: STAGES.rules, state: 'unknown', word: quiet.text, detail: `${cp ? 'This payee is not new.' : 'The wallet has no record of this payee.'} ${quiet.means}` };
+    : { stage: 'rules', name: STAGES.rules, state: 'unknown', word: quiet.text, detail: `${!cp ? 'The wallet has no record of this payee.' : fresh ? 'This payee is new, but the amount is not large enough for the new-payee check.' : 'This payee is not new.'} ${quiet.means}` };
   const price: Light = p === null
     ? { stage: 'market', name: STAGES.market, state: 'skipped', word: 'No price to compare', detail: checkCell('market', d, cp, now).l }
     : overPauseLine(d)

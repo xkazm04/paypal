@@ -1,8 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { CounterpartyDisplay } from '@bindings/CounterpartyDisplay';
 import type { Deal } from '@bindings/Deal';
 import { checkLights, compareRows, knownPayees, seenWords, weekStrip, whyFor } from './normal';
-import { overPauseLine, reasonsFor } from './matrix';
+import { NEW_PAYEE_OVER_MINOR, overPauseLine, reasonsFor } from './matrix';
 
 const usd = (d: number) => ({ minor: Math.round(d * 100), currency: 'USD' as const });
 const NONE = { order: null, authorization: null, capture: null, subscription: null };
@@ -152,5 +155,24 @@ describe('a typical price too old to clear the payment (Rust: no_market_referenc
     expect(why).toMatch(/too old/);
     // With no reference at all, the words stay as they were.
     expect(whyFor('noprice', deal(), cp(), NOW)[0]).toMatch(/no typical price on file/);
+  });
+});
+
+describe('a new payee counts only over the amount Rust asks about (a deal with no recorded rule)', () => {
+  // table-shield: first seen < 24 h AND amount > the threshold (shield_gate.rs: 10000 minor units).
+  const src = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../../../../crates/table-app/src/pipeline/shield_gate.rs'), 'utf8');
+  it('pins the threshold to the wallet’s own figure', () => {
+    expect(src).toContain(`new_counterparty_threshold: Money::new(${NEW_PAYEE_OVER_MINOR}, deal.terms.currency)`);
+  });
+  const ref = { ...market, median: usd(100), p25: usd(90), p75: usd(110) };
+  const small = deal({ market: ref, shield: 'HOLD', terms: { ...deal().terms, qty: 1, unit_price: usd(100) } });
+  const large = deal({ market: ref, shield: 'HOLD', terms: { ...deal().terms, qty: 2, unit_price: usd(100) } });
+  it('a fresh payee at or under it is a fact, not a reason or a tripped check', () => {
+    expect(reasonsFor(small, cp(), NOW).map((r) => r.kind)).not.toContain('newcp');
+    expect(checkLights(small, cp(), NOW)[0]?.state).not.toBe('tripped');
+  });
+  it('a fresh payee over it is the reason and trips the fixed checks', () => {
+    expect(reasonsFor(large, cp(), NOW).map((r) => r.kind)).toContain('newcp');
+    expect(checkLights(large, cp(), NOW)[0]?.state).toBe('tripped');
   });
 });
