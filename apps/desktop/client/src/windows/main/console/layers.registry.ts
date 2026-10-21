@@ -1,5 +1,5 @@
 // The console's layer registry: one import line per area file (console/layers/<area>.ts). A new
-// area is one more line here; an area's own changes never touch this file. `layers.test.ts` checks
+// area is one more line here; an area's own changes never touch this file. `framework.test.tsx` checks
 // that every LayerId is registered exactly once.
 import type { LazyPart } from '../../../lib/lazy';
 import { layers as book } from './layers/book';
@@ -27,7 +27,7 @@ export const ALL_LAYERS: readonly LayerDef[] = [
 
 export const LAYERS: ReadonlyMap<LayerId, LayerDef> = new Map(ALL_LAYERS.map((d) => [d.id, d] as const));
 
-/** The def that draws a route. Every LayerId is registered (layers.test.ts), so this never misses. */
+/** The def that draws a route. Every LayerId is registered (framework.test.tsx, 'the registry'), so this never misses. */
 export function layerOf(r: Route): LayerDef {
   const id = layerIdOf(r);
   const def = LAYERS.get(id);
