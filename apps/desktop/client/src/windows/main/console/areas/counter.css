@@ -71,7 +71,7 @@
 .mod-counter .ctr-legend .lg-b { --c: color-mix(in srgb, var(--refuse) 45%, var(--line2)); }
 
 /* the draft tray: sticky at the bottom of the view */
-.mod-counter .ctr-tray { position: sticky; bottom: 0; z-index: 3; display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3);
+.mod-counter .ctr-tray { position: sticky; bottom: 0; z-index: 3; display: flex; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3);
   border-radius: var(--r-card); background: var(--panel); box-shadow: 0 0 0 1px var(--line), var(--shadow-1); flex-direction: row; align-items: center; flex-wrap: wrap; }
 .mod-counter .ctr-tray.on { flex-direction: column; align-items: stretch; box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 55%, transparent), var(--shadow-1); }
 .mod-counter .ctr-tray .grow { flex: 1 1 auto; margin: 0; }
