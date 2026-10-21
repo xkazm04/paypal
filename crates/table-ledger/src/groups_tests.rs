@@ -472,6 +472,26 @@ fn grouping_takes_only_open_buyer_tables_for_one_item_under_one_mandate() {
     assert_eq!(actions(&fx.ledger, "group.opened"), 2);
 }
 
+/// The size bound on its own: nine distinct, otherwise valid tables are one too many (the
+/// repeated-id case above is refused as a duplicate before the bound is ever reached).
+#[test]
+fn a_group_holds_at_most_max_group_tables_distinct_tables() {
+    let mut fx = Fixture::new(Ledger::in_memory().unwrap(), MAX_GROUP_TABLES + 1);
+    let ids: Vec<DealId> = fx.deals.iter().map(|d| d.id).collect();
+    let before = fx.ledger.audit_count().unwrap();
+    assert!(matches!(
+        fx.ledger.open_group(fresh::<GroupId>(), &ids, 100),
+        Err(LedgerError::Conflict)
+    ));
+    assert_eq!(fx.ledger.audit_count().unwrap(), before);
+    assert!(fx.ledger.deal_groups().unwrap().is_empty());
+    let group = fx
+        .ledger
+        .open_group(fresh::<GroupId>(), &ids[..MAX_GROUP_TABLES], 100)
+        .unwrap();
+    assert_eq!(group.tables.len(), MAX_GROUP_TABLES);
+}
+
 #[test]
 fn the_schema_refuses_a_second_agreement_and_any_rewrite_of_a_group() {
     let mut fx = Fixture::new(Ledger::in_memory().unwrap(), 2);
