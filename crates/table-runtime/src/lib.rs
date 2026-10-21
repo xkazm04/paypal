@@ -15,6 +15,8 @@ mod market_watch;
 mod pairing;
 mod policy;
 mod proof;
+#[cfg(test)]
+mod purchase_deadline_tests;
 pub mod reauth;
 mod relay;
 mod rescue;
