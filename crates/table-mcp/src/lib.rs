@@ -13,8 +13,14 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
+use subtle::ConstantTimeEq;
 use table_app::{AgentRequest, AgentRole, AgentScope, AgentService, refusal_code, refusal_detail};
 use table_core::{Clock, H256, Playbook, RefusalCode, RunId};
+
+fn secret_eq(a: &str, b: &str) -> bool {
+    a.as_bytes().ct_eq(b.as_bytes()).into()
+}
+
 #[async_trait]
 pub trait AsyncAgentService: Send + Sync {
     async fn invoke(
@@ -175,7 +181,7 @@ impl Server {
         let session = sessions
             .get_mut(&grant.token)
             .ok_or(table_app::Error::Permission)?;
-        if session.expires <= self.clock.now() || grant.secret != self.secret {
+        if session.expires <= self.clock.now() || !secret_eq(&grant.secret, &self.secret) {
             return Err(table_app::Error::Permission);
         }
         session.enabled = true;
@@ -404,7 +410,8 @@ async fn handle(
     {
         return Err(StatusCode::FORBIDDEN);
     }
-    if headers.get("x-wallet-secret").and_then(|v| v.to_str().ok()) != Some(&s.secret) {
+    let presented = headers.get("x-wallet-secret").and_then(|v| v.to_str().ok());
+    if !presented.is_some_and(|p| secret_eq(p, &s.secret)) {
         return Err(StatusCode::UNAUTHORIZED);
     }
     let token = headers

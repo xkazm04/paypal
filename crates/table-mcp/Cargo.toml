@@ -18,6 +18,7 @@ axum.workspace = true
 tokio.workspace = true
 getrandom.workspace = true
 async-trait.workspace = true
+subtle.workspace = true
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
