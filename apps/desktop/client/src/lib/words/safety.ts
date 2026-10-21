@@ -6,7 +6,8 @@
 // (pure, tested). Imports nothing from lib/words.ts. Strings moved from safety/SafetySheet.tsx are
 // byte-identical.
 
-export const SAFETY_KICKER = (when: string): string => `Your safety record · checked ${when}`;
+/** The kicker; `null` while the record has not been checked (reading, or it could not be read). */
+export const SAFETY_KICKER = (when: string | null): string => (when === null ? 'Your safety record' : `Your safety record · checked ${when}`);
 export const SAFETY_READING = 'Checking your record…';
 export const SAFETY_READING_SUB = 'The wallet reads every entry and every deal again. Nothing is assumed until it answers.';
 export const SAFETY_UNREAD = 'Your safety record couldn’t be checked right now';
