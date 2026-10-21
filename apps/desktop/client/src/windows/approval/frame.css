@@ -1,6 +1,6 @@
 /* Approval window · FRAME: window, header, footer, and the pieces ui.tsx renders for both modes
-   (strip, checks, silence, verdict, lock card, Windows Hello, pill) plus shared atoms (.a-p .a-note
-   .a-k .tbtn .inp .confirm). Imported by entry.tsx. Root font is the console's 14px (1rem).
+   (strip, checks, verdict, lock card, Windows Hello, pill) plus shared atoms (.tbtn .confirm).
+   Imported by entry.tsx. Root font is the console's 14px (1rem).
 
    Rebuild WP4b: the window is a layer of the console. It follows The Table's theme and calm choice
    (entry.tsx); on the graticule ground (App.tsx) sit the console's top bar (.aw-head: mark, crumbs,
@@ -74,17 +74,6 @@ body.w-approval { background: var(--bg-deep); overflow: hidden; }
 
 /* ---- body ------------------------------------------------------------------------------ */
 .aw-body { min-width: 0; overflow-x: hidden; overflow-y: auto; padding: 1rem 1.45rem 1rem; outline: none; }
-.a-kick { font: 600 .86rem/1.3 var(--font); letter-spacing: .13em; text-transform: uppercase; color: var(--gold-l); }
-.a-kick.bad { color: var(--red-l); }
-.a-kick.ok { color: var(--ok); }
-.a-kick .a-label { letter-spacing: .06em; color: var(--dim); font-family: var(--mono); text-transform: none; }
-.a-big { font: 600 2.95rem/1.05 var(--display); letter-spacing: -.02em; margin: .3rem 0 .15rem; color: var(--text); font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: .7rem; }
-.a-big.money { font-family: var(--display); }
-.a-big .a-unit { font: 500 1rem var(--mono); color: var(--dim); letter-spacing: 0; }
-.a-big.skeleton { color: var(--line2); }
-.a-to { font-size: 1.07rem; color: var(--muted); line-height: 1.35; }
-.a-to b { color: var(--coral-l); font-weight: 600; }
-.a-to .a-item { color: var(--text); }
 
 /* state strip */
 .strip { list-style: none; display: flex; flex-wrap: wrap; gap: .3rem; margin: .85rem 0 .1rem; padding: 0; }
@@ -110,17 +99,7 @@ body.w-approval { background: var(--bg-deep); overflow: hidden; }
 .checks li.wait .ck::before { content: "·"; color: var(--dim); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-.a-p { margin: .45rem 0; font-size: 1rem; color: var(--muted); line-height: 1.45; }
-.a-p b { color: var(--text); }
-.a-p .gold, .gold.money { color: var(--gold-l); font-weight: 600; }
-.a-k { display: inline-block; font: 600 .86rem var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--dim); margin-right: .25rem; }
-.a-sil { display: flex; gap: .55rem; align-items: baseline; font-size: 1rem; color: var(--muted); margin: .5rem 0 0; }
-.a-sil-k { font: 600 .86rem var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--dim); border: 1px solid var(--line2); padding: .1rem .4rem; border-radius: var(--r-tight); white-space: nowrap; }
-.a-sil.generic span:last-child { color: var(--dim); }
-.a-why { margin: .5rem 0 0; font-size: 1rem; color: var(--muted); padding: .45rem .65rem; border-left: 2px solid var(--line2); background: var(--hover); border-radius: 0 6px 6px 0; }
-.a-note { font-size: .93rem; color: var(--dim); margin: .55rem 0 0; line-height: 1.4; }
-.a-note.why { color: var(--muted); }
-.a-note.end { margin: 0; color: var(--muted); }
+.gold.money { color: var(--gold-l); font-weight: 600; }
 
 .verdict { padding: .75rem .9rem; border-radius: var(--r-card); font-size: 1rem; margin-top: .85rem; line-height: 1.45; }
 .verdict.no { background: color-mix(in srgb, var(--refuse) 14%, var(--panel)); border: 1px solid color-mix(in srgb, var(--refuse) 45%, var(--line)); color: var(--red-l); }
@@ -131,15 +110,7 @@ body.w-approval { background: var(--bg-deep); overflow: hidden; }
 .verdict.calm { background: var(--bg2); border: 1px solid var(--line2); color: var(--muted); }
 .notice { margin-top: .7rem; font-size: 1rem; }
 .notice .n-code { font-size: .86rem; }
-/* shield release */
-.inp { width: 100%; padding: .55rem .75rem; border-radius: var(--r-card); border: 1px solid var(--line2); background: var(--bg); color: var(--text); font: 1rem var(--font); }
-.inp.mono, .release .inp { font-family: var(--mono); }
-.inp:focus { outline: 2px solid var(--gold-l); outline-offset: 1px; }
-.inp[aria-invalid="true"] { border-color: var(--refuse); }
-select.inp { padding: .45rem .6rem; }
 /* ---- footer: the one decision ------------------------------------------------------------ */
-.aw-foot { padding: .8rem 1.45rem .95rem; border-top: 1px solid var(--line); background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 60%, transparent), color-mix(in srgb, var(--bg) 95%, transparent)); }
-.a-btns { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
 .tbtn { display: inline-flex; align-items: center; gap: .4rem; padding: .62rem 1.05rem; border-radius: var(--r-pill); border: 1px solid var(--line2); background: var(--panel2); cursor: pointer; font-size: 1.07rem; font-weight: 600; white-space: nowrap; color: var(--text); transition: filter var(--dur-fast), border-color var(--dur-fast); }
 .tbtn:hover:not([disabled]) { border-color: var(--muted); }
 .tbtn.gold { color: var(--on-gold); border-color: transparent; background: var(--gold); box-shadow: var(--shadow-1); }
@@ -148,7 +119,6 @@ select.inp { padding: .45rem .6rem; }
 .tbtn.danger:hover:not([disabled]) { border-color: var(--refuse); }
 .tbtn.quiet { background: transparent; }
 .tbtn[disabled] { opacity: .45; cursor: not-allowed; filter: grayscale(.45); box-shadow: none; }
-.aw-foot .a-note { margin-top: .5rem; }
 .confirm { display: flex; flex-wrap: wrap; gap: .55rem; align-items: center; padding: .6rem .75rem; border-radius: var(--r-card); border: 1px solid color-mix(in srgb, var(--refuse) 45%, var(--line)); background: color-mix(in srgb, var(--refuse) 8%, var(--panel)); font-size: 1rem; color: var(--muted); }
 .confirm > span { flex: 1 1 100%; }
 .confirm b { color: var(--red-l); }
@@ -178,15 +148,7 @@ select.inp { padding: .45rem .6rem; }
 }
 
 /* glyphs drawn by ui.tsx: colours from tokens (no hex in TSX) */
-.aw-emblem .e1 { fill: var(--panel); stroke: var(--steel); }
-.aw-emblem .e2 { stroke: var(--gold); }
 .lock-glyph { stroke: var(--gold-l); }
 .lock-glyph circle { fill: var(--gold-l); stroke: none; }
 .hello-glyph { stroke: var(--teal-l); }
 .hello-glyph circle { fill: var(--teal-l); stroke: none; }
-.browser-art .ba-frame { fill: var(--bg); stroke: var(--line2); }
-.browser-art .ba-bar { fill: var(--panel); }
-.browser-art .ba-dot { fill: var(--line2); }
-.browser-art .ba-fill { fill: var(--panel3); }
-.browser-art .ba-btn { stroke: var(--gold); }
-.browser-art .ba-t { fill: var(--dim); }
