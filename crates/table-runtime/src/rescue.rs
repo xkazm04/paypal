@@ -79,27 +79,38 @@ impl Runtime {
         let Some(case) = app(ledger.rescue_case(id))? else {
             return Ok(None);
         };
-        let deal = app(ledger.get_deal(id))?;
-        Ok(Some(RescueView {
-            deal_id: id,
+        self.rescue_view_of(&app(ledger.get_deal(id))?, case)
+            .map(Some)
+    }
+
+    /// The rescue view of a deal already read, with its case.
+    fn rescue_view_of(
+        &self,
+        deal: &Deal,
+        case: table_ledger::RescueCase,
+    ) -> Result<RescueView, CommandError> {
+        Ok(RescueView {
+            deal_id: deal.id,
             source: case.source,
             text: invoice_text(&case.offer),
             offer: case.offer,
             failed_payments: case.failed_payments,
             next_retry_at: case.next_retry_at,
             recipient: case.recipient.masked(),
-            invoice: deal.paypal.order,
-            counted: app(ledger.rescue_counted(id))?,
-        }))
+            invoice: deal.paypal.order.clone(),
+            counted: app(self.pipeline.wallet.ledger.rescue_counted(deal.id))?,
+        })
     }
 
+    /// Every rescue deal's view. The deals are read once; each case adds its case and count.
     pub(crate) fn rescue_book(&self) -> Result<RescueBook, CommandError> {
+        let ledger = &self.pipeline.wallet.ledger;
         let mut cases = Vec::new();
-        for deal in app(self.pipeline.wallet.ledger.list_deals())? {
+        for deal in app(ledger.list_deals())? {
             if deal.kind == DealKind::Rescue
-                && let Some(view) = self.rescue_view(deal.id)?
+                && let Some(case) = app(ledger.rescue_case(deal.id))?
             {
-                cases.push(view);
+                cases.push(self.rescue_view_of(&deal, case)?);
             }
         }
         Ok(RescueBook {
