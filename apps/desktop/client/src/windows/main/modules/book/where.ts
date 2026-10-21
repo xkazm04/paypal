@@ -217,7 +217,7 @@ export function totalWhy(key: TotalKey, deals: readonly Deal[]): [string, string
     return [`PayPal is keeping ${money(sum(ds))} aside for ${plural(ds.length, 'payment', 'payments')}: ${byKind(ds)}.`, 'It is not paid until it is collected; if you do nothing the hold is released and nothing is paid.'];
   }
   const ds = inB('stopped');
-  if (!ds.length) return ['Nothing was stopped this week.', 'Stopped money is shown struck through because it never moved, so it is never counted as paid.'];
+  if (!ds.length) return ['Nothing was stopped.', 'Stopped money is shown struck through because it never moved, so it is never counted as paid.'];
   const why = new Map<string, number>();
   for (const d of ds) { const w = stateWord(d.state, { side: d.side, kind: d.kind }).text.toLowerCase(); why.set(w, (why.get(w) ?? 0) + 1); }
   const breakdown = [...why.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([w, n]) => `${n} ${w}`).join(', ');

@@ -141,6 +141,9 @@ describe('why on each total', () => {
   it('says so when a total is empty instead of showing zero money', () => {
     expect(totalWhy('held', [])[0]).toContain('not holding');
     expect(totalWhy('stopped', [])[0]).toContain('Nothing was stopped');
+    // The totals show the week or everything on record (the ledger's scope switch): no sentence
+    // names a span the figure may not cover.
+    for (const k of ['out', 'in', 'held', 'stopped'] as const) for (const s of totalWhy(k, [])) expect(s).not.toMatch(/this week/i);
   });
 });
 
