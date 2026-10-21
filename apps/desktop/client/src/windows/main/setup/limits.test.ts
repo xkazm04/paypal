@@ -35,6 +35,13 @@ describe('agent rule cards', () => {
     for (const x of l) expect(`${x.value} ${x.label}`).not.toMatch(/clause|rule \d|p\d+/i);
   });
 
+  it('a daily limit of one deal reads in the singular', () => {
+    const usd = (minor: number) => ({ minor, currency: 'USD' as const });
+    const v = (n: number) => limitLines([{ type: 'velocity', max_deals_day: n, max_total_day: usd(90000) }]).find((x) => x.key === 'velocity')?.label;
+    expect(v(1)).toBe('a day, up to 1 deal');
+    expect(v(5)).toBe('a day, up to 5 deals');
+  });
+
   it('names a card by its agent, telling several sets of one agent apart', () => {
     expect(agentTitle('shopper')).toBe('Shopper');
     expect(agentTitle('assistant', ['shop order'])).toBe('Assistant · shop order');
