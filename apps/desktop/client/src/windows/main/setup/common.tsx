@@ -1,12 +1,11 @@
-// Small pieces shared by the setup sheet's three tabs: the hand-off to the approval window, the
-// "who may set this" chip, an ⓘ button that opens a Popover, and chips from the pure Circuit tones.
+// Small pieces shared by the pairing desk, the Charter and the settings hand-off: the hand-off to
+// the approval window and an ⓘ button that opens a Popover.
 import { NOTICE_WHAT } from '../../../lib/words';
 import { useState, type ReactNode } from 'react';
 import type { H256 } from '@bindings/H256';
 import { WalletNotice } from '../../../shared/honesty';
-import { Btn, Chip, Popover, useToast, type BtnKind } from '../../../shared/ui';
+import { Btn, Popover, useToast, type BtnKind } from '../../../shared/ui';
 import { useMutation } from '../../../lib/hooks';
-import type { Tone, Who } from './circuit';
 
 /** Opens the approval window (the only surface that stores credentials, signs mandates, unlocks
  *  and confirms pairing words). Main never does those acts itself. While idle-locked the button
@@ -32,16 +31,6 @@ export function Handoff({ label, kind = 'gold', sm = true, locked, pairing, targ
       {open.error ? <WalletNotice error={open.error} what={NOTICE_WHAT.approval} /> : null}
     </>
   );
-}
-
-export function WhoChip({ who, locked }: { who: Who; locked?: boolean }) {
-  if (who === 'only-you') return <Chip tone="gold" title={`Only you, in the approval window${locked ? ' · locked: Windows Hello first' : ''}`}>{locked ? '◆ ' : ''}only you</Chip>;
-  if (who === 'you') return <Chip tone="teal" title="You, here in The Table">you</Chip>;
-  return <Chip tone="dashed" title="Fixed: nobody can change it">fixed</Chip>;
-}
-
-export function ToneChip({ tone, children, title }: { tone: Tone; children: ReactNode; title?: string }) {
-  return <Chip tone={tone === 'plain' ? undefined : tone} title={title}>{children}</Chip>;
 }
 
 /** A small button that toggles a Popover with Layer-2 detail. */

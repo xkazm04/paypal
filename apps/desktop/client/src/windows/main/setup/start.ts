@@ -25,9 +25,6 @@ export function useStart(): GettingStarted {
   }), [s, inForce, conn, engineAvailable]);
 }
 
-/** Where the Set up page lives (the console follows the hash). */
-export const setupHash = (step?: SetupStepKey): string => `#s=setup&step=${step ?? 'keys'}`;
-
 /** How long the console lets a `main:route` event settle on its own route before it follows the
  *  Tumbler's Set up note (the note is written just before the route event is sent). */
 export const SETUP_INTENT_SETTLE_MS = 250;

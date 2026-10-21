@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EngineInfo } from '@bindings/EngineInfo';
-import { deriveCircuit, initialPart, mandatesInForce, PART_ORDER, setupProgress, settingsAnswer, stepPart, type CircuitInput, type CircuitSettings, type MandateLite } from './circuit';
+import { deriveCircuit, mandatesInForce, settingsAnswer, type CircuitInput, type CircuitSettings, type MandateLite } from './circuit';
 
 const NOW = 1_800_000_000;
 const settings = (over: Partial<CircuitSettings> = {}): CircuitSettings => ({
@@ -36,7 +36,6 @@ describe('the Circuit · breaks for a settings snapshot', () => {
     expect(c.headline.title).toBe('3 things to fix');
     expect(c.wires).toMatchObject({ w2: 'cut', w3: 'cut', w4: 'cut' });
     expect(c.parts.paypal).toMatchObject({ state: 'off', value: 'never called' });
-    expect(initialPart(c, true)).toBe('engine');
   });
 
   it('the selected engine reported unavailable is a break, and offers the scripted engine when it is usable', () => {
@@ -119,24 +118,9 @@ describe('the Circuit · breaks for a settings snapshot', () => {
     }
   });
 
-  it('initial selection: the first break, else PayPal (returning) or agents (first run)', () => {
-    expect(initialPart(deriveCircuit(input({ settings: settings({ payment_executor_configured: false }) })), false)).toBe('keychain');
-    expect(initialPart(deriveCircuit(input()), false)).toBe('paypal');
-    expect(initialPart(deriveCircuit(input()), true)).toBe('agents');
-  });
-
-  it('←/→ walk the parts in picture order and wrap', () => {
-    expect(stepPart('agents', 1)).toBe('engine');
-    expect(stepPart('engine', 1)).toBe('lock');
-    expect(stepPart('agents', -1)).toBe('house');
-    expect(stepPart('house', 1)).toBe('agents');
-    let p = PART_ORDER[0] ?? 'agents';
-    for (let i = 0; i < PART_ORDER.length; i++) p = stepPart(p, 1);
-    expect(p).toBe('agents');
-  });
 });
 
-describe('the settings answer and the setup checklist progress', () => {
+describe('the settings answer', () => {
   const ans = (c: ReturnType<typeof deriveCircuit>, over: Partial<{ firstRun: boolean; settingsKnown: boolean; locked: boolean }> = {}) =>
     settingsAnswer(c, { firstRun: false, settingsKnown: true, locked: false, ...over });
 
@@ -144,7 +128,6 @@ describe('the settings answer and the setup checklist progress', () => {
     const c = deriveCircuit(input());
     expect(ans(c)).toMatchObject({ tone: 'done', title: 'Your wallet is ready' });
     expect(ans(c).sub).not.toMatch(/paypal/i);
-    expect(setupProgress(c)).toEqual({ done: 3, total: 3 });
   });
 
   it('missing steps are gold, counted, and say no money moves until fixed', () => {
@@ -152,10 +135,8 @@ describe('the settings answer and the setup checklist progress', () => {
     expect(ans(c, { firstRun: true })).toMatchObject({ tone: 'need', title: 'Let’s get your wallet ready' });
     expect(ans(c).sub).toMatch(/^3 steps are left/);
     expect(ans(c).sub).toMatch(/no money moves/);
-    expect(setupProgress(c)).toEqual({ done: 0, total: 3 });
     const one = deriveCircuit(input({ settings: settings({ payment_executor_configured: false }) }));
     expect(ans(one).sub).toMatch(/^1 step is left/);
-    expect(setupProgress(one)).toEqual({ done: 2, total: 3 });
   });
 
   it('paused, still checking, locked and not-read are each said plainly and never green', () => {
@@ -165,6 +146,5 @@ describe('the settings answer and the setup checklist progress', () => {
     const none = deriveCircuit(input({ settings: null }));
     expect(ans(none, { settingsKnown: false })).toMatchObject({ tone: 'calm', title: 'Checking your wallet…' });
     expect(none.parts.keychain.state).toBe('unknown');
-    expect(setupProgress(none).done).toBeLessThan(3);
   });
 });

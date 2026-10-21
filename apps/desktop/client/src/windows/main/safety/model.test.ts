@@ -1,11 +1,11 @@
 // "Your safety record": the headline in plain words (singular, plural, zero, a finding, a broken
-// chain), how much was checked, the hash route, and the mock counting the same week deal_history
+// chain), how much was checked, and the mock counting the same week deal_history
 // serves (main only, PayPal never asked for a refusal, nothing found).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SafetyRecord } from '@bindings/SafetyRecord';
 import { mockBackend, resetMockState } from '../../../mock/backend';
 import { isMoneyCall } from '../logic';
-import { authorityParts, FAMILY_WORDS, safetyInHash, safetyWords, scopeWords, VIOLATION_WORDS, withSafety } from './model';
+import { authorityParts, FAMILY_WORDS, safetyWords, scopeWords, VIOLATION_WORDS } from './model';
 
 const NONE = { owner: 0, signed_rule: 0, shop_rules: 0, house_rules: 0, safe_default: 0, safe_default_voids: 0 };
 const rec = (extra: Partial<SafetyRecord> = {}): SafetyRecord => ({
@@ -87,14 +87,6 @@ describe('safety record words', () => {
       ...Object.values(FAMILY_WORDS), ...Object.values(VIOLATION_WORDS),
     ].join(' ');
     expect(text).not.toMatch(/clause|mandate|capture|void|authoriz|audit|transcript|Rust|safety_record|_/i);
-  });
-
-  it('opens from the hash beside the main route and leaves it as formatHash wrote it when closed', () => {
-    expect(safetyInHash('#m=book&p=safety')).toBe(true);
-    expect(safetyInHash('#m=book')).toBe(false);
-    expect(withSafety('#m=book', true)).toBe('#m=book&p=safety');
-    expect(withSafety('', true)).toBe('#p=safety');
-    expect(withSafety('#m=book', false)).toBe('#m=book');
   });
 });
 

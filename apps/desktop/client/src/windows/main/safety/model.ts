@@ -116,15 +116,3 @@ export function headGroups(h: H256 | null): string[] {
   const hex = h.map((b) => b.toString(16).padStart(2, '0')).join('');
   return hex.match(/.{1,8}/g) ?? [];
 }
-
-// ---- the sheet's place in the hash (#…&p=safety), beside the main window's route ----------------
-
-/** True when the hash asks for the safety record ("p=safety"). */
-export function safetyInHash(hash: string): boolean {
-  return new URLSearchParams(hash.replace(/^#/, '')).get('p') === 'safety';
-}
-/** `hash` (as formatHash writes it) with the safety record open or not. */
-export function withSafety(hash: string, open: boolean): string {
-  if (!open) return hash;
-  return hash ? `${hash}&p=safety` : '#p=safety';
-}
