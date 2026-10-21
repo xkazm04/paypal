@@ -39,9 +39,23 @@ export function joinCode(raw: string): string | null {
   return c ? c : null;
 }
 
-/** Can the primary act run? (Main validates presence only; Rust validates content.) */
+/** Rust reads the payee as a PayeeRef (table-core ids.rs text_id!): 1-128 ASCII letters, digits or
+ *  `-_.:@+`, nothing else. Rust refuses any other payee before the pairing starts, and that refusal
+ *  reaches Main as a transport failure, not a field error, so the desk checks the same rule first.
+ *  Same rule as windows/approval/mandateDraft.ts isTextId. Empty (after trim) is not a problem here:
+ *  canSubmit's presence check covers it. */
+export const PAYEE_MAX = 128;
+export function payeeProblem(raw: string): 'long' | 'chars' | null {
+  const p = raw.trim();
+  if (!p) return null;
+  if (p.length > PAYEE_MAX) return 'long';
+  return /^[A-Za-z0-9\-_.:@+]+$/.test(p) ? null : 'chars';
+}
+
+/** Can the primary act run? Main checks the payee against Rust's PayeeRef rule and the code for
+ *  presence only (Rust decides a code's validity). */
 export function canSubmit(mode: PairMode, fields: { payee: string; code: string }, house: 'unavailable' | 'idle' | 'waking' | 'ready'): boolean {
-  if (!fields.payee.trim()) return false;
+  if (!fields.payee.trim() || payeeProblem(fields.payee)) return false;
   if (mode === 'join') return joinCode(fields.code) !== null;
   if (mode === 'house') return house !== 'unavailable' && house !== 'waking';
   return true;

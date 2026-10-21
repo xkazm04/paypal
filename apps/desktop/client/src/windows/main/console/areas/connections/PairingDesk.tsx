@@ -19,7 +19,7 @@ import { WalletNotice } from '../../../../../shared/honesty';
 import { AnswerBar, Btn, Chip, Field, Icon, Kv, Seg, Silence, useToast } from '../../../../../shared/ui';
 import { Handoff, Info } from '../../../setup/common';
 import {
-  allTicked, canSubmit, houseWords, joinCode, mirrorStage, mirrorText, modeLocked, newTicks, pairAnswer, pairPhase, tickLabel, tickProgress, toggleTick, wizardSteps,
+  allTicked, canSubmit, houseWords, joinCode, mirrorStage, mirrorText, modeLocked, newTicks, pairAnswer, pairPhase, payeeProblem, tickLabel, tickProgress, toggleTick, wizardSteps,
   type MirrorStage, type PairMode, type Ticks, type WizardKey, type WizardState,
 } from '../../../setup/pairing';
 import { useLocked, useSettings } from '../../../world';
@@ -447,6 +447,8 @@ function HouseChip({ state }: { state: 'unavailable' | 'idle' | 'waking' | 'read
 }
 
 function Fields({ side, setSide, fixed, payee, setPayee }: { side: Side; setSide: (s: Side) => void; fixed?: boolean; payee: string; setPayee: (s: string) => void }) {
+  // The wallet refuses a payee outside its rule before anything starts: say why here, at the field.
+  const problem = payeeProblem(payee);
   return (
     <div className="wz-fields">
       <div className="wz-f">
@@ -455,10 +457,12 @@ function Fields({ side, setSide, fixed, payee, setPayee }: { side: Side; setSide
           <Seg value={side} onChange={setSide} label={PAIR.yourSide} options={[{ value: 'buyer', label: PAIR.buyOpt }, { value: 'seller', label: PAIR.sellOpt }]} />
         )}
       </div>
-      <label className="wz-f grow" htmlFor="pp-payee" title={PAIR.paidToTitle}>
-        <span>{PAIR.paidTo}</span>
-        <Field id="pp-payee" value={payee} onChange={(e) => setPayee(e.target.value)} placeholder={PAIR.paidToPlaceholder} autoComplete="off" spellCheck={false} />
-      </label>
+      <div className="wz-f grow" title={PAIR.paidToTitle}>
+        <span><label htmlFor="pp-payee">{PAIR.paidTo}</label></span>
+        <Field id="pp-payee" value={payee} onChange={(e) => setPayee(e.target.value)} placeholder={PAIR.paidToPlaceholder} autoComplete="off" spellCheck={false}
+          aria-invalid={problem ? true : undefined} aria-describedby={problem ? 'pp-payee-why' : undefined} />
+        {problem ? <span id="pp-payee-why" className="ui-hint" role="alert">{PAIR.payeeProblem[problem]}</span> : null}
+      </div>
     </div>
   );
 }
