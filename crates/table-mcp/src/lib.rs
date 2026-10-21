@@ -84,6 +84,10 @@ pub struct Server {
 }
 /// A tool call that has not answered by now is abandoned; a model must not wait on it forever.
 pub const DISPATCH_DEADLINE: Duration = Duration::from_secs(30);
+/// How long an issued grant's session lives, in clock seconds. A grant is issued before its engine
+/// starts, so this must cover the engine's whole run ceiling (`table_engine::RunLimits::default`);
+/// a test in table-engine binds the two.
+pub const SESSION_SECS: i64 = 120;
 /// The largest tool result text the model is handed, in bytes.
 pub const MAX_RESULT_BYTES: usize = 64 * 1024;
 impl std::fmt::Debug for Server {
@@ -165,7 +169,9 @@ impl Server {
                 scope,
                 run,
                 enabled,
-                expires: now.checked_add(120).ok_or(table_app::Error::Invalid)?,
+                expires: now
+                    .checked_add(SESSION_SECS)
+                    .ok_or(table_app::Error::Invalid)?,
             },
         );
         Ok(Grant {

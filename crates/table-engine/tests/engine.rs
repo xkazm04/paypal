@@ -371,3 +371,15 @@ fn a_retried_api_call_does_not_poison_a_claude_run() {
     p.line(retry).unwrap();
     assert!(matches!(p.line(init), Err(Error::Isolation)));
 }
+/// A run's MCP grant is issued before its engine starts, so the session must outlive the engine's
+/// whole run ceiling: otherwise a long run's last tool calls are turned away as unauthorized while
+/// the engine is still allowed to run. The two limits live in different crates; this binds them.
+#[test]
+fn the_mcp_session_outlives_the_native_run_ceiling() {
+    let ceiling = i64::try_from(RunLimits::default().total.as_secs()).unwrap();
+    assert!(
+        ceiling <= table_mcp::SESSION_SECS,
+        "run ceiling {ceiling}s outlives the MCP session {}s",
+        table_mcp::SESSION_SECS
+    );
+}

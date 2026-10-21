@@ -343,7 +343,9 @@ async fn sessions_are_bounded_expire_and_revoke() {
         .0,
         StatusCode::UNAUTHORIZED
     );
-    clock.0.store(219, std::sync::atomic::Ordering::SeqCst);
+    clock
+        .0
+        .store(100 + SESSION_SECS - 1, std::sync::atomic::Ordering::SeqCst);
     assert_eq!(
         call(
             &server,
@@ -356,7 +358,9 @@ async fn sessions_are_bounded_expire_and_revoke() {
         .0,
         StatusCode::OK
     );
-    clock.0.store(220, std::sync::atomic::Ordering::SeqCst);
+    clock
+        .0
+        .store(100 + SESSION_SECS, std::sync::atomic::Ordering::SeqCst);
     assert_eq!(
         call(
             &server,
