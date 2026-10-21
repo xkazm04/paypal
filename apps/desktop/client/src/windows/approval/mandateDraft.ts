@@ -52,6 +52,8 @@ export function percentToBp(s: string): number | null {
   const bp = Number(whole) * 100 + Number(frac.padEnd(2, '0'));
   return bp > 0 && bp < 10000 ? bp : null;
 }
+/** The typed share is not the signed one, read as the wallet reads it ("20%" and "20.0" are 2000). */
+export const percentDiffers = (bp: number, typed: string): boolean => percentToBp(typed) !== bp;
 /** 2000 → "20", 1250 → "12.5". */
 export function bpToPercent(bp: number): string {
   const whole = Math.floor(bp / 100);

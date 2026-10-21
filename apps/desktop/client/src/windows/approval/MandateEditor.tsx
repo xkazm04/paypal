@@ -23,7 +23,7 @@ import { useNow, useQuery } from '../../lib/hooks';
 import { kindWord, rulesName, timeLeftWords } from '../../lib/words';
 import { NO_LONGER_FITS, WalletNotice } from '../../shared/honesty';
 import { AnswerBar, Btn, Chip, Hourglass, Kv, Popover, Seg, Spacer, type IconName } from '../../shared/ui';
-import { buildMandate, CLAUSE_NUMBER, draftFrom, fromLocalInput, newDraft, previewClauses, refusalWords, ruleProblems, withClause, type ClauseDraft, type ClauseType, type MandateDraft } from './mandateDraft';
+import { bpToPercent, buildMandate, CLAUSE_NUMBER, draftFrom, fromLocalInput, newDraft, percentDiffers, previewClauses, refusalWords, ruleProblems, withClause, type ClauseDraft, type ClauseType, type MandateDraft } from './mandateDraft';
 import { minorToInput } from './model';
 import { useSimulation } from './owner/data';
 import { diffPolicy, type Change, type DiffSide } from './owner/diff';
@@ -208,7 +208,7 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
               <label className="ui-hint ow-inline">
                 and at most <input className="ui-field num ow-pct" inputMode="decimal" value={c.percent} aria-label="Most off, as a percent of the renewal" onChange={(e) => set(i, { ...c, percent: e.target.value })} /> %
               </label>
-              {sl && String(sl.max_discount_bp / 100) !== c.percent.trim() ? <span className="ui-hint gold">was {sl.max_discount_bp / 100}%</span> : null}
+              {sl && percentDiffers(sl.max_discount_bp, c.percent) ? <span className="ui-hint gold">was {bpToPercent(sl.max_discount_bp)}%</span> : null}
             </Lever>
           );
         }
