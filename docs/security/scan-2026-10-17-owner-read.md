@@ -42,7 +42,7 @@ Severity is judged for this app: a hackathon desktop wallet against the PayPal *
 | O-2 | Info | fairness under cap churn | `crates/table-app/src/pipeline/read_state.rs:61-68`; `resolve.rs:178-181` | open | While the cap keeps dropping, the global floor also delays the first read of a brand-new lost step, not only of a dropped one |
 | O-3 | Info | schedule reset by owner | `crates/table-app/src/pipeline/resolve.rs:506-516` | open | An owner read that succeeds clears the wallet's backoff; a failed one does not count. By design (§52a); bounded by clicks |
 | O-4 | Info | error masking | `crates/table-app/src/pipeline/resolve.rs:168`; `crates/table-app/src/pipeline.rs:1396` | open | A ledger error in `prune_read_state` replaces the step's own result; fails safe |
-| O-5 | Info | CPU per tick | `crates/table-app/src/pipeline/read_state.rs:105-109`, `:165-176` | open | Each prune scans every key of every map (a string parse per key); bounded by the cap |
+| O-5 | Info | CPU per tick | `crates/table-app/src/pipeline/read_state.rs:105-109`, `:165-176` | **fixed** `2d51e00` | A key is matched on the deal's canonical id text once per call (`key_names_deal`), with no `DealId` parse per key; still bounded by the cap |
 
 ## Answers to the questions
 
@@ -304,3 +304,9 @@ zero while the maps are empty, which is the normal case. *Action:* report only.
 No fix was made, so no decision is recorded. If O-1 is taken up, the note would read: *"After a drop
 by the cap, a read with no schedule entry waits at least `RESCUE_POLL_SECS` from the drop. It may come
 sooner than the dropped entry's own schedule, never on a 1 s tick, and never past the window."*
+
+## Closed 2026-10-21 (belay wave 5)
+
+O-5 was fixed in `2d51e00`: the scan compares each key against the deal's id text, which every key is
+built from, so the same keys match. No timing was measured; the maps stay capped at 4096 entries.
+O-4 stays open: its report-only verdict holds.

@@ -29,7 +29,7 @@ Severity is judged for this app: a hackathon desktop wallet against the PayPal *
 
 | ID | Severity | Category | File:line | Status | Action |
 |---|---|---|---|---|---|
-| R-1 | Low | defence in depth (ticket binding) | `crates/table-app/src/auth.rs:27-35`, `:75-85`, `:152-172` | open | Bind an `OwnerTicket` to the session that minted it (a random per-session id checked in `validate`) |
+| R-1 | Low | defence in depth (ticket binding) | `crates/table-app/src/auth.rs:27-35`, `:75-85`, `:152-172` | **fixed** `9cf5ce2` | An `ApprovalSession` holds a random 16-byte session id; each `OwnerTicket` carries it and `validate` refuses a ticket from another session |
 | R-2 | Info | rate / audit volume | `crates/table-app/src/rescue.rs:496-512`; `crates/table-runtime/src/service.rs:664-666` | open | Accept: one GET per privileged owner decision, at most one per deal per second |
 | R-3 | Info | audit legibility | `crates/table-runtime/src/service.rs:664` (outside scope) | open | The owner read is logged as an `owner.decision` "rescue" row, also when the spent set then refuses it |
 | R-4 | Info | memory | `crates/table-app/src/pipeline.rs:132` | open | The spent set is never pruned (one tuple per owner read); entries older than 60 s could be dropped |
@@ -227,3 +227,9 @@ as `a_second_ticket_in_the_same_second_reads_nothing` would say what it proves.
 No fix was made, so no decision is recorded. If R-1 is taken up, the note would read: *"An owner
 ticket names the approval session that minted it; a ticket from another session is refused even at
 the same generation (defence in depth; one session per process today)."*
+
+## Closed 2026-10-21 (belay wave 5)
+
+R-1 was built with a test: `owner_ticket_from_another_session_is_refused`
+(`crates/table-app/src/auth.rs`) mints a ticket in one session and has a second session at the same
+generation refuse it. R-2 to R-6 stay open.
