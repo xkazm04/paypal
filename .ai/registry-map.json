@@ -4253,7 +4253,11 @@
           "revision": 2,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-ledger/src/audit.rs:330 The ledger writes directly through SQLite transactions, and searches of this context and repository sources found no consensus, applied_index, modified_since or replicated_log machinery requiring the subject's transaction protocol.",
+          "evaluatedAt": "2026-10-21",
+          "evaluatedAgainst": "sha256-b2:230a37319e1dd059",
+          "evaluatedRevision": 2
         },
         {
           "subject": "table",
@@ -9101,7 +9105,11 @@
           "revision": 2,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:146 The console filters and virtualizes supplied UI rows, and searches of its directory and repository sources found no consensus, applied_index, modified_since or replicated_log machinery implementing replicated transactions.",
+          "evaluatedAt": "2026-10-21",
+          "evaluatedAgainst": "sha256-b2:230a37319e1dd059",
+          "evaluatedRevision": 2
         },
         {
           "subject": "voice-io",

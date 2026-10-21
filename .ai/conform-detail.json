@@ -5171,6 +5171,98 @@
           "evidence": "apps/desktop/client/src/windows/main/console/Centre.tsx:150 The decision action opens the wallet approval window; SQL mutation classification has no execution target here."
         }
       ]
+    },
+    "dfab992a-8315-4db9-b496-6aa38639cf8c/transactions-over-a-replicated-log": {
+      "context": "ledger-repositories-audit-evidence",
+      "subject": "transactions-over-a-replicated-log",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-21",
+      "evaluatedTs": "2026-10-21T23:38:25.680Z",
+      "worker": "52bfec53-5079-4c7b-a0e8-7323a867a6f6",
+      "techniques": [
+        {
+          "technique": "capture-index-before-snapshot",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/src/lib.rs:159 The change counter measures local SQLite changes; it is not an applied log index captured when opening a transaction snapshot."
+        },
+        {
+          "technique": "compose-then-conform",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/src/stores.rs:135 The store adapter forwards domain operations; it does not expose composable transaction handles through a storage wrapper stack."
+        },
+        {
+          "technique": "list-verification-by-present-keys",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/src/repositories.rs:574 Listing reads SQLite rows directly, without reconciling buffered transaction writes or constructing a list verification for replicated apply."
+        },
+        {
+          "technique": "live-file-is-the-snapshot",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/src/snapshot.rs:38 These snapshots are pre-migration restore copies, not consensus compaction or follower catch-up snapshots."
+        },
+        {
+          "technique": "no-writes-no-log",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/src/audit.rs:338 This read executes directly against SQLite; there is no buffered transaction commit that could propose an empty consensus entry."
+        },
+        {
+          "technique": "same-value-still-conflicts",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/src/negotiation.rs:103 This checks a signed envelope's predecessor against the deal transcript, not an optimistic transaction read set at consensus apply."
+        },
+        {
+          "technique": "snapshot-read-plus-verify-log",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-ledger/src/repositories.rs:607 Deal creation uses an ordinary SQLite write transaction, with no consensus round trip or verification-carrying log entry."
+        }
+      ]
+    },
+    "7e6e9781-1ef3-439c-ae2d-00619d2cb1d9/transactions-over-a-replicated-log": {
+      "context": "console-navigation-and-lists",
+      "subject": "transactions-over-a-replicated-log",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-21",
+      "evaluatedTs": "2026-10-21T23:38:25.680Z",
+      "worker": "52bfec53-5079-4c7b-a0e8-7323a867a6f6",
+      "techniques": [
+        {
+          "technique": "capture-index-before-snapshot",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/findIndex.ts:43 Find builds a text search index; it does not capture an applied log position or open an engine snapshot."
+        },
+        {
+          "technique": "compose-then-conform",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:128 This memoizes UI search text, without wrapping a transactional storage interface."
+        },
+        {
+          "technique": "list-verification-by-present-keys",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:137 The list is a display projection of supplied rows, without transaction write-buffer reconciliation or verification hashes."
+        },
+        {
+          "technique": "live-file-is-the-snapshot",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/calm.ts:16 Persistence here stores a browser motion preference; it is not a durable engine beneath a consensus snapshot library."
+        },
+        {
+          "technique": "no-writes-no-log",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/calm.ts:10 Reading the preference has no transaction commit or replicated entry proposal."
+        },
+        {
+          "technique": "same-value-still-conflicts",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/Find.tsx:21 Reference equality controls selector updates; it does not settle concurrent transactional writes."
+        },
+        {
+          "technique": "snapshot-read-plus-verify-log",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/Waiting.tsx:44 Waiting constructs a windowed UI list, without opening a database transaction spanning consensus."
+        }
+      ]
     }
   }
 }
