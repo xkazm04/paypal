@@ -63,6 +63,14 @@ describe('Spend flows', () => {
     await waitFor(() => expect(r.layer.querySelector('.le-summary')?.textContent).toMatch(/^Showing/));
   }, 60_000);
 
+  it('the rule check never draws an unknown mark in a pass or fail colour (UX guide: nothing unknown looks green)', async () => {
+    const r = await renderLayerAtScale({ level: 'module', module: 'spend', view: 'gate' }, 'large');
+    const marks = [...r.layer.querySelectorAll<HTMLElement>('.sp-marks i')];
+    const unknown = marks.filter((i) => i.textContent === '?');
+    expect(unknown.length, 'the large world has purchases under other rule sets').toBeGreaterThan(0);
+    expect(unknown.filter((i) => !i.classList.contains('unknown')).map((i) => i.className)).toEqual([]);
+  }, 60_000);
+
   it('recent purchases are windowed and filter by outcome', async () => {
     const r = await renderLayerAtScale({ level: 'module', module: 'spend', view: 'week' }, 'large');
     expect(r.rows()).toBeLessThan(120);
