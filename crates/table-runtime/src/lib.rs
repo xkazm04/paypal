@@ -9,6 +9,8 @@ mod groups;
 mod history;
 mod ladder;
 mod limits;
+#[cfg(test)]
+mod live_readers_tests;
 mod market;
 pub use market::VaultMarketKey;
 mod market_watch;

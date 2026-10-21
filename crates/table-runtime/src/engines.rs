@@ -415,7 +415,7 @@ impl Runtime {
     pub(crate) fn waiting_on_agent(&self, now: i64) -> Result<Vec<WaitingTable>, CommandError> {
         let ledger = &self.pipeline.wallet.ledger;
         let mut waiting = Vec::new();
-        for deal in app(ledger.list_deals())? {
+        for deal in app(ledger.list_live_deals())? {
             if deal.kind != DealKind::Haggle
                 || deal.mode == Mode::Replay
                 || deal.state.terminal()
