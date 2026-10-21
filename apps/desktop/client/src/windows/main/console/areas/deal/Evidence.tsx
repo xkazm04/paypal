@@ -28,6 +28,16 @@ export type EvidenceKind = 'paypal' | 'books' | 'market';
 
 type EvState = { data: DealEvidence | undefined; error: WalletError | null };
 
+const DAY = 86400;
+/** The statement read's window: back to a day before the deal began (its payment cannot be older),
+ *  at least the last three days, and never more than the 31 days PayPal's reporting (and the wallet,
+ *  ReportingWindow::validate) accept. A window that starts after the payment finds nothing, and the
+ *  wallet records that as "not on the statement". */
+export function statementWindow(d: Pick<Deal, 'created_at'>, now: number): { start: number; end: number } {
+  const start = Math.max(now - 31 * DAY, Math.min(now - 3 * DAY, (d.created_at ?? now) - DAY));
+  return { start, end: now };
+}
+
 /** The typical-price card's line about a signed keep-prices-fresh rule (T15); null when not watched. */
 export function watchWhy(watch: DealWatch | null | undefined, priced: boolean): string | null {
   if (!watch) return null;
@@ -115,8 +125,7 @@ export function EvidenceSheet({ kind, deal, ev, band, watch, onFresh, onClose }:
   ) : checkable ? (
     <Btn className="left" disabled={rec.pending} title={DEAL_PROOF.checkTitle}
       onClick={async () => {
-        const now = nowUnix();
-        const r = await rec.run({ deal_id: deal.id, start: now - 3 * 86400, end: now });
+        const r = await rec.run({ deal_id: deal.id, ...statementWindow(deal, nowUnix()) });
         if (r) { onFresh(r); toast(DEAL_PROOF.statementToast(reconciliationLabel(r.reconciliation).text), r.reconciliation === 'matched' ? 'ok' : 'info'); }
       }}>{rec.pending ? DEAL_PROOF.checking : DEAL_PROOF.checkStatement}</Btn>
   ) : null;
