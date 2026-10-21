@@ -48,6 +48,11 @@ describe('mandate diff', () => {
     expect(diffPolicy(side(signed, { notBefore: T }), side(signed, { notBefore: T + 30 - (T % 60) }))).toEqual([]);
     expect(diffPolicy(side(signed), side(signed, { notBefore: T }))).toEqual([]);
   });
+  it('names a changed deal kind in words, never as its identifier', () => {
+    const shop = diffPolicy(side(signed), side(swap('per_deal', { type: 'per_deal', kind: 'shop_order', max_amount: usd(200), categories: ['office'] })));
+    expect(shop).toMatchObject([{ term: 'deal kind', from: 'purchase', to: 'shop order' }]);
+    expect(shop[0]?.text).not.toContain('_');
+  });
   it('lists removed clauses, skips incomplete ones, and notes slot changes', () => {
     const d = diffPolicy(side(signed), side([...signed.filter((c) => c.type !== 'velocity' && c.type !== 'payees'), { type: 'payees', incomplete: true }], { agent: 'shopper' }));
     expect(d.map((c) => c.term)).toEqual(['agent slot', 'daily limit']);
