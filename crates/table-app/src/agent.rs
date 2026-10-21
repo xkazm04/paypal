@@ -291,7 +291,7 @@ impl Wallet {
                 if deal.side != Side::Buyer
                     || *item_ref != deal.terms.item_ref
                     || *ask != deal.terms.unit_price
-                    || qty.is_some_and(|qty| qty != deal.terms.qty)
+                    || *qty != Some(deal.terms.qty)
                     || *delivery != deal.terms.delivery
                 {
                     return Err(Error::Invalid);
