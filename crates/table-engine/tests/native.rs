@@ -120,7 +120,19 @@ async fn version_probe_is_bounded_silent_and_does_not_establish_inventory() {
     let info = engine.probe().await.unwrap();
     assert_eq!(info.version.as_deref(), Some("0.0.1"));
     assert!(!info.available);
-    assert!(info.reason.is_some());
+    // The reason is shown to the owner as is ("not usable yet · <reason>"): plain words, no
+    // internals (docs/ux/UX-GUIDE.md).
+    let reason = info.reason.unwrap();
+    for internal in [
+        "spike",
+        "inventory",
+        "isolation",
+        "Pre-input",
+        "MCP",
+        "probe",
+    ] {
+        assert!(!reason.contains(internal), "{reason}");
+    }
     let engine = fixture("large", &root, 2000);
     assert!(engine.probe().await.is_err());
     assert!(!root.join("input").exists());
