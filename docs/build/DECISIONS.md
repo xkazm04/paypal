@@ -2264,4 +2264,13 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
   3. **J-3.** `Body::Listing` gains `qty: Option<u32>`, omitted from the wire when `None`. `list()` signs `Some(qty)`; `receive_haggle` refuses a listing whose `qty` differs from the buyer's deal. The wire change is one-way compatible: a new buyer accepts an old LISTING (no `qty` key, nothing bound, as before); an old buyer rejects a new one (`deny_unknown_fields`). Deploy the hosted house and the wallets from the same build: a new wallet joins an old house, an old wallet cannot join a new house.
 - **Still open:** J-4 (category not in the LISTING, accepted) and J-7 (a distinct `join.refused` audit action; a product call, and the only caller of the shared 60-a-minute cap is the owner's own window).
 - **Evidence:** `crates/table-runtime/src/listing_code_tests.rs` (`a_listing_code_with_altered_terms_is_refused_and_never_reaches_authorize` now has a quantity case; red with the compare removed), `crates/table-proto/tests/protocol.rs` (`a_signed_listing_carries_its_quantity_and_one_from_before_the_field_still_verifies`), `crates/table-ledger/src/tests.rs` (`reads_of_an_absent_counterparty_deal_or_offer_say_not_found`), `apps/desktop/client/src/windows/approval/listingCode.test.ts`.
-- **2026-10-21 (delta scan D-3):** a new buyer now refuses a LISTING without `qty` (`735c947` on `belay/wave-6`, follows J-3; operator veto pending). Item 3's "a new buyer accepts an old LISTING" describes the build before it; the wire format is unchanged, so an old LISTING still parses and verifies, and only `receive_haggle` refuses it. Evidence: `crates/table-app/tests/listing_qty.rs`. Revert that commit alone to restore item 3.
+- **2026-10-21 (delta scan D-3):** a new buyer now refuses a LISTING without `qty` (`636449e`, follows J-3; confirmed by the operator 2026-10-21). Item 3's "a new buyer accepts an old LISTING" describes the build before it; the wire format is unchanged, so an old LISTING still parses and verifies, and only `receive_haggle` refuses it. Evidence: `crates/table-app/tests/listing_qty.rs`. Reverting that commit alone would restore item 3.
+
+## 54. The system clock stays a local seven-line impl in each service
+
+- **Decision (operator, 2026-10-21):** the three identical `SystemClock` impls of `table-core`'s `Clock` trait stay
+  where they are. `table-core` is pure (time is supplied by callers), the hosted services do not depend on
+  `table-runtime`, and `table-relay` is a transport; a crate for seven lines, or one service exporting its clock to
+  another, would bend the layering more than the duplication costs.
+- **Evidence:** the wave-3 belay lane that moved the clock into `table-core` was rejected on review for breaking
+  `table-core`'s purity (`.belay/runs/paypal/3.review.md` in afterlife).
