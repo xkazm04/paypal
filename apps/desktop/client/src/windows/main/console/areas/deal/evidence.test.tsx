@@ -1,6 +1,7 @@
 // The owner's statement check is offered on a deal that ended UNCONFIRMED too, and says what it
 // needs when the wallet has no PayPal keys instead of a button that fails (deal-to-settlement A).
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { nowUnix } from '../../../../../lib/format';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Backend } from '../../../../../lib/contract';
 import { DEAL_PROOF, STATEMENT_CHECK_NEEDS_KEYS, unconfirmedMeans } from '../../../../../lib/words';
@@ -132,5 +133,24 @@ describe('a deal PayPal knows only by its subscription', () => {
     render(<ToastProvider><TranscriptSheet deal={deal} label="the renewal" steps={[]} error={null} band={null} theirName="S-14" onClose={() => {}} /></ToastProvider>);
     await screen.findByRole('button', { name: 'Done' });
     expect(document.body.textContent).toContain('I-SUB0042');
+  });
+});
+
+describe('the statement check looks where the payment can be', () => {
+  afterEach(() => { cleanup(); hoisted.current = null; });
+
+  it('reads back to the deal’s start, not only the last three days, within PayPal’s 31-day window', async () => {
+    const sent: { start: number; end: number }[] = [];
+    const real = withKeys(true);
+    hoisted.current = { ...real, invoke: async (cmd, args, opts) => { if (cmd === 'deal_reconcile') sent.push(args as { start: number; end: number }); return real.invoke(cmd, args, opts); } } as Backend;
+    const now = nowUnix();
+    const old = { ...buyer.deal, state: 'RECEIPTED' as const, created_at: now - 10 * 86400, updated_at: now - 9 * 86400 };
+    const data = { ...buyer.evidence, receipt: 'SELLER_ATTESTED' as const, reconciliation: 'pending_reporting' as const };
+    render(<ToastProvider><EvidenceSheet kind="books" deal={old} ev={{ data, error: null }} band={null} onFresh={() => {}} onClose={() => {}} /></ToastProvider>);
+    fireEvent.click(await screen.findByRole('button', { name: CHECK }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    const w = sent[0]!;
+    expect(w.start).toBeLessThanOrEqual(old.created_at);
+    expect(w.end - w.start).toBeLessThanOrEqual(31 * 86400);
   });
 });
