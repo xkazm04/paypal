@@ -438,6 +438,43 @@ mod tests {
         );
     }
 
+    /// The Tauri core permissions each window holds besides its commands, written out by hand:
+    /// they are not table rows and not in the fingerprint, so this is what stops a careless edit
+    /// to `core_permissions` (regenerated into the capability files) from widening a window.
+    #[test]
+    fn core_permissions_are_pinned_independently() {
+        use WindowLabel::{Approval, Main, Tumbler};
+        let pinned = |label| -> BTreeSet<&str> {
+            match label {
+                Main => ["core:event:allow-listen", "core:event:allow-unlisten"].into(),
+                Tumbler => [
+                    "core:event:allow-listen",
+                    "core:event:allow-unlisten",
+                    "core:window:allow-start-dragging",
+                ]
+                .into(),
+                Approval => [
+                    "core:window:allow-close",
+                    "core:event:allow-listen",
+                    "core:event:allow-unlisten",
+                ]
+                .into(),
+            }
+        };
+        for label in [Main, Tumbler, Approval] {
+            let v: serde_json::Value =
+                serde_json::from_str(&capability_json(label).unwrap()).unwrap();
+            let core: BTreeSet<&str> = v["permissions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|p| p.as_str())
+                .filter(|p| !p.starts_with("allow-"))
+                .collect();
+            assert_eq!(core, pinned(label), "{}", label.as_str());
+        }
+    }
+
     #[test]
     fn capability_files_grant_exactly_the_table() {
         for label in WindowLabel::ALL {
