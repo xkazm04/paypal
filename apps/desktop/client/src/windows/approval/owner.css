@@ -132,7 +132,8 @@
 .ow-inline { display: inline-flex; align-items: center; gap: var(--sp-1); margin: 0; }
 .ow-inline .ui-field { width: 190px; }
 .ow-inline .ui-field.ow-pct { width: 64px; }
-.ow-pair + .ow-lever { border-top: 0; }
+/* the band's two levers (most you'll pay, least you'll accept) read as one pair; .ow-pair is the pairing ceremony's */
+.ow-band + .ow-lever { border-top: 0; }
 
 /* who and what */
 .ow-ww .ui-row .lbl { width: 150px; flex: none; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
