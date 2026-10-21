@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ApprovalSummary } from '@bindings/ApprovalSummary';
 import type { Deal } from '@bindings/Deal';
 import type { H256 } from '@bindings/H256';
-import { checkStateOf, summarySentence, type Intent, type SaysInput } from './says';
+import { summarySentence, type Intent, type SaysInput } from './says';
 import type { Twin } from './diff';
 
 const HASH = Array.from({ length: 32 }, (_, i) => i) as H256;
@@ -75,21 +75,5 @@ describe('the approval sentence says what you approve, and never more than the f
     expect(says({ kind: 'lever', act: 'rescue', summary: s, deal: s.deal }).text).toMatch(/never counted/);
     const sent = summary({ kind: 'rescue', side: 'seller', state: 'AWAITING_APPROVAL' });
     expect(says({ kind: 'lever', act: null, phase: 'waiting', summary: sent, deal: sent.deal }).text).toMatch(/Nothing is charged unless they pay it/);
-  });
-});
-
-describe('diff rows read as checks: unknown is never a pass', () => {
-  it('maps tone and relation onto pass / ask / fail / unknown', () => {
-    expect(checkStateOf({ rel: '=', tone: 'ok' })).toBe('pass');
-    expect(checkStateOf({ rel: '≠', tone: 'bad' })).toBe('fail');
-    expect(checkStateOf({ rel: '!', tone: 'hold' })).toBe('ask');
-    expect(checkStateOf({ rel: '∉', tone: 'info', word: 'so you’re asked' })).toBe('ask');
-    expect(checkStateOf({ rel: '>', tone: 'info', word: 'asks you' })).toBe('ask');
-  });
-  it('never calls a not-compared or waiting row passed', () => {
-    expect(checkStateOf({ rel: '?', tone: 'ok' })).toBe('unknown');
-    expect(checkStateOf({ rel: '?', tone: 'info' })).toBe('unknown');
-    expect(checkStateOf({ rel: '…', tone: 'wait' })).toBe('unknown');
-    expect(checkStateOf({ rel: '=', tone: 'info' })).toBe('unknown');
   });
 });

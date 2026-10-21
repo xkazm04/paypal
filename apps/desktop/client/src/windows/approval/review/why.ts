@@ -7,7 +7,6 @@ import type { Money } from '@bindings/Money';
 import type { OpenMandate } from '@bindings/OpenMandate';
 import { formatMoney } from '../../../lib/format';
 import { marketWords } from '../../../lib/words';
-import type { CheckState } from '../../../shared/ui';
 import type { Phase } from '../model';
 import type { DiffKind, DiffRow, Twin } from './diff';
 import type { Intent } from './says';
@@ -130,80 +129,4 @@ export function answerWhy(i: AnswerWhyInput): WhyAnswer | null {
     default:
       return null;
   }
-}
-
-// ---- one check row ------------------------------------------------------------------------------
-
-const NEVER_PASSED = 'Not checked here is never shown as passed.';
-
-/** Why this check is an exception (asks you, stopped it, or could not be checked); null for a pass. */
-export function rowWhy(row: DiffRow, state: CheckState, f: WhyFacts): WhyAnswer | null {
-  if (state === 'pass') return null;
-  const { who, total } = f;
-  const unknown = state === 'unknown';
-
-  switch (row.id) {
-    case 'shield':
-    case 'rule': {
-      if (row.rel === '≠') return { question: 'Why was this blocked?', lines: [f.shieldRule ? `A scam check blocked this payment. ${f.shieldRule}` : 'A scam check blocked this payment.', 'A block can’t be overridden, here or anywhere, and no money moved.'] };
-      if (row.rel === '!' || row.id === 'rule') {
-        return {
-          question: 'Why is the scam check paused?',
-          lines: [
-            f.shieldRule ? `The scam check paused this payment before PayPal was asked. ${f.shieldRule}` : 'The scam check paused this payment before PayPal was asked.',
-            f.phase === 'mismatch' ? 'The deal also stopped on the amount, so nothing can be paid either way.' : 'Unpausing pays nothing; it only lets the request go on to your own approval.',
-          ],
-        };
-      }
-      if (unknown) return { question: 'Why hasn’t the scam check run?', lines: ['The scam check hasn’t looked at this deal yet.', NEVER_PASSED] };
-      return { question: 'Why does the scam check ask me?', lines: ['The scam check didn’t block this payment, but it leaves the final look to you.', 'Checks can only add caution, never remove it, so your review here is the check.'] };
-    }
-    case 'present': {
-      const above = row.rel === '>' && f.askAbove;
-      return {
-        question: 'Why do my rules ask me?',
-        lines: [
-          above ? `Your rules say you decide anything above ${formatMoney(f.askAbove as Money)}, and this ${total} is above that.` : `This ${total} is under your ask-me limit, so the rule doesn’t force it.`,
-          above ? 'That is why the agent stopped and asked you instead of agreeing by itself.' : 'You are still offered the decision here.',
-        ],
-      };
-    }
-    case 'payees':
-      return {
-        question: 'Why am I asked about this payee?',
-        lines: [`${who} isn’t on your approved payees (${row.left}).`, 'Payees not on your list always come to you to decide.'],
-      };
-    case 'amount':
-      if (row.rel === '≠') {
-        return {
-          question: 'Why did the amount stop this?',
-          lines: [
-            `You agreed ${total}, but ${row.right && row.right.startsWith('asked') ? `${who} ${row.right}` : `${who}’s request disagrees`}.`,
-            'There is on purpose no “pay anyway”, and no money moved.',
-          ],
-        };
-      }
-      break;
-    case 'mandate':
-      if (row.tone === 'bad') {
-        return row.word === 'ended' || row.word === 'expired'
-          ? { question: 'Why did my rules stop this?', lines: [row.src, 'Nothing moves under rules that are no longer in force.'] }
-          : { question: 'Why is this over my limit?', lines: [`Your rules allow ${row.left}, and this one is ${row.right ?? total}.`, 'It is checked against your rules before any PayPal call.'] };
-      }
-      break;
-    case 'band':
-      if (row.tone === 'bad') {
-        return { question: 'Why is this above my price range?', lines: [`Your price range says ${row.left}, and their price is ${row.right ?? total}.`, 'Approving is still your call, so look closely before you accept.'] };
-      }
-      break;
-    case 'cp':
-      if (unknown) return { question: 'Why isn’t this wallet verified?', lines: [row.src, 'Only wallets you matched pairing words with show as verified.'] };
-      break;
-    default:
-      break;
-  }
-  // Everything else: where the wallet got it, and what this state means. Never invented.
-  const name = row.name.toLowerCase();
-  const q = unknown ? `Why wasn’t “${name}” checked?` : state === 'fail' ? `Why did “${name}” stop this?` : `Why does “${name}” ask you?`;
-  return { question: q, lines: [row.src, unknown ? NEVER_PASSED : 'Click its name to see where it comes from.'] };
 }

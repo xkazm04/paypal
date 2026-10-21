@@ -15,7 +15,10 @@ import { buildStrip, checksTally, derivePhase, marketPercentile, parseMoneyInput
 import { buildMandate, draftFrom, newDraft } from './mandateDraft';
 import { nameProblem } from './PairingConfirm';
 import { reasonWords } from '../../lib/words';
-import { anyRowFailed, buildDiff, buildEvidence, diffKind, evidenceVisible, relSame, relWithin, tally, toneOf, type DiffInput, type DiffRow } from './review/diff';
+import { buildDiff, buildEvidence, diffKind, evidenceVisible, relSame, relWithin, toneOf, type DiffInput, type DiffRow } from './review/diff';
+
+/** A red row in the comparison (display only: gating reads the wallet’s checklist). */
+const anyRowBad = (rows: readonly DiffRow[]): boolean => rows.some((r) => r.tone === 'bad');
 
 const HASH = Array.from({ length: 32 }, (_, i) => i) as H256;
 const CHECKS_HASH = Array.from({ length: 32 }, (_, i) => 100 + i) as H256;
@@ -457,7 +460,7 @@ describe('The Diff · before the decision', () => {
     const d = buildDiff(dinput(summary({}, { can_open_paypal: false, locked: true })));
     for (const id of ['amount', 'invoice', 'host', 'payee']) expect(row(d.rows, id).rel).toBe('?');
     expect(d.twin.right.v).toBeNull();
-    expect(anyRowFailed(d.rows)).toBe(false);
+    expect(anyRowBad(d.rows)).toBe(false);
     expect(row(d.rows, 'amount').src).toMatch(/unlock/);
   });
   it('the order payee is never drawn as a match (the contract does not expose it)', () => {
@@ -473,7 +476,7 @@ describe('The Diff · before the decision', () => {
     expect(blind.kind).toBe('mismatch');
     expect(blind.twin).toMatchObject({ op: '≠', tone: 'bad', right: { v: null } });
     expect(row(blind.rows, 'amount')).toMatchObject({ rel: '≠', tone: 'bad' });
-    expect(anyRowFailed(blind.rows)).toBe(true);
+    expect(anyRowBad(blind.rows)).toBe(true);
     const seen = buildDiff(dinput(s, { transcript: [step('SETTLE', 6900)] }));
     expect(seen.twin.right.v).toBe('$69.00');
     expect(row(seen.rows, 'amount')).toMatchObject({ rel: '≠', right: 'asked $69.00' });
@@ -493,7 +496,7 @@ describe('The Diff · before the decision', () => {
   it('gating reads the wallet’s checklist, not the window’s own comparison rows', () => {
     const s = summary({}, { can_open_paypal: true });
     const d = buildDiff(dinput(s, { mandate: mandateOf(CLAUSES, NOW - 1) }));
-    expect(anyRowFailed(d.rows)).toBe(true);
+    expect(anyRowBad(d.rows)).toBe(true);
     // The wallet's lines all pass, so the window adds no veto of its own…
     expect(deriveGates(ctx(s)).openPaypal).toMatchObject({ visible: true, enabled: true });
     // …and a failed wallet line disables it whatever the comparison shows.
@@ -512,7 +515,7 @@ describe('The Diff · before the decision', () => {
     expect(row(d.rows, 'band').rel).toBe('≤');
     expect(row(d.rows, 'rounds').rel).toBe('≤');
     expect(row(d.rows, 'present')).toMatchObject({ rel: '>', tone: 'info' });
-    expect(anyRowFailed(d.rows)).toBe(false);
+    expect(anyRowBad(d.rows)).toBe(false);
     // locked: Rust answers can_owner_accept=false; the comparison stays, the button does not
     expect(diffKind({ ...s, can_owner_accept: false, locked: true }, false)).toBe('accept');
   });
@@ -521,14 +524,16 @@ describe('The Diff · before the decision', () => {
     expect(h.kind).toBe('hold');
     expect(row(h.rows, 'rule')).toMatchObject({ rel: '!', tone: 'hold' });
     expect(row(h.rows, 'payees')).toMatchObject({ rel: '∉' });
-    expect(anyRowFailed(h.rows)).toBe(false);
+    expect(anyRowBad(h.rows)).toBe(false);
     const c = summary({ state: 'AUTHORIZED', paypal: { order: 'O', authorization: 'A1', capture: null, subscription: null } });
     expect(diffKind(c, false)).toBe('capture');
     expect(evidenceVisible(c, false)).toBe(false);
   });
-  it('tally counts same/within, differs and the rows this window cannot see', () => {
+  it('the approve comparison has six rows, none red, one this window cannot see', () => {
     const d = buildDiff(dinput(summary({}, { can_open_paypal: true })));
-    expect(tally(d.rows)).toMatchObject({ total: 6, bad: 0, unknown: 1 });
+    expect(d.rows).toHaveLength(6);
+    expect(d.rows.filter((r) => r.tone === 'bad')).toHaveLength(0);
+    expect(d.rows.filter((r) => r.rel === '?')).toHaveLength(1);
   });
 });
 
