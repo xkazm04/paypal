@@ -19,7 +19,7 @@ import type { Module } from '@bindings/Module';
 import { useEvent, useMutation } from '../../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../../lib/lazy';
 import {
-  BACK_TITLE, BRAND_NAME, CHARTER_TITLE, BRAND_TITLE, CRUMBS_LABEL, DETAIL_BACK, LOCK, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, PLACE, PLACE_TITLE, PLACES_LABEL,
+  BACK_TITLE, BRAND_NAME, CHARTER_TITLE, BRAND_TITLE, CRUMBS_LABEL, DETAIL_BACK, LOCK, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, NOTICE_WHAT, PLACE, PLACE_TITLE, PLACES_LABEL,
   SEAL_RING, sealLabel, silenceWords, tabTitle, tabWaiting, TABS_LABEL,
 } from '../../../lib/words';
 import { formatCount } from '../../../lib/data/counts';
@@ -425,10 +425,15 @@ function CrumbLabel({ r, firstRun }: { r: Route; firstRun: boolean }) {
   return C ? <C route={r} /> : <>{def.title(r)}</>;
 }
 
-/** Idle-lock state. Locked: a click opens the approval window, where Windows Hello unlocks. */
+/** Idle-lock state. Locked: a click opens the approval window, where Windows Hello unlocks. When the
+ *  window could not open, a toast says so (the centre's gold action shows the same as a notice). */
 function LockButton() {
   const locked = useLocked();
   const open = useMutation('approval_open');
+  const toast = useToast();
+  useEffect(() => {
+    if (open.error) toast(<><b>{NOTICE_WHAT.approval}:</b> {open.error.message}</>, 'bad');
+  }, [open.error, toast]);
   return (
     <Btn sm className={`lockbtn ${locked ? 'is-locked' : ''}`} data-tour="approval-way" aria-disabled={!locked} onClick={() => { if (locked) void open.run({ deal_id: null }); }}
       title={locked ? LOCK.lockedTitle : LOCK.unlockedTitle}>
