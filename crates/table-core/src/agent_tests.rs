@@ -299,7 +299,7 @@ fn refusal_codes_are_closed_tagged_and_carry_fixed_text() {
     assert_eq!(RefusalCode::OutsideBand.wire()["clause"], 4);
     assert_eq!(RefusalCode::RoundsExhausted.clause(), Some(4));
     assert_eq!(RefusalCode::NotYourTurn.clause(), None);
-    // Wallet limits name the limit from the refusal's own prefix.
+    // Wallet limits name the limit from the refusal's typed cause, never its text.
     let limit = crate::EnvelopeDecision::refuse(EnvelopeLimit::Held, "held 10.00 above 5.00")
         .into_result()
         .unwrap_err();
