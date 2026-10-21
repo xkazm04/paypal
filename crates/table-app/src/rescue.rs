@@ -128,6 +128,19 @@ fn refusal(reason: &str) -> Error {
     Error::Refused(Refusal::new(8, reason))
 }
 
+/// What a PayPal read found, to open its rescue: the read's facts plus the deal and mandate ids.
+/// No `Debug`: the recipient is a secret.
+struct Detected<'a> {
+    id: DealId,
+    subscription: &'a ResourceId,
+    recipient: Recipient,
+    plan: ItemRef,
+    cycle: Money,
+    observations: &'a [Observation],
+    mandate: (MandateId, u32),
+    now: Timestamp,
+}
+
 impl Pipeline {
     fn invoicing(&self) -> Result<std::sync::Arc<dyn SecondaryApi>, Error> {
         self.secondary.clone().ok_or(Error::Unavailable)
@@ -279,7 +292,6 @@ impl Pipeline {
     /// rescue mandate is checked before the read; the read is recorded under the new deal's id.
     // UNVERIFIED: that `billing_info.outstanding_balance` after one failed payment is exactly that
     // cycle's price, and the `subscriber` email is not read (the owner supplies the recipient).
-    #[allow(clippy::too_many_arguments)] // The owner's inputs plus the deal and mandate ids.
     pub async fn rescue_detect(
         &mut self,
         id: DealId,
@@ -294,16 +306,16 @@ impl Pipeline {
         let Some(WatchVerdict::Open { cycle }) = facts.map(|f| watch_verdict(&f, false)) else {
             return Ok(None);
         };
-        self.rescue_detected(
+        self.rescue_detected(Detected {
             id,
             subscription,
             recipient,
             plan,
             cycle,
-            &observations,
+            observations: &observations,
             mandate,
             now,
-        )
+        })
         .map(Some)
     }
 
@@ -352,16 +364,16 @@ impl Pipeline {
         let WatchVerdict::Open { cycle } = verdict else {
             return Ok(WatchRead::Seen(verdict));
         };
-        match self.rescue_detected(
+        match self.rescue_detected(Detected {
             id,
-            &subscription,
-            watch.recipient.clone(),
-            watch.plan.clone(),
+            subscription: &subscription,
+            recipient: watch.recipient.clone(),
+            plan: watch.plan.clone(),
             cycle,
-            &observations,
+            observations: &observations,
             mandate,
             now,
-        ) {
+        }) {
             Ok(deal) => Ok(WatchRead::Opened(Box::new(deal))),
             // The rules refuse this fix (over a limit, no discount fits), or a rescue of this
             // subscription is still live: nothing was written, and the next read asks again.
@@ -373,18 +385,17 @@ impl Pipeline {
     }
 
     /// Open the PayPal-reported rescue a read found, and record that read under the new deal.
-    #[allow(clippy::too_many_arguments)] // The read's facts plus the deal and mandate ids.
-    fn rescue_detected(
-        &mut self,
-        id: DealId,
-        subscription: &ResourceId,
-        recipient: Recipient,
-        plan: ItemRef,
-        cycle: Money,
-        observations: &[Observation],
-        mandate: (MandateId, u32),
-        now: Timestamp,
-    ) -> Result<Deal, Error> {
+    fn rescue_detected(&mut self, detected: Detected<'_>) -> Result<Deal, Error> {
+        let Detected {
+            id,
+            subscription,
+            recipient,
+            plan,
+            cycle,
+            observations,
+            mandate,
+            now,
+        } = detected;
         let secret = recipient.expose().to_owned();
         let deal = self.rescue_open(
             id,
