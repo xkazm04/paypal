@@ -303,9 +303,11 @@
     bad_signature: () => bad('Not signed by this house', 'This head was not signed by the house key shown below.'),
     bad_prefix: () => bad('The house’s answer is not signed', 'Its answer about your head is not signed by its key.'),
   };
+  /** One check as a list line. The icon is an image named by its result, so a screen reader says
+   *  "Passed" or "Failed" (an aria-label on a plain span names nothing). */
   function checkLine(c) {
     return h('li', { class: `check ${c.state}` },
-      h('span', { class: 'ck-i', 'aria-label': { ok: 'Passed', bad: 'Failed', note: 'Note', unknown: 'Not checked here' }[c.state] }, c.state === 'unknown' ? null : svg(ICON[c.state])),
+      h('span', { class: 'ck-i', role: 'img', 'aria-label': { ok: 'Passed', bad: 'Failed', note: 'Note', unknown: 'Not checked here' }[c.state] }, c.state === 'unknown' ? null : svg(ICON[c.state])),
       h('span', { class: 'ck-t' }, c.title),
       h('span', { class: 'ck-d' }, c.detail));
   }
@@ -407,10 +409,7 @@
       checkQuiet(view),
       checkPrivate(),
     ];
-    $('checks').replaceChildren(...checks.map((c) => h('li', { class: `check ${c.state}` },
-      h('span', { class: 'ck-i', 'aria-label': { ok: 'Passed', bad: 'Failed', note: 'Note', unknown: 'Not checked here' }[c.state] }, c.state === 'unknown' ? null : svg(ICON[c.state])),
-      h('span', { class: 'ck-t' }, c.title),
-      h('span', { class: 'ck-d' }, c.detail))));
+    $('checks').replaceChildren(...checks.map(checkLine));
     const failed = checks.filter((c) => c.state === 'bad').length;
     const skipped = checks.filter((c) => c.state === 'unknown').length;
     const v = $('verdict');
@@ -575,7 +574,7 @@
         const starting = e && e.status === 503;
         $('rows').replaceChildren(h('tr', { class: 'empty' }, h('td', { colspan: 9 },
           starting ? 'The house is starting. Its record shows here in a minute.' : 'Couldn’t reach the house. Trying again in a minute.')));
-        $('checks').replaceChildren(h('li', { class: 'check unknown' }, h('span', { class: 'ck-i' }), h('span', { class: 'ck-t' }, 'Waiting for the record'), h('span', { class: 'ck-d' }, 'Nothing is checked until the house answers.')));
+        $('checks').replaceChildren(checkLine(unknown('Waiting for the record', 'Nothing is checked until the house answers.')));
         fresh(starting ? 'Starting…' : 'Not reachable', false);
       } else {
         fresh(`Couldn’t refresh · showing ${new Date(lastOk).toTimeString().slice(0, 5)}`, false);
