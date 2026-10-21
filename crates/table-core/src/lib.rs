@@ -17,6 +17,8 @@ pub mod market;
 pub mod money;
 pub mod negotiation;
 pub mod rescue;
+mod shield;
+pub use shield::*;
 
 pub use agent::*;
 pub use canonical::{H256, canonical_bytes, commitment};
