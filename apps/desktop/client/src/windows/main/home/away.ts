@@ -118,7 +118,19 @@ function eventOf(s: HistoryStep, deal: Deal | undefined, reads: ReadonlyMap<stri
     case 'unconfirmed': return { ...ev('unconfirmed', 'default'), read: reads.get(s.deal_id) };
     case 'refunded': return ev('refunded');
     case 'disputed': return ev('disputed');
-    default: return null;
+    // Told by the Rewind, not here. Listed by name, so a kind the record gains later is a type error
+    // until someone decides whether Maya hears about it while away (never a silent drop).
+    case 'created': case 'offer_sent': case 'offer_received': case 'accept_sent': case 'accept_received':
+    case 'owner_accepted': case 'agreed': case 'proposed': case 'countersigned': case 'pay_link_sent':
+    case 'pay_link_received': case 'approval_notice': case 'order_created': case 'approved_by_buyer':
+    case 'receipt_sent': case 'receipt_received': case 'receipted': case 'receipt_refused': case 'reporting_checked':
+    case 'reconciled': case 'withdraw_sent': case 'withdraw_received': case 'withdrawn': case 'hold_released':
+    case 'other': case 'invoice_created': case 'invoice_sent': case 'group_withdrawn':
+      return null;
+    default: {
+      const unheard: never = s.kind;
+      return unheard;
+    }
   }
 }
 
