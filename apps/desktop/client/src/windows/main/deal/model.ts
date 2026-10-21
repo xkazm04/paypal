@@ -1,5 +1,5 @@
 // Pure logic for the deal detail (Mirror): the state strip per kind, the clause readings, the
-// envelope -> clause links, the evidence labels and the decision line. No React, no IPC;
+// envelope -> clause links, the evidence labels and the withdraw words. No React, no IPC;
 // everything here is unit-tested in model.test.ts.
 //
 // Honesty rule: Rust's per-clause gate verdicts are not projected to the Main window. A clause
@@ -17,8 +17,8 @@ import type { Role } from '@bindings/Role';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import type { TranscriptType } from '@bindings/TranscriptType';
 import { formatMinor, formatMoney } from '../../../lib/format';
-import { houseWords, MILESTONES, SELLER_SAYS_PAID, sellerSaysOnly, milestoneOf, RULE_NAME, ruleNameOf, unconfirmedMeans, type Milestone } from '../../../lib/words';
-import { canWithdraw, clauseText, dealTotal, decidedBy, isTerminal, pathFor, stateLabel } from '../logic';
+import { MILESTONES, SELLER_SAYS_PAID, sellerSaysOnly, milestoneOf, RULE_NAME, unconfirmedMeans, type Milestone } from '../../../lib/words';
+import { canWithdraw, clauseText, dealTotal, isTerminal, pathFor, stateLabel } from '../logic';
 
 // ---- the state strip ---------------------------------------------------------------------------
 
@@ -312,23 +312,7 @@ export function attestOf(d: Pick<Deal, 'kind' | 'side'>, key: PaypalRefKey, rece
   return 'the seller says so';
 }
 
-// ---- the decision row ---------------------------------------------------------------------------
-
-export type DecisionLine = { tone: 'need' | 'may' | 'calm'; chip: { tone: Tone; text: string }; t1: string; t2: string | null };
-
-export function decisionLine(d: Pick<Deal, 'state' | 'kind' | 'shield'> & Partial<Pick<Deal, 'decided_by'>>, need: Pick<AttentionItem, 'headline' | 'clause' | 'counterparty'> | undefined, mayWithdraw: boolean): DecisionLine {
-  if (need) {
-    const t2 = [need.clause ? ruleNameOf(need.clause.number) : null, need.counterparty ? houseWords(need.counterparty) : null].filter(Boolean).join(' · ');
-    return { tone: 'need', chip: { tone: 'gold', text: 'Needs you' }, t1: need.headline, t2: t2 || null };
-  }
-  if (mayWithdraw) return { tone: 'may', chip: { tone: 'line', text: 'You may withdraw' }, t1: 'Nothing waits for you', t2: 'withdrawing is free · it cannot move money' };
-  // Who decided, as Rust recorded it with the decision (Deal.decided_by); nothing when none did.
-  const who = decidedBy(d);
-  const decided = who.who === 'none' ? null : `decided by ${who.text}`;
-  if (isTerminal(d)) return { tone: 'calm', chip: { tone: undefined, text: 'Closed' }, t1: 'This deal is closed. Nothing here can move money.', t2: decided };
-  if (d.state === 'APPROVED' || d.state === 'SETTLING') return { tone: 'calm', chip: { tone: 'line', text: 'Waiting' }, t1: 'Nothing for you to decide: the other side acts next.', t2: decided };
-  return { tone: 'calm', chip: { tone: 'line', text: 'All good' }, t1: 'Nothing for you to decide right now.', t2: decided };
-}
+// ---- withdraw ---------------------------------------------------------------------------------
 
 /** Withdraw is offered where Rust accepts it; with an open item only when the item offers it
  *  (a haggle may always be withdrawn while it is still a table). Rust re-checks. */

@@ -5,7 +5,6 @@ import type { Clause } from '@bindings/Clause';
 import type { Deal } from '@bindings/Deal';
 import { buildMockState } from '../mock/fixtures';
 import { cardQuestion } from '../windows/tumbler/logic';
-import { decisionLine } from '../windows/main/deal/model';
 import { atRiskOf, isFailing } from '../windows/main/modules/rescue/model';
 import { dealTotal, summarize } from '../windows/main/logic';
 import { heldAtPayPal, heldLine } from '../windows/main/home/model';
@@ -28,14 +27,13 @@ describe('the house seller is a name, never a shout', () => {
     const c: Clause = { type: 'payees', payees: ['packrite-supply', 'cablehaus', 'north-desk', 'HOUSE', 'partsco', 'pixel-bay'] };
     expect(ruleSentence(c)).toBe('only packrite-supply, cablehaus, north-desk, House seller, partsco and pixel-bay');
   });
-  it('every mock rule sentence, the Tumbler question and the deal line are free of HOUSE', () => {
+  it('every mock rule sentence and the Tumbler question are free of HOUSE', () => {
     const world = buildMockState(NOW);
     for (const m of world.mandates) for (const c of m.payload.clauses) expect(ruleSentence(c)).not.toMatch(/\bHOUSE\b/);
     const item = { headline: 'Countersign $329.00', amount_minor: 32900, currency: 'USD' as const, kind: 'gate' as const, counterparty: 'HOUSE seller' };
     const q = cardQuestion(item);
     expect(`${q.lead}${q.amount ?? ''}${q.tail}`).toContain('with House seller');
-    const line = decisionLine({ state: 'AGREED', kind: 'haggle', shield: null }, { headline: 'Countersign $329.00', clause: null, counterparty: 'HOUSE seller' }, false);
-    expect(line.t2).toBe('House seller');
+    // The deal page's own guard renders the live page (areas/deal/deal.test.tsx, house seller).
   });
 });
 
