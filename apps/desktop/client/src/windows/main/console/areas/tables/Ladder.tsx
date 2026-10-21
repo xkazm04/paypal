@@ -10,7 +10,7 @@ import type { Currency } from '@bindings/Currency';
 import type { Deal } from '@bindings/Deal';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { clockLabel } from '../../../../../lib/format';
-import { marketWords, TABLES } from '../../../../../lib/words';
+import { marketWords, TABLES, tablesItem } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, Disclosure, Field, Hint, Kv, Loading, Section, Sheet, Silence } from '../../../../../shared/ui';
 import { isLive, stateLabel } from '../../../logic';
@@ -88,7 +88,7 @@ export function TableDetail({ deal, disp, need, who, st, steps: h, onToast }: {
       </p>
       {tr.error ? <WalletNotice error={tr.error} what={TABLES.offersWhat} message={TABLES.offersUnread} /> : null}
       {!tr.data && !tr.error ? <Loading what={TABLES.offersReading} /> : (
-        <Ladder deal={deal} steps={tr.data ?? []} scale={scale} signed={signed} draft={st.draft} theirs={theirs} need={need} who={who}
+        <Ladder deal={deal} item={disp.title} steps={tr.data ?? []} scale={scale} signed={signed} draft={st.draft} theirs={theirs} need={need} who={who}
           movable={movable} onFence={draftTo} onStart={onStart} empty={disp.on_silence} />
       )}
       {!movable ? <Hint>{TABLES.fixedRange}</Hint> : null}
@@ -116,8 +116,9 @@ export function TableDetail({ deal, disp, need, who, st, steps: h, onToast }: {
   );
 }
 
-function Ladder({ deal, steps, scale, signed, draft, theirs, need, who, movable, onFence, onStart, empty }: {
-  deal: Deal; steps: readonly TranscriptStep[]; scale: Scale | null; signed: BandDraft | null; draft: BandDraft | null; theirs: Priced | null;
+function Ladder({ deal, item, steps, scale, signed, draft, theirs, need, who, movable, onFence, onStart, empty }: {
+  /** The item as the owner reads it (the deal's title), never its code. */
+  deal: Deal; item: string; steps: readonly TranscriptStep[]; scale: Scale | null; signed: BandDraft | null; draft: BandDraft | null; theirs: Priced | null;
   need: AttentionItem | undefined; who: string; movable: boolean; onFence: (v: number) => void; onStart: (() => void) | null; empty: string | null;
 }) {
   const cur = deal.terms.currency;
@@ -129,7 +130,7 @@ function Ladder({ deal, steps, scale, signed, draft, theirs, need, who, movable,
   const fence = band?.[key] ?? null;
   const signedFence = signed?.[key] ?? null;
   const bound = key === 'ceiling' ? TABLES.boundBuyer : TABLES.boundSeller;
-  const label = TABLES.ladderLabel(deal.terms.item_ref);
+  const label = TABLES.ladderLabel(item);
   if (!scale) {
     return (
       <div className="tb-ladder tb-ladder-empty" role="group" aria-label={label}>
@@ -224,7 +225,7 @@ function Ladder({ deal, steps, scale, signed, draft, theirs, need, who, movable,
       ) : null}
       {fence !== null ? (
         <div className={`tb-fence${draft ? ' draft' : ''}`} style={{ top: t(fence) }}>
-          <span className={`tb-grip${movable ? '' : ' fixed'}`} tabIndex={0} role="slider" aria-label={`${LIMIT_WORD[key]} · ${deal.terms.item_ref}${movable ? TABLES.arrows : TABLES.fixed}`}
+          <span className={`tb-grip${movable ? '' : ' fixed'}`} tabIndex={0} role="slider" aria-label={`${LIMIT_WORD[key]} · ${item}${movable ? TABLES.arrows : TABLES.fixed}`}
             title={movable ? TABLES.dragTitle : TABLES.fixedTitle}
             aria-valuemin={scale.lo / unit} aria-valuemax={scale.hi / unit} aria-valuenow={fence / unit} aria-valuetext={short(fence, cur)} aria-readonly={!movable}
             onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onKeyDown={onKey}>
@@ -255,11 +256,11 @@ function BandSteps({ deal, disp, st, need, who, theirs, yours, signed, scale, mo
   const valid = !st.draft || draftValid(st.draft);
   const [s1, s2, s3] = stepStates({ drafting, read: st.read && valid, handedOff: !!st.handoff });
   const cons = st.draft ? consequences({
-    item: deal.terms.item_ref, them: who, side: deal.side, signed, draft: st.draft, theirs, yours,
+    item: tablesItem(disp.title), them: who, side: deal.side, signed, draft: st.draft, theirs, yours,
     roundsUsed: disp.band?.rounds_used ?? null, maxRounds: disp.band?.max_rounds ?? null, pending: !!need && need.kind === 'gate', currency: cur,
   }) : [];
   const bad = cons.filter((c) => c.tone === 'x').length;
-  const edits = st.draft ? diffLines(deal.terms.item_ref, signed, st.draft, cur) : [];
+  const edits = st.draft ? diffLines(disp.title, signed, st.draft, cur) : [];
   const money = (v: number | null) => (v === null ? null : { minor: v, currency: cur });
   const draftArgs = st.draft && valid
     ? { deal_id: deal.id, target: 'deal' as const, draft: { type: 'band' as const, floor: money(st.draft.floor), ceiling: money(st.draft.ceiling) } }
