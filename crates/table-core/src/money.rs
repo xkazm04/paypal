@@ -44,6 +44,8 @@ impl fmt::Display for Currency {
 pub enum MoneyError {
     #[error("invalid unsigned decimal amount")]
     InvalidDecimal,
+    #[error("amount is negative")]
+    Negative,
     #[error("amount exceeds the exact JSON integer range")]
     Overflow,
     #[error("currency mismatch")]
@@ -85,7 +87,7 @@ impl From<Money> for MoneyWire {
 impl Money {
     pub fn new(minor: i64, currency: Currency) -> Result<Self, MoneyError> {
         if minor < 0 {
-            return Err(MoneyError::InvalidDecimal);
+            return Err(MoneyError::Negative);
         }
         if minor > MAX_MINOR {
             return Err(MoneyError::Overflow);
@@ -215,6 +217,15 @@ mod tests {
                 .unwrap()
                 .checked_add(Money::new(1, Currency::EUR).unwrap())
                 .is_err()
+        );
+        // A negative amount is named as such, not as a malformed decimal (no decimal was read).
+        assert_eq!(Money::new(-1, Currency::USD), Err(MoneyError::Negative));
+        let negative = serde_json::from_str::<Money>(r#"{"minor":-1,"currency":"USD"}"#);
+        assert!(
+            negative
+                .unwrap_err()
+                .to_string()
+                .contains("amount is negative")
         );
         for json in [
             r#"{"minor":-1,"currency":"USD"}"#,
