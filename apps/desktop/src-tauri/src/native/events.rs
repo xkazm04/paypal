@@ -398,12 +398,10 @@ fn show_toast(app: &AppHandle, item: &table_attention::AttentionItem) -> Result<
     // underlying WinRT wrapper so clicks only route to the matching card.
     let click_app = app.clone();
     let id = item.deal_id;
+    let (title, body) = super::toast::toast_text(item);
     tauri_winrt_notification::Toast::new(&app.config().identifier)
-        .title("The Table · decision due")
-        .text1(&format!(
-            "{}. If ignored: {}",
-            item.headline, item.on_silence
-        ))
+        .title(&title)
+        .text1(&body)
         .sound(None)
         .on_activated(move |_| {
             let app = click_app.clone();
