@@ -3889,16 +3889,12 @@
           "confidence": "strong",
           "digest": "sha256-b2:d811928687fd4faf",
           "revision": 17,
-          "state": "deviation",
-          "evidence": "crates/table-client/src/lib.rs:14 closes the error taxonomy with no catch-all and no transient/permanent split, so apps/desktop/client/src/lib/contract.ts:60 folds every unknown failure (transport, bad args) into UNAVAILABLE and renders permanent faults as 'not available yet' (taxonomy-design)",
-          "evaluatedAt": "2026-10-14",
-          "evaluatedAgainst": "sha256-b2:59b7b5d98d37139a",
-          "evaluatedRevision": 15,
           "source": "conform",
           "adoptedFrom": "Desktop Shell/ipc-contract",
           "changedAt": "2026-10-14",
-          "revisionsBehind": 2,
-          "stale": true
+          "state": "deviation",
+          "evidence": "crates/table-client/src/lib.rs:14 closes the error taxonomy with no catch-all and no transient/permanent split, so apps/desktop/client/src/lib/contract.ts:60 folds every unknown failure (transport, bad args) into UNAVAILABLE and renders permanent faults as 'not available yet' (taxonomy-design)",
+          "evaluatedAt": "2026-10-14"
         }
       ],
       "governance": "governed"

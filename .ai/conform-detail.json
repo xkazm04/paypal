@@ -4840,6 +4840,46 @@
         "at": "2026-10-20T21:14:24.977765+00:00",
         "reason": "reviewer (sonnet): The anchor (commands.rs:305) shows the shell does select an agent engine (Action::Engine, with Action::Engines listing table_engine::EngineInfo with availability), so it doesn't show model routing is absent. Whether admission, stickiness or tier logic exists sits in table-engine, outside this contex"
       }
+    },
+    "b122a56d-4e5f-4259-959c-b90ba9e1c58e/error-handling": {
+      "context": "ipc-contract-and-authority-table",
+      "subject": "error-handling",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-21",
+      "evaluatedTs": "2026-10-21T21:14:59.286Z",
+      "techniques": [
+        {
+          "technique": "taxonomy-design",
+          "verdict": "deviation",
+          "evidence": "crates/table-client/src/lib.rs:32 ErrorCode defines a closed set with no catch-all variant, no transience axis, and no retry-interval extraction, leading consumers to misclassify unknown failures as UNAVAILABLE."
+        },
+        {
+          "technique": "structured-propagation",
+          "verdict": "deviation",
+          "evidence": "crates/table-client/src/lib.rs:70 From<table_app::Error> for CommandError flattens the rich error and its inner cause into a string, dropping cause chains, refusal clause numbers, and structured context at the IPC boundary."
+        },
+        {
+          "technique": "consumer-decides-error-shape",
+          "verdict": "conformant",
+          "evidence": "crates/table-client/src/lib.rs:49 The IPC boundary maps runtime errors into a typed CommandError carrying an enumerated ErrorCode rather than an opaque aggregate, enabling client consumers to branch on failure kinds."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "deviation",
+          "evidence": "crates/table-client/src/lib.rs:14 closes the error taxonomy with no catch-all and no transient/permanent split, so apps/desktop/client/src/lib/contract.ts:60 folds every unknown failure (transport, bad args) into UNAVAILABLE and renders permanent faults as 'not available yet' (taxonomy-design)",
+          "evaluatedAt": "2026-10-14",
+          "worker": null,
+          "reason": "replaced by d7d9a236-1649-435a-8745-333d1e82b7f3"
+        }
+      ],
+      "withdrawn": {
+        "worker": "d7d9a236-1649-435a-8745-333d1e82b7f3",
+        "state": "deviation",
+        "at": "2026-10-21T21:15:23.651954+00:00",
+        "reason": "reviewer (sonnet): The lib.rs:32 enum is closed with 8 codes, but the harm the verdict claims (consumers folding unknown transport and argument failures into UNAVAILABLE) happens in apps/desktop/client/src/lib/contract.ts:60, which is outside this context. I could not confirm 'drops clause numbers and cause chains' ei"
+      }
     }
   }
 }
