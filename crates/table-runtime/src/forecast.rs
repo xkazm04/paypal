@@ -24,7 +24,7 @@ impl Runtime {
             executor_configured: self.settings()?.payment_executor_configured,
         };
         let mut sources = Vec::new();
-        for deal in app(self.pipeline.wallet.ledger.list_deals())? {
+        for deal in app(self.pipeline.wallet.ledger.list_live_deals())? {
             // A deal whose money step is being checked with PayPal is forecast nothing: no step
             // runs and no default is promised until PayPal's record settles it (T10).
             if deal.mode == Mode::Replay

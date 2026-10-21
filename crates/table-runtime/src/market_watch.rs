@@ -45,7 +45,7 @@ impl Runtime {
             .retain(|_, day_end| *day_end > now);
         let mut key_stored = None;
         let mut jobs = Vec::new();
-        for deal in app(self.pipeline.wallet.ledger.list_deals())? {
+        for deal in app(self.pipeline.wallet.ledger.list_live_deals())? {
             if let Ok(Some(job)) = self.plan_one(&deal, now, &mut key_stored) {
                 jobs.push(job);
             }
