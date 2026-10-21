@@ -12,7 +12,7 @@ import { WalletError } from '../../../lib/contract';
 import { readBudget, resetReadBudget } from '../../../lib/data/invoke';
 import { READ_CONCURRENCY } from '../../../lib/readEach';
 import {
-  APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, CHARTER_TITLE, CENTRE_TITLE, FACT, FIND_LABEL, IF_NOTHING, MONEY_CHECK_ENDED_SILENCE, NOTICE_WHAT, PLACE, PLACE_NAME, SETUP_STEP_COPY, STALE_TITLE, UNREAD_TITLE, WAITING_TITLE, WHY_LABEL,
+  APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, CHARTER_TITLE, PAIR, CENTRE_TITLE, FACT, FIND_LABEL, IF_NOTHING, MONEY_CHECK_ENDED_SILENCE, NOTICE_WHAT, PLACE, PLACE_NAME, SETUP_STEP_COPY, STALE_TITLE, UNREAD_TITLE, WAITING_TITLE, WHY_LABEL,
 } from '../../../lib/words';
 import { mockBackend, resetMockState } from '../../../mock/backend';
 
@@ -392,6 +392,21 @@ describe('the owner places are layers (WP2.5)', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
     await waitFor(() => expect(layer()?.dataset.level).toBe('home'));
     await waitFor(() => expect(document.activeElement?.id).toBe('cs-place-rules'));
+  }, 30_000);
+
+  it('the pairing desk opens on the way it was asked for, once: a later plain open starts at its default', async () => {
+    await open('/index.html#p=connections&v=house');
+    const houseOpen = await waitFor(() => { const b = layer()?.querySelector<HTMLButtonElement>('[data-fk="house-open"]'); if (!b) throw new Error('no house-open'); return b; }, { timeout: 8000 });
+    const pressed = () => layer()?.querySelector('.wz-modes [aria-pressed="true"]')?.textContent;
+    fireEvent.click(houseOpen);
+    await waitFor(() => expect(layer()?.dataset.layer).toBe('pairing'));
+    await waitFor(() => expect(pressed()).toBe(PAIR.modes.find((m) => m.value === 'house')?.label));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(layer()?.dataset.layer).toBe('connections'));
+    const toPairing = await waitFor(() => { const b = layer()?.querySelector<HTMLButtonElement>('[data-fk="to-pairing"]'); if (!b) throw new Error('no to-pairing'); return b; });
+    fireEvent.click(toPairing);
+    await waitFor(() => expect(layer()?.dataset.layer).toBe('pairing'));
+    await waitFor(() => expect(pressed()).toBe(PAIR.modes.find((m) => m.value === 'create')?.label));
   }, 30_000);
 
   it('old sheet and safety links open their layer, and Back goes where the old sheet sat', async () => {

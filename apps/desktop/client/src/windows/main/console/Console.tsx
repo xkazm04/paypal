@@ -223,7 +223,8 @@ export function Console() {
   /** A place from inside a layer: opened from a module page or Settings, Back returns there. */
   const goPlace = useCallback((p: Place, o: { pair?: PairMode } = {}) => {
     setFind(false);
-    if (o.pair) setPairStart(o.pair);
+    // The way of connecting is for this open only: a later plain open starts at the desk's default.
+    setPairStart(o.pair);
     const from = placeFromRoute(navRef.current.route, p);
     go(from ? { level: 'place', place: p, from } : { level: 'place', place: p });
   }, [go]);
@@ -240,7 +241,7 @@ export function Console() {
       case 'need': pickNeed(t.deal); break;
       case 'module': goModule(t.module); break;
       case 'deal': goDeal(t.deal); break;
-      case 'route': go(t.route); break;
+      case 'route': setPairStart(undefined); go(t.route); break;
       case 'setup': go({ level: 'setup', step: t.step }); break;
       case 'quit': setQuit(true); break;
       case 'demo': switchDemo(t.state); break;
