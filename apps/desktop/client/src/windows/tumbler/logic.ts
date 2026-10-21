@@ -13,7 +13,7 @@ import type { TumblerPreferences } from '@bindings/TumblerPreferences';
 import type { VisualState } from '@bindings/VisualState';
 import { LADDER } from '@bindings/ladder';
 import { clockLabel, countdown, formatMinor } from '../../lib/format';
-import { headlineWords, houseWords, MONEY_CHECK_ENDED, MONEY_CHECK_ENDED_SILENCE, moneyCheckWord, ruleNameOf, SELLER_SAYS_PAID, shieldRuleWord, silenceWords, stateWord, timeLeftWords } from '../../lib/words';
+import { headlineWords, houseWords, MONEY_CHECK_ENDED, MONEY_CHECK_ENDED_SILENCE, modeWord, moneyCheckWord, ruleNameOf, SELLER_SAYS_PAID, shieldRuleWord, silenceWords, stateWord, timeLeftWords } from '../../lib/words';
 
 /** Rust's size table (crates/table-attention placement.rs). The page never sends pixels;
  *  this copy exists only so the browser preview can draw a frame of the same size. */
@@ -498,16 +498,13 @@ export function spendMeter(s: Pick<AttentionSnapshot, 'wallet_spend_today_minor'
 
 export const MODE_SHORT: Record<Mode, string> = { sandbox: 'SANDBOX', replay: 'REPLAY', scripted_engine: 'PRACTICE' };
 
-/** The mode in plain words (spoken names and details; the puck's engraving stays MODE_SHORT). */
-export const MODE_TEXT: Record<Mode, string> = { sandbox: 'Sandbox', replay: 'Replay', scripted_engine: 'Practice agent' };
-
 /** The puck's spoken name: how many need you (or what is in motion), the first headline, the mode in
- *  words (never the raw key) and the lock. */
+ *  words (lib/words modeWord, as the badge says it; never the raw key) and the lock. */
 export function puckName(o: { needs: number; headline: string | null; inMotion: number; mode: Mode | null; locked: boolean }): string {
   const lead = o.needs
     ? `${o.needs} ${o.needs === 1 ? 'needs' : 'need'} you${o.headline ? ` · ${o.headline}` : ''}`
     : `nothing needs you · ${o.inMotion} in motion`;
-  return `The Tumbler · ${lead}${o.mode ? ` · ${MODE_TEXT[o.mode]}` : ''}${o.locked ? ' · locked' : ''}`;
+  return `The Tumbler · ${lead}${o.mode ? ` · ${modeWord(o.mode)}` : ''}${o.locked ? ' · locked' : ''}`;
 }
 
 /** The core's attention items in plain words (lib/words.ts); ids, amounts and actions untouched. */

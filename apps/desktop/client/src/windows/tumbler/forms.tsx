@@ -13,14 +13,14 @@ import type { DealDisplay } from '../../lib/pending';
 import type { WalletError } from '../../lib/contract';
 import { clockLabel, formatMinor, shortId } from '../../lib/format';
 import { readLimits } from '../../lib/limits';
-import { FIRST_RUN_TITLE, houseWords, SAFETY_PROMISE, SETUP_OPENS_IN_TABLE, START_STEP, shieldRuleWord, timeLeftWords, type StartStepKey } from '../../lib/words';
+import { FIRST_RUN_TITLE, houseWords, modeWord, SAFETY_PROMISE, SETUP_OPENS_IN_TABLE, START_STEP, shieldRuleWord, timeLeftWords, type StartStepKey } from '../../lib/words';
 import type { GettingStarted } from '../../lib/firstRun';
 import { useQuery } from '../../lib/hooks';
 import { ModeBadge } from '../../shared/honesty';
 import { MODULE } from '../../shared/modules';
 import { Btn, Chip, Hint, Hourglass, Kv, Meter, Popover } from '../../shared/ui';
 import {
-  MODE_SHORT, MODE_TEXT, approveWindow, cardActions, cardClock, cardQuestion, cardWhy, hhmm, moneyCheckEnded, ladderCaption, ladderFill, ringFill, rung, spendMeter, splitHeadline,
+  MODE_SHORT, approveWindow, cardActions, cardClock, cardQuestion, cardWhy, hhmm, moneyCheckEnded, ladderCaption, ladderFill, ringFill, rung, spendMeter, splitHeadline,
   type CardAction, type Handoff, type Ticker,
 } from './logic';
 import { WALK_AWAY_HOURS, walkAway, type WalkAway } from './logic';
@@ -200,7 +200,7 @@ function CardDetails({ item, now, anchor, actions, pending, onAction, onClose }:
         hold && item.shield_rule ? ['Paused by', shieldRuleWord(item.shield_rule).text] : null,
         ['Deadline', item.deadline !== null ? clockLabel(item.deadline) : 'none · paused until you act'],
         ['Time', ladderLine(item.deadline, now, hold, !!item.money_check, moneyCheckEnded(item))],
-        ['Mode', MODE_TEXT[item.mode]],
+        ['Mode', modeWord(item.mode)],
       ]} />
       {table || lapse || snooze ? (
         <div className="t-pop-acts">
