@@ -25,10 +25,10 @@ impl CredentialPrompt for WindowsCredentialPrompt {
         tokio::task::spawn_blocking(move || {
             let message = match provider {
                 CredentialArgs::PaypalSandbox => {
-                    "Client id in Username; client secret in Password. Sandbox only."
+                    "PayPal (sandbox): client id in Username, client secret in Password."
                 }
                 CredentialArgs::Channel3 => {
-                    "Enter the Channel3 key in Password. Username is unused."
+                    "Market prices: type the key in Password. Username is not used."
                 }
             };
             let message = message.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
@@ -38,14 +38,15 @@ impl CredentialPrompt for WindowsCredentialPrompt {
                 })?,
                 hwndParent: HWND(window as *mut _),
                 pszMessageText: PCWSTR(message.as_ptr()),
-                pszCaptionText: w!("The Table · API credentials"),
+                pszCaptionText: w!("The Table · your keys"),
                 hbmBanner: HBITMAP::default(),
             };
             let mut username = Zeroizing::new(vec![0u16; 514]);
             let mut password = Zeroizing::new(vec![0u16; 257]);
             let mut save = BOOL(0);
             if provider == CredentialArgs::Channel3 {
-                for (slot, ch) in username.iter_mut().zip("Channel3".encode_utf16()) {
+                // The username is ignored for this key; prefill it with the name the owner sees.
+                for (slot, ch) in username.iter_mut().zip("Market prices".encode_utf16()) {
                     *slot = ch;
                 }
             }
@@ -108,5 +109,23 @@ fn error(code: ErrorCode, message: &str) -> CommandError {
     CommandError {
         code,
         message: message.into(),
+    }
+}
+#[cfg(test)]
+mod tests {
+    /// The dialog is a user-facing surface: PayPal is the only vendor name (docs/ux/UX-GUIDE.md),
+    /// and the owner knows these as "your keys", not API credentials.
+    #[test]
+    fn the_dialog_names_no_other_vendor_and_no_api() {
+        let source = include_str!("credential_prompt.rs");
+        let code = source.split("#[cfg(test)]").next().unwrap_or_default();
+        let literals: Vec<&str> = code.split('"').skip(1).step_by(2).collect();
+        assert!(literals.len() > 4, "{literals:?}");
+        for text in literals {
+            assert!(
+                !text.contains("Channel3") && !text.contains("API"),
+                "{text}"
+            );
+        }
     }
 }
