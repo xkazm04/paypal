@@ -87,7 +87,7 @@ function WhatHappened({ deal, steps, error, clauses, theirName, facts, factsTitl
               return (
                 <li key={r.key} className={`msg ${r.step.by}`}>
                   <button type="button" data-nav="" className={`bub ${price ? '' : 'np'} ${r.step.seq === newest ? 'newest' : ''} ${pop?.s.seq === r.step.seq ? 'on' : ''}`}
-                    aria-label={`${sw.who} ${sw.verb}${price ? ` ${price}` : ''}`} title={DEAL_STORY.showWho}
+                    aria-label={`${sw.who} ${sw.verb}${price ? ` ${price}` : ''}${r.step.verified ? '' : ` · ${DEAL_STORY.uncheckedTitle}`}`} title={DEAL_STORY.showWho}
                     onClick={(e) => { const t = e.currentTarget; setPop((p) => (p?.s.seq === r.step.seq ? null : { el: t, s: r.step })); }}>
                     <span className="vb">{sw.who} {sw.verb}</span>
                     {price ? <span className="px">{price}</span> : null}
