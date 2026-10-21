@@ -292,6 +292,50 @@ fn a_money_post_with_a_query_is_unclassified_by_both_readers() {
     assert!(line.detail.contains("no known operation"), "{line:?}");
 }
 
+fn capture_call(request_id: Option<&str>) -> ProofCall {
+    ProofCall {
+        method: "POST".into(),
+        path: "/v2/payments/authorizations/A1/capture".into(),
+        status: Some(201),
+        body: Value::Null,
+        binding: None,
+        at: 150,
+        request_id: request_id.map(str::to_owned),
+    }
+}
+
+/// A second capture at PayPal under a request id no operation was reserved under has no authority
+/// of its own: the verifier names it exactly as the safety predicate does, instead of letting the
+/// lawful capture beside it vouch for it by kind.
+#[test]
+fn a_money_call_under_a_request_id_no_operation_names_fails_in_both_readers() {
+    let mut b = bundle(Side::Buyer, DealKind::Haggle, 1000);
+    let by = DecidedBy::Human { at: 150 };
+    decision(&mut b, "deal_capture", &by);
+    step(&mut b, "capture", &by);
+    b.paypal_calls.push(capture_call(Some("req-capture")));
+    assert!(authority_line(&b).ok, "{:?}", authority_line(&b));
+    assert!(crate::safety::deal_violations(&b, &[]).is_empty());
+
+    b.paypal_calls
+        .push(capture_call(Some("req-second-capture")));
+    let line = authority_line(&b);
+    assert!(!line.ok, "{line:?}");
+    assert!(
+        line.detail.contains("has no recorded authority"),
+        "{line:?}"
+    );
+    assert!(!crate::safety::deal_violations(&b, &[]).is_empty());
+
+    // A first-format file stored no request id on its calls: matched by kind, in both readers.
+    let mut b = bundle(Side::Buyer, DealKind::Haggle, 1000);
+    decision(&mut b, "deal_capture", &by);
+    step(&mut b, "capture", &by);
+    b.paypal_calls.push(capture_call(None));
+    assert!(authority_line(&b).ok, "{:?}", authority_line(&b));
+    assert!(crate::safety::deal_violations(&b, &[]).is_empty());
+}
+
 /// Every operation x authority x side x kind x approved x owner decision: the verifier's verdict
 /// on a v2 file is exactly the safety predicate's.
 #[test]

@@ -104,23 +104,17 @@ pub fn deal_violations(b: &ProofBundle, needles: &[String]) -> Vec<Violation> {
     }
     for call in &b.paypal_calls {
         match money_kind(&call.method, &call.path) {
-            None => {}
             Some("unclassified") => out.push(at(
                 ViolationKind::UntrackedCall,
                 format!("money-shaped POST {} names no known step", call.path),
             )),
-            Some(kind) => {
-                let authorised = b.operations.iter().any(|op| {
-                    op.operation == kind
-                        && (call.request_id.is_none() || op.request_id == call.request_id)
-                });
-                if !authorised {
-                    out.push(at(
-                        ViolationKind::UntrackedCall,
-                        format!("POST {} ({kind}) has no recorded authority", call.path),
-                    ));
-                }
+            Some(kind) if !authority::call_has_operation(b, kind, call.request_id.as_deref()) => {
+                out.push(at(
+                    ViolationKind::UntrackedCall,
+                    format!("POST {} ({kind}) has no recorded authority", call.path),
+                ));
             }
+            _ => {}
         }
         if !needles.is_empty() {
             let stored = format!(
