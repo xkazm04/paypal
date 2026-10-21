@@ -797,3 +797,13 @@ async fn a_fix_whose_send_is_lost_reads_as_reached_paypal() {
     assert_eq!(error.message, crate::REACHED_PAYPAL);
     assert!(r.pipeline.has_open_operation(deal.id).unwrap());
 }
+
+/// The rescue refusals the client also shows from lib/words.ts (its mock answers with them):
+/// the two copies must agree byte for byte.
+#[test]
+fn the_rescue_sentences_match_the_client_words_byte_for_byte() {
+    let words = include_str!("../../../apps/desktop/client/src/lib/words.ts");
+    for sentence in [crate::rescue::NO_RESCUE_RULES, crate::rescue::WATCH_FULL] {
+        assert!(words.contains(&format!("'{sentence}'")), "{sentence}");
+    }
+}
