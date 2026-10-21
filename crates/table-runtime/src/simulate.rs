@@ -129,15 +129,17 @@ fn verdict(
 }
 
 impl Runtime {
-    /// The intent facts of a recorded deal, or None when one is not on record.
-    fn intent_facts(&self, deal: &Deal) -> Option<Facts> {
+    /// The intent facts of a recorded deal, or None when one is not on record. The pin is read
+    /// at `now` with its revocation and expiry, as table-app `mandate_check_rounds` reads it.
+    fn intent_facts(&self, deal: &Deal, now: Timestamp) -> Option<Facts> {
         let ledger = &self.pipeline.wallet.ledger;
         if deal.created_at == 0 {
             return None;
         }
         let category = ledger.deal_category(deal.id).ok()?;
-        let (paired, house, declared_payee) =
-            ledger.counterparty_policy(&deal.counterparty).ok()?;
+        let (paired, house, declared_payee) = ledger
+            .counterparty_policy_at(&deal.counterparty, now)
+            .ok()?;
         // An acceptance or settlement re-checks the latest round: N rounds, N-1 used before it.
         let rounds_used = ledger
             .negotiation_rounds(deal.id)
@@ -228,7 +230,7 @@ impl Runtime {
             if !in_scope || (deal.created_at != 0 && !(from..=to).contains(&deal.created_at)) {
                 continue;
             }
-            let (before, after) = match self.intent_facts(&deal) {
+            let (before, after) = match self.intent_facts(&deal, now) {
                 Some(facts) => (
                     match in_force.get(&deal.mandate_id) {
                         Some(payload) => {
