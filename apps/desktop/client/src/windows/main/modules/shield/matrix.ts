@@ -1,5 +1,5 @@
 // Pure logic for the Shield page (Evidence matrix, prototype/pages/shield/variant-2): the grid's
-// rows, what each check cell can honestly say, the PayPal line and the keyboard cursor.
+// checks, what each check cell can honestly say and the PayPal line.
 //
 // The contract gives the client the verdict (Deal.shield) and, since shield slice 2, the rule that
 // decided it (Deal.shield_rule, recorded by the wallet core). It returns no per-check result and
@@ -25,11 +25,7 @@ import { CHECK_NOT_ACTIVE, CHECK_QUIET, shieldRuleWord } from '../../../../lib/w
 import { isTerminal, moneyNow } from '../../logic';
 
 export type CheckKey = 'payee' | 'ff' | 'newcp' | 'market' | 'typology';
-export type RowKey = 'head' | 'verdict' | 'paypal' | 'move' | CheckKey | 'words';
 export type Stage = 'rules' | 'market' | 'engine';
-
-/** Focusable rows, top to bottom (group label rows and the unshown-checks line are not focusable). */
-export const ROWS: readonly RowKey[] = ['head', 'verdict', 'paypal', 'move', 'newcp', 'market', 'words'];
 
 /** The checks the shield runs, in pipeline order (report §7): rules, market band, quarantined engine. */
 export const CHECKS: ReadonlyArray<{ k: CheckKey; name: string; short: string; stage: Stage; kind: string; effect: ShieldVerdict }> = [
@@ -169,22 +165,15 @@ export function paypalLine(d: Pick<Deal, 'state' | 'paypal' | 'shield' | 'side' 
   return ['Order made', moneyNow(d)];
 }
 
-export const VERDICT_RANK: Record<ShieldVerdict, number> = { CLEAR: 0, ASK: 1, HOLD: 2, BLOCK: 3 };
-
-/** Release is offered (as a hand-off) only for a live HOLD; a BLOCK never, a closed deal never. */
 /** The attention item this page acts on: the shield's own, or a live HOLD's. Another module's
  *  decision (a Tables countersign on a CLEAR deal) stays in that module. */
 export function shieldNeed<T extends { module: string }>(d: Pick<Deal, 'shield' | 'state' | 'kind'>, need: T | undefined): T | undefined {
   return need && (need.module === 'shield' || releasable(d)) ? need : undefined;
 }
 
+/** Release is offered (as a hand-off) only for a live HOLD; a BLOCK never, a closed deal never. */
 export function releasable(d: Pick<Deal, 'shield' | 'state' | 'kind'>): boolean {
   return d.shield === 'HOLD' && !isTerminal(d);
-}
-
-/** Move the grid cursor, clamped to the grid. */
-export function moveCursor(c: { r: number; c: number }, dr: number, dc: number, rows: number, cols: number): { r: number; c: number } {
-  return { r: Math.max(0, Math.min(rows - 1, c.r + dr)), c: Math.max(0, Math.min(cols - 1, c.c + dc)) };
 }
 
 export type BandGeometry = { iqr: [number, number]; median: number; flag: number; price: number; pct: number };

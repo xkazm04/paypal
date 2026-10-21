@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
-import { ago, bandGeometry, checkCell, CHECKS, moveCursor, overMedian, paypalLine, NOT_ACTIVE, reasonsFor, releasable, ROWS, shieldNeed, UNSHOWN } from './matrix';
+import { ago, bandGeometry, checkCell, CHECKS, overMedian, paypalLine, NOT_ACTIVE, reasonsFor, releasable, shieldNeed, UNSHOWN } from './matrix';
 
 const usd = (d: number) => ({ minor: d * 100, currency: 'USD' as const });
 const NONE = { order: null, authorization: null, capture: null, subscription: null };
@@ -14,16 +14,10 @@ const market = { p25: usd(301), median: usd(318), p75: usd(336), retrieved_at: N
 
 describe('grid shape', () => {
   it('puts the conclusion first, then the checks it can show, then their words; the rest is one line', () => {
-    expect(ROWS).toEqual(['head', 'verdict', 'paypal', 'move', 'newcp', 'market', 'words']);
     expect(CHECKS.map((c) => c.k)).toEqual(['payee', 'ff', 'newcp', 'market', 'typology']);
     expect(UNSHOWN).toEqual(['payee']);
     expect(NOT_ACTIVE).toEqual(['ff', 'typology']);
     for (const k of [...UNSHOWN, ...NOT_ACTIVE]) expect(checkCell(k, deal(), undefined, NOW).r).toBe('na');
-  });
-  it('clamps the cursor to the grid', () => {
-    expect(moveCursor({ r: 0, c: 0 }, -1, -1, 10, 3)).toEqual({ r: 0, c: 0 });
-    expect(moveCursor({ r: 9, c: 2 }, 1, 1, 10, 3)).toEqual({ r: 9, c: 2 });
-    expect(moveCursor({ r: 4, c: 1 }, 1, -1, 10, 3)).toEqual({ r: 5, c: 0 });
   });
 });
 
