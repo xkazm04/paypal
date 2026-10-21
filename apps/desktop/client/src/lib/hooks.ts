@@ -103,7 +103,9 @@ const clock = (() => {
         if (!subs.size && offJump) { offJump(); offJump = null; }
       };
     },
-    get: () => now,
+    // With nothing subscribed no tick runs, so the first countdown drawn after a quiet spell
+    // reads the clock itself instead of the second the last countdown left.
+    get: () => (subs.size ? now : (now = nowUnix())),
   };
 })();
 

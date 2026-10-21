@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { act, renderHook } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, renderHook } from '@testing-library/react';
 import { clockNow, clockOffset, isClockSimulated, onClockChange, resetClockForTests, setClockOffset, simulateClock } from './clock';
 import { countdown, nowUnix } from './format';
 import { useNow } from './hooks';
@@ -45,5 +45,19 @@ describe('the one client clock', () => {
     const before = result.current;
     act(() => setClockOffset(7200));
     expect(result.current - before).toBeGreaterThanOrEqual(7199);
+  });
+
+  it('a countdown drawn after a quiet spell reads the time now, not the time the last one left', () => {
+    cleanup(); // no countdown on screen
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(1_800_000_000_000);
+    const first = renderHook(() => useNow());
+    expect(first.result.current).toBe(1_800_000_000);
+    first.unmount();
+    vi.setSystemTime(1_800_000_600_000); // ten minutes with no countdown on screen
+    const next = renderHook(() => useNow());
+    expect(next.result.current).toBe(1_800_000_600);
+    next.unmount();
+    vi.useRealTimers();
   });
 });
