@@ -20,7 +20,7 @@ mod invoice;
 
 use crate::pipeline::shield_allows;
 use crate::pipeline::{
-    PARKED_READ_SECS, PARKED_READ_WINDOW_SECS, REQUEST_ID_KEPT_SECS, SETTLE_SECS,
+    Finding, PARKED_READ_SECS, PARKED_READ_WINDOW_SECS, REQUEST_ID_KEPT_SECS, SETTLE_SECS,
 };
 use crate::{Authority, Error, MoneyStep, OwnerTicket, Pipeline};
 use table_core::*;
@@ -659,11 +659,7 @@ impl Pipeline {
         self.record(
             deal,
             op,
-            "none",
-            Outcome::Deferred,
-            observations,
-            None,
-            None,
+            Finding::new("none", Outcome::Deferred, observations),
             now,
         )
     }

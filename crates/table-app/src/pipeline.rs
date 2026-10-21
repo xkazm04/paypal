@@ -18,7 +18,9 @@ mod resolve;
 mod send;
 mod shield_gate;
 pub use read_state::READ_STATE_CAP;
-pub(crate) use resolve::{PARKED_READ_SECS, PARKED_READ_WINDOW_SECS, REQUEST_ID_KEPT_SECS};
+pub(crate) use resolve::{
+    Finding, PARKED_READ_SECS, PARKED_READ_WINDOW_SECS, REQUEST_ID_KEPT_SECS,
+};
 pub use resolve::{PENDING_STALE_SECS, Resolve, SETTLE_SECS};
 pub(crate) use shield_gate::shield_allows;
 pub use shield_gate::{MoneyStep, ShieldGate};

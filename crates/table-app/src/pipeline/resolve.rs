@@ -56,6 +56,40 @@ pub enum Resolve {
     Deadline,
 }
 
+/// What one resolver step found and what it changes: the per-step inputs of [`Pipeline::record`].
+/// The raw `observations` become the resolution's calls there.
+pub(crate) struct Finding<'a> {
+    observed: &'a str,
+    outcome: Outcome,
+    observations: &'a [Observation],
+    refs: Option<&'a PaypalRefs>,
+    event: Option<DealEvent>,
+}
+
+impl<'a> Finding<'a> {
+    pub(crate) fn new(
+        observed: &'a str,
+        outcome: Outcome,
+        observations: &'a [Observation],
+    ) -> Self {
+        Self {
+            observed,
+            outcome,
+            observations,
+            refs: None,
+            event: None,
+        }
+    }
+    pub(crate) fn refs(mut self, refs: &'a PaypalRefs) -> Self {
+        self.refs = Some(refs);
+        self
+    }
+    pub(crate) fn event(mut self, event: DealEvent) -> Self {
+        self.event = Some(event);
+        self
+    }
+}
+
 fn order_code(status: &OrderStatus) -> &'static str {
     match status {
         OrderStatus::Created => "CREATED",
@@ -219,27 +253,22 @@ impl Pipeline {
                 .deadline(id)?
                 .is_some_and(|(due, _)| due <= now))
     }
-    #[allow(clippy::too_many_arguments)] // Private helper mirrors the ledger's resolution row.
     pub(crate) fn record(
         &mut self,
         deal: &Deal,
         op: &OpenOperation,
-        observed: &str,
-        outcome: Outcome,
-        observations: &[Observation],
-        refs: Option<&PaypalRefs>,
-        event: Option<DealEvent>,
+        finding: Finding<'_>,
         now: Timestamp,
     ) -> Result<(), Error> {
-        let calls = self.calls(deal.id, observations, now)?;
+        let calls = self.calls(deal.id, finding.observations, now)?;
         self.wallet.ledger.record_resolution(Resolution {
             id: deal.id,
             request_id: &op.request_id,
-            observed,
-            outcome,
+            observed: finding.observed,
+            outcome: finding.outcome,
             calls: &calls,
-            refs,
-            event,
+            refs: finding.refs,
+            event: finding.event,
             at: now,
         })?;
         Ok(())
@@ -261,11 +290,7 @@ impl Pipeline {
         self.record(
             deal,
             op,
-            observed,
-            Outcome::NeedsOwner,
-            observations,
-            None,
-            None,
+            Finding::new(observed, Outcome::NeedsOwner, observations),
             now,
         )
     }
@@ -281,11 +306,7 @@ impl Pipeline {
         self.record(
             deal,
             op,
-            "none",
-            Outcome::Deferred,
-            error.observations(),
-            None,
-            None,
+            Finding::new("none", Outcome::Deferred, error.observations()),
             now,
         )?;
         Err(Error::Unavailable)
@@ -387,7 +408,7 @@ impl Pipeline {
             {
                 return self.park(deal, op, "none", &[], now);
             }
-            self.record(deal, op, "none", Outcome::Resent, &[], None, None, now)?;
+            self.record(deal, op, Finding::new("none", Outcome::Resent, &[]), now)?;
             // Only a send takes the live mandate's payee.
             match self
                 .api
@@ -407,11 +428,9 @@ impl Pipeline {
         self.record(
             deal,
             op,
-            status,
-            Outcome::Confirmed,
-            &observations,
-            Some(&refs),
-            Some(DealEvent::SettleVerified),
+            Finding::new(status, Outcome::Confirmed, &observations)
+                .refs(&refs)
+                .event(DealEvent::SettleVerified),
             now,
         )?;
         // The approval window is counted from the first attempt: never later than PayPal's.
@@ -559,11 +578,7 @@ impl Pipeline {
             return self.record(
                 deal,
                 op,
-                status,
-                Outcome::Absent,
-                &r.observations,
-                None,
-                None,
+                Finding::new(status, Outcome::Absent, &r.observations),
                 now,
             );
         }
@@ -581,11 +596,7 @@ impl Pipeline {
         self.record(
             deal,
             op,
-            status,
-            Outcome::Resent,
-            &r.observations,
-            None,
-            None,
+            Finding::new(status, Outcome::Resent, &r.observations),
             now,
         )?;
         let r = match self.api.authorize(&resource, request).await {
@@ -612,11 +623,9 @@ impl Pipeline {
         self.record(
             deal,
             op,
-            "CREATED",
-            Outcome::Confirmed,
-            observations,
-            Some(&refs),
-            Some(DealEvent::AuthorizationConfirmed),
+            Finding::new("CREATED", Outcome::Confirmed, observations)
+                .refs(&refs)
+                .event(DealEvent::AuthorizationConfirmed),
             now,
         )?;
         // The honor period is counted from the first attempt: never later than PayPal's.
@@ -678,11 +687,7 @@ impl Pipeline {
             ("capture", "CAPTURED") if captured => self.record(
                 deal,
                 op,
-                observed,
-                Outcome::Confirmed,
-                &r.observations,
-                None,
-                None,
+                Finding::new(observed, Outcome::Confirmed, &r.observations),
                 now,
             ),
             // The receipt it confirms is signed with the deal's agent key: without it, wait.
@@ -691,11 +696,7 @@ impl Pipeline {
             ("capture", "VOIDED") if !captured => self.record(
                 deal,
                 op,
-                observed,
-                Outcome::Absent,
-                &r.observations,
-                None,
-                None,
+                Finding::new(observed, Outcome::Absent, &r.observations),
                 now,
             ),
             ("capture", "CREATED") if !captured => {
@@ -711,11 +712,7 @@ impl Pipeline {
                     return self.record(
                         deal,
                         op,
-                        observed,
-                        Outcome::Absent,
-                        &r.observations,
-                        None,
-                        None,
+                        Finding::new(observed, Outcome::Absent, &r.observations),
                         now,
                     );
                 }
@@ -728,11 +725,7 @@ impl Pipeline {
                 self.record(
                     deal,
                     op,
-                    observed,
-                    Outcome::Resent,
-                    &r.observations,
-                    None,
-                    None,
+                    Finding::new(observed, Outcome::Resent, &r.observations),
                     now,
                 )?;
                 let p = match self
@@ -751,11 +744,9 @@ impl Pipeline {
                 self.record(
                     deal,
                     op,
-                    "COMPLETED",
-                    Outcome::Confirmed,
-                    &p.observations,
-                    Some(&refs),
-                    Some(DealEvent::CaptureConfirmed),
+                    Finding::new("COMPLETED", Outcome::Confirmed, &p.observations)
+                        .refs(&refs)
+                        .event(DealEvent::CaptureConfirmed),
                     now,
                 )?;
                 self.send_receipt(deal.id, p.value.id, now)?;
@@ -766,11 +757,7 @@ impl Pipeline {
                 self.record(
                     deal,
                     op,
-                    observed,
-                    Outcome::Confirmed,
-                    &r.observations,
-                    None,
-                    Some(event),
+                    Finding::new(observed, Outcome::Confirmed, &r.observations).event(event),
                     now,
                 )
             }
@@ -789,11 +776,7 @@ impl Pipeline {
                 self.record(
                     deal,
                     op,
-                    observed,
-                    Outcome::Resent,
-                    &r.observations,
-                    None,
-                    None,
+                    Finding::new(observed, Outcome::Resent, &r.observations),
                     now,
                 )?;
                 let v = match self.api.void(&resource, request).await {
@@ -804,11 +787,7 @@ impl Pipeline {
                 self.record(
                     deal,
                     op,
-                    "VOIDED",
-                    Outcome::Confirmed,
-                    &v.observations,
-                    None,
-                    Some(event),
+                    Finding::new("VOIDED", Outcome::Confirmed, &v.observations).event(event),
                     now,
                 )
             }
@@ -842,11 +821,7 @@ impl Pipeline {
                 self.record(
                     deal,
                     op,
-                    "CAPTURED",
-                    Outcome::Deferred,
-                    &observations,
-                    None,
-                    None,
+                    Finding::new("CAPTURED", Outcome::Deferred, &observations),
                     now,
                 )?;
                 return Err(Error::Unavailable);
@@ -875,11 +850,9 @@ impl Pipeline {
         self.record(
             deal,
             op,
-            "CAPTURED",
-            Outcome::Confirmed,
-            &observations,
-            Some(&refs),
-            Some(DealEvent::CaptureConfirmed),
+            Finding::new("CAPTURED", Outcome::Confirmed, &observations)
+                .refs(&refs)
+                .event(DealEvent::CaptureConfirmed),
             now,
         )?;
         self.send_receipt(deal.id, capture_id, now)?;
