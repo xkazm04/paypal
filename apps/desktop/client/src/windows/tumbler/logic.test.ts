@@ -3,12 +3,13 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { AttentionItem } from '@bindings/AttentionItem';
+import { clockLabel } from '../../lib/format';
 import { MONEY_CHECK_ENDED, MONEY_CHECK_ENDED_SILENCE, MONEY_CHECK_SILENCE, SELLER_SAYS_PAID } from '../../lib/words';
 import type { AttentionSnapshot } from '@bindings/AttentionSnapshot';
 import {
   FORM_SIZE, NO_HANDOFF, SECONDS, approveWindow, arrivals, cardActions, cardClock, cardQuestion, canReview, handoffEnded, nextFocus, puckLook, puckTarget,
   ackTicker, arrivalTicker, arrivalsTicker, snoozeTicker, plainItems,
-  cardWhy, puckName, dndPreferences, ladderCaption, ladderFill, ringFill, receiptTicker, restForm, rung, rungNotice, snoozeEligible, sortItems, spendMeter, splitHeadline, stateChip, tickerMayShow,
+  cardWhy, puckName, dndPreferences, ladderCaption, ladderFill, ringFill, receiptTicker, restForm, rung, rungNotice, snoozeEligible, sortItems, spendMeter, splitHeadline, stateChip, tickerMayShow, untilLabel,
 } from './logic';
 
 const NOW = 1_800_000_000;
@@ -218,11 +219,18 @@ describe('headline and receipt text', () => {
     const all = [arrivalTicker(it1), arrivalsTicker([it1, item({ deal_id: 'b', label: 'D-0208' })]), snoozeTicker(it1, NOW + 1800), ackTicker(it1, 'withdraw'), ackTicker(it1, 'let_lapse')];
     for (const t of all) expect(`${t?.l1.join('')} ${t?.l2}`).not.toMatch(/D-02\d\d/);
     expect(arrivalTicker(it1).l1).toEqual(['Countersign ', '$48.00', '']);
-    expect(arrivalTicker(it1).l2).toMatch(/^lark’s agent · until \d\d:\d\d$/);
+    expect(arrivalTicker(it1, NOW).l2).toMatch(/^lark’s agent · until \d\d:\d\d$/);
     expect(arrivalsTicker([it1, it1])?.l2).toBe('first: Countersign $48.00 · lark’s agent');
     expect(snoozeTicker(it1, NOW + 1800).l1[2]).toBe(' · lark’s agent');
     expect(ackTicker(it1, 'withdraw').l1).toEqual(['Withdrawn', '', ' · lark’s agent']);
     expect(ackTicker({ ...it1, counterparty: null }, 'let_lapse').l1).toEqual(['Left to lapse', '', '']);
+  });
+  it('an arrival due after today says its day, as the card and the hand-off do', () => {
+    const far = item({ deal_id: 'f', counterparty: 'Dan', deadline: NOW + 50 * H });
+    expect(arrivalTicker(far, NOW).l2).toBe(`Dan · until ${clockLabel(NOW + 50 * H, NOW)}`);
+    expect(arrivalTicker(item({ deal_id: 'n', counterparty: 'Dan', deadline: NOW + 3 * H }), NOW).l2).toMatch(/^Dan · until \d\d:\d\d$/);
+    expect(untilLabel(NOW + 50 * H, NOW)).toBe(clockLabel(NOW + 50 * H, NOW));
+    expect(untilLabel(NOW + 19 * H, NOW)).toMatch(/^\d\d:\d\d$/);
   });
   it('every ticker names the house seller as the card does, never as a shout', () => {
     const house = item({ deal_id: 'h', headline: 'Countersign $48.00', amount_minor: 4800, counterparty: 'HOUSE seller', deadline: NOW + 3 * H });
