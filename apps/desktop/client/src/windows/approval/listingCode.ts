@@ -10,8 +10,15 @@ import type { Terms } from '@bindings/Terms';
 
 export const LISTING_CODE_VERSION = 1;
 const PREFIX = `TBL${LISTING_CODE_VERSION}`;
-const CATEGORIES: readonly Category[] = ['office', 'parts', 'compute', 'service', 'other'];
-const CURRENCIES: readonly Currency[] = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'CHF', 'NZD', 'CZK', 'SEK', 'NOK', 'DKK', 'PLN', 'JPY', 'HUF', 'KWD', 'BHD'];
+// Every value of the generated Category / Currency types, checked by the compiler: a value Rust
+// adds (bindings/*.ts) fails the typecheck here instead of decoding as "malformed".
+const CATEGORY_SET = { office: true, parts: true, compute: true, service: true, other: true } as const satisfies Record<Category, true>;
+const CURRENCY_SET = {
+  USD: true, EUR: true, GBP: true, CAD: true, AUD: true, CHF: true, NZD: true, CZK: true,
+  SEK: true, NOK: true, DKK: true, PLN: true, JPY: true, HUF: true, KWD: true, BHD: true,
+} as const satisfies Record<Currency, true>;
+const CATEGORIES = Object.keys(CATEGORY_SET) as readonly Category[];
+const CURRENCIES = Object.keys(CURRENCY_SET) as readonly Currency[];
 const ULID = /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/;
 // The characters Rust accepts in an item reference, without the "/" this code splits on.
 const ITEM = /^[A-Za-z0-9\-_.:@+]{1,128}$/;
