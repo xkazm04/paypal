@@ -71,6 +71,13 @@ describe('Spend flows', () => {
     expect(unknown.filter((i) => !i.classList.contains('unknown')).map((i) => i.className)).toEqual([]);
   }, 60_000);
 
+  it('the rule check draws a refused purchase’s amount struck, as every other purchase list does', async () => {
+    const r = await renderLayerAtScale({ level: 'module', module: 'spend', view: 'gate' }, 'large');
+    const refused = [...r.layer.querySelectorAll<HTMLElement>('.sp-lane')].filter((row) => row.querySelector('.sp-out')?.textContent?.startsWith(SPEND.fRefused));
+    expect(refused.length).toBeGreaterThan(0);
+    expect(refused.filter((row) => !row.querySelector('.cs-amt.struck')).length).toBe(0);
+  }, 60_000);
+
   it('recent purchases are windowed and filter by outcome', async () => {
     const r = await renderLayerAtScale({ level: 'module', module: 'spend', view: 'week' }, 'large');
     expect(r.rows()).toBeLessThan(120);
