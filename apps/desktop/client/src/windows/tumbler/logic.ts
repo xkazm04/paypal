@@ -176,7 +176,7 @@ export function snoozeEligible(item: AttentionItem, now: number): boolean {
 
 /** Review opens the approval window for a decision. Only a GATE may offer it: a HOLD
  *  (MISMATCH, Shield BLOCK/HOLD) never gets a path toward paying, whatever the list says. */
-export function canReview(item: AttentionItem): boolean {
+export function canReview(item: Pick<AttentionItem, 'kind' | 'actions'>): boolean {
   return item.kind === 'gate' && item.actions.includes('review');
 }
 
@@ -201,6 +201,13 @@ export function cardActions(item: AttentionItem, now: number): CardAction[] {
   if (has('let_lapse')) out.push({ action: 'let_lapse', label: 'Let it lapse', style: 'link' });
   if (snoozeEligible(item, now)) out.push({ action: 'snooze30', label: 'Remind me in 30 min', style: 'link' });
   return out;
+}
+
+/** The card's keys in words, for its spoken name: only the keys the card's key handler acts on
+ *  (Enter reviews when canReview; W withdraws when Rust lists withdraw; Escape always). */
+export function cardKeys(item: Pick<AttentionItem, 'kind' | 'actions'>): string {
+  const keys = [canReview(item) ? 'Enter reviews' : null, item.actions.includes('withdraw') ? 'W withdraws' : null, 'Escape returns to rest'];
+  return `${keys.filter(Boolean).join(', ')}.`;
 }
 
 /** The state chip on a card or stack row: text plus colour, never colour alone. A snoozed GATE

@@ -3,9 +3,11 @@
 // is sent once per decision, whatever the keyboard does while the wallet is answering.
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Backend } from '../../lib/contract';
 import { mockBackend, resetMockState } from '../../mock/backend';
 import { setHarnessBackend } from '../main/console/testing/runtime';
+import { CardForm } from './forms';
 import { Tumbler } from './Tumbler';
 
 vi.mock('../../lib/runtime', async () => (await import('../main/console/testing/runtime')).runtimeMock);
@@ -70,6 +72,31 @@ describe('a read of the cards that fails', () => {
     const puck = h.root.querySelector('button.puck');
     expect(puck?.getAttribute('aria-label')).toMatch(/cards not read yet/);
     expect(puck?.getAttribute('aria-label')).not.toMatch(/nothing needs you/);
+  });
+});
+
+describe('the card’s spoken keys', () => {
+  const base: AttentionItem = {
+    deal_id: '01JD00000000000000000000K1', label: 'D-0001', kind: 'gate', module: 'spend', headline: 'Pay or release $64.00', amount_minor: 6400, currency: 'USD',
+    counterparty: null, clause: null, deadline: Math.floor(Date.now() / 1000) + 3 * 3600, on_silence: 'the hold releases itself', urgency: 'calm', mode: 'sandbox',
+    actions: ['review', 'open_in_table'],
+  };
+  const spoken = (item: AttentionItem): string => {
+    setHarnessBackend(mockBackend('tumbler'));
+    const r = render(<CardForm item={item} items={[item]} now={Math.floor(Date.now() / 1000)} locked={false} confirming={false} reviewed={false}
+      busy={false} pending={null} failure={null} onAction={() => {}} onConfirm={() => {}} onNav={() => {}} onStack={() => {}} onKey={() => {}} />);
+    const label = r.container.querySelector('.f.card')?.getAttribute('aria-label') ?? '';
+    r.unmount();
+    return label;
+  };
+  it('name only the keys that act on this card (the same rules as the key handler)', () => {
+    // a held authorization: Review, no Withdraw (its default is the auto-void)
+    expect(spoken(base)).toMatch(/Enter reviews/);
+    expect(spoken(base)).not.toMatch(/W withdraws/);
+    expect(spoken({ ...base, actions: ['review', 'withdraw', 'open_in_table'] })).toMatch(/Enter reviews, W withdraws/);
+    // a pause: no Review; Withdraw only when Rust lists it
+    expect(spoken({ ...base, kind: 'hold', actions: ['withdraw', 'open_in_table'] })).toMatch(/: Pay or release \$64\.00\. W withdraws, Escape returns to rest\.$/);
+    expect(spoken({ ...base, kind: 'hold', actions: ['open_in_table'] })).toMatch(/\. Escape returns to rest\.$/);
   });
 });
 
