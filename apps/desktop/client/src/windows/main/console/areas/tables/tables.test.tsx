@@ -95,6 +95,16 @@ describe('Tables flows', () => {
     }
   }, 60_000);
 
+  it('names the item on the ladder by its title, never by its code', async () => {
+    const r = await renderLayerAtScale({ level: 'module', module: 'tables', view: 'tables' }, 'large');
+    await waitFor(() => expect(r.layer.querySelector('.tb-ladder')).toBeTruthy());
+    const title = r.layer.querySelector('.tr-pane h2')?.textContent ?? '';
+    expect(title).not.toBe('');
+    expect(r.layer.querySelector('.tb-ladder')?.getAttribute('aria-label')).toBe(TABLES.ladderLabel(title));
+    const grip = r.layer.querySelector('.tb-grip');
+    if (grip) expect(grip.getAttribute('aria-label')).toContain(title);
+  }, 60_000);
+
   it('an ended table opens its deal one layer down', async () => {
     const r = await renderLayerAtScale({ level: 'module', module: 'tables', view: 'closed' }, 'large');
     const paid = [...r.layer.querySelectorAll<HTMLButtonElement>('.ui-filter')].find((b) => b.textContent?.startsWith(TABLES.fPaid));

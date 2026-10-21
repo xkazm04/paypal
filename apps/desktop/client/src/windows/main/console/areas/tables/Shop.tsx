@@ -8,7 +8,7 @@ import type { DealGroupView } from '@bindings/DealGroupView';
 import type { GroupTable } from '@bindings/GroupTable';
 import { formatMoney } from '../../../../../lib/format';
 import { useMutation } from '../../../../../lib/hooks';
-import { GROUP_CLOSED, GROUP_WINNER, SHOP_AROUND, SHOP_AROUND_MEANS, SHOP_AROUND_OTHERS, sellersWord, shoppingFor, stateWord, TABLES, tablesItem, tablesShortWho } from '../../../../../lib/words';
+import { GROUP_CLOSED, GROUP_WINNER, itemWords, SHOP_AROUND, SHOP_AROUND_MEANS, SHOP_AROUND_OTHERS, sellersWord, shoppingFor, stateWord, TABLES, tablesItem, tablesShortWho } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, Kv, Sheet, type ChipTone } from '../../../../../shared/ui';
 import { isLive } from '../../../logic';
@@ -52,7 +52,8 @@ export function ShopView({ groups, deals, display }: { groups: readonly DealGrou
   const byId = useMemo(() => new Map(deals.map((d) => [d.id, d])), [deals]);
   const itemOf = (g: DealGroupView): string => {
     const first = byId.get(g.tables[0]?.deal_id ?? '');
-    return first ? tablesItem(display(first).title) : `the ${g.item_ref}`;
+    // No table of the group at hand: a plain name made from the code, never the code itself.
+    return tablesItem(first ? display(first).title : itemWords(g.item_ref));
   };
   const who = (t: GroupTable) => tablesShortWho(cp(t.counterparty));
   const [picked, pick] = usePick(live, (g) => g.group_id);
