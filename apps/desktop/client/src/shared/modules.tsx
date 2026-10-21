@@ -1,4 +1,4 @@
-// The six modules - names, colours, one-line purpose and their small engraved glyphs, ported
+// The six modules - names, colours and their small engraved glyphs, ported
 // verbatim from the winning prototype (prototype/main/modules.js). Shared by every window so a
 // module looks the same on the Dial, in the Tumbler and in the approval window.
 import type { Module } from '@bindings/Module';
@@ -7,34 +7,17 @@ export type ModuleMeta = {
   key: Module;
   name: string;
   long: string;
-  /** Hex for SVG art drawn in a fixed (dark) palette: the Dial, the Tumbler. */
   /** Theme-aware CSS colour, `var(--m-<key>)` (tokens.css). Use this for --mc in pages. */
   cssVar: string;
-  week: string;
-  cap: number;
-  line: string;
-  decision: string;
 };
 
 export const MODULES: readonly ModuleMeta[] = [
-  { key: 'tables', cssVar: 'var(--m-tables)', name: 'Tables', long: 'Haggling', week: 'Mon', cap: 9,
-    line: 'Your agent bargains with another wallet’s agent, never past the price range you signed.',
-    decision: 'Set the price range: the most you’ll pay, or the least you’ll accept.' },
-  { key: 'spend', cssVar: 'var(--m-spend)', name: 'Spend', long: 'Agent purchases', week: 'Tue', cap: 1,
-    line: 'Every purchase an agent asks for is checked against your rules first. Money is held, then paid or released.',
-    decision: 'Pay or release a hold within 3 days. Doing nothing releases it.' },
-  { key: 'counter', cssVar: 'var(--m-counter)', name: 'Counter', long: 'Your shop', week: 'Thu', cap: 3,
-    line: 'Other people’s agents can buy from your shop. Your lowest prices are rules you signed.',
-    decision: 'Set the lowest price per item. Your agent never quotes below it.' },
-  { key: 'book', cssVar: 'var(--m-book)', name: 'Book', long: 'All payments', week: 'Sun', cap: 5,
-    line: 'Every deal, its PayPal proof, and whether PayPal’s statement agrees yet.',
-    decision: 'Ask a question about your money. Answers only read, never change anything.' },
-  { key: 'shield', cssVar: 'var(--m-shield)', name: 'Shield', long: 'Scam checks', week: 'Wed', cap: 7,
-    line: 'Every new payee is checked before any money moves. A check can stop a payment, never approve one.',
-    decision: 'Release a paused payment by typing the payee’s name, or leave it paused. A block cannot be released.' },
-  { key: 'rescue', cssVar: 'var(--m-rescue)', name: 'Rescue', long: 'Failed renewals', week: 'Fri', cap: 8,
-    line: 'When a subscriber’s renewal fails, pick one fix for that one subscriber. Never a price change for everyone.',
-    decision: 'Approve a fix: it sends one PayPal invoice and drafts your email.' },
+  { key: 'tables', cssVar: 'var(--m-tables)', name: 'Tables', long: 'Haggling' },
+  { key: 'spend', cssVar: 'var(--m-spend)', name: 'Spend', long: 'Agent purchases' },
+  { key: 'counter', cssVar: 'var(--m-counter)', name: 'Counter', long: 'Your shop' },
+  { key: 'book', cssVar: 'var(--m-book)', name: 'Book', long: 'All payments' },
+  { key: 'shield', cssVar: 'var(--m-shield)', name: 'Shield', long: 'Scam checks' },
+  { key: 'rescue', cssVar: 'var(--m-rescue)', name: 'Rescue', long: 'Failed renewals' },
 ];
 
 export const MODULE: Record<Module, ModuleMeta> = Object.fromEntries(MODULES.map((m) => [m.key, m])) as Record<Module, ModuleMeta>;
@@ -58,7 +41,6 @@ function glyphMarkup(key: Module): string {
 export function Glyph({ module, className, title }: { module: Module; className?: string; title?: string }) {
   return (
     <svg className={className ?? 'glyph'} viewBox="0 0 64 64" role={title ? 'img' : undefined} aria-hidden={title ? undefined : true} aria-label={title}
-      dangerouslySetInnerHTML={{ __html: glyphMarkup(key(module)) }} />
+      dangerouslySetInnerHTML={{ __html: glyphMarkup(module) }} />
   );
 }
-const key = (m: Module) => m;
