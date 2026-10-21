@@ -16,7 +16,7 @@ import type { MarketRef } from '@bindings/MarketRef';
 import type { Money } from '@bindings/Money';
 import { exponent, formatMinor } from '../../../../lib/format';
 import { itemWords } from '../../../../lib/words';
-import { dealTotal, isLive, mandatesGoverning } from '../../logic';
+import { isLive, mandatesGoverning } from '../../logic';
 
 // ---- money input ------------------------------------------------------------------------------
 
@@ -208,6 +208,9 @@ const QUOTE_STAGE: ReadonlySet<DealState> = new Set(['LISTED', 'NEGOTIATING', 'A
 
 export type Impact = { deal: Deal; kind: 'withdraw' | 'stays' | 'keeps' };
 
+/** The price a floor binds: the unit price, as clause 4 checks it (never the order total). */
+export const unitPrice = (d: Deal): Money => d.terms.unit_price;
+
 /** Live counter deals on a changed item: a quote under the new floor is withdrawn (no money moves);
  *  an order the buyer already holds keeps its terms. Rust decides; this only previews. */
 export function draftImpact(diff: readonly DraftEntry[]): Impact[] {
@@ -215,7 +218,7 @@ export function draftImpact(diff: readonly DraftEntry[]): Impact[] {
   for (const e of diff) {
     for (const d of e.row.deals) {
       if (!isLive(d)) continue;
-      const t = dealTotal(d);
+      const t = unitPrice(d);
       if (QUOTE_STAGE.has(d.state)) out.push({ deal: d, kind: t.currency === e.to.currency && t.minor < e.to.minor ? 'withdraw' : 'stays' });
       else out.push({ deal: d, kind: 'keeps' });
     }
@@ -227,7 +230,7 @@ export function draftImpact(diff: readonly DraftEntry[]): Impact[] {
 export function underDraft(d: Deal, row: CatalogRow | undefined, draft: FloorDraft): boolean {
   if (!row || !QUOTE_STAGE.has(d.state) || draft[row.itemRef] === undefined) return false;
   const f = draftFloor(row, draft);
-  const t = dealTotal(d);
+  const t = unitPrice(d);
   return !!f && f.currency === t.currency && t.minor < f.minor;
 }
 

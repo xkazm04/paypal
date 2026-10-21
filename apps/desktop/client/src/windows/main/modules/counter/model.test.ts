@@ -131,6 +131,15 @@ describe('the floor draft', () => {
     expect(matchesFilter(r, 'draft', {})).toBe(false);
     expect(matchesFilter(r, 'draft', { arm: '62' })).toBe(true);
   });
+  it('compares the floor with the unit price, as clause 4 does, never with the order total', () => {
+    // Two at $40 is an $80 quote, but each unit is under a $58 floor: signing withdraws it.
+    const pair = { ...deal({ id: 'p', item: 'arm', price: 4000, state: 'AGREED' }), terms: { ...deal({ item: 'arm', price: 4000 }).terms, qty: 2 } };
+    const r = row(3000, [pair]);
+    const { diff } = draftState([r], { arm: '58' });
+    expect(draftImpact(diff).map((x) => `${x.deal.id}:${x.kind}`)).toEqual(['p:withdraw']);
+    expect(underDraft(pair, r, { arm: '58' })).toBe(true);
+    expect(underDraft(pair, r, { arm: '40' })).toBe(false);
+  });
 });
 
 describe('scale', () => {
