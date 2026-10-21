@@ -57,7 +57,7 @@ export function ProofReportView({ report, own }: { report: ProofReport; own: str
       <ul className="pc-checks">
         {report.checks.map((c) => (
           <li key={c.id} className={c.ok ? 'ok' : c.checked ? 'bad' : 'unchecked'}>
-            <span aria-label={c.ok ? 'passed' : c.checked ? 'did not pass' : 'not checked'}>{c.ok ? '✓' : c.checked ? '✗' : '–'}</span>{' '}
+            <span role="img" aria-label={c.ok ? 'passed' : c.checked ? 'did not pass' : 'not checked'}>{c.ok ? '✓' : c.checked ? '✗' : '–'}</span>{' '}
             {PROOF_CHECKS[c.id] ?? 'A check this wallet does not know.'}
             {c.ok || c.checked ? <div className="ui-hint mono">{clip(c.detail)}</div> : <div className="ui-hint">{notCheckedWords(c, older)}</div>}
           </li>

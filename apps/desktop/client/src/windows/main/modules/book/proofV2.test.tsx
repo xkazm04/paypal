@@ -38,6 +38,10 @@ describe('proof file v2 lines', () => {
     expect(r.container.textContent).toContain(PROOF_NOT_APPLICABLE.group);
     expect(r.container.textContent).toContain(PROOF_CHECKS.owner_saw);
     expect(r.getAllByLabelText('not checked')).toHaveLength(1);
+    // The glyph's verdict is a name a screen reader reads: aria-label on a plain span (role generic)
+    // is prohibited in ARIA 1.2 and dropped by assistive tech, so the glyph is an image with a name.
+    expect(r.getAllByRole('img', { name: 'passed' })).toHaveLength(3);
+    expect(r.getAllByRole('img', { name: 'not checked' })).toHaveLength(1);
   });
 
   it('a failed new check reads as failed by its own words', () => {
