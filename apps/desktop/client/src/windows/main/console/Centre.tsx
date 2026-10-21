@@ -7,7 +7,7 @@
 // next decisions, and in any free slot what happened while the owner was away and what the wallet
 // is watching, so the row never stands empty.
 import { NOTICE_WHAT } from '../../../lib/words';
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import { formatMinor } from '../../../lib/format';
@@ -218,8 +218,18 @@ function Hourglass() {
 /** Why? the old Details popover's facts, as a disclosure in place (one layer down, never a permanent hint). */
 function WhyDisclosure({ item, deal, disp }: { item: AttentionItem; deal: Deal | undefined; disp: Display | undefined }) {
   const ended = deal ? isTerminal(deal) : false;
+  // It opens over the row below like a popover, so Escape closes it first (focus back on Why?)
+  // and the console's own Escape does not run.
+  const ref = useRef<HTMLDetailsElement>(null);
+  const onKey = (e: ReactKeyboardEvent<HTMLDetailsElement>) => {
+    const d = ref.current;
+    if (e.key !== 'Escape' || e.defaultPrevented || !d?.open) return;
+    e.preventDefault();
+    d.open = false;
+    d.querySelector<HTMLElement>('summary')?.focus();
+  };
   return (
-    <details className="cs-why">
+    <details className="cs-why" ref={ref} onKeyDown={onKey}>
       <summary>{WHY}</summary>
       <div className="pop">
         <Kv items={[

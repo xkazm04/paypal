@@ -199,6 +199,18 @@ describe('the decision centre', () => {
     expect([...labels].filter((l) => ![...Object.values(WHY_LABEL), IF_NOTHING].includes(l))).toEqual([]);
   }, 30_000);
 
+  it('Escape closes an open Why? first, gives focus to its summary, and stays on the centre', async () => {
+    await open('/index.html');
+    await heading();
+    const why = await waitFor(() => { const d = layer()?.querySelector<HTMLDetailsElement>('.cs-why'); if (!d) throw new Error('no Why'); return d; });
+    why.open = true;
+    const inside = why.querySelector<HTMLElement>('.pop') ?? why;
+    fireEvent.keyDown(inside, { key: 'Escape' });
+    expect(why.open).toBe(false);
+    expect(document.activeElement).toBe(why.querySelector('summary'));
+    expect(layer()?.dataset.level).toBe('home');
+  }, 30_000);
+
   it('a failed read shows the stale banner in plain words, and Try again reads again', async () => {
     h.failSettings = true;
     await open('/index.html');
