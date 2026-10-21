@@ -15,6 +15,8 @@ import { QUESTION_WORDS } from '../../../modules/book/where';
 import { expectLayerHealthy, renderLayerAtScale, settle } from '../../testing/scaleSmoke';
 import { dealsIn, outsideSpan, paidOutIn, walletDay, weekSpan } from './model';
 import { stepChange } from './Record';
+import { WalletError } from '../../../../../lib/contract';
+import { runtimeMock, setHarnessBackend } from '../../testing/runtime';
 
 vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/runtime')).runtimeMock);
 
@@ -145,6 +147,25 @@ describe('Book record (#16)', () => {
     expect(pages()).toHaveLength(2);
     expect((pages()[1]?.args as { before: number }).before).toBeGreaterThan(0);
     expect(r.rows()).toBeLessThanOrEqual(250);
+  }, 60_000);
+});
+
+describe('Book record when the first page cannot be read', () => {
+  // A failed read says so and claims nothing: before, the notice sat over the list's empty state,
+  // "Nothing on record yet.", which says the record is empty when it was never read.
+  it('shows the notice and not the empty record', async () => {
+    const r = await renderLayerAtScale('#m=book', 'large');
+    const inner = runtimeMock.backend();
+    setHarnessBackend({
+      ...inner,
+      invoke: (cmd, args, opts) => (cmd === 'audit_page' ? Promise.reject(new WalletError({ code: 'NOT_FOUND', message: 'read failed' })) : inner.invoke(cmd, args, opts)),
+    });
+    const card = r.layer.querySelector<HTMLElement>('[data-card="record"]');
+    expect(card).not.toBeNull();
+    await act(async () => { card?.click(); });
+    await settle();
+    await waitFor(() => expect(document.querySelector('.bk-record [role="alert"]')).not.toBeNull());
+    expect(document.querySelector('.bk-record')?.textContent).not.toContain(BOOK.record.empty);
   }, 60_000);
 });
 

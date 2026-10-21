@@ -158,7 +158,9 @@ export function Record({ b }: { b: BookWorld }) {
         <span className="bk-dim" role="status">{jumping ? BOOK.record.reading : next === undefined ? null : next ? BOOK.record.readSoFar(rows.length) : BOOK.record.readAll(rows.length)}</span>
         {next ? <Btn sm disabled={read.pending} onClick={older}>{read.pending ? BOOK.record.reading : BOOK.record.older}</Btn> : null}
       </div>
-      {next === undefined && !read.error ? <Loading what={BOOK.record.loading} /> : (
+      {/* Before the first page is read the list says nothing: a failed read is the notice above,
+          never "nothing on record". */}
+      {next === undefined ? (read.error ? null : <Loading what={BOOK.record.loading} />) : (
         <ListEngine<AuditRow> className={fewRows(shown.length)} label={BOOK.record.label} rows={shown} getKey={(r) => String(r.seq)} filters={FILTERS} filterLabel={BOOK.record.filter.label} estimateSize={52} toolbarMin={0}
           searchText={(r) => `${actionWord(r.action)} ${actorWord(r.actor)} ${titleOf(r) ?? ''}`}
           renderRow={(r) => <StepRow r={r} deal={r.deal_id ? byId.get(r.deal_id) : undefined} title={titleOf(r)} />}
