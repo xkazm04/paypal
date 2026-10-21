@@ -11,7 +11,7 @@ import { WalletNotice } from '../../../shared/honesty';
 import { CHECK_STATUS_WORD, NOT_REPORTED, reasonWords, receiptWord, reconWord } from '../../../lib/words';
 import type { ApprovalCheckStatus } from '@bindings/ApprovalCheckStatus';
 import { Btn, Kv, Sheet } from '../../../shared/ui';
-import type { Step } from '../model';
+import { footerNoticeText, type Step } from '../model';
 import { relMark, rowWord, type DiffRow, type Mark } from './diff';
 
 const STATUS_MARK: Record<ApprovalCheckStatus, Mark> = { pass: '✓', fail: '✕', wait: '…', not_applicable: 'i' };
@@ -124,7 +124,7 @@ export function DetailsSheet(p: {
       </Sec>
       <Sec title="Signed history · every message both wallets signed">
         {p.transcriptError ? (
-          <WalletNotice error={p.transcriptError} what="No signed history" />
+          <WalletNotice error={p.transcriptError} what="No signed history" message={footerNoticeText('read', p.transcriptError)} />
         ) : !p.transcript ? (
           <p className="pop-p dim">Reading the signed history…</p>
         ) : !p.transcript.length ? (
