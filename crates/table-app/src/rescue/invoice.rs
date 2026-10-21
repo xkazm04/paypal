@@ -1,7 +1,7 @@
 //! The invoice plumbing of the rescue flow: create, send and resolve the one invoice a fix makes.
 
 use super::*;
-use crate::pipeline::Completion;
+use crate::pipeline::{Completion, Finding};
 
 impl Pipeline {
     /// Create the invoice reserved under `request` and finish its operation with PayPal's answer:
@@ -213,11 +213,9 @@ impl Pipeline {
         self.record(
             deal,
             op,
-            DRAFT,
-            Outcome::Confirmed,
-            &observations,
-            Some(&refs),
-            Some(DealEvent::InvoiceDrafted),
+            Finding::new(DRAFT, Outcome::Confirmed, &observations)
+                .refs(&refs)
+                .event(DealEvent::InvoiceDrafted),
             now,
         )
     }
@@ -277,11 +275,7 @@ impl Pipeline {
             self.record(
                 deal,
                 op,
-                DRAFT,
-                Outcome::Absent,
-                &observations,
-                None,
-                None,
+                Finding::new(DRAFT, Outcome::Absent, &observations),
                 now,
             )?;
             if deadline_passed {
@@ -318,11 +312,7 @@ impl Pipeline {
         self.record(
             deal,
             op,
-            DRAFT,
-            Outcome::Resent,
-            &observations,
-            None,
-            None,
+            Finding::new(DRAFT, Outcome::Resent, &observations),
             now,
         )?;
         match api.send_invoice(&invoice, request).await {
@@ -343,11 +333,9 @@ impl Pipeline {
         self.record(
             deal,
             op,
-            observed,
-            Outcome::Confirmed,
-            observations,
-            Some(&deal.paypal),
-            Some(DealEvent::SettleVerified),
+            Finding::new(observed, Outcome::Confirmed, observations)
+                .refs(&deal.paypal)
+                .event(DealEvent::SettleVerified),
             now,
         )?;
         self.wallet.ledger.set_deadline(
