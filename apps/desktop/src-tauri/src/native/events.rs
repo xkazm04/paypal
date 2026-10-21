@@ -162,9 +162,7 @@ pub(super) async fn produce(
                         }
                         let _ = set_form(&app, Form::Rest);
                     }
-                    if let Ok(hwnd) = t.hwnd() {
-                        table_os::show_without_activation(hwnd.0 as isize);
-                    }
+                    show_quietly(&app, &t);
                 }
                 first_run_previous = Some(settings.first_run);
                 state
@@ -195,9 +193,7 @@ pub(super) async fn produce(
                     {
                         let _ = set_form(&app, Form::Rest);
                         let _ = t.set_focusable(false);
-                        if let Ok(hwnd) = t.hwnd() {
-                            table_os::show_without_activation(hwnd.0 as isize);
-                        }
+                        show_quietly(&app, &t);
                     }
                 }
                 notify_due(&app, &data, &preferences, &mut ladder).await;

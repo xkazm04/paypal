@@ -240,6 +240,34 @@ fn every_window_event_goes_through_the_table_driven_emit() {
     );
 }
 #[test]
+fn every_tumbler_show_and_hide_reports_its_status() {
+    // Main's status line shows whether the Tumbler is out (`tumbler:status`); a show or hide that
+    // does not report leaves it wrong until the next attention change.
+    let sources = shell_sources();
+    let body = |name: &str| {
+        sources
+            .split(&format!("fn {name}("))
+            .nth(1)
+            .and_then(|rest| rest.split("\n}\n").next())
+            .unwrap_or_else(|| panic!("no fn {name}"))
+    };
+    // The hotkey and the tray's entry share one toggle, whose hide reports the new state.
+    let toggle = body("toggle_tumbler");
+    assert!(toggle.contains("t.hide()") && toggle.contains("emit_status(app)"));
+    assert_eq!(sources.matches("toggle_tumbler(app)").count(), 2);
+    assert_eq!(
+        sources.matches("t.hide()").count(),
+        1,
+        "hide through toggle_tumbler"
+    );
+    // Every arrival without focus goes through one helper, which reports it.
+    let quiet = body("show_quietly");
+    assert!(quiet.contains("show_without_activation(") && quiet.contains("emit_status(app)"));
+    assert_eq!(sources.matches("show_without_activation(").count(), 1);
+    // A summon reports too.
+    assert!(body("summon").contains("emit_status(app)"));
+}
+#[test]
 fn the_tray_menu_is_built_from_and_answered_by_the_tray_model() {
     // Every tray click goes through `TrayModel::command`, so a menu that changed since it was
     // shown (Pause became Resume, a deal settled) cannot run what it no longer shows.

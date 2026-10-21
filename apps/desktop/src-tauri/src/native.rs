@@ -107,6 +107,26 @@ fn summon(app: &AppHandle, stack: bool) -> Result<(), tauri::Error> {
     }
     Ok(())
 }
+/// Shows or puts away the Tumbler (the hotkey and the tray's entry). Either way main's status line
+/// is told, as a summon tells it.
+fn toggle_tumbler(app: &AppHandle) {
+    if let Some(t) = app.get_webview_window("tumbler") {
+        if t.is_visible().unwrap_or(false) {
+            let _ = t.hide();
+            let _ = emit_status(app);
+        } else {
+            let _ = summon(app, false);
+        }
+    }
+}
+/// Shows the Tumbler without taking focus from the owner's current application, and tells main's
+/// status line it is out.
+fn show_quietly(app: &AppHandle, t: &WebviewWindow) {
+    if let Ok(hwnd) = t.hwnd() {
+        table_os::show_without_activation(hwnd.0 as isize);
+    }
+    let _ = emit_status(app);
+}
 /// The Table logo at 32 px as raw RGBA (branding/build-tray.py): one image, and one with the gold
 /// "a deal needs you" dot. The length is checked at compile time.
 const TRAY_RGBA: &[u8] = include_bytes!("../icons/tray.rgba");
@@ -165,14 +185,8 @@ pub fn run() -> Result<(), tauri::Error> {
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 .with_handler(|app, _, event| {
-                    if event.state() == ShortcutState::Pressed
-                        && let Some(t) = app.get_webview_window("tumbler")
-                    {
-                        if t.is_visible().unwrap_or(false) {
-                            let _ = t.hide();
-                        } else {
-                            let _ = summon(app, false);
-                        }
+                    if event.state() == ShortcutState::Pressed {
+                        toggle_tumbler(app);
                     }
                 })
                 .build(),
@@ -389,15 +403,7 @@ pub fn run() -> Result<(), tauri::Error> {
                                 let _ = w.set_focus();
                             }
                         }
-                        Some(TrayCommand::Tumbler) => {
-                            if let Some(t) = app.get_webview_window("tumbler") {
-                                if t.is_visible().unwrap_or(false) {
-                                    let _ = t.hide();
-                                } else {
-                                    let _ = summon(app, false);
-                                }
-                            }
-                        }
+                        Some(TrayCommand::Tumbler) => toggle_tumbler(app),
                         Some(TrayCommand::Pause) => tray_action(app, Action::Pause),
                         Some(TrayCommand::Resume) => tray_action(app, Action::Resume),
                         Some(TrayCommand::Quit) => events::request_quit(app),
