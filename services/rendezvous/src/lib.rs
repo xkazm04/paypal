@@ -133,7 +133,7 @@ fn page(messages: &[Arc<str>], after: usize) -> Vec<Arc<str>> {
         .collect()
 }
 fn valid_jws(jws: &str) -> bool {
-    jws.len() <= 16384
+    jws.len() <= table_relay::MAX_MESSAGE_BYTES
         && jws.split('.').count() == 3
         && jws.split('.').all(|s| {
             !s.is_empty()
@@ -212,7 +212,7 @@ impl Mailbox for MemoryStore {
             return Ok(position as u64 + 1);
         }
         let len = jws.len();
-        if b.messages.len() >= 256
+        if b.messages.len() >= table_relay::MAX_MESSAGES
             || b.bytes.saturating_add(len) > MAX_MAILBOX_BYTES
             || total.saturating_add(len) > MAX_TOTAL_BYTES
         {
@@ -281,7 +281,7 @@ pub fn relay_router(store: Arc<MemoryStore>) -> Router {
         .route("/v1/mailbox/{hash}", put(create))
         .route("/v1/mailbox/{hash}/envelopes", post(send).get(read))
         .route("/v1/mailbox/{hash}/sync", get(sync))
-        .layer(DefaultBodyLimit::max(16384))
+        .layer(DefaultBodyLimit::max(table_relay::MAX_MESSAGE_BYTES))
         .with_state(store)
 }
 /// Co-hosted house uses the same mailbox contract without making loopback HTTP requests.
@@ -305,7 +305,7 @@ impl table_relay::RelayApi for MemoryStore {
         after: u64,
         wait: u8,
     ) -> Result<table_relay::Batch, table_relay::Error> {
-        if wait > 25 {
+        if wait > table_relay::MAX_WAIT_SECS {
             return Err(table_relay::Error::Invalid);
         }
         self.batch(&hash.hex(), generation, after)
@@ -353,7 +353,7 @@ async fn read(
     Path(h): Path<String>,
     Query(q): Query<Poll>,
 ) -> Result<Json<Vec<String>>, StatusCode> {
-    if q.wait > 25 {
+    if q.wait > table_relay::MAX_WAIT_SECS {
         return Err(StatusCode::BAD_REQUEST);
     }
     let waiter = s.waiter(&h).await;
@@ -416,7 +416,10 @@ async fn sync(
     Path(h): Path<String>,
     Query(q): Query<SyncPoll>,
 ) -> Result<Json<table_relay::Batch>, StatusCode> {
-    if q.wait > 25 || q.after > 256 || q.generation.len() > 32 {
+    if q.wait > table_relay::MAX_WAIT_SECS
+        || q.after > table_relay::MAX_MESSAGES as u64
+        || q.generation.len() > 32
+    {
         return Err(StatusCode::BAD_REQUEST);
     }
     let waiter = s.waiter(&h).await;
