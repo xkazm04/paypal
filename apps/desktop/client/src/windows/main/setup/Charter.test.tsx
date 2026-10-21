@@ -1,10 +1,12 @@
 // The Charter in the first-run mock world: five lines with their state, the privileged lines hand off
 // to the approval window with the Set up page's targets, a line waits and says "not finished" when
 // the window gives the focus back unfinished, and a line moves on by itself when its state turns done.
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Backend } from '../../../lib/contract';
-import { CHARTER_IN_APPROVAL, CHARTER_TITLE, KEEP_PRACTICE_AGENT, TOUR, tourCount, SETUP_FINISH, SETUP_NEXT, SETUP_NOT_DONE, SETUP_STEP_COPY, SETUP_STEP_LABEL, SETUP_WAITING } from '../../../lib/words';
+import { CHARTER_IN_APPROVAL, CHARTER_TITLE, CONNECTIONS_ENGINE, KEEP_PRACTICE_AGENT, TOUR, tourCount, SETUP_FINISH, SETUP_NEXT, SETUP_NOT_DONE, SETUP_STEP_COPY, SETUP_STEP_LABEL, SETUP_WAITING } from '../../../lib/words';
 import { mockBackend, resetMockState } from '../../../mock/backend';
 import { WorldProvider } from '../world';
 import { ToastProvider } from '../ui';
@@ -82,6 +84,18 @@ describe('the Charter', () => {
     expect(document.querySelector('.ch-done')?.textContent).toContain(SETUP_STEP_COPY.unlock.done);
     expect(onStep).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: SETUP_NEXT })).toBeNull();
+  });
+});
+
+// The agent line's words are the agent-app picker's (CONNECTIONS_ENGINE), so the two places that
+// pick an agent app say the same thing and the area words guard sees them; none is spelled inline.
+describe('the agent line speaks the picker’s words', () => {
+  it('spells none of them inline', () => {
+    const src = readFileSync(resolve(process.cwd(), 'src/windows/main/setup/Charter.tsx'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+    const inline = [CONNECTIONS_ENGINE.looking, CONNECTIONS_ENGINE.notChecked, CONNECTIONS_ENGINE.checkAgain, CONNECTIONS_ENGINE.look, CONNECTIONS_ENGINE.practiceShort, 'Agent app set to', `'${CONNECTIONS_ENGINE.chipReady}`, `'${CONNECTIONS_ENGINE.chipOff}`, '`ready', '`not connected']
+      .filter((w) => src.includes(w));
+    expect(inline).toEqual([]);
   });
 });
 
