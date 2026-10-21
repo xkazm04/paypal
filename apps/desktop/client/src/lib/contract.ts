@@ -43,7 +43,12 @@ export class WalletError extends Error {
   }
 }
 
-const CODES: readonly ErrorCode[] = ['LOCKED', 'PERMISSION', 'REFUSED', 'INVALID', 'NOT_FOUND', 'UNAVAILABLE', 'LEDGER_TRUST', 'UNSUPPORTED'];
+// Keyed by the generated ErrorCode union, so a code Rust adds fails the typecheck here instead of
+// arriving as UNAVAILABLE below.
+const CODE_SET: Record<ErrorCode, true> = {
+  LOCKED: true, PERMISSION: true, REFUSED: true, INVALID: true, NOT_FOUND: true, UNAVAILABLE: true, LEDGER_TRUST: true, UNSUPPORTED: true,
+};
+const CODES = Object.keys(CODE_SET) as readonly ErrorCode[];
 
 /** Normalise whatever invoke rejected with into a WalletError. */
 export function toWalletError(e: unknown): WalletError {
