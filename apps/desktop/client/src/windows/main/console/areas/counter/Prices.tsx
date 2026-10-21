@@ -12,7 +12,7 @@ import { COUNTER } from '../../../../../lib/words';
 import { Btn, Chip, Disclosure, Field, Kv, Silence } from '../../../../../shared/ui';
 import { dealTotal, isLive } from '../../../logic';
 import {
-  currencyMark, draftFloor, draftState, fmtShort, floorText, itemName, minorToText, parseMoneyText, scaleOf, stepFloor, vsMarket,
+  currencyMark, draftFloor, draftState, fmtShort, floorText, itemName, minorToText, parseMoneyText, scaleOf, stepFloor, unitPrice, vsMarket,
   type CatalogRow, type DraftEntry, type DraftError, type FloorDraft, type Impact,
 } from '../../../modules/counter/model';
 import type { World } from '../../../world';
@@ -103,8 +103,9 @@ function PriceScale({ row, floor }: { row: CatalogRow; floor: Money | null }) {
   const cur = row.currency;
   const m = row.market && row.market.median.currency === cur ? row.market : null;
   const was = row.signed && floor && row.signed.minor !== floor.minor ? row.signed.minor : null;
-  const qs = row.deals.filter((d) => dealTotal(d).currency === cur).slice(0, 40);
-  const vals = [floor?.minor, was, m?.p25.minor, m?.median.minor, m?.p75.minor, ...qs.map((d) => dealTotal(d).minor)].filter((v): v is number => typeof v === 'number');
+  // Orders sit on the axis at their unit price: the floor binds the unit price, not the order total.
+  const qs = row.deals.filter((d) => unitPrice(d).currency === cur).slice(0, 40);
+  const vals = [floor?.minor, was, m?.p25.minor, m?.median.minor, m?.p75.minor, ...qs.map((d) => unitPrice(d).minor)].filter((v): v is number => typeof v === 'number');
   const x = scaleOf(vals);
   if (!x || vals.length < 2) return <p className="ui-hint">{COUNTER.nothingCompare(!!floor)}</p>;
   const pct = (v: number) => `${x(v).toFixed(2)}%`;
@@ -117,7 +118,7 @@ function PriceScale({ row, floor }: { row: CatalogRow; floor: Money | null }) {
         {m ? <div className="tk mkt dn" style={{ left: pct(m.median.minor) }}><i className={was !== null ? (was < m.median.minor ? 'r' : 'l') : ''}>{COUNTER.tkTypical(fmtShort(m.median.minor, cur))}</i></div> : null}
         {was !== null ? <div className="tk was dn" style={{ left: pct(was) }}><i className={m && was >= m.median.minor ? 'r' : 'l'}>{COUNTER.tkWas(fmtShort(was, cur))}</i></div> : null}
         {floor ? <div className="tk floor up" style={{ left: pct(floor.minor) }}><i className="l">{COUNTER.tkLowest(fmtShort(floor.minor, cur))}</i></div> : null}
-        {qs.map((d) => <div key={d.id} className={`dot${isLive(d) ? '' : ' sold'}`} style={{ left: pct(dealTotal(d).minor) }} />)}
+        {qs.map((d) => <div key={d.id} className={`dot${isLive(d) ? '' : ' sold'}`} style={{ left: pct(unitPrice(d).minor) }} />)}
       </div>
       <div className="ctr-legend"><span className="lg-q">{COUNTER.legend.order}</span><span className="lg-s">{COUNTER.legend.sold}</span><span className="lg-m">{COUNTER.legend.market}</span><span className="lg-b">{COUNTER.legend.below}</span></div>
     </>
@@ -168,7 +169,8 @@ export function DraftBar({ mandate, diff, errors, impact, title, onDiscard, onFi
           <p className="ui-hint">{COUNTER.ifSign}</p>
           <ul className="ctr-imp">
             {impact.slice(0, 20).map((x) => {
-              const t = dealTotal(x.deal);
+              // A quote is told by the unit price the floor binds; an order the buyer holds, by its total.
+              const t = x.kind === 'keeps' ? dealTotal(x.deal) : unitPrice(x.deal);
               const amt = formatMinor(t.minor, t.currency);
               const name = title(x.deal).title;
               return <li key={x.deal.id}><Chip tone={IMPACT_TONE[x.kind]}>{COUNTER.impactChip[x.kind]}</Chip><span>{COUNTER.impact[x.kind](name, amt)}</span></li>;
