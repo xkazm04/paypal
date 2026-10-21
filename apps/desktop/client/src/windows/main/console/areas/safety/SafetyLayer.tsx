@@ -23,6 +23,30 @@ export type DealName = { label: string; title: string };
 
 const selDisplay = (w: World) => w.display;
 
+/** The record's figures, for the facts strip and "The record itself". Past a broken chain Rust
+ *  counts nothing (table-runtime safety.rs returns zeros), so only the records and the chain are
+ *  shown: a count that was never taken must not read as a zero (UX-GUIDE: unknown is never zero). */
+export function recordFacts(r: SafetyRecord): [string, string][] {
+  const head: [string, string][] = [[SAFETY_VIEW.records, count(r.records)], [SAFETY_VIEW.chain, r.intact ? SAFETY_VIEW.chainOk : SAFETY_VIEW.chainBroken]];
+  if (!r.intact) return head;
+  return [
+    ...head,
+    [SAFETY_VIEW.dealsChecked, SAFETY_VIEW.of(count(r.deals_checked), count(r.deals_total))],
+    [SAFETY_VIEW.histories, SAFETY_VIEW.of(count(r.transcripts_verified), count(r.deals_checked))],
+    [SAFETY_VIEW.refusedDeals, SAFETY_VIEW.refusedDealsLine(count(r.refused_deals), count(r.refused_deal_calls))],
+    [SAFETY_VIEW.moneySteps, count(moneySteps(r.money))],
+  ];
+}
+
+/** The Refused card: not counted (null, drawn unknown) past a broken chain, like Money steps and Deals checked. */
+export function refusedCard(r: SafetyRecord): { value: string | null; note: string | undefined } {
+  if (!r.intact) return { value: null, note: undefined };
+  return {
+    value: r.refusals ? SAFETY_CARD.refusedValue(count(r.refusals)) : SAFETY_CARD.refusedNone,
+    note: r.refusals ? (r.refused_deal_calls === 0 && r.violations_total === 0 ? SAFETY_CARD.refusedNote : SAFETY_CARD.refusedNoteCalls) : undefined,
+  };
+}
+
 export function SafetyLayer({ nav }: LayerProps) {
   const q = useQuery('safety_record', null);
   const deals = useDeals().data;
@@ -52,11 +76,10 @@ export function SafetyLayer({ nav }: LayerProps) {
       view: { title: SAFETY_VIEW.details, sub: SAFETY_VIEW.detailsSub, render: () => <SafetyDetails record={r} dealName={name} onDeal={nav.deal} /> },
     },
     {
-      id: 'money', label: SAFETY_CARD.money, value: r.intact ? count(steps) : null, note: steps ? SAFETY_CARD.moneyNote : SAFETY_CARD.moneyNone,
+      id: 'money', label: SAFETY_CARD.money, value: r.intact ? count(steps) : null, note: !r.intact ? undefined : steps ? SAFETY_CARD.moneyNote : SAFETY_CARD.moneyNone,
     },
     {
-      id: 'refused', label: SAFETY_CARD.refused, value: r.refusals ? SAFETY_CARD.refusedValue(count(r.refusals)) : SAFETY_CARD.refusedNone,
-      note: r.refusals ? (r.refused_deal_calls === 0 && r.violations_total === 0 ? SAFETY_CARD.refusedNote : SAFETY_CARD.refusedNoteCalls) : undefined,
+      id: 'refused', label: SAFETY_CARD.refused, ...refusedCard(r),
       view: { title: SAFETY_VIEW.refused, sub: SAFETY_VIEW.refusedSub, render: () => <SafetyRefusals record={r} /> },
     },
     { id: 'deals', label: SAFETY_CARD.deals, value: r.intact ? SAFETY_CARD.dealsValue(count(r.deals_checked), count(r.deals_total)) : null, note: scopeWords(r) },
@@ -67,14 +90,7 @@ export function SafetyLayer({ nav }: LayerProps) {
       latest={{
         title: SAFETY_VIEW.details,
         // The record at a glance (the same figures as "Your record", read-only; a broken chain says so).
-        facts: [
-          [SAFETY_VIEW.records, count(r.records)],
-          [SAFETY_VIEW.chain, r.intact ? SAFETY_VIEW.chainOk : SAFETY_VIEW.chainBroken],
-          [SAFETY_VIEW.dealsChecked, SAFETY_VIEW.of(count(r.deals_checked), count(r.deals_total))],
-          [SAFETY_VIEW.histories, SAFETY_VIEW.of(count(r.transcripts_verified), count(r.deals_checked))],
-          [SAFETY_VIEW.refusedDeals, SAFETY_VIEW.refusedDealsLine(count(r.refused_deals), count(r.refused_deal_calls))],
-          [SAFETY_VIEW.moneySteps, count(steps)],
-        ],
+        facts: recordFacts(r),
       }}
       lead={r.violations_total > 0 ? <SafetyFindings record={r} detailed={false} dealName={name} onDeal={nav.deal} /> : null}
       className={words.tone === 'bad' ? 'bad' : 'ok'}>
@@ -145,17 +161,14 @@ export function SafetyRefusals({ record: r }: { record: SafetyRecord }) {
 
 /** The record itself: the chain, its head, the counts, and the precise findings. */
 export function SafetyDetails({ record: r, dealName, onDeal }: { record: SafetyRecord; dealName: (id: string) => DealName | null; onDeal: (id: string) => void }) {
-  const steps = moneySteps(r.money);
+  const [records, chain, ...counted] = recordFacts(r);
   return (
     <section className="sf-details" aria-label={SAFETY_VIEW.details}>
       <Kv items={[
-        [SAFETY_VIEW.records, count(r.records)],
-        [SAFETY_VIEW.chain, r.intact ? SAFETY_VIEW.chainOk : SAFETY_VIEW.chainBroken],
+        records ?? null,
+        chain ?? null,
         r.head ? [SAFETY_VIEW.latest, <span key="h" className="mono sf-head" title={SAFETY_VIEW.latestTitle}>{headGroups(r.head).join(' ')}</span>] : null,
-        [SAFETY_VIEW.dealsChecked, SAFETY_VIEW.of(count(r.deals_checked), count(r.deals_total))],
-        [SAFETY_VIEW.histories, SAFETY_VIEW.of(count(r.transcripts_verified), count(r.deals_checked))],
-        [SAFETY_VIEW.refusedDeals, SAFETY_VIEW.refusedDealsLine(count(r.refused_deals), count(r.refused_deal_calls))],
-        [SAFETY_VIEW.moneySteps, count(steps)],
+        ...counted,
       ]} />
       {r.refusal_families.length ? (
         <>

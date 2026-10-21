@@ -6,7 +6,8 @@ import { cleanup, fireEvent, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SafetyRecord } from '@bindings/SafetyRecord';
 import { safetyWords } from '../../../safety/model';
-import { SafetyDetails, SafetyFindings, SafetyWho } from './SafetyLayer';
+import { SAFETY_CARD, SAFETY_VIEW } from '../../../../../lib/words';
+import { recordFacts, refusedCard, SafetyDetails, SafetyFindings, SafetyWho } from './SafetyLayer';
 
 const ID = '01JD0000000000000000000190';
 const NONE = { owner: 0, signed_rule: 0, shop_rules: 0, house_rules: 0, safe_default: 0, safe_default_voids: 0 };
@@ -73,5 +74,23 @@ describe('the safety record', () => {
     expect(r.container.textContent).toContain('Check your PayPal account for what actually moved');
     expect(r.queryByRole('img')).toBeNull();
     expect(r.queryByText('Open deal ›')).toBeNull();
+  });
+
+  it('a broken chain counts nothing, so no count past it reads as a zero', () => {
+    // Rust (table-runtime safety.rs) returns zeros for everything past a broken chain: not counted, not none.
+    const broken = rec({
+      intact: false, head: null, money: NONE, refusals: 0, refusal_families: [], deals_total: 0, deals_checked: 0, transcripts_verified: 0,
+      refused_deals: 0, refused_deal_calls: 0, violations: [{ deal_id: null, kind: 'chain_broken', detail: 'the audit chain does not verify' }], violations_total: 1,
+    });
+    const labels = recordFacts(broken).map(([k]) => k);
+    expect(labels).toEqual([SAFETY_VIEW.records, SAFETY_VIEW.chain]);
+    expect(refusedCard(broken)).toEqual({ value: null, note: undefined });
+    const text = render(<SafetyDetails record={broken} dealName={name} onDeal={() => {}} />).container.textContent ?? '';
+    expect(text).not.toContain(SAFETY_VIEW.moneySteps);
+    expect(text).not.toContain('PayPal calls on them');
+    expect(text).not.toContain(SAFETY_VIEW.dealsChecked);
+    // An intact record keeps every count, zero included.
+    expect(recordFacts(rec()).map(([k]) => k)).toEqual([SAFETY_VIEW.records, SAFETY_VIEW.chain, SAFETY_VIEW.dealsChecked, SAFETY_VIEW.histories, SAFETY_VIEW.refusedDeals, SAFETY_VIEW.moneySteps]);
+    expect(refusedCard(rec({ refusals: 0 })).value).toBe(SAFETY_CARD.refusedNone);
   });
 });
