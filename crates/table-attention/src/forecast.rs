@@ -340,64 +340,6 @@ mod tests {
         }
     }
 
-    /// Exhaustive on purpose: a new `DealState` variant fails to compile here.
-    fn ordinal(state: DealState) -> usize {
-        use DealState::*;
-        match state {
-            Pairing => 0,
-            Listed => 1,
-            Negotiating => 2,
-            Agreed => 3,
-            Settling => 4,
-            AwaitingApproval => 5,
-            Approved => 6,
-            Authorized => 7,
-            Captured => 8,
-            Receipted => 9,
-            Reconciled => 10,
-            Withdrawn => 11,
-            Expired => 12,
-            Refused => 13,
-            Mismatch => 14,
-            Failed => 15,
-            Voided => 16,
-            AutoVoided => 17,
-            Refunded => 18,
-            Disputed => 19,
-            Unconfirmed => 20,
-        }
-    }
-    const ALL_STATES: [DealState; 21] = [
-        DealState::Pairing,
-        DealState::Listed,
-        DealState::Negotiating,
-        DealState::Agreed,
-        DealState::Settling,
-        DealState::AwaitingApproval,
-        DealState::Approved,
-        DealState::Authorized,
-        DealState::Captured,
-        DealState::Receipted,
-        DealState::Reconciled,
-        DealState::Withdrawn,
-        DealState::Expired,
-        DealState::Refused,
-        DealState::Mismatch,
-        DealState::Failed,
-        DealState::Voided,
-        DealState::AutoVoided,
-        DealState::Refunded,
-        DealState::Disputed,
-        DealState::Unconfirmed,
-    ];
-
-    #[test]
-    fn state_table_covers_every_variant_once() {
-        for (i, state) in ALL_STATES.iter().enumerate() {
-            assert_eq!(ordinal(*state), i);
-        }
-    }
-
     #[test]
     fn forecast_never_moves_money_out_over_every_input() {
         let kinds = [
@@ -418,7 +360,8 @@ mod tests {
         // Refused now, stale exactly at now, fresh for ten minutes, fresh past the horizon.
         let windows = [None, Some(NOW), Some(NOW + 600), Some(NOW + 100 * 3600)];
         let mut checked = 0_u32;
-        for state in ALL_STATES {
+        // table-core's one list, pinned exhaustively there (`deal_state_sets_are_one_definition`).
+        for state in DealState::ALL {
             for side in [Side::Buyer, Side::Seller] {
                 for kind in kinds {
                     for delivery in &deliveries {
