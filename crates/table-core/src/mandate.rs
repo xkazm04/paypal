@@ -192,15 +192,15 @@ impl MandatePayload {
         {
             return Err(Refusal::new(1, "invalid mandate version or validity"));
         }
-        let mut seen = [false; 10];
+        // A set, not an array indexed by clause number: a clause numbered past any fixed size
+        // is refused as a policy, never a panic in the signing or money path.
+        let mut seen = std::collections::BTreeSet::new();
         let mut clauses: Vec<_> = self.clauses.iter().collect();
         clauses.sort_by_key(|clause| clause.number());
         for clause in clauses {
-            let index = usize::from(clause.number());
-            if seen[index] {
+            if !seen.insert(clause.number()) {
                 return Err(Refusal::new(clause.number(), "duplicate clause"));
             }
-            seen[index] = true;
             match clause {
                 Clause::Roles { roles } if roles.is_empty() => {
                     return Err(Refusal::new(1, "empty roles"));
@@ -289,8 +289,8 @@ impl MandatePayload {
             }
         }
         for number in [1, 2, 3, 5, 6, 7] {
-            if !seen[number] {
-                return Err(Refusal::new(number as u8, "required clause missing"));
+            if !seen.contains(&number) {
+                return Err(Refusal::new(number, "required clause missing"));
             }
         }
         // A policy check() could never allow is refused at signing, not discovered per intent.
@@ -330,7 +330,7 @@ impl MandatePayload {
                 }
             )
         });
-        if rescue != seen[8] {
+        if rescue != seen.contains(&8) {
             return Err(Refusal::new(
                 8,
                 "the rescue role and the fixes clause go together",
@@ -351,7 +351,7 @@ impl MandatePayload {
                 }
             )
         });
-        if banded && !seen[4] {
+        if banded && !seen.contains(&4) {
             return Err(Refusal::new(4, "band required for haggle and shop orders"));
         }
         // Roles and the per-deal kind must let at least one role act, and a band must bound the
