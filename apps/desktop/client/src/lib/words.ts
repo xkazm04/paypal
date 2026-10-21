@@ -1001,6 +1001,8 @@ export const APPROVAL_LOCKED_TITLE = 'Locked after 15 quiet minutes: you unlock 
 export const FACT = { amount: 'Amount', held: 'On hold at PayPal', now: 'Money now', why: 'Why it asks you', time: 'Time left', noRule: 'No rule named' } as const;
 export const factWith = (who: string): string => `with ${who}`;
 export const yourRule = (name: string): string => `Your rule “${name}”`;
+/** The decision's "Why?" disclosure (Centre.tsx): the facts the strip also shows carry its names. */
+export const WHY_LABEL = { item: 'Item', with: 'With', status: 'Status', asks: 'Asks you', why: FACT.why, money: FACT.now, time: FACT.time } as const;
 /** The row under the decision. */
 export const NEXT_IN_STACK = 'Next in the stack';
 export const NOTHING_ELSE_WAITS = 'Nothing else waits';

@@ -12,7 +12,7 @@ import { WalletError } from '../../../lib/contract';
 import { readBudget, resetReadBudget } from '../../../lib/data/invoke';
 import { READ_CONCURRENCY } from '../../../lib/readEach';
 import {
-  APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, CHARTER_TITLE, CENTRE_TITLE, FIND_LABEL, IF_NOTHING, MONEY_CHECK_ENDED_SILENCE, NOTICE_WHAT, PLACE, PLACE_NAME, SETUP_STEP_COPY, STALE_TITLE, UNREAD_TITLE, WAITING_TITLE,
+  APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, CHARTER_TITLE, CENTRE_TITLE, FACT, FIND_LABEL, IF_NOTHING, MONEY_CHECK_ENDED_SILENCE, NOTICE_WHAT, PLACE, PLACE_NAME, SETUP_STEP_COPY, STALE_TITLE, UNREAD_TITLE, WAITING_TITLE, WHY_LABEL,
 } from '../../../lib/words';
 import { mockBackend, resetMockState } from '../../../mock/backend';
 
@@ -182,6 +182,21 @@ describe('the decision centre', () => {
     await waitFor(() => expect(h.calls.some((c) => c.cmd === 'approval_open')).toBe(true));
     const said = await waitFor(() => { const t = document.querySelector('.ui-toasts .ui-toast.bad'); if (!t) throw new Error('no toast'); return t; });
     expect(said.textContent).toContain(NOTICE_WHAT.approval);
+  }, 30_000);
+
+  it('Why? names each fact as the facts strip under it does', async () => {
+    const real = await open('/index.html');
+    const n = (await needsOf(real)).length;
+    await heading();
+    const labels = new Set<string>();
+    for (let i = 0; i < n; i++) {
+      const why = await waitFor(() => { const d = layer()?.querySelector<HTMLDetailsElement>('.cs-why'); if (!d) throw new Error('no Why'); return d; });
+      for (const dt of why.querySelectorAll('.pop dt')) labels.add(dt.textContent ?? '');
+      act(() => { fireEvent.keyDown(window, { key: 'ArrowRight' }); });
+    }
+    expect(labels).toContain(FACT.why);
+    expect(labels).toContain(FACT.now);
+    expect([...labels].filter((l) => ![...Object.values(WHY_LABEL), IF_NOTHING].includes(l))).toEqual([]);
   }, 30_000);
 
   it('a failed read shows the stale banner in plain words, and Try again reads again', async () => {

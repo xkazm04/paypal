@@ -71,6 +71,11 @@ export const STATE_UNKNOWN = 'Not available yet';
 export const STATE_UNKNOWN_TITLE = 'The wallet has not said what state this is in yet.';
 export const AMOUNT_UNKNOWN_TITLE = 'Not known yet';
 export const WHO_UNKNOWN = 'not named yet';
+export const TITLE_UNKNOWN = 'no title yet';
+/** A receipt's toast when the deal is not in the ledger yet (Console.tsx). */
+export const A_DEAL = 'A deal';
+/** The console's side panel (the inspector) as a screen reader names it. */
+export const INSPECTOR_LABEL = 'Details';
 
 /** The counterparty's note behind a chip (console/areas/shared/NoteChip.tsx; byte-identical to the
  *  strings it carried inline before rebuild WP4a). */
@@ -89,6 +94,8 @@ export const NOTE_CHIP = {
  *  the main window's words that were inline before rebuild WP4a (byte-identical). */
 export const NOTICE_WHAT = {
   settings: 'Settings',
+  ledger: 'Ledger',
+  needs: 'Needs you',
   pause: 'Pause',
   resume: 'Resume',
   agentRules: 'Agent rules',

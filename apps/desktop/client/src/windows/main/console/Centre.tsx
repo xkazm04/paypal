@@ -15,7 +15,7 @@ import { useMutation, useNow } from '../../../lib/hooks';
 import {
   allWaiting, APPROVAL_LOCKED_TITLE, BRAND_NAME, APPROVAL_OPEN_TITLE, AWAY_KICKER, CENTRE_EMPTY, CENTRE_READING, DECISION_OF, decisionOfLabel, IF_NOTHING, LATER, LATER_TITLE,
   houseWords, moneyCheckNow, moneyCheckPill, NEXT_DECISION, NEXT_IN_STACK, NO_COUNTERPARTY, NO_DEADLINE, NOTHING_ELSE_WAITS, OPEN_BOOK, OPEN_THE_DEAL, PREV_DECISION,
-  REWIND_TITLE, ruleNameOf, SEAL_RING, sealLabel, SEE_REWIND, watchingKicker, watchingLine, WHY,
+  REWIND_TITLE, ruleNameOf, SEAL_RING, sealLabel, SEE_REWIND, TITLE_UNKNOWN, watchingKicker, watchingLine, WHO_UNKNOWN, WHY, WHY_LABEL, yourRule,
 } from '../../../lib/words';
 import { Seal } from '../../../shared/brand';
 import { Countdown, WalletNotice } from '../../../shared/honesty';
@@ -79,7 +79,7 @@ export function Centre(p: CentreProps) {
       <div className="cs-centre loading">
         <p className="kicker">{BRAND_NAME}</p>
         <h1 className="display cs-title" tabIndex={-1} data-layer-title="">{CENTRE_READING}</h1>
-        {err ? <WalletNotice error={err} what={health.dealsError ? 'Ledger' : health.attentionError ? 'Needs you' : 'Settings'} /> : null}
+        {err ? <WalletNotice error={err} what={health.dealsError ? NOTICE_WHAT.ledger : health.attentionError ? NOTICE_WHAT.needs : NOTICE_WHAT.settings} /> : null}
       </div>
     );
   }
@@ -223,13 +223,13 @@ function WhyDisclosure({ item, deal, disp }: { item: AttentionItem; deal: Deal |
       <summary>{WHY}</summary>
       <div className="pop">
         <Kv items={[
-          ['Item', disp ? disp.title : <span className="dim">no title yet</span>],
-          ['With', item.counterparty ? houseWords(item.counterparty) : <span className="dim">not named yet</span>],
-          deal ? ['Status', item.money_check ? moneyCheckPill(item.money_check, ended).text : stateLabel(deal.state, deal)] : null,
-          ['Asks you', item.headline],
-          item.clause ? ['Why you', <>your rule “{ruleNameOf(item.clause.number)}”</>] : null,
-          deal ? ['Money now', item.money_check ? moneyCheckNow(ended) : moneyNow(deal)] : null,
-          item.deadline ? ['Time left', <Countdown deadline={item.deadline} />] : null,
+          [WHY_LABEL.item, disp ? disp.title : <span className="dim">{TITLE_UNKNOWN}</span>],
+          [WHY_LABEL.with, item.counterparty ? houseWords(item.counterparty) : <span className="dim">{WHO_UNKNOWN}</span>],
+          deal ? [WHY_LABEL.status, item.money_check ? moneyCheckPill(item.money_check, ended).text : stateLabel(deal.state, deal)] : null,
+          [WHY_LABEL.asks, item.headline],
+          item.clause ? [WHY_LABEL.why, yourRule(ruleNameOf(item.clause.number))] : null,
+          deal ? [WHY_LABEL.money, item.money_check ? moneyCheckNow(ended) : moneyNow(deal)] : null,
+          item.deadline ? [WHY_LABEL.time, <Countdown deadline={item.deadline} />] : null,
           [IF_NOTHING, item.on_silence],
         ]} />
       </div>

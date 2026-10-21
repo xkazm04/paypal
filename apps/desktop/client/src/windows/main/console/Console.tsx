@@ -19,7 +19,7 @@ import type { Module } from '@bindings/Module';
 import { useEvent, useMutation } from '../../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../../lib/lazy';
 import {
-  BACK_TITLE, BRAND_NAME, CHARTER_TITLE, BRAND_TITLE, CRUMBS_LABEL, DETAIL_BACK, LOCK, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, NOTICE_WHAT, PLACE, PLACE_TITLE, PLACES_LABEL,
+  A_DEAL, BACK_TITLE, BRAND_NAME, CHARTER_TITLE, BRAND_TITLE, CRUMBS_LABEL, DETAIL_BACK, INSPECTOR_LABEL, LOCK, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, NOTICE_WHAT, PLACE, PLACE_TITLE, PLACES_LABEL,
   SEAL_RING, sealLabel, silenceWords, tabTitle, tabWaiting, TABS_LABEL,
 } from '../../../lib/words';
 import { formatCount } from '../../../lib/data/counts';
@@ -286,7 +286,7 @@ export function Console() {
   useEvent('receipt:created', (r) => {
     // Name the deal by what it is (ids belong in Details, UX-GUIDE).
     const d = deals?.find((x) => x.id === r.deal_id);
-    const label = d ? shortTitle(displayRef.current(d).title) : 'A deal';
+    const label = d ? shortTitle(displayRef.current(d).title) : A_DEAL;
     // A receipt that is only the seller's word never reads as paid (receiptToast).
     const said = receiptToast(r);
     toast(<>{label} · <b>{said.text}</b> · {silenceWords(r.on_silence)}</>, said.tone);
@@ -384,7 +384,7 @@ export function Console() {
                 </CentreHost.Provider>
               </div>
             </Stack>
-            <aside className="ui-inspector cs-insp" ref={insp.ref} hidden={!insp.open} aria-label="Details" />
+            <aside className="ui-inspector cs-insp" ref={insp.ref} hidden={!insp.open} aria-label={INSPECTOR_LABEL} />
           </main>
         </StaggerProvider>
       </InspectorHostProvider>
