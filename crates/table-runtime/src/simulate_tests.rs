@@ -423,6 +423,57 @@ fn a_deal_under_the_rules_in_force_gets_the_verdict_the_live_pipeline_gives_it()
     assert_eq!(stand.after, SimulatedVerdict::Ask { clause: 6 });
 }
 
+#[test]
+fn a_revoked_pin_is_simulated_as_the_live_pipeline_refuses_it() {
+    let mut w = week();
+    let counterparty =
+        w.r.pipeline
+            .wallet
+            .ledger
+            .get_deal(w.dock)
+            .unwrap()
+            .counterparty;
+    let deal =
+        w.r.create_deal(DealCreateArgs {
+            kind: DealKind::Purchase,
+            side: Side::Buyer,
+            counterparty: counterparty.clone(),
+            mandate_id: w.mandate,
+            mandate_version: 2,
+            category: Category::Parts,
+            terms: Terms {
+                item_ref: ItemRef::new("cable-kit").unwrap(),
+                qty: 1,
+                unit_price: usd(3_800),
+                currency: Currency::USD,
+                delivery: Delivery::DigitalNow,
+            },
+        })
+        .unwrap();
+    // The owner revokes the seller's pin: the live check no longer counts it as paired.
+    w.r.pipeline
+        .wallet
+        .ledger
+        .revoke_counterparty(&counterparty, 50)
+        .unwrap();
+    w.r.select_signer(deal.id).unwrap();
+    let live = match w
+        .r
+        .pipeline
+        .wallet
+        .check_mandate(deal.id, Category::Parts, 100)
+    {
+        Err(table_app::Error::Refused(refusal)) => refusal,
+        other => panic!("the live check must refuse a revoked pin, got {other:?}"),
+    };
+    let s =
+        w.r.mandate_simulate(draft(Some(w.mandate), signed_now()))
+            .unwrap();
+    let line = line(&s, deal.id);
+    assert_eq!(refused(&line.before), (live.clause, live.reason.as_str()));
+    assert_eq!(refused(&line.after), (live.clause, live.reason.as_str()));
+}
+
 // ---- Wallet-limits what-if (envelope_simulate) and the limits in the rules what-if ----------
 
 fn limits_args(out: i64, held: i64, deals: u16) -> EnvelopeSignArgs {
