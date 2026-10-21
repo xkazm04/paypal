@@ -1,38 +1,8 @@
-// Round 2 pieces of the Rescue page (experiment r2-rescue): the money strip, what the subscriber
-// would get for each fix, and a Why? on each fix. Display only: nothing here sends a fix, creates an
-// invoice or moves money. Facts and wording: ./preview.ts. Styles: ../rescue.css (.rs-strip, .rs-get, .rs-fix).
-import type { ReactNode } from 'react';
+// Round 2 pieces of the Rescue page (experiment r2-rescue): what the subscriber would get for each
+// fix, and a Why? on each fix. Display only: nothing here sends a fix, creates an
+// invoice or moves money. Facts and wording: ./preview.ts. Styles: rescue.css (.rs-get, .rs-fix).
 import { Icon, Why, type IconName } from '../../../../shared/ui';
-import type { Preview, PreviewChannel, RescueStrip } from './preview';
-import { moneyList } from './preview';
-
-// ---- money at risk · in progress · recovered -----------------------------------------------------------------
-
-function Seg({ tone, icon, label, value, sub }: { tone: 'risk' | 'prog' | 'ok'; icon: IconName; label: string; value: string | null; sub: ReactNode }) {
-  return (
-    <li className={`seg ${tone} ${value ? 'has' : 'none'}`}>
-      <span className="ico" aria-hidden="true"><Icon name={icon} size={16} /></span>
-      <span className="tx">
-        <span className="k">{label}</span>
-        <span className="v">{value ?? 'none'}</span>
-        <span className="s">{sub}</span>
-      </span>
-    </li>
-  );
-}
-
-/** One line: what is at risk, what is on its way, what really came back. Replays never count as recovered. */
-export function RescueMoney({ strip }: { strip: RescueStrip }) {
-  const f = strip.failing;
-  const risk = f ? `${f} ${f === 1 ? 'renewal' : 'renewals'} failing${strip.notReal ? (strip.notReal === f ? ' · replay, not real money' : ` · ${strip.notReal} replay`) : ''}` : 'no renewal failing';
-  return (
-    <ul className="rs-strip" aria-label="Rescue money">
-      <Seg tone="risk" icon="alert" label="At risk" value={moneyList(strip.atRisk)} sub={risk} />
-      <Seg tone="prog" icon="clock" label="In progress" value={moneyList(strip.inProgress)} sub={strip.inflight ? `${strip.inflight} waiting for the subscriber` : 'nothing waiting'} />
-      <Seg tone="ok" icon="check" label="Recovered" value={moneyList(strip.recovered)} sub="really paid only · replays never count" />
-    </ul>
-  );
-}
+import type { Preview, PreviewChannel } from './preview';
 
 // ---- what the subscriber would get ---------------------------------------------------------------------------
 
