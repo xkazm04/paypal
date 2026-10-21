@@ -48,6 +48,19 @@ describe('the statement check on a deal PayPal has not confirmed', () => {
     expect(await screen.findByRole('button', { name: CHECK })).not.toBeNull();
   });
 
+  it('is offered only on a sandbox deal, as the wallet takes it (Pipeline::reconcile refuses the rest)', async () => {
+    hoisted.current = withKeys(true);
+    expect(buyer.deal.mode).toBe('sandbox');
+    for (const mode of ['replay', 'scripted_engine'] as const) {
+      const deal = { ...buyer.deal, state: 'RECEIPTED' as const, mode };
+      const data = { ...buyer.evidence, receipt: 'SELLER_ATTESTED' as const, reconciliation: 'pending_reporting' as const };
+      render(<ToastProvider><EvidenceSheet kind="books" deal={deal} ev={{ data, error: null }} band={null} onFresh={() => {}} onClose={() => {}} /></ToastProvider>);
+      await screen.findByRole('button', { name: 'Done' });
+      expect(screen.queryByRole('button', { name: CHECK })).toBeNull();
+      cleanup();
+    }
+  });
+
   it('is not offered once the deal is reconciled', async () => {
     hoisted.current = withKeys(true);
     sheet('RECONCILED');
