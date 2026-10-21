@@ -26,7 +26,7 @@ import { CardForm, HandoffForm, StackForm, TabForm, TickerForm, WelcomeForm } fr
 import {
   plainItems,
   NO_HANDOFF, SECONDS, ackTicker, arrivals, arrivalsTicker, canReview, dndPreferences, handoffEnded, nextFocus, puckLook, puckName, puckTarget, receiptTicker,
-  restForm, rung, rungNotice, snoozeEligible, snoozeTicker, sortItems, stopTicker, tickerMayShow, type CardAction, type Handoff, type Rung, type Ticker,
+  restForm, rung, rungNotice, silenceClause, snoozeEligible, snoozeTicker, sortItems, stopTicker, tickerMayShow, type CardAction, type Handoff, type Rung, type Ticker,
 } from './logic';
 
 type Failure = { dealId: string | null; what: string; error: WalletError };
@@ -104,7 +104,7 @@ export function Tumbler() {
     if (!top) return;
     const prev = rungSeen.current.get(top.deal_id) ?? null;
     rungSeen.current.set(top.deal_id, topRung);
-    const said = rungNotice(prev, topRung, top.headline, top.on_silence.trim().replace(/\s*·\s*/g, ', ').replace(/[.,\s]+$/, '') || null);
+    const said = rungNotice(prev, topRung, top.headline, silenceClause(top.on_silence) || null);
     if (said) setRungSays(said);
   }, [top, topRung]);
   // the hand-off deal's label and own-catalog title (degrades to the item / a short id)
