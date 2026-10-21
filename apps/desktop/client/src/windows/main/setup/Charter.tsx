@@ -16,7 +16,7 @@ import type { EngineId } from '@bindings/EngineId';
 import { useMutation, useQuery } from '../../../lib/hooks';
 import { backend } from '../../../lib/runtime';
 import {
-  CHARTER_IN_APPROVAL, CHARTER_MEANS_APPROVAL, CHARTER_MEANS_TITLE, CHARTER_NUMERAL, CHARTER_SEALED, CHARTER_SKIP, CHARTER_SKIP_TITLE, CHARTER_STATE, CHARTER_TITLE,
+  CHARTER_IN_APPROVAL, CHARTER_MEANS_APPROVAL, CONNECTIONS_ENGINE, CHARTER_MEANS_TITLE, CHARTER_NUMERAL, CHARTER_SEALED, CHARTER_SKIP, CHARTER_SKIP_TITLE, CHARTER_STATE, CHARTER_TITLE,
   charterDone, charterLine, charterPreview, charterReads, KEEP_PRACTICE_AGENT, reasonWords, SAFETY_PROMISE, SETUP_ALL_DONE, SETUP_FINISH, SETUP_NEXT, SETUP_NOT_DONE, SETUP_STEP_COPY, SETUP_STEP_LABEL, SETUP_WAITING, START_STEP,
 } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
@@ -225,7 +225,7 @@ function AgentStep() {
   const toast = useToast();
   const engines = useQuery('engine_status', null, { refreshOn: ['settings:changed'] });
   const select = useMutation('engine_select');
-  const pick = async (id: EngineId) => { if ((await select.run({ engine: id })) === null) toast(<>Agent app set to <b>{id === 'scripted' ? 'practice agent' : id}</b>.</>, 'ok'); };
+  const pick = async (id: EngineId) => { if ((await select.run({ engine: id })) === null) toast(CONNECTIONS_ENGINE.set(id === 'scripted' ? CONNECTIONS_ENGINE.practiceShort : id), 'ok'); };
   return (
     <div className="ch-engines">
       {engines.error ? <WalletNotice error={engines.error} what={NOTICE_WHAT.agentApp} /> : null}
@@ -234,14 +234,14 @@ function AgentStep() {
         {(engines.data ?? []).filter((e) => e.id !== 'scripted').map((e) => (
           <label key={e.id} className={`ch-engine${e.available ? '' : ' off'}`}>
             <input type="radio" name="ch-engine" value={e.id} checked={s?.selected_engine === e.id} disabled={!e.available || select.pending || !s} onChange={() => void pick(e.id)} />
-            <b>{e.id}</b><span>{e.available ? `ready${e.version ? ` · ${e.version}` : ''}` : `not connected${e.reason ? ` · ${reasonWords(e.reason)}` : ''}`}</span>
+            <b>{e.id}</b><span>{e.available ? CONNECTIONS_ENGINE.chipReady : CONNECTIONS_ENGINE.chipOff}{e.available ? (e.version ? ` · ${e.version}` : '') : e.reason ? ` · ${reasonWords(e.reason)}` : ''}</span>
           </label>
         ))}
       </div>
-      {!engines.data ? <p className="dim">{engines.loading ? 'Looking for agent apps…' : 'not checked yet'}</p> : null}
+      {!engines.data ? <p className="dim">{engines.loading ? CONNECTIONS_ENGINE.looking : CONNECTIONS_ENGINE.notChecked}</p> : null}
       <div className="cs-acts">
         <Btn kind="gold" disabled={select.pending || !s} onClick={() => void pick('scripted')} title={KEEP_PRACTICE_AGENT.where}>{KEEP_PRACTICE_AGENT.act}</Btn>
-        <Btn disabled={engines.loading && !engines.data} onClick={() => void engines.refetch()}>{engines.data ? 'Check again' : 'Look for agent apps'}</Btn>
+        <Btn disabled={engines.loading && !engines.data} onClick={() => void engines.refetch()}>{engines.data ? CONNECTIONS_ENGINE.checkAgain : CONNECTIONS_ENGINE.look}</Btn>
       </div>
     </div>
   );
