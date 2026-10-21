@@ -8,6 +8,7 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import { formatMinor } from '../../../../../lib/format';
 import { RULE_NAME, ruleSentence, SPEND } from '../../../../../lib/words';
 import { Btn, Chip, Disclosure, Hint, Kv, Meter, Section } from '../../../../../shared/ui';
+import { amountTone, dealTotal } from '../../../logic';
 import { clauseGroups, COLUMN_NAME, columnValue, outcomeOf, velocityFill, type Cell, type GateColumn } from '../../../modules/spend/gate';
 import { short } from '../../../modules/tables/ladder';
 import { useModuleRoute } from '../../../viewNav';
@@ -93,7 +94,7 @@ export function GateView({ lanes, cols, m, sets, display, who, needOf }: {
                     {/* A lane under another rule set is not read against these columns: unknown, drawn dim. */}
                     {l.cells.map((c) => { const k = l.own ? c.kind : 'unknown'; return <i key={c.n} className={k}>{MARK[k]}</i>; })}
                   </span>
-                  <span className="sp-out"><Chip tone={out.tone}>{needOf(l.deal.id)?.money_check ? SPEND.checking : out.label}</Chip><Amount money={{ minor: l.deal.terms.unit_price.minor * l.deal.terms.qty, currency: l.deal.terms.currency }} /></span>
+                  <span className="sp-out"><Chip tone={out.tone}>{needOf(l.deal.id)?.money_check ? SPEND.checking : out.label}</Chip><Amount money={dealTotal(l.deal)} tone={amountTone(l.deal)} /></span>
                 </span>
               );
             }}
