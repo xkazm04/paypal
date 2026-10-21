@@ -1,6 +1,6 @@
 //! Versioned IPC contract shared with the desktop shell and generated TypeScript.
 use serde::{Deserialize, Serialize};
-use table_attention::{AttentionSnapshot, Form, Placement};
+use table_attention::{AttentionSnapshot, Form};
 pub use table_core::{CounterpartyDisplay, CounterpartyNote, DealDisplay, TranscriptStep};
 use table_core::{Deal, DealId, H256, Mode};
 pub use table_proto::{PairingIdentity, SignedPairingIdentity};
@@ -23,6 +23,8 @@ mod rescue;
 pub use rescue::*;
 mod run_state;
 pub use run_state::*;
+mod settings;
+pub use settings::*;
 pub mod playbooks;
 pub mod tray;
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -126,43 +128,6 @@ impl std::fmt::Debug for IpcHeaders {
         f.write_str("IpcHeaders { [REDACTED] }")
     }
 }
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(deny_unknown_fields)]
-pub struct SettingsSnapshot {
-    pub house: HouseState,
-    pub mode: Mode,
-    pub locked: bool,
-    pub native_reauth_available: bool,
-    pub payment_executor_configured: bool,
-    /// Suppress spend/cost/stopped meters until their accounting sources are attached.
-    pub meters_available: bool,
-    pub client_pending: bool,
-    pub first_run: bool,
-    pub channel3_configured: bool,
-    pub agents_paused: bool,
-    pub selected_engine: table_engine::EngineId,
-    /// The owner has chosen an agent app through `engine_select` (the ledger preference exists),
-    /// including the practice agent. False on a new wallet, whose `scripted` is only a default.
-    pub engine_chosen: bool,
-    /// The house seller is connected (a counterparty pinned through HOUSE). A boolean only, so a
-    /// window that may not read `counterparty_list` (the Tumbler) can tell the first-run path's
-    /// practice step is done without any counterparty word reaching it.
-    pub house_connected: bool,
-    pub preferences: TumblerPreferences,
-    pub relay_available: bool,
-    /// Lowercase hex fingerprint of the authority table this build enforces (who may call each
-    /// command); the same value as `AUTHORITY_MANIFEST` in `bindings/authority.ts`.
-    pub authority_manifest: String,
-}
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub enum HouseState {
-    Unavailable,
-    Idle,
-    Waking,
-    Ready,
-}
-
 /// Selects native credential UI. No IPC argument or result can contain a secret.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -192,36 +157,6 @@ pub struct BandArgs {
     pub deal_id: DealId,
     pub floor: Option<table_core::Money>,
     pub ceiling: Option<table_core::Money>,
-}
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(deny_unknown_fields)]
-pub struct TumblerPreferences {
-    pub pinned: bool,
-    pub position: Option<PuckPosition>,
-    pub form: Form,
-    pub quiet: bool,
-    pub dnd: bool,
-    pub notifications: bool,
-    pub snap: table_attention::Snap,
-}
-impl Default for TumblerPreferences {
-    fn default() -> Self {
-        Self {
-            pinned: true,
-            position: None,
-            form: Form::Rest,
-            quiet: true,
-            dnd: false,
-            notifications: true,
-            snap: table_attention::Snap::Free,
-        }
-    }
-}
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
-#[serde(deny_unknown_fields)]
-pub struct PuckPosition {
-    pub x: i32,
-    pub y: i32,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -286,12 +221,6 @@ pub struct ReceiptEvent {
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
-pub struct TumblerHandoff {
-    pub deal_id: DealId,
-    pub approve_until: i64,
-}
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(deny_unknown_fields)]
 pub struct MandateListEntry {
     #[serde(flatten)]
     #[ts(flatten)]
@@ -307,24 +236,6 @@ pub struct MandateListEntry {
 #[serde(deny_unknown_fields)]
 pub struct MainRoute {
     pub deal_id: Option<DealId>,
-}
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(deny_unknown_fields)]
-pub struct OrientationEvent {
-    pub form: Form,
-    pub placement: Placement,
-}
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(deny_unknown_fields)]
-pub struct TumblerStatus {
-    pub visible: bool,
-    pub form: Form,
-    pub count: u32,
-}
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-pub struct VisualState {
-    pub opacity_percent: u8,
-    pub breathe: bool,
 }
 /// No real proof file comes near this; a larger one is refused before it is parsed.
 pub const PROOF_FILE_LIMIT: usize = 8 * 1024 * 1024;
