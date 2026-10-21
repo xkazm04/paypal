@@ -303,6 +303,15 @@ export function statementLabel(state: DealState, evidence: { reconciliation: Rec
 
 export type PaypalRefKey = 'order' | 'authorization' | 'capture' | 'subscription';
 
+/** The PayPal records a deal can hold, in the order money goes through them; the one list every
+ *  proof surface reads (a failed renewal holds only its subscription until an invoice is made). */
+export const PAYPAL_REFS: readonly PaypalRefKey[] = ['order', 'authorization', 'capture', 'subscription'];
+/** The records this deal holds an id for. */
+export const heldRefs = (d: Pick<Deal, 'paypal'>): PaypalRefKey[] => PAYPAL_REFS.filter((k) => d.paypal[k]);
+/** The records a proof table lists: order, hold and payment always (unheld ones read "not yet"),
+ *  the subscription only on a deal that has one. */
+export const shownRefs = (d: Pick<Deal, 'paypal'>): PaypalRefKey[] => PAYPAL_REFS.filter((k) => k !== 'subscription' || d.paypal[k]);
+
 /** Who stands behind a PayPal id, from the side that makes the call (report §6-7). */
 export function attestOf(d: Pick<Deal, 'kind' | 'side'>, key: PaypalRefKey, receipt: ReceiptEvidence): string {
   const sellerCalls = d.kind === 'haggle' && d.side === 'buyer';
