@@ -76,7 +76,7 @@ describe('Tables flows', () => {
     expect(acts(r)).toEqual([]);
   }, 60_000);
 
-  it('search narrows the list and picking a table opens it beside the list', async () => {
+  it('picking a table opens it beside the list', async () => {
     const r = await renderLayerAtScale({ level: 'module', module: 'tables', view: 'tables' }, 'large');
     const list = r.layer.querySelector<HTMLElement>('.tr-list');
     const rows = () => [...(list?.querySelectorAll<HTMLButtonElement>('.le-row') ?? [])];
@@ -85,14 +85,19 @@ describe('Tables flows', () => {
     const label = second?.getAttribute('aria-label') ?? '';
     act(() => { second?.click(); });
     await waitFor(() => expect(label.startsWith(`${r.layer.querySelector('.tr-pane h2')?.textContent ?? '-'}, `)).toBe(true));
+  }, 60_000);
+
+  it('search narrows a long list and clearing it brings every row back', async () => {
+    // The open tables (8 on the busy world) sit under the toolbar's threshold; the ended list does not.
+    const r = await renderLayerAtScale({ level: 'module', module: 'tables', view: 'closed' }, 'large');
+    const rows = () => [...r.layer.querySelectorAll<HTMLButtonElement>('.le-row')];
     const before = rows().length;
-    const search = list?.querySelector<HTMLInputElement>('input[type="search"]');
-    if (search) {
-      fireEvent.change(search, { target: { value: 'zzzz-no-such-table' } });
-      await waitFor(() => expect(list?.textContent).toMatch(/Nothing matches/));
-      fireEvent.change(search, { target: { value: '' } });
-      await waitFor(() => expect(rows().length).toBe(before));
-    }
+    const search = r.layer.querySelector<HTMLInputElement>('input[type="search"]');
+    expect(search).toBeTruthy();
+    fireEvent.change(search as HTMLInputElement, { target: { value: 'zzzz-no-such-table' } });
+    await waitFor(() => expect(r.layer.textContent).toMatch(/Nothing matches/));
+    fireEvent.change(search as HTMLInputElement, { target: { value: '' } });
+    await waitFor(() => expect(rows().length).toBe(before));
   }, 60_000);
 
   it('names the item on the ladder by its title, never by its code', async () => {
