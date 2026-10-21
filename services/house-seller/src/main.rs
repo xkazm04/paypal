@@ -35,8 +35,9 @@ async fn shutdown() {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = house_seller::Configuration::from_environment()?;
-    let release =
-        table_proto::HouseRelease::compiled().map_err(|_| house_seller::Error::Invalid)?;
+    let release = table_proto::HouseRelease::compiled().map_err(|_| {
+        house_seller::Error::Config("TABLE_HOUSE_RELEASE_JSON (a build argument) does not verify")
+    })?;
     let clock = Arc::new(Time);
     let relay = Arc::new(rendezvous::MemoryStore::new(clock.clone()));
     let credentials = Arc::new(house_seller::EnvironmentCredentials);
@@ -48,7 +49,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         clock.clone(),
         Arc::new(table_paypal::http::ExponentialBackoff),
     ));
-    let path = std::env::var("HOUSE_LEDGER_PATH")?;
+    let path = std::env::var("HOUSE_LEDGER_PATH")
+        .map_err(|_| house_seller::Error::Config("HOUSE_LEDGER_PATH is not set"))?;
     let ledger = table_ledger::Ledger::open(std::path::Path::new(&path))?;
     let seller = house_seller::Seller::new(house_seller::SellerParts {
         ledger,
