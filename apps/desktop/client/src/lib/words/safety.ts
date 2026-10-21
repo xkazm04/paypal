@@ -23,14 +23,14 @@ export const SAFETY_FOUND = {
 
 export const SAFETY_CARD = {
   records: 'Your record',
-  recordsValue: (n: string): string => `${n} records`,
+  recordsValue: (n: string): string => `${n} ${n === '1' ? 'record' : 'records'}`,
   unbroken: 'unbroken, each links to the one before',
   broken: 'the chain is broken',
   money: 'Money steps',
   moneyNote: 'who decided each one',
   moneyNone: 'none yet',
   refused: 'Refused',
-  refusedValue: (n: string): string => `${n} requests`,
+  refusedValue: (n: string): string => `${n} ${n === '1' ? 'request' : 'requests'}`,
   refusedNone: 'Nothing refused',
   refusedNote: 'PayPal was never asked for any of them',
   refusedNoteCalls: 'see what reached PayPal',
