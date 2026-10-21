@@ -1,6 +1,8 @@
 //! Trusted application services. Agent intents and money execution are separate interfaces.
 mod agent;
 pub use agent::*;
+mod agent_request;
+pub use agent_request::*;
 mod auth;
 mod checks;
 pub use checks::*;
