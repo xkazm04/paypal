@@ -69,16 +69,16 @@ async fn house_reopens_durable_pair_table_and_outbox_and_replays_after_mailbox_l
     rendezvous::Mailbox::remove(store.as_ref(), &work.mailbox.hex())
         .await
         .unwrap();
-    let mut seller = house_seller::Seller::new(
-        table_ledger::Ledger::open(&path).unwrap(),
-        boot.config.owner,
-        boot.config.agent,
+    let mut seller = house_seller::Seller::new(house_seller::SellerParts {
+        ledger: table_ledger::Ledger::open(&path).unwrap(),
+        owner: boot.config.owner,
+        agent: boot.config.agent,
         release,
-        boot.config.mandate,
-        boot.api,
+        mandate: boot.config.mandate,
+        api: boot.api,
         clock,
-        store.clone(),
-    )
+        relay: store.clone(),
+    })
     .unwrap();
     let recovered = seller.table(request).unwrap();
     assert_eq!(
@@ -774,16 +774,16 @@ impl FileHouse {
         }
     }
     fn open(&self, api: Arc<dyn table_paypal::PayPalApi>) -> house_seller::Seller {
-        house_seller::Seller::new(
-            table_ledger::Ledger::open(&self.path).unwrap(),
-            self.boot.config.owner.clone(),
-            self.boot.config.agent.clone(),
-            self.release.clone(),
-            self.boot.config.mandate.clone(),
+        house_seller::Seller::new(house_seller::SellerParts {
+            ledger: table_ledger::Ledger::open(&self.path).unwrap(),
+            owner: self.boot.config.owner.clone(),
+            agent: self.boot.config.agent.clone(),
+            release: self.release.clone(),
+            mandate: self.boot.config.mandate.clone(),
             api,
-            self.clock.clone(),
-            self.store.clone(),
-        )
+            clock: self.clock.clone(),
+            relay: self.store.clone(),
+        })
         .unwrap()
     }
     fn api(&self) -> ScriptedPayPal {

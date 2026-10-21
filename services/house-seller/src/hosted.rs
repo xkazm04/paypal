@@ -246,18 +246,35 @@ impl std::fmt::Debug for Seller {
         f.write_str("HostedSeller { [REDACTED] }")
     }
 }
+/// Everything `Seller::new` needs, named so the owner and agent keys cannot be swapped.
+/// Holds signing keys, so its `Debug` is redacted rather than derived.
+pub struct SellerParts {
+    pub ledger: Ledger,
+    pub owner: SigningKey,
+    pub agent: SigningKey,
+    pub release: HouseRelease,
+    pub mandate: OpenMandate,
+    pub api: Arc<dyn table_paypal::PayPalApi>,
+    pub clock: Arc<dyn Clock>,
+    pub relay: Arc<dyn table_relay::RelayApi>,
+}
+impl std::fmt::Debug for SellerParts {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("SellerParts { [REDACTED] }")
+    }
+}
 impl Seller {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        ledger: Ledger,
-        owner: SigningKey,
-        agent: SigningKey,
-        release: HouseRelease,
-        mandate: OpenMandate,
-        api: Arc<dyn table_paypal::PayPalApi>,
-        clock: Arc<dyn Clock>,
-        relay: Arc<dyn table_relay::RelayApi>,
-    ) -> Result<Self, Error> {
+    pub fn new(parts: SellerParts) -> Result<Self, Error> {
+        let SellerParts {
+            ledger,
+            owner,
+            agent,
+            release,
+            mandate,
+            api,
+            clock,
+            relay,
+        } = parts;
         release
             .verify_mandate(&mandate)
             .map_err(|_| Error::Invalid)?;

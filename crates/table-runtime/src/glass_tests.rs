@@ -230,16 +230,16 @@ async fn house_head_verifies_tamper_fails_prefix_proves_extension_and_a_new_disk
     );
     // A fresh disk: the same release on a new ledger starts a new, visible epoch.
     clock.0.store(400, std::sync::atomic::Ordering::SeqCst);
-    let mut fresh = house_seller::Seller::new(
-        table_ledger::Ledger::in_memory().unwrap(),
-        boot.config.owner.clone(),
-        boot.config.agent.clone(),
-        release.clone(),
-        boot.config.mandate.clone(),
-        boot.api.clone(),
-        clock.clone(),
-        store,
-    )
+    let mut fresh = house_seller::Seller::new(house_seller::SellerParts {
+        ledger: table_ledger::Ledger::in_memory().unwrap(),
+        owner: boot.config.owner.clone(),
+        agent: boot.config.agent.clone(),
+        release: release.clone(),
+        mandate: boot.config.mandate.clone(),
+        api: boot.api.clone(),
+        clock: clock.clone(),
+        relay: store,
+    })
     .unwrap();
     let reset = fresh.publish().unwrap().view.head.clone();
     reset.verify(&release).unwrap();

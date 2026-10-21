@@ -461,16 +461,16 @@ fn hosted_fixture_ledger(ledger: table_ledger::Ledger) -> (HostedFixture, HouseB
         },
         api: api.clone(),
     };
-    let seller = house_seller::Seller::new(
+    let seller = house_seller::Seller::new(house_seller::SellerParts {
         ledger,
         owner,
         agent,
-        release.clone(),
+        release: release.clone(),
         mandate,
         api,
-        clock.clone(),
-        store.clone(),
-    )
+        clock: clock.clone(),
+        relay: store.clone(),
+    })
     .unwrap();
     ((seller, release, http, clock, store), boot)
 }

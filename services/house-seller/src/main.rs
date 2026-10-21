@@ -50,16 +50,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ));
     let path = std::env::var("HOUSE_LEDGER_PATH")?;
     let ledger = table_ledger::Ledger::open(std::path::Path::new(&path))?;
-    let seller = house_seller::Seller::new(
+    let seller = house_seller::Seller::new(house_seller::SellerParts {
         ledger,
-        config.owner,
-        config.agent,
+        owner: config.owner,
+        agent: config.agent,
         release,
-        config.mandate,
+        mandate: config.mandate,
         api,
         clock,
-        relay.clone(),
-    )?;
+        relay: relay.clone(),
+    })?;
     let port = std::env::var("PORT")
         .unwrap_or_else(|_| "8080".into())
         .parse::<u16>()?;
