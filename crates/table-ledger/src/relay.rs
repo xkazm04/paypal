@@ -182,7 +182,8 @@ impl Ledger {
     /// (DECISIONS section 46); a deal with no settlement row is retired too, since it cannot be aged.
     pub fn relay_work_at(&self, now: Timestamp) -> Result<Vec<RelayWork>, LedgerError> {
         let mut q = self.conn.prepare(
-            "SELECT deal_id,mailbox,generation,cursor FROM relay_routes ORDER BY deal_id",
+            "SELECT r.deal_id,r.mailbox,r.generation,r.cursor,d.state FROM relay_routes r \
+             JOIN deals d ON d.id=r.deal_id ORDER BY r.deal_id",
         )?;
         let rows = q
             .query_map([], |r| {
@@ -191,26 +192,38 @@ impl Ledger {
                     r.get::<_, Vec<u8>>(1)?,
                     r.get::<_, String>(2)?,
                     u64::from(r.get::<_, u32>(3)?),
+                    r.get::<_, String>(4)?,
                 ))
             })?
             .collect::<Result<Vec<_>, _>>()?;
+        // Every route's undelivered outgoing envelopes in one pass, in seq order per deal.
+        let mut q = self.conn.prepare(
+            "SELECT e.deal_id,e.hash,e.raw_jws FROM envelopes e \
+             JOIN relay_routes r ON r.deal_id=e.deal_id \
+             WHERE e.dir='out' AND NOT EXISTS(SELECT 1 FROM relay_delivered a \
+             WHERE a.deal_id=e.deal_id AND a.hash=e.hash AND a.generation=r.generation) \
+             ORDER BY e.deal_id,e.seq",
+        )?;
+        let mut owed = std::collections::HashMap::<String, Vec<(H256, String)>>::new();
+        for row in q.query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, Vec<u8>>(1)?,
+                r.get::<_, String>(2)?,
+            ))
+        })? {
+            let (id, hash, raw) = row?;
+            owed.entry(id).or_default().push((hash_blob(hash)?, raw));
+        }
         let mut work = Vec::new();
-        for (id, mailbox, generation, cursor) in rows {
-            let mut q = self.conn.prepare("SELECT e.hash,e.raw_jws FROM envelopes e WHERE e.deal_id=?1 AND e.dir='out' AND NOT EXISTS(SELECT 1 FROM relay_delivered a WHERE a.deal_id=e.deal_id AND a.hash=e.hash AND a.generation=?2) ORDER BY e.seq")?;
-            let outgoing = q
-                .query_map(params![id, generation], |r| {
-                    Ok((r.get::<_, Vec<u8>>(0)?, r.get::<_, String>(1)?))
-                })?
-                .collect::<Result<Vec<_>, _>>()?
-                .into_iter()
-                .map(|(hash, raw)| Ok((hash_blob(hash)?, raw)))
-                .collect::<Result<Vec<_>, LedgerError>>()?;
+        for (id, mailbox, generation, cursor, state) in rows {
+            let outgoing = owed.remove(&id).unwrap_or_default();
+            let state: table_core::DealState = crate::repositories::parse_enum(state)?;
             let deal_id = id.parse().map_err(|_| LedgerError::Integrity("deal id"))?;
             // A finished deal still delivers what it owes (a WITHDRAW, a RECEIPT), then goes quiet.
             // A Receipted deal is also polled for the recovery window after settlement, because a
             // relay restart is only noticed by polling and both wallets must then resend the signed
             // history; after the window it is retired (section 46, amending section 6).
-            let state = crate::repositories::read_deal(&self.conn, deal_id)?.state;
             let mut settled_at = None;
             if outgoing.is_empty() {
                 if state == table_core::DealState::Receipted {
