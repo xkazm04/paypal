@@ -353,6 +353,19 @@ fn only_a_paid_receipted_invoice_on_a_paypal_reported_failure_counts_as_recovere
     }
     assert!(w.ledger.rescue_counted(real.id).unwrap());
     assert!(!w.ledger.rescue_counted(replay.id).unwrap());
+    // The `rescue.paid` row's `counted` is the same verdict the recovered-money predicate gives.
+    let (rows, _) = w.ledger.audit_page(None, 500).unwrap();
+    for id in [real.id, replay.id] {
+        let paid = rows
+            .iter()
+            .find(|r| r.deal_id == Some(id) && r.action == "rescue.paid")
+            .unwrap();
+        assert_eq!(
+            paid.detail["counted"].as_bool(),
+            Some(w.ledger.rescue_counted(id).unwrap()),
+            "{id}"
+        );
+    }
     assert_eq!(w.ledger.rescue_recovered().unwrap(), vec![usd(960)]);
     // The book's metric is the same predicate.
     let q: BookQuery =
