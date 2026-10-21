@@ -8,11 +8,12 @@ use table_core::{
     Side, Timestamp, transition,
 };
 
-/// Seconds the order-creation step gives a new order. Mirrors
-/// `crates/table-app/src/pipeline.rs:534` (`create`: `set_deadline(now + 6 * 3600)`).
-const ORDER_CREATED_DEADLINE_SECS: i64 = 6 * 3600;
+/// Seconds the order-creation step gives a new order: the one approval window
+/// `send_settle` sets (`crates/table-app/src/pipeline/send.rs`, `created + ORDER_APPROVAL_SECS`),
+/// read from table-core rather than copied, so the forecast cannot drift from it.
+const ORDER_CREATED_DEADLINE_SECS: i64 = table_core::ORDER_APPROVAL_SECS;
 /// Seconds an authorization is held before the automatic void. Mirrors
-/// `crates/table-app/src/pipeline.rs:683` (`authorize`: `set_deadline(now + 72 * 3600)`).
+/// `crates/table-app/src/pipeline/send.rs` (`authorize`: `set_deadline(now + 72 * 3600)`).
 const AUTHORIZED_DEADLINE_SECS: i64 = 72 * 3600;
 
 /// One deal as the forecast sees it, built by the caller.
@@ -693,7 +694,7 @@ mod tests {
         let lines = forecast(&[s], &ctx());
         assert_eq!(lines[0].action, ForecastAction::CreateOrder);
         assert_eq!(lines[1].action, ForecastAction::Expire);
-        assert_eq!(lines[1].at, Some(NOW + ORDER_CREATED_DEADLINE_SECS));
+        assert_eq!(lines[1].at, Some(NOW + table_core::ORDER_APPROVAL_SECS));
     }
 
     #[test]
