@@ -197,13 +197,13 @@ export const RULE_NAME: Record<Clause['type'], string> = {
   lever: 'Fixes for failed renewals',
   market_watch: 'Keep prices fresh',
 };
-/** Clause number (1-8) for a clause type: Details only. */
+/** Clause number (1-9) for a clause type: Details only. */
 export const RULE_NUMBER: Record<Clause['type'], number> = {
   roles: 1, counterparties: 2, per_deal: 3, band: 4, velocity: 5, human_present_over: 6, payees: 7, lever: 8,
   market_watch: 9,
 };
 const RULE_BY_NUMBER = Object.fromEntries(Object.entries(RULE_NUMBER).map(([k, n]) => [n, k])) as Record<number, Clause['type']>;
-/** "Limit per deal" for clause 3; falls back to "Rule N" for numbers outside 1-7. */
+/** "Limit per deal" for clause 3; falls back to "Rule N" for a number no clause type has (outside 1-9). */
 export function ruleNameOf(n: number): string {
   const t = RULE_BY_NUMBER[n];
   return t ? RULE_NAME[t] : `Rule ${n}`;
