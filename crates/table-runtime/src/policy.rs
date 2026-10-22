@@ -122,7 +122,7 @@ impl Runtime {
         if self.paused
             || self.engine != table_engine::EngineId::Scripted
             || deal.state != DealState::Negotiating
-            || self.runs.len() >= 4
+            || self.runs.len() >= crate::engines::MAX_RUNS
             || self.runs.values().any(|r| r.scope.deal_id == deal.id)
             || self.armed.get(&deal.id) == Some(&deal.transcript_head)
         {
