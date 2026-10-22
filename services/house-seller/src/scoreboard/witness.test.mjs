@@ -327,3 +327,20 @@ test('page: a price agreed just above the ask reads as a premium, never as a dis
   const shown = await rendered(page, 't-discount', '');
   assert.equal(shown, '−0.5%');
 });
+
+// ---- one rule for "shorter", and a tile that means what its caption says -----------------------
+
+test('page: a shorter record reads bad whether or not the new head is signed later than the look', async () => {
+  // The house served 10 entries, signed at T0+1000; this browser kept 14 entries at T0+2000 (a
+  // clock set back on a restored disk) or at T0+500 (an ordinary later visit). Both are removals.
+  for (const at of [T0 + 2000, T0 + 500]) {
+    const view = await ledgerWith(await signedHead(10, H10, { at: T0 + 1000 }));
+    const page = openPage({
+      stored: [{ epoch: toHex(E), rows: 14, hash: toHex(H14), at, started: T0 }],
+      routes: [['/v1/house/ledger', { status: 200, body: view }]],
+    });
+    const check = await headsCheck(page);
+    assert.equal(check.state, 'bad', `look at ${at - T0}: ${check.title}: ${check.detail}`);
+    assert.match(check.detail, /It had 14 entries/);
+  }
+});
