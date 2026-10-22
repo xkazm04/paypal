@@ -2,6 +2,7 @@
 // They add no colours or sizes of their own; style a page by composing these and, where needed,
 // a page CSS file scoped under the page's root class.
 import { useEffect, useRef, type ButtonHTMLAttributes, type CSSProperties, type InputHTMLAttributes, type KeyboardEvent, type MouseEvent, type ReactNode, type Ref } from 'react';
+import { CRUMBS_LABEL, IF_NOTHING, UI_WORDS } from '../../lib/words';
 import { Countdown } from '../honesty';
 import { Depth } from './console';
 
@@ -15,7 +16,7 @@ export function Spacer() {
 
 export type CrumbItem = { label: ReactNode; onClick?: () => void; title?: string };
 /** Breadcrumb; the last item is the current page (not clickable). `depth` adds the stack-depth bars (Calibre). */
-export function Crumbs({ items, label = 'Breadcrumb', depth }: { items: CrumbItem[]; label?: string; depth?: number }) {
+export function Crumbs({ items, label = CRUMBS_LABEL, depth }: { items: CrumbItem[]; label?: string; depth?: number }) {
   return (
     <nav className="ui-crumbs" aria-label={label}>
       {items.map((c, i) => {
@@ -74,7 +75,7 @@ export function Section({ title, end, children, className, tour }: { title?: Rea
 /** A grouped box (macOS Settings style): rows inside get inset separators. */
 export function Group({ children, className, empty, label }: { children?: ReactNode; className?: string; empty?: ReactNode; label?: string }) {
   const has = Array.isArray(children) ? children.some((c) => c !== null && c !== undefined && c !== false) : children !== null && children !== undefined && children !== false;
-  return <div className={cx('ui-group', className)} role={label ? 'group' : undefined} aria-label={label}>{has ? children : <div className="ui-empty">{empty ?? 'Nothing here.'}</div>}</div>;
+  return <div className={cx('ui-group', className)} role={label ? 'group' : undefined} aria-label={label}>{has ? children : <div className="ui-empty">{empty ?? UI_WORDS.nothingHere}</div>}</div>;
 }
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
@@ -201,7 +202,7 @@ export function Kv({ items, className }: { items: readonly KvItem[]; className?:
 /** A thin bar. value in 0..1; null = unknown (drawn dashed, never as zero). */
 export function Meter({ value, tone, label }: { value: number | null; tone?: 'gold' | 'coral' | 'red'; label: string }) {
   if (value === null || !Number.isFinite(value)) {
-    return <div className="ui-meter unknown" role="img" aria-label={`${label}: not available yet`} />;
+    return <div className="ui-meter unknown" role="img" aria-label={`${label}: ${UI_WORDS.notAvailable}`} />;
   }
   const v = Math.min(1, Math.max(0, value));
   return (
@@ -224,13 +225,13 @@ export function Hourglass({ className }: { className?: string }) {
 /** The default on silence, one line: "⧗ If you do nothing: <b>text</b> · countdown". Every needs-you item carries one. */
 export function Silence({ text, deadline, children, className }: { text?: ReactNode; deadline?: number | null; children?: ReactNode; className?: string }) {
   return (
-    <span className={cx('ui-silence', className)} title={typeof text === 'string' ? `If you do nothing: ${text}` : undefined}>
-      <Hourglass /><span className="if">If you do nothing: </span>{text ? <b>{text}</b> : null}{children}
+    <span className={cx('ui-silence', className)} title={typeof text === 'string' ? `${IF_NOTHING}: ${text}` : undefined}>
+      <Hourglass /><span className="if">{IF_NOTHING}: </span>{text ? <b>{text}</b> : null}{children}
       {deadline ? <> · <Countdown deadline={deadline} /></> : null}
     </span>
   );
 }
 
 export function Loading({ what }: { what: string }) {
-  return <div className="ui-loading" role="status"><span className="ui-spin" aria-hidden="true" />Reading {what}…</div>;
+  return <div className="ui-loading" role="status"><span className="ui-spin" aria-hidden="true" />{UI_WORDS.reading(what)}</div>;
 }

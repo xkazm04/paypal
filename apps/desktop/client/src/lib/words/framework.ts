@@ -240,3 +240,27 @@ export const FIND_PLACE_SUB = {
   quit: 'stops the wallet · see what waits first',
 } as const;
 export const FIND_QUIT_TITLE = 'Quit The Table';
+
+/** The shared/ui primitives' own words (Sheet, Inspector, ThemeSwitch, Group, Meter, Loading, Why and
+ *  the story kit). A primitive takes its default text from here, never from a literal; a caller
+ *  that passes its own prop still wins. shared/ui/words.test.ts keeps literals out of those files. */
+export const UI_WORDS = {
+  close: 'Close',
+  closeEsc: 'Close (Esc)',
+  closeDetails: 'Close details',
+  /** A Group with no rows and no `empty` of its own. */
+  nothingHere: 'Nothing here.',
+  /** After a Meter's label when the value is unknown: "Wallet limit: not available yet". */
+  notAvailable: 'not available yet',
+  reading: (what: string): string => `Reading ${what}…`,
+  why: 'Why?',
+  /** A button's hover title when Esc does the same: "Book (Esc)". */
+  escHint: (what: string): string => `${what} (Esc)`,
+  /** The ? sheet's experiment switches (shared/ui/experiments.ts). */
+  experiments: { 'r2-book': { name: 'Where the money went', where: 'Book', what: 'Bars by kind, a PayPal-agrees meter and question chips.' } },
+  theme: { label: 'Theme', dark: 'Dark', light: 'Light', darkTitle: 'The Dial palette', lightTitle: 'PayPal palette' },
+  checks: { label: 'Checks', showAll: 'Show all', hidePassed: 'Hide passed', show: 'Show' },
+} as const;
+
+/** What a ChecksSummary check says about itself, in a count and as an icon's accessible name. */
+export const CHECK_WORD = { pass: 'passed', ask: 'asks you', fail: 'stopped it', unknown: 'not checked here' } as const;

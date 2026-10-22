@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import { DETAIL_BACK } from '../../lib/words';
+import { DETAIL_BACK, UI_WORDS } from '../../lib/words';
 import { Btn, PageHead } from './components';
 
 /**
@@ -30,7 +30,7 @@ export function DetailPage({ title, onBack, backLabel = DETAIL_BACK, icon, sub, 
   const chrome = useContext(ChromeBackContext);
   return (
     <section className={`ui-detail${className ? ` ${className}` : ''}`}>
-      {chrome ? null : <div className="ui-detail-back"><Btn sm kind="plain" onClick={onBack} title={`${backLabel} (Esc)`}>‹ {backLabel}</Btn></div>}
+      {chrome ? null : <div className="ui-detail-back"><Btn sm kind="plain" onClick={onBack} title={UI_WORDS.escHint(backLabel)}>‹ {backLabel}</Btn></div>}
       <PageHead title={title} icon={icon} sub={sub} info={info} actions={actions} focusKey="detail" />
       <div className="ui-detail-body">{children}</div>
     </section>

@@ -6,6 +6,7 @@
 //   Icon           a small stroke icon set; always paired with a word or an aria-label
 // Display only. A DecisionCard option in Main only ever hands off to the approval window.
 import { useState, type ReactNode } from 'react';
+import { CHECK_WORD, INSPECTOR_LABEL, UI_WORDS } from '../../lib/words';
 import { Silence } from './components';
 
 const cx = (...c: Array<string | false | null | undefined>) => c.filter(Boolean).join(' ');
@@ -79,7 +80,7 @@ export type DecisionOption = {
 
 /** One decision. The question is a sentence about people and money, the reason names the rule,
  *  every option says what it does, and the default on silence closes the card. */
-export function DecisionCard({ context, question, why, amount, options, silence, deadline, onDetails, detailsLabel = 'Details', className, children }: {
+export function DecisionCard({ context, question, why, amount, options, silence, deadline, onDetails, detailsLabel = INSPECTOR_LABEL, className, children }: {
   context?: ReactNode; question: ReactNode; why?: ReactNode; amount?: ReactNode; options: DecisionOption[];
   silence?: ReactNode; deadline?: number | null; onDetails?: () => void; detailsLabel?: string; className?: string; children?: ReactNode;
 }) {
@@ -117,10 +118,9 @@ export function DecisionCard({ context, question, why, amount, options, silence,
 export type CheckState = 'pass' | 'ask' | 'fail' | 'unknown';
 export type CheckItem = { name: ReactNode; state: CheckState; value?: ReactNode; title?: string };
 const CHECK_ICON: Record<CheckState, IconName> = { pass: 'check', ask: 'you', fail: 'block', unknown: 'eye' };
-const CHECK_WORD: Record<CheckState, string> = { pass: 'passed', ask: 'asks you', fail: 'stopped it', unknown: 'not checked here' };
 
 /** "✓ 5 passed · 1 asks you": exceptions stay listed, passed checks fold into the count. */
-export function ChecksSummary({ checks, label = 'Checks', className, openAll = false }: { checks: readonly CheckItem[]; label?: string; className?: string; openAll?: boolean }) {
+export function ChecksSummary({ checks, label = UI_WORDS.checks.label, className, openAll = false }: { checks: readonly CheckItem[]; label?: string; className?: string; openAll?: boolean }) {
   const [all, setAll] = useState(openAll);
   const n = (s: CheckState) => checks.filter((c) => c.state === s).length;
   // Two or more unknowns fold into one dashed line (UX-GUIDE: never a question-mark wall).
@@ -132,7 +132,7 @@ export function ChecksSummary({ checks, label = 'Checks', className, openAll = f
   ));
   return (
     <div className={cx('ui-checks', className)} aria-label={label}>
-      <div className="cs-sum">{parts}{checks.some((c) => c.state === 'pass') ? <button type="button" className="cs-all" onClick={() => setAll((x) => !x)}>{all ? 'Hide passed' : 'Show all'}</button> : null}</div>
+      <div className="cs-sum">{parts}{checks.some((c) => c.state === 'pass') ? <button type="button" className="cs-all" onClick={() => setAll((x) => !x)}>{all ? UI_WORDS.checks.hidePassed : UI_WORDS.checks.showAll}</button> : null}</div>
       {shown.length || foldUnknown ? (
         <ul className="cs-list">
           {shown.map((c, i) => (
@@ -145,8 +145,8 @@ export function ChecksSummary({ checks, label = 'Checks', className, openAll = f
           {foldUnknown ? (
             <li className="unknown fold">
               <span className="cs-i" aria-label={CHECK_WORD.unknown}><Icon name="eye" size={13} /></span>
-              <span className="cs-name">{unknownNames.length} not checked here: {unknownNames.map((x, i) => <span key={i}>{i ? ', ' : ''}{x}</span>)}</span>
-              <button type="button" className="cs-all" onClick={() => setAll(true)}>Show</button>
+              <span className="cs-name">{unknownNames.length} {CHECK_WORD.unknown}: {unknownNames.map((x, i) => <span key={i}>{i ? ', ' : ''}{x}</span>)}</span>
+              <button type="button" className="cs-all" onClick={() => setAll(true)}>{UI_WORDS.checks.show}</button>
             </li>
           ) : null}
         </ul>

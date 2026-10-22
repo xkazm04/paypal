@@ -2,6 +2,7 @@
 // that opens a popover with a short answer the caller writes from facts already on screen.
 // Deterministic text only: no model, no guess, no number that is not already in the data.
 import { useState, type ReactNode } from 'react';
+import { UI_WORDS } from '../../lib/words';
 import { Popover } from './Popover';
 
 const cx = (...c: Array<string | false | null | undefined>) => c.filter(Boolean).join(' ');
@@ -13,7 +14,7 @@ export function whyName(label: ReactNode, question: ReactNode): string | undefin
   return `${label}, ${question.trim()}`;
 }
 
-export function Why({ question, children, label = 'Why?', className }: { question: ReactNode; children: ReactNode; label?: ReactNode; className?: string }) {
+export function Why({ question, children, label = UI_WORDS.why, className }: { question: ReactNode; children: ReactNode; label?: ReactNode; className?: string }) {
   const [a, setA] = useState<HTMLElement | null>(null);
   return (
     <>

@@ -2,15 +2,16 @@
 // src/lib/theme.ts; the Tumbler and the approval window follow the stored theme live (followStoredTheme).
 import { useEffect, useState } from 'react';
 import { currentTheme, onThemeChange, setTheme, type Theme } from '../../lib/theme';
+import { UI_WORDS } from '../../lib/words';
 import { Seg } from './components';
 
 const OPTIONS = [
-  { value: 'dark', label: 'Dark', title: 'The Dial palette' },
-  { value: 'light', label: 'Light', title: 'PayPal palette' },
+  { value: 'dark', label: UI_WORDS.theme.dark, title: UI_WORDS.theme.darkTitle },
+  { value: 'light', label: UI_WORDS.theme.light, title: UI_WORDS.theme.lightTitle },
 ] as const;
 
 export function ThemeSwitch({ className }: { className?: string }) {
   const [theme, set] = useState<Theme>(currentTheme);
   useEffect(() => onThemeChange(set), []);
-  return <Seg<Theme> label="Theme" value={theme} options={OPTIONS} onChange={setTheme} className={className} />;
+  return <Seg<Theme> label={UI_WORDS.theme.label} value={theme} options={OPTIONS} onChange={setTheme} className={className} />;
 }
