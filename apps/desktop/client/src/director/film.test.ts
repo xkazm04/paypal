@@ -16,7 +16,7 @@ import { laneSteps, weekBounds } from '../windows/main/logic';
 import { runActions, type Stage } from './actions';
 import { BEATS } from './beats';
 import { HAGGLE, HOLD } from './helpers';
-import { centre, deadlinesRecord, decisionsRecord, deskTransform, FILM_PRESS, filmTarget, haggleRecord, HOUSE_TABLE, recordShown, recordShownOnStage, shopRecord, stageRect, storyStartOn, syncShade, usdText } from './takes';
+import { centre, deadlinesRecord, decisionsRecord, deskTransform, FILM_PRESS, filmTarget, haggleRecord, HOUSE_TABLE, pressFor, readChapterRecord, recordShown, recordShownOnStage, shopRecord, stageRect, storyStartOn, syncShade, usdText } from './takes';
 
 describe('film rectangles', () => {
   it('splits a frame prefix from the selector, and leaves page selectors alone', () => {
@@ -341,5 +341,51 @@ describe('the film capture sync mark', () => {
     for (let i = 1; i < levels.length; i += 1) expect(Math.abs(syncShade(i) - syncShade(i - 1))).toBeGreaterThanOrEqual(9);
     expect(Math.min(...levels)).toBeGreaterThanOrEqual(48);
     expect(Math.max(...levels)).toBeLessThanOrEqual(235);
+  });
+});
+
+describe('film record: a failed world read', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    resetClockForTests();
+  });
+
+  const failing = (core: MockBackend, cmd: string): Pick<MockBackend, 'invoke'> => ({
+    invoke: ((c: string, a: never) => (c === cmd ? Promise.reject(new Error(`${cmd} is down`)) : core.invoke(c as never, a))) as MockBackend['invoke'],
+  });
+
+  it('reports { error } for a rejected read instead of the empty "no figures" record', async () => {
+    const core = playThrough('shop-prices');
+    const rec = await readChapterRecord(failing(core, 'deal_groups'), core.world.deal(HAGGLE)?.deal.id, 'shop');
+    expect(Object.keys(rec)).toEqual(['error']);
+    expect(String(rec.error)).toContain('deal_groups is down');
+    const end = await readChapterRecord(failing(core, 'deal_history'), undefined, 'end');
+    expect(Object.keys(end)).toEqual(['error']);
+  });
+
+  it('still reads the figures when nothing fails, and is empty for a beat without a record', async () => {
+    const core = playThrough('shop-prices');
+    const rec = await readChapterRecord(core, core.world.deal(HAGGLE)?.deal.id, 'shop');
+    expect(rec.error).toBeUndefined();
+    expect(rec.shop).toBeDefined();
+    expect(await readChapterRecord(failing(core, 'deal_groups'), undefined, 'haggle')).toEqual({});
+  });
+});
+
+describe('film press targets', () => {
+  const rect = { x: 10, y: 20, w: 100, h: 40 };
+
+  it('says a named target was not drawn instead of dropping the click', () => {
+    for (const id of Object.keys(FILM_PRESS)) expect(pressFor(id, () => null)).toEqual({ target: FILM_PRESS[id], found: false });
+  });
+
+  it('logs the click at the centre of a target that resolves', () => {
+    expect(pressFor('haggle-card', (sel) => (sel === FILM_PRESS['haggle-card'] ? rect : null))).toEqual({
+      target: FILM_PRESS['haggle-card'], found: true, click: { x: 60, y: 40, atMs: 0 },
+    });
+  });
+
+  it('presses nothing for a beat with no press target', () => {
+    expect(pressFor('no-such-beat', () => rect)).toBeNull();
   });
 });

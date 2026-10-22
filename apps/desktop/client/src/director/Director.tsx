@@ -13,17 +13,16 @@
 // (the haggle's figures, the shop-around group, the week's deadlines, who decided each money step).
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { clockOffset } from '../lib/clock';
-import { clockLabel, nowUnix } from '../lib/format';
+import { clockLabel } from '../lib/format';
 import { useNow, usePrefersReducedMotion } from '../lib/hooks';
-import { APPROVAL_FRAME, tablesShortWho } from '../lib/words';
-import { weekBounds } from '../windows/main/logic';
+import { APPROVAL_FRAME } from '../lib/words';
 import { applyTheme, getTheme, setTheme, type Theme } from '../lib/theme';
 import { mockBackend } from '../mock/backend';
 import { HAGGLE } from './helpers';
 import { applyWorld, foldScene, INITIAL_SCENE, placeTours, runActions, WORLD_ACTIONS, type Scene, type Stage } from './actions';
 import type { Beat, Focus } from './beats';
 import { frameUrls, type Story } from './stories';
-import { centre, charterSteps, checkBeat, deadlinesRecord, decisionsRecord, deskTransform, expectedDeals, FILM_PRESS, filmTarget, haggleRecord, recordShownOnStage, selectChapter, shopRecord, stageRect, storyStartOn, syncShade, takePlan, wholeTake, type ChapterTake, type FrameName, type PxRect, type Seen, type TakePlan } from './takes';
+import { charterSteps, checkBeat, deskTransform, expectedDeals, filmTarget, haggleRecord, pressFor, readChapterRecord, recordShownOnStage, selectChapter, stageRect, storyStartOn, syncShade, takePlan, wholeTake, type ChapterTake, type FrameName, type PxRect, type Seen, type TakePlan } from './takes';
 
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -168,6 +167,8 @@ export type FilmHook = {
   shown(record: Record<string, unknown>): string[];
   /** What the current beat's action stood in for pressing: centre points, ms after the beat started. */
   clicks(): Array<{ x: number; y: number; atMs: number }>;
+  /** The press target the current beat names, and whether it was drawn (null: the beat presses nothing). */
+  press(): { target: string; found: boolean } | null;
   /** Play beat `n`: in place when it is the next beat, else rebuild the world up to it (`?beat=`). */
   go(n: number): void;
   /** `Date.now()` when the current beat's actions ran. */
@@ -237,6 +238,7 @@ export function Director({ story }: { story: Story }) {
   /** Film capture: when the current beat played, and what its action stood in for pressing. */
   const playedAtRef = useRef(0);
   const pressRef = useRef<Array<{ x: number; y: number; atMs: number }>>([]);
+  const pressTargetRef = useRef<{ target: string; found: boolean } | null>(null);
   /** Which windows are open, for measuring (kept current below). */
   const openRef = useRef({ main: true, approval: false });
 
@@ -329,9 +331,9 @@ export function Director({ story }: { story: Story }) {
     if (!b) return;
     if (film) {
       // what this beat's action stands in for pressing, measured before the action changes it
-      const press = FILM_PRESS[b.id];
-      const r = press ? measure(press) : null;
-      pressRef.current = r ? [{ ...centre(r), atMs: 0 }] : [];
+      const pressed = pressFor(b.id, measure);
+      pressRef.current = pressed?.click ? [pressed.click] : [];
+      pressTargetRef.current = pressed ? { target: pressed.target, found: pressed.found } : null;
       playedAtRef.current = Date.now();
     }
     runActions(stage, b.do);
@@ -498,30 +500,7 @@ export function Director({ story }: { story: Story }) {
           // the chapter records (takes.ts reducers), from reads of the mock world: none signs,
           // unlocks or changes anything
           if (b.chapter === 'shop' || b.chapter === 'silence' || b.chapter === 'closed' || b.chapter === 'end') {
-            try {
-              const ids = await core.invoke('list_deals', null);
-              const deals = await Promise.all(ids.map(async (deal) => ({ deal, display: await core.invoke('deal_display', { deal_id: deal.id }) })));
-              if (b.chapter === 'shop') {
-                const [groups, cps] = await Promise.all([core.invoke('deal_groups', null), core.invoke('counterparty_list', null)]);
-                const haggleId = world.deal(HAGGLE)?.deal.id;
-                const g = groups.find((x) => x.tables.some((t) => t.deal_id === haggleId)) ?? groups[0];
-                if (!g) return {};
-                const byId = new Map(deals.map((d) => [d.deal.id, d.display] as const));
-                const cpBy = new Map(cps.map((c) => [c.key_id, c] as const));
-                return {
-                  shop: shopRecord(g, {
-                    deal: (id) => byId.get(id),
-                    seller: (key) => { const c = cpBy.get(key); return c ? tablesShortWho({ house: c.house, name: c.display_name }) : key; },
-                  }),
-                };
-              }
-              // Maya's week as the Rewind reads it: this week's verified steps, Monday to Monday
-              const week = weekBounds(nowUnix());
-              const { steps } = await core.invoke('deal_history', { deal_id: null, from: week.start, to: week.end });
-              return b.chapter === 'end' ? { decisions: decisionsRecord(steps, deals) } : { deadlines: deadlinesRecord(deals, steps, week, nowUnix()) };
-            } catch {
-              return {};
-            }
+            return readChapterRecord(core, world.deal(HAGGLE)?.deal.id, b.chapter);
           }
           // Maya's week's haggle: the deal as the world shows it now, under the signed mandate
           // version it runs on (a read: mandate_list needs no unlock and changes nothing)
@@ -542,6 +521,7 @@ export function Director({ story }: { story: Story }) {
           approval: live.current.approvalOpen ? frameText(approvalRef.current) : '',
         }),
         clicks: () => pressRef.current.map((c) => ({ ...c })),
+        press: () => (pressTargetRef.current ? { ...pressTargetRef.current } : null),
         go: (n) => {
           if (n < 0 || n >= BEATS.length) return;
           if (live.current.ready && n === indexRef.current + 1) {
