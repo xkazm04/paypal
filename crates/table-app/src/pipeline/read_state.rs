@@ -53,6 +53,19 @@ fn key_names_deal(key: &str, id: &str) -> bool {
         .is_some_and(|tail| tail.is_empty() || tail.starts_with('-'))
 }
 
+/// How many keys of `map` belong to the deal `id`: a deal's keys are two contiguous ranges (its
+/// request ids and its `deadline-read:` key), so this walks only those, not the whole map.
+fn keys_naming_deal<V>(map: &BTreeMap<String, V>, id: &str) -> usize {
+    let in_range = |prefix: String| {
+        map.range(prefix.clone()..)
+            .map(|(k, _)| k)
+            .take_while(|k| k.starts_with(&prefix))
+            .filter(|k| key_names_deal(k, id))
+            .count()
+    };
+    in_range(id.to_owned()) + in_range(format!("deadline-read:{id}"))
+}
+
 /// A money read the wallet makes on its own only inside the window past the deadline.
 fn windowed(key: &str) -> bool {
     key.ends_with("-authorize") || key.ends_with("-capture") || key.ends_with("-void")
@@ -168,15 +181,48 @@ impl Pipeline {
     /// How many read-schedule entries and spent owner tickets name this deal. A diagnostic.
     pub fn read_state_of(&self, id: DealId) -> usize {
         let id_text = id.to_string();
-        let keyed = |k: &String| key_names_deal(k, &id_text);
         usize::from(self.rescue_polled.contains_key(&id))
-            + self.parked_read.keys().filter(|k| keyed(k)).count()
-            + self.rescue_read_backoff.keys().filter(|k| keyed(k)).count()
+            + keys_naming_deal(&self.parked_read, &id_text)
+            + keys_naming_deal(&self.rescue_read_backoff, &id_text)
             + self
                 .rescue_owner_read
                 .iter()
                 .chain(&self.authorize_owner_read)
                 .filter(|(deal, _, _)| *deal == id)
                 .count()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The range lookup counts exactly what the full scan counted, over keys that share prefixes
+    /// with the deal's id, belong to other deals, or sit in the deadline-read shape.
+    #[test]
+    fn the_range_lookup_counts_the_entries_the_full_scan_counted() {
+        let ids: Vec<String> = (1_u32..=6)
+            .map(|n| format!("0000000000000000000000{n:04}"))
+            .collect();
+        let mut map = BTreeMap::new();
+        for (n, id) in ids.iter().enumerate() {
+            for attempt in 1..=(n % 3 + 1) {
+                for op in ["authorize", "capture", "void"] {
+                    map.insert(format!("{id}-{attempt}-{op}"), ());
+                }
+            }
+            if n % 2 == 0 {
+                map.insert(format!("deadline-read:{id}"), ());
+            }
+        }
+        // Near-misses: a longer id sharing the prefix, and a key that is just the id.
+        map.insert(format!("{}9-1-void", ids[0]), ());
+        map.insert(format!("deadline-read:{}9", ids[2]), ());
+        map.insert(ids[3].clone(), ());
+        for id in ids.iter().chain(&["absent".to_owned()]) {
+            let scan = map.keys().filter(|k| key_names_deal(k, id)).count();
+            assert_eq!(keys_naming_deal(&map, id), scan, "{id}");
+        }
+        assert!(keys_naming_deal(&map, &ids[0]) > 0);
     }
 }
