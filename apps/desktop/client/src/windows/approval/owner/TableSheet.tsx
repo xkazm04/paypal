@@ -45,6 +45,8 @@ export function TableSheet({ seed, entries, counterparties, locked, onClose }: {
   }));
   const [error, setError] = useState<WalletError | null>(null);
   const [done, setDone] = useState<Deal | null>(null);
+  /** The main window did not open: the sheet stays and says so. */
+  const [followError, setFollowError] = useState<WalletError | null>(null);
   const busy = s.pending !== null || s.unlocking;
   // Switching between selling and buying changes which rules fit; the first fitting one stands in.
   const mandateId = rules.some((m) => m.payload.id === d.mandateId) ? d.mandateId : rules[0]?.payload.id ?? '';
@@ -82,12 +84,19 @@ export function TableSheet({ seed, entries, counterparties, locked, onClose }: {
     else setError(r.error);
   };
 
+  const follow = async (dealId: string) => {
+    setFollowError(null);
+    const r = await s.call('main_open', { deal_id: dealId });
+    if (r.ok) onClose();
+    else setFollowError(r.error);
+  };
+
   if (done) {
     return (
       <Sheet title={house || byCode ? W.joined : W.opened} onClose={onClose} className="ow-lim-sheet ow-tbl"
         footer={<>
           <Btn className="left" onClick={onClose}>{W.close}</Btn>
-          <Btn kind="primary" disabled={busy} onClick={() => void s.call('main_open', { deal_id: done.id }).then(onClose)}>{W.follow} ↗</Btn>
+          <Btn kind="primary" disabled={busy} onClick={() => void follow(done.id)}>{W.follow} ↗</Btn>
         </>}>
         <Kv items={[
           [W.item, done.terms.item_ref],
@@ -105,6 +114,7 @@ export function TableSheet({ seed, entries, counterparties, locked, onClose }: {
           </>
         ) : null}
         <Hint>{W.doneSub}</Hint>
+        {followError ? <WalletNotice error={followError} what={W.failFollow} /> : null}
       </Sheet>
     );
   }
