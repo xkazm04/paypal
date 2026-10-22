@@ -2,7 +2,7 @@
 // A modal dialog over an inert console: the field is a combobox whose active option is named by
 // aria-activedescendant, Arrow Up/Down move, Enter opens, Esc closes (it is a layer, so it closes
 // before anything under it), Tab stays inside. The index is built once per change of the needs and
-// the deals (find.ts), never per keystroke. Opening something never moves money.
+// the deals (findIndex.ts), never per keystroke. Opening something never moves money.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MODULES } from '../../../shared/modules';
