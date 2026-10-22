@@ -5816,6 +5816,67 @@
         "at": "2026-10-22T04:41:17.181174+00:00",
         "reason": "reviewer (sonnet): The engine-side claims hold (native.rs:250-251 go straight to kill/wait, windows_job.rs:51 sets only KILL_ON_JOB_CLOSE, native.rs:501 uses a bare from_utf8), but the runtime-cap technique anchor (table-runtime engines.rs:459) is in a different crate outside this context's files, and I could not conf"
       }
+    },
+    "a1a41cac-6c94-418e-8740-5d1188336cb0/talking-avatar": {
+      "context": "director-takes-rig",
+      "subject": "talking-avatar",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T21:17:54.918Z",
+      "techniques": [
+        {
+          "technique": "face-signal-across-surfaces",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/scripts/lib/rig.mjs:103 Multiple surfaces share theme configuration; no speaking face or mirrored face signal was found."
+        },
+        {
+          "technique": "motion-route-selection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/scripts/takes.mjs:141 Captures existing browser rendering rather than selecting an avatar animation route."
+        },
+        {
+          "technique": "neural-motion-retargeting",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/scripts/film-capture.mjs:160 Maps capture windows onto video timestamps; no learned motion channels or avatar retargeting were found."
+        },
+        {
+          "technique": "paced-realtime-measurement",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/scripts/takes.mjs:248 Retiming uses story beat timestamps, not an avatar's lag against playing speech."
+        },
+        {
+          "technique": "per-sentence-face-sidecar",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/scripts/lib/rig.mjs:71 The helper process serves the browser preview; no sentence-level face computation was found."
+        },
+        {
+          "technique": "procedural-presence-motion",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/scripts/lib/rig.mjs:154 Observes existing finite UI animations to settle captures; does not generate avatar idle motion."
+        },
+        {
+          "technique": "rig-parameter-contract",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/scripts/film-capture.mjs:262 The capture record contains beat timing, rectangles and clicks, rather than avatar motion parameters."
+        },
+        {
+          "technique": "single-image-layer-decomposition",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/scripts/export-scale-fixtures.mjs:295 Exports mock wallet data; no portrait decomposition or drivable image layers were found."
+        },
+        {
+          "technique": "viseme-drive",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/scripts/film-capture.mjs:258 Narration contributes clip duration to capture holds, without driving a mouth or speaking element."
+        }
+      ],
+      "withdrawn": {
+        "worker": "3c86e9c4-c5da-4b51-a06f-98643e37c303",
+        "state": "not-applicable",
+        "at": "2026-10-22T21:18:20.060297+00:00",
+        "reason": "reviewer (sonnet): The primary anchor rig.mjs:101 is a theme-localStorage comment, so it doesn't show that no speaking face exists; the context also handles narration audio (film-capture.mjs reads audio/manifest.json and sizes holds from spoken lines), and the viseme/phoneme/blendshape/lip-sync search doesn't rule out"
+      }
     }
   }
 }
