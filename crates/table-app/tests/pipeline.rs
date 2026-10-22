@@ -419,12 +419,59 @@ fn agreed_owned() -> (Wallet, Wallet, Deal, AgentSigner) {
 }
 #[tokio::test]
 async fn h3_two_accepts_one_order_and_h5_seller_receives_without_owner_click() {
-    let (_buyer, seller, deal) = agreed();
+    let (mut buyer, seller, deal) = agreed();
     let mock = Arc::new(MockApi::default());
     let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
-    p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+    let settle = p
+        .create(deal.id, 1, Category::Parts, Authority::Policy, 100)
         .await
         .unwrap();
+    // H3's three clauses: both wallets hold one terms hash, the one order is AUTHORIZE with the
+    // invoice id {deal}-{attempt}, and the SETTLE the buyer verifies says the same.
+    let terms = buyer
+        .ledger
+        .get_deal(deal.id)
+        .unwrap()
+        .terms
+        .hash()
+        .unwrap();
+    assert_eq!(
+        p.wallet
+            .ledger
+            .get_deal(deal.id)
+            .unwrap()
+            .terms
+            .hash()
+            .unwrap(),
+        terms
+    );
+    let invoice = format!("{}-1", deal.id);
+    let body = mock
+        .expected
+        .lock()
+        .unwrap()
+        .as_ref()
+        .unwrap()
+        .body()
+        .unwrap();
+    assert_eq!(body["intent"], "AUTHORIZE");
+    assert_eq!(body["purchase_units"][0]["invoice_id"], invoice.as_str());
+    assert_eq!(body["purchase_units"][0]["custom_id"], terms.hex());
+    buyer
+        .receive_relay(deal.id, &settle, Category::Parts, 100)
+        .unwrap();
+    let Some(Body::Settle {
+        intent,
+        invoice_id,
+        attempt,
+        ..
+    }) = buyer.ledger.latest_settle(deal.id).unwrap()
+    else {
+        panic!("the buyer holds no SETTLE");
+    };
+    assert_eq!(intent, table_proto::Intent::Authorize);
+    assert_eq!(invoice_id.as_str(), invoice);
+    assert_eq!(attempt, 1);
     assert!(
         p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
             .await
