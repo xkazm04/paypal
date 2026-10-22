@@ -124,7 +124,8 @@ impl Runtime {
         ) else {
             return Ok(None);
         };
-        if !*key_stored.get_or_insert(self.vault.read("channel3").ok().flatten().is_some()) {
+        if !*key_stored.get_or_insert_with(|| self.vault.read("channel3").ok().flatten().is_some())
+        {
             return Ok(None);
         }
         // The deal must still stand under its rules, as for the owner's own refresh.

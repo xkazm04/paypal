@@ -807,13 +807,16 @@ impl Vault for Recording {
     }
 }
 impl Recording {
-    fn owner_reads(&self) -> usize {
+    fn reads_of(&self, entry: &str) -> usize {
         self.1
             .lock()
             .unwrap()
             .iter()
-            .filter(|n| *n == "owner")
+            .filter(|n| *n == entry)
             .count()
+    }
+    fn owner_reads(&self) -> usize {
+        self.reads_of("owner")
     }
 }
 
@@ -859,6 +862,13 @@ async fn price_checks_and_pairing_wires_read_the_owner_key_in_memory_not_the_key
     vault.1.lock().unwrap().clear();
     let jobs = r.plan_market_watch(200).unwrap();
     assert_eq!(jobs.len(), 3);
+    // Whether a market key is stored is asked once a pass, not once per due deal.
+    assert_eq!(
+        vault.reads_of("channel3"),
+        1,
+        "{:?}",
+        vault.1.lock().unwrap()
+    );
     for job in jobs {
         land(&mut r, &market, job).await;
     }
