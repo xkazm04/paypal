@@ -497,4 +497,116 @@ mod tests {
             "actions missing from ACTION_KEYS: {missing:?}"
         );
     }
+
+    /// Drops `//` comments that start a line or follow whitespace (so `https://` survives).
+    fn strip_line_comments(text: &str) -> String {
+        text.lines()
+            .map(|line| {
+                let cut = line
+                    .match_indices("//")
+                    .find(|(i, _)| *i == 0 || line[..*i].ends_with(char::is_whitespace))
+                    .map_or(line.len(), |(i, _)| i);
+                &line[..cut]
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+    /// The top-level keys of the `{...}` object that `text` starts with, or None if it does not
+    /// start with one. Strings are skipped whole, so a value never reads as a key.
+    fn object_keys(text: &str) -> Option<Vec<String>> {
+        let mut chars = text.trim_start().chars().peekable();
+        if chars.next() != Some('{') {
+            return None;
+        }
+        let (mut depth, mut keys) = (1_u32, Vec::new());
+        while let Some(c) = chars.next() {
+            match c {
+                '"' => {
+                    let mut word = String::new();
+                    while let Some(c) = chars.next() {
+                        match c {
+                            '\\' => {
+                                chars.next();
+                            }
+                            '"' => break,
+                            _ => word.push(c),
+                        }
+                    }
+                    while chars.next_if(|c| c.is_whitespace()).is_some() {}
+                    if depth == 1 && chars.peek() == Some(&':') {
+                        keys.push(word);
+                    }
+                }
+                '{' | '[' | '(' => depth += 1,
+                '}' | ']' | ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return Some(keys);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+    /// The allowlist is the door's half of a pair; the writers are the other half. A key a writer
+    /// adds that the table does not list is dropped at the door and survives only as a name in
+    /// `dropped`, so every inline `detail: json!({...})` a production writer passes must name
+    /// only keys its action's entry allows. Details built elsewhere (`detail,`) are counted, not
+    /// parsed; the cases they carry are pinned by their own module tests.
+    #[test]
+    fn every_inline_detail_key_a_writer_passes_is_in_its_action_entry() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let mut files = Vec::new();
+        for dir in ["crates", "apps/desktop/src-tauri/src", "services"] {
+            sources(&root.join(dir), &mut files);
+        }
+        let (mut checked, mut built_elsewhere, mut unknown) = (0, 0, Vec::new());
+        for file in files {
+            let text = std::fs::read_to_string(&file).unwrap();
+            let production = text.split("#[cfg(test)]").next().unwrap_or("");
+            let production = strip_line_comments(production);
+            for part in production.split("action: \"").skip(1) {
+                let Some(action) = part.split('"').next() else {
+                    continue;
+                };
+                let Some(allowed) = allowed_keys(action) else {
+                    continue;
+                };
+                // `detail` follows `action` in every AuditEntry literal: the first one is its own.
+                let Some(at) = part.find("detail") else {
+                    continue;
+                };
+                let value = part[at + "detail".len()..].trim_start();
+                let Some(object) = value.strip_prefix(':').map(str::trim_start).and_then(|v| {
+                    v.strip_prefix("serde_json::json!(")
+                        .or_else(|| v.strip_prefix("json!("))
+                }) else {
+                    built_elsewhere += 1;
+                    continue;
+                };
+                // `json!(&value)` serializes a struct: its fields are not written out here.
+                if !object.starts_with('{') {
+                    built_elsewhere += 1;
+                    continue;
+                }
+                let keys = object_keys(object)
+                    .unwrap_or_else(|| panic!("{action} in {}: unreadable detail", file.display()));
+                checked += 1;
+                for key in keys {
+                    if !allowed.contains(&key.as_str()) {
+                        unknown.push(format!("{action}.{key} ({})", file.display()));
+                    }
+                }
+            }
+        }
+        assert!(
+            checked > 40,
+            "checked only {checked} inline details ({built_elsewhere} built elsewhere)"
+        );
+        assert!(
+            unknown.is_empty(),
+            "detail keys the door would drop: {unknown:?}"
+        );
+    }
 }
