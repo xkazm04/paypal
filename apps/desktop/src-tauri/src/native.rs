@@ -334,6 +334,7 @@ pub fn run() -> Result<(), tauri::Error> {
             });
             tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .on_navigation(navigation::permits)
+                .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)
                 .title("The Table")
                 .inner_size(1440.0, 900.0)
                 .visible(false)
@@ -353,6 +354,7 @@ pub fn run() -> Result<(), tauri::Error> {
                 WebviewUrl::App("tumbler.html".into()),
             )
             .on_navigation(navigation::permits)
+            .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)
             .title("The Tumbler")
             .inner_size(88.0, 88.0)
             .decorations(false)
