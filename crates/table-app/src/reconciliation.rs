@@ -51,19 +51,22 @@ impl Pipeline {
                         && c.status == 200
                 })
             {
-                return Err(Error::Invalid);
+                return self.refuse_reporting(id, window, capture, "incomplete_page", now);
             }
             for row in response.value.transaction_details {
                 let info = row.transaction_info;
                 if info.transaction_id == capture {
                     if info.transaction_status != "S" {
-                        return Err(Error::Invalid);
+                        return self.refuse_reporting(id, window, capture, "not_settled", now);
                     }
                     let lexical = &info.transaction_amount.value;
                     // UNVERIFIED: buyer account reporting uses a negative debit and the seller's
                     // capture id as transaction_id. Absent/different mappings fail closed (spike 3).
                     let value = if deal.side == Side::Buyer {
-                        lexical.strip_prefix('-').ok_or(Error::Invalid)?
+                        let Some(debit) = lexical.strip_prefix('-') else {
+                            return self.refuse_reporting(id, window, capture, "not_a_debit", now);
+                        };
+                        debit
                     } else {
                         lexical.as_str()
                     };
@@ -78,7 +81,7 @@ impl Pipeline {
         }
         // Ambiguous/partial reporting cannot promote a peer claim.
         if matches.len() > 1 {
-            return Err(Error::Invalid);
+            return self.refuse_reporting(id, window, capture, "ambiguous", now);
         }
         if let Some(amount) = matches.first() {
             self.wallet
@@ -96,5 +99,25 @@ impl Pipeline {
             })?;
         }
         Ok(())
+    }
+
+    /// A statement read the wallet refused to act on: one outcome row with a fixed reason code
+    /// (never PayPal's text), so the record shows why the check ended and not only that it began.
+    fn refuse_reporting(
+        &mut self,
+        id: DealId,
+        window: ReportingWindow,
+        capture: &str,
+        reason: &str,
+        now: Timestamp,
+    ) -> Result<(), Error> {
+        self.wallet.ledger.append_audit(&table_ledger::AuditEntry {
+            at: now,
+            actor: "paypal-reporting".into(),
+            action: "receipt.reporting_refused".into(),
+            deal_id: Some(id),
+            detail: serde_json::json!({"from":window.from,"to":window.to,"capture_id":capture,"reason":reason}),
+        })?;
+        Err(Error::Invalid)
     }
 }

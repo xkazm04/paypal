@@ -574,6 +574,11 @@ mod tests {
                 step(K::ReportingChecked, A::None),
             ),
             (
+                "receipt.reporting_refused",
+                json!({"from":0,"to":100,"capture_id":"CAPTURE1","reason":"ambiguous"}),
+                step(K::ReportingChecked, A::None),
+            ),
+            (
                 "receipt.unconfirmed",
                 json!({"capture_id":"CAPTURE1","received_at":100,"reconciliation":"pending_reporting","decided_by":lapse}),
                 step(K::Unconfirmed, A::SafeDefault),
