@@ -242,7 +242,9 @@ pub(super) fn classify(record: &AuditRecord) -> Row {
         "receipt.refused" => Row::Step(K::ReceiptRefused, A::None),
         "receipt.reporting_checked" => Row::Step(K::ReportingChecked, A::Owner),
         // A statement read that found no matching payment is part of the owner's check.
-        "receipt.reporting_unmatched" => Row::Step(K::ReportingChecked, A::None),
+        "receipt.reporting_unmatched" | "receipt.reporting_refused" => {
+            Row::Step(K::ReportingChecked, A::None)
+        }
         // PayPal's statement never showed the seller's payment: the safe default ends the deal.
         "receipt.unconfirmed" => Row::Step(K::Unconfirmed, A::SafeDefault),
         "receipt.reconciled" => {

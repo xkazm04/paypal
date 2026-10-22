@@ -145,6 +145,10 @@ pub(crate) const ACTION_KEYS: &[(&str, &[&str])] = &[
     ("receipt.reporting_checked", &["from", "to", "capture_id"]),
     ("receipt.reporting_unmatched", &["from", "to", "capture_id"]),
     (
+        "receipt.reporting_refused",
+        &["from", "to", "capture_id", "reason"],
+    ),
+    (
         "receipt.seller_attested",
         &["capture_id", "transcript_head"],
     ),

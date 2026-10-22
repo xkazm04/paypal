@@ -351,6 +351,29 @@ async fn own_account_reporting_requires_success_exact_capture_amount_currency_di
             .filter(|r| r.action == "receipt.reporting_unmatched")
             .count();
         assert_eq!(unmatched, usize::from(matches!(case, 0 | 4)), "case {case}");
+        // Every refusal leaves exactly one outcome row with a fixed reason code; no other case does.
+        let refused: Vec<String> = buyer
+            .wallet
+            .ledger
+            .audit_page(None, 500)
+            .unwrap()
+            .0
+            .iter()
+            .filter(|r| r.action == "receipt.reporting_refused")
+            .map(|r| r.detail["reason"].as_str().unwrap().to_owned())
+            .collect();
+        let reason = match case {
+            2 => Some("not_a_debit"),
+            5 => Some("not_settled"),
+            6 => Some("ambiguous"),
+            8 => Some("incomplete_page"),
+            _ => None,
+        };
+        assert_eq!(
+            refused,
+            reason.map(str::to_owned).into_iter().collect::<Vec<_>>(),
+            "case {case}"
+        );
         assert_eq!(buyer.wallet.ledger.paypal_call_count(deal.id).unwrap(), 1);
         // The owner's "last Transaction Search poll" fact reads the recorded call back.
         assert_eq!(
