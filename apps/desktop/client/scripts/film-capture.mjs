@@ -24,7 +24,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 // Pure and erasable TypeScript, loaded straight from the source (Node 22.18+ strips the types).
-import { alignMarks } from '../src/director/retime.ts';
+import { alignMarks, placeRows } from '../src/director/retime.ts';
 import { CLIENT, SIZE, ffmpegPath, hook, log, loadPlaywright, newContext, openBrowser, pad, plan, quiet, rawLength, reachable, settle, watchErrors } from './lib/rig.mjs';
 
 const REPO = resolve(CLIENT, '..', '..', '..');
@@ -152,27 +152,17 @@ function groundBeside(ff, video) {
 }
 
 /** Moves each row's startMs/endMs from the wall clock to the video's, by where its sync mark first
- *  shows (searching forward in beat order). A beat whose mark is not found keeps its wall offsets,
- *  and the log says so. */
+ *  shows (searching forward in beat order; retime.ts alignMarks, placeRows). A beat whose mark is
+ *  not found keeps its wall offsets, which the recorder's drift puts seconds off: it is returned,
+ *  and the take counts it as broken. */
 function alignToVideo(ff, video, rows, sync) {
-  const levels = markLevels(ff, video);
-  const frameMs = 1000 / FPS;
-  const marks = alignMarks(levels, sync.map((s) => s.shade));
-  const shifts = [];
-  rows.forEach((row, i) => {
-    const mark = marks[i];
-    if (!mark) {
-      log(`sync: ${row.id}: mark ${sync[i].shade} not found in the video; wall-clock offsets kept`);
-      return;
-    }
-    const shift = Math.round(mark.first * frameMs) - sync[i].playedMs;
-    // the drift keeps growing inside a beat, so its end is also bounded by the last frame that
-    // still shows its own mark: the next jump's reload (a white page) never leaks into its tail
-    row.startMs = Math.max(0, row.startMs + shift);
-    row.endMs = Math.max(row.startMs + 1, Math.min(row.endMs + shift, Math.round((mark.last + 1) * frameMs) - 1));
-    shifts.push(shift);
-  });
+  const marks = alignMarks(markLevels(ff, video), sync.map((s) => s.shade));
+  const placed = placeRows(rows, sync.map((s) => s.playedMs), marks, 1000 / FPS);
+  placed.rows.forEach((row, i) => { rows[i] = row; });
+  for (const id of placed.missing) log(`sync: ${id}: its mark was not found in the video; wall-clock offsets kept`);
+  const { shifts } = placed;
   if (shifts.length) log(`sync: ${shifts.length}/${rows.length} beats aligned to the video; shift ${Math.min(...shifts)}..${Math.max(...shifts)} ms`);
+  return placed.missing;
 }
 
 function readJson(file) {
@@ -295,7 +285,14 @@ async function main() {
   // logged windows are moved onto the video's own clock: each beat's corner sync mark is found in
   // the frames, and the beat's offsets shift by where it really appeared. The mark is then painted
   // over with the ground beside it, so no film ever shows it.
-  alignToVideo(ff, webm, rows, sync);
+  for (const id of alignToVideo(ff, webm, rows, sync)) {
+    const problem = 'its sync mark is not in the video: its window is on the wall clock, seconds off';
+    const row = rows.find((r) => r.id === id);
+    if (row) row.error = row.error ? `${row.error}; ${problem}` : problem;
+    const f = failed.find((x) => x.id === id);
+    if (f) f.problems.push(problem);
+    else failed.push({ id, problems: [problem] });
+  }
   const ground = groundBeside(ff, webm);
   execFileSync(ff, ['-y', '-loglevel', 'error', '-i', webm, '-an', '-vf', `drawbox=x=${SIZE.width - 16}:y=${SIZE.height - 16}:w=16:h=16:color=${ground}:t=fill`,
     '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p',

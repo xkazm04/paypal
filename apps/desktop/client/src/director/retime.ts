@@ -135,6 +135,34 @@ export function alignMarks(levels: readonly number[], wants: readonly number[], 
   });
 }
 
+/** A film take's row: when its beat started and ended, ms from the recording's start (wall clock). */
+export type TakeRow = { id: string; startMs: number; endMs: number };
+
+/**
+ * Moves each row from the wall clock onto the video's own, by where its beat's mark first showed
+ * (`marks`, from alignMarks; `playedMs` is when the beat played on the wall clock). A row's end is
+ * also bounded by the last frame still showing its mark, so the next jump's reload never leaks into
+ * its tail. A row whose mark was not found keeps its wall-clock offsets and is named in `missing`:
+ * the recorder drifts by seconds over a long take, so its window is not where the take says.
+ */
+export function placeRows<R extends TakeRow>(rows: readonly R[], playedMs: readonly number[], marks: readonly (MarkRun | null)[], frameMs: number): { rows: R[]; shifts: number[]; missing: string[] } {
+  const shifts: number[] = [];
+  const missing: string[] = [];
+  const out = rows.map((row, i) => {
+    const mark = marks[i];
+    if (!mark) {
+      missing.push(row.id);
+      return row;
+    }
+    const shift = Math.round(mark.first * frameMs) - (playedMs[i] ?? 0);
+    const startMs = Math.max(0, row.startMs + shift);
+    const endMs = Math.max(startMs + 1, Math.min(row.endMs + shift, Math.round((mark.last + 1) * frameMs) - 1));
+    shifts.push(shift);
+    return { ...row, startMs, endMs };
+  });
+  return { rows: out, shifts, missing };
+}
+
 /**
  * The ffmpeg `setpts` expression for a plan, in seconds of raw time `T` (divide by TB for PTS):
  * each stretch maps raw T to `at + (T - from) * speed`.

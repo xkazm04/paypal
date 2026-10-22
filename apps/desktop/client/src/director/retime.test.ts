@@ -1,6 +1,6 @@
 // Putting a lagging recording back on the beat file's clock.
 import { describe, expect, it } from 'vitest';
-import { alignMarks, distinctChanges, retimePlan, setptsExpr, type RetimePlan } from './retime';
+import { alignMarks, distinctChanges, placeRows, retimePlan, setptsExpr, type RetimePlan } from './retime';
 
 /** Where raw second T lands in the output under a plan (what ffmpeg's setpts does). */
 function place(plan: RetimePlan, t: number): number {
@@ -78,5 +78,24 @@ describe('finding each beat’s sync mark in a film take', () => {
     const levels = [...frames(75, 30), ...frames(66, 8), ...frames(75, 20)];
     expect(alignMarks(levels, [75, 66, 75])).toEqual([{ first: 0, last: 29 }, { first: 30, last: 37 }, { first: 38, last: 57 }]);
     expect(alignMarks([...frames(75, 30), ...frames(235, 5), ...frames(75, 20)], [75, 75])).toEqual([{ first: 0, last: 29 }, { first: 35, last: 54 }]);
+  });
+});
+
+describe('moving a film take’s rows onto the video’s clock', () => {
+  const rows = [{ id: 'a', startMs: 1000, endMs: 4000, rects: {} }, { id: 'b', startMs: 5000, endMs: 9000, rects: {} }];
+
+  it('shifts each row by where its mark showed, and ends it with its mark', () => {
+    // 10 ms frames: a's mark at frames 150..349 (played at 1000 ms on the wall clock), b's at 400..900
+    const r = placeRows(rows, [1000, 5000], [{ first: 150, last: 349 }, { first: 400, last: 900 }], 10);
+    expect(r.rows).toEqual([{ id: 'a', startMs: 1500, endMs: 3499, rects: {} }, { id: 'b', startMs: 4000, endMs: 8000, rects: {} }]);
+    expect(r.shifts).toEqual([500, -1000]);
+    expect(r.missing).toEqual([]);
+  });
+
+  it('names a row whose mark was never found: its window is still on the wall clock', () => {
+    const r = placeRows(rows, [1000, 5000], [{ first: 150, last: 349 }, null], 10);
+    expect(r.missing).toEqual(['b']);
+    expect(r.rows[1]).toBe(rows[1]);
+    expect(r.shifts).toEqual([500]);
   });
 });
