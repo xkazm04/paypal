@@ -1,0 +1,40 @@
+{
+  "schema": "conform-run/1",
+  "worker": "3c86e9c4-c5da-4b51-a06f-98643e37c303",
+  "subject": "talking-avatar",
+  "evaluatedAt": "2026-10-22T21:17:54.918501+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "talking-avatar",
+      "context": "director-takes-rig",
+      "reason": "withdrawn after review: reviewer (sonnet): The primary anchor rig.mjs:101 is a theme-localStorage comment, so it doesn't show that no speaking face exists; the context also handles narration audio (film-capture.mjs reads audio/manifest.json and sizes holds from spoken lines), and the viseme/phoneme/blendshape/lip-sync search doesn't rule out"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-22T21:17:54.918501+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "talking-avatar"
+      ],
+      "techniques": [
+        "face-signal-across-surfaces",
+        "motion-route-selection",
+        "neural-motion-retargeting",
+        "paced-realtime-measurement",
+        "per-sentence-face-sidecar",
+        "procedural-presence-motion",
+        "rig-parameter-contract",
+        "single-image-layer-decomposition",
+        "viseme-drive"
+      ],
+      "deviations": 0,
+      "context": "director-takes-rig",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}
