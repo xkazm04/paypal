@@ -12,6 +12,7 @@ import type { Money } from '@bindings/Money';
 import type { OpenMandate } from '@bindings/OpenMandate';
 import type { RescueView } from '@bindings/RescueView';
 import type { ShieldRule } from '@bindings/ShieldRule';
+import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import type { CounterpartyDisplay, TranscriptStep } from '../lib/pending';
 import { formatMoney, lineTotal } from '../lib/format';
 import { percentWords, shieldReleased } from '../lib/words';
@@ -33,7 +34,11 @@ export type MockCheckInput = {
   counterparty: CounterpartyDisplay | undefined;
   /** The active version of the deal's mandate, if any (revoked or replaced reads as undefined). */
   mandate: OpenMandate | undefined;
-  /** Amount already committed today under the mandate (minor units), for the daily limit. */
+  /** MandatePayload::check on the deal's rules (mock/simulate.ts mockCheck): the one verdict the
+   *  checklist's mandate line words. `null`: the rules are not in force for it. Rescue deals are
+   *  judged by the fixes rules below instead. */
+  verdict: SimulatedVerdict | null;
+  /** Amount already committed that agreement day under the mandate (minor units), for a rescue deal's daily limit. */
   spentTodayMinor: number;
   now: number;
   /** The wallet limits' refusal of this deal (src/mock/exposure.ts), checked after the mandate. */
@@ -60,7 +65,28 @@ function settleOf(i: MockCheckInput): Settle {
   return i.deal.paypal.order ? { amount: lineTotal(i.deal.terms.unit_price, i.deal.terms.qty) } : null;
 }
 
+/** The mandate line: mockCheck's verdict worded as the checklist's four facts. Only a rescue deal
+ *  (Rust rescue::check_offer, fixes rules) is judged here on its own. */
 function mandateFact(i: MockCheckInput, payee: string | null): MandateFact {
+  const m = i.mandate;
+  const d = i.deal;
+  if (d.kind === 'rescue') return rescueMandateFact(i, payee);
+  const v = i.verdict;
+  if (!m || !v || m.payload.version !== d.mandate_version || i.now < m.payload.not_before || i.now >= m.payload.expires) return { k: 'retired' };
+  if (v.type === 'refuse') return { k: 'refused', clause: v.clause, reason: v.reason };
+  // The wallet limits sit above every mandate and only ever refuse (Rust: clause 0).
+  if (i.limitRefusal) return { k: 'refused', clause: 0, reason: i.limitRefusal };
+  const clauses = m.payload.clauses;
+  const ask = clauses.find((c) => c.type === 'human_present_over');
+  if (v.type === 'ask' && ask?.type === 'human_present_over') return { k: 'ask', threshold: ask.amount };
+  // No payee to judge by (not_simulated): a payees rule cannot be met, anything else is not refused.
+  if (v.type === 'not_simulated' && clauses.some((c) => c.type === 'payees') && !payee) return { k: 'refused', clause: 7, reason: 'payee not allowed' };
+  const per = clauses.find((c) => c.type === 'per_deal' && c.kind === d.kind);
+  return { k: 'allow', perDeal: per?.type === 'per_deal' ? per.max_amount : null };
+}
+
+/** A rescue deal's rules, clause by clause (its fix is checked in rescue::check_offer). */
+function rescueMandateFact(i: MockCheckInput, payee: string | null): MandateFact {
   const m = i.mandate;
   const d = i.deal;
   if (!m || m.payload.version !== d.mandate_version || i.now < m.payload.not_before || i.now >= m.payload.expires) return { k: 'retired' };
