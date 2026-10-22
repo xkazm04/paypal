@@ -2657,6 +2657,54 @@ fn the_ledger_stores_the_carried_binding_and_never_re_projects_the_redacted_resp
     assert_eq!(stored, vec![carried]);
     assert!(stored[0].to_string().contains("payee_merchant_id"));
 }
+#[test]
+fn a_money_step_stores_call_metadata_by_the_same_rule_as_a_recorded_call() {
+    let (mut ledger, deal, ..) = setup();
+    let authority = DecidedBy::Human { at: 100 };
+    ledger
+        .reserve_operation(deal.id, 1, "authorize", "req-meta", &authority, 100)
+        .unwrap();
+    let odd = format!("a b/{}", "z".repeat(200));
+    let call = PaypalCall {
+        deal_id: deal.id,
+        method: HttpMethod::Post,
+        path: PaypalPath::new("/v2/checkout/orders".into()).unwrap(),
+        request_id: odd,
+        status: 201,
+        debug_id: None,
+        response: json!({"id":"ORDER1"}),
+        binding: None,
+        at: 102,
+    };
+    ledger
+        .finish_operation(OperationOutcome {
+            id: deal.id,
+            attempt: 1,
+            operation: "authorize",
+            calls: &[call],
+            refs: &PaypalRefs::default(),
+            event: None,
+            at: 102,
+        })
+        .unwrap();
+    let stored: String = ledger
+        .conn
+        .query_row(
+            "SELECT request_id FROM paypal_calls WHERE deal_id=?1",
+            [deal.id.to_string()],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(stored.len() <= 128, "{}", stored.len());
+    assert!(
+        stored
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b)),
+        "{stored}"
+    );
+    assert!(stored.starts_with("a_b_"));
+    ledger.verify_audit().unwrap();
+}
 /// Deal-to-settlement robustness-2: no caller expires a deal past an authorize whose outcome is
 /// not settled, live, unknown or parked; once PayPal's answer closes it, the default applies.
 #[test]
