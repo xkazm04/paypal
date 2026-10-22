@@ -5350,6 +5350,47 @@
           "evidence": "apps/desktop/client/src/shared/brand/Seal.tsx:51 Seal is a labelled graphic, with no cryptographic sealing provider or storage-backed component catalog."
         }
       ]
+    },
+    "7fde48d9-00af-4ebc-868e-cb93d7cdedfd/pipeline-authoring": {
+      "context": "owner-mandate-config",
+      "subject": "pipeline-authoring",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T01:22:20.341Z",
+      "worker": "4aac2663-7948-44c8-bfc3-f49c91cfa319",
+      "techniques": [
+        {
+          "technique": "change-scoped-work-selection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/WhatIf.tsx:84 Filters simulated deals for display; it does not select delivery checks from changed repository files."
+        },
+        {
+          "technique": "foreign-config-replay",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/MandateEditor.tsx:84 Creates an editable wallet mandate from a template; no delivery generator interprets another tool's configuration."
+        },
+        {
+          "technique": "human-checkpoints-in-a-pipeline",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/WalletLimits.tsx:172 The human decision signs wallet spending limits; it is not a deployment or migration checkpoint in a delivery plan."
+        },
+        {
+          "technique": "pipeline-plan-auditability",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/data.ts:24 Requests a wallet policy simulation, not a generated delivery plan requiring run artifacts and selection inputs."
+        },
+        {
+          "technique": "runtime-pipeline-generation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/mandateDraft.ts:280 Produces mandate clauses and validity dates, not work submitted to a delivery scheduler."
+        },
+        {
+          "technique": "step-identity-stability",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/WhatIf.tsx:56 Identifies rendered deal rows; this context defines no delivery steps or dependency edges."
+        }
+      ]
     }
   }
 }

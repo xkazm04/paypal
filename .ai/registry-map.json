@@ -5530,7 +5530,11 @@
           "revision": 5,
           "changedAt": "2026-09-25",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/owner/SignSheet.tsx:53 Searches for pipeline, workflow and buildkite found no matches in the approval directory; the inspected code edits and signs wallet mandates rather than authoring delivery plans.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:809d2a648d853f13",
+          "evaluatedRevision": 5
         },
         {
           "subject": "prompt-assembly",
