@@ -182,5 +182,5 @@
    and motion are Calibre like every other window. */
 :root:has(> body.w-tumbler) {
   --fs-display: 26px; --fs-title1: 20px; --fs-title2: 17px; --fs-title3: 15px; --fs-body: 13px; --lh: 1.4;
-  --row: 28px; --row-2: 44px; --ctl: 26px; --ctl-sm: 22px; --bar: 38px;
+  --row: 28px; --row-2: 44px; --ctl: 26px; --bar: 38px; /* --ctl-sm stays the 24px target floor */
 }
