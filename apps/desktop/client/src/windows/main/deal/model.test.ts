@@ -118,7 +118,8 @@ describe('readClauses', () => {
     expect(by(3)?.reading).toBe('within'); // the haggle mandate's per-deal limit is $340
     expect(by(4)?.reading).toBe('within');
     expect(by(4)?.fact).toContain('$329.00 ≤ most you’ll pay $340.00 · round 5 of 6');
-    expect(by(6)?.reading).toBe('asks');
+    expect(by(6)?.reading).toBe('unknown'); // over the threshold, but no attention item names it: not asking
+    expect(readClauses(clauses, d0193, { asks: 6 }).find((c) => c.n === 6)?.reading).toBe('asks');
     expect(by(5)?.reading).toBe('unknown');
     expect(by(7)?.reading).toBe('unknown');
     expect(by(2)?.reading).toBe('unknown');

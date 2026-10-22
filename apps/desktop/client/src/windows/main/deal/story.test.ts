@@ -105,7 +105,8 @@ describe('the decision card words', () => {
 
 describe('your rules as checks', () => {
   const d = deal('D-0193');
-  const checks = ruleChecks(readClauses(clausesOf(d), d, { rounds: { used: 5, max: 6 } }));
+  const checks = ruleChecks(readClauses(clausesOf(d), d, { rounds: { used: 5, max: 6 }, asks: 6 }));
+  const quiet = ruleChecks(readClauses(clausesOf(d), d, { rounds: { used: 5, max: 6 } }));
   it('maps readings to pass / ask / fail / unknown and drops rules that do not apply', () => {
     expect(checks.find((c) => c.n === 4)?.state).toBe('pass');
     expect(checks.find((c) => c.n === 6)?.state).toBe('ask');
@@ -116,9 +117,14 @@ describe('your rules as checks', () => {
     expect(bigChecks.find((c) => c.n === 3)?.state).toBe('fail');
     expect(bigChecks.find((c) => c.n === 6)).toBeUndefined(); // closed, nothing is asked
   });
+  it('a live deal over the threshold that no attention item names does not badge "asks you" (D-0204)', () => {
+    const h = deal('D-0204');
+    expect(rulesBadge(ruleChecks(readClauses(clausesOf(h), h)))).toBeNull();
+  });
   it('badges the tab only for an exception, a failure first', () => {
     expect(rulesBadge(checks)).toEqual({ tone: 'gold', text: '1 asks you' });
     expect(rulesBadge(checks.filter((c) => c.state === 'pass'))).toBeNull();
+    expect(rulesBadge(quiet)).toBeNull(); // nothing names clause 6: no "asks you" from arithmetic alone
     expect(rulesBadge([{ key: 'a', n: 3, name: 'x', state: 'fail', value: '', title: '' }, ...checks])).toEqual({ tone: 'red', text: '1 outside' });
   });
 });
