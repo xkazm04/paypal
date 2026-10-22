@@ -204,7 +204,8 @@ export function readClauses(clauses: readonly Clause[], d: Pick<Deal, 'kind' | '
         const o = cmp(total, c.amount);
         if (o === null) return { reading: 'unknown', fact: 'the threshold is in another currency' };
         if (o <= 0) return { reading: 'within', fact: `${fm(total)} ≤ ${fm(c.amount)} · your rules may approve it` };
-        return { reading: live ? 'asks' : 'na', fact: `${fm(total)} > ${fm(c.amount)} · your approval${live ? ' is needed' : ' was needed'}` };
+        // Only the clause Rust names ("asks", via ctx.asks) says the deal is asking now; arithmetic alone is a forward fact.
+        return { reading: live ? 'unknown' : 'na', fact: `${fm(total)} > ${fm(c.amount)} · ${live ? 'above this, the decision is yours' : 'your approval was needed'}` };
       }
       case 'payees':
         return { reading: 'unknown', fact: 'the payee is checked by your wallet before any payment, not on this screen' };
