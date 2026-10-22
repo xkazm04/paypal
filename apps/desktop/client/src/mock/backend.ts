@@ -37,7 +37,7 @@ import type { SimulatedLine } from '@bindings/SimulatedLine';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import { mockCheck, mockValidate, type MockIntent } from './simulate';
 import { mockEnvelopeRefusal, mockExposureView, type MockEnvelope } from './exposure';
-import { AGREED_OR_LATER } from '@bindings/dealStates';
+import { AGREED_OR_LATER, TERMINAL } from '@bindings/dealStates';
 import type { EnvelopeSignArgs } from '@bindings/EnvelopeSignArgs';
 import type { RescueView } from '@bindings/RescueView';
 import type { Money } from '@bindings/Money';
@@ -477,9 +477,17 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     });
     return { checks, checks_hash: mockChecksHash(checks) };
   }
+  /** Rust's decide(), before any checklist: every owner decision (void included) is refused on
+   *  other terms or another attempt, on a MISMATCH and under a BLOCK. */
+  function decidable(args: DecisionArgs): void {
+    const d = find(args.deal_id);
+    if (JSON.stringify(args.terms_hash) !== JSON.stringify(fakeHash(`${args.deal_id}:terms`)) || args.attempt !== 1
+      || d.deal.state === 'MISMATCH' || d.deal.shield === 'BLOCK') fail('INVALID', 'Invalid or stale wallet command');
+  }
   /** Rust's decide(): a money decision must carry the hash of the checklist as it reads now, and
    *  no line may fail (a release may fail only the shield line). Void never comes here. */
   function boundToChecks(args: DecisionArgs, exempt?: ApprovalCheckId): void {
+    decidable(args);
     const now = checksFor(find(args.deal_id));
     if (!args.checks_hash || JSON.stringify(args.checks_hash) !== JSON.stringify(now.checks_hash)) fail('INVALID', SUMMARY_CHANGED);
     if (now.checks.some((c) => c.status === 'fail' && c.id !== exempt)) fail('INVALID', CHECK_FAILED);
@@ -822,6 +830,12 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       const shieldStops = d.deal.shield === 'HOLD' || d.deal.shield === 'BLOCK';
       const buyerHaggle = d.deal.side === 'buyer' && (d.deal.kind === 'haggle' || d.deal.kind === 'shop_order');
       const rescue = d.deal.kind === 'rescue';
+      // As service.rs summary(): a rescue fix is the owner's whatever its mode; otherwise the wallet
+      // releases only its own sale or a purchase, never an invoice or a replay.
+      const supported = rescue ? rescueReleasable(d)
+        : (d.deal.side === 'seller' || d.deal.kind === 'purchase') && d.deal.kind !== 'invoice' && d.deal.mode !== 'replay';
+      const configured = state.settings.payment_executor_configured;
+      const m = activeMandate(d.deal.mandate_id);
       return {
         ...checksFor(d),
         deal: d.deal,
@@ -834,13 +848,15 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
           && d.transcript.some((s) => s.by === 'them' && s.typ === 'COUNTER')
           && !d.transcript.some((s) => s.by === 'you' && s.typ === 'ACCEPT') && ownerMandateAllows(d) && !groupBlocked(deal_id),
         locked,
-        can_release: !locked && state.settings.payment_executor_configured && !buyerHaggle && d.deal.shield !== 'BLOCK' && d.deal.state !== 'MISMATCH' && (!rescue || rescueReleasable(d)),
-        can_open_paypal: !locked && d.deal.state === 'AWAITING_APPROVAL' && !shieldStops,
-        unavailable_reason: rescue
-          ? null
-          : buyerHaggle
-            ? 'buyer haggle resources belong to the seller · you approve on PayPal and accept the signed receipt'
-            : null,
+        can_release: configured && !locked && supported && !TERMINAL.has(d.deal.state) && d.deal.state !== 'MISMATCH' && d.deal.shield !== 'BLOCK',
+        // As Rust: a sandbox order awaiting approval before its deadline, under its rules still in
+        // force, whose approval link the pipeline would hand out (not a replay, not held).
+        can_open_paypal: !locked && d.deal.mode === 'sandbox' && d.deal.state === 'AWAITING_APPROVAL' && (d.display.deadline ?? 0) > nowUnix()
+          && !!m && m.payload.version === d.deal.mandate_version && m.payload.expires > nowUnix() && !shieldStops,
+        unavailable_reason: buyerHaggle && d.deal.mode === 'sandbox' ? 'Seller-owned order: approve on PayPal; the seller authorizes and captures'
+          : rescue && !supported ? null
+            : !supported ? 'This executor is deferred or replay-only'
+              : !configured ? 'Enter PayPal sandbox credentials' : null,
         rescue: state.rescue?.[deal_id] ?? null,
       };
     },
@@ -935,8 +951,10 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       emit('receipt:created', { deal_id, evidence: d.evidence, mode: deal.mode, state: 'CAPTURED', on_silence: 'captured · pending in PayPal reporting' });
       return deal;
     },
-    deal_void: ({ deal_id }, opts) => {
+    deal_void: (args, opts) => {
+      const { deal_id } = args;
       privileged(opts, deal_id);
+      decidable(args);
       notWhileChecking(deal_id);
       if (find(deal_id).deal.state !== 'AUTHORIZED') fail('INVALID', 'only an authorization can be voided');
       return transition(deal_id, 'VOIDED', { decided_by: { type: 'human', at: nowUnix() } });
@@ -946,8 +964,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       privileged(opts, deal_id);
       boundToChecks(args, 'shield');
       const d = find(deal_id);
-      if (d.deal.shield === 'BLOCK') fail('PERMISSION', 'a BLOCK cannot be released');
-      // As Pipeline::owner_release_hold: only a HOLD with a named rule, released for these terms
+      // A BLOCK never gets here (decidable refuses it). As Pipeline::owner_release_hold: only a HOLD with a named rule, released for these terms
       // and that rule, recorded as the owner's decision. The HOLD reads ASK while it applies.
       const terms = handlers.approval_summary({ deal_id }).terms_hash;
       if (JSON.stringify(args.terms_hash) !== JSON.stringify(terms)) fail('INVALID', 'stale decision');

@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AUTHORITY, AUTHORITY_MANIFEST, EVENT_AUDIENCE, type CommandAuthority } from '@bindings/authority';
+import { AGREED_OR_LATER, PRE_CAPTURE, TERMINAL, THROUGH_AGREED } from '@bindings/dealStates';
 import type { CommandName, EventName, WindowLabel } from '../lib/contract';
 import { WalletError } from '../lib/contract';
 import { GateError, mockBackend, resetMockState } from './backend';
@@ -102,6 +103,61 @@ describe('authority table (browser mock)', () => {
     history.replaceState(null, '', '/tumbler.html');
     const s = await mockBackend('tumbler').invoke('get_settings', null);
     expect(s.authority_manifest).toBe(AUTHORITY_MANIFEST);
+  });
+
+  it('refuses every owner decision as Rust decide() does: stale terms or attempt, a MISMATCH, a BLOCK (void included)', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout'] });
+    try {
+      const id = buildMockState(Math.floor(Date.now() / 1000)).deals.find((d) => d.display.label === 'D-0190')!.deal.id;
+      history.replaceState(null, '', `/approval.html?deal=${id}`);
+      const a = mockBackend('approval');
+      const call = async <T,>(p: Promise<T>): Promise<T | WalletError> => {
+        const r = p.then((v) => v, (e: unknown) => e as WalletError);
+        await vi.advanceTimersByTimeAsync(50);
+        return r;
+      };
+      const token = await call(a.invoke('approval_token', null)) as string;
+      const s = await call(a.invoke('approval_summary', { deal_id: id }));
+      if (s instanceof WalletError) throw s;
+      const args = { deal_id: id, attempt: s.attempt, terms_hash: s.terms_hash, checks_hash: s.checks_hash };
+      // A void on another terms hash or attempt is stale, as in Rust.
+      expect(await call(a.invoke('deal_void', { ...args, terms_hash: s.checks_hash }, { token }))).toMatchObject({ code: 'INVALID' });
+      expect(await call(a.invoke('deal_void', { ...args, attempt: 2 }, { token }))).toMatchObject({ code: 'INVALID' });
+      // Under a BLOCK no decision is taken, not even the void.
+      a.world.deal('D-0190')!.deal.shield = 'BLOCK';
+      for (const cmd of ['deal_void', 'deal_capture', 'deal_countersign', 'shield_release', 'rescue_approve', 'open_paypal_in_browser'] as const) {
+        expect(await call(a.invoke(cmd, args, { token })), cmd).toMatchObject({ code: 'INVALID' });
+      }
+      expect(a.world.deal('D-0190')!.deal.state).toBe('AUTHORIZED');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('answers can_release as Rust summary() does on every state, kind, side and mode', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout'] });
+    try {
+      const id = buildMockState(Math.floor(Date.now() / 1000)).deals.find((d) => d.display.label === 'D-0190')!.deal.id;
+      history.replaceState(null, '', `/approval.html?deal=${id}`);
+      const a = mockBackend('approval');
+      const states = [...new Set([...TERMINAL, ...PRE_CAPTURE, ...AGREED_OR_LATER, ...THROUGH_AGREED])];
+      expect(states).toHaveLength(21);
+      const base = a.world.deal('D-0190')!.deal;
+      const wrong: string[] = [];
+      for (const state of states) for (const kind of ['purchase', 'haggle', 'shop_order', 'invoice'] as const) for (const side of ['buyer', 'seller'] as const) for (const mode of ['sandbox', 'replay'] as const) {
+        a.world.deal('D-0190')!.deal = { ...base, state, kind, side, mode, shield: 'CLEAR' };
+        const p = a.invoke('approval_summary', { deal_id: id });
+        await vi.advanceTimersByTimeAsync(50);
+        const s = await p;
+        // service.rs summary(): configured && !locked && supported && !terminal && !MISMATCH && !BLOCK.
+        const supported = (side === 'seller' || kind === 'purchase') && kind !== 'invoice' && mode !== 'replay';
+        const want = supported && !TERMINAL.has(state) && state !== 'MISMATCH';
+        if (s.can_release !== want) wrong.push(`${state}/${kind}/${side}/${mode}: ${s.can_release}`);
+      }
+      expect(wrong).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('tells each window what the Rust table says, from the generated audiences', () => {
