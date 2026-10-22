@@ -185,6 +185,18 @@ describe('authority table (browser mock)', () => {
     expect(main.world.deal('D-0193')!.deal.state).toBe('WITHDRAWN');
   });
 
+  it('sends settings:changed only when the snapshot changed, as the actor tick does', async () => {
+    const main = mockBackend('main');
+    const seen: unknown[] = [];
+    await main.listen('settings:changed', (s) => seen.push(s));
+    await main.invoke('pause_all_agents', null);
+    await main.invoke('pause_all_agents', null);
+    expect(seen).toHaveLength(1);
+    await main.invoke('resume_all_agents', null);
+    await main.invoke('resume_all_agents', null);
+    expect(seen).toHaveLength(2);
+  });
+
   it('tells each window what the Rust table says, from the generated audiences', () => {
     // Who hears each event is a row in the Rust authority table; the mock delivers by it.
     const audience: Record<EventName, WindowLabel[]> = EVENT_AUDIENCE;
