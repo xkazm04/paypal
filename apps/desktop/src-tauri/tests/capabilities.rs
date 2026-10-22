@@ -106,6 +106,12 @@ fn every_window_is_built_with_the_navigation_guard() {
             builder.contains(".on_navigation(") && builder.contains("navigation::permits)"),
             "a window is built without the navigation guard: {builder}"
         );
+        // window.open / target=_blank raise a separate new-window request, which WebView2 honours
+        // by default with a popup that has no navigation guard: every window refuses it.
+        assert!(
+            builder.contains(".on_new_window(") && builder.contains("NewWindowResponse::Deny"),
+            "a window is built without refusing new-window requests: {builder}"
+        );
     }
 }
 /// The webview's security settings, written out by hand: a loosened CSP, an extra capability or a

@@ -68,6 +68,7 @@ pub(super) async fn approval_open(
         WebviewUrl::App(PathBuf::from("approval.html")),
     )
     .on_navigation(super::navigation::permits)
+    .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)
     .title("Owner review · The Table")
     // The Diff (client v2): 620 px prototype + 20 % = 744 px wide; tall enough for the twin
     // header, six diff rows and the footer without scrolling the body.
