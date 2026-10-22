@@ -245,9 +245,12 @@
     const cur = W.lookOf(view.head);
     const seen = loadHeads();
     const same = seen.filter((s) => s.epoch === cur.epoch);
+    // The witness rule, not a copy of it: a head with fewer entries than a look kept in this
+    // record is a removal whenever it is signed, and two hashes at one length are a rewrite.
     for (const s of same) {
-      if (cur.rows < s.rows && cur.at > s.at) return bad(t, `It had ${s.rows} entries at ${when(s.at)}, now ${cur.rows}.`);
-      if (cur.rows === s.rows && cur.hash !== s.hash) return bad(t, `Rewritten: two different records were signed at ${cur.rows} entries.`);
+      const rule = W.compareHeads(s, cur, null);
+      if (rule === 'shorter') return bad(t, `It had ${s.rows} entries at ${when(s.at)}, now ${cur.rows}.`);
+      if (rule === 'rewritten') return bad(t, `Rewritten: two different records were signed at ${cur.rows} entries.`);
     }
     // The newest shorter look: the house signs its hash at that length in today's record.
     const rows = W.prefixToAsk(same, cur);
