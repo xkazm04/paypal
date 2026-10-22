@@ -143,7 +143,7 @@ impl Ledger {
         if version < 16 && !has_pin_columns {
             tx.execute_batch(include_str!("../migrations/0016_pin_expiry.sql"))?;
         }
-        tx.execute_batch("PRAGMA user_version=16;")?;
+        tx.execute_batch(&format!("PRAGMA user_version={SCHEMA_VERSION};"))?;
         tx.commit()?;
         if migrating {
             snapshot::prune(&conn);
