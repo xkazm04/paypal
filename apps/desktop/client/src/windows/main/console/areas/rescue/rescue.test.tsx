@@ -54,6 +54,20 @@ describe('Rescue lists (#12)', () => {
     expect(r.layer.querySelectorAll('.le-item').length).toBeLessThan(60);
   }, 60_000);
 
+  it('End on a renewal’s fixes lands on the last open fix, not a switched-off one', async () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1600 });
+    const r = await renderLayerAtScale('#m=rescue&v=failed', 'large');
+    await act(async () => { fireEvent.click(r.layer.querySelector('.le-row') as HTMLElement); });
+    const panel = await waitFor(() => { const p = r.layer.querySelector<HTMLElement>('.rs-panel'); if (!p) throw new Error('no panel'); return p; });
+    const radios = [...panel.querySelectorAll<HTMLButtonElement>('[role="radio"]')];
+    const lastOpen = radios.filter((b) => !b.disabled).at(-1)!;
+    expect(lastOpen.dataset.col, 'the large world offers a discount, so it is not Do nothing').not.toBe('NONE');
+    const none = radios.find((b) => b.dataset.col === 'NONE')!;
+    none.focus();
+    await act(async () => { fireEvent.keyDown(none, { key: 'End' }); });
+    expect(document.activeElement).toBe(lastOpen);
+    expect(lastOpen.getAttribute('aria-checked')).toBe('true');
+  }, 60_000);
   it('the fix picked beside the list travels to the approval window as a draft', async () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1600 });
     const r = await renderLayerAtScale('#m=rescue&v=failed', 'large');

@@ -152,6 +152,7 @@ function Picks({ deal, view, deadline, col, onPick }: { deal: Deal; view: Rescue
     e.preventDefault();
     e.stopPropagation(); // digits pick a fix here, not a module (the console's 1-6)
     if (step === 'ArrowRight' || step === 'ArrowLeft') while (to && off(to)) to = moveCell([deal.id], { id: deal.id, col: to }, step)?.col ?? null;
+    else if (step === 'End') while (to && off(to)) to = moveCell([deal.id], { id: deal.id, col: to }, 'ArrowLeft')?.col ?? null; // the last OPEN fix
     if (to && !off(to)) go(to);
   };
   const amount = view?.offer.cycle ?? dealTotal(deal);
