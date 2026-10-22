@@ -4,6 +4,7 @@
 // the part again and reads again the reads that failed.
 import { QueryClientContext, type QueryClient } from '@tanstack/react-query';
 import { Component, useContext, useEffect, type ErrorInfo, type ReactNode } from 'react';
+import { renewFailedParts } from '../../lib/lazy';
 import { BOUNDARY_RETRY, BOUNDARY_TEXT, BOUNDARY_TITLE, BOUNDARY_WINDOW_TITLE } from '../../lib/words';
 import './boundary.css';
 
@@ -33,7 +34,10 @@ class Boundary extends Component<InnerProps, State> {
   }
 
   static getDerivedStateFromProps(props: InnerProps, state: State): Partial<State> | null {
-    if (state.failed && changed(props.resetKeys, state.keys)) return { failed: false, keys: props.resetKeys };
+    if (state.failed && changed(props.resetKeys, state.keys)) {
+      renewFailedParts(); // the fallback is dropped: a lazy part that failed to load loads again
+      return { failed: false, keys: props.resetKeys };
+    }
     if (changed(props.resetKeys, state.keys)) return { keys: props.resetKeys };
     return null;
   }
@@ -46,6 +50,7 @@ class Boundary extends Component<InnerProps, State> {
   retry = (): void => {
     // Read again only what failed; the rest of the cache stands.
     void this.props.client?.refetchQueries({ predicate: (q) => q.state.status === 'error' });
+    renewFailedParts(); // a lazy part whose chunk failed loads again (React keeps the old rejection)
     this.props.onReset?.();
     this.setState({ failed: false });
   };
