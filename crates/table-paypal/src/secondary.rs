@@ -375,7 +375,7 @@ impl SecondaryApi for Client {
         if w.from < earliest || w.to > self.clock_now() {
             return Err(Error::Invalid);
         }
-        let mut url = url::Url::parse("https://api-m.sandbox.paypal.com/v1/reporting/transactions")
+        let mut url = url::Url::parse(&format!("{ORIGIN}/v1/reporting/transactions"))
             .map_err(|_| Error::Invalid)?;
         url.query_pairs_mut()
             .append_pair("start_date", &iso(w.from)?)

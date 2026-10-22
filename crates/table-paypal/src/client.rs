@@ -8,6 +8,9 @@ use table_core::{Clock, Money};
 use tokio::sync::Mutex;
 /// Attempts one PayPal call makes at most; between them the backoff waits.
 pub const ATTEMPTS: u8 = 3;
+/// The one PayPal REST origin every request goes to: the token, the API calls and reporting.
+/// A live mode changes this line and nothing else.
+pub(crate) const ORIGIN: &str = "https://api-m.sandbox.paypal.com";
 #[async_trait]
 pub trait Credentials: Send + Sync {
     async fn load(&self) -> Result<(Secret, Secret), Error>;
@@ -101,7 +104,7 @@ impl Client {
             .transport
             .send(Request {
                 method: "POST",
-                url: "https://api-m.sandbox.paypal.com/v1/oauth2/token".into(),
+                url: format!("{ORIGIN}/v1/oauth2/token"),
                 headers: vec![(
                     "Authorization".into(),
                     Secret::new(format!("Basic {}", basic.as_str())),
@@ -185,7 +188,7 @@ impl Client {
                 .transport
                 .send(Request {
                     method,
-                    url: format!("https://api-m.sandbox.paypal.com{path}"),
+                    url: format!("{ORIGIN}{path}"),
                     headers,
                     body: body.clone(),
                     form: None,
