@@ -564,7 +564,46 @@ async fn a_failed_token_refresh_mid_call_keeps_the_observations_already_made() {
         .get_order(&ResourceId::new("ORDER1").unwrap())
         .await
         .unwrap_err();
-    assert!(matches!(error, Error::Credentials), "{error:?}");
+    assert!(
+        matches!(
+            error,
+            Error::Credentials {
+                kind: CredentialsKind::Unreachable
+            }
+        ),
+        "{error:?}"
+    );
+}
+#[tokio::test]
+async fn a_credentials_failure_names_its_cause_and_never_a_secret() {
+    let get = |responses| async move {
+        let (client, _, _) = setup(responses);
+        client
+            .get_order(&ResourceId::new("ORDER1").unwrap())
+            .await
+            .unwrap_err()
+    };
+    let cases = [
+        (vec![Err(TransportError)], CredentialsKind::Unreachable),
+        (vec![response(401, json!({}))], CredentialsKind::Rejected),
+        (vec![response(200, json!({}))], CredentialsKind::Malformed),
+        (
+            vec![response(200, json!({"access_token":"t","expires_in":5}))],
+            CredentialsKind::Malformed,
+        ),
+    ];
+    for (responses, want) in cases {
+        let error = get(responses).await;
+        assert!(
+            matches!(error, Error::Credentials { kind } if kind == want),
+            "{want:?}: {error:?}"
+        );
+        // The whole text is the kind's name: nothing else (no id, no secret) can ride along.
+        assert_eq!(
+            error.to_string(),
+            format!("credentials unavailable: {want}")
+        );
+    }
 }
 /// The retry classification, pinned answer by answer: a 429 is retried with backoff, a 401
 /// refreshes the token exactly once, and a second 401 is final (no third token request).
@@ -712,8 +751,16 @@ struct EnvCreds;
 impl Credentials for EnvCreds {
     async fn load(&self) -> Result<(Secret, Secret), Error> {
         Ok((
-            Secret::new(std::env::var("PAYPAL_SANDBOX_CLIENT_ID").map_err(|_| Error::Credentials)?),
-            Secret::new(std::env::var("PAYPAL_SANDBOX_SECRET").map_err(|_| Error::Credentials)?),
+            Secret::new(std::env::var("PAYPAL_SANDBOX_CLIENT_ID").map_err(|_| {
+                Error::Credentials {
+                    kind: CredentialsKind::Missing,
+                }
+            })?),
+            Secret::new(std::env::var("PAYPAL_SANDBOX_SECRET").map_err(|_| {
+                Error::Credentials {
+                    kind: CredentialsKind::Missing,
+                }
+            })?),
         ))
     }
 }

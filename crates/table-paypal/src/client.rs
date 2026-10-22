@@ -113,17 +113,28 @@ impl Client {
                 form: Some("grant_type=client_credentials"),
             })
             .await
-            .map_err(|_| Error::Credentials)?;
+            .map_err(|_| Error::Credentials {
+                kind: CredentialsKind::Unreachable,
+            })?;
         if response.status != 200 {
-            return Err(Error::Credentials);
+            return Err(Error::Credentials {
+                kind: if response.status == 429 || response.status >= 500 {
+                    CredentialsKind::Unreachable
+                } else {
+                    CredentialsKind::Rejected
+                },
+            });
         }
+        let malformed = || Error::Credentials {
+            kind: CredentialsKind::Malformed,
+        };
         let value = Secret::new(
             response
                 .body
                 .get("access_token")
                 .and_then(Value::as_str)
                 .filter(|v| !v.is_empty())
-                .ok_or(Error::Credentials)?
+                .ok_or_else(malformed)?
                 .to_owned(),
         );
         let seconds = response
@@ -131,7 +142,7 @@ impl Client {
             .get("expires_in")
             .and_then(Value::as_i64)
             .filter(|v| *v > 30 && *v <= 86400)
-            .ok_or(Error::Credentials)?;
+            .ok_or_else(malformed)?;
         *cache = Some(Token {
             value: Secret::new(value.expose().to_owned()),
             expires: self.clock.now().saturating_add(seconds - 30),

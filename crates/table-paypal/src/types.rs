@@ -248,8 +248,24 @@ pub enum Error {
     },
     #[error("PayPal transport outcome unknown; reconcile before a new attempt")]
     Unknown { observations: Vec<Observation> },
-    #[error("credentials unavailable")]
-    Credentials,
+    #[error("credentials unavailable: {kind}")]
+    Credentials { kind: CredentialsKind },
+}
+/// Why credentials were unavailable. Names the cause only; never carries an id or a secret.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+pub enum CredentialsKind {
+    /// Nothing stored, or the store could not be read.
+    #[error("missing")]
+    Missing,
+    /// PayPal answered the token request and refused the app.
+    #[error("rejected")]
+    Rejected,
+    /// The token request did not complete (offline, timeout, 5xx or 429).
+    #[error("unreachable")]
+    Unreachable,
+    /// The stored pair or the token answer was not in the expected shape.
+    #[error("malformed")]
+    Malformed,
 }
 impl Error {
     pub fn observations(&self) -> &[Observation] {
