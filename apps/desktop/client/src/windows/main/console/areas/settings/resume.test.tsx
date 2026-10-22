@@ -39,8 +39,9 @@ describe('restartPlan', () => {
   it('plans with the run limit the wallet refuses past (engines.rs start_agent)', () => {
     const src = readFileSync(resolve(process.cwd(), '../../../crates/table-runtime/src/engines.rs'), 'utf8').replace(/\/\/[^\n]*/g, '');
     const body = src.slice(src.indexOf('fn start_agent('), src.indexOf('RUN_LIMIT', src.indexOf('fn start_agent(')));
-    const cap = /self\.runs\.len\(\)\s*>=\s*(\d+)/.exec(body);
-    expect(cap, 'start_agent no longer refuses past a literal run count').not.toBeNull();
+    expect(body, 'start_agent no longer refuses past MAX_RUNS').toMatch(/self\.runs\.len\(\)\s*>=\s*MAX_RUNS\b/);
+    const cap = /const\s+MAX_RUNS\s*:\s*usize\s*=\s*(\d+)\s*;/.exec(src);
+    expect(cap, 'engines.rs no longer defines MAX_RUNS as a literal').not.toBeNull();
     expect(RUN_CAP).toBe(Number(cap![1]));
     // The Restart button's words say the same limit ("Four work at once").
     const word = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'][RUN_CAP]!;
