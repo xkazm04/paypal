@@ -1,7 +1,7 @@
 // The small Dial kept as presence beside the seal (the owner's choice): one segment per module, one
 // bead per deal in its state's colour (beadLook.ts liveLook: a payment being checked with PayPal is
-// dashed, never on hold), the deals that need the owner first. Book (every payment) has no
-// segment of its own: its deals are already in the five others. It reads the brand strip's look
+// dashed, never on hold), the deals that need the owner first. Book (every payment) has a
+// segment only when it owns a deal itself (an invoice); the rest are already in the five others. It reads the brand strip's look
 // (shared/brand DialStrip, `.br-strip`) but its beads are buttons: a click or Enter opens that
 // deal. Each bead is a 24 px target around a small visual bead (WCAG 2.5.8), named by the deal's
 // plain title; the strip is one tab stop (roving tabindex) and the arrow keys move along it, so it
@@ -38,12 +38,18 @@ export function beadsByModule(deals: readonly Deal[], o: { needOf: World['needOf
   return out;
 }
 
+/** The modules the strip draws a segment for: the five working modules always, and Book only when
+ *  it owns a deal (an invoice, as Rust's table-attention maps it), so no counted deal goes undrawn. */
+export function drawnModules(byModule: ReadonlyMap<Module, readonly Bead[]>): typeof MODULES {
+  return MODULES.filter((m) => m.key !== 'book' || (byModule.get('book')?.length ?? 0) > 0);
+}
+
 export function BeadStrip({ onDeal }: { onDeal: (id: string) => void }) {
   const w = useWorldSelector(sel, same);
   const byModule = useMemo(() => beadsByModule(w.deals ?? [], w), [w]);
   const all = w.deals?.length ?? 0;
   const needs = [...byModule.values()].reduce((n, l) => n + l.filter((b) => b.needs).length, 0);
-  const segs = MODULES.filter((m) => m.key !== 'book').map((m) => {
+  const segs = drawnModules(byModule).map((m) => {
     const list = byModule.get(m.key) ?? [];
     const { shown, more } = stripBeads(list.map((b) => b.tone), BEADS_PER_MODULE);
     return { m, list, shown, more };
