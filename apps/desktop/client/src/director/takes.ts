@@ -11,9 +11,11 @@ import type { DealState } from '@bindings/DealState';
 import type { HistoryStep } from '@bindings/HistoryStep';
 import type { KeyId } from '@bindings/KeyId';
 import type { StartStepState } from '../lib/firstRun';
+import type { MockBackend } from '../mock/backend';
 import type { MockDeal } from '../mock/fixtures';
-import { APPROVAL_FIRST_RUN, CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, GROUP_CLOSED, GROUP_WINNER, IF_NOTHING, REWIND_ANSWER, REWIND_CARD, SAFE_DEFAULT_LINE, SAFETY_PROMISE, shoppingFor, stateWord, TABLES, TABLES_VIEWS, tablesItem, type StartStepKey, type TourStopId } from '../lib/words';
-import { laneSteps, tickTone } from '../windows/main/logic';
+import { APPROVAL_FIRST_RUN, CENTRE_TITLE, CHARTER_TITLE, FIRST_RUN_TITLE, GROUP_CLOSED, GROUP_WINNER, IF_NOTHING, REWIND_ANSWER, REWIND_CARD, SAFE_DEFAULT_LINE, SAFETY_PROMISE, shoppingFor, stateWord, TABLES, TABLES_VIEWS, tablesItem, tablesShortWho, type StartStepKey, type TourStopId } from '../lib/words';
+import { nowUnix } from '../lib/format';
+import { laneSteps, tickTone, weekBounds } from '../windows/main/logic';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, type Beat, type Chapter } from './beats';
 import { HAGGLE, HOLD, MISMATCH } from './helpers';
 
@@ -563,6 +565,21 @@ export const FILM_PRESS: Readonly<Record<string, string>> = {
   'closed-hold': 'tumbler|.f.ticker, .puck-art',
 };
 
+/**
+ * The press a beat names, measured: its target selector, whether the target was drawn, and the click
+ * at its centre when it was. null when the beat presses nothing. A target that no longer resolves is
+ * `found: false`, so the film capture can say the ripple was lost instead of shipping without it.
+ */
+export function pressFor(
+  beatId: string,
+  measure: (selector: string) => PxRect | null,
+): { target: string; found: boolean; click?: { x: number; y: number; atMs: number } } | null {
+  const target = FILM_PRESS[beatId];
+  if (!target) return null;
+  const r = measure(target);
+  return r ? { target, found: true, click: { ...centre(r), atMs: 0 } } : { target, found: false };
+}
+
 /** The haggle's figures for a film plate, from the mock world (never typed constants). */
 export type HaggleRecord = {
   /** Her signed price ceiling for the item (dollars). */
@@ -725,6 +742,43 @@ export function decisionsRecord(steps: readonly HistoryStep[], deals: readonly P
     const d = byId.get(s.deal_id);
     return { deal: d?.display.label ?? s.deal_id, step: s.kind, amount: d ? amountOf(d) : 0, decidedBy: DECIDED_BY[tickTone(s)], paid: isCapture(s), at: iso(s.at) };
   });
+}
+
+/**
+ * The shop, deadlines and decisions records, read from the mock world through `core.invoke`
+ * (reads only: nothing signs, unlocks or changes). A beat of another chapter, or a shop with no
+ * group, has no record: {}. A read that fails is `{ error }`, never {} (which means "no figures"),
+ * so the film capture can say the plate would have gone out empty.
+ */
+export async function readChapterRecord(
+  core: Pick<MockBackend, 'invoke'>,
+  haggleDealId: string | undefined,
+  chapter: string | undefined,
+): Promise<Record<string, unknown>> {
+  if (chapter !== 'shop' && chapter !== 'silence' && chapter !== 'closed' && chapter !== 'end') return {};
+  try {
+    const ids = await core.invoke('list_deals', null);
+    const deals = await Promise.all(ids.map(async (deal) => ({ deal, display: await core.invoke('deal_display', { deal_id: deal.id }) })));
+    if (chapter === 'shop') {
+      const [groups, cps] = await Promise.all([core.invoke('deal_groups', null), core.invoke('counterparty_list', null)]);
+      const g = groups.find((x) => x.tables.some((t) => t.deal_id === haggleDealId)) ?? groups[0];
+      if (!g) return {};
+      const byId = new Map(deals.map((d) => [d.deal.id, d.display] as const));
+      const cpBy = new Map(cps.map((c) => [c.key_id, c] as const));
+      return {
+        shop: shopRecord(g, {
+          deal: (id) => byId.get(id),
+          seller: (key) => { const c = cpBy.get(key); return c ? tablesShortWho({ house: c.house, name: c.display_name }) : key; },
+        }),
+      };
+    }
+    // Maya's week as the Rewind reads it: this week's verified steps, Monday to Monday
+    const week = weekBounds(nowUnix());
+    const { steps } = await core.invoke('deal_history', { deal_id: null, from: week.start, to: week.end });
+    return chapter === 'end' ? { decisions: decisionsRecord(steps, deals) } : { deadlines: deadlinesRecord(deals, steps, week, nowUnix()) };
+  } catch (e) {
+    return { error: `the ${chapter} record could not be read: ${e instanceof Error ? e.message : String(e)}` };
+  }
 }
 
 /**

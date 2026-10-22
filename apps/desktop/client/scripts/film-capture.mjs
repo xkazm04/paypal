@@ -245,10 +245,14 @@ async function main() {
       const targets = fb.capture.targets ?? [];
       const rects = await hook(page, (t) => window.__takes.film.rects(t), targets);
       const clicks = await hook(page, () => window.__takes.film.clicks());
-      const record = await hook(page, () => window.__takes.film.record());
+      const clickTarget = await hook(page, () => window.__takes.film.press());
+      const { error: recordError, ...record } = await hook(page, () => window.__takes.film.record());
       const seen = await hook(page, () => window.__takes.seen());
       const problems = [...fail, ...errors];
       for (const t of targets) if (!rects[t]) problems.push(`target ${t} is not drawn`);
+      // a lost press target is a lost ripple; a failed world read is a plate with no figures
+      if (clickTarget && !clickTarget.found) problems.push(`press target ${clickTarget.target} is not drawn`);
+      if (recordError) problems.push(String(recordError));
       // the record's figures must be the ones The Table draws (takes.ts recordShown)
       problems.push(...(await hook(page, (r) => window.__takes.film.shown(r), record)));
       const hold = C.holdMs(fb, script.breathMs, manifest?.clips[fb.id]?.ms);
