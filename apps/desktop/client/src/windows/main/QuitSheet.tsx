@@ -3,7 +3,7 @@
 // again. Closing the window is different: the wallet keeps running in the tray. Every sentence
 // is Rust's (quit_summary, worded from the walk-away forecast); quit_confirm binds what is shown,
 // so a change in between is refused and the sheet reloads the current lines.
-import { BOUNDARY_RETRY, NOTICE_WHAT, QUIT_SHEET } from '../../lib/words';
+import { BOUNDARY_RETRY, NOTICE_WHAT, QUIT_SHEET, QUIT_SHEET_LINES } from '../../lib/words';
 import { useState } from 'react';
 import { useMutation, useQuery } from '../../lib/hooks';
 import { WalletNotice } from '../../shared/honesty';
@@ -40,10 +40,10 @@ export function QuitSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <Sheet title={QUIT_SHEET.title} size="narrow" onClose={onClose} className="quit-sheet"
-      footer={state === 'quitting' ? <span className="ui-hint left">The Table is closing. The wallet stops now.</span> : (
+      footer={state === 'quitting' ? <span className="ui-hint left">{QUIT_SHEET_LINES.closing}</span> : (
         <>
           <Btn onClick={onClose}>{QUIT_SHEET.keep}</Btn>
-          <Btn kind="danger" disabled={!s || confirm.pending} onClick={() => void quit()}>Quit The Table</Btn>
+          <Btn kind="danger" disabled={!s || confirm.pending} onClick={() => void quit()}>{QUIT_SHEET_LINES.quit}</Btn>
         </>
       )}>
       {view ? <p className="q-lead">{view.note}</p> : null}
@@ -54,13 +54,13 @@ export function QuitSheet({ onClose }: { onClose: () => void }) {
           <p><Btn sm onClick={() => void summary.refetch()}>{BOUNDARY_RETRY}</Btn></p>
         </>
       ) : null}
-      {!s && !summary.error ? <p className="ui-hint" role="status">Checking your open deals…</p> : null}
-      {state === 'changed' && confirm.error?.code === 'INVALID' ? <p className="q-changed" role="status">Something changed since this opened. Check the list again before you quit.</p>
+      {!s && !summary.error ? <p className="ui-hint" role="status">{QUIT_SHEET_LINES.checking}</p> : null}
+      {state === 'changed' && confirm.error?.code === 'INVALID' ? <p className="q-changed" role="status">{QUIT_SHEET_LINES.changed}</p>
         : confirm.error ? <WalletNotice error={confirm.error} what={NOTICE_WHAT.quit} /> : null}
       {view ? (
         <>
           <p className="q-count">{view.lead}</p>
-          {view.unknown ? <p className="q-unknown">What each deal does while The Table is off couldn’t be checked just now.</p> : null}
+          {view.unknown ? <p className="q-unknown">{QUIT_SHEET_LINES.unknown}</p> : null}
           {view.sections.map((sec) => (
             <section key={sec.key} className={`ui-section q-sec q-${sec.key}`}>
               <div className="ui-section-h"><h3>{sec.title}</h3></div>
