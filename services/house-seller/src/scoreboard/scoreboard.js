@@ -354,10 +354,16 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  const refusals = (view) => {
+  /** Table requests the house turned away since it started: the one count its caption names. */
+  const turnedAway = (view) => {
     const r = view.refusals;
-    return r.daily_limit + r.full + r.other + deals.reduce((n, d) => n + d.refused_intents, 0);
+    return r.daily_limit + r.full + r.other;
   };
+  /**
+   * The above plus every intent the house's own agent was stopped on inside a held deal, of any
+   * age. Only the "No PayPal call" check reads this: both made no PayPal call.
+   */
+  const refusals = (view) => turnedAway(view) + deals.reduce((n, d) => n + d.refused_intents, 0);
 
   // ---- state and rendering ---------------------------------------------------------------------
 
@@ -391,7 +397,7 @@
       $('t-discount-s').textContent = 'Shown once a deal is agreed';
     }
 
-    $('t-refused').textContent = String(refusals(view));
+    $('t-refused').textContent = String(turnedAway(view));
     const s = $('t-refused-s');
     s.replaceChildren(h('b', null, '0 PayPal calls'), ` · since ${day(view.refusals.since).replace(/ \d{4}$/, '')}`);
 

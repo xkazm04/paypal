@@ -344,3 +344,16 @@ test('page: a shorter record reads bad whether or not the new head is signed lat
     assert.match(check.detail, /It had 14 entries/);
   }
 });
+
+test('page: Turned away counts only requests refused since the house started, not old refused intents', async () => {
+  const view = await ledgerWith(await signedHead(14, H14));
+  // The house restarted a day after this deal, which holds 3 intents its own agent was stopped on.
+  view.refusals = { daily_limit: 0, full: 0, other: 0, since: T0 + 86400 };
+  view.deals = [{ ...agreedDeal('01ARZ3NDEKTSV4RRFFQ69G5FAV', 2000, 1900), refused_intents: 3 }];
+  view.total = 1;
+  const page = openPage({ routes: [['/v1/house/ledger', { status: 200, body: view }]] });
+  assert.equal(await rendered(page, 't-refused', ''), '0');
+  view.refusals = { daily_limit: 1, full: 2, other: 0, since: T0 + 86400 };
+  const counted = openPage({ routes: [['/v1/house/ledger', { status: 200, body: view }]] });
+  assert.equal(await rendered(counted, 't-refused', ''), '3');
+});
