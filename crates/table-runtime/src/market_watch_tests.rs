@@ -794,3 +794,87 @@ async fn price_check_facts_are_owner_facts_and_the_rule_is_signed_only_when_vali
         assert_eq!(facts.market_watch[0].items[0].item_ref.as_str(), "monitor");
     }
 }
+
+/// A vault that records every entry read from it, as the OS keychain would see them.
+struct Recording(MemoryVault, std::sync::Mutex<Vec<String>>);
+impl Vault for Recording {
+    fn read(&self, name: &str) -> Result<Option<zeroize::Zeroizing<Vec<u8>>>, vault::VaultError> {
+        self.1.lock().unwrap().push(name.into());
+        self.0.read(name)
+    }
+    fn write(&self, name: &str, value: &[u8]) -> Result<(), vault::VaultError> {
+        self.0.write(name, value)
+    }
+}
+impl Recording {
+    fn owner_reads(&self) -> usize {
+        self.1
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|n| *n == "owner")
+            .count()
+    }
+}
+
+/// The rules a price check is held to are verified against the owner's public key the wallet
+/// holds, as every other read does (713add0): a pass over three due deals and the answers it
+/// lands reads the owner's secret from the keychain zero times, and so does wiring a pairing
+/// bundle, which only compares the owner key. Signing still reads it.
+#[tokio::test]
+async fn price_checks_and_pairing_wires_read_the_owner_key_in_memory_not_the_keychain() {
+    let vault = Arc::new(Recording(MemoryVault::default(), Default::default()));
+    let clock = Arc::new(TestClock(AtomicI64::new(100)));
+    let api = Arc::new(table_paypal::Client::sandbox(
+        Arc::new(OfflineHttp::default()),
+        Arc::new(VaultCredentials(vault.clone())),
+        clock.clone(),
+        Arc::new(NoDelay),
+    ));
+    let hello = Arc::new(Hello {
+        calls: AtomicUsize::new(0),
+        verified: true,
+    });
+    let mut r = Runtime::new(
+        Ledger::in_memory().unwrap(),
+        vault.clone(),
+        hello,
+        api,
+        clock.clone(),
+    )
+    .unwrap();
+    credentials(&vault.0);
+    market_key(&vault.0);
+    let (first, _) = setup_with(
+        &mut r,
+        Side::Buyer,
+        Delivery::DigitalNow,
+        watched(Side::Buyer, 12),
+    );
+    let second = another(&mut r, &first, "monitor");
+    let third = another(&mut r, &first, "monitor");
+    let market = WatchMarket::new(clock.clone(), 1200, true);
+    r.attach_market(market.clone());
+    set(&clock, 200);
+    vault.1.lock().unwrap().clear();
+    let jobs = r.plan_market_watch(200).unwrap();
+    assert_eq!(jobs.len(), 3);
+    for job in jobs {
+        land(&mut r, &market, job).await;
+    }
+    for deal in [&first, &second, &third] {
+        let stored = r.pipeline.wallet.ledger.get_deal(deal.id).unwrap().market;
+        assert_eq!(stored.unwrap().median.minor(), 1200);
+    }
+    assert_eq!(vault.owner_reads(), 0, "{:?}", vault.1.lock().unwrap());
+    // Wiring compares the bundle's owner key; only the agent key signs it.
+    let offer = r
+        .pairing_create(PairingCreateArgs {
+            side: Side::Seller,
+            payee: PayeeRef::new("merchant").unwrap(),
+        })
+        .unwrap();
+    vault.1.lock().unwrap().clear();
+    r.pairing_wire(offer.bundle).unwrap();
+    assert_eq!(vault.owner_reads(), 0, "{:?}", vault.1.lock().unwrap());
+}
