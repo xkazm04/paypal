@@ -107,6 +107,9 @@ export const NOTICE_WHAT = {
   quit: 'Quit',
   quitSummary: 'What happens when you quit',
 } as const;
+/** A failed first read under the centre's title, and the wallet's fault stream: the owner's words, never the error's own text. */
+export const NOTICE_UNREAD = 'The wallet has not answered yet. If you do nothing, no money moves.';
+export const WALLET_FAULT_TOAST = 'The wallet ran into a problem just now. If you do nothing, no money moves.';
 export const LOADING_WHAT = { rules: 'your rules', deal: 'the deal' } as const;
 /** The quit confirmation and the shortcuts sheet (moved from QuitSheet.tsx / Shortcuts.tsx). */
 export const QUIT_SHEET = { title: 'Quit The Table?', keep: 'Keep it running' } as const;

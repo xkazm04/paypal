@@ -12,7 +12,7 @@ import { WalletError } from '../../../lib/contract';
 import { readBudget, resetReadBudget } from '../../../lib/data/invoke';
 import { READ_CONCURRENCY } from '../../../lib/readEach';
 import {
-  APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, CHARTER_TITLE, PAIR, CENTRE_TITLE, FACT, FIND_LABEL, IF_NOTHING, MONEY_CHECK_ENDED_SILENCE, NOTICE_WHAT, PLACE, PLACE_NAME, SETUP_STEP_COPY, STALE_TITLE, UNREAD_TITLE, WAITING_TITLE, WHY_LABEL,
+  APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, CHARTER_TITLE, PAIR, CENTRE_TITLE, FACT, FIND_LABEL, IF_NOTHING, MONEY_CHECK_ENDED_SILENCE, NOTICE_WHAT, PLACE, PLACE_NAME, SETUP_STEP_COPY, STALE_TITLE, UNREAD_TITLE, WAITING_TITLE, WALLET_FAULT_TOAST, WHY_LABEL,
 } from '../../../lib/words';
 import { mockBackend, resetMockState } from '../../../mock/backend';
 
@@ -222,6 +222,25 @@ describe('the decision centre', () => {
     h.failSettings = false;
     fireEvent.click(within(banner).getByRole('button'));
     await waitFor(() => expect(document.querySelector('.cs-stale')).toBeNull(), { timeout: 8000 });
+  }, 30_000);
+});
+
+describe('the wallet own error text stays off Layer 1', () => {
+  it('the centre under the stale banner says no error text of the failed read', async () => {
+    h.failSettings = true;
+    await open('/index.html');
+    await waitFor(() => { if (!document.querySelector('.cs-stale')) throw new Error('no banner'); }, { timeout: 8000 });
+    const centre = document.querySelector('.cs-centre.loading');
+    expect(centre?.textContent).not.toMatch(/busy/);
+  }, 30_000);
+
+  it('a wallet:error toast speaks in plain words, not the fault stream message', async () => {
+    await open('/index.html');
+    await heading();
+    await act(async () => { fire('wallet:error', { code: 'UNAVAILABLE', message: 'subscription stream closed' }); });
+    const said = await waitFor(() => { const t = document.querySelector('.ui-toasts .ui-toast.bad'); if (!t) throw new Error('no toast'); return t; });
+    expect(said.textContent).not.toContain('stream');
+    expect(said.textContent).toContain(WALLET_FAULT_TOAST);
   }, 30_000);
 });
 

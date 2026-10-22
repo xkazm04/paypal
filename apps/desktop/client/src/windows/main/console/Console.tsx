@@ -19,7 +19,7 @@ import type { Module } from '@bindings/Module';
 import { useEvent, useMutation } from '../../../lib/hooks';
 import { lazyPart, preloadWhenIdle } from '../../../lib/lazy';
 import {
-  A_DEAL, BACK_TITLE, BRAND_NAME, CHARTER_TITLE, BRAND_TITLE, CRUMBS_LABEL, DETAIL_BACK, INSPECTOR_LABEL, LOCK, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, NOTICE_WHAT, PLACE, PLACE_TITLE, PLACES_LABEL,
+  A_DEAL, BACK_TITLE, BRAND_NAME, WALLET_FAULT_TOAST, CHARTER_TITLE, BRAND_TITLE, CRUMBS_LABEL, DETAIL_BACK, INSPECTOR_LABEL, LOCK, LATER_ALONE, LATER_TOAST, needPill, needPillLabel, NOTICE_WHAT, PLACE, PLACE_TITLE, PLACES_LABEL,
   SEAL_RING, sealLabel, silenceWords, tabTitle, tabWaiting, TABS_LABEL,
 } from '../../../lib/words';
 import { formatCount } from '../../../lib/data/counts';
@@ -283,7 +283,7 @@ export function Console() {
     if (r.deal_id) go({ level: 'deal', deal: r.deal_id });
     else goHome();
   });
-  useEvent('wallet:error', (e) => toast(<>{e.message}</>, 'bad'));
+  useEvent('wallet:error', () => toast(<>{WALLET_FAULT_TOAST}</>, 'bad'));
   useEvent('receipt:created', (r) => {
     // Name the deal by what it is (ids belong in Details, UX-GUIDE).
     const d = deals?.find((x) => x.id === r.deal_id);

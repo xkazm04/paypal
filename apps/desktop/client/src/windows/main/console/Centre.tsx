@@ -6,7 +6,7 @@
 // Beside it the seal (the wallet's state, from the facts) and the small Dial strip; under it the
 // next decisions, and in any free slot what happened while the owner was away and what the wallet
 // is watching, so the row never stands empty.
-import { NOTICE_WHAT } from '../../../lib/words';
+import { NOTICE_UNREAD, NOTICE_WHAT } from '../../../lib/words';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
@@ -79,7 +79,7 @@ export function Centre(p: CentreProps) {
       <div className="cs-centre loading">
         <p className="kicker">{BRAND_NAME}</p>
         <h1 className="display cs-title" tabIndex={-1} data-layer-title="">{CENTRE_READING}</h1>
-        {err ? <WalletNotice error={err} what={health.dealsError ? NOTICE_WHAT.ledger : health.attentionError ? NOTICE_WHAT.needs : NOTICE_WHAT.settings} /> : null}
+        {err ? <WalletNotice error={err} message={NOTICE_UNREAD} what={health.dealsError ? NOTICE_WHAT.ledger : health.attentionError ? NOTICE_WHAT.needs : NOTICE_WHAT.settings} /> : null}
       </div>
     );
   }
