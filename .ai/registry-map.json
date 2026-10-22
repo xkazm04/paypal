@@ -8107,7 +8107,11 @@
           "revision": 11,
           "changedAt": "2026-09-20",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "crates/table-proto/src/envelope.rs:160 LISTING adds a member that older closed readers reject while retaining wire version 1, so the protocol version does not identify the breaking change.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:faf052699c35ced4",
+          "evaluatedRevision": 11
         },
         {
           "subject": "signed-artifacts",

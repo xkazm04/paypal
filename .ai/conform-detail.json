@@ -5464,6 +5464,27 @@
         }
       ],
       "registryProposal": "Clarify which requirements apply to client-side invalidation/refetch caches: the golden path explicitly includes these copies, while several techniques assume a replica-local storage backend."
+    },
+    "7d8f5eca-7fb1-49f4-9000-ed9926d9ad5f/release-pipeline": {
+      "context": "table-wire-protocol",
+      "subject": "release-pipeline",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T02:23:50.500Z",
+      "worker": "ddc8905e-effd-40c5-926b-13e1d5945438",
+      "techniques": [
+        {
+          "technique": "deprecation-by-version-arithmetic",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-proto/src/proof.rs:22 Context searches found no deprecated symbols or scheduled retirements; the earlier proof format remains supported without a removal promise."
+        },
+        {
+          "technique": "release-level-by-reader-reach",
+          "verdict": "deviation",
+          "evidence": "crates/table-proto/src/envelope.rs:160 An addition to an existing LISTING shape breaks older deny_unknown_fields readers, yet signing and verification still require v == 1 (lines 341 and 474); DECISIONS.md:2264 explicitly confirms old buyers reject new listings."
+        }
+      ]
     }
   }
 }
