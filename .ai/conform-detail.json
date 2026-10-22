@@ -5607,6 +5607,72 @@
           "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:33 Filters are developer-supplied typed callbacks selected through chips, rather than user-authored programs with operators, identifiers, and lists."
         }
       ]
+    },
+    "9a4f1dcb-2f71-4b8d-835c-a38862a5c22a/sidecar-provisioning": {
+      "context": "client-runtime-foundation",
+      "subject": "sidecar-provisioning",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T03:51:29.912Z",
+      "techniques": [
+        {
+          "technique": "atomic-downloads",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/lazy.ts:34 Coalesces application chunk loading; this context does not transfer or publish executable/model artifacts."
+        },
+        {
+          "technique": "capability-detection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/preview.ts:168 Detects the injected desktop shell, not an external executable's availability or compatibility."
+        },
+        {
+          "technique": "change-rate-partitioning",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/lazy.ts:2 Partitions application UI code into chunks; no provisioned binary payload with independently changing components is present."
+        },
+        {
+          "technique": "grade-selection",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/preview.ts:64 The degradation setting belongs to sample-world state; this context selects no artifact capacity or precision variant."
+        },
+        {
+          "technique": "model-storage-lifecycle",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/preview.ts:48 Storage naming separates preview worlds; there is no provisioned artifact store, inventory or eviction operation here."
+        },
+        {
+          "technique": "plugin-lazy-load-and-reload",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/mount.tsx:15 Lazily imports a React component; no executable plugin mounts, process sharing or plugin reload protocol occur."
+        },
+        {
+          "technique": "process-isolation",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/tauri.ts:22 Forwards commands to the installed desktop shell; this context loads no native engine and owns no sidecar protocol."
+        },
+        {
+          "technique": "resolution-ladders",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/runtime.ts:42 Selects an application backend; external executable path resolution is not implemented in these files."
+        },
+        {
+          "technique": "source-pinning",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/index.html:14 Loads the application's build entry; no external executable/model acquisition catalog or download door exists in this context."
+        },
+        {
+          "technique": "split-trust-by-registration-path",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/scripts/babel/source-loc-vite-plugin.mjs:28 The plugin reference is a statically imported Babel transform, not an out-of-process plugin registered through configuration or an API."
+        }
+      ],
+      "withdrawn": {
+        "worker": "038ff244-92ab-4f67-abe9-90d1976e7fa1",
+        "state": "not-applicable",
+        "at": "2026-10-22T03:51:53.605209+00:00",
+        "reason": "reviewer (sonnet): The anchor runtime.ts:45 is only the dynamic import of the mock backend module. It does not show that no external executable or sidecar is provisioned. The evidence also rests on a desktop bridge (tauri.ts) that is not among the context's files, and a grep of the wider lib directory shows executor a"
+      }
     }
   }
 }
