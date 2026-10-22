@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AUTHORITY, AUTHORITY_MANIFEST, EVENT_AUDIENCE, type CommandAuthority } from '@bindings/authority';
-import { AGREED_OR_LATER, PRE_CAPTURE, TERMINAL, THROUGH_AGREED } from '@bindings/dealStates';
+import { AGREED_OR_LATER, PRE_CAPTURE, TERMINAL, THROUGH_AGREED, WITHDRAWABLE } from '@bindings/dealStates';
 import type { CommandName, EventName, WindowLabel } from '../lib/contract';
 import { WalletError } from '../lib/contract';
 import { GateError, mockBackend, resetMockState } from './backend';
@@ -158,6 +158,31 @@ describe('authority table (browser mock)', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('walks away and lets lapse only where Rust does: a withdrawable state, a rescue before its invoice, a gate that offers it', async () => {
+    history.replaceState(null, '', '/index.html');
+    const main = mockBackend('main');
+    const id = (label: string) => main.world.deal(label)!.deal.id;
+    const refused = async (cmd: 'deal_withdraw' | 'deal_let_lapse', label: string) =>
+      main.invoke(cmd, { deal_id: id(label) }).then(() => 'done', (e: WalletError) => e.code);
+    // Rust: transition(state, Withdraw) - a held authorization is voided, never withdrawn; a paid deal has ended.
+    for (const label of ['D-0190', 'D-0187', 'D-0176']) {
+      const before = main.world.deal(label)!.deal.state;
+      expect(WITHDRAWABLE.has(before), label).toBe(false);
+      expect(await refused('deal_withdraw', label), label).toBe('INVALID');
+      expect(main.world.deal(label)!.deal.state, label).toBe(before);
+    }
+    // A rescue whose invoice was sent follows PayPal's record (dispatcher.rs Withdraw).
+    const sent = buildMockState(Math.floor(Date.now() / 1000)).deals.find((d) => d.deal.kind === 'rescue' && d.deal.state !== 'AGREED' && WITHDRAWABLE.has(d.deal.state))!;
+    expect(await refused('deal_withdraw', sent.display.label)).toBe('INVALID');
+    // Let lapse: only on a gate card that offers it (D-0199 is a hold, D-0187 has no card).
+    expect(await refused('deal_let_lapse', 'D-0199')).toBe('INVALID');
+    expect(await refused('deal_let_lapse', 'D-0187')).toBe('INVALID');
+    expect(main.world.deal('D-0199')!.attention).not.toBeNull();
+    // What Rust allows still works.
+    expect(await refused('deal_withdraw', 'D-0193')).toBe('done');
+    expect(main.world.deal('D-0193')!.deal.state).toBe('WITHDRAWN');
   });
 
   it('tells each window what the Rust table says, from the generated audiences', () => {
