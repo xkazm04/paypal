@@ -89,6 +89,45 @@ fn a_repeat_house_confirmation_is_refused_for_a_revoked_or_expired_pin() {
     assert!(http.0.lock().unwrap().paths.is_empty());
 }
 
+/// A keychain that stops answering for the negotiator's key, as a locked OS keychain would.
+struct AgentKeyGone(Arc<crate::vault::MemoryVault>);
+impl crate::vault::Vault for AgentKeyGone {
+    fn read(
+        &self,
+        name: &str,
+    ) -> Result<Option<zeroize::Zeroizing<Vec<u8>>>, crate::vault::VaultError> {
+        if name == AgentSlot::Negotiator.key_name() {
+            return Ok(None);
+        }
+        self.0.read(name)
+    }
+    fn write(&self, name: &str, value: &[u8]) -> Result<(), crate::vault::VaultError> {
+        self.0.write(name, value)
+    }
+}
+/// A house offer whose agent key cannot be read says so as every other pairing step does: the
+/// key is unavailable (try again), not a stale command.
+#[test]
+fn a_house_offer_without_its_agent_key_reports_the_key_unavailable_like_a_code_offer() {
+    let (_, release, http, _, _) = hosted_fixture();
+    let (mut buyer, vault, _, _, _) = runtime(true);
+    buyer.house_release = Some(release);
+    buyer.vault = Arc::new(AgentKeyGone(vault));
+    let args = || PairingCreateArgs {
+        side: Side::Buyer,
+        payee: PayeeRef::new("buyer").unwrap(),
+    };
+    let code = buyer.pairing_create(args()).unwrap_err();
+    let house = buyer.house_offer(args()).unwrap_err();
+    assert!(matches!(code.code, ErrorCode::Unavailable), "{code:?}");
+    assert_eq!(
+        (format!("{:?}", house.code), house.message),
+        (format!("{:?}", code.code), code.message)
+    );
+    assert!(buyer.pairing_offers.is_empty());
+    assert!(http.0.lock().unwrap().paths.is_empty());
+}
+
 #[tokio::test]
 async fn house_reopens_durable_pair_table_and_outbox_and_replays_after_mailbox_loss() {
     let mut entropy = [0; 16];
