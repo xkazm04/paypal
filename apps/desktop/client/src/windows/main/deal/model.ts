@@ -18,7 +18,7 @@ import type { TranscriptStep } from '@bindings/TranscriptStep';
 import type { TranscriptType } from '@bindings/TranscriptType';
 import { formatMinor, formatMoney } from '../../../lib/format';
 import { MILESTONES, SELLER_SAYS_PAID, sellerSaysOnly, milestoneOf, RULE_NAME, unconfirmedMeans, type Milestone } from '../../../lib/words';
-import { canWithdraw, clauseText, dealTotal, isTerminal, pathFor, stateLabel } from '../logic';
+import { BRANCH_AFTER, canWithdraw, clauseText, dealTotal, isTerminal, OFF, pathFor, SETTLED, stateLabel } from '../logic';
 
 // ---- the state strip ---------------------------------------------------------------------------
 
@@ -26,10 +26,6 @@ export type StepTone = 'live' | 'need' | 'held' | 'ok' | 'bad' | 'off';
 export type MirrorStep = { key: string; label: string; status: 'done' | 'cur' | 'todo'; tone: StepTone | null };
 export type MirrorStrip = { steps: MirrorStep[]; term: { label: string; tone: 'bad' | 'off' } | null; tone: StepTone };
 
-const SETTLED: ReadonlySet<DealState> = new Set(['CAPTURED', 'RECEIPTED', 'RECONCILED']);
-const OFF: ReadonlySet<DealState> = new Set(['WITHDRAWN', 'EXPIRED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED']);
-/** Last happy-path step a terminal state is known to have reached (mirrors logic.ts). */
-const BRANCH_AFTER: Partial<Record<DealState, DealState>> = { VOIDED: 'AUTHORIZED', AUTO_VOIDED: 'AUTHORIZED', REFUNDED: 'CAPTURED', DISPUTED: 'CAPTURED', MISMATCH: 'SETTLING', UNCONFIRMED: 'AWAITING_APPROVAL' };
 
 type StripDeal = Pick<Deal, 'kind' | 'side' | 'state' | 'shield'> & { decided_by?: Deal['decided_by'] };
 

@@ -50,10 +50,10 @@ export const PENDING_BACKEND: Partial<Record<Module, string>> = {
 
 // ---- states -------------------------------------------------------------------------------
 
-const SETTLED: ReadonlySet<DealState> = new Set(['CAPTURED', 'RECEIPTED', 'RECONCILED']);
+export const SETTLED: ReadonlySet<DealState> = new Set(['CAPTURED', 'RECEIPTED', 'RECONCILED']);
 /** Paid as far as this wallet knows: money moved and, for a buyer, PayPal said so. */
 const paid = (d: DealLike): boolean => SETTLED.has(d.state) && !sellerSaysOnly(d);
-const OFF: ReadonlySet<DealState> = new Set(['WITHDRAWN', 'EXPIRED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED']);
+export const OFF: ReadonlySet<DealState> = new Set(['WITHDRAWN', 'EXPIRED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED']);
 const LIVE: ReadonlySet<DealState> = new Set(['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING']);
 
 /** `unknown` (a dashed outline) is never a state's own kind: beadKind does not return it. The dial
@@ -130,7 +130,7 @@ const PATHS: Record<DealKind, DealState[]> = {
 const HAGGLE_SELLER: DealState[] = ['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECEIPTED', 'RECONCILED'];
 /** Where a terminal state branches off the happy path (last step known to be reached). */
 // UNCONFIRMED: the order was out for approval; that PayPal approved or collected it was never shown.
-const BRANCH_AFTER: Partial<Record<DealState, DealState>> = { VOIDED: 'AUTHORIZED', AUTO_VOIDED: 'AUTHORIZED', REFUNDED: 'CAPTURED', DISPUTED: 'CAPTURED', MISMATCH: 'SETTLING', UNCONFIRMED: 'AWAITING_APPROVAL' };
+export const BRANCH_AFTER: Partial<Record<DealState, DealState>> = { VOIDED: 'AUTHORIZED', AUTO_VOIDED: 'AUTHORIZED', REFUNDED: 'CAPTURED', DISPUTED: 'CAPTURED', MISMATCH: 'SETTLING', UNCONFIRMED: 'AWAITING_APPROVAL' };
 
 export type StripStep = { state: DealState; label: string; status: 'done' | 'cur' | 'todo'; tone: 'gold' | 'ok' | 'bad' | 'off' | null };
 
