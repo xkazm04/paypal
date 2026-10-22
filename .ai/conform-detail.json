@@ -5263,6 +5263,52 @@
           "evidence": "apps/desktop/client/src/windows/main/console/Waiting.tsx:44 Waiting constructs a windowed UI list, without opening a database transaction spanning consensus."
         }
       ]
+    },
+    "7d8f5eca-7fb1-49f4-9000-ed9926d9ad5f/trust-base": {
+      "context": "table-wire-protocol",
+      "subject": "trust-base",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T00:03:21.441Z",
+      "worker": "a6e7d550-59d9-4479-a3b1-e01386a14c67",
+      "techniques": [
+        {
+          "technique": "assumptions-are-build-errors",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-proto/src/pairing.rs:295 Byte order is explicit through a language-defined conversion; no proof or type-level argument assuming a platform width or endianness was found."
+        },
+        {
+          "technique": "census-counts-unmarked-members",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-proto/Cargo.toml:4 The inherited edition is 2024, which already marks the relevant environment mutations unsafe; searches also found no set_var, remove_var or pre_exec calls in this crate."
+        },
+        {
+          "technique": "leaf-spec-states-what-callers-read",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-proto/src/envelope.rs:439 This documents an ordinary executable validation function; no trusted leaf contract consumed by a prover was found."
+        },
+        {
+          "technique": "marker-impl-names-its-exclusion",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-proto/src/envelope.rs:4 Replay storage uses the standard collection implementation; inspection and searches across the crate found no manual Send or Sync assertions, UnsafeCell or raw-pointer access protocols."
+        },
+        {
+          "technique": "soundness-argument-names-its-dependencies",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-proto/src/envelope.rs:462 Wire decoding uses a typed, fallible safe API; no checker escape hatch requiring a remote layout, constructor or allocation argument was found."
+        },
+        {
+          "technique": "trusted-leaf-gets-an-outside-test",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-proto/tests/protocol.rs:79 These are executable protocol rejection tests, rather than outside witnesses for prover-skipped bodies; no such trusted bodies were found."
+        },
+        {
+          "technique": "verifier-footprint-stays-contained",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-proto/Cargo.toml:7 The inherited publish setting is false, and the complete crate dependency list contains no prover or specification library."
+        }
+      ]
     }
   }
 }

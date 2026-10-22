@@ -8010,7 +8010,11 @@
           "revision": 5,
           "changedAt": "2026-10-21",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-proto/Cargo.toml:23 The crate inherits the workspace's unsafe-code prohibition, and searches found no unsafe sites, trusted-body annotations or prover dependencies in this context, so the standard's checker-override precondition does not hold.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:3ad9d5604e9627ce",
+          "evaluatedRevision": 5
         },
         {
           "subject": "decentralized-artifact-distribution",
