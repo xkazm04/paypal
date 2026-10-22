@@ -2,6 +2,8 @@
 // window land on the recorded page through the frame's place on the desk and the desk's transform,
 // and the haggle's figures come from the mock world's deal and its signed mandate, never constants;
 // so do the chapter records (shopping around, the week's deadlines, who decided each money step).
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { DealGroupView } from '@bindings/DealGroupView';
 import type { HistoryStep } from '@bindings/HistoryStep';
@@ -47,8 +49,22 @@ describe('film rectangles', () => {
   });
 
   it('names a press target in a framed window for the beats whose action stands in for a click', () => {
+    const ids = BEATS.map((b) => b.id);
     for (const [beat, sel] of Object.entries(FILM_PRESS)) {
       expect(filmTarget(sel).frame, beat).toBe('tumbler');
+      // keyed by beat id: a renamed beat would lose its press without a word
+      expect(ids, beat).toContain(beat);
+    }
+  });
+
+  it('every film script captures beats Maya’s week has (film-capture only finds out in a browser)', () => {
+    const root = resolve(process.cwd(), '../../../film');
+    const films = readdirSync(root).filter((d) => existsSync(join(root, d, 'film.json')));
+    expect(films.length).toBeGreaterThan(0);
+    const ids = BEATS.map((b) => b.id);
+    for (const film of films) {
+      const script = JSON.parse(readFileSync(join(root, film, 'film.json'), 'utf8')) as { beats: Array<{ id: string; capture?: { beat: string } }> };
+      for (const b of script.beats) if (b.capture) expect(ids, `${film}/${b.id} → ${b.capture.beat}`).toContain(b.capture.beat);
     }
   });
 });
