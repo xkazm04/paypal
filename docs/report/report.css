@@ -17,7 +17,6 @@
   --red: #c4314b;
   --red-bg: #fde8ec;
   --violet: #6a4bd1;
-  --violet-bg: #eeeaff;
   --radius: 14px;
   --shadow: 0 1px 2px rgba(20, 24, 31, 0.06), 0 4px 16px rgba(20, 24, 31, 0.05);
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
@@ -43,7 +42,6 @@
     --red: #ff7a90;
     --red-bg: #3a1720;
     --violet: #a993ff;
-    --violet-bg: #241d40;
     --shadow: none;
   }
 }
@@ -70,7 +68,6 @@ code { font: 0.86em var(--mono); background: var(--panel2); padding: 0.1em 0.35e
 .pill.teal { background: var(--teal-bg); color: var(--teal); }
 .pill.blue { background: var(--blue-bg); color: var(--blue); }
 .pill.red { background: var(--red-bg); color: var(--red); }
-.pill.violet { background: var(--violet-bg); color: var(--violet); }
 .pill.line { border: 1px solid var(--line); color: var(--ink2); }
 h1 { font-size: clamp(28px, 4.2vw, 42px); line-height: 1.15; margin: 14px 0 10px; letter-spacing: -0.01em; }
 .lede { font-size: 17px; color: var(--ink2); max-width: 760px; margin: 0; }
@@ -102,7 +99,6 @@ h3 { font-size: 16px; margin: 0 0 6px; }
 .timeline::before { content: ""; position: absolute; left: 19px; top: 6px; bottom: 6px; width: 2px; background: var(--line); }
 .wave { position: relative; padding: 0 0 18px 54px; }
 .wave .dot { position: absolute; left: 6px; top: 2px; width: 28px; height: 28px; border-radius: 50%; background: var(--panel); border: 2px solid var(--teal); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--teal); }
-.wave.live .dot { border-color: var(--gold); color: var(--gold-ink); }
 .wave .body { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
 .wave .head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between; }
 .wave .head h3 { margin: 0; }
