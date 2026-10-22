@@ -5714,6 +5714,52 @@
           "evidence": "apps/desktop/client/src/windows/main/console/ModuleLayer.tsx:85 These modules render application views, with no partially implemented runtime standards package requiring per-API conformance headers."
         }
       ]
+    },
+    "e89814cc-f4e5-4bd4-bc27-9f356e7de9d4/structured-output": {
+      "context": "wallet-domain-primitives",
+      "subject": "structured-output",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T04:26:33.929Z",
+      "techniques": [
+        {
+          "technique": "answer-coverage-gating",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/book.rs:85 This checks the viability of a query; the inspected context does not request enumerated units of model answers."
+        },
+        {
+          "technique": "artifact-lifecycle",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/deal.rs:298 The implemented lifecycle concerns verified deal events, rather than a producer/stream/extract/validate artifact run."
+        },
+        {
+          "technique": "extraction-strategies",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/canonical.rs:26 Canonicalization serializes a typed value deterministically; it does not recover candidates from settled model prose."
+        },
+        {
+          "technique": "graded-span-grounding",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/market.rs:54 Market evidence here consists of structured prices and identifiers, without model-produced quotations or source spans to align."
+        },
+        {
+          "technique": "output-budget-signal",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-core/src/money.rs:175 This output is deterministic formatting of domain values, without a growing model-generated artifact or producer token ceiling."
+        },
+        {
+          "technique": "schema-validation-and-repair",
+          "verdict": "deviation",
+          "evidence": "crates/table-core/src/book.rs:83 BookQuery is decoded from model tool arguments at crates/table-app/src/agent_request.rs:104; its diagnostic interface returns only the first fixed string, while validate() discards even that detail, rather than supplying a typed error list with field paths, rules and observed values."
+        }
+      ],
+      "withdrawn": {
+        "worker": "d9950715-9cf0-41b3-9a1f-2e02edd0a648",
+        "state": "deviation",
+        "at": "2026-10-22T04:26:58.965573+00:00",
+        "reason": "reviewer (sonnet): book.rs:78 only maps the bool-like result of validate() to InvalidTerms; the diagnosis is preserved by BookQuery::rejection() (book.rs:83, fixed field-prefixed reasons such as 'metrics: 1 to 4 required'), and dispatcher.rs:520 surfaces it as 'BookQuery rejected: {reason}', so 'collapses their diagno"
+      }
     }
   }
 }

@@ -1,0 +1,37 @@
+{
+  "schema": "conform-run/1",
+  "worker": "d9950715-9cf0-41b3-9a1f-2e02edd0a648",
+  "subject": "structured-output",
+  "evaluatedAt": "2026-10-22T04:26:33.929121+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "structured-output",
+      "context": "wallet-domain-primitives",
+      "reason": "withdrawn after review: reviewer (sonnet): book.rs:78 only maps the bool-like result of validate() to InvalidTerms; the diagnosis is preserved by BookQuery::rejection() (book.rs:83, fixed field-prefixed reasons such as 'metrics: 1 to 4 required'), and dispatcher.rs:520 surfaces it as 'BookQuery rejected: {reason}', so 'collapses their diagno"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-22T04:26:33.929121+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "structured-output"
+      ],
+      "techniques": [
+        "answer-coverage-gating",
+        "artifact-lifecycle",
+        "extraction-strategies",
+        "graded-span-grounding",
+        "output-budget-signal",
+        "schema-validation-and-repair"
+      ],
+      "deviations": 1,
+      "context": "wallet-domain-primitives",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}
