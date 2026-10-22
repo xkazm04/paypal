@@ -85,32 +85,57 @@ describe('mock approval checklist (parity with the wallet)', () => {
     expect(order.state).toBe('AWAITING_APPROVAL');
   });
 
+  /** The world with `labels` all agreed `back` seconds ago (their 'agreed' history step and last change), then stored. */
+  function agreedAt(labels: string[], back: number, edit?: (w: ReturnType<typeof buildMockState>) => void) {
+    const world = buildMockState(NOW);
+    for (const l of labels) {
+      const d = world.deals.find((x) => x.display.label === l)!;
+      d.deal.updated_at = NOW - back;
+      world.history = (world.history ?? []).filter((h) => !(h.deal_id === d.deal.id && h.kind === 'agreed'));
+      world.history.push({ at: NOW - back, deal_id: d.deal.id, seq: world.history.length + 1, kind: 'agreed', state_after: 'AGREED', authority: { type: 'none' }, paypal: { type: 'none' } } as never);
+    }
+    edit?.(world);
+    localStorage.setItem(STORE_KEY, JSON.stringify(world));
+  }
+  const mandateLine = async (label: string) => line(await approvalFor(label).invoke('approval_summary', { deal_id: fakeUlid(label) }), 'mandate');
+
   it('counts toward the daily limit exactly what the ledger’s usage_for counts: agreed or later, released excluded', async () => {
-    // D-0193 ($329) under the sourcing rules ($900 a day): with D-0187 ($212) and D-0199 (MISMATCH,
-    // $329) beside it. Rust's usage_for counts AGREED_OR_LATER only, so a MISMATCH or a FAILED deal
-    // never spends the day's budget.
-    const a = approvalFor('D-0193');
-    a.world.deal('D-0176')!.deal.state = 'FAILED'; // $455
-    const s = await a.invoke('approval_summary', { deal_id: fakeUlid('D-0193') });
-    expect(line(s, 'mandate')).toMatchObject({ status: 'pass' });
-    a.world.deal('D-0176')!.deal.state = 'CAPTURED';
-    const over = await a.invoke('approval_summary', { deal_id: fakeUlid('D-0193') });
-    expect(line(over, 'mandate')).toMatchObject({ status: 'fail', text: 'Outside your rules: the daily limit.' });
+    // D-0193 ($329) under the sourcing rules ($900 a day): with D-0187 ($212) and D-0176 ($455)
+    // agreed today beside it. Rust's usage_for counts AGREED_OR_LATER only, so a MISMATCH or a
+    // FAILED deal never spends the day's budget.
+    agreedAt(['D-0187', 'D-0176'], 600, (w) => { w.deals.find((x) => x.display.label === 'D-0176')!.deal.state = 'FAILED'; });
+    expect(await mandateLine('D-0193')).toMatchObject({ status: 'pass' });
+    agreedAt(['D-0187', 'D-0176'], 600, (w) => { w.deals.find((x) => x.display.label === 'D-0176')!.deal.state = 'CAPTURED'; });
+    expect(await mandateLine('D-0193')).toMatchObject({ status: 'fail', text: 'Outside your rules: the daily limit.' });
   });
 
-  it('offers the owner accept only when the rules allow it as MandatePayload::check does (category, deals a day)', async () => {
+  it('counts only the deals agreed on the deal’s agreement day, as usage_for does', async () => {
+    // The same two deals, agreed two days ago: they no longer spend today's $900.
+    agreedAt(['D-0187', 'D-0176'], 2 * 86400, (w) => { w.deals.find((x) => x.display.label === 'D-0176')!.deal.state = 'CAPTURED'; });
+    expect(await mandateLine('D-0193')).toMatchObject({ status: 'pass' });
     const id = fakeUlid('D-0193');
     expect((await approvalFor('D-0193').invoke('approval_summary', { deal_id: id })).can_owner_accept).toBe(true);
-    // The table was opened for a category the sourcing rules do not allow (clause 3).
+  });
+
+  it('the checklist mandate line judges the whole rules as MandatePayload::check does (category, deals a day)', async () => {
+    const id = fakeUlid('D-0193');
+    expect(await mandateLine('D-0193')).toMatchObject({ status: 'pass' });
+    // The table was opened for a category the sourcing rules do not allow (clause 3): the owner
+    // accept and the checklist line say the same.
     const world = buildMockState(NOW);
     world.categories = { ...world.categories, [id]: 'compute' };
     localStorage.setItem(STORE_KEY, JSON.stringify(world));
+    expect(await mandateLine('D-0193')).toMatchObject({ status: 'fail', text: 'Outside your rules: the limit per deal.' });
     expect((await approvalFor('D-0193').invoke('approval_summary', { deal_id: id })).can_owner_accept).toBe(false);
     // The day's deals under the rules are used up (clause 5: 12 a day).
     const busy = buildMockState(NOW);
-    const m14 = busy.deals.find((d) => d.display.label === 'D-0187')!.deal;
-    for (let i = 0; i < 12; i++) busy.deals.push({ ...busy.deals.find((d) => d.display.label === 'D-0187')!, deal: { ...m14, id: `X-${i}`, terms: { ...m14.terms, unit_price: { minor: 1, currency: 'USD' } } } });
+    const d187 = busy.deals.find((d) => d.display.label === 'D-0187')!;
+    for (let i = 0; i < 12; i++) {
+      busy.deals.push({ ...d187, deal: { ...d187.deal, id: `X-${i}`, updated_at: NOW - 60, terms: { ...d187.deal.terms, unit_price: { minor: 1, currency: 'USD' } } } });
+      (busy.history ??= []).push({ at: NOW - 60, deal_id: `X-${i}`, seq: busy.history.length + 1, kind: 'agreed', state_after: 'AGREED', authority: { type: 'none' }, paypal: { type: 'none' } } as never);
+    }
     localStorage.setItem(STORE_KEY, JSON.stringify(busy));
+    expect(await mandateLine('D-0193')).toMatchObject({ status: 'fail', text: 'Outside your rules: the daily limit.' });
     expect((await approvalFor('D-0193').invoke('approval_summary', { deal_id: id })).can_owner_accept).toBe(false);
   });
 

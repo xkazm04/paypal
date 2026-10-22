@@ -34,6 +34,7 @@ import { CHECK_FAILED, SUMMARY_CHANGED } from '../lib/words';
 import { mockChecks, mockChecksHash } from './checks';
 import type { MandatePayload } from '@bindings/MandatePayload';
 import type { SimulatedLine } from '@bindings/SimulatedLine';
+import type { Category } from '@bindings/Category';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import { mockCheck, mockValidate, type MockIntent } from './simulate';
 import { mockEnvelopeRefusal, mockExposureView, type MockEnvelope } from './exposure';
@@ -212,23 +213,38 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     const latest = state.mandates.filter((m) => m.payload.id === id).reduce<MockState['mandates'][number] | undefined>((a, m) => (!a || m.payload.version > a.payload.version ? m : a), undefined);
     return latest && !state.revokedMandates?.includes(`${id}:${latest.payload.version}`) ? latest : undefined;
   }
-  /** As Wallet::mandate_check under check_owner_accept: the deal's active version, its recorded
-   *  category, the counterparty's pin, the ledger's usage and the rounds already signed, judged by
-   *  the one mock of MandatePayload::check (src/mock/simulate.ts). Ask passes: the owner is asked. */
-  function ownerMandateAllows(d: ReturnType<typeof find>): boolean {
+  /** The UTC day a deal first agreed: its recorded 'agreed' step, else the day it last changed.
+   *  The ledger's usage window is keyed on it (repositories.rs usage_for). */
+  function agreedDay(o: ReturnType<typeof find>): number {
+    const step = (state.history ?? buildMockState(nowUnix()).history ?? []).find((h) => h.deal_id === o.deal.id && h.kind === 'agreed');
+    return Math.floor((step?.at ?? o.deal.updated_at ?? nowUnix()) / 86400);
+  }
+  /** As the ledger's usage_for: the other deals under the same mandate agreed on this deal's
+   *  agreement day (else today), in the generated AGREED_OR_LATER set; released ones, a MISMATCH
+   *  and a FAILED deal never count. */
+  function usageFor(d: ReturnType<typeof find>): { dealsToday: number; totalToday: number } {
+    const day = AGREED_OR_LATER.has(d.deal.state) ? agreedDay(d) : Math.floor(nowUnix() / 86400);
+    const used = state.deals.filter((o) => o.deal.id !== d.deal.id && o.deal.mandate_id === d.deal.mandate_id && AGREED_OR_LATER.has(o.deal.state) && agreedDay(o) === day);
+    return { dealsToday: used.length, totalToday: used.reduce((t, o) => t + o.deal.terms.unit_price.minor * o.deal.terms.qty, 0) };
+  }
+  /** As Wallet::mandate_check: the deal's active version, its recorded category, the counterparty's
+   *  pin, the ledger's usage and the rounds already signed, judged by the one mock of
+   *  MandatePayload::check (src/mock/simulate.ts). `null`: the rules are not in force for it. */
+  function mandateVerdict(d: ReturnType<typeof find>, category: Category | undefined): SimulatedVerdict | null {
     const now = nowUnix();
     const m = activeMandate(d.deal.mandate_id);
-    if (!m || m.payload.version !== d.deal.mandate_version || m.payload.not_before > now || m.payload.expires <= now) return false;
-    const category = state.categories?.[d.deal.id];
+    if (!m || m.payload.version !== d.deal.mandate_version || m.payload.not_before > now || m.payload.expires <= now) return null;
     const cp = state.counterparties.find((c) => c.key_id === d.deal.counterparty);
-    if (!category || !cp) return false;
-    const used = state.deals.filter((o) => o.deal.id !== d.deal.id && o.deal.mandate_id === d.deal.mandate_id && AGREED_OR_LATER.has(o.deal.state));
-    const usage = { dealsToday: used.length, totalToday: used.reduce((t, o) => t + o.deal.terms.unit_price.minor * o.deal.terms.qty, 0) };
+    if (!category || !cp) return { type: 'not_simulated' };
     // Accepting rechecks the round already proposed: N rounds signed, N-1 before this one.
     const rounds = d.transcript.filter((t) => t.by === 'you' && (t.typ === 'OFFER' || t.typ === 'COUNTER')).length;
     const intent: MockIntent = { deal: d.deal, category, paired: !!pairedCounterparty(cp.key_id), house: cp.house, declaredPayee: cp.declared_payee ?? null, roundsUsed: Math.max(0, rounds - 1) };
-    const v = mockCheck(m.payload, intent, usage, now);
-    return v.type === 'allow' || v.type === 'ask';
+    return mockCheck(m.payload, intent, usageFor(d), now);
+  }
+  /** Ask passes: the owner is asked. */
+  function ownerMandateAllows(d: ReturnType<typeof find>): boolean {
+    const v = mandateVerdict(d, state.categories?.[d.deal.id]);
+    return v?.type === 'allow' || v?.type === 'ask';
   }
   /** BookQuery as Rust's serde + BookQuery::rejection + book_query_rejection see it. */
   function checkBookQuery(raw: JsonValue): BookQuery {
@@ -463,15 +479,13 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
   }
   /** The wallet's checklist for a deal now, as Rust composes it (src/mock/checks.ts). */
   function checksFor(d: ReturnType<typeof find>) {
-    // Like the ledger's usage_for: the other deals under the same mandate in the generated
-    // AGREED_OR_LATER set (released ones, a MISMATCH and a FAILED deal never count; the mock keeps
-    // no agreement day).
-    const spentTodayMinor = state.deals
-      .filter((o) => o.deal.id !== d.deal.id && o.deal.mandate_id === d.deal.mandate_id && AGREED_OR_LATER.has(o.deal.state))
-      .reduce((sum, o) => sum + o.deal.terms.unit_price.minor * o.deal.terms.qty, 0);
+    // A deal that predates categories on record is not judged on its category: the first its
+    // per_deal rule allows stands in for it.
+    const rules = activeMandate(d.deal.mandate_id)?.payload.clauses.find((c) => c.type === 'per_deal');
+    const verdict = mandateVerdict(d, state.categories?.[d.deal.id] ?? (rules?.type === 'per_deal' ? rules.categories[0] : undefined));
     const checks = mockChecks({
       deal: d.deal, transcript: d.transcript, counterparty: state.counterparties.find((c) => c.key_id === d.deal.counterparty),
-      mandate: activeMandate(d.deal.mandate_id), spentTodayMinor, now: nowUnix(),
+      mandate: activeMandate(d.deal.mandate_id), verdict, spentTodayMinor: usageFor(d).totalToday, now: nowUnix(),
       limitRefusal: mockEnvelopeRefusal(state.deals.map((o) => o.deal), d.deal, envelope(), nowUnix()),
       rescue: state.rescue?.[d.deal.id],
     });
