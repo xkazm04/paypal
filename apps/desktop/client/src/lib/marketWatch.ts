@@ -3,6 +3,7 @@
 // reads the wallet's own facts; it grants no money authority and nothing here moves money.
 import type { Clause } from '@bindings/Clause';
 import type { Deal } from '@bindings/Deal';
+import { PRE_CAPTURE } from '@bindings/dealStates';
 import type { MarketWatchFact } from '@bindings/MarketWatchFact';
 import { joinWords, priceChecksToday } from './words';
 
@@ -24,9 +25,10 @@ export function marketWatchRefusal(c: Watch): string | null {
   return null;
 }
 
-/** table-core market_watch_open: a seller deal is watched up to Agreed, a buyer deal until paid. */
+/** table-core market_watch_open: a seller deal is watched up to Agreed, a buyer deal until paid
+ *  (`DealState::pre_capture()`, generated). */
 const SELLER_OPEN = new Set<Deal['state']>(['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED']);
-const BUYER_OPEN = new Set<Deal['state']>(['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED']);
+const BUYER_OPEN: ReadonlySet<Deal['state']> = PRE_CAPTURE;
 
 export type DealWatch = { usedUp: boolean; used: number; max: number };
 
