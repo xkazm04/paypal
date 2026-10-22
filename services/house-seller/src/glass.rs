@@ -275,6 +275,15 @@ impl TurnedAway {
         }
     }
 }
+/// `refusals` with `door` queue-door turn-aways added to `full`.
+fn with_door(refusals: HouseRefusals, door: u64) -> HouseRefusals {
+    HouseRefusals {
+        full: refusals
+            .full
+            .saturating_add(u32::try_from(door).unwrap_or(u32::MAX)),
+        ..refusals
+    }
+}
 impl Seller {
     pub(crate) fn note_refusal(&mut self, error: &Error) {
         let r = &mut self.refusals;
@@ -285,9 +294,16 @@ impl Seller {
             None => {}
         }
     }
-    /// Table requests turned away since the house started.
-    pub fn refusals(&self) -> HouseRefusals {
+    /// Table requests turned away since the house started, including those the queue door
+    /// answered 429 before the actor saw them.
+    pub fn refusals(&mut self) -> HouseRefusals {
+        self.fold_door();
         self.refusals
+    }
+    /// Moves the handle's queue-door count into `refusals.full`, once each.
+    fn fold_door(&mut self) {
+        let door = self.door.swap(0, std::sync::atomic::Ordering::Relaxed);
+        self.refusals = with_door(self.refusals, door);
     }
     fn sign_head(&self, head: HouseHead) -> Result<SignedHouseHead, Error> {
         Ok(SignedHouseHead {
@@ -303,6 +319,7 @@ impl Seller {
     /// nothing. Use [`Seller::refresh`] on the timer; this always reads.
     pub fn publish(&mut self) -> Result<Arc<Published>, Error> {
         let now = self.clock.now();
+        self.fold_door();
         let HouseFacts {
             chain,
             first_at,
@@ -383,5 +400,26 @@ impl Seller {
                 .to_vec(),
             prefix,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn queue_door_turn_aways_add_to_full_and_to_nothing_else() {
+        let r = HouseRefusals {
+            daily_limit: 2,
+            full: 1,
+            other: 4,
+            since: 77,
+        };
+        assert_eq!(with_door(r, 0), r);
+        let after = with_door(r, 3);
+        assert_eq!(
+            (after.daily_limit, after.full, after.other, after.since),
+            (2, 4, 4, 77)
+        );
+        assert_eq!(with_door(r, u64::MAX).full, u32::MAX);
     }
 }
