@@ -116,6 +116,7 @@ const BOOKKEEPING: &[&str] = &[
     "rescue.watch_stopped",
     "rescue.watch_read",
     "rescue.watch_seen",
+    "rescue.watch_unread",
 ];
 /// What one row says, before folding.
 pub(super) enum Row {

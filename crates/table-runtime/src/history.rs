@@ -644,6 +644,11 @@ mod tests {
                 json!({"subscription_id":"I-1","failed_payments":1}),
                 None,
             ),
+            (
+                "rescue.watch_unread",
+                json!({"subscription_id":"I-1","tries":2}),
+                None,
+            ),
             // A price check under the owner's market-watch rule reads prices; no money step.
             (
                 "market.checked",
