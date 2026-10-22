@@ -107,6 +107,34 @@ export function retimePlan(input: RetimeInput): RetimePlan | null {
   };
 }
 
+/** Where one beat's corner sync mark shows in a take: its first and last frame (of one run). */
+export type MarkRun = { first: number; last: number };
+
+/**
+ * Where each beat's corner sync mark first shows in a film take (scripts/film-capture.mjs): `levels`
+ * is the mark's grey level in every frame, `wants` the level of each beat in the order they were
+ * played (takes.ts syncShade). A beat's mark counts once `run` frames in a row are within
+ * `tolerance` of its level; it then lasts while the frames stay there. The search goes forward in
+ * beat order. Null for a beat whose mark is never found (the later beats search on from the last
+ * one found).
+ */
+export function alignMarks(levels: readonly number[], wants: readonly number[], tolerance = 4, run = 3): Array<MarkRun | null> {
+  let from = 0;
+  return wants.map((want) => {
+    const near = (f: number) => f < levels.length && Math.abs((levels[f] as number) - want) <= tolerance;
+    let f = from;
+    const runs = (at: number) => { for (let k = 0; k < run; k++) if (!near(at + k)) return false; return true; };
+    while (f < levels.length && !runs(f)) f += 1;
+    if (f >= levels.length) return null;
+    let last = f;
+    while (near(last + 1)) last += 1;
+    // the next beat's mark can only show once this one is gone: beats 20 apart share a grey, and a
+    // search from `f + 1` would find the next one on this beat's own frames
+    from = last + 1;
+    return { first: f, last };
+  });
+}
+
 /**
  * The ffmpeg `setpts` expression for a plan, in seconds of raw time `T` (divide by TB for PTS):
  * each stretch maps raw T to `at + (T - from) * speed`.

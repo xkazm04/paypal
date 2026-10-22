@@ -1,6 +1,6 @@
 // Putting a lagging recording back on the beat file's clock.
 import { describe, expect, it } from 'vitest';
-import { distinctChanges, retimePlan, setptsExpr, type RetimePlan } from './retime';
+import { alignMarks, distinctChanges, retimePlan, setptsExpr, type RetimePlan } from './retime';
 
 /** Where raw second T lands in the output under a plan (what ffmpeg's setpts does). */
 function place(plan: RetimePlan, t: number): number {
@@ -58,5 +58,25 @@ describe('retiming a take', () => {
   it('writes the plan as one setpts expression over raw time', () => {
     const plan = retimePlan(input)!;
     expect(setptsExpr(plan)).toBe('if(lt(T,13.5),0+(T-4.1)*1,if(lt(T,25.5),9.4+(T-13.5)*0.75,18.4+(T-25.5)*1))');
+  });
+});
+
+describe('finding each beat’s sync mark in a film take', () => {
+  const frames = (level: number, n: number) => Array.from({ length: n }, () => level);
+
+  it('finds each mark in beat order, where it first shows and how long it stays', () => {
+    const levels = [...frames(235, 4), ...frames(48, 10), ...frames(57, 8), ...frames(66, 6)];
+    expect(alignMarks(levels, [48, 57, 66])).toEqual([{ first: 4, last: 13 }, { first: 14, last: 21 }, { first: 22, last: 27 }]);
+    // a frame or two of the right grey is noise, not the mark; a mark never seen is null
+    expect(alignMarks([...frames(48, 2), ...frames(100, 3), ...frames(48, 3)], [48])).toEqual([{ first: 5, last: 7 }]);
+    expect(alignMarks(frames(48, 10), [48, 139])).toEqual([{ first: 0, last: 9 }, null]);
+  });
+
+  it('never matches a beat on the frames of the beat before it, even when the two share a grey', () => {
+    // syncShade repeats every 20 beats: beats 3 and 23 played one after the other (the rig jumps
+    // through beat 22 in between) show the same grey, and the second must be found after the first
+    const levels = [...frames(75, 30), ...frames(66, 8), ...frames(75, 20)];
+    expect(alignMarks(levels, [75, 66, 75])).toEqual([{ first: 0, last: 29 }, { first: 30, last: 37 }, { first: 38, last: 57 }]);
+    expect(alignMarks([...frames(75, 30), ...frames(235, 5), ...frames(75, 20)], [75, 75])).toEqual([{ first: 0, last: 29 }, { first: 35, last: 54 }]);
   });
 });
