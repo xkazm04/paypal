@@ -24,11 +24,13 @@ describe('the beat file', () => {
     }
   });
 
-  it('gives a judge enough time to read each caption', () => {
-    for (let i = 1; i < BEATS.length; i++) {
-      const prev = BEATS[i - 1]!;
+  it('gives a judge enough time to read each caption, the last one included', () => {
+    // the last caption stays until the story ends (HOLD_LAST), so the end counts as the next beat
+    const all = [...BEATS, { id: 'the end', at: SCRIPT_LENGTH, caption: '' }];
+    for (let i = 1; i < all.length; i++) {
+      const prev = all[i - 1]!;
       const words = prev.caption.split(/\s+/).length;
-      expect(BEATS[i]!.at - prev.at, prev.id).toBeGreaterThanOrEqual(Math.min(9, Math.ceil(words / 3.5)));
+      expect(all[i]!.at - prev.at, prev.id).toBeGreaterThanOrEqual(Math.min(9, Math.ceil(words / 3.5)));
     }
   });
 
