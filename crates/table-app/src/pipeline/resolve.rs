@@ -357,15 +357,8 @@ impl Pipeline {
             {
                 return Ok(false);
             }
-            if step == MoneyStep::Capture {
-                let deadline = self
-                    .wallet
-                    .ledger
-                    .deadline(deal.id)?
-                    .ok_or(Error::Invalid)?;
-                if now >= deadline.0 || !self.wallet.ledger.has_countersign(deal.id, op.attempt)? {
-                    return Ok(false);
-                }
+            if step == MoneyStep::Capture && !self.capture_window_open(deal.id, op.attempt, now)? {
+                return Ok(false);
             }
             Ok(true)
         })();

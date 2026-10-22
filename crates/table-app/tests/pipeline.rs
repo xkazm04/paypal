@@ -1136,6 +1136,47 @@ fn the_house_quantity_and_seller_side_guards_each_refuse_alone() {
     }
     assert_eq!(p.wallet.ledger.paypal_call_count(deal.id).unwrap(), 0);
 }
+/// The honor deadline closes the capture: one second before it the seller's capture is allowed,
+/// at it the forecast and the step both refuse, and PayPal is not called.
+#[tokio::test]
+async fn no_capture_is_sent_at_or_after_the_honor_deadline() {
+    let (_, seller, deal) = agreed();
+    let mock = Arc::new(MockApi::default());
+    let mut p = Pipeline::new(seller, mock.clone(), 100).unwrap();
+    p.create(deal.id, 1, Category::Parts, Authority::Policy, 100)
+        .await
+        .unwrap();
+    mock.approved.store(true, Ordering::SeqCst);
+    assert!(p.poll_approval(deal.id, 1, 100).await.unwrap());
+    p.authorize(deal.id, 1, Category::Parts, Authority::SellerMandate, 100)
+        .await
+        .unwrap();
+    let due = p.wallet.ledger.deadline(deal.id).unwrap().unwrap().0;
+    let allowed = |p: &mut Pipeline, at| {
+        p.step_allowed(
+            deal.id,
+            MoneyStep::Capture,
+            Category::Parts,
+            Authority::SellerMandate,
+            at,
+            false,
+        )
+        .unwrap()
+    };
+    assert!(allowed(&mut p, due - 1));
+    assert!(!allowed(&mut p, due));
+    let calls = mock.calls.lock().unwrap().len();
+    assert!(matches!(
+        p.capture(deal.id, 1, Category::Parts, Authority::SellerMandate, due)
+            .await,
+        Err(table_app::Error::Permission)
+    ));
+    assert_eq!(mock.calls.lock().unwrap().len(), calls);
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Authorized
+    );
+}
 /// An owner accept needs their latest counter. While the latest proposal is the buyer's own
 /// offer there is nothing to accept: the amount line fails (the accept would be refused), never
 /// waits for a PayPal order that this step does not make.
