@@ -271,7 +271,7 @@ one signed file (`table.proof.v1`, `table_proto::ProofBundle`) and `crates/table
   read, the stored binding of every purchase unit: custom_id, invoice_id, payee.merchant_id and
   amount (kept by `binding_projection`, crates/table-ledger/src/redaction.rs:94; compared in
   `bindings`, crates/table-verify/src/lib.rs:323). The client asks for the full body with
-  `Prefer: return=representation` (crates/table-paypal/src/client.rs:161), but no live authorize
+  `Prefer: return=representation` (crates/table-paypal/src/client.rs:191), but no live authorize
   body has been observed, so that the authorize answer carries all four is assumed. If it lacks
   them, the wallet's own Order::verify (crates/table-paypal/src/types.rs:168) refuses the order,
   and in any bundle that does record the call the person checking sees the PayPal-order line fail
