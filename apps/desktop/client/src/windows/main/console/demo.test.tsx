@@ -97,6 +97,8 @@ describe('the footer switcher', () => {
       expect(document.querySelector('.cs-demo-switching')).toBeTruthy();
       await waitFor(() => expect(document.querySelector('.cs-demo-switching')).toBeNull());
       expect(replace).not.toHaveBeenCalled();
+      // The owner is told, in a calm status note, that nothing changed.
+      expect(screen.getByRole('status').textContent).toContain(DEMO_SWITCH.notStored);
     } finally {
       Object.defineProperty(window, 'location', { configurable: true, value: was });
     }
