@@ -21,7 +21,7 @@ const run = (cmd, args, env = {}) => {
 };
 
 if (!existsSync(join(client, 'node_modules'))) run('pnpm', ['--dir', client, 'install']);
-run('pnpm', ['--dir', client, 'exec', 'vite', 'build'], { THE_TABLE_INSPECTOR: '1', VITE_INSPECTOR: '1' });
+run('pnpm', ['--dir', client, 'exec', 'vite', 'build'], { THE_TABLE_INSPECTOR: '1' });
 console.log('\n[tauri:dev:test] client built with the inspector; starting the shell. Ctrl+Shift+L arms it.\n');
 run('cargo', ['run', '-p', 'table-desktop'], {
   CARGO_HOME: join(root, '.build', 'cargo-home'),
