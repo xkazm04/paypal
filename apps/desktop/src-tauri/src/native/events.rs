@@ -107,7 +107,7 @@ pub(super) async fn produce(
             }
         },_=interval.tick()=>{
             let state=app.state::<DesktopState>();
-            if state.surface.lock().ok().is_some_and(|s|s.dragging) && !table_os::left_mouse_pressed() && let Some(t)=app.get_webview_window("tumbler"){
+            if state.surface.lock().ok().is_some_and(|s|s.dragging) && !table_os::primary_mouse_pressed() && let Some(t)=app.get_webview_window("tumbler"){
                 let _=tumbler_snap(t,app.clone(),app.state::<DesktopState>());
             }
             // The time left on each tray entry moves with the clock.

@@ -86,7 +86,43 @@ pub fn notifications_suppressed() -> bool {
     // SAFETY: this API has no input pointer and windows-rs owns the output storage.
     (unsafe { SHQueryUserNotificationState() }) != Ok(QUNS_ACCEPTS_NOTIFICATIONS)
 }
-pub fn left_mouse_pressed() -> bool {
-    // SAFETY: GetAsyncKeyState accepts a virtual-key value and has no input pointers.
-    (unsafe { windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState(1) }) < 0
+/// The virtual key of the button the owner treats as primary. GetAsyncKeyState reads the PHYSICAL
+/// buttons, so with the buttons swapped (SM_SWAPBUTTON) the primary one is the physical right.
+pub(crate) const fn primary_button_vk(swapped: bool) -> i32 {
+    if swapped { 0x02 } else { 0x01 }
+}
+/// Whether the primary mouse button (as the owner configured it) is held down right now.
+pub fn primary_mouse_pressed() -> bool {
+    use windows::Win32::UI::{
+        Input::KeyboardAndMouse::GetAsyncKeyState,
+        WindowsAndMessaging::{GetSystemMetrics, SM_SWAPBUTTON},
+    };
+    // SAFETY: GetSystemMetrics takes a metric index and GetAsyncKeyState a virtual-key value;
+    // neither has input pointers.
+    unsafe { GetAsyncKeyState(primary_button_vk(GetSystemMetrics(SM_SWAPBUTTON) != 0)) < 0 }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn the_primary_button_follows_the_swap_setting() {
+        assert_eq!(primary_button_vk(false), 0x01);
+        assert_eq!(primary_button_vk(true), 0x02);
+    }
+    /// Flips the system's button mapping for a moment; run alone: `cargo test -p table-os -- --ignored`.
+    #[test]
+    #[ignore = "changes the OS mouse-button mapping while it runs"]
+    fn the_os_swap_setting_selects_the_right_virtual_key() {
+        use windows::Win32::UI::{
+            Input::KeyboardAndMouse::SwapMouseButton,
+            WindowsAndMessaging::{GetSystemMetrics, SM_SWAPBUTTON},
+        };
+        // SAFETY: both calls take plain values; the previous mapping is restored below.
+        let was = unsafe { SwapMouseButton(true) };
+        let swapped = unsafe { GetSystemMetrics(SM_SWAPBUTTON) } != 0;
+        let vk = primary_button_vk(swapped);
+        let _ = unsafe { SwapMouseButton(was.as_bool()) };
+        assert!(swapped);
+        assert_eq!(vk, 0x02);
+    }
 }
