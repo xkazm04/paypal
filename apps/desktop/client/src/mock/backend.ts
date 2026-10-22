@@ -200,9 +200,21 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     if (targets.includes(label)) deliver(event, payload);
     channel?.postMessage({ kind: 'event', event, targets, payload } satisfies Envelope);
   }
+  /** As the actor's 1 s tick (actor.rs): settings:changed goes out only when the encoded snapshot
+   *  differs from the last one published, so a write that changes nothing sends nothing. */
+  let publishedSettings = JSON.stringify(state.settings);
+  function publishSettings(): void {
+    const encoded = JSON.stringify(state.settings);
+    if (encoded === publishedSettings) return;
+    publishedSettings = encoded;
+    emit('settings:changed', state.settings);
+  }
   channel?.addEventListener('message', (m: MessageEvent<Envelope>) => {
     const env = m.data;
-    if (env.kind === 'state') state = env.state;
+    if (env.kind === 'state') {
+      state = env.state;
+      publishedSettings = JSON.stringify(state.settings);
+    }
     else if (env.kind === 'clock') setClockOffset(env.offset);
     else if (env.targets.includes(label)) deliver(env.event, env.payload);
   });
@@ -615,7 +627,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       if (!e?.available) fail('UNAVAILABLE', `${engine} is installed but waits for its isolation spike`);
       state.settings = { ...state.settings, selected_engine: engine, engine_chosen: true };
       save();
-      emit('settings:changed', state.settings);
+      publishSettings();
       return null;
     },
     agent_start: ({ deal_id }) => {
@@ -649,13 +661,13 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       }).sort((a, b) => a.deadline - b.deadline || (a.deal_id < b.deal_id ? -1 : 1));
       state.settings = { ...state.settings, agents_paused: false };
       save();
-      emit('settings:changed', state.settings);
+      publishSettings();
       return { waiting };
     },
     pause_all_agents: () => {
       state.settings = { ...state.settings, agents_paused: true };
       save();
-      emit('settings:changed', state.settings);
+      publishSettings();
       return null;
     },
     market_refresh: ({ deal_id, product_id }, opts) => {
@@ -889,7 +901,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     tumbler_pin: ({ pinned }) => {
       state.settings = { ...state.settings, preferences: { ...state.settings.preferences, pinned } };
       save();
-      emit('settings:changed', state.settings);
+      publishSettings();
       return null;
     },
     tumbler_drag: () => null,
@@ -948,7 +960,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       state.settings = { ...state.settings, locked: false };
       lastPrivileged = nowUnix();
       save();
-      emit('settings:changed', state.settings);
+      publishSettings();
       return null;
     },
     deal_countersign: (args, opts) => {
@@ -1038,7 +1050,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       state.credentialsStoredAt = { paypal_sandbox: state.credentialsStoredAt?.paypal_sandbox ?? null, channel3: state.credentialsStoredAt?.channel3 ?? null, [kind]: nowUnix() };
       state.settings = kind === 'channel3' ? { ...state.settings, channel3_configured: true } : { ...state.settings, payment_executor_configured: true };
       save();
-      emit('settings:changed', state.settings);
+      publishSettings();
       return null;
     },
     // Like the ledger's list_mandates: only active rows (superseded and revoked versions stay as history).
@@ -1055,7 +1067,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       state.mandateSlots = { ...state.mandateSlots, [id]: args.agent };
       state.settings = { ...state.settings, first_run: false };
       save();
-      emit('settings:changed', state.settings);
+      publishSettings();
       return m;
     },
     mandate_revoke: ({ id }, opts) => {
@@ -1129,7 +1141,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       if (state.settings.house === 'waking') fail('UNAVAILABLE', 'House is already waking');
       state.settings = { ...state.settings, house: 'ready' };
       save();
-      emit('settings:changed', state.settings);
+      publishSettings();
       return 'ready';
     },
     pairing_confirm: ({ pairing_id, words, display_name }, opts) => {
@@ -1145,14 +1157,14 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       if (table) state.houseTables = { ...state.houseTables, [table.deal_id]: table };
       if (pending.house) state.settings = { ...state.settings, house_connected: true };
       save();
-      if (pending.house) emit('settings:changed', state.settings);
+      if (pending.house) publishSettings();
       emit('pairing:pinned', { pairing_id, key_id: key, house: pending.house });
       return key;
     },
     settings_write: (prefs) => {
       state.settings = { ...state.settings, preferences: prefs };
       save();
-      emit('settings:changed', state.settings);
+      publishSettings();
       return null;
     },
     // As Runtime::create_deal: approval only, privileged; mandate-checked; a seller's LISTING is
@@ -1475,6 +1487,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     reset(at) {
       setOffset(at === undefined ? 0 : at - (nowUnix() - clockOffset()));
       state = fresh();
+      publishedSettings = JSON.stringify(state.settings);
       lastPrivileged = nowUnix();
       save();
     },
