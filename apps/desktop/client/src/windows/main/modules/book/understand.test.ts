@@ -30,7 +30,8 @@ const LIST: CounterpartyDisplay[] = [
 const CTX: AskCtx = { now: NOW, offsetMin: 120, parties: knownParties(LIST) };
 
 const PAID = ['CAPTURED', 'RECEIPTED', 'RECONCILED'];
-const STOPPED = ['REFUSED', 'VOIDED', 'AUTO_VOIDED', 'WITHDRAWN', 'EXPIRED', 'MISMATCH'];
+// The Stopped tile's set (bucketOf), in the states' own order: refunds, disputes and failures are paid back or never paid.
+const STOPPED = ['WITHDRAWN', 'EXPIRED', 'REFUSED', 'MISMATCH', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED'];
 const MOVING = ['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED'];
 
 const R = {

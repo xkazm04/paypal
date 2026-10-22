@@ -15,7 +15,7 @@ import type { BookRange } from '@bindings/BookRange';
 import type { CounterpartyDisplay } from '@bindings/CounterpartyDisplay';
 import type { DealKind } from '@bindings/DealKind';
 import type { DealState } from '@bindings/DealState';
-import type { BookQuery as LensQuery, Filter, Lens } from './model';
+import { STOPPED_STATES, type BookQuery as LensQuery, type Filter, type Lens } from './model';
 import { bookRejection, rfc3339Seconds } from './rules';
 import { houseWords } from '../../../../lib/words';
 
@@ -55,7 +55,6 @@ export const SUGGESTIONS: readonly string[] = [
 // ---- chips --------------------------------------------------------------------------------------------
 
 const PAID: DealState[] = ['CAPTURED', 'RECEIPTED', 'RECONCILED'];
-const STOPPED: DealState[] = ['REFUSED', 'VOIDED', 'AUTO_VOIDED', 'WITHDRAWN', 'EXPIRED', 'MISMATCH'];
 const MOVING: DealState[] = ['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED'];
 
 const chip = (id: string, slot: Slot, text: string, title: string, part: Part): ReadingChip => ({ id, slot, text, title, part });
@@ -68,7 +67,7 @@ const CHIPS = {
   statement: chip('v:statement', 'view', 'Checked on your PayPal statement', 'Only payments looked up on PayPal’s own statement', { view: 'reconciliation' }),
   paid: chip('s:paid', 'status', 'Paid', 'Money that moved. Money out and money in stay on their own lines.', { states: PAID }),
   held: chip('s:held', 'status', 'On hold', 'Held at PayPal, not paid yet', { states: ['AUTHORIZED'] }),
-  stopped: chip('s:stopped', 'status', 'Stopped', 'Refused, withdrawn, expired, released or didn’t match: never paid', { states: STOPPED }),
+  stopped: chip('s:stopped', 'status', 'Stopped', 'Never paid, or paid back: refused, withdrawn, expired, released, failed, refunded, disputed or didn’t match', { states: [...STOPPED_STATES] }),
   refused: chip('s:refused', 'status', 'Refused', 'Refused by a rule or a check', { states: ['REFUSED'] }),
   refunded: chip('s:refunded', 'status', 'Refunded', 'Paid, then paid back', { states: ['REFUNDED'] }),
   mismatch: chip('s:mismatch', 'status', 'Amount didn’t match', 'The payment request did not match what was agreed', { states: ['MISMATCH'] }),
