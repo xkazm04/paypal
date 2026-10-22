@@ -10,7 +10,8 @@
 //   <script src="small.js"></script> is all a page needs.
 //
 // SAMPLE DATA ONLY. The generator is pure and takes `now`; this script fixes it at
-// 2026-10-13T14:30:00Z, so the files are reproducible byte for byte (run it twice and compare).
+// SCALE_NOW (src/mock/scale.ts, 2026-10-14T14:30:00Z), so the files are reproducible byte for byte
+// (run it twice and compare).
 // Nothing here talks to PayPal or the network, and nothing is ever paid.
 //
 // The TypeScript is loaded through Vite (the project's own config, so the `@bindings` and `@`
@@ -95,6 +96,31 @@ function facts(s, now) {
   };
 }
 
+/** The large world's module table, every figure counted from its rows (none typed by hand). */
+const CLOSED = ['RECONCILED', 'RECEIPTED', 'CAPTURED', 'WITHDRAWN', 'EXPIRED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED'];
+function moduleFacts(s) {
+  const of = (kind) => s.deals.filter((d) => d.deal.kind === kind);
+  const n = (ds, p) => ds.filter(p).length;
+  const closed = (d) => CLOSED.includes(d.deal.state);
+  const st = (...xs) => (d) => xs.includes(d.deal.state);
+  const att = (k) => (d) => d.attention?.kind === k;
+  const [h, p, c, r] = ['haggle', 'purchase', 'shop_order', 'rescue'].map(of);
+  const groups = (s.groups ?? []).map((g) => g.deal_ids.length);
+  const held = p.filter(att('gate')).map((d) => d.attention.amount_minor);
+  const long = h.reduce((a, d) => (d.transcript.length > (a?.transcript.length ?? -1) ? d : a), null);
+  return {
+    tables: { n: h.length, gate: n(h, att('gate')), open: n(h, (d) => st('PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED')(d) && !d.attention), mismatch: n(h, st('MISMATCH')), refused: n(h, st('REFUSED')), closed: n(h, closed), groups },
+    spend: { n: p.length, held: held.length, heldMax: held.length ? Math.max(...held) : 0, refused: n(p, st('REFUSED')), closed: n(p, closed) },
+    counter: { n: c.length, closed: n(c, closed), awaiting: n(c, st('AWAITING_APPROVAL')), quote: n(c, st('LISTED')), held: n(c, att('hold')), checking: n(c, (d) => st('AUTHORIZED')(d) && !d.attention) },
+    rescue: { n: r.length, fix: n(r, att('gate')), invoices: n(r, st('AWAITING_APPROVAL')), paid: n(r, st('RECEIPTED')), expired: n(r, st('EXPIRED')), withdrawn: n(r, st('WITHDRAWN')) },
+    shield: { paused: n(s.deals, (d) => d.deal.shield === 'HOLD' && d.attention?.module === 'shield'), blocked: n(s.deals, (d) => d.deal.shield === 'BLOCK') },
+    sellerSaysPaid: n(h, (d) => d.deal.side === 'buyer' && d.deal.state === 'RECEIPTED'),
+    longest: long ? { rounds: long.display.band?.rounds_used ?? 0, steps: long.transcript.length, allows: long.display.band?.max_rounds ?? 0 } : null,
+  };
+}
+const words = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+const said = (k) => words[k] ?? String(k);
+
 function minutes(secs) {
   if (secs === null) return 'none';
   return secs < 3600 ? `${Math.round(secs / 60)} min` : secs < 172800 ? `${(secs / 3600).toFixed(1)} h` : `${(secs / 86400).toFixed(1)} days`;
@@ -105,6 +131,7 @@ function scaleDoc(worlds, nowIso, now) {
   const s = (k) => worlds[k].state;
   const countRow = (label, a, b) => row([label, String(a ?? 0), String(b ?? 0)]);
   const keys = (a, b) => [...new Set([...Object.keys(a), ...Object.keys(b)])].sort();
+  const m = moduleFacts(s('large'));
   return `# The Table: scale fixtures
 
 **Sample data.** Every person, shop, subscriber, amount and date in these files is invented. Nothing was
@@ -184,14 +211,14 @@ ${table(['', 'small', 'large'], [
 
 Two reading notes. "Needs the owner" in the large world tops out at ${f.large.attention}, so a badge that counts
 waiting items never reaches 99+; the lists that do are the deals (${f.large.deals}), the rescue cases (${Object.keys(s('large').rescue ?? {}).length}),
-the counterparties (${s('large').counterparties.length}) and the ledger (${s('large').audit?.length}). And three of the large world's buyer-side haggles read
+the counterparties (${s('large').counterparties.length}) and the ledger (${s('large').audit?.length}). And ${said(m.sellerSaysPaid)} of the large world's buyer-side haggles read
 "Seller says paid" until PayPal's reporting confirms them: they sit under in progress, as in the real
-wallet, so the dial shows ${f.large.bead.moving} moving beads (${s('large').inMotion} running plus those three plus the waiting ones).
+wallet, so the dial shows ${f.large.bead.moving} moving beads (${s('large').inMotion} running plus those ${said(m.sellerSaysPaid)} plus the waiting ones).
 
 ### Edge cases on purpose
 
 - **small**: an empty module (Tables: no haggling at all); one failed renewal; one payment held; one blocked by the scam check; a $0.99 order.
-- **large**: a haggle with **40 rounds** (80 transcript steps, closed under a rule that allows 45); **one signed
+- **large**: a haggle with **${m.longest?.rounds} rounds** (${m.longest?.steps} transcript steps, closed under a rule that allows ${m.longest?.allows}); **one signed
   rule with all nine clauses set** (the shop rule "quoting-b", pinned to named counterparties, with a
   fixes clause and price checks); ${f.large.maxPayees} payees on one rule; item titles of 60 to ${f.large.maxTitle} characters; a $48,000.00
   held payment next to $0.99 orders and a $0.80 invoice; names in Polish, Czech, German, Japanese,
@@ -242,11 +269,11 @@ The object is a \`MockState\` (src/mock/fixtures.ts). Row shapes are the Rust bi
 ## Module by module (large)
 
 ${table(['module', 'deals', 'waiting', 'what is in it'], [
-    ['Tables (haggle)', f.large.byKind.haggle, f.large.attentionByModule['tables gate'] + (f.large.attentionByModule['tables hold'] ?? 0), '94 buyer tables: 6 to countersign, 1 more open, 4 mismatches, 2 refused, 80 closed; one shop-around group of 3'],
-    ['Spend (purchase)', f.large.byKind.purchase, f.large.attentionByModule['spend gate'], '137 buyer purchases: 6 held payments to capture or void (up to $48,000.00), 22 refused, 100 closed'],
-    ['Counter (shop_order)', f.large.byKind.shop_order, f.large.attentionByModule['counter hold'], '119 shop orders: 115 closed, one awaiting its buyer, one quote, one held, one being checked with PayPal'],
-    ['Rescue', f.large.byKind.rescue, f.large.attentionByModule['rescue gate'], '150 failed renewals: 20 need a fix, 6 invoices out, 70 paid, 30 expired, 24 withdrawn'],
-    ['Shield', f.large.byModule.shield ?? 0, f.large.attentionByModule['shield hold'] ?? 0, '7 payments paused by a scam check (with the rule that paused them) and 10 blocked'],
+    ['Tables (haggle)', f.large.byKind.haggle, f.large.attentionByModule['tables gate'] + (f.large.attentionByModule['tables hold'] ?? 0), `${m.tables.n} buyer tables: ${m.tables.gate} to countersign, ${m.tables.open} more open, ${m.tables.mismatch} mismatches, ${m.tables.refused} refused, ${m.tables.closed} closed; ${said(m.tables.groups.length)} shop-around group${m.tables.groups.length === 1 ? '' : 's'} of ${m.tables.groups.join(', ')}`],
+    ['Spend (purchase)', f.large.byKind.purchase, f.large.attentionByModule['spend gate'], `${m.spend.n} buyer purchases: ${m.spend.held} held payments to capture or void (up to ${usd(m.spend.heldMax)}), ${m.spend.refused} refused, ${m.spend.closed} closed`],
+    ['Counter (shop_order)', f.large.byKind.shop_order, f.large.attentionByModule['counter hold'], `${m.counter.n} shop orders: ${m.counter.closed} closed, ${said(m.counter.awaiting)} awaiting its buyer, ${said(m.counter.quote)} quote, ${said(m.counter.held)} held, ${said(m.counter.checking)} being checked with PayPal`],
+    ['Rescue', f.large.byKind.rescue, f.large.attentionByModule['rescue gate'], `${m.rescue.n} failed renewals: ${m.rescue.fix} need a fix, ${m.rescue.invoices} invoices out, ${m.rescue.paid} paid, ${m.rescue.expired} expired, ${m.rescue.withdrawn} withdrawn`],
+    ['Shield', f.large.byModule.shield ?? 0, f.large.attentionByModule['shield hold'] ?? 0, `${m.shield.paused} payments paused by a scam check (with the rule that paused them) and ${m.shield.blocked} blocked`],
     ['Book', f.large.deals, 0, 'everything above, the ledger, the records'],
   ])}
 `;
