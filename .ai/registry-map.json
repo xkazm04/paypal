@@ -9034,7 +9034,11 @@
           "revision": 1,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/layers/core.tsx:49 This registry installs wallet UI screens, and context and repository searches found no realm, polyfill or cross-runtime constructs establishing the embeddable language-runtime precondition.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:9cfe5aba03ea1a19",
+          "evaluatedRevision": 1
         }
       ],
       "governance": "governed"

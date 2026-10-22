@@ -1,0 +1,76 @@
+{
+ "schema": "conform-run/1",
+ "worker": "cbbd6cdb-deab-4763-82ea-721302fe6a88",
+ "subject": "standards-layered-runtime",
+ "evaluatedAt": "2026-10-22T04:10:31.503721+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "console-framework",
+   "subject": "standards-layered-runtime",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/main/console/layers/core.tsx:49 This registry installs wallet UI screens, and context and repository searches found no realm, polyfill or cross-runtime constructs establishing the embeddable language-runtime precondition.",
+   "techniques": [
+    {
+     "technique": "backend-parameterised-web-api",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/DemoSwitch.tsx:128 These replaceable callbacks control demo UI behavior; they do not implement a standards-defined guest API over host I/O."
+    },
+    {
+     "technique": "baseline-plus-extension-tuple",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/ModuleSummary.tsx:32 Registration supplies navigation labels, with no guest API baseline or embedder extension entry point."
+    },
+    {
+     "technique": "cli-as-thin-assembler",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/Console.tsx:384 The console hosts React screens; it is not the command-line front end of an embeddable language runtime."
+    },
+    {
+     "technique": "crate-per-standards-body",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/layers.registry.ts:24 The assembled layers follow wallet functional areas rather than packages asserting external runtime standards."
+    },
+    {
+     "technique": "re-export-preserves-import-path",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/route.test.ts:23 The compatibility cases preserve wallet URL routes; no API migration between extras and standards packages was found."
+    },
+    {
+     "technique": "status-header-per-api",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/main/console/ModuleLayer.tsx:85 These modules render application views, with no partially implemented runtime standards package requiring per-API conformance headers."
+    }
+   ],
+   "absenceTerms": [
+    "realm",
+    "polyfill",
+    "cross-runtime"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-22T04:10:31.503721+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "standards-layered-runtime"
+   ],
+   "techniques": [
+    "backend-parameterised-web-api",
+    "baseline-plus-extension-tuple",
+    "cli-as-thin-assembler",
+    "crate-per-standards-body",
+    "re-export-preserves-import-path",
+    "status-header-per-api"
+   ],
+   "deviations": 0,
+   "context": "console-framework",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
