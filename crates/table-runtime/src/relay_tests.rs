@@ -1960,3 +1960,45 @@ async fn a_send_that_fails_mid_way_acknowledges_only_the_sent_prefix_and_still_p
     );
     assert_eq!(delivery.batches.len(), 2, "the follow-up poll still runs");
 }
+
+/// A relay whose calls panic.
+struct PanickingRelay;
+#[async_trait]
+impl table_relay::RelayApi for PanickingRelay {
+    async fn create(&self, _: H256) -> Result<(), table_relay::Error> {
+        panic!("relay double panics");
+    }
+    async fn send(&self, _: H256, _: &str) -> Result<(), table_relay::Error> {
+        Ok(())
+    }
+    async fn poll(
+        &self,
+        _: H256,
+        _: &str,
+        _: u64,
+        _: u8,
+    ) -> Result<table_relay::Batch, table_relay::Error> {
+        panic!("relay double panics");
+    }
+}
+
+/// A delivery task that panics is a failed delivery: the pass backs off and says it will retry,
+/// instead of reading as clean and resetting the wait.
+#[tokio::test]
+async fn a_panicking_relay_delivery_counts_as_a_failed_pass() {
+    let (mut r, ..) = runtime(true);
+    let deal = DealId(ulid::Ulid::new());
+    let work = table_ledger::RelayWork {
+        deal_id: deal,
+        mailbox: H256::digest(b"mailbox"),
+        generation: "a".repeat(32),
+        cursor: 0,
+        outgoing: vec![],
+        settled_at: None,
+    };
+    let deliveries = crate::relay::run_deliveries(Arc::new(PanickingRelay), vec![work]).await;
+    let error = r.relay_finished(deliveries).unwrap_err();
+    assert!(matches!(error.code, ErrorCode::Unavailable), "{error:?}");
+    assert_eq!(r.relay_failures, 1);
+    assert!(r.relay_retry_at > r.clock.now());
+}
