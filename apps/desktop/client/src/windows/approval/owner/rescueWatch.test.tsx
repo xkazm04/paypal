@@ -23,4 +23,11 @@ describe('rescue watch, one stop in flight', () => {
     expect(screen.getAllByText('Stopping…')).toHaveLength(1);
     expect(screen.getAllByText('Stop watching')).toHaveLength(2);
   });
+
+  it('says why a watch is not being checked, in plain words', () => {
+    const held: RescueWatchView = { ...row('I-HHH'), held: 'not_connected' };
+    render(<RescueWatch entries={[]} watching={[held]} locked={false} onClose={() => {}} onChanged={() => {}} />);
+    expect(screen.getByText(/Not checking: PayPal isn’t connected\./)).toBeTruthy();
+    expect(screen.queryByText(/checked again/)).toBeNull();
+  });
 });

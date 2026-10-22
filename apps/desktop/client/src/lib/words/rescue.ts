@@ -197,3 +197,11 @@ export const RESCUE = {
     open: 'Open agent rules',
   },
 } as const;
+
+/** Why a watched subscription is not being checked right now (the wallet would otherwise check it). */
+export const RESCUE_WATCH_HOLD: Record<'paused' | 'not_connected' | 'no_rules' | 'no_key', string> = {
+  paused: 'Not checking while your agents are paused.',
+  not_connected: 'Not checking: PayPal isn’t connected.',
+  no_rules: 'Not checking: no signed rules allow fixes for failed renewals.',
+  no_key: 'Not checking: the agent that signed your rescue rules isn’t set up on this device.',
+};

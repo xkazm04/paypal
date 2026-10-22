@@ -838,6 +838,7 @@ export function buildScaleState(scale: Scale, now: number): MockState {
   const rescueWatches: RescueWatchView[] = Array.from({ length: cfg.watches }, (_, i) => ({
     subscription_id: `I-${(fakeUlid(`${scale}:watch:${i}`).slice(-12))}`, recipient: `${String.fromCharCode(97 + ((i * 7) % 26))}•••@example.com`, plan: i % 4 === 3 ? 'care-plan-premium-annual-with-onsite-support' : 'care-plan',
     state: WATCH[i % 5] as RescueWatchState, added_at: now - (3 + i) * DAY, last_read_at: i % 5 === 0 ? null : now - (i + 1) * H, next_read_at: now + (i + 1) * 20 * MIN,
+    held: i % 5 === 0 ? 'not_connected' : null,
   }));
 
   // the day's numbers -------------------------------------------------------------------------------

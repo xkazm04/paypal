@@ -106,6 +106,19 @@ pub enum RescueWatchState {
     /// The last reads could not be used; the wallet tries again later.
     CantRead,
 }
+/// Why the wallet is not checking a watched subscription right now (it would otherwise).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum RescueWatchHold {
+    /// The owner paused the agents.
+    Paused,
+    /// PayPal is not connected, so nothing can be read.
+    NotConnected,
+    /// No signed rules allow fixes for failed renewals.
+    NoRules,
+    /// The rules' agent key is not one this wallet holds.
+    NoKey,
+}
 /// One watched subscription, as the Rescue page and the approval window show it.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -119,6 +132,10 @@ pub struct RescueWatchView {
     #[ts(optional = nullable)]
     pub last_read_at: Option<i64>,
     pub next_read_at: i64,
+    /// Why no check is happening now, if something stops it (absent: the wallet is checking).
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub held: Option<RescueWatchHold>,
 }
 /// A failed renewal the owner records as a labelled replay: PayPal documents no way to fail a
 /// sandbox renewal. The deal carries the REPLAY mode; its invoice is real, never counted.
