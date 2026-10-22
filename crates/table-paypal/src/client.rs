@@ -3,11 +3,18 @@ use async_trait::async_trait;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
-use std::{fmt, sync::Arc};
+use std::{
+    fmt,
+    sync::{Arc, atomic::Ordering::Relaxed},
+    time::Duration,
+};
 use table_core::{Clock, Money};
 use tokio::sync::Mutex;
 /// Attempts one PayPal call makes at most; between them the backoff waits.
 pub const ATTEMPTS: u8 = 3;
+/// The most wall time one PayPal call may take, token requests, attempts and backoff included.
+/// Without it the worst case is 123 s (153 s with a 401 refresh) while the pipeline waits.
+pub const CALL_DEADLINE_SECS: u64 = 45;
 /// The one PayPal REST origin every request goes to: the token, the API calls and reporting.
 /// A live mode changes this line and nothing else.
 pub(crate) const ORIGIN: &str = "https://api-m.sandbox.paypal.com";
@@ -180,6 +187,9 @@ impl Client {
     ) -> Result<ApiResponse<Value>, Error> {
         self.execute_policy(method, path, body, id, true).await
     }
+    /// One PayPal call under [`CALL_DEADLINE_SECS`]. When the deadline passes, a request that was
+    /// on the wire is an unknown outcome carrying what was observed plus a status-0 observation
+    /// for the unanswered request; a call still at the token step sent nothing.
     pub(crate) async fn execute_policy(
         &self,
         method: &'static str,
@@ -189,11 +199,42 @@ impl Client {
         retry: bool,
     ) -> Result<ApiResponse<Value>, Error> {
         let mut observations = Vec::new();
+        let on_wire = std::sync::atomic::AtomicBool::new(false);
+        let call = self.attempts(method, &path, body, id, retry, &mut observations, &on_wire);
+        match tokio::time::timeout(Duration::from_secs(CALL_DEADLINE_SECS), call).await {
+            Ok(result) => result,
+            Err(_) if on_wire.load(Relaxed) || !observations.is_empty() => {
+                observations.push(Observation {
+                    method,
+                    path,
+                    request_id: id.map_or_else(String::new, |id| id.as_str().to_owned()),
+                    status: 0,
+                    body: Value::Null,
+                    binding: None,
+                });
+                Err(Error::Unknown { observations })
+            }
+            Err(_) => Err(Error::Credentials {
+                kind: CredentialsKind::Unreachable,
+            }),
+        }
+    }
+    #[allow(clippy::too_many_arguments)]
+    async fn attempts(
+        &self,
+        method: &'static str,
+        path: &str,
+        body: Option<Value>,
+        id: Option<&RequestId>,
+        retry: bool,
+        observations: &mut Vec<Observation>,
+        on_wire: &std::sync::atomic::AtomicBool,
+    ) -> Result<ApiResponse<Value>, Error> {
         let mut refreshed = false;
         let request_id = id.map_or_else(String::new, |id| id.as_str().to_owned());
         let observed = |status, body, binding| Observation {
             method,
-            path: path.clone(),
+            path: path.to_owned(),
             request_id: request_id.clone(),
             status,
             body,
@@ -206,7 +247,9 @@ impl Client {
             let token = match self.token().await {
                 Ok(token) => token,
                 Err(_) if !observations.is_empty() => {
-                    return Err(Error::Unknown { observations });
+                    return Err(Error::Unknown {
+                        observations: std::mem::take(observations),
+                    });
                 }
                 Err(error) => return Err(error),
             };
@@ -220,6 +263,7 @@ impl Client {
             if let Some(id) = id {
                 headers.push(("PayPal-Request-Id".into(), Secret::new(id.as_str().into())));
             }
+            on_wire.store(true, Relaxed);
             let response = self
                 .transport
                 .send(Request {
@@ -230,6 +274,7 @@ impl Client {
                     form: None,
                 })
                 .await;
+            on_wire.store(false, Relaxed);
             let response = match response {
                 Ok(r) => r,
                 Err(_) => {
@@ -239,7 +284,9 @@ impl Client {
                         self.backoff.wait(attempt).await;
                         continue;
                     }
-                    return Err(Error::Unknown { observations });
+                    return Err(Error::Unknown {
+                        observations: std::mem::take(observations),
+                    });
                 }
             };
             let secrets = self.redactions.lock().await;
@@ -260,7 +307,7 @@ impl Client {
             if (200..300).contains(&response.status) {
                 return Ok(ApiResponse {
                     value: response.body,
-                    observations,
+                    observations: std::mem::take(observations),
                 });
             }
             if response.status == 401 && !refreshed && attempt + 1 < ATTEMPTS {
@@ -276,10 +323,12 @@ impl Client {
             return Err(Error::Api {
                 status: response.status,
                 debug_id,
-                observations,
+                observations: std::mem::take(observations),
             });
         }
-        Err(Error::Unknown { observations })
+        Err(Error::Unknown {
+            observations: std::mem::take(observations),
+        })
     }
     pub(crate) async fn decoded<T: DeserializeOwned>(
         &self,

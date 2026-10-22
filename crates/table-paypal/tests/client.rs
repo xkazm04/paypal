@@ -932,3 +932,45 @@ async fn a_transient_token_failure_is_retried_but_an_empty_keychain_is_not() {
     assert_eq!(waits.0.load(Ordering::SeqCst), 0);
     assert!(fake.requests.lock().unwrap().is_empty());
 }
+/// A transport that answers the token, then stalls every API request for the full request
+/// timeout before failing it.
+#[derive(Debug)]
+struct Stalling(Mutex<u32>);
+#[async_trait]
+impl Transport for Stalling {
+    async fn send(&self, _: Request) -> Result<Response, TransportError> {
+        let first = {
+            let mut calls = self.0.lock().unwrap();
+            *calls += 1;
+            *calls == 1
+        };
+        if first {
+            return oauth();
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS)).await;
+        Err(TransportError)
+    }
+}
+/// The worst case without a deadline is 123 s; with it the call is over by `CALL_DEADLINE_SECS`
+/// and the unanswered request is on the record.
+#[tokio::test(start_paused = true)]
+async fn a_stalled_call_is_bounded_by_the_call_deadline_and_keeps_its_evidence() {
+    let client = Client::sandbox(
+        Arc::new(Stalling(Mutex::new(0))),
+        Arc::new(Creds),
+        Arc::new(Time(AtomicI64::new(100))),
+        Arc::new(ExponentialBackoff),
+    );
+    let started = tokio::time::Instant::now();
+    let error = client
+        .get_order(&ResourceId::new("ORDER1").unwrap())
+        .await
+        .unwrap_err();
+    assert!(
+        started.elapsed().as_secs() <= CALL_DEADLINE_SECS && CALL_DEADLINE_SECS <= 60,
+        "{:?}",
+        started.elapsed()
+    );
+    assert!(matches!(error, Error::Unknown { .. }), "{error:?}");
+    assert!(!error.observations().is_empty());
+}
