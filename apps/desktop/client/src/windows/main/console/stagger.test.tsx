@@ -171,10 +171,17 @@ describe('the scheduler', () => {
 // ---- on the real window ------------------------------------------------------------------------
 const MODULES: readonly Module[] = ['tables', 'spend', 'counter', 'book', 'shield', 'rescue'];
 
+/** renderLayerAtScale settles on ONE quiet read window. On a busy machine the last read's answer can
+ *  reach React only after it (the query layer's notify timer queues behind the window's own timer),
+ *  so wave 0 is read after a second window: the snapshot is wave 0 with its reads answered, not half
+ *  a load. The manual clock holds the later waves meanwhile. */
+const settledTwice = async (): Promise<void> => { await settle(); await settle(); };
+
 describe('the first wave on every module carries its decision (both worlds)', () => {
   it.each(MODULES.flatMap((m) => (['small', 'large'] as const).map((s) => [m, s] as const)))('%s, %s', async (m, scale) => {
     setStaggerClock(c.clock);
     const r = await renderLayerAtScale({ level: 'module', module: m }, scale);
+    await settledTwice();
     const at0 = {
       cards: r.layer.querySelectorAll('.ml-cards:not(.stg-skel)').length,
       call: r.layer.querySelectorAll('.ml-call').length,
@@ -213,6 +220,7 @@ describe('a later wave’s reads wait for their turn', () => {
       if (!d) throw new Error('no ended deal in the world');
       return { level: 'deal', deal: d.id };
     }, 'small');
+    await settledTwice();
     expect(r.budget.byCommand.get('deal_history')?.total ?? 0, 'not read in waves 0-2').toBe(0);
     const before = r.budget.total;
     await c.flush();
