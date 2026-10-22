@@ -185,6 +185,36 @@ pub(crate) fn append(conn: &Connection, entry: &AuditEntry) -> Result<H256, Ledg
     conn.execute("INSERT INTO audit_log(seq,at,actor,action,deal_id,detail_json,prev_hash,hash) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",params![seq,entry.at.to_string(),entry.actor,entry.action,entry.deal_id.map(|id|id.to_string()),detail,&previous.0[..],&hash.0[..]])?;
     Ok(hash)
 }
+/// The columns a projection reads, as stored: seq, at, actor, action, deal_id, detail_json.
+type RecordRow = (i64, String, String, String, Option<String>, String);
+fn record_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<RecordRow> {
+    Ok((
+        r.get(0)?,
+        r.get(1)?,
+        r.get(2)?,
+        r.get(3)?,
+        r.get(4)?,
+        r.get(5)?,
+    ))
+}
+/// One stored row as an [`AuditRecord`]; a row that does not decode is an integrity fault.
+fn record(
+    (seq, at, actor, action, deal_id, detail): RecordRow,
+) -> Result<AuditRecord, LedgerError> {
+    Ok(AuditRecord {
+        seq: u64::try_from(seq).map_err(|_| LedgerError::Integrity("audit sequence"))?,
+        at: at
+            .parse()
+            .map_err(|_| LedgerError::Integrity("audit timestamp"))?,
+        actor,
+        action,
+        deal_id: deal_id
+            .map(|s| s.parse())
+            .transpose()
+            .map_err(|_| LedgerError::Integrity("audit deal ID"))?,
+        detail: serde_json::from_str(&detail)?,
+    })
+}
 impl Ledger {
     pub fn verify_audit(&self) -> Result<H256, LedgerError> {
         verify(&self.conn)
@@ -203,33 +233,8 @@ impl Ledger {
             "SELECT seq,at,actor,action,deal_id,detail_json FROM audit_log WHERE seq<?1 ORDER BY seq DESC LIMIT ?2",
         )?;
         let mut rows = statement
-            .query_map(params![before, i64::from(limit) + 1], |r| {
-                Ok((
-                    r.get::<_, i64>(0)?,
-                    r.get::<_, String>(1)?,
-                    r.get::<_, String>(2)?,
-                    r.get::<_, String>(3)?,
-                    r.get::<_, Option<String>>(4)?,
-                    r.get::<_, String>(5)?,
-                ))
-            })?
-            .map(|row| {
-                let (seq, at, actor, action, deal_id, detail) = row?;
-                Ok(AuditRecord {
-                    seq: u64::try_from(seq)
-                        .map_err(|_| LedgerError::Integrity("audit sequence"))?,
-                    at: at
-                        .parse()
-                        .map_err(|_| LedgerError::Integrity("audit timestamp"))?,
-                    actor,
-                    action,
-                    deal_id: deal_id
-                        .map(|s| s.parse())
-                        .transpose()
-                        .map_err(|_| LedgerError::Integrity("audit deal ID"))?,
-                    detail: serde_json::from_str(&detail)?,
-                })
-            })
+            .query_map(params![before, i64::from(limit) + 1], record_row)?
+            .map(|row| record(row?))
             .collect::<Result<Vec<_>, LedgerError>>()?;
         let more = rows.len() > usize::from(limit);
         rows.truncate(usize::from(limit));
@@ -277,34 +282,9 @@ impl Ledger {
                     to.unwrap_or(i64::MAX),
                     i64::from(limit) + 1
                 ],
-                |r| {
-                    Ok((
-                        r.get::<_, i64>(0)?,
-                        r.get::<_, String>(1)?,
-                        r.get::<_, String>(2)?,
-                        r.get::<_, String>(3)?,
-                        r.get::<_, Option<String>>(4)?,
-                        r.get::<_, String>(5)?,
-                    ))
-                },
+                record_row,
             )?
-            .map(|row| {
-                let (seq, at, actor, action, deal_id, detail) = row?;
-                Ok(AuditRecord {
-                    seq: u64::try_from(seq)
-                        .map_err(|_| LedgerError::Integrity("audit sequence"))?,
-                    at: at
-                        .parse()
-                        .map_err(|_| LedgerError::Integrity("audit timestamp"))?,
-                    actor,
-                    action,
-                    deal_id: deal_id
-                        .map(|s| s.parse())
-                        .transpose()
-                        .map_err(|_| LedgerError::Integrity("audit deal ID"))?,
-                    detail: serde_json::from_str(&detail)?,
-                })
-            })
+            .map(|row| record(row?))
             .collect::<Result<Vec<_>, LedgerError>>()?;
         let more = rows.len() > usize::try_from(limit).unwrap_or(usize::MAX);
         rows.truncate(usize::try_from(limit).unwrap_or(usize::MAX));
