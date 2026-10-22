@@ -92,11 +92,21 @@ export function connectionFacts(list: ReadonlyArray<{ house: boolean }> | null |
   return { houseConnected: list.some((c) => c.house), otherConnections: list.filter((c) => !c.house).length };
 }
 
-/** Signed rules in force now (mandate_list returns the active row of each set): inside their dates,
- *  signed by the owner and not refused, as Agent rules and the Set up page judge them. */
-export function rulesInForce(list: ReadonlyArray<{ payload: { not_before: number; expires: number }; owner_sig: readonly number[]; refusal?: unknown }> | null | undefined, now: number): number | null {
+type RuleWindow = { not_before: number; expires: number };
+type RuleFacts = { payload: RuleWindow; owner_sig: readonly number[]; refusal?: unknown };
+
+/** The owner signed it and the wallet has not refused it (the dates are separate). */
+export const ruleSigned = (m: Pick<RuleFacts, 'owner_sig' | 'refusal'>): boolean => m.owner_sig.length > 0 && !m.refusal;
+/** Whether `now` is inside a rule set's dates: from not_before, up to but not including expires. */
+export const ruleInWindow = (w: RuleWindow, now: number): boolean => w.not_before <= now && now < w.expires;
+/** THE meaning of "rules in force": signed by the owner, not refused, inside its dates. mandate_list
+ *  also returns ended, not-yet-started, refused and unsigned sets, so every site asks this. */
+export const ruleInForce = (m: RuleFacts, now: number): boolean => ruleSigned(m) && ruleInWindow(m.payload, now);
+
+/** How many rule sets are in force now (null while mandate_list is unread). */
+export function rulesInForce(list: ReadonlyArray<RuleFacts> | null | undefined, now: number): number | null {
   if (!list) return null;
-  return list.filter((m) => m.payload.not_before <= now && now < m.payload.expires && m.owner_sig.length > 0 && !m.refusal).length;
+  return list.filter((m) => ruleInForce(m, now)).length;
 }
 
 // ---- the Set up page (calm-nested-ui) --------------------------------------------------------------

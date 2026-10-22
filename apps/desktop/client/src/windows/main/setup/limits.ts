@@ -4,6 +4,7 @@
 import type { Clause } from '@bindings/Clause';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import { formatMoney } from '../../../lib/format';
+import { ruleInForce } from '../../../lib/firstRun';
 import { kindWord } from '../../../lib/words';
 
 export type Limit = { key: 'per_deal' | 'band' | 'velocity' | 'ask'; value: string; label: string };
@@ -48,7 +49,7 @@ export type RulesAnswer = { tone: 'calm' | 'need' | 'done'; title: string; sub: 
 export function rulesAnswer(list: readonly MandateListEntry[], now: number): RulesAnswer {
   if (!list.length) return { tone: 'need', title: 'No rules are signed yet', sub: 'Until you sign some, every agent request is refused before PayPal is asked.' };
   // A set the wallet now refuses (refusal) is listed but not in force.
-  const inForce = list.filter((m) => ruleState(m.payload, now) === 'active' && m.owner_sig.length > 0 && !m.refusal);
+  const inForce = list.filter((m) => ruleInForce(m, now));
   const off = list.length - inForce.length;
   if (off) return { tone: 'need', title: `${off} rule ${off === 1 ? 'set is' : 'sets are'} not in force`, sub: 'An agent without active rules can’t do anything. Change rules to sign them again.' };
   const agents = new Set(inForce.map((m) => m.agent)).size;

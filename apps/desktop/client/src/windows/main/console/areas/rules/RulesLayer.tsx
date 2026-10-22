@@ -20,6 +20,7 @@ import {
 } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
 import { Chip, Disclosure, Kv, Loading, Meter, Silence, UNKNOWN, type ChipTone } from '../../../../../shared/ui';
+import { ruleInForce } from '../../../../../lib/firstRun';
 import { agentTitle, limitLines, rulesAnswer, ruleState } from '../../../setup/limits';
 import { useAttention, useDeals, useNeeds, useSettings } from '../../../world';
 import type { LayerProps } from '../../layers';
@@ -38,9 +39,6 @@ const AGENT_RANK: Readonly<Record<AgentSlot, number>> = { shopper: 0, negotiator
 const AGENT_TONE: Readonly<Record<AgentSlot, string>> = { shopper: 'var(--teal)', negotiator: 'var(--coral)', assistant: 'var(--gold)' };
 const rank = (a: AgentSlot): number => AGENT_RANK[a] ?? 3;
 
-/** In force: signed, inside its dates, and still fitting what the wallet accepts. */
-const inForce = (m: MandateListEntry, now: number) => ruleState(m.payload, now) === 'active' && m.owner_sig.length > 0 && !m.refusal;
-
 /** What a rule set is for, in plain words: the kinds of deal and what they buy ("purchases of
  *  office supplies, parts"); the roles when it names no kind. */
 export function purposeOf(clauses: readonly Clause[]): string {
@@ -58,7 +56,7 @@ export function purposeOf(clauses: readonly Clause[]): string {
 function lowestAsk(list: readonly MandateListEntry[], now: number): Money | null {
   let best: Money | null = null;
   for (const m of list) {
-    if (!inForce(m, now)) continue;
+    if (!ruleInForce(m, now)) continue;
     for (const c of m.payload.clauses) {
       if (c.type !== 'human_present_over') continue;
       if (!best || (c.amount.currency === best.currency && c.amount.minor < best.minor)) best = c.amount;
@@ -90,7 +88,7 @@ function Rules({ nav }: { nav: LayerProps['nav'] }) {
   const now = useNow();
   const list = useMemo(() => q.data ?? [], [q.data]);
   // `live` changes only when a set starts or ends; the rows stay one array between ticks otherwise.
-  const liveKey = list.map((m) => (inForce(m, now) ? '1' : '0')).join('');
+  const liveKey = list.map((m) => (ruleInForce(m, now) ? '1' : '0')).join('');
   const rows = useMemo<Row[]>(() => list.map((m, i) => ({ ...m, live: liveKey[i] === '1' })), [list, liveKey]);
   const [picked, setPicked] = useState<string | null>(null);
   const sorted = useMemo(() => [...rows].sort(SORTS[0]!.compare), [rows]);
@@ -170,7 +168,7 @@ function RuleRow({ m, now, on }: { m: Row; now: number; on: boolean }) {
  *  (no rule numbers), Change (a hand-off), and its proof one disclosure down. */
 function RuleDoc({ m, now }: { m: MandateListEntry; now: number }) {
   const p = m.payload;
-  const live = inForce(m, now);
+  const live = ruleInForce(m, now);
   const limits = limitLines(p.clauses);
   return (
     <article className="rl-doc" aria-label={`${agentTitle(m.agent)}: ${purposeOf(p.clauses)}`} style={{ '--c': AGENT_TONE[m.agent] ?? 'var(--steel)' } as CSSProperties}>

@@ -4,6 +4,7 @@
 // mandate_list it derives each part's state, the wires, the breaks (what is missing, with the one
 // act that fixes it) and what the contract cannot tell (drawn dashed, never green).
 
+import { ruleInWindow } from '../../../lib/firstRun';
 import type { EngineId } from '@bindings/EngineId';
 import type { EngineInfo } from '@bindings/EngineInfo';
 import type { HouseState } from '@bindings/HouseState';
@@ -79,9 +80,10 @@ export type Circuit = {
 
 const ENGINE_LABEL = (id: EngineId): string => (id === 'scripted' ? 'practice agent' : id);
 
-/** Mandates whose validity window contains `now` (mandate_list already returns only active rows). */
+/** Mandates whose validity window contains `now`. The list is not pre-filtered: mandate_list also returns
+ *  ended, refused and unsigned rows, so the caller passes only signed, unrefused ones (circuitMandates). */
 export function mandatesInForce(list: readonly MandateLite[], now: number): MandateLite[] {
-  return list.filter((m) => m.notBefore <= now && now < m.expires);
+  return list.filter((m) => ruleInWindow({ not_before: m.notBefore, expires: m.expires }, now));
 }
 
 function enginePart(s: CircuitSettings | null, engines: readonly EngineInfo[] | null): Part {

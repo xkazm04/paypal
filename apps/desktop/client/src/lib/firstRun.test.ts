@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { connectionFacts, engineChosen, gettingStarted, leaveSetupIntent, rulesInForce, settingsFacts, SETUP_STEP_OF, START_ORDER, takeSetupIntent, type StartFacts } from './firstRun';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import type { MandateListEntry } from '@bindings/MandateListEntry';
+import { circuitMandates } from '../windows/main/console/areas/settings/SettingsLayer';
+import { mandatesInForce } from '../windows/main/setup/circuit';
+import { rulesAnswer } from '../windows/main/setup/limits';
+import { buildMockState } from '../mock/fixtures';
+import { connectionFacts, engineChosen, ruleInForce, gettingStarted, leaveSetupIntent, rulesInForce, settingsFacts, SETUP_STEP_OF, START_ORDER, takeSetupIntent, type StartFacts } from './firstRun';
 import { FIRST_RUN_TITLE, KEEP_PRACTICE_AGENT, SAFETY_PROMISE, START_STEP } from './words';
 import type { SettingsSnapshot } from '@bindings/SettingsSnapshot';
 import { buildFirstRunState } from '../mock/firstRun';
@@ -203,5 +210,37 @@ describe('the Set up page hand-off note', () => {
     expect(takeSetupIntent(2, s)).toBeNull();
     s.setItem('table.setup-intent', 'not json');
     expect(takeSetupIntent(2, s)).toBeNull();
+  });
+});
+
+// "Rules in force" is decided once (ruleInForce) and every client site answers the same on the same row.
+describe('rules in force: one predicate, four sites', () => {
+  const NOW = 1_800_000_000;
+  const base = buildMockState(NOW).mandates[0]!;
+  const row = (o: { nb?: number; ex?: number; sig?: boolean; refusal?: boolean }): MandateListEntry => ({
+    agent: 'negotiator',
+    payload: { ...base.payload, not_before: o.nb ?? NOW - 100, expires: o.ex ?? NOW + 100 },
+    owner_sig: o.sig === false ? [] : [1, 2, 3],
+    ...(o.refusal ? { refusal: { clause: 1, reason: 'over_wallet_limit', why: 'x' } as unknown as NonNullable<MandateListEntry['refusal']> } : {}),
+  });
+  const CASES: Array<[string, MandateListEntry, boolean]> = [
+    ['active', row({}), true],
+    ['ended', row({ ex: NOW - 1 }), false],
+    ['not yet', row({ nb: NOW + 1 }), false],
+    ['refused', row({ refusal: true }), false],
+    ['unsigned', row({ sig: false }), false],
+    ['expires exactly now', row({ ex: NOW }), false],
+    ['starts exactly now', row({ nb: NOW }), true],
+  ];
+  it.each(CASES)('%s: the Charter, the Set up page, the Circuit and Agent rules  agree', (_n, m, want) => {
+    expect(ruleInForce(m, NOW)).toBe(want);
+    expect(rulesInForce([m], NOW)).toBe(want ? 1 : 0); // the Charter line
+    expect(rulesAnswer([m], NOW).tone === 'done').toBe(want); // the Set up page
+    expect(mandatesInForce(circuitMandates([m]), NOW).length === 1).toBe(want); // the Circuit
+  });
+  it('Agent rules has no private copy of the predicate', () => {
+    const src = readFileSync(join(process.cwd(), 'src/windows/main/console/areas/rules/RulesLayer.tsx'), 'utf8');
+    expect(src).not.toMatch(/const inForce = /);
+    expect(src).toMatch(/ruleInForce/);
   });
 });
