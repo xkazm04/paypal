@@ -241,6 +241,58 @@ impl DealState {
     pub const fn withdrawable(self) -> bool {
         self.pre_capture() && !matches!(self, Self::Authorized)
     }
+    /// Before settlement begins: the band can still move, and a seller deal is still watched
+    /// (`market_watch_open`'s seller arm). PAIRING to AGREED.
+    pub const fn before_settlement(self) -> bool {
+        matches!(
+            self,
+            Self::Pairing | Self::Listed | Self::Negotiating | Self::Agreed
+        )
+    }
+    /// A table still being talked: no agreement yet, so a group close or open can reach it.
+    pub const fn open_table(self) -> bool {
+        matches!(self, Self::Pairing | Self::Listed | Self::Negotiating)
+    }
+    /// Where the owner's countersign is accepted.
+    pub const fn countersignable(self) -> bool {
+        matches!(self, Self::Agreed | Self::Approved)
+    }
+    /// A deal the quit confirm lists on its state alone (a held shield verdict adds more).
+    pub const fn quit_pending(self) -> bool {
+        matches!(
+            self,
+            Self::Agreed
+                | Self::AwaitingApproval
+                | Self::Approved
+                | Self::Authorized
+                | Self::Mismatch
+        )
+    }
+    /// The checklist expects a PayPal order here: agreed, or settling.
+    pub const fn order_expected(self) -> bool {
+        matches!(self, Self::Agreed | Self::Settling)
+    }
+    /// The exposure fold counts the deal's money as committed.
+    pub const fn is_committed(self) -> bool {
+        matches!(
+            self,
+            Self::Agreed | Self::Settling | Self::AwaitingApproval | Self::Approved
+        )
+    }
+    /// The exposure fold counts the deal's money as paid. UNCONFIRMED counts as spent: the money
+    /// may have left even though PayPal's statement never showed it, so a spending limit never
+    /// frees it.
+    pub const fn is_paid(self) -> bool {
+        matches!(
+            self,
+            Self::Captured
+                | Self::Receipted
+                | Self::Reconciled
+                | Self::Refunded
+                | Self::Disputed
+                | Self::Unconfirmed
+        )
+    }
 }
 
 /// Events supplied only after protocol or PayPal evidence has been verified at the IO edge.

@@ -7,7 +7,7 @@ use table_core::DealState;
 /// One exported set: its name, its doc line and the predicate that keeps its states.
 type Set = (&'static str, &'static str, fn(DealState) -> bool);
 /// Every exported set, in output order.
-const SETS: [Set; 6] = [
+const SETS: [Set; 13] = [
     (
         "TERMINAL",
         "`DealState::terminal()`: the deal has ended; nothing moves it again but a statement match, a refund or a dispute.",
@@ -37,6 +37,41 @@ const SETS: [Set; 6] = [
         "THROUGH_AGREED",
         "`DealState::through_agreed()`: reached only through AGREED, released ones included; an agreement was recorded.",
         DealState::through_agreed,
+    ),
+    (
+        "BEFORE_SETTLEMENT",
+        "`DealState::before_settlement()`: PAIRING to AGREED; the band can still move and a seller deal is still watched.",
+        DealState::before_settlement,
+    ),
+    (
+        "OPEN_TABLE",
+        "`DealState::open_table()`: still being talked, no agreement; a group close or open reaches it.",
+        DealState::open_table,
+    ),
+    (
+        "COUNTERSIGNABLE",
+        "`DealState::countersignable()`: where the owner's countersign is accepted.",
+        DealState::countersignable,
+    ),
+    (
+        "QUIT_PENDING",
+        "`DealState::quit_pending()`: the states the quit confirm lists on state alone.",
+        DealState::quit_pending,
+    ),
+    (
+        "ORDER_EXPECTED",
+        "`DealState::order_expected()`: the checklist expects a PayPal order here.",
+        DealState::order_expected,
+    ),
+    (
+        "COMMITTED",
+        "`DealState::is_committed()`: the exposure fold counts the money as committed.",
+        DealState::is_committed,
+    ),
+    (
+        "PAID",
+        "`DealState::is_paid()`: the exposure fold counts the money as paid (UNCONFIRMED included).",
+        DealState::is_paid,
     ),
 ];
 

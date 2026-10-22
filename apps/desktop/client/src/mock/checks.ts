@@ -6,6 +6,7 @@ import type { ApprovalCheck } from '@bindings/ApprovalCheck';
 import type { ApprovalCheckId } from '@bindings/ApprovalCheckId';
 import type { ApprovalCheckStatus } from '@bindings/ApprovalCheckStatus';
 import type { Deal } from '@bindings/Deal';
+import { ORDER_EXPECTED } from '@bindings/dealStates';
 import type { H256 } from '@bindings/H256';
 import type { Money } from '@bindings/Money';
 import type { OpenMandate } from '@bindings/OpenMandate';
@@ -44,7 +45,6 @@ export type MockCheckInput = {
 const line = (id: ApprovalCheckId, status: ApprovalCheckStatus, text: string, detail: string): ApprovalCheck => ({ id, status, text, detail });
 const RULE: Record<number, string> = { 1: 'what agents may do', 2: 'who they deal with', 3: 'the limit per deal', 4: 'the price range', 5: 'the daily limit', 6: 'ask me above', 7: 'approved payees', 8: 'fixes for failed renewals', 0: 'your wallet limits' };
 const code = (m: Money) => formatMoney(m, { code: true });
-const ORDER_EXPECTED = new Set<Deal['state']>(['AGREED', 'SETTLING']);
 
 type Settle = { amount: Money } | null;
 type MandateFact = { k: 'allow'; perDeal: Money | null } | { k: 'ask'; threshold: Money } | { k: 'refused'; clause: number; reason: string } | { k: 'retired' };
