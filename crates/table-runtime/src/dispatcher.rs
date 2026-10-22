@@ -530,7 +530,15 @@ impl Runtime {
                     .and_then(serde_json::Value::as_array)
                     .cloned()
                     .unwrap_or_default();
-                json(BookAnswer { query, rows })
+                let truncated = answer
+                    .get("truncated")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false);
+                json(BookAnswer {
+                    query,
+                    rows,
+                    truncated,
+                })
             }
             Action::AuditPage(args) => json(self.audit_page(args)?),
             Action::DealHistory(args) => {
