@@ -24,6 +24,9 @@ describe('lever cells', () => {
   it('offers the wallet’s discount, turns RETRY_AFTER_FIX off on REPLAY rows and near a retry, and the rest are not built', () => {
     expect(cellState(deal('a', { mode: 'replay' }), 'RETRY_AFTER_FIX', NOW + 5 * 86400, NOW)).toMatchObject({ kind: 'off', code: 'REPLAY' });
     expect(cellState(deal('a'), 'RETRY_AFTER_FIX', NOW + 3600, NOW)).toMatchObject({ kind: 'off', code: 'retry <24h' });
+    // check_lever (crates/table-core/src/rescue.rs) refuses at <= 86400 s, so exactly 24 h away is off too.
+    expect(cellState(deal('a'), 'RETRY_AFTER_FIX', NOW + 86400, NOW)).toMatchObject({ kind: 'off', code: 'retry <24h' });
+    expect(cellState(deal('a'), 'RETRY_AFTER_FIX', NOW + 86401, NOW)).toMatchObject({ kind: 'off', code: 'NOT_BUILT' });
     expect(cellState(deal('a'), 'RETRY_AFTER_FIX', NOW + 5 * 86400, NOW)).toEqual({ kind: 'off', code: 'NOT_BUILT', why: NOT_BUILT });
     expect(cellState(deal('a'), 'PAUSE', NOW + 5 * 86400, NOW, view('a')).kind).toBe('off');
     expect(cellState(deal('a', { mode: 'replay' }), 'DISCOUNT_THIS_CYCLE', NOW + 3600, NOW).kind).toBe('unknown');
