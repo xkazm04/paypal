@@ -31,10 +31,7 @@ pub enum MarketWatchStep<'a> {
 /// it).
 pub const fn market_watch_open(state: DealState, side: Side) -> bool {
     match side {
-        Side::Seller => matches!(
-            state,
-            DealState::Pairing | DealState::Listed | DealState::Negotiating | DealState::Agreed
-        ),
+        Side::Seller => state.before_settlement(),
         Side::Buyer => state.pre_capture(),
     }
 }

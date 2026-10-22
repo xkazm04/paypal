@@ -88,13 +88,7 @@ impl Runtime {
                 let deal = app(self.pipeline.wallet.ledger.get_deal(id))?;
                 let currency = deal.terms.currency;
                 // The same window band_set accepts: before settlement, a band naming the item.
-                let movable = matches!(
-                    deal.state,
-                    DealState::Pairing
-                        | DealState::Listed
-                        | DealState::Negotiating
-                        | DealState::Agreed
-                ) && deal.paypal.order.is_none();
+                let movable = deal.state.before_settlement() && deal.paypal.order.is_none();
                 let m = app(self.pipeline.wallet.ledger.active_mandate(
                     deal.mandate_id,
                     deal.mandate_version,
@@ -441,11 +435,7 @@ impl Runtime {
             return Err(permission());
         }
         let deal = app(self.pipeline.wallet.ledger.get_deal(args.deal_id))?;
-        if !matches!(
-            deal.state,
-            DealState::Pairing | DealState::Listed | DealState::Negotiating | DealState::Agreed
-        ) || deal.paypal.order.is_some()
-        {
+        if !deal.state.before_settlement() || deal.paypal.order.is_some() {
             return Err(invalid());
         }
         let mut mandate = app(self.pipeline.wallet.ledger.active_mandate(
