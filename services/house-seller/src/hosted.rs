@@ -744,12 +744,12 @@ impl Seller {
         self.relay
             .create(work.mailbox)
             .await
-            .map_err(|_| Error::Unavailable)?;
+            .map_err(relay_failure)?;
         let batch = self
             .relay
             .poll(work.mailbox, &work.generation, work.cursor, 0)
             .await
-            .map_err(|_| Error::Unavailable)?;
+            .map_err(relay_failure)?;
         batch.validate().map_err(|_| Error::Invalid)?;
         let generation = batch.generation.clone();
         self.pipeline.wallet.ledger.stage_relay_batch(
@@ -960,6 +960,15 @@ impl Seller {
             _ => {}
         }
         Ok(())
+    }
+}
+
+/// What a relay answer means to the operator line: a full relay says `full`, anything else
+/// stays `unavailable` (the step is retried either way).
+fn relay_failure(e: table_relay::Error) -> Error {
+    match e {
+        table_relay::Error::Full => Error::Full,
+        _ => Error::Unavailable,
     }
 }
 
@@ -1285,6 +1294,22 @@ mod tests {
         "01ARZ3NDEKTSV4RRFFQ69G5FAV".parse().unwrap()
     }
 
+    #[tokio::test]
+    async fn a_full_relay_is_logged_as_full_not_as_an_outage() {
+        use table_relay::RelayApi;
+        let store = rendezvous::MemoryStore::new(Arc::new(Fixed(100)));
+        for n in 0..rendezvous::MAX_MAILBOXES {
+            rendezvous::Mailbox::create(&store, &format!("{n:064x}"))
+                .await
+                .unwrap();
+        }
+        let full = store.create(H256::digest(b"one more")).await.unwrap_err();
+        assert_eq!(relay_failure(full).code(), "full");
+        assert_eq!(
+            relay_failure(table_relay::Error::Unavailable).code(),
+            "unavailable"
+        );
+    }
     #[tokio::test]
     async fn closed_channel_is_unavailable() {
         let (h, rx) = handle(Duration::from_secs(20), 100);
