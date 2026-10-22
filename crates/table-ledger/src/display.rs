@@ -11,11 +11,15 @@ impl Ledger {
             |r| r.get(0),
         )?)
     }
-    pub fn counterparty_list(&self) -> Result<Vec<CounterpartyDisplay>, LedgerError> {
+    /// `now` is the clock the pin gate reads: a revoked or expired pin reads unpaired here, as at the gate.
+    pub fn counterparty_list(
+        &self,
+        now: Timestamp,
+    ) -> Result<Vec<CounterpartyDisplay>, LedgerError> {
         // UNCONFIRMED counts as a closed deal (it ended), never as a paid one: this count says closed.
         let mut stmt = self.conn.prepare("SELECT c.key_id,c.display_name,c.paired_via,c.first_seen,
             (SELECT COUNT(*) FROM deals d WHERE d.counterparty=c.key_id AND d.state IN ('RECEIPTED','RECONCILED','UNCONFIRMED')),
-            c.words_confirmed_at,c.declared_payee,c.revoked_at
+            c.words_confirmed_at,c.declared_payee,c.revoked_at,c.expires_at
             FROM counterparties c WHERE c.key_id NOT LIKE 'sub:%' ORDER BY c.key_id")?;
         let rows = stmt.query_map([], |r| {
             Ok((
@@ -27,13 +31,16 @@ impl Ledger {
                 r.get::<_, Option<String>>(5)?,
                 r.get::<_, Option<String>>(6)?,
                 r.get::<_, Option<Timestamp>>(7)?,
+                r.get::<_, Option<Timestamp>>(8)?,
             ))
         })?;
         rows.map(|row| {
-            let (key, name, via, at, closed, confirmed, payee, revoked) = row?;
+            let (key, name, via, at, closed, confirmed, payee, revoked, expires) = row?;
             // A revoked pin is no pin: the gate refuses it (`pin::require_live`), so the list
-            // reads it as unpaired too. (An expired pin needs the clock; this read has none.)
-            let pairing = match (confirmed.is_some() && revoked.is_none(), via.as_str()) {
+            // reads it as unpaired too, and so is an expired one (`pin::state`'s same test).
+            let live =
+                confirmed.is_some() && revoked.is_none() && !expires.is_some_and(|at| now >= at);
+            let pairing = match (live, via.as_str()) {
                 (true, "house") => CounterpartyPairing::HousePinned,
                 (true, _) => CounterpartyPairing::WordsConfirmed,
                 (false, _) => CounterpartyPairing::Unpaired,

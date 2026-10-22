@@ -357,7 +357,7 @@ fn a_reveal_that_does_not_open_the_commit_ends_the_pairing_and_pins_nothing() {
                 .pipeline
                 .wallet
                 .ledger
-                .counterparty_list()
+                .counterparty_list(buyer.clock.now())
                 .unwrap()
                 .is_empty(),
             "case {case}"
