@@ -5,7 +5,7 @@ import { buildMockState, usd } from '../../mock/fixtures';
 import {
   amountNote, amountTone, beadKind, isSettled, isTerminal, receiptToast, stateLabel, canStartAgent, canWithdraw, chipClass, clauseText, formatHash, isOwnerAccept, ledgerScope, mandatesGoverning,
   marketPosition, moduleOf, stepBack, moneyNow, niceTicks, parseHash, resolveDealRef, reviewVerb,
-  type Route, spendToday, splitHeadline, stripFor, sumByCurrency, summarize, weekBounds,
+  decidedBy, whoDecided, type Route, spendToday, splitHeadline, stripFor, sumByCurrency, summarize, weekBounds,
 } from './logic';
 
 const NOW = 1_800_000_000;
@@ -343,5 +343,18 @@ describe('nested routes', () => {
     expect(stepBack({ level: 'place', place: 'pairing' }, null)).toEqual({ level: 'place', place: 'connections' });
     expect(stepBack({ level: 'place', place: 'pairing', from: 'settings' }, null)).toEqual({ level: 'place', place: 'settings' });
     expect(stepBack({ level: 'place', place: 'safety', from: 'book' }, null)).toEqual({ level: 'module', module: 'book' });
+  });
+});
+
+describe('one word per authority: the answer line and "Who decided" agree', () => {
+  const pairs: Array<[string, NonNullable<Deal['decided_by']>, Parameters<typeof whoDecided>[0]]> = [
+    ['you', { type: 'human' } as never, { type: 'owner' } as never],
+    ['policy', { type: 'policy', clause: 1 } as never, { type: 'signed_rule' } as never],
+    ['shop', { type: 'seller_mandate' } as never, { type: 'seller_mandate' } as never],
+    ['house', { type: 'house_mandate' } as never, { type: 'house_mandate' } as never],
+    ['default', { type: 'safe_default', deadline: 1 } as never, { type: 'safe_default' } as never],
+  ];
+  it.each(pairs)('%s is worded the same in both', (_k, by, auth) => {
+    expect(decidedBy({ decided_by: by }).text.toLowerCase().startsWith(whoDecided(auth).toLowerCase())).toBe(true);
   });
 });

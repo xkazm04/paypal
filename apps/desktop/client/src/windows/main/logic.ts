@@ -217,6 +217,11 @@ export function amountNote(d: Pick<Deal, 'state' | 'side' | 'shield' | 'kind'>):
 
 // ---- who decided (Deal.decided_by, the authority Rust recorded) ------------------------------
 
+/** One word per authority, read by decidedBy (the answer line) and whoDecided (the story's
+ *  "Who decided"), so a deal page never names one decider two ways. */
+export const AUTHORITY_WORD = { you: 'You', policy: 'Your rules', shop: 'Your shop rules', house: 'The house seller’s rules', default: 'The safe default' } as const;
+const lc = (w: string): string => w.charAt(0).toLowerCase() + w.slice(1);
+
 export type DecidedWho = 'you' | 'policy' | 'default' | 'none';
 export type DecidedFact = { who: DecidedWho; text: string; why: string };
 
@@ -226,11 +231,11 @@ export function decidedBy(d: Pick<Deal, 'decided_by'>): DecidedFact {
   const v = d.decided_by;
   if (!v) return { who: 'none', text: 'not decided yet', why: 'Nobody, no rule and no deadline has decided this deal yet.' };
   switch (v.type) {
-    case 'human': return { who: 'you', text: 'you', why: 'You decided it yourself, in the approval window.' };
-    case 'policy': return { who: 'policy', text: `your rule · ${ruleNameOf(v.clause).toLowerCase()}`, why: `A rule you signed decided it without asking you: “${ruleNameOf(v.clause)}” (rule ${v.clause}).` };
-    case 'seller_mandate': return { who: 'policy', text: 'your shop rules', why: 'Your signed shop rules collected it after the buyer approved on PayPal.' };
-    case 'house_mandate': return { who: 'policy', text: 'house seller rules', why: 'The house seller’s fixed rules decided it.' };
-    case 'safe_default': return { who: 'default', text: 'the deadline', why: 'Nobody acted before the deadline, so the safe default applied. It never pays.' };
+    case 'human': return { who: 'you', text: lc(AUTHORITY_WORD.you), why: 'You decided it yourself, in the approval window.' };
+    case 'policy': return { who: 'policy', text: `${lc(AUTHORITY_WORD.policy)} · ${ruleNameOf(v.clause).toLowerCase()}`, why: `A rule you signed decided it without asking you: “${ruleNameOf(v.clause)}” (rule ${v.clause}).` };
+    case 'seller_mandate': return { who: 'policy', text: lc(AUTHORITY_WORD.shop), why: 'Your signed shop rules collected it after the buyer approved on PayPal.' };
+    case 'house_mandate': return { who: 'policy', text: lc(AUTHORITY_WORD.house), why: 'The house seller’s fixed rules decided it.' };
+    case 'safe_default': return { who: 'default', text: lc(AUTHORITY_WORD.default), why: 'Nobody acted before the deadline, so the safe default applied. It never pays.' };
   }
 }
 
@@ -641,11 +646,11 @@ export const TICK_WORD: Record<TickTone, string> = {
 /** Who decided a step, in Maya's words ("You", "Your rules", ...); empty when nobody decided. */
 export function whoDecided(a: HistoryAuthority): string {
   switch (a.type) {
-    case 'owner': return 'You';
-    case 'signed_rule': return 'Your rules';
-    case 'seller_mandate': return 'Your shop rules';
-    case 'house_mandate': return 'The house seller’s rules';
-    case 'safe_default': return 'The safe default';
+    case 'owner': return AUTHORITY_WORD.you;
+    case 'signed_rule': return AUTHORITY_WORD.policy;
+    case 'seller_mandate': return AUTHORITY_WORD.shop;
+    case 'house_mandate': return AUTHORITY_WORD.house;
+    case 'safe_default': return AUTHORITY_WORD.default;
     case 'agent_intent': return 'Your agent';
     case 'none': return '';
     case 'group_rule': return 'Your shop-around choice';
