@@ -290,6 +290,8 @@ impl Ledger {
             return Err(LedgerError::Conflict);
         }
         if real_reset && changed_at > 0 && now.saturating_sub(changed_at) < RESET_WINDOW_SECS {
+            drop(tx);
+            self.note_relay_refusal(id, generation, "reset_window", now)?;
             return Err(LedgerError::Conflict);
         }
         if reset {
@@ -317,6 +319,8 @@ impl Ledger {
             |r| r.get(0),
         )?;
         if held > INBOX_CAP {
+            drop(tx);
+            self.note_relay_refusal(id, generation, "inbox_cap", now)?;
             return Err(LedgerError::Conflict);
         }
         tx.execute(
@@ -329,6 +333,39 @@ impl Ledger {
                 now
             ],
         )?;
+        tx.commit()?;
+        Ok(())
+    }
+    /// Records a refused relay behaviour (a second generation reset inside the window, an inbox
+    /// past its cap) once per (deal, generation, reason): the same refused poll repeats every
+    /// cycle and must not grow the chain. Names no message text, only the generation.
+    fn note_relay_refusal(
+        &mut self,
+        id: DealId,
+        generation: &str,
+        reason: &str,
+        now: Timestamp,
+    ) -> Result<(), LedgerError> {
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let seen: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM audit_log WHERE deal_id=?1 AND action='relay.reset_refused' AND json_extract(detail_json,'$.generation')=?2 AND json_extract(detail_json,'$.reason')=?3)",
+            params![id.to_string(), generation, reason],
+            |r| r.get(0),
+        )?;
+        if !seen {
+            audit::append(
+                &tx,
+                &AuditEntry {
+                    at: now,
+                    actor: "relay".into(),
+                    action: "relay.reset_refused".into(),
+                    deal_id: Some(id),
+                    detail: serde_json::json!({"generation": generation, "reason": reason}),
+                },
+            )?;
+        }
         tx.commit()?;
         Ok(())
     }

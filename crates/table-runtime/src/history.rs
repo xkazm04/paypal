@@ -645,6 +645,11 @@ mod tests {
                 None,
             ),
             (
+                "relay.reset_refused",
+                json!({"generation":"a","reason":"reset_window"}),
+                None,
+            ),
+            (
                 "rescue.watch_unread",
                 json!({"subscription_id":"I-1","tries":2}),
                 None,

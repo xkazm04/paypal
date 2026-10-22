@@ -173,6 +173,7 @@ pub(crate) const ACTION_KEYS: &[(&str, &[&str])] = &[
         ],
     ),
     ("rescue.paid", &["invoice_id", "amount", "mode", "counted"]),
+    ("relay.reset_refused", &["generation", "reason"]),
     ("rescue.watch_added", &["subscription_id", "plan"]),
     (
         "rescue.watch_read",

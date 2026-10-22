@@ -2980,8 +2980,52 @@ fn c9a_first_adoption_starts_no_window_and_a_reset_inside_it_is_refused() {
         assert_eq!(route_state(&ledger, deal.id), (b.clone(), 1, 1000));
         assert_eq!(inbox_rows(&ledger, deal.id), rows);
     }
+    // The refusals left one row for the generation, not one per poll.
+    let refused = |ledger: &Ledger| {
+        let (rows, _) = ledger.audit_page(None, 500).unwrap();
+        rows.into_iter()
+            .filter(|r| r.action == "relay.reset_refused")
+            .collect::<Vec<_>>()
+    };
+    let rows_refused = refused(&ledger);
+    assert_eq!(rows_refused.len(), 1);
+    assert_eq!(
+        rows_refused[0].detail,
+        serde_json::json!({"generation": c, "reason": "reset_window"})
+    );
+    ledger.verify_audit().unwrap();
     ledger.stage_relay_batch(deal.id, &c, 0, &[], 1600).unwrap();
     assert_eq!(route_state(&ledger, deal.id), (c, 0, 1600));
+}
+#[test]
+fn an_inbox_past_its_cap_is_refused_with_one_row_per_generation() {
+    let (mut ledger, deal, _, _, _) = setup();
+    ledger.bind_relay(deal.id, H256::digest(b"m"), 100).unwrap();
+    let full: Vec<String> = (0..256).map(|_| "x.y.z".to_string()).collect();
+    for (n, g) in ["a", "b", "c", "d"].iter().enumerate() {
+        ledger
+            .stage_relay_batch(deal.id, &g.repeat(32), 0, &full, 1000 + 1000 * n as i64)
+            .unwrap();
+    }
+    let last = "e".repeat(32);
+    for now in [5000, 5001] {
+        assert!(matches!(
+            ledger.stage_relay_batch(deal.id, &last, 0, &["x.y.z".into()], now),
+            Err(LedgerError::Conflict)
+        ));
+    }
+    let (rows, _) = ledger.audit_page(None, 500).unwrap();
+    let refused: Vec<_> = rows
+        .iter()
+        .filter(|r| r.action == "relay.reset_refused")
+        .collect();
+    assert_eq!(refused.len(), 1);
+    assert_eq!(
+        refused[0].detail,
+        serde_json::json!({"generation": last, "reason": "inbox_cap"})
+    );
+    assert_eq!(inbox_rows(&ledger, deal.id).len(), 1024);
+    ledger.verify_audit().unwrap();
 }
 #[test]
 fn c9a_an_accepted_reset_prunes_settled_rows_of_this_deal_only() {
