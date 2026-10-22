@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
-import { ago, bandGeometry, checkCell, CHECKS, overMedian, paypalLine, NOT_ACTIVE, reasonsFor, releasable, shieldNeed, UNSHOWN } from './matrix';
+import { formatMinor } from '../../../../lib/format';
+import { ago, bandGeometry, checkCell, CHECKS, overMedian, overPauseLine, paypalLine, NOT_ACTIVE, reasonsFor, releasable, shieldNeed, UNSHOWN } from './matrix';
 
 const usd = (d: number) => ({ minor: d * 100, currency: 'USD' as const });
 const NONE = { order: null, authorization: null, capture: null, subscription: null };
@@ -101,5 +102,18 @@ describe('market band geometry', () => {
     expect(g.iqr[0]).toBeGreaterThanOrEqual(0);
     expect(g.pct).toBe(45);
     expect(bandGeometry(deal())).toBeNull();
+  });
+});
+
+describe('the stated pause line is the enforced one', () => {
+  // Rust holds when price * 10 > median * 14, so the last price that passes is floor(median * 14 / 10).
+  const at = (m: number, price: number) => deal({ market: { ...market, p25: { minor: 1, currency: 'USD' }, median: { minor: m, currency: 'USD' }, p75: { minor: m * 2, currency: 'USD' } }, terms: { ...deal().terms, unit_price: { minor: price, currency: 'USD' } } });
+  it('names, in the copy, the last price the shield lets through, for every median', () => {
+    for (let m = 1; m <= 1000; m++) {
+      const line = Math.floor((m * 14) / 10);
+      expect(overPauseLine(at(m, line)), `median ${m}`).toBe(false);
+      expect(overPauseLine(at(m, line + 1)), `median ${m}`).toBe(true);
+      expect(checkCell('market', at(m, line), undefined, NOW).l, `median ${m}`).toContain(`Above ${formatMinor(line, 'USD')} the shield pauses`);
+    }
   });
 });

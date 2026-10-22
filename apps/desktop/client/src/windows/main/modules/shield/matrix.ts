@@ -64,6 +64,12 @@ export function overMedian(d: Pick<Deal, 'terms' | 'market'>): number | null {
   return Math.round((d.terms.unit_price.minor / m.median.minor - 1) * 100);
 }
 
+/** The last unit price (minor units) the shield lets through: floor(median * 1.4), integer maths, so
+ *  one minor unit above it is what Rust holds (price * 10 > median * 14). */
+export function pauseLineMinor(median: number): number {
+  return Math.floor((median * 14) / 10);
+}
+
 /** Whether the unit price is over the shield's pause line, exactly as Rust decides it
  *  (MarketRef::over_forty_percent, crates/table-core/src/market.rs: price * 10 > median * 14, in
  *  integer minor units), never from the rounded percent shown. Null without a usable reference. */
@@ -114,7 +120,7 @@ export function checkCell(k: CheckKey, d: Pick<Deal, 'terms' | 'market'> & Shiel
       const p = overMedian(d);
       if (p === null) return { r: 'skip', s: 'no price to compare', l: 'There is no typical price on file for this item. The shield never waves through a price it cannot compare, so it asks you.' };
       const m = d.market!;
-      const flag = Math.round(m.median.minor * 1.4);
+      const flag = pauseLineMinor(m.median.minor);
       const s = p === 0 ? 'typical price' : `${Math.abs(p)}% ${p > 0 ? 'above' : 'below'} typical`;
       return { r: 'fact', s, l: `${formatMinor(d.terms.unit_price.minor, d.terms.unit_price.currency)} each, where a typical price is ${formatMinor(m.median.minor, m.median.currency)} (most sell between ${formatMinor(m.p25.minor, m.p25.currency)} and ${formatMinor(m.p75.minor, m.p75.currency)}). Above ${formatMinor(flag, m.median.currency)} the shield pauses the payment for you.` };
     }
@@ -191,7 +197,7 @@ export function bandGeometry(d: Pick<Deal, 'terms' | 'market'>): BandGeometry | 
   const m = d.market;
   const price = d.terms.unit_price;
   if (!m || m.median.currency !== price.currency || m.median.minor <= 0) return null;
-  const flag = Math.round(m.median.minor * 1.4);
+  const flag = pauseLineMinor(m.median.minor);
   const pts = [m.p25.minor, m.p75.minor, flag, price.minor];
   const lo = Math.min(...pts) * 0.93;
   const hi = Math.max(...pts) * 1.04;
