@@ -36,7 +36,7 @@ describe('wave 0 port gaps', () => {
     const main = mockBackend('main');
     const deals = await main.invoke('list_deals', null);
     const by = (label: string) => deals.find((d) => d.id === fakeUlid(label))!;
-    expect(decidedBy(by('D-0192'))).toMatchObject({ who: 'policy', text: 'your rule · limit per deal' });
+    expect(decidedBy(by('D-0192'))).toMatchObject({ who: 'policy', text: 'your rules · limit per deal' });
     expect(decidedBy(by('D-0185')).who).toBe('policy');
     expect(decidedBy(by('D-0180')).who).toBe('you');
     expect(decidedBy(by('D-0193'))).toMatchObject({ who: 'none' });
