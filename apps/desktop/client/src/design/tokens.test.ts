@@ -65,8 +65,6 @@ describe('tokens.css holds the only colour literals', () => {
   // stripped first (they name colours in prose), and mask declarations are skipped (a mask reads
   // only alpha, so #000 there is not a colour anyone sees). The dev inspector is a dev-only overlay;
   // the scenario director's stage (src/director/director.css) reads tokens like every window.
-  // KNOWN: a preview stage that breaks the rule today (carded); its count may only shrink.
-  const KNOWN: Record<string, number> = { 'src/windows/tumbler/preview/preview.css': 2 };
   const COLOUR = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|oklch|oklab|lab|lch)\(|(?<![-\w.])(?:white|black)(?![-\w])/gi;
   const cssFiles = (dir: string): string[] => readdirSync(dir).flatMap((f) => {
     const p = join(dir, f);
@@ -79,7 +77,7 @@ describe('tokens.css holds the only colour literals', () => {
       if (rel === 'src/design/tokens.css' || rel.startsWith('src/lib/dev/')) continue;
       const text = readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(?:-webkit-)?mask[a-z-]*\s*:[^;}]*/g, '');
       const n = text.match(COLOUR)?.length ?? 0;
-      if (n > (KNOWN[rel] ?? 0)) over.push(`${rel}: ${n}`);
+      if (n > 0) over.push(`${rel}: ${n}`);
     }
     expect(over).toEqual([]);
   });
