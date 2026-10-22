@@ -19,9 +19,9 @@ import { WeekTiles } from '../../../modules/shield/Panels';
 import { weekStrip } from '../../../modules/shield/normal';
 import { bandGeometry, checkCell, CHECKS, overMedian, overPauseLine, paypalLine, releasable, STAGES } from '../../../modules/shield/matrix';
 import { useLayerNav } from '../../layers';
-import { ListEngine, type ListFilter } from '../../ListEngine';
+import { fewRows, ListEngine, type ListFilter } from '../../ListEngine';
 import { Amount } from '../../rows';
-import { fewRows, RefuseButton, ReleaseHandoff, VerdictChip, type ShieldWorld } from './parts';
+import { RefuseButton, ReleaseHandoff, VerdictChip, type ShieldWorld } from './parts';
 
 type Scope = 'week' | 'all';
 
