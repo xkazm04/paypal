@@ -43,15 +43,41 @@ export function buildIndex(items: readonly FindItem[]): FindIndex {
   return { items: ordered, hay: ordered.map((i) => `${i.title} ${i.sub} ${i.also ?? ''}`.toLowerCase()) };
 }
 
-/** The items matching `q` (every item for an empty query), at most `cap`. */
+/** The items matching `q`, at most `cap`. An empty query lists a few rows of every group (an even
+ *  share each, the spare going to the groups with more, in order), so a long deal tail never hides
+ *  the places: Find is how the owner reaches them. */
 export function searchIndex(index: FindIndex, q: string, cap = FIND_CAP): FindItem[] {
   const needle = q.trim().toLowerCase();
+  if (!needle) return spread(index, cap);
   const out: FindItem[] = [];
   for (let i = 0; i < index.items.length && out.length < cap; i++) {
     const item = index.items[i];
     if (item && (!needle || (index.hay[i] ?? '').includes(needle))) out.push(item);
   }
   return out;
+}
+
+function spread(index: FindIndex, cap: number): FindItem[] {
+  if (index.items.length <= cap) return [...index.items];
+  const groups = FIND_ORDER.map((g) => index.items.filter((i) => i.group === g)).filter((rows) => rows.length);
+  const share = Math.floor(cap / Math.max(1, groups.length));
+  const take = groups.map((rows) => Math.min(rows.length, share));
+  let spare = cap - take.reduce((a, b) => a + b, 0);
+  for (let g = 0; g < groups.length && spare > 0; g++) {
+    const more = Math.min(spare, (groups[g]?.length ?? 0) - (take[g] ?? 0));
+    take[g] = (take[g] ?? 0) + more;
+    spare -= more;
+  }
+  return groups.flatMap((rows, g) => rows.slice(0, take[g] ?? 0));
+}
+
+/** How many items match `q` in all (the cap aside): Find's footer names it beside what it shows. */
+export function matchCount(index: FindIndex, q: string): number {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return index.items.length;
+  let n = 0;
+  for (const h of index.hay) if (h.includes(needle)) n++;
+  return n;
 }
 
 /** The most rows Find shows at once (the old palette's 40). */
