@@ -261,7 +261,8 @@ export function forgetSizes(): void { sizes.clear(); }
 
 /** Remembers the height a `display: contents` wrapper's children take, as the browser lays them out
  *  (a ResizeObserver: no forced layout in the reveal's own frame; it follows the part while it is
- *  shown, so a part that grows after its own reads is remembered at its full size). */
+ *  shown, so a part that grows after its own reads is remembered at its full size). Each measure is
+ *  filed under the window size it was taken at, so a resize never overwrites another size's height. */
 function rememberHeight(el: HTMLElement, key: string): () => void {
   const kids = Array.from(el.children);
   if (!kids.length || typeof ResizeObserver !== 'function') return () => {};
@@ -270,7 +271,7 @@ function rememberHeight(el: HTMLElement, key: string): () => void {
     const a = kids[0]?.getBoundingClientRect();
     const b = kids[kids.length - 1]?.getBoundingClientRect();
     const h = a && b ? b.bottom - a.top : 0;
-    if (h > 0) sizes.set(key, h);
+    if (h > 0) sizes.set(sizeKeyOf(key), h);
   });
   for (const k of kids) ro.observe(k);
   return () => ro.disconnect();
@@ -296,7 +297,7 @@ export function Reveal({ wave, priority = 0, skeleton, sizeKey, children }: Reve
   if (!open) shownLate.current = true;
   useEffect(() => {
     if (!open || !sizeKey || !ref.current) return;
-    return rememberHeight(ref.current, sizeKeyOf(sizeKey));
+    return rememberHeight(ref.current, sizeKey);
   }, [open, sizeKey]);
   const key = sizeKey ? sizeKeyOf(sizeKey) : null;
   const remembered = key ? sizes.get(key) : undefined;
