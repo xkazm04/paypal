@@ -520,7 +520,16 @@ async fn a_failed_token_refresh_mid_call_keeps_the_observations_already_made() {
     // A create whose answer was lost, then the token expires during the backoff and the refresh
     // fails: PayPal may hold the order, so the outcome is unknown and the sent request travels.
     let fake = Arc::new(Fake {
-        responses: Mutex::new(vec![oauth(), Err(TransportError), Err(TransportError)].into()),
+        responses: Mutex::new(
+            vec![
+                oauth(),
+                Err(TransportError),
+                Err(TransportError),
+                Err(TransportError),
+                Err(TransportError),
+            ]
+            .into(),
+        ),
         requests: Mutex::new(Vec::new()),
     });
     let time = Arc::new(Time(AtomicI64::new(100)));
@@ -538,11 +547,14 @@ async fn a_failed_token_refresh_mid_call_keeps_the_observations_already_made() {
     assert_eq!(observed.len(), 1);
     assert_eq!(observed[0].status, 0);
     assert_eq!(observed[0].request_id, id.as_str());
-    assert_eq!(fake.requests.lock().unwrap().len(), 3);
+    // 1 token + the lost create + the refresh's 3 token attempts.
+    assert_eq!(fake.requests.lock().unwrap().len(), 5);
     // A 401, then a refresh PayPal refuses: the 401 answer is still on the record.
     let (client, fake, _) = setup(vec![
         oauth(),
         response(401, json!({})),
+        response(500, json!({})),
+        response(500, json!({})),
         response(500, json!({})),
     ]);
     let error = client
@@ -557,9 +569,13 @@ async fn a_failed_token_refresh_mid_call_keeps_the_observations_already_made() {
             .collect::<Vec<_>>(),
         [401]
     );
-    assert_eq!(fake.requests.lock().unwrap().len(), 3);
+    assert_eq!(fake.requests.lock().unwrap().len(), 5);
     // Nothing sent yet: a token failure on the first attempt is a credentials error, no evidence.
-    let (client, _, _) = setup(vec![response(500, json!({}))]);
+    let (client, _, _) = setup(vec![
+        response(500, json!({})),
+        response(500, json!({})),
+        response(500, json!({})),
+    ]);
     let error = client
         .get_order(&ResourceId::new("ORDER1").unwrap())
         .await
@@ -584,7 +600,14 @@ async fn a_credentials_failure_names_its_cause_and_never_a_secret() {
             .unwrap_err()
     };
     let cases = [
-        (vec![Err(TransportError)], CredentialsKind::Unreachable),
+        (
+            vec![
+                Err(TransportError),
+                Err(TransportError),
+                Err(TransportError),
+            ],
+            CredentialsKind::Unreachable,
+        ),
         (vec![response(401, json!({}))], CredentialsKind::Rejected),
         (vec![response(200, json!({}))], CredentialsKind::Malformed),
         (
@@ -826,4 +849,86 @@ async fn create_observation_binds_custom_id_invoice_payee_and_amount_without_the
         assert!(!text.contains("ignore previous"), "{text}");
     }
     assert!(!observation.body.to_string().contains("merchant"));
+}
+
+#[derive(Debug)]
+struct Counting(AtomicI64);
+#[async_trait]
+impl Backoff for Counting {
+    async fn wait(&self, _: u8) {
+        self.0.fetch_add(1, Ordering::SeqCst);
+    }
+}
+#[derive(Debug)]
+struct EmptyKeychain;
+#[async_trait]
+impl Credentials for EmptyKeychain {
+    async fn load(&self) -> Result<(Secret, Secret), Error> {
+        Err(Error::Credentials {
+            kind: CredentialsKind::Missing,
+        })
+    }
+}
+/// A transient token-endpoint answer is retried like the API call it guards; an empty keychain
+/// is not (waiting cannot fix it).
+#[tokio::test]
+async fn a_transient_token_failure_is_retried_but_an_empty_keychain_is_not() {
+    let (client, fake, _) = setup(vec![
+        response(503, json!({})),
+        oauth(),
+        response(200, order_wire("CREATED")),
+    ]);
+    client
+        .get_order(&ResourceId::new("ORDER1").unwrap())
+        .await
+        .unwrap();
+    {
+        let requests = fake.requests.lock().unwrap();
+        assert_eq!(requests.len(), 3);
+        assert_eq!(
+            requests
+                .iter()
+                .filter(|r| r.url.ends_with("/token"))
+                .count(),
+            2
+        );
+    }
+    let fake = Arc::new(Fake {
+        responses: Mutex::new(Default::default()),
+        requests: Mutex::new(Vec::new()),
+    });
+    let waits = Arc::new(Counting(AtomicI64::new(0)));
+    struct Shared(Arc<Counting>);
+    impl std::fmt::Debug for Shared {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str("Shared")
+        }
+    }
+    #[async_trait]
+    impl Backoff for Shared {
+        async fn wait(&self, attempt: u8) {
+            self.0.wait(attempt).await;
+        }
+    }
+    let client = Client::sandbox(
+        fake.clone(),
+        Arc::new(EmptyKeychain),
+        Arc::new(Time(AtomicI64::new(100))),
+        Arc::new(Shared(waits.clone())),
+    );
+    let error = client
+        .get_order(&ResourceId::new("ORDER1").unwrap())
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(
+            error,
+            Error::Credentials {
+                kind: CredentialsKind::Missing
+            }
+        ),
+        "{error:?}"
+    );
+    assert_eq!(waits.0.load(Ordering::SeqCst), 0);
+    assert!(fake.requests.lock().unwrap().is_empty());
 }

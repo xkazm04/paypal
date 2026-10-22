@@ -100,22 +100,38 @@ impl Client {
         let (id, secret) = self.credentials.load().await?;
         let pair = zeroize::Zeroizing::new(format!("{}:{}", id.expose(), secret.expose()));
         let basic = zeroize::Zeroizing::new(STANDARD.encode(pair.as_bytes()));
-        let response = self
-            .transport
-            .send(Request {
-                method: "POST",
-                url: format!("{ORIGIN}/v1/oauth2/token"),
-                headers: vec![(
-                    "Authorization".into(),
-                    Secret::new(format!("Basic {}", basic.as_str())),
-                )],
-                body: None,
-                form: Some("grant_type=client_credentials"),
-            })
-            .await
-            .map_err(|_| Error::Credentials {
-                kind: CredentialsKind::Unreachable,
-            })?;
+        // The token request sends nothing a retry could duplicate, so it is retried like the API
+        // call it guards (transport error, 429, 5xx) within the same attempt budget. A failed
+        // credentials load above never gets here: waiting cannot fill an empty keychain.
+        let unreachable = || Error::Credentials {
+            kind: CredentialsKind::Unreachable,
+        };
+        let mut attempt = 0;
+        let response = loop {
+            let sent = self
+                .transport
+                .send(Request {
+                    method: "POST",
+                    url: format!("{ORIGIN}/v1/oauth2/token"),
+                    headers: vec![(
+                        "Authorization".into(),
+                        Secret::new(format!("Basic {}", basic.as_str())),
+                    )],
+                    body: None,
+                    form: Some("grant_type=client_credentials"),
+                })
+                .await;
+            let transient = match &sent {
+                Err(_) => true,
+                Ok(r) => r.status == 429 || r.status >= 500,
+            };
+            if transient && attempt + 1 < ATTEMPTS {
+                self.backoff.wait(attempt).await;
+                attempt += 1;
+                continue;
+            }
+            break sent.map_err(|_| unreachable())?;
+        };
         if response.status != 200 {
             return Err(Error::Credentials {
                 kind: if response.status == 429 || response.status >= 500 {
