@@ -24,7 +24,7 @@ describe('module mapping', () => {
     expect(moduleOf(mk({ kind: 'purchase', shield: null }))).toBe('spend');
     expect(moduleOf(mk({ kind: 'shop_order', shield: null }))).toBe('counter');
     expect(moduleOf(mk({ kind: 'rescue', shield: null }))).toBe('rescue');
-    expect(moduleOf(mk({ kind: 'invoice', shield: null }))).toBe('rescue');
+    expect(moduleOf(mk({ kind: 'invoice', shield: null }))).toBe('book'); // Rust: DealKind::Invoice -> Module::Book (table-attention)
   });
   it('sends HOLD and BLOCK to Shield whatever the kind', () => {
     expect(moduleOf(mk({ kind: 'purchase', shield: 'HOLD' }))).toBe('shield');

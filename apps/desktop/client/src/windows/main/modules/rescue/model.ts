@@ -117,7 +117,7 @@ export function rulesFor(d: Pick<Deal, 'mode'>, col: LeverKey, deadline: number 
 
 // ---- rows ---------------------------------------------------------------------------------------
 
-export const isRescueDeal = (d: Pick<Deal, 'kind'>): boolean => d.kind === 'rescue' || d.kind === 'invoice';
+export const isRescueDeal = (d: Pick<Deal, 'kind'>): boolean => d.kind === 'rescue';
 
 export type Rows = { failing: Deal[]; inflight: Deal[]; settled: Deal[] };
 
