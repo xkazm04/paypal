@@ -72,6 +72,7 @@ struct Session {
     run: Option<RunId>,
     enabled: bool,
     expires: i64,
+    calls: u32,
 }
 pub struct Server {
     service: Arc<dyn AsyncAgentService>,
@@ -88,6 +89,9 @@ pub const DISPATCH_DEADLINE: Duration = Duration::from_secs(30);
 /// starts, so this must cover the engine's whole run ceiling (`table_engine::RunLimits::default`);
 /// a test in table-engine binds the two.
 pub const SESSION_SECS: i64 = 120;
+/// The most `tools/call` requests one session is served; a looping model is refused past it, and
+/// only the first refusal is audited, so one run cannot flood the append-only audit log.
+pub const CALL_BUDGET: u32 = 64;
 /// The largest tool result text the model is handed, in bytes.
 pub const MAX_RESULT_BYTES: usize = 64 * 1024;
 impl std::fmt::Debug for Server {
@@ -169,6 +173,7 @@ impl Server {
                 scope,
                 run,
                 enabled,
+                calls: 0,
                 expires: now
                     .checked_add(SESSION_SECS)
                     .ok_or(table_app::Error::Invalid)?,
@@ -473,6 +478,17 @@ async fn handle(
         "tools/call" => {
             let result = async {
                 let now = s.clock.now();
+                let nth = s
+                    .sessions
+                    .lock()
+                    .ok()
+                    .and_then(|mut sessions| {
+                        sessions.get_mut(token).map(|live| {
+                            live.calls = live.calls.saturating_add(1);
+                            live.calls
+                        })
+                    })
+                    .unwrap_or(u32::MAX);
                 let named = rpc
                     .params
                     .get("name")
@@ -481,6 +497,19 @@ async fn handle(
                     .to_owned();
                 // Every refusal here is audited before the agent hears about it; refusals past this
                 // point are audited by the wallet (or the runtime) that made them.
+                let over = Err((
+                    RefusalCode::Unavailable,
+                    Some("This session's tool-call budget is spent. Stop calling tools and finish with what you have.".to_owned()),
+                ));
+                if nth > CALL_BUDGET {
+                    if nth == CALL_BUDGET + 1 {
+                        s.service
+                            .record_refusal(&scope, &named, RefusalCode::Unavailable, now)
+                            .await
+                            .map_err(|error| (refusal_code(&error), None))?;
+                    }
+                    return over;
+                }
                 let refused = if !session.enabled {
                     Some(RefusalCode::SessionNotEnabled)
                 } else {

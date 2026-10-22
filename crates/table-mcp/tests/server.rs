@@ -1332,3 +1332,36 @@ async fn a_tools_call_carrying_the_specs_meta_is_served_and_any_other_extra_key_
     let bad = run(json!({"name":"table_view","arguments":{},"_meta":"x"})).await;
     assert_eq!(bad["isError"], true);
 }
+#[tokio::test]
+async fn a_looping_session_is_budgeted_and_its_refusals_stop_growing_the_audit_log() {
+    let (wallet, deal, _, _) = support::setup(Side::Buyer, DealKind::Haggle);
+    let shared = Arc::new(Mutex::new(wallet));
+    let server = Server::new(
+        Box::new(Shared(shared.clone())),
+        8765,
+        Arc::new(FixedClock(100)),
+    )
+    .unwrap();
+    let grant = server
+        .grant(AgentScope {
+            deal_id: deal.id,
+            role: AgentRole::Negotiator,
+            category: Category::Parts,
+        })
+        .unwrap();
+    let audits = || shared.lock().unwrap().ledger.audit_count().unwrap();
+    let before = audits();
+    let mut last = Value::Null;
+    for _ in 0..200 {
+        let params = json!({"arguments":{}});
+        last = call(&server, &grant, "tools/call", params, "127.0.0.1:8765")
+            .await
+            .1["result"]
+            .clone();
+        assert_eq!(last["isError"], true);
+    }
+    let rows = audits() - before;
+    assert!(rows <= CALL_BUDGET as u64 + 1, "{rows} audit rows");
+    assert!(last.to_string().contains("budget"), "{last}");
+    shared.lock().unwrap().ledger.verify_audit().unwrap();
+}
