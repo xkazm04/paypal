@@ -14,7 +14,9 @@ use std::{
     time::Duration,
 };
 use subtle::ConstantTimeEq;
-use table_app::{AgentRequest, AgentRole, AgentScope, AgentService, refusal_code, refusal_detail};
+use table_app::{
+    AgentRequest, AgentRole, AgentScope, AgentService, McpOutcome, refusal_code, refusal_detail,
+};
 use table_core::{Clock, H256, Playbook, RefusalCode, RunId};
 
 fn secret_eq(a: &str, b: &str) -> bool {
@@ -35,6 +37,15 @@ pub trait AsyncAgentService: Send + Sync {
         scope: &AgentScope,
         tool: &str,
         code: RefusalCode,
+        now: i64,
+    ) -> Result<(), table_app::Error>;
+    /// Audits an outcome this layer gave the agent after `invoke` (a timeout or an oversize
+    /// withholding), so the trail shows what the agent was told beside the wallet's own row.
+    async fn record_mcp_outcome(
+        &self,
+        scope: &AgentScope,
+        tool: &str,
+        outcome: McpOutcome,
         now: i64,
     ) -> Result<(), table_app::Error>;
 }
@@ -64,6 +75,18 @@ impl AsyncAgentService for SyncService {
             .lock()
             .map_err(|_| table_app::Error::Unavailable)?
             .record_refusal(scope, tool, code, now)
+    }
+    async fn record_mcp_outcome(
+        &self,
+        scope: &AgentScope,
+        tool: &str,
+        outcome: McpOutcome,
+        now: i64,
+    ) -> Result<(), table_app::Error> {
+        self.0
+            .lock()
+            .map_err(|_| table_app::Error::Unavailable)?
+            .record_mcp_outcome(scope, tool, outcome, now)
     }
 }
 #[derive(Debug, Clone)]
@@ -537,13 +560,21 @@ async fn handle(
                         Ok(done) => done
                             .map_err(|error| (refusal_code(&error), refusal_detail(&error))),
                         // The call may have been cut off mid-flight; the model must look, not retry.
-                        Err(_) => Err((
-                            RefusalCode::Unavailable,
-                            Some(
-                                "The call took too long and was abandoned. Its outcome is unknown: read the table before acting again."
-                                    .into(),
-                            ),
-                        )),
+                        Err(_) => {
+                            // The wallet may yet record success; this row says what the agent
+                            // was told instead.
+                            s.service
+                                .record_mcp_outcome(&scope, &named, McpOutcome::Abandoned, now)
+                                .await
+                                .map_err(|error| (refusal_code(&error), None))?;
+                            Err((
+                                RefusalCode::Unavailable,
+                                Some(
+                                    "The call took too long and was abandoned. Its outcome is unknown: read the table before acting again."
+                                        .into(),
+                                ),
+                            ))
+                        }
                     },
                     Err(code) => {
                         s.service
@@ -559,6 +590,13 @@ async fn handle(
                 Ok(value) => {
                     let text = value.to_string();
                     if text.len() > s.max_result {
+                        // The wallet answered and recorded its own outcome; the agent is told
+                        // "withheld", so say so in the trail. The refusal stands either way.
+                        let named = rpc.params.get("name").and_then(Value::as_str).unwrap_or("");
+                        let _ = s
+                            .service
+                            .record_mcp_outcome(&scope, named, McpOutcome::Withheld, s.clock.now())
+                            .await;
                         refusal_result(
                             RefusalCode::Unavailable,
                             Some(format!(

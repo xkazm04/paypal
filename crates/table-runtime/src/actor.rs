@@ -336,6 +336,12 @@ pub(crate) enum Message {
         table_core::RefusalCode,
         oneshot::Sender<Result<(), table_app::Error>>,
     ),
+    AgentMcpOutcome(
+        table_app::AgentScope,
+        String,
+        table_app::McpOutcome,
+        oneshot::Sender<Result<(), table_app::Error>>,
+    ),
     Engine(RunId, table_engine::EngineEvent),
     EngineFinished(
         RunId,
@@ -369,7 +375,10 @@ impl Message {
     pub(crate) fn quiet(&self) -> bool {
         match self {
             Message::Execute(_, action, _) => action.reads_only(),
-            Message::Agent(..) | Message::AgentRefused(..) | Message::Engine(..) => true,
+            Message::Agent(..)
+            | Message::AgentRefused(..)
+            | Message::AgentMcpOutcome(..)
+            | Message::Engine(..) => true,
             Message::RelayFinished(_)
             | Message::WitnessFinished(_)
             | Message::EngineFinished(..)
@@ -597,6 +606,7 @@ async fn run(
                 Some(Message::WitnessFinished(fetch))=>{if let Err(error)=runtime.witness_finished(*fetch){let _=events.send(WalletEvent::Fault(error));}},
                 Some(Message::Agent(run,scope,request,reply))=>{let _=reply.send(runtime.agent_intent(run,&scope,request));},
                 Some(Message::AgentRefused(scope,tool,code,reply))=>{let now=runtime.clock.now(); let _=reply.send(table_app::AgentService::record_refusal(&mut runtime.pipeline.wallet,&scope,&tool,code,now));},
+                Some(Message::AgentMcpOutcome(scope,tool,outcome,reply))=>{let now=runtime.clock.now(); let _=reply.send(table_app::AgentService::record_mcp_outcome(&mut runtime.pipeline.wallet,&scope,&tool,outcome,now));},
                 Some(Message::Engine(run,event))=>{match runtime.engine_event(run,event){Ok(Some(snapshot))=>{let _=events.send(WalletEvent::Agent(snapshot));},Ok(None)=>{},Err(error)=>{quiet=false; let _=runtime.finish_run(run,RunState::Failed); let _=events.send(WalletEvent::Fault(error));}}},
                 Some(Message::EngineFinished(run,result))=>{let state=if matches!(result,Ok(table_engine::TerminalVerdict::Clean)){RunState::Clean}else{RunState::Failed}; let cause=result.as_ref().err().and_then(table_engine::Error::cause); match runtime.finish_run_because(run,state,cause){Ok(Some(snapshot))=>{let _=events.send(WalletEvent::Agent(snapshot));},Ok(None)=>{},Err(error)=>{let _=events.send(WalletEvent::Fault(error));}}},
                 Some(Message::MarketWatched(job,result))=>{if let Err(error)=runtime.market_watched(*job,result){let _=events.send(WalletEvent::Fault(error));}},

@@ -115,6 +115,7 @@ pub(crate) const ACTION_KEYS: &[(&str, &[&str])] = &[
             "last_rung",
         ],
     ),
+    ("mcp.withheld", &["tool", "outcome"]),
     ("money.observed", &["operation", "confirmed", "decided_by"]),
     (
         "money.resolved",

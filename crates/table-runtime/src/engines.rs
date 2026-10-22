@@ -87,6 +87,27 @@ impl table_mcp::AsyncAgentService for ActorBridge {
             .map_err(|_| table_app::Error::Unavailable)?;
         rx.await.map_err(|_| table_app::Error::Unavailable)?
     }
+    async fn record_mcp_outcome(
+        &self,
+        scope: &AgentScope,
+        tool: &str,
+        outcome: table_app::McpOutcome,
+        _: i64,
+    ) -> Result<(), table_app::Error> {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        self.0
+            .upgrade()
+            .ok_or(table_app::Error::Unavailable)?
+            .send(crate::actor::Message::AgentMcpOutcome(
+                scope.clone(),
+                tool.into(),
+                outcome,
+                tx,
+            ))
+            .await
+            .map_err(|_| table_app::Error::Unavailable)?;
+        rx.await.map_err(|_| table_app::Error::Unavailable)?
+    }
 }
 impl Runtime {
     /// Native startup probes only versions. Runtime tests never call this or bind sockets.
