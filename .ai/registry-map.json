@@ -2829,7 +2829,11 @@
           "revision": 3,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/brand/index.ts:2 Searches for bootstrap, unseal, reload, reconcile and plugin found no context matches; repository matches were elsewhere, and these files implement presentation and motion preferences without stateful-node bootstrap responsibilities.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:1c83f54ea0028875",
+          "evaluatedRevision": 3
         },
         {
           "subject": "retry-backoff",

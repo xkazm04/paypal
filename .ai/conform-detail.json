@@ -5309,6 +5309,47 @@
           "evidence": "crates/table-proto/Cargo.toml:7 The inherited publish setting is false, and the complete crate dependency list contains no prover or specification library."
         }
       ]
+    },
+    "dfb10fbf-b52a-4c2d-a63f-c8203148b8fa/node-boot-and-declarative-bootstrap": {
+      "context": "design-system-styles",
+      "subject": "node-boot-and-declarative-bootstrap",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T00:42:50.697Z",
+      "worker": "2f463486-a311-4eab-8a7e-e0a82174500c",
+      "techniques": [
+        {
+          "technique": "config-objects-are-api-immutable",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/brand/index.ts:2 No persisted device population created through both operational configuration and an API."
+        },
+        {
+          "technique": "once-only-bootstrap-with-marker",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/brand/DialStrip.tsx:2 The reviewed files contain no first-start policy provisioning or default-row seed."
+        },
+        {
+          "technique": "ordered-boot-dag",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/design/motion.ts:36 Motion initialization controls display preferences; this context constructs no stateful node or storage-dependent serving sequence."
+        },
+        {
+          "technique": "reload-partition",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/design/motion.ts:77 Live changes follow a browser preference through storage events; no operational configuration file or process reload handler exists here."
+        },
+        {
+          "technique": "request-chain-not-dsl",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/brand/KeyArt.tsx:192 Declarative structures render artwork; the context defines no bootstrap request schema or stored executable workflow."
+        },
+        {
+          "technique": "seal-before-storage-plugins",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/brand/Seal.tsx:51 Seal is a labelled graphic, with no cryptographic sealing provider or storage-backed component catalog."
+        }
+      ]
     }
   }
 }
