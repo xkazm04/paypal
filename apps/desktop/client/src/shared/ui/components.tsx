@@ -1,7 +1,7 @@
 // Layer-1 building blocks: thin React wrappers over the `ui-*` classes in src/design/ui.css.
 // They add no colours or sizes of their own; style a page by composing these and, where needed,
 // a page CSS file scoped under the page's root class.
-import { useEffect, useRef, type ButtonHTMLAttributes, type CSSProperties, type InputHTMLAttributes, type KeyboardEvent, type MouseEvent, type ReactNode, type Ref } from 'react';
+import { useEffect, useRef, type ButtonHTMLAttributes, type CSSProperties, type InputHTMLAttributes, type MouseEvent, type ReactNode, type Ref } from 'react';
 import { CRUMBS_LABEL, IF_NOTHING, UI_WORDS } from '../../lib/words';
 import { Countdown } from '../honesty';
 import { Depth } from './console';
@@ -100,7 +100,9 @@ export type RowProps = {
   sub?: ReactNode;
   /** Right-hand content: chips, amount (<span className="amt">), buttons. */
   children?: ReactNode;
-  /** Makes the row actionable (click / Enter / Space). Clicks on buttons inside the row do not trigger it. */
+  /** Makes the row actionable: the title cell becomes a real button (Enter / Space / click), and a
+   *  click on the plain part of the row opens it too. The row itself stays a plain container, so chips
+   *  and buttons in `children` are separate controls (an ARIA button's children are presentational). */
   onOpen?: () => void;
   selected?: boolean;
   /** Gold left edge: this row needs the owner. */
@@ -114,21 +116,21 @@ export type RowProps = {
 const INTERACTIVE = 'button, a, input, select, textarea, label, [role="button"], [role="link"]';
 export function Row({ id, lead, title, sub, children, onOpen, selected, need, chev, label, className, style }: RowProps) {
   const act = !!onOpen;
-  const own = (t: EventTarget | null, row: HTMLElement) => (t as HTMLElement | null)?.closest(INTERACTIVE) === row;
-  const onClick = act ? (e: MouseEvent<HTMLDivElement>) => { if (own(e.target, e.currentTarget)) onOpen?.(); } : undefined;
-  const onKeyDown = act ? (e: KeyboardEvent<HTMLDivElement>) => {
-    if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); onOpen?.(); }
-  } : undefined;
+  // A click on the row's plain part (padding, gaps) opens it; a click on any control inside does not.
+  const onClick = act ? (e: MouseEvent<HTMLDivElement>) => { if (!(e.target as HTMLElement | null)?.closest(INTERACTIVE)) onOpen?.(); } : undefined;
+  const text = (
+    <>
+      <span className="t1">{title}</span>
+      {sub !== undefined && sub !== null ? <span className="t2">{sub}</span> : null}
+    </>
+  );
   return (
-    <div className={cx('ui-row', sub !== undefined && sub !== null && 'two', act && 'act', need && 'need', selected && 'on', className)} style={style}
-      role={act ? 'button' : undefined} tabIndex={act ? 0 : undefined} aria-label={label} aria-current={selected ? 'true' : undefined}
-      onClick={onClick} onKeyDown={onKeyDown}>
+    <div className={cx('ui-row', sub !== undefined && sub !== null && 'two', act && 'act', need && 'need', selected && 'on', className)} style={style} aria-label={act ? undefined : label} aria-current={!act && selected ? 'true' : undefined} onClick={onClick}>
       {id !== undefined ? <span className="id">{id}</span> : null}
       {lead}
-      <span className="main">
-        <span className="t1">{title}</span>
-        {sub !== undefined && sub !== null ? <span className="t2">{sub}</span> : null}
-      </span>
+      {act
+        ? <button type="button" className="main open" aria-label={label} aria-current={selected ? 'true' : undefined} onClick={onOpen}>{text}</button>
+        : <span className="main">{text}</span>}
       {children}
       {(chev ?? act) ? <span className="chev" aria-hidden="true" /> : null}
     </div>

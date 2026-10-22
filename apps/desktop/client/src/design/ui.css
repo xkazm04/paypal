@@ -232,7 +232,8 @@ button.ui-chip { border: 0; cursor: pointer; }
 button.ui-chip:hover { filter: brightness(1.12); }
 .ui-row.need { box-shadow: inset 2px 0 0 var(--gold); }
 .ui-row.need.on { box-shadow: inset 2px 0 0 var(--gold); }
-.ui-row.act:focus-visible { outline-offset: -2px; }
+.ui-row .main.open { align-self: stretch; justify-content: center; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ui-row .main.open:focus-visible { outline-offset: 1px; }
 .ui-row .amt.proposed { color: var(--muted); }
 .ui-row .amt.held { color: var(--gold-l); }
 .ui-row .amt.struck { color: var(--dim); text-decoration: line-through; }
