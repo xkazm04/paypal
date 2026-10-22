@@ -75,7 +75,7 @@ export function cellState(d: Pick<Deal, 'mode'>, col: Col, deadline: number | nu
   if (col === 'DISCOUNT_THIS_CYCLE') return view ? { kind: 'offer', offer: view.offer } : { kind: 'unknown', why: UNKNOWN_LEVER };
   if (col === 'RETRY_AFTER_FIX') {
     if (d.mode === 'replay') return { kind: 'off', code: 'REPLAY', why: 'REPLAY row · no real balance to capture' };
-    if (deadline && deadline - now < DAY) return { kind: 'off', code: 'retry <24h', why: 'PayPal’s own retry is due within 24 h' };
+    if (deadline && deadline - now <= DAY) return { kind: 'off', code: 'retry <24h', why: 'PayPal’s own retry is due within 24 h' };
   }
   return { kind: 'off', code: 'NOT_BUILT', why: NOT_BUILT };
 }
