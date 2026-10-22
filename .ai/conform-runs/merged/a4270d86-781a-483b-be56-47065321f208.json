@@ -1,0 +1,17 @@
+{
+ "schema": "conform-run/1",
+ "worker": "a4270d86-781a-483b-be56-47065321f208",
+ "subject": "repository-landing-document",
+ "evaluatedAt": "2026-10-22T02:38:48.568582+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "repository-landing-document",
+   "context": "house-seller-service",
+   "reason": "The context exposes an application scoreboard, not a repository landing document: services/house-seller/src/routes.rs:105 serves SCOREBOARD_HTML, and services/house-seller/src/scoreboard/index.html:37 describes its live public record. The standard explicitly excludes application-rendered claims. File enumeration and searches identified no service-owned repository landing document; the shared root README cannot establish eight context-specific verdicts."
+  }
+ ],
+ "consults": []
+}
