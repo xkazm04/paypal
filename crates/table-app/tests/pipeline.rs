@@ -971,6 +971,124 @@ async fn policy_authority_is_refused_above_clause_6_before_any_paypal_call() {
     assert!(matches!(d.decided_by, Some(DecidedBy::Human { .. })));
     p.wallet.ledger.verify_audit().unwrap();
 }
+/// A seller wallet whose mandate allows two units under the house release, with one deal of
+/// `qty` 1 (the control) and one of `qty` 2, both at PAIRING.
+fn house_seller_with_two_quantities() -> (Pipeline, DealId, DealId) {
+    let (mut wallet, deal, owner, _) = support::setup(Side::Seller, DealKind::Haggle);
+    let mut payload = wallet
+        .ledger
+        .active_mandate(deal.mandate_id, 1, &owner.public_key())
+        .unwrap()
+        .payload;
+    // Two units of 12.00 stay inside the per-deal limit and below the in-person threshold, so
+    // the mandate allows both deals and only the authority's own guards can tell them apart.
+    payload.id = "00000000000000000000000003".parse().unwrap();
+    for c in &mut payload.clauses {
+        match c {
+            Clause::HumanPresentOver { amount } => {
+                *amount = Money::new(10_000, Currency::USD).unwrap()
+            }
+            Clause::PerDeal { max_amount, .. } => {
+                *max_amount = Money::new(10_000, Currency::USD).unwrap();
+            }
+            _ => {}
+        }
+    }
+    let mandate = OpenMandate {
+        owner_sig: owner.sign_payload(&payload).unwrap(),
+        payload,
+    };
+    wallet
+        .ledger
+        .insert_mandate(&mandate, &owner.public_key(), 100)
+        .unwrap();
+    let mut one = deal.clone();
+    one.id = "00000000000000000000000005".parse().unwrap();
+    one.mandate_id = mandate.payload.id;
+    let mut two = one.clone();
+    two.id = "00000000000000000000000006".parse().unwrap();
+    two.terms.qty = 2;
+    for d in [&one, &two] {
+        wallet.ledger.create_deal(d, 100).unwrap();
+    }
+    let mut p = Pipeline::new(wallet, Arc::new(MockApi::default()), 100).unwrap();
+    let commitment = mandate.payload.hash().unwrap();
+    let release = HouseRelease {
+        owner_key: owner.public_key().to_bytes(),
+        agent_key: p.wallet.agent_public_key().to_bytes(),
+        payee: PayeeRef::new("merchant").unwrap(),
+        mandate_commitment: commitment,
+        owner_signature: owner.sign_commitment(commitment),
+    };
+    p.enable_house(release, &mandate).unwrap();
+    (p, one.id, two.id)
+}
+/// Each guard of the seller and house authorities refuses on its own: a house step on a deal of
+/// more than one unit, and a seller-mandate step on a buyer's deal, are refused although every
+/// other condition of that authority holds. The control beside each shows the same authority
+/// granted when only the guarded fact differs.
+#[test]
+fn the_house_quantity_and_seller_side_guards_each_refuse_alone() {
+    let (mut p, one, two) = house_seller_with_two_quantities();
+    for (id, granted) in [(one, true), (two, false)] {
+        for step in [MoneyStep::Create, MoneyStep::Authorize, MoneyStep::Capture] {
+            assert_eq!(
+                p.step_allowed(
+                    id,
+                    step,
+                    Category::Parts,
+                    Authority::HouseMandate,
+                    100,
+                    true
+                )
+                .unwrap(),
+                granted,
+                "house {step:?} on qty {}",
+                p.wallet.ledger.get_deal(id).unwrap().terms.qty
+            );
+        }
+    }
+    // The seller mandate is granted on the seller's own deal once the buyer approved...
+    for step in [MoneyStep::Authorize, MoneyStep::Capture] {
+        assert!(
+            p.step_allowed(
+                one,
+                step,
+                Category::Parts,
+                Authority::SellerMandate,
+                100,
+                true
+            )
+            .unwrap(),
+            "seller {step:?} on the seller's deal"
+        );
+    }
+    // ...and never on a buyer's deal, though its mandate allows the deal and it stands in the
+    // same state.
+    let (buyer, deal, _, _) = support::setup(Side::Buyer, DealKind::Haggle);
+    let mut p = Pipeline::new(buyer, Arc::new(MockApi::default()), 100).unwrap();
+    assert_eq!(
+        p.wallet
+            .check_mandate(deal.id, Category::Parts, 100)
+            .unwrap(),
+        MandateDecision::Allow
+    );
+    for step in [MoneyStep::Authorize, MoneyStep::Capture] {
+        assert!(
+            !p.step_allowed(
+                deal.id,
+                step,
+                Category::Parts,
+                Authority::SellerMandate,
+                100,
+                true
+            )
+            .unwrap(),
+            "seller {step:?} on a buyer's deal"
+        );
+    }
+    assert_eq!(p.wallet.ledger.paypal_call_count(deal.id).unwrap(), 0);
+}
 fn propose_one(wallet: &mut Wallet, deal: &Deal) -> Result<serde_json::Value, table_app::Error> {
     wallet.invoke(
         &AgentScope {
