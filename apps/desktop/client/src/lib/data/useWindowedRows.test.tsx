@@ -76,6 +76,16 @@ describe('useWindowedRows', () => {
     expect(tabbable.map((e) => e.dataset.row)).toEqual(['R0']);
   });
 
+  it('stays one tab stop when scrolled before anything was focused (the first row is no longer rendered)', async () => {
+    render(<List rows={rowsOf(1000)} />);
+    await frame();
+    const scroller = screen.getByTestId('scroll');
+    act(() => { scroller.scrollTop = 30_000; scroller.dispatchEvent(new Event('scroll')); });
+    await frame();
+    expect(rendered().some((e) => e.dataset.row === 'R0')).toBe(false);
+    expect(rendered().filter((e) => e.tabIndex === 0)).toHaveLength(1);
+  });
+
   it('the keyboard moves focus, the list scrolls to it, and focus is never dropped', async () => {
     render(<List rows={rowsOf(1000)} />);
     await frame();

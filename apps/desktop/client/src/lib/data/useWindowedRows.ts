@@ -129,9 +129,20 @@ export function useWindowedRows<T>(o: WindowedRowsOptions<T>): WindowedRows<T> {
     focusAt(to);
   }, [rows.length, focusIndex, page, focusAt]);
 
+  const items: WindowedRow<T>[] = [];
+  for (const vi of v.getVirtualItems()) {
+    const row = rows[vi.index];
+    const key = keys[vi.index];
+    if (row === undefined || key === undefined) continue;
+    items.push({ row, key, index: vi.index, start: vi.start, size: vi.size });
+  }
+  // Nothing focused yet: the first row rendered is the tab stop (the list's first row may have been
+  // scrolled out of the DOM, and the list must still be reachable with Tab).
+  const entry = effectiveKey === null ? (items[0]?.index ?? 0) : -1;
+
   const measureEl = v.measureElement;
   const rowProps = useCallback((item: WindowedRow<T>): RowProps => {
-    const isFocused = effectiveKey === item.key || (effectiveKey === null && item.index === 0);
+    const isFocused = effectiveKey === item.key || item.index === entry;
     return {
       ref: (el) => {
         if (el) nodes.current.set(item.key, el);
@@ -143,15 +154,7 @@ export function useWindowedRows<T>(o: WindowedRowsOptions<T>): WindowedRows<T> {
       ...(effectiveKey === item.key ? { 'data-focused': true as const } : {}),
       onFocus: () => { if (focusedKey !== item.key) setFocusedKey(item.key); },
     };
-  }, [effectiveKey, focusedKey, measure, measureEl]);
-
-  const items: WindowedRow<T>[] = [];
-  for (const vi of v.getVirtualItems()) {
-    const row = rows[vi.index];
-    const key = keys[vi.index];
-    if (row === undefined || key === undefined) continue;
-    items.push({ row, key, index: vi.index, start: vi.start, size: vi.size });
-  }
+  }, [effectiveKey, entry, focusedKey, measure, measureEl]);
 
   return {
     scrollRef,
