@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Clause } from '@bindings/Clause';
-import { bandInputProblem, bandMissingSide, buildClause, percentDiffers, refusalWords, ruleProblems, toLocalInput } from './mandateDraft';
+import { bandInputProblem, bandMissingSide, buildClause, buildMandate, newDraft, percentDiffers, refusalWords, ruleProblems, toLocalInput } from './mandateDraft';
 
 const T = 1_800_000_000;
 const usd = (major: number) => ({ minor: Math.round(major * 100), currency: 'USD' as const });
@@ -86,5 +86,20 @@ describe('why Sign new range is switched off', () => {
     expect(bandInputProblem(usd(300), usd(200))).toContain('can’t be higher');
     expect(bandInputProblem(usd(100), usd(200))).toBeNull();
     expect(bandInputProblem(null, usd(200))).toBeNull();
+  });
+});
+
+describe('dates the wallet cannot take, said as their own error', () => {
+  const errors = (notBefore: string, expires: string) => {
+    const r = buildMandate({ ...newDraft(T), notBefore, expires });
+    return r.ok ? [] : r.errors;
+  };
+  it('names a start before 1970 and does not blame the order of the dates', () => {
+    const e = errors('1969-12-31T10:00', '2030-01-01T10:00');
+    expect(e).toContain('start: choose a date from 1970 on');
+    expect(e).not.toContain('the end must be after the start');
+  });
+  it('is quiet about a start in the present', () => {
+    expect(errors('2027-01-01T10:00', '2030-01-01T10:00').filter((x) => x.startsWith('start'))).toEqual([]);
   });
 });

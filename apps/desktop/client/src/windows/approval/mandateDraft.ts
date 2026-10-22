@@ -271,6 +271,9 @@ export function buildMandate(d: MandateDraft): Built {
   const expires = fromLocalInput(d.expires);
   if (notBefore === null) errors.push('start: choose a time');
   if (expires === null) errors.push('end: choose a time');
+  // Rust's validate() also refuses a start before 1970 and an end past Number.MAX_SAFE_INTEGER.
+  if (notBefore !== null && notBefore < 0) errors.push('start: choose a date from 1970 on');
+  if (expires !== null && expires > Number.MAX_SAFE_INTEGER) errors.push('end: choose an earlier date');
   if (notBefore !== null && expires !== null && expires <= notBefore) errors.push('the end must be after the start');
   if (!d.clauses.length) errors.push('add at least one rule');
   if (errors.length || notBefore === null || expires === null) return { ok: false, errors };
