@@ -161,7 +161,16 @@ impl Client {
         let mut observations = Vec::new();
         let mut refreshed = false;
         for attempt in 0..ATTEMPTS {
-            let token = self.token().await?;
+            // A token that cannot be had after a request already reached the wire (a lost
+            // answer, a 5xx, a 401) must not drop that request's evidence: the earlier
+            // attempt's outcome is unknown, so the error says so and carries what was observed.
+            let token = match self.token().await {
+                Ok(token) => token,
+                Err(_) if !observations.is_empty() => {
+                    return Err(Error::Unknown { observations });
+                }
+                Err(error) => return Err(error),
+            };
             let mut headers = vec![
                 (
                     "Authorization".into(),
