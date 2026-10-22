@@ -10,7 +10,7 @@ use axum::{
 use ed25519_dalek::{Signer, SigningKey};
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use table_app::{
@@ -231,6 +231,9 @@ pub struct Seller {
     heartbeat: Arc<AtomicI64>,
     /// Table requests turned away since start (T9), by fixed reason code.
     pub(crate) refusals: HouseRefusals,
+    /// Table requests the queue door turned away (429) before the actor saw them; the handle
+    /// counts them here and `refusals()` and each publish fold them into `refusals.full`.
+    pub(crate) door: Arc<AtomicU64>,
     /// The public projection and signed head the read routes serve (T9).
     pub(crate) published: Arc<RwLock<Option<Arc<Published>>>>,
     pub(crate) published_at: Option<i64>,
@@ -378,6 +381,7 @@ impl Seller {
                 since: clock.now(),
                 ..HouseRefusals::default()
             },
+            door: Arc::new(AtomicU64::new(0)),
             published: Arc::new(RwLock::new(None)),
             published_at: None,
             clock,
@@ -986,6 +990,8 @@ pub struct HouseHandle {
     /// Prefix reads, on their own bounded queue (see [`PREFIX_QUEUE`]).
     prefixes: mpsc::Sender<PrefixAsk>,
     heartbeat: Arc<AtomicI64>,
+    /// Shared with the Seller: buyers' table requests this handle turned away at a full queue.
+    door: Arc<AtomicU64>,
     clock: Arc<dyn Clock>,
     timeout: Duration,
     /// The actor's latest published projection and head; the read routes serve only this.
@@ -1002,9 +1008,17 @@ impl HouseHandle {
         queue: &mpsc::Sender<M>,
         message: M,
         rx: oneshot::Receiver<Result<T, Error>>,
+        door: Option<&AtomicU64>,
     ) -> Result<T, Error> {
         queue.try_send(message).map_err(|e| match e {
-            mpsc::error::TrySendError::Full(_) => Error::Full,
+            mpsc::error::TrySendError::Full(_) => {
+                // A buyer's request turned away here never reaches `Seller::table`, so it is
+                // counted once, here, and nowhere else.
+                if let Some(door) = door {
+                    door.fetch_add(1, Ordering::Relaxed);
+                }
+                Error::Full
+            }
             mpsc::error::TrySendError::Closed(_) => Error::Unavailable,
         })?;
         tokio::time::timeout(self.timeout, rx)
@@ -1014,19 +1028,21 @@ impl HouseHandle {
     }
     pub async fn table(&self, request: HouseRequest) -> Result<HouseResponse, Error> {
         let (tx, rx) = oneshot::channel();
-        self.ask(&self.tx, Message::Table(request, tx), rx).await
+        self.ask(&self.tx, Message::Table(request, tx), rx, Some(&self.door))
+            .await
     }
     /// Trusted Rust inspection of one full deal row (PayPal ids included); never served over
     /// HTTP. The public view is [`HouseHandle::published`].
     pub async fn snapshot(&self, id: DealId) -> Result<Deal, Error> {
         let (tx, rx) = oneshot::channel();
-        self.ask(&self.tx, Message::Snapshot(id, tx), rx).await
+        self.ask(&self.tx, Message::Snapshot(id, tx), rx, None)
+            .await
     }
     /// The house's signed chain hash at `rows`, from the published chain (signed by the actor,
     /// which holds the key). Asked on the prefix queue, never the tables queue.
     pub async fn prefix(&self, rows: u64) -> Result<SignedHousePrefix, Error> {
         let (tx, rx) = oneshot::channel();
-        self.ask(&self.prefixes, (rows, tx), rx).await
+        self.ask(&self.prefixes, (rows, tx), rx, None).await
     }
     /// The latest published projection and signed head (T9); `None` before the first refresh.
     pub fn published(&self) -> Option<Arc<Published>> {
@@ -1068,6 +1084,7 @@ pub fn start(mut seller: Seller) -> House {
         tx,
         prefixes,
         heartbeat: seller.heartbeat.clone(),
+        door: seller.door.clone(),
         clock: seller.clock.clone(),
         timeout: REPLY_TIMEOUT,
         published: seller.published.clone(),
@@ -1282,6 +1299,7 @@ mod tests {
                 tx,
                 prefixes,
                 heartbeat: Arc::new(AtomicI64::new(beat)),
+                door: Arc::new(AtomicU64::new(0)),
                 clock: Arc::new(Fixed(100)),
                 timeout,
                 published: Arc::new(RwLock::new(None)),
@@ -1324,6 +1342,23 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(20)).await;
         assert!(matches!(h.snapshot(deal()).await, Err(Error::Full)));
         let _ = first.await;
+        // A trusted snapshot is not a buyer's table request: it is never counted as turned away.
+        assert_eq!(h.door.load(Ordering::Relaxed), 0);
+    }
+    /// A buyer turned away at the full queue (429) is counted once, and a prefix read turned
+    /// away on its own queue is not a table request at all.
+    #[tokio::test]
+    async fn a_table_request_turned_away_at_the_queue_door_is_counted_once() {
+        let (h, _rx) = handle(Duration::from_millis(200), 100);
+        let (held, _) = oneshot::channel();
+        h.tx.try_send(Message::Snapshot(deal(), held)).unwrap();
+        for turned_away in 1..=3 {
+            let (tx, rx) = oneshot::channel();
+            let door = Some(h.door.as_ref());
+            let full = h.ask(&h.tx, Message::Snapshot(deal(), tx), rx, door).await;
+            assert!(matches!(full, Err(Error::Full)));
+            assert_eq!(h.door.load(Ordering::Relaxed), turned_away);
+        }
     }
     /// A flood of public prefix reads fills only the prefix queue: the route answers 429 while the
     /// tables queue stays empty, and a buyer's table request still finds its slot. Before, both
