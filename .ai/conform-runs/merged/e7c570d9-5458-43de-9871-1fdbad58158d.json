@@ -1,0 +1,77 @@
+{
+ "schema": "conform-run/1",
+ "worker": "e7c570d9-5458-43de-9871-1fdbad58158d",
+ "subject": "workflow-property-contracts",
+ "evaluatedAt": "2026-10-22T21:31:42.242927+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "client-foundation",
+   "subject": "workflow-property-contracts",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/lib/tauri.ts:22 Context and repository searches found no trainer, inferer, max_epochs or reference_location matches, and the inspected client forwards wallet commands without hosting third-party workflows through component properties.",
+   "techniques": [
+    {
+     "technique": "attribute-protocol-over-accessors",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/lib/contract.ts:28 The public operation invokes typed wallet commands; callers do not read or assign workflow components."
+    },
+    {
+     "technique": "contract-driven-adapters",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/mock/backend.ts:1519 The mock dispatches locally authored wallet handlers, without loading or adapting externally authored workflows."
+    },
+    {
+     "technique": "dual-implementation-parity",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/lib/runtime.ts:55 Native/mock selection concerns IPC transports, without config-backed and code-backed workflow property providers or resolution tiers."
+    },
+    {
+     "technique": "mid-iteration-event-seams",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/lib/hooks.ts:21 These are wallet event subscriptions for React components; no training iteration or tensor stages are hosted here."
+    },
+    {
+     "technique": "required-and-optional-property-sets",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/mock/backend.ts:605 The mapped table covers command handlers, without an unseen workflow's required and optional component providers to preflight."
+    },
+    {
+     "technique": "wiring-location-checks",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/mock/backend.ts:478 The mock checks command authority for a window; no optional workflow component has a provider location and consumer reference location to compare."
+    }
+   ],
+   "absenceTerms": [
+    "trainer",
+    "inferer",
+    "max_epochs",
+    "reference_location"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-22T21:31:42.242927+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "workflow-property-contracts"
+   ],
+   "techniques": [
+    "attribute-protocol-over-accessors",
+    "contract-driven-adapters",
+    "dual-implementation-parity",
+    "mid-iteration-event-seams",
+    "required-and-optional-property-sets",
+    "wiring-location-checks"
+   ],
+   "deviations": 0,
+   "context": "client-foundation",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}

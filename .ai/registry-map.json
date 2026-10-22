@@ -1743,7 +1743,11 @@
           "revision": 1,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/tauri.ts:22 Context and repository searches found no trainer, inferer, max_epochs or reference_location matches, and the inspected client forwards wallet commands without hosting third-party workflows through component properties.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:c9f25f65f6b94068",
+          "evaluatedRevision": 2
         },
         {
           "subject": "mcp-tools",
