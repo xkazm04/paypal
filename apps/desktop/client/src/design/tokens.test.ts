@@ -94,6 +94,13 @@ describe('type and targets', () => {
   it('controls are at least the 24px target', () => {
     for (const n of ['ctl', 'ctl-sm', 'target', 'row']) expect(parseFloat(decl(n) ?? '0'), n).toBeGreaterThanOrEqual(24);
   });
+  it('the story kit’s text buttons outside a sentence reach the 24px target (WCAG 2.5.8)', () => {
+    const ui = readFileSync(root('src/design/ui.css'), 'utf8');
+    for (const sel of ['.ui-decision .dc-more', '.ui-checks .cs-all']) {
+      const rule = new RegExp(`${sel.replace(/\./g, '\\.')} \\{([^}]*)\\}`).exec(ui)?.[1] ?? '';
+      expect(rule, sel).toMatch(/min-height: var\(--target\)/);
+    }
+  });
 });
 
 describe('Calibre surfaces and fills meet WCAG AA in both themes', () => {
