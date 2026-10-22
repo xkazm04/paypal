@@ -4306,6 +4306,7 @@ dependencies = [
 name = "table-verify"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "ed25519-dalek",
  "serde",
  "serde_json",
