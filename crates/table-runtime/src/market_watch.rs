@@ -12,7 +12,7 @@
 //! deal, its terms, its mandate version and the rule's product still match before storing the
 //! reference exactly as an owner refresh does (`market.observed`).
 use crate::{Runtime, app, market::MarketBinding, permission};
-use table_client::{CommandError, MarketWatchFact};
+use table_client::{CommandError, ErrorCode, MarketWatchFact};
 use table_core::*;
 use table_ledger::{LedgerError, MarketCheck};
 
@@ -28,29 +28,55 @@ pub(crate) struct WatchJob {
     pub(crate) product_id: String,
 }
 
+/// One planning pass: the jobs reserved (all of which the caller must spawn, or their busy flag
+/// leaks) and the first fault that stopped a deal's check, to surface after they are spawned.
+#[derive(Default)]
+pub(crate) struct WatchPlan {
+    pub(crate) jobs: Vec<WatchJob>,
+    pub(crate) fault: Option<CommandError>,
+}
+#[cfg(test)]
+impl WatchPlan {
+    /// The jobs of a pass that had no fault.
+    pub(crate) fn unwrap(self) -> Vec<WatchJob> {
+        assert!(self.fault.is_none(), "{:?}", self.fault);
+        self.jobs
+    }
+}
+
 impl Runtime {
     /// Plans and records the price checks due at `now`; the caller runs each fetch outside the
     /// actor and hands its answer to [`Runtime::market_watched`]. Nothing is planned without a
     /// market client and a stored market key, or while agents are paused. A deal whose facts
     /// cannot be read is not checked (fail closed: nothing is fetched).
-    pub(crate) fn plan_market_watch(
-        &mut self,
-        now: Timestamp,
-    ) -> Result<Vec<WatchJob>, CommandError> {
+    pub(crate) fn plan_market_watch(&mut self, now: Timestamp) -> WatchPlan {
+        let mut plan = WatchPlan::default();
         if self.market.is_none() || self.paused {
-            return Ok(Vec::new());
+            return plan;
         }
         self.market_watch_retry.retain(|_, at| *at > now);
         self.market_watch_used_up
             .retain(|_, day_end| *day_end > now);
         let mut key_stored = None;
-        let mut jobs = Vec::new();
-        for deal in app(self.pipeline.wallet.ledger.list_live_deals())? {
-            if let Ok(Some(job)) = self.plan_one(&deal, now, &mut key_stored) {
-                jobs.push(job);
+        let deals = match app(self.pipeline.wallet.ledger.list_live_deals()) {
+            Ok(deals) => deals,
+            Err(error) => {
+                plan.fault = Some(error);
+                return plan;
+            }
+        };
+        for deal in deals {
+            match self.plan_one(&deal, now, &mut key_stored) {
+                Ok(Some(job)) => plan.jobs.push(job),
+                Ok(None) => {}
+                // A policy refusal is a quiet no; anything else is a fault the owner can see.
+                Err(error) if matches!(error.code, ErrorCode::Permission | ErrorCode::Refused) => {}
+                Err(error) => {
+                    plan.fault.get_or_insert(error);
+                }
             }
         }
-        Ok(jobs)
+        plan
     }
     fn plan_one(
         &mut self,
@@ -177,7 +203,8 @@ impl Runtime {
         let (Some(market), Some(sender)) = (self.market.clone(), self.actor_sender.clone()) else {
             return Ok(());
         };
-        for job in self.plan_market_watch(now)? {
+        let plan = self.plan_market_watch(now);
+        for job in plan.jobs {
             let market = market.clone();
             let sender = sender.clone();
             tokio::spawn(async move {
@@ -191,7 +218,7 @@ impl Runtime {
                 }
             });
         }
-        Ok(())
+        plan.fault.map_or(Ok(()), Err)
     }
     /// The market service's answer to a planned check. Stored only if the deal, its terms, its
     /// mandate version and the rule's product still match; a failed fetch waits

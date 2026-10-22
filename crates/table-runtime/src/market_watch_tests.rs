@@ -888,3 +888,45 @@ async fn price_checks_and_pairing_wires_read_the_owner_key_in_memory_not_the_key
     r.pairing_wire(offer.bundle).unwrap();
     assert_eq!(vault.owner_reads(), 0, "{:?}", vault.1.lock().unwrap());
 }
+
+/// A keychain whose first read of the negotiator's key fails, as a locked OS keychain would.
+struct FlakyAgentKey(Arc<MemoryVault>, AtomicBool);
+impl Vault for FlakyAgentKey {
+    fn read(&self, name: &str) -> Result<Option<zeroize::Zeroizing<Vec<u8>>>, vault::VaultError> {
+        if name == AgentSlot::Negotiator.key_name() && !self.1.swap(true, Ordering::SeqCst) {
+            return Err(vault::VaultError::Unavailable);
+        }
+        self.0.read(name)
+    }
+    fn write(&self, name: &str, value: &[u8]) -> Result<(), vault::VaultError> {
+        self.0.write(name, value)
+    }
+}
+
+/// A fault that stops one deal's price check is reported, not swallowed; the deal that could be
+/// planned still is (its busy flag is held by a job the caller spawns), and the fault is the pass's.
+#[tokio::test]
+async fn a_fault_that_stops_a_price_check_surfaces_and_the_other_deals_are_still_planned() {
+    let (mut r, vault, _, clock, _) = runtime(true);
+    credentials(vault.as_ref());
+    market_key(vault.as_ref());
+    let (first, _) = setup_with(
+        &mut r,
+        Side::Buyer,
+        Delivery::DigitalNow,
+        watched(Side::Buyer, 12),
+    );
+    let _second = another(&mut r, &first, "monitor");
+    r.attach_market(WatchMarket::new(clock.clone(), 1200, true));
+    set(&clock, 200);
+    r.vault = Arc::new(FlakyAgentKey(vault, AtomicBool::new(false)));
+    let plan = r.plan_market_watch(200);
+    let fault = plan.fault.expect("the unreadable agent key is reported");
+    assert!(matches!(fault.code, ErrorCode::Unavailable), "{fault:?}");
+    assert_eq!(plan.jobs.len(), 1, "the other deal is still planned");
+    assert_eq!(
+        r.market_watch_busy.len(),
+        1,
+        "only the spawned job holds a busy flag"
+    );
+}
