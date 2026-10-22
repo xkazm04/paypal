@@ -595,3 +595,35 @@ fn a_start_past_the_run_limit_says_so() {
     assert_eq!(error.message, crate::engines::RUN_LIMIT);
     drop(tx);
 }
+
+#[tokio::test]
+async fn one_engine_workspace_failure_leaves_the_other_engine_attached() {
+    use table_engine::{EngineId, Executable};
+    let dir = std::env::temp_dir().join(format!("table-attach-{}", ulid::Ulid::new()));
+    std::fs::create_dir_all(&dir).unwrap();
+    // A file where the workspace directory should be: create_dir_all fails.
+    let blocked = dir.join("blocked");
+    std::fs::write(&blocked, b"x").unwrap();
+    let (mut r, _, _, _, _) = runtime(true);
+    let exe = || Executable {
+        program: dir.join("missing-cli"),
+        prefix: Vec::new(),
+    };
+    r.attach_engine(EngineId::ClaudeCode, exe(), blocked).await;
+    r.attach_engine(EngineId::CodexCli, exe(), dir.join("ok"))
+        .await;
+    let info = r.engine_info().unwrap();
+    let claude = info.iter().find(|i| i.id == EngineId::ClaudeCode).unwrap();
+    assert!(!claude.available);
+    assert_eq!(
+        claude.reason.as_deref(),
+        Some("Engine workspace unavailable")
+    );
+    let codex = info.iter().find(|i| i.id == EngineId::CodexCli).unwrap();
+    assert_ne!(
+        codex.reason.as_deref(),
+        Some("Executable not resolved"),
+        "the second engine was attached and probed on its own"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
