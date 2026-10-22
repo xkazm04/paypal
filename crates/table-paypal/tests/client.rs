@@ -479,6 +479,68 @@ async fn token_refresh_on_expiry_and_401_is_bounded() {
         3
     );
 }
+/// A backoff that lets the token expire while it waits, so the next attempt must refresh it.
+#[derive(Debug)]
+struct Expire(Arc<Time>);
+#[async_trait]
+impl Backoff for Expire {
+    async fn wait(&self, _: u8) {
+        self.0.0.fetch_add(3600, Ordering::SeqCst);
+    }
+}
+/// A request that reached the wire is evidence even when the token for the next attempt cannot
+/// be had: the error carries its observation, never a bare "credentials unavailable".
+#[tokio::test]
+async fn a_failed_token_refresh_mid_call_keeps_the_observations_already_made() {
+    // A create whose answer was lost, then the token expires during the backoff and the refresh
+    // fails: PayPal may hold the order, so the outcome is unknown and the sent request travels.
+    let fake = Arc::new(Fake {
+        responses: Mutex::new(vec![oauth(), Err(TransportError), Err(TransportError)].into()),
+        requests: Mutex::new(Vec::new()),
+    });
+    let time = Arc::new(Time(AtomicI64::new(100)));
+    let client = Client::sandbox(
+        fake.clone(),
+        Arc::new(Creds),
+        time.clone(),
+        Arc::new(Expire(time)),
+    );
+    let o = order();
+    let id = RequestId::for_operation(o.deal, 1, "create").unwrap();
+    let error = client.create_order(&o, &id).await.unwrap_err();
+    assert!(matches!(error, Error::Unknown { .. }), "{error:?}");
+    let observed = error.observations();
+    assert_eq!(observed.len(), 1);
+    assert_eq!(observed[0].status, 0);
+    assert_eq!(observed[0].request_id, id.as_str());
+    assert_eq!(fake.requests.lock().unwrap().len(), 3);
+    // A 401, then a refresh PayPal refuses: the 401 answer is still on the record.
+    let (client, fake, _) = setup(vec![
+        oauth(),
+        response(401, json!({})),
+        response(500, json!({})),
+    ]);
+    let error = client
+        .get_order(&ResourceId::new("ORDER1").unwrap())
+        .await
+        .unwrap_err();
+    assert_eq!(
+        error
+            .observations()
+            .iter()
+            .map(|o| o.status)
+            .collect::<Vec<_>>(),
+        [401]
+    );
+    assert_eq!(fake.requests.lock().unwrap().len(), 3);
+    // Nothing sent yet: a token failure on the first attempt is a credentials error, no evidence.
+    let (client, _, _) = setup(vec![response(500, json!({}))]);
+    let error = client
+        .get_order(&ResourceId::new("ORDER1").unwrap())
+        .await
+        .unwrap_err();
+    assert!(matches!(error, Error::Credentials), "{error:?}");
+}
 #[tokio::test]
 async fn permanent_error_debug_id_redaction_and_retry_exhaustion() {
     let (client, fake, _) = setup(vec![
