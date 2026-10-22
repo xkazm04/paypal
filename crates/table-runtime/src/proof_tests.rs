@@ -408,3 +408,17 @@ fn an_unreadable_agent_slot_does_not_block_the_slot_that_holds_the_key() {
     let r2 = r.select_agent([7; 32]).unwrap_err();
     assert!(matches!(r2.code, ErrorCode::Unavailable), "{r2:?}");
 }
+
+/// A proof file the wallet cannot build is the wallet's fault, not a malformed request.
+#[test]
+fn a_proof_the_wallet_cannot_build_is_unavailable_not_invalid() {
+    let (mut r, ..) = runtime(true);
+    let (deal, peer) = setup_delivery(&mut r, Side::Seller, Delivery::ShipThenCapture { days: 1 });
+    agree(&mut r, &deal, &peer);
+    r.export_proof(deal.id).expect("exports normally");
+    crate::proof::FAIL_COMMITMENT.set(true);
+    let failed = r.export_proof(deal.id);
+    crate::proof::FAIL_COMMITMENT.set(false);
+    let error = failed.unwrap_err();
+    assert!(matches!(error.code, ErrorCode::Unavailable), "{error:?}");
+}
