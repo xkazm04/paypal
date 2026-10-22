@@ -74,11 +74,7 @@ impl Runtime {
     }
     /// This deal's card in the current snapshot, if the owner can see one.
     pub(crate) fn card(&mut self, deal: DealId) -> Option<AttentionItem> {
-        self.attention()
-            .ok()?
-            .items
-            .into_iter()
-            .find(|i| i.deal_id == deal)
+        self.card_item(deal).ok().flatten()
     }
     /// The GATE card whose notification for `deadline` is due now.
     pub(crate) fn due_gate(&mut self, deal: DealId, deadline: Timestamp) -> Option<AttentionItem> {

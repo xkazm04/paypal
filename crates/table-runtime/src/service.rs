@@ -183,6 +183,9 @@ pub struct Runtime {
     /// Test-only: makes `attention()` fail, to prove the actor surfaces the fault.
     #[cfg(test)]
     pub(crate) fail_attention: Arc<std::sync::atomic::AtomicBool>,
+    /// Test-only: how many whole attention snapshots were built, to prove a card action reads one deal.
+    #[cfg(test)]
+    pub(crate) attention_builds: usize,
     /// Test-only: makes the walk-away forecast read fail, to prove attention still answers.
     #[cfg(test)]
     pub(crate) fail_forecast: bool,
@@ -320,6 +323,8 @@ impl Runtime {
             brief_tamper: None,
             #[cfg(test)]
             fail_attention: Arc::default(),
+            #[cfg(test)]
+            attention_builds: 0,
             #[cfg(test)]
             fail_forecast: false,
             #[cfg(test)]

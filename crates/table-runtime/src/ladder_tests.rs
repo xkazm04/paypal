@@ -603,3 +603,78 @@ async fn f3_w6_a_rung_that_cannot_be_written_never_delays_the_default() {
     assert_eq!(detail["rung_count"], json!(0));
     assert_eq!(detail["last_rung"], Value::Null);
 }
+
+/// A Tumbler card action reads the one deal's card, not the whole book: no attention snapshot (the
+/// fold over every deal, the exposure view and the forecast) is built however many deals exist.
+#[tokio::test]
+async fn a_card_action_builds_no_whole_attention_snapshot_at_any_book_size() {
+    for extra in [0, 5] {
+        let (mut r, _, _, clock, _) = runtime(true);
+        let deadline = 100 + 3 * H;
+        let deal = gate(&mut r, deadline);
+        for _ in 0..extra {
+            gate(&mut r, deadline);
+        }
+        at(&clock, deadline - 10 * 60);
+        let before = r.attention_builds;
+        assert_eq!(
+            tumbler(
+                &mut r,
+                Action::ClaimNotification {
+                    deal_id: deal.id,
+                    deadline
+                }
+            )
+            .await,
+            json!(true)
+        );
+        tumbler(&mut r, Action::CardOpened(deal.id)).await;
+        // Whether a snooze is still allowed this close to the deadline is not the point here.
+        let _ = r
+            .execute(caller("tumbler", None), Action::Snooze(deal.id))
+            .await;
+        r.execute(caller("tumbler", None), Action::LetLapse(deal.id))
+            .await
+            .unwrap();
+        assert_eq!(r.attention_builds, before, "with {extra} other deals");
+    }
+}
+
+/// The one-deal card is the snapshot's card: same deal, kind, deadline and actions, for a GATE, a
+/// snoozed GATE (absent from both), a lapsing deal (absent from both) and a deal with no card.
+#[tokio::test]
+async fn the_one_deal_card_matches_the_snapshots_card() {
+    let (mut r, _, _, _, _) = runtime(true);
+    let deadline = 100 + 3 * H;
+    let shown = gate(&mut r, deadline);
+    let snoozed = gate(&mut r, deadline);
+    let lapsing = gate(&mut r, deadline);
+    let (quiet, _) = setup(&mut r, Side::Seller);
+    r.attention().unwrap();
+    tumbler(&mut r, Action::Snooze(snoozed.id)).await;
+    tumbler(&mut r, Action::LetLapse(lapsing.id)).await;
+    let snapshot = r.attention().unwrap();
+    for id in [shown.id, snoozed.id, lapsing.id, quiet.id] {
+        let in_snapshot = snapshot.items.iter().find(|i| i.deal_id == id);
+        let one = r.card_item(id).unwrap();
+        assert_eq!(
+            one.as_ref().map(|i| (
+                i.deal_id,
+                i.kind,
+                i.deadline,
+                i.actions.clone(),
+                i.label.clone()
+            )),
+            in_snapshot.map(|i| (
+                i.deal_id,
+                i.kind,
+                i.deadline,
+                i.actions.clone(),
+                i.label.clone()
+            )),
+            "{id}"
+        );
+    }
+    assert!(snapshot.items.iter().any(|i| i.deal_id == shown.id));
+    assert!(r.card_item(DealId(ulid::Ulid::new())).unwrap().is_none());
+}

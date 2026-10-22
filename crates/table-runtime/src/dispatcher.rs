@@ -189,6 +189,87 @@ impl Runtime {
             band,
         })
     }
+    /// One deal's attention source, or `None` when the owner is not shown it (left to lapse, or a
+    /// snoozed GATE). The loop body of [`Runtime::attention`], shared with the one-deal card read.
+    fn attention_source(
+        &mut self,
+        deal: &Deal,
+        names: &std::collections::HashMap<KeyId, String>,
+        now: Timestamp,
+    ) -> Result<Option<table_attention::AttentionSource>, CommandError> {
+        // A money step being checked with PayPal is shown even on a deal left to lapse.
+        let money_check = app(self.pipeline.wallet.ledger.money_check(deal.id))?;
+        if money_check.is_none()
+            && app(self
+                .pipeline
+                .wallet
+                .ledger
+                .preference::<bool>(&format!("lapse.{}", deal.id)))?
+            .unwrap_or(false)
+        {
+            return Ok(None);
+        }
+        let mut source = table_attention::AttentionSource::from_deal(
+            deal,
+            app(self.pipeline.wallet.ledger.display_number(deal.id))?,
+            names.get(&deal.counterparty).cloned(),
+            None,
+            app(self.pipeline.wallet.ledger.deadline(deal.id))?.map(|d| d.0),
+        )
+        .map_err(table_app::Error::from)?;
+        source.needs_owner_accept = self.needs_owner_accept(deal)?;
+        source.money_check = money_check;
+        // A gate names the clause that sent it to the owner; holds come from the shield.
+        if source.item(now).kind == table_attention::AttnKind::Gate {
+            source.clause = self.human_present_clause(deal)?;
+        }
+        let item = source.item(now);
+        // A snooze hides a GATE until it runs out or the notification rung pierces it.
+        if item.kind == table_attention::AttnKind::Gate
+            && table_attention::LADDER.snooze_hides(
+                item.deadline,
+                app(self
+                    .pipeline
+                    .wallet
+                    .ledger
+                    .preference::<i64>(&format!("snooze.{}", deal.id)))?,
+                now,
+            )
+        {
+            return Ok(None);
+        }
+        Ok(Some(source))
+    }
+    /// This deal's card as the snapshot would carry it (a GATE or a HOLD, else none), built from
+    /// the one deal: no fold over the book, no exposure view, no forecast, no rung writes. The
+    /// silence wording, which needs the forecast, is not applied; cards actions read only the
+    /// kind, deadline and actions.
+    pub(crate) fn card_item(
+        &mut self,
+        id: DealId,
+    ) -> Result<Option<table_attention::AttentionItem>, CommandError> {
+        let now = self.clock.now();
+        // An unknown deal has no card (the snapshot would not list it either).
+        let deal = match self.pipeline.wallet.ledger.get_deal(id) {
+            Ok(deal) => deal,
+            Err(table_ledger::LedgerError::NotFound) => return Ok(None),
+            Err(e) => return app(Err(e)),
+        };
+        let names: std::collections::HashMap<_, _> =
+            app(self.pipeline.wallet.ledger.counterparty_list())?
+                .into_iter()
+                .map(|c| (c.key_id, c.display_name))
+                .collect();
+        Ok(self
+            .attention_source(&deal, &names, now)?
+            .map(|source| source.item(now))
+            .filter(|item| {
+                matches!(
+                    item.kind,
+                    table_attention::AttnKind::Gate | table_attention::AttnKind::Hold
+                )
+            }))
+    }
     pub fn attention(&mut self) -> Result<table_attention::AttentionSnapshot, CommandError> {
         #[cfg(test)]
         if self
@@ -196,6 +277,10 @@ impl Runtime {
             .load(std::sync::atomic::Ordering::SeqCst)
         {
             return Err(unavailable("Attention unavailable"));
+        }
+        #[cfg(test)]
+        {
+            self.attention_builds += 1;
         }
         let now = self.clock.now();
         let mut sources = Vec::new();
@@ -207,48 +292,9 @@ impl Runtime {
                 .map(|c| (c.key_id, c.display_name))
                 .collect();
         for deal in &deals {
-            // A money step being checked with PayPal is shown even on a deal left to lapse.
-            let money_check = app(self.pipeline.wallet.ledger.money_check(deal.id))?;
-            if money_check.is_none()
-                && app(self
-                    .pipeline
-                    .wallet
-                    .ledger
-                    .preference::<bool>(&format!("lapse.{}", deal.id)))?
-                .unwrap_or(false)
-            {
-                continue;
+            if let Some(source) = self.attention_source(deal, &names, now)? {
+                sources.push(source);
             }
-            let mut source = table_attention::AttentionSource::from_deal(
-                deal,
-                app(self.pipeline.wallet.ledger.display_number(deal.id))?,
-                names.get(&deal.counterparty).cloned(),
-                None,
-                app(self.pipeline.wallet.ledger.deadline(deal.id))?.map(|d| d.0),
-            )
-            .map_err(table_app::Error::from)?;
-            source.needs_owner_accept = self.needs_owner_accept(deal)?;
-            source.money_check = money_check;
-            // A gate names the clause that sent it to the owner; holds come from the shield.
-            if source.item(now).kind == table_attention::AttnKind::Gate {
-                source.clause = self.human_present_clause(deal)?;
-            }
-            let item = source.item(now);
-            // A snooze hides a GATE until it runs out or the notification rung pierces it.
-            if item.kind == table_attention::AttnKind::Gate
-                && table_attention::LADDER.snooze_hides(
-                    item.deadline,
-                    app(self
-                        .pipeline
-                        .wallet
-                        .ledger
-                        .preference::<i64>(&format!("snooze.{}", deal.id)))?,
-                    now,
-                )
-            {
-                continue;
-            }
-            sources.push(source);
         }
         let mut snapshot =
             table_attention::snapshot(&sources, now, 0, 0.0, self.pipeline.approval.locked(now));
@@ -312,9 +358,8 @@ impl Runtime {
             Action::ClaimNotification { deal_id, deadline } => {
                 allowed(label, &["tumbler"])?;
                 let now = self.clock.now();
-                if !self.attention()?.items.iter().any(|i| {
-                    i.deal_id == deal_id
-                        && i.kind == table_attention::AttnKind::Gate
+                if !self.card_item(deal_id)?.is_some_and(|i| {
+                    i.kind == table_attention::AttnKind::Gate
                         && i.deadline == Some(deadline)
                         && table_attention::LADDER.notify_due(i.deadline, now)
                 }) {
@@ -652,9 +697,8 @@ impl Runtime {
             }
             Action::LetLapse(id) => {
                 // The same gate the card offered: a Hold or an Authorized deal has no Let lapse.
-                if !self.attention()?.items.iter().any(|i| {
-                    i.deal_id == id
-                        && i.kind == table_attention::AttnKind::Gate
+                if !self.card_item(id)?.is_some_and(|i| {
+                    i.kind == table_attention::AttnKind::Gate
                         && i.actions
                             .contains(&table_attention::TumblerAction::LetLapse)
                 }) {
@@ -669,9 +713,8 @@ impl Runtime {
             }
             Action::Snooze(id) => {
                 let now = self.clock.now();
-                let Some(item) = self.attention()?.items.into_iter().find(|i| {
-                    i.deal_id == id
-                        && i.kind == table_attention::AttnKind::Gate
+                let Some(item) = self.card_item(id)?.filter(|i| {
+                    i.kind == table_attention::AttnKind::Gate
                         && table_attention::LADDER.snooze_allowed(i.deadline, now)
                 }) else {
                     return Err(invalid());
