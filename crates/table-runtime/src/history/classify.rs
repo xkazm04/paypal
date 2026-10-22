@@ -86,6 +86,7 @@ const BOOKKEEPING: &[&str] = &[
     "deadline.set",
     "market.observed",
     "relay.bound",
+    "relay.reset_refused",
     "run.start",
     "run.finish",
     "counterparty.pinned",
