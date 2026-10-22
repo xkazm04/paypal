@@ -5391,6 +5391,37 @@
           "evidence": "apps/desktop/client/src/windows/approval/owner/WhatIf.tsx:56 Identifies rendered deal rows; this context defines no delivery steps or dependency edges."
         }
       ]
+    },
+    "1b4ef14a-5a8a-438c-988d-365c439b153d/plan-review": {
+      "context": "deal-review",
+      "subject": "plan-review",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T01:45:33.360Z",
+      "techniques": [
+        {
+          "technique": "fresh-posture-self-challenge",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/why.ts:27 The explanation derives deterministically from deal facts; there is no agent drafting and critiquing a plan."
+        },
+        {
+          "technique": "informational-fold-in",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/Parts.tsx:159 The market field resembles this technique, but belongs to a transaction approval rather than an adopted human plan gate."
+        },
+        {
+          "technique": "silent-decision-surfacing",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/BandAdjust.tsx:47 The owner explicitly signs price limits; this does not surface unnamed commitments in an agent-authored implementation plan."
+        }
+      ],
+      "withdrawn": {
+        "worker": "b5876a41-9bd6-4573-879c-e08c2a908bbe",
+        "state": "not-applicable",
+        "at": "2026-10-22T01:45:53.944642+00:00",
+        "reason": "reviewer (sonnet): The anchor DealReview.tsx:337 is only the `act` intent line (which owner controls are visible), so it does not show that a human plan-gate precondition is absent, and the plan_gate/objection grep terms were a thin proxy for the standard."
+      }
     }
   }
 }
