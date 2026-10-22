@@ -13,13 +13,14 @@ mod house;
 mod v2;
 // The whole-ledger money-authority predicate (ops-and-delivery-1): the gauntlet and the app share it.
 pub mod safety;
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use ed25519_dalek::{Signature, VerifyingKey};
 pub use house::*;
 use serde_json::Value;
 use table_core::{Clause, DealId, H256, KeyId, Mode, canonical_bytes, invoice_id};
 use table_proto::{
-    Body, MemoryNonces, PROOF_FORMAT, PROOF_FORMAT_V1, ProofAuditRow, ProofBundle, VerifyContext,
-    key_id, verify, verify_mandate_signature,
+    Body, Envelope, MemoryNonces, PROOF_FORMAT, PROOF_FORMAT_V1, ProofAuditRow, ProofBundle,
+    VerifyContext, key_id, verify, verify_mandate_signature,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -461,15 +462,63 @@ fn audit(bundle: &ProofBundle) -> Outcome {
     ))
 }
 
+/// The signed body of a transcript entry, read without re-judging its signature: the transcript
+/// check owns the chain and every signature, this only reads a body that check already covers.
+fn signed_body(raw: &str) -> Option<Envelope> {
+    let payload = raw.split('.').nth(1)?;
+    let bytes = URL_SAFE_NO_PAD.decode(payload).ok()?;
+    serde_json::from_slice(&bytes).ok()
+}
+
+/// A receipt must state the money that was agreed: inside the signed transcript, a RECEIPT body
+/// for the deal's signed amount, its extracted side fields equal to that body, and its capture id
+/// the one PayPal answered when the file holds a capture answer.
 fn receipts(bundle: &ProofBundle) -> Outcome {
+    let agreed = bundle.deal.terms.amount().map_err(|e| e.to_string())?;
+    let answered: Vec<&str> = bundle
+        .paypal_calls
+        .iter()
+        .filter(|c| {
+            authority::money_kind(&c.method, &c.path) == Some("capture")
+                && c.status.is_some_and(|s| (200..300).contains(&s))
+        })
+        .filter_map(|c| c.body.get("id").and_then(Value::as_str))
+        .collect();
     for receipt in &bundle.receipts {
         if !bundle.transcript.iter().any(|e| e.raw == receipt.raw) {
             return Err("receipt is not part of the signed transcript".into());
         }
+        let Some(Envelope {
+            body:
+                Body::Receipt {
+                    capture_id,
+                    amount,
+                    transcript_head,
+                    ..
+                },
+            ..
+        }) = signed_body(&receipt.raw)
+        else {
+            return Err("receipt is not a signed receipt message".into());
+        };
+        if amount != agreed {
+            return Err(format!(
+                "receipt states {amount} but the signed terms agreed {agreed}"
+            ));
+        }
+        if receipt.amount_minor != Some(amount.minor())
+            || receipt.capture_id.as_deref() != Some(capture_id.as_str())
+            || receipt.transcript_head != transcript_head
+        {
+            return Err("receipt fields differ from the signed receipt".into());
+        }
+        if !answered.is_empty() && !answered.contains(&capture_id.as_str()) {
+            return Err("receipt capture id is not the one PayPal answered".into());
+        }
     }
     Ok(match bundle.receipts.len() {
         0 => "no receipt yet".into(),
-        n => format!("{n} receipt(s) inside the signed transcript"),
+        n => format!("{n} receipt(s) inside the signed transcript, for the agreed amount"),
     })
 }
 

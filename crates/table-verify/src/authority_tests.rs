@@ -481,3 +481,79 @@ fn rescue_invoices_are_money_steps_and_the_search_is_a_read() {
         Some("unclassified")
     );
 }
+
+/// A deal slice whose transcript holds one signed RECEIPT for `signed` minor units and whose
+/// receipt row copies that body, so each test seeds exactly one disagreement.
+fn receipted(terms_minor: i64, signed_minor: i64) -> ProofBundle {
+    use table_proto::{AgentSigner, Body, Envelope, MsgType, ProofEnvelope, ProofReceipt};
+    use table_proto::{ReceiptStatus, ShortText};
+    let mut b = bundle(Side::Seller, DealKind::Purchase, terms_minor);
+    let signer = AgentSigner::from_key(ed25519_dalek::SigningKey::from_bytes(&[9; 32]));
+    let head = H256::digest(b"head");
+    let envelope = Envelope {
+        v: 1,
+        typ: MsgType::Receipt,
+        deal_id: b.deal.id,
+        seq: 1,
+        prev: head,
+        iss: signer.key_id().unwrap(),
+        aud: b.deal.counterparty.clone(),
+        iat: 100,
+        exp: 200,
+        nonce: [4; 16],
+        body: Body::Receipt {
+            capture_id: ShortText::new("CAP-1".into()).unwrap(),
+            amount: money(signed_minor),
+            status: ReceiptStatus::Completed,
+            transcript_head: head,
+        },
+    };
+    let raw = signer.sign(&envelope).unwrap();
+    b.transcript.push(ProofEnvelope {
+        inbound: false,
+        raw: raw.clone(),
+        received_at: 100,
+    });
+    b.receipts.push(ProofReceipt {
+        raw,
+        capture_id: Some("CAP-1".into()),
+        amount_minor: Some(signed_minor),
+        transcript_head: head,
+    });
+    b
+}
+
+#[test]
+fn a_receipt_for_the_agreed_amount_with_matching_fields_verifies() {
+    let b = receipted(1200, 1200);
+    assert!(crate::receipts(&b).unwrap().contains("agreed amount"));
+}
+
+#[test]
+fn a_signed_receipt_for_another_amount_than_the_terms_fails_the_receipt_check() {
+    assert!(crate::receipts(&receipted(1200, 1300)).is_err());
+}
+
+#[test]
+fn receipt_side_fields_that_disagree_with_the_signed_body_fail_the_receipt_check() {
+    let mut b = receipted(1200, 1200);
+    b.receipts[0].amount_minor = Some(1);
+    assert!(crate::receipts(&b).is_err());
+    let mut b = receipted(1200, 1200);
+    b.receipts[0].capture_id = Some("CAP-2".into());
+    assert!(crate::receipts(&b).is_err());
+    let mut b = receipted(1200, 1200);
+    b.receipts[0].transcript_head = H256::ZERO;
+    assert!(crate::receipts(&b).is_err());
+}
+
+#[test]
+fn a_receipt_capture_id_other_than_the_one_paypal_answered_fails_the_receipt_check() {
+    let mut b = receipted(1200, 1200);
+    let mut call = capture_call(Some("r1"));
+    call.body = json!({"id": "CAP-1", "status": "COMPLETED"});
+    b.paypal_calls.push(call);
+    assert!(crate::receipts(&b).is_ok());
+    b.paypal_calls[0].body = json!({"id": "CAP-OTHER"});
+    assert!(crate::receipts(&b).is_err());
+}
