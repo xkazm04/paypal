@@ -19,3 +19,24 @@ export const AGREED_OR_LATER: ReadonlySet<DealState> = new Set<DealState>(["AGRE
 
 /** `DealState::through_agreed()`: reached only through AGREED, released ones included; an agreement was recorded. */
 export const THROUGH_AGREED: ReadonlySet<DealState> = new Set<DealState>(["AGREED", "SETTLING", "AWAITING_APPROVAL", "APPROVED", "AUTHORIZED", "CAPTURED", "RECEIPTED", "RECONCILED", "EXPIRED", "VOIDED", "AUTO_VOIDED", "REFUNDED", "DISPUTED", "UNCONFIRMED"]);
+
+/** `DealState::before_settlement()`: PAIRING to AGREED; the band can still move and a seller deal is still watched. */
+export const BEFORE_SETTLEMENT: ReadonlySet<DealState> = new Set<DealState>(["PAIRING", "LISTED", "NEGOTIATING", "AGREED"]);
+
+/** `DealState::open_table()`: still being talked, no agreement; a group close or open reaches it. */
+export const OPEN_TABLE: ReadonlySet<DealState> = new Set<DealState>(["PAIRING", "LISTED", "NEGOTIATING"]);
+
+/** `DealState::countersignable()`: where the owner's countersign is accepted. */
+export const COUNTERSIGNABLE: ReadonlySet<DealState> = new Set<DealState>(["AGREED", "APPROVED"]);
+
+/** `DealState::quit_pending()`: the states the quit confirm lists on state alone. */
+export const QUIT_PENDING: ReadonlySet<DealState> = new Set<DealState>(["AGREED", "AWAITING_APPROVAL", "APPROVED", "AUTHORIZED", "MISMATCH"]);
+
+/** `DealState::order_expected()`: the checklist expects a PayPal order here. */
+export const ORDER_EXPECTED: ReadonlySet<DealState> = new Set<DealState>(["AGREED", "SETTLING"]);
+
+/** `DealState::is_committed()`: the exposure fold counts the money as committed. */
+export const COMMITTED: ReadonlySet<DealState> = new Set<DealState>(["AGREED", "SETTLING", "AWAITING_APPROVAL", "APPROVED"]);
+
+/** `DealState::is_paid()`: the exposure fold counts the money as paid (UNCONFIRMED included). */
+export const PAID: ReadonlySet<DealState> = new Set<DealState>(["CAPTURED", "RECEIPTED", "RECONCILED", "REFUNDED", "DISPUTED", "UNCONFIRMED"]);

@@ -37,7 +37,7 @@ import type { SimulatedLine } from '@bindings/SimulatedLine';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import { mockCheck, mockValidate, type MockIntent } from './simulate';
 import { mockEnvelopeRefusal, mockExposureView, type MockEnvelope } from './exposure';
-import { AGREED_OR_LATER, TERMINAL, WITHDRAWABLE } from '@bindings/dealStates';
+import { AGREED_OR_LATER, BEFORE_SETTLEMENT, COUNTERSIGNABLE, OPEN_TABLE, TERMINAL, WITHDRAWABLE } from '@bindings/dealStates';
 import type { EnvelopeSignArgs } from '@bindings/EnvelopeSignArgs';
 import type { RescueView } from '@bindings/RescueView';
 import type { Money } from '@bindings/Money';
@@ -294,7 +294,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
         const d = find(dealId);
         const cur = d.deal.terms.currency;
         const vals = [draft.floor, draft.ceiling].filter((v): v is NonNullable<typeof v> => !!v);
-        if (!['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED'].includes(d.deal.state) || d.deal.paypal.order || !bandOf(activeMandate(d.deal.mandate_id), d.deal.terms.item_ref)
+        if (!BEFORE_SETTLEMENT.has(d.deal.state) || d.deal.paypal.order || !bandOf(activeMandate(d.deal.mandate_id), d.deal.terms.item_ref)
           || !vals.length || vals.some((v) => v.currency !== cur || v.minor <= 0) || (draft.floor && draft.ceiling && draft.floor.minor > draft.ceiling.minor)) fail('INVALID', 'the band draft does not fit this deal');
         return;
       }
@@ -561,7 +561,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     const history = state.history ?? buildMockState(nowUnix()).history ?? [];
     for (const id of g.deal_ids) {
       const d = find(id);
-      if (id === winner || !['PAIRING', 'LISTED', 'NEGOTIATING'].includes(d.deal.state)) continue;
+      if (id === winner || !OPEN_TABLE.has(d.deal.state)) continue;
       d.transcript.push({ seq: d.transcript.length + 1, by: 'you', typ: 'WITHDRAW', price: null, at: nowUnix(), verified: true });
       history.push({ at: nowUnix(), deal_id: id, seq: history.reduce((m, h) => Math.max(m, h.seq), 0) + 1, kind: 'group_withdrawn', state_after: 'WITHDRAWN', authority: { type: 'group_rule' }, paypal: { type: 'none' } });
       state.history = history;
@@ -943,7 +943,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       notWhileChecking(deal_id);
       boundToChecks(args);
       const d = find(deal_id);
-      if (!['AGREED', 'APPROVED'].includes(d.deal.state)) fail('INVALID', `cannot countersign in ${d.deal.state}`);
+      if (!COUNTERSIGNABLE.has(d.deal.state)) fail('INVALID', `cannot countersign in ${d.deal.state}`);
       return transition(deal_id, 'AWAITING_APPROVAL', { paypal: { ...d.deal.paypal, order: '7XK' + deal_id.slice(-5) }, decided_by: { type: 'human', at: nowUnix() } }, true);
     },
     deal_capture: (args, opts) => {
@@ -1057,7 +1057,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       const d = find(deal_id);
       // As Runtime::band: only an unsettled deal with no PayPal order; re-sign the deal's own
       // active mandate version with the band moved, then rebind the deal to the new version.
-      if (!['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED'].includes(d.deal.state) || d.deal.paypal.order) fail('INVALID', 'the band can move only before settlement');
+      if (!BEFORE_SETTLEMENT.has(d.deal.state) || d.deal.paypal.order) fail('INVALID', 'the band can move only before settlement');
       const base = activeMandate(d.deal.mandate_id);
       if (!base || base.payload.version !== d.deal.mandate_version) fail('NOT_FOUND', 'the deal\'s mandate version is not active');
       let changed = false;
@@ -1330,7 +1330,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       const grouped = new Set(groups().flatMap((g) => g.deal_ids));
       const ok = !!first && tables.length >= 2 && tables.length <= 8
         && new Set(deal_ids).size === deal_ids.length && new Set(tables.map((d) => d.deal.counterparty)).size === tables.length
-        && tables.every((d) => d.deal.side === 'buyer' && d.deal.kind === 'haggle' && ['PAIRING', 'LISTED', 'NEGOTIATING'].includes(d.deal.state)
+        && tables.every((d) => d.deal.side === 'buyer' && d.deal.kind === 'haggle' && OPEN_TABLE.has(d.deal.state)
           && !grouped.has(d.deal.id) && d.deal.mandate_id === first.mandate_id && d.deal.terms.item_ref === first.terms.item_ref && !acceptOut(d));
       if (!ok || !first) fail('INVALID', 'Invalid or stale wallet command');
       const g: MockGroup = { group_id: fakeUlid(`G:${deal_ids.join(',')}:${nowUnix()}`), item_ref: first.terms.item_ref, opened_at: nowUnix(), winner: null, deal_ids: [...deal_ids] };

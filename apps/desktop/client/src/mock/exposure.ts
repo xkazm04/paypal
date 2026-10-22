@@ -5,17 +5,13 @@
 import type { Currency } from '@bindings/Currency';
 import type { CurrencyExposure } from '@bindings/CurrencyExposure';
 import type { Deal } from '@bindings/Deal';
-import type { DealState } from '@bindings/DealState';
-import { AGREED_OR_LATER, RELEASED } from '@bindings/dealStates';
+import { AGREED_OR_LATER, COMMITTED, PAID, RELEASED } from '@bindings/dealStates';
 import type { ExposureView } from '@bindings/ExposureView';
 import type { WalletEnvelope } from '@bindings/WalletEnvelope';
 
 export type MockEnvelope = { payload: WalletEnvelope; signedAt: number; forged?: boolean };
 
 const DAY = 86_400;
-const COMMITTED = new Set<DealState>(['AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED']);
-// UNCONFIRMED counts as spent (Rust paid_state): the money may have left.
-const PAID = new Set<DealState>(['CAPTURED', 'RECEIPTED', 'RECONCILED', 'REFUNDED', 'DISPUTED', 'UNCONFIRMED']);
 
 const total = (d: Deal) => d.terms.unit_price.minor * d.terms.qty;
 const day = (t: number) => Math.floor(t / DAY);

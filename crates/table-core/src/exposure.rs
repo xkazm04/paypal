@@ -69,26 +69,6 @@ impl CurrencyExposure {
 const fn released(state: DealState) -> bool {
     state.is_released()
 }
-const fn committed_state(state: DealState) -> bool {
-    matches!(
-        state,
-        DealState::Agreed | DealState::Settling | DealState::AwaitingApproval | DealState::Approved
-    )
-}
-/// UNCONFIRMED counts as spent: the money may have left even though PayPal's statement never
-/// showed it, so a spending limit never frees it.
-const fn paid_state(state: DealState) -> bool {
-    matches!(
-        state,
-        DealState::Captured
-            | DealState::Receipted
-            | DealState::Reconciled
-            | DealState::Refunded
-            | DealState::Disputed
-            | DealState::Unconfirmed
-    )
-}
-
 /// The UTC day number of a moment: the one day rule for the exposure fold and the ledger's
 /// per-mandate usage window.
 pub const fn utc_day(at: Timestamp) -> Timestamp {
@@ -120,7 +100,7 @@ fn fold_into(
     }
     if deal.state == DealState::Authorized {
         add(&mut row.held, deal.amount)?;
-    } else if committed_state(deal.state) {
+    } else if DealState::is_committed(deal.state) {
         add(&mut row.committed, deal.amount)?;
     }
     if counts_today(deal, day, own_seq) {
@@ -129,7 +109,7 @@ fn fold_into(
             .deals_today
             .checked_add(1)
             .ok_or(DomainError::InvalidTerms)?;
-        if paid_state(deal.state) {
+        if DealState::is_paid(deal.state) {
             add(&mut row.paid_today, deal.amount)?;
         }
     }

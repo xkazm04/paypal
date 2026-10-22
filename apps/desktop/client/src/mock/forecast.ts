@@ -5,7 +5,7 @@
 // treated as allowed, which is what the sample data shows.
 import type { Deal } from '@bindings/Deal';
 import type { DealState } from '@bindings/DealState';
-import { PRE_CAPTURE, TERMINAL } from '@bindings/dealStates';
+import { PRE_CAPTURE, QUIT_PENDING, TERMINAL } from '@bindings/dealStates';
 import type { ForecastLine } from '@bindings/ForecastLine';
 import type { QuitLine } from '@bindings/QuitLine';
 
@@ -107,7 +107,7 @@ const T = {
 
 /** A deal the quit confirm lists (dispatcher.rs `quit_summary`). */
 export function quitPending(deal: Deal): boolean {
-  return ['AGREED', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'MISMATCH'].includes(deal.state)
+  return QUIT_PENDING.has(deal.state)
     || ((deal.shield === 'HOLD' || deal.shield === 'BLOCK') && !TERMINAL.has(deal.state));
 }
 
