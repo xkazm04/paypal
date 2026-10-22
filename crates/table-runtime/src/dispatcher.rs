@@ -255,11 +255,14 @@ impl Runtime {
             Err(table_ledger::LedgerError::NotFound) => return Ok(None),
             Err(e) => return app(Err(e)),
         };
-        let names: std::collections::HashMap<_, _> =
-            app(self.pipeline.wallet.ledger.counterparty_list())?
-                .into_iter()
-                .map(|c| (c.key_id, c.display_name))
-                .collect();
+        let names: std::collections::HashMap<_, _> = app(self
+            .pipeline
+            .wallet
+            .ledger
+            .counterparty_list(self.clock.now()))?
+        .into_iter()
+        .map(|c| (c.key_id, c.display_name))
+        .collect();
         Ok(self
             .attention_source(&deal, &names, now)?
             .map(|source| source.item(now))
@@ -286,11 +289,14 @@ impl Runtime {
         let mut sources = Vec::new();
         let deals = app(self.pipeline.wallet.ledger.list_deals())?;
         // Owner-entered pairing labels only; the projection already withholds URL-shaped text.
-        let names: std::collections::HashMap<_, _> =
-            app(self.pipeline.wallet.ledger.counterparty_list())?
-                .into_iter()
-                .map(|c| (c.key_id, c.display_name))
-                .collect();
+        let names: std::collections::HashMap<_, _> = app(self
+            .pipeline
+            .wallet
+            .ledger
+            .counterparty_list(self.clock.now()))?
+        .into_iter()
+        .map(|c| (c.key_id, c.display_name))
+        .collect();
         for deal in &deals {
             if let Some(source) = self.attention_source(deal, &names, now)? {
                 sources.push(source);
@@ -433,7 +439,11 @@ impl Runtime {
             Action::ApprovalSelection => json(self.selected),
             Action::Display(id) => json(self.deal_display(id)?),
             Action::Transcript(id) => json(app(self.pipeline.wallet.ledger.deal_transcript(id))?),
-            Action::Counterparties => json(app(self.pipeline.wallet.ledger.counterparty_list())?),
+            Action::Counterparties => json(app(self
+                .pipeline
+                .wallet
+                .ledger
+                .counterparty_list(self.clock.now()))?),
             Action::CounterpartyNote(id) => {
                 // Untrusted words: the main window only, behind "note ›" and the quarantine box.
                 // Never the Tumbler; the approval window has no read of it.

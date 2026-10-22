@@ -2387,7 +2387,7 @@ fn counterparty_projection_names_pairing_status_and_declared_payee_only() {
             first_seen: 100,
         })
         .unwrap();
-    let list = ledger.counterparty_list().unwrap();
+    let list = ledger.counterparty_list(1_000).unwrap();
     assert_eq!(list.len(), 3);
     let find = |k: &AgentSigner| {
         list.iter()
@@ -2964,7 +2964,7 @@ fn the_display_counts_an_unconfirmed_deal_as_closed() {
     seller_attested(&mut ledger, &deal, &own, &peer);
     let closed = |ledger: &Ledger| {
         ledger
-            .counterparty_list()
+            .counterparty_list(1_000)
             .unwrap()
             .into_iter()
             .find(|c| c.key_id == deal.counterparty)

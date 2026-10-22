@@ -140,7 +140,7 @@ fn the_counterparty_list_reads_a_revoked_pin_as_unpaired_like_the_gate() {
     let (mut ledger, deal, ..) = setup();
     let pairing = |ledger: &Ledger| {
         ledger
-            .counterparty_list()
+            .counterparty_list(1_000)
             .unwrap()
             .into_iter()
             .find(|c| c.key_id == deal.counterparty)
@@ -150,4 +150,23 @@ fn the_counterparty_list_reads_a_revoked_pin_as_unpaired_like_the_gate() {
     assert_eq!(pairing(&ledger), CounterpartyPairing::WordsConfirmed);
     ledger.revoke_counterparty(&deal.counterparty, 150).unwrap();
     assert_eq!(pairing(&ledger), CounterpartyPairing::Unpaired);
+}
+
+#[test]
+fn the_counterparty_list_reads_an_expired_pin_as_unpaired_from_the_expiry_instant() {
+    let (mut ledger, deal, ..) = setup();
+    ledger
+        .set_counterparty_expiry(&deal.counterparty, Some(200), 100)
+        .unwrap();
+    let pairing = |ledger: &Ledger, now| {
+        ledger
+            .counterparty_list(now)
+            .unwrap()
+            .into_iter()
+            .find(|c| c.key_id == deal.counterparty)
+            .unwrap()
+            .pairing
+    };
+    assert_eq!(pairing(&ledger, 199), CounterpartyPairing::WordsConfirmed);
+    assert_eq!(pairing(&ledger, 200), CounterpartyPairing::Unpaired);
 }

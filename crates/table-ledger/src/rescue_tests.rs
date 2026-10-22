@@ -233,7 +233,7 @@ fn a_failed_renewal_opens_one_agreed_rescue_per_subscriber_per_cycle() {
             .all(|r| !r.detail.to_string().contains("subscriber@"))
     );
     assert!(rows.iter().any(|r| r.action == "rescue.opened"));
-    assert!(w.ledger.counterparty_list().unwrap().is_empty());
+    assert!(w.ledger.counterparty_list(1_000).unwrap().is_empty());
     // A second fix for the same subscriber while one is live, or for the same cycle later on,
     // is refused; another subscriber is not.
     assert!(matches!(
