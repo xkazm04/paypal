@@ -58,7 +58,10 @@ export function Ask({ b }: { b: BookWorld }) {
   // shared per-deal entries) once it is shown, and fill its statement column as they land.
   const unknownCtx = useMemo(() => ({ stmt: () => 'unknown' as const, cpName: b.who, checking: b.checking }), [b.who, b.checking]);
   const base = useMemo(() => (ran ? runQuery(ran.lens.query, b.all, unknownCtx) : null), [ran, b.all, unknownCtx]);
-  const ids = useMemo(() => (base ? base.rows.map((d) => d.id) : []), [base]);
+  // Only the reconciliation view draws a statement, so only it reads them (the captures behind it);
+  // any other question reads none, and its pivot has no statement column (evidence.ts: only what is drawn is read).
+  const statements = ran?.lens.query.view === 'reconciliation';
+  const ids = useMemo(() => (base && statements ? base.rows.map((d) => d.id) : []), [base, statements]);
   const ev = useEvidenceOf(ids);
   const res = useMemo(() => {
     if (!ran || !base) return null;
@@ -149,7 +152,7 @@ export function Ask({ b }: { b: BookWorld }) {
               <div className="ui-disclosure-body"><ReadBody lens={lens} rows={b.all.length} /></div>
             </details>
           ) : null}
-          {phase === 'RESULT' && res ? <Pivot res={res} /> : null}
+          {phase === 'RESULT' && res ? <Pivot res={res} statements={statements} read={!ev.loading} /> : null}
           {(phase === 'RESULT' || phase === 'EMPTY') && bq.pending ? <Loading what={BOOK.ask.walletAnswering} /> : null}
           {(phase === 'RESULT' || phase === 'EMPTY') && bq.error ? <WalletNotice error={bq.error} what={BOOK.ask.walletWhat} /> : null}
           {(phase === 'RESULT' || phase === 'EMPTY') && answer ? <WalletAnswer answer={answer} cpName={b.whoKey} /> : null}
@@ -207,8 +210,9 @@ function SumCell({ out, inn, bucket }: { out: { minor: number; currency: Currenc
   return <>{parts.flatMap((p, i) => (i ? [<span key={`s${i}`} className="bk-dim"> · </span>, p] : [p]))}</>;
 }
 
-function StmtSummary({ c }: { c: Record<StatementKey, number> }) {
-  const xs = (['matched', 'pending_reporting', 'unconfirmed', 'mismatch', 'unknown'] as const).filter((s) => c[s]);
+function StmtSummary({ c, read }: { c: Record<StatementKey, number>; read: boolean }) {
+  // A statement still being read is a quiet dash, never "unknown" (which says it could not be read).
+  const xs = (['matched', 'pending_reporting', 'unconfirmed', 'mismatch', 'unknown'] as const).filter((s) => c[s] && (read || s !== 'unknown'));
   if (!xs.length) return <span className="bk-dim">{BOOK.dash}</span>;
   return <>{xs.map((s) => (s === 'unconfirmed'
     ? <Chip key={s} tone="dashed">{c[s]} {UNCONFIRMED_STATEMENT_WORD}</Chip>
@@ -216,7 +220,7 @@ function StmtSummary({ c }: { c: Record<StatementKey, number> }) {
 }
 
 /** The answer as numbers only: one line per group, each money state its own column. */
-function Pivot({ res }: { res: Result }) {
+function Pivot({ res, statements, read }: { res: Result; statements: boolean; read: boolean }) {
   const m = res.query.metrics;
   const gb = res.query.group_by ?? [];
   const groups: Array<LensGroup | (Result['all'] & { key: string; label: string })> = res.groups.length ? res.groups : [{ key: 'all', label: BOOK.ask.allRows, ...res.all }];
@@ -229,7 +233,7 @@ function Pivot({ res }: { res: Result }) {
           {m.includes('sum_amount') ? BUCKETS.map((bk) => <th key={bk} className="num">{BUCKET_LABEL[bk]}</th>) : null}
           {m.includes('avg_vs_market_pct') ? <th className="num">{BOOK.ask.vsMarket}</th> : null}
           {m.includes('recovered_sum') ? <th className="num">{BOOK.ask.recovered}</th> : null}
-          <th>{BOOK.ask.statement}</th>
+          {statements ? <th>{BOOK.ask.statement}</th> : null}
         </tr></thead>
         <tbody>
           {groups.map((g) => (
@@ -239,7 +243,7 @@ function Pivot({ res }: { res: Result }) {
               {m.includes('sum_amount') ? BUCKETS.map((bk) => <td key={bk} className="num"><SumCell out={g.sums[bk].out} inn={g.sums[bk].in} bucket={bk} /></td>) : null}
               {m.includes('avg_vs_market_pct') ? <td className="num">{g.pct ? <>{g.pct.avg > 0 ? '+' : ''}{g.pct.avg}% <span className="bk-dim">{BOOK.ask.ofN(g.pct.n)}</span></> : <span className="bk-dim">{BOOK.ask.noMarket}</span>}</td> : null}
               {m.includes('recovered_sum') ? <td className="num">{g.recovered.length ? g.recovered.map((x) => formatMinor(x.minor, x.currency)).join(' · ') : <span className="bk-dim">{BOOK.ask.noneWord}</span>}</td> : null}
-              <td><StmtSummary c={g.stmt} /></td>
+              {statements ? <td><StmtSummary c={g.stmt} read={read} /></td> : null}
             </tr>
           ))}
         </tbody>

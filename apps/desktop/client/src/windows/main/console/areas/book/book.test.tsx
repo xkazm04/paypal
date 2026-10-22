@@ -214,4 +214,16 @@ describe('Ask your book reaches past the week (value-6)', () => {
     // The question names no time, so it reaches every deal; the large world holds deals older than the week.
     expect(slip?.textContent).toContain(BOOK.ask.line.everything);
   }, 60_000);
+
+  it('reads PayPal statements only for the reconciliation view, never one per deal on record (#17)', async () => {
+    const r = await renderLayerAtScale('#m=book&v=ask', 'large');
+    fireEvent.click(within(r.layer).getByRole('button', { name: QUESTION_WORDS.decided as string }));
+    await act(async () => { fireEvent.click(within(r.layer).getByRole('button', { name: BOOK.ask.show })); });
+    await settle();
+    const drawn = r.layer.querySelectorAll('.bk-pivot tbody tr').length;
+    expect(drawn).toBeGreaterThan(0);
+    // A question about who decided draws no statement, so it reads none and never calls one "unknown".
+    expect(r.budget.byCommand.get('deal_evidence')?.total ?? 0).toBeLessThanOrEqual(drawn);
+    expect(r.layer.querySelector('.bk-pivot')?.textContent).not.toContain(BOOK.ask.statement);
+  }, 60_000);
 });
