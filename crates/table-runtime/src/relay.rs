@@ -69,17 +69,7 @@ impl Runtime {
         self.relay_offset = self.relay_offset.saturating_add(work.len());
         self.relay_busy = true;
         tokio::spawn(async move {
-            let mut jobs = tokio::task::JoinSet::new();
-            for work in work {
-                let api = api.clone();
-                jobs.spawn(deliver(api, work));
-            }
-            let mut deliveries = Vec::new();
-            while let Some(result) = jobs.join_next().await {
-                if let Ok(result) = result {
-                    deliveries.push(result);
-                }
-            }
+            let deliveries = run_deliveries(api, work).await;
             if let Some(sender) = sender.upgrade() {
                 let _ = sender
                     .send(crate::actor::Message::RelayFinished(deliveries))
@@ -184,6 +174,38 @@ impl Runtime {
             self.clock.now(),
         ))
     }
+}
+/// Runs one pass's deliveries concurrently. A delivery task that panics is not dropped: it comes
+/// back as a failed delivery for its deal, so the pass backs off instead of reading as clean.
+pub(crate) async fn run_deliveries(
+    api: Arc<dyn table_relay::RelayApi>,
+    work: Vec<table_ledger::RelayWork>,
+) -> Vec<Delivery> {
+    let mut jobs = tokio::task::JoinSet::new();
+    let mut deals = std::collections::HashMap::new();
+    for work in work {
+        let api = api.clone();
+        let deal = work.deal_id;
+        deals.insert(jobs.spawn(deliver(api, work)).id(), deal);
+    }
+    let mut deliveries = Vec::new();
+    while let Some(result) = jobs.join_next_with_id().await {
+        match result {
+            Ok((_, delivery)) => deliveries.push(delivery),
+            Err(error) => {
+                if let Some(deal) = deals.get(&error.id()) {
+                    eprintln!("The Table: a relay delivery task ended without finishing");
+                    deliveries.push(Delivery {
+                        id: *deal,
+                        batches: vec![],
+                        acknowledgements: vec![],
+                        failed: true,
+                    });
+                }
+            }
+        }
+    }
+    deliveries
 }
 pub(crate) async fn deliver(
     api: Arc<dyn table_relay::RelayApi>,
