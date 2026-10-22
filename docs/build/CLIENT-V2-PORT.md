@@ -28,7 +28,7 @@ into the React client (`apps/desktop/client`). The prototypes are the **UX spec*
 ## Rules
 
 - **Port the UX, not the prototype's data.** The prototypes render `window.FIX`. The client renders
-  the bindings via `lib/hooks` and `useWorld()`. When a prototype shows something the contract
+  the bindings via `lib/hooks` and the World selector hooks (`windows/main/world.tsx`; the whole-World `useWorld()` is gone). When a prototype shows something the contract
   cannot supply, do not invent it. Render the honest state (UNAVAILABLE, unknown drawn dashed) and
   list the missing field or command in your final report. Do not edit `src/mock/*` or `bindings/`;
   the lead consolidates backend and mock requests afterwards.

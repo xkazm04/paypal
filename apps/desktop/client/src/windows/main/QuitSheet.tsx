@@ -10,15 +10,18 @@ import { WalletNotice } from '../../shared/honesty';
 import { Btn, Sheet } from '../../shared/ui';
 import { shortTitle } from './home/model';
 import { quitView } from './quit';
-import { useWorld } from './world';
+import { useWorldSelector, type World } from './world';
 import './quit.css';
+
+const selNames = (w: World) => ({ dealById: w.dealById, display: w.display });
+const sameNames = (a: ReturnType<typeof selNames>, b: ReturnType<typeof selNames>) => a.dealById === b.dealById && a.display === b.display;
 
 export function QuitSheet({ onClose }: { onClose: () => void }) {
   const summary = useQuery('quit_summary', null, { refreshOn: ['attention:changed', 'deal:changed'] });
   const confirm = useMutation('quit_confirm');
-  const w = useWorld();
+  const { dealById, display } = useWorldSelector(selNames, sameNames);
   // each line names its deal by title (UX-GUIDE: ids live in Details); the label only when no title is known
-  const nameOf = (id: string, label: string) => { const d = w.deals.data?.find((x) => x.id === id); return d ? shortTitle(w.display(d).title) : label; };
+  const nameOf = (id: string, label: string) => { const d = dealById.get(id); return d ? shortTitle(display(d).title) : label; };
   const [state, setState] = useState<'ask' | 'changed' | 'quitting'>('ask');
   const s = summary.data;
   const view = s ? quitView(s) : null;
