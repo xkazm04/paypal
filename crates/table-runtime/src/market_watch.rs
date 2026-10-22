@@ -84,7 +84,7 @@ impl Runtime {
         let mandate = match self.pipeline.wallet.ledger.active_mandate(
             deal.mandate_id,
             deal.mandate_version,
-            &self.owner()?.verifying_key(),
+            &self.pipeline.wallet.owner_public_key(),
         ) {
             Ok(m) => m,
             // A retired mandate's rule watches nothing.
@@ -256,7 +256,7 @@ impl Runtime {
         let mandate = match self.pipeline.wallet.ledger.active_mandate(
             deal.mandate_id,
             deal.mandate_version,
-            &self.owner()?.verifying_key(),
+            &self.pipeline.wallet.owner_public_key(),
         ) {
             Ok(m) => m,
             Err(LedgerError::NotFound) => return Ok(false),

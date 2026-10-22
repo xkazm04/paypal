@@ -444,7 +444,7 @@ impl Runtime {
     ) -> Result<String, CommandError> {
         let key = existing_signing_key(self.vault.as_ref(), AgentSlot::Negotiator.key_name())
             .map_err(|_| unavailable("Agent key unavailable"))?;
-        if bundle.identity.owner_key != self.owner()?.verifying_key().to_bytes()
+        if bundle.identity.owner_key != self.pipeline.wallet.owner_public_key().to_bytes()
             || bundle.identity.expires <= self.clock.now()
         {
             return Err(invalid());
