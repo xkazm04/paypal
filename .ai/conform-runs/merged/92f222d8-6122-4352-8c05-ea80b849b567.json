@@ -1,0 +1,17 @@
+{
+ "schema": "conform-run/1",
+ "worker": "92f222d8-6122-4352-8c05-ea80b849b567",
+ "subject": "native-guest-interop",
+ "evaluatedAt": "2026-10-22T00:22:36.178308+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "native-guest-interop",
+   "context": "native-shell",
+   "reason": "the seat returned unknown"
+  }
+ ],
+ "consults": []
+}
