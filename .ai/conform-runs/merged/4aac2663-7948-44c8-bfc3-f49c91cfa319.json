@@ -1,0 +1,76 @@
+{
+ "schema": "conform-run/1",
+ "worker": "4aac2663-7948-44c8-bfc3-f49c91cfa319",
+ "subject": "pipeline-authoring",
+ "evaluatedAt": "2026-10-22T01:22:20.341471+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "owner-mandate-config",
+   "subject": "pipeline-authoring",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/windows/approval/owner/SignSheet.tsx:53 Searches for pipeline, workflow and buildkite found no matches in the approval directory; the inspected code edits and signs wallet mandates rather than authoring delivery plans.",
+   "techniques": [
+    {
+     "technique": "change-scoped-work-selection",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/approval/owner/WhatIf.tsx:84 Filters simulated deals for display; it does not select delivery checks from changed repository files."
+    },
+    {
+     "technique": "foreign-config-replay",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/approval/MandateEditor.tsx:84 Creates an editable wallet mandate from a template; no delivery generator interprets another tool's configuration."
+    },
+    {
+     "technique": "human-checkpoints-in-a-pipeline",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/approval/owner/WalletLimits.tsx:172 The human decision signs wallet spending limits; it is not a deployment or migration checkpoint in a delivery plan."
+    },
+    {
+     "technique": "pipeline-plan-auditability",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/approval/owner/data.ts:24 Requests a wallet policy simulation, not a generated delivery plan requiring run artifacts and selection inputs."
+    },
+    {
+     "technique": "runtime-pipeline-generation",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/approval/mandateDraft.ts:280 Produces mandate clauses and validity dates, not work submitted to a delivery scheduler."
+    },
+    {
+     "technique": "step-identity-stability",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/approval/owner/WhatIf.tsx:56 Identifies rendered deal rows; this context defines no delivery steps or dependency edges."
+    }
+   ],
+   "absenceTerms": [
+    "pipeline",
+    "workflow",
+    "buildkite"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-22T01:22:20.341471+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "pipeline-authoring"
+   ],
+   "techniques": [
+    "change-scoped-work-selection",
+    "foreign-config-replay",
+    "human-checkpoints-in-a-pipeline",
+    "pipeline-plan-auditability",
+    "runtime-pipeline-generation",
+    "step-identity-stability"
+   ],
+   "deviations": 0,
+   "context": "owner-mandate-config",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
