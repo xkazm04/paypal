@@ -192,4 +192,78 @@ b"
             .is_err()
         );
     }
+
+    // Loopback only (127.0.0.1, no outside network): the two properties below are safety
+    // properties of the real transport and have no other way to be exercised.
+    async fn serve_once(answer: Vec<u8>) -> (u16, tokio::task::JoinHandle<()>) {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+            .await
+            .unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let task = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut scratch = [0u8; 4096];
+            let _ = stream.read(&mut scratch).await;
+            let _ = stream.write_all(&answer).await;
+            let _ = stream.shutdown().await;
+        });
+        (port, task)
+    }
+    fn get(port: u16) -> Request {
+        Request {
+            method: "GET",
+            url: format!("http://127.0.0.1:{port}/"),
+            headers: vec![("Authorization".into(), Secret::new("Bearer x".into()))],
+            body: None,
+            form: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn a_redirect_is_returned_not_followed_so_the_bearer_never_changes_host() {
+        let other = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+            .await
+            .unwrap();
+        let target = other.local_addr().unwrap().port();
+        let answer = format!(
+            "HTTP/1.1 302 Found
+Location: http://127.0.0.1:{target}/
+Content-Length: 0
+Connection: close
+
+"
+        );
+        let (port, _server) = serve_once(answer.into_bytes()).await;
+        let transport = ReqwestTransport::new().unwrap();
+        let response = transport.send_raw(get(port)).await.unwrap();
+        assert_eq!(response.status, 302);
+        let followed =
+            tokio::time::timeout(std::time::Duration::from_millis(300), other.accept()).await;
+        assert!(followed.is_err(), "the redirect target received a request");
+    }
+
+    #[tokio::test]
+    async fn an_answer_over_one_mebibyte_fails_and_one_at_the_cap_does_not() {
+        let answer = |len: usize| {
+            let mut bytes = format!(
+                "HTTP/1.1 200 OK
+Content-Length: {len}
+Connection: close
+
+"
+            )
+            .into_bytes();
+            bytes.extend(std::iter::repeat_n(b' ', len));
+            bytes
+        };
+        let transport = ReqwestTransport::new().unwrap();
+        let (port, _server) = serve_once(answer(1_048_576)).await;
+        assert_eq!(
+            transport.send_raw(get(port)).await.unwrap().bytes.len(),
+            1_048_576
+        );
+        let (port, _server) = serve_once(answer(1_048_577)).await;
+        assert!(transport.send_raw(get(port)).await.is_err());
+    }
 }
