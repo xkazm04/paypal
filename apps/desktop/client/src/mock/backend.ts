@@ -37,7 +37,7 @@ import type { SimulatedLine } from '@bindings/SimulatedLine';
 import type { SimulatedVerdict } from '@bindings/SimulatedVerdict';
 import { mockCheck, mockValidate, type MockIntent } from './simulate';
 import { mockEnvelopeRefusal, mockExposureView, type MockEnvelope } from './exposure';
-import { AGREED_OR_LATER, TERMINAL } from '@bindings/dealStates';
+import { AGREED_OR_LATER, TERMINAL, WITHDRAWABLE } from '@bindings/dealStates';
 import type { EnvelopeSignArgs } from '@bindings/EnvelopeSignArgs';
 import type { RescueView } from '@bindings/RescueView';
 import type { Money } from '@bindings/Money';
@@ -402,12 +402,14 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     const a = state.deals.find((d) => d.deal.id === dealId)?.attention;
     if (a && (a.kind !== 'gate' || (state.snoozed?.[a.deal_id] ?? 0) <= nowUnix())) recordRung(a, rung);
   };
+  /** A card on screen: a snoozed gate stays hidden until its snooze ends or its deadline is near. */
+  const shown = (a: AttentionItem) => a.kind !== 'gate' || (state.snoozed?.[a.deal_id] ?? 0) <= nowUnix() || (a.deadline ?? Infinity) - nowUnix() <= LADDER.notify_secs;
   const attention = (): AttentionSnapshot => {
     const items = state.deals
       .map((d) => d.attention)
       .filter((a): a is NonNullable<typeof a> => a !== null)
       .filter((a) => (label === 'approval' ? a.deal_id === selected : true))
-      .filter((a) => a.kind !== 'gate' || (state.snoozed?.[a.deal_id] ?? 0) <= nowUnix() || (a.deadline ?? Infinity) - nowUnix() <= LADDER.notify_secs)
+      .filter(shown)
       .map((a) => {
         const left = a.deadline === null ? Infinity : a.deadline - nowUnix();
         return { ...a, urgency: left <= LADDER.notify_secs ? ('now' as const) : left <= LADDER.breathe_secs ? ('soon' as const) : ('calm' as const) };
@@ -882,6 +884,11 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     tumbler_snap: () => state.settings.preferences.snap,
     deal_withdraw: ({ deal_id }) => {
       if (label === 'approval' && deal_id !== selected) fail('PERMISSION', 'not the selected deal');
+      // As dispatcher.rs Withdraw then Wallet::withdraw: a rescue only before its invoice exists,
+      // then transition(state, Withdraw) (a held authorization is voided, never withdrawn), then
+      // the open-check guard.
+      const w = find(deal_id).deal;
+      if ((w.kind === 'rescue' && w.state !== 'AGREED') || !WITHDRAWABLE.has(w.state)) fail('INVALID', 'Invalid or stale wallet command');
       notWhileChecking(deal_id);
       transition(deal_id, 'WITHDRAWN');
       emit('receipt:created', { deal_id, evidence: find(deal_id).evidence, mode: find(deal_id).deal.mode, state: 'WITHDRAWN', on_silence: 'withdrawn · no money moved' });
@@ -889,6 +896,9 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     },
     deal_let_lapse: ({ deal_id }) => {
       const d = find(deal_id);
+      // As Rust: the same gate the card offered; a hold or a card without Let lapse has none.
+      const a = d.attention;
+      if (!a || a.kind !== 'gate' || !a.actions.includes('let_lapse') || !shown(a)) fail('INVALID', 'Invalid or stale wallet command');
       d.attention = null;
       save();
       emit('attention:changed', attention());

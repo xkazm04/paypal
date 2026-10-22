@@ -63,7 +63,8 @@ describe('mock parity: Rust keeps a deal reserved while PayPal is being asked', 
   it('withdraw is refused and the deal stays as it was; the evidence carries the check', async () => {
     const main = mockBackend('main');
     const id = fakeUlid('D-0194');
-    await expect(main.invoke('deal_withdraw', { deal_id: id })).rejects.toMatchObject({ code: 'PERMISSION' });
+    // As Rust: an authorization is voided, never withdrawn (transition first, INVALID).
+    await expect(main.invoke('deal_withdraw', { deal_id: id })).rejects.toMatchObject({ code: 'INVALID' });
     expect((await main.invoke('get_deal', { deal_id: id })).state).toBe('AUTHORIZED');
     const ev = await main.invoke('deal_evidence', { deal_id: id });
     expect(ev.money_check).toMatchObject({ step: 'capture', state: 'parked' });
