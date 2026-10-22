@@ -2,6 +2,8 @@
 // page (grouped by window), one card per variant with its name and bet read from NOTES.md, a live
 // preview, and a pick + note that the owner can copy back as a verdict.
 //   node prototype/build-index.mjs
+// .contest/ is git-ignored, so its variants get a "local only" card with no link; pass GALLERY_LOCAL=1
+// to emit live cards for them on your own machine (do not commit that output).
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,7 +48,7 @@ function notes(file) {
 function variant(slug, n) {
   if (slug === 'home') {
     if (n === 3) return { href: 'main/index.html', notes: 'main/NOTES.md', origin: 'UI contest A/3 · carried into prototype/main' };
-    return { href: `${CONTEST}/variant-${n}/index.html`, notes: `${CONTEST}/variant-${n}/NOTES.md`, origin: `UI contest A/${n} · local only (.contest is git-ignored)` };
+    return { href: `${CONTEST}/variant-${n}/index.html`, notes: `${CONTEST}/variant-${n}/NOTES.md`, origin: `UI contest A/${n} · local only (.contest is git-ignored)`, local: true };
   }
   if (slug === 'tumbler' && n === 1) return { href: 'tumbler/index.html', notes: 'tumbler/NOTES.md', origin: 'existing prototype/tumbler' };
   return { href: `pages/${slug}/variant-${n}/index.html`, notes: `pages/${slug}/variant-${n}/NOTES.md`, origin: 'new · 2026-10-06' };
@@ -59,6 +61,7 @@ const sections = PAGES.map(([slug, title, win, q, decided], i) => {
   lastWin = win;
   const cards = [1, 2, 3].map((n) => {
     const v = variant(slug, n);
+    if (v.local && !process.env.GALLERY_LOCAL) { missing++; return `<div class="card missing"><div class="ph">local only (not in git)</div><div class="body"><b>v${n}</b></div></div>`; }
     const exists = fs.existsSync(path.join(here, v.href));
     if (!exists) { missing++; return `<div class="card missing"><div class="ph">not built yet</div><div class="body"><b>v${n}</b></div></div>`; }
     built++;
