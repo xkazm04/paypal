@@ -68,7 +68,9 @@ pub struct CheckFacts<'a> {
     pub attempt: u8,
     pub settle: Result<Option<SettleFact>, ()>,
     /// On a buyer haggle the owner is asked to accept: the latest inbound counter's terms hash.
-    pub offer_terms: Option<H256>,
+    /// `None` = no accept is asked of the owner here; `Some(Err(()))` = one is, but the latest
+    /// proposal is not their counter or could not be read (fails closed).
+    pub offer_terms: Option<Result<H256, ()>>,
     pub payee: PayeeFact,
     pub shield: Option<ShieldVerdict>,
     /// The rule behind the shield's verdict (shield slice 2); `None` for a CLEAR or unknown.
@@ -223,7 +225,7 @@ fn amount(f: &CheckFacts<'_>) -> ApprovalCheck {
             ),
         ),
         Ok(None) => match f.offer_terms {
-            Some(offer) if offer == terms_hash => line(
+            Some(Ok(offer)) if offer == terms_hash => line(
                 id,
                 Pass,
                 format!(
@@ -232,11 +234,19 @@ fn amount(f: &CheckFacts<'_>) -> ApprovalCheck {
                 ),
                 format!("latest inbound COUNTER terms {} = {signed}", short(offer)),
             ),
-            Some(offer) => line(
+            Some(Ok(offer)) => line(
                 id,
                 Fail,
                 "Their latest offer isn’t the price shown here.".into(),
                 format!("latest inbound COUNTER terms {} ≠ {signed}", short(offer)),
+            ),
+            Some(Err(())) => line(
+                id,
+                Fail,
+                "There’s no offer from them to accept yet.".into(),
+                format!(
+                    "the latest proposal is not an inbound COUNTER, or it could not be read; an owner accept needs one matching the {signed}"
+                ),
             ),
             None => line(
                 id,
