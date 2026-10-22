@@ -169,6 +169,7 @@ export const BOOK = {
     newest: 'Back to the newest',
     goDay: 'Go to a day',
     readSoFar: (n: number) => `${n.toLocaleString('en-GB')} newest steps read · older ones load as you scroll`,
+    dayShort: 'The record could not be read back to that day yet. Try the day again, or read older steps.',
     readAll: (n: number) => `All ${n.toLocaleString('en-GB')} steps read`,
     empty: 'Nothing on record yet.',
     hint: 'Read-only. Opening a step that names a deal opens that deal.',

@@ -80,23 +80,31 @@ export function Record({ b }: { b: BookWorld }) {
   const [next, setNext] = useState<number | null | undefined>(undefined);
   const [day, setDay] = useState('');
   const [jumping, setJumping] = useState(false);
+  const [short, setShort] = useState(false);
   const busy = useRef(false);
   const byId = useMemo(() => new Map(b.all.map((d) => [d.id, d] as const)), [b.all]);
 
-  /** Reads the page before `before`: how far it got, or undefined when it did not read. */
+  const out = useRef<Promise<Page | undefined> | null>(null);
+  /** Reads the page before `before`: how far it got, or undefined when it did not read. A page that is
+   *  already out (a scroll started it) is waited for, never skipped: a jump must not stop on it. */
   const page = useCallback(async (before: number | null): Promise<Page | undefined> => {
-    if (busy.current) return undefined;
+    if (busy.current) return out.current ?? undefined;
     busy.current = true;
-    try {
-      const r = await read.run({ before, limit: RECORD_PAGE });
-      if (!r) return undefined;
-      // A page read twice must not list a step twice.
-      setRows((x) => { const seen = new Set(x.map((o) => o.seq)); return [...x, ...r.rows.filter((n) => !seen.has(n.seq))]; });
-      setNext(r.next_before);
-      return { next: r.next_before, oldest: r.rows.at(-1)?.at ?? null };
-    } finally {
-      busy.current = false;
-    }
+    const mine = (async (): Promise<Page | undefined> => {
+      try {
+        const r = await read.run({ before, limit: RECORD_PAGE });
+        if (!r) return undefined;
+        // A page read twice must not list a step twice.
+        setRows((x) => { const seen = new Set(x.map((o) => o.seq)); return [...x, ...r.rows.filter((n) => !seen.has(n.seq))]; });
+        setNext(r.next_before);
+        return { next: r.next_before, oldest: r.rows.at(-1)?.at ?? null };
+      } finally {
+        busy.current = false;
+        out.current = null;
+      }
+    })();
+    out.current = mine;
+    return mine;
   }, [read]);
   const pageRef = useRef(page);
   pageRef.current = page;
@@ -119,6 +127,7 @@ export function Record({ b }: { b: BookWorld }) {
     let before = next ?? null;
     let oldest = rows.at(-1)?.at ?? null;
     setJumping(true);
+    setShort(false);
     try {
       for (let i = 0; before !== null && (oldest === null || oldest >= start) && i < MAX_JUMP_PAGES; i++) {
         const got = await page(before);
@@ -126,6 +135,8 @@ export function Record({ b }: { b: BookWorld }) {
         before = got.next;
         oldest = got.oldest ?? oldest;
       }
+      // Stopped before the day, with older steps still unread: say so, never show a list that only looks empty.
+      if (before !== null && (oldest === null || oldest >= start)) setShort(true);
     } finally {
       setJumping(false);
     }
@@ -155,7 +166,7 @@ export function Record({ b }: { b: BookWorld }) {
         </label>
         {day ? <Btn sm kind="plain" onClick={() => setDay('')}>{BOOK.record.newest}</Btn> : null}
         <span className="ui-spacer" />
-        <span className="bk-dim" role="status">{jumping ? BOOK.record.reading : next === undefined ? null : next ? BOOK.record.readSoFar(rows.length) : BOOK.record.readAll(rows.length)}</span>
+        <span className="bk-dim" role="status">{jumping ? BOOK.record.reading : short && day ? BOOK.record.dayShort : next === undefined ? null : next ? BOOK.record.readSoFar(rows.length) : BOOK.record.readAll(rows.length)}</span>
         {next ? <Btn sm disabled={read.pending} onClick={older}>{read.pending ? BOOK.record.reading : BOOK.record.older}</Btn> : null}
       </div>
       {/* Before the first page is read the list says nothing: a failed read is the notice above,

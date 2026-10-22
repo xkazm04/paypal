@@ -150,6 +150,34 @@ describe('Book record (#16)', () => {
   }, 60_000);
 });
 
+describe('Book record: Go to a day while a scroll page is out', () => {
+  it('waits for the page already being read and goes on reading toward the day', async () => {
+    const r = await renderLayerAtScale('#m=book&v=record', 'large');
+    const inner = runtimeMock.backend();
+    let held: (() => void) | null = null;
+    let seen = 0;
+    setHarnessBackend({
+      ...inner,
+      invoke: (cmd, args, opts) => {
+        if (cmd !== 'audit_page') return inner.invoke(cmd, args, opts);
+        seen += 1;
+        if (seen !== 1) return inner.invoke(cmd, args, opts);
+        return new Promise((resolve, reject) => { held = () => { inner.invoke(cmd, args, opts).then(resolve, reject); }; });
+      },
+    });
+    const pages = () => r.calls.filter((c) => c.cmd === 'audit_page');
+    const before = pages().length;
+    await act(async () => { fireEvent.click(within(r.layer).getByRole('button', { name: BOOK.record.older })); });
+    // The page is out (held). Pick an older day now: the jump must not give up.
+    const field = within(r.layer).getByLabelText(BOOK.record.goDay);
+    await act(async () => { fireEvent.change(field, { target: { value: '2000-01-01' } }); });
+    await act(async () => { held?.(); });
+    await settle();
+    // The held page plus at least one more: the jump kept reading after the in-flight page landed.
+    await waitFor(() => expect(pages().length - before).toBeGreaterThan(1));
+  }, 60_000);
+});
+
 describe('Book record when the first page cannot be read', () => {
   // A failed read says so and claims nothing: before, the notice sat over the list's empty state,
   // "Nothing on record yet.", which says the record is empty when it was never read.
