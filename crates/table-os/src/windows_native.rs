@@ -101,9 +101,39 @@ pub fn primary_mouse_pressed() -> bool {
     // neither has input pointers.
     unsafe { GetAsyncKeyState(primary_button_vk(GetSystemMetrics(SM_SWAPBUTTON) != 0)) < 0 }
 }
+/// What the owner reads when the app could not start: plain words, then the cause as reported.
+pub fn startup_failure_text(cause: &str) -> String {
+    let cause = cause.trim();
+    if cause.is_empty() {
+        "The Table could not start.".into()
+    } else {
+        format!("The Table could not start.\n\n{cause}")
+    }
+}
+/// Shows a start-up failure in a message box. A release build has no console, so printing to one
+/// shows the owner nothing. This OS call is not covered by a test.
+pub fn show_startup_failure(cause: &str) {
+    use windows::Win32::UI::WindowsAndMessaging::{MB_ICONERROR, MB_OK, MessageBoxW};
+    // SAFETY: both strings are owned HSTRINGs that outlive the call; no owner window is passed.
+    unsafe {
+        MessageBoxW(
+            None,
+            &HSTRING::from(startup_failure_text(cause)),
+            &HSTRING::from("The Table"),
+            MB_OK | MB_ICONERROR,
+        );
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn a_start_failure_reads_as_plain_words_with_its_cause() {
+        assert_eq!(startup_failure_text("  "), "The Table could not start.");
+        let t = startup_failure_text("the wallet file could not be opened");
+        assert!(t.starts_with("The Table could not start."));
+        assert!(t.ends_with("the wallet file could not be opened"));
+    }
     #[test]
     fn the_primary_button_follows_the_swap_setting() {
         assert_eq!(primary_button_vk(false), 0x01);
