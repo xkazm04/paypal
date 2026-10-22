@@ -27,7 +27,7 @@ export const applyDemo: ApplyDemo = (next) => {
   const { native } = demoNow();
   if (native) {
     // Nothing stored: stay as we are, and lift the "Switching..." overlay (it covers the window).
-    try { localStorage.setItem(DEMO_KEY, formatDemo(next)); } catch { endSwitch(); return; }
+    try { localStorage.setItem(DEMO_KEY, formatDemo(next)); } catch { endSwitch(true); return; }
     location.replace(`${location.pathname}${location.search}`);
     return;
   }
@@ -48,23 +48,33 @@ export const worldName = (w: DemoWorld): string => DEMO_WORLD[w].name;
 
 type Switching = { label: string; next: DemoState | null };
 let switching: Switching | null = null;
+/** The last switch could not be stored: one calm sentence until the next open or switch. */
+let notStored = false;
 const subs = new Set<() => void>();
 const notify = () => { for (const s of subs) s(); };
 
 /** Start a switch: the overlay appears, then the window reloads into `next` (after one paint). */
 export function switchDemo(next: DemoState | null): void {
   switching = { label: demoSwitching(next ? worldName(next.world) : null), next };
+  notStored = false;
   notify();
 }
 
 /** No switch under way: the overlay goes (a switch that could not be applied). */
-function endSwitch(): void {
+function endSwitch(failed = false): void {
   switching = null;
+  notStored = failed;
   notify();
 }
 
 /** Tests only. */
-export const resetDemoSwitchForTests = endSwitch;
+export const resetDemoSwitchForTests = (): void => endSwitch();
+
+const clearNotStored = (): void => { if (notStored) { notStored = false; notify(); } };
+
+function useNotStored(): boolean {
+  return useSyncExternalStore((cb) => { subs.add(cb); return () => { subs.delete(cb); }; }, () => notStored, () => false);
+}
 
 function useSwitching(): Switching | null {
   return useSyncExternalStore((cb) => { subs.add(cb); return () => { subs.delete(cb); }; }, () => switching, () => null);
@@ -121,6 +131,7 @@ export function DemoSwitch({ apply = applyDemo, resetWorld = resetMockWorld, pro
   const [open, setOpen] = useState(false);
   const chip = useRef<HTMLButtonElement>(null);
   const s = useSwitching();
+  const failed = useNotStored();
   const name = state ? worldName(state.world) : null;
   if (framedPage()) return s ? <SwitchingOverlay s={s} apply={apply} /> : null;
   // Closing (Esc, an outside click) leaves focus where it was put; when it was left nowhere (the
@@ -133,7 +144,7 @@ export function DemoSwitch({ apply = applyDemo, resetWorld = resetMockWorld, pro
     <div className="cs-demo" role="group" aria-label={DEMO_SWITCH.group}>
       {native && state ? <span className="badge cs-demo-badge" title={DEMO_BADGE_TITLE}>{DEMO_BADGE}</span> : null}
       <button ref={chip} type="button" className={`cs-chip cs-demo-chip${state ? ' on' : ''}`} aria-haspopup="dialog" aria-expanded={open}
-        title={DEMO_SWITCH.chipTitle} onClick={() => setOpen((o) => !o)}>
+        title={DEMO_SWITCH.chipTitle} onClick={() => { clearNotStored(); setOpen((o) => !o); }}>
         {/* The world's plain name ("Sample week", "Busy merchant"); the badge beside it says it is sample data. */}
         {name ?? DEMO_SWITCH.live}<span aria-hidden="true" className="cs-demo-caret">▾</span>
       </button>
@@ -144,6 +155,7 @@ export function DemoSwitch({ apply = applyDemo, resetWorld = resetMockWorld, pro
             onPick={(next) => { setOpen(false); switchDemo(next); }} onReset={() => { setOpen(false); if (state) switchDemo(state); }} />
         </Popover>
       ) : null}
+      {failed && !s ? <p className="cs-demo-note" role="status">{DEMO_SWITCH.notStored}</p> : null}
       {s ? <SwitchingOverlay s={s} apply={apply} /> : null}
     </div>
   );

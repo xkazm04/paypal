@@ -31,6 +31,7 @@ export const DEMO_SWITCH = {
   more: 'More',
   unavailable: 'Sample data isn’t part of this version of the app. Your live wallet is unchanged.',
   miniWindow: 'The small window and the approval window keep showing your live wallet.',
+  notStored: 'That choice couldn’t be saved, so nothing changed.',
   exit: 'Exit demo',
   exitTitle: 'Back to your live wallet',
 } as const;
