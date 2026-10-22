@@ -401,6 +401,8 @@ const SILENCE_EXACT: Readonly<Record<string, string>> = {
   // A seller's held payment when no forecast words it (SELLER_AUTHORIZED_SILENCE in table-attention, byte-identical).
   'the hold releases itself at the deadline; nothing is taken': 'the hold releases itself at the deadline, nothing is taken',
   'the offer or order lapses at the deadline; no money moves': 'the offer lapses at the deadline, no money moves',
+  // A hold card on a state the deadline cannot move (NO_DEADLINE_STEP_SILENCE in table-attention, byte-identical).
+  'the deadline changes nothing on this deal; it stays as it is until you act': 'the deadline changes nothing here · it stays as it is until you act',
   'Deadline or safe decision completed; no capture was made': 'deadline passed, nothing paid',
   'Seller attested payment; PayPal reporting is pending': 'the seller says paid · not on PayPal’s statement yet',
   // An UNCONFIRMED end, by whether a statement read came back unmatched (actor.rs unconfirmed_reason).

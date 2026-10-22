@@ -17,6 +17,18 @@ use table_core::{
     Currency, DealEvent, DealId, DealState, MandateId, Mode, Module, Money, MoneyCheck, Timestamp,
 };
 
+/// A hold card for a state the deadline cannot move (MISMATCH, a shield hold on a paid deal):
+/// the state machine takes no deadline step there, so the card claims no lapse. The client keeps
+/// a byte-identical entry in `SILENCE_EXACT`.
+pub const NO_DEADLINE_STEP_SILENCE: &str =
+    "the deadline changes nothing on this deal; it stays as it is until you act";
+
+fn has_deadline_step(state: DealState) -> bool {
+    [DealEvent::Deadline, DealEvent::AutoVoid]
+        .into_iter()
+        .any(|e| table_core::transition(state, e).is_ok())
+}
+
 /// The card's line while a money step's PayPal outcome is being checked (T10). A parked step is
 /// read back at the deal's deadline and what PayPal shows decides: a capture PayPal committed is
 /// recorded as paid, and a hold PayPal shows keeps its own deadline (a seller's sale delivered at
@@ -242,6 +254,8 @@ impl AttentionSource {
             SELLER_AUTHORIZED_SILENCE
         } else if self.state == DealState::Authorized {
             "authorization auto-voids at the deadline; no capture"
+        } else if kind == AttnKind::Hold && !has_deadline_step(self.state) {
+            NO_DEADLINE_STEP_SILENCE
         } else {
             "the offer or order lapses at the deadline; no money moves"
         }
@@ -551,6 +565,28 @@ mod tests {
         for words in [item.on_silence.as_str(), item.headline.as_str()] {
             assert!(!words.contains("asks PayPal") && !words.contains("Checking"));
         }
+    }
+    #[test]
+    fn a_hold_card_claims_no_lapse_for_a_state_with_no_deadline_step() {
+        let mut checked = 0;
+        for state in DealState::ALL {
+            for shield in [false, true] {
+                let mut s = source(1, 8000);
+                s.state = state;
+                s.shield_hold = shield;
+                let item = s.item(0);
+                if item.kind == AttnKind::Hold && !has_deadline_step(state) {
+                    checked += 1;
+                    assert!(
+                        !item.on_silence.contains("lapse"),
+                        "{state:?} hold card says: {}",
+                        item.on_silence
+                    );
+                    assert_eq!(item.on_silence, NO_DEADLINE_STEP_SILENCE);
+                }
+            }
+        }
+        assert!(checked >= 3, "checked {checked}");
     }
     #[test]
     fn a_shield_hold_card_names_its_rule_and_a_released_hold_is_no_hold() {
