@@ -59,6 +59,34 @@ describe('modal focus guard', () => {
   });
 });
 
+describe('Tab wraps inside a sheet in the browser’s own tab order', () => {
+  beforeEach(() => resetLayersForTest());
+  afterEach(() => cleanup());
+  const tab = (el: HTMLElement, shiftKey = false) => fireEvent.keyDown(el, { key: 'Tab', shiftKey });
+
+  it('a disclosure’s summary is a stop: Tab reaches it, and Tab from it wraps to the first control', () => {
+    render(<Sheet title="Proof" onClose={() => {}}><button type="button">One</button><details><summary>More</summary>hidden</details></Sheet>);
+    const one = screen.getByRole('button', { name: 'One' });
+    act(() => one.focus());
+    expect(tab(one)).toBe(true); // not the last stop: the browser moves on to the summary
+    const more = screen.getByText('More');
+    act(() => more.focus());
+    expect(tab(more)).toBe(false);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close' }));
+  });
+
+  it('a control taken out of the tab order (tabIndex -1, a roving tab) is never the wrap point', () => {
+    render(<Sheet title="Proof" onClose={() => {}}><button type="button">One</button><button type="button" tabIndex={-1}>Roving</button></Sheet>);
+    const one = screen.getByRole('button', { name: 'One' });
+    act(() => one.focus());
+    expect(tab(one)).toBe(false);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close' }));
+    act(() => screen.getByRole('button', { name: 'Close' }).focus());
+    expect(tab(screen.getByRole('button', { name: 'Close' }), true)).toBe(false);
+    expect(document.activeElement).toBe(one);
+  });
+});
+
 describe('focus rescue', () => {
   afterEach(() => cleanup());
 

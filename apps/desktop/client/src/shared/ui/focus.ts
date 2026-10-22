@@ -3,7 +3,9 @@
 // re-render dropped on the page body (a decided money button disappears, a row is removed).
 import { useEffect, useRef, type RefObject } from 'react';
 
-const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+// The browser's own Tab stops: a disclosure's summary is one, and anything with tabIndex -1 (a
+// roving tab, a heading) is not, so the wrap point is always a stop the browser would visit.
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), details > summary:first-of-type, [tabindex]';
 
 /** Remember the focused element at mount; give focus back to it on unmount (if still in the page). */
 export function useReturnFocus(): void {
@@ -25,7 +27,7 @@ export function useFocusOnMount(ref: RefObject<HTMLElement | null>): void {
 /** Tab / Shift+Tab wrap inside `container`. Call from the container's onKeyDown. */
 export function trapTab(e: { key: string; shiftKey: boolean; preventDefault: () => void }, container: HTMLElement | null): void {
   if (e.key !== 'Tab' || !container) return;
-  const items = [...container.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => !el.hasAttribute('hidden') && el.getAttribute('aria-hidden') !== 'true');
+  const items = [...container.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.tabIndex >= 0 && !el.hasAttribute('hidden') && el.getAttribute('aria-hidden') !== 'true');
   if (!items.length) { e.preventDefault(); return; }
   const first = items[0];
   const last = items[items.length - 1];
