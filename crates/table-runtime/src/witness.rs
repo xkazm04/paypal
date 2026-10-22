@@ -20,6 +20,9 @@ const COVER_RETRY: i64 = 20;
 
 #[derive(Debug, Default)]
 pub(crate) struct Witness {
+    /// The last refused head already recorded, so a relay repeating one forged
+    /// head is recorded once.
+    pub(crate) refused: Option<table_proto::HouseHead>,
     pub(crate) busy: bool,
     pub(crate) retry_at: i64,
     pub(crate) failures: u8,
@@ -80,6 +83,23 @@ impl Runtime {
         let Some(release) = self.house_release.clone() else {
             return Ok(());
         };
+        if let Some(refused) = fetch.head.as_ref().filter(|h| h.verify(&release).is_err()) {
+            // Evidence the house (or something between) served a record its pin does not verify;
+            // one row per distinct refused head, and fetches are already paced by the backoff.
+            if self.witness.refused != Some(refused.head) {
+                let check = if release.verify().is_err() {
+                    "release_pin"
+                } else {
+                    "head_signature"
+                };
+                app(self
+                    .pipeline
+                    .wallet
+                    .ledger
+                    .refuse_house_head(refused, check, now))?;
+                self.witness.refused = Some(refused.head);
+            }
+        }
         let Some(head) = fetch.head.filter(|h| h.verify(&release).is_ok()) else {
             self.witness.failures = self.witness.failures.saturating_add(1).min(5);
             self.witness.retry_at = now.saturating_add(30_i64 << self.witness.failures);
