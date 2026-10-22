@@ -24,12 +24,12 @@ import {
 } from '../../../modules/book/model';
 import { compose, isUnsure, knownParties, lensAsRun, lensQuery, MAX_ASK, understand, type AskCtx, type ReadingChip, type Understood, type Unsure } from '../../../modules/book/understand';
 import { useLayerNav } from '../../layers';
-import { ListEngine } from '../../ListEngine';
+import { fewRows, ListEngine } from '../../ListEngine';
 import { DealRow } from '../../rows';
 import { useEvidenceOf } from './evidence';
 import { useExport } from './Ledger';
 import { outsideSpan } from './model';
-import { fewRows, type BookWorld } from './parts';
+import { type BookWorld } from './parts';
 
 type Phase = 'IDLE' | 'UNSURE' | 'BLOCKED' | 'DRAFTED' | 'RESULT' | 'EMPTY';
 /** Where the question is; once it ran, the phase is RESULT or EMPTY by its answer. */

@@ -120,6 +120,10 @@ export function shownRows<T>(rows: readonly T[], hay: readonly string[] | null, 
   return out;
 }
 
+/** A list this short is drawn at its own height (no long empty band under a few rows). */
+export const FEW_ROWS = 6;
+export const fewRows = (n: number): string | undefined => (n <= FEW_ROWS ? 'few' : undefined);
+
 export function ListEngine<T>(p: ListEngineProps<T>) {
   const { rows, getKey, filters, sorts, onOpen, onPick } = p;
   const searchRef = useRef(p.searchText);

@@ -11,7 +11,7 @@ import { silenceParts } from '../../../home/model';
 import { Loading } from '../../../ui';
 import { useModuleRoute } from '../../../viewNav';
 import { useLayerNav, type LayerProps } from '../../layers';
-import { ListEngine } from '../../ListEngine';
+import { fewRows, ListEngine } from '../../ListEngine';
 import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { ModuleLayer } from '../../ModuleLayer';
 import { dealTotal } from '../../../logic';
@@ -19,7 +19,7 @@ import { formatMinor } from '../../../../../lib/format';
 import type { Deal } from '@bindings/Deal';
 import { paypalLine } from '../../../modules/shield/matrix';
 import { Checks, HowShield } from './Checks';
-import { fewRows, PausedDecision, ReleaseHandoff, ShieldRow, useShieldWorld, type ShieldWorld } from './parts';
+import { PausedDecision, ReleaseHandoff, ShieldRow, useShieldWorld, type ShieldWorld } from './parts';
 
 /** One of the shield's lists: windowed, searchable; a row opens its deal (a paused one, beside it). */
 function ShieldList({ rows, s, label, empty, paused }: { rows: Deal[]; s: ShieldWorld; label: string; empty: string; paused?: boolean }) {

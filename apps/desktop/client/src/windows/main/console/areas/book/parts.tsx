@@ -229,7 +229,3 @@ export function MoneyText({ ms, children }: { ms: readonly Money[]; children?: R
   if (!ms.length) return <span className="bk-dim">{BOOK.dash}</span>;
   return <>{ms.map((m, i) => <span key={m.currency}>{i ? ' · ' : null}<Amount money={m} /></span>)}{children}</>;
 }
-
-/** A list this short is drawn at its own height (no long empty band under a few rows). */
-export const FEW_ROWS = 6;
-export const fewRows = (n: number): string | undefined => (n <= FEW_ROWS ? 'few' : undefined);

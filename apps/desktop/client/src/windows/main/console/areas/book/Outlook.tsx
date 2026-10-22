@@ -12,11 +12,11 @@ import { dealTotal } from '../../../logic';
 import { atRiskOf } from '../../../modules/rescue/model';
 import { silenceParts } from '../../../home/model';
 import { useLayerNav } from '../../layers';
-import { ListEngine, type ListFilter } from '../../ListEngine';
+import { fewRows, ListEngine, type ListFilter } from '../../ListEngine';
 import { Amount, Countdown, DealRow } from '../../rows';
 import { useDisplayOf } from '../../../world';
 import { outlook, outlookCount, outlookKeyOf, OUTLOOK_KEYS, type OutlookItem, type OutlookKey } from './model';
-import { fewRows, MoneyText, type BookWorld } from './parts';
+import { MoneyText, type BookWorld } from './parts';
 
 /** The outlook over the World, with the deadline and the at-risk amount of each deal. */
 export function useOutlook(b: BookWorld): OutlookItem[] {
