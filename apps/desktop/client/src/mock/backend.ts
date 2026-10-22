@@ -465,11 +465,11 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
   }
   /** The wallet's checklist for a deal now, as Rust composes it (src/mock/checks.ts). */
   function checksFor(d: ReturnType<typeof find>) {
-    // Like the ledger's usage_for: the other deals under the same mandate that reached agreement
-    // and were not withdrawn, refused, expired or released (the mock keeps no agreement day).
-    const OUT = ['PAIRING', 'LISTED', 'NEGOTIATING', 'REFUSED', 'WITHDRAWN', 'EXPIRED', 'VOIDED', 'AUTO_VOIDED'];
+    // Like the ledger's usage_for: the other deals under the same mandate in the generated
+    // AGREED_OR_LATER set (released ones, a MISMATCH and a FAILED deal never count; the mock keeps
+    // no agreement day).
     const spentTodayMinor = state.deals
-      .filter((o) => o.deal.id !== d.deal.id && o.deal.mandate_id === d.deal.mandate_id && !OUT.includes(o.deal.state))
+      .filter((o) => o.deal.id !== d.deal.id && o.deal.mandate_id === d.deal.mandate_id && AGREED_OR_LATER.has(o.deal.state))
       .reduce((sum, o) => sum + o.deal.terms.unit_price.minor * o.deal.terms.qty, 0);
     const checks = mockChecks({
       deal: d.deal, transcript: d.transcript, counterparty: state.counterparties.find((c) => c.key_id === d.deal.counterparty),
@@ -1215,7 +1215,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
           // no agreement order, so earlier-created deals past agreement stand in for it).
           const day = Math.floor(at / 86400);
           const earlier = state.deals.filter((o) => o.deal.id !== deal.id && o.deal.mandate_id === deal.mandate_id && (o.deal.created_at ?? 0) < at
-            && Math.floor((o.deal.created_at ?? 0) / 86400) === day && !['PAIRING', 'LISTED', 'NEGOTIATING', 'REFUSED', 'WITHDRAWN', 'EXPIRED', 'VOIDED', 'AUTO_VOIDED'].includes(o.deal.state));
+            && Math.floor((o.deal.created_at ?? 0) / 86400) === day && AGREED_OR_LATER.has(o.deal.state));
           const usage = { dealsToday: earlier.length, totalToday: earlier.reduce((t, o) => t + o.deal.terms.unit_price.minor * o.deal.terms.qty, 0) };
           const inForce = activeMandate(deal.mandate_id);
           before = inForce ? mockCheck(inForce.payload, intent, usage, now) : { type: 'refuse', clause: 1, reason: 'mandate is not active' };
