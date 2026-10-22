@@ -5673,6 +5673,47 @@
         "at": "2026-10-22T03:51:53.605209+00:00",
         "reason": "reviewer (sonnet): The anchor runtime.ts:45 is only the dynamic import of the mock backend module. It does not show that no external executable or sidecar is provisioned. The evidence also rests on a desktop bridge (tauri.ts) that is not among the context's files, and a grep of the wider lib directory shows executor a"
       }
+    },
+    "c02a6103-08a3-462b-84a7-23d7c9ec8c58/standards-layered-runtime": {
+      "context": "console-framework",
+      "subject": "standards-layered-runtime",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T04:10:31.503Z",
+      "worker": "cbbd6cdb-deab-4763-82ea-721302fe6a88",
+      "techniques": [
+        {
+          "technique": "backend-parameterised-web-api",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/DemoSwitch.tsx:128 These replaceable callbacks control demo UI behavior; they do not implement a standards-defined guest API over host I/O."
+        },
+        {
+          "technique": "baseline-plus-extension-tuple",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/ModuleSummary.tsx:32 Registration supplies navigation labels, with no guest API baseline or embedder extension entry point."
+        },
+        {
+          "technique": "cli-as-thin-assembler",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/Console.tsx:384 The console hosts React screens; it is not the command-line front end of an embeddable language runtime."
+        },
+        {
+          "technique": "crate-per-standards-body",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/layers.registry.ts:24 The assembled layers follow wallet functional areas rather than packages asserting external runtime standards."
+        },
+        {
+          "technique": "re-export-preserves-import-path",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/route.test.ts:23 The compatibility cases preserve wallet URL routes; no API migration between extras and standards packages was found."
+        },
+        {
+          "technique": "status-header-per-api",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/ModuleLayer.tsx:85 These modules render application views, with no partially implemented runtime standards package requiring per-API conformance headers."
+        }
+      ]
     }
   }
 }
