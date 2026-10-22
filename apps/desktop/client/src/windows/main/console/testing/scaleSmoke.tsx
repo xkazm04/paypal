@@ -74,12 +74,17 @@ function sizeElements(): void {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-/** Waits until no read is in flight and no new read started for a beat. */
+/** Waits until no read is in flight and no new read started for two beats in a row (one window can
+ *  pass in the gap between two passes on a busy machine, and the test would read half a load; as
+ *  windows/main/world.test.tsx quiet()). inFlight can dip below zero: reads a previous test left out
+ *  settle after resetReadBudget(). */
 export async function settle(): Promise<void> {
-  let last = -1;
-  while (readBudget.total !== last || readBudget.inFlight > 0) {
-    last = readBudget.total;
+  let last = readBudget.total;
+  let still = 0;
+  while (still < 2) {
     await act(async () => { await sleep(120); });
+    still = readBudget.total === last && readBudget.inFlight <= 0 ? still + 1 : 0;
+    last = readBudget.total;
   }
 }
 
