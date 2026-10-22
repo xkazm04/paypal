@@ -2,7 +2,6 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useRef, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { focusLost, modalFocusTarget, shouldRescue, useFocusRescue } from './focus';
-import { holdWord } from './hold';
 import { resetLayersForTest } from './layers';
 import { Sheet } from './Sheet';
 import { whyName } from './why';
@@ -124,13 +123,7 @@ describe('focus rescue', () => {
 });
 
 describe('screen-reader words', () => {
-  it('the hold button says one word per phase, never a running percentage', () => {
-    expect(holdWord(false, 0)).toBe('');
-    expect(holdWord(false, 0.01)).toBe('Keep holding');
-    expect(holdWord(false, 0.73)).toBe('Keep holding');
-    expect(holdWord(true, 1)).toBe('Confirmed');
-  });
-
+  // The hold button's phase words are HoldGesture's (holdPhaseWord, holdGesture.test.tsx).
   it('a Why link is named by its visible word plus its question', () => {
     expect(whyName('Proof', 'Scam check: looks safe.')).toBe('Proof, Scam check: looks safe.');
     expect(whyName('Why?', '')).toBeUndefined();

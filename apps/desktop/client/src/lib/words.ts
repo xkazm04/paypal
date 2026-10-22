@@ -825,10 +825,6 @@ export const sellerSaysOnly = (d: { state: DealState; side?: Side; kind?: DealKi
 export const SUMMARY_OPEN = 'Open';
 /** The back button on a detail page, when the page names no destination. */
 export const DETAIL_BACK = 'Back';
-/** Heard (not seen) after a finished step in the step bar. */
-export const STEPPER_DONE = 'done';
-/** The step bar's name for assistive tech. */
-export const STEPPER_LABEL = 'Steps';
 /** The Set up page's title and crumb. */
 export const SETUP_PAGE_TITLE = 'Set up';
 /** The five steps of the Set up page, in order (keys match SetupStep in windows/main/logic.ts). */

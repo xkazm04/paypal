@@ -2,7 +2,6 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DetailPage } from './DetailPage';
 import { Disclosure } from './Disclosure';
-import { Stepper } from './Stepper';
 import { SummaryCard } from './SummaryCard';
 
 afterEach(() => cleanup());
@@ -41,23 +40,5 @@ describe('DetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Book/ }));
     expect(back).toHaveBeenCalledTimes(1);
     expect(screen.getByText('body')).toBeTruthy();
-  });
-});
-
-describe('Stepper', () => {
-  const steps = [{ key: 'a', label: 'One' }, { key: 'b', label: 'Two' }, { key: 'c', label: 'Three' }] as const;
-  it('marks done, current and upcoming, with aria-current on the current step only', () => {
-    const { container } = render(<Stepper steps={steps} current="b" />);
-    const items = Array.from(container.querySelectorAll('li'));
-    expect(items.map((li) => li.className)).toEqual(['st done', 'st current', 'st upcoming']);
-    expect(items.map((li) => li.getAttribute('aria-current'))).toEqual([null, 'step', null]);
-    expect(screen.getByRole('list', { name: 'Steps' })).toBeTruthy();
-  });
-  it('lets done and current steps be chosen with the keyboard-reachable buttons, never upcoming ones', () => {
-    const pick = vi.fn();
-    render(<Stepper steps={steps} current="b" onSelect={pick} />);
-    expect(screen.getAllByRole('button')).toHaveLength(2);
-    fireEvent.click(screen.getByRole('button', { name: /One/ }));
-    expect(pick).toHaveBeenCalledWith('a');
   });
 });

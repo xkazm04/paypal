@@ -58,10 +58,7 @@ closes the **topmost** layer on Esc and stops the event. So:
 | `Split` | `sidebar?, inspector?, children, className?` | Standalone `ui-split`. |
 | `ToastProvider` / `useToast()` | `push(node, tone?: 'ok'\|'info'\|'bad'\|'gold')` | One provider per window (Main has it in App). `windows/main/ui.tsx` re-exports both. |
 | `ThemeSwitch` | `className?` | `ui-seg` Dark / Light via `lib/theme.ts`. Home only. |
-| `TitleBar` | `children, className?` | 38px bar. `Spacer` pushes the rest right. |
 | `Crumbs` | `items: {label, onClick?, title?}[], label?` | Last item = current page. |
-| `Sidebar` | `label, head?, foot?, children, className?` | |
-| `SidebarItem` | `label, onClick, icon?, count?, need?, countTitle?, on?, title?, style?, className?` | `need` turns the count into the gold badge. |
 | `PageHead` | `title, icon?, sub?, info?, actions?, focusKey?, className?, style?` | h1 is focused at mount / when `focusKey` changes (omit to never move focus). |
 | `Section` | `title?, end?, children, className?` | Small dim section header. |
 | `Group` | `children?, empty?, label?, className?` | Grouped box with inset separators; shows `empty` when no children. |
@@ -73,7 +70,6 @@ closes the **topmost** layer on Esc and stops the event. So:
 | `Seg` | `value, options: {value,label,title?}[], onChange, label, className?` | `aria-pressed` buttons. |
 | `Field` | input props + `search?, ref?` | 26px field; `search` adds the magnifier. |
 | `Kv` | `items: ([k, v] \| null \| false)[], className?` | `dl.ui-kv`; falsy items skipped. |
-| `Stat` | `k, v, big?, hint?, children?, className?` | `big` = the one 26px figure. |
 | `Meter` | `value: number \| null (0..1), tone?: 'gold'\|'coral'\|'red', label` | `null` draws a dashed **unknown** bar, never zero. |
 | `Silence` | `text?, deadline?, children?, className?` | "silent → **text** · countdown". Every needs-you item carries one. |
 | `Loading` | `what` | "Reading {what}…" with a spinner. |
