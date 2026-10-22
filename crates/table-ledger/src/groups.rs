@@ -11,9 +11,7 @@ use crate::{
 };
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde_json::json;
-use table_core::{
-    Deal, DealEvent, DealId, DealKind, DealState, GroupId, MandateId, Side, Timestamp,
-};
+use table_core::{Deal, DealEvent, DealId, DealKind, GroupId, MandateId, Side, Timestamp};
 use table_proto::{Body, VerifiedEnvelope};
 
 /// Most tables one group may hold.
@@ -146,10 +144,7 @@ impl Ledger {
         let mut deals: Vec<Deal> = Vec::with_capacity(tables.len());
         for id in tables {
             let deal = read_deal(&tx, *id)?;
-            let open = matches!(
-                deal.state,
-                DealState::Pairing | DealState::Listed | DealState::Negotiating
-            );
+            let open = deal.state.open_table();
             let accepted: bool = tx.query_row(
                 "SELECT EXISTS(SELECT 1 FROM negotiation WHERE deal_id=?1 AND own_accept=1)",
                 [id.to_string()],

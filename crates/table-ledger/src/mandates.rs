@@ -5,9 +5,7 @@ use crate::{AuditEntry, Ledger, LedgerError, audit, hash_blob};
 use ed25519_dalek::{Signature, VerifyingKey};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde_json::json;
-use table_core::{
-    DealId, DealState, MandateId, OpenMandate, Timestamp, canonical_bytes, commitment,
-};
+use table_core::{DealId, MandateId, OpenMandate, Timestamp, canonical_bytes, commitment};
 use table_proto::{ProtocolError, verify_mandate_signature};
 
 pub(crate) fn read_mandate(
@@ -83,11 +81,7 @@ impl Ledger {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let deal = read_deal(&tx, id)?;
-        if !matches!(
-            deal.state,
-            DealState::Pairing | DealState::Listed | DealState::Negotiating | DealState::Agreed
-        ) || deal.paypal.order.is_some()
-        {
+        if !deal.state.before_settlement() || deal.paypal.order.is_some() {
             return Err(LedgerError::Conflict);
         }
         read_mandate(&tx, deal.mandate_id, version)?;

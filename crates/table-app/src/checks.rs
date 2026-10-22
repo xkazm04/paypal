@@ -139,11 +139,6 @@ fn rule_name(clause: u8) -> &'static str {
     }
 }
 
-/// An order is still to be made for this deal: its request-dependent checks wait for that step.
-fn order_expected(state: DealState) -> bool {
-    matches!(state, DealState::Agreed | DealState::Settling)
-}
-
 /// The six lines, in [`ApprovalCheckId`] order.
 pub fn compose(f: &CheckFacts<'_>) -> Vec<ApprovalCheck> {
     vec![
@@ -371,7 +366,7 @@ fn host(f: &CheckFacts<'_>) -> ApprovalCheck {
                 ),
             }
         }
-        Ok(None) if order_expected(f.deal.state) => line(
+        Ok(None) if f.deal.state.order_expected() => line(
             id,
             Wait,
             "The PayPal link is checked when the order is made.".into(),
@@ -429,7 +424,7 @@ fn invoice(f: &CheckFacts<'_>) -> ApprovalCheck {
                 )
             }
         }
-        Ok(None) if order_expected(f.deal.state) => line(
+        Ok(None) if f.deal.state.order_expected() => line(
             id,
             Wait,
             "The order number is set when the order is made.".into(),
