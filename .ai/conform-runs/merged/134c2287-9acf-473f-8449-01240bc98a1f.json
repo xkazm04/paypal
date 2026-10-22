@@ -1,0 +1,118 @@
+{
+ "schema": "conform-run/1",
+ "worker": "134c2287-9acf-473f-8449-01240bc98a1f",
+ "subject": "retrieval",
+ "evaluatedAt": "2026-10-22T03:10:20.902626+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "wallet-domain-primitives",
+   "subject": "retrieval",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-core/src/book.rs:67 The context defines structured financial queries and calculations, while context and repository searches found no embedder, BM25 or reranker implementation, so ranked corpus retrieval has no applicable pipeline here.",
+   "techniques": [
+    {
+     "technique": "chunking-and-indexing",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-core/src/canonical.rs:26 This serializes protocol values into canonical bytes; inspection found no document ingestion, chunk boundaries or retrieval index."
+    },
+    {
+     "technique": "embedding-lifecycle",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-core/src/canonical.rs:12 Content derivation here uses SHA-256 commitments; no embedding vectors or model lifecycle were found."
+    },
+    {
+     "technique": "hybrid-lane-fusion",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-core/src/market.rs:85 Market comparables are ordered by price and identifier; no candidate lists from multiple matchers are fused."
+    },
+    {
+     "technique": "named-period-vote",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-core/src/book.rs:72 Analytical queries carry an explicit structured range; no natural-language period is parsed into a retrieval-ranking vote."
+    },
+    {
+     "technique": "padded-slots-are-misses",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-core/src/market.rs:381 The price collection feeds quartile arithmetic and rejects empty input; no nearest-neighbour result slots or sentinel identifiers are consumed."
+    },
+    {
+     "technique": "query-decomposition-before-the-lanes",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-core/src/book.rs:66 The caller supplies a structured analytical view, which falls under the standard's explicit structured-query exclusion."
+    },
+    {
+     "technique": "ranking-budgets",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-core/src/book.rs:93 This validates an analytical query's result limit; there is no relevance-ranked pool or shared retrieval budget."
+    },
+    {
+     "technique": "relationship-proximity-lane",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-core/src/mandate.rs:167 The item-to-market binding is resolved by exact identifier lookup, without expanding retrieval candidates along relations."
+    },
+    {
+     "technique": "relevance-floors",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-core/src/market.rs:443 This threshold compares a price with the market median; it does not admit or reject retrieval hits by relevance."
+    },
+    {
+     "technique": "retrieval-evaluation",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-core/src/book.rs:243 The query tests check closed-schema rejection rules; no production retrieval path exists here to evaluate with relevance judgments."
+    },
+    {
+     "technique": "retrieval-triggering",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-core/src/market.rs:24 Market refresh eligibility depends on snapshot age; it is not a decision about whether a request needs corpus retrieval."
+    },
+    {
+     "technique": "second-pass-rescoring",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-core/src/market.rs:141 This computes a financial price percentile; no model rescores a fused candidate pool."
+    },
+    {
+     "technique": "structural-centrality-lane",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-core/src/deal.rs:366 The graph represented here is a deal state machine, without a corpus reference graph used to rank retrievable items."
+    }
+   ],
+   "absenceTerms": [
+    "embedder",
+    "bm25",
+    "rerank"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-22T03:10:20.902626+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "retrieval"
+   ],
+   "techniques": [
+    "chunking-and-indexing",
+    "embedding-lifecycle",
+    "hybrid-lane-fusion",
+    "named-period-vote",
+    "padded-slots-are-misses",
+    "query-decomposition-before-the-lanes",
+    "ranking-budgets",
+    "relationship-proximity-lane",
+    "relevance-floors",
+    "retrieval-evaluation",
+    "retrieval-triggering",
+    "second-pass-rescoring",
+    "structural-centrality-lane"
+   ],
+   "deviations": 0,
+   "context": "wallet-domain-primitives",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
