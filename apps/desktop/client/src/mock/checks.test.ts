@@ -85,6 +85,19 @@ describe('mock approval checklist (parity with the wallet)', () => {
     expect(order.state).toBe('AWAITING_APPROVAL');
   });
 
+  it('counts toward the daily limit exactly what the ledger’s usage_for counts: agreed or later, released excluded', async () => {
+    // D-0193 ($329) under the sourcing rules ($900 a day): with D-0187 ($212) and D-0199 (MISMATCH,
+    // $329) beside it. Rust's usage_for counts AGREED_OR_LATER only, so a MISMATCH or a FAILED deal
+    // never spends the day's budget.
+    const a = approvalFor('D-0193');
+    a.world.deal('D-0176')!.deal.state = 'FAILED'; // $455
+    const s = await a.invoke('approval_summary', { deal_id: fakeUlid('D-0193') });
+    expect(line(s, 'mandate')).toMatchObject({ status: 'pass' });
+    a.world.deal('D-0176')!.deal.state = 'CAPTURED';
+    const over = await a.invoke('approval_summary', { deal_id: fakeUlid('D-0193') });
+    expect(line(over, 'mandate')).toMatchObject({ status: 'fail', text: 'Outside your rules: the daily limit.' });
+  });
+
   it('void is the safe direction and needs no checklist hash', async () => {
     const id = fakeUlid('D-0190');
     const a = approvalFor('D-0190');
