@@ -5,8 +5,10 @@
 // view shrinks to its one calm line; and the area's words keep the vendor and internals rules.
 import { act, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { bandMovable } from '../../../../approval/gating';
 import { TABLES, TABLES_TRADE, TABLES_VIEWS } from '../../../../../lib/words';
 import { expectLayerHealthy, renderLayerAtScale, type LayerRun } from '../../testing/scaleSmoke';
+import { ladderBandMovable } from './Ladder';
 import { wordsOf } from './wordsOf';
 
 vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/runtime')).runtimeMock);
@@ -127,5 +129,12 @@ describe('Tables words', () => {
       expect(w).not.toMatch(/claude|codex|openai|anthropic|gpt/i);
       expect(w).not.toMatch(/\b[A-Z]{3,}_[A-Z_]+\b|D-\d{4}|mandate|clause|countersign|_set\b/);
     }
+  });
+});
+
+describe('Tables ladder: when a price range may move', () => {
+  it('is the approval window’s own predicate, not a second copy of its states', () => {
+    expect(typeof ladderBandMovable).toBe('function');
+    expect(ladderBandMovable).toBe(bandMovable);
   });
 });
