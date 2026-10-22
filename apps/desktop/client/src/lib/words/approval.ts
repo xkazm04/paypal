@@ -87,6 +87,7 @@ export const APPROVAL_TABLE = {
   opening: 'Opening…',
   failJoin: 'Not joined',
   failOpen: 'Not opened',
+  failFollow: 'The Table did not open',
   joined: 'You joined the table',
   opened: 'Your table is open',
   doneSub: 'Your agent haggles from here. When a price needs you, it comes back to this window. If you do nothing, the table lapses and no money moves.',
