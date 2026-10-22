@@ -12,8 +12,16 @@ struct EnvCredentials;
 impl Credentials for EnvCredentials {
     async fn load(&self) -> Result<(Secret, Secret), Error> {
         Ok((
-            Secret::new(std::env::var("PAYPAL_SANDBOX_CLIENT_ID").map_err(|_| Error::Credentials)?),
-            Secret::new(std::env::var("PAYPAL_SANDBOX_SECRET").map_err(|_| Error::Credentials)?),
+            Secret::new(std::env::var("PAYPAL_SANDBOX_CLIENT_ID").map_err(|_| {
+                Error::Credentials {
+                    kind: CredentialsKind::Missing,
+                }
+            })?),
+            Secret::new(std::env::var("PAYPAL_SANDBOX_SECRET").map_err(|_| {
+                Error::Credentials {
+                    kind: CredentialsKind::Missing,
+                }
+            })?),
         ))
     }
 }

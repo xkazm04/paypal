@@ -5,7 +5,7 @@ use std::{
     collections::BTreeMap,
     sync::{Arc, Mutex},
 };
-use table_paypal::{Credentials, http::Secret};
+use table_paypal::{Credentials, CredentialsKind, http::Secret};
 use thiserror::Error;
 use zeroize::Zeroizing;
 pub enum CredentialEntry {
@@ -124,6 +124,9 @@ pub fn signing_key(vault: &dyn Vault, name: &str) -> Result<SigningKey, VaultErr
         .map_err(|_| VaultError::Invalid)?;
     Ok(SigningKey::from_bytes(key))
 }
+fn kind(kind: CredentialsKind) -> table_paypal::Error {
+    table_paypal::Error::Credentials { kind }
+}
 pub struct VaultCredentials(pub Arc<dyn Vault>);
 impl std::fmt::Debug for VaultCredentials {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -136,10 +139,10 @@ impl Credentials for VaultCredentials {
         let bytes = self
             .0
             .read("paypal.sandbox")
-            .map_err(|_| table_paypal::Error::Credentials)?
-            .ok_or(table_paypal::Error::Credentials)?;
+            .map_err(|_| kind(CredentialsKind::Missing))?
+            .ok_or(kind(CredentialsKind::Missing))?;
         let pair: (String, String) =
-            serde_json::from_slice(&bytes).map_err(|_| table_paypal::Error::Credentials)?;
+            serde_json::from_slice(&bytes).map_err(|_| kind(CredentialsKind::Malformed))?;
         Ok((Secret::new(pair.0), Secret::new(pair.1)))
     }
 }
