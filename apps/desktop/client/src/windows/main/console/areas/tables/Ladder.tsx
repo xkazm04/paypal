@@ -12,6 +12,7 @@ import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { clockLabel } from '../../../../../lib/format';
 import { marketWords, TABLES, tablesItem } from '../../../../../lib/words';
 import { WalletNotice } from '../../../../../shared/honesty';
+import { bandMovable } from '../../../../approval/gating';
 import { Btn, Chip, Disclosure, Field, Hint, Kv, Loading, Section, Sheet, Silence } from '../../../../../shared/ui';
 import { isLive, stateLabel } from '../../../logic';
 import {
@@ -21,8 +22,8 @@ import {
 import type { Display } from '../../../world';
 import { HandOff, useTranscript } from './parts';
 
-/** States in which a new price range may still apply (approval/gating.ts BAND_MOVABLE). */
-const BAND_MOVABLE = new Set<Deal['state']>(['PAIRING', 'LISTED', 'NEGOTIATING']);
+/** States in which a new price range may still apply: the approval window's own predicate. */
+export { bandMovable as ladderBandMovable };
 
 /** One table's unsent draft and how far it got (kept by the layer, so it survives a view change). */
 export type TableState = { draft: BandDraft | null; read: boolean; handoff: { version: number; draft: BandDraft } | null };
@@ -71,7 +72,7 @@ export function TableDetail({ deal, disp, need, who, st, steps: h, onToast }: {
     [tr.data, signed, deal, st.draft]);
   const theirs = tr.data ? lastPriced(tr.data, 'them', cur) : null;
   const yours = tr.data ? lastPriced(tr.data, 'you', cur) : null;
-  const movable = BAND_MOVABLE.has(deal.state);
+  const movable = bandMovable(deal.state);
   const startValue = deal.market?.median.minor ?? theirs?.price ?? (scale ? Math.round((scale.lo + scale.hi) / 2 / unit) * unit : null);
   const draftTo = (v: number) => h.onDraft(moveFence(band ?? { floor: null, ceiling: null }, deal.side, v, scale, unit));
   const onStart = startValue !== null && movable ? () => draftTo(startValue) : null;

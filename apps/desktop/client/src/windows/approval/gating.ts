@@ -65,6 +65,11 @@ export { TERMINAL, WITHDRAWABLE };
 /** States before settlement, where band_set may still rebind the mandate version. */
 const BAND_MOVABLE: ReadonlySet<DealState> = new Set<DealState>(['PAIRING', 'LISTED', 'NEGOTIATING']);
 
+/** True in the states where a price range may still move (band_set); the Tables ladder asks this too. */
+export function bandMovable(state: DealState): boolean {
+  return BAND_MOVABLE.has(state);
+}
+
 export function isTerminal(state: DealState): boolean {
   return TERMINAL.has(state);
 }
@@ -203,7 +208,7 @@ export function deriveGates(ctx: GateContext): Gates {
   // Withdraw is the safe direction: no unlock, no capability, no PayPal call.
   const withdraw = gate(WITHDRAWABLE.has(state), null);
 
-  const bandSet = gate(deal.kind === 'haggle' && BAND_MOVABLE.has(state), privilegedBlock());
+  const bandSet = gate(deal.kind === 'haggle' && bandMovable(state), privilegedBlock());
 
   return { ownerAccept, countersign, countersignIsRead, openPaypal, capture, void: voidGate, releaseHold, rescue, withdraw, bandSet };
 }

@@ -10,7 +10,7 @@ import type { H256 } from '@bindings/H256';
 import type { ShieldVerdict } from '@bindings/ShieldVerdict';
 import type { Side } from '@bindings/Side';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
-import { anyMoneyEnabled, checksAllow, decisionArgs, deriveGates, namesMatch, offersOwnerAccept, ownerAcceptArgs, ownsPaypalResource, readsLostAuthorize, type GateContext } from './gating';
+import { anyMoneyEnabled, bandMovable, checksAllow, decisionArgs, deriveGates, namesMatch, offersOwnerAccept, ownerAcceptArgs, ownsPaypalResource, readsLostAuthorize, type GateContext } from './gating';
 import { buildStrip, checksTally, derivePhase, marketPercentile, parseMoneyInput } from './model';
 import { buildMandate, draftFrom, newDraft } from './mandateDraft';
 import { nameProblem } from './PairingConfirm';
@@ -665,5 +665,14 @@ describe('countersign on an APPROVED deal with an open authorize is a read, not 
     const create = { ...cap, evidence: { ...cap.evidence, money_check: { step: 'create' as const, state: 'checking' as const, since: 1, next_check: null } } };
     expect(deriveGates(ctx(create)).countersignIsRead).toBe(false);
     expect(deriveGates(ctx({ ...cap, deal: { ...cap.deal, state: 'AGREED' } })).countersignIsRead).toBe(false);
+  });
+});
+
+describe('when a price range may still move', () => {
+  it('bandMovable is exactly when a haggle’s band_set control is offered, in every state', () => {
+    for (const state of ALL_STATES) {
+      expect(deriveGates(ctx(summary({ state, kind: 'haggle' }))).bandSet.visible, state).toBe(bandMovable(state));
+      expect(deriveGates(ctx(summary({ state, kind: 'purchase' }))).bandSet.visible, state).toBe(false);
+    }
   });
 });
