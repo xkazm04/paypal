@@ -613,8 +613,6 @@ export const endingUnreadLine = (n: number): [string, string] => [
   `${n} ${n === 1 ? 'deal' : 'deals'} ended at the deadline, but ${n === 1 ? 'its record' : 'their records'} could not be read (`,
   `): whether money moved is not available yet, so open ${n === 1 ? 'it' : 'them'}`,
 ];
-/** The dial legend's word for a dashed bead: a payment whose outcome the wallet does not know yet. */
-export const BEAD_UNKNOWN_LEGEND = 'not known yet';
 
 // ---- wallet limits (T14): one cap above every set of rules ------------------------------------------
 
@@ -639,10 +637,8 @@ export const LIMITS_UNVERIFIED = 'Your wallet limits couldn’t be checked, so y
 /** The card's "if you do nothing" lines, the same words Rust sends (table-attention). */
 export const RESCUE_SILENCE = 'nothing is sent · PayPal retries the payment by itself';
 export const RESCUE_SENT_SILENCE = 'the invoice stays open until it expires · nothing is charged unless the subscriber pays';
-/** Why a paid invoice is or is not counted as money you got back. */
-export const RESCUE_COUNTED = 'PayPal shows this invoice paid and your wallet saved the receipt, so it counts as money you got back.';
+/** Why a replayed failure is never counted as money you got back (the Rescue page's own reasons: RESCUE.counted, .sentNotCounted in words/rescue.ts). */
 export const RESCUE_REPLAY_NOT_COUNTED = 'This renewal failure was replayed, not reported by PayPal, so what it brings in is never counted as money you got back.';
-export const RESCUE_SENT_NOT_COUNTED = 'Sent is not paid: it counts only once PayPal shows the invoice paid.';
 /** What approving a fix does, before the owner holds the button. */
 export const RESCUE_APPROVE_DOES = 'PayPal makes one invoice for this cycle at the discounted price and emails it to your subscriber. Nothing is charged: they pay it on PayPal’s page, or it expires.';
 /** The replay form, in the approval window. */
@@ -739,8 +735,6 @@ export const KEEP_PRACTICE_AGENT = {
   done: 'Practice agent kept. Add your own agent app any time.',
   where: 'The practice agent plays your deals until you add an agent app',
 };
-/** First run's left column while a practice deal is open: the deal the path just started, one click away. */
-export const START_UNDERWAY = { title: 'Under way', act: 'Open ›', where: 'Open this practice deal' };
 /** The first-run heading: what the steps lead to (the count follows START_STEP). */
 export const FIRST_RUN_TITLE = `Your first safe deal in ${Object.keys(START_STEP).length} steps`;
 
@@ -1051,8 +1045,6 @@ export const charterDone = (n: number, of: number): string => `${n} of ${of} lin
 export const CHARTER_MEANS_APPROVAL = 'Lines marked “in the approval window” open the separate approval window, where only you can sign.';
 export const CHARTER_SKIP = 'Skip: open the sample wallet';
 export const CHARTER_SKIP_TITLE = 'Preview only: the sample wallet is already set up';
-/** Settings' way back to the Charter once the wallet is set up. */
-export const CHARTER_OPEN = { act: 'Your wallet’s charter', title: 'See the five setup lines again: keys, rules, practice deal, agent app, unlock' } as const;
 export const CHARTER_STATE = { done: 'signed', waiting: 'waiting', todo: 'to do', unknown: 'not read yet' } as const;
 /** The Charter's preview of the current line once it is signed (rebuild WP2.5). */
 export const charterPreview = (n: string): string => `When you sign it, line ${n} reads`;

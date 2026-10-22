@@ -108,7 +108,7 @@ Moves: one click (or key) per move from the decision centre; "+0" = on the first
 | "How your money is protected" chain, "Who can set what", "Money moves only on" | Settings > How your money is protected (disclosure) | 2 |
 | The Circuit picture (Detailed: wired parts, inspector, breaker switch, "Can't tell yet" list) | **cut as a picture**: each part's facts live in the card views above (unknowns read dashed there); the breaker is the Pause button. Ask: keep the cut? | - |
 | "Setup · n of 3 done" progress | the answer's "n steps are left" | 1 |
-| Your wallet's charter (CHARTER_OPEN) | Settings > Also here | 2 |
+| Your wallet's charter (`SETTINGS_MORE.charter`) | Settings > Also here | 2 |
 | Theme (footer only before) | Settings > Appearance (and the footer) | 2 |
 | Calm motion (footer only before) | Settings > Appearance (and the footer) | 2 |
 | New: Windows notifications, Do not disturb (`settings_write`, fresh read, one field) | Settings > Notifications | 2 |

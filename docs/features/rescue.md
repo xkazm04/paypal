@@ -27,8 +27,8 @@ plan price for everyone.
   subscriber, not just the one who is struggling. No fix, agent or approval can do that from here,
   by design."
 - "Fixes in progress" ("Sending invoice", "Waiting for subscriber", "Fix failed") and "Recovered
-  money", each line marked Counts / Doesn't count with the reason (`RESCUE_COUNTED`,
-  `RESCUE_REPLAY_NOT_COUNTED`, `RESCUE_SENT_NOT_COUNTED` in `lib/words.ts`). A source chip says
+  money", each line marked Counts / Doesn't count with the reason (`RESCUE.counted`,
+  `.replayNotCounted`, `.sentNotCounted` in `lib/words/rescue.ts`). A source chip says
   "Reported by PayPal" or "Replayed failure".
 - "Watching N subscriptions" with "N of 100 checks today" and "Manage ↗" / "Watch a
   subscription ↗", and "Replay a renewal ↗"; both open the approval window.

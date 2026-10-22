@@ -1086,7 +1086,7 @@ where unconfirmed. "Decided, implementation in flight" means no commit exists ye
     count as live (`CHECKED_AFTER_END`), because a capture read-back on a paid deal closes its money check without
     moving `updated_at`. `useAllEvidence` is unchanged.
   - 662286b: a payment whose outcome is not known is a dashed bead (`BeadKind` 'unknown', which `beadKind` never
-    returns), never on hold; the dial legend says `BEAD_UNKNOWN_LEGEND` = 'not known yet'. `beadLook.ts`
+    returns), never on hold (the Dial legend that said "not known yet" went with the Dial). `beadLook.ts`
     (`liveLook`, `pastLook`) holds the mapping.
   - b8625d3: the Rewind says when a busy week shows only its latest steps: `REWIND_TRUNCATED`, shown when
     `deal_history` sets `truncated`.
