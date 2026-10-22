@@ -19,6 +19,8 @@ jobs:
           cache: pnpm
           cache-dependency-path: apps/desktop/client/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      # Client counterpart of the deny job's RustSec advisories gate.
+      - run: pnpm audit --audit-level=high
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
