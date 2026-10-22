@@ -73,8 +73,10 @@ describe('first-run steps from settings, signed rules, connections and the agent
 
   it('expired or refused rules do not count as signed; first_run is the fallback when rules are not readable', () => {
     const now = 1_800_000_000;
-    const m = (nb: number, ex: number, refusal: unknown = null) => ({ payload: { not_before: nb, expires: ex }, refusal });
+    const m = (nb: number, ex: number, refusal: unknown = null, owner_sig: number[] = [1]) => ({ payload: { not_before: nb, expires: ex }, refusal, owner_sig });
     expect(rulesInForce([m(now - 10, now + 10), m(now - 20, now - 1), m(now + 5, now + 50), m(now - 1, now + 1, { clause: 4 })], now)).toBe(1);
+    // An unsigned set allows nothing: not in force, as Agent rules and the Set up page say.
+    expect(rulesInForce([m(now - 10, now + 10, null, [])], now)).toBe(0);
     expect(rulesInForce(null, now)).toBeNull();
     expect(states({ ...fresh, firstRun: false, rulesInForce: null })[1]).toBe('done');
     expect(states({ ...fresh, rulesInForce: null })[1]).toBe('todo');
