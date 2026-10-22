@@ -464,7 +464,7 @@ impl Runtime {
             .as_ref()
             .ok_or_else(|| unavailable("HOUSE release identity is not pinned in this build"))?;
         let key = existing_signing_key(self.vault.as_ref(), AgentSlot::Negotiator.key_name())
-            .map_err(|_| invalid())?;
+            .map_err(|_| unavailable("Agent key unavailable"))?;
         let mut seed = key.verifying_key().to_bytes().to_vec();
         seed.extend_from_slice(&release.mandate_commitment.0);
         let hash = H256::digest(&seed);
