@@ -189,18 +189,14 @@ impl Runtime {
         Ok(())
     }
     pub(crate) fn mandate_list(&self) -> Result<Vec<MandateListEntry>, CommandError> {
-        let keys = [
-            AgentSlot::Negotiator,
-            AgentSlot::Shopper,
-            AgentSlot::Assistant,
-        ]
-        .into_iter()
-        .map(|slot| {
-            existing_signing_key(self.vault.as_ref(), slot.key_name())
-                .map(|key| (slot, key.verifying_key().to_bytes()))
-                .map_err(|_| unavailable("Agent key unavailable"))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+        let keys = AgentSlot::ALL
+            .into_iter()
+            .map(|slot| {
+                existing_signing_key(self.vault.as_ref(), slot.key_name())
+                    .map(|key| (slot, key.verifying_key().to_bytes()))
+                    .map_err(|_| unavailable("Agent key unavailable"))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         app(self
             .pipeline
             .wallet
