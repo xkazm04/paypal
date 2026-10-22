@@ -8,7 +8,7 @@ import { act, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Module } from '@bindings/Module';
 import { MAX_ROWS, MIN_ROWS, rowsThatFit } from './Latest';
-import { renderLayerAtScale } from './testing/scaleSmoke';
+import { renderLayerAtScale, settle } from './testing/scaleSmoke';
 
 vi.mock('../../../lib/runtime', async () => (await import('./testing/runtime')).runtimeMock);
 
@@ -26,15 +26,26 @@ describe('rows that fit', () => {
 
 const MODULES: Module[] = ['tables', 'spend', 'counter', 'book', 'shield', 'rescue'];
 const strip = () => document.querySelector<HTMLElement>('.cs-layer .lt');
+/** The strip once it is drawn. renderLayerAtScale settles on one quiet read window; on a busy machine
+ *  the last read's answer can reach React just after it, so the strip is waited for, never assumed. */
+const drawnStrip = () => waitFor(() => { const el = strip(); if (!el) throw new Error('no strip yet'); return el; });
 
 describe('every module summary carries a quiet Latest strip under its cards', () => {
   for (const scale of ['small', 'large'] as const) {
     it.each(MODULES)(`%s (${scale})`, async (module) => {
       await renderLayerAtScale({ level: 'module', module }, scale);
+      // Wait until the deals are read (the tab's count is known) and, unless it counts none, the strip.
+      const count = await waitFor(() => {
+        const tt = document.querySelector(`#cs-tab-${module} .tt`);
+        if (!tt || tt.classList.contains('unknown')) throw new Error('deals not read yet');
+        const n = tt.textContent?.trim() ?? '';
+        if (n !== '0' && !strip()) throw new Error('no strip yet');
+        return n;
+      });
+      // a module with no deal at all on this world (its tab counts 0) has nothing to list, also once
+      // every read has settled
+      if (count === '0') { await settle(); expect(strip()).toBeNull(); return; }
       const lt = strip();
-      // a module with no deal at all on this world (its tab counts 0) has nothing to list
-      const count = document.querySelector(`#cs-tab-${module} .tt`)?.textContent?.trim();
-      if (count === '0') { expect(lt).toBeNull(); return; }
       expect(lt, 'a strip').toBeTruthy();
       // after the cards, before the explanation
       const cards = document.querySelector('.cs-layer .ml-cards');
@@ -50,13 +61,13 @@ describe('every module summary carries a quiet Latest strip under its cards', ()
 
   it('a row opens its deal, and See all opens the full view with Back returning to the summary', async () => {
     await renderLayerAtScale({ level: 'module', module: 'spend' }, 'small');
-    const row = strip()?.querySelector<HTMLButtonElement>('.lt-row');
+    const row = (await drawnStrip()).querySelector<HTMLButtonElement>('.lt-row');
     if (!row) throw new Error('no row');
     await act(async () => { fireEvent.click(row); });
     await waitFor(() => expect(document.querySelector('.cs-layer')?.getAttribute('data-layer')).toBe('deal'));
     expect(location.hash).toMatch(/^#d=.+&m=spend$/);
     await renderLayerAtScale({ level: 'module', module: 'book' }, 'small');
-    const all = strip()?.querySelector<HTMLButtonElement>('.lt-all');
+    const all = (await drawnStrip()).querySelector<HTMLButtonElement>('.lt-all');
     if (!all) throw new Error('no See all');
     // a click focuses the button in a browser (jsdom does not)
     act(() => { all.focus(); });
@@ -75,25 +86,29 @@ describe('the short places carry the strip too', () => {
     ['connect a wallet', '#p=pairing', 'rows'],
   ])('%s', async (_name, hash, kind) => {
     await renderLayerAtScale(hash, 'small');
-    const lt = await waitFor(() => { const el = strip(); if (!el) throw new Error('no strip'); return el; });
+    const lt = await drawnStrip();
     if (kind === 'facts') expect(lt.querySelectorAll('.lt-fact').length).toBeGreaterThanOrEqual(4);
     else expect(lt.querySelectorAll('.lt-row').length).toBeGreaterThan(0);
   }, 60_000);
 
   it('a short waiting list takes its own height and shows what was decided lately; a long one keeps the sheet', async () => {
     await renderLayerAtScale('#w=waiting', 'small');
-    expect(document.querySelector('.cs-waiting')?.classList.contains('short')).toBe(true);
-    const row = strip()?.querySelector<HTMLButtonElement>('.lt-row');
+    await waitFor(() => expect(document.querySelector('.cs-waiting')?.classList.contains('short')).toBe(true));
+    const row = (await drawnStrip()).querySelector<HTMLButtonElement>('.lt-row');
     if (!row) throw new Error('no decided row');
     await act(async () => { fireEvent.click(row); });
     await waitFor(() => expect(document.querySelector('.cs-layer')?.getAttribute('data-layer')).toBe('deal'));
     await renderLayerAtScale('#w=waiting', 'large');
+    // a long list: wait for its rows (not short because it is long, not because it is unread)
+    await waitFor(() => expect(document.querySelectorAll('.cs-wrow').length).toBeGreaterThan(0));
+    await settle();
     expect(document.querySelector('.cs-waiting')?.classList.contains('short')).toBe(false);
     expect(strip()).toBeNull();
   }, 60_000);
 
   it('a deal with nothing open shows its latest moments and the other deals with them; a moment opens the story', async () => {
     await renderLayerAtScale(async (w) => ({ level: 'deal', deal: (await w.invoke('list_deals', null))[0]?.id ?? 'none' }), 'small');
+    await drawnStrip();
     const strips = document.querySelectorAll('.cs-layer .lt');
     expect(strips.length).toBeGreaterThanOrEqual(1);
     const moment = strips[0]?.querySelector<HTMLButtonElement>('.lt-row');
