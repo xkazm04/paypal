@@ -178,7 +178,8 @@ fn compile(query: &BookQuery) -> Result<(String, Vec<Value>), LedgerError> {
             .push("CAST(d.created_at AS INTEGER)>=? AND CAST(d.created_at AS INTEGER)<?".into());
         values.extend([Value::Integer(from), Value::Integer(to)]);
     }
-    values.push(Value::Integer(i64::from(query.limit.unwrap_or(500))));
+    // One row past the limit, so `book_query` can tell a cut answer from a complete one.
+    values.push(Value::Integer(i64::from(query.limit.unwrap_or(500)) + 1));
     Ok((
         format!(
             "SELECT {} FROM {source} WHERE {} GROUP BY {} ORDER BY {} LIMIT ?",
@@ -241,14 +242,57 @@ impl Ledger {
             }
             result.push(Json::Object(object));
         }
+        let limit = usize::from(query.limit.unwrap_or(500));
+        let truncated = result.len() > limit;
+        result.truncate(limit);
         Ok(
-            json!({"rows":result,"amount_units":"minor","market_units":"basis_points","max_rows":500}),
+            json!({"rows":result,"amount_units":"minor","market_units":"basis_points","max_rows":limit,"truncated":truncated}),
         )
     }
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn a_cut_answer_says_so_and_names_the_limit_it_was_cut_at() {
+        let ledger = Ledger::in_memory().unwrap();
+        let ask = |ledger: &Ledger, limit: u16| {
+            let query: BookQuery = serde_json::from_value(
+                json!({"view":"deals","metrics":["count"],"group_by":["kind","state"],"limit":limit}),
+            )
+            .unwrap();
+            ledger.book_query(&query).unwrap()
+        };
+        // An empty book is complete at any limit.
+        let none = ask(&ledger, 2);
+        assert_eq!(none["truncated"], false);
+        assert_eq!(none["max_rows"], 2);
+        // Three groups of rows: a limit of 2 cuts, 3 and 500 do not.
+        for (n, kind) in ["haggle", "purchase", "rescue"].iter().enumerate() {
+            ledger
+                .conn
+                .execute(
+                    "INSERT INTO deals(id,kind,side,mandate_id,mandate_version,item_ref,qty,unit_price_minor,currency,state,created_at,updated_at) VALUES (?1,?2,'buyer','m',1,'x',1,100,'USD','AGREED','1','1')",
+                    rusqlite::params![format!("D{n}"), kind],
+                )
+                .unwrap();
+        }
+        let cut = ask(&ledger, 2);
+        assert_eq!(
+            (
+                cut["rows"].as_array().unwrap().len(),
+                cut["max_rows"].as_u64()
+            ),
+            (2, Some(2))
+        );
+        assert_eq!(cut["truncated"], true);
+        for limit in [3, 500] {
+            let whole = ask(&ledger, limit);
+            assert_eq!(whole["rows"].as_array().unwrap().len(), 3);
+            assert_eq!(whole["truncated"], false);
+            assert_eq!(whole["max_rows"], limit);
+        }
+    }
     #[test]
     fn c1_closed_query_and_readonly_connection_reject_writes_and_bind_injection() {
         let ledger = Ledger::in_memory().unwrap();
