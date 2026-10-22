@@ -20,6 +20,7 @@ impl Runtime {
         let owner = self.owner()?.verifying_key();
         let now = self.clock.now();
         let records = app(ledger.audit_count())?;
+        let gaps = (self.refusals.unrecorded, self.refusals.write_failures);
         match ledger.verify_audit() {
             Ok(_) => {}
             // A broken chain is the finding; nothing past it can be trusted, so nothing is counted.
@@ -31,6 +32,7 @@ impl Runtime {
                     0,
                     &[],
                     safety::ledger_violations(Err(error.to_string()), &[], &[]),
+                    gaps,
                 ));
             }
             Err(error) => return app(Err(error)),
@@ -50,6 +52,7 @@ impl Runtime {
             export.total,
             &deals,
             found,
+            gaps,
         ))
     }
 }
@@ -62,6 +65,7 @@ fn record(
     deals_total: u64,
     deals: &[safety::DealExport],
     found: Vec<Violation>,
+    (unrecorded_refusals, refusal_write_failures): (u64, u64),
 ) -> SafetyRecord {
     let tally = safety::tally(deals.iter().filter_map(|d| d.as_ref().ok()));
     let violations_total = u32::try_from(found.len()).unwrap_or(u32::MAX);
@@ -88,6 +92,8 @@ fn record(
             })
             .collect(),
         violations_total,
+        unrecorded_refusals,
+        refusal_write_failures,
     }
 }
 

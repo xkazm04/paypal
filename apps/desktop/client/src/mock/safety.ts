@@ -32,6 +32,7 @@ export function safetyRecordOf(state: MockState, history: readonly HistoryStep[]
   const empty: SafetyRecord = {
     checked_at: now, records, head: null, intact: false, deals_total: state.deals.length, deals_checked: 0, transcripts_verified: 0,
     money, refusals: 0, refusal_families: [], refused_deals: 0, refused_deal_calls: 0,
+    unrecorded_refusals: 0, refusal_write_failures: 0,
     violations: [{ deal_id: null, kind: 'chain_broken', detail: 'the audit chain does not verify: ledger integrity failure: audit sequence/previous hash' }],
     violations_total: 1,
   };
@@ -69,5 +70,6 @@ export function safetyRecordOf(state: MockState, history: readonly HistoryStep[]
     checked_at: now, records, head, intact: true, deals_total: state.deals.length, deals_checked: deals.length, transcripts_verified: deals.length,
     money, refusals: refusal_families.reduce((n, f) => n + f.count, 0), refusal_families,
     refused_deals: refused.length, refused_deal_calls, violations, violations_total: violations.length,
+    unrecorded_refusals: 0, refusal_write_failures: 0,
   };
 }

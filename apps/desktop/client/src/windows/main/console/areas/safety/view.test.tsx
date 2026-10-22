@@ -15,7 +15,7 @@ const rec = (extra: Partial<SafetyRecord> = {}): SafetyRecord => ({
   checked_at: 1_800_000_000, records: 120, head: Array.from({ length: 32 }, (_, i) => i) as SafetyRecord['head'], intact: true,
   deals_total: 20, deals_checked: 20, transcripts_verified: 20, money: { ...NONE, owner: 5, signed_rule: 15, shop_rules: 3, safe_default: 1, safe_default_voids: 1 },
   refusals: 5, refusal_families: [{ family: 'your_rules', count: 3 }, { family: 'not_allowed', count: 2 }],
-  refused_deals: 2, refused_deal_calls: 0, violations: [], violations_total: 0, ...extra,
+  refused_deals: 2, refused_deal_calls: 0, violations: [], violations_total: 0, unrecorded_refusals: 0, refusal_write_failures: 0, ...extra,
 });
 const name = (id: string) => (id === ID ? { label: 'D-0190', title: 'USB-C dock' } : null);
 
@@ -92,6 +92,14 @@ describe('the safety record', () => {
     // An intact record keeps every count, zero included.
     expect(recordFacts(rec()).map(([k]) => k)).toEqual([SAFETY_VIEW.records, SAFETY_VIEW.chain, SAFETY_VIEW.dealsChecked, SAFETY_VIEW.histories, SAFETY_VIEW.refusedDeals, SAFETY_VIEW.moneySteps]);
     expect(refusedCard(rec({ refusals: 0 })).value).toBe(SAFETY_CARD.refusedNone);
+  });
+
+  it('says in plain words how many refusals the trail did not keep', () => {
+    const gap = rec({ unrecorded_refusals: 1, refusal_write_failures: 2 });
+    const text = render(<SafetyDetails record={gap} dealName={name} onDeal={() => {}} />).container.textContent ?? '';
+    expect(text).toContain('1 more refusal was not written to your record');
+    expect(text).toContain('2 refusals could not be written to your record');
+    expect(render(<SafetyDetails record={rec()} dealName={name} onDeal={() => {}} />).container.textContent).not.toContain('not written');
   });
 
   it('the kicker claims a check only once there was one', () => {

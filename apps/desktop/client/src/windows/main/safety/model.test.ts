@@ -11,7 +11,7 @@ const NONE = { owner: 0, signed_rule: 0, shop_rules: 0, house_rules: 0, safe_def
 const rec = (extra: Partial<SafetyRecord> = {}): SafetyRecord => ({
   checked_at: 1_800_000_000, records: 0, head: Array(32).fill(7) as SafetyRecord['head'], intact: true,
   deals_total: 0, deals_checked: 0, transcripts_verified: 0, money: NONE, refusals: 0, refusal_families: [],
-  refused_deals: 0, refused_deal_calls: 0, violations: [], violations_total: 0, ...extra,
+  refused_deals: 0, refused_deal_calls: 0, violations: [], violations_total: 0, unrecorded_refusals: 0, refusal_write_failures: 0, ...extra,
 });
 
 describe('safety record words', () => {
