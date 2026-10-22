@@ -54,8 +54,9 @@ describe('where the money went', () => {
 
   it('a replay is not recovered money: a paid rescue replay is noted, not counted as paid', () => {
     expect(flowOf(deal('a', { kind: 'rescue', side: 'seller', mode: 'replay' }))).toBeNull();
-    expect(flowOf(deal('b', { kind: 'rescue', side: 'seller', mode: 'sandbox' }))).toBe('paid');
-    const [c] = whereTheMoneyWent([deal('a', { kind: 'rescue', side: 'seller', price: 960, mode: 'replay' }), deal('b', { kind: 'rescue', side: 'seller', price: 900 })]);
+    expect(flowOf(deal('b', { kind: 'rescue', side: 'seller', mode: 'sandbox', state: 'RECEIPTED' }))).toBe('paid');
+    expect(flowOf(deal('c', { kind: 'rescue', side: 'seller', mode: 'sandbox', state: 'CAPTURED' }))).toBeNull(); // not receipted yet: the wallet does not count it
+    const [c] = whereTheMoneyWent([deal('a', { kind: 'rescue', side: 'seller', price: 960, mode: 'replay' }), deal('b', { kind: 'rescue', side: 'seller', price: 900, state: 'RECEIPTED' })]);
     const r = c?.rows.find((x) => x.kind === 'rescue');
     expect(r?.minor.paid).toBe(900);
     expect(r?.replays).toBe(1);

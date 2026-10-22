@@ -150,7 +150,7 @@ export const LENSES: readonly Lens[] = [
   { id: 'mismatch', short: 'Amounts that didn’t match', question: 'Any deal whose payment request did not match what was agreed?',
     query: { view: 'deals', filters: [{ field: 'state', op: 'eq', value: 'MISMATCH' }], metrics: ['count', 'sum_amount'] } },
   { id: 'rescue', short: 'Rescued money', question: 'How much money did rescues bring back?',
-    query: { view: 'deals', filters: [{ field: 'kind', op: 'in', value: ['rescue', 'invoice'] }], group_by: ['state'], metrics: ['count', 'recovered_sum'] } },
+    query: { view: 'deals', filters: [{ field: 'kind', op: 'in', value: ['rescue'] }], group_by: ['state'], metrics: ['count', 'recovered_sum'] } },
 ];
 
 /** Whether every line of the wallet's answer to this query holds one money state, so its Amount
@@ -204,7 +204,7 @@ function matches(d: Deal, f: Filter): boolean {
   return f.op === 'eq' ? a === v : a !== v;
 }
 
-export const isRecovered = (d: Deal): boolean => (d.kind === 'rescue' || d.kind === 'invoice') && isSettled(d) && d.mode === 'sandbox';
+export const isRecovered = (d: Deal): boolean => d.kind === 'rescue' && (d.state === 'RECEIPTED' || d.state === 'RECONCILED') && d.mode === 'sandbox';
 
 export function aggregate(rows: readonly Deal[], ctx: Ctx): Agg {
   const pcts = rows.map(vsMedianPct).filter((p): p is number => p !== null);

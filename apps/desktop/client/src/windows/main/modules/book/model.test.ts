@@ -14,6 +14,27 @@ function deal(id: string, o: Partial<Deal> & { price?: number; cur?: Deal['terms
 }
 const ctx: Ctx = { stmt: (d) => (d.paypal.capture ? 'matched' : 'not_applicable'), cpName: (d) => d.counterparty };
 
+describe('recovered money is the wallet’s one predicate (rescue.rs COUNTED, as far as the window can see)', () => {
+  // Mirrors table-ledger rescue.rs COUNTED: kind rescue, state RECEIPTED|RECONCILED, sandbox. A captured-only
+  // rescue and an invoice-kind deal are never recovered, so the window and the wallet add up the same deals.
+  const rows = [
+    deal('cap', { kind: 'rescue', side: 'seller', state: 'CAPTURED', price: 100 }),
+    deal('inv', { kind: 'invoice', side: 'seller', state: 'RECEIPTED', price: 200 }),
+    deal('ok', { kind: 'rescue', side: 'seller', state: 'RECEIPTED', price: 400 }),
+    deal('rec', { kind: 'rescue', side: 'seller', state: 'RECONCILED', price: 800 }),
+    deal('replay', { kind: 'rescue', side: 'seller', state: 'RECEIPTED', mode: 'replay', price: 1600 }),
+  ];
+  it('counts only a receipted or reconciled sandbox rescue', () => {
+    expect(aggregate(rows, ctx).recovered).toEqual([{ currency: 'USD', minor: 1200 }]);
+  });
+  it('the Rescued money lens and the typed "recovered" chip read the same kinds', () => {
+    const lens = LENSES.find((l) => l.id === 'rescue')!.query.filters!.find((f) => f.field === 'kind')!.value;
+    const typed = understand('how much did rescues bring back', { now: 1_800_000_000, offsetMin: 0, parties: [] });
+    if (!('query' in typed)) throw new Error('not understood');
+    expect([typed.query.filters?.find((f) => f.field === 'kind')?.value].flat()).toEqual([lens].flat());
+  });
+});
+
 describe('Stopped is one set', () => {
   const STATES = ['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECEIPTED', 'RECONCILED', 'WITHDRAWN', 'EXPIRED', 'REFUSED', 'MISMATCH', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'UNCONFIRMED'] as const;
   const rows = STATES.map((state) => deal(state, { state }));
@@ -61,7 +82,7 @@ describe('lenses', () => {
   const rows = [
     deal('a', { kind: 'haggle', state: 'NEGOTIATING' }), deal('b', { paypal: { order: '1', authorization: null, capture: 'C', subscription: null } }),
     deal('c', { state: 'REFUSED' }), deal('d', { state: 'MISMATCH', kind: 'haggle' }),
-    deal('r1', { kind: 'rescue', side: 'seller', state: 'CAPTURED', price: 960 }), deal('r2', { kind: 'rescue', side: 'seller', state: 'CAPTURED', mode: 'replay', price: 960 }),
+    deal('r1', { kind: 'rescue', side: 'seller', state: 'RECEIPTED', price: 960 }), deal('r2', { kind: 'rescue', side: 'seller', state: 'RECEIPTED', mode: 'replay', price: 960 }),
   ];
   const lens = (id: string) => LENSES.find((l) => l.id === id)!;
   it('groups by kind in the ledger’s order and keeps sums per state', () => {
