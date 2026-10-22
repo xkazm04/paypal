@@ -108,10 +108,32 @@ pub enum Error {
     Cancelled,
     #[error("engine process unavailable")]
     Process,
+    #[error("engine process could not be started")]
+    Spawn,
+    #[error("engine process could not be contained")]
+    Attach,
+    #[error("engine process pipe failed")]
+    Pipe,
+    #[error("engine process exited abnormally")]
+    Exit { code: Option<i32> },
     #[error("engine watchdog expired")]
     Timeout,
     #[error("engine platform unsupported")]
     Unsupported,
+}
+impl Error {
+    /// A short, secret-free name for how a native run ended badly, for the run-end audit row:
+    /// `spawn`, `attach`, `pipe` or `exit:<code>`. Never carries child output.
+    pub fn cause(&self) -> Option<String> {
+        match self {
+            Error::Spawn => Some("spawn".into()),
+            Error::Attach => Some("attach".into()),
+            Error::Pipe => Some("pipe".into()),
+            Error::Exit { code: Some(code) } => Some(format!("exit:{code}")),
+            Error::Exit { code: None } => Some("exit".into()),
+            _ => None,
+        }
+    }
 }
 #[async_trait]
 pub trait EngineAdapter: Send + Sync {

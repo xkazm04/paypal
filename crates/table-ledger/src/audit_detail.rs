@@ -188,7 +188,9 @@ pub(crate) const ACTION_KEYS: &[(&str, &[&str])] = &[
     ("rescue.watch_unread", &["subscription_id", "tries"]),
     (
         "run.finish",
-        &["run", "deal_id", "engine", "mode", "state", "playbook"],
+        &[
+            "run", "deal_id", "engine", "mode", "state", "playbook", "cause",
+        ],
     ),
     ("run.start", &["run", "engine", "mode", "playbook"]),
     ("settlement.rejected", &["raw_hash", "reason"]),

@@ -46,7 +46,7 @@ impl Job {
         // All successful handles are immediately wrapped. A failed attachment
         // leaves the child suspended; the caller kills/reaps it.
         unsafe {
-            let job = Self(CreateJobObjectW(None, None).map_err(|_| Error::Process)?);
+            let job = Self(CreateJobObjectW(None, None).map_err(|_| Error::Attach)?);
             let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
             limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
             SetInformationJobObject(
@@ -55,28 +55,28 @@ impl Job {
                 &limits as *const _ as *const _,
                 std::mem::size_of_val(&limits) as u32,
             )
-            .map_err(|_| Error::Process)?;
+            .map_err(|_| Error::Attach)?;
             let process = Owned(
                 OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, false, pid)
-                    .map_err(|_| Error::Process)?,
+                    .map_err(|_| Error::Attach)?,
             );
-            AssignProcessToJobObject(job.0, process.0).map_err(|_| Error::Process)?;
+            AssignProcessToJobObject(job.0, process.0).map_err(|_| Error::Attach)?;
             let snapshot =
-                Owned(CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0).map_err(|_| Error::Process)?);
+                Owned(CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0).map_err(|_| Error::Attach)?);
             let mut entry = THREADENTRY32 {
                 dwSize: std::mem::size_of::<THREADENTRY32>() as u32,
                 ..Default::default()
             };
             let mut found = false;
-            Thread32First(snapshot.0, &mut entry).map_err(|_| Error::Process)?;
+            Thread32First(snapshot.0, &mut entry).map_err(|_| Error::Attach)?;
             loop {
                 if entry.th32OwnerProcessID == pid {
                     let thread = Owned(
                         OpenThread(THREAD_SUSPEND_RESUME, false, entry.th32ThreadID)
-                            .map_err(|_| Error::Process)?,
+                            .map_err(|_| Error::Attach)?,
                     );
                     if ResumeThread(thread.0) == u32::MAX {
-                        return Err(Error::Process);
+                        return Err(Error::Attach);
                     }
                     found = true;
                 }
@@ -85,7 +85,7 @@ impl Job {
                 }
             }
             if !found {
-                return Err(Error::Process);
+                return Err(Error::Attach);
             }
             Ok(job)
         }

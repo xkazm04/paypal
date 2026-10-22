@@ -424,6 +424,17 @@ impl Runtime {
         run: RunId,
         state: RunState,
     ) -> Result<Option<RunSnapshot>, CommandError> {
+        self.finish_run_because(run, state, None)
+    }
+    /// `finish_run` plus the engine's typed failure cause (`spawn`, `attach`, `pipe`,
+    /// `exit:<code>`), written to the run-end audit row so a failed run reads differently from
+    /// a missing executable. The cause never carries child output.
+    pub(crate) fn finish_run_because(
+        &mut self,
+        run: RunId,
+        state: RunState,
+        cause: Option<String>,
+    ) -> Result<Option<RunSnapshot>, CommandError> {
         let Some(mut active) = self.runs.remove(&run) else {
             return Ok(None);
         };
@@ -444,7 +455,13 @@ impl Runtime {
             actor: "runtime".into(),
             action: "run.finish".into(),
             deal_id: Some(snapshot.deal_id),
-            detail: serde_json::json!(&snapshot),
+            detail: {
+                let mut detail = serde_json::json!(&snapshot);
+                if let (Some(cause), Some(map)) = (cause, detail.as_object_mut()) {
+                    map.insert("cause".into(), cause.into());
+                }
+                detail
+            },
         }))?;
         Ok(Some(snapshot))
     }

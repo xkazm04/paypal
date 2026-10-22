@@ -172,9 +172,9 @@ impl NativeEngine {
             .env("WALLET_MCP_SECRET", &grant.secret);
         #[cfg(windows)]
         command.creation_flags(0x08000000 | 0x00000004); // CREATE_NO_WINDOW | CREATE_SUSPENDED
-        let mut child = command.spawn().map_err(|_| Error::Process)?;
+        let mut child = command.spawn().map_err(|_| Error::Spawn)?;
         #[cfg(windows)]
-        let tree = match windows_job::Job::attach(child.id().ok_or(Error::Process)?) {
+        let tree = match windows_job::Job::attach(child.id().ok_or(Error::Attach)?) {
             Ok(tree) => tree,
             Err(error) => {
                 let _ = child.kill().await;
@@ -222,11 +222,11 @@ impl NativeEngine {
                         } else {
                             job.prompt.clone() + "\n"
                         };
-                        let mut pipe = stdin.take().ok_or(Error::Process)?;
+                        let mut pipe = stdin.take().ok_or(Error::Pipe)?;
                         pipe.write_all(input.as_bytes())
                             .await
-                            .map_err(|_| Error::Process)?;
-                        pipe.shutdown().await.map_err(|_| Error::Process)?;
+                            .map_err(|_| Error::Pipe)?;
+                        pipe.shutdown().await.map_err(|_| Error::Pipe)?;
                         drop(pipe); // Closing the handle supplies EOF (shutdown alone does not).
                         sent = true;
                     } else {
@@ -237,7 +237,7 @@ impl NativeEngine {
             let verdict = parser.finish();
             let exit = child.wait().await.map_err(|_| Error::Process)?;
             if !exit.success() && verdict == TerminalVerdict::Clean {
-                return Err(Error::Process);
+                return Err(Error::Exit { code: exit.code() });
             }
             Ok(verdict)
         };
@@ -465,9 +465,9 @@ impl EngineAdapter for NativeEngine {
             .stderr(Stdio::null());
         #[cfg(windows)]
         command.creation_flags(0x08000000 | 0x00000004);
-        let mut child = command.spawn().map_err(|_| Error::Process)?;
+        let mut child = command.spawn().map_err(|_| Error::Spawn)?;
         #[cfg(windows)]
-        let tree = match windows_job::Job::attach(child.id().ok_or(Error::Process)?) {
+        let tree = match windows_job::Job::attach(child.id().ok_or(Error::Attach)?) {
             Ok(job) => job,
             Err(error) => {
                 let _ = child.kill().await;
@@ -485,8 +485,9 @@ impl EngineAdapter for NativeEngine {
             if bytes.len() > 1024 {
                 return Err(Error::Invalid);
             }
-            if !child.wait().await.map_err(|_| Error::Process)?.success() {
-                return Err(Error::Process);
+            let exit = child.wait().await.map_err(|_| Error::Process)?;
+            if !exit.success() {
+                return Err(Error::Exit { code: exit.code() });
             }
             Ok(bytes)
         })
