@@ -2,7 +2,7 @@
 // and a chip, the state path for its kind, the ledger summary and routing.
 // No React, no IPC - everything here is unit-tested in logic.test.ts.
 //
-// MODULE MAPPING (documented contract for the Dial and the rail):
+// MODULE MAPPING (documented contract for the bead strip, the tabs and every module layer):
 //   1. A live AttentionItem wins: Rust already says which module owns the decision.
 //   2. shield HOLD or BLOCK (any kind)     -> shield   (the one decision there is "release or keep")
 //   3. kind haggle                         -> tables

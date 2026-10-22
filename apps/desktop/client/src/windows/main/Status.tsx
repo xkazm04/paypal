@@ -1,4 +1,4 @@
-// Engine and agent status for the Dial's 28px footer: two compact chips that open Settings.
+// Engine and agent status for the console footer (console/Footer.tsx): two compact chips that open Settings.
 // No engine selected, an unavailable engine and a failed engine_status read all say so; until a read
 // answers, a chip says it is checking (dashed), never a state it has not read.
 import { useQuery } from '../../lib/hooks';
