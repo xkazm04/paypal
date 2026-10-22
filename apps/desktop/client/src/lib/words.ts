@@ -894,6 +894,8 @@ export const BOUNDARY_TEXT = 'Nothing in your wallet changed. If you do nothing,
 /** The whole window failed to draw. */
 export const BOUNDARY_WINDOW_TITLE = 'This window could not be shown';
 export const BOUNDARY_RETRY = 'Try again';
+/** Written into an empty window when its backend could not start (lib/mount.tsx); plain text, no provider needed. */
+export const WINDOW_START_FAILED = 'This window could not start. Close it and open it again.';
 /** The stale banner's button while its reads run again. */
 export const BOUNDARY_RETRYING = 'Trying again';
 /** A part that is still being read. */
