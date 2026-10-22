@@ -3,7 +3,7 @@
 // same set (#8), the ledger is windowed and reads PayPal evidence only for the rows in view (#17),
 // the record reads 200 steps at a time and on (#16), a typed question is answered read-only, and
 // nothing but reads is ever sent.
-import { act, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { formatMinor } from '../../../../../lib/format';
 import type { AuditRow } from '@bindings/AuditRow';
@@ -14,6 +14,7 @@ import { sumByCurrency } from '../../../logic';
 import { QUESTION_WORDS } from '../../../modules/book/where';
 import { expectLayerHealthy, renderLayerAtScale, settle } from '../../testing/scaleSmoke';
 import { dealsIn, outsideSpan, paidOutIn, walletDay, weekSpan } from './model';
+import { WalletAnswer } from './Ask';
 import { stepChange } from './Record';
 import { WalletError } from '../../../../../lib/contract';
 import { runtimeMock, setHarnessBackend } from '../../testing/runtime';
@@ -254,4 +255,19 @@ describe('Ask your book reaches past the week (value-6)', () => {
     expect(r.budget.byCommand.get('deal_evidence')?.total ?? 0).toBeLessThanOrEqual(drawn);
     expect(r.layer.querySelector('.bk-pivot')?.textContent).not.toContain(BOOK.ask.statement);
   }, 60_000);
+});
+
+describe('Ask your book, an answer cut at its limit', () => {
+  const answer = (truncated: boolean) => ({
+    query: { view: 'deals', metrics: ['count'], filters: [], group_by: ['counterparty'], range: null, limit: 2 },
+    rows: [{ currency: 'USD', mode: 'sandbox', direction: 'out', counterparty: 'a', count: 1 }, { currency: 'USD', mode: 'sandbox', direction: 'out', counterparty: 'b', count: 1 }],
+    truncated,
+  }) as unknown as Parameters<typeof WalletAnswer>[0]['answer'];
+  it('says it shows only the first lines when more matched than the limit', () => {
+    const cut = render(<WalletAnswer answer={answer(true)} cpName={(k) => k} />);
+    expect(cut.container.textContent).toContain(BOOK.ask.cutLine(2));
+    expect(BOOK.ask.cutLine(2)).toMatch(/^Showing the first 2 lines/);
+    cut.unmount();
+    expect(render(<WalletAnswer answer={answer(false)} cpName={(k) => k} />).container.textContent).not.toContain('Showing the first');
+  });
 });

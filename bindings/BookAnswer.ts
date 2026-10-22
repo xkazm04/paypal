@@ -6,4 +6,8 @@ import type { JsonValue } from "./serde_json/JsonValue";
  * Aggregate rows, grouped by currency, mode and direction (out or in) first: amounts in minor units, market distance in
  * basis points. Read on a read-only connection; nothing is written.
  */
-export type BookAnswer = { query: BookQuery, rows: Array<JsonValue>, };
+export type BookAnswer = { query: BookQuery, rows: Array<JsonValue>, 
+/**
+ * True when more lines matched than the query's limit: `rows` is the first of them.
+ */
+truncated: boolean, };

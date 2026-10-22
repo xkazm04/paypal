@@ -247,6 +247,8 @@ export const BOOK = {
     walletAnswering: 'the wallet’s answer',
     walletWhat: 'The wallet’s answer',
     walletLine: (n: number) => `Checked by your wallet · ${plural(n, 'line', 'lines')} · each currency and mode on its own line, and money out and money in on separate lines`,
+    /** The wallet's answer was cut at the query's row limit: it shows the first lines only. */
+    cutLine: (n: number) => `Showing the first ${plural(n, 'line', 'lines')}: more matched than the limit you asked for. Narrow the question or raise the limit to see the rest.`,
     amountLeftOut: 'Amounts are left out here: with no status picked they would add paid, on hold, in progress and stopped money together. Pick a status, or ask by status, to see them.',
     currency: 'Currency', mode: 'Mode', money: 'Money', rows: 'Rows', amount: 'Amount',
     noRows: 'No rows match.',

@@ -120,6 +120,9 @@ pub struct BookQueryArgs {
 pub struct BookAnswer {
     pub query: table_core::BookQuery,
     pub rows: Vec<serde_json::Value>,
+    /// True when more lines matched than the query's limit: `rows` is the first of them.
+    #[serde(default)]
+    pub truncated: bool,
 }
 /// One verifier check, keyed by its stable id; the client words it, `detail` is the verifier's own
 /// line and comes from the file, so it is shown only as text.

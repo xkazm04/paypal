@@ -255,7 +255,7 @@ function Pivot({ res, statements, read }: { res: Result; statements: boolean; re
 /** The wallet's own answer (book_query): one line per currency, mode and direction, exact minor
  *  units, read on a read-only connection. Its amount adds every state the query reaches, so the
  *  column shows only when each line holds one money state (walletSumsApart). */
-function WalletAnswer({ answer, cpName }: { answer: BookAnswer; cpName: (key: string) => string }) {
+export function WalletAnswer({ answer, cpName }: { answer: BookAnswer; cpName: (key: string) => string }) {
   const groups = answer.query.group_by;
   const m = answer.query.metrics;
   const showAmount = m.includes('sum_amount') && walletSumsApart(answer.query);
@@ -280,6 +280,7 @@ function WalletAnswer({ answer, cpName }: { answer: BookAnswer; cpName: (key: st
   return (
     <div className="bk-wallet">
       <p className="ui-hint">{BOOK.ask.walletLine(answer.rows.length)}</p>
+      {answer.truncated ? <p className="ui-hint">{BOOK.ask.cutLine(answer.rows.length)}</p> : null}
       {amountLeftOut ? <p className="ui-hint">{BOOK.ask.amountLeftOut}</p> : null}
       {answer.rows.length ? (
         <div className="bk-tablewrap">
