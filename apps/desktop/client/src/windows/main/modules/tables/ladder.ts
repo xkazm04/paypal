@@ -5,7 +5,7 @@
 import type { Currency } from '@bindings/Currency';
 import type { DisplayBand } from '@bindings/DisplayBand';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
-import { exponent, formatMinor } from '../../../../lib/format';
+import { exponent, minorToText, parseMoneyText, shortMoney } from '../../../../lib/format';
 import { niceTicks } from '../../logic';
 
 /** A band as band_set takes it: floor and ceiling in minor units (null = none). */
@@ -16,12 +16,8 @@ export type MarketMinor = { p25: number; median: number; p75: number };
 /** One whole currency unit in minor units (the fence moves in whole units: $1, ¥1). */
 export const unitOf = (c: Currency): number => 10 ** exponent(c);
 
-/** "$340" when whole, "$340.50" otherwise (ladder labels and chips). */
-export function short(minor: number, c: Currency): string {
-  const s = formatMinor(minor, c);
-  const exp = exponent(c);
-  return exp && minor % 10 ** exp === 0 ? s.replace(/[.,]0+(?=\D*$)/, '') : s;
-}
+/** "$340" when whole, "$340.50" otherwise (ladder labels and chips): lib/format's one short formatter. */
+export const short = shortMoney;
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
@@ -107,28 +103,11 @@ export function lastPriced(steps: readonly TranscriptStep[], by: TranscriptStep[
   return null;
 }
 
-/** Parse a typed amount exactly into minor units ("340", "$340.50"); null when it is not one. */
-export function parseAmount(text: string, currency: Currency): number | null {
-  const bare = text.trim().replace(/\s/g, '').replace(/^[$€£]/, '');
-  // A comma only groups thousands: "340,50" is not 34,050.
-  if (bare.includes(',') && !/^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/.test(bare)) return null;
-  const t = bare.replace(/,/g, '');
-  if (!/^\d+(\.\d+)?$/.test(t)) return null;
-  const exp = exponent(currency);
-  const [whole = '0', frac = ''] = t.split('.');
-  if (frac.length > exp) return null;
-  const minor = Number(whole + frac.padEnd(exp, '0'));
-  return Number.isSafeInteger(minor) ? minor : null;
-}
+/** Parse a typed amount exactly into minor units ("340", "$340.50"); null when it is not one: lib/format's one parser. */
+export const parseAmount = parseMoneyText;
 
-/** Minor units as the editable text: "340" when whole, "340.50" otherwise. */
-export function toInput(minor: number, currency: Currency): string {
-  const exp = exponent(currency);
-  if (!exp) return String(minor);
-  const whole = Math.trunc(minor / 10 ** exp);
-  const frac = minor % 10 ** exp;
-  return frac ? `${whole}.${String(frac).padStart(exp, '0')}` : String(whole);
-}
+/** Minor units as the editable text: "340" when whole, "340.50" otherwise: lib/format's one renderer. */
+export const toInput = minorToText;
 
 /** The price-range edits of a move, as the "what changes" sheet lists them (item named in its title). */
 export const LIMIT_WORD: Record<keyof BandDraft, string> = { ceiling: 'Most you’ll pay', floor: 'Least you’ll accept' };

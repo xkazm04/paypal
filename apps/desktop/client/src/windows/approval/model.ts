@@ -11,23 +11,15 @@ import type { Side } from '@bindings/Side';
 import type { MarketRef } from '@bindings/MarketRef';
 import type { Money } from '@bindings/Money';
 import type { OpenMandate } from '@bindings/OpenMandate';
-import { exponent, formatMinor, formatMoney, lineTotal } from '../../lib/format';
+import { formatMinor, formatMoney, lineTotal, parseMoneyText } from '../../lib/format';
 import { CHECK_FAILED, REACHED_PAYPAL, ruleSentence, stateWord as plainState, STEP_NOT_CONFIRMED, SUMMARY_CHANGED, VOID_REACHED_PAYPAL } from '../../lib/words';
 import { isTerminal } from './gating';
 
 // ---------------------------------------------------------------------------------------------
 // money input (owner-typed amounts for band and mandate clauses) - exact, no floats
 
-/** "340", "340.5", "1,200.00" → minor units for the currency; null when not a valid amount. */
-export function parseMoneyInput(text: string, currency: Currency): number | null {
-  const t = text.trim().replace(/[,\s]/g, '').replace(/^[$€£]/, '');
-  if (!/^\d+(\.\d+)?$/.test(t)) return null;
-  const exp = exponent(currency);
-  const [whole = '0', frac = ''] = t.split('.');
-  if (frac.length > exp) return null;
-  const minor = Number(whole + frac.padEnd(exp, '0'));
-  return Number.isSafeInteger(minor) ? minor : null;
-}
+/** "340", "340.5", "1,200.00" → minor units for the currency; null when not a valid amount (lib/format's one parser). */
+export const parseMoneyInput = parseMoneyText;
 
 /** Minor units → the plain editable string ("340.00"), no symbol, no grouping. */
 export function minorToInput(minor: number, currency: Currency): string {
