@@ -41,12 +41,17 @@ impl Pipeline {
             && deal.kind == DealKind::Haggle
             && deal.state == DealState::Negotiating
         {
-            ledger
-                .last_proposal(id)
-                .ok()
-                .filter(|(_, _, dir, counter)| *dir == table_ledger::Direction::Inbound && *counter)
-                .and_then(|_| ledger.pending_offer(id).ok())
-                .map(|(_, hash)| hash)
+            Some(
+                ledger
+                    .last_proposal(id)
+                    .ok()
+                    .filter(|(_, _, dir, counter)| {
+                        *dir == table_ledger::Direction::Inbound && *counter
+                    })
+                    .and_then(|_| ledger.pending_offer(id).ok())
+                    .map(|(_, hash)| hash)
+                    .ok_or(()),
+            )
         } else {
             None
         };

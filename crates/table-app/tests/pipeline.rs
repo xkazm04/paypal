@@ -1136,6 +1136,45 @@ fn the_house_quantity_and_seller_side_guards_each_refuse_alone() {
     }
     assert_eq!(p.wallet.ledger.paypal_call_count(deal.id).unwrap(), 0);
 }
+/// An owner accept needs their latest counter. While the latest proposal is the buyer's own
+/// offer there is nothing to accept: the amount line fails (the accept would be refused), never
+/// waits for a PayPal order that this step does not make.
+#[test]
+fn an_owner_accept_with_no_counter_to_accept_fails_its_amount_line() {
+    let (mut buyer, mut seller, deal, _) = two_wallets_owned();
+    let listing = seller.list(deal.id, 100).unwrap();
+    buyer
+        .receive_haggle(deal.id, &listing, Category::Parts, 100)
+        .unwrap();
+    buyer
+        .invoke(
+            &AgentScope {
+                deal_id: deal.id,
+                role: AgentRole::Negotiator,
+                category: Category::Parts,
+            },
+            AgentRequest::Offer(OfferInput {
+                deal_id: deal.id,
+                price: "12.00".into(),
+                delivery: Delivery::DigitalNow,
+            }),
+            100,
+        )
+        .unwrap();
+    buyer
+        .ledger
+        .set_deal_category(deal.id, Category::Parts)
+        .unwrap();
+    let p = Pipeline::new(buyer, Arc::new(MockApi::default()), 100).unwrap();
+    assert_eq!(
+        p.wallet.ledger.get_deal(deal.id).unwrap().state,
+        DealState::Negotiating
+    );
+    let amount = p.approval_checks(deal.id, 100).unwrap().remove(0);
+    assert_eq!(amount.id, ApprovalCheckId::Amount);
+    assert_eq!(amount.status, ApprovalCheckStatus::Fail, "{amount:?}");
+    assert!(!amount.text.contains("PayPal order"), "{amount:?}");
+}
 fn propose_one(wallet: &mut Wallet, deal: &Deal) -> Result<serde_json::Value, table_app::Error> {
     wallet.invoke(
         &AgentScope {

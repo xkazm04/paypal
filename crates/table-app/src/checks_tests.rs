@@ -164,12 +164,17 @@ fn amount_waits_for_the_order_and_compares_an_offer_being_accepted() {
     let negotiating = deal(Side::Buyer, DealState::Negotiating);
     let mut f = ready(&negotiating);
     f.settle = Ok(None);
-    f.offer_terms = Some(negotiating.terms.hash().unwrap());
+    f.offer_terms = Some(Ok(negotiating.terms.hash().unwrap()));
     let pass = one(&f, ApprovalCheckId::Amount);
     assert_eq!(pass.status, S::Pass);
     assert!(pass.text.contains("$329.00"));
-    f.offer_terms = Some(H256([7; 32]));
+    f.offer_terms = Some(Ok(H256([7; 32])));
     assert_eq!(one(&f, ApprovalCheckId::Amount).status, S::Fail);
+    // An accept asked of the owner with no counter of theirs to accept fails, in plain words.
+    f.offer_terms = Some(Err(()));
+    let none = one(&f, ApprovalCheckId::Amount);
+    assert_eq!(none.status, S::Fail);
+    plain(&none);
 }
 
 #[test]
