@@ -148,8 +148,8 @@
       "db_tables": [],
       "description": "The Book capability: the merchant's ledger of where money went, with ask chips, plain-language readings, proof checks and statements. The model, rules and understanding helpers are tested view-model code; the module also carries shared module chrome.",
       "entry_points": [
-        "apps/desktop/client/src/windows/main/modules/book.tsx",
-        "apps/desktop/client/src/windows/main/modules/book/model.ts"
+        "apps/desktop/client/src/windows/main/modules/book/model.ts",
+        "apps/desktop/client/src/windows/main/console/areas/book/BookLayer.tsx"
       ],
       "file_paths": [
         "apps/desktop/client/src/windows/main/modules/book/AskChips.tsx",
@@ -405,8 +405,8 @@
       "db_tables": [],
       "description": "The Counter and Tables capabilities: negotiating counteroffers and comparing counterparties around the table. Group and ladder models order the options, and ShopAround presents alternatives to the owner.",
       "entry_points": [
-        "apps/desktop/client/src/windows/main/modules/tables.tsx",
-        "apps/desktop/client/src/windows/main/modules/counter.tsx"
+        "apps/desktop/client/src/windows/main/console/areas/counter/CounterLayer.tsx",
+        "apps/desktop/client/src/windows/main/console/areas/tables/TablesLayer.tsx"
       ],
       "file_paths": [
         "apps/desktop/client/src/windows/main/modules/counter/model.ts",
@@ -467,8 +467,8 @@
       "db_tables": [],
       "description": "The deal view where an owner sees a deal's story, who decided, the instructions given, the evidence and what they were shown before deciding. Models and story builders turn deal data into plain-language columns and decision panels.",
       "entry_points": [
-        "apps/desktop/client/src/windows/main/DealView.tsx",
-        "apps/desktop/client/src/windows/main/deal/model.ts"
+        "apps/desktop/client/src/windows/main/deal/model.ts",
+        "apps/desktop/client/src/windows/main/console/areas/deal/DealLayer.tsx"
       ],
       "file_paths": [
         "apps/desktop/client/src/windows/main/deal/model.ts",
@@ -793,7 +793,6 @@
       "db_tables": [],
       "description": "The Home screen a merchant lands on: what happened while they were away, and how to start something new. Away summaries and the home view model are pure, tested modules that feed the cards.",
       "entry_points": [
-        "apps/desktop/client/src/windows/main/Home.tsx",
         "apps/desktop/client/src/windows/main/home/model.ts"
       ],
       "file_paths": [
@@ -1141,8 +1140,7 @@
       "description": "The frame of the merchant's main wallet window: entry point, app root, shell layout, command palette, keyboard shortcuts, status line, sheets and the quit confirmation. It routes between Home, Deal and the capability modules and holds the shared UI primitives, world state and logic helpers every screen uses.",
       "entry_points": [
         "apps/desktop/client/src/windows/main/entry.tsx",
-        "apps/desktop/client/src/windows/main/App.tsx",
-        "apps/desktop/client/src/windows/main/Shell.tsx"
+        "apps/desktop/client/src/windows/main/App.tsx"
       ],
       "file_paths": [
         "apps/desktop/client/src/windows/main/App.tsx",
@@ -1701,9 +1699,9 @@
       "db_tables": [],
       "description": "The Rescue, Spend and Shield capabilities: rescue levers for stuck money, a spend gate that checks outgoing payments, and shield rules and matrices that protect the owner. Models and previews compute what each action would do, with notes and panels explaining it plainly.",
       "entry_points": [
-        "apps/desktop/client/src/windows/main/modules/rescue.tsx",
-        "apps/desktop/client/src/windows/main/modules/spend.tsx",
-        "apps/desktop/client/src/windows/main/modules/shield.tsx"
+        "apps/desktop/client/src/windows/main/console/areas/rescue/RescueLayer.tsx",
+        "apps/desktop/client/src/windows/main/console/areas/spend/SpendLayer.tsx",
+        "apps/desktop/client/src/windows/main/console/areas/shield/ShieldLayer.tsx"
       ],
       "file_paths": [
         "apps/desktop/client/src/windows/main/modules/rescue/Panels.tsx",
@@ -1776,8 +1774,8 @@
       "db_tables": [],
       "description": "Visual presentation helpers that show the owner what happened: the rewind timeline, the dial, charts, bead looks and artwork. It also covers evidence and the 'what you were not shown' computations. Pure view-model modules with tests feed the components.",
       "entry_points": [
-        "apps/desktop/client/src/windows/main/Rewind.tsx",
-        "apps/desktop/client/src/windows/main/displays.ts"
+        "apps/desktop/client/src/windows/main/displays.ts",
+        "apps/desktop/client/src/windows/main/console/areas/rewind/RewindLayer.tsx"
       ],
       "file_paths": [
         "apps/desktop/client/src/windows/main/rewind.test.ts",
@@ -2028,9 +2026,9 @@
       "db_tables": [],
       "description": "Safety sheet and first-run setup: the owner reviews safety status, pairs an engine at the pairing desk, signs mandates and sets spending limits. Circuit, pairing and limits models are pure and tested, and the views present them in plain words.",
       "entry_points": [
-        "apps/desktop/client/src/windows/main/safety/SafetySheet.tsx",
-        "apps/desktop/client/src/windows/main/setup/PairingDesk.tsx",
-        "apps/desktop/client/src/windows/main/setup/Mandates.tsx"
+        "apps/desktop/client/src/windows/main/console/areas/safety/SafetyLayer.tsx",
+        "apps/desktop/client/src/windows/main/console/areas/setup/SetupLayer.tsx",
+        "apps/desktop/client/src/windows/main/console/areas/connections/ConnectionsLayer.tsx"
       ],
       "file_paths": [
         "apps/desktop/client/src/windows/main/safety/model.ts",
@@ -2177,7 +2175,6 @@
         "apps/desktop/client/src/shared/ui/Disclosure.tsx",
         "apps/desktop/client/src/shared/ui/HoldGesture.tsx",
         "apps/desktop/client/src/shared/ui/Presence.tsx",
-        "apps/desktop/client/src/shared/ui/Stepper.tsx",
         "apps/desktop/client/src/shared/ui/SummaryCard.tsx",
         "apps/desktop/client/src/shared/ui/console.test.tsx",
         "apps/desktop/client/src/shared/ui/console.tsx",
@@ -2736,7 +2733,10 @@
       "cross_refs": [],
       "db_tables": [],
       "description": "The Rules and Settings areas of the main console: the read-only rules view over the signed mandate, settings frame, places, hand-off to the approval window, resume-after-lock, and the mandate-rule helpers and copy they share.",
-      "entry_points": [],
+      "entry_points": [
+        "apps/desktop/client/src/windows/main/console/areas/rules/RulesLayer.tsx",
+        "apps/desktop/client/src/windows/main/console/areas/settings/SettingsLayer.tsx"
+      ],
       "file_paths": [
         "apps/desktop/client/src/lib/mandateRules.test.ts",
         "apps/desktop/client/src/lib/mandateRules.ts",
