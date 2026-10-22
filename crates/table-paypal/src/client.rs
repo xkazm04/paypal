@@ -163,6 +163,15 @@ impl Client {
     ) -> Result<ApiResponse<Value>, Error> {
         let mut observations = Vec::new();
         let mut refreshed = false;
+        let request_id = id.map_or_else(String::new, |id| id.as_str().to_owned());
+        let observed = |status, body, binding| Observation {
+            method,
+            path: path.clone(),
+            request_id: request_id.clone(),
+            status,
+            body,
+            binding,
+        };
         for attempt in 0..ATTEMPTS {
             // A token that cannot be had after a request already reached the wire (a lost
             // answer, a 5xx, a 401) must not drop that request's evidence: the earlier
@@ -196,27 +205,13 @@ impl Client {
                 .await;
             let response = match response {
                 Ok(r) => r,
-                Err(_) if retry && attempt + 1 < ATTEMPTS => {
-                    observations.push(Observation {
-                        method,
-                        path: path.clone(),
-                        request_id: id.map_or_else(String::new, |i| i.as_str().into()),
-                        status: 0,
-                        body: Value::Null,
-                        binding: None,
-                    });
-                    self.backoff.wait(attempt).await;
-                    continue;
-                }
                 Err(_) => {
-                    observations.push(Observation {
-                        method,
-                        path: path.clone(),
-                        request_id: id.map_or_else(String::new, |i| i.as_str().into()),
-                        status: 0,
-                        body: Value::Null,
-                        binding: None,
-                    });
+                    // Status 0: the request may have reached PayPal; its answer did not arrive.
+                    observations.push(observed(0, Value::Null, None));
+                    if retry && attempt + 1 < ATTEMPTS {
+                        self.backoff.wait(attempt).await;
+                        continue;
+                    }
                     return Err(Error::Unknown { observations });
                 }
             };
@@ -225,14 +220,16 @@ impl Client {
             let binding = table_ledger::binding_projection(&response.body, &exposed);
             let sanitized = table_ledger::redact_paypal(&response.body, &exposed);
             drop(secrets);
-            observations.push(Observation {
-                method,
-                path: path.clone(),
-                request_id: id.map_or_else(String::new, |id| id.as_str().into()),
-                status: response.status,
-                body: sanitized.clone(),
-                binding,
-            });
+            let debug_id = sanitized
+                .get("debug_id")
+                .and_then(Value::as_str)
+                .filter(|s| {
+                    s.len() <= 128
+                        && s.bytes()
+                            .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
+                })
+                .map(str::to_owned);
+            observations.push(observed(response.status, sanitized, binding));
             if (200..300).contains(&response.status) {
                 return Ok(ApiResponse {
                     value: response.body,
@@ -249,15 +246,6 @@ impl Client {
                 self.backoff.wait(attempt).await;
                 continue;
             }
-            let debug_id = sanitized
-                .get("debug_id")
-                .and_then(Value::as_str)
-                .filter(|s| {
-                    s.len() <= 128
-                        && s.bytes()
-                            .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
-                })
-                .map(str::to_owned);
             return Err(Error::Api {
                 status: response.status,
                 debug_id,
