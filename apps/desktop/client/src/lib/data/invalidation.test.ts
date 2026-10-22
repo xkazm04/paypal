@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
 import { buildMockState } from '../../mock/fixtures';
 import { INVALIDATION, MAPPED_EVENTS, eventDealId, targetsFor } from './invalidation';
-import { WORLD_KEYS, keyOf } from './keys';
+import { PER_DEAL_COMMANDS, WORLD_KEYS, dealKey, keyOf } from './keys';
+import { EVENT_AUDIENCE } from '@bindings/authority';
 
 const deal: Deal = buildMockState(1_800_000_000).deals[0]!.deal;
 const keys = (ts: { key: readonly unknown[]; dealId?: string }[]) => ts.map((t) => JSON.stringify(t.dealId ? [...t.key, `@${t.dealId}`] : t.key));
@@ -43,6 +44,14 @@ describe('the event -> invalidation map', () => {
     expect(targetsFor('main:route', {} as never)).toEqual([]);
     expect([...MAPPED_EVENTS].sort()).toEqual(['agent:changed', 'attention:changed', 'deal:changed', 'receipt:created', 'settings:changed']);
     expect(Object.keys(INVALIDATION)).toHaveLength(5);
+  });
+
+  it('is derived, not hand-kept: a deal change reaches every per-deal read, and main hears every mapped event', () => {
+    const t = keys(targetsFor('deal:changed', { deal, mode: deal.mode }));
+    for (const cmd of PER_DEAL_COMMANDS) expect(t, cmd).toContain(JSON.stringify(dealKey(cmd, deal.id)));
+    // The map is applied only in the main window ('main' scope): an event Rust does not send there
+    // would make its rule dead code.
+    for (const e of MAPPED_EVENTS) expect(EVENT_AUDIENCE[e], e).toContain('main');
   });
 
   it('knows the deal of a ledger event, and of nothing else', () => {
