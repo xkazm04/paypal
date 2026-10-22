@@ -4,8 +4,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApprovalSummary } from '@bindings/ApprovalSummary';
 import { CHECK_FAILED, SUMMARY_CHANGED } from '../lib/words';
-import { mockBackend, resetMockState } from './backend';
-import { fakeUlid } from './fixtures';
+import { mockBackend, resetMockState, STORE_KEY } from './backend';
+import { buildMockState, fakeUlid } from './fixtures';
 
 const NOW = 1_800_000_000;
 function approvalFor(label: string) {
@@ -96,6 +96,22 @@ describe('mock approval checklist (parity with the wallet)', () => {
     a.world.deal('D-0176')!.deal.state = 'CAPTURED';
     const over = await a.invoke('approval_summary', { deal_id: fakeUlid('D-0193') });
     expect(line(over, 'mandate')).toMatchObject({ status: 'fail', text: 'Outside your rules: the daily limit.' });
+  });
+
+  it('offers the owner accept only when the rules allow it as MandatePayload::check does (category, deals a day)', async () => {
+    const id = fakeUlid('D-0193');
+    expect((await approvalFor('D-0193').invoke('approval_summary', { deal_id: id })).can_owner_accept).toBe(true);
+    // The table was opened for a category the sourcing rules do not allow (clause 3).
+    const world = buildMockState(NOW);
+    world.categories = { ...world.categories, [id]: 'compute' };
+    localStorage.setItem(STORE_KEY, JSON.stringify(world));
+    expect((await approvalFor('D-0193').invoke('approval_summary', { deal_id: id })).can_owner_accept).toBe(false);
+    // The day's deals under the rules are used up (clause 5: 12 a day).
+    const busy = buildMockState(NOW);
+    const m14 = busy.deals.find((d) => d.display.label === 'D-0187')!.deal;
+    for (let i = 0; i < 12; i++) busy.deals.push({ ...busy.deals.find((d) => d.display.label === 'D-0187')!, deal: { ...m14, id: `X-${i}`, terms: { ...m14.terms, unit_price: { minor: 1, currency: 'USD' } } } });
+    localStorage.setItem(STORE_KEY, JSON.stringify(busy));
+    expect((await approvalFor('D-0193').invoke('approval_summary', { deal_id: id })).can_owner_accept).toBe(false);
   });
 
   it('void is the safe direction and needs no checklist hash', async () => {
