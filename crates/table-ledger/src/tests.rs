@@ -160,6 +160,47 @@ fn migrations_are_transactional_idempotent_and_foreign_keys_enabled() {
         .unwrap();
     assert_eq!(fk, 1);
 }
+/// The migration chain is a hand-written list in `from_connection`; its ground truth is the
+/// `migrations/` directory. Every file there is numbered 0001..=SCHEMA_VERSION with no gap, and
+/// the open path includes each exactly once, in order, so a new file cannot ship un-run and a
+/// version bump cannot ship without its file.
+#[test]
+fn every_migration_file_is_run_once_in_order_up_to_the_schema_version() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
+    let mut files: Vec<String> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|name| name.ends_with(".sql"))
+        .collect();
+    files.sort();
+    let numbers: Vec<i64> = files
+        .iter()
+        .map(|name| name[..4].parse().unwrap())
+        .collect();
+    assert_eq!(
+        numbers,
+        (1..=SCHEMA_VERSION).collect::<Vec<_>>(),
+        "{files:?}"
+    );
+    let source = include_str!("lib.rs");
+    let code: String = source
+        .lines()
+        .map(|line| line.split("//").next().unwrap_or(""))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let included: Vec<&str> = code
+        .split("include_str!(\"../migrations/")
+        .skip(1)
+        .filter_map(|part| part.split('"').next())
+        .collect();
+    assert_eq!(included, files);
+    let ledger = Ledger::in_memory().unwrap();
+    let version: i64 = ledger
+        .conn
+        .query_row("PRAGMA user_version", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(version, SCHEMA_VERSION);
+}
 #[test]
 fn client_migration_preserves_timestamps_and_labels_survive_older_imports() {
     let (ledger, deal, _, _, _) = setup();
