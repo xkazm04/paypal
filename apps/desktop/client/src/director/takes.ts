@@ -333,7 +333,7 @@ export function expectedDeals(expect: Readonly<Record<string, readonly Expect[]>
   return [...out];
 }
 
-/** The lines of The Table's charter (windows/main/setup/Charter.tsx, `SETUP_STEPS`), in order. */
+/** The lines of The Table's charter (windows/main/setup/Charter.tsx draws `SETUP_STEPS`, windows/main/logic.ts), in order. */
 export const CHARTER_LINES = ['keys', 'rules', 'practice', 'agent', 'unlock'] as const;
 /** A charter line as the getting-started step it stands for (the unlock line stands for none). */
 const CHARTER_STEP: Readonly<Record<(typeof CHARTER_LINES)[number], StartStepKey | null>> = { keys: 'paypal', rules: 'rules', practice: 'practice', agent: 'engine', unlock: null };
@@ -521,20 +521,21 @@ export function deskTransform(m: { a: number; e: number; f: number } | null): De
   return m ? { tx: m.e, ty: m.f, s: m.a } : { tx: 0, ty: 0, s: 1 };
 }
 
+/** The grey level of the film capture's corner sync mark for beat `index`. The recorder's video
+ *  drifts behind the wall clock (seconds over a long take), so film-capture.mjs reads this mark off
+ *  the video to find where each beat really starts. 20 levels 9 apart from 48 up survive h264 and
+ *  stay clear of video black (16), which a loading page shows; beats a full cycle apart share a
+ *  level, which is safe because the reader searches forward from where the previous beat's mark
+ *  ended (retime.ts alignMarks). */
+export function syncShade(index: number): number {
+  return 48 + (((index % 20) + 20) % 20) * 9;
+}
+
 /**
  * A rectangle inside a framed window (its own viewport pixels) in page pixels of the recorded
  * viewport: through the frame's place on the desk (`frame`, desk pixels, untransformed), the desk's
  * transform, and where the desk's box starts on the page (`origin`, the stage's top-left).
  */
-/** The grey level of the film capture's corner sync mark for beat `index`. The recorder's video
- *  drifts behind the wall clock (seconds over a long take), so film-capture.mjs reads this mark off
- *  the video to find where each beat really starts. 20 levels 9 apart from 48 up survive h264 and
- *  stay clear of video black (16), which a loading page shows; beats a full cycle apart share a
- *  level, which is safe because the reader searches forward in beat order. */
-export function syncShade(index: number): number {
-  return 48 + (((index % 20) + 20) % 20) * 9;
-}
-
 export function stageRect(local: PxRect, frame: { x: number; y: number }, desk: DeskTransform, origin: { x: number; y: number }): PxRect {
   const r = (n: number) => Math.round(n * 100) / 100;
   return {
