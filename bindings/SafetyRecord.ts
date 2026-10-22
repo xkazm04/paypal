@@ -50,4 +50,9 @@ refused_deals: number, refused_deal_calls: number,
  * Every break of the invariant found (must be empty), at most `SAFETY_VIOLATIONS` of them;
  * `violations_total` counts them all.
  */
-violations: Array<SafetyViolation>, violations_total: number, };
+violations: Array<SafetyViolation>, violations_total: number, 
+/**
+ * Refusal-trail gaps since the wallet started: refusals over the audit rate cap that were
+ * counted but not written, and refusals whose audit write failed.
+ */
+unrecorded_refusals: number, refusal_write_failures: number, };

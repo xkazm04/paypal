@@ -189,6 +189,10 @@ pub struct SafetyRecord {
     /// `violations_total` counts them all.
     pub violations: Vec<SafetyViolation>,
     pub violations_total: u32,
+    /// Refusal-trail gaps since the wallet started: refusals over the audit rate cap that were
+    /// counted but not written, and refusals whose audit write failed.
+    pub unrecorded_refusals: u64,
+    pub refusal_write_failures: u64,
 }
 /// Deals the safety record checks at most (the newest); `deals_checked` says how many it did.
 pub const SAFETY_DEALS: u32 = 1000;

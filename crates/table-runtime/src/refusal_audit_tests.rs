@@ -96,3 +96,24 @@ async fn a_probe_loop_is_bounded_and_the_overflow_is_counted() {
     assert_eq!(refusal_rows(&r).len(), 60);
     assert_eq!(r.refusals.unrecorded, 140);
 }
+
+/// A probe loop past the per-window cap leaves a gap in the trail; the safety record reports it.
+#[tokio::test]
+async fn the_safety_record_reports_refusals_the_trail_did_not_keep() {
+    let (mut r, ..) = runtime(true);
+    let token = r.pipeline.approval.token("approval").unwrap().to_owned();
+    for _ in 0..61 {
+        r.execute(caller("main", Some(&token)), revoke())
+            .await
+            .unwrap_err();
+    }
+    let record: SafetyRecord = serde_json::from_value(
+        r.execute(caller("main", None), Action::SafetyRecord)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(refusal_rows(&r).len(), 60);
+    assert_eq!(record.unrecorded_refusals, 1);
+    assert_eq!(record.refusal_write_failures, 0);
+}

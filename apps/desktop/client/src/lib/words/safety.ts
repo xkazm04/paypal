@@ -46,6 +46,10 @@ export const SAFETY_VIEW = {
   refused: 'Why your agents were refused',
   refusedSub: 'Every refusal happened before PayPal was asked.',
   refusedNone: 'Your agents haven’t been refused anything.',
+  /** Refusals the wallet counted but did not write to your record (too many in one minute), since it started. */
+  refusalsSkipped: (n: string): string => `${n} more ${n === '1' ? 'refusal was' : 'refusals were'} not written to your record: too many came in one minute. Counted since your wallet started.`,
+  /** Refusals the wallet tried to write to your record and could not. */
+  refusalsLost: (n: string): string => `${n} ${n === '1' ? 'refusal' : 'refusals'} could not be written to your record. Counted since your wallet started.`,
   details: 'The record itself',
   detailsSub: 'How the wallet checked it, for anyone who wants the proof.',
   records: 'Records',

@@ -154,9 +154,24 @@ export function SafetyWho({ record: r }: { record: SafetyRecord }) {
   );
 }
 
+/** The refusals the record's trail did not keep, in plain words (empty when it kept them all). */
+export function refusalGaps(r: SafetyRecord): string[] {
+  return [
+    r.unrecorded_refusals > 0 ? SAFETY_VIEW.refusalsSkipped(count(r.unrecorded_refusals)) : '',
+    r.refusal_write_failures > 0 ? SAFETY_VIEW.refusalsLost(count(r.refusal_write_failures)) : '',
+  ].filter(Boolean);
+}
+
 export function SafetyRefusals({ record: r }: { record: SafetyRecord }) {
-  if (!r.refusal_families.length) return <p className="dim">{SAFETY_VIEW.refusedNone}</p>;
-  return <Kv className="sf-fam" items={r.refusal_families.map((f) => [FAMILY_WORDS[f.family], plural(f.count, 'time', 'times')] as const)} />;
+  const gaps = refusalGaps(r);
+  return (
+    <>
+      {r.refusal_families.length
+        ? <Kv className="sf-fam" items={r.refusal_families.map((f) => [FAMILY_WORDS[f.family], plural(f.count, 'time', 'times')] as const)} />
+        : <p className="dim">{SAFETY_VIEW.refusedNone}</p>}
+      {gaps.map((g) => <p key={g} className="ui-hint">{g}</p>)}
+    </>
+  );
 }
 
 /** The record itself: the chain, its head, the counts, and the precise findings. */
@@ -170,7 +185,7 @@ export function SafetyDetails({ record: r, dealName, onDeal }: { record: SafetyR
         r.head ? [SAFETY_VIEW.latest, <span key="h" className="mono sf-head" title={SAFETY_VIEW.latestTitle}>{headGroups(r.head).join(' ')}</span>] : null,
         ...counted,
       ]} />
-      {r.refusal_families.length ? (
+      {r.refusal_families.length || refusalGaps(r).length ? (
         <>
           <h3 className="cs-h3">{SAFETY_VIEW.refused}</h3>
           <SafetyRefusals record={r} />
