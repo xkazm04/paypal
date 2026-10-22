@@ -81,6 +81,9 @@ impl Runtime {
     pub(crate) fn relay_finished(&mut self, deliveries: Vec<Delivery>) -> Result<(), CommandError> {
         self.relay_busy = false;
         let mut failure = false;
+        // The first ledger fault is kept and returned after the pass: one deal's fault must not
+        // drop the other deliveries' staging and acknowledgements or skip the inbox and backoff.
+        let mut fault: Option<CommandError> = None;
         for delivery in deliveries {
             failure |= delivery.failed;
             let mut refused = false;
@@ -98,27 +101,39 @@ impl Runtime {
                         refused = true;
                         break;
                     }
-                    Err(e) => return app(Err(e)),
+                    Err(e) => {
+                        fault.get_or_insert_with(|| table_app::Error::from(e).into());
+                        refused = true;
+                        break;
+                    }
                 }
             }
             if refused {
                 continue;
             }
             for (generation, hash) in delivery.acknowledgements {
-                app(self
-                    .pipeline
-                    .wallet
-                    .ledger
-                    .acknowledge_relay(delivery.id, &generation, hash))?;
+                if let Err(e) = app(self.pipeline.wallet.ledger.acknowledge_relay(
+                    delivery.id,
+                    &generation,
+                    hash,
+                )) {
+                    fault.get_or_insert(e);
+                }
             }
         }
-        self.consume_inbox()?;
-        if failure {
+        let inbox = self.consume_inbox();
+        if failure || fault.is_some() {
             self.relay_failures = self.relay_failures.saturating_add(1).min(5);
             self.relay_retry_at = self
                 .clock
                 .now()
                 .saturating_add(1_i64 << self.relay_failures);
+        }
+        if let Some(fault) = fault {
+            return Err(fault);
+        }
+        inbox?;
+        if failure {
             return Err(unavailable("Table paused; relay delivery will retry"));
         }
         self.relay_failures = 0;
