@@ -619,6 +619,40 @@ async fn no_rule_sends_a_rescue_invoice_even_under_the_owners_presence_threshold
     assert_eq!(r.calls(id), 0);
 }
 
+/// A fix the scam shield holds is refused like every other money step: before any write or
+/// PayPal call, with one `shield.refused` row naming the step, the verdict and the owner's
+/// decision it refused, and no second row for the same refusal again.
+#[tokio::test]
+async fn a_held_fix_is_refused_with_its_shield_row_before_any_invoice() {
+    let mut r = rig();
+    let id = r.open(1, RescueSource::Paypal).id;
+    r.p.wallet
+        .ledger
+        .raise_shield(id, ShieldVerdict::Hold, T0)
+        .unwrap();
+    let refused = |r: &Rig| {
+        let (rows, _) = r.p.wallet.ledger.audit_page(None, 1000).unwrap();
+        rows.into_iter()
+            .filter(|row| row.deal_id == Some(id) && row.action == "shield.refused")
+            .collect::<Vec<_>>()
+    };
+    for at in [T0 + 10, T0 + 20] {
+        assert!(matches!(
+            r.approve(id, at).await,
+            Err(table_app::Error::Permission)
+        ));
+    }
+    let rows = refused(&r);
+    assert_eq!(rows.len(), 1, "{rows:?}");
+    assert_eq!(rows[0].detail["step"], "create");
+    assert_eq!(rows[0].detail["verdict"], "HOLD");
+    assert!(r.posts().is_empty());
+    assert_eq!(r.calls(id), 0);
+    assert!(!r.p.wallet.ledger.has_countersign(id, 1).unwrap());
+    assert_eq!(r.state(id), DealState::Agreed);
+    r.p.wallet.ledger.verify_audit().unwrap();
+}
+
 #[tokio::test]
 async fn a_lost_create_is_found_by_its_number_and_never_made_twice() {
     let mut r = rig();
