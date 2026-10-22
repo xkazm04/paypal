@@ -284,19 +284,26 @@ pub fn relay_router(store: Arc<MemoryStore>) -> Router {
         .layer(DefaultBodyLimit::max(table_relay::MAX_MESSAGE_BYTES))
         .with_state(store)
 }
+/// The answer the HTTP client would read for this store error: 429 is `Full`, a missing mailbox
+/// (404) is a plain refusal, a bad request stays `Invalid`. Nothing here is an outage.
+fn relayed(e: Error) -> table_relay::Error {
+    match e {
+        Error::Full => table_relay::Error::Full,
+        Error::Missing => table_relay::Error::Refused(table_relay::Refusal::Other),
+        Error::Invalid => table_relay::Error::Invalid,
+    }
+}
 /// Co-hosted house uses the same mailbox contract without making loopback HTTP requests.
 #[async_trait]
 impl table_relay::RelayApi for MemoryStore {
     async fn create(&self, hash: table_core::H256) -> Result<(), table_relay::Error> {
-        Mailbox::create(self, &hash.hex())
-            .await
-            .map_err(|_| table_relay::Error::Unavailable)
+        Mailbox::create(self, &hash.hex()).await.map_err(relayed)
     }
     async fn send(&self, hash: table_core::H256, jws: &str) -> Result<(), table_relay::Error> {
         Mailbox::send(self, &hash.hex(), jws.into())
             .await
             .map(|_| ())
-            .map_err(|_| table_relay::Error::Unavailable)
+            .map_err(relayed)
     }
     async fn poll(
         &self,
@@ -305,12 +312,16 @@ impl table_relay::RelayApi for MemoryStore {
         after: u64,
         wait: u8,
     ) -> Result<table_relay::Batch, table_relay::Error> {
-        if wait > table_relay::MAX_WAIT_SECS {
+        // The same bounds the `/sync` route applies before it reads.
+        if wait > table_relay::MAX_WAIT_SECS
+            || after > table_relay::MAX_MESSAGES as u64
+            || generation.len() > 32
+        {
             return Err(table_relay::Error::Invalid);
         }
         self.batch(&hash.hex(), generation, after)
             .await
-            .map_err(|_| table_relay::Error::Unavailable)
+            .map_err(relayed)
     }
 }
 async fn create(

@@ -354,3 +354,30 @@ fn the_proxy_hop_setting_is_a_small_whole_number_or_startup_fails() {
         assert!(proxy_hops(Some(bad)).is_err(), "{bad}");
     }
 }
+#[tokio::test]
+async fn the_in_process_relay_answers_like_the_http_client_reads_it() {
+    use table_relay::{Error as Wire, Refusal, RelayApi};
+    let s = MemoryStore::new(Arc::new(table_core::FixedClock(0)));
+    for n in 0..MAX_MAILBOXES {
+        Mailbox::create(&s, &hash(n)).await.unwrap();
+    }
+    let new = table_core::H256::digest(b"one more");
+    // 429 on the wire is `Full`, so a full store is not an outage to the HOUSE or a wallet's test.
+    assert!(matches!(RelayApi::create(&s, new).await, Err(Wire::Full)));
+    // A mailbox that is not there is a 404, which the client reads as a plain refusal.
+    let missing = table_core::H256::digest(b"missing");
+    assert!(matches!(
+        RelayApi::send(&s, missing, "a.b.c").await,
+        Err(Wire::Refused(Refusal::Other))
+    ));
+    // `/sync` bounds the cursor and the generation before reading; so does this.
+    let known = table_core::H256::digest(b"known");
+    let (known_hex, bound) = (known.hex(), table_relay::MAX_MESSAGES as u64);
+    let t = MemoryStore::new(Arc::new(table_core::FixedClock(0)));
+    Mailbox::create(&t, &known_hex).await.unwrap();
+    assert!(matches!(
+        RelayApi::poll(&t, known, "", bound + 1, 0).await,
+        Err(Wire::Invalid)
+    ));
+    assert!(RelayApi::poll(&t, known, "", 0, 0).await.is_ok());
+}
