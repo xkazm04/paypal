@@ -38,6 +38,28 @@ describe('tokens keep every v2 name', () => {
   });
 });
 
+describe('every token is read', () => {
+  // A token nothing reads is a decision nobody made: its value drifts from the code it names (a
+  // toast dwell of 3600 ms beside a TOAST_MS of 5200). Scale steps kept so the scale stays whole,
+  // and names a test pins, are the only ones allowed to sit unread.
+  const SCALE_OR_PINNED = ['accent', 'dur-instant', 'fs-micro', 'hold-ms', 'sp-0', 'sp-10', 'sp-16', 'well'];
+  const files = (dir: string): string[] => readdirSync(dir).flatMap((f) => {
+    const p = join(dir, f);
+    if (statSync(p).isDirectory()) return files(p);
+    return /\.(css|tsx?)$/.test(f) && !/\.test\.tsx?$/.test(f) ? [p] : [];
+  });
+  it('no token is declared that no style, component or token reads', () => {
+    const declared = new Set([...css.matchAll(/(?:^|[\s;{])--([a-z0-9-]+)\s*:/g)].map((m) => m[1] ?? ''));
+    const read = new Set<string>();
+    for (const f of [...files(root('src')), root('index.html'), root('approval.html'), root('tumbler.html'), root('director.html')]) {
+      if (!existsSync(f)) continue;
+      for (const m of readFileSync(f, 'utf8').matchAll(/var\(--([a-z0-9-]+)/g)) read.add(m[1] ?? '');
+    }
+    const unread = [...declared].filter((n) => !read.has(n) && !SCALE_OR_PINNED.includes(n)).sort();
+    expect(unread).toEqual([]);
+  });
+});
+
 describe('type and targets', () => {
   it('body is 14px and nothing a person reads is under 12px', () => {
     expect(decl('fs-body')).toBe('14px');

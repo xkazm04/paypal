@@ -41,9 +41,8 @@
   --panel: #111821; --panel2: #17202b; --panel3: #1e2936;
   --line: #1f2b38; --line2: #2e3d4f;
   --text: #e4ecf3; --muted: #a9b7c5; --dim: #8796a7; --steel: #b7c6d4; --market: #cdd8e2;
-  --micro: #6f8396;   /* microprint and scale numerals: decoration only, never text a person must read */
   --teal: #3cc4b6; --teal-l: #82e6db; --coral: #ff8f6b; --coral-l: #ffb59d;
-  --gold: #e4b95b; --gold-l: #f2d48f; --gold-d: #b98d32; --foil-d: #6e5420;
+  --gold: #e4b95b; --gold-l: #f2d48f; --gold-d: #b98d32;
   --refuse: #f2676b; --red-l: #ff9598; --ok: #72dc96;
   --on-gold: #1c1404; --on-teal: #06201d; --on-refuse: #2a0b0b; --on-ok: #0b2414;
   --replay: #8a4fd0; --on-replay: #ffffff;
@@ -52,9 +51,9 @@
   --signal: var(--teal);
   /* sheets: the calibrated plate and the pile under it */
   --sheet: #111922; --sheet-hi: #16212c; --sheet-lo: #0e151d; --pile-hi: #131b25; --pile-edge: #243243;
-  --tab: #111922; --tab-mix: #15202b; --tab-lo: #101821; --tab-on: #172330;
+  --tab-mix: #15202b; --tab-lo: #101821; --tab-on: #172330;
   --disc: #0b1117; --well: #0a0f15; --toolbar: #121a23; --quar: #0d1218;
-  --ink-0: #06090d; --shadow-ink: #000000; --hi: #ffffff; --ink-max: #f4f8fb;
+  --ink-0: #06090d; --shadow-ink: #000000; --hi: #ffffff;
   --seal: #b7c6d4;
   /* the brand's own: the graticule ink, the vignette */
   --grat: color-mix(in srgb, var(--steel) 7%, transparent);
@@ -132,9 +131,6 @@
   --dur-instant: 80ms; --dur-fast: 120ms; --dur-med: 200ms; --dur-slow: 380ms; --dur-sheet: 460ms;
   --t-fast: var(--dur-fast); --t-med: var(--dur-med);
   --hold-ms: 1200ms;          /* hold the seal to confirm */
-  --seal-settle-ms: 460ms;    /* the sealed state shows this long before onComplete */
-  --readout-ms: 900ms;        /* a decision readout lights in */
-  --toast-ms: 3600ms;
   --sweep-quiet: 54s; --sweep: 18s; --sweep-needs: 9s;   /* the seal's signal sweep */
   /* stacking: content < app frame < sheets < popovers < toasts */
   --z-app: 20; --z-scrim: 8000; --z-sheet: 8001; --z-popover: 8500; --z-tip: 9000; --z-toast: 9500;
@@ -151,16 +147,15 @@
   --panel: #f4f7f9; --panel2: #e8edf1; --panel3: #dde4ea;
   --line: #c9d3dc; --line2: #a7b5c3;
   --text: #0e1923; --muted: #364554; --dim: #46556a; --steel: #44566a; --market: #2f4153;
-  --micro: #7d8d9d;
   --teal: #0a7169; --teal-l: #075f58; --coral: #ad4422; --coral-l: #923518;
-  --gold: #80600f; --gold-l: #644a06; --gold-d: #5c4508; --foil-d: #b58a2c;
+  --gold: #80600f; --gold-l: #644a06; --gold-d: #5c4508;
   --refuse: #b83236; --red-l: #9a2629; --ok: #0f5f31;
   --on-gold: #ffffff; --on-teal: #ffffff; --on-refuse: #ffffff; --on-ok: #ffffff;
   --replay: #7038c0; --on-replay: #ffffff;
   --sheet: #f7f9fb; --sheet-hi: #ffffff; --sheet-lo: #eef2f5; --pile-hi: #eef2f5; --pile-edge: #b8c4cf;
-  --tab: #eef2f5; --tab-mix: #e8edf2; --tab-lo: #edf1f4; --tab-on: #f7f9fb;
+  --tab-mix: #e8edf2; --tab-lo: #edf1f4; --tab-on: #f7f9fb;
   --disc: #f3f6f8; --well: #ffffff; --toolbar: #f6f8fa; --quar: #fbf4f0;
-  --ink-0: #1a2531; --shadow-ink: #2a3a4c; --hi: #ffffff; --ink-max: #050d16;
+  --ink-0: #1a2531; --shadow-ink: #2a3a4c; --hi: #ffffff;
   --seal: #44566a;
   --grat: color-mix(in srgb, var(--steel) 9%, transparent);
   --grat-major: color-mix(in srgb, var(--steel) 15%, transparent);
