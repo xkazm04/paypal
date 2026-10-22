@@ -4,18 +4,18 @@
 
 body.w-director { margin: 0; overflow: hidden; background: var(--stage); }
 :root {
-  --stage: #07090c;
+  --stage: var(--bg-deep);
   --stage-glow-a: color-mix(in srgb, var(--teal) 14%, transparent);
   --stage-glow-b: color-mix(in srgb, var(--gold) 7%, transparent);
-  --win-shadow: 0 50px 110px rgba(0, 0, 0, .55), 0 18px 40px rgba(0, 0, 0, .38), 0 0 0 1px rgba(255, 255, 255, .07);
-  --rail: color-mix(in srgb, #0b0e12 88%, transparent);
+  --win-shadow: 0 50px 110px color-mix(in srgb, var(--shadow-ink) 55%, transparent), 0 18px 40px color-mix(in srgb, var(--shadow-ink) 38%, transparent), 0 0 0 1px color-mix(in srgb, var(--hi) 7%, transparent);
+  --rail: color-mix(in srgb, var(--bg-deep) 88%, transparent);
 }
 :root[data-theme="light"] {
-  --stage: #dfe5ee;
+  --stage: var(--bg);
   --stage-glow-a: color-mix(in srgb, var(--pp-sky) 18%, transparent);
   --stage-glow-b: color-mix(in srgb, var(--pp-gold) 16%, transparent);
-  --win-shadow: 0 50px 110px rgba(14, 27, 54, .22), 0 16px 36px rgba(14, 27, 54, .16), 0 0 0 1px rgba(14, 27, 54, .10);
-  --rail: color-mix(in srgb, #ffffff 86%, transparent);
+  --win-shadow: 0 50px 110px color-mix(in srgb, var(--shadow-ink) 22%, transparent), 0 16px 36px color-mix(in srgb, var(--shadow-ink) 16%, transparent), 0 0 0 1px color-mix(in srgb, var(--shadow-ink) 10%, transparent);
+  --rail: color-mix(in srgb, var(--hi) 86%, transparent);
 }
 
 .dir { height: 100vh; min-height: 560px; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; color: var(--text);
@@ -33,7 +33,7 @@ body.w-director { margin: 0; overflow: hidden; background: var(--stage); }
   background:
     radial-gradient(60% 70% at 82% 18%, var(--stage-glow-a), transparent 70%),
     radial-gradient(50% 60% at 8% 92%, var(--stage-glow-b), transparent 70%),
-    radial-gradient(120% 120% at 50% 40%, transparent 55%, rgba(0, 0, 0, .35)),
+    radial-gradient(120% 120% at 50% 40%, transparent 55%, color-mix(in srgb, var(--shadow-ink) 35%, transparent)),
     var(--stage); }
 :root[data-theme="light"] .dir-stage { background:
     radial-gradient(60% 70% at 82% 18%, var(--stage-glow-a), transparent 70%),
@@ -50,14 +50,12 @@ body.w-director { margin: 0; overflow: hidden; background: var(--stage); }
 .dir-win iframe { display: block; flex: none; border: 0; background: var(--bg); }
 .dir-win.w-approval { z-index: 2; }
 
-.dir-bar { flex: none; display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; background: #161b21; color: #b6bec8;
-  border-bottom: 1px solid #262d36; font: var(--fw-regular) 12px/1 var(--font); user-select: none; }
-/* every frame's bar follows the theme: since the console rebuild the approval window does too */
-:root[data-theme="light"] .dir-bar { background: #eef1f6; color: #3f4d66; border-bottom-color: #dfe4eb; }
+.dir-bar { flex: none; display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; background: var(--panel2); color: var(--steel);
+  border-bottom: 1px solid var(--line); font: var(--fw-regular) 12px/1 var(--font); user-select: none; }
+/* every frame's bar follows the theme through the tokens: since the console rebuild the approval window does too */
 .dir-bar b { font-weight: var(--fw-semibold); color: inherit; }
 .dir-bar-ic { width: 12px; height: 12px; border-radius: 3px; background: linear-gradient(135deg, var(--teal), var(--gold)); }
-.dir-bar-note { color: #8e98a4; }
-:root[data-theme="light"] .dir-bar-note { color: #56627a; }
+.dir-bar-note { color: var(--dim); }
 .dir-bar-note::before { content: "·"; margin-right: 8px; }
 .dir-bar-wc { margin-left: auto; display: flex; gap: 18px; opacity: .55; }
 .dir-bar-wc i { position: relative; width: 10px; height: 10px; }
@@ -101,7 +99,7 @@ body.w-director { margin: 0; overflow: hidden; background: var(--stage); }
 .dir-btn:hover:not(:disabled) { background: var(--panel3); }
 .dir-btn:active:not(:disabled) { transform: scale(.96); }
 .dir-btn:disabled { opacity: .35; cursor: default; }
-.dir-btn.play { width: 48px; height: 48px; border: 0; background: var(--text); color: var(--bg); box-shadow: 0 6px 18px rgba(0, 0, 0, .3); }
+.dir-btn.play { width: 48px; height: 48px; border: 0; background: var(--text); color: var(--bg); box-shadow: 0 6px 18px color-mix(in srgb, var(--shadow-ink) 30%, transparent); }
 .dir-btn.play:hover:not(:disabled) { background: color-mix(in srgb, var(--text) 88%, var(--teal)); }
 .dir-btn:focus-visible { outline-offset: 3px; border-radius: 50%; }
 .dir-opts { display: flex; gap: 6px; }
