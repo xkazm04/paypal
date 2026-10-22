@@ -154,6 +154,8 @@ pub struct Runtime {
     pub(crate) emitted: Vec<crate::WalletEvent>,
     /// When each engine executable was probed this session.
     pub(crate) engine_probed_at: Vec<(table_engine::EngineId, i64)>,
+    /// Native engines whose workspace could not be made, so `engine_info` tells the true reason.
+    pub(crate) engine_workspace_failed: Vec<table_engine::EngineId>,
     /// The transcript head each deal's last policy run was armed for: one run per peer message.
     pub(crate) armed: BTreeMap<DealId, H256>,
     /// The house's signed record kept beside HOUSE receipts (T9).
@@ -302,6 +304,7 @@ impl Runtime {
             secondary: None,
             emitted: Vec::new(),
             engine_probed_at: Vec::new(),
+            engine_workspace_failed: Vec::new(),
             armed: BTreeMap::new(),
             witness: crate::witness::Witness::default(),
             refusals: crate::dispatcher::RefusalLog::default(),

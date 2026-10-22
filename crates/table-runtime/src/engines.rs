@@ -94,21 +94,32 @@ impl Runtime {
         self.attach_scripted()?;
         for id in [EngineId::ClaudeCode, EngineId::CodexCli] {
             if let Ok(executable) = resolve_command(id, &search_paths()) {
-                let engine = Arc::new(
-                    NativeEngine::new(id, executable, root.clone(), RunLimits::default())
-                        .map_err(|_| unavailable("Engine workspace unavailable"))?,
-                );
-                let info = engine.probe().await.unwrap_or(EngineInfo {
-                    id,
-                    available: false,
-                    version: None,
-                    reason: Some("Engine version probe failed".into()),
-                });
-                self.engine_probed_at.push((id, self.clock.now()));
-                self.engines.push((engine, info));
+                self.attach_engine(id, executable, root.clone()).await;
             }
         }
         Ok(())
+    }
+    /// Attaches one native engine on its own: a workspace that cannot be made leaves that engine
+    /// unavailable with the true reason and never stops the other engine being attached.
+    pub(crate) async fn attach_engine(
+        &mut self,
+        id: EngineId,
+        executable: Executable,
+        root: PathBuf,
+    ) {
+        let Ok(engine) = NativeEngine::new(id, executable, root, RunLimits::default()) else {
+            self.engine_workspace_failed.push(id);
+            return;
+        };
+        let engine = Arc::new(engine);
+        let info = engine.probe().await.unwrap_or(EngineInfo {
+            id,
+            available: false,
+            version: None,
+            reason: Some("Engine version probe failed".into()),
+        });
+        self.engine_probed_at.push((id, self.clock.now()));
+        self.engines.push((engine, info));
     }
     pub(crate) fn attach_scripted(&mut self) -> Result<(), CommandError> {
         if self.engines.iter().any(|(_, i)| i.id == EngineId::Scripted) {
@@ -147,7 +158,14 @@ impl Runtime {
                             id,
                             available: false,
                             version: None,
-                            reason: Some("Executable not resolved".into()),
+                            reason: Some(
+                                if self.engine_workspace_failed.contains(&id) {
+                                    "Engine workspace unavailable"
+                                } else {
+                                    "Executable not resolved"
+                                }
+                                .into(),
+                            ),
                         })
                 })
                 .collect(),
