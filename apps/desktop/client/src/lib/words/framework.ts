@@ -150,3 +150,93 @@ export const CRUMBS_MORE = {
   /** The menu's heading. */
   menu: 'Go back up to',
 } as const;
+
+// The main window shell's words that were inline in Shortcuts.tsx, Status.tsx, QuitSheet.tsx,
+// paletteCopy.ts and Find.tsx (scan-sweep, byte-identical). windows/main/shellWords.test.ts guards them.
+
+/** The shortcuts sheet: each group's title and its keys (a '…' key draws a dash between two). */
+export const SHORTCUT_GROUPS: readonly { title: string; keys: readonly (readonly [readonly string[], string])[] }[] = [
+  { title: 'Everywhere', keys: [
+    [['/'], 'Find a deal, a person or a place (also Ctrl K)'],
+    [['Esc'], 'Back one level, or close what is open'],
+    [['1', '…', '6'], 'Jump to Tables, Spend, Counter, Book, Shield, Rescue'],
+    [['?'], 'Show this list'],
+  ] },
+  { title: 'Lists', keys: [
+    [['↑', '↓'], 'Move along a list (also Page Up/Down, Home, End)'],
+    [['Enter'], 'Open the deal of the row you are on'],
+  ] },
+  { title: 'What needs you', keys: [
+    [['←', '→'], 'Previous or next decision'],
+    [['Enter'], 'On the gold button: open the approval window, where money is decided'],
+  ] },
+  { title: 'Rewind', keys: [
+    [['Space'], 'Play or pause the week'],
+    [['←', '→'], 'Move the playhead an hour (Shift: a day)'],
+  ] },
+  { title: 'Tables', keys: [
+    [['↑', '↓'], 'Move your price limit (Shift: 5 steps, Page Up/Down: 10)'],
+  ] },
+  { title: 'Counter', keys: [
+    [['↑', '↓'], 'Change the lowest price by 1 (Shift: 10)'],
+    [['Ctrl', 'Enter'], 'Review your changes'],
+  ] },
+  { title: 'Rescue', keys: [
+    [['←', '→'], 'Choose a fix (↑ ↓ too)'],
+    [['0', '…', '4'], 'Choose a fix by its number (0: do nothing)'],
+  ] },
+];
+export const SHORTCUTS_TRIAL_NOTE = 'A new layout on trial. Switch one off to see that screen as it was before.';
+
+/** The footer's agent app chip: its label and its tooltip, by what is known. */
+export const ENGINE_CHIP = {
+  statusUnknown: 'Agent app status unknown',
+  checking: 'Checking agent app…',
+  none: 'No agent app',
+  practiceReady: 'Practice agent ready',
+  ready: 'Agent app ready',
+  notConnected: 'Agent app not connected',
+  settingsUnread: 'Your settings couldn’t be read just now. Opens Settings.',
+  checkingTitle: 'Checking the agent app',
+  unchecked: 'The agent app couldn’t be checked just now. Opens Settings.',
+  isReady: (id: string, version: string | null | undefined): string => `${id}${version ? ` ${version}` : ''} is ready. Opens Settings.`,
+  isNotConnected: (id: string, why: string | null): string => `${id} is not connected${why ? `: ${why}` : ''}. Opens Settings.`,
+  pick: 'No agent app chosen: open Settings to pick one',
+} as const;
+
+/** The footer's agents chip. */
+export const AGENTS_CHIP = {
+  checking: 'Agents: checking…',
+  unknown: 'Agents: status unknown',
+  paused: 'Agents paused',
+  working: (n: number): string => `${n} agent${n === 1 ? '' : 's'} working`,
+  idle: 'Agents idle',
+  checkingTitle: 'Checking what your agents are doing',
+  unreadTitle: 'What your agents are doing couldn’t be read just now. Opens Settings.',
+  pausedTitle: 'All agents are paused. Deadlines and their safe defaults still run; nothing new starts.',
+  workingTitle: 'Agents working on deals right now (at most four, one per deal)',
+} as const;
+
+/** The quit sheet's lines other than Rust's own (QUIT_SHEET above holds its title and Keep). */
+export const QUIT_SHEET_LINES = {
+  quit: 'Quit The Table',
+  closing: 'The Table is closing. The wallet stops now.',
+  checking: 'Checking your open deals…',
+  changed: 'Something changed since this opened. Check the list again before you quit.',
+  unknown: 'What each deal does while The Table is off couldn’t be checked just now.',
+} as const;
+
+/** The empty Find: what was typed, and what is worth trying. */
+export const FIND_NO_MATCH = {
+  typed: (q: string): string => `Nothing matches “${q}”. Try a shop name, an item or a page like Book.`,
+  empty: 'Nothing to show yet.',
+} as const;
+
+/** Find's places that are not in PLACE_FIND_SUB. */
+export const FIND_PLACE_SUB = {
+  centre: 'the decision centre',
+  waiting: 'every decision that waits for you',
+  setup: 'your keys, your rules and a practice deal, one step at a time',
+  quit: 'stops the wallet · see what waits first',
+} as const;
+export const FIND_QUIT_TITLE = 'Quit The Table';
