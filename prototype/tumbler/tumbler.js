@@ -536,7 +536,7 @@
     const A = S.approval; if (!A) return;
     const it = item(A.id), d = deal(A.id);
     const mk = F.market[d.ref];
-    const pct = v => { if (!mk) return ''; const p = v <= mk.median ? 25 + (v - mk.p25) / (mk.median - mk.p25) * 25 : 50 + (v - mk.median) / (mk.p75 - mk.median) * 25; return 'p' + Math.round(p); };
+    const pct = v => { if (!mk) return ''; if (v <= mk.p25) return 'below p25'; if (v >= mk.p75) return 'above p75'; const p = v <= mk.median ? 25 + (v - mk.p25) / (mk.median - mk.p25) * 25 : 50 + (v - mk.median) / (mk.p75 - mk.median) * 25; return 'p' + Math.round(p); };
     const market = v => mk ? `<span title="${esc(mk.src)}, ${esc(mk.retrieved)}">${money0(v)} is ${pct(v)} of $${mk.p25}–$${mk.p75} · median $${mk.median}</span>` : '<span class="dim">no market reference · the price rule was skipped, not passed</span>';
     const cd = ms => `<b class="gold" data-cd="${ms}"></b>`;
     const ready = A.phase === 'READY', checking = A.phase === 'CHECKING';
@@ -560,7 +560,7 @@
       const checks = dan ? [[true, 'amount = signed deal · $329.00'], [true, 'invoice id 01JD…7Q-1'], [true, 'host www.sandbox.paypal.com'], [true, 'payee = paired key’s payee · north-desk-biz'], [true, 'shield CLEAR'], [true, 'inside mandate M-12 clause 4']]
         : [[true, 'amount = request · $140.00'], [true, 'invoice id 01JD…9H-1'], [true, 'host www.sandbox.paypal.com'], [true, 'payee = pixel-bay’s own shop'], [true, 'shield hold released by you'], [true, 'clause 3 · under $200']];
       html = steps(dan ? ['COUNTERSIGN', ...APPROVE_STEPS] : APPROVE_STEPS, ready ? 'READY' : 'CHECKING') + checkGroup(checks, A) +
-        kv([['Item', esc(d.item)], ['Market', dan ? market(329) : market(0)], ['Approve window', cd(it.deadline)]]) +
+        kv([['Item', esc(d.item)], ['Market', dan ? market(329) : market(it.amount / 2)], ['Approve window', cd(it.deadline)]]) +
         '<div class="ui-hint a-note">Enabled only when every check is ✓. PayPal opens in your own browser; the wallet polls the order and never trusts the redirect.</div>' + sil('the order expires · no money moves');
       foot = `<button class="ui-btn danger left" data-a="withdraw">Withdraw</button>${yes('Open PayPal in your browser ↗', 'browser')}`;
     } else if (A.step === 'mismatch') {
