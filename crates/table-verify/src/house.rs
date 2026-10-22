@@ -210,7 +210,16 @@ fn order(deal: &HouseDealView) -> Result<bool, String> {
                 before(HouseMoneyKind::ApprovalSeen) && before(HouseMoneyKind::Create)
             }
             HouseMoneyKind::Capture => {
-                captured |= m.outcome == HouseOutcome::Ok;
+                // The house captures once per deal: a second confirmed capture is money taken twice.
+                if m.outcome == HouseOutcome::Ok {
+                    if captured {
+                        return Err(format!(
+                            "deal {}: a second confirmed capture at record #{}",
+                            deal.deal_id, m.seq
+                        ));
+                    }
+                    captured = true;
+                }
                 before(HouseMoneyKind::Authorize) && before(HouseMoneyKind::ApprovalSeen)
             }
         };
@@ -420,5 +429,53 @@ mod tests {
             HouseMoneyKind::ApprovalSeen,
             own
         ));
+    }
+
+    fn deal_with(captures: &[HouseOutcome]) -> HouseDealView {
+        let money = |seq, step, outcome| table_proto::HouseMoneyStep {
+            seq,
+            at: 100,
+            step,
+            outcome,
+            decided_by: None,
+        };
+        let price = table_core::Money::new(1200, table_core::Currency::USD).unwrap();
+        let mut steps = vec![
+            money(1, HouseMoneyKind::Create, HouseOutcome::Ok),
+            money(2, HouseMoneyKind::ApprovalSeen, HouseOutcome::Ok),
+            money(3, HouseMoneyKind::Authorize, HouseOutcome::Ok),
+        ];
+        for (n, outcome) in (4_u64..).zip(captures) {
+            steps.push(money(n, HouseMoneyKind::Capture, *outcome));
+        }
+        HouseDealView {
+            deal_id: "00000000000000000000000001".parse().unwrap(),
+            created_at: 1,
+            updated_at: 1,
+            item_ref: table_core::ItemRef::new("monitor").unwrap(),
+            ask: price,
+            price,
+            state: table_core::DealState::Captured,
+            guest: "abcd".into(),
+            rounds: Vec::new(),
+            refused_intents: 0,
+            closed: Vec::new(),
+            decided_by: None,
+            money: steps,
+            paypal_calls: 0,
+            transcript_head: H256::ZERO,
+        }
+    }
+
+    #[test]
+    fn a_second_confirmed_capture_on_one_house_deal_fails_the_order_check() {
+        assert_eq!(order(&deal_with(&[HouseOutcome::Ok])), Ok(true));
+        let err = order(&deal_with(&[HouseOutcome::Ok, HouseOutcome::Ok])).unwrap_err();
+        assert!(err.contains("second confirmed capture"), "{err}");
+        // A failed first attempt followed by one confirmed capture is one charge.
+        assert_eq!(
+            order(&deal_with(&[HouseOutcome::Failed, HouseOutcome::Ok])),
+            Ok(true)
+        );
     }
 }
