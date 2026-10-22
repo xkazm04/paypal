@@ -5422,6 +5422,48 @@
         "at": "2026-10-22T01:45:53.944642+00:00",
         "reason": "reviewer (sonnet): The anchor DealReview.tsx:337 is only the `act` intent line (which owner controls are visible), so it does not show that a human plan-gate precondition is absent, and the plan_gate/objection grep terms were a thin proxy for the standard."
       }
+    },
+    "ff286e5d-5254-42d4-bb14-70a4d2d080f3/read-serving-replicas": {
+      "context": "client-data-layer",
+      "subject": "read-serving-replicas",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T02:06:02.045Z",
+      "worker": "6cfd8fcc-474f-48ae-acd1-d05cd6b7fe98",
+      "techniques": [
+        {
+          "technique": "client-carried-index",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/data/query.ts:49 Cache misses invoke the single backend directly; searches found no lagging storage replica against which a carried position would be checked."
+        },
+        {
+          "technique": "committed-write-invalidation-hook",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/data/bus.ts:118 A failed invalidation subscription only logs an error; cached reads remain enabled without the live channel required by the standard, and no checkpoint or recovery gates their use."
+        },
+        {
+          "technique": "evict-not-update-on-commit",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/lib/data/bus.ts:85 The trailing-read mechanism waits for the in-flight fetch to settle and apply its answer before invalidating again; it has neither an epoch fence nor a lock preventing the stale fill."
+        },
+        {
+          "technique": "fairshare-invalidation-queues",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/data/bus.ts:70 This dispatcher scans one window's local query cache; it does not send invalidations through peer or tenant transport queues where a slow recipient could block others."
+        },
+        {
+          "technique": "forward-on-storage-error",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/data/invoke.ts:72 Reads execute through the authoritative backend rather than first running handlers against a replica store, so no refused local storage mutation needs forwarding."
+        },
+        {
+          "technique": "preemptive-forward-for-known-writes",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/data/invoke.ts:2 Mutations already bypass the query cache and invoke the backend directly; searches found no response wrapping, one-time consumption, or replica-local dispatch requiring preemptive forwarding."
+        }
+      ],
+      "registryProposal": "Clarify which requirements apply to client-side invalidation/refetch caches: the golden path explicitly includes these copies, while several techniques assume a replica-local storage backend."
     }
   }
 }
