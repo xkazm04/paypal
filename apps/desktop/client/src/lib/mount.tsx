@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import type { WindowLabel } from './contract';
 import { initBackend } from './runtime';
 import { DataProvider } from './data/provider';
+import { WINDOW_START_FAILED } from './words';
 import { WindowBoundary } from '../shared/boundary/ErrorBoundary';
 import '../design/base.css';
 import '../design/ui.css';
@@ -16,9 +17,17 @@ const DevInspector =
 
 /** Window entry: pick the backend (shell or mock) before the first render, then mount. */
 export async function mount(label: WindowLabel, App: ComponentType): Promise<void> {
-  await initBackend(label);
   const el = document.getElementById('root');
   if (!el) throw new Error('#root missing');
+  try {
+    await initBackend(label);
+  } catch (e) {
+    // No backend, no window: say so in one plain sentence instead of leaving the page blank. The
+    // error still goes to the console (the entries call this with `void`, so it would be unhandled).
+    console.error('[window:start]', e);
+    el.textContent = WINDOW_START_FAILED;
+    return;
+  }
   createRoot(el).render(
     <StrictMode>
       {/* The window's read layer (lib/data) and its last-resort boundary (shared/boundary). */}
