@@ -71,10 +71,10 @@ impl Runtime {
         let code = PairingCode::parse(&args.code).map_err(|_| invalid())?;
         let bundle = args.peer.as_ref().ok_or_else(invalid)?;
         let peer = &bundle.identity;
+        // House pairing runs through the relay join and the release pin (house_offer, then
+        // house_pair under the offer's own code), never a bare bundle under the HOUSE code.
         if code.expose_for_pairing() == "HOUSE" {
-            return Err(unavailable(
-                "Release-pinned house pairing is deferred to P4",
-            ));
+            return Err(invalid());
         }
         if peer.side == args.side
             || peer.code_hash != code.mailbox_hash()

@@ -529,3 +529,25 @@ async fn counterparty_revoke_is_owner_only_revokes_the_pin_and_audits_once() {
         1
     );
 }
+
+/// A peer bundle handed in under the HOUSE code is refused for what it is: house pairing runs
+/// through the relay join and the release pin (house_offer, house_pair), which shipped in P4,
+/// never through a bare bundle. The refusal no longer says the house is deferred.
+#[test]
+fn a_bundle_under_the_house_code_is_refused_without_claiming_the_house_is_deferred() {
+    let (mut buyer, ..) = runtime(true);
+    let peer = forged_bundle(
+        PairingCode::parse("HOUSE").unwrap().mailbox_hash(),
+        Side::Seller,
+        buyer.clock.now() + 3600,
+    );
+    let error = buyer
+        .pairing_join(PairingJoinArgs {
+            peer: Some(peer),
+            ..join_args("HOUSE")
+        })
+        .unwrap_err();
+    assert!(matches!(error.code, ErrorCode::Invalid), "{error:?}");
+    assert!(!error.message.contains("deferred"), "{error:?}");
+    assert!(buyer.pending.is_empty());
+}
