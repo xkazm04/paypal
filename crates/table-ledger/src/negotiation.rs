@@ -1,7 +1,7 @@
 //! Negotiation and the signed envelope path: inbound receipt, outbound recording, the atomic
 //! negotiation commit and the owner-accept checks.
 use crate::mandates::{read_mandate, read_mandate_evidence};
-use crate::repositories::{Direction, apply, enum_text, json_text, read_deal};
+use crate::repositories::{Direction, apply, apply_decided, enum_text, json_text, read_deal};
 use crate::{AuditEntry, Ledger, LedgerError, audit, hash_blob};
 use ed25519_dalek::VerifyingKey;
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
@@ -403,7 +403,7 @@ pub(crate) fn commit_negotiation_in(
                 )?;
                 // Our own ACCEPT is the deal's decision: the owner's signed consent above clause 6,
                 // otherwise the agent under the clause-6 policy (agent ACCEPT refuses an ASK).
-                if direction == Direction::Outbound {
+                let decided = if direction == Direction::Outbound {
                     let decided = if matches!(
                         &verified.envelope().body,
                         Body::Accept {
@@ -419,11 +419,15 @@ pub(crate) fn commit_negotiation_in(
                         "UPDATE deals SET decided_by=?1 WHERE id=?2",
                         params![json_text(&decided)?, id.to_string()],
                     )?;
-                }
-                if (direction == Direction::Outbound && peer)
-                    || (direction == Direction::Inbound && own)
-                {
-                    apply(tx, id, DealEvent::TwoAcceptsVerified, at)?;
+                    Some(decided)
+                } else {
+                    // Our ACCEPT came first: its decision is already on the deal row.
+                    deal.decided_by.clone()
+                };
+                // The agreement names that decision in its own transition row, so the deal row's
+                // `decided_by` is what the chain says (as `apply_decided` does for every decision).
+                if agrees {
+                    apply_decided(tx, id, DealEvent::TwoAcceptsVerified, decided.as_ref(), at)?;
                 }
             }
             _ => {}

@@ -1956,6 +1956,113 @@ fn buyer_receipt_rejects_amount_head_status_state_role_owned_purchase_and_replay
     }
 }
 
+// Our own ACCEPT is the deal's decision (`decided_by` on the deal row). The agreement it leads to
+// carries that authority in its `deal.transition` row, as every other decided transition does, so
+// the row and the chain say the same thing whichever ACCEPT came second.
+#[test]
+fn an_agreement_names_in_the_chain_the_authority_the_deal_row_records() {
+    for ours_first in [true, false] {
+        let (mut ledger, deal, _, own, peer) = setup();
+        ledger
+            .apply_event(deal.id, DealEvent::ListingVerified, 100)
+            .unwrap();
+        let counter = ledger
+            .preview_inbound(
+                deal.id,
+                &peer.sign(&inbound(&deal, &own, &peer)).unwrap(),
+                100,
+            )
+            .unwrap();
+        ledger
+            .commit_negotiation(
+                &counter,
+                Direction::Inbound,
+                Some(&deal.terms),
+                Some(DealEvent::OfferVerified),
+                100,
+            )
+            .unwrap();
+        let accept = Body::Accept {
+            offer_seq: 1,
+            terms_hash: deal.terms.hash().unwrap(),
+            owner_accept: None,
+        };
+        let ours = |ledger: &Ledger| {
+            let head = ledger.get_deal(deal.id).unwrap().transcript_head;
+            let e = Envelope {
+                v: 1,
+                typ: MsgType::Accept,
+                deal_id: deal.id,
+                seq: 1,
+                prev: head,
+                iss: own.key_id().unwrap(),
+                aud: peer.key_id().unwrap(),
+                iat: 100,
+                exp: 700,
+                nonce: [7; 16],
+                body: accept.clone(),
+            };
+            let audience = peer.key_id().unwrap();
+            verify(
+                &own.sign(&e).unwrap(),
+                &own.public_key(),
+                &VerifyContext {
+                    deal_id: deal.id,
+                    audience: &audience,
+                    next_sender_seq: 1,
+                    previous: head,
+                    now: 100,
+                    nonces: ledger,
+                },
+            )
+            .unwrap()
+        };
+        let theirs = |ledger: &Ledger| {
+            let mut e = inbound(&deal, &own, &peer);
+            e.seq = 2;
+            e.prev = ledger.get_deal(deal.id).unwrap().transcript_head;
+            e.nonce = [8; 16];
+            e.typ = MsgType::Accept;
+            e.body = accept.clone();
+            ledger
+                .preview_inbound(deal.id, &peer.sign(&e).unwrap(), 100)
+                .unwrap()
+        };
+        let steps = if ours_first {
+            [Direction::Outbound, Direction::Inbound]
+        } else {
+            [Direction::Inbound, Direction::Outbound]
+        };
+        for direction in steps {
+            let verified = if direction == Direction::Outbound {
+                ours(&ledger)
+            } else {
+                theirs(&ledger)
+            };
+            ledger
+                .commit_negotiation(&verified, direction, None, None, 100)
+                .unwrap();
+        }
+        let agreed = ledger.get_deal(deal.id).unwrap();
+        assert_eq!(agreed.state, DealState::Agreed);
+        assert_eq!(agreed.decided_by, Some(DecidedBy::Policy { clause: 6 }));
+        let detail: String = ledger
+            .conn
+            .query_row(
+                "SELECT detail_json FROM audit_log WHERE action='deal.transition' AND json_extract(detail_json,'$.to')='AGREED'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&detail).unwrap()["decided_by"],
+            serde_json::to_value(agreed.decided_by).unwrap(),
+            "ours first: {ours_first}"
+        );
+        ledger.verify_audit().unwrap();
+    }
+}
+
 // The buyer's approval countdown is a deadline like any other: accepting the seller's SETTLE
 // sets it, and that move is in the chain (`deadline.set`), exactly as `set_deadline` records one.
 #[test]
