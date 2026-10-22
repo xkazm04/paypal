@@ -21,6 +21,21 @@ impl Runtime {
             .map(|deal| deal.id)
             .collect();
         self.last_poll.retain(|id, _| walked.contains(id));
+        // A deal that went terminal outside this walk (the owner, a group, a read of the owner's)
+        // is not listed live, so its read schedule would wait for the cap. Drop it here; the
+        // ledger is read only while the schedule holds something.
+        if self.pipeline.read_state_len() != (0, 0, 0) {
+            let ended: Vec<DealId> = app(self.pipeline.wallet.ledger.list_deals())?
+                .into_iter()
+                .filter(|deal| deal.state.terminal() && self.pipeline.read_state_of(deal.id) > 0)
+                .map(|deal| deal.id)
+                .collect();
+            for id in ended {
+                if let Err(error) = self.pipeline.prune_read_state(id, now) {
+                    failure.get_or_insert(CommandError::from(error));
+                }
+            }
+        }
         for deal in deals {
             if deal.kind == DealKind::Rescue && !deal.state.terminal() {
                 // A rescue invoice is real whatever the failure's mode (table-app rescue.rs).

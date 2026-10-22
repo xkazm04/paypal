@@ -853,3 +853,106 @@ async fn a_replay_trims_the_subscription_id_as_the_watch_list_does() {
     .unwrap();
     assert_eq!(watched[0].subscription_id, "I-S14");
 }
+
+/// A deal that ends outside the tick's own walk (walked away from, here) leaves nothing in the
+/// read schedule once the scheduler has passed: the tick prunes what it no longer walks.
+#[tokio::test]
+async fn deals_that_end_outside_the_tick_leave_no_read_state_after_one_pass() {
+    let (mut r, vault, ..) = runtime(true);
+    credentials(vault.as_ref());
+    let _paypal = with_invoicing(&mut r);
+    r.sign_mandate(MandateSignArgs {
+        id: None,
+        agent: AgentSlot::Assistant,
+        clauses: rescue_clauses(),
+        not_before: 0,
+        expires: 10_000_000,
+    })
+    .unwrap();
+    let mut ids = Vec::new();
+    // The invoicing double keeps one invoice, so one deal is sent.
+    for n in 0..1 {
+        let token = unlock_runtime(&mut r);
+        let mut args = replay_args();
+        args.subscription_id = format!("I-S{n}");
+        let deal: Deal = serde_json::from_value(
+            r.execute(caller("approval", Some(&token)), Action::RescueReplay(args))
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        let decided = decision(&mut r, deal.id);
+        r.execute(
+            caller("approval", Some(&token)),
+            Action::Decision(decided, Decision::Rescue),
+        )
+        .await
+        .unwrap();
+        ids.push(deal.id);
+    }
+    // Sent and unpaid: the scheduler polls each on its cadence and keeps the poll time.
+    r.tick().await.unwrap();
+    for id in &ids {
+        assert!(r.pipeline.read_state_of(*id) > 0, "polled on its cadence");
+    }
+    // Each is walked away from outside the tick.
+    let now = r.clock.now();
+    for id in &ids {
+        r.pipeline
+            .wallet
+            .withdraw(*id, table_proto::ReasonCode::Other, now)
+            .unwrap();
+        assert_eq!(
+            r.pipeline.wallet.ledger.get_deal(*id).unwrap().state,
+            DealState::Withdrawn
+        );
+    }
+    r.tick().await.unwrap();
+    for id in &ids {
+        assert_eq!(r.pipeline.read_state_of(*id), 0, "ended: nothing kept");
+    }
+    assert_eq!(r.pipeline.read_state_len(), (0, 0, 0));
+}
+
+/// The owner's Book says when its answer was cut at the query's limit: three subscribers with a
+/// limit of two give the first two lines and `truncated`; a limit of three gives all, uncut.
+#[tokio::test]
+async fn the_owners_book_answer_says_when_it_was_cut_at_its_limit() {
+    let (mut r, vault, ..) = runtime(true);
+    credentials(vault.as_ref());
+    with_invoicing(&mut r);
+    r.sign_mandate(MandateSignArgs {
+        id: None,
+        agent: AgentSlot::Assistant,
+        clauses: rescue_clauses(),
+        not_before: 0,
+        expires: 10_000_000,
+    })
+    .unwrap();
+    let token = unlock_runtime(&mut r);
+    for n in 1..=3 {
+        let mut args = replay_args();
+        args.subscription_id = format!("I-S{n}");
+        args.subscriber_email = format!("subscriber{n}@example.com");
+        r.execute(caller("approval", Some(&token)), Action::RescueReplay(args))
+            .await
+            .unwrap();
+    }
+    let mut ask = async |limit: u32| -> BookAnswer {
+        serde_json::from_value(
+            r.execute(
+                caller("main", None),
+                Action::BookQuery(BookQueryArgs {
+                    query: json!({"view":"deals","metrics":["count"],"group_by":["counterparty"],"limit":limit}),
+                }),
+            )
+            .await
+            .unwrap(),
+        )
+        .unwrap()
+    };
+    let cut = ask(2).await;
+    assert_eq!((cut.rows.len(), cut.truncated), (2, true));
+    let whole = ask(3).await;
+    assert_eq!((whole.rows.len(), whole.truncated), (3, false));
+}
