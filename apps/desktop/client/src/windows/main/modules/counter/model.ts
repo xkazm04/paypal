@@ -15,7 +15,7 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { MarketRef } from '@bindings/MarketRef';
 import type { Money } from '@bindings/Money';
 import { currencyMark, exponent, formatMinor, minorToText, parseMoneyText, shortMoney } from '../../../../lib/format';
-import { itemWords } from '../../../../lib/words';
+import { COUNTER, itemWords } from '../../../../lib/words';
 import { isLive, mandatesGoverning } from '../../logic';
 
 // ---- money input ------------------------------------------------------------------------------
@@ -101,19 +101,21 @@ export type VsMarket = { cls: 'over' | 'above' | 'at' | 'under' | 'none'; short:
 
 /** Where a floor sits against the market reference. Different currencies are never compared. */
 export function vsMarket(floor: Money | null, market: MarketRef | null): VsMarket {
-  if (!floor) return { cls: 'none', short: '—', long: 'no floor' };
-  if (!market || market.median.currency !== floor.currency) return { cls: 'none', short: 'no market price', long: 'no market price to compare with' };
+  const W = COUNTER.model;
+  if (!floor) return { cls: 'none', ...W.noFloor };
+  if (!market || market.median.currency !== floor.currency) return { cls: 'none', ...W.noMarket };
   const c = floor.currency;
   const f = floor.minor;
   if (f > market.p75.minor) {
-    const d = f - market.p75.minor;
-    return { cls: 'over', short: `${fmtShort(d, c)} above usual`, long: `${fmtShort(d, c)} above the usual market range (up to ${fmtShort(market.p75.minor, c)})` };
+    const d = fmtShort(f - market.p75.minor, c);
+    return { cls: 'over', short: W.aboveUsual.short(d), long: W.aboveUsual.long(d, fmtShort(market.p75.minor, c)) };
   }
   const d = f - market.median.minor;
-  if (d === 0) return { cls: 'at', short: 'typical', long: `the typical market price, ${fmtShort(market.median.minor, c)}` };
+  const typical = fmtShort(market.median.minor, c);
+  if (d === 0) return { cls: 'at', short: W.typical.short, long: W.typical.long(typical) };
   return d > 0
-    ? { cls: 'above', short: `${fmtShort(d, c)} over typical`, long: `${fmtShort(d, c)} over the typical market price, ${fmtShort(market.median.minor, c)}` }
-    : { cls: 'under', short: `${fmtShort(-d, c)} under typical`, long: `${fmtShort(-d, c)} under the typical market price, ${fmtShort(market.median.minor, c)}` };
+    ? { cls: 'above', short: W.over.short(fmtShort(d, c)), long: W.over.long(fmtShort(d, c), typical) }
+    : { cls: 'under', short: W.under.short(fmtShort(-d, c)), long: W.under.long(fmtShort(-d, c), typical) };
 }
 
 // ---- the floor draft (a proposed new seller-mandate version; only approval can sign it) ---------
@@ -125,9 +127,9 @@ export type DraftEntry = { row: CatalogRow; from: Money | null; to: Money };
 export type DraftError = { row: CatalogRow; text: string; error: string };
 
 export function floorError(row: Pick<CatalogRow, 'ceiling'>, minor: number | null): string | null {
-  if (minor === null) return 'enter an amount like 58 or 58.50';
-  if (minor <= 0) return 'a floor must be above zero';
-  if (row.ceiling && minor > row.ceiling.minor) return `above the band ceiling ${formatMinor(row.ceiling.minor, row.ceiling.currency)}`;
+  if (minor === null) return COUNTER.model.enterAmount;
+  if (minor <= 0) return COUNTER.model.aboveZero;
+  if (row.ceiling && minor > row.ceiling.minor) return COUNTER.model.aboveCeiling(formatMinor(row.ceiling.minor, row.ceiling.currency));
   return null;
 }
 
@@ -141,7 +143,7 @@ export function draftState(rows: readonly CatalogRow[], draft: FloorDraft): { di
     if (!text.trim() && !row.signed) continue; // cleared a floor that was never signed
     const minor = parseMoneyText(text, row.currency);
     const err = floorError(row, minor);
-    if (err || minor === null) { errors.push({ row, text, error: err ?? 'not an amount' }); continue; }
+    if (err || minor === null) { errors.push({ row, text, error: err ?? COUNTER.model.notAmount }); continue; }
     if (row.signed && row.signed.minor === minor) continue;
     diff.push({ row, from: row.signed, to: { minor, currency: row.currency } });
   }

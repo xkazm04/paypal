@@ -3,9 +3,12 @@
 // price change is a draft whose only way out is the approval window (`approval_open` with the
 // mandate target and the floor as a pre-fill; never a sign); discard clears it; the words keep the rules.
 import { act, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { COUNTER, COUNTER_VIEWS } from '../../../../../lib/words';
 import { expectLayerHealthy, renderLayerAtScale, type LayerRun } from '../../testing/scaleSmoke';
+import { floorError, vsMarket } from '../../../modules/counter/model';
 import { wordsOf } from '../tables/wordsOf';
 
 vi.mock('../../../../../lib/runtime', async () => (await import('../../testing/runtime')).runtimeMock);
@@ -71,5 +74,27 @@ describe('Counter words', () => {
       expect(w).not.toMatch(/\b[A-Z]{3,}_[A-Z_]+\b|D-\d{4}|mandate|clause|_set\b/);
     }
     expect(COUNTER_VIEWS.earlier).not.toMatch(/week/i);
+  });
+});
+
+const FORBIDDEN = [/claude|codex|openai|anthropic|gpt/i, /\b[A-Z]{3,}_[A-Z_]+\b|D-\d{4}|mandate|clause|countersign|_set\b|\bRust\b/];
+
+describe('Counter model sentences', () => {
+  const usd = (d: number) => ({ minor: d * 100, currency: 'USD' as const });
+  const market = { p25: usd(55), median: usd(64), p75: usd(70) } as unknown as Parameters<typeof vsMarket>[1];
+  it('say no vendor, id, raw state or internal word, whatever the inputs', () => {
+    const all: string[] = [];
+    for (const f of [null, usd(80), usd(65), usd(64), usd(58), { minor: 5800, currency: 'EUR' as const }]) {
+      for (const m of [null, market]) { const v = vsMarket(f, m as Parameters<typeof vsMarket>[1]); all.push(v.short, v.long); }
+    }
+    for (const minor of [null, 0, 99999]) all.push(floorError({ ceiling: usd(100) }, minor) ?? '');
+    all.push(floorError({ ceiling: usd(1) }, 500) ?? '');
+    expect(all.filter(Boolean).length).toBeGreaterThan(15);
+    for (const w of all) for (const re of FORBIDDEN) expect(w, w).not.toMatch(re);
+  });
+  it('keep their sentences in lib/words, not in the model', () => {
+    const src = readFileSync(join(process.cwd(), 'src/windows/main/modules/counter/model.ts'), 'utf8');
+    expect(src.match(/\b(?:short|long):\s*[`'"]|return\s+'[a-z]|\?\?\s*'[a-z]|`[^`]*(?:above|under|over) (?:usual|typical|the)[^`]*`/g) ?? []).toEqual([]);
+    expect(src.match(/'(?:enter an amount|a floor must|no market price|no floor)[^']*'/g) ?? []).toEqual([]);
   });
 });

@@ -6,6 +6,7 @@ import type { Currency } from '@bindings/Currency';
 import type { DisplayBand } from '@bindings/DisplayBand';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { exponent, minorToText, parseMoneyText, shortMoney } from '../../../../lib/format';
+import { TABLES } from '../../../../lib/words';
 import { niceTicks } from '../../logic';
 
 /** A band as band_set takes it: floor and ceiling in minor units (null = none). */
@@ -110,15 +111,16 @@ export const parseAmount = parseMoneyText;
 export const toInput = minorToText;
 
 /** The price-range edits of a move, as the "what changes" sheet lists them (item named in its title). */
-export const LIMIT_WORD: Record<keyof BandDraft, string> = { ceiling: 'Most you’ll pay', floor: 'Least you’ll accept' };
+export const LIMIT_WORD: Record<keyof BandDraft, string> = TABLES.model.limit;
 export function diffLines(_item: string, signed: BandDraft | null, draft: BandDraft, currency: Currency): string[] {
-  const f = (m: number | null) => (m === null ? 'none' : short(m, currency));
+  const W = TABLES.model;
+  const f = (m: number | null) => (m === null ? W.none : short(m, currency));
   if (!signed) {
-    return (['ceiling', 'floor'] as const).filter((k) => draft[k] !== null).map((k) => `${LIMIT_WORD[k]}: ${f(draft[k])} (new)`);
+    return (['ceiling', 'floor'] as const).filter((k) => draft[k] !== null).map((k) => W.limitNew(LIMIT_WORD[k], f(draft[k])));
   }
   const out: string[] = [];
-  if (signed.ceiling !== draft.ceiling) out.push(`${LIMIT_WORD.ceiling}: ${f(signed.ceiling)} → ${f(draft.ceiling)}`);
-  if (signed.floor !== draft.floor) out.push(`${LIMIT_WORD.floor}: ${f(signed.floor)} → ${f(draft.floor)}`);
+  if (signed.ceiling !== draft.ceiling) out.push(W.limitChange(LIMIT_WORD.ceiling, f(signed.ceiling), f(draft.ceiling)));
+  if (signed.floor !== draft.floor) out.push(W.limitChange(LIMIT_WORD.floor, f(signed.floor), f(draft.floor)));
   return out;
 }
 
@@ -143,32 +145,33 @@ export type ConsequenceInput = {
 
 /** Everything a band move does, before it leaves for the approval window. ✗ lines are conflicts. */
 export function consequences(i: ConsequenceInput): Consequence[] {
+  const W = TABLES.model;
   const f = (m: number) => short(m, i.currency);
   const L: Consequence[] = [];
   const bound = i.side === 'buyer' ? i.draft.ceiling : i.draft.floor;
-  if (!i.signed) L.push({ tone: 'i', text: `Sets a price range for ${i.item}: your agent may start ${i.side === 'buyer' ? 'offering up to' : 'asking from'}${bound !== null ? ` ${f(bound)}` : ' any price'}.` });
+  if (!i.signed) L.push({ tone: 'i', text: W.setsRange(i.item, W.rangeStart[i.side], bound !== null ? ` ${f(bound)}` : W.anyPrice) });
   if (i.theirs) {
     const p = f(i.theirs.price);
     const before = !!i.signed && fits(i.theirs.price, i.signed);
     const after = fits(i.theirs.price, i.draft);
-    if (!i.signed) L.push(after ? { tone: 'ok', text: `${i.them}'s ${p} fits your range.` } : { tone: 'x', text: `${i.them}'s ${p} is outside your range, so your agent can't accept it.` });
-    else if (before && !after) L.push({ tone: 'x', text: `${i.them}'s ${p} could be accepted before; after this change it can't.` });
-    else if (!before && after) L.push({ tone: 'ok', text: `${i.them}'s ${p} can now be accepted.` });
+    if (!i.signed) L.push(after ? { tone: 'ok', text: W.fits(i.them, p) } : { tone: 'x', text: W.outside(i.them, p) });
+    else if (before && !after) L.push({ tone: 'x', text: W.couldBefore(i.them, p) });
+    else if (!before && after) L.push({ tone: 'ok', text: W.canNow(i.them, p) });
     else if (after) {
-      const room = i.side === 'buyer' && i.draft.ceiling !== null ? ` · ${f(i.draft.ceiling - i.theirs.price)} of room` : i.side === 'seller' && i.draft.floor !== null ? ` · ${f(i.theirs.price - i.draft.floor)} of room` : '';
-      L.push({ tone: 'ok', text: `${i.them}'s ${p} still fits${room}.` });
-    } else L.push({ tone: 'x', text: `${i.them}'s ${p} stays outside your range, so it can't be accepted.` });
-    if (i.pending && !after) L.push({ tone: 'x', text: 'The request waiting for you lapses: your agent must offer inside the new range or walk away.' });
+      const room = i.side === 'buyer' && i.draft.ceiling !== null ? W.room(f(i.draft.ceiling - i.theirs.price)) : i.side === 'seller' && i.draft.floor !== null ? W.room(f(i.theirs.price - i.draft.floor)) : '';
+      L.push({ tone: 'ok', text: W.stillFits(i.them, p, room) });
+    } else L.push({ tone: 'x', text: W.staysOutside(i.them, p) });
+    if (i.pending && !after) L.push({ tone: 'x', text: W.lapses });
   }
   if (i.yours && !fits(i.yours.price, i.draft)) {
-    L.push({ tone: 'x', text: `Your earlier offer of ${f(i.yours.price)} stays on record (signed offers are never changed); the next one must be inside the new range.` });
+    L.push({ tone: 'x', text: W.earlierOffer(f(i.yours.price)) });
   }
   if (i.roundsUsed !== null && i.maxRounds !== null) {
     const left = i.maxRounds - i.roundsUsed;
-    L.push(left > 0 ? { tone: 'i', text: `Offers left are unchanged: ${left} of ${i.maxRounds}.` } : { tone: 'x', text: `No offers left (all ${i.maxRounds} used): your agent may only accept inside the range, or walk away.` });
+    L.push(left > 0 ? { tone: 'i', text: W.offersLeft(left, i.maxRounds) } : { tone: 'x', text: W.noOffersLeft(i.maxRounds) });
   }
-  L.push({ tone: 'i', text: `Your agent uses the new range from its next move. ${i.them} never sees your ${i.side === 'buyer' ? 'maximum' : 'minimum'}.` });
-  L.push({ tone: 'i', text: 'Signing new limits makes no PayPal call. It never pays.' });
+  L.push({ tone: 'i', text: W.newRange(i.them, W.hidden[i.side]) });
+  L.push({ tone: 'i', text: W.noPaypal });
   return L;
 }
 
@@ -185,14 +188,15 @@ export function standing(o: { band: BandDraft | null; theirs: Priced | null; sid
 
 /** One plain sentence for the card's "where it stands" bar: their latest price against your limit. */
 export function standLine(o: { band: BandDraft | null; theirs: Priced | null; side: 'buyer' | 'seller'; who: string; currency: Currency }): string {
+  const W = TABLES.model.stand;
   const f = (m: number) => short(m, o.currency);
   const s = standing(o);
-  const verb = o.theirs ? (o.theirs.typ === 'LISTING' ? 'lists it at' : o.side === 'buyer' ? 'asks' : 'offers') : '';
+  const verb = o.theirs ? (o.theirs.typ === 'LISTING' ? W.verb.listing : W.verb[o.side]) : '';
   switch (s.kind) {
-    case 'no-limit': return `${o.theirs ? `${o.who} ${verb} ${f(o.theirs.price)}. ` : ''}You haven’t set a limit yet, so your agent can’t make offers.`;
-    case 'no-offer': return `No offer from ${o.who} yet.`;
-    case 'inside': return `${o.who} ${verb} ${f(o.theirs?.price ?? 0)}: ${s.gap ? `${f(s.gap ?? 0)} inside your limit` : 'right at your limit'}.`;
-    case 'over': return `${o.who} ${verb} ${f(o.theirs?.price ?? 0)}: ${f(s.gap ?? 0)} past your limit, so your agent can’t accept it.`;
+    case 'no-limit': return W.noLimit(o.theirs ? W.theirPrice(o.who, verb, f(o.theirs.price)) : '');
+    case 'no-offer': return W.noOffer(o.who);
+    case 'inside': return W.inside(o.who, verb, f(o.theirs?.price ?? 0), s.gap ? W.insideBy(f(s.gap ?? 0)) : W.atLimit);
+    case 'over': return W.past(o.who, verb, f(o.theirs?.price ?? 0), f(s.gap ?? 0));
   }
 }
 
