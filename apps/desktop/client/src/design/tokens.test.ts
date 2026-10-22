@@ -116,6 +116,28 @@ describe('Calibre surfaces and fills meet WCAG AA in both themes', () => {
   }
 });
 
+describe('focus is one colour, and it can be seen', () => {
+  const ui = readFileSync(root('src/design/ui.css'), 'utf8');
+  it('a focused field paints only in --focus (border and halo), like every other focus ring', () => {
+    const rule = /\.ui-field:focus \{([^}]*)\}/.exec(ui)?.[1] ?? '';
+    expect(rule).toMatch(/border-color: var\(--focus\)/);
+    const painted = [...rule.matchAll(/var\(--([a-z0-9-]+)\)/g)].map((m) => m[1]);
+    expect(painted.length).toBeGreaterThan(1);
+    expect(painted.filter((t) => t !== 'focus')).toEqual([]);
+  });
+  // WCAG 2.2 1.4.11 / 2.4.13: a focus ring is a non-text indicator, 3:1 against what it sits on.
+  for (const [name, t, focus] of [['dark', dark, 'gold-l'], ['light', light, 'pp-blue']] as const) {
+    it(`${name}: the focus ring (--${focus}) is at least 3:1 on every surface and sheet`, () => {
+      const low: string[] = [];
+      for (const s of ['bg', 'bg2', 'panel', 'panel2', 'panel3', 'sheet', 'sheet-hi', 'sheet-lo', 'tab-on', 'tab-mix', 'toolbar', 'disc', 'well']) {
+        const r = contrast(rgb(t, focus), rgb(t, s));
+        if (r < 3) low.push(`--${focus} on --${s}: ${r.toFixed(2)}`);
+      }
+      expect(low).toEqual([]);
+    });
+  }
+});
+
 describe('motion: CSS and code agree', () => {
   it('the hold is 1200 ms in both', () => {
     expect(HOLD_MS).toBe(1200);

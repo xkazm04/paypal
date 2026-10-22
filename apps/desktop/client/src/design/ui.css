@@ -132,7 +132,7 @@ button.ui-row { width: 100%; border: 0; background: none; color: inherit; font: 
 .ui-seg button[aria-pressed="true"], .ui-seg button[role="tab"][aria-selected="true"], .ui-seg button.on { background: var(--panel); color: var(--text); box-shadow: var(--shadow-1); }
 
 .ui-field { height: var(--ctl); padding: 0 var(--sp-2); border-radius: var(--r-sm); border: 1px solid var(--line2); background: var(--panel); color: var(--text); min-width: 0; }
-.ui-field:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal) 18%, transparent); }
+.ui-field:focus { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 18%, transparent); }
 .ui-field::placeholder { color: var(--dim); opacity: 1; }
 .ui-field:disabled, .ui-field[readonly]:not(:focus) { background: var(--panel2); color: var(--muted); }
 .ui-field:disabled { opacity: .6; cursor: not-allowed; }
