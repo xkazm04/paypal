@@ -8,8 +8,8 @@ Import from `../../shared/ui` (barrel `index.ts`). No component adds colours or 
 ## Rules
 
 - **Colour only from tokens.** No hex/rgb outside `tokens.css`; use `var(--…)` / `color-mix()`.
-  Module colour: `MODULE[m].cssVar` (`var(--m-spend)`), set as `--mc`; `MODULE[m].color` (hex) is
-  only for the fixed-palette Dial / Tumbler art.
+  Module colour: `MODULE[m].cssVar` (`var(--m-spend)`), set as `--mc`. There is no hex field: the
+  Dial / Tumbler art reads the same `cssVar` tokens.
 - **CSP:** no `data:` images (search icon is inline SVG), no inline `<style>`; React `style={{}}` is fine.
 - **Scope page CSS** under your page root: module pages under `.mod-<name>` (set by `ModuleView`),
   so parallel files never collide. Do not restyle `ui-*` classes globally.

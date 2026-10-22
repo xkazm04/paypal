@@ -126,8 +126,9 @@ pub const FORMS: [(&str, f64, f64); 7] = [
 ```
 
 Client v2 (2026-10-06): the card is 440×152 and leaves the puck's 88×88 corner free. "Open in
-Table" moved to the id link (`D-0193 ↗`) and the ⓘ details popover, as did "Let it lapse" and the
-deadline caption; the deadline is a 2px rule with 15 min / 2 h ticks.
+The Table" and "Let it lapse" live in the ⓘ details popover, as does the deadline caption; the
+deadline is a ring around the amount whenever the question carries one (the 2px rule with 15 min /
+2 h ticks only when it has no amount).
 
 Every card carries the report's surface rules (S·report §10.1): mode badge, the default on
 silence, two meters never one axis (stack form), the idle lock, PayPal only in the browser.
