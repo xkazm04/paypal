@@ -1301,3 +1301,34 @@ async fn an_oversized_result_is_withheld_with_a_refusal_not_truncated() {
     let ok = bounded(Slow(Duration::ZERO, big), Duration::from_secs(5), 4000).await;
     assert_eq!(ok["isError"], false);
 }
+#[tokio::test]
+async fn a_tools_call_carrying_the_specs_meta_is_served_and_any_other_extra_key_is_not() {
+    let (wallet, deal, _, _) = support::setup(Side::Buyer, DealKind::Haggle);
+    let shared = Arc::new(Mutex::new(wallet));
+    let server = Server::new(
+        Box::new(Shared(shared.clone())),
+        8765,
+        Arc::new(FixedClock(100)),
+    )
+    .unwrap();
+    let grant = server
+        .grant(AgentScope {
+            deal_id: deal.id,
+            role: AgentRole::Negotiator,
+            category: Category::Parts,
+        })
+        .unwrap();
+    let run = |params: Value| async {
+        call(&server, &grant, "tools/call", params, "127.0.0.1:8765")
+            .await
+            .1["result"]
+            .clone()
+    };
+    let meta = run(json!({"name":"table_view","arguments":{},"_meta":{"progressToken":1}})).await;
+    assert_eq!(meta["isError"], false, "{meta}");
+    let extra = run(json!({"name":"table_view","arguments":{},"extra":1})).await;
+    assert_eq!(extra["isError"], true);
+    assert!(extra.to_string().contains("malformed_call"), "{extra}");
+    let bad = run(json!({"name":"table_view","arguments":{},"_meta":"x"})).await;
+    assert_eq!(bad["isError"], true);
+}

@@ -239,6 +239,11 @@ struct Rpc {
 struct Call {
     name: String,
     arguments: Value,
+    /// The spec's optional request metadata (a progress token); accepted and ignored. Any other
+    /// unknown key is still refused.
+    #[serde(default, rename = "_meta")]
+    #[allow(dead_code)]
+    meta: Option<serde_json::Map<String, Value>>,
 }
 /// The tools a role is served. The engine's stream allowlist is checked against this list.
 pub const fn catalog(role: AgentRole) -> &'static [&'static str] {
