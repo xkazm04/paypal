@@ -143,6 +143,9 @@ pub enum AgentSlot {
     Assistant,
 }
 impl AgentSlot {
+    /// Every slot, in the order they are provisioned. The one list; a test pins it to the
+    /// variants the wire format names.
+    pub const ALL: [Self; 3] = [Self::Negotiator, Self::Shopper, Self::Assistant];
     pub const fn key_name(self) -> &'static str {
         match self {
             Self::Negotiator => "agent.negotiator",
@@ -490,5 +493,22 @@ mod proof_file_tests {
         let error = check_proof_file(&vec![b' '; PROOF_FILE_LIMIT + 1]).unwrap_err();
         assert!(matches!(error.code, ErrorCode::Unsupported));
         assert!(error.message.contains("larger"), "{}", error.message);
+    }
+    /// `AgentSlot::ALL` is every variant, once: the exhaustive match stops compiling when a slot
+    /// is added, and each slot's wire name is its key name.
+    #[test]
+    fn the_agent_slot_list_holds_every_variant_once() {
+        let index = |slot: AgentSlot| match slot {
+            AgentSlot::Negotiator => 0,
+            AgentSlot::Shopper => 1,
+            AgentSlot::Assistant => 2,
+        };
+        let mut seen: Vec<usize> = AgentSlot::ALL.into_iter().map(index).collect();
+        seen.sort_unstable();
+        assert_eq!(seen, [0, 1, 2]);
+        for slot in AgentSlot::ALL {
+            let wire = serde_json::to_value(slot).unwrap();
+            assert_eq!(format!("agent.{}", wire.as_str().unwrap()), slot.key_name());
+        }
     }
 }

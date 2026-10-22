@@ -1,7 +1,7 @@
 //! Signed proof export for one deal (theme T1). Read-only: it reads the ledger and the agent key,
 //! moves nothing and calls nothing outside the process.
-use crate::{Runtime, app, invalid, unavailable, vault::existing_signing_key};
-use table_client::{AgentSlot, CommandError};
+use crate::{Runtime, app, invalid, unavailable};
+use table_client::CommandError;
 use table_core::DealId;
 use table_proto::{AgentSigner, ProofBundle};
 
@@ -26,16 +26,10 @@ impl Runtime {
     /// Signs the bundle's evidence head with the agent key its mandate names.
     pub(crate) fn sign_proof(&self, bundle: &mut ProofBundle) -> Result<(), CommandError> {
         let wanted = bundle.mandate.payload.agent_key;
-        let signer = [
-            AgentSlot::Negotiator,
-            AgentSlot::Shopper,
-            AgentSlot::Assistant,
-        ]
-        .into_iter()
-        .filter_map(|slot| existing_signing_key(self.vault.as_ref(), slot.key_name()).ok())
-        .find(|key| key.verifying_key().to_bytes() == wanted)
-        .map(AgentSigner::from_key)
-        .ok_or_else(|| unavailable("Agent key for this deal is unavailable"))?;
+        let signer = self
+            .slot_holding(wanted)
+            .map(AgentSigner::from_key)
+            .map_err(|_| unavailable("Agent key for this deal is unavailable"))?;
         bundle.evidence_head = bundle.evidence_commitment().map_err(|_| invalid())?;
         bundle.evidence_sig = signer.sign_commitment(bundle.evidence_head);
         Ok(())

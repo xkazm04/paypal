@@ -205,11 +205,7 @@ impl Runtime {
         ledger: &table_ledger::Ledger,
         vault: &dyn Vault,
     ) -> Result<ed25519_dalek::SigningKey, CommandError> {
-        const SLOTS: [AgentSlot; 3] = [
-            AgentSlot::Negotiator,
-            AgentSlot::Shopper,
-            AgentSlot::Assistant,
-        ];
+        const SLOTS: [AgentSlot; 3] = AgentSlot::ALL;
         let failed = || unavailable("Agent key provisioning failed");
         if app(ledger.is_fresh())? {
             for slot in SLOTS {
@@ -350,23 +346,35 @@ impl Runtime {
         ))?;
         self.select_agent(m.payload.agent_key)
     }
-    /// Select the agent signer whose public key a mandate pins; refused when no slot holds it.
-    pub(crate) fn select_agent(&mut self, agent_key: [u8; 32]) -> Result<(), CommandError> {
-        for slot in [
-            AgentSlot::Negotiator,
-            AgentSlot::Shopper,
-            AgentSlot::Assistant,
-        ] {
-            let key = existing_signing_key(self.vault.as_ref(), slot.key_name())
-                .map_err(|_| unavailable("Agent key unavailable"))?;
-            if key.verifying_key().to_bytes() == agent_key {
-                self.pipeline
-                    .wallet
-                    .select_signer(AgentSigner::from_key(key));
-                return Ok(());
+    /// The key of the slot that holds `agent_key`. One rule for a slot that cannot be read: it is
+    /// skipped, so it never hides the slot that does hold the key; when no readable slot holds the
+    /// key and one could not be read, the answer is "unavailable" (it may have been that one),
+    /// and when every slot was read, a permission refusal.
+    pub(crate) fn slot_holding(
+        &self,
+        agent_key: [u8; 32],
+    ) -> Result<ed25519_dalek::SigningKey, CommandError> {
+        let mut unreadable = false;
+        for slot in AgentSlot::ALL {
+            match existing_signing_key(self.vault.as_ref(), slot.key_name()) {
+                Ok(key) if key.verifying_key().to_bytes() == agent_key => return Ok(key),
+                Ok(_) => {}
+                Err(_) => unreadable = true,
             }
         }
-        Err(permission())
+        Err(if unreadable {
+            unavailable("Agent key unavailable")
+        } else {
+            permission()
+        })
+    }
+    /// Select the agent signer whose public key a mandate pins; refused when no slot holds it.
+    pub(crate) fn select_agent(&mut self, agent_key: [u8; 32]) -> Result<(), CommandError> {
+        let key = self.slot_holding(agent_key)?;
+        self.pipeline
+            .wallet
+            .select_signer(AgentSigner::from_key(key));
+        Ok(())
     }
     pub(crate) fn guard(&mut self, label: &str, token: Option<&str>) -> Result<(), CommandError> {
         self.pipeline
