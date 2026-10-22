@@ -299,3 +299,26 @@ fn startup_reaps_stale_run_directories_and_keeps_live_ones() {
     assert!(runs.join(stranger).exists(), "non-run directory reaped");
     drop(held);
 }
+#[cfg(windows)]
+#[tokio::test]
+async fn native_failures_carry_a_typed_cause_and_exit_code() {
+    let root = root();
+    let engine = fixture("exit2", &root, 5000);
+    let (tx, _rx) = tokio::sync::mpsc::channel(16);
+    let error = engine.run(job(), grant(), tx).await.unwrap_err();
+    assert!(matches!(error, Error::Exit { code: Some(2) }), "{error:?}");
+    assert_eq!(error.cause().as_deref(), Some("exit:2"));
+    let gone = NativeEngine::new(
+        EngineId::ClaudeCode,
+        Executable {
+            program: root.join("no-such-binary.exe"),
+            prefix: vec![],
+        },
+        root.join("runs2"),
+        RunLimits::default(),
+    )
+    .unwrap();
+    let (tx, _rx) = tokio::sync::mpsc::channel(16);
+    let error = gone.run(job(), grant(), tx).await.unwrap_err();
+    assert_eq!(error.cause().as_deref(), Some("spawn"), "{error:?}");
+}

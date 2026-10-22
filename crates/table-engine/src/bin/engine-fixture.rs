@@ -78,7 +78,7 @@ fn main() {
             std::fs::write(evidence, std::process::id().to_string()).unwrap();
             std::thread::sleep(Duration::from_secs(30));
         }
-        "agent" | "toolless" | "tree" | "bad-result" | "no-terminal" | "env" => {
+        "agent" | "exit2" | "toolless" | "tree" | "bad-result" | "no-terminal" | "env" => {
             // Fake inventory is labelled by this binary; never proof of a real CLI.
             let inventory = if mode == "toolless" {
                 r#"{"type":"system","subtype":"init","tools":[],"mcp_servers":[]}"#
@@ -139,6 +139,9 @@ fn main() {
                 "{{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":{},\"result\":\"fixture\"}}",
                 mode == "bad-result"
             );
+            if mode == "exit2" {
+                std::process::exit(2);
+            }
         }
         _ => std::process::exit(2),
     }

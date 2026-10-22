@@ -389,3 +389,20 @@ async fn a_run_whose_finish_row_fails_to_write_is_still_listed_as_ended() {
     assert_eq!(listed.len(), 1, "the ended run stays visible as ended");
     assert!(r.runs.is_empty());
 }
+
+#[tokio::test]
+async fn a_failed_native_run_names_its_cause_in_the_run_end_audit_row() {
+    let (mut r, _deals, _tx) = parked_runtime(1).await;
+    r.tick().await.unwrap();
+    let run = *r.runs.keys().next().unwrap();
+    let cause = table_engine::Error::Exit { code: Some(2) }.cause();
+    r.finish_run_because(run, RunState::Failed, cause).unwrap();
+    let (rows, _) = r.pipeline.wallet.ledger.audit_page(None, u16::MAX).unwrap();
+    let finished: Vec<_> = rows
+        .into_iter()
+        .filter(|a| a.action == "run.finish")
+        .collect();
+    assert_eq!(finished.len(), 1);
+    assert_eq!(finished[0].detail["cause"], "exit:2");
+    assert_eq!(finished[0].detail["state"], "failed");
+}
