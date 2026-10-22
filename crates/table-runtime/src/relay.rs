@@ -23,6 +23,15 @@ impl Delivery {
             failed: false,
         }
     }
+    /// A pass whose relay IO failed for `id` and brought nothing back.
+    pub(crate) fn failed_for_test(id: DealId) -> Self {
+        Self {
+            id,
+            batches: vec![],
+            acknowledgements: vec![],
+            failed: true,
+        }
+    }
 }
 impl Runtime {
     pub fn with_secondary(mut self, api: Arc<dyn table_paypal::SecondaryApi>) -> Self {
