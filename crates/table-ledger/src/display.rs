@@ -15,7 +15,7 @@ impl Ledger {
         // UNCONFIRMED counts as a closed deal (it ended), never as a paid one: this count says closed.
         let mut stmt = self.conn.prepare("SELECT c.key_id,c.display_name,c.paired_via,c.first_seen,
             (SELECT COUNT(*) FROM deals d WHERE d.counterparty=c.key_id AND d.state IN ('RECEIPTED','RECONCILED','UNCONFIRMED')),
-            c.words_confirmed_at,c.declared_payee
+            c.words_confirmed_at,c.declared_payee,c.revoked_at
             FROM counterparties c WHERE c.key_id NOT LIKE 'sub:%' ORDER BY c.key_id")?;
         let rows = stmt.query_map([], |r| {
             Ok((
@@ -26,11 +26,14 @@ impl Ledger {
                 r.get::<_, u32>(4)?,
                 r.get::<_, Option<String>>(5)?,
                 r.get::<_, Option<String>>(6)?,
+                r.get::<_, Option<Timestamp>>(7)?,
             ))
         })?;
         rows.map(|row| {
-            let (key, name, via, at, closed, confirmed, payee) = row?;
-            let pairing = match (confirmed.is_some(), via.as_str()) {
+            let (key, name, via, at, closed, confirmed, payee, revoked) = row?;
+            // A revoked pin is no pin: the gate refuses it (`pin::require_live`), so the list
+            // reads it as unpaired too. (An expired pin needs the clock; this read has none.)
+            let pairing = match (confirmed.is_some() && revoked.is_none(), via.as_str()) {
                 (true, "house") => CounterpartyPairing::HousePinned,
                 (true, _) => CounterpartyPairing::WordsConfirmed,
                 (false, _) => CounterpartyPairing::Unpaired,

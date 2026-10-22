@@ -134,3 +134,20 @@ fn a_v15_ledger_migrates_with_every_existing_pin_still_valid() {
     drop(ledger);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn the_counterparty_list_reads_a_revoked_pin_as_unpaired_like_the_gate() {
+    let (mut ledger, deal, ..) = setup();
+    let pairing = |ledger: &Ledger| {
+        ledger
+            .counterparty_list()
+            .unwrap()
+            .into_iter()
+            .find(|c| c.key_id == deal.counterparty)
+            .unwrap()
+            .pairing
+    };
+    assert_eq!(pairing(&ledger), CounterpartyPairing::WordsConfirmed);
+    ledger.revoke_counterparty(&deal.counterparty, 150).unwrap();
+    assert_eq!(pairing(&ledger), CounterpartyPairing::Unpaired);
+}
