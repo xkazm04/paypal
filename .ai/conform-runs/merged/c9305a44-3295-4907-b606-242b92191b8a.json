@@ -1,0 +1,17 @@
+{
+ "schema": "conform-run/1",
+ "worker": "c9305a44-3295-4907-b606-242b92191b8a",
+ "subject": "page-load-pipeline",
+ "evaluatedAt": "2026-10-22T01:03:57.928510+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [],
+ "declined": [
+  {
+   "subject": "page-load-pipeline",
+   "context": "console-framework",
+   "reason": "evidence leans on lib/lazy.ts, which is not a tracked file"
+  }
+ ],
+ "consults": []
+}
