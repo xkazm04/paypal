@@ -23,6 +23,8 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+// Pure and erasable TypeScript, loaded straight from the source (Node 22.18+ strips the types).
+import { alignMarks } from '../src/director/retime.ts';
 import { CLIENT, SIZE, ffmpegPath, hook, log, loadPlaywright, newContext, openBrowser, pad, plan, quiet, rawLength, reachable, settle, watchErrors } from './lib/rig.mjs';
 
 const REPO = resolve(CLIENT, '..', '..', '..');
@@ -155,26 +157,20 @@ function groundBeside(ff, video) {
 function alignToVideo(ff, video, rows, sync) {
   const levels = markLevels(ff, video);
   const frameMs = 1000 / FPS;
-  let from = 0;
+  const marks = alignMarks(levels, sync.map((s) => s.shade));
   const shifts = [];
   rows.forEach((row, i) => {
-    const want = sync[i].shade;
-    const near = (f) => f < levels.length && Math.abs(levels[f] - want) <= 4;
-    let f = from;
-    while (f < levels.length && !(near(f) && near(f + 1) && near(f + 2))) f += 1;
-    if (f >= levels.length) {
-      log(`sync: ${row.id}: mark ${want} not found in the video; wall-clock offsets kept`);
+    const mark = marks[i];
+    if (!mark) {
+      log(`sync: ${row.id}: mark ${sync[i].shade} not found in the video; wall-clock offsets kept`);
       return;
     }
-    const shift = Math.round(f * frameMs) - sync[i].playedMs;
+    const shift = Math.round(mark.first * frameMs) - sync[i].playedMs;
     // the drift keeps growing inside a beat, so its end is also bounded by the last frame that
     // still shows its own mark: the next jump's reload (a white page) never leaks into its tail
-    let last = f;
-    while (near(last + 1)) last += 1;
     row.startMs = Math.max(0, row.startMs + shift);
-    row.endMs = Math.max(row.startMs + 1, Math.min(row.endMs + shift, Math.round((last + 1) * frameMs) - 1));
+    row.endMs = Math.max(row.startMs + 1, Math.min(row.endMs + shift, Math.round((mark.last + 1) * frameMs) - 1));
     shifts.push(shift);
-    from = f + 1;
   });
   if (shifts.length) log(`sync: ${shifts.length}/${rows.length} beats aligned to the video; shift ${Math.min(...shifts)}..${Math.max(...shifts)} ms`);
 }
