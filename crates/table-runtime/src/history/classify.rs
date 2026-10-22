@@ -101,6 +101,7 @@ const BOOKKEEPING: &[&str] = &[
     "wallet_limit.signed",
     "house.head_kept",
     "house.head_checked",
+    "house.head_refused",
     "market.checked",
     // Shop around (T8): grouping tables and the group's one agreement are bookkeeping; the
     // agreement itself is the table's AGREED step and each withdrawal is its own step.

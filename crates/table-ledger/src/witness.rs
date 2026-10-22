@@ -165,6 +165,36 @@ impl Ledger {
         tx.commit()?;
         Ok(())
     }
+    /// Records that the house served a head the release pin does not verify: a deal-less
+    /// bookkeeping row with typed fields only (the head's claimed epoch, row count and audit head,
+    /// and which `check` failed). Nothing is kept as a head; the caller's backoff paces the rows.
+    pub fn refuse_house_head(
+        &mut self,
+        head: &SignedHouseHead,
+        check: &str,
+        at: Timestamp,
+    ) -> Result<(), LedgerError> {
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        audit::append(
+            &tx,
+            &AuditEntry {
+                at,
+                actor: "house-witness".into(),
+                action: "house.head_refused".into(),
+                deal_id: None,
+                detail: serde_json::json!({
+                    "epoch": head.head.epoch,
+                    "row_count": head.head.row_count,
+                    "audit_head": head.head.audit_head,
+                    "check": check,
+                }),
+            },
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
     /// Receipted HOUSE purchases with no head kept yet, oldest first, with the time the deal
     /// last changed (its receipt, or a later reconciliation).
     pub fn house_deals_awaiting_head(&self) -> Result<Vec<(DealId, Timestamp)>, LedgerError> {

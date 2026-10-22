@@ -705,18 +705,39 @@ async fn a_head_the_release_pin_does_not_verify_is_never_kept_and_the_wallet_bac
         &ed25519_dalek::SigningKey::from_bytes(&[9; 32]),
         served.head,
     );
+    buyer
+        .witness_finished(fetch(Some(stranger.clone())))
+        .unwrap();
+    assert_eq!(rows(&buyer), before + 1, "a refused head leaves one row");
+    assert!(
+        buyer
+            .pipeline
+            .wallet
+            .ledger
+            .house_anchor()
+            .unwrap()
+            .is_none()
+    );
+    // The same forged head served again is not recorded twice.
     buyer.witness_finished(fetch(Some(stranger))).unwrap();
-    assert_eq!(rows(&buyer), before, "an unverified head wrote a row");
-    assert_eq!(buyer.witness.failures, 1);
-    assert_eq!(buyer.witness.retry_at, now + 60);
+    assert_eq!(rows(&buyer), before + 1);
+    let before = before + 1;
+    assert_eq!(buyer.witness.failures, 2);
+    assert_eq!(buyer.witness.retry_at, now + 120);
     assert_eq!(buyer.witness.checked_at, 0);
     let mut tampered = served.clone();
     tampered.head.row_count += 1;
     buyer.witness_finished(fetch(Some(tampered))).unwrap();
+    assert_eq!(
+        rows(&buyer),
+        before + 1,
+        "a different refused head is a new row"
+    );
     buyer.witness_finished(fetch(None)).unwrap();
-    assert_eq!(rows(&buyer), before);
-    assert_eq!(buyer.witness.failures, 3);
-    assert_eq!(buyer.witness.retry_at, now + 240);
+    assert_eq!(rows(&buyer), before + 1, "a lost fetch writes nothing");
+    let before = before + 1;
+    assert_eq!(buyer.witness.failures, 4);
+    assert_eq!(buyer.witness.retry_at, now + 480);
     buyer.witness_finished(fetch(Some(served))).unwrap();
     assert_eq!(rows(&buyer), before + 1, "the verified head is kept");
     assert_eq!((buyer.witness.failures, buyer.witness.retry_at), (0, 0));

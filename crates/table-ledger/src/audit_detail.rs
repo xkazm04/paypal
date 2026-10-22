@@ -73,6 +73,10 @@ pub(crate) const ACTION_KEYS: &[(&str, &[&str])] = &[
         &["epoch", "row_count", "audit_head", "prefix_rows"],
     ),
     (
+        "house.head_refused",
+        &["epoch", "row_count", "audit_head", "check"],
+    ),
+    (
         "house.head_kept",
         &["epoch", "row_count", "audit_head", "prefix_rows"],
     ),

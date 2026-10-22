@@ -669,6 +669,11 @@ mod tests {
                 None,
             ),
             ("house.head_checked", json!({"row_count":14}), None),
+            (
+                "house.head_refused",
+                json!({"row_count":9,"check":"head_signature"}),
+                None,
+            ),
             // Shop around (T8): grouping and the group's one agreement are bookkeeping; a table the
             // group rule withdrew is its own step, decided by the group rule, never a money call.
             ("group.opened", json!({"group_id":"G","tables":2}), None),
