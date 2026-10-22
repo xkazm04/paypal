@@ -18,9 +18,6 @@
 
 /* --- window frame ------------------------------------------------------------------------- */
 .ui-app { display: grid; grid-template-rows: var(--bar) minmax(0, 1fr); height: 100vh; min-height: 0; background: var(--bg); }
-.ui-titlebar { display: flex; align-items: center; gap: var(--sp-3); height: var(--bar); padding: 0 var(--sp-3);
-  background: var(--material); backdrop-filter: blur(16px) saturate(1.4); border-bottom: 1px solid var(--line); min-width: 0; }
-.ui-titlebar .ui-title { font-weight: var(--fw-semibold); white-space: nowrap; }
 .ui-crumbs { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--dim); white-space: nowrap; overflow: hidden; }
 .ui-crumbs a, .ui-crumbs button { color: var(--dim); text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; }
 .ui-crumbs a:hover, .ui-crumbs button:hover { color: var(--text); }
@@ -34,24 +31,8 @@
 .ui-split.no-side.has-insp { grid-template-columns: minmax(0, 1fr) var(--inspector); }
 @media (max-width: 1180px) {
   .ui-split.has-insp { grid-template-columns: 56px minmax(0, 1fr) var(--inspector); }
-  .ui-split.has-insp .ui-sidebar { overflow-x: hidden; padding: var(--sp-2) 6px; }
-  .ui-split.has-insp .ui-sidebar .lbl, .ui-split.has-insp .ui-sidebar .ui-sb-head, .ui-split.has-insp .ui-sidebar .cnt:not(.need) { display: none; }
-  .ui-split.has-insp .ui-sb-item { justify-content: center; position: relative; }
-  .ui-split.has-insp .ui-sb-item .cnt.need { position: absolute; top: 1px; right: 0; padding: 2px 4px; font-size: var(--fs-small); }
 }
 
-/* --- sidebar (source list) ---------------------------------------------------------------- */
-.ui-sidebar { background: var(--material); border-right: 1px solid var(--line); padding: var(--sp-2); overflow: auto; display: flex; flex-direction: column; gap: 1px; }
-.ui-sb-head { font-size: var(--fs-small); font-weight: var(--fw-medium); font-stretch: var(--label-stretch); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); padding: var(--sp-3) var(--sp-2) var(--sp-1); }
-.ui-sb-item { display: flex; align-items: center; gap: var(--sp-2); height: var(--row); padding: 0 var(--sp-2); border-radius: var(--r-sm);
-  color: var(--text); text-decoration: none; background: none; border: 0; width: 100%; text-align: left; cursor: pointer; }
-.ui-sb-item:hover { background: var(--hover); }
-.ui-sb-item[aria-current], .ui-sb-item.on { background: var(--sel); }
-.ui-sb-item .ico { width: 16px; height: 16px; flex: none; display: grid; place-items: center; }
-.ui-sb-item .lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ui-sb-item .cnt { font: var(--fw-semibold) var(--fs-small)/1 var(--num); font-variant-numeric: tabular-nums lining-nums; color: var(--dim); }
-.ui-sb-item .cnt.need { color: var(--on-gold); background: var(--gold); border-radius: var(--r-tight); padding: 3px 6px; box-shadow: var(--glow-gold); }
-.ui-sb-foot { margin-top: auto; padding-top: var(--sp-2); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 1px; }
 
 /* --- content ------------------------------------------------------------------------------ */
 .ui-main { overflow: auto; padding: var(--sp-4) var(--sp-5) var(--sp-8); min-width: 0; }
@@ -239,9 +220,7 @@ details.ui-disclosure[open] > summary::before { transform: rotate(90deg); }
 .ui-inspector-h h2 { flex: 1; min-width: 0; }
 .ui-pagehead .ico { width: 22px; height: 22px; flex: none; display: grid; place-items: center; }
 .ui-pagehead .ico svg { width: 22px; height: 22px; display: block; }
-.ui-sb-item .ico svg { width: 16px; height: 16px; display: block; }
 .ui-row .lead { flex: none; }
-.ui-titlebar .kbd { margin-left: 2px; }
 .ui-loading { display: flex; align-items: center; gap: var(--sp-2); color: var(--dim); min-height: var(--row); }
 .ui-spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line2); border-top-color: var(--gold); animation: ui-spin 1s linear infinite; flex: none; }
 @keyframes ui-spin { to { transform: rotate(360deg); } }
@@ -302,19 +281,7 @@ button.ui-chip:hover { filter: brightness(1.12); }
 .ui-decision .dc-opt:disabled { opacity: .5; cursor: not-allowed; }
 .ui-decision .dc-sil { white-space: normal; }
 
-/* explainer: first-visit "how this works" */
-.ui-explainer { border: 1px dashed var(--line2); border-radius: var(--r-lg); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-4);
-  background: color-mix(in srgb, var(--mc, var(--teal)) 5%, var(--bg)); }
-.ui-explainer .ex-h { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-3); }
-.ui-explainer .ex-h b { flex: 1; font: var(--fw-semibold) var(--fs-title3)/1.2 var(--display); }
-.ui-explainer .ex-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: var(--sp-3); counter-reset: ex; }
 /* align-content: a step beside a taller sibling keeps its words together under the title */
-.ui-explainer .ex-steps li { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; column-gap: var(--sp-2); align-items: start; align-content: start; }
-.ui-explainer .ex-ico { grid-row: span 2; width: 34px; height: 34px; border-radius: var(--r-card); display: grid; place-items: center;
-  color: var(--mc, var(--teal-l)); background: color-mix(in srgb, var(--mc, var(--teal)) 15%, transparent); }
-.ui-explainer .ex-t { font-weight: var(--fw-semibold); }
-.ui-explainer .ex-d { font-size: var(--fs-small); color: var(--dim); }
-.ui-explainer-link { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; color: var(--teal-l); font-weight: var(--fw-medium); cursor: pointer; font-size: var(--fs-small); }
 
 /* checks summary: exceptions open, passes counted */
 .ui-checks { display: flex; flex-direction: column; gap: var(--sp-2); }
@@ -377,19 +344,6 @@ button.ui-chip:hover { filter: brightness(1.12); }
 .ui-disclosure-body { padding: var(--sp-1) 0 var(--sp-3) var(--sp-4); }
 details.ui-disclosure > summary { min-height: 24px; border-radius: var(--r-sm); }
 
-.ui-stepper { list-style: none; margin: 0 0 var(--sp-4); padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); }
-.ui-stepper .st { display: flex; }
-.ui-stepper .st-btn { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 28px; padding: 0 var(--sp-2); border: 0; border-radius: var(--r-sm); background: none; font: inherit; color: var(--dim); }
-.ui-stepper button.st-btn { cursor: pointer; }
-.ui-stepper button.st-btn:hover { background: var(--hover); }
-.ui-stepper .st-dot { width: 20px; height: 20px; flex: none; display: grid; place-items: center; border-radius: var(--r-tight); border: 1px solid var(--line2);
-  font: var(--fw-semibold) var(--fs-small)/1 var(--num); font-variant-numeric: tabular-nums lining-nums; }
-.ui-stepper .st-label { display: flex; flex-direction: column; font-size: var(--fs-body); }
-.ui-stepper .st-label small { font-size: var(--fs-small); color: var(--dim); }
-.ui-stepper .st.done .st-btn { color: var(--muted); }
-.ui-stepper .st.done .st-dot { background: var(--teal); border-color: transparent; color: var(--on-teal); }
-.ui-stepper .st.current .st-btn { color: var(--text); font-weight: var(--fw-semibold); }
-.ui-stepper .st.current .st-dot { border-color: var(--teal); color: var(--teal-l); box-shadow: 0 0 0 2px var(--sel); }
 @media (prefers-reduced-motion: reduce) { .ui-sumcard, .ui-sumcard .chev { transition: none; } .ui-sumcard:active { transform: none; } }
 
 /* --- high contrast (Windows contrast themes): fills and shadows are dropped, so state needs an edge ----
@@ -398,7 +352,7 @@ details.ui-disclosure > summary { min-height: 24px; border-radius: var(--r-sm); 
   .ui-chip, .badge { border: 1px solid CanvasText; }
   .ui-chip.dashed, .badge.mock { border-style: dashed; }
   .ui-seg button[aria-pressed="true"], .ui-seg button.on, .ui-seg button[role="tab"][aria-selected="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
-  .ui-row.on, .ui-sb-item.on, .ui-sb-item[aria-current] { outline: 2px solid Highlight; outline-offset: -2px; }
+  .ui-row.on { outline: 2px solid Highlight; outline-offset: -2px; }
   .ui-row.need { outline: 1px solid CanvasText; outline-offset: -1px; }
   .ui-field:focus { outline: 2px solid Highlight; }
   .ui-btn.primary, .ui-btn.gold, .ui-decision .dc-opt.gold { border: 2px solid ButtonText; }
@@ -406,5 +360,4 @@ details.ui-disclosure > summary { min-height: 24px; border-radius: var(--r-sm); 
   .ui-meter > i { background: Highlight; forced-color-adjust: none; }
   .ui-decision, .ui-answer { border-color: CanvasText; }
   .ui-sumcard { border: 1px solid ButtonText; }
-  .ui-stepper .st.current .st-dot { border: 2px solid Highlight; }
 }
