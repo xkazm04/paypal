@@ -3,6 +3,7 @@
 fn main() {
     if let Err(error) = table_desktop::run() {
         eprintln!("The Table could not start: {error}");
+        table_os::show_startup_failure(&error.to_string());
     }
 }
 #[cfg(not(windows))]
