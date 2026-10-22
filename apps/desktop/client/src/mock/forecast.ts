@@ -9,8 +9,8 @@ import { PRE_CAPTURE, TERMINAL } from '@bindings/dealStates';
 import type { ForecastLine } from '@bindings/ForecastLine';
 import type { QuitLine } from '@bindings/QuitLine';
 
-const ORDER_CREATED_DEADLINE_SECS = 6 * 3600;
-const AUTHORIZED_DEADLINE_SECS = 72 * 3600;
+export const ORDER_CREATED_DEADLINE_SECS = 6 * 3600;
+export const AUTHORIZED_DEADLINE_SECS = 72 * 3600;
 export const FORECAST_HORIZON_SECS = 72 * 3600;
 
 /** Rust `terminal()` (forecast.rs skips it), plus the mock's own named extra: CAPTURED and
@@ -19,7 +19,7 @@ const NOTHING_TO_SCHEDULE: ReadonlySet<DealState> = new Set<DealState>([...TERMI
 
 /** `receiptAt`: when a buyer's seller-attested receipt was accepted (RECEIPTED only), else null / absent. */
 export type ForecastDeal = { deal: Deal; label: string; deadline: number | null; receiptAt?: number | null };
-const CORROBORATION_SECS = 72 * 3600;
+export const CORROBORATION_SECS = 72 * 3600;
 export type ForecastCtx = { now: number; paused: boolean; executorConfigured: boolean };
 
 function amountOf(deal: Deal): number {
