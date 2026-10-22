@@ -547,8 +547,7 @@ impl Pipeline {
                         .map_err(|_| Error::Invalid)?;
                 }
                 MoneyStep::Capture if !reached => {
-                    let deadline = self.wallet.ledger.deadline(id)?.ok_or(Error::Invalid)?;
-                    if now >= deadline.0 || !self.wallet.ledger.has_countersign(id, attempt)? {
+                    if !self.capture_window_open(id, attempt, now)? {
                         return Ok(false);
                     }
                 }

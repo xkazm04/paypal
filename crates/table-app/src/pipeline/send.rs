@@ -425,11 +425,7 @@ impl Pipeline {
         }
         let decision = self.authority(&deal, category, authority, attempt, now)?;
         self.shield_step(&deal, &decision, MoneyStep::Capture, attempt, now)?;
-        let deadline = self.wallet.ledger.deadline(id)?.ok_or(Error::Invalid)?;
-        if now >= deadline.0 {
-            return Err(Error::Permission);
-        }
-        if !self.wallet.ledger.has_countersign(id, attempt)? {
+        if !self.capture_window_open(id, attempt, now)? {
             return Err(Error::Permission);
         }
         let request =
@@ -446,6 +442,18 @@ impl Pipeline {
         )?;
         self.send_capture(&deal, attempt, &resource, &request, now)
             .await
+    }
+    /// The capture's own preconditions, shared by `capture`, `step_allowed` and the resolver's
+    /// re-send so their copies cannot drift: before the honor deadline, and with the attempt's
+    /// countersign recorded. A deal with no deadline is `Invalid`.
+    pub(super) fn capture_window_open(
+        &self,
+        id: DealId,
+        attempt: u8,
+        now: Timestamp,
+    ) -> Result<bool, Error> {
+        let deadline = self.wallet.ledger.deadline(id)?.ok_or(Error::Invalid)?;
+        Ok(now < deadline.0 && self.wallet.ledger.has_countersign(id, attempt)?)
     }
     /// Send the capture reserved under `request` and finish its operation with PayPal's answer;
     /// a confirmed capture signs and records the receipt.
