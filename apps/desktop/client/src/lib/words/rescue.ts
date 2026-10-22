@@ -22,6 +22,13 @@ type FixKey = 'DISCOUNT_THIS_CYCLE' | 'PAUSE' | 'RETRY_AFTER_FIX' | 'DOWNGRADE';
 
 export const RESCUE = {
   title: 'Rescue',
+  /** The "what the subscriber would get" mock on each fix. */
+  get: {
+    label: 'What the subscriber would get',
+    theyGet: 'They’d get',
+    kind: (kind: string) => `They’d get · ${kind}`,
+    nothing: 'Nothing: not offered for this renewal',
+  },
   loading: 'your rescues',
   ledgerWhat: 'Ledger',
   bookWhat: 'Fixes and recovered money can’t be read',

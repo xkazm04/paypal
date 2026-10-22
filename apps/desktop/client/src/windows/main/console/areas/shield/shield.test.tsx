@@ -9,6 +9,9 @@ import type { AttentionItem } from '@bindings/AttentionItem';
 import type { Deal } from '@bindings/Deal';
 import type { Backend } from '../../../../../lib/contract';
 import { APPROVAL_LOCKED_TITLE, IF_NOTHING, SHIELD, SHIELD_VIEWS_TITLE, YOUR_CALL } from '../../../../../lib/words';
+import { wordsOf } from '../tables/wordsOf';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { mockBackend, resetMockState } from '../../../../../mock/backend';
 import { App } from '../../../App';
 import { setHarnessBackend } from '../../testing/runtime';
@@ -136,5 +139,20 @@ describe('Shield model, a payment the shield asked about', () => {
     const s = shieldSets([live, paid, ended], () => 'spend', (id) => (id === 'live' ? need : undefined));
     expect(s.checked.map((d) => d.id)).toEqual(['live', 'paid', 'ended']);
     expect(s.stopped.map((d) => d.id)).toEqual(['ended']);
+  });
+});
+
+describe('Shield panel words', () => {
+  it('say nothing a vendor, an id or a raw state would: every panel string comes from the words file', () => {
+    for (const w of wordsOf(SHIELD)) {
+      expect(w).not.toMatch(/claude|codex|openai|anthropic|gpt/i);
+      expect(w).not.toMatch(/[A-Z]{3,}_[A-Z_]+|D-\d{4}|mandate|clause|_set/);
+    }
+  });
+  it('keeps no user-facing text inline in the round-2 panels file', () => {
+    const src = readFileSync(join(process.cwd(), 'src/windows/main/modules/shield/Panels.tsx'), 'utf8');
+    const jsxText = [...src.matchAll(/>([^<>{}\n]*[A-Za-z][^<>{}\n]*)</g)].map((m) => m[1]!.trim()).filter(Boolean);
+    const quotedAttrs = [...src.matchAll(/\b(?:aria-label|title|label|sub)="([^"]+)"/g)].map((m) => m[1]);
+    expect([...jsxText, ...quotedAttrs]).toEqual([]);
   });
 });

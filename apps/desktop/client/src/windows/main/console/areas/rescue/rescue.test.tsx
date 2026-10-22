@@ -7,6 +7,9 @@ import { act, cleanup, fireEvent, waitFor, within } from '@testing-library/react
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { formatMinor } from '../../../../../lib/format';
 import { IF_NOTHING, RESCUE, RESCUE_VIEWS_TITLE, YOUR_CALL } from '../../../../../lib/words';
+import { wordsOf } from '../tables/wordsOf';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { mockBackend } from '../../../../../mock/backend';
 import { splitRows } from '../../../modules/rescue/model';
 import { expectLayerHealthy, renderLayerAtScale, settle } from '../../testing/scaleSmoke';
@@ -90,4 +93,19 @@ describe('Rescue hand-offs', () => {
     expect(r.layer.querySelector('.rs-total')?.textContent).toContain(total || RESCUE.recovered.noneYet);
     expect(document.querySelector('.cs-layer [data-layer-title]')?.textContent).toBe(RESCUE_VIEWS_TITLE.recovered);
   }, 60_000);
+});
+
+describe('Rescue panel words', () => {
+  it('say nothing a vendor, an id or a raw state would: every panel string comes from the words file', () => {
+    for (const w of wordsOf(RESCUE)) {
+      expect(w).not.toMatch(/claude|codex|openai|anthropic|gpt/i);
+      expect(w).not.toMatch(/[A-Z]{3,}_[A-Z_]+|D-\d{4}|mandate|clause|_set/);
+    }
+  });
+  it('keeps no user-facing text inline in the round-2 panels file', () => {
+    const src = readFileSync(join(process.cwd(), 'src/windows/main/modules/rescue/Panels.tsx'), 'utf8');
+    const jsxText = [...src.matchAll(/>([^<>{}\n]*[A-Za-z][^<>{}\n]*)</g)].map((m) => m[1]!.trim()).filter(Boolean);
+    const quotedAttrs = [...src.matchAll(/\b(?:aria-label|title|label|sub)="([^"]+)"/g)].map((m) => m[1]);
+    expect([...jsxText, ...quotedAttrs]).toEqual([]);
+  });
 });

@@ -4,11 +4,10 @@
 import type { ReactNode } from 'react';
 import type { CounterpartyDisplay } from '@bindings/CounterpartyDisplay';
 import type { Deal } from '@bindings/Deal';
+import { SHIELD } from '../../../../lib/words';
 import { Icon, Why, type IconName } from '../../../../shared/ui';
 import type { Reason } from './matrix';
 import { checkLights, compareRows, whyFor, whyQuestion, type CompareCell, type Light, type LightState, type WeekStrip } from './normal';
-
-const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 // ---- the week strip: checked, paused, blocked --------------------------------------------------------------
 
@@ -24,12 +23,13 @@ function Tile({ tone, icon, n, label, sub }: { tone: 'teal' | 'gold' | 'red'; ic
 
 /** Three large tiles. The counts are the page's own lists, so the strip and the rows below always agree. */
 export function WeekTiles({ strip }: { strip: WeekStrip }) {
-  const since = strip.scope === 'week' ? 'this week' : 'so far';
+  const W = SHIELD.panels;
+  const since = strip.scope === 'week' ? W.thisWeek : W.soFar;
   return (
-    <ul className="sh-wk" aria-label={`The shield ${since}`}>
-      <Tile tone="teal" icon="shield" n={strip.checked} label={`Checked ${since}`} sub={strip.checked ? (strip.safe ? `${strip.safe} looked safe` : 'none looked safe') : 'nothing to check yet'} />
-      <Tile tone="gold" icon="pause" n={strip.paused} label="Paused for you" sub={strip.paused ? (strip.waiting ? `${strip.waiting} waiting for your call` : 'none waiting now') : 'nothing paused'} />
-      <Tile tone="red" icon="block" n={strip.blocked} label="Blocked" sub={strip.blocked ? 'stopped for good' : 'nothing blocked'} />
+    <ul className="sh-wk" aria-label={W.stripLabel(since)}>
+      <Tile tone="teal" icon="shield" n={strip.checked} label={W.checked(since)} sub={strip.checked ? (strip.safe ? W.looked(strip.safe) : W.noneLooked) : W.nothingToCheck} />
+      <Tile tone="gold" icon="pause" n={strip.paused} label={W.pausedForYou} sub={strip.paused ? (strip.waiting ? W.waiting(strip.waiting) : W.noneWaiting) : W.nothingPaused} />
+      <Tile tone="red" icon="block" n={strip.blocked} label={W.blocked} sub={strip.blocked ? W.stoppedForGood : W.nothingBlocked} />
     </ul>
   );
 }
@@ -59,14 +59,14 @@ export function ComparePanel({ deal, cp, known, now }: { deal: Deal; cp: Counter
   const rows = compareRows(deal, cp, known, now);
   const diffs = rows.filter((r) => r.tone === 'differs').length;
   return (
-    <section className="sh-cmp" aria-label="What’s normal vs this payment">
+    <section className="sh-cmp" aria-label={SHIELD.panels.compare}>
       <table>
         <colgroup><col className="lab" /><col /><col /></colgroup>
         <thead>
           <tr>
-            <th scope="col" className="lab"><span className="sr">Fact</span></th>
-            <th scope="col" className="norm">What’s normal</th>
-            <th scope="col" className="here">This payment{diffs ? <span className="cnt">{count(diffs, 'difference')}</span> : null}</th>
+            <th scope="col" className="lab"><span className="sr">{SHIELD.panels.fact}</span></th>
+            <th scope="col" className="norm">{SHIELD.panels.normal}</th>
+            <th scope="col" className="here">{SHIELD.panels.thisPayment}{diffs ? <span className="cnt">{SHIELD.panels.difference(diffs)}</span> : null}</th>
           </tr>
         </thead>
         <tbody>
@@ -100,8 +100,8 @@ function Lamp({ l }: { l: Light }) {
 export function CheckLights({ deal, cp, now }: { deal: Deal; cp: CounterpartyDisplay | undefined; now: number }) {
   const lights = checkLights(deal, cp, now);
   return (
-    <section className="sh-lights" aria-label="The shield’s checks">
-      <div className="hd">The shield’s checks</div>
+    <section className="sh-lights" aria-label={SHIELD.panels.checks}>
+      <div className="hd">{SHIELD.panels.checks}</div>
       <ul>{lights.map((l) => <Lamp key={l.stage} l={l} />)}</ul>
     </section>
   );
