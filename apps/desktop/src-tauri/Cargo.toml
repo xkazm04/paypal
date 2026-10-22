@@ -28,7 +28,6 @@ tauri = {version="=2.12.1",features=["tray-icon"]}
 tauri-plugin-single-instance = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-opener = "2"
-tauri-plugin-notification = "2"
 tauri-winrt-notification = "=0.8.1"
 tauri-plugin-dialog = "2"
 [target.'cfg(windows)'.build-dependencies]
