@@ -620,12 +620,13 @@ impl Pipeline {
         })?;
         Ok(())
     }
-    /// Applies every due deadline default. One deal's failure (an unknown void) never starves
-    /// the deals after it; the first error is returned once all of them were attempted.
+    /// Applies every due deadline default, over live deals only: the iteration the runtime
+    /// scheduler and the house run. One deal's failure (an unknown void) never starves the deals
+    /// after it; the first error is returned once all of them were attempted.
     pub async fn tick(&mut self, now: Timestamp) -> Result<Vec<DealId>, Error> {
         let mut changed = Vec::new();
         let mut failure = None;
-        for deal in self.wallet.ledger.list_deals()? {
+        for deal in self.wallet.ledger.list_live_deals()? {
             // A rescue's invoice is real even when its failure was replayed: it is polled and
             // its deadline applied whatever the mode (rescue.rs).
             if deal.kind == DealKind::Rescue {

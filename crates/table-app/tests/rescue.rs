@@ -1706,3 +1706,25 @@ async fn a_rescue_deal_that_settles_leaves_no_read_state() {
     assert_eq!(r.p.read_state_of(id), 0);
     assert_eq!(r.p.read_state_len(), (0, 0, 0));
 }
+
+/// The tested deadline loop is the shipped one (runtime scheduler.rs, house hosted.rs): `tick`
+/// walks live deals only. A deal that went terminal outside the tick is never visited again, so
+/// the visit shows nowhere except in the schedule entries a visit would have pruned.
+#[tokio::test]
+async fn tick_visits_live_deals_only_as_the_scheduler_does() {
+    let mut r = rig();
+    let id = r.open(1, RescueSource::Paypal).id;
+    r.approve(id, T0).await.unwrap();
+    r.p.rescue_tick(id, T0 + 1).await.unwrap();
+    assert!(r.p.read_state_of(id) > 0, "polled on its cadence");
+    r.p.wallet
+        .ledger
+        .apply_event(id, table_core::DealEvent::Withdraw, T0 + 2)
+        .unwrap();
+    assert!(r.state(id).terminal());
+    r.p.tick(T0 + 3).await.unwrap();
+    assert!(
+        r.p.read_state_of(id) > 0,
+        "a terminal deal is not walked by tick"
+    );
+}
