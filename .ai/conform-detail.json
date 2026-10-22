@@ -5877,6 +5877,47 @@
         "at": "2026-10-22T21:18:20.060297+00:00",
         "reason": "reviewer (sonnet): The primary anchor rig.mjs:101 is a theme-localStorage comment, so it doesn't show that no speaking face exists; the context also handles narration audio (film-capture.mjs reads audio/manifest.json and sizes holds from spoken lines), and the viseme/phoneme/blendshape/lip-sync search doesn't rule out"
       }
+    },
+    "92cbc0b8-5203-4da1-a2ac-4bf381ab1569/workflow-property-contracts": {
+      "context": "client-foundation",
+      "subject": "workflow-property-contracts",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T21:31:42.242Z",
+      "worker": "e7c570d9-5458-43de-9871-1fdbad58158d",
+      "techniques": [
+        {
+          "technique": "attribute-protocol-over-accessors",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/contract.ts:28 The public operation invokes typed wallet commands; callers do not read or assign workflow components."
+        },
+        {
+          "technique": "contract-driven-adapters",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:1519 The mock dispatches locally authored wallet handlers, without loading or adapting externally authored workflows."
+        },
+        {
+          "technique": "dual-implementation-parity",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/runtime.ts:55 Native/mock selection concerns IPC transports, without config-backed and code-backed workflow property providers or resolution tiers."
+        },
+        {
+          "technique": "mid-iteration-event-seams",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/hooks.ts:21 These are wallet event subscriptions for React components; no training iteration or tensor stages are hosted here."
+        },
+        {
+          "technique": "required-and-optional-property-sets",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:605 The mapped table covers command handlers, without an unseen workflow's required and optional component providers to preflight."
+        },
+        {
+          "technique": "wiring-location-checks",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/mock/backend.ts:478 The mock checks command authority for a window; no optional workflow component has a provider location and consumer reference location to compare."
+        }
+      ]
     }
   }
 }
