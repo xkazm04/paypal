@@ -10,7 +10,7 @@ plan price for everyone.
 
 ## What the owner sees
 
-**Main window, Rescue page** (`apps/desktop/client/src/windows/main/modules/rescue.tsx`):
+**Main window, Rescue page** (`apps/desktop/client/src/windows/main/console/areas/rescue/RescueLayer.tsx`):
 
 - Header "Rescue" with "Failed renewals · pick one fix for one subscriber, or do nothing", then a
   first-visit explainer: "A renewal failed", "Pick one fix", "Doing nothing is safe".
@@ -134,7 +134,7 @@ plan price for everyone.
 | Ledger | `crates/table-ledger/src/rescue.rs`, `rescue_watch.rs` | `RescueCase`, `Recipient` (masked), `COUNTED`, `rescue_recovered`, watch list and read budget |
 | Migrations | `crates/table-ledger/migrations/0011_rescue.sql`, `0014_rescue_watch.sql` | `rescue_cases`, invoice operations, `rescue_watches` |
 | PayPal | `crates/table-paypal/src/secondary.rs` | Invoicing v2 create / send / search, subscription read |
-| Client | `apps/desktop/client/src/windows/main/modules/rescue.tsx`, `rescue/` | page, `model.ts` (`atRiskOf`, `splitFixes`), `preview.ts` |
+| Client | `apps/desktop/client/src/windows/main/console/areas/rescue/RescueLayer.tsx`, `rescue/` | page, `model.ts` (`atRiskOf`, `splitFixes`), `preview.ts` |
 | Client | `apps/desktop/client/src/windows/approval/owner/` | `RescueReplay.tsx`, `replay.ts`, `RescueWatch.tsx`, `watch.ts` |
 
 IPC commands (rows in `crates/table-client/src/authority_table.rs`):

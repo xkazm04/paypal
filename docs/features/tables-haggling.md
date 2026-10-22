@@ -10,7 +10,7 @@ market prices fresh under a signed rule.
 
 ## What the owner sees
 
-**Main window, Tables page** (`apps/desktop/client/src/windows/main/modules/tables.tsx`):
+**Main window, Tables page** (`apps/desktop/client/src/windows/main/console/areas/tables/TablesLayer.tsx`):
 
 - An answer bar first ("Is a deal waiting for me, and is it inside my limit?"), then a first-visit
   explainer: "Your agent haggles", "Never past your limit", "You approve the price".
@@ -183,7 +183,7 @@ flowchart LR
 | Ledger | `crates/table-ledger/src/groups.rs`, `market_watch.rs` | `open_group`, `accept_guard`, `commit_group_withdraw`, `reserve_market_check` |
 | Ledger | `crates/table-ledger/src/repositories.rs`, `receipt.rs` | `store_market_reference`, AGREED row's `market`, `Ledger::fair_price` |
 | Migration | `crates/table-ledger/migrations/0012_deal_groups.sql` | `deal_groups`, `deals.group_id`, agree-once triggers |
-| Client | `apps/desktop/client/src/windows/main/modules/tables.tsx`, `tables/` | page, `ladder.ts`, `groups.ts`, `ShopAround.tsx` |
+| Client | `apps/desktop/client/src/windows/main/console/areas/tables/TablesLayer.tsx`, `tables/` | page, `ladder.ts`, `groups.ts`, `ShopAround.tsx` |
 | Client | `apps/desktop/client/src/windows/approval/BandAdjust.tsx`, `DealReview.tsx` | price-range signing, owner accept |
 | Client | `apps/desktop/client/src/lib/marketWatch.ts` | "Keep prices fresh" words and facts |
 | Client | `apps/desktop/client/src/lib/fairPrice.ts`, `lib/words.ts` | quartiles, percentile, ordinal; `fairPriceWords`, `FAIR_PRICE_NAME` |

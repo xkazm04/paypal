@@ -24,7 +24,7 @@ owner decision.
   unlock with Windows Hello"). It locks again after 15 minutes without a privileged action. It
   shows one gold decision at a time, with a hold-to-confirm button.
 - **Settings › Detailed › approval lock › Details…** shows the "Permissions fingerprint"
-  (monospace, groups of 8; `CircuitView.tsx`). Two installs with the same fingerprint run the
+  (monospace, groups of 8; `windows/main/console/areas/settings/SettingsLayer.tsx`). Two installs with the same fingerprint run the
   same who-may-call-what table. A proof file names the fingerprint of the version that saved it.
 
 See [window-duality.md](../design/window-duality.md) for the windows' forms and the attention

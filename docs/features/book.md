@@ -10,7 +10,7 @@ command it uses is a read.
 
 ## What the owner sees
 
-**Main window, Book page** (`apps/desktop/client/src/windows/main/modules/book.tsx`):
+**Main window, Book page** (`apps/desktop/client/src/windows/main/console/areas/book/BookLayer.tsx`):
 
 - The page head carries **Your safety record** ("Check every entry on record: who decided each
   money step, and what your agents were refused"); the same sheet opens from Ctrl K. It says how
@@ -54,7 +54,7 @@ command it uses is a read.
 - If the audit chain fails verification, a sheet explains it in plain words (keep the files,
   check PayPal, keep saved proof files) and offers "Check again" (`AUDIT_BROKEN`).
 
-**Deal page, PayPal records sheet** (`windows/main/deal/Evidence.tsx`): receipt and statement chips
+**Deal page, PayPal records sheet** (`windows/main/console/areas/deal/Evidence.tsx`): receipt and statement chips
 with their reasons, "Check my PayPal statement" ("Looks this payment up on your own PayPal
 statement. Read-only."), and saving the signed proof file. Their notes never show in the Book;
 the deal page shows them in quarantine.
@@ -152,9 +152,9 @@ the deal page shows them in quarantine.
 | Fair price | `crates/table-core/src/market.rs`, `crates/table-ledger/src/receipt.rs` | `FairPrice`, `fair_price`, `Ledger::fair_price` |
 | Shell | `apps/desktop/src-tauri/src/native/commands.rs` | `proof_check` (file dialog) |
 | Agent tool | `crates/table-mcp/src/lib.rs`, `prompts/shop-assistant.md` | `book_query` |
-| Client | `apps/desktop/client/src/windows/main/modules/book.tsx`, `book/` | `understand.ts`, `rules.ts`, `AskReading.tsx`, `AskChips.tsx`, `model.ts` (`LENSES`), `where.ts`, `MoneyWent.tsx`, `ProofCheck.tsx` |
-| Client | `apps/desktop/client/src/windows/main/deal/Evidence.tsx` | "Check my PayPal statement", save proof |
-| Client | `apps/desktop/client/src/windows/main/safety/`, `lib/words.ts`, `lib/fairPrice.ts` | `SafetySheet`, `safetyWords`; `fairPriceWords`, `FAIR_PRICE_NAME`, `proofMarketNotChecked` |
+| Client | `apps/desktop/client/src/windows/main/console/areas/book/BookLayer.tsx`, `book/` | `understand.ts`, `rules.ts`, `AskReading.tsx`, `AskChips.tsx`, `model.ts` (`LENSES`), `where.ts`, `MoneyWent.tsx`, `ProofCheck.tsx` |
+| Client | `apps/desktop/client/src/windows/main/console/areas/deal/Evidence.tsx` | "Check my PayPal statement", save proof |
+| Client | `apps/desktop/client/src/windows/main/safety/`, `lib/words.ts`, `lib/fairPrice.ts` | `SafetyLayer`, `safetyWords`; `fairPriceWords`, `FAIR_PRICE_NAME`, `proofMarketNotChecked` |
 
 IPC commands (rows in `crates/table-client/src/authority_table.rs`; all tier `read`, no token or
 unlock):
@@ -206,7 +206,7 @@ unlock):
   column and the bucket filter still lists it there; the tone of the week answer still counts every
   AUTHORIZED deal (`holds` in `WeekAnswer`). Surfaces outside the Book that may still word a checked
   payment as on hold are listed in DECISIONS section 34's Open item and section 36's Open item.
-- "Check my PayPal statement" asks for `start = now - 3 days` (`windows/main/deal/Evidence.tsx`, the
+- "Check my PayPal statement" asks for `start = now - 3 days` (`windows/main/console/areas/deal/Evidence.tsx`, the
   `rec.run` call). A deal that lapsed to UNCONFIRMED after the 72 h corroboration window
   (`CORROBORATION_SECS`) therefore cannot be found by the check, whose window no longer reaches its
   payment (deal-to-settlement full r1 (2026-10-10), robustness-1). Waits on the operator's Approval.

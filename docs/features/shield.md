@@ -15,7 +15,7 @@ BLOCK "Blocked". Rule words come from `shieldRuleWord()` in `apps/desktop/client
 "Different payee", "Friends & family", "No usual price", "Price far above usual", "New payee,
 large amount", "A second look".
 
-**Main window, Shield page** (`apps/desktop/client/src/windows/main/modules/shield.tsx`):
+**Main window, Shield page** (`apps/desktop/client/src/windows/main/console/areas/shield/ShieldLayer.tsx`):
 
 - "Checks every payment for scam signs before PayPal is asked", an answer bar ("All quiet. Nothing
   suspicious happened."), and a first-visit explainer: "New payees get checked", "Odd prices pause
@@ -113,7 +113,7 @@ says: "Releasing doesn't pay: you still approve the payment on PayPal after."
 | Pipeline | `crates/table-app/src/pipeline.rs` | `shield_allows`, `shield_step`, `shield_sources`, `raise_payee_mismatch`, `owner_release_hold` |
 | Ledger | `crates/table-ledger/src/shield.rs` | `record_shield`, `raise_shield`, `release_shield_hold`, `record_shield_refusal` |
 | Migration | `crates/table-ledger/migrations/0013_shield_record.sql` | `shield_rule`, `shield_terms`, `shield_release_json`, block triggers |
-| Client | `apps/desktop/client/src/windows/main/modules/shield.tsx`, `shield/` | page, `matrix.ts`, `normal.ts`, `Panels.tsx`, `NoteChip.tsx` |
+| Client | `apps/desktop/client/src/windows/main/console/areas/shield/ShieldLayer.tsx`, `shield/` | page, `matrix.ts`, `normal.ts`, `Panels.tsx`, `NoteChip.tsx` |
 | Client | `apps/desktop/client/src/windows/approval/gating.ts` | `releaseHold` gate, typed-name match |
 | Client | `apps/desktop/client/src/lib/words.ts` | `shieldWord`, `shieldRuleWord`, `shieldReleased`, `CHECK_QUIET` |
 
