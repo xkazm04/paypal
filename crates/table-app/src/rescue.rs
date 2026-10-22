@@ -463,7 +463,21 @@ impl Pipeline {
         let category = self.wallet.ledger.deal_category(id)?;
         // The mandate check (with the fixes clause) and the owner ticket, before any write.
         let decision = self.authority(&deal, category, Authority::Owner(ticket), 1, now)?;
-        if !shield_allows(self.shield(&deal, now)?, &decision, MoneyStep::Create) {
+        // A shield refusal is recorded once, as `shield_step` records it for the other money
+        // steps, before anything is written or sent.
+        let gate = self.shield_gate(&deal, now)?;
+        if !shield_allows(gate.gating(), &decision, MoneyStep::Create) {
+            self.wallet
+                .ledger
+                .record_shield_refusal(&table_ledger::ShieldRefusal {
+                    id,
+                    step: MoneyStep::Create.name(),
+                    attempt: 1,
+                    verdict: gate.gating(),
+                    rule: gate.rule,
+                    refused: &decision,
+                    at: now,
+                })?;
             return Err(Error::Permission);
         }
         match deal.state {
