@@ -273,12 +273,14 @@ case WebView2 throttled it while hidden (S·athena `RECONCILE_MS`, risk 10).
 ### Commands and capabilities
 
 ```jsonc
-// capabilities/tumbler.json
+// capabilities/tumbler.json - generated from the authority table (see the file)
 { "identifier": "tumbler", "windows": ["tumbler"],
-  "permissions": ["core:default", "core:window:allow-start-dragging",
-    "allow-tumbler-set-form", "allow-tumbler-pin", "allow-tumbler-snap-to",
-    "allow-attention-list", "allow-deal-withdraw", "allow-deal-let-lapse",
-    "allow-deal-snooze", "allow-approval-open", "allow-main-open"] }
+  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten", "allow-deal-snooze",
+    "allow-deal-display", "allow-get-settings", "allow-attention-list", "allow-main-open",
+    "allow-approval-open", "allow-tumbler-set-form", "allow-tumbler-pin", "allow-deal-withdraw",
+    "allow-deal-let-lapse", "allow-settings-write", "allow-pause-all-agents",
+    "allow-quit-summary", "allow-quit-confirm", "allow-tumbler-drag", "allow-tumbler-snap",
+    "allow-envelope-get"] }
 
 // capabilities/approval.json - the only file that grants release
 { "identifier": "approval", "windows": ["approval"],
