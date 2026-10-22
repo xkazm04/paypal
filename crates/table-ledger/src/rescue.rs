@@ -132,7 +132,7 @@ impl Ledger {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let live: bool = tx.query_row(
-            "SELECT EXISTS(SELECT 1 FROM rescue_cases c JOIN deals d ON d.id=c.deal_id WHERE c.subscription_id=?1 AND d.state IN ('PAIRING','AGREED','SETTLING','AWAITING_APPROVAL'))",
+            "SELECT EXISTS(SELECT 1 FROM rescue_cases c JOIN deals d ON d.id=c.deal_id WHERE c.subscription_id=?1 AND d.state IN ('PAIRING','LISTED','NEGOTIATING','AGREED','SETTLING','AWAITING_APPROVAL','APPROVED','AUTHORIZED'))",
             [case.subscription_id.as_str()],
             |r| r.get(0),
         )?;
