@@ -36,7 +36,7 @@ desktop with the puck in a corner and controls that simulate what the wallet cor
   (d) the clock runs past the deadline and the haggle is withdrawn by the safe default; (c) a $339
   payment request does not match the $329 deal: a pause and a review with no pay button; (b) The
   Table closes with a payment on hold, days pass, and the hold releases itself. The ending opens
-  "Your safety record" (beat `end-safety`, route `#m=book&p=safety`): who decided each money step,
+  "Your safety record" (beat `end-safety`, route `#p=safety&m=book`): who decided each money step,
   and that PayPal never heard of a request her rules refused. Before it, `end-proof` (route
   `#d=D-0190&dv=proof`) opens the dock's proof from PayPal: an order and a hold, no payment, no
   receipt, nothing on the statement, "decided by the deadline". 28 beats in all, 214 s (3:34).
