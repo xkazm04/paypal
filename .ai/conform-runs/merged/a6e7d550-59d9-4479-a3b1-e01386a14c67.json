@@ -1,0 +1,84 @@
+{
+ "schema": "conform-run/1",
+ "worker": "a6e7d550-59d9-4479-a3b1-e01386a14c67",
+ "subject": "trust-base",
+ "evaluatedAt": "2026-10-22T00:03:21.441297+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "table-wire-protocol",
+   "subject": "trust-base",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "crates/table-proto/Cargo.toml:23 The crate inherits the workspace's unsafe-code prohibition, and searches found no unsafe sites, trusted-body annotations or prover dependencies in this context, so the standard's checker-override precondition does not hold.",
+   "techniques": [
+    {
+     "technique": "assumptions-are-build-errors",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/src/pairing.rs:295 Byte order is explicit through a language-defined conversion; no proof or type-level argument assuming a platform width or endianness was found."
+    },
+    {
+     "technique": "census-counts-unmarked-members",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/Cargo.toml:4 The inherited edition is 2024, which already marks the relevant environment mutations unsafe; searches also found no set_var, remove_var or pre_exec calls in this crate."
+    },
+    {
+     "technique": "leaf-spec-states-what-callers-read",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/src/envelope.rs:439 This documents an ordinary executable validation function; no trusted leaf contract consumed by a prover was found."
+    },
+    {
+     "technique": "marker-impl-names-its-exclusion",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/src/envelope.rs:4 Replay storage uses the standard collection implementation; inspection and searches across the crate found no manual Send or Sync assertions, UnsafeCell or raw-pointer access protocols."
+    },
+    {
+     "technique": "soundness-argument-names-its-dependencies",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/src/envelope.rs:462 Wire decoding uses a typed, fallible safe API; no checker escape hatch requiring a remote layout, constructor or allocation argument was found."
+    },
+    {
+     "technique": "trusted-leaf-gets-an-outside-test",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/tests/protocol.rs:79 These are executable protocol rejection tests, rather than outside witnesses for prover-skipped bodies; no such trusted bodies were found."
+    },
+    {
+     "technique": "verifier-footprint-stays-contained",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/Cargo.toml:7 The inherited publish setting is false, and the complete crate dependency list contains no prover or specification library."
+    }
+   ],
+   "absenceTerms": [
+    "unsafe",
+    "external_body",
+    "extern_spec",
+    "creusot",
+    "prusti"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-22T00:03:21.441297+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "trust-base"
+   ],
+   "techniques": [
+    "assumptions-are-build-errors",
+    "census-counts-unmarked-members",
+    "leaf-spec-states-what-callers-read",
+    "marker-impl-names-its-exclusion",
+    "soundness-argument-names-its-dependencies",
+    "trusted-leaf-gets-an-outside-test",
+    "verifier-footprint-stays-contained"
+   ],
+   "deviations": 0,
+   "context": "table-wire-protocol",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
