@@ -1893,3 +1893,70 @@ fn relay_failures_back_off_to_thirty_two_seconds_and_a_clean_pass_resets_the_wai
     r.relay_finished(vec![]).unwrap();
     assert_eq!((r.relay_failures, r.relay_retry_at), (0, 0));
 }
+
+/// A relay double that fails its `n`th send (1-based) and succeeds the others.
+struct FailNthSend {
+    n: usize,
+    sends: std::sync::atomic::AtomicUsize,
+}
+#[async_trait]
+impl table_relay::RelayApi for FailNthSend {
+    async fn create(&self, _: H256) -> Result<(), table_relay::Error> {
+        Ok(())
+    }
+    async fn send(&self, _: H256, _: &str) -> Result<(), table_relay::Error> {
+        let sent = self.sends.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+        if sent == self.n {
+            Err(table_relay::Error::Unavailable)
+        } else {
+            Ok(())
+        }
+    }
+    async fn poll(
+        &self,
+        _: H256,
+        _: &str,
+        after: u64,
+        _: u8,
+    ) -> Result<table_relay::Batch, table_relay::Error> {
+        Ok(table_relay::Batch {
+            generation: "a".repeat(32),
+            after,
+            messages: vec![],
+        })
+    }
+}
+
+/// When a send fails mid-way, the pass acknowledges only the messages already sent, counts as
+/// failed, and still polls: the unsent messages are re-sent next pass (at-least-once).
+#[tokio::test]
+async fn a_send_that_fails_mid_way_acknowledges_only_the_sent_prefix_and_still_polls() {
+    let work = table_ledger::RelayWork {
+        deal_id: DealId(ulid::Ulid::new()),
+        mailbox: H256::digest(b"mailbox"),
+        generation: "a".repeat(32),
+        cursor: 0,
+        outgoing: (0u8..3)
+            .map(|i| (H256::digest(&[i]), format!("m{i}.y.z")))
+            .collect(),
+        settled_at: None,
+    };
+    let sent_first = work.outgoing[0].0;
+    let relay = Arc::new(FailNthSend {
+        n: 2,
+        sends: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let delivery = crate::relay::deliver(relay.clone(), work).await;
+    assert!(delivery.failed, "the pass counts as failed");
+    assert_eq!(
+        delivery.acknowledgements,
+        vec![("a".repeat(32), sent_first)],
+        "only the message sent before the failure is acknowledged"
+    );
+    assert_eq!(
+        relay.sends.load(std::sync::atomic::Ordering::SeqCst),
+        2,
+        "the third message is not attempted after the failure"
+    );
+    assert_eq!(delivery.batches.len(), 2, "the follow-up poll still runs");
+}
