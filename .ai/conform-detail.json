@@ -5760,6 +5760,62 @@
         "at": "2026-10-22T04:26:58.965573+00:00",
         "reason": "reviewer (sonnet): book.rs:78 only maps the bool-like result of validate() to InvalidTerms; the diagnosis is preserved by BookQuery::rejection() (book.rs:83, fixed field-prefixed reasons such as 'metrics: 1 to 4 required'), and dispatcher.rs:520 surfaces it as 'BookQuery rejected: {reason}', so 'collapses their diagno"
       }
+    },
+    "6ad8f933-5c5e-4ed6-8ace-f642dffc558f/subprocess-lifecycle": {
+      "context": "table-engine-agent-process",
+      "subject": "subprocess-lifecycle",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T04:40:53.041Z",
+      "techniques": [
+        {
+          "technique": "cancellation-needs-a-terminable-unit",
+          "verdict": "deviation",
+          "evidence": "crates/table-engine/src/native.rs:251 Cancellation enforces process-tree termination, but discards the reap result and provides no signalled-versus-reaped accounting to verify reclamation."
+        },
+        {
+          "technique": "concurrency-and-slots",
+          "verdict": "deviation",
+          "evidence": "crates/table-runtime/src/engines.rs:459 The runtime caps active runs at four, but cancellation removes the counted entry before ActiveRun drops and aborts execution; capacity is released before verified child reaping."
+        },
+        {
+          "technique": "decode-child-output-per-line",
+          "verdict": "deviation",
+          "evidence": "crates/table-engine/src/native.rs:501 The JSON stream correctly uses strict UTF-8 per line, but this plain-text version capture separately decodes the whole buffer as UTF-8, without the shared decoder or Windows legacy-page fallback required for undeclared text encoding."
+        },
+        {
+          "technique": "host-resource-protection",
+          "verdict": "deviation",
+          "evidence": "crates/table-engine/src/windows_job.rs:51 Time and stdout-volume ceilings exist, but the job sets only kill-on-close protection; native execution lacks memory and scratch-growth budgets and machine-pressure admission with hysteresis."
+        },
+        {
+          "technique": "liveness-and-heartbeats",
+          "verdict": "deviation",
+          "evidence": "crates/table-engine/src/native.rs:204 After initialization, supervision awaits output under the total ceiling without tracking per-run activity or reporting a stalled state; the startup deadline does not supply ongoing liveness detection."
+        },
+        {
+          "technique": "session-reuse",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-engine/src/native.rs:167 Execution deliberately uses fresh, nonpersistent sessions; Codex also receives --ephemeral, and the inspected paths contain no warm-session pool or resumable identity being reused."
+        },
+        {
+          "technique": "spawn-contract",
+          "verdict": "deviation",
+          "evidence": "crates/table-engine/src/resolve.rs:22 Executable discovery preserves ambient PATH ordering and accepts the first matching executable without sanitizing search directories; canonicalizing that executable does not vet its origin."
+        },
+        {
+          "technique": "termination-and-reaping",
+          "verdict": "deviation",
+          "evidence": "crates/table-engine/src/native.rs:249 Dropping the kill-on-close Windows job forcibly terminates descendants immediately; cleanup has no polite-stop grace period or record of the escalation rung used."
+        }
+      ],
+      "withdrawn": {
+        "worker": "58a6aa8c-8f24-413f-9607-a08530775c1d",
+        "state": "deviation",
+        "at": "2026-10-22T04:41:17.181174+00:00",
+        "reason": "reviewer (sonnet): The engine-side claims hold (native.rs:250-251 go straight to kill/wait, windows_job.rs:51 sets only KILL_ON_JOB_CLOSE, native.rs:501 uses a bare from_utf8), but the runtime-cap technique anchor (table-runtime engines.rs:459) is in a different crate outside this context's files, and I could not conf"
+      }
     }
   }
 }
