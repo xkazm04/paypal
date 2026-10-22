@@ -840,23 +840,6 @@ export const SETUP_STEP_LABEL: Record<'keys' | 'rules' | 'practice' | 'agent' | 
   unlock: 'Unlock',
 };
 
-// calm-nested-ui WP1 (Book and Counter summary cards and detail pages) ----------------------------
-/** Book: summary card labels and detail page titles (crumbs). */
-export const BOOK_VIEW = {
-  ledger: 'Ledger',
-  outlook: 'Outlook',
-  ask: 'Ask your book',
-  recent: 'Recent payments',
-} as const;
-/** Book: the card that opens the ledger, by the span the book covers. */
-export const bookMoneyCard = (week: boolean): string => (week ? 'This week’s money' : 'Money on record');
-/** Counter: summary card labels and detail page titles (crumbs). */
-export const COUNTER_VIEW = {
-  orders: 'Orders at your counter',
-  prices: 'Your lowest prices',
-  earlier: 'Earlier this week',
-} as const;
-
 // calm-nested-ui WP4 (the Set up page and the docked approval step) -------------------------------
 export type SetupStepKey = 'keys' | 'rules' | 'practice' | 'agent' | 'unlock';
 /** Each Set up step: two short lines, the one button, and what a finished step says. */
@@ -887,13 +870,6 @@ export const SETUP_NOT_DONE = { title: 'Not finished yet', text: 'The approval s
 export const SETUP_NEXT = 'Next step';
 export const SETUP_FINISH = 'Done';
 export const SETUP_ALL_DONE = 'Everything is set up. Your first safe deal is one click away.';
-export const SETUP_CONTINUE = 'Continue setup';
-export const SETUP_CONTINUE_LINE = 'Set up your keys, your rules and a practice deal, one step at a time.';
-export const SETUP_SETTINGS_LINK = { text: 'Getting started now lives on its own page.', act: 'Open Set up' };
-
-// calm-nested-ui WP3 (Spend and Tables): card and crumb labels of the nested pages.
-export const SPEND_VIEW = { week: 'This week', gate: 'Rule check', rules: 'Rules in force' } as const;
-export const TABLES_VIEW = { need: 'Needs you', tables: 'Your tables', ladder: 'Price ladder', shop: 'Shop around', closed: 'Closed' } as const;
 
 // calm-nested-ui WP2 (Rescue and Shield nested pages)
 /** Rescue: the detail pages' names (also the crumbs and the card labels); keys are the `v=` in the hash. */
@@ -903,13 +879,6 @@ export const RESCUE_VIEW_LABEL: Record<'failed' | 'progress' | 'recovered' | 'wa
   recovered: 'Recovered money',
   watch: 'Watching',
 };
-export const RESCUE_SUB = 'Failed renewals: one fix for one subscriber, or nothing';
-export const RESCUE_FAILED_SUB = 'Pick one fix for one subscriber, or do nothing';
-export const RESCUE_PROGRESS_SUB = 'Invoices sent, waiting for the subscriber to pay';
-export const RESCUE_RECOVERED_SUB = 'Only what PayPal shows paid counts';
-export const RESCUE_WATCH_SUB = 'Subscriptions your wallet checks, and the fixes you allow';
-export const RESCUE_COMPARE = 'Compare every fix side by side';
-export const RESCUE_COMPARE_HIDE = 'Hide the comparison';
 /** Shield: the detail pages' names (also the crumbs and the card labels). */
 export const SHIELD_VIEW_LABEL: Record<'stopped' | 'through' | 'week' | 'safe', string> = {
   stopped: 'Stopped',
@@ -917,12 +886,6 @@ export const SHIELD_VIEW_LABEL: Record<'stopped' | 'through' | 'week' | 'safe', 
   week: 'This week',
   safe: 'Looked safe',
 };
-export const SHIELD_SUB = 'Checks every payment for scam signs before PayPal is asked';
-export const SHIELD_STOPPED_SUB = 'Payments the shield stopped, and why';
-export const SHIELD_THROUGH_SUB = 'Paused payments you let go on';
-export const SHIELD_WEEK_SUB = 'What the shield checked, and every check side by side';
-export const SHIELD_SAFE_SUB = 'Payments where the shield found nothing';
-export const SHIELD_COMPARE = 'Compare every check side by side';
 export const SETUP_OPENS_IN_TABLE = 'Opens The Table on its Set up page';
 
 // console-rebuild WP1b (data layer and resilience): the words of a part that could not be shown, a
