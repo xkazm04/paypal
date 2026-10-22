@@ -987,12 +987,14 @@ tr.win-g td:first-child{box-shadow:inset 3px 0 0 var(--gold)}
   <p>The Tumbler also re-reads <code>attention_list</code> when shown and every 30 s while any GATE is open, in case WebView2 throttled it while hidden <b class="m s">S·athena RECONCILE_MS, risk 10</b>.</p>
 
   <h3>Commands and capabilities</h3>
-<pre class="you"><code><span class="c-c">// capabilities/tumbler.json</span>
+<pre class="you"><code><span class="c-c">// capabilities/tumbler.json - generated from the authority table (see the file)</span>
 { <span class="c-s">"identifier"</span>: <span class="c-s">"tumbler"</span>, <span class="c-s">"windows"</span>: [<span class="c-s">"tumbler"</span>],
-  <span class="c-s">"permissions"</span>: [<span class="c-s">"core:default"</span>, <span class="c-s">"core:window:allow-start-dragging"</span>,
-    <span class="c-s">"allow-tumbler-set-form"</span>, <span class="c-s">"allow-tumbler-pin"</span>, <span class="c-s">"allow-tumbler-snap-to"</span>,
-    <span class="c-s">"allow-attention-list"</span>, <span class="c-s">"allow-deal-withdraw"</span>, <span class="c-s">"allow-deal-let-lapse"</span>,
-    <span class="c-s">"allow-deal-snooze"</span>, <span class="c-s">"allow-approval-open"</span>, <span class="c-s">"allow-main-open"</span>] }</code></pre>
+  <span class="c-s">"permissions"</span>: [<span class="c-s">"core:event:allow-listen"</span>, <span class="c-s">"core:event:allow-unlisten"</span>, <span class="c-s">"allow-deal-snooze"</span>,
+    <span class="c-s">"allow-deal-display"</span>, <span class="c-s">"allow-get-settings"</span>, <span class="c-s">"allow-attention-list"</span>, <span class="c-s">"allow-main-open"</span>,
+    <span class="c-s">"allow-approval-open"</span>, <span class="c-s">"allow-tumbler-set-form"</span>, <span class="c-s">"allow-tumbler-pin"</span>, <span class="c-s">"allow-deal-withdraw"</span>,
+    <span class="c-s">"allow-deal-let-lapse"</span>, <span class="c-s">"allow-settings-write"</span>, <span class="c-s">"allow-pause-all-agents"</span>,
+    <span class="c-s">"allow-quit-summary"</span>, <span class="c-s">"allow-quit-confirm"</span>, <span class="c-s">"allow-tumbler-drag"</span>, <span class="c-s">"allow-tumbler-snap"</span>,
+    <span class="c-s">"allow-envelope-get"</span>] }</code></pre>
 <pre class="pp"><code><span class="c-c">// capabilities/approval.json - the only file that grants release</span>
 { <span class="c-s">"identifier"</span>: <span class="c-s">"approval"</span>, <span class="c-s">"windows"</span>: [<span class="c-s">"approval"</span>],
   <span class="c-s">"permissions"</span>: [<span class="c-s">"core:default"</span>, <span class="c-s">"allow-approval-summary"</span>, <span class="c-s">"allow-unlock"</span>,
