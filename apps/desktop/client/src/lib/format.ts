@@ -34,6 +34,41 @@ export function formatMinor(minor: number, currency: Currency, opts: { code?: bo
   return neg ? `−${text}` : text;
 }
 
+/** Digits grouped by commas in threes ("1,058", "12,345.6"): the only place a comma may stand in a typed amount. */
+const GROUPED = /^\d{1,3}(?:,\d{3})+(?:\.\d*)?$/;
+
+/** "58", "58.", "$ 58", "$1,058.50" -> integer minor units in `currency`; null when it is not an amount
+ *  (a comma that is not a thousands group, too many decimals, 10+ whole digits). String arithmetic only:
+ *  no float ever touches the amount. The one parser for every owner-typed price. */
+export function parseMoneyText(text: string, currency: Currency): number | null {
+  const exp = EXPONENT[currency];
+  const t = text.trim().replace(/^[$€£]\s*/, '');
+  if (t.includes(',') && !GROUPED.test(t)) return null; // "58,50" is not 5850
+  const s = t.replace(/,/g, '');
+  const m = exp ? s.match(new RegExp(`^(\\d{1,9})(?:\\.(\\d{0,${exp}}))?$`)) : s.match(/^(\d{1,9})$/);
+  if (!m) return null;
+  const whole = Number.parseInt(m[1] ?? '0', 10);
+  const frac = exp ? Number.parseInt(((m[2] ?? '') + '0'.repeat(exp)).slice(0, exp), 10) : 0;
+  return whole * 10 ** exp + frac;
+}
+
+/** Minor units -> the plain text an input shows: 5800 -> "58", 5850 -> "58.50". */
+export function minorToText(minor: number, currency: Currency): string {
+  const exp = EXPONENT[currency];
+  if (!exp) return String(minor);
+  const unit = 10 ** exp;
+  const whole = Math.trunc(minor / unit);
+  const frac = Math.abs(minor % unit);
+  return frac ? `${whole}.${String(frac).padStart(exp, '0')}` : String(whole);
+}
+
+/** "$58" for whole amounts, "$58.50" otherwise (Layer-1 brevity). */
+export function shortMoney(minor: number, currency: Currency): string {
+  const full = formatMinor(minor, currency);
+  const exp = EXPONENT[currency];
+  return exp && minor % 10 ** exp === 0 ? full.replace(new RegExp(`\\.0{${exp}}(?=\\D*$)`), '') : full;
+}
+
 export function formatMoney(m: Money | null | undefined, opts?: { code?: boolean }): string {
   return m ? formatMinor(m.minor, m.currency, opts) : '—';
 }
