@@ -2,13 +2,11 @@
 // not a developer reads it top-down without learning a chart first.
 //   AnswerBar      one sentence that answers the screen's question, coloured by how things stand
 //   DecisionCard   one decision: the question, why you are asked, each option with what it does
-//   Explainer      a first-visit "how this works" strip of three illustrated steps, dismissible
 //   ChecksSummary  passed checks folded into a count; only exceptions stay open
-//   DetailToggle   Simple / Detailed, remembered per screen (the specialist view lives in Detailed)
 //   Icon           a small stroke icon set; always paired with a word or an aria-label
 // Display only. A DecisionCard option in Main only ever hands off to the approval window.
-import { useEffect, useState, type ReactNode } from 'react';
-import { Silence, type ChipTone } from './components';
+import { useState, type ReactNode } from 'react';
+import { Silence } from './components';
 
 const cx = (...c: Array<string | false | null | undefined>) => c.filter(Boolean).join(' ');
 
@@ -114,41 +112,6 @@ export function DecisionCard({ context, question, why, amount, options, silence,
   );
 }
 
-// ---- explainer ------------------------------------------------------------------------------------
-
-export type ExplainerStep = { icon: IconName; title: string; text: string };
-const EXPLAINER_KEY = (id: string) => `table-explainer-${id}`;
-function readSeen(id: string): boolean {
-  try { return typeof localStorage !== 'undefined' && localStorage.getItem(EXPLAINER_KEY(id)) === 'seen'; } catch { return false; }
-}
-
-/** First visit: three illustrated steps and "Got it". Afterwards: a small "How X works" link that reopens it. */
-export function Explainer({ id, title, steps, className }: { id: string; title: string; steps: readonly ExplainerStep[]; className?: string }) {
-  const [open, setOpen] = useState(() => !readSeen(id));
-  useEffect(() => { setOpen(!readSeen(id)); }, [id]);
-  const close = () => {
-    setOpen(false);
-    try { localStorage.setItem(EXPLAINER_KEY(id), 'seen'); } catch { /* storage may be blocked; it just shows again */ }
-  };
-  if (!open) {
-    return <button type="button" className={cx('ui-explainer-link', className)} onClick={() => setOpen(true)}><Icon name="spark" size={13} />{title}</button>;
-  }
-  return (
-    <section className={cx('ui-explainer', className)} aria-label={title}>
-      <div className="ex-h"><b>{title}</b><button type="button" className="ui-btn sm" onClick={close}>Got it</button></div>
-      <ol className="ex-steps">
-        {steps.map((s, i) => (
-          <li key={i}>
-            <span className="ex-ico" aria-hidden="true"><Icon name={s.icon} size={18} /></span>
-            <span className="ex-t">{s.title}</span>
-            <span className="ex-d">{s.text}</span>
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
 // ---- checks summary -------------------------------------------------------------------------------
 
 export type CheckState = 'pass' | 'ask' | 'fail' | 'unknown';
@@ -191,29 +154,3 @@ export function ChecksSummary({ checks, label = 'Checks', className, openAll = f
     </div>
   );
 }
-
-// ---- simple / detailed ----------------------------------------------------------------------------
-
-export type DetailMode = 'simple' | 'detailed';
-const DETAIL_KEY = (k: string) => `table-detail-${k}`;
-
-/** Simple / Detailed for one screen, remembered per screen. Simple is the default for everyone. */
-export function useDetail(key: string): [DetailMode, (m: DetailMode) => void] {
-  const [m, setM] = useState<DetailMode>(() => {
-    try { return localStorage.getItem(DETAIL_KEY(key)) === 'detailed' ? 'detailed' : 'simple'; } catch { return 'simple'; }
-  });
-  const set = (v: DetailMode) => { setM(v); try { localStorage.setItem(DETAIL_KEY(key), v); } catch { /* per-viewer convenience only */ } };
-  return [m, set];
-}
-
-export function DetailToggle({ value, onChange, detailedLabel = 'Detailed', className }: { value: DetailMode; onChange: (m: DetailMode) => void; detailedLabel?: string; className?: string }) {
-  return (
-    <div className={cx('ui-seg', 'ui-detail', className)} role="group" aria-label="How much detail">
-      <button type="button" aria-pressed={value === 'simple'} onClick={() => onChange('simple')}>Simple</button>
-      <button type="button" aria-pressed={value === 'detailed'} onClick={() => onChange('detailed')}>{detailedLabel}</button>
-    </div>
-  );
-}
-
-/** Tone of a check state as a chip tone, for pages that mix ChecksSummary with chips. */
-export const checkTone = (s: CheckState): ChipTone => (s === 'pass' ? 'ok' : s === 'ask' ? 'gold' : s === 'fail' ? 'red' : 'dashed');

@@ -9,10 +9,6 @@ const cx = (...c: Array<string | false | null | undefined>) => c.filter(Boolean)
 
 // ---- frame ----------------------------------------------------------------------------------
 
-export function TitleBar({ children, className }: { children: ReactNode; className?: string }) {
-  return <header className={cx('ui-titlebar', className)}>{children}</header>;
-}
-
 export function Spacer() {
   return <span className="ui-spacer" />;
 }
@@ -34,39 +30,6 @@ export function Crumbs({ items, label = 'Breadcrumb', depth }: { items: CrumbIte
       })}
       {depth !== undefined ? <Depth value={depth} /> : null}
     </nav>
-  );
-}
-
-export function Sidebar({ label, head, foot, children, className }: { label: string; head?: ReactNode; foot?: ReactNode; children: ReactNode; className?: string }) {
-  return (
-    <nav className={cx('ui-sidebar', className)} aria-label={label}>
-      {head ? <div className="ui-sb-head">{head}</div> : null}
-      {children}
-      {foot ? <div className="ui-sb-foot">{foot}</div> : null}
-    </nav>
-  );
-}
-
-export type SidebarItemProps = {
-  label: ReactNode;
-  onClick: () => void;
-  icon?: ReactNode;
-  /** Right-hand count; with `need` it becomes the gold needs-you badge. */
-  count?: ReactNode;
-  need?: boolean;
-  countTitle?: string;
-  on?: boolean;
-  title?: string;
-  style?: CSSProperties;
-  className?: string;
-};
-export function SidebarItem({ label, onClick, icon, count, need, countTitle, on, title, style, className }: SidebarItemProps) {
-  return (
-    <button type="button" className={cx('ui-sb-item', on && 'on', className)} style={style} onClick={onClick} title={title} aria-current={on ? 'page' : undefined}>
-      {icon !== undefined ? <span className="ico" aria-hidden="true">{icon}</span> : null}
-      <span className="lbl">{label}</span>
-      {count !== undefined && count !== null ? <span className={cx('cnt', need && 'need')} title={countTitle}>{count}</span> : null}
-    </button>
   );
 }
 
@@ -232,17 +195,6 @@ export function Kv({ items, className }: { items: readonly KvItem[]; className?:
     <dl className={cx('ui-kv', className)}>
       {items.map((it, i) => (it ? [<dt key={`k${i}`}>{it[0]}</dt>, <dd key={`v${i}`}>{it[1]}</dd>] : null))}
     </dl>
-  );
-}
-
-export function Stat({ k, v, big, hint, children, className }: { k: ReactNode; v: ReactNode; big?: boolean; hint?: ReactNode; children?: ReactNode; className?: string }) {
-  return (
-    <div className={cx('ui-stat', className)}>
-      <span className="k">{k}</span>
-      <span className={cx('v', big && 'big')}>{v}</span>
-      {children}
-      {hint ? <span className="ui-hint">{hint}</span> : null}
-    </div>
   );
 }
 

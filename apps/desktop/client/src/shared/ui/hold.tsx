@@ -28,11 +28,6 @@ export type HoldButtonProps = {
   hint?: string;
 };
 
-/** What a screen reader hears while holding: nothing, then "Keep holding", then "Confirmed". */
-export function holdWord(done: boolean, progress: number): string {
-  return done ? HOLD_WORDS.done : progress > 0 ? HOLD_WORDS.holding : '';
-}
-
 export function HoldButton({ children, onConfirm, ms = HOLD_MS, disabled, kind = 'gold', title, className, hint = HOLD_WORDS.hint }: HoldButtonProps) {
   return (
     <HoldGesture
