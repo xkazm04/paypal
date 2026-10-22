@@ -381,3 +381,44 @@ async fn the_in_process_relay_answers_like_the_http_client_reads_it() {
     ));
     assert!(RelayApi::poll(&t, known, "", 0, 0).await.is_ok());
 }
+#[derive(Default)]
+struct Lines(std::sync::Mutex<Vec<String>>);
+impl rendezvous::Log for Lines {
+    fn line(&self, line: &str) {
+        self.0.lock().unwrap().push(line.to_owned());
+    }
+}
+#[tokio::test]
+async fn a_caller_turned_away_for_its_allowance_leaves_one_rate_limited_line_with_no_address() {
+    let clock = Arc::new(Time(AtomicI64::new(1000)));
+    let lines = Arc::new(Lines::default());
+    let s = MemoryStore::new(clock.clone()).with_log(lines.clone());
+    let a = caller("203.0.113.9");
+    for n in 0..CALLER_ALLOWANCE {
+        s.create_as(&hash(n), a).await.unwrap();
+    }
+    assert_eq!(s.refused(Reason::Allowance), 0);
+    for n in 0..10 {
+        assert!(matches!(
+            s.create_as(&hash(1000 + n), a).await,
+            Err(Error::Full)
+        ));
+    }
+    assert_eq!(s.refused(Reason::Allowance), 10);
+    assert_eq!(s.refused(Reason::Store), 0);
+    {
+        let seen = lines.0.lock().unwrap();
+        assert_eq!(seen.len(), 1, "{seen:?}");
+        assert!(
+            seen[0].starts_with("relay refused reason=allowance"),
+            "{seen:?}"
+        );
+        assert!(!seen[0].contains("203.0.113"), "{seen:?}");
+    }
+    // A later window leaves another line, so a relay still refusing stays visible.
+    clock
+        .0
+        .store(1000 + REFUSAL_LOG_WINDOW_SECS, Ordering::SeqCst);
+    assert!(s.create_as(&hash(2000), a).await.is_err());
+    assert_eq!(lines.0.lock().unwrap().len(), 2);
+}

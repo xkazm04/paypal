@@ -9,7 +9,14 @@ use axum::{
 };
 use serde::Deserialize;
 pub use serve::{Caller, Connection, Limits, serve, serve_with, with_timeouts};
-use std::{collections::BTreeMap, sync::Arc, time::Duration};
+use std::{
+    collections::BTreeMap,
+    sync::{
+        Arc,
+        atomic::{AtomicI64, AtomicU64, Ordering},
+    },
+    time::Duration,
+};
 use table_core::Clock;
 use tokio::sync::{Mutex, Notify, Semaphore};
 #[derive(Debug, thiserror::Error)]
@@ -91,6 +98,74 @@ pub struct MemoryStore {
     inner: Mutex<Inner>,
     clock: Arc<dyn Clock>,
     polls: Semaphore,
+    refusals: Refusals,
+}
+/// Where the relay writes operator lines. Every line is built from fixed codes and counts: no
+/// caller address, mailbox hash or message ever reaches it.
+pub trait Log: Send + Sync {
+    fn line(&self, line: &str);
+}
+/// The deployed sink: one line per event on stderr, which the host collects.
+#[derive(Debug)]
+pub struct Stderr;
+impl Log for Stderr {
+    fn line(&self, line: &str) {
+        eprintln!("{line}");
+    }
+}
+/// Why the relay answered 429, as a fixed code.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Reason {
+    /// The whole store is full: mailbox count, the HTTP share, or the byte budget.
+    Store,
+    /// One mailbox is full: its message count or its bytes.
+    Mailbox,
+    /// One caller holds [`CALLER_ALLOWANCE`] live mailboxes.
+    Allowance,
+}
+impl Reason {
+    fn code(self) -> &'static str {
+        match self {
+            Self::Store => "store",
+            Self::Mailbox => "mailbox",
+            Self::Allowance => "allowance",
+        }
+    }
+    fn slot(self) -> usize {
+        self as usize
+    }
+}
+/// At most one operator line per reason in this many seconds, however many callers are turned away.
+pub const REFUSAL_LOG_WINDOW_SECS: i64 = 60;
+/// A count of capacity refusals per reason, with the rate-limited line that makes them visible.
+struct Refusals {
+    counts: [AtomicU64; 3],
+    logged: [AtomicI64; 3],
+    log: Option<Arc<dyn Log>>,
+}
+impl Refusals {
+    fn new(log: Option<Arc<dyn Log>>) -> Self {
+        Self {
+            counts: [0; 3].map(AtomicU64::new),
+            logged: [i64::MIN; 3].map(AtomicI64::new),
+            log,
+        }
+    }
+    fn note(&self, reason: Reason, now: i64) {
+        let slot = reason.slot();
+        let total = self.counts[slot].fetch_add(1, Ordering::Relaxed) + 1;
+        let last = self.logged[slot].load(Ordering::Relaxed);
+        let due = now.saturating_sub(last) >= REFUSAL_LOG_WINDOW_SECS
+            && self.logged[slot]
+                .compare_exchange(last, now, Ordering::Relaxed, Ordering::Relaxed)
+                .is_ok();
+        if let (true, Some(log)) = (due, &self.log) {
+            log.line(&format!(
+                "relay refused reason={} total={total}",
+                reason.code()
+            ));
+        }
+    }
 }
 impl std::fmt::Debug for MemoryStore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -107,7 +182,22 @@ impl MemoryStore {
             inner: Mutex::new(Inner::default()),
             clock,
             polls: Semaphore::new(max_polls),
+            refusals: Refusals::new(None),
         }
+    }
+    /// Writes a rate-limited operator line when the relay turns a caller away for capacity.
+    #[must_use]
+    pub fn with_log(mut self, log: Arc<dyn Log>) -> Self {
+        self.refusals.log = Some(log);
+        self
+    }
+    /// How many requests were answered 429 for `reason` since the store was made.
+    pub fn refused(&self, reason: Reason) -> u64 {
+        self.refusals.counts[reason.slot()].load(Ordering::Relaxed)
+    }
+    fn turned_away(&self, reason: Reason) -> Error {
+        self.refusals.note(reason, self.clock.now());
+        Error::Full
     }
     async fn waiter(&self, h: &str) -> Arc<Notify> {
         self.inner
@@ -158,7 +248,7 @@ impl MemoryStore {
             return Ok(());
         }
         if inner.boxes.len() >= MAX_MAILBOXES {
-            return Err(Error::Full);
+            return Err(self.turned_away(Reason::Store));
         }
         if let Some(caller) = caller {
             let held = inner
@@ -170,8 +260,11 @@ impl MemoryStore {
             // their own reserve) never cost wallet pairings a slot. The store cap above still
             // refuses every create once all 256 are live.
             let http = inner.boxes.values().filter(|b| b.creator.is_some()).count();
-            if http >= MAX_MAILBOXES - HOUSE_RESERVE || held >= CALLER_ALLOWANCE {
-                return Err(Error::Full);
+            if http >= MAX_MAILBOXES - HOUSE_RESERVE {
+                return Err(self.turned_away(Reason::Store));
+            }
+            if held >= CALLER_ALLOWANCE {
+                return Err(self.turned_away(Reason::Allowance));
             }
         }
         inner.boxes.insert(
@@ -179,7 +272,7 @@ impl MemoryStore {
             BoxState {
                 generation: {
                     let mut bytes = [0; 16];
-                    getrandom::fill(&mut bytes).map_err(|_| Error::Full)?;
+                    getrandom::fill(&mut bytes).map_err(|_| self.turned_away(Reason::Store))?;
                     bytes.iter().map(|b| format!("{b:02x}")).collect()
                 },
                 expires: self.clock.now().saturating_add(86400),
@@ -214,9 +307,11 @@ impl Mailbox for MemoryStore {
         let len = jws.len();
         if b.messages.len() >= table_relay::MAX_MESSAGES
             || b.bytes.saturating_add(len) > MAX_MAILBOX_BYTES
-            || total.saturating_add(len) > MAX_TOTAL_BYTES
         {
-            return Err(Error::Full);
+            return Err(self.turned_away(Reason::Mailbox));
+        }
+        if total.saturating_add(len) > MAX_TOTAL_BYTES {
+            return Err(self.turned_away(Reason::Store));
         }
         b.messages.push(jws.into());
         b.bytes += len;

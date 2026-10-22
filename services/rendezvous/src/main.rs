@@ -23,7 +23,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     rendezvous::serve(
         listener,
-        rendezvous::router(Arc::new(rendezvous::MemoryStore::new(Arc::new(Time)))),
+        rendezvous::router(Arc::new(
+            rendezvous::MemoryStore::new(Arc::new(Time)).with_log(Arc::new(rendezvous::Stderr)),
+        )),
         stop,
     )
     .await?;
