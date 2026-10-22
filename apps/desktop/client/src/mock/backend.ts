@@ -212,25 +212,23 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
     const latest = state.mandates.filter((m) => m.payload.id === id).reduce<MockState['mandates'][number] | undefined>((a, m) => (!a || m.payload.version > a.payload.version ? m : a), undefined);
     return latest && !state.revokedMandates?.includes(`${id}:${latest.payload.version}`) ? latest : undefined;
   }
+  /** As Wallet::mandate_check under check_owner_accept: the deal's active version, its recorded
+   *  category, the counterparty's pin, the ledger's usage and the rounds already signed, judged by
+   *  the one mock of MandatePayload::check (src/mock/simulate.ts). Ask passes: the owner is asked. */
   function ownerMandateAllows(d: ReturnType<typeof find>): boolean {
+    const now = nowUnix();
     const m = activeMandate(d.deal.mandate_id);
-    if (!m || m.payload.version !== d.deal.mandate_version || m.payload.not_before > nowUnix() || m.payload.expires <= nowUnix()) return false;
-    const amount = d.deal.terms.unit_price.minor * d.deal.terms.qty;
+    if (!m || m.payload.version !== d.deal.mandate_version || m.payload.not_before > now || m.payload.expires <= now) return false;
+    const category = state.categories?.[d.deal.id];
     const cp = state.counterparties.find((c) => c.key_id === d.deal.counterparty);
-    return m.payload.clauses.every((c) => {
-      switch (c.type) {
-        case 'roles': return c.roles.includes('buy');
-        case 'counterparties': return !!cp && (c.rule.type === 'paired' || c.rule.type === 'house' && cp.house || c.rule.type === 'pinned' && c.rule.keys.includes(cp.key_id));
-        case 'per_deal': return c.kind === d.deal.kind && c.max_amount.currency === d.deal.terms.currency && amount <= c.max_amount.minor;
-        case 'band': return !!c.ceiling && c.ceiling.currency === d.deal.terms.currency && c.item_refs.includes(d.deal.terms.item_ref)
-          && d.deal.terms.unit_price.minor <= c.ceiling.minor && c.deadline > nowUnix() && (d.display.band?.rounds_used ?? 0) <= c.max_rounds;
-        case 'velocity': return c.max_total_day.currency === d.deal.terms.currency && amount + state.walletSpendTodayMinor <= c.max_total_day.minor;
-        case 'human_present_over': return c.amount.currency === d.deal.terms.currency; // Only this clause is satisfied by the owner decision.
-        case 'payees': return !!cp?.declared_payee && c.payees.includes(cp.declared_payee);
-        // Keeping prices fresh grants nothing and refuses nothing.
-        case 'market_watch': return true;
-      }
-    });
+    if (!category || !cp) return false;
+    const used = state.deals.filter((o) => o.deal.id !== d.deal.id && o.deal.mandate_id === d.deal.mandate_id && AGREED_OR_LATER.has(o.deal.state));
+    const usage = { dealsToday: used.length, totalToday: used.reduce((t, o) => t + o.deal.terms.unit_price.minor * o.deal.terms.qty, 0) };
+    // Accepting rechecks the round already proposed: N rounds signed, N-1 before this one.
+    const rounds = d.transcript.filter((t) => t.by === 'you' && (t.typ === 'OFFER' || t.typ === 'COUNTER')).length;
+    const intent: MockIntent = { deal: d.deal, category, paired: !!pairedCounterparty(cp.key_id), house: cp.house, declaredPayee: cp.declared_payee ?? null, roundsUsed: Math.max(0, rounds - 1) };
+    const v = mockCheck(m.payload, intent, usage, now);
+    return v.type === 'allow' || v.type === 'ask';
   }
   /** BookQuery as Rust's serde + BookQuery::rejection + book_query_rejection see it. */
   function checkBookQuery(raw: JsonValue): BookQuery {
