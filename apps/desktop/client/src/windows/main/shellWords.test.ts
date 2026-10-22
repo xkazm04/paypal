@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const FILES = ['Shortcuts.tsx', 'Status.tsx', 'QuitSheet.tsx', 'paletteCopy.ts', 'console/Find.tsx'];
+const FILES = ['Shortcuts.tsx', 'Status.tsx', 'QuitSheet.tsx', 'paletteCopy.ts', 'console/Find.tsx', 'quit.ts', 'ui.tsx'];
 const NOT_COPY = /(?:\b(?:className|role|type|kind|key|id|size|from|import)|\bdata-[\w-]+|\baria-(?:live|haspopup|autocomplete|expanded|controls))\s*=?\s*\{?\s*$/;
 
 const BS = String.fromCharCode(92);
