@@ -4,6 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Clause } from '@bindings/Clause';
 import type { MarketWatchFact } from '@bindings/MarketWatchFact';
+import { AGREED_OR_LATER, PRE_CAPTURE, TERMINAL, THROUGH_AGREED } from '@bindings/dealStates';
 import { mockBackend, resetMockState } from '../mock/backend';
 import { fakeUlid } from '../mock/fixtures';
 import { mockValidate } from '../mock/simulate';
@@ -117,6 +118,13 @@ describe('keep prices fresh', () => {
     // A seller deal is watched only until its order exists.
     expect(dealWatch([fact()], { ...(deal as object), side: 'seller', state: 'AGREED' } as never)).not.toBeNull();
     expect(dealWatch([fact()], { ...(deal as object), side: 'seller', state: 'AWAITING_APPROVAL' } as never)).toBeNull();
+    // table-core market_watch_open: a buyer deal is watched exactly while pre_capture() (the
+    // generated PRE_CAPTURE set), over every state the generated sets name.
+    const states = [...new Set([...TERMINAL, ...PRE_CAPTURE, ...AGREED_OR_LATER, ...THROUGH_AGREED])];
+    expect(states).toHaveLength(21);
+    for (const state of states) {
+      expect(dealWatch([fact()], { ...(deal as object), state } as never) !== null, state).toBe(PRE_CAPTURE.has(state));
+    }
     expect(watchWhy(null, true)).toBeNull();
     expect(watchWhy({ usedUp: false, used: 3, max: 12 }, true)).toBe('Kept fresh by your rules.');
     expect(watchWhy({ usedUp: false, used: 3, max: 12 }, false)).toMatch(/first check is on its way/);
