@@ -1,12 +1,13 @@
 // BROWSER PREVIEW ONLY. Puts a recorded take back on the beat file's clock.
 //
 // Chromium's screen recording falls behind real time when the machine is busy (measured: up to
-// 7 s late by the end of the 2:51 story on a loaded 4-core host), so a raw webm does not keep the
-// beats' timing. `scripts/takes.mjs` finds where each caption changes in the raw video and this
+// 7 s late by the end of the story, 2:51 long then and 3:34 now, on a loaded 4-core host), so a raw
+// webm does not keep the beats' timing. `scripts/takes.mjs` finds where each caption changes in the raw video and this
 // module maps those moments back onto the times the beats really play: the stretches between two
 // caption changes are sped up or slowed down to fit, the first and last stretch are only trimmed.
 //
-// Pure, no imports and only erasable TypeScript: the Node script loads this file directly.
+// Pure, no imports and only erasable TypeScript: the Node scripts (takes.mjs, film-capture.mjs) load
+// this file directly.
 
 /** One stretch of the raw video, [from, to) seconds, played from output second `at` at `speed`
  *  (output seconds per raw second: below 1 plays it faster). */
