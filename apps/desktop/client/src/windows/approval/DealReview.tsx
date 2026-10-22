@@ -100,6 +100,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
   useEvent('approval:summary', (p) => {
     if (p.deal.id === dealId) {
       setSummary(p);
+      setLoadError(null);
       setLastRead(nowUnix());
     }
   });
@@ -500,6 +501,7 @@ export function DealReview({ dealId, seed }: { dealId: string; seed: ApprovalSum
           </label>
         ) : null}
 
+        {loadError ? <WalletNotice error={loadError} what="The wallet stopped answering, so this is the last read" message={footerNoticeText('read', loadError)} /> : null}
         {failure && failureShown(failure, d.state) ? <WalletNotice error={failure.error} what={failure.what} message={refusalText(failure.error)} /> : null}
         {!s.tokenReady && s.tokenError ? <WalletNotice error={s.tokenError} what="This window can’t approve right now" message={footerNoticeText('token', s.tokenError)} /> : null}
         {s.unlockError ? <WalletNotice error={s.unlockError} what={UNLOCK_HEADING} message={footerNoticeText('unlock', s.unlockError)} /> : null}
