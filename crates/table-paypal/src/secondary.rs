@@ -247,7 +247,29 @@ impl Client {
         let mut observations = Vec::new();
         for expected in 1..=u32::from(max_pages) {
             window.page = expected;
-            let response = self.transactions(window).await?;
+            let response = match self.transactions(window).await {
+                Ok(response) => response,
+                // Earlier pages' evidence stays in front of the failing page's.
+                Err(Error::Api {
+                    status,
+                    debug_id,
+                    observations: later,
+                }) => {
+                    observations.extend(later);
+                    return Err(Error::Api {
+                        status,
+                        debug_id,
+                        observations,
+                    });
+                }
+                Err(Error::Unknown {
+                    observations: later,
+                }) => {
+                    observations.extend(later);
+                    return Err(Error::Unknown { observations });
+                }
+                Err(other) => return Err(other),
+            };
             observations.extend(response.observations);
             if response.value.page != expected
                 || response.value.transaction_details.len() > usize::from(window.page_size)

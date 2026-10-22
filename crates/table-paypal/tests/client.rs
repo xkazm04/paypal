@@ -373,6 +373,31 @@ async fn reporting_paginate_and_reject_overbounds_partial_or_bad_pages() {
     assert!(client.all_transactions(window, 2).await.is_err());
 }
 #[tokio::test]
+async fn all_transactions_keeps_earlier_pages_evidence_when_a_later_page_fails() {
+    let page1 = json!({"page":1,"total_pages":2,"transaction_details":[{"transaction_info":{"transaction_id":"TX1","transaction_status":"S","transaction_amount":{"currency_code":"USD","value":"9.60"}}}]});
+    let window = ReportingWindow {
+        from: 0,
+        to: 100,
+        page: 1,
+        page_size: 500,
+    };
+    let (client, _, _) = setup(vec![
+        oauth(),
+        response(200, page1),
+        Err(TransportError),
+        Err(TransportError),
+        Err(TransportError),
+    ]);
+    let error = client.all_transactions(window, 2).await.unwrap_err();
+    assert!(matches!(error, Error::Unknown { .. }), "{error:?}");
+    let statuses = error
+        .observations()
+        .iter()
+        .map(|o| o.status)
+        .collect::<Vec<_>>();
+    assert_eq!(statuses, vec![200, 0, 0, 0]);
+}
+#[tokio::test]
 async fn retries_reuse_request_id_and_oauth_is_not_evidence() {
     let (client, fake, _) = setup(vec![
         oauth(),
