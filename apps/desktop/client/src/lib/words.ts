@@ -1013,7 +1013,7 @@ export const FIND_PLACEHOLDER = 'Find a deal, a person or a place…';
 export const FIND_LABEL = 'Find';
 export const FIND_RESULTS = 'Results';
 export const FIND_GROUP = { needs: 'Needs you', modules: 'Go to', deals: 'Deals', places: 'Places' } as const;
-export const findShown = (n: number): string => `${n} shown`;
+export const findShown = (n: number, total = n): string => (total > n ? `${n} shown of ${total}` : `${n} shown`);
 export const FIND_KEYS = { move: 'move', open: 'open', close: 'close' } as const;
 
 /** A deal layer's crumb before its name is read, and why a deal cannot show. */

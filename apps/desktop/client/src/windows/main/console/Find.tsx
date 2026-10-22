@@ -15,7 +15,7 @@ import { noMatch } from '../paletteCopy';
 import { useCpLookup } from '../ui';
 import { useWorldSelector, type World } from '../world';
 import { demoFindItems } from './DemoSwitch';
-import { buildIndex, searchIndex, type FindIndex, type FindItem, type FindTarget } from './findIndex';
+import { buildIndex, FIND_CAP, matchCount, searchIndex, type FindIndex, type FindItem, type FindTarget } from './findIndex';
 
 const selFind = (w: World) => ({ needs: w.needs, deals: w.deals.data, display: w.display });
 const sameFind = (a: ReturnType<typeof selFind>, b: ReturnType<typeof selFind>) => a.needs === b.needs && a.deals === b.deals && a.display === b.display;
@@ -71,6 +71,7 @@ export function Find({ onClose, onPick }: { onClose: () => void; onPick: (t: Fin
   useEffect(() => { input.current?.focus(); }, []);
 
   const items = useMemo(() => searchIndex(index, q), [index, q]);
+  const total = useMemo(() => (items.length >= FIND_CAP ? matchCount(index, q) : items.length), [index, q, items]);
   const cur = Math.min(sel, Math.max(0, items.length - 1));
   const active = items[cur];
   const pick = (i: FindItem | undefined) => { if (!i) return; onClose(); onPick(i.target); };
@@ -113,7 +114,7 @@ export function Find({ onClose, onPick }: { onClose: () => void; onPick: (t: Fin
         </div>
         <div className="pal-f ui-hint" aria-hidden="true">
           <span><span className="kbd">↑</span> <span className="kbd">↓</span> {FIND_KEYS.move}</span><span><span className="kbd">Enter</span> {FIND_KEYS.open}</span>
-          <span><span className="kbd">Esc</span> {FIND_KEYS.close}</span><span className="ui-spacer" /><span>{findShown(items.length)}</span>
+          <span><span className="kbd">Esc</span> {FIND_KEYS.close}</span><span className="ui-spacer" /><span>{findShown(items.length, total)}</span>
         </div>
       </div>
     </>,
