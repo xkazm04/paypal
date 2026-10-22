@@ -7,7 +7,7 @@
 // deal is narrowed to that deal: a change to deal A does not re-read deal B's transcript.
 import type { QueryKey } from '@tanstack/react-query';
 import type { EventName, PayloadOf } from '../contract';
-import { COUNTERPARTIES_KEY, WORLD_KEYS, dealKey } from './keys';
+import { COUNTERPARTIES_KEY, PER_DEAL_COMMANDS, WORLD_KEYS, dealKey } from './keys';
 
 /** A read to invalidate: every entry whose key starts with `key`, limited to one deal if `dealId`. */
 export type Target = { key: QueryKey; dealId?: string };
@@ -21,16 +21,12 @@ export function eventDealId(event: EventName, payload: unknown): string | null {
 
 /** The deal-scoped reads a change to one deal makes stale. */
 function dealReads(id: string | null): Target[] {
+  // Every per-deal read with a named key (keys.ts PER_DEAL_COMMANDS), never a hand-kept subset.
   if (id === null) {
     // A ledger event without a deal (never sent today): every per-deal read is stale.
-    return [{ key: ['deal_display'] }, { key: ['deal_evidence'] }, { key: ['deal_transcript'] }, { key: ['cmd', 'deal_history'] }];
+    return [...PER_DEAL_COMMANDS.map((cmd) => ({ key: [cmd] })), { key: ['cmd', 'deal_history'] }];
   }
-  return [
-    { key: dealKey('deal_display', id) },
-    { key: dealKey('deal_evidence', id) },
-    { key: dealKey('deal_transcript', id) },
-    { key: ['cmd', 'deal_history'], dealId: id },
-  ];
+  return [...PER_DEAL_COMMANDS.map((cmd) => ({ key: dealKey(cmd, id) })), { key: ['cmd', 'deal_history'], dealId: id }];
 }
 
 type Rule = (payload: unknown) => Target[];
