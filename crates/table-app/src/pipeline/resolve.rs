@@ -6,7 +6,10 @@
 //! An operation PayPal shows never committed may be sent once more: the original request, with
 //! the same PayPal-Request-Id and the same recorded authority, which is re-checked first. A new
 //! operation identity is never minted. What the resolver cannot settle is parked for the owner
-//! with one audit row and is not retried.
+//! with one audit row and is not sent again, with one exception: at the deal's deadline a parked
+//! void goes once more under its own request id, the safe default being its authority. A parked
+//! authorize, capture or void is read again only once the deadline passed (at most hourly, inside
+//! `PARKED_READ_WINDOW_SECS`) or on the owner's ticket.
 use super::send::Settle;
 use super::{Authority, MoneyStep, Pipeline, shield_allows};
 use crate::Error;
