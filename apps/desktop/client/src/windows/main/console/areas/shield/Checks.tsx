@@ -17,7 +17,7 @@ import { dealTotal, ledgerScope, moneyNow, stateLabel } from '../../../logic';
 import { NoteText } from '../shared/NoteChip';
 import { WeekTiles } from '../../../modules/shield/Panels';
 import { weekStrip } from '../../../modules/shield/normal';
-import { bandGeometry, checkCell, CHECKS, overMedian, overPauseLine, paypalLine, releasable, STAGES } from '../../../modules/shield/matrix';
+import { bandGeometry, checkCell, CHECKS, overMedian, overPauseLine, pauseLineMinor, paypalLine, releasable, STAGES } from '../../../modules/shield/matrix';
 import { useLayerNav } from '../../layers';
 import { fewRows, ListEngine, type ListFilter } from '../../ListEngine';
 import { Amount } from '../../rows';
@@ -80,7 +80,7 @@ function PriceBand({ deal }: { deal: Deal }) {
   const at = (p: number) => ({ left: `${p}%`, transform: `translateX(${p > 78 ? '-100%' : p < 18 ? '0' : '-50%'})` });
   return (
     <>
-      <div className="sh-mband" role="img" aria-label={SHIELD.bandLabel(f(deal.terms.unit_price.minor), f(m.median.minor), f(m.p25.minor), f(m.p75.minor), f(Math.round(m.median.minor * 1.4)))}>
+      <div className="sh-mband" role="img" aria-label={SHIELD.bandLabel(f(deal.terms.unit_price.minor), f(m.median.minor), f(m.p25.minor), f(m.p75.minor), f(pauseLineMinor(m.median.minor)))}>
         <div className="axis" />
         <div className="iqr" style={{ left: `${g.iqr[0]}%`, width: `${g.iqr[1] - g.iqr[0]}%` }} />
         <div className="med" style={{ left: `${g.median}%` }} /><span className="lab" style={at(g.median)}>{SHIELD.typical}</span>
