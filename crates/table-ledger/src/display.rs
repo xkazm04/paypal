@@ -1,8 +1,8 @@
+use crate::repositories::stored_envelope;
 use crate::{Ledger, LedgerError};
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use rusqlite::OptionalExtension;
 use table_core::*;
-use table_proto::{Body, Envelope};
+use table_proto::Body;
 impl Ledger {
     pub fn display_number(&self, id: DealId) -> Result<u32, LedgerError> {
         Ok(self.conn.query_row(
@@ -78,10 +78,7 @@ impl Ledger {
         let Some(raw) = raw else {
             return Ok(None);
         };
-        let payload = URL_SAFE_NO_PAD
-            .decode(raw.split('.').nth(1).ok_or(LedgerError::Integrity("JWS"))?)
-            .map_err(|_| LedgerError::Integrity("JWS"))?;
-        let e: Envelope = serde_json::from_slice(&payload)?;
+        let e = stored_envelope(&raw, |_| LedgerError::Integrity("JWS"))?;
         let Body::Note { text } = e.body else {
             return Err(LedgerError::Integrity("note type"));
         };
@@ -103,10 +100,7 @@ impl Ledger {
         let mut steps = Vec::new();
         for row in rows {
             let (dir, raw) = row?;
-            let payload = URL_SAFE_NO_PAD
-                .decode(raw.split('.').nth(1).ok_or(LedgerError::Integrity("JWS"))?)
-                .map_err(|_| LedgerError::Integrity("JWS"))?;
-            let e: Envelope = serde_json::from_slice(&payload)?;
+            let e = stored_envelope(&raw, |_| LedgerError::Integrity("JWS"))?;
             let (typ, price) = match e.body {
                 Body::Listing { ask, .. } => (TranscriptType::Listing, Some(ask)),
                 Body::Offer { price, .. } => (TranscriptType::Offer, Some(price)),

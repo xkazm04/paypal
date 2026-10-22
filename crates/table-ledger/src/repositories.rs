@@ -41,6 +41,24 @@ pub(crate) fn parse_enum<T: for<'de> Deserialize<'de>>(value: String) -> Result<
 pub(crate) fn json_text<T: Serialize>(value: &T) -> Result<String, LedgerError> {
     String::from_utf8(canonical_bytes(value)?).map_err(|_| LedgerError::Integrity("UTF-8"))
 }
+/// The envelope a stored compact JWS carries (its payload segment, base64url, no padding). It
+/// was verified when it was stored; `fault` names a row that no longer has the shape
+/// (`"envelope shape"`: no payload segment; `"envelope encoding"`: not base64url) in the
+/// caller's own error.
+pub(crate) fn stored_envelope(
+    raw: &str,
+    fault: impl Fn(&'static str) -> LedgerError,
+) -> Result<table_proto::Envelope, LedgerError> {
+    use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+    let payload = raw
+        .split('.')
+        .nth(1)
+        .ok_or_else(|| fault("envelope shape"))?;
+    let bytes = URL_SAFE_NO_PAD
+        .decode(payload)
+        .map_err(|_| fault("envelope encoding"))?;
+    Ok(serde_json::from_slice(&bytes)?)
+}
 
 pub(crate) fn read_deal(conn: &Connection, id: DealId) -> Result<Deal, LedgerError> {
     let row=conn.query_row("SELECT kind,side,counterparty,mandate_id,mandate_version,item_ref,qty,unit_price_minor,currency,delivery,state,terms_hash,transcript_head,pp_order_id,pp_authorization_id,pp_capture_id,pp_subscription_id,mode,market_json,shield_verdict,created_at,updated_at,decided_by,shield_rule,shield_terms,shield_release_json FROM deals WHERE id=?1",[id.to_string()],|r|{
@@ -398,7 +416,6 @@ impl Ledger {
     /// verifies. `None` when no SETTLE is stored yet. A SETTLE refused as a mismatch is never
     /// stored, so its amount is not readable here (the deal's MISMATCH state says it).
     pub fn latest_settle(&self, id: DealId) -> Result<Option<Body>, LedgerError> {
-        use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
         self.verify_transcript(id)?;
         let raw: Option<String> = self
             .conn
@@ -411,24 +428,17 @@ impl Ledger {
         let Some(raw) = raw else {
             return Ok(None);
         };
-        let payload = URL_SAFE_NO_PAD
-            .decode(raw.split('.').nth(1).ok_or(ProtocolError::Shape)?)
-            .map_err(|_| ProtocolError::Shape)?;
-        let envelope: table_proto::Envelope = serde_json::from_slice(&payload)?;
+        let envelope = stored_envelope(&raw, |_| ProtocolError::Shape.into())?;
         if !matches!(envelope.body, Body::Settle { .. }) {
             return Err(LedgerError::Integrity("SETTLE row holds another message"));
         }
         Ok(Some(envelope.body))
     }
     pub fn verified_approval_link(&self, id: DealId, attempt: u8) -> Result<String, LedgerError> {
-        use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
         self.verify_transcript(id)?;
         let deal = self.get_deal(id)?;
         let raw: String = self.conn.query_row("SELECT raw_jws FROM envelopes WHERE deal_id=?1 AND typ='SETTLE' ORDER BY rowid DESC LIMIT 1",[id.to_string()],|r|r.get(0)).optional()?.ok_or(LedgerError::NotFound)?;
-        let payload = URL_SAFE_NO_PAD
-            .decode(raw.split('.').nth(1).ok_or(ProtocolError::Shape)?)
-            .map_err(|_| ProtocolError::Shape)?;
-        let envelope: table_proto::Envelope = serde_json::from_slice(&payload)?;
+        let envelope = stored_envelope(&raw, |_| ProtocolError::Shape.into())?;
         if !matches!(&envelope.body,Body::Settle{attempt:a,order_id,..} if *a==attempt && Some(order_id.as_str())==deal.paypal.order.as_deref())
         {
             return Err(LedgerError::Conflict);
