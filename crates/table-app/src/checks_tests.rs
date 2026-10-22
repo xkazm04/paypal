@@ -218,7 +218,7 @@ fn host_is_checked_only_when_a_link_exists_and_names_a_refused_host_in_detail() 
     let d = deal(Side::Buyer, DealState::AwaitingApproval);
     let pass = one(&ready(&d), ApprovalCheckId::Host);
     assert_eq!(pass.status, S::Pass);
-    assert!(pass.detail.contains("www.sandbox.paypal.com"));
+    assert!(pass.detail.contains(table_proto::APPROVAL_HOST));
 
     let mut f = ready(&d);
     let mut s = settle(32_900);
@@ -232,11 +232,14 @@ fn host_is_checked_only_when_a_link_exists_and_names_a_refused_host_in_detail() 
         fail.detail
     );
     assert!(!fail.text.contains("evil"), "the host stays on Layer 2");
+    assert!(fail.detail.contains(table_proto::APPROVAL_HOST));
 
     let agreed = deal(Side::Seller, DealState::Agreed);
     let mut f = ready(&agreed);
     f.settle = Ok(None);
-    assert_eq!(one(&f, ApprovalCheckId::Host).status, S::Wait);
+    let wait = one(&f, ApprovalCheckId::Host);
+    assert_eq!(wait.status, S::Wait);
+    assert!(wait.detail.contains(table_proto::APPROVAL_HOST));
     let negotiating = deal(Side::Buyer, DealState::Negotiating);
     let mut f = ready(&negotiating);
     f.settle = Ok(None);
