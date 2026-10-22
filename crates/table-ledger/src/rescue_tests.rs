@@ -622,6 +622,14 @@ fn a_run_of_failures_has_one_fix_and_a_paid_renewal_ends_it() {
     let x = w.ledger.record_rescue_watch_read("I-S1", None, t0).unwrap();
     assert_eq!((x.tries, x.next_read_at), (1, t0 + RESCUE_WATCH_RETRY_SECS));
     assert!(w.ledger.due_rescue_watches(t0 + 1, 5).unwrap().is_empty());
+    // ...and the unusable read is on the chain, with no email: the next good read resets `tries`.
+    let unread = watch_actions(&w.ledger, "rescue.watch_unread");
+    assert_eq!(unread.len(), 1);
+    assert_eq!(
+        unread[0].detail,
+        serde_json::json!({"subscription_id": "I-S1", "tries": 1})
+    );
+    assert!(!unread[0].detail.to_string().contains("subscriber@"));
     // Paid: no run of failures.
     let x = w
         .ledger

@@ -265,6 +265,19 @@ impl Ledger {
                         at.saturating_add(rescue_watch_retry_secs(tries))
                     ],
                 )?;
+                audit::append(
+                    &tx,
+                    &AuditEntry {
+                        at,
+                        actor: "policy".into(),
+                        action: "rescue.watch_unread".into(),
+                        deal_id: None,
+                        detail: json!({
+                            "subscription_id": subscription_id,
+                            "tries": tries,
+                        }),
+                    },
+                )?;
             }
             Some(failed) => {
                 let failing_since = (failed > 0).then(|| before.failing_since.unwrap_or(at));
