@@ -9178,7 +9178,11 @@
           "revision": 6,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:133 Facet counts ignore the active text query, so they describe a different candidate set from the displayed results.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:395e660a5e607abe",
+          "evaluatedRevision": 6
         },
         {
           "subject": "table",

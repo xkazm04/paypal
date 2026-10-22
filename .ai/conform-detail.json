@@ -5561,6 +5561,52 @@
           "evidence": "crates/table-core/src/deal.rs:366 The graph represented here is a deal state machine, without a corpus reference graph used to rank retrievable items."
         }
       ]
+    },
+    "7e6e9781-1ef3-439c-ae2d-00619d2cb1d9/search": {
+      "context": "console-navigation-and-lists",
+      "subject": "search",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-22",
+      "evaluatedTs": "2026-10-22T03:30:53.141Z",
+      "worker": "505b8bc0-6e39-42a8-a1e9-ac1ae8439b52",
+      "techniques": [
+        {
+          "technique": "command-surface",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/findIndex.ts:55 Find accepts literal substrings in existing order; it implements neither abbreviation matching nor exact/prefix/fuzzy scoring for predictable top hits."
+        },
+        {
+          "technique": "faceting-and-filters",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:133 Counts use all rows and never depend on q; both permitted facet-count conventions require the active free-text predicate to apply."
+        },
+        {
+          "technique": "full-text-indexing",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/findIndex.ts:43 The derived searchable text folds case but retains diacritics, so an unaccented query such as cafe cannot find café."
+        },
+        {
+          "technique": "query-parsing",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:110 Matching policy is independently implemented here and in Find's searchIndex and matchCount, with no shared normalization door or diacritic folding."
+        },
+        {
+          "technique": "ranking-and-excerpts",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/findIndex.ts:42 Within each ranked group, results inherit incoming item order without a final stable identity key; reordering the same records changes their rank."
+        },
+        {
+          "technique": "saved-views",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/Find.tsx:63 Find keeps an ephemeral query; the inspected surface exposes no named, durable query/filter/sort artifact to which saved-view lifecycle rules apply."
+        },
+        {
+          "technique": "typed-filter-language",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/ListEngine.tsx:33 Filters are developer-supplied typed callbacks selected through chips, rather than user-authored programs with operators, identifiers, and lists."
+        }
+      ]
     }
   }
 }
