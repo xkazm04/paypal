@@ -39,7 +39,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         house_seller::Error::Config("TABLE_HOUSE_RELEASE_JSON (a build argument) does not verify")
     })?;
     let clock = Arc::new(Time);
-    let relay = Arc::new(rendezvous::MemoryStore::new(clock.clone()));
+    let relay = Arc::new(
+        rendezvous::MemoryStore::new(clock.clone()).with_log(Arc::new(rendezvous::Stderr)),
+    );
     let credentials = Arc::new(house_seller::EnvironmentCredentials);
     // Fail startup on missing credentials without making an OAuth request.
     table_paypal::Credentials::load(credentials.as_ref()).await?;
