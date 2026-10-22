@@ -1,5 +1,6 @@
 //! Typed negotiation inspection and refusal evidence for the deterministic hosted seller.
-use crate::{AuditEntry, Direction, Ledger, LedgerError, audit, repositories::append_verified};
+use crate::repositories::{append_verified, stored_envelope};
+use crate::{AuditEntry, Direction, Ledger, LedgerError, audit};
 use rusqlite::{OptionalExtension, TransactionBehavior};
 use table_core::{DealId, DealState, H256, Timestamp};
 use table_proto::{Body, VerifiedEnvelope};
@@ -32,17 +33,9 @@ impl Ledger {
         Ok(open)
     }
     pub fn last_message(&self, id: DealId) -> Result<Option<(Direction, Body)>, LedgerError> {
-        use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
         let row: Option<(String,String)> = self.conn.query_row("SELECT dir,raw_jws FROM envelopes WHERE deal_id=?1 AND verified=1 ORDER BY rowid DESC LIMIT 1",[id.to_string()],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
         row.map(|(dir, raw)| {
-            let bytes = URL_SAFE_NO_PAD
-                .decode(
-                    raw.split('.')
-                        .nth(1)
-                        .ok_or(LedgerError::Integrity("envelope shape"))?,
-                )
-                .map_err(|_| LedgerError::Integrity("envelope encoding"))?;
-            let e: table_proto::Envelope = serde_json::from_slice(&bytes)?;
+            let e = stored_envelope(&raw, LedgerError::Integrity)?;
             Ok((
                 if dir == "in" {
                     Direction::Inbound
@@ -57,17 +50,9 @@ impl Ledger {
     /// When this wallet signed the deal's latest outbound SETTLE (its `iat`): a buyer wallet
     /// counts its approval window, and its grace for the RECEIPT, from it. `None` before one.
     pub fn settle_signed_at(&self, id: DealId) -> Result<Option<Timestamp>, LedgerError> {
-        use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
         let raw: Option<String> = self.conn.query_row("SELECT raw_jws FROM envelopes WHERE deal_id=?1 AND dir='out' AND typ='SETTLE' ORDER BY rowid DESC LIMIT 1",[id.to_string()],|r|r.get(0)).optional()?;
         raw.map(|raw| {
-            let bytes = URL_SAFE_NO_PAD
-                .decode(
-                    raw.split('.')
-                        .nth(1)
-                        .ok_or(LedgerError::Integrity("envelope shape"))?,
-                )
-                .map_err(|_| LedgerError::Integrity("envelope encoding"))?;
-            let e: table_proto::Envelope = serde_json::from_slice(&bytes)?;
+            let e = stored_envelope(&raw, LedgerError::Integrity)?;
             Ok(e.iat)
         })
         .transpose()

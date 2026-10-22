@@ -4,8 +4,8 @@
 //! newest deals in a few passes, so a refresh costs O(rows), not O(rows x deals). The caller (the
 //! HOUSE) decides which facts cross; an envelope's body is returned typed, and its free-text
 //! variants are dropped there.
+use crate::repositories::stored_envelope;
 use crate::{AuditRecord, Ledger, LedgerError, audit, hash_blob, repositories::read_deal};
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use std::collections::BTreeMap;
 use table_core::{ClosedMandate, Deal, H256, Timestamp};
 use table_proto::Body;
@@ -47,14 +47,7 @@ fn timestamp(text: &str) -> Result<Timestamp, LedgerError> {
         .map_err(|_| LedgerError::Integrity("stored timestamp"))
 }
 fn body(raw: &str) -> Result<Body, LedgerError> {
-    let payload = URL_SAFE_NO_PAD
-        .decode(
-            raw.split('.')
-                .nth(1)
-                .ok_or(LedgerError::Integrity("envelope shape"))?,
-        )
-        .map_err(|_| LedgerError::Integrity("envelope encoding"))?;
-    Ok(serde_json::from_slice::<table_proto::Envelope>(&payload)?.body)
+    Ok(stored_envelope(raw, LedgerError::Integrity)?.body)
 }
 
 impl Ledger {
