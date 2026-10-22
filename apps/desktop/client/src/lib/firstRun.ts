@@ -92,10 +92,11 @@ export function connectionFacts(list: ReadonlyArray<{ house: boolean }> | null |
   return { houseConnected: list.some((c) => c.house), otherConnections: list.filter((c) => !c.house).length };
 }
 
-/** Signed rules in force now (mandate_list returns the active row of each set). */
-export function rulesInForce(list: ReadonlyArray<{ payload: { not_before: number; expires: number }; refusal?: unknown }> | null | undefined, now: number): number | null {
+/** Signed rules in force now (mandate_list returns the active row of each set): inside their dates,
+ *  signed by the owner and not refused, as Agent rules and the Set up page judge them. */
+export function rulesInForce(list: ReadonlyArray<{ payload: { not_before: number; expires: number }; owner_sig: readonly number[]; refusal?: unknown }> | null | undefined, now: number): number | null {
   if (!list) return null;
-  return list.filter((m) => m.payload.not_before <= now && now < m.payload.expires && !m.refusal).length;
+  return list.filter((m) => m.payload.not_before <= now && now < m.payload.expires && m.owner_sig.length > 0 && !m.refusal).length;
 }
 
 // ---- the Set up page (calm-nested-ui) --------------------------------------------------------------
