@@ -67,6 +67,24 @@ export const REWIND_HUB = {
   count: (calls: number, refused: number): string => `${calls} PayPal ${calls === 1 ? 'call' : 'calls'} · ${refused} refused, PayPal never asked`,
 } as const;
 
+/** The deal's charts (windows/main/charts.tsx): the offers coming together, the market band and its
+ *  mini glyph. Amounts arrive formatted. */
+export const CHART_WORDS = {
+  noOffers: 'No offers yet. The chart fills in as offers arrive.',
+  offersLabel: (max: string | null, who: string, last: string): string => `Offers coming together. ${max !== null ? `Most you’ll pay ${max}. ` : ''}Latest offer from ${who}: ${last}.`,
+  you: 'you',
+  typical: (lo: string, hi: string): string => `typical ${lo}–${hi}`,
+  theirOffer: (name: string, listed: boolean, price: string, checked: boolean): string => `${name} ${listed ? 'listed it at' : 'offered'} ${price}${checked ? ' · signature checked' : ' · signature could not be checked'}`,
+  yourOffer: (accepted: boolean, price: string, checked: boolean): string => `You ${accepted ? 'accepted' : 'offered'} ${price}${checked ? ' · signature checked' : ' · signature could not be checked'}`,
+  outside: ' · outside your range',
+  max: 'your max',
+  min: (v: string): string => `your min ${v}`,
+  axis: (unchecked: boolean): string => `first offer → latest${unchecked ? ' · some signatures could not be checked' : ''}`,
+  bandLabel: (lo: string, hi: string, middle: string): string => `Typical price ${lo} to ${hi}, middle ${middle}`,
+  middle: (v: string): string => `middle ${v}`,
+  thisDeal: (v: string): string => `this deal ${v}`,
+} as const;
+
 /** The tape: every step of the week, newest first. */
 export const REWIND_TAPE = {
   title: 'Every step, newest first',

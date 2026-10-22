@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { MarketRef } from '@bindings/MarketRef';
 import type { Money } from '@bindings/Money';
 import { formatMinor } from '../../lib/format';
-import { marketWords } from '../../lib/words';
+import { CHART_WORDS, marketWords } from '../../lib/words';
 import type { DealDisplay } from '@bindings/DealDisplay';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { usePrefersReducedMotion } from '../../lib/hooks';
@@ -45,7 +45,7 @@ export function ConvergenceChart({ steps, band, market, height = 300, theirName,
   if (market) values.push(market.p25.minor, market.p75.minor);
   const H = height;
   const L = 64; const Rr = 92; const T = 22; const B = 34;
-  if (!priced.length) return <div className="empty">No offers yet. The chart fills in as offers arrive.</div>;
+  if (!priced.length) return <div className="empty">{CHART_WORDS.noOffers}</div>;
   const { lo, hi, ticks } = niceTicks(Math.min(...values), Math.max(...values));
   const plotW = Math.max(40, W - L - Rr);
   const maxSeq = Math.max(...priced.map((s) => s.seq));
@@ -68,7 +68,7 @@ export function ConvergenceChart({ steps, band, market, height = 300, theirName,
     <div className="chartbox" ref={ref}>
       {W > 0 ? (
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img"
-          aria-label={`Offers coming together. ${ceil !== null ? `Most you’ll pay ${fm(ceil)}. ` : ''}Latest offer from ${last.by === 'you' ? 'you' : theirName}: ${fm(last.price.minor)}.`}>
+          aria-label={CHART_WORDS.offersLabel(ceil !== null ? fm(ceil) : null, last.by === 'you' ? CHART_WORDS.you : theirName, fm(last.price.minor))}>
           <defs>
             <pattern id="cv-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" className="cv-hatch" strokeWidth="3" /></pattern>
             <linearGradient id="cv-band" x1="0" y1="0" x2="0" y2="1"><stop offset="0" className="cv-stop" stopOpacity=".28" /><stop offset="1" className="cv-stop" stopOpacity=".04" /></linearGradient>
@@ -83,30 +83,30 @@ export function ConvergenceChart({ steps, band, market, height = 300, theirName,
           {market ? (
             <>
               <rect x={L} y={y(market.p75.minor)} width={plotW} height={Math.max(0, y(market.p25.minor) - y(market.p75.minor))} fill="url(#cv-hatch)" />
-              <text x={W - Rr - 8} y={y(market.p25.minor) + 17 < H - B - 2 ? y(market.p25.minor) + 17 : y(market.p75.minor) - 6} textAnchor="end" className="ax mk">typical {fm(market.p25.minor)}–{fm(market.p75.minor)}</text>
+              <text x={W - Rr - 8} y={y(market.p25.minor) + 17 < H - B - 2 ? y(market.p25.minor) + 17 : y(market.p75.minor) - 6} textAnchor="end" className="ax mk">{CHART_WORDS.typical(fm(market.p25.minor), fm(market.p75.minor))}</text>
             </>
           ) : null}
           <path d={path(theirs)} className="cv-them" strokeWidth="2" fill="none" opacity=".8" />
           <path d={path(yours)} className="cv-you" strokeWidth="2" fill="none" opacity=".8" />
-          {theirs.map((s) => <circle key={s.seq} cx={x(s.seq)} cy={y(s.price.minor)} r="5" className="cv-dot-them"><title>{`${theirName} ${s.typ === 'LISTING' ? 'listed it at' : 'offered'} ${fm(s.price.minor)}${s.verified ? ' · signature checked' : ' · signature could not be checked'}`}</title></circle>)}
-          {yours.map((s) => <circle key={s.seq} cx={x(s.seq)} cy={y(s.price.minor)} r="5" className="cv-dot-you"><title>{`You ${s.typ === 'ACCEPT' ? 'accepted' : 'offered'} ${fm(s.price.minor)}${s.verified ? ' · signature checked' : ' · signature could not be checked'}`}</title></circle>)}
+          {theirs.map((s) => <circle key={s.seq} cx={x(s.seq)} cy={y(s.price.minor)} r="5" className="cv-dot-them"><title>{CHART_WORDS.theirOffer(theirName, s.typ === 'LISTING', fm(s.price.minor), s.verified)}</title></circle>)}
+          {yours.map((s) => <circle key={s.seq} cx={x(s.seq)} cy={y(s.price.minor)} r="5" className="cv-dot-you"><title>{CHART_WORDS.yourOffer(s.typ === 'ACCEPT', fm(s.price.minor), s.verified)}</title></circle>)}
           <circle className={`cv-last ${fits ? 'fits' : ''} ${fits && !settled && !reduced ? 'pulse-ring' : ''}`} cx={x(last.seq)} cy={y(last.price.minor)} r="10" fill="none" strokeWidth="3" />
-          <text x={x(last.seq) + (fits ? 15 : -15)} y={y(last.price.minor) + (fits ? 5 : 24)} textAnchor={fits ? 'start' : 'end'} className={`ax strong ${fits ? 'gold' : ''}`}>{fm(last.price.minor)}{fits ? '' : ' · outside your range'}</text>
+          <text x={x(last.seq) + (fits ? 15 : -15)} y={y(last.price.minor) + (fits ? 5 : 24)} textAnchor={fits ? 'start' : 'end'} className={`ax strong ${fits ? 'gold' : ''}`}>{fm(last.price.minor)}{fits ? '' : CHART_WORDS.outside}</text>
           {ceil !== null ? (
             <>
               <line x1={L} x2={W - Rr + 6} y1={y(ceil)} y2={y(ceil)} className="cv-limit" strokeWidth="2.5" />
               <rect x={W - Rr + 8} y={y(ceil) - 14} width={Rr - 12} height="28" rx="14" className="cv-tag" />
               <text x={W - Rr / 2 + 2} y={y(ceil) + 5} textAnchor="middle" className="ax tag">{fm(ceil)}</text>
-              <text x={W - Rr + 8} y={y(ceil) - 20} className="ax teal">your max</text>
+              <text x={W - Rr + 8} y={y(ceil) - 20} className="ax teal">{CHART_WORDS.max}</text>
             </>
           ) : null}
           {floor !== null ? (
             <>
               <line x1={L} x2={W - Rr + 6} y1={y(floor)} y2={y(floor)} className="cv-limit" strokeWidth="2.5" strokeDasharray="6 4" />
-              <text x={W - Rr + 8} y={y(floor) + 18} className="ax teal">your min {fm(floor)}</text>
+              <text x={W - Rr + 8} y={y(floor) + 18} className="ax teal">{CHART_WORDS.min(fm(floor))}</text>
             </>
           ) : null}
-          <text x={L} y={H - 9} className="ax">first offer → latest{unverified ? ' · some signatures could not be checked' : ''}</text>
+          <text x={L} y={H - 9} className="ax">{CHART_WORDS.axis(unverified)}</text>
         </svg>
       ) : null}
     </div>
@@ -132,12 +132,12 @@ export function MarketBand({ market, price, limit }: { market: MarketRef; price:
     <div className="chartbox market" ref={ref}>
       {W > 0 ? (
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img"
-          aria-label={`Typical price ${fm(market.p25.minor)} to ${fm(market.p75.minor)}, middle ${fm(market.median.minor)}${priced ? `; this deal ${fm(priced.minor)}, ${wpos}` : ''}${lim ? `; ${lim.label} ${fm(lim.value.minor)}` : ''}`}>
+          aria-label={`${CHART_WORDS.bandLabel(fm(market.p25.minor), fm(market.p75.minor), fm(market.median.minor))}${priced ? `; ${CHART_WORDS.thisDeal(fm(priced.minor))}, ${wpos}` : ''}${lim ? `; ${lim.label} ${fm(lim.value.minor)}` : ''}`}>
           <line x1={pad} x2={W - pad} y1="40" y2="40" className="mb-axis" strokeWidth="2" />
           <rect x={x(market.p25.minor)} y="30" width={Math.max(2, x(market.p75.minor) - x(market.p25.minor))} height="20" rx="4" className="mb-box" />
           <line x1={x(market.median.minor)} x2={x(market.median.minor)} y1="26" y2="54" className="mb-median" strokeWidth="2" />
           <text x={x(market.p25.minor) - 6} y="68" textAnchor="end" className="ax">{fm(market.p25.minor)}</text>
-          <text x={x(market.median.minor)} y="68" textAnchor="middle" className="ax mk">middle {fm(market.median.minor)}</text>
+          <text x={x(market.median.minor)} y="68" textAnchor="middle" className="ax mk">{CHART_WORDS.middle(fm(market.median.minor))}</text>
           <text x={x(market.p75.minor) + 6} y="68" textAnchor="start" className="ax">{fm(market.p75.minor)}</text>
           {lim ? (
             <g>
@@ -148,7 +148,7 @@ export function MarketBand({ market, price, limit }: { market: MarketRef; price:
           {priced ? (
             <g>
               <circle cx={x(priced.minor)} cy="40" r="7" className="mb-price" strokeWidth="2" />
-              {lim ? null : <text x={x(priced.minor) + (x(priced.minor) > W - 150 ? -12 : 12)} y="18" textAnchor={x(priced.minor) > W - 150 ? 'end' : 'start'} className="ax strong gold">this deal {fm(priced.minor)}{wpos ? ` · ${wpos}` : ''}</text>}
+              {lim ? null : <text x={x(priced.minor) + (x(priced.minor) > W - 150 ? -12 : 12)} y="18" textAnchor={x(priced.minor) > W - 150 ? 'end' : 'start'} className="ax strong gold">{CHART_WORDS.thisDeal(fm(priced.minor))}{wpos ? ` · ${wpos}` : ''}</text>}
             </g>
           ) : null}
         </svg>
