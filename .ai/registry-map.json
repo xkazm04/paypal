@@ -8873,7 +8873,11 @@
           "revision": 19,
           "changedAt": "2026-10-15",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-core/src/book.rs:67 The context defines structured financial queries and calculations, while context and repository searches found no embedder, BM25 or reranker implementation, so ranked corpus retrieval has no applicable pipeline here.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:a49d27f889212d3f",
+          "evaluatedRevision": 19
         }
       ],
       "governance": "governed"
