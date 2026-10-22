@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Deal } from '@bindings/Deal';
+import { understand } from './understand';
 import { aggregate, BUCKET_LABEL, BUCKET_SUB, BUCKETS, bucketOf, csvCell, decimal, LENSES, readQuery, runQuery, serverStateLabel, stateKey, statementCounts, statementKey, sums, toCSV, vsMedianPct, type BookQuery, type Ctx } from './model';
 
 const H = Array.from({ length: 32 }, () => 0) as unknown as Deal['transcript_head'];
@@ -12,6 +13,19 @@ function deal(id: string, o: Partial<Deal> & { price?: number; cur?: Deal['terms
   };
 }
 const ctx: Ctx = { stmt: (d) => (d.paypal.capture ? 'matched' : 'not_applicable'), cpName: (d) => d.counterparty };
+
+describe('Stopped is one set', () => {
+  const STATES = ['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECEIPTED', 'RECONCILED', 'WITHDRAWN', 'EXPIRED', 'REFUSED', 'MISMATCH', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'UNCONFIRMED'] as const;
+  const rows = STATES.map((state) => deal(state, { state }));
+  it('the "What was stopped" lens and the typed "stopped" filter hold exactly the deals the Stopped tile counts', () => {
+    const tile = rows.filter((d) => bucketOf(d) === 'stopped').map((d) => d.id);
+    expect(tile.length).toBeGreaterThan(6);
+    expect(runQuery(LENSES.find((l) => l.id === 'stopped')!.query, rows, ctx).rows.map((d) => d.id)).toEqual(tile);
+    const typed = understand('everything that was stopped', { now: 1_800_000_000, offsetMin: 0, parties: [] });
+    if (!('query' in typed)) throw new Error('the typed question was not understood');
+    expect(runQuery(typed.query as BookQuery, rows, ctx).rows.map((d) => d.id)).toEqual(tile);
+  });
+});
 
 describe('money states', () => {
   it('puts every state in exactly one of the four buckets', () => {
