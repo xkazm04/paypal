@@ -208,7 +208,12 @@ impl ActorHandle {
             active: true,
         };
         if api.wake().await.is_err() {
-            // The guard puts the house back to idle: a failed wake is retryable, not a fault.
+            // A failed wake is retryable, not a fault: the house goes back to idle. The reset waits
+            // for room in the actor's queue (the guard's `try_send` can be dropped when it is full
+            // and stays only for a cancelled wake).
+            self.execute_local::<()>(main_caller(), Action::HouseStatus(HouseState::Idle))
+                .await?;
+            wake.active = false;
             return Err(unavailable(
                 "House is waking or temporarily unavailable; retry",
             ));
