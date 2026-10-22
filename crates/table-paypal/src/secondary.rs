@@ -1,5 +1,6 @@
 //! Narrow secondary sandbox APIs. No Plans pricing method exists here.
-//! Bodies verified against PayPal's official invoicing_v2 / billing_subscriptions_v1 specs.
+//! Endpoints follow the research's invoicing_v2 / billing_subscriptions_v1 lists; several body
+//! and response fields are not sourced and carry `// UNVERIFIED:` below (listed in STATUS.md).
 use crate::*;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
