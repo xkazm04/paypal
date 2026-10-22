@@ -4,6 +4,9 @@ use table_core::{DealId, H256, Timestamp};
 /// How long an owner ticket is valid after it was minted. A spent-ticket entry older than this
 /// names a ticket `validate` already refuses, so it may be forgotten.
 pub(crate) const TICKET_SECS: i64 = 60;
+/// Idle time after which the approval window locks and needs the OS re-auth again. `locked`
+/// enforces it and `lock_in` counts down to it, so the two read one number.
+pub(crate) const IDLE_LOCK_SECS: i64 = 900;
 pub trait NativeReauth {
     fn authenticate(&self) -> Result<(), Error>;
 }
@@ -97,7 +100,7 @@ impl ApprovalSession {
         Ok(&self.token)
     }
     pub fn locked(&mut self, now: Timestamp) -> bool {
-        if now < self.last_activity || now.saturating_sub(self.last_activity) >= 900 {
+        if now < self.last_activity || now.saturating_sub(self.last_activity) >= IDLE_LOCK_SECS {
             self.locked = true;
         }
         self.locked
@@ -107,7 +110,7 @@ impl ApprovalSession {
         if self.locked(now) {
             return None;
         }
-        Some(900_i64.saturating_sub(now.saturating_sub(self.last_activity)))
+        Some(IDLE_LOCK_SECS.saturating_sub(now.saturating_sub(self.last_activity)))
     }
     pub fn check(&mut self, label: &str, token: &str, now: Timestamp) -> Result<(), Error> {
         if label != "approval" || !self.token_matches(token) {
@@ -241,6 +244,18 @@ mod tests {
         assert!(session.validate(&ticket, id, H256::ZERO, 1, 160).is_err());
         session.unlock("approval", &token, &Reauth, 150).unwrap();
         assert!(session.validate(&ticket, id, H256::ZERO, 1, 159).is_err());
+    }
+    #[test]
+    fn the_idle_countdown_reaches_zero_exactly_when_the_window_locks() {
+        let mut session = ApprovalSession::new(100).unwrap();
+        let token = session.token("approval").unwrap().to_owned();
+        session.unlock("approval", &token, &Reauth, 100).unwrap();
+        assert_eq!(session.lock_in(100), Some(IDLE_LOCK_SECS));
+        let last = 100 + IDLE_LOCK_SECS - 1;
+        assert_eq!(session.lock_in(last), Some(1));
+        assert!(!session.locked(last));
+        assert!(session.locked(100 + IDLE_LOCK_SECS));
+        assert_eq!(session.lock_in(100 + IDLE_LOCK_SECS), None);
     }
     #[test]
     fn owner_ticket_from_another_session_is_refused() {
