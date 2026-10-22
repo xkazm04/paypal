@@ -5,9 +5,9 @@ use table_client::CommandError;
 use table_core::*;
 pub(crate) struct Delivery {
     id: DealId,
-    batches: Vec<table_relay::Batch>,
-    acknowledgements: Vec<(String, H256)>,
-    failed: bool,
+    pub(crate) batches: Vec<table_relay::Batch>,
+    pub(crate) acknowledgements: Vec<(String, H256)>,
+    pub(crate) failed: bool,
 }
 #[cfg(test)]
 impl Delivery {
@@ -185,7 +185,10 @@ impl Runtime {
         ))
     }
 }
-async fn deliver(api: Arc<dyn table_relay::RelayApi>, work: table_ledger::RelayWork) -> Delivery {
+pub(crate) async fn deliver(
+    api: Arc<dyn table_relay::RelayApi>,
+    work: table_ledger::RelayWork,
+) -> Delivery {
     let mut delivery = Delivery {
         id: work.deal_id,
         batches: vec![],
