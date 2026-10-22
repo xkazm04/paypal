@@ -129,6 +129,30 @@ describe('the rescue fixes rule, as the wallet refuses it at signing', () => {
   });
 });
 
+describe('a zero money limit allows nothing, so it is refused at signing', () => {
+  const ZERO = 'a money limit of zero allows nothing';
+  const withClause = (c: Clause) => shopWithZero.map((x) => (x.type === c.type ? c : x));
+  const shopWithZero: Clause[] = [
+    { type: 'roles', roles: ['shop'] },
+    { type: 'counterparties', rule: { type: 'pinned', keys: ['k-1'] } },
+    { type: 'per_deal', kind: 'shop_order', max_amount: usd(50000), categories: ['office'] },
+    { type: 'band', item_refs: ['monitor-arm'], floor: usd(100), ceiling: null, max_rounds: 6, deadline: T + 86400 },
+    { type: 'velocity', max_deals_day: 40, max_total_day: usd(600000) },
+    { type: 'human_present_over', amount: usd(25000) },
+    { type: 'payees', payees: ['hana-print-shop'] },
+  ];
+  it('the unzeroed rules are clean', () => expect(validateRules(payload(shopWithZero))).toEqual([]));
+  it.each([
+    [3, { type: 'per_deal', kind: 'shop_order', max_amount: usd(0), categories: ['office'] }],
+    [4, { type: 'band', item_refs: ['monitor-arm'], floor: null, ceiling: usd(0), max_rounds: 6, deadline: T + 86400 }],
+    [5, { type: 'velocity', max_deals_day: 40, max_total_day: usd(0) }],
+  ] as [number, Clause][])('clause %i with a zero limit', (clause, c) => {
+    const p = payload(withClause(c));
+    expect(validateRules(p)).toContainEqual(expect.objectContaining({ clause, reason: ZERO }));
+    expect(mockValidate(p)).toEqual(expect.objectContaining({ reason: ZERO }));
+  });
+});
+
 describe('the scale worlds sign only what the wallet accepts', () => {
   it.each(['small', 'large'] as const)('%s: every signed rule validates', (scale) => {
     for (const m of buildScaleState(scale, SCALE_NOW).mandates) expect(validateRules(m.payload), `${m.payload.id} v${m.payload.version}`).toEqual([]);

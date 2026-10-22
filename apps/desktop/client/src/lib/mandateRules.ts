@@ -43,6 +43,9 @@ export const VALIDATE_REASONS = [
   { clause: 4, reason: 'band required for haggle and shop orders' },
   { clause: 1, reason: 'no role in the roles clause can act on the per-deal kind' },
   { clause: 4, reason: 'band lacks the side the allowed roles use' },
+  { clause: 3, reason: 'a money limit of zero allows nothing' },
+  { clause: 4, reason: 'a money limit of zero allows nothing' },
+  { clause: 5, reason: 'a money limit of zero allows nothing' },
 ] as const satisfies ReadonlyArray<{ clause: number | null; reason: string }>;
 export type ValidateReason = (typeof VALIDATE_REASONS)[number]['reason'];
 
@@ -56,6 +59,7 @@ export const REASON_WORDS: Record<ValidateReason, string> = {
   'invalid band': 'the price range is incomplete or ends at the wrong time',
   'invalid floor/ceiling': 'the least you’ll accept is above the most you’ll pay',
   'empty velocity allowance': 'it allows 0 deals a day',
+  'a money limit of zero allows nothing': 'a limit of 0.00 would allow nothing',
   'empty payee allowance': 'no payees',
   'required clause missing': 'a required rule is missing',
   'currency differs across clauses': 'the amounts are in different currencies',
@@ -118,6 +122,7 @@ export function ruleRefusals(clauses: readonly RuleClause[], notBefore: number |
         break;
       case 'per_deal':
         if (!c.categories.length) refuse(3, 'empty categories');
+        if (c.max_amount.minor <= 0) refuse(3, 'a money limit of zero allows nothing');
         break;
       case 'band':
         if (!c.item_refs.length) refuse(4, 'invalid band', 'it names no item');
@@ -126,9 +131,11 @@ export function ruleRefusals(clauses: readonly RuleClause[], notBefore: number |
         if (expires !== null && c.deadline > expires) refuse(4, 'invalid band', 'it ends after the rules themselves end');
         if (notBefore !== null && c.deadline <= notBefore) refuse(4, 'invalid band', 'it ends before the rules start');
         if (c.floor && c.ceiling && (c.floor.currency !== c.ceiling.currency || c.floor.minor > c.ceiling.minor)) refuse(4, 'invalid floor/ceiling');
+        if (c.ceiling && c.ceiling.minor <= 0) refuse(4, 'a money limit of zero allows nothing', 'the most you’ll pay is 0.00, which would allow nothing');
         break;
       case 'velocity':
         if (c.max_deals_day === 0) refuse(5, 'empty velocity allowance');
+        if (c.max_total_day.minor <= 0) refuse(5, 'a money limit of zero allows nothing', 'the daily total is 0.00, which would allow nothing');
         break;
       case 'payees':
         if (!c.payees.length) refuse(7, 'empty payee allowance');

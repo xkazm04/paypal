@@ -211,6 +211,9 @@ impl MandatePayload {
                 Clause::PerDeal { categories, .. } if categories.is_empty() => {
                     return Err(Refusal::new(3, "empty categories"));
                 }
+                Clause::PerDeal { max_amount, .. } if max_amount.minor() <= 0 => {
+                    return Err(Refusal::new(3, "a money limit of zero allows nothing"));
+                }
                 Clause::Band {
                     item_refs,
                     floor,
@@ -231,9 +234,15 @@ impl MandatePayload {
                     {
                         return Err(Refusal::new(4, "invalid floor/ceiling"));
                     }
+                    if ceiling.is_some_and(|hi| hi.minor() <= 0) {
+                        return Err(Refusal::new(4, "a money limit of zero allows nothing"));
+                    }
                 }
                 Clause::Velocity { max_deals_day, .. } if *max_deals_day == 0 => {
                     return Err(Refusal::new(5, "empty velocity allowance"));
+                }
+                Clause::Velocity { max_total_day, .. } if max_total_day.minor() <= 0 => {
+                    return Err(Refusal::new(5, "a money limit of zero allows nothing"));
                 }
                 Clause::Payees { payees } if payees.is_empty() => {
                     return Err(Refusal::new(7, "empty payee allowance"));
@@ -673,6 +682,32 @@ mod tests {
             },
             now,
         )
+    }
+    #[test]
+    fn a_zero_money_limit_is_refused_at_signing() {
+        for number in [3_u8, 4, 5] {
+            let mut p = policy(DealKind::Purchase, Side::Buyer);
+            for c in &mut p.clauses {
+                match c {
+                    Clause::PerDeal { max_amount, .. } if number == 3 => *max_amount = money(0),
+                    Clause::Velocity { max_total_day, .. } if number == 5 => {
+                        *max_total_day = money(0);
+                    }
+                    // a buyer-only band with a zero ceiling and no floor
+                    Clause::Band { floor, ceiling, .. } if number == 4 => {
+                        *floor = None;
+                        *ceiling = Some(money(0));
+                    }
+                    _ => {}
+                }
+            }
+            let err = p.validate().unwrap_err();
+            assert_eq!(
+                (err.clause, err.reason.as_str()),
+                (number, "a money limit of zero allows nothing"),
+                "clause {number}"
+            );
+        }
     }
     #[test]
     fn clause_four_refusals_reach_the_agent_as_their_own_codes() {
