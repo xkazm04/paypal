@@ -894,6 +894,8 @@ export const BOUNDARY_TEXT = 'Nothing in your wallet changed. If you do nothing,
 /** The whole window failed to draw. */
 export const BOUNDARY_WINDOW_TITLE = 'This window could not be shown';
 export const BOUNDARY_RETRY = 'Try again';
+/** The stale banner's button while its reads run again. */
+export const BOUNDARY_RETRYING = 'Trying again';
 /** A part that is still being read. */
 export const LAYER_LOADING = 'Loading…';
 /** The stale banner: the window shows the last answers it had, because a read just failed. */

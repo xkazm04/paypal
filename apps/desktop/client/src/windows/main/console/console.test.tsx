@@ -12,7 +12,7 @@ import { WalletError } from '../../../lib/contract';
 import { readBudget, resetReadBudget } from '../../../lib/data/invoke';
 import { READ_CONCURRENCY } from '../../../lib/readEach';
 import {
-  APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, CHARTER_TITLE, PAIR, CENTRE_TITLE, FACT, FIND_LABEL, IF_NOTHING, MONEY_CHECK_ENDED_SILENCE, NOTICE_WHAT, PLACE, PLACE_NAME, SETUP_STEP_COPY, STALE_TITLE, UNREAD_TITLE, WAITING_TITLE, WALLET_FAULT_TOAST, WHY_LABEL,
+  BOUNDARY_RETRYING, APPROVAL_LOCKED_TITLE, APPROVAL_OPEN_TITLE, CHARTER_TITLE, PAIR, CENTRE_TITLE, FACT, FIND_LABEL, IF_NOTHING, MONEY_CHECK_ENDED_SILENCE, NOTICE_WHAT, PLACE, PLACE_NAME, SETUP_STEP_COPY, STALE_TITLE, UNREAD_TITLE, WAITING_TITLE, WALLET_FAULT_TOAST, WHY_LABEL,
 } from '../../../lib/words';
 import { mockBackend, resetMockState } from '../../../mock/backend';
 
@@ -21,6 +21,7 @@ const h = vi.hoisted(() => ({
   cbs: new Map<string, Set<(p: unknown) => void>>(),
   calls: [] as { cmd: string; args: unknown }[],
   failSettings: false,
+  holdSettings: null as null | Promise<void>,
   holdOpen: null as null | (() => void),
   failOpen: false,
 }));
@@ -41,6 +42,7 @@ function wrap(real: Backend): Backend {
         await new Promise<void>((r) => { h.holdOpen = r; });
         return null as never;
       }
+      if (cmd === 'get_settings' && h.holdSettings) { const gate = h.holdSettings; h.holdSettings = null; await gate; }
       if (cmd === 'get_settings' && h.failSettings) throw new WalletError({ code: 'UNAVAILABLE', message: 'settings store is busy' });
       return real.invoke(cmd, args, opts);
     },
@@ -95,6 +97,7 @@ beforeEach(() => {
   h.cbs = new Map();
   h.calls = [];
   h.failSettings = false;
+  h.holdSettings = null;
   h.holdOpen = null;
   h.failOpen = false;
   resetReadBudget();
@@ -221,6 +224,27 @@ describe('the decision centre', () => {
     expect(banner.textContent).not.toMatch(/UNAVAILABLE|get_settings|busy/);
     h.failSettings = false;
     fireEvent.click(within(banner).getByRole('button'));
+    await waitFor(() => expect(document.querySelector('.cs-stale')).toBeNull(), { timeout: 8000 });
+  }, 30_000);
+});
+
+describe('the stale banner Try again', () => {
+  it('says it is trying while the reads run again, then the banner goes', async () => {
+    h.failSettings = true;
+    await open('/index.html');
+    const banner = await waitFor(() => { const el = document.querySelector('.cs-stale'); if (!el) throw new Error('no banner'); return el as HTMLElement; }, { timeout: 8000 });
+    let release: () => void = () => {};
+    h.holdSettings = new Promise<void>((r) => { release = r; });
+    h.failSettings = false;
+    const btn = within(banner).getByRole('button');
+    fireEvent.click(btn);
+    await waitFor(() => {
+      const b = document.querySelector<HTMLButtonElement>('.cs-stale button');
+      expect(b?.getAttribute('aria-busy')).toBe('true');
+      expect(b?.disabled).toBe(true);
+      expect(b?.textContent).toBe(BOUNDARY_RETRYING);
+    });
+    await act(async () => { release(); await sleep(20); });
     await waitFor(() => expect(document.querySelector('.cs-stale')).toBeNull(), { timeout: 8000 });
   }, 30_000);
 });
