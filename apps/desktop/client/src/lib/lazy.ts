@@ -14,6 +14,18 @@ export type LazyPart<P> = ComponentType<P> & {
   preload: () => Promise<unknown>;
 };
 
+// Parts whose chunk failed while a render waited for it. React.lazy keeps a rejection for good, so a
+// redraw of the same part would rethrow the old failure; an ErrorBoundary's "Try again" (or a route
+// change that drops its fallback) calls renewFailedParts() so the next draw loads the chunk once more.
+// Renewing happens only on that new attempt, never inside React's own retry of the failed render
+// (that loops the loader for as long as the network is down).
+const renewers = new Set<() => void>();
+
+/** A new attempt: every part whose last render-time load failed gets a fresh lazy. Called by shared/boundary. */
+export function renewFailedParts(): void {
+  for (const renew of renewers) renew();
+}
+
 /** `lazyPart(() => import('./modules/book').then((m) => m.Book))`. */
 export function lazyPart<P extends object>(load: () => Promise<ComponentType<P>>): LazyPart<P> {
   let ready: ComponentType<P> | null = null;
@@ -25,13 +37,20 @@ export function lazyPart<P extends object>(load: () => Promise<ComponentType<P>>
         return { default: c };
       },
       (e: unknown) => {
-        pending = null; // a failed fetch may be retried by the next render or preload
+        pending = null; // a failed fetch may be retried by the next preload or, after renewFailedParts(), the next draw
         throw e;
       },
     );
     return pending;
   };
-  const Suspending = lazy(preload);
+  let failed = false;
+  const fresh = () => lazy(() => preload().catch((e: unknown) => { failed = true; throw e; }));
+  let Suspending = fresh();
+  renewers.add(() => {
+    if (!failed) return;
+    failed = false;
+    Suspending = fresh();
+  });
   const Part = (props: P) => createElement((ready ?? Suspending) as ComponentType<P>, props);
   return Object.assign(Part, { preload });
 }
