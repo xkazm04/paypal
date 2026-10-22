@@ -348,6 +348,11 @@ mod tests {
             ("relay.bound", json!({}), None),
             ("run.start", json!({}), None),
             ("run.finish", json!({}), None),
+            (
+                "mcp.withheld",
+                json!({"tool":"book_query","outcome":"withheld"}),
+                None,
+            ),
             ("counterparty.pinned", json!({}), None),
             ("counterparty.revoked", json!({"key_id":"K"}), None),
             (

@@ -1,4 +1,4 @@
-use crate::agent_request::{AgentRequest, AgentRole, AgentScope, AgentService};
+use crate::agent_request::{AgentRequest, AgentRole, AgentScope, AgentService, McpOutcome};
 use ed25519_dalek::VerifyingKey;
 use table_core::*;
 use table_ledger::{AuditEntry, Direction, GroupLoser, Ledger, LedgerError};
@@ -422,16 +422,7 @@ impl Wallet {
             RefusalCode::WalletLimit { .. } => "wallet_limit",
             _ => layer,
         };
-        let tool = if !tool.is_empty()
-            && tool.len() <= 64
-            && tool
-                .bytes()
-                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
-        {
-            tool
-        } else {
-            "unrecognised"
-        };
+        let tool = audit_tool_name(tool);
         self.ledger.append_audit(&AuditEntry {
             at: now,
             actor: "agent".into(),
@@ -506,7 +497,37 @@ impl Wallet {
         Ok(envelope.raw().into())
     }
 }
+/// A tool name as it may be audited: the agent chooses it, so only a short snake-case name
+/// is kept.
+fn audit_tool_name(tool: &str) -> &str {
+    if !tool.is_empty()
+        && tool.len() <= 64
+        && tool
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+    {
+        tool
+    } else {
+        "unrecognised"
+    }
+}
 impl AgentService for Wallet {
+    fn record_mcp_outcome(
+        &mut self,
+        scope: &AgentScope,
+        tool: &str,
+        outcome: McpOutcome,
+        now: Timestamp,
+    ) -> Result<(), Error> {
+        self.ledger.append_audit(&AuditEntry {
+            at: now,
+            actor: "agent".into(),
+            action: "mcp.withheld".into(),
+            deal_id: Some(scope.deal_id),
+            detail: serde_json::json!({"tool": audit_tool_name(tool), "outcome": outcome.key()}),
+        })?;
+        Ok(())
+    }
     fn record_refusal(
         &mut self,
         scope: &AgentScope,

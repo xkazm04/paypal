@@ -108,6 +108,23 @@ impl AgentRequest {
     }
 }
 /// This interface contains no network executor or authority method.
+/// How the MCP layer itself ended a call after the wallet was invoked: the agent was told
+/// something other than what the wallet may have recorded.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum McpOutcome {
+    /// The call outran its deadline and was abandoned; the wallet may still have finished it.
+    Abandoned,
+    /// The wallet answered, but the answer was over the size cap and never reached the agent.
+    Withheld,
+}
+impl McpOutcome {
+    pub const fn key(self) -> &'static str {
+        match self {
+            McpOutcome::Abandoned => "abandoned",
+            McpOutcome::Withheld => "withheld",
+        }
+    }
+}
 pub trait AgentService: Send {
     fn invoke(
         &mut self,
@@ -125,4 +142,16 @@ pub trait AgentService: Send {
         code: RefusalCode,
         now: Timestamp,
     ) -> Result<(), Error>;
+    /// Records an outcome the MCP layer (not the wallet) gave the agent after `invoke`: a
+    /// timeout or an oversize withholding. A distinct action, so it never contradicts the
+    /// wallet's own row for the same call. The default records nothing (test doubles).
+    fn record_mcp_outcome(
+        &mut self,
+        _scope: &AgentScope,
+        _tool: &str,
+        _outcome: McpOutcome,
+        _now: Timestamp,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
 }

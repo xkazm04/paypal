@@ -89,6 +89,9 @@ const BOOKKEEPING: &[&str] = &[
     "relay.reset_refused",
     "run.start",
     "run.finish",
+    // The MCP layer's own word to the agent after invoke (timeout, oversize): the wallet's
+    // row for the call is the step, this is bookkeeping beside it.
+    "mcp.withheld",
     "counterparty.pinned",
     // The owner revoking a pin or setting when it lapses, and a refused privileged command:
     // wallet-wide records with no deal of their own.

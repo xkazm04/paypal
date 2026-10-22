@@ -1231,17 +1231,60 @@ impl AsyncAgentService for Slow {
     ) -> Result<(), Error> {
         Ok(())
     }
+    async fn record_mcp_outcome(
+        &self,
+        _: &AgentScope,
+        _: &str,
+        _: McpOutcome,
+        _: i64,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+}
+/// Slow, counting the outcomes the MCP layer audits itself.
+struct Counted(Slow, Arc<Mutex<Vec<(String, McpOutcome)>>>);
+#[async_trait::async_trait]
+impl AsyncAgentService for Counted {
+    async fn invoke(
+        &self,
+        scope: &AgentScope,
+        request: AgentRequest,
+        now: i64,
+        run: Option<RunId>,
+    ) -> Result<Value, Error> {
+        self.0.invoke(scope, request, now, run).await
+    }
+    async fn record_refusal(
+        &self,
+        scope: &AgentScope,
+        tool: &str,
+        code: RefusalCode,
+        now: i64,
+    ) -> Result<(), Error> {
+        self.0.record_refusal(scope, tool, code, now).await
+    }
+    async fn record_mcp_outcome(
+        &self,
+        _: &AgentScope,
+        tool: &str,
+        outcome: McpOutcome,
+        _: i64,
+    ) -> Result<(), Error> {
+        self.1.lock().unwrap().push((tool.into(), outcome));
+        Ok(())
+    }
 }
 async fn bounded(service: Slow, deadline: std::time::Duration, cap: usize) -> Value {
+    bounded_with(Arc::new(service), deadline, cap).await
+}
+async fn bounded_with(
+    service: Arc<dyn AsyncAgentService>,
+    deadline: std::time::Duration,
+    cap: usize,
+) -> Value {
     let (_, deal, _, _) = support::setup(Side::Buyer, DealKind::Haggle);
-    let server = Server::with_limits(
-        Arc::new(service),
-        8765,
-        Arc::new(FixedClock(100)),
-        deadline,
-        cap,
-    )
-    .unwrap();
+    let server =
+        Server::with_limits(service, 8765, Arc::new(FixedClock(100)), deadline, cap).unwrap();
     let grant = server
         .grant(AgentScope {
             deal_id: deal.id,
@@ -1300,6 +1343,40 @@ async fn an_oversized_result_is_withheld_with_a_refusal_not_truncated() {
     assert!(!r.to_string().contains("xxxxxxxx"));
     let ok = bounded(Slow(Duration::ZERO, big), Duration::from_secs(5), 4000).await;
     assert_eq!(ok["isError"], false);
+}
+#[tokio::test]
+async fn mcp_layer_refusals_after_invoke_are_audited_once_each() {
+    use std::time::Duration;
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let slow = Counted(
+        Slow(Duration::from_secs(5), json!({"ok":true})),
+        seen.clone(),
+    );
+    let r = bounded_with(Arc::new(slow), Duration::from_millis(50), 1024).await;
+    assert_eq!(r["isError"], true);
+    assert_eq!(
+        *seen.lock().unwrap(),
+        vec![("table_view".to_string(), McpOutcome::Abandoned)]
+    );
+    seen.lock().unwrap().clear();
+    let big = Counted(
+        Slow(Duration::ZERO, json!({"rows":"x".repeat(2000)})),
+        seen.clone(),
+    );
+    let r = bounded_with(Arc::new(big), Duration::from_secs(5), 1000).await;
+    assert_eq!(r["isError"], true);
+    assert_eq!(
+        *seen.lock().unwrap(),
+        vec![("table_view".to_string(), McpOutcome::Withheld)]
+    );
+    seen.lock().unwrap().clear();
+    let fine = Counted(Slow(Duration::ZERO, json!({"ok":true})), seen.clone());
+    let r = bounded_with(Arc::new(fine), Duration::from_secs(5), 1000).await;
+    assert_eq!(r["isError"], false);
+    assert!(
+        seen.lock().unwrap().is_empty(),
+        "a served call is not an MCP-layer outcome"
+    );
 }
 #[tokio::test]
 async fn a_tools_call_carrying_the_specs_meta_is_served_and_any_other_extra_key_is_not() {
