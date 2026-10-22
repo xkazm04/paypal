@@ -362,3 +362,49 @@ async fn an_older_market_record_still_verifies_and_reads_not_recheckable() {
         "{line:?}"
     );
 }
+
+/// Reads of one named key fail as an unreadable keychain entry would.
+struct UnreadableKey(Arc<MemoryVault>, &'static str);
+impl Vault for UnreadableKey {
+    fn read(&self, name: &str) -> Result<Option<zeroize::Zeroizing<Vec<u8>>>, vault::VaultError> {
+        if name == self.1 {
+            return Err(vault::VaultError::Unavailable);
+        }
+        self.0.read(name)
+    }
+    fn write(&self, name: &str, value: &[u8]) -> Result<(), vault::VaultError> {
+        self.0.write(name, value)
+    }
+}
+
+/// One rule finds the slot that holds a mandate's agent key: a slot that cannot be read is
+/// skipped, so an unreadable negotiator entry does not block the shopper's money steps nor the
+/// export of its proof; a key no readable slot holds is still refused, as unavailable when a slot
+/// could not be read (it may be the one) and as a permission refusal when every slot was read.
+#[test]
+fn an_unreadable_agent_slot_does_not_block_the_slot_that_holds_the_key() {
+    let (mut r, vault, ..) = runtime(true);
+    let shopper = vault::existing_signing_key(vault.as_ref(), AgentSlot::Shopper.key_name())
+        .unwrap()
+        .verifying_key()
+        .to_bytes();
+    let negotiator = vault::existing_signing_key(vault.as_ref(), AgentSlot::Negotiator.key_name())
+        .unwrap()
+        .verifying_key()
+        .to_bytes();
+    let none = r.select_agent([7; 32]).unwrap_err();
+    assert!(
+        matches!(none.code, ErrorCode::Permission),
+        "every slot was read and none holds the key: {none:?}"
+    );
+    r.vault = Arc::new(UnreadableKey(vault, AgentSlot::Negotiator.key_name()));
+    r.select_agent(shopper)
+        .expect("the shopper slot is readable");
+    let refused = r.select_agent(negotiator).unwrap_err();
+    assert!(
+        matches!(refused.code, ErrorCode::Unavailable),
+        "{refused:?}"
+    );
+    let r2 = r.select_agent([7; 32]).unwrap_err();
+    assert!(matches!(r2.code, ErrorCode::Unavailable), "{r2:?}");
+}
