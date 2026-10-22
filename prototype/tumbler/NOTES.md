@@ -35,4 +35,3 @@ A readout shows the clock, form, rung and approval state. Tray: left-click opens
 - The clock, Windows Hello, notifications, polling, tray and taskbar are simulated. There is no drag-to-snap.
 - Tickers queue behind an open card. Quiet dim needs 45 s at rest.
 - The Table window hosts the live `../main/index.html`.
-- `shell.js` computes links for `pages/<page>/variant-n/`, so its links do not resolve from this folder.
