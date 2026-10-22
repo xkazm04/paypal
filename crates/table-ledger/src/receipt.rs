@@ -108,7 +108,25 @@ impl Ledger {
         } else {
             ORDER_APPROVAL_SECS
         };
-        tx.execute("INSERT INTO deadlines(deal_id,due_at) VALUES (?1,?2) ON CONFLICT(deal_id) DO UPDATE SET due_at=excluded.due_at",params![deal.id.to_string(),e.iat.saturating_add(window)])?;
+        let due = e.iat.saturating_add(window);
+        tx.execute("INSERT INTO deadlines(deal_id,due_at) VALUES (?1,?2) ON CONFLICT(deal_id) DO UPDATE SET due_at=excluded.due_at",params![deal.id.to_string(),due])?;
+        // The deadline drives the safe default, so this move is in the chain like every other
+        // (`set_deadline`); `authorization_at` is whatever the row now holds.
+        let authorization_at: Option<Timestamp> = tx.query_row(
+            "SELECT authorization_at FROM deadlines WHERE deal_id=?1",
+            [deal.id.to_string()],
+            |r| r.get(0),
+        )?;
+        audit::append(
+            &tx,
+            &AuditEntry {
+                at,
+                actor: "policy".into(),
+                action: "deadline.set".into(),
+                deal_id: Some(deal.id),
+                detail: serde_json::json!({"due_at":due,"authorization_at":authorization_at}),
+            },
+        )?;
         tx.commit()?;
         Ok(())
     }
