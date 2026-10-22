@@ -14,6 +14,8 @@
 (function () {
   const stack = [];
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const FOCUSABLE = 'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])';
+  const focusables = (root) => [...root.querySelectorAll(FOCUSABLE)].filter((n) => !n.disabled && !n.hidden && n.getAttribute('aria-hidden') !== 'true');
   const fill = (host, body) => { if (body instanceof Node) host.appendChild(body); else host.innerHTML = body ?? ''; };
 
   function sheet({ title = '', body = '', actions = [{ label: 'Done', kind: 'primary' }], size = '' } = {}) {
@@ -55,10 +57,17 @@
     let x = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), innerWidth - w - 8);
     let y = r.bottom + 6; if (y + h > innerHeight - 8) y = Math.max(8, r.top - h - 6);
     el.style.left = `${x}px`; el.style.top = `${y}px`;
-    const close = () => { const i = stack.indexOf(api); if (i >= 0) stack.splice(i, 1); el.remove(); document.removeEventListener('pointerdown', out, true); };
+    const close = () => {
+      const i = stack.indexOf(api); if (i >= 0) stack.splice(i, 1);
+      const was = document.activeElement; const inside = el.contains(was) || was === document.body;
+      el.remove(); document.removeEventListener('pointerdown', out, true);
+      if (inside && anchor.isConnected && anchor.focus) anchor.focus();
+    };
     const out = (e) => { if (!el.contains(e.target) && !anchor.contains(e.target)) close(); };
     setTimeout(() => document.addEventListener('pointerdown', out, true));
     const api = { el, close, kind: 'popover' }; stack.push(api);
+    // keyboard users land in the popover (its first control, else the popover itself); Esc returns to the anchor
+    el.tabIndex = -1; (focusables(el)[0] || el).focus();
     return api;
   }
 
@@ -79,6 +88,16 @@
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && stack.length) { e.preventDefault(); e.stopImmediatePropagation(); stack[stack.length - 1].close(); }
+  }, true);
+  // a sheet is modal: Tab wraps inside the topmost sheet instead of walking into the page behind the scrim
+  document.addEventListener('keydown', (e) => {
+    const top = stack[stack.length - 1];
+    if (e.key !== 'Tab' || !top || top.kind !== 'sheet') return;
+    const f = focusables(top.el); if (!f.length) { e.preventDefault(); return; }
+    const first = f[0], last = f[f.length - 1], a = document.activeElement;
+    if (!top.el.contains(a) || (e.shiftKey && (a === first || a === top.el.querySelector('h2'))) || (!e.shiftKey && a === last)) {
+      e.preventDefault(); (e.shiftKey ? last : first).focus();
+    }
   }, true);
   document.addEventListener('click', (e) => {
     const s = e.target.closest('[data-sheet]'), p = e.target.closest('[data-popover]');
