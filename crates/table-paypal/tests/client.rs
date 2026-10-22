@@ -541,6 +541,49 @@ async fn a_failed_token_refresh_mid_call_keeps_the_observations_already_made() {
         .unwrap_err();
     assert!(matches!(error, Error::Credentials), "{error:?}");
 }
+/// The retry classification, pinned answer by answer: a 429 is retried with backoff, a 401
+/// refreshes the token exactly once, and a second 401 is final (no third token request).
+#[tokio::test]
+async fn a_429_is_retried_and_a_401_refreshes_the_token_only_once() {
+    let (client, fake, _) = setup(vec![
+        oauth(),
+        response(429, json!({"name":"RATE_LIMIT_REACHED"})),
+        response(200, order_wire("CREATED")),
+    ]);
+    let read = client
+        .get_order(&ResourceId::new("ORDER1").unwrap())
+        .await
+        .unwrap();
+    assert_eq!(
+        read.observations
+            .iter()
+            .map(|o| o.status)
+            .collect::<Vec<_>>(),
+        [429, 200]
+    );
+    assert_eq!(fake.requests.lock().unwrap().len(), 3);
+    let (client, fake, _) = setup(vec![
+        oauth(),
+        response(401, json!({})),
+        oauth(),
+        response(401, json!({})),
+    ]);
+    let error = client
+        .get_order(&ResourceId::new("ORDER1").unwrap())
+        .await
+        .unwrap_err();
+    assert!(matches!(error, Error::Api { status: 401, .. }), "{error:?}");
+    assert_eq!(error.observations().len(), 2);
+    let requests = fake.requests.lock().unwrap();
+    assert_eq!(requests.len(), 4);
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|r| r.url.ends_with("/token"))
+            .count(),
+        2
+    );
+}
 #[tokio::test]
 async fn permanent_error_debug_id_redaction_and_retry_exhaustion() {
     let (client, fake, _) = setup(vec![
