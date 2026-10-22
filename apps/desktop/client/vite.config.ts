@@ -17,7 +17,7 @@ export default defineConfig({
       '@': here('./src'),
     },
   },
-  server: { port: 1430, strictPort: true, fs: { allow: [here('../../..')] } },
+  server: { port: 1430, strictPort: true, fs: { allow: [here('.'), here('../../../bindings')] } },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
