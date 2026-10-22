@@ -9345,7 +9345,11 @@
           "revision": 2,
           "changedAt": "2026-09-26",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "apps/desktop/client/src/lib/data/bus.ts:88 An invalidation during a fetch schedules another read after the old answer enters the cache, allowing a stale fill instead of fencing and discarding it.",
+          "evaluatedAt": "2026-10-22",
+          "evaluatedAgainst": "sha256-b2:1c92d27744edd729",
+          "evaluatedRevision": 2
         }
       ],
       "governance": "governed"
