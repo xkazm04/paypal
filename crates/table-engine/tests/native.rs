@@ -261,3 +261,41 @@ async fn cancellation_kills_descendants_and_dropped_runs_remove_registration() {
         assert!(!matches!(result, Err(Error::Invalid)));
     }
 }
+/// A host that died mid-run leaves its run directory behind; the next start reaps it, but never a
+/// directory whose run still holds its lock, a fresh one that has not locked yet, or a stranger.
+#[test]
+fn startup_reaps_stale_run_directories_and_keeps_live_ones() {
+    let root = root();
+    let runs = root.join("runs");
+    let seed = |name: &str, lock: bool| {
+        let dir = runs.join(name);
+        std::fs::create_dir_all(dir.join("cwd")).unwrap();
+        std::fs::write(dir.join("mcp.json"), "{}").unwrap();
+        lock.then(|| {
+            std::fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(dir.join(".lock"))
+                .unwrap()
+        })
+    };
+    let stale = "11111111-1111-4111-8111-111111111111";
+    let live = "22222222-2222-4222-8222-222222222222";
+    let fresh = "33333333-3333-4333-8333-333333333333";
+    let stranger = "not-a-run";
+    seed(stale, true);
+    let held = seed(live, true).unwrap();
+    held.try_lock().unwrap();
+    seed(fresh, false);
+    seed(stranger, true);
+    let _engine = fixture("clean", &root, 5000);
+    assert!(!runs.join(stale).exists(), "stale directory survived");
+    assert!(
+        runs.join(live).join("cwd").exists(),
+        "live directory reaped"
+    );
+    assert!(runs.join(fresh).exists(), "unlocked fresh directory reaped");
+    assert!(runs.join(stranger).exists(), "non-run directory reaped");
+    drop(held);
+}

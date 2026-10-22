@@ -61,10 +61,12 @@ impl NativeEngine {
             return Err(Error::Invalid);
         }
         std::fs::create_dir_all(&root).map_err(|_| Error::Process)?;
+        let root = root.canonicalize().map_err(|_| Error::Process)?;
+        reap_stale_runs(&root);
         Ok(Self {
             id,
             executable,
-            root: root.canonicalize().map_err(|_| Error::Process)?,
+            root,
             limits,
             runs: Mutex::new(BTreeMap::new()),
         })
@@ -319,11 +321,57 @@ async fn read_lines(
         }
     }
 }
+/// The file a run holds a lock on for its whole life; a free lock means its host is gone.
+const RUN_LOCK: &str = ".lock";
+/// A run directory with no lock file yet is only presumed dead after this long (it may be between
+/// its creation and its lock, in this or another instance).
+const UNLOCKED_GRACE: Duration = Duration::from_secs(600);
+fn is_run_name(name: &str) -> bool {
+    name.len() == 36
+        && name.char_indices().all(|(i, c)| match i {
+            8 | 13 | 18 | 23 => c == '-',
+            _ => c.is_ascii_hexdigit(),
+        })
+}
+/// Removes run directories a crashed or killed host left behind. Both engines (and a second app
+/// instance) share one root, so a directory goes only when its lock is free, never blindly.
+/// Best effort: a directory that cannot be removed now is tried again at the next start.
+fn reap_stale_runs(root: &Path) {
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let named = entry.file_name().to_str().is_some_and(is_run_name);
+        let plain = std::fs::symlink_metadata(&path).is_ok_and(|m| m.is_dir());
+        if !named || !plain {
+            continue;
+        }
+        let stale = match std::fs::OpenOptions::new()
+            .write(true)
+            .open(path.join(RUN_LOCK))
+        {
+            // Holding the lock here proves no run owns it; release it before removing the file.
+            Ok(lock) => lock.try_lock().is_ok(),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => std::fs::metadata(&path)
+                .and_then(|m| m.modified())
+                .ok()
+                .and_then(|at| at.elapsed().ok())
+                .is_some_and(|age| age > UNLOCKED_GRACE),
+            Err(_) => false,
+        };
+        if stale {
+            let _ = std::fs::remove_dir_all(&path);
+        }
+    }
+}
 #[derive(Debug)]
 struct RunDirectory {
     root: PathBuf,
     path: PathBuf,
     uuid: String,
+    /// Held (and locked) until the directory is dropped.
+    lock: Option<std::fs::File>,
 }
 impl RunDirectory {
     fn create(root: &Path) -> Result<Self, Error> {
@@ -342,10 +390,17 @@ impl RunDirectory {
         );
         let path = root.join(&uuid);
         std::fs::create_dir(&path).map_err(|_| Error::Process)?;
+        let lock = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path.join(RUN_LOCK))
+            .map_err(|_| Error::Process)?;
+        lock.try_lock().map_err(|_| Error::Process)?;
         let dir = Self {
             root: root.into(),
             path,
             uuid,
+            lock: Some(lock),
         };
         std::fs::create_dir(dir.path.join("cwd")).map_err(|_| Error::Process)?;
         Ok(dir)
@@ -363,6 +418,8 @@ impl RunDirectory {
 }
 impl Drop for RunDirectory {
     fn drop(&mut self) {
+        // An open lock file would block removing its own directory.
+        drop(self.lock.take());
         if self
             .path
             .canonicalize()
