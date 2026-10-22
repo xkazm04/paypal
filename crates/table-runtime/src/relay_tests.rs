@@ -1873,3 +1873,23 @@ async fn a_shop_around_group_with_house_and_a_desktop_seller_closes_through_the_
     );
     assert_eq!(paths.iter().filter(|p| p.ends_with("/capture")).count(), 1);
 }
+
+/// A relay pass that failed backs the next one off 2, 4, 8, 16, then 32 seconds and never longer,
+/// says the table will retry, and one clean pass resets the wait.
+#[test]
+fn relay_failures_back_off_to_thirty_two_seconds_and_a_clean_pass_resets_the_wait() {
+    let (mut r, ..) = runtime(true);
+    let (deal, _) = crate::tests::setup(&mut r, Side::Seller);
+    let now = r.clock.now();
+    let mut waits = Vec::new();
+    for _ in 0..7 {
+        let error = r
+            .relay_finished(vec![relay::Delivery::failed_for_test(deal.id)])
+            .unwrap_err();
+        assert!(matches!(error.code, ErrorCode::Unavailable), "{error:?}");
+        waits.push(r.relay_retry_at - now);
+    }
+    assert_eq!(waits, [2, 4, 8, 16, 32, 32, 32]);
+    r.relay_finished(vec![]).unwrap();
+    assert_eq!((r.relay_failures, r.relay_retry_at), (0, 0));
+}
