@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildMockState } from '../mock/fixtures';
+import { formatHash, parseHash } from '../windows/main/logic';
 import type { ActionKind } from './actions';
 import { BEATS, CHAPTERS, SCRIPT_LENGTH, beatAt } from './beats';
 import { helpers } from './helpers';
@@ -36,10 +37,20 @@ describe('the beat file', () => {
       for (const a of b.do) {
         expect(KINDS).toContain(a.do);
         if ('deal' in a && typeof a.deal === 'string') expect(labels, `${b.id} → ${a.deal}`).toContain(a.deal);
-        // a deal (optionally one of its views: the proof), a module (optionally its safety record or a
-        // view: Shop around), or the Rewind (polish A: the end-rewind beat)
-        if (a.do === 'main' && a.route) expect(a.route).toMatch(/^#(d|m)=[A-Za-z0-9-]+(&p=safety|&v=shop|&dv=proof)?$|^#r=rewind$/);
       }
+    }
+  });
+
+  it('routes The Table only to places its router has, in the form it writes them', () => {
+    // read by The Table's own router, not by the route's shape: `#m=tabels` has a fine shape and
+    // opens the decision centre; an older form still parses, but only while that rewrite is kept
+    const routes = BEATS.flatMap((b) => b.do.flatMap((a) => (a.do === 'main' && a.route ? [{ beat: b.id, route: a.route }] : [])));
+    expect(routes.length).toBeGreaterThan(0);
+    for (const { beat, route } of routes) {
+      const r = parseHash(route).route;
+      expect(r.level, `${beat} → ${route}`).not.toBe('home');
+      expect(formatHash(r), `${beat} → ${route}`).toBe(route);
+      if (r.level === 'deal') expect(labels, `${beat} → ${route}`).toContain(r.deal);
     }
   });
 

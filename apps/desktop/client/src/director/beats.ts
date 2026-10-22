@@ -199,7 +199,7 @@ export const BEATS: readonly Beat[] = [
   {
     id: 'end-safety', chapter: 'end', at: 191, focus: 'main',
     caption: 'Her safety record checks every entry the wallet wrote: who decided each money step, and that PayPal never heard of a request her rules refused.',
-    do: [{ do: 'main', open: true, route: '#m=book&p=safety' }],
+    do: [{ do: 'main', open: true, route: '#p=safety&m=book' }],
   },
   {
     id: 'end', chapter: 'end', at: 202, focus: 'desk',
