@@ -3,6 +3,7 @@
 // Esc (topmost layer only, see layers.ts) and on a scrim click, and gives focus back on close.
 import { useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { UI_WORDS } from '../../lib/words';
 import { useFocusOnMount, useModalFocus, useReturnFocus, trapTab } from './focus';
 import { useLayer } from './layers';
 
@@ -39,7 +40,7 @@ export function Sheet({ title, onClose, size = 'default', footer, head, dismissO
         <header className="ui-sheet-h">
           <h2 id={`${id}-h`} tabIndex={-1} ref={h2}>{title}</h2>
           {head}
-          <button type="button" className="ui-btn plain icon x" aria-label="Close" title="Close (Esc)" onClick={onClose}>✕</button>
+          <button type="button" className="ui-btn plain icon x" aria-label={UI_WORDS.close} title={UI_WORDS.closeEsc} onClick={onClose}>✕</button>
         </header>
         <div className="ui-sheet-b">{children}</div>
         {footer ? <footer className="ui-sheet-f">{footer}</footer> : null}

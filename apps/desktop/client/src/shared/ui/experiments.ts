@@ -4,9 +4,10 @@
 // Stored in localStorage, so the main and approval windows (same origin) read the same setting.
 // Display only: no experiment changes what moves money or who may move it.
 import { useEffect, useState } from 'react';
+import { UI_WORDS } from '../../lib/words';
 
 export const EXPERIMENTS = [
-  { key: 'r2-book', name: 'Where the money went', where: 'Book', what: 'Bars by kind, a PayPal-agrees meter and question chips.' },
+  { key: 'r2-book', ...UI_WORDS.experiments['r2-book'] },
 ] as const;
 export type ExperimentKey = (typeof EXPERIMENTS)[number]['key'];
 

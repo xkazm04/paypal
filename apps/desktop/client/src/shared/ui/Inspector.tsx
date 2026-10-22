@@ -6,6 +6,7 @@
 // Outside a host (no InspectorHost provider) it renders in place; wrap it in <Split> yourself.
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { INSPECTOR_LABEL, UI_WORDS } from '../../lib/words';
 import { useLayer } from './layers';
 
 type HostCtx = { el: HTMLElement | null; claim: () => () => void };
@@ -46,11 +47,11 @@ export function Inspector({ title, onClose, sub, label, children }: InspectorPro
   useEffect(() => (claim ? claim() : undefined), [claim]);
 
   const body = (
-    <div className="ui-inspector-body" role="region" aria-labelledby={title ? `${id}-h` : undefined} aria-label={title ? undefined : label ?? 'Details'}>
+    <div className="ui-inspector-body" role="region" aria-labelledby={title ? `${id}-h` : undefined} aria-label={title ? undefined : label ?? INSPECTOR_LABEL}>
       {title || onClose ? (
         <div className="ui-inspector-h">
           {title ? <h2 id={`${id}-h`}>{title}</h2> : <span className="ui-spacer" />}
-          {onClose ? <button type="button" className="ui-btn plain icon sm" aria-label="Close details" title="Close (Esc)" onClick={onClose}>✕</button> : null}
+          {onClose ? <button type="button" className="ui-btn plain icon sm" aria-label={UI_WORDS.closeDetails} title={UI_WORDS.closeEsc} onClick={onClose}>✕</button> : null}
         </div>
       ) : null}
       {sub ? <div className="ui-hint">{sub}</div> : null}
