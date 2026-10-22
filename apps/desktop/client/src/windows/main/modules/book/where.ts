@@ -32,7 +32,7 @@ export const FLOW_WORD: Record<Flow, string> = { paid: 'paid', held: 'on hold', 
 /** Which of the three drawn segments a deal belongs to; null while nothing has been paid, held or stopped. */
 export function flowOf(d: Deal): Flow | null {
   const b: Bucket = bucketOf(d);
-  if (b === 'captured') return barKindOf(d.kind) === 'rescue' && !isRecovered(d) ? null : 'paid';
+  if (b === 'captured') return d.kind === 'rescue' && !isRecovered(d) ? null : 'paid';
   if (b === 'held') return 'held';
   if (b === 'stopped') return 'stopped';
   return null;
