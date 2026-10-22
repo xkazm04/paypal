@@ -23,6 +23,8 @@ export function RescueWatch({ entries, watching, locked, onClose, onChanged }: {
   const [list, setList] = useState<readonly RescueWatchView[]>(watching);
   const [d, setD] = useState<WatchDraft>({ subscription: '', email: '', plan: '' });
   const [error, setError] = useState<WalletError | null>(null);
+  /** The subscription whose stop is in flight: only its row says so. */
+  const [stopping, setStopping] = useState<string | null>(null);
   const built = buildWatch(d, list);
   const typed = Object.values(d).some((v) => v.trim());
   const busy = s.pending !== null || s.unlocking;
@@ -38,7 +40,9 @@ export function RescueWatch({ entries, watching, locked, onClose, onChanged }: {
   };
   const stop = async (subscription_id: string) => {
     setError(null);
+    setStopping(subscription_id);
     const r = await s.call('rescue_watch_stop', { subscription_id }, true);
+    setStopping(null);
     if (r.ok) {
       setList(r.value);
       onChanged();
@@ -78,7 +82,7 @@ export function RescueWatch({ entries, watching, locked, onClose, onChanged }: {
               sub={`${w.recipient} · ${nextCheckWords(w, now)}`}>
               <Chip tone={st.tone} title={st.means}>{st.text}</Chip>
               <Btn sm disabled={locked || busy} onClick={() => void stop(w.subscription_id)}>
-                {s.pending === 'rescue_watch_stop' ? 'Stopping…' : 'Stop watching'}
+                {s.pending === 'rescue_watch_stop' && stopping === w.subscription_id ? 'Stopping…' : 'Stop watching'}
               </Btn>
             </Row>
           );
