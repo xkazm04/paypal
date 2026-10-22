@@ -1666,7 +1666,7 @@ An independent read-only review of `ec80b00..` (crates, services, shell) against
 - **Names/structure:** unique "Proof"/"Why?" names (`whyName`); Book grid rows named and Space opens them; DecisionCard heading h2; tabs use `aria-selected`.
 - **Contrast tokens:** dark `--dim` #8e98a4→#97a1ac; light `--dim` #5f6d84→#536177, `--ok` #12805c→#0a6648, `--coral-l` #b0401c→#a33a18; no text faded by opacity. `src/lib/contrast.ts` + a token test (every text colour on every surface ≥ 4.5:1 in both themes).
 - **Tests (21):** `lib/contrast.test.ts`, `shared/ui/focus.test.tsx`, Tumbler rung announcements, Dial value text. Client 686.
-- **Left:** `prototype/shared/tokens.css` (the spec copy) still has the old values; Settings and agent-rules tabs use Tab rather than arrow keys.
+- **Left:** Settings and agent-rules tabs use Tab rather than arrow keys.
 
 ### "While you were away" on Home (7f8f85a; client only)
 
