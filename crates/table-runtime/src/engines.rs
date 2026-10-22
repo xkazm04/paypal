@@ -411,6 +411,16 @@ impl Runtime {
         };
         active.snapshot.state = state;
         let snapshot = active.snapshot.clone();
+        // The ended run is listed before its audit row is written: a failed write must not
+        // leave it in neither list, still shown as running. The fault is still returned.
+        self.run_history.push(snapshot.clone());
+        if self.run_history.len() > 64 {
+            self.run_history.remove(0);
+        }
+        #[cfg(test)]
+        if self.fail_run_audit {
+            return Err(table_app::Error::Unavailable.into());
+        }
         app(self.pipeline.wallet.ledger.append_audit(&AuditEntry {
             at: self.clock.now(),
             actor: "runtime".into(),
@@ -418,10 +428,6 @@ impl Runtime {
             deal_id: Some(snapshot.deal_id),
             detail: serde_json::json!(&snapshot),
         }))?;
-        self.run_history.push(snapshot.clone());
-        if self.run_history.len() > 64 {
-            self.run_history.remove(0);
-        }
         Ok(Some(snapshot))
     }
     /// The tables waiting on our agent at `now`, soonest deadline first: an open haggle with no

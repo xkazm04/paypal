@@ -172,6 +172,9 @@ pub struct Runtime {
     /// Test-only: makes every rung write fail, to prove a default never waits on one.
     #[cfg(test)]
     pub(crate) fail_rungs: bool,
+    /// Test-only: makes the run-finish audit write fail, to prove an ended run stays listed.
+    #[cfg(test)]
+    pub(crate) fail_run_audit: bool,
     /// Test-only: overrides the signed band in the brief, to prove the mandate still refuses.
     #[cfg(test)]
     pub(crate) brief_tamper: Option<(Option<Money>, Option<Money>)>,
@@ -308,6 +311,8 @@ impl Runtime {
             rungs_recorded: std::collections::BTreeSet::new(),
             #[cfg(test)]
             fail_rungs: false,
+            #[cfg(test)]
+            fail_run_audit: false,
             #[cfg(test)]
             brief_tamper: None,
             #[cfg(test)]
