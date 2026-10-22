@@ -6,6 +6,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import type { Currency } from '@bindings/Currency';
+import { exponent } from '../lib/format';
 import { MAX_MARKET_CHECKS_DAY, MAX_WATCHED_ITEMS, productValid } from '../lib/marketWatch';
 import { AUTHORIZED_DEADLINE_SECS, CORROBORATION_SECS, FORECAST_HORIZON_SECS, ORDER_CREATED_DEADLINE_SECS } from './forecast';
 import { RESCUE_WATCH_MAX, RESCUE_WATCH_READS_DAY } from './rescue';
@@ -49,5 +51,22 @@ describe('client copies of Rust constants', () => {
     expect(bound).toBeDefined();
     expect(productValid('p'.repeat(Number(bound)))).toBe(true);
     expect(productValid('p'.repeat(Number(bound) + 1))).toBe(false);
+  });
+
+  it('knows every currency table-core has, with the exponent Currency::exponent gives it', () => {
+    const money = source('table-core/src/money.rs');
+    const variants = /pub enum Currency\s*\{([^}]*)\}/.exec(money)?.[1]?.split(',').map((v) => v.trim()).filter(Boolean) as Currency[] | undefined;
+    expect(variants?.length).toBeGreaterThan(0);
+    const body = /pub const fn exponent\(self\)[^{]*\{\s*match self \{([\s\S]*?)\n\s{8}\}/.exec(money)?.[1] ?? '';
+    const rust = new Map<string, number>();
+    let fallback = NaN;
+    for (const arm of body.split(/,\s*\n/)) {
+      const m = /^\s*([\s\S]*?)\s*=>\s*(\d+)\s*,?\s*$/.exec(arm);
+      if (!m) continue;
+      if (m[1]!.trim() === '_') fallback = Number(m[2]);
+      else for (const v of m[1]!.matchAll(/Self::(\w+)/g)) rust.set(v[1]!, Number(m[2]));
+    }
+    expect(Number.isNaN(fallback)).toBe(false);
+    for (const c of variants!) expect(exponent(c), `exponent(${c})`).toBe(rust.get(c) ?? fallback);
   });
 });
