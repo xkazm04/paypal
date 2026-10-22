@@ -14,6 +14,7 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { SettingsSnapshot } from '@bindings/SettingsSnapshot';
 import type { WaitingTable } from '@bindings/WaitingTable';
 import { toWalletError, type WalletError } from '../../../../../lib/contract';
+import { ruleSigned } from '../../../../../lib/firstRun';
 import { countdownWords } from '../../../../../lib/format';
 import { useCalm } from '../../../../../design/motion';
 import { readCommand } from '../../../../../lib/data/invoke';
@@ -163,7 +164,7 @@ export function SettingsLayer({ nav }: LayerProps) {
 /** The rule sets the Circuit may count as in force: signed and still fitting what the wallet
  *  accepts, as Agent rules counts them (RulesLayer inForce); the Circuit adds the dates. */
 export function circuitMandates(list: readonly MandateListEntry[]): MandateLite[] {
-  return list.filter((m) => m.owner_sig.length > 0 && !m.refusal).map((m) => ({ id: m.payload.id, version: m.payload.version, notBefore: m.payload.not_before, expires: m.payload.expires }));
+  return list.filter(ruleSigned).map((m) => ({ id: m.payload.id, version: m.payload.version, notBefore: m.payload.not_before, expires: m.payload.expires }));
 }
 
 /** The "Your call" line: the first missing hand-off is the one gold action (the old checklist's
