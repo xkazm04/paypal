@@ -373,3 +373,19 @@ async fn e2_every_scripted_engine_run_carries_the_mode_its_agent_card_labels() {
         assert_eq!(run.mode, Mode::ScriptedEngine);
     }
 }
+
+#[tokio::test]
+async fn a_run_whose_finish_row_fails_to_write_is_still_listed_as_ended() {
+    let (mut r, _, _tx) = parked_runtime(1).await;
+    r.tick().await.unwrap();
+    let run = *r.runs.keys().next().unwrap();
+    r.fail_run_audit = true;
+    assert!(r.finish_run(run, RunState::Failed).is_err());
+    let listed: Vec<_> = r
+        .run_snapshots()
+        .into_iter()
+        .filter(|s| s.state == RunState::Failed)
+        .collect();
+    assert_eq!(listed.len(), 1, "the ended run stays visible as ended");
+    assert!(r.runs.is_empty());
+}
