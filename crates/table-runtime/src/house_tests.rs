@@ -657,6 +657,76 @@ async fn house_wake_is_main_only_moves_no_money_and_a_failed_wake_returns_to_idl
     }
 }
 
+/// A relay whose failed wake leaves the actor's queue full, as a burst of commands would.
+struct SaturatingRelay(std::sync::OnceLock<tokio::sync::mpsc::Sender<crate::actor::Message>>);
+#[async_trait]
+impl table_relay::RelayApi for SaturatingRelay {
+    async fn wake(&self) -> Result<(), table_relay::Error> {
+        let sender = self.0.get().unwrap();
+        // The test runtime is single-threaded and this does not yield: the actor drains nothing.
+        loop {
+            let (reply, _) = tokio::sync::oneshot::channel();
+            let message = crate::actor::Message::Execute(
+                caller("main", None),
+                Box::new(Action::Settings),
+                reply,
+            );
+            if sender.try_send(message).is_err() {
+                break;
+            }
+        }
+        Err(table_relay::Error::Unavailable)
+    }
+    async fn create(&self, _: H256) -> Result<(), table_relay::Error> {
+        Err(table_relay::Error::Unavailable)
+    }
+    async fn send(&self, _: H256, _: &str) -> Result<(), table_relay::Error> {
+        Err(table_relay::Error::Unavailable)
+    }
+    async fn poll(
+        &self,
+        _: H256,
+        _: &str,
+        _: u64,
+        _: u8,
+    ) -> Result<table_relay::Batch, table_relay::Error> {
+        Err(table_relay::Error::Unavailable)
+    }
+}
+
+/// The reset to idle after a failed wake is not lost when the actor's queue is full.
+#[tokio::test]
+async fn a_failed_wake_returns_the_house_to_idle_even_when_the_actor_queue_is_full() {
+    let (_, release, _, _, _) = hosted_fixture();
+    let (mut buyer, ..) = runtime(true);
+    buyer.house_release = Some(release);
+    buyer.house_state = HouseState::Idle;
+    let relay = Arc::new(SaturatingRelay(std::sync::OnceLock::new()));
+    let (actor, _) = spawn(buyer.with_relay(relay.clone()));
+    relay.0.set(actor.sender.clone()).unwrap();
+    let woke = actor
+        .execute::<HouseState>(caller("main", None), Action::HouseWake)
+        .await;
+    assert!(woke.is_err());
+    let settled = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            let settings: SettingsSnapshot = actor
+                .execute(caller("main", None), Action::Settings)
+                .await
+                .unwrap();
+            if settings.house != HouseState::Waking {
+                break settings.house;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await;
+    assert!(
+        matches!(settled, Ok(HouseState::Idle)),
+        "the house is left at {settled:?}"
+    );
+}
+
 /// The HOUSE router behind the same status mapping `table_relay::Client` applies to an answer.
 struct RouterRelay(Router);
 #[async_trait]
