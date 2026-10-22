@@ -1,0 +1,41 @@
+{
+  "schema": "conform-run/1",
+  "worker": "038ff244-92ab-4f67-abe9-90d1976e7fa1",
+  "subject": "sidecar-provisioning",
+  "evaluatedAt": "2026-10-22T03:51:29.912468+00:00",
+  "provider": "codex",
+  "model": "gpt-6.1-sol",
+  "pairs": [],
+  "declined": [
+    {
+      "subject": "sidecar-provisioning",
+      "context": "client-runtime-foundation",
+      "reason": "withdrawn after review: reviewer (sonnet): The anchor runtime.ts:45 is only the dynamic import of the mock backend module. It does not show that no external executable or sidecar is provisioned. The evidence also rests on a desktop bridge (tauri.ts) that is not among the context's files, and a grep of the wider lib directory shows executor a"
+    }
+  ],
+  "consults": [
+    {
+      "ts": "2026-10-22T03:51:29.912468+00:00",
+      "bundle": "software-engineering",
+      "subjects": [
+        "sidecar-provisioning"
+      ],
+      "techniques": [
+        "atomic-downloads",
+        "capability-detection",
+        "change-rate-partitioning",
+        "grade-selection",
+        "model-storage-lifecycle",
+        "plugin-lazy-load-and-reload",
+        "process-isolation",
+        "resolution-ladders",
+        "source-pinning",
+        "split-trust-by-registration-path"
+      ],
+      "deviations": 0,
+      "context": "client-runtime-foundation",
+      "via": "curator-multi:codex",
+      "model": "gpt-6.1-sol"
+    }
+  ]
+}
