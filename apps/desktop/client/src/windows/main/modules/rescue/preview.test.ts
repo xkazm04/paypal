@@ -102,7 +102,7 @@ describe('money at risk, in progress, recovered', () => {
   it('sums at risk and in progress from the rows, and takes recovered from the wallet only', () => {
     const ds = [
       deal('f1'), deal('f2', { terms: { ...deal('x').terms, unit_price: { minor: 500, currency: 'EUR' } } }),
-      deal('w', { state: 'AWAITING_APPROVAL', kind: 'invoice', terms: { ...deal('x').terms, unit_price: { minor: 1200, currency: 'USD' } } }),
+      deal('w', { state: 'AWAITING_APPROVAL', terms: { ...deal('x').terms, unit_price: { minor: 1200, currency: 'USD' } } }),
       deal('p', { state: 'RECEIPTED', terms: { ...deal('x').terms, unit_price: { minor: 900, currency: 'USD' } } }),
     ];
     expect(rescueStrip(rows(ds), ds, null).recovered).toEqual([]);

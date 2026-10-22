@@ -38,8 +38,8 @@ export function moduleOf(deal: Pick<Deal, 'kind' | 'shield'>, attention?: Pick<A
     case 'haggle': return 'tables';
     case 'purchase': return 'spend';
     case 'shop_order': return 'counter';
-    case 'rescue':
-    case 'invoice': return 'rescue';
+    case 'rescue': return 'rescue';
+    case 'invoice': return 'book';
   }
 }
 

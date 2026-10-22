@@ -54,7 +54,7 @@ describe('rows and recovered', () => {
       deal('sending', { state: 'SETTLING' }), deal('cancelled', { state: 'FAILED' }), { ...deal('other'), kind: 'purchase' },
     ], (d) => (d.id === 'soon' ? 10 : d.id === 'late' ? 20 : null));
     expect(rows.failing.map((d) => d.id)).toEqual(['soon', 'late']);
-    expect(rows.inflight.map((d) => d.id)).toEqual(['inv', 'sending']);
+    expect(rows.inflight.map((d) => d.id)).toEqual(['sending']); // an invoice-kind deal is the Book's (Rust: Module::Book), never a rescue row
     expect(rows.settled.map((d) => d.id)).toEqual(['paid', 'cancelled']);
   });
   it('counts only what the wallet counts: never a replay, a practice row, a failing renewal or an invoice only sent', () => {
@@ -67,6 +67,9 @@ describe('rows and recovered', () => {
     expect(r.counted.map((d) => d.id)).toEqual(['a']);
     expect(r.totals).toEqual([{ minor: 960, currency: 'USD' }]);
     expect(r.notCounted.map((x) => [x.deal.id, x.why])).toEqual([['c', 'REPLAY'], ['d', 'scripted'], ['s', 'sent'], ['u', 'unverified'], ['f', 'failing']]);
+    // An invoice-kind deal is not a rescue: it is neither counted nor given a reason about PayPal's receipt.
+    const inv = recovered([deal('i', { kind: 'invoice', state: 'RECEIPTED' })], { cases: [view('i')], recovered: [] });
+    expect([inv.counted.length, inv.notCounted.length]).toEqual([0, 0]);
     // Without the wallet's read nothing counts, even a receipted rescue.
     expect(recovered(ds, null)).toMatchObject({ counted: [], totals: [] });
   });
