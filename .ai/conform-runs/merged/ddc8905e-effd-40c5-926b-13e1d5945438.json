@@ -1,0 +1,47 @@
+{
+ "schema": "conform-run/1",
+ "worker": "ddc8905e-effd-40c5-926b-13e1d5945438",
+ "subject": "release-pipeline",
+ "evaluatedAt": "2026-10-22T02:23:50.500415+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "table-wire-protocol",
+   "subject": "release-pipeline",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-proto/src/envelope.rs:160 LISTING adds a member that older closed readers reject while retaining wire version 1, so the protocol version does not identify the breaking change.",
+   "techniques": [
+    {
+     "technique": "deprecation-by-version-arithmetic",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-proto/src/proof.rs:22 Context searches found no deprecated symbols or scheduled retirements; the earlier proof format remains supported without a removal promise."
+    },
+    {
+     "technique": "release-level-by-reader-reach",
+     "verdict": "deviation",
+     "evidence": "crates/table-proto/src/envelope.rs:160 An addition to an existing LISTING shape breaks older deny_unknown_fields readers, yet signing and verification still require v == 1 (lines 341 and 474); DECISIONS.md:2264 explicitly confirms old buyers reject new listings."
+    }
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-22T02:23:50.500415+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "release-pipeline"
+   ],
+   "techniques": [
+    "deprecation-by-version-arithmetic",
+    "release-level-by-reader-reach"
+   ],
+   "deviations": 1,
+   "context": "table-wire-protocol",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
