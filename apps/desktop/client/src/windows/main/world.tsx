@@ -3,13 +3,10 @@
 // state: an event marks the reads it affects stale (lib/data/invalidation.ts) and they are read
 // again, coalesced.
 //
-// Two ways to read the World:
-//  - narrow selector hooks (useNeeds, useDealLabels, useLocked, useDeals, useSettings, useRuns,
+// Read the World through selector hooks:
+//  - selector hooks (useNeeds, useDealLabels, useLocked, useDeals, useSettings, useRuns,
 //    useDisplayOf, useWorldHealth, or useWorldSelector for anything else): a component re-renders
-//    only when the slice it selected changes;
-//  - useWorld(), the whole World at once, kept for the views built on it. It changes identity only
-//    when one of its parts changed (each read keeps its answer's identity when the answer is equal),
-//    but every useWorld() consumer re-renders on any change. Deprecated: new views select.
+//    only when the slice it selected changes.
 import { createContext, useContext, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import type { AttentionItem } from '@bindings/AttentionItem';
 import type { AttentionSnapshot } from '@bindings/AttentionSnapshot';
@@ -88,16 +85,7 @@ function createStore(initial: World): Store {
   };
 }
 
-const Ctx = createContext<World | null>(null);
 const StoreCtx = createContext<Store | null>(null);
-
-/** The whole World. Deprecated for new views: every consumer re-renders on any World change; use a
- *  selector hook below. */
-export function useWorld(): World {
-  const w = useContext(Ctx);
-  if (!w) throw new Error('useWorld outside WorldProvider');
-  return w;
-}
 
 /** A slice of the World. The component re-renders only when `isEqual(previous, next)` is false
  *  (identity by default). `select` may be an inline function: it is re-run only when the World or
@@ -261,7 +249,7 @@ function WorldState({ children }: { children: ReactNode }) {
 
   return (
     <StoreCtx.Provider value={store}>
-      <Ctx.Provider value={world}>{children}</Ctx.Provider>
+      {children}
     </StoreCtx.Provider>
   );
 }
