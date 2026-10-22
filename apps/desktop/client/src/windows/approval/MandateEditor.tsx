@@ -10,7 +10,7 @@
 //
 // Commands kept as built: mandate_list (via OwnerConfig), mandate_sign (privileged, idle-locked,
 // Windows Hello through session.unlock), mandate_revoke (privileged, one click).
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type KeyboardEvent } from 'react';
 import type { Clause } from '@bindings/Clause';
 import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { MandateSignArgs } from '@bindings/MandateSignArgs';
@@ -262,31 +262,44 @@ export function MandateEditor({ mode, entries, selected, onSelect, onClose, onSi
           ? { tone: 'alert', icon: 'block', title: NO_LONGER_FITS, sub: 'Fix what the line at the bottom says, then sign again, or withdraw them.' }
           : { tone: 'calm', icon: 'shield', title: 'No changes yet. Your agents follow these rules.', sub: 'Drag a limit and this week’s deals replay as you go.' };
 
+  // The rule-set strip is a tab list: Left/Right/Home/End move between sets (and "+ New"), one tab stop.
+  const tabIds: (string | null)[] = [...entries.map((e) => e.payload.id), null];
+  const pickTab = (id: string | null) => { setPreview(false); setPane(null); onSelect(id); };
+  const onTabKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const at = tabIds.indexOf(selected);
+    const to = e.key === 'ArrowRight' ? (at + 1) % tabIds.length : e.key === 'ArrowLeft' ? (at - 1 + tabIds.length) % tabIds.length
+      : e.key === 'Home' ? 0 : e.key === 'End' ? tabIds.length - 1 : -1;
+    if (to < 0) return;
+    e.preventDefault();
+    pickTab(tabIds[to] ?? null);
+    e.currentTarget.querySelectorAll<HTMLElement>('[role="tab"]')[to]?.focus();
+  };
+
   return (
     <div className="aw ow ow-ed">
       <Header mode={mode} />
       <div className="ui-toolbar ow-tabs">
         <Btn kind="plain" sm onClick={onClose} aria-label="Back to wallet setup">‹ Wallet setup</Btn>
-        <div className="ui-seg" role="tablist" aria-label="Agent rules">
+        <div className="ui-seg" role="tablist" aria-label="Agent rules" onKeyDown={onTabKey}>
           {entries.map((e) => {
             const k = `${e.payload.id}:${e.payload.version}`;
             const dk = drafts[k];
             const n = dk && k !== key ? '●' : null;
             return (
-              <button key={k} type="button" role="tab" aria-selected={e.payload.id === selected} onClick={() => { setPreview(false); setPane(null); onSelect(e.payload.id); }} title={`${rulesName(e.agent)} · ${shortId(e.payload.id)}${e.refusal ? ' · needs signing again' : ''}`}>
+              <button key={k} type="button" role="tab" aria-selected={e.payload.id === selected} aria-controls="ow-ed-main" tabIndex={e.payload.id === selected ? 0 : -1} onClick={() => pickTab(e.payload.id)} title={`${rulesName(e.agent)} · ${shortId(e.payload.id)}${e.refusal ? ' · needs signing again' : ''}`}>
                 {rulesName(e.agent).replace(/ rules$/, '')}{sameAgent(entries, e.agent) ? <span className="dim"> {agentIndex(entries, e)}</span> : null}
                 {n ? <span className="gold"> {n}</span> : null}
                 {e.refusal ? <span className="gold" aria-label="needs signing again"> !</span> : null}
               </button>
             );
           })}
-          <button type="button" role="tab" aria-selected={selected === null} onClick={() => { setPreview(false); setPane(null); onSelect(null); }}>+ New</button>
+          <button type="button" role="tab" aria-selected={selected === null} aria-controls="ow-ed-main" tabIndex={selected === null ? 0 : -1} onClick={() => pickTab(null)}>+ New</button>
         </div>
         <Spacer />
         <Btn kind="plain" sm aria-label="About these rules" aria-haspopup="dialog" onClick={(e) => { const el = e.currentTarget; setInfo((x) => (x ? null : el)); }}>ⓘ</Btn>
       </div>
 
-      <main className="aw-body ow-body">
+      <main id="ow-ed-main" className="aw-body ow-body">
         <div className="ow-q">
           <h1 tabIndex={-1}>What would my agents have done this week?</h1>
           <span className="ui-hint">
