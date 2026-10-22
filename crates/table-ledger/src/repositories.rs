@@ -159,7 +159,22 @@ pub(crate) fn insert_calls(
         }
         let body = redact_paypal(&call.response, &[]);
         let binding = call.binding.as_ref().map(json_text).transpose()?;
-        conn.execute("INSERT INTO paypal_calls(deal_id,method,path,request_id,status,debug_id,body_redacted,at,binding_json) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",params![id.to_string(),call.method.as_str(),call.path.as_str(),call.request_id,call.status,body.get("debug_id").and_then(Value::as_str),json_text(&body)?,at.to_string(),binding])?;
+        // The same metadata rule as `record_paypal_call`, but normalised, not refused: this
+        // writer runs after PayPal answered a money step, and a refusal would roll the observed
+        // outcome back. A request ID is [A-Za-z0-9_-], at most 128 long.
+        let request_id: String = call
+            .request_id
+            .chars()
+            .take(128)
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '-' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        conn.execute("INSERT INTO paypal_calls(deal_id,method,path,request_id,status,debug_id,body_redacted,at,binding_json) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",params![id.to_string(),call.method.as_str(),call.path.as_str(),request_id,call.status,body.get("debug_id").and_then(Value::as_str),json_text(&body)?,at.to_string(),binding])?;
     }
     Ok(())
 }
