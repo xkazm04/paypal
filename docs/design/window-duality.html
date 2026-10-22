@@ -995,9 +995,10 @@ tr.win-g td:first-child{box-shadow:inset 3px 0 0 var(--gold)}
     <span class="c-s">"allow-deal-let-lapse"</span>, <span class="c-s">"allow-settings-write"</span>, <span class="c-s">"allow-pause-all-agents"</span>,
     <span class="c-s">"allow-quit-summary"</span>, <span class="c-s">"allow-quit-confirm"</span>, <span class="c-s">"allow-tumbler-drag"</span>, <span class="c-s">"allow-tumbler-snap"</span>,
     <span class="c-s">"allow-envelope-get"</span>] }</code></pre>
-<pre class="pp"><code><span class="c-c">// capabilities/approval.json - the only file that grants release</span>
+<pre class="pp"><code><span class="c-c">// capabilities/approval.json - the only file that grants release (generated; release set shown, the file also lists its read and setup commands)</span>
 { <span class="c-s">"identifier"</span>: <span class="c-s">"approval"</span>, <span class="c-s">"windows"</span>: [<span class="c-s">"approval"</span>],
-  <span class="c-s">"permissions"</span>: [<span class="c-s">"core:default"</span>, <span class="c-s">"allow-approval-summary"</span>, <span class="c-s">"allow-unlock"</span>,
+  <span class="c-s">"permissions"</span>: [<span class="c-s">"core:window:allow-close"</span>, <span class="c-s">"core:event:allow-listen"</span>,
+    <span class="c-s">"core:event:allow-unlisten"</span>, <span class="c-s">"allow-approval-summary"</span>, <span class="c-s">"allow-unlock"</span>,
     <span class="c-x">"allow-deal-countersign"</span>, <span class="c-x">"allow-deal-capture"</span>, <span class="c-s">"allow-deal-void"</span>,
     <span class="c-x">"allow-shield-release"</span>, <span class="c-x">"allow-rescue-approve"</span>, <span class="c-x">"allow-open-paypal-in-browser"</span>,
     <span class="c-s">"allow-deal-withdraw"</span>] }</code></pre>

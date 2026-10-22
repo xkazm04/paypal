@@ -282,9 +282,10 @@ case WebView2 throttled it while hidden (S·athena `RECONCILE_MS`, risk 10).
     "allow-quit-summary", "allow-quit-confirm", "allow-tumbler-drag", "allow-tumbler-snap",
     "allow-envelope-get"] }
 
-// capabilities/approval.json - the only file that grants release
+// capabilities/approval.json - the only file that grants release (generated; release set shown, the file also lists its read and setup commands)
 { "identifier": "approval", "windows": ["approval"],
-  "permissions": ["core:default", "allow-approval-summary", "allow-unlock",
+  "permissions": ["core:window:allow-close", "core:event:allow-listen",
+    "core:event:allow-unlisten", "allow-approval-summary", "allow-unlock",
     "allow-deal-countersign", "allow-deal-capture", "allow-deal-void",
     "allow-shield-release", "allow-rescue-approve", "allow-open-paypal-in-browser",
     "allow-deal-withdraw"] }

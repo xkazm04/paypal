@@ -21,9 +21,7 @@ describe('words keys and the docs that name them', () => {
   });
   it('every `UPPER_CASE` key the UX guide names exists in lib/words', () => {
     const names = new Set([...repo('docs/ux/UX-GUIDE.md').matchAll(/`([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)`/g)].map((m) => m[1] ?? ''));
-    // Two older claims still wait for their owner (carded): the ratchet only lets this list shrink.
-    const KNOWN = ['SELLER_AUTHORIZED_SILENCE', 'UNCONFIRMED_STATEMENT_WORD'];
-    const missing = [...names].filter((n) => !(n in words) && !KNOWN.includes(n));
+    const missing = [...names].filter((n) => !(n in words));
     expect(missing).toEqual([]);
   });
 });
