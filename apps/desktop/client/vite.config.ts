@@ -11,6 +11,8 @@ export default defineConfig({
   // sourceLocPlugin is inert unless THE_TABLE_INSPECTOR=1 (npm run tauri:dev:test).
   plugins: [sourceLocPlugin(), react()],
   base: './',
+  // One switch: THE_TABLE_INSPECTOR=1 drives both the Babel stamps and the overlay (mount.tsx).
+  define: { 'import.meta.env.VITE_INSPECTOR': JSON.stringify(process.env.THE_TABLE_INSPECTOR === '1' ? '1' : '') },
   resolve: {
     alias: {
       '@bindings': here('../../../bindings'),
