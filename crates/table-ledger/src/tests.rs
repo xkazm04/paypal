@@ -1956,6 +1956,47 @@ fn buyer_receipt_rejects_amount_head_status_state_role_owned_purchase_and_replay
     }
 }
 
+// The buyer's approval countdown is a deadline like any other: accepting the seller's SETTLE
+// sets it, and that move is in the chain (`deadline.set`), exactly as `set_deadline` records one.
+#[test]
+fn accepting_a_buyer_settle_records_the_deadline_it_sets() {
+    let (mut ledger, deal, _, own, peer) = setup();
+    advance(&mut ledger, deal.id, false);
+    let mut e = inbound(&deal, &own, &peer);
+    e.typ = MsgType::Settle;
+    e.body = Body::Settle {
+        order_id: ShortText::new("ORDER1".into()).unwrap(),
+        approve_url: ShortText::new(
+            "https://www.sandbox.paypal.com/checkoutnow?token=ORDER1".into(),
+        )
+        .unwrap(),
+        amount: deal.terms.amount().unwrap(),
+        invoice_id: ShortText::new(invoice_id(deal.id, 1).unwrap()).unwrap(),
+        intent: table_proto::Intent::Authorize,
+        attempt: 1,
+    };
+    let verified = ledger
+        .preview_inbound(deal.id, &peer.sign(&e).unwrap(), 100)
+        .unwrap();
+    ledger.accept_buyer_settle(&verified, 100).unwrap();
+    let (due, authorization_at) = ledger.deadline(deal.id).unwrap().unwrap();
+    let rows: Vec<(String, String)> = ledger
+        .conn
+        .prepare("SELECT at,detail_json FROM audit_log WHERE deal_id=?1 AND action='deadline.set'")
+        .unwrap()
+        .query_map([deal.id.to_string()], |r| Ok((r.get(0)?, r.get(1)?)))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert_eq!(rows.len(), 1, "{rows:?}");
+    assert_eq!(rows[0].0, "100");
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&rows[0].1).unwrap(),
+        json!({"due_at": due, "authorization_at": authorization_at})
+    );
+    ledger.verify_audit().unwrap();
+}
+
 #[test]
 fn buyer_settle_validation_and_commit_are_atomic_and_reporting_mismatch_does_not_promote() {
     let (mut ledger, deal, _, own, peer) = setup();
