@@ -34,6 +34,61 @@ fn house_repeat_confirmation_reuses_only_an_identical_release_pinned_peer() {
     assert!(http.0.lock().unwrap().paths.is_empty());
 }
 
+/// A repeat house confirmation reads the pin as the gate does (revocation-and-expiry): a pin the
+/// owner revoked, or one that lapsed, is refused like any other binding that does not match, and
+/// keeps the pairing pending. A pin whose expiry was cleared again confirms as before.
+#[test]
+fn a_repeat_house_confirmation_is_refused_for_a_revoked_or_expired_pin() {
+    let (mut seller, release, http, _, _) = hosted_fixture();
+    let (mut buyer, _, response) = house_buyer(&mut seller, release);
+    let words = buyer.house_pair(response.clone()).unwrap();
+    let args = PairingConfirmArgs {
+        pairing_id: words.pairing_id,
+        words: words.words,
+        display_name: "HOUSE".into(),
+    };
+    let key = buyer.pairing_confirm(args.clone()).unwrap();
+    let repeat = |buyer: &mut Runtime| {
+        buyer
+            .house_offer(PairingCreateArgs {
+                side: Side::Buyer,
+                payee: PayeeRef::new("buyer").unwrap(),
+            })
+            .unwrap();
+        buyer.house_pair(response.clone()).unwrap();
+        buyer.pairing_confirm(args.clone())
+    };
+    let now = buyer.clock.now();
+
+    buyer
+        .pipeline
+        .wallet
+        .ledger
+        .set_counterparty_expiry(&key, Some(now), now)
+        .unwrap();
+    let expired = repeat(&mut buyer).unwrap_err();
+    assert!(matches!(expired.code, ErrorCode::Permission), "{expired:?}");
+    // The control: the same repeat on a live pin is accepted.
+    buyer
+        .pipeline
+        .wallet
+        .ledger
+        .set_counterparty_expiry(&key, None, now)
+        .unwrap();
+    assert_eq!(repeat(&mut buyer).unwrap(), key);
+    buyer
+        .pipeline
+        .wallet
+        .ledger
+        .revoke_counterparty(&key, now)
+        .unwrap();
+    let revoked = repeat(&mut buyer).unwrap_err();
+    assert!(matches!(revoked.code, ErrorCode::Permission), "{revoked:?}");
+    // The refused confirm leaves the pairing pending: nothing was pinned or consumed.
+    assert!(buyer.pending.contains_key(&args.pairing_id));
+    assert!(http.0.lock().unwrap().paths.is_empty());
+}
+
 #[tokio::test]
 async fn house_reopens_durable_pair_table_and_outbox_and_replays_after_mailbox_loss() {
     let mut entropy = [0; 16];

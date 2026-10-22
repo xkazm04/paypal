@@ -342,7 +342,13 @@ impl Runtime {
         if let Some((hash, owner, payee)) =
             app(self.pipeline.wallet.ledger.counterparty_binding(&key_id))?
         {
-            let (paired, house, _) = app(self.pipeline.wallet.ledger.counterparty_policy(&key_id))?;
+            // The pin is read at now with its revocation and expiry, as every gate reads it: a
+            // repeat confirmation never re-admits a pin the owner revoked or that lapsed.
+            let (paired, house, _) = app(self
+                .pipeline
+                .wallet
+                .ledger
+                .counterparty_policy_at(&key_id, self.clock.now()))?;
             if !pending.house
                 || !paired
                 || !house
