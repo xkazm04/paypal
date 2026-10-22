@@ -12,6 +12,8 @@ use table_ledger::AuditEntry;
 const SCRIPTED_ROLE_REFUSAL: &str = "The built-in negotiator only haggles at a table; shopping and assistant runs need the claude-code or codex-cli engine.";
 
 /// agent_start's refusals, one per reason (shown to the owner as they are).
+/// The most agent runs that may be live at once: `start_agent` refuses past it and `arm_policy_run` pre-checks it.
+pub(crate) const MAX_RUNS: usize = 4;
 pub(crate) const AGENTS_PAUSED: &str = "Agents are paused. Resume them to start one.";
 pub(crate) const ALREADY_RUNNING: &str = "An agent is already working on this deal.";
 pub(crate) const RUN_LIMIT: &str =
@@ -159,7 +161,7 @@ impl Runtime {
         if self.runs.values().any(|r| r.scope.deal_id == id) {
             return Err(unavailable(ALREADY_RUNNING));
         }
-        if self.runs.len() >= 4 {
+        if self.runs.len() >= MAX_RUNS {
             return Err(unavailable(RUN_LIMIT));
         }
         self.attach_scripted()?;

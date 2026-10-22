@@ -222,21 +222,21 @@ async fn parked_runtime(
 async fn rearming_never_exceeds_four_runs_or_one_run_per_deal() {
     let (mut r, deals, _tx) = parked_runtime(6).await;
     r.tick().await.unwrap();
-    assert_eq!(r.runs.len(), 4);
+    assert_eq!(r.runs.len(), crate::engines::MAX_RUNS);
     let mut armed: Vec<DealId> = r.runs.values().map(|a| a.scope.deal_id).collect();
     armed.sort();
     armed.dedup();
-    assert_eq!(armed.len(), 4, "one run per deal");
+    assert_eq!(armed.len(), crate::engines::MAX_RUNS, "one run per deal");
     // Further ticks start nothing while the four slots are held.
     r.tick().await.unwrap();
     r.tick().await.unwrap();
-    assert_eq!(r.runs.len(), 4);
+    assert_eq!(r.runs.len(), crate::engines::MAX_RUNS);
     assert!(armed.iter().all(|id| deals.iter().any(|d| d.id == *id)));
     // A freed slot is refilled by the next tick, up to the cap again and never beyond.
     let freed = *r.runs.keys().next().unwrap();
     r.finish_run(freed, RunState::Cancelled).unwrap();
     r.tick().await.unwrap();
-    assert_eq!(r.runs.len(), 4);
+    assert_eq!(r.runs.len(), crate::engines::MAX_RUNS);
 }
 
 #[tokio::test]
