@@ -5,6 +5,7 @@
 import { createContext, useContext, type CSSProperties, type ReactNode } from 'react';
 import type { Module } from '@bindings/Module';
 import { useCounterparties } from '../../lib/display';
+import { COUNTERPARTY_PROVIDER_MISSING, MAIN_LOADING } from '../../lib/words';
 import { MODULE } from '../../shared/modules';
 import './legacy.css';
 
@@ -28,7 +29,7 @@ export function CounterpartyProvider({ children }: { children: ReactNode }) {
 }
 export function useCpLookup() {
   const c = useContext(CpCtx);
-  if (!c) throw new Error('CounterpartyProvider missing');
+  if (!c) throw new Error(COUNTERPARTY_PROVIDER_MISSING);
   return c;
 }
 
@@ -37,5 +38,5 @@ export function useCpLookup() {
 export { ToastProvider, useToast } from '../../shared/ui/toast';
 
 export function Loading({ what }: { what: string }) {
-  return <div className="loading" role="status"><span className="spin" aria-hidden="true" />Loading {what}…</div>;
+  return <div className="loading" role="status"><span className="spin" aria-hidden="true" />{MAIN_LOADING(what)}</div>;
 }

@@ -152,7 +152,7 @@ export const CRUMBS_MORE = {
 } as const;
 
 // The main window shell's words that were inline in Shortcuts.tsx, Status.tsx, QuitSheet.tsx,
-// paletteCopy.ts and Find.tsx (scan-sweep, byte-identical). windows/main/shellWords.test.ts guards them.
+// paletteCopy.ts and Find.tsx, then quit.ts and ui.tsx (scan-sweep, byte-identical). windows/main/shellWords.test.ts guards them.
 
 /** The shortcuts sheet: each group's title and its keys (a '…' key draws a dash between two). */
 export const SHORTCUT_GROUPS: readonly { title: string; keys: readonly (readonly [readonly string[], string])[] }[] = [
@@ -240,6 +240,18 @@ export const FIND_PLACE_SUB = {
   quit: 'stops the wallet · see what waits first',
 } as const;
 export const FIND_QUIT_TITLE = 'Quit The Table';
+
+/** The quit sheet's lead line and its two section titles (windows/main/quit.ts). */
+export const QUIT_VIEW = {
+  lead: (n: number): string => (n === 0 ? 'Nothing is waiting for you.' : n === 1 ? '1 deal is still open.' : `${n} deals are still open.`),
+  whileOff: 'Won’t happen while The Table is off',
+  atPaypal: 'Still happens at PayPal, by itself',
+} as const;
+
+/** The main window's calm loading line (windows/main/ui.tsx): "Loading the Book…". */
+/** The developer-facing error when a counterparty lookup runs outside its provider (not owner copy). */
+export const COUNTERPARTY_PROVIDER_MISSING = 'CounterpartyProvider missing';
+export const MAIN_LOADING = (what: string): string => `Loading ${what}…`;
 
 /** The shared/ui primitives' own words (Sheet, Inspector, ThemeSwitch, Group, Meter, Loading, Why and
  *  the story kit). A primitive takes its default text from here, never from a literal; a caller

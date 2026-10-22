@@ -4,6 +4,7 @@
 import type { QuitLine } from '@bindings/QuitLine';
 import type { QuitSummary } from '@bindings/QuitSummary';
 import { formatMinor } from '../../lib/format';
+import { QUIT_VIEW } from '../../lib/words';
 
 /** `dealId` lets the sheet name the deal by its title; `label` is the fallback when the ledger has no title. */
 export type QuitRow = { key: string; dealId: string; label: string; amount: string; text: string };
@@ -23,10 +24,10 @@ const rows = (lines: readonly QuitLine[]): QuitRow[] =>
 
 export function quitView(s: QuitSummary): QuitView {
   const n = s.pending.length;
-  const lead = n === 0 ? 'Nothing is waiting for you.' : n === 1 ? '1 deal is still open.' : `${n} deals are still open.`;
+  const lead = QUIT_VIEW.lead(n);
   const unknown = !s.while_off || !s.at_paypal;
   const sections: QuitSection[] = [];
-  if (s.while_off?.length) sections.push({ key: 'while_off', title: 'Won’t happen while The Table is off', rows: rows(s.while_off) });
-  if (s.at_paypal?.length) sections.push({ key: 'at_paypal', title: 'Still happens at PayPal, by itself', rows: rows(s.at_paypal) });
+  if (s.while_off?.length) sections.push({ key: 'while_off', title: QUIT_VIEW.whileOff, rows: rows(s.while_off) });
+  if (s.at_paypal?.length) sections.push({ key: 'at_paypal', title: QUIT_VIEW.atPaypal, rows: rows(s.at_paypal) });
   return { lead, sections, unknown: unknown && n > 0, note: s.on_quit };
 }
