@@ -4,10 +4,13 @@
 // decision hands off with `approval_open` and nothing else; search, filter and picking work; an empty
 // view shrinks to its one calm line; and the area's words keep the vendor and internals rules.
 import { act, cleanup, fireEvent, waitFor, within } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { bandMovable } from '../../../../approval/gating';
 import { TABLES, TABLES_TRADE, TABLES_VIEWS } from '../../../../../lib/words';
 import { expectLayerHealthy, renderLayerAtScale, type LayerRun } from '../../testing/scaleSmoke';
+import { consequences, diffLines, LIMIT_WORD, standLine, type ConsequenceInput } from '../../../modules/tables/ladder';
 import { ladderBandMovable } from './Ladder';
 import { wordsOf } from './wordsOf';
 
@@ -136,5 +139,48 @@ describe('Tables ladder: when a price range may move', () => {
   it('is the approval window’s own predicate, not a second copy of its states', () => {
     expect(typeof ladderBandMovable).toBe('function');
     expect(ladderBandMovable).toBe(bandMovable);
+  });
+});
+
+const FORBIDDEN = [/claude|codex|openai|anthropic|gpt/i, /\b[A-Z]{3,}_[A-Z_]+\b|D-\d{4}|mandate|clause|countersign|_set\b|\bRust\b/];
+
+describe('Tables model sentences', () => {
+  const usd = (d: number) => d * 100;
+  const base: ConsequenceInput = {
+    item: 'the monitor', them: 'Dan', side: 'buyer', signed: { floor: null, ceiling: usd(340) }, draft: { floor: null, ceiling: usd(325) },
+    theirs: { seq: 11, price: usd(329), typ: 'COUNTER' }, yours: { seq: 10, price: usd(327), typ: 'COUNTER' },
+    roundsUsed: 5, maxRounds: 6, pending: true, currency: 'USD',
+  };
+  const said = (): string[] => {
+    const out: string[] = [];
+    for (const side of ['buyer', 'seller'] as const) {
+      for (const signed of [null, { floor: usd(300), ceiling: usd(340) }]) {
+        for (const draft of [{ floor: null, ceiling: null }, { floor: usd(330), ceiling: usd(325) }, { floor: usd(300), ceiling: usd(345) }]) {
+          for (const theirs of [null, base.theirs, { seq: 3, price: usd(500), typ: 'LISTING' as const }]) {
+            for (const roundsUsed of [null, 2, 6]) {
+              out.push(...consequences({ ...base, side, signed, draft, theirs, roundsUsed, maxRounds: roundsUsed === null ? null : 6 }).map((c) => c.text));
+            }
+          }
+        }
+      }
+    }
+    for (const band of [null, { floor: usd(300), ceiling: usd(340) }, { floor: null, ceiling: null }]) {
+      for (const theirs of [null, base.theirs, { seq: 3, price: usd(340), typ: 'LISTING' as const }, { seq: 4, price: usd(400), typ: 'OFFER' as const }]) {
+        for (const side of ['buyer', 'seller'] as const) out.push(standLine({ band, theirs, side, who: 'Dan', currency: 'USD' }));
+      }
+    }
+    out.push(...diffLines('m', null, { floor: usd(1), ceiling: usd(2) }, 'USD'), ...diffLines('m', { floor: null, ceiling: usd(1) }, { floor: usd(1), ceiling: usd(1) }, 'USD'), ...Object.values(LIMIT_WORD));
+    return out;
+  };
+  it('say no vendor, id, raw state or internal word, whatever the inputs', () => {
+    const all = said();
+    expect(all.length).toBeGreaterThan(30);
+    for (const w of all) for (const re of FORBIDDEN) expect(w, w).not.toMatch(re);
+  });
+  it('keep their sentences in lib/words, not in the model', () => {
+    const lines = readFileSync(join(process.cwd(), 'src/windows/main/modules/tables/ladder.ts'), 'utf8').split(/\r?\n/);
+    const src = lines.filter((l) => !/^\s*(\/\*\*|\*|\/\/)/.test(l)).join(' ');
+    expect(src.match(/\b(?:text|tone: '[a-z]+', text):\s*[`'"]|=>\s*`|return\s+`/g) ?? []).toEqual([]);
+    expect(src.match(/'(?:none|Most you|Least you)[^']*'/g) ?? []).toEqual([]);
   });
 });

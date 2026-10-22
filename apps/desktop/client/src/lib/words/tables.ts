@@ -48,6 +48,41 @@ export const TABLES_TRADE = {
 export const TABLES_VIEWS = { need: 'Needs you', tables: 'Open tables', ladder: 'Price ladder', shop: 'Shop around', closed: 'Ended' } as const;
 
 export const TABLES = {
+  /** The pure model's sentences (modules/tables/ladder.ts): the what-changes sheet, the stand line, the range edits.
+   *  Functions take figures already formatted, so nothing here formats money. */
+  model: {
+    limit: { ceiling: 'Most you’ll pay', floor: 'Least you’ll accept' },
+    none: 'none',
+    limitNew: (word: string, v: string) => `${word}: ${v} (new)`,
+    limitChange: (word: string, from: string, to: string) => `${word}: ${from} → ${to}`,
+    rangeStart: { buyer: 'offering up to', seller: 'asking from' },
+    anyPrice: ' any price',
+    setsRange: (item: string, start: string, bound: string) => `Sets a price range for ${item}: your agent may start ${start}${bound}.`,
+    fits: (them: string, p: string) => `${them}'s ${p} fits your range.`,
+    outside: (them: string, p: string) => `${them}'s ${p} is outside your range, so your agent can't accept it.`,
+    couldBefore: (them: string, p: string) => `${them}'s ${p} could be accepted before; after this change it can't.`,
+    canNow: (them: string, p: string) => `${them}'s ${p} can now be accepted.`,
+    stillFits: (them: string, p: string, room: string) => `${them}'s ${p} still fits${room}.`,
+    room: (amount: string) => ` · ${amount} of room`,
+    staysOutside: (them: string, p: string) => `${them}'s ${p} stays outside your range, so it can't be accepted.`,
+    lapses: 'The request waiting for you lapses: your agent must offer inside the new range or walk away.',
+    earlierOffer: (p: string) => `Your earlier offer of ${p} stays on record (signed offers are never changed); the next one must be inside the new range.`,
+    offersLeft: (left: number, max: number) => `Offers left are unchanged: ${left} of ${max}.`,
+    noOffersLeft: (max: number) => `No offers left (all ${max} used): your agent may only accept inside the range, or walk away.`,
+    newRange: (them: string, hidden: string) => `Your agent uses the new range from its next move. ${them} never sees your ${hidden}.`,
+    hidden: { buyer: 'maximum', seller: 'minimum' },
+    noPaypal: 'Signing new limits makes no PayPal call. It never pays.',
+    stand: {
+      verb: { listing: 'lists it at', buyer: 'asks', seller: 'offers' },
+      theirPrice: (who: string, verb: string, p: string) => `${who} ${verb} ${p}. `,
+      noLimit: (lead: string) => `${lead}You haven’t set a limit yet, so your agent can’t make offers.`,
+      noOffer: (who: string) => `No offer from ${who} yet.`,
+      inside: (who: string, verb: string, p: string, by: string) => `${who} ${verb} ${p}: ${by}.`,
+      insideBy: (gap: string) => `${gap} inside your limit`,
+      atLimit: 'right at your limit',
+      past: (who: string, verb: string, p: string, gap: string) => `${who} ${verb} ${p}: ${gap} past your limit, so your agent can’t accept it.`,
+    },
+  },
   kicker: 'Tables · haggling for you',
   reading: 'Reading your tables…',
   openTable: 'Open a table',

@@ -13,6 +13,19 @@ const plural = (n: number, one: string, many = `${one}s`): string => `${n} ${n =
 export const COUNTER_VIEWS = { orders: 'Open orders', prices: 'Your prices', rules: 'Shop rules', earlier: 'Closed orders' } as const;
 
 export const COUNTER = {
+  /** The pure model's sentences (modules/counter/model.ts): a floor against the market, and why a typed floor is refused. */
+  model: {
+    noFloor: { short: '—', long: 'no floor' },
+    noMarket: { short: 'no market price', long: 'no market price to compare with' },
+    aboveUsual: { short: (d: string) => `${d} above usual`, long: (d: string, top: string) => `${d} above the usual market range (up to ${top})` },
+    typical: { short: 'typical', long: (m: string) => `the typical market price, ${m}` },
+    over: { short: (d: string) => `${d} over typical`, long: (d: string, m: string) => `${d} over the typical market price, ${m}` },
+    under: { short: (d: string) => `${d} under typical`, long: (d: string, m: string) => `${d} under the typical market price, ${m}` },
+    enterAmount: 'enter an amount like 58 or 58.50',
+    aboveZero: 'a floor must be above zero',
+    aboveCeiling: (ceiling: string) => `above the band ceiling ${ceiling}`,
+    notAmount: 'not an amount',
+  },
   kicker: 'Counter · your shop',
   reading: 'Reading your shop…',
   // the answer
