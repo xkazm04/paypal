@@ -683,3 +683,40 @@ fn a_run_of_failures_has_one_fix_and_a_paid_renewal_ends_it() {
     assert_eq!(seen, [0, 1, 2, 0, 1]);
     w.ledger.verify_audit().unwrap();
 }
+
+#[test]
+fn a_second_rescue_is_refused_while_the_first_is_in_any_unpaid_state_it_can_reach() {
+    for state in DealState::ALL {
+        let mut w = world();
+        let c = case(RescueSource::Paypal, "I-LIVE", 86400);
+        let first = open(&mut w, 1, &c, 86400 + 60).unwrap();
+        w.ledger
+            .conn
+            .execute(
+                "UPDATE deals SET state=?2 WHERE id=?1",
+                rusqlite::params![
+                    first.id.to_string(),
+                    serde_json::to_value(state).unwrap().as_str().unwrap()
+                ],
+            )
+            .unwrap();
+        let live = matches!(
+            state,
+            DealState::Pairing
+                | DealState::Listed
+                | DealState::Negotiating
+                | DealState::Agreed
+                | DealState::Settling
+                | DealState::AwaitingApproval
+                | DealState::Approved
+                | DealState::Authorized
+        );
+        let second = open(
+            &mut w,
+            2,
+            &case(RescueSource::Paypal, "I-LIVE", 40 * 86400),
+            40 * 86400,
+        );
+        assert_eq!(second.is_err(), live, "first rescue in {state:?}");
+    }
+}
