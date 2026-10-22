@@ -72,9 +72,11 @@ export function tourView(stops: readonly TourStop[], p: TourProgress, firstRun: 
   if (p.status === 'new' && !firstRun) return null;
   const shown = stops.filter((s) => present(s.anchor));
   if (!shown.length) return null;
-  const at = p.status === 'active' && p.at ? stops.findIndex((s) => s.id === p.at) : 0;
-  const from = at < 0 ? 0 : at;
-  const current = shown.find((s) => stops.indexOf(s) >= from) ?? shown[shown.length - 1]!;
+  // The saved stop's place in the full order, so a stop that dropped out of this window's list
+  // (the agent app stop, once an app is chosen) still says where the owner was.
+  const order = (id: TourStopId) => TOUR_STOPS.findIndex((s) => s.id === id);
+  const at = p.status === 'active' && p.at ? order(p.at) : -1;
+  const current = (at < 0 ? shown[0] : shown.find((s) => order(s.id) >= at)) ?? shown[shown.length - 1]!;
   const i = shown.indexOf(current);
   return { stop: current, n: i + 1, total: shown.length, back: shown[i - 1]?.id ?? null, next: shown[i + 1]?.id ?? null };
 }

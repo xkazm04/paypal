@@ -75,6 +75,10 @@ describe('the tour: stops per window from the getting-started facts', () => {
     expect(tourView(stops, tourMove('main.engine'), true, noEngine)?.stop.id).toBe('main.approval');
     // Saved on a missing last stop: the last one that is there.
     expect(tourView(stops, tourMove('main.approval'), true, (a) => a !== 'approval-way')?.stop.id).toBe('main.engine');
+    // Saved on the agent app stop, then the app is chosen there and the stop drops out of the
+    // window's list: the tour goes on at the next stop, it does not start over.
+    const chosen = tourStops('main', gettingStarted({ ...fresh, engine: 'codex-cli' }));
+    expect(tourView(chosen, tourMove('main.engine'), true, all)).toMatchObject({ stop: { id: 'main.approval' }, n: 4, total: 4 });
     // Nothing of this window on screen yet: nothing shows (and nothing is marked seen).
     expect(tourView(stops, TOUR_NEW, true, () => false)).toBeNull();
   });
