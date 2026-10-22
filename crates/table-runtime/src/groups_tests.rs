@@ -605,6 +605,51 @@ async fn a_refused_relay_batch_stops_one_delivery_and_not_the_round() {
     assert_eq!(state(0).outgoing.len(), 1);
 }
 
+// A ledger fault on one delivery (not a refusal) no longer abandons the other deliveries: their
+// acknowledgements are recorded, the inbox pass runs, the pass backs off, and the fault surfaces.
+#[tokio::test]
+async fn a_ledger_fault_on_one_delivery_does_not_abandon_the_others() {
+    let mut s = shop(1, clauses(Side::Buyer, DealKind::Haggle));
+    s.counter(0, 1200);
+    s.agent_accepts(0).unwrap();
+    let id = s.id(0);
+    s.r.pipeline
+        .wallet
+        .ledger
+        .bind_relay(id, H256::digest(id.to_string().as_bytes()), 100)
+        .unwrap();
+    let generation = "a".repeat(32);
+    let work = s.r.pipeline.wallet.ledger.relay_work().unwrap();
+    let hash = work.iter().find(|w| w.deal_id == id).unwrap().outgoing[0].0;
+    let batch = |messages| table_relay::Batch {
+        generation: generation.clone(),
+        after: 0,
+        messages,
+    };
+    // A delivery for a deal with no relay route: staging fails with a ledger fault, not a Conflict.
+    let faulting =
+        crate::relay::Delivery::for_test(DealId(ulid::Ulid::new()), vec![batch(vec![])], vec![]);
+    let valid = crate::relay::Delivery::for_test(
+        id,
+        vec![batch(vec!["aaa.bbb.ccc".into()])],
+        vec![(generation.clone(), hash)],
+    );
+    let error = s.r.relay_finished(vec![faulting, valid]).unwrap_err();
+    assert!(!matches!(error.code, ErrorCode::Unavailable), "{error:?}");
+    let after = s.r.pipeline.wallet.ledger.relay_work().unwrap();
+    let state = after.iter().find(|w| w.deal_id == id).unwrap();
+    assert_eq!(
+        (state.generation.as_str(), state.cursor),
+        (generation.as_str(), 1)
+    );
+    assert!(
+        state.outgoing.is_empty(),
+        "the second delivery's ack was recorded"
+    );
+    assert_eq!(s.r.relay_failures, 1, "the pass backs off");
+    assert!(s.r.relay_retry_at > s.r.clock.now());
+}
+
 // Scan C-9b: a hostile relay's rejected messages cost one audit row per deal and generation.
 fn junk_batch_rows(s: &mut Shop, deals: &[usize]) -> Vec<table_ledger::AuditRecord> {
     let before = s.r.pipeline.wallet.ledger.audit_count().unwrap();
