@@ -31,7 +31,7 @@ inside the app, on the owner's own ledger, as "Your safety record".
   checking a file compares against.
 - **Book › Audit trail:** if the chain fails its check, the sheet says so in plain words and
   offers "Check again" (`AUDIT_BROKEN`). It shows no partial history.
-- **main window, "Your safety record"** (`windows/main/safety/SafetySheet.tsx`), opened from the
+- **main window, "Your safety record"** (`windows/main/console/areas/safety/SafetyLayer.tsx`), opened from the
   Book head or Ctrl K. A verdict ("Nothing moved without your say-so.") and up to three
   sentences, for example "131 records, unbroken. PayPal was asked to move money 24 times: … Your
   agents were refused 5 times; PayPal was never asked for any of them." The headline counts
@@ -176,8 +176,8 @@ inside the app, on the owner's own ledger, as "Your safety record".
 | Acceptance | `crates/table-verify/src/acceptance.rs`, `acceptance_main.rs`, `acceptance-ids.txt` | bin `acceptance-matrix` |
 | Gauntlet | `crates/table-app/tests/gauntlet.rs` | `h1_h2_f1_s2_hostile_agent_gauntlet_leaves_only_lawful_money_rows` |
 | IPC glue | `crates/table-client/src/lib.rs` | `check_proof_file`, `PROOF_FILE_LIMIT`, `ProofReport`, `ProofCheckLine` |
-| Client | `windows/main/deal/Evidence.tsx`, `windows/main/modules/book/ProofCheck.tsx`, `shared/ownerKey.tsx`, `lib/words.ts` | Save signed proof, Check a proof file, owner key |
-| Client | `windows/main/safety/model.ts`, `SafetySheet.tsx`, `safety.css`; `mock/safety.ts` | `safetyWords`, `scopeWords`, `authorityParts`, `SafetySheet` (lazy) |
+| Client | `windows/main/console/areas/deal/Evidence.tsx`, `windows/main/modules/book/ProofCheck.tsx`, `shared/ownerKey.tsx`, `lib/words.ts` | Save signed proof, Check a proof file, owner key |
+| Client | `windows/main/safety/model.ts`, `windows/main/console/areas/safety/SafetyLayer.tsx`, `windows/main/console/areas/safety.css`; `mock/safety.ts` | `safetyWords`, `scopeWords`, `authorityParts`, `SafetyLayer` |
 | CI | `.github/workflows/ci.yml` | safety dossier steps |
 
 IPC commands (from `crates/table-client/src/authority_table.rs`):

@@ -131,7 +131,7 @@ The owner's wallet-wide limits are a separate signed object (`WalletEnvelope`), 
 | App | `crates/table-app/src/agent.rs` | `Wallet::check_mandate`, `mandate_check`, `mandate_check_rounds`, `envelope_check`, `select_signer` |
 | Runtime | `crates/table-runtime/src/configuration.rs`, `simulate.rs`, `dispatcher.rs`, `service.rs` | `mandate_list`, `draft_payload`, `sign_mandate`, `band`, `mandate_simulate`, `mandate_retired` |
 | Ledger | `crates/table-ledger/src/repositories.rs`; `migrations/0001_table.sql` (`mandates`), `0002_integrity.sql` (`closed_mandates`, `mandate_body_immutable`) | `insert_mandate`, `active_mandate`, `mandate_evidence`, `revoke_mandate`, `list_mandates`, `next_mandate_version`, `rebind_mandate` |
-| Client, main | `apps/desktop/client/src/windows/main/setup/Mandates.tsx`, `setup/limits.ts` | `highlights`, `agentTitle`, `limitLines`, `setsLine` |
+| Client, main | `apps/desktop/client/src/windows/main/console/areas/rules/RulesLayer.tsx`, `setup/limits.ts` | `RulesLayer`, `agentTitle`, `limitLines`, `purposeOf` |
 | Client, approval | `windows/approval/MandateEditor.tsx`, `mandateDraft.ts`, `BandAdjust.tsx`, `owner/WhoWhat.tsx`, `owner/Lever.tsx`, `owner/WhatIf.tsx`, `owner/SignSheet.tsx`, `owner/simulation.ts`, `owner/data.ts`, `templates.ts`, `owner/Templates.tsx` | `buildMandate`, `ruleProblems`, `refusalWords`, `useSimulation` |
 | Words | `src/lib/words.ts`, `src/shared/honesty.tsx` | `RULE_NAME`, `RULE_NUMBER`, `ruleSentence`, `rulesName`, `NO_LONGER_FITS` |
 | Bindings | `bindings/Clause.ts`, `MandatePayload.ts`, `MandateSignArgs.ts`, `MandateListEntry.ts`, `MandateRevokeArgs.ts`, `BandArgs.ts`, `MandateSimulation.ts`, `SimulatedVerdict.ts`, `Refusal.ts`, `AgentSlot.ts` | |

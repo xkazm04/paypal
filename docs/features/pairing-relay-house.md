@@ -12,7 +12,7 @@ release-pinned mandate, through the same money pipeline as any wallet.
 
 ## What the owner sees
 
-- **main window, Settings › Connections, pairing desk** (`windows/main/setup/PairingDesk.tsx`):
+- **main window, Settings › Connections, pairing desk** (`windows/main/console/areas/connections/PairingDesk.tsx`):
   - Three ways in: "Share a code", "I have a code", "House seller" ("A practice shop that is
     always there").
   - Sharing shows the code with Copy, "Code works …" with "Stop waiting", and "If you do
@@ -170,7 +170,7 @@ sequenceDiagram
 | Ledger | `crates/table-ledger/src/relay.rs`, `house.rs`, `glass.rs`, `witness.rs`; migrations 0005, 0010 | routes, inbox, cursor, acknowledgements; `house_facts`; `house_heads` |
 | Rendezvous | `services/rendezvous/src/lib.rs` | `MemoryStore`, `router`, `relay_router` |
 | House seller | `services/house-seller/src/hosted.rs`, `glass.rs`, `routes.rs`, `environment.rs`, `scoreboard/`, `bin/house-*.rs` | `Seller`, `HEARTBEAT_STALE`, `PollSchedule`, `ENV_NAMES`, release helpers |
-| Client | `windows/main/setup/PairingDesk.tsx`, `windows/approval/PairingConfirm.tsx`, `lib/words.ts` (`houseWords`, `houseRecordWord`) | pairing desk, word confirmation, house record |
+| Client | `windows/main/console/areas/connections/PairingDesk.tsx`, `windows/approval/PairingConfirm.tsx`, `lib/words.ts` (`houseWords`, `houseRecordWord`) | pairing desk, word confirmation, house record |
 | Deploy | `Dockerfile`, `render.yaml`, `docs/build/DEPLOY.md` | one paid instance with a persistent disk |
 
 IPC commands (from `crates/table-client/src/authority_table.rs`):
@@ -226,7 +226,7 @@ Events: `pairing:pinned` → main; `settings:changed` carries `HouseState`.
   other browsers show "can't check here". Browser checks use `verify`, the CLI uses
   `verify_strict`.
 - **Copy that does not match the deployment.** Settings says the house "Sleeps when nobody uses
-  it · waking takes about a minute" (`windows/main/setup/CircuitView.tsx:429`), and the approval
+  it · waking takes about a minute" (`lib/words/connections.ts:103`), and the approval
   owner configuration says "waking up, about a minute" (`windows/approval/OwnerConfig.tsx:39`).
   `render.yaml` runs one fixed paid instance, and the minute was never measured.
 - **Honest limits.**

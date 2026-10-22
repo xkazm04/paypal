@@ -12,7 +12,7 @@ happen only in the [money pipeline](./money-pipeline.md).
 
 ## What the owner sees
 
-- **main window, Settings ("The Circuit", `windows/main/setup/CircuitView.tsx`):** an "Agent app"
+- **main window, Settings ("The Circuit", `windows/main/console/areas/connections/ConnectionsLayer.tsx (EngineView)`):** an "Agent app"
   picker listing `claude-code`, `codex-cli` and the practice agent, each with its version or why
   it is not available. "Pause all agents" works with one click and no confirmation, because
   stopping is always free. "Resume agents" undoes it. The roster of agent keys comes from
@@ -133,7 +133,7 @@ happen only in the [money pipeline](./money-pipeline.md).
 | Engines | `crates/table-engine/src/` | `EngineAdapter`, `EngineId`, `PolicyEngine`, `NativeEngine`, `argv`, `StreamParser`, `windows_job.rs`, `bin/engine-fixture.rs` |
 | Runtime | `crates/table-runtime/src/engines.rs`, `policy.rs`, `configuration.rs` | `start_agent`, `attach_scripted`, `attach_native_engines`, `policy_brief`, `arm_policy_run` |
 | Playbooks | `prompts/*.md`, `bindings/playbooks.ts` | four role texts |
-| Client | `windows/main/setup/CircuitView.tsx`, `windows/main/DealView.tsx`, `windows/main/deal/Instructions.tsx` | engine picker, pause/resume, Start agent, instructions sheet |
+| Client | `windows/main/console/areas/connections/ConnectionsLayer.tsx (EngineView)`, `windows/main/DealView.tsx`, `windows/main/deal/Instructions.tsx` | engine picker, pause/resume, Start agent, instructions sheet |
 
 IPC commands (from `crates/table-client/src/authority_table.rs`; all runtime-enforced, no token):
 

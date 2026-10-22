@@ -9,7 +9,7 @@ seller from the buying owner's side: the always-open demo shop a new wallet can 
 
 ## What the owner sees
 
-**Main window, Counter page** (`apps/desktop/client/src/windows/main/modules/counter.tsx`):
+**Main window, Counter page** (`apps/desktop/client/src/windows/main/console/areas/counter/CounterLayer.tsx`):
 
 - Header "Counter" with "Your shop · other people's agents buy here, never below your lowest
   prices", then a first-visit explainer: "Agents shop here", "Never below your price", "Buyers pay
@@ -36,7 +36,7 @@ seller from the buying owner's side: the always-open demo shop a new wallet can 
 (checklist, hold to confirm) when an order needs the owner.
 
 **House seller, as a buyer** (main window): Tables' "Try the house seller" opens the connection
-sheet on the house tab (`windows/main/setup/PairingDesk.tsx`). Waking and refusals are plain
+sheet on the house tab (`windows/main/console/areas/connections/PairingDesk.tsx`). Waking and refusals are plain
 words from Rust: "The house is full right now. No money moved.", "The house has hit its limit for
 today. No money moved.", "The house turned this table down", or "The house is waking or could not
 be reached" with "Try again; nothing is lost". On a receipted house deal, the proof tab carries a
@@ -120,8 +120,8 @@ signed proof…"). The name is always "House seller" (`houseWords()`), never all
 | Runtime | `crates/table-runtime/src/scheduler.rs`, `pairing.rs`, `witness.rs` | seller create and collect, house refusal words, house head witness |
 | Ledger | `crates/table-ledger/src/witness.rs`, `migrations/0010_house_heads.sql` | kept house heads (append-only) |
 | Service | `services/house-seller/` | hosted house seller, signed ledger, scoreboard |
-| Client | `apps/desktop/client/src/windows/main/modules/counter.tsx`, `counter/model.ts` | page, `buildCatalog`, `draftImpact`, `vsMarket`, `currencyMark` |
-| Client | `apps/desktop/client/src/windows/main/setup/PairingDesk.tsx`, `src/lib/words.ts` | house connection, `houseWords`, `houseRecordWord` |
+| Client | `apps/desktop/client/src/windows/main/console/areas/counter/CounterLayer.tsx`, `counter/model.ts` | page, `buildCatalog`, `draftImpact`, `vsMarket`, `currencyMark` |
+| Client | `apps/desktop/client/src/windows/main/console/areas/connections/PairingDesk.tsx`, `src/lib/words.ts` | house connection, `houseWords`, `houseRecordWord` |
 
 IPC commands (rows in `crates/table-client/src/authority_table.rs`):
 

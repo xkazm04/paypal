@@ -10,7 +10,7 @@ covers the wallet limits: one owner-signed cap above every agent's rules.
 
 ## What the owner sees
 
-**Main window, Spend page** (`apps/desktop/client/src/windows/main/modules/spend.tsx`):
+**Main window, Spend page** (`apps/desktop/client/src/windows/main/console/areas/spend/SpendLayer.tsx`):
 
 - An answer bar, then a first-visit explainer: "Agents ask to buy", "Your rules check it",
   "You pay or release".
@@ -114,7 +114,7 @@ at. **Tumbler**: a purchase on hold is a gate card ("Capture or void $64.00") wi
 | Runtime | `crates/table-runtime/src/service.rs`, `limits.rs`, `scheduler.rs` | `decide`, `PURCHASE_DECISION_WINDOW_SECS`, approval read-back |
 | Ledger | `crates/table-ledger/src/repositories.rs`, `limits.rs` | `propose_purchase`, `insert_wallet_envelope`, `active_wallet_envelope` |
 | Migration | `crates/table-ledger/migrations/0009_wallet_limits.sql` | `wallet_envelopes` + triggers |
-| Client | `apps/desktop/client/src/windows/main/modules/spend.tsx`, `spend/gate.ts` | page, the gate |
+| Client | `apps/desktop/client/src/windows/main/console/areas/spend/SpendLayer.tsx`, `spend/gate.ts` | page, the gate |
 | Client | `apps/desktop/client/src/lib/limits.ts`, `windows/approval/owner/WalletLimits.tsx` | meters, limits card |
 
 IPC commands (rows in `crates/table-client/src/authority_table.rs`):

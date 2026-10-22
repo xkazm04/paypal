@@ -136,7 +136,7 @@ an earlier week (read from the deal's own record, `windows/main/unshown.ts`).
 
 | Layer | Path | Key items |
 | --- | --- | --- |
-| Client, Home | `apps/desktop/client/src/windows/main/Home.tsx`, `Dial.tsx`, `art.ts`, `home/model.ts` | `Home`, `Hub`, `NeedsList`, `Ledger`, `TodayMeters`, `LockIndicator`, `dialValueText` |
+| Client, Home | `apps/desktop/client/src/windows/main/console/Centre.tsx`, `Footer.tsx`, `home/model.ts` | `Centre`, `Footer`, `TodayMeters` |
 | Client, first run | `windows/main/home/Start.tsx`, `src/lib/firstRun.ts`, `src/shared/start.tsx` | `gettingStarted`, `StartHub`, `StartSide` |
 | Client, away | `windows/main/home/away.ts`, `home/AwayCard.tsx` | `awaySummary`, `worthShowing`, `readLastSeen`, `useAway`, `AwayCard`, `AwayHub` |
 | Client, Rewind | `windows/main/Rewind.tsx`, `RewindParts.tsx`, `logic.ts`, `deal/WhoDecided.tsx` | `useRewind`, `RewindBar`, `RewindHub`, `historyAt`, `tickTone`, `TICK_WORD` |
