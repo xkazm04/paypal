@@ -765,7 +765,9 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
         e.ds.push(m);
         groups.set(k, e);
       }
-      const rows = [...groups.values()].sort((a, b) => JSON.stringify(a.row).localeCompare(JSON.stringify(b.row))).slice(0, q.limit ?? 500).map(({ row, ds }) => {
+      const sorted = [...groups.values()].sort((a, b) => JSON.stringify(a.row).localeCompare(JSON.stringify(b.row)));
+      const truncated = sorted.length > (q.limit ?? 500);
+      const rows = sorted.slice(0, q.limit ?? 500).map(({ row, ds }) => {
         const out = { ...row };
         const bp = ds.map((d) => col(d, 'vs_market_pct')).filter((x): x is number => typeof x === 'number');
         for (const m of q.metrics) {
@@ -776,7 +778,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
         }
         return out as JsonValue;
       });
-      return { query: q, rows };
+      return { query: q, rows, truncated };
     },
     // As Runtime::audit_page: newest first, `before` exclusive, 1..=200, closed facts only.
     audit_page: ({ before, limit }) => {
@@ -1383,7 +1385,7 @@ export function mockBackend(label: WindowLabel, opts: MockOptions = {}): MockBac
       const now = nowUnix();
       const view: RescueWatchView = existing
         ? { ...existing, recipient: maskEmail(email), plan: args.plan, next_read_at: now }
-        : { subscription_id: id, recipient: maskEmail(email), plan: args.plan, state: 'waiting', added_at: now, last_read_at: null, next_read_at: now };
+        : { subscription_id: id, recipient: maskEmail(email), plan: args.plan, state: 'waiting', added_at: now, last_read_at: null, next_read_at: now, held: null };
       state.rescueWatches = existing ? list.map((w) => (w.subscription_id === id ? view : w)) : [...list, view];
       save();
       return state.rescueWatches;

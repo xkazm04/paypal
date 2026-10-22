@@ -7,7 +7,7 @@ import type { MandateListEntry } from '@bindings/MandateListEntry';
 import type { RescueWatchView } from '@bindings/RescueWatchView';
 import type { WalletError } from '../../../lib/contract';
 import { useNow } from '../../../lib/hooks';
-import { RESCUE_NO_RULES, RESCUE_WATCH_ABOUT, RESCUE_WATCH_EMAIL, RESCUE_WATCH_STATE, watchingWords } from '../../../lib/words';
+import { RESCUE_NO_RULES, RESCUE_WATCH_ABOUT, RESCUE_WATCH_EMAIL, RESCUE_WATCH_HOLD, RESCUE_WATCH_STATE, watchingWords } from '../../../lib/words';
 import { WalletNotice } from '../../../shared/honesty';
 import { Btn, Chip, Field, Group, Hint, Row, Sheet } from '../../../shared/ui';
 import { useSession } from '../session';
@@ -79,7 +79,7 @@ export function RescueWatch({ entries, watching, locked, onClose, onChanged }: {
           const st = RESCUE_WATCH_STATE[w.state];
           return (
             <Row key={w.subscription_id} title={<><span className="mono">{w.subscription_id}</span> · {w.plan}</>}
-              sub={`${w.recipient} · ${nextCheckWords(w, now)}`}>
+              sub={`${w.recipient} · ${w.held ? RESCUE_WATCH_HOLD[w.held] : nextCheckWords(w, now)}`}>
               <Chip tone={st.tone} title={st.means}>{st.text}</Chip>
               <Btn sm disabled={locked || busy} onClick={() => void stop(w.subscription_id)}>
                 {s.pending === 'rescue_watch_stop' && stopping === w.subscription_id ? 'Stopping…' : 'Stop watching'}

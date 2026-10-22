@@ -126,9 +126,27 @@ impl Runtime {
         })
     }
 
+    /// What stops the watch pass right now, in the order the pass checks it.
+    fn rescue_watch_hold(&self) -> Result<Option<RescueWatchHold>, CommandError> {
+        if self.paused {
+            return Ok(Some(RescueWatchHold::Paused));
+        }
+        if self.secondary.is_none() {
+            return Ok(Some(RescueWatchHold::NotConnected));
+        }
+        let Some(mandate) = self.rescue_mandate()? else {
+            return Ok(Some(RescueWatchHold::NoRules));
+        };
+        Ok(self
+            .slot_holding(mandate.payload.agent_key)
+            .is_err()
+            .then_some(RescueWatchHold::NoKey))
+    }
+
     /// The owner's watch list, masked, with what the wallet last learned of each.
     fn rescue_watch_views(&self) -> Result<Vec<RescueWatchView>, CommandError> {
         let ledger = &self.pipeline.wallet.ledger;
+        let held = self.rescue_watch_hold()?;
         app(ledger.rescue_watches())?
             .into_iter()
             .map(|w| {
@@ -149,6 +167,7 @@ impl Runtime {
                     added_at: w.added_at,
                     last_read_at: w.last_read_at,
                     next_read_at: w.next_read_at,
+                    held,
                 })
             })
             .collect()

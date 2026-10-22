@@ -671,6 +671,49 @@ async fn a_watched_failed_renewal_opens_one_fix_that_counts_only_once_the_owner_
     r.pipeline.wallet.ledger.verify_audit().unwrap();
 }
 
+/// A watched subscription says why it is not being checked: no PayPal connection, paused agents,
+/// no rules; and says nothing once the wallet is checking.
+#[tokio::test]
+async fn a_watch_that_cannot_be_checked_names_the_reason_over_three_ticks() {
+    let (mut r, vault, _, _, _) = runtime(true);
+    credentials(vault.as_ref());
+    r.sign_mandate(MandateSignArgs {
+        id: None,
+        agent: AgentSlot::Assistant,
+        clauses: rescue_clauses(),
+        not_before: 0,
+        expires: 10_000_000,
+    })
+    .unwrap();
+    let token = unlock_runtime(&mut r);
+    r.execute(
+        caller("approval", Some(&token)),
+        Action::RescueWatchAdd(watch_args("I-H")),
+    )
+    .await
+    .unwrap();
+    assert!(r.secondary.is_none());
+    for _ in 0..3 {
+        r.tick().await.unwrap();
+        let book = r.rescue_book().unwrap();
+        assert_eq!(book.watching[0].state, RescueWatchState::Waiting);
+        assert_eq!(book.watching[0].held, Some(RescueWatchHold::NotConnected));
+    }
+    let paypal = with_invoicing(&mut r);
+    paypal.0.lock().unwrap().subscription = Some(failing(0, "0.00"));
+    r.paused = true;
+    assert_eq!(
+        r.rescue_book().unwrap().watching[0].held,
+        Some(RescueWatchHold::Paused)
+    );
+    r.paused = false;
+    assert_eq!(r.rescue_book().unwrap().watching[0].held, None);
+    r.tick().await.unwrap();
+    let book = r.rescue_book().unwrap();
+    assert_eq!(book.watching[0].state, RescueWatchState::Paid);
+    assert_eq!(book.watching[0].held, None);
+}
+
 /// The watch pass keeps to its budget: a few reads a tick, none while agents are paused, none of
 /// a subscription no longer watched, and never a write at PayPal.
 #[tokio::test]
