@@ -1,0 +1,78 @@
+{
+ "schema": "conform-run/1",
+ "worker": "2f463486-a311-4eab-8a7e-e0a82174500c",
+ "subject": "node-boot-and-declarative-bootstrap",
+ "evaluatedAt": "2026-10-22T00:42:50.697988+00:00",
+ "provider": "codex",
+ "model": "gpt-6.1-sol",
+ "pairs": [
+  {
+   "context": "design-system-styles",
+   "subject": "node-boot-and-declarative-bootstrap",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/shared/brand/index.ts:2 Searches for bootstrap, unseal, reload, reconcile and plugin found no context matches; repository matches were elsewhere, and these files implement presentation and motion preferences without stateful-node bootstrap responsibilities.",
+   "techniques": [
+    {
+     "technique": "config-objects-are-api-immutable",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/shared/brand/index.ts:2 No persisted device population created through both operational configuration and an API."
+    },
+    {
+     "technique": "once-only-bootstrap-with-marker",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/shared/brand/DialStrip.tsx:2 The reviewed files contain no first-start policy provisioning or default-row seed."
+    },
+    {
+     "technique": "ordered-boot-dag",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/design/motion.ts:36 Motion initialization controls display preferences; this context constructs no stateful node or storage-dependent serving sequence."
+    },
+    {
+     "technique": "reload-partition",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/design/motion.ts:77 Live changes follow a browser preference through storage events; no operational configuration file or process reload handler exists here."
+    },
+    {
+     "technique": "request-chain-not-dsl",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/shared/brand/KeyArt.tsx:192 Declarative structures render artwork; the context defines no bootstrap request schema or stored executable workflow."
+    },
+    {
+     "technique": "seal-before-storage-plugins",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/shared/brand/Seal.tsx:51 Seal is a labelled graphic, with no cryptographic sealing provider or storage-backed component catalog."
+    }
+   ],
+   "absenceTerms": [
+    "bootstrap",
+    "unseal",
+    "reload",
+    "reconcile",
+    "plugin"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-22T00:42:50.697988+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "node-boot-and-declarative-bootstrap"
+   ],
+   "techniques": [
+    "config-objects-are-api-immutable",
+    "once-only-bootstrap-with-marker",
+    "ordered-boot-dag",
+    "reload-partition",
+    "request-chain-not-dsl",
+    "seal-before-storage-plugins"
+   ],
+   "deviations": 0,
+   "context": "design-system-styles",
+   "via": "curator-multi:codex",
+   "model": "gpt-6.1-sol"
+  }
+ ]
+}
