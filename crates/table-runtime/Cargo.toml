@@ -13,11 +13,11 @@ table-client.workspace = true
 table-core.workspace = true
 table-ledger.workspace = true
 table-proto.workspace = true
-table-relay = { path = "../table-relay" }
+table-relay.workspace = true
 table-paypal.workspace = true
 table-engine.workspace = true
 table-market.workspace = true
-table-mcp = {path="../table-mcp"}
+table-mcp.workspace = true
 axum.workspace = true
 table-attention.workspace = true
 ed25519-dalek.workspace = true
@@ -29,9 +29,9 @@ reqwest.workspace = true
 thiserror.workspace = true
 getrandom.workspace = true
 ulid.workspace = true
-zeroize = "1"
+zeroize.workspace = true
 # The whole-ledger safety record runs the offline verifier's predicate (already a table-client dependency).
-table-verify = {path="../table-verify"}
+table-verify.workspace = true
 [dev-dependencies]
 base64.workspace = true
 house-seller = {path="../../services/house-seller"}

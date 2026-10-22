@@ -7,7 +7,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
-time = {version="0.3",features=["formatting","parsing"]}
+time = { workspace = true, features = ["parsing"] }
 table-core.workspace = true
 table-proto.workspace = true
 rusqlite.workspace = true

@@ -40,6 +40,11 @@ hyper-util = { version = "0.1", default-features = false, features = ["tokio", "
 tower-http = { version = "0.6", default-features = false, features = ["timeout"] }
 ts-rs = { version = "12", features = ["no-serde-warnings", "serde-json-impl"] }
 table-client = {path="crates/table-client"}
+zeroize = "1"
+time = "0.3"
+table-relay = { path = "crates/table-relay" }
+table-mcp = { path = "crates/table-mcp" }
+table-verify = { path = "crates/table-verify" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
