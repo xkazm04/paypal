@@ -53,11 +53,11 @@ window.FIX = {
   },
 
   market: {
-    'monitor-27-4k': { p25: 301, median: 318, p75: 336, src: 'Channel3 /similar-products', retrieved: '14:02', tracking: 'tracking since Oct 14' },
-    'monitor-24-ips': { p25: 196, median: 207, p75: 224, src: 'Channel3 /similar-products', retrieved: '13:40' },
-    'usb-c-dock': { p25: 58, median: 66, p75: 74, src: 'Channel3 /lookup-product', retrieved: '09:01' },
-    'stand': { p25: 38, median: 44, p75: 49, src: 'Channel3 /similar-products', retrieved: '13:10' },
-    'monitor-arm': { p25: 55, median: 63, p75: 71, src: 'Channel3 /similar-products', retrieved: '14:00' }
+    'monitor-27-4k': { p25: 301, median: 318, p75: 336, src: 'market prices · similar products', retrieved: '14:02', tracking: 'tracking since Oct 14' },
+    'monitor-24-ips': { p25: 196, median: 207, p75: 224, src: 'market prices · similar products', retrieved: '13:40' },
+    'usb-c-dock': { p25: 58, median: 66, p75: 74, src: 'market prices · product lookup', retrieved: '09:01' },
+    'stand': { p25: 38, median: 44, p75: 49, src: 'market prices · similar products', retrieved: '13:10' },
+    'monitor-arm': { p25: 55, median: 63, p75: 71, src: 'market prices · similar products', retrieved: '14:00' }
   },
 
   /* Haggle D-0193: signed envelopes so far (seq, by, price). Bids rise 290 → 327, asks fall 389 → 329. */
@@ -124,10 +124,10 @@ window.FIX = {
 
     { id: 'D-0196', module: 'shield', kind: 'purchase · offer in', side: 'buyer', cp: 'hub', agent: 'sourcing', item: '27-inch 4K monitor (unsolicited offer)', ref: 'monitor-27-4k',
       amount: 460, state: 'BLOCK', sub: '45% over market median · asks for “friends & family”', money: 'none — no PayPal link ever opened', when: 'Wed 19:40', day: 'Wed', rec: 'n/a',
-      shield: 'BLOCK', note: 'please send as friends & family to save fees, i ship same day promise', typology: 'Buyer Scam', rules: ['“Pay as friends & family” (deterministic)', '40% over market: $460 vs median $318 (Channel3)'] },
+      shield: 'BLOCK', note: 'please send as friends & family to save fees, i ship same day promise', typology: 'Buyer Scam', rules: ['“Pay as friends & family” (deterministic)', '40% over market: $460 vs median $318 (market prices)'] },
     { id: 'D-0198', module: 'shield', kind: 'purchase', side: 'buyer', cp: 'pixel', agent: 'sourcing', item: 'Monitor stand, walnut (2)', ref: 'stand',
       amount: 140, state: 'HOLD', sub: '59% over market median · new counterparty, first seen today', pending: 'release', money: 'none — held before any PayPal call', when: 'Thu 13:12', day: 'Thu', rec: 'n/a',
-      shield: 'HOLD', note: 'Two walnut stands, ships Monday. Thanks!', rules: ['Over 1.4 × market median: $70 vs $44 (Channel3) → HOLD', 'New counterparty: first_seen today and amount > $100 (alone this would ASK)'], silence: 'the request lapses at 20:00 · nothing is paid' },
+      shield: 'HOLD', note: 'Two walnut stands, ships Monday. Thanks!', rules: ['Over 1.4 × market median: $70 vs $44 (market prices) → HOLD', 'New counterparty: first_seen today and amount > $100 (alone this would ASK)'], silence: 'the request lapses at 20:00 · nothing is paid' },
 
     { id: 'D-0188', module: 'rescue', kind: 'rescue', side: 'seller', cp: 'S-14', agent: 'rescue', item: 'Care plan · subscriber S-14', ref: 'care-plan',
       amount: 9.6, state: 'FAILED', sub: 'renewal failed ×1 · PayPal retries in 4 d · suggested −20% this cycle', pending: 'lever', money: 'none — no invoice exists yet', when: 'Thu 06:00', day: 'Thu', rec: 'n/a', replay: true,
