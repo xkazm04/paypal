@@ -352,7 +352,8 @@ fn host(f: &CheckFacts<'_>) -> ApprovalCheck {
                     Pass,
                     "The PayPal link goes to PayPal’s own sandbox site.".into(),
                     format!(
-                        "approve link host {host} over https; allowlist www.sandbox.paypal.com"
+                        "approve link host {host} over https; allowlist {}",
+                        table_proto::APPROVAL_HOST
                     ),
                 ),
                 Err(_) => line(
@@ -364,7 +365,8 @@ fn host(f: &CheckFacts<'_>) -> ApprovalCheck {
                         "The PayPal link doesn’t go to PayPal’s own site.".into()
                     },
                     format!(
-                        "approve link host {host} refused: the allowlist is https://www.sandbox.paypal.com (port 443, no credentials, no fragment) in sandbox mode"
+                        "approve link host {host} refused: the allowlist is https://{} (port 443, no credentials, no fragment) in sandbox mode",
+                        table_proto::APPROVAL_HOST
                     ),
                 ),
             }
@@ -373,7 +375,10 @@ fn host(f: &CheckFacts<'_>) -> ApprovalCheck {
             id,
             Wait,
             "The PayPal link is checked when the order is made.".into(),
-            "no approval link yet; making the order verifies the link is on the allowlist (www.sandbox.paypal.com)".into(),
+            format!(
+                "no approval link yet; making the order verifies the link is on the allowlist ({})",
+                table_proto::APPROVAL_HOST
+            ),
         ),
         Ok(None) => line(
             id,

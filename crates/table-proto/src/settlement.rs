@@ -22,11 +22,14 @@ impl VerifiedApprovalUrl {
         self.0.as_str()
     }
 }
+/// The one host a PayPal approval link may name (https, port 443, sandbox mode). The approval
+/// checklist states this host from here, so what it tells the owner is the rule applied below.
+pub const APPROVAL_HOST: &str = "www.sandbox.paypal.com";
 pub fn approval_url(raw: &str, mode: Mode) -> Result<VerifiedApprovalUrl, SettlementError> {
     let url = Url::parse(raw).map_err(|_| SettlementError::Host)?;
     if mode == Mode::Replay
         || url.scheme() != "https"
-        || url.host_str() != Some("www.sandbox.paypal.com")
+        || url.host_str() != Some(APPROVAL_HOST)
         || !url.username().is_empty()
         || url.password().is_some()
         || url.port().is_some_and(|p| p != 443)
@@ -106,7 +109,7 @@ mod tests {
     use super::*;
     #[test]
     fn an_order_approval_link_is_bound_to_its_own_order_on_the_paypal_host() {
-        let host = "https://www.sandbox.paypal.com";
+        let host = format!("https://{APPROVAL_HOST}");
         let ok = order_approval_url(
             &format!("{host}/checkoutnow?token=ORDER1"),
             "ORDER1",
