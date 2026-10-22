@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Clause } from '@bindings/Clause';
 import type { Deal } from '@bindings/Deal';
+import type { DealState } from '@bindings/DealState';
 import type { TranscriptStep } from '@bindings/TranscriptStep';
 import { unconfirmedMeans } from '../../../lib/words';
+import { stripFor } from '../logic';
 import { buildMockState, usd } from '../../../mock/fixtures';
 import {
   attestOf, CLAUSE_NUMBER, envelopeLink, evidenceLabel, latestText, mayWithdraw, milestones, mirrorStrip, readClauses, reconciliationLabel,
@@ -219,5 +221,19 @@ describe('statementLabel: an ended deal is not a delay', () => {
   });
   it('RECEIPTED with pending_reporting is the plain delay line', () => {
     expect(statementLabel('RECEIPTED', { reconciliation: 'pending_reporting', statement_unmatched: true })).toEqual(reconciliationLabel('pending_reporting'));
+  });
+});
+
+describe('mirrorStrip and stripFor read one set of strip tables (logic.ts)', () => {
+  const STATES: DealState[] = ['PAIRING', 'LISTED', 'NEGOTIATING', 'AGREED', 'SETTLING', 'AWAITING_APPROVAL', 'APPROVED', 'AUTHORIZED', 'CAPTURED', 'RECEIPTED', 'RECONCILED', 'WITHDRAWN', 'EXPIRED', 'REFUSED', 'MISMATCH', 'FAILED', 'VOIDED', 'AUTO_VOIDED', 'REFUNDED', 'DISPUTED', 'UNCONFIRMED'];
+  const KINDS: Deal['kind'][] = ['haggle', 'purchase', 'shop_order', 'rescue', 'invoice'];
+  it('agree on every step of every state x kind x side', () => {
+    for (const kind of KINDS) for (const side of ['buyer', 'seller'] as const) for (const state of STATES) {
+      const d = mk({ kind, side, state, shield: null, decided_by: null });
+      const mirror = mirrorStrip(d);
+      const all = stripFor(d);
+      const strip = mirror.term ? all.slice(0, -1) : all;
+      expect(mirror.steps.map((s) => [s.key, s.status]), `${kind}/${side}/${state}`).toEqual(strip.map((s) => [s.state, s.status]));
+    }
   });
 });
