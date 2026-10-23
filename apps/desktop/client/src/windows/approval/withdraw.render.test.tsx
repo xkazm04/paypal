@@ -79,7 +79,7 @@ describe('W7: the withdraw confirmation in the approval window', () => {
     await waitFor(() => expect(sheet('D-0193')).not.toBeNull());
     fireEvent.click(screen.getByRole('button', { name: 'Withdraw now' }));
     await waitFor(() => expect(sent('deal_withdraw')).toHaveLength(1));
-    expect(sent('deal_withdraw')[0].args).toEqual({ deal_id: deal.id });
+    expect(sent('deal_withdraw')[0]?.args).toEqual({ deal_id: deal.id });
     await waitFor(() => expect(real.world.deal('D-0193')!.deal.state).toBe('WITHDRAWN'));
     expect(h.calls.filter((c) => NO_HELLO.has(c.cmd))).toHaveLength(0);
     expect(sheet('D-0193')).toBeNull();
