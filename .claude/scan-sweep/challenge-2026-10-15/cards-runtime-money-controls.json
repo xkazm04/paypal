@@ -1,0 +1,193 @@
+{
+  "host": "runtime-money-controls",
+  "files_read": [
+    "crates/table-runtime/src/limits.rs",
+    "crates/table-runtime/src/policy.rs",
+    "crates/table-runtime/src/rescue.rs",
+    "crates/table-runtime/src/safety.rs",
+    "crates/table-runtime/src/proof.rs",
+    "crates/table-runtime/src/witness.rs",
+    "crates/table-runtime/src/history.rs",
+    "crates/table-runtime/src/forecast.rs",
+    "crates/table-runtime/src/simulate.rs",
+    "crates/table-runtime/src/groups.rs",
+    "crates/table-verify/src/lib.rs",
+    "crates/table-verify/src/v2.rs",
+    "crates/table-verify/src/safety.rs",
+    "crates/table-verify/src/main.rs",
+    "crates/table-verify/src/acceptance_main.rs",
+    "crates/table-attention/src/forecast.rs",
+    "crates/table-attention/src/lib.rs (structure)",
+    "crates/table-attention/src/{silence,quit,schedule,placement}.rs (structure)",
+    "crates/table-paypal/src/{client,secondary,http,types,lib}.rs (structure + money paths)",
+    "crates/table-app/src/agent.rs:360-470 (mandate_check_rounds, envelope_check)",
+    "crates/table-core/src/exposure.rs:27-360",
+    "crates/table-app/tests/gauntlet.rs:2095-2200",
+    "crates/table-client/src/lib.rs:285-360",
+    "crates/table-client/src/authority_table.rs:261-263",
+    "apps/desktop/client/src/windows/approval/owner/WalletLimits.tsx:1-110",
+    "apps/desktop/src-tauri/src/native/commands.rs:505-530",
+    "docs/concepts/moonshot-backlog.md",
+    "docs/build/STATUS.md (headings; T12, T14, ops-and-delivery-1 slice 2 sections)",
+    "docs/build/DECISIONS.md (headings; sections 3, 4, 11, 40)",
+    "AGENTS.md:64-73"
+  ],
+  "cards": [
+    {
+      "context": "offline-proof-verifier",
+      "slot": "A",
+      "lens": "architecture-challenger",
+      "title": "One money-authority rule in table-verify: the public verifier stops being laxer",
+      "size": "M",
+      "effort": 5,
+      "impact": 8,
+      "risk": 5,
+      "write_set": [
+        "crates/table-verify/src/authority.rs",
+        "crates/table-verify/src/lib.rs",
+        "crates/table-verify/src/safety.rs",
+        "crates/table-verify/src/v2.rs"
+      ],
+      "new_files": ["crates/table-verify/src/authority.rs"],
+      "file_kinds": {
+        "crates/table-verify/src/authority.rs": "hand-edited",
+        "crates/table-verify/src/lib.rs": "hand-edited",
+        "crates/table-verify/src/safety.rs": "hand-edited",
+        "crates/table-verify/src/v2.rs": "hand-edited"
+      },
+      "shared_surfaces": ["table-verify public API used by crates/table-app/tests/gauntlet.rs (safety::deal_violations / ledger_violations signatures kept)", "in-app proof check (crates/table-client/src/lib.rs:930 verify_bundle)"],
+      "acceptance": [
+        "Buyer Purchase bundle (clause 6 threshold 15.00, amount 10.00) whose operations hold create decided_by Policy{clause:6} -> verify_bundle's 'authority' check ok=false and its detail names the Purchase kind (today ok=true via lib.rs lawful, while safety::unlawful already flags it)",
+        "Seller Haggle bundle, operation capture decided_by SellerMandate{own mandate hash}, no deal.transition row to APPROVED before its money.authorized row -> 'authority' ok=false, detail says the buyer had not approved at PayPal (today ok=true)",
+        "Seller Haggle bundle, operation void decided_by HouseMandate{own mandate hash} -> 'authority' ok=false (today ok=true: lib.rs accepts a house mandate for any operation)",
+        "Seller Haggle bundle under the threshold, operation void decided_by Policy{clause:6} -> 'authority' ok=false (today ok=true: lib.rs clause-6 branch never looks at the operation)",
+        "v2 bundle, operation void decided_by Human{at} with no earlier owner.decision row -> 'authority' ok=false; the same bundle with an earlier owner.decision {decision:'deal_void', decided_by: same Human} -> ok=true (today ok=true both ways; owner_saw skips voids)",
+        "v1 bundle (format PROOF_FORMAT_V1) with a Human capture inside the mandate's validity and no owner.decision row -> 'authority' still ok=true (no new demand on first-format files)",
+        "A stored call POST /v2/payments/authorizations/A1/capture?x=1 -> classified 'unclassified' by BOTH the verifier and safety::money_kind (today money_kind says capture and lib.rs says unclassified; the wallet never builds a query on a money POST)",
+        "Agreement property over every operation {create, authorize, capture, void, invoice-create, invoice-send, refund} x every DecidedBy variant x side x kind {Purchase, Haggle, ShopOrder, Rescue} x APPROVED row present/absent x owner.decision present/absent -> safety::unlawful(b, op).is_none() == the verifier's per-operation verdict; and every bundle the existing proof_tests / glass_tests / ladder_tests export still reads VERIFIED"
+      ],
+      "premise": [
+        "crates/table-verify/src/lib.rs:268 - `fn lawful` is the verifier's authority rule, used by `closed` (:251) and `authority` (:350)",
+        "crates/table-verify/src/lib.rs:279-290 - the clause-6 branch checks only the threshold: no deal-kind check and no operation check",
+        "crates/table-verify/src/lib.rs:292-297 - Human is lawful when its time lies in the mandate's validity; no owner.decision row is looked for",
+        "crates/table-verify/src/lib.rs:299-315 - SellerMandate and HouseMandate pass for any operation; no APPROVED-before check",
+        "crates/table-verify/src/lib.rs:319-335 - `operation_of` splits the raw path (no query strip)",
+        "crates/table-verify/src/safety.rs:74-91 - `money_kind`, a second copy of the same path table, strips the query (:78)",
+        "crates/table-verify/src/safety.rs:94-102 - `owner_decision_fits` maps void to deal_void",
+        "crates/table-verify/src/v2.rs:43-50 - `decision_fits`, a third copy, whose fallback arm accepts any of three decisions",
+        "crates/table-verify/src/safety.rs:109-202 - `unlawful`, a second encoding of the AGENTS.md authority rule: clause 6 only on a Haggle money step (:146-157), Human needs an earlier owner.decision (:164-176), seller/house only create (house) or authorize/capture after APPROVED (:177-199)",
+        "crates/table-verify/src/safety.rs:272-286 - the safety predicate also runs verify_bundle, so the stricter rule wins in-app while the public CLI (main.rs:87) and the in-app proof check (crates/table-client/src/lib.rs:930) use only the laxer one",
+        "docs/build/STATUS.md:1802 - the predicate was 'moved out of the gauntlet unchanged' beside the verifier, which is how the second copy arrived",
+        "crates/table-runtime/src/service.rs:37 - the owner's void decision is named deal_void (and service.rs:513 writes owner.decision), so case 5 matches what the wallet records"
+      ],
+      "rollback": "Four files in one crate, no format or schema change: revert the commit series; the old lawful/unlawful pair comes back unchanged and no stored bundle is rewritten.",
+      "gate": "policy-tighten",
+      "test_commands": [
+        "cargo test -p table-verify",
+        "cargo test -p table-app --test gauntlet",
+        "cargo test -p table-runtime proof_tests glass_tests ladder_tests safety_tests"
+      ],
+      "runner_up": "Typed AuditAction enum in table-ledger replacing the source-scraping test (history.rs:577-614 greps 22 files for `action: \"`) and the string BOOKKEEPING list (history.rs:122-151).",
+      "adopts": null,
+      "body": "## Summary\nThe money-authority rule that AGENTS.md states once is coded three times inside table-verify, and the copy the public verifier runs is the laxest. Fold them into one `authority.rs`: a closed `MoneyOp` (with the one path classifier) and one `judge(bundle, op) -> Result<why, why_not>` that both `verify_bundle` and the safety predicate call.\n\n## Description\n`lib.rs` `lawful` (:268) passes a clause-6 countersign on a Purchase, a seller mandate capture before the buyer approved, and a house mandate void. `safety.rs` `unlawful` (:109) refuses all three. Both sit in the same crate. The in-app safety record runs both, so the stricter one wins there. The judge-facing `table-verify` CLI and the in-app 'Check a proof file' (DECISIONS section 11) run only `lawful`, so a file can read VERIFIED when the wallet's own safety record would name a break in it. The path classifier (`operation_of` vs `money_kind`) and the owner-decision map (`decision_fits` vs `owner_decision_fits`) are also duplicated and already differ. The independent reading that matters, the verifier against table-app's pipeline, is kept. Only the verifier's copies of itself are merged.\n\n## Flow\n- Add `authority.rs`: `MoneyOp` {Create, Authorize, Capture, Void, InvoiceCreate, InvoiceSend} with `classify(method, path) -> Read | Op | Unclassified` (a query on a money POST is Unclassified), `decision_fits(decision, op)` and `judge(bundle, op_name, decided_by, reserved_seq)`, which is the conjunction of today's two rules. The owner.decision demand applies only on v2 files.\n- `lib.rs` `closed`/`authority` call `judge`; `lawful`/`operation_of` are deleted.\n- `safety.rs` `unlawful` and `money_kind` become thin wrappers so gauntlet.rs is unchanged; `owner_decision_fits` is deleted.\n- `v2.rs` uses the shared classifier and `decision_fits`.\n\n## Expected impact\nThe verifier a judge runs is exactly as strict as the gauntlet. This is the 'provable, not just trusted' claim of T1/ops-and-delivery-1. A future authority (a new DecidedBy or operation) is then added in one match, and every reader gets it.\n\n## Evaluation\nClaim: one rule, and the public verifier is no laxer than the safety predicate.\nBefore: 0 of 8 acceptance cases pass (cases 1-5 read ok=true; case 7 disagrees between the two classifiers; case 8's property fails on cases 1-5).\nAfter: 8 of 8 (predicted)\nMethod: simulation - walked lawful() against unlawful() for each DecidedBy branch (lib.rs:276-316 vs safety.rs:131-201) and the two path tables (lib.rs:323-334 vs safety.rs:78-90); the gate rung is the builder's.\nResult: better\nGate: policy-tighten. The offline verifier refuses more. No real wallet bundle changes verdict, because the gauntlet already holds every session to `unlawful` (STATUS.md:1762-1767), and v1 files keep their rule for Human steps. The safety.rs:424-427 assertion that a query'd capture is 'capture' is reversed on purpose.",
+      "evidence": "crates/table-verify/src/lib.rs:279-290  DecidedBy::Policy { clause: 6 } => { ... if under { Ok(..) } }      // no kind, no op check\ncrates/table-verify/src/lib.rs:299-305  SellerMandate => if deal.side == Seller && hash == open  -> Ok   // any op, no APPROVED\ncrates/table-verify/src/lib.rs:306-315  HouseMandate  => if Seller && Haggle && hash == open  -> Ok      // any op\ncrates/table-verify/src/safety.rs:146-157  !money_step -> 'clause-6 rule decided a {name}'; kind != Haggle -> refused\ncrates/table-verify/src/safety.rs:177-199  'create' if house => None; 'authorize'|'capture' if approved => None; else refused\ncrates/table-verify/src/safety.rs:164-176  Human -> needs earlier owner.decision with a fitting decision\ncrates/table-verify/src/lib.rs:323 vs safety.rs:78  query not stripped vs stripped\ncrates/table-verify/src/v2.rs:43-50 vs safety.rs:94-102  two decision maps (void: deal_void only in safety.rs)\ncrates/table-verify/src/main.rs:87, crates/table-client/src/lib.rs:930  -> verify_bundle only (the laxer rule)"
+    },
+    {
+      "context": "runtime-money-controls",
+      "slot": "B",
+      "lens": "ux-elevation",
+      "title": "Wallet-limits what-if: see which past purchases new limits would stop, then sign",
+      "size": "L",
+      "effort": 6,
+      "impact": 7,
+      "risk": 5,
+      "write_set": [
+        "crates/table-runtime/src/simulate.rs",
+        "crates/table-runtime/src/limits.rs",
+        "crates/table-runtime/src/simulate_tests.rs",
+        "crates/table-runtime/src/authority_tests.rs",
+        "crates/table-runtime/src/actor.rs",
+        "crates/table-runtime/src/dispatcher.rs",
+        "crates/table-client/src/lib.rs",
+        "crates/table-client/src/authority_table.rs",
+        "crates/table-client/src/authority.rs",
+        "apps/desktop/src-tauri/src/native/commands.rs",
+        "apps/desktop/src-tauri/src/native.rs",
+        "apps/desktop/client/src/windows/approval/owner/WalletLimits.tsx",
+        "apps/desktop/client/src/mock/backend.ts",
+        "bindings/EnvelopeSimulateArgs.ts",
+        "bindings/CommandContract.ts",
+        "bindings/authority.ts",
+        "apps/desktop/src-tauri/capabilities/approval.json"
+      ],
+      "new_files": ["bindings/EnvelopeSimulateArgs.ts"],
+      "file_kinds": {
+        "crates/table-runtime/src/simulate.rs": "hand-edited",
+        "crates/table-runtime/src/limits.rs": "hand-edited",
+        "crates/table-runtime/src/simulate_tests.rs": "hand-edited",
+        "crates/table-runtime/src/authority_tests.rs": "hand-edited",
+        "crates/table-runtime/src/actor.rs": "hand-edited",
+        "crates/table-runtime/src/dispatcher.rs": "hand-edited",
+        "crates/table-client/src/lib.rs": "hand-edited",
+        "crates/table-client/src/authority_table.rs": "hand-edited",
+        "crates/table-client/src/authority.rs": "hand-edited (PINNED_MANIFEST, deliberately)",
+        "apps/desktop/src-tauri/src/native/commands.rs": "hand-edited",
+        "apps/desktop/src-tauri/src/native.rs": "hand-edited (generate_handler!)",
+        "apps/desktop/client/src/windows/approval/owner/WalletLimits.tsx": "hand-edited",
+        "apps/desktop/client/src/mock/backend.ts": "hand-edited",
+        "bindings/EnvelopeSimulateArgs.ts": "generated-by-generate-bindings (regen: cargo run -p table-client --bin generate-bindings)",
+        "bindings/CommandContract.ts": "generated-by-generate-bindings (regen: cargo run -p table-client --bin generate-bindings)",
+        "bindings/authority.ts": "generated-by-generate-bindings (regen: cargo run -p table-client --bin generate-bindings)",
+        "apps/desktop/src-tauri/capabilities/approval.json": "generated-by-generate-bindings (regen: cargo run -p table-client --bin generate-bindings)"
+      },
+      "shared_surfaces": ["authority table row + PINNED_MANIFEST (permissions fingerprint carried in every proof bundle)", "generated bindings / capability files", "generate_handler! list", "mock backend command map"],
+      "acceptance": [
+        "Three buyer purchases agreed on one UTC day ($40, $50, $60, agreement order as listed), no limits signed; envelope_simulate(draft {max_out_day $1000, max_held $1000, max_deals_day 2, expires now+30d}) -> 3 lines in agreement order; before = allow on all; after = allow, allow, refuse{clause:0, reason contains 'deals agreed today'}",
+        "Same ledger, draft max_out_day $80 (others wide) -> after = allow, refuse{clause:0, reason contains 'paid out today'}, refuse{clause:0} (judged per deal with exposure_for_deal at its own agreement place, as envelope_check does)",
+        "A seller deal agreed in the window -> no line for it (money in is never limited, as WalletEnvelope::check allows the seller side)",
+        "Draft with max_deals_day 0 or max_held in another currency -> REFUSED with the same message envelope_sign gives for it, and no line is replayed",
+        "Limits in force {max_deals_day 1} and two purchases agreed the same day that the mandate allows; mandate_simulate(draft = the in-force mandate unchanged) -> the second line's before and after are refuse{clause:0, ...}, equal to Wallet::check_mandate's live verdict (today both read allow)",
+        "envelope_simulate writes nothing and signs nothing: next_envelope_version, audit_count and the PayPal call count are unchanged after it",
+        "envelope_simulate from the approval window with no token and locked -> answered; from main or tumbler -> refused by the authority row (approval, Read, OPEN), matching mandate_simulate's row"
+      ],
+      "premise": [
+        "crates/table-runtime/src/limits.rs:11-48 - sign_envelope validates and signs; nothing previews what the new limits would have done",
+        "apps/desktop/client/src/windows/approval/owner/WalletLimits.tsx:84-92 - the limits sheet's gold button calls envelope_sign directly; the owner picks three numbers with only today's meters (:53-62)",
+        "crates/table-runtime/src/simulate.rs:76-88 - the mandate what-if's verdict is MandatePayload::check plus check_offer only",
+        "crates/table-app/src/agent.rs:424 - the live mandate check also runs envelope_check after the mandate allows, so the what-if says allow where the pipeline refuses",
+        "crates/table-runtime/src/simulate.rs:30-38 - role_of re-encodes agent.rs:385-390 by hand ('as table-app mandate_check_rounds'), the same drift that left the envelope out",
+        "crates/table-core/src/exposure.rs:170-188 - exposure_for_deal judges a deal at its own agreement place, so the replay can reuse it as is",
+        "crates/table-core/src/exposure.rs:303-360 - WalletEnvelope::check is pure and only refuses, and lets the seller side through",
+        "crates/table-client/src/authority_table.rs:261-263 - mandate_simulate is an approval Read OPEN row; envelope_sign is Owner PRIVILEGED",
+        "docs/build/STATUS.md:1540 - T14 'Left' lists 'after this: $X of $Y today' on a buyer decision, not a before-signing replay; T12 (STATUS.md:1485-1497) replays mandates only"
+      ],
+      "rollback": "Revert the series: the authority row, PINNED_MANIFEST and the generated bindings/capabilities return together through generate-bindings; no ledger schema or migration is touched, and the command writes nothing, so no data needs undoing.",
+      "gate": "contract",
+      "test_commands": [
+        "cargo test -p table-runtime simulate_tests",
+        "cargo test -p table-runtime authority_tests",
+        "cargo test -p table-client",
+        "pnpm --dir apps/desktop/client exec vitest run src/mock/authority.test.ts"
+      ],
+      "runner_up": "Safety record that acts: each SafetyViolation (safety.rs:84-88 carries deal_id) opens that deal's Rewind at the offending seq and offers 'Export proof' (proof.rs:13), instead of a read-only list.",
+      "adopts": null,
+      "body": "## Summary\nThe owner signs wallet limits blind. The app already holds every buyer deal it would have judged, plus the exact pure check (`exposure_for_deal` + `WalletEnvelope::check`). Add `envelope_simulate`: the draft limits replayed over the last 7 days of purchases, before and after, shown above 'Sign with your owner key'. Fix the mandate what-if too: it claims 'allow' where the limits in force refuse.\n\n## Description\nT12 gave mandates a what-if. The wallet-wide limits (T14) sit above every mandate and can only refuse, but the sheet that sets them (WalletLimits.tsx:71-92) shows only today's meters. An owner choosing '2 deals a day' cannot tell that it would have stopped three of last Tuesday's purchases. The same gap makes the existing mandate what-if wrong: `simulate.rs` verdicts stop at `MandatePayload::check`, while the live `mandate_check_rounds` goes on to `envelope_check` (agent.rs:424). Any line the limits would refuse reads 'allow'. The new command reuses `SimulatedLine`/`MandateSimulation` (the verdict is `refuse{clause:0, reason}`, already the envelope's clause number), so the client renders it with the what-if components it already has.\n\n## Flow\n- `limits.rs`: pull the payload build and validation out of `sign_envelope` (`draft_envelope`) so the what-if refuses exactly as signing does.\n- `simulate.rs`: `envelope_simulate(args)` over buyer deals in [from, to]. Per deal it uses `exposure_for_deal` at the deal's agreement place: `before` is the in-force envelope (none means allow), `after` is the draft. `mandate_simulate`'s two verdicts then also pass the in-force envelope when the mandate allows.\n- The IPC row (approval, Read, OPEN), Action, dispatcher and shell handler; `generate-bindings`; PINNED_MANIFEST updated deliberately (AGENTS.md:64-73).\n- WalletLimits sheet: a debounced what-if under the three fields: 'These limits would have stopped 2 of 9 purchases this week', listing only the changed lines. The mock mirrors it.\n\n## Expected impact\nA blind, high-stakes number becomes an informed one, and the Rules what-if stops overclaiming. Demo beat: drag 'deals a day' to 2 and watch Tuesday's third purchase turn coral before signing.\n\n## Evaluation\nClaim: the owner sees, before signing, every recorded purchase the new limits would refuse, and the rules what-if matches the live verdict under limits.\nBefore: 0 of 7 acceptance cases pass (no envelope_simulate; case 5 reads allow)\nAfter: 7 of 7 (predicted)\nMethod: simulation - walked three same-day purchases through exposure_for_deal (exposure.rs:170-188) and check (:303-360) for max_deals_day 2 and max_out_day $80; the gate rung is the builder's.\nResult: better\nGate: contract (a new in-repo IPC command; no external consumer). Note: DECISIONS section 40 item 6 froze IPC for the console rebuild. The coordinator should confirm that freeze ended with the rebuild.",
+      "evidence": "crates/table-runtime/src/simulate.rs:76-88   payload.check(&intent, usage, ..).and_then(|d| { if Rescue { check_offer(..)? } Ok(d) })   // no envelope\ncrates/table-app/src/agent.rs:422-424       // The wallet-wide limits sit above every mandate ... self.envelope_check(deal, now)?;\ncrates/table-runtime/src/limits.rs:24-34      payload.validate()...; if payload.expires <= now { Refusal(ENVELOPE_CLAUSE, ..) }\napps/desktop/client/src/windows/approval/owner/WalletLimits.tsx:86-91  const sign = async () => { ... s.call('envelope_sign', built.args, true) }\ncrates/table-core/src/exposure.rs:170   pub fn exposure_for_deal(deals, subject, currency, now)\ncrates/table-client/src/authority_table.rs:261  row(\"mandate_simulate\", APPROVAL, Read, OPEN, ANY, R)"
+    }
+  ],
+  "riders": [
+    {
+      "context": "offline-proof-verifier",
+      "checked": "lib.rs, v2.rs, safety.rs, main.rs, acceptance_main.rs read (house.rs/acceptance.rs skimmed); duplicated authority rule/classifier traced -> slot A card targets this rider"
+    },
+    {
+      "context": "attention-forecast-and-window-placement",
+      "checked": "forecast.rs read and lib/silence/quit/schedule/placement skimmed; the forecast already reuses the pipeline gate via step_allowed + binary search (runtime forecast.rs:121-154); the hand-mirrored deadlines (ORDER_CREATED_DEADLINE_SECS / AUTHORIZED_DEADLINE_SECS 'Mirrors pipeline.rs:534/683') are a real seam but S-sized, no card"
+    },
+    {
+      "context": "paypal-gateway",
+      "checked": "client.rs/secondary.rs money paths read; the path strings are a third copy of the verifier's classifier, but table-verify must stay free of table-paypal (offline verifier), so the merge stays inside table-verify; T10 ground-truth items are built or decided, no card"
+    }
+  ],
+  "never_repropose_checked": "Ruled out as overlaps: T1 bundle/verifier and ops-and-delivery-1 safety record (built; card A merges their two copies, adds no feature), T12 mandate what-if (built; card B adds the limits replay and fixes T12's missing envelope step), T14 envelope (built; its 'Left' item is a per-decision meter, not a before-signing replay), T4 forecast, T6 Rewind, T13/T16/T17 (not adopted)."
+}

@@ -1,0 +1,319 @@
+{
+ "agent-tool-surface": {
+  "name": "agent-tool-surface",
+  "group": "Agent Runtime",
+  "description": "Everything the LLM can touch: the MCP server with seven role/session/run/mandate-checked tools (no money-moving tool exists), the shield that screens untrusted counterparty/merchant text, and the shopper/negotiator/shield prompts.",
+  "files": [
+   "crates/table-mcp/src/lib.rs",
+   "crates/table-mcp/tests/server.rs",
+   "crates/table-shield/src/lib.rs"
+  ]
+ },
+ "attention-forecast-and-window-placement": {
+  "name": "attention-forecast-and-window-placement",
+  "group": "Money Pipeline & Persistence",
+  "description": "Pure, read-only projections that tell the owner what the wallet will do to each open deal if they do nothing (walk-away forecast), and the wording for the card's 'if you do nothing' silence line and the quit-confirm lines. It also holds the attention deadline ladder (when a ring breathes, when the one notification is due, snooze rules, when the puck goes quiet) and the logical-pixel window-form arithmetic (rest, tab, ticker, card, stack, handoff, welcome). Everything is computed from table-core deal state and the clock, with ts-rs generating the TypeScript bindings the client reads, and no function here moves money or carries owner authority.",
+  "files": [
+   "crates/table-attention/src/lib.rs",
+   "crates/table-attention/src/forecast.rs",
+   "crates/table-attention/src/placement.rs",
+   "crates/table-attention/src/quit.rs",
+   "crates/table-attention/src/schedule.rs",
+   "crates/table-attention/src/silence.rs"
+  ]
+ },
+ "design-system-styles": {
+  "name": "design-system-styles",
+  "group": "Client UI",
+  "description": "Defines the visual language shared by all three desktop windows (main, Tumbler, approval). The file tokens.css holds the only colour literals in two themes, dark (default) and light (PayPal palette), with fixed colour meanings: teal is your side, coral is the counterparty, gold needs you, green is settled, red is refused. base.css sets the 13px root, box-sizing and body defaults. ui.css is the `ui-` prefixed component baseline for indicative rows, tiles and chips and for detail layers, and is loaded once from src/lib/mount.tsx. The React wrappers live in src/shared/ui.",
+  "files": [
+   "apps/desktop/client/src/design/tokens.css",
+   "apps/desktop/client/src/design/base.css",
+   "apps/desktop/client/src/design/ui.css"
+  ]
+ },
+ "design-theme-and-copy": {
+  "name": "design-theme-and-copy",
+  "group": "Client UI",
+  "description": "Visual theme tokens, WCAG contrast checking, and the plain-language copy dictionary (`words.ts`, the largest file in the directory) used across the client UI. Tests cover contrast ratios, theme values, wording, and the house-record and run-words rendering. The `polish3` test is also here, on the assumption that it covers UI polish.",
+  "files": [
+   "apps/desktop/client/src/lib/theme.ts",
+   "apps/desktop/client/src/lib/theme.test.ts",
+   "apps/desktop/client/src/lib/contrast.ts",
+   "apps/desktop/client/src/lib/contrast.test.ts",
+   "apps/desktop/client/src/lib/words.ts",
+   "apps/desktop/client/src/lib/words.test.ts",
+   "apps/desktop/client/src/lib/runWords.test.tsx",
+   "apps/desktop/client/src/lib/houseRecord.test.tsx",
+   "apps/desktop/client/src/lib/polish3.test.ts"
+  ]
+ },
+ "house-seller-service": {
+  "name": "house-seller-service",
+  "group": "Network & Counterparties",
+  "description": "A deterministic hosted counterparty that sells to buyers and negotiates against a signed price floor and ask, so the house never counters below its floor. It exposes axum routes, a public scoreboard page, and CLI binaries for key publication, signing and release. Payment authority stays in the durable Rust pipeline (table-paypal, table-ledger). It reaches buyers through the rendezvous relay.",
+  "files": [
+   "services/house-seller/src/lib.rs",
+   "services/house-seller/src/main.rs",
+   "services/house-seller/src/environment.rs",
+   "services/house-seller/src/glass.rs",
+   "services/house-seller/src/hosted.rs",
+   "services/house-seller/src/routes.rs",
+   "services/house-seller/src/bin/house-public-key.rs",
+   "services/house-seller/src/bin/house-release.rs",
+   "services/house-seller/src/bin/house-sign.rs",
+   "services/house-seller/src/scoreboard/scoreboard.css",
+   "services/house-seller/src/scoreboard/scoreboard.js"
+  ]
+ },
+ "ipc-contract-and-authority-table": {
+  "name": "ipc-contract-and-authority-table",
+  "group": "Desktop Shell",
+  "description": "Defines the versioned IPC contract (commands, events, error codes, headers) between the Rust runtime and the desktop shell and browser UI. It also holds the authority table, a single source of truth for which window may call which command. A generate-bindings binary derives the TypeScript bindings, Tauri capability files, manifest fingerprint, attention-ladder schedule and role playbooks from it. A bindings test fails when a committed generated copy drifts. It depends on the table-core, table-proto, table-attention, table-engine, table-app, table-ledger and table-verify crates.",
+  "files": [
+   "crates/table-client/src/lib.rs",
+   "crates/table-client/src/authority.rs",
+   "crates/table-client/src/authority_table.rs",
+   "crates/table-client/src/ladder.rs",
+   "crates/table-client/src/playbooks.rs",
+   "crates/table-client/src/bin/generate-bindings.rs",
+   "crates/table-client/tests/bindings.rs"
+  ]
+ },
+ "market-data": {
+  "name": "market-data",
+  "group": "Agent Runtime",
+  "description": "Market reference data for haggling: cached market/Book lookups the agent may read, privileged native refresh, and live spikes against the external price source.",
+  "files": [
+   "crates/table-market/src/lib.rs",
+   "crates/table-market/tests/market.rs",
+   "crates/table-market/tests/spikes.rs",
+   "crates/table-runtime/src/market.rs"
+  ]
+ },
+ "native-shell": {
+  "name": "native-shell",
+  "group": "Desktop Shell",
+  "description": "Tauri 2 host: three windows (main, tumbler, approval) with per-label capabilities, privileged-command routing (IPC token + approval label + not idle-locked), targeted events, tray/hotkey/single-instance, surface placement, and OS credential prompt / Windows native helpers.",
+  "files": [
+   "apps/desktop/src-tauri/build.rs",
+   "apps/desktop/src-tauri/src/lib.rs",
+   "apps/desktop/src-tauri/src/main.rs",
+   "apps/desktop/src-tauri/src/native.rs",
+   "apps/desktop/src-tauri/src/native/commands.rs",
+   "apps/desktop/src-tauri/src/native/events.rs",
+   "apps/desktop/src-tauri/src/native/routing.rs",
+   "apps/desktop/src-tauri/src/native/surface.rs",
+   "apps/desktop/src-tauri/tests/capabilities.rs",
+   "crates/table-os/src/credential_prompt.rs",
+   "crates/table-os/src/lib.rs",
+   "crates/table-os/src/windows_native.rs"
+  ]
+ },
+ "offline-proof-verifier": {
+  "name": "offline-proof-verifier",
+  "group": "Money Pipeline & Persistence",
+  "description": "Lets an owner or third party independently check The Table's deal proof bundles (v1 and v2 formats) and the glass-box house ledger, without network, ledger or wallet keys. Every check runs even after an earlier failure, and a check with no supporting facts reads 'not checked' rather than passing. It also provides the whole-ledger money-authority safety predicate used by the hostile-agent gauntlet and the wallet's 'Your safety record', plus the acceptance-matrix CLI that maps tests to acceptance IDs for CI. It depends on table-core and table-proto, and uses ed25519 signature verification.",
+  "files": [
+   "crates/table-verify/src/lib.rs",
+   "crates/table-verify/src/main.rs",
+   "crates/table-verify/src/v2.rs",
+   "crates/table-verify/src/house.rs",
+   "crates/table-verify/src/safety.rs",
+   "crates/table-verify/src/acceptance.rs",
+   "crates/table-verify/src/acceptance_main.rs"
+  ]
+ },
+ "owner-mandate-config": {
+  "name": "owner-mandate-config",
+  "group": "Client UI",
+  "description": "Owner-only configuration in the approval window: editing and signing the mandate, wallet limits, templates, who/what rules, what-if simulation, and rescue levers with replay and watch. Draft and diff logic are pure modules with tests; signing goes through the gated sign sheet.",
+  "files": [
+   "apps/desktop/client/src/windows/approval/OwnerConfig.tsx",
+   "apps/desktop/client/src/windows/approval/MandateEditor.tsx",
+   "apps/desktop/client/src/windows/approval/mandateDraft.ts",
+   "apps/desktop/client/src/windows/approval/mandateDraft.test.ts",
+   "apps/desktop/client/src/windows/approval/templates.ts",
+   "apps/desktop/client/src/windows/approval/templates.test.ts",
+   "apps/desktop/client/src/windows/approval/owner.css",
+   "apps/desktop/client/src/windows/approval/ui.tsx",
+   "apps/desktop/client/src/windows/approval/owner/Lever.tsx",
+   "apps/desktop/client/src/windows/approval/owner/RescueReplay.tsx",
+   "apps/desktop/client/src/windows/approval/owner/RescueWatch.tsx",
+   "apps/desktop/client/src/windows/approval/owner/SignSheet.tsx",
+   "apps/desktop/client/src/windows/approval/owner/Templates.tsx",
+   "apps/desktop/client/src/windows/approval/owner/WalletLimits.tsx",
+   "apps/desktop/client/src/windows/approval/owner/WhatIf.tsx",
+   "apps/desktop/client/src/windows/approval/owner/WhoWhat.tsx",
+   "apps/desktop/client/src/windows/approval/owner/data.ts",
+   "apps/desktop/client/src/windows/approval/owner/diff.ts",
+   "apps/desktop/client/src/windows/approval/owner/diff.test.ts",
+   "apps/desktop/client/src/windows/approval/owner/levers.ts",
+   "apps/desktop/client/src/windows/approval/owner/replay.ts",
+   "apps/desktop/client/src/windows/approval/owner/replay.test.ts",
+   "apps/desktop/client/src/windows/approval/owner/simulation.ts",
+   "apps/desktop/client/src/windows/approval/owner/watch.ts",
+   "apps/desktop/client/src/windows/approval/owner/watch.test.ts",
+   "apps/desktop/client/src/windows/approval/owner/whatif.test.tsx"
+  ]
+ },
+ "paypal-gateway": {
+  "name": "paypal-gateway",
+  "group": "Money Pipeline & Persistence",
+  "description": "Typed PayPal REST client behind a trait: OAuth, Orders v2 create/authorize/capture/void, secondary endpoints (invoicing, tracking, payouts-like clients), HTTP layer and env-gated live sandbox spikes. Unverified endpoint facts are marked UNVERIFIED.",
+  "files": [
+   "crates/table-paypal/src/client.rs",
+   "crates/table-paypal/src/http.rs",
+   "crates/table-paypal/src/lib.rs",
+   "crates/table-paypal/src/secondary.rs",
+   "crates/table-paypal/src/types.rs",
+   "crates/table-paypal/tests/client.rs",
+   "crates/table-paypal/tests/spikes.rs"
+  ]
+ },
+ "prototype-dial-shell-and-design-system": {
+  "name": "prototype-dial-shell-and-design-system",
+  "group": "Client UI",
+  "description": "The 'Dial' home prototype (vault-dial hub with six module medallions, deal beads and a 'Needs you' decision queue) plus the shared design tokens, UI kit and shell script every prototype page reuses. The index and build-index.mjs assemble the gallery of page variants, and pages/BRIEF.md sets the brief each variant answers. Dark/Light theming flows from shared/tokens.css into all prototypes.",
+  "files": [
+   "prototype/build-index.mjs",
+   "prototype/main/fixtures.js",
+   "prototype/main/modules.css",
+   "prototype/main/modules.js",
+   "prototype/shared/shell.js",
+   "prototype/shared/tokens.css",
+   "prototype/shared/ui.css",
+   "prototype/shared/ui.js"
+  ]
+ },
+ "relay-and-rendezvous": {
+  "name": "relay-and-rendezvous",
+  "group": "Network & Counterparties",
+  "description": "Store-and-forward relay client and the hosted rendezvous service (axum-style HTTP) that lets two wallets on different machines exchange signed envelopes; Render deployment config.",
+  "files": [
+   "crates/table-relay/src/lib.rs",
+   "services/rendezvous/src/lib.rs",
+   "services/rendezvous/src/main.rs",
+   "services/rendezvous/tests/relay.rs"
+  ]
+ },
+ "rendezvous-relay": {
+  "name": "rendezvous-relay",
+  "group": "Network & Counterparties",
+  "description": "A bounded store-and-forward mailbox relay that lets counterparties exchange messages without a direct connection. It holds no signing keys or PayPal credentials. It enforces limits, timeouts and expiry, and an axum server layer handles connections. Integration tests cover relay behaviour and the serve layer.",
+  "files": [
+   "services/rendezvous/src/lib.rs",
+   "services/rendezvous/src/main.rs",
+   "services/rendezvous/src/serve.rs",
+   "services/rendezvous/tests/relay.rs",
+   "services/rendezvous/tests/serve.rs"
+  ]
+ },
+ "runtime-actor-and-engines": {
+  "name": "runtime-actor-and-engines",
+  "group": "Agent Runtime",
+  "description": "The runtime actor that serializes every command and agent intent, dispatches it through the authority table and mandate check, and schedules deadlines. It also hosts engine wiring (claude-code / codex-cli), credentials in the OS keychain, the vault, re-authorization, and the attention ladder. Depends on table-app, table-client, table-engine and table-attention, and its tests cover IPC authority, unlock, quit and deadline behavior.",
+  "files": [
+   "crates/table-runtime/src/lib.rs",
+   "crates/table-runtime/src/actor.rs",
+   "crates/table-runtime/src/dispatcher.rs",
+   "crates/table-runtime/src/scheduler.rs",
+   "crates/table-runtime/src/service.rs",
+   "crates/table-runtime/src/configuration.rs",
+   "crates/table-runtime/src/engines.rs",
+   "crates/table-runtime/src/credentials.rs",
+   "crates/table-runtime/src/vault.rs",
+   "crates/table-runtime/src/reauth.rs",
+   "crates/table-runtime/src/ladder.rs",
+   "crates/table-runtime/src/actor_runtime_tests.rs",
+   "crates/table-runtime/src/authority_tests.rs",
+   "crates/table-runtime/src/tests.rs",
+   "crates/table-runtime/src/client_tests.rs",
+   "crates/table-runtime/src/keys_and_unlock_tests.rs",
+   "crates/table-runtime/src/credentials_tests.rs",
+   "crates/table-runtime/src/ladder_tests.rs",
+   "crates/table-runtime/src/deadline_and_attention_tests.rs",
+   "crates/table-runtime/src/quit_tests.rs",
+   "crates/table-runtime/src/agent_surface_tests.rs"
+  ]
+ },
+ "runtime-money-controls": {
+  "name": "runtime-money-controls",
+  "group": "Money Pipeline & Persistence",
+  "description": "Owner-facing money controls in the runtime: spending limits, policy countersign, rescue levers, safety records, proofs, witnessing, history, forecasts, simulation and groups. It makes sure money moves only on an owner decision, a signed mandate rule, or a safe default. It builds on table-app, table-ledger and table-paypal, and its tests cover payment, H5 and glass flows, and the whole-ledger safety record via table-verify.",
+  "files": [
+   "crates/table-runtime/src/limits.rs",
+   "crates/table-runtime/src/policy.rs",
+   "crates/table-runtime/src/rescue.rs",
+   "crates/table-runtime/src/safety.rs",
+   "crates/table-runtime/src/proof.rs",
+   "crates/table-runtime/src/witness.rs",
+   "crates/table-runtime/src/history.rs",
+   "crates/table-runtime/src/forecast.rs",
+   "crates/table-runtime/src/simulate.rs",
+   "crates/table-runtime/src/groups.rs",
+   "crates/table-runtime/src/limits_tests.rs",
+   "crates/table-runtime/src/policy_tests.rs",
+   "crates/table-runtime/src/rescue_tests.rs",
+   "crates/table-runtime/src/safety_tests.rs",
+   "crates/table-runtime/src/proof_tests.rs",
+   "crates/table-runtime/src/history_tests.rs",
+   "crates/table-runtime/src/forecast_tests.rs",
+   "crates/table-runtime/src/simulate_tests.rs",
+   "crates/table-runtime/src/groups_tests.rs",
+   "crates/table-runtime/src/payment_tests.rs",
+   "crates/table-runtime/src/h5_tests.rs",
+   "crates/table-runtime/src/reached_paypal_tests.rs",
+   "crates/table-runtime/src/glass_tests.rs",
+   "crates/table-runtime/src/mandate_runtime_tests.rs",
+   "crates/table-runtime/src/checks_tests.rs"
+  ]
+ },
+ "spend-firewall-and-agent-policy": {
+  "name": "spend-firewall-and-agent-policy",
+  "group": "Agent Runtime",
+  "description": "Pure policy logic that bounds what agents can do with the owner's money. It covers wallet-wide exposure limits signed by the owner, market-watch price-check allowances, deterministic integer concession policies for negotiation, the approval-window checklist, the attention ladder evidence, rescue logic, and the closed views and role playbooks agents see. It takes inputs from the ledger and a caller-supplied clock. No free-text counterparty words can reach an agent through these types.",
+  "files": [
+   "crates/table-core/src/agent.rs",
+   "crates/table-core/src/agent_tests.rs",
+   "crates/table-core/src/checks.rs",
+   "crates/table-core/src/exposure.rs",
+   "crates/table-core/src/exposure_tests.rs",
+   "crates/table-core/src/ladder.rs",
+   "crates/table-core/src/market_watch.rs",
+   "crates/table-core/src/negotiation.rs",
+   "crates/table-core/src/rescue.rs"
+  ]
+ },
+ "table-wire-protocol": {
+  "name": "table-wire-protocol",
+  "group": "Network & Counterparties",
+  "description": "Defines Protocol v1, the closed, canonical wire messages that two parties (wallet, HOUSE agent, guests) exchange to negotiate and settle a deal. Messages are wrapped in Ed25519-signed compact JWS envelopes with size limits and replay checks. Pairing codes and identities, settlement/approval-link validation against the signed terms, offline-verifiable proof bundles (v1/v2), the release-pinned HOUSE trust anchor, and the public glass-box house ledger with a signed head all live here. It builds on table-core's canonical bytes, money and mandate types.",
+  "files": [
+   "crates/table-proto/src/lib.rs",
+   "crates/table-proto/src/envelope.rs",
+   "crates/table-proto/src/pairing.rs",
+   "crates/table-proto/src/settlement.rs",
+   "crates/table-proto/src/proof.rs",
+   "crates/table-proto/src/house.rs",
+   "crates/table-proto/src/house_ledger.rs",
+   "crates/table-proto/tests/protocol.rs"
+  ]
+ },
+ "wallet-domain-primitives": {
+  "name": "wallet-domain-primitives",
+  "group": "Money Domain",
+  "description": "The pure wallet domain model: currency-checked money in minor units, restricted identifiers, canonical (JCS plus SHA-256) serialization that is part of protocol v1, deals, mandates, market references and closed analytical queries. Everything is side-effect free, with time and id generation supplied by callers. Closed display shapes keep raw envelopes and peer prose from crossing IPC, and ts-rs exports the types to the client.",
+  "files": [
+   "crates/table-core/src/lib.rs",
+   "crates/table-core/src/money.rs",
+   "crates/table-core/src/ids.rs",
+   "crates/table-core/src/canonical.rs",
+   "crates/table-core/src/deal.rs",
+   "crates/table-core/src/mandate.rs",
+   "crates/table-core/src/market.rs",
+   "crates/table-core/src/book.rs",
+   "crates/table-core/src/display.rs"
+  ]
+ }
+}
