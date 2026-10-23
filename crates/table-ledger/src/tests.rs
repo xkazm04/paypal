@@ -3384,3 +3384,31 @@ fn reads_of_an_absent_counterparty_deal_or_offer_say_not_found() {
     );
     assert_eq!(ledger.settled_attempt(deal.id).unwrap(), 0);
 }
+#[test]
+fn an_exported_proof_carries_the_deal_mode_in_the_deal_the_file_and_the_created_audit_row() {
+    for (n, mode, text) in [
+        (4, Mode::Sandbox, "sandbox"),
+        (5, Mode::Replay, "replay"),
+        (6, Mode::ScriptedEngine, "scripted_engine"),
+    ] {
+        let (mut ledger, mut deal, owner, _, _) = setup();
+        deal.id = format!("0000000000000000000000000{n}").parse().unwrap();
+        deal.mode = mode;
+        ledger.create_deal(&deal, 101).unwrap();
+        let bundle = ledger
+            .export_proof(deal.id, &owner.public_key(), 200, None)
+            .unwrap();
+        assert_eq!(bundle.deal.mode, mode);
+        let file: serde_json::Value =
+            serde_json::from_str(&serde_json::to_string_pretty(&bundle).unwrap()).unwrap();
+        assert_eq!(file["deal"]["mode"], text);
+        let created: Vec<_> = bundle
+            .audit
+            .iter()
+            .filter(|row| row.action == "deal.created")
+            .collect();
+        assert_eq!(created.len(), 1);
+        let detail: serde_json::Value = serde_json::from_str(&created[0].detail_json).unwrap();
+        assert_eq!(detail["mode"], text);
+    }
+}
