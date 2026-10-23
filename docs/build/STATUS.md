@@ -2640,3 +2640,10 @@ Client run after the two new test files: `npx vitest run` 162 files / 1690 tests
 
 - 2026-10-19 **U3** verified offline: NoteChip.test.tsx (beside NoteChip.tsx) renders NoteText and NoteChip over the mock main backend with a hostile counterparty note; the note is literal text inside Quarantine, nothing is parsed into an element, no href exists, and the chip offers no action.
 - 2026-10-19 **S1** verified offline: review/market.render.test.tsx renders the approval window's Diff, MarketLine and MarketTrack over the mock's own deals: the price_over_market HOLD (above 1.4 x median) shows the shield's words, and a deal with no market reference shows the "skipped, not passed" sentence and is never drawn as passed. No production code changed.
+
+## Acceptance map reconcile (2026-10-23, round 4)
+
+Client run after the two new test files (worktree, `pnpm install --frozen-lockfile` in apps/desktop/client): `npx vitest run` 200 files / 1945 tests, all passed; `npx tsc --noEmit` clean. The new files: withdraw.render.test.tsx (5 tests) and routeRestore.test.tsx (2 tests). Neither row was already cited by a client test. The merge gate (cargo) does not run tsc or vitest.
+
+- 2026-10-23 **W7** verified offline: withdraw.render.test.tsx (beside DealReview.tsx) mounts the approval window over the mock backend. Withdraw and the W key open the "Withdraw <label>?" sheet with the no-Windows-Hello line; "Keep the deal" sends nothing; "Withdraw now" sends one deal_withdraw for that deal and no unlock; a deal that is not withdrawable has no Withdraw control. No production code changed.
+- 2026-10-23 **W1** client part verified offline: routeRestore.test.tsx unmounts and remounts the console (route kept in the URL hash, Console.tsx parseHash) and it returns to the same module and the same deal layer with the same crumbs. The interactive native close-to-tray and reopen is still pending, so the row is not marked fully verified.
