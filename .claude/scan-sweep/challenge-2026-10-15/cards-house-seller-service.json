@@ -1,0 +1,164 @@
+{
+  "host": "house-seller-service",
+  "files_read": [
+    "services/house-seller/src/lib.rs",
+    "services/house-seller/src/main.rs",
+    "services/house-seller/src/environment.rs",
+    "services/house-seller/src/glass.rs",
+    "services/house-seller/src/hosted.rs",
+    "services/house-seller/src/routes.rs",
+    "services/house-seller/src/bin/house-public-key.rs",
+    "services/house-seller/src/bin/house-release.rs",
+    "services/house-seller/src/bin/house-sign.rs",
+    "services/house-seller/src/scoreboard/index.html",
+    "services/house-seller/src/scoreboard/scoreboard.js",
+    "crates/table-relay/src/lib.rs",
+    "services/rendezvous/src/lib.rs",
+    "services/rendezvous/src/serve.rs (signatures)",
+    "crates/table-proto/src/house.rs",
+    "crates/table-proto/src/house_ledger.rs (head/prefix/compare_heads)",
+    "crates/table-proto/src/proof.rs (ProofHouse)",
+    "crates/table-proto/src/lib.rs",
+    "crates/table-runtime/src/relay.rs",
+    "crates/table-app/src/relay.rs",
+    "crates/table-ledger/src/relay.rs (finish_inbox, reject_inbox)",
+    "crates/table-app/src/pipeline/resolve.rs (resolve_deal, park)",
+    "docs/concepts/moonshot-backlog.md",
+    "docs/build/STATUS.md (headings, T9, Council open items, hosted relay rework, C-9b)",
+    "docs/build/DECISIONS.md (6, 12, 14, 16, 26, 33)"
+  ],
+  "cards": [
+    {
+      "context": "house-seller-service",
+      "slot": "A",
+      "lens": "architecture-challenger",
+      "title": "One relay inbox pass in table-app, used by both the wallet and the HOUSE",
+      "size": "M",
+      "effort": 6,
+      "impact": 7,
+      "risk": 5,
+      "write_set": [
+        "crates/table-app/src/relay.rs",
+        "crates/table-runtime/src/relay.rs",
+        "services/house-seller/src/hosted.rs",
+        "crates/table-runtime/src/house_tests.rs",
+        "crates/table-app/tests/inbox.rs",
+        "docs/build/DECISIONS.md",
+        "docs/build/STATUS.md"
+      ],
+      "new_files": ["crates/table-app/tests/inbox.rs"],
+      "file_kinds": {
+        "crates/table-app/src/relay.rs": "hand-edited",
+        "crates/table-runtime/src/relay.rs": "hand-edited",
+        "services/house-seller/src/hosted.rs": "hand-edited",
+        "crates/table-runtime/src/house_tests.rs": "hand-edited",
+        "crates/table-app/tests/inbox.rs": "hand-edited",
+        "docs/build/DECISIONS.md": "hand-edited",
+        "docs/build/STATUS.md": "hand-edited"
+      },
+      "shared_surfaces": ["table-app public API (Wallet methods)", "relay_inbox / envelope.rejected audit row shape (unchanged, now reached from two callers)"],
+      "acceptance": [
+        "HOUSE deal whose mailbox holds 5 junk (unverifiable) JWS in one generation -> after one Seller::tick: 5 relay_inbox rows status 'rejected' and exactly 1 'envelope.rejected' audit row for that deal with detail.count = 5 (today: 5 rows)",
+        "HOUSE tick with 3 junk messages for deal A and 2 for deal B (same generation each) -> exactly 2 'envelope.rejected' audit rows, counts 3 and 2",
+        "HOUSE inbound OFFER below the round's schedule price -> still recorded via record_declined_offer (one 'offer.declined' row), its inbox row 'applied', no 'envelope.rejected' row (behaviour preserved through the classify hook)",
+        "Wallet::drain_inbox with a classify closure that returns Retry(error) for message 2 of 3 -> message 2 stays 'pending', messages 1 and 3 are finished, no audit row is written for message 2, and the call returns that error",
+        "Wallet::drain_inbox over a message whose envelope hash is already stored -> marked 'applied' without the classify closure being called",
+        "Wallet::drain_inbox where receive returns LedgerError::Sql for a message -> that message stays 'pending' and the rejected rows collected so far are still written as one row per deal+generation only on the next pass (no partial audit row), matching runtime consume_inbox today",
+        "Existing table-runtime tests a_hostile_relay_batch_is_rejected_with_one_audit_row and a_hostile_relay_batch_for_two_deals_is_two_audit_rows pass unchanged after consume_inbox delegates to the shared pass"
+      ],
+      "premise": [
+        "services/house-seller/src/hosted.rs:653-687 - the HOUSE tick has its own inbox loop: pending_inbox, has_envelope_hash, receive, then finish_inbox(&message, accepted, now) per message",
+        "crates/table-ledger/src/relay.rs:285-286 - finish_inbox(accepted=false) calls reject_inbox with a slice of one, so every rejected HOUSE message is its own envelope.rejected audit row",
+        "crates/table-runtime/src/relay.rs:124-206 - the wallet's consume_inbox implements the same rule again (duplicate check, Sql/Integrity stop, accepted -> finish_inbox(true)) and groups rejections per deal+generation into reject_inbox at :185-201",
+        "docs/build/DECISIONS.md:928 - 'Open: C-9c. The HOUSE ... still writes one row per message'; docs/build/STATUS.md:2081 says it needs an inbox test harness",
+        "services/house-seller/src/hosted.rs:672-676 - a Sql/Integrity error returns Err(Unavailable) out of the whole tick, and :686 propagates a finish_inbox error with `?`, so negotiate (:688) and report_pending (:695) are skipped that tick",
+        "services/house-seller/src/hosted.rs:748-777 - the HOUSE-only rule (decline an off-schedule OFFER via record_declined_offer) is the one real difference and fits a per-message classify hook",
+        "crates/table-app/src/relay.rs:6 - Wallet::receive_relay already lives in table-app, which both table-runtime and house-seller depend on",
+        "services/house-seller/src/glass.rs:282 - every publish reads house_facts over the whole verified chain, so per-message junk rows grow the public HOUSE record and its once-a-minute verification cost"
+      ],
+      "rollback": "Three commits (table-app drain_inbox + tests; runtime consume_inbox delegates; HOUSE tick delegates + house_tests). Reverting the last two restores the two hand loops; the first is additive. No migration, no wire or audit-shape change.",
+      "gate": "architecture",
+      "test_commands": [
+        "cargo test -p table-app --test inbox",
+        "cargo test -p table-runtime house_tests::",
+        "cargo test -p table-runtime groups_tests::a_hostile_relay_batch"
+      ],
+      "runner_up": "Move HOUSE relay IO (create/poll/send per deal, hosted.rs:710-747) off the actor like runtime start_relay does, so 64 deliveries never hold a buyer's table request toward its 20 s REPLY_TIMEOUT.",
+      "adopts": "Closes open item C-9c (DECISIONS.md section 33 amendment; STATUS.md 'Scan C-9b'); not a moonshot card",
+      "body": "## Summary\nThe rule 'how a staged inbound envelope becomes applied or rejected' is implemented twice: once in the wallet runtime (batched, one audit row per deal+generation, C-9b) and once in the HOUSE tick (one audit row per message, tick-aborting on a ledger error). Move it into one `Wallet::drain_inbox(now, classify)` in table-app; both callers supply only their per-message policy.\n\n## Description\n`crates/table-app/src/relay.rs` gains `drain_inbox`, which owns: reading `pending_inbox`, the stored-hash duplicate shortcut, calling a caller-supplied `classify(&mut Wallet, &InboxMessage) -> Inbound {Apply, Reject, Retry(Error)}`, finishing applied rows, collecting rejected rows and writing them with `reject_inbox` once per deal+generation, and the Sql/Integrity stop. The runtime's closure keeps `select_signer` / `mandate_retired` / receipt pass-through; its `close_groups` call stays after the pass. The HOUSE's closure is today's `Seller::receive` (off-schedule OFFER -> `record_declined_offer`, else `receive_relay`). C-9c closes as a consequence, and the HOUSE gets the inbox test harness STATUS asked for.\n\n## Flow\n- table-app: add `Inbound` + `Wallet::drain_inbox`; tests in `crates/table-app/tests/inbox.rs` drive it over a real ledger.\n- runtime: `consume_inbox` becomes the closure + `drain_inbox` + `close_groups`.\n- HOUSE: the `pending_inbox` loop in `Seller::tick` becomes one `drain_inbox` call wrapped in `noted(\"inbox\", ...)`; a returned error is recorded as the tick's failure instead of returning early, so negotiate and report_pending still run.\n- house_tests: junk-batch and two-deal cases.\n\n## Expected impact\nOne place decides inbox accounting for every party; a future rule (C-9a-style caps, retired-mandate handling) lands once. The public HOUSE record stops growing one row per junk message a hostile buyer posts (up to 256 per mailbox generation).\n\n## Evaluation\nClaim: one inbox pass gives the HOUSE the wallet's batched rejection and removes the duplicated loop.\nBefore: 0 of 7 acceptance cases pass as written (cases 1, 2 fail on per-message rows; 4-6 have no shared API; 7 trivially passes but is the regression guard)\nAfter: 7 of 7 (predicted)\nMethod: simulation - walked hosted.rs:653-687 and ledger relay.rs:279-340 for cases 1-3, runtime relay.rs:124-206 for 4-7; the gate rung is the builder's\nResult: better\nGate: architecture (a new shared table-app API both binaries call; no wire, audit-shape or migration change)",
+      "evidence": "services/house-seller/src/hosted.rs:680-686\n    let finished = self.pipeline.wallet.ledger.finish_inbox(&message, accepted, now)...;\n    self.noted(\"inbox\", Some(id), finished)?;\ncrates/table-ledger/src/relay.rs:285-286\n    if !accepted { return self.reject_inbox(std::slice::from_ref(message), at); }\ncrates/table-runtime/src/relay.rs:182-201\n    // One audit row per deal and generation, not per message ... groups ... reject_inbox(group, ..)\ndocs/build/DECISIONS.md:928  Open: C-9c."
+    },
+    {
+      "context": "house-seller-service",
+      "slot": "B",
+      "lens": "ux-elevation",
+      "title": "Scoreboard as witness: prove the record extends your earlier look or kept head",
+      "size": "M",
+      "effort": 6,
+      "impact": 7,
+      "risk": 4,
+      "write_set": [
+        "services/house-seller/src/scoreboard/witness.js",
+        "services/house-seller/src/scoreboard/witness.test.mjs",
+        "services/house-seller/src/scoreboard/scoreboard.js",
+        "services/house-seller/src/scoreboard/index.html",
+        "services/house-seller/src/scoreboard/scoreboard.css",
+        "services/house-seller/src/routes.rs",
+        "services/house-seller/src/hosted.rs",
+        "crates/table-runtime/src/glass_tests.rs",
+        "docs/build/STATUS.md"
+      ],
+      "new_files": [
+        "services/house-seller/src/scoreboard/witness.js",
+        "services/house-seller/src/scoreboard/witness.test.mjs"
+      ],
+      "file_kinds": {
+        "services/house-seller/src/scoreboard/witness.js": "hand-edited",
+        "services/house-seller/src/scoreboard/witness.test.mjs": "hand-edited",
+        "services/house-seller/src/scoreboard/scoreboard.js": "hand-edited",
+        "services/house-seller/src/scoreboard/index.html": "hand-edited",
+        "services/house-seller/src/scoreboard/scoreboard.css": "hand-edited",
+        "services/house-seller/src/routes.rs": "hand-edited",
+        "services/house-seller/src/hosted.rs": "hand-edited",
+        "crates/table-runtime/src/glass_tests.rs": "hand-edited",
+        "docs/build/STATUS.md": "hand-edited"
+      },
+      "shared_surfaces": ["HOUSE public router (one new static asset route /house/witness.js)", "scoreboard localStorage key table-house-heads (shape widened, old entries still read)"],
+      "acceptance": [
+        "compareHeads(kept={epoch:E,rows:10,hash:H10}, later={epoch:E,rows:14}, prefix={epoch:E,row_count:10,audit_head:H10,within:14}) -> 'extends'; same with prefix.audit_head != H10 -> 'rewritten'; with no prefix -> 'longer' (mirrors table_proto::compare_heads, house_ledger.rs:139-171)",
+        "compareHeads with later.epoch != kept.epoch -> 'new_epoch'; later.rows < kept.rows -> 'shorter'; equal rows and equal hash -> 'same'",
+        "prefixToAsk(seen=[{E,rows:10},{E,rows:12}], cur={E,rows:14}) -> 12 (the newest earlier look in this epoch that is shorter); cur.rows == every seen rows -> null (no fetch)",
+        "keptHeadsFrom(text of a table.proof.v2 bundle with house.heads[2]) -> 2 signed heads, receipt flag kept; keptHeadsFrom(a bare SignedHouseHead JSON) -> 1 head; keptHeadsFrom(any other JSON or > 2 MiB) -> [] with reason 'not_a_head'",
+        "witnessVerdict for a kept head whose signature does not verify under view.release.agent_key -> 'bad_signature' and no prefix request is made",
+        "lookToSave(view.head) -> the full SignedHouseHead object (head + signature), so 'Save this look' downloads JSON that table-verify --head accepts; legacy stored looks {epoch,rows,hash,at,started} still load as kept heads without a signature (compare only, no export)",
+        "GET /house/witness.js -> 200, text/javascript, the scoreboard CSP header (glass_tests route case)"
+      ],
+      "premise": [
+        "services/house-seller/src/scoreboard/scoreboard.js:241-258 - checkHeads only flags a shorter record (:248) or two hashes at the same length (:249); a longer head that rewrote earlier rows passes as 'The record never got shorter'",
+        "services/house-seller/src/scoreboard/scoreboard.js:245 - a stored look keeps {epoch, rows, hash, at, started} only: no signature, so the look cannot be handed to the offline checker",
+        "services/house-seller/src/scoreboard/scoreboard.js:2 - the page fetches GET /v1/house/ledger and nothing else, although the house serves a signed prefix route",
+        "services/house-seller/src/hosted.rs:1078 - GET /v1/house/prefix is routed; services/house-seller/src/routes.rs:52 serves it from the actor's published chain",
+        "services/house-seller/src/routes.rs:20 - the scoreboard CSP already allows connect-src 'self', so the page may read the prefix route with no policy change",
+        "crates/table-proto/src/house_ledger.rs:139-171 - compare_heads already defines Same / Extends / Longer / NewEpoch / Shorter / Rewritten, which the wallet witness uses and the page does not",
+        "crates/table-proto/src/proof.rs:154-167 - a v2 proof bundle carries the HOUSE heads a wallet kept (ProofHouse.heads with receipt flag), which today only the CLI can compare against the live house",
+        "services/house-seller/src/scoreboard/index.html:85-87 - 'Check it yourself' is two downloads plus a CLI command; docs/build/STATUS.md:1570 records 'scoreboard head consistency covers only this browser's earlier looks' as a T9 deviation"
+      ],
+      "rollback": "Two commits (witness.js + node tests + asset route; scoreboard wiring). Reverting the second leaves an unused asset; reverting both restores the page byte-for-byte. Stored looks stay readable either way (new fields are additive).",
+      "gate": "none",
+      "test_commands": [
+        "node --test services/house-seller/src/scoreboard/witness.test.mjs",
+        "cargo test -p table-runtime glass_tests::"
+      ],
+      "runner_up": "Full-record mode: page through every published deal (up to LEDGER_CAP 500) before the verdict and offer one combined download, since today's checks and the 'Download the record' link cover only the first 100 deals (index.html:86).",
+      "adopts": "Closes the T9 deviation 'scoreboard head consistency covers only this browser's earlier looks' (STATUS.md:1570) and brings the T9 'peer-held head' approach (moonshot-backlog §1a, T9 'Not chosen now') to the page; not a restatement of the built scoreboard",
+      "body": "## Summary\nThe scoreboard claims 'The record never got shorter' but cannot tell a rewritten-then-extended record from an honest one, and a buyer holding the house's signed head (in their wallet or proof file) has no way to check it without installing the CLI. The house already signs prefixes for exactly this. Make the page a witness: each visit proves the current record extends the last look, any visitor can drop in a kept head or proof file and get Extends / Rewritten / New record in seconds, and any look can be saved as a signed head the offline checker accepts.\n\n## Description\nA pure `witness.js` (classic script, loaded before scoreboard.js under the existing CSP, also importable by node tests) holds `compareHeads` (the Rust table, case for case), `prefixToAsk`, `keptHeadsFrom` (bare SignedHouseHead or a table.proof.v2 bundle's `house.heads`), `witnessVerdict` and `lookToSave`. scoreboard.js: checkHeads asks `/v1/house/prefix?rows=N` for the newest shorter look, verifies the prefix signature with WebCrypto over canonical([\"table.house.prefix.v1\", prefix]), and words the result ('Extends what this browser saw at 14:02, signed by the house'). The 'Check it yourself' card gains 'Check a head you kept' (file input, read locally, never uploaded) listing one verdict per head, and 'Save this look'.\n\n## Flow\n- Visitor returns -> page fetches ledger, then one prefix at the last shorter look -> check line reads Extends (ok) / Rewritten (bad) / Longer (unknown, when Ed25519 is missing).\n- Buyer drops their proof file -> each kept head verified against the release agent key -> prefix fetched at its row count -> per-head verdict, receipt head first.\n- Save this look -> downloads house-head-<rows>.json usable as `table-verify --house ... --head <file>`.\n\n## Expected impact\nThe page's strongest claim becomes true rather than local-only, and the buyer witness the wallet runs every 15 minutes becomes something any judge can do in one drop, without the desktop app or the CLI.\n\n## Evaluation\nClaim: the page proves extension, not just non-shrinkage, and checks heads it did not see itself.\nBefore: 0 of 7 acceptance cases pass (no witness module, no prefix fetch, looks unsigned, no asset route)\nAfter: 7 of 7 (predicted)\nMethod: simulation - walked compare_heads (house_ledger.rs:139-171) against each case, and checkHeads (scoreboard.js:241-258) for the rewritten-and-longer case it passes today; the gate rung is the builder's\nResult: better\nGate: none (read-only public page; an existing route; no wire or contract change)",
+      "evidence": "scoreboard.js:248  if (cur.rows < s.rows && cur.at > s.at) return bad(...)\nscoreboard.js:249  if (cur.rows === s.rows && cur.hash !== s.hash) return bad(...)\n  -> rows 10 (hash A) then rows 14 whose row-10 hash is B: neither fires, check is 'ok'.\nhosted.rs:1078  .route(\"/v1/house/prefix\", get(crate::routes::prefix))\nhouse_ledger.rs:158-169  Some(p) if ... => if p.audit_head == kept.audit_head { Extends } else { Rewritten }\nSTATUS.md:1570  'scoreboard head consistency covers only this browser's earlier looks'"
+    }
+  ],
+  "riders": [
+    {"context": "relay-and-rendezvous", "checked": "crates/table-relay/src/lib.rs, services/rendezvous/src/lib.rs, main.rs read; hypothesis: MemoryStore's RelayApi impl collapses Full/Missing/Invalid to Unavailable (rendezvous lib.rs:291-313) so the HOUSE cannot tell a full store from an outage - real but S-sized; authenticated PUT/sealed mailbox is T19 (relay-and-rendezvous-1), post-submission and a wire contract change, so no card"},
+    {"context": "rendezvous-relay", "checked": "lib.rs, serve.rs signatures, DECISIONS 16 and 26; caller allowance, HOUSE reserve, long-poll cap and timeouts are all built and amended; remaining residual (two-address flood) needs authenticated create = T19, no card"},
+    {"context": "table-wire-protocol", "checked": "house.rs, house_ledger.rs, proof.rs, lib.rs and envelope/pairing/settlement signatures; compare_heads is the ground truth card B mirrors in JS; selective floor disclosure is T13 and the open spec is T17 (both post-submission, contract), so no protocol card"}
+  ],
+  "never_repropose_checked": "Ruled out as overlaps: T9 glass-box HOUSE (built; card B closes its recorded deviation instead), T19 sealed relay / relay-and-rendezvous-1 (post-submission contract), T8 RFQ (built), T13 selective disclosure, DECISIONS 26 relay exhaustion (built), DECISIONS 12 heartbeat (built), Council open items HOUSE slots/floor (built); card A closes open item C-9c, not a deck card."
+}

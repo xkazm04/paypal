@@ -1,0 +1,192 @@
+{
+  "host": "wallet-domain-primitives",
+  "files_read": [
+    "crates/table-core/src/lib.rs",
+    "crates/table-core/src/money.rs",
+    "crates/table-core/src/ids.rs",
+    "crates/table-core/src/canonical.rs",
+    "crates/table-core/src/deal.rs",
+    "crates/table-core/src/mandate.rs",
+    "crates/table-core/src/market.rs",
+    "crates/table-core/src/book.rs",
+    "crates/table-core/src/display.rs",
+    "crates/table-client/src/bin/generate-bindings.rs",
+    "crates/table-client/tests/bindings.rs (1-100)",
+    "crates/table-client/src/ladder.rs",
+    "crates/table-runtime/src/simulate.rs (120-200)",
+    "crates/table-attention/src/forecast.rs (120-140)",
+    "apps/desktop/client/src/windows/approval/mandateDraft.ts (275-420)",
+    "apps/desktop/client/src/mock/simulate.ts (1-130)",
+    "apps/desktop/client/src/lib/marketWatch.ts (19-23)",
+    "apps/desktop/client/src/windows/approval/gating.ts (40-75)",
+    "apps/desktop/client/src/lib/fairPrice.ts (40-66)",
+    "apps/desktop/client/src/mock/forecast.ts (1-50, 100-115)",
+    "apps/desktop/client/src/mock/exposure.ts (1-30)",
+    "apps/desktop/client/src/windows/approval/review/diff.ts (110-125)",
+    "docs/concepts/moonshot-backlog.md (§1, §1a, §4)",
+    "docs/build/STATUS.md (headings; T12 section 1485-1500)",
+    "docs/build/DECISIONS.md (§5, §39 head)"
+  ],
+  "cards": [
+    {
+      "context": "wallet-domain-primitives",
+      "slot": "A",
+      "lens": "architecture-challenger",
+      "title": "Mandate validation as one closed problem list in Rust, not three string copies",
+      "size": "M",
+      "effort": 6,
+      "impact": 8,
+      "risk": 5,
+      "write_set": [
+        "crates/table-core/src/mandate.rs",
+        "crates/table-client/src/mandate_problems.rs",
+        "crates/table-client/src/lib.rs",
+        "crates/table-client/src/bin/generate-bindings.rs",
+        "crates/table-client/tests/bindings.rs",
+        "bindings/MandateProblem.ts",
+        "bindings/mandateProblems.ts",
+        "apps/desktop/client/src/windows/approval/mandateDraft.ts",
+        "apps/desktop/client/src/windows/approval/mandateDraft.test.ts",
+        "apps/desktop/client/src/mock/simulate.ts",
+        "apps/desktop/client/src/mock/simulate.test.ts",
+        "apps/desktop/client/src/lib/marketWatch.ts"
+      ],
+      "new_files": [
+        "crates/table-client/src/mandate_problems.rs",
+        "bindings/MandateProblem.ts",
+        "bindings/mandateProblems.ts"
+      ],
+      "file_kinds": {
+        "crates/table-core/src/mandate.rs": "hand-edited",
+        "crates/table-client/src/mandate_problems.rs": "hand-edited",
+        "crates/table-client/src/lib.rs": "hand-edited",
+        "crates/table-client/src/bin/generate-bindings.rs": "hand-edited",
+        "crates/table-client/tests/bindings.rs": "hand-edited",
+        "bindings/MandateProblem.ts": "generated-by-generate-bindings (regen: cargo run -p table-client --bin generate-bindings)",
+        "bindings/mandateProblems.ts": "generated-by-generate-bindings (regen: cargo run -p table-client --bin generate-bindings)",
+        "apps/desktop/client/src/windows/approval/mandateDraft.ts": "hand-edited",
+        "apps/desktop/client/src/windows/approval/mandateDraft.test.ts": "hand-edited",
+        "apps/desktop/client/src/mock/simulate.ts": "hand-edited",
+        "apps/desktop/client/src/mock/simulate.test.ts": "hand-edited",
+        "apps/desktop/client/src/lib/marketWatch.ts": "hand-edited"
+      },
+      "shared_surfaces": [
+        "bindings/ directory (generate-bindings clean-set + orphan check in crates/table-client/tests/bindings.rs)",
+        "Refusal wire text 'mandate clause N: reason' (kept byte-identical; agent RefusalCode and F1 exact-message test depend on it)"
+      ],
+      "acceptance": [
+        "MandatePayload with an empty roles clause, an empty payees clause and no velocity clause -> problems() == [EmptyRoles, EmptyPayeeAllowance, RequiredClauseMissing{clause:5}] (all three, in validate order), while validate() still returns Refusal{clause:1, reason:\"empty roles\"} (first problem only, unchanged)",
+        "for every MandateProblem variant -> Refusal::from(problem).to_string() equals the exact text validate() produces today (golden list of the 23 current reasons, e.g. MandateProblem::BandLacksActingSide -> \"mandate clause 4: band lacks the side the allowed roles use\"); the existing mandate.rs tests (f1_refusal_message_is_exact, a_market_watch_rule_is_validated_at_signing, ...) pass unchanged",
+        "bindings/mandateProblems.ts edited by hand or a new variant added in Rust without regenerating -> cargo test -p table-client --test bindings fails with \"stale bindings/mandateProblems.ts; run generate-bindings\"",
+        "client: refusalWords(\"mandate clause 8: empty discount allowance\") -> \"These rules can’t be signed: it allows no discount.\", resolved through the generated MANDATE_PROBLEMS table (code lookup), and a test asserts every code in MANDATE_PROBLEMS has an entry in the plain-words table (typed Record<MandateProblem,string>, so a missing code is also a tsc error)",
+        "mock: mockValidate on a rescue mandate whose lever clause has max_discount_bp 0 -> {clause:8, reason:\"discount must be above 0% and below 100%\"} (today returns null: mock/simulate.ts has no lever case)",
+        "mock: mockValidate on a mandate whose roles include rescue but whose counterparties rule is paired -> {clause:8, reason:\"the rescue role and the fixes clause go together\"} or clause 2 rescue-subscribers reason, matching Rust's order (today null)",
+        "mock: mockValidate on a mandate whose lever max_discount is EUR while per_deal is USD -> {clause:8, reason:\"currency differs across clauses\"} (Rust mandate.rs:381 counts it; mock currency loop omits it)"
+      ],
+      "premise": [
+        "crates/table-core/src/mandate.rs:262 - validate() returns Result<(), Refusal> and stops at the first problem (early `return Err(Refusal::new(..., \"<free text>\"))` throughout 263-466)",
+        "crates/table-core/src/mandate.rs:140-148 - Refusal carries reason: String; the only typed field (cause) is #[serde(skip)] and covers clause 0/4 only",
+        "apps/desktop/client/src/windows/approval/mandateDraft.ts:351 - REFUSAL_WORDS: Record<string,string> keyed by the literal Rust reason strings (23 entries)",
+        "apps/desktop/client/src/windows/approval/mandateDraft.ts:379-380 - refusalWords strips /^mandate clause \\d+: / and looks the rest up by exact text; an unmatched text falls back to a generic sentence",
+        "apps/desktop/client/src/windows/approval/mandateDraft.ts:275 - ruleProblems() re-implements validate()'s rules in TypeScript a second time (with its own wording, e.g. :286 'nothing is allowed')",
+        "apps/desktop/client/src/windows/approval/mandateDraft.ts:400 - comment 'Mirror of Rust's role/side/kind pairing table'",
+        "apps/desktop/client/src/mock/simulate.ts:60-61 - '/** MandatePayload::validate(), with Rust's own reasons. */ export function mockValidate' is the third copy",
+        "apps/desktop/client/src/mock/simulate.ts:31 - lever is clause 8 in NUMBER, but mockValidate (61-104) has no lever case and no rescue/subscribers pairing check (Rust mandate.rs:316-340 and :408-419)",
+        "crates/table-core/src/mandate.rs:381 - the currency check counts Lever.max_discount; the mock's currency loop (simulate.ts ~86-93) lists per_deal, band, velocity, human_present_over only",
+        "apps/desktop/client/src/lib/marketWatch.ts:19-23 - a fourth partial copy of clause 9's reasons as string literals",
+        "crates/table-client/src/ladder.rs:1-12 - precedent: a Rust value emitted as a generated bindings/*.ts constant, freshness-checked in tests/bindings.rs:95-99",
+        "docs/build/DECISIONS.md §5 - 'MandatePayload::validate() and the client mirror refuse, at signing' (the mirror is a recorded, owner-visible duplication)"
+      ],
+      "rollback": "Revert the series: the Refusal wire form and text are unchanged, so reverting the Rust commit restores validate() bodies and the client commit restores the string-keyed table; regenerate bindings (the two new files disappear in the clean-set run).",
+      "gate": "contract",
+      "test_commands": [
+        "cargo test -p table-core mandate::",
+        "cargo test -p table-client --test bindings",
+        "cargo test -p table-client mandate_problems",
+        "pnpm --dir apps/desktop/client exec vitest run src/windows/approval/mandateDraft.test.ts src/mock/simulate.test.ts"
+      ],
+      "runner_up": "Currency minor-unit exponents are hand-copied in apps/desktop/client/src/lib/format.ts:10 (JPY 0, KWD/BHD 3) from Currency::exponent (money.rs:72-78): generate one currency table into bindings.",
+      "adopts": null,
+      "body": "## Summary\nMake `table-core` the only author of what makes a mandate unsignable: a closed `MandateProblem` enum, a `MandatePayload::problems()` that returns every problem, and a generated `bindings/mandateProblems.ts` table the client keys its plain words by, instead of three hand copies matched on English text.\n\n## Description\nToday `validate()` (mandate.rs:262) is written once in Rust with free-text reasons and copied twice in TypeScript: `ruleProblems` (mandateDraft.ts:275) for the live editor and `mockValidate` (mock/simulate.ts:61) for the browser mock. A fourth partial copy sits in lib/marketWatch.ts. The client turns Rust's REFUSED text into words through `REFUSAL_WORDS`, keyed by the exact English reason (mandateDraft.ts:351). The copies have already drifted: the mock has no lever (clause 8) checks, no rescue/subscribers pairing, and leaves the lever discount out of the currency check, so the judge path (mock) signs rescue mandates Rust refuses. Any rewording of a Rust reason silently drops the client to its generic fallback, and nothing fails.\n\nThe move: each `return Err(Refusal::new(n, \"...\"))` in validate becomes a `MandateProblem` variant with `clause()` and `reason()` (the reason text kept byte-identical). `problems()` collects them in today's order; `validate()` is `problems().first()` turned into a `Refusal`, so the wire and every agent refusal code stay the same. `table-client` emits `MandateProblem.ts` and `mandateProblems.ts` (code -> clause, reason) next to `ladder.ts`, freshness-checked by the existing bindings test. The client's word table becomes `Record<MandateProblem, string>` (a new Rust variant is a tsc error), `refusalWords` resolves text -> code through the generated table, and `mockValidate` returns codes with the missing lever and rescue checks added, pinned by tests.\n\n## Flow\n- Rust: MandateProblem enum + problems(); validate() delegates; golden test of the 23 reason texts.\n- table-client: mandate_problems::typescript(), generate-bindings writes it, tests/bindings.rs checks it and visits MandateProblem.\n- Client: REFUSAL_WORDS keyed by code; refusalWords via MANDATE_PROBLEMS; ruleProblems reuses the same word table where its rule matches a code.\n- Mock: mockValidate returns codes, gains lever + rescue + lever-currency checks.\n\n## Expected impact\nOne place to change a signing rule; a wording change or new rule cannot reach the owner as the generic 'they don’t fit' sentence; the mock (the no-install judge path) stops signing mandates the wallet refuses. It also gives the post-submission T13 clause tree a typed per-clause problem vocabulary to build on.\n\n## Evaluation\nClaim: the three validation copies collapse onto one Rust problem list, and the mock's drift is closed.\nBefore: 0 of 7 acceptance cases pass (no problems(), no generated table, mock returns null for the three lever/rescue cases).\nAfter: 7 of 7 (predicted)\nMethod: simulation - walked validate() 263-466 into an ordered variant list; walked mockValidate 61-104 against the lever/rescue/currency inputs; the gate rung is the builder's\nResult: better\nGate: contract (in-repo generated bindings only; the Refusal wire form and text are unchanged; nothing consumed outside the repo).",
+      "evidence": "crates/table-core/src/mandate.rs:262-468 validate() with ~23 literal reasons\napps/desktop/client/src/windows/approval/mandateDraft.ts:351  const REFUSAL_WORDS: Record<string, string> = { 'invalid mandate version or validity': ..., 'duplicate clause': ..., ... }\napps/desktop/client/src/windows/approval/mandateDraft.ts:379  export function refusalWords(message: string): string {\n  const why = REFUSAL_WORDS[message.replace(/^mandate clause \\d+: /, '')];\napps/desktop/client/src/mock/simulate.ts:60  /** MandatePayload::validate(), with Rust's own reasons. */\napps/desktop/client/src/mock/simulate.ts:61  export function mockValidate(p: MandatePayload): Refusal | null {   // no 'lever' case anywhere in 61-104\ncrates/table-core/src/mandate.rs:316-340 Clause::Lever checks; :381 Clause::Lever { max_discount, .. } => vec![*max_discount]\ncrates/table-client/src/ladder.rs:4-12 generated-constant precedent; crates/table-client/tests/bindings.rs:39 produced list, :95-99 freshness check"
+    },
+    {
+      "context": "wallet-domain-primitives",
+      "slot": "B-architecture (no UI surface)",
+      "lens": "architecture-challenger",
+      "title": "Derive the deal-state sets from transition() and generate them for the client",
+      "size": "M",
+      "effort": 5,
+      "impact": 7,
+      "risk": 4,
+      "write_set": [
+        "crates/table-core/src/deal.rs",
+        "crates/table-client/src/deal_states.rs",
+        "crates/table-client/src/lib.rs",
+        "crates/table-client/src/bin/generate-bindings.rs",
+        "crates/table-client/tests/bindings.rs",
+        "bindings/dealStates.ts",
+        "apps/desktop/client/src/windows/approval/gating.ts",
+        "apps/desktop/client/src/lib/fairPrice.ts",
+        "apps/desktop/client/src/lib/fairPrice.test.ts",
+        "apps/desktop/client/src/mock/exposure.ts",
+        "apps/desktop/client/src/mock/forecast.ts",
+        "apps/desktop/client/src/mock/forecast.test.ts"
+      ],
+      "new_files": [
+        "crates/table-client/src/deal_states.rs",
+        "bindings/dealStates.ts"
+      ],
+      "file_kinds": {
+        "crates/table-core/src/deal.rs": "hand-edited",
+        "crates/table-client/src/deal_states.rs": "hand-edited",
+        "crates/table-client/src/lib.rs": "hand-edited",
+        "crates/table-client/src/bin/generate-bindings.rs": "hand-edited",
+        "crates/table-client/tests/bindings.rs": "hand-edited",
+        "bindings/dealStates.ts": "generated-by-generate-bindings (regen: cargo run -p table-client --bin generate-bindings)",
+        "apps/desktop/client/src/windows/approval/gating.ts": "hand-edited",
+        "apps/desktop/client/src/lib/fairPrice.ts": "hand-edited",
+        "apps/desktop/client/src/lib/fairPrice.test.ts": "hand-edited",
+        "apps/desktop/client/src/mock/exposure.ts": "hand-edited",
+        "apps/desktop/client/src/mock/forecast.ts": "hand-edited",
+        "apps/desktop/client/src/mock/forecast.test.ts": "hand-edited"
+      },
+      "shared_surfaces": [
+        "bindings/ directory (generate-bindings clean-set + orphan check; same files as slot A - if both cards are built, serialize them)"
+      ],
+      "acceptance": [
+        "for every s in DealState::ALL -> DealState::withdrawable(s) == transition(s, DealEvent::Withdraw).is_ok(); AUTHORIZED is not withdrawable, APPROVED is",
+        "for every s in DealState::ALL -> s.is_agreed_or_later() == (s is reachable from PAIRING only through AGREED, computed by a breadth-first walk of transition() over every DealEvent) && !s.is_released(); and DealState::RELEASED is the filter of ALL by is_released (one list, not a second hand-written one)",
+        "bindings/dealStates.ts edited by hand or a predicate changed without regenerating -> cargo test -p table-client --test bindings fails with \"stale bindings/dealStates.ts; run generate-bindings\"",
+        "client gating: TERMINAL and WITHDRAWABLE are imported from @bindings/dealStates; isTerminal('UNCONFIRMED') -> true, isTerminal('CAPTURED') -> false, WITHDRAWABLE.has('AUTHORIZED') -> false (behaviour unchanged, copy removed)",
+        "mock forecast: mockForecast over one MISMATCH seller deal with a deadline inside the horizon -> [] (Rust forecast() skips terminal(); the mock's own TERMINAL at forecast.ts:15 omits MISMATCH, so today it emits a line)",
+        "mock fair price: fairPriceOf('EXPIRED', certifiedMarket, price).committed -> true (an EXPIRED deal went through AGREED; the mock's AGREED_OR_LATER at fairPrice.ts:53-55 omits EXPIRED today and returns false)"
+      ],
+      "premise": [
+        "crates/table-core/src/deal.rs:140-152 - RELEASED: [Self; 5] and is_released() list the same five states twice by hand",
+        "crates/table-core/src/deal.rs:155-170 - is_agreed_or_later() is a hand list; doc says 'every one reached through AGREED' but nothing derives it from transition()",
+        "crates/table-core/src/deal.rs:290 - Withdraw is allowed for `s.pre_capture() && s != S::Authorized`; the same guard repeats at :294 and :295",
+        "apps/desktop/client/src/windows/approval/gating.ts:54-57 - '/** Rust `DealState::terminal()`. */ export const TERMINAL' hand copy",
+        "apps/desktop/client/src/windows/approval/gating.ts:59-62 - '/** Rust `transition(s, Withdraw)` ... */ export const WITHDRAWABLE' hand copy",
+        "apps/desktop/client/src/mock/forecast.ts:15 - a TERMINAL set that includes CAPTURED/RECEIPTED and omits MISMATCH (differs from Rust terminal(), deal.rs:208-223, which forecast.rs:129 uses)",
+        "apps/desktop/client/src/mock/forecast.ts:107 - a second set in the same file, ENDED, documented as '`DealState::terminal()` in table-core'",
+        "apps/desktop/client/src/lib/fairPrice.ts:53-55 - AGREED_OR_LATER includes MISMATCH, VOIDED, AUTO_VOIDED and omits EXPIRED; Rust's is_agreed_or_later (deal.rs:155-170) has none of MISMATCH/VOIDED/AUTO_VOIDED",
+        "apps/desktop/client/src/mock/exposure.ts:15-16 - RELEASED and AGREED_OR_LATER copied a third time",
+        "crates/table-client/src/ladder.rs:1-12 and crates/table-client/tests/bindings.rs:95-99 - the generated-constant + freshness-test pattern to reuse"
+      ],
+      "rollback": "Revert the series; the TS sets return as local constants and bindings/dealStates.ts disappears on the next clean-set generate-bindings run. No wire, ledger or IPC change.",
+      "gate": "none",
+      "test_commands": [
+        "cargo test -p table-core deal::",
+        "cargo test -p table-client --test bindings",
+        "pnpm --dir apps/desktop/client exec vitest run src/windows/approval/gating.test.ts src/mock/forecast.test.ts src/lib/fairPrice.test.ts src/mock/exposure.test.ts"
+      ],
+      "runner_up": "Mandate check() refusals (mandate.rs:470-654) as closed codes rather than formatted String reasons, so RefusalCode stops depending on #[serde(skip)] cause + text constants (DEADLINE_REACHED/BAND_PRICE).",
+      "adopts": null,
+      "body": "## Summary\nDerive the deal-state classifications (withdrawable, released, agreed-or-later) from `transition()` itself, keep each as one list in `table-core`, and generate them into `bindings/dealStates.ts` so the approval window and the mock import them instead of keeping five hand copies.\n\n## Description\n`DealState` has 21 states and four hand-written predicates (pre_capture, terminal, is_released, is_agreed_or_later); `RELEASED` is written twice in the same file (deal.rs:140-152), and the withdraw rule `pre_capture && != Authorized` is spelled out three times inside `transition()`. The client copies these sets five more times (gating.ts TERMINAL/WITHDRAWABLE, fairPrice.ts, mock/exposure.ts, mock/forecast.ts twice), and two copies already disagree with Rust: the mock forecast forecasts MISMATCH deals Rust skips, and the mock fair price calls an EXPIRED deal uncommitted while MISMATCH (reachable from LISTED) counts as committed. Every new state (UNCONFIRMED was the last, DECISIONS §28) has to be added to 9 lists by hand.\n\nThe move: add `withdrawable()` and a test-time reachability walk over `transition()` that pins `is_agreed_or_later` and `RELEASED` to the graph; emit a `DEAL_STATES` value (`terminal`, `pre_capture`, `released`, `agreed_or_later`, `withdrawable`, each a `ReadonlySet<DealState>`) through `table-client` exactly like `ladder.ts`; replace the client copies with imports. forecast.ts's local TERMINAL becomes the Rust terminal set plus its own explicit 'nothing left to schedule' states, so the difference is named, not accidental.\n\n## Flow\n- table-core: withdrawable(); transition's Withdraw/Mismatch/Fail arms call it; graph-derived tests.\n- table-client: deal_states::typescript(); generate-bindings + bindings test.\n- Client: gating.ts, fairPrice.ts, mock/exposure.ts, mock/forecast.ts import @bindings/dealStates.\n\n## Expected impact\nA state added or reclassified in Rust reaches every window and the mock in one regenerate, and a stale copy fails CI. Fixes two live mock drifts on the judge path.\n\n## Evaluation\nClaim: the deal-state sets have one source, derived from the transition table, and the client cannot drift from it.\nBefore: 0 of 6 acceptance cases pass (no withdrawable(), no graph test, no generated file; mock forecast emits a MISMATCH line; fairPriceOf('EXPIRED').committed is false).\nAfter: 6 of 6 (predicted)\nMethod: simulation - walked transition() (deal.rs:264-299) by hand for reachability-through-AGREED: {AGREED, SETTLING, AWAITING_APPROVAL, APPROVED, AUTHORIZED, CAPTURED, RECEIPTED, RECONCILED, UNCONFIRMED, REFUNDED, DISPUTED, VOIDED, AUTO_VOIDED, EXPIRED}; minus released {VOIDED, AUTO_VOIDED, EXPIRED} equals is_agreed_or_later's 11; the gate rung is the builder's\nResult: better\nGate: none (no wire, ledger or IPC change; generated in-repo constant only).",
+      "evidence": "crates/table-core/src/deal.rs:140  pub const RELEASED: [Self; 5] = [Refused, Withdrawn, Expired, Voided, AutoVoided];\ncrates/table-core/src/deal.rs:147  pub const fn is_released(self) -> bool { matches!(self, Refused | Withdrawn | Expired | Voided | AutoVoided) }\ncrates/table-core/src/deal.rs:290  (s, E::Withdraw) if s.pre_capture() && s != S::Authorized => S::Withdrawn,\napps/desktop/client/src/windows/approval/gating.ts:54  /** Rust `DealState::terminal()`. */\napps/desktop/client/src/mock/forecast.ts:15  const TERMINAL = new Set(['CAPTURED','RECEIPTED','RECONCILED','WITHDRAWN','EXPIRED','REFUSED','FAILED','VOIDED','AUTO_VOIDED','REFUNDED','DISPUTED','UNCONFIRMED']);  // no MISMATCH\napps/desktop/client/src/mock/forecast.ts:107 /** `DealState::terminal()` in table-core. */ const ENDED = ...\napps/desktop/client/src/lib/fairPrice.ts:53 const AGREED_OR_LATER = ['AGREED',...,'MISMATCH','VOIDED','AUTO_VOIDED',...]  // no EXPIRED\napps/desktop/client/src/mock/exposure.ts:15-16 RELEASED / AGREED_OR_LATER copies\ncrates/table-attention/src/forecast.rs:129  if source.mode == Mode::Replay || source.state.terminal() { continue; }"
+    }
+  ],
+  "riders": [],
+  "never_repropose_checked": "Ruled out T12 mandate what-if (built; card A touches validate() not simulate/check replay), T11 authority manifest (built; covers commands/capabilities, not domain sets or refusal reasons), T14 exposure (built; card B only re-sources its mock's state sets), T13 clause tree (post-submission, not adopted), DECISIONS §5 (band fails closed - kept, its 'client mirror' is what card A collapses) and §39 (exact-text sentence matching precedent - card A removes that pattern for mandate refusals)."
+}
