@@ -297,11 +297,11 @@ body.w-tumbler #root { position: fixed; inset: 0; }
 .w-legend li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 6px; align-items: center; font-size: var(--fs-small); color: var(--muted); }
 .w-legend li > span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .w-legend li b { color: var(--text); font-weight: var(--fw-semibold); }
-.mini { width: 22px; height: 22px; }
+.mini { width: 26px; height: 26px; }
 .mini .mo { fill: var(--bg2); stroke: var(--line2); }
 .mini.ring-gold .mo { stroke: var(--gold); }
 .mini .mi { fill: var(--panel2); }
-.mini .m-n { font: var(--fw-bold) 9px var(--font); fill: var(--gold-l); }
+.mini .m-n { font: var(--fw-bold) var(--fs-small) var(--font); fill: var(--gold-l); transform: translateY(.8px); }
 .mini .m-bead { fill: var(--gold); }
 .mini .m-dash { stroke: var(--dim); }
 .mini .m-lock { stroke: var(--gold-l); }
@@ -326,7 +326,7 @@ body.w-tumbler #root { position: fixed; inset: 0; }
 .fr-step:hover:not([disabled]) { background: var(--hover); }
 .fr-step:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .fr-step[disabled] { cursor: default; }
-.fr-n { flex: none; width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font: var(--fw-semibold) 10px/1 var(--num); color: var(--muted); border: 1.25px solid var(--line2); }
+.fr-n { flex: none; width: var(--sp-5); height: var(--sp-5); border-radius: 50%; display: grid; place-items: center; font: var(--fw-semibold) var(--fs-small)/1 var(--num); color: var(--muted); border: 1.25px solid var(--line2); }
 .fr-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .s-next .fr-n { color: var(--on-gold); background: var(--gold); border-color: var(--gold); }
 .s-next .fr-t { font-weight: var(--fw-semibold); }

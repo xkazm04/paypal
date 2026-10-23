@@ -32,8 +32,8 @@
 .dr-state .dots i.bad { background: var(--refuse); }
 
 /* ---- marks: ✓ passes · ✕ fails · ! paused · ? not checked here · … waiting · i information --- */
-.dr-mark { display: inline-grid; place-items: center; width: 16px; height: 16px; flex: none; border-radius: 50%;
-  font: var(--fw-bold) 10px/1 var(--font); color: var(--on-ok); background: var(--ok); }
+.dr-mark { display: inline-grid; place-items: center; width: var(--sp-5); height: var(--sp-5); flex: none; border-radius: 50%;
+  font: var(--fw-bold) var(--fs-small)/1 var(--font); color: var(--on-ok); background: var(--ok); }
 .dr-mark.m-bad { color: var(--on-refuse); background: var(--refuse); }
 .dr-mark.m-hold { color: var(--on-gold); background: var(--coral); }
 .dr-mark.m-info { color: var(--muted); background: var(--panel3); font-style: italic; font-family: Georgia, serif; }
@@ -174,7 +174,7 @@
 .dr-hint { align-items: flex-start; }
 .dr-hint .t { min-width: 0; overflow-wrap: anywhere; line-height: 1.4; padding-top: 3px; }
 .dr-hint .ui-btn { flex: none; }
-.dr-hint > .dr-mark { width: 14px; height: 14px; font-size: 9px; }
+.dr-hint > .dr-mark { width: var(--sp-4); height: var(--sp-4); font-size: var(--fs-small); }
 .dr-hint .ui-chip .lock-glyph { width: 11px; height: 11px; }
 .dr-hint .hello-glyph { width: 18px; height: 18px; flex: none; animation: drHello 1.1s var(--ease) infinite alternate; }
 @keyframes drHello { from { opacity: .5; } to { opacity: 1; } }
@@ -254,8 +254,8 @@
 .dr-next .nx { list-style: none; margin: 0; padding: 0; display: grid; gap: 22px; }
 .nx-s { position: relative; display: flex; align-items: flex-start; gap: var(--sp-2); min-width: 0; padding: var(--sp-2) var(--sp-3);
   border-radius: var(--r); background: var(--panel2); box-shadow: inset 0 0 0 1px var(--line); }
-.nx-n { flex: none; display: grid; place-items: center; width: 18px; height: 18px; margin-top: 1px; border-radius: 50%;
-  font: var(--fw-bold) 11px/1 var(--num); color: var(--muted); background: var(--panel3); }
+.nx-n { flex: none; display: grid; place-items: center; width: var(--sp-5); height: var(--sp-5); margin-top: 1px; border-radius: 50%;
+  font: var(--fw-bold) var(--fs-small)/1 var(--num); color: var(--muted); background: var(--panel3); }
 .nx-t { min-width: 0; font-size: var(--fs-body); line-height: 1.35; color: var(--muted); text-wrap: pretty; }
 .nx-s.you .nx-n { color: var(--teal-l); background: color-mix(in srgb, var(--teal) 24%, transparent); }
 .nx-s.them .nx-n { color: var(--coral-l); background: color-mix(in srgb, var(--coral) 22%, transparent); }

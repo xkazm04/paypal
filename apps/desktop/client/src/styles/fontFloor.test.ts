@@ -4,8 +4,8 @@
 // file, rem against the root size the client sets (html { font-size: var(--fs-body) } = 14px, the
 // Tumbler's 13px), vw against 1280 (the Tumbler's own window is 440 wide), and min/max/clamp by their
 // lower bound. A size that depends on its parent (em, %) or its container (cq*) is counted, not judged.
-// The known sub-12px sizes are pinned in KNOWN_UNDER_FLOOR: a new one fails here, and so does one that
-// has been fixed and not removed from the list. STATUS.md acceptance U4 lists them.
+// The two SVG seal sizes are pinned in KNOWN_UNDER_FLOOR: a new sub-12px size fails here, and so does a
+// pinned one that has been fixed and not removed from the list.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -99,18 +99,11 @@ for (const [file, src] of Object.entries(css)) {
 const under = hits.filter((h) => h.px !== null && h.px < FLOOR);
 const relative = hits.filter((h) => h.px === null);
 
-/** Sub-12px sizes in the stylesheets today (recorded, not fixed by this test). Five are single
- *  numerals or marks inside a small aria-hidden badge (a step number, a review mark), one is the
- *  mini-window legend's numeral drawn in an SVG, and two are SVG text in the brand seal, whose size is
- *  in the drawing's own units (the seal is scaled by its box, so its on-screen size is not 1.85px). */
+/** The only sub-12px sizes left: SVG text in the brand seal, in the drawing's own user units (the seal is
+ *  scaled by its box, so its on-screen size is not 1.85px). Anything else under 12px fails here. */
 const KNOWN_UNDER_FLOOR: string[] = [
   'shared/brand/brand.css | .br-seal text | font-size: 1.85px = 1.85px',
   'shared/brand/brand.css | .br-seal text.deg | font-size: 1.9px = 1.9px',
-  'windows/approval/approval.css | .dr-hint > .dr-mark | font-size: 9px = 9px',
-  'windows/approval/approval.css | .dr-mark | font: 10px = 10px',
-  'windows/approval/approval.css | .nx-n | font: 11px = 11px',
-  'windows/tumbler/tumbler.css | .fr-n | font: 10px = 10px',
-  'windows/tumbler/tumbler.css | .mini .m-n | font: 9px = 9px',
 ];
 
 describe('U4: no UI text under 12 px (static check; the 1280 x 800 inspection on the native shell is still pending)', () => {
