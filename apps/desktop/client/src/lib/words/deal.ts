@@ -52,6 +52,7 @@ export const DEAL_ACT = {
   agentIs: (state: string, label: string): string => `Your agent is ${state} on ${label}`,
   agentRun: (state: string): string => `Agent ${state}`,
   agentRunTitle: (engine: string): string => `Running on ${engine}`,
+  lastRun: { clean: 'Your agent finished its last run', failed: 'Your agent stopped with an error', cancelled: 'Your agent was stopped' },
   fallback: 'Some names couldn’t be loaded, so short ids are shown.',
 } as const;
 

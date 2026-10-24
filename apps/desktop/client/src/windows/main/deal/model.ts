@@ -359,3 +359,10 @@ export function actingRun<R extends Pick<RunSnapshot, 'deal_id' | 'state'>>(runs
   const mine = (runs ?? []).filter((r) => r.deal_id === dealId);
   return mine.find((r) => r.state === 'running' || r.state === 'starting') ?? mine.at(-1) ?? null;
 }
+
+/** How the deal's last run ended, for the quiet line beside Start agent: the acting run when it is
+ *  finished, null while one is live or when the deal never had a run. Same ordering as actingRun. */
+export function lastFinishedRun<R extends Pick<RunSnapshot, 'deal_id' | 'state'>>(runs: readonly R[] | null | undefined, dealId: string): R | null {
+  const r = actingRun(runs, dealId);
+  return r && (r.state === 'clean' || r.state === 'failed' || r.state === 'cancelled') ? r : null;
+}
