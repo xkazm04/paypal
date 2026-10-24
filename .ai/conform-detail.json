@@ -6220,6 +6220,113 @@
           "reason": "replaced by 61964cab-f5d9-4d74-a217-fc9eeb5a9e27"
         }
       ]
+    },
+    "f4937131-9b2b-4830-92bf-e739e6fbaab4/prompt-assembly": {
+      "context": "deal-detail",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T01:40:02.184Z",
+      "worker": "f4544d34-8a38-4795-9bba-56ef27baea36",
+      "techniques": [
+        {
+          "technique": "layered-composition",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/deal/Instructions.tsx:16 Shows one finished playbook string verbatim. Nothing here composes layers or sends the result to a model."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "precondition unmet: the subject governs systems that own their assembler (prompt-assembly.md:127); apps/desktop/client/src/windows/main/deal/Instructions.tsx:19 only displays the compiled PLAYBOOKS constant read-only, the client assembles and sends no prompt",
+          "evaluatedAt": "2026-10-14",
+          "worker": null,
+          "reason": "replaced by f4544d34-8a38-4795-9bba-56ef27baea36"
+        }
+      ]
+    },
+    "82440528-c2ad-4c04-b22b-0874f0723589/prompt-assembly": {
+      "context": "money-guidance-and-onboarding",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T01:40:02.184Z",
+      "worker": "f4544d34-8a38-4795-9bba-56ef27baea36",
+      "techniques": [
+        {
+          "technique": "layered-composition",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/readEach.ts:1 A data-read helper. It composes no prompt."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "precondition unmet: no assembler is owned here (prompt-assembly.md:127); apps/desktop/client/src/lib/fairPrice.ts:1 and lib/firstRun.ts:1 are pure ports and first-run facts, the client builds no model prompt",
+          "evaluatedAt": "2026-10-14",
+          "worker": null,
+          "reason": "replaced by f4544d34-8a38-4795-9bba-56ef27baea36"
+        }
+      ]
+    },
+    "defa1695-a720-4e76-9d97-b09ece4d4394/prompt-assembly": {
+      "context": "main-window-shell",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T01:40:02.184Z",
+      "worker": "f4544d34-8a38-4795-9bba-56ef27baea36",
+      "techniques": [
+        {
+          "technique": "layered-composition",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/App.tsx:1 The app root wires providers and routing. It does no prompt composition."
+        }
+      ],
+      "superseded": [
+        {
+          "state": "not-applicable",
+          "evidence": "precondition unmet: no assembler is owned here (prompt-assembly.md:127); apps/desktop/client/src/windows/main/App.tsx:1 is window routing between Dial, modules and deal detail, the client builds no model prompt",
+          "evaluatedAt": "2026-10-14",
+          "worker": null,
+          "reason": "replaced by f4544d34-8a38-4795-9bba-56ef27baea36"
+        }
+      ]
+    },
+    "c02a6103-08a3-462b-84a7-23d7c9ec8c58/prompt-assembly": {
+      "context": "console-framework",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T01:40:02.184Z",
+      "worker": "f4544d34-8a38-4795-9bba-56ef27baea36",
+      "techniques": [
+        {
+          "technique": "layered-composition",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/console/Console.tsx:1 The 'stack of layers' here is a UI sheet stack. It is not a prompt layer stack."
+        }
+      ]
+    },
+    "ff286e5d-5254-42d4-bb14-70a4d2d080f3/prompt-assembly": {
+      "context": "client-data-layer",
+      "subject": "prompt-assembly",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T01:40:02.184Z",
+      "worker": "f4544d34-8a38-4795-9bba-56ef27baea36",
+      "techniques": [
+        {
+          "technique": "fingerprinting-and-cache-keys",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/lib/data/invoke.ts:1 The cache keys and read budget here govern query results, not prompt prefixes."
+        }
+      ]
     }
   }
 }
