@@ -2488,7 +2488,11 @@
           "revision": 51,
           "changedAt": "2026-10-15",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/review/says.ts:4 The deal-review modules build display text only from facts the wallet reports, and 'transcript' here means the signed negotiation record, not agent memory; a search of the approval directory for episod, consolidat, belief, embedding and memories found nothing, so there is no agent memory pipeline here.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
+          "evaluatedRevision": 51
         },
         {
           "subject": "hitl-approval",
@@ -3092,7 +3096,11 @@
           "revision": 51,
           "changedAt": "2026-10-15",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/director/stories.ts:4 The director is a browser-only rig that replays scripted story beats over a mock world, with no agent and no memory store; a search of src/director for episod, consolidat, belief, embedding and memories found nothing (the 'resetTourMemory' hits are onboarding-tour UI state), so the subject's precondition does not hold.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
+          "evaluatedRevision": 51
         },
         {
           "subject": "agent-runtime-assembly",
@@ -7242,7 +7250,11 @@
           "revision": 51,
           "changedAt": "2026-10-15",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/shared/honesty.tsx:3 These are presentational honesty components (mode badges, money, countdowns, quarantine box), plus the start steps and coach-mark tour, whose only 'memory' is tour-progress UI state; a search of src/shared for episod, consolidat, belief, embedding and memories found nothing, so there is no agent memory for the subject to govern.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
+          "evaluatedRevision": 51
         },
         {
           "subject": "test-harness",
@@ -8211,7 +8223,11 @@
           "revision": 51,
           "changedAt": "2026-10-15",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/tumbler/logic.ts:171 The Tumbler is a stateless view that draws Rust's attention snapshot and keeps no state of its own; a case-insensitive search of its directory for episod, consolidat, belief, embedding and memories found nothing, so it has no agent working, episodic or consolidated store for the subject to govern.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
+          "evaluatedRevision": 51
         },
         {
           "subject": "test-harness",
@@ -8433,7 +8449,11 @@
           "revision": 51,
           "changedAt": "2026-10-15",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-app/src/agent_request.rs:13 The trusted app layer checks agent intents against fixed role playbooks, mandates and the signed transcript, and holds no agent-learned memory (its 'in memory' comments refer to process-RAM read schedules); a search of crates/table-app for episod, consolidat, belief, embedding and memories found nothing, so nothing here captures, consolidates, decays or recalls agent memory.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:4f054116d66a9495",
+          "evaluatedRevision": 51
         },
         {
           "subject": "quality-gates",
