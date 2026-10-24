@@ -237,11 +237,17 @@ export function buildDiff(i: DiffInput): Diff {
       const bandRel = relWithin(d.terms.unit_price, ceiling);
       const present = clauseOf(i.mandate, 'human_present_over');
       const presentRel = present ? relWithin(total, present.c.amount) : '?';
+      // The price range is a limit per item (the wallet checks the signed unit price against it);
+      // the ask-me line and the limit per deal are on the total. With more than one item the
+      // range is never set beside the total.
+      const many = d.terms.qty > 1;
+      const each = formatMoney(d.terms.unit_price);
+      const perItem = many ? ' per item' : '';
       const rows: DiffRow[] = [
         s.counter_hash
-          ? { id: 'offer', name: 'Their offer', left: 'what you’re asked to accept', right: `${T} · their latest`, rel: '✓', tone: 'ok', word: 'signed', src: `${who}’s latest offer, signed by their wallet. Approving binds exactly this offer.` }
+          ? { id: 'offer', name: 'Their offer', left: 'what you’re asked to accept', right: `${many ? `${d.terms.qty} × ${each} = ` : ''}${T} · their latest`, rel: '✓', tone: 'ok', word: 'signed', src: `${who}’s latest offer, signed by their wallet. Approving binds exactly this offer.` }
           : { id: 'offer', name: 'Their offer', left: 'what you’re asked to accept', right: null, rel: '?', tone: 'info', src: 'Their latest offer has not reached this window yet.' },
-        { id: 'band', name: 'Price range', left: ceiling ? `most you’ll pay ${formatMoney(ceiling)}` : 'the most you’ll pay', right: ceiling ? formatMoney(d.terms.unit_price) : null, rel: bandRel, tone: toneOf(bandRel), src: i.band ? 'The price range on this deal, against their price per item.' : bandClause ? `Your signed rules, rule ${bandClause.n} (price range).` : 'No price range is visible to this window.' },
+        { id: 'band', name: 'Price range', left: ceiling ? `most you’ll pay ${formatMoney(ceiling)}${perItem}` : 'the most you’ll pay', right: ceiling ? `${each}${many ? ' each' : ''}` : null, rel: bandRel, tone: toneOf(bandRel), src: i.band ? 'The price range on this deal, against their price per item.' : bandClause ? `Your signed rules, rule ${bandClause.n} (price range), against their price per item.` : 'No price range is visible to this window.' },
         i.band
           ? { id: 'rounds', name: 'Offers', left: `${i.band.max_rounds} offers allowed`, right: `offer ${i.band.rounds_used} of ${i.band.max_rounds}`, rel: i.band.rounds_used <= i.band.max_rounds ? '≤' : '>', tone: i.band.rounds_used <= i.band.max_rounds ? 'ok' : 'bad', src: 'The price range on this deal: how many offers each side may make.' }
           : { id: 'rounds', name: 'Offers', left: 'the offer limit', right: null, rel: '?', tone: 'info', src: 'This deal shows no price range, so the offer limit can’t be checked here.' },
@@ -254,7 +260,7 @@ export function buildDiff(i: DiffInput): Diff {
       const op: Rel = ceiling ? (bandRel === '≤' ? '≥' : '<') : '?';
       return {
         kind, heads: ['Your rules say', `${who} offers`], rows,
-        twin: { left: { k: 'Most you’ll pay', v: ceiling ? formatMoney(ceiling) : null }, op, right: { k: `${who} asks`, v: T }, tone: op === '≥' ? 'ok' : op === '<' ? 'bad' : 'info' },
+        twin: { left: { k: `Most you’ll pay${perItem}`, v: ceiling ? formatMoney(ceiling) : null }, op, right: { k: `${who} asks${perItem}`, v: many ? each : T }, tone: op === '≥' ? 'ok' : op === '<' ? 'bad' : 'info' },
       };
     }
 
