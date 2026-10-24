@@ -1364,31 +1364,33 @@
       "context": "home-overview",
       "subject": "fleet-orchestration",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-15",
-      "evaluatedTs": "2026-10-15T22:09:13.430Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "88deba77-7515-4568-af9e-0da0c4950a89",
-        "state": "not-applicable",
-        "at": "2026-10-15T22:10:10.819638+00:00",
-        "reason": "reviewer (sonnet): AwayCard.tsx:32 is a useAway hook that reads 'last seen', and it doesn't show that no session roster is managed; Home.tsx and Start.tsx also have agent-app and engine_status UI that the evidence doesn't address."
-      }
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T03:25:21.903Z",
+      "worker": "fda3b390-da0c-4960-a934-55b2110018c2",
+      "techniques": [
+        {
+          "technique": "session-registry",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/main/home/away.ts:85 Agent activity reaches Home only as a step's authority label, never as a run entry."
+        }
+      ]
     },
     "ed618215-bf0a-4dfc-8c2c-3c3a805321b1/fleet-orchestration": {
       "context": "prototype-dial-shell-and-design-system",
       "subject": "fleet-orchestration",
       "bundle": "software-engineering",
-      "state": "unknown",
-      "evaluatedAt": "2026-10-15",
-      "evaluatedTs": "2026-10-15T22:09:13.430Z",
-      "techniques": [],
-      "withdrawn": {
-        "worker": "88deba77-7515-4568-af9e-0da0c4950a89",
-        "state": "not-applicable",
-        "at": "2026-10-15T22:10:10.845179+00:00",
-        "reason": "reviewer (sonnet): modules.js:65 is only the S state object and deal copying; the context's fixtures.js defines a roster of six named agents with engine claude-code and the prototype renders it, so the line doesn't show the precondition is absent."
-      }
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T03:25:21.903Z",
+      "worker": "fda3b390-da0c-4960-a934-55b2110018c2",
+      "techniques": [
+        {
+          "technique": "parallel-dispatch",
+          "verdict": "not-applicable",
+          "evidence": "prototype/shared/shell.js:1 Navigation shell only. Nothing dispatches sessions."
+        }
+      ]
     },
     "60b8c7a9-421c-43fa-aff2-d1ede8cf38d9/hitl-approval": {
       "context": "approval-window-shell",
@@ -6620,6 +6622,27 @@
       "evaluatedTs": "2026-10-24T03:08:13.011Z",
       "worker": "aaa8e1be-f4b4-4c9b-acf6-99bb4e2d7fb2",
       "techniques": []
+    },
+    "f4937131-9b2b-4830-92bf-e739e6fbaab4/fleet-orchestration": {
+      "context": "deal-detail",
+      "subject": "fleet-orchestration",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T03:25:21.903Z",
+      "worker": "fda3b390-da0c-4960-a934-55b2110018c2",
+      "techniques": [
+        {
+          "technique": "absent-status-passthrough",
+          "verdict": "deviation",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/deal/DealPage.tsx:242 `?? []` substitutes a definite empty fleet for an absent projection, and DealLayer gates on deals/displays readiness, not on runs."
+        },
+        {
+          "technique": "session-registry",
+          "verdict": "conformant",
+          "evidence": "apps/desktop/client/src/windows/main/console/areas/deal/InstructionsValue.tsx:4 The UI consumes the generated RunSnapshot/RunState binding and keeps no parallel status enum."
+        }
+      ]
     }
   }
 }
