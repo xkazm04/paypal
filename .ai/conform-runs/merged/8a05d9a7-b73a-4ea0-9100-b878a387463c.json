@@ -1,0 +1,217 @@
+{
+ "schema": "conform-run/1",
+ "worker": "8a05d9a7-b73a-4ea0-9100-b878a387463c",
+ "subject": "authorization",
+ "evaluatedAt": "2026-10-24T05:25:00.189572+00:00",
+ "provider": "claude",
+ "model": "claude-opus-5-5",
+ "pairs": [
+  {
+   "context": "offline-proof-verifier",
+   "subject": "authorization",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-verify/src/lib.rs:31 Check is a four-valued verdict (passed / failed / could-not-compare / does-not-apply) but publishes one `ok` boolean that folds every not-checked case into false, and the two `verified()` accessors fold it differently (lib.rs `c.ok || !c.applies`, house.rs `c.ok`), so a new consumer that reads `!check.ok` as 'failed' cannot tell that from 'no claim'.",
+   "techniques": [
+    {
+     "technique": "one-accessor-per-fold-direction",
+     "verdict": "deviation",
+     "evidence": "crates/table-verify/src/lib.rs:31 A single isX field on a verdict wider than two values; the rule says no single boolean, so each caller has to name its fold by accessor. The fold goes the strict direction (not-checked never counts as verified), which keeps the risk low."
+    },
+    {
+     "technique": "authorization-audit",
+     "verdict": "conformant",
+     "evidence": "crates/table-verify/src/authority.rs:137 The authority kernel returns the reason, not a boolean: which authority made a step lawful, or why it did not."
+    },
+    {
+     "technique": "failure-direction",
+     "verdict": "conformant",
+     "evidence": "crates/table-verify/src/authority.rs:76 Any method other than GET or POST is unclassified (treated as money-shaped), never a read. Line 148 also refuses a step with no money.authorized row."
+    },
+    {
+     "technique": "privilege-tiers",
+     "verdict": "conformant",
+     "evidence": "crates/table-verify/src/authority.rs:66 Calls are classified by worst reachable effect, inside a closed MoneyOp vocabulary (line 11). An unnamed POST path or a query string also lands on Unclassified."
+    },
+    {
+     "technique": "delegated-authority",
+     "verdict": "conformant",
+     "evidence": "crates/table-verify/src/authority.rs:247 A step decided under a seller or house mandate is lawful only if the delegating mandate is this deal's own signed one. DecidedBy keeps on-whose-authority apart from what performed the step."
+    },
+    {
+     "technique": "declarative-requirements",
+     "verdict": "conformant",
+     "evidence": "crates/table-verify/src/authority.rs:48 Each money step's required owner decision is an exhaustive const match on the closed enum, so a new step that names no requirement does not compile."
+    },
+    {
+     "technique": "dispatch-chokepoint-gating",
+     "verdict": "not-applicable",
+     "evidence": "crates/table-verify/src/main.rs:4 Offline file checker: no command dispatch surface and no caller channel to gate."
+    }
+   ],
+   "registryProposal": "one-accessor-per-fold-direction is written for authority verdicts that can fold permissively. An after-the-fact verifier whose only boolean folds toward 'not verified' is a weaker case; the technique could say whether a strict-direction single boolean beside disambiguating fields is still a deviation."
+  },
+  {
+   "context": "runtime-money-controls",
+   "subject": "authorization",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "crates/table-runtime/src/simulate.rs:1 The mandate and wallet-limits what-ifs implemented here (mandate_simulate, envelope_simulate) are classified OPEN, needing no token and no unlock, while the mandate_sign and envelope_sign actions they preview are PRIVILEGED, so the preview sits a tier below its action.",
+   "techniques": [
+    {
+     "technique": "privilege-tiers",
+     "verdict": "deviation",
+     "evidence": "crates/table-runtime/src/simulate.rs:1 Breaks 'a preview inherits the tier of the action it previews'. The tier rows live in crates/table-client/src/authority_table.rs (lines 262-263, 278): mandate_simulate and envelope_simulate are APPROVAL/Read/OPEN; mandate_sign and envelope_sign are APPROVAL/Owner/PRIVILEGED."
+    },
+    {
+     "technique": "dispatch-chokepoint-gating",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/limits_tests.rs:109 Test drives envelope_sign through Runtime::execute: main/tumbler with the token, and approval without it, get PERMISSION; an idle-locked approval window gets LOCKED, all before the handler runs."
+    },
+    {
+     "technique": "failure-direction",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/limits.rs:84 Unverifiable signed limits fail closed (agents' money out is refused) and are reported as Unverified, not as absent."
+    },
+    {
+     "technique": "one-accessor-per-fold-direction",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/limits.rs:69 No limits and unverifiable limits stay two distinct enum values (None / Unverified / Expired / Active); no boolean collapses them."
+    },
+    {
+     "technique": "delegated-authority",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/groups.rs:94 Deferred work (group withdrawals on a tick) re-checks the deal's own mandate and agent key at execute time and skips what cannot be resolved; rescue.rs:310 does the same for rescue ticks."
+    },
+    {
+     "technique": "authorization-audit",
+     "verdict": "conformant",
+     "evidence": "crates/table-runtime/src/safety.rs:23 Refusal-audit gaps (rate-capped and failed writes) are surfaced in the owner's safety record rather than hidden: audit failure is visible, not blocking."
+    }
+   ],
+   "registryProposal": "privilege-tiers' preview rule rests on reconnaissance. Here the inputs the what-if discloses (limits in force via envelope_get ALL/OPEN, deal history via deal_history MAIN/OPEN) are already readable at OPEN, and the what-if is limited to the approval window's native label. The technique could say whether a preview that discloses nothing beyond same-tier reads may sit below its action, or whether the rule stays unconditional."
+  },
+  {
+   "context": "approval-window-shell",
+   "subject": "authorization",
+   "bundle": "software-engineering",
+   "state": "deviation",
+   "evidence": "apps/desktop/client/src/windows/approval/session.tsx:62 The approval window gets its channel proof by asking for it over IPC (approval_token, which Rust gates only on the window label) instead of having it injected at bootstrap, so any script running in that window can request the proof again.",
+   "techniques": [
+    {
+     "technique": "dispatch-chokepoint-gating",
+     "verdict": "deviation",
+     "evidence": "apps/desktop/client/src/windows/approval/session.tsx:62 The technique says 'Injected, not requested'. The proof is held only in a ref and is presented on every privileged call (line 86), and there is a retry path, but delivery is a label-gated request, not an injection."
+    },
+    {
+     "technique": "failure-direction",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/gating.ts:109 A missing checklist (older shell) allows no money decision; session.tsx:81 also refuses a privileged call locally when no token is held."
+    },
+    {
+     "technique": "one-accessor-per-fold-direction",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/gating.ts:19 Gate keeps hidden and disabled as two facts (visible / enabled / reason), not one boolean; optional Rust flags are folded explicitly (`=== true`, 'absent means false')."
+    },
+    {
+     "technique": "delegated-authority",
+     "verdict": "conformant",
+     "evidence": "apps/desktop/client/src/windows/approval/selection.ts:41 What the main window forwards is display only; authority is never inferred from the forwarding channel, and Rust re-checks it on sign."
+    },
+    {
+     "technique": "ceiling-before-consent",
+     "verdict": "not-applicable",
+     "evidence": "apps/desktop/client/src/windows/approval/PairingConfirm.tsx:7 Pairing pins a peer key with a fixed meaning. No requester-named scope list reaches the approval surface; its content comes from Rust."
+    }
+   ],
+   "registryProposal": "dispatch-chokepoint-gating treats any requested proof as weaker than an injected one. In webview shells where the backend sees a window label the page cannot forge, a label-gated fetch makes the same once-per-surface trust decision as injection; script in the same page could read an injected bootstrap value too. The technique could say whether a label-gated fetch is an accepted injection path or a deviation."
+  },
+  {
+   "context": "design-system-styles",
+   "subject": "authorization",
+   "bundle": "software-engineering",
+   "state": "not-applicable",
+   "evidence": "apps/desktop/client/src/shared/brand/index.ts:2 The context is CSS tokens and presentational SVG components that call no command and make no access decision. A case-insensitive search of apps/desktop/client/src/design and apps/desktop/client/src/shared/brand for permission, authoriz, privileged, capability, grant, invoke and admit found no hit.",
+   "techniques": [],
+   "absenceTerms": [
+    "permission",
+    "authoriz",
+    "privileged",
+    "capability",
+    "grant"
+   ]
+  }
+ ],
+ "declined": [],
+ "consults": [
+  {
+   "ts": "2026-10-24T05:25:00.189572+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "authorization"
+   ],
+   "techniques": [
+    "authorization-audit",
+    "declarative-requirements",
+    "delegated-authority",
+    "dispatch-chokepoint-gating",
+    "failure-direction",
+    "one-accessor-per-fold-direction",
+    "privilege-tiers"
+   ],
+   "deviations": 1,
+   "context": "offline-proof-verifier",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T05:25:00.189572+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "authorization"
+   ],
+   "techniques": [
+    "authorization-audit",
+    "delegated-authority",
+    "dispatch-chokepoint-gating",
+    "failure-direction",
+    "one-accessor-per-fold-direction",
+    "privilege-tiers"
+   ],
+   "deviations": 1,
+   "context": "runtime-money-controls",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T05:25:00.189572+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "authorization"
+   ],
+   "techniques": [
+    "ceiling-before-consent",
+    "delegated-authority",
+    "dispatch-chokepoint-gating",
+    "failure-direction",
+    "one-accessor-per-fold-direction"
+   ],
+   "deviations": 1,
+   "context": "approval-window-shell",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  },
+  {
+   "ts": "2026-10-24T05:25:00.189572+00:00",
+   "bundle": "software-engineering",
+   "subjects": [
+    "authorization"
+   ],
+   "techniques": [],
+   "deviations": 0,
+   "context": "design-system-styles",
+   "via": "curator-multi:claude",
+   "model": "claude-opus-5-5"
+  }
+ ]
+}
