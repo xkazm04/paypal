@@ -14,7 +14,7 @@ import { WalletNotice } from '../../../../../shared/honesty';
 import { Btn, Chip, Kv } from '../../../../../shared/ui';
 import { silenceParts } from '../../../home/model';
 import { dealTotal, sumByCurrency } from '../../../logic';
-import { atRiskOf, recovered, type Col, type NotCountedWhy } from '../../../modules/rescue/model';
+import { atRiskOf, isReplay, recovered, type Col, type NotCountedWhy } from '../../../modules/rescue/model';
 import { moneyList, rescueStrip } from '../../../modules/rescue/preview';
 import { Loading } from '../../../ui';
 import { useModuleRoute } from '../../../viewNav';
@@ -25,19 +25,21 @@ import { MAX_ROWS, type LatestProps } from '../../Latest';
 import { ModuleLayer } from '../../ModuleLayer';
 import { cap, CompareCells, CountChip, DeskDetail, deskLine, FixPanel, HandOff, RescueState, useRescueWorld, type RescueWorld } from './parts';
 
-/** The answer, from the rows alone. Only a really paid rescue turns it green. */
-function answerOf(r: RescueWorld): { answer: string; sub: string } {
+/** The answer, from the rows alone. Only a really paid rescue turns it green. What doing nothing does
+ *  is said of the renewal named first: a replay has no failed payment at PayPal to retry. */
+export function answerOf(r: RescueWorld): { answer: string; sub: string } {
   const got = r.book ? moneyList(r.book.recovered) : null;
   const first = r.rows.failing[0];
   if (first) {
     const n = r.rows.failing.length;
     const asks = r.rows.failing.some((d) => !!r.need(d));
     const t = atRiskOf(first, r.book);
+    const quiet = isReplay(first, r.view(first)) ? RESCUE.answer.replay : RESCUE.answer.retries;
     const sums = sumByCurrency(r.rows.failing.map((d) => atRiskOf(d, r.book))).map((m) => formatMinor(m.minor, m.currency)).join(' · ');
     return {
-      answer: n === 1 ? RESCUE.answer.one(cap(r.name(first)), formatMinor(t.minor, t.currency), asks) : RESCUE.answer.many(n, sums, asks),
+      answer: n === 1 ? RESCUE.answer.one(cap(r.name(first)), formatMinor(t.minor, t.currency), asks, isReplay(first, r.view(first))) : RESCUE.answer.many(n, sums, asks),
       // With several, the one the gold action opens is named: the soonest PayPal retry.
-      sub: n > 1 ? `${RESCUE.answer.soonest(cap(r.name(first)), formatMinor(t.minor, t.currency))} ${RESCUE.answer.retries}` : RESCUE.answer.retries,
+      sub: n > 1 ? `${RESCUE.answer.soonest(cap(r.name(first)), formatMinor(t.minor, t.currency))} ${quiet}` : quiet,
     };
   }
   const waiting = r.rows.inflight.length;

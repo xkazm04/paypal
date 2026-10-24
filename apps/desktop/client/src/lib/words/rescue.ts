@@ -41,9 +41,11 @@ export const RESCUE = {
   never: 'Never a price change for everyone on the plan: changing the plan price would change it for every subscriber, not just the one who is struggling. No fix, agent or approval can do that from here, by design.',
 
   answer: {
-    one: (name: string, amount: string, asks: boolean) => `${name}’s ${amount} renewal failed.${asks ? ' Your call.' : ' PayPal retries on its own.'}`,
+    one: (name: string, amount: string, asks: boolean, replay = false) => `${name}’s ${amount} renewal failed.${asks ? ' Your call.' : replay ? ' Nothing is sent without you.' : ' PayPal retries on its own.'}`,
     many: (n: number, sums: string, asks: boolean) => `${n} renewals failed, ${sums} in all.${asks ? ' Your call on each.' : ' PayPal retries on its own.'}`,
     retries: 'If you do nothing, PayPal retries the payment by itself.',
+    /** A replayed failure: PayPal has no failed payment of it, so nothing retries it. */
+    replay: 'It’s a replay: if you do nothing, nothing is sent and PayPal has nothing to retry.',
     soonest: (name: string, amount: string) => `Soonest: ${name}’s ${amount} renewal.`,
     none: 'No renewal is failing right now.',
     waiting: (n: number) => `${n} fix${n === 1 ? ' is' : 'es are'} waiting for the subscriber.`,
@@ -102,6 +104,10 @@ export const RESCUE = {
   /** PayPal's own retry, only when the wallet knows its time (never the fix's deadline). */
   retriesIn: (t: string) => `PayPal retries in ${t}`,
   retriesOwn: 'PayPal retries on its own',
+  /** A replayed failure has no failed payment at PayPal, so the do-nothing card promises no retry. */
+  replayNoRetry: 'A replay: PayPal has nothing to retry',
+  /** The "if you do nothing" line of a replayed failure (the wallet's own line names a PayPal retry). */
+  replaySilence: 'nothing is sent · a replay, so PayPal has nothing to retry',
   /** The fix's deadline: Rust lets an unapproved fix lapse then, and nothing is sent. */
   closes: (at: string, left: string) => `This fix is open until ${at} (${left} left). If you haven’t approved it by then, it closes and nothing is sent.`,
   offerLine: (pct: string, invoice: string, cycle: string) => `${pct} off: ${invoice} instead of ${cycle}`,
@@ -114,11 +120,13 @@ export const RESCUE = {
   } satisfies Record<FixKey, { name: string; does: string }>,
   whyNotOffered: 'Why aren’t these offered?',
   nothingSafe: 'Doing nothing is always safe: PayPal retries on its own.',
+  nothingSafeReplay: 'Doing nothing is always safe: nothing is sent.',
 
   nothingDoes: {
     sent: 'Nothing is sent: no PayPal call, no email.',
     retry: (left: string, at: string) => `PayPal retries the payment by itself in ${left} (${at}). If that works, it is paid without a fix.`,
     noRetry: 'PayPal retries the payment by itself; your wallet hasn’t been told when. If that works, it is paid without a fix.',
+    replay: 'This failure is a replay, so PayPal has no failed payment to retry. Nothing happens unless you approve a fix.',
     never: 'If you never decide, nothing is ever sent.',
   },
   fix: {

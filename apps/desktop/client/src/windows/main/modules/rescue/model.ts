@@ -72,7 +72,8 @@ export function retryLeft(deadline: number, now: number): string {
  *  (RescueView.next_retry_at). Never the fix's deadline: without PayPal's time, Rust gives the fix a
  *  window of its own (table-app RESCUE_RETRY_DEFAULT_SECS, 5 days), which is not a PayPal date. Every
  *  "PayPal retries ..." line reads this; the deadline only says when the fix closes. */
-export function paypalRetry(view: Pick<RescueView, 'next_retry_at'> | null | undefined, now: number): number | null {
+export function paypalRetry(view: Pick<RescueView, 'next_retry_at' | 'source'> | null | undefined, now: number): number | null {
+  if (view?.source === 'replay') return null; // a replay has no failed payment at PayPal (Rust records none)
   const at = view?.next_retry_at ?? null;
   return at !== null && at > now ? at : null;
 }
@@ -89,6 +90,10 @@ export function cellState(d: Pick<Deal, 'mode'>, col: Col, retryAt: number | nul
   }
   return { kind: 'off', code: 'NOT_BUILT', why: NOT_BUILT };
 }
+
+/** A replayed failure (labelled REPLAY by the owner, PayPal can't fail a test renewal): there is no
+ *  failed payment at PayPal, so no surface promises that PayPal retries it. */
+export const isReplay = (d: Pick<Deal, 'mode'>, view?: Pick<RescueView, 'source'> | null): boolean => d.mode === 'replay' || view?.source === 'replay';
 
 /** A fix the owner can pick on the card: the computed discount, or doing nothing. */
 export const pickable = (st: CellState): boolean => st.kind === 'default' || st.kind === 'offer';
