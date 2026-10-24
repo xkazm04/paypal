@@ -82,6 +82,8 @@ export function DetailsSheet(p: {
   steps: Step[];
   countdown: ReactNode;
   summary: ApprovalSummary;
+  /** Past the decision (or never decided): the list is the wallet's as it reads now. */
+  decided?: boolean;
   transcript: readonly TranscriptStep[] | undefined;
   transcriptError: WalletError | null;
 }) {
@@ -89,7 +91,7 @@ export function DetailsSheet(p: {
   const ev = p.summary.evidence;
   return (
     <Sheet title={p.title} onClose={p.onClose} size="wide" className="dr-sheet" footer={<Btn kind="primary" onClick={p.onClose}>Done</Btn>}>
-      <Sec title="What your wallet checked · your decision is bound to exactly this list">
+      <Sec title={p.decided ? 'What your wallet checks now' : 'What your wallet checked · your decision is bound to exactly this list'}>
         <div className="ui-group srcs wc-srcs">
           {p.summary.checks.map((c) => (
             <div key={c.id} className="src" data-check={c.id}>

@@ -103,6 +103,8 @@
 /* ---- status lines ---------------------------------------------------------------------------- */
 .dr-status { display: flex; align-items: center; gap: var(--sp-2); min-height: var(--row); min-width: 0; }
 .dr-status .t { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-weight: var(--fw-medium); }
+.dr-bound { margin: 0; display: flex; align-items: flex-start; gap: var(--sp-2); min-width: 0; font-size: var(--fs-small); color: var(--muted); }
+.dr-bound .t { min-width: 0; overflow-wrap: anywhere; }
 .dr-poll { margin: 0; display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--fs-small); color: var(--teal-l); }
 .dr-poll::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--teal); animation: drPulse 1.4s ease-in-out infinite; flex: none; }
 @keyframes drPulse { 50% { opacity: .25; } }
