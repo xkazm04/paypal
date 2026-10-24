@@ -2644,7 +2644,11 @@
           "revision": 1,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/listingCode.ts:15 A 'listing' in this context is a seller's deal for goods or services (office, parts, compute, service, other) that the owner approves or rejects, not a third-party artifact that gets installed. A search of apps/desktop/client/src/windows/approval for plugin, marketplace, takedown, moderator and attestation found nothing, so the subject's precondition does not hold.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:73cd603a9565e95c",
+          "evaluatedRevision": 2
         },
         {
           "subject": "plan-review",
@@ -3717,7 +3721,11 @@
           "revision": 1,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "services/house-seller/src/environment.rs:116 The house's 'release' is its own owner publishing the house's public keys and signed mandate, and its 'floor' is a negotiation price floor, so no third-party artifact is distributed. A search of services/house-seller for plugin, marketplace, takedown, moderator and attestation found nothing, so the subject's precondition does not hold.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:73cd603a9565e95c",
+          "evaluatedRevision": 2
         },
         {
           "subject": "agent-instruction-files",
@@ -8180,7 +8188,11 @@
           "revision": 1,
           "changedAt": "2026-09-03",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "crates/table-proto/src/house.rs:26 The only 'release' in the protocol is one first-party house counterparty identity, pinned at compile time from a build env var. There is no index, catalogue or third-party statement source. A search of crates/table-proto for plugin, marketplace, takedown, moderator and attestation found nothing, so the subject's precondition does not hold.",
+          "evaluatedAt": "2026-10-24",
+          "evaluatedAgainst": "sha256-b2:73cd603a9565e95c",
+          "evaluatedRevision": 2
         },
         {
           "subject": "mcp-tools",

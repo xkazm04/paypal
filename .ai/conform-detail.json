@@ -7341,6 +7341,55 @@
           "evidence": "prototype/shared/shell.js:1 'Shared' means a browser-side nav bar reused by pages. It is not a resource contended by concurrent sessions."
         }
       ]
+    },
+    "1b4ef14a-5a8a-438c-988d-365c439b153d/decentralized-artifact-distribution": {
+      "context": "deal-review",
+      "subject": "decentralized-artifact-distribution",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T06:01:41.268Z",
+      "worker": "c5fc20c0-8e1a-448a-a76e-08781f96b833",
+      "techniques": [
+        {
+          "technique": "verdict-bound-to-the-exact-revision",
+          "verdict": "not-applicable",
+          "evidence": "apps/desktop/client/src/windows/approval/listingCode.ts:5 The code checks that the seller's signed listing matches the same terms. That is two-party consent to deal terms, not a third party's approval bound to an artifact revision."
+        }
+      ]
+    },
+    "7d8f5eca-7fb1-49f4-9000-ed9926d9ad5f/decentralized-artifact-distribution": {
+      "context": "table-wire-protocol",
+      "subject": "decentralized-artifact-distribution",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T06:01:41.268Z",
+      "worker": "c5fc20c0-8e1a-448a-a76e-08781f96b833",
+      "techniques": [
+        {
+          "technique": "fail-closed-trust-dependency",
+          "verdict": "not-applicable",
+          "evidence": "crates/table-proto/src/house.rs:28 The pinned release is verified locally against a compiled-in value. No live third-party trust source exists whose outage could matter."
+        }
+      ]
+    },
+    "eec42666-8620-4b0d-8d2e-bc418a280b71/decentralized-artifact-distribution": {
+      "context": "house-seller-service",
+      "subject": "decentralized-artifact-distribution",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-10-24",
+      "evaluatedTs": "2026-10-24T06:01:41.268Z",
+      "worker": "c5fc20c0-8e1a-448a-a76e-08781f96b833",
+      "techniques": [
+        {
+          "technique": "publisher-declared-verification-floor",
+          "verdict": "not-applicable",
+          "evidence": "services/house-seller/src/bin/house-sign.rs:1 The owner signs a price mandate offline. There is no build-provenance or attestation requirement, and no third-party publisher being checked."
+        }
+      ],
+      "registryProposal": "The map matched this subject to these contexts on shared words that mean something else here: 'review', 'approval', 'listing' and 'floor' are about deals, and 'floor' is a price floor rather than a verification floor. Requiring a term like plugin, extension or artifact before matching would cut these false matches."
     }
   }
 }
