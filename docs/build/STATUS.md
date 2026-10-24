@@ -2674,3 +2674,38 @@ Found: a buyer table cannot open on a listing above its ceiling (the deal's term
 Gates (worktree): `cargo fmt --all --check` clean; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo test --workspace` 914 passed / 0 failed / 10 ignored. Client (`pnpm install --frozen-lockfile` in apps/desktop/client): `npx tsc --noEmit` clean, `npx vitest run` 204 files / 1970 tests passed (was 204 / 1963). The merge gate does not run tsc or vitest.
 
 - robustness-4 (full r2) fixed: actor reports the Failed run snapshot and any run.finish audit fault on the engine-error path (bdceccc).
+
+## Tiger deepening: owner-approval-decision (2026-10-24)
+
+Record: `docs/build/tiger/2026-10-24-owner-approval-decision.md`. It holds the thesis, the scope and
+what waits on the operator.
+
+The pass ran `single-family`: no council, because convening needs a seats worktree and this headless
+brief forbids creating one. Built under the operator's 2026-10-24 standup authorisation. Display
+only, inside `apps/desktop/client/src/windows/approval/`, with no IPC, gate or money-path change:
+
+- **677e73e** On a table of more than one item, the accept sets the price range beside the price per
+  item (the wallet's band rule is per item, mandate.rs:503). It no longer sets the total beside it:
+  2 × $300 had read "Dan offers $600.00, inside your $340.00 limit". Test: `review/perItem.test.ts`.
+- **dfa9acb** "Why am I being asked?" and the accept note state the ask-me rule as the wallet applies
+  it: it asks only strictly above the limit. Under or at the limit they no longer say "not to the
+  agent". The Who decides row no longer calls an equal or uncomparable offer "below". Tests:
+  `review/askMe.test.ts`, `review/why.test.ts`. The old pin asserted the untrue sentence and is
+  replaced.
+- **1dee2c5** After a successful hold, the window names the checklist the decision was bound to: "the
+  checks you saw (4 of 6 passed · 2 checked later)", which the wallet re-checked and recorded with
+  the decision. The fold over the checklist no longer reads "Your checks before you decided" over
+  the current list, which also showed on deals never decided. It now reads "The wallet's checks
+  now". Test: `bound.render.test.tsx`, which holds "Approve $329.00".
+
+Waits on the operator:
+- S2: the accept's gold button reads "approve", while the heading says "accept".
+- L1: the `owner.decision` row, then and now, in the window.
+- S1: the bound line for the PayPal hand-off.
+- L2: "after this" wallet-limit line. It needs a Rust read.
+- F2: `docs/features/approval-window.md`, outside this pass's paths, doesn't yet describe the new
+  lines.
+
+Gates (worktree, `pnpm install --frozen-lockfile` in apps/desktop/client): `npx tsc --noEmit` clean,
+`npx vitest run` 207 files / 2002 tests passed. No crate was touched, so cargo was not run for this
+pass. The merge gate (cargo) does not run tsc or vitest.
